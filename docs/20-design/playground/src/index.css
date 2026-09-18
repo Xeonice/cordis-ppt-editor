@@ -1,0 +1,553 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    /* OCE 主题：取值与 04-design-system 一致（已核算对比度），映射到 shadcn 语义变量 */
+    --background: #FFFFFF;
+    --foreground: #1A2030;
+    --card: #FFFFFF;
+    --card-foreground: #1A2030;
+    --popover: #FFFFFF;
+    --popover-foreground: #1A2030;
+    --primary: #3A5CE6;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F5F6F8;
+    --secondary-foreground: #1A2030;
+    --muted: #F5F6F8;
+    --muted-foreground: #5F6B80;
+    --accent: #EEF0F4;
+    --accent-foreground: #1A2030;
+    --destructive: #D92D20;
+    --border: #E4E7EC;
+    --input: #DFE3EA;
+    --border-control: #757F8F;
+    --ring: #3A5CE6;
+    --chart-1: #3A5CE6;
+    --chart-2: #0E8A7A;
+    --chart-3: #D9480F;
+    --chart-4: #B45309;
+    --chart-5: #0B7FBF;
+    --radius: 0.5rem;
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #1A2030;
+    --sidebar-primary: #3A5CE6;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #EEF0F4;
+    --sidebar-accent-foreground: #1A2030;
+    --sidebar-border: #E4E7EC;
+    --sidebar-ring: #3A5CE6;
+    /* OCE 扩展：语义色（文字用 -foreground 深色版，图标/描边用主色） */
+    --success: #1E9E5A; --success-foreground: #146B3D; --success-muted: #E6F6ED;
+    --warning: #B76E00; --warning-foreground: #8A5300; --warning-muted: #FFF4E0;
+    --info: #1570CF; --info-foreground: #0C4A93; --info-muted: #E7F1FE;
+    --canvas: #EEF1F8;
+    --doc-paper: #FFFFFF; --doc-ink: #1A2030;
+    --stage: #0A0A0A; --stage-chrome: rgba(22,22,22,.85); --stage-foreground: #FFFFFF;
+    --presence-1: #8B5CF6; --presence-2: #DB2777; --presence-3: #D9480F; --presence-4: #B45309;
+    --presence-5: #0E8A7A; --presence-6: #0B7FBF; --presence-7: #C026D3; --presence-8: #64748B;
+    --presence-9: #7C3AED; --presence-10: #BE185D; --presence-11: #C2410C; --presence-12: #0F766E;
+}
+
+.dark {
+    --background: #151A26;
+    --foreground: #F1F3F8;
+    --card: #1C2233;
+    --card-foreground: #F1F3F8;
+    --popover: #1C2233;
+    --popover-foreground: #F1F3F8;
+    --primary: #6B93FF;
+    --primary-foreground: #101425;
+    --secondary: #262E40;
+    --secondary-foreground: #F1F3F8;
+    --muted: #232A3B;
+    --muted-foreground: #8A94A6;
+    --accent: #2C3548;
+    --accent-foreground: #F1F3F8;
+    --destructive: #F0685E;
+    --border: #2A3245;
+    --input: #6B7689;
+    --border-control: #6B7689;
+    --ring: #7DA2FF;
+    --chart-1: #6B93FF;
+    --chart-2: #3BC682;
+    --chart-3: #E2A33D;
+    --chart-4: #F0685E;
+    --chart-5: #5AA6EE;
+    --sidebar: #151A26;
+    --sidebar-foreground: #F1F3F8;
+    --sidebar-primary: #6B93FF;
+    --sidebar-primary-foreground: #101425;
+    --sidebar-accent: #2C3548;
+    --sidebar-accent-foreground: #F1F3F8;
+    --sidebar-border: #2A3245;
+    --sidebar-ring: #7DA2FF;
+    --success: #3BC682; --success-foreground: #8DF0BB; --success-muted: rgba(59,198,130,.16);
+    --warning: #E2A33D; --warning-foreground: #F3C578; --warning-muted: rgba(226,163,61,.16);
+    --info: #5AA6EE; --info-foreground: #9AC8F5; --info-muted: rgba(90,166,238,.16);
+    --canvas: #101523;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+/* OCE 扩展 token 注册为 Tailwind 颜色（bg-success / text-warning-foreground / bg-canvas / bg-doc-paper …） */
+@theme inline {
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-muted: var(--success-muted);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-muted: var(--warning-muted);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-muted: var(--info-muted);
+    --color-canvas: var(--canvas);
+    --color-doc-paper: var(--doc-paper);
+    --color-doc-ink: var(--doc-ink);
+    --color-stage: var(--stage);
+    --color-stage-chrome: var(--stage-chrome);
+    --color-stage-foreground: var(--stage-foreground);
+    --color-presence-1: var(--presence-1); --color-presence-2: var(--presence-2); --color-presence-3: var(--presence-3);
+    --color-presence-4: var(--presence-4); --color-presence-5: var(--presence-5); --color-presence-6: var(--presence-6);
+    --color-presence-7: var(--presence-7); --color-presence-8: var(--presence-8); --color-presence-9: var(--presence-9);
+    --color-presence-10: var(--presence-10); --color-presence-11: var(--presence-11); --color-presence-12: var(--presence-12);
+}
+
+@layer base {
+    html { font-variant-numeric: tabular-nums; }
+    body { background: var(--canvas); }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+}
+
+/* OCE：11px 字阶，仅用于徽标与画布标签（规范 09 §1.3） */
+@theme inline {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+}
+
+/* ============================================================
+   Liquid Glass 材质 token（iOS 27 / macOS Tahoe 适配桌面 Web）
+   依据 ui-ux-pro-max 检索（glassmorphism / frosted glass dark mode contrast）：
+   - 模糊建议 10–20px、白 15–30% 仅适用于"鲜艳背景"上的玻璃；本项目画布是柔和中性渐变
+     （非高饱和色块），若照搬 15–30% 会让玻璃面板上的文字对比度不足，故提高到 72%/84%，
+     并用 24px 模糊 + 150% 饱和度补偿"看起来更通透"的质感。
+   - 文字必须 ≥4.5:1；因此文字密集面板（工具卡/侧栏/检查器/弹层）统一使用更不透明的
+     glass-strong（84%/78%），画布区背景等纯装饰层用 glass（72%/62%）。
+   ============================================================ */
+:root {
+  --glass-bg: rgba(255, 255, 255, .72);
+  --glass-bg-strong: rgba(255, 255, 255, .84);
+  --glass-border-color: rgba(255, 255, 255, .55);
+  --glass-blur: blur(24px) saturate(150%);
+  --glass-shadow:
+    0 0 0 1px rgba(15, 20, 40, .08),
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 8px 32px rgba(20, 25, 50, .10),
+    0 1px 2px rgba(20, 25, 50, .06);
+  --canvas-glow:
+    radial-gradient(760px 520px at 16% 10%, rgba(74, 84, 225, .13), transparent 60%),
+    radial-gradient(680px 480px at 88% 84%, rgba(14, 138, 122, .10), transparent 60%),
+    linear-gradient(165deg, #EEF1F8 0%, #E9ECF5 46%, #EEF3F3 100%);
+}
+
+.dark {
+  /* iOS 27 暗色边缘：rim 用更黑而非更白，避免暗色玻璃在浅色内容上"发灰" */
+  --glass-bg: rgba(28, 34, 52, .62);
+  --glass-bg-strong: rgba(28, 34, 52, .78);
+  --glass-border-color: rgba(255, 255, 255, .10);
+  --glass-shadow:
+    0 0 0 1px rgba(0, 0, 0, .35),
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    0 12px 40px rgba(0, 0, 0, .45);
+  --canvas-glow:
+    radial-gradient(760px 520px at 16% 8%, rgba(111, 121, 238, .18), transparent 60%),
+    radial-gradient(680px 480px at 88% 86%, rgba(59, 198, 130, .11), transparent 60%),
+    linear-gradient(165deg, #101523 0%, #0B0F19 100%);
+}
+
+@utility glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+@utility glass-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* 退化规则（§6.3）见下方"弹层玻璃化"之后的两个块：必须排在浮层 data-slot 规则之后才能同优先级靠顺序胜出 */
+
+/* 环境背景：给 --canvas 叠一层柔和径向光斑，让浮在上面的玻璃面板有东西可透。
+   幻灯片纸面 --doc-paper 保持不透明白（内容层不做玻璃，符合 HIG）。 */
+@layer base {
+  body { background-image: var(--canvas-glow); }
+  .bg-canvas { background-image: var(--canvas-glow); }
+}
+
+/* ============================================================
+   弹层玻璃化：popover / dropdown / context-menu / select / dialog /
+   sheet / command 统一用 glass-strong（文字密度高，取高不透明度档）。
+   规则写在这里而不改 src/components/ui/*：Tailwind v4 的 @import "tailwindcss"
+   把 bg-popover / ring-1 / shadow-lg 等都放进 utilities 层，本文件里未包在
+   @layer 内的规则属于"未分层"样式，按层叠层级规范恒优先于任何已分层样式，
+   因此下面这些裸选择器可以稳定覆盖 ui/* 组件自带的背景/描边/阴影，无需 !important。
+   ============================================================ */
+[data-slot="popover-content"],
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="context-menu-content"],
+[data-slot="context-menu-sub-content"],
+[data-slot="select-content"],
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
+[data-slot="sheet-content"],
+[data-slot="drawer-content"],
+[data-slot="menubar-content"],
+[data-slot="menubar-sub-content"],
+[data-slot="hover-card-content"],
+[data-slot="command"] {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+}
+
+/* command 嵌在 popover-content 里用（如评论 @提及），去掉双重描边/双重玻璃 */
+[data-slot="popover-content"] [data-slot="command"] {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* 对话框/抽屉遮罩：更轻的黑 + 模糊，避免完全遮蔽下方的渐变环境 */
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-overlay"],
+[data-slot="drawer-overlay"] {
+  background: rgba(0, 0, 0, .20);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* 工具提示：固定深色玻璃小胶囊，不跟随明暗主题翻转，保证反色文字始终清晰可读 */
+[data-slot="tooltip-content"] {
+  background: rgba(20, 22, 34, .82);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  color: #F5F6FA;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 8px 24px rgba(0, 0, 0, .35);
+}
+[data-slot="tooltip-content"] .fill-foreground {
+  fill: rgba(20, 22, 34, .82);
+}
+[data-slot="tooltip-content"] [data-slot="kbd"] {
+  background: rgba(255, 255, 255, .14);
+  color: #F5F6FA;
+}
+
+/* ============================================================
+   §6.3 退化规则（设计 04 §6.3）：系统关闭透明效果（prefers-reduced-transparency）或浏览器不支持
+   backdrop-filter 时，玻璃材质（.glass / .glass-strong）与全部浮层（上方 data-slot 列表，两处列表须保持一致）
+   一起退化为不透明卡片 + 普通阴影；-webkit-backdrop-filter 始终写在 backdrop-filter 之前。
+   两块内容相同，分别对应两个触发条件。
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass-strong,
+  [data-slot="popover-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="context-menu-content"],
+  [data-slot="context-menu-sub-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="menubar-content"],
+  [data-slot="menubar-sub-content"],
+  [data-slot="hover-card-content"],
+  [data-slot="command"] {
+    background: var(--card);
+    border-color: var(--border);
+    box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* 工具提示保持不透明深色（不随 --card 翻白），箭头 fill 与内嵌 Kbd 的反色规则继续成立 */
+  [data-slot="tooltip-content"] {
+    background: #141622;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* 遮罩失去模糊后加深，仍能把焦点留在对话框/抽屉上 */
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-slot="drawer-overlay"] {
+    background: rgb(0 0 0 / .40);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .glass, .glass-strong,
+  [data-slot="popover-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="context-menu-content"],
+  [data-slot="context-menu-sub-content"],
+  [data-slot="select-content"],
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="sheet-content"],
+  [data-slot="drawer-content"],
+  [data-slot="menubar-content"],
+  [data-slot="menubar-sub-content"],
+  [data-slot="hover-card-content"],
+  [data-slot="command"] {
+    background: var(--card);
+    border-color: var(--border);
+    box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* 工具提示保持不透明深色（不随 --card 翻白），箭头 fill 与内嵌 Kbd 的反色规则继续成立 */
+  [data-slot="tooltip-content"] {
+    background: #141622;
+    box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* 遮罩失去模糊后加深，仍能把焦点留在对话框/抽屉上 */
+  [data-slot="dialog-overlay"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-slot="drawer-overlay"] {
+    background: rgb(0 0 0 / .40);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* 检查器属性分区：iOS 分组内嵌列表风格——rounded-xl + 3% 前景色底 + 12px 半粗淡色标题。
+   只加一个 .inspector-groups 标记类在 <Accordion> 上，其余用 data-slot 选择器接管视觉，
+   不改 ui/accordion.tsx。 */
+/* 修正 2026-09-16（用户："属性面板那块少了间距"）：.inspector-groups 标记类加在 <Accordion> 根元素自身上，
+   原选择器 `.inspector-groups [data-slot="accordion"]` 是后代选择器，永远匹配不到根元素，导致分组之间的 gap 从未生效，
+   分区又去掉了 Rhea 的分隔线，于是折叠行紧贴成一团。现同时匹配"自身"与"后代"，并按 iOS 分组列表节奏放大间距。 */
+.inspector-groups[data-slot="accordion"],
+.inspector-groups [data-slot="accordion"] {
+  display: flex;
+  flex-direction: column;
+  gap: .625rem;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+.inspector-groups [data-slot="accordion-item"] {
+  /* 2026-09-16 配色修正：面板/分组/字段曾是三层同调浅灰（用户："配色上有点问题"）。
+     改为 Apple 表单层次：浅灰底（玻璃面板）→ 白色分组卡 + 发丝描边与极淡投影 → 灰色字段 → 文字，三层明暗交替。 */
+  border: none;
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgb(15 20 40 / 0.06), 0 1px 2px rgb(15 20 40 / 0.04);
+  overflow: hidden;
+}
+.inspector-groups [data-slot="accordion-item"][data-state="open"] {
+  box-shadow: 0 0 0 1px rgb(15 20 40 / 0.08), 0 2px 6px rgb(15 20 40 / 0.05);
+}
+.dark .inspector-groups [data-slot="accordion-item"] {
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+.dark .inspector-groups [data-slot="accordion-item"][data-state="open"] {
+  background: rgb(255 255 255 / 0.07);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+/* 分组所在的内容区给一层极淡的灰"井"，让白卡从近白的玻璃面板上浮出来（iOS 分组页背景 #F2F2F7 的玻璃版） */
+.inspector-groups[data-slot="accordion"] {
+  /* Rhea Accordion 根自带 w-full；配合外边距（m-3）会超出面板 12px（2026-09-17 用户截图）。改为 auto：块级 flex 自动填满"容器减外边距"。 */
+  width: auto;
+  padding: 0;
+  background: transparent;
+}
+.inspector-groups [data-slot="accordion-trigger"] {
+  min-height: 2.25rem;
+  padding: .625rem .75rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in oklch, var(--foreground) 70%, transparent);
+}
+.inspector-groups [data-slot="accordion-content"] {
+  padding: 0 .75rem .75rem;
+}
+.inspector-groups [data-slot="accordion-content"] > div {
+  row-gap: .625rem;
+}
+
+/* 总编排 2026-09-16：胶囊页签在玻璃面板上的选中态加强。
+   Rhea 默认 TabsList bg-muted + 选中 bg-background，在 84% 白玻璃上几乎不可辨（精修 A 报告）；
+   用 data-slot 规则而非改复制件（09 v3.0 §5.2）。 */
+[data-slot="tabs-list"] {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+[data-slot="tabs-trigger"][data-state="active"] {
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(15 20 40 / 0.1), 0 0 0 1px rgb(15 20 40 / 0.05);
+}
+.dark [data-slot="tabs-list"] {
+  background: color-mix(in oklab, white 7%, transparent);
+}
+.dark [data-slot="tabs-trigger"][data-state="active"] {
+  background: rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* 总编排 2026-09-16：Toggle / ToggleGroup 选中态显式化。
+   Rhea 默认 aria-pressed:bg-muted 依赖 --muted 比表面更亮；在玻璃面板上（尤其暗色）选中态曾呈"凹陷黑洞"（用户截图）。
+   与 tabs 规则同一套语言：浅色用前景 8% 底，暗色用白 14% 底 + 内高光；文字一律 --foreground。 */
+[data-slot="toggle"][aria-pressed="true"],
+[data-slot="toggle-group-item"][data-state="on"] {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 0 0 1px rgb(15 20 40 / 0.06);
+}
+.dark [data-slot="toggle"][aria-pressed="true"],
+.dark [data-slot="toggle-group-item"][data-state="on"] {
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* 总编排 2026-09-16：宿主覆盖防线。
+   claude.ai artifact 查看器等嵌入宿主会给 body 注入**未分层**的 color/font/background（实测：body{font:14px -apple-system…;background:#faf9f5;color:#141413}），
+   而 Tailwind 的 @layer base 声明在层叠上永远输给未分层规则——暗色下所有继承色的文字因此变成近黑色（用户截图）。
+   以下声明必须保持未分层、并位于样式表末尾，才能在同优先级下靠顺序胜出。 */
+body {
+  color: var(--foreground);
+  background-color: var(--canvas);
+  background-image: var(--canvas-glow);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 总编排 2026-09-16：浅色字段 token（用户截图：浅色下输入框/下拉是一块偏重的中灰，像禁用态）。
+   Rhea 的 Input/Select/Textarea/InputGroup 用 `bg-input/50` 作填充、`border-transparent`，即 --input 是"字段填充基色"而非描边色；
+   Nova 时代 --input=#8A93A2 是按 3:1 描边算的，50% 叠白后成 #C4C9D0 的重灰。现改为 #DFE3EA（叠白 ≈ #EFF1F5，iOS 三级填充的蓝灰版），
+   描边需求另设 --border-control（浅 #757F8F〔2026-09-18 由 #A3ABB9 提高：白底 4.05:1 / 画布 3.58:1 / 字段填充 3.14:1，满足 WCAG 1.4.11〕/ 暗 #6B7689）。说明文字 --muted-foreground 浅色由 #667085 加深到 #5F6B80，在字段填充上 ≥ 4.7:1。 */
+@theme inline {
+  --color-border-control: var(--border-control);
+}
+[data-slot="input"]:hover:not(:disabled):not(:focus-visible),
+[data-slot="textarea"]:hover:not(:disabled):not(:focus-visible),
+[data-slot="select-trigger"]:hover:not(:disabled),
+[data-slot="input-group"]:hover {
+  background-color: color-mix(in oklab, var(--input) 64%, transparent);
+}
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select-trigger"][data-state="open"],
+[data-slot="input-group"]:focus-within {
+  background-color: var(--card);
+}
+.dark [data-slot="input"]:focus-visible,
+.dark [data-slot="textarea"]:focus-visible,
+.dark [data-slot="select-trigger"][data-state="open"],
+.dark [data-slot="input-group"]:focus-within {
+  background-color: rgb(255 255 255 / 0.1);
+}
+/* 描边型分段控件（主题切换等）需要可辨识的控件边界，不随字段填充基色变淡 */
+[data-slot="toggle-group-item"][data-variant="outline"],
+[data-slot="toggle"][data-variant="outline"] {
+  border-color: var(--border-control);
+}
+
+/* 分组卡（iOS/macOS 表单层次）的公共类：.oce-well 是承载分组的浅灰"井"，.oce-group 是白色分组卡 + 发丝描边。
+   检查器（.inspector-groups）与设置抽屉共用同一取值，避免各处再手写 bg-foreground/[.03]。 */
+/* 2026-09-17 用户反馈"叠色过多"：井层不再着色，只保留布局用途——玻璃面板 → 白色分组卡 → 灰字段 共两层色阶即可 */
+.oce-well {
+  border-radius: var(--radius-2xl);
+  background: transparent;
+}
+.oce-group {
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgb(15 20 40 / 0.06), 0 1px 2px rgb(15 20 40 / 0.04);
+}
+.dark .oce-group {
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+/* 评审 12 §2 #3：在场头像重叠过深，首字母被遮。Rhea AvatarGroup 默认 -space-x-2（8px），改为 6px 并保持 ring 分隔。 */
+[data-slot="avatar-group"] > :not(:last-child) { margin-inline-end: -0.375rem; }

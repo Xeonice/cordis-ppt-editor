@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28 设计页签与主题 · OCE Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .theme-card{width:96px;flex-shrink:0}
+  .theme-card .gallery-thumb{height:54px}
+  .variant-strip{display:flex;height:100%}
+  .variant-strip span{flex:1}
+  .color-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--oce-space-2) var(--oce-space-3)}
+  .color-slot{display:flex;align-items:center;gap:6px;font-size:var(--oce-font-size-xs)}
+  .color-slot input[type=text]{width:70px;height:26px;border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-sm);background:var(--oce-color-bg-inset);padding:0 6px;font-size:11px}
+  .font-preview{font-size:20px;padding:var(--oce-space-2);border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-sm);background:var(--oce-color-bg-inset);margin-top:4px}
+  .theme-tabs{display:flex;gap:2px;background:var(--oce-color-bg-inset);border-radius:var(--oce-radius-md);padding:2px;margin-bottom:var(--oce-space-3)}
+  .theme-tabs button{flex:1;min-height:28px;border-radius:var(--oce-radius-sm);border:none;background:none;font-size:var(--oce-font-size-xs);color:var(--oce-color-text-secondary)}
+  .theme-tabs button[aria-selected="true"]{background:var(--oce-color-bg-surface);color:var(--oce-color-accent-default);font-weight:600;box-shadow:var(--oce-shadow-sm)}
+  .theme-panel{display:none}.theme-panel.active{display:block}
+</style>
+</head>
+<body data-density="compact">
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
+<symbol id="i-close" viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></symbol>
+<symbol id="i-palette" viewBox="0 0 16 16"><path d="M8 1.7a6.3 6.3 0 1 0 0 12.6c.9 0 1.4-.5 1.4-1.2 0-.4-.2-.7-.2-1.1 0-.6.5-1 1.1-1H11a3.3 3.3 0 0 0 3.3-3.3c0-3.3-2.9-6-6.3-6Z"/><circle cx="4.8" cy="7.2" r=".8" fill="currentColor" stroke="none"/><circle cx="7" cy="4.7" r=".8" fill="currentColor" stroke="none"/><circle cx="10" cy="5.3" r=".8" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-typeface" viewBox="0 0 16 16"><text x="1.2" y="12.3" font-size="11.5" font-weight="700" fill="currentColor" stroke="none">Aa</text></symbol>
+<symbol id="i-check" viewBox="0 0 16 16"><polyline points="3,8.5 6.5,12 13,4"/></symbol>
+<symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
+</svg>
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">28 · 设计页签：主题 / 变体 / 主题色与字体编辑（M3 P1）</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">暗色主题</button>
+  <a href="26-master-view.html" style="font-size:11px;color:var(--oce-color-accent-default)">↗ 母版视图稿</a>
+</div>
+
+<header class="app-bar">
+  <button type="button" class="btn btn-icon" aria-label="返回文档列表"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+  <span class="doc-title">2026年Q2业绩汇报.pptx</span>
+  <span class="saved-state">已保存</span>
+  <span class="spacer"></span>
+  <a class="btn btn-sm" href="02-editor-main.html">返回编辑器</a>
+</header>
+
+<nav class="ribbon" aria-label="功能区 · 设计">
+  <div class="ribbon-tabs" role="tablist" aria-label="功能区页签">
+    <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1">开始</button>
+    <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1">插入</button>
+    <button type="button" class="ribbon-tab" role="tab" aria-selected="true" tabindex="0">设计</button>
+    <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1">切换</button>
+    <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1">视图</button>
+    <a class="ribbon-tab" href="26-master-view.html" style="text-decoration:none" title="打开母版视图管理母版与版式"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg>母版视图</a>
+  </div>
+  <div class="ribbon-groups" role="tabpanel">
+    <div class="ribbon-group" style="min-width:340px"><div class="ribbon-row" style="gap:8px">
+      <button type="button" class="theme-card gallery-item" aria-pressed="true"><div class="gallery-thumb" style="background:linear-gradient(135deg,#fff,var(--oce-color-accent-subtle))"></div><div class="gallery-cap"><span class="name">Office 主题</span><svg class="icon" aria-hidden="true" style="color:var(--oce-color-accent-default)"><use href="#i-check"/></svg></div></button>
+      <button type="button" class="theme-card gallery-item"><div class="gallery-thumb" style="background:linear-gradient(135deg,#fff,#E9EBEF)"></div><div class="gallery-cap"><span class="name">极简灰</span></div></button>
+      <button type="button" class="theme-card gallery-item"><div class="gallery-thumb" style="background:linear-gradient(135deg,#fff,#FFF4E0)"></div><div class="gallery-cap"><span class="name">暖色商务</span></div></button>
+      <button type="button" class="theme-card gallery-item"><div class="gallery-thumb" style="background:linear-gradient(135deg,#151A26,#1C2233)"></div><div class="gallery-cap"><span class="name" style="color:inherit">深色科技</span></div></button>
+    </div><span class="label">主题</span></div>
+    <div class="ribbon-group"><div class="ribbon-row" style="gap:6px">
+      <button type="button" class="btn btn-icon" aria-pressed="true" style="height:40px;width:52px;padding:2px;border-color:var(--oce-color-accent-default)"><span class="variant-strip"><span style="background:#4A54E1"></span><span style="background:#1E9E5A"></span><span style="background:#B76E00"></span></span></button>
+      <button type="button" class="btn btn-icon" style="height:40px;width:52px;padding:2px"><span class="variant-strip"><span style="background:#0B7FBF"></span><span style="background:#0E8A7A"></span><span style="background:#C026D3"></span></span></button>
+      <button type="button" class="btn btn-icon" style="height:40px;width:52px;padding:2px"><span class="variant-strip"><span style="background:#D9480F"></span><span style="background:#7C3AED"></span><span style="background:#DB2777"></span></span></button>
+    </div><span class="label">变体</span></div>
+    <div class="ribbon-group"><div class="ribbon-row">
+      <button type="button" class="ribbon-btn" onclick="showPanel('colors')"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg>自定义颜色▾</button>
+      <button type="button" class="ribbon-btn" onclick="showPanel('fonts')"><svg class="icon" aria-hidden="true"><use href="#i-typeface"/></svg>自定义字体▾</button>
+      <button type="button" class="ribbon-btn">设置为默认主题</button>
+    </div><span class="label">自定义</span></div>
+  </div>
+</nav>
+
+<div class="main-layout">
+  <main class="canvas-viewport">
+    <div class="canvas" role="img" aria-label="当前主题预览：标题、正文与强调色按主题设置渲染">
+      <div class="shape shape--title" style="top:14%;left:8%;width:62%;color:var(--oce-color-text-primary)">2026年第二季度业绩概览</div>
+      <div style="position:absolute;top:34%;left:8%;width:36%;height:8%;background:var(--oce-color-accent-default);border-radius:4px"></div>
+      <div style="position:absolute;top:34%;left:46%;width:36%;height:8%;background:var(--oce-color-success-default);border-radius:4px"></div>
+      <div class="shape shape--body" style="top:48%;left:8%;width:60%">营收同比增长 18%；新签约客户 42 家；华东区域贡献占比提升至 35%。</div>
+    </div>
+    <p class="section-note" style="font-size:12px;color:var(--oce-color-text-tertiary)">预览随右侧颜色/字体编辑实时更新（示意，静态稿不联动）。</p>
+  </main>
+  <aside class="inspector-dock" style="width:320px" aria-label="主题编辑">
+    <div style="padding:var(--oce-space-3) var(--oce-space-3) 0">
+      <div class="theme-tabs" role="tablist" aria-label="主题编辑分区">
+        <button type="button" role="tab" aria-selected="true" onclick="showPanel('colors',this)">颜色</button>
+        <button type="button" role="tab" aria-selected="false" onclick="showPanel('fonts',this)">字体</button>
+      </div>
+    </div>
+    <div class="dock-panel active" style="padding-top:0">
+      <div class="theme-panel active" id="panel-colors">
+        <p class="help-text" style="margin:0 0 8px">主题颜色应用于 ribbon 颜色选择器的"主题色"区块，母版、版式与全部页面共用。</p>
+        <div class="color-grid">
+          <div class="color-slot"><span class="swatch" style="background:#FFFFFF;border-color:var(--oce-color-border-control)"></span><label for="c1">背景 · 浅1</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#1A2030"></span><label for="c2">文字 · 深1</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#F5F6F8;border-color:var(--oce-color-border-control)"></span><label for="c3">背景 · 浅2</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#4A5468"></span><label for="c4">文字 · 深2</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#4A54E1"></span><label for="c5">强调色 1</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#1E9E5A"></span><label for="c6">强调色 2</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#B76E00"></span><label for="c7">强调色 3</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#0B7FBF"></span><label for="c8">强调色 4</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#C026D3"></span><label for="c9">强调色 5</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#0E8A7A"></span><label for="c10">强调色 6</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#3A3FC4"></span><label for="c11">超链接</label></div>
+          <div class="color-slot"><span class="swatch" style="background:#7C3AED"></span><label for="c12">已访问链接</label></div>
+        </div>
+        <div class="field" style="margin-top:var(--oce-space-3)"><label for="c5hex">强调色 1 · Hex</label><input id="c5hex" type="text" value="#4A54E1"></div>
+      </div>
+      <div class="theme-panel" id="panel-fonts">
+        <div class="field"><label for="hf">标题字体</label><select id="hf"><option>系统 UI 字体（默认）</option><option>PingFang SC</option><option>Microsoft YaHei</option></select></div>
+        <div class="font-preview" style="font-weight:700">AaBb 标题示例 123</div>
+        <div class="field" style="margin-top:var(--oce-space-3)"><label for="bf">正文字体</label><select id="bf"><option>系统 UI 字体（默认）</option><option>PingFang SC</option><option>Microsoft YaHei</option></select></div>
+        <div class="font-preview">AaBb 正文示例文字 123</div>
+        <p class="help-text" style="margin-top:8px">仅影响编辑器 chrome 之外的“文档内容”字体映射（+mj-lt / +mn-lt），不影响检查器坞等界面字号（设计 04 §2.8）。</p>
+      </div>
+    </div>
+    <div class="dialog-foot" style="padding:var(--oce-space-3)">
+      <button type="button" class="btn btn-sm">另存为新主题</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm">取消</button>
+      <button type="button" class="btn btn-primary btn-sm">应用</button>
+    </div>
+  </aside>
+</div>
+<footer class="status-bar"><div class="grp"><span>主题：Office 主题 · 变体 2</span></div></footer>
+<script>
+  function showPanel(id,tabBtn){
+    document.querySelectorAll('.theme-panel').forEach(function(p){p.classList.remove('active');});
+    document.getElementById('panel-'+id).classList.add('active');
+    if(tabBtn){document.querySelectorAll('.theme-tabs button').forEach(function(b){b.setAttribute('aria-selected','false');});tabBtn.setAttribute('aria-selected','true');}
+    else{document.querySelectorAll('.theme-tabs button').forEach(function(b,i){b.setAttribute('aria-selected', (id==='colors'&&i===0)||(id==='fonts'&&i===1) ? 'true':'false');});}
+  }
+</script>
+</body>
+</html>

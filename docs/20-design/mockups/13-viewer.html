@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 只读查看器 · OCE Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  body{padding-bottom:var(--oce-space-10)}
+  .viewer-bar{display:flex;align-items:center;gap:var(--oce-space-3);padding:0 var(--oce-space-4);height:44px;background:var(--oce-color-bg-surface);border-bottom:1px solid var(--oce-color-border-subtle)}
+  .viewer-wrap{display:flex;flex-direction:column;border:1px solid var(--oce-color-border-subtle);max-width:900px;margin:0 auto;border-radius:var(--oce-radius-lg);overflow:hidden}
+  .viewer-canvas{flex:1;display:flex;align-items:center;justify-content:center;padding:var(--oce-space-8);background:var(--oce-color-bg-canvas)}
+  .bar-chart{position:absolute;left:9%;right:9%;bottom:13%;display:flex;align-items:flex-end;gap:6%}
+  .bar-chart .col{flex:1;display:flex;flex-direction:column;align-items:center}
+  .bar-chart .val{font-size:11px;color:var(--oce-color-text-secondary);margin-bottom:4px}
+  .bar-chart .bar{width:100%;background:var(--oce-color-accent-default);border-radius:3px 3px 0 0}
+  .bar-chart .cat{font-size:11px;color:var(--oce-color-text-tertiary);margin-top:6px}
+  .demo-section{max-width:900px;margin:var(--oce-space-8) auto 0;padding:0 var(--oce-space-4)}
+  .demo-section h2{font-size:var(--oce-font-size-lg);margin:0 0 var(--oce-space-2)}
+  .section-note{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-tertiary);margin:0 0 var(--oce-space-3)}
+</style>
+</head>
+<body>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-chevron-left" viewBox="0 0 16 16"><polyline points="10,3 5,8 10,13"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 16 16"><polyline points="6,3 11,8 6,13"/></symbol>
+<symbol id="i-expand" viewBox="0 0 16 16"><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3"/><line x1="10.1" y1="10.1" x2="14" y2="14"/></symbol>
+<symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.2" x2="8" y2="11.2"/><circle cx="8" cy="4.9" r=".4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-warning" viewBox="0 0 16 16"><path d="M8 2.5 L14.5 13.5 H1.5 Z" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.6" r=".4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2v8.3"/><polyline points="5,7.7 8,10.7 11,7.7"/><path d="M2.5 12v.5a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5V12"/></symbol>
+</svg>
+
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">13 · preset-slide-viewer 只读查看器壳</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">暗色主题</button>
+</div>
+<div class="mock-note">体积预算 ≤ 350KB（gzip，首屏），只复用 @oce/design 的 token 与最小必要原子组件（Button、ProgressBar/Spinner），不依赖 ui-react/slide-ui 完整依赖树。不含 Ribbon、检查器坞、缩略图侧栏、评论、版本历史、插件管理器、协同——查看器壳没有这些贡献点的渲染宿主。</div>
+
+<div style="padding:var(--oce-space-6) var(--oce-space-4)">
+  <div class="viewer-wrap">
+    <div class="viewer-bar" aria-label="查看器工具条">
+      <button type="button" class="btn btn-icon btn-sm" aria-label="上一页"><svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="下一页"><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+      <div class="field" style="flex-direction:row;align-items:center;gap:4px;width:auto;flex:0 0 auto;min-width:0">
+        <label for="pg">页码</label>
+        <input id="pg" type="text" inputmode="numeric" value="3" style="width:32px;height:26px;text-align:center;border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-sm);background:var(--oce-color-bg-inset);padding:0 4px">
+      </div>
+      <span>/ 12</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="缩小">−</button>
+      <span style="font-variant-numeric:tabular-nums;min-width:36px;text-align:center">100%</span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="放大">+</button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="全屏/放映"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="搜索"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="保真摘要" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
+    </div>
+    <div class="viewer-canvas">
+      <div class="canvas" role="img" aria-label="第 3 页：2026年各区域营收占比柱状图——华东38%、华南26%、华北21%、华西15%" style="width:100%;max-width:640px">
+        <div class="shape shape--title" style="top:8%;font-size:clamp(13px,3.2vw,19px)">2026年各区域营收占比</div>
+        <div class="bar-chart">
+          <div class="col"><span class="val">38%</span><div class="bar" style="height:92px"></div><span class="cat">华东</span></div>
+          <div class="col"><span class="val">26%</span><div class="bar" style="height:64px;opacity:.75"></div><span class="cat">华南</span></div>
+          <div class="col"><span class="val">21%</span><div class="bar" style="height:52px;opacity:.55"></div><span class="cat">华北</span></div>
+          <div class="col"><span class="val">15%</span><div class="bar" style="height:38px;opacity:.35"></div><span class="cat">华西</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>附：加载状态（骨架屏）</h2>
+    <p class="section-note">复用 03-screens/13 的打开进度语义，但只在容器内呈现，不跳转到独立错误页。</p>
+    <div class="viewer-wrap" style="max-width:640px">
+      <div class="skeleton" role="status" aria-label="正在加载文档" style="aspect-ratio:16/9"></div>
+    </div>
+
+    <h2 style="margin-top:var(--oce-space-8)">附：失败态（错误码 <code>format.pptx.invalid_package</code>）</h2>
+    <p class="section-note">错误文案按错误码区分，复用 03-screens/13 的错误码变体表；查看器壳内无"返回列表"（无文档列表概念），改为"下载原文件"（若集成方提供该回调）或不显示，不留空白占位。</p>
+    <div class="empty-state" style="max-width:640px;margin:0 auto;border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-lg);background:var(--oce-color-bg-surface)">
+      <svg class="icon lg" aria-hidden="true" style="color:var(--oce-color-danger-default)"><use href="#i-warning"/></svg>
+      <h3>无法打开：文件不是有效的演示文稿</h3>
+      <button type="button" class="btn" style="margin-top:var(--oce-space-2)"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>下载原文件</button>
+    </div>
+
+    <h2 style="margin-top:var(--oce-space-8)">附："ⓘ" 保真摘要展开态</h2>
+    <p class="section-note">极简形态：仅摘要计数，不内嵌 03-screens/10 的完整保真报告面板；"查看详情"是否可点击、跳转到何处由集成方配置。</p>
+    <div class="popover" role="group" aria-labelledby="fid-h" style="position:static;width:240px">
+      <strong id="fid-h" style="font-size:var(--oce-font-size-sm)">导入摘要</strong>
+      <p style="margin:6px 0;font-size:var(--oce-font-size-xs)">2 处内容已按原样保留</p>
+      <p style="margin:0 0 8px;font-size:var(--oce-font-size-xs)">1 种缺失字体已替代</p>
+      <a href="#" onclick="return false">查看详情</a>
+    </div>
+
+    <h2 style="margin-top:var(--oce-space-8)">附：窄屏（&lt;640px）工具条收敛</h2>
+    <p class="section-note">工具条收敛为：翻页、缩放、"更多 ⋯"（内含全屏/搜索/ⓘ）；命中区 ≥ 44px，间距 ≥ 8px，与评审模式窄屏工具条同规则（01-information-architecture.md §6）。画布支持双指缩放与平移。容器尺寸小于 320px 时，工具条允许换行为两行，优先保证画布可见而非工具条完整一行。</p>
+  </div>
+</div>
+</body>
+</html>

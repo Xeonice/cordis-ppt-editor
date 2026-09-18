@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27 版式选择器与重置 · OCE Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  body{padding-bottom:var(--oce-space-10)}
+  .page-bg{background:var(--oce-color-bg-canvas);min-height:60vh;display:flex;align-items:flex-start;justify-content:center;padding:var(--oce-space-8) var(--oce-space-4)}
+  .group-head{font-size:var(--oce-font-size-xs);font-weight:600;color:var(--oce-color-text-secondary);margin:var(--oce-space-4) 0 var(--oce-space-2);display:flex;align-items:center;gap:6px}
+  .group-head:first-child{margin-top:0}
+  .gallery-thumb .ph.title{top:10%;left:8%;width:50%;height:14%;border-style:solid;background:var(--oce-color-accent-subtle);border-color:var(--oce-color-accent-default)}
+  .gallery-thumb .ph.body{top:32%;left:8%;width:84%;height:52%}
+  .gallery-thumb .ph.body2{top:32%;left:52%;width:40%;height:52%}
+  .gallery-thumb .ph.body1{top:32%;left:8%;width:40%;height:52%}
+  .gallery-thumb .ph.center{top:38%;left:15%;width:70%;height:24%;text-align:center}
+  .demo-section{max-width:720px;margin:var(--oce-space-8) auto 0;padding:0 var(--oce-space-4)}
+  .demo-section h2{font-size:var(--oce-font-size-lg);margin:0 0 var(--oce-space-2)}
+  .section-note{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-tertiary);margin:0 0 var(--oce-space-3)}
+</style>
+</head>
+<body>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-close" viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3"/><line x1="10.1" y1="10.1" x2="14" y2="14"/></symbol>
+<symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
+<symbol id="i-check" viewBox="0 0 16 16"><polyline points="3,8.5 6.5,12 13,4"/></symbol>
+<symbol id="i-reset" viewBox="0 0 16 16"><path d="M13.4 8A5.4 5.4 0 1 1 11.7 4"/><polyline points="13.6,1.6 13.4,4.9 10.1,4.6"/></symbol>
+<symbol id="i-warning" viewBox="0 0 16 16"><path d="M8 2.5 L14.5 13.5 H1.5 Z" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.6" r=".4" fill="currentColor" stroke="none"/></symbol>
+</svg>
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">27 · 版式选择器（基于母版分组）与重置页</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')">暗色主题</button>
+  <a href="26-master-view.html" style="font-size:11px;color:var(--oce-color-accent-default)">↗ 母版视图稿</a>
+</div>
+
+<div class="page-bg">
+  <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="lp-title">
+    <div class="dialog-head">
+      <span id="lp-title">更换版式 · 第 3 页</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="dialog-body" style="max-height:60vh;overflow:auto">
+      <label class="vis-hidden-label" for="lp-search">搜索版式</label>
+      <div class="field" style="max-width:260px;margin-bottom:var(--oce-space-2)">
+        <div class="ctl" style="background:var(--oce-color-bg-inset);border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-md);padding:0 8px;height:var(--oce-control-height-md)">
+          <svg class="icon" aria-hidden="true" style="color:var(--oce-color-text-tertiary)"><use href="#i-search"/></svg>
+          <input id="lp-search" type="text" placeholder="搜索版式…" style="border:none;background:none;height:100%">
+        </div>
+      </div>
+
+      <div class="group-head"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg>公司主题（当前页所用母版）</div>
+      <div class="gallery">
+        <button type="button" class="gallery-item" aria-pressed="false"><div class="gallery-thumb"><div class="ph title"></div><div class="ph body"></div></div><div class="gallery-cap"><span class="name">与当前页相同</span><span class="badge accent">默认</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"><div class="ph title" style="width:70%"></div></div><div class="gallery-cap"><span class="name">标题幻灯片</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"><div class="ph title"></div><div class="ph body"></div></div><div class="gallery-cap"><span class="name">标题和内容</span></div></button>
+        <button type="button" class="gallery-item" aria-pressed="true"><div class="gallery-thumb"><div class="ph title"></div><div class="ph body1"></div><div class="ph body2"></div></div><div class="gallery-cap"><span class="name">两栏内容</span><svg class="icon" aria-hidden="true" style="color:var(--oce-color-accent-default)"><use href="#i-check"/></svg></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"><div class="ph title" style="width:70%"></div><div class="ph body1"></div><div class="ph body2"></div></div><div class="gallery-cap"><span class="name">比较</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"></div><div class="gallery-cap"><span class="name">空白</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"><div class="ph title" style="width:70%"></div></div><div class="gallery-cap"><span class="name">仅标题</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb"><div class="ph center"></div></div><div class="gallery-cap"><span class="name">图片+说明</span></div></button>
+      </div>
+
+      <div class="group-head" style="margin-top:var(--oce-space-6)"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg>简约主题<span class="badge" style="margin-left:4px">导入</span></div>
+      <p class="section-note" style="margin-top:-4px">选择其它母版下的版式会同时把本页所属母版切换为「简约主题」。</p>
+      <div class="gallery">
+        <button type="button" class="gallery-item"><div class="gallery-thumb" style="background:var(--oce-color-bg-inset)"><div class="ph title" style="background:var(--oce-color-border-default);border-color:var(--oce-color-border-control)"></div><div class="ph body"></div></div><div class="gallery-cap"><span class="name">标题和内容</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb" style="background:var(--oce-color-bg-inset)"><div class="ph title" style="background:var(--oce-color-border-default);border-color:var(--oce-color-border-control)"></div></div><div class="gallery-cap"><span class="name">标题幻灯片</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb" style="background:var(--oce-color-bg-inset)"></div><div class="gallery-cap"><span class="name">空白</span></div></button>
+        <button type="button" class="gallery-item"><div class="gallery-thumb" style="background:var(--oce-color-bg-inset)"><div class="ph center" style="background:var(--oce-color-border-default);border-color:var(--oce-color-border-control)"></div></div><div class="gallery-cap"><span class="name">仅标题</span></div></button>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button type="button" class="btn btn-sm" style="margin-right:auto"><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg>重置为版式默认</button>
+      <button type="button" class="btn">取消</button>
+      <button type="button" class="btn btn-primary">应用版式</button>
+    </div>
+  </div>
+</div>
+
+<div class="demo-section">
+  <h2>附：点击"重置为版式默认"后的确认态</h2>
+  <p class="section-note">重置只恢复占位符属性到版式定义（位置/大小/样式），不影响用户新增的非占位符对象；操作可撤销。</p>
+  <div class="confirm-card" style="max-width:420px">
+    <strong>重置「两栏内容」占位符？</strong>
+    <p style="margin:6px 0 0;color:var(--oce-color-text-secondary)">已对占位符做的位置、样式改动将恢复为版式定义；你新增的形状、图片不受影响。</p>
+    <div class="row"><button type="button" class="btn btn-sm">取消</button><button type="button" class="btn btn-primary btn-sm">确认重置</button></div>
+  </div>
+  <div class="toast" style="position:static;display:inline-flex;margin-top:var(--oce-space-4)" role="status" aria-live="polite">已重置占位符属性 <button type="button">撤销</button></div>
+
+  <h2 style="margin-top:var(--oce-space-8)">附：版式不匹配提示（更换版式导致内容未匹配）</h2>
+  <div class="banner" style="border-radius:var(--oce-radius-md);border:1px solid var(--oce-color-warning-default)" role="status">
+    <span><svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>部分内容未匹配到新版式的占位符，已保留原位置</span>
+  </div>
+</div>
+</body>
+</html>

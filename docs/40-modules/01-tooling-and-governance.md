@@ -1,0 +1,713 @@
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-01） | 更新：2026-09-18 | 依赖：00-module-map.md §3 BC-28/§4/§5/§7/§8/§9/§10、charter v0.2 §3/§5.3/§5.4、30-architecture/02-layering-and-packages.md §2/§5/§7/§8、30-architecture/09-type-discipline/{README,01-09}、30-architecture/adr/0040-0048、30-architecture/11-testing-strategy.md CI 段
+
+# 01 工具链与治理骨架（限界上下文 BC-28〈工具链与治理〉）
+
+## 0. 一页总览
+
+| 项 | 值 |
+|---|---|
+| 职责一句话 | 把章程 R7"强类型规约 + 机械约束"落成可执行物：tsconfig 基线、21 条自定义 lint 规则、8 条 depcruise 依赖规则、13 个自研扫描器、78 行规范↔执行矩阵、lefthook/CI 门禁与 Changesets 配置，使"规范"与"违反即失败"之间不存在人工判断缺口 |
+| 覆盖的上下文 | BC-28（工具链与治理） |
+| 承载包 / 目录 | `tooling/*`（不参与 `oce.layer` 秩体系，无层/秩；node，构建期）；根 `lefthook.yml`/`.dependency-cruiser.cjs`/`biome.json`/`.changeset/config.json`/`turbo.json`/`pnpm-workspace.yaml`/`.github/workflows/*` |
+| cordis 形态 | library（构建期工具；不创建 cordis Fiber，不参与 `ctx.plugin()` 树） |
+| 运行位置 | 两端（构建期身份对浏览器 SDK 与服务端产物统一治理；自身不出现在任何运行时产物里） |
+| 上游（依赖） | 无（M-01 是唯一无上游模块） |
+| 下游（被依赖） | 全部 M-02…M-13（每个包的 `tsconfig.json`/`eslint.config.js`/`package.json#oce`/CI 门禁均由本模块提供的基线驱动） |
+| 对外服务 | 无 `ctx.*` 服务；对外是 npm scripts（`build`/`typecheck`/`lint`/`test`/`test:typecheck`/`depcruise`/`api`/`manifest`/`scan`/`policy`/`iso-smoke`/`check`）与 CLI 子命令（`create-package` 等，见 §2.6） |
+| 贡献点 | 提供：无；消费：无（`oce.bundle` 等字段是本模块治理的**对象**，不是本模块消费的 cordis 贡献点） |
+| doc / sheet 通用性 | generic（规则本身对文档类型盲；§8 说明如何参数化） |
+| 批次 | 1 |
+
+### 0.1 图示
+
+**图 0-1 模块包关系与上下游**
+
+```mermaid
+flowchart LR
+  docPolicyMatrix["08-policy-enforcement-matrix.md"]
+  docTypeDiscipline["09-type-discipline 文档体系"]
+  subgraph bc28["BC-28 工具链与治理"]
+    pkgTooling["tooling 全部子包"]
+  end
+  allModules["M-02 至 M-13 全部包与 apps"]
+  ciStrategy["11-testing-strategy.md CI 段"]
+  docPolicyMatrix -- "TD-0NN 规范行格式" --> pkgTooling
+  docTypeDiscipline -- "oce 规则 depcruise 规则 scan 名与编号" --> pkgTooling
+  pkgTooling -- "oce 字段 schema TD-0NN 规范行 depcruise 与 lint 规则名" --> allModules
+  allModules -. "CommandDef.permission openUnitScope 最终形态回馈" .-> pkgTooling
+  pkgTooling -- "job 存在性与阻断姿态" --> ciStrategy
+```
+
+怎么读：本模块（`tooling/*`）没有上游包依赖，只被两份规范文档"喂料"；它向右治理全部 M-02…M-13 包与 CI，唯一的反向虚线是 M-02 定稿 API 形态后回头收紧本模块几条启发式规则。
+
+## 1. 限界上下文与边界
+
+### 1.1 职责与非职责
+
+**做什么**：
+- 定义并落地 iso/dom/node/nest 四套 tsconfig 基线（含 `isolatedDeclarations`/`verbatimModuleSyntax`/`erasableSyntaxOnly`）。
+- 提供 `@oce-tooling/eslint-config`（typescript-eslint 预设装配 + 偏离表）与 `@oce-tooling/eslint-plugin-oce`（21 条自定义规则）。
+- 实现 8 条 dependency-cruiser 依赖规则（无环、只向下、文档类型盲、束间隔离、单点引入、同构隔离、三角色、无深引用）。
+- 提供 iso/dom/node 三套 api-extractor 基础配置，驱动 `.api.md` 基线、release tag 分级、`store-yjs`/`collab-yjs` 的 `Y.*` 类型泄漏扫描。
+- 实现 13 个自研扫描器（`scan-*`），统一双格式输出（JSON + 人类可读）与预算/ratchet 比对。
+- 维护 78 行「规范↔执行」矩阵（`08-policy-enforcement-matrix.md`）及其自校验器 `scan-policy`。
+- 定义 lefthook 三阶段（pre-commit/commit-msg/pre-push）与 CI job 矩阵的**存在性、触发条件、阻断姿态**（内容 owner 可能是其他条线，见下）。
+- 提供 Changesets 的 fixed 组生成与"是否需要 changeset"判定。
+
+**不做什么（明确指向负责模块）**：
+- 不判定 `test`/`e2e`/`perf` job 的内部断言与阈值数值——只保证 job 存在、在每个 PR 触发、以 `error` 阻断；内容与阈值属架构-运行时 B（`11-testing-strategy.md`，对应 M-06/M-09/M-11 等实现模块）。
+- 不定义错误码/tracing span/metric 的具体取值——只提供登记表结构与"声明↔调用"一致性扫描（`scan-observability-identifiers`）；取值属架构-运行时 B（10-observability，M-09/M-12）。
+- 不设计 `Capability` 集合的具体成员与 `permissions` 服务运行时实现——只保证字段存在性、单一来源与非空校验；属架构-结构 A（M-02）。
+- 不实现 `ContributionPoint`/`Manifest` 的运行时语义——只校验其类型契约与声明合并位置；属架构-结构 A（M-02 的 `@oce/kernel`）。
+- 不决定 `schemaVersion`/迁移注册表的运行时设计——只提供类型侧穷尽性测试组织约定；属 M-02。
+- 不校验 OOXML XSD 版本内容本身——只登记 `xsd-validate` job 与 `tooling/xsd/` 目录占位；内容属架构-结构 A（M-04）。
+- 不决定 Changeset 的 major/minor/patch 语义——只判定"是否需要 changeset"；语义属 ADR-0002（架构-结构 A）。
+
+### 1.2 通用语言
+
+不重复章程 §4；BC-28 是"全部规范的机械化对象"，本上下文自身的特有词表来自 [09-type-discipline/README.md §5](../30-architecture/09-type-discipline/README.md)：
+
+| 术语 | 定义（节选） |
+|---|---|
+| 类型逃逸 | `any`/`as`（非 `as const`/`satisfies`）/`!`/`@ts-ignore`/未说明的 `@ts-expect-error` 的统称 |
+| 棘轮预算 | 只能下调、不能无例外流程上调的数值上限；见 ADR-0040 |
+| 秩 | 分层网格的数值偏序（L0=0…L8=80），供 depcruise「只向下」比较 |
+| 层带 | 垂直束的层号编码前缀（`V-model`/`V-codec`/`V-render`/`V-ui`），与水平层 `L<n>` 并列不复用 |
+| 组合根 | `compositionRoot: true` 的包（`preset-*`/`apps/web`/`apps/server`），允许依赖具体 Provider |
+| 三重保障 | 同构隔离的 tsconfig lib/types + `no-restricted-globals` + `iso-smoke` 三层单包内机制，加图层规则共四层 |
+| 品牌类型 | `Brand<T, TName>` 模式，阻止裸值冒充度量/标识符 |
+| 派生字段标记 | `Derived<T>`，标注 Model 中不应写入 Snapshot 的计算字段 |
+| 能力位 | `Capability`（原 `CapabilityBit`/`PermissionAction`，已统一，见 §12-D9、14 §1 C-15），fail-closed 权限模型的最小声明单元，唯一定义于 `@oce/protocol` |
+| 包级稳定级 | `package.json#oce.stability`（`stable`/`beta`/`experimental`） |
+| 编辑期代理 / 跨文件权威 | ESLint 单文件启发式给即时反馈，扫描器/depcruise 做跨文件权威裁决的双层检查模式 |
+| 规范行 | 08 矩阵的一行，`TD-\d{3}` 编号 |
+| 结构性禁止 | 豁免方式的一种取值：无 `oce-allow` 逃逸通道，违反即须直接修复 |
+| 语法可推导性 | `isolatedDeclarations` 判定"是否需要显式类型标注"的标准 |
+| 预算复用 | ADR-0040 的 ratchet 机制不专属类型逃逸，`scan-bundle-budget` 是其在体积度量上的复用实例 |
+
+本上下文另有一组内部实体名词（非章程术语，本模块自造）：扫描器（scan-\*）、规则（`oce-*`/`oce/*`）、豁免（`oce-allow`）、CI job、策略矩阵条目（`TD-\d{3}`）——定义见 §2.1。
+
+### 1.3 上下文映射
+
+| 相邻上下文 | 关系类型 | 防腐层/落点（文件） | 传递的契约 |
+|---|---|---|---|
+| 全部 BC-01…27、29（即全部 `packages/*`/`apps/*`） | Open Host Service（治理执行点，非业务契约；每个包单向遵守，不议价） | `tooling/depcruise/*`、`tooling/eslint-config/*`、每包自身 `package.json#oce`/`tsconfig.json extends` | `oce` 字段 schema、规范行 `TD-\d{3}`、depcruise/lint 规则名 |
+| `08-policy-enforcement-matrix.md`（文档本身） | Conformist（`scan-policy` 照单实现其 §1 定义的九列表格格式，不重新设计格式） | `tooling/scripts/scan-policy.ts` | 九列行结构、`id` 正则 `^TD-\d{3}$`、"机制同 TD-0NN"只向前引用的约束 |
+| 09-type-discipline 文档体系（01–09 全篇） | Conformist（本模块是其"设计→文件级落地"阶段，不改变其定义的规则语义与编号） | 本文档 §4/§5 | 21 条 `oce/*` 规则名、8 条 `oce-*` depcruise 规则名、13 个 `scan-*` 名、`TD-\d{3}` 编号 |
+| M-02（内核、协议与文档内核） | Customer–Supplier（反向：M-02 是本模块规则的**消费方**，但 `Capability`/`ContributionPoint`/`Manifest` 的最终 API 形状由 M-02 定稿后回头收紧本模块几条启发式规则的检测精度，见 §13 Q-05） | `tooling/eslint-config/eslint-plugin-oce/rules/{no-unit-scoped-inject-at-root,store-transact-in-commands-only}.ts` | `CommandDef.permission`/`openUnitScope` 的最终 API 形态 |
+| 架构-运行时 B（`11-testing-strategy.md`） | Shared Kernel（CI job 存在性/阻断机制由本模块拥有；job 内部断言与阈值由 B 拥有，见 1.1"不做什么"） | `.github/workflows/ci.yml`/`e2e.yml` | job 名（`test`/`test-typecheck`/`e2e`/`perf`/`coverage-patch`）作为共享词汇 |
+
+## 2. 领域模型
+
+> 本模块是基础设施/治理类模块，§2 标题按总编排指示改写：2.1 规则模型、2.2 配置值对象、2.3 纯函数、2.4 事件、2.5 外部契约、2.6 命令；编号保留。
+
+### 2.1 规则模型
+
+以下四类实体是本模块的"领域对象"，均为**编译期/构建期**存在，不进入任何运行时产物：
+
+| 实体 | id 形状 | 严重级 | 适用层/范围 | 数量 | 权威文件 |
+|---|---|---|---|---|---|
+| DepcruiseRule | `oce-*`（kebab-case） | 恒 `error` | 全仓包图（按 `from`/`to` 选择器） | 8 条规则、9 个规则 id（规则 1 拆 file/package 两个 id） | `tooling/depcruise/rules/*.ts` |
+| EslintRule（自定义） | `oce/*`（kebab-case） | 恒 `error`，`fixable` 恒 `undefined` | 按文件路径/包元数据匹配 | 21 条 | `tooling/eslint-config/eslint-plugin-oce/rules/*.ts` |
+| Scanner | `scan-*`（kebab-case，脚本文件名） | 违规=退出码 1，脚本自身故障=退出码 2 | 按包/按文件跨图扫描 | 13 个 | `tooling/scripts/scan-*.ts` |
+| PolicyRow | `TD-\d{3}`，全文件唯一、单调可跳号、禁止复用废弃 id | N/A（陈述本身无严重级，由其"执行机制"列的工具决定） | 覆盖章程/primer/lessons/本方案/PRD 等来源 | 78 行（TD-001…TD-078，无跳号） | `08-policy-enforcement-matrix.md` |
+| CIJob | 英文短名（`lint`/`typecheck`/…） | 全部 `error` 阻断，无 `warn` | 每个 PR，无分支例外 | 13 个（见 §5.9） | `.github/workflows/*.yml` |
+| RatchetBudgetEntry | `<package>:<src\|test>:<kind>` 或 `<package>:bundle-size-bytes` | 值为非负整数上限 | 每包 | 动态（随包数增长） | `tooling/policy/budgets.json` |
+
+不变量（跨实体）：
+1. 每个 PolicyRow 的"执行机制"列引用的 DepcruiseRule/EslintRule/Scanner 必须真实存在于磁盘（`scan-policy` 规则 1，配置路径存在性检查）。
+2. 每个 EslintRule/DepcruiseRule/Scanner 必须至少有一个负向测试用例（lessons A17；`scan-policy` 规则 3）。
+3. RatchetBudgetEntry 的值只能下降，上升须走 ADR-0040 例外流程（issue 链接 + PR 描述）。
+4. PolicyRow 引用其他行用"机制同 TD-0NN"时只能向前引用（数值更小的 id），不得成环（`scan-policy` 校验）。
+
+### 2.2 配置值对象
+
+- **`package.json#oce` 字段**（八键，schema 见 `tooling/policy/schema/oce-package-metadata.schema.json`）：`layer`（12 取值：`L0|L1|L3|L4|L5|L7|L8|LS|V-model|V-codec|V-render|V-ui`）、`iso`（`iso|dom|node`）、`bundle`（`slide|doc|sheet`，仅 `layer` 以 `V-` 开头时必填，否则必须省略/`null`）、`role`（`definition|provider|consumer|n/a`，与架构-结构条线 `library|plugin|definition|provider|bundle|app|tooling` 七值折叠映射：`package.json#oce.role` 按人类可读的七值之一标注，`depcruise` 的三角色规则读取时按固定表折叠为四值——`definition→definition`、`provider→provider`、`library|plugin|bundle|app|tooling→consumer`（**例外**：若该包同时是某 Definition 的 Provider，如 kernel 自身，则折叠为 `provider`），`n/a` 用于 `tooling/*` 等不参与秩体系的包；折叠表权威见 14-cross-module-review.md §1 C-11、`00-module-map.md` §8 G-2，本文档 §12-D8）、`compositionRoot`（布尔，仅 `preset-*`/`apps/web`/`apps/server` 可为 `true`）、`publicEntry`（字符串数组，须与 `exports` key 集合逐一相等）、`stability`（可选，`stable|beta|experimental`，缺省 `stable`）。`tooling/*` 自身包**不**填该字段（不参与秩体系，见 §10）。
+- **ratchet 预算值对象**：`budgets.json` 的每条 entry = `{ key: string, value: number }`，`key` 形状见 2.1 RatchetBudgetEntry 行；按 `src`/`test` 分离统计。
+- **策略行 schema**：`policy-row.schema.json` 描述 08 矩阵九列（`id`/`陈述`/`来源`/`执行机制`/`配置路径`/`负向测试路径`/`CI job`/`豁免方式`/`owner`）的字段类型与枚举取值（豁免方式封闭为 5 种取值，见 §5.7）。
+- **其余数据值对象**：`milestones.json`（里程碑→日期/版本映射）、`requirements.json`（PRD 需求 id 清单镜像，可选）、`event-domains.json`（第一方事件域清单）、`license-allowlist.json`（许可证白名单，TD-050）。
+
+### 2.3 纯函数
+
+| 函数（示意签名） | 所在文件 | 用途 |
+|---|---|---|
+| `rank(layer: OceLayer): number` | `tooling/depcruise/layers.ts` | 层号→秩值查表，供 `oce-layer-downward` 比较 `rank(to) ≤ rank(from)` |
+| `parsePackageMetadata(pkgJson: unknown): Result<OcePackageMetadata, MetadataError>` | `tooling/depcruise/package-metadata.ts` | 解析并校验单个包的 `oce` 字段，构建启动期一次性内存查找表 |
+| `compareBudget(actual: number, baseline: number): 'ok' \| 'exceeded' \| 'lowerable'` | `tooling/scripts/lib/budget.ts` | 预算比对的核心判定，供全部预算类扫描器复用 |
+| `formatReport<T>(rows: T[], mode: 'json' \| 'human'): string` | `tooling/scripts/lib/report.ts` | 统一的双格式输出器 |
+| `computeChangedFiles(baseRef: string): string[]` | `tooling/scripts/lib/changed-files.ts` | `git diff` 范围计算，供 pre-commit 快速模式复用 |
+| `isBundleIsolationViolation(from: OceMeta, to: OceMeta): boolean` | `tooling/depcruise/rules/doc-type-blind.ts` | 判定 `bundle` 字段不同的两个非空值是否互相 import |
+
+这些函数均无副作用、无 IO（IO 由调用它们的脚本外壳负责），是十三个扫描器与 8 条 depcruise 规则共享的图分析/元数据解析内核。
+
+### 2.4 事件
+
+本模块没有 cordis `Events`（不创建 Fiber）。此处的"事件"是**构建期报告事件/产物**：
+
+| 事件/产物 | 产生者 | 消费者 | 格式 |
+|---|---|---|---|
+| 十三份扫描器 JSON 报告 | 各 `scan-*.ts` | CI 日志、`scan-policy`（部分） | 见 06 各节"输出格式" |
+| `oce-manifest.json`（每包） | `scan-manifest.ts` | 未来插件市场/CLI（M0 阶段仅 CI 自比对） | zod 推导的 `Manifest` 类型 |
+| `iso-smoke-manifest.json` | `scan-isomorphic.ts` | `iso-smoke` CI job | `{ package, publicEntry }[]` |
+| `requirement-test-matrix.json` | `scan-requirement-tags.ts` | `11-testing-strategy.md` 覆盖率矩阵 | `{ requirementId, testFiles }[]` |
+| `.api.md` / `etc/<name>-internal.d.ts` | api-extractor | 代码评审 / CI artifact | Markdown / `.d.ts` |
+| `pull_request` / `push` webhook | GitHub | `.github/workflows/*.yml` | GitHub Actions 事件 |
+
+### 2.5 外部契约
+
+| 第三方工具 | 接口面 | 本模块的适配文件 |
+|---|---|---|
+| dependency-cruiser | `.dependency-cruiser.cjs` 规则 DSL（`from`/`to`/`severity`） | `tooling/depcruise/index.cjs` |
+| ESLint + typescript-eslint | flat config 数组、`RuleTester`（类型感知） | `tooling/eslint-config/index.ts`、`eslint-plugin-oce/index.ts` |
+| api-extractor | `IConfigFile`、`Extractor.invoke()` | `tooling/api-extractor/*.json` |
+| lefthook | `lefthook.yml` schema（`pre-commit`/`commit-msg`/`pre-push`） | 根 `lefthook.yml` |
+| Changesets | `@changesets/cli`、`.changeset/config.json` | `tooling/changeset-config/*.ts` |
+| ts-morph | AST/类型信息读取 API | `tooling/scripts/lib/ts-project.ts` |
+| knip / manypkg / syncpack | 各自 CLI + 配置文件 | 根/`tooling/` 下对应配置（草案路径，见 §5.9） |
+| commitlint | Conventional Commits 规则集 | `tooling/commitlint.config.ts` |
+
+### 2.6 命令
+
+**npm scripts（根 `package.json`，细化自 02§2 的九个脚本）**：
+
+| script | 作用 |
+|---|---|
+| `build` | Turborepo 触发全部包 `tsc --build`（`composite`） |
+| `typecheck` | `tsc --build`（全量，`typecheck` CI job 同一命令） |
+| `lint` | ESLint 全量，`--max-warnings 0` |
+| `test` | Vitest 单测 + 契约测试 |
+| `test:typecheck` | `vitest --typecheck`（新增，细化自 02 的 `test`，对齐 09-07 §3 的 `test-typecheck` job） |
+| `depcruise` | `dependency-cruiser --config .dependency-cruiser.cjs` |
+| `api` | `api-extractor run`（每包）→ `pnpm pack` → `publint` → `attw --pack` |
+| `manifest` | `tsx tooling/scripts/scan-manifest.ts --check`（对应"manifest-gen"逻辑，见 §12-D1） |
+| `scan` | 运行其余 11 个非 manifest/非 policy 扫描器（新增，细化自 02 的笼统 `check`） |
+| `policy` | `tsx tooling/scripts/scan-policy.ts` |
+| `iso-smoke` | 消费 `iso-smoke-manifest.json`，逐包 `node --import` 冒烟（新增，对齐 09-07 §3 独立 job） |
+| `check` | 依次 `build && typecheck && lint && test && test:typecheck && depcruise && api && manifest && scan && policy && iso-smoke`（= 全部门禁） |
+
+**CLI 子命令**（`tooling/scripts/*.ts`，人工触发）：`create-package`（从 §4.0 模板生成新包骨架）、`sync-references`（`tsconfig.json#references` ↔ 依赖一致性同步）、`compile-preset-geometry`、`compile-schema-order`（后两者内容属架构-结构条线 `ooxml-core`/`engine-layout` 设计，本模块只登记脚本壳）。十三个 `scan-*.ts` 均可独立 CLI 调用，支持 `--changed-only`（pre-commit 快速模式）。
+
+**图 2-1 治理流水线**
+
+```mermaid
+flowchart LR
+  lefthook["lefthook 三阶段 pre-commit commit-msg pre-push"]
+  biome["biome 仅 formatter"]
+  eslint["eslint-config 与 eslint-plugin-oce 21 条规则"]
+  depcruise["depcruise 8 条规则"]
+  scanners["13 个 scan 脚本"]
+  policyCheck["scan-policy 78 行矩阵校验"]
+  apiExtractor["api-extractor 生成 api.md"]
+  ciJob["CI job 矩阵"]
+  lefthook -- "pre-commit 触发" --> biome
+  biome -- "格式化后" --> eslint
+  eslint -- "lint 通过后" --> depcruise
+  depcruise -- "8 条规则通过后" --> scanners
+  scanners -- "13 份 JSON 报告" --> policyCheck
+  policyCheck -- "TD-0NN 自校验通过" --> apiExtractor
+  apiExtractor -- "api.md 基线" --> ciJob
+```
+
+怎么读：这条链就是 `check` 脚本本身的执行顺序——从本地 lefthook 钩子到 CI job 矩阵，任一环节失败即阻断，中间无人工判断缺口。
+
+## 3. cordis 插件定义
+
+| 项 | 值 |
+|---|---|
+| 插件名 / `name` | N/A |
+| `inject`（必需 / 可选） | N/A |
+| `provide` | N/A |
+| 贡献点：提供 | 无 |
+| 贡献点：消费 | 无 |
+| 事件：发布 / 订阅 | 无（cordis `Events`）；构建期报告事件见 §2.4 |
+| 配置 schema | 无插件 `Config`；本模块自身的"配置"是 §2.2 的值对象（`oce` 字段 schema、`budgets.json` 等），经文件读取而非 `ctx.plugin(plugin, config)` 装配期校验 |
+| 生命周期 | 无 Fiber 生命周期；本模块的等价物是 CI job 的"存在性 + 每 PR 触发 + 不可跳过"三条治理姿态（09-07 §3），与 `ready`/`dispose`/`PENDING` 无对应关系 |
+| Manifest 片段 | 无——`tooling/*` 不生成 `oce-manifest.json`（`scan-manifest.ts` 的**输入**是其余各包的 `manifest.ts`，`tooling` 自身不是被治理对象） |
+
+**为什么是 N/A**：BC-28 明确"不参与运行时依赖图（无秩）"（module-map §3 BC-28 行），cordis 形态登记为 `library`——它是构建期以 CLI 子进程、Node 脚本、GitHub Actions job 形式运行的工具集合，从未调用 `createHost()`/`ctx.plugin()`，因此模板 §3 的全部字段均不适用。这与 `@oce/design`（BC-13，同样是零依赖 `library`）在"无插件形态"这一点上同构，但 `@oce/design` 至少是运行时产物（CSS 文件被 `import`），本模块连运行时产物都不是。
+
+## 4. 目录树（完整到文件）
+
+> 本树采用 09-type-discipline 各子文档给出的**实际文件路径**（因 08 矩阵逾 20 行"配置路径"列已固化这些路径并被 `scan-policy` 机器校验），而非 02§5 草图里 `manifest-gen/`/`scanners/`/`policy-check/`/`iso-smoke/` 四个独立顶层目录名——02§5 本身注明"详细规格由 09 承接"，差异与映射关系见 §12-D1。测试文件与夹具目录见 §9，不在本树重复。
+
+```text
+/                                          仓库根（本模块只治理其中的门禁/配置文件，非全部根文件）
+├── package.json                          # scripts: build/typecheck/lint/test/test:typecheck/
+│                                            depcruise/api/manifest/scan/policy/iso-smoke/check（§2.6）
+├── pnpm-workspace.yaml                    # packages: apps/*, packages/*, tooling/eslint-config；
+│                                            catalog: 第三方版本目录（cordis/zod/yjs/react/vitest/typescript…）
+├── turbo.json                             # 任务图：build/typecheck/lint/test/depcruise/
+│                                            api-extract/manifest-gen/iso-smoke/policy-check
+├── tsconfig.json                          # solution 文件：仅 references，无 compilerOptions
+├── tsconfig.base.json                     # extends tooling/tsconfig/base.json（仅供编辑器发现）
+├── eslint.config.js                       # import @oce-tooling/eslint-config 的 createConfig(pkgMeta)
+├── biome.json                             # 仅 formatter（缩进/引号/行宽）；linter 关闭（ADR-0044）
+├── .dependency-cruiser.cjs                # re-export tooling/depcruise/index.cjs
+├── lefthook.yml                           # pre-commit / commit-msg / pre-push 三阶段（见 §5.9）
+├── .changeset/
+│   └── config.json                       # fixed 组 = tooling/changeset-config/fixed-groups.ts 生成
+└── .github/
+    └── workflows/
+        ├── ci.yml                        # lint/typecheck/test/test-typecheck/iso-smoke/depcruise/
+        │                                   api-surface/scanners/xsd-validate/coverage-patch（10 job）
+        ├── policy-matrix.yml             # policy-check（scan-policy）独立工作流
+        ├── e2e.yml                       # e2e + perf（Playwright/性能预算；内容属架构-运行时 B）
+        └── release.yml                   # Changesets 版本与发布（main 分支触发）
+```
+
+```text
+tooling/
+├── tsconfig/
+│   ├── base.json                          # 全部严格选项集合（不含 lib/types/module 解析）
+│   ├── iso.json                           # extends base；lib: ["ES2023"]，types: []
+│   ├── dom.json                           # extends base；lib 追加 DOM/DOM.Iterable
+│   ├── node.json                          # extends base；types: ["node"]
+│   ├── nest.json                          # extends node；仅 apps/server；experimentalDecorators 例外
+│   ├── build.json                         # extends base；composite/incremental/declaration 相关字段
+│   └── vitest.json                        # 测试专用 types 覆盖，不引入 vitest/globals
+├── eslint-config/
+│   ├── package.json                       # name: @oce-tooling/eslint-config（devDependency 供全仓引用）
+│   ├── index.ts                           # 组合入口：createConfig(pkgMeta) 工厂
+│   ├── base.ts                            # strict-type-checked + stylistic-type-checked 装配与偏离表
+│   ├── biome-boundary.md                  # ESLint/Biome 判定表镜像（ADR-0044）
+│   ├── rules/
+│   │   ├── type-safety.ts                 # 禁 any/as/!/@ts-ignore/Function/object/{}/enum/namespace
+│   │   ├── restricted-imports.ts          # 第三方库单点引入表 → no-restricted-imports 生成器
+│   │   ├── restricted-globals.ts          # iso 同构全局名单 → no-restricted-globals 配置
+│   │   └── style.ts                       # console/prototype/裸 throw/debugger 等语义类禁用
+│   └── eslint-plugin-oce/
+│       ├── package.json                   # name: @oce-tooling/eslint-plugin-oce
+│       ├── index.ts                       # 规则注册表 + recommended/strict 两档导出 config
+│       └── rules/                         # 21 个文件，逐条见 §5.2
+│           ├── no-register-methods-outside-kernel.ts
+│           ├── no-module-level-mutable-state.ts
+│           ├── effect-owned-resources.ts
+│           ├── events-must-be-declared.ts
+│           ├── services-must-be-declared.ts
+│           ├── contribution-file-naming.ts
+│           ├── no-provider-import-in-consumer.ts
+│           ├── deprecated-must-have-removal-version.ts
+│           ├── config-fields-must-be-read.ts
+│           ├── no-mixin-outside-kernel.ts
+│           ├── schema-type-must-be-inferred.ts
+│           ├── no-doc-type-literals.ts
+│           ├── no-unit-scoped-inject-at-root.ts
+│           ├── no-boolean-command-result.ts
+│           ├── telemetry-events-must-be-declared.ts
+│           ├── command-must-declare-capabilities.ts
+│           ├── no-index-in-mutation.ts
+│           ├── no-waterfall-in-render-hot-path.ts
+│           ├── capability-vocabulary-single-source.ts
+│           ├── store-transact-in-commands-only.ts
+│           └── nest-controller-dto-from-protocol.ts
+├── depcruise/
+│   ├── index.cjs                          # 主配置入口（根 .dependency-cruiser.cjs 仅 re-export 本文件）
+│   ├── package-metadata.ts                # 扫描全部 package.json#oce，构建内存查找表
+│   ├── layers.ts                          # 层号秩表 + 「允许目标」判定函数
+│   └── rules/
+│       ├── no-circular.ts                 # 规则 1：oce-no-circular-file / oce-no-circular-package
+│       ├── layering.ts                    # 规则 2：oce-layer-downward
+│       ├── doc-type-blind.ts              # 规则 3+8：oce-doc-type-blind / oce-bundle-isolation
+│       ├── single-entry.ts                # 规则 4：oce-third-party-single-entry
+│       ├── isomorphism.ts                 # 规则 5：oce-isomorphism-compatibility（3×3 矩阵）
+│       ├── roles.ts                       # 规则 6：oce-role-provider-no-cross-import 等
+│       └── no-deep-import.ts              # 规则 7：oce-no-deep-import
+├── api-extractor/
+│   ├── api-extractor.base.json            # 公共规则：report 路径、release tag、消息级别覆盖
+│   ├── api-extractor.iso.json             # extends base；iso 包专用
+│   ├── api-extractor.dom.json             # extends base；dom 包专用
+│   └── api-extractor.node.json            # extends base；node 包专用
+```
+
+```text
+tooling/
+├── scripts/                                # 覆盖 02§5 草图里"manifest-gen/scanners/policy-check/
+│   │                                          iso-smoke/scripts"五个名字的实际落点，见 §12-D1
+│   ├── scan-type-escapes.ts                # 06§2；13 个扫描器之一
+│   ├── scan-contributions.ts               # 06§3
+│   ├── scan-effects.ts                     # 06§4
+│   ├── scan-isomorphic.ts                  # 06§5；静态部分 + 生成 iso-smoke-manifest.json
+│   ├── scan-manifest.ts                    # 06§6（= 02§5 的"manifest-gen"）
+│   ├── scan-config-usage.ts                # 06§7
+│   ├── scan-deprecations.ts                # 06§8
+│   ├── scan-policy.ts                      # 06§9（= 02§5 的"policy-check"）
+│   ├── scan-telemetry-events.ts            # 06§10
+│   ├── scan-command-capabilities.ts        # 06§11
+│   ├── scan-requirement-tags.ts            # 06§12
+│   ├── scan-observability-identifiers.ts   # 06§13
+│   ├── scan-bundle-budget.ts               # 06§14
+│   ├── create-package.ts                   # 从 §4.0 模板生成新包（oce 字段/references/changeset 占位）
+│   ├── sync-references.ts                  # tsconfig references ↔ package.json 依赖一致性
+│   ├── compile-preset-geometry.ts          # presetShapeDefinitions.xml → engine-layout geometry 表
+│   ├── compile-schema-order.ts             # XSD → ooxml-core/preserve/schema-order
+│   └── lib/
+│       ├── ts-project.ts                   # 基于 ts-morph 的项目加载封装
+│       ├── report.ts                       # 统一 JSON + 人类可读双格式输出器
+│       ├── budget.ts                       # 读写 budgets.json 的类型化访问层
+│       └── changed-files.ts                # git diff 范围计算（pre-commit 快速模式）
+├── policy/
+│   ├── budgets.json                        # 棘轮预算基线（ADR-0040），M0 阶段全部键 = 0
+│   ├── milestones.json                     # 里程碑 → 日期/版本映射（scan-deprecations 消费）
+│   ├── requirements.json                   # PRD 需求 id 清单镜像（可选，见 §13 Q-03）
+│   ├── event-domains.json                  # 第一方事件域白名单（可选，见 §13 Q-03）
+│   ├── license-allowlist.json              # 依赖许可证白名单（TD-050，MIT/Apache-2.0/BSD/ISC）
+│   └── schema/
+│       ├── policy-row.schema.json          # 08 矩阵九列行结构校验
+│       └── oce-package-metadata.schema.json # package.json#oce 字段合法性校验
+├── changeset-config/                        # 新增建议：02§5 只给一句话描述，本模块展开为两文件
+│   ├── fixed-groups.ts                     # 读取全部包 oce.layer ∈ {L0,L1}，生成 fixed 组写回 config.json
+│   └── changeset-required.ts               # "是否需要 changeset"判定（04§5），供 api-surface 收尾调用
+├── xsd/
+│   └── README.md                           # 占位：目录与 CI job 由本模块登记；校验内容由架构-结构 A（M-04）填充
+└── commitlint.config.ts                    # Conventional Commits 规则；由根 lefthook.yml 以 --config 指向
+```
+
+（测试文件 `__tests__/*.test.ts` 与夹具目录 `__fixtures__/`/`fixtures/` 均放 §9，不在本树重复列出；tooling/ 内每个源文件均须遵守 09-01 的 `node.json` tsconfig 基线并适用 §5 §9 描述的同一套 lint/预算规则——治理者自身同样被治理，见 §10。）
+
+## 5. 文件职责表
+
+> 逐文件一行，与 §4 一一对应；测试文件见 §9。按子目录分节展示；depcruise 8 条规则与 13 个扫描器额外用专表给出"输入/检查项/失败格式/对应规则编号"（硬规则要求）。
+
+### 5.1 根级文件与 `.github/workflows/`
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `package.json` | 声明 workspace scripts、`packageManager`、`engines.node` | npm scripts（§2.6） | — | `pnpm@10.x`（corepack），`engines.node>=22` |
+| `pnpm-workspace.yaml` | 声明工作区包 glob 与第三方版本 catalog | — | — | 实际只有 `tooling/eslint-config` 有 `package.json`，见 §12-D3 |
+| `turbo.json` | 任务图与增量缓存边界 | — | — | 失效边界含 `tooling/eslint-config/**`/`tooling/tsconfig/**`/`tooling/depcruise/**`/`tooling/policy/budgets.json` |
+| `tsconfig.json` | `tsc -b` 总入口 | — | 全部包 `references` | 不含 `files`/`compilerOptions` |
+| `tsconfig.base.json` | 编辑器发现用 | — | `tooling/tsconfig/base.json` | 包自身不 `extends` 此文件 |
+| `eslint.config.js` | 装配根 flat config | 默认导出 config 数组 | `@oce-tooling/eslint-config` | 按 `package.json#oce` 派生同构类/层级参数 |
+| `biome.json` | 格式化规则（缩进/引号/行宽） | — | — | `linter.enabled=false`（ADR-0044） |
+| `.dependency-cruiser.cjs` | 依赖规则入口 | — | `tooling/depcruise/index.cjs` | 仅 re-export |
+| `lefthook.yml` | 三阶段 hook 定义 | — | `tooling/scripts/*`、`tooling/commitlint.config.ts` | 见 §5.9 job 内容 |
+| `.changeset/config.json` | Changesets 主配置 | — | `tooling/changeset-config/fixed-groups.ts` 生成的 fixed 数组 | `ignore: apps/*` |
+| `.github/workflows/ci.yml` | PR 静态门禁矩阵 | — | 根 `package.json` scripts | 10 job，全部 `pull_request` 触发 |
+| `.github/workflows/policy-matrix.yml` | 规范↔执行矩阵自校验 | — | `pnpm policy` | 独立于 ci.yml，排查路径更直接 |
+| `.github/workflows/e2e.yml` | e2e + perf | — | Playwright/`test/perf/*`（架构-运行时 B） | 视觉 oracle 内容属 11 号文档 |
+| `.github/workflows/release.yml` | Changesets 发布 | — | `.changeset/config.json` | 仅 `main` 分支 |
+
+### 5.2 `tooling/tsconfig/`
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `base.json` | 严格选项全集（strict 家族 + 超出 strict 的 10 项 + R7 专项 3 项 + 模块解析） | `compilerOptions` 片段 | — | 不含 `lib`/`types`/`target` 之外的环境字段 |
+| `iso.json` | 同构包基线 | `compilerOptions.lib/types` | extends `base.json` | `lib:["ES2023"]`，`types:[]` |
+| `dom.json` | 浏览器包基线 | `compilerOptions.lib/types` | extends `base.json` | `lib` 追加 `DOM`/`DOM.Iterable` |
+| `node.json` | Node 包基线 | `compilerOptions.lib/types` | extends `base.json` | `types:["node"]` |
+| `nest.json` | `apps/server` 受限例外 | `compilerOptions.lib/types` | extends `node.json` | `experimentalDecorators`/`emitDecoratorMetadata: true`，`erasableSyntaxOnly: false` |
+| `build.json` | composite 构建/api-extractor 输入 | `compilerOptions.lib/types` | extends `base.json` | `declaration`/`declarationMap`/`incremental` |
+| `vitest.json` | 测试专用 types 覆盖 | `compilerOptions.lib/types` | extends 对应环境配置 | 不含 `vitest/globals` |
+
+### 5.3 `tooling/eslint-config/`（基础部分）
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `package.json` | 声明内部包名与依赖 | `name: @oce-tooling/eslint-config` | typescript-eslint、`@oce-tooling/eslint-plugin-oce` | devDependency 供全仓引用 |
+| `index.ts` | 组合入口 | `createConfig(pkgMeta): FlatConfig[]` | `base.ts`、`rules/*`、`eslint-plugin-oce` | 按 `oce` 元数据装配同构类专属规则参数 |
+| `base.ts` | 语言选项 + 预设装配 | `baseConfig: FlatConfig[]` | typescript-eslint | `strict-type-checked`+`stylistic-type-checked` 全开 `error`，偏离表见 §2.5 引用的 02§2.1 |
+| `biome-boundary.md` | ESLint/Biome 判定表镜像 | — | — | 机器权威见 ADR-0044，本文件仅人类可读镜像 |
+| `rules/type-safety.ts` | 禁用清单具体规则映射 | `typeSafetyRules: FlatConfig['rules']` | `@typescript-eslint/eslint-plugin` | 覆盖 any/as/!/@ts-ignore/enum/namespace/Function/object/{} |
+| `rules/restricted-imports.ts` | 第三方库单点引入生成器 | `restrictedImportsRules(pkgMeta)` | — | 消费 §5.7 单点引入静态表，按包生成 overrides |
+| `rules/restricted-globals.ts` | 同构全局名单生成器 | `restrictedGlobalsRules(pkgMeta)` | — | 仅 `oce.iso === 'iso'` 的包生效 |
+| `rules/style.ts` | 语义类禁用 | `styleRules: FlatConfig['rules']` | — | console/prototype/裸 throw/debugger（debugger 零豁免） |
+
+### 5.4 `tooling/eslint-config/eslint-plugin-oce/`（21 条自定义规则）
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `package.json` | 内部插件包 | `name: @oce-tooling/eslint-plugin-oce` | `@typescript-eslint/utils` | — |
+| `index.ts` | 规则注册表 | `recommended`/`strict` 两档 config | `rules/*` | 21 条规则全部登记 |
+
+| # | 规则文件（`rules/*.ts`） | 目的（一句话） | 检测/权威关系 | 对应 TD |
+|---|---|---|---|---|
+| 4.1 | `no-register-methods-outside-kernel.ts` | D3 唯一注册抽象，禁 `register*` 泛滥 | 权威（路径+命名匹配） | TD-026 |
+| 4.2 | `no-module-level-mutable-state.ts` | 禁模块顶层可变状态（假定插件可多次激活） | 权威 | TD-012（+TD-020/027 同机制） |
+| 4.3 | `effect-owned-resources.ts` | 原生资源必须归属 `ctx.effect()` | 代理，权威=`scan-effects` | TD-011（+TD-019 同机制） |
+| 4.4 | `events-must-be-declared.ts` | 事件名静态字面量 + `<域>/<动作>` + 域白名单 | 规则1-2权威，规则3(域白名单)依赖外部清单 | TD-017 + TD-074（规则3） |
+| 4.5 | `services-must-be-declared.ts` | 服务名固定表 + 声明合并校验 | 权威 | TD-017（同机制） |
+| 4.6 | `contribution-file-naming.ts` | `*.contribution.ts` 文件形状 + `plugin.ts`/`manifest.ts` 约定 | 代理（规则3 Config 引用），权威=`scan-contributions` | TD-013（部分：规则 3） |
+| 4.7 | `no-provider-import-in-consumer.ts` | 三角色：consumer 不得 import provider | 代理，权威=depcruise `oce-role-*` | TD-008/TD-014 |
+| 4.8 | `deprecated-must-have-removal-version.ts` | `@deprecated` 必须配 `@removeIn` | 代理，权威=`scan-deprecations` | TD-036 |
+| 4.9 | `config-fields-must-be-read.ts` | Config 字段必须被消费（同文件启发式） | 代理，权威=`scan-config-usage` | TD-040 |
+| 4.10 | `no-mixin-outside-kernel.ts` | 内核之外禁 `ctx.mixin`/原型赋值 | 权威 | TD-024/TD-028 |
+| 4.11 | `schema-type-must-be-inferred.ts` | 类型必须 `z.infer` 推导，禁手写副本 | 权威（同文件可判定） | TD-045 |
+| 4.12 | `no-doc-type-literals.ts` | 水平层禁字面量比较文档类型 id（值层对偶） | 权威（名单自动派生） | 未在 08 单独登记，见 §12-D6 |
+| 4.13 | `no-unit-scoped-inject-at-root.ts` | 根 Context 禁注入 UnitScope 服务名 | 代理，启发式，依赖 `openUnitScope` API | 未在 08 单独登记，见 §12-D6/§13 Q-05 |
+| 4.14 | `no-boolean-command-result.ts` | Command 处理器禁返回裸 `boolean` | 权威（返回类型显式标注可判定） | 未在 08 单独登记，见 §12-D6 |
+| 4.15 | `telemetry-events-must-be-declared.ts` | 遥测事件名必须在中心注册表声明 | 代理，权威=`scan-telemetry-events` | TD-060 |
+| 4.16 | `command-must-declare-capabilities.ts` | Command 必须显式声明 `permission`（fail-closed） | 代理，权威=`scan-command-capabilities` | TD-061 |
+| 4.17 | `no-index-in-mutation.ts` | Mutation 禁 `index` 字段与 `inverse` 字段 | 权威 | TD-065 |
+| 4.18 | `no-waterfall-in-render-hot-path.ts` | 渲染热路径禁 `ctx.waterfall` | 权威 | TD-066 |
+| 4.19 | `capability-vocabulary-single-source.ts` | `Capability` 只能在 `@oce/protocol` 声明 | 权威 | TD-067 |
+| 4.20 | `store-transact-in-commands-only.ts` | `store.transact` 只能在 commands 管线调用 | 代理，启发式 | TD-068 |
+| 4.21 | `nest-controller-dto-from-protocol.ts` | Nest Controller DTO 只能来自 `@oce/protocol`（仅 `apps/server`） | 权威 | TD-069 |
+
+全部 21 条规则：`fixable` 恒 `undefined`（不提供自动修复，见 ADR-0044）；豁免格式统一 `// oce-allow(<rule-id>): <issue-url>`；每条必须在 `__tests__/` 有同名负向测试（见 §9）。
+
+### 5.5 `tooling/depcruise/`（8 条依赖规则）
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `index.cjs` | 主配置入口，装配全部规则模块 | dependency-cruiser `IConfiguration` | `package-metadata.ts`、`layers.ts`、`rules/*.ts` | CommonJS，供根 `.dependency-cruiser.cjs` re-export |
+| `package-metadata.ts` | 启动期扫描全部 `oce` 字段；对 `role` 字段做七值→四值折叠（`definition→definition`、`provider→provider`、其余→`consumer`，除非该包同时是某 Definition 的 Provider） | `loadPackageMetadata(): Map<string, OceMeta>`、`foldRole(role7, isProviderOf?: boolean): 'definition'\|'provider'\|'consumer'\|'n/a'` | — | 一次性构建，不在规则求值期反复读盘；折叠映射见 §2.2、C-11 |
+| `layers.ts` | 秩表与允许目标判定 | `rank(layer): number`、`isDownward(from,to): boolean` | — | `L0=0…L8=80` + 4 个 `V-*` 层带（见 03§3.2） |
+
+| # | 规则名（`from`→`to`） | 严重级 | 实现文件 | 对应 TD |
+|---|---|---|---|---|
+| 1 | `oce-no-circular-file` / `oce-no-circular-package`：任意→任意，检测环 | `error` | `rules/no-circular.ts` | TD-001/TD-002 |
+| 2 | `oce-layer-downward`：`rank(to) > rank(from)` 即违规 | `error` | `rules/layering.ts` | TD-003 |
+| 3 | `oce-doc-type-blind`：`bundle` 为空→`bundle` 非空，无条件违规 | `error` | `rules/doc-type-blind.ts` | TD-004 |
+| 4 | `oce-bundle-isolation`：`bundle==X`→`bundle==Y≠X`，无条件违规 | `error` | `rules/doc-type-blind.ts`（同文件两条规则） | TD-005 |
+| 5 | `oce-third-party-single-entry`：非允许包→`cordis`/`yjs`/…（§2.5 单点引入表） | `error` | `rules/single-entry.ts` | TD-006/TD-076 |
+| 6 | `oce-isomorphism-compatibility`：3×3 `iso/dom/node` 兼容矩阵（含 `dom↔node` 互斥） | `error` | `rules/isomorphism.ts` | TD-007/TD-034 |
+| 7 | `oce-role-provider-no-cross-import` / `oce-role-consumer-definition-only` | `error` | `rules/roles.ts` | TD-008/TD-014 |
+| 8 | `oce-no-deep-import`：任意→`@oce/[^/]+/(?!testing$)` | `error` | `rules/no-deep-import.ts` | TD-009/TD-041 |
+
+每条规则的 `violation` 夹具即负向测试（见 §9）；8 条规则**彼此有意重叠**（纵深防御，03§0），不追求单条规则独自完备。
+
+### 5.6 `tooling/api-extractor/`
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `api-extractor.base.json` | 公共规则：report 路径、release tag 严格化、消息级别覆盖 | `IConfigFile` 片段 | — | 缺失 release tag 由默认警告升级为 `error` |
+| `api-extractor.iso.json` | iso 包入口 | `IConfigFile` 片段 | extends base | 入口解析走 `tsconfig/iso.json` |
+| `api-extractor.dom.json` | dom 包入口 | `IConfigFile` 片段 | extends base | 入口解析走 `tsconfig/iso.json`（dom） |
+| `api-extractor.node.json` | node 包入口 | `IConfigFile` 片段 | extends base | 入口解析走 `tsconfig/iso.json`（node）；M0 阶段三者内容相同，为未来分化预留结构 |
+
+`store-yjs`/`collab-yjs` 的 `Y.*` 类型泄漏正则扫描（04§2.2）作为 `api-surface` job 收尾脚本调用，物理文件属 `tooling/scripts/lib/`（复用 `report.ts`），不在本目录另设文件。
+
+### 5.7 `tooling/scripts/`（13 个扫描器 + 4 个工具脚本 + `lib/`）
+
+十三个扫描器均输出「JSON + 人类可读」双格式，退出码 `0`=通过、`1`=超预算/发现违规、`2`=脚本自身故障：
+
+| 扫描器 | 输入 | 检查项（压缩） | 失败输出格式（要点） | 对应规则编号 |
+|---|---|---|---|---|
+| `scan-type-escapes.ts` | 全部 `packages/*/{src,__tests__}/**`、`apps/*/src/**`、`tooling/**` | 统计 `as`(非const)/`!`/尖括号断言/未说明 `@ts-expect-error`/`oce-allow` 计数，按包×`src\|test`×`kind` 分组 | `[scan-type-escapes] budget exceeded: <pkg>:<src\|test>:<kind> current=N budget=M (delta +K)` + 新增位置列表 | ADR-0040；支撑几乎全部标"oce-allow（预算制）"的 TD 行 |
+| `scan-contributions.ts` | `*.contribution.ts`、`plugin.ts`/`services/*.service.ts`、`manifest.ts` | (a)`ctx.contribute`可追溯到`defineContributionPoint`；(b)id匹配`^[a-z]\w*\.[a-z]\w*$`；(c)(d)manifest↔源码双向一致 | 按 a/b/c/d 四类分行，(c)/(d) 打印并排 diff | 章程§5.5；08 未单独登记（§12-D7） |
+| `scan-effects.ts` | 每包 `plugin.ts` 是否含 effect/`ctx.on`/`ctx.contribute` + `__tests__/**` | (1)含 effect 包必有卸载后 `assertNoLiveEffects` 断言；(2)每个 `plugin.ts` 必有生命周期烟雾测试 | `{package, hasEffects, hasDisposeTest, hasLifecycleSmokeTest}[]`，仅列 `false` 项 | TD-011/TD-016/TD-019/TD-039/TD-071 |
+| `scan-isomorphic.ts` | 全部 `oce.iso==='iso'` 包 `src/**` | (a)全局名单静态扫描（兜底 ESLint）；(b)生成 `iso-smoke-manifest.json` | (a)同 type-escapes 格式扩展 `iso-global-leak`；(b)产物非报告 | TD-007/TD-034 |
+| `scan-manifest.ts` | `plugin.ts`/`*.contribution.ts`/`services/*.service.ts`/`manifest.ts`/`package.json` | (a)(b)源码↔manifest.ts↔oce-manifest.json 三层一致；(c)`exports`↔`publicEntry`；(d)类型专用依赖误置；(e)`provide`必有conformance调用；(f)`./testing`不被`src`引用 | (b)类附统一 diff 块；其余按 a-f 分类列出 | (d)=TD-042；(e)=TD-070；(f)=TD-072；(a)(b)(c)未单独登记（§12-D7） |
+| `scan-config-usage.ts` | `contracts/*.schema.ts` 的 Config 字段 + 该包全部源码 | 每个顶层字段（含一层嵌套）在包内是否有引用点 | `{package, field, path}[]` | TD-040 |
+| `scan-deprecations.ts` | 全部 `@deprecated`/`@removeIn` JSDoc + `milestones.json` + 各包 `version` | `@removeIn` 指向的里程碑/semver 是否已到达/超过 | `{package, symbol, removeIn, reason}[]` | TD-036 |
+| `scan-policy.ts` | 08 矩阵文本、`policy-row.schema.json`、CI 工作流、21+8 条规则文件与测试、13 个扫描器夹具、全部 `oce`/`tsconfig` | (1)矩阵自校验（格式/id/路径存在/job名封闭）；(2)覆盖率检查（硬编码来源清单）；(3)规则/扫描器负向测试完整性；(a)(b)全局不变式 | `{check, rowId?, detail}[]`，覆盖率缺口示例见 06§9 | TD-031/TD-055/TD-058/TD-077 |
+| `scan-telemetry-events.ts` | `kernel/src/telemetry/events.ts` 注册表 + `ctx.telemetry.track(...)` 调用点 | (a)调用点在注册表；(b)注册表必有调用；(c)`<域>_<动作>` 命名 | 按a/b/c分类 | TD-060 |
+| `scan-command-capabilities.ts` | `commands/*.command.ts` + `ctx.contribute(commandsPoint,...)` + `Capability` 集合 | (a)贡献的 Command 必有非空 `permission`；(b)取值落在封闭集合内 | 按a/b分类 | TD-061 |
+| `scan-requirement-tags.ts` | 测试文件 `// @req <id>` 标签 + 可选 `requirements.json` | (a)格式`^[A-Z]{2,3}-\d{2,3}$`；(b)id存在性（若清单存在）；(c)生成 `requirement-test-matrix.json` | (c)为产物，供 11 号文档消费 | 章程需求编号约定；TD-062 |
+| `scan-observability-identifiers.ts` | 错误码/span/metric 注册表 + 全部调用点 | 三类各自(a)调用点在注册表(b)注册表必有调用；错误码类目额外校验**双轨命名通则**（TS 常量名 `UPPER_SNAKE`、错误码值点式，如常量 `FORMAT_NO_DOCUMENT_TYPE` 对应值 `format.no_document_type`，二者须一一对应且值全文件唯一，见 14 §1 C-16） | `{category, rule, ...}[]` | TD-073 |
+| `scan-bundle-budget.ts` | `preset-*`/`*-ui`/`*-render` 的 `dist/**` | 构建产物字节数 vs `budgets.json` 的 `bundle-size-bytes` | `{package, actualBytes, budgetBytes, delta}[]` | TD-075；ADR-0040 复用实例 |
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `create-package.ts` | 从模板生成新包骨架 | CLI 入口 | `lib/*` | 写入 `oce` 字段/`tsconfig#references`/空 changeset |
+| `sync-references.ts` | `tsconfig#references` ↔ 依赖一致性 | CLI 入口 | `lib/ts-project.ts` | 校验对象是"类型层声明"而非"源码实际 import"（后者归 depcruise） |
+| `compile-preset-geometry.ts` | 预设几何编译 | CLI 入口 | — | 内容属架构-结构 A（`engine-layout`），本模块仅登记脚本壳 |
+| `compile-schema-order.ts` | XSD → 保留顺序表 | CLI 入口 | — | 内容属架构-结构 A（`ooxml-core`），本模块仅登记脚本壳 |
+| `lib/ts-project.ts` | ts-morph 项目加载封装 | `loadProject(tsconfigPath)` | ts-morph | 按包/按 tsconfig 批量加载，全部扫描器复用 |
+| `lib/report.ts` | 双格式输出器 | `formatReport()`（见 2.3） | — | 预算/ratchet 比对与失败退出码约定 |
+| `lib/budget.ts` | 预算读写类型化访问层 | `compareBudget()`（见 2.3） | — | 只读 `budgets.json`，不在运行时自动改写 |
+| `lib/changed-files.ts` | git diff 范围计算 | `computeChangedFiles()`（见 2.3） | — | 供 pre-commit `--changed-only` 模式复用 |
+
+**ratchet 预算只减不增的实现**（跨 `scan-type-escapes.ts`/`scan-bundle-budget.ts`/`lib/budget.ts` 三文件）：`lib/budget.ts` 的 `compareBudget(actual, baseline)` 只做单值比较，真正的"只减不增"约束落在 CI 步骤——`scanners` job 对比 **PR 分支**与 **`main` 分支**两份 `tooling/policy/budgets.json` 的对应键值，若 PR 分支的值 > main 分支的值且 PR 描述未链接 ADR-0040 例外 issue，判定为违反 ratchet；数值下降或持平始终允许。该 diff 比较本身是一段 shell/CI 步骤（`git show main:tooling/policy/budgets.json` 与工作区文件对比），不是 `lib/budget.ts` 内的函数职责——`lib/budget.ts` 只回答"这个包这个键当前是否超预算"，不回答"预算基线本身是否被非法上调"。
+
+### 5.8 `tooling/policy/`
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `budgets.json` | 棘轮预算基线 | 数据文件 | — | M0 全部键 = 0（仓库无生产代码）；`scan-type-escapes`/`scan-bundle-budget`/`scan-manifest`(d) 三者共写不同键前缀 |
+| `milestones.json` | 里程碑→日期/版本映射 | 数据文件 | — | `scan-deprecations.ts` 消费；由总编排/产品条线维护 |
+| `requirements.json` | PRD 需求 id 清单镜像 | 数据文件（可选） | — | 缺失时 `scan-requirement-tags` 规则(b)退化为仅格式校验（§13 Q-03） |
+| `event-domains.json` | 第一方事件域白名单 | 数据文件（可选） | — | 缺失时 `events-must-be-declared` 规则3无法拒绝未知域（§13 Q-03） |
+| `license-allowlist.json` | 许可证白名单 | 数据文件 | — | TD-050；MIT/Apache-2.0/BSD/ISC 兼容，禁 AGPL |
+| `schema/policy-row.schema.json` | 08 矩阵行结构 JSON Schema | schema 文件 | — | `scan-policy` 规则1消费 |
+| `schema/oce-package-metadata.schema.json` | `oce` 字段合法性 JSON Schema | schema 文件 | — | `scan-policy` 全局不变式(b)消费；与架构-结构条线共享维护（03§2） |
+
+### 5.9 `tooling/changeset-config/`、`tooling/xsd/`、`tooling/commitlint.config.ts` 与 CI job 矩阵
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `changeset-config/fixed-groups.ts` | 生成 `.changeset/config.json` 的 `fixed` 数组 | `computeFixedGroups(): string[][]` | `depcruise/package-metadata.ts` | 读取 `oce.layer ∈ {L0,L1}` 的包（lockstep），新增建议 |
+| `changeset-config/changeset-required.ts` | "是否需要 changeset"判定 | `requiresChangeset(diff): boolean` | — | 04§5 机制；`api-surface` job 收尾调用，新增建议 |
+| `xsd/README.md` | 占位说明 | — | — | 内容/版本由架构-结构 A（M-04 `ooxml-core`）填充；本模块只登记 `xsd-validate` job 存在性（TD-078） |
+| `commitlint.config.ts` | Conventional Commits 规则 | `commitlintConfig` | `@commitlint/config-conventional` | 由根 `lefthook.yml` 的 `commit-msg` 阶段以 `--config` 显式指向 |
+
+**CI job 矩阵**（13 个，见 09-07§3；本模块只保证存在性/触发条件/阻断姿态，内容 owner 见备注）：
+
+| Job | 所在工作流 | 内容 owner | 触发 |
+|---|---|---|---|
+| `lint` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `typecheck` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `test` | `ci.yml` | 架构-运行时 B | 每 PR（本模块仅治理存在性） |
+| `test-typecheck` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `iso-smoke` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `depcruise` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `api-surface` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `scanners` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `xsd-validate` | `ci.yml` | 架构-结构 A（内容）+ 本模块（job 治理） | 每 PR |
+| `coverage-patch` | `ci.yml` | 架构-运行时 B（阈值）+ 本模块（机制） | 每 PR |
+| `policy-check` | `policy-matrix.yml` | 架构-类型治理 | 每 PR |
+| `e2e` | `e2e.yml` | 架构-运行时 B | 每 PR（冒烟子集）/main（全量） |
+| `perf` | `e2e.yml` | 架构-运行时 B / 产品 | main 分支（PR 仅告警） |
+
+全部 13 个 job：无分支白名单例外，不含 `--quiet`/`--silent` 等价参数，`error` 级别阻断（lessons A16/A18）。
+
+**`scan-policy` 如何读 `08-policy-enforcement-matrix.md`**：(1) 按该文件 §1 声明的固定九列表头（`id|陈述|来源|执行机制|配置路径|负向测试路径|CI job|豁免方式|owner`）逐个 Markdown 表格匹配，拼接为一张逻辑行数组，表头不匹配的表格（如该文件 §11 命名对照表）被结构性忽略；(2) 对每行的 `id` 做 `^TD-\d{3}$` 正则校验与全文件唯一性检查；(3) 对"配置路径"/"负向测试路径"列非 `N/A` 的值，逐一 `fs.existsSync` 校验；(4) 对"CI job"列的值，校验其落在 §5.9 上表 13 个 job 名的封闭集合内（或 `N/A（人工评审）`）；(5) "执行机制"列出现"机制同 TD-0NN"时，校验 `NNN` 数值小于当前行 id（只向前引用，不成环）；(6) 用一份硬编码的"必须被覆盖"来源 id 清单（章程 §5.3 八条、primer 16 条、lessons 若干项）核对矩阵覆盖率，缺失即输出 §12/§13 风格的"coverage gap"信息。
+
+## 6. 对外 API 面
+
+`tooling/*` **不**发布到 npm registry，不经过 §5.6 描述的 api-extractor/`.api.md`/`isolatedDeclarations` 门禁（04§1："范围仅限 `packages/*`；`tooling/*` 属构建期工具，不对外发布"）。本模块唯一的"对外接口"是三类非类型系统意义上的表面：
+
+1. **npm 包导出**（唯一真正被其余包 `import`/`extends` 的表面）：
+   ```ts
+   // @oce-tooling/eslint-config
+   export function createConfig(pkgMeta: OcePackageMetadata): FlatConfig[]
+   // @oce-tooling/eslint-plugin-oce
+   export const recommended: FlatConfig
+   export const strict: FlatConfig
+   ```
+   两者均为内部包（`private: true`，`pnpm-workspace.yaml` 内可解析，不发布到公网 registry），无 `stability` 分级——本模块自身不适用 §2.2 描述的 `oce.stability` 字段（tooling 包不填 `oce` 字段，见 §10）。
+2. **npm scripts / CLI 子命令**（面向人类与 CI 的命令行 API，见 §2.6）：签名即 `package.json#scripts` 的 key 名 + 可选 flag（如 `--changed-only`/`--check`）。
+3. **配置文件的 `extends`/`require` 相对路径**（`tsconfig.json#extends`、`api-extractor.json#extends`、`.dependency-cruiser.cjs` 的 `require`）——这些是路径契约而非类型契约，变更即破坏性变更，须走 §5 各文件的"备注"列标注的稳定性预期，但不产生 `.api.md` diff（因为不是 TS 导出）。
+
+## 7. 前后端与运行时
+
+本模块不区分浏览器/Node/两端——它治理的对象跨两端，自身只在**构建期**（本地 pre-commit/pre-push、CI runner）执行，从不出现在 `apps/web`/`apps/server` 的运行时产物中：
+
+- `apps/web`（dom）：接入点是其 `tsconfig.json extends tooling/tsconfig/dom.json`、`package.json` devDependency `@oce-tooling/eslint-config`；无进程间契约（tooling 不跨网络边界）。
+- `apps/server`（node）：接入点是 `tsconfig.json extends tooling/tsconfig/nest.json`（§5.2 受限例外）；`apps/server/src/modules/**` 额外受 `server-app-thin` 变体（R9，02§3.2）与 `oce/nest-controller-dto-from-protocol`（§5.4 4.21）约束。
+- 服务端两个 cordis 宿主包（`server-collab`/`server-headless`，`LS` 层）：使用 `tooling/tsconfig/node.json`（非 `nest.json`），若出现 Nest 装饰器导入即判定为 `nest.json` 例外范围外扩散（01§6 范围边界，`scan-policy` 全局不变式(a)）。
+- 不存在"同一 Definition 的不同 Provider"这一模式——本模块自身没有 Definition/Provider 概念（§3 已说明无 cordis 形态）；唯一近似物是 §5.6 提到的三份 api-extractor 基础配置（iso/dom/node），但它们是**同一份内容的三个占位分叉**，不是运行时可替换的 Provider。
+- 与 `@oce/protocol` 无关：本模块的全部"契约"都是构建期文件/路径/JSON Schema，不经过网络，不属于 §1.3 表格里"进程间契约"的范畴。
+
+## 8. doc / sheet 扩展缝
+
+本模块的 doc-sheet 通用性标注为 generic：规则本身对文档类型盲，`oce.bundle` 正是它治理的**对象**而非它认识的领域概念（module-map §3 BC-28 行）。新增一个垂直束（如 M5 的 `doc`/`sheet`，或更远期的第四个 bundle）时，改哪些文件、哪些文件**不用**改，逐一说明：
+
+**不用改的文件（动态派生，天然支持新 bundle）**：
+- `tooling/depcruise/rules/doc-type-blind.ts`（`oce-bundle-isolation`）——语义是"`bundle==X` → `bundle==Y≠X` 即违规"的**相等性比较**，不枚举已知 bundle 值，新增 `sheet`/`doc` 或任何第 N 个 bundle 都无需改代码。
+- `tooling/eslint-config/eslint-plugin-oce/rules/no-doc-type-literals.ts`（§5.4 4.12）——"已知文档类型 id 名单"从全仓 `oce.bundle` 实际出现的取值**自动派生**，不手工维护清单。
+- `tooling/depcruise/layers.ts`——秩表只有 4 个抽象层带位（`V-model=15`/`V-codec=35`/`V-render=55`/`V-ui=75`），新增 bundle 复用同一组层带秩值，不新增秩位。
+
+**需要改的文件（种类数量变化时）**：
+1. `tooling/policy/schema/oce-package-metadata.schema.json`——`bundle` 字段当前枚举 `slide|doc|sheet`；新增第四个 bundle（如未来的 `form`）需在此加一个枚举值，否则该 bundle 的包在 `scan-policy` 全局不变式(b)会被判定为元数据非法。
+2. `tooling/policy/event-domains.json`——若新 bundle 引入新的事件域前缀（如 `form/opened`），需把该域加入第一方保留域清单，否则 `oce/events-must-be-declared` 规则3（域白名单）会拒绝它。
+3. `tooling/eslint-config/rules/restricted-imports.ts` 与 `tooling/depcruise/rules/single-entry.ts` 的单点引入静态表——仅当新 bundle 引入**新的、需要单点引入的第三方库**（如 sheet 用了新的表格计算库）时才需要新增一行；仅新增 bundle 本身不触发改动。
+4. `tooling/scripts/scan-horizontal-freeze.ts`（**M5 新增建议**，见下）——首次为该 bundle 生成冻结基线时需运行一次写入 `fixtures/horizontal-freeze.lock`；脚本代码本身不因新增 bundle 而改（其输入定义为"全部无 `oce.bundle` 字段的包"，新 bundle 包自身带 `bundle` 字段，天然被排除在冻结范围之外）。
+
+**`horizontal-freeze` 机制的落点（09-06 现存 13 个扫描器**不含**此项，属 §12-D4 登记的 M5 新增建议）**：module-map §6.4 要求"对全部无 `oce.bundle` 字段的包计算内容哈希并写入 `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件无 diff"。本模块为此预留骨架文件 `tooling/scripts/scan-horizontal-freeze.ts`（沿用 `scripts/` 落点与双格式输出/`lib/report.ts` 约定），但**不**在 M0 阶段把它计入"十三个扫描器"——09-06 首段明确"十三个是当前的完整清单，继续新增需要与本节同等分量的独立价值论证"；正式纳入（届时数量由 13 变为 14，需追加 06 号文档 §18）的时机与谁来提议，登记为 §13 Q-01。
+
+**束间隔离规则的参数化点**：`oce-bundle-isolation`（depcruise）与 `no-doc-type-literals`（lint）均以 `oce.bundle` 取值的**相等/不等比较**为唯一判据，不硬编码 `'slide'`/`'doc'`/`'sheet'` 字面量——这是本模块在设计阶段就把"新增垂直束"当作一等场景对待的直接证据，与章程铁律 2（束间隔离）的表述一致。
+
+## 9. 测试布局
+
+```text
+tooling/
+├── eslint-config/eslint-plugin-oce/__tests__/
+│   ├── no-register-methods-outside-kernel.test.ts      # 21 个文件，与 §5.4 规则一一同名
+│   ├── no-module-level-mutable-state.test.ts
+│   ├── ...                                              # 其余 19 条规则同名测试
+│   └── nest-controller-dto-from-protocol.test.ts
+├── depcruise/__tests__/fixtures/
+│   ├── no-circular/{ok,violation}/                      # 独立 package.json + 源文件的最小夹具仓库
+│   ├── layering/{ok,violation}/
+│   ├── doc-type-blind/{ok,violation}/                   # 同文件覆盖规则 3 与规则 8 两种违规
+│   ├── single-entry/{ok,violation}/
+│   ├── isomorphism/{ok,violation}/
+│   ├── roles/{ok,violation}/
+│   └── no-deep-import/{ok,violation}/
+├── scripts/__tests__/
+│   ├── scan-type-escapes.test.ts                        # 13 个文件，与 §5.7 扫描器一一同名
+│   ├── scan-contributions.test.ts
+│   ├── ...                                               # 其余 11 个扫描器同名测试
+│   ├── scan-bundle-budget.test.ts
+│   └── __fixtures__/
+│       ├── scan-type-escapes/{ok,violation}/             # 13 组，每扫描器一组
+│       ├── ...
+│       └── license/{ok,violation}/                       # TD-050 许可证扫描专用夹具
+├── tsconfig/__tests__/                                   # 草案：tsconfig 派生一致性负向夹具（01§1）
+└── changeset-config/__tests__/
+    └── fixed-groups.test.ts
+```
+
+- **单元测试**：全部 21 条 ESLint 规则用 `@typescript-eslint/rule-tester`（类型感知），结构固定为 `valid`/`invalid` 两个数组；**没有 `invalid`（负向）用例的规则不得合入 `index.ts` 导出表**（lessons A17，`scan-policy` 规则3 机械校验）。
+- **契约/一致性测试**：13 个扫描器各自的 `__tests__/*.test.ts` 对 `__fixtures__/<scanner-name>/{ok,violation}` 运行脚本本身并断言输出 JSON 的**关键字段**，而非整份输出快照（避免"带文件路径/行号"的报告类脚本产出脆弱的大快照）。
+- **依赖规则测试**：8 条 depcruise 规则的每个 `violation` 夹具即负向测试，`ok` 夹具证明规则不误伤合规代码；两者均为独立 `package.json` + 最小源文件的夹具仓库，由 depcruise 在夹具上运行并断言输出。
+- **集成/自校验测试**：`scan-policy.ts` 自身的测试覆盖 §5.9 描述的六类解析规则（行结构、覆盖率、规则/扫描器负向测试完整性等），是唯一"校验校验者"的测试层——其自身的负向测试由 08 矩阵引用的固定检查列表 + 人工评审兜底（09-README 已承认这是唯一无法自指校验的最外层）。
+- **覆盖率与性能预算**：tooling 自身的单测覆盖率门禁与仓库其余包一致，引用 11-testing-strategy.md §0 patch coverage 阈值（行 ≥80%/分支 ≥70%）；tooling 无渲染/协同性能预算，`scan-bundle-budget`（06§14）本身是其余包性能预算 ratchet 机制的复用范例，不是 tooling 自身的性能治理对象。
+
+## 10. 机械约束
+
+本模块是"约束的作者"，但 `tooling/**` 自身的源码同样被自己定义的一部分机制约束（自举，README §1.2 反复出现的设计模式）：
+
+| 约束 | 是否适用于 `tooling/**` 自身 | 检查者 | 备注 |
+|---|---|---|---|
+| `package.json#oce` 字段（layer/iso/bundle/…） | **不适用** | — | `tooling/*` 不参与秩体系（章程 §5.2 `tooling/*` 行："层/层带"列为"—"）；`scan-policy` 全局不变式(b) 的校验范围明确排除 `tooling/*` |
+| 8 条 depcruise 规则（`oce-*`） | **不适用（自身即规则实现者）** | — | module-map §9 机械约束映射表 BC-28 行原文："自身即规则实现者，不受其约束" |
+| 21 条 `oce/*` ESLint 规则 | 部分适用 | `lint` job | `tooling/**` 的 TS 源码同样跑 typescript-eslint 预设与通用禁用清单（any/as/enum/裸throw/console/debugger）；但 `oce/no-doc-type-literals`、`oce/no-unit-scoped-inject-at-root` 等**语义特定于业务包**的规则对 `tooling/**` 天然不触发（无匹配对象，非豁免） |
+| `tsconfig` 基线 | 适用 | `typecheck` job | `tooling/**` 用 `node.json`（非 `nest.json`，即使可能被 `apps/server` 间接消费）；`strict`/`isolatedDeclarations` 等选项同等生效 |
+| 类型逃逸预算 | 适用 | `scan-type-escapes` | `tooling/**` 计入 `budgets.json` 的独立键（06§1 首段："全部脚本不使用 any/as，除极少数须与 TS 编译器 API/AST 库交互处，需 oce-allow + 说明"） |
+| 规则/扫描器负向测试完整性 | 适用（对象是 tooling 自己产出的规则文件） | `policy-check`（`scan-policy` 规则3） | 21+8+13=42 个规则/扫描器文件，每个须有同名负向测试，见 §9 |
+| api-extractor/`.api.md` | **不适用** | — | `tooling/*` 不发布，04§1 明确排除 |
+| `isolatedDeclarations`/`exports` 子路径策略 | **不适用（除 `eslint-config`/`eslint-plugin-oce` 两个真正的 npm 包外）** | — | 见 §12-D3；这两个包若被其余包 `import`，理论上仍需遵守，但因其 `devDependency`+"仅供 `extends`/`config` 消费"的用法模式，实践上不强制 `isolatedDeclarations`（本模块自我认定，标"推荐"复核） |
+
+**反身性说明**：本模块刻意不给自己开后门——`scan-policy` 的覆盖率检查（§5.9 步骤6）与负向测试完整性检查（§9）都把 `tooling/` 自身的规则/扫描器文件当作被检查对象，而不是把"我是检查者"当作豁免理由；唯一的例外是 depcruise 8 条规则与 `oce` 元数据 schema 本身不适用于 `tooling/*`（因为这两者的语义前提——"包参与依赖秩体系"——对 `tooling/*` 不成立，不是刻意豁免）。
+
+## 11. 里程碑与实施顺序
+
+细化自 02§8"骨架创建顺序"第 1 步（"先有门禁，再有代码"，章程 M0 验收口径）。M-01 是唯一无上游模块，其自身产出**先于**任何 `packages/*`/`apps/*` 源码存在。
+
+**M0 骨架建设顺序**（每步完成后立即可运行对应校验命令，不批量堆到最后）：
+
+1. 根文件：`package.json`（先写 §2.6 的 12 个 scripts 占位，内容后续步骤逐步填实）、`pnpm-workspace.yaml`、`turbo.json`、`tsconfig.json`（空 `references`）、`eslint.config.js`（先 import 尚未存在的 `@oce-tooling/eslint-config`，允许阶段性失败）。
+2. `tooling/tsconfig/`：`base.json` → `iso.json`/`dom.json`/`node.json` → `nest.json`/`build.json`/`vitest.json`（7 文件全部就位后，`tsconfig.json` 的 `references` 才有意义）。
+3. `tooling/eslint-config/`：`package.json` → `base.ts` → `rules/*.ts`（4 文件）→ `index.ts`；`tooling/eslint-config/eslint-plugin-oce/`：`package.json` → `index.ts`（空注册表）→ 21 条规则逐条补齐（每条规则落地时同步写 `__tests__/` 同名负向测试，不允许"规则先上、测试后补"，见 §9）。
+4. `tooling/depcruise/`：`package-metadata.ts` → `layers.ts` → 7 个 `rules/*.ts`（含各自 `__tests__/fixtures/{ok,violation}`）→ `index.cjs` → 根 `.dependency-cruiser.cjs`。
+5. `tooling/api-extractor/`：4 个 JSON（M0 阶段内容一致，见 §5.6）。
+6. `tooling/policy/`：`schema/oce-package-metadata.schema.json`、`schema/policy-row.schema.json` 先行（供 §5.9 步骤 3 使用）；`budgets.json`/`milestones.json`/`event-domains.json`/`license-allowlist.json`（全部键从 0/空集起步）。
+7. `tooling/scripts/`：`lib/*` 四个共享文件 → 13 个 `scan-*.ts`（建议顺序：`scan-manifest`/`scan-contributions`/`scan-isomorphic` 三者依赖包骨架已存在，可稍后于 `scan-type-escapes`/`scan-deprecations`/`scan-config-usage` 等纯静态扫描器）→ `create-package.ts`/`sync-references.ts`（M0 阶段需要用它们批量生成后续 M-02…M-13 的包骨架，故不能拖到最后）。
+8. `08-policy-enforcement-matrix.md` 与 `scan-policy.ts` 同步完成（矩阵是文档，脚本是校验器，两者必须成对交付，否则"声明了没执行"——lessons A17/A31 的直接反例）。
+9. 根 `lefthook.yml`、`tooling/commitlint.config.ts`、`.github/workflows/{ci,policy-matrix,e2e,release}.yml`。
+10. `tooling/changeset-config/`、根 `.changeset/config.json`、`tooling/xsd/README.md`（占位）。
+
+**首个可运行切片**：完成步骤 1–4（tsconfig + eslint-config + depcruise 三件套，对应 02§8 第 1 步字面枚举的"根文件 + tsconfig + eslint-config + depcruise + lefthook + ci.yml"）后，仓库应处于"零 `packages/*`/`apps/*` 源码，但门禁全绿"的状态——这是 M0 验收的第一个可观察里程碑。
+
+**验收命令**（对应 §2.6 npm scripts）：
+
+```bash
+pnpm install                 # 建立 workspace 链接（此时仅 tooling/eslint-config 是可解析的 pnpm 包）
+pnpm run depcruise            # 空包图上应零违规（规则本身已就位，无违规对象）
+pnpm run lint                 # lint tooling/** 自身（§10 反身性约束）
+pnpm run policy               # scan-policy 校验 08 矩阵格式 + 规则/扫描器负向测试完整性
+pnpm run check                # 全部门禁一次性执行，作为"首个可运行切片"达成的唯一判据
+```
+
+`pnpm run check` 全绿即视为 M-01 骨架切片完成；此后 M-02 才能开始用 `create-package.ts` 生成 `@oce/shared`/`@oce/kernel` 等包骨架并逐步接入同一套门禁。
+
+## 12. 与现有文档的差异与追加建议
+
+| # | 涉及文档 | 差异/发现 | 追加建议（不直接生效） |
+|---|---|---|---|
+| D-1 | `02-layering-and-packages.md` §5 vs 09-type-discipline 全篇 | 02§5 的 `tooling/` 草图给出 `manifest-gen/`、`scanners/`、`policy-check/`、`iso-smoke/` 四个独立顶层目录名；09 的详细设计（06§1/06§15）把它们的内容合并进 `tooling/scripts/`（13 个 `scan-*.ts`，含 `scan-manifest.ts`=manifest-gen、`scan-policy.ts`=policy-check）与 `tooling/policy/`（数据文件）。08 矩阵逾 20 行"配置路径"列已固化 `tooling/scripts/scan-*.ts` 这一具体路径并被 `scan-policy` 机器校验。本文档采用 09 的实际路径（§4），02§5 本身已注明"详细规格由 09 承接"，故此调整视为补齐 02 自己留出的缺口，不视为矛盾 | 建议 02§5 更新目录草图以消除歧义：把 `manifest-gen/`/`scanners/`/`policy-check/`/`iso-smoke/` 四行改写为"详见 40-modules/01-tooling-and-governance.md §4/§5" |
+| D-2 | 09-type-discipline `07-hooks-and-ci.md` §1 vs 02§2 | 09-07§1 将 `lefthook.yml` 标注为 `tooling/lefthook.yml`；lefthook 的默认发现机制要求配置文件位于仓库根（`.git` 同级）。本文档把 `lefthook.yml` 放在仓库根（与 02§2、本任务"必须覆盖"清单一致），`commitlint.config.ts` 保留在 `tooling/`（由根 `lefthook.yml` 的 `commit-msg` 阶段以 `--config` 显式指向，不依赖默认发现） | 建议 09-07§1 的目录索引加一句脚注："`lefthook.yml` 物理位于仓库根（lefthook 发现约定），此处登记的是其内容设计归属，而非物理路径" |
+| D-3 | 09-type-discipline 各篇隐含 vs `pnpm-workspace.yaml`（02§2） | `packages: tooling/*` 这一 glob 在 09 的实际设计下只有 `tooling/eslint-config`（含 `eslint-plugin-oce/`）拥有 `package.json`，是真正的 pnpm 工作区包；`depcruise/`、`api-extractor/`、`scripts/`、`tsconfig/`、`policy/`、`xsd/`、`changeset-config/` 均无 `package.json`，是被相对路径 `extends`/`require`/`tsx` 直接执行的普通目录，不会被 pnpm 识别为工作区包（非错误，是可接受现状，但容易被误读为"每个子目录都要发布式管理"） | 推荐：在 02§2 的 `pnpm-workspace.yaml` 注释补一句说明，或将 glob 收紧为显式列出 `tooling/eslint-config`；两种做法均不改变实际行为，只是消除文档歧义，标"推荐"（不确定何者更优，留给总编排裁决） |
+| D-4 | `00-module-map.md` §6.4/§6.5 vs 09-type-discipline `06-scanners.md` 首段 | module-map §6.4 曾写 `tooling/scanners/horizontal-freeze.ts` 并产出 `fixtures/horizontal-freeze.lock`（M5 doc/sheet 扩展验收用）；09-06 首段明确"十三个是当前的完整清单，继续新增需要与本节同等分量的独立价值论证"，13 个扫描器清单中**不含**该项。本文档不擅自把它算作第 14 个"现有"扫描器，而是在 §8 登记为骨架占位（`tooling/scripts/scan-horizontal-freeze.ts`，新增建议） | **已裁定并回写（14-cross-module-review.md §8 R-17）**：`00-module-map.md` §6.4 已改为 `tooling/scripts/scan-horizontal-freeze.ts`（与本文档路径一致）并加注"当前仅骨架占位，不计入十三个扫描器缺一不可，正式纳入需追加 09-06 §18"；本文档 §8/§12-D4/§13 Q-01 口径不变，差异已消解 |
+| D-5 | `11-testing-strategy.md` §1/§12 vs 09-type-discipline `01-tsconfig-baseline.md` §1/§5 | 11 号文档引用一个独立包 `tooling/vitest-config`（供各包 `vitest.config.ts` extends，含 coverage provider/reporters）；09-01 把 vitest 相关配置放在 `tooling/tsconfig/vitest.json`（tsc 类型检查语义，非 vitest 运行时 `defineConfig`）。两者其实是不同的东西（一个是 vitest 运行时配置，一个是 TS 类型检查配置），但因为都叫"vitest 配置"且都该放在 `tooling/` 下，容易被误读为同一份 | module-map §7 M-01 行的覆盖包清单未列出 `tooling/vitest-config`，本文档 §4 不展开它；登记提醒：`tooling/vitest-config` 的目录骨架应由拥有 `11-testing-strategy.md` 的架构-运行时 B 在其模块文档（很可能是覆盖测试基础设施的模块）中补齐，本模块只保证 `tooling/tsconfig/vitest.json` 这一 tsc 侧配置存在 |
+| D-6 | 09-type-discipline `02-lint-rules.md` §4.12/§4.13/§4.14 vs `08-policy-enforcement-matrix.md` | 经逐行核对 08 矩阵全部 78 行（TD-001…TD-078）与 §11 命名对照表，确认 `oce/no-doc-type-literals`（02§4.12）、`oce/no-unit-scoped-inject-at-root`（02§4.13）、`oce/no-boolean-command-result`（02§4.14）三条规则**均无独立 `TD-\d{3}` 行**——§11 命名对照表虽登记了三者的规则名，但未像 `no-index-in-mutation`→TD-065 那样内联给出 TD 编号；`scan-policy` 的表头匹配逻辑（08§1）明确跳过 §11 表格，故这三条规则实际上不受矩阵覆盖率检查约束，是 08 矩阵的覆盖缺口，而非本文档的疏漏 | 建议 08 矩阵新增 TD-079/TD-080/TD-081 三行，来源分别登记为"本方案（02§4.12，doc-type-blind 值层对偶）"/"本方案（02§4.13，UnitScope 隔离约定）"/"charter-D4（命令三分法）"；在此之前，本文档 §5.4 对应行如实标注"未在 08 单独登记" |
+| D-7 | 09-type-discipline `06-scanners.md` §3/§6 vs `08-policy-enforcement-matrix.md` | 同样逐行核对确认：`scan-contributions`（09-06§3，"章程要求的八个具名扫描器"之一）在 78 行矩阵中无任何一行以它为主执行机制；`scan-manifest`（09-06§6）的核心规则 (a)(b)(c)（源码↔manifest.ts↔`oce-manifest.json` 三层一致、`exports`↔`publicEntry` 一致）也只有子规则 (d)(e)(f) 分别被 TD-042/TD-070/TD-072 覆盖，(a)(b)(c) 本身没有独立行 | 建议 08 矩阵补充 TD-082（来源：charter§5.5+D3/D9，机制：`scan-contributions`）与 TD-083（来源：ADR-0003，机制：`scan-manifest` 规则(a)(b)(c)）两行；标"推荐"，因不确定总编排是否希望把这类"扫描器自身完整性"单独立项，还是维持现状认为"隶属于 D3/ADR-0003 已有条目的精神覆盖范围内" |
+| D-8 | `02-layering-and-packages.md` §4.0.1 vs `09-type-discipline/03-boundaries.md` §2 | 与 `00-module-map.md` §8 G-2 为同一发现（`oce.role` 7 值 vs 4 值折叠映射），本文档 §2.2 直接采用 09 的 4 值口径并引用 G-2 的折叠表，不重复论证 | **已裁定并落地（14-cross-module-review.md §1 C-11）**：同一物理字段两级折叠——`definition→definition`、`provider→provider`、`library\|plugin\|bundle\|app\|tooling→consumer`（除非该包同时是某 Definition 的 Provider）；本文档 §2.2 已写清映射，`tooling/depcruise/package-metadata.ts`（§5.5）已登记 `foldRole()` 职责；仍建议 09-boundaries §2 补同一张表作为该文档自身的权威副本 |
+| D-9 | 本文档 §1.2/§5.4/§5.7/§13 原文（多处）vs `02-kernel-protocol-and-document-core.md` G-5、`08-server-identity-documents-and-storage.md` §1.3 | 本文档此前全篇使用 `CapabilityBit`，与 M-02 G-5 裁定、M-08 已跟随的 `Capability` 口径不一致；`00-module-map.md` §2 BC-03 行此前也列 `PermissionAction` | **已裁定并全文替换（14-cross-module-review.md §1 C-15）**：统一为 `Capability`，`CapabilityBit`/`PermissionAction` 均作废（`PermissionAction` 可保留 `@deprecated` 别名一个版本）；本文档 §1.2「能力位」词条、§1.1、§1.3、§5.4 4.19、§5.7 `scan-command-capabilities.ts`、§13 Q-06 已全部替换为 `Capability` |
+
+## 13. 未决问题
+
+| # | 问题 | 推荐默认值 | 影响范围 |
+|---|---|---|---|
+| Q-01 | `scan-horizontal-freeze` 是否/何时正式成为第 14 个扫描器（见 §8、§12-D4） | M5 立项时新增，当前只登记骨架文件占位，不计入"十三个扫描器缺一不可"的硬约束 | `06-scanners.md` 清单数量、M-13（doc/sheet 扩展骨架）模块文档 |
+| Q-02 | `pnpm-workspace.yaml` 的 `tooling/*` glob 是否收紧，或为无 `package.json` 的子目录统一补一份最小 `private` 包清单以保持心智一致（见 §12-D3） | 倾向维持宽 glob + 补充注释说明现状（成本最低），但不强烈排斥"补最小 package.json"的做法；两者均可，标"推荐"前者 | `pnpm-workspace.yaml`、`02-layering-and-packages.md` §2 |
+| Q-03 | `tooling/policy/requirements.json`、`event-domains.json` 由谁建立与首次填充（09-README 原 Q-T10，本文档不重复裁决，只重申其对 M-01 落地的影响） | 沿用 09 的默认：两文件均为可选输入，缺失时对应扫描器功能性降级而非报错；`requirements.json` 由产品条线建立，`event-domains.json` 由架构-结构 A 建立 | `scan-requirement-tags`（06§12）、`oce/events-must-be-declared` 规则3（02§4.4） |
+| Q-04 | `tooling/xsd/` 的具体 XSD 版本与校验粒度（09-README 原 Q-T11，转发） | job 存在（`xsd-validate`）但校验逻辑留空，等待架构-结构 A 的 `ooxml-core` 设计产出 | M-04（OOXML 格式与 PPTX 编解码）落地时序 |
+| Q-05 | `oce/no-unit-scoped-inject-at-root`、`oce/store-transact-in-commands-only` 两条规则的检测精度依赖 `openUnitScope`/命令管线最终 API 形态（09-README 原 Q-T12，转发） | 按当前启发式先行上线，M-02 定稿 `CommandDef`/`openUnitScope` 后回来收紧规则实现 | §5.4 4.13/4.20 两条规则实现文件 |
+| Q-06 | `CommandDef.permission` 的最终形状（单值 `Capability` 还是数组 `Capability[]`，09-README 原 Q-T8，转发） | 推荐数组 `Capability[]`（与"一个命令可能需要多个能力位"的语义更贴合，且 fail-closed 下"非空数组"比"非默认单值"更容易机械判定） | `oce/command-must-declare-capabilities.ts`、`scan-command-capabilities.ts`、M-02 的 `CommandDef` 类型定义 |
+| Q-07 | 08 矩阵是否新增 TD-079…TD-083 五行以消除 §12-D6/D7 发现的覆盖缺口 | 建议新增（成本低、收益是 `scan-policy` 覆盖率检查的硬编码来源清单可以真正做到"零遗漏"），但编号分配需架构-类型治理条线统一裁定，本文档不擅自占用具体编号 | `08-policy-enforcement-matrix.md` §2/§9/§13（总行数与覆盖率自检段落） |
+| Q-08 | 根 `package.json` 的 npm scripts 是否采用本文档 §2.6 细化后的 12 个（含新增的 `test:typecheck`/`scan`/`iso-smoke`），还是维持 02§2 原始的 9 个笼统脚本 | 推荐采用本文档的 12 个细化脚本（与 09-07§3 的 13 个 CI job 一一对应更清晰，避免"一个 `check` 脚本内部黑盒跑十几件事"导致本地调试困难） | 根 `package.json`、`lefthook.yml` 各阶段调用点、`.github/workflows/ci.yml` |
+
+（Q-03～Q-06 转发自 [09-type-discipline/README.md §6](../30-architecture/09-type-discipline/README.md) 的 Q-T8/Q-T10/Q-T11/Q-T12，本文档不重复原始论证，只标注其对 M-01 文件级设计的具体影响面；该文档 §6 的 Q-T2/Q-T3/Q-T4/Q-T5/Q-T6/Q-T7/Q-T9 与本模块文件级设计无直接影响，不在此重复登记。）

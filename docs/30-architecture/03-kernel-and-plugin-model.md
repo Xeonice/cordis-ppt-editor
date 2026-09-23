@@ -1,6 +1,6 @@
 # 03 内核与插件模型：kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset 与版本协商
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
 > 事实来源：`cordis@4.0.0-rc.10` 生成式 API 文档（Context / Fiber / Events / Registry / Service）与 `cordis-primer.md`。凡标注「草案」的签名允许在实现期微调，但**语义**（谁拥有生命周期、失败如何隔离、何时 PENDING）不得改变。
 
 ---
@@ -13,7 +13,8 @@
 
 ```ts
 // @oce/kernel/src/index.ts（草案）
-export type { Context, Service, Plugin, Fiber, Events, Inject, EffectMeta, Disposable } from 'cordis'
+export type { Context, Plugin, Fiber, Events, Inject, EffectMeta, Disposable } from 'cordis'
+export { Service } from 'cordis'                                    // 值导出：插件需 `class X extends Service`（2026-09-22 修订，原 type-only 与 §2.1/§2.3 的写法矛盾）
 export { FiberState, CordisError, ValidationError } from 'cordis'   // 值导出：状态枚举与两个错误类
 export { createHost } from './host'
 export type { OceHost, HostOptions } from './host'
@@ -156,13 +157,18 @@ interface ContributionPointSpec<T, K extends string> {
   id: PointId
   schema: StandardSchemaV1<unknown, T>          // parse, don't validate：贡献项进入表之前被 parse（含默认值填充）
   key: (item: T) => K                           // 唯一键；重复按 conflict 处理
-  conflict?: 'error' | 'replace'                // 默认 'error'：重复键 → 拒绝后者并诊断；'replace'：后者覆盖（仅 ui.* 允许，用于主题/移动端覆盖）
+  conflict?: 'error' | 'replace'                // 默认 'error'：重复键 → 拒绝后者并诊断；'replace'：后者覆盖，
+                                                // 须在贡献点定义时显式声明。当前允许：ui.*（主题/移动端覆盖）与
+                                                // render.element（M3 slide-render-chart 替换内置只读图表渲染器）。2026-09-22 修订
   describe?: (item: T) => string                // 诊断与 manifest 可读文本
 }
 interface ContributionPoint<T, K extends string = string> extends ContributionPointSpec<T, K> {
   readonly [pointBrand]: true                   // 防止把普通对象当贡献点传入
 }
-declare function defineContributionPoint<T, K extends string = string>(spec: ContributionPointSpec<T, K>): ContributionPoint<T, K>
+// 2026-09-22 修订：本签名以 `09-type-discipline/09-plugin-type-contracts.md` §1.1 为准——
+// 唯一类型参数绑定 schema，贡献项类型由 `StandardSchemaV1.InferOutput<S>` 反推，调用方不得显式传入，
+// 以保证「schema 与类型失配」在类型层面不可表达。此处旧的 <T, K> 双参数形式作废。
+declare function defineContributionPoint<S extends StandardSchemaV1>(spec: ContributionPointSpec<S>): ContributionPoint<StandardSchemaV1.InferOutput<S>>
 
 // ctx 上的两个入口（由 kernel mixin 提供）
 interface Context {
@@ -220,7 +226,7 @@ interface ReadonlyContributionSet<T, K extends string> extends Iterable<T> {
 | `render.target` | engine-render | `RenderTarget` | `id` | error | `render` |
 | `render.element` | engine-render | `ElementRenderer` | `${targetId}:${kind}` | error | `render`（查表） |
 | `render.scene` | engine-render | `SceneProvider` | `documentType` | error | `render` |
-| `render.overlay` | engine-render | `OverlayContribution { id; layer: 'selection' \| 'guides' \| 'presence' \| 'custom'; render(ctx) }`（选区框/参考线/远端光标等覆盖层） | `id` | replace | `render`（overlay 层，07） |
+| `render.overlay` | engine-render | `OverlayRenderer { id; zIndex; mount(ctx, target) }`（选区框/参考线/远端光标等覆盖层；`mount`/`unmount` 生命周期持有 DOM 节点，2026-09-18 按 M-06 定义改写，14 §1 C-23） | `id` | replace | `render`（overlay 层，07） |
 | `errors.sink` | kernel | `ErrorSink { id; report(err, ctx) }` | `id` | error | `errors`（扇出） |
 | `telemetry.sink` | kernel | `TelemetrySink { id; counter/histogram/span/event 接收端 }` | `id` | error | `telemetry`（扇出） |
 | `i18n.bundle` | i18n | `{ namespace; locale; messages }` | `${namespace}:${locale}` | replace | `i18n` |
@@ -230,9 +236,11 @@ interface ReadonlyContributionSet<T, K extends string> extends Iterable<T> {
 | `ui.theme` | ui-core | `ThemeContribution { id; tokens: Partial<TokenSet>; density? }`（设计 token 覆盖集，Beta） | `id` | replace | `theme` |
 | `slide.shapeKind` | model-slide | `ShapeKindDef` | `kind` | error | `slides`、slide-render |
 
-命名规则：id 一律 `<域>.<名>`，`<名>` 为 camelCase（`core.documentType`、`ui.contextMenu`、`ui.statusBar`）；事件一律 `<域>/<动作>`（kebab-case 动作）。**第三方前缀**（章程 D15；PRD CS-07 的定稿）：第三方插件的贡献点 `<vendor>:<域>.<名>`、事件 `<vendor>:<域>/<动作>`、能力位 `<vendor>:<域>.<action>`，其中 `vendor` = 包的 npm scope 去 `@`（`@acme/oce-comments` → `acme:comments.thread`、`acme:comments/added`）；内核与垂直束的域名单固定为 `kernel contribution unit command store history selection permission format render layout ui i18n collab presence plugin error perf slide doc sheet`。扫描器 `event-domain-whitelist`：拒绝既不在名单又无 `<vendor>:` 前缀的域，并校验前缀与声明该事件/贡献点的包的 scope 机械对应（无 scope 的第三方包不得声明公开事件与贡献点 id）。`telemetry.sink`/`errors.sink` 是贡献点；`collabTransport`、`BlobStore` 一类**单例可替换能力**是服务 Provider 座而非贡献点（判据：集合 → 贡献点；单例 → 服务）。
+> 2026-09-18（14 §1 C-05）：Ribbon 页签与检查器分区复用 `ui.ribbon`/`ui.panel` 集合内的条目——Ribbon 页签 = `ui.ribbon{kind:'tab'}`，检查器分区 = `ui.panel{slot:'inspector'}`——不新增 `ui.ribbonTab`/`ui.inspector` 贡献点 id。
 
-**`when` 子句上下文键**（`ui-core/context-keys.ts`；`ui.*` 贡献的 `when` 只能引用此处登记的键，扫描器 `when-keys-declared`）：`unitType`（documentType id）、**`viewMode`**（取值受 `DocumentType.viewModes` 约束；slide：`normal | master | presenter`——ML-01 母版视图下 ribbon/panel/contextMenu 据此切换贡献，例 `when: "unitType == 'slide' && viewMode == 'master'"`）、**`editTargetKind`**（`slide | layout | master`，母版视图中的当前编辑目标）、`selectionKind`、`selectionCount`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform`（`desktop | mobile`）、`density`。垂直束可登记前缀键（如 `slide.hasNotes`），第三方按 D15 `<vendor>:` 前缀。上下文键由 `view.setMode`/`slide.selectMasterOrLayout` 等 Operation 更新（05 §13.3），反应式驱动 `ui` 服务重新过滤贡献。
+命名规则：id 一律 `<域>.<名>`，`<名>` 为 camelCase（`core.documentType`、`ui.contextMenu`、`ui.statusBar`）；事件一律 `<域>/<动作>`（kebab-case 动作）。**第三方前缀**（章程 D15；PRD CS-07 的定稿）：第三方插件的贡献点 `<vendor>:<域>.<名>`、事件 `<vendor>:<域>/<动作>`、能力位 `<vendor>:<域>.<action>`，其中 `vendor` = 包的 npm scope 去 `@`（`@acme/oce-comments` → `acme:comments.thread`、`acme:comments/added`）；内核与垂直束的域名单固定为 `core kernel contribution unit command store history selection permission format render layout ui i18n collab collab-server presence plugin error perf view export comment slide doc sheet`（与章程 §5.5 合并为一份并集，2026-09-18，14 §1 C-24；`app` 为应用壳私有域，不入此表，见章程 §5.5）。扫描器 `event-domain-whitelist`：拒绝既不在名单又无 `<vendor>:` 前缀的域，并校验前缀与声明该事件/贡献点的包的 scope 机械对应（无 scope 的第三方包不得声明公开事件与贡献点 id）。`telemetry.sink`/`errors.sink` 是贡献点；`collabTransport`、`BlobStore` 一类**单例可替换能力**是服务 Provider 座而非贡献点（判据：集合 → 贡献点；单例 → 服务）。
+
+**`when` 子句上下文键**（`ui-core/context-keys.ts`；`ui.*` 贡献的 `when` 只能引用此处登记的键，扫描器 `when-keys-declared`）：`unitType`（documentType id）、**`viewMode`**（取值受 `DocumentType.viewModes` 约束；slide：`normal | master | presenter`——ML-01 母版视图下 ribbon/panel/contextMenu 据此切换贡献，例 `when: "unitType == 'slide' && viewMode == 'master'"`）、**`editTargetKind`**（`slide | layout | master`，母版视图中的当前编辑目标）、`selectionKind`、`selectionCount`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform`（`desktop | mobile`）、`density`、**`breakpoint`**（`desktop | compact | narrow`，与 `platform` 正交，取视口宽度语义）、**`textEditing`**、**`focusRegion`**（`canvas | rail | inspector | ribbon`）（后三者 2026-09-18 新增（40-modules），见 14 §2/§5.5）。垂直束可登记前缀键（如 `slide.hasNotes`、`slide.hasChartEditor`），第三方按 D15 `<vendor>:` 前缀。上下文键由 `view.setMode`（ui-core 内置 Operation，14 §1 C-01）/`slide.selectMasterOrLayout` 等 Operation 更新（05 §13.3），反应式驱动 `ui` 服务重新过滤贡献。
 
 ---
 

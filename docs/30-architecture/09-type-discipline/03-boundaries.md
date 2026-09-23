@@ -63,6 +63,8 @@ tooling/depcruise/
 }
 ```
 
+本节四值 `role` 是 `package.json#oce.role`（[02-layering-and-packages.md](../02-layering-and-packages.md) §4.0.1 的 7 值：`library|plugin|definition|provider|bundle|app|tooling`）到本子线三角色判定的折叠结果，折叠映射表见 02 §4.0.1（2026-09-18，14 §1 C-11，落实 `40-modules/00-module-map.md` G-2/Q-M1）：`definition→definition`、`provider→provider`、其余五值→`consumer`（除非该包同时是某 Definition 的 Provider）。
+
 `stability` 字段（可选，缺省视为 `stable`）：当一个包整体处于 `experimental`/`beta` 阶段（如 M5 的 `model-doc`/`model-sheet` 骨架），该包 `api-extractor.json` 的默认 release tag（[04 §2](./04-api-surface.md#2-api-md-基线与-pr-diff-流程)）从 `@public` 降级为对应级别，避免每个导出符号都要手工标注同一个稳定级；Changesets 依据此字段把变更分组展示（`stable` 包的变更单独高亮，`experimental` 包的变更默认折叠），具体分组规则由 [ADR-0002](../adr/0002-versioning-strategy.md)（架构-结构条线所有）定义，本子线只保证字段的类型与存在性。
 
 新旧对照（供读过本文档早期版本或章程 v0.1 网格的读者核对）：`model-slide`/`model-doc`/`model-sheet` 原"L2" → `V-model`；`ooxml-pptx`/`ooxml-docx`/`ooxml-xlsx` 原"L3"（垂直行）→ `V-codec`（`ooxml-core` 本身仍是水平层，保留 `L3`，不受影响）；`slide-render`/`doc-render`/`sheet-render` 原"L6"（渲染行）→ `V-render`；`slide-ui`/`doc-ui`/`sheet-ui` 原"L6"（UI 贡献行）→ `V-ui`。`L2`、`L6` 自此不再是合法的 `layer` 取值。

@@ -19,6 +19,7 @@
    - 可点击原型（`20-design/prototype/index.html`）**已退役**：交互基准以 playground 的 19 条路由为准；历史链接：https://claude.ai/code/artifact/a834469c-a2ea-46a8-8dad-28615c015803
    历史静态稿与原型本地直接打开亦可。
 6. `30-architecture/` —— 架构（总览、分层与包目录、内核与插件模型、文档模型、命令与历史、协同、渲染、后端、类型治理、观测性、测试、多文档类型扩展、ADR）。
+7. `40-modules/` —— 模块设计线（2026-09-18）：按 DDD 限界上下文 × cordis 插件切分的 13 个模块，每份细到目录树与逐文件职责；先读 `00-module-map.md`，再按 `README.md` 的批次顺序读 01–13，跨模块裁定见 `14-cross-module-review.md`。
 
 ## 目录
 
@@ -28,7 +29,9 @@ docs/
 ├── 00-charter/          共同输入（总编排）
 ├── 10-prd/              产品条线
 ├── 20-design/           设计条线（含 prototype/index.html）
-└── 30-architecture/     架构条线：结构 / 运行时 / 类型治理（09-type-discipline/）+ adr/
+├── 30-architecture/     架构条线：结构 / 运行时 / 类型治理（09-type-discipline/）+ adr/
+├── 40-modules/          模块设计线：DDD 限界上下文 × cordis 插件（00 总图 / _template / 01–13 模块 / 14 跨模块评审 / 15 服务端评审 / 16 插件总账 / 17 书写模式 / README）
+└── _tools/              文档线工具：模块文档结构校验、Mermaid 语法校验、评审站生成器
 ```
 
 ## 状态约定

@@ -33,7 +33,7 @@ M3 要求断线期间可继续编辑并在重连后合并；刷新页面不应�
 
 正面：离线体验完整；iso 边界清晰；Provider 可替换（Capacitor/Electron 可用文件系统实现）。
 
-负面 / 代价：新增一个包（已批准，章程 v0.2）；本地数据治理（清理策略、配额）；`rejected` 的导出格式需定义（JSON：`TransactionRecord` 摘要列表 + 未 ack 的 update 字节 base64，见 06 §18.4）。该包同时提供浏览器侧 `BlobStore` 的 IndexedDB Provider（本地媒体缓存，04 §10）。
+负面 / 代价：新增一个包（已批准，章程 v0.2）；本地数据治理（清理策略、配额）；`rejected` 的导出格式需定义（JSON：`TransactionRecord` 摘要列表 + 未 ack 的 update 字节 base64，见 06 §18.4）。
 
 ## 如何被机械验证
 
@@ -44,3 +44,7 @@ M3 要求断线期间可继续编辑并在重连后合并；刷新页面不应�
 ## 关联
 
 章程 M3、R2、S1（建议）；ADR-0023/0029；架构 06 §12。
+
+## 修订 2026-09-18（14 §1 C-30）
+
+删除「后果」段中「该包同时提供浏览器侧 `BlobStore` 的 IndexedDB Provider（本地媒体缓存，04 §10）」一句：`OfflineStore` 与 `BlobStore` 是两个独立 Definition，混在同一 Provider 包会让「移除协同后本地媒体缓存也没了」；且浏览器侧本就无持久 `BlobStore`——媒体经 CRDT 只存 `BlobRef`，字节始终由服务端持有（`00-module-map.md` §5.1）。`collab-offline-idb` 只 `implements:['offlineStore']`，与章程 §5.2、`40-modules/05` 口径一致。

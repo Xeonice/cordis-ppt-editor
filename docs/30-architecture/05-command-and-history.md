@@ -229,7 +229,7 @@ type SlideMutation =
 | `selection/changed` | emit | `(unitId, selection)` | `selection` |
 | `view/mode-changed` | emit | `(unitId, mode, prev)`（`view.setMode` Operation 之后；10 §11） | `ui`（view.setMode handler） |
 | `permission/denied` | emit | `(request, decision)` | `permissions` |
-| `permission/changed` | emit | `(unitId, { added: PermissionAction[]; removed: PermissionAction[] })`（本地策略变化或网关下发 `applyRemoteDecisions` 后；唯一发出者） | `permissions` |
+| `permission/changed` | emit | `(unitId, { added: Capability[]; removed: Capability[] })`（本地策略变化或网关下发 `applyRemoteDecisions` 后；唯一发出者） | `permissions` |
 
 全部在 `model-core.contribution.ts` 的 `Events` 增强中声明（扫描器 `events-declared`）。
 

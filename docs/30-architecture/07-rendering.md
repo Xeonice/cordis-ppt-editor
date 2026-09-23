@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-18（§11 按 14 §1 C-12 改「三处 LRU」为「四处」） | 依赖：charter v0.1
 
 # 07 渲染（Rendering）：DOM/SVG 管线、贡献点运行时、布局引擎、脏区、命中测试、文本编辑宿主、缩略图、性能预算、服务端 headless
 
@@ -456,7 +456,7 @@ BullMQ job thumbnails.render{docId, snapshotSeq, slideIds?}
 | A1/A5 | engine-render 66% 是产品组件；`IRange` 进通用契约 | engine-render 只有契约/调度/缓存/命中；元素渲染全在垂直束；契约只认 `kind`、几何盒、路径 |
 | A4 | 布局基类跨三包继承 | engine-layout 纯函数 + Measurer Definition；模型包不 import 引擎 |
 | A28 | 脏矩形无人读 | DirtyTracker → PageRenderer 消费；反制测试 |
-| A29 | 缓存淘汰未接线 | 三处 LRU（style/media/template）均有淘汰测试与统计指标 |
+| A29 | 缓存淘汰未接线 | 四处 LRU：StyleCache / MediaCache / measure-cache（engine 侧）+ LayerTemplateCache（slide-render 侧），均有淘汰测试与统计指标（2026-09-18 由「三处」改，14 §1 C-12） |
 | A30 | 热路径穿 20 个拦截器 | 渲染器查表；`waterfall` 在 engine-render/render-dom/slide-render 中被 lint 禁止（由 09-02 承接） |
 | A11 | 一崩全崩 | 元素级 try/catch + 占位符 + errors 上报 |
 | A32 | 三模型两边界 | 隐藏输入直写 Store；组合文本为瞬态覆盖层 |

@@ -1,6 +1,6 @@
 # 项目章程（Charter）—— 基于 cordis 的可插拔办公文档 SDK 与在线协同编辑器
 
-> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-18（D10 术语、§5.2 补应用栏 ⋯/头像）
+> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-19（D10 术语、§5.2 补应用栏 ⋯/头像；14 §1 C-01…C-30 模块设计线跨模块收敛回写：§5.2 依赖上限四行 + `@oce/design` 行、§5.5 事件域并集，裁决见 rulings §4.11）；2026-09-22：§5.2 `package.json#oce` 扩展为八键
 > 读者：产品 / 设计 / 架构 / 类型治理各条线的 agent 与人类评审者。
 > 本文是所有下游文档（PRD、设计稿、架构文档）的**共同输入**。下游文档不得与本文冲突；若有异议，写入各自 README 的「对章程的异议/建议」段落，由总编排裁决后回写本文。
 > v0.2 变更：吸收五条线的异议与建议（裁决明细见 [rulings-2026-09-14.md](./rulings-2026-09-14.md)）：垂直束改为「层带」并给出机械化秩表（§5.1/§5.3）；新增 `preset-slide-viewer`、`collab-offline-idb`、`slide-render-chart` 三包（§5.2）；`package.json#oce` 字段规范（§5.2）；依赖规则第 8 条「束间隔离」（§5.3）；服务名/贡献点 id 定稿与第三方前缀规则（§5.5）；D7/D8/D9/D11/D12 补充与 D14–D16 新增（§6.1）；里程碑 M2/M3 微调（§7）；术语表扩充（§4）；待用户决策扩至 Q20（§10）。v0.2 与 v0.1 兼容（只增不改语义），下游标注「依赖：charter v0.1」的文档无需重写。
@@ -160,6 +160,7 @@
  LS    服务端        server-collab · server-storage · server-headless             node      58
  L7    UI 基座       design · ui-core · ui-react                                  dom       70
  L8    组装          preset-slide · preset-slide-collab · preset-slide-viewer     dom       80
+                     preset-doc · preset-sheet（M5，rulings §4.12 U-01）          dom       80
                      apps/web (dom) · apps/server (node)
 
                      垂直束（每束横跨四个层带；束与束之间互不依赖）
@@ -199,18 +200,20 @@
 | `@oce/collab-yjs` | L4 | iso | Provider：y-protocols 同步 + awareness，依赖 store-yjs 的 Y.Doc | collab-core, store-yjs |
 | `@oce/collab-transport-ws` | L4 | iso | `collabTransport` Provider：WebSocket 传输、重连退避、Ticket 握手 | collab-core |
 | `@oce/collab-offline-idb` | L4 | dom | `OfflineStore` Provider：IndexedDB 实现；唯一 import `y-indexeddb`（或自写适配） | collab-core |
-| `@oce/engine-layout` | L5 | iso | `TextMeasurer` Definition（`layout.measurer`）、断行、字体回退、预设几何（OOXML prstGeom → path）、单位换算 | shared |
+| `@oce/engine-layout` | L5 | iso | `TextMeasurer` Definition（`layout.measurer`）、断行、字体回退、预设几何（OOXML prstGeom → path）、单位换算 | shared, kernel |
 | `@oce/engine-render` | L5 | iso | 渲染契约与管线：`Scene`、`render.scene`/`render.target`/`render.element`/`render.overlay` 贡献点、视口/缩放、脏区与虚拟化、命中测试契约；**对幻灯片无知** | kernel, engine-layout |
 | `@oce/render-dom` | L5 | dom | `RenderTarget` Provider：HTML/SVG 输出、图层、覆盖层宿主、IME 文本输入宿主、浏览器 canvas `TextMeasurer` Provider | engine-render, engine-layout |
-| `@oce/slide-render` | V-render | dom | 幻灯片 `SceneProvider` 与元素渲染器（sp/pic/grpSp/cxnSp/graphicFrame: table/ole；图表 M1–M2 只读解析 `c:chart` 部件渲染）、母版/版式/页合成、缩略图 | model-slide, engine-render, render-dom |
+| `@oce/slide-render` | V-render | dom | 幻灯片 `SceneProvider` 与元素渲染器（sp/pic/grpSp/cxnSp/graphicFrame: table/ole；图表 M1–M2 只读解析 `c:chart` 部件渲染）、母版/版式/页合成、缩略图 | model-slide, engine-render, engine-layout, render-dom |
 | `@oce/slide-render-chart` | V-render | dom | M3 起从 slide-render 拆出的可选图表渲染/编辑插件，隔离图表库体积 | slide-render |
-| `@oce/design` | L7 | dom | 设计 token（颜色/间距/字号/圆角/阴影/z-index/动效/密度，CSS 变量 `--oce-*`）+ 原子组件（纯 CSS 类 + 最小 TS）；**零依赖 SDK** | — |
-| `@oce/ui-core` | L7 | dom | 框架无关的壳：`ui.*` 贡献点、输入管线 → 命令、视图模型；无 React；只允许 import `@oce/design` 的 `css/tokens.css` 与 type-only token 名 | kernel, model-core, design(仅 token) |
+| `@oce/design` | L7 | dom | 设计 token（颜色/间距/字号/圆角/阴影/z-index/动效/密度；shadcn 变量 + OCE 扩展变量（`--glass-*`、`--layer-*`、`--duration-*`、`--ease-*`、`--control-h-*`、`--text-2xs` 等裸名）；`--oce-*` 已作废（2026-09-18））；**零依赖 SDK** | — |
+| `@oce/ui-core` | L7 | dom | 框架无关的壳：`ui.*` 贡献点、输入管线 → 命令、视图模型；无 React；只允许 import `@oce/design` 的 `css/tokens.css` 与 type-only token 名 | kernel, model-core, design(仅 token), i18n, shared |
 | `@oce/ui-react` | L7 | dom | React 19 绑定：把 ui-core 贡献渲染成组件；`<EditorHost>` | ui-core, design |
-| `@oce/slide-ui` | V-ui | dom | 幻灯片专属 UI 贡献：插入/格式 ribbon 页签、缩略图侧栏、属性面板、放映模式 | slide-render, ui-react |
+| `@oce/slide-ui` | V-ui | dom | 幻灯片专属 UI 贡献：插入/格式 ribbon 页签、缩略图侧栏、属性面板、放映模式 | slide-render, ui-react, ui-core, design, model-slide |
 | `@oce/preset-slide` | L8 | dom | 单人 pptx 打开/编辑/导出的插件束 + 默认配置 | 上述 |
 | `@oce/preset-slide-collab` | L8 | dom | preset-slide + 协同（store-yjs 替换 store-memory，加 collab-*） | 上述 |
 | `@oce/preset-slide-viewer` | L8 | dom | 只读查看器：无编辑 UI、无 collab；体积预算见 PRD OF-14 | 上述 |
+| `@oce/preset-doc` | L8 | dom | doc 单人预设，M5（rulings §4.12 U-01） | 同 preset-slide 口径 |
+| `@oce/preset-sheet` | L8 | dom | sheet 单人预设，M5（rulings §4.12 U-01） | 同 preset-slide 口径 |
 | `@oce/server-collab` | LS | node | cordis 插件（提供 `collabServer`）：房间、awareness 广播、update 持久化与 Compaction、软门禁修复、跨实例 pub/sub；与 Nest 解耦 | collab-core, store-yjs, protocol |
 | `@oce/server-storage` | LS | node | `BlobStore` Definition 与 Provider（S3 兼容/本地）；唯一允许 import S3 SDK 的 server 包 | shared |
 | `@oce/server-headless` | LS | node | Node 中的 cordis 宿主（`createHost`）：加载 iso 插件做导入/导出/校验/迁移；Node 字体 `TextMeasurer` Provider；缩略图（headless Chromium）适配 | kernel, model-*, ooxml-*, engine-layout |
@@ -218,17 +221,25 @@
 | `apps/server` | L8 | node | NestJS 11：Auth、Tenants&Users、Documents、Storage、CollabGateway、ImportExport、Snapshots、Thumbnails、Comments、Audit、Health 模块；pg/redis/s3 等 IO 适配器以 cordis 插件形式放在对应模块目录 | server-*, protocol |
 | `tooling/*` | — | node | eslint-config、tsconfig、depcruise 规则、api-extractor 配置、扫描脚本、policy 矩阵校验器、changeset 配置 | — |
 
+> 2026-09-18（14 §1 C-28）：`engine-layout`、`ui-core`、`slide-ui`、`slide-render` 四行「依赖上限」按 `40-modules` 实际用法修订；这些依赖在秩表（§5.1）与铁律 1/2/4（§5.3）下全部合规，此前只是本列写得比实现更紧，现按实现对齐。
+
 **`package.json#oce` 字段（规范）**：
 
 ```jsonc
 "oce": {
   "layer": "L1",              // L0|L1|L3|L4|L5|L7|L8|LS|V-model|V-codec|V-render|V-ui
   "iso": "iso",               // iso|dom|node
-  "bundle": "slide",          // slide|doc|sheet；当且仅当 layer 以 V- 开头时必填
-  "stability": "beta"         // 可选：stable|beta|experimental（包级 API 稳定级，供 api-extractor 与 Changesets 分组）
+  "bundle": "slide",          // slide|doc|sheet；当且仅当 layer 以 V- 开头时必填，否则省略或 null
+  "role": "provider",         // library|plugin|definition|provider|bundle|app|tooling（人类可读七值）
+                              // depcruise 读取时按固定表折叠为四值：definition→definition、provider→provider、
+                              // library|plugin|bundle|app|tooling→consumer；例外：同时是某 Definition 的 Provider
+                              // 的包（如 kernel 自身）折叠为 provider；tooling/* 等不参与秩体系的包用 n/a
+  "compositionRoot": false,   // 布尔；仅 preset-*、apps/web、apps/server 可为 true
+  "publicEntry": ["."],       // 字符串数组；须与 package.json#exports 的 key 集合逐一相等
+  "stability": "beta"         // 可选：stable|beta|experimental，缺省 stable（供 api-extractor 与 Changesets 分组）
 }
 ```
-schema 位于 `tooling/depcruise/oce-field.schema.json`；depcruise 与扫描器以此为唯一元数据来源。
+八键（2026-09-22 由四键扩展，见 `40-modules/01-tooling-and-governance.md` §2.2、`40-modules/14-cross-module-review.md` §1 C-11、`40-modules/16-plugin-catalog.md` §8 G-15）。schema 位于 `tooling/policy/schema/oce-package-metadata.schema.json`；depcruise 与扫描器以此为唯一元数据来源。`tooling/*` 自身包不填该字段。
 
 ### 5.3 依赖规则（由 dependency-cruiser + eslint `no-restricted-imports`/`no-restricted-globals` 强制）
 
@@ -261,7 +272,7 @@ schema 位于 `tooling/depcruise/oce-field.schema.json`；depcruise 与扫描器
 - **事件名**：`<域>/<动作>`，如 `unit/opened`、`command/executed`、`store/transaction`、`collab/synced`、`permission/changed`、`render/element-failed`、`slide/shape-added`。事件必须在 `Events` 接口中声明，否则扫描器报错。遥测事件另有登记表（PRD 06 / 架构 10）。
 - **贡献点 id**（camelCase）：`core.documentType`、`core.format`（导出专用编解码器亦在此，`canImport:false`）、`core.command`（可执行定义）、`core.mutation`、`core.migration`、`core.resource`、`core.permissionPolicy`、`render.scene`、`render.target`、`render.element`、`render.overlay`、`layout.measurer`、`i18n.bundle`、`errors.sink`、`telemetry.sink`、`ui.ribbon`、`ui.toolbar`、`ui.panel`、`ui.contextMenu`、`ui.shortcut`、`ui.command`（命令的**呈现元数据**：title/icon/when/keybinding）、`ui.statusBar`、`ui.dialog`、`ui.notification`、`ui.theme`、`slide.shapeKind`。完整 schema 见架构 03 §3.6。协同传输与 Blob 存储**不是**贡献点，而是 `collabTransport`/`blobStore` 服务的 Provider 座。
 - **契约套件命名**：`run<Definition>Conformance`（如 `runDocumentStoreConformance`、`runFormatCodecConformance`），由 Definition 所在包的 `./testing` 子路径导出。
-- **第三方前缀规则**：第一方保留域为 `core`、`render`、`layout`、`ui`、`collab`、`format`、`unit`、`store`、`command`、`permission`、`i18n`、`perf`、`slide`、`doc`、`sheet`。第三方插件的事件名与贡献点 id 必须以其 npm scope（去 `@`）为前缀：事件 `<vendor>:<域>/<动作>`，贡献点 `<vendor>:<域>.<名>`；扫描器拒绝无前缀的非保留域。
+- **第三方前缀规则**：第一方保留域为 `core`、`kernel`、`contribution`、`unit`、`command`、`store`、`history`、`selection`、`permission`、`format`、`render`、`layout`、`ui`、`i18n`、`collab`、`collab-server`、`presence`、`plugin`、`error`、`perf`、`view`、`export`、`comment`、`slide`、`doc`、`sheet`（与架构 03 §3.6 的域名单合并为一份并集，2026-09-18，14 §1 C-24）。`app` 单列为**应用壳私有域**：`apps/web` 用 typed `EventTarget`（非 cordis `Events`/`ctx.emit`）承载 `app/*` 事件，禁止 `packages/*` 使用，不经扫描器登记。服务端审计记账名（如 `tenant.created`）**不**采用 `<域>/<动作>` 事件形式，改用点式 `action` 字符串，避免与 cordis 事件域混淆。第三方插件的事件名与贡献点 id 必须以其 npm scope（去 `@`）为前缀：事件 `<vendor>:<域>/<动作>`，贡献点 `<vendor>:<域>.<名>`；扫描器拒绝无前缀的非保留域。
 
 ---
 
@@ -358,21 +369,27 @@ docs/
 │   ├── 06-extensibility-ux.md        插件如何贡献 UI：ui.* 槽位规范与视觉约束
 │   ├── 07-accessibility-and-i18n.md  键盘导航、屏幕阅读器、IME、RTL、文案规范
 │   └── prototype/index.html          低保真可点击 HTML 原型（单文件，可发布为 artifact）
-└── 30-architecture/                  架构条线（结构 / 运行时 / 类型治理三条子线）
-    ├── README.md                     架构总览入口、原则、文档索引、待决事项、ADR 索引
-    ├── 01-overview.md                C4 L1/L2、原则、端到端数据流
-    ├── 02-layering-and-packages.md   分层网格、全部包**目录级**结构、依赖规则
-    ├── 03-kernel-and-plugin-model.md kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset
-    ├── 04-document-model.md          model-core 抽象、model-slide 模型、OOXML 映射、不透明保留、样式继承、迁移
-    ├── 05-command-and-history.md     命令三分法、事务、降级、自动逆操作、权限检查点、审计
-    ├── 06-collaboration.md           CRDT 映射、同步协议、presence、离线、权限即时性、软冲突语义
-    ├── 07-rendering.md               渲染管线、Scene、RenderTarget/ElementRenderer、度量、命中测试、缩略图、性能预算
-    ├── 08-backend-nestjs.md          Nest 模块图、cordis 宿主、存储、导入导出、网关、鉴权、部署拓扑
-    ├── 09-type-discipline/           类型治理子线（README + 01 tsconfig / 02 lint / 03 boundaries / 04 api-surface / 05 runtime-boundaries / 06 scanners / 07 hooks-and-ci / 08 policy-enforcement-matrix / 09 plugin-type-contracts）
-    ├── 10-observability-and-errors.md 错误码体系、日志、遥测、诊断
-    ├── 11-testing-strategy.md        单测/契约测试/同构冒烟/视觉 oracle/协同模拟/插件兼容套件
-    ├── 12-extension-to-doc-and-sheet.md 文档类型盲验证方案、model-doc/sheet 骨架
-    └── adr/                          ADR-0001…（结构 0001-0019、运行时 0020-0039、类型治理 0040-0049）+ README 索引
+├── 30-architecture/                  架构条线（结构 / 运行时 / 类型治理三条子线）
+│   ├── README.md                     架构总览入口、原则、文档索引、待决事项、ADR 索引
+│   ├── 01-overview.md                C4 L1/L2、原则、端到端数据流
+│   ├── 02-layering-and-packages.md   分层网格、全部包**目录级**结构、依赖规则
+│   ├── 03-kernel-and-plugin-model.md kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset
+│   ├── 04-document-model.md          model-core 抽象、model-slide 模型、OOXML 映射、不透明保留、样式继承、迁移
+│   ├── 05-command-and-history.md     命令三分法、事务、降级、自动逆操作、权限检查点、审计
+│   ├── 06-collaboration.md           CRDT 映射、同步协议、presence、离线、权限即时性、软冲突语义
+│   ├── 07-rendering.md               渲染管线、Scene、RenderTarget/ElementRenderer、度量、命中测试、缩略图、性能预算
+│   ├── 08-backend-nestjs.md          Nest 模块图、cordis 宿主、存储、导入导出、网关、鉴权、部署拓扑
+│   ├── 09-type-discipline/           类型治理子线（README + 01 tsconfig / 02 lint / 03 boundaries / 04 api-surface / 05 runtime-boundaries / 06 scanners / 07 hooks-and-ci / 08 policy-enforcement-matrix / 09 plugin-type-contracts）
+│   ├── 10-observability-and-errors.md 错误码体系、日志、遥测、诊断
+│   ├── 11-testing-strategy.md        单测/契约测试/同构冒烟/视觉 oracle/协同模拟/插件兼容套件
+│   ├── 12-extension-to-doc-and-sheet.md 文档类型盲验证方案、model-doc/sheet 骨架
+│   └── adr/                          ADR-0001…（结构 0001-0019、运行时 0020-0039、类型治理 0040-0049）+ README 索引
+└── 40-modules/                       模块设计线（2026-09-18 新增）：DDD 限界上下文 × cordis 插件，粒度到文件
+    ├── 00-module-map.md              模块切分总图：29 个限界上下文、上下文映射、前后端切分、doc/sheet 扩展、13 个模块分 3 批
+    ├── _template.md                  模块文档模板（14 节：边界 / 领域模型 / 插件定义 / 目录树 / 逐文件职责 / API / 前后端 / 扩展缝 / 测试 / 约束 / 里程碑 / 差异 / 未决）
+    ├── 01…13-*.md                    13 份模块设计文档（工具链、内核与文档内核、幻灯片模型、编解码、协同、布局渲染、幻灯片渲染、服务端 ×3、UI、预设与应用壳、doc/sheet 扩展骨架）
+    ├── 14-cross-module-review.md     跨模块评审：冲突、命名、依赖、归属、追加建议与未决汇总
+    └── README.md                     索引与依赖图
 ```
 
 ---
@@ -421,10 +438,10 @@ docs/
 | Q11 | M4 外部试点团队来源 | 待定 | M4 验收「外部团队 ≤ 2 人日完成一个插件」 |
 | Q12 | 仓库自身许可证 | 建议 Apache-2.0（SDK 场景的专利授权） | 第三方插件生态、依赖审查基线 |
 | Q13 | 里程碑周期 | 建议 M1–M5 = 8 / 10 / 12 / 6 / 6 周 | 排期 |
-| Q14 | Strict 一致性类文件有编辑时的导出 | 架构推荐「方案 C：保持原一致性类（反向映射写回 Strict）」为目标，「方案 B：整包转 Transitional」为自动回退；产品原倾向 B。两案均满足「未修改零丢失」的两条硬要求，C 额外保住未触碰部件字节相同 | 保真承诺表述、PRD OF 域、ADR-0008 |
+| Q14 | Strict 一致性类文件有编辑时的导出 | **已裁决：C**（2026-09-19，rulings §4.12 U-02）——方案 C：保持原一致性类（反向映射写回 Strict），M1 即完整实现；方案 B（整包转 Transitional）仅作反向映射失败时的异常兜底，不再是默认自动回退路径 | 保真承诺表述、PRD OF 域、ADR-0008 |
 | Q15 | 加密 pptx、`.pptm` 宏、数字签名文件 | M1–M4 拒绝加密文件；宏原样保留不执行；签名文件编辑后提示签名失效 | 安全/合规 |
 | Q16 | 排他编辑锁（形状级/页级） | 不做，只有 awareness 软提示 | 协同 UX |
 | Q17 | 版本与数据保留 | 自动快照每 10 min 或 500 updates、保留 30 天；命名快照永久；update 追加表 7 天；导入原件 30 天 | 存储成本、合规 |
-| Q18 | 图表 M3 可编辑范围 | bar/line/pie 三类，其余仅查看 | slide-render-chart |
+| Q18 | 图表 M3 可编辑范围 | **已裁决：bar / line / pie / area / scatter 五类可编辑**（2026-09-19，rulings §4.12 U-06），其余仅查看 | slide-render-chart |
 | Q19 | 服务端字体包与许可 | Noto + Liberation + Carlito/Caladea；不内置 CJK 商业字体 | 服务端渲染保真、法务 |
 | Q20 | 移动端范围与 a11y 目标 | 桌面优先；平板只读评审；M2 a11y 必达「键盘可达 + 基本朗读」，WCAG 2.2 AA 分阶段 | 设计/PRD NF |

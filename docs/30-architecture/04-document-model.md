@@ -1,6 +1,6 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19 | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
@@ -165,7 +165,7 @@ interface ResourceHook<T extends JsonValue = JsonValue> {
 ### 2.8 `permissions`（fail-closed；放置见 ADR-0012）
 
 ```ts
-interface PermissionRequest { principal: Principal; unitId?: UnitId; action: PermissionAction; resource?: { kind: string; id: string } }
+interface PermissionRequest { principal: Principal; unitId?: UnitId; action: Capability; resource?: { kind: string; id: string } }
 interface PermissionPolicy { id: string; decide(req: PermissionRequest): PermissionDecision | undefined }   // undefined = 不表态
 interface PermissionsService {
   check(req: PermissionRequest): PermissionDecision      // 任一 deny → deny；无任何 allow → deny；否则 allow
@@ -325,6 +325,7 @@ type SlideSelectionAnchor =
 | `ppt/tags/*.xml`、`customXml/*`、`ppt/vbaProject.bin` | `opaqueParts` | 不透明（宏文件保持 `.pptm` 内容类型） | M1 |
 | `docProps/core.xml` | `DocumentProperties.core` | 建模（title/creator/modified…） | M1 |
 | `docProps/app.xml`、`custom.xml`、`thumbnail.jpeg` | `DocumentProperties.app/custom`、`opaqueParts` | 不透明；编辑后属于「派生部件白名单」，允许重生成（§5.4） | M1 |
+| `_xmlsignatures/*`（数字签名部件） | `opaqueParts` | 保留不重签；编辑保存后签名失效，发 `format.pptx.signature_invalidated` 诊断（章程 §10 Q15，rulings §4.12 U-05） | M1 |
 | 未知内容类型的任何部件 | `opaqueParts` | 不透明 | M1 |
 
 ### 4.2 节点级（PresentationML `p:`）

@@ -1,6 +1,6 @@
 # 02 分层与包：仓库目录树、逐包结构、package.json 策略、依赖规则
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18（补 §4.0.1 `oce.role` 七值↔四值折叠表、§4 开头 DDD 目录旁注，14 §1 C-11） | 依赖：charter v0.1
 > 本文是 M0 后半段「创建仓库骨架」的直接输入。包名/层号/同构类以章程 §5.2 为准，不得更名；本文只细化到目录与文件。接口只给「签名级草案」（标注「草案」），不写实现。
 
 ---
@@ -160,6 +160,8 @@ apps/server/
 
 ## 4. `packages/`
 
+> 目录级骨架为历史草图，物理目录以 `40-modules/<NN>` §4 为准（DDD 五目录：`domain/ application/ infrastructure/ interface|ui/ testing/`），2026-09-18（14 §1 C-11 关联裁定；详见 `40-modules/00-module-map.md`）。
+
 ### 4.0 包模板（所有包相同的骨架）
 
 ```
@@ -221,6 +223,16 @@ packages/<name>/
   // 垂直束示例：{ "layer": "V-model", "bundle": "slide", "iso": "iso", "role": "plugin", "stability": "beta" }
 }
 ```
+
+**`role` 七值 ↔ 四值折叠表**（2026-09-18，14 §1 C-11，落实 `40-modules/00-module-map.md` G-2/Q-M1）：`package.json#oce.role` 与 [09-type-discipline/03-boundaries.md §2](./09-type-discipline/03-boundaries.md) 的 `role` 是**同一物理字段的两级折叠**——本节的 7 值面向人类与 `create-package` 脚手架书写，`depcruise` 三角色规则（09-boundaries §3.5）求值时按下表折叠为 4 值再读取：
+
+| 本节（02 §4.0.1）七值 | 09-boundaries §2 四值（depcruise 实际读取） |
+|---|---|
+| `definition` | `definition` |
+| `provider` | `provider` |
+| `library` \| `plugin` \| `bundle` \| `app` \| `tooling` | `consumer`（若该包同时是某 Definition 的 Provider，如 kernel 自身，则按 `provider` 折叠） |
+
+`n/a` 不由折叠产生，是 09-boundaries 四值枚举中为未来不参与三角色判定的包保留的取值。两份文档新增/调整 `role` 取值集合时须同步更新彼此与共享 schema 文件（09-boundaries §2 末段）。
 
 规则摘要与执行点：
 
@@ -331,7 +343,7 @@ packages/protocol/src/
 │   ├── codes.ts            错误码字面量联合（`auth/*`、`document/*`、`collab/*`、`task/*`、`protocol/*`）→ HTTP 状态映射表
 │   └── envelope.ts         ErrorEnvelope { code, message, details?, traceId }
 ├── permissions/
-│   ├── actions.ts          PermissionAction 字面量联合：document.read/edit/comment/export/share/manage（开放：垂直束经模板字面量 `${string}.${string}` 扩展）
+│   ├── actions.ts          Capability 字面量联合：doc.read/doc.comment/doc.write/doc.export/doc.manage/history.read/history.restore（2026-09-18 按 40-modules M-02/G-5 统一；开放：垂直束经模板字面量 `${string}.${string}` 扩展）
 │   ├── principal.ts        Principal { userId, tenantId, roles, sessionId }
 │   └── decision.ts         PermissionDecision = { allow: true } | { allow: false; reason }
 ├── rest/
@@ -404,7 +416,7 @@ packages/model-core/src/
 ├── command/
 │   ├── command.ts                CommandDef<P, R>（草案见 05 §2）；OperationDef<P>（handler 无 tx）；defineCommand()/defineOperation() 仅为类型辅助（不注册）
 │   ├── command.point.ts          'core.command'，key = def.id，conflict 'error'
-│   ├── mutation.ts               MutationDef<M>：{ type; documentType; schema; lower(m, view): StoreOp[]; permission?(m): PermissionAction; describe(m): string }；Mutation 基形 { type: string; unitId: UnitId }
+│   ├── mutation.ts               MutationDef<M>：{ type; documentType; schema; lower(m, view): StoreOp[]; permission?(m): Capability; describe(m): string }；Mutation 基形 { type: string; unitId: UnitId }
 │   ├── mutation.point.ts         'core.mutation'，key = def.type
 │   ├── commands.service.ts       CommandsService（'commands'）：execute<P,R>(unitId: UnitId | null, id, params, opts?) → Promise<Result<R, CommandError>>；has(id)；describe(id)；observeExecutions()
 │   ├── pipeline.ts               阶段实现：resolve → validate → waterfall 'command/execute' → transact → history → events → audit；阶段计时 telemetry（05 §3）
@@ -430,7 +442,7 @@ packages/model-core/src/
 │   ├── resource.point.ts         'core.resource'，key = namespace
 │   └── resources.service.ts      ResourcesService（'resources'）：collect(unitScope) / apply(unitScope, resources)；逐 hook 容错（一个失败记录诊断，不阻断其它，K6）
 ├── permission/
-│   ├── permission.ts             PermissionRequest { principal; unitId?: UnitId; action: PermissionAction; resource?: { kind; id } }；PermissionPolicy { id; decide(req): PermissionDecision | undefined }
+│   ├── permission.ts             PermissionRequest { principal; unitId?: UnitId; action: Capability; resource?: { kind; id } }；PermissionPolicy { id; decide(req): PermissionDecision | undefined }
 │   ├── permission.point.ts       'core.permissionPolicy'，key = policy.id
 │   └── permissions.service.ts    PermissionsService（'permissions'）：check(req) → PermissionDecision（无策略给出 allow → deny；任一 deny → deny）；setPrincipal(unitId, principal)；applyRemoteDecisions(unitId, decisions)（网关下发）；事件 permission/denied
 ├── format/

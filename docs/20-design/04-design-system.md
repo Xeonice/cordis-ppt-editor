@@ -1,4 +1,4 @@
-> 状态：草稿 v0.5 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2（D10 修订）、09-design-specification v3.1、rulings §4.8–§4.10；可执行取值源 `playground/src/index.css`
+> 状态：草稿 v0.5 | 负责：设计 | 更新：2026-09-19 | 依赖：charter v0.2（D10 修订）、09-design-specification v3.1、rulings §4.8–§4.10；可执行取值源 `playground/src/index.css`
 >
 > v0.5 修订（2026-09-18）：§2.2 / §2.3 色板按 `index.css` 现值回写并括注 shadcn 变量（与 §9 一致）；§2.6 对比度按现值重算；§2.8 字体改 `'Geist Variable'` 优先；§2.13 Ribbon 高度改 页签行 36 + 内容区 91（旧值 88 / 64 作废）；§2.14 图标改 Lucide 线性（删 Phosphor / SVG sprite）；§3 补 playground 主题选择器约定（`.dark` class + 宿主 `data-theme` 兼容）；§5 断点表与信息架构 §6 逐格对齐；§7 历史表述加"原"标注、"母版树"改"母版缩略图窗格"；§9 追加 v0.5 条目。
 
@@ -299,7 +299,7 @@
 - 三处主题竞态（用户显式选择 vs 系统跟随）的优先级：`[data-oce-theme]` 显式属性 > `prefers-color-scheme` 媒体查询 > `:root` 默认亮色。
 - 组件不得读取 `prefers-color-scheme` 或 `[data-oce-theme]` 做逻辑分支；只读语义 token，主题切换对组件透明。
 - **多 host 去重**：`ThemeService`（`ui-core/services/theme.service.ts`）负责把 `tokens.css` 作为单一 `<style>` 注入宿主页面，注入前检查去重键 `data-oce-tokens`（已存在则跳过），保证同一宿主页面内多个 `@oce/design` 消费方（如宿主自身 UI + 内嵌的编辑器）不会重复注入同一份 token 表。密度同理建议使用 `data-oce-density` 属性（与 `data-oce-theme` 同一命名空间；架构尚未在已读文档中给出显式字段名，此处为设计侧按一致性给出的推荐，见本目录 README 待决事项）。
-- **高对比主题**：`@oce/design/tokens/themes/high-contrast.ts` 已作为第三套主题文件存在（架构 02 §4.17），对应 PRD NF-05 的 `forced-colors` 支持（P1，见 07-accessibility-and-i18n.md）。本文档 §2 目前只给出亮/暗两套具体数值，高对比主题的数值由无障碍验收标准倒推，暂不在此重复定义，落地时机与详细 token 值列入本目录 README 待决事项。
+- **高对比主题**：`@oce/design/tokens/themes/high-contrast.ts` 已作为第三套主题文件存在（架构 02 §4.17），对应 PRD NF-05 的 `forced-colors` 支持（P1，见 07-accessibility-and-i18n.md）。**时机已裁决（2026-09-19，rulings §4.12 U-08）**：M1–M2 只加 `@media (forced-colors: active)` 系统色兜底，不产第三套取值；正式第三套 token 延后到 M3 P1。本文档 §2 目前只给出亮/暗两套具体数值，高对比主题的数值由无障碍验收标准倒推，暂不在此重复定义，详细 token 值列入本目录 README 待决事项。
 
 **（历史）本设计文档早期原型（`prototype/index.html`）的例外**：该原型是独立的低保真演示文件，不是 `@oce/design` 的实际产出，遵循原始任务对 artifact 型页面的通用约束（使用通用的 `data-theme` 属性，见 `prototype/index.html` 自身注释）。两者选择器不同是刻意的，不代表产品 token 命名的不一致——阅读本文档 §2 的 token *取值* 时可直接套用到原型，但主题切换的属性名以本节为准（产品）或原型自身注释为准（演示文件）。
 

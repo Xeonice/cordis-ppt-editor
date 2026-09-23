@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-21 | 依赖：charter v0.1
 
 # 08 后端（NestJS 11 壳 + cordis 宿主）：模块图、目录级结构、数据模型、存储布局、队列、网关扩展、安全、部署
 
@@ -285,22 +285,33 @@ preset-server
 
 ## 5. 数据模型（Postgres 16，草案；字段到草案级）
 
-约定：`id uuid`（v7，时间有序）、`tenant_id` 必填并进入复合索引首列、`created_at/updated_at timestamptz`、软删除用 `deleted_at`。
+约定：`id uuid`（v7，时间有序）、`tenant_id` 必填并进入复合索引首列、`created_at/updated_at timestamptz`、软删除用 `deleted_at`。唯一例外：`users.tenant_id` 允许 `null`（个人账号，rulings §4.13 S-1，见下）。
 
 ```sql
 -- 租户与用户
 tenants(id pk, slug unique, name, settings jsonb, plan, quotas jsonb, created_at)
-users(id pk, tenant_id fk, oidc_issuer, oidc_subject, email_hash, display_name, avatar_url, status, created_at, last_seen_at,
+users(id pk, tenant_id fk null, oidc_issuer, oidc_subject, email_hash, display_name, avatar_url, status, created_at, last_seen_at,
       unique(tenant_id, oidc_issuer, oidc_subject))
+      -- tenant_id 允许 null（新增，rulings §4.13 S-1，2026-09-21）：个人账号——经分享链接自助注册、无租户归属，
+      -- 与"租户不开放自助创建"（U-10）不冲突（开放的是个人账号，不是租户）；unique 约束对 tenant_id=null 的多行不冲突（Postgres NULL 不参与唯一性比较）
 api_keys(id pk, tenant_id fk, name, key_hash, scopes text[], created_by fk users, created_at, last_used_at, revoked_at)
+
+-- 组（新增，rulings §4.12 U-11，M3）
+groups(id pk, tenant_id fk, name, created_at, unique(tenant_id, name))
+group_members(group_id fk, user_id fk users, added_at, primary key(group_id, user_id))
+                 -- 删除组时级联撤销以其为 principal 的 permissions 行（同事务，见 40-modules/08 §2.6）
 
 -- 文档
 documents(id pk, tenant_id fk, title, doc_type text default 'slide', schema_version int, epoch int default 0,
-          owner_id fk users, folder_id null, status text check in ('active','trashed','locked'),
-          head_seq bigint default 0,                 -- 已持久化的最大 update seq
+          owner_id fk users, folder_id null, status text check in ('active','trashed','locked','purging'),
+          head_seq bigint default 0,                 -- 已持久化的最大 update seq，唯一写者 M-09（server-collab），本表其余列由 M-08 写（评审 §3.4）
           latest_snapshot_id fk document_snapshots null,
           size_bytes bigint, media_bytes bigint, slide_count int,
           created_at, updated_at, deleted_at, index(tenant_id, updated_at desc))
+          -- status='purging'（新增，rulings §4.13 S-2，2026-09-21）：回收站（trashed）满 30 天宽限期，或收到 GDPR 擦除请求，
+          -- 由 documents/application/schedule-purge.usecase.ts 置位，单向不可逆；置位后触发编排式级联清理
+          -- （permissions/document_perm_versions 由 M-08、document_updates/document_snapshots 由 M-09、thumbnails/comments 由 M-12
+          -- 各自清理"自己的表"，见 40-modules/08 §7、40-modules/09 §7.3）；清理完成后该行物理删除或按 GDPR 策略替换为 deleted-user 占位
 
 -- CRDT update 追加表（ADR-0025）
 document_updates(doc_id fk, seq bigint,             -- seq 由 documents.head_seq 在同事务内递增分配（单写者按批）
@@ -341,10 +352,19 @@ thumbnails(doc_id fk, slide_id text, snapshot_seq bigint, layout_algo_version in
 job_runs(id pk, tenant_id, kind text, doc_id null, status text, attempts int, error_code text null, payload jsonb, result jsonb,
          queued_at, started_at, finished_at, index(doc_id, kind, queued_at desc))
 audit_log(id bigserial pk, tenant_id, actor_type text, actor_id uuid null, action text,    -- 'document.create' | 'permission.grant' | 'collab.join' …
-          target_type, target_id, doc_id null, session_id null, request_id, ip_hash, user_agent_hash, details jsonb, created_at)
+          target_type, target_id, doc_id null, session_id null, request_id, ip_hash, user_agent_hash, details jsonb,
+          prev_hash bytea null, hash bytea, created_at)
           -- 按月分区；仅 INSERT（数据库角色无 UPDATE/DELETE 权限）
+          -- prev_hash/hash 新增（rulings §4.12 U-15，M3）：hash = chainHash(prev_hash, entry)，形成链式校验；每日 seal 作业重算校验前一日全部行（见 40-modules/12 §2.3/§2.6）
 collab_sessions(id pk, doc_id, user_id null, client_id bigint, instance_id, role, connected_at, disconnected_at null,
                 disconnect_code int null, bytes_in bigint, bytes_out bigint, updates_in int, rejected int)   -- 运维/审计；可选
+
+-- Webhook 出口（新增，rulings §4.12 U-14，M3；评论事件的服务端投递通道，与客户端 EM-05 回调并行）
+webhook_subscriptions(id pk, tenant_id fk, target_url text, event_filter text[], signing_secret_hash, status text check in ('active','disabled'),
+                       created_at, updated_at)
+webhook_deliveries(id pk, subscription_id fk, event text, payload_hash bytea, attempt int default 0,
+                    status text check in ('pending','succeeded','failed','dead-lettered'), response_code int null,
+                    delivered_at null, created_at, index(subscription_id, created_at desc))
 ```
 
 写路径关键约束：
@@ -413,6 +433,7 @@ collab_sessions(id pk, doc_id, user_id null, client_id bigint, instance_id, role
 - **fail-closed 双点**：REST `DocumentRoleGuard` 与 WS 网关（ticket role + 每帧检查）都是「无显式允许即拒绝」；命令管线的客户端检查点是第三点（UX）。角色格：`owner > editor > commenter > viewer > none`；操作矩阵在 `protocol/permissions`。
 - collab ticket：60 s、单次使用（jti）、绑定 doc 与 permVersion；WS 不接受长时 access token。
 - 权限变更即时生效：06 §10。
+- 分享链接（新增，rulings §4.13 S-1，2026-09-21）：不支持匿名访问，需先登录（任意已登录账号，含其它租户用户，或经个人账号自助注册）；`ShareLinkGuard` 把链接角色叠加到已登录 Principal 的能力位集合，不产出匿名 Principal；每次外部访问写外部访问审计（`share-link.accessed`），详见 40-modules/08 §2.6/§2.4。
 
 ### 9.2 上传校验与 zip 资源限制（借鉴 pptx-renderer `ZipParseLimits`，按 Q5 放大）
 
@@ -505,6 +526,9 @@ Ingress：WS 升级、`proxy-read-timeout` ≥ 3600、无粘性
 | 权限传播 | ≤ 1 s p95 | 06 §10 |
 | 优雅关闭 | ≤ 30 s，零 update 丢失 | 集成测试：kill -TERM 后重启对比状态 |
 | 每实例 | 2,000 连接 / 200 房间 / RSS ≤ 8 GiB | 指标 |
+| Room 背压溢写一级阈值（新增，rulings §4.13 S-3） | ≤ N MiB/文档未持久化字节（默认量级与 `compaction.maxPendingBytes` 同档，具体值由 `server-collab/config.ts` `spill.tier1MaxBytesPerDoc` 定案，见 40-modules/09 §2.2/§11） | `oce_collab_spill_tier_current`（按 Room 打点，`none\|redis\|blob`） |
+| Room 背压溢写二级阈值（新增，rulings §4.13 S-3） | 超一级阈值后继续累积则分块落 `BlobStore`（`spill.tier2ChunkBytes`，量级参考对象存储布局 §6） | 同上 + `oce_collab_spill_tier2_bytes_total` |
+| 故障恢复后回放耗时（新增，rulings §4.13 S-3） | PG 恢复 → Room 回到 `active` ≤ 10 s p95（按 D50 级文档溢写窗口估算，随二级溢写字节量线性增长，超大窗口另行观测） | span `server.collab.replay-spilled`；集成测试：故障注入（kill PG 连接 N 秒）后断言 `document_updates` 按 `seq` 完整无重复 |
 
 ---
 

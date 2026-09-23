@@ -43,6 +43,37 @@ git checkout ppt在线编辑器初始化
 
 bundle 含完整历史（约 2 MB），clone 后 remote 改回 GitHub，等配好凭据就能 push。
 
+## 1b. GitHub 凭据（两个容易卡住的地方）
+
+**known_hosts 缺 github.com** —— 表现为 `Host key verification failed`，fetch/push 全挂。非交互环境（SSH 进去跑脚本、CI）不会弹出"是否信任"的提示，必须先写入。写入前务必核对指纹与 GitHub 官方公布的一致：
+
+```bash
+ssh-keyscan -t rsa,ecdsa,ed25519 github.com > /tmp/gh_hostkeys
+ssh-keygen -lf /tmp/gh_hostkeys     # 三条指纹应为：
+#   ED25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+#   RSA     SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s
+#   ECDSA   SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM
+cat /tmp/gh_hostkeys >> ~/.ssh/known_hosts && rm /tmp/gh_hostkeys
+```
+
+**SSH agent 托管密钥**（1Password、Secretive 等）—— `~/.ssh/config` 里若有
+
+```
+Host *
+	IdentityAgent "~/Library/Group Containers/.../agent.sock"
+```
+
+则认证走 agent 而非磁盘私钥。交互式终端正常，但非交互会话可能碰不到 agent。排查时两条路分别测：
+
+```bash
+ssh -T git@github.com                                      # 走 agent
+ssh -o IdentityAgent=none -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -T git@github.com   # 直接用磁盘私钥
+```
+
+两条都回 `Hi <用户名>! You've successfully authenticated` 才算稳妥。
+
+**gh CLI 与 git 是两套凭据**：git 走 SSH，`gh` 走它自己的 token。gh token 失效不影响 `git fetch/push`，只影响 `gh pr`、`gh api` 这类命令；需要时单独 `gh auth login`。
+
 ## 2. 项目记忆（最容易漏）
 
 Claude Code 的项目记忆按**主仓绝对路径**编码目录名，换机器后路径变了，目录名也要跟着改，否则新会话读不到之前的决策上下文。

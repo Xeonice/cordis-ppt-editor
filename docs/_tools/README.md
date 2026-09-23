@@ -10,6 +10,8 @@
 | `mermaid-check.cjs` | 用无头 Chrome 跑 `mermaid.parse` 逐张校验 Markdown 里的 ```mermaid 图，报出文件与行号 | `node docs/_tools/mermaid-check.cjs docs/40-modules/*.md` | 全局 `playwright` + Chrome；从 CDN 取 mermaid 11 |
 | `gen-review-site.py` | 把 `40-modules` 的 Markdown 生成多页 HTML 评审站（索引 + 决策面板 + 每份文档一页，带章节目录、表格过滤、Mermaid 原生渲染） | `python3 docs/_tools/gen-review-site.py <输出目录> [--preview]` | `pip install markdown`（建议装在 venv 里） | 
 
+换机器请看 [`MIGRATION.md`](MIGRATION.md)：仓库、项目记忆、Node 依赖、GitHub 凭据四件事的完整步骤。
+
 ## 说明
 
 - `gen-review-site.py` 的源目录默认取本脚本同级的 `../40-modules`，可用环境变量 `OCE_DOCS_SRC` 覆盖；`--preview` 会给页面注入 CDN 版 mermaid 以便本地预览（发布用的产物不注入，由宿主原生渲染）。

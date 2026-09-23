@@ -121,15 +121,15 @@ q6 -- "否" --> r7
 | 22 | `server-collab` | `@oce/server-collab` | LS/58 | node | plugin | 内核必需(role=collab) | units,updateStore,snapshotStore,fanoutBus,leaseLock,authzSource,telemetry,spillStore | 无 | collabServer | — | 无 | 无 | root（自管理多 Room 隔离域） | server●(role=collab) | 09 §3.1 |
 | 23 | server-headless（host 工厂，无单一 name） | `@oce/server-headless` | LS/58 | node | host+provider | 内核必需(role=worker) | 无 | 无 | 无（node-font 子插件 provide layout.measurer） | — | layout.measurer(node-font) | 无 | 独立宿主实例（每任务） | server●(role=worker) | 09 §3.2 |
 | 24 | `RedisFanoutBus` | `apps/server`(`modules/collab/infrastructure`) | LS/58（逻辑归 BC-21） | node | provider | 契约必需·可换 | 未注明(ioredis) | 未注明 | 无(Nest provider) | fanoutBus | 无 | 无 | root（经 preset-server 装配） | server● | 09 §3.4 |
-| 25 | `RedisLeaseLock` | 同上 | LS/58 | node | provider | 契约必需·可换 | 未注明(ioredis) | 未注明 | 无 | leaseLock | 无 | 无 | root | server● | 09 §3.4 |
-| 26 | `PgUpdateStore` | 同上 | LS/58 | node | provider | 契约必需·可换 | 未注明(Drizzle) | 未注明 | 无 | updateStore | 无 | 无 | root | server● | 09 §3.4 |
-| 27 | `PgSnapshotStore` | 同上 | LS/58 | node | provider | 契约必需·可换 | 未注明(Drizzle,blobStore) | 未注明 | 无 | snapshotStore | 无 | 无 | root | server● | 09 §3.4 |
-| 28 | `AuthzSource` | 同上 | LS/58 | node | provider | 契约必需·可换 | 未注明(RoleResolverService) | 未注明 | 无 | authzSource | 无 | 无 | root | server● | 09 §3.4 |
+| 25 | `RedisLeaseLock` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(ioredis) | 未注明 | 无 | leaseLock | 无 | 无 | root | server● | 09 §3.4 |
+| 26 | `PgUpdateStore` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(Drizzle) | 未注明 | 无 | updateStore | 无 | 无 | root | server● | 09 §3.4 |
+| 27 | `PgSnapshotStore` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(Drizzle,blobStore) | 未注明 | 无 | snapshotStore | 无 | 无 | root | server● | 09 §3.4 |
+| 28 | `AuthzSource` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(RoleResolverService) | 未注明 | 无 | authzSource | 无 | 无 | root | server● | 09 §3.4 |
 | 29 | `RedisSpillStore`（新增 S-3） | 同上`spill/` | LS/58 | node | provider | 可选·降级 | 未注明(ioredis) | 未注明 | 无 | spillStore(tier1) | 无 | 无 | root | server● | 09 §3.4 |
 | 30 | `BlobSpillStore`（新增 S-3） | 同上`spill/` | LS/58 | node | provider | 可选·降级 | 未注明(blobStore) | 未注明 | 无 | spillStore(tier2) | 无 | 无 | root | server● | 09 §3.4 |
 | 31 | `PinoLoggerAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58（逻辑归 BC-01） | node | provider | 可选·降级 | 未详述（见 §8 G-8） | 未详述 | 无 | logger（kernel loggerSink） | 无 | 无 | root | server● | 09 §4.3 |
-| 32 | `OtelTelemetryAdapter` | 同上 | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | telemetry.sink（推测） | telemetry.sink（推测） | 无 | root | server● | 09 §4.3 |
-| 33 | `ErrorsReporterAdapter` | 同上 | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | errors.sink（推测） | errors.sink（推测） | 无 | root | server● | 09 §4.3 |
+| 32 | `OtelTelemetryAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | telemetry.sink（推测） | telemetry.sink（推测） | 无 | root | server● | 09 §4.3 |
+| 33 | `ErrorsReporterAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | errors.sink（推测） | errors.sink（推测） | 无 | root | server● | 09 §4.3 |
 | 34 | N/A（纯库） | `@oce/design` | L7/70 | dom | library | N/A | — | — | — | — | 无 | 无 | N/A | viewer●,slide●,collab●,server○ | 10 §3 |
 | 35 | `ui-core` | `@oce/ui-core` | L7/70 | dom | definition | 可选·降级 | contributions,commands,units,i18n | documentTypes,telemetry,errors | ui,shortcuts,theme | — | ui.ribbon,ui.toolbar,ui.panel,ui.contextMenu,ui.statusBar,ui.dialog,ui.notification,ui.shortcut,ui.command,ui.theme | 同左 10 个+core.command | root | viewer○,slide●,collab●,server○ | 10 §3 |
 | 36 | `ui-react` | `@oce/ui-react` | L7/70 | dom | provider | 可选·降级 | ui,shortcuts,theme,commands,i18n,units,contributions | presence,render,thumbnails,telemetry | uiRenderer | uiRenderer | ui.dialog×3,ui.notification×4,ui.shortcut×4,ui.command,i18n.bundle | ui.*(经 ui 服务) | root | viewer○,slide●,collab●,server○ | 10 §3 |
@@ -153,8 +153,8 @@ q6 -- "否" --> r7
 | 54 | `preset-slide-viewer#design-css` | `@oce/preset-slide-viewer` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root | viewer● | 11 §3.3 |
 | 55 | 语言包（locale-packs） | `preset-*/src/plugins/locales/*.ts` | L8/80 | iso/dom | plugin | 可选·降级 | 无 | 无 | 无 | — | i18n.bundle | 无 | root（惰性） | viewer◐,slide◐,collab◐ | 11 §3.1 |
 | 56 | `viewer-thumbnails` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
-| 57 | `viewer-notes` | 同上 | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
-| 58 | `viewer-search` | 同上 | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
+| 57 | `viewer-notes` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
+| 58 | `viewer-search` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
 | 59 | `preset-slide`(`createSlidePreset`) | `@oce/preset-slide` | L8/80 | dom | bundle | N/A | 无（可选 errors） | 无 | 无 | — | 无（间接经 shell-glue） | 无 | root（被 apps/web 挂载） | slide | 11 §3.2 |
 | 60 | `preset-slide-collab`(`createSlideCollabPreset`) | `@oce/preset-slide-collab` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接） | 无 | root | collab | 11 §3.2 |
 | 61 | `preset-slide-viewer`(`createSlideViewerPreset`) | `@oce/preset-slide-viewer` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接经 read-only） | render/element-degraded,i18n/locale-changed（惰性触发） | root | viewer | 11 §3.2 |
@@ -312,7 +312,7 @@ provUiReact -. "可替换" .-> altUiVue
 | `engine-render` | ✓ | ✓ | ✓ | ◐ | server 只用其 iso 契约层，不含完整渲染运行时 |
 | `render-dom` | ✓ | ✓ | ✓ | 替换为 server-headless 的 node-font | server 不需要 DOM 渲染，只需度量 |
 | `slide-render` | ✓ | ✓ | ✓ | ✗ | headless Chromium 路径是独立浏览器进程，不计入 `preset-server` 自身构成 |
-| `slide-render-chart` | ◐ | ◐ | ◐ | ✗ | 同上 |
+| `slide-render-chart` | ◐ | ◐ | ◐ | ✗ | headless Chromium 路径是独立浏览器进程，不计入 `preset-server` 自身构成 |
 | 语言包 locale-packs | ◐ | ◐ | ◐ | ✗ | server 不需要 UI 文案 |
 | `preset-slide-viewer#read-only` | ✗ | ✗ | ✓（不可 exclude） | ✗ | 只读策略是 viewer 专属必需条目 |
 | `preset-slide-viewer#design-css` | ✗ | ✗ | ✓ | ✗ | viewer 无 ui-core，需单独注入主题 CSS |
@@ -320,8 +320,8 @@ provUiReact -. "可替换" .-> altUiVue
 | `viewer-thumbnails`/`viewer-notes`/`viewer-search` | ✗ | ✗ | ◐ | ✗ | viewer 专属惰性子功能 |
 | `local-presence` | ✓ | ✗ | ✗ | ✗ | slide 单人预设的兜底 presence；collab 用 collab-yjs 替换；viewer/server 均不需要 |
 | `ui-core` | ✓ | ✓ | ✗ | ✗ | viewer 无编辑器 UI；server 无 UI |
-| `ui-react` | ✓ | ✓ | ✗ | ✗ | 同上 |
-| `slide-ui` | ✓ | ✓ | ✗ | ✗ | 同上 |
+| `ui-react` | ✓ | ✓ | ✗ | ✗ | viewer 无编辑器 UI；server 无 UI |
+| `slide-ui` | ✓ | ✓ | ✗ | ✗ | viewer 无编辑器 UI；server 无 UI |
 | `preset-slide#shell-glue` | ✓ | ✓ | ✗ | ✗ | 应用栏「⋯」菜单胶水，viewer/server 无应用栏 |
 | `collab-transport-ws` | ✗ | ✓ | ✗ | 替换为 server-collab 内部 WS 网关 | 客户端传输 Provider vs 服务端网关是两套实现 |
 | `collab-yjs` | ✗ | ✓ | ✗ | 替换为 server-collab | 客户端同步引擎 vs 服务端 Room 管理器 |

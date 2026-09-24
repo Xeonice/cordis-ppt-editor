@@ -2,8 +2,8 @@ import re, os, html, json, sys
 import markdown
 from markdown.extensions.toc import TocExtension, slugify_unicode
 
-# 源目录：默认取本脚本所在 docs/_tools 的同级 40-modules；可用环境变量 OCE_DOCS_SRC 覆盖
-SRC = os.environ.get("OCE_DOCS_SRC") or os.path.join(
+# 源目录：默认取本脚本所在 docs/_tools 的同级 40-modules；可用环境变量 CORDEX_DOCS_SRC 覆盖
+SRC = os.environ.get("CORDEX_DOCS_SRC") or os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "40-modules")
 OUT=sys.argv[1]
 PREVIEW=len(sys.argv)>2 and sys.argv[2]=="--preview"
@@ -75,7 +75,7 @@ def layout(title, status, toc, body, prev, nxt, depth):
     st=f'<p class="status">{html.escape(status)}</p>' if status else ""
     return f"""<meta charset="utf-8"><title>{html.escape(title)}</title>
 <link rel="stylesheet" href="{up}site.css">
-<header class="top"><div class="brand"><a href="{up}index.html">OCE 模块设计评审</a></div><div class="navs">{' '.join(nav)}</div></header>
+<header class="top"><div class="brand"><a href="{up}index.html">Cordex 模块设计评审</a></div><div class="navs">{' '.join(nav)}</div></header>
 <div class="shell">
 <aside class="side"><details open><summary>目录</summary><div class="toc">{toc}</div></details></aside>
 <main class="main"><h1>{html.escape(title)}</h1>{st}
@@ -104,7 +104,7 @@ rtitle,rstatus,rrest=split_head(readme)
 rrest=rewrite_links(rrest, from_index=True)
 rbody,rtoc=render(rrest)
 decided=[
- ("U-01","`preset-doc` / `preset-sheet` 收录章程，不带 `-skeleton` 后缀，用 `oce.stability:'experimental'` 标识未完工","已定"),
+ ("U-01","`preset-doc` / `preset-sheet` 收录章程，不带 `-skeleton` 后缀，用 `cordex.stability:'experimental'` 标识未完工","已定"),
  ("U-02","OOXML Strict 写回：M1 即做 C 案完整写回（反向映射表 + 字节级验证），B 回退仅兜底","已定 · 改变推荐"),
  ("U-03","查看器 `allowExport` 默认关，集成方显式开启","已定"),
  ("U-04","开始页「最近 / 固定」M2 即服务端同步（IndexedDB 仅离线缓存）","已定 · 改变推荐"),
@@ -113,24 +113,42 @@ decided=[
  ("U-07","版本恢复的撤销语义：两个简单方案均否决，须在多人协同场景下专项设计（M-02 × M-05 × M-09 联合，M3 前出 ADR）","专项设计"),
  ("U-08","高对比 / forced-colors 第三套主题 M3 P1；M1–M2 只加系统色兜底","已定"),
  ("U-09","`ROLE_CAPABILITIES`：`doc.export` / `history.read` 下放到 editor","已定"),
- ("U-10","`create-tenant` 不对外开放自助注册，M3 仅内部 / 管理脚本","已定"),
- ("U-11","M3 即实现组管理：Group 聚合、`groups` / `group_members` 表、按组授权","已定 · 改变推荐"),
+ ("U-10","（原：`create-tenant` 不开放自助注册）→ 单组织去租户后失效；改为部署级 `auth.selfSignup` 开关，默认关","被 §4.15 覆盖"),
+ ("U-11","（原：M3 即实现组管理）→ 组管理推迟，M3 只按人分享","被 §4.15 覆盖"),
  ("U-12","服务端操作日志 M3 不做，靠 `audit_log` + 回收站","已定"),
  ("U-13","`fill-template` 等自动化作业并入 import-export（细节 M4 定）","已定"),
  ("U-14","评论事件：客户端回调 + 服务端 Webhook 两者 M3 都做","已定 · 改变推荐"),
  ("U-15","`audit_log` 哈希链 M3 即实现","已定 · 改变推荐"),
  ("U-16","开发者菜单：构建期 DEV 或运行期 `features.developerMenu` 取或","已定"),
 ]
+charter_q=[
+ ("T-0","单组织、完全去租户：一次部署 = 一个组织，无 tenant 概念"),
+ ("Q1","更名 Cordex：scope `@cordexjs`，内部前缀 oce→cordex，显示名「Cordex 幻灯片」；npm org 首次发布前注册"),
+ ("Q2","React 19；「可换」改写为可验证范围；形态 B 宿主自绘 UI"),
+ ("Q3","Yjs 13.6.x；撤销跳过他人后写并提示、整步跳过即停、删除改软删除墓碑 + TTL"),
+ ("S-3a","PG 故障溢写期两级 ack（spill / db）"),
+ ("Q4","DOM/SVG 单实现；canvas 仅栅格化 / 测量 / 预留 RenderTarget"),
+ ("Q5","五数字为保证包络 + 文档总元素 20,000 天花板；超包络拒绝导入；名额按用户计；部署配置完全可调"),
+ ("Q6","外置 OIDC + 可选 Casdoor；JWT / API Key 降 M4；`auth.selfSignup` 默认关；文档级 RLS；组管理推迟"),
+ ("Q7","补齐 SmartArt / OLE / chartex 落点 + M2 EMF 栅格化；外链资源自动加载（可收紧）；受限字体仅只读渲染"),
+ ("Q8","M3 前半段 headless Chromium 零出站 sidecar；M2 用包内 thumbnail.jpeg；PDF M3 后半段"),
+ ("Q9","pnpm 11 双锁（packageManager + devEngines）；Node 26"),
+ ("Q10","自托管 compose：PG 18 / Valkey / SeaweedFS / 独立 renderer / 可选 Casdoor；新增 ADR-0037"),
+]
 pending=[]
 def mdinline(s):
     return re.sub(r"`([^`]+)`", lambda m:"<code>"+html.escape(m.group(1))+"</code>", html.escape(s)).replace("&lt;code&gt;","<code>").replace("&lt;/code&gt;","</code>")
 def mdi(s):
     s=html.escape(s); return re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
-panel='<section class="panel" id="决策面板"><h2>决策面板 · 16 项用户级裁决（已全部裁决）</h2>'
+panel='<section class="panel" id="决策面板"><h2>决策面板 · 用户级裁决</h2>'
 panel+='<p class="muted">来源：<a href="pages/14-cross-module-review.html#_6-1-16">14 §6.1</a>；已定项记录在 rulings §4.12。</p>'
+panel+='<h3>章程 §10 Q1–Q10 裁决（2026-09-24，rulings §4.15）</h3><div class="tbl"><table><thead><tr><th>#</th><th>裁决</th></tr></thead><tbody>'
+for u,t in charter_q:
+    panel+=f'<tr><td>{u}</td><td>{mdi(t)}</td></tr>'
+panel+='</tbody></table></div>'
 panel+='<h3>已裁决（16 / 16，rulings §4.12）</h3><div class="tbl"><table><thead><tr><th>#</th><th>裁决</th><th>状态</th></tr></thead><tbody>'
 for u,t,st in decided:
-    cls="chip ok" if st=="已定" else ("chip warn" if "专项" in st else "chip alt")
+    cls="chip ok" if st=="已定" else ("chip warn" if ("专项" in st or "覆盖" in st) else "chip alt")
     panel+=f'<tr><td>{u}</td><td>{mdi(t)}</td><td><span class="{cls}">{st}</span></td></tr>'
 panel+='</tbody></table></div>'
 if pending: panel+='<h3>待裁决</h3><div class="tbl"><table><thead><tr><th>#</th><th>来源</th><th>问题</th><th>推荐默认</th><th>阻塞</th></tr></thead><tbody>'
@@ -142,12 +160,12 @@ for m in pages_meta:
     cards+=f'<a class="card" href="pages/{m["file"]}"><div class="card-t">{html.escape(m["label"])}</div><div class="card-m">{m["lines"]} 行</div></a>'
 cards+='</div></section>'
 howto='<section class="howto"><h2>怎么评审</h2><ul><li>每页左侧是章节目录，§4 目录树与 §5 逐文件职责表是评审重点；超过 20 行的表格上方有过滤框，可按文件名或关键词筛。</li><li>指向 40-modules 之外文档的链接跳到 GitHub 私有仓库对应文件（分支 <code>ppt在线编辑器初始化</code>）。</li><li>可以直接在页面上留评论（右上角评论入口），我会按线程处理。</li></ul></section>'
-idx=f"""<meta charset="utf-8"><title>OCE 模块设计评审</title>
+idx=f"""<meta charset="utf-8"><title>Cordex 模块设计评审</title>
 <link rel="stylesheet" href="site.css">
-<header class="top"><div class="brand"><a href="index.html">OCE 模块设计评审</a></div><div class="navs"><a class="nav" href="#决策面板">决策面板</a> <a class="nav" href="#页面">页面</a> <a class="nav" href="pages/00-module-map.html">总图</a> <a class="nav" href="pages/14-cross-module-review.html">评审</a></div></header>
+<header class="top"><div class="brand"><a href="index.html">Cordex 模块设计评审</a></div><div class="navs"><a class="nav" href="#决策面板">决策面板</a> <a class="nav" href="#页面">页面</a> <a class="nav" href="pages/00-module-map.html">总图</a> <a class="nav" href="pages/14-cross-module-review.html">评审</a></div></header>
 <div class="shell">
 <aside class="side"><details open><summary>目录</summary><div class="toc"><ul><li><a href="#决策面板">决策面板</a></li><li><a href="#页面">页面</a></li></ul>{rtoc}</div></details></aside>
-<main class="main"><h1>OCE 模块设计评审</h1><p class="status">{html.escape(rstatus or '')}</p>
+<main class="main"><h1>Cordex 模块设计评审</h1><p class="status">{html.escape(rstatus or '')}</p>
 {howto}{panel}{cards}
 <div class="content">{rbody}</div>
 </main></div>

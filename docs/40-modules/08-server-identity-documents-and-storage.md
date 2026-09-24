@@ -1,21 +1,21 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21 | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；30-architecture/08-backend-nestjs.md §0/§1/§2/§3.2/§5/§6/§9/§11/§16.4；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；30-architecture/08-backend-nestjs.md §0/§1/§2/§3.2/§5/§6/§9/§11/§16.4；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
 
-# 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与租户、BC-19 文档目录与权限、BC-20 对象存储与媒体）
+# 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体）
 
 ## 0. 一页总览
 
 | 项 | 值 |
 |---|---|
-| 职责一句话 | OIDC 登录与会话/协同票据签发、租户与用户与配额管理（BC-18）；文档目录 CRUD、权限授予撤销与分享链接（BC-19）；`BlobStore` 服务端实现与内容寻址媒体上传（BC-20） |
-| 覆盖的上下文 | BC-18 身份与租户、BC-19 文档目录与权限、BC-20 对象存储与媒体 |
-| 承载包 / 目录 | `apps/server/src/modules/{auth,tenants,users,groups,documents,permissions,share-links,storage,media}`（L8 · node · app，秩 80，`groups` 为新增，rulings §4.12 U-11）、`@oce/server-storage`（LS · node · provider `implements:['blobStore']`，秩 58） |
-| cordis 形态 | library（BC-18/19 的七个 Nest 模块 auth/tenants/users/groups/documents/permissions/share-links——纯 Nest DI，非 cordis Fiber，`groups` 为新增，rulings §4.12 U-11）+ provider（`@oce/server-storage`：唯一 `implements:['blobStore']` 的服务端包；`storage`/`media` 两个 Nest 模块是它的薄绑定层，本身仍是 library） |
+| 职责一句话 | 外置 OIDC 登录（服务端不持有密码）、首次登录 JIT 建用户、会话/协同票据签发、平台管理员（部署级）（BC-18）；文档目录 CRUD、权限授予撤销与分享链接（BC-19）；`BlobStore` 服务端实现与内容寻址媒体上传（BC-20） |
+| 覆盖的上下文 | BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体 |
+| 承载包 / 目录 | `apps/server/src/modules/{auth,users,documents,permissions,share-links,storage,media}`（L8 · node · app，秩 80；2026-09-24 删除 `tenants`（T-0 单组织去租户）与 `groups`（U-11 组管理推迟），rulings §4.15）、`@cordexjs/server-storage`（LS · node · provider `implements:['blobStore']`，秩 58） |
+| cordis 形态 | library（BC-18/19 的五个 Nest 模块 auth/users/documents/permissions/share-links——纯 Nest DI，非 cordis Fiber；2026-09-24 删 `tenants`/`groups`，rulings §4.15）+ provider（`@cordexjs/server-storage`：唯一 `implements:['blobStore']` 的服务端包；`storage`/`media` 两个 Nest 模块是它的薄绑定层，本身仍是 library） |
 | 运行位置 | 服务端 |
-| 上游（依赖） | M-02（`@oce/protocol` 的 REST DTO/错误码/`Capability`/`RoleName`/`ROLE_CAPABILITIES`/`BlobRef`；`@oce/model-core` 的 `BlobStore` 基础契约，仅类型引用，不 import 运行时） |
+| 上游（依赖） | M-02（`@cordexjs/protocol` 的 REST DTO/错误码/`Capability`/`RoleName`/`ROLE_CAPABILITIES`/`BlobRef`；`@cordexjs/model-core` 的 `BlobStore` 基础契约，仅类型引用，不 import 运行时） |
 | 下游（被依赖） | M-09（协同网关消费本模块签发的 collab ticket 契约、`perm:doc:{id}` 广播、`ctx.blobStore`）、M-12（导入导出/缩略图/评论/审计/`common/*` 复用本模块的 `SessionGuard`/`DocumentRoleGuard`/`RoleResolverService`/`ctx.blobStore`，并为本模块的 `@Audited()`/限流注解提供解释器） |
-| 对外服务 | 无 cordis 服务（BC-18/19：REST `/auth/*`、`/tenants/*`、`/users/*`、`/documents/*`、`/documents/:id/permissions`、`/documents/:id/share-links`）；`ctx.blobStore`（BC-20，`@oce/server-storage` 经 `preset-server` 装配进 M-09 持有的共享 cordis 宿主，见 §7） |
+| 对外服务 | 无 cordis 服务（BC-18/19：REST `/auth/*`、`/users/*`、`/documents/*`、`/documents/:id/permissions`、`/documents/:id/share-links`）；`ctx.blobStore`（BC-20，`@cordexjs/server-storage` 经 `preset-server` 装配进 M-09 持有的共享 cordis 宿主，见 §7） |
 | 贡献点 | 提供：无；消费：无（三个 BC 均不参与 `ctx.contribute`/`ctx.contributions`，module-map §3 BC-18/19/20 行已定） |
-| Nest 侧导出（非 cordis 贡献点） | `SessionGuard`、`ApiKeyGuard`、`DocumentRoleGuard`、`TenantAdminGuard`、`RoleResolverService`、`IssueCollabTicketUseCase`——经 DI `exports` 供 M-09/M-12 的 controller/gateway 复用，见 §3 |
+| Nest 侧导出（非 cordis 贡献点） | `SessionGuard`、`ApiKeyGuard`（M4）、`DocumentRoleGuard`、`PlatformAdminGuard`（部署级平台管理员，取代 `TenantAdminGuard`，rulings §4.15 T-0）、`RoleResolverService`、`IssueCollabTicketUseCase`——经 DI `exports` 供 M-09/M-12 的 controller/gateway 复用，见 §3 |
 | doc / sheet 通用性 | generic（`Document` 只是目录条目 + `docType` 字符串字段透传，三个 BC 对幻灯片/文档/表格内容一无所知） |
 | 批次 | 2 |
 
@@ -26,12 +26,12 @@
 ```mermaid
 flowchart LR
 subgraph up["上游"]
-  m02["M-02 @oce/protocol / @oce/model-core"]
+  m02["M-02 @cordexjs/protocol / @cordexjs/model-core"]
 end
 subgraph mod["M-08 身份文档与对象存储"]
-  authMod["auth / tenants / users Nest 模块"]
+  authMod["auth / users Nest 模块"]
   docMod["documents / permissions / share-links Nest 模块"]
-  storageMod["@oce/server-storage"]
+  storageMod["@cordexjs/server-storage"]
 end
 subgraph down["下游"]
   m09["M-09 协同网关"]
@@ -52,30 +52,34 @@ storageMod -- "ctx.blobStore" --> m12
 
 ### 1.1 职责与非职责
 
-**BC-18 身份与租户**
-- 做：OIDC 授权码 + PKCE 登录/回调/登出、会话（httpOnly cookie 或 Bearer JWT）签发与刷新、集成方签名 JWT 校验（嵌入场景）、API Key 签发与校验、协同 ticket 签发（ES256、60 s、`jti` 单次，ADR-0029）、JWKS 暴露、租户与成员管理、租户配额读取点（SV-08）。
-- 不做：不做协同 ticket **校验**（WS 握手校验是 M-09 `ticket-verifier.ts` 的职责，本模块只签发并暴露 JWKS/校验函数供其调用，见 §7）；不做文档级权限判定（BC-19）；不做审计落库（只在 controller/usecase 标注 `@Audited()` 使用点，不持有 `audit_log` 表与拦截器实现，M-12/BC-26）。
+**BC-18 身份与会话**（2026-09-24 由「身份与租户」改名，rulings §4.15 T-0：单组织、完全去租户——一次部署 = 一个组织，数据模型/API/权限中无 tenant）
+- 做：外置 IdP 的 OIDC 授权码 + PKCE 登录/回调/登出（M1–M3 服务端**只认 OIDC**、**不持有密码**；compose 可选内置 Casdoor，可换任意 OIDC IdP，rulings §4.15 Q6）、首次登录 JIT 建用户（`users` + `user_identities`，`(issuer,subject)` 唯一）、会话（httpOnly cookie 或 Bearer JWT）签发与刷新、协同 ticket 签发（ES256、60 s、`jti` 单次，ADR-0029）、JWKS 暴露、平台管理员（部署级 `platform_role='admin'`）校验、部署级注册开关 `auth.selfSignup`（默认关：由管理员在 IdP（Casdoor）建号；开启时登录页显示 IdP 注册入口）；**分享邀请只对已存在账号生效**，目标无账号时提示联系管理员，服务端不设待接受邀请表（rulings §4.17 D1）。集成方签名 JWT 校验与 API Key 签发/校验**降为 M4**（届时 JIT 建影子用户，Q6）。
+- 不做：不做密码/注册表单/找回密码（全部在 IdP）；不做租户与组管理（T-0 删除；组管理 U-11 推迟，M3 只按人分享）；不做协同 ticket **校验**（WS 握手校验是 M-09 `ticket-verifier.ts` 的职责，本模块只签发并暴露 JWKS/校验函数供其调用，见 §7）；不做文档级权限判定（BC-19）；不做审计落库（只在 controller/usecase 标注 `@Audited()` 使用点，不持有 `audit_log` 表与拦截器实现，M-12/BC-26）。
 
 **BC-19 文档目录与权限**
-- 做：文档目录条目 CRUD（标题/状态/回收站/锁定）、权限授予/撤销/列出（fail-closed：无显式允许即拒绝）、`permVersion` 递增与 `perm:doc:{id}` 广播、分享链接创建/撤销/解析、角色解析（直接授权 + 分享链接 + 租户默认，5 s 缓存）；分享链接访问经 `ShareLinkGuard` 校验令牌未撤销/未过期后，把链接角色叠加到当前**已登录** Principal 的能力位集合，不产出匿名 Principal，未登录访客返回需登录错误码由前端跳转登录（rulings §4.13 S-1，2026-09-21）；文档硬删除采用编排式级联（`schedule-purge.usecase.ts` 发起，各模块清理自己的表，rulings §4.13 S-2，2026-09-21）。
+- 做：文档目录条目 CRUD（标题/状态/回收站/锁定）、权限授予/撤销/列出（fail-closed：无显式允许即拒绝）、`permVersion` 递增与 `perm:doc:{id}` 广播、分享链接创建/撤销/解析、角色解析（直接授权 + 分享链接，5 s 缓存；2026-09-24 删除「租户默认」来源，T-0）、文档级 Postgres RLS 会话上下文（M3 出口，Q6，见 §10）；分享链接访问经 `ShareLinkGuard` 校验令牌未撤销/未过期后，把链接角色叠加到当前**已登录** Principal 的能力位集合，不产出匿名 Principal，未登录访客返回需登录错误码由前端跳转登录（rulings §4.13 S-1，2026-09-21；分享链接**始终要求登录**，§4.15 Q6 延续）；文档硬删除采用编排式级联（`schedule-purge.usecase.ts` 发起，各模块清理自己的表，rulings §4.13 S-2，2026-09-21；文档擦除与「立即彻底删除」不等回收站宽限期、立即硬删，§4.15 Q3）。
 - 不做：不持有文档**内容**（幻灯片树/CRDT update 在 BC-05/21，`Document` 只是目录条目——`headSeq`/`epoch` 由 BC-21/27 写入，本模块只读展示）；不做 WS 握手第二道 fail-closed 检查点的**实现**（契约在此定义，实现在 M-09）；不做版本历史的存储与恢复执行（BC-22/M-09，本模块只声明 `history.read`/`history.restore` 两个能力位供其检查点复用）。
 
 **BC-20 对象存储与媒体**
-- 做：`BlobStore` Definition 的服务端实现（S3/MinIO/本地）、内容寻址（sha256，租户级去重）、预签名 PUT/GET、通用文件上传 presign 端点（供 M-12 导入通道复用）、媒体专属上传提交校验（MIME 嗅探优先于声明、SVG 消毒、尺寸探测、配额）。
+- 做：`BlobStore` Definition 的服务端实现（S3 协议——自托管默认 SeaweedFS，替换 MinIO，rulings §4.15 Q10——/本地）、内容寻址（sha256，部署级去重；2026-09-24 由租户级改，T-0）、预签名 PUT/GET、通用文件上传 presign 端点（供 M-12 导入通道复用）、媒体专属上传提交校验（MIME 嗅探优先于声明、SVG 消毒、尺寸探测、部署级配额）。
 - 不做：不解析媒体所属的文档语义（`document_media` 只是薄关联表，"这张图在哪一页/哪个占位符"由 BC-06 幻灯片领域模型持有）；不做导入导出格式转换（BC-23/M-12 调用 BC-27 完成，本模块只提供字节存取）；不做缩略图渲染（BC-24/M-12）。
 
 ### 1.2 通用语言
 
 | 术语 | 定义 | 所在文件 |
 |---|---|---|
-| `Principal` | 已鉴权主体：`{kind:'user'\|'apiKey', id, tenantId, scopes}`；服务端对 `protocol.Principal` 的加宽形态。**不含 `kind:'shareLink'`**（rulings §4.13 S-1，2026-09-21 修订）：分享链接不产出独立 Principal，只把链接角色叠加进已登录 `user`/`apiKey` Principal 的 `scopes`，见 `ShareLink` 行与 §2.6 | `auth/domain/principal.ts` |
-| `Session` | 登录会话：`sessionId,userId,tenantId,issuedAt,expiresAt` | `auth/domain/session.ts` |
-| `CollabTicket` | 协同握手票据 claims：`sub,tid,doc,role,permVersion,jti,exp,sid?`（ADR-0029） | `auth/domain/collab-ticket.ts` |
+| `Principal` | 已鉴权主体：`{kind:'user'\|'apiKey', id, platformRole, scopes}`（2026-09-24 删 `tenantId`，T-0；`kind:'apiKey'` 为 M4）；服务端对 `protocol.Principal` 的加宽形态。**不含 `kind:'shareLink'`**（rulings §4.13 S-1，2026-09-21 修订）：分享链接不产出独立 Principal，只把链接角色叠加进已登录 `user`/`apiKey` Principal 的 `scopes`，见 `ShareLink` 行与 §2.6 | `auth/domain/principal.ts` |
+| `Session` | 登录会话：`sessionId,userId,issuedAt,expiresAt`（2026-09-24 删 `tenantId`） | `auth/domain/session.ts` |
+| `UserIdentity`（新增，rulings §4.15 Q6） | 外置 IdP 身份与本地用户的绑定：`{userId,issuer,subject}`，`(issuer,subject)` 唯一；首次登录 JIT 建 `User` + `UserIdentity` | `users/domain/user-identity.ts` |
+| 平台管理员（新增，§4.15 T-0） | 部署级管理员：`User.platformRole='admin'`；管理部署级设置、用户状态、Webhook 注册、强制 `epoch` 等；**不**隐含任何文档角色（读写文档仍须文档权限） | `auth/interface/guards/platform-admin.guard.ts` |
+| `DocAccess`（新增，§4.15 T-0 / Q6） | 权限服务签发的「已校验的文档访问」品牌类型 `{docId,userId,role}`；以 `docId` 为键的仓储公共方法只接受 `DocAccess` 或 `SystemContext`，由扫描器 `doc-access-via-permission` 机械保证（取代 `repo-requires-tenant-id`） | `permissions/application/resolve-role.usecase.ts` |
+| RLS 会话上下文（新增，§4.15 Q6） | 每个请求事务 `SET LOCAL app.user_id` / `app.share_doc_id`，文档级 Postgres RLS 策略据此判定行可见性；系统作业（压缩、溢写回放、缩略图、墓碑硬删除）用**独立系统作业角色** `cordex_system` + 显式系统作业上下文（`SystemContext`），该角色**无 `BYPASSRLS`**；`BYPASSRLS` 只给迁移角色（ADR-0022 决策 3，2026-09-24 复核 H4） | `permissions/infrastructure/rls-context.ts` |
+| `CollabTicket` | 协同握手票据 claims：`sub,doc,role,permVersion,jti,exp,sid?`（ADR-0029；2026-09-24 删 `tid`，T-0） | `auth/domain/collab-ticket.ts` |
 | `Document`（目录条目） | 文档的元数据行，非内容；`status ∈ active\|trashed\|locked` | `documents/domain/document.ts` |
 | `Permission`/`Grant` | `(principalType,principalId) → role` 的一条授权；无行即无权 | `permissions/domain/permission.ts` |
 | `RoleName`/`ROLE_CAPABILITIES` | 角色→能力位表，权威类型定义在 `protocol/permissions/roles.ts`（M-02 Q-5 留白），本模块回填运行时初始值（§2.2） | `protocol/src/permissions/roles.ts`；回填于 `permissions/domain/role.ts` |
-| `ShareLink` | 角色叠加令牌，`role ∈ {viewer,commenter,editor}`（不可为 owner）。**需登录**方可兑现（rulings §4.13 S-1，2026-09-21 修订，原"免登录"字面定义已否决）：持有有效令牌的**已登录**用户经 `ShareLinkGuard` 把 `role` 叠加进自身能力位；无账号者先经 `auth` 模块个人账号自助注册（§2.6） | `share-links/domain/share-link.ts` |
-| `MediaBlob` | 租户级内容寻址媒体（`(tenantId,sha256)` 唯一） | `media/domain/media-blob.ts` |
+| `ShareLink` | 角色叠加令牌，`role ∈ {viewer,commenter,editor}`（不可为 owner）。**需登录**方可兑现（rulings §4.13 S-1，2026-09-21 修订，原"免登录"字面定义已否决）：持有有效令牌的**已登录**用户经 `ShareLinkGuard` 把 `role` 叠加进自身能力位；无账号者在 IdP 取得账号后首次登录 JIT 建号（2026-09-24 取代原「个人账号自助注册」，服务端不持有密码，rulings §4.15 Q6；IdP 是否开放注册由 `auth.selfSignup` 决定） | `share-links/domain/share-link.ts` |
+| `MediaBlob` | 部署级内容寻址媒体（`sha256` 唯一；2026-09-24 由租户级改，T-0） | `media/domain/media-blob.ts` |
 | `BlobRef` | `{hash,size,contentType}`，与 `protocol/src/blob.ts`、`model-core` 同一定义源 | `server-storage/src/domain/blob-ref.ts` |
 | `ServerBlobStore` | `BlobStore` 服务端扩展接口：`+ head/delete/presignPut/presignGet/list` | `server-storage/src/infrastructure/contracts/blob-store.ts` |
 | fail-closed 双点 | REST `DocumentRoleGuard` 与 WS 握手（M-09）都是"无显式允许即拒绝"；客户端命令管线检查点是第三道（UX，非安全边界） | ADR-0029；charter D12 |
@@ -103,15 +107,13 @@ storageMod -- "ctx.blobStore" --> m12
 
 | 聚合根 / 实体 | 归属 BC | 关键字段 | 不变量 | 所在文件 |
 |---|---|---|---|---|
-| `Tenant`（聚合根） | BC-18 | `id,slug,name,settings,plan,quotas` | `slug` 全局唯一；`quotas` 各维度 ≥ 0；降配额不追溯已产生的用量 | `tenants/domain/tenant.ts` |
-| `User`（实体，隶属 Tenant） | BC-18 | `id,tenantId,oidcIssuer,oidcSubject,emailHash,status` | `(tenantId,oidcIssuer,oidcSubject)` 唯一；`status='suspended'` 时一切写操作在应用层 fail-closed 拒绝；**个人账号**（经分享链接自助注册，rulings §4.13 S-1，2026-09-21）`tenantId` 为 `null`，不受该唯一约束限制、不隶属任何 `Tenant`，与 U-10「租户不开放自助创建」不冲突（开放的是个人账号，不是租户），架构 `08-backend-nestjs.md` §5 `users` 表同步 | `users/domain/user.ts` |
-| `ApiKey`（实体，隶属 Tenant） | BC-18 | `id,tenantId,scopes,keyHash,revokedAt` | 明文 key 只在签发响应中出现一次，落库只存 hash；`revokedAt` 非空即立即失效（不等缓存过期） | `auth/domain/api-key.ts` |
-| `Group`（聚合根，新增，rulings §4.12 U-11） | BC-18 | `id,tenantId,name,createdAt` | `tenantId` 创建后不可变更；组名同租户内唯一；删除组时级联撤销以其为 `principal` 的全部权限授权（同事务，见 §2.6） | `groups/domain/group.ts` |
-| `GroupMember`（实体，隶属 Group，新增，rulings §4.12 U-11） | BC-18 | `groupId,userId,addedAt` | `(groupId,userId)` 唯一；成员必须为同租户用户（`userId` 对应 `User.tenantId` 必须等于 `Group.tenantId`） | `groups/domain/group-member.ts` |
-| `Document`（聚合根，目录条目） | BC-19 | `id,tenantId,title,docType,status,headSeq,ownerId,folderId,schemaVersion,epoch,sizeBytes` | `status` 状态机 `active⇄trashed`、`active⇄locked`（仅系统/管理操作可转 `locked`，如导入/恢复/迁移窗口，ADR-0029 §4）、`trashed→purging`（30 天宽限期满，单向不可逆，由 `schedule-purge.usecase.ts` 触发，rulings §4.13 S-2，2026-09-21，见 §2.6/§7）；`tenantId` 创建后不可变更；`headSeq`/`epoch` 只读展示，写入权属于 BC-21/27（M-09），本聚合的写操作**不得**修改这两个字段——`DocumentRepository` 更新方法入参类型收紧为 `Omit<Document,'headSeq'\|'epoch'>`，编译期而非人工审查排除这两列（§3.4 修复，rulings §4.13 同时确认段，2026-09-21，见 §2.5/§7） | `documents/domain/document.ts` |
-| `Permission`/`Grant`（实体，隶属 Document） | BC-19 | `principalType∈{user,group,tenant,link},principalId,role,expiresAt` | `(docId,principalType,principalId)` 唯一；无匹配行 = 无权（fail-closed，本模块核心不变量）；每份文档至少保留一条 `role='owner'` 记录（撤销/降级最后一个 owner 前必须先转移，见 §2.6） | `permissions/domain/permission.ts` |
+| `User`（聚合根） | BC-18 | `id,displayName,email,status,platformRole,createdAt` | `status='suspended'` 时一切写操作在应用层 fail-closed 拒绝；`platformRole ∈ {member,admin}`，`admin` 即部署级平台管理员，至少保留一名（降级最后一名 admin 前须先指派）。2026-09-24 删除 `tenantId` 与「个人账号 `tenantId=null`」特例（rulings §4.15 T-0：单组织，所有用户同属本部署）；服务端不存密码（Q6） | `users/domain/user.ts` |
+| `UserIdentity`（实体，隶属 User，新增，rulings §4.15 Q6） | BC-18 | `userId,issuer,subject,emailAtLogin,lastLoginAt` | `(issuer,subject)` 全局唯一；一个 `User` 可绑定多个 IdP 身份（换 IdP 迁移用）；首次登录由 `provision-on-first-login.usecase.ts` 在同一事务内 JIT 建 `User` + `UserIdentity`；`issuer` 必须在部署配置的受信 IdP 列表内 | `users/domain/user-identity.ts` |
+| `ApiKey`（实体，隶属 User，**M4**，rulings §4.15 Q6） | BC-18 | `id,ownerUserId,scopes,keyHash,revokedAt` | 明文 key 只在签发响应中出现一次，落库只存 hash；`revokedAt` 非空即立即失效（不等缓存过期）；M1–M3 不启用（集成方签名 JWT 同降 M4，届时 JIT 建影子用户） | `auth/domain/api-key.ts` |
+| `Document`（聚合根，目录条目） | BC-19 | `id,title,docType,status,headSeq,ownerId,folderId,schemaVersion,epoch,sizeBytes` | `status` 状态机 `active⇄trashed`、`active⇄locked`（仅系统/管理操作可转 `locked`，如导入/恢复/迁移窗口，ADR-0029 §4）、`trashed→purging`（30 天宽限期满，或文档擦除/「立即彻底删除」时不等宽限期立即进入，单向不可逆，由 `schedule-purge.usecase.ts` 触发，rulings §4.13 S-2，2026-09-21；§4.15 Q3，见 §2.6/§7）；2026-09-24 删除 `tenantId` 列（T-0）；`headSeq`/`epoch` 只读展示，写入权属于 BC-21/27（M-09），本聚合的写操作**不得**修改这两个字段——`DocumentRepository` 更新方法入参类型收紧为 `Omit<Document,'headSeq'\|'epoch'>`，编译期而非人工审查排除这两列（§3.4 修复，rulings §4.13 同时确认段，2026-09-21，见 §2.5/§7） | `documents/domain/document.ts` |
+| `Permission`/`Grant`（实体，隶属 Document） | BC-19 | `principalType∈{user},principalId,role,expiresAt`（2026-09-24：删 `tenant`（T-0）；`group` 随 U-11 组管理推迟移出 M3，枚举保留扩展位但不可写入；`link` 由 `share_links` 表承载，不再作为授权行主体，rulings §4.15） | `(docId,principalType,principalId)` 唯一；无匹配行 = 无权（fail-closed，本模块核心不变量）；每份文档至少保留一条 `role='owner'` 记录（撤销/降级最后一个 owner 前必须先转移，见 §2.6） | `permissions/domain/permission.ts` |
 | `ShareLink`（实体，隶属 Document） | BC-19 | `id,tokenHash,role,expiresAt,revokedAt` | `role ∈ {viewer,commenter,editor}`（不可为 `owner`，链接不能造出所有者）；`expiresAt`/`revokedAt` 任一命中即视为失效，校验时实时判断，不依赖定时清理 | `share-links/domain/share-link.ts` |
-| `MediaBlob`（聚合根，租户级） | BC-20 | `id,tenantId,sha256,mime,byteSize,storageKey,width?,height?` | `(tenantId,sha256)` 唯一——去重边界是租户，不跨租户去重（防止跨租户存在性侧信道） | `media/domain/media-blob.ts` |
+| `MediaBlob`（聚合根，部署级） | BC-20 | `id,sha256,mime,byteSize,storageKey,width?,height?` | `sha256` 唯一——去重边界是整个部署（2026-09-24 由租户级改，rulings §4.15 T-0）；commit 前客户端必须先上传完整字节、服务端重算 sha256，去重命中不泄露他人文件存在性；读取仍经 `document_media` 关联 + 文档权限（§2.6） | `media/domain/media-blob.ts` |
 | `DocumentMedia`（关联实体） | BC-20 | `docId,mediaId,firstSeenSeq` | 弱不变量：GC 只在 30 天内无任何 `document_media` 引用时删除对应 `MediaBlob`（异步维护，非本模块同步事务） | `media/domain/document-media.ts` |
 
 并发与合并语义：本模块全部聚合是关系型行，**不经过 CRDT**——写入用标准数据库事务 + 行级锁/条件更新（如"至少一个 owner"校验用 `SELECT … FOR UPDATE`）解决并发，冲突以"后写入事务失败并重试"处理，不存在 Yjs 意义上的合并。这与 BC-05/21 的 `DocumentStore`（CRDT）截然不同：`Document` 聚合根的目录属性（标题/状态/权限）永远不进 CRDT；只有文档内容（幻灯片树）在 CRDT 里；二者是两条独立写路径——REST 事务 vs WS update 流——职责边界见 §1.3、§7。
@@ -122,33 +124,31 @@ storageMod -- "ctx.blobStore" --> m12
 
 ```mermaid
 erDiagram
-tenants ||--o{ users : has
-tenants ||--o{ documents : owns
+users ||--o{ user_identities : binds
+users ||--o{ permissions : holds
 documents ||--o{ permissions : grants
 documents ||--o{ share_links : shares
-tenants ||--o{ media_blobs : stores
-tenants {
-  string id
-  string slug
-  string plan
-}
+documents ||--o{ document_media : references
+media_blobs ||--o{ document_media : linked
 users {
   string id
-  string tenantId
-  string oidcSubject
   string status
+  string platformRole
+}
+user_identities {
+  string userId
+  string issuer
+  string subject
 }
 documents {
   string id
-  string tenantId
   string docType
   int headSeq
 }
 permissions {
   string docId
-  string principalType
+  string principalId
   string role
-  string expiresAt
 }
 share_links {
   string id
@@ -157,25 +157,23 @@ share_links {
 }
 media_blobs {
   string id
-  string tenantId
   string sha256
 }
 ```
 
-图怎么读：`tenants` 是最外层边界，`users`/`documents`/`media_blobs` 均按 `tenantId` 隔离；`documents` 派生出 `permissions`（fail-closed 授权行）与 `share_links`（免登录角色化访问）。
+图怎么读：单组织部署（2026-09-24 删除 `tenants` 表，rulings §4.15 T-0）——不再有「最外层租户边界」；隔离边界改为**文档**：`permissions` 是 fail-closed 授权行（主体 M3 只有用户，组管理推迟），`share_links` 是需登录的角色叠加令牌，二者同时是文档级 RLS 策略的判定依据（§10）；`user_identities` 以 `(issuer,subject)` 唯一绑定外置 IdP 身份；`media_blobs` 部署级去重，经 `document_media` 关联到文档。
 
 ### 2.2 值对象
 
 | 值对象 | 字段 | 校验 schema | 所在文件 |
 |---|---|---|---|
 | `Role` | `'owner'\|'editor'\|'commenter'\|'viewer'` 字面量联合 | `protocol.permissions.roles.RoleName`（zod 字面量） | `permissions/domain/role.ts`（re-export + 运行时初始值） |
-| `Capability` | 7 个字面量之一 | `protocol.permissions.actions.Capability` | 直接复用 `@oce/protocol`，本模块不重复定义 |
-| `DocumentId`/`TenantId`/`UserId` | 品牌字符串（uuid v7） | `protocol.ids.*` | 直接复用 `@oce/protocol` |
-| `GroupId`（新增，rulings §4.12 U-11） | 品牌字符串（uuid v7） | `protocol.ids.*`（新增，随 `rest/groups.ts` 一并创建，见 §12 G-7） | 直接复用 `@oce/protocol` |
+| `Capability` | 7 个字面量之一 | `protocol.permissions.actions.Capability` | 直接复用 `@cordexjs/protocol`，本模块不重复定义 |
+| `DocumentId`/`UserId` | 品牌字符串（uuid v7） | `protocol.ids.*` | 直接复用 `@cordexjs/protocol`（2026-09-24 删 `TenantId`；`GroupId` 随 U-11 推迟不再新增，rulings §4.15） |
 | `BlobRef` | `{hash,size,contentType}` | `protocol.blob.BlobRef` | `server-storage/src/domain/blob-ref.ts`（re-export） |
 | `PresignedUrl`（新增） | `{url,method,headers?,expiresAt}` | 本模块新增 zod schema（建议回写 `protocol/src/rest/media.ts`，见 §12） | `storage/application/get-presigned-put.usecase.ts` 内联 schema |
-| `Quota`（新增） | `{dimension,limit,used}`；`dimension` 覆盖 SV-08 中与身份/存储直接相关的两维：`file_size`、`storage_bytes`（`pages`/`concurrent_editors` 等运行时维度由 M-09 承载） | 本模块新增 | `tenants/domain/tenant.ts` 内联类型 |
-| `CollabTicketClaims` | `{sub,tid,doc,role,permVersion,jti,exp,sid?}`（ADR-0029） | 本模块新增，建议回写 `protocol/src/collab/ticket.ts`（08 §11 已预留路径，M-09 落地时创建） | `auth/domain/collab-ticket.ts` |
+| `Quota`（新增） | `{dimension,limit,used}`；`dimension` 取存储维度 `bytes`（存储字节）/ `documents`（每用户文档数），与 30-architecture/10 §1.4 取值表一致（2026-09-24 复核修正；单文件 200 MB 属导入期 `format.quota_exceeded{fileSize}`，不在本类型）；`limit` 取自**部署配置** `quotas.*`（完全可调，rulings §4.15 Q5；2026-09-24 由租户配额改，T-0）；`bytes` 按部署总量与可选的按 owner 用户上限两级判定（`pages`/`elements`/编辑者名额等运行时维度由 M-09 承载，名额按用户计） | 本模块新增 | `media/domain/quota-policy.ts` 内联类型 |
+| `CollabTicketClaims` | `{sub,doc,role,permVersion,jti,exp,sid?}`（ADR-0029；2026-09-24 删 `tid`，T-0） | 本模块新增，建议回写 `protocol/src/collab/ticket.ts`（08 §11 已预留路径，M-09 落地时创建） | `auth/domain/collab-ticket.ts` |
 
 **`ROLE_CAPABILITIES` 运行时初始值（回填 M-02 Q-5，对齐 PRD `03-collaboration.md` §1 与 CO-07）：**
 
@@ -199,7 +197,7 @@ media_blobs {
 | `mergeRoles` | `(grants: RoleGrant[], now: number) => Role \| 'none'` | `permissions/domain/role-resolution.ts` | 否（服务端专有） |
 | `capabilitiesOf` | `(role: Role) => readonly Capability[]` | `permissions/domain/role.ts` | 否 |
 | `documentStatusTransition` | `(current: DocumentStatus, action: 'trash'\|'restore'\|'lock'\|'unlock') => Result<DocumentStatus, DocumentError>` | `documents/domain/document-status.ts` | 否 |
-| `computeQuotaUsage` | `(quota: Quota, used: number) => { exceeded: boolean; remaining: number }` | `tenants/domain/quota-policy.ts` | 否 |
+| `computeQuotaUsage` | `(quota: Quota, used: number) => { exceeded: boolean; remaining: number }` | `media/domain/quota-policy.ts`（2026-09-24 自已删除的 `tenants/` 迁入，T-0） | 否 |
 | `validateUploadPolicy` | `(input: {declaredMime,sniffedMime,byteSize,quota}) => Result<void, MediaError>` | `media/domain/upload-policy.ts` | 否 |
 | `buildCollabTicketClaims` | `(principal: Principal, role: Role, permVersion: number) => CollabTicketClaims` | `auth/domain/collab-ticket.ts` | 与 M-09 `ticket-verifier.ts` 共用**形状**（非共用代码——M-09 是独立包，只共用 claims 类型契约） |
 
@@ -209,35 +207,31 @@ media_blobs {
 
 | 审计 action | 载荷类型（草案） | 发布者文件 | 传输 | 典型消费者 |
 |---|---|---|---|---|
-| `tenant.created` | `{tenantId,slug}` | `tenants/application/create-tenant.usecase.ts` | 仅审计 | M-12 AuditModule |
-| `tenant.quota-changed` | `{tenantId,dimension,oldLimit,newLimit}` | `tenants/application/update-tenant-settings.usecase.ts` | 仅审计 | M-12 |
-| `user.provisioned` | `{userId,tenantId,oidcIssuer}` | `users/application/find-or-create-by-oidc.usecase.ts` | 仅审计 | M-12 |
-| `auth.login-succeeded`／`auth.login-failed` | `{principalId?,tenantId?,reason?}` | `auth/application/handle-oidc-callback.usecase.ts` | 仅审计 | M-12（SV-07 安全类别） |
+| `user.provisioned` | `{userId,issuer}`（首次登录 JIT 建号；2026-09-24 删 `tenant.created`/`tenant.quota-changed` 两行与载荷中的 `tenantId`，rulings §4.15 T-0） | `users/application/provision-on-first-login.usecase.ts` | 仅审计 | M-12 AuditModule |
+| `auth.login-succeeded`／`auth.login-failed` | `{principalId?,issuer?,reason?}` | `auth/application/handle-oidc-callback.usecase.ts` | 仅审计 | M-12（SV-07 安全类别） |
 | `auth.collab-ticket-issued` | `{doc,sub,role,jti}` | `auth/application/issue-collab-ticket.usecase.ts` | 仅审计 | M-12 |
-| `document.created`／`document.renamed`／`document.trashed`／`document.restored` | `{docId,tenantId,actorId,…}` | `documents/application/*.usecase.ts` | 仅审计 | M-12 |
+| `document.created`／`document.renamed`／`document.trashed`／`document.restored` | `{docId,actorId,…}` | `documents/application/*.usecase.ts` | 仅审计 | M-12 |
 | `document.locked`／`document.unlocked` | `{docId,reason:'import'\|'restore'\|'migration'}` | `documents/application/lock-document.usecase.ts` | 仅审计（网关轮询锁定态见 M-09） | M-09、M-12 |
 | `permission/granted`／`permission/revoked`（**维持 `/` 形式**，`permission` 为已注册域） | `{docId,principalType,principalId,role}` | `permissions/application/grant-permission.usecase.ts`／`revoke-permission.usecase.ts` | 仅审计 | M-12 |
 | `permission/changed`（**维持 `/` 形式**） | `{docId,permVersion}` | `permissions/infrastructure/perm-change.publisher.ts` | **Redis `perm:doc:{id}`（跨进程）+ 审计** | M-09 `authz-source.ts`（module-map §4.1 已定） |
 | `share-link.created`／`share-link.revoked` | `{docId,linkId,role,expiresAt?}` | `share-links/application/*.usecase.ts` | 仅审计 | M-12 |
 | `share-link.accessed`（新增，rulings §4.13 S-1，2026-09-21） | `{docId,linkId,principalId,role}` | `share-links/interface/guards/share-link-access.guard.ts` | 仅审计（每次外部访问必写，不采样） | M-12 AuditModule |
-| `media.uploaded`／`media.deduplicated` | `{tenantId,sha256,byteSize,reused:boolean}` | `media/application/commit-upload.usecase.ts` | 仅审计 | M-12 |
+| `media.uploaded`／`media.deduplicated` | `{sha256,byteSize,reused:boolean}` | `media/application/commit-upload.usecase.ts` | 仅审计 | M-12 |
 
 ### 2.5 仓储 / 存储契约
 
-本模块七个纯 Nest 库模块（auth/tenants/users/groups/documents/permissions/share-links，`groups` 为新增，rulings §4.12 U-11）**不构成 cordis Definition/Provider**——它们的"仓储"是普通 Nest `@Injectable` 类，经 Drizzle 直接操作 Postgres，接口即实现（TS 结构类型，替换靠 DI token 而非多 Provider `implements`）；唯一符合模板"Definition / 默认 Provider / 契约套件"三件套的是 BC-20 的 `BlobStore`。
+本模块五个纯 Nest 库模块（auth/users/documents/permissions/share-links；2026-09-24 删 `tenants`/`groups`，rulings §4.15）**不构成 cordis Definition/Provider**——它们的"仓储"是普通 Nest `@Injectable` 类，经 Drizzle 直接操作 Postgres，接口即实现（TS 结构类型，替换靠 DI token 而非多 Provider `implements`）；唯一符合模板"Definition / 默认 Provider / 契约套件"三件套的是 BC-20 的 `BlobStore`。
 
 **普通仓储（Nest DI，非 cordis）：**
 
 | 仓储 | 方法签名草案 | 所在文件 |
 |---|---|---|
-| `TenantRepository` | `findById\|findBySlug\|create\|updateSettings\|updateQuotas` | `tenants/infrastructure/tenant.repository.ts` |
-| `UserRepository` | `findByOidcSubject\|findById\|create\|updateProfile\|listByTenant` | `users/infrastructure/user.repository.ts` |
-| `ApiKeyRepository` | `findByHash\|create\|revoke\|listByTenant` | `auth/infrastructure/api-keys/api-key.repository.ts` |
-| `GroupRepository`（新增，rulings §4.12 U-11） | `findById(tenantId,groupId)\|findByTenant\|create\|rename\|delete\|addMember\|removeMember\|listMembers\|isMember(groupId,userId)` — `findById` 签名 2026-09-21 补 `tenantId`（严重缺口修复，评审 §3.1/rulings §4.13 同时确认段：原签名不带 `tenantId`，`grant-permission` 校验 `principalType='group'` 存在性时无法核对跨租户越权，见 §2.6） | `groups/infrastructure/group.repository.ts` |
-| `DocumentRepository` | `findById(tenantId,id)\|list(tenantId,opts)\|create\|updateMeta\|softTrash\|restore\|setStatus` — 全部方法强制 `tenantId` 参数，无租户参数的方法不允许存在（08 §9.1）；`updateMeta`/`softTrash`/`restore`/`setStatus` 入参类型 2026-09-21 收紧为 `Omit<Document,'headSeq'\|'epoch'>`，编译期排除这两列（§3.4 修复，rulings §4.13 同时确认段） | `documents/infrastructure/document.repository.ts` |
+| `UserRepository` | `findByIdentity(issuer,subject)\|findById\|createWithIdentity\|linkIdentity\|updateProfile\|setStatus\|setPlatformRole\|list(opts)\|countAdmins`（`users` + `user_identities` 两表；2026-09-24 删 `listByTenant`，`TenantRepository` 随 `tenants/` 删除，rulings §4.15 T-0 / Q6） | `users/infrastructure/user.repository.ts` |
+| `ApiKeyRepository`（M4） | `findByHash\|create\|revoke\|listByOwner` | `auth/infrastructure/api-keys/api-key.repository.ts` |
+| `DocumentRepository` | `findById(access: DocAccess\|SystemContext)\|list(userId,opts)\|create\|updateMeta(access,…)\|softTrash(access)\|restore(access)\|setStatus(ctx: SystemContext,…)` — 2026-09-24 起（rulings §4.15 T-0 / Q6）以 `docId` 为键的方法首参必须是权限服务签发的 `DocAccess`（或系统调用的 `SystemContext`），取代原「全部方法强制 `tenantId`」；`list` 只返回当前用户有授权行的文档（SQL 层 join `permissions`，且受文档级 RLS 兜底）；扫描器 `doc-access-via-permission` 机械保证（§10）；`updateMeta`/`softTrash`/`restore`/`setStatus` 入参类型 2026-09-21 收紧为 `Omit<Document,'headSeq'\|'epoch'>`，编译期排除这两列（§3.4 修复，rulings §4.13 同时确认段） | `documents/infrastructure/document.repository.ts` |
 | `PermissionRepository` | `findByDoc(docId)\|upsertGrant\|deleteGrant\|countOwners(docId)\|bumpPermVersion(docId)`——后两者必须与 `upsertGrant`/`deleteGrant` 同事务 | `permissions/infrastructure/permission.repository.ts` |
 | `ShareLinkRepository` | `findByTokenHash\|create\|revoke\|listByDoc` | `share-links/infrastructure/share-link.repository.ts` |
-| `MediaBlobRepository` | `findByHash(tenantId,sha256)\|create\|linkToDocument(docId,mediaId,seq)\|sumBytesByTenant(tenantId)` | `media/infrastructure/media-blob.repository.ts` |
+| `MediaBlobRepository` | `findByHash(sha256)\|create\|linkToDocument(access: DocAccess,mediaId,seq)\|sumBytes()\|sumBytesByOwner(userId)`（2026-09-24 去 `tenantId`，T-0） | `media/infrastructure/media-blob.repository.ts` |
 
 **`BlobStore`（Definition；`model-core/src/snapshot/blob-store.ts`，M-02 §2.5 已定基础三方法）→ 服务端扩展 `ServerBlobStore`：**
 
@@ -251,7 +245,7 @@ interface ServerBlobStore extends BlobStore {           // get/put/has 继承自
 }
 ```
 
-默认 Provider：`S3BlobStoreProvider`（`@aws-sdk/client-s3` + `lib-storage` 分片，兼容 MinIO）、`LocalBlobStoreProvider`（开发/测试，落本地磁盘）；两者互不 import（三角色规则）。契约套件 `runBlobStoreConformance(factory: () => ServerBlobStore)`（`server-storage/src/testing/run-blob-store-conformance.ts`）覆盖：`put→get` 字节往返、`has` 一致性、`head` 元数据准确、`delete` 后 `has=false`、`presignPut` 返回的 URL 可被匿名 HTTP 客户端直传并通过后续 `head` 校验、`presignGet` TTL 到期后拒绝、`list(prefix)` 分页游标正确。`__tests__/{s3,local}-blob-store.provider.spec.ts` **必须**各自实例化本套件（扫描器 `provider-runs-conformance`，沿用 M-02 §2.5 同一约定）。差异记录：M-02 未给 `BlobStore` 定义过 `run*Conformance`，本条目属新增（§12 G-8）。
+默认 Provider：`S3BlobStoreProvider`（`@aws-sdk/client-s3` + `lib-storage` 分片，兼容任意 S3 协议实现；自托管 compose 默认 **SeaweedFS**，替换 MinIO——上游归档、镜像下架、AGPL，rulings §4.15 Q10；换后端须重跑 `runBlobStoreConformance`）、`LocalBlobStoreProvider`（开发/测试，落本地磁盘）；两者互不 import（三角色规则）。契约套件 `runBlobStoreConformance(factory: () => ServerBlobStore)`（`server-storage/src/testing/run-blob-store-conformance.ts`）覆盖：`put→get` 字节往返、`has` 一致性、`head` 元数据准确、`delete` 后 `has=false`、`presignPut` 返回的 URL 可被匿名 HTTP 客户端直传并通过后续 `head` 校验、`presignGet` TTL 到期后拒绝、`list(prefix)` 分页游标正确。`__tests__/{s3,local}-blob-store.provider.spec.ts` **必须**各自实例化本套件（扫描器 `provider-runs-conformance`，沿用 M-02 §2.5 同一约定）。差异记录：M-02 未给 `BlobStore` 定义过 `run*Conformance`，本条目属新增（§12 G-8）。
 
 ### 2.6 应用服务与命令
 
@@ -259,30 +253,25 @@ interface ServerBlobStore extends BlobStore {           // get/put/has 继承自
 
 | 用例 | 参数（protocol DTO） | 权限能力位 / 前置检查 | 事务边界 | 补偿/逆操作 | 所在文件 |
 |---|---|---|---|---|---|
-| 登录（OIDC 回调） | `rest/auth.ts` callback schema | 无（未登录态） | 单事务：`findOrCreateByOidc` + 会话创建 | 无 | `auth/application/handle-oidc-callback.usecase.ts` |
+| 登录（OIDC 回调） | `rest/auth.ts` callback schema | 无（未登录态） | 单事务：`provisionOnFirstLogin`（JIT）+ 会话创建；服务端只认 OIDC、不持有密码（rulings §4.15 Q6） | 无 | `auth/application/handle-oidc-callback.usecase.ts` |
 | 刷新会话 | `refresh` schema | 会话本身有效 | 无库事务（Redis/JWT 操作） | 无 | `auth/application/refresh-session.usecase.ts` |
 | 签发协同票据 | `{docId}` | `RoleResolver` 解出 Role ≠ `none`（≥ viewer） | 无库事务 | 无（60 s 自然过期） | `auth/application/issue-collab-ticket.usecase.ts` |
-| 创建租户 | `rest/tenants.ts`（新增）create schema | 系统/管理员范围（**内部 / 管理脚本，M3**；不对外开放自助注册，公开注册留待产品化阶段，见 rulings §4.12 U-10、§13 Q-2） | 单事务 | 删除租户（M3 不提供，见 §13） | `tenants/application/create-tenant.usecase.ts` |
-| 个人账号自助注册（新增，rulings §4.13 S-1，2026-09-21） | `rest/auth.ts`（新增）register-personal schema | 无（未登录态；仅创建个人账号，不开放租户自助创建，与 U-10 不冲突） | 单事务：`users` insert（`tenantId=null`）+ 会话创建，与 OIDC 回调平行的第二条建号路径 | 无（M3 不提供注销） | `auth/application/register-personal-account.usecase.ts` |
-| 创建组（新增，rulings §4.12 U-11） | `rest/groups.ts`（新增）create schema | `TenantAdminGuard`（租户管理员） | 单事务 | 逆操作 = 删除组 | `groups/application/create-group.usecase.ts` |
-| 重命名组（新增，rulings §4.12 U-11） | `rest/groups.ts` rename schema | `TenantAdminGuard` | 单事务 | 需客户端重放旧名称 | `groups/application/rename-group.usecase.ts` |
-| 删除组（新增，rulings §4.12 U-11） | `{id}` | `TenantAdminGuard` | 单事务：删除 `groups`+`group_members`，级联撤销以该组为 `principal` 的 `permissions` 行（同事务） | 不可逆（需人工重建） | `groups/application/delete-group.usecase.ts` |
-| 增加组成员（新增，rulings §4.12 U-11） | `{groupId,userId}` | `TenantAdminGuard`；校验 `userId` 与组同租户 | 单事务 | 逆操作 = 移除组成员 | `groups/application/add-group-member.usecase.ts` |
-| 移除组成员（新增，rulings §4.12 U-11） | `{groupId,userId}` | `TenantAdminGuard` | 单事务 | 逆操作 = 增加组成员 | `groups/application/remove-group-member.usecase.ts` |
-| 创建文档 | `rest/documents.ts` create schema | 租户成员即可（无需既有 `doc.*`，文档尚不存在） | 单事务：`documents` insert + `permissions` insert（创建者 = owner） | 逆操作 = 删除该文档（回收站语义） | `documents/application/create-document.usecase.ts` |
+| 首次登录 JIT 建号（新增，rulings §4.15 Q6，取代原「个人账号自助注册」与「创建租户」两行） | OIDC 回调内部调用（无独立 REST） | 无（`issuer` 须在部署配置的受信 IdP 列表内；`auth.selfSignup` 默认关——此时 IdP 侧不开放注册，由管理员在 IdP 建号；邀请只对已存在账号生效，服务端不设邀请表/邀请接口，rulings §4.17 D1） | 单事务：`users` insert + `user_identities` insert（`(issuer,subject)` 唯一冲突即改为读取已存在用户） | 无（M3 不提供注销；停用走 `status='suspended'`） | `users/application/provision-on-first-login.usecase.ts` |
+| 设置用户状态 / 平台角色（新增，§4.15 T-0） | `rest/users.ts` admin schema | `PlatformAdminGuard`；降级最后一名 `admin` → 拒绝（`user.last_admin`） | 单事务 | 互为逆操作 | `users/application/update-profile.usecase.ts`（管理员分支，同文件） |
+| 创建文档 | `rest/documents.ts` create schema | 已登录且 `status='active'` 的用户即可（无需既有 `doc.*`，文档尚不存在；2026-09-24 删「租户成员」前提，T-0） | 单事务：`documents` insert + `permissions` insert（创建者 = owner） | 逆操作 = 删除该文档（回收站语义） | `documents/application/create-document.usecase.ts` |
 | 列出/详情文档 | `list`/`get` schema | `doc.read`（详情）；列表按 `RoleResolver` 逐条过滤 | 只读，无事务 | 不适用 | `documents/application/queries/document-queries.ts` |
 | 最近文档 / 固定（M2） | `rest/documents.ts` recent/pinned schema（`GET /documents?filter=recent`、`PATCH /documents/:id{pinned}`） | `doc.read`（`recent` 按 `RoleResolver` 逐条过滤，同列表口径）；`pinned` 为用户级标记，不改变文档权限 | 单事务：recent/pinned 记账表 upsert | 逆操作 = 从最近移除 / 取消固定 | `documents/application/list-recent.usecase.ts`、`pin-document.usecase.ts`（rulings §4.12 U-04） |
 | 重命名文档 | `rename` schema | `doc.write` | 单事务 | 需客户端重放旧标题（无自动求逆） | `documents/application/rename-document.usecase.ts` |
 | 回收站（trash/restore） | `{id}` | `doc.manage` | 单事务，各自独立 | 互为逆操作 | `documents/application/trash-and-restore.usecase.ts` |
 | 锁定/解锁文档 | `{id,reason}` | 仅系统调用（M-09/M-12 内部，非用户可达 REST） | 单事务 | 互为逆操作 | `documents/application/lock-document.usecase.ts` |
-| 授予权限 | `documents.ts` permissions PUT schema | `doc.manage` | 单事务：`principalType='group'` 时先经 `GroupRepository.findById(tenantId,groupId)` 校验存在**且同租户**（rulings §4.12 U-11，原 G-10 不可达分支起可达；`tenantId` 核对为 §3.1 严重缺口修复，2026-09-21）→ `upsertGrant` + `bumpPermVersion`；提交后异步 `PUBLISH` | 逆操作 = `revoke-permission` | `permissions/application/grant-permission.usecase.ts` |
-| 撤销权限 | permissions DELETE schema | `doc.manage`；若目标是最后一个 `owner` → 拒绝（`permission.last_owner`） | 单事务，同上（`principalType='group'` 同样适用，同经 `tenantId` 核对） | 逆操作 = `grant-permission` | `permissions/application/revoke-permission.usecase.ts` |
+| 授予权限 | `documents.ts` permissions PUT schema | `doc.manage`；M3 主体只允许 `principalType='user'`（按人分享；`group` 随 U-11 推迟移出 M3，写入即拒 `permission.principal_unsupported`，rulings §4.15 Q6）；目标用户须存在且 `status='active'`（**邀请只对已存在账号生效**，rulings §4.17 D1：目标无账号即拒绝，前端提示联系管理员在 IdP 建号；无待接受邀请表） | 单事务：`upsertGrant` + `bumpPermVersion`；提交后异步 `PUBLISH`（2026-09-24 删除 `GroupRepository.findById(tenantId,…)` 同租户核对——T-0 无租户、组管理推迟，§4.13 该补丁失效） | 逆操作 = `revoke-permission` | `permissions/application/grant-permission.usecase.ts` |
+| 撤销权限 | permissions DELETE schema | `doc.manage`；若目标是最后一个 `owner` → 拒绝（`permission.last_owner`） | 单事务，同上 | 逆操作 = `grant-permission` | `permissions/application/revoke-permission.usecase.ts` |
 | 解析角色（内部） | `{principal,docId}` | 无（本身即权限检查实现） | 只读 + 5 s 缓存 | 不适用 | `permissions/application/resolve-role.usecase.ts` |
 | 创建分享链接 | `rest/share-links.ts`（新增）POST schema | `doc.manage` | 单事务 | 逆操作 = `revoke-share-link` | `share-links/application/create-share-link.usecase.ts` |
 | 分享链接访问叠加（新增，rulings §4.13 S-1，2026-09-21） | 请求 Header/Query 携带 `shareToken` | 需先过 `SessionGuard`/`ApiKeyGuard`（**已登录**，否则 401 由前端跳登录）；令牌未撤销/未过期（复用 `ResolveShareLinkUseCase` token→role） | 无库事务：只读解析 + 叠加进当前请求 `Principal.scopes`，不落库、不产出新 Principal | 不适用（每次请求即时解析，无需撤销） | `share-links/interface/guards/share-link-access.guard.ts` |
-| 获取预签名上传 | `rest/media.ts`（新增，见 §12）presign schema | `doc.write`（媒体归属文档时）；无文档上下文时按租户配额 | 无库事务（调用 `ctx.blobStore.presignPut`） | 不适用 | `storage/application/get-presigned-put.usecase.ts` |
+| 获取预签名上传 | `rest/media.ts`（新增，见 §12）presign schema | `doc.write`（媒体归属文档时）；无文档上下文时按部署级配额（`quotas.*`，rulings §4.15 Q5/T-0） | 无库事务（调用 `ctx.blobStore.presignPut`） | 不适用 | `storage/application/get-presigned-put.usecase.ts` |
 | 提交媒体上传 | media commit schema | `doc.write` | 单事务：`head`+重算 sha256 一致 → `media_blobs` upsert（去重）→ `document_media` 关联 | 不适用（幂等：重复 commit 同 sha256 直接复用） | `media/application/commit-upload.usecase.ts` |
-| 编排硬删除（新增，rulings §4.13 S-2，2026-09-21） | `{docId}`（系统触发：回收站 30 天宽限期满，或 GDPR 擦除请求） | 仅系统调用（非用户可达 REST） | 单事务：`documents.status` `trashed→purging`（不可逆）+ 写 `job_runs`（kind=`document-purge`）或发编排领域事件，供 `permissions`/`media`/M-09/M-12 各自订阅清理 | 不可逆（§2.1 已注明） | `documents/application/schedule-purge.usecase.ts` |
+| 编排硬删除（新增，rulings §4.13 S-2，2026-09-21） | `{docId}`（系统触发：回收站 30 天宽限期满；GDPR 擦除请求或「立即彻底删除」**不等宽限期、立即硬删**，rulings §4.15 Q3） | 仅系统调用（非用户可达 REST） | 单事务：`documents.status` `trashed→purging`（不可逆）+ 写 `job_runs`（kind=`document-purge`）或发编排领域事件，供 `permissions`/`media`/M-09/M-12 各自订阅清理 | 不可逆（§2.1 已注明） | `documents/application/schedule-purge.usecase.ts` |
 | 清理文档权限（新增，rulings §4.13 S-2，2026-09-21） | `{docId}`（订阅编排触发） | 仅系统调用 | 单事务：删除 `permissions`/`document_perm_versions` 中 `docId` 相关行（"谁的表谁写"；`share_links` 不在本用例范围，边界说明见 §7/§12） | 不可逆 | `permissions/application/purge-document-permissions.usecase.ts` |
 | 清理文档媒体关联（新增，rulings §4.13 S-2，2026-09-21） | `{docId}`（订阅编排触发） | 仅系统调用 | 单事务：删除 `document_media` 关联行；`media_blobs` 本身仍按既有 30 天无引用 GC 规则异步清理，不在本用例内同步删除（§2.1 弱不变量） | 不可逆 | `media/application/purge-document-media.usecase.ts` |
 
@@ -298,7 +287,7 @@ participant m09 as "M-09 协同网关"
 browser->>auth: 发起 OIDC 登录 PKCE
 auth->>oidc: 授权码交换
 oidc-->>auth: 用户信息与 token
-auth->>auth: 创建 Session
+auth->>auth: JIT 建用户与身份绑定并创建 Session
 auth-->>browser: 签发会话 cookie 或 Bearer JWT
 browser->>auth: 请求协同票据 docId
 auth->>perm: 解析 Role RoleResolverService
@@ -317,23 +306,21 @@ Nest 模块不是 cordis Fiber（module-map §5.3），本节列 imports/provide
 
 | 模块 | imports | providers（关键） | controllers | exports | 守卫 |
 |---|---|---|---|---|---|
-| `AuthModule` | `ConfigModule`、`RedisModule`、`UsersModule` | `OidcClientProvider`、`JwtService`、`StateStoreRedis`、`ApiKeyRepository`、6 个 usecase（新增 `RegisterPersonalAccountUseCase`，S-1） | `AuthController` | `SessionGuard`、`ApiKeyGuard`、`IssueCollabTicketUseCase`、`@CurrentPrincipal()` 装饰器 | `SessionGuard`、`ApiKeyGuard`（本模块定义） |
-| `TenantsModule` | `ConfigModule` | `TenantRepository`、3 个 usecase | `TenantsController` | `TenantAdminGuard`、`GetTenantQuotaUsageUseCase` | `TenantAdminGuard`（本模块定义） |
-| `UsersModule` | 无 | `UserRepository`、3 个 usecase | `UsersController` | `FindOrCreateByOidcUseCase`（供 `AuthModule` 消费） | 无（复用 `SessionGuard`） |
-| `GroupsModule`（新增，rulings §4.12 U-11） | `ConfigModule` | `GroupRepository`、5 个 usecase | `GroupsController` | `GroupRepository`（供 `PermissionsModule` 校验 `principalType='group'`） | 复用 `SessionGuard`+`TenantAdminGuard` |
+| `AuthModule` | `ConfigModule`、`RedisModule`、`UsersModule` | `OidcClientProvider`、`JwtService`、`StateStoreRedis`、`ApiKeyRepository`（M4）、5 个 usecase（2026-09-24 删 `RegisterPersonalAccountUseCase`：服务端不持有密码，注册在 IdP，rulings §4.15 Q6） | `AuthController` | `SessionGuard`、`ApiKeyGuard`（M4）、`PlatformAdminGuard`（新增，取代 `TenantAdminGuard`，T-0）、`IssueCollabTicketUseCase`、`@CurrentPrincipal()` 装饰器 | `SessionGuard`、`ApiKeyGuard`（M4）、`PlatformAdminGuard`（本模块定义） |
+| `UsersModule` | 无 | `UserRepository`、3 个 usecase | `UsersController` | `ProvisionOnFirstLoginUseCase`（供 `AuthModule` 消费，JIT 建号，Q6） | 复用 `SessionGuard`；管理端点复用 `PlatformAdminGuard` |
 | `DocumentsModule` | `AuthModule`、`PermissionsModule` | `DocumentRepository`、6 个 usecase（新增 `SchedulePurgeUseCase`，S-2） | `DocumentsController` | `DocumentRepository`（供 M-09/M-12 只读查询复用） | 复用 `SessionGuard`+`DocumentRoleGuard` |
-| `PermissionsModule` | `RedisModule`、`GroupsModule`（新增，校验 `principalType='group'`，U-11） | `PermissionRepository`、5 个 usecase（新增 `PurgeDocumentPermissionsUseCase`，S-2）、`PermChangePublisher` | `PermissionsController` | `RoleResolverService`、`DocumentRoleGuard` | `DocumentRoleGuard`（本模块定义） |
+| `PermissionsModule` | `RedisModule`、`UsersModule`（校验授权目标用户存在；2026-09-24 删 `GroupsModule` 依赖，U-11 推迟） | `PermissionRepository`、5 个 usecase（新增 `PurgeDocumentPermissionsUseCase`，S-2）、`PermChangePublisher`、`RlsContext`（新增，Q6） | `PermissionsController` | `RoleResolverService`、`DocumentRoleGuard`、`RlsContext` | `DocumentRoleGuard`（本模块定义） |
 | `ShareLinksModule` | `PermissionsModule` | `ShareLinkRepository`、3 个 usecase | `ShareLinksController` | `ResolveShareLinkUseCase`（供 `RoleResolverService` 消费）、`ShareLinkAccessGuard`（新增，供 `documents`/`media` 组合鉴权复用，S-1） | 复用 `SessionGuard`；新增 `ShareLinkAccessGuard`（本模块定义，S-1，叠加角色不产出匿名 Principal） |
 | `StorageModule` | `ConfigModule` | `BlobStoreAccessor` | `PresignController` | `BlobStoreAccessor`（供 `MediaModule`/M-12 消费） | 复用 `SessionGuard` |
 | `MediaModule` | `StorageModule`、`DocumentsModule` | `MediaBlobRepository`、4 个 usecase（新增 `PurgeDocumentMediaUseCase`，S-2）、`AssetInspector`、`SvgSanitizer` | `MediaController` | 无 | 复用 `SessionGuard`+`DocumentRoleGuard` |
 
-**模块目录内以 cordis 插件形式存在的 IO 适配器**：本模块**没有**这类文件。对比 BC-21（M-09）在 `apps/server/src/modules/collab/` 下放置 `redis-fanout.bus.ts`/`pg-update-store.ts` 等实现 `server-collab` Definition 的 Provider（module-map §4.2 第 5 条例外），BC-20 的 Node Provider（`S3BlobStoreProvider`/`LocalBlobStoreProvider`）已完整地活在 `@oce/server-storage` **包内部**（§2.5），不需要在 Nest 模块目录下另建适配器；`StorageModule`/`MediaModule` 只是该包的**消费者**（经 `BlobStoreAccessor` 读取共享 cordis 宿主的 `ctx.blobStore`，见 §7），不产出新 Provider。这一"留空"本身是值得记录的架构事实，差异见 §12。
+**模块目录内以 cordis 插件形式存在的 IO 适配器**：本模块**没有**这类文件。对比 BC-21（M-09）在 `apps/server/src/modules/collab/` 下放置 `redis-fanout.bus.ts`/`pg-update-store.ts` 等实现 `server-collab` Definition 的 Provider（module-map §4.2 第 5 条例外），BC-20 的 Node Provider（`S3BlobStoreProvider`/`LocalBlobStoreProvider`）已完整地活在 `@cordexjs/server-storage` **包内部**（§2.5），不需要在 Nest 模块目录下另建适配器；`StorageModule`/`MediaModule` 只是该包的**消费者**（经 `BlobStoreAccessor` 读取共享 cordis 宿主的 `ctx.blobStore`，见 §7），不产出新 Provider。这一"留空"本身是值得记录的架构事实，差异见 §12。
 
-**守卫的物理归属裁定**：`SessionGuard`/`ApiKeyGuard`/`DocumentRoleGuard`/`TenantAdminGuard` 编码的是 BC-18/19 的授权**策略**，本文档裁定它们物理归属各自 owning 模块的 `interface/guards/`，而非 `apps/server/src/common/guards/`（08-backend-nestjs.md §2 历史草图把它们放在 common/）——差异与理由见 §12。`common/`（M-12 承载）只保留与 BC 策略无关的纯机制：异常过滤器、trace/audit 拦截器、zod 校验管道、限流 token bucket 原语（`@Audited()`/`@RateLimit()` 的**解释器**在 M-12，装饰器标注在哪些 controller 方法上由本模块接口层决定）。
+**守卫的物理归属裁定**：`SessionGuard`/`ApiKeyGuard`/`DocumentRoleGuard`/`PlatformAdminGuard`（2026-09-24 取代 `TenantAdminGuard`，T-0）编码的是 BC-18/19 的授权**策略**，本文档裁定它们物理归属各自 owning 模块的 `interface/guards/`，而非 `apps/server/src/common/guards/`（08-backend-nestjs.md §2 历史草图把它们放在 common/）——差异与理由见 §12。`common/`（M-12 承载）只保留与 BC 策略无关的纯机制：异常过滤器、trace/audit 拦截器、zod 校验管道、限流 token bucket 原语（`@Audited()`/`@RateLimit()` 的**解释器**在 M-12，装饰器标注在哪些 controller 方法上由本模块接口层决定）。
 
 ## 4. 目录树（完整到文件）
 
-九个 Nest 模块（含新增 `groups`，见 §4.10，rulings §4.12 U-11）均挂在 `apps/server/src/modules/` 之下（与 M-09/M-12 的模块同级）；`*.module.ts` 在模块根，五个 DDD 子目录按总编排裁定组织，第五个目录在 Nest 侧材质化为 `__tests__/`（非 `testing/`，理由见 §9）。
+七个 Nest 模块（2026-09-24 删除原 §4.2 `tenants/` 与原 §4.10 `groups/`，rulings §4.15 T-0 / U-11 推迟；小节编号保留空位以免外部引用错位）均挂在 `apps/server/src/modules/` 之下（与 M-09/M-12 的模块同级）；`*.module.ts` 在模块根，五个 DDD 子目录按总编排裁定组织，第五个目录在 Nest 侧材质化为 `__tests__/`（非 `testing/`，理由见 §9）。
 
 ### 4.1 `apps/server/src/modules/auth/`
 
@@ -344,51 +331,33 @@ auth/
 │   ├── principal.ts                      Principal 值对象
 │   ├── session.ts                        Session 实体
 │   ├── collab-ticket.ts                  CollabTicketClaims 值对象 + buildCollabTicketClaims()（§2.3）
-│   ├── api-key.ts                        ApiKey 实体
+│   ├── api-key.ts                        ApiKey 实体（M4，rulings §4.15 Q6）
 │   └── errors.ts                         auth.* 错误码
 ├── application/
 │   ├── login-with-oidc.usecase.ts        生成 state+PKCE→StateStore，返回 authorizationUrl
-│   ├── handle-oidc-callback.usecase.ts   code→token 交换→UsersModule.findOrCreateByOidc→签发 Session
+│   ├── handle-oidc-callback.usecase.ts   code→token 交换→UsersModule.provisionOnFirstLogin（JIT）→签发 Session
 │   ├── refresh-session.usecase.ts        会话/刷新令牌轮换
 │   ├── logout.usecase.ts                 撤销会话
-│   ├── issue-collab-ticket.usecase.ts    RoleResolverService → CollabTicket JWT（ADR-0029）
-│   └── register-personal-account.usecase.ts  个人账号自助注册（`tenantId=null`），新增，rulings §4.13 S-1
+│   └── issue-collab-ticket.usecase.ts    RoleResolverService → CollabTicket JWT（ADR-0029）
 ├── infrastructure/
 │   ├── oidc/oidc-client.provider.ts      openid-client v6 discovery 缓存 + PKCE 生成
 │   ├── oidc/state-store.redis.ts         Redis 状态存储（10 min TTL）
 │   ├── tokens/jwt.service.ts             ES256 签发/验签、JWKS 轮换与 kid、httpOnly cookie 编解码
-│   └── api-keys/api-key.repository.ts    Drizzle：api_keys 表
+│   └── api-keys/api-key.repository.ts    Drizzle：api_keys 表（M4）
 ├── interface/
-│   ├── auth.controller.ts                /auth/oidc/{login,callback}、/logout、/me、/token/refresh、/.well-known/jwks.json、/register-personal（S-1）
-│   ├── guards/session.guard.ts           会话 JWT / API Key → Principal（fail-closed：无有效凭据 401）；同文件导出 @CurrentPrincipal()
-│   └── guards/api-key.guard.ts           API Key 专用（集成方服务端调用）
+│   ├── auth.controller.ts                /auth/oidc/{login,callback}、/logout、/me、/token/refresh、/.well-known/jwks.json、/auth/config（公开：selfSignup 开关与 IdP 注册地址）
+│   ├── guards/session.guard.ts           会话 JWT → Principal（fail-closed：无有效凭据 401）；同文件导出 @CurrentPrincipal()
+│   ├── guards/api-key.guard.ts           API Key 专用（集成方服务端调用，M4）
+│   └── guards/platform-admin.guard.ts    部署级平台管理员校验 principal.platformRole='admin'（新增，取代 TenantAdminGuard，§4.15 T-0）
 └── __tests__/
     ├── issue-collab-ticket.usecase.spec.ts
-    ├── handle-oidc-callback.usecase.spec.ts
+    ├── handle-oidc-callback.usecase.spec.ts  覆盖受信 issuer 校验、JIT 建号、服务端不落密码
     └── jwt.service.spec.ts
 ```
 
-### 4.2 `apps/server/src/modules/tenants/`
+### 4.2 （已删除）`apps/server/src/modules/tenants/`
 
-```text
-tenants/
-├── tenants.module.ts
-├── domain/
-│   ├── tenant.ts                         Tenant 聚合根 + Quota 值对象（内联）
-│   ├── quota-policy.ts                   computeQuotaUsage()（§2.3，纯函数）
-│   └── errors.ts
-├── application/
-│   ├── create-tenant.usecase.ts
-│   ├── update-tenant-settings.usecase.ts
-│   └── get-tenant-quota-usage.usecase.ts
-├── infrastructure/
-│   └── tenant.repository.ts              Drizzle：tenants 表
-├── interface/
-│   ├── tenants.controller.ts
-│   └── guards/tenant-admin.guard.ts       principal.tenantId 匹配 + role ∈ {owner,admin}
-└── __tests__/
-    └── get-tenant-quota-usage.usecase.spec.ts
-```
+2026-09-24 整个删除（rulings §4.15 T-0：单组织、完全去租户）。原 11 个文件去向：`tenant-admin.guard.ts` → `auth/interface/guards/platform-admin.guard.ts`（部署级平台管理员）；`quota-policy.ts` → `media/domain/quota-policy.ts`（配额取部署配置）；其余（`Tenant` 聚合、`create-tenant`/`update-tenant-settings`/`get-tenant-quota-usage` 用例、`tenant.repository`、`tenants.controller`、错误码与单测）无替代，直接删除。
 
 ### 4.3 `apps/server/src/modules/users/`
 
@@ -396,18 +365,19 @@ tenants/
 users/
 ├── users.module.ts
 ├── domain/
-│   ├── user.ts
+│   ├── user.ts                           User 聚合根（platformRole、status；无 tenantId，§4.15 T-0）
+│   ├── user-identity.ts                  UserIdentity 实体：(issuer,subject) 唯一（新增，§4.15 Q6）
 │   └── errors.ts
 ├── application/
-│   ├── find-or-create-by-oidc.usecase.ts
-│   ├── update-profile.usecase.ts
-│   └── list-tenant-members.usecase.ts
+│   ├── provision-on-first-login.usecase.ts  首次登录 JIT 建 User + UserIdentity（取代 find-or-create-by-oidc，Q6）
+│   ├── update-profile.usecase.ts         本人资料 + 管理员分支（status / platformRole）
+│   └── list-users.usecase.ts             用户列表与分享对话框按人搜索（取代 list-tenant-members，T-0）
 ├── infrastructure/
-│   └── user.repository.ts
+│   └── user.repository.ts                Drizzle：users + user_identities
 ├── interface/
 │   └── users.controller.ts
 └── __tests__/
-    └── find-or-create-by-oidc.usecase.spec.ts
+    └── provision-on-first-login.usecase.spec.ts  覆盖首次/重复登录、同 subject 不同 issuer、并发首登唯一冲突
 ```
 
 ### 4.4 `apps/server/src/modules/documents/`
@@ -429,7 +399,7 @@ documents/
 │   ├── schedule-purge.usecase.ts         编排式硬删除发起：status→purging + 入队/发领域事件（新增，rulings §4.13 S-2）
 │   └── queries/document-queries.ts       ListDocumentsQuery + GetDocumentDetailQuery
 ├── infrastructure/
-│   └── document.repository.ts            Drizzle：documents 表（tenant_id 强制列；含 recent/pinned 记账）
+│   └── document.repository.ts            Drizzle：documents 表（以 docId 为键的方法首参 DocAccess|SystemContext；含 recent/pinned 记账）
 ├── interface/
 │   └── documents.controller.ts           GET/POST /documents、GET/PATCH/DELETE /documents/:id、POST /:id/restore、POST /:id/collab-ticket（委托 AuthModule.IssueCollabTicketUseCase）、GET /documents?filter=recent、PATCH /documents/:id{pinned}（M2，rulings §4.12 U-04）
 └── __tests__/
@@ -450,11 +420,12 @@ permissions/
 │   ├── grant-permission.usecase.ts
 │   ├── revoke-permission.usecase.ts
 │   ├── list-permissions.usecase.ts
-│   ├── resolve-role.usecase.ts           编排：查直接授权+share link+租户默认 → mergeRoles → 5 s 缓存
+│   ├── resolve-role.usecase.ts           编排：查直接授权+share link → mergeRoles → 5 s 缓存；authorize() 签发 DocAccess
 │   └── purge-document-permissions.usecase.ts  清 permissions/document_perm_versions（新增，rulings §4.13 S-2；share_links 不在本用例范围，见 §7）
 ├── infrastructure/
 │   ├── permission.repository.ts          Drizzle：permissions + document_perm_versions
-│   └── perm-change.publisher.ts          Redis PUBLISH perm:doc:{id}（供 M-09 订阅）
+│   ├── perm-change.publisher.ts          Redis 协议（部署为 Valkey）PUBLISH perm:doc:{id}（供 M-09 订阅）
+│   └── rls-context.ts                    请求事务内 SET LOCAL app.user_id / app.share_doc_id（文档级 RLS，新增，§4.15 Q6）
 ├── interface/
 │   ├── permissions.controller.ts         GET/PUT/DELETE /documents/:id/permissions…
 │   └── guards/document-role.guard.ts     @RequireDocRole('editor')：resolve-role → capability 检查 → fail-closed 403
@@ -510,6 +481,7 @@ media/
 │   ├── media-blob.ts                     MediaBlob 聚合（内容寻址不变量）
 │   ├── document-media.ts                 DocumentMedia 关联实体
 │   ├── upload-policy.ts                  validateUploadPolicy()（§2.3，纯函数）
+│   ├── quota-policy.ts                   computeQuotaUsage() + Quota（部署配置 quotas.*；自 tenants/ 迁入，§4.15 T-0）
 │   └── errors.ts
 ├── application/
 │   ├── presign-upload.usecase.ts         POST /media/presign
@@ -527,11 +499,11 @@ media/
     └── svg-sanitizer.spec.ts
 ```
 
-### 4.9 `@oce/server-storage`
+### 4.9 `@cordexjs/server-storage`
 
 ```text
 packages/server-storage/
-├── package.json                          oce:{layer:'LS',iso:'node',stability:'beta'}；deps: @aws-sdk/client-s3、@aws-sdk/lib-storage
+├── package.json                          cordex:{layer:'LS',iso:'node',stability:'beta'}；deps: @aws-sdk/client-s3、@aws-sdk/lib-storage
 ├── tsconfig.json
 ├── src/
 │   ├── index.ts                          公共 API 面（§6）
@@ -544,7 +516,7 @@ packages/server-storage/
 │   │   └── content-addressing.ts         sha256 命名/去重策略（纯函数）
 │   ├── infrastructure/
 │   │   ├── contracts/blob-store.ts       ServerBlobStore 接口（§2.5）
-│   │   ├── providers/s3-blob-store.provider.ts      @aws-sdk/client-s3 + lib-storage 分片；MinIO 兼容
+│   │   ├── providers/s3-blob-store.provider.ts      @aws-sdk/client-s3 + lib-storage 分片；S3 协议通用，自托管默认 SeaweedFS（§4.15 Q10）
 │   │   ├── providers/local-blob-store.provider.ts   开发/测试，落本地磁盘
 │   │   ├── hashing.ts                    流式 sha256（与浏览器 WebCrypto 结果一致的十六进制小写）
 │   │   └── keys.ts                       对象键布局函数（§6 对象存储布局）
@@ -558,31 +530,9 @@ packages/server-storage/
 │       └── run-blob-store-conformance.ts runBlobStoreConformance(factory)（§2.5）
 ```
 
-### 4.10 `apps/server/src/modules/groups/`（新增，rulings §4.12 U-11，2026-09-19）
+### 4.10 （已删除）`apps/server/src/modules/groups/`
 
-M3 即实现组管理（用户裁决 U-11，回填 §2.1/§2.2/§2.5/§2.6 的 Group 聚合/值对象/仓储/用例）；BC-18 归属，与 `tenants/`/`users/` 同级，供 `PermissionsModule` 校验 `principalType='group'`（原 G-10 不可达分支起可达）。
-
-```text
-groups/
-├── groups.module.ts                      装配 imports/providers/controllers/exports（见 §3）
-├── domain/
-│   ├── group.ts                          Group 聚合根（§2.1）
-│   ├── group-member.ts                   GroupMember 实体（§2.1）
-│   └── errors.ts                         group.* 错误码
-├── application/
-│   ├── create-group.usecase.ts
-│   ├── rename-group.usecase.ts
-│   ├── delete-group.usecase.ts           级联撤销以该组为 principal 的 permissions 行（同事务）
-│   ├── add-group-member.usecase.ts
-│   └── remove-group-member.usecase.ts
-├── infrastructure/
-│   └── group.repository.ts               Drizzle：groups + group_members
-├── interface/
-│   └── groups.controller.ts              GET/POST /groups、PATCH/DELETE /groups/:id、POST/DELETE /groups/:id/members
-└── __tests__/
-    ├── create-group.usecase.spec.ts
-    └── add-group-member.usecase.spec.ts
-```
+2026-09-24 整个删除（rulings §4.15 Q6：组管理 U-11 推迟，M3 只按人分享）。原 13 个文件（`Group`/`GroupMember` 聚合、5 个用例、`group.repository`、`groups.controller`、错误码与 2 个单测）无替代；将来恢复组管理时另立项，届时 `permissions.principal_type` 扩展位启用 `'group'`。
 
 ## 5. 文件职责表
 
@@ -591,64 +541,53 @@ groups/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `auth.module.ts` | 模块装配 | `AuthModule` | Nest、本模块下列全部 | exports 见 §3 |
-| `domain/principal.ts` | 已鉴权主体值对象 | `Principal` | `@oce/protocol` | 服务端加宽形态 |
+| `domain/principal.ts` | 已鉴权主体值对象 | `Principal` | `@cordexjs/protocol` | 服务端加宽形态 |
 | `domain/session.ts` | 会话实体 | `Session` | 无 | — |
 | `domain/collab-ticket.ts` | 协同票据 claims + 构造函数 | `CollabTicketClaims`、`buildCollabTicketClaims` | `./principal` | ADR-0029 |
-| `domain/api-key.ts` | API Key 实体 | `ApiKey` | 无 | scopes 结构见 SV-06 |
+| `domain/api-key.ts` | API Key 实体（M4） | `ApiKey` | 无 | scopes 结构见 SV-06；M1–M3 不启用（rulings §4.15 Q6） |
 | `domain/errors.ts` | `auth.*` 错误码 | `AuthError` | 无（点式码） | invalid_token/expired/forbidden/oidc_state_mismatch |
 | `application/login-with-oidc.usecase.ts` | 发起登录 | `LoginWithOidcUseCase` | `../infrastructure/oidc/*` | 生成 authorizationUrl |
-| `application/handle-oidc-callback.usecase.ts` | 回调处理 | `HandleOidcCallbackUseCase` | `../domain/*`、`UsersModule` 导出的 usecase | 跨模块调用 |
+| `application/handle-oidc-callback.usecase.ts` | 回调处理 | `HandleOidcCallbackUseCase` | `../domain/*`、`UsersModule` 导出的 `ProvisionOnFirstLoginUseCase` | 跨模块调用；校验 `issuer` 在受信 IdP 列表内（Q6） |
 | `application/refresh-session.usecase.ts` | 会话刷新 | `RefreshSessionUseCase` | `../infrastructure/tokens/jwt.service` | — |
 | `application/logout.usecase.ts` | 登出 | `LogoutUseCase` | `../infrastructure/tokens/jwt.service` | 撤销会话/黑名单 |
 | `application/issue-collab-ticket.usecase.ts` | 签发协同票据 | `IssueCollabTicketUseCase` | `PermissionsModule.RoleResolverService` | 导出供 `documents.controller.ts` 调用 |
-| `application/register-personal-account.usecase.ts` | 个人账号自助注册（新增，rulings §4.13 S-1） | `RegisterPersonalAccountUseCase` | `../infrastructure/*`、`UsersModule` | `tenantId=null`；供分享链接访客建号，不开放租户自助创建 |
 | `infrastructure/oidc/oidc-client.provider.ts` | OIDC discovery/交换 + PKCE | `OidcClientProvider` | `openid-client` | 唯一 import 点 |
 | `infrastructure/oidc/state-store.redis.ts` | state/nonce 存储 | `OidcStateStore` | `ioredis` | TTL 10 min |
 | `infrastructure/tokens/jwt.service.ts` | ES256 签发/验签 + JWKS + cookie 编解码 | `JwtService` | `jose`（或等价库） | kid 轮换 |
-| `infrastructure/api-keys/api-key.repository.ts` | `api_keys` 表 | `ApiKeyRepository` | `drizzle-orm` | tenant_id 强制 |
-| `interface/auth.controller.ts` | REST 端点 | `AuthController` | protocol `rest/auth.ts` | 含 `/.well-known/jwks.json` |
+| `infrastructure/api-keys/api-key.repository.ts` | `api_keys` 表（M4） | `ApiKeyRepository` | `drizzle-orm` | 按 `owner_user_id` 归属（2026-09-24 删 tenant_id 强制，T-0） |
+| `interface/auth.controller.ts` | REST 端点 | `AuthController` | protocol `rest/auth.ts` | 含 `/.well-known/jwks.json`、`/auth/config`（公开 selfSignup 开关，默认关）；2026-09-24 删 `/register-personal`（Q6） |
 | `interface/guards/session.guard.ts` | Principal 解析，fail-closed | `SessionGuard`、`CurrentPrincipal` | `../../infrastructure/tokens/jwt.service` | 401 |
-| `interface/guards/api-key.guard.ts` | API Key 鉴权 | `ApiKeyGuard` | `../../infrastructure/api-keys/*` | 集成方服务端调用 |
+| `interface/guards/api-key.guard.ts` | API Key 鉴权（M4） | `ApiKeyGuard` | `../../infrastructure/api-keys/*` | 集成方服务端调用 |
+| `interface/guards/platform-admin.guard.ts` | 部署级平台管理员校验（新增，rulings §4.15 T-0） | `PlatformAdminGuard` | `SessionGuard` 输出的 `Principal` | fail-closed 403；取代 `TenantAdminGuard` |
 | `__tests__/issue-collab-ticket.usecase.spec.ts` | 单测 | — | — | 覆盖 ttl/jti/role 边界 |
-| `__tests__/handle-oidc-callback.usecase.spec.ts` | 单测 | — | — | 覆盖首次登录建号 |
+| `__tests__/handle-oidc-callback.usecase.spec.ts` | 单测 | — | — | 覆盖受信 issuer、首次登录 JIT 建号、不落密码 |
 | `__tests__/jwt.service.spec.ts` | 单测 | — | — | 覆盖 kid 轮换/过期 |
 
-### 5.2 `tenants/`
+### 5.2 （已删除）`tenants/`
 
-| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
-|---|---|---|---|---|
-| `tenants.module.ts` | 模块装配 | `TenantsModule` | Nest | — |
-| `domain/tenant.ts` | 聚合根 + `Quota` 值对象 | `Tenant`、`Quota` | 无 | §2.1/§2.2 |
-| `domain/quota-policy.ts` | 配额用量纯函数 | `computeQuotaUsage` | `./tenant` | §2.3 |
-| `domain/errors.ts` | `tenant.*` 错误码 | `TenantError` | 无 | not_found/slug_taken/quota_exceeded |
-| `application/create-tenant.usecase.ts` | 创建租户 | `CreateTenantUseCase` | `../infrastructure/tenant.repository` | 系统范围，见 §13 |
-| `application/update-tenant-settings.usecase.ts` | 更新设置/配额 | `UpdateTenantSettingsUseCase` | `../infrastructure/tenant.repository` | — |
-| `application/get-tenant-quota-usage.usecase.ts` | 配额用量查询 | `GetTenantQuotaUsageUseCase` | `../domain/quota-policy` | SV-08 管理面板读取点 |
-| `infrastructure/tenant.repository.ts` | `tenants` 表 | `TenantRepository` | `drizzle-orm` | — |
-| `interface/tenants.controller.ts` | REST 端点 | `TenantsController` | protocol `rest/tenants.ts`（新增，§12） | — |
-| `interface/guards/tenant-admin.guard.ts` | 租户管理员校验 | `TenantAdminGuard` | `SessionGuard` 输出的 `Principal` | fail-closed |
-| `__tests__/get-tenant-quota-usage.usecase.spec.ts` | 单测 | — | — | 覆盖超限判定 |
+2026-09-24 整个删除，11 行随之移除；去向见 §4.2（rulings §4.15 T-0）。
 
 ### 5.3 `users/`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `users.module.ts` | 模块装配 | `UsersModule` | Nest | exports `FindOrCreateByOidcUseCase` |
-| `domain/user.ts` | 实体 | `User` | 无 | `(tenantId,oidcIssuer,oidcSubject)` 唯一 |
-| `domain/errors.ts` | `user.*` 错误码 | `UserError` | 无 | not_found/suspended |
-| `application/find-or-create-by-oidc.usecase.ts` | subject↔user 映射/建号 | `FindOrCreateByOidcUseCase` | `../infrastructure/user.repository` | AuthModule 回调调用 |
-| `application/update-profile.usecase.ts` | 更新资料 | `UpdateProfileUseCase` | `../infrastructure/user.repository` | — |
-| `application/list-tenant-members.usecase.ts` | 成员列表 | `ListTenantMembersUseCase` | `../infrastructure/user.repository` | 供管理面板 |
-| `infrastructure/user.repository.ts` | `users` 表 | `UserRepository` | `drizzle-orm` | — |
+| `users.module.ts` | 模块装配 | `UsersModule` | Nest | exports `ProvisionOnFirstLoginUseCase` |
+| `domain/user.ts` | 聚合根 | `User` | 无 | `platformRole ∈ {member,admin}`；无 `tenantId`（§4.15 T-0） |
+| `domain/user-identity.ts` | IdP 身份绑定实体（新增，§4.15 Q6） | `UserIdentity` | 无 | `(issuer,subject)` 唯一 |
+| `domain/errors.ts` | `user.*` 错误码 | `UserError` | 无 | not_found/suspended/last_admin/untrusted_issuer |
+| `application/provision-on-first-login.usecase.ts` | 首次登录 JIT 建号 / 已有身份直接取用 | `ProvisionOnFirstLoginUseCase` | `../infrastructure/user.repository` | AuthModule 回调调用；同事务写 `users`+`user_identities` |
+| `application/update-profile.usecase.ts` | 更新资料；管理员分支改 status/platformRole | `UpdateProfileUseCase` | `../infrastructure/user.repository` | 管理员分支需 `PlatformAdminGuard` |
+| `application/list-users.usecase.ts` | 用户列表 / 按人搜索 | `ListUsersUseCase` | `../infrastructure/user.repository` | 供管理面板与分享对话框（取代 `list-tenant-members`，T-0） |
+| `infrastructure/user.repository.ts` | `users`+`user_identities` 表 | `UserRepository` | `drizzle-orm` | — |
 | `interface/users.controller.ts` | REST 端点 | `UsersController` | protocol `rest/users.ts`（新增，§12） | — |
-| `__tests__/find-or-create-by-oidc.usecase.spec.ts` | 单测 | — | — | 覆盖首次/重复登录 |
+| `__tests__/provision-on-first-login.usecase.spec.ts` | 单测 | — | — | 覆盖首次/重复登录、并发首登唯一冲突 |
 
 ### 5.4 `documents/`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `documents.module.ts` | 模块装配 | `DocumentsModule` | `AuthModule`、`PermissionsModule` | exports `DocumentRepository` |
-| `domain/document.ts` | 聚合根（目录条目） | `Document`、`DocumentId` | `@oce/protocol` ids | §2.1 |
+| `domain/document.ts` | 聚合根（目录条目） | `Document`、`DocumentId` | `@cordexjs/protocol` ids | §2.1 |
 | `domain/document-status.ts` | 状态机纯函数 | `documentStatusTransition` | `./document` | §2.3 |
 | `domain/errors.ts` | `document.*` 错误码 | `DocumentError` | 无 | not_found/locked/trashed |
 | `application/create-document.usecase.ts` | 建文档 + 创建者=owner | `CreateDocumentUseCase` | `../infrastructure/document.repository`、`PermissionsModule` | 单事务 |
@@ -659,7 +598,7 @@ groups/
 | `application/pin-document.usecase.ts` | 固定/取消固定（互逆） | `PinDocumentUseCase`、`UnpinDocumentUseCase` | `../infrastructure/document.repository` | M2；rulings §4.12 U-04，用户级标记，不改变文档权限 |
 | `application/schedule-purge.usecase.ts` | 编排式硬删除发起（新增，rulings §4.13 S-2） | `SchedulePurgeUseCase` | `../infrastructure/document.repository`、`jobs` 基础设施（M-12，Open Host Service） | 仅系统调用；`status→purging` 不可逆，见 §2.1/§2.6/§7 |
 | `application/queries/document-queries.ts` | 列表/详情查询 | `ListDocumentsQuery`、`GetDocumentDetailQuery` | `RoleResolverService` | 列表按角色过滤 |
-| `infrastructure/document.repository.ts` | `documents` 表 | `DocumentRepository` | `drizzle-orm` | 方法强制 `tenantId`（08 §9.1）；含 recent/pinned 记账表 |
+| `infrastructure/document.repository.ts` | `documents` 表 | `DocumentRepository` | `drizzle-orm` | 以 `docId` 为键的方法首参 `DocAccess\|SystemContext`（扫描器 `doc-access-via-permission`，取代原「方法强制 `tenantId`」，§4.15 T-0）；含 recent/pinned 记账表 |
 | `interface/documents.controller.ts` | REST 端点 | `DocumentsController` | protocol `rest/documents.ts`；`AuthModule.IssueCollabTicketUseCase` | 含 `POST /:id/collab-ticket`、`GET /documents?filter=recent`、`PATCH /documents/:id{pinned}`（M2，rulings §4.12 U-04） |
 | `__tests__/create-document.usecase.spec.ts` | 单测 | — | — | 覆盖 owner 授权同事务 |
 | `__tests__/trash-and-restore.usecase.spec.ts` | 单测 | — | — | 覆盖互逆语义 |
@@ -670,18 +609,19 @@ groups/
 |---|---|---|---|---|
 | `permissions.module.ts` | 模块装配 | `PermissionsModule` | `RedisModule` | exports `RoleResolverService`/`DocumentRoleGuard` |
 | `domain/permission.ts` | 聚合（Grant） | `Permission` | 无 | §2.1 |
-| `domain/role.ts` | 角色→能力位 | `RoleName`、`ROLE_CAPABILITIES` | `@oce/protocol` | 运行时初始值回填 M-02 Q-5（§2.2） |
+| `domain/role.ts` | 角色→能力位 | `RoleName`、`ROLE_CAPABILITIES` | `@cordexjs/protocol` | 运行时初始值回填 M-02 Q-5（§2.2） |
 | `domain/role-resolution.ts` | 角色合并纯函数 | `mergeRoles` | `./role` | §2.3 |
 | `application/grant-permission.usecase.ts` | 授予 | `GrantPermissionUseCase` | `../infrastructure/permission.repository`、`perm-change.publisher` | 单事务 + 异步 PUBLISH |
 | `application/revoke-permission.usecase.ts` | 撤销 | `RevokePermissionUseCase` | `../infrastructure/permission.repository`、`perm-change.publisher` | 最后一个 owner 拒绝 |
 | `application/list-permissions.usecase.ts` | 列出授权 | `ListPermissionsUseCase` | `../infrastructure/permission.repository` | — |
-| `application/resolve-role.usecase.ts` | 角色解析编排 | `RoleResolverService` | `./role-resolution`、`ShareLinksModule` 导出的 usecase | 5 s 缓存 |
+| `application/resolve-role.usecase.ts` | 角色解析编排 + 签发 `DocAccess` | `RoleResolverService`、`DocAccess` | `./role-resolution`、`ShareLinksModule` 导出的 usecase | 5 s 缓存；2026-09-24 删「租户默认」来源（T-0） |
 | `application/purge-document-permissions.usecase.ts` | 清理文档权限（新增，rulings §4.13 S-2） | `PurgeDocumentPermissionsUseCase` | `../infrastructure/permission.repository` | 仅系统调用；清 `permissions`/`document_perm_versions`；`share_links` 已纳入（由 `share-links/application/purge-document-share-links.usecase.ts` 订阅编排事件清理，不经 DocumentsModule 直接调用）（依赖方向限制，见 §7/§12） |
 | `infrastructure/permission.repository.ts` | `permissions`+`document_perm_versions` 表 | `PermissionRepository` | `drizzle-orm` | `bumpPermVersion` 同事务 |
-| `infrastructure/perm-change.publisher.ts` | 权限变更广播 | `PermChangePublisher` | `ioredis` | 频道 `perm:doc:{id}` |
+| `infrastructure/perm-change.publisher.ts` | 权限变更广播 | `PermChangePublisher` | `ioredis` | 频道 `perm:doc:{id}`；自托管部署为 Valkey（Redis 协议兼容，§4.15 Q10） |
+| `infrastructure/rls-context.ts` | 文档级 RLS 会话上下文（新增，§4.15 Q6，M3 出口） | `RlsContext` | `drizzle-orm` | 请求事务内 `SET LOCAL app.user_id`/`app.share_doc_id`；系统路径改用独立系统作业角色 `cordex_system`（无 `BYPASSRLS`）+ 系统作业上下文，RLS 策略对系统上下文显式放行（复核 H4） |
 | `interface/permissions.controller.ts` | REST 端点 | `PermissionsController` | protocol `rest/documents.ts`（权限段） | — |
 | `interface/guards/document-role.guard.ts` | 文档角色守卫 | `DocumentRoleGuard`、`@RequireDocRole()` | `../../application/resolve-role.usecase` | fail-closed 403 |
-| `__tests__/resolve-role.usecase.spec.ts` | 单测 | — | — | 覆盖直接/link/租户默认优先级 |
+| `__tests__/resolve-role.usecase.spec.ts` | 单测 | — | — | 覆盖直接授权/link 叠加优先级、`DocAccess` 仅经 `authorize()` 签发 |
 | `__tests__/grant-permission.usecase.spec.ts` | 单测 | — | — | 覆盖 permVersion 递增 |
 
 ### 5.6 `share-links/`
@@ -716,9 +656,10 @@ groups/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `media.module.ts` | 模块装配 | `MediaModule` | `StorageModule`、`DocumentsModule` | — |
-| `domain/media-blob.ts` | 聚合 | `MediaBlob` | 无 | `(tenantId,sha256)` 唯一 |
+| `domain/media-blob.ts` | 聚合 | `MediaBlob` | 无 | `sha256` 部署级唯一（§4.15 T-0） |
 | `domain/document-media.ts` | 关联实体 | `DocumentMedia` | 无 | GC 依据 |
 | `domain/upload-policy.ts` | 上传校验纯函数 | `validateUploadPolicy` | `./media-blob` | §2.3；对齐 08 §9.2 |
+| `domain/quota-policy.ts` | 配额用量纯函数 + `Quota`（自 `tenants/` 迁入，§4.15 T-0） | `computeQuotaUsage`、`Quota` | 无 | §2.2/§2.3；limit 取部署配置 `quotas.*` |
 | `domain/errors.ts` | `media.*` 错误码 | `MediaError` | 无 | mime_mismatch/unsupported_type/quota_exceeded/svg_rejected |
 | `application/presign-upload.usecase.ts` | 预签名 | `PresignUploadUseCase` | `StorageModule.BlobStoreAccessor` | — |
 | `application/commit-upload.usecase.ts` | 提交校验 + 去重 | `CommitUploadUseCase` | `../infrastructure/*`、`../domain/upload-policy` | HEAD + 重算 sha256 |
@@ -731,69 +672,53 @@ groups/
 | `__tests__/commit-upload.usecase.spec.ts` | 单测 | — | — | 覆盖去重命中/未命中 |
 | `__tests__/svg-sanitizer.spec.ts` | 单测 | — | — | 覆盖脚本/外链剥离 |
 
-### 5.9 `@oce/server-storage`
+### 5.9 `@cordexjs/server-storage`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `package.json` | 包元数据 | — | — | `oce:{layer:'LS',iso:'node'}` |
+| `package.json` | 包元数据 | — | — | `cordex:{layer:'LS',iso:'node'}` |
 | `tsconfig.json` | 类型配置 | — | — | node lib，无 dom |
 | `src/index.ts` | 公共 API 面 | 全部下列符号 | 本包 | `.` 导出 |
 | `src/plugin.ts` | cordis 插件入口 | `serverStoragePlugin`（`provide:['blobStore']`） | `./config`、`./storage.contribution` | Config.provider 择一装配 Provider |
 | `src/config.ts` | 配置 schema | `ServerStorageConfig` | zod | s3/local 两分支 |
 | `src/storage.contribution.ts` | Context 声明合并 | `Context.blobStore` 类型 | `./infrastructure/contracts/blob-store` | — |
-| `src/domain/blob-ref.ts` | `BlobRef` re-export | `BlobRef` | `@oce/protocol` | 同一定义源 |
+| `src/domain/blob-ref.ts` | `BlobRef` re-export | `BlobRef` | `@cordexjs/protocol` | 同一定义源 |
 | `src/application/content-addressing.ts` | 去重/命名策略 | `computeContentKey` | `./domain/blob-ref` | 纯函数 |
-| `src/infrastructure/contracts/blob-store.ts` | 服务端扩展接口 | `ServerBlobStore` | `@oce/model-core`（类型） | §2.5 |
-| `src/infrastructure/providers/s3-blob-store.provider.ts` | S3/MinIO 实现 | `S3BlobStoreProvider` | `@aws-sdk/client-s3`、`@aws-sdk/lib-storage` | 唯一 S3 SDK 引入点（连同 media/infrastructure 走本包） |
+| `src/infrastructure/contracts/blob-store.ts` | 服务端扩展接口 | `ServerBlobStore` | `@cordexjs/model-core`（类型） | §2.5 |
+| `src/infrastructure/providers/s3-blob-store.provider.ts` | S3 协议实现（自托管默认 SeaweedFS，§4.15 Q10） | `S3BlobStoreProvider` | `@aws-sdk/client-s3`、`@aws-sdk/lib-storage` | 唯一 S3 SDK 引入点（连同 media/infrastructure 走本包） |
 | `src/infrastructure/providers/local-blob-store.provider.ts` | 本地磁盘实现 | `LocalBlobStoreProvider` | `node:fs/promises` | 开发/测试 |
 | `src/infrastructure/hashing.ts` | 流式 sha256 | `hashStream` | `node:crypto` | 与浏览器 WebCrypto 十六进制一致 |
 | `src/infrastructure/keys.ts` | 对象键布局 | `mediaKey`、`snapshotKey`、`importKey`、`exportKey`、`thumbKey` | 无 | §6 |
 | `src/errors.ts` | `storage.*` 错误码 | `StorageError` | 无 | not_found/integrity_mismatch/quota_exceeded |
-| `src/__tests__/s3-blob-store.provider.spec.ts` | 单测（testcontainers MinIO） | — | — | 实例化 `runBlobStoreConformance` |
+| `src/__tests__/s3-blob-store.provider.spec.ts` | 单测（testcontainers SeaweedFS S3 网关；2026-09-24 替换 MinIO 后重跑，§4.15 Q10） | — | — | 实例化 `runBlobStoreConformance` |
 | `src/__tests__/local-blob-store.provider.spec.ts` | 单测 | — | — | 实例化 `runBlobStoreConformance` |
 | `src/testing/index.ts` | `./testing` 子路径入口 | re-export | 无 | — |
 | `src/testing/memory-blob-store.ts` | 内存实现 | `MemoryBlobStore` | 无 | 与 model-core testing 行为一致 |
 | `src/testing/run-blob-store-conformance.ts` | 契约套件 | `runBlobStoreConformance` | 无 | §2.5 |
 
-### 5.10 `groups/`（新增，rulings §4.12 U-11）
+### 5.10 （已删除）`groups/`
 
-| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
-|---|---|---|---|---|
-| `groups.module.ts` | 模块装配 | `GroupsModule` | Nest | exports `GroupRepository`（见 §3） |
-| `domain/group.ts` | 聚合根 | `Group` | 无 | §2.1 |
-| `domain/group-member.ts` | 实体 | `GroupMember` | 无 | §2.1，成员同租户不变量 |
-| `domain/errors.ts` | `group.*` 错误码 | `GroupError` | 无 | not_found/name_taken/member_not_in_tenant |
-| `application/create-group.usecase.ts` | 创建组 | `CreateGroupUseCase` | `../infrastructure/group.repository` | 需 `TenantAdminGuard` |
-| `application/rename-group.usecase.ts` | 重命名组 | `RenameGroupUseCase` | `../infrastructure/group.repository` | — |
-| `application/delete-group.usecase.ts` | 删除组 | `DeleteGroupUseCase` | `../infrastructure/group.repository`、`PermissionsModule` | 级联撤销以该组为 principal 的权限授权 |
-| `application/add-group-member.usecase.ts` | 增加成员 | `AddGroupMemberUseCase` | `../infrastructure/group.repository`、`UsersModule` | 校验成员同租户 |
-| `application/remove-group-member.usecase.ts` | 移除成员 | `RemoveGroupMemberUseCase` | `../infrastructure/group.repository` | — |
-| `infrastructure/group.repository.ts` | `groups`+`group_members` 表 | `GroupRepository` | `drizzle-orm` | 供 `PermissionsModule` 校验存在性；`findById(tenantId,groupId)` 2026-09-21 补 `tenantId` 参数（评审 §3.1 严重缺口修复，跨租户越权，rulings §4.13 同时确认段） |
-| `interface/groups.controller.ts` | REST 端点 | `GroupsController` | protocol `rest/groups.ts`（新增，§12 G-7） | — |
-| `__tests__/create-group.usecase.spec.ts` | 单测 | — | — | 覆盖组名租户内唯一 |
-| `__tests__/add-group-member.usecase.spec.ts` | 单测 | — | — | 覆盖跨租户成员拒绝 |
+2026-09-24 整个删除，13 行随之移除（rulings §4.15 Q6：组管理 U-11 推迟），见 §4.10。
 
 ## 6. 对外 API 面
 
-`@oce/server-storage` 是本模块唯一可发布包，其 `.`/`./testing` 导出面见下表；七个 Nest 库模块（含新增 `groups`，rulings §4.12 U-11）的"对外 API"是两类物件：①REST 端点（真正的跨进程契约，见端点清单）；②供 M-09/M-12 经 Nest DI `imports`/`exports` 复用的服务类（已在 §3 逐模块列出，不重复）。
+`@cordexjs/server-storage` 是本模块唯一可发布包，其 `.`/`./testing` 导出面见下表；七个 Nest 模块（2026-09-24 删 `tenants`/`groups`，rulings §4.15）的"对外 API"是两类物件：①REST 端点（真正的跨进程契约，见端点清单）；②供 M-09/M-12 经 Nest DI `imports`/`exports` 复用的服务类（已在 §3 逐模块列出，不重复）。
 
 | 导出面 | 概要 | 稳定级（推荐） |
 |---|---|---|
 | `.`（server-storage） | `serverStoragePlugin`、`ServerStorageConfig`、`ServerBlobStore`、`BlobRef` | `beta`（S3/local 配置形状随部署实践可能微调） |
 | `./testing`（server-storage） | `MemoryBlobStore`、`runBlobStoreConformance` | `beta`，随 `ServerBlobStore` 契约一起收紧 |
 
-**REST 端点清单**（DTO 来自 `@oce/protocol`；`rest/tenants.ts`/`rest/users.ts`/`rest/share-links.ts`/`rest/media.ts`/`rest/groups.ts` 为本文档新增建议，见 §12 G-7；`rest/groups.ts` 为 U-11 新增）：
+**REST 端点清单**（DTO 来自 `@cordexjs/protocol`；`rest/users.ts`/`rest/share-links.ts`/`rest/media.ts` 为本文档新增建议，见 §12 G-7；2026-09-24 撤回 `rest/tenants.ts`（T-0）与 `rest/groups.ts`（U-11 推迟），rulings §4.15）：
 
 | 方法 路径 | Controller | DTO | 能力位 / 守卫 |
 |---|---|---|---|
 | POST `/auth/oidc/login`、GET `/auth/oidc/callback` | `auth.controller.ts` | `rest/auth.ts` | 无（未登录） |
-| POST `/auth/register-personal`（新增，rulings §4.13 S-1） | `auth.controller.ts` | `rest/auth.ts`（新增 register-personal schema） | 无（未登录；仅限个人账号，`tenantId=null`） |
+| GET `/auth/config` | `auth.controller.ts` | `rest/auth.ts`（`{selfSignup:boolean, signupUrl?}`） | 公开（登录页据此决定是否显示 IdP 注册入口；默认 `selfSignup=false`；2026-09-24 删 `/auth/register-personal`，rulings §4.15 Q6） |
 | POST `/auth/logout`、GET `/auth/me`、POST `/auth/token/refresh` | `auth.controller.ts` | `rest/auth.ts` | `SessionGuard` |
 | GET `/auth/.well-known/jwks.json` | `auth.controller.ts` | 无（JWK Set） | 公开（供 M-09 验签） |
-| GET/POST `/tenants`、PATCH `/tenants/:id/settings`、GET `/tenants/:id/quota-usage` | `tenants.controller.ts` | `rest/tenants.ts`（新增） | `TenantAdminGuard` |
-| GET `/tenants/:id/members`、PATCH `/users/:id/profile` | `users.controller.ts` | `rest/users.ts`（新增） | `SessionGuard` |
-| GET/POST `/groups`、PATCH/DELETE `/groups/:id`（新增，rulings §4.12 U-11） | `groups.controller.ts` | `rest/groups.ts`（新增） | `TenantAdminGuard` |
-| POST/DELETE `/groups/:id/members`（新增，rulings §4.12 U-11） | `groups.controller.ts` | `rest/groups.ts`（新增） | `TenantAdminGuard` |
+| GET `/users?query=`、PATCH `/users/me/profile` | `users.controller.ts` | `rest/users.ts`（新增） | `SessionGuard`（按人搜索供分享对话框；2026-09-24 取代 `/tenants/:id/members`，T-0） |
+| PATCH `/users/:id`{`status`,`platformRole`} | `users.controller.ts` | `rest/users.ts`（admin 段） | `PlatformAdminGuard`（部署级） |
 | GET/POST `/documents`、GET/PATCH/DELETE `/documents/:id`、POST `/documents/:id/restore` | `documents.controller.ts` | `rest/documents.ts` | `SessionGuard`+`DocumentRoleGuard`（`GET/:id` 可选叠加 `ShareLinkAccessGuard`，携带 `shareToken` 时生效，S-1） |
 | GET `/documents?filter=recent`、PATCH `/documents/:id`{`pinned`} | `documents.controller.ts` | `rest/documents.ts`（`recent`/`pinned` 字段，M2，rulings §4.12 U-04） | `SessionGuard`+`DocumentRoleGuard` |
 | POST `/documents/:id/collab-ticket` | `documents.controller.ts`（委托 Auth） | `rest/documents.ts` | `DocumentRoleGuard`（≥ viewer，可选叠加 `ShareLinkAccessGuard`，S-1，取代 ADR-0029 决策 6 旧描述） |
@@ -824,13 +749,13 @@ interface BlobStoreAccessor {
 | 资源 | 归属 | 本模块的访问方式 |
 |---|---|---|
 | `CordisHostService`（`openUnit`/`closeUnit`/`diagnostics()`） | M-09（`apps/server/src/cordis-host/`） | 不直接调用（不涉及文档内容读写）；仅 `StorageModule.BlobStoreAccessor` 需要从同一宿主读 `ctx.blobStore` |
-| `ctx.blobStore` | `@oce/server-storage`，经 `preset-server` 装配进 M-09 持有的共享宿主 | `blob-store.accessor.ts` 依赖 `CordisHostService` **新增**的读取面（建议签名 `getService<T>(name): T` 或专用 `get blobStore(): ServerBlobStore`）；精确方法名以 M-09 定案为准（§13 Q-5）；**已结案：M-09 §5.3 定为 `getService<T>(name)` / `diagnostics()`（2026-09-19 回填）** |
+| `ctx.blobStore` | `@cordexjs/server-storage`，经 `preset-server` 装配进 M-09 持有的共享宿主 | `blob-store.accessor.ts` 依赖 `CordisHostService` **新增**的读取面（建议签名 `getService<T>(name): T` 或专用 `get blobStore(): ServerBlobStore`）；精确方法名以 M-09 定案为准（§13 Q-5）；**已结案：M-09 §5.3 定为 `getService<T>(name)` / `diagnostics()`（2026-09-19 回填）** |
 | collab ticket 校验 | M-09 `ticket-verifier.ts` | 本模块只签发（`issue-collab-ticket.usecase.ts`）+ 暴露 JWKS，不实现验签逻辑 |
 | `perm:doc:{id}` Redis 频道 | 本模块发布（`perm-change.publisher.ts`），M-09 `authz-source.ts` 订阅 | 单向：本模块只 `PUBLISH`，不 `SUBSCRIBE` |
 
-**与 M-09 的模块边界**：M-09 写 `document_updates`/`document_snapshots`（文档内容与协同状态）；本模块写 `documents`（目录元数据）/`permissions`/`document_perm_versions`/`media_blobs`/`document_media`/`tenants`/`users`/`api_keys`/`share_links`。两者对 `documents` 表**共写不同列**——本模块写 `title/status/ownerId/…`，M-09 写 `headSeq`（每次 update 持久化后递增）；这是唯一的跨模块共享表列冲突面，建议 `headSeq` 更新语句限定 `UPDATE documents SET head_seq=… WHERE id=… AND head_seq<…`（M-09 落地时的乐观递增，本模块不参与、不读写该列）。**2026-09-21 补强（评审 §3.4，rulings §4.13 同时确认段）**：仅靠约定不足以隔离并发修改风险，`DocumentRepository` 的 `updateMeta`/`softTrash`/`restore`/`setStatus` 入参类型收紧为 `Omit<Document,'headSeq'\|'epoch'>`，令"M-08 不得设置这两列"从代码约定升级为编译期强制（§2.1/§2.5 同步）。
+**与 M-09 的模块边界**：M-09 写 `document_updates`/`document_snapshots`（文档内容与协同状态）；本模块写 `documents`（目录元数据）/`permissions`/`document_perm_versions`/`media_blobs`/`document_media`/`users`/`user_identities`/`api_keys`（M4）/`share_links`（2026-09-24 删 `tenants`，新增 `user_identities`，rulings §4.15）。两者对 `documents` 表**共写不同列**——本模块写 `title/status/ownerId/…`，M-09 写 `headSeq`（每次 update 持久化后递增）；这是唯一的跨模块共享表列冲突面，建议 `headSeq` 更新语句限定 `UPDATE documents SET head_seq=… WHERE id=… AND head_seq<…`（M-09 落地时的乐观递增，本模块不参与、不读写该列）。**2026-09-21 补强（评审 §3.4，rulings §4.13 同时确认段）**：仅靠约定不足以隔离并发修改风险，`DocumentRepository` 的 `updateMeta`/`softTrash`/`restore`/`setStatus` 入参类型收紧为 `Omit<Document,'headSeq'\|'epoch'>`，令"M-08 不得设置这两列"从代码约定升级为编译期强制（§2.1/§2.5 同步）。
 
-**硬删除编排边界（rulings §4.13 S-2，2026-09-21，"谁的表谁写"）**：`documents/application/schedule-purge.usecase.ts` 是唯一编排发起点——30 天回收站宽限期满（或收到 GDPR 擦除请求）后把 `documents.status` 置为 `purging`（不可逆，§2.1）并写 `job_runs`/发领域事件；下游各自订阅并清理**自己的表**：本模块内 `permissions/application/purge-document-permissions.usecase.ts` 清 `permissions`/`document_perm_versions`，`media/application/purge-document-media.usecase.ts` 清 `document_media`（`media_blobs` 仍走既有 30 天无引用 GC，不在本次编排内同步清理）；M-09 的 `UpdateStore`/`SnapshotStore` 契约新增 `purgeAll(docId)` 清 `document_updates`/`document_snapshots`；M-12 的 `thumbnails`/`comments` 各自新增 `purge-document-*.usecase.ts`。`share_links` 表**已纳入（由 `share-links/application/purge-document-share-links.usecase.ts` 订阅编排事件清理，不经 DocumentsModule 直接调用）本轮编排**——`share-links` 模块在依赖图中只被 `PermissionsModule` 等下游引用（§3 Nest 模块表），本模块内没有任何模块反向依赖 `ShareLinksModule`，为避免引入反向依赖，本次不新增 `share-links` 侧的 purge 用例，记为已知缺口（§12 新增条目，非阻塞：`share_links` 有 `expiresAt`/`revokedAt` 实时失效判定，孤儿行不可再被解析出有效角色，纯数据卫生问题）。`audit_log` 按规则保留，不参与清理。
+**硬删除编排边界（rulings §4.13 S-2，2026-09-21，"谁的表谁写"）**：`documents/application/schedule-purge.usecase.ts` 是唯一编排发起点——30 天回收站宽限期满后，或收到 GDPR 擦除/「立即彻底删除」请求时**立即**（不等宽限期、不等 CRDT 墓碑 TTL，rulings §4.15 Q3）把 `documents.status` 置为 `purging`（不可逆，§2.1）并写 `job_runs`/发领域事件；下游各自订阅并清理**自己的表**：本模块内 `permissions/application/purge-document-permissions.usecase.ts` 清 `permissions`/`document_perm_versions`，`media/application/purge-document-media.usecase.ts` 清 `document_media`（`media_blobs` 仍走既有 30 天无引用 GC，不在本次编排内同步清理）；M-09 的 `UpdateStore`/`SnapshotStore` 契约新增 `purgeAll(docId)` 清 `document_updates`/`document_snapshots`；M-12 的 `thumbnails`/`comments` 各自新增 `purge-document-*.usecase.ts`。`share_links` 表**已纳入（由 `share-links/application/purge-document-share-links.usecase.ts` 订阅编排事件清理，不经 DocumentsModule 直接调用）本轮编排**——`share-links` 模块在依赖图中只被 `PermissionsModule` 等下游引用（§3 Nest 模块表），本模块内没有任何模块反向依赖 `ShareLinksModule`，为避免引入反向依赖，本次不新增 `share-links` 侧的 purge 用例，记为已知缺口（§12 新增条目，非阻塞：`share_links` 有 `expiresAt`/`revokedAt` 实时失效判定，孤儿行不可再被解析出有效角色，纯数据卫生问题）。`audit_log` 按规则保留，不参与清理。
 
 **`epoch` / `permVersion` 边界表**（2026-09-18，跨模块评审 C-17 结案，与 `40-modules/09` §2/§7 同口径）：
 
@@ -849,7 +774,7 @@ interface BlobStoreAccessor {
 flowchart LR
 subgraph serverMod["Node 服务端 本模块 BC-18/19/20"]
   authNest["auth / documents / permissions 等 Nest 模块"]
-  storagePkg["@oce/server-storage"]
+  storagePkg["@cordexjs/server-storage"]
 end
 subgraph redis["Redis"]
   permChan["perm:doc 频道"]
@@ -864,7 +789,7 @@ storagePkg -- "经 preset-server 装配" --> blobCtx
 ticketVerify -- "拉取 JWKS 校验签名" --> authNest
 ```
 
-图怎么读：本模块只 `PUBLISH`、不 `SUBSCRIBE`；`ctx.blobStore` 由 `@oce/server-storage` 经 `preset-server` 装配进 M-09 持有的共享宿主，票据校验则是 M-09 反向调用本模块暴露的 JWKS。
+图怎么读：本模块只 `PUBLISH`、不 `SUBSCRIBE`；`ctx.blobStore` 由 `@cordexjs/server-storage` 经 `preset-server` 装配进 M-09 持有的共享宿主，票据校验则是 M-09 反向调用本模块暴露的 JWKS。
 
 ## 8. doc / sheet 扩展缝
 
@@ -882,28 +807,30 @@ ticketVerify -- "拉取 JWKS 校验签名" --> authNest
 ## 9. 测试布局
 
 ```text
-apps/server/test/                         端到端（跨模块）：Nest Testing + testcontainers（PG/Redis/MinIO）+ mock OIDC（oidc-provider）
-├── e2e/auth-login.e2e-spec.ts             OIDC 全流程 + 会话/ticket
-├── e2e/documents-permissions.e2e-spec.ts  文档 CRUD + 权限 fail-closed + 跨租户 100% 拒绝（SV-06）
+apps/server/test/                         端到端（跨模块）：Nest Testing + testcontainers（PG 18/Valkey/SeaweedFS，rulings §4.15 Q10）+ OIDC（PR 层：Casdoor 容器 + oidc-provider mock；nightly：Keycloak/Entra/飞书等真实 IdP，§4.15 Q6）
+├── e2e/auth-login.e2e-spec.ts             OIDC 全流程 + 首次登录 JIT 建号 + 会话/ticket；selfSignup 开关两态
+├── e2e/documents-permissions.e2e-spec.ts  文档 CRUD + 权限 fail-closed + 无授权用户 100% 拒绝（SV-06；2026-09-24 由「跨租户」改为「跨用户」，T-0）
+├── e2e/document-rls.e2e-spec.ts           文档级 RLS（M3 出口）：故障注入绕过应用层权限检查后 SQL 仍不可见（新增，§4.15 Q6）
 ├── e2e/media-upload.e2e-spec.ts           预签名 → commit → 去重 → SVG 消毒
-├── e2e/groups-management.e2e-spec.ts      组 CRUD + 成员增删 + 按组授权端到端（M3，新增，rulings §4.12 U-11）
-├── fixtures/                              夹具（租户/用户/文档种子数据）
-└── helpers/                               supertest 封装、mock OIDC provider 启动器
+├── fixtures/                              夹具（用户/IdP 身份/文档种子数据）
+└── helpers/                               supertest 封装、mock OIDC provider / Casdoor 容器启动器
 
 packages/server-storage/src/__tests__/     见 §4.9（S3/local 两 Provider 各自跑 runBlobStoreConformance）
 ```
 
-命名裁定：Nest 模块内第五个 DDD 目录在本仓库材质化为 `__tests__/`（而非模板通用名 `testing/`）——`apps/server` 不发布、无 `./testing` 子路径导出的必要，module-map DDD 对照表"`testing/` ↔ `testing/`(子路径导出)+`__tests__/`"的双重形态中，Nest 应用只取后半；`@oce/server-storage` 是可被其他包 import 的真实库，保留完整双形态。覆盖率与性能预算引用 08-backend-nestjs.md §12（REST p95 ≤ 150 ms 等）；本模块特有预算：`resolve-role.usecase` 5 s 缓存命中率、`commit-upload` 去重判定 ≤ 50 ms p95（自定新增，见 §12）。
+命名裁定：Nest 模块内第五个 DDD 目录在本仓库材质化为 `__tests__/`（而非模板通用名 `testing/`）——`apps/server` 不发布、无 `./testing` 子路径导出的必要，module-map DDD 对照表"`testing/` ↔ `testing/`(子路径导出)+`__tests__/`"的双重形态中，Nest 应用只取后半；`@cordexjs/server-storage` 是可被其他包 import 的真实库，保留完整双形态。覆盖率与性能预算引用 08-backend-nestjs.md §12（REST p95 ≤ 150 ms 等）；本模块特有预算：`resolve-role.usecase` 5 s 缓存命中率、`commit-upload` 去重判定 ≤ 50 ms p95（自定新增，见 §12）。
 
 ## 10. 机械约束
 
 | 约束 | 规则 / 字段 | 引用 |
 |---|---|---|
-| `package.json#oce`（server-storage） | `{layer:'LS',iso:'node',stability:'beta'}` | charter §5.2；02 §4.23 |
-| `server-app-thin` | `apps/server/src/modules/**` 不得 `import 'yjs'`/`@oce/model-*`/`@oce/ooxml-*` | module-map §9；02 §3.2 |
+| `package.json#cordex`（server-storage） | `{layer:'LS',iso:'node',stability:'beta'}` | charter §5.2；02 §4.23 |
+| `server-app-thin` | `apps/server/src/modules/**` 不得 `import 'yjs'`/`@cordexjs/model-*`/`@cordexjs/ooxml-*` | module-map §9；02 §3.2 |
 | 第三方单点 | `openid-client`/JWT 库建议限 `auth/infrastructure/`；`@aws-sdk/*` 仅 `server-storage` | charter §5.3 规则 4 |
-| protocol-only DTO | controller `@Body()`/`@Query()` 类型只能是 `z.infer<typeof X>`，`X` 来自 `@oce/protocol` | module-map §4.2 第 1 条；08 §11 |
-| 租户隔离 | `*.repository.ts` 全部方法强制 `tenantId` 参数；建议新增扫描器 `repo-requires-tenant-id`（§12 G-14） | 08 §9.1 |
+| protocol-only DTO | controller `@Body()`/`@Query()` 类型只能是 `z.infer<typeof X>`，`X` 来自 `@cordexjs/protocol` | module-map §4.2 第 1 条；08 §11 |
+| 文档访问须经权限服务（2026-09-24 取代「租户隔离」，rulings §4.15 T-0） | 以 `docId` 为键的 `*.repository.ts` 公共方法首参必须是 `DocAccess`（仅 `RoleResolverService.authorize()` 可构造的品牌类型）或 `SystemContext`（仅系统用例/作业可构造）；`PermissionRepository`/`ShareLinkRepository` 作为权限服务自身的数据源豁免并显式登记；扫描器 `doc-access-via-permission`（**M-01 第 14 个扫描器**，rulings §4.17 D3；取代 `repo-requires-tenant-id`，§12 G-14） | 08 §9.1；rulings §4.15 T-0 |
+| 文档级 RLS（M3 出口，§4.15 Q6） | 全部含 `doc_id` 列的业务表（`documents`/`permissions`/`share_links`/`document_media`/`document_perm_versions` 及 M-09/M-12 的内容、评论、缩略图等表）启用 Postgres RLS，策略按 `app.user_id` 存在授权行或 `app.share_doc_id` 命中判定；应用角色与系统作业角色 `cordex_system` 均无 `BYPASSRLS`（系统路径以独立角色 + 显式系统作业上下文通过策略；`BYPASSRLS` 只给迁移角色，ADR-0022 决策 3，复核 H4）；治理检查 `check-rls-coverage`（M-01 `tooling/scripts/check-rls-coverage.ts`，例外登记 `policy/rls-exceptions.json`）（迁移目录里每张含 `doc_id` 的表必须有 `ENABLE ROW LEVEL SECURITY` + 策略，例外表显式登记） | charter D12；rulings §4.15 Q6 |
+| 不持有密码（§4.15 Q6） | `apps/server/src/**` 不得出现密码哈希库（`bcrypt`/`argon2`/`scrypt` 用于口令）与 `password` 列；登录只经 `openid-client` | rulings §4.15 Q6 |
 | fail-closed | `DocumentRoleGuard`/WS 握手（M-09）无显式允许即拒绝 | charter D12；ADR-0029 |
 | `provider-runs-conformance` | `server-storage/src/__tests__/{s3,local}-blob-store.provider.spec.ts` 必须实例化 `runBlobStoreConformance` | M-02 §2.5 同一约定 |
 | 三角色 | `S3BlobStoreProvider`/`LocalBlobStoreProvider` 互不 import | charter §5.3 规则 6 |
@@ -911,20 +838,22 @@ packages/server-storage/src/__tests__/     见 §4.9（S3/local 两 Provider 各
 
 ## 11. 里程碑与实施顺序
 
-**M0 骨架**：9 个 `*.module.ts`（含 `groups.module.ts`，rulings §4.12 U-11；实现推迟到 M3，见下） + 各 `domain/` 聚合类型（无实现）+ `server-storage` 的 `package.json`/`plugin.ts`/`config.ts` 空实现（`LocalBlobStoreProvider` 落盘即可，`S3BlobStoreProvider` 可延后）；`AppModule` 尚未装配本模块（根装配由 M-12 完成，见 §7）。
+**M0 骨架**：7 个 `*.module.ts`（2026-09-24 删 `tenants.module.ts`/`groups.module.ts`，rulings §4.15 T-0 / U-11 推迟） + 各 `domain/` 聚合类型（无实现）+ `server-storage` 的 `package.json`/`plugin.ts`/`config.ts` 空实现（`LocalBlobStoreProvider` 落盘即可，`S3BlobStoreProvider` 可延后）；`AppModule` 尚未装配本模块（根装配由 M-12 完成，见 §7）。
 
-**M1**：`auth`（OIDC 登录/会话，暂不含协同 ticket）、`tenants`/`users` 基本 CRUD、`documents` CRUD（不含锁定）、`permissions` 授予/撤销/`RoleResolverService`（不含分享链接）、`server-storage` `LocalBlobStoreProvider` 完整 + `runBlobStoreConformance` 通过。
+**M1**：`auth`（外置 IdP OIDC 登录/会话，暂不含协同 ticket；服务端不持有密码）、`users`（首次登录 JIT 建号、`users`+`user_identities` 用户模型 M1 前定稿，rulings §4.15 Q6）、`documents` CRUD（不含锁定）、`permissions` 授予/撤销/`RoleResolverService`（不含分享链接）、`server-storage` `LocalBlobStoreProvider` 完整 + `runBlobStoreConformance` 通过。
 
-**M2 首个可运行切片**：登录 → 建租户 → 建文档 → 授权 → 预签名上传，覆盖 `share-links`、`media`（含 SVG 消毒/去重）、`issue-collab-ticket`（供 M-09 联调）、`S3BlobStoreProvider`（对 MinIO）。
+**M2 首个可运行切片**：登录（JIT 建号）→ 建文档 → 按人授权 → 预签名上传（2026-09-24 删「建租户」一步，T-0），覆盖 `share-links`（始终要求登录）、`media`（含 SVG 消毒/去重）、`issue-collab-ticket`（供 M-09 联调）、`S3BlobStoreProvider`（对 SeaweedFS，§4.15 Q10）。
 
 验收命令（草案，最终以 CI 配置为准）：
 ```bash
-pnpm --filter @oce/server-storage test               # runBlobStoreConformance × 2 Provider
+pnpm --filter @cordexjs/server-storage test               # runBlobStoreConformance × 2 Provider
 pnpm --filter apps-server test:e2e -- auth documents  # OIDC mock + 文档/权限 e2e
 pnpm --filter apps-server test:e2e -- media           # presign→commit→去重→SVG 消毒
 ```
 
-**M3 组管理**（rulings §4.12 U-11，2026-09-19 新增，属本模块交付范围）：新增 `groups` Nest 模块——创建/重命名/删除组、成员增删（§2.6/§4.10/§5.10）；`permissions` 模块 `grant-permission`/`revoke-permission` 用例接入 `GroupRepository` 存在性校验，`principalType='group'` 从"保留不可达"变为可达（§12 G-10 结案）。验收：`pnpm --filter apps-server test:e2e -- groups`（组 CRUD + 成员增删 + 按组授权端到端，见 §9）。
+**M3 出口**（2026-09-24 改写，rulings §4.15）：原「M3 组管理」切片**撤销**——组管理（U-11）推迟，M3 只按人分享；改为交付文档级 Postgres RLS + `rls-context.ts` + 扫描器 `doc-access-via-permission`/`check-rls-coverage`，以及 CI 分层 OIDC 认证（PR：Casdoor 容器 + oidc-provider mock；nightly：Keycloak/Entra/飞书等）。验收：`pnpm --filter apps-server test:e2e -- document-rls`（见 §9）。
+
+**M4**：集成方签名 JWT 校验 + API Key（`ApiKeyGuard`/`api-key.*`），届时 JIT 建影子用户（§4.15 Q6）。
 
 **M3 展望**（不在本模块交付范围）：与 M-09 联调协同 ticket 校验 + `perm:doc:{id}` 端到端 ≤ 2 s 传播（ADR-0029）；与 M-12 联调审计/限流解释器接入 `@Audited()`/`@RateLimit()` 标注点。
 
@@ -935,21 +864,24 @@ pnpm --filter apps-server test:e2e -- media           # presign→commit→去�
 | # | 涉及文档 | 差异 / 发现 | 追加建议（不直接生效） |
 |---|---|---|---|
 | G-5 | `08-backend-nestjs.md` §2 vs module-map §3 BC-19 行 | 08 §2 把 `permissions/`、`share-links/` 写成 `documents/` 的子目录；module-map §3 明确列出三者为并列的 `modules/{documents,permissions,share-links}` | 本文档采用 module-map 的并列结构（§4.4–4.6）；建议 08 §2 同步拆分为三个平级目录 |
-| G-6 | `08-backend-nestjs.md` §2 `common/guards/*` | 08 §2 把 `session.guard.ts`/`document-role.guard.ts`/`tenant-admin.guard.ts` 放在全局 `common/guards/`；本文档裁定授权策略类守卫物理归属各自 owning 模块的 `interface/guards/`（DDD 所有权原则，§3 已述） | 建议 08 §2 同步移动，并在 M-12 规划文档中把 `common/*` 的范围收窄为"与 BC 策略无关的纯机制"（异常过滤器/tracing/audit 拦截器/限流原语） |
-| G-7 | `40-modules/02` §4.3 `@oce/protocol` 目录树 | `rest/` 子树只有 `documents`/`snapshots`/`import-export`/`auth`/`audit` 五个文件，缺 `tenants.ts`/`users.ts`/`share-links.ts`/`media.ts`/`groups.ts`（本模块 §4/§5/§6 大量引用；`groups.ts` 为 rulings §4.12 U-11 新增） | 建议 M-08 实现期在 `@oce/protocol` 包内直接新增这五个文件（不新建包、不违反发布语言铁律），事后知会 M-02 文档维护者回补 §4.3/§5.3；`groups.ts` 一项已由总编排回写 `40-modules/02` §4/§5（新增建议→已采纳） |
+| G-6 | `08-backend-nestjs.md` §2 `common/guards/*` | 08 §2 把 `session.guard.ts`/`document-role.guard.ts`/`tenant-admin.guard.ts` 放在全局 `common/guards/`；本文档裁定授权策略类守卫物理归属各自 owning 模块的 `interface/guards/`（DDD 所有权原则，§3 已述） | 建议 08 §2 同步移动，并在 M-12 规划文档中把 `common/*` 的范围收窄为"与 BC 策略无关的纯机制"（异常过滤器/tracing/audit 拦截器/限流原语）。**2026-09-24**：`tenant-admin.guard.ts` 已删，改为 `auth/interface/guards/platform-admin.guard.ts`（rulings §4.15 T-0） |
+| G-7 | `40-modules/02` §4.3 `@cordexjs/protocol` 目录树 | `rest/` 子树只有 `documents`/`snapshots`/`import-export`/`auth`/`audit` 五个文件，缺 `tenants.ts`/`users.ts`/`share-links.ts`/`media.ts`/`groups.ts`（本模块 §4/§5/§6 大量引用；`groups.ts` 为 rulings §4.12 U-11 新增） | 建议 M-08 实现期在 `@cordexjs/protocol` 包内直接新增这五个文件（不新建包、不违反发布语言铁律），事后知会 M-02 文档维护者回补 §4.3/§5.3；`groups.ts` 一项已由总编排回写 `40-modules/02` §4/§5（新增建议→已采纳）。**2026-09-24 覆盖（rulings §4.15）**：缺失清单收窄为 `users.ts`/`share-links.ts`/`media.ts` 三个——`tenants.ts` 撤回（T-0），`groups.ts` 随 U-11 推迟撤回（M-02 §4/§5 已补的 `groups.ts` 行需同步删除或标推迟） |
 | G-8 | `40-modules/02` §2.5 `BlobStore` | model-core 未给 `BlobStore` 定义 `run*Conformance` 契约套件（只有 `DocumentStore` 有）；本文档 §2.5 为 `ServerBlobStore` 新增 `runBlobStoreConformance`，是全仓库第一个覆盖 `BlobStore` 家族的契约套件 | 建议 M-02 评估是否让 `model-core/testing` 的 `MemoryBlobStore` 也可选跑本套件的"基础三方法子集"，不强制 |
 | G-9 | ADR-0029 vs `08-backend-nestjs.md` §5/§2 | ADR-0029 的 ticket claims 不含 `epoch`；但 `documents.epoch` 存在且 `internal/admin.controller.ts` 有 `.../epoch` 强制操作 | **结案（2026-09-18，跨模块评审 C-17）**：`epoch` 递增＝强制全体重连，`permVersion` 递增＝仅重算权限不断连，两者不自动联动，由 `internal/admin.controller.ts` 分别触发；语义对照表见 §7、值定义见 §2.1/§2.2；ADR-0029 补注"ticket 不携带 epoch，epoch 校验在 Room 侧"（由总编排回写 `30-architecture/adr/0029`） |
-| G-10 | `08-backend-nestjs.md` §5 `permissions` 表 | `principal_type` 枚举含 `'group'`，但全部架构文档未定义 `groups` 表/`Group` 聚合 | **已结案（2026-09-19，rulings §4.12 U-11）**：M3 即实现组管理——新增 `Group`/`GroupMember` 聚合（§2.1）、`GroupRepository`（§2.5）、`groups` 模块（§4.10/§5.10）、`groups`/`group_members` 表（架构 08 §5）；`principal_type='group'` 从"保留不可达"变为可达（§2.6 grant/revoke-permission 用例） |
+| G-10 | `08-backend-nestjs.md` §5 `permissions` 表 | `principal_type` 枚举含 `'group'`，但全部架构文档未定义 `groups` 表/`Group` 聚合 | **已结案（2026-09-19，rulings §4.12 U-11）**：M3 即实现组管理——新增 `Group`/`GroupMember` 聚合（§2.1）、`GroupRepository`（§2.5）、`groups` 模块（§4.10/§5.10）、`groups`/`group_members` 表（架构 08 §5）；`principal_type='group'` 从"保留不可达"变为可达（§2.6 grant/revoke-permission 用例）。**2026-09-24 重新打开并改判（rulings §4.15 Q6）**：组管理推迟，`groups` 模块与两表撤回，`principal_type='group'` 回到「保留扩展位、不可写入」；`'tenant'` 取值删除（T-0） |
 | G-11 | `08-backend-nestjs.md` §2 `cordis-host.service.ts` | 现有方法只有 `openUnit`/`closeUnit`/`diagnostics()`，未提供通用 `ctx.<name>` 读取面；本文档 §4.7/§7 假设新增读取面供 `StorageModule` 读 `ctx.blobStore` | 建议 M-09 定案具体方法签名（`getService<T>(name)` 或专用 `get blobStore()`），登记于 §13 Q-5；**已结案：M-09 §5.3 定为 `getService<T>(name)` / `diagnostics()`（2026-09-19 回填）** |
-| G-12 | module-map §7 M-08 行"预计文件数量级 80–100" | 本文档实际 136 个文件（9 个 Nest 模块 117（原 130 版本的 111 + 本次评审回写新增 6 个：`auth/application/register-personal-account.usecase.ts`、`share-links/interface/guards/share-link-access.guard.ts` 与其单测、`documents/application/schedule-purge.usecase.ts`、`permissions/application/purge-document-permissions.usecase.ts`、`media/application/purge-document-media.usecase.ts`，rulings §4.13 S-1/S-2，2026-09-21）+ `server-storage` 19，§4/§5 树表两侧计数一致） | 差值主要来自 DDD 五分法对 `auth`/`media`/`permissions` 三个安全关键路径的单一职责细分，以及 `server-storage` 作为真实可发布包需要完整 `index/plugin/config/contribution/errors/testing` 骨架（对齐 M-02 同级包颗粒度）；`groups` 模块（U-11 新增）与本次评审新增的 6 个 purge/guard/注册用例文件（S-1/S-2）进一步扩大差值；不建议为凑数量合并本应分离的安全校验文件，记录差异供总编排知悉 |
-| G-13 | module-map §9 机械约束映射（BC-18…26 行只列 `server-app-thin` 一条） | 本文档 §8 需要"文档类型字面量零出现"的机械保证，但现有 13 个扫描器（M-01 §9）未覆盖服务端 | 建议 M-01 追加扫描器 `no-doc-type-literals-server`（对 `apps/server/src/modules/**` 做与浏览器侧 `no-doc-type-literals` 同语义的字面量扫描） |
-| G-14 | `08-backend-nestjs.md` §9.1"多租户：所有查询以 `tenant_id` 限定（repository 层强制参数）" | 该约束目前只是文字表述，未指定由哪个扫描器机械验证 | 建议 M-01 追加扫描器 `repo-requires-tenant-id`（静态检查本模块七个 `*.repository.ts` 的每个公共方法签名含 `tenantId` 参数，含新增 `GroupRepository`，rulings §4.12 U-11） |
+| G-12 | module-map §7 M-08 行"预计文件数量级 80–100" | 本文档实际 **116** 个文件（7 个 Nest 模块 97 + `server-storage` 19，§4/§5 树表两侧计数一致；2026-09-24 回写前为 137 = Nest 118 + 19，原文「136」为旧计数笔误）。2026-09-24 变更（rulings §4.15）：删 `tenants/` 11 个、`groups/` 13 个、`auth/application/register-personal-account.usecase.ts` 1 个；增 `auth/interface/guards/platform-admin.guard.ts`、`users/domain/user-identity.ts`、`media/domain/quota-policy.ts`（自 tenants 迁入）、`permissions/infrastructure/rls-context.ts` 4 个；`users/` 两个用例与一个单测改名（不计增减）；净 −21 | 差值主要来自 DDD 五分法对 `auth`/`media`/`permissions` 三个安全关键路径的单一职责细分，以及 `server-storage` 作为真实可发布包需要完整骨架（对齐 M-02 同级包颗粒度）；不建议为凑数量合并本应分离的安全校验文件，记录差异供总编排知悉 |
+| G-13 | module-map §9 机械约束映射（BC-18…26 行只列 `server-app-thin` 一条） | 本文档 §8 需要"文档类型字面量零出现"的机械保证，但现有扫描器（M-01 §9；2026-09-24 起为 14 个，第 14 个为 `doc-access-via-permission`，rulings §4.17 D3）未覆盖服务端文档类型字面量 | 建议 M-01 追加扫描器 `no-doc-type-literals-server`（对 `apps/server/src/modules/**` 做与浏览器侧 `no-doc-type-literals` 同语义的字面量扫描） |
+| G-14 | `08-backend-nestjs.md` §9.1"多租户：所有查询以 `tenant_id` 限定（repository 层强制参数）" | 该约束目前只是文字表述，未指定由哪个扫描器机械验证 | 建议 M-01 追加扫描器 `repo-requires-tenant-id`（静态检查本模块七个 `*.repository.ts` 的每个公共方法签名含 `tenantId` 参数，含新增 `GroupRepository`，rulings §4.12 U-11）。**2026-09-24 覆盖（rulings §4.15 T-0）**：无租户即无 `tenantId` 可强制；扫描器改为 `doc-access-via-permission`（以 `docId` 为键的仓储公共方法首参须为 `DocAccess`/`SystemContext`），另增 `check-rls-coverage`，二者由 M-01 落地（见 §10） |
 | G-15（U-04 落地） | `40-modules/11` §12 G-8、§13 Q-6；用户裁决 rulings §4.12 U-04 | 开始页「最近 / 固定」M2 曾只做本地 IndexedDB，服务端同步推迟到 M3 | **已落地（2026-09-19）**：documents 模块 M2 新增 `list-recent.usecase.ts`/`pin-document.usecase.ts`（§2.6/§4.4/§5.4）与 REST 端点 `GET /documents?filter=recent`/`PATCH /documents/:id{pinned}`（§6）；`rest/documents.ts` 的 `recent`/`pinned` 字段由本模块落地，M-02 §4.3 目录树待同步补注；M-11 §11 M2 切片、§12 G-8、§13 Q-6 已同步回写为「M2 服务端同步，IndexedDB 仅离线缓存」 |
-| G-16（U-11 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-11 | `permissions.principal_type='group'` 缺 Group 聚合（G-10） | **已落地（2026-09-19）**：新增 `groups` Nest 模块（BC-18，七个 library 模块之一）——聚合 `Group`/`GroupMember`（§2.1）、值对象 `GroupId`（§2.2）、仓储 `GroupRepository`（§2.5）、用例创建/重命名/删除组 + 增删成员（§2.6）、目录树与文件表 §4.10/§5.10（13 个文件）、REST 端点（§6）、M3 交付切片（§11）；`permissions/application/{grant,revoke}-permission.usecase.ts` 新增对 `GroupRepository` 的存在性校验（§2.6/§5.5）；`rest/groups.ts` 由 M-02 §4/§5 补目录树行（G-7 同步扩为五个缺失文件）；架构 `08-backend-nestjs.md` §5 补 `groups`/`group_members` 两表；PRD `03-collaboration.md` CO-04、`05-milestones-and-scope.md` M3 同步 |
-| G-17（评审 §3.1 落地） | `40-modules/15` §3.1（严重）；rulings §4.13 同时确认段 | `GroupRepository.findById` 不带 `tenantId`，`grant-permission` 校验组存在性时无法核对跨租户，构成跨租户越权风险 | **已落地（2026-09-21）**：`findById` 签名改为 `findById(tenantId,groupId)`（§2.5）；`grant-permission`/`revoke-permission` 用例校验 `principalType='group'` 时同步核对 `tenantId`（§2.6）；`group.repository.ts` 文件行同步（§5.10） |
+| G-16（U-11 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-11 | `permissions.principal_type='group'` 缺 Group 聚合（G-10） | **已落地（2026-09-19）**：新增 `groups` Nest 模块（BC-18，七个 library 模块之一）——聚合 `Group`/`GroupMember`（§2.1）、值对象 `GroupId`（§2.2）、仓储 `GroupRepository`（§2.5）、用例创建/重命名/删除组 + 增删成员（§2.6）、目录树与文件表 §4.10/§5.10（13 个文件）、REST 端点（§6）、M3 交付切片（§11）；`permissions/application/{grant,revoke}-permission.usecase.ts` 新增对 `GroupRepository` 的存在性校验（§2.6/§5.5）；`rest/groups.ts` 由 M-02 §4/§5 补目录树行（G-7 同步扩为五个缺失文件）；架构 `08-backend-nestjs.md` §5 补 `groups`/`group_members` 两表；PRD `03-collaboration.md` CO-04、`05-milestones-and-scope.md` M3 同步。**2026-09-24 撤回（rulings §4.15 Q6：组管理推迟，M3 只按人分享）**：本行落地内容全部移除（§4.10/§5.10 置为已删除占位） |
+| G-17（评审 §3.1 落地） | `40-modules/15` §3.1（严重）；rulings §4.13 同时确认段 | `GroupRepository.findById` 不带 `tenantId`，`grant-permission` 校验组存在性时无法核对跨租户，构成跨租户越权风险 | **已落地（2026-09-21）**：`findById` 签名改为 `findById(tenantId,groupId)`（§2.5）；`grant-permission`/`revoke-permission` 用例校验 `principalType='group'` 时同步核对 `tenantId`（§2.6）；`group.repository.ts` 文件行同步（§5.10）。**2026-09-24 失效（rulings §4.15 T-0）**：无租户、无组，`GroupRepository` 已随 `groups/` 删除 |
 | G-18（评审 §3.4 落地） | `40-modules/15` §3.4（有问题）；rulings §4.13 同时确认段 | `documents.head_seq`/`epoch` 仅靠代码约定（注释）隔离多写者，非编译期强制 | **已落地（2026-09-21）**：`DocumentRepository` 的 `updateMeta`/`softTrash`/`restore`/`setStatus` 入参类型收紧为 `Omit<Document,'headSeq'\|'epoch'>`（§2.1/§2.5/§7）；架构 `08-backend-nestjs.md` 未改 SQL（该约束是类型层面，非 schema 变更） |
-| G-19（S-1 落地） | `40-modules/15` §3.2（严重）；rulings §4.13 S-1 | `ShareLink` 声称"免登录"但无匿名鉴权路径，`Principal.kind='shareLink'` 有声明无实现 | **已落地（2026-09-21）**：**不做匿名**——`share-links` 新增 `ShareLinkGuard`（`interface/guards/share-link-access.guard.ts`）把链接角色叠加到已登录 Principal，不产出匿名 Principal（§2.6/§3/§4.6/§5.6/§6）；`Principal.kind` 移除 `'shareLink'` 字面量（§1.2）；`auth` 新增 `register-personal-account.usecase.ts`（个人账号自助注册，`tenantId=null`，不开放租户自助创建，与 U-10 不冲突，§2.6/§4.1/§5.1/§6）；每次外部访问写 `share-link.accessed` 审计（§2.4）；PRD `03-collaboration.md` CO-15「免登录」措辞由另一回写员同步改为「登录后凭链接即得角色」；ADR-0029 补一节（由本回写员同步） |
+| G-19（S-1 落地） | `40-modules/15` §3.2（严重）；rulings §4.13 S-1 | `ShareLink` 声称"免登录"但无匿名鉴权路径，`Principal.kind='shareLink'` 有声明无实现 | **已落地（2026-09-21）**：**不做匿名**——`share-links` 新增 `ShareLinkGuard`（`interface/guards/share-link-access.guard.ts`）把链接角色叠加到已登录 Principal，不产出匿名 Principal（§2.6/§3/§4.6/§5.6/§6）；`Principal.kind` 移除 `'shareLink'` 字面量（§1.2）；`auth` 新增 `register-personal-account.usecase.ts`（个人账号自助注册，`tenantId=null`，不开放租户自助创建，与 U-10 不冲突，§2.6/§4.1/§5.1/§6）；每次外部访问写 `share-link.accessed` 审计（§2.4）；PRD `03-collaboration.md` CO-15「免登录」措辞由另一回写员同步改为「登录后凭链接即得角色」；ADR-0029 补一节（由本回写员同步）。**2026-09-24 部分覆盖（rulings §4.15 Q6）**：「不做匿名 + 叠加角色 + 访问审计」保留；`register-personal-account.usecase.ts` 与 `/auth/register-personal` 撤回——服务端不持有密码，注册在 IdP，由 `auth.selfSignup`（默认关）决定是否开放，首次登录 JIT 建号 |
 | G-20（S-2 落地） | `40-modules/15` §3.3（严重）；rulings §4.13 S-2 | SV-11 硬删除级联与 GDPR 擦除无模块归属，若无人分配易被实现为跨模块直接 `DELETE` | **已落地（2026-09-21，M-08 部分）**：采用编排式（choreography）——`documents/application/schedule-purge.usecase.ts` 发起（`status→purging`，30 天宽限期满或 GDPR 擦除触发）；`permissions/application/purge-document-permissions.usecase.ts` 清 `permissions`/`document_perm_versions`；`media/application/purge-document-media.usecase.ts` 清 `document_media`（§2.6/§4.4/§4.5/§4.8/§5.4/§5.5/§5.8/§7）；M-09（`server-collab` 契约 `purgeAll(docId)`）与 M-12（`thumbnails`/`comments` purge 用例）由对应回写员落地；`share_links` 表本轮已纳入（由 `share-links/application/purge-document-share-links.usecase.ts` 订阅编排事件清理，不经 DocumentsModule 直接调用）编排，已知缺口见 §7 边界表末段（依赖方向限制：本模块内无模块反向依赖 `ShareLinksModule`） |
+| G-21（§4.15 落地） | `08-backend-nestjs.md` §5/§9.1、ADR-0029、PRD `06-server-and-ops.md` SV-06/SV-08 | 架构与 PRD 仍按多租户描述（`tenants` 表、`tenant_id` 列、租户配额、租户管理员、按租户隔离） | **已落地于本文件（2026-09-24，T-0/Q6）**；建议总编排同步：08-backend §5 删 `tenants`/`groups`/`group_members` 表与各表 `tenant_id`，新增 `user_identities`，§9.1 改为「按文档读写须经权限服务 + 文档级 RLS」；ADR-0029 claims 删 `tid`；SV-08 配额改为部署配置 |
+| G-22（§4.15 落地） | `40-modules/01` 扫描器清单 | `repo-requires-tenant-id`（14 §4.2 N-6 曾拟采纳为扫描器）已失效；M-01 已以治理检查 `check-rls-coverage.ts` + `policy/rls-exceptions.json` 取代（RLS 覆盖面） | **已裁决（rulings §4.17 D3）**：代码层扫描器 `doc-access-via-permission` 登记为 M-01 第 14 个扫描器（以 `docId` 为键的仓储公共方法首参须为 `DocAccess`/`SystemContext`，§10）——RLS 是数据库兜底，本扫描器是应用层「按文档读写须经权限服务」的机械保证，二者互补 |
+| G-23（§4.15 落地） | `40-modules/02` §4.3 `@cordexjs/protocol` | `ids.ts` 的 `TenantId`、`rest/groups.ts`、`Principal.tenantId`、collab ticket `tid` 均已无消费方 | 建议 M-02 删除 `TenantId`/`tid`、撤回 `rest/groups.ts`，并新增 `rest/auth.ts` 的 `/auth/config` 响应 schema |
 
 ### 2026-09-18 收敛
 
@@ -967,20 +899,33 @@ pnpm --filter apps-server test:e2e -- media           # presign→commit→去�
 
 | S/评审 编号 | 裁定摘要 | 本文件落地位置 |
 |---|---|---|
-| S-1 | 分享链接不做匿名，链接角色叠加在已登录 Principal 上；无账号者走个人账号自助注册（与 U-10 不冲突）；每次外部访问写审计 | §1.2（`Principal`/`ShareLink` 定义）、§2.4（`share-link.accessed`）、§2.6（两条新用例）、§3（`AuthModule`/`ShareLinksModule` 行）、§4.1/§4.6、§5.1/§5.6、§6（新端点 + 守卫组合）、§12 G-19、§13 Q-8 结案 |
+| S-1 | 分享链接不做匿名，链接角色叠加在已登录 Principal 上；无账号者走个人账号自助注册（与 U-10 不冲突）；每次外部访问写审计 | §1.2（`Principal`/`ShareLink` 定义）、§2.4（`share-link.accessed`）、§2.6（两条新用例）、§3（`AuthModule`/`ShareLinksModule` 行）、§4.1/§4.6、§5.1/§5.6、§6（新端点 + 守卫组合）、§12 G-19、§13 Q-8 结案（→ 2026-09-24 rulings §4.15 Q6 覆盖：个人账号自助注册撤回，改 IdP + 首次登录 JIT） |
 | S-2（M-08 部分） | 文档硬删除与 GDPR 擦除采用编排式，"谁的表谁写" | §2.1（`purging` 状态）、§2.6（三条新用例）、§4.4/§4.5/§4.8、§5.4/§5.5/§5.8、§7（新边界段）、§12 G-20 |
-| 评审 §3.1（严重） | `GroupRepository.findById` 缺 `tenantId`，跨租户越权风险 | §2.5、§2.6（grant/revoke-permission 用例）、§5.10、§12 G-17 |
+| 评审 §3.1（严重） | `GroupRepository.findById` 缺 `tenantId`，跨租户越权风险 | §2.5、§2.6（grant/revoke-permission 用例）、§5.10、§12 G-17（→ 2026-09-24 rulings §4.15 覆盖：T-0 去租户 + U-11 推迟，本条失效） |
 | 评审 §3.4（有问题） | `documents.head_seq`/`epoch` 多写者仅靠约定隔离 | §2.1、§2.5、§7、§12 G-18 |
+
+### 2026-09-24 收敛
+
+> 总编排按 `00-charter/rulings-2026-09-14.md` §4.15（章程 §10 Q1–Q10 用户裁决）回写；与 §4.12 U-10/U-11、§4.13 S-1 跨租户措辞与「同时确认」段 `GroupRepository.findById` 补 `tenantId` 冲突处，以 §4.15 为准。
+
+| 编号 | 裁定摘要 | 本文件落地位置 |
+|---|---|---|
+| T-0 | 单组织、完全去租户：删除 `tenants` 模块与表、`tenantId` 字段、租户默认角色、租户配额、租户管理员、跨租户措辞；BC-18 改名「身份与会话」；平台管理员（部署级）保留 | 标题、§0、§1.1/§1.2、§2.1（ER 图重画）、§2.2–§2.6、§3、§4.2/§5.2（删除占位）、§6、§7、§9、§10、§11、§12 G-12/G-14/G-17/G-21–G-23、§13 Q-2 |
+| Q6 | 外置 OIDC、服务端不持有密码、首次登录 JIT（`users`+`user_identities`，`(issuer,subject)` 唯一）；`auth.selfSignup` 默认关；分享链接始终要求登录；文档级 RLS（M3 出口）+ 文档权限检查；集成方 JWT / API Key 降 M4；组管理（U-11）推迟 | §1.1/§1.2、§2.1、§2.6、§3、§4.1/§4.3/§4.5、§4.10/§5.10（删除占位）、§5.1/§5.3/§5.5、§6、§9、§10、§11、§12 G-7/G-10/G-16/G-19、§13 Q-3/Q-8 |
+| Q3（M-08 部分） | 文档擦除与「立即彻底删除」不等 TTL，立即硬删 | §1.1、§2.1、§2.6、§7 |
+| Q5（M-08 部分） | 配额数字取部署配置、完全可调 | §2.2、§2.6 |
+| Q10（M-08 部分） | 对象存储自托管默认 SeaweedFS（替换 MinIO，重跑 `runBlobStoreConformance`）；Redis 协议部署为 Valkey；PG 18 | §1.1、§2.5、§4.5/§4.9、§5.5/§5.9、§9、§11 |
 
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
 | Q-1 | ~~`ROLE_CAPABILITIES` 中 `doc.export`/`history.read` 下放至 `editor`（而非仅 `owner`）是否符合产品预期~~ **（结案，2026-09-19）** | **下放到 `editor`**（commenter/viewer 不可），维持本文档 §2.2 表格。**结案依据**：用户裁决 rulings §4.12 U-09，PRD `03-collaboration.md` CO-04 权限矩阵已核对一致 | `permissions/domain/role.ts`；`protocol/permissions/roles.ts` 运行时常量 |
-| Q-2 | ~~`create-tenant.usecase` 的调用权限范围（系统脚本 vs 公开自助注册）未定~~ **（结案，2026-09-19）** | **内部 / 管理脚本，M3**：不对外暴露公开注册 REST，公开自助注册留待产品化阶段。**结案依据**：用户裁决 rulings §4.12 U-10，PRD `06-server-and-ops.md` SV-06 已补一句 | `tenants.controller.ts` 路由是否注册；`TenantAdminGuard` 之上是否需要更高权限层 |
-| Q-3 | ~~`permissions.principal_type='group'` 无对应聚合/表（G-10）~~ **（结案，2026-09-19）** | **M3 即实现组管理**：新增 `Group` 聚合、`GroupRepository`、`groups` Nest 模块，`principal_type='group'` 变为可达。**结案依据**：用户裁决 rulings §4.12 U-11，落地见 §2.1/§2.2/§2.5/§2.6/§4.10/§5.10/§6/§11/§12 G-10、G-16 | `permissions/domain/permission.ts`；`groups/domain/group.ts`；架构 08 §5 `groups`/`group_members` 表 |
+| Q-2 | ~~`create-tenant.usecase` 的调用权限范围（系统脚本 vs 公开自助注册）未定~~ **（结案，2026-09-19）** | **内部 / 管理脚本，M3**：不对外暴露公开注册 REST，公开自助注册留待产品化阶段。**结案依据**：用户裁决 rulings §4.12 U-10，PRD `06-server-and-ops.md` SV-06 已补一句 | `tenants.controller.ts` 路由是否注册；`TenantAdminGuard` 之上是否需要更高权限层；**2026-09-24 覆盖（rulings §4.15 T-0）**：无租户，`create-tenant` 与 `tenants.controller.ts` 均删除，本问题不再存在 |
+| Q-3 | ~~`permissions.principal_type='group'` 无对应聚合/表（G-10）~~ **（结案，2026-09-19）** | **M3 即实现组管理**：新增 `Group` 聚合、`GroupRepository`、`groups` Nest 模块，`principal_type='group'` 变为可达。**结案依据**：用户裁决 rulings §4.12 U-11，落地见 §2.1/§2.2/§2.5/§2.6/§4.10/§5.10/§6/§11/§12 G-10、G-16 | `permissions/domain/permission.ts`；`groups/domain/group.ts`；架构 08 §5 `groups`/`group_members` 表；**2026-09-24 覆盖（rulings §4.15 Q6）**：组管理推迟，M3 只按人分享，`groups` 模块撤回 |
 | Q-4 | ~~`epoch` 字段与 `permVersion` 是否应合并或建立关联机制以支持"强制踢出/强制重连"~~（G-9）**（结案，2026-09-18）** | 不合并，各自独立演进：`epoch` 递增＝强制全体重连，`permVersion` 递增＝仅重算权限不断连，两者不自动联动。**结案依据**：跨模块评审 C-17 采纳本行推荐默认值并补齐"为什么不联动"的成文理由，见 §2.1/§2.2/§7 | `documents/domain/document.ts`；M-09 admin epoch 动作 |
 | Q-5 | `CordisHostService` 读取 `ctx.blobStore` 的确切方法签名未定（G-11） | `getService<T>(name: string): T` 通用读取面（对齐 `diagnostics()` 风格） | `storage/infrastructure/blob-store.accessor.ts`；M-09 `cordis-host.service.ts`；**已结案：M-09 §5.3 定为 `getService<T>(name)` / `diagnostics()`（2026-09-19 回填）** |
-| Q-6 | `rest/tenants.ts`/`rest/users.ts`/`rest/share-links.ts`/`rest/media.ts`/`rest/groups.ts` 五个 protocol 文件由谁创建（G-7；`groups.ts` 为 U-11 新增，已由总编排在 M-02 §4/§5 补齐） | M-08 实现期直接在 `@oce/protocol` 包内新增，事后知会 M-02 文档维护者补录 | `@oce/protocol` 目录结构；M-02 §4.3/§5.3 |
+| Q-6 | `rest/tenants.ts`/`rest/users.ts`/`rest/share-links.ts`/`rest/media.ts`/`rest/groups.ts` 五个 protocol 文件由谁创建（G-7；`groups.ts` 为 U-11 新增，已由总编排在 M-02 §4/§5 补齐） | M-08 实现期直接在 `@cordexjs/protocol` 包内新增，事后知会 M-02 文档维护者补录 | `@cordexjs/protocol` 目录结构；M-02 §4.3/§5.3；**2026-09-24**：收窄为 `users.ts`/`share-links.ts`/`media.ts` 三个（`tenants.ts`/`groups.ts` 撤回，§12 G-7） |
 | Q-7 | ~~本模块用例的"逆操作"多数标"需客户端重放"而非自动求逆，是否需要补充服务端操作日志以支持管理员"撤销误操作"~~ **（结案，2026-09-19，降至 M4）** | **M3 不做**，只靠 `audit_log` 人工核对 + 回收站兜底；服务端操作日志能力降至 M4。**结案依据**：用户裁决 rulings §4.12 U-12 | `documents`/`permissions` 应用层；M-12 审计范围 |
-| Q-8 | ~~`ShareLink` 声称"免登录"但无匿名鉴权路径：完全匿名（无 OIDC 账号）的访客如何先获得一个可供"折叠"link 角色的 `Principal`，ADR-0029 决策 6 与本文档 §1.2 均未定义（评审 40-modules/15 §3.2，严重）~~ **（结案，2026-09-21）** | **不支持匿名访问**：链接角色只叠加在**已登录** Principal 上（任意已登录账号，含其它租户用户）；无账号者先经 `auth` 模块个人账号自助注册（`tenantId=null`）取得 Principal 再兑现链接。`Principal.kind` 不新增 `'shareLink'`。**结案依据**：用户裁决 rulings §4.13 S-1，落地见 §1.2/§2.4/§2.6/§3/§4.1/§4.6/§5.1/§5.6/§6/§12 G-19；ADR-0029 同步补一节 | `share-links/interface/guards/share-link-access.guard.ts`；`auth/application/register-personal-account.usecase.ts` |
+| Q-8 | ~~`ShareLink` 声称"免登录"但无匿名鉴权路径：完全匿名（无 OIDC 账号）的访客如何先获得一个可供"折叠"link 角色的 `Principal`，ADR-0029 决策 6 与本文档 §1.2 均未定义（评审 40-modules/15 §3.2，严重）~~ **（结案，2026-09-21）** | **不支持匿名访问**：链接角色只叠加在**已登录** Principal 上（任意已登录账号，含其它租户用户）；无账号者先经 `auth` 模块个人账号自助注册（`tenantId=null`）取得 Principal 再兑现链接。`Principal.kind` 不新增 `'shareLink'`。**结案依据**：用户裁决 rulings §4.13 S-1，落地见 §1.2/§2.4/§2.6/§3/§4.1/§4.6/§5.1/§5.6/§6/§12 G-19；ADR-0029 同步补一节 | `share-links/interface/guards/share-link-access.guard.ts`；`auth/application/register-personal-account.usecase.ts`；**2026-09-24 覆盖（rulings §4.15 Q6）**：「个人账号自助注册」改为在 IdP 取得账号后首次登录 JIT 建号（服务端不持有密码），任意已登录用户凭链接得角色（单组织，无「其它租户」） |
+| Q-9（新增，2026-09-24） | `auth.selfSignup=false` 时是否需要服务端邀请表（邀请码 / 预登记邮箱）来限制 IdP 中「任意账号」首次登录即 JIT 建号 | **结案（rulings §4.17 D1）**：不需要——管理员在 IdP（Casdoor）建号，分享邀请只对已存在账号生效，没有账号提示联系管理员；服务端无 `pending_invitations` 表、邀请服务与邀请接口。IdP 是注册闸门；服务端只校验 `issuer` 受信；若共用企业 IdP 需收窄，另加部署配置 `auth.allowedEmailDomains`（留待实现期评估） | `users/application/provision-on-first-login.usecase.ts`；部署配置 |

@@ -1,4 +1,4 @@
-> 状态：操作手册 v0.1 | 负责：总编排 | 更新：2026-09-23
+> 状态：操作手册 v0.1 | 负责：总编排 | 更新：2026-09-23；2026-09-24（rulings §4.15 Q9：Node 26 基线、pnpm 11 安装方式、根目录命令一律 pnpm）
 
 # 换机器：把这个项目搬到另一台开发机
 
@@ -9,7 +9,8 @@
 | 需要 | 检查 | 缺了怎么办 |
 |---|---|---|
 | git | `git --version` | 系统自带或 `brew install git` |
-| Node 20+ | `node --version` | `brew install node` |
+| Node 26（项目基线，章程 D9） | `node --version` 应为 `v26.x` | 推荐 `fnm install 26`（fnm 读取仓库根 `.node-version`）；或 `brew install node@26`。注意 Node 25 起官方构建与 brew 安装的 Node 26 **都不带 corepack** |
+| pnpm 11（章程 D9 双锁） | `pnpm --version` 应与根 `package.json#packageManager` 一致 | `npm i -g pnpm@11.27.1`（在仓库目录之外执行），或 pnpm 官方安装脚本；corepack 只是可选渠道，不依赖它 |
 | Python 3 | `python3 --version` | 系统自带；评审站生成器另需 `markdown` 包 |
 | gh（可选） | `gh --version` | `brew install gh`，用于 `gh auth login` 配 GitHub 凭据 |
 
@@ -30,12 +31,12 @@ cd cordis-ppt-editor && git checkout ppt在线编辑器初始化
 
 ```bash
 # 旧机器
-git bundle create /tmp/oce.bundle --all
-scp /tmp/oce.bundle <user>@<host>:/tmp/
+git bundle create /tmp/cordex.bundle --all
+scp /tmp/cordex.bundle <user>@<host>:/tmp/
 
 # 新机器
 mkdir -p ~/orca/projects && cd ~/orca/projects
-git clone /tmp/oce.bundle cordis-ppt-editor
+git clone /tmp/cordex.bundle cordis-ppt-editor
 cd cordis-ppt-editor
 git remote set-url origin git@github.com:Xeonice/cordis-ppt-editor.git
 git checkout ppt在线编辑器初始化
@@ -94,19 +95,24 @@ scp ~/.claude/projects/-Users-A-orca-projects-cordis-ppt-editor/memory/*.md \
 
 ## 3. Node 依赖
 
+仓库根命令一律用 pnpm（章程 D9）：`devEngines` 设为 `onFail: error` 后，在仓库根执行 `npm`/`npx` 会直接失败；lockfile-guard 只允许根 `pnpm-lock.yaml`。
+
 ```bash
-cd docs/20-design/playground && npm install    # node_modules 约 221 MB，不入库
-npm run build                                   # 产物 dist/ 也不入库
-npm install -g playwright && npx playwright install chrome   # 供文档工具与截图校验
+# 根 workspace 就位后（playground 已纳入根 workspace，但不进 turbo 门禁）
+pnpm install                                        # 仓库根执行；node_modules 不入库
+pnpm --filter cordex-design-playground build           # 产物 dist/ 也不入库
+pnpm dlx playwright install chrome                  # 供文档工具与截图校验
 ```
+
+过渡期：根 workspace（M0 后半段「目录骨架 + 门禁」change）落地之前，`docs/20-design/playground/` 仍带自己的 `package-lock.json`，此时只能在该目录内用 `npm ci && npm run build`；根 workspace 落地时该 lockfile 删除，改用上面的 pnpm 命令。
 
 ## 4. 文档工具（`docs/_tools/`）
 
 ```bash
-python3 -m venv ~/.venv/oce && ~/.venv/oce/bin/pip install markdown
+python3 -m venv ~/.venv/cordex && ~/.venv/cordex/bin/pip install markdown
 python3 docs/_tools/validate-module.py docs/40-modules/0*.md docs/40-modules/1*.md
 node docs/_tools/mermaid-check.cjs docs/40-modules/*.md
-~/.venv/oce/bin/python docs/_tools/gen-review-site.py /tmp/review-site
+~/.venv/cordex/bin/python docs/_tools/gen-review-site.py /tmp/review-site
 ```
 
 ## 5. 不用迁的
@@ -120,5 +126,5 @@ node docs/_tools/mermaid-check.cjs docs/40-modules/*.md
 git log --oneline -1                          # 应为最新提交
 ls docs/40-modules/*.md | wc -l               # 应为 20
 ls ~/.claude/projects/<新目录名>/memory/*.md  # 应为 5 个
-node --version && npm --version
+node --version && pnpm --version     # v26.x / 与 packageManager 一致
 ```

@@ -1,4 +1,4 @@
-> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21 | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引
+> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引
 > 修订：按 `14-cross-module-review.md` §8 修订（R-01…R-24 全部落实，本次为回写员 R1 收敛）
 
 # 00 模块切分总图（DDD 限界上下文 × cordis 插件）
@@ -53,7 +53,7 @@ appsserver --> servercollab
 appsserver --> serverheadless
 ```
 
-怎么读：三条水平泳道对应原网格的「共享(iso)／前端(dom)／后端(node)」三行；节点标签沿用 L0…L8/LS 层号；本图共 26 个节点＝24 个按 `oce.layer` 计的水平层包＋`apps/web`/`apps/server` 两个组合根应用；`L7`/`L8` 没有 iso 包；箭头只画少量代表性依赖以示意铁律 3「只向下」，并非详尽依赖表，详尽依赖见各模块文档 §4/§10。
+怎么读：三条水平泳道对应原网格的「共享(iso)／前端(dom)／后端(node)」三行；节点标签沿用 L0…L8/LS 层号；本图共 26 个节点＝24 个按 `cordex.layer` 计的水平层包＋`apps/web`/`apps/server` 两个组合根应用；`L7`/`L8` 没有 iso 包；箭头只画少量代表性依赖以示意铁律 3「只向下」，并非详尽依赖表，详尽依赖见各模块文档 §4/§10。
 
 **垂直束网格图**
 
@@ -99,15 +99,15 @@ slideui --> uicore2
 
 | DDD 概念 | cordis / 本项目机制 | 在本项目中的具体落点（包/文件） |
 |---|---|---|
-| 限界上下文（Bounded Context） | 一组 cordis 插件/库包 + 其对外服务与贡献点边界 | §3 每个 BC 的「承载包」列；边界由 `package.json#oce.layer/bundle` + depcruise 规则机械划定 |
+| 限界上下文（Bounded Context） | 一组 cordis 插件/库包 + 其对外服务与贡献点边界 | §3 每个 BC 的「承载包」列；边界由 `package.json#cordex.layer/bundle` + depcruise 规则机械划定 |
 | 聚合（Aggregate） | `UnitScope` 内某个 `DocumentType` 的 `body`（归一化实体表）+ 操作它的 `commands`/`mutations` | `PresentationBody`（`packages/model-slide/src/model/body.ts`）、`fixture` body（`model-core/testing/fixture-document-type.ts`）；聚合根 = `DocumentStore.state()` 的顶层，聚合边界由 `DocumentType.invariants` 守护 |
 | 实体 / 值对象 | 归一化实体表的行（有 `id`）＝实体；`Fill`/`Color`/`Transform` 等 ＝值对象 | `model-slide/src/model/shape/*.ts`（实体）、`model-core/src/drawing/*.ts`（值对象，DrawingML 共享词汇） |
 | 领域事件（Domain Event） | cordis `Events` 声明（`ctx.emit`/`ctx.on`），域名固定为 `<域>/<动作>` | 各包 `*.contribution.ts` 的 `Events` 增强；权威登记表见章程 §5.5、架构 03 §3.6、10 §11 |
 | 仓储（Repository） | `DocumentStore` Definition（模型持久化）、`BlobStore` Definition（二进制持久化） | `model-core/src/store/store.ts`、`model-core/src/snapshot/blob-store.ts`；Provider＝`store-memory`/`store-yjs`、`server-storage` |
 | 应用服务（Application Service） | `commands` 服务（唯一执行入口）+ 各 UnitScope 服务（`ctx.slides`/`ctx.layout`/…） | `model-core/src/command/commands.service.ts`；各垂直束的 `*.service.ts` |
-| 防腐层（ACL） | `FormatCodec`（外部格式→模型）、Nest `filters`/`guards`（HTTP→内部错误模型）、`SceneProvider`（模型→渲染中性场景图） | `packages/ooxml-pptx/src/{import,export}/*`、`apps/server/src/common/filters/oce-exception.filter.ts`、`packages/slide-render/src/scene/slide-scene-provider.ts` |
-| 发布语言（Published Language） | `@oce/protocol` 的 zod schema（REST DTO / WS 帧 / 错误码 / 能力位） | `packages/protocol/src/**`；协同二进制信封见 06 §6 |
-| 共享内核（Shared Kernel） | `@oce/shared`（品牌类型/Result/断言，零领域知识）+ `model-core/src/drawing/`（DrawingML 运行时词汇，三种文档类型共用） | `packages/shared/src/**`、`packages/model-core/src/drawing/**` |
+| 防腐层（ACL） | `FormatCodec`（外部格式→模型）、Nest `filters`/`guards`（HTTP→内部错误模型）、`SceneProvider`（模型→渲染中性场景图） | `packages/ooxml-pptx/src/{import,export}/*`、`apps/server/src/common/filters/cordex-exception.filter.ts`、`packages/slide-render/src/scene/slide-scene-provider.ts` |
+| 发布语言（Published Language） | `@cordexjs/protocol` 的 zod schema（REST DTO / WS 帧 / 错误码 / 能力位） | `packages/protocol/src/**`；协同二进制信封见 06 §6 |
+| 共享内核（Shared Kernel） | `@cordexjs/shared`（品牌类型/Result/断言，零领域知识）+ `model-core/src/drawing/`（DrawingML 运行时词汇，三种文档类型共用） | `packages/shared/src/**`、`packages/model-core/src/drawing/**` |
 | 开放主机服务（Open Host Service） | `ContributionPoint`（`render.*`/`ui.*`/`core.*`）——任何插件可贡献，消费方按贡献点查表 | `engine-render.contribution.ts`、`ui-core/src/ui.contribution.ts` |
 | 客户方-供应方（Customer–Supplier） | 秩表「只向下」依赖：下游必须适配上游契约，上游对下游无感知 | 秩表见章程 §5.1；例：`model-slide`（客户）依赖 `model-core`（供应方） |
 | 遵奉者（Conformist） | 下游对上游契约无议价权、照单全收的依赖 | `ooxml-pptx` 对 `model-core.drawing` 词汇；`comments` 只读镜像对 `resources.comments.*` 事实源 |
@@ -148,12 +148,12 @@ slideui --> uicore2
 | BC-10 布局与度量引擎 | 文本度量器 | `TextMeasurer`、`LineBox`、`CaretMap`、字体回退表 |
 | BC-11 渲染管线与目标 | 场景、场景提供者、渲染目标、元素渲染器 | `DirtyRegion`/`DirtySet`、`StyleCache`、`Viewport`、命中测试 |
 | BC-12 幻灯片渲染 | 场景提供者（slide 实例化）、元素渲染器 | `SlideSceneProvider`、`LayerTemplateCache`、缩略图 Provider |
-| BC-13 设计系统 | — | 设计 token、shadcn 变量、OCE 扩展变量（`--glass-*`/`--layer-*` 等裸名，`--oce-*` 前缀已作废，见 R-07/C-22） | 
+| BC-13 设计系统 | — | 设计 token、shadcn 变量、Cordex 扩展变量（`--glass-*`/`--layer-*` 等裸名，`--cordex-*` 前缀已作废，见 R-07/C-22） | 
 | BC-14 UI基座 | 预设（隐含）、在场信息（覆盖层消费方） | `ui.*` 贡献点、`when` 子句、上下文键 |
 | BC-15 幻灯片UI | — | Ribbon 三级结构、母版缩略图窗格、放映模式 |
 | BC-16 预设装配 | 预设 | `PresetEntry`、`PresetReport`、`exclude`/`override` |
 | BC-17 应用壳 | — | 开始页、文档列表、账户菜单、`EditorPage` |
-| BC-18 身份与租户 | 角色、Integrator | `Principal`、`Tenant`、OIDC/PKCE |
+| BC-18 身份与会话 | 角色、Integrator、平台管理员 | `Principal`、`User`/`UserIdentity`、外置 IdP OIDC/PKCE、首次登录 JIT（2026-09-24 删 `Tenant`，rulings §4.15 T-0） |
 | BC-19 文档目录与权限 | 角色、Support Level（隐含于导出能力） | `ShareLink`、`RoleResolver`、`permVersion` |
 | BC-20 对象存储与媒体 | Blob 引用 | 内容寻址、预签名 URL、SVG 消毒 |
 | BC-21 协同网关与持久化 | Room、Session、Ticket、Update、Compaction、Repair | `RoomManager`、硬/软门禁、`FanoutBus`、`LeaseLock` |
@@ -182,7 +182,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L0，秩 0 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/kernel` |
+| 承载包 | `@cordexjs/kernel` |
 | cordis 形态 | host（提供 `createHost` 工厂）+ plugin（kernel 自身是函数插件，`provide=['contributions','errors','telemetry']`） |
 | 提供的服务 | `ctx.contributions`、`ctx.errors`、`ctx.telemetry`、`ctx.logger`（对 cordis 内建的结构化包装） |
 | 消费的服务 | 无（L0 最底层，只用 cordis 原生 `Context`/`Service`） |
@@ -203,7 +203,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L0，秩 0 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/shared` |
+| 承载包 | `@cordexjs/shared` |
 | cordis 形态 | library |
 | 提供的服务 | 无（非 cordis 服务，纯函数/类型导出） |
 | 消费的服务 | 无 |
@@ -224,7 +224,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L0，秩 0 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/protocol` |
+| 承载包 | `@cordexjs/protocol` |
 | cordis 形态 | library |
 | 提供的服务 | 无 |
 | 消费的服务 | 无 |
@@ -245,7 +245,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L0，秩 0 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/i18n` |
+| 承载包 | `@cordexjs/i18n` |
 | cordis 形态 | plugin（`provide=['i18n']`） |
 | 提供的服务 | `ctx.i18n` |
 | 消费的服务 | `ctx.contributions`（BC-01） |
@@ -266,7 +266,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L1，秩 10 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/model-core`、`@oce/store-memory`、`@oce/store-yjs` |
+| 承载包 | `@cordexjs/model-core`、`@cordexjs/store-memory`、`@cordexjs/store-yjs` |
 | cordis 形态 | definition（model-core：`DocumentStore`/`BlobStore`/`CommandDef`/`MutationDef` 等 Definition）+ provider（store-memory、store-yjs 均 `implements: ['store']`） |
 | 提供的服务 | `ctx.units`、`ctx.documentTypes`、`ctx.commands`、`ctx.formats`、`ctx.resources`、`ctx.migrations`、`ctx.permissions`；UnitScope 内：`ctx.store`、`ctx.history`、`ctx.selection` |
 | 消费的服务 | `ctx.contributions`、`ctx.errors`、`ctx.telemetry`（BC-01） |
@@ -287,7 +287,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | V-model，秩 15 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/model-slide` |
+| 承载包 | `@cordexjs/model-slide` |
 | cordis 形态 | plugin（主插件 `plugin.ts` 只读部分 + `editing.ts` 编辑子插件两段式加载，供 `preset-slide-viewer` 只加载前者） |
 | 提供的服务 | `ctx.slides`（UnitScope） |
 | 消费的服务 | `ctx.contributions`、`ctx.documentTypes`、`ctx.commands`（BC-05） |
@@ -308,7 +308,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L3，秩 30 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/ooxml-core` |
+| 承载包 | `@cordexjs/ooxml-core` |
 | cordis 形态 | library（无 `plugin.ts`，纯库供 ooxml-pptx 调用） |
 | 提供的服务 | 无（非 cordis 服务） |
 | 消费的服务 | 无（不依赖 cordis 运行时；类型依赖 BC-05 的 `model-core/drawing`） |
@@ -329,7 +329,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | V-codec，秩 35 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/ooxml-pptx` |
+| 承载包 | `@cordexjs/ooxml-pptx` |
 | cordis 形态 | plugin（`contribute core.format(pptxCodec)`） |
 | 提供的服务 | 无（能力经贡献点暴露，不 `provide` 独立服务） |
 | 消费的服务 | `ctx.contributions` |
@@ -350,7 +350,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L4，秩 40 |
 | 同构类 | iso（collab-core/collab-yjs/collab-transport-ws）+ dom（collab-offline-idb） |
 | 运行位置 | 浏览器 |
-| 承载包 | `@oce/collab-core`、`@oce/collab-yjs`、`@oce/collab-transport-ws`、`@oce/collab-offline-idb`（仅 `implements:['offlineStore']`，**不兼任** `BlobStore`；ADR-0033「后果」段该假设已驳回，见 R-03/C-30） |
+| 承载包 | `@cordexjs/collab-core`、`@cordexjs/collab-yjs`、`@cordexjs/collab-transport-ws`、`@cordexjs/collab-offline-idb`（仅 `implements:['offlineStore']`，**不兼任** `BlobStore`；ADR-0033「后果」段该假设已驳回，见 R-03/C-30） |
 | cordis 形态 | definition（collab-core）+ provider（collab-yjs `implements:['collab','presence']`；collab-transport-ws `implements:['collabTransport']`；collab-offline-idb `implements:['offlineStore']`） |
 | 提供的服务 | `ctx.collab`、`ctx.collabTransport`；UnitScope 内：`ctx.presence`；Unit 内可选 `offlineStore` |
 | 消费的服务 | `ctx.store`、`ctx.yjsBackend`（来自 BC-05 的 store-yjs）、`ctx.permissions`（BC-05）、`ctx.telemetry`（BC-01） |
@@ -371,7 +371,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L5，秩 50 |
 | 同构类 | iso |
 | 运行位置 | 两端 |
-| 承载包 | `@oce/engine-layout` |
+| 承载包 | `@cordexjs/engine-layout` |
 | cordis 形态 | definition + plugin（`provide=['layout']`） |
 | 提供的服务 | `ctx.layout` |
 | 消费的服务 | `ctx.contributions` |
@@ -392,7 +392,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L5，秩 50 |
 | 同构类 | iso（engine-render）+ dom（render-dom） |
 | 运行位置 | 浏览器（render-dom）；engine-render 契约两端可用（server-headless 依赖其 iso 部分） |
-| 承载包 | `@oce/engine-render`、`@oce/render-dom` |
+| 承载包 | `@cordexjs/engine-render`、`@cordexjs/render-dom` |
 | cordis 形态 | definition（engine-render，`provide=['render']`）+ provider（render-dom `implements: render.target:'dom'`） |
 | 提供的服务 | `ctx.render`（UnitScope） |
 | 消费的服务 | `ctx.layout`（BC-10）、`ctx.contributions` |
@@ -413,7 +413,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | V-render，秩 55 |
 | 同构类 | dom |
 | 运行位置 | 浏览器（服务端经 headless Chromium 加载同一份代码间接运行，不视为「服务端独立实现」） |
-| 承载包 | `@oce/slide-render`、`@oce/slide-render-chart` |
+| 承载包 | `@cordexjs/slide-render`、`@cordexjs/slide-render-chart` |
 | cordis 形态 | plugin（`contribute render.scene(slideSceneProvider)` + `render.element × N`） |
 | 提供的服务 | `ctx.thumbnails`（UnitScope） |
 | 消费的服务 | `ctx.render`、`ctx.layout`（BC-10/11）、`ctx.slides`（BC-06） |
@@ -429,12 +429,12 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 设计系统 |
-| 职责一句话 | 设计 token 的唯一事实源与生成的主题变量 CSS（shadcn 变量 + OCE 扩展变量 `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--oce-*` 前缀已作废，见 M-10/G-1、R-07），零 JS 运行时依赖 |
+| 职责一句话 | 设计 token 的唯一事实源与生成的主题变量 CSS（shadcn 变量 + Cordex 扩展变量 `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废，见 M-10/G-1、R-07），零 JS 运行时依赖 |
 | 核心聚合与实体 | `TokenSet`（三主题：light/dark/high-contrast）、`ThemeVarName` |
 | 所属层/层带、秩 | L7，秩 70 |
 | 同构类 | dom |
 | 运行位置 | 浏览器 |
-| 承载包 | `@oce/design` |
+| 承载包 | `@cordexjs/design` |
 | cordis 形态 | library（零依赖，无 `plugin.ts`） |
 | 提供的服务 | 无 |
 | 消费的服务 | 无 |
@@ -455,7 +455,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L7，秩 70 |
 | 同构类 | dom |
 | 运行位置 | 浏览器 |
-| 承载包 | `@oce/ui-core`、`@oce/ui-react` |
+| 承载包 | `@cordexjs/ui-core`、`@cordexjs/ui-react` |
 | cordis 形态 | definition（ui-core，`provide=['ui','shortcuts','theme']`）+ provider（ui-react 实现 `UiRenderer` Definition） |
 | 提供的服务 | `ctx.ui`、`ctx.shortcuts`、`ctx.theme` |
 | 消费的服务 | `ctx.commands`（BC-05）、`ctx.contributions`、`ctx.i18n`（BC-04）、`ctx.units`（BC-05） |
@@ -476,7 +476,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | V-ui，秩 75 |
 | 同构类 | dom |
 | 运行位置 | 浏览器 |
-| 承载包 | `@oce/slide-ui` |
+| 承载包 | `@cordexjs/slide-ui` |
 | cordis 形态 | plugin |
 | 提供的服务 | 无 |
 | 消费的服务 | `ctx.ui`、`ctx.shortcuts`（BC-14）、`ctx.render`（BC-11）、`ctx.slides`（BC-06）、`ctx.commands`（BC-05） |
@@ -497,7 +497,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | dom |
 | 运行位置 | 浏览器 |
-| 承载包 | `@oce/preset-slide`、`@oce/preset-slide-collab`、`@oce/preset-slide-viewer` |
+| 承载包 | `@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer` |
 | cordis 形态 | bundle |
 | 提供的服务 | 无（装配层不新增服务，只透传） |
 | 消费的服务 | 全部水平层服务 + BC-06/08/09/11/12/14/15 的服务（按 `plugins.ts` 清单挂载） |
@@ -529,19 +529,19 @@ slideui --> uicore2
 | doc-sheet 通用性 | generic（路由/账户/文档列表与文档类型无关；编辑器路由按 `documentType` 选择对应 preset） |
 | 主要 ADR | 0010（间接） |
 
-### BC-18 身份与租户
+### BC-18 身份与会话
 
 | 项 | 值 |
 |---|---|
-| 名称 | 身份与租户 |
-| 职责一句话 | OIDC 登录/回调/登出、会话 JWT / API Key、租户/用户/配额管理、协同 ticket 签发、组管理（M3 新增，rulings §4.12 U-11） |
-| 核心聚合与实体 | `Principal`、`Tenant`、`User`、`ApiKey`、Ticket claims、`Group`（M3 新增，rulings §4.12 U-11，详见 40-modules/08 §2.1） |
+| 名称 | 身份与会话（2026-09-24 由「身份与租户」改名：单组织、完全去租户，rulings §4.15 T-0；上下文总数不变，仍为 BC-01…BC-30） |
+| 职责一句话 | 外置 IdP 的 OIDC 登录/回调/登出（服务端不持有密码，compose 可选内置 Casdoor）、首次登录 JIT 建用户、会话 JWT、协同 ticket 签发、部署级平台管理员、`auth.selfSignup` 开关（默认关）；集成方签名 JWT / API Key 降 M4；租户管理删除（T-0），组管理推迟（U-11，Q6） |
+| 核心聚合与实体 | `Principal`、`User`、`UserIdentity`（`(issuer,subject)` 唯一）、`ApiKey`（M4）、Ticket claims（详见 40-modules/08 §2.1） |
 | 所属层/层带、秩 | L8，秩 80（Nest 模块本身） |
 | 同构类 | node |
 | 运行位置 | 服务端 |
-| 承载包 | `apps/server`（`modules/auth`、`modules/tenants`、`modules/users`、`modules/groups`（M3 新增，rulings §4.12 U-11）） |
-| cordis 形态 | library（纯 Nest Provider，非 cordis 插件——鉴权/租户 CRUD 不涉及 Definition/Provider 模式） |
-| 提供的服务 | 无 cordis 服务（REST：`/auth/*`、`/tenants/*`、`/users/*`、`/groups/*`（M3 新增，rulings §4.12 U-11）） |
+| 承载包 | `apps/server`（`modules/auth`、`modules/users`；2026-09-24 删 `modules/tenants`、`modules/groups`，rulings §4.15） |
+| cordis 形态 | library（纯 Nest Provider，非 cordis 插件——鉴权/用户 CRUD 不涉及 Definition/Provider 模式） |
+| 提供的服务 | 无 cordis 服务（REST：`/auth/*`、`/users/*`） |
 | 消费的服务 | 无（内部调用 Postgres/Redis 客户端） |
 | 提供的贡献点 | 无 |
 | 消费的贡献点 | 无 |
@@ -555,7 +555,7 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 文档目录与权限 |
-| 职责一句话 | 文档 CRUD/回收站/锁定、权限授予与撤销、`permVersion` 递增与广播、分享链接 |
+| 职责一句话 | 文档 CRUD/回收站/锁定、权限授予与撤销（M3 只按人）、`permVersion` 递增与广播、分享链接（始终要求登录）、文档级 Postgres RLS 会话上下文（M3 出口，rulings §4.15 Q6） |
 | 核心聚合与实体 | `Document`（聚合根）、`Permission`、`ShareLink`、`document_perm_versions` |
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | node |
@@ -576,12 +576,12 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 对象存储与媒体 |
-| 职责一句话 | `BlobStore` Definition 的服务端实现（S3/MinIO/本地）、内容寻址、预签名 URL、媒体上传提交校验、SVG 消毒 |
+| 职责一句话 | `BlobStore` Definition 的服务端实现（S3 协议——自托管默认 SeaweedFS，替换 MinIO，rulings §4.15 Q10——/本地）、内容寻址、预签名 URL、媒体上传提交校验、SVG 消毒 |
 | 核心聚合与实体 | `BlobRef`（与 BC-05 model-core 共用定义）、`MediaBlob` |
 | 所属层/层带、秩 | LS，秩 58（server-storage）；apps/server 模块本身 L8/秩 80 |
 | 同构类 | node |
 | 运行位置 | 服务端 |
-| 承载包 | `@oce/server-storage`、`apps/server`（`modules/storage`、`modules/media`） |
+| 承载包 | `@cordexjs/server-storage`、`apps/server`（`modules/storage`、`modules/media`） |
 | cordis 形态 | provider（server-storage `implements:['blobStore']`；唯一允许 import S3 SDK 的 server 包） |
 | 提供的服务 | `ctx.blobStore` |
 | 消费的服务 | 无 |
@@ -597,12 +597,12 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 协同网关与持久化 |
-| 职责一句话 | Nest `CollabGateway`（薄）+ `server-collab` `RoomManager`：房间/会话状态机、CRDT 硬/软门禁、update 追加持久化与压缩、awareness 广播、跨实例 Redis 扇出 |
+| 职责一句话 | Nest `CollabGateway`（薄）+ `server-collab` `RoomManager`：房间/会话状态机、CRDT 硬/软门禁、update 追加持久化与压缩、awareness 广播、跨实例 Redis 扇出（2026-09-24 rulings §4.15：S-3a PG 故障溢写期两级 ack——溢写 `ack{tier:'spill'}`、落库 `ack{seq,tier:'db'}`，seq 回放时由 PG 分配；Q3 墓碑 TTL 硬删除由服务端单写者执行；Q5 房间按文档实测权重准入、编辑者名额按用户计；跨实例扇出部署为 Valkey） |
 | 核心聚合与实体 | `Room`（聚合根，= 服务端 `Unit`）、`RoomSession`、`UpdateStore`/`SnapshotStore`（仓储 Definition） |
 | 所属层/层带、秩 | LS，秩 58（server-collab）；apps/server `collab` 模块本身 L8/秩 80 |
 | 同构类 | node |
 | 运行位置 | 服务端 |
-| 承载包 | `@oce/server-collab`、`apps/server`（`modules/collab`） |
+| 承载包 | `@cordexjs/server-collab`、`apps/server`（`modules/collab`） |
 | cordis 形态 | plugin（server-collab，`provide=['collabServer']`）+ provider（apps/server 的 `redis-fanout.bus.ts`/`redis-lease-lock.ts`/`pg-update-store.ts`/`pg-snapshot-store.ts`/`authz-source.ts` 以「Nest 模块目录内的 cordis 插件」形式实现 `FanoutBus`/`LeaseLock`/`UpdateStore`/`SnapshotStore`/`AuthorizationSource`，供 server-collab 消费） |
 | 提供的服务 | `ctx.collabServer` |
 | 消费的服务 | `ctx.units`、`ctx.store`、`ctx.yjsBackend`（经 preset-server 装配，来自 BC-05）、`ctx.telemetry`；消费 apps/server 提供的 `updateStore`/`snapshotStore`/`fanoutBus`/`leaseLock`/`authzSource` |
@@ -660,7 +660,7 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 缩略图 |
-| 职责一句话 | 缩略图 REST + 处理器，依赖 headless Chromium 渲染，版本判定与缓存头 |
+| 职责一句话 | 缩略图 REST + 处理器，依赖 headless Chromium 渲染，版本判定与缓存头（2026-09-24 rulings §4.15 Q8：M2 封面取包内 `docProps/thumbnail.jpeg`，只做头校验不解码、不用 sharp；M3 前半段 headless，按页内容哈希失效，D200 全量 ≤90 s；`source ∈ embedded/server/client`） |
 | 核心聚合与实体 | `Thumbnail`（`doc_id + slide_id + snapshot_seq`） |
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | node |
@@ -725,12 +725,12 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | Headless 渲染与批处理宿主 |
-| 职责一句话 | Node 中独立的 cordis 宿主（`createHeadlessHost`），加载与浏览器相同的 iso 插件做导入/导出/校验/迁移/diff；Node 字体度量 Provider；编排 headless Chromium 缩略图/PDF 渲染 |
+| 职责一句话 | Node 中独立的 cordis 宿主（`createHeadlessHost`），加载与浏览器相同的 iso 插件做导入/导出/校验/迁移/diff；Node 字体度量 Provider；编排 headless Chromium 缩略图/PDF 渲染（2026-09-24 rulings §4.15 Q8/Q10：Chromium 运行在独立零出站 renderer sidecar——非 root、开沙箱、无凭据、`CORDEX_ROLE=renderer`；支持 local 与 remote renderer 两种模式；PDF 导出 M3 后半段） |
 | 核心聚合与实体 | 无独立业务聚合（宿主本身）；`UnitRunner`（`withUnit` 生命周期封装） |
 | 所属层/层带、秩 | LS，秩 58 |
 | 同构类 | node |
 | 运行位置 | 服务端 |
-| 承载包 | `@oce/server-headless` |
+| 承载包 | `@cordexjs/server-headless` |
 | cordis 形态 | host（`createHeadlessHost`）+ provider（`layout.measurer:'node-font'`） |
 | 提供的服务 | 无新服务名（复用 BC-05/06/07/08 的服务；新增 `layout.measurer` Provider） |
 | 消费的服务 | `ctx.units`、`ctx.formats`、`ctx.migrations`（BC-05）；`ctx.layout`（BC-10）；`ctx.render`/`ctx.slides` 契约层（不加载 render-dom，只用于 headless Chromium 页面内的同构渲染代码路径） |
@@ -747,14 +747,14 @@ slideui --> uicore2
 |---|---|
 | 名称 | 工具链与治理 |
 | 职责一句话 | tsconfig 基线、ESLint 自定义规则、depcruise 规则生成器、api-extractor 配置、manifest-gen、十三个扫描器、policy 矩阵校验器、lefthook/CI、Changesets 配置 |
-| 核心聚合与实体 | 规范行（policy row，`TD-\d{3}`）、`oce` 字段 Schema |
+| 核心聚合与实体 | 规范行（policy row，`TD-\d{3}`）、`cordex` 字段 Schema |
 | 所属层/层带、秩 | 不参与运行时依赖图（无秩） |
 | 同构类 | node（构建期工具，不进入产物运行时） |
 | 运行位置 | 两端（以 CI/本地构建期身份对两端产物统一治理） |
 | 承载包 | `tooling/*` |
 | cordis 形态 | library（非 cordis 插件，是构建期工具） |
 | 提供的服务 | 无 cordis 服务 |
-| 消费的服务 | 读取全部包的 `package.json#oce` 字段与源码 AST（非服务调用） |
+| 消费的服务 | 读取全部包的 `package.json#cordex` 字段与源码 AST（非服务调用） |
 | 提供的贡献点 | 无 |
 | 消费的贡献点 | 无 |
 | 发布事件 | 无 |
@@ -772,7 +772,7 @@ slideui --> uicore2
 | 所属层/层带、秩 | 对应 V-model/V-codec/V-render/V-ui（秩 15/35/55/75）；`fixture` 现阶段寄居于 BC-05（秩 10）的 `testing/` 子路径 |
 | 同构类 | iso（`model-doc`/`model-sheet`）+ dom（`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`） |
 | 运行位置 | 两端 |
-| 承载包 | 现存：`@oce/model-core`（`testing/fixture-document-type.ts`）；M5 未来包（已在章程 §5.1 网格占位，非本文新提议）：`@oce/model-doc`、`@oce/ooxml-docx`、`@oce/doc-render`、`@oce/doc-ui`、`@oce/model-sheet`、`@oce/ooxml-xlsx`、`@oce/sheet-render`、`@oce/sheet-ui` |
+| 承载包 | 现存：`@cordexjs/model-core`（`testing/fixture-document-type.ts`）；M5 未来包（已在章程 §5.1 网格占位，非本文新提议）：`@cordexjs/model-doc`、`@cordexjs/ooxml-docx`、`@cordexjs/doc-render`、`@cordexjs/doc-ui`、`@cordexjs/model-sheet`、`@cordexjs/ooxml-xlsx`、`@cordexjs/sheet-render`、`@cordexjs/sheet-ui` |
 | cordis 形态 | plugin（`fixture` 现阶段；未来骨架同 `model-slide` 模式：主插件 + 可选 `editing` 子插件） |
 | 提供的服务 | 未来：`ctx.docs`/`ctx.sheets`（类比 `ctx.slides`） |
 | 消费的服务 | BC-05 全部水平层服务 |
@@ -903,26 +903,26 @@ bcaux2 -- "OHS 只调用" --> bc21
 | BC-06 幻灯片领域模型 | BC-12 幻灯片渲染 | Customer–Supplier | `slide-render/src/scene/slide-scene-provider.ts` | `slides` 只读服务 API |
 | BC-14 UI 基座 | BC-15 幻灯片 UI | Open Host Service（`ui.*` 贡献点） | `ui-core/src/ui.contribution.ts` | `ui.ribbon`/`ui.panel` 等 schema |
 | BC-05（commands） | BC-14 UI 基座 | Customer–Supplier | `model-core/src/command/commands.service.ts` | `commands.execute()` |
-| BC-13 设计系统 | BC-14/15/17 | Published Language | `design/theme.css` | shadcn 变量名、OCE 扩展变量（`--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--oce-*` 前缀已作废） |
+| BC-13 设计系统 | BC-14/15/17 | Published Language | `design/theme.css` | shadcn 变量名、Cordex 扩展变量（`--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废） |
 | BC-01/05/06/08/09/10/11/12/14/15（横向组合） | BC-16 预设装配 | Customer–Supplier（纯装配，不产生新语言） | `preset-slide/src/plugins.ts` | 全部 Definition/Provider 清单 |
 | BC-16 预设装配 | BC-17 应用壳 | Customer–Supplier | `apps/web/src/application/host/create-editor-host.ts` | `createSlidePreset(options)` 等工厂函数 |
 | BC-09 协同（客户端） | BC-21 协同网关与持久化 | **Published Language** | `protocol/src/collab/*.ts` | SYNC/AWARENESS/CONTROL 二进制信封 |
 | BC-19 文档目录与权限 | BC-21 协同网关与持久化 | Customer–Supplier（经 Redis） | `apps/server/src/modules/documents/permissions/role-resolver.ts` | 频道 `perm:doc:{id}`、`permVersion` |
 | BC-21 协同网关与持久化 | BC-22 快照与版本 | Conformist（快照 REST 依赖 server-collab 内部表结构） | `apps/server/src/modules/snapshots/*` | `document_snapshots` 表、`SnapshotEnvelope` |
 | BC-27 Headless 渲染与批处理宿主 | BC-23 导入导出与作业编排 | Open Host Service（`tasks` API） | `server-headless/src/tasks/{import-pptx,export-pptx}.ts` | `ImportResult`/导出 `bytes` |
-| BC-27 Headless 渲染与批处理宿主 | BC-24 缩略图 | Open Host Service | `server-headless/src/thumbnails/thumbnail-renderer.ts` | `PNG[]` |
+| BC-27 Headless 渲染与批处理宿主 | BC-24 缩略图 | Open Host Service | `server-headless/src/thumbnails/thumbnail-renderer.ts` | 缩略图 WebP 字节（640 px，Q8） |
 | BC-05（ResourceHook） | BC-25 评论 | Conformist（镜像读模型必须照单全收） | `apps/server/src/modules/comments/comments.service.ts` | `resources['slide-comments.threads']` |
 | BC-05（事件） | BC-26 审计与健康运维 | Customer–Supplier | `apps/server/src/common/interceptors/audit.interceptor.ts` | `command/audited`、`AuditRecord` |
 | BC-20 对象存储与媒体 | BC-19/23/24/09（本地缓存） | Open Host Service（`BlobStore`） | `server-storage/src/blob-store.ts` | `BlobRef`、`presignPut`/`presignGet` |
 | BC-21（server-collab）/BC-27（server-headless） | BC-18…26（Nest Module） | Open Host Service（只调用，不重实现业务逻辑） | `apps/server/src/cordis-host/cordis-host.service.ts` | `openUnit`/`closeUnit`/`diagnostics()` |
 | BC-06（bundle=slide） | BC-29（未来 bundle=doc/sheet） | **Separate Ways**（铁律 2 强制） | — | 无共享类型（除水平层 BC-02/05/07/10/11/13/14） |
-| BC-28 工具链与治理 | 全部包 | Open Host Service（治理执行点，非业务契约） | `tooling/depcruise/*`、`tooling/eslint-config/*` | `oce` 字段 schema、规范行 `TD-\d{3}` |
-| BC-25 评论 | BC-30 出站集成（Webhook） | Customer–Supplier（模块内，评论事件触发投递，2026-09-21 新增，rulings §4.13 S-5） | `apps/server/src/modules/comments/application/mirror-comment-change.usecase.ts` | `DeliverWebhookEventUseCase.enqueue(tenantId,event,payload)` |
-| BC-30 出站集成（Webhook） | 外部集成方（租户配置的 `targetUrl`） | Open Host Service / Published Language（2026-09-21 新增，rulings §4.13 S-4/S-5） | `apps/server/src/modules/webhooks/infrastructure/{webhook-signer,webhook-delivery.processor}.ts` | HMAC-SHA256 签名头 + 事件 payload JSON schema（`rest/webhooks.ts`） |
+| BC-28 工具链与治理 | 全部包 | Open Host Service（治理执行点，非业务契约） | `tooling/depcruise/*`、`tooling/eslint-config/*` | `cordex` 字段 schema、规范行 `TD-\d{3}` |
+| BC-25 评论 | BC-30 出站集成（Webhook） | Customer–Supplier（模块内，评论事件触发投递，2026-09-21 新增，rulings §4.13 S-5） | `apps/server/src/modules/comments/application/mirror-comment-change.usecase.ts` | `DeliverWebhookEventUseCase.enqueue(event,payload)`（2026-09-24 删 `tenantId`，rulings §4.15 T-0） |
+| BC-30 出站集成（Webhook） | 外部集成方（平台管理员注册的 `targetUrl`；2026-09-24 由「租户配置」改，T-0） | Open Host Service / Published Language（2026-09-21 新增，rulings §4.13 S-4/S-5） | `apps/server/src/modules/webhooks/infrastructure/{webhook-signer,webhook-delivery.processor}.ts` | HMAC-SHA256 签名头 + 事件 payload JSON schema（`rest/webhooks.ts`） |
 
 ### 4.2 五个必须明确的边界
 
-1. **protocol 是前后端的 Published Language**：`@oce/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源；REST controller 的 `@Body()`、WS 帧编解码、错误码枚举全部只能引用 `z.infer<typeof X>`（`X` 来自 protocol），任何一方不得私自定义跨进程 DTO（08 §11、09-03 §3.3）——这条铁律同样覆盖 **Node 进程 ↔ headless Chromium 渲染页** 的契约（`RenderPageProtocol`），故 `render-page-protocol.ts` 须上移至 `protocol/src/render/page.ts`，由 M-09 与 M-11 共同 import（R-13/C-27）。
+1. **protocol 是前后端的 Published Language**：`@cordexjs/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源；REST controller 的 `@Body()`、WS 帧编解码、错误码枚举全部只能引用 `z.infer<typeof X>`（`X` 来自 protocol），任何一方不得私自定义跨进程 DTO（08 §11、09-03 §3.3）——这条铁律同样覆盖 **Node 进程 ↔ headless Chromium 渲染页** 的契约（`RenderPageProtocol`），故 `render-page-protocol.ts` 须上移至 `protocol/src/render/page.ts`，由 M-09 与 M-11 共同 import（R-13/C-27）。
 2. **codec（ooxml-pptx）是 OOXML 与领域模型之间的 ACL**：外部世界（PowerPoint 产出的 `.pptx`）的命名空间、id 分配、Strict/Transitional 差异全部在 `ooxml-pptx` 内被翻译为 `model-slide` 的归一化实体表；`model-slide` 从不出现 XML 类型，`ooxml-core`（BC-07）从不出现 `slide` 字面量——ACL 严格单向（04 §4/§5）。
 3. **collab（BC-09）与 store-yjs（BC-05 内）的关系**：`store-yjs` 拥有 Y.Doc 并通过 `yjsBackend` 服务暴露**受控**的编解码面（`encodeStateAsUpdate`/`applyUpdate`/`onUpdate`），`collab-yjs` 只消费这个服务面、从不直接触碰 `Y.*` 类型（api-extractor 基线守护，06 §2.3）；因此「文档内核」与「协同」是两个不同的限界上下文，即使物理上共享同一个 Y.Doc 实例。
 4. **render（BC-11/12）与 model（BC-06）的关系（对幻灯片无知如何做到）**：`engine-render`/`render-dom`（BC-11）只认识 `Scene`/`SceneNode{kind, bbox, transform, data}`，对 `slide` 一词一无所知；`slide-render`（BC-12）是唯一知道两边语言的适配层——它读 `slides` 服务（BC-06 的语言）产出 `Scene`（BC-11 的语言），`ChangeSet.touched` 到 `DirtySet` 的映射也由它完成。这使得未来 `doc-render`/`sheet-render` 可以在**不改**BC-11 一行代码的前提下接入。
@@ -963,11 +963,11 @@ storememory -. "store" .-> storeyjs
 memoryblobstore -. "BlobStore" .-> serverstorage
 ```
 
-怎么读：三个进程之间的实线只经 `@oce/protocol` 传递（REST／WS／RenderPageProtocol）；虚线连接同一个 Definition 在两端的不同 Provider，表示同名契约的两种实现，不是网络调用。
+怎么读：三个进程之间的实线只经 `@cordexjs/protocol` 传递（REST／WS／RenderPageProtocol）；虚线连接同一个 Definition 在两端的不同 Provider，表示同名契约的两种实现，不是网络调用。
 
 | 上下文 | 浏览器进程 | Node 服务端 | 两端共享（iso） |
 |---|---|---|---|
-| BC-01 内核与插件运行时 | 运行 | 运行 | ✓ 唯一实现，两端复用同一份 `@oce/kernel` |
+| BC-01 内核与插件运行时 | 运行 | 运行 | ✓ 唯一实现，两端复用同一份 `@cordexjs/kernel` |
 | BC-02 共享基础设施 | 运行 | 运行 | ✓ |
 | BC-03 协议与发布语言 | 运行（生成/校验 DTO） | 运行（生成/校验 DTO） | ✓ |
 | BC-04 国际化 | 运行 | 运行（服务端极少用，`server-headless` 诊断信息可选启用） | ✓ |
@@ -995,16 +995,16 @@ memoryblobstore -. "BlobStore" .-> serverstorage
 |---|---|---|---|
 | `DocumentStore`（`store`） | `store-memory`（默认/查看器）或 `store-yjs`（协同） | `store-yjs`（`server-collab` 用，Room 即 Unit）或 `store-memory`（`server-headless` 校验/迁移任务用） | 两个 Provider 本身都是 `iso`，「哪端用哪个」取决于**用途**（是否需要 CRDT）而非运行环境本身 |
 | `layout.measurer`（`TextMeasurer`） | `render-dom` 的 canvas 度量（`OffscreenCanvas.measureText`） | `server-headless` 的 `node-font`（Node 解析字体文件，标注「近似一致」）；**headless Chromium 渲染路径下仍用 canvas 度量**（因为 Chromium 本身是浏览器） | `node-font` 只用于服务端不启动 Chromium 的路径（如纯校验、`spAutoFit` 重排） |
-| `BlobStore` | `MemoryBlobStore`（`model-core/testing`，仅测试/默认） | `ServerBlobStore`（`server-storage`：S3/MinIO/本地） | 浏览器侧没有持久 `BlobStore` Provider——媒体经 CRDT 只存 `BlobRef`，字节由服务端持有；`collab-offline-idb` 是 `OfflineStore` 而非 `BlobStore`，二者不可混淆 |
+| `BlobStore` | `MemoryBlobStore`（`model-core/testing`，仅测试/默认） | `ServerBlobStore`（`server-storage`：S3 协议〔自托管默认 SeaweedFS，§4.15 Q10〕/本地） | 浏览器侧没有持久 `BlobStore` Provider——媒体经 CRDT 只存 `BlobRef`，字节由服务端持有；`collab-offline-idb` 是 `OfflineStore` 而非 `BlobStore`，二者不可混淆 |
 
 ### 5.2 应用壳（apps/web）与 SDK 的边界
 
 - **只能在应用壳**：登录页与 OIDC 回调、文档列表页、账户菜单、路由结构与品牌替换点、`/render` headless 渲染页的宿主 HTML；这些是「应用自身的页面」，章程 R2/rulings §4.3「设计-2」明确允许其存在。
-- **必须在 SDK（`packages/*`）**：任何命令/模型/协同/渲染逻辑；Ribbon、缩略图侧栏、检查器、放映模式等编辑器内部 UI 属于 `slide-ui`（BC-15），**不得**下沉进 `apps/web`；`apps/web` 只在 `application/host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`，是仓库中唯一「知道插件存在」的应用代码（02 §3.1）。`apps/*` 可 import L7 呈现层组件（`@oce/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是「只 import preset」（R-14）。
+- **必须在 SDK（`packages/*`）**：任何命令/模型/协同/渲染逻辑；Ribbon、缩略图侧栏、检查器、放映模式等编辑器内部 UI 属于 `slide-ui`（BC-15），**不得**下沉进 `apps/web`；`apps/web` 只在 `application/host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`，是仓库中唯一「知道插件存在」的应用代码（02 §3.1）。`apps/*` 可 import L7 呈现层组件（`@cordexjs/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是「只 import preset」（R-14）。
 
 ### 5.3 服务端 Nest 模块与内嵌 cordis 宿主 `preset-server` 的边界
 
-Nest 模块（BC-18/19/20/22/23/24/25/26）只做传输、校验、鉴权、限流、审计——不得出现 `import '@oce/model-*'`/`'yjs'`（depcruise `server-app-thin`，02 §3.2）；全部业务逻辑经 `preset-server`（08 §4.2：kernel 基础服务 Provider + model-core + store-yjs + model-slide + ooxml-core/pptx + engine-layout + server-collab + server-storage + server-headless）装配的 cordis 宿主完成。**进程间契约全部经 `@oce/protocol`**（§4.2 第 1 条），浏览器与服务端不存在任何绕开 protocol 的私有通道。
+Nest 模块（BC-18/19/20/22/23/24/25/26）只做传输、校验、鉴权、限流、审计——不得出现 `import '@cordexjs/model-*'`/`'yjs'`（depcruise `server-app-thin`，02 §3.2）；全部业务逻辑经 `preset-server`（08 §4.2：kernel 基础服务 Provider + model-core + store-yjs + model-slide + ooxml-core/pptx + engine-layout + server-collab + server-storage + server-headless）装配的 cordis 宿主完成。**进程间契约全部经 `@cordexjs/protocol`**（§4.2 第 1 条），浏览器与服务端不存在任何绕开 protocol 的私有通道。
 
 ---
 
@@ -1088,13 +1088,13 @@ l5 -.-> renderscene{"render.scene"}
 
 ### 6.4 必须零改动的水平层文件
 
-按 12 §4.4「冻结层」机制：`tooling/scripts/scan-horizontal-freeze.ts`（路径遵 09-06 的 `scripts/` 落点；**当前仅骨架占位**，不计入「十三个扫描器缺一不可」，正式纳入需追加 09-06 §18，见 `40-modules/01` §13 Q-01、R-17）对**全部无 `oce.bundle` 字段的包**（即上表 generic 分类的 BC-01/02/03/04/05/07/09/10/11/13/14/18…23/26/27/28 对应的全部 `src/**`，排除 `__tests__/`）计算内容哈希并写入 `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**，确需改动须附 ADR 并显式更新锁文件。
+按 12 §4.4「冻结层」机制：`tooling/scripts/scan-horizontal-freeze.ts`（路径遵 09-06 的 `scripts/` 落点；**当前仅骨架占位**，不计入「十三个扫描器缺一不可」，正式纳入需追加 09-06 §18，见 `40-modules/01` §13 Q-01、R-17）对**全部无 `cordex.bundle` 字段的包**（即上表 generic 分类的 BC-01/02/03/04/05/07/09/10/11/13/14/18…23/26/27/28 对应的全部 `src/**`，排除 `__tests__/`）计算内容哈希并写入 `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**，确需改动须附 ADR 并显式更新锁文件。
 
 ### 6.5 扩展验收口径（引用 12 §4/§5）
 
 | 层 | 检查 | 机制 |
 |---|---|---|
-| 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `oce-doc-type-blind`；lint `no-doc-type-literals`（12 §4.1） |
+| 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `cordex-doc-type-blind`；lint `no-doc-type-literals`（12 §4.1） |
 | 夹具层 | `fixture` 文档类型（BC-29 现存部分）验证水平层可被非 slide 类型驱动 | `model-core/testing/fixture-document-type.ts`（12 §4.2） |
 | 运行时层 | 同时打开 `fixture` 与 `fixture-grid`（模拟 sheet）互不干扰；移除类型后打开返回 **`format.no_document_type`**（R-18/C-16；ADR-0016 的 `format/no-document-type` 拼写一并改） 且宿主仍健康 | `preset-blind.test.ts`（12 §4.3） |
 | 冻结层 | 见 §6.4 | `horizontal-freeze` job（12 §4.4，M5 验收） |
@@ -1108,19 +1108,19 @@ l5 -.-> renderscene{"render.scene"}
 
 | 模块编号 | 模块名与输出文件 | 覆盖上下文 | 覆盖的包与目录 | 上游模块 | 下游模块 | 规划 agent 必读输入 | 关键决策与约束 | 批次 | 预计文件数量级 | 文件数口径（R-23） |
 |---|---|---|---|---|---|---|---|---|---|---|
-| M-01 | 工具链与治理骨架<br>`docs/40-modules/01-tooling-and-governance.md` | BC-28 | `tooling/{tsconfig,eslint-config,depcruise,api-extractor,manifest-gen,scanners,policy-check,iso-smoke,scripts,changeset-config}/**`；根 `lefthook.yml`/`.dependency-cruiser.cjs`/`biome.json`/`.changeset/config.json` | 无（唯一无上游模块） | 全部（M-02…M-13） | charter §3、§5.3、§5.4；09-type-discipline `README.md` 全篇 + `01`…`09` 全部 9 个子文档；`adr/0040`–`0048` | 秩表 `LS=58` 与 `V-*` 层带定稿口径；`package.json#oce` schema；八条 depcruise 规则 + 十三个扫描器缺一不可；ratchet 预算只减不增；CI 无 `--quiet` | 1 | 60–90 | 含测试，无机械生成复制件 |
-| M-02 | 内核、协议与文档内核<br>`docs/40-modules/02-kernel-protocol-and-document-core.md` | BC-01、02、03、04、05 | `@oce/kernel`、`@oce/shared`、`@oce/protocol`、`@oce/i18n`、`@oce/model-core`、`@oce/store-memory`、`@oce/store-yjs` | M-01 | M-03…M-13（几乎全部） | charter §4 全部术语、§5.2 对应包行；30-architecture `01-overview.md` 全篇；`03-kernel-and-plugin-model.md` 全篇；`04-document-model.md` §1、§2、§7–§9；`05-command-and-history.md` 全篇；`02-layering-and-packages.md` §4.1–4.7；rulings §4.1（C-4/C-7） | 唯一 import cordis 的边界（R12）；贡献项 schema 校验失败走诊断而非抛错；`Mutation` 禁止 `inverse` 字段；`StoreOp` 五种原语无 `move`；`UnitScope` 隔离服务集固定 | 1 | 200–240 | 含根模板/测试，无机械生成复制件 |
-| M-03 | 幻灯片领域模型<br>`docs/40-modules/03-slide-domain-model.md` | BC-06 | `@oce/model-slide` | M-02 | M-04、M-07、M-10、M-11、M-13（作为样板） | charter §5.2 `model-slide` 行；`04-document-model.md` §3、§4、§6、§8、§9、§12 全篇；`05-command-and-history.md` §13；`02-layering-and-packages.md` §4.8；rulings §4.10（Q11 `reassignTo` 语义） | 归一化实体表 + `FracKey` 排序（无数组下标）；`deleteLayout`/`deleteMaster` 的 `reassignTo` fail-closed 语义（Q11）；占位符「缺省即继承」；`OpaqueXml`/`extensions` 槽覆盖全部实体 | 1 | 90–110 | 含测试，无机械生成复制件；命令表因 C-03 追加 14 条目后仍在区间内 |
-| M-04 | OOXML 格式与 PPTX 编解码<br>`docs/40-modules/04-ooxml-format-and-pptx-codec.md` | BC-07、08 | `@oce/ooxml-core`、`@oce/ooxml-pptx` | M-02、M-03 | M-09、M-12、M-13（作为样板） | `04-document-model.md` §1、§4（全部映射表）、§5、§9 注（DrawingML 归属决策）；`02-layering-and-packages.md` §4.9、§4.10；charter §6.1 D7/Q14；rulings A-3/PD-03（Q14 Strict 三案） | Strict 写回「C 为目标、B 为自动回退」；zip 写入确定性（SV-02 导出字节级一致的前提）；`ZipLimits` 安全上限；元素级保留（CS-06） | 2 | 85–100 | 含测试，无机械生成复制件（R-23：由 70–90 上修） |
-| M-05 | 协同（客户端）<br>`docs/40-modules/05-collaboration-client.md` | BC-09 | `@oce/collab-core`、`@oce/collab-yjs`、`@oce/collab-transport-ws`、`@oce/collab-offline-idb` | M-02 | M-11 | `06-collaboration.md` 全篇（§0–§18）；charter §4.2 术语；`adr/0020`、`0023`、`0024`、`0025`、`0032`、`0033`；`02-layering-and-packages.md` §4.11、§4.12、§4.12b | `yjsBackend` 是唯一受控访问面（禁止 `Y.*` 类型外泄）；撤销只回滚本地 `origin`；12 种软冲突场景需 fuzz 覆盖；`OfflineStore` 缺失时降级为内存队列。**与 M-09 共享 06 号协议契约，两者按同一份规格并行开发，无包依赖但需协议帧版本一致** | 2 | 70–90 | 含测试，无机械生成复制件 |
-| M-06 | 布局与渲染引擎<br>`docs/40-modules/06-layout-and-render-engine.md` | BC-10、11 | `@oce/engine-layout`、`@oce/engine-render`、`@oce/render-dom` | M-02 | M-07、M-09、M-10、M-11 | `07-rendering.md` 全篇（§0–§14）；`adr/0021`、`0026`、`0027`、`0028`；`02-layering-and-packages.md` §4.13、§4.14、§4.15 | `engine-render` 对 `model-*` 零依赖（R15）；`DirtySet` 必须被消费（A28 反制测试）；三处 LRU 必须有淘汰测试（A29；**模块内三处** = `StyleCache`/`MediaCache`/`measure-cache`，不含 M-07 的 `LayerTemplateCache`，系统级共四处，见 R-19/C-12）；文本编辑用隐藏 `textarea` + 自绘光标（ADR-0028） | 2 | 90–110 | 含测试（含三处 LRU 淘汰测试），无机械生成复制件 |
-| M-07 | 幻灯片渲染<br>`docs/40-modules/07-slide-rendering.md` | BC-12 | `@oce/slide-render`、`@oce/slide-render-chart` | M-03、M-06 | M-10、M-11 | `07-rendering.md` §4 全篇、§14.1（术语对齐）、§14.4（图表）；`04-document-model.md` §12.4（母版视图渲染契约）；`02-layering-and-packages.md` §4.16、§4.16b；charter D16 | M1–M2 图表只读解析、M3 拆包 `slide-render-chart`；母版视图 `ViewDescriptor{mode:'master',target}`；缩略图三种 Provider 策略取舍；**含 1 处模板 LRU（`LayerTemplateCache`），与 M-06 三处合为架构 07 §11 的系统级缓存集**（R-20/C-12） | 2 | 70–85 | 含测试（含 1 处模板 LRU 淘汰测试），无机械生成复制件（R-23：由 50–70 上修） |
-| M-08 | 服务端身份、文档与对象存储<br>`docs/40-modules/08-server-identity-documents-and-storage.md` | BC-18、19、20 | `apps/server`（`modules/{auth,tenants,users,documents,permissions,share-links,storage,media}`）、`@oce/server-storage` | M-02 | M-09、M-12 | `08-backend-nestjs.md` §1、§2（对应模块目录）、§5（`tenants`/`users`/`documents`/`permissions`/`media_blobs` 表）、§6、§9.1、§16.4；`02-layering-and-packages.md` §4.23；PRD `06-server-and-ops.md` SV-06、SV-08 | fail-closed 双点（REST guard + WS）；租户隔离（全部查询 `tenant_id` 限定）；预签名直传（≥10 MB 分片）；SVG 消毒 | 2 | 100–125 | 含测试，无机械生成复制件（R-23：由 80–100 上修） |
-| M-09 | 服务端协同网关与 Headless 宿主<br>`docs/40-modules/09-server-collab-gateway-and-headless-host.md` | BC-21、22、27 | `apps/server`（`modules/{collab,snapshots}`、`cordis-host/**`（含 `adapters/`，物理归属本模块，见 R-21/C-10））、`@oce/server-collab`、`@oce/server-headless` | M-02、M-04、M-06、M-08 | M-12 | `08-backend-nestjs.md` §1、§3.1、§3.3、§4、§5（`document_updates`/`document_snapshots`）、§8、§16.1–16.3、§16.5；`06-collaboration.md` §5、§9、§11；`07-rendering.md` §10；`02-layering-and-packages.md` §4.22、§4.24；`adr/0022`、`0023`、`0025`、`0026`、`0034`、`0035` | 硬门禁/软门禁两级校验；Redis 扇出不要求房间亲和；`server-headless` 不得 `import render-dom`（同构铁律 4）；快照 `kind` 枚举固定。**与 M-05 共享 06 号协议契约，可并行开工** | 2 | 90–110 | 含测试；102 为实测文件数，独立统计口径，与其余模块不可直接比较（§8 Q-M5 结案） |
-| M-10 | UI 基座与幻灯片 UI<br>`docs/40-modules/10-ui-shell-and-slide-ui.md` | BC-13、14、15 | `@oce/design`、`@oce/ui-core`、`@oce/ui-react`、`@oce/slide-ui` | M-02、M-03、M-06、M-07（间接 M-05） | M-11、M-13（作为 doc-ui / sheet-ui 样板） | `02-layering-and-packages.md` §4.17–4.20；`03-kernel-and-plugin-model.md` §3.6（`when` 上下文键）；rulings §4.6–4.8（母版视图/shadcn/iOS 27 现代化裁决）；`05-command-and-history.md` §13.3（`view.setMode`）；`adr/0017` | `ui-core` 禁止 `import react/radix/tailwind`（R14）；shadcn 复制件只能被 `ui-react`/`*-ui`/`apps/*` 引用（R17）；`viewMode` 上下文键驱动 Ribbon 页签切换 | 3 | 160–180 | 含 45 个机械生成 shadcn 复制件（单列，不与其余模块同口径比较）；含测试（R-23：由 110–140 上修） |
-| M-11 | 预设装配与应用壳<br>`docs/40-modules/11-preset-assembly-and-app-shell.md` | BC-16、17 | `@oce/preset-slide`、`@oce/preset-slide-collab`、`@oce/preset-slide-viewer`、`apps/web` | M-02、M-03、M-05、M-06、M-07、M-10 | 无（终端模块） | `02-layering-and-packages.md` §3.1、§4.21、§4.21b；`03-kernel-and-plugin-model.md` §9（preset vs loader）；charter §5.2 `apps/web` 行；rulings §4.9/§4.10（应用栏「⋯」菜单/账户头像/开始页） | `preset-slide-viewer` 两道机械只读保证（ADR-0015）；`apps/web` 零编辑器领域逻辑（`apps-only-assemble`）；查看器体积 ≤ 350 KB gzip | 3 | 150–170 | 含 59 个测试文件（单列，不与其余模块同口径比较）；不含机械生成复制件（R-23：由 60–80 上修） |
+| M-01 | 工具链与治理骨架<br>`docs/40-modules/01-tooling-and-governance.md` | BC-28 | `tooling/{tsconfig,eslint-config,depcruise,api-extractor,manifest-gen,scanners,policy-check,iso-smoke,scripts,changeset-config}/**`；根 `lefthook.yml`/`.dependency-cruiser.cjs`/`biome.json`/`.changeset/config.json` | 无（唯一无上游模块） | 全部（M-02…M-13） | charter §3、§5.3、§5.4；09-type-discipline `README.md` 全篇 + `01`…`09` 全部 9 个子文档；`adr/0040`–`0048` | 秩表 `LS=58` 与 `V-*` 层带定稿口径；`package.json#cordex` schema；八条 depcruise 规则 + 十三个扫描器缺一不可；ratchet 预算只减不增；CI 无 `--quiet` | 1 | 60–90 | 含测试，无机械生成复制件 |
+| M-02 | 内核、协议与文档内核<br>`docs/40-modules/02-kernel-protocol-and-document-core.md` | BC-01、02、03、04、05 | `@cordexjs/kernel`、`@cordexjs/shared`、`@cordexjs/protocol`、`@cordexjs/i18n`、`@cordexjs/model-core`、`@cordexjs/store-memory`、`@cordexjs/store-yjs` | M-01 | M-03…M-13（几乎全部） | charter §4 全部术语、§5.2 对应包行；30-architecture `01-overview.md` 全篇；`03-kernel-and-plugin-model.md` 全篇；`04-document-model.md` §1、§2、§7–§9；`05-command-and-history.md` 全篇；`02-layering-and-packages.md` §4.1–4.7；rulings §4.1（C-4/C-7） | 唯一 import cordis 的边界（R12）；贡献项 schema 校验失败走诊断而非抛错；`Mutation` 禁止 `inverse` 字段；`StoreOp` 五种原语无 `move`；`UnitScope` 隔离服务集固定 | 1 | 200–240 | 含根模板/测试，无机械生成复制件 |
+| M-03 | 幻灯片领域模型<br>`docs/40-modules/03-slide-domain-model.md` | BC-06 | `@cordexjs/model-slide` | M-02 | M-04、M-07、M-10、M-11、M-13（作为样板） | charter §5.2 `model-slide` 行；`04-document-model.md` §3、§4、§6、§8、§9、§12 全篇；`05-command-and-history.md` §13；`02-layering-and-packages.md` §4.8；rulings §4.10（Q11 `reassignTo` 语义） | 归一化实体表 + `FracKey` 排序（无数组下标）；`deleteLayout`/`deleteMaster` 的 `reassignTo` fail-closed 语义（Q11）；占位符「缺省即继承」；`OpaqueXml`/`extensions` 槽覆盖全部实体 | 1 | 90–110 | 含测试，无机械生成复制件；命令表因 C-03 追加 14 条目后仍在区间内 |
+| M-04 | OOXML 格式与 PPTX 编解码<br>`docs/40-modules/04-ooxml-format-and-pptx-codec.md` | BC-07、08 | `@cordexjs/ooxml-core`、`@cordexjs/ooxml-pptx` | M-02、M-03 | M-09、M-12、M-13（作为样板） | `04-document-model.md` §1、§4（全部映射表）、§5、§9 注（DrawingML 归属决策）；`02-layering-and-packages.md` §4.9、§4.10；charter §6.1 D7/Q14；rulings A-3/PD-03（Q14 Strict 三案） | Strict 写回「C 为目标、B 为自动回退」；zip 写入确定性（SV-02 导出字节级一致的前提）；`ZipLimits` 安全上限；元素级保留（CS-06） | 2 | 85–100 | 含测试，无机械生成复制件（R-23：由 70–90 上修） |
+| M-05 | 协同（客户端）<br>`docs/40-modules/05-collaboration-client.md` | BC-09 | `@cordexjs/collab-core`、`@cordexjs/collab-yjs`、`@cordexjs/collab-transport-ws`、`@cordexjs/collab-offline-idb` | M-02 | M-11 | `06-collaboration.md` 全篇（§0–§18）；charter §4.2 术语；`adr/0020`、`0023`、`0024`、`0025`、`0032`、`0033`；`02-layering-and-packages.md` §4.11、§4.12、§4.12b | `yjsBackend` 是唯一受控访问面（禁止 `Y.*` 类型外泄）；撤销只回滚本地 `origin`；12 种软冲突场景需 fuzz 覆盖；`OfflineStore` 缺失时降级为内存队列。**与 M-09 共享 06 号协议契约，两者按同一份规格并行开发，无包依赖但需协议帧版本一致** | 2 | 70–90 | 含测试，无机械生成复制件 |
+| M-06 | 布局与渲染引擎<br>`docs/40-modules/06-layout-and-render-engine.md` | BC-10、11 | `@cordexjs/engine-layout`、`@cordexjs/engine-render`、`@cordexjs/render-dom` | M-02 | M-07、M-09、M-10、M-11 | `07-rendering.md` 全篇（§0–§14）；`adr/0021`、`0026`、`0027`、`0028`；`02-layering-and-packages.md` §4.13、§4.14、§4.15 | `engine-render` 对 `model-*` 零依赖（R15）；`DirtySet` 必须被消费（A28 反制测试）；三处 LRU 必须有淘汰测试（A29；**模块内三处** = `StyleCache`/`MediaCache`/`measure-cache`，不含 M-07 的 `LayerTemplateCache`，系统级共四处，见 R-19/C-12）；文本编辑用隐藏 `textarea` + 自绘光标（ADR-0028） | 2 | 90–110 | 含测试（含三处 LRU 淘汰测试），无机械生成复制件 |
+| M-07 | 幻灯片渲染<br>`docs/40-modules/07-slide-rendering.md` | BC-12 | `@cordexjs/slide-render`、`@cordexjs/slide-render-chart` | M-03、M-06 | M-10、M-11 | `07-rendering.md` §4 全篇、§14.1（术语对齐）、§14.4（图表）；`04-document-model.md` §12.4（母版视图渲染契约）；`02-layering-and-packages.md` §4.16、§4.16b；charter D16 | M1–M2 图表只读解析、M3 拆包 `slide-render-chart`；母版视图 `ViewDescriptor{mode:'master',target}`；缩略图三种 Provider 策略取舍；**含 1 处模板 LRU（`LayerTemplateCache`），与 M-06 三处合为架构 07 §11 的系统级缓存集**（R-20/C-12） | 2 | 70–85 | 含测试（含 1 处模板 LRU 淘汰测试），无机械生成复制件（R-23：由 50–70 上修） |
+| M-08 | 服务端身份、文档与对象存储<br>`docs/40-modules/08-server-identity-documents-and-storage.md` | BC-18、19、20 | `apps/server`（`modules/{auth,users,documents,permissions,share-links,storage,media}`；2026-09-24 删 `tenants`/`groups`，rulings §4.15 T-0 / U-11 推迟）、`@cordexjs/server-storage` | M-02 | M-09、M-12 | `08-backend-nestjs.md` §1、§2（对应模块目录）、§5（`users`/`user_identities`/`documents`/`permissions`/`media_blobs` 表）、§6、§9.1、§16.4；`02-layering-and-packages.md` §4.23；PRD `06-server-and-ops.md` SV-06、SV-08 | fail-closed 双点（REST guard + WS）+ 文档级 Postgres RLS（M3 出口）；按文档读写须经权限服务（`DocAccess`，扫描器 `doc-access-via-permission`，取代原「租户隔离」，§4.15 T-0 / Q6）；外置 OIDC、服务端不持有密码；预签名直传（≥10 MB 分片）；SVG 消毒 | 2 | 100–125 | 含测试，无机械生成复制件（R-23：由 80–100 上修） |
+| M-09 | 服务端协同网关与 Headless 宿主<br>`docs/40-modules/09-server-collab-gateway-and-headless-host.md` | BC-21、22、27 | `apps/server`（`modules/{collab,snapshots}`、`cordis-host/**`（含 `adapters/`，物理归属本模块，见 R-21/C-10））、`@cordexjs/server-collab`、`@cordexjs/server-headless` | M-02、M-04、M-06、M-08 | M-12 | `08-backend-nestjs.md` §1、§3.1、§3.3、§4、§5（`document_updates`/`document_snapshots`）、§8、§16.1–16.3、§16.5；`06-collaboration.md` §5、§9、§11；`07-rendering.md` §10；`02-layering-and-packages.md` §4.22、§4.24；`adr/0022`、`0023`、`0025`、`0026`、`0034`、`0035` | 硬门禁/软门禁两级校验；Redis 扇出不要求房间亲和；`server-headless` 不得 `import render-dom`（同构铁律 4）；快照 `kind` 枚举固定。**与 M-05 共享 06 号协议契约，可并行开工** | 2 | 90–110 | 含测试；102 为实测文件数，独立统计口径，与其余模块不可直接比较（§8 Q-M5 结案） |
+| M-10 | UI 基座与幻灯片 UI<br>`docs/40-modules/10-ui-shell-and-slide-ui.md` | BC-13、14、15 | `@cordexjs/design`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui` | M-02、M-03、M-06、M-07（间接 M-05） | M-11、M-13（作为 doc-ui / sheet-ui 样板） | `02-layering-and-packages.md` §4.17–4.20；`03-kernel-and-plugin-model.md` §3.6（`when` 上下文键）；rulings §4.6–4.8（母版视图/shadcn/iOS 27 现代化裁决）；`05-command-and-history.md` §13.3（`view.setMode`）；`adr/0017` | `ui-core` 禁止 `import react/radix/tailwind`（R14）；shadcn 复制件只能被 `ui-react`/`*-ui`/`apps/*` 引用（R17）；`viewMode` 上下文键驱动 Ribbon 页签切换 | 3 | 160–180 | 含 45 个机械生成 shadcn 复制件（单列，不与其余模块同口径比较）；含测试（R-23：由 110–140 上修） |
+| M-11 | 预设装配与应用壳<br>`docs/40-modules/11-preset-assembly-and-app-shell.md` | BC-16、17 | `@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer`、`apps/web` | M-02、M-03、M-05、M-06、M-07、M-10 | 无（终端模块） | `02-layering-and-packages.md` §3.1、§4.21、§4.21b；`03-kernel-and-plugin-model.md` §9（preset vs loader）；charter §5.2 `apps/web` 行；rulings §4.9/§4.10（应用栏「⋯」菜单/账户头像/开始页） | `preset-slide-viewer` 两道机械只读保证（ADR-0015）；`apps/web` 零编辑器领域逻辑（`apps-only-assemble`）；查看器体积 ≤ 350 KB gzip | 3 | 150–170 | 含 59 个测试文件（单列，不与其余模块同口径比较）；不含机械生成复制件（R-23：由 60–80 上修） |
 | M-12 | 服务端作业、评论与运维<br>`docs/40-modules/12-server-jobs-comments-and-ops.md` | BC-23、24、25、26、30（BC-30 为 2026-09-21 新增，rulings §4.13 S-5） | `apps/server`（`modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks}`、`common/*`、`config/*`、`cordis-host/adapters/*`（引用，非新增；物理归属 M-09，见 R-22/C-10）） | M-08、M-09 | 无（终端模块） | `08-backend-nestjs.md` §1、§2（对应模块）、§5（`job_runs`/`audit_log`/`comments`/`thumbnails` 表）、§7、§16.6；PRD `06-server-and-ops.md` SV-01、SV-02、SV-04、SV-07、SV-10、SV-15；`adr/0026`、`0030`、`0031` | 评论表是读模型、事实源在客户端 CRDT；审计表只追加（数据库角色无 UPDATE/DELETE）；BullMQ 幂等键约定；Webhook 出站默认拒绝私网/回环/链路本地/云元数据地址（rulings §4.13 S-4） | 3 | 70–90 | 含测试，无机械生成复制件 |
-| M-13 | doc/sheet 扩展骨架<br>`docs/40-modules/13-doc-sheet-extension-skeleton.md` | BC-29 | 现存：`@oce/model-core`（`testing/fixture-document-type.ts`，只读引用）；M5 新建：`@oce/model-doc`、`@oce/ooxml-docx`、`@oce/doc-render`、`@oce/doc-ui`、`@oce/preset-doc`（追加建议）、`@oce/model-sheet`、`@oce/ooxml-xlsx`、`@oce/sheet-render`、`@oce/sheet-ui`、`@oce/preset-sheet`（追加建议） | M-02、M-03、M-04、M-06、M-07、M-10（作为样板参照，非运行时依赖） | 无（终端模块） | `12-extension-to-doc-and-sheet.md` 全篇；charter §5.1（垂直束网格）；`02-layering-and-packages.md` §4.8（`model-slide` 作为样板）；`adr/0016` | 水平层零改动（`horizontal-freeze` 无 diff）；束间隔离（不得 `import model-slide` 等）；M5 验收清单（12 §5） | 3 | 90–120 | 骨架占位估算，M5 落地前非精确值（R-23：由 40–60 上修） |
+| M-13 | doc/sheet 扩展骨架<br>`docs/40-modules/13-doc-sheet-extension-skeleton.md` | BC-29 | 现存：`@cordexjs/model-core`（`testing/fixture-document-type.ts`，只读引用）；M5 新建：`@cordexjs/model-doc`、`@cordexjs/ooxml-docx`、`@cordexjs/doc-render`、`@cordexjs/doc-ui`、`@cordexjs/preset-doc`（追加建议）、`@cordexjs/model-sheet`、`@cordexjs/ooxml-xlsx`、`@cordexjs/sheet-render`、`@cordexjs/sheet-ui`、`@cordexjs/preset-sheet`（追加建议） | M-02、M-03、M-04、M-06、M-07、M-10（作为样板参照，非运行时依赖） | 无（终端模块） | `12-extension-to-doc-and-sheet.md` 全篇；charter §5.1（垂直束网格）；`02-layering-and-packages.md` §4.8（`model-slide` 作为样板）；`adr/0016` | 水平层零改动（`horizontal-freeze` 无 diff）；束间隔离（不得 `import model-slide` 等）；M5 验收清单（12 §5） | 3 | 90–120 | 骨架占位估算，M5 落地前非精确值（R-23：由 40–60 上修） |
 
 **模块依赖图**
 
@@ -1171,9 +1171,9 @@ m10 -. "样板参照" .-> m13
 
 | # | 涉及文档 | 差异/发现 | 追加建议（不直接生效） | 结案状态（R-24） |
 |---|---|---|---|---|
-| G-1 | `02-layering-and-packages.md` §4.22 vs 章程 §5.2（已按 rulings S8 采纳）与 `08-backend-nestjs.md` §3.1 | 02 §4.22 标题仍写「`@oce/server-collab` — LS · node · **library**（与 Nest 解耦）」；章程 §5.2 表格已把 server-collab 描述为「cordis 插件（提供 `collabServer`）」，08 §3.1 标题也已写「node；cordis 插件，提供 `collabServer` 服务」。三份文档对同一个包的 cordis 形态标注不一致 | 建议 02 §4.22 标题回写为「`@oce/server-collab` — LS · node · **library + plugin**（既是可被 Nest 解耦调用的函数库，又通过 `plugin.ts` 提供 `collabServer` 服务）」，与 08 §3.1 的 `plugin.ts`/`provide=['collabServer']` 骨架保持一致；本文档 §3 BC-21 已按「plugin + provider」表述，不受此影响 | **结案**：已由 M-09/G-18 落地（`server-collab` = library + plugin），见 §8 R-24 |
-| G-2 | `02-layering-and-packages.md` §4.0.1 vs `09-type-discipline/03-boundaries.md` §2 | 02 §4.0.1 给出的 `package.json#oce.role` 枚举是 `library\|plugin\|definition\|provider\|bundle\|app\|tooling`（7 值）；09-boundaries §2 给出的**同一字段名** `role` 枚举却是 `definition\|provider\|consumer\|n/a`（4 值）。两份文档字面上给了不同的合法取值集合，若照字面实现会冲突 | 建议二者显式声明为「同一物理字段、两级折叠」关系：包在 `package.json` 中按 02 的 7 值之一标注（面向人类与 `create-package` 脚手架）；`depcruise` 的三角色规则（09-boundaries §3.5）读取时按固定映射折叠为 4 值——`definition→definition`、`provider→provider`、`library\|plugin\|bundle\|app\|tooling→consumer`（除非该包同时是某 Definition 的 Provider，如 kernel 自身）。建议在 09-boundaries §2 补充这张折叠表，而非让读者误以为需要在 `package.json` 里同时维护两套取值 | **结案**：采纳折叠表（`definition→definition`、`provider→provider`，其余`→consumer`，除非该包同时是某 Definition 的 Provider），见 §1 C-11、§10 Q-M1、§8 R-24 |
-| G-3 | 章程 §5.1 网格、`12-extension-to-doc-and-sheet.md` | 章程 §5.1 的垂直束网格只列出了 V-model/V-codec/V-render/V-ui 四个层带各自的 doc/sheet 包名（`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui`；`model-sheet`/`ooxml-xlsx`/`sheet-render`/`sheet-ui`），**未列出 L8 装配层**对应的 `preset-doc`/`preset-sheet` 包名 | 追加建议：在章程 §5.1 的 L8 行或 §5.2 包清单为 doc/sheet 预留 `@oce/preset-doc`、`@oce/preset-sheet`（结构与 `@oce/preset-slide` 对称），避免 M5 开工时才现造包名；本文档 §6.2/§7（M-13）已按此假设列出，标注「追加建议」 | **结案**：采纳 `preset-doc`/`preset-sheet` 无后缀包名，用 `package.json#oce.stability:'experimental'` 标未完工，见 §1 C-19、§10 Q-M2、§8 R-24 |
+| G-1 | `02-layering-and-packages.md` §4.22 vs 章程 §5.2（已按 rulings S8 采纳）与 `08-backend-nestjs.md` §3.1 | 02 §4.22 标题仍写「`@cordexjs/server-collab` — LS · node · **library**（与 Nest 解耦）」；章程 §5.2 表格已把 server-collab 描述为「cordis 插件（提供 `collabServer`）」，08 §3.1 标题也已写「node；cordis 插件，提供 `collabServer` 服务」。三份文档对同一个包的 cordis 形态标注不一致 | 建议 02 §4.22 标题回写为「`@cordexjs/server-collab` — LS · node · **library + plugin**（既是可被 Nest 解耦调用的函数库，又通过 `plugin.ts` 提供 `collabServer` 服务）」，与 08 §3.1 的 `plugin.ts`/`provide=['collabServer']` 骨架保持一致；本文档 §3 BC-21 已按「plugin + provider」表述，不受此影响 | **结案**：已由 M-09/G-18 落地（`server-collab` = library + plugin），见 §8 R-24 |
+| G-2 | `02-layering-and-packages.md` §4.0.1 vs `09-type-discipline/03-boundaries.md` §2 | 02 §4.0.1 给出的 `package.json#cordex.role` 枚举是 `library\|plugin\|definition\|provider\|bundle\|app\|tooling`（7 值）；09-boundaries §2 给出的**同一字段名** `role` 枚举却是 `definition\|provider\|consumer\|n/a`（4 值）。两份文档字面上给了不同的合法取值集合，若照字面实现会冲突 | 建议二者显式声明为「同一物理字段、两级折叠」关系：包在 `package.json` 中按 02 的 7 值之一标注（面向人类与 `create-package` 脚手架）；`depcruise` 的三角色规则（09-boundaries §3.5）读取时按固定映射折叠为 4 值——`definition→definition`、`provider→provider`、`library\|plugin\|bundle\|app\|tooling→consumer`（除非该包同时是某 Definition 的 Provider，如 kernel 自身）。建议在 09-boundaries §2 补充这张折叠表，而非让读者误以为需要在 `package.json` 里同时维护两套取值 | **结案**：采纳折叠表（`definition→definition`、`provider→provider`，其余`→consumer`，除非该包同时是某 Definition 的 Provider），见 §1 C-11、§10 Q-M1、§8 R-24 |
+| G-3 | 章程 §5.1 网格、`12-extension-to-doc-and-sheet.md` | 章程 §5.1 的垂直束网格只列出了 V-model/V-codec/V-render/V-ui 四个层带各自的 doc/sheet 包名（`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui`；`model-sheet`/`ooxml-xlsx`/`sheet-render`/`sheet-ui`），**未列出 L8 装配层**对应的 `preset-doc`/`preset-sheet` 包名 | 追加建议：在章程 §5.1 的 L8 行或 §5.2 包清单为 doc/sheet 预留 `@cordexjs/preset-doc`、`@cordexjs/preset-sheet`（结构与 `@cordexjs/preset-slide` 对称），避免 M5 开工时才现造包名；本文档 §6.2/§7（M-13）已按此假设列出，标注「追加建议」 | **结案**：采纳 `preset-doc`/`preset-sheet` 无后缀包名，用 `package.json#cordex.stability:'experimental'` 标未完工，见 §1 C-19、§10 Q-M2、§8 R-24 |
 | G-4 | `12-extension-to-doc-and-sheet.md` §1/§2 | 12 号文档的 generic/parametrized/vertical 三分类原本只讨论 `packages/*` 水平层包（L0/L1/L3/L4/L5/L7/LS）对 doc/sheet 的通用性；本文档 §3/§6.1 把该分类**外推**到了两个纯后端 Nest 模块限界上下文（BC-24 缩略图、BC-25 评论），因为它们的骨架通用、但产出内容随文档类型变化 | 建议 12 号文档未来补一小节「服务端上下文的 doc/sheet 通用性」，把这一外推正式收编；当前不影响 12 号文档已有结论，仅记录分类应用范围的扩展 | **结案**：采纳（12 号文档补服务端小节），见 §8 R-24 |
 | G-5 | 章程 §4 术语表 | 本文档 §1 使用的限界上下文、聚合、领域事件、仓储、应用服务、防腐层、发布语言、共享内核、开放主机服务、客户方-供应方、遵奉者等 DDD 标准词汇，均为软件工程行业通用术语（非本项目自造），章程 §4 未收录 | 不建议强制回写章程 §4（章程术语表定位是「本项目自造或收窄语义的词」，DDD 通用词汇不属此类）；若总编排认为需要统一入口，可在本文件顶部新增「方法论术语」小节并被后续 40-modules 文档引用，无需动章程 | **结案**：驳回（DDD 通用词汇不属章程 §4 收录范围），见 §8 R-24 |
 
@@ -1181,32 +1181,32 @@ m10 -. "样板参照" .-> m13
 
 ## 9. 机械约束映射
 
-> 依据来源：`02-layering-and-packages.md` §7（R1–R18）、`09-type-discipline/03-boundaries.md` §2/§3（`oce-*` 八条规则的 dependency-cruiser 实现）、`03-kernel-and-plugin-model.md` §11、`04-document-model.md` §11、`05-command-and-history.md` §12。**范围说明**：`08-policy-enforcement-matrix.md` 的 78 行 `TD-\d{3}` 编号本文档未逐一读取（仅读取其 README 索引），故下表引用**已在 02/03/04/05/06/07/08/09-boundaries 中直接核实的规则名**（`R1`–`R18`、`oce-*`、lint 规则名），不引用未直接核实的 `TD-\d{3}` 具体编号，避免向读者提供未经核对的编号。
+> 依据来源：`02-layering-and-packages.md` §7（R1–R18）、`09-type-discipline/03-boundaries.md` §2/§3（`cordex-*` 八条规则的 dependency-cruiser 实现）、`03-kernel-and-plugin-model.md` §11、`04-document-model.md` §11、`05-command-and-history.md` §12。**范围说明**：`08-policy-enforcement-matrix.md` 的 78 行 `TD-\d{3}` 编号本文档未逐一读取（仅读取其 README 索引），故下表引用**已在 02/03/04/05/06/07/08/09-boundaries 中直接核实的规则名**（`R1`–`R18`、`cordex-*`、lint 规则名），不引用未直接核实的 `TD-\d{3}` 具体编号，避免向读者提供未经核对的编号。
 
-| 上下文 | `package.json#oce`（layer / iso / bundle / role） | 关键 depcruise 规则 | 关键 eslint / 扫描器规则 | 09-type-discipline 章节 |
+| 上下文 | `package.json#cordex`（layer / iso / bundle / role） | 关键 depcruise 规则 | 关键 eslint / 扫描器规则 | 09-type-discipline 章节 |
 |---|---|---|---|---|
 | BC-01 内核 | L0 / iso / — / plugin | R12 `only-kernel-imports-cordis`（唯一允许 `import 'cordis'`） | `no-mixin-outside-kernel`、`no-register-methods`、`no-module-level-mutable-state`、`no-bare-throw`、`no-console` | 03-boundaries §3.3；02-lint-rules（内核专属规则集） |
 | BC-02 共享基础设施 | L0 / iso / — / library | R1 无环；R11 `shared-has-no-deps`（`dependencies` 必须为空） | — | 03-boundaries §3.1 |
 | BC-03 协议 | L0 / iso / — / library | R1；R5 `third-party-single-entry`（`zod` 集中于 protocol/kernel） | `no-enum-in-protocol` | 03-boundaries §3.3 |
 | BC-04 国际化 | L0 / iso / — / plugin | R1、R2 | `i18n-keys-sync`（扫描器） | 06-scanners（i18n 专项） |
-| BC-05 文档内核 | L1 / iso / — / definition（model-core）+ provider（store-memory/store-yjs） | R2 `oce-layer-downward`；R7 `oce-role-provider-no-cross-import`（两个 store Provider 互不 import）；R3 `oce-doc-type-blind` | `no-doc-type-literals`、`no-unit-scoped-inject-at-root`、`no-boolean-command-result`、`no-inverse-in-mutation`、`no-index-in-mutation`、`command-declares-capability`、`effect-owned-timers`、`events-declared` | 03-boundaries §3.2、§3.5；04 §11；05 §12 |
-| BC-06 幻灯片领域模型 | V-model（秩 15） / iso / slide / plugin | R2；R3（本身是垂直束，被水平层禁止反向依赖）；R4 `oce-bundle-isolation`（不得 import `model-doc`/`model-sheet`） | `no-px-in-model`、`no-magic-emu` | 03-boundaries §3.2（秩表推导） |
+| BC-05 文档内核 | L1 / iso / — / definition（model-core）+ provider（store-memory/store-yjs） | R2 `cordex-layer-downward`；R7 `cordex-role-provider-no-cross-import`（两个 store Provider 互不 import）；R3 `cordex-doc-type-blind` | `no-doc-type-literals`、`no-unit-scoped-inject-at-root`、`no-boolean-command-result`、`no-inverse-in-mutation`、`no-index-in-mutation`、`command-declares-capability`、`effect-owned-timers`、`events-declared` | 03-boundaries §3.2、§3.5；04 §11；05 §12 |
+| BC-06 幻灯片领域模型 | V-model（秩 15） / iso / slide / plugin | R2；R3（本身是垂直束，被水平层禁止反向依赖）；R4 `cordex-bundle-isolation`（不得 import `model-doc`/`model-sheet`） | `no-px-in-model`、`no-magic-emu` | 03-boundaries §3.2（秩表推导） |
 | BC-07 OOXML 格式基础设施 | L3 / iso / — / library | R1、R2；被 R3 保护（不得反向 import 垂直束） | `codec-no-clock`（禁止读时钟，SV-02 前提） | 03-boundaries §3.2 |
 | BC-08 PPTX 编解码 | V-codec（秩 35） / iso / slide / plugin | R2；R4；R5（`fflate` 单点在 ooxml-core/server-storage） | `codec-no-clock` | 03-boundaries §3.2 |
-| BC-09 协同（客户端） | L4（秩 40，collab-offline-idb 为 dom） / iso+dom / — / definition + provider | R2；R5（`yjs`/`y-protocols` 仅 store-yjs/collab-yjs/server-collab；`y-indexeddb` 仅 collab-offline-idb；`lib0` 仅 collab-yjs/server-collab）；R16 `oce-isomorphism-compatibility`（collab-offline-idb 为 dom，不得被 iso 包依赖） | — | 03-boundaries §3.3、§3.4 |
+| BC-09 协同（客户端） | L4（秩 40，collab-offline-idb 为 dom） / iso+dom / — / definition + provider | R2；R5（`yjs`/`y-protocols` 仅 store-yjs/collab-yjs/server-collab；`y-indexeddb` 仅 collab-offline-idb；`lib0` 仅 collab-yjs/server-collab）；R16 `cordex-isomorphism-compatibility`（collab-offline-idb 为 dom，不得被 iso 包依赖） | — | 03-boundaries §3.3、§3.4 |
 | BC-10 布局与度量引擎 | L5 / iso / — / definition | R2；R15 `engine-no-model`（禁止 import `model-*`） | — | 03-boundaries §3.2 |
 | BC-11 渲染管线与目标 | L5（render-dom 为 dom） / iso+dom / — / definition + provider | R2；R15；R16（render-dom 为 dom，不得被 LS 的 node 包依赖——即 §4.2 第 4 条的机械体现） | — | 03-boundaries §3.2、§3.4 |
 | BC-12 幻灯片渲染 | V-render（秩 55） / dom / slide / plugin | R2；R4 | — | 03-boundaries §3.2 |
 | BC-13 设计系统 | L7 / dom / — / library | R18 `design-css-only`（`dependencies` 为空、`src/**` 无运行时 import） | `theme-vars-contract`（扫描器） | 03-boundaries（ADR-0017 相关） |
 | BC-14 UI 基座 | L7 / dom / — / definition（ui-core）+ provider（ui-react） | R14 `ui-core-no-framework`（禁止 import react/radix/tailwind/lucide-react/design 运行时 TS）；R17 `shadcn-ui-dir-private`；R5（react 等仅 ui-react 与 `*-ui`） | `single-shadcn-copy`、`shadcn-components-sync` | 03-boundaries（ADR-0017 相关） |
-| BC-15 幻灯片 UI | V-ui（秩 75） / dom / slide / plugin | R2；R4；R17（原子组件只能 `import … from '@oce/ui-react/ui'`） | — | 03-boundaries §3.2 |
+| BC-15 幻灯片 UI | V-ui（秩 75） / dom / slide / plugin | R2；R4；R17（原子组件只能 `import … from '@cordexjs/ui-react/ui'`） | — | 03-boundaries §3.2 |
 | BC-16 预设装配 | L8 / dom / — / bundle | R2（L8 可 import 任意，含 override/exclude 场景） | `preset-order-independence`（生命周期套件） | 03-kernel-and-plugin-model §11 |
 | BC-17 应用壳 | L8 / dom / — / app | R9 `apps-only-assemble` | `no-domain-defs-in-apps` | 02 §3；05 §12 |
-| BC-18…20/22…26 服务端 Nest 模块 | L8 / node / — / app | R9 变体 `server-app-thin`（`apps/server/src/modules/**` 不得 `import yjs`/`@oce/model-*`/`@oce/ooxml-*`） | protocol-only DTO（`no-restricted-imports` + 类型测试） | 08 §11（对应表格） |
+| BC-18…20/22…26 服务端 Nest 模块 | L8 / node / — / app | R9 变体 `server-app-thin`（`apps/server/src/modules/**` 不得 `import yjs`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`） | protocol-only DTO（`no-restricted-imports` + 类型测试）；`doc-access-via-permission`（**M-01 第 14 个扫描器**，rulings §4.17 D3；以 `docId` 为键的仓储方法首参须为 `DocAccess`/`SystemContext`，取代 `repo-requires-tenant-id`）与 `check-rls-coverage`（含 `doc_id` 的表须启用 RLS），2026-09-24 rulings §4.15 T-0 / Q6，由 M-01 落地 | 08 §11（对应表格） |
 | BC-20（server-storage） | LS（秩 58） / node / — / provider | R5（S3 SDK 仅 server-storage） | — | 03-boundaries §3.3 |
 | BC-21（server-collab） | LS（秩 58） / node / — / plugin | R2；R5（`pg`/`ioredis` 仅 apps/server 适配器目录与……server-collab 自身不直接 import，经 Definition 注入） | — | 03-boundaries §3.3 |
 | BC-27 Headless 渲染与批处理宿主 | LS（秩 58） / node / — / plugin | R2（可依赖 L5 的 iso 包）；R16（不得 import render-dom，dom） | — | 03-boundaries §3.2（`LS=58` 推导段落） |
-| BC-28 工具链与治理 | — / node / — / tooling | 自身即规则实现者，不受其约束 | 全部 13 个扫描器 + `scan-policy`（负向测试门槛） | 09-README §4、§6-scanners |
+| BC-28 工具链与治理 | — / node / — / tooling | 自身即规则实现者，不受其约束 | 全部 14 个扫描器（第 14 个 `doc-access-via-permission`，rulings §4.17 D3） + `scan-policy`（负向测试门槛） | 09-README §4、§6-scanners |
 | BC-29 doc/sheet 扩展占位 | 对应 V-model/V-codec/V-render/V-ui（秩 15/35/55/75，未来） / iso+dom / doc\|sheet / plugin | R3（水平层测试只用 `fixture`：`horizontal-tests-use-fixture-only`）；R4（doc 束与 sheet 束、与 slide 束互不 import） | `horizontal-freeze`（M5 验收专用扫描器） | 12 §4（本文档 §6.5 已引用） |
 
 ---
@@ -1215,8 +1215,8 @@ m10 -. "样板参照" .-> m13
 
 | # | 问题 | 推荐默认 | 影响范围 | 结案状态（R-24） |
 |---|---|---|---|---|
-| Q-M1 | §8 G-2 指出的 `oce.role` 两套枚举折叠映射是否需要正式写入 `09-type-discipline/03-boundaries.md` §2 | 是，由架构-类型治理条线在下一次修订中补一张折叠表 | 09-boundaries.md §2；`tooling/depcruise/package-metadata.ts` 的实现方式 | **结案**：采纳折叠表（§1 C-11） |
-| Q-M2 | §8 G-3 的 `@oce/preset-doc`/`@oce/preset-sheet` 包名是否采纳为章程正式包清单的一部分 | 采纳（与 `@oce/preset-slide` 对称，成本极低） | 章程 §5.1/§5.2；本文档 §6.2/§7（M-13） | **结案**：采纳，无后缀包名（§1 C-19） |
+| Q-M1 | §8 G-2 指出的 `cordex.role` 两套枚举折叠映射是否需要正式写入 `09-type-discipline/03-boundaries.md` §2 | 是，由架构-类型治理条线在下一次修订中补一张折叠表 | 09-boundaries.md §2；`tooling/depcruise/package-metadata.ts` 的实现方式 | **结案**：采纳折叠表（§1 C-11） |
+| Q-M2 | §8 G-3 的 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet` 包名是否采纳为章程正式包清单的一部分 | 采纳（与 `@cordexjs/preset-slide` 对称，成本极低） | 章程 §5.1/§5.2；本文档 §6.2/§7（M-13） | **结案**：采纳，无后缀包名（§1 C-19） |
 | Q-M3 | M-13（doc/sheet 扩展骨架）是否应从批次 3 独立为「批次 4：M5 专属」而非与批次 3 的 UI/装配/运维模块并列 | 维持批次 3（M5 本就在 M0–M4 之后单独立项，「批次」在本文档语境下只描述阶段二**文档规划**的先后，不代表 M5 与 M2–M4 同时实现） | §7 表格的批次列；不影响实现里程碑（里程碑口径见章程 §7） | **结案**：维持批次 3 |
 | Q-M4 | §6.1 把 BC-24（缩略图）、BC-25（评论）标为 `parametrized` 是否需要总编排/12 号文档作者正式确认（对应 G-4） | 待确认；当前按本文档判断执行 | 12 号文档未来修订范围 | **结案**：BC-25 改判 generic（见 §6.1、R-15），G-4 一并结案 |
 | Q-M5 | M-09（服务端协同网关与 Headless 宿主）把 `server-collab` 与 `server-headless` 两个包合并进同一规划模块，若阶段二发现两者由不同 agent/团队承担导致耦合过重，是否需要拆分为两个模块（如 `09a-server-collab-gateway.md` + `09b-server-headless-host.md`） | 先合并规划，由 M-09 的规划 agent 在写作过程中判断是否需要拆分并向总编排申请 | §7 表格 M-09 行；不影响其余模块编号 | **结案**：M-09 不拆，102 文件在区间内 |

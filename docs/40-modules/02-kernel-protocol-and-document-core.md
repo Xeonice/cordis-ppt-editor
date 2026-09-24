@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19 | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
 
 # 02 内核、协议与文档内核（限界上下文 BC-01 内核与插件运行时、BC-02 共享基础设施、BC-03 协议与发布语言、BC-04 国际化、BC-05 文档内核）
 
@@ -8,7 +8,7 @@
 |---|---|
 | 职责一句话 | 唯一封装 cordis 4 并提供全仓贡献点/清单/失败隔离/错误遥测基础设施（BC-01）；提供零依赖的品牌类型与纯工具（BC-02）；定义前后端唯一的发布语言（BC-03）；提供编译期类型安全的国际化能力（BC-04）；实现文档类型盲的 Unit/UnitScope/DocumentStore/Command-Mutation-Operation 执行管线/History/Snapshot/迁移/权限内核（BC-05） |
 | 覆盖的上下文 | BC-01、BC-02、BC-03、BC-04、BC-05 |
-| 承载包 / 目录 | `@oce/shared`（L0 · iso，秩 0，library）、`@oce/kernel`（L0 · iso，秩 0，plugin+host）、`@oce/protocol`（L0 · iso，秩 0，library）、`@oce/i18n`（L0 · iso，秩 0，plugin）、`@oce/model-core`（L1 · iso，秩 10，definition）、`@oce/store-memory`（L1 · iso，秩 10，provider `implements:['store']`）、`@oce/store-yjs`（L1 · iso，秩 10，provider `implements:['store']`） |
+| 承载包 / 目录 | `@cordexjs/shared`（L0 · iso，秩 0，library）、`@cordexjs/kernel`（L0 · iso，秩 0，plugin+host）、`@cordexjs/protocol`（L0 · iso，秩 0，library）、`@cordexjs/i18n`（L0 · iso，秩 0，plugin）、`@cordexjs/model-core`（L1 · iso，秩 10，definition）、`@cordexjs/store-memory`（L1 · iso，秩 10，provider `implements:['store']`）、`@cordexjs/store-yjs`（L1 · iso，秩 10，provider `implements:['store']`） |
 | cordis 形态 | host（`createHost`）+ plugin（kernel 自身、i18n、model-core）+ provider（store-memory、store-yjs）+ library（shared、protocol） |
 | 运行位置 | 两端（七个包全部 `iso`：浏览器与 `server-headless`/`server-collab` 加载同一份源码） |
 | 上游（依赖） | M-01（工具链与治理骨架：tsconfig/eslint-config/depcruise/api-extractor/manifest-gen/scanners 等，本模块产物受其机械校验） |
@@ -26,13 +26,13 @@
 flowchart LR
   m01["M-01 工具链与治理骨架"]
   subgraph bc0105["BC-01 至 BC-05 内核 协议 文档内核"]
-    pkgShared["@oce/shared"]
-    pkgKernel["@oce/kernel"]
-    pkgProtocol["@oce/protocol"]
-    pkgI18n["@oce/i18n"]
-    pkgModelCore["@oce/model-core"]
-    pkgStoreMemory["@oce/store-memory"]
-    pkgStoreYjs["@oce/store-yjs"]
+    pkgShared["@cordexjs/shared"]
+    pkgKernel["@cordexjs/kernel"]
+    pkgProtocol["@cordexjs/protocol"]
+    pkgI18n["@cordexjs/i18n"]
+    pkgModelCore["@cordexjs/model-core"]
+    pkgStoreMemory["@cordexjs/store-memory"]
+    pkgStoreYjs["@cordexjs/store-yjs"]
   end
   downstream["M-03 至 M-13 几乎全部下游模块"]
   m01 -- "tsconfig eslint depcruise 基线" --> pkgShared
@@ -55,7 +55,7 @@ flowchart LR
 **BC-01 内核与插件运行时**
 - 做：唯一封装 `cordis`；提供 `createHost`、`ContributionPoint`/`Manifest` 机制、`errors`/`telemetry`/`logger` 基础服务、`createIsolatedScope`（文档无关的隔离工具）、失败隔离（Fiber 级）、诊断（`dumpFiberTree`）。
 - 不做：不认识任何业务概念——`Unit`/`DocumentType`/`Command`/`Mutation` 属于 BC-05（`createIsolatedScope` 只是通用工具，`Unit`/`UnitScope` 的语义归 model-core，ADR-0005/裁决 C-4）；不提供 UI（M-10）；不做协同传输、不做渲染、不做存储实现。
-- 非职责的机械体现：kernel 的 `src/**` 不得出现 `slide`/`store`/`unit` 等业务词根（除类型转发注释）；kernel 自身没有 `oce.bundle` 字段。
+- 非职责的机械体现：kernel 的 `src/**` 不得出现 `slide`/`store`/`unit` 等业务词根（除类型转发注释）；kernel 自身没有 `cordex.bundle` 字段。
 
 **BC-02 共享基础设施**
 - 做：品牌类型（`Emu`/`Pt`/`UnitId`/`NodeId`…）、`Result<T,E>`、断言、`FracKey`/`Path`、哈希、集合工具。
@@ -84,7 +84,7 @@ flowchart LR
 | `PointId` | 贡献点 id 的类型：`` `${Lowercase<string>}.${string}` `` | `kernel/src/contribution/point.ts` |
 | `ContributionDiagnostic` | 贡献项被拒绝/替换时的诊断记录：`{ pointId, key?, reason: 'schema'\|'duplicate'\|'unknown-point', issues, fiberName }` | `kernel/src/contribution/diagnostics.ts` |
 | `Manifest` / `ContributionEntry` | 插件包不运行即可读的静态描述；`ContributionEntry = { point, keys?, count? }` | `kernel/src/manifest/types.ts` |
-| `OceError` / `ErrorTable` / `ErrorCode` | 内核统一错误类型；`ErrorCode = ` `` `${Lowercase<string>}.${Lowercase<string>}` ``（点式 `<域>.<snake_case>`） | `kernel/src/services/errors.service.ts`、`kernel/src/errors.ts` |
+| `CordexError` / `ErrorTable` / `ErrorCode` | 内核统一错误类型；`ErrorCode = ` `` `${Lowercase<string>}.${Lowercase<string>}` ``（点式 `<域>.<snake_case>`） | `kernel/src/services/errors.service.ts`、`kernel/src/errors.ts` |
 | `Capability` | 权限能力位字面量联合（协议词汇，`CommandDef.permission` 的元素类型；04 §2.8 曾用 `PermissionAction`、`01-tooling-and-governance.md` 曾用 `CapabilityBit` 指同一概念，均已按 14 §1 C-15 统一为 `Capability`，见 §12 G-5 已结案） | `protocol/src/permissions/actions.ts` |
 | `BodyShapeHints` | `DocumentType.shape`：`{ entityTables, atomicLists, richTexts }` 路径前缀标注，供 Store Provider 选择底层结构 | `model-core/src/document-type/document-type.ts` |
 | `TransactionRecord` / `RecordedOp` | 一次事务的完整回放记录（含逆操作、锚点） | `model-core/src/store/transaction.ts` |
@@ -163,9 +163,11 @@ stateDiagram-v2
 | 名称 | 字段（要点） | 校验 schema | 所在文件 |
 |---|---|---|---|
 | `DocumentType<S>` | `id`、`displayName`、`schemaVersion`、`bodySchema`、`shape: BodyShapeHints`、`createEmpty()`、`unitPlugins`、`unitServices`、`selectionKinds`、`viewModes`、`invariants`、`validateChangeSet()`、`diff?()` | 贡献时经 `core.documentType` 的 `schema` parse | `document-type/document-type.ts` |
-| `StoreOp`（5 变体判别联合） | `set\|delete\|insert\|remove\|text`（无 `move`，ADR-0013） | `isStoreOp()` 运行时守卫；无 zod（内部热路径） | `store/ops.ts` |
+| `StoreOp`（5 变体判别联合） | `set\|delete\|insert\|remove\|text`（无 `move`，ADR-0013）；**软删除不新增变体**（rulings §4.15 Q3）：实体删除由文档类型的 `lower()` 降为 `set(<实体路径>._deleted, Tombstone)`，撤销删除 = `delete(<实体路径>._deleted)`，只有服务端 TTL 硬删除才对实体本身发 `delete`/`remove` | `isStoreOp()` 运行时守卫；无 zod（内部热路径） | `store/ops.ts` |
 | `Transaction` / `TransactionRecord` / `RecordedOp` | 见 §2.5、§2.6 | 无独立 schema（运行时对象，不跨进程） | `store/transaction.ts` |
 | `ChangeSet` | `transactionId`、`origin`、`ops: StoreOp[]\|null`、`derived: boolean`、`touched: Path[]` | 无独立 schema（运行时对象，不跨进程） | `store/change-set.ts` |
+| `Tombstone` | `{ at: EpochMs; by: ClientId }`，挂在实体的保留键 `_deleted` 上（rulings §4.15 Q3） | 无 zod（内部），`isTombstoned()` 运行时守卫 | `store/tombstone.ts` |
+| `UndoSkip` | `{ path: Path; reason: 'remote-conflict' \| 'remote-deleted' }`——撤销时因「同一键被他人后写」（`remote-conflict`）或「目标实体已被他人删除，墓碑 TTL 内亦然」（`remote-deleted`，rulings §4.17 D4）而跳过的键 | 无独立 schema（运行时对象） | `store/transaction.ts` |
 | `Origin` | `local(clientId, via?)` \| `remote` \| `system(reason)` \| `replay`——`via?: 'undo' \| 'redo'`（新增，14 §1 C-14）；`reason: 'repair' \| 'restore' \| 'maintenance'`（新增，同上，采纳 06 号协议契约 §18.2 的两项增补，见本节末尾） | 判别字面量，无 zod（纯内部） | `store/origin.ts` |
 | `Snapshot<S>` | `documentType`、`schemaVersion`、`unitId`、`body: Persisted<S>`、`resources`、`blobs: BlobRef[]` | `validateSnapshot()` 组合 `bodySchema` + 各 `ResourceHook.schema` | `snapshot/snapshot.ts` |
 | `SnapshotBundle<S>` | `{ snapshot; blobs: BlobStore }` | `validateSnapshot()` 组合 `bodySchema` + 各 `ResourceHook.schema` | `snapshot/snapshot.ts` |
@@ -177,7 +179,7 @@ stateDiagram-v2
 | `ContributionPointSpec<T,K>` / `ContributionPoint<T,K>` | `{ id: PointId; schema; key; conflict?; describe? }` | `defineContributionPoint()` 构造时自检字段完整性 | `kernel/src/contribution/point.ts` |
 | `Manifest` | 见 §1.2 补充术语表 | `manifest/schema.ts` 的 Standard Schema | `kernel/src/manifest/types.ts` |
 | `PresetEntry` / `LazyPresetEntry` / `PresetTrim` / `PresetReport` | 新增（14 §1 C-07）：`PresetEntry{id;plugin;config?}`（稳定 id 的插件条目）、`LazyPresetEntry`（`entry` 字段为动态 `import()`）、`PresetTrim`（`exclude`/`override` 裁剪描述）、`PresetReport`（`Promise.allSettled` 汇总，逐条 ok/failed） | `kernel/src/preset/entry.ts`（`PresetEntry`/`LazyPresetEntry`）、`kernel/src/preset/report.ts`（`PresetReport`） |
-| `OceError` / `ErrorTable` | 见 §1.2 补充术语表 | `defineErrors(domain, table)` 构造时校验 `table` 形状 | `kernel/src/services/errors.service.ts` |
+| `CordexError` / `ErrorTable` | 见 §1.2 补充术语表 | `defineErrors(domain, table)` 构造时校验 `table` 形状 | `kernel/src/services/errors.service.ts` |
 | `Capability` / 角色→能力位映射 | 见 §1.2 补充术语表；角色 `owner\|editor\|commenter\|viewer` | zod 字面量联合 + `ROLE_CAPABILITIES` 表 | `protocol/src/permissions/{actions,roles}.ts` |
 | DrawingML 值对象群 | `Color`/`Fill`/`Line`/`EffectList`/`Geometry`/`Transform`/`FontRef`/`TextBody` 家族/`Hyperlink`/`OpaqueXml` | 各自 `drawing/schema/*.schema.ts` | `model-core/src/drawing/*.ts` |
 
@@ -215,7 +217,7 @@ stateDiagram-v2
 | `plugin/loaded` | emit | `{ pluginId, version }` | `kernel/src/failure-isolation.ts` | 诊断面板、`server-headless validate` |
 | `plugin/failed` | emit | `{ pluginId, version, code, phase }` | `kernel/src/failure-isolation.ts` | `errors` sink、诊断面板 |
 | `plugin/incompatible` | emit | `{ pluginId, required, actual }` | `kernel/src/manifest/verify.ts` | 诊断面板 |
-| `error/raised` | emit | `(error: OceError)` | `kernel/src/services/errors.service.ts` | `errors.sink` 贡献方 |
+| `error/raised` | emit | `(error: CordexError)` | `kernel/src/services/errors.service.ts` | `errors.sink` 贡献方 |
 | `contribution/changed` | emit | `(pointId, kind, key)` | `kernel/src/contribution/set.ts` | 任意 `observe()` 消费方 |
 | `kernel/manifest-mismatch`（内部诊断） | emit | `MismatchReport` | `kernel/src/manifest/verify.ts` | 诊断面板 |
 | `i18n/locale-changed` | emit | `(locale)` | `i18n/src/services/i18n.service.ts` | UI 框架层 |
@@ -233,6 +235,7 @@ stateDiagram-v2
 | `command/audited` | emit | `(record: AuditRecord)` | `model-core/src/command/audit.ts` | 服务端审计（M-12） |
 | `store/transaction` | emit | `(unitId, changeSet)` | `store-memory`/`store-yjs` 的 Provider | `SceneProvider.diff`（渲染脏区） |
 | `store/loaded` | emit | `(unitId)` | `store-memory`/`store-yjs` 的 Provider | — |
+| `store/undo-skipped` | emit | `(unitId, { skipped: UndoSkip[]; wholeStep: boolean })` | `store-memory`/`store-yjs` 的 Provider（新增，rulings §4.15 Q3） | UI 提示条「部分内容已被他人修改，未撤销」+「恢复我的值」（新事务，非撤销；PRD CO-08）；载荷 `{skipped: UndoSkip[], wholeStep}` 为唯一形状（复核 M2，30-architecture/05/06/10 与 M-05 照抄）；埋点**单独统计**跳过次数与整步跳过次数，不计入软冲突率（rulings §4.17 D5，M-05 落地） |
 | `history/changed` | emit | `(unitId, { canUndo, canRedo, depth })` | `model-core/src/history/history.service.ts` | UI 上下文键 |
 | `selection/changed` | emit | `(unitId, selection)` | `model-core/src/selection/selection.service.ts` | presence 广播（M-05） |
 | `permission/changed` | emit | `(unitId, { added, removed })` | `model-core/src/permission/permissions.service.ts`（唯一发出者，扫描器校验） | UI `isReadOnly` 等上下文键 |
@@ -261,7 +264,25 @@ interface DocumentStore<S = unknown> {
 }
 ```
 
-契约套件：`runDocumentStoreConformance(createStore: (body) => DocumentStore)`（`model-core/src/testing/document-store-conformance.ts`），覆盖：事务原子性、`state()` 引用语义（事务内不变、事务后变化）、`observe` 时序（一次事务一次通知）、`undo/redo` 按 `origin` 过滤、`load` 后 `canUndo` 为 `false`、快照往返（`toSnapshotBody()` 深等于 `load` 入参）、`text` delta 语义、嵌套事务拒绝（`STORE_NESTED_TRANSACTION`）。`store-memory`/`store-yjs` 的 `__tests__` **必须**实例化本套件（扫描器 `provider-runs-conformance`）。**`undo(origin)`/`redo(origin)` 的 `origin` 实参口径**（14 §1 C-14）：`core.undo`/`core.redo`（§2.6）调用时传 `local(clientId,'undo')`/`local(clientId,'redo')`；契约套件按 `origin.local.clientId` 过滤（同一 `via` 取值不影响过滤逻辑，`via` 仅供审计/遥测区分撤销来源，不参与 Store 内部匹配）。
+契约套件：`runDocumentStoreConformance(createStore: (body) => DocumentStore)`（`model-core/src/testing/document-store-conformance.ts`），覆盖：事务原子性、`state()` 引用语义（事务内不变、事务后变化）、`observe` 时序（一次事务一次通知）、`undo/redo` 按 `origin` 过滤、`load` 后 `canUndo` 为 `false`、快照往返（`toSnapshotBody()` 深等于 `load` 入参）、`text` delta 语义、嵌套事务拒绝（`STORE_NESTED_TRANSACTION`）。`store-memory`/`store-yjs` 的 `__tests__` **必须**实例化本套件（扫描器 `provider-runs-conformance`）；rulings §4.15 Q3 起新增「中性撤销语义」分节（见下），用例名见下方**撤销协同契约用例名表**（唯一事实源），两个 Provider 同语义通过。
+
+**中性撤销语义（rulings §4.15 Q3，Definition 层契约，与 CRDT 选型无关）**：
+1. **配置字段中性化**：两个 Provider 的 `Config` 共有 `undo.remoteConflict: 'skip'`（M1–M3 唯一取值；枚举保留扩展位，不得出现 Yjs 专名）。
+2. **跳过他人后写**：`undo(origin)` 应用一步撤销前，按键（`Path`）判定「该键在本步之后是否被**其他 origin** 写过」；被他人后写的键**不覆盖**，记入 `TransactionRecord.skipped: UndoSkip[]`，其余键照常回滚，并 emit `store/undo-skipped`。UI 提供「恢复我的值」——这是新的 `local` 事务，不是撤销。
+3. **整步跳过即停（undo-skip-no-cascade）**：若一步内全部键都被跳过，该步出栈、返回 `skipped` 非空且 `ops` 为空的记录、emit `store/undo-skipped{wholeStep:true}`，**不自动继续撤销下一步**；`redo` 同理对称。
+4. **软删除**：实体删除写 `_deleted: Tombstone` 标记（`StoreOp` 仍 5 种，见 §2.2），实体 id 稳定；**删除方**撤销自己的删除即清除标记，期间他人对该实体的编辑随之保留（delete-vs-edit 不再「delete 胜后丢弃」）。**撤销永不复活他人删除的元素**（rulings §4.17 D4）：他人撤销时目标已被删除（墓碑 TTL 内亦然，不看 TTL）→ 该键以 `reason:'remote-deleted'` 跳过并提示；恢复只能由删除方撤销或显式命令「恢复元素」（新 `local` 事务）完成。
+5. **读路径过滤**：`state()`/`get()` 返回原始树（含墓碑，供协同与快照）；面向业务的只读视图由 `store/tombstone.ts` 的 `filterLive()`/`isTombstoned()` 过滤，文档类型的选择器、渲染 `SceneProvider`、导出 `FormatCodec` 一律经过滤后读取（M-03/M-04/M-07 各自落地）。
+6. **TTL 硬删除由服务端单写者执行**：墓碑默认 TTL 24h（部署可调），到期由服务端协同房间的单写者以 `system('maintenance')` 事务对实体发硬删除（M-09 落地）；客户端 Provider **从不**自行硬删除墓碑。文档擦除与「立即彻底删除」不等 TTL。墓碑计入文档总元素上限（20,000，M-03 不变量）。**`undo(origin)`/`redo(origin)` 的 `origin` 实参口径**（14 §1 C-14）：`core.undo`/`core.redo`（§2.6）调用时传 `local(clientId,'undo')`/`local(clientId,'redo')`；契约套件按 `origin.local.clientId` 过滤（同一 `via` 取值不影响过滤逻辑，`via` 仅供审计/遥测区分撤销来源，不参与 Store 内部匹配）。
+
+**撤销协同契约用例名表（唯一事实源，2026-09-24 复核修正 M3）**：`runDocumentStoreConformance` 协同分节只使用下表五个用例名；ADR-0020、30-architecture/05 §「如何被机械验证」、06 §8、11 §「契约套件」、M-05 §9 等处一律**照抄本表**，不另起名。
+
+| 用例名 | 断言（store-memory 与 store-yjs 必须同结果） | 对应条款 | 作废别名（不得再用） |
+|---|---|---|---|
+| `remote-conflict-skip` | 同一键在本步之后被他人写过 → 该键跳过、不覆盖，其余键照常回滚；emit `store/undo-skipped{skipped, wholeStep:false}` | 第 2 条 | — |
+| `undo-skip-no-cascade` | 一步内全部键被跳过（含目标已被他人删除）→ 该步出栈、emit `store/undo-skipped{wholeStep:true}`，**不继续撤销更早一步**；`redo` 对称 | 第 3 条 | — |
+| `soft-delete-tombstone` | 删除写 `_deleted` 墓碑、实体 id 稳定；删除方撤销自己的删除 = 以原 id 清除墓碑 | 第 4 条 | `soft-delete-restore-same-id`、`delete-tombstone-undo`（前半） |
+| `delete-vs-edit-undo` | (a) 删除方撤销与他人「恢复元素」并发 → 仍只有一份、他人编辑不丢；(b) 他人撤销时目标已被删除（墓碑 TTL 内亦然）→ 跳过并提示、**不复活**（rulings §4.17 D4） | 第 2/4 条 | `delete-vs-edit-no-dup`、`delete-tombstone-undo`（后半） |
+| `read-path-filters-tombstone` | `filterLive()` 视图、选择器、`SceneProvider`、`FormatCodec` 读取均不含墓碑实体；`state()` 原始树含墓碑 | 第 5 条 | `tombstone-filtered-on-read` |
 
 **两个 Provider 的差异**（同一契约、不同实现）：
 
@@ -271,6 +292,7 @@ interface DocumentStore<S = unknown> {
 | `transact` 实现 | 串行应用 `StoreOp[]`，失败整体回滚到事务前引用 | `doc.transact(fn, origin)`；`origin` 透传给 Yjs |
 | `observe` 实现 | 事务提交后同步分发一次 `ChangeSet`（`observe.ts`） | `observeDeep` 事件 → 归约为 `ChangeSet` |
 | 逆操作 | `apply-op.ts` 显式返回 `{ next, inverse }`，`history-stack.ts` 记录 | `Y.UndoManager`（`trackedOrigins = {localOrigin}`）在 CRDT 层完成；`TransactionRecord.inverse` 仍由同一套 `apply-op` 语义计算，供审计/回放一致性（不参与实际撤销） |
+| 撤销冲突判定（§4.15 Q3） | `history-stack.ts` 维护「键 → 最后写入 origin」表；`remote`/他人 `local` 事务更新该表；撤销时据此跳过 | `undo.ts` 包装 `Y.UndoManager`：弹栈前按同一键表判定冲突，部分冲突时以过滤后的 inverse 作为一次 `local(clientId,'undo')` 事务应用并丢弃原栈项，整步冲突时出栈即停；Yjs 锁 **13.6.x 精确版本**（ADR-0020） |
 | 顺序实体 | `order: FracKey` 作为普通对象键写入 | `order: FracKey` 作为普通 `Y.Map` 键写入（ADR-0032，无需 CRDT 专用顺序类型） |
 | 富文本 | `text-delta.ts`：delta 应用/求逆/组合 | `Y.Text.applyDelta`（原生支持相同 delta 形状） |
 | 额外服务 | 无 | `yjsBackend`（`provide: ['store','yjsBackend']`，both 在 UnitScope 隔离域内）——`collab-yjs` 的**唯一**受控访问面，公共 API 不暴露 `Y.*` 类型（api-extractor 正则守护，§6/§10） |
@@ -394,13 +416,13 @@ sequenceDiagram
 
 ## 3. cordis 插件定义
 
-> 七个包按 cordis 形态分四类：`kernel` 是 host 工厂 + 自身也是一个函数插件（提供三个基础服务）；`shared`/`protocol` 是纯库，**没有** `plugin.ts`/`manifest.ts`（`oce.role='library'`，扫描器 `manifest-present` 只要求 `plugin`/`provider` 角色的包有 manifest），下表标 N/A 并说明原因；`i18n`/`model-core` 是标准函数插件（`model-core` 的 cordis 形态标注为 definition，是因为它的**核心价值**是契约而非某个可替换实现，但其挂载方式仍是函数插件）；`store-memory`/`store-yjs` 是 provider（`implements:['store']`，`store-yjs` 额外 `implements:['yjsBackend']`）。
+> 七个包按 cordis 形态分四类：`kernel` 是 host 工厂 + 自身也是一个函数插件（提供三个基础服务）；`shared`/`protocol` 是纯库，**没有** `plugin.ts`/`manifest.ts`（`cordex.role='library'`，扫描器 `manifest-present` 只要求 `plugin`/`provider` 角色的包有 manifest），下表标 N/A 并说明原因；`i18n`/`model-core` 是标准函数插件（`model-core` 的 cordis 形态标注为 definition，是因为它的**核心价值**是契约而非某个可替换实现，但其挂载方式仍是函数插件）；`store-memory`/`store-yjs` 是 provider（`implements:['store']`，`store-yjs` 额外 `implements:['yjsBackend']`）。
 
-**`@oce/shared`**
+**`@cordexjs/shared`**
 
 | 项 | 值 |
 |---|---|
-| 插件名 / `name` | N/A——纯库，无 `plugin.ts`（`oce.role='library'`） |
+| 插件名 / `name` | N/A——纯库，无 `plugin.ts`（`cordex.role='library'`） |
 | `inject` | N/A |
 | `provide` | N/A |
 | 贡献点：提供 | 无 |
@@ -408,9 +430,9 @@ sequenceDiagram
 | 事件：发布 / 订阅 | 无（不 import cordis，无 `Events` 概念） |
 | 配置 schema | 无（无运行时配置；调用方直接 `import` 函数/类型） |
 | 生命周期 | 不适用；模块加载即可用，无 ready/dispose |
-| Manifest 片段 | 无 `oce-manifest.json`（`manifest-present` 扫描器豁免 `library` 角色） |
+| Manifest 片段 | 无 `cordex-manifest.json`（`manifest-present` 扫描器豁免 `library` 角色） |
 
-**`@oce/kernel`**
+**`@cordexjs/kernel`**
 
 | 项 | 值 |
 |---|---|
@@ -423,11 +445,11 @@ sequenceDiagram
 | 事件：订阅 | 无 cordis `Events`（监听的是 Fiber 状态迁移，走 cordis registry 内部钩子，非声明式 `ctx.on`） |
 | 配置 schema | `HostOptions{ kernelVersion?; strictManifest?; defaultSinks?=true; loggerSink?; clock? }` |
 | 生命周期 | ready = 三个 `Service` 子类挂载完成 + 失败隔离监听已挂；dispose = `host.dispose()` → 根 Fiber 销毁 → 全部 effect 逆序清理；**不在**任何 UnitScope 内（host 级，秩 0）；PENDING：kernel 本身秩 0、无硬依赖，正常不会 PENDING |
-| Manifest 片段 | `{ "id": "@oce/kernel", "provides": ["contributions","errors","telemetry"], "injects": [], "points": ["errors.sink","telemetry.sink"], "unitScoped": false }` |
+| Manifest 片段 | `{ "id": "@cordexjs/kernel", "provides": ["contributions","errors","telemetry"], "injects": [], "points": ["errors.sink","telemetry.sink"], "unitScoped": false }` |
 
-**`src/preset/` 装配运行时（新增，14 §1 C-07，不改变上表）**：`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries()`/`lazy()`/`trim()` 不是 kernel 自身插件的一部分——它们不出现在 `plugin.ts`、不贡献/消费任何贡献点、不发布事件，是**供其它包调用的纯函数与类型集合**（与 `scope.ts` 的 `createIsolatedScope` 同类："文档无关的工具，被上层调用"）。收编进 `@oce/kernel` 而非留在 L8 的理由：三个 `preset-slide*` 包若各自持有会形成同秩定向依赖链（`viewer ← slide ← collab`，需新造 depcruise 规则 `oce-bundle-chain`）；架构 03 §9「preset 组合与 loader 的关系」本就写在 kernel 章节；来源是 M-11 §4 曾定义的 `preset-slide-viewer/src/assembly/{entry,lazy,mount,report,validate}.ts`，M-11 已按此裁定删除该目录改为 `import '@oce/kernel'`。
+**`src/preset/` 装配运行时（新增，14 §1 C-07，不改变上表）**：`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries()`/`lazy()`/`trim()` 不是 kernel 自身插件的一部分——它们不出现在 `plugin.ts`、不贡献/消费任何贡献点、不发布事件，是**供其它包调用的纯函数与类型集合**（与 `scope.ts` 的 `createIsolatedScope` 同类："文档无关的工具，被上层调用"）。收编进 `@cordexjs/kernel` 而非留在 L8 的理由：三个 `preset-slide*` 包若各自持有会形成同秩定向依赖链（`viewer ← slide ← collab`，需新造 depcruise 规则 `cordex-bundle-chain`）；架构 03 §9「preset 组合与 loader 的关系」本就写在 kernel 章节；来源是 M-11 §4 曾定义的 `preset-slide-viewer/src/assembly/{entry,lazy,mount,report,validate}.ts`，M-11 已按此裁定删除该目录改为 `import '@cordexjs/kernel'`。
 
-**`@oce/protocol`**
+**`@cordexjs/protocol`**
 
 | 项 | 值 |
 |---|---|
@@ -441,7 +463,7 @@ sequenceDiagram
 | 生命周期 | 不适用 |
 | Manifest 片段 | 无 |
 
-**`@oce/i18n`**
+**`@cordexjs/i18n`**
 
 | 项 | 值 |
 |---|---|
@@ -454,9 +476,9 @@ sequenceDiagram
 | 事件：订阅 | 无 |
 | 配置 schema | `Config{ locale: string; fallback: 'zh-CN' }` |
 | 生命周期 | ready = 首次 `t()` 调用前已从贡献表合并完毕；dispose = 清理内部合并缓存；**不在**任何 UnitScope 内（host 级，两端通用）；PENDING：`contributions` 未挂载（几乎不会发生，L0 内部顺序） |
-| Manifest 片段 | `{ "id": "@oce/i18n", "provides": ["i18n"], "injects": ["contributions"], "points": ["i18n.bundle"], "i18n": ["i18n"], "unitScoped": false }` |
+| Manifest 片段 | `{ "id": "@cordexjs/i18n", "provides": ["i18n"], "injects": ["contributions"], "points": ["i18n.bundle"], "i18n": ["i18n"], "unitScoped": false }` |
 
-**`@oce/model-core`**
+**`@cordexjs/model-core`**
 
 | 项 | 值 |
 |---|---|
@@ -469,9 +491,9 @@ sequenceDiagram
 | 事件：订阅 | 无声明式 `ctx.on`（内部监听 Fiber 生命周期与贡献表变化以驱动 `documentTypes`/`commands` 等服务的反应式视图） |
 | 配置 schema | `Config{ defaultStoreProvider?: string; historyLimit: number; coalesceMs: number }` |
 | 生命周期 | ready = 七个服务 `Service` 子类挂载完成（此时**尚未**打开任何 Unit，服务可用但 `units.list()` 为空）；UnitScope 内：`unit-plugin.ts` 在隔离 `ctx` 下挂载 store Provider/history/selection 等（§2.1 状态机）；PENDING：`contributions`/`errors`/`telemetry` 未就位 |
-| Manifest 片段 | `{ "id": "@oce/model-core", "provides": ["units","documentTypes","commands","formats","resources","migrations","permissions"], "injects": ["contributions","errors","telemetry"], "points": ["core.documentType","core.command","core.mutation","core.format","core.resource","core.migration","core.permissionPolicy"], "unitScoped": false }` |
+| Manifest 片段 | `{ "id": "@cordexjs/model-core", "provides": ["units","documentTypes","commands","formats","resources","migrations","permissions"], "injects": ["contributions","errors","telemetry"], "points": ["core.documentType","core.command","core.mutation","core.format","core.resource","core.migration","core.permissionPolicy"], "unitScoped": false }` |
 
-**`@oce/store-memory`**
+**`@cordexjs/store-memory`**
 
 | 项 | 值 |
 |---|---|
@@ -481,11 +503,11 @@ sequenceDiagram
 | 贡献点：提供 / 消费 | 无（Provider 不注册贡献点） |
 | 事件：发布 | `store/transaction`、`store/loaded`（事件由 `model-core.contribution.ts` 声明，此处只是发出者之一） |
 | 事件：订阅 | 无 |
-| 配置 schema | `Config{ initialBody; schemaVersion; historyLimit: 200; freezeInDev: true }` |
+| 配置 schema | `Config{ initialBody; schemaVersion; historyLimit: 200; freezeInDev: true; undo: { remoteConflict: 'skip' } }`（`undo.remoteConflict` 与 store-yjs 同名同义，rulings §4.15 Q3） |
 | 生命周期 | ready = `MemoryStore` 构造完成并 `load(initialBody)` 成功；dispose = 释放不可变树引用（无原生资源，effect 清理为 no-op）；**UnitScope 内**（provide 的 `store` 名在隔离域内解析）；PENDING：几乎不会（无硬依赖） |
-| Manifest 片段 | `{ "id": "@oce/store-memory", "provides": ["store"], "injects": [], "implements": ["store"], "unitScoped": true }` |
+| Manifest 片段 | `{ "id": "@cordexjs/store-memory", "provides": ["store"], "injects": [], "implements": ["store"], "unitScoped": true }` |
 
-**`@oce/store-yjs`**
+**`@cordexjs/store-yjs`**
 
 | 项 | 值 |
 |---|---|
@@ -495,19 +517,19 @@ sequenceDiagram
 | 贡献点：提供 / 消费 | 无 |
 | 事件：发布 | `store/transaction`、`store/loaded` |
 | 事件：订阅 | 无 |
-| 配置 schema | `Config{ clientId?: string; gc: boolean; undoCaptureTimeout: 500 }`（与 05 §6 `coalesceMs` 统一为 500ms） |
+| 配置 schema | `Config{ clientId?: string; gc: true; undo: { captureTimeout: 500; excludedNamespaces: []; remoteConflict: 'skip' }; maxDocBytes: 64 MiB }`（与 30-architecture/06 §2.4 统一：原扁平字段 `undoCaptureTimeout` 并入 `undo.captureTimeout`，500ms 与 05 §6 `coalesceMs` 一致；`remoteConflict` 为中性字段，rulings §4.15 Q3） |
 | 生命周期 | ready = `Y.Doc` 构造完成且从 `body` 重建 Y 树成功；dispose = `Y.Doc.destroy()`、`UndoManager` 清理（经 `ctx.effect` 拥有）；**UnitScope 内**；PENDING：几乎不会（无硬依赖，但 `collab-yjs` 若 `inject:['yjsBackend']` 会在 `store-memory` 场景下自然 PENDING——这是本包制造给下游的可诊断信号，ADR-0005 第 3 条） |
-| Manifest 片段 | `{ "id": "@oce/store-yjs", "provides": ["store","yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }` |
+| Manifest 片段 | `{ "id": "@cordexjs/store-yjs", "provides": ["store","yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }` |
 
 **图 3-1 贡献点与服务流向**
 
 ```mermaid
 flowchart LR
-  pkgKernel["@oce/kernel"]
-  pkgI18n["@oce/i18n"]
-  pkgModelCore["@oce/model-core"]
-  pkgStoreMemory["@oce/store-memory"]
-  pkgStoreYjs["@oce/store-yjs"]
+  pkgKernel["@cordexjs/kernel"]
+  pkgI18n["@cordexjs/i18n"]
+  pkgModelCore["@cordexjs/model-core"]
+  pkgStoreMemory["@cordexjs/store-memory"]
+  pkgStoreYjs["@cordexjs/store-yjs"]
   pointErrorsSink["errors.sink"]
   pointTelemetrySink["telemetry.sink"]
   pointI18nBundle["i18n.bundle"]
@@ -525,11 +547,11 @@ flowchart LR
 
 ## 4. 目录树（完整到文件）
 
-> 包级样板文件（`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<name>.api.md`/`README.md`/`CHANGELOG.md`/`oce-manifest.json`）七个包完全遵循 02 §4.0「包模板」，不在下列七棵树中重复；`shared`/`protocol` 无 `plugin.ts`/`manifest.ts`/`oce-manifest.json`（`oce.role='library'`，§3 已说明）。以下只展开 `src/**`（含 `./testing` 子路径），`src/__tests__/` 单测目录在 §9 单独列出。标「（新增）」的文件是 02 §4.1–4.7 骨架未列出、本文档为补全 04/05/ADR 明确要求的契约而新增的文件，理由随文件说明，§12 汇总。
+> 包级样板文件（`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<name>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`）七个包完全遵循 02 §4.0「包模板」，不在下列七棵树中重复；`shared`/`protocol` 无 `plugin.ts`/`manifest.ts`/`cordex-manifest.json`（`cordex.role='library'`，§3 已说明）。以下只展开 `src/**`（含 `./testing` 子路径），`src/__tests__/` 单测目录在 §9 单独列出。标「（新增）」的文件是 02 §4.1–4.7 骨架未列出、本文档为补全 04/05/ADR 明确要求的契约而新增的文件，理由随文件说明，§12 汇总。
 >
 > DDD 目录映射（按 00-module-map §1 表，不改变现有目录名）：`shared`/`protocol` 是无领域纯库——按 §1 规则 2 整体视为 `infrastructure/`（工具与编解码算法），不设 `domain/`。`kernel` 的 `Fiber`/`ContributionPoint`/`Manifest` 是插件运行时自身的技术登记表而非业务聚合（module-map BC-01 行原文「kernel 无业务领域」）——比照规则 2 的精神同样不设独立 `domain/`：`contribution/`、`manifest/` 是这一"技术领域"的类型契约，最接近 `domain/`（映射到 §1 表的 `contracts/`），`services/`、`diagnostics/`、`failure-isolation.ts` 是 `application/`+`infrastructure/`。`i18n` 是 plugin 但领域极薄：`keys.ts`/`format.ts` 相当于 `domain/`，`services/i18n.service.ts` 是 `application/`。`model-core` 领域最丰富，按 §1 表逐一对应：`unit/`、`document-type/`、`store/{store,ops,transaction,change-set,origin}.ts`、`command/{command,mutation}.ts`、`snapshot/{snapshot,derived}.ts`、`migration/migration.ts`、`resource/resource-hook.ts`、`permission/permission.ts`、`selection/selection.ts`、`drawing/**` = `domain/`；`*.service.ts`、`command/{pipeline,commands.service,permission-gate,audit}.ts` = `application/`；`store/store-provider.ts`（Provider 挂载约定，非实现）+ `snapshot/{codec,blob-store,validate}.ts` = 介于 `domain/`与`infrastructure/`之间的契约，本文档计入 `domain/`（无 IO，只是编解码算法）；`*.point.ts`/`*.contribution.ts` = OHS 登记，映射 §1 表的 `contracts/`。`store-memory`/`store-yjs` 是纯 Provider 包（§1 规则 1）——整体是 `infrastructure/`，无 `domain/`。
 
-### 4.1 `@oce/shared`
+### 4.1 `@cordexjs/shared`
 
 ```text
 packages/shared/src/
@@ -555,13 +577,13 @@ packages/shared/src/
     └── index.ts                fast-check arbitraries：ids/units/JsonValue/Path
 ```
 
-### 4.2 `@oce/kernel`
+### 4.2 `@cordexjs/kernel`
 
 ```text
 packages/kernel/src/
 ├── index.ts                    re-export 全部公共面（§6）
 ├── augment.ts                  export interface Events{}/Context{}/I18nKeys{}；declare module 'cordis' 桥接（ADR-0001）
-├── host.ts                     createHost(options): OceHost
+├── host.ts                     createHost(options): CordexHost
 ├── host-options.ts             HostOptions 的 Standard Schema
 ├── plugin.ts                   kernel 自身的函数插件：provide=['contributions','errors','telemetry']
 ├── manifest.ts                 生成物（ADR-0003）
@@ -603,21 +625,21 @@ packages/kernel/src/
     └── fakes.ts                   RecordingErrors、RecordingTelemetry
 ```
 
-### 4.3 `@oce/protocol`
+### 4.3 `@cordexjs/protocol`
 
 ```text
 packages/protocol/src/
 ├── index.ts                    re-export
 ├── schema.ts                   z 实例导出约定、Infer<T>、strictObject 默认
-├── ids.ts                      DocumentId/UserId/TenantId/RoomId/SessionId/TaskId/GroupId 品牌 schema（`GroupId` 新增，rulings §4.12 U-11）
+├── ids.ts                      DocumentId/UserId/RoomId/SessionId/TaskId 品牌 schema（T-0 去租户删 TenantId；组管理推迟删 GroupId，rulings §4.15）
 ├── version.ts                  PROTOCOL_VERSION、兼容矩阵
 ├── errors/
-│   ├── codes.ts                 错误码字面量联合（auth/*、document/*、collab/*、task/*、protocol/*）→ HTTP 状态映射表
+│   ├── codes.ts                 错误码字面量联合（auth/*、document/*、collab/*、task/*、protocol/*）→ HTTP 状态映射表；含 quota_exceeded（§4.15 Q5）
 │   └── envelope.ts              ErrorEnvelope{code,message,details?,traceId}
 ├── permissions/
 │   ├── actions.ts               Capability 字面量联合（doc.read/doc.comment/doc.write/doc.export/doc.manage/history.read/history.restore + 第三方 `<vendor>:<域>.<action>`）；PermissionAction 为兼容别名（§12 G-6）
 │   ├── roles.ts                （新增）RoleName='owner'|'editor'|'commenter'|'viewer'；ROLE_CAPABILITIES: Record<RoleName, readonly Capability[]>（类型形状定稿，具体组合见 PRD CO 域，本包不重复裁决）
-│   ├── principal.ts             Principal{userId,tenantId,roles,sessionId}
+│   ├── principal.ts             Principal{userId,roles,sessionId}（T-0 单组织，无 tenantId）
 │   └── decision.ts              PermissionDecision={allow:true}|{allow:false;reason}
 ├── rest/
 │   ├── documents.ts             列表/详情/创建/重命名/删除/权限设置 DTO
@@ -625,12 +647,11 @@ packages/protocol/src/
 │   ├── import-export.ts         任务创建/查询 DTO；TaskState 字面量联合
 │   ├── auth.ts                  login/refresh/me DTO
 │   ├── audit.ts                 AuditRecord DTO
-│   ├── groups.ts                （新增，rulings §4.12 U-11）组创建/重命名/删除、成员增删 DTO（M-08 §2.2/§4.10/§6 落地）
 │   ├── webhooks.ts              （新增，rulings §4.12 U-14）Webhook 订阅注册/更新/删除、投递日志查询 DTO（M-12 §2.1/§4.11/§7.2 落地）
 │   └── index.ts                 re-export
 ├── ws/
 │   ├── handshake.ts             握手帧与应答 DTO
-│   ├── frames.ts                帧判别联合：sync/awareness/permission-changed/error/ping|pong
+│   ├── frames.ts                帧判别联合：sync/awareness/permission-changed/error/ping|pong；control ack 带 tier（§4.15 S-3a）
 │   └── index.ts                 re-export
 ├── snapshot/
 │   └── envelope.ts              SnapshotEnvelope{documentType,schemaVersion,bodyRef,blobs,createdAt,byVersion}
@@ -641,7 +662,7 @@ packages/protocol/src/
     └── index.ts                 DTO 工厂（确定性 seed）
 ```
 
-### 4.4 `@oce/i18n`
+### 4.4 `@cordexjs/i18n`
 
 ```text
 packages/i18n/src/
@@ -660,7 +681,7 @@ packages/i18n/src/
     └── index.ts                 fixedLocale() 测试 Provider
 ```
 
-### 4.5 `@oce/model-core`
+### 4.5 `@cordexjs/model-core`
 
 ```text
 packages/model-core/src/
@@ -682,8 +703,9 @@ packages/model-core/src/
 ├── store/
 │   ├── store.ts                          DocumentStore<S> Definition（§2.5 全签名）
 │   ├── ops.ts                            StoreOp 五种原语判别联合、TextDelta、isStoreOp()
-│   ├── transaction.ts                    Transaction/TransactionRecord/RecordedOp
+│   ├── transaction.ts                    Transaction/TransactionRecord/RecordedOp/UndoSkip（TransactionRecord.skipped）
 │   ├── change-set.ts                     ChangeSet、mergeChangeSets()
+│   ├── tombstone.ts                      （新增，§4.15 Q3）Tombstone、TOMBSTONE_KEY='_deleted'、isTombstoned()、filterLive()
 │   ├── origin.ts                         Origin 判别联合、isLocal()；system.reason∈{repair,restore,maintenance}、local.via∈{undo,redo}（14 §1 C-14）
 │   ├── store-provider.ts                 StoreProviderPlugin 约定（Config 形状）
 │   └── errors.ts                         （新增）StoreError 码：STORE_NESTED_TRANSACTION/STORE_INVALID_PATH/STORE_UNAVAILABLE
@@ -785,7 +807,7 @@ packages/model-core/src/
             └── invariants.ts             2 个 Invariant（行列范围合法、无重复键）
 ```
 
-### 4.6 `@oce/store-memory`
+### 4.6 `@cordexjs/store-memory`
 
 ```text
 packages/store-memory/src/
@@ -797,18 +819,18 @@ packages/store-memory/src/
 ├── apply-op.ts                 applyOp(state,op) → {next,inverse}
 ├── produce.ts                  最小 path-based 不可变更新（≤200 行，无 immer）
 ├── text-delta.ts               富文本 delta 应用/求逆/组合
-├── history-stack.ts            事务记录栈、undo/redo 指针、容量淘汰
+├── history-stack.ts            事务记录栈、undo/redo 指针、容量淘汰；键→最后写入 origin 表（撤销跳过判定）
 ├── observe.ts                  观察者分发：事务提交后同步一次
 └── testing/
     └── index.ts                createMemoryStore(body)
 ```
 
-### 4.7 `@oce/store-yjs`
+### 4.7 `@cordexjs/store-yjs`
 
 ```text
 packages/store-yjs/src/
 ├── index.ts                    re-export（公共面禁止出现 Y.* 类型，§6/§10）
-├── plugin.ts                   provide=['store','yjsBackend']；Config{clientId?;gc;undoCaptureTimeout:500}
+├── plugin.ts                   provide=['store','yjsBackend']；Config{clientId?;gc;undo{captureTimeout:500;excludedNamespaces;remoteConflict:'skip'};maxDocBytes}
 ├── manifest.ts                 生成物
 ├── store-yjs.contribution.ts   Context.yjsBackend 声明（唯一新增 Context 成员；`store` 类型仍由 model-core 声明）
 ├── yjs-store.ts                YjsStore<S> implements DocumentStore<S>；持有 Y.Doc（包内私有，不导出）
@@ -817,7 +839,7 @@ packages/store-yjs/src/
 │   ├── apply-op.ts             StoreOp → Y 操作映射
 │   ├── to-json.ts              Y 树 → 不可变 JSON 视图（增量缓存）
 │   └── from-json.ts            load(body) → 构建 Y 树
-├── undo.ts                     Y.UndoManager 封装：trackedOrigins={localOrigin}
+├── undo.ts                     Y.UndoManager 封装：trackedOrigins={localOrigin}；跳过他人后写、整步跳过即停（§4.15 Q3）
 ├── yjs-backend.service.ts      YjsBackend 服务：encodeStateAsUpdate/applyUpdate/onUpdate/stateVector/stats（抽象类型，不外泄 Y.*）
 └── testing/
     └── index.ts                createYjsStore(body)、twoDocsInSync()
@@ -825,9 +847,9 @@ packages/store-yjs/src/
 
 ## 5. 文件职责表
 
-> 逐文件一行，与 §4 一一对应（`__tests__/` 见 §9）；「允许依赖」列出的是**外部包**，省略「本包其它模块」（包内互引不受 depcruise 包间规则约束，只受文件级无环规则 `oce-no-circular-file` 约束）。
+> 逐文件一行，与 §4 一一对应（`__tests__/` 见 §9）；「允许依赖」列出的是**外部包**，省略「本包其它模块」（包内互引不受 depcruise 包间规则约束，只受文件级无环规则 `cordex-no-circular-file` 约束）。
 
-### 5.1 `@oce/shared`
+### 5.1 `@cordexjs/shared`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -850,13 +872,13 @@ packages/store-yjs/src/
 | `typed-events.ts` | 极简类型化 emitter | 泛型 `TypedEmitter<T>` | 无 | 仅供不在 cordis 生命周期内的纯库（如 opc 读取进度） |
 | `testing/index.ts` | 测试专用构造器 | fast-check arbitraries（ids/units/JsonValue/Path） | `fast-check`（devDependency） | `./testing` 子路径导出；生产代码禁止 import |
 
-### 5.2 `@oce/kernel`
+### 5.2 `@cordexjs/kernel`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `index.ts` | 公共 API 面 | 见 §6 | shared、cordis | 唯一非 `augment.ts`/`*.contribution.ts` 外允许出现 `import type ... from 'cordis'` 的文件 |
-| `augment.ts` | 声明合并桥接 | `Events{}`、`Context{}`、`I18nKeys{}` 空接口 + `declare module 'cordis'` | cordis（类型） | ADR-0001；全仓唯一的 cordis→oce 桥接点 |
-| `host.ts` | 根 Context 工厂 | `createHost()`、`OceHost` | cordis、shared | 挂载 kernel 自身插件、版本协商、失败隔离监听 |
+| `augment.ts` | 声明合并桥接 | `Events{}`、`Context{}`、`I18nKeys{}` 空接口 + `declare module 'cordis'` | cordis（类型） | ADR-0001；全仓唯一的 cordis→cordex 桥接点 |
+| `host.ts` | 根 Context 工厂 | `createHost()`、`CordexHost` | cordis、shared | 挂载 kernel 自身插件、版本协商、失败隔离监听 |
 | `host-options.ts` | Host 配置契约 | `HostOptions` 及其 schema | shared | `defaultSinks` 默认 `true` |
 | `plugin.ts` | kernel 函数插件 | `name`/`inject`/`provide`/`Config`/`apply` | cordis、本文件同级模块 | `provide=['contributions','errors','telemetry']` |
 | `manifest.ts` | Manifest 生成物 | `manifest: Manifest` | 无 | `manifest-gen --check` 校验无 diff |
@@ -867,7 +889,7 @@ packages/store-yjs/src/
 | `contribution/mixin.ts` | `contribute`/`contributions` 挂到 ctx | 内部注册函数 | cordis | 全仓唯一 `ctx.mixin` 调用点（lint `no-mixin-outside-kernel`） |
 | `contribution/diagnostics.ts` | 贡献诊断类型 | `ContributionDiagnostic` | 无 | 校验失败走诊断而非抛错（关键约束） |
 | `manifest/types.ts` | Manifest 类型 | `Manifest`、`ContributionEntry` | shared | ADR-0003 |
-| `manifest/schema.ts` | Manifest 运行时校验 | `ManifestSchema` | zod（第三方，直接引入） | 校验 `oce-manifest.json`；`zod` 按章程 §5.3 规则 4 同时白名单于 `protocol`/`kernel`——两包各自独立 import，kernel **不**依赖 protocol（charter §5.2 依赖上限均只列 `shared`） |
+| `manifest/schema.ts` | Manifest 运行时校验 | `ManifestSchema` | zod（第三方，直接引入） | 校验 `cordex-manifest.json`；`zod` 按章程 §5.3 规则 4 同时白名单于 `protocol`/`kernel`——两包各自独立 import，kernel **不**依赖 protocol（charter §5.2 依赖上限均只列 `shared`） |
 | `manifest/verify.ts` | 声明-运行时一致性 | `verifyManifestAgainstRuntime()`、`MismatchReport` | cordis（类型） | 不一致→`strictManifest` 时 FAILED，否则诊断 |
 | `manifest/version.ts` | 版本范围比较 | `satisfies()` | 无 | 只支持 `^`/`~`/`>=`/精确/`\|\|`（ADR-0002），不拉入 `semver` |
 | `scope.ts` | 隔离作用域工具 | `createIsolatedScope()` | cordis | 文档无关；被 model-core 调用构造 UnitScope（裁决 C-4） |
@@ -876,7 +898,7 @@ packages/store-yjs/src/
 | `preset/mount.ts` | 装配挂载核心 | `mountEntries()` | cordis、`./entry`、`./report` | 新增；`allSettled` 语义，单条失败不阻塞其余 |
 | `preset/report.ts` | 装配报告类型 | `PresetReport` | 无 | 新增 |
 | `preset/validate.ts` | 裁剪校验 | `trim()` | `./entry` | 新增；`exclude`/`override` 支持「移除任一 Provider 仍可启动」验收 |
-| `services/errors.service.ts` | 错误服务 | `ErrorsService`、`defineErrors()`、`OceError` | cordis、shared、`../contribution` | `report()` 扇出到 `errors.sink` |
+| `services/errors.service.ts` | 错误服务 | `ErrorsService`、`defineErrors()`、`CordexError` | cordis、shared、`../contribution` | `report()` 扇出到 `errors.sink` |
 | `services/telemetry.service.ts` | 遥测服务 | `TelemetryService`、`defineTelemetryEvents()` | cordis、`../contribution` | 采样在服务内完成 |
 | `services/sinks/console-error-sink.ts` | 默认错误 sink | `consoleErrorSink` | 无 | `no-console` lint 白名单文件 |
 | `services/sinks/noop-telemetry-sink.ts` | 默认遥测 sink | `noopTelemetrySink` | 无 | — |
@@ -890,37 +912,36 @@ packages/store-yjs/src/
 | `testing/lifecycle-suite.ts` | 生命周期契约套件 | `defineLifecycleSuite()` | vitest（类型，devDependency） | primer MUST #7 的机械化；每插件包 `__tests__/lifecycle.test.ts` 必调用 |
 | `testing/fakes.ts` | 测试替身 | `RecordingErrors`、`RecordingTelemetry` | `../services/*`（类型） | — |
 
-### 5.3 `@oce/protocol`
+### 5.3 `@cordexjs/protocol`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `index.ts` | 公共 API 面 | 全部下列符号 | shared、zod | — |
 | `schema.ts` | zod 使用约定 | `Infer<T>`、`strictObject` 默认导出 | zod | `zod` 集中于 protocol/kernel（R5） |
-| `ids.ts` | 品牌 id schema | `DocumentId`/`UserId`/`TenantId`/`RoomId`/`SessionId`/`TaskId`/`GroupId`（新增，rulings §4.12 U-11） | zod、shared | `z.string().brand` |
+| `ids.ts` | 品牌 id schema | `DocumentId`/`UserId`/`RoomId`/`SessionId`/`TaskId` | zod、shared | `z.string().brand`；rulings §4.15 T-0 单组织完全去租户，删除 `TenantId`；Q6 组管理（U-11）推迟，删除 `GroupId` |
 | `version.ts` | 协议版本与兼容矩阵 | `PROTOCOL_VERSION`、兼容判定函数 | 无 | 客户端↔服务端握手用（06/08） |
-| `errors/codes.ts` | 错误码字面量与 HTTP 映射 | 错误码联合、`ERROR_HTTP_STATUS` | 无 | 禁止 `enum`（lint `no-enum-in-protocol`） |
+| `errors/codes.ts` | 错误码字面量与 HTTP 映射 | 错误码联合、`ERROR_HTTP_STATUS` | 无 | 禁止 `enum`（lint `no-enum-in-protocol`）；新增 `quota_exceeded`（rulings §4.15 Q5：超出部署配置的规模包络——页数/单页元素/文档总元素——导入直接拒绝；映射 HTTP 413，`details` 带触顶维度与上限值），常量名/值按 14 §1 C-16 双轨通则由 M-04/M-08 落定 |
 | `errors/envelope.ts` | 错误信封 | `ErrorEnvelope` | zod | REST/WS 统一错误形状 |
 | `permissions/actions.ts` | 权限能力位词汇 | `Capability`、`PermissionAction`（别名） | zod | Q-T8：AND 语义、非空数组 |
 | `permissions/roles.ts` | 角色→能力位映射类型 | `RoleName`、`ROLE_CAPABILITIES` | `./actions` | 组合细节见 PRD CO 域（新增文件，§12 G-5） |
-| `permissions/principal.ts` | 主体 | `Principal` | zod | `{userId,tenantId,roles,sessionId}` |
+| `permissions/principal.ts` | 主体 | `Principal` | zod | `{userId,roles,sessionId}`（rulings §4.15 T-0：无 `tenantId`） |
 | `permissions/decision.ts` | 权限决策 | `PermissionDecision` | 无 | `{allow:true}\|{allow:false;reason}` |
 | `rest/documents.ts` | 文档 REST DTO | 列表/详情/创建/重命名/删除/权限设置 schema | zod、`../ids` | 含 `recent`/`pinned` 字段（M2，M-08 落地，rulings §4.12 U-04） |
 | `rest/snapshots.ts` | 快照 REST DTO | 索引、预签名 URL schema | zod | 与 `snapshot/envelope.ts` 配合 |
 | `rest/import-export.ts` | 任务 REST DTO | 创建/查询 schema、`TaskState` | zod | 字面量联合替代 enum |
-| `rest/auth.ts` | 鉴权 REST DTO | login/refresh/me schema | zod | — |
+| `rest/auth.ts` | 鉴权 REST DTO | login/refresh/me schema | zod | rulings §4.15 Q6：服务端只做 OIDC RP、不持有密码，`login` 为 OIDC 跳转/回调 DTO；集成方 JWT 与 API Key DTO 降为 M4 |
 | `rest/audit.ts` | 审计 REST DTO | `AuditRecord` | zod、`../ids` | M-12 读取 |
-| `rest/groups.ts`（新增，rulings §4.12 U-11） | 组 REST DTO | 创建/重命名/删除组、增删成员 schema | zod、`../ids`（`GroupId`） | M-08 §2.2/§4.10/§6 落地，M3 |
 | `rest/webhooks.ts`（新增，rulings §4.12 U-14） | Webhook REST DTO | 注册/更新/删除订阅、投递日志查询 schema | zod、`../ids` | M-12 §2.1/§4.11/§7.2 落地，M3 |
 | `rest/index.ts` | 子目录聚合 | re-export | 无 | — |
 | `ws/handshake.ts` | WS 握手帧 | 请求/应答 schema | zod、`../permissions/decision` | `roomId`/`permissions`/`serverVersion` |
-| `ws/frames.ts` | WS 帧判别联合 | `sync`/`awareness`/`permission-changed`/`error`/`ping`\|`pong` | zod、`./handshake` | M-05/M-09 落地传输 |
+| `ws/frames.ts` | WS 帧判别联合 | `sync`/`awareness`/`permission-changed`/`error`/`ping`\|`pong` | zod、`./handshake` | M-05/M-09 落地传输；rulings §4.15 S-3a 两级 ack：control ack 帧为 `{kind:'ack', tier:'spill'} \| {kind:'ack', tier:'db', seq}`——`spill` 表示 PG 故障期溢写成功，**客户端不得据此清 pending**；只有 `tier:'db'`（带 PG 分配的正式 `seq`）才清（M-05 LocalBatcher、M-09 落地）。**本文件是 ack 帧唯一事实源（2026-09-24 复核 M1）**：帧内**不带** `count`/`localCounter`——应答规则是「同一连接内，服务端对每个入站 update 帧按到达顺序恰好回一帧 `tier:'db'`（PG 故障期先额外回一帧 `tier:'spill'`，回放落库后再补 `db`，顺序不变）」，WS 单连接有序，客户端以在途 FIFO 队首对应即可，`count` 可由 FIFO 推出而冗余；`localCounter` 是服务端溢写行临时键（M-09 `SpillKey`），回放时即换成 PG `seq`，属服务端内部、不上线；连接中断时未得 `db` 的帧留在 pending 重发（at-least-once，Yjs update 幂等） |
 | `ws/index.ts` | 子目录聚合 | re-export | 无 | — |
 | `snapshot/envelope.ts` | 快照跨进程信封 | `SnapshotEnvelope` | zod、`./blob` | `schemaVersion` 必填（ADR-0009） |
-| `render/page.ts` | headless 渲染页跨进程契约 | `RenderPageQuerySchema`、`RenderPageSignal`、`RenderStateResponse` | zod | 新增（14 §1 C-27）：module-map §4.2 第 1 条「`@oce/protocol` 是唯一跨进程契约来源」同样覆盖 Node↔headless Chromium 边界；此前 `server-headless`（M-09）与 `apps/web /render`（M-11）各自类型镜像，本文件为单一事实源，两端均改为 import |
+| `render/page.ts` | headless 渲染页跨进程契约 | `RenderPageQuerySchema`、`RenderPageSignal`、`RenderStateResponse` | zod | 新增（14 §1 C-27）：module-map §4.2 第 1 条「`@cordexjs/protocol` 是唯一跨进程契约来源」同样覆盖 Node↔headless Chromium 边界；此前 `server-headless`（M-09）与 `apps/web /render`（M-11）各自类型镜像，本文件为单一事实源，两端均改为 import |
 | `blob.ts` | Blob 引用 | `BlobRef` | zod | 与 `model-core/src/snapshot/blob-store.ts` 同一定义源，model-core re-export |
 | `testing/index.ts` | DTO 工厂 | 确定性 seed 的构造函数 | 无 | `./testing` |
 
-### 5.4 `@oce/i18n`
+### 5.4 `@cordexjs/i18n`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -935,7 +956,7 @@ packages/store-yjs/src/
 | `locales/en-US.json` | 翻译 | JSON 数据 | 无 | CI 校验 key 集合与源一致（`i18n-keys-sync`） |
 | `testing/index.ts` | 测试 Provider | `fixedLocale()` | 无 | `./testing` |
 
-### 5.5 `@oce/model-core`
+### 5.5 `@cordexjs/model-core`
 
 > 因文件数量较大（100 个），按 §4.5 的子目录分组呈现；「允许依赖」省略 kernel/shared（几乎每个文件都需要，除非特别标注更窄的范围）。
 
@@ -967,9 +988,10 @@ packages/store-yjs/src/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `store/store.ts` | DocumentStore Definition | `DocumentStore<S>`、`TransactOptions` | `./ops`、`./transaction`、`./change-set`、`./origin` | §2.5 全签名；无实现，仅契约 |
-| `store/ops.ts` | 存储原语 | `StoreOp`（5 变体）、`TextDelta`、`isStoreOp()` | 无 | ADR-0013；恰 5 个判别成员（类型测试守护） |
-| `store/transaction.ts` | 事务与记录 | `Transaction`、`TransactionRecord`、`RecordedOp` | `./ops`、`./origin` | `mutate()` 签名见 §2.6 |
+| `store/ops.ts` | 存储原语 | `StoreOp`（5 变体）、`TextDelta`、`isStoreOp()` | 无 | ADR-0013；恰 5 个判别成员（类型测试守护）；软删除不新增变体（§4.15 Q3） |
+| `store/transaction.ts` | 事务与记录 | `Transaction`、`TransactionRecord`、`RecordedOp`、`UndoSkip` | `./ops`、`./origin` | `mutate()` 签名见 §2.6；`TransactionRecord.skipped?: readonly UndoSkip[]`（撤销跳过的键，rulings §4.15 Q3） |
 | `store/change-set.ts` | 变更集 | `ChangeSet`、`mergeChangeSets()` | `./ops` | `touched` 为权威字段 |
+| `store/tombstone.ts` | 软删除墓碑约定（新增，rulings §4.15 Q3） | `Tombstone`、`TOMBSTONE_KEY`、`isTombstoned()`、`filterLive()` | `./ops` | 文档类型盲：只约定保留键 `_deleted` 与过滤函数；哪些路径是「实体」由文档类型的 `BodyShapeHints` 声明；TTL 硬删除不在本文件（服务端 M-09） |
 | `store/origin.ts` | 事务来源 | `Origin`、`isLocal()` | 无 | `local`/`remote`/`system`/`replay`；`system.reason∈{'repair','restore','maintenance'}`、`local.via∈{'undo','redo'}` 为新增增补（14 §1 C-14，采纳 06 §18.2） |
 | `store/store-provider.ts` | Provider 挂载约定 | `StoreProviderPlugin` 类型 | `./store` | 供 `store-memory`/`store-yjs` 的 `plugin.ts` 实现该形状 |
 | `store/errors.ts` | 存储错误码 | `StoreError`（`STORE_NESTED_TRANSACTION`/`STORE_INVALID_PATH`/`STORE_UNAVAILABLE`） | kernel `errors.service` | 新增：`DocumentStore.transact` 返回类型 `Result<_,StoreError>` 的类型来源；点式值按 §2.6 通则派生（如 `store.nested_transaction`） |
@@ -1089,7 +1111,7 @@ packages/store-yjs/src/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `testing/index.ts` | 子路径聚合 | re-export（含两套 fixtures） | 无 | `./testing` |
-| `testing/document-store-conformance.ts` | Store 契约套件 | `runDocumentStoreConformance()` | `../store/*` | §2.5；两个 Provider 必须实例化 |
+| `testing/document-store-conformance.ts` | Store 契约套件 | `runDocumentStoreConformance()` | `../store/*` | §2.5；两个 Provider 必须实例化；含「中性撤销语义」分节（`remote-conflict-skip`/`undo-skip-no-cascade`/`soft-delete-tombstone`/`delete-vs-edit-undo`/`read-path-filters-tombstone`，rulings §4.15 Q3；用例名以 §2.5「撤销协同契约用例名表」为唯一事实源，`delete-vs-edit-undo` 含 D4「不复活他人删除」断言） |
 | `testing/format-codec-conformance.ts` | FormatCodec 契约套件 | `runFormatCodecConformance()` | `../format/*` | 新增（14 §1 C-26）：填补 charter §5.5 命名例证无归属文件的缺口；`ooxml-pptx` 等 Provider 必须实例化 |
 | `testing/command-harness.ts` | 命令测试挽具 | `createCommandHarness()` | `../command/*` | 断言 ops/事件/审计/权限调用 |
 | `testing/permission-fakes.ts` | 权限测试替身 | `allowAllPolicy`/`denyAllPolicy`/`recordingPolicy` | `../permission/permission` | — |
@@ -1120,7 +1142,7 @@ packages/store-yjs/src/
 | `migration.ts` | 1 个 Migration | `Migration`（v1→v2） | `../../../migration/migration` | — |
 | `invariants.ts` | 2 个 Invariant | `Invariant[]` | `../document-type` | 行列范围合法、无重复键 |
 
-### 5.6 `@oce/store-memory`
+### 5.6 `@cordexjs/store-memory`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -1132,11 +1154,11 @@ packages/store-yjs/src/
 | `apply-op.ts` | 原语应用与逆推导 | `applyOp()` | model-core（`StoreOp`） | 五种原语各自处理 |
 | `produce.ts` | 最小不可变更新 | `produce()` | 无 | ≤200 行，无第三方 immer |
 | `text-delta.ts` | 富文本 delta | `applyDelta()`、`invertDelta()`、`composeDelta()` | model-core（`TextDelta`） | 与 Y.Text delta 兼容形状 |
-| `history-stack.ts` | 事务记录栈 | `HistoryStack` | model-core（`TransactionRecord`、`Origin`） | 容量淘汰有测试（A29） |
+| `history-stack.ts` | 事务记录栈 | `HistoryStack` | model-core（`TransactionRecord`、`Origin`） | 容量淘汰有测试（A29）；维护键→最后写入 origin 表，实现「跳过他人后写、整步跳过即停」（§4.15 Q3） |
 | `observe.ts` | 观察者分发 | `createObserverRegistry()` | model-core（`ChangeSet`） | 事务提交后同步一次 |
 | `testing/index.ts` | 测试构造器 | `createMemoryStore(body)` | `../memory-store` | `./testing` |
 
-### 5.7 `@oce/store-yjs`
+### 5.7 `@cordexjs/store-yjs`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -1149,23 +1171,23 @@ packages/store-yjs/src/
 | `mapping/apply-op.ts` | 原语→Y 操作 | `applyOpToY()` | model-core（`StoreOp`）、yjs（包内私有） | `order` 为普通 `Y.Map` 键写入 |
 | `mapping/to-json.ts` | Y 树→JSON 视图 | `toJson()` | yjs（包内私有） | 增量缓存，按 Y 事件失效 |
 | `mapping/from-json.ts` | JSON→Y 树 | `fromJson()` | yjs（包内私有） | `load(body)` 使用 |
-| `undo.ts` | 撤销封装 | `createUndoManager()` | yjs（包内私有） | `trackedOrigins={localOrigin}` |
+| `undo.ts` | 撤销封装 | `createUndoManager()` | yjs（包内私有） | `trackedOrigins={localOrigin}`；包装层实现 `undo.remoteConflict:'skip'`：跳过他人后写的键、整步跳过即停并 emit `store/undo-skipped`（§4.15 Q3）；Yjs 13.6.x 精确版本 |
 | `yjs-backend.service.ts` | 受控访问面 | `YjsBackendService` | model-core、yjs（包内私有） | `collab-yjs` 的唯一注入点；公共类型不暴露 `Y.*` |
 | `testing/index.ts` | 测试构造器 | `createYjsStore(body)`、`twoDocsInSync()` | `../yjs-store` | `./testing` |
 
 ## 6. 对外 API 面
 
-各包 `.` 子路径导出的具体符号见 §5「主要导出」列（不重复枚举）；`./testing` 子路径**只**导出测试替身/构造器/契约套件工厂，生产代码禁止 import（depcruise `no-testing-in-prod`）。api-extractor 稳定级（`@public`/`@beta`/`@internal`，09-api-surface §2.1）按包级 `oce.stability` 给出默认值，逐符号覆盖留待实现期：
+各包 `.` 子路径导出的具体符号见 §5「主要导出」列（不重复枚举）；`./testing` 子路径**只**导出测试替身/构造器/契约套件工厂，生产代码禁止 import（depcruise `no-testing-in-prod`）。api-extractor 稳定级（`@public`/`@beta`/`@internal`，09-api-surface §2.1）按包级 `cordex.stability` 给出默认值，逐符号覆盖留待实现期：
 
 | 包 | `.` 导出概要 | `./testing` 导出概要 | 稳定级（推荐） |
 |---|---|---|---|
-| `@oce/shared` | 品牌类型、`Result`、断言、`FracKey`、集合/哈希/文本工具（纯类型+纯函数） | fast-check arbitraries | `stable`：面最小且几乎不随 cordis 升级变化 |
-| `@oce/kernel` | `Context`/`Service`/`Plugin`/`Fiber`/`Events` 类型转发、`createHost`、`defineContributionPoint`、`Manifest` 类型、`errors`/`telemetry` 契约、`createIsolatedScope`、诊断函数；`preset/{entry,lazy,mount,report,validate}` 装配运行时（`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries()`，新增，14 §1 C-07） | `createTestHost`、`defineLifecycleSuite`、fakes | `beta`（推荐）：cordis 处于 rc，ADR-0001 桥接 spike 未收尾前不承诺 `stable` |
-| `@oce/protocol` | 全部 REST/WS/错误码/权限 zod schema 与推导类型；`render/page.ts` 的 `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`（新增，14 §1 C-27，供 M-09/M-11 import） | DTO 工厂 | `beta`（推荐）：M-08/M-09 落地传输时大概率新增字段 |
-| `@oce/i18n` | `I18nService` 类型、`I18nKeys` 声明合并点 | `fixedLocale()` | `stable` |
-| `@oce/model-core` | `Unit`/`UnitScope`/`DocumentType`/`DocumentStore`/`CommandDef`/`MutationDef`/`OperationDef`/`Snapshot`/`Migration`/`PermissionPolicy`/`Selection`/`drawing/**`；内置 `core.undo`/`core.redo`（`OperationDef` 实例，新增，14 §1 C-02） | `runDocumentStoreConformance`、`runFormatCodecConformance`（新增，14 §1 C-26）、`createCommandHarness`、`fixture`/`fixture-grid` 两套文档类型 | `beta`（推荐）：`StoreOp`/`Mutation` 形状随 M2 实践可能微调，M3 起收紧为 `stable` |
-| `@oce/store-memory` | `MemoryStore` 工厂 | `createMemoryStore` | `beta`（推荐），随 `DocumentStore` 契约一起收紧 |
-| `@oce/store-yjs` | `YjsStore`/`YjsBackend` **抽象**类型（禁止出现 `Y.*`，09-api-surface §2.2 正则守护） | `createYjsStore`、`twoDocsInSync` | `beta`（推荐） |
+| `@cordexjs/shared` | 品牌类型、`Result`、断言、`FracKey`、集合/哈希/文本工具（纯类型+纯函数） | fast-check arbitraries | `stable`：面最小且几乎不随 cordis 升级变化 |
+| `@cordexjs/kernel` | `Context`/`Service`/`Plugin`/`Fiber`/`Events` 类型转发、`createHost`、`defineContributionPoint`、`Manifest` 类型、`errors`/`telemetry` 契约、`createIsolatedScope`、诊断函数；`preset/{entry,lazy,mount,report,validate}` 装配运行时（`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries()`，新增，14 §1 C-07） | `createTestHost`、`defineLifecycleSuite`、fakes | `beta`（推荐）：cordis 处于 rc，ADR-0001 桥接 spike 未收尾前不承诺 `stable` |
+| `@cordexjs/protocol` | 全部 REST/WS/错误码/权限 zod schema 与推导类型；`render/page.ts` 的 `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`（新增，14 §1 C-27，供 M-09/M-11 import） | DTO 工厂 | `beta`（推荐）：M-08/M-09 落地传输时大概率新增字段 |
+| `@cordexjs/i18n` | `I18nService` 类型、`I18nKeys` 声明合并点 | `fixedLocale()` | `stable` |
+| `@cordexjs/model-core` | `Unit`/`UnitScope`/`DocumentType`/`DocumentStore`/`CommandDef`/`MutationDef`/`OperationDef`/`Snapshot`/`Migration`/`PermissionPolicy`/`Selection`/`drawing/**`；内置 `core.undo`/`core.redo`（`OperationDef` 实例，新增，14 §1 C-02） | `runDocumentStoreConformance`、`runFormatCodecConformance`（新增，14 §1 C-26）、`createCommandHarness`、`fixture`/`fixture-grid` 两套文档类型 | `beta`（推荐）：`StoreOp`/`Mutation` 形状随 M2 实践可能微调，M3 起收紧为 `stable` |
+| `@cordexjs/store-memory` | `MemoryStore` 工厂 | `createMemoryStore` | `beta`（推荐），随 `DocumentStore` 契约一起收紧 |
+| `@cordexjs/store-yjs` | `YjsStore`/`YjsBackend` **抽象**类型（禁止出现 `Y.*`，09-api-surface §2.2 正则守护） | `createYjsStore`、`twoDocsInSync` | `beta`（推荐） |
 
 关键类型契约草案（本模块两个最核心的抽象，≤40 行）：
 
@@ -1209,7 +1231,7 @@ interface DocumentStore<S = unknown> {
 
 `apps/server` 侧的接入点是 `apps/server/src/cordis-host/cordis-host.service.ts`（module-map §4.2 第 5 条）：Nest 模块只调用其 `openUnit`/`closeUnit`/`diagnostics()`，不直接 import 本模块任何包（`server-app-thin` 规则）；真正持有 `createHost()` 与七个包实例的是 `server-collab`/`server-headless` 两个 cordis 宿主（M-09）。
 
-**协议 schema 目录组织**（`@oce/protocol/src/`，全部 zod 4，见 §4.3/§5.3）：`errors/`（错误码字面量 + HTTP 状态映射）、`permissions/`（能力位、角色映射、主体、决策）、`rest/`（按资源分文件：`documents`/`snapshots`/`import-export`/`auth`/`audit`/`groups`/`webhooks`；后两者新增，rulings §4.12 U-11/U-14）、`ws/`（`handshake` 握手 + `frames` 判别联合）、`snapshot/`（跨进程信封）、`blob.ts`（顶层，因 model-core 与 protocol 共用）。REST controller 的 `@Body()`、WS 帧编解码、错误码枚举全部只能引用 `z.infer<typeof X>`（module-map §4.2 第 1 条铁律），任何一方不得私自定义跨进程 DTO。
+**协议 schema 目录组织**（`@cordexjs/protocol/src/`，全部 zod 4，见 §4.3/§5.3）：`errors/`（错误码字面量 + HTTP 状态映射）、`permissions/`（能力位、角色映射、主体、决策）、`rest/`（按资源分文件：`documents`/`snapshots`/`import-export`/`auth`/`audit`/`webhooks`；`webhooks` 新增，rulings §4.12 U-14；原 `groups` 随 rulings §4.15 Q6 组管理推迟而删除）、`ws/`（`handshake` 握手 + `frames` 判别联合）、`snapshot/`（跨进程信封）、`blob.ts`（顶层，因 model-core 与 protocol 共用）。REST controller 的 `@Body()`、WS 帧编解码、错误码枚举全部只能引用 `z.infer<typeof X>`（module-map §4.2 第 1 条铁律），任何一方不得私自定义跨进程 DTO。
 
 **图 7-1 两端 Provider 选择**
 
@@ -1290,14 +1312,14 @@ packages/<pkg>/src/__tests__/
 
 依据来源：module-map §9（本模块 BC-01…BC-05 五行）、02 §4.0.1/§7、09-boundaries §2/§3。`role` 字段按 02 的七值编码（`library`/`plugin`/`definition`/`provider`/`bundle`/`app`/`tooling`）；depcruise 侧按 09-boundaries §2 折叠为四值（module-map §8 G-2 已记录这一「同一字段两级折叠」关系，本文档不重复裁决）。
 
-| 包 | `package.json#oce` | 关键 depcruise 规则 | 关键 eslint / 扫描器规则 | 09-type-discipline |
+| 包 | `package.json#cordex` | 关键 depcruise 规则 | 关键 eslint / 扫描器规则 | 09-type-discipline |
 |---|---|---|---|---|
 | shared | `L0 / iso / — / library` | R1 无环；R11 `shared-has-no-deps`（`dependencies` 必须为空） | — | 03-boundaries §3.1 |
 | kernel | `L0 / iso / — / plugin` | R12 `only-kernel-imports-cordis`（唯一允许 `import 'cordis'`） | `no-mixin-outside-kernel`、`no-register-methods`、`no-module-level-mutable-state`、`no-bare-throw`、`no-console` | 03-boundaries §3.3 |
 | protocol | `L0 / iso / — / library` | R1；R5 `third-party-single-entry`（`zod` 集中） | `no-enum-in-protocol` | 03-boundaries §3.3 |
 | i18n | `L0 / iso / — / plugin` | R1、R2 | `i18n-keys-sync`（脚本/扫描器） | 06-scanners（i18n 专项） |
-| model-core | `L1 / iso / — / definition` | R2 `oce-layer-downward`；被 R3 `oce-doc-type-blind` 保护（禁止垂直束反向 import） | `no-doc-type-literals`、`no-unit-scoped-inject-at-root`、`no-boolean-command-result`、`no-inverse-in-mutation`、`no-index-in-mutation`、`command-declares-capability`、`operation-has-no-tx`、`effect-owned-timers`、`events-declared` | 03-boundaries §3.2/§3.5；04 §11；05 §12 |
-| store-memory | `L1 / iso / — / provider`，`implements:['store']` | R2；R7 `oce-role-provider-no-cross-import`（不得 import store-yjs） | 扫描器 `provider-runs-conformance` | 03-boundaries §3.5 |
+| model-core | `L1 / iso / — / definition` | R2 `cordex-layer-downward`；被 R3 `cordex-doc-type-blind` 保护（禁止垂直束反向 import） | `no-doc-type-literals`、`no-unit-scoped-inject-at-root`、`no-boolean-command-result`、`no-inverse-in-mutation`、`no-index-in-mutation`、`command-declares-capability`、`operation-has-no-tx`、`effect-owned-timers`、`events-declared` | 03-boundaries §3.2/§3.5；04 §11；05 §12 |
+| store-memory | `L1 / iso / — / provider`，`implements:['store']` | R2；R7 `cordex-role-provider-no-cross-import`（不得 import store-yjs） | 扫描器 `provider-runs-conformance` | 03-boundaries §3.5 |
 | store-yjs | `L1 / iso / — / provider`，`implements:['store','yjsBackend']` | R2；R5（`yjs` 仅此三包之一）；R7 | 同左 + `.api.md` 正则扫描 `Y\.[A-Z]\w*`（09-api-surface §2.2，无豁免通道） | 03-boundaries §3.4/§3.5；04-api-surface §2.2 |
 
 本模块「关键约束」（硬规则，不得违反）与其机械化对照：
@@ -1306,6 +1328,7 @@ packages/<pkg>/src/__tests__/
 |---|---|---|
 | `Mutation` 禁止 `inverse` 字段 | lint `no-inverse-in-mutation`；`MutationDef.schema` 为 `strictObject` | `command/mutation.ts` |
 | `StoreOp` 五种原语、无 `move` | 类型测试：判别联合恰 5 个成员 | `store/ops.ts` |
+| 软删除只写 `_deleted` 标记、客户端 Provider 不硬删除墓碑（§4.15 Q3） | 契约套件 `soft-delete-tombstone`；`store-memory`/`store-yjs` 源码中对实体路径的 `delete` 只允许出现在 `origin.system.reason==='maintenance'` 分支（评审 + 用例） | `store/tombstone.ts`、两个 Provider |
 | `UnitScope` 隔离服务集固定 | `ISOLATED_SERVICES` 常量 + ADR-0005 `unit-scope.test.ts` | `unit/unit-scope.ts` |
 | 贡献项 schema 校验失败走诊断而非抛错 | `ContributionService.contribute()` 语义（03 §3.3） | `contribution/service.ts`（kernel） |
 | 命令唯一执行入口，`CommandDef.permission` 必填非空 | lint `command-declares-capability`；扫描器 `store-transact-callsites`（生产代码仅两处调用 `store.transact`） | `command/pipeline.ts`、`command/command.ts` |
@@ -1348,13 +1371,13 @@ undo --> assert
 验收命令（ADR-0004 CI 矩阵的本模块子集）：
 
 ```bash
-pnpm --filter "@oce/{shared,kernel,protocol,i18n,model-core,store-memory,store-yjs}" build
-pnpm --filter "@oce/{kernel,model-core,store-memory,store-yjs}" test
+pnpm --filter "@cordexjs/{shared,kernel,protocol,i18n,model-core,store-memory,store-yjs}" build
+pnpm --filter "@cordexjs/{kernel,model-core,store-memory,store-yjs}" test
 turbo run typecheck lint depcruise manifest api iso-smoke policy \
-  --filter="@oce/{shared,kernel,protocol,i18n,model-core,store-memory,store-yjs}"
+  --filter="@cordexjs/{shared,kernel,protocol,i18n,model-core,store-memory,store-yjs}"
 ```
 
-通过标准：`runDocumentStoreConformance` 在 store-memory 与 store-yjs 均全绿；上述最小闭环集成测试通过；`fixtures/horizontal-freeze.lock` 首次生成（M5 前只需存在，暂不做锁定比对）。
+通过标准：`runDocumentStoreConformance`（含 rulings §4.15 Q3「中性撤销语义」分节）在 store-memory 与 store-yjs 均全绿；上述最小闭环集成测试通过；`fixtures/horizontal-freeze.lock` 首次生成（M5 前只需存在，暂不做锁定比对）。
 
 ### M2/M3 展望（不在本模块交付范围，仅标注依赖前提）
 
@@ -1389,16 +1412,40 @@ M2 起 `yjsBackend` 需被 `collab-yjs`（M-05）实际注入验证；`command/b
 | C-16 | §2.6（新增「错误码通则」段与对照表）、§2.1（`UNIT_UNKNOWN_DOCUMENT_TYPE` 两处）、§4.5/§5.5（`unit/errors.ts` 等五个 `errors.ts` 行） | 确立 TS 常量 `UPPER_SNAKE`/错误码值点式双轨通则；`format.no_document_type` 定为唯一权威拼写 |
 | C-24 | §2.4（域白名单段新增 `export` 域例外说明） | `export` 域标注「新增建议，已提请章程收编」 |
 | C-26 | §2.5（新增 `FormatCodec` 契约套件说明）、§4.5/§5.5（新增 `testing/format-codec-conformance.ts`）、§6 | 补齐 charter §5.5 命名例证无归属文件的缺口 |
-| C-27 | §4.3/§5.3（新增 `render/page.ts`）、§6 | `RenderPageProtocol` 系列 schema 收编进 `@oce/protocol`，供 M-09/M-11 import |
+| C-27 | §4.3/§5.3（新增 `render/page.ts`）、§6 | `RenderPageProtocol` 系列 schema 收编进 `@cordexjs/protocol`，供 M-09/M-11 import |
 
 未落实但已知悉的相关项：C-28（`model-core` 未在本文档依赖上限内出现偏差，不适用）；命名一致性 §2 的「新增建议」58 项中与本模块相关者（`contributions`/`yjsBackend` 服务名、`unit/*` 等事件域全表移入 03 §3.6）留待总编排/架构-类型治理条线统一收编，本文档不重复登记。
+
+### 2026-09-24 回写（rulings §4.15，章程 §10 Q1–Q10 裁决）
+
+| 裁决 | 本文档改动位置 | 要点 |
+|---|---|---|
+| Q3 撤销语义 | §2.2（`StoreOp` 行、新增 `Tombstone`/`UndoSkip` 行）、§2.4（新增 `store/undo-skipped`）、§2.5（「中性撤销语义」六条 + 契约套件五个新用例 + Provider 差异表新增一行）、§3（两个 Provider 的 `Config` 统一 `undo.remoteConflict:'skip'`）、§4.5/§5.5（新增 `store/tombstone.ts`）、§4.6/§4.7/§5.6/§5.7（`history-stack.ts`/`undo.ts`）、§10 | 同一键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除改软删除墓碑（`StoreOp` 仍 5 种）；读路径过滤；TTL（默认 24h）硬删除只由服务端单写者执行；Yjs 13.6.x 精确版本 |
+| Q3（Config 统一） | §3 store-yjs、§4.7 `plugin.ts` | 原扁平 `undoCaptureTimeout` 并入 `undo.captureTimeout`，与 30-architecture/06 §2.4 对齐（决策包 Q3 docUpdates 指出的 02:498/:811 与 06 §2.4 不一致） |
+| S-3a 两级 ack | §4.3/§5.3 `ws/frames.ts` | control ack 带 `tier:'spill'\|'db'`；只有 `db` 清 pending |
+| Q5 超包络拒绝导入 | §4.3/§5.3 `errors/codes.ts` | 新增 `format.quota_exceeded`（导入）、`document.quota_exceeded`（编辑期）、`storage.quota_exceeded`（存储）三码，域前缀已统一（30-architecture/10 §1.4） |
+| T-0 单组织去租户 | §4.3/§5.3 `ids.ts`、`permissions/principal.ts` | 删除 `TenantId`、`Principal.tenantId` |
+| Q6 鉴权 / 组管理推迟 | §4.3/§5.3 `rest/auth.ts`；删除 `rest/groups.ts` 与 `GroupId`；§7 协议目录段 | 服务端只做 OIDC RP；集成方 JWT / API Key 降 M4；组管理（U-11）推迟，M3 只按人分享 |
+
+需要其他文件配合：30-architecture/06 §8 #2/#3/#10/#11 与 §2.4（撤销与删除语义改写、`undo.remoteConflict` 字段）；ADR-0020/0032；M-03（实体删除的 `lower()` 改写墓碑、墓碑计入 20,000 上限、选择器过滤）；M-05（撤销跳过的确定性/fuzz 用例、LocalBatcher 两级 ack）；M-08（`groups` 相关删除、`TenantId` 使用点）；M-09（TTL 硬删除单写者、ack tier 发送）。
+
+
+### 2026-09-24 复核修正（rulings §4.17；复核报告 `00-charter/_evidence/review-2026-09-24.html`）
+
+| 条目 | 本文档改动位置 | 要点 |
+|---|---|---|
+| M1 两级 ack 帧 | §5.3 `ws/frames.ts` | 本文档为 ack 帧唯一事实源：`{kind:'ack', tier:'spill'} \| {kind:'ack', tier:'db', seq}`；**去掉 `count`/`localCounter`**，理由见该行；30-architecture/06 §2.4 与 M-09 `SpillAck` 照抄 |
+| M2 `store/undo-skipped` 载荷 | §2.4 | 唯一形状 `{skipped: UndoSkip[], wholeStep}`（作废 `paths: Path[]`）；30-architecture/05/06/10 与 M-05 照抄 |
+| M3 撤销协同契约用例名 | §2.5 新增「撤销协同契约用例名表」、§5.5 `testing/document-store-conformance.ts` | 五个用例名定为唯一事实源并列出作废别名（`delete-tombstone-undo`、`soft-delete-restore-same-id`、`delete-vs-edit-no-dup`、`tombstone-filtered-on-read`）；ADR-0020、30-architecture/05/06/11、M-05 照抄 |
+| D4 撤销目标被他人删除 | §2.2 `UndoSkip.reason` 增 `'remote-deleted'`、§2.5 第 4 条、用例 `delete-vs-edit-undo` (b) | 跳过并提示，不看 TTL，撤销永不复活他人删除的元素 |
+| D5 埋点口径 | §2.4 `store/undo-skipped` 行 | 单独统计，不计入软冲突率（M-05 落地） |
 
 ## 13. 未决问题
 
 | 编号 | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
 | Q-1 | ADR-0001 声明合并桥接 spike（S1–S8）尚未跑，本文档 `augment.ts`/`*.contribution.ts` 结构假设 spike 通过 | 假设通过（当前草案）；若失败改用退路 B，文件数不变、内容形态变（`declare module 'cordis'` 限定进各 `*.contribution.ts`） | `kernel/src/augment.ts`；全七包的 `*.contribution.ts` |
-| Q-2 | ~~`core.restoreVersion` 的事务 `origin` 用 `system('restore')`（04 §10 字面）会使其**不进入**标准撤销栈（05 §6：`undo` 只按 `local` 过滤），用户无法一键撤销一次误恢复~~ **（转专项设计，2026-09-19）** | 「维持 `system('restore')`」与「改进本地撤销栈」两个简单方案均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR），需回答多人协同下他人已在恢复后内容上继续编辑时如何回退、是否引入受保护的「恢复事务」与二次确认、与 CRDT 合并/快照链的关系 | `command/builtin/restore-version-command.ts`、`store/origin.ts`、05 §6；ADR（待建） |
+| Q-2 | ~~`core.restoreVersion` 的事务 `origin` 用 `system('restore')`（04 §10 字面）会使其**不进入**标准撤销栈（05 §6：`undo` 只按 `local` 过滤），用户无法一键撤销一次误恢复~~ **（转专项设计，2026-09-19）** | 「维持 `system('restore')`」与「改进本地撤销栈」两个简单方案均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR），需回答多人协同下他人已在恢复后内容上继续编辑时如何回退、是否引入受保护的「恢复事务」与二次确认、与 CRDT 合并/快照链的关系；**基线已由 rulings §4.15 Q3 给出**：专项在 §2.5「中性撤销语义」（跳过他人后写并提示、整步跳过即停、软删除墓碑）之上设计，不得另起覆盖他人的撤销语义 | `command/builtin/restore-version-command.ts`、`store/origin.ts`、05 §6；ADR（待建） |
 | Q-3 | ~~`core.restoreVersion` 参数是完整 `targetBody`（本文档选择）还是 `{ versionId }` 由 model-core 自行解析~~ **（转专项设计，2026-09-19）** | 参数形状与撤销语义耦合（`versionId` 形态更利于「恢复事务」记录可回退的目标版本），**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR）一并裁定 | `command/builtin/restore-version-command.ts`；M-09 版本恢复 REST 端点；ADR（待建） |
 | Q-4 | `fixture-grid` 的稀疏 `cells.<r>:<c>` 键形状是否需要与未来 `model-sheet`（M-13/M5）字段级对齐 | 不强制对齐——`fixture-grid` 只是水平层验证工具，非 `model-sheet` 预实现 | `model-core/testing/fixtures/fixture-grid/**`；M-13 |
 | Q-5 | `ROLE_CAPABILITIES` 的具体映射值（PRD CO 域，未列入本模块必读） | 类型先行（本文档已定形状），运行时初始值等 M-08 落地时与 PRD CO 域对齐后回填 | `protocol/src/permissions/roles.ts`；M-08 |

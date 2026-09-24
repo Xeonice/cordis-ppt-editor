@@ -1,4 +1,4 @@
-> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19 | 依赖：00–13
+> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（rulings §4.16：M-04/G-7 行标已裁决）、2026-09-24（复核修正，rulings §4.17）（D3 覆盖标注） | 依赖：00–13
 
 # 14 跨模块评审（阶段三）
 
@@ -49,11 +49,11 @@ rulings411 -- "C-19" --> prd05["PRD 05里程碑"]
 | C-04 | `SlideshowService` 存在但未 `provide` | `07-slide-rendering.md:173`、`:189`、`:196`、`:399`；`10-ui-shell-and-slide-ui.md:969`（G-16）、`:982`（Q-4） | M-07 §2.6 定义 `SlideshowService`（`application/services/slideshow.service.ts`），但 §3 `provide` 只有 `['thumbnails']`、Manifest `unitPlugins.provides:["thumbnails"]`；M-10：「`slide-ui` 无法经 `ctx.*` 访问」，自行在 `slide-ui/application/present.ts` 编排 | **删除 M-07 的 `slideshow.service.ts`，放映编排归 slide-ui**。依据：放映是 UI 行为（全屏、键盘翻页、黑屏/白屏），`slide-render` 只需响应 `ViewDescriptor.mode`；charter §5.5 服务名清单无 `slideshow`，新增服务名需修章程，成本高于把 3 个 DOM 动作搬进 slide-ui。`slide/show-changed` 事件改由 slide-ui 发 | `40-modules/07` §2.6/§4.1/§5.1（删 `slideshow.service.ts`）、§2.4（`slide/show-changed` 发布者改 slide-ui）、§0 事件行；`40-modules/10` 确认自编排 |
 | C-05 | `ui.ribbonTab` / `ui.inspector` 贡献点是否新增 | `10-ui-shell-and-slide-ui.md:959`（G-6）；`30-architecture/03-kernel-and-plugin-model.md` §3.6 贡献点总表（十个 `ui.*`） | 总编排任务提示出现 `ui.ribbonTab`/`ui.inspector`；M-10 G-6：「二者不在 03 §3.6 / charter §5.5 的十个 `ui.*` 中…本文不新增 id：页签 = `ui.ribbon{kind:'tab'}`，检查器分区 = `ui.panel{slot:'inspector'}`」 | **维持 M-10 的映射，不新增贡献点 id**。依据：03 §3.6「判据：集合 → 贡献点；单例 → 服务」，页签与检查器分区都是 `ui.ribbon`/`ui.panel` 集合内的条目而非新集合；`slot` 为开放字符串（00 §6.3 第 3 点已内建参数化点），足以表达两者 | 无需回写（确认现状）；若总编排坚持独立 id，须先修订 03 §3.6 与 charter §5.5 后再回写 `40-modules/10` §2.6/§3/§4 |
 | C-06 | 查看器壳与可选缩略图条/备注抽屉归属 | `10-ui-shell-and-slide-ui.md:973`（G-20）、`:989`（Q-11）；`11-preset-assembly-and-app-shell.md:967`（G-3）、`:990`（Q-4） | M-10 G-20：「本文放 ui-react 懒加载 chunk（不进 §4 文件表，M-11 `options.ts` 参数化）；请 M-11 在其 §4 列出 `ViewerThumbnailStrip.tsx` / `ViewerNotesSheet.tsx`」。M-11 G-3：「壳与可选条/抽屉全部在 `preset-slide-viewer/src/shell/**`（框架无关），**不**要求 M-10 追加…请 M-10 删除 §7 末段」 | **归 `preset-slide-viewer/src/shell/**`（M-11）**。依据：PRD OF-14 查看器体积 ≤ 350 KB gzip，ADR-0010 决策 5 与 PRD EM-01 形态 C 要求查看器壳框架无关、不引入 React 依赖树；放 ui-react 即使懒加载也把 React 拖进查看器基线。rulings §4.10 Q18「默认关、宿主选项开启、按需加载、不计入 350 KB 基线」与纯 CSS `[data-slot]` 实现相容 | `40-modules/10` §7 末段删除「查看器」一条并改为指向 `40-modules/11` §4.3；`40-modules/10` §12 G-20 标注已裁定 |
-| C-07 | 装配运行时（`PresetEntry`/`mountEntries`…）无归属包 | `11-preset-assembly-and-app-shell.md:969`（G-5）、`:989`（Q-3）；`02-kernel-protocol-and-document-core.md` §4.2（`kernel` 树无 `preset/`）；`30-architecture/03-kernel-and-plugin-model.md` §9 | M-11：「`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries` 是三预设共用的装配运行时，无归属包；本文暂放 `preset-slide-viewer/src/assembly/`…形成 L8 内定向依赖链 `viewer ← slide ← collab`」；建议 M-02 在 `kernel/src/preset/` 收编 | **收编进 `@oce/kernel`（`kernel/src/preset/{entry,lazy,mount,report,validate}.ts`）**。依据：03 §9「preset 组合与 loader 的关系」本就写在 kernel 章节；放 L8 会制造同秩 bundle 之间的定向 import（需为此新造 depcruise 规则 `oce-bundle-chain`），而 00 §1 规则 3 明确「纯装配包只有 `plugins.ts`/`options.ts`，不设任何 DDD 分层目录」；放 kernel 后 `preset-doc`/`preset-sheet` 零成本复用 | `40-modules/02` §4.2/§5.2/§6 新增 `preset/` 五文件；`40-modules/11` §4.3 删 `assembly/`、`./assembly` 子路径；`30-architecture/03` §9 补文件清单 |
+| C-07 | 装配运行时（`PresetEntry`/`mountEntries`…）无归属包 | `11-preset-assembly-and-app-shell.md:969`（G-5）、`:989`（Q-3）；`02-kernel-protocol-and-document-core.md` §4.2（`kernel` 树无 `preset/`）；`30-architecture/03-kernel-and-plugin-model.md` §9 | M-11：「`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries` 是三预设共用的装配运行时，无归属包；本文暂放 `preset-slide-viewer/src/assembly/`…形成 L8 内定向依赖链 `viewer ← slide ← collab`」；建议 M-02 在 `kernel/src/preset/` 收编 | **收编进 `@cordexjs/kernel`（`kernel/src/preset/{entry,lazy,mount,report,validate}.ts`）**。依据：03 §9「preset 组合与 loader 的关系」本就写在 kernel 章节；放 L8 会制造同秩 bundle 之间的定向 import（需为此新造 depcruise 规则 `cordex-bundle-chain`），而 00 §1 规则 3 明确「纯装配包只有 `plugins.ts`/`options.ts`，不设任何 DDD 分层目录」；放 kernel 后 `preset-doc`/`preset-sheet` 零成本复用 | `40-modules/02` §4.2/§5.2/§6 新增 `preset/` 五文件；`40-modules/11` §4.3 删 `assembly/`、`./assembly` 子路径；`30-architecture/03` §9 补文件清单 |
 | C-08 | 服务端修复事件名 `collab/repair` vs `collab-server/repair` | `09-server-collab-gateway-and-headless-host.md:19`、`:127`；`12-server-jobs-comments-and-ops.md:680`（G-25）、`:693`（Q-2）；`00-module-map.md` §3 BC-26 行；`05-collaboration-client.md:143`（客户端 `collab/repair`） | M-09 发布 `collab-server/repair`（与 `collab-server/room-opened\|room-closed\|update-rejected` 同前缀）；00 §3 BC-26 行写 `collab/repair`；M-05 的客户端 `collab/repair` 是**另一个**事件（客户端收到 `CONTROL.repair` 后自发） | **保留两个事件名，按 M-09 口径**：服务端 `collab-server/*`、客户端 `collab/*`，00 §3 BC-26 行回填为 `collab-server/repair`。依据：二者发布者、载荷、订阅者均不同（服务端 `{docId,reason,paths}` 给审计；客户端 `{unitId,…}` 给提示 UI），合并会丢失可分辨性。**但 `collab-server` 域必须先加入保留域名单**，否则扫描器 `event-domain-whitelist` 拒绝 | `40-modules/00` §3 BC-26 行；`00-charter/charter.md` §5.5 与 `30-architecture/03` §3.6 域名单补 `collab-server` |
 | C-09 | `ThumbnailRenderer` 的对外导出形态 | `09-server-collab-gateway-and-headless-host.md:172-174`、`:541`、§6 API 面（未列）；`12-server-jobs-comments-and-ops.md:681`（G-26）、`:692`（Q-1）；`30-architecture/08-backend-nestjs.md` §2（`server-headless.renderThumbnails`） | M-09 定义接口并注「M-12 的 BullMQ 处理器是唯一调用方」，但 §6 对外 API 面不含它；08 号架构文档用符号名 `renderThumbnails`，与 `.render()/.renderPdf()` 形态不一致；M-12 §5.3 假设 `HeadlessHost` 有只读字段 `thumbnails` | **`HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`，M-09 §6 补导出；`renderThumbnails` 作废**。依据：M-12 是唯一调用方且已按此假设写 `headless-renderer.accessor.ts`；字段形式比工厂函数更易在 `CordisHostService.getService` 体系外直接取用；统一符号名可消除 08 号文档与 09 的分歧 | `40-modules/09` §6 API 面 + `interface/host/create-server-host.ts` 行；`30-architecture/08` §2 改名 |
 | C-10 | `apps/server/src/cordis-host/adapters/*` 归属 | `09-server-collab-gateway-and-headless-host.md:305-317`（完整定义三文件）、`:728`（Q-6）；`12-server-jobs-comments-and-ops.md:11`、`:176`、`:678`（G-23）；`00-module-map.md` §3 BC-26 行、§7 M-12 行 | 00 §7 把 `cordis-host/adapters/*` 列入 **M-12** 覆盖目录；M-09 §4.3 完整定义 `pino-logger`/`otel-telemetry`/`errors-reporter` 三个 adapter 并裁定「物理归属本模块」；M-12 §3/§4 记录「本模块新增 **0 个文件**」 | **归 M-09**。依据：三个 adapter 实现的是 kernel L0 的 `logger`/`telemetry`/`errors` 服务，与 `preset-server` 装配同生命周期，而 `preset-server.ts` 已在 M-09 §4.3；M-12 已自行让位、不存在双写风险 | `40-modules/00` §7 M-12 行加注「`cordis-host/adapters`（引用，非新增，物理归属 M-09）」；§7 M-09 行「覆盖的包与目录」补 `apps/server/src/cordis-host`；§3 BC-26 行同步 |
-| C-11 | `package.json#oce.role` 两套枚举 | `00-module-map.md:918`（G-2）、`:962`（Q-M1）；`01-tooling-and-governance.md:651`（D-8）、§2.2；`10-ui-shell-and-slide-ui.md:910`（「`role` 七值按 G-2 折叠为 depcruise 三角色」） | 02 §4.0.1：7 值 `library\|plugin\|definition\|provider\|bundle\|app\|tooling`；09-boundaries §2：4 值 `definition\|provider\|consumer\|n/a`；M-01 §2.2 直接采用 4 值口径并引用折叠表 | **确认「同一物理字段、两级折叠」**：`package.json` 写 7 值，depcruise 读取时折叠为 4 值（`definition→definition`、`provider→provider`、其余`→consumer`，除非该包同时是某 Definition 的 Provider）。依据：00 §8 G-2 已给出折叠映射且 M-01/M-10 均已按此书写 | `30-architecture/09-type-discipline/03-boundaries.md` §2 补折叠表；`tooling/depcruise/package-metadata.ts` 实现口径（Q-M1 裁定为「是」） |
+| C-11 | `package.json#cordex.role` 两套枚举 | `00-module-map.md:918`（G-2）、`:962`（Q-M1）；`01-tooling-and-governance.md:651`（D-8）、§2.2；`10-ui-shell-and-slide-ui.md:910`（「`role` 七值按 G-2 折叠为 depcruise 三角色」） | 02 §4.0.1：7 值 `library\|plugin\|definition\|provider\|bundle\|app\|tooling`；09-boundaries §2：4 值 `definition\|provider\|consumer\|n/a`；M-01 §2.2 直接采用 4 值口径并引用折叠表 | **确认「同一物理字段、两级折叠」**：`package.json` 写 7 值，depcruise 读取时折叠为 4 值（`definition→definition`、`provider→provider`、其余`→consumer`，除非该包同时是某 Definition 的 Provider）。依据：00 §8 G-2 已给出折叠映射且 M-01/M-10 均已按此书写 | `30-architecture/09-type-discipline/03-boundaries.md` §2 补折叠表；`tooling/depcruise/package-metadata.ts` 实现口径（Q-M1 裁定为「是」） |
 | C-12 | 「三处 LRU」的计数口径 | `06-layout-and-render-engine.md:726`（G-7）；`07-slide-rendering.md:686`（G-7）；`00-module-map.md` §7 M-06 行（「三处 LRU 必须有淘汰测试（A29）」）；`30-architecture/07-rendering.md` §11 | 架构 07 §11 的系统级「三处」= `StyleCache` + `MediaCache` + `LayerTemplateCache`（后者在 M-07）；M-06 把「三处」解读为模块内 `style-cache`+`media-cache`+`measure-cache`；两者相加实为 **4 处** | **系统级共 4 处缓存，模块级分别为 M-06 三处、M-07 一处**；00 §7 两行分别加注。依据：M-06 G-7 与 M-07 G-7 对此已达成一致，仅差 00 未回填 | `40-modules/00` §7 M-06 行加注「模块内三处，不含 M-07 的 `LayerTemplateCache`」、M-07 行加注「含 1 处模板 LRU」；`30-architecture/07` §11 改为「四处」并注明归属 |
 | C-13 | 视图模式三套词汇 | `10-ui-shell-and-slide-ui.md:971`（G-18）、`:578`；`03-slide-domain-model.md:216`（`viewModes = ['normal','master','presenter']`）；`06-layout-and-render-engine.md`（`ViewDescriptor.mode`）；`07-slide-rendering.md:82`（`viewMode:'edit'\|'master'\|'thumbnail'\|'present'`） | M-03 `viewModes`：`normal\|master\|presenter`；M-06 `ViewDescriptor.mode`：`edit\|master\|thumbnail\|present`；M-06 `Viewport.mode`：`single\|continuous\|grid\|show`；M-10 在 `ui-core/domain/view-mode.ts` 固化映射 `normal→edit`、`presenter→present` | **接受「三层各有词汇 + 一张映射表」为正式契约，但把映射表上移到 `engine-render`**（`ViewDescriptor` 的定义包），而非 ui-core。依据：`doc-render`/`sheet-render`（M-13）同样需要该映射，放 ui-core 会让 headless 路径（无 ui-core）无法转换；三套词汇各有语义（文档类型合法模式 / 渲染描述 / 视口排布），强行统一会丢失区分 | `40-modules/06` §2.1/§2.2 新增 `mapViewMode()` 与映射表；`40-modules/10` §5 `domain/view-mode.ts` 改为 re-export；`30-architecture/07` §14.1 术语对齐表补三行 |
 | C-14 | `TransactionOrigin` vs `Origin` | `05-collaboration-client.md:740`（G-6）；`02-kernel-protocol-and-document-core.md` §2.2；`30-architecture/06-collaboration.md` §2.2/§18.2 | 06 号架构文档：`TransactionMeta{origin: TransactionOrigin}` + 类层级命名（`LocalOrigin`/`RemoteOrigin`/`RepairOrigin`）；M-02：判别字面量 `Origin = local(clientId,via?) \| remote \| system(reason) \| replay`；M-05 采用 M-02 写法并「假定 06 §18.2 的增补请求已被接受」——但 M-02 §13 无对应回填 | **以 M-02 的 `Origin` 判别字面量为准，并由 M-02 正式接受 06 §18.2 的两项增补**：`system.reason ∈ {'repair','restore','maintenance'}`、`local.via ∈ {'undo','redo'}`。依据：`TransactionOrigin` 只出现在 06 号历史草稿；M-05 已按此写 `domain/session-state.ts`，不接受增补会使其表述落空 | `40-modules/02` §2.2 明确两个取值集合并在 §12 新增一条记录采纳；`30-architecture/06` §2.2/§18.2 改名 |
@@ -61,16 +61,16 @@ rulings411 -- "C-19" --> prd05["PRD 05里程碑"]
 | C-16 | 错误码：点式值 vs UPPER_SNAKE 常量 | `04-ooxml-format-and-pptx-codec.md:667`（G-4）；`13-doc-sheet-extension-skeleton.md:765`（G-1）、`:777`（Q2）；`02-kernel-protocol-and-document-core.md:270-277`；`03-slide-domain-model.md:275`、`:422`；`00-module-map.md:886` | charter §5.4：「错误码为点式（`format.no_document_type`）」；M-04 G-4 给出唯一明文解释「**TS 常量名 UPPER_SNAKE、错误码值点式**」并把 `ZIP_LIMIT_EXCEEDED` 的值对齐为 `format.limit_exceeded`；M-02/M-03 只出现 UPPER_SNAKE（`COMMAND_NOT_FOUND`/`LAYOUT_IN_USE`…）未给点式值；「移除全部 DocumentType 后打开」三处拼写不同：ADR-0016 `format/no-document-type`、00 §6.5 `UNIT_UNKNOWN_DOCUMENT_TYPE`、PRD 05 `format.no_document_type` | **采纳 M-04 G-4 的双口径解释为全仓通则**；「未知文档类型」唯一权威拼写 **`format.no_document_type`**（与 charter §5.4 原文逐字一致）。依据：charter §5.4 本就以该码为例；`format/no-document-type` 混用了事件名的 `/` 分隔符，`UNIT_UNKNOWN_DOCUMENT_TYPE` 是常量名不是码值 | `00-charter/charter.md` §5.5 补一句双口径通则；`40-modules/00` §6.5 改为 `format.no_document_type`；`30-architecture/adr/0016` 同步；`40-modules/02` §2.6/§4.5、`40-modules/03` §4/§5 为每个 UPPER_SNAKE 常量补点式值列 |
 | C-17 | `epoch` 与 `permVersion` 是否联动 | `08-server-identity-documents-and-storage.md:669`（G-9）、`:729`（Q-4）；`09-server-collab-gateway-and-headless-host.md:726`（Q-4）；`30-architecture/adr/0029`（ticket claims 无 `epoch`） | M-08：`documents.epoch` 存在、`internal/admin.controller.ts` 有 `.../epoch` 强制操作，但 ADR-0029 的 ticket claims 不含 `epoch`；两模块均「暂不合并，各自独立演进」，M-09 只提供 `collabServer.forceEpoch()` | **维持不合并，但补一条显式语义**：`epoch` 递增 = 强制全体重连（踢出）；`permVersion` 递增 = 仅重算权限、不断连。两者由 `internal/admin.controller.ts` 分别触发，不自动联动。依据：两模块推荐默认一致，缺的只是「为什么不联动」的成文理由，写明后 M3 实现者不会再反复质疑 | `30-architecture/08-backend-nestjs.md` §16.x 补一段语义对照；`30-architecture/adr/0029` 补注「ticket 不携带 epoch，epoch 校验在 Room 侧」 |
 | C-18 | `OoxmlIdMap` 是否提升到 `ooxml-core` | `04-ooxml-format-and-pptx-codec.md:669`（G-6）、`:677`（Q-2）；`13-doc-sheet-extension-skeleton.md:768`（G-4）、`:782`（Q7） | M-04：暂缓，留在 `ooxml-pptx/domain/ids/`，待 M-13 立项用「`ooxml-docx` 复制该文件是否零改动」实测决定，需要则走 ADR；M-13 §4.3 **已假定提升完成**并直接复用，同时承认「该提升截至本文档写作时尚未发生」 | **维持 M-04 的暂缓，M-13 §4.3 改为「临时各自复制一份」**（即 M-13 Q7 的推荐默认）。依据：M-04 的理由成立——只有一个垂直实例时无法验证「零改动复制」；M-13 的假定是超前引用，会让 M5 开工即阻塞在一个未立的 ADR 上 | `40-modules/13` §4.3/§4.4 改为各包临时复制 `ooxml-id-map.ts` 并标注待 ADR 收编；`40-modules/04` §8 保留「候选提升」标注 |
-| C-19 | `preset-doc`/`preset-sheet` 是否带 `-skeleton` 后缀 | `13-doc-sheet-extension-skeleton.md:766`（G-2）、`:770`（G-6）、`:776`（Q1）；`00-module-map.md:920`（G-3）、`:963`（Q-M2）；PRD `05-milestones-and-scope.md` M5 P0 段 | 00 §8 G-3 建议 `@oce/preset-doc`/`@oce/preset-sheet`（与 `preset-slide` 对称）；PRD 05 M5 P0 写 `preset-doc-skeleton`/`preset-sheet-skeleton`；M-13 已「下游先用」无后缀名并请求提高 Q-M2 裁定优先级 | **不加后缀**，用 `package.json#oce.stability:'experimental'` 信号未完工。依据：包名改名要改 `exports`/依赖/锁文件/发布记录，成本远高于一个字段；charter §5.2 已有 `stability` 字段正是为此设计 | `00-charter/charter.md` §5.1 L8 行 / §5.2 包清单正式收录两个包名（落实 Q-M2）；PRD `05-milestones-and-scope.md` M5 P0 段去掉 `-skeleton` |
+| C-19 | `preset-doc`/`preset-sheet` 是否带 `-skeleton` 后缀 | `13-doc-sheet-extension-skeleton.md:766`（G-2）、`:770`（G-6）、`:776`（Q1）；`00-module-map.md:920`（G-3）、`:963`（Q-M2）；PRD `05-milestones-and-scope.md` M5 P0 段 | 00 §8 G-3 建议 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`（与 `preset-slide` 对称）；PRD 05 M5 P0 写 `preset-doc-skeleton`/`preset-sheet-skeleton`；M-13 已「下游先用」无后缀名并请求提高 Q-M2 裁定优先级 | **不加后缀**，用 `package.json#cordex.stability:'experimental'` 信号未完工。依据：包名改名要改 `exports`/依赖/锁文件/发布记录，成本远高于一个字段；charter §5.2 已有 `stability` 字段正是为此设计 | `00-charter/charter.md` §5.1 L8 行 / §5.2 包清单正式收录两个包名（落实 Q-M2）；PRD `05-milestones-and-scope.md` M5 P0 段去掉 `-skeleton` |
 | C-20 | `apps/web` 路由：path vs hash | `11-preset-assembly-and-app-shell.md:981`（G-17）、`:987`（Q-1）；设计 29/01/23/25/11（playground `#/…`） | 设计文档与 playground 全用 hash 路由 `#/home`；M-11 采用 path 路由 `/home` + SPA fallback，`/embed/:id` 额外支持 `#mode=` | **path 路由**（M-11 推荐默认）。依据：rulings §4.10 Q14/Q20 已把编辑器族当作真实应用栏处理，深链/分享/SEO/`?slide=` 语义都需要 path；playground 的 hash 是静态托管的产物，非产品约束。设计文档**不**回写（playground 事实照实描述） | `40-modules/11` §4/§9 保持；`apps/web/README.md` 说明与 playground 的对应关系（M-11 已计划） |
-| C-21 | 主题切换属性三口径 | `10-ui-shell-and-slide-ui.md:962`（G-9）、`:979`（Q-1）；`30-architecture/02` §4.18、ADR-0017 决策 5（`data-oce-theme`）；20-design 04 §3（`.dark` + 宿主 `<html data-theme>`） | playground 现状 `.dark` class；02 §4.18/ADR-0017 决策 5 用 `data-oce-theme`；设计 04 §3 用 `.dark` + 宿主 `data-theme`；M-10 让 design CSS 三选择器等价、ui-core 同时写 `.dark` 与 `data-oce-theme` | **三选择器长期等价（M-10 现状）**，但把它写成**明文契约**而非权宜：design `tokens.css` 必须同时支持 `.dark`、`[data-oce-theme="dark"]`、`[data-theme="dark"]` 与 `prefers-color-scheme` 兜底。依据：`.dark` 是 shadcn 生态默认、`data-theme` 是宿主嵌入场景所需、`data-oce-theme` 是 SDK 自有命名空间，三者服务不同调用方，收敛为一必然牺牲其中一类 | `20-design/04-design-system.md` §3 定稿三选择器契约；`30-architecture/02` §4.18 与 ADR-0017 决策 5 补「等价选择器」说明 |
-| C-22 | `--oce-*` token 前缀是否作废 | `10-ui-shell-and-slide-ui.md:954`（G-1）、`:963`（G-10）、`:930`（`theme-vars-contract`：`--oce-*` 出现即失败）；`00-charter/charter.md` §5.2 `@oce/design` 行（「CSS 变量 `--oce-*`」）；`30-architecture/02` §4.17、ADR-0017 决策 3、`00-module-map.md` §3 BC-13 / §4.1 | 章程 §5.2 与四处架构/总图文档仍写 `--oce-*`；M-10 依总编排裁定改为 shadcn 变量 + `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名，并让扫描器把 `--oce-*` 列为禁用前缀 | **采纳 M-10**，`--oce-*` 记号作废。依据：设计系统已裁定复用 shadcn/ui（rulings §4.7），shadcn 变量本身无前缀，强加 `--oce-` 会与 45 个复制件内部变量冲突 | `00-charter/charter.md` §5.2 `@oce/design` 行；`30-architecture/02` §4.17；`30-architecture/adr/0017` 决策 3；`40-modules/00` §3 BC-13 与 §4.1 关系表；`20-design/04` §2.7–2.13 |
+| C-21 | 主题切换属性三口径 | `10-ui-shell-and-slide-ui.md:962`（G-9）、`:979`（Q-1）；`30-architecture/02` §4.18、ADR-0017 决策 5（`data-cordex-theme`）；20-design 04 §3（`.dark` + 宿主 `<html data-theme>`） | playground 现状 `.dark` class；02 §4.18/ADR-0017 决策 5 用 `data-cordex-theme`；设计 04 §3 用 `.dark` + 宿主 `data-theme`；M-10 让 design CSS 三选择器等价、ui-core 同时写 `.dark` 与 `data-cordex-theme` | **三选择器长期等价（M-10 现状）**，但把它写成**明文契约**而非权宜：design `tokens.css` 必须同时支持 `.dark`、`[data-cordex-theme="dark"]`、`[data-theme="dark"]` 与 `prefers-color-scheme` 兜底。依据：`.dark` 是 shadcn 生态默认、`data-theme` 是宿主嵌入场景所需、`data-cordex-theme` 是 SDK 自有命名空间，三者服务不同调用方，收敛为一必然牺牲其中一类 | `20-design/04-design-system.md` §3 定稿三选择器契约；`30-architecture/02` §4.18 与 ADR-0017 决策 5 补「等价选择器」说明 |
+| C-22 | `--cordex-*` token 前缀是否作废 | `10-ui-shell-and-slide-ui.md:954`（G-1）、`:963`（G-10）、`:930`（`theme-vars-contract`：`--cordex-*` 出现即失败）；`00-charter/charter.md` §5.2 `@cordexjs/design` 行（「CSS 变量 `--cordex-*`」）；`30-architecture/02` §4.17、ADR-0017 决策 3、`00-module-map.md` §3 BC-13 / §4.1 | 章程 §5.2 与四处架构/总图文档仍写 `--cordex-*`；M-10 依总编排裁定改为 shadcn 变量 + `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名，并让扫描器把 `--cordex-*` 列为禁用前缀 | **采纳 M-10**，`--cordex-*` 记号作废。依据：设计系统已裁定复用 shadcn/ui（rulings §4.7），shadcn 变量本身无前缀，强加 `--cordex-` 会与 45 个复制件内部变量冲突 | `00-charter/charter.md` §5.2 `@cordexjs/design` 行；`30-architecture/02` §4.17；`30-architecture/adr/0017` 决策 3；`40-modules/00` §3 BC-13 与 §4.1 关系表；`20-design/04` §2.7–2.13 |
 | C-23 | `render.overlay` 项类型两种形状 | `10-ui-shell-and-slide-ui.md:965`（G-12）；`06-layout-and-render-engine.md` §2.5（`OverlayRenderer{id; zIndex; mount(ctx,target)}`）；`30-architecture/03-kernel-and-plugin-model.md` §3.6（`OverlayContribution{id; layer:'selection'\|'guides'\|'presence'\|'custom'; render(ctx)}`） | 03 §3.6 的贡献点总表与 M-06 的 Definition 给出不同字段集（`layer` 枚举 vs `zIndex` 数字；`render()` vs `mount()`）；M-07 与 M-10 均按 M-06 版本消费 | **以 M-06 的 `OverlayRenderer` 为准**，03 §3.6 回写。依据：M-06 是 `render.overlay` 的定义包；`mount/unmount` 生命周期是覆盖层持有 DOM 节点的必要形态，`render(ctx)` 单函数无法表达 dispose；`zIndex` 数字比四值 `layer` 枚举更利于第三方插入层间 | `30-architecture/03` §3.6 `render.overlay` 行改写为 `OverlayRenderer{id; zIndex; mount(ctx,target)}`（`conflict` 同时按 M-06 G-10 改为 `error`） |
 | C-24 | 事件域白名单本身两份不一致，且多个在用域未登记 | `00-charter/charter.md` §5.5（保留域 15 个：`core render layout ui collab format unit store command permission i18n perf slide doc sheet`）；`30-architecture/03` §3.6（固定域 21 个：`kernel contribution unit command store history selection permission format render layout ui i18n collab presence plugin error perf slide doc sheet`）；`10-ui-shell-and-slide-ui.md:958`（G-5）；`02-kernel-protocol-and-document-core.md:202-203`；`09-…:19`；`11-…:139`；`13-…:71`、`:95` | 两份白名单互不包含（charter 有 `core` 而 03 无；03 有 `kernel/contribution/history/selection/presence/plugin/error` 而 charter 无）。实际在用但两份都没有的域：`view`（M-02/M-10）、`export`（M-02/M-04/M-11）、`collab-server`（M-09/M-12）、`app`（M-11，自认「不进入名单」）、`tenant`/`user`/`auth`/`document`/`share-link`/`media`（M-08，自认非 cordis 事件）、`comment`（M-11 §2.4 转发表） | **合并为一份白名单并一次性收编**：`core kernel contribution unit command store history selection permission format render layout ui i18n collab collab-server presence plugin error perf view export comment slide doc sheet`；`app` 单列为「应用壳私有域，禁止 `packages/*` 使用」；M-08 的六个记账名**改为不使用 `<域>/<动作>` 形式**（改用审计 `action` 点式串 `tenant.created` 等，08 §2.4 本就如此），以免与 cordis 事件混淆 | `00-charter/charter.md` §5.5；`30-architecture/03` §3.6 命名规则段；`40-modules/08` §2.4 表头改为「审计 action」；`40-modules/11` §2.4 `app/*` 保留但标注私有域 |
 | C-25 | `render/frame` 与 `perf/frame` 并存 | `00-charter/rulings-2026-09-14.md` §5（「`render/frame` vs `perf/frame` → **`perf/frame`**」）；`06-layout-and-render-engine.md` §2.4（两者并列，`render/frame` 进程内、`perf/frame` 遥测）；`00-module-map.md:335`（BC-11 发布事件含 `render/frame`）；`11-…:135` | rulings §5 已定稿只留 `perf/frame`；M-06 保留 `render/frame` 作为进程内事件并由其派生 `perf/frame`；00 §3 BC-11 行照旧列 `render/frame` | **接受 M-06 的两层区分，但需 rulings 追认**：`render/frame` 为进程内 cordis 事件（帧统计，`≥50 ms` 合并后公开订阅），`perf/frame` 为 `telemetry` 注册的遥测事件，二者非同一物。依据：rulings §5 的原始分歧是「同一个事件叫什么名」，M-06 把它拆成了两个不同层的东西，理由（遥测采样 vs 业务订阅）成立 | `00-charter/rulings-2026-09-14.md` §5 该行补注「M-06 拆为两层，二者并存，非改名」；`30-architecture/10-observability-and-errors.md` §11 登记表同步 |
 | C-26 | `runFormatCodecConformance` 被章程引用但无归属文件 | `00-charter/charter.md` §5.5（契约套件命名以其为例证）；`04-ooxml-format-and-pptx-codec.md:665`（G-2）、`:676`（Q-1）；`02-kernel-protocol-and-document-core.md` §4.5/§5.5/§6（均无该文件） | charter §5.5 以 `runFormatCodecConformance` 为命名约定的例证；M-02 的 `model-core` 目录树、文件职责表、API 面**均未列出**；M-04 §2.5/§9.2 已预先假设其存在 | **M-02 补 `model-core/src/testing/format-codec-conformance.ts`**；M-04 M1 允许用局部替身过渡（M-04 Q-1 推荐默认）。依据：`FormatCodec` 是 Definition，`core.format` 是贡献点，Provider（`ooxml-pptx`/未来 `ooxml-docx`）必须能跑同一套契约；缺它则 `provider-runs-conformance` 扫描器对 codec 类包失效 | `40-modules/02` §2.5/§4.5/§5.5/§6 新增该文件与导出 |
-| C-27 | `RenderPageProtocol` 是跨进程契约却不在 `@oce/protocol` | `11-preset-assembly-and-app-shell.md:971`（G-7）；`09-server-collab-gateway-and-headless-host.md:542`（`infrastructure/thumbnails/render-page-protocol.ts`）；`00-module-map.md` §4.2 第 1 条 | 00 §4.2 第 1 条：「`@oce/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源」；M-09 把 `RenderPageProtocol` 放在 `server-headless` 包内；M-11 的 `/render` 页需要同一契约，目前只能类型镜像 | **M-02 在 `protocol/src/render/page.ts` 新增 `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`**，M-09 与 M-11 均改为 import。依据：Node 进程 ↔ headless Chromium 页面是真实跨进程边界，类型镜像必然漂移；00 §4.2 第 1 条是铁律级表述 | `40-modules/02` §4.3/§5.3/§6 新增；`40-modules/09` §2.5/§5.3 改为 re-export；`40-modules/11` §4 `pages/render/` 改为 import |
-| C-28 | `slide-ui` / `ui-core` / `engine-layout` / `slide-render` 实际依赖超出 charter §5.2「依赖上限」 | `10-ui-shell-and-slide-ui.md:457`（slide-ui deps）、`:340`（ui-core deps）；`06-layout-and-render-engine.md` §0（`engine-layout` = definition + plugin，必须 import kernel）；`07-slide-rendering.md:689`（G-9）；`00-charter/charter.md` §5.2 对应四行 | charter §5.2：`slide-ui` 上限 `slide-render, ui-react`，实际 deps 还有 `model-slide`/`engine-render`/`model-core`/`lucide-react`/`sonner`；`ui-core` 上限 `kernel, model-core, design(仅 token)`，实际还有 `i18n`/`shared`；`engine-layout` 上限 `shared`，但它 `provide=['layout']` 必须 import `kernel`；`slide-render` 上限未含 `engine-layout`（M-07 G-9 已指出） | **按实际用法更新 charter §5.2 的「依赖上限」列**（这些依赖在秩表与铁律 1/2/4 下全部合规，只是章程该列写得比实际紧）：`engine-layout`→`shared, kernel`；`ui-core`→`kernel, shared, model-core, i18n, design(仅 css + type-only)`；`slide-ui`→`ui-react, slide-render, model-slide, engine-render, model-core`；`slide-render`→`model-slide, engine-layout, engine-render, render-dom`。依据：铁律 3「rank(to) ≤ rank(from)」是硬规则，§5.2 的「依赖上限」列是人类可读注解，注解应向实现对齐而非相反 | `00-charter/charter.md` §5.2 四行；`30-architecture/09-type-discipline/03-boundaries.md`（depcruise 白名单，含 M-07 G-9 建议的 `oce-slide-render-allowlist`） |
+| C-27 | `RenderPageProtocol` 是跨进程契约却不在 `@cordexjs/protocol` | `11-preset-assembly-and-app-shell.md:971`（G-7）；`09-server-collab-gateway-and-headless-host.md:542`（`infrastructure/thumbnails/render-page-protocol.ts`）；`00-module-map.md` §4.2 第 1 条 | 00 §4.2 第 1 条：「`@cordexjs/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源」；M-09 把 `RenderPageProtocol` 放在 `server-headless` 包内；M-11 的 `/render` 页需要同一契约，目前只能类型镜像 | **M-02 在 `protocol/src/render/page.ts` 新增 `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`**，M-09 与 M-11 均改为 import。依据：Node 进程 ↔ headless Chromium 页面是真实跨进程边界，类型镜像必然漂移；00 §4.2 第 1 条是铁律级表述 | `40-modules/02` §4.3/§5.3/§6 新增；`40-modules/09` §2.5/§5.3 改为 re-export；`40-modules/11` §4 `pages/render/` 改为 import |
+| C-28 | `slide-ui` / `ui-core` / `engine-layout` / `slide-render` 实际依赖超出 charter §5.2「依赖上限」 | `10-ui-shell-and-slide-ui.md:457`（slide-ui deps）、`:340`（ui-core deps）；`06-layout-and-render-engine.md` §0（`engine-layout` = definition + plugin，必须 import kernel）；`07-slide-rendering.md:689`（G-9）；`00-charter/charter.md` §5.2 对应四行 | charter §5.2：`slide-ui` 上限 `slide-render, ui-react`，实际 deps 还有 `model-slide`/`engine-render`/`model-core`/`lucide-react`/`sonner`；`ui-core` 上限 `kernel, model-core, design(仅 token)`，实际还有 `i18n`/`shared`；`engine-layout` 上限 `shared`，但它 `provide=['layout']` 必须 import `kernel`；`slide-render` 上限未含 `engine-layout`（M-07 G-9 已指出） | **按实际用法更新 charter §5.2 的「依赖上限」列**（这些依赖在秩表与铁律 1/2/4 下全部合规，只是章程该列写得比实际紧）：`engine-layout`→`shared, kernel`；`ui-core`→`kernel, shared, model-core, i18n, design(仅 css + type-only)`；`slide-ui`→`ui-react, slide-render, model-slide, engine-render, model-core`；`slide-render`→`model-slide, engine-layout, engine-render, render-dom`。依据：铁律 3「rank(to) ≤ rank(from)」是硬规则，§5.2 的「依赖上限」列是人类可读注解，注解应向实现对齐而非相反 | `00-charter/charter.md` §5.2 四行；`30-architecture/09-type-discipline/03-boundaries.md`（depcruise 白名单，含 M-07 G-9 建议的 `cordex-slide-render-allowlist`） |
 | C-29 | 模块文档 G/Q 编号体系分裂 | `02-…:1173`、`08-…:661`、`09-…:659`、`12-…:676`（全局连号）vs `03-…:709`、`05-…:727`（明示各自从 G-1）、`04`/`06`/`07`/`10`/`11`/`13`（各自从 G-1）；Q 编号四种写法：`Q-01`（M-01）、`Q-1`（M-02/04/06/07/08/09/10/11/12）、`Q1`（M-03/13）、`Q-05-1`（M-05） | M-02/M-08/M-09/M-12 组成一条全局链 G-5…G-31；其余八份各自从 G-1 起。结果：`G-5` 在 7 份文档中指向 7 件不同的事，`G-1` 在 8 份文档中指向 8 件不同的事 | **统一为模块前缀式 `M-xx/G-n` 与 `M-xx/Q-n`**（本评审 §5/§6 已按此引用）。依据：全局连号要求后写的模块知道先写模块的最大编号，跨批次并行时不可维持（事实上已断裂）；模块前缀式对并行写作友好且引用无歧义。**不要求回改各文档内部编号**，只要求在 §5/§6 与 `README.md` 索引中一律带模块前缀 | `40-modules/README.md`（本次新建，已按此）；`40-modules/_template.md` §12/§13 补一句编号规则 |
 | C-30 | `collab-offline-idb` 是否兼任浏览器侧 `BlobStore` Provider | `05-collaboration-client.md:738`（G-4）、`:747`（Q-05-2）；`30-architecture/adr/0033`「后果」段；`00-charter/charter.md` §5.2 `collab-offline-idb` 行 | ADR-0033 末尾称该包「同时提供浏览器侧 `BlobStore` 的 IndexedDB Provider」；charter §5.2、00 §3 BC-09、M-05 §0/§3 均只写 `implements:['offlineStore']`；M-05 拒绝追加文件 | **不纳入**（M-05 Q-05-2 推荐默认）。依据：`OfflineStore` 与 `BlobStore` 是两个 Definition，混在一个 Provider 包会让「移除协同后本地媒体缓存也没了」；浏览器侧本就无持久 `BlobStore`（00 §5.1 明文：「媒体经 CRDT 只存 `BlobRef`，字节由服务端持有」）。ADR-0033 该句应删除 | `30-architecture/adr/0033`「后果」段删除该句；`40-modules/05` §12 G-4 标注已裁定 |
 
@@ -154,7 +154,7 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | **`collab-server/room-opened` `collab-server/room-closed` `collab-server/update-rejected` `collab-server/repair`** | M-09（`09-…:19`、`:124-127`）、M-12（`12-…:2.4`） | **新增建议（域未登记）**；且 00 §3 BC-26 行写作 `collab/repair`（§1 C-08） | 补 `collab-server` 入保留域；00 §3 BC-26 回填 |
 | **`doc/block-added` `doc/block-removed` `doc/text-changed` `sheet/cell-changed` `sheet/row-inserted` `sheet/sheet-added`** | M-13（`13-…:71`、`:95`）、Q6（`:781`） | **新增建议**（`doc`/`sheet` 域已登记，事件未登记） | 采纳（M5 生效） |
 | **`app/navigated` `app/session-changed` `app/online-changed` `app/document-opened` `app/document-closed` `app/preferences-changed` `app/intent`** | M-11 §2.4（`11-…:139`），自称「不进入 charter §5.5、不经扫描器」 | **新增建议（应用私有域）** | charter §5.5 登记 `app` 为「应用壳私有域，`packages/*` 禁用」，使扫描器有据可依 |
-| `tenant/created` `tenant/quota-changed` `user/provisioned` `auth/login-succeeded` `auth/login-failed` `auth/collab-ticket-issued` `document/created\|renamed\|trashed\|restored\|locked\|unlocked` `share-link/created\|revoked` `media/uploaded\|deduplicated` | M-08 §2.4（`08-…:2.4`），自称「**不**经 `ctx.emit`/`Events`」 | **命名形式冲突** | 改为审计 `action` 点式串（`tenant.created` 等，08 §2.4 表头本就如此），**不要**用 `<域>/<动作>` 形式书写，以免读者误判为 cordis 事件域缺口 |
+| `tenant/created` `tenant/quota-changed` `user/provisioned` `auth/login-succeeded` `auth/login-failed` `auth/collab-ticket-issued` `document/created\|renamed\|trashed\|restored\|locked\|unlocked` `share-link/created\|revoked` `media/uploaded\|deduplicated` | M-08 §2.4（`08-…:2.4`），自称「**不**经 `ctx.emit`/`Events`」 | **命名形式冲突** | 改为审计 `action` 点式串（`tenant.created` 等，08 §2.4 表头本就如此），**不要**用 `<域>/<动作>` 形式书写，以免读者误判为 cordis 事件域缺口 （→ 2026-09-24 rulings §4.15 覆盖：T-0 单组织去租户，`tenant/created`、`tenant/quota-changed` 两条删除；`user/provisioned` 载荷去 `tenantId`（Q6 首次登录 JIT 建号）） |
 | `comment/*` | M-11 §2.4 转发表（`11-…:138`） | 新增建议（域未登记） | 由客户端 comments 插件（第三方/M4）发；charter §5.5 补 `comment` 或按 D15 走 `<vendor>:` 前缀 |
 
 ### 2.4 命令 / Mutation / Operation id
@@ -195,7 +195,7 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | `Origin` / `TransactionOrigin` | 两词并存（§1 C-14） | 统一为 `Origin` |
 | `TextLayout` / `LayoutResult`、`TextMeasurer` / `Measurer` | M-06 G-3（`06-…:722`）已统一为前者 | 回写 `30-architecture/07` §14.1 |
 | `createHeadlessHost` / `createHost` / `create-server-host.ts` | M-09 G-17（`09-…:661`）：文件名遵 08 §3.1、导出名用 `createHeadlessHost` | 回写 `30-architecture/02` §4.24 与 `08` §3.1 |
-| `--oce-*` CSS 变量前缀 | 已作废（§1 C-22） | 回写 charter §5.2 等五处 |
+| `--cordex-*` CSS 变量前缀 | 已作废（§1 C-22） | 回写 charter §5.2 等五处 |
 | `SceneNode.id === ShapeId` | M-07 G-3（`07-…:682`）/Q-4（`:698`）新增约定 | 采纳并登记入 charter §5.5 的 `Scene`/`SceneNode` 术语条目 |
 | `ZoomFactor` / `HitTestIndex` | M-06 G-9（`06-…:728`）新增类型名 | 采纳 |
 
@@ -208,37 +208,37 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 
 | 模块 | 包 / 目录 | 文档声明的实际依赖（出处） | 秩 · 同构类 | 铁律 1–4 | charter §5.2「依赖上限」 | 说明 |
 |---|---|---|---|---|---|---|
-| M-01 | `tooling/*` | 无（不参与依赖图，`01-…:16`） | — · node | 不适用 | — | 治理对象非运行时依赖，`01-…:11` 明写「不参与 `oce.layer` 秩体系」 |
-| M-02 | `@oce/shared` | 零依赖（charter §5.2 + R11 `shared-has-no-deps`） | 0 · iso | ✅ | ✅ | — |
-| M-02 | `@oce/kernel` | `shared` | 0 · iso | ✅ | ✅ | 唯一 import `cordis`（R12） |
-| M-02 | `@oce/protocol` | `shared` | 0 · iso | ✅ | ✅ | `zod` 单点（R5） |
-| M-02 | `@oce/i18n` | `kernel` | 0 · iso | ✅ | ✅ | — |
-| M-02 | `@oce/model-core` | `kernel, shared, protocol` | 10 · iso | ✅ | ✅ | `drawing/` 为共享内核；无垂直束 import |
-| M-02 | `@oce/store-memory` / `store-yjs` | `model-core`（+ `yjs` 单点） | 10 · iso | ✅ | ✅ | 两 Provider 互不 import（R7）；`yjsBackend` 不外泄 `Y.*`（api-extractor 正则） |
-| M-03 | `@oce/model-slide` | `@oce/kernel`/`@oce/shared`/`@oce/model-core`（`03-…:14`） | 15 · iso · `bundle=slide` | ✅ | ⚠️ **超出**（§5.2 只写 `model-core`） | kernel/shared 秩 0，铁律 3 合规；章程注解需补（§1 C-28） |
-| M-04 | `@oce/ooxml-core` | `shared, model-core`（类型） | 30 · iso | ✅ | ✅ | 无 `slide` 字面量（ACL 单向，00 §4.2 第 2 条） |
-| M-04 | `@oce/ooxml-pptx` | `ooxml-core, model-slide` | 35 · iso · `bundle=slide` | ✅ | ✅ | — |
-| M-05 | `@oce/collab-core` | `model-core, protocol`（`05-…:14`） | 40 · iso | ✅ | ✅ | — |
-| M-05 | `@oce/collab-yjs` | `collab-core, store-yjs`（经 `yjsBackend` 服务面） | 40 · iso | ✅ | ✅ | 00 §4.2 第 3 条：不直接触碰 `Y.*` |
-| M-05 | `@oce/collab-transport-ws` | `collab-core` | 40 · iso | ✅ | ✅ | — |
-| M-05 | `@oce/collab-offline-idb` | `collab-core` | 40 · **dom** | ✅ | ✅ | R16：不得被 iso/node 包依赖；ADR-0033 的 `BlobStore` 兼职已驳回（§1 C-30） |
-| M-06 | `@oce/engine-layout` | `@oce/kernel`（因 `provide=['layout']`，`06-…:12`）+ `shared` | 50 · iso | ✅ | ⚠️ **超出**（§5.2 只写 `shared`） | 一个 cordis `Service` 包不可能不 import kernel；章程注解需补（§1 C-28） |
-| M-06 | `@oce/engine-render` | `@oce/kernel`/`@oce/engine-layout`/`@oce/shared`（`06-…:670` 明列 `dependencies`） | 50 · iso | ✅ **R15 `engine-no-model` 满足** | ✅ | 对 `model-*` 零依赖已有专门规则与文件级证据 |
-| M-06 | `@oce/render-dom` | `engine-render, engine-layout` | 50 · **dom** | ✅ | ✅ | 铁律 4 由 R16 拦截 node 侧引用 |
-| M-07 | `@oce/slide-render` | `model-slide, engine-render, render-dom, engine-layout`（`07-…:14`） | 55 · dom · `bundle=slide` | ✅ | ⚠️ **超出**（§5.2 未含 `engine-layout`，M-07 G-9 已指出） | 建议新增 depcruise `oce-slide-render-allowlist`（M-07 G-9） |
-| M-07 | `@oce/slide-render-chart` | `slide-render` | 55 · dom · `bundle=slide` | ✅ | ✅ | `conflict:'replace'` 覆盖占位渲染器 |
-| M-08 | `@oce/server-storage` | `shared`（+ S3 SDK 单点） | 58 · **node** | ✅ | ✅ | 唯一允许 import S3 SDK 的 server 包 |
-| M-08 | `apps/server/src/modules/{auth,…,media}` | `@oce/protocol`（DTO/错误码/`Capability`）+ `model-core` 仅类型（`08-…:14`） | 80 · node | ✅ | ✅ | `server-app-thin`：不得 import `yjs`/`@oce/model-*`/`@oce/ooxml-*` 运行时 |
-| M-09 | `@oce/server-collab` | `yjs y-protocols lib0 @oce/collab-core @oce/store-yjs @oce/model-core @oce/protocol @oce/kernel`（`09-…:324` 逐字） | 58 · **node** | ✅ | ✅ | **与 charter §5.2（`collab-core, store-yjs, protocol`）相容**；`kernel`/`model-core` 秩 0/10 合规。⚠️ 但 M-05 §0（`05-…:15`）称 `collab-core` 「**仅浏览器**」，与服务端 import 它相矛盾——应改为「`collab-core` 为 iso 且两端共用；`collab-yjs`/`transport-ws`/`offline-idb` 仅浏览器」 |
-| M-09 | `@oce/server-headless` | `kernel, model-*, ooxml-*, engine-layout, engine-render`（`09-…:§10`） | 58 · **node** | ✅ **R16 满足**：`09-…:§10` 明写「**禁止** `import render-dom`」 | ⚠️ 轻微超出（§5.2 未列 `engine-render`） | LS=58 > L5=50，铁律 3 合规；铁律 4 由 R16 拦截 dom |
-| M-09 | `apps/server/src/{modules/{collab,snapshots},cordis-host}` | Nest DI + `@oce/protocol` | 80 · node | ✅ | ✅ | `cordis-host/adapters/*` 归属见 §1 C-10 |
-| M-10 | `@oce/design` | 零依赖（R18 `design-css-only`，`10-…:§10`） | 70 · **dom** | ✅ | ✅ | `dependencies` 为空、`src/**` 无运行时 import |
-| M-10 | `@oce/ui-core` | `@oce/kernel`、`@oce/shared`、`@oce/i18n`、`@oce/model-core`、`@oce/design`（仅 css + type-only）（`10-…:340` 逐字） | 70 · dom | ✅ **R14 满足**（禁 react/radix/tailwind 等 15 个） | ⚠️ **超出**（§5.2 只写 `kernel, model-core, design(仅 token)`；实际含 `i18n`、`shared`） | 秩 0/10，铁律 3 合规；章程注解需补 |
-| M-10 | `@oce/ui-react` | `ui-core, design` + react/radix/shadcn 复制件 | 70 · dom | ✅ | ✅ | R5 第三方单点、R17 复制件私有 |
-| M-10 | `@oce/slide-ui` | `@oce/ui-react`、`@oce/slide-render`、`@oce/model-slide`、`@oce/engine-render`、`@oce/model-core`、`lucide-react`、`sonner`（`10-…:457` 逐字） | 75 · dom · `bundle=slide` | ✅ 铁律 2（不得 import `doc-ui`/`model-doc`…，R4）、铁律 3（75 ≥ 70/55/15/10） | ⚠️ **超出**（§5.2 只写 `slide-render, ui-react`） | **本次评审最显著的一处「章程注解落后于实现」**：`SlideSelectionAnchor`（model-slide）、`HitResult`/`Viewport`（engine-render）、`Selection`/`UnitId`（model-core）都是 slide-ui 直接 import 的类型，无法只经 slide-render/ui-react 转手（转手会迫使这两包 re-export 与自身职责无关的类型） |
-| M-11 | `@oce/preset-slide` / `preset-slide-collab` / `preset-slide-viewer` | 全部上游 + **彼此**（`11-…:969` 的定向链 `viewer ← slide ← collab`） | 80 · dom | ⚠️ **灰区**：同秩 bundle 互 import（80 ≤ 80，铁律 3 字面允许，但无规则约束方向，易成环） | ✅ | M-11 G-5 自认需新增 `oce-bundle-chain`；按 §1 C-07 把 `assembly/` 收进 kernel 后，该链**可整体取消**（三预设回到互不 import） |
-| M-11 | `apps/web` | `preset-*`、`@oce/protocol`、`@oce/ui-react`（壳组件）（`11-…:14`） | 80 · dom | ⚠️ **灰区**：`apps/web` 直接 import `@oce/ui-react`/`@oce/ui-core`（`11-…:14`：`ui-react` `<EditorHost>`/`UserMenu`/`Brand`/`SettingsDrawer`） | ✅（§5.2 `apps/web` 上限写 `preset-*`） | R9 `apps-only-assemble` 的判据是「不含领域定义」而非「只 import preset」；无 host 的开始页/列表页需要 `UserMenu` 等壳组件（M-11 G-10），绕不开。**建议把 R9 的口径写明**：`apps/*` 可 import L7 呈现层，但不得 `defineCommand`/`defineMutation`/`ctx.contribute`（M-10 Q-12 亦触及此点） |
-| M-12 | `apps/server/src/modules/{import-export,…,internal}` | M-08 + M-09 的 Nest 导出 + `@oce/protocol` | 80 · node | ✅ | ✅ | `server-app-thin`；`cordis-host/adapters` 新增 0 文件 |
+| M-01 | `tooling/*` | 无（不参与依赖图，`01-…:16`） | — · node | 不适用 | — | 治理对象非运行时依赖，`01-…:11` 明写「不参与 `cordex.layer` 秩体系」 |
+| M-02 | `@cordexjs/shared` | 零依赖（charter §5.2 + R11 `shared-has-no-deps`） | 0 · iso | ✅ | ✅ | — |
+| M-02 | `@cordexjs/kernel` | `shared` | 0 · iso | ✅ | ✅ | 唯一 import `cordis`（R12） |
+| M-02 | `@cordexjs/protocol` | `shared` | 0 · iso | ✅ | ✅ | `zod` 单点（R5） |
+| M-02 | `@cordexjs/i18n` | `kernel` | 0 · iso | ✅ | ✅ | — |
+| M-02 | `@cordexjs/model-core` | `kernel, shared, protocol` | 10 · iso | ✅ | ✅ | `drawing/` 为共享内核；无垂直束 import |
+| M-02 | `@cordexjs/store-memory` / `store-yjs` | `model-core`（+ `yjs` 单点） | 10 · iso | ✅ | ✅ | 两 Provider 互不 import（R7）；`yjsBackend` 不外泄 `Y.*`（api-extractor 正则） |
+| M-03 | `@cordexjs/model-slide` | `@cordexjs/kernel`/`@cordexjs/shared`/`@cordexjs/model-core`（`03-…:14`） | 15 · iso · `bundle=slide` | ✅ | ⚠️ **超出**（§5.2 只写 `model-core`） | kernel/shared 秩 0，铁律 3 合规；章程注解需补（§1 C-28） |
+| M-04 | `@cordexjs/ooxml-core` | `shared, model-core`（类型） | 30 · iso | ✅ | ✅ | 无 `slide` 字面量（ACL 单向，00 §4.2 第 2 条） |
+| M-04 | `@cordexjs/ooxml-pptx` | `ooxml-core, model-slide` | 35 · iso · `bundle=slide` | ✅ | ✅ | — |
+| M-05 | `@cordexjs/collab-core` | `model-core, protocol`（`05-…:14`） | 40 · iso | ✅ | ✅ | — |
+| M-05 | `@cordexjs/collab-yjs` | `collab-core, store-yjs`（经 `yjsBackend` 服务面） | 40 · iso | ✅ | ✅ | 00 §4.2 第 3 条：不直接触碰 `Y.*` |
+| M-05 | `@cordexjs/collab-transport-ws` | `collab-core` | 40 · iso | ✅ | ✅ | — |
+| M-05 | `@cordexjs/collab-offline-idb` | `collab-core` | 40 · **dom** | ✅ | ✅ | R16：不得被 iso/node 包依赖；ADR-0033 的 `BlobStore` 兼职已驳回（§1 C-30） |
+| M-06 | `@cordexjs/engine-layout` | `@cordexjs/kernel`（因 `provide=['layout']`，`06-…:12`）+ `shared` | 50 · iso | ✅ | ⚠️ **超出**（§5.2 只写 `shared`） | 一个 cordis `Service` 包不可能不 import kernel；章程注解需补（§1 C-28） |
+| M-06 | `@cordexjs/engine-render` | `@cordexjs/kernel`/`@cordexjs/engine-layout`/`@cordexjs/shared`（`06-…:670` 明列 `dependencies`） | 50 · iso | ✅ **R15 `engine-no-model` 满足** | ✅ | 对 `model-*` 零依赖已有专门规则与文件级证据 |
+| M-06 | `@cordexjs/render-dom` | `engine-render, engine-layout` | 50 · **dom** | ✅ | ✅ | 铁律 4 由 R16 拦截 node 侧引用 |
+| M-07 | `@cordexjs/slide-render` | `model-slide, engine-render, render-dom, engine-layout`（`07-…:14`） | 55 · dom · `bundle=slide` | ✅ | ⚠️ **超出**（§5.2 未含 `engine-layout`，M-07 G-9 已指出） | 建议新增 depcruise `cordex-slide-render-allowlist`（M-07 G-9） |
+| M-07 | `@cordexjs/slide-render-chart` | `slide-render` | 55 · dom · `bundle=slide` | ✅ | ✅ | `conflict:'replace'` 覆盖占位渲染器 |
+| M-08 | `@cordexjs/server-storage` | `shared`（+ S3 SDK 单点） | 58 · **node** | ✅ | ✅ | 唯一允许 import S3 SDK 的 server 包 |
+| M-08 | `apps/server/src/modules/{auth,…,media}` | `@cordexjs/protocol`（DTO/错误码/`Capability`）+ `model-core` 仅类型（`08-…:14`） | 80 · node | ✅ | ✅ | `server-app-thin`：不得 import `yjs`/`@cordexjs/model-*`/`@cordexjs/ooxml-*` 运行时 （→ 2026-09-24 rulings §4.15 覆盖：T-0/Q6：M-08 Nest 模块集删去 `tenants`，`groups` 随 U-11 推迟移出 M3，余 `{auth,users,documents,permissions,share-links,storage,media}`） |
+| M-09 | `@cordexjs/server-collab` | `yjs y-protocols lib0 @cordexjs/collab-core @cordexjs/store-yjs @cordexjs/model-core @cordexjs/protocol @cordexjs/kernel`（`09-…:324` 逐字） | 58 · **node** | ✅ | ✅ | **与 charter §5.2（`collab-core, store-yjs, protocol`）相容**；`kernel`/`model-core` 秩 0/10 合规。⚠️ 但 M-05 §0（`05-…:15`）称 `collab-core` 「**仅浏览器**」，与服务端 import 它相矛盾——应改为「`collab-core` 为 iso 且两端共用；`collab-yjs`/`transport-ws`/`offline-idb` 仅浏览器」 （→ 2026-09-24 rulings §4.15 覆盖：Q3：Yjs 锁 13.6.x 精确版本；charter §5.3 规则 4 为 Yjs 14 预留 `@y/y`、`@y/protocols`、`lib0` v1，本依赖清单随 `server-app-thin` 规则同步） |
+| M-09 | `@cordexjs/server-headless` | `kernel, model-*, ooxml-*, engine-layout, engine-render`（`09-…:§10`） | 58 · **node** | ✅ **R16 满足**：`09-…:§10` 明写「**禁止** `import render-dom`」 | ⚠️ 轻微超出（§5.2 未列 `engine-render`） | LS=58 > L5=50，铁律 3 合规；铁律 4 由 R16 拦截 dom |
+| M-09 | `apps/server/src/{modules/{collab,snapshots},cordis-host}` | Nest DI + `@cordexjs/protocol` | 80 · node | ✅ | ✅ | `cordis-host/adapters/*` 归属见 §1 C-10 |
+| M-10 | `@cordexjs/design` | 零依赖（R18 `design-css-only`，`10-…:§10`） | 70 · **dom** | ✅ | ✅ | `dependencies` 为空、`src/**` 无运行时 import |
+| M-10 | `@cordexjs/ui-core` | `@cordexjs/kernel`、`@cordexjs/shared`、`@cordexjs/i18n`、`@cordexjs/model-core`、`@cordexjs/design`（仅 css + type-only）（`10-…:340` 逐字） | 70 · dom | ✅ **R14 满足**（禁 react/radix/tailwind 等 15 个） | ⚠️ **超出**（§5.2 只写 `kernel, model-core, design(仅 token)`；实际含 `i18n`、`shared`） | 秩 0/10，铁律 3 合规；章程注解需补 |
+| M-10 | `@cordexjs/ui-react` | `ui-core, design` + react/radix/shadcn 复制件 | 70 · dom | ✅ | ✅ | R5 第三方单点、R17 复制件私有 |
+| M-10 | `@cordexjs/slide-ui` | `@cordexjs/ui-react`、`@cordexjs/slide-render`、`@cordexjs/model-slide`、`@cordexjs/engine-render`、`@cordexjs/model-core`、`lucide-react`、`sonner`（`10-…:457` 逐字） | 75 · dom · `bundle=slide` | ✅ 铁律 2（不得 import `doc-ui`/`model-doc`…，R4）、铁律 3（75 ≥ 70/55/15/10） | ⚠️ **超出**（§5.2 只写 `slide-render, ui-react`） | **本次评审最显著的一处「章程注解落后于实现」**：`SlideSelectionAnchor`（model-slide）、`HitResult`/`Viewport`（engine-render）、`Selection`/`UnitId`（model-core）都是 slide-ui 直接 import 的类型，无法只经 slide-render/ui-react 转手（转手会迫使这两包 re-export 与自身职责无关的类型） |
+| M-11 | `@cordexjs/preset-slide` / `preset-slide-collab` / `preset-slide-viewer` | 全部上游 + **彼此**（`11-…:969` 的定向链 `viewer ← slide ← collab`） | 80 · dom | ⚠️ **灰区**：同秩 bundle 互 import（80 ≤ 80，铁律 3 字面允许，但无规则约束方向，易成环） | ✅ | M-11 G-5 自认需新增 `cordex-bundle-chain`；按 §1 C-07 把 `assembly/` 收进 kernel 后，该链**可整体取消**（三预设回到互不 import） |
+| M-11 | `apps/web` | `preset-*`、`@cordexjs/protocol`、`@cordexjs/ui-react`（壳组件）（`11-…:14`） | 80 · dom | ⚠️ **灰区**：`apps/web` 直接 import `@cordexjs/ui-react`/`@cordexjs/ui-core`（`11-…:14`：`ui-react` `<EditorHost>`/`UserMenu`/`Brand`/`SettingsDrawer`） | ✅（§5.2 `apps/web` 上限写 `preset-*`） | R9 `apps-only-assemble` 的判据是「不含领域定义」而非「只 import preset」；无 host 的开始页/列表页需要 `UserMenu` 等壳组件（M-11 G-10），绕不开。**建议把 R9 的口径写明**：`apps/*` 可 import L7 呈现层，但不得 `defineCommand`/`defineMutation`/`ctx.contribute`（M-10 Q-12 亦触及此点） |
+| M-12 | `apps/server/src/modules/{import-export,…,internal}` | M-08 + M-09 的 Nest 导出 + `@cordexjs/protocol` | 80 · node | ✅ | ✅ | `server-app-thin`；`cordis-host/adapters` 新增 0 文件 |
 | M-13 | `model-doc`/`ooxml-docx`/`doc-render`/`doc-ui`/`preset-doc`（sheet 同） | 各自层带的水平层包（`13-…:14`：「仅作样板参照，**非运行时依赖**，铁律 2 禁止真实 import」） | 15/35/55/75/80 · iso+dom · `bundle=doc\|sheet` | ✅ 铁律 2 明确声明 | ✅ | `horizontal-freeze` 是其机械保证（但该扫描器尚未存在，见 §4.2） |
 
 ### 3.1 逐条核对总编排指定的六个必查项
@@ -246,11 +246,11 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | 必查项 | 结论 | 证据 |
 |---|---|---|
 | `server-*` 不 import dom | ✅ | `09-…:§10` R16 条目逐字写「**禁止** `import render-dom`，铁律 4 的机械体现」；`06-…:590`「`server-headless` 允许依赖 `engine-render`/`engine-layout` 的 iso 契约，**不得** import `render-dom`」；00 §5 BC-11 行同口径 |
-| `engine-render` 不 import `model-*` | ✅ | `06-…:670`：`package.json#dependencies` 只含 `@oce/kernel`/`@oce/engine-layout`/`@oce/shared`；规则 R15 `engine-no-model`；`06-…:69` 明确与 BC-05 「无直接包依赖」 |
+| `engine-render` 不 import `model-*` | ✅ | `06-…:670`：`package.json#dependencies` 只含 `@cordexjs/kernel`/`@cordexjs/engine-layout`/`@cordexjs/shared`；规则 R15 `engine-no-model`；`06-…:69` 明确与 BC-05 「无直接包依赖」 |
 | 水平层不 import 垂直束（铁律 1） | ✅ | `06-…:611` 对三个引擎包扫 `slide\|sheet\|workbook\|docx\|pptx\|xlsx\|paragraph` 词根；`04-…` `ooxml-core` 无 `slide` 字面量；`10-…:§10` 对 design/ui-core/ui-react 施 R3 + `no-doc-type-literals` |
-| `apps/*` 只装配 | ⚠️ 见上表 M-11 行 | `apps/web` 需 import `@oce/ui-react` 壳组件；建议把 R9 判据写明为「无领域定义」而非「只 import preset」 |
-| `slide-ui` 只依赖 `slide-render`/`ui-react` | ❌ **不成立** | `10-…:457` 实际 deps 五个 `@oce/*` + 两个第三方；建议按 §1 C-28 更新 charter §5.2 |
-| `server-collab`/`server-headless` 与 `render-dom` 的关系 | ✅ 两者均不依赖 | 缩略图路径经 headless Chromium **加载 `apps/web` 的 `/render` 页**（`09-…:128`、`06-…:595`），即「同一客户端渲染代码在浏览器进程中运行」，不是 Node 侧 import |
+| `apps/*` 只装配 | ⚠️ 见上表 M-11 行 | `apps/web` 需 import `@cordexjs/ui-react` 壳组件；建议把 R9 判据写明为「无领域定义」而非「只 import preset」 |
+| `slide-ui` 只依赖 `slide-render`/`ui-react` | ❌ **不成立** | `10-…:457` 实际 deps 五个 `@cordexjs/*` + 两个第三方；建议按 §1 C-28 更新 charter §5.2 |
+| `server-collab`/`server-headless` 与 `render-dom` 的关系 | ✅ 两者均不依赖 | 缩略图路径经 headless Chromium **加载 `apps/web` 的 `/render` 页**（`09-…:128`、`06-…:595`），即「同一客户端渲染代码在浏览器进程中运行」，不是 Node 侧 import （→ 2026-09-24 rulings §4.15 覆盖：Q8：headless Chromium 移入独立零出站 renderer sidecar（非 root、沙箱、无凭据），`/render` 页从注入取得 state 与资源、不做外呼） |
 
 **依赖违规统计**：**硬违规（违反铁律 1–4）0 项**；**与 charter §5.2「依赖上限」注解不符 5 项**（`model-slide`、`engine-layout`、`slide-render`、`ui-core`、`slide-ui`，另 `server-headless` 轻微）；**规则缺口 2 项**（L8 内 bundle 定向链无规则；R9 `apps-only-assemble` 判据口径未写明）。
 
@@ -267,11 +267,11 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | O-4 | `slide-render/src/application/services/slideshow.service.ts` ↔ `slide-ui/src/application/present.ts` | M-07（`07-…:173`、`:399`） | M-10（`10-…:969`，已自行落 `present.ts`） | 同一编排逻辑两处实现 | **slide-ui**，M-07 删除（§1 C-04） |
 | O-5 | 查看器可选缩略图条 / 备注抽屉：`ui-react` 懒加载 chunk ↔ `preset-slide-viewer/src/shell/**` | M-10（`10-…:973`、`:989`） | M-11（`11-…:967`、`:990`） | 两模块互相指认对方 | **`preset-slide-viewer/src/shell/**`**（§1 C-06） |
 | O-6 | 装配运行时 `preset-slide-viewer/src/assembly/{entry,lazy,mount,report,validate}.ts` | M-11（`11-…:969`） | 03 §9 把 preset 形状写在 kernel 章节；M-02 `kernel` 树无 `preset/` | 暂放 L8，形成同秩定向链 | **`kernel/src/preset/`**（§1 C-07） |
-| O-7 | `slide-ui/src/ui/thumbnails/MasterThumbnails*` ↔ `ui-react/src/ui/components/editor/MasterThumbnails/` | M-10 §12 G-8（`10-…:961`）/Q-11（`:989`）：本文放 slide-ui | 02 §4.19 / ADR-0017 决策 4：放 ui-react | 历史文档 vs 模块文档 | **slide-ui**（母版/版式是 slide 概念；ui-react 只留 `rail` slot） |
+| O-7 | `slide-ui/src/ui/thumbnails/MasterThumbnails*` ↔ `ui-react/src/ui/components/editor/MasterThumbnails/` | M-10 §12 G-8（`10-…:961`）/Q-11（`:989`）：本文放 slide-ui | 02 §4.19 / ADR-0017 决策 4：放 ui-react | 历史文档 vs 模块文档 | **slide-ui**（母版/版式是 slide 概念；ui-react 只留 `rail` slot） （→ 2026-09-24 rulings §4.15 覆盖：Q2 再次确认 `MasterThumbnails` 归 slide-ui） |
 | O-8 | `ooxml-pptx/src/domain/ids/ooxml-id-map.ts` ↔ 假定已在 `ooxml-core` | M-04（`04-…:669`、`:677`：留在 `ooxml-pptx`，暂缓提升） | M-13（`13-…:768`：§4.3 已假定提升完成并复用） | M-13 超前引用 | **留 `ooxml-pptx`**，M-13 改为临时复制（§1 C-18） |
 | O-9 | `slide-render/src/infrastructure/elements/{ole,diagram,unknown}.ts` ↔ `fallback.renderer.ts` | 02 §4.16：三文件 | 架构 07 §4.3 与 M-07（`07-…:684`）：单文件 | 两份历史文档互斥，M-07 已选后者 | **`fallback.renderer.ts`**（M-07 Q-5） |
 | O-10 | `apps/web/src/host/create-editor-host.ts` ↔ `apps/web/src/application/host/create-editor-host.ts` | 02 §3.1、00 §4.1/§5.2、`02-…:§7`、`10-…:§7` 五处用前者 | M-11（`11-…:965`）用后者 | 路径迁移未回写 | **`src/application/host/create-editor-host.ts`**；扫描器 `single-create-host-callsite` 以此为准 |
-| O-11 | `render-page-protocol.ts`：`server-headless/infrastructure/thumbnails/` ↔ `apps/web/src/pages/render/` ↔ `protocol/src/render/page.ts` | M-09（`09-…:542`）、M-11（`11-…:971`，类型镜像） | 无 protocol 归属 | 跨进程契约双份镜像 | **`@oce/protocol` 单一事实源**，两端 import（§1 C-27） |
+| O-11 | `render-page-protocol.ts`：`server-headless/infrastructure/thumbnails/` ↔ `apps/web/src/pages/render/` ↔ `protocol/src/render/page.ts` | M-09（`09-…:542`）、M-11（`11-…:971`，类型镜像） | 无 protocol 归属 | 跨进程契约双份镜像 | **`@cordexjs/protocol` 单一事实源**，两端 import（§1 C-27） |
 
 ### 4.2 被引用但无归属的文件（缺口）
 
@@ -282,14 +282,14 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | N-3 | `RenderPageProtocol` / `RenderPageQuerySchema` / `RenderPageSignal` / `RenderStateResponse` | M-09（`09-…:542`）、M-11 G-7（`11-…:971`）、`/render` 页 | 分散在 `server-headless` 与 `apps/web` | `packages/protocol/src/render/page.ts`（M-02） |
 | N-4 | `ThumbnailRenderer` 的取得方式 | M-12 §5.3 `headless-renderer.accessor.ts`、G-26（`12-…:681`）/Q-1（`:692`） | 接口在 `server-headless/infrastructure/thumbnails/thumbnail-renderer.ts`，但**不在 §6 对外 API 面** | `server-headless` 的 `HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`（M-09 §6） |
 | N-5 | `tooling/scripts/scan-horizontal-freeze.ts`（产出 `fixtures/horizontal-freeze.lock`） | 00 §6.4/§6.5（路径写作 `tooling/scanners/horizontal-freeze.ts`）、M-01 §8（`01-…:550`、`:552`）/D-4（`:648`）/Q-01（`:658`）、M-13 §8.2 | **骨架占位**，不在 09-06 的 13 个扫描器清单内 | `tooling/scripts/scan-horizontal-freeze.ts`（M-01）；00 §6.4 的路径 `tooling/scanners/…` 需回写 |
-| N-6 | 扫描器 `repo-requires-tenant-id` | M-08 G-14（`08-…:673`）、M-09 §10（声明「不适用」） | **无**（不在 13 个扫描器内） | `tooling/scripts/scan-repo-tenant-id.ts`（M-01，第 15 个扫描器） |
-| N-7 | 扫描器 `no-doc-type-literals-server` | M-08 G-13（`08-…:672`）、M-09 §10（建议扩展覆盖路径） | **无** | 扩展既有 `oce/no-doc-type-literals` 的扫描路径至 `apps/server/src/modules/**`（M-01），而非新造规则名 |
-| N-8 | depcruise 规则 `oce-slide-render-allowlist` | M-07 G-9（`07-…:688`） | **无** | `tooling/depcruise/rules/slide-render-allowlist.ts`（M-01） |
-| N-9 | depcruise 规则 `oce-bundle-chain` | M-11 G-5（`11-…:969`） | **无** | 若采纳 §1 C-07（`assembly/` 收进 kernel），**本规则可取消**；否则 `tooling/depcruise/rules/bundle-chain.ts` |
-| N-10 | `@oce/protocol` 的 `rest/{tenants,users,share-links,media}.ts` | M-08 G-7（`08-…:666`）/Q-6（`:731`） | **无**（M-02 §4.3 只有 `documents/snapshots/import-export/auth/audit` 五个） | `packages/protocol/src/rest/{tenants,users,share-links,media}.ts`（M-08 实现期新增，M-02 文档回补） |
-| N-11 | `@oce/protocol` 的 `rest/{thumbnails,comments}.ts` + `errors/codes.ts` 的五个 domain | M-12 G-24（`12-…:679`） | **无** | `packages/protocol/src/rest/{thumbnails,comments}.ts`（M-12 实现期新增） |
-| N-12 | `@oce/protocol` 的 `collab/{frame,control,close-codes,awareness,ticket}.ts` | 架构 08 §11 提议；M-09 G-15（`09-…:663`） | **无**（M-02 只交付 `ws/{handshake,frames}.ts`） | 要么 M-02 补五文件，要么 M-09/M-05 联合在 `ws/` 下扩展；**推荐后者**（避免 protocol 出现两套同义目录） |
-| N-13 | `@oce/protocol` 的 `embed/messages.ts`（形态 E `postMessage` 契约） | M-11 Q-10（`11-…:996`） | **无** | `packages/protocol/src/embed/messages.ts`（M3 P2） |
+| N-6 | 扫描器 `repo-requires-tenant-id` | M-08 G-14（`08-…:673`）、M-09 §10（声明「不适用」） | **无**（不在 13 个扫描器内） | `tooling/scripts/scan-repo-tenant-id.ts`（M-01，第 15 个扫描器） （→ 2026-09-24 rulings §4.15 覆盖：T-0 无租户，本扫描器作废；数据访问兜底另加文档级 Postgres RLS（Q6，M3 出口）；→ D3 裁决（rulings §4.17）：`doc-access-via-permission` 登记为 M-01 第 14 个扫描器（按文档读写须经权限服务），不再称「第 15 个」） |
+| N-7 | 扫描器 `no-doc-type-literals-server` | M-08 G-13（`08-…:672`）、M-09 §10（建议扩展覆盖路径） | **无** | 扩展既有 `cordex/no-doc-type-literals` 的扫描路径至 `apps/server/src/modules/**`（M-01），而非新造规则名 |
+| N-8 | depcruise 规则 `cordex-slide-render-allowlist` | M-07 G-9（`07-…:688`） | **无** | `tooling/depcruise/rules/slide-render-allowlist.ts`（M-01） |
+| N-9 | depcruise 规则 `cordex-bundle-chain` | M-11 G-5（`11-…:969`） | **无** | 若采纳 §1 C-07（`assembly/` 收进 kernel），**本规则可取消**；否则 `tooling/depcruise/rules/bundle-chain.ts` |
+| N-10 | `@cordexjs/protocol` 的 `rest/{tenants,users,share-links,media}.ts` | M-08 G-7（`08-…:666`）/Q-6（`:731`） | **无**（M-02 §4.3 只有 `documents/snapshots/import-export/auth/audit` 五个） | `packages/protocol/src/rest/{tenants,users,share-links,media}.ts`（M-08 实现期新增，M-02 文档回补） （→ 2026-09-24 rulings §4.15 覆盖：T-0：`rest/tenants.ts` 不再新建；`rest/groups.ts` 随 U-11 推迟；余 `rest/{users,share-links,media}.ts`） |
+| N-11 | `@cordexjs/protocol` 的 `rest/{thumbnails,comments}.ts` + `errors/codes.ts` 的五个 domain | M-12 G-24（`12-…:679`） | **无** | `packages/protocol/src/rest/{thumbnails,comments}.ts`（M-12 实现期新增） |
+| N-12 | `@cordexjs/protocol` 的 `collab/{frame,control,close-codes,awareness,ticket}.ts` | 架构 08 §11 提议；M-09 G-15（`09-…:663`） | **无**（M-02 只交付 `ws/{handshake,frames}.ts`） | 要么 M-02 补五文件，要么 M-09/M-05 联合在 `ws/` 下扩展；**推荐后者**（避免 protocol 出现两套同义目录） |
+| N-13 | `@cordexjs/protocol` 的 `embed/messages.ts`（形态 E `postMessage` 契约） | M-11 Q-10（`11-…:996`） | **无** | `packages/protocol/src/embed/messages.ts`（M3 P2） |
 | N-14 | `runInvariants(documentType, body)` / `repairInvariants(...)` | M-09 Q-7（`09-…:729`）：软门禁与 repair-planner 目前各自遍历 | **无** | `packages/model-core/src/document-type/invariants.ts`（M-02） |
 | N-15 | `core.undo` / `core.redo` 内置 Operation 文件 | M-10 G-14（`10-…:967`）/Q-3（`:981`） | 暂在 ui-core `history-operations.ts` | `packages/model-core/src/command/builtin/history-operations.ts`（M-02，§1 C-02） |
 | N-16 | `tooling/vitest-config`（vitest 运行时配置包） | 架构 11 §1/§12；M-01 D-5（`01-…:649`）明确不展开 | **无任何 40-modules 文档定义** | 由拥有 `11-testing-strategy.md` 的条线补；建议挂到 M-01 §4 作为第 9 个 `tooling/` 子目录，避免长期悬空 |
@@ -335,8 +335,8 @@ g5 --> modinternal["40-modules 内部规范"]
 
 | 来源 | 一句话 | 处置 |
 |---|---|---|
-| 00/G-3 + M-13/G-2 + M-13/G-6 | §5.1 L8 行与 §5.2 包清单正式收录 `@oce/preset-doc`/`@oce/preset-sheet`（不带 `-skeleton` 后缀） | 采纳→回写（落实 Q-M2） |
-| M-10/G-1 + M-10/G-2 | §5.2 `@oce/design` 行：删「原子组件（纯 CSS 类 + 最小 TS）」、`--oce-*` 记号改为「shadcn 变量 + OCE 扩展变量」 | 采纳→回写 |
+| 00/G-3 + M-13/G-2 + M-13/G-6 | §5.1 L8 行与 §5.2 包清单正式收录 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`（不带 `-skeleton` 后缀） | 采纳→回写（落实 Q-M2） |
+| M-10/G-1 + M-10/G-2 | §5.2 `@cordexjs/design` 行：删「原子组件（纯 CSS 类 + 最小 TS）」、`--cordex-*` 记号改为「shadcn 变量 + Cordex 扩展变量」 | 采纳→回写 |
 | M-07/G-9 + 本评审 C-28 | §5.2「依赖上限」四行按实际更新：`engine-layout`+`kernel`；`ui-core`+`i18n`/`shared`；`slide-ui`+`model-slide`/`engine-render`/`model-core`；`slide-render`+`engine-layout` | 采纳→回写 |
 | 本评审 §2.1 | §5.5 服务名清单补 `contributions`（全局）、`yjsBackend`/`offlineStore`/`thumbnails`（UnitScope）、`uiRenderer`（全局） | 采纳→回写 |
 | M-10/G-5 + M-05/G-3 + M-09 + M-11/G-6 + M-12/G-25 + 本评审 C-24 | §5.5 事件域名单与 03 §3.6 合并为一份，并补 `view`/`export`/`collab-server`/`comment`；`app` 单列为应用壳私有域 | 采纳→回写 |
@@ -345,7 +345,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-07/G-3 + M-07/Q-4 | §5.5 `Scene`/`SceneNode` 术语条目登记 `SceneNode.id === ShapeId` | 采纳→回写 |
 | M-11/G-6 | §5.5 登记 Operation id 前缀 `shell.*` 归 L8 preset 专用 | 采纳→回写 |
 | M-04/G-4 + M-13/G-1 | §5.4/§5.5 明文写出「TS 常量名 UPPER_SNAKE、错误码**值**点式」双口径 | 采纳→回写 |
-| M-04/G-7 | §10 Q15（加密/宏/签名口径）需落到诊断码 `format.pptx.signature_invalidated` | 待用户（Q15 本就待裁） |
+| M-04/G-7 | §10 Q15（加密/宏/签名口径）需落到诊断码 `format.pptx.signature_invalidated` | **已裁决**（签名诊断码 rulings §4.12 U-05；Q15 本体 rulings §4.16：加密拒绝、`.pptm` 拒绝导入 `format.macro_rejected`、签名编辑后提示） |
 | 00/G-5 | §4 术语表是否收录 DDD 通用词汇（限界上下文/聚合/ACL…） | **驳回并说明**：章程 §4 定位是「本项目自造或收窄语义的词」，DDD 通用词不属此类；如需统一入口，在 `40-modules/README.md` 设「方法论术语」段（本次已按此处理） |
 
 ### 5.2 `00-charter/rulings-2026-09-14.md`
@@ -359,9 +359,9 @@ g5 --> modinternal["40-modules 内部规范"]
 | 来源 | 目标 ADR | 一句话 | 处置 |
 |---|---|---|---|
 | M-13/G-1 | 0016 | 「移除全部 DocumentType 后打开」错误码统一为 `format.no_document_type`（现写 `format/no-document-type`） | 采纳→回写 |
-| M-10/G-1 | 0017 决策 3 | `--oce-*` 记号作废 | 采纳→回写 |
+| M-10/G-1 | 0017 决策 3 | `--cordex-*` 记号作废 | 采纳→回写 |
 | M-10/G-8 | 0017 决策 4 | 措辞改为「ui-react 提供槽位宿主与原语；具体内容由 `*-ui` 贡献」 | 采纳→回写 |
-| M-10/G-9 + 本评审 C-21 | 0017 决策 5 | `data-oce-theme` 改为「三选择器等价（`.dark` / `[data-oce-theme]` / 宿主 `[data-theme]`）」 | 采纳→回写 |
+| M-10/G-9 + 本评审 C-21 | 0017 决策 5 | `data-cordex-theme` 改为「三选择器等价（`.dark` / `[data-cordex-theme]` / 宿主 `[data-theme]`）」 | 采纳→回写 |
 | M-11/G-6 | 0010 决策 2 | `ActivateWhen.event` 补 `when` 谓词（惰性条目过滤） | 采纳→回写 |
 | M-09/G-20 | 0025 决策 5 | 与 08 §13 B5 的两层保留策略互相指路 | 采纳→回写 |
 | M-08/G-9 + M-09/Q-4 + 本评审 C-17 | 0029 | 补注「ticket 不携带 `epoch`，`epoch` 校验在 Room 侧」；明确 `epoch`=强制重连、`permVersion`=仅重算权限 | 采纳→回写 |
@@ -386,7 +386,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-06/G-4 + M-06/Q-1 | §4.13 `TextMeasurer` 追加**可选** `measureRun?()`（逐字符 advances），M1 不实现 | 采纳→回写（登记为可选） |
 | M-06/G-6 + M-06/Q-2 | §4.15 `layers/ime-host.ts` 注释改为 IoC 回调（`RenderService.attach(..., callbacks.onEditIntent)`），消费方 `slide-ui` | 采纳→回写 |
 | M-07/G-5 + M-07/Q-5 | §4.16 `ole.ts`/`diagram.ts`/`unknown.ts` 合并为 `fallback.renderer.ts` | 采纳→回写 |
-| M-07/G-2 | §4.16 补第三种缩略图 Provider `offscreen-canvas.provider.ts` 与 `config.provider` 三值枚举 | 采纳→回写 |
+| M-07/G-2 | §4.16 补第三种缩略图 Provider `offscreen-canvas.provider.ts` 与 `config.provider` 三值枚举 | 采纳→回写 （→ 2026-09-24 rulings §4.15 覆盖：Q4：DOM/SVG 单实现，推翻 `offscreen-canvas.provider.ts`，改为主线程 raster Provider（canvas 仅用于 toImage 栅格化），删去「缩略图/放映可走 canvas」） |
 | M-10/G-3 + M-10/G-17 | §4.17–4.20 按 DDD 五目录回写；`css/tokens.css` 路径口径改 `css/` 目录；`bridge/`/`theme/` 移入 `ui/` | 采纳→回写 |
 | M-10/G-8 | §4.19 ui-react 只留槽位宿主与原语；`MasterThumbnails` 归 slide-ui | 采纳→回写 |
 | M-11/G-2 | §4.21/§4.21b preset 骨架文件名 `plugin.ts`/`plugins.ts` → `preset.ts`/`plugins/*.entries.ts`/`config/options.ts` | 采纳→回写 |
@@ -412,7 +412,7 @@ g5 --> modinternal["40-modules 内部规范"]
 |---|---|---|
 | M-03/G-8 + M-03/Q5 | §12.1 补「占位符类型 → 数量上限」表，供 `I-ML9` 与 `addPlaceholder` 共同引用 | 采纳→回写（数值待补） |
 | M-04/G-7 + M-04/Q-5 | §4.1 部件表补一行 `_xmlsignatures/*` 的部件名与内容类型 | 采纳→回写 |
-| M-10/G-2 | §4.1「原子组件（`@oce/design`…）」标注作废并指向设计 09 §2 | 采纳→回写 |
+| M-10/G-2 | §4.1「原子组件（`@cordexjs/design`…）」标注作废并指向设计 09 §2 | 采纳→回写 |
 | M-03/G-4 | §2.5 或 02 §4.0.2 补「文档类型级契约套件」命名规则 | 采纳→回写（与 §5.1 同一条，择一落地） |
 
 ### 5.7 `30-architecture/05-command-and-history.md`
@@ -438,7 +438,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-06/G-7 + M-07/G-7 + 本评审 C-12 | §11「三处 LRU」改为「四处」并注明归属（M-06 三、M-07 一） | 采纳→回写 |
 | M-07/G-4 | §2.4 补显式规则：意外异常 `throw`→render-dom 兜底 `render/element-failed`；预期降级→文档类型自发 `render/element-degraded` | 采纳→回写 |
 | M-07/G-3 | §2.1 收编 `SceneNode.id === ShapeId` | 采纳→回写 |
-| M-07/G-2 | §4.3 补第三种缩略图 Provider | 采纳→回写 |
+| M-07/G-2 | §4.3 补第三种缩略图 Provider | 采纳→回写 （→ 2026-09-24 rulings §4.15 覆盖：Q4：第三种缩略图 Provider 改为主线程 raster Provider，不再是 offscreen-canvas） |
 | 本评审 C-13 | §14.1 补视图模式三套词汇映射表，并把 `mapViewMode()` 落到 `engine-render` | 采纳→回写 |
 | M-06/G-8 | §2.4 `runElementRendererConformance` 标为「暂不落地」 | 采纳→回写 |
 
@@ -451,15 +451,15 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-08/G-11 + M-08/Q-5 | §2 `cordis-host.service.ts` 补通用读取面 `getService<T>(name)`（M-09 §5.3 已定案） | 采纳→回写 |
 | M-12/G-26 + 本评审 C-09 | §2 `server-headless.renderThumbnails` 改名为 `HeadlessHost.thumbnails: ThumbnailRenderer` | 采纳→回写 |
 | M-09/G-16 | §5 `document_snapshots` SQL 补一列 `baseline_key text null` | 采纳→回写 |
-| M-08/G-10 + M-08/Q-3 | §5 `permissions.principal_type` 的 `'group'` 枚举无对应表/聚合 | **待用户**（M4+ 是否做组管理） |
+| M-08/G-10 + M-08/Q-3 | §5 `permissions.principal_type` 的 `'group'` 枚举无对应表/聚合 | **待用户**（M4+ 是否做组管理） （→ 2026-09-24 rulings §4.15 覆盖：Q6：组管理（U-11）推迟，M3 只按人分享，`principal_type='group'` 移出 M3） |
 | M-12/G-29 + M-12/Q-7 | §7 表格的并发 2 与 §16.5 的并发 4 冲突——直接删除 §7 旧数字 | 采纳→回写 |
 | M-09/G-15 | §11 提议的 `protocol/src/collab/*` 五文件 M-02 从未创建，登记为未采纳 | 采纳→回写（并按 §4.2 N-12 在 `ws/` 下扩展） |
 | M-12/G-28 + M-12/Q-8 | §12 预算表补「`/readyz` 判定 ≤ 200 ms」 | 采纳→回写 |
 | M-09/G-20 | §13 B5「`document_updates` 保留 7 天」旁补指路 ADR-0025 决策 5（两层保留策略） | 采纳→回写 |
 | M-12/G-30 + M-12/Q-4 | §16.3 `pdf.processor` 物理归属 `thumbnails` 模块 | 采纳→回写 |
 | M-09/G-17 | §3.1/§16.1 `createHost(adapters)` 与 `createHeadlessHost` 符号名统一 | 采纳→回写 |
-| M-08/G-14 | §9.1「所有查询以 `tenant_id` 限定」需机械验证器 | 采纳→回写（落到 M-01，见 §4.2 N-6） |
-| M-09/G-19 + M-09/Q-3 | EM-03 集成方 JWT 直连路径需在 `ticket-verifier.ts` 显式分支、`CollabPrincipal` 区分来源 | 采纳→回写 |
+| M-08/G-14 | §9.1「所有查询以 `tenant_id` 限定」需机械验证器 | 采纳→回写（落到 M-01，见 §4.2 N-6） （→ 2026-09-24 rulings §4.15 覆盖：T-0：无 `tenant_id`，该验证器作废，改为「按文档读写须经权限服务」扫描器 + 文档级 RLS（Q6）） |
+| M-09/G-19 + M-09/Q-3 | EM-03 集成方 JWT 直连路径需在 `ticket-verifier.ts` 显式分支、`CollabPrincipal` 区分来源 | 采纳→回写 （→ 2026-09-24 rulings §4.15 覆盖：Q6：集成方签名 JWT 与 API Key 降为 M4（届时 JIT 建影子用户），M3 不做 JWT 直连分支） |
 | M-09/G-22 + M-09/Q-5 | §2 `SnapshotsController` 补「版本对比」端点 `GET .../:a/diff/:b`（P2） | 采纳→回写（P2） |
 
 ### 5.11 `30-architecture/10-observability-and-errors.md`
@@ -480,14 +480,14 @@ g5 --> modinternal["40-modules 内部规范"]
 
 | 来源 | 一句话 | 处置 |
 |---|---|---|
-| 00/G-2 + M-01/D-8 + 本评审 C-11 | `03-boundaries.md` §2 补 `oce.role` 7 值 ↔ 4 值折叠表 | 采纳→回写（落实 Q-M1） |
+| 00/G-2 + M-01/D-8 + 本评审 C-11 | `03-boundaries.md` §2 补 `cordex.role` 7 值 ↔ 4 值折叠表 | 采纳→回写（落实 Q-M1） |
 | M-01/D-2 | `07-hooks-and-ci.md` §1 加脚注：`lefthook.yml` 物理位于仓库根 | 采纳→回写 |
 | M-01/D-4 + M-01/Q-01 | `06-scanners.md` 新增 §18「scan-horizontal-freeze」，清单 13→14 | **待条线**（M5 立项时） |
 | M-01/D-6 + M-01/D-7 + M-01/Q-07 | `08-policy-enforcement-matrix.md` 新增 TD-079…TD-083 五行（三条 lint 规则 + `scan-contributions` + `scan-manifest` 规则 abc） | 采纳→回写（编号由类型治理条线分配） |
 | M-01/D-5 | `01-tsconfig-baseline.md` 的 `tooling/tsconfig/vitest.json` 与架构 11 的 `tooling/vitest-config` 是两件事，需消歧且后者无归属 | **待条线**（见 §4.2 N-16） |
-| M-07/G-9 | 新增 depcruise 规则 `oce-slide-render-allowlist` | 采纳→回写 |
-| M-11/G-5 | 新增 depcruise 规则 `oce-bundle-chain` | **条件采纳**：若按 C-07 把 `assembly/` 收进 kernel 则**无需**此规则 |
-| M-08/G-13 + M-08/G-14 | 扫描器覆盖 `apps/server/src/modules/**` 的文档类型字面量；新增 `repo-requires-tenant-id` | 采纳→回写（前者扩展既有规则路径，后者为第 15 个扫描器） |
+| M-07/G-9 | 新增 depcruise 规则 `cordex-slide-render-allowlist` | 采纳→回写 |
+| M-11/G-5 | 新增 depcruise 规则 `cordex-bundle-chain` | **条件采纳**：若按 C-07 把 `assembly/` 收进 kernel 则**无需**此规则 |
+| M-08/G-13 + M-08/G-14 | 扫描器覆盖 `apps/server/src/modules/**` 的文档类型字面量；新增 `repo-requires-tenant-id` | 采纳→回写（前者扩展既有规则路径，后者为第 15 个扫描器） （→ 2026-09-24 rulings §4.15 覆盖：T-0：`repo-requires-tenant-id` 作废，→ D3 裁决（rulings §4.17）：`doc-access-via-permission` 登记为 M-01 第 14 个扫描器） |
 | M-03/G-3 + M-03/Q2 | 补一条 zod schema 文件粒度基线（按领域分组 vs 逐类型 1:1） | **待条线**（推荐分组） |
 | 本评审 §2.4 | `command-id-format` 规则明确允许 `<域>.<子域>.<动词>` 三段式 | 采纳→回写 |
 | M-01/Q-03 | `tooling/policy/requirements.json`、`event-domains.json` 的建立者与首次填充 | **待条线**（沿用 09 默认：缺失即功能性降级） |
@@ -497,7 +497,7 @@ g5 --> modinternal["40-modules 内部规范"]
 
 | 来源 | 一句话 | 处置 |
 |---|---|---|
-| M-10/G-9 + M-10/Q-1 + 本评审 C-21 | `04-design-system.md` §3 定稿三选择器等价契约（`.dark` / `[data-oce-theme]` / 宿主 `[data-theme]` / `prefers-color-scheme` 兜底） | 采纳→回写 |
+| M-10/G-9 + M-10/Q-1 + 本评审 C-21 | `04-design-system.md` §3 定稿三选择器等价契约（`.dark` / `[data-cordex-theme]` / 宿主 `[data-theme]` / `prefers-color-scheme` 兜底） | 采纳→回写 |
 | M-10/G-10 | `04` §2.7–2.13 token 命名：`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--row-h`；间距用 Tailwind 4pt 阶；字阶只留 `--text-2xs`；阴影只留 `--glass-shadow` | 采纳→回写 |
 | M-10/G-11 + M-10/Q-5 | `04` §2.13 紧凑密度下的 Ribbon 高度与控件尺寸（推荐：页签行 32 + 内容区 36，小控件 24） | **待条线**（M2 定稿） |
 | M-10/Q-6 | `04` §2.14 Lucide `strokeWidth` 定为 2（与 playground 与 45 个复制件一致） | 采纳→回写 |
@@ -527,9 +527,9 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-03/G-5 + M-13/G-5 + M-13/Q3 | `SnapshotBundle.body` 的 `$ref: BlobRef` 分片协议接口形状（谁调用 `shardBody`）由 M-02 与 M-13 联合定稿 | **待条线**（推荐 `store.toSnapshotBody()`） |
 | M-03/Q3 | `runSlideModelConformance` 不覆盖协同并发场景，由 M-05/M-09 在其契约套件补协同分节 | 采纳→回写（M-05/M-09 §9） |
 | M-11/G-10 | M-10 需保证 `UserMenu`/`Brand`/`ThemeToggle`/`SettingsDrawer`/`ShortcutsPanel` 为 host-optional（无 host 页面也能用） | 采纳→回写（`40-modules/10` §6 标注） |
-| M-11/G-11 | M-10 需增 `UiCoreConfig.theme.cssNonce?: string`（EM-14 严格 CSP） | 采纳→回写（`40-modules/10` §2.5） |
+| M-11/G-11 | M-10 需增 `UiCoreConfig.theme.cssNonce?: string`（EM-14 严格 CSP） | 采纳→回写（`40-modules/10` §2.5） （→ 2026-09-24 rulings §4.15 覆盖：Q2：CSP nonce 提前到 M2；Trusted Types M2 report-only，M3 强制） |
 | M-11/G-13 | viewer 不加载 `localPresencePlugin`，请 M-05 §7 回写 | 采纳→回写（`40-modules/05` §7） |
-| M-11/G-14 | M-04 评估 `@oce/ooxml-pptx/export` 子路径惰性化（viewer 基线省约 25 KB） | **待条线**（M-04 评估） |
+| M-11/G-14 | M-04 评估 `@cordexjs/ooxml-pptx/export` 子路径惰性化（viewer 基线省约 25 KB） | **待条线**（M-04 评估） |
 | M-11/G-15 | 各插件包只 eager 贡献 `zh-CN`，其余语言经 `./locales/<locale>` 子路径由 preset 惰性聚合 | 采纳→回写（`40-modules/02` §3、`40-modules/10` §3、ADR-0010 决策 2） |
 | M-11/G-8 | protocol/REST 缺口：`DocumentSummary.pinned`、`GET /documents?filter=recent`、`POST /documents/:id/duplicate`、`POST /documents{template}`、`GET /templates`、缩略图 URL 字段 | 采纳→回写（M-02 protocol + M-08 实现 + M-12 登记） |
 | M-12/G-23 | 00 §7 M-12 行的 `cordis-host/adapters` 加注「引用，非新增」 | 采纳→回写（见 §8） |
@@ -549,15 +549,15 @@ g5 --> modinternal["40-modules 内部规范"]
 
 | 来源 | 问题 | 推荐默认 | 阻塞里程碑 |
 |---|---|---|---|
-| 00/Q-M2 + M-13/Q1 + M-13/G-2 | `@oce/preset-doc`/`@oce/preset-sheet` 包名是否正式收录章程；是否带 `-skeleton` 后缀 | 收录；**不**带后缀，用 `oce.stability:'experimental'` 信号未完工 | M5（M-13 已下游先用，否决需联动改多处）——**已裁决（rulings §4.12 U-01）** |
+| 00/Q-M2 + M-13/Q1 + M-13/G-2 | `@cordexjs/preset-doc`/`@cordexjs/preset-sheet` 包名是否正式收录章程；是否带 `-skeleton` 后缀 | 收录；**不**带后缀，用 `cordex.stability:'experimental'` 信号未完工 | M5（M-13 已下游先用，否决需联动改多处）——**已裁决（rulings §4.12 U-01）** |
 | M-04/Q-3 | Strict 写回 C 案（反向映射表）是否 M1 即生效，还是 M1 只做「检测 + 自动回退 B + 诊断」 | M1 只做检测 + 回退 B（章程 Q14 最终裁决优先） | M1（影响 OF-18 验收口径与工作量）——**已裁决（rulings §4.12 U-02）：M1 即做 C 案完整写回** |
 | M-04/Q-5 + M-04/G-7 | 新增诊断码 `format.pptx.signature_invalidated` 与架构 04 §4.1 的 `_xmlsignatures/*` 部件行（章程 Q15 产品口径落地） | 采纳（成本低，填补 Q15 与实现之间的空隙） | M2——**已裁决（rulings §4.12 U-05）** |
 | M-07/Q-6 | 章程 Q18 图表可编辑类型集合（默认 bar/line/pie） | 维持三类；文件粒度对结果不敏感 | M3——**已裁决（rulings §4.12 U-06）：扩为 bar/line/pie/area/scatter 五类** |
 | M-08/Q-1 | `ROLE_CAPABILITIES` 是否把 `doc.export`/`history.read` 下放至 `editor`（而非仅 `owner`） | 下放（M-08 §2.2 表） | M3——**已裁决（rulings §4.12 U-09）** |
-| M-08/Q-2 | `create-tenant` 是否对外暴露公开自助注册 | 否，M3 仅内部/管理脚本可调用 | M3——**已裁决（rulings §4.12 U-10）** |
-| M-08/Q-3 | `permissions.principal_type='group'` 是否 M4+ 补齐组管理，否则从枚举移除 | M-08 范围内不实现，枚举保留但不可达 | M4——**已裁决（rulings §4.12 U-11）**：M3 即实现组管理（提前于 M4） |
+| M-08/Q-2 | `create-tenant` 是否对外暴露公开自助注册 | 否，M3 仅内部/管理脚本可调用 | M3——**已裁决（rulings §4.12 U-10）** （→ 2026-09-24 rulings §4.15 覆盖：T-0：无租户，`create-tenant` 用例删除；注册由部署级开关 `auth.selfSignup`（默认关）控制，账号在外置 OIDC IdP 建立、首次登录 JIT 建号（Q6）） |
+| M-08/Q-3 | `permissions.principal_type='group'` 是否 M4+ 补齐组管理，否则从枚举移除 | M-08 范围内不实现，枚举保留但不可达 | M4——**已裁决（rulings §4.12 U-11）**：M3 即实现组管理（提前于 M4） （→ 2026-09-24 rulings §4.15 覆盖：Q6：组管理推迟（不再 M3 实现），M3 只按人分享） |
 | M-08/Q-7 | 是否补服务端操作日志以支持管理员「撤销误操作」 | M3 不做，靠 `audit_log` 人工核对 + 回收站 | M4——**已裁决（rulings §4.12 U-12）** |
-| M-09/Q-9 + M-02/Q-2 + M-09/G-21 | PRD CO-07「恢复……可撤销」与 `core.restoreVersion` 用 `origin:system('restore')`（不入撤销栈）冲突 | 务实折中：恢复前强制落一个 `auto` 快照，用户「恢复到那个快照」变相撤销；**不**新增 `Origin` 变体 | M3（版本恢复验收口径）——**已裁决（rulings §4.12 U-07）**：本行「务实折中」与「进本地撤销栈」两个简单方案均已否决，转专项设计 `version-restore-undo`（M-02 × M-05 × M-09，M3 前出 ADR） |
+| M-09/Q-9 + M-02/Q-2 + M-09/G-21 | PRD CO-07「恢复……可撤销」与 `core.restoreVersion` 用 `origin:system('restore')`（不入撤销栈）冲突 | 务实折中：恢复前强制落一个 `auto` 快照，用户「恢复到那个快照」变相撤销；**不**新增 `Origin` 变体 | M3（版本恢复验收口径）——**已裁决（rulings §4.12 U-07）**：本行「务实折中」与「进本地撤销栈」两个简单方案均已否决，转专项设计 `version-restore-undo`（M-02 × M-05 × M-09，M3 前出 ADR） （→ 2026-09-24 rulings §4.15 覆盖：Q3：撤销写入 DocumentStore 中性契约（同一键被他人后写→跳过并提示；整步被跳过→停下不连撤；删除改软删除墓碑 + TTL），U-07 `version-restore-undo` 专项设计以此为基线） |
 | M-10/Q-7 | 高对比 / `forced-colors` 第三套主题何时进入 `TokenSet` | M3 P1：先以 `@media (forced-colors: active)` 系统色兜底 | M3——**已裁决（rulings §4.12 U-08）**：M1–M2 系统色兜底，M3 P1 正式第三套 token |
 | M-11/Q-6 | 「最近 / 固定」M2 是否只做本地 IndexedDB，服务端同步推到 M3 | M2 本地，M3 合并 | M2/M3——**已裁决（rulings §4.12 U-04）：M2 即服务端同步，IndexedDB 仅离线缓存** |
 | M-11/Q-8 | 查看器 `allowExport` 默认关还是开（PRD OF-14 未明说；02 §4.21b 暗示开） | **默认关**（体积与数据外泄面最小，集成方一行开启） | M2——**已裁决（rulings §4.12 U-03）** |
@@ -570,7 +570,7 @@ g5 --> modinternal["40-modules 内部规范"]
 
 | 来源 | 问题 | 推荐默认 | 阻塞里程碑 |
 |---|---|---|---|
-| 00/Q-M1 + M-01/D-8 | `oce.role` 折叠表写入 `09-boundaries` §2 | 是（§1 C-11） | M0 收尾 |
+| 00/Q-M1 + M-01/D-8 | `cordex.role` 折叠表写入 `09-boundaries` §2 | 是（§1 C-11） | M0 收尾 |
 | 00/Q-M3 | M-13 是否从批次 3 独立为「批次 4」 | 维持批次 3 | 不阻塞 |
 | 00/Q-M4 + M-13/Q5 + M-12/G-27 | BC-24/BC-25 的 `parametrized` 分类确认 | BC-24 维持 `parametrized`；**BC-25 改判 `generic`**（M-12 已论证）→ Q-M4 结案 | 不阻塞 |
 | 00/Q-M5 + M-09/Q-1 | M-09 是否拆为 09a/09b | **不拆**（M-09 已论证，102 文件在区间内） | 不阻塞 |
@@ -581,20 +581,20 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-10/Q-11 + M-10/G-8 | `MasterThumbnails` 归 slide-ui 还是 ui-react | **slide-ui**（§4.1 O-7） | M2 |
 | M-10/Q-1 | 主题切换属性收敛为一还是三者并存 | **三选择器等价并写成明文契约**（§1 C-21） | M1 |
 | M-10/Q-12 | 应用栏「⋯」六条目贡献方；`apps/*` 能否 `ctx.contribute` UI 条目 | 经 M-11 preset 层胶水插件贡献；`no-domain-defs-in-apps` 判据需写明为「无领域定义」（§3.1） | M3 |
-| M-11/Q-3 + M-11/G-5 | 装配运行时归属：`preset-slide-viewer/assembly/` / `@oce/kernel/preset/` / 新包 `@oce/preset-core` | **`@oce/kernel/preset/`**（§1 C-07） | M1（三预设都依赖它） |
+| M-11/Q-3 + M-11/G-5 | 装配运行时归属：`preset-slide-viewer/assembly/` / `@cordexjs/kernel/preset/` / 新包 `@cordexjs/preset-core` | **`@cordexjs/kernel/preset/`**（§1 C-07） | M1（三预设都依赖它） |
 | M-11/Q-4 | 查看器壳「最小原子组件」实现方式 | 纯 CSS `[data-slot]` 类（零框架，≤ 15 KB） | M2 |
 | M-11/Q-1 | `apps/web` path 路由还是 hash 路由 | **path 路由** + SPA fallback（§1 C-20） | M2 |
 | M-11/Q-2 | UnitScope 级 Provider 的登记 API（`registerUnitProvider`） | 由 M-02 在 `units` 服务暴露（§4.2 N-2） | M1 |
-| M-11/Q-10 | 形态 E `postMessage` 消息形状是否纳入 `@oce/protocol` | 纳入（`protocol/src/embed/messages.ts`，M3 P2） | M3 |
+| M-11/Q-10 | 形态 E `postMessage` 消息形状是否纳入 `@cordexjs/protocol` | 纳入（`protocol/src/embed/messages.ts`，M3 P2） | M3 |
 | M-11/Q-13 | `examples/**`（EM-17）归属 | 追加为 M-11 附属交付 | M2 |
 | M-12/Q-1 + M-12/G-26 | `ThumbnailRenderer` 对外导出形态 | `HeadlessHost.thumbnails: ThumbnailRenderer` 只读字段（§1 C-09） | M2 |
 | M-12/Q-2 + M-12/G-25 | `collab/repair` vs `collab-server/repair` 以哪份为准 | **`collab-server/repair`**，00 §3 BC-26 回填（§1 C-08） | M3 |
-| M-12/Q-4 + M-12/G-30 | PDF/PNG/JPEG 导出 processor 归 `thumbnails` 模块 | 采纳（复用 Chromium 池） | M3 |
+| M-12/Q-4 + M-12/G-30 | PDF/PNG/JPEG 导出 processor 归 `thumbnails` 模块 | 采纳（复用 Chromium 池） | M3 （→ 2026-09-24 rulings §4.15 覆盖：Q8：PDF 导出排到 M3 后半段，经独立 renderer sidecar；不用 sharp） |
 | M-09/Q-6 | `apps/server/src/cordis-host` 归属是否在 00 §7 显式确认 | **确认归 M-09**（§1 C-10） | 不阻塞 |
 | M-09/Q-7 | `runInvariants`/`repairInvariants` 是否由 M-02 提供 | 是（§4.2 N-14） | M2 |
 | M-08/Q-4 + M-09/Q-4 + M-08/G-9 | `epoch` 与 `permVersion` 是否联动 | 不合并，各自独立；补明文语义（§1 C-17） | M3 |
 | M-08/Q-5 + M-08/G-11 | `CordisHostService` 读取面签名 | `getService<T>(name: string): T`（M-09 §5.3 已定案） | M2 |
-| M-08/Q-6 + M-08/G-7 | `protocol/rest/{tenants,users,share-links,media}.ts` 由谁创建 | M-08 实现期直接新增，事后知会 M-02 回补文档 | M2 |
+| M-08/Q-6 + M-08/G-7 | `protocol/rest/{tenants,users,share-links,media}.ts` 由谁创建 | M-08 实现期直接新增，事后知会 M-02 回补文档 | M2 （→ 2026-09-24 rulings §4.15 覆盖：T-0：`rest/tenants.ts` 删除，余 `rest/{users,share-links,media}.ts`） |
 | M-04/Q-1 + M-04/G-2 | `runFormatCodecConformance` 何时由 M-02 补齐 | 允许过渡：M-04 M1 用局部替身，就绪后补正式接入 | M1 |
 | M-04/Q-2 + M-13/Q7 + M-13/G-4 | `OoxmlIdMap` 是否提升到 `ooxml-core` | 暂缓；M-13 改为临时各自复制（§1 C-18） | M5 |
 | M-13/Q2 + M-13/G-1 | 「未知文档类型」错误码唯一权威拼写 | **`format.no_document_type`**（§1 C-16） | M0 收尾（ADR-0016 与 00 §6.5 需同步） |
@@ -621,7 +621,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-10/Q-8 | `ui.notification` 语义：通知种类模板 vs 接收端/渠道 | 种类模板（与 `ui.dialog` 对称） | M2 |
 | M-10/Q-9 | `breakpoint` 是否作为标准 `when` 上下文键 | 是（Q12/Q19 需要视口宽度语义，与 `platform` 正交） | M2 |
 | M-11/Q-7 | 放映是否独立路由 `/documents/:id/present` | 独立路由 + host 复用 | M3 |
-| M-11/Q-9 | 无 host 页面的 i18n：独立 `appI18n` 实例 vs 空 host | 独立实例（需 `@oce/i18n` 暴露纯函数 API） | M2 |
+| M-11/Q-9 | 无 host 页面的 i18n：独立 `appI18n` 实例 vs 空 host | 独立实例（需 `@cordexjs/i18n` 暴露纯函数 API） | M2 |
 | 本评审 C-29 | 模块文档 G/Q 编号体系分裂（两种 G 链、四种 Q 写法） | 统一为模块前缀式引用 `M-xx/G-n`；不回改文档内部编号 | 不阻塞 |
 | 本评审 C-24 | charter §5.5 与 03 §3.6 的事件域名单互不一致 | 合并为一份并补 5 个在用域 | M0 收尾（扫描器 `event-domain-whitelist` 需要唯一名单） |
 | 本评审 §2.4 | M-03 Mutation id 两段式（`shape.insert`）与表头声明的三段式（`slide.<entity>.<verb>`）自相矛盾 | 全部补 `slide.` 前缀 | M1 |
@@ -648,11 +648,11 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-06/Q-1 + M-06/G-4 | M-06 内部 | `TextMeasurer.measure()` 单值 vs `measureRun()` 批量 | M1 不加；键入 p95 > 33 ms 或命中 p95 > 2 ms 再补 | M2 |
 | M-06/Q-4 | M-06 内部 | `HitTestIndex` 是否需要四叉树/BVH | M1 线性扫描 + 包围盒提前退出，M2 按 bench 决定 | M2 |
 | M-06/Q-7 | 产品线（PRD） | `Viewport.zoom` 的 min/max 默认值 | `0.1`/`8`；若 PRD 有既定范围以 PRD 为准 | M1 |
-| M-07/Q-1 | M-07 内部 | `offscreen-canvas.provider` 是否需跑 Worker | M1–M2 主线程；按实测决定 | M2 |
+| M-07/Q-1 | M-07 内部 | `offscreen-canvas.provider` 是否需跑 Worker | M1–M2 主线程；按实测决定 | M2 （→ 2026-09-24 rulings §4.15 覆盖：Q4：结案，改主线程 raster Provider，删除 Worker 选项） |
 | M-07/Q-2 | M-07 内部 | 次要图表类型 M1–M2 是否需要类型相关近似渲染 | 统一走「缓存位图否则占位」，`approx.renderer.ts` 留 M3 | M3 |
 | M-08/Q-1…Q-7 中的技术项 | M-08 内部 | 见 §6.1 | — | — |
 | M-09/Q-2 + M-09/G-20 | 架构-运行时 B（08 号文档） | `document_updates` 7 天与 `auto` 快照 30 天稀疏化的表述合并 | 以 ADR-0025 决策 3/5 为准，08 §13 B5 补指路 | M3 |
-| M-09/Q-3 + M-09/G-19 | M-09 内部 | EM-03 集成方 JWT 直连：`ticket-verifier.ts` 内部分支 vs 独立文件 | 先内部分支 | M3 |
+| M-09/Q-3 + M-09/G-19 | M-09 内部 | EM-03 集成方 JWT 直连：`ticket-verifier.ts` 内部分支 vs 独立文件 | 先内部分支 | M3 （→ 2026-09-24 rulings §4.15 覆盖：Q6：集成方 JWT 直连降为 M4，M3 不实现该分支） |
 | M-09/Q-5 + M-09/G-22 | 产品线 | `GET .../:a/diff/:b` 版本对比端点是否进 M3 | 采纳为新增建议，P2，不阻塞 M2 | M3 |
 | M-09/Q-8 | M-09 内部 | 「恢复前自动快照」触发阈值 | 复用 `compaction-policy.ts` 的 `shouldCompact()` | M3 |
 | M-10/Q-5 + M-10/G-11 | 设计线（04 §2.13） | 紧凑密度下的 Ribbon 高度与控件尺寸 | M2 定：页签行 32 + 内容区 36，小控件 24；`--control-h-*` 24/28/32 | M2 |
@@ -663,11 +663,11 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-11/Q-12 | M-11 内部 | `apps/web` 页面组件单测用 happy-dom 还是全部下沉 e2e | happy-dom 覆盖状态分支，e2e 覆盖流程 | M2 |
 | M-11/Q-14 | M-05 | `preset-slide-collab` 在 `store-yjs` 下打开本地字节（无服务端房间）是否允许 | 允许（离线新建 → 首次上线转协同），`collab-yjs` PENDING 至 `connect()` | M3 |
 | M-11/G-10 | M-10 | 壳组件（`UserMenu` 等）是否 host-optional | 是，以 props 工作，`useHost()` 缺席不抛错 | M2 |
-| M-11/G-11 | M-10 | `UiCoreConfig.theme.cssNonce?` | 新增（EM-14 严格 CSP 需要） | M3 |
+| M-11/G-11 | M-10 | `UiCoreConfig.theme.cssNonce?` | 新增（EM-14 严格 CSP 需要） | M3 （→ 2026-09-24 rulings §4.15 覆盖：Q2：CSP nonce 提前到 M2（Trusted Types M2 report-only → M3 强制）） |
 | M-11/G-13 | M-05 | viewer 是否加载 `localPresencePlugin` | 不加载 | M2 |
-| M-11/G-14 | M-04 | `@oce/ooxml-pptx/export` 子路径是否惰性化 | 评估；viewer 基线可省约 25 KB | M2 |
+| M-11/G-14 | M-04 | `@cordexjs/ooxml-pptx/export` 子路径是否惰性化 | 评估；viewer 基线可省约 25 KB | M2 |
 | M-11/G-15 | M-02 + M-10 | 各插件包是否只 eager 贡献默认语言 | 是，其余经 `./locales/<locale>` 由 preset 惰性聚合 | M3 |
-| M-12/Q-5 | M-12 + M-09 + 客户端 comments | `comments/domain/anchor.ts` 判别联合精确形状 | 联合定稿并落 `@oce/protocol` `rest/comments.ts` | M3 |
+| M-12/Q-5 | M-12 + M-09 + 客户端 comments | `comments/domain/anchor.ts` 判别联合精确形状 | 联合定稿并落 `@cordexjs/protocol` `rest/comments.ts` | M3 |
 | M-12/Q-7 + M-12/G-29 | 架构-运行时 B | 导入导出并发 2 vs 4 | 4/实例（08 §16.5） | M3 |
 | M-12/Q-8 + M-12/G-28 | 架构-运行时 B | `/readyz` 判定延迟预算是否写入 08 §12 | 是，≤ 200 ms | M3 |
 | M-13/Q3 + M-03/G-5 + M-13/G-5 | M-02 + M-13 | `shardBody` 由 `codec.ts` 还是 `store.toSnapshotBody()` 调用 | **`store.toSnapshotBody()`**（避免每个垂直束各自实现分片判定） | M5（`model-sheet` 开工前阻塞项） |
@@ -710,21 +710,21 @@ g5 --> modinternal["40-modules 内部规范"]
 | R-04 | §3 BC-11「发布事件」（L335） | 「`render/frame`、`render/first-paint`、…」 | `render/frame` 后加括注「（进程内业务事件；遥测事件为 `perf/frame`，由其抽样派生，rulings §5 的定稿指遥测名，二者并存不冲突）」（§1 C-25） |
 | R-05 | §3 BC-12「提供的贡献点」（L354） | 「无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element` 贡献条目」 | 「无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element`/**`render.overlay`**（key `master-inheritance`，母版视图继承徽标覆盖层）贡献条目」（M-07/G-10） |
 | R-06 | §3 BC-12「提供的服务」（L352）与「发布事件」（L356） | 「`ctx.thumbnails`（UnitScope）」/「`slide/thumbnail-updated`、`slide/show-changed`」 | 服务行不变；事件行 `slide/show-changed` 后加注「（发布者按 §1 C-04 裁定改为 `slide-ui`；`SlideshowService` 不进 BC-12）」 |
-| R-07 | §3 BC-13「主要 ADR」上方（L377–L380） | BC-13 行内多处以 `--oce-*` 描述设计 token | 改为「shadcn 变量 + OCE 扩展变量（`--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名）；`--oce-*` 前缀已作废（M-10/G-1）」 |
+| R-07 | §3 BC-13「主要 ADR」上方（L377–L380） | BC-13 行内多处以 `--cordex-*` 描述设计 token | 改为「shadcn 变量 + Cordex 扩展变量（`--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名）；`--cordex-*` 前缀已作废（M-10/G-1）」 |
 | R-08 | §3 BC-16「提供的贡献点 / 消费的贡献点 / 发布事件」（L438–L440） | 三行均为「无」 | 「提供：无（装配层不定义贡献点）；**消费**：向 `core.command`（Operation `shell.intent`）/`ui.contextMenu{slot:'appBar.more'}`/`ui.shortcut`/`i18n.bundle`/`core.permissionPolicy` 贡献极薄胶水条目；发布：无 cordis 事件（应用私有域 `app/*` 为 typed `EventTarget`，非 cordis）」（M-11/G-6） |
 | R-09 | §3 BC-26「承载包」（L644） | 「… `common/interceptors`、`config`、**`cordis-host/adapters`**）」 | 「… `common/interceptors`、`config`）」；并另起一行注「`cordis-host/`（含 `adapters/`）物理归属 **BC-21/BC-27（M-09）**，BC-26 只引用、不新增文件」（§1 C-10、M-12/G-23） |
 | R-10 | §3 BC-26「cordis 形态」（L645） | 「library + provider（`cordis-host/adapters/{…}.adapter.ts` 是 BC-01 定义的 `errors.sink`/`telemetry.sink` 贡献点的 Node 侧实现，以插件形式挂载）」 | 「library（8 个 Nest 模块 + `common/`/`config/` 全部纯 Nest DI）。三个 `errors.sink`/`telemetry.sink` 的 Node 实现由 M-09 在 `cordis-host/adapters/` 提供」 |
 | R-11 | §3 BC-26「订阅事件」（L651） | 「`command/audited`、`plugin/failed`、**`collab/repair`**、`permission/denied`」 | 「`command/audited`、`plugin/failed`、**`collab-server/repair`、`collab-server/update-rejected`**、`permission/denied`」（§1 C-08、M-12/G-25） |
 | R-12 | §4.1 关系表，BC-16→BC-17 行（L780） | 防腐层落点 `apps/web/src/host/create-editor-host.ts` | `apps/web/src/application/host/create-editor-host.ts`（M-11/G-1；§4.1 O-10） |
-| R-13 | §4.2 第 1 条（L795） | 「`@oce/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源」 | 末尾补「——这条铁律同样覆盖 **Node 进程 ↔ headless Chromium 渲染页** 的契约（`RenderPageProtocol`），故 `render-page-protocol.ts` 须上移至 `protocol/src/render/page.ts`，由 M-09 与 M-11 共同 import」（M-11/G-7；§4.2 N-3） |
-| R-14 | §5.2 第二条（L839） | 「`apps/web` 只在 `host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`」 | 路径同 R-12；并补一句「`apps/*` 可 import L7 呈现层组件（`@oce/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是『只 import preset』」（§3.1） |
+| R-13 | §4.2 第 1 条（L795） | 「`@cordexjs/protocol` 是浏览器 SDK 与 NestJS 服务端之间**唯一**允许跨进程传递的契约来源」 | 末尾补「——这条铁律同样覆盖 **Node 进程 ↔ headless Chromium 渲染页** 的契约（`RenderPageProtocol`），故 `render-page-protocol.ts` 须上移至 `protocol/src/render/page.ts`，由 M-09 与 M-11 共同 import」（M-11/G-7；§4.2 N-3） |
+| R-14 | §5.2 第二条（L839） | 「`apps/web` 只在 `host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`」 | 路径同 R-12；并补一句「`apps/*` 可 import L7 呈现层组件（`@cordexjs/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是『只 import preset』」（§3.1） |
 | R-15 | §6.1 分类表（L855–L857） | 「parametrized … BC-24（缩略图内容）、BC-25（评论锚点形状）」 | 「parametrized … BC-24（缩略图内容）」；BC-25 移入 generic 行，并注「M-12/G-27 论证：锚点可变性由 `Anchor` 开放判别联合吸收，仓储/controller/观察者零分支」（同时 §10 Q-M4 结案） |
 | R-16 | §6.2 样板对照表（L866 之后） | 表格止于 L8 行 | 新增一行「**重型可选特性隔离** \| `slide-render-chart`（BC-12 内） \| doc 的公式渲染 \| sheet 的数据透视表渲染 \| 复制『M1–M2 内置只读 → M3 拆为独立惰性插件 → `conflict:'replace'` 覆盖默认占位』的拆包套路，见 `40-modules/07` §3/§4.2/§8」（M-07/G-8） |
-| R-17 | §6.4（L878） | 「`tooling/scanners/horizontal-freeze.ts` 对**全部无 `oce.bundle` 字段的包**…计算内容哈希」 | 「`tooling/scripts/scan-horizontal-freeze.ts`（路径遵 09-06 的 `scripts/` 落点；**当前仅骨架占位**，不计入『十三个扫描器缺一不可』，正式纳入需追加 09-06 §18，见 `40-modules/01` §13 Q-01）」（M-01/D-4；§4.2 N-5） |
+| R-17 | §6.4（L878） | 「`tooling/scanners/horizontal-freeze.ts` 对**全部无 `cordex.bundle` 字段的包**…计算内容哈希」 | 「`tooling/scripts/scan-horizontal-freeze.ts`（路径遵 09-06 的 `scripts/` 落点；**当前仅骨架占位**，不计入『十三个扫描器缺一不可』，正式纳入需追加 09-06 §18，见 `40-modules/01` §13 Q-01）」（M-01/D-4；§4.2 N-5） |
 | R-18 | §6.5 运行时层行（L886） | 「移除类型后打开返回 **`UNIT_UNKNOWN_DOCUMENT_TYPE`** 且宿主仍健康」 | 「移除类型后打开返回 **`format.no_document_type`** 且宿主仍健康」（§1 C-16；同时 ADR-0016 的 `format/no-document-type` 一并改） |
 | R-19 | §7 表格 M-06 行「关键决策与约束」列 | 「三处 LRU 必须有淘汰测试（A29）」 | 「三处 LRU 必须有淘汰测试（A29；**模块内三处** = `StyleCache`/`MediaCache`/`measure-cache`，不含 M-07 的 `LayerTemplateCache`，系统级共四处）」（§1 C-12） |
 | R-20 | §7 表格 M-07 行「关键决策与约束」列 | 「M1–M2 图表只读解析、M3 拆包…缩略图三种 Provider 策略取舍」 | 末尾补「**含 1 处模板 LRU（`LayerTemplateCache`），与 M-06 三处合为架构 07 §11 的系统级缓存集**」 |
-| R-21 | §7 表格 M-09 行「覆盖的包与目录」列 | `apps/server`（`modules/{collab,snapshots}`）、`@oce/server-collab`、`@oce/server-headless` | `apps/server`（`modules/{collab,snapshots}`、**`cordis-host/**`（含 `adapters/`，物理归属本模块）**）、`@oce/server-collab`、`@oce/server-headless`（M-09/Q-6；§1 C-10） |
+| R-21 | §7 表格 M-09 行「覆盖的包与目录」列 | `apps/server`（`modules/{collab,snapshots}`）、`@cordexjs/server-collab`、`@cordexjs/server-headless` | `apps/server`（`modules/{collab,snapshots}`、**`cordis-host/**`（含 `adapters/`，物理归属本模块）**）、`@cordexjs/server-collab`、`@cordexjs/server-headless`（M-09/Q-6；§1 C-10） |
 | R-22 | §7 表格 M-12 行「覆盖的包与目录」列 | 「… `cordis-host/adapters/*`）」 | 「… `cordis-host/adapters/*`（**引用，非新增；物理归属 M-09**）」（M-12/G-23） |
 | R-23 | §7 表格「预计文件数量级」列（六行）+ 新增一列 | M-04 `70–90`；M-07 `50–70`；M-08 `80–100`；M-10 `110–140`；M-11 `60–80`；M-13 `40–60` | M-04 `85–100`；M-07 `70–85`；M-08 `100–125`；M-10 `160–180`；M-11 `150–170`；M-13 `90–120`。并**新增一列「文件数口径」**注明含/不含根模板 · 含/不含测试 · 含/不含机械生成复制件（M-10 的 45 个 shadcn 复制件、M-11 的 59 个测试文件均单列，与 M-09 的 102 不可直接比较）（§7） |
 | R-24 | §8 与 §10（L914–L967） | G-1…G-5 与 Q-M1…Q-M6 均为开放状态 | 逐条标注结案：**G-1** 已由 M-09/G-18 落地（`server-collab` = library + plugin）；**G-2 / Q-M1** 采纳折叠表（§1 C-11）；**G-3 / Q-M2** 采纳 `preset-doc`/`preset-sheet` 无后缀包名（§1 C-19）；**G-4** 采纳（12 号文档补服务端小节）；**G-5** 驳回（§5.1）；**Q-M3** 维持批次 3；**Q-M4** 结案（BC-25 改判 generic，见 R-15）；**Q-M5** 结案（M-09 不拆，102 文件在区间内）；**Q-M6** 已锁。另**新增 Q-M7**：模块文档 G/Q 编号体系分裂（两条 G 链 + 四种 Q 写法），裁定统一为模块前缀式引用 `M-xx/G-n`（§1 C-29），并回写 `_template.md` §12/§13 |
@@ -735,9 +735,9 @@ g5 --> modinternal["40-modules 内部规范"]
 ### M-01 工具链与治理骨架（`01-tooling-and-governance.md`，667 行）
 
 - §0（L9–L19）：承载 `tooling/*` + 根配置；cordis 形态 `library`；无层无秩；批次 1；无上游。
-- 追加建议用 **D-** 前缀（非模板的 G-）：D-1…D-8（L644–L651）。D-8 与 00 §8 G-2 同源（`oce.role` 7 值 vs 4 值）。
+- 追加建议用 **D-** 前缀（非模板的 G-）：D-1…D-8（L644–L651）。D-8 与 00 §8 G-2 同源（`cordex.role` 7 值 vs 4 值）。
 - 未决用 **Q-0N** 两位编号：Q-01…Q-08（L656–L665）。Q-03…Q-06 转发自 09-type-discipline README §6 的 Q-T8/T10/T11/T12。
-- 关键命名：21 条 `oce/*` lint 规则、8 条 `oce-*` depcruise 规则、13 个 `scan-*` 扫描器、`TD-\d{3}` 规范行、12 个 npm script。
+- 关键命名：21 条 `cordex/*` lint 规则、8 条 `cordex-*` depcruise 规则、13 个 `scan-*` 扫描器、`TD-\d{3}` 规范行、12 个 npm script。
 - §2.4「事件」为构建期产物表，**无 cordis `Events`**（L123：「本模块没有 cordis `Events`（不创建 Fiber）」）。
 - L550/L552：`tooling/scripts/scan-horizontal-freeze.ts` 仅骨架占位，09-06 十三个扫描器清单不含它；00 §6.4 却写 `tooling/scanners/horizontal-freeze.ts`（路径不同）。
 - Q-06（L663）：`CommandDef.permission` 推荐 `CapabilityBit[]`（数组）。
@@ -757,7 +757,7 @@ g5 --> modinternal["40-modules 内部规范"]
 
 ### M-03 幻灯片领域模型（`03-slide-domain-model.md`，729 行）
 
-- §0（L7–L19）：`@oce/model-slide`，V-model 秩 15 iso，批次 1；贡献 `core.mutation` 46 个、`core.command` 55 个（含 4 个 Operation）、`slide.shapeKind`。
+- §0（L7–L19）：`@cordexjs/model-slide`，V-model 秩 15 iso，批次 1；贡献 `core.mutation` 46 个、`core.command` 55 个（含 4 个 Operation）、`slide.shapeKind`。
 - 追加建议 **G-1…G-9**（L709–L717，**重新从 G-1 起编号**，与 M-02 的「延续 00 §8」口径冲突）；未决 **Q1…Q6**（L722–L727，无连字符，与 M-01 `Q-01`、M-02 `Q-1` 三种写法并存）。
 - **L216：「`view.setMode`（切普通/母版/演讲者视图）定义在 `ui-core`（文档类型盲）」** —— 与 M-02 §2.6（L281，定义在 `model-core/command/builtin/view-operations.ts`）直接冲突。
 - §2.4（L135–L147）：权威 5 个事件 + **新增建议 5 个**（`slide/layout-added`、`slide/layout-removed`、`slide/master-added`、`slide/master-removed`、`slide/theme-changed`），G-6/Q4 待裁。
@@ -770,7 +770,7 @@ g5 --> modinternal["40-modules 内部规范"]
 
 ### M-04 OOXML 格式与 PPTX 编解码（`04-ooxml-format-and-pptx-codec.md`，681 行）
 
-- §0（L5–L19）：`@oce/ooxml-core`（L3 秩 30 iso library）+ `@oce/ooxml-pptx`（V-codec 秩 35 iso plugin）；批次 2；上游 M-02、M-03。
+- §0（L5–L19）：`@cordexjs/ooxml-core`（L3 秩 30 iso library）+ `@cordexjs/ooxml-pptx`（V-codec 秩 35 iso plugin）；批次 2；上游 M-02、M-03。
 - 追加建议 **G-1…G-7**（其中 G-6、G-7 标「新增建议」）；未决 **Q-1…Q-6**。
 - §2.4：本模块**不定义新事件域**，诊断经返回值转译；提到 `render/element-degraded`（供 M-07 消费）——charter §5.5 只有 `render/element-failed`。
 - **G-4**：明确「TS 常量名 UPPER_SNAKE、错误码**值**点式」，并把 `ZIP_LIMIT_EXCEEDED` 的值对齐为 PRD canonical 的 `format.limit_exceeded`（不另造 `format.zip_limit_exceeded`）。这是全仓错误码双口径的唯一明文解释。
@@ -806,7 +806,7 @@ g5 --> modinternal["40-modules 内部规范"]
 
 ### M-07 幻灯片渲染（`07-slide-rendering.md`，701 行）
 
-- §0（L5–L19）：`@oce/slide-render`（V-render 秩 55 dom）+ `@oce/slide-render-chart`；批次 2；上游 M-03、M-06。
+- §0（L5–L19）：`@cordexjs/slide-render`（V-render 秩 55 dom）+ `@cordexjs/slide-render-chart`；批次 2；上游 M-03、M-06。
 - 追加建议 **G-1…G-10**；未决 **Q-1…Q-6**。
 - **对外服务只有 `ctx.thumbnails`（L16、L189、L196 manifest `unitPlugins.provides:["thumbnails"]`）**；`SlideshowService`（L173、L399 `application/services/slideshow.service.ts`）**没有服务名、未 provide**，`slide-ui` 无法 inject。
 - `thumbnails` 服务名不在 charter §5.5 的服务名清单内（清单只含 `slides` 作为垂直束服务）。
@@ -815,27 +815,27 @@ g5 --> modinternal["40-modules 内部规范"]
 - **G-7（L689）**：与 M-06 G-7 同一议题的另一半，请求 00 §7 M-06/M-07 两行分别加注。
 - G-10：新增贡献 `render.overlay('master-inheritance')`，请求 00 §3 BC-12 行补登；并提问是否应改由 M-10 贡献。
 - G-3 / Q-4：新增约定 `SceneNode.id === ShapeId`，请求 charter §5.5 或 06 号文档正式收编。
-- G-2：新增第三种缩略图 Provider `offscreen-canvas.provider.ts`（历史文档只有 `dom-scaled`/`server-png` 两种）。
+- G-2：新增第三种缩略图 Provider `offscreen-canvas.provider.ts`（历史文档只有 `dom-scaled`/`server-png` 两种）。 （→ 2026-09-24 rulings §4.15 覆盖：Q4 推翻 offscreen-canvas Provider，改主线程 raster Provider）
 - G-5 / Q-5：02 §4.16 的 `ole.ts`/`diagram.ts`/`unknown.ts` 三文件 vs 07 §4.3 的单一 `fallback.renderer.ts`——本文档取后者。
-- G-9：新增 depcruise 规则名 `oce-slide-render-allowlist`。
+- G-9：新增 depcruise 规则名 `cordex-slide-render-allowlist`。
 
 ### M-08 服务端身份、文档与对象存储（`08-server-identity-documents-and-storage.md`，732 行）
 
-- §0（L5–L20）：`apps/server/src/modules/{auth,tenants,users,documents,permissions,share-links,storage,media}` + `@oce/server-storage`（LS 秩 58 node provider）；批次 2；上游仅 M-02。
+- §0（L5–L20）：`apps/server/src/modules/{auth,tenants,users,documents,permissions,share-links,storage,media}` + `@cordexjs/server-storage`（LS 秩 58 node provider）；批次 2；上游仅 M-02。 （→ 2026-09-24 rulings §4.15 覆盖：T-0/Q6：模块集删去 `tenants`，`groups` 随 U-11 推迟）
 - 追加建议 **G-5…G-14**（L661 明示「延续 module-map §8 的编号（G-1…G-4 已在该文档），以下延续为 G-5 起」）；未决 **Q-1…Q-7**。
 - L69：明确采用 M-02 §12 G-5 裁定的 `Capability` 词汇，弃用 `PermissionAction`。
-- §2.4：**均非 cordis 事件**，只是记账名；域 `tenant`/`user`/`auth`/`document`/`share-link`/`media` 六个均不在 charter §5.5 与 03 §3.6 的保留域名单。唯一跨进程的是 `permission/changed`（Redis `perm:doc:{id}`）。
-- G-7 / Q-6：`@oce/protocol` 缺 `rest/{tenants,users,share-links,media}.ts` 四个文件（M-02 §4.3 只有五个），建议 M-08 实现期直接新增。
+- §2.4：**均非 cordis 事件**，只是记账名；域 `tenant`/`user`/`auth`/`document`/`share-link`/`media` 六个均不在 charter §5.5 与 03 §3.6 的保留域名单。唯一跨进程的是 `permission/changed`（Redis `perm:doc:{id}`）。 （→ 2026-09-24 rulings §4.15 覆盖：T-0：`tenant` 域审计 action 删除）
+- G-7 / Q-6：`@cordexjs/protocol` 缺 `rest/{tenants,users,share-links,media}.ts` 四个文件（M-02 §4.3 只有五个），建议 M-08 实现期直接新增。 （→ 2026-09-24 rulings §4.15 覆盖：T-0：`rest/tenants.ts` 不再新建）
 - G-8：为 `ServerBlobStore` 新增 `runBlobStoreConformance`（全仓第一个 BlobStore 契约套件）；M-02 未提供。
 - **G-9 / Q-4**：`epoch`（`documents.epoch`）与 `permVersion` 是否联动，暂不合并，M-09/M-12 落地再评估。
 - G-10 / Q-3：`permissions.principal_type` 含 `'group'` 但全仓无 `groups` 表/`Group` 聚合。
 - G-11 / Q-5：`CordisHostService` 需新增 `getService<T>(name)` 读取面（M-09 §5.3 L471 已定案）。
-- G-13 / G-14：请求 M-01 新增两个扫描器 `no-doc-type-literals-server`、`repo-requires-tenant-id`——M-01 十三扫描器清单不含。
+- G-13 / G-14：请求 M-01 新增两个扫描器 `no-doc-type-literals-server`、`repo-requires-tenant-id`——M-01 十三扫描器清单不含。 （→ 2026-09-24 rulings §4.15 覆盖：T-0：`repo-requires-tenant-id` 作废，改为「按文档读写须经权限服务」扫描器 + 文档级 RLS）
 - **G-12 明确文件数：约 115（Nest 8 模块 96 + server-storage 19）**，00 §7 估计 80–100。
 
 ### M-09 服务端协同网关与 Headless 宿主（`09-server-collab-gateway-and-headless-host.md`，731 行）
 
-- §0（L5–L21）：`apps/server/src/modules/{collab,snapshots}` + **`apps/server/src/cordis-host`**（L11 明写「物理归属本模块」）+ `@oce/server-collab`（library + plugin）+ `@oce/server-headless`（host + provider）；批次 2。
+- §0（L5–L21）：`apps/server/src/modules/{collab,snapshots}` + **`apps/server/src/cordis-host`**（L11 明写「物理归属本模块」）+ `@cordexjs/server-collab`（library + plugin）+ `@cordexjs/server-headless`（host + provider）；批次 2。
 - 追加建议 **G-15…G-22**（L659 明示「延续 module-map §8、08 §12 的编号（G-1…G-14 已在该两份文档），以下延续为 G-15 起」）；未决 **Q-1…Q-9**。
 - §0 L19 与 §2.4（L123–L128）事件：**`collab-server/room-opened`、`collab-server/room-closed`、`collab-server/update-rejected`、`collab-server/repair`** —— 域 `collab-server` 不在 charter §5.5 与 03 §3.6 名单；且 `collab-server/repair` 与 M-05 的 `collab/repair` 为同一语义的两个名字。
 - **§4.3（L305–L317）定义 `cordis-host/adapters/{pino-logger,otel-telemetry,errors-reporter}.adapter.ts`** —— 00 §7 把 `cordis-host/adapters/*` 划给 M-12。归属重叠。
@@ -863,10 +863,10 @@ g5 --> modinternal["40-modules 内部规范"]
 - **G-16 / Q-4**：M-07 `SlideshowService` 未 provide；建议 M-07 `provide ['slideshow']` 或删除该服务归 slide-ui。
 - **G-18**：三套视图词汇——M-03 `viewModes`（`normal|master|presenter`）、M-06 `ViewDescriptor.mode`（`edit|master|thumbnail|present`）、M-06 `Viewport.mode`（`single|continuous|grid|show`）；本文档在 `ui-core/domain/view-mode.ts` 固化映射表。
 - **G-20 / Q-11**：查看器可选缩略图条 / 备注抽屉放 ui-react 懒加载 chunk，请 M-11 在其 §4 列出 `ViewerThumbnailStrip.tsx`/`ViewerNotesSheet.tsx`。
-- **G-9 / Q-1**：主题切换属性三口径 `.dark`（playground）/ `data-oce-theme`（02 §4.18、ADR-0017 决策 5）/ 宿主 `data-theme`（04 §3）。
-- **G-1 / G-10**：`--oce-*` token 记号已作废，改 shadcn 变量 + `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`；`theme-vars-contract` 把 `--oce-*` 列禁用前缀。
+- **G-9 / Q-1**：主题切换属性三口径 `.dark`（playground）/ `data-cordex-theme`（02 §4.18、ADR-0017 决策 5）/ 宿主 `data-theme`（04 §3）。
+- **G-1 / G-10**：`--cordex-*` token 记号已作废，改 shadcn 变量 + `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`；`theme-vars-contract` 把 `--cordex-*` 列禁用前缀。
 - G-7：新增 `when` 键 `breakpoint`/`textEditing`/`focusRegion` + slide 前缀键；`hasChartEditor` 应改为 `slide.hasChartEditor`。
-- §10（L910–L932）：`slide-ui` 实际 `dependencies` = `@oce/ui-react`、`@oce/slide-render`、`@oce/model-slide`、`@oce/engine-render`、`@oce/model-core`、`lucide-react`、`sonner`（L457）；charter §5.2 `slide-ui` 依赖上限只写 `slide-render, ui-react`。`ui-core`（L340）实际含 `@oce/i18n`、`@oce/shared`，charter 上限只写 `kernel, model-core, design(仅 token)`。
+- §10（L910–L932）：`slide-ui` 实际 `dependencies` = `@cordexjs/ui-react`、`@cordexjs/slide-render`、`@cordexjs/model-slide`、`@cordexjs/engine-render`、`@cordexjs/model-core`、`lucide-react`、`sonner`（L457）；charter §5.2 `slide-ui` 依赖上限只写 `slide-render, ui-react`。`ui-core`（L340）实际含 `@cordexjs/i18n`、`@cordexjs/shared`，charter 上限只写 `kernel, model-core, design(仅 token)`。
 
 ### M-11 预设装配与应用壳（`11-preset-assembly-and-app-shell.md`，1000 行）
 
@@ -875,14 +875,14 @@ g5 --> modinternal["40-modules 内部规范"]
 - 追加建议 **G-1…G-17**（重新起编）；未决 **Q-1…Q-14**。
 - §2.4：**本模块不声明任何 cordis `Events`**，只转发；新增应用私有域 `app/*`（typed `EventTarget`，非 cordis），G-6 建议 charter §5.5 登记 `app` 为应用壳私有域并登记 Operation 前缀 `shell.*`。
 - **G-3**：查看器壳与可选条归属——本文档放 `preset-slide-viewer/src/shell/**`（框架无关，纯 CSS `[data-slot]`），**明确拒绝** M-10 G-20 的 ui-react 懒加载 chunk 方案，并请 M-10 删除其 §7 末段。
-- **G-5 / Q-2 / Q-3**：装配运行时（`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries`）无归属包，暂放 `preset-slide-viewer/src/assembly/`，形成 L8 内定向依赖链 `viewer ← slide ← collab`；建议 M-02 在 `kernel/src/preset/{entry,lazy,mount,report,validate}.ts` 收编 + 新增 depcruise `oce-bundle-chain`。
-- **G-7**：`render-page-protocol.ts` 是 Node↔Chromium 跨进程契约却不在 `@oce/protocol`（违反 00 §4.2 第 1 条）；建议 M-02 新增 `protocol/src/render/page.ts`。
+- **G-5 / Q-2 / Q-3**：装配运行时（`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries`）无归属包，暂放 `preset-slide-viewer/src/assembly/`，形成 L8 内定向依赖链 `viewer ← slide ← collab`；建议 M-02 在 `kernel/src/preset/{entry,lazy,mount,report,validate}.ts` 收编 + 新增 depcruise `cordex-bundle-chain`。
+- **G-7**：`render-page-protocol.ts` 是 Node↔Chromium 跨进程契约却不在 `@cordexjs/protocol`（违反 00 §4.2 第 1 条）；建议 M-02 新增 `protocol/src/render/page.ts`。
 - **Q-2**：需要 M-02 新增 `units.registerUnitProvider(entry)` API 登记 UnitScope 级 Provider。
 - **G-9**：PRD EM-05 的 `view/page-changed`、`view/zoom-changed` 在 M-06/M-07/M-10 事件表中**均无发布者**。
 - **G-8**：protocol/REST 缺口 `DocumentSummary.pinned`、`GET /documents?filter=recent`、`POST /documents/:id/duplicate`、`POST /documents{template}`、`GET /templates`、缩略图 URL 字段。
 - **Q-1**：path 路由 vs playground 的 hash 路由（`#/home`）——推荐 path + SPA fallback，`/embed/:id` 额外支持 `#mode=`。
 - G-1：`apps/web/src/host/create-editor-host.ts`（02 §3.1、00 §4.1/§5.2、M-02 §7、M-10 §7 五处）→ 本文档 `src/application/host/create-editor-host.ts`。
-- G-13：viewer 不加载 `localPresencePlugin`，请 M-05 §7 回写。G-14：建议 M-04 评估 `@oce/ooxml-pptx/export` 子路径惰性化。G-15：i18n 各包只 eager 贡献 `zh-CN`，其余走 preset 惰性条目。
+- G-13：viewer 不加载 `localPresencePlugin`，请 M-05 §7 回写。G-14：建议 M-04 评估 `@cordexjs/ooxml-pptx/export` 子路径惰性化。G-15：i18n 各包只 eager 贡献 `zh-CN`，其余走 preset 惰性条目。
 - G-10：请 M-10 保证 `UserMenu`/`Brand`/`ThemeToggle`/`SettingsDrawer`/`ShortcutsPanel` 为 host-optional。G-11：请 M-10 增 `UiCoreConfig.theme.cssNonce?`（EM-14 严格 CSP）。
 - Q-13：`examples/{embed-react,embed-vanilla,headless-node}`（EM-17）不在任何 40-modules 文档，建议追加为 M-11 附属交付。
 
@@ -894,18 +894,18 @@ g5 --> modinternal["40-modules 内部规范"]
 - **G-25 / Q-2（L680）**：00 §3 BC-26 行写 `collab/repair`，M-09 §2.4 实际发布 `collab-server/repair`；本文档按 M-09 订阅，建议 00 回填。
 - **G-26 / Q-1（L681）**：`ThumbnailRenderer` 未在 M-09 §6 对外 API 面导出；08 号架构文档又写 `server-headless.renderThumbnails`（与 `.render()/.renderPdf()` 形态不一致）。推荐 `HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`。
 - **G-27**：把 BC-25（评论）从 00 §6.1 的 `parametrized` 改判为 **generic**，回应 00 §10 Q-M4。
-- G-24：`@oce/protocol` 缺 `rest/{thumbnails,comments}.ts`；`errors/codes.ts` domain 清单缺 `server.thumbnails`/`server.comments`/`server.audit`/`server.import`/`server.export`。
+- G-24：`@cordexjs/protocol` 缺 `rest/{thumbnails,comments}.ts`；`errors/codes.ts` domain 清单缺 `server.thumbnails`/`server.comments`/`server.audit`/`server.import`/`server.export`。
 - G-29 / Q-7：08 号文档 §7（并发 2）与 §16.5（并发 4）自相冲突，取 4。
 - G-30 / Q-4：PDF/PNG/JPEG 导出 processor 归 `thumbnails` 模块。G-31 / Q-3：SV-13 的 `fill-template` 归属待定。
 - 无文件总数汇总；00 §7 估计 70–90。
 
 ### M-13 doc/sheet 扩展骨架（`13-doc-sheet-extension-skeleton.md`，782 行）
 
-- §0（L5–L20）：现存只读引用 `model-core/testing/fixtures/{fixture,fixture-grid}`；M5 新建 10 包（含 `@oce/preset-doc`/`@oce/preset-sheet`，标「追加建议」）；批次 3。
+- §0（L5–L20）：现存只读引用 `model-core/testing/fixtures/{fixture,fixture-grid}`；M5 新建 10 包（含 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`，标「追加建议」）；批次 3。
 - 追加建议 **G-1…G-6**（重新起编）；未决 **Q1…Q7**（无连字符，同 M-03）。
 - **G-1 / Q2**：「移除全部 DocumentType 后打开」错误码三处拼写不一致——ADR-0016 `format/no-document-type`、00 §6.5（L886）`UNIT_UNKNOWN_DOCUMENT_TYPE`、PRD 05 `format.no_document_type`。推荐点式 `format.no_document_type`。
-- **G-2 / Q1**：包名 `preset-doc`/`preset-sheet`（00 §8 G-3）vs PRD 05 M5 P0 的 `preset-doc-skeleton`/`preset-sheet-skeleton`；推荐不加后缀，用 `oce.stability:'experimental'` 信号未完工。
-- **G-6**：本文档已「下游先用」`@oce/preset-doc`/`@oce/preset-sheet`，请求总编排提高 00 §10 Q-M2 的裁定优先级。
+- **G-2 / Q1**：包名 `preset-doc`/`preset-sheet`（00 §8 G-3）vs PRD 05 M5 P0 的 `preset-doc-skeleton`/`preset-sheet-skeleton`；推荐不加后缀，用 `cordex.stability:'experimental'` 信号未完工。
+- **G-6**：本文档已「下游先用」`@cordexjs/preset-doc`/`@cordexjs/preset-sheet`，请求总编排提高 00 §10 Q-M2 的裁定优先级。
 - **G-4 / Q7**：假定 `OoxmlIdMap` 已提升至 `ooxml-core`，但 M-04 只标「候选」（Q-2 暂缓）；若 M5 先启动则两包各临时复制一份。
 - **G-5 / Q3**：`shardBody` 调用方（`codec.ts` vs `store.toSnapshotBody()`）——M-03 G-5 已提，本文档升级为 `model-sheet` 开工前阻塞项，推荐 `store.toSnapshotBody()`。
 - §2（L71、L95）新增事件 `doc/block-added`、`doc/block-removed`、`doc/text-changed`、`sheet/cell-changed`、`sheet/row-inserted`、`sheet/sheet-added`（Q6 待采纳）。

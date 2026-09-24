@@ -1,21 +1,21 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22 | 依赖：charter §5.2/§5.4/§5.5、03-kernel-and-plugin-model、00-module-map §3、40-modules 01–13 §3
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15） | 依赖：charter §5.2/§5.4/§5.5、03-kernel-and-plugin-model、00-module-map §3、40-modules 01–13 §3
 
 # 16 插件总账与可插拔矩阵
 
 ## 0. 结论（一屏看懂）
 
-本系统在 M0–M4 范围内（charter §5.2 已定包清单 + `apps/web` + `apps/server` 全部 Nest 模块）共有 **71 个运行时插件单元**，分布在 `40-modules/02`…`12` 十一份模块文档里；另有 **1 个构建期工具单元**（M-01 `tooling/*`，不进入任何运行时 Fiber 树，单独统计不计入 71）与 **10 个 M5 规划骨架单元**（M-13 `doc`/`sheet` 骨架，尚未进入 charter §5.2 包清单，单独统计不计入 71）。71 个单元里，真正意义上「cordis 可插拔」的（host/definition/provider/plugin/bundle 五类）有 **46 个**；另外 **25 个**是不构成 cordis Fiber 的纯库或 Nest 模块（§1 给出判定标准与三者不得混计的理由）。全系统登记在案的 Definition（可替换契约）共 **24 个**，覆盖它们的现有 Provider-Definition 实例合计 **32 个**（逐 Definition 数"默认+备选"两列里**已有具名包/类**的项，规划中/第三方/charter 举例性质的名字不计；同一 Provider 包实现多个 Definition 时按次计入，如 `render-dom` 同时计入 `TextMeasurer`/`RenderTarget`/`OverlayRenderer` 三次）；ContributionPoint（贡献点）登记 **26 个**（03 §3.6 基准，40-modules 未发现新增点 id）。
+本系统在 M0–M4 范围内（charter §5.2 已定包清单 + `apps/web` + `apps/server` 全部 Nest 模块）共有 **69 个运行时插件单元**（2026-09-24 由 71 减为 69：删除 `TenantsModule`〔T-0 单组织去租户〕与 `GroupsModule`〔U-11 组管理推迟〕，rulings §4.15），分布在 `40-modules/02`…`12` 十一份模块文档里；另有 **1 个构建期工具单元**（M-01 `tooling/*`，不进入任何运行时 Fiber 树，单独统计不计入 69）与 **10 个 M5 规划骨架单元**（M-13 `doc`/`sheet` 骨架，尚未进入 charter §5.2 包清单，单独统计不计入 69）。69 个单元里，真正意义上「cordis 可插拔」的（host/definition/provider/plugin/bundle 五类）有 **46 个**；另外 **23 个**是不构成 cordis Fiber 的纯库或 Nest 模块（§1 给出判定标准与三者不得混计的理由）。全系统登记在案的 Definition（可替换契约）共 **24 个**，覆盖它们的现有 Provider-Definition 实例合计 **32 个**（逐 Definition 数"默认+备选"两列里**已有具名包/类**的项，规划中/第三方/charter 举例性质的名字不计；同一 Provider 包实现多个 Definition 时按次计入，如 `render-dom` 同时计入 `TextMeasurer`/`RenderTarget`/`OverlayRenderer` 三次）；ContributionPoint（贡献点）登记 **26 个**（03 §3.6 基准，40-modules 未发现新增点 id）。
 
 ### 0.1 数字速览表
 
 | 维度 | 计数 | 口径与构成（出处） |
 |---|---|---|
-| 运行时插件单元总数 | **71** | M-02(7)+M-03(2)+M-04(2)+M-05(4)+M-06(3)+M-07(2)+M-08(10)+M-09(16)+M-10(4)+M-11(12)+M-12(9)，见 §2 主表 71 行 |
-| 构建期工具单元（不入 71） | **1** | M-01 `tooling/*`（40-modules/01 §0/§3：无 `plugin.ts`，不参与 `ctx.plugin()` 树） |
-| M5 规划骨架单元（不入 71） | **10** | M-13：`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx`/`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`/`preset-doc`/`preset-sheet`（40-modules/13 §0/§3/§4；仅 `preset-doc`/`preset-sheet` 两个出现在 charter §5.2，其余 8 个未登记，见 §8 G-11） |
-| — 按 cordis 形态分（71 内） | host **4**；definition **4**；provider **19**；plugin（贡献型）**16**；bundle **3**；library（纯库）**4**；Nest 模块（非 cordis）**21** | 4+4+19+16+3+4+21=71；构成清单见 §2 表前小计行与 §1 表 |
-| — 按必需性分（71 内） | 内核必需 **8**；契约必需·Provider 可换 **9**；可选·降级 **17**；可选扩展 **9**；N/A（library/Nest/bundle，四分类不适用）**28** | 8+9+17+9+28=71；判据见 §1、逐行见 §2「必需性」列 |
-| — 按运行位置分（71 内） | 两端共用 **13**；仅浏览器 **23**；仅 Node 服务端 **35** | 13+23+35=71；来源于各模块 §0「运行位置」字段与 00-module-map §5 表，明细见 §6 |
+| 运行时插件单元总数 | **69** | M-02(7)+M-03(2)+M-04(2)+M-05(4)+M-06(3)+M-07(2)+M-08(8)+M-09(16)+M-10(4)+M-11(12)+M-12(9)，见 §2 主表 69 行（2026-09-24：M-08 由 10 减为 8，rulings §4.15） |
+| 构建期工具单元（不入 69） | **1** | M-01 `tooling/*`（40-modules/01 §0/§3：无 `plugin.ts`，不参与 `ctx.plugin()` 树） |
+| M5 规划骨架单元（不入 69） | **10** | M-13：`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx`/`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`/`preset-doc`/`preset-sheet`（40-modules/13 §0/§3/§4；仅 `preset-doc`/`preset-sheet` 两个出现在 charter §5.2，其余 8 个未登记，见 §8 G-11） |
+| — 按 cordis 形态分（69 内） | host **4**；definition **4**；provider **19**；plugin（贡献型）**16**；bundle **3**；library（纯库）**4**；Nest 模块（非 cordis）**19** | 4+4+19+16+3+4+19=69；构成清单见 §2 表前小计行与 §1 表 |
+| — 按必需性分（69 内） | 内核必需 **8**；契约必需·Provider 可换 **9**；可选·降级 **17**；可选扩展 **9**；N/A（library/Nest/bundle，四分类不适用）**26** | 8+9+17+9+26=69；判据见 §1、逐行见 §2「必需性」列 |
+| — 按运行位置分（69 内） | 两端共用 **13**；仅浏览器 **23**；仅 Node 服务端 **33** | 13+23+33=69；来源于各模块 §0「运行位置」字段与 00-module-map §5 表，明细见 §6 |
 | Definition（契约）总数 | **24** | DocumentStore/BlobStore/FormatCodec/TextMeasurer/RenderTarget/SceneProvider/ElementRenderer/OverlayRenderer/collab/collabTransport/OfflineStore/SpillStore/UiRenderer/PermissionPolicy/DocumentType/Migration/ThumbnailRenderer/FanoutBus/LeaseLock/UpdateStore/SnapshotStore/AuthorizationSource/ErrorSink/TelemetrySink，见 §3 表 24 行 |
 | 现有 Provider-Definition 实例 | **32** | 逐 Definition 数"默认 Provider"+"备选 Provider"两列里已有具名包/类的项（如 store-memory、store-yjs 各计 1），规划中/第三方/charter 举例性质的名字（如"未来 ui-vue""canvas / 第三方元素""Sentry/OTel"）不计；24 行明细：2+2+1+2+1+1+2+2+1+1+1+2+1+1+2+0+1+1+1+1+1+1+2+2=32 |
 | ContributionPoint 总数 | **26** | 03-kernel-and-plugin-model.md §3.6 的 19 个表行展开为 26 个独立 id（其中 `ui.ribbon`/`ui.toolbar`/`ui.panel`/`ui.contextMenu`/`ui.statusBar`/`ui.dialog`/`ui.notification` 七个共用一行需拆开计数）；40-modules 01–13 未发现越出此 26 个之外的新贡献点 id，见 §4 |
@@ -29,15 +29,15 @@
 
 | 形态 | 判定标准 | 在本项目的例子 | 是否出现在 Manifest | 是否可被 preset 裁剪 |
 |---|---|---|---|---|
-| **host** | 调用或封装 `createHost()`/`createHeadlessHost()`，是某个进程里 Fiber 树的根 | `@oce/kernel`（工厂本身）、`@oce/server-headless`、`apps/server` 的 `cordis-host.module.ts`+`preset-server.ts`、`apps/web` 的 `create-editor-host.ts` | 否（host 不是被装配的条目，不生成自身 manifest） | 否（是装配的发起者，不是被排除对象） |
-| **definition** | 包的核心价值是声明一个可被多方实现的契约（`interface`/`defineContributionPoint`），自身也可能顺带是一个函数插件 | `@oce/model-core`（`DocumentStore`/`CommandDef`…）、`@oce/engine-layout`（`TextMeasurer`）、`@oce/engine-render`（`render.*` 四点）、`@oce/ui-core`（`UiRenderer`） | 是 | 视具体包而定（多数是"不建议排除"的契约必需层） |
+| **host** | 调用或封装 `createHost()`/`createHeadlessHost()`，是某个进程里 Fiber 树的根 | `@cordexjs/kernel`（工厂本身）、`@cordexjs/server-headless`、`apps/server` 的 `cordis-host.module.ts`+`preset-server.ts`、`apps/web` 的 `create-editor-host.ts` | 否（host 不是被装配的条目，不生成自身 manifest） | 否（是装配的发起者，不是被排除对象） |
+| **definition** | 包的核心价值是声明一个可被多方实现的契约（`interface`/`defineContributionPoint`），自身也可能顺带是一个函数插件 | `@cordexjs/model-core`（`DocumentStore`/`CommandDef`…）、`@cordexjs/engine-layout`（`TextMeasurer`）、`@cordexjs/engine-render`（`render.*` 四点）、`@cordexjs/ui-core`（`UiRenderer`） | 是 | 视具体包而定（多数是"不建议排除"的契约必需层） |
 | **provider** | `implements:[...]` 或以贡献点条目形式填入某个既有 Definition 的座；不定义新契约 | `store-memory`/`store-yjs`、`render-dom`、`collab-yjs`、`RedisFanoutBus` 等 | 是 | 是（`override`/`exclude` 的典型对象） |
-| **plugin（贡献型）** | 只贡献贡献点条目/发布事件，不定义 Definition，不 `implements` 已有座 | `@oce/i18n`、`@oce/model-slide`、`@oce/ooxml-pptx`、`@oce/slide-ui`、`preset-slide#shell-glue` | 是 | 是 |
-| **bundle** | 纯装配根：`createXxxPreset(options)`，`apply` 只对子条目做 `ctx.plugin()`，自身不定义契约不贡献条目 | `@oce/preset-slide`、`@oce/preset-slide-collab`、`@oce/preset-slide-viewer` | 是（聚合子插件清单） | 不适用（它本身就是"选哪个"的单位） |
-| **library（纯库）** | **无** `plugin.ts`，不 `inject`/`provide`，不注册贡献点，不参与任何 Fiber 生命周期，只被静态 `import` | `@oce/shared`、`@oce/protocol`、`@oce/design`、`@oce/ooxml-core`、`tooling/*` | 否（`manifest-present` 扫描器豁免 `role=library`） | 不适用（不是可加载/可排除的 Fiber） |
-| **Nest 模块（非 cordis Fiber）** | `apps/server` 下的 `@Module()`，走 Nest 自身 DI 容器，从不调用 `ctx.plugin()` | `AuthModule`、`DocumentsModule`、`CollabModule`、`JobsModule` 等 21 个 | 否 | 不适用（按 `OCE_ROLE` 装配表决定是否启动整模块，非 cordis `exclude`） |
+| **plugin（贡献型）** | 只贡献贡献点条目/发布事件，不定义 Definition，不 `implements` 已有座 | `@cordexjs/i18n`、`@cordexjs/model-slide`、`@cordexjs/ooxml-pptx`、`@cordexjs/slide-ui`、`preset-slide#shell-glue` | 是 | 是 |
+| **bundle** | 纯装配根：`createXxxPreset(options)`，`apply` 只对子条目做 `ctx.plugin()`，自身不定义契约不贡献条目 | `@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer` | 是（聚合子插件清单） | 不适用（它本身就是"选哪个"的单位） |
+| **library（纯库）** | **无** `plugin.ts`，不 `inject`/`provide`，不注册贡献点，不参与任何 Fiber 生命周期，只被静态 `import` | `@cordexjs/shared`、`@cordexjs/protocol`、`@cordexjs/design`、`@cordexjs/ooxml-core`、`tooling/*` | 否（`manifest-present` 扫描器豁免 `role=library`） | 不适用（不是可加载/可排除的 Fiber） |
+| **Nest 模块（非 cordis Fiber）** | `apps/server` 下的 `@Module()`，走 Nest 自身 DI 容器，从不调用 `ctx.plugin()` | `AuthModule`、`DocumentsModule`、`CollabModule`、`JobsModule` 等 19 个（2026-09-24 删 `TenantsModule`/`GroupsModule`） | 否 | 不适用（按 `CORDEX_ROLE` 装配表决定是否启动整模块，非 cordis `exclude`） |
 
-**三者不可混算的理由**：cordis 插件单元（host/definition/provider/plugin/bundle）参与 Fiber 生命周期、失败隔离（A11）、`PENDING` 诊断与版本协商（03 §7–§10），是 R2「可插拔」验收的直接对象；纯库不挂载、不失败、不参与协商，只是被 `import` 的代码；Nest 模块走独立的 DI 生命周期与 `OCE_ROLE` 装配表（09 §4.3），两套"能否启动/能否替换"的机制完全不同（09 §3.6 记录了这两套开关目前**没有**机械互查）。把三者混进一个数字会让"71 个插件"这类表述失真——本文统一口径：**71 = cordis 单元 46 + 纯库 4 + Nest 模块 21**。
+**三者不可混算的理由**：cordis 插件单元（host/definition/provider/plugin/bundle）参与 Fiber 生命周期、失败隔离（A11）、`PENDING` 诊断与版本协商（03 §7–§10），是 R2「可插拔」验收的直接对象；纯库不挂载、不失败、不参与协商，只是被 `import` 的代码；Nest 模块走独立的 DI 生命周期与 `CORDEX_ROLE` 装配表（09 §4.3），两套"能否启动/能否替换"的机制完全不同（09 §3.6 记录了这两套开关目前**没有**机械互查）。把三者混进一个数字会让"71 个插件"这类表述失真——本文统一口径：**69 = cordis 单元 46 + 纯库 4 + Nest 模块 19**（2026-09-24 由 71 / Nest 21 更新，rulings §4.15）。
 
 ### 图 1-1 形态判定决策树
 
@@ -76,9 +76,9 @@ q6 -- "否" --> r7
 
 ## 2. 插件总账（主表，一行一个插件单元）
 
-覆盖 40-modules 01–13（含 apps/web、apps/server 全部 Nest 模块）里出现的全部 71 个运行时单元，按层/秩升序排列；「必需性」对 host/definition/provider/plugin/bundle 五类适用四分类（内核必需／契约必需·Provider 可换／可选·降级／可选扩展），library 与 Nest 模块因不参与 cordis 可插拔语义一律记 N/A（§1）；单元格「未注明」表示源文档在该处未给出可引用的字段值，已计入 §8 缺口。
+覆盖 40-modules 01–13（含 apps/web、apps/server 全部 Nest 模块）里出现的全部 69 个运行时单元，按层/秩升序排列；「必需性」对 host/definition/provider/plugin/bundle 五类适用四分类（内核必需／契约必需·Provider 可换／可选·降级／可选扩展），library 与 Nest 模块因不参与 cordis 可插拔语义一律记 N/A（§1）；单元格「未注明」表示源文档在该处未给出可引用的字段值，已计入 §8 缺口。
 
-**按承载模块分布**（71 = 各模块小计之和，用于反查 §2 主表某个模块起止的行号区间）：
+**按承载模块分布**（69 = 各模块小计之和，用于反查 §2 主表某个模块起止的行号区间）：
 
 | 模块文档 | 覆盖的 BC | 单元数 | 主表行号区间 |
 |---|---|---|---|
@@ -88,38 +88,38 @@ q6 -- "否" --> r7
 | 40-modules/05 | BC-09（协同客户端） | 4 | 12–15 |
 | 40-modules/06 | BC-10/11（布局与渲染引擎） | 3 | 16–18 |
 | 40-modules/07 | BC-12（幻灯片渲染） | 2 | 19–20 |
-| 40-modules/08 | BC-18/19/20（身份/文档目录/对象存储） | 10 | 21、38–46 |
-| 40-modules/09 | BC-21/22/27（协同网关/快照/Headless 宿主） | 16 | 22–33、47–50 |
+| 40-modules/08 | BC-18/19/20（身份与会话/文档目录/对象存储） | 8 | 21、38–44 |
+| 40-modules/09 | BC-21/22/27（协同网关/快照/Headless 宿主） | 16 | 22–33、45–48 |
 | 40-modules/10 | BC-13/14/15（设计系统/UI 基座/幻灯片 UI） | 4 | 34–37 |
-| 40-modules/11 | BC-16/17（预设装配/应用壳） | 12 | 51–62 |
-| 40-modules/12 | BC-23/24/25/26/30（作业/缩略图/评论/审计/Webhook） | 9 | 63–71 |
-| **合计** | — | **71** | 1–71 |
+| 40-modules/11 | BC-16/17（预设装配/应用壳） | 12 | 49–60 |
+| 40-modules/12 | BC-23/24/25/26/30（作业/缩略图/评论/审计/Webhook） | 9 | 61–69 |
+| **合计** | — | **69** | 1–69 |
 
 | # | 插件名 `name` | 承载包 | 层/秩 | 同构 | 形态 | 必需性 | `inject` 必需 | `inject` 可选 | `provide` | `implements` | 提供贡献点 | 消费贡献点 | 加载位置 | 所属 preset | 出处 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | N/A（纯库） | `@oce/shared` | L0/0 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（隐式基础） | 02 §3 |
-| 2 | `kernel` | `@oce/kernel` | L0/0 | iso | host+plugin | 内核必需 | 无 | 无 | contributions,errors,telemetry | — | errors.sink,telemetry.sink | 无（自产自销 console/no-op） | root | 全部（host 自带，非条目） | 02 §3 |
-| 3 | N/A（纯库） | `@oce/protocol` | L0/0 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（隐式基础） | 02 §3 |
-| 4 | `i18n` | `@oce/i18n` | L0/0 | iso | plugin | 可选·降级 | contributions | 无 | i18n | — | i18n.bundle | i18n.bundle | root | viewer●,slide●,collab●,server(极少用) | 02 §3 |
-| 5 | `model-core` | `@oce/model-core` | L1/10 | iso | definition | 内核必需 | contributions,errors,telemetry | 无 | units,documentTypes,commands,formats,resources,migrations,permissions | — | core.documentType,core.command,core.mutation,core.format,core.resource,core.migration,core.permissionPolicy | 同左 7 个 | root | viewer●,slide●,collab●,server● | 02 §3 |
-| 6 | `store-memory` | `@oce/store-memory` | L1/10 | iso | provider | 契约必需·可换 | 无 | errors | store | store | 无 | 无 | UnitScope | viewer●,slide●,collab○,server◐（校验/迁移任务） | 02 §3 |
-| 7 | `store-yjs` | `@oce/store-yjs` | L1/10 | iso | provider | 契约必需·可换 | 无 | errors | store,yjsBackend | store | 无 | 无 | UnitScope | viewer○,slide○,collab▲（替换 store-memory）,server●（server-collab） | 02 §3 |
-| 8 | `@oce/model-slide`（主插件） | `@oce/model-slide` | V-model/15 | iso | plugin | 可选·降级 | contributions,documentTypes | 无 | 无（UnitScope 经 unitPlugins 供 slides） | — | core.documentType(slide),core.migration,slide.shapeKind×9 | 无 | root+UnitScope(slides) | viewer●,slide●,collab●,server● | 03 §3 |
-| 9 | `@oce/model-slide/editing` | `@oce/model-slide` | V-model/15 | iso | plugin | 可选扩展 | contributions,commands | 无 | 无 | — | core.mutation×46/47,core.command×73 | 无 | root | viewer○（ADR-0015 第一道）,slide●,collab●,server 未注明（见 §8 G-1） | 03 §3 |
-| 10 | N/A（纯库） | `@oce/ooxml-core` | L3/30 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（被 ooxml-pptx 静态 import） | 04 §3 |
-| 11 | `@oce/ooxml-pptx` | `@oce/ooxml-pptx` | V-codec/35 | iso | plugin | 可选·降级 | contributions | 无 | 无 | — | core.format(ooxml-pptx) | 无 | root | viewer●,slide●,collab●,server● | 04 §3 |
-| 12 | `localPresencePlugin` | `@oce/collab-core` | L4/40 | iso | provider | 可选·降级 | 无 | 无 | presence | presence（单人兜底） | 无 | 无 | UnitScope | viewer○,slide●,collab○（替换为 collab-yjs）,server○ | 05 §3 |
-| 13 | `collab-yjs` | `@oce/collab-yjs` | L4/40 | iso | provider | 可选·降级 | store,yjsBackend,collabTransport,permissions | telemetry,offlineStore | collab,presence | collab,presence | 无 | 无 | UnitScope | viewer○,slide○,collab●,server○（服务端用 server-collab） | 05 §3 |
-| 14 | `collab-transport-ws` | `@oce/collab-transport-ws` | L4/40 | iso | provider | 可选·降级 | 无 | telemetry | collabTransport | collabTransport | 无 | 无 | root | viewer○,slide○,collab●,server○ | 05 §3 |
-| 15 | `collab-offline-idb` | `@oce/collab-offline-idb` | L4/40 | dom | provider | 可选扩展 | 无 | telemetry | offlineStore | offlineStore | 无 | 无 | UnitScope | viewer○,slide○,collab◐（M3 默认关）,server○ | 05 §3 |
-| 16 | `engine-layout` | `@oce/engine-layout` | L5/50 | iso | definition | 内核必需 | contributions | 无 | layout | — | layout.measurer | layout.measurer | root | viewer●,slide●,collab●,server● | 06 §3 |
-| 17 | `engine-render` | `@oce/engine-render` | L5/50 | iso(契约) | definition | 可选·降级 | contributions,layout | errors,telemetry | render | — | render.scene,render.target,render.element,render.overlay | 同左 4 个 | UnitScope | viewer●,slide●,collab●,server◐（仅 iso 契约层） | 06 §3 |
-| 18 | `render-dom` | `@oce/render-dom` | L5/50 | dom | provider | 契约必需·可换 | render,layout | 无 | 无 | render.target:dom,render.overlay×4,layout.measurer:canvas | render.target,render.overlay,layout.measurer | render.element | UnitScope | viewer●,slide●,collab●,server○ | 06 §3 |
-| 19 | `slide-render` | `@oce/slide-render` | V-render/55 | dom | plugin | 可选·降级 | contributions（根）+render,layout,slides（Unit） | 无 | 无（Unit 内供 thumbnails） | — | render.scene(slide),render.element×10,render.overlay(master-inheritance) | 无 | root+UnitScope | viewer●,slide●,collab●,server○（headless Chromium 间接） | 07 §3 |
-| 20 | `slide-render-chart` | `@oce/slide-render-chart` | V-render/55 | dom | plugin | 可选扩展 | contributions | commands | 无 | render.element(dom:graphicFrame:chart,replace) | 无 | 无 | root | viewer◐,slide◐,collab◐（惰性） | 07 §3 |
-| 21 | 未注明（见 §8 G-9） | `@oce/server-storage` | LS/58 | node | provider | 契约必需·可换 | 未注明 | 未注明 | blobStore | blobStore | 无 | 无 | root(preset-server) | server● | 08 §0 |
-| 22 | `server-collab` | `@oce/server-collab` | LS/58 | node | plugin | 内核必需(role=collab) | units,updateStore,snapshotStore,fanoutBus,leaseLock,authzSource,telemetry,spillStore | 无 | collabServer | — | 无 | 无 | root（自管理多 Room 隔离域） | server●(role=collab) | 09 §3.1 |
-| 23 | server-headless（host 工厂，无单一 name） | `@oce/server-headless` | LS/58 | node | host+provider | 内核必需(role=worker) | 无 | 无 | 无（node-font 子插件 provide layout.measurer） | — | layout.measurer(node-font) | 无 | 独立宿主实例（每任务） | server●(role=worker) | 09 §3.2 |
+| 1 | N/A（纯库） | `@cordexjs/shared` | L0/0 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（隐式基础） | 02 §3 |
+| 2 | `kernel` | `@cordexjs/kernel` | L0/0 | iso | host+plugin | 内核必需 | 无 | 无 | contributions,errors,telemetry | — | errors.sink,telemetry.sink | 无（自产自销 console/no-op） | root | 全部（host 自带，非条目） | 02 §3 |
+| 3 | N/A（纯库） | `@cordexjs/protocol` | L0/0 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（隐式基础） | 02 §3 |
+| 4 | `i18n` | `@cordexjs/i18n` | L0/0 | iso | plugin | 可选·降级 | contributions | 无 | i18n | — | i18n.bundle | i18n.bundle | root | viewer●,slide●,collab●,server(极少用) | 02 §3 |
+| 5 | `model-core` | `@cordexjs/model-core` | L1/10 | iso | definition | 内核必需 | contributions,errors,telemetry | 无 | units,documentTypes,commands,formats,resources,migrations,permissions | — | core.documentType,core.command,core.mutation,core.format,core.resource,core.migration,core.permissionPolicy | 同左 7 个 | root | viewer●,slide●,collab●,server● | 02 §3 |
+| 6 | `store-memory` | `@cordexjs/store-memory` | L1/10 | iso | provider | 契约必需·可换 | 无 | errors | store | store | 无 | 无 | UnitScope | viewer●,slide●,collab○,server◐（校验/迁移任务） | 02 §3 |
+| 7 | `store-yjs` | `@cordexjs/store-yjs` | L1/10 | iso | provider | 契约必需·可换 | 无 | errors | store,yjsBackend | store | 无 | 无 | UnitScope | viewer○,slide○,collab▲（替换 store-memory）,server●（server-collab） | 02 §3 |
+| 8 | `@cordexjs/model-slide`（主插件） | `@cordexjs/model-slide` | V-model/15 | iso | plugin | 可选·降级 | contributions,documentTypes | 无 | 无（UnitScope 经 unitPlugins 供 slides） | — | core.documentType(slide),core.migration,slide.shapeKind×9 | 无 | root+UnitScope(slides) | viewer●,slide●,collab●,server● | 03 §3 |
+| 9 | `@cordexjs/model-slide/editing` | `@cordexjs/model-slide` | V-model/15 | iso | plugin | 可选扩展 | contributions,commands | 无 | 无 | — | core.mutation×46/47,core.command×73 | 无 | root | viewer○（ADR-0015 第一道）,slide●,collab●,server 未注明（见 §8 G-1） | 03 §3 |
+| 10 | N/A（纯库） | `@cordexjs/ooxml-core` | L3/30 | iso | library | N/A | — | — | — | — | 无 | 无 | N/A | 全部（被 ooxml-pptx 静态 import） | 04 §3 |
+| 11 | `@cordexjs/ooxml-pptx` | `@cordexjs/ooxml-pptx` | V-codec/35 | iso | plugin | 可选·降级 | contributions | 无 | 无 | — | core.format(ooxml-pptx) | 无 | root | viewer●,slide●,collab●,server● | 04 §3 |
+| 12 | `localPresencePlugin` | `@cordexjs/collab-core` | L4/40 | iso | provider | 可选·降级 | 无 | 无 | presence | presence（单人兜底） | 无 | 无 | UnitScope | viewer○,slide●,collab○（替换为 collab-yjs）,server○ | 05 §3 |
+| 13 | `collab-yjs` | `@cordexjs/collab-yjs` | L4/40 | iso | provider | 可选·降级 | store,yjsBackend,collabTransport,permissions | telemetry,offlineStore | collab,presence | collab,presence | 无 | 无 | UnitScope | viewer○,slide○,collab●,server○（服务端用 server-collab） | 05 §3 |
+| 14 | `collab-transport-ws` | `@cordexjs/collab-transport-ws` | L4/40 | iso | provider | 可选·降级 | 无 | telemetry | collabTransport | collabTransport | 无 | 无 | root | viewer○,slide○,collab●,server○ | 05 §3 |
+| 15 | `collab-offline-idb` | `@cordexjs/collab-offline-idb` | L4/40 | dom | provider | 可选扩展 | 无 | telemetry | offlineStore | offlineStore | 无 | 无 | UnitScope | viewer○,slide○,collab◐（M3 默认关）,server○ | 05 §3 |
+| 16 | `engine-layout` | `@cordexjs/engine-layout` | L5/50 | iso | definition | 内核必需 | contributions | 无 | layout | — | layout.measurer | layout.measurer | root | viewer●,slide●,collab●,server● | 06 §3 |
+| 17 | `engine-render` | `@cordexjs/engine-render` | L5/50 | iso(契约) | definition | 可选·降级 | contributions,layout | errors,telemetry | render | — | render.scene,render.target,render.element,render.overlay | 同左 4 个 | UnitScope | viewer●,slide●,collab●,server◐（仅 iso 契约层） | 06 §3 |
+| 18 | `render-dom` | `@cordexjs/render-dom` | L5/50 | dom | provider | 契约必需·可换 | render,layout | 无 | 无 | render.target:dom,render.overlay×4,layout.measurer:canvas | render.target,render.overlay,layout.measurer | render.element | UnitScope | viewer●,slide●,collab●,server○ | 06 §3 |
+| 19 | `slide-render` | `@cordexjs/slide-render` | V-render/55 | dom | plugin | 可选·降级 | contributions（根）+render,layout,slides（Unit） | 无 | 无（Unit 内供 thumbnails） | — | render.scene(slide),render.element×10,render.overlay(master-inheritance) | 无 | root+UnitScope | viewer●,slide●,collab●,server○（headless Chromium 间接） | 07 §3 |
+| 20 | `slide-render-chart` | `@cordexjs/slide-render-chart` | V-render/55 | dom | plugin | 可选扩展 | contributions | commands | 无 | render.element(dom:graphicFrame:chart,replace) | 无 | 无 | root | viewer◐,slide◐,collab◐（惰性） | 07 §3 |
+| 21 | 未注明（见 §8 G-9） | `@cordexjs/server-storage` | LS/58 | node | provider | 契约必需·可换 | 未注明 | 未注明 | blobStore | blobStore | 无 | 无 | root(preset-server) | server● | 08 §0 |
+| 22 | `server-collab` | `@cordexjs/server-collab` | LS/58 | node | plugin | 内核必需(role=collab) | units,updateStore,snapshotStore,fanoutBus,leaseLock,authzSource,telemetry,spillStore | 无 | collabServer | — | 无 | 无 | root（自管理多 Room 隔离域） | server●(role=collab) | 09 §3.1 |
+| 23 | server-headless（host 工厂，无单一 name） | `@cordexjs/server-headless` | LS/58 | node | host+provider | 内核必需(role=worker) | 无 | 无 | 无（node-font 子插件 provide layout.measurer） | — | layout.measurer(node-font) | 无 | 独立宿主实例（每任务） | server●(role=worker) | 09 §3.2 |
 | 24 | `RedisFanoutBus` | `apps/server`(`modules/collab/infrastructure`) | LS/58（逻辑归 BC-21） | node | provider | 契约必需·可换 | 未注明(ioredis) | 未注明 | 无(Nest provider) | fanoutBus | 无 | 无 | root（经 preset-server 装配） | server● | 09 §3.4 |
 | 25 | `RedisLeaseLock` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(ioredis) | 未注明 | 无 | leaseLock | 无 | 无 | root | server● | 09 §3.4 |
 | 26 | `PgUpdateStore` | `apps/server`(`modules/collab/infrastructure`) | LS/58 | node | provider | 契约必需·可换 | 未注明(Drizzle) | 未注明 | 无 | updateStore | 无 | 无 | root | server● | 09 §3.4 |
@@ -130,46 +130,44 @@ q6 -- "否" --> r7
 | 31 | `PinoLoggerAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58（逻辑归 BC-01） | node | provider | 可选·降级 | 未详述（见 §8 G-8） | 未详述 | 无 | logger（kernel loggerSink） | 无 | 无 | root | server● | 09 §4.3 |
 | 32 | `OtelTelemetryAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | telemetry.sink（推测） | telemetry.sink（推测） | 无 | root | server● | 09 §4.3 |
 | 33 | `ErrorsReporterAdapter` | `apps/server`(`cordis-host/adapters`) | LS/58 | node | provider | 可选·降级 | 未详述 | 未详述 | 无 | errors.sink（推测） | errors.sink（推测） | 无 | root | server● | 09 §4.3 |
-| 34 | N/A（纯库） | `@oce/design` | L7/70 | dom | library | N/A | — | — | — | — | 无 | 无 | N/A | viewer●,slide●,collab●,server○ | 10 §3 |
-| 35 | `ui-core` | `@oce/ui-core` | L7/70 | dom | definition | 可选·降级 | contributions,commands,units,i18n | documentTypes,telemetry,errors | ui,shortcuts,theme | — | ui.ribbon,ui.toolbar,ui.panel,ui.contextMenu,ui.statusBar,ui.dialog,ui.notification,ui.shortcut,ui.command,ui.theme | 同左 10 个+core.command | root | viewer○,slide●,collab●,server○ | 10 §3 |
-| 36 | `ui-react` | `@oce/ui-react` | L7/70 | dom | provider | 可选·降级 | ui,shortcuts,theme,commands,i18n,units,contributions | presence,render,thumbnails,telemetry | uiRenderer | uiRenderer | ui.dialog×3,ui.notification×4,ui.shortcut×4,ui.command,i18n.bundle | ui.*(经 ui 服务) | root | viewer○,slide●,collab●,server○ | 10 §3 |
-| 37 | `slide-ui` | `@oce/slide-ui` | V-ui/75 | dom | plugin | 可选·降级 | contributions,ui,shortcuts,commands,i18n,units | uiRenderer,presence,documentTypes | 无 | — | ui.ribbon,ui.panel,ui.toolbar,ui.contextMenu,ui.statusBar,ui.shortcut,ui.command,i18n.bundle | 无 | root | viewer○,slide●,collab●,server○ | 10 §3 |
+| 34 | N/A（纯库） | `@cordexjs/design` | L7/70 | dom | library | N/A | — | — | — | — | 无 | 无 | N/A | viewer●,slide●,collab●,server○ | 10 §3 |
+| 35 | `ui-core` | `@cordexjs/ui-core` | L7/70 | dom | definition | 可选·降级 | contributions,commands,units,i18n | documentTypes,telemetry,errors | ui,shortcuts,theme | — | ui.ribbon,ui.toolbar,ui.panel,ui.contextMenu,ui.statusBar,ui.dialog,ui.notification,ui.shortcut,ui.command,ui.theme | 同左 10 个+core.command | root | viewer○,slide●,collab●,server○ | 10 §3 |
+| 36 | `ui-react` | `@cordexjs/ui-react` | L7/70 | dom | provider | 可选·降级 | ui,shortcuts,theme,commands,i18n,units,contributions | presence,render,thumbnails,telemetry | uiRenderer | uiRenderer | ui.dialog×3,ui.notification×4,ui.shortcut×4,ui.command,i18n.bundle | ui.*(经 ui 服务) | root | viewer○,slide●,collab●,server○ | 10 §3 |
+| 37 | `slide-ui` | `@cordexjs/slide-ui` | V-ui/75 | dom | plugin | 可选·降级 | contributions,ui,shortcuts,commands,i18n,units | uiRenderer,presence,documentTypes | 无 | — | ui.ribbon,ui.panel,ui.toolbar,ui.contextMenu,ui.statusBar,ui.shortcut,ui.command,i18n.bundle | 无 | root | viewer○,slide●,collab●,server○ | 10 §3 |
 | 38 | `AuthModule` | `apps/server`(`modules/auth`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 39 | `TenantsModule` | `apps/server`(`modules/tenants`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 40 | `UsersModule` | `apps/server`(`modules/users`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 41 | `GroupsModule`（新增 U-11） | `apps/server`(`modules/groups`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 42 | `DocumentsModule` | `apps/server`(`modules/documents`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 43 | `PermissionsModule` | `apps/server`(`modules/permissions`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 44 | `ShareLinksModule` | `apps/server`(`modules/share-links`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 45 | `StorageModule` | `apps/server`(`modules/storage`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 46 | `MediaModule` | `apps/server`(`modules/media`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
-| 47 | `CollabModule` | `apps/server`(`modules/collab`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server(role=collab) | 09 §3.3 |
-| 48 | `SnapshotsModule` | `apps/server`(`modules/snapshots`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 09 §3.3 |
-| 49 | `CordisHostModule`(global) | `apps/server`(`cordis-host`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server(全部角色) | 09 §3.3 |
-| 50 | `CordisHostService`+`preset-server.ts` | `apps/server`(`cordis-host`) | L8/80 | node | host | 内核必需 | 无 | 无 | — | — | 无（装配层，间接覆盖全部 LS 包） | 无 | root(它即 root) | server（唯一组合根） | 09 §3.3/§4.3 |
-| 51 | `preset-slide#shell-glue` | `@oce/preset-slide` | L8/80 | dom | plugin | 可选扩展 | contributions | ui,shortcuts | 无 | — | core.command(shell.intent),ui.contextMenu×7,ui.shortcut,i18n.bundle | 无 | root | slide●,collab● | 11 §3.3 |
-| 52 | `preset-slide-viewer#read-only` | `@oce/preset-slide-viewer` | L8/80 | dom | plugin | 内核必需(viewer 中不可 exclude) | contributions | 无 | 无 | — | core.permissionPolicy(read-only) | 无 | root | viewer● | 11 §3.2/§3.3 |
-| 53 | `preset-slide-viewer#viewer-shell` | `@oce/preset-slide-viewer` | L8/80 | dom | plugin | 可选扩展 | units | render,thumbnails | 无 | — | 无 | 无 | root | viewer● | 11 §3.3 |
-| 54 | `preset-slide-viewer#design-css` | `@oce/preset-slide-viewer` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root | viewer● | 11 §3.3 |
-| 55 | 语言包（locale-packs） | `preset-*/src/plugins/locales/*.ts` | L8/80 | iso/dom | plugin | 可选·降级 | 无 | 无 | 无 | — | i18n.bundle | 无 | root（惰性） | viewer◐,slide◐,collab◐ | 11 §3.1 |
-| 56 | `viewer-thumbnails` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
-| 57 | `viewer-notes` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
-| 58 | `viewer-search` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
-| 59 | `preset-slide`(`createSlidePreset`) | `@oce/preset-slide` | L8/80 | dom | bundle | N/A | 无（可选 errors） | 无 | 无 | — | 无（间接经 shell-glue） | 无 | root（被 apps/web 挂载） | slide | 11 §3.2 |
-| 60 | `preset-slide-collab`(`createSlideCollabPreset`) | `@oce/preset-slide-collab` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接） | 无 | root | collab | 11 §3.2 |
-| 61 | `preset-slide-viewer`(`createSlideViewerPreset`) | `@oce/preset-slide-viewer` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接经 read-only） | render/element-degraded,i18n/locale-changed（惰性触发） | root | viewer | 11 §3.2 |
-| 62 | `create-editor-host.ts` | `apps/web` | L8/80 | dom | host | 内核必需 | 无 | 无 | — | — | 无（`no-domain-defs-in-apps` 禁止） | 无 | root(它即 root) | 调用 viewer/slide/collab 三者之一 | module-map BC-17；11 §0/§3.5 |
-| 63 | `JobsModule` | `apps/server`(`modules/jobs`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 64 | `ImportExportModule` | `apps/server`(`modules/import-export`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 65 | `ThumbnailsModule` | `apps/server`(`modules/thumbnails`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 66 | `CommentsModule` | `apps/server`(`modules/comments`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 67 | `WebhooksModule`（新增 U-14） | `apps/server`(`modules/webhooks`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 68 | `AuditModule`(global) | `apps/server`(`modules/audit`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 69 | `HealthModule` | `apps/server`(`modules/health`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 70 | `MetricsModule` | `apps/server`(`modules/metrics`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
-| 71 | `InternalModule` | `apps/server`(`modules/internal`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 39 | `UsersModule` | `apps/server`(`modules/users`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 40 | `DocumentsModule` | `apps/server`(`modules/documents`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 41 | `PermissionsModule` | `apps/server`(`modules/permissions`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 42 | `ShareLinksModule` | `apps/server`(`modules/share-links`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 43 | `StorageModule` | `apps/server`(`modules/storage`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 44 | `MediaModule` | `apps/server`(`modules/media`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 08 §3 |
+| 45 | `CollabModule` | `apps/server`(`modules/collab`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server(role=collab) | 09 §3.3 |
+| 46 | `SnapshotsModule` | `apps/server`(`modules/snapshots`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 09 §3.3 |
+| 47 | `CordisHostModule`(global) | `apps/server`(`cordis-host`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server(全部角色) | 09 §3.3 |
+| 48 | `CordisHostService`+`preset-server.ts` | `apps/server`(`cordis-host`) | L8/80 | node | host | 内核必需 | 无 | 无 | — | — | 无（装配层，间接覆盖全部 LS 包） | 无 | root(它即 root) | server（唯一组合根） | 09 §3.3/§4.3 |
+| 49 | `preset-slide#shell-glue` | `@cordexjs/preset-slide` | L8/80 | dom | plugin | 可选扩展 | contributions | ui,shortcuts | 无 | — | core.command(shell.intent),ui.contextMenu×7,ui.shortcut,i18n.bundle | 无 | root | slide●,collab● | 11 §3.3 |
+| 50 | `preset-slide-viewer#read-only` | `@cordexjs/preset-slide-viewer` | L8/80 | dom | plugin | 内核必需(viewer 中不可 exclude) | contributions | 无 | 无 | — | core.permissionPolicy(read-only) | 无 | root | viewer● | 11 §3.2/§3.3 |
+| 51 | `preset-slide-viewer#viewer-shell` | `@cordexjs/preset-slide-viewer` | L8/80 | dom | plugin | 可选扩展 | units | render,thumbnails | 无 | — | 无 | 无 | root | viewer● | 11 §3.3 |
+| 52 | `preset-slide-viewer#design-css` | `@cordexjs/preset-slide-viewer` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root | viewer● | 11 §3.3 |
+| 53 | 语言包（locale-packs） | `preset-*/src/plugins/locales/*.ts` | L8/80 | iso/dom | plugin | 可选·降级 | 无 | 无 | 无 | — | i18n.bundle | 无 | root（惰性） | viewer◐,slide◐,collab◐ | 11 §3.1 |
+| 54 | `viewer-thumbnails` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
+| 55 | `viewer-notes` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
+| 56 | `viewer-search` | `preset-slide-viewer/src/shell/lazy` | L8/80 | dom | plugin | 可选扩展 | 无 | 无 | 无 | — | 无 | 无 | root（惰性，manual） | viewer◐ | 11 §3.1 |
+| 57 | `preset-slide`(`createSlidePreset`) | `@cordexjs/preset-slide` | L8/80 | dom | bundle | N/A | 无（可选 errors） | 无 | 无 | — | 无（间接经 shell-glue） | 无 | root（被 apps/web 挂载） | slide | 11 §3.2 |
+| 58 | `preset-slide-collab`(`createSlideCollabPreset`) | `@cordexjs/preset-slide-collab` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接） | 无 | root | collab | 11 §3.2 |
+| 59 | `preset-slide-viewer`(`createSlideViewerPreset`) | `@cordexjs/preset-slide-viewer` | L8/80 | dom | bundle | N/A | 无 | 无 | 无 | — | 无（间接经 read-only） | render/element-degraded,i18n/locale-changed（惰性触发） | root | viewer | 11 §3.2 |
+| 60 | `create-editor-host.ts` | `apps/web` | L8/80 | dom | host | 内核必需 | 无 | 无 | — | — | 无（`no-domain-defs-in-apps` 禁止） | 无 | root(它即 root) | 调用 viewer/slide/collab 三者之一 | module-map BC-17；11 §0/§3.5 |
+| 61 | `JobsModule` | `apps/server`(`modules/jobs`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 62 | `ImportExportModule` | `apps/server`(`modules/import-export`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 63 | `ThumbnailsModule` | `apps/server`(`modules/thumbnails`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 64 | `CommentsModule` | `apps/server`(`modules/comments`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 65 | `WebhooksModule`（新增 U-14） | `apps/server`(`modules/webhooks`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 66 | `AuditModule`(global) | `apps/server`(`modules/audit`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 67 | `HealthModule` | `apps/server`(`modules/health`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 68 | `MetricsModule` | `apps/server`(`modules/metrics`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
+| 69 | `InternalModule` | `apps/server`(`modules/internal`) | L8/80 | node | Nest 模块 | N/A | — | — | — | — | 无 | 无 | N/A | server | 12 §3 |
 
-**小计核对**：形态——host 4（2/23/50/62）、definition 4（5/16/17/35）、provider 19（6/7/12/13/14/15/18/21/24/25/26/27/28/29/30/31/32/33/36）、plugin 16（4/8/9/11/19/20/22/37/51/52/53/54/55/56/57/58）、bundle 3（59/60/61）、library 4（1/3/10/34）、Nest 模块 21（38–46/47–49/63–71）。必需性——内核必需 8（2/5/16/22/23/50/52/62）、契约必需·可换 9（6/7/18/21/24/25/26/27/28）、可选·降级 17（4/8/11/12/13/14/17/19/29/30/31/32/33/35/36/37/55）、可选扩展 9（9/15/20/51/53/54/56/57/58）、N/A 28（1/3/10/34 + 38–46/47–49/63–71 + 59/60/61）。M-01 `tooling/*`（40-modules/01 §0/§3）与 M-13 十个 M5 骨架单元（40-modules/13 §3/§4）不计入本表 71 行，理由见 §0/§8。
+**小计核对**（2026-09-24 删原 39 `TenantsModule`、41 `GroupsModule` 后重编行号，rulings §4.15）：形态——host 4（2/23/48/60）、definition 4（5/16/17/35）、provider 19（6/7/12/13/14/15/18/21/24/25/26/27/28/29/30/31/32/33/36）、plugin 16（4/8/9/11/19/20/22/37/49/50/51/52/53/54/55/56）、bundle 3（57/58/59）、library 4（1/3/10/34）、Nest 模块 19（38–44/45–47/61–69）。必需性——内核必需 8（2/5/16/22/23/48/50/60）、契约必需·可换 9（6/7/18/21/24/25/26/27/28）、可选·降级 17（4/8/11/12/13/14/17/19/29/30/31/32/33/35/36/37/53）、可选扩展 9（9/15/20/49/51/52/54/55/56）、N/A 26（1/3/10/34 + 38–44/45–47/61–69 + 57/58/59）。M-01 `tooling/*`（40-modules/01 §0/§3）与 M-13 十个 M5 骨架单元（40-modules/13 §3/§4）不计入本表 69 行，理由见 §0/§8。
 
 ## 3. Definition ↔ Provider 可插拔矩阵（章程 §5.4 的完整版）
 
@@ -189,7 +187,7 @@ q6 -- "否" --> r7
 | `collabTransport` | collab-core | 服务 `collabTransport` | 未详述 | `runCollabTransportConformance`（40-modules）；架构 11-testing-strategy §3 并入合并的 `runCollabConformance`，粒度不一致（§8 G-6） | collab-transport-ws | webrtc 传输（charter §5.4 协同行） | collab-yjs 永久 PENDING（诊断非失败） | `runCollabTransportConformance` |
 | `OfflineStore` | collab-core | 服务 `offlineStore` | 未详述 | `runOfflineStoreConformance`（40-modules 用；架构 11-testing-strategy §3 全篇未登记该 Definition，§8 G-6） | collab-offline-idb | 无（M4 展望前无替代） | 内存队列降级（05 §2.5） | `runOfflineStoreConformance` |
 | `SpillStore` | server-collab（`domain/contracts`） | 服务 `spillStore` | 4（`writeTier1`/`writeTier2`/`readAllOrdered`/`clear`，09 §3.4） | `runSpillStoreConformance` | RedisSpillStore（tier1）+BlobSpillStore（tier2）合组 | 无（rulings §4.13 S-3 新增机制） | 故障期可能退回拒写（rulings S-3 精神） | `runSpillStoreConformance` |
-| `UiRenderer` | ui-core | 服务 `uiRenderer` | 未详述（含 `mount()`，11 §3.5） | `runUiRendererConformance`（40-modules/10 用；架构 11-testing-strategy §3 未登记，§8 G-4） | ui-react | 规划 ui-vue（未来，10 §0） | 是，headless（charter §5.4 UI 行） | `runUiRendererConformance` |
+| `UiRenderer` | ui-core | 服务 `uiRenderer` | 未详述（含 `mount()`，11 §3.5） | `runUiRendererConformance`（40-modules/10 用；架构 11-testing-strategy §3 未登记，§8 G-4） | ui-react | 规划 ui-vue（未来，10 §0；**需同时替换全部 `*-ui` 的 `ui/` 层**，rulings §4.15 Q2）；示例级 `vanilla`（`examples/embed-vanilla` 最小 `UiRenderer('vanilla')`，仅用于形态 B 跑 `runUiRendererConformance`，示例非包，不计入 §0.1 实例数） | 是，headless（charter §5.4 UI 行；形态 B 须同时排除 `ui-react` 与 `slide-ui`，`FRAMEWORK_FREE_EXCLUDES`，Q2） | `runUiRendererConformance` |
 | `PermissionPolicy` | model-core | 贡献点 `core.permissionPolicy`，key=`policy.id` | ≥1（`evaluate(cap)`，11 §3.3 示例） | 未见（无 `runPermissionPolicyConformance`，§8 G-7） | 无默认（fail-closed，零贡献即全部拒绝，D12） | preset-slide-viewer#read-only（viewer 预设具名贡献） | fail-closed：无显式允许即拒绝（charter D12） | `command-harness`：零策略→全部 `PERMISSION_DENIED`（02 §10） |
 | `DocumentType` | model-core | 贡献点 `core.documentType`，key=`id` | 未详述（含 `createEmpty()`，03 §5.3） | 未见统一套件（各 body 自有 `runSlideModelConformance` 等，非注册机制本身的套件，§8 G-7） | model-slide（`'slide'`） | 规划 doc/sheet（M5，13 §3）；测试用 fixture（model-core/testing，现存）；第三方可贡献 | 是，`format.no_document_type` 错误码，宿主仍运行（charter §5.4 文档类型行） | 未见专属（§8 G-7） |
 | `Migration` | model-core | 贡献点 `core.migration`，key=`` `${documentType}:${from}->${to}` `` | 未详述 | 未见（无 `runMigrationConformance`，§8 G-7） | 各 documentType 自注册（M1 为空表但注册，A23） | 未来随 schemaVersion 演进增补 | 未明确陈述（§8 G-7） | 未见（§8 G-7） |
@@ -226,7 +224,7 @@ altStoreYjs["store-yjs"]
 altNodeFont["server-headless node-font"]
 altOoxmlDocx["ooxml-docx 规划中"]
 altDocRender["doc-render 规划中"]
-altUiVue["ui-vue 规划中"]
+altUiVue["ui-vue 规划中 需同时替换各 ui 垂直包"]
 defDocStore -- "默认" --> provStoreMemory
 defBlobStore -- "默认" --> provServerBlobStore
 defFormatCodec -- "默认" --> provOoxmlPptx
@@ -300,7 +298,7 @@ provUiReact -. "可替换" .-> altUiVue
 
 | 插件 | `preset-slide` | `preset-slide-collab` | `preset-slide-viewer` | `preset-server` | 备注（替换/裁剪原因） |
 |---|---|---|---|---|---|
-| `kernel`（host 自带，非条目） | ✓ | ✓ | ✓ | ✓ | 四者共享同一 `@oce/kernel` 源码 |
+| `kernel`（host 自带，非条目） | ✓ | ✓ | ✓ | ✓ | 四者共享同一 `@cordexjs/kernel` 源码 |
 | `i18n` | ✓ | ✓ | ✓ | ✗ | module-map §5.3 未把 `i18n` 列入 `preset-server` 构成（02 §0：服务端极少用） |
 | `model-core` | ✓ | ✓ | ✓ | ✓ | 四者共享 |
 | `store-memory` | ✓ | ✗ | ✓ | ◐ | server-headless 校验/迁移任务用（module-map §5.1），非 `preset-server` 主线 |
@@ -326,9 +324,9 @@ provUiReact -. "可替换" .-> altUiVue
 | `collab-transport-ws` | ✗ | ✓ | ✗ | 替换为 server-collab 内部 WS 网关 | 客户端传输 Provider vs 服务端网关是两套实现 |
 | `collab-yjs` | ✗ | ✓ | ✗ | 替换为 server-collab | 客户端同步引擎 vs 服务端 Room 管理器 |
 | `collab-offline-idb` | ✗ | ◐（M3 默认关，M4 可选） | ✗ | ✗ | 离线队列是浏览器专属能力 |
-| `@oce/server-storage`（`blobStore`） | ✗ | ✗ | ✗ | ✓ | 浏览器侧无持久 `BlobStore` Provider（module-map §5.1），媒体字节只由服务端持有 |
-| `@oce/server-collab`（`collabServer`） | ✗ | ✗ | ✗ | ✓（role=collab） | 服务端 Room 生命周期与持久化，客户端无对应包 |
-| `@oce/server-headless`（host+node-font） | ✗ | ✗ | ✗ | ✓（role=worker） | 服务端独立宿主，承担导入/导出/校验/迁移/缩略图 |
+| `@cordexjs/server-storage`（`blobStore`） | ✗ | ✗ | ✗ | ✓ | 浏览器侧无持久 `BlobStore` Provider（module-map §5.1），媒体字节只由服务端持有 |
+| `@cordexjs/server-collab`（`collabServer`） | ✗ | ✗ | ✗ | ✓（role=collab） | 服务端 Room 生命周期与持久化，客户端无对应包 |
+| `@cordexjs/server-headless`（host+node-font） | ✗ | ✗ | ✗ | ✓（role=worker） | 服务端独立宿主，承担导入/导出/校验/迁移/缩略图 |
 
 **插件数小计**（来自 11 §3.1 原表的 ●/◐/▲ 计数，逐条见 §2 主表「所属 preset」列）：`preset-slide-viewer` 常驻 12 + 惰性 5 = **17**；`preset-slide` 常驻 15 + 惰性 2 = **17**；`preset-slide-collab` 常驻/替换 16 + 惰性 3 = **19**；`preset-server` 常驻 9 + 部分装载 2（`store-memory`/`engine-render`）= **11**（`model-slide/editing` 是否装载未注明，不计入本小计，见 §8 G-1）。
 
@@ -380,19 +378,19 @@ sharedIso -. "同一份iso源码" .-> presetServer
 
 ## 6. 按运行位置与进程角色分组
 
-按 §2 主表「加载位置」与各模块 §0「运行位置」字段汇总（数字与 §0.1 一致）：**两端共用 13 个**（#1–11、16、17，即 shared/kernel/protocol/i18n/model-core/store-memory/store-yjs/model-slide 二段/ooxml-core/ooxml-pptx/engine-layout/engine-render）；**仅浏览器 23 个**（#12–15 协同客户端四包 + #18–20 渲染 DOM 层三包 + #34–37 UI 四包 + #51–62 preset 装配层十二个 = 4+3+4+12=23）；**仅 Node 服务端 35 个**（#21–33、38–50、63–71，即 server-storage/server-collab/server-headless、7 个协同 IO 适配器、3 个 kernel 服务 Node 适配器、21 个 Nest 模块、apps/server host）。
+按 §2 主表「加载位置」与各模块 §0「运行位置」字段汇总（数字与 §0.1 一致）：**两端共用 13 个**（#1–11、16、17，即 shared/kernel/protocol/i18n/model-core/store-memory/store-yjs/model-slide 二段/ooxml-core/ooxml-pptx/engine-layout/engine-render）；**仅浏览器 23 个**（#12–15 协同客户端四包 + #18–20 渲染 DOM 层三包 + #34–37 UI 四包 + #49–60 preset 装配层十二个 = 4+3+4+12=23）；**仅 Node 服务端 33 个**（#21–33、38–48、61–69，即 server-storage/server-collab/server-headless、7 个协同 IO 适配器、3 个 kernel 服务 Node 适配器、19 个 Nest 模块、apps/server host；2026-09-24 由 35 减为 33，rulings §4.15）。
 
-### 6.1 服务端按 `OCE_ROLE` 的资源归属（09 §7.1，原文摘录）
+### 6.1 服务端按 `CORDEX_ROLE` 的资源归属（09 §7.1，原文摘录）
 
-| 资源 | 归属 | 激活的进程角色（`OCE_ROLE`） |
+| 资源 | 归属 | 激活的进程角色（`CORDEX_ROLE`） |
 |---|---|---|
-| `CordisHostService`（进程单例 Context） | `apps/server/src/cordis-host` | 全部角色（`api`/`collab`/`worker`） |
-| `collabServer` 服务（`@oce/server-collab`） | `preset-server` 装配进同一进程 Context | 仅 `collab` |
-| `server-headless` 宿主（`@oce/server-headless`） | 按需 `createHeadlessHost()`，`worker_threads` 隔离 | 仅 `worker` |
+| `CordisHostService`（进程单例 Context） | `apps/server/src/cordis-host` | 全部角色（`api`/`collab`/`worker`；2026-09-24 `roles.ts` 补 `all`〔单容器 api+collab+worker 同进程〕与 `renderer`〔独立零出站 Chromium sidecar，只装 M-09 renderer 入口、不装任何含凭据的 Nest 模块〕，见 12 §7.1，rulings §4.15 Q8/Q10） |
+| `collabServer` 服务（`@cordexjs/server-collab`） | `preset-server` 装配进同一进程 Context | 仅 `collab` |
+| `server-headless` 宿主（`@cordexjs/server-headless`） | 按需 `createHeadlessHost()`，`worker_threads` 隔离 | 仅 `worker` |
 | WS 网关（`CollabModule`） | `modules/collab/interface/collab.gateway.ts` | `collab` |
 | 快照 REST（`SnapshotsModule`） | `modules/snapshots` | `api`/`collab` 均可挂载 |
 | `JobsModule`/`ImportExportModule`/`ThumbnailsModule` 的 BullMQ 处理器 | 各自 `infrastructure/*.processor.ts` | `worker`（REST 控制器另在 `api` 挂载，处理器与控制器分属不同角色是同一 Nest 模块内的常见形态） |
-| `AuthModule`/`TenantsModule`/`UsersModule`/`GroupsModule`/`DocumentsModule`/`PermissionsModule`/`ShareLinksModule`/`StorageModule`/`MediaModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule` | 各自 `modules/*` | 未见逐模块显式 `OCE_ROLE` 归属表（§8 G-12），推断以 `api` 为主 |
+| `AuthModule`/`UsersModule`/`DocumentsModule`/`PermissionsModule`/`ShareLinksModule`/`StorageModule`/`MediaModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule` | 各自 `modules/*` | 未见逐模块显式 `CORDEX_ROLE` 归属表（§8 G-12），推断以 `api` 为主 |
 
 **已知的角色边界缺口**（15-server-architecture-review.md §3.6 原文，非本文新发现，此处引用以完整呈现"进程角色"维度）：`CommentsModule` 的 `CommentMirrorObserver` 需要订阅 `collabServer` 的 Room 广播，但 `collabServer` 只在 `role=collab` 时被 `preset-server` 激活；若 `CommentsModule` 按其 REST 部分的要求也在 `role=api` 下注册，`CommentMirrorObserver` 在 `api` 角色进程里的降级行为（no-op 还是抛错）当前**没有任何文档提及**。这是一个跨越"运行位置分组"与"§8 缺口"两节的具体证据，此处不重复计数，仅在 §8 引用编号。
 
@@ -402,7 +400,7 @@ sharedIso -. "同一份iso源码" .-> presetServer
 |---|---|---|---|
 | `DocumentStore`（`store`） | `store-memory`（默认/查看器）或 `store-yjs`（协同） | `store-yjs`（`server-collab`，Room 即 Unit）或 `store-memory`（`server-headless` 校验/迁移任务） | 两个 Provider 本身都是 iso，用哪个取决于"是否需要 CRDT"而非运行环境本身 |
 | `layout.measurer`（`TextMeasurer`） | `render-dom` 的 canvas 度量 | `server-headless` 的 `node-font`（标注"近似一致"） | headless Chromium 渲染路径下仍用 canvas 度量（因为 Chromium 本身是浏览器） |
-| `BlobStore` | `MemoryBlobStore`（`model-core/testing`，仅测试） | `ServerBlobStore`（`server-storage`：S3/MinIO/本地） | 浏览器侧没有持久 `BlobStore` Provider；`collab-offline-idb` 是 `OfflineStore` 而非 `BlobStore`，不可混淆 |
+| `BlobStore` | `MemoryBlobStore`（`model-core/testing`，仅测试） | `ServerBlobStore`（`server-storage`：S3 协议〔自托管默认 SeaweedFS，rulings §4.15 Q10〕/本地） | 浏览器侧没有持久 `BlobStore` Provider；`collab-offline-idb` 是 `OfflineStore` 而非 `BlobStore`，不可混淆 |
 
 ### 6.3 五种执行上下文各自加载的插件集
 
@@ -410,13 +408,13 @@ sharedIso -. "同一份iso源码" .-> presetServer
 
 | 执行上下文 | 加载的插件集（按 §2 主表行号） | 名单 |
 |---|---|---|
-| 浏览器 · `preset-slide-viewer` | 17 个（12 常驻+5 惰性，`kernel` 作为 host 自带不单独计入条目数，下同） | 行 4/5/6/8/11/16/17/18/19/52/53/54 常驻，20/55/56/57/58 惰性 |
-| 浏览器 · `preset-slide` | 17 个（15 常驻+2 惰性） | 行 4/5/6/8/9/11/12/16/17/18/19/35/36/37/51 常驻，20/55 惰性 |
-| 浏览器 · `preset-slide-collab` | 19 个（16 常驻/替换+3 惰性） | 行 4/5/7▲/8/9/11/13/14/16/17/18/19/35/36/37/51 常驻，20/55/15 惰性 |
+| 浏览器 · `preset-slide-viewer` | 17 个（12 常驻+5 惰性，`kernel` 作为 host 自带不单独计入条目数，下同） | 行 4/5/6/8/11/16/17/18/19/50/51/52 常驻，20/53/54/55/56 惰性 |
+| 浏览器 · `preset-slide` | 17 个（15 常驻+2 惰性） | 行 4/5/6/8/9/11/12/16/17/18/19/35/36/37/49 常驻，20/53 惰性 |
+| 浏览器 · `preset-slide-collab` | 19 个（16 常驻/替换+3 惰性） | 行 4/5/7▲/8/9/11/13/14/16/17/18/19/35/36/37/49 常驻，20/53/15 惰性 |
 | Node · headless（`server-headless` 独立宿主，`role=worker` 按需创建） | 行 5/6◐/10/11/16/17◐/23，另含 `ThumbnailRenderer` 适配器（§3 行 17） | 无 UI/无 render-dom；`store-memory` 只用于校验/迁移，非主线持久化 |
-| Nest · `role=collab` | 行 49（`CordisHostModule`）/47（`CollabModule`）/50（host）/22（`server-collab`）/24–30（7 个 IO 适配器）/31–33（3 个 kernel 适配器）/5/7/8/10/11/16 | 唯一激活 `collabServer` 服务与 WS 网关的角色（§6.1） |
-| Nest · `role=api` | 行 49/50/38–46（9 个 M08 REST 模块）/48（`SnapshotsModule`）/21（`server-storage`）/63–71 中的 REST 控制器部分（`JobsModule`/`ImportExportModule`/`ThumbnailsModule`/`CommentsModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule`） | 逐模块到角色的完整映射未见文档给出，本行是推断（§8 G-12），不计入 §0 数字 |
-| Nest · `role=worker` | 行 49/50/23（`server-headless`）/31–33（3 个 kernel 适配器）/63–65 中的 BullMQ 处理器部分（`JobsModule`/`ImportExportModule`/`ThumbnailsModule`） | 唯一能创建 `server-headless` 独立宿主实例的角色（§6.1 原文） |
+| Nest · `role=collab` | 行 47（`CordisHostModule`）/45（`CollabModule`）/48（host）/22（`server-collab`）/24–30（7 个 IO 适配器）/31–33（3 个 kernel 适配器）/5/7/8/10/11/16 | 唯一激活 `collabServer` 服务与 WS 网关的角色（§6.1） |
+| Nest · `role=api` | 行 47/48/38–44（7 个 M08 REST 模块）/46（`SnapshotsModule`）/21（`server-storage`）/61–69 中的 REST 控制器部分（`JobsModule`/`ImportExportModule`/`ThumbnailsModule`/`CommentsModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule`） | 逐模块到角色的完整映射未见文档给出，本行是推断（§8 G-12），不计入 §0 数字 |
+| Nest · `role=worker` | 行 47/48/23（`server-headless`）/31–33（3 个 kernel 适配器）/61–63 中的 BullMQ 处理器部分（`JobsModule`/`ImportExportModule`/`ThumbnailsModule`） | 唯一能创建 `server-headless` 独立宿主实例的角色（§6.1 原文） |
 
 ## 7. 可插拔性自检（R2 验收口径）
 
@@ -431,7 +429,7 @@ sharedIso -. "同一份iso源码" .-> presetServer
 | 5 | 协同 | `collab`/`collabTransport`/`OfflineStore` | preset 装配清单里的 `collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 三个条目 | `exclude` 整组 → 单人模式；`override` 单个 Provider → 换传输/换离线策略 | 有：`runCollabConformance`/`runCollabTransportConformance`/`runOfflineStoreConformance`（三者粒度与架构 11-testing-strategy §3 的合并登记不一致，§8 G-6） | 是（单人模式） |
 | 6 | 渲染 | `RenderTarget`/`ElementRenderer`/`SceneProvider`/`OverlayRenderer` | `render.target`/`render.element`/`render.scene`/`render.overlay` 四个贡献点 | 新插件贡献对应条目；`slide-render-chart` 是`conflict:replace` 覆盖的范例 | 有（`OverlayRenderer` 除外，§3 行 8/§8 G-5）：`runRenderTargetConformance`/`runElementRendererConformance`/`runSceneProviderConformance` | 是（空白画布） |
 | 7 | 度量 | `TextMeasurer` | `layout.measurer` 贡献点 | 新插件贡献 `{id, …}`；浏览器/服务端各自默认 Provider 不同（§6.2） | 有：`runTextMeasurerConformance`（命名与架构侧 `runMeasurerConformance` 不一致，§8 G-2） | 否（必需，任一 Provider） |
-| 8 | UI | `UiRenderer` + 十个 `ui.*` 贡献点 | preset 装配清单里的 `ui-core`/`ui-react`/`slide-ui` 三个条目 | `exclude` → headless（`ui-core` 贡献仍注册，只是无渲染）；`override` `uiRenderer` → 换框架绑定（如未来 `ui-vue`） | 有：`runUiRendererConformance`（架构侧未登记，§8 G-4） | 是（headless） |
+| 8 | UI | `UiRenderer` + 十个 `ui.*` 贡献点 | preset 装配清单里的 `ui-core`/`ui-react`/`slide-ui` 三个条目 | `exclude` → headless（`ui-core` 贡献仍注册，只是无渲染）；`override` `uiRenderer` → 换框架绑定（如未来 `ui-vue`，**需同时替换全部 `*-ui`**；形态 B 的 `exclude` 须含 `slide-ui`，rulings §4.15 Q2） | 有：`runUiRendererConformance`（架构侧未登记，§8 G-4） | 是（headless） |
 | 9 | 服务端 | Nest 模块 + `BlobStore` Provider | `apps/server` 各模块的 IO 适配器目录（如 `collab/infrastructure/*.ts`）；`preset-server.ts` 的装配清单 | 新写一个 `implements:['fanoutBus']` 等的 Provider 类，改 `preset-server.ts` 里对应 inject 项 | 部分：`UpdateStore`/`SnapshotStore`/`SpillStore` 有专属命名套件；`FanoutBus`/`LeaseLock`/`AuthorizationSource` 无（§8 G-6） | 按模块（未统一给出总口径） |
 
 **结论**：9 条里 7 条（1/2/4/6 部分/7/8）有名字明确的契约套件兜底可插拔性；3 条（3/6 的 `OverlayRenderer`/9 的三个服务端 Definition）没有专属套件，替换正确性目前只能靠人工评审或集成测试覆盖，这是本表最值得跟进的机械化缺口（汇总进 §8）。
@@ -442,12 +440,12 @@ sharedIso -. "同一份iso源码" .-> presetServer
 
 | 约束/扫描器 | 保证什么 | 关联层级（§7 行号） |
 |---|---|---|
-| `manifest-present` | `plugin`/`provider` 角色的包必须有 `oce-manifest.json`；`library` 角色豁免 | 全部（§1 分类口径） |
+| `manifest-present` | `plugin`/`provider` 角色的包必须有 `cordex-manifest.json`；`library` 角色豁免 | 全部（§1 分类口径） |
 | `preset-order-independence` | 随机打乱 `ctx.plugin` 顺序 100 次，最终 Fiber 状态与贡献表集合不变 | 2/5/6/8（存储/协同/渲染/UI 均由 preset 装配） |
-| `no-editing-in-viewer` | `preset-slide-viewer` 的 bundle 依赖图不含 `@oce/model-slide/editing` 子路径 | 3（文档类型，viewer 只读保证第一道） |
+| `no-editing-in-viewer` | `preset-slide-viewer` 的 bundle 依赖图不含 `@cordexjs/model-slide/editing` 子路径 | 3（文档类型，viewer 只读保证第一道） |
 | `event-domain-whitelist` | 事件名/贡献点 id 的域前缀必须在保留域名单或带 `<vendor>:` 前缀 | 3/4/6（文档类型/格式/协同的第三方扩展口子） |
 | `when-keys-declared` | `ui.*` 贡献的 `when` 子句只能引用已登记的上下文键 | 8（UI，§8 G-13 的直接成因） |
-| `server-app-thin`（depcruise） | Nest 模块不得 `import '@oce/model-*'`/`'yjs'`，业务逻辑必须经 `preset-server` | 9（服务端） |
+| `server-app-thin`（depcruise） | Nest 模块不得 `import '@cordexjs/model-*'`/`'yjs'`，业务逻辑必须经 `preset-server` | 9（服务端） |
 | `no-unit-scoped-inject-at-root` | 根级插件不得 `inject` UnitScope 服务 | 2/6（存储/渲染的 UnitScope 边界） |
 | `bundle-budget` | 读 Rollup stats 校验 `config/bundle-budget.json` 声明的体积上限，超 5% 判失败 | 对应 §5「体积影响」 |
 
@@ -471,29 +469,29 @@ sharedIso -. "同一份iso源码" .-> presetServer
 
 | 编号 | 现象 | 证据（出处） | 影响 |
 |---|---|---|---|
-| G-1 | `@oce/model-slide/editing` 是否被 `preset-server` 装配，未见任何文档明确陈述——`11-preset-assembly-and-app-shell.md` §3.1 的装配清单总表只覆盖浏览器三个 preset（`viewer`/`slide`/`collab` 三列），`preset-server` 的构成只在 `00-module-map.md` §5.3 以一句话列了 9 个组件名，未细到"是否含 editing 子插件" | 09 §3.3/§4.3、module-map §5.3、11 §3.1 | 服务端迁移/校验任务是否具备执行 Mutation 的能力（例如迁移需要改写快照）不能从现有文档确定 |
+| G-1 | `@cordexjs/model-slide/editing` 是否被 `preset-server` 装配，未见任何文档明确陈述——`11-preset-assembly-and-app-shell.md` §3.1 的装配清单总表只覆盖浏览器三个 preset（`viewer`/`slide`/`collab` 三列），`preset-server` 的构成只在 `00-module-map.md` §5.3 以一句话列了 9 个组件名，未细到"是否含 editing 子插件" | 09 §3.3/§4.3、module-map §5.3、11 §3.1 | 服务端迁移/校验任务是否具备执行 Mutation 的能力（例如迁移需要改写快照）不能从现有文档确定 |
 | G-8 | `apps/server/src/cordis-host/adapters/` 下的 `PinoLoggerAdapter`/`OtelTelemetryAdapter`/`ErrorsReporterAdapter` 三个类，全篇只有一行"文件职责表"式的用途描述（"kernel `logger`/`telemetry`/`errors` 服务的 Node 实现"），没有 02 §3 那种标准字段表（`name`/`inject`/`provide`/贡献点/生命周期/Manifest 片段）——是 09 号文档里唯一三个缺这张表的 Provider 单元 | `40-modules/09` §4.3 目录树、§5 文件职责表 | 无法确认这三个适配器是通过 `ctx.contribute(errorsSinkPoint, …)` 注册，还是作为 `HostOptions.loggerSink` 之类的普通配置值传入——两种机制在 §1 的分类口径下会落进不同的形态桶，本文按"provider"处理但标注为推测 |
-| G-9 | `40-modules/08` §3 标题为「Nest 模块定义表」，全篇没有给 `@oce/server-storage` 自己的插件形状字段，尽管 08 §0 已明确把它标为 `cordis 形态 = provider（implements:['blobStore']）`——`02`/`05`/`06`/`07`/`09`/`10` 里每一个 provider 包都有一张标准字段表，唯独 `server-storage` 没有 | `40-modules/08` 全篇 vs 其余模块 §3 体例 | `server-storage` 的 `inject`/`provide`/`Config` schema/生命周期/Manifest 片段在 §2 主表第 21 行只能标"未注明" |
+| G-9 | `40-modules/08` §3 标题为「Nest 模块定义表」，全篇没有给 `@cordexjs/server-storage` 自己的插件形状字段，尽管 08 §0 已明确把它标为 `cordis 形态 = provider（implements:['blobStore']）`——`02`/`05`/`06`/`07`/`09`/`10` 里每一个 provider 包都有一张标准字段表，唯独 `server-storage` 没有 | `40-modules/08` 全篇 vs 其余模块 §3 体例 | `server-storage` 的 `inject`/`provide`/`Config` schema/生命周期/Manifest 片段在 §2 主表第 21 行只能标"未注明" |
 | G-10 | `core.resource` 贡献点在 `03-kernel-and-plugin-model.md` §3.6 有完整定义（`ResourceHook`，key=`namespace`），但 40-modules 01–13 的任何一份模块 §3 都没有列出"谁实际贡献了 `core.resource`"——评论模块提到的 `resources.comments.*` 是服务端读模型术语，不构成 cordis `ctx.contribute` 的证据 | 全仓搜索 `core.resource` 贡献方 | §4 贡献点总账该行的"贡献方清单"目前只能写"未见具体列出"，是 26 个贡献点里唯一贡献方全缺的一个 |
 
 ### 8.3 命名/机制跨文档不一致（2 项）
 
 | 编号 | 现象 | 证据（出处） | 影响 |
 |---|---|---|---|
-| G-11 | charter §5.2 包清单（v0.2，权威）只登记了 `@oce/preset-doc`/`@oce/preset-sheet` 两个 M5 包；`40-modules/13` §0/§4 详细定义了另外 8 个（`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx`/`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`），这 8 个未出现在 charter §5.2 表格的任何一行 | `00-charter/charter.md` §5.2 全表 vs `40-modules/13` §0/§4 | 若 M5 立项时以 charter §5.2 为唯一权威包清单核对，会漏掉 8 个已经有完整骨架设计的包；反之说明 13 号文档的规划范围超出了章程当前收录范围，需要在 M5 启动前回填 charter |
+| G-11 | charter §5.2 包清单（v0.2，权威）只登记了 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet` 两个 M5 包；`40-modules/13` §0/§4 详细定义了另外 8 个（`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx`/`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`），这 8 个未出现在 charter §5.2 表格的任何一行 | `00-charter/charter.md` §5.2 全表 vs `40-modules/13` §0/§4 | 若 M5 立项时以 charter §5.2 为唯一权威包清单核对，会漏掉 8 个已经有完整骨架设计的包；反之说明 13 号文档的规划范围超出了章程当前收录范围，需要在 M5 启动前回填 charter |
 | G-13 | `40-modules/13` §3 的插件级元信息表里，`doc-ui`/`sheet-ui` 两行「消费贡献点」写的是 `ui.contextKey`（`unitType`），但 `03-kernel-and-plugin-model.md` §3.6 与 charter §5.5 都没有登记 `ui.contextKey` 为贡献点 id——`unitType` 在 03 §3.6「when 子句上下文键」一节里明确是**上下文键（context key）**，与贡献点（ContributionPoint）是两套不同机制（03 §3.4 专门区分了这一点）。13 号文档这里要么是把两种机制的术语用混了，要么是在提议一个未经 03 §3.6 登记的新贡献点 | `40-modules/13` §3 表格 vs `03-kernel-and-plugin-model.md` §3.4/§3.6 | 如果 M5 实现时照字面意思去 `ctx.contribute(uiContextKeyPoint, …)`，会找不到这个贡献点定义；正确做法应是读取 03 §3.6 登记的 `unitType` 上下文键 |
 
 ### 8.4 服务端进程角色装配覆盖不全（1 项）
 
 | 编号 | 现象 | 证据（出处） | 影响 |
 |---|---|---|---|
-| G-12 | 21 个 Nest 模块中，只有 `CollabModule`/`SnapshotsModule`/`CordisHostModule`（M-09 §7.1）和 `JobsModule`/`ImportExportModule`/`ThumbnailsModule` 的 BullMQ 处理器部分（M-12）被明确关联到具体 `OCE_ROLE`（`api`/`collab`/`worker`）；其余 15 个模块（M-08 的 9 个 + M-12 的 `CommentsModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule`）没有逐模块的角色归属表。`15-server-architecture-review.md` §3.6 本身也记录了这个缺口的一个具体实例：`CommentsModule` 的 `CommentMirrorObserver` 依赖仅 `role=collab` 才激活的 `collabServer`，但 `CommentsModule` 的 REST 部分按惯例应在 `role=api` 下也注册，两者叠加时 `api` 角色进程里 `CommentMirrorObserver` 的降级行为未见任何文档说明；`config/roles.ts`（Nest 侧角色→模块表）与 `cordis-host/preset-server.ts`（cordis 侧角色→插件束）是两套独立维护、2026-09-21 才补上部分一致性断言（`role=collab`/`role=worker` 两种）的开关，尚未覆盖全部 21 个模块 | `40-modules/09` §7.1；`40-modules/15-server-architecture-review.md` §3.6；`40-modules/09` §2（`ServiceMap`/角色一致性断言代码） | 本文 §6.1 表格里 15 个模块的"激活角色"一栏只能写"推断以 `api` 为主"，不是可核对的一手事实；这也解释了为什么 §2 主表把 21 个 Nest 模块的"必需性"一律记 N/A 而非按角色细分必需性——角色粒度的必需性目前没有权威数据源 |
+| G-12 | 21 个（2026-09-24 起为 19 个，删 `TenantsModule`/`GroupsModule`，rulings §4.15）Nest 模块中，只有 `CollabModule`/`SnapshotsModule`/`CordisHostModule`（M-09 §7.1）和 `JobsModule`/`ImportExportModule`/`ThumbnailsModule` 的 BullMQ 处理器部分（M-12）被明确关联到具体 `CORDEX_ROLE`（`api`/`collab`/`worker`）；其余 15 个（2026-09-24 起为 13 个）模块（M-08 的 9 个〔2026-09-24 起 7 个〕 + M-12 的 `CommentsModule`/`WebhooksModule`/`AuditModule`/`HealthModule`/`MetricsModule`/`InternalModule`）没有逐模块的角色归属表。`15-server-architecture-review.md` §3.6 本身也记录了这个缺口的一个具体实例：`CommentsModule` 的 `CommentMirrorObserver` 依赖仅 `role=collab` 才激活的 `collabServer`，但 `CommentsModule` 的 REST 部分按惯例应在 `role=api` 下也注册，两者叠加时 `api` 角色进程里 `CommentMirrorObserver` 的降级行为未见任何文档说明；`config/roles.ts`（Nest 侧角色→模块表）与 `cordis-host/preset-server.ts`（cordis 侧角色→插件束）是两套独立维护、2026-09-21 才补上部分一致性断言（`role=collab`/`role=worker` 两种）的开关，尚未覆盖全部 21 个模块 | `40-modules/09` §7.1；`40-modules/15-server-architecture-review.md` §3.6；`40-modules/09` §2（`ServiceMap`/角色一致性断言代码） | 本文 §6.1 表格里 15 个模块的"激活角色"一栏只能写"推断以 `api` 为主"，不是可核对的一手事实；这也解释了为什么 §2 主表把 21 个 Nest 模块的"必需性"一律记 N/A 而非按角色细分必需性——角色粒度的必需性目前没有权威数据源 |
 
-### 8.5 charter §5.2 的 `package.json#oce` schema 落后于 01/14 号文档的裁定（1 项）
+### 8.5 charter §5.2 的 `package.json#cordex` schema 落后于 01/14 号文档的裁定（1 项）
 
 | 编号 | 现象 | 证据（出处） | 影响 |
 |---|---|---|---|
-| G-15 | charter §5.2 给出的 `package.json#oce` 字段规范只有 4 个键（`layer`/`iso`/`bundle`/`stability`），且明确声明"depcruise 与扫描器以此为唯一元数据来源"；但 `40-modules/01-tooling-and-governance.md` §2.2 已把它扩到 8 个键（新增 `role`/`compositionRoot`/`publicEntry`，`role` 取 `definition\|provider\|consumer\|n/a` 四值，供 depcruise 三角色规则折叠使用），并且这个扩展已经过 `14-cross-module-review.md` §1 C-11 正式裁定落地（"已裁定并落地"）；本文 §2 主表大量引用的 Manifest 片段（如 10 §3 的 `{"layer":"L7","rank":70,...,"role":"library",...}`）用的正是这套扩展后的字段，不是 charter §5.2 原文的 4 键版本 | `00-charter/charter.md` §5.2 末尾代码块 vs `40-modules/01-tooling-and-governance.md` §2.2、`40-modules/14-cross-module-review.md` §1 C-11、`40-modules/10-ui-shell-and-slide-ui.md` §3/§5 多处 Manifest 片段 | 本文任务书要求以 charter §5.2 为必读依据之一；若读者只读 charter 不读 01/14，会得到一份**已被架构评审否决的旧字段规范**，且不知道"唯一元数据来源"这句断言已不成立——这不是本文的新发现，01 号文档自己已经登记为 D-8 并裁定，但 charter 侧尚未回写同步，属于章程与模块文档"谁是唯一事实源"的一处遗留不同步 |
+| G-15 | charter §5.2 给出的 `package.json#cordex` 字段规范只有 4 个键（`layer`/`iso`/`bundle`/`stability`），且明确声明"depcruise 与扫描器以此为唯一元数据来源"；但 `40-modules/01-tooling-and-governance.md` §2.2 已把它扩到 8 个键（新增 `role`/`compositionRoot`/`publicEntry`，`role` 取 `definition\|provider\|consumer\|n/a` 四值，供 depcruise 三角色规则折叠使用），并且这个扩展已经过 `14-cross-module-review.md` §1 C-11 正式裁定落地（"已裁定并落地"）；本文 §2 主表大量引用的 Manifest 片段（如 10 §3 的 `{"layer":"L7","rank":70,...,"role":"library",...}`）用的正是这套扩展后的字段，不是 charter §5.2 原文的 4 键版本 | `00-charter/charter.md` §5.2 末尾代码块 vs `40-modules/01-tooling-and-governance.md` §2.2、`40-modules/14-cross-module-review.md` §1 C-11、`40-modules/10-ui-shell-and-slide-ui.md` §3/§5 多处 Manifest 片段 | 本文任务书要求以 charter §5.2 为必读依据之一；若读者只读 charter 不读 01/14，会得到一份**已被架构评审否决的旧字段规范**，且不知道"唯一元数据来源"这句断言已不成立——这不是本文的新发现，01 号文档自己已经登记为 D-8 并裁定，但 charter 侧尚未回写同步，属于章程与模块文档"谁是唯一事实源"的一处遗留不同步 |
 
 ### 8.6 「移除后果」系统性缺失（1 项，跨多个 Definition）
 

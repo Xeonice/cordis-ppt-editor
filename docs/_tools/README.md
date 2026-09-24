@@ -14,6 +14,6 @@
 
 ## 说明
 
-- `gen-review-site.py` 的源目录默认取本脚本同级的 `../40-modules`，可用环境变量 `OCE_DOCS_SRC` 覆盖；`--preview` 会给页面注入 CDN 版 mermaid 以便本地预览（发布用的产物不注入，由宿主原生渲染）。
+- `gen-review-site.py` 的源目录默认取本脚本同级的 `../40-modules`，可用环境变量 `CORDEX_DOCS_SRC` 覆盖；`--preview` 会给页面注入 CDN 版 mermaid 以便本地预览（发布用的产物不注入，由宿主原生渲染）。
 - 评审站发布为 claude.ai artifact；链接是账号级的，换机器登录同一账号即可访问与更新。
 - 三个脚本都只读仓库内容，`validate-module.py` 是唯一会写回的（只展开「同上」简写）。

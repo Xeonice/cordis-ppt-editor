@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18 | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
 
 # 03 幻灯片领域模型（限界上下文 BC-06 幻灯片领域模型）
 
@@ -8,10 +8,10 @@
 |---|---|
 | 职责一句话 | 幻灯片对象模型（Presentation/Master/Layout/Slide/Shape 树/TextBody/Theme）的归一化实体表、幻灯片 Mutation 与 Command、样式继承链纯函数、母版/版式/主题引用完整性不变量与 `reassignTo` 语义、`slides` 只读服务 |
 | 覆盖的上下文 | BC-06 幻灯片领域模型 |
-| 承载包 / 目录 | `@oce/model-slide`（层带 V-model，秩 15，iso），`packages/model-slide/src/` |
+| 承载包 / 目录 | `@cordexjs/model-slide`（层带 V-model，秩 15，iso），`packages/model-slide/src/` |
 | cordis 形态 | plugin（主插件只读部分 + `editing` 编辑子插件，两段式加载） |
 | 运行位置 | 两端（浏览器 + `server-headless` 的 Node cordis 宿主加载同一份源码） |
-| 上游（依赖） | M-02（`@oce/kernel`/`@oce/shared`/`@oce/model-core`：`DocumentType`、`DocumentStore`/`StoreOp`、Command/Mutation/Operation 三分法、`Snapshot`/`Persisted<T>`、`ResourceHook`、`permissions`、`drawing/` 共享绘图词汇） |
+| 上游（依赖） | M-02（`@cordexjs/kernel`/`@cordexjs/shared`/`@cordexjs/model-core`：`DocumentType`、`DocumentStore`/`StoreOp`、Command/Mutation/Operation 三分法、`Snapshot`/`Persisted<T>`、`ResourceHook`、`permissions`、`drawing/` 共享绘图词汇） |
 | 下游（被依赖） | M-04（`ooxml-pptx` 对本包做 ACL）、M-07（`slide-render` 读 `slides` 服务）、M-10（`slide-ui` 消费命令与只读服务）、M-11（预设装配挂载本包）、M-13（`model-doc`/`model-sheet` 的样板） |
 | 对外服务 | `ctx.slides`（UnitScope 内，只读投影 + 便捷命令封装，见 04 §3.4） |
 | 贡献点 | 提供：`slide.shapeKind`；向 BC-05 贡献条目：`core.documentType`（1 个：`slide`）、`core.mutation`（46 个，M3 起 47 个，§2.6）、`core.command`（73 个，含 4 个 Operation，§2.6；14 §1 C-03 新增 18 个后由 55 上修，1 个即 `slide.setNotes` 待 M3）、`core.migration`（M1 为空表但注册） |
@@ -26,7 +26,7 @@
 flowchart LR
   m02["M-02 内核与文档内核"]
   subgraph bc06["BC-06 幻灯片领域模型"]
-    pkgModelSlide["@oce/model-slide"]
+    pkgModelSlide["@cordexjs/model-slide"]
   end
   m04["M-04 ooxml-pptx 编解码"]
   m07["M-07 slide-render 幻灯片渲染"]
@@ -102,12 +102,17 @@ flowchart LR
 | `SlideMaster` | `MasterId` | `themeId ∈ themes`（I-ML4）；被 ≥1 母版引用的主题不可裸删（I-ML6 反向） | 新增/删除为顶层键 LWW；A 删除母版与 B 同时把某版式指向该母版 → I-ML3 兜底（下一行） |
 | `SlideLayout` | `LayoutId` | `masterId ∈ masters`（I-ML3） | A 删除版式（已确认，无 `reassignTo` 时 fail-closed 拒绝，见 §2.6）与 B 同时把页 `layoutId` 指向该版式并发收敛后悬空 → **I-ML2 兜底**：重指该母版首个版式并 `materialize` 占位符（04 §12.3、05 §13.4 场景 1） |
 | `Slide` | `SlideId` | `layoutId ∈ layouts`（I-ML2） | `order`/`layoutId` 单键 LWW；同位并发插入按 `(order, id)` 全序（ADR-0032），无需 rebase |
-| `Shape`（判别联合） | `ShapeId` | `containerId` 存在、`parentId` 同容器（I-ML8）；占位符引用有效（I-ML7 软） | `order`+`parentId` 单键 LWW（移动/换组/调 z 序皆是 `set`，ADR-0032）；A 重置占位符覆盖与 B 移动同占位符并发 → 同键 LWW，双方各自可撤销自己的部分（05 §13.4 场景 2） |
+| `Shape`（判别联合） | `ShapeId` | `containerId` 存在、`parentId` 同容器（I-ML8）；占位符引用有效（I-ML7 软） | `order`+`parentId` 单键 LWW（移动/换组/调 z 序皆是 `set`，ADR-0032）；A 重置占位符覆盖与 B 移动同占位符并发 → 同键 LWW，双方各自可撤销自己的部分（05 §13.4 场景 2）；删除为**软删除**（`_deleted` 墓碑，rulings §4.15 Q3）：A 删除与 B 编辑并发 → B 的编辑保留在墓碑实体上，A 撤销删除即带着 B 的编辑恢复；A 撤销时若同一键已被 B 后写则跳过并提示（M-02 §2.5） |
 | `Theme` | `ThemeId` | 至少被一个母版引用（I-ML6，否则诊断 `THEME_UNREFERENCED_DROPPED`） | `colorScheme`/`fontScheme` **逐槽位**（12 槽 / 4 槽）LWW，非整对象覆盖（05 §13.1 `setColors`/`setFonts`） |
 | `MediaRef` | `MediaId` | 无孤儿校验（共享目标保留，04 §5.2） | `BlobRef` 内容寻址，不可变、天然无冲突 |
 | `OpaquePartRef`（`opaqueParts` 表） | `PartName`（string） | 不校验，透传 | 整键 LWW；删除页时级联清理其独占 opaque part，共享目标保留 |
 
 **`reassignTo` 与悬空引用兜底的分工**（04 §12.3 末段、05 §13.2/§13.4）：命令层是**第一道 fail-closed 前置**——`slide.deleteLayout`/`slide.deleteMaster` 在目标被引用且未提供 `reassignTo` 时直接返回 `err(LAYOUT_IN_USE | MASTER_IN_USE)`，不产生事务；提供 `reassignTo` 时，重指引用页与删除动作在**同一个事务**内完成（可一次撤销）。不变量 `I-ML2`/`I-ML3` 是**第二道兜底**——只在命令层前置被绕过的场景生效：(a) 协同并发（A 删除已确认、B 同时施加引用，CRDT 合并后才出现悬空）；(b) 服务端软门禁批量修复（ADR-0034，import/migrate 路径不经命令层）。两道机制的重指目标选取函数必须是**同一个纯函数**（当前定义为「该母版首个版式」），否则用户确认对话框里承诺的行为与实际收敛结果会不一致。
+
+**软删除墓碑与规模上限（rulings §4.15 Q3/Q5）**：
+- **墓碑**：`slides`/`shapes`/`layouts`/`masters`/`themes` 五张实体表的删除一律写 `_deleted: Tombstone`（M-02 `store/tombstone.ts`），实体 id 稳定、行不移除；级联删除（删页连带其形状、删版式连带其形状、删母版连带版式与形状）对每个被级联实体各写一个墓碑，撤销时一并清除。独占 opaque part（备注页、图表部件等）的级联清理推迟到服务端 TTL 硬删除（默认 24h，M-09 单写者执行）；导出（M-04）与渲染（M-07）经 `filterLive()` 视墓碑实体为不存在。
+- **读路径过滤**：`domain/query/selectors.ts`/`traverse.ts` 的全部公开选择器默认只返回存活实体；不变量 I-ML2…I-ML8 把「引用指向墓碑实体」视同悬空（按既有 repair 规则处理）。只有 `element-limits.ts` 的计数与协同/快照路径读原始表。
+- **规模上限（部署可调）**：`maxSlides` 200、`maxElementsPerSlide` 1,000、`maxElementsPerDoc` 20,000（软警告 15,000）为默认值，来自部署配置、可完全调整（超出性能保证包络时告警，性能承诺不再成立）。**计数口径**：`shapes` 表全部行（含母版/版式上的形状、组合形状本身与其每个子形状各计 1），**墓碑计入**；`maxSlides` 计 `slides` 表全部行（含墓碑）。命令层守卫：会新增实体的命令（`addSlide`/`duplicateSlide`/`insertShape`/`insertPicture`/`insertTable`/`pasteShapes`/`insertLayout`/`insertMaster`/`applyLayout` 的占位符 `materialize` 等）在 `transact` 前按「提交后计数」判定，超限返回 `err(SLIDE_LIMIT_EXCEEDED \| ELEMENT_LIMIT_EXCEEDED)` 且无事务——两常量映射到 protocol 错误码 `document.quota_exceeded`（常量 `DOCUMENT_QUOTA_EXCEEDED`，M-02 `errors/codes.ts`；详情 `{dimension, limit, actual}`，HTTP 409，命令守卫拒绝、**不关连接**，rulings §4.17 D2）：`SLIDE_LIMIT_EXCEEDED` → `dimension:'slides'`，`ELEMENT_LIMIT_EXCEEDED` → `dimension:'elementsPerSlide'`（单页超限）或 `'elementsTotal'`（文档总元素超限）；达软警告线时命令成功但附诊断。不变量层 `I-LIM1` 只报告（协同并发合并后可能越线），**不 repair**（不能替用户删内容）。超包络导入由 M-04 在解析期直接拒绝（`format.quota_exceeded`，与本段 `document.quota_exceeded`、存储侧 `storage.quota_exceeded` 三码并列），不进入本包。
 
 **图 2-1 幻灯片领域对象关系**
 
@@ -170,7 +175,7 @@ classDiagram
 | `BodyProperties`/`ParagraphProperties`/`RunProperties`/`ListStyle`/`Bullet` | 见 04 §3.2 | zod（各字段可选，继承） | `domain/model/text/*.ts` | 本包（TextBody 骨架来自 drawing，段落/字符级细化在本包） |
 | `DocumentProperties` | `core`（建模）+ `app`/`custom`: `OpaquePartRef` | zod | `domain/model/properties.ts` | 本包 |
 | `OoxmlIds` | `{ cNvPrId?: number; creationId?: string }` | zod | `src/ids.ts` | 本包（ADR-0014，OOXML id 作数据保留） |
-| `FracKey` | base62 字符串 + 随机后缀；`between(a?,b?)`/`compareOrder` | 品牌类型，非 zod（构造函数校验） | `@oce/shared/order.ts`（引用，不重定义） | Shared Kernel |
+| `FracKey` | base62 字符串 + 随机后缀；`between(a?,b?)`/`compareOrder` | 品牌类型，非 zod（构造函数校验） | `@cordexjs/shared/order.ts`（引用，不重定义） | Shared Kernel |
 
 ### 2.3 领域服务
 
@@ -232,19 +237,19 @@ charter §5.5 与 module-map BC-06 行只登记前 5 个事件（面向页/形�
 
 ### 2.6 应用服务与命令
 
-**能力位与逆操作的通用规则（不逐行重复）**：全部幻灯片 `MutationDef` 均未覆盖 `permission()`，能力位继承发起它的 Command（下表「能力位」列）；全部 Mutation 的逆操作**均为 Store 推导**（ADR-0007，05 §5：`set`→`set(旧值)`/`delete`、`insert`→`remove`、`text`→`invert(delta)`），无一手写 `inverse`/`undo` 字段（`MutationDef.schema` 为 `strictObject`，出现即校验失败）。事务边界由发起的 Command 决定（见 Command 表「事务边界」列）；Mutation 本身不能独立于事务存在。
+**能力位与逆操作的通用规则（不逐行重复）**：全部幻灯片 `MutationDef` 均未覆盖 `permission()`，能力位继承发起它的 Command（下表「能力位」列）；全部 Mutation 的逆操作**均为 Store 推导**（ADR-0007，05 §5：`set`→`set(旧值)`/`delete`、`insert`→`remove`、`text`→`invert(delta)`），无一手写 `inverse`/`undo` 字段。**所有 `.remove` 类 Mutation 的 `lower()` 产出 `set(<实体路径>._deleted, Tombstone)`**（级联实体逐个写），不再对实体行发 `delete`；其逆操作自然是 `delete(<实体路径>._deleted)`（rulings §4.15 Q3，`StoreOp` 仍 5 种）（`MutationDef.schema` 为 `strictObject`，出现即校验失败）。事务边界由发起的 Command 决定（见 Command 表「事务边界」列）；Mutation 本身不能独立于事务存在。
 
 **Mutation 清单**（按文件分组；type id 为三段式 `slide.<entity>.<verb>`，扫描器 `command-id-format` 校验）：
 
 | 文件 | type id | 参数要点（草案） | `lower()` 要点 |
 |---|---|---|---|
-| `mutations/slide.ts` | `slide.slide.insert`/`.remove`/`.setOrder`/`.setHidden`/`.setBackground` | `{slide: Slide}`（含 `order`）/`{slideIds}`/`{slideId;order:FracKey}`/`{slideId;hidden}`/`{slideId;background}` | 各自 `set(['slides',id],...)`；`remove` 级联清理独占 `notesId`/图表等 opaque part（04 §5.2） |
+| `mutations/slide.ts` | `slide.slide.insert`/`.remove`/`.setOrder`/`.setHidden`/`.setBackground` | `{slide: Slide}`（含 `order`）/`{slideIds}`/`{slideId;order:FracKey}`/`{slideId;hidden}`/`{slideId;background}` | 各自 `set(['slides',id],...)`；`remove` 写页及其形状的墓碑，独占 `notesId`/图表等 opaque part 的清理推迟到服务端 TTL 硬删除（04 §5.2、rulings §4.15 Q3） |
 | `mutations/shape.ts` | `shape.insert`/`.remove`/`.setOrder`/`.setTransform`/`.setProperties`/`.setStyle`/`.group`/`.ungroup` | `{shape:Shape}`（含 `containerId/parentId/order`）/`{shapeIds}`/`{shapeId;order:FracKey;parentId?}`/`{shapeId;transform}`/`{shapeId;patch:Partial<ShapeProperties>}`/… | `set(['shapes',id],...)`；`setOrder` 单键（+ 可选 `parentId`，进出组）；无数组下标（ADR-0013） |
 | `mutations/text.ts` | `text.applyDelta`/`paragraph.setProperties`/`run.setProperties`/`textBody.setBodyProperties` | `{shapeId;paragraph?;delta:TextDelta}`/`{shapeId;paragraph;patch}`/`{shapeId;paragraph;run;patch}`/`{shapeId;patch}` | `text(['shapes',id,'textBody',...], delta)`；属性类走 `set` |
 | `mutations/table.ts` | `table.insertRow`/`.removeRow`/`.insertColumn`/`.removeColumn`/`.setCellProperties`/`.merge`/`.split` | `{shapeId; at: FracKey 或行列引用}`… | `insert`/`remove`（原子列表，`Table.columnWidths`/`rows`）；单元格属性 `set` |
 | `mutations/media.ts` | `media.add` | `{mediaId; blob: BlobRef; contentType}` | `set(['media',id], ref)`（BlobRef 注册，不含字节） |
-| `mutations/layout.ts` | `layout.insert`/`.remove`/`.setName`/`.setOrder`/`.setProperties`/`.setBackground`；`slide.setLayout`（携带 `remap`）；`shape.clearOverrides`/`shape.setPlaceholder` | `{layout:SlideLayout;shapes:Shape[]}`/`{layoutId}`（前置：无页引用）/`{layoutId;name}`/…/`{slideId;layoutId;remap:PlaceholderRemap[]}`（05 §13.1）/`{shapeId;fields:InheritableField[]}`/`{shapeId;placeholder\|null}` | `remove` 级联删除 `containerId==layoutId` 的形状（读视图枚举）；`clearOverrides` 逐字段 `delete`（重置=恢复继承） |
-| `mutations/master.ts` | `master.insert`/`.remove`/`.setOrder`/`.setTheme`/`.setProperties`/`.setBackground`/`.setTextStyle` | `{master;layouts;shapes;theme?}`/`{masterId}`（前置：无版式被引用）/…/`{masterId;kind:'title'\|'body'\|'other';level:0..8;patch}` | `remove` 级联版式与形状；`setTextStyle` 合并在 `lower` 内按当前视图计算（确定性，05 §13.1） |
+| `mutations/layout.ts` | `layout.insert`/`.remove`/`.setName`/`.setOrder`/`.setProperties`/`.setBackground`；`slide.setLayout`（携带 `remap`）；`shape.clearOverrides`/`shape.setPlaceholder` | `{layout:SlideLayout;shapes:Shape[]}`/`{layoutId}`（前置：无页引用）/`{layoutId;name}`/…/`{slideId;layoutId;remap:PlaceholderRemap[]}`（05 §13.1）/`{shapeId;fields:InheritableField[]}`/`{shapeId;placeholder\|null}` | `remove` 对版式及 `containerId==layoutId` 的形状逐个写墓碑（读视图枚举）；`clearOverrides` 逐字段 `delete`（重置=恢复继承） |
+| `mutations/master.ts` | `master.insert`/`.remove`/`.setOrder`/`.setTheme`/`.setProperties`/`.setBackground`/`.setTextStyle` | `{master;layouts;shapes;theme?}`/`{masterId}`（前置：无版式被引用）/…/`{masterId;kind:'title'\|'body'\|'other';level:0..8;patch}` | `remove` 对母版、其版式与形状逐个写墓碑；`setTextStyle` 合并在 `lower` 内按当前视图计算（确定性，05 §13.1） |
 | `mutations/theme.ts` | `theme.insert`/`.remove`/`.setColors`/`.setFonts` | `{theme:Theme}`/`{themeId}`（前置：无母版引用）/`{themeId;colors:Partial<ColorScheme>}`/`{themeId;fonts:Partial<FontScheme>}` | `setColors`/`setFonts` **逐槽位** `set(['themes',id,'colorScheme',slot])`，非整体覆盖 |
 | `mutations/lower.ts` | （非 Mutation 定义，工具） | — | `bodyPath.slides(id).shapes…` 路径构造辅助，供以上全部 `lower()` 复用（ADR-0013） |
 
@@ -336,13 +341,13 @@ flowchart TB
 
 ## 3. cordis 插件定义
 
-本包导出两个插件，两段式加载（ADR-0015 只读双保险之一）：`@oce/model-slide`（主插件，只读部分）与 `@oce/model-slide/editing`（编辑子插件，独立 chunk）；`preset-slide-viewer` 只加载前者。
+本包导出两个插件，两段式加载（ADR-0015 只读双保险之一）：`@cordexjs/model-slide`（主插件，只读部分）与 `@cordexjs/model-slide/editing`（编辑子插件，独立 chunk）；`preset-slide-viewer` 只加载前者。
 
-**主插件 `@oce/model-slide`**
+**主插件 `@cordexjs/model-slide`**
 
 | 项 | 值 |
 |---|---|
-| 插件名 / `name` | `@oce/model-slide` |
+| 插件名 / `name` | `@cordexjs/model-slide` |
 | `inject`（必需） | `['contributions', 'documentTypes']` |
 | `provide` | 无（`slides` 服务经 `unitPlugins` 在 UnitScope 内按 Unit 挂载，非根 `provide`） |
 | 贡献点：提供 | `core.documentType`（key `'slide'`，载荷 `DocumentType<PresentationBody>`，`conflict:'error'`）；`core.migration`（M1 空表但注册，A23）；`slide.shapeKind`（内建 `sp`/`pic`/`grpSp`/`cxnSp`/`graphicFrame:table`/`graphicFrame:chart`/`graphicFrame:ole`/`graphicFrame:diagram`/`unknown` 共 9 项） |
@@ -351,28 +356,28 @@ flowchart TB
 | 事件：订阅 | `store/transaction`（每 Unit 内部，驱动样式缓存失效与 §2.4 事件派生；非跨包订阅） |
 | 配置 schema | 无专属 Config |
 | 生命周期 | `ready`：向 `core.documentType`/`slide.shapeKind` 注册（Fiber effect，卸载自动撤销，ADR-0006）；`dispose`：随 Fiber 清理，无手工资源；不依赖任何 `PENDING` 服务 |
-| Manifest 片段 | `{"name":"@oce/model-slide","provides":[],"contributes":{"core.documentType":["slide"],"slide.shapeKind":["sp","pic","grpSp","cxnSp","graphicFrame:table","graphicFrame:chart","graphicFrame:ole","graphicFrame:diagram","unknown"]},"isomorphism":"iso"}` |
+| Manifest 片段 | `{"name":"@cordexjs/model-slide","provides":[],"contributes":{"core.documentType":["slide"],"slide.shapeKind":["sp","pic","grpSp","cxnSp","graphicFrame:table","graphicFrame:chart","graphicFrame:ole","graphicFrame:diagram","unknown"]},"isomorphism":"iso"}` |
 
-**编辑子插件 `@oce/model-slide/editing`**
+**编辑子插件 `@cordexjs/model-slide/editing`**
 
 | 项 | 值 |
 |---|---|
-| 插件名 / `name` | `@oce/model-slide/editing`（子路径导出） |
+| 插件名 / `name` | `@cordexjs/model-slide/editing`（子路径导出） |
 | `inject`（必需） | `['contributions', 'commands']` |
 | `provide` | 无 |
 | 贡献点：提供 | `core.mutation`（46 个，M3 起 47 个，key=`type`，见 §2.6）；`core.command`（73 个，含 4 个 Operation，key=`id`，见 §2.6；14 §1 C-03） |
 | 贡献点：消费 | 无 |
 | 事件：发布 / 订阅 | 无独立（命令执行的 `command/*` 由 M-02 `commands` 服务发出） |
-| 配置 schema | 无 |
+| 配置 schema | `Config{ limits: { maxSlides: 200; maxElementsPerSlide: 1000; maxElementsPerDoc: 20000; softWarnElementsPerDoc: 15000 } }`——默认值为性能保证包络，宿主从部署配置注入、可完全调整（rulings §4.15 Q5）；只被命令层守卫读取 |
 | 生命周期 | `ready` 时批量 `ctx.contribute(core.mutation, m)`/`ctx.contribute(core.command, c)`；`preset-slide-viewer` **不加载本插件**——即使命令管线被绕过调用，`core.mutation`/`core.command` 表里也不存在任何幻灯片写操作（ADR-0015 两道只读保证之一，另一道见 09-04） |
-| Manifest 片段 | `{"name":"@oce/model-slide/editing","provides":[],"contributes":{"core.mutation":["slide.slide.insert","…"],"core.command":["slide.addSlide","…"]},"isomorphism":"iso"}` |
+| Manifest 片段 | `{"name":"@cordexjs/model-slide/editing","provides":[],"contributes":{"core.mutation":["slide.slide.insert","…"],"core.command":["slide.addSlide","…"]},"isomorphism":"iso"}` |
 
 **图 3-1 贡献点与服务流向**
 
 ```mermaid
 flowchart LR
-  pluginMain["@oce/model-slide 主插件"]
-  pluginEditing["@oce/model-slide/editing 编辑子插件"]
+  pluginMain["@cordexjs/model-slide 主插件"]
+  pluginEditing["@cordexjs/model-slide/editing 编辑子插件"]
   pointDocType["core.documentType 条目 slide"]
   pointShapeKind["slide.shapeKind 九项内建"]
   pointMutation["core.mutation 46 或 47 个"]
@@ -394,7 +399,7 @@ flowchart LR
 
 ```text
 packages/model-slide/
-├── package.json                      # oce: { layer:'V-model', bundle:'slide', iso:'iso', role:'plugin', stability:'beta' }
+├── package.json                      # cordex: { layer:'V-model', bundle:'slide', iso:'iso', role:'plugin', stability:'beta' }
 ├── tsconfig.json
 ├── tsconfig.test.json
 ├── vitest.config.ts
@@ -403,7 +408,7 @@ packages/model-slide/
 │   └── model-slide.api.md
 ├── README.md
 ├── CHANGELOG.md
-├── oce-manifest.json                 # 构建产物（src/manifest.ts 序列化）
+├── cordex-manifest.json                 # 构建产物（src/manifest.ts 序列化）
 ├── src/
 │   ├── index.ts                      # 公共 API 面（§6）
 │   ├── plugin.ts                     # 主插件：只读部分（§3）
@@ -412,7 +417,7 @@ packages/model-slide/
 │   ├── slide.contribution.ts         # declare module 增强 + 贡献点/事件声明
 │   ├── ids.ts                        # 品牌 id（MasterId/LayoutId/…）+ OoxmlIds
 │   ├── events.ts                     # 事件名常量（§2.4）
-│   ├── errors.ts                     # 错误码：LAYOUT_IN_USE(slide.layout_in_use)/MASTER_IN_USE(slide.master_in_use)/PLACEHOLDER_LIMIT_EXCEEDED(slide.placeholder_limit_exceeded)…（TS 常量 UPPER_SNAKE、值点式，14 §1 C-16 通则，域=slide）
+│   ├── errors.ts                     # 错误码：LAYOUT_IN_USE(slide.layout_in_use)/MASTER_IN_USE(slide.master_in_use)/PLACEHOLDER_LIMIT_EXCEEDED(slide.placeholder_limit_exceeded)/SLIDE_LIMIT_EXCEEDED、ELEMENT_LIMIT_EXCEEDED(→document.quota_exceeded{dimension}，§4.17 D2)…（TS 常量 UPPER_SNAKE、值点式，14 §1 C-16 通则，域=slide）
 │   ├── domain/                       # 聚合 / 实体 / 值对象 / 领域服务 / 领域事件类型（DDD domain 层）
 │   │   ├── model/                    # 归一化实体表与判别联合（聚合根 + 实体 + 值对象）
 │   │   │   ├── index.ts              # PresentationBody 与全部实体类型的桶导出
@@ -476,7 +481,8 @@ packages/model-slide/
 │   │   │   ├── selectors.ts
 │   │   │   └── traverse.ts
 │   │   ├── invariants/               # 领域服务：引用完整性不变量（ADR-0034 的 slide 实例）
-│   │   │   ├── index.ts              # I-ML2…I-ML8 + 基础不变量（无环/order 合法）
+│   │   │   ├── index.ts              # I-ML2…I-ML8 + 基础不变量（无环/order 合法）+ I-LIM1
+│   │   │   ├── element-limits.ts     # SlideLimits、countElements()（墓碑计入）、checkLimits()（§4.15 Q5）
 │   │   │   └── validate-change-set.ts
 │   │   ├── shape-kind/               # slide.shapeKind 贡献点定义与内建注册
 │   │   │   ├── shape-kind.point.ts
@@ -528,17 +534,17 @@ packages/model-slide/
 │       └── invariants-repair.test.ts     # property：随机破坏 body → repair 一次即 check 为空、再次无变化
 ```
 
-每个顶层目录一句职责：`domain/` 不依赖 `application`/`infrastructure`/`interface`（只依赖 M-02 的类型与 `@oce/shared`）；`application/` 依赖 `domain/`，产出 `MutationDef[]`/`CommandDef[]`；`infrastructure/` 依赖 `domain/`+`application/`，组装成 `DocumentType` 贡献；`interface/` 依赖 `domain/`（只读查询），不依赖 `application/` 的命令实现细节（`exec.*` 走 `ctx.commands.execute`，不直接调用 handler）；`testing/` 依赖以上全部，供包外契约测试与夹具复用。
+每个顶层目录一句职责：`domain/` 不依赖 `application`/`infrastructure`/`interface`（只依赖 M-02 的类型与 `@cordexjs/shared`）；`application/` 依赖 `domain/`，产出 `MutationDef[]`/`CommandDef[]`；`infrastructure/` 依赖 `domain/`+`application/`，组装成 `DocumentType` 贡献；`interface/` 依赖 `domain/`（只读查询），不依赖 `application/` 的命令实现细节（`exec.*` 走 `ctx.commands.execute`，不直接调用 handler）；`testing/` 依赖以上全部，供包外契约测试与夹具复用。
 
 ## 5. 文件职责表
 
-> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@oce/kernel`/`@oce/shared`（全部文件隐式可用，除 `domain/model/**` 类型文件不引入 `@oce/kernel`）。测试文件另见 §9。
+> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@cordexjs/kernel`/`@cordexjs/shared`（全部文件隐式可用，除 `domain/model/**` 类型文件不引入 `@cordexjs/kernel`）。测试文件另见 §9。
 
 **根配置（9）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `package.json` | 包元数据与 `oce` 字段 | — | — | `layer:'V-model' bundle:'slide' iso:'iso' role:'plugin'` |
+| `package.json` | 包元数据与 `cordex` 字段 | — | — | `layer:'V-model' bundle:'slide' iso:'iso' role:'plugin'` |
 | `tsconfig.json` | extends `tooling/tsconfig/iso.json` | — | — | `isolatedDeclarations:true` |
 | `tsconfig.test.json` | 测试专用 tsconfig | — | — | include `__tests__`/`testing` |
 | `vitest.config.ts` | 测试运行配置 | — | — | environment: node（iso 包） |
@@ -546,7 +552,7 @@ packages/model-slide/
 | `etc/model-slide.api.md` | api-extractor 基线报告 | — | — | 入库，PR diff 必审 |
 | `README.md` | 包职责与公共 API 概览 | — | — | manifest-gen 写入标记区 |
 | `CHANGELOG.md` | 版本记录 | — | — | Changesets 生成 |
-| `oce-manifest.json` | 静态插件清单产物 | — | — | 由 `src/manifest.ts` 序列化 |
+| `cordex-manifest.json` | 静态插件清单产物 | — | — | 由 `src/manifest.ts` 序列化 |
 
 **`src/` 顶层（8）**
 
@@ -556,10 +562,10 @@ packages/model-slide/
 | `src/plugin.ts` | 主插件（只读部分） | `name/inject/provide/apply` | `infrastructure/document-type`、`domain/shape-kind` | §3 |
 | `src/editing.ts` | 编辑子插件 | `name/inject/apply` | `application/mutations (index)`、`application/commands (index)` | 子路径 `./editing`，独立 chunk |
 | `src/manifest.ts` | 生成物 | `manifest: Manifest` | — | 头部标记 generated |
-| `src/slide.contribution.ts` | `declare module '@oce/kernel'` 增强 + 贡献点导出 | `Context.slides`、`Events`、`ShapeKindPoint` | `domain/shape-kind/shape-kind.point` | 无运行时 import（lint `contribution-file-purity`） |
-| `src/ids.ts` | 品牌 id 与 OOXML id 类型 | `MasterId/LayoutId/SlideId/ShapeId/ThemeId/MediaId/NotesId`、`OoxmlIds` | `@oce/shared`（`NodeId`/`Brand`） | 基于 `NodeId` 细分 |
+| `src/slide.contribution.ts` | `declare module '@cordexjs/kernel'` 增强 + 贡献点导出 | `Context.slides`、`Events`、`ShapeKindPoint` | `domain/shape-kind/shape-kind.point` | 无运行时 import（lint `contribution-file-purity`） |
+| `src/ids.ts` | 品牌 id 与 OOXML id 类型 | `MasterId/LayoutId/SlideId/ShapeId/ThemeId/MediaId/NotesId`、`OoxmlIds` | `@cordexjs/shared`（`NodeId`/`Brand`） | 基于 `NodeId` 细分 |
 | `src/events.ts` | 事件名常量 | 与 `slide.contribution.ts` 一致的字符串字面量表 | — | 扫描器 `events-declared` 校验 |
-| `src/errors.ts` | 本包错误码 | `LAYOUT_IN_USE`/`MASTER_IN_USE`/`PLACEHOLDER_LIMIT_EXCEEDED`/`PLACEHOLDER_TYPE_INCOMPATIBLE` | `@oce/kernel`（`defineErrors`） | §2.6 命令 fail-closed 路径引用；点式值（14 §1 C-16 通则）：`slide.layout_in_use`/`slide.master_in_use`/`slide.placeholder_limit_exceeded`/`slide.placeholder_type_incompatible` |
+| `src/errors.ts` | 本包错误码 | `LAYOUT_IN_USE`/`MASTER_IN_USE`/`PLACEHOLDER_LIMIT_EXCEEDED`/`PLACEHOLDER_TYPE_INCOMPATIBLE`/`SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` | `@cordexjs/kernel`（`defineErrors`） | §2.6 命令 fail-closed 路径引用；点式值（14 §1 C-16 通则）：`slide.layout_in_use`/`slide.master_in_use`/`slide.placeholder_limit_exceeded`/`slide.placeholder_type_incompatible`；`SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED`（rulings §4.15 Q5 编辑期守卫）**不另立点式值**（原 `slide.slide_limit_exceeded`/`slide.element_limit_exceeded` 作废），映射到 protocol 错误码 `document.quota_exceeded`（常量 `DOCUMENT_QUOTA_EXCEEDED`，M-02 `errors/codes.ts`；详情 `{dimension, limit, actual}`，HTTP 409，命令守卫拒绝、**不关连接**，rulings §4.17 D2）：`SLIDE_LIMIT_EXCEEDED` → `dimension:'slides'`，`ELEMENT_LIMIT_EXCEEDED` → `dimension:'elementsPerSlide'`（单页超限）或 `'elementsTotal'`（文档总元素超限）；二者是本包的映射常量而非独立错误码，故不违反 C-16「值全文件唯一」；导入期超包络是 M-04 的 `format.quota_exceeded`，不在本包 |
 
 **`domain/model/`（12，实体表与聚合根）**
 
@@ -573,27 +579,27 @@ packages/model-slide/
 | `domain/model/slide.ts` | 页实体 | `Slide` | `common-slide-data` | `hidden`/`notesId?` |
 | `domain/model/common-slide-data.ts` | 页/版式/母版共用容器数据 | `CommonSlideData` | `drawing/background` | 形状不在此（按 `containerId` 反查） |
 | `domain/model/theme.ts` | 主题实体 | `Theme`、`ColorMap` | `drawing (re-export)` | 12 槽色板 + 字体方案 |
-| `domain/model/media.ts` | 媒体引用 | `MediaRef` | `@oce/model-core`（`BlobRef`） | 不含字节 |
+| `domain/model/media.ts` | 媒体引用 | `MediaRef` | `@cordexjs/model-core`（`BlobRef`） | 不含字节 |
 | `domain/model/properties.ts` | 文档属性 | `DocumentProperties` | `extensions.ts` | `app`/`custom` 为 `OpaquePartRef` |
-| `domain/model/extensions.ts` | 不透明槽类型 | `OpaqueSlot`、`OpaqueXml`、`OpaquePartRef` | `@oce/model-core`（`drawing/opaque` re-export） | 全部已建模实体持有 |
-| `domain/model/derived.ts` | 派生字段清单 | 标注集合（文档用途，非运行时） | `@oce/model-core`（`Derived<T>`） | 04 §7 |
+| `domain/model/extensions.ts` | 不透明槽类型 | `OpaqueSlot`、`OpaqueXml`、`OpaquePartRef` | `@cordexjs/model-core`（`drawing/opaque` re-export） | 全部已建模实体持有 |
+| `domain/model/derived.ts` | 派生字段清单 | 标注集合（文档用途，非运行时） | `@cordexjs/model-core`（`Derived<T>`） | 04 §7 |
 
 **`domain/model/shape/`（13，形状判别联合）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `shape/shape.ts` | 形状判别联合 + 公共基形 | `Shape`、`ShapeBase` | `non-visual.ts`、各 kind 文件、`@oce/shared`（`FracKey`） | `kind` 为判别字段 |
-| `shape/non-visual.ts` | 非可视属性 | `NonVisualProps`、`ShapeLocks` | `@oce/model-core`（`Hyperlink`） | `placeholder?: PlaceholderRef` |
+| `shape/shape.ts` | 形状判别联合 + 公共基形 | `Shape`、`ShapeBase` | `non-visual.ts`、各 kind 文件、`@cordexjs/shared`（`FracKey`） | `kind` 为判别字段 |
+| `shape/non-visual.ts` | 非可视属性 | `NonVisualProps`、`ShapeLocks` | `@cordexjs/model-core`（`Hyperlink`） | `placeholder?: PlaceholderRef` |
 | `shape/sp.ts` | 普通形状 | `Sp` | `drawing/shape-properties`、`drawing/shape-style`、`text/text-body` | `useBackgroundFill` |
 | `shape/pic.ts` | 图片形状 | `Pic`、`BlipFill` | `media.ts` | `sourceRect?`/`stretch\|tile` |
-| `shape/grp-sp.ts` | 组合形状 | `GrpSp`、`GroupTransform` | `@oce/model-core`（`Transform`） | 子形状按 `parentId` 反查，无 `childIds` |
+| `shape/grp-sp.ts` | 组合形状 | `GrpSp`、`GroupTransform` | `@cordexjs/model-core`（`Transform`） | 子形状按 `parentId` 反查，无 `childIds` |
 | `shape/cxn-sp.ts` | 连接线 | `CxnSp` | `shape.ts`（`ShapeId` 引用） | `startConnection?/endConnection?` |
 | `shape/graphic-frame.ts` | 图形容器 | `GraphicFrame` | `table.ts`/`chart.ts`/`ole.ts`/`diagram.ts` | `graphic` 判别联合 |
 | `shape/table.ts` | 表格 | `Table`、`TableRow`、`TableCell` | `text/text-body` | `columnWidths: Emu[]` 原子列表 |
 | `shape/chart.ts` | 图表占位 | `Chart` | `extensions.ts`（`OpaquePartRef`） | M1–M2 不透明，M3 起 `data`（ED-15） |
-| `shape/ole.ts` | OLE 嵌入 | `Ole` | `extensions.ts`、`media.ts` | `progId`/`preview?` |
-| `shape/diagram.ts` | SmartArt | `Diagram` | `extensions.ts` | `fallbackShapeIds?` |
-| `shape/unknown.ts` | 未知形状兜底 | `UnknownShape` | `extensions.ts` | `mc:AlternateContent` 等 |
+| `shape/ole.ts` | OLE 嵌入 | `Ole` | `extensions.ts`、`media.ts` | `progId`/`preview?: { media: MediaId; contentType }`——由 M-04 `ole.ts` 从 `mc:Fallback` 的 `p:pic` 提取，M1 渲染预览图（EMF/WMF 预览 M2 由 M-07 惰性栅格化；rulings §4.15 Q7） |
+| `shape/diagram.ts` | SmartArt | `Diagram` | `extensions.ts` | 只读保留：`dataPart`/`drawingPart?: PartName`（`dsp:drawing` 由 M-07 经 `ooxml-core` 只读解析渲染，rulings §4.15 Q7）；原 `fallbackShapeIds?` **删除**（不再把 drawing 物化成模型形状，避免与只读解析双源） |
+| `shape/unknown.ts` | 未知形状兜底 | `UnknownShape` | `extensions.ts`、`@cordexjs/model-core`（`Transform`） | `mc:AlternateContent` 等；新增 `transform: Transform`（取所选分支 `xfrm`）与 `renderHint: 'fallback-pic'\|'fallback-shapes'\|'placeholder'`（rulings §4.15 Q7，PD-18 结案）：删除整体移除（M1 P0），移动/缩放写 `transform`、由 M-04 回写到每个分支（M2 P1）；其余内容仍不透明 |
 | `shape/placeholder.ts` | 占位符引用值对象 | `PlaceholderRef`、`PlaceholderType` | — | ML-01…03 核心字段 |
 
 **`domain/model/text/`（8）与 `drawing/`（5）**
@@ -605,14 +611,14 @@ packages/model-slide/
 | `text/paragraph.ts` | 段落 | `Paragraph`、`Inline` | `paragraph-properties.ts`、`run.ts` | `endProperties?` |
 | `text/paragraph-properties.ts` | 段落属性 | `ParagraphProperties` | `bullet.ts` | `level:0..8` |
 | `text/run.ts` | 行内元素 | `Run`、`LineBreak`、`Field` | `run-properties.ts` | 判别字段 `kind` |
-| `text/run-properties.ts` | 字符属性 | `RunProperties` | `@oce/model-core`（`Fill`/`FontRef`/`Hyperlink`） | ED-03 |
+| `text/run-properties.ts` | 字符属性 | `RunProperties` | `@cordexjs/model-core`（`Fill`/`FontRef`/`Hyperlink`） | ED-03 |
 | `text/list-style.ts` | 列表样式 | `ListStyle` | `paragraph-properties.ts` | `levels: Partial<Record<0..8,…>>` |
 | `text/bullet.ts` | 项目符号 | `Bullet` | `media.ts`（图片项目符号） | ED-04 |
-| `drawing/index.ts` | re-export 入口 | `Color/Fill/Line/EffectList/Geometry/Transform/FontRef` 等 | `@oce/model-core/drawing` | **不重定义**，Shared Kernel |
+| `drawing/index.ts` | re-export 入口 | `Color/Fill/Line/EffectList/Geometry/Transform/FontRef` 等 | `@cordexjs/model-core/drawing` | **不重定义**，Shared Kernel |
 | `drawing/shape-properties.ts` | 形状可继承视觉属性 | `ShapeProperties` | `drawing/index.ts` | 全字段可选（I-ML1） |
 | `drawing/shape-style.ts` | 样式引用 | `ShapeStyle` | `drawing/index.ts`（`Color`） | `lineRef/fillRef/effectRef/fontRef` |
 | `drawing/background.ts` | 背景 | `Background` | `drawing/index.ts` | 判别联合 |
-| `drawing/slide-hyperlink.ts` | 内部超链接解释 | `resolveInternalHyperlink` | `@oce/model-core`（`Hyperlink`） | `slide:<SlideId>`/`first\|last\|next\|previous` |
+| `drawing/slide-hyperlink.ts` | 内部超链接解释 | `resolveInternalHyperlink` | `@cordexjs/model-core`（`Hyperlink`） | `slide:<SlideId>`/`first\|last\|next\|previous` |
 
 **`domain/model/schema/`（6，zod schema，按领域分组）**
 
@@ -625,7 +631,7 @@ packages/model-slide/
 | `schema/text.schema.ts` | 文本校验 | `textBodySchema` | `model/text/*.ts` | — |
 | `schema/theme-drawing.schema.ts` | 主题与 drawing 组合校验 | `themeSchema` | `model/theme.ts`、`model/drawing/*.ts` | — |
 
-**`domain/style/`（8）、`domain/query/`（2）、`domain/invariants/`（2）、`domain/shape-kind/`（2）、`domain/` 根（2）**
+**`domain/style/`（8）、`domain/query/`（2）、`domain/invariants/`（3）、`domain/shape-kind/`（2）、`domain/` 根（2）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -636,14 +642,15 @@ packages/model-slide/
 | `style/resolve-paragraph.ts` | 段落属性解析 | `resolveParagraphProperties` | `style/inheritance-chain` | 结果全字段必填 |
 | `style/resolve-shape.ts` | 形状视觉解析 | `resolveShapeVisual` | `domain/model`（`Theme.formatScheme`） | style refs → theme |
 | `style/resolve-color.ts` | 颜色解析 | `resolveColor` | `domain/model`（`ColorMap`） | scheme→clrMap→theme→修饰符 |
-| `style/cache.ts` | 样式缓存与失效 | `createStyleCache/invalidate` | `@oce/model-core`（`ChangeSet`） | LRU 5000，淘汰需被测试（A29） |
-| `query/selectors.ts` | 只读选择器 | `getSlide/getShape/getMasterOf/getPlaceholderOnLayout/slidesInOrder/shapesOf/childrenOf` | `domain/model` | 结果按 `(order,id)` 排序 + 派生缓存 |
-| `query/traverse.ts` | 遍历 | `walkShapes/pathOfShape` | `domain/model` | 深度优先、z 序 |
-| `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + 基础项） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
+| `style/cache.ts` | 样式缓存与失效 | `createStyleCache/invalidate` | `@cordexjs/model-core`（`ChangeSet`） | LRU 5000，淘汰需被测试（A29） |
+| `query/selectors.ts` | 只读选择器 | `getSlide/getShape/getMasterOf/getPlaceholderOnLayout/slidesInOrder/shapesOf/childrenOf` | `domain/model`、`@cordexjs/model-core`（`filterLive`/`isTombstoned`） | 结果按 `(order,id)` 排序 + 派生缓存；默认过滤 `_deleted` 墓碑实体（rulings §4.15 Q3） |
+| `query/traverse.ts` | 遍历 | `walkShapes/pathOfShape` | `domain/model` | 深度优先、z 序；跳过墓碑实体及其子树 |
+| `invariants/element-limits.ts` | 规模上限（新增，rulings §4.15 Q5） | `SlideLimits`、`DEFAULT_SLIDE_LIMITS`、`countElements(body)`、`checkLimits(body, delta, limits)` | `domain/model` | 计数读原始表（墓碑计入，母版/版式形状与组合形状均计）；命令层守卫与 `I-LIM1` 共用同一函数；数值由插件 `Config.limits` 注入，不硬编码于调用点 |
+| `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + I-LIM1 + 基础项；I-LIM1 仅报告不 repair） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
 | `invariants/validate-change-set.ts` | 变更集校验映射 | `validateChangeSet` | `invariants/index.ts` | 默认实现来自 model-core，此处只配置前缀映射 |
 | `shape-kind/shape-kind.point.ts` | 贡献点类型 | `ShapeKindPoint`、`ShapeKindDef<T>` | `domain/model/shape` | 04 §3.3 |
 | `shape-kind/builtin.ts` | 内建形状类型注册 | `builtinShapeKinds` | `shape-kind.point.ts`、`domain/model/shape/*` | `sp/pic/grpSp/cxnSp/graphicFrame:*/unknown` |
-| `domain/selection.ts` | 选区锚点 | `SlideSelectionAnchor` | `@oce/model-core`（`Selection<A>`）、`domain/model/shape` | 04 §3.6 |
+| `domain/selection.ts` | 选区锚点 | `SlideSelectionAnchor` | `@cordexjs/model-core`（`Selection<A>`）、`domain/model/shape` | 04 §3.6 |
 | `domain/create-empty.ts` | 空白文档构造 | `createEmptyPresentation` | `domain/model`、`domain/model/theme` | 默认主题+1 母版+若干版式+1 空白页 |
 
 **`application/mutations/`（10）**
@@ -651,22 +658,22 @@ packages/model-slide/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `mutations/index.ts` | Mutation 汇总 | `allSlideMutations: MutationDef[]` | 本目录内 8 个定义文件 | `editing.ts` 唯一读取点 |
-| `mutations/slide.ts` | 页级 Mutation | 6 个 `MutationDef`（§2.6）；M3 起 7 个（+`slide.setNotes`，14 §1 C-03） | `domain/model`、`@oce/model-core`（`StoreOp`） | — |
-| `mutations/shape.ts` | 形状级 Mutation | 8 个 `MutationDef` | `domain/model`、`@oce/model-core`（`StoreOp`） | 含 `group`/`ungroup` |
-| `mutations/text.ts` | 文本 Mutation | 4 个 `MutationDef` | `domain/model`、`@oce/model-core`（`TextDelta`） | ED-02/03/04/13 |
-| `mutations/table.ts` | 表格 Mutation | 7 个 `MutationDef` | `domain/model`、`@oce/model-core`（`TextDelta`） | ED-10 |
-| `mutations/media.ts` | 媒体注册 Mutation | 1 个 `MutationDef` | `domain/model`、`@oce/model-core`（`BlobRef`） | 不含字节 |
+| `mutations/slide.ts` | 页级 Mutation | 6 个 `MutationDef`（§2.6）；M3 起 7 个（+`slide.setNotes`，14 §1 C-03） | `domain/model`、`@cordexjs/model-core`（`StoreOp`） | — |
+| `mutations/shape.ts` | 形状级 Mutation | 8 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`StoreOp`） | 含 `group`/`ungroup` |
+| `mutations/text.ts` | 文本 Mutation | 4 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`TextDelta`） | ED-02/03/04/13 |
+| `mutations/table.ts` | 表格 Mutation | 7 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`TextDelta`） | ED-10 |
+| `mutations/media.ts` | 媒体注册 Mutation | 1 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`BlobRef`） | 不含字节 |
 | `mutations/layout.ts` | 版式/占位符 Mutation | 9 个 `MutationDef`（含 `slide.setLayout`） | `domain/model`、`domain/style/placeholder-match`（remap 类型） | ML-02/03 |
 | `mutations/master.ts` | 母版 Mutation | 7 个 `MutationDef` | `domain/model` | ML-03 |
 | `mutations/theme.ts` | 主题 Mutation | 4 个 `MutationDef` | `domain/model` | ML-04，逐槽位 `set` |
-| `mutations/lower.ts` | `lower()` 路径构造辅助 | `bodyPath` 工具 | `@oce/shared`（`Path`） | 供以上全部复用 |
+| `mutations/lower.ts` | `lower()` 路径构造辅助 | `bodyPath` 工具 | `@cordexjs/shared`（`Path`） | 供以上全部复用 |
 
 **`application/commands/`（10）与 `application/diff.ts`（1）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `commands/index.ts` | Command/Operation 汇总 | `allSlideCommands: (CommandDef\|OperationDef)[]` | 本目录内 9 个定义文件 | `editing.ts` 唯一读取点 |
-| `commands/slide-commands.ts` | 页管理命令 | `slide.addSlide/deleteSlides/duplicateSlide/reorderSlides`+`setSlideBackground/setSlideHidden`（14 §1 C-03 新增）+`setNotes`（M3 新增）＝7 个（§12 G-7 说明移除 `changeLayout`） | `application/mutations/slide`、`@oce/shared`（`order.between`） | ED-11 |
+| `commands/slide-commands.ts` | 页管理命令 | `slide.addSlide/deleteSlides/duplicateSlide/reorderSlides`+`setSlideBackground/setSlideHidden`（14 §1 C-03 新增）+`setNotes`（M3 新增）＝7 个（§12 G-7 说明移除 `changeLayout`） | `application/mutations/slide`、`@cordexjs/shared`（`order.between`） | ED-11 |
 | `commands/shape-commands.ts` | 形状编辑命令 | 11 个 `CommandDef`＋4 个新增（`pasteShapes`/`setEffect`/`alignShapes`/`distributeShapes`，14 §1 C-03）＝15 个 | `application/mutations/shape` | ED-05/06/08 |
 | `commands/text-commands.ts` | 文本编辑命令 | 6 个 `CommandDef`＋9 个新增（`setFontFamily`/`toggleItalic`/`toggleUnderline`/`toggleStrikethrough`/`setTextColor`/`setTextHighlight`/`clearRunFormatting`/`setIndentLevel`/`setLineSpacing`，14 §1 C-03）＝15 个 | `application/mutations/text` | ED-02/03/04/13 |
 | `commands/picture-commands.ts` | 图片命令 | 3 个 `CommandDef` | `application/mutations/{media,shape}` | ED-07 |
@@ -682,15 +689,15 @@ packages/model-slide/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `infrastructure/document-type.ts` | 组装 `DocumentType` 贡献 | `slideDocumentType: DocumentType<PresentationBody>` | `domain/model/schema`、`domain/invariants`、`application/diff`、`domain/create-empty` | `plugin.ts` 唯一读取点 |
-| `infrastructure/migrations/index.ts` | 迁移注册表 | `slideMigrations: Migration[]` | `@oce/model-core`（`Migration`） | M1 空数组但注册（A23） |
-| `infrastructure/snapshot/sharding.ts` | 大 body 分片扩展点 | `shardBody?/unshardBody?`（M1 直通实现） | `@oce/model-core`（`BlobRef`/`SnapshotBundle`） | 新增建议，落地 00 §6.3 第 4 点，见 §8/§12 G-5 |
+| `infrastructure/migrations/index.ts` | 迁移注册表 | `slideMigrations: Migration[]` | `@cordexjs/model-core`（`Migration`） | M1 空数组但注册（A23） |
+| `infrastructure/snapshot/sharding.ts` | 大 body 分片扩展点 | `shardBody?/unshardBody?`（M1 直通实现） | `@cordexjs/model-core`（`BlobRef`/`SnapshotBundle`） | 新增建议，落地 00 §6.3 第 4 点，见 §8/§12 G-5 |
 | `interface/index.ts` | 接口层桶导出 | `SlidesService` 类型、`exec.*` 契约 | `interface/services/slides.service` | 供 `src/index.ts` re-export |
-| `interface/services/slides.service.ts` | UnitScope 内只读服务 | `SlidesService`（`body/slide/shape/order/shapesOf/resolved/exec`） | `domain/query`、`domain/style`、`@oce/model-core`（`commands`/`store` 类型） | 04 §3.4；`exec.*` 内部仍 `ctx.commands.execute` |
+| `interface/services/slides.service.ts` | UnitScope 内只读服务 | `SlidesService`（`body/slide/shape/order/shapesOf/resolved/exec`） | `domain/query`、`domain/style`、`@cordexjs/model-core`（`commands`/`store` 类型） | 04 §3.4；`exec.*` 内部仍 `ctx.commands.execute` |
 | `testing/index.ts` | 测试辅助桶导出 | `builders`/`fixtures`/`conformance` re-export | 本目录内文件 | `./testing` 子路径入口 |
 | `testing/builders.ts` | 构造器 | `presentation().slide().shape(...).text(...).build()` | `domain/model`、`domain/create-empty` | 链式 API |
 | `testing/fixtures.ts` | 典型 body 夹具 | `singleTextSlideBody`/`inheritedMasterBody`/`groupedShapesBody`/`tableBody` | `testing/builders.ts` | M-04/M-07 契约测试复用 |
 | `testing/conformance.ts` | 文档类型级契约套件 | `runSlideModelConformance(createBody)`（新增建议，§2.5） | `infrastructure/document-type`、`domain/invariants`、`domain/shape-kind` | 供 `model-doc`/`model-sheet` 对照实现 |
-| `src/__tests__/lifecycle.test.ts` | 插件生命周期契约 | — | `@oce/kernel/testing`（`defineLifecycleSuite`） | 插件包必含（02 §4.0） |
+| `src/__tests__/lifecycle.test.ts` | 插件生命周期契约 | — | `@cordexjs/kernel/testing`（`defineLifecycleSuite`） | 插件包必含（02 §4.0） |
 | `src/__tests__/mutations-property.test.ts` | Mutation 合法性 property test | — | `testing/*`、`fast-check` | 任意合法 Mutation 序列后 `bodySchema.parse` 通过 |
 | `src/__tests__/invariants-repair.test.ts` | 修复幂等 property test | — | `domain/invariants`、`fast-check` | 随机破坏 body → repair 一次即净、再次无变化 |
 
@@ -755,7 +762,7 @@ export declare function planLayoutChange(
 | 服务端（导入/导出/校验/迁移） | `server-headless` 的 `createHeadlessHost` 装配同一份 `plugin.ts`+`editing.ts` | 命令管线以 `principal:system` 执行（05 §11） |
 | 服务端（协同房间） | `server-collab` 经 `store-yjs` 持有 body，命令管线在 Room 内以真实 principal 执行 | 本包对协同模式无感知（§1.3 Conformist） |
 
-进程间契约：本包**不出现在** `@oce/protocol` 的任何 REST DTO / WS 帧里——`PresentationBody` 只经 `Snapshot.body`（M-02 的 JSON 编解码边界）或 CRDT update 字节跨进程，前后端各自 import 本包源码解释这些字节，不存在「序列化本包类型直接传输」的路径。母版/版式/主题相关错误码（`LAYOUT_IN_USE` 等）经 `CommandError.data` 透传，最终落在 protocol 的通用 `ErrorEnvelope` 里（该壳对 `LAYOUT_IN_USE` 语义无知）。
+进程间契约：本包**不出现在** `@cordexjs/protocol` 的任何 REST DTO / WS 帧里——`PresentationBody` 只经 `Snapshot.body`（M-02 的 JSON 编解码边界）或 CRDT update 字节跨进程，前后端各自 import 本包源码解释这些字节，不存在「序列化本包类型直接传输」的路径。母版/版式/主题相关错误码（`LAYOUT_IN_USE` 等）经 `CommandError.data` 透传，最终落在 protocol 的通用 `ErrorEnvelope` 里（该壳对 `LAYOUT_IN_USE` 语义无知）。
 
 ## 8. doc / sheet 扩展缝
 
@@ -763,7 +770,7 @@ export declare function planLayoutChange(
 
 | 文件 / 目录 | 标注 | 复制到 doc/sheet 时怎么变 |
 |---|---|---|
-| `domain/model/**` | slide 专属 | 完全重写：doc 是 `blocks` 有序序列，sheet 是稀疏 `cells` 字符串键（`<sheet>:<r>:<c>`）；`domain/model/drawing/` 对 `@oce/model-core/drawing` 的 re-export 模式不变 |
+| `domain/model/**` | slide 专属 | 完全重写：doc 是 `blocks` 有序序列，sheet 是稀疏 `cells` 字符串键（`<sheet>:<r>:<c>`）；`domain/model/drawing/` 对 `@cordexjs/model-core/drawing` 的 re-export 模式不变 |
 | `domain/style/**` | slide 专属算法，**模式**可复制 | 占位符/母版继承是 PowerPoint 语义，不直接复用；但「纯函数 + revision 缓存 + `invalidate(changeSet)`」（`style/cache.ts`）这一结构原样复制 |
 | `domain/query/**`、`domain/invariants/**` | 垂直束模板 | 目录名、`Invariant<S>{check,repair}` 签名照抄；内容按各自领域重写 |
 | `domain/shape-kind/**` | slide 专属概念（sheet 无对应物，doc 可能有 `blockKind`） | sheet 大概率不需要；doc 若需要按同一贡献点模式（`doc.blockKind`）新增 |
@@ -817,7 +824,7 @@ fixtures --> fixturests
 | 测试类别 | 覆盖内容 | 源文件 | 补充 |
 |---|---|---|---|
 | unit | 每个纯函数（`resolveRunProperties`/`planLayoutChange`/`dependentsOf`/`matchPlaceholder`…）的确定性与边界用例 | `domain/style/**`、`domain/query/**`、`domain/invariants/**` | 同级隐式单测，不在 §4 目录树重复标注 |
-| property | `lower()` 纯度、`repair` 幂等、`bodySchema` 往返 | `src/__tests__/mutations-property.test.ts`、`invariants-repair.test.ts` | fast-check（`@oce/shared/testing` + 本包 `testing/builders.ts`） |
+| property | `lower()` 纯度、`repair` 幂等、`bodySchema` 往返 | `src/__tests__/mutations-property.test.ts`、`invariants-repair.test.ts` | fast-check（`@cordexjs/shared/testing` + 本包 `testing/builders.ts`） |
 | contract | 文档类型级契约套件 | `testing/conformance.ts`（`runSlideModelConformance`） | 本包 `__tests__` 与 M-04（往返后再跑一次）共同调用 |
 | lifecycle | 插件生命周期、`preset-slide-viewer` 不加载 `editing.ts` | `src/__tests__/lifecycle.test.ts` | `defineLifecycleSuite`（02 §4.0） |
 | 命令层集成 | `commands.execute` 端到端（权限/事务/审计） | 依赖 M-02 `command-harness.ts`；本包只提供 `slideDocumentType` 作为输入 | `LAYOUT_IN_USE`/`reassignTo` 用例见 05 §12 |
@@ -829,9 +836,9 @@ fixtures --> fixturests
 
 | 规则 | 机制 | 依据 |
 |---|---|---|
-| `package.json#oce` | `{layer:'V-model', bundle:'slide', iso:'iso', role:'plugin', stability:'beta'}` | 02 §4.0.1 schema |
+| `package.json#cordex` | `{layer:'V-model', bundle:'slide', iso:'iso', role:'plugin', stability:'beta'}` | 02 §4.0.1 schema |
 | 只向下依赖 | R2：本包只能 import 秩 ≤15 的包（`kernel`/`shared`/`protocol`/`model-core`） | depcruise |
-| 垂直束隔离 | R4 `oce-bundle-isolation`：不得 import `model-doc`/`model-sheet` | depcruise（铁律 2） |
+| 垂直束隔离 | R4 `cordex-bundle-isolation`：不得 import `model-doc`/`model-sheet` | depcruise（铁律 2） |
 | 水平层反向保护 | R3：本包受保护，水平层不得反向 import 本包 | depcruise（铁律 1；本包是被保护对象） |
 | 不出现 XML 类型 | 本包不依赖 `ooxml-core`，物理上不可能引入 XML 类型（ACL 边界见 04 §5） | depcruise（无直接依赖边） |
 | 单位品牌 | `no-px-in-model`（`Px` 出现在 `domain/model/**` 即错误）；`no-magic-emu`（禁裸 914400 字面量） | tsc + eslint（04 §8/§11） |
@@ -842,24 +849,26 @@ fixtures --> fixturests
 | 失败不用 boolean | `no-boolean-command-result` | lint |
 | 事件先声明后使用 | `events-declared`（`src/events.ts` 与 `slide.contribution.ts` 一致） | 扫描器 |
 | 版式/母版删除 fail-closed | 无 `reassignTo` → `LAYOUT_IN_USE`/`MASTER_IN_USE` 且无事务；带 → 一次撤销恢复 | `command-harness` 契约测试（05 §12） |
+| 删除即墓碑（rulings §4.15 Q3） | 全部 `.remove` 类 `lower()` 只产出 `set(…._deleted)`，不对实体行发 `delete`/`remove` | `runSlideModelConformance` 的 lower 纯度分节 + property 测试 |
+| 规模上限守卫（rulings §4.15 Q5） | 新增实体的命令超限返回 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED`（→ `document.quota_exceeded{dimension, limit, actual}`，rulings §4.17 D2）且无事务；墓碑计入；上限值只来自 `Config.limits` | `command-harness` 契约测试 + 边界用例（19,999/20,000/20,001，含墓碑） |
 | `testing/` 不进生产 | `no-testing-in-prod`：`domain/**`/`application/**`/`infrastructure/**`/`interface/**` 不得 import `./testing` | depcruise（02 §4.0.2） |
 | API 报告 | `etc/model-slide.api.md` 入库，PR diff 必审 | api-extractor + CI |
 | 类型治理 | 品牌类型 / `Result` / 禁 `enum`（`PlaceholderType`/`LayoutType` 等用 const 对象） | 09-type-discipline（ADR-0042/0047） |
 
 ## 11. 里程碑与实施顺序
 
-**M0 骨架**（与 M-01 工具链并行）：根配置 9 个文件 + `src/{index,plugin,manifest,slide.contribution,ids,events,errors}.ts`；`domain/model/**`（全部实体/值对象类型）+ `schema/**`（`bodySchema` 的地基）；`domain/{create-empty,selection}.ts`；`infrastructure/document-type.ts`（先挂空 `invariants`/`migrations`，跑通 `core.documentType` 贡献链路）；`testing/{builders,fixtures}.ts`。验收：`pnpm --filter @oce/model-slide build` 通过；`slideDocumentType.bodySchema.parse(createEmptyPresentation())` 成功；最小 host 内 `ctx.documentTypes.get('slide')` 可取到条目。
+**M0 骨架**（与 M-01 工具链并行）：根配置 9 个文件 + `src/{index,plugin,manifest,slide.contribution,ids,events,errors}.ts`；`domain/model/**`（全部实体/值对象类型）+ `schema/**`（`bodySchema` 的地基）；`domain/{create-empty,selection}.ts`；`infrastructure/document-type.ts`（先挂空 `invariants`/`migrations`，跑通 `core.documentType` 贡献链路）；`testing/{builders,fixtures}.ts`。验收：`pnpm --filter @cordexjs/model-slide build` 通过；`slideDocumentType.bodySchema.parse(createEmptyPresentation())` 成功；最小 host 内 `ctx.documentTypes.get('slide')` 可取到条目。
 
-**M1 首个可运行切片**：补齐 `domain/query/**`、`domain/style/**`（先只要 04 §6 七级链跑通，不含 ML 继承细化）、`application/mutations/{slide,shape,text}.ts`、`application/commands/{slide,shape,text}-commands.ts`、`domain/shape-kind/**`、`src/editing.ts`；`domain/invariants/**` 只建基础项（无父子环、`order` 合法、`containerId` 存在）；`testing/conformance.ts` 初版 + `src/__tests__/*`。
+**M1 首个可运行切片**：补齐 `domain/query/**`、`domain/style/**`（先只要 04 §6 七级链跑通，不含 ML 继承细化）、`application/mutations/{slide,shape,text}.ts`、`application/commands/{slide,shape,text}-commands.ts`、`domain/shape-kind/**`、`src/editing.ts`；`domain/invariants/**` 只建基础项（无父子环、`order` 合法、`containerId` 存在）+ `element-limits.ts`（守卫与 I-LIM1）；全部 `.remove` 类 Mutation 按墓碑语义实现、选择器过滤墓碑（rulings §4.15 Q3/Q5 均属 M1 数据形状，后补即破坏快照兼容）；`testing/conformance.ts` 初版 + `src/__tests__/*`。
 
 切片语义（对应任务书要求「打开 pptx 夹具的模型 → 移动形状 → 撤销」）：pptx 导入本身是 M-04 的职责，本包在此切片中的验收边界是——`slideDocumentType` 描述的 body 能被 M-04 导入结果 `load` 进 `store-memory`；`shape.setTransform` 的 `MutationDef.lower()` 产出正确 `StoreOp`；`slide.moveShapes` 命令经 M-02 命令管线执行后 `store.undo(local)` 能精确回到移动前状态（深等于）。三者拼起来即「打开 → 移动 → 撤销」链路里**本包负责的那一段**。
 
 验收命令（草案）：
 ```bash
-pnpm --filter @oce/model-slide build
-pnpm --filter @oce/model-slide test src/__tests__/mutations-property.test.ts
-pnpm --filter @oce/model-slide test -- --grep "runSlideModelConformance"
-pnpm --filter @oce/model-slide test -- --grep "moveShapes.*undo"
+pnpm --filter @cordexjs/model-slide build
+pnpm --filter @cordexjs/model-slide test src/__tests__/mutations-property.test.ts
+pnpm --filter @cordexjs/model-slide test -- --grep "runSlideModelConformance"
+pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 # command-harness 用例：insertShape → moveShapes → undo → state() 深等于 moveShapes 之前
 ```
 
@@ -893,6 +902,23 @@ pnpm --filter @oce/model-slide test -- --grep "moveShapes.*undo"
 
 **C-04 不适用**：`slide/show-changed` 事件由 M-07（`07-slide-rendering.md`）定义与发布，本文档全篇未提及该事件，无需同步。
 
+### 2026-09-24 回写（rulings §4.15，章程 §10 Q1–Q10 裁决）
+
+| 裁决 | 改动位置 | 摘要 |
+|---|---|---|
+| Q3 撤销语义 | §2.1（实体表 `Shape` 行、新增「软删除墓碑与规模上限」段）、§2.6（通用规则段、`slide`/`layout`/`master` 三个 Mutation 行）、§5（`query/selectors.ts`/`traverse.ts`）、§10、§11 | 五张实体表删除一律写 `_deleted` 墓碑（`StoreOp` 仍 5 种）；读路径默认过滤；独占 opaque part 清理推迟到服务端 TTL 硬删除；delete-vs-edit 编辑保留 |
+| Q5 规模上限 | §2.1 同段、§3 编辑子插件 `Config.limits`、§4/§5 新增 `domain/invariants/element-limits.ts`、`src/errors.ts` 两个错误码、§10 | 200 页 / 单页 1,000 / 文档总元素 20,000（软警告 15,000），部署配置完全可调；墓碑计入；命令层 fail-closed + I-LIM1 只报告 |
+| Q7 保真落点 | §5 `shape/ole.ts`、`shape/diagram.ts`、`shape/unknown.ts` | `Ole.preview` 来自 `mc:Fallback` 的 `p:pic`；删除 `Diagram.fallbackShapeIds`，改记 `drawingPart`；`UnknownShape` 增加 `transform` 与 `renderHint`（PD-18 结案） |
+
+需要其他文件配合：M-02 §2.5（中性撤销语义、`store/tombstone.ts`，已同步回写）；M-04（`UnknownShape.transform/renderHint`、`Ole.preview`、`Diagram.drawingPart` 的填充，及其 `import-envelope.ts` 元素计数口径与本文档 §2.1 一致——`shapes` 全表含母版/版式、组合形状与子形状各计 1）；M-07（经 `filterLive()` 渲染；`renderHint` 消费；`p:timing` 只读视图若需由本包建模，另行登记）；M-09（TTL 硬删除单写者与级联 opaque part 清理）；30-architecture/04 §12（不变量表补 I-LIM1）。
+
+
+### 2026-09-24 复核修正（rulings §4.17）
+
+| 裁决 | 改动位置 | 摘要 |
+|---|---|---|
+| D2 编辑期超上限错误码 | §2.1「规模上限」段、§4/§5 `src/errors.ts`、§10 规模上限守卫行 | `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` 不再有独立点式值（`slide.slide_limit_exceeded`/`slide.element_limit_exceeded` 作废），改为映射到 protocol 的 `document.quota_exceeded{dimension, limit, actual}`（409，命令守卫拒绝、不关连接）；`dimension` 取值 `slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 取值表一致；与 `format.quota_exceeded`（导入，M-04）、`storage.quota_exceeded`（存储，M-08）三码并列 |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
@@ -903,3 +929,4 @@ pnpm --filter @oce/model-slide test -- --grep "moveShapes.*undo"
 | Q4 | §2.4 新增建议的 5 个 `slide/layout-*`/`master-*`/`theme-changed` 事件是否采纳（G-6） | 采纳——避免下游 UI 订阅粗粒度 `store/transaction` 再自行 diff；若担心事件表膨胀，可先只上 `slide/master-added`/`.removed`（母版数量变化最影响 UI 布局），版式/主题变化暂缓 | charter §5.5 事件总表；`slide-ui`（M-10）母版缩略图窗格的实现方式 |
 | Q5 | 占位符类型计数上限的具体数值（G-8：标题类=1 已明确，但内容族/媒体族上限缺表） | 推荐由架构-结构条线在 04 号文档补一张表，本包 `I-ML9` 与 `addPlaceholder` 引用同一常量表，避免命令层与不变量层各自硬编码不同数字 | 04 §12.1 需补表；本包 `domain/invariants/index.ts`、`application/commands/layout-commands.ts` |
 | Q6 | `slide.deleteMaster(reassignTo)` 的跨母版目标版式选取函数最终细则（G-9，依赖设计 26 补稿） | 暂用「该母版首个版式」占位（与 `deleteLayout` 同函数），设计缺口补齐后对齐 | 本文档 §2.1 CRDT 合并语义表、§2.6 `slide.deleteMaster` 行；PRD 07 `G-73` 待补项 |
+| Q7 | 母版/版式/主题删除采用墓碑后，`deleteLayout`/`deleteMaster` 带 `reassignTo` 的「Q11 不可撤销」口径与「可一次撤销」表述（§2.1 末段 vs §2.6 表）是否统一为「可撤销」 | 推荐统一为可撤销：墓碑使撤销代价与普通删除相同，重指与墓碑同一事务，一次撤销即恢复 | §2.1、§2.6 `slide.deleteLayout`/`deleteMaster` 行；PRD 07 ML-03 |

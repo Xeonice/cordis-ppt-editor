@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22 | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
 
 # 17 插件书写模式手册
 
@@ -17,7 +17,7 @@
 | C 贡献型插件 | 我要往已经存在的扩展点塞条目，条目之间互不排斥 | `model-slide` 贡献 `core.documentType`/`core.command`/`core.mutation`；`slide-render` 贡献 `render.scene`/`render.element`；`slide-ui` 贡献 `ui.ribbon` 等 | §2.3 |
 | D UnitScope 内插件 | 我要随每个打开的文档生灭，不是随宿主进程生灭 | `store`/`history`/`selection`/`render`/`presence` 的默认 Provider；`collab-yjs`；`engine-render` | §2.4 |
 | E Bundle/preset | 我要把一批插件打包成一个开箱即用的产品形状 | `preset-slide`/`preset-slide-collab`/`preset-slide-viewer` | §2.5 |
-| F Library（非插件） | 我只提供纯函数/纯类型，没有生命周期可言 | `@oce/shared`；`@oce/ooxml-core`；`@oce/design` | §2.6 |
+| F Library（非插件） | 我只提供纯函数/纯类型，没有生命周期可言 | `@cordexjs/shared`；`@cordexjs/ooxml-core`；`@cordexjs/design` | §2.6 |
 | G Host 组合根 | 我在应用或服务入口创建一个 cordis 宇宙 | `apps/web` 的 `create-editor-host.ts`；`server-headless` 的 `createHeadlessHost`；`apps/server` 的 `cordis-host.service.ts` | §2.7 |
 
 ```mermaid
@@ -36,13 +36,13 @@ q4 -- "实现别人定义好的契约" --> modeB["模式B Provider插件"]
 q4 -- "往已有扩展点塞条目" --> modeC["模式C 贡献型插件"]
 ```
 
-怎么读：决策树只给主轴归类顺序，不代表模式互斥——命中 D 之后仍要回头看它对契约的关系是 A/B/C 中的哪一种（`store-yjs` 会先落到 D，再回头发现自己相对 `DocumentStore` 是 B）。`package.json#oce.role` 的七值（`library|plugin|definition|provider|bundle|app|tooling`，02-layering-and-packages §4.0.1）与本节七种模式大致对应，但不是一一映射：`role` 是包级元数据（一个包只能填一个值），模式是写法视角（一个包内的多个文件可能分属不同模式，例如 `engine-render` 包 `role=definition`，但它 `apply` 内 `ctx.plugin(RenderService)` 那一步是普通插件挂载）。
+怎么读：决策树只给主轴归类顺序，不代表模式互斥——命中 D 之后仍要回头看它对契约的关系是 A/B/C 中的哪一种（`store-yjs` 会先落到 D，再回头发现自己相对 `DocumentStore` 是 B）。`package.json#cordex.role` 的七值（`library|plugin|definition|provider|bundle|app|tooling`，02-layering-and-packages §4.0.1）与本节七种模式大致对应，但不是一一映射：`role` 是包级元数据（一个包只能填一个值），模式是写法视角（一个包内的多个文件可能分属不同模式，例如 `engine-render` 包 `role=definition`，但它 `apply` 内 `ctx.plugin(RenderService)` 那一步是普通插件挂载）。
 
 ---
 
 ## 1. cordis 4 基线（只列本项目用到的）
 
-事实源：`cordis@4.0.0-rc.10`（cordis-primer.md）。**只有 `@oce/kernel` 允许 `import ... from 'cordis'`**（depcruise R12 `only-kernel-imports-cordis`，03 §1.1）；其余全部包只能 `import ... from '@oce/kernel'`，用的是 kernel 的 re-export 面或 kernel 自产的新概念（`createHost`、`defineContributionPoint`、`ctx.contribute`/`ctx.contributions`、`createIsolatedScope`、`errors`/`telemetry`、诊断函数）。下表"kernel 封装"列区分三种情况：**原样转发**（类型/值不变，只是换了 import 路径）、**kernel 新概念**（cordis 本身没有，是 kernel 在其上加的一层）、**仅内核使用**（cordis 原生 API 存在，但本项目规定只有 kernel 内部代码能调用，插件作者不得直接用）。
+事实源：`cordis@4.0.0-rc.10`（cordis-primer.md）。**只有 `@cordexjs/kernel` 允许 `import ... from 'cordis'`**（depcruise R12 `only-kernel-imports-cordis`，03 §1.1）；其余全部包只能 `import ... from '@cordexjs/kernel'`，用的是 kernel 的 re-export 面或 kernel 自产的新概念（`createHost`、`defineContributionPoint`、`ctx.contribute`/`ctx.contributions`、`createIsolatedScope`、`errors`/`telemetry`、诊断函数）。下表"kernel 封装"列区分三种情况：**原样转发**（类型/值不变，只是换了 import 路径）、**kernel 新概念**（cordis 本身没有，是 kernel 在其上加的一层）、**仅内核使用**（cordis 原生 API 存在，但本项目规定只有 kernel 内部代码能调用，插件作者不得直接用）。
 
 | API / 概念 | 签名或形态 | 语义 | 本项目用法与约束 | kernel 封装 | 出处 |
 |---|---|---|---|---|---|
@@ -76,9 +76,9 @@ q4 -- "往已有扩展点塞条目" --> modeC["模式C 贡献型插件"]
 
 **什么时候用**：你要定义一个契约，交给别的包实现，自己不提供"标准答案"——移除全部实现之后契约仍然存在，只是没人满足它（charter §5.4"可插拔"网格里"Definition（契约）"一列）。判据：这件事本质上"只应该有一个当前生效的实现"（该用 `provide` 单例服务）还是"可以有多个同时生效的条目"（该用贡献点，归模式 C）——本节只处理前者。
 
-- `@oce/model-core` 的 `DocumentStore<S>`（`model-core/src/store/store.ts`）——文档类型盲的唯一读写接口，`store-memory`/`store-yjs` 两个 Provider 实现它，契约套件 `runDocumentStoreConformance`（02 §2.5/§6）。
-- `@oce/engine-layout` 的 `TextMeasurer` 契约，经 `layout.measurer` 贡献点承载（06 §3）——engine-layout 自己不测量文字，只声明"谁能测量文字"的形状；`layout` 服务查表取当前 Provider。
-- `@oce/collab-core` 的 `collab`/`collabTransport` 两个契约（05 §3）——本包甚至不提供默认实现，只额外导出一个独立的 `localPresencePlugin` 作单人兜底。
+- `@cordexjs/model-core` 的 `DocumentStore<S>`（`model-core/src/store/store.ts`）——文档类型盲的唯一读写接口，`store-memory`/`store-yjs` 两个 Provider 实现它，契约套件 `runDocumentStoreConformance`（02 §2.5/§6）。
+- `@cordexjs/engine-layout` 的 `TextMeasurer` 契约，经 `layout.measurer` 贡献点承载（06 §3）——engine-layout 自己不测量文字，只声明"谁能测量文字"的形状；`layout` 服务查表取当前 Provider。
+- `@cordexjs/collab-core` 的 `collab`/`collabTransport` 两个契约（05 §3）——本包甚至不提供默认实现，只额外导出一个独立的 `localPresencePlugin` 作单人兜底。
 
 **文件骨架**（primer §5.3 文件约定的具体化）：
 
@@ -96,11 +96,11 @@ packages/model-core/src/
 
 ```ts
 // packages/model-core/src/store/store.ts —— 契约本身：model-core 不实现它，Provider 才实现（见 §2.2）
-import type { UnitId } from '@oce/shared'
+import type { UnitId } from '@cordexjs/shared'
 // Persisted/Path/Transaction/TransactOptions/ChangeSet/Origin/TransactionRecord/StoreError
 // 是 model-core 自己的领域类型（02 §2.5），import 路径示意，非 cordis API
 import type { Persisted, Path, Transaction, TransactOptions, ChangeSet, Origin, TransactionRecord, StoreError } from '../domain/types'
-import type { Result } from '@oce/shared'
+import type { Result } from '@cordexjs/shared'
 
 /** 本文件零 cordis 运行时 import——契约是纯类型，"谁在何时挂载哪个实现"才是 cordis 语义，见 §2.4。 */
 export interface DocumentStore<S = unknown> {
@@ -143,7 +143,7 @@ export function runDocumentStoreConformance<S>(
 
 ```json
 {
-  "id": "@oce/model-core",
+  "id": "@cordexjs/model-core",
   "provides": ["units", "documentTypes", "commands", "formats", "resources", "migrations", "permissions"],
   "injects": ["contributions", "errors", "telemetry"],
   "unitScoped": false
@@ -193,9 +193,9 @@ packages/store-yjs/src/
 
 ```ts
 // packages/store-yjs/src/infrastructure/yjs-store.service.ts —— Service 子类：构造即 provide('store')
-import { Service, type Context } from '@oce/kernel'   // Service 用法见 §1 表脚注与 §7 G-3
+import { Service, type Context } from '@cordexjs/kernel'   // Service 用法见 §1 表脚注与 §7 G-3
 import * as Y from 'yjs'          // yjs 单点引入包之一（charter §5.3 规则4）；公开签名不得泄漏 Y.*
-import type { DocumentStore } from '@oce/model-core'
+import type { DocumentStore } from '@cordexjs/model-core'
 import type { Config } from '../plugin'
 
 export class YjsDocumentStore extends Service implements DocumentStore {
@@ -219,8 +219,8 @@ export class YjsDocumentStore extends Service implements DocumentStore {
 }
 
 // packages/store-yjs/src/plugin.ts
-import { z } from '@oce/protocol/schema'
-import type { Context } from '@oce/kernel'
+import { z } from '@cordexjs/protocol/schema'
+import type { Context } from '@cordexjs/kernel'
 import { YjsDocumentStore } from './infrastructure/yjs-store.service'
 
 export const name = 'store-yjs'
@@ -238,7 +238,7 @@ export default { name, inject, provide, Config, apply }
 
 // ---- 另一种 Provider：贡献点式（往已有扩展点塞唯一条目），不 provide 独立服务名 ----
 // packages/ooxml-pptx/src/plugin.ts（节选，完整见 40-modules/04 §2.5/§3）
-import { coreFormatPoint } from '@oce/model-core'  // core.format 贡献点，标识符名称示意
+import { coreFormatPoint } from '@cordexjs/model-core'  // core.format 贡献点，标识符名称示意
 import { pptxCodec } from './interface/codec'       // FormatCodec<PresentationBody>，id:'ooxml-pptx'
 export const inject = ['contributions'] as const
 export const provide = [] as const                  // 能力经贡献点暴露，不 provide 独立服务
@@ -247,15 +247,15 @@ export function apply(ctx: Context): void {
 }
 ```
 
-**对应的 cordis 机制**："单例服务"型 Provider 用 `class X extends Service`——构造函数 `super(ctx,'store')` 就是注册，`ctx.effect` 只需额外包住"构造之外的原生资源"（这里是 `Y.Doc`）。贡献点型 Provider（`ooxml-pptx`）不 `provide` 独立服务名，`ctx.contribute` 本身就是 effect（03 §3.3），`dispose` 时 disposer 自动撤销贡献，不需要手写清理逻辑。两种 Provider 都不互相 `inject` 对方（03-boundaries §3.5 `oce-role-provider-no-cross-import`：`store-yjs` 不得 `import store-memory`）。
+**对应的 cordis 机制**："单例服务"型 Provider 用 `class X extends Service`——构造函数 `super(ctx,'store')` 就是注册，`ctx.effect` 只需额外包住"构造之外的原生资源"（这里是 `Y.Doc`）。贡献点型 Provider（`ooxml-pptx`）不 `provide` 独立服务名，`ctx.contribute` 本身就是 effect（03 §3.3），`dispose` 时 disposer 自动撤销贡献，不需要手写清理逻辑。两种 Provider 都不互相 `inject` 对方（03-boundaries §3.5 `cordex-role-provider-no-cross-import`：`store-yjs` 不得 `import store-memory`）。
 
 **Manifest 片段**：
 
 ```json
-{ "id": "@oce/store-yjs", "provides": ["store", "yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }
+{ "id": "@cordexjs/store-yjs", "provides": ["store", "yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }
 ```
 ```json
-{ "id": "@oce/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx"] }, "unitScoped": false }
+{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx"] }, "unitScoped": false }
 ```
 
 **检查清单**：
@@ -268,7 +268,7 @@ export function apply(ctx: Context): void {
 - [ ] Manifest 的 `implements` 字段是否写全？
 
 **常见错误**：
-- Provider 直接 `import` 另一个同角色 Provider 复用代码（如 `store-yjs` 里 `import { diff } from '@oce/store-memory'`）→ 违反三角色规则，depcruise `oce-role-provider-no-cross-import` 拒绝（03-boundaries §3.5）→ 把共享逻辑下沉到 Definition 包或 `@oce/shared`。
+- Provider 直接 `import` 另一个同角色 Provider 复用代码（如 `store-yjs` 里 `import { diff } from '@cordexjs/store-memory'`）→ 违反三角色规则，depcruise `cordex-role-provider-no-cross-import` 拒绝（03-boundaries §3.5）→ 把共享逻辑下沉到 Definition 包或 `@cordexjs/shared`。
 - `__tests__` 只手写断言，不调用 `run<Definition>Conformance` → `scan-manifest` 规则 (e) 判定违规，且语义漂移不会被套件捕获 → 必须调用官方套件，自定义断言只能是补充。
 - 贡献点型 Provider 在 `apply` 里 `ctx.provide('render.target', impl)` 而不是 `ctx.contribute(RenderTargetPoint, impl)` → 把"多条目共存"的契约错当成"单例服务"，第二个 target Provider 出现时互相覆盖而非共存 → 先确认该 Definition 是贡献点还是单例服务，照 §1"对应机制"选对 API。
 - Service 子类构造函数里直接 `new WebSocket(...)`/`new Y.Doc(...)` 却不经 `ctx.effect` 包裹清理 → 卸载后连接/文档泄漏，`scan-effects` 判定该包缺少 dispose 测试 → 原生资源创建与清理必须在同一个 `ctx.effect` 回调作用域内配对。
@@ -293,7 +293,7 @@ packages/model-slide/src/
 ├── document-type/
 │   └── slide-document-type.ts           # DocumentType<PresentationBody> 的值本身
 └── editing/
-    ├── plugin.ts                        # 子路径插件 @oce/model-slide/editing：写操作
+    ├── plugin.ts                        # 子路径插件 @cordexjs/model-slide/editing：写操作
     ├── mutations/*.mutation.ts          # 46/47 个 MutationDef，贡献到 model-core 的 core.mutation
     └── commands/*.command.ts            # 73 个 CommandDef/OperationDef，贡献到 core.command
 ```
@@ -303,7 +303,7 @@ packages/model-slide/src/
 ```ts
 // packages/model-slide/src/slide-shape-kind.contribution.ts —— 贡献点定义只能出现在 *.contribution.ts
 // （09-plugin-type-contracts §2）；文件内零运行时语句，只允许 declare module 与 defineContributionPoint 调用。
-import { defineContributionPoint, type ContributionPoint } from '@oce/kernel'
+import { defineContributionPoint, type ContributionPoint } from '@cordexjs/kernel'
 import { ShapeKindContributionSchema, type ShapeKindContribution } from './contracts/shape-kind'
 
 export const shapeKindPoint: ContributionPoint<ShapeKindContribution> = defineContributionPoint({
@@ -313,20 +313,20 @@ export const shapeKindPoint: ContributionPoint<ShapeKindContribution> = defineCo
   conflict: 'error',                  // 内建 9 项 + 第三方形状按各自 kind 互不冲突，不允许静默覆盖
 })
 
-declare module '@oce/kernel' {
+declare module '@cordexjs/kernel' {
   interface Events {
     'slide/shape-added'(unitId: UnitId, shapeId: ShapeId): void
   }
 }
 
 // packages/model-slide/src/plugin.ts —— 主插件：只读部分
-import type { Context } from '@oce/kernel'
-import { coreDocumentTypePoint } from '@oce/model-core'   // 点由 model-core 定义，本包只贡献
+import type { Context } from '@cordexjs/kernel'
+import { coreDocumentTypePoint } from '@cordexjs/model-core'   // 点由 model-core 定义，本包只贡献
 import { shapeKindPoint } from './slide-shape-kind.contribution'
 import { slideDocumentType } from './document-type/slide-document-type'
 import { builtinShapeKinds } from './document-type/shape-kinds'
 
-export const name = '@oce/model-slide'
+export const name = '@cordexjs/model-slide'
 export const inject = ['contributions', 'documentTypes'] as const
 export function apply(ctx: Context): void {
   ctx.contribute(coreDocumentTypePoint, slideDocumentType)                     // key = 'slide'
@@ -335,12 +335,12 @@ export function apply(ctx: Context): void {
 export default { name, inject, apply }
 
 // packages/model-slide/src/editing/plugin.ts —— 子路径插件：preset-slide-viewer 不加载它（ADR-0015 第一道只读保证）
-import type { Context } from '@oce/kernel'
-import { coreMutationPoint, coreCommandPoint } from '@oce/model-core'
+import type { Context } from '@cordexjs/kernel'
+import { coreMutationPoint, coreCommandPoint } from '@cordexjs/model-core'
 import { allSlideMutations } from './mutations'
 import { allSlideCommands } from './commands'
 
-export const name = '@oce/model-slide/editing'
+export const name = '@cordexjs/model-slide/editing'
 export const inject = ['contributions', 'commands'] as const
 export function apply(ctx: Context): void {
   for (const m of allSlideMutations) ctx.contribute(coreMutationPoint, m)   // key = m.type，46/47 项
@@ -354,10 +354,10 @@ export default { name, inject, apply }
 **Manifest 片段**：
 
 ```json
-{ "name": "@oce/model-slide", "provides": [], "contributes": { "core.documentType": ["slide"], "slide.shapeKind": ["sp", "pic", "grpSp", "cxnSp", "graphicFrame:table", "graphicFrame:chart", "graphicFrame:ole", "graphicFrame:diagram", "unknown"] }, "isomorphism": "iso" }
+{ "name": "@cordexjs/model-slide", "provides": [], "contributes": { "core.documentType": ["slide"], "slide.shapeKind": ["sp", "pic", "grpSp", "cxnSp", "graphicFrame:table", "graphicFrame:chart", "graphicFrame:ole", "graphicFrame:diagram", "unknown"] }, "isomorphism": "iso" }
 ```
 ```json
-{ "name": "@oce/model-slide/editing", "provides": [], "contributes": { "core.mutation": ["slide.slide.insert", "…"], "core.command": ["slide.addSlide", "…"] }, "isomorphism": "iso" }
+{ "name": "@cordexjs/model-slide/editing", "provides": [], "contributes": { "core.mutation": ["slide.slide.insert", "…"], "core.command": ["slide.addSlide", "…"] }, "isomorphism": "iso" }
 ```
 
 **检查清单**：
@@ -397,8 +397,8 @@ packages/model-core/src/unit/
 
 ```ts
 // packages/model-core/src/unit/unit-plugin.ts —— "打开一个 Unit" = 挂载这个插件
-import type { Context } from '@oce/kernel'
-import { createIsolatedScope } from '@oce/kernel'
+import type { Context } from '@cordexjs/kernel'
+import { createIsolatedScope } from '@cordexjs/kernel'
 import { selectStoreProviderPlugin } from './store-provider-select'   // 按 preset 配置选 store-memory / store-yjs
 import { historyPlugin } from './history.plugin'
 import { selectionPlugin } from './selection.plugin'
@@ -427,7 +427,7 @@ export function apply(ctx: Context, config: UnitPluginConfig): void {
 }
 
 // packages/model-core/src/unit/history.plugin.ts —— 典型 UnitScope 内插件：provide('history')，只在隔离域内可见
-import { Service, type Context } from '@oce/kernel'
+import { Service, type Context } from '@cordexjs/kernel'
 
 export class HistoryService extends Service {
   #stack: TransactionRecord[] = []
@@ -443,7 +443,7 @@ export const historyPlugin = HistoryService
 **Manifest 片段**（`engine-render`，`unitScoped: true`）：
 
 ```json
-{ "id": "@oce/engine-render", "provides": ["render"], "injects": ["contributions", "layout"], "points": ["render.scene", "render.target", "render.element", "render.overlay"], "unitScoped": true }
+{ "id": "@cordexjs/engine-render", "provides": ["render"], "injects": ["contributions", "layout"], "points": ["render.scene", "render.target", "render.element", "render.overlay"], "unitScoped": true }
 ```
 
 **检查清单**：
@@ -488,23 +488,23 @@ packages/preset-slide/src/
 
 ```ts
 // packages/preset-slide/src/plugins/index.ts —— 装配清单：静态数组，不是执行序列（顺序无关，03 §9）
-import type { PresetEntry } from '@oce/kernel'
-import i18nPlugin from '@oce/i18n'
-import modelCorePlugin from '@oce/model-core'
-import storeMemoryPlugin from '@oce/store-memory'
+import type { PresetEntry } from '@cordexjs/kernel'
+import i18nPlugin from '@cordexjs/i18n'
+import modelCorePlugin from '@cordexjs/model-core'
+import storeMemoryPlugin from '@cordexjs/store-memory'
 // … 其余条目 import 从略，完整清单见 40-modules/11 §3.1 装配清单总表
 
 export const SLIDE_ENTRIES: PresetEntry[] = [
-  { id: '@oce/i18n', plugin: i18nPlugin, config: { locale: 'zh-CN', fallback: 'zh-CN' } },
-  { id: '@oce/model-core', plugin: modelCorePlugin, config: { defaultStoreProvider: 'store-memory', historyLimit: 200, coalesceMs: 500 } },
-  { id: '@oce/store-memory', plugin: storeMemoryPlugin, config: { historyLimit: 200, freezeInDev: true } },
+  { id: '@cordexjs/i18n', plugin: i18nPlugin, config: { locale: 'zh-CN', fallback: 'zh-CN' } },
+  { id: '@cordexjs/model-core', plugin: modelCorePlugin, config: { defaultStoreProvider: 'store-memory', historyLimit: 200, coalesceMs: 500 } },
+  { id: '@cordexjs/store-memory', plugin: storeMemoryPlugin, config: { historyLimit: 200, freezeInDev: true } },
   // … model-slide、model-slide/editing、ooxml-pptx、engine-layout/render、render-dom、slide-render、ui-core、ui-react、slide-ui …
 ]
 
 // packages/preset-slide/src/plugin.ts
-import { z } from '@oce/protocol/schema'
-import type { Context, Plugin } from '@oce/kernel'
-import { applyTrim } from '@oce/kernel/preset'                 // exclude/override/configure 运行时（03 §9）
+import { z } from '@cordexjs/protocol/schema'
+import type { Context, Plugin } from '@cordexjs/kernel'
+import { applyTrim } from '@cordexjs/kernel/preset'                 // exclude/override/configure 运行时（03 §9）
 import { SLIDE_ENTRIES } from './plugins'
 
 export const SlidePresetOptionsSchema = z.object({
@@ -542,7 +542,7 @@ export function apply(ctx: Context, config: ShellOptions): void {
 **Manifest 片段**（节选自 `preset-slide` 真实清单，11 §3.2）：
 
 ```json
-{ "id": "@oce/preset-slide", "role": "bundle", "bundle": "slide", "entries": ["@oce/i18n", "@oce/model-core", "@oce/store-memory", "@oce/model-slide", "@oce/model-slide/editing", "…"], "lazy": ["@oce/slide-render-chart", "locale:*"], "isomorphism": "dom" }
+{ "id": "@cordexjs/preset-slide", "role": "bundle", "bundle": "slide", "entries": ["@cordexjs/i18n", "@cordexjs/model-core", "@cordexjs/store-memory", "@cordexjs/model-slide", "@cordexjs/model-slide/editing", "…"], "lazy": ["@cordexjs/slide-render-chart", "locale:*"], "isomorphism": "dom" }
 ```
 
 **检查清单**：
@@ -564,9 +564,9 @@ export function apply(ctx: Context, config: ShellOptions): void {
 
 **什么时候用**：你在写纯函数/纯类型，没有需要挂载/卸载的东西，调用方直接 `import` 使用，不经过 `ctx.plugin`。判据：把这段代码从进程里摘掉，能不能只用"删掉几个 import"描述后果——如果答案是"是，不涉及任何 Fiber/服务/贡献"，就是本模式。
 
-- `@oce/shared`——品牌类型（`Emu`/`Pt`/`UnitId`/`SlideId`/`NodeId`）、`Result` 类型、断言、集合/哈希/文本工具；零依赖 cordis，零领域知识（charter §5.2）。
-- `@oce/ooxml-core`——OPC/XML/DrawingML 编解码的纯函数库，同一份代码可在浏览器与 Node 直接调用，"不出现在任何宿主的 Fiber 树中"（04 §3 原文）。
-- `@oce/design`——设计 token；消费方只 `@import` 其 CSS 或做 type-only 引用（10 §3）。
+- `@cordexjs/shared`——品牌类型（`Emu`/`Pt`/`UnitId`/`SlideId`/`NodeId`）、`Result` 类型、断言、集合/哈希/文本工具；零依赖 cordis，零领域知识（charter §5.2）。
+- `@cordexjs/ooxml-core`——OPC/XML/DrawingML 编解码的纯函数库，同一份代码可在浏览器与 Node 直接调用，"不出现在任何宿主的 Fiber 树中"（04 §3 原文）。
+- `@cordexjs/design`——设计 token；消费方只 `@import` 其 CSS 或做 type-only 引用（10 §3）。
 
 **文件骨架**：
 
@@ -627,9 +627,9 @@ export { fnv1a } from './hash'
 ```jsonc
 // packages/shared/package.json（节选）—— 无 role:"plugin"/"definition"/"provider"，manifest-present 扫描器豁免本包
 {
-  "name": "@oce/shared",
+  "name": "@cordexjs/shared",
   "sideEffects": false,
-  "oce": { "layer": "L0", "iso": "iso", "role": "library", "stability": "stable" }
+  "cordex": { "layer": "L0", "iso": "iso", "role": "library", "stability": "stable" }
 }
 ```
 
@@ -646,14 +646,14 @@ export function classifyPart(pkg: OpcPackage, name: PartName): PartKind {
 }
 ```
 
-**对应的 cordis 机制**：没有——这正是本模式的定义。库文件零 `import` cordis/`@oce/kernel`；没有 `apply`/`inject`/`provide`/`ctx.contribute`。它与 cordis 世界的唯一接触点是"被某个插件的源码 `import`"，那次 import 发生在别的包的 `plugin.ts`/`services/*.ts` 里，不发生在库自己的文件里。`package.json#oce.role:'library'` 是唯一需要显式声明的元数据，供 depcruise 三角色规则与 `manifest-present` 扫描器识别（02-layering-and-packages §4.0.1 七值折叠表）。
+**对应的 cordis 机制**：没有——这正是本模式的定义。库文件零 `import` cordis/`@cordexjs/kernel`；没有 `apply`/`inject`/`provide`/`ctx.contribute`。它与 cordis 世界的唯一接触点是"被某个插件的源码 `import`"，那次 import 发生在别的包的 `plugin.ts`/`services/*.ts` 里，不发生在库自己的文件里。`package.json#cordex.role:'library'` 是唯一需要显式声明的元数据，供 depcruise 三角色规则与 `manifest-present` 扫描器识别（02-layering-and-packages §4.0.1 七值折叠表）。
 
-**Manifest 片段**：无——`role:'library'` 的包不产生 `oce-manifest.json`（`manifest-present` 扫描器豁免，02 §3 `@oce/shared`/`@oce/protocol` 行）。它仍需过 api-extractor/`exports`/publint 门禁（04-api-surface §1 把 `apps/*`/`tooling/*` 排除在门禁外，但未排除 library 角色的 `packages/*`）——只是不需要 cordis 意义上的 Manifest。
+**Manifest 片段**：无——`role:'library'` 的包不产生 `cordex-manifest.json`（`manifest-present` 扫描器豁免，02 §3 `@cordexjs/shared`/`@cordexjs/protocol` 行）。它仍需过 api-extractor/`exports`/publint 门禁（04-api-surface §1 把 `apps/*`/`tooling/*` 排除在门禁外，但未排除 library 角色的 `packages/*`）——只是不需要 cordis 意义上的 Manifest。
 
 **检查清单**：
-- [ ] 是否真的零 `import` cordis/`@oce/kernel`（哪怕只是 type-only）？
+- [ ] 是否真的零 `import` cordis/`@cordexjs/kernel`（哪怕只是 type-only）？
 - [ ] `index.ts` 是否只有 `export … from` 语句，没有任何顶层可执行代码（扫描器 `index-pure`）？
-- [ ] `package.json#oce.role` 是否填了 `'library'`，`sideEffects` 是否为 `false`（design 的 CSS 除外）？
+- [ ] `package.json#cordex.role` 是否填了 `'library'`，`sideEffects` 是否为 `false`（design 的 CSS 除外）？
 - [ ] 是否存在模块级可变状态把一个"纯库"悄悄变成了"有状态的东西"？
 - [ ] 导出的类型/函数是否遵守 `isolatedDeclarations`（同样适用于库包）？
 
@@ -691,8 +691,8 @@ apps/server/src/cordis-host/
 ```ts
 // apps/web/src/application/host/create-editor-host.ts —— 浏览器侧唯一「知道插件存在」的应用代码
 // （扫描器 single-create-host-callsite：createHost(/createSlide*Preset( 只允许出现在本文件，11 §3.5）
-import { createHost } from '@oce/kernel'
-import { createSlidePreset, createSlideCollabPreset, createSlideViewerPreset } from '@oce/preset-slide'   // 示意：实际分属三个包
+import { createHost } from '@cordexjs/kernel'
+import { createSlidePreset, createSlideCollabPreset, createSlideViewerPreset } from '@cordexjs/preset-slide'   // 示意：实际分属三个包
 import { pickSinks } from './sinks'
 
 export interface CreateEditorHostParams {
@@ -718,14 +718,14 @@ export async function createEditorHost(params: CreateEditorHostParams) {
 
 // apps/server/src/cordis-host/cordis-host.service.ts —— Node 侧宿主：Nest 业务模块唯一的访问面
 import { Injectable, type OnModuleInit, type OnApplicationShutdown } from '@nestjs/common'   // 仅 apps/server 允许
-import { createHost, type OceHost } from '@oce/kernel'
+import { createHost, type CordexHost } from '@cordexjs/kernel'
 import { presetServer } from './preset-server'
 
 interface ServiceMap { collabServer: CollabServerType; blobStore: BlobStoreType }   // 编译期 key 校验，替代弱类型字符串查找
 
 @Injectable()
 export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
-  #host!: OceHost
+  #host!: CordexHost
   onModuleInit(): void {
     this.#host = createHost({ strictManifest: true, defaultSinks: false })
     this.#host.plugin(presetServer)             // preset 本身也是一个普通插件，见模式 E
@@ -749,11 +749,11 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 - [ ] `errors.sink`/`telemetry.sink` 的具体实现是不是"贡献 sink 的插件"而不是塞进 `HostOptions` 的回调（ADR-0011）？
 - [ ] Node 侧多任务场景是否为每个任务用独立宿主实例做超时/内存隔离（`server-headless` 每任务一个 `worker_threads`，09 §3.2）？
 
-**与 Nest 业务模块的边界**：`apps/server` 下的普通 `@Module()`（`AuthModule`/`DocumentsModule`/`CollabModule` 等 21 个）走 Nest 自身 DI 容器，从不调用 `ctx.plugin()`，不属于本文任何一种模式——它们是"Nest 模块（非 cordis Fiber）"这一独立类别（`40-modules/16-plugin-catalog.md` §1 分类口径），按 `OCE_ROLE` 装配表决定是否启动整模块，与 cordis 的 `exclude`/`PENDING` 机制是两套互不相通的开关。只有 `cordis-host.module.ts`/`cordis-host.service.ts` 这一处（调用 `createHost`）才是模式 G。
+**与 Nest 业务模块的边界**：`apps/server` 下的普通 `@Module()`（`AuthModule`/`DocumentsModule`/`CollabModule` 等 19 个；2026-09-24 按 rulings §4.15 T-0/Q6 删去 `TenantsModule`、`GroupsModule` 后由 21 降为 19）走 Nest 自身 DI 容器，从不调用 `ctx.plugin()`，不属于本文任何一种模式——它们是"Nest 模块（非 cordis Fiber）"这一独立类别（`40-modules/16-plugin-catalog.md` §1 分类口径），按 `CORDEX_ROLE` 装配表决定是否启动整模块，与 cordis 的 `exclude`/`PENDING` 机制是两套互不相通的开关。只有 `cordis-host.module.ts`/`cordis-host.service.ts` 这一处（调用 `createHost`）才是模式 G。
 
 **常见错误**：
 - 在多个文件里各自调用一次 `createHost()`"图方便" → 得到多个互不相干的宇宙，贡献表/服务表互不可见，行为诡异且难以诊断 → 每种宿主角色只保留一个组合根文件，其余代码经该文件返回的句柄访问。
-- Node 侧长期复用同一个 `createHost()` 宇宙处理不同租户/文档的任务 → 一个任务的内存泄漏或超时拖累其它任务，且 UnitScope 隔离不能跨宿主生效 → `server-headless` 按任务创建独立宿主（必要时配合 `worker_threads`）。
+- Node 侧长期复用同一个 `createHost()` 宇宙处理不同文档的任务（单组织部署无租户维度，rulings §4.15 T-0） → 一个任务的内存泄漏或超时拖累其它任务，且 UnitScope 隔离不能跨宿主生效 → `server-headless` 按任务创建独立宿主（必要时配合 `worker_threads`）。
 - 把 `errors.sink` 实现写成 `HostOptions` 上的一个回调函数参数 → 绕开贡献点机制，无法多个 sink 并存、无法被扫描器识别为"提供了什么" → 按 ADR-0011 做成贡献 `errors.sink` 的插件。
 - `dispose()` 没有接上应用生命周期（如 SPA 路由切换时忘记调用）→ 旧宇宙的 Fiber/effect 继续占用内存与连接 → 在路由卸载/`OnApplicationShutdown`/worker `finally` 里强制调用。
 
@@ -763,7 +763,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 ### 3.1 命名
 
-规则：插件 `name` = 包名去 scope（`model-slide`）或子路径全名（`@oce/model-slide/editing`）；服务名 `ctx.<name>` 全局唯一、无域前缀（`store`/`commands`/`slides`）；事件名 `<域>/<动作>`，域取自 03 §3.6 固定域白名单（kebab-case 动作）；贡献点 id `<域>.<名>`，域与名均 camelCase；第三方插件一律加 `<vendor>:` 前缀（`vendor` = npm scope 去 `@`）。
+规则：插件 `name` = 包名去 scope（`model-slide`）或子路径全名（`@cordexjs/model-slide/editing`）；服务名 `ctx.<name>` 全局唯一、无域前缀（`store`/`commands`/`slides`）；事件名 `<域>/<动作>`，域取自 03 §3.6 固定域白名单（kebab-case 动作）；贡献点 id `<域>.<名>`，域与名均 camelCase；第三方插件一律加 `<vendor>:` 前缀（`vendor` = npm scope 去 `@`）。
 
 正例：`core.documentType`、`slide.shapeKind`、`ui.statusBar`；事件 `unit/opened`、`render/element-failed`；第三方 `acme:comments.thread`（贡献点）、`acme:comments/added`（事件）。
 
@@ -823,7 +823,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 ### 3.7 事件
 
-规则：事件必须先在 `Events` 接口声明（`*.contribution.ts` 内 `declare module '@oce/kernel' { interface Events {...} }`）才能 `ctx.on`/`ctx.emit`；五种分发模式按语义选——`emit` 通知类、`parallel` 多观察者需全部完成、`serial`/`bail` 有序决策、`waterfall` 是**唯一**拦截机制（命令管线、权限门）。普通事件监听器不影响主流程；`waterfall` 监听器不调用 `next()` 即为否决，必须显式。
+规则：事件必须先在 `Events` 接口声明（`*.contribution.ts` 内 `declare module '@cordexjs/kernel' { interface Events {...} }`）才能 `ctx.on`/`ctx.emit`；五种分发模式按语义选——`emit` 通知类、`parallel` 多观察者需全部完成、`serial`/`bail` 有序决策、`waterfall` 是**唯一**拦截机制（命令管线、权限门）。普通事件监听器不影响主流程；`waterfall` 监听器不调用 `next()` 即为否决，必须显式。
 
 正例：命令执行管线的权限检查以 `prepend:true` 插入 `command/execute` 的 `waterfall`，fail-closed（02 §2.6）。
 
@@ -847,19 +847,19 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 | 反模式 | 为什么错 | 会被哪条规则或扫描器拒绝 | 正确做法 |
 |---|---|---|---|
-| 在非 kernel 包 `import cordis` | cordis 处于 rc，升级破坏性应只由 kernel 一处吸收；其余包应只依赖 kernel 的稳定 re-export 面 | depcruise R12 `only-kernel-imports-cordis`（03 §1.1） | 改 `import { Context, ... } from '@oce/kernel'` |
+| 在非 kernel 包 `import cordis` | cordis 处于 rc，升级破坏性应只由 kernel 一处吸收；其余包应只依赖 kernel 的稳定 re-export 面 | depcruise R12 `only-kernel-imports-cordis`（03 §1.1） | 改 `import { Context, ... } from '@cordexjs/kernel'` |
 | 根级插件 `inject` UnitScope 服务（如 `store`/`history`） | 根 ctx 从未 `provide` 过这些名字，插件会永久 `PENDING` | lint `no-unit-scoped-inject-at-root`（03 §2.2/§11） | 在 UnitScope 内消费，或经 `units` 服务按 `unitId` 查询（§2.4） |
 | `MutationDef` 手写 `inverse` | 逆操作必须由 Store 从 `StoreOp` 推导，手写容易与实际应用的操作语义漂移 | lint `no-inverse-in-mutation`（02 §2.6） | 只写 `lower()`，逆操作交给 Store 推导 |
 | 贡献项 schema 校验失败时在 `apply` 里 `try/catch` 后再抛错 | 一个坏条目会拖垮整个插件的全部其他正常贡献 | 违反 03 §3.3 明确语义；无独立 lint，靠 code review | 让 `ctx.contribute` 自己走诊断+丢弃路径，不要包一层再抛 |
 | 公共 API 暴露 `Y.*` 类型 | 消费方被迫认识具体 CRDT 类型，架空单点引入规则的意图 | 04-api-surface §2.2 对 `.api.md` 的正则扫描 | 声明本包自己的抽象类型（如 `RichText`） |
 | `apps/*` 里直接 `ctx.contribute(...)`/定义领域契约 | 违反"apps 只做组装，零业务逻辑" | lint `no-domain-defs-in-apps`（11 §3.3 提及） | 领域定义放回对应 `packages/*`，apps 只挑选与装配 |
-| 跨垂直束 `import`（如 `model-slide` import `model-doc`） | 两个垂直束数值秩相同、只 `bundle` 不同，规则 2（只向下）看不出，需要专门规则堵 | depcruise `oce-bundle-isolation`（03-boundaries §3.2） | 需要共享的逻辑下沉到水平层（如 `model-core`） |
-| `dom` 包被 `node` 包 `import`（或反过来） | 环境相关全局假设被传递性引入，即使自己源码一行 `window`/`process` 都没写 | depcruise `oce-isomorphism-compatibility`（03-boundaries §3.4，`node→dom`/`dom→node` 是新增检查方向） | 通过 Definition + 各自环境的 Provider 解耦 |
-| 插件里直接 `new` 第三方客户端（如 `new Redis(...)`）而不走 Provider | 绕开三角色规则，无法替换、无法被 conformance 套件验证 | depcruise `oce-role-consumer-definition-only`（03-boundaries §3.5）；primer MUST #5 | 先定义/复用 Definition，具体客户端封装成 Provider（如 `RedisFanoutBus implements FanoutBus`） |
+| 跨垂直束 `import`（如 `model-slide` import `model-doc`） | 两个垂直束数值秩相同、只 `bundle` 不同，规则 2（只向下）看不出，需要专门规则堵 | depcruise `cordex-bundle-isolation`（03-boundaries §3.2） | 需要共享的逻辑下沉到水平层（如 `model-core`） |
+| `dom` 包被 `node` 包 `import`（或反过来） | 环境相关全局假设被传递性引入，即使自己源码一行 `window`/`process` 都没写 | depcruise `cordex-isomorphism-compatibility`（03-boundaries §3.4，`node→dom`/`dom→node` 是新增检查方向） | 通过 Definition + 各自环境的 Provider 解耦 |
+| 插件里直接 `new` 第三方客户端（如 `new Redis(...)`）而不走 Provider | 绕开三角色规则，无法替换、无法被 conformance 套件验证 | depcruise `cordex-role-consumer-definition-only`（03-boundaries §3.5）；primer MUST #5 | 先定义/复用 Definition，具体客户端封装成 Provider（如 `RedisFanoutBus implements FanoutBus`） |
 | 忘记给原生资源包 `ctx.effect` | 卸载后连接/定时器/DOM 节点残留，累积内存与句柄泄漏 | lint `effect-owned-timers`；`scan-effects`（06-scanners §4） | 资源创建与清理必须在同一个 `ctx.effect` 回调作用域内配对 |
 | 文案硬编码在组件/字符串字面量里 | 无法切换语言，且散落各处难以审计 | 目前**无已知自动化扫描器**（§7 G-7），仅评审 | 经 `i18n.bundle` 贡献 + `ctx.i18n` 查 key |
 | 用 `enum` | `erasableSyntaxOnly` 语义不支持"擦除类型即可编译"之外的结构 | tsc 编译失败（`erasableSyntaxOnly:true`，ADR-0042，01-tsconfig-baseline §2.3） | 改用 `as const` 字面量联合 + `z.enum([...])` |
-| Provider 之间互相 `import`（如 `store-yjs` import `store-memory`） | 没有场景需要一个存储后端依赖另一个存储后端的实现 | depcruise `oce-role-provider-no-cross-import`（03-boundaries §3.5） | 共享逻辑下沉到 Definition 包或 `@oce/shared` |
+| Provider 之间互相 `import`（如 `store-yjs` import `store-memory`） | 没有场景需要一个存储后端依赖另一个存储后端的实现 | depcruise `cordex-role-provider-no-cross-import`（03-boundaries §3.5） | 共享逻辑下沉到 Definition 包或 `@cordexjs/shared` |
 | 生产代码 `import` 某包的 `./testing` 子路径 | `./testing` 唯一用途是导出测试替身/契约套件，混入生产代码会把测试专用依赖（如 vitest）拖进运行时 | depcruise `no-testing-in-prod`；`scan-manifest` 规则 (f)（04-api-surface §3；06-scanners §6） | 生产代码只 `import` `.`（主入口） |
 
 ---
@@ -868,19 +868,19 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 | 规则/扫描器 | 检查什么 | 对应本文哪一节 | 失败输出示例 |
 |---|---|---|---|
-| depcruise R12 `only-kernel-imports-cordis` | 只有 `@oce/kernel` 能 `import 'cordis'` | §1；§4 第 1 行 | depcruise 原生报告：规则名 + from/to 路径（03-boundaries §6） |
+| depcruise R12 `only-kernel-imports-cordis` | 只有 `@cordexjs/kernel` 能 `import 'cordis'` | §1；§4 第 1 行 | depcruise 原生报告：规则名 + from/to 路径（03-boundaries §6） |
 | lint `no-unit-scoped-inject-at-root` | 根级插件不得 `inject` 隔离服务 | §2.4；§4 第 2 行 | ESLint 诊断，定位到违规的 `inject` 数组条目 |
 | lint `effect-owned-timers` | 原生资源必须在 `ctx.effect` 词法作用域内创建 | §3.3；§4 第 10 行 | ESLint 诊断，定位到裸 `setTimeout`/`new WebSocket` 调用点 |
 | `scan-effects` | 每个 `plugin.ts` 有生命周期烟雾测试；含 effect 的包有 dispose 断言 | §3.3；§6 | `{ package, hasDisposeTest:false }`（06-scanners §4） |
 | `scan-contributions` | `ctx.contribute`/`defineContributionPoint`/`manifest.ts` 三方一致；id 命名模式 | §2.3；§3.1 | 按规则 (a)–(d) 列出违规文件位置与贡献点 id（06-scanners §3） |
-| `scan-manifest` | `provides`/`injects`/`contributes` 与源码一致；`exports` 只含 `.`/`./testing`；Provider 必须跑 conformance 套件 | §2.1/§2.2；§6 | 生成结果 vs 入库 `oce-manifest.json` 的 diff 块（06-scanners §6） |
+| `scan-manifest` | `provides`/`injects`/`contributes` 与源码一致；`exports` 只含 `.`/`./testing`；Provider 必须跑 conformance 套件 | §2.1/§2.2；§6 | 生成结果 vs 入库 `cordex-manifest.json` 的 diff 块（06-scanners §6） |
 | `scan-type-escapes` | `any`/`as`/`!`/`@ts-ignore` 预算，ratchet 只减不增 | §3.6 | `budget exceeded: packages/x:src:as current=7 budget=5`（06-scanners §2 原文示例） |
-| `scan-policy` | 规范矩阵自洽 + 全局不变式（`tsconfig`/`oce` 字段合法） | 本节自身；全篇 | `coverage gap: charter §5.3 rule "8 (bundle isolation)" has no row…`（06-scanners §9 原文示例） |
+| `scan-policy` | 规范矩阵自洽 + 全局不变式（`tsconfig`/`cordex` 字段合法） | 本节自身；全篇 | `coverage gap: charter §5.3 rule "8 (bundle isolation)" has no row…`（06-scanners §9 原文示例） |
 | api-extractor + 04-api-surface §2.2 正则扫描 | `store-yjs`/`collab-yjs` 公开 API 不得出现 `Y.*` | §4 第 5 行 | 列出导出符号与其签名中出现的 `Y.*` 引用（04-api-surface §2.2） |
 | `erasableSyntaxOnly:true`（tsc 编译器） | 禁 `enum`/遗留装饰器 | §3.6；§4 第 12 行 | tsc 原生编译诊断（01-tsconfig-baseline §2.3/§8） |
 | `isolatedDeclarations`（tsc 编译器） | 贡献点/Manifest 常量导出必须显式标注返回类型 | §3.6 | tsc 原生编译诊断（09-plugin-type-contracts §5/§8） |
-| depcruise `oce-bundle-isolation` | 垂直束互不 `import` | §4 第 7 行 | depcruise 报告：规则名 + 违规边（03-boundaries §3.2） |
-| depcruise `oce-isomorphism-compatibility` | iso/dom/node 三态兼容矩阵 | §4 第 8 行 | depcruise 报告（03-boundaries §3.4） |
+| depcruise `cordex-bundle-isolation` | 垂直束互不 `import` | §4 第 7 行 | depcruise 报告：规则名 + 违规边（03-boundaries §3.2） |
+| depcruise `cordex-isomorphism-compatibility` | iso/dom/node 三态兼容矩阵 | §4 第 8 行 | depcruise 报告（03-boundaries §3.4） |
 | kernel `failure-isolation.test.ts` | 一个 Fiber `FAILED` 不影响兄弟 Fiber，坏插件的贡献不残留 | §3.3 | 断言 `errors` sink 恰有一条 `kernel/PLUGIN_FAILED`（03 §8 原文机械验证描述） |
 | 扫描器 `lifecycle-test-present` | 每个插件包必须存在 `__tests__/lifecycle.test.ts` | §6 步骤 7 | 列出缺失该文件的包名（03 §11） |
 
@@ -889,11 +889,11 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 ## 6. 新增一个插件的 checklist
 
 1. **选模式**——用 §0 决策树定主轴；命中多个模式（如同时是 Provider 又是 UnitScope 插件）时，逐个过一遍对应小节的检查清单。
-2. **建包**——`packages/<name>/package.json#oce`：`layer`/`iso`/`bundle`（仅 `V-*` 层必填）/`role`（`library|plugin|definition|provider|bundle|app|tooling`，Provider 需给出 `implements`）/`stability`；`exports` 只留 `.` 与 `./testing`。
+2. **建包**——`packages/<name>/package.json#cordex`：`layer`/`iso`/`bundle`（仅 `V-*` 层必填）/`role`（`library|plugin|definition|provider|bundle|app|tooling`，Provider 需给出 `implements`）/`stability`；`exports` 只留 `.` 与 `./testing`。
 3. **写 `plugin.ts`**——`name`/`inject`（必需与可选分清）/`provide`/`Config`（Standard Schema，默认值写进 schema）/`apply`（显式标注返回类型）。
 4. **定义或实现契约**——模式 A：写 `contracts/*.ts` + `testing/*-conformance.ts`（命名 `run<Definition>Conformance`）；模式 B：在 `__tests__` 里调用对方的契约套件。
 5. **注册贡献**——需要新贡献点时写 `*.contribution.ts`（`defineContributionPoint` + `declare module`，文件内零其他运行时语句）；在 `apply` 内 `ctx.contribute`。
-6. **写 Manifest**——`manifest.ts` 手写意图声明；`manifest-gen --check` 校验与源码一致；产出入库的 `oce-manifest.json`。
+6. **写 Manifest**——`manifest.ts` 手写意图声明；`manifest-gen --check` 校验与源码一致；产出入库的 `cordex-manifest.json`。
 7. **写测试**——`__tests__/lifecycle.test.ts`（挂载 → `ACTIVE`/`PENDING` → `dispose` → `assertNoLiveEffects`）；契约套件；至少一个"缺依赖时进入 `PENDING`"用例。
 8. **接入 preset**——加入对应 `preset-*` 的装配清单（`plugins/index.ts`）；确认 `exclude`/`override` 场景下宿主仍能启动（`pluggable.test.ts`）。
 9. **跑扫描器**——本地 `pre-push` 全绿：`scan-manifest`/`scan-contributions`/`scan-effects`/`scan-type-escapes`/depcruise 八条规则/`scan-policy`。
@@ -905,10 +905,10 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 - **G-1｜`16-plugin-catalog.md` 在本文写作期间才产出，已回头核对术语一致性**：本文动笔时 `docs/40-modules/` 目录止于 `15-server-architecture-review.md`，按任务指示改用 charter §5.2–§5.5 的包清单与形态词起草；写作过程中该文件被产出，收尾时已回读其 §1"分类口径"——其七类形态（host/definition/provider/plugin 贡献型/bundle/library/Nest 模块）与本文模式 A（definition）/B（provider）/C（plugin 贡献型）/E（bundle）/F（library）/G（host）逐一对应，命名口径一致；本文模式 D（UnitScope 内插件）是它未覆盖的正交轴（部署作用域，而非 cordis 形态），不构成冲突。唯一补充：16 号文档把"Nest 模块（非 cordis Fiber）"列为与 host 并列的第八类，本文已据此在 §2.7 补一条边界说明。建议：本文与 16 号文档互相加一条"另见"引用，避免后续读者只查到其中一份。
 - **G-2｜`conflict:'replace'` 的适用范围文档口径不一致**：`03-kernel-and-plugin-model.md` §3.2 `ContributionPointSpec.conflict` 字段注释写"`'replace'`：后者覆盖（**仅 `ui.*` 允许**，用于主题/移动端覆盖）"；但同一文档 §3.6 贡献点总表里 `render.overlay`（`engine-render` 定义）也标 `replace`，`40-modules/07` §3 `slide-render` 的 `render.element` 贡献表里 `graphicFrame:chart` 一键同样用 `conflict:'replace'`（供 `slide-render-chart` 覆盖），均不属于 `ui.*`。建议架构-结构条线澄清§3.2 注释措辞与实际用法的差异。
-- **G-3｜kernel re-export 草案把 `Service` 列为 type-only**：`03-kernel-and-plugin-model.md` §1.1 的 `@oce/kernel/src/index.ts`（草案）代码块中，`Service` 出现在 `export type { Context, Service, Plugin, ... } from 'cordis'`，与 `FiberState`/`CordisError`/`ValidationError` 的值导出分开写。但 `cordis-primer.md` §3.5 与 `03-kernel-and-plugin-model.md` §2.1/§2.3 都把"`class X extends Service`"列为标准写法（`services/*.service.ts` 文件约定），要求 `Service` 必须作为**值**可从 `@oce/kernel` 导入。本文 §1/§2.2/§2.4 的代码骨架按后者的明确意图处理，但这处草案两行代码本身互相矛盾，建议实现 kernel re-export 面时一并修正。
+- **G-3｜kernel re-export 草案把 `Service` 列为 type-only**：`03-kernel-and-plugin-model.md` §1.1 的 `@cordexjs/kernel/src/index.ts`（草案）代码块中，`Service` 出现在 `export type { Context, Service, Plugin, ... } from 'cordis'`，与 `FiberState`/`CordisError`/`ValidationError` 的值导出分开写。但 `cordis-primer.md` §3.5 与 `03-kernel-and-plugin-model.md` §2.1/§2.3 都把"`class X extends Service`"列为标准写法（`services/*.service.ts` 文件约定），要求 `Service` 必须作为**值**可从 `@cordexjs/kernel` 导入。本文 §1/§2.2/§2.4 的代码骨架按后者的明确意图处理，但这处草案两行代码本身互相矛盾，建议实现 kernel re-export 面时一并修正。
 - **G-4｜`defineContributionPoint` 的泛型签名两份文档不完全一致**：`03-kernel-and-plugin-model.md` §3.2 给出双类型参数版本（`<T, K extends string>`，`key` 返回 `K`）；`09-plugin-type-contracts.md` §1.1 给出单类型参数版本（`<S extends StandardSchemaV1>`，贡献项类型由 `StandardSchemaV1.InferOutput<S>` 反推，`key` 统一返回 `string`，且明确"调用方不能显式传入贡献项类型参数"）。本文 §1/§2.3 采用 09 号（更严格、且论证了取舍理由）作为代码骨架依据，建议两条线对齐一份最终签名。
 - **G-5｜UnitScope 隔离服务集合存在历史遗留符号的过渡状态**：`40-modules/02` §2.5 提到"取代 02 旧稿的 symbol 键 `doc-access`（B 线建议二选一）"，即该文档自己记录了新旧两种设计并存、尚未完全清理的痕迹。本文 §2.2/§2.4 统一采用 `03-kernel-and-plugin-model.md` §5 描述的 `createIsolatedScope`/`ctx.isolate(name)` 风格，建议 02 号文档下次修订时移除该脚注或明确其已废弃。
 - **G-6｜Host 组合根缺少等价于 Provider conformance 套件的"组合正确性"契约测试**：`04-api-surface.md` 明确"范围仅限 `packages/*`"，`apps/*` 不经过 api-extractor/`exports`/publint 门禁；`11-preset-assembly-and-app-shell.md` §3.5 的 `single-create-host-callsite` 扫描器只保证"唯一入口"，不保证"这个入口组装出来的宿主行为正确"。整理 §2.7 时未在必读材料中找到面向 Host 组合根本身的标准正确性验证套件，建议评估是否需要补一套类似 `defineLifecycleSuite` 的组合根测试骨架。
 - **G-7｜"文案硬编码"反模式缺少对应的自动化扫描器**：本文 §3.8/§4 都需要回答"由谁强制"，但必读的 `06-scanners.md`（13 个扫描器全表）与其余四篇 `09-type-discipline` 文档中，没有找到检测"面向用户文案未经 `i18n.bundle` 而直接硬编码"的规则或扫描器。`02-lint-rules.md`（59KB）未列入本次必读范围，不排除其中已有相关规则；建议架构-类型治理条线确认并回填本手册与 `08-policy-enforcement-matrix.md`。
-- **G-8｜preset 的 `configure`/`override` 合并机制为本文推断补全**：`03-kernel-and-plugin-model.md` §9 给出的 `PresetEntry` 形状是 `{ id, plugin, config?: unknown, disabled? }`（静态值），`40-modules/11` §3.1 用"默认配置（`configure[id]` 可覆盖）"一语带过具体机制，两处都未给出 `applyTrim`/`configure` 的精确合并算法（整体替换还是深合并、能否与 `override` 同时作用于同一条目等）。本文 §2.5 按"最小自洽"补全了一个 `SlidePresetOptionsSchema` 示意，标注为骨架级推断；实现期需要架构-结构条线给出 `@oce/kernel/preset` 的精确类型定义。
+- **G-8｜preset 的 `configure`/`override` 合并机制为本文推断补全**：`03-kernel-and-plugin-model.md` §9 给出的 `PresetEntry` 形状是 `{ id, plugin, config?: unknown, disabled? }`（静态值），`40-modules/11` §3.1 用"默认配置（`configure[id]` 可覆盖）"一语带过具体机制，两处都未给出 `applyTrim`/`configure` 的精确合并算法（整体替换还是深合并、能否与 `override` 同时作用于同一条目等）。本文 §2.5 按"最小自洽"补全了一个 `SlidePresetOptionsSchema` 示意，标注为骨架级推断；实现期需要架构-结构条线给出 `@cordexjs/kernel/preset` 的精确类型定义。
 - **G-9｜UnitScope 内水平层包（如 `engine-render`）如何被挂进隔离域，机制未在必读材料中说明**：`03-kernel-and-plugin-model.md` §5.1 的 `unit-plugin.ts` 伪代码直接写 `scoped.plugin(renderPlugin)`，容易读成"model-core 的 `unit-plugin.ts` 直接引用 `engine-render` 的插件"；但 `engine-render` 是 L5 水平层（秩 50），`model-core` 是 L1（秩 10），若 `unit-plugin.ts` 真的 `import` `engine-render`，会违反章程 §5.3 规则 2（只向下：`rank(to) ≤ rank(from)`，此处 `to` 秩更高）。`40-modules/11` §3.1 装配清单把 `engine-render`/`render-dom`/`collab-yjs` 的 scope 列标为"unit"，暗示它们由 **preset** 而非 model-core 直接挂进某个 Unit 的隔离域，但"谁在 Unit 打开时把这些条目追加进同一个 `createIsolatedScope` 结果"的具体机制，未在本次必读的 cordis-primer、03、40-modules 02/06/11 材料中给出可引用的代码或文字。本文 §2.4 代码骨架因此只展示了 model-core 自己直接拥有的 `store`/`history`/`selection` 三个默认 Provider，不虚构 `render`/`presence` 的挂载细节；建议架构-结构条线在 `03-kernel-and-plugin-model.md` §5 或 `40-modules/11` 补一段精确说明。

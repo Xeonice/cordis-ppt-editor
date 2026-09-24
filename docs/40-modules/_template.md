@@ -16,7 +16,7 @@
 |---|---|
 | 职责一句话 | （…） |
 | 覆盖的上下文 | BC-xx、BC-yy |
-| 承载包 / 目录 | `@oce/<pkg>`（层 Lx / 层带 V-x，秩 nn，iso\|dom\|node）、`apps/<x>/src/<dir>` |
+| 承载包 / 目录 | `@cordexjs/<pkg>`（层 Lx / 层带 V-x，秩 nn，iso\|dom\|node）、`apps/<x>/src/<dir>` |
 | cordis 形态 | plugin \| definition \| provider \| bundle \| library \| host |
 | 运行位置 | 浏览器 \| 服务端 \| 两端 |
 | 上游（依赖） | M-xx（服务 / 类型） |
@@ -76,7 +76,7 @@
 
 ```text
 packages/<pkg>/
-├── package.json              # oce: { layer, iso, bundle?, stability }
+├── package.json              # cordex: { layer, iso, bundle?, stability }
 ├── tsconfig.json
 ├── src/
 │   ├── index.ts              # 公共 API 面（§6）
@@ -102,7 +102,7 @@ packages/<pkg>/
 （`index.ts` 导出清单：类型 / 值；子路径导出；api-extractor 稳定级；关键类型契约草案 TS 代码块 ≤ 40 行）
 
 ## 7. 前后端与运行时
-（浏览器 / Node / 两端；同一 Definition 的不同 Provider；`apps/web` / `apps/server` 的接入文件路径；进程间契约经 `@oce/protocol` 的哪些 schema）
+（浏览器 / Node / 两端；同一 Definition 的不同 Provider；`apps/web` / `apps/server` 的接入文件路径；进程间契约经 `@cordexjs/protocol` 的哪些 schema）
 
 ## 8. doc / sheet 扩展缝
 （generic / parametrized / vertical 标注到文件；扩展为 doc / sheet 时新增或替换的文件清单；"必须零改动"的文件清单；对应 12 §3 的参数化点）
@@ -119,7 +119,7 @@ tests/
 （每类测试对应的源文件；夹具来源 `fixtures/`；覆盖率与性能预算引用 11）
 
 ## 10. 机械约束
-（depcruise 规则 id、eslint `no-restricted-imports/globals` 条目、扫描器检查项、`package.json#oce` 字段值、api-extractor 报告；引用 09-type-discipline 规则编号）
+（depcruise 规则 id、eslint `no-restricted-imports/globals` 条目、扫描器检查项、`package.json#cordex` 字段值、api-extractor 报告；引用 09-type-discipline 规则编号）
 
 ## 11. 里程碑与实施顺序
 （M0 骨架 / M1 / M2 / M3 各建哪些文件；首个可运行切片及其验收命令）

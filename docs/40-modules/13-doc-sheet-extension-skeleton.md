@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19 | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -8,7 +8,7 @@
 |---|---|
 | 职责一句话 | 为 M5 的 `doc`/`sheet` 两个新垂直束提供可直接照抄的最小骨架蓝图，并承载「水平层零改动」的四层自动化验证机制（ADR-0016） |
 | 覆盖的上下文 | BC-29 |
-| 承载包 / 目录 | 现存只读引用：`@oce/model-core`（`testing/fixtures/{fixture,fixture-grid}/**`，M-02 已交付，本文档不改动一行）；M5 新建 10 包：`@oce/model-doc`、`@oce/model-sheet`（V-model·秩15·iso）、`@oce/ooxml-docx`、`@oce/ooxml-xlsx`（V-codec·秩35·iso）、`@oce/doc-render`、`@oce/sheet-render`（V-render·秩55·dom）、`@oce/doc-ui`、`@oce/sheet-ui`（V-ui·秩75·dom）、`@oce/preset-doc`、`@oce/preset-sheet`（L8·秩80·dom，已收录章程（rulings §4.12 U-01），module-map §8 G-3） |
+| 承载包 / 目录 | 现存只读引用：`@cordexjs/model-core`（`testing/fixtures/{fixture,fixture-grid}/**`，M-02 已交付，本文档不改动一行）；M5 新建 10 包：`@cordexjs/model-doc`、`@cordexjs/model-sheet`（V-model·秩15·iso）、`@cordexjs/ooxml-docx`、`@cordexjs/ooxml-xlsx`（V-codec·秩35·iso）、`@cordexjs/doc-render`、`@cordexjs/sheet-render`（V-render·秩55·dom）、`@cordexjs/doc-ui`、`@cordexjs/sheet-ui`（V-ui·秩75·dom）、`@cordexjs/preset-doc`、`@cordexjs/preset-sheet`（L8·秩80·dom，已收录章程（rulings §4.12 U-01），module-map §8 G-3） |
 | cordis 形态 | plugin ×8（`model-*`/`ooxml-*`/`*-render`/`*-ui`，均为「只读主插件 + `editing` 编辑子插件」二段式）；bundle ×2（`preset-*`，纯装配，无 DDD 分层） |
 | 运行位置 | 两端：`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx` 为 iso，浏览器与 `server-headless` 加载同一份源码；仅浏览器：`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`/`preset-doc`/`preset-sheet` 为 dom |
 | 上游（依赖） | M-02（作为**被消费**的水平层契约，非运行时 import——本模块通过贡献点接入，不 `import` M-02 类型之外的任何东西）；M-03、M-04、M-06、M-07、M-10（**仅作样板参照**，抄目录结构与模式，非运行时依赖，铁律 2 禁止真实 import） |
@@ -63,7 +63,7 @@ m03 -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
 |---|---|---|
 | 文档类型盲（doc-type blindness） | 水平层代码不知道、也不需要知道自己被哪种文档类型使用 | ADR-0016 |
 | `BodyShapeHints` | `DocumentType.shape` 的 `{entityTables,atomicLists,richTexts}` 路径前缀标注，供 Store Provider 选择底层结构 | `model-core/src/document-type/document-type.ts`（M-02 §2.2，只读引用） |
-| 水平层冻结（horizontal-freeze） | 对全部无 `oce.bundle` 字段的包 `src/**` 计算内容哈希并锁定，M5 PR 要求锁文件无 diff | `fixtures/horizontal-freeze.lock`（§8） |
+| 水平层冻结（horizontal-freeze） | 对全部无 `cordex.bundle` 字段的包 `src/**` 计算内容哈希并锁定，M5 PR 要求锁文件无 diff | `fixtures/horizontal-freeze.lock`（§8） |
 | 夹具文档类型（`fixture`/`fixture-grid`） | M-02 已交付的两个测试专用文档类型，前者模拟树状通用文档，后者模拟网格键空间（sheet 的验证代理） | `model-core/testing/fixtures/{fixture,fixture-grid}/**` |
 | 垂直束模板 | 样板包（`model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui`/`preset-slide`）中结构可原样复制、仅内容重写的文件（03/04/07/10 号文档各自 §8 已逐文件标注） | — |
 | 骨架（skeleton） | M5 立项前的占位实现：`DocumentType` 注册 + 3 Mutation + 2 Command + 直通编解码 + 最小渲染，不含完整业务逻辑 | 12 §5 验收清单 |
@@ -72,7 +72,7 @@ m03 -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
 
 | 相邻上下文 | 关系类型 | 防腐层落点 | 传递的契约 |
 |---|---|---|---|
-| BC-06 幻灯片领域模型（`model-slide` 等 slide 垂直束） | **Separate Ways**（铁律 2 强制）——本模块与 slide 束互不 `import`，唯一的"关系"是都复制自同一批样板模式 | 无契约传递，隔离由 `oce-bundle-isolation`（depcruise R4）机械保证 | 无 |
+| BC-06 幻灯片领域模型（`model-slide` 等 slide 垂直束） | **Separate Ways**（铁律 2 强制）——本模块与 slide 束互不 `import`，唯一的"关系"是都复制自同一批样板模式 | 无契约传递，隔离由 `cordex-bundle-isolation`（depcruise R4）机械保证 | 无 |
 | BC-05/07/09/10/11/13/14 等水平层（Customer–Supplier） | 本模块（客户）单向依赖各水平层（供应方）的贡献点契约；水平层对本模块零感知 | 各垂直束自身的 `document-type.ts`/`codec.ts`/`*-scene-provider.ts`/`*.contribution.ts`——即 §4 对应表中标"垂直束模板"的组装文件 | `DocumentType<S>`、`MutationDef`/`CommandDef`、`FormatCodec`、`SceneProvider`、`ui.*` 贡献 |
 | BC-05 现存 `fixture`/`fixture-grid`（Conformist） | 本模块的四层验收口径完全遵从 ADR-0016 已定的夹具形状与错误码约定，无议价权 | 无（直接复用，不做适配） | `fixtureDocumentType`/`fixtureGridDocumentType`（只读引用） |
 | BC-16 预设装配（`preset-slide*`，Open Host Service 的镜像） | `preset-doc`/`preset-sheet` 复制 `preset-slide`/`preset-slide-viewer` 的组合根模式，非依赖关系（bundle 之间不互相 import） | `plugins.ts`/`options.ts` 结构对照（§4.9/§4.10） | 无跨包契约，仅模式复制 |
@@ -130,7 +130,7 @@ p1 --> p4
 
 ### 2.1 doc（`model-doc`）——流式文本 + 分页
 
-**聚合与实体**：聚合根 `DocBody { doc: {sectionProperties; styles; numbering; properties; extensions}; blocks: Record<BlockId, (Paragraph|Table|SectionBreak|Unknown) & {order: FracKey}>; media; opaqueParts }`；实体：`Paragraph`（含 `runs` 富文本）、`Table`（复用 `model-core/drawing` 的表格值对象模式）、`SectionBreak`、`Unknown`（未知块占位，对齐 `model-slide` 的 `unknown.ts`）。`order: FracKey` 排序复用 `@oce/shared/order`（ADR-0032），无数组下标，并发插入同位按 `(order,id)` 确定——与 slide 完全相同的机制。
+**聚合与实体**：聚合根 `DocBody { doc: {sectionProperties; styles; numbering; properties; extensions}; blocks: Record<BlockId, (Paragraph|Table|SectionBreak|Unknown) & {order: FracKey}>; media; opaqueParts }`；实体：`Paragraph`（含 `runs` 富文本）、`Table`（复用 `model-core/drawing` 的表格值对象模式）、`SectionBreak`、`Unknown`（未知块占位，对齐 `model-slide` 的 `unknown.ts`）。`order: FracKey` 排序复用 `@cordexjs/shared/order`（ADR-0032），无数组下标，并发插入同位按 `(order,id)` 确定——与 slide 完全相同的机制。
 
 **值对象**：`Style`（段落/游程样式，`Record<StyleId,Style>`）、`RunProperties`（复用 `model-core/drawing` 的 `FontRef`/`Color` 等 DrawingML 共享词汇）、`BlockId`/`StyleId` 品牌类型。
 
@@ -214,19 +214,19 @@ fourLayerTest --> freezeAccept
 | `preset-doc` | — | — | — | 无（装配根不自行贡献，只挂载子插件） | — | — | `plugins.ts` 无序挂载，稳定 id 记录供 `fiber.update` |
 | `preset-sheet` | — | — | — | 无 | — | — | `plugins.ts` 无序挂载，稳定 id 记录供 `fiber.update` |
 
-配置 schema：八个 plugin 包各自的 `config.ts`（`XxxConfig` zod）字段模式复制样板（`lazySlides`→`lazyParagraphs`/`lazySheets` 等），骨架阶段留最小字段集，不在本节展开（§4 对应表已标注）。Manifest 片段：十包均由 `src/manifest.ts` 序列化生成 `oce-manifest.json`，字段结构与样板包 1:1（`preset-*` 的 `manifest.ts` 只聚合子插件清单）。
+配置 schema：八个 plugin 包各自的 `config.ts`（`XxxConfig` zod）字段模式复制样板（`lazySlides`→`lazyParagraphs`/`lazySheets` 等），骨架阶段留最小字段集，不在本节展开（§4 对应表已标注）。Manifest 片段：十包均由 `src/manifest.ts` 序列化生成 `cordex-manifest.json`，字段结构与样板包 1:1（`preset-*` 的 `manifest.ts` 只聚合子插件清单）。
 
 ## 4. 目录树（完整到文件）
 
-> **压缩约定**（总编排裁定允许，见任务书"硬规则"）：十包根配置均遵循 02 §4.0 包模板的 9 个文件（`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`oce-manifest.json`，plugin 角色全含、bundle 角色只需前 2 个 + `oce-manifest.json`），下方每棵树只展开 `package.json`（携带 `oce` 字段，是唯一逐包不同的根文件）代表整组根配置，其余 8 个文件按模板 1:1 存在、不重复画出；`src/**` 完整到文件。每棵树后紧跟"与样板对应表"（样板文件 / 本包文件 / 关系 / 职责差异），关系取值：**同名模板**（结构与实现模式原样复制，仅改标识符）· **替换**（同一职责位置，内容因领域而异）· **新增**（样板没有，本包新增）· **删除**（样板有，本包不需要）。DDD 五目录物理落地遵循 00-module-map §1 对照表，与 03/04/07/10 号文档一致。
+> **压缩约定**（总编排裁定允许，见任务书"硬规则"）：十包根配置均遵循 02 §4.0 包模板的 9 个文件（`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`，plugin 角色全含、bundle 角色只需前 2 个 + `cordex-manifest.json`），下方每棵树只展开 `package.json`（携带 `cordex` 字段，是唯一逐包不同的根文件）代表整组根配置，其余 8 个文件按模板 1:1 存在、不重复画出；`src/**` 完整到文件。每棵树后紧跟"与样板对应表"（样板文件 / 本包文件 / 关系 / 职责差异），关系取值：**同名模板**（结构与实现模式原样复制，仅改标识符）· **替换**（同一职责位置，内容因领域而异）· **新增**（样板没有，本包新增）· **删除**（样板有，本包不需要）。DDD 五目录物理落地遵循 00-module-map §1 对照表，与 03/04/07/10 号文档一致。
 
-### 4.1 `@oce/model-doc` — V-model · iso · bundle=doc · role=plugin · stability=experimental
+### 4.1 `@cordexjs/model-doc` — V-model · iso · bundle=doc · role=plugin · stability=experimental
 
-样板：`@oce/model-slide`（03 §4）。
+样板：`@cordexjs/model-slide`（03 §4）。
 
 ```text
 packages/model-doc/
-├── package.json                  # oce: { layer:'V-model', bundle:'doc', iso:'iso', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-model', bundle:'doc', iso:'iso', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts                  # 公共 API 面
 │   ├── plugin.ts                 # 主插件：只读部分（贡献 documentType/mutation/command 只读查询面）
@@ -265,13 +265,13 @@ packages/model-doc/
 | `src/plugin.ts`/`editing.ts` | 同名 | 同名模板 | 二段式加载模式原样复制 |
 | `PlaceholderRef`/母版继承/`reassignTo` | 无 | 删除 | doc 无"母版/版式"概念 |
 
-### 4.2 `@oce/model-sheet` — V-model · iso · bundle=sheet · role=plugin · stability=experimental
+### 4.2 `@cordexjs/model-sheet` — V-model · iso · bundle=sheet · role=plugin · stability=experimental
 
-样板：`@oce/model-slide`（同手法，额外亮点见 `infrastructure/sharding.ts`）。
+样板：`@cordexjs/model-slide`（同手法，额外亮点见 `infrastructure/sharding.ts`）。
 
 ```text
 packages/model-sheet/
-├── package.json                  # oce: { layer:'V-model', bundle:'sheet', iso:'iso', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-model', bundle:'sheet', iso:'iso', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts
@@ -306,13 +306,13 @@ packages/model-sheet/
 
 **两包间的铁律 2 落地**：`model-doc`/`model-sheet` 互不 `import`；二者共享的唯一"相似性"是都复制自 `model-slide` 这同一份样板，不构成依赖关系。
 
-### 4.3 `@oce/ooxml-docx` — V-codec · iso · bundle=doc · role=plugin · stability=experimental
+### 4.3 `@cordexjs/ooxml-docx` — V-codec · iso · bundle=doc · role=plugin · stability=experimental
 
-样板：`@oce/ooxml-pptx`（04 §4.2）。**硬规则**：必须复用 `ooxml-core`（BC-07，generic，见 §8）的 OPC/XML/DrawingML/不透明保留引擎，不得重新实现。
+样板：`@cordexjs/ooxml-pptx`（04 §4.2）。**硬规则**：必须复用 `ooxml-core`（BC-07，generic，见 §8）的 OPC/XML/DrawingML/不透明保留引擎，不得重新实现。
 
 ```text
 packages/ooxml-docx/
-├── package.json                  # oce: { layer:'V-codec', bundle:'doc', iso:'iso', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-codec', bundle:'doc', iso:'iso', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # contribute core.format(docxCodec)
@@ -345,13 +345,13 @@ packages/ooxml-docx/
 | `interface/codec.ts` | `interface/codec.ts` | 同名模板 | `id`/`documentType`/`mimeTypes`/`extensions` 换 docx 值 |
 | `infrastructure/import/notes-text.ts`、`comments.ts` | 无 | 删除 | docx 有自己的批注机制，概念不同 |
 
-### 4.4 `@oce/ooxml-xlsx` — V-codec · iso · bundle=sheet · role=plugin · stability=experimental
+### 4.4 `@cordexjs/ooxml-xlsx` — V-codec · iso · bundle=sheet · role=plugin · stability=experimental
 
-样板：`@oce/ooxml-pptx`（同 4.3 手法，换 SpreadsheetML）。
+样板：`@cordexjs/ooxml-pptx`（同 4.3 手法，换 SpreadsheetML）。
 
 ```text
 packages/ooxml-xlsx/
-├── package.json                  # oce: { layer:'V-codec', bundle:'sheet', iso:'iso', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-codec', bundle:'sheet', iso:'iso', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # contribute core.format(xlsxCodec)
@@ -373,13 +373,13 @@ packages/ooxml-xlsx/
 
 **与 4.3 的差异**（对应表结构相同，不重复列）：`sharedStrings.xml`/`styles.xml` 是 xlsx 格式专属部件（无 docx 对应物），在 `application/pipeline.ts` 内联占位说明；媒体部件寻址/去重算法与 docx 一致（04 §8 标注"垂直束模板，算法几乎可直接复用"）；`chart.ts` 复用 `ooxml-core/chartml`（generic）不变——sheet 的图表/数据透视表渲染留给 `sheet-render`，本包只做部件级不透明保留；`domain/ids/ooxml-id-map.ts` 与 `ooxml-docx` 同一处理（临时复制，非假定已提升，2026-09-18，C-18）。
 
-### 4.5 `@oce/doc-render` — V-render · dom · bundle=doc · role=plugin · stability=experimental
+### 4.5 `@cordexjs/doc-render` — V-render · dom · bundle=doc · role=plugin · stability=experimental
 
-样板：`@oce/slide-render`（07 §4.1）。复用 `engine-render`/`engine-layout`/`render-dom` 契约（generic，§8），不新增 Provider。
+样板：`@cordexjs/slide-render`（07 §4.1）。复用 `engine-render`/`engine-layout`/`render-dom` 契约（generic，§8），不新增 Provider。
 
 ```text
 packages/doc-render/
-├── package.json                  # oce: { layer:'V-render', bundle:'doc', iso:'dom', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-render', bundle:'doc', iso:'dom', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # 根贡献注册 render.scene('doc') + unitPlugins 挂载 thumbnails
@@ -410,13 +410,13 @@ packages/doc-render/
 | `domain/compose/compose-slide.ts` | `domain/compose.ts` | 替换（slide 专属不复制，见 07 §8） | 三层合成→分页合成，规则从零设计 |
 | `infrastructure/elements/{sp,pic,…}.renderer.ts` | `infrastructure/paragraph.renderer.ts` | 替换 | `kind` 集合完全不同，骨架阶段只实现段落一种 |
 
-### 4.6 `@oce/sheet-render` — V-render · dom · bundle=sheet · role=plugin · stability=experimental
+### 4.6 `@cordexjs/sheet-render` — V-render · dom · bundle=sheet · role=plugin · stability=experimental
 
-样板：`@oce/slide-render`（同手法，换网格虚拟化）。
+样板：`@cordexjs/slide-render`（同手法，换网格虚拟化）。
 
 ```text
 packages/sheet-render/
-├── package.json                  # oce: { layer:'V-render', bundle:'sheet', iso:'dom', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-render', bundle:'sheet', iso:'dom', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # 根贡献注册 render.scene('sheet')
@@ -436,17 +436,17 @@ packages/sheet-render/
 
 **与 4.5 的差异**（对应表结构相同，不重复列）：`domain/dirty/classify.ts` 若 M5 补齐，sheet 一侧需特别处理"巨大稀疏 `cells` 表下 `full` 归类的性能陷阱"（07 §8 已预警，与 §13 Q3/Q4 相关）；`RenderTarget` 契约无假设，`sheet-render` 未来可贡献自己的 `render.target:'canvas-grid'`（12 §2 表，Provider 可替换）以应对大量文本节点的 DOM 压力，骨架阶段仍用 `render-dom` 的 `'dom'` target。
 
-### 4.7 `@oce/doc-ui` — V-ui · dom · bundle=doc · role=plugin · stability=experimental
+### 4.7 `@cordexjs/doc-ui` — V-ui · dom · bundle=doc · role=plugin · stability=experimental
 
-样板：`@oce/slide-ui`（10 §4.4）。复用 `ui-core`/`ui-react`（generic，§8）的 `ui.*` 贡献点与 `styles/index.css` 约定。
+样板：`@cordexjs/slide-ui`（10 §4.4）。复用 `ui-core`/`ui-react`（generic，§8）的 `ui.*` 贡献点与 `styles/index.css` 约定。**2026-09-24（rulings §4.15 Q2）**：`doc-ui`/`sheet-ui` 与 slide-ui 同受 depcruise 规则 `cordex-ui-bundle-core-framework-free`（M-01 规则 9，TD-082；2026-09-24 复核 M17 统一名）约束——`src/domain/**`、`src/application/**` 框架无关，React 仅 `src/ui/**` 可用（以类型治理 02-lint 单点引入表为准，复核 L17）；形态 B 的 `FRAMEWORK_FREE_EXCLUDES` 在 `preset-doc`/`preset-sheet` 中同样须排除本包（M-11 同构）。
 
 ```text
 packages/doc-ui/
-├── package.json                  # oce: { layer:'V-ui', bundle:'doc', iso:'dom', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-ui', bundle:'doc', iso:'dom', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # inject；ready：contributions.ts 批量贡献
-│   ├── doc-ui.contribution.ts     # declare module '@oce/ui-core'：前缀上下文键 'doc.editScope' 等；含 config.ts 内容
+│   ├── doc-ui.contribution.ts     # declare module '@cordexjs/ui-core'：前缀上下文键 'doc.editScope' 等；含 config.ts 内容
 │   ├── domain/
 │   │   ├── ribbon-spec.ts         # ribbonSpec()：开始/插入/布局 页签（命令 id 换 doc.*），大纲/页导航替代缩略图侧栏（rail slot）
 │   │   └── inspector-spec.ts      # 段落/样式集分区（母版视图 → "样式集视图"，viewMode:'styles'，10 §8 已预告对应关系）
@@ -471,13 +471,13 @@ packages/doc-ui/
 | `infrastructure/contributions/*.ts`、`context-key-bridge.ts` | `infrastructure/contributions.ts` | 同名模板（骨架合一） | 三份贡献注册 + 上下文键桥接合并为一个骨架文件 |
 | `ui/ribbon/{DesignTab,TransitionTab,MasterTab}.tsx`、`ui/thumbnails/MasterThumbnails.tsx` 等 | 无 | 删除 | slide 专属组件（10 §8 明确列出不复制清单） |
 
-### 4.8 `@oce/sheet-ui` — V-ui · dom · bundle=sheet · role=plugin · stability=experimental
+### 4.8 `@cordexjs/sheet-ui` — V-ui · dom · bundle=sheet · role=plugin · stability=experimental
 
-样板：`@oce/slide-ui`（同手法）。
+样板：`@cordexjs/slide-ui`（同手法）。
 
 ```text
 packages/sheet-ui/
-├── package.json                  # oce: { layer:'V-ui', bundle:'sheet', iso:'dom', role:'plugin', stability:'experimental' }
+├── package.json                  # cordex: { layer:'V-ui', bundle:'sheet', iso:'dom', role:'plugin', stability:'experimental' }
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts
@@ -497,16 +497,16 @@ packages/sheet-ui/
 
 **与 4.7 的差异**（对应表结构相同，不重复列）：`rail` slot 语义从"页面缩略图"变为"工作表页签条"；无 `layout-actions`/`present`/`master-view` 对应物，`present.ts` 类比物在 sheet 语境下不存在（无放映模式）；状态栏新增"求和"统计位（12 §2 表已列举 sheet 的状态栏用法）。
 
-### 4.9 `@oce/preset-doc` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01））
+### 4.9 `@cordexjs/preset-doc` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01））
 
-样板：`@oce/preset-slide`（30-architecture/02-layering-and-packages.md §4.21，因 `11-preset-assembly-and-app-shell.md` 尚未成文，本节以该节为准）。纯装配包，无 DDD 分层（00-module-map §1 规则 3）。
+样板：`@cordexjs/preset-slide`（30-architecture/02-layering-and-packages.md §4.21，因 `11-preset-assembly-and-app-shell.md` 尚未成文，本节以该节为准）。纯装配包，无 DDD 分层（00-module-map §1 规则 3）。
 
 ```text
 packages/preset-doc/
-├── package.json                  # oce: { layer:'L8', iso:'dom', role:'bundle' }
+├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle' }
 ├── src/
 │   ├── index.ts                  # createDocPreset(options?: DocPresetOptions): Plugin
-│   ├── plugin.ts                 # 无序挂载各子插件；每个子插件用稳定 id 记录以便 fiber.update 局部重配置；复用 @oce/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07，零成本继承 preset-slide 同款装配运行时）
+│   ├── plugin.ts                 # 无序挂载各子插件；每个子插件用稳定 id 记录以便 fiber.update 局部重配置；复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07，零成本继承 preset-slide 同款装配运行时）
 │   ├── manifest.ts               # 聚合清单
 │   ├── options.ts                # DocPresetOptions（zod）：{ locale; theme; storeProvider:'memory'; renderTarget:'dom'; permissions; exclude?; override? }
 │   ├── plugins.ts                # 显式列表：model-core、store-memory、model-doc、ooxml-docx、engine-layout、engine-render、render-dom、doc-render、design(css)、ui-core、ui-react、doc-ui、i18n
@@ -516,16 +516,16 @@ packages/preset-doc/
 │       └── exclude-matrix.test.ts # 「移除任一 Provider 仍可启动」矩阵（章程 §5.4、M1 验收模式）
 ```
 
-**与样板对应表**：全部文件为**同名模板**——`preset-slide` 的 `plugins.ts` 换 slide 系列包为 doc 系列包，`options.ts` 字段结构 1:1 复制。**关键差异**：`preset-doc` 不存在 `preset-doc-collab`/`preset-doc-viewer` 的骨架阶段展开（12 §5/PRD M5 P0 范围只要求单人打开/渲染骨架，协同/查看器留待 M5 后续），对应 `preset-slide-collab`/`preset-slide-viewer` 暂无对照文件。**装配运行时（2026-09-18，C-07）**：`PresetEntry`/`mountEntries`/`applyTrim` 等类型与纯函数已收编进 `@oce/kernel/src/preset/`（跨模块评审 C-07），`preset-doc`/`preset-sheet` 与 `preset-slide` 一样直接 `import { mountEntries, applyTrim } from '@oce/kernel/preset'`，不依赖也不复制 `preset-slide-viewer`（该包已删除本地 `assembly/`）。
+**与样板对应表**：全部文件为**同名模板**——`preset-slide` 的 `plugins.ts` 换 slide 系列包为 doc 系列包，`options.ts` 字段结构 1:1 复制。**关键差异**：`preset-doc` 不存在 `preset-doc-collab`/`preset-doc-viewer` 的骨架阶段展开（12 §5/PRD M5 P0 范围只要求单人打开/渲染骨架，协同/查看器留待 M5 后续），对应 `preset-slide-collab`/`preset-slide-viewer` 暂无对照文件。**装配运行时（2026-09-18，C-07）**：`PresetEntry`/`mountEntries`/`applyTrim` 等类型与纯函数已收编进 `@cordexjs/kernel/src/preset/`（跨模块评审 C-07），`preset-doc`/`preset-sheet` 与 `preset-slide` 一样直接 `import { mountEntries, applyTrim } from '@cordexjs/kernel/preset'`，不依赖也不复制 `preset-slide-viewer`（该包已删除本地 `assembly/`）。
 
-### 4.10 `@oce/preset-sheet` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01），同 4.9）
+### 4.10 `@cordexjs/preset-sheet` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01），同 4.9）
 
 ```text
 packages/preset-sheet/
-├── package.json                  # oce: { layer:'L8', iso:'dom', role:'bundle' }
+├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle' }
 ├── src/
 │   ├── index.ts                  # createSheetPreset(options?): Plugin
-│   ├── plugin.ts                 # 同 preset-doc：复用 @oce/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07）
+│   ├── plugin.ts                 # 同 preset-doc：复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07）
 │   ├── manifest.ts
 │   ├── options.ts                # SheetPresetOptions
 │   ├── plugins.ts                # model-core、store-memory、model-sheet、ooxml-xlsx、engine-layout、engine-render、render-dom、sheet-render、design(css)、ui-core、ui-react、sheet-ui、i18n
@@ -535,11 +535,11 @@ packages/preset-sheet/
 │       └── exclude-matrix.test.ts
 ```
 
-**命名待决**：module-map §8 G-3 建议包名 `@oce/preset-doc`/`@oce/preset-sheet`（与 `@oce/preset-slide` 对称）；PRD `05-milestones-and-scope.md` M5 段落原文写的是 `preset-doc-skeleton`/`preset-sheet-skeleton`。两处命名不一致，本文档采用 module-map §8 G-3 的口径（与章程 §5.1 网格的既有八个包名风格一致），差异登记见 §12 G-2、§13 Q1。
+**命名待决**：module-map §8 G-3 建议包名 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`（与 `@cordexjs/preset-slide` 对称）；PRD `05-milestones-and-scope.md` M5 段落原文写的是 `preset-doc-skeleton`/`preset-sheet-skeleton`。两处命名不一致，本文档采用 module-map §8 G-3 的口径（与章程 §5.1 网格的既有八个包名风格一致），差异登记见 §12 G-2、§13 Q1。
 
 ## 5. 文件职责表
 
-> 职责一句话已在 §4 目录树的行内注释给出，此处不重复；下表逐文件补充**主要导出**（§4 未展开的信号）。**允许依赖**遵循统一的 DDD 分层规则（00-module-map §1），十包一致，不逐文件重复标注：`domain/**` 只依赖同包 `domain/**` + M-02 类型 + `@oce/shared`；`application/**` 依赖 `domain/**`；`infrastructure/**` 依赖 `domain/**`+`application/**`+样板同构包所消费的水平层 Definition（如 `engine-layout`/`render-dom`/`ui-core`）；`interface/**` 只读依赖 `domain/**`；`testing/**` 依赖以上全部；根级文件（`plugin.ts`/`*.contribution.ts`）依赖 `domain/**`+`application/**`+`infrastructure/**`。
+> 职责一句话已在 §4 目录树的行内注释给出，此处不重复；下表逐文件补充**主要导出**（§4 未展开的信号）。**允许依赖**遵循统一的 DDD 分层规则（00-module-map §1），十包一致，不逐文件重复标注：`domain/**` 只依赖同包 `domain/**` + M-02 类型 + `@cordexjs/shared`；`application/**` 依赖 `domain/**`；`infrastructure/**` 依赖 `domain/**`+`application/**`+样板同构包所消费的水平层 Definition（如 `engine-layout`/`render-dom`/`ui-core`）；`interface/**` 只读依赖 `domain/**`；`testing/**` 依赖以上全部；根级文件（`plugin.ts`/`*.contribution.ts`）依赖 `domain/**`+`application/**`+`infrastructure/**`。
 
 | 包 | 文件 | 主要导出 |
 |---|---|---|
@@ -610,7 +610,7 @@ packages/preset-sheet/
 | `sheet-render` | `__tests__/lifecycle.test.ts` | 测试文件，无导出 |
 | `doc-ui` | `index.ts` | 默认导出插件对象 + 类型 |
 | `doc-ui` | `plugin.ts` | inject 声明；ready 贡献注册 |
-| `doc-ui` | `doc-ui.contribution.ts` | `declare module '@oce/ui-core'`：前缀上下文键；`DocUiConfig` |
+| `doc-ui` | `doc-ui.contribution.ts` | `declare module '@cordexjs/ui-core'`：前缀上下文键；`DocUiConfig` |
 | `doc-ui` | `domain/ribbon-spec.ts` | `ribbonSpec(): RibbonItem[]` |
 | `doc-ui` | `domain/inspector-spec.ts` | `inspectorSpec(): PanelItem[]` |
 | `doc-ui` | `application/command-bindings.ts` | `bindings[controlId]` 装配器表 |
@@ -619,7 +619,7 @@ packages/preset-sheet/
 | `doc-ui` | `__tests__/lifecycle.test.ts` | 测试文件，无导出 |
 | `sheet-ui` | `index.ts` | 默认导出插件对象 + 类型 |
 | `sheet-ui` | `plugin.ts` | inject 声明；ready 贡献注册 |
-| `sheet-ui` | `sheet-ui.contribution.ts` | `declare module '@oce/ui-core'`：前缀上下文键（含公式栏 slot）；`SheetUiConfig` |
+| `sheet-ui` | `sheet-ui.contribution.ts` | `declare module '@cordexjs/ui-core'`：前缀上下文键（含公式栏 slot）；`SheetUiConfig` |
 | `sheet-ui` | `domain/ribbon-spec.ts` | `ribbonSpec(): RibbonItem[]` |
 | `sheet-ui` | `domain/inspector-spec.ts` | `inspectorSpec(): PanelItem[]` |
 | `sheet-ui` | `application/command-bindings.ts` | `bindings[controlId]` 装配器表 |
@@ -641,7 +641,7 @@ packages/preset-sheet/
 | `preset-sheet` | `testing/index.ts` | `mountSheetPreset(host, opts)` |
 | `preset-sheet` | `__tests__/exclude-matrix.test.ts` | 测试文件，无导出 |
 
-各包 `package.json` 未在上表逐一列出（导出即 `oce` 字段本身，已在 §4 每棵树的首行标注）；根配置其余 8 个模板文件（`tsconfig*.json`/`vitest.config.ts`/`api-extractor.json`/`etc/*.api.md`/`README.md`/`CHANGELOG.md`/`oce-manifest.json`）无导出，按 §4 压缩约定不重复列出。
+各包 `package.json` 未在上表逐一列出（导出即 `cordex` 字段本身，已在 §4 每棵树的首行标注）；根配置其余 8 个模板文件（`tsconfig*.json`/`vitest.config.ts`/`api-extractor.json`/`etc/*.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`）无导出，按 §4 压缩约定不重复列出。
 
 ## 6. 对外 API 面
 
@@ -705,7 +705,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 | 缩略图页面路由 | `server-headless/infrastructure/thumbnails/render-page-protocol.ts` 的 `documentType` 查询参数 | 新增 `documentType=doc\|sheet` 取值透传（12-server §8 已预告） |
 | 导入/导出任务名 | `import-export/infrastructure/{import,export}.processor.ts` | M5 起改为按 `document.docType` 透传调用 `importDocx`/`importXlsx` 等，不再硬编码 pptx 专属符号名 |
 
-`apps/web` 的接入：`preset-doc`/`preset-sheet` 与 `preset-slide` 同级挂载于 `host/create-editor-host.ts`（唯一「知道插件存在」的应用代码，module-map §5.2），编辑器路由按 `Document.docType` 选择装配哪个 preset。进程间契约：本模块十包同样**不出现**在 `@oce/protocol` 的任何 REST DTO / WS 帧里——`DocBody`/`SheetBody` 只经 `Snapshot.body`（M-02 JSON 编解码边界）或 CRDT update 字节跨进程，`docx`/`xlsx` 的 `bytes` 只经 HTTP 请求体传输，均与 03/04 §7 的既有结论一致，本模块不新增任何协议帧。
+`apps/web` 的接入：`preset-doc`/`preset-sheet` 与 `preset-slide` 同级挂载于 `host/create-editor-host.ts`（唯一「知道插件存在」的应用代码，module-map §5.2），编辑器路由按 `Document.docType` 选择装配哪个 preset。进程间契约：本模块十包同样**不出现**在 `@cordexjs/protocol` 的任何 REST DTO / WS 帧里——`DocBody`/`SheetBody` 只经 `Snapshot.body`（M-02 JSON 编解码边界）或 CRDT update 字节跨进程，`docx`/`xlsx` 的 `bytes` 只经 HTTP 请求体传输，均与 03/04 §7 的既有结论一致，本模块不新增任何协议帧。
 
 ## 8. doc / sheet 扩展缝
 
@@ -721,22 +721,22 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 4. `<type>-render`：一个 `SceneProvider` + 至少一个 `ElementRenderer`（§4.5/4.6）。
 5. `<type>-ui`：`ribbon-spec.ts`/`inspector-spec.ts` + 贡献注册（§4.7/4.8）。
 6. `preset-<type>`：`plugins.ts` 列出以上四包 + 水平层包（§4.9/4.10）。
-7. `tooling/policy/schema/oce-package-metadata.schema.json` 的 `bundle` 枚举加一个值（01 §8 第 1 条"需要改的文件"）；若引入新事件域前缀，`tooling/policy/event-domains.json` 加一行（01 §8 第 2 条）。
+7. `tooling/policy/schema/cordex-package-metadata.schema.json` 的 `bundle` 枚举加一个值（01 §8 第 1 条"需要改的文件"）；若引入新事件域前缀，`tooling/policy/event-domains.json` 加一行（01 §8 第 2 条）。
 8. 首次为该 bundle 运行 `scan-horizontal-freeze` 生成冻结基线（§8.3）。
 
 **不需要新建或修改的文件**：`tooling/depcruise/rules/doc-type-blind.ts`、`no-doc-type-literals.ts`、`tooling/depcruise/layers.ts`——三者均为相等性比较/动态派生机制，新增 bundle 不改一行代码（01 §8"不用改的文件"清单，本模块直接继承该结论）。
 
 ### 8.2 必须零改动的水平层文件清单（`horizontal-freeze` 冻结范围汇总）
 
-> 按 module-map §6.4 机制：对全部无 `oce.bundle` 字段的包 `src/**`（含 `testing/**`，不含 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`。下表汇总各模块文档已各自声明的冻结范围，本模块不重新罗列文件名（信息权威来源仍是各自模块文档的 §8），只做**总账**：
+> 按 module-map §6.4 机制：对全部无 `cordex.bundle` 字段的包 `src/**`（含 `testing/**`，不含 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`。下表汇总各模块文档已各自声明的冻结范围，本模块不重新罗列文件名（信息权威来源仍是各自模块文档的 §8），只做**总账**：
 
 | BC | 模块文档 | 冻结文件数 | 冻结范围来源 |
 |---|---|---|---|
 | BC-01…05、07（`shared`/`kernel`/`protocol`/`i18n`/`model-core`+2 store/`ooxml-core`） | M-02 §8、M-04 §8 | 203（M-02 七包）+ 43（`ooxml-core`） | 02 §8"必须零改动的文件清单"；04 §8 |
 | BC-09（`collab-core`/`collab-yjs`/`collab-transport-ws`/`collab-offline-idb`） | M-05 §8 | 86 | 05 §8"doc/sheet 复用时零改动的文件清单" |
 | BC-10/11（`engine-layout`/`engine-render`/`render-dom`） | M-06 §8 | 0（**零文件变化**，纯契约消费） | 06 §8"三包内零文件变化" |
-| BC-13/14（`design`/`ui-core`/`ui-react`） | M-10 §8 | 全部（含 45 个 shadcn 复制件） | 10 §8"generic（零改动）" |
-| BC-18/19/20（`apps/server` 身份/文档/存储模块 + `server-storage`） | M-08 §8 | 全部（本模块无独立计数，按"全部"标注） | 08 §8 |
+| BC-13/14（`design`/`ui-core`/`ui-react`） | M-10 §8 | 全部（含 44 个 shadcn 复制件；2026-09-24 `drawer`/vaul 不迁移，45→44，rulings §4.15 Q2） | 10 §8"generic（零改动）" |
+| BC-18/19/20（`apps/server` 身份/文档/存储模块 + `server-storage`；2026-09-24 起为 7 个 Nest 模块 auth/users/documents/permissions/share-links/storage/media，`tenants` 随 T-0 单组织去租户删除、`groups` 随组管理推迟移出，rulings §4.15 T-0/Q6） | M-08 §8 | 全部（本模块无独立计数，按"全部"标注） | 08 §8 |
 | BC-21/22/27（`server-collab`/`server-headless` + Nest `collab`/`snapshots`） | M-09 §8 | 全部 | 09 §8"本模块全部文件零改动" |
 | BC-23/24/25/26（Nest `jobs`/`import-export`/`thumbnails`/`comments`/`audit`/`health`/`metrics`/`internal`） | M-12 §8 | 全部，除两个 processor 与 `RenderRoute`/`Anchor` 三个**参数化点**文件 | 12 §8（导入/导出任务名、渲染页路由、评论锚点三处透传） |
 | BC-28（`tooling/**`） | M-01 §8 | 全部（治理规则对 bundle 值做相等性比较，非枚举） | 01 §8 |
@@ -747,7 +747,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 
 | 层 | 检查 | 机制 | 本模块验收对象 |
 |---|---|---|---|
-| 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `doc-type-blind`（R3）/`oce-bundle-isolation`（R4）；lint `no-doc-type-literals` | 十包不 import 任何 slide 束包（铁律 2）；depcruise 报告零横向依赖（12 §5） |
+| 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `doc-type-blind`（R3）/`cordex-bundle-isolation`（R4）；lint `no-doc-type-literals` | 十包不 import 任何 slide 束包（铁律 2）；depcruise 报告零横向依赖（12 §5） |
 | 夹具层 | 水平层可被非 slide 类型驱动 | `model-core/testing/fixtures/{fixture,fixture-grid}/**`（M-02 已交付） | 本模块只读引用，不修改；证明水平层设计时已考虑 doc/sheet 形状 |
 | 运行时层 | 同时打开 `fixture`/`fixture-grid` 互不干扰；移除类型后返回未知类型错误，host 仍健康 | `preset-blind.test.ts`（M-02） | 本模块的 `preset-doc`/`preset-sheet` 装配矩阵测试（`__tests__/exclude-matrix.test.ts`）是同一模式在真实垂直束上的复现 |
 | 冻结层 | §8.2 全表无 diff | `tooling/scanners/horizontal-freeze.ts`（**M5 新增建议**，01 §8/§12 D-4，当前不计入 13 个现有扫描器，纳入后编号变为第 14 个） | M-13/M5 PR 门禁 |
@@ -764,10 +764,10 @@ pnpm depcruise --config .dependency-cruiser.cjs packages/model-doc packages/mode
 pnpm tsx tooling/scripts/scan-horizontal-freeze.ts --check                     # 期望 fixtures/horizontal-freeze.lock 无 diff
 
 # 骨架验收（12 §5 逐项）
-pnpm --filter @oce/model-doc test -- --grep "DocumentType 'doc'"               # 注册 + 3 Mutation + 2 Command
-pnpm --filter @oce/model-sheet test -- --grep "DocumentType 'sheet'"           # 注册 + 稀疏 cells + row.insert
-pnpm --filter @oce/doc-render test -- --grep "renders paragraph lines"         # SceneProvider 渲染出段落行（FixedMetricsMeasurer）
-pnpm --filter @oce/sheet-render test -- --grep "renders grid window"          # Scene 网格窗口
+pnpm --filter @cordexjs/model-doc test -- --grep "DocumentType 'doc'"               # 注册 + 3 Mutation + 2 Command
+pnpm --filter @cordexjs/model-sheet test -- --grep "DocumentType 'sheet'"           # 注册 + 稀疏 cells + row.insert
+pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"         # SceneProvider 渲染出段落行（FixedMetricsMeasurer）
+pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"          # Scene 网格窗口
 pnpm exec vitest run test/preset-coexist.test.ts                               # 同页 slide+doc+sheet 三个 Unit 互不影响
 ```
 
@@ -779,7 +779,7 @@ pnpm exec vitest run test/preset-coexist.test.ts                               #
 
 ```mermaid
 flowchart LR
-    staticLayer["静态层"] -- "位于" --> staticFiles["tooling/depcruise/rules/doc-type-blind.ts 与 oce-bundle-isolation.ts；tooling/eslint-config/eslint-plugin-oce/rules/no-doc-type-literals.ts；M-01 现存，只读"]
+    staticLayer["静态层"] -- "位于" --> staticFiles["tooling/depcruise/rules/doc-type-blind.ts 与 cordex-bundle-isolation.ts；tooling/eslint-config/eslint-plugin-cordex/rules/no-doc-type-literals.ts；M-01 现存，只读"]
     fixtureLayer["夹具层"] -- "位于" --> fixtureFiles["packages/model-core/src/testing/fixtures 下 fixture 与 fixture-grid 两套目录；M-02 现存，只读，每套 8 文件，共两套"]
     runtimeLayer["运行时层"] -- "位于" --> runtimeFiles["test/preset-blind.test.ts，仓库根级；M-02 现存，只读"]
     freezeLayer["冻结层"] -- "位于" --> freezeFiles["tooling/scripts/scan-horizontal-freeze.ts，M5 新增建议，对应 01 §8 与 §12 D-4；本模块 M5 落地时首次运行生成基线；产物为 fixtures/horizontal-freeze.lock"]
@@ -791,9 +791,9 @@ flowchart LR
 
 | 测试类别 | 覆盖内容 | 源文件 | 命令 |
 |---|---|---|---|
-| lifecycle | 插件生命周期（八个 plugin 角色包各一份，强制项） | 各包 `__tests__/lifecycle.test.ts` | `pnpm --filter @oce/model-doc test src/__tests__/lifecycle.test.ts` |
-| 契约 | `DocumentStore`/`FormatCodec` 一致性套件在 doc/sheet body 上重跑（M-02/M-04 已提供套件工厂，本模块只提供入参） | `model-doc/testing/index.ts` 的 `runDocModelConformance`；`ooxml-docx/testing/index.ts` 的 `roundTrip` | `pnpm --filter @oce/model-doc test -- --grep conformance` |
-| 装配矩阵 | 「移除任一 Provider 仍可启动」（章程 §5.4 模式） | `preset-doc/__tests__/exclude-matrix.test.ts`、`preset-sheet/__tests__/exclude-matrix.test.ts` | `pnpm --filter @oce/preset-doc test` |
+| lifecycle | 插件生命周期（八个 plugin 角色包各一份，强制项） | 各包 `__tests__/lifecycle.test.ts` | `pnpm --filter @cordexjs/model-doc test src/__tests__/lifecycle.test.ts` |
+| 契约 | `DocumentStore`/`FormatCodec` 一致性套件在 doc/sheet body 上重跑（M-02/M-04 已提供套件工厂，本模块只提供入参） | `model-doc/testing/index.ts` 的 `runDocModelConformance`；`ooxml-docx/testing/index.ts` 的 `roundTrip` | `pnpm --filter @cordexjs/model-doc test -- --grep conformance` |
+| 装配矩阵 | 「移除任一 Provider 仍可启动」（章程 §5.4 模式） | `preset-doc/__tests__/exclude-matrix.test.ts`、`preset-sheet/__tests__/exclude-matrix.test.ts` | `pnpm --filter @cordexjs/preset-doc test` |
 | 共存 | 同一 host 同时打开 slide+doc+sheet 三个 Unit 互不影响（12 §5 总验收项） | 仓库根 `test/preset-coexist.test.ts`（新增建议，位置类比 `test/collab-sim/`，05 §9） | `pnpm exec vitest run test/preset-coexist.test.ts` |
 
 覆盖率与性能预算引用架构 `11-testing-strategy.md`（本文档不逐条核对，仅按其编号引用，同 03/04/07 §9 惯例）；sheet 10 万 `cells` 打开性能预算见 §11 M5 验收命令。
@@ -802,8 +802,8 @@ flowchart LR
 
 | 约束 | 规则 / 字段 | 引用 |
 |---|---|---|
-| `package.json#oce` | 八个 plugin 包：`{layer:'V-model'\|'V-codec'\|'V-render'\|'V-ui', bundle:'doc'\|'sheet', iso:'iso'\|'dom', role:'plugin', stability:'experimental'}`；两个 bundle 包：`{layer:'L8', iso:'dom', role:'bundle'}`（`bundle` 字段不适用于 L8，同 `preset-slide`） | charter §5.2 schema；02 §4.0.1 |
-| 束间隔离 | R4 `oce-bundle-isolation`：`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui` 不得 import 任何 `bundle:'sheet'`或`bundle:'slide'`的包，反之亦然 | depcruise；charter 铁律 2 |
+| `package.json#cordex` | 八个 plugin 包：`{layer:'V-model'\|'V-codec'\|'V-render'\|'V-ui', bundle:'doc'\|'sheet', iso:'iso'\|'dom', role:'plugin', stability:'experimental'}`；两个 bundle 包：`{layer:'L8', iso:'dom', role:'bundle'}`（`bundle` 字段不适用于 L8，同 `preset-slide`） | charter §5.2 schema；02 §4.0.1 |
+| 束间隔离 | R4 `cordex-bundle-isolation`：`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui` 不得 import 任何 `bundle:'sheet'`或`bundle:'slide'`的包，反之亦然 | depcruise；charter 铁律 2 |
 | 只向下依赖 | R2/铁律 3：`V-model`(15) < `V-codec`(35) < `V-render`(55) < `V-ui`(75) < L8(80)；同层带内按此秩序向下 import（如 `doc-ui` 可 import `doc-render` 契约类型，反之不可） | depcruise；charter §5.1 |
 | 水平层零横向依赖 | R3 `doc-type-blind`：十包可以 import 水平层（generic 包），水平层不得反向 import 十包 | depcruise；ADR-0016 |
 | 水平层测试盲性 | R3 姐妹规则 `horizontal-tests-use-fixture-only`：不适用于本模块自身（本模块**是**垂直束，其测试天然使用自己的夹具），但本模块的存在是该规则在水平层侧成立的**证明对象** | 05 §10 同一表述 |
@@ -823,28 +823,28 @@ flowchart LR
 
 **第 1 步：`model-doc`（+`model-sheet`）骨架，先过静态层**：按 §4.1/4.2 建立十四/十五个源文件；`infrastructure/document-type.ts` 先挂空 `invariants`（同 03 §11 M0 惯例）。验收：
 ```bash
-pnpm --filter @oce/model-doc build && pnpm --filter @oce/model-sheet build
+pnpm --filter @cordexjs/model-doc build && pnpm --filter @cordexjs/model-sheet build
 pnpm depcruise packages/model-doc packages/model-sheet   # R2/R3/R4 零违规（静态层，§8.3）
-pnpm --filter @oce/model-doc test src/__tests__/lifecycle.test.ts
+pnpm --filter @cordexjs/model-doc test src/__tests__/lifecycle.test.ts
 pnpm tsx tooling/scripts/scan-horizontal-freeze.ts --check --baseline   # 首次运行，写入基线（§8.3 冻结层起点）
 ```
 
 **第 2 步：codec（`ooxml-docx`/`ooxml-xlsx`）**：按 §4.3/4.4 建立骨架，`application/pipeline.ts` 只做"打开 + 提取纯文本/单表网格值"（PRD M5 P0 口径）。验收：
 ```bash
-pnpm --filter @oce/ooxml-docx test -- --grep "opens minimal docx"
-pnpm --filter @oce/ooxml-xlsx test -- --grep "opens minimal xlsx"
+pnpm --filter @cordexjs/ooxml-docx test -- --grep "opens minimal docx"
+pnpm --filter @cordexjs/ooxml-xlsx test -- --grep "opens minimal xlsx"
 ```
 
 **第 3 步：render/ui（`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`）**：按 §4.5–4.8 建立骨架，`SceneProvider` 用 `FixedMetricsMeasurer`（对齐 06 §9.1 fixture 惯例，避免真实字体度量引入不确定性）。验收：
 ```bash
-pnpm --filter @oce/doc-render test -- --grep "renders paragraph lines"
-pnpm --filter @oce/sheet-render test -- --grep "renders grid window"
-pnpm --filter @oce/doc-ui test -- --grep "ribbon renders empty when no selection"
+pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"
+pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"
+pnpm --filter @cordexjs/doc-ui test -- --grep "ribbon renders empty when no selection"
 ```
 
 **第 4 步：preset（`preset-doc`/`preset-sheet`）**：按 §4.9/4.10 组装，`plugins.ts` 显式列出前三步产出的包。验收（12 §5 总验收清单）：
 ```bash
-pnpm --filter @oce/preset-doc test src/__tests__/exclude-matrix.test.ts
+pnpm --filter @cordexjs/preset-doc test src/__tests__/exclude-matrix.test.ts
 pnpm depcruise packages/model-doc packages/model-sheet packages/ooxml-docx packages/ooxml-xlsx \
   packages/doc-render packages/sheet-render packages/doc-ui packages/sheet-ui \
   packages/preset-doc packages/preset-sheet                              # 报告零横向依赖
@@ -860,11 +860,11 @@ pnpm exec vitest run test/preset-coexist.test.ts                         # 同�
 | # | 涉及文档 | 差异/发现 | 追加建议（不直接生效） |
 |---|---|---|---|
 | G-1 | ADR-0016 第 3 条 vs 00-module-map §6.5 vs PRD `05-milestones-and-scope.md` M5 段验收标准 3 | 「移除全部 `DocumentType` 后打开」的错误码三处拼写不一致：ADR-0016 写 `format/no-document-type`（引用"PRD CS-05 口径"）；module-map §6.5 写 `UNIT_UNKNOWN_DOCUMENT_TYPE`（常量风格）；PRD 05 自身写 `format.no_document_type`（引用"README CS-13 口径"，点式码）。三处互不相同，且两处引用的 PRD 编号（CS-05/CS-13）本文档未能交叉核实 | **已结案（2026-09-18，跨模块评审 C-16）**：唯一权威拼写为点式码 `format.no_document_type`，与 charter §5.4 原文逐字一致，本文档 §12/§13 已按此确认；M-04（04 号文档）是该错误码通则的来源方；ADR-0016 的 `format/no-document-type`、module-map §6.5 的 `UNIT_UNKNOWN_DOCUMENT_TYPE` 均作废，由 M-02/总编排回写 |
-| G-2 | 00-module-map §8 G-3 vs PRD `05-milestones-and-scope.md` M5 段范围（P0） | module-map §8 G-3 建议包名 `@oce/preset-doc`/`@oce/preset-sheet`（与 `@oce/preset-slide` 对称）；PRD 05 M5 P0 范围原文写的是 `preset-doc-skeleton`/`preset-sheet-skeleton`。本文档 §4.9/4.10 采用前者（module-map 口径，与章程既有八个包名风格一致），但两处命名冲突未消解 | **已结案（2026-09-18，跨模块评审 C-19）**：不加 `-skeleton` 后缀，`@oce/preset-doc`/`@oce/preset-sheet` 为定案包名；用 `package.json#oce.stability:'experimental'` 字段信号未完工状态（本文档 §4.9/4.10 已如此实现）；PRD `05-milestones-and-scope.md` M5 P0 段由总编排回写去掉 `-skeleton`，charter §5.1/§5.2 正式收录两个包名 |
+| G-2 | 00-module-map §8 G-3 vs PRD `05-milestones-and-scope.md` M5 段范围（P0） | module-map §8 G-3 建议包名 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`（与 `@cordexjs/preset-slide` 对称）；PRD 05 M5 P0 范围原文写的是 `preset-doc-skeleton`/`preset-sheet-skeleton`。本文档 §4.9/4.10 采用前者（module-map 口径，与章程既有八个包名风格一致），但两处命名冲突未消解 | **已结案（2026-09-18，跨模块评审 C-19）**：不加 `-skeleton` 后缀，`@cordexjs/preset-doc`/`@cordexjs/preset-sheet` 为定案包名；用 `package.json#cordex.stability:'experimental'` 字段信号未完工状态（本文档 §4.9/4.10 已如此实现）；PRD `05-milestones-and-scope.md` M5 P0 段由总编排回写去掉 `-skeleton`，charter §5.1/§5.2 正式收录两个包名 |
 | G-3 | 00-module-map §7 M-13 行「预计文件数量级 40–60」 | 本文档 §4/§5 实际给出约 105 个"骨架级"描述文件（十包 `src/**` 层级文件，不含各包 9/2 个根配置模板文件），高于估计区间。原因：module-map 的估计可能按"单个文档类型骨架"折算，未充分考虑**十个包**（doc+sheet 各五层×2）× 每包最小可行 plugin 结构（`index/plugin/editing/contribution` 四件套 + 至少一层 domain/application/infrastructure/interface/testing 各一文件）的乘数效应；同类先例见 07-slide-rendering.md §12 G-6（78 实际 vs 50–70 估计） | 不建议削减文件数量迁就估计区间——削减会牺牲十包结构的完整性（例如省略 `editing.ts` 会破坏 ADR-0015 二段式模式的可复制性）；建议 module-map §7 M-13 行的估计区间在下次修订时更新为"90–120（骨架级，十包合计）"，并注明"M5 立项细化实现后文件数预计再增长 3–5 倍（对照 model-slide 110/model-doc 骨架仅 14 的比例）" |
 | G-4 | 04 §8 `domain/ids/ooxml-id-map.ts`"候选提升为 generic" | 本文档 §4.3 `ooxml-docx` 骨架假定该文件已提升至 `ooxml-core`，直接复用；但该提升截至本文档写作时**尚未发生**（04 号文档仅标注"候选"，未见对应 ADR 或 `ooxml-core` §4.1 目录树更新） | **已结案（2026-09-18，跨模块评审 C-18）**：维持 M-04 暂缓提升的结论；`ooxml-docx`/`ooxml-xlsx` **改为临时各自复制一份** `ooxml-id-map.ts`（本文档 §4.3/§4.4/§5 已落地），不再假定已提升；提升与否留待后续 ADR，不阻塞 M5 开工 |
 | G-5 | 03 §12 G-5、本文档 §4.2 `infrastructure/sharding.ts` | 03 §12 G-5 已提出"分片协议的具体接口形状（谁调用 `shardBody`：`codec.ts` 还是 `store.toSnapshotBody()`）"需 M-02 与 M-13 共同确认，但截至本文档写作时该接口仍未定案；`model-sheet` 是该分片机制**唯一的生产消费方**（slide 目前是直通实现），因此本文档把该问题的阻塞优先级从"建议"提升为"M5 `model-sheet` 骨架开工前必须回答"（见 §13 Q3） | 建议 M-02/M-13 在 M5 立项评审会上联合确认该接口签名，作为 §11 第 1 步"先决条件"的一部分正式记录，而非留到实现期临场决定 |
-| G-6 | module-map §8 G-3、charter §5.1 | 本文档 §4.9/4.10 已按 module-map §8 G-3 的建议**正式采纳并落地使用** `@oce/preset-doc`/`@oce/preset-sheet` 包名（非仅停留在建议阶段）；这是本文档对 module-map §10 Q-M2（是否采纳）的一次**下游先用**，尚未等到总编排正式回写章程 §5.1/§5.2 | **已结案（2026-09-18，跨模块评审 C-19，与 G-2 同一裁定）**：本文档的"下游先用"得到确认，包名与 `stability:'experimental'` 口径均为定案，无需回改；module-map §10 Q-M2 随之解决，总编排回写 charter §5.1/§5.2 正式收录 |
+| G-6 | module-map §8 G-3、charter §5.1 | 本文档 §4.9/4.10 已按 module-map §8 G-3 的建议**正式采纳并落地使用** `@cordexjs/preset-doc`/`@cordexjs/preset-sheet` 包名（非仅停留在建议阶段）；这是本文档对 module-map §10 Q-M2（是否采纳）的一次**下游先用**，尚未等到总编排正式回写章程 §5.1/§5.2 | **已结案（2026-09-18，跨模块评审 C-19，与 G-2 同一裁定）**：本文档的"下游先用"得到确认，包名与 `stability:'experimental'` 口径均为定案，无需回改；module-map §10 Q-M2 随之解决，总编排回写 charter §5.1/§5.2 正式收录 |
 
 ### 2026-09-18 收敛
 
@@ -873,15 +873,24 @@ pnpm exec vitest run test/preset-coexist.test.ts                         # 同�
 | C 编号 | 裁定摘要 | 本文件落地位置 |
 |---|---|---|
 | C-18 | `ooxml-id-map.ts` 不假定 `ooxml-core` 已提升，`ooxml-docx`/`ooxml-xlsx` 改为临时各自复制一份 | §4.3、§4.4、§5（新增两行文件）、§12 G-4 结案、§13 Q7 结案 |
-| C-19 | `preset-doc`/`preset-sheet` 不加 `-skeleton` 后缀，用 `oce.stability:'experimental'` 信号未完工 | §12 G-2/G-6 结案、§13 Q1 结案（本文档 §4.9/4.10 原已如此实现） |
+| C-19 | `preset-doc`/`preset-sheet` 不加 `-skeleton` 后缀，用 `cordex.stability:'experimental'` 信号未完工 | §12 G-2/G-6 结案、§13 Q1 结案（本文档 §4.9/4.10 原已如此实现） |
 | C-16 | `format.no_document_type` 为唯一权威拼写 | §12 G-1 结案、§13 Q2 结案 |
-| C-07 | `preset-doc`/`preset-sheet` 装配改 import `@oce/kernel/preset` | §4.9、§4.10（`plugin.ts` 注释 + "与样板对应表"段） |
+| C-07 | `preset-doc`/`preset-sheet` 装配改 import `@cordexjs/kernel/preset` | §4.9、§4.10（`plugin.ts` 注释 + "与样板对应表"段） |
+
+### 2026-09-24 收敛
+
+> 用户裁决 `00-charter/rulings-2026-09-14.md` §4.15 中涉及本文件的条目核查落地；本模块无租户 / 组相关文件，T-0 与 Q6 只影响 §8.2 冻结清单中 M-08 行的模块数描述，本模块文件数不变。
+
+| 裁决 | 裁定摘要 | 本文件落地位置 |
+|---|---|---|
+| T-0 / Q6 | 单组织去租户；组管理（U-11）推迟；M-08 Nest 模块 9→7 | §8.2 BC-18/19/20 行 |
+| Q2 | `*-ui` 核心层框架无关（depcruise 子规则）；形态 B 同时排除 `*-ui`；shadcn 复制件 45→44 | §4.7 样板说明、§8.2 BC-13/14 行 |
 
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
-| Q1 | ~~`preset-doc`/`preset-sheet` 是否加 `-skeleton` 后缀~~（§12 G-2）**（结案，2026-09-18）** | 不加后缀；用 `package.json#oce.stability:'experimental'` 字段信号未完工状态。**结案依据**：跨模块评审 C-19 采纳本行推荐默认值 | §4.9/4.10、§5、§7、§11；module-map §10 Q-M2 |
+| Q1 | ~~`preset-doc`/`preset-sheet` 是否加 `-skeleton` 后缀~~（§12 G-2）**（结案，2026-09-18）** | 不加后缀；用 `package.json#cordex.stability:'experimental'` 字段信号未完工状态。**结案依据**：跨模块评审 C-19 采纳本行推荐默认值 | §4.9/4.10、§5、§7、§11；module-map §10 Q-M2 |
 | Q2 | ~~"移除全部 `DocumentType` 后打开"错误码的唯一权威拼写~~（§12 G-1）**（结案，2026-09-18）** | `format.no_document_type`（与 charter/PRD 点式错误码风格一致）。**结案依据**：跨模块评审 C-16 确认本行推荐默认值为全仓唯一权威拼写 | M-02 `model-core` 实际抛出点；ADR-0016、module-map §6.5、本文档 §8.4/§11 的验收命令 |
 | Q3 | sheet 巨大 `cells` 表分片的具体调用接口（`shardBody` 由 `codec.ts` 调用还是 `store.toSnapshotBody()` 调用）——03 §12 G-5 已提出，本文档标记为 `model-sheet` 骨架开工前的**阻塞项** | 由 `store.toSnapshotBody()` 统一调用（与文档类型无关，避免每个垂直束 codec 各自实现分片判定逻辑） | §4.2 `infrastructure/sharding.ts` 签名；M-02 `snapshot/codec.ts` |
 | Q4 | `sheet.row.insert` 的批量键重写性能若 M5 实测不达标，是否需要新增 `rename-keys` `StoreOp` 原语（12 §3.2 已预告"唯一可能的水平层契约扩展，需 ADR"） | 先不新增；M5 先实测 Provider 内部批量优化（单次 `Y.transact`/单次 produce）是否足够，不达标再启动 ADR 评估 | M-02 `StoreOp` 五原语；`model-sheet` `application/mutations.ts` |

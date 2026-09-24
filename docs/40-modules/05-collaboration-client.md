@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-05） | 更新：2026-09-18 | 依赖：00-module-map.md M-05、charter v0.2 §4.2/§5.2 collab-\* 四包行/§5.5、30-architecture `06-collaboration.md` 全篇（含 §18 v0.2 对齐）、`02-layering-and-packages.md` §4.11/§4.12/§4.12b、`02-kernel-protocol-and-document-core.md`（`yjsBackend`/protocol WS 帧/`ctx.permissions`/按 origin 撤销）、ADR-0020/0023/0024/0025/0032/0033、PRD `10-prd/03-features/03-collaboration.md`
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-05） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：M9 IDB 键 `{userId}/{documentId}` 与 `OfflineStore.open({userId, documentId})`；M2/M3 撤销载荷与用例名照抄 M-02；D4 不复活他人删除；D5 `store/undo-skipped` 单独统计） | 依赖：00-module-map.md M-05、charter v0.2 §4.2/§5.2 collab-\* 四包行/§5.5、30-architecture `06-collaboration.md` 全篇（含 §18 v0.2 对齐）、`02-layering-and-packages.md` §4.11/§4.12/§4.12b、`02-kernel-protocol-and-document-core.md`（`yjsBackend`/protocol WS 帧/`ctx.permissions`/按 origin 撤销）、ADR-0020/0023/0024/0025/0032/0033、PRD `10-prd/03-features/03-collaboration.md`
 
 # 05 协同（客户端）（限界上下文 BC-09 协同（客户端））
 
@@ -8,7 +8,7 @@
 |---|---|
 | 职责一句话 | 客户端 Session/Room 状态机（内部 11 态 → 对外 `SyncState` 六态）、CRDT 同步的客户端编排（经 `store-yjs` 的 `yjsBackend` 受控访问面，不直接触碰 `Y.*`）、awareness/presence 模型、离线队列与重连退避、权限变更在客户端命令管线前的检查点落地、12 种软冲突的分类与 fuzz 覆盖 |
 | 覆盖的上下文 | BC-09 协同（客户端） |
-| 承载包 / 目录 | `@oce/collab-core`（L4，秩 40，iso，definition）、`@oce/collab-yjs`（L4，秩 40，iso，provider）、`@oce/collab-transport-ws`（L4，秩 40，iso，provider）、`@oce/collab-offline-idb`（L4，秩 40，**dom**，provider），均在各自 `packages/<pkg>/src/` |
+| 承载包 / 目录 | `@cordexjs/collab-core`（L4，秩 40，iso，definition）、`@cordexjs/collab-yjs`（L4，秩 40，iso，provider）、`@cordexjs/collab-transport-ws`（L4，秩 40，iso，provider）、`@cordexjs/collab-offline-idb`（L4，秩 40，**dom**，provider），均在各自 `packages/<pkg>/src/` |
 | cordis 形态 | `collab-core`=definition + 内置默认 provider（presence 单人兜底，随装配层选择性加载）；`collab-yjs`=provider（`implements:['collab','presence']`）；`collab-transport-ws`=provider（`implements:['collabTransport']`）；`collab-offline-idb`=provider（`implements:['offlineStore']`） |
 | 运行位置 | 仅浏览器（module-map §5：collab-core/yjs/transport-ws 虽为 iso 但只在浏览器场景实例化；服务端对应能力是独立的 BC-21/`server-collab`，不复用本模块任何包，见 §7） |
 | 上游（依赖） | M-02：`model-core` 的 `UnitScope`/`ctx.permissions`（`applyRemoteDecisions`/`permission/changed`）/`Origin`/`ChangeSet`/`Selection<A>.serialize()`；`store-yjs` 的 `yjsBackend` 服务面；`protocol` 的 WS 帧/CONTROL 消息/关闭码/能力位/角色 schema |
@@ -26,10 +26,10 @@
 flowchart LR
   m02["M-02 model-core 与 protocol"]
   subgraph bc09["BC-09 协同客户端"]
-    pkgCollabCore["@oce/collab-core"]
-    pkgCollabYjs["@oce/collab-yjs"]
-    pkgCollabTransportWs["@oce/collab-transport-ws"]
-    pkgCollabOfflineIdb["@oce/collab-offline-idb"]
+    pkgCollabCore["@cordexjs/collab-core"]
+    pkgCollabYjs["@cordexjs/collab-yjs"]
+    pkgCollabTransportWs["@cordexjs/collab-transport-ws"]
+    pkgCollabOfflineIdb["@cordexjs/collab-offline-idb"]
   end
   m11["M-11 preset-slide-collab 装配"]
   m02 -- "UnitScope ctx.permissions Origin ChangeSet yjsBackend WS 帧" --> pkgCollabYjs
@@ -58,9 +58,9 @@ flowchart LR
 **不做什么（指向负责模块）**：
 
 - 不做 CRDT 数据结构本身、`Y.Doc` 持有、`StoreOp`→Y 操作映射、`DocumentStore` 契约定义——是 M-02（`model-core`/`store-yjs`）的职责；本模块只消费 `yjsBackend` 这一受控服务面。
-- 不做 WS 帧/CONTROL 消息/错误码/能力位/角色 schema 的**定义**——是 M-02（`protocol`）的职责；本模块只引用 `@oce/protocol` 的推导类型，不私定义跨进程 DTO（module-map §4.2 第 1 条铁律）。
+- 不做 WS 帧/CONTROL 消息/错误码/能力位/角色 schema 的**定义**——是 M-02（`protocol`）的职责；本模块只引用 `@cordexjs/protocol` 的推导类型，不私定义跨进程 DTO（module-map §4.2 第 1 条铁律）。
 - 不做服务端 Room 状态机、update 持久化与压缩、硬/软门禁校验、跨实例 pub/sub——是 M-09（`server-collab`）的职责；本模块与其仅通过 `06-collaboration.md` 定义的协议帧握手，无包依赖。
-- 不认识 `slide`/`shape`/`parentId` 等词汇——保持文档类型盲（generic，§8）；06 §8 用幻灯片场景描述的 12 种软冲突，在本模块内一律用 `@oce/model-core/testing` 的通用 `fixture` 文档类型复现（§2.3）。
+- 不认识 `slide`/`shape`/`parentId` 等词汇——保持文档类型盲（generic，§8）；06 §8 用幻灯片场景描述的 12 种软冲突，在本模块内一律用 `@cordexjs/model-core/testing` 的通用 `fixture` 文档类型复现（§2.3）。
 - 不做在线头像/远端光标渲染/冲突提示 UI/协同诊断面板——是 M-10（`slide-ui`）的职责；本模块只发出事件与暴露只读状态，不渲染任何 DOM。
 - 不做权限**判定**（fail-closed 的决策逻辑）——是 M-02（`permissions` 服务）的职责；本模块只是决策从服务端进入客户端的**唯一入口**（06 §18.3）。
 
@@ -72,13 +72,13 @@ flowchart LR
 |---|---|---|
 | `SyncState`（对外六态） | `Session.state` 的公开取值：`disconnected\|connecting\|syncing\|synced\|offline\|error` | `domain/session-state.ts` |
 | 内部 FSM（十一态） | `session-fsm.ts` 的 reducer 状态：`idle/connecting/authenticating/backoff/syncing/live/readonly/denied/offline/quarantined/closed`（06 §5.1） | `domain/session-state.ts` |
-| `AwarenessState` | 单 client 的在场状态（user/client/view/selection/caret/editing/idle/ts，ADR-0024） | `domain/awareness-state.ts`（对齐 `@oce/protocol/collab/awareness.ts`） |
+| `AwarenessState` | 单 client 的在场状态（user/client/view/selection/caret/editing/idle/ts，ADR-0024） | `domain/awareness-state.ts`（对齐 `@cordexjs/protocol/collab/awareness.ts`） |
 | `OfflineQueue` | 本地未确认 update 与被拒事务的队列聚合（内存态或经 `OfflineStore` 持久化） | `domain/offline-queue.ts` |
 | `BackoffPolicy` | 指数退避 + 抖动的纯函数策略（1 s→30 s，±20%） | `domain/backoff.ts` |
 | `SoftConflictType` | 12 种软冲突场景的分类字面量联合（06 §8/ADR-0020 附表 D/PRD CO-08） | `domain/soft-conflict.ts` |
 | `SessionDriver` | 执行 `session-fsm` 产出的 `Effect`（connect/send/schedule/backoff/notify）的 Provider 侧执行器 | `collab-yjs/infrastructure/session-driver.ts` |
 | `AwarenessHandle` | `yjsBackend.awareness()` 返回的抽象句柄（无 `Y.*` 类型），`collab-yjs` 只持有此句柄 | 类型来自 store-yjs（M-02），本模块消费 |
-| `LocalBatcher` | 本地 update 合并/节流/背压/ack 追踪器（50 ms 合并窗口） | `collab-yjs/infrastructure/sync/local-batcher.ts` |
+| `LocalBatcher` | 本地 update 合并/节流/背压/ack 追踪器（50 ms 合并窗口）；按两级 ack 追踪：`spill` 只标记「服务端已暂存」，`db` 才触发 `ackUpTo` 清 pending（rulings §4.15 S-3a） | `collab-yjs/infrastructure/sync/local-batcher.ts` |
 
 ### 1.3 上下文映射
 
@@ -102,7 +102,7 @@ interface Session {
   readonly state: SyncState                 // 对外六态；见下方投影表
   readonly role: RoleName                   // 来自服务端 auth.ok / CONTROL.permission
   readonly stats: SessionStats              // pendingLocalUpdates/lastSyncedAt/bytesIn/Out/rtt
-  flush(): Promise<void>                    // 等待本地 pending 全部被服务端 ack
+  flush(): Promise<void>                    // 等待本地 pending 全部被服务端 ack{tier:'db'}（spill 级 ack 不算）
   reconnectNow(): void
   close(): Promise<void>
 }
@@ -168,7 +168,7 @@ stateDiagram-v2
 
 **`Presence`/`Awareness`（聚合；UnitScope；`collab-core/application/contracts/presence.service.ts`）**：`PresenceService{ setLocal(patch); readonly local: AwarenessState; readonly remotes: ReadonlyMap<ClientId, AwarenessState> }`；`remotes` 是反应式只读集合，变化触发 `presence/changed`。并发语义：每 client 一份 LWW 状态（y-protocols/awareness 原生语义，ADR-0024），30 s 超时自动移除，不参与文档 CRDT 收敛。
 
-**`OfflineQueue`（聚合；`collab-core/domain/offline-queue.ts`）**：`{ pending: readonly PendingUpdate[]; rejected: readonly RejectedEntry[]; meta: { epoch; schemaVersion; lastAckSeq } }`。不变量：`pending` 按 `localSeq` 严格升序；`ackUpTo(seq)` 只删除 `≤seq` 的项；`epoch`/`schemaVersion` 与服务端不一致时整体移入 `rejected`（ADR-0033）。有 `OfflineStore` Provider 时持久化到 IndexedDB，缺失时纯内存（刷新即丢，"降级"不改变接口形状）。
+**`OfflineQueue`（聚合；`collab-core/domain/offline-queue.ts`）**：`{ pending: readonly PendingUpdate[]; rejected: readonly RejectedEntry[]; meta: { epoch; schemaVersion; lastAckSeq } }`。不变量：`pending` 按 `localSeq` 严格升序；`ackUpTo(seq)` 只删除 `≤seq` 的项，且**只由 `ack{tier:'db', seq}` 触发**——服务端 PG 故障溢写期的 `ack{tier:'spill'}` 只更新 `SessionStats`/诊断，不清 pending（rulings §4.15 S-3a 两级 ack；正式 `seq` 由 PG 在回放时分配）；`epoch`/`schemaVersion` 与服务端不一致时整体移入 `rejected`（ADR-0033）。有 `OfflineStore` Provider 时持久化到 IndexedDB，缺失时纯内存（刷新即丢，"降级"不改变接口形状）。
 
 ### 2.2 值对象
 
@@ -177,13 +177,13 @@ stateDiagram-v2
 | `SyncState` | 六态字面量联合 | 无 zod（内部运行时值，不跨进程） | `domain/session-state.ts` |
 | `SessionStats` | `{ pendingLocalUpdates; lastSyncedAt?; bytesIn; bytesOut; rtt?; reconnectAttempt }` | 无 | `domain/session.ts` |
 | `Ticket` | `{ value: string; expiresAt; permVersion; refreshAt }` | 无（不透明凭据，由服务端签发/校验；类型形状供刷新逻辑用） | `domain/ticket.ts` |
-| `AwarenessState` | `v:1; user{id,name,color,avatar?}; client{id,device,appVersion}; view?; selection?: SerializedSelection; caret?; editing?; idle?; ts` | zod（对齐 `@oce/protocol/collab/awareness.ts`，≤2 KiB） | `domain/awareness-state.ts` |
+| `AwarenessState` | `v:1; user{id,name,color,avatar?}; client{id,device,appVersion}; view?; selection?: SerializedSelection; caret?; editing?; idle?; ts` | zod（对齐 `@cordexjs/protocol/collab/awareness.ts`，≤2 KiB） | `domain/awareness-state.ts` |
 | `SerializedSelection` | `{ kind; slideId?; ids: string[]; range?: { anchor; head } }`（`range` 为 `RelativePosition` base64） | 由 `DocumentType.selectionKinds` 对应 schema 校验，本模块内容不透明 | `domain/awareness-state.ts` |
 | `PendingUpdate` | `{ localSeq: number; update: Uint8Array }` | 无（本地运行时，不跨进程序列化外的额外校验） | `domain/offline-queue.ts` |
 | `RejectedEntry` | `{ update: Uint8Array; records: TransactionRecordSummary[]; reason; at }` | 无 | `domain/offline-queue.ts` |
 | `BackoffPolicy` | `{ baseMs:1000; maxMs:30000; jitter:0.2; maxAttemptsBeforeOffline:6 }` | 无（纯策略配置） | `domain/backoff.ts` |
 | `SoftConflictType` | 12 种字面量联合（见 §2.3 表） | 无（内部事件载荷判别字段） | `domain/soft-conflict.ts` |
-| `RoomDescriptor`/`RoomInfo` | 见 §2.1 | `RoomDescriptor` 部分字段来自 `@oce/protocol` ids | `domain/room-descriptor.ts` |
+| `RoomDescriptor`/`RoomInfo` | 见 §2.1 | `RoomDescriptor` 部分字段来自 `@cordexjs/protocol` ids | `domain/room-descriptor.ts` |
 
 ### 2.3 领域服务
 
@@ -195,41 +195,53 @@ stateDiagram-v2
 | `projectSyncState(internal: InternalState, degraded: boolean): SyncState` | `domain/session-state.ts` | 否 | 11→6 投影（§2.1 表） |
 | `nextDelay(attempt: number, policy: BackoffPolicy, rand: () => number): number` | `domain/backoff.ts` | 是（算法本身通用；`rand` 显式注入以保证可测试确定性） | 指数退避 + 抖动；`collab-transport-ws` 与未来其它传输 Provider 均可复用 |
 | `classifySoftConflict(input: ConflictSignal): SoftConflictType \| null` | `domain/classify-soft-conflict.ts` | 是（对文档类型盲，输入只含通用 `ChangeSet`/本地操作日志，见下表） | 12 种场景的判定核心，§8 冲突表覆盖 |
-| `serializeAwareness(state: AwarenessState): Uint8Array` / `parseAwareness(bytes): Result<AwarenessState, OceError>` | `domain/awareness-state.ts` | 是 | zod `safeParse`；非法状态返回 `err`，由调用方丢弃并计数（不抛异常） |
+| `serializeAwareness(state: AwarenessState): Uint8Array` / `parseAwareness(bytes): Result<AwarenessState, CordexError>` | `domain/awareness-state.ts` | 是 | zod `safeParse`；非法状态返回 `err`，由调用方丢弃并计数（不抛异常） |
 
-**12 种软冲突场景**（权威列表 = 06 §8 全部 12 行；本模块对文档类型盲，用 `@oce/model-core/testing` 的通用 `fixture` 文档类型——键值树 + 文本块——复现，而非 06 原文的幻灯片示例；幻灯片示例仅作直觉参照，实际收敛规则与验证在 M-02/M-04 的 `store-yjs`/`model-slide` 契约套件重复覆盖一次）：
+**12 种软冲突场景**（权威列表 = 06 §8 全部 12 行；本模块对文档类型盲，用 `@cordexjs/model-core/testing` 的通用 `fixture` 文档类型——键值树 + 文本块——复现，而非 06 原文的幻灯片示例；幻灯片示例仅作直觉参照，实际收敛规则与验证在 M-02/M-04 的 `store-yjs`/`model-slide` 契约套件重复覆盖一次）：
 
 | # | 06 §8 幻灯片示例（直觉参照） | 本模块通用场景（`fixture` 词汇） | 原语层结果 | `SoftConflictType` / 事件 | 测试用例 |
 |---|---|---|---|---|---|
 | 1 | A、B 并发移动同一形状 | 两客户端并发 `set` 同一 Record 叶子键 | 键级 LWW，后写者胜 | `prop-lww`（`collab/soft-conflict`） | `soft-conflict-scenarios.test.ts::concurrent-key-lww` |
-| 2 | A 删除形状，B 并发编辑其文本 | 并发 `delete` 一个实体 vs 该实体子路径的 `text`/`set` | delete-wins，B 的操作落在已删类型上被丢弃 | `delete-vs-edit` | `::delete-vs-edit` |
-| 3 | A 删除页，B 在页内新增形状 | `delete` 容器实体 vs 在该容器内 `insert` 子实体（级联） | delete-wins（容器删除时子实体随之不可达） | `delete-vs-edit`（同上，粒度更高一层） | `::delete-parent-vs-child-insert` |
+| 2 | A 删除形状，B 并发编辑其文本 | 并发软删除（`set(实体._deleted)`）一个实体 vs 该实体子路径的 `text`/`set` | **rulings §4.15 Q3 改写**：删除只写墓碑，B 的编辑保留在墓碑实体上；读路径视该实体为已删；A（删除方）撤销删除即带着 B 的编辑恢复；B 若撤销自己删除前的编辑，目标已被 A 删除 → 跳过并提示、**不复活**（rulings §4.17 D4，TTL 内亦然） | `delete-vs-edit`（B 端提示「元素已被 A 删除」+「恢复」，恢复=清除墓碑的新事务） | `::delete-vs-edit` |
+| 3 | A 删除页，B 在页内新增形状 | 软删除容器实体（级联墓碑） vs 在该容器内 `insert` 子实体 | 容器为墓碑，B 新增的子实体未被级联标记但因容器已删而不可见；A 撤销删除后 B 的子实体随容器一起出现；TTL 硬删除（服务端单写者）时一并清理 | `delete-vs-edit`（同上，粒度更高一层） | `::delete-parent-vs-child-insert` |
 | 4 | A、B 都在同一位置之后插入新实体（页） | 两客户端在 `Ordered` 集合同一间隙各 `insert` 一项 | 两项都存在，按 `(order, id)` 全序，两端一致 | 新增建议：`concurrent-insert`（06/PRD 未单列 tag，§12） | `::concurrent-insert-same-gap` |
 | 5 | A 把 X 放入组 G，B 把 G 放入 X（父子环） | 两客户端并发 `set` 造成通用树形字段（如 `fixture` 的 `parentId`）互指成环 | 两个 `parentId` 各自 LWW 成功 → 成环 → 修复规则：环上 id 字典序最大者回根 | `collab/repair{rule:'cycle'}`（**不是** `soft-conflict`，06 §8/PRD CO-08 一致） | `::parent-child-cycle-repair` |
 | 6 | A 改填充色，B 改位置 | 两客户端并发 `set` 同一实体的**不同**键 | 都存活（不同键无冲突） | 无提示（期望行为） | `::independent-keys-both-survive` |
 | 7 | A、B 同时编辑同一文本框不同位置 | 同一 `RichText` 段落内不同偏移量并发插入 | 字符级 YATA 合并，两处都保留 | 无提示 | `::concurrent-richtext-same-paragraph` |
 | 8 | A 回车分段，B 给被移动的尾部文本加粗 | 段落 `remove`+`insert`（分段）与该尾部文本的属性 `text` 操作并发 | 尾部文本被删除+重插，格式化落空（已知限制，与 y-prosemirror 同） | 无提示 | `::split-paragraph-vs-format` |
 | 9 | A 更换版式，B 编辑占位符文本 | 并发修改**引用型**字段（如 `layoutId`）与**内容型**字段（如 `txBody`），不同实体或不同键 | 都存活，各自生效 | 无提示 | `::reference-field-vs-content-field` |
-| 10 | A 撤销自己的移动，其间 B 也移动了同一形状 | 本地 `undo(origin=local)` 与远端并发 `set` 同一键 | `UndoManager` 只回滚本地 `origin`：写回旧值，覆盖 B 的并发写入 | 沿用 `prop-lww`（撤销即一次 `set`，遵循同一 LWW 规则） | `::undo-vs-concurrent-remote-change` |
-| 11 | 离线 A 修改 S，在线 B 早已删除 S | 离线队列重放的 `set`/`text` vs 已持久化的 `delete` | delete-wins，A 的离线修改被丢弃，可从「未同步更改」导出 | `delete-vs-edit`（离线变体） | `::offline-edit-vs-online-delete` |
+| 10 | A 撤销自己的移动，其间 B 也移动了同一形状 | 本地 `undo(origin=local)` 与远端后写同一键 | **rulings §4.15 Q3 改写**：`store-yjs` 撤销包装层（包装 `Y.UndoManager`）**跳过**被他人后写的键，不覆盖 B；本步其余键照常回滚；若整步都被跳过则出栈即停、不连撤上一步 | `store/undo-skipped`（M-02 事件，**不是** `soft-conflict`）→ 提示条「部分内容已被他人修改，未撤销」+「恢复我的值」（新事务，PRD CO-08） | `::undo-vs-concurrent-remote-change` |
+| 11 | 离线 A 修改 S，在线 B 早已删除 S | 离线队列重放的 `set`/`text` vs 已持久化的软删除 | S 仍为墓碑，A 的修改保留在其上（B 撤销删除即可见）；若 A 离线超过墓碑 TTL（默认 24h）、S 已被服务端硬删除，则 A 的修改落在已删类型上被丢弃，可从「未同步更改」导出 | `delete-vs-edit`（离线变体） | `::offline-edit-vs-online-delete` |
 | 12 | A 降权为 viewer 时仍有 pending update | `permission-gate` 拦截 outbound + 服务端硬门禁拒绝 | 不落库不广播；本地回滚到服务端状态，被拒事务移入 `rejected` 供导出 | `collab/update-rejected`（**不是** `soft-conflict`，06 §18.4） | `::permission-downgrade-with-pending` |
+
+**撤销语义附加用例（rulings §4.15 Q3；不新增 `SoftConflictType`，与 12 种场景同文件；用例名照抄 M-02 §2.5「撤销协同契约用例名表」，2026-09-24 复核 M3）**：
+
+| 用例 | 场景（`fixture` 词汇） | 断言 |
+|---|---|---|
+| `::remote-conflict-skip` | A 写键 k1、k2 为一步；B 随后写 k1；A 撤销 | k1 保持 B 的值、k2 回滚；`store/undo-skipped{skipped:[k1], wholeStep:false}` 恰一次 |
+| `::undo-skip-no-cascade` | A 连续两步：步 1 写 k1，步 2 写 k2；B 随后写 k2；A 撤销一次 | 步 2 整步跳过、出栈，`wholeStep:true`；k1 **未**被连带撤销；再撤销一次才回滚 k1 |
+| `::delete-vs-edit-undo` | (a) A 软删除实体 E；B 编辑 E 的文本与属性；A 撤销删除。(b) B 先编辑 E，A 随后删除 E，B 撤销自己的编辑 | (a) E 以同一 id 恢复，且带 B 的编辑；两端收敛哈希一致。(b) B 的撤销整步跳过（`UndoSkip.reason:'remote-deleted'`），E **不**复活，`store/undo-skipped{wholeStep:true}` 恰一次（rulings §4.17 D4） |
+| `::offline-replay-not-other-writer`（本模块特有补充，非契约套件用例名） | A 离线编辑后重连回放（`origin=local`，本端 clientId） | 回放写入**不**计为「他人后写」，A 之后仍可正常撤销自己离线前的步骤 |
+
+fuzz 追加两条性质（`soft-conflict-fuzz.test.ts`）：(1) 任一客户端的撤销从不覆盖其他 clientId 在该步之后写入的键；(2) 软删除前后实体 id 不变，撤销删除后实体子树与未删分支的并发编辑一致。
 
 - 确定性用例（表中 12 项）位于 `collab-yjs/src/__tests__/soft-conflict-scenarios.test.ts`（固定 clientID 与时钟）；随机覆盖位于同目录 `soft-conflict-fuzz.test.ts`（fast-check，随机 op 序列 + 随机分区/乱序交换 update，断言收敛后状态哈希一致，含场景 4/5 的重复触发）。
 - 场景 1/4/6/7/9 的收敛结果同时被 M-02/M-04 的 `runDocumentStoreConformance` 协同分节复用同一断言（06 §18.2：memory 与 yjs 结果必须相同），本模块的用例额外覆盖 `collab-yjs` 特有的**事件与 UI 信号**（`collab/soft-conflict`/`collab/repair`/`collab/update-rejected` 是否按此表触发），而非重复验证 CRDT 收敛本身。
 
 ### 2.4 领域事件
 
-全部在 `collab.contribution.ts` 中 `declare module '@oce/kernel'` 声明（扫描器 `events-declared`）；域名为章程 §5.5 保留域 `collab`/`presence` 之一。**权威列表 = module-map BC-09 行 + charter §5.5**，与 ADR-0023/0024 v0.2 定稿名一致：
+全部在 `collab.contribution.ts` 中 `declare module '@cordexjs/kernel'` 声明（扫描器 `events-declared`）；域名为章程 §5.5 保留域 `collab`/`presence` 之一。**权威列表 = module-map BC-09 行 + charter §5.5**，与 ADR-0023/0024 v0.2 定稿名一致：
 
 | 事件 | 模式 | 载荷（要点） | 发布者文件 | 典型订阅者 |
 |---|---|---|---|---|
-| `collab/state-changed` | emit | `(unitId, prev: SyncState, next: SyncState)` | `collab-yjs/infrastructure/session-driver.ts`（执行 `session-fsm` 效果时发出） | UI 状态指示（M-10）、telemetry `oce_collab_session_transitions_total{from,to}` |
+| `collab/state-changed` | emit | `(unitId, prev: SyncState, next: SyncState)` | `collab-yjs/infrastructure/session-driver.ts`（执行 `session-fsm` 效果时发出） | UI 状态指示（M-10）、telemetry `cordex_collab_session_transitions_total{from,to}` |
 | `collab/synced` | emit | `(unitId)` | `collab-yjs/infrastructure/session-driver.ts`（`syncing→live` 迁移时） | 打开进度 UI、e2e 断言 |
 | `collab/soft-conflict` | emit | `(unitId, { type: SoftConflictType; paths? })` | `collab-yjs/infrastructure/sync/yjs-sync-engine.ts`（应用远端 update 后调用 `classifySoftConflict()`，观察到 §2.3 表中场景时） | 冲突提示 UI（M-10）、telemetry |
 | `collab/auth-failed` | emit | `(unitId, { code })` | `collab-transport-ws/infrastructure/handshake.ts` → 经 `SessionDriver` 转发 | 错误提示 UI、审计 |
 | `collab/reconnect` | emit | `(unitId, { reason })` | `collab-yjs/infrastructure/session-driver.ts`（`backoff`/`offline→connecting`） | 状态指示、telemetry |
 | `collab/update-rejected` | emit | `(unitId, { code, count })` | `collab-yjs/infrastructure/permission/permission-gate.ts`（§18.4「导出后重载」触发点） | 「未保存更改」横幅（M-10）、审计 |
 | `collab/repair` | emit | `(unitId, { reason, paths })` 或 `{ rule }`（如 `'cycle'`） | `collab-yjs/infrastructure/sync/yjs-sync-engine.ts`（收到 `CONTROL.repair`/本地轻量修复时） | 非阻断提示「已自动修正」、telemetry（**与服务端 `collab-server/repair` 是两个不同事件**，14 §1 C-08：本事件是客户端收到 `CONTROL.repair` 后自发的本地事件，载荷面向 UI；服务端事件载荷面向审计，发布者/订阅者均不同，见 00-module-map §3 BC-26 行） |
+| `store/undo-skipped`（M-02 事件，本模块**订阅**，不发布） | on | `(unitId, { skipped: UndoSkip[]; wholeStep: boolean })`（载荷照抄 M-02 §2.4，复核 M2） | `store-memory`/`store-yjs` Provider（M-02） | 提示条（M-10）；telemetry **单独统计**跳过次数与整步跳过次数（`cordex_store_undo_skipped_total{whole_step}`），**不**派生 `collab/soft-conflict`、**不**计入软冲突率 MT-15（rulings §4.17 D5） |
 | `presence/joined` | emit | `(unitId, clientId)` | `collab-yjs/infrastructure/awareness/presence.service.ts` | 在场头像列表（M-10） |
 | `presence/left` | emit | `(unitId, clientId)` | `collab-yjs/infrastructure/awareness/presence.service.ts` | 在场头像列表（M-10） |
 | `presence/changed` | emit | `(unitId, clientId \| null)` | `collab-yjs/infrastructure/awareness/presence.service.ts`（`null` = 本地状态变化） | 光标/选区覆盖层（M-10） |
@@ -256,15 +268,15 @@ stateDiagram-v2
 ```ts
 // OfflineStore（collab-core/application/contracts/offline-store.ts；06 §18.6 权威签名）
 interface OfflineStore {
-  open(scope: { tenantId: TenantId; documentId: DocumentId }): Promise<OfflineDocStore>
-  clearAll(scope: { tenantId: TenantId; userId: UserId }): Promise<void>
+  open(scope: { userId: UserId; documentId: DocumentId }): Promise<OfflineDocStore>  // T-0 去 tenantId；IDB 键 `{userId}/{documentId}`（同机多账号隔离，复核 M9）
+  clearAll(scope: { userId: UserId }): Promise<void>
   estimate(): Promise<{ usedBytes: number; quotaBytes: number }>
 }
 interface OfflineDocStore {
   readonly meta: OfflineMeta | null
   loadState(): Promise<Uint8Array | null>
   loadPending(): Promise<readonly PendingUpdate[]>
-  appendPending(update: Uint8Array, localSeq: number): Promise<Result<void, OceError<'collab.offline_quota_exceeded'>>>
+  appendPending(update: Uint8Array, localSeq: number): Promise<Result<void, CordexError<'collab.offline_quota_exceeded'>>>
   ackUpTo(localSeq: number): Promise<void>
   compact(state: Uint8Array, meta: OfflineMeta): Promise<void>
   moveToRejected(entries: readonly RejectedEntry[]): Promise<void>
@@ -286,10 +298,10 @@ interface OfflineDocStore {
 | 连接（connect） | `join()` → FSM `idle→connecting` → `collabTransport.connect()` → CONTROL.auth 握手 → `authenticating→syncing`（与 HTTP 快照 bootstrap 并行，06 §9.1）→ SyncStep1/2 → pending 清空 → `syncing→live` | `ctx.collab.join(unitId, opts)`（`preset-slide-collab` 在 Unit 打开后调用） | `application/session-lifecycle.ts`（描述）→ `collab-yjs/infrastructure/session-driver.ts`（执行） |
 | 断开（disconnect） | `leave()` → `flush()`（等待 pending 清空，超时跳过）→ `Connection.close(1000)` → awareness 广播移除 → FSM → `closed` | `ctx.collab.leave(unitId)`（Unit 关闭时自动调用） | `application/session-lifecycle.ts`（描述）→ `collab-yjs/infrastructure/session-driver.ts`（执行） |
 | 同步（sync） | 出站：`yjsBackend.onUpdate` → `LocalBatcher`（50 ms 合并）→ 编码 → `Connection.send`；入站：`onFrame` → 解码 → `yjsBackend.applyUpdate(origin=remote)` | 持续循环，无显式调用者 | `collab-yjs/infrastructure/sync/{yjs-sync-engine,local-batcher}.ts` |
-| 离线回放（offline replay） | Unit 打开：`offlineStore.loadState()` → `applyUpdate(origin=import)` → `loadPending()` → 按 `localSeq` 升序 `applyUpdate(origin=local，重放，不入撤销栈)` → WS 同步 → 收到 `ack` 后 `ackUpTo` 清理 → `synced` 后 `compact` | Unit 打开时自动 | `application/replay-offline-queue.ts`（描述）→ `collab-yjs/infrastructure/offline/offline-queue-runtime.ts`（执行） |
+| 离线回放（offline replay） | Unit 打开：`offlineStore.loadState()` → `applyUpdate(origin=import)` → `loadPending()` → 按 `localSeq` 升序 `applyUpdate(origin=local，重放，不入撤销栈)` → WS 同步 → 收到 `ack{tier:'db'}` 后 `ackUpTo` 清理（`tier:'spill'` 不清，rulings §4.15 S-3a）→ `synced` 后 `compact` | Unit 打开时自动 | `application/replay-offline-queue.ts`（描述）→ `collab-yjs/infrastructure/offline/offline-queue-runtime.ts`（执行） |
 | 权限降级（permission degradation） | 收到 `CONTROL.permission` → `permissions.applyRemoteDecisions(decisions)`（唯一入口，M-02）→ 若降权：`permission-gate` 本地拦截后续 outbound update + FSM `live→readonly`；若彻底撤销：`Connection.close(4403)` | 服务端推送（被动） | `application/degrade-permission.ts`（描述）→ `collab-yjs/infrastructure/permission/permission-gate.ts`（执行） |
 
-事务边界与撤销：五个应用服务均**不产生** `Transaction`/`TransactionRecord`（那是 M-02 命令管线的职责）；离线回放阶段重放的 update 以 `origin=local` 应用是为了让 `Y.UndoManager` 正确识别其为「可能被本地撤销」的历史（但显式标注「重放，不入撤销栈」——即重放本身不创建新的可撤销单元，只恢复既有 CRDT 状态）。
+事务边界与撤销：五个应用服务均**不产生** `Transaction`/`TransactionRecord`（那是 M-02 命令管线的职责）；撤销语义（跳过他人后写、整步跳过即停、软删除墓碑）由 M-02 `store-yjs` 的撤销包装层实现，本模块只保证入站远端 update 一律以 `origin=remote` 应用，使包装层的「键→最后写入 origin」表能识别他人后写（rulings §4.15 Q3）；离线回放阶段重放的 update 以 `origin=local` 应用是为了让 `Y.UndoManager` 正确识别其为「可能被本地撤销」的历史（但显式标注「重放，不入撤销栈」——即重放本身不创建新的可撤销单元，只恢复既有 CRDT 状态）。
 
 **图 2-2 两端同步时序**
 
@@ -316,7 +328,7 @@ sequenceDiagram
 
 > 四包按 cordis 形态分三类：`collab-core` 是 definition 包，但**额外**导出一个自成一体的最小函数插件（单人 presence 兜底，装配层显式挂载，不随包 import 自动注册）；`collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 是标准 provider（各自 `implements` 一个服务名）。四包均无自身贡献点（协同是服务 Provider 座，charter §5.5）。
 
-**`@oce/collab-core`**
+**`@cordexjs/collab-core`**
 
 | 项 | 值 |
 |---|---|
@@ -327,10 +339,10 @@ sequenceDiagram
 | 事件：发布 / 订阅 | 声明全部 `collab/*`/`presence/*` 事件类型（§2.4），但**不发出**任何事件（真正发出者是 `collab-yjs`；`localPresencePlugin` 单人模式下无 `remotes` 变化） |
 | 配置 schema | `localPresencePlugin` 无 Config（无可配置项） |
 | 生命周期 | ready = `local` 状态对象构造完成；dispose = no-op（无外部资源）；UnitScope 内；PENDING：不会（无硬依赖） |
-| Manifest 片段 | `{ "id": "@oce/collab-core#local-presence", "provides": ["presence"], "injects": [], "unitScoped": true }` |
+| Manifest 片段 | `{ "id": "@cordexjs/collab-core#local-presence", "provides": ["presence"], "injects": [], "unitScoped": true }` |
 | 装配关系 | `preset-slide` 加载 `localPresencePlugin`；`preset-slide-collab` **替换**为 `collab-yjs`（同一 UnitScope 只能有一个 `presence` 供给者，装配层用 override/exclude 二选一，module-map §6.1） |
 
-**`@oce/collab-yjs`**
+**`@cordexjs/collab-yjs`**
 
 | 项 | 值 |
 |---|---|
@@ -342,9 +354,9 @@ sequenceDiagram
 | 事件：订阅 | `store/transaction`（`yjsBackend.onUpdate` 的间接来源；本包不直接 `ctx.on('store/transaction')`，而是通过 `yjsBackend.onUpdate` 只接收非 remote 的 update，避免重复编码） |
 | 配置 schema | `Config{ flushMs:50; awareness:{cursorHz:20; stateHz:2; timeoutMs:30000}; maxUpdateBytes:1MiB; outboundHighWater:200; offline:{enabled:true; maxBytes:50MiB} }` |
 | 生命周期 | ready = `SyncEngine`+`AwarenessAdapter`+`SessionDriver` 挂载完成并开始尝试连接（`connecting`，**不等于** `synced`，初始同步是异步过程）；dispose = 关闭 transport 连接、清理 awareness（广播移除）、尽力 flush 离线队列、`ctx.effect` 逆序清理；UnitScope 内；PENDING：`store-memory` 场景下 `yjsBackend` 未就位 → 整体 `PENDING`（可诊断，非失败，ADR-0005 第 3 条） |
-| Manifest 片段 | `{ "id": "@oce/collab-yjs", "provides": ["collab","presence"], "injects": ["store","yjsBackend","collabTransport","permissions"], "unitScoped": true }` |
+| Manifest 片段 | `{ "id": "@cordexjs/collab-yjs", "provides": ["collab","presence"], "injects": ["store","yjsBackend","collabTransport","permissions"], "unitScoped": true }` |
 
-**`@oce/collab-transport-ws`**
+**`@cordexjs/collab-transport-ws`**
 
 | 项 | 值 |
 |---|---|
@@ -355,9 +367,9 @@ sequenceDiagram
 | 事件：发布 / 订阅 | 无 cordis `Events`——只通过 `Connection.onFrame`/`onClose` 回调暴露给上层（`collab-yjs`），不直接 `ctx.emit` 任何 `collab/*` 事件（域事件由感知「Session」语义的 `collab-yjs` 统一发出） |
 | 配置 schema | `Config{ urlTemplate:'wss://{host}/collab/v1/rooms/{documentId}'; connectTimeoutMs:5000; backoff:{baseMs:1000; maxMs:30000; jitter:0.2; maxAttemptsBeforeOffline:6}; heartbeatMs:15000 }` |
 | 生命周期 | ready = Provider 注册完成（**不**主动连接，`connect()` 按需调用）；dispose = 关闭全部经 `ctx.effect` 追踪的活跃 socket；根作用域（跨 Unit 复用同一 Provider 实例，每次 `connect()` 各自独立 socket）；PENDING：不会 |
-| Manifest 片段 | `{ "id": "@oce/collab-transport-ws", "provides": ["collabTransport"], "injects": [], "implements": ["collabTransport"], "unitScoped": false }` |
+| Manifest 片段 | `{ "id": "@cordexjs/collab-transport-ws", "provides": ["collabTransport"], "injects": [], "implements": ["collabTransport"], "unitScoped": false }` |
 
-**`@oce/collab-offline-idb`**
+**`@cordexjs/collab-offline-idb`**
 
 | 项 | 值 |
 |---|---|
@@ -366,16 +378,16 @@ sequenceDiagram
 | `provide` | `['offlineStore']`（UnitScope） |
 | 贡献点：提供 / 消费 | 无 / 无 |
 | 事件：发布 / 订阅 | 无（纯存储 Provider，配额告警经 `errors`/`telemetry` 上报，不发 `collab/*` 事件） |
-| 配置 schema | `Config{ dbNamePrefix:'oce-collab'; maxPendingBytes:50MiB; ttlDays:30 }` |
-| 生命周期 | ready = 为该 `{tenantId,documentId}` 打开/建库成功；dispose = 关闭 db 连接句柄（**不**删除数据）；UnitScope 内；PENDING：几乎不会（IndexedDB 不可用时返回错误而非 PENDING，由 `collab-yjs` 捕获后走内存降级路径，而非 cordis 依赖解析层面的 PENDING） |
-| Manifest 片段 | `{ "id": "@oce/collab-offline-idb", "provides": ["offlineStore"], "injects": [], "implements": ["offlineStore"], "unitScoped": true }` |
+| 配置 schema | `Config{ dbNamePrefix:'cordex-collab'; maxPendingBytes:50MiB; ttlDays:30 }` |
+| 生命周期 | ready = 为该 `{userId}/{documentId}` 打开/建库成功（T-0 去租户，rulings §4.15；键含 userId，复核 M9）；dispose = 关闭 db 连接句柄（**不**删除数据）；UnitScope 内；PENDING：几乎不会（IndexedDB 不可用时返回错误而非 PENDING，由 `collab-yjs` 捕获后走内存降级路径，而非 cordis 依赖解析层面的 PENDING） |
+| Manifest 片段 | `{ "id": "@cordexjs/collab-offline-idb", "provides": ["offlineStore"], "injects": [], "implements": ["offlineStore"], "unitScoped": true }` |
 | M3/M4 状态 | M3 默认**不加载**本包（会话内内存队列已满足「离线重连」验收）；M4 P2 起随 `preset-slide-collab` 可选启用（PRD CO-06） |
 
 ## 4. 目录树（完整到文件）
 
-> 四包根配置文件均遵循 02 §4.0 包模板：`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`oce-manifest.json`，共 9 个 × 4 = 36 个，同构不逐包重复展开；`oce` 字段差异见 §3。顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`testing/`（本模块无 UI，省略 `interface/`；三个纯 Provider 包按 module-map §1 规则只设 `infrastructure/`，无 `domain/`/`application/`，与 02 §4.11/4.12/4.12b 现存扁平结构的映射关系、差异原因见 §12 G-1）。四包 `src/` 共 86 个源文件。
+> 四包根配置文件均遵循 02 §4.0 包模板：`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`，共 9 个 × 4 = 36 个，同构不逐包重复展开；`cordex` 字段差异见 §3。顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`testing/`（本模块无 UI，省略 `interface/`；三个纯 Provider 包按 module-map §1 规则只设 `infrastructure/`，无 `domain/`/`application/`，与 02 §4.11/4.12/4.12b 现存扁平结构的映射关系、差异原因见 §12 G-1）。四包 `src/` 共 86 个源文件。
 
-### 4.1 `@oce/collab-core`（34 个源文件）
+### 4.1 `@cordexjs/collab-core`（34 个源文件）
 
 ```text
 packages/collab-core/src/
@@ -422,9 +434,9 @@ packages/collab-core/src/
     └── lifecycle.test.ts             defineLifecycleSuite（local-presence Provider）
 ```
 
-每个顶层目录一句职责：`domain/` 不依赖 `application/`/`infrastructure/`（只依赖 `@oce/model-core`/`@oce/protocol`/`@oce/shared` 的类型）；`application/contracts/` 只声明接口，不实现；`application/` 其余文件依赖 `domain/`，产出编排描述供 Provider 包消费；`infrastructure/` 依赖 `domain/`+`application/contracts/`，是本包唯一有 `ctx.effect` 副作用的文件；`testing/` 依赖以上全部，供本包与 `collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 的契约测试复用。
+每个顶层目录一句职责：`domain/` 不依赖 `application/`/`infrastructure/`（只依赖 `@cordexjs/model-core`/`@cordexjs/protocol`/`@cordexjs/shared` 的类型）；`application/contracts/` 只声明接口，不实现；`application/` 其余文件依赖 `domain/`，产出编排描述供 Provider 包消费；`infrastructure/` 依赖 `domain/`+`application/contracts/`，是本包唯一有 `ctx.effect` 副作用的文件；`testing/` 依赖以上全部，供本包与 `collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 的契约测试复用。
 
-### 4.2 `@oce/collab-yjs`（27 个源文件）
+### 4.2 `@cordexjs/collab-yjs`（27 个源文件）
 
 ```text
 packages/collab-yjs/src/
@@ -439,8 +451,8 @@ packages/collab-yjs/src/
 │   ├── session-driver.ts             执行 session-fsm 的 Effect：connect/send/schedule/backoff/notify
 │   ├── sync/
 │   │   ├── yjs-sync-engine.ts        SyncEngine 实现（step1/step2/update）；「已同步」= 收到 step2 且本地 pending 为空
-│   │   ├── frame-codec.ts            @oce/protocol 信封 ↔ y-protocols 负载（lib0 encoding）；CONTROL JSON zod 解析
-│   │   └── local-batcher.ts          合并/节流/背压/ack 追踪（§2.6 同步）
+│   │   ├── frame-codec.ts            @cordexjs/protocol 信封 ↔ y-protocols 负载（lib0 encoding）；CONTROL JSON zod 解析
+│   │   └── local-batcher.ts          合并/节流/背压/两级 ack 追踪（§2.6 同步；spill 不清 pending，db 才清）
 │   ├── awareness/
 │   │   ├── presence.service.ts       PresenceService Provider：基于 AwarenessHandle（不持有 Y.Doc，§1.2）
 │   │   ├── awareness-adapter.ts      AwarenessHandle 生命周期封装；远端状态 schema 校验，非法丢弃计数
@@ -451,7 +463,7 @@ packages/collab-yjs/src/
 │   └── permission/
 │       └── permission-gate.ts        CONTROL.permission → permissions.applyRemoteDecisions（唯一入口）；outbound 本地拦截
 ├── testing/
-│   └── index.ts                      createCollabCluster(n, networkModel)、NetworkModel（`@oce/collab-yjs/testing`）
+│   └── index.ts                      createCollabCluster(n, networkModel)、NetworkModel（`@cordexjs/collab-yjs/testing`）
 └── __tests__/
     ├── conformance.test.ts           跑 collab-core/testing 的两个契约套件（针对内存 transport/offline 实现）
     ├── sync-engine.test.ts           step1/step2/update 与参考实现帧互操作
@@ -464,9 +476,9 @@ packages/collab-yjs/src/
     └── soft-conflict-fuzz.test.ts    fast-check 随机 op 序列 + 随机分区/乱序交换 update，收敛哈希断言
 ```
 
-本包（唯一插件包）依赖方向：`infrastructure/` 全部文件依赖 `@oce/collab-core`（`domain/`+`application/contracts`）与 `@oce/store-yjs` 的 `yjsBackend`；`sync/`/`awareness/` 允许 `import 'yjs'`/`'y-protocols'`（章程 §5.3 规则 4）但仅用于**编码工具函数**（`Y.mergeUpdates`/`Y.decodeUpdateV2`等操作 `Uint8Array` 的静态函数）与 awareness 协议编解码，**不**持有或导出 `Y.Doc`/`Awareness` 实例——真正的 `new Awareness(doc)` 构造封装在 `store-yjs` 的 `yjsBackend.awareness()` 内部并以 `AwarenessHandle` 返回（§1.2、06 §2.3），这是「`yjsBackend` 唯一受控访问面」约束在本包的具体落地点。
+本包（唯一插件包）依赖方向：`infrastructure/` 全部文件依赖 `@cordexjs/collab-core`（`domain/`+`application/contracts`）与 `@cordexjs/store-yjs` 的 `yjsBackend`；`sync/`/`awareness/` 允许 `import 'yjs'`/`'y-protocols'`（章程 §5.3 规则 4）但仅用于**编码工具函数**（`Y.mergeUpdates`/`Y.decodeUpdateV2`等操作 `Uint8Array` 的静态函数）与 awareness 协议编解码，**不**持有或导出 `Y.Doc`/`Awareness` 实例——真正的 `new Awareness(doc)` 构造封装在 `store-yjs` 的 `yjsBackend.awareness()` 内部并以 `AwarenessHandle` 返回（§1.2、06 §2.3），这是「`yjsBackend` 唯一受控访问面」约束在本包的具体落地点。
 
-### 4.3 `@oce/collab-transport-ws`（13 个源文件）
+### 4.3 `@cordexjs/collab-transport-ws`（13 个源文件）
 
 ```text
 packages/collab-transport-ws/src/
@@ -479,7 +491,7 @@ packages/collab-transport-ws/src/
 │   ├── ws-transport.provider.ts      CollabTransport Provider：connect → 握手 → Connection；binaryType='arraybuffer'
 │   ├── handshake.ts                  发送 CONTROL.auth{ticket,protocolVersion,clientId,capabilities} → 等待 auth.ok/denied（5s 超时）；auth.refresh 续期（ADR-0023 v0.2）
 │   ├── heartbeat.ts                  应用层 ping/pong（CONTROL.ping），2 次未响应判死
-│   └── reconnect.ts                  调用 `@oce/collab-core` 的 `nextDelay()` 纯函数；online/offline 事件钩子（iso 安全）
+│   └── reconnect.ts                  调用 `@cordexjs/collab-core` 的 `nextDelay()` 纯函数；online/offline 事件钩子（iso 安全）
 ├── testing/
 │   └── index.ts                      内存 WS 对（服务端替身，供本包与 collab-yjs 测试）
 └── __tests__/
@@ -488,38 +500,38 @@ packages/collab-transport-ws/src/
     └── heartbeat-and-close-codes.test.ts  心跳判死、全部关闭码（06 §6.5）到客户端行为的映射
 ```
 
-### 4.4 `@oce/collab-offline-idb`（12 个源文件）
+### 4.4 `@cordexjs/collab-offline-idb`（12 个源文件）
 
 ```text
 packages/collab-offline-idb/src/
 ├── index.ts                          公共 API 面
 ├── plugin.ts                         provide=['offlineStore']（UnitScope 内挂载，随 Unit 打开建库、关闭释放）
 ├── manifest.ts                       生成物
-├── config.ts                         zod Config：{ dbNamePrefix:'oce-collab'; maxPendingBytes:50MiB; ttlDays:30 }
+├── config.ts                         zod Config：{ dbNamePrefix:'cordex-collab'; maxPendingBytes:50MiB; ttlDays:30 }
 ├── errors.ts                         collab.offline_quota_exceeded 等本地存储错误码
 ├── infrastructure/                   本包全部内容（纯 Provider 包；**唯一**允许 import `y-indexeddb`（或自写 IDB 适配）的包）
 │   ├── idb-offline-store.provider.ts OfflineStore 实现：open/loadState/loadPending/appendPending/ackUpTo/compact/moveToRejected/…
-│   ├── idb-schema.ts                 对象仓定义：`updates`/`state`/`rejected`/`meta`（ADR-0033 布局，键为 `{tenant}/{documentId}`）
+│   ├── idb-schema.ts                 对象仓定义：`updates`/`state`/`rejected`/`meta`（ADR-0033 布局，键为 `{userId}/{documentId}`，T-0 复核 M9）
 │   └── quota-eviction.ts             50 MiB 上限判定与 TTL 淘汰策略（有淘汰测试，A29）
 ├── testing/
-│   └── index.ts                      fake-indexeddb 环境助手（`@oce/collab-offline-idb/testing`）
+│   └── index.ts                      fake-indexeddb 环境助手（`@cordexjs/collab-offline-idb/testing`）
 └── __tests__/
-    ├── conformance.test.ts           跑 `@oce/collab-core/testing` 的 runOfflineStoreConformance
+    ├── conformance.test.ts           跑 `@cordexjs/collab-core/testing` 的 runOfflineStoreConformance
     ├── refresh-recovery.test.ts      刷新后恢复（重建宿主 + 复用同一 IDB fake）
     └── quota-eviction.test.ts        配额超限行为、TTL 淘汰、Unit 关闭后无残留连接（defineLifecycleSuite）
 ```
 
-后两包（`collab-transport-ws`/`collab-offline-idb`）均为「纯 Provider 包」：只有 `infrastructure/` 一个 DDD 目录（module-map §1 规则 1），领域概念（`BackoffPolicy`/`OfflineQueue` 等）属于 `collab-core`，本包只做技术实现；`collab-offline-idb` 的 `oce.iso='dom'` 使其不得被任何 `iso` 包依赖（R16），`collab-core`/`collab-yjs`/`collab-transport-ws` 均不 import 本包，只通过 `offlineStore` 服务名的运行时查找间接感知其存在。
+后两包（`collab-transport-ws`/`collab-offline-idb`）均为「纯 Provider 包」：只有 `infrastructure/` 一个 DDD 目录（module-map §1 规则 1），领域概念（`BackoffPolicy`/`OfflineQueue` 等）属于 `collab-core`，本包只做技术实现；`collab-offline-idb` 的 `cordex.iso='dom'` 使其不得被任何 `iso` 包依赖（R16），`collab-core`/`collab-yjs`/`collab-transport-ws` 均不 import 本包，只通过 `offlineStore` 服务名的运行时查找间接感知其存在。
 
 ## 5. 文件职责表
 
-> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@oce/kernel`/`@oce/shared`（隐式可用）。四包根配置同构，先给一张通用表（9 行，`oce` 字段值差异见 §3），不逐包重复。
+> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@cordexjs/kernel`/`@cordexjs/shared`（隐式可用）。四包根配置同构，先给一张通用表（9 行，`cordex` 字段值差异见 §3），不逐包重复。
 
 **根配置（9 × 4 包，同构）**
 
 | 文件 | 职责 | 允许依赖 | 备注 |
 |---|---|---|---|
-| `package.json` | 包元数据与 `oce` 字段 | — | 四包 `layer:'L4'`；`iso` 三 `'iso'` 一 `'dom'`；`role`/`implements` 见 §3 |
+| `package.json` | 包元数据与 `cordex` 字段 | — | 四包 `layer:'L4'`；`iso` 三 `'iso'` 一 `'dom'`；`role`/`implements` 见 §3 |
 | `tsconfig.json` | extends `tooling/tsconfig/{iso\|dom}.json` | — | `collab-offline-idb` 用 `dom.json`，其余 `iso.json` |
 | `tsconfig.test.json` | 测试专用 tsconfig | — | include `__tests__`/`testing` |
 | `vitest.config.ts` | 测试运行配置 | — | `collab-offline-idb` 用 `happy-dom`（IndexedDB 需 DOM 环境或 `fake-indexeddb`），其余 `node` |
@@ -527,9 +539,9 @@ packages/collab-offline-idb/src/
 | `etc/<pkg>.api.md` | api-extractor 基线报告 | — | 入库，PR diff 必审；`collab-yjs` 额外守护「不新增 `Y.*` 类型」正则 |
 | `README.md` | 包职责与公共 API 概览 | — | manifest-gen 写入标记区 |
 | `CHANGELOG.md` | 版本记录 | — | Changesets 生成 |
-| `oce-manifest.json` | 静态插件清单产物 | — | 由 `src/manifest.ts` 序列化 |
+| `cordex-manifest.json` | 静态插件清单产物 | — | 由 `src/manifest.ts` 序列化 |
 
-**`@oce/collab-core`（34）**
+**`@cordexjs/collab-core`（34）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -538,11 +550,11 @@ packages/collab-offline-idb/src/
 | `collab.contribution.ts` | Context/Events 增强 | `Context.collab/presence/collabTransport/offlineStore`、`Events` | `domain/*` 类型 | 无运行时 import（`contribution-file-purity`） |
 | `events.ts` | 事件名常量 | 事件名对象 | — | 与 contribution.ts 一致（`events-declared`） |
 | `errors.ts` | 错误码 | `defineErrors('collab', table)` | — | `collab.auth_failed`/`collab.room_full` 等引用型码（实际抛出方在 provider 包） |
-| `domain/session.ts` | `Session` 聚合 + `SessionStats` | `Session`、`SessionStats` | `@oce/protocol`（`RoleName`） | 只读句柄，无 public setter |
+| `domain/session.ts` | `Session` 聚合 + `SessionStats` | `Session`、`SessionStats` | `@cordexjs/protocol`（`RoleName`） | 只读句柄，无 public setter |
 | `domain/session-state.ts` | 会话状态机的状态类型 | `SyncState`、`InternalState`、`projectSyncState()` | — | §2.1 投影表的实现 |
-| `domain/room-descriptor.ts` | 房间只读投影 | `RoomDescriptor`、`RoomInfo` | `@oce/protocol`（ids） | 不复制服务端 Room FSM |
+| `domain/room-descriptor.ts` | 房间只读投影 | `RoomDescriptor`、`RoomInfo` | `@cordexjs/protocol`（ids） | 不复制服务端 Room FSM |
 | `domain/ticket.ts` | 短时凭据值对象 | `Ticket` | — | 类型形状，签发/校验在服务端 |
-| `domain/awareness-state.ts` | 在场状态值对象 | `AwarenessState`、`SerializedSelection`、`serializeAwareness()`、`parseAwareness()` | `@oce/protocol`（awareness zod） | ≤2 KiB 校验 |
+| `domain/awareness-state.ts` | 在场状态值对象 | `AwarenessState`、`SerializedSelection`、`serializeAwareness()`、`parseAwareness()` | `@cordexjs/protocol`（awareness zod） | ≤2 KiB 校验 |
 | `domain/cursor.ts` | 稳定位置值对象 | `StablePosition` 类型、base64 编解码占位 | — | 实际编解码算法在 store-yjs |
 | `domain/offline-queue.ts` | 离线队列聚合与其值对象 | `OfflineQueue`、`PendingUpdate`、`RejectedEntry` | — | 不变量见 §2.1 |
 | `domain/backoff.ts` | 退避策略 | `BackoffPolicy`、`nextDelay()` | — | 纯函数，`rand` 显式注入 |
@@ -566,41 +578,41 @@ packages/collab-offline-idb/src/
 | `__tests__/session-fsm.test.ts` | FSM 单测 | — | `../domain/fsm/*` | 全迁移路径 |
 | `__tests__/backoff.test.ts` | 退避单测 | — | `../domain/backoff` | 边界值 |
 | `__tests__/classify-soft-conflict.test.ts` | 分类单测 | — | `../domain/classify-soft-conflict` | 12 种全覆盖 |
-| `__tests__/lifecycle.test.ts` | 生命周期单测 | — | `defineLifecycleSuite`（`@oce/kernel/testing`） | 插件包强制项 |
+| `__tests__/lifecycle.test.ts` | 生命周期单测 | — | `defineLifecycleSuite`（`@cordexjs/kernel/testing`） | 插件包强制项 |
 
-**`@oce/collab-yjs`（27）**
+**`@cordexjs/collab-yjs`（27）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `index.ts` | 公共 API 面 | 见 §6 | `infrastructure/*` | 不导出 `Y.*` 类型 |
 | `plugin.ts` | 函数插件 | `name`/`inject`/`provide`/`Config`/`apply` | `infrastructure/*` | §3 |
 | `manifest.ts` | Manifest 生成物 | `manifest` | — | `implements:['collab','presence']` |
-| `collab-yjs.contribution.ts` | Context 增强占位 | 无新增声明 | `@oce/collab-core`（类型） | 结构占位，与 store-memory 先例一致 |
+| `collab-yjs.contribution.ts` | Context 增强占位 | 无新增声明 | `@cordexjs/collab-core`（类型） | 结构占位，与 store-memory 先例一致 |
 | `config.ts` | 配置 schema | `Config` | — | §3 表 |
 | `errors.ts` | 本包错误码 | `defineErrors('collab-yjs', table)` | — | sync/awareness/offline 特有 |
-| `infrastructure/collab-session.service.ts` | `CollabService` 实现 | `YjsCollabService` | `@oce/collab-core`、`@oce/store-yjs`（`yjsBackend` 类型） | join 幂等，session() 查表 |
-| `infrastructure/session-driver.ts` | FSM 效果执行器 | `SessionDriver` | `@oce/collab-core`（`domain/fsm`） | connect/send/schedule/backoff/notify |
+| `infrastructure/collab-session.service.ts` | `CollabService` 实现 | `YjsCollabService` | `@cordexjs/collab-core`、`@cordexjs/store-yjs`（`yjsBackend` 类型） | join 幂等，session() 查表 |
+| `infrastructure/session-driver.ts` | FSM 效果执行器 | `SessionDriver` | `@cordexjs/collab-core`（`domain/fsm`） | connect/send/schedule/backoff/notify |
 | `infrastructure/sync/yjs-sync-engine.ts` | 同步引擎实现 | `YjsSyncEngine` | `yjs`、`y-protocols`（静态编码函数） | 不持有 `Y.Doc`，只经 `yjsBackend` |
-| `infrastructure/sync/frame-codec.ts` | 帧编解码 | `encodeFrame()`/`decodeFrame()` | `@oce/protocol`（`ws/frames`）、`y-protocols` | CONTROL 走 zod，SYNC/AWARENESS 走 y-protocols |
-| `infrastructure/sync/local-batcher.ts` | 合并/节流/背压/ack | `LocalBatcher` | `yjs`（`mergeUpdates`，静态函数） | 50 ms 窗口，§1.2 |
+| `infrastructure/sync/frame-codec.ts` | 帧编解码 | `encodeFrame()`/`decodeFrame()` | `@cordexjs/protocol`（`ws/frames`）、`y-protocols` | CONTROL 走 zod，SYNC/AWARENESS 走 y-protocols |
+| `infrastructure/sync/local-batcher.ts` | 合并/节流/背压/ack | `LocalBatcher` | `yjs`（`mergeUpdates`，静态函数） | 50 ms 窗口，§1.2；两级 ack（rulings §4.15 S-3a）：收到 `ack{tier:'spill'}` 只更新诊断，收到 `ack{tier:'db',seq}` 才调用 `offlineStore.ackUpTo()` |
 | `infrastructure/awareness/presence.service.ts` | `PresenceService` 实现 | `YjsPresenceService` | `./awareness-adapter` | remotes 反应式 |
-| `infrastructure/awareness/awareness-adapter.ts` | `AwarenessHandle` 封装 | `AwarenessAdapter` | `@oce/store-yjs`（`yjsBackend.awareness()`） | 不导入 `y-protocols/awareness` 的 `Awareness` 类本身持有 doc |
-| `infrastructure/awareness/cursor-codec.ts` | 光标编解码 | `encodeCursor()`/`decodeCursor()` | `@oce/collab-core`（`domain/cursor`） | RelativePosition base64 |
-| `infrastructure/offline/offline-queue-runtime.ts` | 离线队列运行时 | `OfflineQueueRuntime` | `@oce/collab-core`（`application/contracts/offline-store`） | load→重放→ack→compact |
-| `infrastructure/offline/memory-offline-fallback.ts` | 内存降级实现 | `MemoryOfflineFallback` | `@oce/collab-core`（同接口） | Provider 缺失时使用，非测试替身 |
-| `infrastructure/permission/permission-gate.ts` | 权限降级落地 | `PermissionGate` | `@oce/collab-core`（`application/degrade-permission`） | 调用 `permissions.applyRemoteDecisions` |
+| `infrastructure/awareness/awareness-adapter.ts` | `AwarenessHandle` 封装 | `AwarenessAdapter` | `@cordexjs/store-yjs`（`yjsBackend.awareness()`） | 不导入 `y-protocols/awareness` 的 `Awareness` 类本身持有 doc |
+| `infrastructure/awareness/cursor-codec.ts` | 光标编解码 | `encodeCursor()`/`decodeCursor()` | `@cordexjs/collab-core`（`domain/cursor`） | RelativePosition base64 |
+| `infrastructure/offline/offline-queue-runtime.ts` | 离线队列运行时 | `OfflineQueueRuntime` | `@cordexjs/collab-core`（`application/contracts/offline-store`） | load→重放→ack→compact |
+| `infrastructure/offline/memory-offline-fallback.ts` | 内存降级实现 | `MemoryOfflineFallback` | `@cordexjs/collab-core`（同接口） | Provider 缺失时使用，非测试替身 |
+| `infrastructure/permission/permission-gate.ts` | 权限降级落地 | `PermissionGate` | `@cordexjs/collab-core`（`application/degrade-permission`） | 调用 `permissions.applyRemoteDecisions` |
 | `testing/index.ts` | 测试子路径 | `createCollabCluster()`、`NetworkModel` | `infrastructure/*` | `./testing` |
-| `__tests__/conformance.test.ts` | 契约测试 | — | `@oce/collab-core/testing` | 两套契约套件 |
+| `__tests__/conformance.test.ts` | 契约测试 | — | `@cordexjs/collab-core/testing` | 两套契约套件 |
 | `__tests__/sync-engine.test.ts` | 同步引擎测试 | — | `infrastructure/sync/*` | step1/2/update 互操作 |
-| `__tests__/batcher.test.ts` | 批处理测试 | — | `infrastructure/sync/local-batcher` | 合并窗口/背压/ack |
+| `__tests__/batcher.test.ts` | 批处理测试 | — | `infrastructure/sync/local-batcher` | 合并窗口/背压/ack；负向：只收到 `spill` 级 ack 时 pending 不减少、`flush()` 不 resolve；收到 `db` 级 ack 后清理到对应 `localSeq` |
 | `__tests__/awareness.test.ts` | Awareness 测试 | — | `infrastructure/awareness/*` | 节流/超时/清洗 |
 | `__tests__/permission-gate.test.ts` | 权限门测试 | — | `infrastructure/permission/*` | 降权/升权/事件顺序 |
 | `__tests__/offline-queue.test.ts` | 离线队列测试 | — | `infrastructure/offline/*` | 积累/合并/拒绝可导出 |
 | `__tests__/lifecycle.test.ts` | 生命周期测试 | — | `defineLifecycleSuite` | 多 Unit、Provider 替换 |
-| `__tests__/soft-conflict-scenarios.test.ts` | 12 种场景确定性用例 | — | `@oce/model-core/testing`（`fixture`） | §2.3 表逐行 |
-| `__tests__/soft-conflict-fuzz.test.ts` | fuzz 覆盖 | — | `fast-check`、`@oce/model-core/testing` | 随机 op + 随机分区/乱序 |
+| `__tests__/soft-conflict-scenarios.test.ts` | 12 种场景确定性用例 | — | `@cordexjs/model-core/testing`（`fixture`） | §2.3 表逐行 |
+| `__tests__/soft-conflict-fuzz.test.ts` | fuzz 覆盖 | — | `fast-check`、`@cordexjs/model-core/testing` | 随机 op + 随机分区/乱序 |
 
-**`@oce/collab-transport-ws`（13）**
+**`@cordexjs/collab-transport-ws`（13）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -610,15 +622,15 @@ packages/collab-offline-idb/src/
 | `config.ts` | 配置 schema | `Config` | — | urlTemplate/超时/退避/心跳 |
 | `errors.ts` | 传输错误码 | `defineErrors('transport', table)` | — | connect_timeout/auth_timeout/closed_by_server |
 | `infrastructure/ws-transport.provider.ts` | `CollabTransport` 实现 | `WsTransportProvider` | 全局 `WebSocket`（iso 内建，非 `ws` 包） | binaryType='arraybuffer' |
-| `infrastructure/handshake.ts` | 握手与续期 | `performHandshake()`、`refreshTicket()` | `@oce/protocol`（`ws/handshake`） | auth/auth.ok/auth.denied/auth.refresh |
+| `infrastructure/handshake.ts` | 握手与续期 | `performHandshake()`、`refreshTicket()` | `@cordexjs/protocol`（`ws/handshake`） | auth/auth.ok/auth.denied/auth.refresh |
 | `infrastructure/heartbeat.ts` | 应用层心跳 | `Heartbeat` | — | 2 次未响应判死 |
-| `infrastructure/reconnect.ts` | 重连编排 | `Reconnector` | `@oce/collab-core`（`domain/backoff`） | online/offline 钩子 |
+| `infrastructure/reconnect.ts` | 重连编排 | `Reconnector` | `@cordexjs/collab-core`（`domain/backoff`） | online/offline 钩子 |
 | `testing/index.ts` | 测试子路径 | 内存 WS 对工厂 | `infrastructure/*` | `./testing` |
 | `__tests__/handshake.test.ts` | 握手测试 | — | `infrastructure/handshake` | 成功/超时/拒绝/协议不匹配 |
 | `__tests__/reconnect-backoff.test.ts` | 重连测试 | — | `infrastructure/reconnect` | 退避序列/抖动/1012 首轮 |
 | `__tests__/heartbeat-and-close-codes.test.ts` | 心跳与关闭码测试 | — | `infrastructure/heartbeat` | 06 §6.5 关闭码全表 |
 
-**`@oce/collab-offline-idb`（12）**
+**`@cordexjs/collab-offline-idb`（12）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -628,10 +640,10 @@ packages/collab-offline-idb/src/
 | `config.ts` | 配置 schema | `Config` | — | dbNamePrefix/maxPendingBytes/ttlDays |
 | `errors.ts` | 存储错误码 | `defineErrors('offline-idb', table)` | — | `collab.offline_quota_exceeded` |
 | `infrastructure/idb-offline-store.provider.ts` | `OfflineStore` 实现 | `IdbOfflineStore` | `y-indexeddb`（或自写适配，唯一点） | 全部方法幂等 |
-| `infrastructure/idb-schema.ts` | 对象仓定义 | `DB_SCHEMA` | — | updates/state/rejected/meta |
+| `infrastructure/idb-schema.ts` | 对象仓定义 | `DB_SCHEMA` | — | updates/state/rejected/meta；键 `{userId}/{documentId}`（ADR-0033，T-0 去租户，复核 M9）；`clearAll({userId})` 按前缀删除 |
 | `infrastructure/quota-eviction.ts` | 配额与淘汰 | `enforceQuota()` | `./idb-schema` | 50 MiB 上限、TTL 淘汰 |
 | `testing/index.ts` | 测试子路径 | fake-indexeddb 环境助手 | `infrastructure/*` | `./testing` |
-| `__tests__/conformance.test.ts` | 契约测试 | — | `@oce/collab-core/testing` | `runOfflineStoreConformance` |
+| `__tests__/conformance.test.ts` | 契约测试 | — | `@cordexjs/collab-core/testing` | `runOfflineStoreConformance` |
 | `__tests__/refresh-recovery.test.ts` | 刷新恢复测试 | — | `infrastructure/idb-offline-store.provider` | 重建宿主复用同一 IDB fake |
 | `__tests__/quota-eviction.test.ts` | 配额测试 | — | `infrastructure/quota-eviction` | 超限/TTL/无残留连接 |
 
@@ -641,10 +653,10 @@ packages/collab-offline-idb/src/
 
 | 包 | `.` 导出概要 | `./testing` 导出概要 | 稳定级（推荐） |
 |---|---|---|---|
-| `@oce/collab-core` | `Session`/`SyncState`/`AwarenessState`/`OfflineQueue`/`SoftConflictType`/`BackoffPolicy` 等值对象类型、`CollabService`/`PresenceService`/`CollabTransport`/`SyncEngine`/`OfflineStore` 抽象契约、`localPresencePlugin`、纯函数（`nextDelay`/`classifySoftConflict`/`projectSyncState`） | `runCollabTransportConformance`、`runOfflineStoreConformance`、`MemoryTransport`、`MemoryOfflineStore`、`FakeTicketIssuer`、场景脚本 | `beta`（推荐）：`SoftConflictType`/`Effect` 判别联合随实践可能增删分支，M3 起收紧 |
-| `@oce/collab-yjs` | `YjsCollabService`/`YjsPresenceService` 类型（`implements:['collab','presence']`） | `createCollabCluster`、`NetworkModel` | `beta`（推荐） |
-| `@oce/collab-transport-ws` | `WsTransportProvider` 类型（`implements:['collabTransport']`） | 内存 WS 对工厂 | `beta`（推荐） |
-| `@oce/collab-offline-idb` | `IdbOfflineStore` 类型（`implements:['offlineStore']`） | fake-indexeddb 环境助手 | `experimental`（M3 默认不加载，M4 P2 落地后收紧为 `beta`） |
+| `@cordexjs/collab-core` | `Session`/`SyncState`/`AwarenessState`/`OfflineQueue`/`SoftConflictType`/`BackoffPolicy` 等值对象类型、`CollabService`/`PresenceService`/`CollabTransport`/`SyncEngine`/`OfflineStore` 抽象契约、`localPresencePlugin`、纯函数（`nextDelay`/`classifySoftConflict`/`projectSyncState`） | `runCollabTransportConformance`、`runOfflineStoreConformance`、`MemoryTransport`、`MemoryOfflineStore`、`FakeTicketIssuer`、场景脚本 | `beta`（推荐）：`SoftConflictType`/`Effect` 判别联合随实践可能增删分支，M3 起收紧 |
+| `@cordexjs/collab-yjs` | `YjsCollabService`/`YjsPresenceService` 类型（`implements:['collab','presence']`） | `createCollabCluster`、`NetworkModel` | `beta`（推荐） |
+| `@cordexjs/collab-transport-ws` | `WsTransportProvider` 类型（`implements:['collabTransport']`） | 内存 WS 对工厂 | `beta`（推荐） |
+| `@cordexjs/collab-offline-idb` | `IdbOfflineStore` 类型（`implements:['offlineStore']`） | fake-indexeddb 环境助手 | `experimental`（M3 默认不加载，M4 P2 落地后收紧为 `beta`） |
 
 关键类型契约草案（本模块两个最核心的抽象，≤ 40 行）：
 
@@ -666,13 +678,13 @@ interface Session {
 
 // collab-core：OfflineStore 是离线持久化的唯一入口（缺失时 collab-yjs 用同接口内存实现）
 interface OfflineStore {
-  open(scope: { tenantId: TenantId; documentId: DocumentId }): Promise<OfflineDocStore>
-  clearAll(scope: { tenantId: TenantId; userId: UserId }): Promise<void>
+  open(scope: { userId: UserId; documentId: DocumentId }): Promise<OfflineDocStore>  // T-0 去 tenantId；IDB 键 `{userId}/{documentId}`（同机多账号隔离，复核 M9）
+  clearAll(scope: { userId: UserId }): Promise<void>
   estimate(): Promise<{ usedBytes: number; quotaBytes: number }>
 }
 interface OfflineDocStore {
   loadPending(): Promise<readonly PendingUpdate[]>
-  appendPending(update: Uint8Array, localSeq: number): Promise<Result<void, OceError<'collab.offline_quota_exceeded'>>>
+  appendPending(update: Uint8Array, localSeq: number): Promise<Result<void, CordexError<'collab.offline_quota_exceeded'>>>
   ackUpTo(localSeq: number): Promise<void>
   compact(state: Uint8Array, meta: OfflineMeta): Promise<void>
 }
@@ -687,11 +699,11 @@ interface OfflineDocStore {
 | 浏览器（`preset-slide-collab`） | 是，四包全部 | 唯一的生产使用场景 |
 | 浏览器（`preset-slide`/`preset-slide-viewer`） | 仅 `collab-core` 的 `localPresencePlugin` | 单人模式presence 兜底；`preset-slide-viewer` 是否加载留待 M-11 判断（查看器通常无需展示"自己"的 presence） |
 | `server-headless`（M-09，导入/导出/校验/迁移批处理） | 否 | 批处理任务不参与协同会话；三个 iso 包对其安全（冒烟通过）但未被 `preset-server`（08 §4.2）纳入插件清单 |
-| `server-collab`（M-09，协同网关） | 否（独立实现） | 服务端 Room 状态机、硬/软门禁是 `server-collab` 自身代码；仅通过 `@oce/protocol` 的 WS 帧与本模块通信，无包依赖 |
+| `server-collab`（M-09，协同网关） | 否（独立实现） | 服务端 Room 状态机、硬/软门禁是 `server-collab` 自身代码；仅通过 `@cordexjs/protocol` 的 WS 帧与本模块通信，无包依赖 |
 
 `apps/web` 不直接 import 本模块任何包——接入点是 `packages/preset-slide-collab/src/plugins.ts`（M-11）：装配 `store-yjs`（替换 `store-memory`）+ `collab-core`（不加载 `localPresencePlugin`）+ `collab-yjs` + `collab-transport-ws` + 可选 `collab-offline-idb`；`apps/web` 只调用 `createSlidePreset({ mode: 'collab', collabEndpoint, getToken })` 一类工厂（module-map §5.2）。
 
-进程间契约：本模块与 M-09 之间**唯一**允许的跨进程通道是 `@oce/protocol` 的 `ws/{handshake,frames}.ts`、`errors/codes.ts`、`permissions/{actions,roles,decision}.ts`（§1.3、module-map §4.2 第 1 条）；SYNC/AWARENESS 段的 payload 对 `protocol` 不透明（`Uint8Array`），由本模块与 `server-collab` 各自用 y-protocols 解码——协议帧版本（`PROTOCOL_VERSION`）与能力位形状是本模块与 M-09 唯一需要对齐的地方，两者按同一份 `06-collaboration.md` 规格并行开发、无包依赖（module-map §7 M-05 行）。
+进程间契约：本模块与 M-09 之间**唯一**允许的跨进程通道是 `@cordexjs/protocol` 的 `ws/{handshake,frames}.ts`、`errors/codes.ts`、`permissions/{actions,roles,decision}.ts`（§1.3、module-map §4.2 第 1 条）；SYNC/AWARENESS 段的 payload 对 `protocol` 不透明（`Uint8Array`），由本模块与 `server-collab` 各自用 y-protocols 解码——协议帧版本（`PROTOCOL_VERSION`）与能力位形状是本模块与 M-09 唯一需要对齐的地方，两者按同一份 `06-collaboration.md` 规格并行开发、无包依赖（module-map §7 M-05 行）。
 
 **图 7-1 两端 Provider 装配边界**
 
@@ -708,14 +720,14 @@ flowchart LR
   fullFour -. "protocol WS 帧 CONTROL 消息 唯一通道" .-> serverCollab
 ```
 
-怎么读：本模块只在浏览器实例化，服务端两个宿主都不复用其任何包——`server-collab` 是完全独立的服务端实现，与浏览器四包只通过 `@oce/protocol` 的 WS 帧握手，无包依赖。
+怎么读：本模块只在浏览器实例化，服务端两个宿主都不复用其任何包——`server-collab` 是完全独立的服务端实现，与浏览器四包只通过 `@cordexjs/protocol` 的 WS 帧握手，无包依赖。
 
 ## 8. doc / sheet 扩展缝
 
-四包**全部标注 generic**（对文档类型盲，无 `oce.bundle` 字段，水平层）：
+四包**全部标注 generic**（对文档类型盲，无 `cordex.bundle` 字段，水平层）：
 
-- `collab-core`/`collab-yjs` 的全部类型与逻辑只操作 `UnitId`/`ChangeSet`/`Origin`/`Selection<A>`/`DocumentStore` 通用契约（M-02），不出现 `slide`/`shape`/`layoutId` 等词汇；§2.3 的 12 种软冲突场景用 `@oce/model-core/testing` 的 `fixture`/`fixture-grid` 文档类型复现，而非 `model-slide`，这本身就是「文档类型盲」的机械证据（depcruise `horizontal-tests-use-fixture-only`，R3）。
-- `collab-transport-ws`/`collab-offline-idb` 更进一步对**文档模型**本身无感知，只处理字节流（Uint8Array）与连接元数据（`documentId`/`tenantId`），甚至不 import `@oce/model-core`。
+- `collab-core`/`collab-yjs` 的全部类型与逻辑只操作 `UnitId`/`ChangeSet`/`Origin`/`Selection<A>`/`DocumentStore` 通用契约（M-02），不出现 `slide`/`shape`/`layoutId` 等词汇；§2.3 的 12 种软冲突场景用 `@cordexjs/model-core/testing` 的 `fixture`/`fixture-grid` 文档类型复现，而非 `model-slide`，这本身就是「文档类型盲」的机械证据（depcruise `horizontal-tests-use-fixture-only`，R3）。
+- `collab-transport-ws`/`collab-offline-idb` 更进一步对**文档模型**本身无感知，只处理字节流（Uint8Array）与连接元数据（`documentId`；T-0 后无 `tenantId`），甚至不 import `@cordexjs/model-core`。
 - **doc/sheet 复用时零改动的文件清单**：四包 `src/**` 全部文件（86 个）。M-13（`model-doc`/`model-sheet`）落地时，`preset-doc`/`preset-sheet`（追加建议包名，module-map §8 G-3）若需要协同能力，直接复用本模块四包、只需在装配层引用同一批服务名（`collab`/`collabTransport`/`presence`/`offlineStore`），无需新建 `collab-doc`/`collab-sheet` 或修改本模块任何文件。
 - 对应 12 号文档（`12-extension-to-doc-and-sheet.md`）§3 的参数化点：本模块**不在**已内建的四处参数化点清单中（那四处专属 `model-slide`/`ooxml-pptx` 等垂直束），是「水平层零改动」承诺的直接对象，与 `model-core`/`store-yjs`（M-02）同级。
 
@@ -742,7 +754,7 @@ flowchart LR
 | unit | FSM 全迁移路径、11→6 投影、退避序列、握手成功/超时/拒绝、心跳判死 | `collab-core/__tests__/{session-fsm,backoff}.test.ts`、`collab-transport-ws/__tests__/*.test.ts` | 确定性，固定时钟/`rand` 注入 |
 | contract | `collabTransport`/`offlineStore` 两个 Definition 的一致性套件 | `collab-core/testing/conformance.ts` | 由 `collab-yjs`（内存 transport/offline）、`collab-transport-ws`、`collab-offline-idb` 三包各自 `__tests__` 实例化（`provider-runs-conformance` 扫描器强制） |
 | lifecycle | 插件/Provider 生命周期（无残留 effect、Provider 替换、多 Unit 隔离） | 四包 `__tests__/lifecycle.test.ts` | `defineLifecycleSuite`（02 §4.0） |
-| 软冲突（确定性） | §2.3 表 12 种场景，逐一断言收敛结果 + 事件/`SoftConflictType` 触发 | `collab-yjs/__tests__/soft-conflict-scenarios.test.ts` | 用 `@oce/model-core/testing` 的 `fixture` 文档类型（§8） |
+| 软冲突（确定性） | §2.3 表 12 种场景，逐一断言收敛结果 + 事件/`SoftConflictType` 触发 | `collab-yjs/__tests__/soft-conflict-scenarios.test.ts` | 用 `@cordexjs/model-core/testing` 的 `fixture` 文档类型（§8） |
 | 软冲突（fuzz） | 随机 op 序列 + 随机网络分区/乱序/重复交换 update，断言最终一致 | `collab-yjs/__tests__/soft-conflict-fuzz.test.ts` | fast-check；覆盖场景 4/5 的重复触发路径 |
 | 收敛互操作 | sync 引擎与 y-protocols 参考实现帧级互操作、批处理/背压/ack | `collab-yjs/__tests__/{sync-engine,batcher}.test.ts` | y-websocket 编号兼容性（06 §6.2） |
 | 权限/离线集成 | 降权本地拦截、升权恢复、离线积累→合并、拒绝可导出 | `collab-yjs/__tests__/{permission-gate,offline-queue}.test.ts` | 对应 §2.3 场景 11/12 |
@@ -754,10 +766,10 @@ flowchart LR
 
 | 规则 | 机制 | 依据 |
 |---|---|---|
-| `package.json#oce` | `collab-core`/`collab-yjs`/`collab-transport-ws`：`{layer:'L4', iso:'iso'}`；`collab-offline-idb`：`{layer:'L4', iso:'dom'}` | 02 §4.0.1 schema |
+| `package.json#cordex` | `collab-core`/`collab-yjs`/`collab-transport-ws`：`{layer:'L4', iso:'iso'}`；`collab-offline-idb`：`{layer:'L4', iso:'dom'}` | 02 §4.0.1 schema |
 | 只向下依赖 | R2：四包只能 import 秩 ≤40 的包（`kernel`/`shared`/`protocol`/`model-core`/`store-yjs`） | depcruise |
-| 第三方单点 | R5：`yjs`/`y-protocols` 仅 `store-yjs`/`collab-yjs`/`server-collab`；`lib0` 仅 `collab-yjs`/`server-collab`；`y-indexeddb` 仅 `collab-offline-idb` | depcruise `third-party-single-entry`（charter §5.3 规则 4） |
-| 同构隔离 | R16 `oce-isomorphism-compatibility`：`collab-offline-idb` 为 dom，不得被任何 `iso` 包依赖；`collab-core`/`collab-yjs`/`collab-transport-ws` 通过 `node --import` 冒烟 | depcruise + `iso-smoke`（A20） |
+| 第三方单点 | R5：`yjs`/`y-protocols` 仅 `store-yjs`/`collab-yjs`/`server-collab`，`yjs` 在 catalog 锁 **13.6.x 精确版本**（rulings §4.15 Q3，ADR-0020；Yjs 14 GA 后 M3 前另做升级 spike）；`lib0` 仅 `collab-yjs`/`server-collab`；`y-indexeddb` 仅 `collab-offline-idb` | depcruise `third-party-single-entry`（charter §5.3 规则 4） |
+| 同构隔离 | R16 `cordex-isomorphism-compatibility`：`collab-offline-idb` 为 dom，不得被任何 `iso` 包依赖；`collab-core`/`collab-yjs`/`collab-transport-ws` 通过 `node --import` 冒烟 | depcruise + `iso-smoke`（A20） |
 | 三角色 | Provider（`collab-yjs`/`collab-transport-ws`/`collab-offline-idb`）互不 import；均只 import `collab-core`（Definition）与各自技术依赖 | depcruise（module-map §1） |
 | `yjsBackend` 受控访问 | `collab-yjs` 允许 `import 'yjs'`/`'y-protocols'` 做**编码工具函数**，但不得导出或长期持有 `Y.Doc`/`Awareness` 实例类型 | api-extractor（store-yjs 侧守护 `Y.*` 不外泄，本包侧靠代码评审 + `awareness-adapter.test.ts` 断言无 `doc` 字段泄漏；**新增建议**：补一条 `collab-yjs` 专属正则扫描，见 §12） |
 | Provider 必过契约套件 | `provider-runs-conformance`：`collab-yjs`（内存路径）、`collab-transport-ws`、`collab-offline-idb` 的 `__tests__` 必须实例化 `collab-core/testing` 对应套件 | 扫描器（02 §4.0.2） |
@@ -765,7 +777,7 @@ flowchart LR
 | `testing/` 不进生产 | `no-testing-in-prod`：`domain/**`/`application/**`/`infrastructure/**` 不得 import `./testing` | depcruise（02 §4.0.2） |
 | 事件先声明后使用 | `events-declared`：`events.ts` 与 `*.contribution.ts` 一致；`permission/changed` 不得出现在本模块任何 `emit()` 调用中（新增建议扫描项，§12） | 扫描器 |
 | Mutation/Command 缺席 | 本模块不贡献 `core.command`/`core.mutation`——若出现即架构违规 | code review + `command-id-format` 扫描器隐式约束（无 `collab.*` 前缀的命令 id） |
-| 无深引用 | R7：跨包只走 `exports` 的 `.`/`./testing`；禁止 `@oce/collab-*/src/*` | depcruise |
+| 无深引用 | R7：跨包只走 `exports` 的 `.`/`./testing`；禁止 `@cordexjs/collab-*/src/*` | depcruise |
 | API 报告 | 四份 `etc/<pkg>.api.md` 入库，PR diff 必审 | api-extractor + CI |
 | 类型治理 | 品牌类型/`Result`/禁 `enum`（`SyncState`/`SoftConflictType` 等用字面量联合） | 09-type-discipline（ADR-0042/0047） |
 
@@ -808,16 +820,16 @@ sequenceDiagram
 验收命令（草案）：
 
 ```bash
-pnpm --filter "@oce/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}" build
-pnpm --filter "@oce/{collab-core,collab-transport-ws,collab-offline-idb}" test
-pnpm --filter @oce/collab-yjs test -- --grep "conformance|soft-conflict-scenarios"
+pnpm --filter "@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}" build
+pnpm --filter "@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb}" test
+pnpm --filter @cordexjs/collab-yjs test -- --grep "conformance|soft-conflict-scenarios"
 turbo run typecheck lint depcruise manifest api iso-smoke policy \
-  --filter="@oce/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}"
+  --filter="@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}"
 # 集成切片（新增测试文件，建议落在 collab-yjs/__tests__/two-client-ws-move-undo.test.ts）：
-pnpm --filter @oce/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
+pnpm --filter @cordexjs/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
 ```
 
-通过标准：`runCollabTransportConformance`/`runOfflineStoreConformance` 在各自 Provider 上全绿；`soft-conflict-scenarios.test.ts` 12 项全部通过；上述两客户端集成切片通过（尤其 I3 断言：B 侧从不出现「B 的编辑被撤销」）。
+通过标准：`runCollabTransportConformance`/`runOfflineStoreConformance` 在各自 Provider 上全绿；`soft-conflict-scenarios.test.ts` 12 项 + 4 个撤销语义附加用例（rulings §4.15 Q3；用例名照抄 M-02 §2.5，`::delete-vs-edit-undo` 含 D4 分支）全部通过；`batcher.test.ts` 的两级 ack 用例通过（S-3a）；上述两客户端集成切片通过（尤其 I3 断言：B 侧从不出现「B 的编辑被撤销」）。
 
 **M3 展望**（不在本模块交付范围，仅标注依赖前提）：`collab-offline-idb` 实际接入 `preset-slide-collab`（PRD CO-06 M4 P2，M3 默认仍为内存队列）；与 M-09 的真实跨进程握手/权限即时生效/软门禁修复联调（需 `server-collab` 就绪）；`test/collab-sim/` 跨进程 fuzz（20 客户端 × 1,000 次随机命令，PRD CO-02）需 M-09 配合。
 
@@ -844,6 +856,28 @@ pnpm --filter @oce/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
 | C-30 | G-4（已结案）、Q-05-2（已结案） | 明确 `collab-offline-idb` **不**兼任 `BlobStore`，保持单一职责 |
 | C-08 | §2.4（`collab/repair` 行末尾加注） | 客户端 `collab/repair` 与服务端 `collab-server/repair` 是两个不同事件，不合并 |
 | C-24 | §2.4（「新增建议」表前言）、G-3（已裁定） | `collab/backpressure`/`collab/latency` 标注「新增建议，已提请章程收编」 |
+
+### 2026-09-24 回写（rulings §4.15，章程 §10 Q1–Q10 裁决）
+
+| 裁决 | 改动位置 | 摘要 |
+|---|---|---|
+| Q3 撤销语义 | §2.3 场景 2/3/10/11 改写、新增「撤销语义附加用例」表与两条 fuzz 性质、§2.6 事务边界段 | 撤销跳过他人后写并提示（`store/undo-skipped`，不是 `soft-conflict`）；整步跳过即停；软删除墓碑使 delete-vs-edit 的编辑得以保留；离线回放写入不计为他人后写 |
+| Q3 版本锁 | §10 第三方单点行 | `yjs` 锁 13.6.x 精确版本；Yjs 14 GA 后 M3 前做升级 spike |
+| S-3a 两级 ack | §1.2 `LocalBatcher`、§2.1 `Session.flush`/`OfflineQueue` 不变量、§2.6 离线回放、§4/§5 `local-batcher.ts`、§9 `batcher.test.ts` | `ack{tier:'spill'}` 不清 pending，只有 `ack{tier:'db',seq}` 清；帧形状由 M-02 `ws/frames.ts` 定义 |
+| T-0 去租户 | §2.5 与 §7 的 `OfflineStore` 签名、§3 `collab-offline-idb` 生命周期、§8 | `open`/`clearAll` 的 scope 去掉 `tenantId`；`open` 改 `{userId, documentId}`、IDB 键 `{userId}/{documentId}`（2026-09-24 复核 M9） |
+
+需要其他文件配合：30-architecture/06-collaboration.md §8 #2/#3/#10/#11（:587–:595，撤销与删除语义改写）与 §18.6（`OfflineStore` 权威签名去 `tenantId`）；M-02 §2.5（撤销包装层与墓碑，已同步）；M-09（服务端发 `ack{tier}`、TTL 硬删除单写者）；PRD 03-collaboration CO-08/CO-09 与 07:465、设计 05 §6（提示条文案「恢复我的值」）。
+
+
+### 2026-09-24 复核修正（rulings §4.17；复核报告 `00-charter/_evidence/review-2026-09-24.html`）
+
+| 条目 | 本文档改动位置 | 要点 |
+|---|---|---|
+| M2 `store/undo-skipped` 载荷 | §2.3 附加用例表、§2.4 新增订阅行 | 照抄 M-02 §2.4：`{skipped: UndoSkip[], wholeStep}`（不用 `paths: Path[]`） |
+| M3 撤销协同契约用例名 | §2.3「撤销语义附加用例」表 | 用例名照抄 M-02 §2.5 用例名表（`remote-conflict-skip`/`undo-skip-no-cascade`/`delete-vs-edit-undo` 等）；原 `::undo-skip-remote-conflict`、`::delete-vs-edit-then-deleter-undo` 作废；`::offline-replay-not-other-writer` 为本模块特有补充，不属于契约套件 |
+| D4 撤销不复活他人删除 | §2.3 场景 2、附加用例 `::delete-vs-edit-undo` | 他人撤销时目标已被删除（TTL 内亦然）→ 跳过并提示，不复活；恢复只由删除方撤销或「恢复元素」 |
+| D5 撤销跳过埋点 | §2.4 订阅行 | `store/undo-skipped` 单独统计（跳过次数、整步跳过次数，指标 `cordex_store_undo_skipped_total{whole_step}`），**不**派生 `collab/soft-conflict`、**不**计入软冲突率 MT-15 |
+| M9 T-0 残留 | §2.5/§7 `OfflineStore.open`、§4/§5 `idb-schema.ts` | IDB 键 `{userId}/{documentId}`；`OfflineStore.open({userId, documentId})`（与 30-architecture/06 §18.6、ADR-0033 一致） |
 
 ## 13. 未决问题
 

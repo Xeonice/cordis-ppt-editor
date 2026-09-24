@@ -1,19 +1,24 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  CheckCircle2, Info, Lock, LogIn, RotateCw, ShieldAlert, X, Zap,
+  Ban, CheckCircle2, Info, Lock, LogIn, RotateCw, ShieldAlert, X, Zap,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { AppBar, DesignBar, EditorShell, Inspector, SlideCanvas, SlideContent, StatusBar, StatusText, ThumbnailRail } from "@/components/editor"
 import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, slides } from "@/lib/mock-data"
 
+/** rulings §4.15 Q5：房间在场名额、元素配额均为部署配置默认值，界面读取实际配置值，不写死数字。 */
+const roomLimits = { editors: 20, viewers: 50 }
+const elementQuota = { soft: 15000, hard: 20000 }
+
 type BannerKey =
   | "none" | "offline" | "reconnecting" | "syncing" | "restored" | "auth-expired" | "access-revoked"
-  | "readonly-degraded" | "seats-full" | "quarantined"
+  | "readonly-degraded" | "seats-full" | "quarantined" | "quota-soft" | "viewers-full"
 
 const stateOptions: { value: BannerKey; label: string }[] = [
   { value: "none", label: "无横幅（正常）" },
@@ -26,6 +31,8 @@ const stateOptions: { value: BannerKey; label: string }[] = [
   { value: "readonly-degraded", label: "权限降级 · 未保存改动" },
   { value: "seats-full", label: "编辑者名额已满" },
   { value: "quarantined", label: "隔离态（不可关闭）" },
+  { value: "quota-soft", label: "配额：元素总数接近上限（软警告）" },
+  { value: "viewers-full", label: "配额：查看者名额已满（阻断）" },
 ]
 
 export function Offline() {
@@ -36,6 +43,25 @@ export function Offline() {
   const currentSlide = slides[0]!
   const readOnly = banner === "readonly-degraded" || banner === "seats-full"
 
+  if (banner === "viewers-full") {
+    return (
+      <div className="flex h-dvh flex-col bg-canvas">
+        <DesignBar title="离线与降级" spec="03-screens/12" state={banner} onStateChange={(v) => setBanner(v as BannerKey)} stateOptions={stateOptions} />
+        <header className="glass-strong m-2 flex h-12 shrink-0 items-center gap-3 rounded-2xl px-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/documents")}>返回列表</Button>
+        </header>
+        <Empty className="flex-1">
+          <EmptyMedia variant="icon"><Ban className="text-destructive" /></EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>文档当前查看人数已达上限，请稍后再试</EmptyTitle>
+            <EmptyDescription>已达查看者名额上限（≤ {roomLimits.viewers} 人，评审者计入查看者名额）</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent><Button variant="outline" onClick={() => navigate("/documents")}>返回列表</Button></EmptyContent>
+        </Empty>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-canvas">
       <DesignBar
@@ -45,8 +71,9 @@ export function Offline() {
         onStateChange={(v) => { setBanner(v as BannerKey); setDismissed(false) }}
         stateOptions={stateOptions}
         extra={
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <Button variant="ghost" size="xs" onClick={() => toast("已自动修正 1 处结构问题", { action: { label: "查看", onClick: () => toast.success("已定位到受影响元素") } })}>演示：软门禁修复 Toast</Button>
+            <Button variant="ghost" size="xs" onClick={() => toast(`已达每份文档 ${elementQuota.hard.toLocaleString()} 个元素的上限`)}>演示：元素配额硬上限 Toast</Button>
           </div>
         }
       />
@@ -54,7 +81,7 @@ export function Offline() {
         appBar={<AppBar onBack={() => navigate("/editor")} backLabel="返回编辑器" title={documentTitle} collaborators={collaborators.filter((c) => !c.isSelf)} status={readOnly ? undefined : { kind: "sync", state: banner === "syncing" ? "syncing" : banner === "reconnecting" ? "reconnecting" : banner === "offline" ? "offline" : "synced" }} />}
         ribbon={
           <div className="flex flex-col">
-            {!dismissed && banner !== "none" && <BannerContent banner={banner} onDismiss={() => setDismissed(true)} onAction={(msg) => toast(msg)} />}
+            {!dismissed && banner !== "none" && banner !== "quota-soft" && <BannerContent banner={banner} onDismiss={() => setDismissed(true)} onAction={(msg) => toast(msg)} roomLimits={roomLimits} />}
             <EditorRibbon value={ribbonTab} onValueChange={setRibbonTab} currentMasterId={currentSlide.masterId} currentLayoutId={currentSlide.layoutId} />
           </div>
         }
@@ -69,14 +96,23 @@ export function Offline() {
             tabs={[{ value: "properties", label: "属性", content: null }]}
           />
         }
-        statusBar={<StatusBar left={[`第 ${currentSlide.index}/${slides.length} 页`, readOnly && "只读"].filter(Boolean) as string[]} right={[<StatusText key="s" status={{ kind: "sync", state: banner === "offline" ? "offline" : "synced" }} variant="dot" />]} />}
+        statusBar={
+          <StatusBar
+            left={[
+              `第 ${currentSlide.index}/${slides.length} 页`,
+              banner === "quota-soft" ? `元素数量已接近上限（${elementQuota.soft.toLocaleString()} / ${elementQuota.hard.toLocaleString()}）` : undefined,
+              readOnly && "只读",
+            ].filter(Boolean) as string[]}
+            right={[<StatusText key="s" status={{ kind: "sync", state: banner === "offline" ? "offline" : "synced" }} variant="dot" />]}
+          />
+        }
       />
     </div>
   )
 }
 
 /** 六态+ 横幅统一走 Alert：浮在 EditorShell 的 glass-strong 工具卡内，mx-2 mt-2 留白+圆角，不贴边平铺。 */
-function BannerContent({ banner, onDismiss, onAction }: { banner: BannerKey; onDismiss: () => void; onAction: (msg: string) => void }) {
+function BannerContent({ banner, onDismiss, onAction, roomLimits }: { banner: BannerKey; onDismiss: () => void; onAction: (msg: string) => void; roomLimits: { editors: number; viewers: number } }) {
   const base = "m-2 shrink-0"
   switch (banner) {
     case "offline":
@@ -146,7 +182,7 @@ function BannerContent({ banner, onDismiss, onAction }: { banner: BannerKey; onD
       return (
         <Alert role="alert" aria-live="assertive" className={`${base} border-destructive/40 bg-destructive/10 text-destructive`}>
           <Lock />
-          <AlertTitle>编辑者名额已满，你已以查看身份加入（≤ 20 编辑者）</AlertTitle>
+          <AlertTitle>编辑者名额已满，你已以查看身份加入（≤ {roomLimits.editors} 编辑者）</AlertTitle>
         </Alert>
       )
     case "quarantined":

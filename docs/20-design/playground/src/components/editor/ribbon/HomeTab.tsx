@@ -1,7 +1,7 @@
 import { useState } from "react"
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Baseline, Bold, ChevronDown, ClipboardPaste, Copy,
-  Eraser, Highlighter, Indent, IndentDecrease, Italic, List, ListOrdered, MousePointer2, PaintBucket, Plus, Replace,
+  Eraser, Highlighter, Indent, IndentDecrease, Italic, List, ListOrdered, Lock, MousePointer2, PaintBucket, Plus, Replace,
   Scissors, Search, Shapes, Strikethrough, Underline,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ export function HomeTab({
   onInsertSlide,
   onOpenFind,
   emphasize,
+  restrictedFontName,
 }: {
   currentMasterId: string
   currentLayoutId: string
@@ -35,12 +36,15 @@ export function HomeTab({
   onOpenFind?: () => void
   /** /editor/text 路由用它把字体/段落分组视觉上突出，呼应该路由的演示重点 */
   emphasize?: "font" | "paragraph"
+  /** 03-screens/13：文档含仅授权查看的内嵌字体时，字体下拉追加一个带锁形图标的条目，选择它不应用并提示原因 */
+  restrictedFontName?: string
 }) {
   const [bold, setBold] = useState(true)
   const [italic, setItalic] = useState(false)
   const [underline, setUnderline] = useState(false)
   const [align, setAlign] = useState("left")
   const [fontColor, setFontColor] = useState("#1A2030")
+  const [fontFamily, setFontFamily] = useState(fontFamilies[0])
 
   return (
     <>
@@ -101,9 +105,26 @@ export function HomeTab({
       <RibbonGroup label="字体" className={emphasize === "font" ? "bg-accent/40" : undefined}>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1">
-            <Select defaultValue={fontFamilies[0]}>
+            <Select
+              value={fontFamily}
+              onValueChange={(v) => {
+                if (v === restrictedFontName) {
+                  toast(`"${restrictedFontName}" 仅授权查看，不能用于新文字`)
+                  return
+                }
+                setFontFamily(v)
+              }}
+            >
               <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>{fontFamilies.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
+              <SelectContent>
+                {fontFamilies.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                {restrictedFontName && (
+                  <SelectItem value={restrictedFontName} className="text-muted-foreground" title="此字体仅授权查看，不能用于新文字">
+                    <Lock className="size-3.5" aria-hidden="true" /> {restrictedFontName}
+                    <span className="sr-only">（此字体仅授权查看，不能用于新文字）</span>
+                  </SelectItem>
+                )}
+              </SelectContent>
             </Select>
             <Select defaultValue="18">
               <SelectTrigger size="sm" className="w-16"><SelectValue /></SelectTrigger>

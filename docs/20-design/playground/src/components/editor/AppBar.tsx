@@ -182,7 +182,7 @@ function MoreMenu({ title, onRename }: { title: string; onRename?: () => void })
       </Tooltip>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuItem onSelect={() => navigate("/export")}><Download /> 导出…<DropdownMenuShortcut>⌘E</DropdownMenuShortcut></DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => navigate("/import")}><FileCheck /> 保真报告</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate("/editor/fidelity")}><FileCheck /> 保真报告</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/editor/history")}><History /> 版本历史</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/editor/plugins")}><Puzzle /> 插件管理器</DropdownMenuItem>
         <DropdownMenuSeparator />

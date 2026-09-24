@@ -19,6 +19,7 @@ const EditorComments = lazy(() => import("./routes/editor/Comments").then((m) =>
 const EditorHistory = lazy(() => import("./routes/editor/History").then((m) => ({ default: m.EditorHistory })))
 const EditorShare = lazy(() => import("./routes/editor/Share").then((m) => ({ default: m.EditorShare })))
 const EditorPlugins = lazy(() => import("./routes/editor/Plugins").then((m) => ({ default: m.EditorPlugins })))
+const EditorFidelity = lazy(() => import("./routes/editor/Fidelity").then((m) => ({ default: m.EditorFidelity })))
 const Export = lazy(() => import("./routes/Export").then((m) => ({ default: m.Export })))
 const Present = lazy(() => import("./routes/Present").then((m) => ({ default: m.Present })))
 const Viewer = lazy(() => import("./routes/Viewer").then((m) => ({ default: m.Viewer })))
@@ -46,6 +47,7 @@ export function App() {
         <Route path="/editor/history" element={<EditorHistory />} />
         <Route path="/editor/share" element={<EditorShare />} />
         <Route path="/editor/plugins" element={<EditorPlugins />} />
+        <Route path="/editor/fidelity" element={<EditorFidelity />} />
         <Route path="/export" element={<Export />} />
         <Route path="/present" element={<Present />} />
         <Route path="/viewer" element={<Viewer />} />

@@ -1,6 +1,18 @@
-import { ImageIcon } from "lucide-react"
+import { ImageIcon, Presentation } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LayoutKind } from "@/lib/mock-data"
+
+/**
+ * 文档卡片"无包内封面"时的中性占位（rulings §4.15 Q8）：M2 起卡片封面来源为导入文件包内自带的
+ * `docProps/thumbnail.jpeg`；无来源时（含应用内新建的空白/模板文档）显示本占位，不显示错误图标。
+ */
+export function NoCoverPlaceholder({ className }: { className?: string }) {
+  return (
+    <div className={cn("relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-[inherit] bg-doc-paper", className)}>
+      <Presentation className="size-6 text-muted-foreground" aria-hidden="true" />
+    </div>
+  )
+}
 
 /**
  * 幻灯片内容的极简抽象缩略：用条块示意标题/正文/图片位置，不追求像素级还原。

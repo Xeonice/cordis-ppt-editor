@@ -5,7 +5,7 @@
  */
 export type ThemeMode = "system" | "light" | "dark"
 
-const KEY = "oce-theme"
+const KEY = "cordex-theme"
 const listeners = new Set<() => void>()
 let mode: ThemeMode = readStored()
 

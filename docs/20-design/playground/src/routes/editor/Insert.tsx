@@ -78,7 +78,7 @@ export function EditorInsert() {
             value="properties"
             onValueChange={() => {}}
             readOnly={readOnly}
-            tabs={[{ value: "properties", label: "属性", content: <div className="oce-well m-3 p-3"><div className="oce-group p-3 text-xs text-muted-foreground">选中画布中新插入的对象以查看其属性（位置/大小/填充等），见"编辑器主界面"路由的完整示例。</div></div> }]}
+            tabs={[{ value: "properties", label: "属性", content: <div className="cordex-well m-3 p-3"><div className="cordex-group p-3 text-xs text-muted-foreground">选中画布中新插入的对象以查看其属性（位置/大小/填充等），见"编辑器主界面"路由的完整示例。</div></div> }]}
           />
         }
         statusBar={

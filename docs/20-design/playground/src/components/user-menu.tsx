@@ -8,14 +8,14 @@ import {
 import { cn } from "@/lib/utils"
 
 /** 演示用户：与 mock-data 的协作者 wang 同一人（示例域名邮箱）。 */
-const user = { name: "王小明", email: "wang@example.com", initial: "王", plan: "团队版" }
+const user = { name: "王小明", email: "wang@example.com", initial: "王" }
 
 export type UserMenuVariant = "row" | "avatar"
 
 /**
  * 当前用户菜单：设置 / 键盘快捷键 / 帮助中心 / 退出登录。
  * 现实用法：首页侧栏底部用 `row`；文档列表顶栏与编辑器族应用栏右端（AppBar `showAccount`）用 `avatar`。
- * - `row`：整行触发器（头像 32 + 姓名/套餐 + 上下箭头），shadcn Sidebar 的 NavUser 范式。
+ * - `row`：整行触发器（头像 32 + 姓名/邮箱 + 上下箭头），shadcn Sidebar 的 NavUser 范式。
  * - `avatar`：仅 28px 头像（与 icon-sm 按钮同高），无姓名行。
  * 「设置」以此为唯一入口；「键盘快捷键」是三个入口之一（另两个：Ribbon 页签行右侧「?」、Mod+/），
  * 直接打开快捷键面板（`/settings?panel=shortcuts`）而不是设置抽屉。
@@ -33,7 +33,7 @@ export function UserMenu({ variant = "avatar", className }: { variant?: UserMenu
         <Avatar><AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">{user.initial}</AvatarFallback></Avatar>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{user.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{user.plan}</span>
+          <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>

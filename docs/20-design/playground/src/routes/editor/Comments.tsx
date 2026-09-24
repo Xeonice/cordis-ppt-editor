@@ -36,19 +36,25 @@ export function EditorComments() {
   const [draft, setDraft] = useState("")
   const [mentionOpen, setMentionOpen] = useState(false)
   const [expandedResolved, setExpandedResolved] = useState<Set<string>>(new Set())
+  const [threads, setThreads] = useState<CommentThread[]>(commentThreads)
 
   const currentSlide = slides.find((s) => s.id === currentSlideId) ?? slides[0]!
-  const detachedCount = commentThreads.filter((t) => t.detachedAnchor).length
+  const detachedCount = threads.filter((t) => t.detachedAnchor).length
+
+  function handleRestoreAnchor(id: string) {
+    setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, detachedAnchor: false, anchorLabel: t.restoredAnchorLabel ?? t.anchorLabel } : t)))
+    toast("元素已以原 id 恢复，评论已回到原锚点")
+  }
 
   const filtered = useMemo(() => {
-    return commentThreads.filter((t) => {
+    return threads.filter((t) => {
       if (filter === "page") return t.slideIndex === currentSlide.index
       if (filter === "unresolved") return !t.resolved
       if (filter === "mentions") return t.mentionsMe
       if (filter === "detached") return t.detachedAnchor
       return true
     })
-  }, [filter, currentSlide.index])
+  }, [filter, currentSlide.index, threads])
 
   function handleStateChange(v: string) {
     setDemoState(v as DemoState)
@@ -66,7 +72,7 @@ export function EditorComments() {
         canvas={
           <SlideCanvas>
             <SlideContent slide={currentSlide} fill />
-            {commentThreads.filter((t) => t.slideIndex === currentSlide.index && !t.detachedAnchor).map((t) => (
+            {threads.filter((t) => t.slideIndex === currentSlide.index && !t.detachedAnchor).map((t) => (
               <CommentPin key={t.id} x={130 + t.number * 90} y={130} number={t.number} resolved={t.resolved} onClick={() => toast(`定位到评论 #${t.number}`)} />
             ))}
           </SlideCanvas>
@@ -76,13 +82,14 @@ export function EditorComments() {
             value="comments"
             onValueChange={() => {}}
             tabs={[{
-              value: "comments", label: "评论", badge: commentThreads.filter((t) => !t.resolved).length, content: (
+              value: "comments", label: "评论", badge: threads.filter((t) => !t.resolved).length, content: (
                 <CommentsBody
                   demoState={demoState}
                   filter={filter}
                   onFilterChange={setFilter}
                   threads={filtered}
                   detachedCount={detachedCount}
+                  onRestoreAnchor={handleRestoreAnchor}
                   expandedResolved={expandedResolved}
                   onToggleResolvedExpand={(id) => setExpandedResolved((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })}
                   draft={draft}
@@ -113,6 +120,7 @@ function CommentsBody({
   onFilterChange,
   threads,
   detachedCount,
+  onRestoreAnchor,
   expandedResolved,
   onToggleResolvedExpand,
   draft,
@@ -125,6 +133,7 @@ function CommentsBody({
   onFilterChange: (f: FilterKey) => void
   threads: CommentThread[]
   detachedCount: number
+  onRestoreAnchor: (id: string) => void
   expandedResolved: Set<string>
   onToggleResolvedExpand: (id: string) => void
   draft: string
@@ -176,7 +185,7 @@ function CommentsBody({
       <ScrollArea className="flex-1">
         <div className="flex flex-col divide-y divide-foreground/5">
           {threads.map((t) => (
-            <ThreadRow key={t.id} thread={t} expanded={!t.resolved || expandedResolved.has(t.id)} onToggleExpand={() => onToggleResolvedExpand(t.id)} />
+            <ThreadRow key={t.id} thread={t} expanded={!t.resolved || expandedResolved.has(t.id)} onToggleExpand={() => onToggleResolvedExpand(t.id)} onRestoreAnchor={() => onRestoreAnchor(t.id)} />
           ))}
           {threads.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground">此筛选条件下没有评论</p>}
         </div>
@@ -217,7 +226,7 @@ function CommentsBody({
   )
 }
 
-function ThreadRow({ thread, expanded, onToggleExpand }: { thread: CommentThread; expanded: boolean; onToggleExpand: () => void }) {
+function ThreadRow({ thread, expanded, onToggleExpand, onRestoreAnchor }: { thread: CommentThread; expanded: boolean; onToggleExpand: () => void; onRestoreAnchor: () => void }) {
   const author = collaboratorById(thread.authorId)
   if (!expanded) {
     return (
@@ -259,6 +268,9 @@ function ThreadRow({ thread, expanded, onToggleExpand }: { thread: CommentThread
         <Button variant="link" size="xs" className="h-auto p-0 text-muted-foreground" onClick={() => toast(thread.resolved ? "已重新打开" : "已标记为已解决")}>
           {thread.resolved ? "重新打开" : "标记已解决"}
         </Button>
+        {thread.detachedAnchor && (
+          <Button variant="outline" size="xs" className="h-auto py-1" onClick={onRestoreAnchor}>恢复元素（含我的编辑）</Button>
+        )}
       </div>
     </div>
   )

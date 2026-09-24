@@ -1,9 +1,9 @@
 {
-  "name": "oce-design-playground",
+  "name": "cordex-design-playground",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "OCE 幻灯片编辑器设计 playground：设计稿以 shadcn/ui + Tailwind 组件实现，构建产物作为 artifact 发布",
+  "description": "Cordex 幻灯片编辑器设计 playground：设计稿以 shadcn/ui + Tailwind 组件实现，构建产物作为 artifact 发布",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

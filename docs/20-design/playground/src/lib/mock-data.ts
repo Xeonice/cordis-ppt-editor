@@ -177,6 +177,8 @@ export interface CommentThread {
   body: string
   resolved?: boolean
   detachedAnchor?: boolean
+  /** 演示"以原 id 恢复后线程回到原锚点"（05-collaboration-ux §6、03-screens/06:89）：脱离锚点前的锚点描述 */
+  restoredAnchorLabel?: string
   replies?: CommentReply[]
   mentionsMe?: boolean
 }
@@ -197,7 +199,7 @@ export const commentThreads: CommentThread[] = [
     authorId: "li", time: "3天前", body: "已确认无误，可以定稿。", resolved: true,
   },
   {
-    id: "c-4", number: 4, slideIndex: 6, anchorLabel: "[原对象已删除]",
+    id: "c-4", number: 4, slideIndex: 6, anchorLabel: "[原对象已删除]", restoredAnchorLabel: "产品对比图",
     authorId: "me", time: "昨天", body: "这张图后续要不要换成更新的数据？", detachedAnchor: true,
   },
 ]
@@ -252,13 +254,15 @@ export interface DocumentCard {
   timeLabel: string
   collaboratorCount?: number
   viewOnly?: boolean
+  /** rulings §4.15 Q8：M2 卡片封面来源为包内 `docProps/thumbnail.jpeg`；无来源（如应用内新建）时为 false，显示中性占位 */
+  hasCover?: boolean
 }
 
 export const documentList: DocumentCard[] = [
   { id: "d-1", title: "2026年Q2业绩汇报.pptx", ownerLabel: "我", timeLabel: "2 小时前" },
   { id: "d-2", title: "产品路线图", ownerLabel: "我 + 2 人", timeLabel: "昨天", collaboratorCount: 3 },
   { id: "d-3", title: "设计评审", ownerLabel: "王小明", timeLabel: "3 天前", viewOnly: true },
-  { id: "d-4", title: "招聘计划", ownerLabel: "我", timeLabel: "上周" },
+  { id: "d-4", title: "招聘计划", ownerLabel: "我", timeLabel: "上周", hasCover: false },
   { id: "d-5", title: "新人培训手册", ownerLabel: "我 + 1 人", timeLabel: "2 周前", collaboratorCount: 2 },
   { id: "d-6", title: "年度总结模板", ownerLabel: "李雷", timeLabel: "1 个月前", viewOnly: true },
 ]

@@ -13,7 +13,7 @@ head = re.sub(r"\s*<title>.*?</title>", "", head, flags=re.S)
 HOST = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1">'
         '<style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}'
         'img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n'
-        '<title>OCE 设计 Playground</title>\n' + head.strip() + '\n' + body.strip() + '\n</body></html>')
+        '<title>Cordex 设计 Playground</title>\n' + head.strip() + '\n' + body.strip() + '\n</body></html>')
 open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(HOST)
 link = os.path.join(out, "assets")
 if os.path.islink(link) or os.path.exists(link): os.remove(link)

@@ -91,7 +91,7 @@ export function EditorLayouts() {
             onValueChange={() => {}}
             tabs={[{
               value: "properties", label: "属性", content: (
-                <div className="oce-well m-3 p-3 text-xs"><div className="oce-group flex flex-col gap-3 p-3">
+                <div className="cordex-well m-3 p-3 text-xs"><div className="cordex-group flex flex-col gap-3 p-3">
                   <p className="font-medium text-foreground">幻灯片属性</p>
                   <div className="flex flex-col gap-1">
                     <span className="text-muted-foreground">版式</span>

@@ -110,7 +110,7 @@ export function EditorMain() {
           <EmptyMedia variant="icon"><TriangleAlert className="text-destructive" /></EmptyMedia>
           <EmptyHeader>
             <EmptyTitle>无法打开该文档</EmptyTitle>
-            <EmptyDescription>不支持的文件格式，或文档已损坏</EmptyDescription>
+            <EmptyDescription>不支持的文件格式，请检查后重新导入</EmptyDescription>
           </EmptyHeader>
           <Button onClick={() => navigate("/documents")}>返回文档列表</Button>
         </Empty>
@@ -160,6 +160,14 @@ export function EditorMain() {
         stateOptions={stateOptions}
         role={role}
         onRoleChange={(v) => setRole(v as DemoRole)}
+        extra={
+          <div className="flex flex-wrap gap-1.5">
+            <Button variant="ghost" size="xs" onClick={() => toast("王小明 之后修改了此处，已跳过")}>演示：撤销已跳过</Button>
+            <Button variant="ghost" size="xs" onClick={() => toast("无法撤销：此处已被 王小明 修改 / 删除")}>演示：整步撤销被跳过</Button>
+            <Button variant="ghost" size="xs" onClick={() => toast("王小明 也在移动这个形状", { action: { label: "恢复我的值", onClick: () => toast.success("已恢复为我的值") } })}>演示：恢复我的值</Button>
+            <Button variant="ghost" size="xs" onClick={() => toast("该元素已被 王小明 删除", { action: { label: "恢复元素（含我的编辑）", onClick: () => toast.success("已恢复，评论回到原锚点") } })}>演示：恢复元素</Button>
+          </div>
+        }
       />
       <EditorShell
         appBar={appBar}

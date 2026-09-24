@@ -75,7 +75,7 @@ export function Viewer() {
         <DesignBar title="只读查看器" spec="03-screens/25" state={demoState} onStateChange={(v) => setDemoState(v as DemoState)} stateOptions={stateOptions} extra={hostControls} />
         <Empty className="flex-1">
           <EmptyMedia variant="icon"><TriangleAlert className="text-destructive" /></EmptyMedia>
-          <EmptyHeader><EmptyTitle>无法打开该文档</EmptyTitle><EmptyDescription>不支持的文件格式，或文档已损坏</EmptyDescription></EmptyHeader>
+          <EmptyHeader><EmptyTitle>无法打开该文档</EmptyTitle><EmptyDescription>不支持的文件格式，请检查后重新导入</EmptyDescription></EmptyHeader>
           <Button variant="outline"><Download /> 下载原文件</Button>
         </Empty>
       </div>

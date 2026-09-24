@@ -111,6 +111,8 @@ export interface EditorRibbonProps {
   themeId?: string
   onThemeChange?: (id: string) => void
   emphasize?: "font" | "paragraph"
+  /** 03-screens/13：文档含仅授权查看的内嵌字体时的字体名，透传给「开始」页签字体下拉 */
+  restrictedFontName?: string
   /**
    * Q12：母版视图入口状态。缺省 `"enabled"`，此时 EditorRibbon 会按视口自动判定（< 1024 → `"narrow"`）；
    * 评审 / 只读态由路由传 `"review"`。非 `"enabled"` 时页签行右侧的视图分段不渲染，「视图」页签的「母版视图」按钮禁用并说明原因。
@@ -131,6 +133,7 @@ function buildEditorTabs(p: EditorRibbonProps, masterEntry: MasterEntryState) {
           onInsertSlide={p.onInsertSlide}
           onOpenFind={p.onOpenFind}
           emphasize={p.emphasize}
+          restrictedFontName={p.restrictedFontName}
         />
       ),
     },

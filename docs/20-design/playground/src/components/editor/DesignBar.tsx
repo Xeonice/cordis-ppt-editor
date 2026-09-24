@@ -46,7 +46,13 @@ export function DesignBar({
   extra?: ReactNode
 }) {
   return (
-    <div className="glass relative z-10 flex min-h-10 shrink-0 flex-wrap items-center gap-2 px-3 py-1">
+    <div className="glass relative z-[60] flex min-h-10 shrink-0 flex-wrap items-center gap-2 px-3 py-1 pointer-events-auto">
+      {/*
+        z-[60]（> 弹层/对话框遮罩的 z-50）+ pointer-events-auto：
+        部分路由（分享/导出/保真报告）以常驻打开的 Dialog 承载内容，Radix 会在 <body> 上加
+        inline `pointer-events: none` 做模态锁定，导致 body 内一切元素（含本演示控制条）默认
+        继承为不可点击；显式声明 pointer-events-auto 覆盖继承值，保证演示状态下拉在这些路由下依旧可操作。
+      */}
       <Button asChild variant="ghost" size="sm">
         <Link to="/">
           <ArrowLeft /> 目录

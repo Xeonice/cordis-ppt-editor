@@ -26,7 +26,7 @@ export function Hub() {
       <div className="p-3 sm:px-6 sm:pt-4">
         <header className="glass-strong flex h-14 items-center gap-3 rounded-2xl px-4 sm:px-6">
           <Brand to="/" subtitle="设计 playground" />
-          <h1 className="sr-only">OCE 幻灯片 · 设计 playground</h1>
+          <h1 className="sr-only">Cordex 幻灯片 · 设计 playground</h1>
           <Badge variant="secondary" className="hidden sm:inline-flex">radix-rhea · Lucide · Geist</Badge>
           <div className="ml-auto flex items-center gap-2">
             <Button asChild variant="outline" size="sm">

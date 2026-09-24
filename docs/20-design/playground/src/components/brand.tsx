@@ -17,13 +17,13 @@ export function BrandMark({ className }: { className?: string }) {
   )
 }
 
-/** 品牌标 + 字标："OCE" 半粗 + "幻灯片" 常规，同一名称在首页、文档列表、目录页复用。 */
+/** 品牌标 + 字标："Cordex" 半粗 + "幻灯片" 常规，同一名称在首页、文档列表、目录页复用。 */
 export function Brand({ to = "/home", className, subtitle }: { to?: string; className?: string; subtitle?: string }) {
   return (
-    <Link to={to} className={cn("flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", className)} aria-label="OCE 幻灯片 首页">
+    <Link to={to} className={cn("flex items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring", className)} aria-label="Cordex 幻灯片 首页">
       <BrandMark />
       <span className="flex items-baseline gap-1 text-sm leading-none">
-        <span className="font-semibold tracking-tight">OCE</span>
+        <span className="font-semibold tracking-tight">Cordex</span>
         <span className="text-foreground/80">幻灯片</span>
         {subtitle && <span className="ml-1 text-xs text-muted-foreground">{subtitle}</span>}
       </span>

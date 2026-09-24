@@ -5,7 +5,7 @@
 import json, os, re, sys
 
 dist, out = sys.argv[1], sys.argv[2]
-title = sys.argv[3] if len(sys.argv) > 3 else "OCE 设计 Playground"
+title = sys.argv[3] if len(sys.argv) > 3 else "Cordex 设计 Playground"
 os.makedirs(out, exist_ok=True)
 html = open(os.path.join(dist, "index.html"), encoding="utf-8").read()
 

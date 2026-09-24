@@ -10,7 +10,7 @@ export interface RouteEntry {
 }
 
 export const routes: RouteEntry[] = [
-  { path: "/styleguide", title: "样式指南", description: "全部 shadcn 组件在 OCE 主题下的状态矩阵与用法", spec: "09 §2", status: "ready" },
+  { path: "/styleguide", title: "样式指南", description: "全部 shadcn 组件在 Cordex 主题下的状态矩阵与用法", spec: "09 §2", status: "ready" },
   { path: "/home", title: "应用首页", description: "开始页：新建与模板、最近文档、指南入口", spec: "03-screens/29", status: "ready" },
   { path: "/documents", title: "文档列表", description: "应用壳：文档卡片、搜索、新建、导入", spec: "03-screens/01", status: "ready" },
   { path: "/import", title: "打开与导入", description: "进度阶段、失败态全集、降级占位", spec: "03-screens/13", status: "ready" },
@@ -24,6 +24,7 @@ export const routes: RouteEntry[] = [
   { path: "/editor/history", title: "版本历史", description: "自动/命名版本、对比、恢复", spec: "03-screens/07", status: "ready" },
   { path: "/editor/share", title: "分享与权限", description: "邀请、角色、链接权限、即时反馈", spec: "03-screens/08", status: "ready" },
   { path: "/editor/plugins", title: "插件管理器", description: "已安装插件、PENDING/失败恢复、贡献清单", spec: "03-screens/09", status: "ready" },
+  { path: "/editor/fidelity", title: "导入保真报告", description: "完全保真、部分保留（动画/切换/SmartArt/OLE/EMF/chartex/外链/字体）、部分解析失败", spec: "03-screens/10", status: "ready" },
   { path: "/export", title: "导出", description: "格式、范围、进度、失败重试", spec: "03-screens/22", status: "ready" },
   { path: "/present", title: "放映", description: "舞台、控制条、跟随", spec: "03-screens/11", status: "ready" },
   { path: "/viewer", title: "只读查看器", description: "preset-slide-viewer 极简壳", spec: "03-screens/25", status: "ready" },

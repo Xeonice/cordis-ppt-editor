@@ -79,7 +79,7 @@ export function Settings() {
         <SheetContent side="right" className="w-80 gap-0 p-0">
           <SheetHeader className="border-b border-foreground/5 px-4 py-3"><SheetTitle>设置</SheetTitle><p className="text-xs text-muted-foreground">个人偏好，不影响协作者；关闭即保存</p></SheetHeader>
           <ScrollArea className="flex-1">
-            <div className="oce-well m-3 flex flex-col gap-5 p-3">
+            <div className="cordex-well m-3 flex flex-col gap-5 p-3">
               <SettingsSection title="外观">
                 <Field orientation="horizontal">
                   <FieldLabel htmlFor="set-theme" className="flex-1 text-sm font-normal">主题</FieldLabel>
@@ -135,7 +135,7 @@ export function Settings() {
               </SettingsSection>
               <SettingsSection title="关于">
                 <p className="text-xs text-muted-foreground">版本 0.1.0-m2</p>
-                <Button variant="outline" size="sm" className="w-fit" onClick={() => { navigator.clipboard?.writeText("oce-diag-0.1.0-m2"); toast("已复制诊断信息") }}>复制诊断信息</Button>
+                <Button variant="outline" size="sm" className="w-fit" onClick={() => { navigator.clipboard?.writeText("cordex-diag-0.1.0-m2"); toast("已复制诊断信息") }}>复制诊断信息</Button>
                 <Button variant="link" size="sm" className="h-auto w-fit p-0" onClick={() => navigate("/editor/plugins")}>已加载插件：5 个 → 管理</Button>
               </SettingsSection>
             </div>
@@ -153,7 +153,7 @@ export function Settings() {
             </InputGroup>
           </SheetHeader>
           <ScrollArea className="flex-1">
-            <div className="oce-well m-3 flex flex-col gap-4 p-3">
+            <div className="cordex-well m-3 flex flex-col gap-4 p-3">
               {filteredGroups.map((g) => (
                 <div key={g.name}>
                   <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{g.name}</p>
@@ -197,7 +197,7 @@ function SettingsSection({ title, children }: { title: string; children: ReactNo
   return (
     <div className="flex flex-col gap-1.5">
       <h3 className="px-1 text-xs font-semibold text-muted-foreground">{title}</h3>
-      <div className="oce-group flex flex-col gap-2.5 p-3">{children}</div>
+      <div className="cordex-group flex flex-col gap-2.5 p-3">{children}</div>
     </div>
   )
 }

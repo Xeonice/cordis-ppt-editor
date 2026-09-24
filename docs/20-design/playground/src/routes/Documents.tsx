@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DesignBar } from "@/components/editor"
-import { MiniSlide } from "@/components/editor/MiniSlide"
+import { MiniSlide, NoCoverPlaceholder } from "@/components/editor/MiniSlide"
 import { Brand } from "@/components/brand"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
@@ -171,7 +171,11 @@ function DocumentCardView({ doc, onOpen }: { doc: (typeof documentList)[number];
   return (
     <Card className="group gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
       <button type="button" onClick={onOpen} className="block w-full text-left" aria-label={`打开 ${doc.title}`}>
-        <MiniSlide kind={kind} className="rounded-none border-b border-foreground/5" />
+        {doc.hasCover === false ? (
+          <NoCoverPlaceholder className="rounded-none border-b border-foreground/5" />
+        ) : (
+          <MiniSlide kind={kind} className="rounded-none border-b border-foreground/5" />
+        )}
       </button>
       <div className="flex flex-col gap-2 p-3">
         <button type="button" onClick={onOpen} className="truncate text-left text-sm font-semibold hover:underline">{doc.title}</button>

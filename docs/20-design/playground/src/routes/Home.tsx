@@ -13,7 +13,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DesignBar } from "@/components/editor"
-import { MiniSlide } from "@/components/editor/MiniSlide"
+import { MiniSlide, NoCoverPlaceholder } from "@/components/editor/MiniSlide"
 import { Brand } from "@/components/brand"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserMenu } from "@/components/user-menu"
@@ -156,7 +156,7 @@ export function Home() {
                 <h2 className="text-base font-semibold">最近</h2>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/documents")}>全部文档 <ChevronRight /></Button>
               </div>
-              <div className="oce-group overflow-hidden">
+              <div className="cordex-group overflow-hidden">
                 {loading ? (
                   <div className="flex flex-col gap-3 p-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
                 ) : recent.length === 0 ? (
@@ -175,7 +175,11 @@ export function Home() {
                           onClick={() => navigate("/editor")}
                           className="flex w-full items-center gap-3 px-3 py-2 text-left outline-none hover:bg-foreground/[0.03] focus-visible:bg-foreground/5"
                         >
-                          <MiniSlide kind={i === 0 ? "title" : i % 2 ? "two-content" : "title-content"} className="w-16 shrink-0 rounded-sm border" />
+                          {d.hasCover === false ? (
+                            <NoCoverPlaceholder className="w-16 shrink-0 rounded-sm border" />
+                          ) : (
+                            <MiniSlide kind={i === 0 ? "title" : i % 2 ? "two-content" : "title-content"} className="w-16 shrink-0 rounded-sm border" />
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate text-sm font-medium">{d.title}</span>
@@ -215,7 +219,7 @@ export function Home() {
                     key={g.title}
                     type="button"
                     onClick={() => ("to" in g && g.to ? navigate(g.to) : toast(`打开「${g.title}」`))}
-                    className="oce-group group flex items-start gap-3 p-3 text-left outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+                    className="cordex-group group flex items-start gap-3 p-3 text-left outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><g.icon className="size-4.5" aria-hidden="true" /></span>
                     <span className="min-w-0 flex-1">
@@ -239,7 +243,7 @@ function NewCard({ label, hint, disabled, onClick, children }: { label: string; 
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="oce-group group flex flex-col gap-2 p-2 text-left outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      className="cordex-group group flex flex-col gap-2 p-2 text-left outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span className="block aspect-video w-full">{children}</span>
       <span className="px-1 pb-0.5">

@@ -8,6 +8,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AppBar, DesignBar, EditorShell, Inspector, SlideCanvas, SlideContent, StatusBar, StatusText, ThumbnailRail } from "@/components/editor"
 import { EditorRibbon } from "@/components/editor/Ribbon"
@@ -93,7 +94,7 @@ export function Export() {
                       { v: "pptx", l: "PowerPoint .pptx" },
                       { v: "png", l: "PNG 图片" },
                       { v: "svg", l: "SVG 矢量图" },
-                      { v: "pdf", l: "PDF · 服务端生成" },
+                      { v: "pdf", l: "PDF · 服务端生成", milestone: "M3 后半段" },
                     ].map((f) => (
                       <label
                         key={f.v}
@@ -102,6 +103,7 @@ export function Export() {
                       >
                         <RadioGroupItem value={f.v} id={`fmt-${f.v}`} />
                         <span className="text-sm">{f.l}</span>
+                        {"milestone" in f && f.milestone && <Badge variant="outline" className="text-2xs text-muted-foreground">{f.milestone}</Badge>}
                       </label>
                     ))}
                   </RadioGroup>

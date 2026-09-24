@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Check, Copy, Link2, WifiOff, X } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Check, Copy, Link2, LogIn, User, WifiOff, X } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
@@ -7,10 +7,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -19,15 +22,17 @@ import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, presenceRing, roleLabel, slides, type Role } from "@/lib/mock-data"
 
-type DemoState = "default" | "loading" | "invite-error" | "offline" | "viewer" | "empty"
+type DemoState = "default" | "loading" | "invite-error" | "invite-error-selfsignup" | "offline" | "viewer" | "empty" | "no-account"
 
 const stateOptions = [
   { value: "default", label: "默认（所有者视角）" },
   { value: "empty", label: "空（仅所有者）" },
   { value: "loading", label: "加载中" },
-  { value: "invite-error", label: "邀请失败" },
+  { value: "invite-error", label: "邀请失败（selfSignup 关，默认）" },
+  { value: "invite-error-selfsignup", label: "邀请失败（selfSignup 开）" },
   { value: "offline", label: "离线" },
   { value: "viewer", label: "权限不足（只读降级）" },
+  { value: "no-account", label: "无账号者打开分享链接" },
 ]
 
 export function EditorShare() {
@@ -36,8 +41,9 @@ export function EditorShare() {
   const [open, setOpen] = useState(true)
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<string>("commenter")
-  const [linkAccess, setLinkAccess] = useState("org-view")
+  const [linkAccess, setLinkAccess] = useState("invite-only")
   const [copied, setCopied] = useState(false)
+  const [suggestOpen, setSuggestOpen] = useState(false)
   const [members, setMembers] = useState(() => [
     { id: "wang", role: "editor" as Role },
     { id: "li", role: "commenter" as Role },
@@ -46,11 +52,33 @@ export function EditorShare() {
   const isOwnerView = demoState !== "viewer"
   const shownMembers = demoState === "empty" ? [] : members
 
+  // 邀请联想只返回本部署内已有账号的用户（姓名 + 邮箱），不返回用户组（rulings §4.15 Q6）
+  const suggestions = useMemo(
+    () => collaborators.filter((c) => !c.isSelf && !members.some((m) => m.id === c.id) && (c.name.includes(email) || (c.email ?? "").includes(email))),
+    [email, members]
+  )
+
   function handleInvite() {
-    if (demoState === "invite-error") return
+    if (demoState === "invite-error" || demoState === "invite-error-selfsignup") return
     if (!email.trim()) return
     toast(`已邀请 ${email}`)
     setEmail("")
+  }
+
+  if (demoState === "no-account") {
+    return (
+      <div className="flex h-dvh flex-col bg-canvas">
+        <DesignBar title="分享与权限" spec="03-screens/08" state={demoState} onStateChange={(v) => setDemoState(v as DemoState)} stateOptions={stateOptions} />
+        <Empty className="flex-1">
+          <EmptyMedia variant="icon"><User className="text-muted-foreground" /></EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>你还没有账号</EmptyTitle>
+            <EmptyDescription>请联系管理员开通账号后再打开此链接</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent><Button variant="outline" onClick={() => toast("正在跳转到登录…")}><LogIn /> 返回登录</Button></EmptyContent>
+        </Empty>
+      </div>
+    )
   }
 
   return (
@@ -69,7 +97,7 @@ export function EditorShare() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>分享"{documentTitle}"</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isOwnerView ? `分享"${documentTitle}"` : `谁能访问"${documentTitle}"`}</DialogTitle></DialogHeader>
 
           {demoState === "loading" ? (
             <div className="flex flex-col gap-3">
@@ -96,9 +124,36 @@ export function EditorShare() {
                     <div className="flex gap-2">
                       <Field className="flex-1">
                         <FieldLabel htmlFor="invite-email" className="sr-only">邀请协作者</FieldLabel>
-                        <Input id="invite-email" placeholder="例如 lilei@example.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={demoState === "invite-error"} />
+                        <Popover open={suggestOpen && suggestions.length > 0} onOpenChange={setSuggestOpen}>
+                          <PopoverAnchor asChild>
+                            <Input
+                              id="invite-email"
+                              placeholder="例如 lilei@example.com"
+                              value={email}
+                              onChange={(e) => { setEmail(e.target.value); setSuggestOpen(e.target.value.length > 0) }}
+                              onFocus={() => setSuggestOpen(email.length > 0)}
+                              aria-invalid={demoState === "invite-error" || demoState === "invite-error-selfsignup"}
+                            />
+                          </PopoverAnchor>
+                          <PopoverContent align="start" className="w-64 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                            <Command>
+                              <CommandList>
+                                <CommandEmpty className="p-3 text-xs text-muted-foreground">没有匹配的账号</CommandEmpty>
+                                <CommandGroup heading="部署内的用户">
+                                  {suggestions.map((c) => (
+                                    <CommandItem key={c.id} onSelect={() => { setEmail(c.email ?? c.name); setSuggestOpen(false) }}>
+                                      <User className="size-3.5" /> {c.name} <span className="ml-auto text-xs text-muted-foreground">{c.email}</span>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         {demoState === "invite-error" ? (
-                          <FieldError>该邮箱未注册，或已达到席位上限</FieldError>
+                          <FieldError>系统中没有使用该邮箱的账号。请联系管理员为对方开通账号后再邀请</FieldError>
+                        ) : demoState === "invite-error-selfsignup" ? (
+                          <FieldError>系统中没有使用该邮箱的账号。请对方先注册并登录，再邀请；也可以把分享链接发给对方</FieldError>
                         ) : (
                           <FieldDescription>输入邮箱或姓名，默认权限为"可评审"</FieldDescription>
                         )}
@@ -170,11 +225,11 @@ export function EditorShare() {
                 <p className="mb-2 text-sm font-medium">通过链接分享</p>
                 <div className="flex items-center gap-2">
                   <Link2 className="size-4 shrink-0 text-muted-foreground" />
-                  <Input readOnly value="https://oce.example.com/d/8f2a91c" className="flex-1 font-mono text-xs" aria-label="分享链接" />
+                  <Input readOnly value="https://cordex.example.com/d/8f2a91c" className="flex-1 font-mono text-xs" aria-label="分享链接" />
                   <Button
                     variant="outline"
                     disabled={demoState === "offline"}
-                    onClick={() => { navigator.clipboard?.writeText("https://oce.example.com/d/8f2a91c"); setCopied(true); window.setTimeout(() => setCopied(false), 1500) }}
+                    onClick={() => { navigator.clipboard?.writeText("https://cordex.example.com/d/8f2a91c"); setCopied(true); window.setTimeout(() => setCopied(false), 1500) }}
                   >
                     {copied ? <><Check /> 已复制</> : <><Copy /> 复制链接</>}
                   </Button>
@@ -182,15 +237,15 @@ export function EditorShare() {
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">链接权限</span>
                   <Select value={linkAccess} onValueChange={setLinkAccess} disabled={demoState === "offline"}>
-                    <SelectTrigger size="sm" className="w-40"><SelectValue /></SelectTrigger>
+                    <SelectTrigger size="sm" className="w-48"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="invite-only">仅邀请人可访问</SelectItem>
-                      <SelectItem value="org-view">组织内可查看</SelectItem>
-                      <SelectItem value="org-comment">组织内可评审</SelectItem>
-                      <SelectItem value="anyone">任何拥有链接的人可查看</SelectItem>
+                      <SelectItem value="invite-only">仅邀请的用户可访问</SelectItem>
+                      <SelectItem value="login-view">登录用户凭链接可查看</SelectItem>
+                      <SelectItem value="login-comment">登录用户凭链接可评审</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">打开链接需要先登录</p>
                 <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Checkbox disabled={demoState === "offline"} /> 允许通过链接访问的用户下载/打印
                 </label>

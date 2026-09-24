@@ -103,7 +103,7 @@ export function PropertyRow({ label, hint, children }: { label: string; hint?: s
   )
 }
 
-/** C-21 .oce-prop--pair：同行双字段（X/Y、宽/高），两控件间距 8 */
+/** C-21 .cordex-prop--pair：同行双字段（X/Y、宽/高），两控件间距 8 */
 export function PropertyRowPair({
   a,
   b,

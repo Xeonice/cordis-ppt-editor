@@ -1,27 +1,29 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>02 编辑器主界面 · OCE Slides 设计稿</title>
+<title>02 编辑器主界面 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .canvas{width:min(100%,680px);}
   .shape--body ul{margin:0;padding-left:1.1em;}
   .shape--body li{margin-bottom:.35em;}
-  .remote-cursor{position:absolute;z-index:var(--oce-z-canvas-overlay);pointer-events:none;--presence:var(--oce-color-presence-6);}
-  .remote-cursor .tag{font-size:var(--oce-font-size-2xs);color:var(--oce-color-text-primary);background:var(--oce-color-bg-surface-raised);border:1.5px solid var(--presence);padding:1px 6px;border-radius:3px 3px 3px 0;white-space:nowrap;margin-left:8px;box-shadow:var(--oce-shadow-sm)}
-  .remote-sel{--presence:var(--oce-color-presence-6);position:absolute;border:1.5px dashed var(--presence);outline:1px solid var(--oce-color-doc-paper);background:color-mix(in srgb, var(--presence) 12%, transparent);border-radius:2px;z-index:var(--oce-z-canvas-overlay);pointer-events:none;}
-  .comment-pin{position:absolute;width:24px;height:24px;border-radius:50% 50% 50% 0;background:var(--oce-color-warning-emphasis);color:#fff;border:1px solid var(--oce-color-doc-paper);font-size:var(--oce-font-size-2xs);font-weight:600;display:flex;align-items:center;justify-content:center;transform:rotate(45deg);z-index:var(--oce-z-canvas-overlay);}
+  .remote-cursor{position:absolute;z-index:var(--cordex-z-canvas-overlay);pointer-events:none;--presence:var(--cordex-color-presence-6);}
+  .remote-cursor .tag{font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-primary);background:var(--cordex-color-bg-surface-raised);border:1.5px solid var(--presence);padding:1px 6px;border-radius:3px 3px 3px 0;white-space:nowrap;margin-left:8px;box-shadow:var(--cordex-shadow-sm)}
+  .remote-sel{--presence:var(--cordex-color-presence-6);position:absolute;border:1.5px dashed var(--presence);outline:1px solid var(--cordex-color-doc-paper);background:color-mix(in srgb, var(--presence) 12%, transparent);border-radius:2px;z-index:var(--cordex-z-canvas-overlay);pointer-events:none;}
+  .comment-pin{position:absolute;width:24px;height:24px;border-radius:50% 50% 50% 0;background:var(--cordex-color-warning-emphasis);color:#fff;border:1px solid var(--cordex-color-doc-paper);font-size:var(--cordex-font-size-2xs);font-weight:600;display:flex;align-items:center;justify-content:center;transform:rotate(45deg);z-index:var(--cordex-z-canvas-overlay);}
   .comment-pin span{transform:rotate(-45deg);}
-  .mini-toolbar{position:absolute;display:flex;gap:2px;background:var(--oce-color-bg-surface-raised);border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-md);box-shadow:var(--oce-shadow-md);padding:2px;z-index:var(--oce-z-canvas-overlay);}
-  .thumb-body-line{height:4px;border-radius:2px;background:var(--oce-color-border-default);margin-top:4px;}
-  .thumb-title-bar{height:8px;border-radius:2px;background:var(--oce-color-accent-subtle);}
-  .crumblink{font-size:var(--oce-font-size-2xs);color:var(--oce-color-accent-default);text-decoration:none;display:inline-flex;align-items:center;gap:2px;}
+  .mini-toolbar{position:absolute;display:flex;gap:2px;background:var(--cordex-color-bg-surface-raised);border:1px solid var(--cordex-color-border-subtle);border-radius:var(--cordex-radius-md);box-shadow:var(--cordex-shadow-md);padding:2px;z-index:var(--cordex-z-canvas-overlay);}
+  .thumb-body-line{height:4px;border-radius:2px;background:var(--cordex-color-border-default);margin-top:4px;}
+  .thumb-title-bar{height:8px;border-radius:2px;background:var(--cordex-color-accent-subtle);}
+  .crumblink{font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-accent-default);text-decoration:none;display:inline-flex;align-items:center;gap:2px;}
 </style>
 </head>
 <body data-density="comfortable">
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <a class="skip-link" href="#canvas-main">跳至画布</a>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
@@ -37,7 +39,7 @@
 <symbol id="i-align-center" viewBox="0 0 16 16"><line x1="2" y1="3.5" x2="14" y2="3.5"/><line x1="4" y1="7" x2="12" y2="7"/><line x1="3" y1="10.5" x2="13" y2="10.5"/><line x1="5" y1="14" x2="11" y2="14"/></symbol>
 <symbol id="i-line-height" viewBox="0 0 16 16"><line x1="6" y1="2" x2="6" y2="14"/><polyline points="3.5,4.5 6,2 8.5,4.5"/><polyline points="3.5,11.5 6,14 8.5,11.5"/><line x1="10" y1="4" x2="14" y2="4"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="10" y1="12" x2="14" y2="12"/></symbol>
 <symbol id="i-rect" viewBox="0 0 16 16"><rect x="2.2" y="4" width="11.6" height="8" rx="1"/></symbol>
-<symbol id="i-front" viewBox="0 0 16 16"><rect x="6" y="6" width="7.5" height="7.5" rx="1"/><rect x="2.5" y="2.5" width="7.5" height="7.5" rx="1" fill="var(--oce-color-bg-surface)"/></symbol>
+<symbol id="i-front" viewBox="0 0 16 16"><rect x="6" y="6" width="7.5" height="7.5" rx="1"/><rect x="2.5" y="2.5" width="7.5" height="7.5" rx="1" fill="var(--cordex-color-bg-surface)"/></symbol>
 <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3"/><line x1="10.1" y1="10.1" x2="14" y2="14"/></symbol>
 <symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
 <symbol id="i-chevron-down" viewBox="0 0 16 16"><polyline points="3,6 8,11 13,6"/></symbol>
@@ -72,8 +74,8 @@
   <span class="saved-state"><svg class="icon" aria-hidden="true"><use href="#i-sync"/></svg>已保存</span>
   <div class="avatar-stack" aria-label="协作者：我、王小明、李雷，另有 1 人">
     <span class="avatar self" title="我">我</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-6)" title="王小明">王</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-3)" title="李雷">李</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-3)" title="李雷">李</span>
     <span class="avatar more" title="另外 1 人">+1</span>
   </div>
   <span class="spacer"></span>
@@ -134,12 +136,12 @@
   <aside class="thumb-rail" aria-label="幻灯片缩略图">
     <div class="rail-mode-switch" role="tablist" aria-label="侧栏模式">
       <button type="button" role="tab" aria-pressed="true" aria-selected="true">普通</button>
-      <a role="tab" aria-selected="false" href="26-master-view.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;border-radius:var(--oce-radius-sm);font-size:var(--oce-font-size-2xs)">母版</a>
+      <a role="tab" aria-selected="false" href="26-master-view.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;border-radius:var(--cordex-radius-sm);font-size:var(--cordex-font-size-2xs)">母版</a>
     </div>
     <button type="button" class="thumb" aria-current="false"><div class="thumb-num">1</div><div class="thumb-img"><div style="width:78%"><div class="thumb-title-bar"></div><div class="thumb-body-line" style="width:60%"></div></div></div></button>
     <button type="button" class="thumb" aria-current="true"><div class="thumb-num">2 ▪当前</div><div class="thumb-img"><div style="width:78%"><div class="thumb-title-bar"></div><div class="thumb-body-line"></div><div class="thumb-body-line" style="width:70%"></div><div class="thumb-body-line" style="width:50%"></div></div></div></button>
     <button type="button" class="thumb" aria-current="false"><div class="thumb-num">3<span class="badge warn" style="margin-left:4px" aria-label="1 处降级元素">1</span></div><div class="thumb-img"><div style="width:78%"><div class="thumb-title-bar"></div><div class="thumb-body-line" style="width:64%"></div></div><span class="thumb-warn-badge">1</span></div></button>
-    <button type="button" class="thumb hidden-slide" aria-current="false"><div class="thumb-num">4 <span style="font-size:var(--oce-font-size-2xs)">已隐藏</span></div><div class="thumb-img"><div style="width:78%"><div class="thumb-title-bar"></div></div></div></button>
+    <button type="button" class="thumb hidden-slide" aria-current="false"><div class="thumb-num">4 <span style="font-size:var(--cordex-font-size-2xs)">已隐藏</span></div><div class="thumb-img"><div style="width:78%"><div class="thumb-title-bar"></div></div></div></button>
     <button type="button" class="thumb-new"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建</button>
   </aside>
 
@@ -156,7 +158,7 @@
       <div class="shape shape--body" style="top:42%;left:8%;width:68%">
         <ul><li>营收同比增长 18%，超额完成季度目标</li><li>新签约客户 42 家，续约率 91%</li><li>华东区域贡献占比提升至 35%</li></ul>
       </div>
-      <div class="remote-cursor" style="top:38%;left:76%"><svg class="icon" aria-hidden="true" style="color:var(--oce-color-presence-6)"><use href="#i-cursor"/></svg><span class="tag">王小明</span></div>
+      <div class="remote-cursor" style="top:38%;left:76%"><svg class="icon" aria-hidden="true" style="color:var(--cordex-color-presence-6)"><use href="#i-cursor"/></svg><span class="tag">王小明</span></div>
       <button type="button" class="comment-pin" style="top:38%;left:14%" aria-label="评论 1：这里的数据需要核对，来自 李雷"><span>1</span></button>
     </div>
     <div class="zoom-bar" aria-label="缩放控制">
@@ -193,12 +195,12 @@
         </div>
       </details>
       <details class="prop-section"><summary>填充<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
-        <div class="prop-row"><button type="button" class="swatch" style="background:var(--oce-color-accent-default)" aria-label="填充色 #4A54E1"></button><input type="text" value="#4A54E1" style="width:90px"></div>
+        <div class="prop-row"><button type="button" class="swatch" style="background:var(--cordex-color-accent-default)" aria-label="填充色 #4A54E1"></button><input type="text" value="#4A54E1" style="width:90px"></div>
       </details>
       <details class="prop-section"><summary>边框<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary></details>
       <details class="prop-section"><summary>阴影/效果<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary></details>
       <details class="prop-section"><summary>对齐与分布<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary></details>
-      <div style="border-top:1px solid var(--oce-color-border-subtle);margin-top:var(--oce-space-2);padding-top:var(--oce-space-2)">
+      <div style="border-top:1px solid var(--cordex-color-border-subtle);margin-top:var(--cordex-space-2);padding-top:var(--cordex-space-2)">
         <details class="prop-section"><summary><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>插件A：更多属性<span class="plugin-attrib" style="margin-left:auto">ACME</span></summary></details>
       </div>
     </div>
@@ -216,7 +218,7 @@
   <div class="grp">
     <span class="dot green" aria-hidden="true"></span><span>已同步</span>
     <span><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>3人在线</span>
-    <button type="button" class="link"><svg class="icon" aria-hidden="true" style="color:var(--oce-color-warning-default)"><use href="#i-puzzle"/></svg>1 个插件启动失败</button>
+    <button type="button" class="link"><svg class="icon" aria-hidden="true" style="color:var(--cordex-color-warning-default)"><use href="#i-puzzle"/></svg>1 个插件启动失败</button>
     <button type="button" class="link"><svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>快捷键</button>
   </div>
 </footer>

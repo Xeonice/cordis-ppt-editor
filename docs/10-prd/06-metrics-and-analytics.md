@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15 | 依赖：charter v0.2
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
 
 # 06 指标与埋点
 
@@ -8,7 +8,7 @@
 
 ## 0. 原则
 
-1. **不采集内容**：文档文本、图片、评论正文、文件名一律不进遥测；只采集结构性度量（数量、时长、类型、错误码）。用户/文档/租户标识使用集成方传入的不透明 id，并在 SDK 内再做一次单向哈希（可关闭）。
+1. **不采集内容**：文档文本、图片、评论正文、文件名一律不进遥测；只采集结构性度量（数量、时长、类型、错误码）。用户/文档标识使用不透明 id（OIDC 主体或集成方传入），并在 SDK 内再做一次单向哈希（可关闭）。
 2. **事件即契约**：每个遥测事件有 schema（Standard Schema）、版本、隐私分级；schema 变更走 Changesets；未声明的事件被扫描器拒绝。
 3. **能被回答的问题才埋**：每个事件至少服务于一个指标（§1/§2）或一个告警（SV-10）。
 4. **采样可配**：高频事件（`render/frame`、`collab/latency`）默认采样 1%；错误与生命周期事件不采样。
@@ -28,7 +28,7 @@
 
 | 编号 | 指标 | 定义 | 目标（初始） | 里程碑 |
 |---|---|---|---|---|
-| MT-01 | 打开成功率 | `unit/opened` / (`unit/opened` + `unit/open-failed`)，排除 `format.unsupported_binary`、`format.encrypted`（单列为「拒绝率」） | ≥ 99.5% | M1 |
+| MT-01 | 打开成功率 | `unit/opened` / (`unit/opened` + `unit/open-failed`)，排除 `format.unsupported_binary`、`format.encrypted`、`format.macro_rejected`（单列为「拒绝率」） | ≥ 99.5% | M1 |
 | MT-02 | 保真指数 | 每会话降级元素数 / 总元素数 的加权平均（`render/element-degraded` + `render/element-failed` + `render/font-fallback`） | ≤ 2%（T2 语料对照 ≤ 3%） | M1 |
 | MT-03 | 首屏时间 TTFS | `open()` → `render/first-paint`，按文稿规模分桶（≤ 20 页 / 21–50 / 51–200） | p75：≤ 1.0 s / ≤ 1.5 s / ≤ 3.0 s | M1 |
 | MT-04 | 崩溃自由会话率 | 无 `error/raised{fatal}` 的会话占比 | ≥ 99.5% | M2 |
@@ -48,7 +48,7 @@
 | MT-12 | 命令失败率 | `command/failed` / `command/executed` | ≤ 0.1% |
 | MT-13 | 命令拒绝（权限）率 | `command/rejected{reason:"permission"}` | 观察 UI 是否正确禁用（应接近 0） |
 | MT-14 | 撤销使用率 | `command/executed{id:"history.undo"}` / 全部命令 | 体验信号：> 15% 提示误操作多 |
-| MT-15 | 软冲突率 | `collab/soft-conflict` / 协同会话·小时（服务端指标 `oce_collab_soft_conflicts_total{type}`） | ≤ 0.5 次/会话·小时 |
+| MT-15 | 软冲突率 | `collab/soft-conflict` / 协同会话·小时（服务端指标 `cordex_collab_soft_conflicts_total{type}`）；撤销被跳过 `store/undo-skipped` 单独统计、不计入（rulings §4.17 D5） | ≤ 0.5 次/会话·小时 |
 | MT-16 | 重连率与离线时长 | `collab/reconnect`、`collab/state-changed` 时长 | 网络质量诊断 |
 | MT-17 | 同步延迟 p95 | `collab/latency`（采样） | ≤ 400 ms |
 | MT-18 | 评论使用 | `comment/added`、`comment/resolved`、解决时长 | 协作深度 |
@@ -70,11 +70,11 @@
 | `ts` | 事件时间（客户端单调时钟 + 会话起点） | P0 |
 | `sessionId` | 会话随机 id（每次宿主创建） | P0 |
 | `unitId` | `Unit` 哈希（可关闭） | P1 |
-| `tenantId` / `integratorId` | 集成方传入的不透明 id | P1 |
-| `userId` | 集成方传入 id 的哈希（可关闭） | P1 |
+| `deploymentId` / `integratorId` | 部署或集成方传入的不透明 id（单组织，无租户维度，rulings §4.15 T-0） | P1 |
+| `userId` | 用户 id（OIDC `(issuer, sub)` 或集成方传入）的哈希（可关闭） | P1 |
 | `sdk.version` / `preset` / `pluginsHash` | 版本、preset 名、已加载插件 id 集合哈希 | P0 |
 | `env.browser` / `env.os` / `env.viewport` / `env.dpr` / `env.hardwareConcurrency` / `env.deviceMemory` | 环境 | P0 |
-| `doc.pages` / `doc.elements` / `doc.sizeBucket` / `doc.producer` | 文稿规模分桶与生产者（`app.xml` Application，不含标题） | P0 |
+| `doc.pages` / `doc.elements` / `doc.sizeBucket` / `doc.producer` | 文稿规模分桶与生产者（`app.xml` Application，不含标题）；`doc.elements` 为文档总元素（含墓碑），分桶边界对齐 Q5 包络与天花板（6,000 / 15,000 / 20,000） | P0 |
 | `mode` | `viewer` / `editor` / `collab` / `headless` | P0 |
 
 隐私级：P0 = 无任何标识；P1 = 伪匿名标识；P2 = 内容 —— **禁止**。
@@ -108,7 +108,7 @@
 | `command/rejected` | 命令被管线拒绝 | `id`, `reason`（permission/validation/selection/readonly） | P0 | M2 | MT-13 |
 | `command/failed` | 命令抛错回滚 | `id`, `code` | P0 | M2 | MT-12、MT-23 |
 | `store/transaction` | 事务提交（高频合并 ≥ 50 ms） | `origin.kind`（local / remote / system / replay）, `origin.via`（undo / redo）, `origin.reason`（load / import / migration / repair / restore）, `mutations`, `count` | P0 | M2 | WSES、MT-05 |
-| `history/undo` / `history/redo` | 撤销/重做（遥测专用；运行时事件为 `history/changed`） | `steps`, `skipped`（协同下无法撤销的步数） | P0 | M2 | MT-14 |
+| `history/undo` / `history/redo` | 撤销/重做（遥测专用；运行时事件为 `history/changed`） | `steps`, `skipped`（整步被跳过的步数，停下不连撤）, `keysSkipped`（因他人后写被跳过的键数，rulings §4.15 Q3） | P0 | M2 | MT-14 |
 | `selection/changed` | 选区变化（采样 10%） | `kinds`（元素类型集合）, `count` | P0 | M2 | 功能使用 |
 | `view/page-changed` | 翻页 | `from`, `to`, `method`（click/key/thumb/link/follow） | P0 | M1 | 导航行为 |
 | `view/zoom-changed` | 缩放 | `zoom`, `method` | P0 | M2 | |
@@ -119,11 +119,12 @@
 | `collab/state-changed` | 会话状态机迁移 | `from`, `to`, `reason`, `durationMsInPrev` | P0 | M3 | MT-06、MT-16 |
 | `collab/synced` | 初始/重连同步完成 | `durationMs`, `updatesApplied`, `initial` | P0 | M3 | 初始同步时长 |
 | `collab/latency` | 往返延迟（采样 1%） | `rttMs`, `applyMs` | P0 | M3 | MT-17 |
-| `collab/soft-conflict` | 软冲突检测 | `type`（text-same-pos/prop-lww/delete-vs-edit/reorder）, `resolvedBy`（auto/undo/restore） | P0 | M3 | MT-15 |
+| `collab/soft-conflict` | 软冲突检测 | `type`（text-same-pos/prop-lww/delete-vs-edit/reorder）, `resolvedBy`（auto/restore-my-value/restore-element） | P0 | M3 | MT-15 |
+| `store/undo-skipped` | 协同撤销被跳过（rulings §4.17 D5：**单独统计，不是 `collab/soft-conflict` 的 type，不计入软冲突率 MT-15**） | `skipped`（本次被跳过的键数）, `wholeStep`（整步被跳过、停下不连撤）；遥测只统计跳过次数与整步跳过次数，不含路径内容 | P0 | M3 | MT-14 旁注、撤销体验 |
 | `collab/reconnect` | 重连尝试 | `attempt`, `backoffMs`, `success`, `queued` | P0 | M3 | MT-16 |
 | `collab/auth-failed` | 握手失败 | `code` ∈ collab.unauthenticated / forbidden / doc_not_found / schema_too_new / protocol_mismatch / room_full；`protocol_mismatch` 时附 `client`, `server` 版本 | P0 | M3 | 安全告警、升级健康 |
 | `collab/update-rejected` | 服务端硬门禁拒绝本地 update（降权/锁定窗口） | `reason`, `rejectedTransactions` | P0 | M3 | 权限即时性、体验信号 |
-| `collab/repair` | 服务端软门禁修复触及本地 | `rule`, `paths`（路径数） | P0 | M3 | 数据完整性（`oce_collab_repairs_total{rule}`） |
+| `collab/repair` | 服务端软门禁修复触及本地 | `rule`, `paths`（路径数） | P0 | M3 | 数据完整性（`cordex_collab_repairs_total{rule}`） |
 | `presence/joined` / `presence/left` | 协作者进出 | `participants`（当前人数） | P0 | M3 | 协作规模 |
 | `presence/follow` | 跟随开始/结束 | `durationMs` | P0 | M3 | 功能使用 |
 | `comment/added` / `comment/replied` / `comment/resolved` / `comment/reopened` / `comment/deleted` | 评论操作 | `anchorKind`（page/element/text）, `threadDepth`, `hasMention`（不含正文） | P0 | M3 | MT-18 |
@@ -142,7 +143,7 @@
 | `i18n/missing-key` | 缺 key | `key`, `locale` | P0 | M2 | 质量 |
 | `error/raised` | 任一类型化错误 | `code`, `severity`, `retryable`, `surface`, `pluginId?` | P0 | M1 | MT-04、MT-23 |
 | `a11y/screen-reader-detected` | 检测到辅助技术（启发式，可关闭） | `hint` | P0 | M2 | a11y 使用 |
-| `quota/exceeded` | 配额拒绝（遥测专用；派生自 `error/raised{code: tenant.quota_exceeded | collab.room_full}`） | `dimension`, `limit` | P0 | M3 | SV-08 |
+| `quota/exceeded` | 配额拒绝（遥测专用；派生自 `error/raised{code: format.quota_exceeded | document.quota_exceeded | storage.quota_exceeded | collab.room_full}`；`dimension` 取值照抄架构 10 §3 取值表：`slides` / `elementsPerSlide` / `elementsTotal` / `fileSize`，存储为 `bytes` / `documents`） | `code`, `dimension`, `limit` | P0 | M3 | SV-08 |
 
 服务端事件（Prometheus/OTel 指标为主，见 SV-10）；审计事件（SV-07）**不是**遥测，不进本表。
 

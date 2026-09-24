@@ -1,5 +1,5 @@
 > 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
-> **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--oce-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
+> **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--cordex-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
 
 # 03-17 选择、多选、对齐、分布、吸附、网格与参考线
 
@@ -80,7 +80,7 @@
 ## 交互说明
 
 - 本文件的对齐/分布/吸附机制与 03-screens/14（幻灯片管理）的拖拽重排是两套独立的拖拽交互（前者作用于画布内对象，后者作用于缩略图侧栏），互不影响。
-- 智能参考线、连接点高亮均渲染在 `render.overlay` 层（`--oce-z-canvas-overlay`），与远端光标/选区共享同一层级但视觉上通过颜色区分（参考线用品红，协作者用各自的 presence 色）。
+- 智能参考线、连接点高亮均渲染在 `render.overlay` 层（`--cordex-z-canvas-overlay`），与远端光标/选区共享同一层级但视觉上通过颜色区分（参考线用品红，协作者用各自的 presence 色）。
 - 键盘等价：微移用方向键（1px）/`Shift`+方向键（10px，PRD ED-29 已定），对齐/分布命令通过命令面板或右键菜单均可执行，不要求必须先框选再点击按钮的固定顺序。
 
 ## 边界情况

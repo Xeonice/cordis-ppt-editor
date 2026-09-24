@@ -49,7 +49,7 @@
 
 各控件读取当前本地偏好（首次使用为出厂默认：主题跟随系统、密度舒适、语言随浏览器/账户语言、单位随语言默认——zh-CN → cm，en-US → in，见产品默认答案 D1）。
 
-控件形态（09 T-06，playground `Settings.tsx`）：主题（系统 / 亮 / 暗，Lucide `Monitor` / `Sun` / `Moon` 图标）与密度（舒适 / 紧凑）均为 `ToggleGroup type="single" size="sm" variant="outline"` 分段，**不用下拉**；语言、度量单位、自动保存间隔、粘贴默认为 `Select`（`SelectTrigger size="sm"`）；通知项为 `Checkbox`。分组为 iOS 式内嵌列表：12px 半粗淡色标题置于组外，组内容 `.oce-group p-3`，组间靠留白不靠分割线；抽屉内容区 `.oce-well m-3 p-3`。「关于」段：版本号、「复制诊断信息」、「已加载插件：5 个 → 管理」（跳转 03-screens/09）。
+控件形态（09 T-06，playground `Settings.tsx`）：主题（系统 / 亮 / 暗，Lucide `Monitor` / `Sun` / `Moon` 图标）与密度（舒适 / 紧凑）均为 `ToggleGroup type="single" size="sm" variant="outline"` 分段，**不用下拉**；语言、度量单位、自动保存间隔、粘贴默认为 `Select`（`SelectTrigger size="sm"`）；通知项为 `Checkbox`。分组为 iOS 式内嵌列表：12px 半粗淡色标题置于组外，组内容 `.cordex-group p-3`，组间靠留白不靠分割线；抽屉内容区 `.cordex-well m-3 p-3`。「关于」段：版本号、「复制诊断信息」、「已加载插件：5 个 → 管理」（跳转 03-screens/09）。
 
 ### 集成方锁定态
 

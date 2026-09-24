@@ -1,26 +1,28 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>14 设置抽屉 · OCE Slides 设计稿</title>
+<title>14 设置抽屉 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .mock-shell-row{display:flex;min-height:72vh}
-  .backdrop-editor{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--oce-color-bg-canvas);opacity:.72}
+  .backdrop-editor{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--cordex-color-bg-canvas);opacity:.72}
   .backdrop-editor .main-layout{flex:1;min-height:0}
-  .backdrop-editor .canvas-viewport{padding:var(--oce-space-6)}
-  .settings-sec{padding:var(--oce-space-3) var(--oce-space-4);border-bottom:1px solid var(--oce-color-border-subtle)}
-  .settings-sec h3{font-size:var(--oce-font-size-sm);color:var(--oce-color-text-secondary);margin:0 0 8px}
-  .settings-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:var(--oce-font-size-sm);flex-wrap:wrap}
+  .backdrop-editor .canvas-viewport{padding:var(--cordex-space-6)}
+  .settings-sec{padding:var(--cordex-space-3) var(--cordex-space-4);border-bottom:1px solid var(--cordex-color-border-subtle)}
+  .settings-sec h3{font-size:var(--cordex-font-size-sm);color:var(--cordex-color-text-secondary);margin:0 0 8px}
+  .settings-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:var(--cordex-font-size-sm);flex-wrap:wrap}
   .settings-row .form-label{margin:0;flex:1}
-  .settings-row select{height:var(--oce-control-height-sm);border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-sm);background:var(--oce-color-bg-inset);padding:0 8px}
-  .demo-section{max-width:460px;margin:var(--oce-space-8) auto 0;padding:0 var(--oce-space-4) var(--oce-space-8)}
-  .demo-section h2{font-size:var(--oce-font-size-lg);margin:0 0 var(--oce-space-2)}
+  .settings-row select{height:var(--cordex-control-height-sm);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);background:var(--cordex-color-bg-inset);padding:0 8px}
+  .demo-section{max-width:460px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4) var(--cordex-space-8)}
+  .demo-section h2{font-size:var(--cordex-font-size-lg);margin:0 0 var(--cordex-space-2)}
 </style>
 </head>
 <body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
 <symbol id="i-sync" viewBox="0 0 16 16"><path d="M13.3 5.3A5.3 5.3 0 0 0 3.3 4"/><polyline points="3,1.5 3.3,4.3 6,3.8"/><path d="M2.7 10.7a5.3 5.3 0 0 0 10 1.3"/><polyline points="13,14.5 12.7,11.7 10,12.2"/></symbol>
@@ -39,7 +41,7 @@
   <div class="backdrop-editor" aria-hidden="true">
     <header class="app-bar" style="height:40px">
       <span class="btn btn-icon btn-sm"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></span>
-      <span class="doc-title" style="font-size:var(--oce-font-size-sm)">2026年度品牌升级计划.pptx</span>
+      <span class="doc-title" style="font-size:var(--cordex-font-size-sm)">2026年度品牌升级计划.pptx</span>
       <span class="saved-state"><svg class="icon" aria-hidden="true"><use href="#i-sync"/></svg>已保存</span>
       <span class="spacer"></span>
       <span class="btn btn-sm"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>分享</span>
@@ -58,7 +60,7 @@
     </div>
   </div>
 
-  <div class="drawer" style="position:static;box-shadow:var(--oce-shadow-lg);border-left:1px solid var(--oce-color-border-subtle);flex-shrink:0" role="dialog" aria-modal="true" aria-labelledby="st-title">
+  <div class="drawer" style="position:static;box-shadow:var(--cordex-shadow-lg);border-left:1px solid var(--cordex-color-border-subtle);flex-shrink:0" role="dialog" aria-modal="true" aria-labelledby="st-title">
     <div class="dialog-head"><span id="st-title">设置</span><span class="spacer"></span><button type="button" class="btn btn-icon btn-sm" aria-label="关闭设置"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
 
     <div class="settings-sec"><h3>外观</h3>
@@ -84,14 +86,14 @@
     <div class="settings-sec" style="border-bottom:none"><h3>关于</h3>
       <p class="help-text" style="margin:0 0 8px">版本 0.1.0-m2</p>
       <button type="button" class="btn btn-sm" style="margin-bottom:10px">复制诊断信息</button><br>
-      <a href="09-plugin-manager-placeholder" onclick="return false" style="font-size:var(--oce-font-size-xs);display:inline-flex;align-items:center;gap:4px"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>已加载插件：4 个 → 管理</a>
+      <a href="09-plugin-manager-placeholder" onclick="return false" style="font-size:var(--cordex-font-size-xs);display:inline-flex;align-items:center;gap:4px"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>已加载插件：4 个 → 管理</a>
     </div>
   </div>
 </div>
 
 <div class="demo-section">
   <h2>附：集成方锁定态</h2>
-  <p class="help-text" style="margin:0 0 var(--oce-space-2)">被集成方配置锁定的项显示为只读：控件禁用，附一行说明文字（弱化色），不提供切换控件（见 03-23 设置面板"集成方锁定态"）。</p>
+  <p class="help-text" style="margin:0 0 var(--cordex-space-2)">被集成方配置锁定的项显示为只读：控件禁用，附一行说明文字（弱化色），不提供切换控件（见 03-23 设置面板"集成方锁定态"）。</p>
   <div class="settings-row" style="max-width:280px"><label class="form-label" for="s-theme-locked">主题</label><select id="s-theme-locked" disabled aria-disabled="true"><option>亮色</option></select></div>
   <p class="help-text" style="margin:-4px 0 0">由宿主应用设置</p>
 </div>

@@ -1,34 +1,36 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>设计稿目录 · OCE Slides</title>
+<title>设计稿目录 · Cordex Slides</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
-  body{padding:0 0 var(--oce-space-10)}
-  .hub-head{padding:var(--oce-space-8) var(--oce-space-4) var(--oce-space-6);text-align:center;border-bottom:1px solid var(--oce-color-border-subtle);background:var(--oce-color-bg-surface)}
-  .hub-head h1{font-size:var(--oce-font-size-3xl);margin:0 0 8px}
-  .hub-head p{color:var(--oce-color-text-secondary);max-width:640px;margin:0 auto;font-size:var(--oce-font-size-sm)}
-  .hub-toolbar{display:flex;justify-content:center;gap:var(--oce-space-2);margin-top:var(--oce-space-4)}
-  .hub-section{max-width:1080px;margin:var(--oce-space-8) auto 0;padding:0 var(--oce-space-4)}
-  .hub-section h2{font-size:var(--oce-font-size-lg);display:flex;align-items:center;gap:8px;margin-bottom:var(--oce-space-1)}
-  .hub-section .hint{color:var(--oce-color-text-tertiary);font-size:var(--oce-font-size-xs);margin:0 0 var(--oce-space-3)}
-  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--oce-space-4)}
-  .m-card{border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-xl);overflow:hidden;background:var(--oce-color-bg-surface);text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:border-color var(--oce-motion-duration-fast) var(--oce-motion-ease-standard),box-shadow var(--oce-motion-duration-fast) var(--oce-motion-ease-standard)}
-  .m-card:hover{border-color:var(--oce-color-accent-default);box-shadow:var(--oce-shadow-md)}
+  body{padding:0 0 var(--cordex-space-10)}
+  .hub-head{padding:var(--cordex-space-8) var(--cordex-space-4) var(--cordex-space-6);text-align:center;border-bottom:1px solid var(--cordex-color-border-subtle);background:var(--cordex-color-bg-surface)}
+  .hub-head h1{font-size:var(--cordex-font-size-3xl);margin:0 0 8px}
+  .hub-head p{color:var(--cordex-color-text-secondary);max-width:640px;margin:0 auto;font-size:var(--cordex-font-size-sm)}
+  .hub-toolbar{display:flex;justify-content:center;gap:var(--cordex-space-2);margin-top:var(--cordex-space-4)}
+  .hub-section{max-width:1080px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4)}
+  .hub-section h2{font-size:var(--cordex-font-size-lg);display:flex;align-items:center;gap:8px;margin-bottom:var(--cordex-space-1)}
+  .hub-section .hint{color:var(--cordex-color-text-tertiary);font-size:var(--cordex-font-size-xs);margin:0 0 var(--cordex-space-3)}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--cordex-space-4)}
+  .m-card{border:1px solid var(--cordex-color-border-subtle);border-radius:var(--cordex-radius-xl);overflow:hidden;background:var(--cordex-color-bg-surface);text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:border-color var(--cordex-motion-duration-fast) var(--cordex-motion-ease-standard),box-shadow var(--cordex-motion-duration-fast) var(--cordex-motion-ease-standard)}
+  .m-card:hover{border-color:var(--cordex-color-accent-default);box-shadow:var(--cordex-shadow-md)}
   .m-thumb{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;position:relative}
-  .m-thumb .icon{width:28px;height:28px;color:var(--oce-color-text-inverse);opacity:.9}
-  .m-body{padding:var(--oce-space-3)}
-  .m-num{font-size:var(--oce-font-size-2xs);color:var(--oce-color-text-tertiary);font-variant-numeric:tabular-nums}
+  .m-thumb .icon{width:28px;height:28px;color:var(--cordex-color-text-inverse);opacity:.9}
+  .m-body{padding:var(--cordex-space-3)}
+  .m-num{font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-tertiary);font-variant-numeric:tabular-nums}
   .m-title{font-weight:600;margin:2px 0 4px}
-  .m-desc{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-secondary);line-height:1.5}
-  .priority{background:linear-gradient(135deg,var(--oce-color-accent-default),var(--oce-color-accent-hover))}
+  .m-desc{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);line-height:1.5}
+  .priority{background:linear-gradient(135deg,var(--cordex-color-accent-default),var(--cordex-color-accent-hover))}
   .core{background:linear-gradient(135deg,#8A93A2,#667085)}
 </style>
 </head>
 <body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
 <symbol id="i-layout" viewBox="0 0 16 16"><rect x="1.7" y="2.7" width="12.6" height="10.6" rx="1.2"/><line x1="1.7" y1="6" x2="14.3" y2="6"/><line x1="6.2" y1="6" x2="6.2" y2="13.3"/></symbol>
@@ -45,15 +47,15 @@
 </svg>
 
 <header class="hub-head">
-  <h1>OCE Slides 高保真设计稿</h1>
+  <h1>Cordex Slides 高保真设计稿</h1>
   <p>基于 ui-ux-pro-max skill 设计系统基线（见 <code>04-design-system.md</code>「与 ui-ux-pro-max 设计系统基线的比对」）与 <code>04-design-system.md</code> 已裁决的 token 生成。共用 <a href="tokens.css">tokens.css</a> 与 <a href="shell.css">shell.css</a>，每份稿件自带 Phosphor 风格图标 sprite，零其余外部资源，支持亮/暗两套主题（右上角切换）。</p>
   <div class="hub-toolbar">
-    <button type="button" class="pbtn" style="min-height:var(--oce-target-min);border-radius:var(--oce-radius-sm);border:1px solid var(--oce-color-border-control);background:var(--oce-color-bg-surface);padding:0 10px;display:inline-flex;align-items:center;gap:4px" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')"><svg class="icon" aria-hidden="true"><use href="#i-toggle"/></svg>切换主题</button>
+    <button type="button" class="pbtn" style="min-height:var(--cordex-target-min);border-radius:var(--cordex-radius-sm);border:1px solid var(--cordex-color-border-control);background:var(--cordex-color-bg-surface);padding:0 10px;display:inline-flex;align-items:center;gap:4px" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')"><svg class="icon" aria-hidden="true"><use href="#i-toggle"/></svg>切换主题</button>
   </div>
 </header>
 
 <section class="hub-section">
-  <h2><svg class="icon lg" aria-hidden="true" style="color:var(--oce-color-accent-default)"><use href="#i-master"/></svg>母版体系（本轮核心，M2/M3 P0）</h2>
+  <h2><svg class="icon lg" aria-hidden="true" style="color:var(--cordex-color-accent-default)"><use href="#i-master"/></svg>母版体系（本轮核心，M2/M3 P0）</h2>
   <p class="hint">用户反馈左侧栏与编辑器均未考虑幻灯片母版；以下四稿按"母版优先"顺序交付，定义母版视图、版式选择器与设计/主题页签。</p>
   <div class="card-grid">
     <a class="m-card" href="02-editor-main.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></div><div class="m-body"><div class="m-num">01 / 13</div><div class="m-title">编辑器主界面</div><div class="m-desc">普通视图：缩略图栏（含"普通/母版"入口）、ribbon、画布选中态、检查器坞、状态栏、备注条。</div></div></a>
@@ -94,7 +96,7 @@
 </section>
 
 <section class="hub-section">
-  <p class="hint" style="text-align:center;margin-top:var(--oce-space-8)">设计规格详见 <code>../03-screens/*.md</code>（每份 mockup 对应一份或多份界面文档，含状态矩阵与「应用的 UX 规则」）；skill 调用记录与采纳情况见 <code>../04-design-system.md</code> 与 <code>../README.md</code> §8。</p>
+  <p class="hint" style="text-align:center;margin-top:var(--cordex-space-8)">设计规格详见 <code>../03-screens/*.md</code>（每份 mockup 对应一份或多份界面文档，含状态矩阵与「应用的 UX 规则」）；skill 调用记录与采纳情况见 <code>../04-design-system.md</code> 与 <code>../README.md</code> §8。</p>
 </section>
 </body>
 </html>

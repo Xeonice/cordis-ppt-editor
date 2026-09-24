@@ -547,8 +547,8 @@ v1 已有约 38 个图标符号。v2 按以下类别新增，预计新增 **28�
 | 约束 | v2 处理方式 |
 |---|---|
 | 单一 Phosphor SVG 图标家族，禁止 emoji | 扩充同一 sprite，不新增家族 |
-| Token 取值不变，组件内无裸 hex/裸 px | 复用 v1 token 定义；新路由的新组件（如设置面板的密度预览、导出进度条）一律引用既有语义 token，缺失的按 04-design-system 既定命名补齐（如 `--oce-shadow-sm`、`--oce-motion-slower`，v1 未使用但设计系统已定义） |
-| 命中区 ≥ 24px（触控/窄屏 ≥ 44px，间距 ≥ 8px） | 新增控件（插入 flyout 网格项、设置面板控件、导出对话框按钮）复用 `--oce-target-min`/`--oce-target-touch` |
+| Token 取值不变，组件内无裸 hex/裸 px | 复用 v1 token 定义；新路由的新组件（如设置面板的密度预览、导出进度条）一律引用既有语义 token，缺失的按 04-design-system 既定命名补齐（如 `--cordex-shadow-sm`、`--cordex-motion-slower`，v1 未使用但设计系统已定义） |
+| 命中区 ≥ 24px（触控/窄屏 ≥ 44px，间距 ≥ 8px） | 新增控件（插入 flyout 网格项、设置面板控件、导出对话框按钮）复用 `--cordex-target-min`/`--cordex-target-touch` |
 | 可见标签而非占位符 | 新增表单（分享角色下拉的可见标签、设置面板各控件标签）遵循 03-screens/03/08 已确立的模式 |
 | 删除等破坏性操作走可撤销 toast，不用 `confirm()` | 页管理的删除幻灯片、评论删除等新增交互延续 P-80 的模式 |
 | `role="dialog"`/`role="tablist"` 等语义与焦点管理 | DialogShell/Tab 机制泛化后自动带上，新对话框（导出、设置）复用同一泛化机制 |

@@ -49,7 +49,7 @@
 | 1 | 只读态把整条 Ribbon 换成 96px 高的空玻璃卡，只有一个锁图标 | design / insert / text 只读（3 路由 × 2 主题） | 抽出 `ReadonlyRibbonNotice`：40px 细条，锁 + 文案，与 `#/editor` 评审工具条同高 |
 | 2 | 选中框控制点 6px 方块 | editor 默认/多选、insert 手柄、masters 占位符 | `SlideCanvas` 手柄改 10px 圆形 + 主色描边 + 轻阴影（09 §3） |
 | 3 | 在场头像重叠过深，首字母被遮 | 所有路由应用栏 | `[data-slot="avatar-group"]` 规则把重叠减到 6px |
-| 4 | 子路由检查器内容是裸文本行，不走分组卡 | layouts / text / insert | 统一包进 `.oce-well > .oce-group` |
+| 4 | 子路由检查器内容是裸文本行，不走分组卡 | layouts / text / insert | 统一包进 `.cordex-well > .cordex-group` |
 | 5 | 空态/失败态形态不统一（裸文本 vs `Empty`） | history（对比 comments/plugins） | history 改 `Empty` |
 | 6 | 错误态应用栏没有玻璃卡 | editor 打开失败、masters 加载失败 | 错误分支的应用栏包进 `glass-strong` 卡 |
 | 7 | 文本框编辑态指示不一致（整框描边 vs 单条下划线） | editor 文本态 vs text 路由编辑中 | 统一为整框 `ring-[1.5px] ring-primary`（后续） |
@@ -82,7 +82,7 @@
 | 暗色图片占位对比不足（高） | 占位块改用文档色 `doc-ink`（不随主题） | 暗色下为白纸上浅灰虚线框 |
 | 6px 方形手柄 | 10px 圆形 + 主色描边 + 轻阴影（`SlideCanvas`） | 编辑器/插入/母版三处一致 |
 | 头像重叠过深 | `[data-slot="avatar-group"]` 重叠 8→6px | 三个首字母可辨 |
-| 子路由检查器裸文本 | layouts / text / insert 包进 `.oce-well > .oce-group` | 与主界面同一套分组卡 |
+| 子路由检查器裸文本 | layouts / text / insert 包进 `.cordex-well > .cordex-group` | 与主界面同一套分组卡 |
 | history 空/失败态裸文本 | 改 `Empty`（图标 + 标题 + 描述/重试） | 与评论、插件一致 |
 | 错误态应用栏无玻璃卡 | editor / masters 错误分支包 `glass-strong` 卡 | 一致 |
 | history 侧栏被百分比放大 | `EditorShell` 面板尺寸改像素（侧栏 240 / 检查器 300 / history 560） | 侧栏与其它路由同宽 |

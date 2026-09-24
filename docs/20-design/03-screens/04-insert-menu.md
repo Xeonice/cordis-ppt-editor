@@ -1,11 +1,11 @@
 > 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1
-> **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--oce-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
+> **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--cordex-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
 
 # 03-04 插入菜单
 
 > **设计基准（2026-09-15 起）**：组件规格以 [`09-design-specification.md`](../09-design-specification.md) v3.0（shadcn Rhea + 材质层）为准；对应 playground 路由 `#/editor/insert`（[已发布 artifact](https://claude.ai/code/artifact/cf6e1a1a-986b-48bb-b743-5758dff419d2)，源码 `playground/src/routes/`）。本文引用的 `mockups/*.html` 与线框图为历史静态稿，以 playground 实际渲染为终稿。
 
-对应 Ribbon"插入"页签（`ui.ribbon`）及其若干按钮触发的 flyout 画廊（`--oce-z-dropdown`）。覆盖：文本框、形状、图片、表格、图表、图标、批注、插件插入项。
+对应 Ribbon"插入"页签（`ui.ribbon`）及其若干按钮触发的 flyout 画廊（`--cordex-z-dropdown`）。覆盖：文本框、形状、图片、表格、图表、图标、批注、插件插入项。
 
 ---
 

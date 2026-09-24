@@ -1,10 +1,10 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；PRD `07-design-coverage-and-gaps.md` §4 D3；09 v3.0 T-05；playground `Present.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15 Q7：结束态按场景、外链与受限字体口径） | 依赖：charter v0.2；PRD `07-design-coverage-and-gaps.md` §4 D3；09 v3.0 T-05；playground `Present.tsx`
 
 # 03-11 放映模式
 
 > **设计基准（2026-09-15 起）**：组件规格以 [`09-design-specification.md`](../09-design-specification.md) v3.0（shadcn Rhea + 材质层）为准；对应 playground 路由 `#/present`（[已发布 artifact](https://claude.ai/code/artifact/cf6e1a1a-986b-48bb-b743-5758dff419d2)，源码 `playground/src/routes/`）。本文引用的 `mockups/*.html` 与线框图为历史静态稿，以 playground 实际渲染为终稿。
 
-全屏只读呈现，chrome 全部隐藏（见 01-information-architecture.md §5.1）。**动画与切换的播放分阶段**（总编排裁决 CS-03 / 设计-1，见章程 v0.2 §2.3 与 §7）：M1–M3 放映模式渲染每页的**结束态**、不播放动画与切换（效果原样保留并随导出写回）；按原样播放已导入效果为 **M4+ 的 P2**。本文件中涉及播放的交互均标注为 M4+，与保真报告（03-screens/10）中「动画/切换：仅保留」的支持级保持一致。
+全屏只读呈现，chrome 全部隐藏（见 01-information-architecture.md §5.1）。**动画与切换的播放分阶段**（总编排裁决 CS-03 / 设计-1，见章程 v0.2 §2.3 与 §7）：M1–M3 放映模式渲染每页的**结束态**、不播放动画与切换（效果原样保留并随导出写回）；按原样播放已导入效果为 **M4+ 的 P2**。「结束态」按场景区分（rulings §4.15 Q7）：编辑态、缩略图与 PDF/PNG 导出为**静态全部可见**；放映为**主序列可见性终态**（M2 P1）——只应用主序列中对可见性的设置，因此带退出动画的元素在放映画面中隐藏、由点击触发的交互序列元素保持隐藏，避免多个元素叠在一起；在 M2 该能力交付前，放映与编辑态一致为全部可见。受限内嵌字体在放映中使用原字体（只读渲染路径，见 03-screens/13）；外链图片/音视频按部署 `externalResources` 规则加载（默认自动）。本文件中涉及播放的交互均标注为 M4+，与保真报告（03-screens/10）中「动画/切换：仅保留」的支持级保持一致。
 
 ---
 

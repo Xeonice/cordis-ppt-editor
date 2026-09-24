@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15 | 依赖：charter v0.2
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
 
 # 功能域 04：插件 SDK（面向插件开发者）
 
@@ -24,7 +24,7 @@
   文档站    create-*   类型化API   宿主+HMR     兼容矩阵      npm+清单   preset 配置   版本协商
 ```
 
-- **M4 机械化验收**：一个未参与本项目的外部团队（≥ 2 人）仅凭文档站与示例，在 ≤ 2 人日内完成「新增一种元素渲染 + 一个 ribbon 按钮 + 一个属性面板分组」的插件，CTK 全部通过，过程中不向核心团队提问超过 3 次（提问记录为文档缺陷）。
+- **M4 机械化验收**：内部非核心成员（未参与内核开发的同事或全新 AI agent 会话，rulings §4.16 Q11）仅凭公开文档站与示例，在 ≤ 2 人日内完成「新增一种元素渲染 + 一个 ribbon 按钮 + 一个属性面板分组」的插件，CTK 全部通过，过程中不向核心团队提问超过 3 次（提问记录为文档缺陷）。
 
 ---
 
@@ -36,9 +36,9 @@
 - 用户故事：作为插件开发者，我希望按一个固定的包结构写插件，工具自动生成清单，让集成方在不运行的情况下知道我的插件提供什么。
 - 验收标准：
   - 包结构遵循 primer §5.3（`plugin.ts`/`manifest.ts`/`*.contribution.ts`/`services/`/`contracts/`/`__tests__/`）；脚手架生成即符合。
-  - `oce-manifest.json` 由源码静态生成，字段至少：`id`、`version`、`displayName`、`description`、`provides`（服务名）、`injects`（硬依赖服务）、`optional`（可选服务）、`contributes`（按贡献点 id 列出条目摘要）、`events`（声明的事件）、`isomorphism`（`iso`/`dom`/`node`）、`hostApi`（兼容的 kernel 版本范围）、`documentTypes`（适用的文档类型 id，空 = 通用）、`permissions`（声明用途的能力列表，仅展示，PS-13）、`i18n`（提供的语言）。
+  - `cordex-manifest.json` 由源码静态生成，字段至少：`id`、`version`、`displayName`、`description`、`provides`（服务名）、`injects`（硬依赖服务）、`optional`（可选服务）、`contributes`（按贡献点 id 列出条目摘要）、`events`（声明的事件）、`isomorphism`（`iso`/`dom`/`node`）、`hostApi`（兼容的 kernel 版本范围）、`documentTypes`（适用的文档类型 id，空 = 通用）、`permissions`（声明用途的能力列表，仅展示，PS-13）、`i18n`（提供的语言）。
   - CI 校验清单与运行时一致（加载后实际贡献 == 清单声明），不一致即失败。
-  - 集成方能用 CLI（`oce manifest inspect <pkg>`，命名草案）打印清单摘要。
+  - 集成方能用 CLI（`cordex manifest inspect <pkg>`，命名草案）打印清单摘要。
 
 ### PS-02 公开贡献点目录与稳定性分级
 
@@ -57,7 +57,7 @@
 | `core.resource` | 把插件数据挂进 `Snapshot`（`ResourceHook`） | Stable @M4 | M1 |
 | `core.permissionPolicy` | 注册权限策略（能力位 → 命令/路径规则） | Beta @M4 | M3 |
 | `render.scene` | 页级场景合成阶段的贡献 | Beta @M4 | M1 |
-| `render.target` | 注册 `RenderTarget`（dom/svg/canvas） | Stable @M4 | M1 |
+| `render.target` | 注册 `RenderTarget`：`dom`（HTML+SVG，唯一实现）；`canvas` 预留——对外 Stable 前须有最小 canvas Provider 通过契约测试（M3 末，rulings §4.15 Q4） | Stable @M4 | M1 |
 | `render.element` | 注册 `ElementRenderer`（按 kind） | Stable @M4 | M1 |
 | `render.overlay` | 注册覆盖层（选区/参考线/presence 类） | Beta @M4 | M2 |
 | `layout.measurer` | 文本度量器（浏览器 canvas 度量 / Node 字体解析度量） | Beta @M4 | M1 |
@@ -76,6 +76,8 @@
 | `ui.notification` | 通知（toast） | Beta @M4 | M2 |
 | `ui.theme` | 设计 token 覆盖集 | Beta @M4 | M2 |
 
+  - **`ui.*` 贡献形态**（rulings §4.15 Q2）：第三方 UI 贡献 = 声明式描述（id/title/icon/when/位置）+ 可选 React 19 组件；组件一律经 ErrorBoundary 包裹并在 CTK 中跑 axe 夹具；SDK 对宿主 React 的要求为 `^19.0`。框架无关宿主（形态 B）由宿主自绘 UI，只消费声明式部分（`UiRenderer('vanilla')` 契约）。上述形态在 M4 Stable 时冻结。
+
   - **Provider 座**（可替换的服务实现，**不是**贡献点；通过 Definition / Provider / Consumer 三角色替换，替换后必须通过对应的 `run<Definition>Conformance` 契约套件，章程 §5.5）：
 
 | 服务 | Definition 所在 | 默认 Provider | 可替换示例 | 首次可用 |
@@ -83,10 +85,10 @@
 | `store`（`DocumentStore`） | model-core | store-memory | store-yjs（协同） | M1 |
 | `collabTransport` | collab-core | collab-transport-ws | WebRTC 传输（示例 `plugin-webrtc-transport`） | M3 |
 | `OfflineStore` | collab-core | collab-offline-idb（M4，P2） | 自定义持久化 | M4 |
-| `blobStore` | server-storage | S3 / MinIO / 本地 | 集成方自定义（示例 `plugin-s3-storage`） | M3 |
+| `blobStore` | server-storage | S3 兼容（compose 默认 SeaweedFS）/ 本地 | 任意 S3 兼容服务、集成方自定义（示例 `plugin-s3-storage`） | M3 |
 | `layout.measurer`（同时是贡献点） | engine-layout | render-dom canvas 度量 | server-headless 字体度量 | M1 |
 
-  - 稳定级语义：`Stable` = 破坏性变更需主版本且提前 ≥ 1 个次版本弃用；`Beta` = 次版本可破坏但有迁移说明；`Experimental` = 不承诺。包级稳定级字段 `package.json#oce.stability`（章程 §5.2）出现在文档与 api-extractor 报告中（继承 Univer K10 反面：A21）。
+  - 稳定级语义：`Stable` = 破坏性变更需主版本且提前 ≥ 1 个次版本弃用；`Beta` = 次版本可破坏但有迁移说明；`Experimental` = 不承诺。包级稳定级字段 `package.json#cordex.stability`（章程 §5.2）出现在文档与 api-extractor 报告中（继承 Univer K10 反面：A21）。
   - 每个贡献点有：schema（Standard Schema，用于加载期校验）、TS 类型、文档页、≥ 1 个示例、CTK 用例。
   - 贡献在 `ctx.effect` 内注册，插件卸载即撤销（primer MUST #2）；贡献点变化触发 `contribution/changed`。
   - **第三方前缀规则**（章程 §5.5 / D15）：第一方保留域为 `core`、`render`、`layout`、`ui`、`collab`、`format`、`unit`、`store`、`command`、`permission`、`i18n`、`perf`、`slide`、`doc`、`sheet`；第三方插件的事件名与贡献点 id 必须以其 npm scope（去 `@`）为前缀——事件 `<vendor>:<域>/<动作>`，贡献点 `<vendor>:<域>.<名>`；扫描器拒绝无前缀的非保留域。脚手架（PS-03）按包 scope 自动生成前缀。
@@ -96,8 +98,9 @@
 - 优先级：P0 | 目标里程碑：M4（M2 起内部使用） | 依赖能力：`tooling/*`、Manifest 生成
 - 用户故事：作为插件开发者，我希望一条命令生成可编译、可测试、可发布的插件骨架。
 - 验收标准：
-  - `npm create oce-plugin`（命名草案，随 Q1 定）交互式选择模板：`element-kind`（新元素 + 渲染器 + ribbon 按钮）、`ui-panel`、`format-codec`、`format-export`（`core.format`，`canImport:false`）、`telemetry-sink`、`blob-store-provider`（`blobStore` Provider 座）、`document-type`（M5）、`i18n-bundle`。
+  - 脚手架包定名 `@cordexjs/create-plugin`（rulings §4.15 Q1 已裁决），命令 `npm create @cordexjs/plugin`（等价 `pnpm create @cordexjs/plugin`）交互式选择模板：`element-kind`（新元素 + 渲染器 + ribbon 按钮）、`ui-panel`、`format-codec`、`format-export`（`core.format`，`canImport:false`）、`telemetry-sink`、`blob-store-provider`（`blobStore` Provider 座）、`document-type`（M5）、`i18n-bundle`。
   - 生成物：TS 严格配置（继承 `tooling/tsconfig`）、eslint/depcruise 配置、Vitest 测试（含「卸载后无 effect」「缺依赖进入 PENDING」「多实例」三件套）、Manifest 生成脚本、Changesets、README 模板、示例 e2e（Playwright，可选）。
+  - 生成物的 `package.json` 与仓库工具链一致（rulings §4.15 Q9）：`packageManager` 钉 pnpm 11 精确版本、`devEngines`（packageManager/runtime，`onFail: error`）、`engines.node >=26`；内部依赖用 `workspace:` 协议（peer `workspace:^`，其余 `workspace:*`）。
   - 生成后 `pnpm install && pnpm test && pnpm build` 一次通过；生成 ≤ 30 s。
 
 ### PS-04 示例插件仓库
@@ -137,7 +140,7 @@
 - 优先级：P0 | 目标里程碑：M4 | 依赖能力：架构 11 插件兼容套件、`kernel` 诊断（`dumpFiberTree`、`assertNoLiveEffects`）
 - 用户故事：作为插件开发者，我希望一条命令告诉我插件在哪些宿主版本下能正确加载、卸载、共存。
 - 验收标准：
-  - `oce ctk run <pkg>`（草案）在宿主版本矩阵（当前次版本 + 前两个次版本）上执行并输出报告（JSON + Markdown 徽章）：
+  - `cordex ctk run <pkg>`（草案）在宿主版本矩阵（当前次版本 + 前两个次版本）上执行并输出报告（JSON + Markdown 徽章）：
     1. 加载：进入 `ACTIVE`；Manifest 与运行时一致；Config schema 校验通过/失败路径。
     2. 卸载：`fiber.getEffects()` 为空；贡献点条目消失；无残留 DOM 节点/timer/listener。
     3. 缺依赖：移除其 `injects` 的任一服务后进入 `PENDING` 而非抛错；服务恢复后自动 `ACTIVE`。
@@ -163,7 +166,7 @@
 
 - 优先级：P1 | 目标里程碑：M4 | 依赖能力：Changesets、npm provenance
 - 验收标准：
-  - 官方插件与示例：Changesets 生成版本与 changelog；npm 发布带 provenance；包名约定 `@oce/plugin-*`（官方）/ 任意（第三方，建议 `oce-plugin-*` 关键字 `oce-plugin`）。
+  - 官方插件与示例：Changesets 生成版本与 changelog；npm 发布走 OIDC trusted publishing 并带 provenance（与 NF-04 对齐）；npm org 在首次公开发布前注册（rulings §4.15 Q1）；包名约定 `@cordexjs/plugin-*`（官方）/ 任意（第三方，建议 `cordexjs-plugin-*` 关键字 `cordexjs-plugin`）。
   - 第三方插件「已验证」目录（PD-14，P2）：提交 CTK 报告 + 许可证声明 + 源码链接，人工审核后列入文档站；不做运行时市场。
   - 发布前检查：`publint`、`attw`、api-extractor 基线、许可证白名单（章程 D13）。
 
@@ -207,7 +210,7 @@
 ### PS-15 类型安全的开发体验
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：ADR-0001 声明合并桥接、`isolatedDeclarations`、api-extractor
-- 验收标准：插件只 `declare module '@oce/kernel'`（或 ADR-0001 退路），不直接依赖 `cordis`；事件与服务名有类型；贡献条目类型由贡献点泛型推导；`any` 不出现在公开 d.ts（type-coverage 100%）。
+- 验收标准：插件只 `declare module '@cordexjs/kernel'`（或 ADR-0001 退路），不直接依赖 `cordis`；事件与服务名有类型；贡献条目类型由贡献点泛型推导；`any` 不出现在公开 d.ts（type-coverage 100%）。
 
 ### PS-16 支持与生命周期政策
 

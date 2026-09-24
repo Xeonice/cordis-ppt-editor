@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.10 Q14 / Q20（应用栏「⋯」菜单）；`10-prd/07-design-coverage-and-gaps.md`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15 Q8：PDF 时点改 M3 后半段） | 依赖：charter v0.2；rulings §4.10 Q14 / Q20（应用栏「⋯」菜单）；`10-prd/07-design-coverage-and-gaps.md`
 
 # 03-22 导出对话框
 
@@ -73,7 +73,7 @@
 ## 交互说明
 
 - 入口：编辑器应用栏右侧「⋯」更多菜单（应用栏右侧顺序：在场头像 · 分享 · 模式下拉 · **⋯** · 账户头像，rulings §4.10 Q14；菜单项：**导出…（`Mod+E`）**/ 保真报告 / 版本历史 / 插件管理器 / 重命名 / 创建副本 /（开发者，仅开发模式），Q20）、命令面板搜索"导出"、`Mod+E`。
-- 格式选项按里程碑显隐：PNG/SVG 为 M2 P1，PDF（服务端）为 M3；插件贡献的导出格式（`core.format`，`canImport:false`）追加在列表末尾并带归属标识（06-extensibility-ux.md §4）。
+- 格式选项按里程碑显隐：PNG/SVG 为 M2 P1，PDF（服务端）为 M3 后半段（rulings §4.15 Q8：M3 前半段先交付服务端缩略图，PDF 与缩略图共用独立 renderer sidecar；PDF 中外链图片一律为占位、受限字体按只读渲染使用原字体，见 03-screens/13）；插件贡献的导出格式（`core.format`，`canImport:false`）追加在列表末尾并带归属标识（06-extensibility-ux.md §4）。
 - 记忆上次选择（格式+范围，本地偏好，见产品默认答案 D17），下次打开对话框默认沿用；文件名默认等于文档标题。
 - 对话框语义与焦点管理遵循 03-screens/10/08 已确立的规则：`role="dialog"` + `aria-modal="true"`，焦点循环与归还，`Esc`/遮罩点击可关闭（生成中除外，见边界情况）。
 

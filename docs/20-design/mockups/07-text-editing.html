@@ -1,26 +1,28 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>07 文本编辑与格式化 · OCE Slides 设计稿</title>
+<title>07 文本编辑与格式化 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .canvas{width:min(100%,620px)}
-  .mini-toolbar{position:absolute;display:flex;gap:2px;background:var(--oce-color-bg-surface-raised);border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-md);box-shadow:var(--oce-shadow-md);padding:2px;z-index:var(--oce-z-canvas-overlay)}
-  .editing-frame{position:absolute;border:1.5px solid var(--oce-color-border-focus);border-radius:2px;padding:8px 10px;font-size:clamp(10px,2.2vw,12px);color:var(--oce-color-text-secondary);background:var(--oce-color-bg-surface)}
+  .mini-toolbar{position:absolute;display:flex;gap:2px;background:var(--cordex-color-bg-surface-raised);border:1px solid var(--cordex-color-border-subtle);border-radius:var(--cordex-radius-md);box-shadow:var(--cordex-shadow-md);padding:2px;z-index:var(--cordex-z-canvas-overlay)}
+  .editing-frame{position:absolute;border:1.5px solid var(--cordex-color-border-focus);border-radius:2px;padding:8px 10px;font-size:clamp(10px,2.2vw,12px);color:var(--cordex-color-text-secondary);background:var(--cordex-color-bg-surface)}
   .editing-frame ul{margin:0;padding-left:1.1em}
   .editing-frame li{margin-bottom:.3em}
-  .ins-caret{display:inline-block;width:0;border-left:1.5px solid var(--oce-color-border-focus);height:.9em;vertical-align:-.14em;margin-left:1px;animation:caretblink 1s steps(2) infinite}
+  .ins-caret{display:inline-block;width:0;border-left:1.5px solid var(--cordex-color-border-focus);height:.9em;vertical-align:-.14em;margin-left:1px;animation:caretblink 1s steps(2) infinite}
   @keyframes caretblink{50%{opacity:0}}
-  .demo-section{max-width:640px;margin:var(--oce-space-8) auto 0;padding:0 var(--oce-space-4) var(--oce-space-8)}
-  .demo-section h2{font-size:var(--oce-font-size-lg);margin:0 0 4px}
-  .section-note{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-tertiary);margin:0 0 var(--oce-space-3)}
-  .flyout-label{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-tertiary);margin:0 0 6px}
+  .demo-section{max-width:640px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4) var(--cordex-space-8)}
+  .demo-section h2{font-size:var(--cordex-font-size-lg);margin:0 0 4px}
+  .section-note{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:0 0 var(--cordex-space-3)}
+  .flyout-label{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:0 0 6px}
 </style>
 </head>
 <body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <a class="skip-link" href="#canvas-main">跳至画布</a>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
@@ -82,12 +84,12 @@
     </div><span class="label">幻灯片</span></div>
     <div class="ribbon-group"><div class="ribbon-row">
       <label class="vis-hidden-label" for="rb-font">字体（可搜索，输入过滤）</label>
-      <div style="display:flex;align-items:center;gap:3px;height:24px;width:112px;background:var(--oce-color-bg-inset);border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-sm);padding:0 4px">
-        <svg class="icon" aria-hidden="true" style="width:11px;height:11px;color:var(--oce-color-text-tertiary);flex-shrink:0"><use href="#i-search"/></svg>
+      <div style="display:flex;align-items:center;gap:3px;height:24px;width:112px;background:var(--cordex-color-bg-inset);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);padding:0 4px">
+        <svg class="icon" aria-hidden="true" style="width:11px;height:11px;color:var(--cordex-color-text-tertiary);flex-shrink:0"><use href="#i-search"/></svg>
         <input id="rb-font" type="text" value="微软雅黑" style="border:none;background:none;height:100%;font-size:11px;width:100%;padding:0">
       </div>
       <label class="vis-hidden-label" for="rb-size">字号</label>
-      <input id="rb-size" type="text" value="18" style="width:28px;height:24px;font-size:11px;text-align:center;border:1px solid var(--oce-color-border-control);border-radius:var(--oce-radius-sm);background:var(--oce-color-bg-inset)">
+      <input id="rb-size" type="text" value="18" style="width:28px;height:24px;font-size:11px;text-align:center;border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);background:var(--cordex-color-bg-inset)">
       <button type="button" class="ribbon-btn" aria-label="减小字号" style="width:16px;padding:0"><svg class="icon" aria-hidden="true" style="width:9px;height:9px"><use href="#i-chevron-down"/></svg></button>
       <button type="button" class="ribbon-btn" aria-label="增大字号" style="width:16px;padding:0"><svg class="icon" aria-hidden="true" style="width:9px;height:9px"><use href="#i-chevron-down" transform="rotate(180 8 8)"/></svg></button>
     </div><div class="ribbon-row">
@@ -142,8 +144,8 @@
     <div class="canvas" role="img" aria-label="第 2 页画布：正文文本框正在编辑，插入符在第二行末尾；标题占位符为空，显示灰色提示文字">
       <div class="shape shape--title placeholder-hint" style="top:9%;left:7%;width:60%">单击此处添加标题</div>
       <div class="mini-toolbar" style="top:31%;left:7%">
-        <button type="button" class="ribbon-btn" style="width:auto;height:24px;font-size:var(--oce-font-size-2xs);padding:0 4px" aria-label="字体">微软雅黑▾</button>
-        <button type="button" class="ribbon-btn" style="width:28px;height:24px;font-size:var(--oce-font-size-2xs)" aria-label="字号">18▾</button>
+        <button type="button" class="ribbon-btn" style="width:auto;height:24px;font-size:var(--cordex-font-size-2xs);padding:0 4px" aria-label="字体">微软雅黑▾</button>
+        <button type="button" class="ribbon-btn" style="width:28px;height:24px;font-size:var(--cordex-font-size-2xs)" aria-label="字号">18▾</button>
         <button type="button" class="ribbon-btn" style="width:24px;height:24px;font-weight:700" aria-label="加粗">B</button>
         <button type="button" class="ribbon-btn" style="width:24px;height:24px" aria-label="字体颜色"><svg class="icon" aria-hidden="true"><use href="#i-font"/></svg>▾</button>
         <button type="button" class="ribbon-btn" style="width:24px;height:24px" aria-label="项目符号">•▾</button>
@@ -197,22 +199,22 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="lk-title" style="width:min(420px,100%)">
     <div class="dialog-head"><span id="lk-title">插入超链接</span><span class="spacer"></span><button type="button" class="btn btn-icon btn-sm" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
     <div class="dialog-body">
-      <div class="prop-row" role="radiogroup" aria-label="链接类型" style="gap:var(--oce-space-4)">
+      <div class="prop-row" role="radiogroup" aria-label="链接类型" style="gap:var(--cordex-space-4)">
         <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="lk-type" checked>网页 URL</label>
         <label style="display:flex;align-items:center;gap:4px"><input type="radio" name="lk-type">本文稿中的页</label>
       </div>
       <div class="field" style="margin-top:8px"><label for="lk-url">地址</label><input id="lk-url" type="text" value="https://example.com/q2-report"></div>
-      <p class="help-text" style="display:flex;gap:4px;align-items:center;color:var(--oce-color-warning-emphasis);margin-top:4px"><svg class="icon" aria-hidden="true" style="width:12px;height:12px;flex-shrink:0"><use href="#i-warning"/></svg>仅支持 http/https/mailto/tel</p>
+      <p class="help-text" style="display:flex;gap:4px;align-items:center;color:var(--cordex-color-warning-emphasis);margin-top:4px"><svg class="icon" aria-hidden="true" style="width:12px;height:12px;flex-shrink:0"><use href="#i-warning"/></svg>仅支持 http/https/mailto/tel</p>
       <div class="field" style="margin-top:8px"><label for="lk-text">显示文字</label><input id="lk-text" type="text" value="季度业绩汇报"></div>
     </div>
     <div class="dialog-foot"><button type="button" class="btn" style="margin-right:auto">移除链接</button><button type="button" class="btn btn-primary">确定</button></div>
   </div>
 
-  <h2 style="margin-top:var(--oce-space-8)">附：项目符号与编号 flyout</h2>
+  <h2 style="margin-top:var(--cordex-space-8)">附：项目符号与编号 flyout</h2>
   <p class="section-note">与颜色/字体 flyout 共用同一套 popover 定位规则（贴合触发按钮，视口边缘自动翻转）。</p>
   <div class="popover" style="position:static;width:min(460px,100%)">
     <p class="flyout-label">项目符号（7 种字符预设 + 无 + 自定义…；自定义图片项目符号为 P2）</p>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--oce-space-3)">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--cordex-space-3)">
       <button type="button" class="chip" aria-pressed="true" aria-label="实心圆点">•</button>
       <button type="button" class="chip" aria-label="空心圆点">○</button>
       <button type="button" class="chip" aria-label="实心方块">■</button>

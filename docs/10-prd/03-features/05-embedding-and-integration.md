@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-17 | 依赖：charter v0.2
+> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
 
 # 功能域 05：嵌入与集成（面向集成方）
 
@@ -9,8 +9,8 @@
 ## 0. 本域的产品立场
 
 1. **SDK 优先**（章程关键词一）：交付的是 `Preset` + 插件 + 内核，`apps/web` 只是组装样例。集成方不应该需要复制 `apps/web` 的任何代码才能嵌入。
-2. **集成方拥有身份、存储与业务；SDK 拥有文档模型、编辑与协同**。边界上的一切通过 Definition/Provider（可替换）或回调（事件）交互，不通过全局变量或 DOM 约定。
-3. **默认安全、默认离线（无外呼）、默认无遥测**：SDK 不主动联网（除集成方配置的协同端点与资源 URL），遥测默认 no-op（PD-10）。
+2. **身份由外置 OIDC IdP 拥有（服务端不持有密码），存储与业务由集成方/部署方拥有；SDK 拥有文档模型、编辑与协同**。边界上的一切通过 Definition/Provider（可替换）或回调（事件）交互，不通过全局变量或 DOM 约定。
+3. **默认安全、默认离线（无外呼）、默认无遥测**：SDK 不主动联网（除集成方配置的协同端点与资源 URL，以及文档内 `http(s)` 外链资源——后者默认自动加载，部署配置 `externalResources` 可收紧为 `confirm`/`never`，见 EM-14），遥测默认 no-op（PD-10）。
 4. **按需加载是产品承诺**（规避 Univer A33）：只看不编辑的场景不该为编辑器、协同、图表付出体积。
 
 ---
@@ -20,15 +20,15 @@
 ```
  形态                      包                          适用                      里程碑
  ───────────────────────── ─────────────────────────── ───────────────────────── ──────
- A. React 组件 <EditorHost>  @oce/ui-react + preset-*    React 19 宿主              M2
- B. 框架无关挂载函数         @oce/ui-core + render-dom    Vue/Angular/Svelte/原生     M2（ui-core 无 React）
+ A. React 组件 <EditorHost>  @cordexjs/ui-react + preset-*    React ^19 宿主（React 18 走 B/E）M2
+ B. 框架无关挂载函数         @cordexjs/ui-core + render-dom    Vue/Angular/Svelte/原生     M2（宿主自绘 UI，不带 React）
  C. 只读查看器               preset-slide-viewer          文档预览、评论查看          M1
  D. Headless（浏览器/Node）   kernel + model-* + ooxml-*   批处理、校验、模板填充      M1（Node：M3 server-headless）
  E. iframe 嵌入 apps/web      apps/web 部署              最快 PoC、强隔离            M3（P2）
- F. Web Component 包装        @oce/ui-webc（未来）        无框架、跨团队              M4+（P2）
+ F. Web Component 包装        @cordexjs/ui-webc（未来）        无框架、跨团队              M4+（P2）
 ```
 
-- 形态 B 的 UI 由 `ui-core` 贡献点驱动，非 React 宿主需要一个绑定层；M2 只交付 React 绑定（章程 D10、Q2），B 的验收是「`ui-core` 不 import React 且有一个最小原生 DOM 绑定示例（headless + 自绘工具栏）」。
+- 形态 B（rulings §4.15 Q2）：宿主自绘 UI，只消费 `ui-core` 贡献点的声明式部分；装配时排除 `ui-react` 与 `slide-ui`（`FRAMEWORK_FREE_EXCLUDES`），因此不带入 React/Radix。M2 只交付 React 绑定（章程 D10）；B 的验收是「`ui-core` 与各 `*-ui` 的 domain/application 层不 import React（depcruise 规则）+ `examples/embed-vanilla` 实现 `UiRenderer('vanilla')` 并通过 UI 渲染契约测试 + 产物中不含 react/radix 模块（bundle 断言）」。
 
 ---
 
@@ -57,21 +57,23 @@
 
 ### EM-03 鉴权与身份对接
 
-- 优先级：P0 | 目标里程碑：M3（单人模式 M2 仅需身份信息） | 依赖能力：`protocol` 鉴权握手、`permissions`、`collab-transport-ws`
-- 用户故事：作为集成方，我已有自己的登录体系与权限系统，我希望 SDK 只消费我签发的短期令牌与角色，不要求接入它的用户体系。
-- 验收标准：
-  - 客户端：集成方提供 `getToken(): Promise<string>` 回调（短期 JWT，建议 ≤ 1 h）与 `user: { id, displayName, avatarUrl?, color? }`；SDK 在握手与刷新时调用；不持久化令牌。
-  - 服务端：`apps/server` Auth 模块支持 OIDC（章程 Q6）与「集成方签名 JWT」两种模式；JWT claims 约定（草案）：`sub`、`tenant`、`doc`、`caps[]`（能力位）、`exp`；服务端以 JWKS 验签。
-  - 权限来源可替换：默认从 JWT claims 读；可配置为回调集成方权限服务（缓存 ≤ 60 s，撤销 ≤ 2 s 通过推送实现，CO-05）。
+- 优先级：P0 | 目标里程碑：M3（OIDC；单人模式 M2 仅需身份信息）/ M4（集成方签名 JWT、API Key） | 依赖能力：`protocol` 鉴权握手、`permissions`、`collab-transport-ws`
+- 用户故事：作为集成方，我已有自己的登录体系（任意标准 OIDC IdP），我希望服务端直接信任它，不要求我迁移用户或让服务端保存密码。
+- 验收标准（rulings §4.15 Q6）：
+  - 客户端：集成方提供 `getToken(): Promise<string>` 回调（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4）。M3 只返回 OIDC 登录后换取的一方 Ticket；ADR-0029）与 `user: { id, displayName, avatarUrl?, color? }`；SDK 在握手与刷新时调用；不持久化令牌。
+  - 服务端 M1–M3：`apps/server` Auth 模块**只认 OIDC**（可接任意 OIDC IdP；docker-compose 可选内置 **Casdoor**，国内 IM 登录经 Casdoor 代理）；服务端不持有密码与凭据；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
+  - 服务端 M4：新增「集成方签名 JWT」与「API Key」两种模式（JWKS 验签；首次出现的主体 JIT 建影子用户）；JWT claims 约定（草案）：`sub`、`doc`、`caps[]`（能力位）、`exp`（单组织，无租户声明）。
+  - 权限来源：M3 为服务端文档权限（章程 D12，撤销 ≤ 2 s 通过推送实现，CO-05）；M4 起可配置为从 JWT claims 读或回调集成方权限服务（缓存 ≤ 60 s）。
+  - 注册策略为部署级开关 `auth.selfSignup`（默认关：管理员在 IdP 建号；文档分享邀请只对已存在账号生效，rulings §4.17 D1）；分享链接始终要求登录（CO-15）。
   - 单人模式（无服务端）：集成方直接传入能力位；SDK 客户端管线据此 fail-closed。
   - 鉴权失败错误码：`server.auth.invalid_token`、`server.auth.expired`、`server.auth.forbidden`（HTTP 401/401/403，WS 4401/4401/4403；架构 10 §11.2），均触发 `error/raised` 且不泄露内部细节。
 
 ### EM-04 存储对接
 
-- 优先级：P0 | 目标里程碑：M2（字节回调）/ M3（服务端 Provider） | 依赖能力：`server-storage` Definition + Provider（S3/MinIO/本地）、资源上传通道（CO-12）
+- 优先级：P0 | 目标里程碑：M2（字节回调）/ M3（服务端 Provider） | 依赖能力：`server-storage` Definition + Provider（S3 兼容，compose 默认 SeaweedFS / 本地）、资源上传通道（CO-12）
 - 验收标准：
   - 前端：文档字节来源与去向由集成方掌握（EM-02）；图片/媒体插入时的二进制走「资源上传回调」`uploadAsset(file) → { url | assetId }`（协同模式必需，单人模式可选：不提供则内嵌到 pptx）。
-  - 服务端：`blobStore` 服务的 Provider 座可替换（S3 兼容、MinIO、本地文件系统、集成方自定义），接口含 put/get/head/delete/presign；切换 Provider 只改配置并通过 `runBlobStoreConformance`。
+  - 服务端：`blobStore` 服务的 Provider 座可替换（任意 S3 兼容服务——自托管 compose 默认 SeaweedFS、本地文件系统、集成方自定义），接口含 put/get/head/delete/presign；切换 Provider 只改配置并通过 `runBlobStoreConformance`。
   - 元数据（文档、版本、评论索引、审计）默认 Postgres（ADR-0022）；集成方可只用 SDK 的协同网关而自管元数据（P2，需公开表结构与迁移脚本）。
   - 大文件：≥ 10 MB 上传走分片/预签名直传，不经 Nest 进程内存。
 
@@ -107,12 +109,12 @@
 
 ### EM-06 主题与外观定制
 
-- 优先级：P0 | 目标里程碑：M2 | 依赖能力：`@oce/design` token（CSS 变量单向契约，继承 Univer K7 并扩展到间距/字号/z-index/动效）、`theme` 服务、`ui.theme` 贡献点
+- 优先级：P0 | 目标里程碑：M2 | 依赖能力：`@cordexjs/design` token（CSS 变量单向契约，继承 Univer K7 并扩展到间距/字号/z-index/动效）、`theme` 服务、`ui.theme` 贡献点
 - 用户故事：作为集成方，我希望编辑器看起来像我产品的一部分：品牌色、圆角、字体、暗色模式一致。
 - 验收标准：
   - 全部视觉属性 token 化（颜色、间距、字号、圆角、阴影、z-index、动效时长/曲线）；集成方通过 CSS 变量覆盖或 `theme` 服务传入 token 对象；运行时切换 ≤ 100 ms 无闪烁。
   - 内置 light/dark + `prefers-color-scheme` 跟随，并响应宿主 `data-theme` 标记；高对比（`forced-colors`）可用（NF-05）；材质层（玻璃面板）在 `prefers-reduced-transparency: reduce` 或不支持 `backdrop-filter` 时退化为不透明面板（设计 09 v3.0 §6.3；NF-01 §1.5）。
-  - 组件基座：shadcn/ui `radix-rhea` 复制件 + `@oce/design` 主题变量（章程 D10、ADR-0017）；主色亮 `#3A5CE6` / 暗 `#6B93FF`（rulings §4.8）。
+  - 组件基座：shadcn/ui `radix-rhea` 复制件 + `@cordexjs/design` 主题变量（章程 D10、ADR-0017）；主色亮 `#3A5CE6` / 暗 `#6B93FF`（rulings §4.8）。
   - 密度：`comfortable`/`compact` 两档（设计 04）。
   - 字体：UI 字体族可配置；画布内容字体不受 UI 主题影响（内容保真优先）。
   - 图标可替换（图标集作为 token 引用，P1）。
@@ -161,9 +163,9 @@
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`apps/server`（NestJS 11）、`server-*` 包、`protocol`（zod schema → OpenAPI）
 - 验收标准：
-  - 两种方式：(a) 部署参考服务 `apps/server`（docker-compose，Q10）并通过 REST/WS 集成；(b) 在自有 Nest 应用中 import `server-*` 模块（Collab Gateway、ImportExport、Snapshots、Thumbnails、Audit），自带 Auth。
+  - 两种方式：(a) 部署参考服务 `apps/server`（自托管 docker-compose 洁净栈，Q10；不提供自营 SaaS）并通过 REST/WS 集成；(b) 在自有 Nest 应用中 import `server-*` 模块（Collab Gateway、ImportExport、Snapshots、Thumbnails、Audit），自带 Auth。
   - `protocol` 生成 OpenAPI 3.1 与 TS 客户端；WS 消息 schema 有文档；错误码统一。
-  - 多租户：所有接口带租户上下文；数据隔离在元数据层（Q6）。
+  - 单组织（rulings §4.15 T-0）：一次部署 = 一个组织，接口与数据模型中没有租户概念；数据访问兜底 = 文档权限检查（章程 D12）+ **文档级 Postgres RLS**（Q6）。将来若做 SaaS 另立项。
   - 反向代理/WS 粘性与跨实例 pub/sub 要求写入部署指南（SV-09）。
 
 ### EM-11 国际化对接
@@ -190,21 +192,23 @@
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`render-dom`、`ooxml-core` 输入限制（OF-24）
 - 验收标准：
-  - 在严格 CSP 下工作：`script-src 'self'`（无 `unsafe-eval`/`unsafe-inline` 脚本）；样式以 CSS 变量与类名注入（若需 `style-src 'unsafe-inline'`，文档说明并提供 nonce 方案，P1）；Worker 以同源脚本加载（`blob:` Worker 可选）。
-  - 内容安全：文档内 SVG 经清洗（移除脚本/外链/事件属性）后渲染；超链接协议白名单；外部媒体仅 `http(s)`；粘贴内容清洗（ED-17）。
-  - 无第三方外呼：SDK 不加载 CDN 资源、不发遥测（除集成方配置）。
+  - 本条是一份**客户端安全基线**（M2 P0，rulings §4.15 Q2/Q4/Q7 合并）：
+  - 在严格 CSP 下工作：`script-src 'self'`（无 `unsafe-eval`/`unsafe-inline` 脚本）；样式以 CSS 变量与类名注入，需要内联样式时走 **CSP nonce（M2）**；**Trusted Types：M2 report-only → M3 强制**；Worker 以同源脚本加载（`blob:` Worker 可选；EMF 栅格化 chunk 同样同源）。
+  - 内容安全：文档内 SVG（`asvg:svgBlip` 等）**只以图像上下文渲染**（`<img>` / SVG `<image>`），禁止以 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 注入文档内容（由类型治理扫描器强制）；客户端 SVG 处理归属渲染层（M-07）；超链接协议白名单；粘贴内容清洗（ED-17）。
+  - 外链资源（OF 矩阵 §2.5）：外部关系全部原样保留，仅 `http(s)` 可激活；部署配置 `externalResources = auto`（默认，用户选择）/ `confirm` / `never`，CSP 的 `img-src`/`media-src` 随配置收紧；`never` 即满足「不许外呼」的安全要求。默认 `auto` 会向外链域名暴露查看者 IP 与打开行为，集成检查清单（EM-18）须提示。服务端与 headless 永不加载外链。
+  - 无第三方外呼：SDK 不加载 CDN 资源、不发遥测（除集成方配置与上述外链资源）。
   - 可在 `sandbox` iframe（`allow-scripts allow-same-origin`）内运行；剪贴板/全屏等需要的权限在文档列出。
   - 依赖：许可证白名单（D13）、`npm audit`/OSV 门禁、SBOM 随发布提供（P1）。
 
 ### EM-15 版本升级与兼容
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：ADR-0002、`migrations`
-- 验收标准：语义化版本；水平层 lockstep（一个版本号）；升级指南按次版本；`Snapshot` 向后兼容读（旧 → 新自动迁移），向前不承诺；弃用 API 在类型层标记并在 ≥ 1 个次版本后移除；每次发布附兼容矩阵（浏览器、Node、React、插件 API）。
+- 验收标准：语义化版本；水平层 lockstep（一个版本号）；升级指南按次版本；`Snapshot` 向后兼容读（旧 → 新自动迁移），向前不承诺；弃用 API 在类型层标记并在 ≥ 1 个次版本后移除；每次发布附兼容矩阵（浏览器、Node（基线 26）、React（`^19.0`）、插件 API、CSP/Trusted Types 要求）。
 
 ### EM-16 许可与合规
 
 - 优先级：P0 | 目标里程碑：M1 | 依赖能力：—
-- 验收标准：SDK 许可证（待用户定，README 待决 PD-21 / 章程 Q12，建议 Apache-2.0）；第三方 NOTICE 随包；无 AGPL 代码（D13；PPTist 仅作交互参考）；借用 Apache-2.0 代码保留署名。
+- 验收标准：SDK 许可证 **Apache-2.0**（已裁决，README PD-21 / 章程 Q12，rulings §4.16；根 `LICENSE` + `NOTICE`，可发布包 `license: Apache-2.0`）；第三方 NOTICE 随包；无 AGPL 代码（D13；PPTist 仅作交互参考）；借用 Apache-2.0 代码保留署名。
 
 ### EM-17 参考集成与快速开始
 
@@ -229,9 +233,9 @@
 | US-I-05 | 我要在有人评论时给被 @ 的人发通知 | EM-05 `comment/mentioned` |
 | US-I-06 | 我要隐藏「图表」按钮，加一个「插入产品图」按钮 | EM-08 |
 | US-I-07 | 我要在服务端批量把 1,000 份模板填上客户名 | EM-09 模板填充、SV-13 |
-| US-I-08 | 我们的安全团队要求严格 CSP 且不许外呼 | EM-14 |
+| US-I-08 | 我们的安全团队要求严格 CSP 且不许外呼（`externalResources = never`） | EM-14 |
 | US-I-09 | 我想知道升级 SDK 会不会坏 | EM-15 |
-| US-I-10 | 我要把协同网关跑在我们的 K8s 里 | EM-10、SV-09 |
+| US-I-10 | 我要把协同网关跑在我们的 K8s 里（M3 为 compose；Helm 为 M4 P1） | EM-10、SV-09 |
 
 ---
 

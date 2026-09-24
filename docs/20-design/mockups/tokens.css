@@ -1,155 +1,155 @@
 /*
-  OCE Slides — 设计 token（供 docs/20-design/mockups/*.html 高保真设计稿共用）
+  Cordex Slides — 设计 token（供 docs/20-design/mockups/*.html 高保真设计稿共用）
   权威来源：docs/20-design/04-design-system.md §2（数值必须与该文档逐项一致，本文件不引入新数值）。
 
   主题属性说明（与 04-design-system.md §3 的产品约定刻意不同，属已记录的例外）：
-  产品运行时 @oce/design 使用 `data-oce-theme` 属性（命名空间隔离，见 04 §3）。
-  本目录下的设计稿与 prototype/index.html 一样，是“独立的静态演示 artifact”，不是 @oce/design 的实际产出，
+  产品运行时 @cordexjs/design 使用 `data-cordex-theme` 属性（命名空间隔离，见 04 §3）。
+  本目录下的设计稿与 prototype/index.html 一样，是“独立的静态演示 artifact”，不是 @cordexjs/design 的实际产出，
   因此沿用 prototype 已确立的通用 `data-theme` 属性（三段式：:root 默认亮色 → prefers-color-scheme 媒体查询 → 显式 [data-theme] 覆盖）。
-  密度同理使用通用 `data-density`（产品字段名 `data-oce-density` 为设计侧推荐值，见 04 §3 与 README 待决事项 D10，尚未由架构最终定名）。
+  密度同理使用通用 `data-density`（产品字段名 `data-cordex-density` 为设计侧推荐值，见 04 §3 与 README 待决事项 D10，尚未由架构最终定名）。
 */
 
 :root {
   color-scheme: light;
 
   /* ---- 2.1 调色板原语 Palette Primitives（仅本文件内部派生语义 token 使用，组件不得直接引用） ---- */
-  --oce-palette-gray-100:#F5F6F8; --oce-palette-gray-200:#E9EBEF; --oce-palette-gray-300:#D7DBE2;
-  --oce-palette-gray-400:#B7BEC9; --oce-palette-gray-500:#8A93A2; --oce-palette-gray-600:#667085;
-  --oce-palette-gray-700:#4A5468; --oce-palette-gray-800:#2E3648; --oce-palette-gray-900:#1A2030;
-  --oce-palette-accent-100:#E8EAFD; --oce-palette-accent-300:#9CA4F5; --oce-palette-accent-400:#7B82FF;
-  --oce-palette-accent-500:#4A54E1; --oce-palette-accent-600:#3A3FC4; --oce-palette-accent-700:#2C2FA0;
-  --oce-palette-accent-800:#21237A;
-  --oce-palette-success-100:#E6F6ED; --oce-palette-success-500:#1E9E5A; --oce-palette-success-700:#146B3D;
-  --oce-palette-warning-100:#FFF4E0; --oce-palette-warning-500:#B76E00; --oce-palette-warning-700:#8A5300;
-  --oce-palette-danger-100:#FDEAEA; --oce-palette-danger-500:#D92D20; --oce-palette-danger-700:#A11C10;
-  --oce-palette-info-100:#E7F1FE; --oce-palette-info-500:#1570CF; --oce-palette-info-700:#0C4A93;
-  --oce-color-presence-1:#8B5CF6; --oce-color-presence-2:#DB2777; --oce-color-presence-3:#D9480F;
-  --oce-color-presence-4:#B45309; --oce-color-presence-5:#0E8A7A; --oce-color-presence-6:#0B7FBF;
-  --oce-color-presence-7:#C026D3; --oce-color-presence-8:#64748B; --oce-color-presence-9:#7C3AED;
-  --oce-color-presence-10:#BE185D; --oce-color-presence-11:#C2410C; --oce-color-presence-12:#0F766E;
+  --cordex-palette-gray-100:#F5F6F8; --cordex-palette-gray-200:#E9EBEF; --cordex-palette-gray-300:#D7DBE2;
+  --cordex-palette-gray-400:#B7BEC9; --cordex-palette-gray-500:#8A93A2; --cordex-palette-gray-600:#667085;
+  --cordex-palette-gray-700:#4A5468; --cordex-palette-gray-800:#2E3648; --cordex-palette-gray-900:#1A2030;
+  --cordex-palette-accent-100:#E8EAFD; --cordex-palette-accent-300:#9CA4F5; --cordex-palette-accent-400:#7B82FF;
+  --cordex-palette-accent-500:#4A54E1; --cordex-palette-accent-600:#3A3FC4; --cordex-palette-accent-700:#2C2FA0;
+  --cordex-palette-accent-800:#21237A;
+  --cordex-palette-success-100:#E6F6ED; --cordex-palette-success-500:#1E9E5A; --cordex-palette-success-700:#146B3D;
+  --cordex-palette-warning-100:#FFF4E0; --cordex-palette-warning-500:#B76E00; --cordex-palette-warning-700:#8A5300;
+  --cordex-palette-danger-100:#FDEAEA; --cordex-palette-danger-500:#D92D20; --cordex-palette-danger-700:#A11C10;
+  --cordex-palette-info-100:#E7F1FE; --cordex-palette-info-500:#1570CF; --cordex-palette-info-700:#0C4A93;
+  --cordex-color-presence-1:#8B5CF6; --cordex-color-presence-2:#DB2777; --cordex-color-presence-3:#D9480F;
+  --cordex-color-presence-4:#B45309; --cordex-color-presence-5:#0E8A7A; --cordex-color-presence-6:#0B7FBF;
+  --cordex-color-presence-7:#C026D3; --cordex-color-presence-8:#64748B; --cordex-color-presence-9:#7C3AED;
+  --cordex-color-presence-10:#BE185D; --cordex-color-presence-11:#C2410C; --cordex-color-presence-12:#0F766E;
 
   /* ---- 2.2 语义色（亮色默认） ---- */
-  --oce-color-bg-canvas:#EDEFF3; --oce-color-bg-surface:#FFFFFF; --oce-color-bg-surface-raised:#FFFFFF;
-  --oce-color-bg-inset:#F5F6F8; --oce-color-bg-overlay-scrim:rgba(26,32,48,.45);
-  --oce-color-bg-selected:#E8EAFD; --oce-color-bg-hover:rgba(26,32,48,.05); --oce-color-bg-active:rgba(26,32,48,.10);
-  --oce-color-border-subtle:#E9EBEF; --oce-color-border-default:#D7DBE2; --oce-color-border-control:#8A93A2;
-  --oce-color-border-strong:#8A93A2; --oce-color-border-focus:#4A54E1;
-  --oce-color-text-primary:#1A2030; --oce-color-text-secondary:#4A5468; --oce-color-text-tertiary:#667085;
-  --oce-color-text-disabled:#8A93A2; --oce-color-text-inverse:#FFFFFF; --oce-color-text-link:#3A3FC4;
-  --oce-color-accent-default:#4A54E1; --oce-color-accent-hover:#3A3FC4; --oce-color-accent-active:#2C2FA0;
-  --oce-color-accent-subtle:#E8EAFD;
-  --oce-color-success-default:#1E9E5A; --oce-color-success-subtle:#E6F6ED; --oce-color-success-emphasis:#146B3D;
-  --oce-color-warning-default:#B76E00; --oce-color-warning-subtle:#FFF4E0; --oce-color-warning-emphasis:#8A5300;
-  --oce-color-danger-default:#D92D20; --oce-color-danger-subtle:#FDEAEA; --oce-color-danger-emphasis:#A11C10;
-  --oce-color-info-default:#1570CF; --oce-color-info-subtle:#E7F1FE; --oce-color-info-emphasis:#0C4A93;
-  --oce-color-focus-ring:#4A54E1;
-  --oce-color-selection-self:var(--oce-color-accent-default);
+  --cordex-color-bg-canvas:#EDEFF3; --cordex-color-bg-surface:#FFFFFF; --cordex-color-bg-surface-raised:#FFFFFF;
+  --cordex-color-bg-inset:#F5F6F8; --cordex-color-bg-overlay-scrim:rgba(26,32,48,.45);
+  --cordex-color-bg-selected:#E8EAFD; --cordex-color-bg-hover:rgba(26,32,48,.05); --cordex-color-bg-active:rgba(26,32,48,.10);
+  --cordex-color-border-subtle:#E9EBEF; --cordex-color-border-default:#D7DBE2; --cordex-color-border-control:#8A93A2;
+  --cordex-color-border-strong:#8A93A2; --cordex-color-border-focus:#4A54E1;
+  --cordex-color-text-primary:#1A2030; --cordex-color-text-secondary:#4A5468; --cordex-color-text-tertiary:#667085;
+  --cordex-color-text-disabled:#8A93A2; --cordex-color-text-inverse:#FFFFFF; --cordex-color-text-link:#3A3FC4;
+  --cordex-color-accent-default:#4A54E1; --cordex-color-accent-hover:#3A3FC4; --cordex-color-accent-active:#2C2FA0;
+  --cordex-color-accent-subtle:#E8EAFD;
+  --cordex-color-success-default:#1E9E5A; --cordex-color-success-subtle:#E6F6ED; --cordex-color-success-emphasis:#146B3D;
+  --cordex-color-warning-default:#B76E00; --cordex-color-warning-subtle:#FFF4E0; --cordex-color-warning-emphasis:#8A5300;
+  --cordex-color-danger-default:#D92D20; --cordex-color-danger-subtle:#FDEAEA; --cordex-color-danger-emphasis:#A11C10;
+  --cordex-color-info-default:#1570CF; --cordex-color-info-subtle:#E7F1FE; --cordex-color-info-emphasis:#0C4A93;
+  --cordex-color-focus-ring:#4A54E1;
+  --cordex-color-selection-self:var(--cordex-color-accent-default);
 
   /* ---- 2.2a 文档内容与舞台色（不随主题切换，两套主题下取值相同） ---- */
-  --oce-color-doc-paper:#FFFFFF; --oce-color-doc-ink:#1A2030;
-  --oce-color-stage-bg:#0A0A0A; --oce-color-stage-chrome:rgba(22,22,22,.85); --oce-color-stage-fg:#FFFFFF;
+  --cordex-color-doc-paper:#FFFFFF; --cordex-color-doc-ink:#1A2030;
+  --cordex-color-stage-bg:#0A0A0A; --cordex-color-stage-chrome:rgba(22,22,22,.85); --cordex-color-stage-fg:#FFFFFF;
 
   /* ---- 2.7 间距 4px 基准 ---- */
-  --oce-space-0:0; --oce-space-1:.25rem; --oce-space-2:.5rem; --oce-space-3:.75rem; --oce-space-4:1rem;
-  --oce-space-5:1.25rem; --oce-space-6:1.5rem; --oce-space-8:2rem; --oce-space-10:2.5rem;
-  --oce-space-12:3rem; --oce-space-16:4rem;
+  --cordex-space-0:0; --cordex-space-1:.25rem; --cordex-space-2:.5rem; --cordex-space-3:.75rem; --cordex-space-4:1rem;
+  --cordex-space-5:1.25rem; --cordex-space-6:1.5rem; --cordex-space-8:2rem; --cordex-space-10:2.5rem;
+  --cordex-space-12:3rem; --cordex-space-16:4rem;
 
   /* ---- 2.8 字号与行高 ---- */
-  --oce-font-size-2xs:.6875rem; --oce-line-height-2xs:1rem;
-  --oce-font-size-xs:.75rem; --oce-line-height-xs:1rem;
-  --oce-font-size-sm:.8125rem; --oce-line-height-sm:1.125rem;
-  --oce-font-size-base:.875rem; --oce-line-height-base:1.25rem;
-  --oce-font-size-md:1rem; --oce-line-height-md:1.5rem;
-  --oce-font-size-lg:1.125rem; --oce-line-height-lg:1.75rem;
-  --oce-font-size-xl:1.25rem; --oce-line-height-xl:1.75rem;
-  --oce-font-size-2xl:1.5rem; --oce-line-height-2xl:2rem;
-  --oce-font-size-3xl:1.875rem; --oce-line-height-3xl:2.25rem;
-  --oce-font-weight-regular:400; --oce-font-weight-medium:500; --oce-font-weight-semibold:600; --oce-font-weight-bold:700;
-  --oce-font-family-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  --oce-font-family-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --cordex-font-size-2xs:.6875rem; --cordex-line-height-2xs:1rem;
+  --cordex-font-size-xs:.75rem; --cordex-line-height-xs:1rem;
+  --cordex-font-size-sm:.8125rem; --cordex-line-height-sm:1.125rem;
+  --cordex-font-size-base:.875rem; --cordex-line-height-base:1.25rem;
+  --cordex-font-size-md:1rem; --cordex-line-height-md:1.5rem;
+  --cordex-font-size-lg:1.125rem; --cordex-line-height-lg:1.75rem;
+  --cordex-font-size-xl:1.25rem; --cordex-line-height-xl:1.75rem;
+  --cordex-font-size-2xl:1.5rem; --cordex-line-height-2xl:2rem;
+  --cordex-font-size-3xl:1.875rem; --cordex-line-height-3xl:2.25rem;
+  --cordex-font-weight-regular:400; --cordex-font-weight-medium:500; --cordex-font-weight-semibold:600; --cordex-font-weight-bold:700;
+  --cordex-font-family-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --cordex-font-family-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
 
   /* ---- 2.9 圆角 ---- */
-  --oce-radius-none:0; --oce-radius-sm:4px; --oce-radius-md:6px; --oce-radius-lg:8px; --oce-radius-xl:12px; --oce-radius-full:9999px;
+  --cordex-radius-none:0; --cordex-radius-sm:4px; --cordex-radius-md:6px; --cordex-radius-lg:8px; --cordex-radius-xl:12px; --cordex-radius-full:9999px;
 
   /* ---- 2.10 阴影 ---- */
-  --oce-shadow-sm:0 1px 2px rgba(16,24,40,.06);
-  --oce-shadow-md:0 2px 8px rgba(16,24,40,.10);
-  --oce-shadow-lg:0 8px 24px rgba(16,24,40,.14);
-  --oce-shadow-xl:0 16px 48px rgba(16,24,40,.18);
+  --cordex-shadow-sm:0 1px 2px rgba(16,24,40,.06);
+  --cordex-shadow-md:0 2px 8px rgba(16,24,40,.10);
+  --cordex-shadow-lg:0 8px 24px rgba(16,24,40,.14);
+  --cordex-shadow-xl:0 16px 48px rgba(16,24,40,.18);
 
   /* ---- 2.11 z-index 尺度 ---- */
-  --oce-z-canvas:0; --oce-z-canvas-overlay:10; --oce-z-chrome:20; --oce-z-dropdown:100; --oce-z-popover:110;
-  --oce-z-sticky:120; --oce-z-toast:300; --oce-z-modal-backdrop:400; --oce-z-modal:410; --oce-z-command-palette:500;
-  --oce-z-tooltip:600;
+  --cordex-z-canvas:0; --cordex-z-canvas-overlay:10; --cordex-z-chrome:20; --cordex-z-dropdown:100; --cordex-z-popover:110;
+  --cordex-z-sticky:120; --cordex-z-toast:300; --cordex-z-modal-backdrop:400; --cordex-z-modal:410; --cordex-z-command-palette:500;
+  --cordex-z-tooltip:600;
 
   /* ---- 2.12 动效 ---- */
-  --oce-motion-duration-instant:80ms; --oce-motion-duration-fast:120ms; --oce-motion-duration-base:180ms;
-  --oce-motion-duration-slow:240ms; --oce-motion-duration-slower:320ms;
-  --oce-motion-ease-standard:cubic-bezier(.2,0,0,1); --oce-motion-ease-decelerate:cubic-bezier(0,0,0,1);
-  --oce-motion-ease-accelerate:cubic-bezier(.3,0,1,1); --oce-motion-ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --cordex-motion-duration-instant:80ms; --cordex-motion-duration-fast:120ms; --cordex-motion-duration-base:180ms;
+  --cordex-motion-duration-slow:240ms; --cordex-motion-duration-slower:320ms;
+  --cordex-motion-ease-standard:cubic-bezier(.2,0,0,1); --cordex-motion-ease-decelerate:cubic-bezier(0,0,0,1);
+  --cordex-motion-ease-accelerate:cubic-bezier(.3,0,1,1); --cordex-motion-ease-spring:cubic-bezier(.34,1.56,.64,1);
 
   /* ---- 2.13 密度（舒适默认；--density 8 场景下大量界面采用紧凑，见各 mockup 顶层 data-density） ---- */
-  --oce-control-height-sm:28px; --oce-control-height-md:32px; --oce-control-height-lg:40px;
-  --oce-control-padding-x:.75rem; --oce-row-height:36px; --oce-ribbon-height:88px;
-  --oce-target-min:24px; --oce-target-touch:44px;
+  --cordex-control-height-sm:28px; --cordex-control-height-md:32px; --cordex-control-height-lg:40px;
+  --cordex-control-padding-x:.75rem; --cordex-row-height:36px; --cordex-ribbon-height:88px;
+  --cordex-target-min:24px; --cordex-target-touch:44px;
 }
 
 [data-density="compact"] {
-  --oce-control-height-sm:24px; --oce-control-height-md:28px; --oce-control-height-lg:32px;
-  --oce-control-padding-x:.5rem; --oce-row-height:28px; --oce-ribbon-height:64px;
+  --cordex-control-height-sm:24px; --cordex-control-height-md:28px; --cordex-control-height-lg:32px;
+  --cordex-control-padding-x:.5rem; --cordex-row-height:28px; --cordex-ribbon-height:64px;
 }
 
 /* ---- 2.3 暗色主题覆盖：系统跟随 ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --oce-color-bg-canvas:#0B0F19; --oce-color-bg-surface:#151A26; --oce-color-bg-surface-raised:#1C2233;
-    --oce-color-bg-inset:#0F1420; --oce-color-bg-overlay-scrim:rgba(3,5,10,.6);
-    --oce-color-bg-selected:#2B2A88; --oce-color-bg-hover:rgba(255,255,255,.06); --oce-color-bg-active:rgba(255,255,255,.14);
-    --oce-color-border-subtle:#232A3B; --oce-color-border-default:#323A4E; --oce-color-border-control:#6B7689;
-    --oce-color-border-strong:#7A8599; --oce-color-border-focus:#7B82FF;
-    --oce-color-text-primary:#F1F3F8; --oce-color-text-secondary:#B7BEC9; --oce-color-text-tertiary:#7C8697;
-    --oce-color-text-disabled:#6B7689; --oce-color-text-inverse:#101425; --oce-color-text-link:#9CA4F5;
-    --oce-color-accent-default:#6F79EE; --oce-color-accent-hover:#8790F5; --oce-color-accent-active:#9CA4F5;
-    --oce-color-accent-subtle:#232A5E;
-    --oce-color-success-default:#3BC682; --oce-color-success-subtle:rgba(59,198,130,.16); --oce-color-success-emphasis:#8DF0BB;
-    --oce-color-warning-default:#E2A33D; --oce-color-warning-subtle:rgba(226,163,61,.16); --oce-color-warning-emphasis:#F3C578;
-    --oce-color-danger-default:#F0685E; --oce-color-danger-subtle:rgba(240,104,94,.16); --oce-color-danger-emphasis:#F8A69F;
-    --oce-color-info-default:#5AA6EE; --oce-color-info-subtle:rgba(90,166,238,.16); --oce-color-info-emphasis:#9AC8F5;
-    --oce-color-focus-ring:#7B82FF;
-    --oce-shadow-sm:0 0 0 1px var(--oce-color-border-subtle);
-    --oce-shadow-md:0 0 0 1px var(--oce-color-border-default),0 2px 8px rgba(0,0,0,.4);
-    --oce-shadow-lg:0 0 0 1px var(--oce-color-border-default),0 8px 24px rgba(0,0,0,.5);
-    --oce-shadow-xl:0 0 0 1px var(--oce-color-border-default),0 16px 48px rgba(0,0,0,.6);
+    --cordex-color-bg-canvas:#0B0F19; --cordex-color-bg-surface:#151A26; --cordex-color-bg-surface-raised:#1C2233;
+    --cordex-color-bg-inset:#0F1420; --cordex-color-bg-overlay-scrim:rgba(3,5,10,.6);
+    --cordex-color-bg-selected:#2B2A88; --cordex-color-bg-hover:rgba(255,255,255,.06); --cordex-color-bg-active:rgba(255,255,255,.14);
+    --cordex-color-border-subtle:#232A3B; --cordex-color-border-default:#323A4E; --cordex-color-border-control:#6B7689;
+    --cordex-color-border-strong:#7A8599; --cordex-color-border-focus:#7B82FF;
+    --cordex-color-text-primary:#F1F3F8; --cordex-color-text-secondary:#B7BEC9; --cordex-color-text-tertiary:#7C8697;
+    --cordex-color-text-disabled:#6B7689; --cordex-color-text-inverse:#101425; --cordex-color-text-link:#9CA4F5;
+    --cordex-color-accent-default:#6F79EE; --cordex-color-accent-hover:#8790F5; --cordex-color-accent-active:#9CA4F5;
+    --cordex-color-accent-subtle:#232A5E;
+    --cordex-color-success-default:#3BC682; --cordex-color-success-subtle:rgba(59,198,130,.16); --cordex-color-success-emphasis:#8DF0BB;
+    --cordex-color-warning-default:#E2A33D; --cordex-color-warning-subtle:rgba(226,163,61,.16); --cordex-color-warning-emphasis:#F3C578;
+    --cordex-color-danger-default:#F0685E; --cordex-color-danger-subtle:rgba(240,104,94,.16); --cordex-color-danger-emphasis:#F8A69F;
+    --cordex-color-info-default:#5AA6EE; --cordex-color-info-subtle:rgba(90,166,238,.16); --cordex-color-info-emphasis:#9AC8F5;
+    --cordex-color-focus-ring:#7B82FF;
+    --cordex-shadow-sm:0 0 0 1px var(--cordex-color-border-subtle);
+    --cordex-shadow-md:0 0 0 1px var(--cordex-color-border-default),0 2px 8px rgba(0,0,0,.4);
+    --cordex-shadow-lg:0 0 0 1px var(--cordex-color-border-default),0 8px 24px rgba(0,0,0,.5);
+    --cordex-shadow-xl:0 0 0 1px var(--cordex-color-border-default),0 16px 48px rgba(0,0,0,.6);
   }
 }
 
 /* ---- 显式选择暗色（用户切换，不依赖系统） ---- */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --oce-color-bg-canvas:#0B0F19; --oce-color-bg-surface:#151A26; --oce-color-bg-surface-raised:#1C2233;
-  --oce-color-bg-inset:#0F1420; --oce-color-bg-overlay-scrim:rgba(3,5,10,.6);
-  --oce-color-bg-selected:#2B2A88; --oce-color-bg-hover:rgba(255,255,255,.06); --oce-color-bg-active:rgba(255,255,255,.14);
-  --oce-color-border-subtle:#232A3B; --oce-color-border-default:#323A4E; --oce-color-border-control:#6B7689;
-  --oce-color-border-strong:#7A8599; --oce-color-border-focus:#7B82FF;
-  --oce-color-text-primary:#F1F3F8; --oce-color-text-secondary:#B7BEC9; --oce-color-text-tertiary:#7C8697;
-  --oce-color-text-disabled:#6B7689; --oce-color-text-inverse:#101425; --oce-color-text-link:#9CA4F5;
-  --oce-color-accent-default:#6F79EE; --oce-color-accent-hover:#8790F5; --oce-color-accent-active:#9CA4F5;
-  --oce-color-accent-subtle:#232A5E;
-  --oce-color-success-default:#3BC682; --oce-color-success-subtle:rgba(59,198,130,.16); --oce-color-success-emphasis:#8DF0BB;
-  --oce-color-warning-default:#E2A33D; --oce-color-warning-subtle:rgba(226,163,61,.16); --oce-color-warning-emphasis:#F3C578;
-  --oce-color-danger-default:#F0685E; --oce-color-danger-subtle:rgba(240,104,94,.16); --oce-color-danger-emphasis:#F8A69F;
-  --oce-color-info-default:#5AA6EE; --oce-color-info-subtle:rgba(90,166,238,.16); --oce-color-info-emphasis:#9AC8F5;
-  --oce-color-focus-ring:#7B82FF;
-  --oce-shadow-sm:0 0 0 1px var(--oce-color-border-subtle);
-  --oce-shadow-md:0 0 0 1px var(--oce-color-border-default),0 2px 8px rgba(0,0,0,.4);
-  --oce-shadow-lg:0 0 0 1px var(--oce-color-border-default),0 8px 24px rgba(0,0,0,.5);
-  --oce-shadow-xl:0 0 0 1px var(--oce-color-border-default),0 16px 48px rgba(0,0,0,.6);
+  --cordex-color-bg-canvas:#0B0F19; --cordex-color-bg-surface:#151A26; --cordex-color-bg-surface-raised:#1C2233;
+  --cordex-color-bg-inset:#0F1420; --cordex-color-bg-overlay-scrim:rgba(3,5,10,.6);
+  --cordex-color-bg-selected:#2B2A88; --cordex-color-bg-hover:rgba(255,255,255,.06); --cordex-color-bg-active:rgba(255,255,255,.14);
+  --cordex-color-border-subtle:#232A3B; --cordex-color-border-default:#323A4E; --cordex-color-border-control:#6B7689;
+  --cordex-color-border-strong:#7A8599; --cordex-color-border-focus:#7B82FF;
+  --cordex-color-text-primary:#F1F3F8; --cordex-color-text-secondary:#B7BEC9; --cordex-color-text-tertiary:#7C8697;
+  --cordex-color-text-disabled:#6B7689; --cordex-color-text-inverse:#101425; --cordex-color-text-link:#9CA4F5;
+  --cordex-color-accent-default:#6F79EE; --cordex-color-accent-hover:#8790F5; --cordex-color-accent-active:#9CA4F5;
+  --cordex-color-accent-subtle:#232A5E;
+  --cordex-color-success-default:#3BC682; --cordex-color-success-subtle:rgba(59,198,130,.16); --cordex-color-success-emphasis:#8DF0BB;
+  --cordex-color-warning-default:#E2A33D; --cordex-color-warning-subtle:rgba(226,163,61,.16); --cordex-color-warning-emphasis:#F3C578;
+  --cordex-color-danger-default:#F0685E; --cordex-color-danger-subtle:rgba(240,104,94,.16); --cordex-color-danger-emphasis:#F8A69F;
+  --cordex-color-info-default:#5AA6EE; --cordex-color-info-subtle:rgba(90,166,238,.16); --cordex-color-info-emphasis:#9AC8F5;
+  --cordex-color-focus-ring:#7B82FF;
+  --cordex-shadow-sm:0 0 0 1px var(--cordex-color-border-subtle);
+  --cordex-shadow-md:0 0 0 1px var(--cordex-color-border-default),0 2px 8px rgba(0,0,0,.4);
+  --cordex-shadow-lg:0 0 0 1px var(--cordex-color-border-default),0 8px 24px rgba(0,0,0,.5);
+  --cordex-shadow-xl:0 0 0 1px var(--cordex-color-border-default),0 16px 48px rgba(0,0,0,.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --oce-motion-duration-instant:1ms; --oce-motion-duration-fast:1ms; --oce-motion-duration-base:1ms;
-    --oce-motion-duration-slow:1ms; --oce-motion-duration-slower:1ms;
+    --cordex-motion-duration-instant:1ms; --cordex-motion-duration-fast:1ms; --cordex-motion-duration-base:1ms;
+    --cordex-motion-duration-slow:1ms; --cordex-motion-duration-slower:1ms;
   }
 }

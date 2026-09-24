@@ -2,7 +2,7 @@
 
 # 09 设计规范（Design Specification）—— shadcn Rhea + Liquid Glass 材质层
 
-> v3.0 变更（用户裁决路线 B）：组件层继续 100% 复用 shadcn/ui，但基础风格由 `radix-nova` 改为 **`radix-rhea`**（shadcn 2026-05，紧凑版 Luma，macOS Tahoe 几何）；新增**材质层**（玻璃 token、`@utility glass/glass-strong`、浮层 data-slot 规则、退化与性能规则）与**四层层次模型**；应用壳改为悬浮玻璃卡布局；主色去紫；字体保留 Geist。本规范只定义：主题 token → shadcn 变量映射、OCE 元素 → shadcn 组件映射、组合模式与页面模板、材质与层次。唯一可执行基准仍是 `docs/20-design/playground/`（`/styleguide` 展示组件与材质状态）。
+> v3.0 变更（用户裁决路线 B）：组件层继续 100% 复用 shadcn/ui，但基础风格由 `radix-nova` 改为 **`radix-rhea`**（shadcn 2026-05，紧凑版 Luma，macOS Tahoe 几何）；新增**材质层**（玻璃 token、`@utility glass/glass-strong`、浮层 data-slot 规则、退化与性能规则）与**四层层次模型**；应用壳改为悬浮玻璃卡布局；主色去紫；字体保留 Geist。本规范只定义：主题 token → shadcn 变量映射、Cordex 元素 → shadcn 组件映射、组合模式与页面模板、材质与层次。唯一可执行基准仍是 `docs/20-design/playground/`（`/styleguide` 展示组件与材质状态）。
 
 > v3.1 修订（2026-09-18）：按 rulings §4.9–§4.10（Q9–Q20）与 playground 现状回写——母版视图口径（同一编辑器；左栏"母版缩略图窗格"；检查器仅禁用"评论"；`Mod+Alt+M`；退出四种方式；仅编辑模式且视口 ≥ 1024 提供入口，Q12）；编辑器应用栏右侧顺序与「⋯」更多菜单（Q14 / Q20）；「切换」页签 M1–M3 只读展示（Q15）；查看器可选缩略图条与备注抽屉（Q18）；断点统一 1024 / 640（Q19，不再 768）；账户菜单为「设置」唯一入口、快捷键面板三入口；Ribbon 组间距 / 尺寸、属性行、纸面 / 迷你工具条 / 母版提示条 / 文档列表 / 缩略图项类名、`--canvas-glow` 取值、宿主防线位置按代码回写；Sheet 圆角留白、`contain: paint` / `data-interacting`、退化规则全覆盖标注"待实现"。
 
@@ -14,7 +14,7 @@
 |---|---|
 | S-01 | **复用优先**：能用 shadcn 组件解决的不自定义；hover/active/focus/disabled/aria 状态由 shadcn + Radix 提供，稿件与实现不得重写 |
 | S-02 | **只在组合层做定制**：Ribbon、缩略图栏、母版缩略图窗格、画布覆盖层、检查器属性行等是 shadcn 组件的组合（`src/components/editor/*`），不是新组件库 |
-| S-03 | **主题即契约**：`@oce/design` 交付 shadcn 主题变量 + OCE 扩展变量（语义色、画布、纸面、舞台、协作者色、**材质**）；组件不读裸色值 |
+| S-03 | **主题即契约**：`@cordexjs/design` 交付 shadcn 主题变量 + Cordex 扩展变量（语义色、画布、纸面、舞台、协作者色、**材质**）；组件不读裸色值 |
 | S-04 | **Tailwind 工具类，不写组件 CSS**：只允许 `index.css` 里的 token、`@utility` 与 `[data-slot]` 规则；画布内文档内容（位置/尺寸/字号/颜色）是数据，允许内联样式 |
 | S-05 | **风格 `radix-rhea`**：Lucide 图标、Geist 字体（CJK 回退系统字体）、紧凑尺寸；不混用第二套图标、字体或风格 |
 | S-06 | **一屏实心 primary ≤ 3 处**；语义色文字用 `*-foreground`，图标/描边用主色，底色用 `*-muted` |
@@ -44,7 +44,7 @@
 | `--radius` | 0.5rem | 同 | 派生刻度见 §1.4；Rhea 组件按 `--radius-*` 与 `rounded-full` 取值 |
 | `--sidebar-*` | 同 background/accent/primary | 同暗色 | 仅 Sidebar 组件；缩略图栏/检查器实际用 §6 材质 |
 
-### 1.2 OCE 扩展变量（已注册为 Tailwind 颜色或工具类）
+### 1.2 Cordex 扩展变量（已注册为 Tailwind 颜色或工具类）
 
 | 变量 | 类名示例 | 用途 |
 |---|---|---|
@@ -70,9 +70,9 @@
 
 ---
 
-## 2. 组件映射（OCE 元素 → shadcn 组件，Rhea 复制件）
+## 2. 组件映射（Cordex 元素 → shadcn 组件，Rhea 复制件）
 
-| OCE 元素 | shadcn 组件 | 变体 / 尺寸 | 备注 |
+| Cordex 元素 | shadcn 组件 | 变体 / 尺寸 | 备注 |
 |---|---|---|---|
 | 主按钮 / 次要 / 幽灵 / 危险 | `Button` | `default` / `secondary`（或 `outline`）/ `ghost` / `destructive`；尺寸 `xs · sm · default · lg` 以 Rhea 复制件为准 | 一个对话框只一个 `default` |
 | 图标按钮 | `Button size="icon-sm"/"icon"` + `Tooltip` | `ghost` 默认 | 必须 `aria-label` |
@@ -96,14 +96,14 @@
 | 命令面板 | `Command` 置于 `CommandDialog` | — | `Mod+Shift+P` |
 | 母版缩略图窗格 | 与缩略图项同款卡片：母版一张大缩略图（编号 · 母版 · 名称），版式为缩进 16px、左侧连接线的小缩略图，标签在卡上方（名称 + 页数/未使用） | 选中 `ring-2 ring-primary ring-offset-2` | **不是文字树**（PowerPoint 母版视图左栏仍是缩略图，2026-09-16 用户反馈） |
 | 缩略图项 | 原生 `<button type="button">`（`relative rounded-xl outline-none`，`aria-current` / `aria-label`）包一张 `MiniSlide`（`aspect-video rounded-[inherit] bg-doc-paper`）；页码标签在卡上方（`text-xs tabular-nums`，当前页 `font-semibold text-primary` + "· 当前"）；右上角警告 / 评论计数 `Badge`（`h-4 text-2xs`）；不是 shadcn `Button`（`ThumbnailRail.tsx` `SlideRow`，2026-09-18 按代码回写） | 静止 `ring-1 ring-border hover:ring-ring`；当前页 `ring-2 ring-primary ring-offset-2 ring-offset-transparent`；`focus-visible:ring-2 focus-visible:ring-ring` | 母版窗格的 `MasterThumb` 同款（`role="option"` + `aria-selected`）；隐藏页叠加斜纹 + 50% 透明；加载态才用 `Skeleton` |
-| 检查器分区 | `Accordion type="multiple"` + `inspector-groups`（两层色阶，2026-09-17 由三层收敛：玻璃面板直接承载白色分组卡 `.oce-group`（`--card` + 发丝描边 6% + 极淡投影；暗色白 5%/描边 6%）→ 灰色字段 `bg-input/50` → 文字；`.oce-well` 仅保留布局，不着色）：每个分区一张 `rounded-xl` 卡，分区间距 10px，触发器高 36 / 内边距 10×12、12px 半粗淡色标题，内容内边距 0 12 12，行距 10px；折叠分区与展开分区同一形态 | 标记类加在 `<Accordion>` 根元素上，选择器须同时匹配自身与后代（2026-09-16 用户反馈"少了间距"的根因） | — |
+| 检查器分区 | `Accordion type="multiple"` + `inspector-groups`（两层色阶，2026-09-17 由三层收敛：玻璃面板直接承载白色分组卡 `.cordex-group`（`--card` + 发丝描边 6% + 极淡投影；暗色白 5%/描边 6%）→ 灰色字段 `bg-input/50` → 文字；`.cordex-well` 仅保留布局，不着色）：每个分区一张 `rounded-xl` 卡，分区间距 10px，触发器高 36 / 内边距 10×12、12px 半粗淡色标题，内容内边距 0 12 12，行距 10px；折叠分区与展开分区同一形态 | 标记类加在 `<Accordion>` 根元素上，选择器须同时匹配自身与后代（2026-09-16 用户反馈"少了间距"的根因） | — |
 | 属性行 | `PropertyRow`：`flex items-center gap-2 py-1`；标签列 `w-14 shrink-0 text-xs text-muted-foreground`（56px 固定）；控件区 `flex min-w-0 flex-1 items-center gap-1.5 *:min-w-0`（子项 `min-w-0`，防字段固有宽度撑出横向滚动，2026-09-17）；原 `grid grid-cols-[2.5rem_1fr]` 作废 | 字段 `h-7 text-xs`；`NumberField` = `Input inputMode="decimal" tabular-nums` + 绝对定位后缀 | 成对 `PropertyRowPair`：同一行两个 `flex min-w-0 flex-1` 半区，各带内联短标签（X/Y、宽/高） |
 | 颜色块 | `Button size="icon" variant="outline"` + 色块 + `Popover` | 28 | `aria-label` 含当前值 |
 | 进度 / 骨架 / 加载 | `Progress`（离边缘留白、圆角轨道）/ `Skeleton`（仅真实加载）/ `Spinner` | — | >300ms 才显示 |
 | 空态 | `Empty` 系列 | — | 一个操作 |
 | 列表项 / 卡片 | `Item` / `Card`（Rhea 默认圆角，不再手写 `rounded-*` 改小） | — | 文档列表用 `Card` |
 | 表格 / 可拖分栏 / 滚动区 / 面包屑 / 键帽 | `Table` / `ResizablePanelGroup orientation="horizontal"`（手柄静止透明，悬停/聚焦显色）/ `ScrollArea` / `Breadcrumb` / `Kbd` | — | — |
-| 品牌 | `Brand`（`BrandMark` SVG：主色圆角方块内的 16:9 幻灯片 + 字标 "OCE 幻灯片"） | 28px 标 + 14px 字标 | 首页侧栏、文档列表顶栏、目录页统一使用；不借用 Palette 等泛用图标 |
+| 品牌 | `Brand`（`BrandMark` SVG：主色圆角方块内的 16:9 幻灯片 + 字标 "Cordex 幻灯片"） | 28px 标 + 14px 字标 | 首页侧栏、文档列表顶栏、目录页统一使用；不借用 Palette 等泛用图标 |
 | 当前用户菜单 | `UserMenu`（`DropdownMenu`；`row` 首页侧栏底部整行触发 / `avatar` 顶栏头像触发——文档列表顶栏与**编辑器族全部路由的应用栏右侧末位**共用同一 `avatar` 形态，Q14） | 头像 28，无在场环 | 菜单项：设置（`Mod+,`）/ 键盘快捷键（`Mod+/`）/ 帮助中心 / 退出登录。「设置」的**唯一**入口（侧栏、顶栏不再单独放"设置"按钮，2026-09-17 用户：重了；T-07 导航卡亦不含"设置"）；快捷键面板则保持**三个入口**：Ribbon 页签行右侧「?」、本菜单「键盘快捷键」、`Mod+/`（rulings §4.10："唯一入口"只对「设置」成立） |
 | 大幅面幻灯片内容 | `SlideContent`（组合层，真实文字、cqw 缩放） | — | 放映、查看器、无选区演示的画布 |
 
@@ -132,18 +132,18 @@
 | T-03 文档列表 | 一张 `glass-strong rounded-2xl px-4 py-2.5 sm:px-6` 顶卡（`flex-wrap`：`Brand` + `InputGroup` 搜索 + 筛选 `Tabs`（全部 / 我拥有 / 共享给我 / 最近，胶囊分段；原 `ToggleGroup` 作废）+ 右侧 导入 .pptx / 新建 + 主题切换 + `UserMenu` 头像）+ `Card` 网格按断点列 `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4`（原 `auto-fill minmax(240px)` 作废）；卡内缩略图用 `MiniSlide` 线框示意，底部 标题 / 所有者 · 时间 / 「仅查看」徽标 / 协作者 `AvatarGroup` / 「更多」菜单 |
 | T-04 只读查看器 | 顶部 `glass-strong rounded-2xl mx-2 mt-2 h-11 px-3` 工具卡（翻页、页码输入 + 总页数、缩放 − / 百分比 / +、全屏、搜索、导入摘要 `Popover`；宿主开启备注时追加「备注」切换按钮）+ 画布 `zoom="fit"`（`hideZoomBar`）。**可选缩略图条与备注抽屉（Q18，按 PRD OF-14）**：`preset-slide-viewer` 初始化参数 `thumbnails` / `notes`，默认全关，关时对应 UI 不渲染、代码按需加载、不计入 350 KB 基线——缩略图条为底部横向 `glass-strong mx-2 mb-2 h-20 rounded-2xl px-3` 条（`role="listbox"`，同款 `MiniSlide` 卡，当前页 `ring-2 ring-primary`）；备注抽屉为非模态 `Sheet side="right" w-80`（标题「备注 · 第 N 页」，无备注时「本页没有备注」） |
 | T-05 放映 | `bg-stage`；控制条 `bg-stage-chrome/80 backdrop-blur-lg rounded-full`，按翻页 / 视图 / 退出分组；顶部信息条同款小胶囊 |
-| T-07 应用首页 | 左 224px（`w-56`）`glass-strong rounded-2xl p-3` 导航卡（品牌、主导航、底部 `UserMenu variant="row"` 账户行；不含"设置"，设置只从账户菜单进入）+ 主区 max-w 1024：新建卡网格（16:9，`minmax(150px,1fr)`）/ 最近列表（`.oce-group`）/ 指南卡网格（`minmax(220px,1fr)`）；编辑器"返回"落到此页 |
-| T-06 设置 | `Sheet side="right"` `w-80`（玻璃；`rounded-l-3xl` + 顶底 8px 留白**待实现（M2）**，经 `[data-slot="sheet-content"]` 规则实现，见 §2 对话框行），头部标题 + "个人偏好，不影响协作者；关闭即保存"，右上 × / Esc / 点遮罩均为关闭，**关闭 = 返回打开它的页面**（不切到别的抽屉）；内容区 `.oce-well m-3 p-3`，分组用 `.oce-group p-3`；主题/密度用 `ToggleGroup` |
+| T-07 应用首页 | 左 224px（`w-56`）`glass-strong rounded-2xl p-3` 导航卡（品牌、主导航、底部 `UserMenu variant="row"` 账户行；不含"设置"，设置只从账户菜单进入）+ 主区 max-w 1024：新建卡网格（16:9，`minmax(150px,1fr)`）/ 最近列表（`.cordex-group`）/ 指南卡网格（`minmax(220px,1fr)`）；编辑器"返回"落到此页 |
+| T-06 设置 | `Sheet side="right"` `w-80`（玻璃；`rounded-l-3xl` + 顶底 8px 留白**待实现（M2）**，经 `[data-slot="sheet-content"]` 规则实现，见 §2 对话框行），头部标题 + "个人偏好，不影响协作者；关闭即保存"，右上 × / Esc / 点遮罩均为关闭，**关闭 = 返回打开它的页面**（不切到别的抽屉）；内容区 `.cordex-well m-3 p-3`，分组用 `.cordex-group p-3`；主题/密度用 `ToggleGroup` |
 
 ---
 
 ## 5. 遵循方式
 
 1. **playground 是唯一基准**：`src/routes/*` 每条路由对应一个界面文档；`/styleguide` 展示组件与材质状态；构建产物发布为 artifact。
-2. **实现规则**：`components.json` `style: "radix-rhea"`；只用 `src/components/ui/*`（shadcn 复制件，**不改**）与 Tailwind 工具类；组件级视觉定制一律写成 `index.css` 的 `[data-slot=…]` 规则或 `@utility`，使 `npx shadcn add -o` 升级不覆盖；确需改复制件时文件头标 `// OCE override` 并进入扫描清单。
-3. **宿主防线**：`body` 的 `color / font-family / font-size / line-height / background` 必须以**未分层**规则写在 `index.css` 的 `@layer` 之外（当前位于 `index.css` 后段、字段 token / `.oce-well` 井层规则之前；其后不得再出现任何 `body` 选择器，可 grep 校验）——嵌入宿主（claude.ai artifact 查看器等）会给 `body` 注入未分层的 `color:#141413; font:14px -apple-system…; background:#faf9f5`，而 `@layer base` 里的声明在层叠上永远输给它，暗色下所有继承色文字会变成近黑（2026-09-16 用户截图，已用宿主外壳本地复现并修复）。验收时必须用 `scripts/host-wrap.py` 生成宿主外壳版再截图，不能只看 `dist/index.html`。
+2. **实现规则**：`components.json` `style: "radix-rhea"`；只用 `src/components/ui/*`（shadcn 复制件，**不改**）与 Tailwind 工具类；组件级视觉定制一律写成 `index.css` 的 `[data-slot=…]` 规则或 `@utility`，使 `npx shadcn add -o` 升级不覆盖；确需改复制件时文件头标 `// Cordex override` 并进入扫描清单。
+3. **宿主防线**：`body` 的 `color / font-family / font-size / line-height / background` 必须以**未分层**规则写在 `index.css` 的 `@layer` 之外（当前位于 `index.css` 后段、字段 token / `.cordex-well` 井层规则之前；其后不得再出现任何 `body` 选择器，可 grep 校验）——嵌入宿主（claude.ai artifact 查看器等）会给 `body` 注入未分层的 `color:#141413; font:14px -apple-system…; background:#faf9f5`，而 `@layer base` 里的声明在层叠上永远输给它，暗色下所有继承色文字会变成近黑（2026-09-16 用户截图，已用宿主外壳本地复现并修复）。验收时必须用 `scripts/host-wrap.py` 生成宿主外壳版再截图，不能只看 `dist/index.html`。
 4. **审查清单**：仅图标按钮有 `aria-label`；输入有可见 `Label`；对话框有标题与描述；删除走可撤销 toast；一屏实心 primary ≤ 3；无边到边分区线；Tab 只有胶囊一套；同屏 `backdrop-filter` 元素 ≤ 4；玻璃面板文字对比 ≥ 4.5:1（§6.5）；`prefers-reduced-transparency` 下面板不透明；亮暗主题各过一遍；`npm run build` 通过（TS strict）。
-5. **与产品代码的关系**：playground 的 `components/ui` 与 `components/editor` 是 `@oce/ui-react` 的种子；`@oce/design` 交付 `index.css` 中的主题变量 + 材质 token + `@utility`；`ui-react/styles` 承载 data-slot 规则；`ui-core` 的贡献点渲染为这些组合组件。
+5. **与产品代码的关系**：playground 的 `components/ui` 与 `components/editor` 是 `@cordexjs/ui-react` 的种子；`@cordexjs/design` 交付 `index.css` 中的主题变量 + 材质 token + `@utility`；`ui-react/styles` 承载 data-slot 规则；`ui-core` 的贡献点渲染为这些组合组件。
 6. **与 03-screens 的关系**：界面文档保留线框、状态与交互说明；头部"设计基准"行指向本规范与 playground 路由，不再重复尺寸。
 
 ---

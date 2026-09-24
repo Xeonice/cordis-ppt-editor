@@ -1,5 +1,5 @@
 > 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
-> **2026-09-18 修订说明**：§2.1 图标家族改为 Lucide 线性（随 shadcn Rhea，原 Phosphor 家族作废；`@oce/design/icons` 仍可作为包装层）；§2.10a 按"母版视图是同一个编辑器"改写（只在页签集合最左插入「母版」并隐藏「设计」，其余页签照常；检查器仅禁用评论；`viewMode` 条件由贡献自行声明、未声明者两种视图都生效；`selectionKind` 不收窄）。
+> **2026-09-18 修订说明**：§2.1 图标家族改为 Lucide 线性（随 shadcn Rhea，原 Phosphor 家族作废；`@cordexjs/design/icons` 仍可作为包装层）；§2.10a 按"母版视图是同一个编辑器"改写（只在页签集合最左插入「母版」并隐藏「设计」，其余页签照常；检查器仅禁用评论；`viewMode` 条件由贡献自行声明、未声明者两种视图都生效；`selectionKind` 不收窄）。
 
 # 06 扩展性 UX（插件如何贡献 UI）
 
@@ -64,15 +64,15 @@ interface RibbonControlContribution extends UiContributionBase {
 
 | 项 | 规则 |
 |---|---|
-| 图标尺寸与家族 | large 20×20；small 16×16；单色 SVG（**Lucide 线性家族**，描边 2、圆角端点，随 shadcn Rhea 统一，09 S-05；2026-09-15 起原 Phosphor 家族作废），继承 `currentColor`，不得内嵌固定色值；**禁止 emoji/Unicode 符号充当图标**；`@oce/design/icons` 仍可作为包装层（按名引用 / sprite 构建脚本），但家族只能是 Lucide，不混用第二套；插件图标必须遵循同一规范（设计 04 §2.14），缺失或不合规时回退默认拼图图标（Lucide `Puzzle`） |
+| 图标尺寸与家族 | large 20×20；small 16×16；单色 SVG（**Lucide 线性家族**，描边 2、圆角端点，随 shadcn Rhea 统一，09 S-05；2026-09-15 起原 Phosphor 家族作废），继承 `currentColor`，不得内嵌固定色值；**禁止 emoji/Unicode 符号充当图标**；`@cordexjs/design/icons` 仍可作为包装层（按名引用 / sprite 构建脚本），但家族只能是 Lucide，不混用第二套；插件图标必须遵循同一规范（设计 04 §2.14），缺失或不合规时回退默认拼图图标（Lucide `Puzzle`） |
 | 可读名称 | 仅图标按钮必须提供 `label` 作为 `aria-label`（`showLabel:false` 只隐藏视觉文字，不省略可读名称）；tooltip 在 hover 与 `:focus-visible` 下均出现 |
-| 命中区 | 按钮命中区 ≥ 24×24；触控/窄屏 ≥ 44×44（由 `--oce-control-height-*` 与断点重映射保证，插件不得自定义尺寸） |
+| 命中区 | 按钮命中区 ≥ 24×24；触控/窄屏 ≥ 44×44（由 `--cordex-control-height-*` 与断点重映射保证，插件不得自定义尺寸） |
 | 标签长度 | large 按钮 ≤ 8 个中文字符（或 16 个英文字符），超出省略号 + 完整文本进 tooltip；**注意**：伪本地化测试允许英文等语言比中文基准长至 1.5 倍（PRD NF-06），标签容器不得假设固定字符宽度，必须做省略号截断而非裁切 |
 | 分组数量 | 单个页签可见分组 ≤ 6，第 7 个及以后自动收入"更多"溢出分组（不是隐藏，是可发现的收纳） |
 | 分组内按钮 | `extensible: false` 的分组，第三方不得插入；第三方新增能力必须新建分组，新分组默认排在该页签末尾（`order` 未指定时取该页签当前最大 order + 10） |
 | 禁用态 | 40% 不透明度 + `cursor: not-allowed`，不隐藏（隐藏会让用户以为功能消失，见 §3 例外情况）；用户仍尝试操作时需说明原因（权限不足/选区类型不支持），呼应 ED-30 对命令面板的同一要求 |
-| 加载态 | 图标替换为 `Spinner`（`@oce/design` 原子组件），标签不变，控件禁用 |
-| 密度联动 | 控件高度取 `--oce-ribbon-height`（见设计 04 §2.13），不得自定义；紧凑密度下仍须满足 WCAG 2.5.8 的 24×24 CSS px 最小命中区（PRD NF-05），设计 04 的 IconButton 规格已满足此下限 |
+| 加载态 | 图标替换为 `Spinner`（`@cordexjs/design` 原子组件），标签不变，控件禁用 |
+| 密度联动 | 控件高度取 `--cordex-ribbon-height`（见设计 04 §2.13），不得自定义；紧凑密度下仍须满足 WCAG 2.5.8 的 24×24 CSS px 最小命中区（PRD NF-05），设计 04 的 IconButton 规格已满足此下限 |
 
 排序：同级按 `order` 升序，`order` 相同按插件声明顺序，仍相同按 `id` 字典序。约定内置贡献 `order < 100`，第三方建议 `order ≥ 100`，避免抢占默认视觉顺位（约定非强制校验，属于插件开发礼仪，写入插件开发文档）。稳定性：Stable @M4（PRD PS-02），M2 起可用。
 
@@ -177,12 +177,12 @@ interface StatusBarContribution extends UiContributionBase {
 
 ```ts
 interface CanvasOverlayContribution extends UiContributionBase {
-  slot: 'below-selection' | 'above-selection'  // 映射设计 04 的 --oce-z-canvas-overlay 内部子层级
+  slot: 'below-selection' | 'above-selection'  // 映射设计 04 的 --cordex-z-canvas-overlay 内部子层级
   hitTestable?: boolean            // 是否参与画布命中测试；默认 false（纯展示层，如远端光标）
 }
 ```
 
-用途示例（含内置能力，均通过此贡献点实现，"自食其粮"）：远端光标与选区、评论锚点标记、选中手柄、插件自定义的画布标注（如批注工具、测量参考线）。视觉约束：覆盖层元素不得拦截未声明 `hitTestable: true` 的指针事件（默认 `pointer-events: none`，避免插件覆盖层意外遮挡画布交互）；颜色使用 `--oce-color-presence-*` 或语义 token，不得引入覆盖层专属调色板。性能预算：同屏 ≥ 20 个远端选区仍需保持 ≥ 55 fps（PRD CO-03），密度过高时允许降级简化非活跃协作者的视觉权重（具体阈值与实现策略由架构 07 决定）。
+用途示例（含内置能力，均通过此贡献点实现，"自食其粮"）：远端光标与选区、评论锚点标记、选中手柄、插件自定义的画布标注（如批注工具、测量参考线）。视觉约束：覆盖层元素不得拦截未声明 `hitTestable: true` 的指针事件（默认 `pointer-events: none`，避免插件覆盖层意外遮挡画布交互）；颜色使用 `--cordex-color-presence-*` 或语义 token，不得引入覆盖层专属调色板。性能预算：同屏 ≥ 20 个远端选区仍需保持 ≥ 55 fps（PRD CO-03），密度过高时允许降级简化非活跃协作者的视觉权重（具体阈值与实现策略由架构 07 决定）。
 
 ### 2.9 `ui.dialog` / `ui.notification`
 
@@ -201,31 +201,31 @@ interface CanvasOverlayContribution extends UiContributionBase {
 
 ### 2.11 `ui.theme` —— 主题/token 覆盖集
 
-章程 v0.2 §5.5 确认的贡献点，与产品 PS-02（"设计 token 覆盖集"，Beta @M4）一致。这是插件（或宿主/集成方）向 `@oce/design` 的 token 体系贡献一整套覆盖值的机制——例如一个"品牌主题"插件可以把 `--oce-color-accent-*` 换成集成方的品牌色，而不需要 fork 整个 `@oce/design` 包。
+章程 v0.2 §5.5 确认的贡献点，与产品 PS-02（"设计 token 覆盖集"，Beta @M4）一致。这是插件（或宿主/集成方）向 `@cordexjs/design` 的 token 体系贡献一整套覆盖值的机制——例如一个"品牌主题"插件可以把 `--cordex-color-accent-*` 换成集成方的品牌色，而不需要 fork 整个 `@cordexjs/design` 包。
 
 ```ts
 // 草案：字段名对齐 §2 的共享形状
 interface ThemeContribution extends UiContributionBase {
-  slot: string                     // 主题名，作为 `data-oce-theme` 的可选取值之一（内置只有 'light'/'dark'）
+  slot: string                     // 主题名，作为 `data-cordex-theme` 的可选取值之一（内置只有 'light'/'dark'）
   isDark?: boolean                  // 该主题应按暗色语义处理（影响初始对比度校验、阴影→边框降级等派生规则，见设计 04 §2.10/§3）
-  tokens: Partial<Record<OceColorToken, string>>   // 覆盖值，键必须是设计 04 §2.2/§2.3 定义过的语义 token 名
+  tokens: Partial<Record<CordexColorToken, string>>   // 覆盖值，键必须是设计 04 §2.2/§2.3 定义过的语义 token 名
 }
 ```
 
-**允许覆盖的 token 范围**（设计 04 §2.2–§2.5 的语义颜色 token）：`--oce-color-accent-*`、`--oce-color-success/warning/danger/info-*`、`--oce-color-bg-*`、`--oce-color-border-*`、`--oce-color-text-*`。这些是"品牌/氛围"相关的语义色，覆盖它们不会破坏布局或可用性判断逻辑。
+**允许覆盖的 token 范围**（设计 04 §2.2–§2.5 的语义颜色 token）：`--cordex-color-accent-*`、`--cordex-color-success/warning/danger/info-*`、`--cordex-color-bg-*`、`--cordex-color-border-*`、`--cordex-color-text-*`。这些是"品牌/氛围"相关的语义色，覆盖它们不会破坏布局或可用性判断逻辑。
 
 **禁止覆盖的 token 范围**（结构性 token，覆盖会破坏跨组件一致性或无障碍保证）：
 
 | 类别 | 原因 |
 |---|---|
-| `--oce-space-*`（间距） | 覆盖会导致所有组件的内外边距同时错位，布局体系依赖其数值稳定 |
-| `--oce-radius-*` / `--oce-shadow-*` | 可作为"整体替换一套预设"处理（如内置的 high-contrast 主题），但不对插件单独开放逐个覆盖，避免视觉体系割裂 |
-| `--oce-z-*`（层级） | 覆盖会破坏浮层堆叠顺序这一系统级契约（见设计 04 §2.11），绝对禁止 |
-| `--oce-motion-*`（动效） | 覆盖会与 `prefers-reduced-motion` 的统一降级机制（07-accessibility-and-i18n.md §5）冲突，绝对禁止 |
-| `--oce-color-presence-*`（协作者在场色） | 覆盖会破坏"协作者颜色全局唯一辨识"的假设（05-collaboration-ux.md §2），绝对禁止 |
-| `--oce-color-focus-ring` | 覆盖需要重新过对比度门禁（WCAG 2.4.11），不对插件开放，仅内置主题可改 |
+| `--cordex-space-*`（间距） | 覆盖会导致所有组件的内外边距同时错位，布局体系依赖其数值稳定 |
+| `--cordex-radius-*` / `--cordex-shadow-*` | 可作为"整体替换一套预设"处理（如内置的 high-contrast 主题），但不对插件单独开放逐个覆盖，避免视觉体系割裂 |
+| `--cordex-z-*`（层级） | 覆盖会破坏浮层堆叠顺序这一系统级契约（见设计 04 §2.11），绝对禁止 |
+| `--cordex-motion-*`（动效） | 覆盖会与 `prefers-reduced-motion` 的统一降级机制（07-accessibility-and-i18n.md §5）冲突，绝对禁止 |
+| `--cordex-color-presence-*`（协作者在场色） | 覆盖会破坏"协作者颜色全局唯一辨识"的假设（05-collaboration-ux.md §2），绝对禁止 |
+| `--cordex-color-focus-ring` | 覆盖需要重新过对比度门禁（WCAG 2.4.11），不对插件开放，仅内置主题可改 |
 
-**校验要求**：任何 `ui.theme` 贡献的颜色覆盖都必须通过设计 04 §2.6 的对比度基线（架构 02 §4.17 `@oce/design/__tests__` 已包含 token 快照与对比度校验），加载期未通过校验的主题贡献应被拒绝并诊断（呼应 §3 的失败可见原则），而不是静默应用一个不合规的主题。
+**校验要求**：任何 `ui.theme` 贡献的颜色覆盖都必须通过设计 04 §2.6 的对比度基线（架构 02 §4.17 `@cordexjs/design/__tests__` 已包含 token 快照与对比度校验），加载期未通过校验的主题贡献应被拒绝并诊断（呼应 §3 的失败可见原则），而不是静默应用一个不合规的主题。
 
 ### 2.10a 母版视图下的贡献点（`viewMode` context key，2026-09-15 新增、2026-09-18 按 09 T-02 / PRD ML-01 改写，来源 `03-screens/26-master-view-and-editing.md`）
 
@@ -251,7 +251,7 @@ when: "viewMode == 'normal'"      // 仅普通视图下出现（只对"页"有�
 | 页签内部分分组失败 | 该页签仍渲染，仅缺失的分组不显示 |
 | 已打开的面板所属插件失败 | 面板内容区替换为错误态卡片（图标 + "该面板不可用" + 错误摘要 + 重试/禁用插件 入口） |
 | 未打开的面板所属插件失败 | 检查器坞 Tab 条目自动隐藏 |
-| 状态栏项所属插件失败 | 该项以 `--oce-motion-duration-fast` 淡出移除，不保留空位 |
+| 状态栏项所属插件失败 | 该项以 `--cordex-motion-duration-fast` 淡出移除，不保留空位 |
 | 画布覆盖层所属插件失败 | 该覆盖层内容停止渲染，不影响其他覆盖层与画布本体 |
 | 任意数量插件失败 | 全局状态栏"插件"图标切换为 warning 语义色 + 失败数角标；点击进入插件管理器并预筛选"启动失败" |
 

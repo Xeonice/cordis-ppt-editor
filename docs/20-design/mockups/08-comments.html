@@ -1,26 +1,28 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>08 评论面板 · OCE Slides 设计稿</title>
+<title>08 评论面板 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .canvas{width:min(100%,520px)}
-  .comment-pin{position:absolute;width:24px;height:24px;border-radius:50% 50% 50% 0;background:var(--oce-color-warning-emphasis);color:#fff;border:1px solid var(--oce-color-doc-paper);font-size:var(--oce-font-size-2xs);font-weight:600;display:flex;align-items:center;justify-content:center;transform:rotate(45deg);z-index:var(--oce-z-canvas-overlay)}
+  .comment-pin{position:absolute;width:24px;height:24px;border-radius:50% 50% 50% 0;background:var(--cordex-color-warning-emphasis);color:#fff;border:1px solid var(--cordex-color-doc-paper);font-size:var(--cordex-font-size-2xs);font-weight:600;display:flex;align-items:center;justify-content:center;transform:rotate(45deg);z-index:var(--cordex-z-canvas-overlay)}
   .comment-pin span{transform:rotate(-45deg)}
   .inspector-dock{width:440px}
   @media (max-width:680px){.inspector-dock{width:100%}}
-  .reply{margin-top:8px;padding-left:var(--oce-space-3);border-left:2px solid var(--oce-color-border-subtle)}
+  .reply{margin-top:8px;padding-left:var(--cordex-space-3);border-left:2px solid var(--cordex-color-border-subtle)}
   .thread-actions{display:flex;gap:8px;margin-top:8px}
   /* 补充：shell.css 未定义 .mention-list（本稿是首个演示 @ 提及候选的界面），沿用 .menu/.menu-item 的视觉数值，定位遵循任务书给出的 position:absolute;bottom:100% */
-  .mention-list{position:absolute;bottom:100%;left:0;right:0;margin-bottom:4px;max-height:180px;overflow:auto;background:var(--oce-color-bg-surface-raised);border:1px solid var(--oce-color-border-subtle);border-radius:var(--oce-radius-md);box-shadow:var(--oce-shadow-md);z-index:var(--oce-z-popover);padding:4px}
-  .mention-list button{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--oce-row-height);padding:0 8px;border-radius:var(--oce-radius-sm);background:none;border:none;font-size:var(--oce-font-size-sm);text-align:left;color:var(--oce-color-text-primary)}
-  .mention-list button:hover,.mention-list button:focus-visible{background:var(--oce-color-bg-hover)}
+  .mention-list{position:absolute;bottom:100%;left:0;right:0;margin-bottom:4px;max-height:180px;overflow:auto;background:var(--cordex-color-bg-surface-raised);border:1px solid var(--cordex-color-border-subtle);border-radius:var(--cordex-radius-md);box-shadow:var(--cordex-shadow-md);z-index:var(--cordex-z-popover);padding:4px}
+  .mention-list button{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--cordex-row-height);padding:0 8px;border-radius:var(--cordex-radius-sm);background:none;border:none;font-size:var(--cordex-font-size-sm);text-align:left;color:var(--cordex-color-text-primary)}
+  .mention-list button:hover,.mention-list button:focus-visible{background:var(--cordex-color-bg-hover)}
 </style>
 </head>
 <body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
 <symbol id="i-check" viewBox="0 0 16 16"><polyline points="3,8.5 6.5,12 13,4"/></symbol>
@@ -31,7 +33,7 @@
   <span class="title">08 · 评论面板（检查器坞 · 宽屏独立视图）</span>
   <span class="spacer"></span>
   <button type="button" class="pbtn" aria-pressed="false" onclick="toggleTheme()">暗色主题</button>
-  <a href="02-editor-main.html" style="font-size:11px;color:var(--oce-color-accent-default)">↗ 编辑器主界面稿</a>
+  <a href="02-editor-main.html" style="font-size:11px;color:var(--cordex-color-accent-default)">↗ 编辑器主界面稿</a>
 </div>
 
 <header class="app-bar">
@@ -40,8 +42,8 @@
   <span class="saved-state">已保存</span>
   <div class="avatar-stack" aria-label="协作者：我、王小明、李雷">
     <span class="avatar self" title="我">我</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-6)" title="王小明">王</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-3)" title="李雷">李</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-3)" title="李雷">李</span>
   </div>
   <span class="spacer"></span>
   <a class="btn btn-sm" href="02-editor-main.html">返回编辑器</a>
@@ -74,10 +76,10 @@
       </div>
 
       <div class="comment-thread">
-        <div class="meta"><span class="avatar" style="--presence:var(--oce-color-presence-6);width:22px;height:22px">王</span><strong>王小明</strong>· 2 小时前 · 第 2 页 “标题文本”</div>
+        <div class="meta"><span class="avatar" style="--presence:var(--cordex-color-presence-6);width:22px;height:22px">王</span><strong>王小明</strong>· 2 小时前 · 第 2 页 “标题文本”</div>
         <p style="margin:0">这里的数据需要核对</p>
         <div class="reply">
-          <div class="meta"><span class="avatar" style="--presence:var(--oce-color-presence-3);width:20px;height:20px">李</span><strong>李雷</strong>· 1 小时前</div>
+          <div class="meta"><span class="avatar" style="--presence:var(--cordex-color-presence-3);width:20px;height:20px">李</span><strong>李雷</strong>· 1 小时前</div>
           <p style="margin:0">已经更新，麻烦复核</p>
         </div>
         <div class="thread-actions">
@@ -107,8 +109,8 @@
             <label class="vis-hidden-label" for="new-comment">写评论，输入 @ 可提及协作者</label>
             <textarea id="new-comment" placeholder="写评论，输入 @ 可提及协作者…">辛苦 @王 核对一下这页数据</textarea>
             <div class="mention-list" role="listbox" aria-label="提及协作者候选">
-              <button type="button" role="option"><span class="avatar" style="--presence:var(--oce-color-presence-6);width:20px;height:20px;margin:0">王</span>王小明<span style="color:var(--oce-color-text-tertiary);margin-left:auto">编辑者</span></button>
-              <button type="button" role="option"><span class="avatar" style="--presence:var(--oce-color-presence-3);width:20px;height:20px;margin:0">李</span>李雷<span style="color:var(--oce-color-text-tertiary);margin-left:auto">评审者</span></button>
+              <button type="button" role="option"><span class="avatar" style="--presence:var(--cordex-color-presence-6);width:20px;height:20px;margin:0">王</span>王小明<span style="color:var(--cordex-color-text-tertiary);margin-left:auto">编辑者</span></button>
+              <button type="button" role="option"><span class="avatar" style="--presence:var(--cordex-color-presence-3);width:20px;height:20px;margin:0">李</span>李雷<span style="color:var(--cordex-color-text-tertiary);margin-left:auto">评审者</span></button>
             </div>
           </div>
         </div>

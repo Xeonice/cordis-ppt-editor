@@ -1,24 +1,26 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>06 插入功能区与形状库 · OCE Slides 设计稿</title>
+<title>06 插入功能区与形状库 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .canvas{width:min(100%,640px)}
   .cat-row{display:flex;align-items:center;gap:6px;padding:4px 2px}
-  .cat-label{width:58px;flex-shrink:0;font-size:var(--oce-font-size-xs);color:var(--oce-color-text-secondary)}
+  .cat-label{width:58px;flex-shrink:0;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary)}
   .shape-cell{width:28px;height:28px;padding:0;flex-shrink:0}
-  .grid-cell{width:16px;height:16px;border:1px solid var(--oce-color-border-control);background:var(--oce-color-bg-surface);border-radius:2px;padding:0}
-  .grid-cell.hi{background:var(--oce-color-accent-subtle);border-color:var(--oce-color-accent-default)}
-  .demo-section{max-width:420px;margin:var(--oce-space-8) auto var(--oce-space-10);padding:0 var(--oce-space-4)}
-  .demo-section h2{font-size:var(--oce-font-size-lg);margin:0 0 var(--oce-space-2)}
-  .section-note{font-size:var(--oce-font-size-xs);color:var(--oce-color-text-tertiary);margin:0 0 var(--oce-space-3)}
+  .grid-cell{width:16px;height:16px;border:1px solid var(--cordex-color-border-control);background:var(--cordex-color-bg-surface);border-radius:2px;padding:0}
+  .grid-cell.hi{background:var(--cordex-color-accent-subtle);border-color:var(--cordex-color-accent-default)}
+  .demo-section{max-width:420px;margin:var(--cordex-space-8) auto var(--cordex-space-10);padding:0 var(--cordex-space-4)}
+  .demo-section h2{font-size:var(--cordex-font-size-lg);margin:0 0 var(--cordex-space-2)}
+  .section-note{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:0 0 var(--cordex-space-3)}
 </style>
 </head>
 <body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
 <symbol id="i-chev-r" viewBox="0 0 16 16"><polyline points="6,3 11,8 6,13"/></symbol>
@@ -69,8 +71,8 @@
   <span class="saved-state"><svg class="icon" aria-hidden="true"><use href="#i-sync"/></svg>已保存</span>
   <div class="avatar-stack" aria-label="协作者：我、王小明、李雷，另有 1 人">
     <span class="avatar self" title="我">我</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-6)" title="王小明">王</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-3)" title="李雷">李</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-3)" title="李雷">李</span>
     <span class="avatar more" title="另外 1 人">+1</span>
   </div>
   <span class="spacer"></span>
@@ -113,7 +115,7 @@
       <button type="button" class="ribbon-btn" aria-label="批注"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg></button>
     </div><span class="label">链接与批注</span></div>
     <div class="ribbon-group"><div class="ribbon-row">
-      <button type="button" class="ribbon-btn" style="color:var(--oce-color-accent-hover)" aria-label="流程图（插件贡献）"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>流程图</button>
+      <button type="button" class="ribbon-btn" style="color:var(--cordex-color-accent-hover)" aria-label="流程图（插件贡献）"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>流程图</button>
     </div><span class="label" style="display:inline-flex;align-items:center;gap:4px">插件<span class="plugin-attrib">ACME</span></span></div>
   </div>
 
@@ -181,7 +183,7 @@
   <h2>附：表格网格选择器</h2>
   <p class="section-note">点击“表格▾”后展开；下方模拟鼠标悬停到第 2 行、第 3 列时的高亮预览态。</p>
   <div class="popover" style="position:static;display:inline-block" aria-label="插入表格">
-    <div style="font-size:var(--oce-font-size-xs);color:var(--oce-color-text-secondary);margin-bottom:6px">插入表格</div>
+    <div style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);margin-bottom:6px">插入表格</div>
     <div style="display:grid;grid-template-columns:repeat(8,16px);gap:2px" aria-label="表格行数与列数选择器">
       <button type="button" class="grid-cell hi" aria-label="1 行 1 列"></button><button type="button" class="grid-cell hi" aria-label="1 行 2 列"></button><button type="button" class="grid-cell hi" aria-label="1 行 3 列"></button><button type="button" class="grid-cell" aria-label="1 行 4 列"></button><button type="button" class="grid-cell" aria-label="1 行 5 列"></button><button type="button" class="grid-cell" aria-label="1 行 6 列"></button><button type="button" class="grid-cell" aria-label="1 行 7 列"></button><button type="button" class="grid-cell" aria-label="1 行 8 列"></button>
       <button type="button" class="grid-cell hi" aria-label="2 行 1 列"></button><button type="button" class="grid-cell hi" aria-label="2 行 2 列"></button><button type="button" class="grid-cell hi" aria-label="2 行 3 列"></button><button type="button" class="grid-cell" aria-label="2 行 4 列"></button><button type="button" class="grid-cell" aria-label="2 行 5 列"></button><button type="button" class="grid-cell" aria-label="2 行 6 列"></button><button type="button" class="grid-cell" aria-label="2 行 7 列"></button><button type="button" class="grid-cell" aria-label="2 行 8 列"></button>
@@ -192,8 +194,8 @@
       <button type="button" class="grid-cell" aria-label="7 行 1 列"></button><button type="button" class="grid-cell" aria-label="7 行 2 列"></button><button type="button" class="grid-cell" aria-label="7 行 3 列"></button><button type="button" class="grid-cell" aria-label="7 行 4 列"></button><button type="button" class="grid-cell" aria-label="7 行 5 列"></button><button type="button" class="grid-cell" aria-label="7 行 6 列"></button><button type="button" class="grid-cell" aria-label="7 行 7 列"></button><button type="button" class="grid-cell" aria-label="7 行 8 列"></button>
       <button type="button" class="grid-cell" aria-label="8 行 1 列"></button><button type="button" class="grid-cell" aria-label="8 行 2 列"></button><button type="button" class="grid-cell" aria-label="8 行 3 列"></button><button type="button" class="grid-cell" aria-label="8 行 4 列"></button><button type="button" class="grid-cell" aria-label="8 行 5 列"></button><button type="button" class="grid-cell" aria-label="8 行 6 列"></button><button type="button" class="grid-cell" aria-label="8 行 7 列"></button><button type="button" class="grid-cell" aria-label="8 行 8 列"></button>
     </div>
-    <div style="margin-top:6px;font-size:var(--oce-font-size-xs);color:var(--oce-color-text-primary);font-weight:600">2 × 3 表格</div>
-    <a href="#" style="display:inline-block;margin-top:4px;font-size:var(--oce-font-size-xs)" onclick="return false">自定义行列数…</a>
+    <div style="margin-top:6px;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-primary);font-weight:600">2 × 3 表格</div>
+    <a href="#" style="display:inline-block;margin-top:4px;font-size:var(--cordex-font-size-xs)" onclick="return false">自定义行列数…</a>
   </div>
 </div>
 

@@ -1,26 +1,28 @@
 <!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>26 母版视图 · OCE Slides 设计稿</title>
+<title>26 母版视图 · Cordex Slides 设计稿</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <style>
   .canvas{width:min(100%,680px);}
-  .scope-bar{display:flex;align-items:center;gap:var(--oce-space-4);padding:6px var(--oce-space-4);background:var(--oce-color-accent-subtle);font-size:var(--oce-font-size-xs);color:var(--oce-color-accent-hover);border-bottom:1px solid var(--oce-color-border-subtle);flex-wrap:wrap}
-  .scope-bar .radio-grp{display:flex;gap:2px;background:var(--oce-color-bg-surface);border-radius:var(--oce-radius-md);padding:2px}
-  .scope-bar .radio-grp button{min-height:24px;padding:0 10px;border-radius:var(--oce-radius-sm);border:none;background:none;font-size:var(--oce-font-size-2xs);color:var(--oce-color-text-secondary)}
-  .scope-bar .radio-grp button[aria-pressed="true"]{background:var(--oce-color-accent-default);color:#fff;font-weight:600}
-  .legend{display:flex;gap:var(--oce-space-4);font-size:var(--oce-font-size-2xs);color:var(--oce-color-text-secondary)}
+  .scope-bar{display:flex;align-items:center;gap:var(--cordex-space-4);padding:6px var(--cordex-space-4);background:var(--cordex-color-accent-subtle);font-size:var(--cordex-font-size-xs);color:var(--cordex-color-accent-hover);border-bottom:1px solid var(--cordex-color-border-subtle);flex-wrap:wrap}
+  .scope-bar .radio-grp{display:flex;gap:2px;background:var(--cordex-color-bg-surface);border-radius:var(--cordex-radius-md);padding:2px}
+  .scope-bar .radio-grp button{min-height:24px;padding:0 10px;border-radius:var(--cordex-radius-sm);border:none;background:none;font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-secondary)}
+  .scope-bar .radio-grp button[aria-pressed="true"]{background:var(--cordex-color-accent-default);color:#fff;font-weight:600}
+  .legend{display:flex;gap:var(--cordex-space-4);font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-secondary)}
   .legend .sw{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-  .thumb-body-line{height:4px;border-radius:2px;background:var(--oce-color-border-default);margin-top:4px}
-  .thumb-title-bar{height:7px;border-radius:2px;background:var(--oce-color-accent-subtle)}
-  .layout-lv{font-size:clamp(9px,1.6vw,11px);color:var(--oce-color-text-secondary);margin:0 0 4px 0}
-  .layout-lv b{color:var(--oce-color-text-primary)}
+  .thumb-body-line{height:4px;border-radius:2px;background:var(--cordex-color-border-default);margin-top:4px}
+  .thumb-title-bar{height:7px;border-radius:2px;background:var(--cordex-color-accent-subtle)}
+  .layout-lv{font-size:clamp(9px,1.6vw,11px);color:var(--cordex-color-text-secondary);margin:0 0 4px 0}
+  .layout-lv b{color:var(--cordex-color-text-primary)}
 </style>
 </head>
 <body data-density="compact">
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
 <a class="skip-link" href="#canvas-main">跳至画布</a>
 <svg class="sr-only" aria-hidden="true" style="position:absolute">
 <symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
@@ -46,8 +48,8 @@
   <span class="title">26 · 母版视图（M2 P0）</span>
   <span class="spacer"></span>
   <button type="button" class="pbtn" aria-pressed="false" onclick="toggleTheme()">暗色主题</button>
-  <a class="crumblink" style="font-size:11px;color:var(--oce-color-accent-default)" href="27-layout-picker-and-reset.html">↗ 版式选择器稿</a>
-  <a class="crumblink" style="font-size:11px;color:var(--oce-color-accent-default)" href="28-design-tab-and-themes.html">↗ 设计/主题稿</a>
+  <a class="crumblink" style="font-size:11px;color:var(--cordex-color-accent-default)" href="27-layout-picker-and-reset.html">↗ 版式选择器稿</a>
+  <a class="crumblink" style="font-size:11px;color:var(--cordex-color-accent-default)" href="28-design-tab-and-themes.html">↗ 设计/主题稿</a>
 </div>
 
 <header class="app-bar">
@@ -57,7 +59,7 @@
   <span class="saved-state warn">改动将影响 4 个使用此版式的页面</span>
   <div class="avatar-stack" aria-label="协作者：我、王小明">
     <span class="avatar self" title="我">我</span>
-    <span class="avatar" style="--presence:var(--oce-color-presence-6)" title="王小明">王</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span>
   </div>
   <span class="spacer"></span>
   <button type="button" class="btn btn-sm"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>分享</button>
@@ -79,7 +81,7 @@
       <button type="button" class="ribbon-btn">重命名</button>
     </div><span class="label">母版版式</span></div>
     <div class="ribbon-group"><div class="ribbon-row">
-      <button type="button" class="ribbon-btn"><span class="swatch" style="width:14px;height:14px;background:var(--oce-color-accent-default)"></span>背景样式▾</button>
+      <button type="button" class="ribbon-btn"><span class="swatch" style="width:14px;height:14px;background:var(--cordex-color-accent-default)"></span>背景样式▾</button>
       <button type="button" class="ribbon-btn" aria-label="隐藏背景图形" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-eye-off"/></svg></button>
     </div><span class="label">背景</span></div>
     <div class="ribbon-group"><div class="ribbon-row">
@@ -97,33 +99,33 @@
 <div class="main-layout">
   <aside class="thumb-rail" style="width:196px" aria-label="母版与版式">
     <div class="rail-mode-switch" role="tablist" aria-label="侧栏模式">
-      <a role="tab" aria-selected="false" href="02-editor-main.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;border-radius:var(--oce-radius-sm);font-size:var(--oce-font-size-2xs)">普通</a>
+      <a role="tab" aria-selected="false" href="02-editor-main.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;border-radius:var(--cordex-radius-sm);font-size:var(--cordex-font-size-2xs)">普通</a>
       <button type="button" role="tab" aria-pressed="true" aria-selected="true">母版</button>
     </div>
     <nav class="tree" aria-label="母版树">
       <div class="tree-node">
         <button type="button" class="tree-row tree-master-row" aria-expanded="true" aria-label="公司主题母版，6 个版式，共 12 页引用">
           <svg class="icon twisty" aria-hidden="true"><use href="#i-chevron-down"/></svg>
-          <span class="swatch-mini" style="background:linear-gradient(135deg,var(--oce-color-accent-subtle),var(--oce-color-bg-surface))"></span>
+          <span class="swatch-mini" style="background:linear-gradient(135deg,var(--cordex-color-accent-subtle),var(--cordex-color-bg-surface))"></span>
           <span class="name">公司主题</span>
         </button>
-        <div class="meta" style="padding-left:38px;margin:-2px 0 2px;color:var(--oce-color-text-tertiary)">6 版式 · 12 页引用</div>
+        <div class="meta" style="padding-left:38px;margin:-2px 0 2px;color:var(--cordex-color-text-tertiary)">6 版式 · 12 页引用</div>
         <div class="tree-children">
           <button type="button" class="tree-row"><span class="swatch-mini"><span class="thumb-title-bar" style="position:absolute;inset:3px 3px auto;height:5px"></span></span><span class="name">标题幻灯片</span><span class="meta badge">1 页</span></button>
           <button type="button" class="tree-row" aria-current="true" aria-selected="true"><span class="swatch-mini"><span class="thumb-title-bar" style="position:absolute;inset:2px 3px auto;height:4px"></span><span class="thumb-body-line" style="position:absolute;top:9px;left:3px;right:3px"></span></span><span class="name">标题和内容</span><span class="meta badge accent">4 页</span></button>
           <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">两栏内容</span><span class="meta badge">2 页</span></button>
           <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">仅标题</span><span class="meta badge">2 页</span></button>
           <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">章节标题</span><span class="meta badge">2 页</span></button>
-          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name" style="color:var(--oce-color-text-tertiary)">空白</span><span class="meta" style="color:var(--oce-color-text-tertiary)">未使用</span></button>
+          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name" style="color:var(--cordex-color-text-tertiary)">空白</span><span class="meta" style="color:var(--cordex-color-text-tertiary)">未使用</span></button>
         </div>
       </div>
       <div class="tree-node">
         <button type="button" class="tree-row tree-master-row" aria-expanded="false" aria-label="简约主题母版（导入），4 个版式，共 1 页引用">
           <svg class="icon twisty" aria-hidden="true"><use href="#i-chevron-down"/></svg>
-          <span class="swatch-mini" style="background:var(--oce-color-bg-inset)"></span>
+          <span class="swatch-mini" style="background:var(--cordex-color-bg-inset)"></span>
           <span class="name">简约主题<span class="badge" style="margin-left:4px">导入</span></span>
         </button>
-        <div class="meta" style="padding-left:38px;margin-top:-2px;color:var(--oce-color-text-tertiary)">4 版式 · 1 页引用</div>
+        <div class="meta" style="padding-left:38px;margin-top:-2px;color:var(--cordex-color-text-tertiary)">4 版式 · 1 页引用</div>
       </div>
     </nav>
     <button type="button" class="thumb-new"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建母版</button>
@@ -138,12 +140,12 @@
       </div>
       <strong id="scope-label">标题和内容 · 继承自「公司主题」</strong>
       <span class="spacer"></span>
-      <span class="legend"><span><span class="sw" style="background:var(--oce-color-accent-subtle);border:1px solid var(--oce-color-accent-default)"></span>此版式定义</span><span><span class="sw" style="border:1.5px dashed var(--oce-color-border-control)"></span>继承自母版</span></span>
+      <span class="legend"><span><span class="sw" style="background:var(--cordex-color-accent-subtle);border:1px solid var(--cordex-color-accent-default)"></span>此版式定义</span><span><span class="sw" style="border:1.5px dashed var(--cordex-color-border-control)"></span>继承自母版</span></span>
     </div>
     <main id="canvas-main" class="canvas-viewport">
       <div class="canvas" role="img" aria-label="“标题和内容”版式：标题与正文占位符由此版式定义；页脚、日期、页码占位符继承自公司主题母版">
-        <div class="shape shape--title placeholder-hint" style="top:8%;left:6%;width:64%;padding:4px 8px;border:1.5px solid var(--oce-color-accent-default);border-radius:4px;background:var(--oce-color-accent-subtle)">单击此处编辑母版标题样式</div>
-        <div style="position:absolute;top:26%;left:6%;width:78%;padding:6px 8px;border:1.5px solid var(--oce-color-accent-default);border-radius:4px;background:var(--oce-color-accent-subtle)">
+        <div class="shape shape--title placeholder-hint" style="top:8%;left:6%;width:64%;padding:4px 8px;border:1.5px solid var(--cordex-color-accent-default);border-radius:4px;background:var(--cordex-color-accent-subtle)">单击此处编辑母版标题样式</div>
+        <div style="position:absolute;top:26%;left:6%;width:78%;padding:6px 8px;border:1.5px solid var(--cordex-color-accent-default);border-radius:4px;background:var(--cordex-color-accent-subtle)">
           <p class="layout-lv"><b>第一级</b>大纲文本样式</p>
           <p class="layout-lv" style="margin-left:1.2em">第二级大纲文本样式</p>
           <p class="layout-lv" style="margin-left:2.4em">第三级大纲文本样式</p>

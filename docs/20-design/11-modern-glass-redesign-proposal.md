@@ -138,7 +138,7 @@
 | 1 基础 | `components.json` → `radix-rhea`，`shadcn add -o` 重生成 45 组件；`index.css` 材质 token + `@utility glass/glass-strong` + data-slot 浮层规则 + 字体栈 + `--radius` | 构建通过、styleguide 更新 | 1 天 |
 | 2 壳布局 | `EditorShell`/`AppBar`/`Ribbon`/`ThumbnailRail`/`Inspector`/`StatusBar` 改为悬浮卡 + 背景层；去分区线；Ribbon 组样式 | `#/editor` 亮暗定稿 | 1–2 天 |
 | 3 路由核对 | 17 条路由逐条截图核对（截断、分区线残留、对比度）；`/documents` `/present` `/viewer` `/settings` 等非壳页面同步 | 38 张截图 | 1–2 天 |
-| 3.5 落点策略 | 组件级改动优先用 `index.css` 的 `data-slot` 规则表达（升级时 `shadcn add -o` 不会覆盖）；只有 Rhea 没有提供的形态（如 Tabs 胶囊 variant、Overlay 材质）才直接改 `src/components/ui/*`，并在文件头注释标记 `// OCE override`，由扫描脚本列出覆盖清单 | 覆盖清单 | 随阶段 1–2 |
+| 3.5 落点策略 | 组件级改动优先用 `index.css` 的 `data-slot` 规则表达（升级时 `shadcn add -o` 不会覆盖）；只有 Rhea 没有提供的形态（如 Tabs 胶囊 variant、Overlay 材质）才直接改 `src/components/ui/*`，并在文件头注释标记 `// Cordex override`，由扫描脚本列出覆盖清单 | 覆盖清单 | 随阶段 1–2 |
 | 4 文档 | 09 → v3.0（材质/层次/几何章节）、04 §8 更新、ADR-0017 追加"风格 Rhea + 材质层"、03-screens 设计基准行、README v5 变更 | 文档 | 0.5 天 |
 
 ## 6. 风险与对策

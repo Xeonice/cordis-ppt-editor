@@ -28,10 +28,10 @@ apps/web（章程 §5.2，L8，dom）
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 顶部全局栏 App Bar                                                        │  L: --oce-z-chrome
+│ 顶部全局栏 App Bar                                                        │  L: --cordex-z-chrome
 │ [← 返回首页] 文档标题[可编辑]  已保存✓  [协作者头像簇] [分享] [模式:编辑▾] [⋯] [账户头像] │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ Ribbon 区（页签 × 分组 × 按钮，ui.ribbon 贡献）                            │  --oce-z-chrome
+│ Ribbon 区（页签 × 分组 × 按钮，ui.ribbon 贡献）                            │  --cordex-z-chrome
 │ [开始][插入][设计][切换][视图][插件A][插件B▸更多]         [普通｜母版] [☾] [?] │
 │ ┌分组:剪贴板┐┌分组:字体┐┌分组:段落┐┌分组:绘图┐ ...              [▾折叠]   │
 ├──────────┬──────────────────────────────────────────────┬───────────────┤
@@ -111,16 +111,16 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 
 | 区域/元素 | token |
 |---|---|
-| 画布内容 | `--oce-z-canvas` |
-| 远端光标/选区/评论锚点/选中手柄 | `--oce-z-canvas-overlay` |
-| Ribbon / 缩略图侧栏 / 检查器坞 / 状态栏 | `--oce-z-chrome` |
-| 下拉菜单、插入 flyout 画廊 | `--oce-z-dropdown` |
-| 颜色选择器、@提及建议 | `--oce-z-popover` |
-| 离线/冲突横幅（吸顶时） | `--oce-z-sticky` |
-| 通知 Toast | `--oce-z-toast` |
-| 对话框遮罩/本体 | `--oce-z-modal-backdrop` / `--oce-z-modal` |
-| 命令面板 | `--oce-z-command-palette` |
-| 工具提示 | `--oce-z-tooltip` |
+| 画布内容 | `--cordex-z-canvas` |
+| 远端光标/选区/评论锚点/选中手柄 | `--cordex-z-canvas-overlay` |
+| Ribbon / 缩略图侧栏 / 检查器坞 / 状态栏 | `--cordex-z-chrome` |
+| 下拉菜单、插入 flyout 画廊 | `--cordex-z-dropdown` |
+| 颜色选择器、@提及建议 | `--cordex-z-popover` |
+| 离线/冲突横幅（吸顶时） | `--cordex-z-sticky` |
+| 通知 Toast | `--cordex-z-toast` |
+| 对话框遮罩/本体 | `--cordex-z-modal-backdrop` / `--cordex-z-modal` |
+| 命令面板 | `--cordex-z-command-palette` |
+| 工具提示 | `--cordex-z-tooltip` |
 
 ---
 
@@ -210,7 +210,7 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 
 ## 8. `preset-slide-viewer` 极简查看器壳（补充，章程 v0.2 新增）
 
-章程 v0.2 §5.2 新增了 `@oce/preset-slide-viewer`（L8，dom）："只读查看器：无编辑 UI、无 collab"，用于集成方"只想嵌入一个 pptx 查看器，不想引入任何编辑代码"的场景（PRD OF-14）。这不是编辑器主界面（§2）的一个模式，而是**另一个更小的组装形态**，与 preset-slide(-collab) 平级，因此单列一节而不是塞进 §5 的三种模式表。
+章程 v0.2 §5.2 新增了 `@cordexjs/preset-slide-viewer`（L8，dom）："只读查看器：无编辑 UI、无 collab"，用于集成方"只想嵌入一个 pptx 查看器，不想引入任何编辑代码"的场景（PRD OF-14）。这不是编辑器主界面（§2）的一个模式，而是**另一个更小的组装形态**，与 preset-slide(-collab) 平级，因此单列一节而不是塞进 §5 的三种模式表。
 
 ### 8.1 最小 IA
 
@@ -230,7 +230,7 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 - **可选（rulings §4.10 Q18，PRD OF-14）**：**缩略图条**（页缩略图导航，可点击跳页）与**备注抽屉**（只读查看演讲者备注）——默认关闭，由宿主选项开启，按需加载、不计入 350 KB 基线；开启后仍无编辑 UI、无 collab（03-screens/25、playground `#/viewer`）。
 - **不含**：Ribbon、检查器坞、编辑器的缩略图侧栏（查看器只有上述可选缩略图条与页码跳转）、评论、版本历史、插件管理器、协同——这些都是编辑器主界面（preset-slide 装配）才有的区域，查看器壳没有对应的贡献点宿主（无 `ui.ribbon`/`ui.panel` 的渲染宿主，插件即使贡献了这些槽位在查看器壳里也不会呈现任何内容）。
 - 支持文本搜索（M2，P1，PRD OF-14）与超链接点击，两者都通过顶部工具条右侧的图标按钮呈现，不占用主区域空间。
-- 体积预算 ≤ 350KB（gzip，初始加载，PRD `04-non-functional-requirements.md` NF-01"查看器 preset"行），这是查看器壳"框架无关、极简"定位的可验证约束；设计侧据此要求查看器壳的样式与交互不得依赖 `ui-react`/`slide-ui` 的完整依赖树，只复用 `@oce/design` 的 token 与最小必要的原子组件（Button、ProgressBar/Spinner）。
+- 体积预算 ≤ 350KB（gzip，初始加载，PRD `04-non-functional-requirements.md` NF-01"查看器 preset"行），这是查看器壳"框架无关、极简"定位的可验证约束；设计侧据此要求查看器壳的样式与交互不得依赖 `ui-react`/`slide-ui` 的完整依赖树，只复用 `@cordexjs/design` 的 token 与最小必要的原子组件（Button、ProgressBar/Spinner）。
 
 ### 8.2 与三种模式（§5）的关系
 

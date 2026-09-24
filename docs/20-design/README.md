@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15：D7 结案；T-0 / Q3 / Q5 / Q6 / Q7 / Q8 回写 02、04、05、07、03-screens/01、06、08、10、11、12、13、18、19、22、29） | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
 > 章程已升至 v0.2（向后兼容、只增不改语义，见 `00-charter/charter.md` 顶部变更说明）；本文档集已核对 v0.2 新增内容（`preset-slide-viewer`、Q20、§5.5 贡献点 id 定稿等）并按其更新，状态头按章程原文约定继续标注「charter v0.1」，无需重写。
 
 # 设计条线总览
@@ -16,7 +16,7 @@
 5. **桌面优先，窄屏是变化点不是缩水复刻**：继承 Univer 教训 A7，窄屏/触屏下的呈现是同一套贡献点的"紧凑呈现"，不是另建一套 UI 或阉割功能范围之外的东西（产品已明确 <640px 仅承诺查看/评论体验，见 01-information-architecture.md §6）。
 6. **键盘与屏幕阅读器是同等公民，不是补丁**：DOM/SVG 渲染架构基线（章程 ADR-0021）本身就是无障碍的先天优势，设计从一开始就利用而不是事后补救（07-accessibility-and-i18n.md）。
 7. **插件失败可见但不致命**：任一插件的 Fiber 进入 `FAILED` 不应让整个编辑器 chrome 崩溃或留下费解的空白，必须有明确的降级表达（设计 06 §3，对应章程 A11）。
-8. **一切视觉数值皆 token**：颜色、间距、字号、圆角、阴影、层级、动效时长——凡是会在两处以上出现的数值，必须来自 `--oce-*` token，不允许组件内魔法数字（04-design-system.md，修补 Univer 报告标记的"非颜色 token 缺失"）。
+8. **一切视觉数值皆 token**：颜色、间距、字号、圆角、阴影、层级、动效时长——凡是会在两处以上出现的数值，必须来自 `--cordex-*` token，不允许组件内魔法数字（04-design-system.md，修补 Univer 报告标记的"非颜色 token 缺失"）。
 
 ---
 
@@ -72,10 +72,10 @@
 | D4 | 保真报告的"不再提醒"是否需要跨会话/全局静音（当前仅做当次会话静音） | 03-screens/10 仅做会话级静音 | 产品 |
 | D5 | 分享对话框是否需要"转移所有权"能力 | 03-screens/08 未设计此能力 | 产品 |
 | D6 | 密度模式是否需要第三档"宽松（spacious）" | 04-design-system.md 只做了舒适/紧凑两档 | 产品/设计（无强需求可不做） |
-| D7 | 是否支持未登录/匿名访客身份 | 02-user-flows.md 默认假设"需登录"为前提 | 产品 |
+| ~~D7~~ | ~~是否支持未登录/匿名访客身份~~ | **已结案**：不支持匿名，分享链接始终要求登录（rulings §4.13 S-1、§4.15 Q6）；单组织部署、无租户（§4.15 T-0）；注册由部署开关 `auth.selfSignup` 控制、默认关（管理员邀请 / 在 IdP 建号）。已回写 02-user-flows、03-screens/08 | — |
 | ~~D8~~ | ~~`render.overlay` 贡献点未出现在架构 03 §3.6 v0.1 总表~~ | **已解决**：章程 v0.2 §5.5 贡献点 id 定稿已正式收录 `render.overlay`（与 `ui.statusBar` 等 id 的最终大小写一并定稿），见 06-extensibility-ux.md §2.7/§2.8 | — |
 | D9 | `ui.ribbon` 的 tab/group/control 三级如何精确编码进统一的 `{id, slot, order, when}` 贡献形状（是否需要 `kind` 判别字段） | 06-extensibility-ux.md §2.1 给出 UX 视角示意，未定型 | 架构-结构 |
-| D10 | 密度选择器属性名 `data-oce-density` | 设计按 `data-oce-theme` 命名空间一致性推荐给出，架构尚未给出显式字段名 | 架构-结构/运行时 |
+| D10 | 密度选择器属性名 `data-cordex-density` | 设计按 `data-cordex-theme` 命名空间一致性推荐给出，架构尚未给出显式字段名 | 架构-结构/运行时 |
 | D11 | 高对比主题（`themes/high-contrast.ts`）具体 token 数值 | P1，非本轮阻塞项，无障碍验收标准明确后由设计补齐 | 设计（自行认领，供后续里程碑） |
 
 ---
@@ -117,7 +117,7 @@
 1. ~~`render.overlay` 贡献点的产品/架构同步差异~~：**已由章程 v0.2 §5.5 解决**（正式收录 `render.overlay`，并把 `ui.statusBar`/`ui.dialog`/`ui.notification`/`ui.theme` 等 id 的大小写一并定稿为 camelCase）。本轮已据此更新 06-extensibility-ux.md 全部相关小节，无需架构条线再处理。
 2. **`ui.ribbon` 三级贡献（tab/group/control）如何编码进统一形状**：架构 03 §3.2 给出的共享 `{id, slot, order, when}` 形状未说明三级如何判别（是否需要 `kind` 字段），设计 06 §2.1 给出的是 UX 视角示意，需要架构-结构定稿。
 3. **"应用壳级但含业务逻辑"的 UI 归属**（详见本文件 §5 第 2 条）：需要架构-结构裁定分享对话框、插件管理器一类界面应归属哪个包，产品条线已在其 README 提出类似请求，建议总编排合并处理。
-4. **密度选择器属性名 `data-oce-density`**：设计侧按命名空间一致性给出的推荐值，需要架构-结构/运行时在 `theme.service.ts` 细化时确认或改名。
+4. **密度选择器属性名 `data-cordex-density`**：设计侧按命名空间一致性给出的推荐值，需要架构-结构/运行时在 `theme.service.ts` 细化时确认或改名。
 5. **评论删除权限矩阵**（本文件 §4 D2）与**度量单位默认值**（D1）：需要产品条线在 PRD 相应章节补齐精确口径，设计条线目前的实现是合理外推而非产品原文。
 6. **放映模式"演讲者视图"是否在当前里程碑范围**（D3）：若产品确认需要，设计条线可在下一轮把 03-screens/11 的预留概念细化为完整规格。
 7. **放映模式播放动画/切换效果与章程 §2.3 非目标条款的关系**（本文件 §5 第 1 条）：建议总编排确认设计条线的解读并视需要回写章程/PRD 措辞，供架构 07（渲染管线）与产品条线对齐验收口径。
@@ -167,7 +167,7 @@
 
 | 步骤 | 命令 | 采纳情况 |
 |---|---|---|
-| 设计系统基线 | `search.py "collaborative presentation editor productivity tool professional minimal" --design-system -p "OCE Slides" --variance 3 --motion 3 --density 8` | 部分采纳：确认 Minimalism & Swiss 风格判定（与既有设计一致）、`--density 8`→紧凑密度（母版视图三栏同屏，`mockups/26/28` 采用 `data-density="compact"`）、Pre-Delivery Checklist 全部条目已满足。**不采纳**：推荐主色 `#0D9488`/强调色 `#EA580C`、字体 Plus Jakarta Sans（与已裁决的靛蓝 accent `#4A54E1`、系统字体栈冲突，理由见 `04-design-system.md` §7 比对表）；"Product Demo + Features" 营销页结构与图表类型建议（Gauge/Bullet/Waffle）不适用于本产品/本轮范围 |
+| 设计系统基线 | `search.py "collaborative presentation editor productivity tool professional minimal" --design-system -p "Cordex Slides" --variance 3 --motion 3 --density 8` | 部分采纳：确认 Minimalism & Swiss 风格判定（与既有设计一致）、`--density 8`→紧凑密度（母版视图三栏同屏，`mockups/26/28` 采用 `data-density="compact"`）、Pre-Delivery Checklist 全部条目已满足。**不采纳**：推荐主色 `#0D9488`/强调色 `#EA580C`、字体 Plus Jakarta Sans（与已裁决的靛蓝 accent `#4A54E1`、系统字体栈冲突，理由见 `04-design-system.md` §7 比对表）；"Product Demo + Features" 营销页结构与图表类型建议（Gauge/Bullet/Waffle）不适用于本产品/本轮范围 |
 | `--domain ux` × 12（含 4 组 0 命中后按协议重试） | `"placeholder empty state"`、`"modal dialog focus"`、`"toast undo"`、`"form inline validation"`、`"data table sortable"`、`"virtualized list performance"`、`"gallery grid keyboard navigation"`、`"color picker swatches accessible"`；0 命中重试：`"ribbon toolbar dense grouping"`→`"dense toolbar"`（仍 0 命中，如实标注未找到匹配，沿用设计 06 §2.1 既有槽位密度规则）、`"canvas selection handles"`→`"resize handle drag"`（命中 Dragging Movements）、`"comment thread anchored"`→`"inline comment annotation"`、`"presence avatars stack"`→`"avatar group overflow"` | 命中的 Focus Appearance（2px+3:1）、Toast 3–5s 自动消失、Dragging Movements 键盘等价、Color Only（不单靠颜色）、Empty States（helpful message+action）等规则与既有裁决交叉验证一致，逐条登记在对应 `03-screens/26–28`、`mockups/*.html` 的"应用的 UX 规则"小节 |
 | `--domain icons` × 2 | `"lock toggle state icon"`、`"template layout master icon"`→0 命中重试`"layout grid icon"`（命中 `grid-four`/`columns`） | 确认新增 `i-master`/`i-layout` 图标方向（分区矩形隐喻），按 Phosphor regular 描边风格手绘，见各 `mockups/*.html` 内联 sprite |
 | `--domain color` × 2 | `"dense dashboard accent color"`、`"semantic status color pairs"` | 仅作方法论交叉验证（强调色应与状态色分离），不采纳具体色值，既有靛蓝 accent 保留 |
@@ -209,7 +209,7 @@
 
 ### v4 变更（2026-09-15，设计系统改为复用 shadcn/ui）
 
-- 用户先指出"缺少一套完整且可遵循的设计规范、稿件不精致"，随后明确要求"组件应直接复用成熟组件，如 shadcn"。处置：`09-design-specification.md` 改写为 v2.0（shadcn 主题变量映射、OCE 元素→shadcn 组件映射表、组合模式、模板、遵循方式）；手工套件 `kit/` 作废删除。
+- 用户先指出"缺少一套完整且可遵循的设计规范、稿件不精致"，随后明确要求"组件应直接复用成熟组件，如 shadcn"。处置：`09-design-specification.md` 改写为 v2.0（shadcn 主题变量映射、Cordex 元素→shadcn 组件映射表、组合模式、模板、遵循方式）；手工套件 `kit/` 作废删除。
 - 新建设计 playground `playground/`（Vite 8 + React 19 + TS strict + Tailwind 4 + shadcn CLI 4.21，`radix-nova` 预设，45 个组件），设计稿即真实组件页面：`/styleguide` 为组件状态基准，其余 17 条界面路由按 `src/routes/registry.ts` 登记；构建 `npm run build` 后产物 `dist/` 作为多文件 artifact 发布。
 - 旧静态稿 `mockups/` 与低保真原型 `prototype/` 在 playground 路由覆盖后退役为历史参考。
 - `03-screens/` 全部 28 份界面文档在 H1 下方加入统一的"设计基准（2026-09-15 起）"提示行：组件规格以 09 v2.0 为准、列出对应 playground 路由（无独立路由的界面注明承载位置，如右键菜单/查找面板承载于 `#/editor`）、并声明文内 `mockups/*.html` 与线框图为历史静态稿。文档正文未改写，避免与 playground 路由实现并行期间产生二次失配；路由全部 ready 后再逐份核对"设计规格"小节。
@@ -228,9 +228,9 @@
 - **v5 自审修正（2026-09-16 深夜，用户："你自己再截图看一下，我看着还有问题"）**：总编排对 38 张截图逐区放大自审，发现并修复：(1) **玻璃从未真正模糊**——编译产物中 `backdrop-filter` 被 Lightning CSS 去重丢弃只剩 `-webkit-` 前缀，Chrome 不识别；调整为 `-webkit-` 在前、标准属性在后，`getComputedStyle` 验证为 `blur(24px) saturate(1.5)`（09 §6.3 新增声明顺序硬规则）；(2) 主题逻辑从 `ThemeToggle` 的 effect 抽为全局 store `src/lib/theme.ts`（首屏即应用；多实例同步；**响应宿主 `<html data-theme>` 标记**，artifact 查看器切暗色时页面跟随）；(3) 路由级代码分割（`React.lazy` + `Suspense`），首包 850 KB → 295 KB，嵌入查看器首屏更快；(4) 检查器只有一个页签时改为分区标题，不再渲染撑满整行的单个胶囊；(5) 头像首字母在浅色玻璃上不可见（Rhea fallback 为 muted 前景）→ 显式 `bg-muted text-foreground`；(6) 迷你工具条字体名对比不足 → 前景色 80%；(7) 样式指南 sticky 页头补 `isolate` 与主内容 `z-0`。artifact 同 URL 第 5 版。
 - 说明：claude.ai artifact 查看器在被遮挡/自动化的浏览器窗口里会出现"首屏不绘制、需滚动或改尺寸才出现"，静态画廊 artifact 亦然，属浏览器对遮挡窗口的渲染节流，不是页面缺陷。
 - **v6 宿主内暗色文字修复（2026-09-16 深夜，用户第二次截图："这么明显的问题为什么一直没修"）**：根因是 artifact 宿主给 `body` 注入未分层的 `color:#141413`/系统字体/浅色背景，我们的正文色写在 `@layer base` 里永远输给它，暗色下所有继承色文字近黑；之前所有验证都直接打开 `dist/index.html`，没有套宿主外壳，因此一直没复现。处置：(1) `index.css` 末尾加未分层 `body` 防线（色、字体、字号、行高、背景）；(2) 新增 `playground/scripts/host-wrap.py` 用宿主的真实骨架（`Artifact read` 得到的 HTML）包裹产物做**宿主外壳复现**，暗色前后对比截图确认；(3) `scripts/publish-entry.py` 固化发布入口生成；(4) 09 §5 新增"宿主防线"规则，验收必须过宿主外壳。artifact 同 URL 第 6 版。
-- **v7 浅色字段 token（2026-09-16 深夜，用户："白色下输入框看着有问题"）**：根因是 Rhea 用 `--input` 做字段填充基色（`bg-input/50`），而 OCE 的浅色 `--input=#8A93A2` 是描边色，叠白后成重灰。改 `--input` #DFE3EA、新增 `--border-control`、`--muted-foreground` 加深到 #5F6B80，并用 `[data-slot]` 规则统一字段悬停/聚焦态；宿主外壳截图验证；artifact 同 URL 第 7 版。
+- **v7 浅色字段 token（2026-09-16 深夜，用户："白色下输入框看着有问题"）**：根因是 Rhea 用 `--input` 做字段填充基色（`bg-input/50`），而 Cordex 的浅色 `--input=#8A93A2` 是描边色，叠白后成重灰。改 `--input` #DFE3EA、新增 `--border-control`、`--muted-foreground` 加深到 #5F6B80，并用 `[data-slot]` 规则统一字段悬停/聚焦态；宿主外壳截图验证；artifact 同 URL 第 7 版。
 - **v8 检查器分组间距（2026-09-16 深夜，用户："属性面板那块少了间距"）**：根因是 `.inspector-groups` 标记类加在 `<Accordion>` 根元素自身，而规则写成后代选择器 `.inspector-groups [data-slot="accordion"]`，分组间 gap 从未生效，又已去掉 Rhea 的分隔线，折叠行紧贴成一团。改为同时匹配自身与后代，并按 iOS 分组列表节奏定稿（分区间 10px、触发器 36px、内容内边距 12、行距 10px，底色 4.5%/6%）。宿主外壳在 1440×900 与 1800×1100 两个视口截图验证；artifact 同 URL 第 8 版。
-- **v9 分组卡三层配色（2026-09-16 深夜，用户："配色上有点问题"）**：面板/分组/字段三层同调浅灰 → Apple 表单层次（浅灰井 → 白卡 + 发丝描边 → 灰字段），暗色同构；抽成 `.oce-well`/`.oce-group` 公共类，检查器与设置抽屉共用；宿主外壳亮/暗截图核对；artifact 同 URL 第 9 版。
+- **v9 分组卡三层配色（2026-09-16 深夜，用户："配色上有点问题"）**：面板/分组/字段三层同调浅灰 → Apple 表单层次（浅灰井 → 白卡 + 发丝描边 → 灰字段），暗色同构；抽成 `.cordex-well`/`.cordex-group` 公共类，检查器与设置抽屉共用；宿主外壳亮/暗截图核对；artifact 同 URL 第 9 版。
 - **v10 编辑器族评审与修复（2026-09-16 晚，用户："编辑器主界面的所有页面用 agent 评价一下，每个页面都截图看效果"）**：评审 agent 在宿主外壳内截得 108 张（10 路由 × 全部演示状态 × 亮/暗）后因网络停滞失败，总编排接手逐张评审并写成 `12-editor-routes-review.md`（逐屏表、8 条共性问题、规范偏差、亮点、处置结果）；同日修复 14 项（3 项高严重度：评审态检查器空白、只读 Ribbon 空玻璃卡、暗色图片占位对比不足），新增 `ReadonlyRibbonNotice`、`EditorShell` 面板改像素尺寸、手柄改圆形等；截图画廊发布为独立 artifact；playground 同 URL 第 10 版。
 - **v11 母版视图与普通视图统一（2026-09-16 晚，用户："母版视图下整个编辑器跟普通的是一致的，但现在刻意区分了，查一下 Office 的做法"）**：核对 Microsoft 支持文档与教程：PowerPoint 幻灯片母版视图只是在功能区最左新增"幻灯片母版"页签（编辑母版/母版版式/编辑主题/背景/大小/关闭），开始/插入/切换/动画/审阅/视图照常可用，缩略图窗格显示母版 + 缩进的版式。处置：`MasterRibbon` 复用 `buildEditorTabs`，母版页签置首（强调色）+ 开始/插入/切换/视图/插件，仅隐藏"设计"；检查器仅禁用"评论"；09 T-02 与 03-screens/26 同步。playground 同 URL 第 11 版。
 - **v12 母版缩略图窗格（2026-09-16 晚，用户："母版视图下左侧和普通是一样的，都是缩略图"）**：母版视图左栏由文字树改为缩略图窗格（母版大缩略图 + 缩进版式小缩略图，同款卡片与选中环），`ThumbnailRail` 的 `MasterTree` 替换为 `MasterThumbnails`；09 §2/§3/T-02 与 03-screens/26 同步；playground 同 URL 第 12 版。
@@ -238,7 +238,7 @@
 - **v14 Ribbon 高度节奏与检查器叠色（2026-09-17，用户："工具栏按钮高度不一致；属性面板叠色过多且不应有横向滚动条"）**：Ribbon 小控件统一 28px、堆叠行距 4px、大按钮 60px（两行）；检查器去掉井层着色（两层色阶），属性行 `min-w-0` + 内容区 `overflow-x-hidden` 消除横向滚动（根因：`<input>` 固有宽度 size=20 使 flex 子项无法收缩）；09 §3 与 04 同步；playground 同 URL 第 14 版。
 - **v15 逐页签节奏与母版页签重排（2026-09-17，用户："工具栏每个 tab 都看一下，母版不对"；"母版里的按钮图示脱离风格、一会按行一会按列"）**：用脚本逐页签点击并量高——设计页签主题卡 80px 撑破、切换/视图/母版页签复选框行 16px、单行组 51px 与 83px 不等高；处置：内容区固定 91px + 组 `self-stretch`，主题卡缩为 84×60、变体 44×28，复选框堆叠 3×20 / 2×28，组标签行固定 11px；母版页签按 PowerPoint 五组重排为"左大按钮 + 右两行小控件"统一节奏，图标改 Lucide 线性（去彩色方块、红圈），关闭用 `CircleX`。复测：7 个页签组高全为 83、控件仅 28/60（复选框栈 20）。playground 同 URL 第 15 版。
 - **v16 应用首页（2026-09-17，用户："少了个首页，进入编辑器的官方首页，最好带指南入口"）**：新增 `#/home`（`src/routes/Home.tsx`，T-07）：左栏导航卡 + 新建/模板/导入卡、最近文档列表、指南与帮助卡（快速入门、快捷键、母版与版式、协同编辑、帮助中心）；四个演示状态（默认/首次使用/加载/离线）；编辑器应用栏"返回"改落首页；新增 `03-screens/29-home-start-page.md`；PRD 待登记开始页需求域（03-29 §5）。playground 同 URL 第 16 版。
-- **v17 品牌、用户菜单、设置入口与关闭（2026-09-17，用户："logo、用户头像、设置入口、设置关闭都有点问题"）**：新增 `components/brand.tsx`（`BrandMark` 自有幻灯片图形 + "OCE 幻灯片"字标，替换三处泛用 Palette 图标与不一致命名）、`components/user-menu.tsx`（`UserMenu` 行/头像两种触发，设置/快捷键/帮助/退出的唯一入口，头像去在场环）；首页侧栏底部改为"设置"幽灵按钮 + 用户行；设置抽屉关闭原本会切到快捷键抽屉，现改为返回打开它的页面并补头部说明。09 §2/T-06、03-29 同步；playground 同 URL 第 17 版。
+- **v17 品牌、用户菜单、设置入口与关闭（2026-09-17，用户："logo、用户头像、设置入口、设置关闭都有点问题"）**：新增 `components/brand.tsx`（`BrandMark` 自有幻灯片图形 + "Cordex 幻灯片"字标，替换三处泛用 Palette 图标与不一致命名）、`components/user-menu.tsx`（`UserMenu` 行/头像两种触发，设置/快捷键/帮助/退出的唯一入口，头像去在场环）；首页侧栏底部改为"设置"幽灵按钮 + 用户行；设置抽屉关闭原本会切到快捷键抽屉，现改为返回打开它的页面并补头部说明。09 §2/T-06、03-29 同步；playground 同 URL 第 17 版。
 - **v18 设置入口去重（2026-09-17，用户："设置按钮重了，外面的应该收到菜单里"）**：首页侧栏底部的"设置"项移除，设置只在账户菜单（`UserMenu`）中；09 §2 与 03-29 同步；playground 同 URL 第 18 版。
 - **v19 检查器内容超出面板（2026-09-17，用户截图）**：根因是 Rhea `Accordion` 根元素自带 `w-full`，叠加 `m-3` 外边距后在 300px 面板内右侧溢出 11px（此前 `overflow-x-hidden` 只是把溢出裁掉，`scrollWidth` 测不到）；`.inspector-groups[data-slot=accordion]` 改 `width: auto`。复测编辑器与母版视图检查器：左右边距各 12px、无元素越界。playground 同 URL 第 19 版。
 - **v20 母版检查器复核（2026-09-17，用户："母版视图的检查器也再截图看一下"）**：四个状态 × 亮/暗共 8 张截图，越界元素均为 0；发现双字段属性行标签列固定 16px 导致"字号/字重"折行，改为按内容定宽（`min-w-4 whitespace-nowrap`）。playground 同 URL 第 20 版。

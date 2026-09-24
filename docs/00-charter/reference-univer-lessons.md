@@ -24,8 +24,8 @@
 | K4 | 包依赖严格 DAG：79 包零循环、零向上依赖、扇出封顶 12 | A−（87/100） | dependency-cruiser 规则：无环、只向下、文档类型盲；CI 阻断 | 类型治理 03 |
 | K5 | Disposable 纪律：86.3% 覆盖，`disposeWithMe` 1,042 处 | A− | cordis `ctx.effect()` 天然拥有清理；扫描器禁止 effect 之外的原生 timer/listener | primer §4；类型治理 06 |
 | K6 | IResourceHook：单一持久化钩子，模板字面量类型强制命名 | A− | `ResourceHook`：命名空间 `` `${pluginId}.${string}` `` 类型约束，集中容错 | 架构 04 |
-| K7 | 主题：单一 `<style>` 注入 + CSS 变量，`design` 包对 SDK 零依赖 | A− | `@oce/design` 零依赖 SDK；token 覆盖颜色**及**间距/字号/z-index/动效（修补 Univer 的 D 级「非颜色 token」） | 设计 04 |
-| K8 | i18n：从 en-US 反推编译期 key 类型 | B+ | `@oce/i18n` 从 zh-CN 源反推 key 类型，缺 key 编译失败 | 架构 02 |
+| K7 | 主题：单一 `<style>` 注入 + CSS 变量，`design` 包对 SDK 零依赖 | A− | `@cordexjs/design` 零依赖 SDK；token 覆盖颜色**及**间距/字号/z-index/动效（修补 Univer 的 D 级「非颜色 token」） | 设计 04 |
+| K8 | i18n：从 en-US 反推编译期 key 类型 | B+ | `@cordexjs/i18n` 从 zh-CN 源反推 key 类型，缺 key 编译失败 | 架构 02 |
 | K9 | 构建期 AST 推导依赖并回写 package.json → 0 phantom dep | 依赖卫生 | `knip` + `manypkg`/`syncpack` + depcruise 的 `no-orphans`/`not-in-pkg` 规则 | 类型治理 03/07 |
 | K10 | facade 边界有 4 条自定义 lint + 构建期 external | 自洽 | 我们不做 facade 猴子补丁；公共 API 由 api-extractor 基线守护 | 类型治理 04 |
 | K11 | `Plugin.static type` 与 `registerRenderModule(type, dep)` 用类型键索引而非 switch | 真正可复用的四层之一 | ContributionPoint 全部按类型键索引；内核零 switch-on-doc-type | 架构 03 |
@@ -63,7 +63,7 @@
 
 | 编号 | Univer 声明 | 实际 | 我们的执行点 |
 |---|---|---|---|
-| A16 | 复杂度门禁已配置 | CI `--quiet` 使 warn 全失效，458 处豁免 | CI 禁止 `--quiet`；所有规则为 `error`；豁免需 `// oce-allow(<rule>): <issue-url>` 且扫描器统计预算 |
+| A16 | 复杂度门禁已配置 | CI `--quiet` 使 warn 全失效，458 处豁免 | CI 禁止 `--quiet`；所有规则为 `error`；豁免需 `// cordex-allow(<rule>): <issue-url>` 且扫描器统计预算 |
 | A17 | 穿透/barrel import 规则有 docstring | 实现是 no-op | 规则必须有**负向测试**（故意违规样例）才允许进入配置；类型治理 02 |
 | A18 | SAST（Semgrep）有 workflow | key 在 main、开发在 dev → 从不运行 | CI 全部在 PR 上运行；`policy-check` 校验每个门禁 job 在 PR 触发器中 |
 | A19 | 覆盖率不下降 | `patch: off` | patch 覆盖率阈值；新代码无测试即失败 |

@@ -3,7 +3,7 @@
 > 状态：v0.1 | 负责：总编排 | 更新：2026-09-14 | 依赖：charter v0.1
 > 事实来源：npm `cordis@4.0.0-rc.10`（2026-09-08，cordiverse/cordis，deps: `@standard-schema/spec`, `cosmokit`）；`@cordisjs/plugin-loader@1.0.0-rc.7`；cordiverse 仓库 `packages/`: core, create, group, hmr, include, loader, logger-console, timer, utils；生成式 API 目录（context/fiber/events/registry/service）与《Cordis System Guide for Coding Agents》（2026-08-24 快照）。
 > 注意：`@deepseek-ai/cordis@4.0.2` 是 DeepSeek Harness 的 vendored 分支，**本项目使用上游 `cordis`**；示例中出现的 `'@deepseek-ai/cordis'` 一律读作 `'cordis'`。
-> API 处于 rc，**只有 `@oce/kernel` 允许直接 import**，其余包通过 kernel 的 re-export 使用类型与工具。
+> API 处于 rc，**只有 `@cordexjs/kernel` 允许直接 import**，其余包通过 kernel 的 re-export 使用类型与工具。
 
 ---
 
@@ -165,18 +165,18 @@ declare module 'cordis' { interface Context { slides: SlidesService } }  // 编�
 
 ---
 
-## 5. 本项目在 cordis 之上的约定（由 `@oce/kernel` 提供）
+## 5. 本项目在 cordis 之上的约定（由 `@cordexjs/kernel` 提供）
 
 ### 5.1 kernel 的职责边界
 
 ```
-@oce/kernel
+@cordexjs/kernel
 ├── re-export: Context, Service, Plugin, Fiber, Events（类型）, CordisError, ValidationError
 ├── createHost(options): 创建根 ctx，预装 errors/telemetry/logger 适配、ContributionService、ManifestService
 ├── defineContributionPoint<T>({ id, schema, key })  → ContributionPoint<T>
 ├── ctx.contribute(point, item)        → 由 effect 拥有，Fiber 卸载自动撤销
 ├── ctx.contributions(point)           → 只读反应式集合（+ 事件 `contribution/changed`）
-├── Manifest 类型 + 运行时一致性校验（与生成的 oce-manifest.json 对比）
+├── Manifest 类型 + 运行时一致性校验（与生成的 cordex-manifest.json 对比）
 ├── createIsolatedScope(ctx, { services, meta })：文档无关的隔离工具，对一组服务名逐个 isolate 并 extend 元数据；
 │   Unit/UnitScope/units 服务属于 model-core，由其调用本工具构造 UnitScope（章程 v0.2 裁决 C-4）
 └── 诊断：dumpFiberTree(ctx)、assertNoLiveEffects(fiber)
@@ -184,10 +184,10 @@ declare module 'cordis' { interface Context { slides: SlidesService } }  // 编�
 
 ### 5.2 声明合并的桥接（ADR-0001，需 spike）
 
-目标：插件包只写 `declare module '@oce/kernel'`，不直接依赖 `cordis` 类型。设想：
+目标：插件包只写 `declare module '@cordexjs/kernel'`，不直接依赖 `cordis` 类型。设想：
 
 ```ts
-// @oce/kernel/src/augment.ts（草案）
+// @cordexjs/kernel/src/augment.ts（草案）
 export interface Events {}    // 本项目事件表
 export interface Context {}   // 本项目服务表
 declare module 'cordis' {
@@ -195,7 +195,7 @@ declare module 'cordis' {
   interface Context extends import('./augment').Context {}
 }
 // 插件侧：
-declare module '@oce/kernel' {
+declare module '@cordexjs/kernel' {
   interface Events { 'slide/shape-added'(unitId: UnitId, shapeId: ShapeId): void }
   interface Context { slides: SlidesService }
 }
@@ -210,7 +210,7 @@ packages/<pkg>/src/
 ├── index.ts               仅 re-export 公共 API（api-extractor 入口）
 ├── plugin.ts              export const name / inject / Config / apply（函数插件）
 ├── manifest.ts            export const manifest: Manifest（类型化；生成 json 的源）
-├── *.contribution.ts      declare module '@oce/kernel' 增强 + 贡献点定义
+├── *.contribution.ts      declare module '@cordexjs/kernel' 增强 + 贡献点定义
 ├── services/*.service.ts  Service 子类（Provider）
 ├── contracts/*.ts         Definition：接口、请求/结果类型、schema
 └── __tests__/             含「卸载后无 effect」「缺依赖进入 PENDING」「Provider 替换」用例

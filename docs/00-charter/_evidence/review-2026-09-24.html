@@ -1,0 +1,275 @@
+<title>Cordex 回写复核</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F6F7FA; --surface:#FFFFFF; --sunk:#EEF1F6; --line:#DDE2EA; --text:#1A2030; --muted:#5F6B80;
+  --accent:#3A5CE6; --accent-soft:#E6ECFD;
+  --hi:#C23B32; --hi-soft:#FBEAE8; --mid:#B26A00; --mid-soft:#FDF1DD; --lo:#4B6479; --lo-soft:#E9EEF3;
+  --ok:#1F7A4D; --ok-soft:#E3F3EA; --dec:#6A45C9; --dec-soft:#EFE9FB;
+  --sans:"Geist","Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#12151C; --surface:#1A1F29; --sunk:#222834; --line:#2F3746; --text:#E8ECF3; --muted:#8A94A6;
+  --accent:#6B93FF; --accent-soft:#1E2A4A;
+  --hi:#FF7A70; --hi-soft:#3A1F1E; --mid:#F0B45A; --mid-soft:#352A17; --lo:#9DB2C6; --lo-soft:#232C36;
+  --ok:#5CCB93; --ok-soft:#173026; --dec:#B69BFF; --dec-soft:#2A2244;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12151C; --surface:#1A1F29; --sunk:#222834; --line:#2F3746; --text:#E8ECF3; --muted:#8A94A6;
+  --accent:#6B93FF; --accent-soft:#1E2A4A;
+  --hi:#FF7A70; --hi-soft:#3A1F1E; --mid:#F0B45A; --mid-soft:#352A17; --lo:#9DB2C6; --lo-soft:#232C36;
+  --ok:#5CCB93; --ok-soft:#173026; --dec:#B69BFF; --dec-soft:#2A2244;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:15px/1.65 var(--sans);margin:0;padding-inline:16px;padding-block:28px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+h1,h2,h3{text-wrap:balance;line-height:1.3;margin:0}
+h1{font-size:28px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:20px;font-weight:600}
+h3{font-size:16px;font-weight:600}
+p{margin:0;max-width:68ch}
+code{font:13px/1.4 var(--mono);background:var(--sunk);padding:1px 5px;border-radius:4px;word-break:break-word}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:10px}
+.meta{color:var(--muted);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.stat b{font:600 26px/1.1 var(--sans);font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:13px}
+.stat.dec b{color:var(--dec)} .stat.hi b{color:var(--hi)} .stat.mid b{color:var(--mid)} .stat.lo b{color:var(--lo)}
+section{display:flex;flex-direction:column;gap:14px}
+.lead{color:var(--muted)}
+.chip{display:inline-block;font:500 12px/1.6 var(--sans);padding:0 8px;border-radius:999px;white-space:nowrap}
+.c-hi{background:var(--hi-soft);color:var(--hi)} .c-mid{background:var(--mid-soft);color:var(--mid)} .c-lo{background:var(--lo-soft);color:var(--lo)}
+.c-dec{background:var(--dec-soft);color:var(--dec)} .c-ok{background:var(--ok-soft);color:var(--ok)}
+.src{font:500 11px/1.6 var(--mono);color:var(--muted);white-space:nowrap}
+.decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card .q{font-weight:600}
+.card .opt{font-size:14px;color:var(--muted)}
+.card .rec{font-size:14px}
+.card .rec b{color:var(--dec)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters button{font:500 13px var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:4px 12px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.filters button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font:600 12px/1.4 var(--sans);color:var(--muted);background:var(--sunk);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.id{font:500 12px var(--mono);color:var(--muted);white-space:nowrap}
+td.loc{font:12px/1.5 var(--mono);color:var(--muted);max-width:260px;word-break:break-word}
+.method{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+details summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:10px}
+ul.tight{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.ok-list li{color:var(--muted)}
+footer{color:var(--muted);font-size:13px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">docs 复核 · rulings §4.15 / §4.16 回写之后</span>
+  <h1>Cordex 回写复核报告</h1>
+  <p class="meta">2026-09-24 · 4 路独立只读复核（正向落地、反向残留、文档 ↔ playground、架构 ↔ 模块契约），总编排去重并回原文抽查 7 条关键发现，全部属实。本页只报告问题，还没有改任何文件。</p>
+</header>
+
+<div class="stats">
+  <div class="stat dec"><b>6</b><span>需要你拍板</span></div>
+  <div class="stat hi"><b>7</b><span>高：会让实现走错</span></div>
+  <div class="stat mid"><b>22</b><span>中：文档互相矛盾</span></div>
+  <div class="stat lo"><b>24</b><span>低：措辞与残留</span></div>
+  <div class="stat"><b>18</b><span>playground 缺状态</span></div>
+</div>
+
+<section>
+  <h2>结论</h2>
+  <p>21 条裁决大部分已经写进正文，旧口径（租户、MinIO、Keycloak 内置、Node 22、pnpm 10、三类图表、offscreen-canvas、.pptm 保留）基本清干净，改名 Cordex 在界面与源码里完整。问题集中在两处：6 个回写 agent 各改各的文件，<b>跨文件契约</b>（ack 帧、墓碑硬删除、错误码、TD 编号、扫描器）没有对齐；以及本轮新增的界面状态在 playground 里<b>还没有视觉基准</b>。另有 6 处需要你定口径，定完后其余全部是机械修正。</p>
+  <div class="method">
+<pre class="mermaid">flowchart LR
+r1["正向 落地矩阵 16 条"] --> d["去重合并"]
+r2["反向 残留与矛盾 26 条"] --> d
+r3["文档对 playground 25 条"] --> d
+r4["架构对模块 契约 35 条"] --> d
+d --> s["回原文抽查 7 条 全部属实"]
+s --> o["6 待拍板 + 53 机械修正 + 18 playground"]
+</pre>
+  </div>
+</section>
+
+<section id="decisions">
+  <h2>需要你拍板（6）</h2>
+  <p class="lead">这几处两份文档说法相反，或是回写时 agent 自行补的设计点。定下来之后我按选项统一改。</p>
+  <div class="decisions">
+    <div class="card"><span class="chip c-dec">D1 · Q6</span>
+      <div class="q">服务端要不要「待接受邀请」表？</div>
+      <div class="opt">30-arch/08 建了 <code>pending_invitations</code> 表、<code>invitations.service.ts</code>、<code>rest/invitations.ts</code>，测试也按它写；40-modules/08 Q-9 写「不另设邀请表，IdP 是注册闸门」。</div>
+      <div class="rec"><b>推荐：不要。</b>自助注册默认关，管理员直接在 Casdoor 建号，邀请只对已存在的账号生效。删掉 08 与 11 里的邀请表。</div>
+      <span class="src">①高 · ②#2 · ④1-2</span></div>
+    <div class="card"><span class="chip c-dec">D2 · Q5</span>
+      <div class="q">编辑中超出页数/元素上限用哪个错误码？</div>
+      <div class="opt">架构 05/10、M-02、M-04 用 <code>document.quota_exceeded{dimension}</code>；M-03 用 <code>slide.slide_limit_exceeded</code> / <code>slide.element_limit_exceeded</code>。</div>
+      <div class="rec"><b>推荐：</b>统一为 <code>document.quota_exceeded{dimension}</code>（HTTP 409，命令守卫不关连接），M-03 的两个常量改为映射到它。</div>
+      <span class="src">②#1 · ④5-5</span></div>
+    <div class="card"><span class="chip c-dec">D3 · T-0</span>
+      <div class="q">扫描器 <code>doc-access-via-permission</code> 正式登记吗？</div>
+      <div class="opt">08/09/12、00-module-map、14 都把它当已有的机械保证（「按文档读写必须经权限服务」），但 M-01 的扫描器清单和 TD 矩阵里没有它。</div>
+      <div class="rec"><b>推荐：登记。</b>去租户后它是文档隔离的代码层防线（RLS 是数据库层），在 M-01 加为第 14 个扫描器并补 TD 行。</div>
+      <span class="src">②#13 · ④5-4</span></div>
+    <div class="card"><span class="chip c-dec">D4 · Q3</span>
+      <div class="q">撤销目标被他人删除、墓碑还在 TTL 内时，算不算「整步被跳过」？</div>
+      <div class="opt">PRD 07 G-53 只在「TTL 已过」时判为跳过；PRD 03 CO-09、07:296、设计 02/05 都是「被他人删除就跳过」。</div>
+      <div class="rec"><b>推荐：不看 TTL，</b>被他人删除即跳过并提示；恢复元素由删除方撤销或「恢复元素」完成。改 G-53。</div>
+      <span class="src">①#7</span></div>
+    <div class="card"><span class="chip c-dec">D5 · Q3</span>
+      <div class="q">「撤销被跳过」怎么埋点？</div>
+      <div class="opt">PRD 03/06 记为 <code>collab/soft-conflict{type:'undo-skipped'}</code>；M-05 发的是 <code>store/undo-skipped</code>，明确「不是 soft-conflict」。</div>
+      <div class="rec"><b>推荐：</b>PRD 改为单独统计 <code>store/undo-skipped</code>，软冲突率指标不混入撤销行为。</div>
+      <span class="src">②#9 · ④2-8</span></div>
+    <div class="card"><span class="chip c-dec">D6 · 设计</span>
+      <div class="q">本轮新增界面状态要不要补进 playground？</div>
+      <div class="opt">设计文档写明「以 playground 实际渲染为终稿」，但 .pptm 拒绝、超上限拒绝、恢复我的值、外链确认、受限字体提示等 18 处还没有画。</div>
+      <div class="rec"><b>推荐：补。</b>先补 2 个高优（导入拒绝两态），再补 10 个中优；低优随下一轮设计迭代。</div>
+      <span class="src">③ 全表</span></div>
+  </div>
+  <details><summary>另外 4 处 agent 自行补的设计点，默认保留（可否决）</summary>
+    <ul class="tight">
+      <li>分享链接不提供「可编辑」档（设计 08，沿用原稿）。</li>
+      <li>「恢复我的值」也用于并发换版式的内联提示（设计 05 场景 I）。</li>
+      <li>ADR-0037：Casdoor 与业务共用同一 Postgres 实例、独立数据库；compose profile 命名 <code>idp</code> / <code>observability-agpl</code> / <code>dev</code>。</li>
+      <li>07 新增降级原因 <code>emf-raster-limit</code>；受限字体在字体下拉里带锁不可选。</li>
+    </ul>
+  </details>
+</section>
+
+<section id="issues">
+  <h2>机械修正清单</h2>
+  <p class="lead">不涉及新决策，按「以谁为准」统一即可。来源列：① 正向、② 反向、③ playground、④ 契约，后接原报告编号。</p>
+  <div class="filters" role="group" aria-label="按严重度筛选">
+    <button type="button" data-f="all" aria-pressed="true">全部</button>
+    <button type="button" data-f="hi" aria-pressed="false">高</button>
+    <button type="button" data-f="mid" aria-pressed="false">中</button>
+    <button type="button" data-f="lo" aria-pressed="false">低</button>
+  </div>
+  <div class="tbl"><table id="t">
+    <thead><tr><th>#</th><th>级</th><th>问题</th><th>位置</th><th>以谁为准 / 改法</th><th>来源</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<section id="playground">
+  <h2>playground 缺少的视觉基准（18）</h2>
+  <p class="lead">被废止设计（租户、组、组织内链接、套餐、匿名、Keycloak）在 playground 里 0 残留，品牌全部为 Cordex。以下是新状态缺口。</p>
+  <div class="tbl"><table>
+    <thead><tr><th>级</th><th>路由</th><th>缺什么</th><th>文档依据</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-hi">高</span></td><td><code>/import</code></td><td><code>.pptm</code> 拒绝态（<code>format.macro_rejected</code>，「请另存为 .pptx 后再导入」）</td><td class="loc">03-screens/13:62 · PRD 01:44</td></tr>
+      <tr><td><span class="chip c-hi">高</span></td><td><code>/import</code></td><td>超上限拒绝态：列出超出项、实际值、上限，只有「返回列表」；现有 <code>err-limit</code> 是另一类错误</td><td class="loc">03-screens/13:65,71-99</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td><code>/import</code></td><td>加密文件次文案「请先在 PowerPoint 中去除密码」；OLE 占位文案更新；EMF/chartex 占位示例</td><td class="loc">13:61,126-132</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td><code>/import</code></td><td>外链资源 confirm / never 两态（元素占位 + 页级「全部加载」）</td><td class="loc">13:134-142</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td>编辑器 · 文本</td><td>受限字体三处提示：状态栏、文本框内联、字体下拉带锁</td><td class="loc">13:144-149 · PRD 01:328</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td>保真报告</td><td>无路由；EMF、chartex、外链、受限字体条目没有基准</td><td class="loc">03-screens/10:35-54</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td>编辑器 · 协同</td><td>「已跳过」toast、「无法撤销：已被 X 修改」、「恢复我的值」、「恢复元素」全无</td><td class="loc">05-collab-ux:86-107 · 19:30</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td><code>/offline</code></td><td>总元素 15,000 软警告、20,000 拒绝；查看者名额满阻断态</td><td class="loc">12:153-158</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td><code>/editor/share</code></td><td><code>auth.selfSignup</code> 开启时的邀请失败文案；无账号者打开链接的落地页</td><td class="loc">08:76,81,123</td></tr>
+      <tr><td><span class="chip c-mid">中</span></td><td><code>/documents</code> <code>/home</code></td><td>「无包内封面」的中性占位卡片</td><td class="loc">01:44-52 · 29:23</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td><code>/offline</code></td><td>名额满横幅不可关闭、写死「≤ 20 编辑者」</td><td class="loc">12:80,157</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td><code>/editor/share</code></td><td>邀请失败措辞与文档不一致；只读视角标题「谁能访问」；联想只返回人</td><td class="loc">08:37,75,95</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td>编辑器 / 查看器</td><td>打开失败通用文案仍含「已损坏」</td><td class="loc">13:60 · 25:51</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td><code>/export</code></td><td>PDF 未按里程碑标注（M3 后半段）</td><td class="loc">22:76</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td>评论</td><td>元素以原 id 恢复后线程回到原锚点</td><td class="loc">06:89</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td>构建</td><td><code>package-lock.json</code> 仍名 <code>oce-design-playground</code>（根 workspace 落地时删除）</td><td class="loc">playground/package-lock.json:2</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td>标题</td><td>「Cordex 幻灯片编辑器 · 设计 playground」与「Cordex 设计 Playground」不统一</td><td class="loc">index.html:6</td></tr>
+      <tr><td><span class="chip c-lo">低</span></td><td>旧原型</td><td><code>prototype/index.html</code>、<code>mockups/10-share.html</code> 仍有组织内/外、席位（已退役，建议加退役标注）</td><td class="loc">prototype:961 · mockups/10:84</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>确认一致、无需处理</h2>
+  <ul class="tight ok-list">
+    <li>插件单元 69、Nest 模块 19：16、17、README 数字自洽，小计可加总。</li>
+    <li><code>CORDEX_ROLE</code> 五值 all / api / collab / worker / renderer：charter、08、ADR-0037、M-12、PRD 06 完全一致。</li>
+    <li>缩略图 Provider 名 <code>dom-scaled</code> / <code>raster</code> / <code>server-png</code>；<code>encode()</code> 的 <code>thumbnailJpeg</code> 输入名。</li>
+    <li>两级 ack 语义（spill 不清 pending，db 才清）；<code>undo.remoteConflict:'skip'</code>；事件名 <code>store/undo-skipped</code>；墓碑 TTL 24 h；元素上限 20,000 / 15,000。</li>
+    <li><code>format.quota_exceeded</code> 413、<code>format.macro_rejected</code> 415 已登记，使用处 HTTP 码一致。</li>
+    <li><code>slide-render → ooxml-core</code>、apps/web 放行 react / router / tailwind 在 charter 与类型治理文档一致。</li>
+    <li>ADR-0036 预留、ADR-0037 已登记；14/15 历史评审约 40 处覆盖标注抽查正确（2 处例外已列入清单）。</li>
+  </ul>
+</section>
+
+<footer>生成：总编排 · 数据来自 4 份复核报告（未改文件）。定完 D1–D6 后执行机械修正，再跑一次校验脚本与残留扫描。</footer>
+</div>
+
+<script>
+const rows=[
+["H1","hi","墓碑硬删除用 <code>origin=system('tombstone-gc')</code>，不在 M-02 的 Origin 枚举里，会被门禁拒绝","40-modules/09:67,311,685,798 ↔ 02:275,985","以 M-02 为准：改为 <code>system('maintenance')</code>","④2-4"],
+["H2","hi","墓碑硬删除的执行者两套：BullMQ 周期任务 vs 租约单写者 sweeper","30-arch/08:143,198 ↔ 40-modules/09:520,685","以 M-09 为准（<code>tombstone-sweeper.ts</code> + LeaseLock），删 08 的 BullMQ 路径","④2-5"],
+["H3","hi","用户身份表：08 §5 把 issuer/subject 内联在 users，没有 <code>user_identities</code>","30-arch/08:301-303 ↔ 40-modules/08:111,127-142","以 M-08 为准，08 §5 补 <code>user_identities</code>（一人可绑多个 IdP）","④1-1"],
+["H4","hi","系统进程是否用 <code>BYPASSRLS</code> 角色","40-modules/08:76,621,832 ↔ ADR-0022:66、30-arch/08:298","以 ADR-0022 为准：BYPASSRLS 只给迁移；系统作业用独立角色 + 系统上下文","④1-5"],
+["H5","hi","TD 编号冲突：矩阵已把 TD-079…082 分给 Q9/Q1/Q4/Q2，M-01 仍把 079…083 提给另外 5 条规则","09-type/08:211-214 ↔ 40-modules/01:115,727,728,743,745","以矩阵为准；M-01 的 D-6/D-7/Q-07 从 TD-083 顺延，行数 78→82，Q-09 结案","②14 · ④5-1"],
+["H6","hi","加密文件拒绝只写在 PRD：<code>format.encrypted</code> 未登记，M-04 没有 EncryptionInfo 检测点，实际会报成 invalid_package","PRD 01:47,199 ↔ 30-arch/10、40-modules/04","在架构 10 与 M-04 errors 登记 <code>format.encrypted</code>，导入校验加检测点","①5 · ④5-8"],
+["H7","hi","Ticket 有效期被改写错：一方 Ticket 是 60 s 单次，只有集成方 JWT 才是 ≤ 1 h","PRD 03:179、05-embedding:63 ↔ ADR-0029:15,41","改为「Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4）」","②16"],
+["M1","mid","两级 ack 帧形状有三种（<code>seq?/count/tier</code>、<code>kind/tier/seq</code>、多 <code>localCounter</code>），所在文件也不同","30-arch/06:521 ↔ 40-modules/02:927 ↔ 09:158,778","以 M-02 为准（帧归属方，<code>ws/frames.ts</code>），定 count/localCounter 去留后三处同步","②11 · ④2-1,2-2"],
+["M2","mid","<code>store/undo-skipped</code> 载荷：<code>paths: Path[]</code> vs <code>skipped: UndoSkip[]</code>","30-arch/05:179,235、06:200、10:313 ↔ 40-modules/02:238、05:221","以 M-02 为准：<code>{skipped, wholeStep}</code>","②7 · ④2-3"],
+["M3","mid","撤销协同契约用例名有三套","40-modules/02:267,1104 ↔ ADR-0020:108 ↔ 30-arch/05:265、11:63、06:251","在 M-02 §2.5 定一张用例名表，其余照抄","②8"],
+["M4","mid","房间准入拒绝：06/08 用 <code>collab.room_full</code>/4503；M-09 写「只读或拒绝，发 quota_exceeded」","40-modules/09:312 ↔ 09:911、30-arch/06:698、08:440","以 06 为准：删「只读」，码用 <code>collab.room_full</code>","②10 · ④5-7"],
+["M5","mid","<code>document.quota_exceeded</code> 的 WS 关闭码写 4429，而 4429 是速率限制","30-arch/10:98 ↔ 06:551,626,657","命令守卫不关连接，关闭码写「—」","②22 · ④5-6"],
+["M6","mid","<code>permissions.principal_type</code>：<code>('user','link')</code> vs 只有 user（link 由 share_links 承载）","30-arch/08:342-343 ↔ 40-modules/08:114,267","以 M-08 为准","①6 · ②12 · ④1-4"],
+["M7","mid","用户角色与状态字段：<code>is_admin</code> + <code>disabled</code> vs <code>platformRole</code> + <code>suspended</code>","30-arch/08:101,303 ↔ 40-modules/08:110","以 M-08 为准","④1-3"],
+["M8","mid","T-0 残留：<code>AuditRepository.queryByTenant</code>","40-modules/12:198（同文 G-39 自称已落地）","改为 <code>query(range,category,cursor)</code>","①2 · ②5 · ④1-8"],
+["M9","mid","T-0 残留：离线 IDB 键 <code>{tenant}/{documentId}</code>；<code>OfflineStore.open</code> 缺 userId","40-modules/05:270,513,680 ↔ 30-arch/06:815、ADR-0033:16","改为 <code>{userId}/{documentId}</code> 与 <code>open({userId, documentId})</code>","①3,4 · ②3,4"],
+["M10","mid","ADR-0031 仍写「恢复形状（新 id）不自动重新附着」","ADR-0031:48","改为「TTL 内以原 id 恢复，线程回到原锚点；TTL 后才永久分离」","②6"],
+["M11","mid","RLS 门禁名：<code>rls-policy-coverage</code> vs <code>check-rls-coverage</code>","ADR-0022:72、ADR-0029:83 ↔ 40-modules/01:349,522","以 M-01 实际脚本名为准","④1-7"],
+["M12","mid","RLS 会话变量：只有 <code>app.user_id</code> vs 另加 <code>app.share_doc_id</code>","30-arch/08:298 ↔ 40-modules/08:76,428,832","ADR-0022 已授权 M-08 定稿，08 跟随","④1-6"],
+["M13","mid","renderer sidecar 契约文件名、配置键、客户端文件名各两套","30-arch/08:249,547、07:465、ADR-0037:53 ↔ 40-modules/09:370,569,718","文件 <code>render/sidecar.ts</code>；配置以 ADR-0037 的 <code>headless.mode/endpoint</code> 为准；客户端 <code>remote-renderer.client.ts</code>","④3-1,3-2,3-3"],
+["M14","mid","PDF 队列：<code>pdf</code> vs <code>render-export</code>","30-arch/08:415,622 ↔ ADR-0026:45、40-modules/12:294","以 ADR-0026 与 M-12 为准","④3-4"],
+["M15","mid","compose profile：08 用 <code>core</code> + 独立 observability；ADR-0037 默认含 OTel/Jaeger/Prometheus，另有 idp/observability-agpl/dev","30-arch/08:500-507 ↔ ADR-0037:36-46、ADR-0030:21","以 ADR-0037 为准，改 08 §10.1","④4-1"],
+["M16","mid","TD 矩阵缺 RLS 覆盖、镜像策略两行；TD-080/081 的执行落点与 M-01 不一致","09-type/08 §12a ↔ 40-modules/01:430,521,745","补 TD-083/084；落点以 M-01 文件为准","④5-2,5-3"],
+["M17","mid","depcruise 规则「*-ui 核心层框架无关」有四个名字；TD-082 没进 M-01 的 depcruise 规则表","09-type/03:105 ↔ 02-layering:1201、ADR-0017:73、40-modules/10:253、13:441、01:474-486","统一为 <code>cordex-ui-bundle-core-framework-free</code>，M-01 补第 9 条规则","④6-2,6-3"],
+["M18","mid","26 处锚点链接仍指向 <code>#44-oceevents-…</code>，标题已改为 cordex，全部失效","09-type-discipline/02,05,06,08,09,README 等","批量把锚点中的 <code>-oce</code> 改为 <code>-cordex</code>","②15"],
+["M19","mid","配额 <code>dimension</code> 取值三套（pages/file_size vs slides/elementsPerSlide/elementsTotal）；设计 13 缺 file_size","PRD 06:140 ↔ 40-modules/04:198,287、08:175、03-screens/13:88","在架构 10 §3 登记取值表，各处照抄","②20 · ③21"],
+["M20","mid","06 §15 待决表 P1（排他锁）/ P2（版本保留）仍列待决；§2.4 注释仍写 <code>ack{seq}</code>","30-arch/06:372,583,710-711","标注 Q16/Q17 已裁决；注释补 tier","①12,13"],
+["M21","mid","准入残留：「≥ 200 活跃房间」「RSS > 75% 转其它实例」","30-arch/06:804、ADR-0035:42、PRD 06:98","改为按文档实测权重准入，各档房间数 M1 实测回填","②23,24"],
+["M22","mid","PRD 残留：账户行「套餐」；「任何拥有链接的人」；设计 08 移除成员自相矛盾（不确认 vs 确认）","PRD 08:64、PRD 07:597、03-screens/08:111,113","改为「姓名 + 邮箱」、「登录用户凭链接」；删 08:113 旧说法","①15 · ③14,19"],
+["L1","lo","改名后语义错的句子：「包名本文档刻意未改，由总编排统一更名」等 4 处","40-modules/01:731、README:194、09-type/08:212、06-scanners:138","改为「已于 2026-09-24 完成全仓更名」","②17"],
+["L2","lo","替换留下的残句：「PRD 06:124-125 用（原租户域配额码，已废止）」","40-modules/04:864","改为「PRD 06 原用 tenant 域配额码（T-0 已废止）」","②18"],
+["L3","lo","商标检索（首次公开发布前）只在 rulings 里，没进 PRD 05 发布前检查","PRD 05","在 M4 发布前检查清单加一条","①8"],
+["L4","lo","脚手架名仍标「命名草案，随 Q1 定」","PRD 04-plugin-sdk:101","改为 <code>@cordexjs/create-plugin</code>（<code>npm create @cordexjs/plugin</code>）","①9"],
+["L5","lo","包模板示例缺 <code>license: Apache-2.0</code>","30-arch/02:200-225 ↔ 40-modules/01:190","补字段","①14"],
+["L6","lo","「超包络拒绝」与两层口径混用（包络 ≠ 天花板）","ADR-0035:51,63、rulings §4.15 Q5","统一为「超天花板拒绝导入」","①11"],
+["L7","lo","pnpm-workspace glob：<code>playground</code> vs <code>docs/20-design/playground</code>","40-modules/01:241,393,708 ↔ 30-arch/02:51、ADR-0004:20","以实际路径为准","②19"],
+["L8","lo","<code>quota/exceeded</code> 派生来源漏了 <code>document.quota_exceeded</code>；M-12 仍写无前缀 quota_exceeded","PRD 06:145、40-modules/12:211,318,554","补齐前缀与来源","②21 · ④5-9"],
+["L9","lo","溢写层取值 <code>redis</code> vs 指标 <code>valkey</code>","40-modules/09:99 ↔ 30-arch/08:567","统一为 <code>valkey</code>","④2-9"],
+["L10","lo","墓碑字段 <code>deletedAt</code> vs <code>_deleted.at</code>；TTL 配置键 <code>tombstone.ttlHours</code> vs <code>TombstoneTtl{ttlMs}</code>","40-modules/09:159,311 ↔ 30-arch/04:223、08:143","字段用 <code>_deleted.at</code>；键名统一并写入 08 配置表","④2-6,2-7"],
+["L11","lo","服务端缩略图写成 PNG，实为 640 px WebP；<code>source</code> 仍含已取消的 <code>client</code>","40-modules/09:782、07:248,369、08 §5、ADR-0026:18、40-modules/12:114","描述改 WebP；删 <code>client</code> 或注明保留位","④3-5,3-8"],
+["L12","lo","<code>raster</code> 能否作为可配置的缩略图 provider","07-rendering:258 ↔ 40-modules/07:222","按 07：只用于单页导出，从枚举移除","④3-6"],
+["L13","lo","缩略图去重键 <code>:{contentHash}</code> vs <code>:hash:{contentHash}</code>","ADR-0026:16 ↔ 30-arch/08:414、40-modules/12:345","以 08 与 M-12 为准","④3-7"],
+["L14","lo","renderer 镜像：「另建镜像」vs「同镜像 renderer 变体或自建」","30-arch/08:83 ↔ ADR-0037:20,40","08 改为二选一写法","④4-2"],
+["L15","lo","导入上传上限 200 MB vs 10 MB","30-arch/08:138 ↔ 40-modules/12:322","以 Q5 的 200 MB 为准","④4-3"],
+["L16","lo","<code>lib0</code> 放行范围：charter 不含 store-yjs，lint 含","charter:253 ↔ 09-type/02-lint:326","核实 store-yjs 是否用 lib0 后二者对齐","④6-1"],
+["L17","lo","<code>*-ui</code> 中 React 允许路径：<code>ui/**</code> vs <code>ui/**</code>+<code>infrastructure/**</code>","09-type/02-lint:329 ↔ 40-modules/10:253","以类型治理为准，改 M-10","④6-4"],
+["L18","lo","<code>cordex-slide-render-allowlist</code> 与 emf-converter「单点引入」没有登记","40-modules/07:731,810","登记进规则或降为说明","④6-5"],
+["L19","lo","「经同一镜像 ROLE 切换」「ROLE=renderer」","40-modules/09:869、15:160","改为 <code>CORDEX_ROLE</code>","②26"],
+["L20","lo","测试栈写 testcontainers Redis","ADR-0035:58","改为 Valkey","②25"],
+["L21","lo","PRD 07 G-53 的撤销口径（随 D4）","PRD 07:468","按 D4 结果改","①7"],
+["L22","lo","14:285 覆盖标注「第 15 个扫描器」与 M-01 口径冲突（随 D3）","40-modules/14:285,490","按 D3 结果改","②13"],
+["L23","lo","旧原型与退役设计稿仍有组织内/外、席位上限","20-design/prototype/index.html:961,974、mockups/10-share.html:84","加「已退役，以 playground 为准」标注","①16"],
+["L24","lo","邀请表相关测试用例「邀请兑现仅限 email_verified」（随 D1）","30-arch/11:145","按 D1 结果保留或删除","①1"]
+];
+const tb=document.querySelector('#t tbody');
+const lab={hi:['高','c-hi'],mid:['中','c-mid'],lo:['低','c-lo']};
+tb.innerHTML=rows.map(r=>`<tr data-s="${r[1]}"><td class="id">${r[0]}</td><td><span class="chip ${lab[r[1]][1]}">${lab[r[1]][0]}</span></td><td>${r[2]}</td><td class="loc">${r[3]}</td><td>${r[4]}</td><td class="src">${r[5]}</td></tr>`).join('');
+document.querySelectorAll('.filters button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.filters button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+  const f=b.dataset.f;
+  tb.querySelectorAll('tr').forEach(tr=>{tr.hidden=!(f==='all'||tr.dataset.s===f)});
+}));
+</script>

@@ -1,10 +1,10 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；`40-modules/14` §5.3（M-06/G-5 + Q-3）；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7
 
 # ADR-0028 文本编辑宿主：单一隐藏 textarea + 自绘光标/选区
 
 ## 状态
 
-提议。
+提议。2026-09-24 按 `40-modules/14` §5.3（M-06/G-5 + M-06/Q-3，总编排采纳）把 `TextInputHost` 的形态回写为**包内可插拔点**（rulings §4.15 Q4 列为机械回写），并写入竖排/RTL 编辑的时点（Q7），见 v0.2 补充第一条与文末修订。
 
 ## 背景
 
@@ -39,12 +39,19 @@
 
 ## 补充（v0.2）：IME 宿主 spike 计划（PRD R-M2-1，M2 首要风险）
 
-- **可替换性**：`TextInputHost` 是 `render-dom` 内的 Definition（贡献点 `render.textInputHost`，key = id），两个 Provider：`hidden-textarea`（本 ADR 默认）与 `contenteditable-mirror`（02 §4.15 `ime-host.ts` 的形态，备选）。spike 结束前两者并存，preset 选择。
+- **可替换性**（2026-09-24 改写，14 §5.3）：`TextInputHost` 是 `render-dom` **包内可插拔点**（包内接口 + 构造期选择实现），**不是**贡献点——原「贡献点 `render.textInputHost`，key = id」作废。两个实现：`hidden-textarea`（本 ADR 默认）与 `contenteditable-mirror`（02 §4.15 `ime-host.ts` 的形态，备选），spike 结束前两者并存，由 `render-dom` 的 Config 选择。**升级为贡献点的条件**：仅当 R-M2-1 spike 否定 `hidden-textarea` 方案（即需要按 UA 或由第三方提供不同宿主）时，才升级为 `render.textInputHost` 贡献点并另行评审；40-modules/06 §13 Q-2/Q-3 据此结案。
 - **时间盒**：M2 第 1 月，2 名工程师，2 周。
 - **范围**：Chrome/Edge/Firefox/Safari（macOS）+ iOS Safari + Android Chrome；输入法：中文拼音（Windows 微软拼音、macOS 简体拼音、搜狗）、日文（Windows IME、macOS 日本語）、韩文；场景：段中输入、行尾换行处输入、跨 run 边界输入、选区替换、候选窗定位跟随缩放/滚动、组合中远端并发插入、撤销粒度。
 - **退出标准**：(1) 全部场景无丢字/重复字；(2) 候选窗与光标像素偏差 ≤ 4 px；(3) IME 组合更新 p95 ≤ 80 ms（NF-01 1.2）；(4) `compositionend` 恰一次事务；(5) VoiceOver/NVDA 可朗读当前段落并跟随光标；(6) 双 Provider 在 spike 场景矩阵上的通过率对比表。
-- **决策规则**：`hidden-textarea` 通过全部退出标准 → 定稿并把 `contenteditable-mirror` 降为兼容备选；若 Safari/iOS 上仅 contenteditable 通过 → 按 UA 选择 Provider（同一 Definition），不改契约。
+- **决策规则**：`hidden-textarea` 通过全部退出标准 → 定稿并把 `contenteditable-mirror` 降为兼容备选；若 Safari/iOS 上仅 contenteditable 通过 → 按 UA 在包内选择实现（同一包内接口），不改对外契约；此时是否升级为贡献点按上一条的条件评审。
 - **产出**：`test/e2e/specs/ime/*.spec.ts`（Playwright 合成组合事件 + 真机手测清单）、spike 报告回写本 ADR 状态。
+
+## 修订 2026-09-24：竖排 / RTL 编辑时点、IME 与渲染介质（rulings §4.15 Q4/Q7）
+
+- **竖排编辑**：E~（P2），不在 M2 承诺（与 ADR-0027 修订第 3 条一致）；M1 竖排仅查看（文本框旋转）。
+- **RTL 编辑**：M4/M5，随 HarfBuzz shaping 一并评估；M1–M3 RTL 段落以浏览器 bidi 重排渲染（ADR-0027 修订第 2 条），其编辑行为的用户可见口径由 PRD 02-editing 定稿（待产品线回写），本 ADR 不承诺 RTL 光标/选区的正确性。
+- **IME 与渲染介质无关**：IME 对齐由本 ADR 的隐藏 textarea + 自绘光标承担，与 DOM/SVG 还是 canvas 无关（ADR-0021 修订第 6 条）；M3 末最小 canvas Provider 验证（ADR-0021）须覆盖 `TextInputHost` 与 overlay 挂载处的 DOM 偏置。
+- **机械验证补充**：扫描器断言 `render.textInputHost` 贡献点不存在（除非上述升级条件经评审成立）。
 
 ## 如何被机械验证
 
@@ -55,4 +62,4 @@
 
 ## 关联
 
-Univer A32；ADR-0021/0027/0024；架构 07 §6、05（命令管线）；设计 20-design/07。
+Univer A32；`00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7；`40-modules/14` §5.3、`40-modules/06` §13 Q-2/Q-3；ADR-0021/0027/0024；架构 07 §6、05（命令管线）；设计 20-design/07。

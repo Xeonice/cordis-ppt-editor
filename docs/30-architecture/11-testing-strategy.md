@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：§7 表格/图表/SmartArt 改为 M1 gated（阈值按 PRD OF-08/09/10）；Q3 撤销语义进契约与协同模拟；Q5 DX-20K 与满员房间扇出压测；Q10 testcontainers 改 Valkey/SeaweedFS；Q6 CI 分层认证）；2026-09-24（复核修正，rulings §4.17：D1 删「邀请兑现仅限 email_verified」改为「邀请仅对已存在账号生效」；M3 撤销契约用例名照抄 M-02 §2.5；D4 撤销不复活他人删除） | 依赖：charter v0.1
 
 # 11 测试策略（Testing Strategy）：金字塔、conformance kit、iso 冒烟、生命周期、OOXML round-trip、视觉 oracle、协同模拟、e2e、性能门禁、语料库
 
@@ -17,7 +17,7 @@
                     ┌──┴──────────────┴──┐
                     │ 视觉 oracle · 协同模拟 │  SSIM/IoU 对 PowerPoint 基线；多客户端 fuzz 收敛      PR：门禁类别；nightly：全量
                  ┌──┴─────────────────────┴──┐
-                 │ 集成：round-trip · 服务端集成 │  语料库部件级 diff 零差异；testcontainers（PG/Redis/MinIO）   PR
+                 │ 集成：round-trip · 服务端集成 │  语料库部件级 diff 零差异；testcontainers（PG/Valkey/SeaweedFS）PR
               ┌──┴───────────────────────────┴──┐
               │ 契约：conformance kit · 生命周期   │  每个 Definition 一套 kit，所有 Provider 必过；load/unload/PENDING/替换  PR
            ┌──┴─────────────────────────────────┴──┐
@@ -45,7 +45,7 @@
 - 位置：`packages/<pkg>/src/**/__tests__/*.test.ts`（与源码同树），文件名与被测模块同名。
 - 环境：iso 包默认 `environment: 'node'`（**不**用 jsdom，避免掩盖 DOM 依赖）；dom 包默认 `happy-dom`（纯逻辑、DOM 结构、属性 diff；A 线 C-8 定稿），凡涉及 `measureText`/`getBBox`/字体加载/IME 事件/滚动与 IntersectionObserver 的用例必须走 `vitest browser mode`（Chromium，真实 DOM/字体/Canvas）——文件名后缀 `.browser.test.ts` 由共享配置自动路由；jsdom 一律不用。
 - 共享配置：`tooling/vitest-config`（coverage provider v8、reporters、`test.typecheck`）。
-- 约定：不 mock 内核；用 `@oce/kernel/testing` 的 `createTestHost()` 启动真实 cordis 宿主（快，< 5 ms）；只 mock IO（transport、storage、fetch）。
+- 约定：不 mock 内核；用 `@cordexjs/kernel/testing` 的 `createTestHost()` 启动真实 cordis 宿主（快，< 5 ms）；只 mock IO（transport、storage、fetch）。
 - 确定性：所有涉及 id/时钟/随机的测试通过 `testing` 子路径注入 `FixedClock`、`SeededRandom`、固定 Yjs `clientID`。
 
 ## 2. 类型测试
@@ -56,11 +56,11 @@
 
 ## 3. Definition 的 Provider 一致性套件（conformance kit）
 
-规则：**每个 Definition 在 `@oce/<pkg>/testing` 子路径导出 `runXxxConformance(factory, options)`；每个 Provider 的 `__tests__/conformance.test.ts` 必须调用它。** 扫描器（09-06）核对：凡 `provide=['x']` 的插件，其包内必有对该 Definition kit 的调用。
+规则：**每个 Definition 在 `@cordexjs/<pkg>/testing` 子路径导出 `runXxxConformance(factory, options)`；每个 Provider 的 `__tests__/conformance.test.ts` 必须调用它。** 扫描器（09-06）核对：凡 `provide=['x']` 的插件，其包内必有对该 Definition kit 的调用。
 
 | Definition（所在包） | kit | 覆盖 |
 |---|---|---|
-| `DocumentStore`（model-core） | `runDocumentStoreConformance` | 6 原语读写、事务原子性、observe 路径精确性、undo/redo 按 origin、stablePosition 在并发插入后稳定、snapshot 幂等、无下标 API |
+| `DocumentStore`（model-core） | `runDocumentStoreConformance` | 6 原语读写、事务原子性、observe 路径精确性、undo/redo 按 origin、stablePosition 在并发插入后稳定、snapshot 幂等、无下标 API；**中性撤销语义分节**（rulings §4.15 Q3，store-memory 与 store-yjs 同语义；用例名照抄 40-modules/02 §2.5）：`remote-conflict-skip`（同键被他人后写 → 跳过并发 `store/undo-skipped{skipped, wholeStep}`）、`undo-skip-no-cascade`（整步被跳过 → 停下不连撤）、`soft-delete-tombstone`（删除写墓碑、id 稳定）、`delete-vs-edit-undo`（撤销删除 = 同 id 复活、与并发编辑无重复元素；撤销目标被他人删除 → 跳过、不复活，rulings §4.17 D4）、`read-path-filters-tombstone`（读路径过滤墓碑）；另断言墓碑计入元素数 |
 | `CollabService`/`Transport`/`Presence`（collab-core） | `runCollabConformance` | join→synced、断线重连、离线队列、降权拒写、房间满、schema 过新、awareness 超时 |
 | `RenderTarget`/`ElementRenderer`（engine-render） | `runRenderTargetConformance`、`runElementRendererConformance` | 挂载/更新/卸载、脏路径只影响自身、错误隔离、hitTest 一致 |
 | `Measurer`（engine-layout） | `runMeasurerConformance` | 单调性、缓存一致、空串、CJK |
@@ -73,7 +73,7 @@ kit 设计约束：只依赖 Definition 与 `testing` fakes；参数 `factory()`
 
 ## 4. 插件生命周期测试（每个 `plugin.ts` 必配 `__tests__/lifecycle.test.ts`）
 
-模板（`@oce/kernel/testing` 提供 `describePluginLifecycle(plugin, { config, deps })`）：
+模板（`@cordexjs/kernel/testing` 提供 `describePluginLifecycle(plugin, { config, deps })`）：
 1. **load**：在提供全部 `inject` 的宿主里加载 → `ACTIVE`；`provide` 的服务可解析。
 2. **PENDING**：缺任一 `inject` → 状态 `PENDING`（不是错误、不抛）；补齐后自动 `ACTIVE`。
 3. **unload**：`fiber.dispose()` 后 `getEffects()` 为空；提供的服务不可解析；贡献从 `ctx.contributions` 消失。
@@ -84,13 +84,13 @@ kit 设计约束：只依赖 Definition 与 `testing` fakes；参数 `factory()`
 
 ## 5. 同构冒烟（iso）
 
-- `test/iso-smoke/node.mjs`：对每个 `isomorphism: 'iso'` 的包执行 `node --import ./register.mjs -e "import('@oce/<pkg>')"`，并调用 `plugin` 在最小宿主中加载一次（不只 import）。
-- 浏览器侧：vitest browser mode 中 `import('@oce/<pkg>')` 并加载；两者都在 CI 矩阵中。
+- `test/iso-smoke/node.mjs`：对每个 `isomorphism: 'iso'` 的包执行 `node --import ./register.mjs -e "import('@cordexjs/<pkg>')"`，并调用 `plugin` 在最小宿主中加载一次（不只 import）。
+- 浏览器侧：vitest browser mode 中 `import('@cordexjs/<pkg>')` 并加载；两者都在 CI 矩阵中。
 - 附加断言：iso 包的构建产物不含 `document`/`window`/`node:` 字面引用（扫描器）；tsconfig 无 `dom` lib（09-01）。
 
 ## 6. OOXML 语料库 round-trip（M1 验收）
 
-- 流程：`pptx → ooxml-pptx.decode → Snapshot → store(memory 与 yjs 各一次) → ooxml-pptx.encode → pptx'`；`diffPackage(pptx, pptx')`（`@oce/ooxml-core/testing`）按部件比较：
+- 流程：`pptx → ooxml-pptx.decode → Snapshot → store(memory 与 yjs 各一次) → ooxml-pptx.encode → pptx'`；`diffPackage(pptx, pptx')`（`@cordexjs/ooxml-core/testing`）按部件比较：
   - 未修改部件：字节相同（或经**登记的规范化**后 XML 相同：属性顺序、空白、命名空间前缀、Strict→Transitional 归一化——规范化规则列于 `test/corpus/normalizers.md`，每条有测试）。
   - `[Content_Types].xml`/`.rels`：语义等价（集合比较）。
   - 允许差异必须在样本 `manifest.json` 的 `expect.allowedDiffs` 中显式登记，否则失败。
@@ -108,20 +108,24 @@ kit 设计约束：只依赖 Definition 与 `testing` fakes；参数 `factory()`
 | 几何/填充/线（无文本） | ≥ 0.97 | ≥ 0.95 | gated（M1） |
 | 文本（西文） | ≥ 0.93 | ≥ 0.90 | gated（M1，字体 profile 固定） |
 | 文本（CJK/混排） | ≥ 0.90 | ≥ 0.88 | gated（M2） |
-| 表格 | ≥ 0.92 | ≥ 0.90 | gated（M2） |
+| 表格 | ≥ 0.90（表格区域裁剪比对） | — | **gated（M1）**，PRD OF-08（8 案例原生矩阵 + 语料库表格子集） |
 | 图片/裁切 | ≥ 0.95 | ≥ 0.95 | gated |
-| 图表/SmartArt/效果/3D | 仅报告 | 仅报告 | 非 gated（Q7） |
+| 图表（`c:chart`，D16 只读解析） | ≥ 0.80（单图表页） | 数据墨迹区域 IoU ≥ 0.85 | **gated（M1）**，PRD OF-09；chartex 只断言占位 + `chartex-unsupported` 诊断 |
+| SmartArt（有 `dsp:drawing`） | ≥ 0.85 | — | **gated（M1）**，PRD OF-10；无 dsp 部件的样本只断言占位 + 诊断 |
+| OLE（预览图） | 同「图片」 | 同「图片」 | gated（M1，预览为 EMF/WMF 的样本 M2 起 gated） |
+| EMF/WMF 栅格化 | 仅报告 | 仅报告 | M2 P1 起报告；矢量渲染 M4+ |
+| 效果/3D | 仅报告 | 仅报告 | 非 gated |
 
 - `test/oracle/capabilities.json` 声明每个样本/类别是否 gated；报告为 HTML（并排 + 差异图 + 分数），作为 CI artifact。
 - 字体 profile：CI 容器安装 `corpus-fonts-v1`（Noto/Liberation/Carlito/Caladea + 语料库嵌入字体）；基线与被测使用同一 profile，否则度量无效。
 
 ## 8. 协同模拟（fuzz）
 
-- `test/collab-sim/`：`createCollabCluster(n ∈ [2,5])`（内存服务端 + 客户端，来自 `@oce/collab-yjs/testing`）+ `NetworkModel{ delay: U(0,200ms), reorder, drop 5%, partition 10% 时长 ≤ 2 s, offlineBursts }` + 随机操作生成器（来自 `@oce/model-slide/testing` 的 `randomCommand(seed)`：增删移页、增删移改形状、进出组、富文本插删格式分段合段、换版式）。
+- `test/collab-sim/`：`createCollabCluster(n ∈ [2,5])`（内存服务端 + 客户端，来自 `@cordexjs/collab-yjs/testing`）+ `NetworkModel{ delay: U(0,200ms), reorder, drop 5%, partition 10% 时长 ≤ 2 s, offlineBursts }` + 随机操作生成器（来自 `@cordexjs/model-slide/testing` 的 `randomCommand(seed)`：增删移页、增删移改形状、进出组、富文本插删格式分段合段、换版式）。
 - 每轮 1,000 操作，静止后断言：
   1. 所有客户端与服务端 `encodeStateAsUpdateV2` 相等（或 JSON snapshot 相等）；
   2. schema 校验通过、不变量成立（无环、无孤儿、order 合法、id 唯一）；
-  3. 每客户端撤销 k 步不抛错且不变量仍成立；
+  3. 每客户端撤销 k 步不抛错且不变量仍成立；撤销不回退任何他人后写的键（同键跳过）、整步被跳过时不连撤（rulings §4.15 Q3）；删除 vs 编辑 × 删除方撤销后无重复元素；
   4. 服务端软门禁若触发修复，所有端一致（注入 5% 非法 update 的变体）；
   5. 降权路径：被拒 update 不出现在任何其他端。
 - 失败处理：记录种子；自动最小化（删操作二分）生成 `test/collab-sim/repros/<seed>.json`，作为确定性回归用例入库。
@@ -130,14 +134,17 @@ kit 设计约束：只依赖 Definition 与 `testing` fakes；参数 `factory()`
 ## 9. 性能基准与预算门禁
 
 - `test/perf/budgets.json`：07 §9、06 §14、08 §12 的数字（单一事实源；文档引用它）。
-- 场景：`open-30p`、`open-200p`、`type-latency`、`drag-fps`、`zoom-fps`、`layout-switch`、`collab-roundtrip-2clients`、`bootstrap-200p`、`server-update-p95`（k6 或自写压测对 server-collab）。
+- 场景：`open-30p`、`open-200p`、`type-latency`、`drag-fps`、`zoom-fps`、`layout-switch`、`collab-roundtrip-2clients`、`bootstrap-200p`、`server-update-p95`（k6 或自写压测对 server-collab）；rulings §4.15 Q5 新增：`open-dx20k`（DX-20K 参考文稿，200 页 × 100 元素 = 系统天花板；只监测、不设帧率/堆门禁，断言能打开、能编辑、不崩）、`room-full-fanout`（满员房间 20 编辑者 + 50 查看者的扇出压测，含服务端 awareness 合并 tick）、`room-weight-admission`（按文档实测权重准入）、`import-over-ceiling`（超天花板导入被拒 `format.quota_exceeded`）。
+- `budgets.json` 分两档：`envelope`（性能保证包络：D200 / DX-1000 / 20+50 / 200 MB，门禁只收紧）与 `ceiling`（系统天花板，只监测）。
 - 运行：Playwright trace + `performance.mark` 由 telemetry Provider 在测试模式下写入；5 次取中位数；专用 runner（GitHub larger runner 或自托管）以控噪声。
 - 门禁：绝对预算超出 → 失败；相对上一 main 基线回归 > 10% → 失败（main）/告警（PR）。结果存 `perf-history/`（分支，长期趋势）。
 
 ## 10. e2e（Playwright）
 
-- `test/e2e/`：启动 `apps/server`（testcontainers：PG/Redis/MinIO + mock OIDC `oidc-provider`）与 `apps/web` 预览构建。
-- 用例族：打开与渲染、编辑与撤销、导出下载与 round-trip 校验、双浏览器协同（presence 可见、编辑传播、断网重连、降权横幅）、离线编辑恢复、评论、版本恢复、插件启停（示例插件的 ribbon 按钮出现/消失、卸载后无残留 DOM）。
+- `test/e2e/`：启动 `apps/server`（testcontainers：Postgres 18 / Valkey / SeaweedFS + mock OIDC `oidc-provider`）与 `apps/web` 预览构建。
+- 认证分层（rulings §4.15 Q6）：PR 跑 `oidc-provider` mock 与 Casdoor 容器两条登录路径（含 `auth.selfSignup` 开/关；分享邀请仅对已存在账号生效，目标账号不存在返回明确错误、不建待定邀请，rulings §4.17 D1）；nightly 跑 Keycloak / Entra / 飞书等真实 IdP 兼容性。另有 `security:rls`（绕过应用层直连 PG 验证文档级 RLS）与 renderer 沙箱测试（零出站、无凭据、非 root）。
+- M3 出口：断网（egress-deny）compose e2e（`ops:compose` + `ops:airgap` + `ops:image-licenses`，rulings §4.15 Q10）。
+- 用例族：打开与渲染、编辑与撤销、导出下载与 round-trip 校验、双浏览器协同（presence 可见、编辑传播、断网重连、降权横幅、撤销跳过提示与「恢复我的值」、删除后恢复）、离线编辑恢复、评论、版本恢复、插件启停（示例插件的 ribbon 按钮出现/消失、卸载后无残留 DOM）。
 - 页面对象放 `page-objects/`；选择器只用 `data-testid`（由 ui 包保证，不依赖文案）。
 - 内存预算：e2e 结尾用 CDP `HeapProfiler.collectGarbage` + `Runtime.getHeapUsage` 断言 07 §9 的堆预算与「打开/关闭 20 次不增长 > 10%」（A25 的 e2e 版）。
 
@@ -160,9 +167,9 @@ repo/
 ├── packages/<pkg>/
 │   ├── src/**/__tests__/*.test.ts            单测/契约调用/生命周期（每个 plugin.ts 必配 lifecycle.test.ts）
 │   ├── src/**/*.test-d.ts                    类型测试
-│   ├── testing/                              `@oce/<pkg>/testing`：conformance kit、fakes、fixtures、确定性工具（不得被 src 引用：depcruise）
+│   ├── testing/                              `@cordexjs/<pkg>/testing`：conformance kit、fakes、fixtures、确定性工具（不得被 src 引用：depcruise）
 │   └── vitest.config.ts                      继承 tooling/vitest-config（node 或 browser 环境）
-├── test/                                      根级 workspace 包 `@oce-internal/test-suite`（不发布）
+├── test/                                      根级 workspace 包 `@cordexjs/test-suite`（不发布）
 │   ├── corpus/
 │   │   ├── manifest.json                     样本清单（见 §11）
 │   │   ├── decks/**.pptx                     小样本；大样本 LFS/对象存储
@@ -210,7 +217,7 @@ repo/
 
 ## 16. 跨条线要求
 
-- A 线：`@oce/model-core/testing` 提供 `runDocumentStoreConformance`、`runFormatCodecConformance`；`@oce/model-slide/testing` 提供 `randomCommand(seed)`、不变量检查器、最小 Snapshot fixtures；`@oce/ooxml-core/testing` 提供 `diffPackage` 与规范化器；`@oce/kernel/testing` 提供 `createTestHost`、`describePluginLifecycle`、`assertNoLiveEffects`。
+- A 线：`@cordexjs/model-core/testing` 提供 `runDocumentStoreConformance`、`runFormatCodecConformance`；`@cordexjs/model-slide/testing` 提供 `randomCommand(seed)`、不变量检查器、最小 Snapshot fixtures；`@cordexjs/ooxml-core/testing` 提供 `diffPackage` 与规范化器；`@cordexjs/kernel/testing` 提供 `createTestHost`、`describePluginLifecycle`、`assertNoLiveEffects`。
 - 类型治理线：扫描器核对「每个 provide 有 conformance 调用」「每个 plugin.ts 有 lifecycle 测试」「testing 子路径不被 src 引用」；patch 覆盖率与 job 矩阵（09-07）。
 - 产品：T3/T4；视觉阈值是否需要产品验收参与。
 

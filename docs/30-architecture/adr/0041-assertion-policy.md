@@ -19,10 +19,10 @@
    | 场景 | 替代方案 |
    |---|---|
    | "这个值经过校验后一定是某个更窄的类型" | 类型守卫函数（`function isFoo(x: unknown): x is Foo`）+ `if` 收窄 |
-   | "这里不可能是 undefined，但类型上看起来可能" | 断言函数（`function assertDefined<T>(x: T, msg?: string): asserts x is NonNullable<T>`，定义于 `@oce/shared`）——与 `!` 的关键区别：断言函数**在运行时真的检查**，检查失败时抛出类型化异常（[05§5](../09-type-discipline/05-runtime-boundaries.md#5-result-类型与异常的边界)），而 `!` 是无检查的静默信任；两者对类型系统的效果相似，对运行时正确性的保障截然不同 |
+   | "这里不可能是 undefined，但类型上看起来可能" | 断言函数（`function assertDefined<T>(x: T, msg?: string): asserts x is NonNullable<T>`，定义于 `@cordexjs/shared`）——与 `!` 的关键区别：断言函数**在运行时真的检查**，检查失败时抛出类型化异常（[05§5](../09-type-discipline/05-runtime-boundaries.md#5-result-类型与异常的边界)），而 `!` 是无检查的静默信任；两者对类型系统的效果相似，对运行时正确性的保障截然不同 |
    | 外部/不可信数据进入类型化世界 | Standard Schema 解析（[05](../09-type-discipline/05-runtime-boundaries.md)），parse 后得到的类型是"真的检查过"的，不是断言出来的 |
    | `noUncheckedIndexedAccess` 触发的 `T \| undefined` | 显式判空分支，或 `??`/可选链，视语义决定 fallback 还是继续向上抛出 |
-   | 品牌类型构造 | 专用构造函数（[05§4](../09-type-discipline/05-runtime-boundaries.md#4-品牌类型branded-types)），内部做范围/格式校验后返回品牌类型——构造函数内部实现允许（且必须）做真正的校验，不是简单包一层 `as`（构造函数本身的实现如需要临时的类型层过渡手段，走 `oce-allow` 逐案登记并计入 [ADR-0040](./0040-type-budgets-and-ratchet.md) 预算，不豁免） |
+   | 品牌类型构造 | 专用构造函数（[05§4](../09-type-discipline/05-runtime-boundaries.md#4-品牌类型branded-types)），内部做范围/格式校验后返回品牌类型——构造函数内部实现允许（且必须）做真正的校验，不是简单包一层 `as`（构造函数本身的实现如需要临时的类型层过渡手段，走 `cordex-allow` 逐案登记并计入 [ADR-0040](./0040-type-budgets-and-ratchet.md) 预算，不豁免） |
 
 ## 备选方案与放弃原因
 
@@ -36,7 +36,7 @@
 
 **正面**：每一次"我确信这里的类型是什么"都被迫写成一个可读、可单测、可复用的函数调用（类型守卫/断言函数），而不是一个内联的、无法单独测试的类型系统旁路；`noUncheckedIndexedAccess` 等严格选项的实际保护力不会被断言悄悄抵消。
 
-**负面**：迁移初期改动量较大，尤其是习惯了其他项目用 `as`/`!` 快速"消灭红线"的工程师会有摩擦；缓解手段是 `@oce/shared` 尽早提供 `assertDefined`/常用类型守卫工具函数库，降低"写一个类型守卫"的边际成本。
+**负面**：迁移初期改动量较大，尤其是习惯了其他项目用 `as`/`!` 快速"消灭红线"的工程师会有摩擦；缓解手段是 `@cordexjs/shared` 尽早提供 `assertDefined`/常用类型守卫工具函数库，降低"写一个类型守卫"的边际成本。
 
 ## 如何被机械验证
 

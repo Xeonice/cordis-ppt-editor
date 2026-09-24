@@ -26,7 +26,7 @@
 
    这一模式保留了 `enum`唯一真正不可替代的优点——"同时产出一组值和一个类型"——而不引入 `enum` 的运行时/编译期特殊语义。
 3. **开放可扩展集合**（`DocumentType`、`ContributionPoint` 的 `kind`/`id`，任何第三方可注册新成员的场景）：**不**用联合类型（哪怕是手写的、不断增长的联合），直接用 `string`（必要时是模板字面量类型约束格式，如贡献点 id 的 `` `${string}.${string}` ``）+ 运行时注册表校验唯一性。理由：联合类型即使不是 `enum`，只要是"编译期列出全部成员"，就仍然是封闭集合，无法达成"第三方在不改动本包源码的前提下新增一个合法值"这一目标——这是 A3 问题的**本质**（封闭 vs 开放），不是"用了 enum 这个关键字"的表面问题，替换成一个手写的封闭联合类型并不能解决 Univer 的原始问题。
-4. **协议层**（[@oce/protocol](../09-type-discipline/05-runtime-boundaries.md)）：涉及跨网络传输的分类值统一用字符串 id，不用 `z.nativeEnum`（该 API 要求先有一个 TS `enum` 作为输入，与本 ADR 禁 `enum` 的决策矛盾），改用 `z.enum([...])`（zod 原生的字符串字面量联合校验，不依赖 TS `enum`）描述封闭协议字段，`z.string()` + 运行时注册表校验描述开放字段。
+4. **协议层**（[@cordexjs/protocol](../09-type-discipline/05-runtime-boundaries.md)）：涉及跨网络传输的分类值统一用字符串 id，不用 `z.nativeEnum`（该 API 要求先有一个 TS `enum` 作为输入，与本 ADR 禁 `enum` 的决策矛盾），改用 `z.enum([...])`（zod 原生的字符串字面量联合校验，不依赖 TS `enum`）描述封闭协议字段，`z.string()` + 运行时注册表校验描述开放字段。
 
 ## 备选方案与放弃原因
 

@@ -38,11 +38,11 @@ tooling/api-extractor/
 
 ### 2.2 `store-yjs`/`collab-yjs` 公共 API 禁止暴露 `Y.*` 类型（响应架构-运行时条线）
 
-`@oce/store-yjs`、`@oce/collab-yjs` 是章程 §5.3 规则 4 指定的 `yjs` 唯一入口包（[02 §5.1](./02-lint-rules.md#51-no-restricted-imports章程-53-规则-4)）；单点引入规则保证**其余包不能 `import 'yjs'`**，但如果这两个包的**公开类型签名**里出现 `Y.Doc`/`Y.Text`/`Y.Array`/`Y.Map` 等 Yjs 具体类型（如 `DocumentStore` 的某个方法返回类型标注为 `Y.Text` 而非该包自己的抽象类型），消费方依然会被迫在类型层面"认识" Yjs 的具体形状——这是单点引入规则在**值导入**维度生效、但在**类型签名泄漏**维度失效的一个典型缺口，等价于章程 §5.3 规则 4 的目的（"防止 yjs 成为隐性的全仓依赖"）被绕过。
+`@cordexjs/store-yjs`、`@cordexjs/collab-yjs` 是章程 §5.3 规则 4 指定的 `yjs` 唯一入口包（[02 §5.1](./02-lint-rules.md#51-no-restricted-imports章程-53-规则-4)）；单点引入规则保证**其余包不能 `import 'yjs'`**，但如果这两个包的**公开类型签名**里出现 `Y.Doc`/`Y.Text`/`Y.Array`/`Y.Map` 等 Yjs 具体类型（如 `DocumentStore` 的某个方法返回类型标注为 `Y.Text` 而非该包自己的抽象类型），消费方依然会被迫在类型层面"认识" Yjs 的具体形状——这是单点引入规则在**值导入**维度生效、但在**类型签名泄漏**维度失效的一个典型缺口，等价于章程 §5.3 规则 4 的目的（"防止 yjs 成为隐性的全仓依赖"）被绕过。
 
 **机制**：CI `api-surface` job 在 `api-extractor run` 产出 `.api.md` 后，对 `packages/store-yjs`、`packages/collab-yjs` 两个包的报告文本做一次正则扫描，匹配任何形如 `Y\.[A-Z]\w*`（Yjs 具体类型的惯用命名前缀）的类型引用；命中即失败，失败信息列出具体的导出符号与其签名里出现的 `Y.*` 引用。**修复方式**：该方法/属性的公开类型改为 `store-yjs`/`collab-yjs` 自己定义的抽象类型（如返回 `RichText`/`SharedArray` 一类领域类型，内部实现用 `Y.Text`/`Y.Array` 包装），只在包内部、不导出到 `.d.ts` 的私有实现里使用具体的 `Y.*` 类型。
 
-**豁免**：无——这是章程 §5.3 规则 4 已经确立的架构边界在类型签名维度的延伸，不应比值导入维度更宽松，无 `oce-allow` 通道（架构性禁止，同 [03](./03-boundaries.md) 依赖类规则的立场）。
+**豁免**：无——这是章程 §5.3 规则 4 已经确立的架构边界在类型签名维度的延伸，不应比值导入维度更宽松，无 `cordex-allow` 通道（架构性禁止，同 [03](./03-boundaries.md) 依赖类规则的立场）。
 
 ---
 
@@ -82,7 +82,7 @@ tooling/api-extractor/
 | 工具 | 检查什么 | 典型失败场景 | 严重级别 |
 |---|---|---|---|
 | **publint** | `package.json` 字段的内部一致性（`exports` 条件顺序——`types` 必须排在同一条件对象的首位，否则部分工具链会解析到错误的运行时文件而拿到过期/缺失的类型提示；`files` 字段是否遗漏了 `exports` 实际引用的产物；`main`/`module` 遗留字段与 `exports` 的兼容性） | `exports['.'] = { import: '...', types: '...' }`（`types` 顺序在后）→ 部分打包工具按声明顺序解析条件，可能匹配到 `import` 而忽略 `types` | `error`，零豁免 |
-| **@arethetypeswrong/cli (attw)** | 跨模块解析模式（`node10`、`node16-cjs`、`node16-esm`、`bundler`）的类型解析结果是否与运行时解析结果一致；专门捕获"伪装成 CJS"（"masquerading as CJS"）与"假 ESM"问题 | 包用 `"type": "module"` 但某个历史遗留字段组合让 `node16-cjs` 解析模式下类型解析失败或指向错误文件 | 默认 `error`；允许通过 attw 自身的规则级忽略列表（`ignoreRules`，写在该包 `package.json` 的 `attw` 字段）豁免**特定已知且评审过**的规则项，豁免同样计入 [06](./06-scanners.md#1-scan-type-escapes) 的豁免预算体系（豁免格式与 `oce-allow` 统一：`attw` 字段旁必须有紧邻的 JSON 注释❌（标准 JSON 不支持注释）——改为要求在同目录 `ATTW_WAIVERS.md` 写明每条豁免的 issue 链接，由 scan-policy 校验该文件与 `package.json#attw.ignoreRules` 条目数一致） |
+| **@arethetypeswrong/cli (attw)** | 跨模块解析模式（`node10`、`node16-cjs`、`node16-esm`、`bundler`）的类型解析结果是否与运行时解析结果一致；专门捕获"伪装成 CJS"（"masquerading as CJS"）与"假 ESM"问题 | 包用 `"type": "module"` 但某个历史遗留字段组合让 `node16-cjs` 解析模式下类型解析失败或指向错误文件 | 默认 `error`；允许通过 attw 自身的规则级忽略列表（`ignoreRules`，写在该包 `package.json` 的 `attw` 字段）豁免**特定已知且评审过**的规则项，豁免同样计入 [06](./06-scanners.md#1-scan-type-escapes) 的豁免预算体系（豁免格式与 `cordex-allow` 统一：`attw` 字段旁必须有紧邻的 JSON 注释❌（标准 JSON 不支持注释）——改为要求在同目录 `ATTW_WAIVERS.md` 写明每条豁免的 issue 链接，由 scan-policy 校验该文件与 `package.json#attw.ignoreRules` 条目数一致） |
 
 两者都在 CI `api-surface` job 内、`api-extractor` 之后运行（顺序：`tsc --build` → `api-extractor run` → `pnpm pack` → `publint` → `attw --pack`）。
 

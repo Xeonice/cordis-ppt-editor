@@ -15,9 +15,9 @@
 四层验证（12 §4）：
 
 1. **静态**：depcruise R3/R4（水平层禁 import 垂直束；束间互不依赖）；lint `no-doc-type-literals`（水平层源码禁止 `slide|slides|sheet|workbook|docx|pptx|xlsx|paragraph` 等词根的字面量/标识符片段，允许列表：fixtures、注释、`model-core/testing/fixture-*`、`ooxml-core` MIME 常量表）；扫描器 `no-doc-fields-in-contracts`（`engine-render`/`model-core` 公共类型属性名同样禁词）。
-2. **夹具**：`@oce/model-core/testing` 提供 `fixture` 文档类型（键值树 + 文本块）与 `fixture-grid`（网格键空间，模拟 sheet），各含 Mutation/Command/Operation/FormatCodec/ResourceHook/Migration/SceneProvider/ElementRenderer/UI 贡献；**水平层包的 `__tests__` 只允许使用夹具类型**（depcruise `horizontal-tests-use-fixture-only`：水平层测试不得 import `@oce/model-slide*`/`ooxml-pptx`/`slide-*`）。
+2. **夹具**：`@cordexjs/model-core/testing` 提供 `fixture` 文档类型（键值树 + 文本块）与 `fixture-grid`（网格键空间，模拟 sheet），各含 Mutation/Command/Operation/FormatCodec/ResourceHook/Migration/SceneProvider/ElementRenderer/UI 贡献；**水平层包的 `__tests__` 只允许使用夹具类型**（depcruise `horizontal-tests-use-fixture-only`：水平层测试不得 import `@cordexjs/model-slide*`/`ooxml-pptx`/`slide-*`）。
 3. **运行时**：`preset-blind.test.ts`：仅水平层 + 夹具 → 打开、编辑、撤销、快照往返、迁移、渲染（RecordingTarget）全流程；两个夹具类型同页共存；移除全部 `DocumentType` 后打开返回 `format.no_document_type`（PRD CS-05 口径），host 仍健康。
-4. **冻结**：`tooling/scanners/horizontal-freeze` 计算无 `oce.bundle` 的包 `src/**`（排除 `__tests__`）内容哈希 → `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件无 diff；确需改水平层 → PR 附 ADR 并显式更新锁（可审计）。
+4. **冻结**：`tooling/scanners/horizontal-freeze` 计算无 `cordex.bundle` 的包 `src/**`（排除 `__tests__`）内容哈希 → `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件无 diff；确需改水平层 → PR 附 ADR 并显式更新锁（可审计）。
 5. **设计时**：04/12 中每个水平层抽象必须回答「doc 怎么用 / sheet 怎么用」（12 §2 表）；评审 checklist 项（PRD R-M5-1：`Selection`/`Unit` 用反例评审）。
 
 ## 备选方案与放弃原因

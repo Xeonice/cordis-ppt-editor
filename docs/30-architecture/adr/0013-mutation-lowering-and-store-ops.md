@@ -1,6 +1,6 @@
 # ADR-0013 Mutation 降级与 `StoreOp` 原语集（5 种；有序实体用 fractional index）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17
 
 ## 状态
 
@@ -19,7 +19,7 @@ D4 要求 Mutation 是唯一改 Store 的途径且逆操作由 Store 推导；�
    - `insert/remove` **只用于无身份的值列表**（`columnWidths: Emu[]`、渐变 stops、tab stops、`paragraphs[]` 若不走 Y.Text）；
    - **有身份的集合**（页、母版、版式、形状、媒体、节、评论…）= 实体表 `Record<id, entity>` + 实体属性 `order: FracKey`；「移动」= `set([...,'order'], key)`；**不存在 `move` 原语**（ADR-0032）。
    - `text` 的 delta 与 Y.Text 同形（insert/retain/delete + attributes）。
-2. **Mutation 载荷禁止数组下标与相对位置**：意图「插到 X 之后」在**命令层**转为具体键：`const order = between(prev?.order, next?.order)`（`@oce/shared/order`，含 2 字符随机后缀）→ Mutation 携带最终 `order`。这样 `lower()` 保持**纯且确定**（同一 Mutation 任何时候降级结果相同），随机性与 id 生成一样只发生在命令层。
+2. **Mutation 载荷禁止数组下标与相对位置**：意图「插到 X 之后」在**命令层**转为具体键：`const order = between(prev?.order, next?.order)`（`@cordexjs/shared/order`，含 2 字符随机后缀）→ Mutation 携带最终 `order`。这样 `lower()` 保持**纯且确定**（同一 Mutation 任何时候降级结果相同），随机性与 id 生成一样只发生在命令层。
 3. **`lower(mutation, view): Result<StoreOp[], LowerError>`** 是文档类型贡献的纯函数（`core.mutation`）：可读当前视图以校验存在性与构造路径；不得读服务、时间、随机。
 4. **逆操作在原语层**：`set`↔`set/delete`、`insert`↔`remove`（需被删项）、`text`↔`invert(delta, oldText)`；Provider 在应用前读旧值。
 5. **路径**：`Path = (string | number | { id })[]`；`{id}` 选择器只用于无身份值列表中按 `id` 字段查找的特例（原则上不需要）；实体表按键定位。
@@ -47,8 +47,15 @@ D4 要求 Mutation 是唯一改 Store 的途径且逆操作由 Store 推导；�
 - property test：`apply(inverse(apply(s, op))) ≡ s`；随机 Mutation 序列后 `bodySchema` 通过。
 - `lower` 确定性测试：同一 Mutation 对同一视图两次降级结果深等。
 - `runDocumentStoreConformance`：并发 `order` 写入在 memory 与 yjs 收敛一致（协同分节由 06 补全）。
-- `@oce/shared/order` 单测（ADR-0032 列出）。
+- `@cordexjs/shared/order` 单测（ADR-0032 列出）。
 
 ## 关联
 
 章程 D4、R5；Univer A1/A2、缺陷 #3；ADR-0007、ADR-0020、ADR-0032；04 §2.3、§3.1；05 §4；06 I4。
+
+## 修订 2026-09-24：实体删除改为软删除墓碑（rulings §4.15 Q3）
+
+- **原语集不变**：`StoreOp` 仍为 5 种（`set/delete/insert/remove/text`），不新增 op。
+- **身份实体的删除语义**：Mutation「删除实体」降级后，store 层落为 **`_deleted` 标记 + TTL 硬删除 + 读路径过滤 + 不变量**：`lower()` 产出的仍是 `delete(entities/<id>)`，由 Store Provider（memory 与 yjs 同语义）解释为写墓碑；读视图、渲染、导出、不变量检查一律过滤墓碑；逆操作 = 清除墓碑（原 id 不变）。TTL（默认 24 h）到期后由服务端单写者硬删除（ADR-0025 决策 9）；文档擦除与「立即彻底删除」不等 TTL。非身份数组的 `remove` 与属性级 `delete(path)` 不受影响。
+- **同步**：model-slide 的命令守卫需把墓碑实体视为「不存在」（不可选中、不可再编辑，只能恢复）；架构 04 的 delete 语义由对应文档回写。完整撤销契约见 ADR-0020「协同撤销语义」。
+- **机械验证**：`runDocumentStoreConformance` 增加 `soft-delete-tombstone`、`read-path-filters-tombstone`（memory 与 yjs 同结果；用例名以 40-modules/02 §2.5 为准，2026-09-24 复核修正，原 `soft-delete-restore-same-id`/`tombstone-filtered-on-read` 作废）。

@@ -7,22 +7,22 @@
 
 ## 1. kernel 封装：为什么要有一层薄壳
 
-`cordis` 处于 rc（D1）。`@oce/kernel` 的目标是让**其余所有包只依赖 `@oce/kernel` 的 API 面**，cordis 升级的破坏性被 kernel 吸收。kernel 不新增概念，只做四件事：re-export、`createHost`、ContributionPoint + Manifest、`errors`/`telemetry`/logger 适配 + `createIsolatedScope` + 诊断。
+`cordis` 处于 rc（D1）。`@cordexjs/kernel` 的目标是让**其余所有包只依赖 `@cordexjs/kernel` 的 API 面**，cordis 升级的破坏性被 kernel 吸收。kernel 不新增概念，只做四件事：re-export、`createHost`、ContributionPoint + Manifest、`errors`/`telemetry`/logger 适配 + `createIsolatedScope` + 诊断。
 
 ### 1.1 re-export 面（草案）
 
 ```ts
-// @oce/kernel/src/index.ts（草案）
+// @cordexjs/kernel/src/index.ts（草案）
 export type { Context, Plugin, Fiber, Events, Inject, EffectMeta, Disposable } from 'cordis'
 export { Service } from 'cordis'                                    // 值导出：插件需 `class X extends Service`（2026-09-22 修订，原 type-only 与 §2.1/§2.3 的写法矛盾）
 export { FiberState, CordisError, ValidationError } from 'cordis'   // 值导出：状态枚举与两个错误类
 export { createHost } from './host'
-export type { OceHost, HostOptions } from './host'
+export type { CordexHost, HostOptions } from './host'
 export { defineContributionPoint } from './contribution/point'
 export type { ContributionPoint, ReadonlyContributionSet, ContributionDiagnostic } from './contribution'
 export type { Manifest, ContributionEntry } from './manifest/types'
 export { createIsolatedScope } from './scope'
-export type { OceError, ErrorTable, ErrorsService, TelemetryService } from './services'
+export type { CordexError, ErrorTable, ErrorsService, TelemetryService } from './services'
 export { dumpFiberTree, assertNoLiveEffects } from './diagnostics'
 ```
 
@@ -38,14 +38,14 @@ interface HostOptions {
   loggerSink?: LoggerSink           // 默认 cordis 内建 console logger
   clock?: () => number              // 测试注入
 }
-interface OceHost {
+interface CordexHost {
   readonly ctx: Context             // 根 ctx（cordis 根 Context 的子层：kernel 插件的 ctx）
   readonly kernelVersion: string
   plugin<P extends Plugin>(plugin: P, ...config: Spread<GetPluginConfig<P>>): Fiber & PromiseLike<Fiber>   // 透传 ctx.plugin
   diagnostics(): HostDiagnostics    // Fiber 树 + 贡献诊断 + manifest 不一致清单
   dispose(): Promise<void>          // 销毁根 Fiber → 全部 effect 逆序清理
 }
-declare function createHost(options?: HostOptions): OceHost
+declare function createHost(options?: HostOptions): CordexHost
 ```
 
 `createHost` 做的事（顺序无关，全部在 kernel 插件 `apply` 内以 effect 形式完成）：
@@ -63,12 +63,12 @@ declare function createHost(options?: HostOptions): OceHost
 type ErrorCode = `${Lowercase<string>}.${Lowercase<string>}`   // 点式 `<域>.<snake_case>`（10 §1.1；rulings §4.3 CS-13）：'command.permission_denied'、'kernel.version_mismatch'、'format.no_document_type'；第三方 `<vendor>:<域>.<name>`（D15）
 interface ErrorTable { readonly [name: string]: { message: string; data?: StandardSchemaV1 } }
 declare function defineErrors<const D extends string, const T extends ErrorTable>(domain: D, table: T): { [K in keyof T]: `${D}.${K & string}` }   // 源码中以大写标识符引用（PERMISSION_DENIED），运行时字符串为点式
-class OceError extends Error { readonly code: ErrorCode; readonly data?: unknown; readonly fiber?: string; cause?: unknown }
+class CordexError extends Error { readonly code: ErrorCode; readonly data?: unknown; readonly fiber?: string; cause?: unknown }
 interface ErrorsService {
-  create(code: ErrorCode, data?: unknown, cause?: unknown): OceError
-  report(error: unknown, context?: { fiber?: string; unitId?: string }): void   // 归类（OceError | CordisError | ValidationError | unknown）→ sink
-  wrap(unknown: unknown, fallback: ErrorCode): OceError
-  isOceError(x: unknown): x is OceError
+  create(code: ErrorCode, data?: unknown, cause?: unknown): CordexError
+  report(error: unknown, context?: { fiber?: string; unitId?: string }): void   // 归类（CordexError | CordisError | ValidationError | unknown）→ sink
+  wrap(unknown: unknown, fallback: ErrorCode): CordexError
+  isOceError(x: unknown): x is CordexError
 }
 // telemetry
 interface TelemetryService {
@@ -101,7 +101,7 @@ interface TelemetryService {
 
 ```ts
 // packages/<pkg>/src/plugin.ts
-import { z } from '@oce/protocol/schema'         // Standard Schema 实现集中于 protocol/kernel（R5）
+import { z } from '@cordexjs/protocol/schema'         // Standard Schema 实现集中于 protocol/kernel（R5）
 export const name = 'model-slide'                 // = package 名去 scope；manifest.id 用完整包名
 export const inject = ['contributions', 'documentTypes', 'commands'] as const   // 硬依赖
 export const provide = ['slides'] as const        // 若提供服务
@@ -128,7 +128,7 @@ export default { name, inject, provide, Config, apply }        // 对象形态�
 | `index.ts` | `export … from` | 任何顶层语句/调用 | 扫描器 `index-pure` |
 | `plugin.ts` | name/inject/provide/Config/apply | 模块级 `let`/可变 `Map` | lint |
 | `manifest.ts` | 生成物 | 人工编辑 | manifest-gen `--check` |
-| `*.contribution.ts` | `declare module '@oce/kernel'` 增强；`defineContributionPoint` 调用；类型导出 | 运行时 import（`import type` 除外）、副作用 | lint `contribution-file-purity` |
+| `*.contribution.ts` | `declare module '@cordexjs/kernel'` 增强；`defineContributionPoint` 调用；类型导出 | 运行时 import（`import type` 除外）、副作用 | lint `contribution-file-purity` |
 | `contracts/*` | 接口、类型、schema、抽象类 | 具体实现 | 评审 + api-extractor |
 | `services/*.service.ts` | `class X extends Service` | `ctx.mixin`、原型赋值 | lint |
 | `testing/*` | 替身/构造器/套件 | 生产逻辑 | depcruise R10 |
@@ -238,7 +238,7 @@ interface ReadonlyContributionSet<T, K extends string> extends Iterable<T> {
 
 > 2026-09-18（14 §1 C-05）：Ribbon 页签与检查器分区复用 `ui.ribbon`/`ui.panel` 集合内的条目——Ribbon 页签 = `ui.ribbon{kind:'tab'}`，检查器分区 = `ui.panel{slot:'inspector'}`——不新增 `ui.ribbonTab`/`ui.inspector` 贡献点 id。
 
-命名规则：id 一律 `<域>.<名>`，`<名>` 为 camelCase（`core.documentType`、`ui.contextMenu`、`ui.statusBar`）；事件一律 `<域>/<动作>`（kebab-case 动作）。**第三方前缀**（章程 D15；PRD CS-07 的定稿）：第三方插件的贡献点 `<vendor>:<域>.<名>`、事件 `<vendor>:<域>/<动作>`、能力位 `<vendor>:<域>.<action>`，其中 `vendor` = 包的 npm scope 去 `@`（`@acme/oce-comments` → `acme:comments.thread`、`acme:comments/added`）；内核与垂直束的域名单固定为 `core kernel contribution unit command store history selection permission format render layout ui i18n collab collab-server presence plugin error perf view export comment slide doc sheet`（与章程 §5.5 合并为一份并集，2026-09-18，14 §1 C-24；`app` 为应用壳私有域，不入此表，见章程 §5.5）。扫描器 `event-domain-whitelist`：拒绝既不在名单又无 `<vendor>:` 前缀的域，并校验前缀与声明该事件/贡献点的包的 scope 机械对应（无 scope 的第三方包不得声明公开事件与贡献点 id）。`telemetry.sink`/`errors.sink` 是贡献点；`collabTransport`、`BlobStore` 一类**单例可替换能力**是服务 Provider 座而非贡献点（判据：集合 → 贡献点；单例 → 服务）。
+命名规则：id 一律 `<域>.<名>`，`<名>` 为 camelCase（`core.documentType`、`ui.contextMenu`、`ui.statusBar`）；事件一律 `<域>/<动作>`（kebab-case 动作）。**第三方前缀**（章程 D15；PRD CS-07 的定稿）：第三方插件的贡献点 `<vendor>:<域>.<名>`、事件 `<vendor>:<域>/<动作>`、能力位 `<vendor>:<域>.<action>`，其中 `vendor` = 包的 npm scope 去 `@`（`@acme/cordex-comments` → `acme:comments.thread`、`acme:comments/added`）；内核与垂直束的域名单固定为 `core kernel contribution unit command store history selection permission format render layout ui i18n collab collab-server presence plugin error perf view export comment slide doc sheet`（与章程 §5.5 合并为一份并集，2026-09-18，14 §1 C-24；`app` 为应用壳私有域，不入此表，见章程 §5.5）。扫描器 `event-domain-whitelist`：拒绝既不在名单又无 `<vendor>:` 前缀的域，并校验前缀与声明该事件/贡献点的包的 scope 机械对应（无 scope 的第三方包不得声明公开事件与贡献点 id）。`telemetry.sink`/`errors.sink` 是贡献点；`collabTransport`、`BlobStore` 一类**单例可替换能力**是服务 Provider 座而非贡献点（判据：集合 → 贡献点；单例 → 服务）。
 
 **`when` 子句上下文键**（`ui-core/context-keys.ts`；`ui.*` 贡献的 `when` 只能引用此处登记的键，扫描器 `when-keys-declared`）：`unitType`（documentType id）、**`viewMode`**（取值受 `DocumentType.viewModes` 约束；slide：`normal | master | presenter`——ML-01 母版视图下 ribbon/panel/contextMenu 据此切换贡献，例 `when: "unitType == 'slide' && viewMode == 'master'"`）、**`editTargetKind`**（`slide | layout | master`，母版视图中的当前编辑目标）、`selectionKind`、`selectionCount`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform`（`desktop | mobile`）、`density`、**`breakpoint`**（`desktop | compact | narrow`，与 `platform` 正交，取视口宽度语义）、**`textEditing`**、**`focusRegion`**（`canvas | rail | inspector | ribbon`）（后三者 2026-09-18 新增（40-modules），见 14 §2/§5.5）。垂直束可登记前缀键（如 `slide.hasNotes`、`slide.hasChartEditor`），第三方按 D15 `<vendor>:` 前缀。上下文键由 `view.setMode`（ui-core 内置 Operation，14 §1 C-01）/`slide.selectMasterOrLayout` 等 Operation 更新（05 §13.3），反应式驱动 `ui` 服务重新过滤贡献。
 
@@ -250,11 +250,11 @@ interface ReadonlyContributionSet<T, K extends string> extends Iterable<T> {
 
 ```ts
 interface Manifest {
-  id: string                      // '@oce/model-slide'
+  id: string                      // '@cordexjs/model-slide'
   version: string                 // 与 package.json 同步
   iso: 'iso' | 'dom' | 'node'
-  kernel: string                  // 对 @oce/kernel 的 peer 范围（来自 package.json.peerDependencies）
-  peers: Record<string, string>   // 其它 @oce/* peer 范围
+  kernel: string                  // 对 @cordexjs/kernel 的 peer 范围（来自 package.json.peerDependencies）
+  peers: Record<string, string>   // 其它 @cordexjs/* peer 范围
   plugin: { name: string; hasConfig: boolean; configSchema?: JsonSchema }   // Config 的 JSON Schema（zod → JSON Schema，供 loader/UI）
   provides: string[]              // 服务名
   injects: string[]               // 硬依赖服务名
@@ -263,7 +263,7 @@ interface Manifest {
   contributes: ContributionEntry[]        // { point: PointId; keys?: string[]（静态可知时）; count?: number }
   events: { emits: string[]; listens: string[]; waterfalls: string[] }
   unitScoped: boolean             // 是否只在 UnitScope 下挂载（provide 了隔离服务或 inject 了隔离服务）
-  stability: 'stable' | 'beta' | 'experimental'          // 本包公共面的稳定级（PRD PS-02；来自 package.json#oce.stability）
+  stability: 'stable' | 'beta' | 'experimental'          // 本包公共面的稳定级（PRD PS-02；来自 package.json#cordex.stability）
   documentTypes: string[]         // 本包贡献或专属的文档类型（垂直束填 bundle；水平层为空数组）
   permissions: string[]           // 本包命令/Mutation 声明使用的能力位集合（静态收集 CommandDef.permission 字面量；PRD PS-01）
   i18n: string[]                  // 本包贡献的 i18n 命名空间
@@ -277,7 +277,7 @@ interface Manifest {
  源码 (plugin.ts / *.contribution.ts / services / apply 内调用点)
    │ tooling/manifest-gen（ts-morph）
    ▼
- src/manifest.ts（生成物，入库）──序列化──► oce-manifest.json（构建产物，随包发布）
+ src/manifest.ts（生成物，入库）──序列化──► cordex-manifest.json（构建产物，随包发布）
    │                                             │
    │ CI: manifest-gen --check（重新生成无 diff）    │ 运行时：kernel.verifyManifest(fiber, manifest)
    ▼                                             ▼
@@ -286,7 +286,7 @@ interface Manifest {
 
 静态分析范围与失败模式：
 - 能识别：字面量 `inject`/`provide` 数组、`ctx.contribute(Ident, …)`、`ctx.on('lit', …)`、`ctx.emit/parallel/serial/bail/waterfall('lit', …)`、`ctx.get('lit')`、`defineContributionPoint({ id: 'lit' })`。
-- 不能识别（动态字符串、循环内计算的 key）：生成器记 `count: 'dynamic'` 并在 `--check` 下要求源码用 `/* oce-manifest: dynamic */` 注释显式承认；否则失败。宁可拒绝，不可猜。
+- 不能识别（动态字符串、循环内计算的 key）：生成器记 `count: 'dynamic'` 并在 `--check` 下要求源码用 `/* cordex-manifest: dynamic */` 注释显式承认；否则失败。宁可拒绝，不可猜。
 - 运行时比对：`provides` 与 `injects` 必须完全一致；`contributes` 的 point 集合必须一致，keys 允许运行时多于静态（dynamic）但不得少于静态；`events.listens` 允许运行时多于静态（条件监听）。
 
 ---
@@ -430,10 +430,10 @@ declare function createSlidePreset(options?: SlidePresetOptions): Plugin
 
 ## 10. 版本协商（ADR-0002）
 
-1. 每个插件包 `peerDependencies` 声明 `@oce/kernel` 与所依赖的 `@oce/*` 范围；manifest-gen 复制到 `manifest.kernel/peers`。
+1. 每个插件包 `peerDependencies` 声明 `@cordexjs/kernel` 与所依赖的 `@cordexjs/*` 范围；manifest-gen 复制到 `manifest.kernel/peers`。
 2. 挂载时 `verifyManifest`：`satisfies(manifest.kernel, host.kernelVersion)` 为假 → `errors.create('kernel/VERSION_MISMATCH', { plugin, required, actual })` → Fiber `FAILED`（**阻断**，区别于 Univer 仅 log）。
 3. 水平 L0–L1（`shared`、`kernel`、`protocol`、`i18n`、`model-core`、`store-*`）lockstep 发版（Changesets fixed 组），其它包独立 semver；preset 用 `^` 锁定兼容大版本。
-4. 第三方插件：只允许依赖 `@oce/kernel`、`@oce/model-core` 与其所属垂直束的 V-model 包；插件兼容性测试套件（M4，11）以 `verifyManifest` + `defineLifecycleSuite` 为核心。
+4. 第三方插件：只允许依赖 `@cordexjs/kernel`、`@cordexjs/model-core` 与其所属垂直束的 V-model 包；插件兼容性测试套件（M4，11）以 `verifyManifest` + `defineLifecycleSuite` 为核心。
 
 ---
 
@@ -449,7 +449,7 @@ declare function createSlidePreset(options?: SlidePresetOptions): Plugin
 | `*.contribution.ts` 无运行时 import | lint `contribution-file-purity` |
 | 根级插件不 inject 隔离服务 | lint `no-unit-scoped-inject-at-root` |
 | manifest 与源码一致 | CI `manifest-gen --check`；运行时 `verifyManifest` |
-| 卸载后无 effect、重复挂载无重复注册 | `@oce/kernel/testing` `defineLifecycleSuite`；每个插件包 `__tests__/lifecycle.test.ts` 必须存在（扫描器 `lifecycle-test-present`） |
+| 卸载后无 effect、重复挂载无重复注册 | `@cordexjs/kernel/testing` `defineLifecycleSuite`；每个插件包 `__tests__/lifecycle.test.ts` 必须存在（扫描器 `lifecycle-test-present`） |
 | 失败隔离 | kernel `failure-isolation.test.ts`；preset `PresetReport` 测试 |
 | 顺序无关 | preset `order-independence.test.ts` |
 | 版本失配阻断 | kernel `version-mismatch.test.ts` |

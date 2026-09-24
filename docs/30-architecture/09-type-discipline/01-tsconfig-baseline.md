@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
 
 # 01 · tsconfig 基线
 
@@ -71,7 +71,7 @@ tooling/tsconfig/
 | `isolatedDeclarations` | `.d.ts` 生成不得依赖跨文件类型推断；每个导出声明的类型必须能**仅从该声明的语法**确定 | D9 明确要求；使 `.d.ts` 产出可被任意单文件编译器（esbuild/swc/oxc）并行生成，不必先跑一遍完整类型检查；副作用（本项目视为收益）：强制每个公开 API 在源码里"自证类型"，杜绝"看代码猜类型"的隐性 API。对贡献点定义、Manifest 常量的具体写法约束见 [09 §5](./09-plugin-type-contracts.md#5-isolateddeclarations-下的导出约束) |
 | `verbatimModuleSyntax` | `import`/`export` 语句原样保留在输出中（不做类型擦除时的隐式判断），`import type`/`export type` 必须显式书写 | 使 Vite/esbuild 等**单文件转译器**能在不查看其他文件的情况下正确擦除类型导入；`@typescript-eslint/consistent-type-imports`（[02](./02-lint-rules.md)）在编辑期以自动修复的方式帮你写对，`verbatimModuleSyntax` 是编译期真源 |
 | `isolatedModules` | 每个文件必须能被单文件转译（历史上早于 `verbatimModuleSyntax`，两者语义有重叠但检查维度不同：`isolatedModules` 还会拦「`const enum` 跨文件内联」「模糊的重导出」等） | Vitest（基于 esbuild/swc）与 Vite 构建都要求 |
-| `erasableSyntaxOnly` | 只允许"擦除类型即可编译"的语法子集：禁止 `enum`、禁止带运行时语义的 `namespace`/`module`、禁止构造函数参数属性（`constructor(private x)`）、禁止 `import =`/`export =` | **这是 [ADR-0042](../adr/0042-no-enums-const-objects.md)（禁 enum）的编译器级后盾**——`enum` 从"lint error（可 `oce-allow` 但预算为 0）"升级为"tsc 编译失败"，且无法被任何注释豁免。仅 `apps/server` 关闭（§6） |
+| `erasableSyntaxOnly` | 只允许"擦除类型即可编译"的语法子集：禁止 `enum`、禁止带运行时语义的 `namespace`/`module`、禁止构造函数参数属性（`constructor(private x)`）、禁止 `import =`/`export =` | **这是 [ADR-0042](../adr/0042-no-enums-const-objects.md)（禁 enum）的编译器级后盾**——`enum` 从"lint error（可 `cordex-allow` 但预算为 0）"升级为"tsc 编译失败"，且无法被任何注释豁免。仅 `apps/server` 关闭（§6） |
 
 ### 2.4 模块系统与解析
 
@@ -80,7 +80,7 @@ tooling/tsconfig/
 | `module` | `"nodenext"` | 与 `package.json#exports`/`#type: "module"` 语义对齐；若 TS 7.1+ 稳定提供锁定版本的解析预设（如替代 `nodenext` 的固定 Node 版本预设），由 [ADR-0046](../adr/0046-native-typescript-compiler-evaluation.md) 的评估窗口一并复核，不在本文预先承诺具体名称 |
 | `moduleResolution` | `"nodenext"` | 同上；与 `module` 保持一致是 TS 的硬性要求 |
 | `moduleDetection` | `"force"` | 避免"看起来没有 import/export 的文件被当成脚本（全局作用域）"这一类隐蔽 bug；契约类型文件（`contracts/*.ts`）可能出现只含 `interface` 的文件 |
-| `resolveJsonModule` | `true` | Manifest（`oce-manifest.json`）、i18n 源文件、品牌类型的固定枚举数据以 JSON 存在 |
+| `resolveJsonModule` | `true` | Manifest（`cordex-manifest.json`）、i18n 源文件、品牌类型的固定枚举数据以 JSON 存在 |
 | `esModuleInterop` / `allowSyntheticDefaultImports` | `true` | 部分 Node 生态依赖仍是 CJS-only（默认导出语义不规范）；与 `verbatimModuleSyntax` 不冲突——后者管"类型导入怎么擦除"，前者管"运行时默认导出怎么互操作" |
 | `allowJs` | `false` | 本仓库不允许 JS 源码混入 TS 项目；`.js` 只能作为第三方产物出现在 `node_modules` |
 | `skipLibCheck` | `true` | 代价：可能放过第三方 `.d.ts` 里的类型错误；收益：monorepo 规模下第三方声明文件的类型检查耗时不可接受。**不能**掩盖我们自己发布的包——[04](./04-api-surface.md) 的 `@arethetypeswrong/cli` 门禁专门检查"打包后从外部消费"这条路径，不受 `skipLibCheck` 影响 |
@@ -117,7 +117,7 @@ node.json  lib: ["ES2023"]                          types: ["node"]
 
 ## 3. 与 zod 推导类型的交互（`exactOptionalPropertyTypes`）
 
-`exactOptionalPropertyTypes: true` 下，`{ theme?: string }` 和 `{ theme?: string | undefined }` 是两个不同的类型：前者禁止显式传 `theme: undefined`，后者允许。Zod 4（详见 [05 §3](./05-runtime-boundaries.md#3-schema-即类型源) 与下方来源）的 `.optional()` 在 `z.infer` 推导中产出的是后一种形态（字段可省略，也可显式为 `undefined`），与本项目的选项语义一致，不需要额外转换层。评审检查点：任何**手写**（非 `z.infer` 推导）的接口如果包含 `?:` 字段，作者必须明确该字段是否也允许显式 `undefined`；这是 `oce/schema-type-must-be-inferred`（[02](./02-lint-rules.md#11-ocescheme-type-must-be-inferred-新增)）存在的部分原因——手写接口正是这类歧义的来源。
+`exactOptionalPropertyTypes: true` 下，`{ theme?: string }` 和 `{ theme?: string | undefined }` 是两个不同的类型：前者禁止显式传 `theme: undefined`，后者允许。Zod 4（详见 [05 §3](./05-runtime-boundaries.md#3-schema-即类型源) 与下方来源）的 `.optional()` 在 `z.infer` 推导中产出的是后一种形态（字段可省略，也可显式为 `undefined`），与本项目的选项语义一致，不需要额外转换层。评审检查点：任何**手写**（非 `z.infer` 推导）的接口如果包含 `?:` 字段，作者必须明确该字段是否也允许显式 `undefined`；这是 `cordex/schema-type-must-be-inferred`（[02](./02-lint-rules.md#411-cordexschema-type-must-be-inferred新增超出建议清单)）存在的部分原因——手写接口正是这类歧义的来源。
 
 ---
 

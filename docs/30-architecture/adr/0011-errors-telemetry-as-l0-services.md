@@ -14,7 +14,7 @@
 
 1. **两个 L0 服务在 kernel**：`errors`（`ErrorsService`）与 `telemetry`（`TelemetryService`），契约见 03 §1.3；logger 沿用 cordis 内建 `ctx.logger` 并加结构化包装（不新增服务名）。
 2. **出口是贡献点，不是 HostOptions 回调**（与 D3 一致，也与 PRD 的 `telemetry.sink` 命名一致）：kernel 定义 `errors.sink`（`{ id; report(err, ctx) }`）与 `telemetry.sink`（`{ id; counter/histogram/span/event 的接收端 }`）两个贡献点；服务把调用扇出到全部 sink；默认 sink（控制台 / no-op）由 kernel 插件自身贡献，`createHost({ defaultSinks: false })` 可关闭。应用侧的 Sentry / OTel 适配就是一个贡献 sink 的插件。
-3. **错误码**：`defineErrors(pkg, table)` 生成 `${pkg}/${CODE}` 字面量类型；`OceError { code; data; cause; fiber }`；`errors.report` 归类 `OceError | CordisError | ValidationError | unknown`。生产代码禁止 `throw new Error` 与 `console.*`。
+3. **错误码**：`defineErrors(pkg, table)` 生成 `${pkg}/${CODE}` 字面量类型；`CordexError { code; data; cause; fiber }`；`errors.report` 归类 `CordexError | CordisError | ValidationError | unknown`。生产代码禁止 `throw new Error` 与 `console.*`。
 4. **错误码目录生成**（EM-12）：`tooling/scanners/error-codes-catalog` 从全部 `defineErrors` 表生成 `docs/…/error-codes.md`（码、消息、data schema、所属包、首次出现版本）；CI diff 校验；重复码失败。
 5. **遥测事件注册表**：`defineTelemetryEvents(pkg, table)` 声明事件名与属性 schema；`telemetry.event(name, attrs)` 的 `name` 类型受限于已声明集合；扫描器拒绝未声明事件；PRD 06 的事件目录由该注册表生成（单一来源）。
 6. **两个命名空间**：cordis `Events`（进程内、`<域>/<动作>`、非采样）与遥测事件（可采样、出口）分离；同名允许且鼓励（`command/executed` 既 emit 也上报），但 `perf/*` 只存在于遥测（无 cordis 事件）。
@@ -37,7 +37,7 @@
 
 ## 如何被机械验证
 
-- lint `no-bare-throw`（生产代码只允许 `throw ctx.errors.create(...)` 或 `throw new OceError(...)` 子类）、`no-console`（sink 文件白名单）。
+- lint `no-bare-throw`（生产代码只允许 `throw ctx.errors.create(...)` 或 `throw new CordexError(...)` 子类）、`no-console`（sink 文件白名单）。
 - 扫描器 `error-codes-unique`、`error-codes-catalog --check`、`telemetry-events-declared`。
 - kernel `__tests__/sinks.test.ts`：无 sink 时 no-op；sink 抛错不传播；两个 sink 都收到；卸载 sink 插件后不再收到。
 - 契约：`ErrorsService`/`TelemetryService` 在 api-extractor 基线中。

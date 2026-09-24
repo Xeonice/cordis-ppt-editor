@@ -38,7 +38,7 @@
 
 ## 如何被机械验证
 
-- `@oce/model-core/testing/document-store-conformance.ts`：两个 Provider 的 `__tests__` 必须实例化（扫描器 `provider-runs-conformance` 读取 `oce.implements` 并检查测试文件 import）。
+- `@cordexjs/model-core/testing/document-store-conformance.ts`：两个 Provider 的 `__tests__` 必须实例化（扫描器 `provider-runs-conformance` 读取 `cordex.implements` 并检查测试文件 import）。
 - property test（store-memory）：`apply(inverse(apply(s, op))) ≡ s`，随机 op 序列。
 - lint `no-inverse-in-mutation`（Mutation 类型与 Def 禁止 `undo|inverse|revert`）。
 - 扫描器 `single-model`：`packages/**` 中除 store Provider 外禁止对 `PresentationBody`（及其它 body 类型）做可变赋值（`readonly` 深类型 + lint `prefer-readonly-parameter-types` 的选择性启用，09-02 定）。

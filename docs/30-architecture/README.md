@@ -1,13 +1,13 @@
 # 架构文档总览（30-architecture）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx） | 依赖：charter v0.1
 > 本 README 由架构-结构条线起草；「文档索引」中 06/07/08/10/11 由架构-运行时条线撰写，09-type-discipline/ 由类型治理条线撰写。总编排合并时以此为入口。
 
 ---
 
 ## 0. 这套文档解决什么问题
 
-章程（`docs/00-charter/charter.md`）定义了**要建什么**：一个以 cordis 4 为内核、每一级可插拔、文档类型盲的办公文档 SDK。本目录回答**怎么建**，并且细化到能让一名资深工程师直接创建仓库骨架、写出 `@oce/kernel` 与 `@oce/model-core` 的程度：
+章程（`docs/00-charter/charter.md`）定义了**要建什么**：一个以 cordis 4 为内核、每一级可插拔、文档类型盲的办公文档 SDK。本目录回答**怎么建**，并且细化到能让一名资深工程师直接创建仓库骨架、写出 `@cordexjs/kernel` 与 `@cordexjs/model-core` 的程度：
 
 - `02` 给出整个仓库的目录树（根、`apps/`、`packages/` 每个包的 `src/` 逐文件职责、`tooling/`），以及每个包 `package.json` 的字段策略与依赖规则；
 - `03`/`04`/`05` 给出内核、文档模型、命令系统的**签名级草案**；
@@ -25,7 +25,7 @@
 | P3 | **文档类型盲** | 水平层不出现 `slide`/`doc`/`sheet` 的知识；一切文档类型知识经 `core.documentType` 等贡献点注入 | depcruise：水平层禁 import 垂直束；lint `no-doc-type-literals`；`fixture` 文档类型的盲测套件（12） |
 | P4 | **规范必有执行点** | 本目录每条「规则」旁都有「机械验证」小节；没有执行点的规则不得写入 | `tooling/policy-check` 读取 09-08 矩阵并校验 CI job 存在且在 PR 触发（A16–A19） |
 | P5 | **唯一注册抽象** | 全代码库只有 `ContributionPoint`；不存在 `register*` 方法与模块级 `Map` | lint `no-register-methods`、`no-module-level-mutable-state`（09-02） |
-| P6 | **时间可组合** | 激活期创建的一切资源都归 `ctx.effect()` 所有；卸载后 `fiber.getEffects()` 为空 | `@oce/kernel/testing` 的 `defineLifecycleSuite` 对每个插件包强制运行（11） |
+| P6 | **时间可组合** | 激活期创建的一切资源都归 `ctx.effect()` 所有；卸载后 `fiber.getEffects()` 为空 | `@cordexjs/kernel/testing` 的 `defineLifecycleSuite` 对每个插件包强制运行（11） |
 | P7 | **单一事实源** | 运行时模型只经 `DocumentStore` 读写；协同模式下 CRDT 文档即事实源；派生数据不入 Snapshot | 类型测试 `Persisted<T>` 剔除 `Derived<T>`；快照 schema 校验（04 §7） |
 | P8 | **失败可传播、失败可隔离** | 命令返回 `Result<T, E>`，不返回 `boolean`；插件 `apply` 抛错只让自身 Fiber `FAILED`，兄弟不受影响 | lint `no-boolean-command-result`；kernel 失败隔离测试（03 §8） |
 
@@ -62,7 +62,7 @@
 
 | 决策 | 一句话 | ADR |
 |---|---|---|
-| 声明合并桥接 | kernel 自有 `Events`/`Context` 空接口，cordis 的同名接口 `extends` 它们；插件只 `declare module '@oce/kernel'` | 0001 |
+| 声明合并桥接 | kernel 自有 `Events`/`Context` 空接口，cordis 的同名接口 `extends` 它们；插件只 `declare module '@cordexjs/kernel'` | 0001 |
 | 版本策略 | 水平 L0–L1 lockstep（Changesets fixed 组）；垂直束与 Provider 独立 semver；`peerDependencies` 在**加载期**校验，失配即 FAILED（不是 log） | 0002 |
 | Manifest | `src/manifest.ts` 由静态分析**生成并入库**，CI 校验无 diff；运行时与实际 provide/contribute/on 比对 | 0003 |
 | 工具链 | pnpm + Turborepo；库用 `tsc -b` 产出未打包 ESM + 逐文件 `.d.ts`；apps 用 Vite；Changesets | 0004 |
@@ -78,7 +78,7 @@
 | 稳定 id | 模型节点用 CRDT 友好 `NodeId`（UUIDv7）；OOXML `cNvPr/@id` 与 `a16:creationId` 作为字段保留并双向映射 | 0014 |
 | 单一执行入口 | Command 与 Operation 都经 `commands.execute`；Mutation 只能在事务内产生，外部**不可执行** | 0015 |
 | 盲测夹具 | `model-core/testing` 提供 `fixture` 文档类型；水平层测试禁 import 垂直束；M5「水平层零改动」以文件哈希冻结校验 | 0016 |
-| UI 组件库 | **shadcn/ui 复制模式**（CLI 4.21，`radix-rhea` 风格——2026-09-16 起，原 `radix-nova`；Radix + Tailwind 4 + Lucide + Geist）：源码复制进 `ui-react/src/components/ui/`，`components.json` 入库，升级走 `npx shadcn diff`；`@oce/design` 只交付主题变量 CSS（shadcn 变量 + `--oce-*`），组件依赖全部落在 ui-react/`*-ui`；`ui-core` 仍无 React；设计 playground 是 ui-react 的种子（用户指令，章程 D10 修订） | 0017 |
+| UI 组件库 | **shadcn/ui 复制模式**（CLI 4.21，`radix-rhea` 风格——2026-09-16 起，原 `radix-nova`；Radix + Tailwind 4 + Lucide + Geist）：源码复制进 `ui-react/src/components/ui/`，`components.json` 入库，升级走 `pnpm dlx shadcn@4.21.0 diff`（仓库根禁用 npx，rulings §4.15 Q9）；`@cordexjs/design` 只交付主题变量 CSS（shadcn 变量 + `--cordex-*`），组件依赖全部落在 ui-react/`*-ui`；`ui-core` 仍无 React；设计 playground 是 ui-react 的种子（用户指令，章程 D10 修订） | 0017 |
 
 ---
 
@@ -94,9 +94,9 @@
 | A-6 | `commands.execute` 的 unit 定位：显式 `unitId` 参数（默认）vs 从调用方 ctx 推导 | 显式 `unitId`；应用级命令传 `null` | 所有命令调用点 | 架构-结构（已定默认，可否决） |
 | A-7 | 仓库自身许可证 | 建议 Apache-2.0（SDK 场景的专利授权） | 依赖审查基线、第三方插件生态 | 用户 |
 | A-8 | `server-headless` 是否启用 `@cordisjs/plugin-loader` 配置驱动组合 | 关闭；preset 程序化组合 | 运维配置形态 | 架构-运行时（08）+ 运维 |
-| A-9 | 幻灯片 body 形态 | 归一化实体表 + 每实体 `order: FracKey`（与 B 线 ADR-0032 一致，无顺序数组）。**残余分歧**：Snapshot 中 `order` 键**保留**（A，ADR-0013 第 7 条：使 `toSnapshotBody() ≡ state()`、导入不必重生成键、memory/yjs 一致）vs **转数组**（B，ADR-0032 第 6 条：人类可读） | Snapshot 契约、迁移语料形态、调试工具 | 总编排合并（A 推荐保留键，数组视图交给调试工具） |
-| A-10 | `@oce/design` 原子组件形态：Web Components vs 纯 CSS 类 + 最小 TS | 纯 CSS 类 + 最小 TS 行为 | ui-react 的复用方式 | 设计条线 |
-| A-11 | 图表建模深度与 M1 查看路径 | **已对齐 PRD OF-09**：M1 `c:chart` 部件不透明保留（`Chart.partRef`），**图表渲染器只读解析**该部件（`ooxml-core/chartml/`：`c:chartSpace` 的图表类型/系列/`numCache`/`strCache`/轴/图例/标题 → 只读 `ChartReadModel`）并渲染为 SVG；**不**依赖位图预览（pptx 图表部件通常无预览，旧措辞作废）；M1–M2 不建可编辑模型。M3 起 `model-slide` 增加可编辑 `Chart.data`（ED-15；内嵌工作簿策略 PD-06 由 B 决定）。渲染器为惰性块：M1–M2 `@oce/slide-render/chart` 子路径，M3 拆为 `@oce/slide-render-chart`（总编排已接受） | `ooxml-core/chartml/`、`slide-render/chart/`、EM-07 图表块 ≤ 400 KB | 产品已表态、架构采纳；待总编排确认 |
+| A-9 | 幻灯片 body 形态 | 归一化实体表 + 每实体 `order: FracKey`（与 B 线 ADR-0032 一致，无顺序数组）。**残余分歧**：Snapshot 中 `order` 键**保留**（A，ADR-0013 第 7 条：使 `toSnapshotBody() ≡ state()`、导入不必重生成键、memory/yjs 一致）vs **转数组**（B，ADR-0032 第 6 条：人类可读） | Snapshot 契约、迁移语料形态、调试工具 | 总编排合并（A 推荐保留键，数组视图交给调试工具）。2026-09-24 注：rulings §4.15 Q3 只裁定 CRDT 选型（Yjs 13.6.x）与撤销语义（同键跳过并提示 / 整步跳过即停 / 软删除墓碑 + TTL），**未涉及** `order` 键的 Snapshot 形态，本项不随 Q3 结案，仍待裁决 |
+| A-10 | `@cordexjs/design` 原子组件形态：Web Components vs 纯 CSS 类 + 最小 TS | 纯 CSS 类 + 最小 TS 行为 | ui-react 的复用方式 | 设计条线 |
+| A-11 | 图表建模深度与 M1 查看路径 | **已对齐 PRD OF-09**：M1 `c:chart` 部件不透明保留（`Chart.partRef`），**图表渲染器只读解析**该部件（`ooxml-core/chartml/`：`c:chartSpace` 的图表类型/系列/`numCache`/`strCache`/轴/图例/标题 → 只读 `ChartReadModel`）并渲染为 SVG；**不**依赖位图预览（pptx 图表部件通常无预览，旧措辞作废）；M1–M2 不建可编辑模型。M3 起 `model-slide` 增加可编辑 `Chart.data`（ED-15；内嵌工作簿策略 PD-06 由 B 决定）。渲染器为惰性块：M1–M2 `@cordexjs/slide-render/chart` 子路径，M3 拆为 `@cordexjs/slide-render-chart`（总编排已接受） | `ooxml-core/chartml/`、`slide-render/chart/`、EM-07 图表块 ≤ 400 KB | 产品已表态、架构采纳；待总编排确认 |
 | A-12 | 「部件级 diff 零差异」口径 | **已与 PRD CS-01 合并**为 04 §5.4 唯一口径：零编辑 = 部件路径集合与每部件 SHA-256 相同（含 `[Content_Types].xml`/`.rels`；zip 条目顺序/时间戳/压缩方法不计）；编辑后 = 未触碰部件字节相同 + 脏部件良构且通过 XSD + 规范化（C14N + 属性排序 + 忽略无意义空白）diff 仅在被编辑元素子树 + 被编辑元素的未知属性/子元素/`extLst` 全部保留 + `cNvPr@id` 部件内唯一且引用一致 + 派生部件白名单（`docProps/core.xml` 的 `dcterms:modified`、`docProps/app.xml` 页数/字数、`docProps/thumbnail.jpeg`、`[Content_Types].xml` 新增类型、受新增/删除部件影响的 `.rels`）+ 删页无孤儿部件 | M1/M2 验收脚本 `ooxml-pptx/testing/roundtrip.ts`、CI job `fidelity-roundtrip` | 待总编排确认后回写章程 §7 |
 | A-13 | 单文件 ≤ 200 MB（Q5）时 zip 读取形态：全量内存 vs 流式/Range | 全量内存 + 懒解压媒体（`fflate` 同构）；M3 评估流式 | `ooxml-core/opc/zip.ts` | 架构-运行时（性能预算，07/11） |
 
@@ -106,15 +106,15 @@
 
 | # | 章程条目 | 问题 | 建议 |
 |---|---|---|---|
-| C-1 | §5.3 规则 2「只向下：import 目标的层号 ≤ 自身层号」 | 与 §5.2 冲突：`slide-ui`（L6）依赖 `ui-react`（L7），`slide-ui` 依赖 `slide-render`（L6）依赖 `render-dom`（L5）没问题，但 L6→L7 按数字是「向上」 | 把规则 2 的机械形式改为**显式允许矩阵**（每个包 `package.json#oce.layer` + 允许的目标层集合，见 02 §7），并在章程中把垂直束的层号改为「层带」：V-model（可依赖 ≤L1）、V-codec（≤L3）、V-render（≤L5）、V-ui（≤L7）。数字比较只对水平层生效 |
+| C-1 | §5.3 规则 2「只向下：import 目标的层号 ≤ 自身层号」 | 与 §5.2 冲突：`slide-ui`（L6）依赖 `ui-react`（L7），`slide-ui` 依赖 `slide-render`（L6）依赖 `render-dom`（L5）没问题，但 L6→L7 按数字是「向上」 | 把规则 2 的机械形式改为**显式允许矩阵**（每个包 `package.json#cordex.layer` + 允许的目标层集合，见 02 §7），并在章程中把垂直束的层号改为「层带」：V-model（可依赖 ≤L1）、V-codec（≤L3）、V-render（≤L5）、V-ui（≤L7）。数字比较只对水平层生效 |
 | C-2 | §5.5 服务名列表 | 缺少 `selection`（§4 UnitScope 定义中明确列出 selection 被隔离；model-core 也定义了通用 Selection 类型） | 在 §5.5 增加 `selection`（UnitScope 内） |
 | C-3 | §5.5 贡献点 id 列表 | `ui.command` 语义不明：命令的**可执行定义**属于 model-core，不属于 UI | 明确 `ui.command` = 命令的**呈现元数据**（title/icon/when/keybinding 展示）；新增 `core.command`（可执行定义）、`core.mutation`、`core.migration`、`core.resource`、`core.permissionPolicy`、`render.scene`、`render.overlay`、`layout.measurer`、`errors.sink`、`telemetry.sink`、`i18n.bundle`、`ui.toolbar`/`ui.statusBar`/`ui.dialog`/`ui.notification`/`ui.theme`（完整表见 03 §3.6；id 一律 camelCase） |
 | C-4 | §5.2 `kernel` 职责 vs primer §5.1 | primer 把 `openUnitScope(ctx, unit)` 放在 kernel，章程把 `Unit/UnitScope` 放在 model-core | 采用：kernel 提供**文档无关**的 `createIsolatedScope(ctx, { services, meta })`；model-core 拥有 `Unit`/`UnitScope`/`units` 服务。建议 primer §5.1 措辞改为 `createIsolatedScope` |
 | C-5 | §5.2 `render-dom` 依赖上限「engine-render」 | `engine-layout` 的 `TextMeasurer` 是 Definition，浏览器 canvas 度量器 Provider 必须落在 dom 包 | `render-dom` 依赖上限改为「engine-render, engine-layout」；`server-headless` 提供 Node 字体度量 Provider |
-| C-6 | §5.2 `ui-core` 依赖「design(token 契约)」 | 若 ui-core 在运行时 import `@oce/design`，则 UI 基座与设计系统耦合；K7 的初衷是 design 对 SDK 零依赖（反向） | 允许 ui-core 仅 import `@oce/design/theme.css`（主题变量）与 token 名类型（type-only）；lint 禁止 ui-core import design 的运行时 TS（09-03 三角色规则的一个特例）；组件依赖（Radix/Tailwind/Lucide）只在 ui-react 与 `*-ui`（ADR-0017） |
+| C-6 | §5.2 `ui-core` 依赖「design(token 契约)」 | 若 ui-core 在运行时 import `@cordexjs/design`，则 UI 基座与设计系统耦合；K7 的初衷是 design 对 SDK 零依赖（反向） | 允许 ui-core 仅 import `@cordexjs/design/theme.css`（主题变量）与 token 名类型（type-only）；lint 禁止 ui-core import design 的运行时 TS（09-03 三角色规则的一个特例）；组件依赖（Radix/Tailwind/Lucide）只在 ui-react 与 `*-ui`（ADR-0017） |
 | C-7 | §4 `Snapshot` 定义 | 未说明二进制（媒体、不透明部件字节）的归属；若进 JSON/Y.Doc 会撑爆协同文档 | 术语补充 `SnapshotBundle = Snapshot(JSON) + Blob 集合（内容寻址）`；`Snapshot` 内只含 `BlobRef`。建议章程 §4 吸收 |
 | C-8 | §6.1 D9 「Vitest；Playwright」 | 未指定 dom 包的单测环境 | 建议：dom 包默认 `happy-dom`，涉及真实布局/IME 的用例走 Vitest browser mode（Chromium），由 11 定稿 |
-| C-9 | §10 Q9 包管理器 | 用户全局 `packageManager` 指向 yarn | 根 `package.json#packageManager` 锁 `pnpm@10.x` 并用 corepack；lefthook 拒绝非 pnpm 的 lockfile |
+| C-9 | §10 Q9 包管理器 | **已结案**（rulings §4.15 Q9）：原「用户全局 `packageManager` 指向 yarn、会冲突」的前提经实测不成立，已删除 | pnpm 11 双锁：根 `package.json` 写 `packageManager`（精确版本）+ `devEngines.packageManager/runtime`（onFail:error），corepack 仅为可选安装渠道；全部 pnpm 设置写入 `pnpm-workspace.yaml`，删除 `.npmrc` 非鉴权设置；lockfile-guard（lefthook pre-commit + CI）只允许根 `pnpm-lock.yaml`；Node 26 基线（`engines >=26`）；pnpm 12 切换检查点最迟 2027-03-31（02 §2、09-07 §2.1、09-08 TD-079） |
 | C-10 | §5.2 `ooxml-core` 依赖上限「shared」 | DrawingML 是三种文档共用的绘图词汇；若其运行时类型放在 `ooxml-core`（L3），`model-slide`（V-model，只能依赖 ≤L1）就必须向上依赖 L3 | DrawingML 运行时类型与 schema 放在 `model-core/src/drawing/`（无 XML、无文档类型知识），`ooxml-core/drawingml/` 只做编解码；`ooxml-core` 依赖上限改为「shared, model-core」（02 §4.9） |
 
 ---
@@ -124,8 +124,8 @@
 | 术语 | 英文标识 | 定义 | 出处 |
 |---|---|---|---|
 | 存储原语 | `StoreOp` | Store 唯一理解的 5 种结构操作：`set`/`delete`/`insert`/`remove`/`text`（`insert/remove` 只用于无身份的值列表）；Mutation 经 `lower()` 降级为 `StoreOp[]`；逆操作在此层推导 | 05 §4、ADR-0013 |
-| 顺序键 | `FracKey` | 有身份实体（页/形状/母版/版式/节…）的 `order` 属性，fractional index 字串；排序键 `(order, id)`；移动 = 单键写入；由命令层经 `@oce/shared/order.between()` 生成（B 线术语，ADR-0032） | 04 §3.1、ADR-0013 |
-| 束 | `bundle` | `package.json#oce.bundle ∈ slide\|doc\|sheet`，当且仅当 `layer` 以 `V-` 开头时必填；depcruise 束间隔离依据（总编排裁决） | 02 §4.0.1、§7 |
+| 顺序键 | `FracKey` | 有身份实体（页/形状/母版/版式/节…）的 `order` 属性，fractional index 字串；排序键 `(order, id)`；移动 = 单键写入；由命令层经 `@cordexjs/shared/order.between()` 生成（B 线术语，ADR-0032） | 04 §3.1、ADR-0013 |
+| 束 | `bundle` | `package.json#cordex.bundle ∈ slide\|doc\|sheet`，当且仅当 `layer` 以 `V-` 开头时必填；depcruise 束间隔离依据（总编排裁决） | 02 §4.0.1、§7 |
 | 降级 | lowering | 文档类型贡献的纯函数 `lower(mutation, view) → StoreOp[]` | 05 §4 |
 | 变更集 | `ChangeSet` | 一次事务触及的 `StoreOp[]` + 派生的脏路径集合，供渲染与编解码做脏追踪 | 04 §2.4 |
 | 来源 | `Origin` | 事务来源标记：`local(clientId)` / `remote` / `system(import|migration)` / `replay`；撤销只作用于 `local` | 05 §6 |
@@ -147,10 +147,10 @@
 
 详见本条线汇报；摘要：
 
-- **对运行时线（B）**：`DocumentStore` 契约测试套件 `runDocumentStoreConformance`（命名已裁决为 `run<Definition>Conformance`）是 `store-yjs` 的验收；已按 ADR-0032 删除 `move` 原语并改用 `order: FracKey`，**请 B 修订 ADR-0032 两处**：第 6 条「Snapshot 中顺序以数组表示」建议改为「保留 `order` 键」（见 A-9），第 7 条「由 Store 计算键」建议改为「由命令层经 `@oce/shared/order.between()` 计算，Mutation 携带最终键，`lower()` 保持纯且确定」（ADR-0013 第 2 条）；`Selection<A>` 序列化即 presence 载荷；`permissions.applyRemoteDecisions` 是网关权限变更进入客户端的唯一入口，并由 `permissions` 发 `permission/changed`（不再有 `collab/permission-changed`，见 §7.1）；`SceneProvider`/`RenderTarget`/`ElementRenderer` 的签名以 02/04 为准，07 负责管线与性能；`render.overlay` 贡献点已接受；`server-headless` 使用 `createHost`；`BlobStore` 契约由 `server-storage` 实现；`@oce/collab-offline-idb` 已补入 02（`OfflineStore` Provider 契约请在 06 给签名）。**ML 需求域（母版/版式/主题，总编排提级）**：07 需支持 `ViewDescriptor{ mode: 'master'; target: LayoutId | MasterId }` 的母版视图 SceneProvider（渲染目标版式/母版并叠加母版继承、`showMasterShapes`、占位符提示框；命中测试只作用于目标容器），以及母版/版式/主题变更经 `dependentsOf` 到全部依赖页的脏映射与缩略图更新（OF-15 ≤ 500 ms）；06 需覆盖母版编辑冲突面（删除 vs 引用 → I-ML2 修复 + `collab/soft-conflict{type:'delete-vs-reference'}`、重置 vs 移动同键 LWW、主题逐槽位 LWW、版式复制 vs 母版删除 → I-ML3）与可选软锁（PD-19）；见 04 §12、05 §13。
-- **对类型治理线**：本条线引用的 lint/depcruise/扫描规则清单见 02 §7 与 03 §10（`no-register-methods`、`no-module-level-mutable-state`、`no-bare-throw`、`no-doc-type-literals`、`contribution-file-purity`、`no-unit-scoped-inject-at-root`、`events-declared`、`no-enum-in-protocol`、`no-boolean-command-result`、`exports-explicit`、`schema-lock`、`manifest-diff`）；`Derived<T>` 类型测试；`package.json#oce` 字段 schema。
-- **对产品线**：A-11（图表 M1 只读解析路径）、A-12（保真口径）已按 OF-09/CS-01 对齐；A-3 与 PD-03 合并后给出三案与推荐（C 目标 + B 回退），请产品确认硬要求是否接受 C；`preset-slide-viewer` 已补入 02（OF-14）；CO-05「命令必须声明能力位」已落为 `CommandDef.permission` 必填 + lint（05 §2、ADR-0012）；能力位词汇采用 PRD 形式（`doc.read/comment/write/export/manage/history.*`）放在 `protocol`；PS-01/02 的 Manifest 字段（`stability/documentTypes/permissions/i18n`）已加入 03 §4.1；EM-12 错误码目录生成已加入 ADR-0011；NF-09 需求↔测试矩阵机制请 11/09 承接（结构线只提供 `oce-allow` 与扫描器框架）；大文件读取（A-13）仍待 B。**ML-01…ML-04** 的模型支撑（字段核对、占位符重匹配/母版样式继承纯函数、I-ML2…I-ML8 不变量与修复）在 04 §12，命令/Mutation/Operation 族在 05 §13；命名说明：`view.setMode` 为水平层 Operation（`mode ∈ documentType.viewModes`），总编排所称 `view.selectMasterOrLayout` 因载荷含 slide 专有 id 落为 `slide.selectMasterOrLayout`，请 PRD 07 同步；`deleteLayout` 对被引用版式 fail-closed（需 `reassignTo`）请在 PRD 07 验收中体现。
-- **对类型治理线（补充）**：`package.json#oce` 字段按总编排裁决编码（`layer` 层带、`bundle`、`iso`、秩表）见 02 §4.0.1/§7 R2；新增扫描器需求：`no-index-in-mutation`、`command-declares-capability`、`capabilities-in-protocol`、`store-transact-callsites`、`telemetry-events-declared`、`error-codes-catalog`、`event-domain-whitelist`（§7.1 第三方前缀规则）、`codec-no-clock`（ooxml-* 禁止读时钟，SV-02）。
+- **对运行时线（B）**：`DocumentStore` 契约测试套件 `runDocumentStoreConformance`（命名已裁决为 `run<Definition>Conformance`）是 `store-yjs` 的验收；已按 ADR-0032 删除 `move` 原语并改用 `order: FracKey`，**请 B 修订 ADR-0032 两处**：第 6 条「Snapshot 中顺序以数组表示」建议改为「保留 `order` 键」（见 A-9），第 7 条「由 Store 计算键」建议改为「由命令层经 `@cordexjs/shared/order.between()` 计算，Mutation 携带最终键，`lower()` 保持纯且确定」（ADR-0013 第 2 条）；`Selection<A>` 序列化即 presence 载荷；`permissions.applyRemoteDecisions` 是网关权限变更进入客户端的唯一入口，并由 `permissions` 发 `permission/changed`（不再有 `collab/permission-changed`，见 §7.1）；`SceneProvider`/`RenderTarget`/`ElementRenderer` 的签名以 02/04 为准，07 负责管线与性能；`render.overlay` 贡献点已接受；`server-headless` 使用 `createHost`；`BlobStore` 契约由 `server-storage` 实现；`@cordexjs/collab-offline-idb` 已补入 02（`OfflineStore` Provider 契约请在 06 给签名）。**ML 需求域（母版/版式/主题，总编排提级）**：07 需支持 `ViewDescriptor{ mode: 'master'; target: LayoutId | MasterId }` 的母版视图 SceneProvider（渲染目标版式/母版并叠加母版继承、`showMasterShapes`、占位符提示框；命中测试只作用于目标容器），以及母版/版式/主题变更经 `dependentsOf` 到全部依赖页的脏映射与缩略图更新（OF-15 ≤ 500 ms）；06 需覆盖母版编辑冲突面（删除 vs 引用 → I-ML2 修复 + `collab/soft-conflict{type:'delete-vs-reference'}`、重置 vs 移动同键 LWW、主题逐槽位 LWW、版式复制 vs 母版删除 → I-ML3）与可选软锁（PD-19）；见 04 §12、05 §13。
+- **对类型治理线**：本条线引用的 lint/depcruise/扫描规则清单见 02 §7 与 03 §10（`no-register-methods`、`no-module-level-mutable-state`、`no-bare-throw`、`no-doc-type-literals`、`contribution-file-purity`、`no-unit-scoped-inject-at-root`、`events-declared`、`no-enum-in-protocol`、`no-boolean-command-result`、`exports-explicit`、`schema-lock`、`manifest-diff`）；`Derived<T>` 类型测试；`package.json#cordex` 字段 schema。
+- **对产品线**：A-11（图表 M1 只读解析路径）、A-12（保真口径）已按 OF-09/CS-01 对齐；A-3 与 PD-03 合并后给出三案与推荐（C 目标 + B 回退），请产品确认硬要求是否接受 C；`preset-slide-viewer` 已补入 02（OF-14）；CO-05「命令必须声明能力位」已落为 `CommandDef.permission` 必填 + lint（05 §2、ADR-0012）；能力位词汇采用 PRD 形式（`doc.read/comment/write/export/manage/history.*`）放在 `protocol`；PS-01/02 的 Manifest 字段（`stability/documentTypes/permissions/i18n`）已加入 03 §4.1；EM-12 错误码目录生成已加入 ADR-0011；NF-09 需求↔测试矩阵机制请 11/09 承接（结构线只提供 `cordex-allow` 与扫描器框架）；大文件读取（A-13）仍待 B。**ML-01…ML-04** 的模型支撑（字段核对、占位符重匹配/母版样式继承纯函数、I-ML2…I-ML8 不变量与修复）在 04 §12，命令/Mutation/Operation 族在 05 §13；命名说明：`view.setMode` 为水平层 Operation（`mode ∈ documentType.viewModes`），总编排所称 `view.selectMasterOrLayout` 因载荷含 slide 专有 id 落为 `slide.selectMasterOrLayout`，请 PRD 07 同步；`deleteLayout` 对被引用版式 fail-closed（需 `reassignTo`）请在 PRD 07 验收中体现。
+- **对类型治理线（补充）**：`package.json#cordex` 字段按总编排裁决编码（`layer` 层带、`bundle`、`iso`、秩表）见 02 §4.0.1/§7 R2；新增扫描器需求：`no-index-in-mutation`、`command-declares-capability`、`capabilities-in-protocol`、`store-transact-callsites`、`telemetry-events-declared`、`error-codes-catalog`、`event-domain-whitelist`（§7.1 第三方前缀规则）、`codec-no-clock`（ooxml-* 禁止读时钟，SV-02）。
 - **B 线 7 项契约要求的处理状态**（2026-09-15）：
   1. ✅ `undoCaptureTimeout` 统一为 500（02 §4.7）；✅ 二选一取 `yjsBackend` 服务，删除 `doc-access` symbol（02 §4.7、03 §5.2、ADR-0005）；unit-plugin 对 store Provider 的全部 `provide` 名做 isolate。
   2. ✅ `Origin`：`system.reason` += `repair | restore | maintenance`；`local.via?: 'undo' | 'redo'`（04 §2.4、02 §4.5）。
@@ -176,7 +176,7 @@
 | `collab.transport`、`storage.blob` | 贡献点 | A：服务 Provider 座（`collabTransport`、`BlobStore`） | 保持为**服务 Provider 座**（替换 = 换插件，不是集合）；建议 PRD PS-02 目录把这两项标为「Provider 座」 | 单例能力不是多项集合 |
 | `export.target` | 贡献点（PDF/图片/Markdown） | A 无 | **不新增**：= `core.format` 中 `canImport:false` 的 codec；UI 的导出菜单读 `formats` | 复用 `formats` 服务与 `format/exported` 事件 |
 | `ui.theme` | 贡献点（token 覆盖集） | A：`theme` 服务 `set()` | **接受 `ui.theme`**（Beta；ui-core 定义、`theme` 服务读取；03 §3.6 已加） | 集成方与插件可贡献主题而非只能命令式设置 |
-| 第三方前缀（PRD CS-07） | `x-<pluginId>/<动作>` | A 草稿 `x-<pluginId>` | **定稿：章程 D15 `<vendor>:` 形式**——事件 `<vendor>:<域>/<动作>`，贡献点 `<vendor>:<域>.<名>`，能力位 `<vendor>:<域>.<action>`；`vendor` = 包 npm scope 去 `@`（`@acme/oce-comments` → `acme:`），扫描器与包名机械对应；错误码本就是 `<pkg>/<CODE>`。内核/垂直束域白名单：`kernel contribution unit command store history selection permission format render layout ui i18n collab presence plugin error perf slide doc sheet`；扫描器 `event-domain-whitelist` 拒绝既不在白名单又无 `<vendor>:` 前缀的域，并校验前缀 == 声明包的 scope（03 §3.6） | 防碰撞；前缀与发布者机械绑定 |
+| 第三方前缀（PRD CS-07） | `x-<pluginId>/<动作>` | A 草稿 `x-<pluginId>` | **定稿：章程 D15 `<vendor>:` 形式**——事件 `<vendor>:<域>/<动作>`，贡献点 `<vendor>:<域>.<名>`，能力位 `<vendor>:<域>.<action>`；`vendor` = 包 npm scope 去 `@`（`@acme/cordex-comments` → `acme:`），扫描器与包名机械对应；错误码本就是 `<pkg>/<CODE>`。内核/垂直束域白名单：`kernel contribution unit command store history selection permission format render layout ui i18n collab presence plugin error perf slide doc sheet`；扫描器 `event-domain-whitelist` 拒绝既不在白名单又无 `<vendor>:` 前缀的域，并校验前缀 == 声明包的 scope（03 §3.6） | 防碰撞；前缀与发布者机械绑定 |
 | 契约套件命名 | — | A `defineStoreContractSuite`、B `runDocumentStoreConformance` | **定稿：`run<Definition>Conformance`**（`runDocumentStoreConformance`、`runFormatCodecConformance`、`runRenderTargetConformance`…；由各 Definition 包 `testing/` 导出，可注入 Provider）；03/04/05/12/ADR 已统一；生命周期套件 `defineLifecycleSuite` 不受影响 | 一个名字 |
 | 命令拒绝事件 | `command/rejected{reason}` | A `command/failed` 含 `PERMISSION_DENIED` 等 | **两者都保留**：`command/rejected(unitId, id, reason ∈ permission\|validation\|not-found\|readonly)` 用于管线前置阶段（①–③）拒绝；`command/failed(unitId, id, error)` 用于 handler/事务阶段（④）失败与回滚 | 与 PRD MT-12/MT-13 指标对齐；05 §10 已加 |
-- **对设计线**：playground（`20-design/playground/`）是 `@oce/ui-react` 的种子——M2 启动时 `components/ui/*`、`lib/utils.ts`、`hooks/use-mobile.ts`、`index.css` 迁入 ui-react，之后 playground 改依赖 workspace 的 `@oce/ui-react`（全仓单一复制件，ADR-0017）；`--oce-*` 扩展变量与 shadcn 变量的映射表（设计 09 v2.0）就是 `@oce/design/theme.css` 的生成源，请与 02 §4.17 的 tokens 文件划分对齐；`--oce-*` token 命名与多 host 页面的 `<style>` 去重约定；`ui.*` 贡献点 schema（03 §3.6）与 20-design/06 的槽位规范必须一一对应；母版视图（ML-01）需要线框：母版缩略图窗格（`MasterThumbnails`，在 `ThumbnailRail` 内；母版大缩略图 + 缩进版式缩略图，不是文字树）、占位符类型面板、主题面板、`viewMode == 'master'` 下的 ribbon 页签切换与「关闭母版视图」出口（对应 03 §3.6 的 `viewMode`/`editTargetKind` 上下文键）。
+- **对设计线**：playground（`20-design/playground/`）是 `@cordexjs/ui-react` 的种子——M2 启动时 `components/ui/*`、`lib/utils.ts`、`hooks/use-mobile.ts`、`index.css` 迁入 ui-react，之后 playground 改依赖 workspace 的 `@cordexjs/ui-react`（全仓单一复制件，ADR-0017）；`--cordex-*` 扩展变量与 shadcn 变量的映射表（设计 09 v2.0）就是 `@cordexjs/design/theme.css` 的生成源，请与 02 §4.17 的 tokens 文件划分对齐；`--cordex-*` token 命名与多 host 页面的 `<style>` 去重约定；`ui.*` 贡献点 schema（03 §3.6）与 20-design/06 的槽位规范必须一一对应；母版视图（ML-01）需要线框：母版缩略图窗格（`MasterThumbnails`，在 `ThumbnailRail` 内；母版大缩略图 + 缩进版式缩略图，不是文字树）、占位符类型面板、主题面板、`viewMode == 'master'` 下的 ribbon 页签切换与「关闭母版视图」出口（对应 03 §3.6 的 `viewMode`/`editTargetKind` 上下文键）。

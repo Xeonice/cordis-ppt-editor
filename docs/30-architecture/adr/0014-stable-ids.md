@@ -12,7 +12,7 @@ OOXML 的 id 是**部件局部**的：`p:cNvPr/@id` 是 uint32、每个 slide �
 
 ## 决策
 
-1. **模型层 id**：`NodeId`（`@oce/shared/ids`），品牌细分 `SlideId/ShapeId/MasterId/LayoutId/ThemeId/MediaId/NotesId`；生成 `newNodeId()`（UUIDv7：时间有序，利于 Y.Map 键局部性与日志；A-5 可改为 26 字符 base32）。导入时为每个实体分配；新建时同。
+1. **模型层 id**：`NodeId`（`@cordexjs/shared/ids`），品牌细分 `SlideId/ShapeId/MasterId/LayoutId/ThemeId/MediaId/NotesId`；生成 `newNodeId()`（UUIDv7：时间有序，利于 Y.Map 键局部性与日志；A-5 可改为 26 字符 base32）。导入时为每个实体分配；新建时同。
 2. **OOXML id 作为数据保留**：`Shape.ooxml = { cNvPrId?: number; creationId?: string }`、`Slide.ooxml = { sldId?: number }`。
 3. **导入映射**：`OoxmlIdMap`（部件名 + cNvPrId → NodeId）用于解析部件内引用（连接线 `stCxn/@id`、动画 `spid`、评论锚点）；缺失/重复 id → 分配并发 `ID_COLLISION_REPAIRED` 诊断（warning）。
 4. **导出回写**：干净部件 verbatim（id 不变）；脏部件：已有 `cNvPrId` 复用；新形状分配部件内未占用的最小 uint（> 现有最大值，避免与不透明子树中的引用碰撞）；`sldId` 同理；rels `rId` 每次重生成。

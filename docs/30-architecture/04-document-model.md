@@ -1,6 +1,6 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`） | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
@@ -90,9 +90,10 @@ type TextDelta = readonly ({ insert: string; attributes?: JsonObject } | { retai
 
 设计要点：
 - 五种原语覆盖三种文档类型的结构变化（对象树 + 无身份值列表 + 富文本）；有身份集合（页、形状、母版、版式、节、评论…）一律为**实体表 + `order: FracKey`**，排序键 `(order, id)`；未来 `model-sheet` 的稀疏网格用 `set` 于 `cells.<sheet>:<r>:<c>` 键（12）。
-- `FracKey` 由**命令层**经 `@oce/shared/order.between(prev, next)` 生成并放入 Mutation 载荷（含随机后缀，因此不能在纯函数 `lower()` 内生成）；Mutation 载荷禁止数组下标（06 I4）。
+- `FracKey` 由**命令层**经 `@cordexjs/shared/order.between(prev, next)` 生成并放入 Mutation 载荷（含随机后缀，因此不能在纯函数 `lower()` 内生成）；Mutation 载荷禁止数组下标（06 I4）。
 - 逆操作在原语层推导：`set`→`set(旧值)`或`delete`，`insert`→`remove`，`text`→delta 求逆（需旧文本，Provider 在应用时捕获）。
 - StoreOp 只在本地应用，**不上网络**；协同传输的是 CRDT update（06）。
+- 有身份实体的**用户删除**不直接产出实体键的 `delete`，而是写 `_deleted` 墓碑（§3.1a，rulings §4.15 Q3）；实体键的 `delete` 只由 TTL 硬删除作业、文档擦除与「立即彻底删除」路径产生。
 
 ### 2.4 `Transaction` / `TransactionRecord` / `ChangeSet`
 
@@ -215,6 +216,18 @@ interface PresentationBody {
 
 为什么归一化而非嵌套树：(1) `Path` 短且稳定（`['shapes', shapeId, 'properties', 'transform']`），Yjs 映射为浅层 Y.Map，冲突面小；(2) 移动形状/换组/换页序只改 `order`（与 `parentId`/`containerId`）单键，不搬子树、无数组下标（ADR-0032）；(3) 引用（占位符继承、连接线端点）用 id 表达。代价：查询需要索引与排序缓存（`query/selectors.ts` 纯函数 + 派生缓存，按 `(order, id)` 排序）。页序、母版序、版式序同理：`Slide.order`、`SlideMaster.order`、`SlideLayout.order`（导入时按 `sldIdLst` 等顺序生成等距键）。
 
+### 3.1a 有身份实体的删除：软删除墓碑（rulings §4.15 Q3）
+
+删除页/形状/母版/版式/节等有身份实体**不再**直接 `delete` 其实体键，而是：
+
+1. **打标记**：命令层产出的删除 Mutation 降级为 `set(['shapes', id, '_deleted'], { at, by })`（墓碑）；实体 id 保持稳定，不复用、不换新 id。
+2. **读路径过滤**：`query/selectors.ts`、`slides` 服务、SceneProvider、导出编码器一律跳过带 `_deleted` 的实体；`_deleted` 实体不参与 `(order, id)` 排序结果。
+3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理；墓碑在 TTL 内计入文档总元素上限（§5.5）。
+4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlMs < now`，origin `system('maintenance')`；08 §3.1、40-modules/09）；**文档擦除（S-2）与经审计的「立即彻底删除」路径不等 TTL**，直接硬删除。
+5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。
+
+store-memory 与 store-yjs 语义一致（`runDocumentStoreConformance` 协同分节覆盖）。
+
 ### 3.2 对象图
 
 ```
@@ -318,13 +331,15 @@ type SlideSelectionAnchor =
 | `ppt/comments/*.xml`、`commentAuthors.xml`、`ppt/comments/modernComment_*.xml` | `opaqueParts`（M3 由 comments 插件经 ResourceHook 建模） | 不透明 | M1 |
 | `ppt/presProps.xml`、`viewProps.xml`、`tableStyles.xml` | `opaqueParts`（tableStyles M2 起**只读解析**供渲染，仍 verbatim 写回） | 不透明 | M1 |
 | `ppt/charts/*.xml`、`chartN.xml.rels`、`embeddings/*.xlsx` | `Chart.partRef`；渲染期 `ooxml-core/chartml` **只读解析**（M1 查看，OF-09） | 不透明写回；只读解析渲染（M3 建模数据） | M1 |
-| `ppt/diagrams/{data,layout,quickStyle,colors,drawing}*.xml` | `Diagram.parts`（drawing 部件可选解析为回退形状渲染） | 不透明 | M1 |
-| `ppt/embeddings/*.bin`、`*.docx` 等 OLE | `Ole.embedRef` | 不透明 | M1 |
-| `ppt/media/*` | `MediaRef.blob` | 二进制 blob（内容寻址；永不重生成） | M1 |
+| `ppt/diagrams/{data,layout,quickStyle,colors,drawing}*.xml` | `Diagram.parts`；`dsp:drawing` 部件由 `ooxml-core` **M1 必须只读解析**（含 `dsp:txXfrm`）供 slide-render 渲染（rulings §4.15 Q7；drawing 缺失时才占位 + 诊断） | 不透明写回；只读解析渲染 | M1 |
+| `ppt/embeddings/*.bin`、`*.docx` 等 OLE | `Ole.embedRef`；`Ole.preview` 由 `ooxml-pptx/import/ole.ts` 从 `mc:Fallback` 中的 `p:pic` 提取（显示预览图，rulings §4.15 Q7） | 不透明 | M1 |
+| `ppt/media/*` | `MediaRef.blob` | 二进制 blob（内容寻址；永不重生成）；EMF/WMF（含 OLE 预览）M2 起由 emf-converter（Apache-2.0）在 Worker chunk 中惰性栅格化用于显示，原字节不变 | M1 |
 | `ppt/fonts/*.fntdata` | `opaqueParts` + 渲染期可选解混淆加载 | 不透明 | M2 |
-| `ppt/tags/*.xml`、`customXml/*`、`ppt/vbaProject.bin` | `opaqueParts` | 不透明（宏文件保持 `.pptm` 内容类型） | M1 |
+| `ppt/tags/*.xml`、`customXml/*` | `opaqueParts` | 不透明 | M1 |
+| `ppt/vbaProject.bin`（及 `.pptm` / macroEnabled 主内容类型） | —（不建模、不保留） | **拒绝导入** `format.macro_rejected`（rulings §4.16 Q15；检测见 40-modules/04 §2.6） | M1 |
 | `docProps/core.xml` | `DocumentProperties.core` | 建模（title/creator/modified…） | M1 |
-| `docProps/app.xml`、`custom.xml`、`thumbnail.jpeg` | `DocumentProperties.app/custom`、`opaqueParts` | 不透明；编辑后属于「派生部件白名单」，允许重生成（§5.4） | M1 |
+| `docProps/app.xml`、`custom.xml` | `DocumentProperties.app/custom`、`opaqueParts` | 不透明；编辑后属于「派生部件白名单」，允许重生成（§5.4） | M1 |
+| `docProps/thumbnail.jpeg` | `opaqueParts` | 不透明；是 `encode()` 的**显式输入**（`thumbnailJpeg?: BlobRef`）：缺省时原部件原样保留，零编辑不新增该部件（保证浏览器与 Node 导出确定性，SV-02）；M2 服务端把它作为文档卡片过渡封面（只做头校验不解码，rulings §4.15 Q8） | M1 |
 | `_xmlsignatures/*`（数字签名部件） | `opaqueParts` | 保留不重签；编辑保存后签名失效，发 `format.pptx.signature_invalidated` 诊断（章程 §10 Q15，rulings §4.12 U-05） | M1 |
 | 未知内容类型的任何部件 | `opaqueParts` | 不透明 | M1 |
 
@@ -467,7 +482,11 @@ type SlideSelectionAnchor =
 
 ### 5.5 大文件与安全（章程 Q5、SECURITY）
 
-`ZipLimits` 默认：`maxEntries 4000`、`maxEntryBytes 64 MiB`、`maxTotalBytes 512 MiB`、`maxMediaBytes 256 MiB`（借鉴 pptx-renderer，按 Q5 上调）；超限 → `ZIP_LIMIT_EXCEEDED` 诊断错误。媒体懒解压（`Part.bytes()` 为 Promise）。流式读取评估见 A-13。外部关系 URL 只允许 `http(s)`。
+`ZipLimits` 默认：`maxEntries 4000`、`maxEntryBytes 64 MiB`、`maxTotalBytes 512 MiB`、`maxMediaBytes 256 MiB`（借鉴 pptx-renderer，按 Q5 上调）；超限 → `ZIP_LIMIT_EXCEEDED` 诊断错误。媒体懒解压（`Part.bytes()` 为 Promise）。流式读取评估见 A-13。
+
+**规模天花板检查（rulings §4.15 Q5）**：导入在解析 `presentation.xml` 与各页形状树后立即检查三项——页数（默认上限 200，软警告 150）、单页元素数（默认 1,000）、文档总元素数（默认 20,000，软警告 15,000；协同态下软删除墓碑计入，见 §3.1a）。任一超限即**拒绝导入**：返回 `format.quota_exceeded{ dimension, limit, actual }`（`dimension` 取值见 10 §1.4），不产出 Snapshot、不做只读降级打开。三项数字来自部署配置，**完全可调**；超出默认包络时启动告警、`/readyz` 标注，性能承诺（D200、DX-1000、20 编辑者 + 50 查看者、200 MB 的性能保证包络）不再成立。性能门禁只在包络内生效，且只收紧不放宽。命令层同一上限由 `maxElementsPerDoc` 守卫（05、40-modules/03）。
+
+**外部关系（rulings §4.15 Q7，章程 D7）**：`TargetMode="External"` 的 Relationship **全部原样保留**（含 `mailto:`、`file:`、相对路径等任意 scheme），导出时重生成已建模部件的 `.rels` 也必须写回；**仅 `http(s)` 目标可被激活**（超链接可点击、外链图片/媒体可加载）。外链资源默认自动加载，部署配置 `externalResources`（`auto` | `confirm` | `never`）可收紧；服务端永不加载外链（07 §4.2、08 §9.2）。把「只允许 http(s)」写成 Relationship 不变量会让含 mailto/file 链接的文件在 M1 零编辑往返时丢关系，违反 D7 与 OF-18。
 
 ---
 

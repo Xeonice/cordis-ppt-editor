@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数） | 依赖：charter v0.1
 
 # 10 观测性与错误（Observability & Errors）：错误码体系、结构化日志、telemetry、诊断、客户端上报
 
@@ -11,7 +11,7 @@
 ## 0. 一页总览
 
 ```
-                 ┌──────────────── @oce/kernel（L0）────────────────┐
+                 ┌──────────────── @cordexjs/kernel（L0）────────────────┐
   插件代码 ────►  │ ctx.errors    create / raise / wrap / report / assert │ ──► Reporter Provider（控制台 | Sentry | 服务端 API）
                  │ ctx.logger(name)  结构化字段 + 脱敏 + 采样            │ ──► Sink Provider（console | pino | ring buffer + 上报）
                  │ ctx.telemetry span / metric / event                  │ ──► OTel SDK Provider（浏览器 OTLP/HTTP | Node OTLP/gRPC）
@@ -19,7 +19,7 @@
                  └────────────────────────────────────────────────────┘
   Fiber apply 抛错 ──► 内核捕获 → FAILED + errors.report（不传播到兄弟 Fiber，A11）
   渲染器抛错 ──► 元素占位 + errors.report（07）
-  Nest 层 ──► OceExceptionFilter → problem+json（映射表在 protocol）
+  Nest 层 ──► CordexExceptionFilter → problem+json（映射表在 protocol）
 ```
 
 三条铁律：
@@ -33,13 +33,13 @@
 
 ### 1.1 编码格式
 
-- 代码为**字串字面量** `<domain>.<snake_case_name>`，如 `collab.forbidden`、`store.target_missing`、`format.pptx.invalid_package`。domain ≤ 2 段，与包/服务域一致：`kernel` `store` `command` `permission` `format` `ooxml` `layout` `render` `slide` `collab` `transport` `presence` `headless` `storage` `server.auth` `server.documents` `server.media` `server.jobs` `tenant`。
+- 代码为**字串字面量** `<domain>.<snake_case_name>`，如 `collab.forbidden`、`store.target_missing`、`format.pptx.invalid_package`。domain ≤ 2 段，与包/服务域一致：`kernel` `store` `command` `permission` `format` `ooxml` `layout` `render` `slide` `collab` `transport` `presence` `headless` `storage` `server.auth` `server.documents` `server.media` `server.jobs` `document`（`tenant` 域随 rulings §4.15 T-0 删除；配额/规模类错误按阶段分三码：导入 `format.quota_exceeded`、编辑期 `document.quota_exceeded`、存储 `storage.quota_exceeded`，见 §1.4 取值表，rulings §4.17 D2）。
 - 不用数字编号（A3：避免闭合枚举与人为分配冲突）；不用 TS `enum`（lint 禁止）。
 - 每个错误码在其所属包的 `errors.ts` 中通过声明合并注册到 `ErrorCodes` 接口，携带 `details` 类型：
 
 ```ts
 // 草案：packages/collab-core/src/errors.ts
-declare module '@oce/kernel' {
+declare module '@cordexjs/kernel' {
   interface ErrorCodes {
     'collab.forbidden':        { unitId: UnitId; role: Role; action: string }
     'collab.room_full':        { unitId: UnitId; limit: number }
@@ -60,10 +60,10 @@ export const collabErrors = defineErrors({          // 运行时元数据（严�
 ### 1.2 错误类层次（刻意扁平）
 
 ```
-OceError<C extends ErrorCode>            code / details: ErrorCodes[C] / severity / retryable / user / cause? / fingerprint / context{unitId?, traceId?}
-├── OceValidationError                   code = '<domain>.validation_failed'；issues: StandardSchemaV1.Issue[]（D2 边界校验失败）
-├── OceAggregateError                    code = 'kernel.aggregate'；errors: OceError[]（parallel 事件多失败、批量作业）
-└── OceInvariantError                    code = 'kernel.invariant_violation'；由 invariant() 产生；severity 'fatal'；表示程序错误
+CordexError<C extends ErrorCode>            code / details: ErrorCodes[C] / severity / retryable / user / cause? / fingerprint / context{unitId?, traceId?}
+├── CordexValidationError                   code = '<domain>.validation_failed'；issues: StandardSchemaV1.Issue[]（D2 边界校验失败）
+├── CordexAggregateError                    code = 'kernel.aggregate'；errors: CordexError[]（parallel 事件多失败、批量作业）
+└── CordexInvariantError                    code = 'kernel.invariant_violation'；由 invariant() 产生；severity 'fatal'；表示程序错误
 ```
 
 - 不为每个 domain 建子类；分类靠 `code`/`severity`/`user`（是否可向用户展示）。理由：子类层次会诱导 `instanceof` 分支，而 `code` 判别联合能被穷尽检查。
@@ -73,10 +73,10 @@ OceError<C extends ErrorCode>            code / details: ErrorCodes[C] / severit
 
 | 情形 | 用法 | 理由 |
 |---|---|---|
-| 纯函数/iso 库的**预期失败**（解析、编解码、校验、几何求值、路径定位） | `Result<T, OceError>`（`@oce/shared`：`ok/err/map/andThen/unwrapOr/collect`） | 可组合、可穷尽、不依赖异常栈 |
+| 纯函数/iso 库的**预期失败**（解析、编解码、校验、几何求值、路径定位） | `Result<T, CordexError>`（`@cordexjs/shared`：`ok/err/map/andThen/unwrapOr/collect`） | 可组合、可穷尽、不依赖异常栈 |
 | 服务方法的**外部失败**（网络、存储、浏览器 API） | `Promise<Result<…>>`；只有在调用方无法继续时由调用方 `raise` | 让调用方决定重试/降级 |
 | **程序错误**（不变量被破坏、不可能分支） | `invariant(cond, 'kernel.invariant_violation', details)` → throw | 立刻暴露；不进入 Result |
-| **边界层**（插件 `apply`、命令执行、Nest handler、job processor） | 允许 `throw OceError`；边界统一捕获：内核 → Fiber `FAILED`；commands → `command/failed` 事件；Nest → filter；job → 重试/死信 | 边界是唯一把 Result 转成异常的地方 |
+| **边界层**（插件 `apply`、命令执行、Nest handler、job processor） | 允许 `throw CordexError`；边界统一捕获：内核 → Fiber `FAILED`；commands → `command/failed` 事件；Nest → filter；job → 重试/死信 | 边界是唯一把 Result 转成异常的地方 |
 | 第三方异常 | `ctx.errors.wrap(cause, code, details)` | 保留 `cause` 链 |
 
 替代写法速查（禁止 → 允许）：`throw new Error('x')` → `throw ctx.errors.create('domain.name', {...})`；`if (!x) throw …` → `invariant(x, …)` 或 `return err(...)`；`catch (e) { throw e }` → `catch (e) { throw ctx.errors.wrap(e, 'domain.name') }`；`console.error(e)` → `ctx.errors.report(e)`。
@@ -92,8 +92,21 @@ OceError<C extends ErrorCode>            code / details: ErrorCodes[C] / severit
 | `collab.schema_too_new` | 409 | 4426 | — |
 | `collab.room_full` | 503 | 4503 | — |
 | `*.payload_too_large` | 413 | 4413 | — |
-| `*.rate_limited` / `tenant.quota_exceeded` | 429 | 4429 | — |
+| `*.rate_limited` | 429 | 4429 | — |
+| `format.quota_exceeded`（导入超规模天花板，直接拒绝导入，rulings §4.15 Q5） | 413 | — | `details: { dimension, limit, actual }` |
+| `format.encrypted`（加密包：`EncryptionInfo` CFB 容器，M1–M4 拒绝导入并提示先去除密码，rulings §4.16 Q15；登记于 `ooxml-core` errors，检测点在导入校验的魔数/容器判定阶段、先于 `format.pptx.invalid_package`，见 40-modules/04） | 415 | — | `details: { container: 'cfb' }`；取 415 理由同 `format.macro_rejected`：加密包不是 OOXML zip 媒体类型；**不得**回落为 `format.pptx.invalid_package`；用户文案「文件已加密，请先去除密码后再导入」 |
+| `format.macro_rejected`（`.pptm` / macroEnabled 主内容类型 / 含 `vbaProject.bin` 的宏包直接拒绝导入，rulings §4.16 Q15；登记于 `ooxml-core` errors，检测见 40-modules/04 §2.6） | 415 | — | `details: { reason: 'extension' \| 'content_type' \| 'vba_part' }`；取 415 而非 422：拒绝依据是**文件类型本身**（宏启用的媒体类型不受理），而非内容语义校验失败——与 `format.unsupported_binary` 同类；用户文案「请另存为 .pptx 后再导入」 |
+| `document.quota_exceeded`（**编辑期**上限码：编辑中新增页/元素触及天花板，命令守卫拒绝，rulings §4.17 D2；M-03 的 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` 常量映射到本码） | 409 | —（命令守卫拒绝、**不关连接**；4429 专属速率限制） | `details: { dimension, limit, actual }` |
+| `storage.quota_exceeded`（部署级存储/每用户文档数配额） | 413（上传）/ 429 | — | `details: { dimension, limit, actual }` |
 | `kernel.invariant_violation` 及未知 | 500 | 1011 | `/errors/internal`（不泄漏 details） |
+
+**配额三码并列与 `dimension` 取值表**（rulings §4.17 D2；各处——PRD 06、设计 13、40-modules/03/04/08/12——照抄本表，不另起名）：
+
+| 码 | 阶段 | `dimension` 取值 | 说明 |
+|---|---|---|---|
+| `format.quota_exceeded` | 导入（服务端 `import.processor` / 客户端 Worker 解析） | `slides` \| `elementsPerSlide` \| `elementsTotal` \| `fileSize` | 超天花板直接拒绝导入，不创建文档；`fileSize` 为单文件（含媒体）上限，默认 200 MB |
+| `document.quota_exceeded` | 编辑期（命令守卫） | `slides` \| `elementsPerSlide` \| `elementsTotal`（与导入同名） | 409，命令被拒、连接保持；墓碑计入 `elementsTotal` |
+| `storage.quota_exceeded` | 存储（上传/新建文档） | `bytes` \| `documents` | 部署级存储字节与每用户文档数 |
 
 `problem+json` 字段：`type/title/status/detail/instance/code/traceId/retryable`；`details` 只有 `user:true` 的错误才回传。
 
@@ -101,14 +114,14 @@ OceError<C extends ErrorCode>            code / details: ErrorCodes[C] / severit
 
 ```ts
 interface ErrorsService {
-  create<C extends ErrorCode>(code: C, details: ErrorCodes[C], opts?: { cause?: unknown; severity?; retryable? }): OceError<C>
-  wrap<C extends ErrorCode>(cause: unknown, code: C, details: ErrorCodes[C]): OceError<C>
+  create<C extends ErrorCode>(code: C, details: ErrorCodes[C], opts?: { cause?: unknown; severity?; retryable? }): CordexError<C>
+  wrap<C extends ErrorCode>(cause: unknown, code: C, details: ErrorCodes[C]): CordexError<C>
   raise<C extends ErrorCode>(code: C, details: ErrorCodes[C]): never
   report(error: unknown, context?: ErrorContext): void       // 去重（fingerprint）、采样、脱敏，转交 Reporter
-  isOce(value: unknown): value is OceError
-  onReport(listener: (e: OceError, ctx: ErrorContext) => void): Disposable   // 供 UI 通知、telemetry 计数
+  isOce(value: unknown): value is CordexError
+  onReport(listener: (e: CordexError, ctx: ErrorContext) => void): Disposable   // 供 UI 通知、telemetry 计数
 }
-interface ErrorReporter { report(e: OceError, ctx: ErrorContext): void }        // Provider：console / sentry / server-api
+interface ErrorReporter { report(e: CordexError, ctx: ErrorContext): void }        // Provider：console / sentry / server-api
 ```
 
 - **Fiber 集成**：kernel 在 `internal/error`（cordis 事件）上监听：`apply` 抛错 → `report` + `fiber/failed(name, error)` 事件；兄弟 Fiber 不受影响（单测：注入抛错插件，其余功能可用，A11）。
@@ -125,18 +138,18 @@ interface ErrorReporter { report(e: OceError, ctx: ErrorContext): void }        
 - 级别：`debug`（开发/诊断，生产默认关闭）、`info`（生命周期与业务里程碑，低频）、`warn`（可恢复异常、降级）、`error`（需人工关注）。**热路径（每帧/每 update）禁止 `info` 及以上**；用 `debug` + 采样或用指标。
 - API（kernel 在 cordis logger 之上的适配）：`logger.info(msg: string, fields?: LogFields)`；`logger.child(fields)` 绑定上下文字段；不接受插值对象作为 msg（`msg` 是低基数模板，变量进 `fields`）。
 
-### 2.2 字段规范（OTel 语义约定风格，`oce.*` 为自定义）
+### 2.2 字段规范（OTel 语义约定风格，`cordex.*` 为自定义）
 
 | 字段 | 类型 | 来源 |
 |---|---|---|
 | `time` `level` `logger` `msg` | 基础 | sink |
 | `trace_id` `span_id` | string | 当前 span（自动注入） |
-| `oce.unit_id` `oce.room_id` `oce.session_id` | string | UnitScope / Room / Session（`child` 绑定） |
-| `oce.tenant_id` `oce.user_id`（已哈希） `oce.request_id` `oce.job_id` | string | 请求上下文（`ctx.extend` 元数据） |
-| `oce.plugin` `oce.fiber_uid` | string/number | 由 kernel 从 `ctx.fiber` 注入 |
-| `oce.error_code` `oce.error_fingerprint` | string | errors.report |
+| `cordex.unit_id` `cordex.room_id` `cordex.session_id` | string | UnitScope / Room / Session（`child` 绑定） |
+| `cordex.user_id`（已哈希） `cordex.request_id` `cordex.job_id` | string | 请求上下文（`ctx.extend` 元数据；单组织部署无租户字段，T-0） |
+| `cordex.plugin` `cordex.fiber_uid` | string/number | 由 kernel 从 `ctx.fiber` 注入 |
+| `cordex.error_code` `cordex.error_fingerprint` | string | errors.report |
 | `duration_ms` `bytes` `count` | number | 计时/大小 |
-| `oce.command_id` `oce.mutation_kind` | string | 命令管线 |
+| `cordex.command_id` `cordex.mutation_kind` | string | 命令管线 |
 
 ### 2.3 脱敏（sink 前统一执行，`kernel/logger/redact.ts`）
 
@@ -150,7 +163,7 @@ interface ErrorReporter { report(e: OceError, ctx: ErrorContext): void }        
 |---|---|---|
 | 浏览器开发 | `console` | 彩色、含 fields |
 | 浏览器生产 | `ring-buffer`（最近 500 条 `debug+`）+ 上报 | 仅在 `errors.report` 触发时把环形缓冲随错误一起上报（§6） |
-| Node | `pino`（JSON 行）→ stdout → OTel Collector/Loki | `level ≥ info`；`debug` 按 logger 名开关（环境变量 `OCE_LOG_DEBUG=collab-yjs:*`） |
+| Node | `pino`（JSON 行）→ stdout → OTel Collector（Loki 为显式开启的 AGPL 可选 profile，rulings §4.15 Q10） | `level ≥ info`；`debug` 按 logger 名开关（环境变量 `CORDEX_LOG_DEBUG=collab-yjs:*`） |
 
 ---
 
@@ -189,7 +202,7 @@ interface TelemetryService {
 | `server.snapshot.compact` | pending, bytes | server-collab |
 | `thumbnail.render` | slides, ms_per_slide | server-headless |
 | `job.<kind>` | attempts | apps/server |
-| HTTP/DB/Redis | 自动仪表化（`@opentelemetry/instrumentation-*`） | apps/server |
+| HTTP/DB/Valkey（Redis 协议） | 自动仪表化（`@opentelemetry/instrumentation-*`） | apps/server |
 
 传播：HTTP `traceparent` 头；WS 的 CONTROL.auth 携带 `traceparent` 建立会话父 span，每个 update 帧不建 span（用指标 + 1% 抽样 span）；BullMQ job 数据带 `traceparent`。
 
@@ -197,25 +210,26 @@ interface TelemetryService {
 
 | 指标 | 类型 | 标签 | 消费者（仪表盘/告警） |
 |---|---|---|---|
-| `oce_render_frame_ms` | histogram | mode | 前端性能面板；预算门禁（11） |
-| `oce_render_elements_updated_total` | counter | kind | A28 监控 |
-| `oce_command_latency_ms` | histogram | command_id | — |
-| `oce_collab_update_bytes` | histogram | direction | 容量 |
-| `oce_collab_roundtrip_ms` | histogram | — | SLO |
-| `oce_collab_session_transitions_total` | counter | from,to | 稀疏重连告警 |
-| `oce_collab_pending_updates` | gauge | — | 客户端「未同步」提示 |
-| `oce_collab_rooms_active` / `oce_collab_clients` | gauge | instance | 容量告警 |
-| `oce_collab_persist_latency_ms` | histogram | — | SLO |
-| `oce_collab_updates_rejected_total` | counter | reason | 安全告警 |
-| `oce_collab_repairs_total` | counter | rule | 数据质量告警 |
-| `oce_ydoc_bytes` / `oce_ydoc_structs` | gauge | doc（抽样） | epoch 触发（06 §9.4） |
-| `oce_snapshot_bytes` / `oce_snapshot_compactions_total` | histogram/counter | kind | 存储 |
-| `oce_ws_connections` | gauge | instance | HPA |
-| `oce_import_duration_ms` / `oce_export_duration_ms` / `oce_thumbnail_duration_ms` | histogram | — | 作业 SLO |
-| `oce_fiber_state` | gauge | plugin,state | PENDING/FAILED 告警 |
-| `oce_effects_live` | gauge | plugin | 泄漏告警（A25） |
-| `oce_cache_events_total` | counter | cache,event(hit/miss/evict) | A29 |
-| `oce_errors_total` | counter | code,severity | 错误率告警 |
+| `cordex_render_frame_ms` | histogram | mode | 前端性能面板；预算门禁（11） |
+| `cordex_render_elements_updated_total` | counter | kind | A28 监控 |
+| `cordex_command_latency_ms` | histogram | command_id | — |
+| `cordex_collab_update_bytes` | histogram | direction | 容量 |
+| `cordex_collab_roundtrip_ms` | histogram | — | SLO |
+| `cordex_collab_session_transitions_total` | counter | from,to | 稀疏重连告警 |
+| `cordex_collab_pending_updates` | gauge | — | 客户端「未同步」提示 |
+| `cordex_collab_rooms_active` / `cordex_collab_clients` | gauge | instance | 容量告警 |
+| `cordex_collab_persist_latency_ms` | histogram | — | SLO |
+| `cordex_collab_updates_rejected_total` | counter | reason | 安全告警 |
+| `cordex_collab_repairs_total` | counter | rule | 数据质量告警 |
+| `cordex_store_undo_skipped_total` | counter | whole_step(true/false) | 撤销跳过面板（与软冲突率分开，rulings §4.17 D5） |
+| `cordex_ydoc_bytes` / `cordex_ydoc_structs` | gauge | doc（抽样） | epoch 触发（06 §9.4） |
+| `cordex_snapshot_bytes` / `cordex_snapshot_compactions_total` | histogram/counter | kind | 存储 |
+| `cordex_ws_connections` | gauge | instance | HPA |
+| `cordex_import_duration_ms` / `cordex_export_duration_ms` / `cordex_thumbnail_duration_ms` | histogram | — | 作业 SLO |
+| `cordex_fiber_state` | gauge | plugin,state | PENDING/FAILED 告警 |
+| `cordex_effects_live` | gauge | plugin | 泄漏告警（A25） |
+| `cordex_cache_events_total` | counter | cache,event(hit/miss/evict) | A29 |
+| `cordex_errors_total` | counter | code,severity | 错误率告警 |
 
 ### 3.4 产品事件（`telemetry.event`，与 PRD 06 对应）
 
@@ -233,8 +247,8 @@ interface TelemetryService {
 | 贡献点清单 | `ctx.contributions(point)` + `listContributionPoints(ctx)`；`GET /internal/diagnostics/contributions` | 与 Manifest 对比差异（ADR-0003） |
 | 协同诊断 | `ctx.collab.session(unitId).stats` + `yjsBackend.stats()`；dev 面板「协同」页 | 状态、pending、state vector 摘要、最近帧 |
 | 渲染诊断 | `ctx.render.stats()`：帧时长直方、脏区计数、缓存命中率、已挂载页 | dev 面板「渲染」页 |
-| 开发者面板 | `ui.panel` 贡献 `oce.devtools`（仅 `import.meta.env.DEV` 或 `?oce-devtools=1`） | 由 slide-ui/ui-react 承载，数据来自上述 API |
-| CLI | `oce-headless diag <file.pptx>`：导入 → validate → 报告 | server-headless |
+| 开发者面板 | `ui.panel` 贡献 `cordex.devtools`（仅 `import.meta.env.DEV` 或 `?cordex-devtools=1`） | 由 slide-ui/ui-react 承载，数据来自上述 API |
+| CLI | `cordex-headless diag <file.pptx>`：导入 → validate → 报告 | server-headless |
 
 ---
 
@@ -252,7 +266,7 @@ interface TelemetryService {
 
 ```
 packages/kernel/src/
-├── errors/{oce-error.ts, define-errors.ts, errors.service.ts, invariant.ts, fingerprint.ts, reporters/console.reporter.ts}
+├── errors/{cordex-error.ts, define-errors.ts, errors.service.ts, invariant.ts, fingerprint.ts, reporters/console.reporter.ts}
 ├── logger/{logger.service.ts（cordis logger 适配 + fields）, redact.ts, sinks/{console.sink.ts, ring-buffer.sink.ts}}   // pino sink 在 apps/server 适配器
 ├── telemetry/{telemetry.service.ts, names.ts（登记接口）, noop.provider.ts}                                              // OTel Provider 在 apps/web、apps/server 适配器
 ├── diagnostics/{dump-fiber-tree.ts, list-pending.ts, assert-no-live-effects.ts, list-contribution-points.ts}
@@ -266,9 +280,9 @@ packages/kernel/src/
 | 编号 | Univer | 本项目 | 机械验证 |
 |---|---|---|---|
 | A24 | `ILogContext`/错误码/telemetry 零实现、1 个消费者 | 三服务 M1 接入；每个 span/metric 有消费者登记 | 扫描器：`telemetry.span('x')` 的 `'x'` 必在 §3.2/3.3 登记表且有 `consumer` 字段；`console.*` 与裸 `Error` lint 报错（09-02/06） |
-| A25 | dispose 门禁文档被删 | `assertNoLiveEffects` 是每个插件生命周期测试的必含断言；`oce_effects_live` 告警 | 测试模板（11 §4）+ 扫描器检查每个 `plugin.ts` 有对应 lifecycle 测试 |
+| A25 | dispose 门禁文档被删 | `assertNoLiveEffects` 是每个插件生命周期测试的必含断言；`cordex_effects_live` 告警 | 测试模板（11 §4）+ 扫描器检查每个 `plugin.ts` 有对应 lifecycle 测试 |
 | A11 | 一崩全崩 | Fiber FAILED 隔离 + 元素级隔离 | 单测：抛错插件/渲染器不影响其余 |
-| A16 | 门禁 warn 全失效 | 所有规则 `error`；豁免 `// oce-allow(<rule>): <issue-url>` 计数进预算 | 09-06 |
+| A16 | 门禁 warn 全失效 | 所有规则 `error`；豁免 `// cordex-allow(<rule>): <issue-url>` 计数进预算 | 09-06 |
 | D 级观测 | — | 错误码/日志字段/指标名三张登记表由类型系统 + 扫描器守护 | 类型测试 + 扫描器 |
 
 ---
@@ -280,7 +294,7 @@ packages/kernel/src/
 | O1 | 错误平台：自建（OTel logs）vs Sentry | OTel 全链路 + Sentry 可选 Provider | 运维 |
 | O2 | 客户端诊断上报是否需用户同意开关 | 提供开关，默认开 | 产品/法务 |
 | O3 | 日志保留期 | 14 天热、90 天冷 | 运维 |
-| O4 | `debug` 日志在生产是否允许按租户开启 | 允许（环境变量 + 5 分钟 TTL） | 运维 |
+| O4 | `debug` 日志在生产是否允许按文档/用户开启 | 允许（环境变量 + 5 分钟 TTL；单组织部署无租户维度） | 运维 |
 
 ## 9. 对章程的异议/建议
 
@@ -288,7 +302,7 @@ packages/kernel/src/
 
 ## 10. 跨条线要求
 
-- A 线（kernel）：按 §1.5/§2/§3.1/§4/§6 提供三服务与诊断 API；Fiber `apply` 异常转 `FAILED` 并 `errors.report`；`ErrorCodes/SpanAttrs/MetricName/EventProps` 登记接口位于 `@oce/kernel` 的 augment。
+- A 线（kernel）：按 §1.5/§2/§3.1/§4/§6 提供三服务与诊断 API；Fiber `apply` 异常转 `FAILED` 并 `errors.report`；`ErrorCodes/SpanAttrs/MetricName/EventProps` 登记接口位于 `@cordexjs/kernel` 的 augment。
 - 类型治理线：lint 禁裸 `Error`/`console`/`enum`；扫描器校验错误码/span/metric 登记与消费者；lifecycle 测试存在性检查。
 - 产品：PRD 06 埋点清单以 §3.4 命名规则落地；O2。
 
@@ -306,6 +320,7 @@ packages/kernel/src/
 | command | `command/executed` `command/rejected` `command/failed` `command/audited` | emit | id、durationMs、reason、审计摘要 | 命令管线（05） | – |
 | store | `store/transaction`（公开订阅 ≥ 50 ms 合并）、`store/loaded` | emit | transactionId、`origin{ kind, via? }`、touched 数、影响元素数 | store Provider | 本线 `store/history-changed` → `history/changed` |
 | history | `history/changed` | emit | canUndo / canRedo / depth | history | – |
+| store | `store/undo-skipped` | emit | `{ skipped: UndoSkip[]; wholeStep: boolean }`（载荷以 40-modules/02 §2.4 为准；撤销时同键已被他人后写而跳过，rulings §4.15 Q3） | store Provider | – |
 | selection / view | `selection/changed`；`view/page-changed` `view/zoom-changed` `view/mode-changed` | emit | 摘要（类型、数量、页；无文本） | `selection` / viewport | – |
 | render | `render/first-paint` `render/frame`（cordis 事件，进程内消费）`render/element-failed` `render/element-degraded` `render/font-fallback` | emit | unitId、pageId、kind、reason、font；`render/frame` 载荷 `{ pages, elementsUpdated, ms, overrun }` | engine-render / render-dom | 总编排定稿：弃 02 的 `render/painted`；遥测事件 `perf/frame` 由 `render/frame` 派生（§3.4，抽样），不是 cordis 事件；A `render/error` 与本线 `render/element-error` → `render/element-failed` |
 | layout | `layout/fonts-ready` `layout/measurer-changed` | emit | families / measurerId | render-dom / engine-layout | – |
@@ -326,16 +341,17 @@ packages/kernel/src/
 | `auth/invalid-token` `auth/expired` `auth/forbidden` | `server.auth.invalid_token` `server.auth.expired` `server.auth.forbidden` | 401 / 401 / 403；4401 / 4401 / 4403 |
 | `collab/auth-failed` | 事件 `collab/auth-failed`，载荷 code ∈ `collab.unauthenticated \| collab.forbidden \| collab.doc_not_found \| collab.schema_too_new \| collab.protocol_mismatch \| collab.room_full` | 见 06 §6.5（`protocol_mismatch` = 4427） |
 | `format/limit-exceeded{limit, actual}` | `format.limit_exceeded` | 413 |
-| `collab/soft-conflict{type}` | 事件（非错误）；指标 `oce_collab_soft_conflicts_total{type}` | – |
+| `collab/soft-conflict{type}` | 事件（非错误）；指标 `cordex_collab_soft_conflicts_total{type}`；`type` **不含** `undo-skipped`——撤销跳过走 `store/undo-skipped` 单独统计（rulings §4.17 D5） | – |
 | `collab/reconnect{reason:"server-shutdown"}` | 事件 `collab/reconnect`，reason ∈ `server-shutdown \| network \| auth-refresh \| capacity` | – |
 
 ### 11.3 05 §11 要求的落地（日志字段 / 指标名）
 
 | 事件 | 日志字段（§2.2 规范） | 指标 |
 |---|---|---|
-| `command/audited` | `oce.command_id` `oce.unit_id` `oce.user_id`（哈希）`oce.mutations` `oce.elements` `oce.veto?` | `oce_commands_total{command_id,result}` |
-| `command/failed` | + `oce.error_code` `oce.error_fingerprint` | `oce_command_failures_total{command_id,code}` |
-| `permission/denied` | + `oce.permission_action` `oce.role` | `oce_permission_denied_total{action}` |
-| `collab/soft-conflict` | `oce.conflict_type` | `oce_collab_soft_conflicts_total{type}`（CO-08 健康指标） |
-| `collab/update-rejected` / `collab/repair` | `oce.reason` `oce.rule` | `oce_collab_updates_rejected_total{reason}` / `oce_collab_repairs_total{rule}` |
-| awareness 丢弃 | – | `oce_collab_awareness_dropped_total{reason}` |
+| `command/audited` | `cordex.command_id` `cordex.unit_id` `cordex.user_id`（哈希）`cordex.mutations` `cordex.elements` `cordex.veto?` | `cordex_commands_total{command_id,result}` |
+| `command/failed` | + `cordex.error_code` `cordex.error_fingerprint` | `cordex_command_failures_total{command_id,code}` |
+| `permission/denied` | + `cordex.permission_action` `cordex.role` | `cordex_permission_denied_total{action}` |
+| `collab/soft-conflict` | `cordex.conflict_type` | `cordex_collab_soft_conflicts_total{type}`（CO-08 健康指标；**不含**撤销跳过，rulings §4.17 D5） |
+| `store/undo-skipped` | `cordex.undo_skipped_keys`（`skipped.length`）`cordex.whole_step` | `cordex_store_undo_skipped_total{whole_step}`（**单独统计**跳过次数与整步跳过次数，不计入软冲突率，rulings §4.17 D5） |
+| `collab/update-rejected` / `collab/repair` | `cordex.reason` `cordex.rule` | `cordex_collab_updates_rejected_total{reason}` / `cordex_collab_repairs_total{rule}` |
+| awareness 丢弃 | – | `cordex_collab_awareness_dropped_total{reason}` |

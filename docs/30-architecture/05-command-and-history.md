@@ -1,6 +1,6 @@
 # 05 命令与历史：命令三分法、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`） | 依赖：charter v0.1
 > 继承 Univer K1（命令三分法，「最正确的一项」），规避其缺陷 #3（手写逆操作）与 `return false` 2,244 次的失败静默。签名为「草案」。
 
 ---
@@ -93,7 +93,7 @@ interface Mutation { readonly type: `${string}.${string}.${string}`; readonly un
 ```ts
 interface CommandRequest<P> { unitId: UnitId | null; id: string; params: P; principal: Principal; origin: Origin; meta?: JsonObject; signal?: AbortSignal }
 type CommandResult<R> = Result<{ value: R; transaction?: TransactionRecord }, CommandError>
-interface CommandError extends OceError { code: 'command.not_found' | 'command.unit_not_found' | 'command.not_applicable' | 'command.invalid_params' | 'command.permission_denied' | 'command.vetoed' | 'command.handler_failed' | 'command.mutation_rejected' | 'command.store_unavailable' }
+interface CommandError extends CordexError { code: 'command.not_found' | 'command.unit_not_found' | 'command.not_applicable' | 'command.invalid_params' | 'command.permission_denied' | 'command.vetoed' | 'command.handler_failed' | 'command.mutation_rejected' | 'command.store_unavailable' }
 // 点式错误码（10 §1.1、rulings §4.3）；本文管线图与正文中的大写名（COMMAND_NOT_FOUND 等）是 `defineErrors('command', …)` 生成表的源码标识符，运行时字符串即上述点式码
 ```
 
@@ -132,7 +132,7 @@ type SlideMutation =
   | { type: 'slide.slide.insert'; unitId; slide: Slide /* 含 order */; shapes: readonly Shape[] }
   | { type: 'slide.slide.setOrder'; unitId; slideId; order: FracKey }
   | …
-// 载荷中**没有** index/toIndex（06 I4、ADR-0032）：命令层用 `between(prev?.order, next?.order)`（`@oce/shared/order`）把「插到 X 之后」变成具体 order 键；lower() 因而保持纯且确定。
+// 载荷中**没有** index/toIndex（06 I4、ADR-0032）：命令层用 `between(prev?.order, next?.order)`（`@cordexjs/shared/order`）把「插到 X 之后」变成具体 order 键；lower() 因而保持纯且确定。
 ```
 
 - 每个成员一个 `MutationDef`，贡献到 `core.mutation`；`type` 三段式 `<documentType>.<entity>.<verb>`（扫描器校验命名）。
@@ -175,7 +175,12 @@ type SlideMutation =
 
 - 每个客户端的 `Origin = local(clientId)`；远端更新到达时以 `remote` origin 应用（store-yjs：Y.Doc 的远端 update；store-memory 在协同模式下不使用）。
 - `history.undo()` → `store.undo(local(clientId))`：只撤本地事务；`store-yjs` 的 `UndoManager.trackedOrigins = {localOrigin}`；`store-memory` 的历史栈按 origin 过滤。
-- 被他人修改过的对象再撤销：CRDT 的撤销语义（Yjs：撤销只回退本地插入/删除，可能与远端编辑交织）由 06 描述并进契约套件的协同分节。
+- **协同撤销语义（rulings §4.15 Q3，不跟随 CRDT 库默认）**：写入 `DocumentStore` 契约的中性字段 `undo.remoteConflict: 'skip'`（字段名与 CRDT 无关），store-yjs 与 store-memory 同语义，由 `runDocumentStoreConformance`「中性撤销语义」分节（用例名以 40-modules/02 §2.5 为准：`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`、`delete-vs-edit-undo`、`read-path-filters-tombstone`）验收：
+  1. **同一键被他人后写 → 跳过并提示**：撤销单元中某个 `set` 的目标键在本地事务之后已被远端写过，该键**不回退**（不覆盖他人）；其余未被他人触碰的键照常回退。被跳过的键经事件 `store/undo-skipped(unitId, { skipped: UndoSkip[], wholeStep })` 报告（载荷以 40-modules/02 §2.4 为准；该事件**单独统计**跳过次数与整步跳过次数，不计入 `collab/soft-conflict` 软冲突率，rulings §4.17 D5），UI 以提示条告知，并提供「恢复我的值」——这是一个**新的本地事务**（重新写回本地旧值，进入历史栈），不是撤销的延续。
+  2. **整步被跳过 → 停下不连撤**：若一个撤销单元的全部键都被跳过（实际无任何回退），本次 `history.undo()` 返回 `ok({ applied: false, skipped })` 并停止，**不**继续撤销更早的一步（Yjs 默认会「连撤两步」，由 undo 包装层阻断）。
+  3. **删除 = 软删除墓碑**：用户删除有身份实体写 `_deleted` 墓碑而非删键（04 §3.1a），删除方撤销 = 清除墓碑、同一 id 复活；与并发编辑不会产生重复元素。**撤销目标已被他人删除（墓碑 TTL 内亦然）→ 跳过并提示，不看 TTL**：撤销永不复活他人删除的元素，恢复由删除方撤销或「恢复元素」（新事务）完成（rulings §4.17 D4）。墓碑 TTL（默认 24 h）后硬删除；文档擦除与「立即彻底删除」不等 TTL。
+  4. 文本 `text` op 的撤销按 CRDT 字符级语义回退本地插入/删除，远端插入保留（字符级无「同键」概念，不触发跳过）。
+  - U-07 版本恢复撤销（version-restore-undo）以本语义为基线，不采用「revertTo 整体回滚」式实现（它绕过 D4）。
 - `history` 策略层：
   - 合并（coalesce）：同 `label`、同 origin、间隔 < `coalesceMs`（默认 500ms）的连续文本事务合并为一个撤销单元；
   - 分组：`history.beginGroup(label) … endGroup()` 把多个命令并成一个撤销单元（如拖拽过程）；
@@ -202,12 +207,13 @@ type SlideMutation =
 | 命令调用命令 | 允许：`ctx.commands.execute(...)` 在 handler 内调用会开启**新事务**（嵌套事务被 Store 拒绝 `STORE_NESTED_TRANSACTION`）；因此复合命令应当直接 `tx.mutate`，而不是递归执行子命令（lint 提示 `no-nested-execute-in-handler`，warning 级→M2 起 error） |
 | 导入/迁移写入 | `origin = system(...)`，`undoable: false`，不经命令管线（唯一例外，且只在 `units.open` 内部；扫描器允许列表） |
 | 跨 Unit 命令 | 不支持（每个命令绑定一个 unitId 或 null）；复制粘贴分两条命令 |
+| 新增元素触及规模上限（rulings §4.15 Q5） | 命令守卫在 ③ 之后、④ 之前检查 `maxElementsPerDoc`（默认 20,000，软警告 15,000，墓碑计入）与单页 1,000、页数 200：超限 → `command/rejected{ reason: 'validation' }` + `document.quota_exceeded{ dimension, limit, actual }`（编辑期上限码，409、不关连接，`dimension` 取值见 10 §1.4，rulings §4.17 D2），不开事务；数字来自部署配置（04 §5.5） |
 
 ---
 
 ## 9. 失败原因可传播
 
-- 所有入口返回 `Result<T, OceError>`（`shared/result.ts`）；禁止 `boolean` 结果（lint `no-boolean-command-result`：`CommandDef.handler` 返回类型不得为 `boolean`；`commands.execute` 调用处不得用 `if (!ok)` 模式——以类型 `Result` 强制解构）。
+- 所有入口返回 `Result<T, CordexError>`（`shared/result.ts`）；禁止 `boolean` 结果（lint `no-boolean-command-result`：`CommandDef.handler` 返回类型不得为 `boolean`；`commands.execute` 调用处不得用 `if (!ok)` 模式——以类型 `Result` 强制解构）。
 - 每个失败码都有 `data`（issues、mutationType、fiber 名），`errors.report` 统一上报（PERMISSION_DENIED 只发 `permission/denied` 事件与遥测计数，不作为错误上报，避免噪音）。
 - UI 层 `useCommand(id)` 返回 `{ run, lastError }`，通知组件把错误码映射为 i18n 文案（`i18n` key = 错误码）。
 - 审计记录含 `result: 'ok' | code`。
@@ -226,6 +232,7 @@ type SlideMutation =
 | `store/transaction` | emit | `(unitId, changeSet)` | `store` Provider |
 | `store/loaded` | emit | `(unitId)` | `store` Provider |
 | `history/changed` | emit | `(unitId, { canUndo; canRedo; depth })` | `history` |
+| `store/undo-skipped` | emit | `(unitId, { skipped: UndoSkip[]; wholeStep: boolean })`（以 40-modules/02 §2.4 为准；单独统计、不计入软冲突率，rulings §4.17 D5）（撤销时同键已被他人后写而跳过；`wholeStep` 表示整步被跳过并已停止，§6） | `store` Provider（undo 包装层） |
 | `selection/changed` | emit | `(unitId, selection)` | `selection` |
 | `view/mode-changed` | emit | `(unitId, mode, prev)`（`view.setMode` Operation 之后；10 §11） | `ui`（view.setMode handler） |
 | `permission/denied` | emit | `(request, decision)` | `permissions` |
@@ -255,6 +262,7 @@ type SlideMutation =
 | 权限 fail-closed | `command-harness` 测试：无策略 → 全部 `PERMISSION_DENIED`；`denyAll` 覆盖 `allowAll` |
 | waterfall 监听器忘记 next 会被发现 | 审计 `VETOED` 记录 + kernel `waterfall-contract.test.ts`（指南 §128） |
 | 只撤本地 | 契约套件协同分节：两 store 同步后各自 undo 只回退自己的事务 |
+| 不覆盖他人、整步跳过即停、删除可复活（§6，rulings §4.15 Q3） | 契约套件「中性撤销语义」分节用例（名称照抄 40-modules/02 §2.5）`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`、`delete-vs-edit-undo`、`read-path-filters-tombstone`（store-memory 与 store-yjs 同一套）；40-modules/05 确定性用例 + fuzz |
 | 事件先声明后使用 | 扫描器 `events-declared` |
 | 命令 id / Mutation type 命名 | 扫描器 `command-id-format`（`<domain>.<name>`、`<docType>.<entity>.<verb>`） |
 | 嵌套事务被拒 | 契约套件 `STORE_NESTED_TRANSACTION` |
@@ -309,7 +317,7 @@ type SlideMutation =
 
 ### 13.4 协同下的撤销与冲突语义要点（详见 06 §8，B 线）
 
-- 母版/版式/主题都是实体表条目：编辑 = 单键 LWW；撤销按 origin 只撤本地（§6）；撤销母版编辑会使全部依赖页重绘（`dependentsOf` → 渲染脏映射）。
-- 冲突面（06 需覆盖）：(1) **删除 vs 引用**：A 删版式、B 同时应用该版式 → 合并后悬空 → 不变量 I-ML2 修复（04 §12.3）+ `collab/soft-conflict{ type: 'delete-vs-reference' }`；(2) **重置 vs 移动**：A `clearOverrides(transform)` 与 B `setTransform` 并发 → 同键 LWW，后写者胜，双方均可撤销自己的部分；(3) **主题槽位**：`colorScheme.*` 逐槽位 LWW；(4) **版式复制 vs 母版删除**：新版式 `masterId` 指向被删母版 → I-ML3 修复。
+- 母版/版式/主题都是实体表条目：编辑 = 单键 LWW；撤销按 origin 只撤本地，且遵循 §6 的跳过/停止语义；撤销母版编辑会使全部依赖页重绘（`dependentsOf` → 渲染脏映射）。
+- 冲突面（06 需覆盖）：(1) **删除 vs 引用**：A 删版式（写墓碑）、B 同时应用该版式 → 合并后引用指向墓碑 → 不变量 I-ML2 修复（04 §12.3）+ `collab/soft-conflict{ type: 'delete-vs-reference' }`；A 撤销删除 = 清除墓碑，B 的引用重新有效；(2) **重置 vs 移动**：A `clearOverrides(transform)` 与 B `setTransform` 并发 → 同键 LWW，后写者胜；先写者撤销时该键已被他人后写 → **跳过并提示**（§6 第 1 条，可选「恢复我的值」新事务），后写者撤销则正常回退自己的写入；若先写者的撤销单元只含这一键 → 整步被跳过、停下不连撤（§6 第 2 条）；(3) **主题槽位**：`colorScheme.*` 逐槽位 LWW；(4) **版式复制 vs 母版删除**：新版式 `masterId` 指向被删母版 → I-ML3 修复。
 - 母版视图是**视图态**（Operation），不锁内容；可选软锁（PRD PD-19，awareness 级）由 06 定。
 - 事务边界：`applyLayout` 一页一事务；`deleteLayout(reassignTo)`、`applyTheme` 各为一个原子事务（重指/换主题 + 删除不可分）。

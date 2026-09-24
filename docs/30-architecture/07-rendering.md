@@ -1,8 +1,8 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-18（§11 按 14 §1 C-12 改「三处 LRU」为「四处」） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-18（§11 按 14 §1 C-12 改「三处 LRU」为「四处」）；2026-09-24（rulings §4.15：Q4 DOM/SVG 单实现、canvas 三角色、toImage 主线程 + Web 字体 M2 spike、推翻 offscreen-canvas Provider、§14.6 删「导出在 Worker」；Q7 图表按 D16 与五类、SmartArt dsp 只读渲染、OLE 预览、EMF/WMF M2 惰性栅格化、chartex 占位、外链资源自动加载可收紧、文档内 SVG 只作图像上下文；Q5 堆预算与 20,000 元素关系；Q8 缩略图 M2 包内封面 / M3 renderer sidecar）；2026-09-24（rulings §4.16 Q19：R3 服务端字体包结案）；2026-09-24（复核修正，rulings §4.17：M13 renderer 契约 `render/sidecar.ts`、客户端 `remote-renderer.client.ts`、配置 `headless.mode/endpoint` 以 ADR-0037 为准；L11 服务端缩略图描述改 640 px WebP） | 依赖：charter v0.1
 
 # 07 渲染（Rendering）：DOM/SVG 管线、贡献点运行时、布局引擎、脏区、命中测试、文本编辑宿主、缩略图、性能预算、服务端 headless
 
-> 读者：实现 `@oce/engine-layout`、`@oce/engine-render`、`@oce/render-dom`、`@oce/slide-render`、`@oce/server-headless`（缩略图部分）的工程师。
+> 读者：实现 `@cordexjs/engine-layout`、`@cordexjs/engine-render`、`@cordexjs/render-dom`、`@cordexjs/slide-render`、`@cordexjs/server-headless`（缩略图部分）的工程师。
 > 章程锚点：§2.3（不做 Canvas 优先）、§5.2 L5/L6 包边界、§6.2 ADR-0021、§10 Q4/Q8、Univer A1/A4/A5（引擎对文档类型盲）、A28（脏区必须被消费）、A29（缓存淘汰必须接线）、A30（渲染热路径无拦截链）、A32（无第二份编辑缓冲）、A11（逐元素错误隔离）。
 > 相关 ADR：0021（渲染介质）、0026（headless 渲染与缩略图）、0027（文本度量策略）、0028（文本编辑宿主）。
 > 样式继承链解析（Element→Placeholder→Layout→Master→Theme）是 model-slide 的纯函数，见架构 04；本文只定义渲染层如何**缓存与失效**它的结果。
@@ -28,7 +28,7 @@
  ┌── render-dom（dom）───────────────────────┐    ┌── slide-render（dom，垂直束）────────────────────┐
  │ DomRenderTarget：Surface/Layer/PageView    │    │ 页合成：composeSlide()（04）→ master/layout 层缓存 │
  │ SVG 图元 API（path/fill/stroke/clip/text）  │    │ ElementRenderer：sp/pic/grpSp/cxnSp/graphicFrame  │
- │ OverlayLayer：选中框/手柄/远端光标/评论钉    │    │ 缩略图 Provider：dom-scaled / server-png           │
+ │ OverlayLayer：选中框/手柄/远端光标/评论钉    │    │ 缩略图 Provider：dom-scaled / raster / server-png  │
  │ TextInputHost：隐藏 textarea + IME + 自绘光标│    │ 放映模式                                          │
  │ FontFaceLoader、MediaCache(LRU, Blob URL)   │    │                                                   │
  └───────────────────────────────────────────┘    └───────────────────────────────────────────────────┘
@@ -40,13 +40,17 @@
 
 ## 1. 渲染介质决策与坐标系（ADR-0021）
 
-- **主画布 = SVG（图形）+ 自绘文本行（SVG `<text>`）**，容器为 HTML。选 SVG 而非 Canvas：任意缩放清晰、DOM 可检查/可测试（Playwright 断言节点属性）、a11y 有挂点、插件贡献一个 kind 的渲染器只需产出 SVG 节点、无自绘命中/无重绘管理负担。Canvas 保留为 `RenderTarget` 的可选 Provider（缩略图栅格化、放映）。
+- **DOM/SVG 单实现**（rulings §4.15 Q4，ADR-0021 已接受）：主画布 = SVG（图形）+ 自绘文本行（SVG `<text>`），容器为 HTML。编辑、查看、放映、可见缩略图、服务端缩略图与 PDF **共用同一套 SVG 渲染**，不存在第二套渲染实现。选 SVG 而非 Canvas：任意缩放清晰、DOM 可检查/可测试（Playwright 断言节点属性）、a11y 有挂点、插件贡献一个 kind 的渲染器只需产出 SVG 节点、无自绘命中/无重绘管理负担。
+- **canvas 只承担三个角色**：① `toImage` 的栅格化画板（主线程：游离 DOM → SVG 序列化 → `Image` → `<canvas>`，§8）；② `measureText` 度量器（`measurer-canvas.ts`，§5）；③ 为 `render.target` 预留的 `RenderTarget` 座位（`id:'canvas'`，当前无 Provider）。「缩略图/放映走 canvas」的旧口径删除；14 §5.4 对 offscreen-canvas Provider 的采纳被推翻。
+- **可替换性验证**：M3 末用一个最小 canvas Provider（只画矩形/图片/单行文本）跑 `runRenderTargetConformance`，证明 `render.target` 契约不含 DOM 偏置；它不进入产品。
+- **DX-1000 回退规则**：单页 1,000 元素（DX-1000）若不达标，先做合成层优化（`content-visibility`、静态层栅格缓存、减少 `<tspan>`），仍不达标才**仅在查看/放映**启用 canvas Provider；编辑态始终 DOM/SVG。首帧预算以 ADR-0021「≤ 200 ms」为元素级口径，DX-1000 以「首页可见 ≤ 2.5 s」为文稿级口径。
+- **文档内 SVG 只以图像上下文渲染**：`asvg:svgBlip`、SVG 媒体一律经 `<image href=blob:…>` 渲染（浏览器在图像上下文中不执行脚本、不加载外部资源）；禁止以 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 把文档内容注入 DOM（09-08 TD-081）。
 - **单位**：模型是 `Emu`；SVG 用户单位 = **px@96dpi**（1 px = 9525 EMU），`viewBox = 0 0 W H`（如 960×540），缩放用容器 `transform: scale(z)`，保持 SVG 内数值量级稳定（避免 EMU 级大数导致的精度/抗锯齿问题）。字号 `sz`（百分点）→ px = sz/100 × 96/72。
 - **层叠**：每个 `PageView` 三层容器：`master-layer` / `layout-layer` / `slide-layer`（各一 `<svg>`），上面再叠 `overlay-layer`（`<svg>` + 少量 HTML）与 `text-input-host`（隐藏）。母版/版式层对同版式的多个页共享 DOM 模板（`cloneNode(true)`）。
 
 ---
 
-## 2. `@oce/engine-render`（iso）：契约与管线
+## 2. `@cordexjs/engine-render`（iso）：契约与管线
 
 ### 2.1 贡献点（草案；ContributionPoint 机制见架构 03）
 
@@ -54,7 +58,7 @@
 // render.target —— 输出介质
 interface RenderTarget {
   id: 'dom' | 'canvas' | string
-  createSurface(host: unknown, opts: SurfaceOptions): Surface        // dom: host 为 HTMLElement；canvas: OffscreenCanvas
+  createSurface(host: unknown, opts: SurfaceOptions): Surface        // dom: host 为 HTMLElement（唯一实现）；'canvas' 为预留座位，M3 末仅以最小 Provider 验证契约（§1）
 }
 interface Surface {
   mountPage(pageId: PageId, layers: readonly LayerSpec[]): PageView
@@ -117,7 +121,7 @@ ChangeSet.paths ──► DirtyTracker.mark(paths)          路径前缀 → Dir
 
 ```
 packages/engine-render/
-├── package.json                      deps: @oce/kernel @oce/engine-layout @oce/shared；iso（无 DOM 类型；rAF 通过注入的 Scheduler 抽象）
+├── package.json                      deps: @cordexjs/kernel @cordexjs/engine-layout @cordexjs/shared；iso（无 DOM 类型；rAF 通过注入的 Scheduler 抽象）
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                     name='engine-render'；provide=['render']（UnitScope）；注册贡献点定义；Config
@@ -156,16 +160,16 @@ packages/engine-render/
 │       ├── error-isolation.test.ts   抛错渲染器 → 占位符，其余元素正常（A11）
 │       └── lifecycle.test.ts         attach/detach 后无 effect；多 Unit 各自 render 服务
 └── testing/
-    └── index.ts                      `@oce/engine-render/testing`：ManualScheduler、SpyRenderer(kind)、FakeSurface（记录 DOM 操作而不需要 DOM）、runRenderTargetConformance(factory)、runElementRendererConformance(renderer, fixtures)
+    └── index.ts                      `@cordexjs/engine-render/testing`：ManualScheduler、SpyRenderer(kind)、FakeSurface（记录 DOM 操作而不需要 DOM）、runRenderTargetConformance(factory)、runElementRendererConformance(renderer, fixtures)
 ```
 
 ---
 
-## 3. `@oce/render-dom`（dom）：RenderTarget Provider
+## 3. `@cordexjs/render-dom`（dom）：RenderTarget Provider
 
 ### 3.1 职责
 
-- HTML/SVG 输出：`DomSurface` 在宿主元素内创建 `.oce-surface > .oce-page[data-page-id] > (svg.master, svg.layout, svg.page, svg.overlay, div.text-host)`。
+- HTML/SVG 输出：`DomSurface` 在宿主元素内创建 `.cordex-surface > .cordex-page[data-page-id] > (svg.master, svg.layout, svg.page, svg.overlay, div.text-host)`。
 - 图元 API（供垂直束渲染器使用，避免每个渲染器手写 DOM）：`svg.path()/rect()/image()/text()/group()/clipPath()/gradient()/pattern()`，返回带 `set(attrs)` 的薄句柄；属性 diff 由句柄做（只写变化的 attribute）。
 - `FontFaceLoader`：把 `engine-layout` 的字体请求（`FontRequest{family, weight, style}`）解析为 `FontFace` 加载（嵌入字体 `fntdata` 由 ooxml-pptx 反混淆后以 `BlobRef` 提供；宿主字体经配置 URL），`document.fonts.load` 完成后触发 `layout/fonts-ready(families)` → 相关文本元素标脏重排。
 - `MediaResolver`：`BlobRef` → `blob:` URL（`MediaCache` 持有，revoke 在淘汰/页卸载时；借鉴 pptx-renderer 的 Blob URL 生命周期）。
@@ -175,7 +179,7 @@ packages/engine-render/
 
 ```
 packages/render-dom/
-├── package.json                      deps: @oce/engine-render @oce/engine-layout @oce/design(仅 CSS 变量名常量) ；dom
+├── package.json                      deps: @cordexjs/engine-render @cordexjs/engine-layout @cordexjs/design(仅 CSS 变量名常量) ；dom
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                     name='render-dom'；inject=['render','layout']；contribute render.target{ id:'dom' }；contribute render.overlay（selection/handles/remote-cursors）
@@ -189,7 +193,7 @@ packages/render-dom/
 │   ├── primitives/
 │   │   ├── svg.ts                    图元句柄工厂（属性 diff、命名空间、`<defs>` 管理）
 │   │   ├── paint.ts                  fill/stroke → SVG 属性/`<linearGradient>`/`<pattern>`/`<image>` 平铺；混合模式与不透明度
-│   │   ├── text-lines.ts             engine-layout 的 TextLayout → `<text>`/`<tspan>`（每行一 `<text>`，run 为 `<tspan x=…>`；下划线/删除线用 `<line>`）
+│   │   ├── text-lines.ts             engine-layout 的 TextLayout → `<text>`/`<tspan>`：**按行分块**——每行一个 `<text>` 块，行内按 run 属性差异切 `<tspan>`；LTR/CJK 行可给 `<tspan>` 显式 x，**含 RTL 字符的行 run 不设 x，交由浏览器做 bidi 重排**（M1 不自研 UAX#9；rulings §4.15 Q7、ADR-0027）；下划线/删除线用 `<line>`；RTL 与竖排按 ADR-0027 分阶段交付（rulings §4.15 Q7）
 │   │   └── clip.ts                   几何裁切、图片 srcRect 裁切
 │   ├── fonts/
 │   │   ├── font-face-loader.ts       FontFace 加载、去重、失败回退、fonts-ready 事件
@@ -210,12 +214,12 @@ packages/render-dom/
 │   ├── errors.ts                     render.dom.font_load_failed / render.dom.media_decode_failed
 │   └── __tests__/                    vitest browser mode（Chromium）：图元属性 diff、层克隆、字体回退、IME 组合事件序列（合成事件）、覆盖层坐标
 └── testing/
-    └── index.ts                      `@oce/render-dom/testing`：mountTestSurface(html)、snapshotSvg(page)（规范化后的 SVG 字串用于快照测试）、FakeFontFace
+    └── index.ts                      `@cordexjs/render-dom/testing`：mountTestSurface(html)、snapshotSvg(page)（规范化后的 SVG 字串用于快照测试）、FakeFontFace
 ```
 
 ---
 
-## 4. `@oce/slide-render`（dom，垂直束）：页合成与元素渲染器
+## 4. `@cordexjs/slide-render`（dom，垂直束）：页合成与元素渲染器
 
 ### 4.1 页合成（master → layout → slide）
 
@@ -231,12 +235,13 @@ packages/render-dom/
 | kind | 内容 | 关键点 |
 |---|---|---|
 | `sp` | 几何 + 填充/线 + 文本 | `prstGeom` → `engine-layout` 的路径生成（含 adj 手柄）；`custGeom` 解析；文本走 §5 布局后由 `text-lines` 绘制 |
-| `pic` | 图片 | `srcRect` 裁切、`stretch/tile`、几何裁切（图片形状）、EMF/WMF **不**内置矢量渲染：用包内预览位图，否则占位（章程 Q7 口径） |
+| `pic` | 图片 | `srcRect` 裁切、`stretch/tile`、几何裁切（图片形状）；EMF/WMF：M1 显示占位 + 诊断，**M2（P1）起经 emf-converter（Apache-2.0）在惰性 Worker chunk 中栅格化**为位图显示（chunk 不计入查看器 350 KB 基线；记录数/像素/耗时受 OF-24 上限约束；server-headless 用同一份代码），矢量渲染放 M4+；外链图片（`r:link`，仅 http(s)）默认自动加载，受部署配置 `externalResources`（`auto`\|`confirm`\|`never`）收紧，`never`/加载失败显示占位并记 degraded 原因 `external-resource-blocked`（rulings §4.15 Q7） |
 | `grpSp` | 组合 | 只产生一个 `<g transform>`（chOff/chExt → 子坐标映射）；子元素由合成结果扁平化后各自渲染进该 `<g>` |
 | `cxnSp` | 连接线 | 几何同 sp；端点由 `stCxn/endCxn` 解析到目标形状连接点（布局纯函数），目标移动时因依赖索引标脏 |
 | `graphicFrame/table` | 表格 | 行列尺寸、合并单元格、表格样式（tblStyle）继承（04）、单元格文本走 §5 |
-| `graphicFrame/chart` | 图表 | M1–M2：渲染包内预览位图（若有）否则占位；M3：图表数据建模后的最小 SVG 渲染（bar/line/pie）作为独立渲染器 kind `graphicFrame/chart` 由 `slide-render-chart` 子模块提供（可拆包） |
-| `graphicFrame/ole`、SmartArt(`dgm`) | 保留不编辑 | 渲染回退位图/占位符 |
+| `graphicFrame/chart` | 图表 | **按章程 D16**：M1–M2 `c:chart` 部件不透明保留，渲染器经 `ooxml-core/chartml` **只读解析**部件与缓存数据（`numCache`/`strCache`/轴/图例/标题）直接绘制 SVG（查看 SSIM ≥ 0.80，PRD OF-09）。M3 起数据建模与编辑，可编辑类型为**五类 bar / line / pie / area / scatter**（U-06），由 `slide-render-chart` 提供。`cx:chart`（chartex）：直接显示占位 + 诊断 `chartex-unsupported`，**不**渲染其 Fallback 文本 |
+| SmartArt（`dgm`） | 保留不编辑 | `ooxml-core` M1 只读解析 `dsp:drawing` 部件（含 `dsp:txXfrm`），复用 `sp` 画笔渲染其形状与文本；drawing 部件缺失时才占位 + 诊断 |
+| `graphicFrame/ole` | 保留不编辑 | 显示 `Ole.preview`（`mc:Fallback` 中的 `p:pic`，由 ooxml-pptx 导入时提取）走 `pic` 路径；预览为 EMF/WMF 时同 `pic` 行；无预览时才占位 |
 | `unknown` | — | 由 engine-render 占位 |
 
 所有渲染器都是**无状态查表项**：每个元素实例只持有自己的 DOM 句柄与上次模型引用。
@@ -245,12 +250,12 @@ packages/render-dom/
 
 ```
 packages/slide-render/
-├── package.json                      deps: @oce/model-slide @oce/engine-render @oce/render-dom @oce/engine-layout；dom
+├── package.json                      deps: @cordexjs/model-slide @cordexjs/engine-render @cordexjs/render-dom @cordexjs/engine-layout @cordexjs/ooxml-core（仅用于只读解析 chartml 与 diagram drawing，rulings §4.15 Q7 修订 §4.11 C-28）；dom
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                     name='slide-render'；inject=['render','layout','slides']；contribute render.element × N、PageRenderer、thumbnails Provider
 │   ├── manifest.ts
-│   ├── config.ts                     zod：{ layerTemplateCache: 32, thumbnails: { provider: 'dom-scaled' | 'server-png', width: 192, debounceMs: 300, maxMounted: 12 }, charts: { enabled: true } }
+│   ├── config.ts                     zod：{ layerTemplateCache: 32, thumbnails: { provider: 'dom-scaled' | 'server-png'（M3 起列表封面/网格；raster 只用于单页导出）, width: 192, debounceMs: 300, maxMounted: 12 }, charts: { enabled: true } }
 │   ├── slide-render.contribution.ts  Context { thumbnails: ThumbnailService }（UnitScope）；Events：slide/thumbnail-updated、slide/show-changed
 │   ├── page/
 │   │   ├── slide-page-renderer.ts    PageRenderer 实现：合成、keyed reconcile、classify、dependencies
@@ -262,8 +267,10 @@ packages/slide-render/
 │   │   ├── grp-sp.renderer.ts
 │   │   ├── cxn-sp.renderer.ts
 │   │   ├── table.renderer.ts
-│   │   ├── chart.renderer.ts         预览位图 + M3 最小图表
-│   │   ├── fallback.renderer.ts      ole/dgm/未知 graphic：预览位图或占位
+│   │   ├── chart.renderer.ts         D16 只读解析路径（ooxml-core/chartml → SVG；M1–M2 惰性子路径 `@cordexjs/slide-render/chart`，M3 拆为 slide-render-chart，五类）；chartex → 占位 + chartex-unsupported
+│   │   ├── diagram.renderer.ts       SmartArt：dsp:drawing 只读解析结果 → 复用 sp 画笔（M1）
+│   │   ├── ole.renderer.ts           OLE：Ole.preview 走 pic 路径；无预览 → 占位
+│   │   ├── fallback.renderer.ts      未知 graphicData：占位 + 诊断
 │   │   └── shared/
 │   │       ├── geometry.ts           模型 geom → engine-layout 路径 + 文本内接矩形（txRect）
 │   │       ├── paint-resolver.ts     已解析样式（04）→ render-dom paint 参数（颜色变换 lumMod/tint/alpha 等由 04 的 color 纯函数完成）
@@ -271,10 +278,11 @@ packages/slide-render/
 │   ├── thumbnails/
 │   │   ├── thumbnail.service.ts      ThumbnailService：get(slideId) → { url | element, version }；订阅 dirtyPages；去抖；Provider 选择
 │   │   ├── dom-scaled.provider.ts    可见缩略图 = 独立小 Surface 挂载页（复用模板层）+ CSS scale；≤ maxMounted，IntersectionObserver 驱动
-│   │   └── server-png.provider.ts    从 `GET /api/v1/documents/:id/thumbnails/:slideId?seq=` 取 PNG（08/ADR-0026）；本地脏页在 PNG 到达前用 dom-scaled 兜底
+│   │   ├── raster.provider.ts        主线程 toImage 栅格化（游离 DOM → SVG 序列化 → Image → canvas）；Web 字体可用性待 M2 spike，结论前不用于封面与批量 PNG（替代原 offscreen-canvas Provider）
+│   │   └── server-png.provider.ts    从 `GET /api/v1/documents/:id/thumbnails/:slideId` 取 640 px WebP（M3 起，renderer sidecar 生成，08/ADR-0026）；识别 `provisional`（M2 包内 thumbnail.jpeg 过渡封面）并在其后回退 dom-scaled；本地脏页在图到达前用 dom-scaled 兜底
 │   ├── show/
 │   │   └── slideshow.ts              放映模式：Viewport.mode='show'、全屏、键盘翻页、黑屏/白屏；动画/切换不播放（Q7），预留贡献点 slide.showTransition
-│   ├── errors.ts                     slide.render.*（geometry_unsupported、chart_preview_missing）
+│   ├── errors.ts                     slide.render.*（geometry_unsupported、chart_parse_failed、chartex_unsupported、external_resource_blocked、emf_raster_failed）
 │   └── __tests__/
 │       ├── compose-reconcile.test.ts 版式切换复用元素实例；z 变化只移动节点
 │       ├── elements/*.test.ts        每个渲染器的 SVG 快照（规范化）+ runElementRendererConformance
@@ -282,12 +290,12 @@ packages/slide-render/
 │       ├── autofit.test.ts           normAutofit/spAutoFit 收敛（≤ 6 次迭代）
 │       └── thumbnails.test.ts        去抖、maxMounted、Provider 切换
 └── testing/
-    └── index.ts                      `@oce/slide-render/testing`：renderSlideToSvgString(snapshot, slideId)（headless 断言用）、fixtures（覆盖每个 kind 的最小 Snapshot）
+    └── index.ts                      `@cordexjs/slide-render/testing`：renderSlideToSvgString(snapshot, slideId)（headless 断言用）、fixtures（覆盖每个 kind 的最小 Snapshot）
 ```
 
 ---
 
-## 5. `@oce/engine-layout`（iso）：度量与断行（ADR-0027）
+## 5. `@cordexjs/engine-layout`（iso）：度量与断行（ADR-0027）
 
 ### 5.1 策略：自己断行（layout-then-paint），度量器可插拔
 
@@ -296,7 +304,7 @@ packages/slide-render/
   - `canvas`（render-dom）：`OffscreenCanvas.measureText`，含实际字体回退行为，**客户端与 headless Chromium 都用它**，因此两端一致（同字体集）。
   - `fontkit`（server-headless，可选，M4+）：Node 解析字体文件计算 advance，用于**无浏览器**的服务端路径（例如导出 PDF/校验），标注为「近似一致」（无 shaping 差异保证）。
 - 断行算法：按 UAX#14 行断机会（`Intl.Segmenter` 或内置表）+ 东亚禁则；run 边界为字距重置点（与 PowerPoint 行为一致）；每行输出 `LineBox { y, ascent, descent, runs: [{ x, text, attrs }] }`。
-- **一致性策略**：字体集受控（§5.3）+ 度量缓存键含 `fontKey + text`（按 word 缓存）+ 版本化的 `layoutAlgorithmVersion` 进入缩略图缓存键（服务端 PNG 与客户端算法版本不一致时以客户端为准并触发重生成）。
+- **一致性策略**：字体集受控（§5.3）+ 度量缓存键含 `fontKey + text`（按 word 缓存）+ 版本化的 `layoutAlgorithmVersion` 进入缩略图缓存键（服务端缩略图（640 px WebP）与客户端算法版本不一致时以客户端为准并触发重生成）。
 
 ### 5.2 API（草案）
 
@@ -323,13 +331,13 @@ interface TextLayout { lines: LineBox[]; contentHeight: number; overflow: boolea
 | 微软雅黑/宋体/黑体 等 CJK | Noto Sans CJK SC / Noto Serif CJK SC | 度量不完全兼容，标注为 `approx` |
 | 主题 `+mj-lt`/`+mn-lt`/`+mj-ea`/`+mn-ea` | 由 04 的主题解析替换为实际族后再查表 | — |
 
-嵌入字体（`ppt/fonts/*.fntdata`）优先于回退表；许可证不允许再分发的字体不会进入服务端字体包（运维清单）。
+嵌入字体（`ppt/fonts/*.fntdata`）优先于回退表，单个 ≤ 20 MB、总计 ≤ 60 MB（PRD OF-17）；`fsType` 为受限（restricted / preview & print）的嵌入字体**只用于只读渲染**（查看、放映、缩略图），进入编辑态的文本框改用回退字体（rulings §4.15 Q7）；许可证不允许再分发的字体不会进入服务端字体包（运维清单）。
 
 ### 5.4 目录结构（`packages/engine-layout/`）
 
 ```
 packages/engine-layout/
-├── package.json                      deps: @oce/shared；iso（Intl.Segmenter 可用性检测 + 内置回退表）
+├── package.json                      deps: @cordexjs/shared；iso（Intl.Segmenter 可用性检测 + 内置回退表）
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                     name='engine-layout'；provide=['layout']；inject 可选 measurer（ctx.get('measurer')，缺失 → PENDING 等待 Provider，符合 primer）
@@ -355,11 +363,11 @@ packages/engine-layout/
 │   ├── fonts/
 │   │   ├── fallback-table.ts         默认表 + 合并策略
 │   │   └── font-key.ts               family/weight/style/size → 规范化键
-│   ├── units.ts                      Emu/Pt/px 换算（品牌类型来自 @oce/shared）
+│   ├── units.ts                      Emu/Pt/px 换算（品牌类型来自 @cordexjs/shared）
 │   ├── errors.ts                     layout.measurer_missing / layout.geometry_formula_error
 │   └── __tests__/                    断行黄金用例（含 CJK/混排/禁则）、几何表全量求值不抛错、autofit 收敛、度量缓存淘汰
 └── testing/
-    └── index.ts                      `@oce/engine-layout/testing`：FixedWidthMeasurer（每字等宽，确定性）、runMeasurerConformance(factory)
+    └── index.ts                      `@cordexjs/engine-layout/testing`：FixedWidthMeasurer（每字等宽，确定性）、runMeasurerConformance(factory)
 ```
 
 ---
@@ -405,11 +413,14 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 
 | 方案 | 何时用 | 成本 |
 |---|---|---|
-| `dom-scaled`（缩放 DOM 克隆） | M1/M2 默认；可见缩略图 ≤ 12 个，IntersectionObserver 驻留 | 每个 ≈ 一页 DOM；模板层共享；更新 = 与主页面共享的合成结果重挂 |
-| `server-png`（Q8） | M3 起：非可见/全览网格/文档列表封面；来自 server-headless 的 PNG（ADR-0026） | 网络请求 + 缓存；本地脏页在 PNG 到达前用 dom-scaled 兜底 |
-| `canvas-raster`（本地栅格化） | 备选（未采用）：SVG 序列化 → `<img>` → canvas；受 `blob:` 外链限制需内联图片为 data URI | 大图内联成本高；放弃，写入 ADR-0026 备选 |
+| `dom-scaled`（缩放 DOM 克隆） | **可见缩略图的唯一方案**（M1 起）；可见缩略图 ≤ 12 个（`maxMounted`，与 PRD OF-15「上下各 10 项」统一按 12 计），IntersectionObserver 驻留 | 每个 ≈ 一页 DOM；模板层共享；更新 = 与主页面共享的合成结果重挂 |
+| `raster`（主线程 toImage 栅格化） | 需要位图时（复制为图片、导出单页 PNG）：游离 DOM → SVG 序列化 → `Image` → `<canvas>` → Blob；**只在主线程**，不做 Worker 版本；`blob:` 媒体先内联为 data URI | 已知问题：序列化后的 SVG 在图像上下文里**用不到页面已加载的 Web 字体**（CJK 尤甚）→ 列为 **M2 位图 spike**（候选：`@font-face` 以 data URI 内联子集）；spike 结论前，封面与批量 PNG 不走本方案 |
+| 包内封面（M2 过渡） | 文档列表卡片封面：导入时取包内 `docProps/thumbnail.jpeg`（服务端只做 JPEG 头校验不解码），标 `provisional` | 零渲染成本；无该部件的文档显示占位 |
+| `server-png`（Q8，ADR-0026） | **M3 前半段起**：文档列表封面、全览网格、批量 PNG、分享预览；由独立 renderer sidecar（headless Chromium，同一份渲染代码）生成 **640 px WebP**（分享/版本预览按需 1280 px）；按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s | 网络请求 + 缓存；本地脏页在图到达前用 dom-scaled 兜底 |
 
-放映模式：`Viewport.mode='show'` + Fullscreen API；渲染同一 Surface（fit 到屏幕）；不播放动画/切换（Q7）；预留 `slide.showTransition` 贡献点（M4+）。
+- 14 §5.4 采纳的 offscreen-canvas 缩略图 Provider 被推翻（rulings §4.15 Q4），由上表 `raster` 取代；canvas 在本节只作 `raster` 的栅格画板。
+
+放映模式：`Viewport.mode='show'` + Fullscreen API；渲染同一 Surface（DOM/SVG，fit 到屏幕），不走 canvas；不播放动画/切换（Q7）。**动画结束态按场景**（rulings §4.15 Q7）：编辑、缩略图、PDF 等静态场景一律全部元素可见；放映时按主动画序列的可见性终态显示（`p:timing` 只读解析，M2 P1）。预留 `slide.showTransition` 贡献点（M4+）。
 
 ---
 
@@ -426,6 +437,7 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 | 单属性变更 | 恰 1 个元素 `update`；≤ 5 ms | 单测（A28）+ trace |
 | 版式变更 | 页级重合成 ≤ 30 ms（30 元素） | bench |
 | 内存（200 页，含 12 缩略图） | 堆 ≤ 300 MB；MediaCache ≤ 256 MiB | `performance.memory`/Playwright CDP `HeapProfiler` |
+| 内存与元素上限的关系（rulings §4.15 Q5） | 300 MB 客户端堆预算只对**性能保证包络**（D200 ≈ 6,000 元素，Y 堆实测 ≈ 85 MB）承诺；系统天花板 20,000 元素时仅 Y 状态就约 276 MB，加上渲染缓存会超出 300 MB——天花板内保证「能打开、能编辑、不崩」，不承诺包络内的帧率与堆预算；新增 DX-20K（200 页 × 100 元素）参考文稿只做监测、不设门禁 | `test/perf/budgets.json` 的 `envelope` / `ceiling` 两档 |
 | 缩略图刷新延迟 | ≤ 300 ms 去抖后 ≤ 100 ms | e2e |
 | 字体到达后重排 | ≤ 1 帧内标脏，重排仅涉及该字体的文本 | 单测 |
 
@@ -436,16 +448,22 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 ## 10. 服务端 headless 渲染路径（Q8，ADR-0026）
 
 ```
-BullMQ job thumbnails.render{docId, snapshotSeq, slideIds?}
-  → server-headless ThumbnailRenderer：Playwright Chromium 池（每进程 2 页面）
-  → page.goto(<web 构建的 /render 路由>?token=…)         同一份 preset-slide（viewer 模式，无 UI、无协同）
-  → 页面拉取快照（GET /internal/render/:token/state）→ 打开 Unit → 逐页 mount → 等待 fonts-ready + render/frame 静止
-  → page.screenshot(clip=页容器, deviceScaleFactor=2) → PNG → S3 → thumbnails 表 upsert
+M2：导入时取包内 docProps/thumbnail.jpeg 作过渡封面（头校验，不解码，不渲染）
+M3 前半段：
+BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = 页内容哈希
+  → worker（CORDEX_ROLE=worker，持凭据）组装 state + 媒体 + 字体 → remote-renderer.client.ts 鉴权内部 RPC（契约 @cordexjs/protocol/render/sidecar.ts）→ renderer sidecar
+  → renderer（CORDEX_ROLE=renderer，独立容器，零出站，非 root，chromiumSandbox + seccomp，无任何凭据）
+       每任务新建 BrowserContext；/render 静态包内置于镜像；state/资源/字体全部经注入，不做任何网络拉取
+       同一份 preset-slide-viewer（无 UI、无协同）→ 打开 Unit → mount 该页 → 等 fonts-ready + render/frame 静止
+       → 截图并在沙箱内直接编码 640 px WebP → 返回字节
+  → worker → S3（SeaweedFS/客户 S3）→ thumbnails 表 upsert{ source:'server', contentHash }
 ```
 
 - 与客户端**同一渲染代码、同一字体包、同一布局算法版本** ⇒ 像素级一致（视觉 oracle 在 11 中同时校验客户端与服务端输出）。
-- 预算：≤ 400 ms/页 p95 @ 1280×720×2；单 job ≤ 200 页 ≤ 60 s；失败重试 3 次；去重键 `(docId, snapshotSeq)`。
-- 安全：渲染页面运行在无网络策略的 Chromium（仅允许访问 apps/server 内部地址）；外部图片链接不加载。
+- **失效**：按页内容哈希——输入 = 页子树 + 版式/母版/主题依赖闭包 + 媒体 BlobRef + slideSize + 页序号 + 内嵌字体集合 + `layoutAlgorithmVersion` + fontProfile；外链一律占位且不计入哈希。Compaction 之后只把哈希变化的页入队。
+- 预算：导入完成后首页高优先生成 ≤ 10 s；D200 全量 ≤ 90 s；其余页按需惰性生成；失败重试 3 次。
+- 安全：renderer 零出站（外链图片**服务端永不加载**，与客户端 `externalResources` 无关）；用 `--shm-size` 而非 `--ipc=host`；定期回收浏览器；镜像每周随 Chrome 稳定版重建、与 worker 锁步发布；不暴露无鉴权的 Playwright run-server WS。部署配置以 ADR-0037 为准：`headless.mode = 'remote'`（默认，配 `headless.endpoint` 指向 renderer sidecar，客户端文件 `remote-renderer.client.ts`）或 `'local'`；自带 Nest 的集成方（EM-10 b）可用 `headless.mode:'local'` 在 worker 内直接 launch，同一份代码。
+- 不用 sharp（依赖 libvips，LGPL，违反 D13），服务端对不可信图片不解码。
 
 ---
 
@@ -467,16 +485,16 @@ BullMQ job thumbnails.render{docId, snapshotSeq, slideIds?}
 
 | # | 事项 | 默认 | 决策人 |
 |---|---|---|---|
-| R1 | 图表 M3 的最小可编辑渲染范围（bar/line/pie 以外） | 仅三类，其余位图 | 产品 |
+| R1 | ~~图表 M3 的最小可编辑渲染范围~~ | **已结案**（rulings §4.12 U-06、§4.15 Q7）：可编辑五类 bar / line / pie / area / scatter；其余类型按 D16 只读解析渲染，chartex 占位 | — |
 | R2 | a11y 目标级别（WCAG 2.2 AA 的哪些条款在 M2 必达） | 键盘可达 + 基本朗读 | 产品/设计 |
-| R3 | 服务端字体包清单与许可 | Noto + Liberation + Carlito/Caladea | 运维/法务 |
+| R3 | ~~服务端字体包清单与许可~~ | **已结案**（章程 Q19，rulings §4.16）：内置 Noto（含 CJK）+ Liberation + Carlito/Caladea（均开源），随 renderer 镜像发布；**部署方可挂载自有授权字体目录**；不内置商业字体 | — |
 | R4 | headless 渲染页放在 apps/web 的 `/render` 路由还是独立 `apps/render-page` | apps/web 路由（无章程改动） | 架构 A |
-| R5 | 缩略图默认 Provider 在 M3 是否切到 server-png | 可见项 dom-scaled，其余 server-png | 产品 |
+| R5 | ~~缩略图默认 Provider 在 M3 是否切到 server-png~~ | **已结案**（rulings §4.15 Q4/Q8）：可见项 dom-scaled；M2 封面取包内 thumbnail.jpeg；M3 起列表封面/网格/批量走 server-png（renderer sidecar） | — |
 
 ## 13. 对章程的异议/建议
 
-- **S5（由章程 v0.2 的 `package.json#oce.iso` 逐包字段解决）**：`engine-render` 为 `iso`，`render-dom` 为 `dom`。
-- **S6（已批准，进入章程 v0.2）**：`slide-render` 的图表渲染在 M3 拆为 `@oce/slide-render-chart`（V-render，dom，可选插件，惰性 ≤ 400 KB），避免图表库体积进入基础束（A33）。
+- **S5（由章程 v0.2 的 `package.json#cordex.iso` 逐包字段解决）**：`engine-render` 为 `iso`，`render-dom` 为 `dom`。
+- **S6（已批准，进入章程 v0.2）**：`slide-render` 的图表渲染在 M3 拆为 `@cordexjs/slide-render-chart`（V-render，dom，可选插件，惰性 ≤ 400 KB），避免图表库体积进入基础束（A33）。
 
 ## 术语补充
 
@@ -506,9 +524,9 @@ BullMQ job thumbnails.render{docId, snapshotSeq, slideIds?}
 | `Surface` / `PageView` / `LayerHandle` | `RenderTarget{ mount(container) → TargetHandle, paint(scene, dirty), hitTest, toImage?, dispose }` | 每个已挂载页一个 `TargetHandle`（虚拟化窗口 ≤ 3/6）；模板层克隆是 dom target 内部优化 |
 | `Measurer` / 服务 `measurer` | `TextMeasurer`，贡献点 `layout.measurer`（key = id：`canvas`、`node-font`、`fixed`） | `ctx.layout.measurer()` 取当前 Provider；本文各处 `Measurer` 读作 `TextMeasurer` |
 | 事件 `render/frame`、`render/element-error` | 总编排定稿：cordis 事件 `render/frame(unitId, stats)`（进程内消费）+ 遥测事件 `perf/frame`（由前者派生，10 §3.4）；`render/element-failed`（保留）、`render/first-paint`、`render/element-degraded`、`render/font-fallback`；02 的 `render/painted` 弃用 | `render/frame` 每帧一次，只供进程内订阅（渲染统计、devtools、缩略图去抖）；对外只暴露 `perf/frame` 遥测事件（抽样）与 `render/first-paint`；本文各处 `render/element-error` 读作 `render/element-failed` |
-| 命中：几何优先 | dom target：`elementFromPoint → data-oce-node`，几何回退（旋转盒/组合） | 契约 `hitTest(point) → HitResult{ nodeId, region, local }` 不变；`bail` 链 overlay → target |
+| 命中：几何优先 | dom target：`elementFromPoint → data-cordex-node`，几何回退（旋转盒/组合） | 契约 `hitTest(point) → HitResult{ nodeId, region, local }` 不变；`bail` 链 overlay → target |
 | 隐藏 `textarea` 宿主 | 02 `render-dom/layers/ime-host.ts` 写作 contenteditable | 由 ADR-0028 决定：`TextInputHost` 为可替换 Definition，Provider `hidden-textarea`（默认）与 `contenteditable-mirror`（备选），spike 后定稿（R-M2-1） |
-| 缩略图 `dom-scaled` | `RenderTarget.toImage`（SVG 序列化 → Image → Canvas）用于客户端 PNG 导出与缩略图 | `toImage` 必须把 `blob:` 图片内联为 data URI（SVG-as-image 不允许外链）；可见缩略图默认仍用 `dom-scaled`；PNG 导出走 `toImage`，服务端走 headless（ADR-0026） |
+| 缩略图 `dom-scaled` | `RenderTarget.toImage`（SVG 序列化 → Image → Canvas）用于客户端 PNG 导出 | `toImage` **只在主线程**执行（rulings §4.15 Q4），必须把 `blob:` 图片内联为 data URI（SVG-as-image 不允许外链）；Web 字体在图像上下文不可用列为 M2 spike；可见缩略图始终用 `dom-scaled`；封面与批量 PNG 在 spike 结论前走 M2 包内封面 / M3 server-png（renderer sidecar，ADR-0026） |
 | 贡献点 id | camelCase（章程 v0.2）：`render.target`、`render.element`、`render.scene`、`render.overlay`、`layout.measurer`、`slide.shapeKind`、`slide.showTransition` | 本文命名已符合 |
 
 ### 14.2 打开管线：Worker 解析、分片加载与主线程预算（NF-01）
@@ -531,14 +549,14 @@ main: units.open(bytes)                                worker（同一 iso 插�
 - M2：`cxnSp` 端点由 `stCxn/endCxn{ id, idx }` 解析到目标形状 `cxnLst` 连接点（`engine-layout/geometry` 从预设几何表得到连接点坐标与法向）；SceneProvider 维护「连接符 → 目标形状」依赖索引，目标 `xfrm` 变化 → 连接符节点进入 `DirtySet`；直线连接符端点跟随。
 - M3：`engine-layout/geometry/connector-routing.ts`：`bentConnector2–5` / `curvedConnector2–5` 的调整值（`adj1…`）按 PowerPoint 规则由两端连接点坐标与法向重算（纯函数）；结果由命令层在端点变化时作为 Mutation 写回 `geom.adj`（导出一致）。预算：≤ 1 ms/连接符；每页 ≤ 50 连接符。
 
-### 14.4 图表与内嵌工作簿（PD-06；S6 已批准：`@oce/slide-render-chart`，V-render，dom，惰性 ≤ 400 KB）
+### 14.4 图表与内嵌工作簿（PD-06；S6 已批准：`@cordexjs/slide-render-chart`，V-render，dom，惰性 ≤ 400 KB）
 
-- M1–M2：图表部件不透明保留，渲染包内预览图（缺失 → 占位）；内嵌 `.xlsx` 原样保留。
-- M3：`slide-render-chart` 渲染 bar/line/pie 数据模型（A-11）；编辑数据 → 命令写图表数据缓存（`c:numCache/strCache`）并把图表部件与其 `embeddings/*.xlsx` 标脏；**默认策略「重生成最小内嵌工作簿」**（单工作表：类别列 + 序列列，与 `c:f` 引用一致），使 PowerPoint「编辑数据」可用；数据未变则原字节回写。工作簿生成器归 `ooxml-core`/`ooxml-pptx`（A 线），本文只定策略与触发点。
+- M1–M2（章程 D16）：图表部件不透明保留，渲染器经 `ooxml-core/chartml` 只读解析部件与缓存数据后绘制 SVG（查看 SSIM ≥ 0.80，OF-09）；内嵌 `.xlsx` 原样保留；`cx:chart`（chartex）占位 + `chartex-unsupported` 诊断。
+- M3：`slide-render-chart` 渲染并编辑五类 bar / line / pie / area / scatter 数据模型（A-11、U-06）；编辑数据 → 命令写图表数据缓存（`c:numCache/strCache`）并把图表部件与其 `embeddings/*.xlsx` 标脏；**默认策略「重生成最小内嵌工作簿」**（单工作表：类别列 + 序列列，与 `c:f` 引用一致），使 PowerPoint「编辑数据」可用；数据未变则原字节回写。工作簿生成器归 `ooxml-core`/`ooxml-pptx`（A 线），本文只定策略与触发点。
 
 ### 14.5 服务端渲染与分层规则（章程 v0.2 层号编码）
 
-`server-headless`（`package.json#oce = { layer: 'LS', iso: 'node' }`）允许依赖 `engine-layout` 与 `engine-render` 的 **iso** 契约（L5），**不得** import `render-dom`（dom）；缩略图/PDF 的实际绘制发生在 headless Chromium 加载的 `apps/web` `/render` 路由页面内（ADR-0026），`server-headless` 只编排。
+`server-headless`（`package.json#cordex = { layer: 'LS', iso: 'node' }`）允许依赖 `engine-layout` 与 `engine-render` 的 **iso** 契约（L5），**不得** import `render-dom`（dom）；缩略图/PDF 的实际绘制发生在 headless Chromium 加载的 `apps/web` `/render` 路由页面内（ADR-0026），`server-headless` 只编排；Chromium 运行在独立 renderer sidecar（`CORDEX_ROLE=renderer`，零出站、无凭据），`/render` 静态包内置于 renderer 镜像，state 与资源经鉴权内部 RPC 注入（§10，rulings §4.15 Q8/Q10）。slide-render 允许依赖 `ooxml-core` 仅用于只读解析 chartml 与 diagram drawing（rulings §4.15 Q7 修订 §4.11 C-28）。
 
 ### 14.6 性能预算：与 PRD NF-01 的对照（差异以本文技术判断为准并注明）
 
@@ -560,7 +578,7 @@ main: units.open(bytes)                                worker（同一 iso 插�
 | 缩略图栏滚动（200 页） | ≥ 55 fps | 同 | 采纳（虚拟化 ≤ 12 挂载） |
 | 内存 D50 / D200 稳态 | ≤ 250 / 700 MB（JS heap + 可回收资源） | heap ≤ 300 MB + MediaCache ≤ 256 MiB + DOM | 总量在 700 MB 内；本文拆成可分别测量的两项；峰值 ≤ 350 MB / 1.0 GB 采纳 |
 | 20 次打开/关闭 heap 增长 | ≤ 5% | 同 | **采纳 5%**（取代本文 e2e 中的 10%）；`getEffects()` 为空、blob URL 泄漏 0 一并采纳 |
-| 导出（客户端 Worker） | pptx ≤ 3 / 12 s；PNG 单页 ≤ 300 ms @1920；全量 ≤ 15 / 60 s @1280；导出期间可编辑 | 同 | 采纳；导出在 Worker（14.2） |
+| 导出（客户端） | pptx ≤ 3 / 12 s；PNG 单页 ≤ 300 ms @1920；全量 ≤ 15 / 60 s @1280；导出期间可编辑 | pptx 同；PNG 见说明 | **修正**（rulings §4.15 Q4）：pptx 编码在 Worker 中对快照副本运行（14.2），满足「导出期间可编辑」；PNG 在 SVG 路线下**无法在 Worker 内完成**（需要 DOM 布局与序列化），单页 PNG 走主线程 `toImage` 并按页分片（每片 ≤ 50 ms 让出主线程），全量 PNG 批量从 M3 起走 server-png（renderer sidecar）；M2 位图 spike 结论前，客户端 PNG 预算只对「单页、无 Web 字体依赖」场景门禁 |
 | 体积（gzip） | 查看器 ≤ 350 KB、编辑器 ≤ 900 KB、协同增量 ≤ 200 KB、图表 ≤ 400 KB（惰性）；超 5% 失败 | 同 | 采纳；Yjs 全家 ≈ 60–80 KB 在协同增量内；图表拆包（S6） |
 | 文本搜索 / 全部替换 / 主题切换 | ≤ 200 / 500 / 100 ms | 同 | 采纳（搜索走模型索引，不走 DOM） |
 
@@ -568,4 +586,4 @@ main: units.open(bytes)                                worker（同一 iso 插�
 
 ### 14.7 服务端 PDF（PD-16 / SV-02）
 
-headless Chromium 加载 `/render?mode=print` → `page.pdf({ width: slideW, height: slideH, printBackground: true })`；页面尺寸 = 幻灯片尺寸（16:9 或原始比例），字体由 Chromium 子集嵌入；D50 ≤ 10 s（p95）；与 PowerPoint 导出 PDF 逐页 SSIM ≥ 0.85（11 §17）。自研矢量 PDF 为后续（PD-16 裁决）。渲染代码与客户端一致，度量器为 Chromium canvas（ADR-0027 补充）。
+**M3 后半段**交付（与缩略图共用 renderer 池，分队列）：renderer sidecar 中的 headless Chromium 加载 `/render?mode=print` → `page.pdf({ width: slideW, height: slideH, printBackground: true })`；页面尺寸 = 幻灯片尺寸（16:9 或原始比例），字体由 Chromium 子集嵌入；D50 ≤ 10 s（p95）；与 PowerPoint 导出 PDF 逐页 SSIM ≥ 0.85（11 §17）。自研矢量 PDF 为后续（PD-16 裁决）。渲染代码与客户端一致，度量器为 Chromium canvas（ADR-0027 补充）。

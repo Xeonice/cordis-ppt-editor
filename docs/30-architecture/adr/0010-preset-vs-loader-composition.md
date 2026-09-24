@@ -18,7 +18,7 @@ cordis 提供两种组合方式：程序化 `ctx.plugin()`（任何环境）与 
 4. **loader**：仅 `server-headless` 可选启用（`createHeadlessHost({ composition: { kind: 'loader', configPath } })`），用于运维按 YAML 增删插件与 HMR 调试；默认关闭，浏览器**永不**引入 loader（R12 例外只对 `server-headless`）。
 5. **三个 preset 的组成**（详见 02 §4.21）：
    - `preset-slide-viewer`：kernel（host 自带）+ model-core + store-memory + model-slide（主入口，不含 editing 子插件）+ ooxml-pptx + engine-layout + engine-render + render-dom + slide-render + i18n + design(css) + 只读权限策略 + 极简查看器壳（框架无关）；惰性：图表渲染器、语言包。
-   - `preset-slide`：viewer 全部 + `@oce/model-slide/editing`（命令与变更）+ ui-core + ui-react + slide-ui + collab-core(local presence)。
+   - `preset-slide`：viewer 全部 + `@cordexjs/model-slide/editing`（命令与变更）+ ui-core + ui-react + slide-ui + collab-core(local presence)。
    - `preset-slide-collab`：preset-slide 以 store-yjs 替换 store-memory + collab-yjs + collab-transport-ws；presence 由 collab-yjs 提供。
 6. **PresetReport**：`apply` 不 await 单个条目；全部挂载后 `allSettled` 汇总 ACTIVE/PENDING/FAILED（03 §8），供扩展面板（PRD PS-11）与 `plugin/*` 遥测事件。
 
@@ -29,7 +29,7 @@ cordis 提供两种组合方式：程序化 `ctx.plugin()`（任何环境）与 
 | 浏览器也用 loader（YAML/JSON 配置驱动） | loader 面向文件系统与动态 import 字符串；无法 tree-shake；浏览器体积预算不允许；配置校验发生在运行时而非编译期 |
 | 只有一个大 preset + 运行时开关 | 违背按需加载；查看器会带上编辑器代码（350 KB 不可达） |
 | 每个插件由集成方手工 `ctx.plugin`（无 preset） | 30+ 插件的正确组合是产品知识，不应转嫁；preset 也是「移除 Provider 仍可启动」测试的落点 |
-| 图表渲染器从 M1 就独立成包 | 总编排已接受 `@oce/slide-render-chart`（V-render，dom）但定为 **M3 起拆出**；M1–M2 以 `@oce/slide-render/chart` 子路径 + 惰性条目实现同等隔离（独立 chunk、可 exclude），M3 拆包时 preset 条目只改 import 路径 |
+| 图表渲染器从 M1 就独立成包 | 总编排已接受 `@cordexjs/slide-render-chart`（V-render，dom）但定为 **M3 起拆出**；M1–M2 以 `@cordexjs/slide-render/chart` 子路径 + 惰性条目实现同等隔离（独立 chunk、可 exclude），M3 拆包时 preset 条目只改 import 路径 |
 
 ## 后果
 

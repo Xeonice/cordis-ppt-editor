@@ -15,13 +15,13 @@ TypeScript 是结构化类型系统：两个字段完全相同的接口互相兼
 采用"品牌类型"（branded / nominal typing 的结构化近似）模式：
 
 ```ts
-// 示意，定义于 @oce/shared
+// 示意，定义于 @cordexjs/shared
 type Brand<T, TBrand extends string> = T & { readonly __brand: TBrand }
 type Emu = Brand<number, 'Emu'>
 type UnitId = Brand<string, 'UnitId'>
 ```
 
-每个品牌类型配一个同名小写开头的构造函数 + 一个 zod schema（[05§4](../09-type-discipline/05-runtime-boundaries.md#4-品牌类型branded-types)），构造函数是唯一合法的"裸值 → 品牌类型"入口，内部做真正的校验（范围/格式），不是简单包一层类型断言。除 `@oce/shared` 自身外，其余代码不得用 `as` 构造品牌类型——这一点由 [ADR-0041](./0041-assertion-policy.md) 的断言禁令自动闭合，不需要品牌类型模式本身再发明一条新规则。
+每个品牌类型配一个同名小写开头的构造函数 + 一个 zod schema（[05§4](../09-type-discipline/05-runtime-boundaries.md#4-品牌类型branded-types)），构造函数是唯一合法的"裸值 → 品牌类型"入口，内部做真正的校验（范围/格式），不是简单包一层类型断言。除 `@cordexjs/shared` 自身外，其余代码不得用 `as` 构造品牌类型——这一点由 [ADR-0041](./0041-assertion-policy.md) 的断言禁令自动闭合，不需要品牌类型模式本身再发明一条新规则。
 
 模式统一应用于：度量单位（`Emu`、`Pt`，未来视需要扩展的其他 OOXML 单位）、标识符（`UnitId`、`SlideId`、`ShapeId`，以及模式天然延伸到的任何新增 `*Id` 类型，如 `MasterId`、`ThemeId`、`CommentId`）。
 
@@ -42,7 +42,7 @@ type UnitId = Brand<string, 'UnitId'>
 ## 如何被机械验证
 
 - 品牌类型不被绕过：[ADR-0041](./0041-assertion-policy.md) 的 `as`/`!` 禁令（间接闭合"绕过构造函数直接断言"的路径）。
-- 构造函数是唯一入口：代码评审 + `@oce/shared` 目录内聚约定（品牌类型定义与构造函数相邻存放，便于评审者一并核对）；未设独立 AST 规则限定"只有 `@oce/shared` 能构造品牌类型"，因为 TS 的品牌交叉类型本身在结构上允许任何持有正确形状对象的代码通过（这是结构化类型系统的固有特性，非本方案能完全封堵的点，记录为已知限制）。
+- 构造函数是唯一入口：代码评审 + `@cordexjs/shared` 目录内聚约定（品牌类型定义与构造函数相邻存放，便于评审者一并核对）；未设独立 AST 规则限定"只有 `@cordexjs/shared` 能构造品牌类型"，因为 TS 的品牌交叉类型本身在结构上允许任何持有正确形状对象的代码通过（这是结构化类型系统的固有特性，非本方案能完全封堵的点，记录为已知限制）。
 
 ## 关联
 

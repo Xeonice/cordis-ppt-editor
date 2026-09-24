@@ -42,7 +42,7 @@
 | `Unit` / `UnitScope`（L1） | 一份 .docx 一个 Unit | 一份 .xlsx 一个 Unit；工作表**不是** Unit（是 body 内实体） | ✅ 共享；不引入 subUnit |
 | `DocumentType<S>`（L1） | `id:'doc'`，`unitServices:['docs']`，`selectionKinds:['text','block','tableCell']` | `id:'sheet'`，`unitServices:['sheets']`，`selectionKinds:['range','sheet']` | ✅ 共享；selectionKinds 已参数化 |
 | `DocumentStore<S>` + 5 原语（L1） | `text` op 是主角；块顺序 = `blocks.<id>.order` 单键 `set` | `set/delete` 于稀疏 cells 键；工作表顺序 = `sheets.<id>.order`；行列插入 = 大量键重写（见 §3.2） | ✅ 原语足够；⚠ sheet 行列插入的性能需 Provider 侧批量优化（不改契约） |
-| `order: FracKey`（`@oce/shared/order`，L0） | 块顺序；并发插入同位按 `(order, id)` 确定 | 工作表顺序 | ✅ 与 slide 完全相同的机制（ADR-0032） |
+| `order: FracKey`（`@cordexjs/shared/order`，L0） | 块顺序；并发插入同位按 `(order, id)` 确定 | 工作表顺序 | ✅ 与 slide 完全相同的机制（ADR-0032） |
 | `Snapshot`/`Migration`/`ResourceHook`（L1） | 同 | 同（cells 表大 → SnapshotBundle 的 body 可能需分片，见 §3.3） | ✅ 共享；⚠ 大 body 分片是 Snapshot 编解码的可选扩展点，M5 评估，不影响接口 |
 | Command/Mutation 管线（L1） | `doc.*` Mutation 贡献 | `sheet.*` Mutation 贡献 | ✅ 共享；`type` 三段式命名已容纳 |
 | `permissions`（L1） | 段落级/区域级权限用 `resource: { kind:'block', id }` | 区域权限 `resource: { kind:'range', id: 'sheetId!A1:B2' }` | ✅ `resource` 为开放字符串 |
@@ -101,13 +101,13 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
 
 | 检查 | 机制 | 失败示例 |
 |---|---|---|
-| 水平层零横向依赖 | depcruise R3 `doc-type-blind`（无 `oce.bundle` 的包 → 有 `oce.bundle` 的包禁止） | `model-core` import `@oce/model-slide` |
+| 水平层零横向依赖 | depcruise R3 `doc-type-blind`（无 `cordex.bundle` 的包 → 有 `cordex.bundle` 的包禁止） | `model-core` import `@cordexjs/model-slide` |
 | 水平层无文档类型字面量 | lint `no-doc-type-literals`：水平层源码中禁止字符串字面量/标识符片段 `slide|slides|sheet|workbook|docx|pptx|xlsx|paragraph`（允许列表：`fixtures`、注释、`model-core/testing/fixture-*`、`ooxml-core` 中的 MIME 常量表——后者是格式知识不是模型知识，单独审查） | `model-core/unit/unit.ts` 出现 `'slide'` |
 | 通用契约无文档字段 | api-extractor 基线审查 + 扫描器 `no-doc-fields-in-contracts`：`engine-render`/`model-core` 公共类型属性名不得含上述词根 | `SceneNode.slideId` |
 
 ### 4.2 夹具层（`fixture` 文档类型）
 
-`@oce/model-core/testing/fixture-document-type.ts` 提供一个**与三种真实类型都不同**的最小类型：
+`@cordexjs/model-core/testing/fixture-document-type.ts` 提供一个**与三种真实类型都不同**的最小类型：
 
 ```
  body = { nodes: Record<NodeId, { kind: 'box' | 'group'; props: JsonObject; children: NodeId[] }>; texts: Record<NodeId, TextDelta>; root: NodeId[] }
@@ -121,7 +121,7 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
  UI：一个 ui.ribbon 项、一个 ui.shortcut
 ```
 
-规则：**所有水平层包的 `__tests__` 只允许使用 `fixture` 类型**（depcruise R10 的姐妹规则 `horizontal-tests-use-fixture-only`：水平层 `__tests__` 不得 import `@oce/model-slide*`）。若某水平层功能无法用 `fixture` 测试，说明它依赖了文档形状——先改抽象。
+规则：**所有水平层包的 `__tests__` 只允许使用 `fixture` 类型**（depcruise R10 的姐妹规则 `horizontal-tests-use-fixture-only`：水平层 `__tests__` 不得 import `@cordexjs/model-slide*`）。若某水平层功能无法用 `fixture` 测试，说明它依赖了文档形状——先改抽象。
 
 ### 4.3 运行时层（preset 矩阵）
 
@@ -132,7 +132,7 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
 
 ### 4.4 冻结层（M5 验收）
 
-`horizontal-freeze`：`tooling/scanners/horizontal-freeze.ts` 计算所有无 `oce.bundle` 的包 `src/**`（排除 `__tests__`）的内容哈希并写入 `fixtures/horizontal-freeze.lock`。M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**；若确需改动水平层，PR 必须附 ADR 并显式更新锁文件（可审计的「水平层改动」）。
+`horizontal-freeze`：`tooling/scanners/horizontal-freeze.ts` 计算所有无 `cordex.bundle` 的包 `src/**`（排除 `__tests__`）的内容哈希并写入 `fixtures/horizontal-freeze.lock`。M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**；若确需改动水平层，PR 必须附 ADR 并显式更新锁文件（可审计的「水平层改动」）。
 
 ---
 

@@ -15,7 +15,7 @@ Univer 的 `commandService.executeCommand` 可执行 Command、Mutation、Operat
 1. **一个入口**：`commands.execute(unitId, id, params)` 接受 `CommandDef` 与 `OperationDef`（同一贡献点 `core.command`，`type` 判别）。Operation 走同一 resolve/validate/permission/audit，跳过事务与历史。
 2. **Mutation 不可执行**：没有 `executeMutation`；Mutation 只能由 `Transaction.mutate` 在命令事务内应用；`Transaction` 只存在于 `store.transact` 回调，而 `store.transact` 的生产调用点被扫描器限定为 `model-core/command/pipeline.ts`（命令）与 `model-core/unit/unit-plugin.ts`（`load`，origin=system）。
 3. **远端变更不是 Mutation**：协同远端更新以 CRDT update 进入 Store（origin=remote），不经命令管线，也不需要绕过权限（网关已授权，ADR-0012）。因此不存在「回放旗标」。
-4. **只读查看器的双保险**：`preset-slide-viewer` 不加载 `@oce/model-slide/editing`（命令与变更贡献缺席 → `COMMAND_NOT_FOUND`），并加入 `readOnly` 权限策略（即使加载了编辑命令也 `PERMISSION_DENIED`）。
+4. **只读查看器的双保险**：`preset-slide-viewer` 不加载 `@cordexjs/model-slide/editing`（命令与变更贡献缺席 → `COMMAND_NOT_FOUND`），并加入 `readOnly` 权限策略（即使加载了编辑命令也 `PERMISSION_DENIED`）。
 5. **执行选项只含公开语义**：`{ signal?: AbortSignal; meta?: JsonObject }`；没有 `skipPermission`/`fromCollab` 之类旗标（A13）。
 6. **命令调用命令**：允许但开启新事务（嵌套事务被 Store 拒绝）；复合命令应直接 `tx.mutate`（lint 提示）。
 

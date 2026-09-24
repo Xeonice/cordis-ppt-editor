@@ -1,6 +1,6 @@
 # 01 架构总览：系统上下文、容器、原则与端到端数据流
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8） | 依赖：charter v0.1
 
 ---
 
@@ -13,8 +13,8 @@
                                        │ 打开 / 编辑 / 协同 / 导出 .pptx
                                        ▼
  ┌──────────────┐   OIDC    ┌────────────────────────────────────────┐   S3 API   ┌──────────────┐
- │ 身份提供方    │◄─────────►│  OCE（本系统）                          │◄──────────►│ 对象存储      │
- │ (IdP)        │           │  = 浏览器 SDK（cordis 宿主 + preset）    │            │ (S3/MinIO)   │
+ │ 身份提供方    │◄─────────►│  Cordex（本系统）                          │◄──────────►│ 对象存储      │
+ │ (IdP)        │           │  = 浏览器 SDK（cordis 宿主 + preset）    │            │(S3/SeaweedFS)│
  └──────────────┘           │  + 服务端（NestJS + 内嵌 cordis 宿主）   │            └──────────────┘
                             └───────┬──────────────────┬─────────────┘
                                     │                  │
@@ -27,7 +27,8 @@
 ```
 
 - **用户**：编辑者、评审者（PRD 02 的角色）；**插件开发者**与**集成方**同样是一等用户（章程 §2.2）。
-- **外部系统**：OIDC IdP（章程 Q6）、S3 兼容对象存储（Q10）、PowerPoint 作为文件的生产者/消费者（也是视觉回归的 oracle，见 11）。
+- **外部系统**：OIDC IdP（rulings §4.15 Q6：部署方任意 OIDC IdP，compose 可选内置 Casdoor；服务端不持有密码）、S3 兼容对象存储（Q10：默认 SeaweedFS，生产推荐客户自有 S3）、PowerPoint 作为文件的生产者/消费者（也是视觉回归的 oracle，见 11）。
+- **部署边界**：一次部署 = 一个组织（rulings §4.15 T-0），系统内没有租户概念；多组织需求走多套部署，将来若做 SaaS 另立项。
 - **信任边界**：插件与宿主同源可信（章程 §2.3），不做运行时沙箱；`isolate()` 只是解析域。
 
 ---
@@ -35,19 +36,19 @@
 ## 2. C4 L2 — 容器
 
 ```
- 浏览器                                              服务端（docker-compose 单体，Q10）
+ 浏览器                                              服务端（自托管 docker-compose，同一镜像按 CORDEX_ROLE 运行，Q10）
  ┌───────────────────────────────────────────┐      ┌──────────────────────────────────────────────┐
  │ apps/web（Vite + React 19 应用壳）          │      │ apps/server（NestJS 11）                       │
  │  ├─ 登录 / 文档列表 / 编辑器路由            │ REST │  ├─ Auth（OIDC）      ├─ Documents              │
  │  └─ <EditorHost host=…>                    │◄────►│  ├─ Snapshots         ├─ ImportExport（任务）   │
  │       │                                    │  WS  │  ├─ Collab Gateway ───┼─ Thumbnails（M3）       │
  │       ▼                                    │◄────►│  ├─ Audit             └─ Health                │
- │ OCE SDK = createHost() 根 Context           │      │  └─ infra: cordis 宿主(server-headless)、       │
- │  ├─ L0 kernel/shared/protocol/i18n         │      │     Postgres 客户端、Redis 客户端、Blob 存储     │
+ │ Cordex SDK = createHost() 根 Context           │      │  └─ infra: cordis 宿主(server-headless)、       │
+ │  ├─ L0 kernel/shared/protocol/i18n         │      │     Postgres 客户端、Valkey 客户端、Blob 存储    │
  │  ├─ L1 model-core + store-memory|store-yjs │      └──────┬───────────────┬──────────────┬──────────┘
  │  ├─ L2/L3 model-slide + ooxml-core/pptx    │             │               │              │
  │  ├─ L4 collab-core/yjs/transport-ws        │       ┌─────▼─────┐   ┌─────▼─────┐  ┌─────▼──────┐
- │  ├─ L5 engine-layout/engine-render/dom     │       │ Postgres  │   │  Redis    │  │ 对象存储    │
+ │  ├─ L5 engine-layout/engine-render/dom     │       │ Postgres  │   │  Valkey   │  │ 对象存储    │
  │  ├─ L6 slide-render/slide-ui               │       │ 元数据、   │   │ pub/sub、 │  │ 原始 pptx、│
  │  ├─ L7 design/ui-core/ui-react             │       │ CRDT 更新、│   │ presence  │  │ blob、快照包│
  │  └─ L8 preset-slide[-collab]               │       │ 快照索引   │   │           │  │            │
@@ -57,12 +58,14 @@
 | 容器 | 技术 | 职责 | 详见 |
 |---|---|---|---|
 | 浏览器 SDK | TS，cordis 4，React 19 绑定 | 打开、渲染、编辑、协同客户端、导出；**全部能力都是插件** | 02、03 |
-| `apps/web` | Vite 7 + React 19 | 组装 preset，路由与登录；零业务逻辑 | 02 §3 |
+| `apps/web` | Vite 8 + React 19 | 组装 preset，路由与登录；零业务逻辑 | 02 §3 |
 | `apps/server` | NestJS 11 | 传输壳：REST、WS 网关、任务；业务逻辑在 `server-*` 包 | 08 |
-| 服务端 cordis 宿主 | `@oce/server-headless` | 在 Node 中加载同一批 iso 插件做导入/导出/校验/迁移/缩略图 | 02 §4.26、08 |
-| Postgres | 16 | 文档元数据、权限、CRDT update 追加表、快照索引、审计 | 08、ADR-0022 |
-| Redis | 7 | 跨实例 pub/sub、presence | 08 |
-| 对象存储 | S3 兼容 | 原始 pptx、内容寻址 blob（媒体、不透明部件）、快照包 | 04 §2.5、08 |
+| 服务端 cordis 宿主 | `@cordexjs/server-headless` | 在 Node 26 中加载同一批 iso 插件做导入/导出/校验/迁移 | 02 §4.24、08 |
+| renderer sidecar | headless Chromium（同一份 render-dom 代码），`CORDEX_ROLE=renderer` | M3 权威缩略图（640 px WebP）与 PDF；零出站、非 root、沙箱、无凭据，只接受 worker 经鉴权内部 RPC 的入站请求 | 08 §7、ADR-0026 |
+| Postgres | 18（下限 16；uuid v7 在应用层生成） | 文档元数据、权限、CRDT update 追加表、快照索引、审计；文档级 RLS 兜底 | 08、ADR-0022 |
+| Valkey | 钉次版本，Redis ≥ 7.2 协议兼容 | 跨实例 pub/sub、presence、S-3 溢写 | 08 |
+| 对象存储 | S3 兼容（默认 SeaweedFS，保留 `snapshots/` 版本化） | 原始 pptx、内容寻址 blob（媒体、不透明部件）、快照包 | 04 §2.5、08 |
+| IdP（可选） | Casdoor（compose `idp` profile，可换任意 OIDC IdP） | 登录与账号；注册由部署开关 `auth.selfSignup` 控制（默认关） | 08 §9、ADR-0029 |
 
 **同一份模型/格式代码在两端运行**（章程 §2.2）：`model-core`、`model-slide`、`ooxml-*`、`store-*`、`engine-layout` 均为 `iso` 类；浏览器与 Node 各自提供 `TextMeasurer` Provider 与 `RenderTarget` Provider。
 
@@ -73,7 +76,7 @@
 | 原则 | 结构层面的含义 | 一个反例（我们禁止的） |
 |---|---|---|
 | **SDK 优先** | `packages/*` 是产品；`preset-*` 是「产品形状」；`apps/*` 只是样例组装 | 在 `apps/web/src` 里写「插入形状」的逻辑 |
-| **每一级可插拔** | 每层至少一个 Definition + 可替换 Provider；Consumer 只依赖 Definition；移除 Provider → 降级不崩 | `ui-core` 直接 `import { YjsStore } from '@oce/store-yjs'` |
+| **每一级可插拔** | 每层至少一个 Definition + 可替换 Provider；Consumer 只依赖 Definition；移除 Provider → 降级不崩 | `ui-core` 直接 `import { YjsStore } from '@cordexjs/store-yjs'` |
 | **文档类型盲** | 水平层不知道幻灯片；`DocumentType`、`Mutation`、`SceneProvider`、UI 贡献全部由垂直束注入 | `model-core` 里出现 `slideId`（Univer A1/A2） |
 | **规范必有执行点** | 本目录每条规则配「机械验证」；`policy-check` 校验规则 ↔ CI job 对应 | 写在 README 里的「请勿深引用 src」（Univer A17/A27） |
 
@@ -111,6 +114,7 @@
 - 导入产出的是 **Snapshot + Blob 集合**，不是运行时对象；Store 再从 Snapshot 构造状态（D6 的显式编解码边界）。
 - 未建模的部件和 XML 子树在导入阶段就进入 `extensions`/blob（不透明保留，04 §5），不是导出时才想起来。
 - `diagnostics` 是一等产出：渲染前 UI 就能提示「本文件含 SmartArt，将只保留不编辑」。
+- 规模检查在解析早期完成（rulings §4.15 Q5，04 §5.5）：页数、单页元素数或文档总元素数超出部署配置的系统天花板（默认 200 页 / 单页 1,000 / 总 20,000）时**直接拒绝导入**（`format.quota_exceeded`），不做只读降级打开。
 
 ### 4.2 编辑（M2）
 
@@ -132,7 +136,7 @@
 ```
  客户端 A                         服务端 Collab Gateway                       客户端 B
  store-yjs: Y.Doc ── transact ──► update(bytes)                                │
- collab-yjs ──── ws 帧(sync) ────► server-collab 房间：鉴权检查点 → 持久化(Postgres) → 广播(Redis) ──► collab-yjs → Y.Doc.apply
+ collab-yjs ──── ws 帧(sync) ────► server-collab 房间：鉴权检查点 → 持久化(Postgres) → 广播(Valkey) ──► collab-yjs → Y.Doc.apply
  awareness(presence: Selection 序列化) ───────────────────────────────────────────────────────────────► presence 服务 → 远端光标覆盖层
  权限变更（管理员改为只读）→ 网关下发 permission-changed 帧 → permissions 服务更新 → 下一次 commands.execute 即被拒绝
 ```

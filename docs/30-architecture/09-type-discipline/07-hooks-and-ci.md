@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本） | 依赖：charter v0.1
 
 # 07 · Hooks 与 CI
 
@@ -24,6 +24,7 @@ tooling/
 
 | 步骤 | 内容 | 失败即阻断提交 |
 |---|---|---|
+| 0 | `lockfile-guard`（`tooling/scripts/lockfile-guard.ts`，rulings §4.15 Q9）：暂存区出现根目录以外的任何 lockfile（`pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`bun.lock*`）即失败；根 `package.json` 的 `packageManager` 与 `devEngines.packageManager.version` 必须逐字相等；`pnpm-workspace.yaml` 的安全设置（`strictPeerDependencies`、`autoInstallPeers`、`nodeLinker`、`minimumReleaseAge`、`blockExoticSubdeps`、`allowBuilds`）必须显式存在；入库 `.npmrc` 含非鉴权设置即失败。耗时 < 1 秒 | 是 |
 | 1 | Biome 格式化（`--write`，仅暂存文件；写入后自动重新 `git add`） | 否（自动修复，不阻断） |
 | 2 | Biome lint（仅暂存文件，含 `no-debugger`/`noDebugger` 检查——**零豁免**，见 [02 §3](./02-lint-rules.md#3-禁用清单--具体规则映射)） | 是 |
 | 3 | ESLint（`--fix`，仅暂存文件，Turborepo 缓存命中时跳过未变更包） | 是（`--fix` 后仍有 `error` 才阻断） |
@@ -53,7 +54,7 @@ tooling/
 
 ## 3. CI 工作流矩阵
 
-全部 job 在**每个 PR**（含 draft PR，不区分）上触发，无分支白名单例外（直接反制 [lessons A18](../../00-charter/reference-univer-lessons.md)："key 在 main、开发在 dev → 从不运行"）；全部 job **不**使用任何形式的 `--quiet`/`--silent`/等价的"只报告不阻断"参数（反制 [lessons A16](../../00-charter/reference-univer-lessons.md)）。
+全部 job 共用同一安装步骤：`pnpm install --frozen-lockfile`（lockfile 与 package.json 不一致即失败；根 `devEngines` 使 Node 版本低于 26 或误用 npm/yarn 时以 EBADDEVENGINES 失败）。全部 job 在**每个 PR**（含 draft PR，不区分）上触发，无分支白名单例外（直接反制 [lessons A18](../../00-charter/reference-univer-lessons.md)："key 在 main、开发在 dev → 从不运行"）；全部 job **不**使用任何形式的 `--quiet`/`--silent`/等价的"只报告不阻断"参数（反制 [lessons A16](../../00-charter/reference-univer-lessons.md)）。
 
 | Job 名 | 内容 | 内容owner | 本篇覆盖范围 |
 |---|---|---|---|
@@ -64,7 +65,7 @@ tooling/
 | `iso-smoke` | 消费 [06 scan-isomorphic](./06-scanners.md#5-scan-isomorphic) 生成的清单，逐包 `node --import` 冒烟 | 类型治理 | 完整 |
 | `depcruise` | [03](./03-boundaries.md) 全部规则 | 类型治理 | 完整 |
 | `api-surface` | [04](./04-api-surface.md) 全部检查（api-extractor diff / publint / attw / changeset 存在性） | 类型治理 | 完整 |
-| `scanners` | [06](./06-scanners.md) 十二个扫描器（除 scan-policy；`scan-bundle-budget` 在 Turborepo 任务图中被声明为 `build` 任务的下游，仍属本 job，只是执行顺序受约束，非独立 job） | 类型治理 | 完整 |
+| `scanners` | 先执行 `lockfile-guard` 全量模式（与 §2.1 步骤 0 同一脚本；并入本 job 是为了不改动 job 名封闭集合，rulings §4.15 Q9），再执行 [06](./06-scanners.md) 十三个扫描器（十四个中除 scan-policy，含 rulings §4.17 D3 登记的 `scan-doc-access-via-permission`）与治理检查脚本 `check-workspace-protocol`/`check-rls-coverage`/`check-image-policy`（08 矩阵 TD-080/083/084，不计入扫描器数；`scan-bundle-budget` 在 Turborepo 任务图中被声明为 `build` 任务的下游，仍属本 job，只是执行顺序受约束，非独立 job） | 类型治理 | 完整 |
 | `policy-check` | [06 scan-policy](./06-scanners.md#9-scan-policy) | 类型治理 | 完整 |
 | `xsd-validate` | 脏部件重生成结果的 OOXML XSD 有效性校验（D7 不透明保留/保真契约的一部分）；校验逻辑与具体 XSD 版本归属架构-结构条线（`ooxml-core` 设计），本篇只登记 job 存在性、触发条件（每个 PR）与不可跳过性，与其余门禁同等对待 | 架构-结构 A（校验内容）+ 类型治理（job 治理机制） | 仅 job 存在性与治理要求，工具本身见 `tooling/xsd/`（README `tooling/` 全景索引） |
 | `coverage-patch` | 新增/改动代码的行覆盖率阈值（patch coverage，反制 [lessons A19](../../00-charter/reference-univer-lessons.md)："`patch: off`"） | 架构-运行时 B（阈值数值与统计口径） + 类型治理（"必须存在且不可关闭"的门禁机制） | 阈值数字由 B 确认，机制由本篇管辖：见跨条线要求 |

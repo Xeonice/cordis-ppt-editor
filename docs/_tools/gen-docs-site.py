@@ -1193,7 +1193,7 @@ def ruling_sets():
         sets.append(("c10", title, "00-charter/charter.md", gh_slug(title), head, rows))
     rf = rulings_file()
     text = read_doc(rf) if rf else ""
-    for num in ("4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
+    for num in ("4.20", "4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
         title, body = md_section(text, num)
         for head, rows in md_tables(body)[:1]:
             sets.append((num.replace(".", ""), title, rf, gh_slug(title), head, rows))
@@ -1218,7 +1218,7 @@ class Build(Pages):
     def build_decisions(self):
         cur = "pages/charter/decisions.html"
         sets, rtext = ruling_sets()
-        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19")]
+        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19", "4.20")]
         fake = {"rel": "00-charter/decisions", "repo_rel": DOCS_REL + "/00-charter/decisions.md", "out": cur, "sec": "charter"}
         blocks, toc, tiles = [], [], []
         for key, title, src, anchor, head, rows in sets:
@@ -1254,7 +1254,7 @@ class Build(Pages):
         self.search.append({"u": cur, "t": "决策面板", "s": "章程与裁决", "g": "",
                             "h": [[text_of(t["name"]), t["id"]] for t in toc],
                             "x": "章程 §10 Q1–Q20、rulings §4.12 U-01…U-16、§4.13 S-1…S-5、§4.15 T-0/Q1–Q10/S-3a、"
-                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项用户裁决汇总"})
+                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项、§4.20 遗留小项收口用户裁决汇总"})
         return sets
 
     # -------------------------------------------------------- 首页
@@ -1336,7 +1336,7 @@ class Build(Pages):
         hero, cards, fig_html, stage, _ = self.home_parts(sets)
         rul = []
         for key, title, src, anchor, head, rows in sets:
-            if key not in ("c10", "419", "418", "417", "415"):
+            if key not in ("c10", "420", "419", "418", "417", "415"):
                 continue
             chips, done = [], 0
             for r in rows:
@@ -1347,7 +1347,7 @@ class Build(Pages):
                 chips.append('<a class="rchip%s" href="pages/charter/decisions.html#r-%s-%s" title="%s">%s</a>'
                              % ("" if decided else " is-open", key, esc(gh_slug(rid)), esc(tip), esc(rid)))
             pct = int(round(100.0 * done / len(rows))) if rows else 0
-            name = {"c10": "章程 §10 待用户决策", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
+            name = {"c10": "章程 §10 待用户决策", "420": "§4.20 遗留小项收口", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
             rul.append('<div class="rul-card"><div class="rul-top"><span class="rul-k">%s</span><span class="rul-n">%d / %d</span>'
                        '</div><div class="bar" role="img" aria-label="已裁决 %d%%"><i style="width:%d%%"></i></div>'
                        '<div class="rul-chips">%s</div><div class="rul-src">%s</div></div>'
@@ -1463,6 +1463,10 @@ class Build(Pages):
         print("页面 %d · 文件 %d · 文档 %d · 图 %d · 截图文件 %d" % (pages, files, len(self.docs), len(self.all_figs), n_img))
         print("站内锚点检查 %d 处：源文档锚点按近似标题改指 %d 处，仍失配 %d 处；指向不存在文件的链接 %d 处"
               % (len(self.anchor_checks), getattr(self, "fixed", 0), len(broken), len(self.missing)))
+        if getattr(self, "fixed", 0) or broken or self.missing:
+            # 改指只是阅读兜底：相近改指的数量不算通过，锚点正确与否以 check-links.py 为准（rulings §4.20 TX-04）
+            print("注意：相近改指的 %d 处不算通过；请运行 python3 docs/_tools/check-links.py 定位并修正源文档"
+                  % getattr(self, "fixed", 0))
         for t, f, s in broken[:20]:
             print("  锚点失配：%s → %s#%s" % (s, t, f))
         for s, h in self.missing[:20]:

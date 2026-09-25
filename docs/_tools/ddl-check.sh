@@ -2,7 +2,7 @@
 # ddl-check：把 docs/60-backend 的 SQL 围栏按迁移编号在 PostgreSQL 18 容器里执行并核对（需求见 60-backend/08 §11）。
 #
 # 用法：bash docs/_tools/ddl-check.sh [--out <目录>] [--keep]
-#   --out <目录>  提取出的迁移脚本、示例清单与 schema 导出放这里（默认 mktemp 目录）；每个迁移一个文件 NNNN-<name>.sql
+#   --out <目录>  提取出的迁移脚本、示例清单与 schema 导出放这里（默认 mktemp 目录）；每个迁移一个文件 NNNN_<name>.sql（与 60-backend/08 §10.1 的迁移文件名一致）
 #   --keep        新起的临时容器结束后不删除（排查用）
 # 环境变量：
 #   CORDEX_DDL_CONTAINER  复用一个已在运行的 postgres:18 容器（不起新容器），如本地的 cordex-ddl-pg
@@ -32,7 +32,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$OUT" ] || { T="${TMPDIR:-/tmp}"; OUT="$(mktemp -d "${T%/}/cordex-ddl.XXXXXX")"; }
 mkdir -p "$OUT"
-rm -f "$OUT"/[0-9][0-9][0-9][0-9]-*.sql "$OUT"/_*.sql "$OUT"/manifest.tsv
+rm -f "$OUT"/[0-9][0-9][0-9][0-9]_*.sql "$OUT"/_*.sql "$OUT"/manifest.tsv
 DB="${CORDEX_DDL_DB:-cordex}"
 
 # ---------- ① 提取围栏（python 只用标准库） ----------
@@ -78,7 +78,7 @@ if errors:
 with open(os.path.join(out, "manifest.tsv"), "w", encoding="utf-8") as mf:
     for num in sorted(migs):
         name, sql, loc, start = migs[num]
-        fn = f"{num:04d}-{name}.sql"
+        fn = f"{num:04d}_{name}.sql"
         open(os.path.join(out, fn), "w", encoding="utf-8").write(sql)
         sha = hashlib.sha256(sql.encode()).hexdigest()
         opts = "no-transaction" if "-- migrate-opts: no-transaction" in sql.split("\n")[1:2] else "tx"

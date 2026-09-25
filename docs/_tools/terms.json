@@ -1,0 +1,53 @@
+{
+  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符（rulings §4.20 TX-02）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。新的更名裁决回写时须在此登记。",
+  "terms": [
+    {
+      "deprecated": ["FakeClock", "FakeServerClock"],
+      "canonical": "FixedClock",
+      "source": "70-testing/11 §2",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "FixedMetricsMeasurer",
+      "canonical": "FixedWidthMeasurer",
+      "source": "70-testing/11 §2",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "*.test-d.ts",
+      "canonical": "*.type-test.ts",
+      "source": "ADR-0048；决策 T-NAMING",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "render/error",
+      "canonical": "render/element-failed",
+      "source": "rulings §5",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "collab/permission-changed",
+      "canonical": "permission/changed",
+      "source": "rulings §5",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "ui.statusbar",
+      "canonical": "ui.statusBar",
+      "source": "rulings §5",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "@oce/",
+      "canonical": "@cordexjs/",
+      "source": "rulings §4.15 Q1（npm scope 更名）",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    },
+    {
+      "deprecated": "oce-",
+      "canonical": "cordex-",
+      "source": "rulings §4.15 Q1（内部前缀 oce 改为 cordex：data-cordex-*、--cordex-*、cordex-manifest.json 等）",
+      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+    }
+  ]
+}

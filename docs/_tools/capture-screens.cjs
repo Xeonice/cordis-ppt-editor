@@ -19,7 +19,7 @@ const TRIGGER = '[data-slot=select-trigger][aria-label="演示状态"]';
 const S = (id, file, title, group, route, states = [], seeAlso) => ({ id, doc: `03-screens/${file}`, title, group, route, states, seeAlso });
 const SCREENS = [
   S("01", "01-document-list.md", "文档列表（应用壳）", "应用壳", "/documents", [["default", "默认（有文档）"], ["empty", "空状态"]]),
-  S("02", "02-editor-main.md", "编辑器主界面", "编辑器·画布", "/editor", [["default", "默认 · 选中形状"], ["text", "文本编辑态"], ["review", "只读评审模式"]]),
+  S("02", "02-editor-main.md", "编辑器主界面", "编辑器·画布", "/editor", [["default", "默认 · 选中形状"], ["text", "文本编辑态"], ["review", "评审 · 有条目"]]),
   S("03", "03-properties-panel.md", "格式/属性面板", "编辑器·面板", null, [], ["02"]),
   S("04", "04-insert-menu.md", "插入菜单", "编辑器·面板", null, [], ["15"]),
   S("05", "05-context-menu.md", "上下文菜单", "编辑器·画布", null, [], ["02"]),

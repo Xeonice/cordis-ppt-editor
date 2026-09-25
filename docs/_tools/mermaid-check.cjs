@@ -10,7 +10,6 @@ const MAX_LINES = 40, MAX_NODES = 25;
 // 豁免表：file 相对 docs/；line 为登记时的围栏起始行；anchor 为图体第二行，行号因上方增删而漂移时按 anchor 认图
 const EXEMPT = [
   { file: "40-modules/00-module-map.md", line: 10, anchor: 'subgraph isoband["共享 iso"]', why: "水平层网格图，43 行 29 节点" },
-  { file: "40-modules/02-kernel-protocol-and-document-core.md", line: 391, anchor: 'start["commands.execute unitId, id, params, opts"]', why: "命令执行管线图，42 行" },
   { file: "40-modules/15-server-architecture-review.md", line: 178, anchor: 'subgraph apiRole["api 角色进程"]', why: "历史评审稿现状模块图，59 行 29 节点" },
   { file: "40-modules/15-server-architecture-review.md", line: 246, anchor: 'subgraph apiRole2["api 角色进程"]', why: "历史评审稿目标模块图，67 行 32 节点" },
 ];

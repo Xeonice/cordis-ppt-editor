@@ -48,10 +48,17 @@ SECTIONS = [
     ("design", "设计", "界面画廊、设计系统与规范、信息架构、用户流程、协同与扩展 UX", "20-design"),
     ("arch", "架构", "系统上下文与容器、分层与包、内核插件、文档模型、协同、渲染、后端、类型治理",
      "30-architecture"),
+    ("frontend", "前端", "前端设计线：应用壳与会话、装配、渲染与文本编辑、协同客户端、UI 体系、性能、客户端安全、遥测与无障碍",
+     "50-frontend"),
+    ("backend", "后端", "后端设计线：模块与角色矩阵、鉴权链、完整 DDL 与 RLS、存储与保留、REST 与 WS、部署与观测",
+     "60-backend"),
+    ("testing", "测试", "测试设计线：分层与契约套件、保真与视觉 oracle、协同模拟、e2e、性能与安全、CI 门禁与需求追溯",
+     "70-testing"),
     ("adr", "ADR", "架构决策记录：背景、决策、备选方案与后果", "30-architecture/adr"),
     ("modules", "模块", "限界上下文 × cordis 插件：逐文件职责、模块依赖与架构图集", "40-modules"),
 ]
 SEC = {s[0]: s for s in SECTIONS}
+TRACKS = ("frontend", "backend", "testing")  # rulings §4.19：各为该侧设计的唯一事实源
 SUBDIR_LABEL = {"03-features": "功能域", "03-screens": "界面规格", "_tools": "文档线工具"}
 
 ICONS = {
@@ -61,6 +68,10 @@ ICONS = {
     "prd": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     "design": '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/>',
     "arch": '<path d="M12 2 2 7l10 5 10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',
+    "frontend": '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M6.5 6.5h.01M9.5 6.5h.01M8 14l-2 2 2 2M16 14l2 2-2 2"/>',
+    "backend": '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/>'
+               '<path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/>',
+    "testing": '<path d="M9 3h6M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.2 15h9.6"/>',
     "adr": '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/>'
            '<path d="M6 8.5v7M18 8.5a6 6 0 0 1-6 6H8.5"/>',
     "modules": '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/>'
@@ -315,16 +326,30 @@ FIG_RE = re.compile(
 HEAD_RE = re.compile(r"<h([1-4])[^>]*>(.*?)</h\1>", re.S)
 
 
+SQL_HEAD = re.compile(r"^\s*--\s*(migrate:\s*(?P<mig>\S+)|(?P<ex>example)\b)", re.I)
+
+
 def render_code(b):
     lang = b["lang"]
     cls = LANG_MAP.get(lang, lang)
     ascii_art = cls == "plaintext" and ASCII_ART.search(b["code"])
     label = "示意图" if ascii_art else (lang or "text")
     hl = "nohighlight" if cls == "plaintext" else "language-" + cls
-    return ('<div class="code%s"><div class="code-bar"><span class="code-lang">%s</span>'
-            '<button class="code-copy" type="button">复制</button></div>'
+    tags, extra = "", ""
+    if cls == "sql":
+        # 60-backend 的 SQL 围栏首行约定（60/08 §11）：「-- migrate: NNNN_name」可执行，「-- example」只做语法解析
+        m = SQL_HEAD.match(b["code"])
+        if m and m.group("mig"):
+            tags = '<span class="code-tag is-mig" title="ddl-check 按编号在 PostgreSQL 18 中顺序执行">迁移 %s</span>' % esc(m.group("mig"))
+        elif m and m.group("ex"):
+            tags = '<span class="code-tag" title="ddl-check 只做语法解析，不作为迁移执行">示例 · 只解析</span>'
+        n = b["code"].count("\n") + 1
+        tags += '<span class="code-lines">%d 行</span>' % n
+        extra = " sql"
+    return ('<div class="code%s%s"><div class="code-bar"><span class="code-meta"><span class="code-lang">%s</span>%s</span>'
+            '<button class="code-copy" type="button" aria-label="复制代码">复制</button></div>'
             '<pre><code class="%s">%s</code></pre></div>'
-            % (" ascii" if ascii_art else "", esc(label), hl, esc(b["code"])))
+            % (" ascii" if ascii_art else "", extra, esc("SQL" if cls == "sql" else label), tags, hl, esc(b["code"])))
 
 
 def render_figure(fid, src, title_html, sub_html, how_html, fallback):
@@ -391,6 +416,9 @@ def classify(rel):
     return sec[0], group, name
 
 
+GENERIC_HEADS = {"模块设计"}
+
+
 def nav_label(title):
     parts = [x.strip() for x in re.split(r"\s*——\s*", (title or "").replace("`", "").replace("**", "")) if x.strip()]
     t = parts[0] if parts else ""
@@ -398,7 +426,10 @@ def nav_label(title):
         t = parts[1]  # 「docs/_tools —— 文档线工具」这类路径式主标题取副标题
     t = re.sub(r"（[^（）]{10,}）$", "", t).strip()
     if len(t) > 26 and "：" in t:
-        t = t.split("：")[0]
+        head = t.split("：")[0]
+        # 「模块设计：…」这类只有类别词的前缀单独做导航名会失去区分度，保留全名
+        if re.sub(r"^\d{2}\s*", "", head) not in GENERIC_HEADS:
+            t = head
     return t
 
 
@@ -1162,7 +1193,7 @@ def ruling_sets():
         sets.append(("c10", title, "00-charter/charter.md", gh_slug(title), head, rows))
     rf = rulings_file()
     text = read_doc(rf) if rf else ""
-    for num in ("4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
+    for num in ("4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
         title, body = md_section(text, num)
         for head, rows in md_tables(body)[:1]:
             sets.append((num.replace(".", ""), title, rf, gh_slug(title), head, rows))
@@ -1187,7 +1218,7 @@ class Build(Pages):
     def build_decisions(self):
         cur = "pages/charter/decisions.html"
         sets, rtext = ruling_sets()
-        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18")]
+        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19")]
         fake = {"rel": "00-charter/decisions", "repo_rel": DOCS_REL + "/00-charter/decisions.md", "out": cur, "sec": "charter"}
         blocks, toc, tiles = [], [], []
         for key, title, src, anchor, head, rows in sets:
@@ -1223,7 +1254,7 @@ class Build(Pages):
         self.search.append({"u": cur, "t": "决策面板", "s": "章程与裁决", "g": "",
                             "h": [[text_of(t["name"]), t["id"]] for t in toc],
                             "x": "章程 §10 Q1–Q20、rulings §4.12 U-01…U-16、§4.13 S-1…S-5、§4.15 T-0/Q1–Q10/S-3a、"
-                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项裁决汇总"})
+                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项用户裁决汇总"})
         return sets
 
     # -------------------------------------------------------- 首页
@@ -1285,10 +1316,14 @@ class Build(Pages):
         cards = []
         for s in SECTIONS[1:]:  # 首页本身就是总览，分区卡片从章程开始（总览文档经「阅读顺序」入口进入）
             ds = [d for d in self.docs if d["sec"] == s[0]]
-            cards.append('<a class="sec-card" href="%s"><span class="sec-ic">%s</span><span class="sec-name">%s</span>'
+            track = s[0] in TRACKS
+            cards.append('<a class="sec-card%s" href="%s"><span class="sec-top"><span class="sec-ic">%s</span>%s</span>'
+                         '<span class="sec-name">%s</span>'
                          '<span class="sec-desc">%s</span><span class="sec-meta">%d 篇 · %s 行%s</span></a>'
-                         % (esc(self.landing(s[0]) if s[0] != "overview" else "pages/overview/readme.html"),
-                            icon(s[0]), esc(s[1]), esc(s[2]), len(ds), format(sum(d["lines"] for d in ds), ","),
+                         % (" is-track" if track else "",
+                            esc(self.landing(s[0]) if s[0] != "overview" else "pages/overview/readme.html"),
+                            icon(s[0]), '<span class="sec-badge">设计线 · 唯一事实源</span>' if track else "",
+                            esc(s[1]), esc(s[2]), len(ds), format(sum(d["lines"] for d in ds), ","),
                             " · %d 张图" % sum(d["mermaid"] for d in ds) if any(d["mermaid"] for d in ds) else ""))
         figs = self.key_figures()
         fig_html = "".join(self.home_figure(f, k + 1) for k, f in enumerate(figs))
@@ -1301,7 +1336,7 @@ class Build(Pages):
         hero, cards, fig_html, stage, _ = self.home_parts(sets)
         rul = []
         for key, title, src, anchor, head, rows in sets:
-            if key not in ("c10", "418", "417", "415"):
+            if key not in ("c10", "419", "418", "417", "415"):
                 continue
             chips, done = [], 0
             for r in rows:
@@ -1312,7 +1347,7 @@ class Build(Pages):
                 chips.append('<a class="rchip%s" href="pages/charter/decisions.html#r-%s-%s" title="%s">%s</a>'
                              % ("" if decided else " is-open", key, esc(gh_slug(rid)), esc(tip), esc(rid)))
             pct = int(round(100.0 * done / len(rows))) if rows else 0
-            name = {"c10": "章程 §10 待用户决策", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
+            name = {"c10": "章程 §10 待用户决策", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
             rul.append('<div class="rul-card"><div class="rul-top"><span class="rul-k">%s</span><span class="rul-n">%d / %d</span>'
                        '</div><div class="bar" role="img" aria-label="已裁决 %d%%"><i style="width:%d%%"></i></div>'
                        '<div class="rul-chips">%s</div><div class="rul-src">%s</div></div>'

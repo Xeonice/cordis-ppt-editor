@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
 
 # 06 布局与渲染引擎（限界上下文 BC-10 布局与度量引擎、BC-11 渲染管线与目标）
 
@@ -814,7 +814,7 @@ src/__tests__/                      vitest browser mode（真实 Chromium）+ ha
 
 fixture 来源：`testing/index.ts` 的 `mountTestSurface()`/`mountInHappyDom()`/`FakeFontFace`；`snapshotSvg()` 用于规范化 SVG 快照断言。
 
-覆盖率与性能预算：三包只保证**单元级**性能预算（如 A28 单属性变更断言、`cache-eviction` 的塞入规模）；端到端预算（首屏 D50 ≤ 1.5s、拖拽 ≥ 55 fps 等 NF-01 指标）在 M-11 装配 `preset-slide` 后用 `test/perf/budgets.json`（架构 07 §9/§14.6）统一跑，见 §11 里程碑验收命令。
+覆盖率与性能预算：覆盖率门槛与证据归档以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 为准；三包只保证**单元级**性能预算（如 A28 单属性变更断言、`cache-eviction` 的塞入规模）；端到端预算（首屏 D50 ≤ 1.5s、拖拽 ≥ 55 fps 等 NF-01 指标）的数值表以 [50/13](../50-frontend/13-performance-and-bundling.md) 为准，在 M-11 装配 `preset-slide` 后用 `test/perf/budgets.json`（[70/09](../70-testing/09-performance-and-capacity.md) §2）统一跑，见 §11 里程碑验收命令（rulings §4.20 TX-10，原引架构 07 §9/§14.6 改指）。
 
 ## 10. 机械约束
 
@@ -917,6 +917,12 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 | 决策 INC-08（30/10 §11.1 > 40） | §2.4 | `render/frame` 载荷 `elements` → `elementsUpdated`、补 `overrun`；与遥测 `perf/frame{frameMs, interaction, pages, elementsUpdated, overrun}` 并存 |
 | 50/05 §14.2、50/15 §11 回写 4 | §2.1、§2.2、§2.4、§3、§4.2、§5.2、§6 | `HitResult` 两种形状合并为判别联合；`SceneNode.a11y: A11yDescriptor`（含 `decorative`）；`RenderService.noteInteraction(kind)`；`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`；`render/font-fallback` 增 `reason`；render-dom `fonts.{firstPaintWaitMs, loadTimeoutMs}` |
 | 70/02 §14 第 6 条 | §2.5、§9、§10、§11 | `canvas-target-contract.test.ts` → `conformance-canvas-target.test.ts` |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| TX-10 ⑤ | §9 末段 | 覆盖率改指 70/01 §8，端到端性能预算改指 50/13 数值表与 70/09 |
 
 ## 13. 未决问题
 

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；30-architecture/08-backend-nestjs.md §0/§1/§2/§3.2/§5/§6/§9/§11/§16.4；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；30-architecture/08-backend-nestjs.md §0/§1/§6/§9/§11/§16.4；60-backend/03、04、08–10（原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
 
 # 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体）
 
@@ -495,7 +495,8 @@ users/
 │   └── errors.ts
 ├── application/
 │   ├── provision-on-first-login.usecase.ts  首次登录 JIT 建 User + UserIdentity（取代 find-or-create-by-oidc，Q6）
-│   ├── update-profile.usecase.ts         本人资料 + 管理员分支（status / platformRole）
+│   ├── update-profile.usecase.ts         本人资料 + 管理员分支（status / platformRole）；停用分支同事务计数「唯一 owner 文档数」并随响应与审计返回（§4.20 BE-05）
+│   ├── erase-user.usecase.ts             EraseUserUseCase：POST /users/:id/erasure（M3）原地脱敏 + 删身份 + 计数「唯一 owner 文档数」，响应与审计附 soleOwnerDocCount（2026-09-26 登记，60/03 §3.3，§4.20 BE-05）
 │   └── list-users.usecase.ts             用户列表与分享对话框按人搜索（取代 list-tenant-members，T-0）
 ├── infrastructure/
 │   └── user.repository.ts                Drizzle：users + user_identities
@@ -554,6 +555,7 @@ permissions/
 │   ├── list-permissions.usecase.ts
 │   ├── resolve-role.usecase.ts           编排：直接授权（5 s 缓存）与 Principal.scopes 链接条目（按 linkId 复核）取高 → mergeRoles；authorize() 签发 DocAccess
 │   ├── resolve-share-link.usecase.ts     token→{linkId,role,expiresAt}、linkId→状态；供 ShareLinkGuard、RoleResolver、M-09 AuthzSource 共用（2026-09-25 自 share-links 移入，rulings §4.18 BE-02）
+│   ├── reassign-owner.usecase.ts         ReassignOwnerUseCase（M3）：系统上下文给文档指定新 owner、perm_version 加 1、审计 admin.owner_reassigned；供 cordex-ops documents:reassign-owner（40/12 §4.13），M4 管理面板复用（2026-09-26 登记，§4.20 BE-05+TX-22）
 │   └── purge-document-permissions.usecase.ts  参与者 permissions：清 permissions/document_perm_versions（rulings §4.13 S-2；§4.18 BE-15）
 ├── infrastructure/
 │   ├── permission.repository.ts          Drizzle：permissions + document_perm_versions
@@ -714,17 +716,18 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 | `domain/user-identity.ts` | IdP 身份绑定实体（新增，§4.15 Q6） | `UserIdentity` | 无 | `(issuer,subject)` 唯一 |
 | `domain/errors.ts` | `user.*` 错误码 | `UserError` | 无 | not_found/suspended/last_admin/untrusted_issuer |
 | `application/provision-on-first-login.usecase.ts` | 首次登录 JIT 建号 / 已有身份直接取用 | `ProvisionOnFirstLoginUseCase` | `../infrastructure/user.repository` | AuthModule 回调调用；同事务写 `users`+`user_identities` |
-| `application/update-profile.usecase.ts` | 更新资料；管理员分支改 status/platformRole | `UpdateProfileUseCase` | `../infrastructure/user.repository` | 管理员分支需 `PlatformAdminGuard` |
+| `application/update-profile.usecase.ts` | 更新资料；管理员分支改 status/platformRole | `UpdateProfileUseCase`、`AdminUpdateUserUseCase` | `../infrastructure/user.repository` | 管理员分支即 60/03 §3.2 的 `AdminUpdateUserUseCase`（`PATCH /users/:id`），与本人资料分支同文件导出、不拆文件（2026-09-26 确认，名字与 60/03 对齐）；需 `PlatformAdminGuard`；停用分支同事务 `countSoleOwnedDocs`，响应与审计 `user.suspended` 附 `soleOwnerDocCount`（rulings §4.20 BE-05） |
+| `application/erase-user.usecase.ts` | 用户擦除（M3，2026-09-26 登记） | `EraseUserUseCase` | `../infrastructure/user.repository`、`SessionStore`（M-08 `auth`） | 单事务 `scrubForErasure` + `deleteIdentities` + `countSoleOwnedDocs`；提交后吊销全部会话；审计 `user.erased` 与响应附 `soleOwnerDocCount`，提醒管理员执行 `documents:reassign-owner`（rulings §4.20 BE-05；语义以 60/03 §3.3 为准）；文档不连带删除 |
 | `application/list-users.usecase.ts` | 用户列表 / 按人搜索 | `ListUsersUseCase` | `../infrastructure/user.repository` | 供管理面板与分享对话框（取代 `list-tenant-members`，T-0） |
-| `infrastructure/user.repository.ts` | `users`+`user_identities` 表 | `UserRepository` | `drizzle-orm` | — |
-| `interface/users.controller.ts` | REST 端点 | `UsersController` | protocol `rest/users.ts`（新增，§12） | — |
+| `infrastructure/user.repository.ts` | `users`+`user_identities` 表 | `UserRepository` | `drizzle-orm` | 方法集以 60/03 §3.1 为准；`countSoleOwnedDocs(tx, userId)` 只调 SECURITY DEFINER 函数 `cordex_sole_owner_doc_count`、只取一个数字（UsersModule 仍是叶子，不 import 文档或权限模块；rulings §4.20 BE-05） |
+| `interface/users.controller.ts` | REST 端点 | `UsersController` | protocol `rest/users.ts`（新增，§12） | `rest/users.ts` 的 `PATCH /users/:id` 响应在本次改为 `suspended` 时带 `soleOwnerDocCount`，`POST /users/:id/erasure` 响应为 `{userId, erasedAt, soleOwnerDocCount}`（字段语义以 60/15 §3.2 为准；2026-09-26，rulings §4.20 BE-05） |
 | `__tests__/provision-on-first-login.usecase.test.ts` | 单测 | — | — | 覆盖首次/重复登录、并发首登唯一冲突 |
 
 ### 5.4 `documents/`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `documents.module.ts` | 模块装配 | `DocumentsModule` | `AuthModule`（仅委托签票据）、`PermissionsModule` | exports `DocumentRepository`、`PurgeParticipant`；`DocumentPurgeProcessor` 仅 worker 角色注册（rulings §4.18 BE-13/BE-15） |
+| `documents.module.ts` | 模块装配 | `DocumentsModule` | `PermissionsModule`、`JobsModule`、`StorageModule`（2026-09-26 按现行 imports 更正：`collab-ticket` 路由已移归 AuthModule，不再 import `AuthModule`，rulings §4.20 BE-11+TX-12） | exports `DocumentRepository`、`PurgeParticipant`；`DocumentPurgeProcessor` 仅 worker 角色注册（rulings §4.18 BE-13/BE-15） |
 | `domain/document.ts` | 聚合根（目录条目） | `Document`、`DocumentId` | `@cordexjs/protocol` ids | §2.1 |
 | `domain/document-status.ts` | 状态机纯函数 | `documentStatusTransition` | `./document` | §2.3 |
 | `domain/errors.ts` | `document.*` 错误码 | `DocumentError` | 无 | not_found/locked/trashed |
@@ -752,7 +755,7 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `permissions.module.ts` | 模块装配 | `PermissionsModule` | `RedisModule`、`UsersModule` | exports `RoleResolverService`/`ResolveShareLinkUseCase`/`DocumentRoleGuard`/`RlsContext`（2026-09-25 增 `ResolveShareLinkUseCase`，rulings §4.18 BE-02）；不 import `ShareLinksModule` |
+| `permissions.module.ts` | 模块装配 | `PermissionsModule` | `RedisModule`、`UsersModule` | exports `RoleResolverService`/`ResolveShareLinkUseCase`/`DocumentRoleGuard`/`RlsContext`/`ReassignOwnerUseCase`（2026-09-25 增 `ResolveShareLinkUseCase`，rulings §4.18 BE-02；2026-09-26 增 `ReassignOwnerUseCase` 供 `cordex-ops`，rulings §4.20 BE-05；完整导出面以 60/03 §4.1 为准）；不 import `ShareLinksModule` |
 | `domain/permission.ts` | 聚合（Grant） | `Permission` | 无 | §2.1 |
 | `domain/role.ts` | 角色→能力位 | `RoleName`、`ROLE_CAPABILITIES` | `@cordexjs/protocol` | 运行时初始值回填 M-02 Q-5（§2.2） |
 | `domain/role-resolution.ts` | 角色合并纯函数 | `mergeRoles` | `./role` | §2.3 |
@@ -761,6 +764,7 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 | `application/list-permissions.usecase.ts` | 列出授权 | `ListPermissionsUseCase` | `../infrastructure/permission.repository` | — |
 | `application/resolve-role.usecase.ts` | 角色解析编排 + 签发 `DocAccess` | `RoleResolverService`、`DocAccess` | `./role-resolution`、`./resolve-share-link.usecase`（同模块，2026-09-25 起不再依赖 `ShareLinksModule`，rulings §4.18 BE-02） | 直接授权部分 5 s 缓存；与 `Principal.scopes` 中本文档链接条目（按 `linkId` 复核）取高；2026-09-24 删「租户默认」来源（T-0） |
 | `application/resolve-share-link.usecase.ts` | 令牌/链接解析（2026-09-25 自 `share-links` 移入，BE-02） | `ResolveShareLinkUseCase` | `../infrastructure/share-link-reader` | token→`{linkId,role,expiresAt}`、linkId→状态；`ShareLinkGuard`、`RoleResolverService`、M-09 `AuthzSource` 共用，保证各处解析一致 |
+| `application/reassign-owner.usecase.ts` | 运维转移 owner（M3，2026-09-26 登记，rulings §4.20 BE-05+TX-22） | `ReassignOwnerUseCase` | `../infrastructure/permission.repository`、`../infrastructure/perm-change.publisher`、`UsersModule`（`UserDirectory`） | `SystemContext`（`app.system_job='ops.documents-reassign-owner'`）；单事务：删目标旧授权 → 插 owner 行 → `bumpPermVersion`；提交后 PUBLISH `perm:doc:{id}`，在线会话 ≤ 1 s 重算；审计 `admin.owner_reassigned`；目标已是 owner 则幂等；原 owner 授权与 `documents.owner_id` 不动（语义以 60/03 §4.2 为准）；调用方 40/12 `ops/cli.ts`，M4 管理面板复用 |
 | `application/purge-document-permissions.usecase.ts` | 清理文档权限（新增，rulings §4.13 S-2） | `PurgeDocumentPermissionsUseCase` | `../infrastructure/permission.repository`、`DocumentsModule` 的 `PurgeParticipant` 装饰器 | 仅系统调用；`@PurgeParticipant('permissions')`；清 `permissions`/`document_perm_versions`；`share_links` 由 `share-links` 自己的参与者清理（§7，§4.18 BE-15/BE-16） |
 | `infrastructure/permission.repository.ts` | `permissions`+`document_perm_versions` 表 | `PermissionRepository` | `drizzle-orm` | `bumpPermVersion` 同事务 |
 | `infrastructure/share-link-reader.ts` | 分享链接只读查询（新增，BE-02） | `ShareLinkReader` | `drizzle-orm`（只调 `SECURITY DEFINER` 函数） | 不直接 `SELECT share_links`、不写表；函数定义在 60/09 迁移 0033（文件 `db/migrations/0033_share_link_lookup_functions.sql`，文件级见 M-12 §4.13；2026-09-25 审稿改指，原 30-architecture/08 §5 草案已删）；入参是令牌哈希或链接 id、不以 `docId` 为键，文件也不是 `*.repository.ts`，不落入 `doc-access-via-permission` 判定面（09-type-discipline/06 该扫描器「规则」行）；豁免常量仍只有 `PermissionRepository`/`ShareLinkRepository` |
@@ -1086,6 +1090,13 @@ pnpm --filter apps-server test:e2e -- auth documents media route-auth-coverage
 | 决策 INC-21 | 图 2-4、§4.8、§5.8、§6 | `/media/*` 三端点改为 `/documents/:id/media/*` 文档作用域 |
 | 决策 T-NAMING + 70/02 §14 第 6 条 + 70/07 §17 | §2.5、§4、§5、§9、§10 | 包内纯逻辑 `*.spec.ts` → `*.test.ts`；blob store 测试改为 `conformance-local-blob-store.test.ts` 与 `apps/server/test/integration/conformance/s3-blob-store.int-spec.ts`；`document-rls.e2e-spec.ts` → `smoke/security-rls.e2e-spec.ts` |
 | §4.19 D-M2-CONTENT | §11 | M2 切片：登录、建文档、最近 / 固定、票据签发与网关联调、文档作用域媒体、导入两步上传、全局守卫、`publicEndpoint`；按人授权 REST、分享链接、RLS、永久删除编排归 M3（权限细化） |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| BE-05+TX-22（唯一 owner 空窗） | §4.3/§5.3 `update-profile.usecase.ts`、新增 `erase-user.usecase.ts`、`user.repository.ts`；§4.5/§5.5 新增 `reassign-owner.usecase.ts`、`permissions.module.ts` 导出 | 停用与擦除的响应、审计附 `soleOwnerDocCount`（经 SECURITY DEFINER 函数计数，UsersModule 仍是叶子）；`ReassignOwnerUseCase` 供 `cordex-ops documents:reassign-owner`（40/12 §4.13），M4 管理面板复用；`EraseUserUseCase` 原无文件级落点，按 60/03 §3.3 一并登记 |
+| BE-11+TX-12 ⑤ | §5.4 `documents.module.ts` | 依赖列改为 `PermissionsModule`、`JobsModule`、`StorageModule` |
 
 ## 13. 未决问题
 

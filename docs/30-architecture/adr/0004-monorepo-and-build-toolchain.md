@@ -1,6 +1,6 @@
 # ADR-0004 monorepo 与构建工具链：pnpm + Turborepo；库 `tsc -b`；apps Vite；Changesets
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9、§4.18 FE-13/GV-15
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-13：lockfile-guard 行注明即 TD-079，并含 typescript 与 yjs、y-protocols 版本钉） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9、§4.18 FE-13/GV-15
 
 ## 状态
 
@@ -55,7 +55,7 @@
 - `publint` + `attw --pack` 对每个包。
 - `tooling/scripts/sync-references`：tsconfig `references` 与 package.json 依赖一致。
 - `lockfile-guard`（lefthook pre-commit + CI）：除根 `pnpm-lock.yaml` 外任何 lockfile（`yarn.lock`、`package-lock.json`、子目录 `pnpm-lock.yaml`）出现即失败。
-- 09-type-discipline/08 矩阵新增一行 TD：`packageManager` 版本 = `devEngines.packageManager` 版本；`pnpm-workspace.yaml` 中上述安全设置全部显式存在；`.npmrc` 不含非鉴权键；`catalog.typescript` 匹配 5.9/6.x。负向用例：子目录出现 `package-lock.json` → 失败；根目录 `npm install` → `EBADDEVENGINES`。
+- 09-type-discipline/08 矩阵新增一行 TD（即 TD-079）：`packageManager` 版本 = `devEngines.packageManager` 版本；`pnpm-workspace.yaml` 中上述安全设置全部显式存在；`.npmrc` 不含非鉴权键；`catalog.typescript` 匹配 5.9/6.x；`catalog` 中 `yjs`、`y-protocols` 为精确版本（`yjs` ∈ 13.6.x，ADR-0020 决策 1）（后两项 2026-09-26 写入 TD-079 陈述与负向夹具，rulings §4.20 TX-13）。负向用例：子目录出现 `package-lock.json` → 失败；根目录 `npm install` → `EBADDEVENGINES`。
 - `.node-version`、`devEngines.runtime`、服务端 Dockerfile 基础镜像三处 Node 主版本一致（26）。
 - 扫描器 `scan-manifest` 规则 (c) 的子检查 + publint（09-type-discipline/04 §4，TD-090；原名 `no-src-conditions`、原称独立扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：任何包 `exports` 不得含 `development`/`source` 条件或指向 `src/`。
 

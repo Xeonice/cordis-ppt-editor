@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-26（§4.20）（TX-11：scan-manifest 锚点改为 06 §6 现行标题） | 依赖：charter v0.1
 
 # ADR-0040：类型预算与 Ratchet
 
@@ -40,7 +40,7 @@ R7 要求"强类型规约"，理想状态是生产代码里 `any`/`as`/`!`/`@ts-
 
 - [06 scan-type-escapes](../09-type-discipline/06-scanners.md#2-scan-type-escapes)：统计实际逃逸数并与 `budgets.json` 比对。
 - CI（`scanners` job）对比 PR 分支与 `main` 分支的 `budgets.json`，任何数值上升且无例外流程记录即失败。
-- [06 scan-manifest](../09-type-discipline/06-scanners.md#5-scan-manifest) 对类型专用依赖误置的预算走同一套 ratchet 机制（[lessons A34](../../00-charter/reference-univer-lessons.md)）。
+- [06 scan-manifest](../09-type-discipline/06-scanners.md#6-scan-manifest) 对类型专用依赖误置的预算走同一套 ratchet 机制（[lessons A34](../../00-charter/reference-univer-lessons.md)）。
 
 ## 关联
 

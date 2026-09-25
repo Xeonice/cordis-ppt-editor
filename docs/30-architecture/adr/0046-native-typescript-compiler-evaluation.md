@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-24；2026-09-26（§4.20）（TX-13：「如何被机械验证」的 typescript 版本钉落为 TD-079） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9
 
 # ADR-0046：TS 7 原生编译器（tsgo）评估计划
 
@@ -41,7 +41,7 @@ Microsoft 把 TypeScript 编译器用 Go 重写（原生编译器，早期以 `t
 
 ## 如何被机械验证
 
-本 ADR 的决策本身（"不采用"）不是一个需要机械验证的正面声明；需要机械验证的是**决策的边界不被意外突破**：CI 配置（[07](../09-type-discipline/07-hooks-and-ci.md)）中 `typecheck`/`lint`/`scanners` 等 job 使用的编译器可执行文件名与版本，作为 CI 环境固化的一部分（非本子线直接管辖的具体流水线文件，但 `policy-check` 的工具版本断言可覆盖——待与 CI 环境配置的实际落点确认后补充为矩阵行）。
+本 ADR 的决策本身（"不采用"）不是一个需要机械验证的正面声明；需要机械验证的是**决策的边界不被意外突破**：CI 配置（[07](../09-type-discipline/07-hooks-and-ci.md)）中 `typecheck`/`lint`/`scanners` 等 job 使用的编译器可执行文件名与版本，作为 CI 环境固化的一部分（非本子线直接管辖的具体流水线文件，但 `policy-check` 的工具版本断言可覆盖）。2026-09-26（rulings §4.20 TX-13）：该断言已落为矩阵行 TD-079（`lockfile-guard`：`pnpm-workspace.yaml#catalog` 中 `typescript` 为 5.9.x 或 6.x，不得 `^7` 或 `latest`，负向夹具含 `typescript: ^7.0.0`）；原「待……补充为矩阵行」结案。
 
 ## 关联
 

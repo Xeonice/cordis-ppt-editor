@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 反代 collab 路由清单、worker 接入 edge 供 Webhook 出站、`audit-rotate` 以 ops-cron 运行；M2 部署口径，见文末修订） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 反代 collab 路由清单、worker 接入 edge 供 Webhook 出站、`audit-rotate` 以 ops-cron 运行；M2 部署口径，见文末修订）；2026-09-26（§4.20）（BE-11+TX-12：关联中已删的「架构 08 §2」改指 08 §0/§10 与 60-backend/17；决策 5 主机规格数值按推迟项 BE-07+TX-05 待 M3 出口前实测回填，本轮不改） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
 
 # ADR-0037 部署拓扑与交付件：同镜像按角色运行 + 自托管 compose 洁净栈
 
@@ -167,4 +167,4 @@ flowchart LR
 
 ## 关联
 
-章程 D8、D9、D13（镜像口径）、§2.3（单组织、不自营 SaaS）、§5.4 服务端行；`00-charter/rulings-2026-09-14.md` §4.13 S-2/S-4、§4.15 T-0/Q6/Q7/Q8/Q9/Q10；ADR-0022（存储组件）、0026（renderer sidecar）、0029（IdP 与鉴权）、0030（观测组件）、0035（collab 横向扩展与内存口径）；架构 08 §0/§2/§10（Dockerfile、compose、K8s）、11-testing；40-modules/01（门禁）、09（headless local/remote 模式、renderer RPC 契约进 `@cordexjs/protocol`）、12（`roles.ts` 五值；§7.1 模块 × 角色 × 部件装配矩阵）；`00-charter/rulings-2026-09-14.md` §4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/GV-14/GV-16（2026-09-25 修订）；PRD 04-nfr（RM-S、NF-04）、06 SV-04/SV-09/SV-10/SV-12、05 里程碑 M3 验收与 M4 范围。
+章程 D8、D9、D13（镜像口径）、§2.3（单组织、不自营 SaaS）、§5.4 服务端行；`00-charter/rulings-2026-09-14.md` §4.13 S-2/S-4、§4.15 T-0/Q6/Q7/Q8/Q9/Q10；ADR-0022（存储组件）、0026（renderer sidecar）、0029（IdP 与鉴权）、0030（观测组件）、0035（collab 横向扩展与内存口径）；架构 08 §0/§10；60-backend/17（Dockerfile、compose、K8s；原「架构 08 §2」目录树已删，2026-09-26 rulings §4.20 BE-11+TX-12）、11-testing；40-modules/01（门禁）、09（headless local/remote 模式、renderer RPC 契约进 `@cordexjs/protocol`）、12（`roles.ts` 五值；§7.1 模块 × 角色 × 部件装配矩阵）；`00-charter/rulings-2026-09-14.md` §4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/GV-14/GV-16（2026-09-25 修订）；PRD 04-nfr（RM-S、NF-04）、06 SV-04/SV-09/SV-10/SV-12、05 里程碑 M3 验收与 M4 范围。

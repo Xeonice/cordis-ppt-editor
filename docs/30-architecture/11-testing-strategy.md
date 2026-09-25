@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：§7 表格/图表/SmartArt 改为 M1 gated（阈值按 PRD OF-08/09/10）；Q3 撤销语义进契约与协同模拟；Q5 DX-20K 与满员房间扇出压测；Q10 testcontainers 改 Valkey/SeaweedFS；Q6 CI 分层认证）；2026-09-24（复核修正，rulings §4.17：D1 删「邀请兑现仅限 email_verified」改为「邀请仅对已存在账号生效」；M3 撤销契约用例名照抄 M-02 §2.5；D4 撤销不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：GV-14 job 名改为 09-07 的 13 个封闭集合并标注各测试类别所在 job（§0、§12）；GV-16 `security:rls` 与 renderer 零出站进 PR 冒烟子集、M3 起阻断（§0 门禁流①、§10）；GV-20 契约套件名（§3）；BE-06 路由鉴权覆盖 e2e、BE-05/BE-02 链接会话用例、BE-10 越权上传用例、BE-04 `/render` 零网络请求、FE-09 ready 判据、BE-01 反代后预签名（§10）；CO-03/UX-03/CO-10/CO-08/CO-14/CO-16 协同与服务端集成用例（§8、§10）；CO-11 已解析未装载页 ≤ 100 ms（§17）；GV-15 扫描器写正式名 `scan-manifest` (e)、`scan-effects` (2)（§3、§16）；FE-04 S10 被规则 7 新口径取代（§15）；FE-01/BE-15 服务端集成用例（§12））；2026-09-25（§4.19：三线拆分后本文改为跨端原则与门禁口径摘要，各节细则链接 70-testing；§0 按 T-PERF-GATE（PR 超绝对 gate 失败、内存增长 ≤ 5%）、T-BUNDLE、T-CI、T-REQ 改写；§7 按 T-ORACLE（1280 px gated、不用 LFS）与 D-TEST-INFRA；§9 runner 时点；§10、§12 按 T-NAMING；§14 T1–T4 结案） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：§7 表格/图表/SmartArt 改为 M1 gated（阈值按 PRD OF-08/09/10）；Q3 撤销语义进契约与协同模拟；Q5 DX-20K 与满员房间扇出压测；Q10 testcontainers 改 Valkey/SeaweedFS；Q6 CI 分层认证）；2026-09-24（复核修正，rulings §4.17：D1 删「邀请兑现仅限 email_verified」改为「邀请仅对已存在账号生效」；M3 撤销契约用例名照抄 M-02 §2.5；D4 撤销不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：GV-14 job 名改为 09-07 的 13 个封闭集合并标注各测试类别所在 job（§0、§12）；GV-16 `security:rls` 与 renderer 零出站进 PR 冒烟子集、M3 起阻断（§0 门禁流①、§10）；GV-20 契约套件名（§3）；BE-06 路由鉴权覆盖 e2e、BE-05/BE-02 链接会话用例、BE-10 越权上传用例、BE-04 `/render` 零网络请求、FE-09 ready 判据、BE-01 反代后预签名（§10）；CO-03/UX-03/CO-10/CO-08/CO-14/CO-16 协同与服务端集成用例（§8、§10）；CO-11 已解析未装载页 ≤ 100 ms（§17）；GV-15 扫描器写正式名 `scan-manifest` (e)、`scan-effects` (2)（§3、§16）；FE-04 S10 被规则 7 新口径取代（§15）；FE-01/BE-15 服务端集成用例（§12））；2026-09-25（§4.19：三线拆分后本文改为跨端原则与门禁口径摘要，各节细则链接 70-testing；§0 按 T-PERF-GATE（PR 超绝对 gate 失败、内存增长 ≤ 5%）、T-BUNDLE、T-CI、T-REQ 改写；§7 按 T-ORACLE（1280 px gated、不用 LFS）与 D-TEST-INFRA；§9 runner 时点；§10、§12 按 T-NAMING；§14 T1–T4 结案）；2026-09-26（§4.20）（TX-08：§1 确定性注入的机械执行 TD-110；TX-09：§2 Definition 类型测试存在性 `scan-manifest` (e3)、TD-111） | 依赖：charter v0.1
 
 # 11 测试策略（Testing Strategy）：金字塔、conformance kit、iso 冒烟、生命周期、OOXML round-trip、视觉 oracle、协同模拟、e2e、性能门禁、语料库
 
@@ -47,11 +47,11 @@ flowchart BT
 
 ## 1. 单元测试（Vitest）
 
-原则（保留）：**不 mock 内核**——用 `@cordexjs/kernel/testing` 的 `createTestHost()` 启动真实 cordis 宿主，**只 mock IO**（transport、storage、fetch）；**确定性**——id、时钟、随机源一律注入（`FixedClock`、`SeededRandom` 归 `@cordexjs/shared/testing`，服务端 Clock 端口在 `apps/server/src/shared/clock.ts`，决策 T-DETERMINISM）；iso 包在 node 环境、dom 包在 happy-dom，涉及度量 / 字体 / IME / 滚动的用例走 Vitest browser mode，不用 jsdom。运行环境、文件命名与落点见 [70-testing/01](../70-testing/01-strategy-and-layers.md) §3–§4，确定性工具与数据隔离见 [70-testing/11](../70-testing/11-test-data-fixtures-and-determinism.md)。
+原则（保留）：**不 mock 内核**——用 `@cordexjs/kernel/testing` 的 `createTestHost()` 启动真实 cordis 宿主，**只 mock IO**（transport、storage、fetch）；**确定性**——id、时钟、随机源一律注入（`FixedClock`、`SeededRandom` 归 `@cordexjs/shared/testing`，服务端 Clock 端口在 `apps/server/src/shared/clock.ts`，决策 T-DETERMINISM；机械执行为 TD-110：生产与测试代码禁 `Date.now`、`Math.random`、无参 `new Date()`，测试代码另禁 `performance.now`（`test/perf/**` 豁免），只有 Clock / Random 端口实现文件放行，09-type-discipline/02 §3，rulings §4.20 TX-08）；iso 包在 node 环境、dom 包在 happy-dom，涉及度量 / 字体 / IME / 滚动的用例走 Vitest browser mode，不用 jsdom。运行环境、文件命名与落点见 [70-testing/01](../70-testing/01-strategy-and-layers.md) §3–§4，确定性工具与数据隔离见 [70-testing/11](../70-testing/11-test-data-fixtures-and-determinism.md)。
 
 ## 2. 类型测试
 
-类型测试文件后缀统一为 `*.type-test.ts`（ADR-0048，决策 T-NAMING；`*.test-d.ts` 作废），`vitest --typecheck` 在 `test-typecheck` job 运行；必测清单（品牌类型不可互赋、Mutation schema 无 `index`、未登记错误码编译失败、事件签名等）见 [70-testing/01](../70-testing/01-strategy-and-layers.md) §7。
+类型测试文件后缀统一为 `*.type-test.ts`（ADR-0048，决策 T-NAMING；`*.test-d.ts` 作废），`vitest --typecheck` 在 `test-typecheck` job 运行；必测清单（品牌类型不可互赋、Mutation schema 无 `index`、未登记错误码编译失败、事件签名等）见 [70-testing/01](../70-testing/01-strategy-and-layers.md) §7。「每个 Definition 至少一个 `*.type-test.ts`」由 `scan-manifest` 规则 (e3) 机械核对（09-06 §6，TD-111，rulings §4.20 TX-09）。
 
 ## 3. Definition 的 Provider 一致性套件（conformance kit）
 
@@ -117,7 +117,7 @@ test/<suite>/                                    跨包全链路：corpus、roun
 fixtures/pptx/{minimal,features}/                ≤ 2 MB 的入库样本（T1）
 ```
 
-原 `test/e2e/`、`test/server-integration/` 与 `*.test-d.ts` 废止；soft-gate-repair 的 model-slide 协同分节在组合根 `apps/server/test/integration/soft-gate-repair.int-spec.ts`（FE-01）。
+原 `test/e2e/`、`test/server-integration/` 与 `*.test-d.ts` 废止（类型测试后缀改为 `*.type-test.ts`）；soft-gate-repair 的 model-slide 协同分节在组合根 `apps/server/test/integration/soft-gate-repair.int-spec.ts`（FE-01）。
 
 ## 13. 与 Univer 的对照
 

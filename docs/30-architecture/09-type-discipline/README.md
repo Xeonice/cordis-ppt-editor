@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：矩阵增至 109 行（08 §12c）；02 §4.12 / §4.15、06 §6 / §10 / §12 / §14 / §18 按三条设计线收口回写） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：矩阵增至 109 行（08 §12c）；02 §4.12 / §4.15、06 §6 / §10 / §12 / §14 / §18 按三条设计线收口回写）；2026-09-26（§4.20）（TX-08/TX-09：矩阵增至 111 行（08 §12c TD-110、TD-111）；TX-11：指向 03、05 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 09 · 类型治理 —— 强类型规约与机械约束机制
 
@@ -67,13 +67,13 @@ flowchart LR
 | 文件 | 一句话 |
 |---|---|
 | [01-tsconfig-baseline.md](./01-tsconfig-baseline.md) | 编译选项全集、iso/dom/node/nest 四套基线、项目引用、`apps/server` 的受限例外 |
-| [02-lint-rules.md](./02-lint-rules.md) | typescript-eslint 预设姿态、禁用清单（含 apps/preset/index.ts/编解码确定性四类路径级内建规则配置）、21 条 `cordex/*` 自定义规则、ESLint/Biome 切分 |
+| [02-lint-rules.md](./02-lint-rules.md) | typescript-eslint 预设姿态、禁用清单（含 apps/preset/index.ts/编解码确定性四类路径级内建规则配置，2026-09-26 起确定性另含全仓生产与测试代码的 Clock / Random 端口规则 TD-110）、21 条 `cordex/*` 自定义规则、ESLint/Biome 切分 |
 | [03-boundaries.md](./03-boundaries.md) | dependency-cruiser 八条规则的语义规格、包元数据、三重保障、knip/manypkg/syncpack 分工 |
 | [04-api-surface.md](./04-api-surface.md) | api-extractor、`.api.md`、exports 策略、publint/attw、Changesets 对接 |
 | [05-runtime-boundaries.md](./05-runtime-boundaries.md) | 必须校验的边界清单、schema 即类型源、品牌类型、`Derived<T>` 派生字段标记、Result 与异常的边界 |
 | [06-scanners.md](./06-scanners.md) | 十四个自研扫描器的完整规格（第 14 个 `doc-access-via-permission`，rulings §4.17 D3）；其余文档中出现的「扫描器」名按 rulings §4.18 GV-15 归并为子规则，见 08 §11.1 |
 | [07-hooks-and-ci.md](./07-hooks-and-ci.md) | lefthook 阶段、CI job 矩阵、缓存策略 |
-| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（109 行，机器可解析）+ 架构-结构条线规则命名对照与扫描器名对账（§11.1） |
+| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（111 行，机器可解析）+ 架构-结构条线规则命名对照与扫描器名对账（§11.1） |
 | [09-plugin-type-contracts.md](./09-plugin-type-contracts.md) | ContributionPoint/Manifest 类型契约、声明合并边界、类型测试组织 |
 
 建议阅读顺序：先读本文件，再按 01→09 顺序通读一遍建立全貌，之后以 [08](./08-policy-enforcement-matrix.md) 为索引按需跳转（"这条规范在哪、谁执行、违反了会怎样"这类问题直接查矩阵比重新通读全文快）。
@@ -101,7 +101,7 @@ tooling/
 
 ## 4. 「规范→工具→门禁」矩阵入口
 
-[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：109 行（2026-09-25 按 rulings §4.19 补 §12c TD-103～TD-109），覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地与 2026-09-24 复核补登（7 行，§12a）、2026-09-25 矛盾收口补登（17 行，§12b：40-modules/01 Q-07 的五行、GV-15 扫描器名对账、FE-02 依赖上限、FE-21 包元数据封闭 schema）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
+[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：111 行（2026-09-25 按 rulings §4.19 补 §12c TD-103～TD-109；2026-09-26 按 rulings §4.20 追加 TD-110 确定性 lint 扩到全部生产与测试代码、TD-111 Definition 类型测试存在性），覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地与 2026-09-24 复核补登（7 行，§12a）、2026-09-25 矛盾收口补登（17 行，§12b：40-modules/01 Q-07 的五行、GV-15 扫描器名对账、FE-02 依赖上限、FE-21 包元数据封闭 schema）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
 
 ---
 
@@ -113,10 +113,10 @@ tooling/
 |---|---|---|
 | 类型逃逸 | type escape | `any`/`as`（非 `as const`/`satisfies`）/`!`/`@ts-ignore`/未说明的 `@ts-expect-error` 的统称；[06 scan-type-escapes](./06-scanners.md#2-scan-type-escapes) 的统计对象 |
 | 棘轮预算 | ratchet budget | 只能下调、不能在无例外流程的情况下上调的数值上限，用于管理暂时无法归零的类型逃逸；见 [ADR-0040](../adr/0040-type-budgets-and-ratchet.md) |
-| 秩 | rank | 章程 v0.2 §5.1/§5.3 定稿的分层网格（L0/L1/L3/L4/L5/L7/L8/LS + V-model/V-codec/V-render/V-ui）数值偏序，供 depcruise「只向下」规则比较；见 [03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-2-53-3) |
+| 秩 | rank | 章程 v0.2 §5.1/§5.3 定稿的分层网格（L0/L1/L3/L4/L5/L7/L8/LS + V-model/V-codec/V-render/V-ui）数值偏序，供 depcruise「只向下」规则比较；见 [03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-253-3) |
 | 层带 | `V-*` layer band | 垂直束包的层号编码前缀（`V-model`/`V-codec`/`V-render`/`V-ui`），与水平层的 `L<n>` 编码并列但不复用同一数字，取代早期"借用水平层数值"的方案；见 [03§2](./03-boundaries.md#2-包元数据-schema) |
 | 组合根 | compositionRoot | 包元数据字段，仅 `preset-*`/`apps/web`/`apps/server` 为 `true`；结构化标记"允许依赖具体 Provider 而非只依赖 Definition"的例外包 |
-| 三重保障 | 同构隔离的三层内部一致性机制 | tsconfig lib/types 限制 + `no-restricted-globals` + `node --import` 冒烟；与依赖图层的 `cordex-isomorphism-compatibility`（iso/dom/node 3×3 兼容矩阵）规则共同构成四层防御，见 [03§4](./03-boundaries.md#4-同构隔离的三重保障) |
+| 三重保障 | 同构隔离的三层内部一致性机制 | tsconfig lib/types 限制 + `no-restricted-globals` + `node --import` 冒烟；与依赖图层的 `cordex-isomorphism-compatibility`（iso/dom/node 3×3 兼容矩阵）规则共同构成四层防御，见 [03§4](./03-boundaries.md#同构隔离的三重保障) |
 | 品牌类型 | branded type | `Brand<T, TName> = T & { readonly __brand: TName }` 模式；用于阻止裸 `number`/`string` 冒充度量单位/标识符穿越边界，见 [05§4](./05-runtime-boundaries.md#4-品牌类型branded-types) |
 | 派生字段标记 | `Derived<T>` | 与品牌类型同构的标记模式，标注 Model 中计算得出、不应写入 Snapshot 的字段；`Persisted<M>` 从 Model 类型结构性剔除该类字段，见 [05§4.4](./05-runtime-boundaries.md#44-派生字段标记derivedt) |
 | 能力位 | `CapabilityBit` | fail-closed 权限模型的最小可声明单元，封闭集合，唯一权威定义于 `@cordexjs/protocol`；`CommandDef.permission` 消费该类型，见 [02§4.16/4.19](./02-lint-rules.md#416-cordexcommand-must-declare-capabilities新增响应-prd-co-05-fail-closed-权限要求架构-结构条线别名-command-declares-capability) |
@@ -133,7 +133,7 @@ tooling/
 
 | # | 问题 | 当前默认/临时处理 | 需要谁决策 |
 |---|---|---|---|
-| ~~Q-T1~~ | ~~`LS` 数值层号~~ | **已解决**：总编排裁决秩值 58（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-2-53-3)），章程 v0.2 §5.1/§5.3 已收录完整秩表与第 8 条规则，本子线按此口径执行，不再是待决事项 | — |
+| ~~Q-T1~~ | ~~`LS` 数值层号~~ | **已解决**：总编排裁决秩值 58（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-253-3)），章程 v0.2 §5.1/§5.3 已收录完整秩表与第 8 条规则，本子线按此口径执行，不再是待决事项 | — |
 | Q-T2 | `packages/*` 是否全部独立发布到 npm registry，还是存在"仅工作区内部消费、不对外发布"的包（若存在，其 `isolatedDeclarations`/api-extractor/exports 门禁应可豁免） | 假定全部可发布，统一套用 [04](./04-api-surface.md) 全部门禁；新增的 `stability` 字段（[03§2](./03-boundaries.md#2-包元数据-schema)）部分缓解了这一问题（`experimental` 包可降级 release tag 默认值），但不改变"是否发布"本身 | 产品 + 架构-结构 A |
 | Q-T3 | `coverage-patch`（[07§3](./07-hooks-and-ci.md#3-ci-工作流矩阵)）job 存在性与不可跳过性由本子线保证，但具体阈值百分比与统计口径（是否含分支覆盖率）未定 | 机制先就位，阈值留空，job 处于"存在但暂不设阈值"的过渡态 | 架构-运行时 B |
 | Q-T4 | zod 主版本锁定为 4（见 [05§2](./05-runtime-boundaries.md#2-standard-schema--zod-的放置约定)），基于 2026-09-14 检索到的 Standard Schema 支持现状；是否与其余条线已经隐含的假设冲突 | 采用 zod 4 | 总编排 / 架构-结构 A |
@@ -154,8 +154,8 @@ tooling/
 
 以下两条建议在提出后已由总编排裁决采纳，章程 v0.2 §5.1/§5.3 已正式收录；本节保留原始论证作为历史记录，不再是待决事项。
 
-1. **§5.3 的"七条"与实际需要的规则数不一致**——原建议：章程 §5.1 的"铁律"段落额外声明了「垂直束互不依赖」，但未编入 §5.3 的七条编号列表，导致 [08](./08-policy-enforcement-matrix.md) 矩阵的覆盖率审计口径与章程字面数字不一致。**裁决结果**：章程 v0.2 §5.3 正式增补第 8 条「垂直束互不依赖」，本子线全文档已按八条规则口径改写（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-2-53-3)）。
-2. **§5.2 包清单缺少 `LS` 的显式数值层号**——原建议：`LS` 在章程分层网格里没有数值层号，本子线曾自行推导秩值 45 作为过渡。**裁决结果**：总编排与架构-结构条线重新核算，定稿 `LS=58`（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-2-53-3) 的推导依据）；同时定稿垂直束包不再借用水平层数值，改用独立的 `V-model`/`V-codec`/`V-render`/`V-ui` 层带编码（[03§2](./03-boundaries.md#2-包元数据-schema)），章程 v0.2 已收录完整秩表。本子线原推导的 45 已废弃，全文档已更新为 58。
+1. **§5.3 的"七条"与实际需要的规则数不一致**——原建议：章程 §5.1 的"铁律"段落额外声明了「垂直束互不依赖」，但未编入 §5.3 的七条编号列表，导致 [08](./08-policy-enforcement-matrix.md) 矩阵的覆盖率审计口径与章程字面数字不一致。**裁决结果**：章程 v0.2 §5.3 正式增补第 8 条「垂直束互不依赖」，本子线全文档已按八条规则口径改写（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-253-3)）。
+2. **§5.2 包清单缺少 `LS` 的显式数值层号**——原建议：`LS` 在章程分层网格里没有数值层号，本子线曾自行推导秩值 45 作为过渡。**裁决结果**：总编排与架构-结构条线重新核算，定稿 `LS=58`（[03§3.2](./03-boundaries.md#32-规则-2--规则-3只向下--文档类型盲对应章程-53-253-3) 的推导依据）；同时定稿垂直束包不再借用水平层数值，改用独立的 `V-model`/`V-codec`/`V-render`/`V-ui` 层带编码（[03§2](./03-boundaries.md#2-包元数据-schema)），章程 v0.2 已收录完整秩表。本子线原推导的 45 已废弃，全文档已更新为 58。
 
 ### 7.2 当前状态
 

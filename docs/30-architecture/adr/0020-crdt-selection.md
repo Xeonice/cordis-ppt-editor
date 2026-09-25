@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：Yjs 14 升级 spike 时点随协同后端提前到 M2 开工前） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：Yjs 14 升级 spike 时点随协同后端提前到 M2 开工前）；2026-09-26（§4.20）（TX-13：决策 1 精确锁版本的机械执行点 TD-079；TX-01+BE-10：U-07 链接 ADR-0038） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
 
 # ADR-0020 CRDT 选型：Yjs（Loro 为已评估替代）
 
@@ -15,7 +15,7 @@
 
 ## 决策
 
-1. 采用 **Yjs 13.6.x**（`yjs` + `y-protocols`），**lockfile 锁精确版本、不跟 dist-tag**（`@y/y` 14 的 `latest` 标签指向旧 rc.7，`lib0` 的 `latest` 仍为 0.2.x——实测陷阱），仅由 `@cordexjs/store-yjs` / `@cordexjs/collab-yjs` / `@cordexjs/server-collab` 引入（章程 §5.3 规则 4）。
+1. 采用 **Yjs 13.6.x**（`yjs` + `y-protocols`），**lockfile 锁精确版本、不跟 dist-tag**（`@y/y` 14 的 `latest` 标签指向旧 rc.7，`lib0` 的 `latest` 仍为 0.2.x——实测陷阱），仅由 `@cordexjs/store-yjs` / `@cordexjs/collab-yjs` / `@cordexjs/server-collab` 引入（章程 §5.3 规则 4）。机械执行（2026-09-26，rulings §4.20 TX-13）：TD-079 `lockfile-guard` 断言 `pnpm-workspace.yaml#catalog` 中 `yjs`、`y-protocols` 为精确版本（不带 `^` 或 `~`）且 `yjs` 在 13.6.x 内。
 2. **移动语义**：不用 `Y.Array` 的删除+插入，不等待未发布的 y-move；实体放 `Y.Map<id, Y.Map>`，顺序用实体属性上的 **fractional index**（ADR-0032）。并发移动 = 单键 LWW，无重复无丢失；跨父移动（进出组）= `parentId` LWW + 环修复规则（06 §8 #5）。
 3. **富文本**：`Y.XmlFragment`（`<p>` 元素 + 带属性 `Y.XmlText`，embed 表示 br/fld/opaque），理由见 06 §1.4。
 4. **Loro 作为已评估替代**：保持 `DocumentStore` 原语集（06 §1.2）与 CRDT 无关；如未来切换，新增 `@cordexjs/store-loro`/`@cordexjs/collab-loro` Provider，Definition 与 Consumer 不变（章程 §5.4「可替换为 store-loro」）。**重评估触发阈值**（满足任一即重评，均可机械检验）：① Loro 协同增量 wasm ≤ 200 KB gzip；② `loro-protocol` ≥ 1.0；③ store-loro 原型通过 `runDocumentStoreConformance`；④ Q5 规模上调（含文档总元素上限上调超过 20,000，rulings §4.15 Q5）。
@@ -103,7 +103,7 @@ Yjs：纯 JS，`yjs + y-protocols` 经 esbuild minify 后 ≈ 30 KB gzip（2026-
    - 墓碑在 TTL 内计入 Q5 文档总元素上限与 Y 状态体积；TTL 内被删内容仍会同步给后加入者（含查看者），相关访问写审计。
    - **文档擦除（S-2 purge，文档级操作改称「永久删除文档」）与「彻底删除元素」不等 TTL**，直接硬删除。「彻底删除元素」（2026-09-25 修订，rulings §4.18 CO-07）只对**已是墓碑**的元素开放、只能由 owner 经审计 REST（`POST /documents/:id/elements/purge{ids}`）发起，由 M-09 单写者复用墓碑硬删除事务立即执行，写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表仍按保留期存在（界面明示「历史版本仍含该内容，要连历史清除请永久删除文档」）；删除方此后撤销该步按整步跳过（`wholeStep:true`，与 TTL 到期同一路径）。（原：「文档擦除（S-2 purge）与『立即彻底删除』不等 TTL」，同一术语混指文档级与元素级，且元素级可从存活态直接硬删，作废。）
    - 设计 02/05「不复用原 id」与 PRD CO-08 的恢复措辞随之改写（由对应文档回写）。
-4. U-07 version-restore-undo 以本节为基线，**不采用** Loro 式 `revertTo`（它绕过 D4 的 Mutation 唯一入口）。
+4. U-07 version-restore-undo 以本节为基线，**不采用** Loro 式 `revertTo`（它绕过 D4 的 Mutation 唯一入口）。2026-09-26 立项为 [ADR-0038](./0038-version-restore-undo.md)（提议，rulings §4.20 TX-01+BE-10）。
 5. S-3 溢写期的两级 ack 与 CRDT 选型无关，单列为 S-3a，见 ADR-0025。
 
 **图 1 撤销一步时的跳过判定**

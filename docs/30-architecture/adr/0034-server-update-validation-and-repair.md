@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.20）（FE-03：修复规则表「`layoutId` 不存在」按 04 §12.3 I-ML2；FE-04：墓碑期 `layoutId` 读时容错，见「修订 2026-09-26」） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18
 
 # ADR-0034 服务端对 update 的校验：硬门禁拒绝 + 软门禁补偿修复（不回滚、不分叉）
 
@@ -24,7 +24,7 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 |---|---|
 | 父子环 | 环上 id 字典序最大者 `parentId=null` |
 | `parentId` 指向不存在的形状 | `parentId=null` |
-| `layoutId` 不存在 | 置为该 master 的第一个 layout；若无 master → 文档首个 layout |
+| `layoutId` 不存在 | 按架构 04 §12.3 I-ML2 回退链重指：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式（单一纯函数 `defaultLayoutOf`，model-slide 导出，服务端只调用；2026-09-26 修订，rulings §4.20 FE-03；原「置为该 master 的第一个 layout；若无 master → 文档首个 layout」作废） |
 | `order` 非法字串 | 重新生成为集合末尾键 |
 | `meta.schemaVersion`/`epoch` 被改 | 写回服务端已知值 |
 | 实体 `id` 键与内部 `id` 不一致 | 内部 `id` 写回键值 |
@@ -69,7 +69,7 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 | `_deleted` 不符合 Tombstone 形状 `{at: EpochMs, by: ClientId}`（缺字段或类型不对，如 `true`、字符串、缺 `by`） | 恢复为该键上一个合法值；计数（2026-09-25 修订，rulings §4.18 CO-06：Tombstone 类型以架构 04 §3.1a 与 40-modules/02 §2.1 为唯一定义，TTL 判定依赖 `_deleted.at`；不加「`at` 在未来即非法」——客户端时钟偏差会误伤正常墓碑；原：「`_deleted` 值类型非法（非 `true`/缺省）」，照此实现会把全部正常墓碑判非法、等于撤销所有删除，作废） |
 | `commenter`/`viewer` 的 update 写 `_deleted`（含清除墓碑） | 还原旧值（路径级权限规则，同 v0.2 补充表）；计数 |
 | 客户端直接硬删实体（绕过墓碑路径的 Y.Map 键删除） | Y 状态中实体内容已不可靠还原：**不修复**，按 `report-only` 计数告警并审计 `collab.hard_delete_bypass`；正常客户端由 store-yjs 契约保证不产生此类 update，只有服务端单写者可硬删：墓碑 TTL 硬删除作业（origin `system('maintenance')`，ADR-0025 决策 9）、复用同一事务的「彻底删除元素」（owner 经 `POST /documents/:id/elements/purge{ids}` 对墓碑态元素发起、写审计 `document.element_purged`——**经此 REST 的硬删不算旁路**，rulings §4.18 CO-07）与 S-2 文档擦除 |
-| `parentId` / `layoutId` 指向**墓碑**实体 | **不视为违规**、不修复：读路径按祖先墓碑过滤（恢复父即恢复子）；只有在目标被**硬删除**后才按原「指向不存在」规则修复（硬删除作业在同一事务内先做此修复） |
+| `parentId` / `layoutId` 指向**墓碑**实体 | **不视为违规**、不修复：读路径按祖先墓碑过滤（恢复父即恢复子）；`layoutId` 指向墓碑版式时读路径以 `defaultLayoutOf` 取替代版式渲染、不改写引用（墓碑期读时容错，架构 04 §12.3、05 §13.4，2026-09-26 rulings §4.20 FE-04）；只有在目标被**硬删除**后才按原「指向不存在」规则修复（硬删除作业在同一事务内先做此修复，修复只写一次） |
 
 不变量检查与 `validateChangeSet` 对墓碑实体仍执行 schema 校验（墓碑可被恢复，恢复后必须合法）。墓碑计入文档总元素上限（20,000）；超上限的新增实体按 Q5「超天花板拒绝」口径在硬门禁 L3 拒绝，错误码 `document.quota_exceeded{dimension, limit, actual}`（与客户端命令守卫同一错误码；只拒绝该 update、不关连接；2026-09-24 复核修正，rulings §4.17 D2；原「超包络拒绝」「`quota_exceeded`」）。
 
@@ -79,6 +79,12 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 - 路径级规则中 commenter 的放行前缀统一为 `resources['comments.threads']`（ResourceHook 命名空间 `comments.threads`，由 iso 包 `@cordexjs/comments` 注册；其 `data` 内含 threads 与 replies 两张实体表，04 §2.7），与 ADR-0031 修订、60-backend/16 §4 与 60-backend/07 逐字一致；原 `resources.comments.*` 写法作废。
 - 网关 L2 的 SYNC 写入门槛相应为 ≥ commenter（ADR-0029 决策 3 修订 2026-09-25）：commenter 的帧先过 L2，再由本 ADR 的路径级规则把写入范围限定在上述前缀、作者只能改自己的实体；viewer 的写入仍在 L2 拒绝。软门禁随协同后端自 M2 生效（rulings §4.19 D-M2-CONTENT），commenter 角色本身随按人分享在 M3 出现。
+
+## 修订 2026-09-26：默认版式选取统一与墓碑期引用（rulings §4.20 FE-03 / FE-04）
+
+- **FE-03**：初版修复规则表「`layoutId` 不存在」行改为按架构 04 §12.3 I-ML2 的三级回退链，由 model-slide 导出的单一纯函数 `defaultLayoutOf(body, { masterId, type?, exclude? })` 实现（跳过墓碑与 `exclude`）；服务端 RepairPlanner、客户端读路径、删除版式/母版的 `reassignTo` 默认值共用同一导出，不各写一份。原「该 master 的第一个 layout / 文档首个 layout」作废。
+- **FE-04**：墓碑修订表「`layoutId` 指向墓碑」行补明读路径行为——墓碑 TTL 内不改写引用，读路径用 `defaultLayoutOf` 取替代版式并发 `collab/soft-conflict{type:'delete-vs-reference'}`；硬删作业同一事务按 I-ML2 修复（`collab/repair{rule:'dangling-layout'}`，只写一次）。
+- 验证（test/collab-sim）：「A 删 L、B 同时对 P 应用 L」两端收敛；TTL 内 `P.layoutId` 仍为 L 且渲染用替代版式；A 撤销后 P 显示 L；硬删后 `P.layoutId` 等于 `defaultLayoutOf` 结果且修复只写一次。
 
 ## 如何被机械验证
 
@@ -90,4 +96,4 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 ## 关联
 
-章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20；ADR-0020/0025/0032/0035；架构 06 §11/§14、08 §3；60-backend/16 §4。
+章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20、§4.20 FE-03/FE-04；ADR-0020/0025/0032/0035；架构 04 §12.3；架构 06 §11/§14、08 §3；60-backend/16 §4。

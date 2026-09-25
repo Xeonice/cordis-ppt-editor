@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
 
 # 17 插件书写模式手册
 
@@ -382,7 +382,7 @@ export default { name, inject, apply }
 
 **什么时候用**：这段代码的生命周期应该绑定"某一个打开的文档"，而不是宿主进程——文档关闭时它必须连带消失，两个同时打开的文档各自独立一份。判据：把这个服务的状态打印出来，如果答案是"取决于是哪份文档"，就属于本模式。
 
-- `store`/`history`/`selection`/`render`/`presence` 的默认 Provider——由 `model-core` 的 `unit-plugin.ts` 在打开 Unit 时挂载（03 §5.1/§5.2）。
+- `store`/`history`/`selection`/`render`/`presence` 的默认 Provider——由 `model-core` 的 `unit-plugin.ts` 在打开 Unit 时按 UnitScope 默认 Provider 登记表挂载（03 §5.1/§5.2）：`history`、`selection` 由 model-core 在 ready 时自登记，`store`、`render`、`presence`（以及 `collab-yjs`、`comments`）由 preset 的 `scope:'unit'` 条目在 mount 时经 `units.registerUnitProvider` 登记（M-02 §2.1，rulings §4.20 FE-01）。
 - `collab-yjs`——UnitScope 内 `provide:['collab','presence']`，`store-memory` 场景下因 `yjsBackend` 未就位而合法地停在 `PENDING`（05 §3）。
 - `engine-render`/`render-dom`——每个文档有自己的 target/viewport/脏区缓存（06 §3）。
 
@@ -390,9 +390,9 @@ export default { name, inject, apply }
 
 ```text
 packages/model-core/src/unit/
-├── unit-plugin.ts        # "打开 Unit" 的入口：createIsolatedScope + 挂载 store/history/selection 三个默认 Provider
+├── unit-plugin.ts        # "打开 Unit" 的入口：createIsolatedScope + 按打开时刻的登记表快照挂载默认 Provider
 ├── history.plugin.ts     # UnitScope 内默认 Provider 之一
-└── selection.plugin.ts   # 同上；render/presence 等水平层 UnitScope 包不在本目录，挂载机制见 §7 G-9
+└── selection.plugin.ts   # 同上；render/presence 等水平层 UnitScope 包不在本目录，由 preset 登记（§2.5；§7 G-9 已结案）
 ```
 
 **代码骨架**：
@@ -401,25 +401,25 @@ packages/model-core/src/unit/
 // packages/model-core/src/unit/unit-plugin.ts —— "打开一个 Unit" = 挂载这个插件
 import type { Context } from '@cordexjs/kernel'
 import { createIsolatedScope } from '@cordexjs/kernel'
-import { selectStoreProviderPlugin } from './store-provider-select'   // 按 preset 配置选 store-memory / store-yjs
-import { historyPlugin } from './history.plugin'
-import { selectionPlugin } from './selection.plugin'
+import type { UnitProviderEntry } from './units.service'              // 登记表条目：{ id, plugin, config?, provides }
 
 const ISOLATED_SERVICES = ['store', 'history', 'selection', 'render', 'presence'] as const
 
-export interface UnitPluginConfig { descriptor: UnitDescriptor }
+export interface UnitPluginConfig {
+  descriptor: UnitDescriptor
+  providers: readonly UnitProviderEntry[]                                // units.open 传入打开时刻的登记表快照：之后的登记变化不影响本 Unit
+}
 
 export function apply(ctx: Context, config: UnitPluginConfig): void {
-  const { descriptor } = config
+  const { descriptor, providers } = config
   const documentType = ctx.documentTypes.get(descriptor.documentType)!   // 缺失已在 units.open 上游判过，03 §5.3 步骤①
   const unit = toUnit(descriptor)
   const scoped = createIsolatedScope(ctx, {
     services: [...ISOLATED_SERVICES, ...documentType.unitServices],       // 如 ['store','history','selection','render','presence','slides']
     meta: { [UnitScope.unit]: unit },                                      // ctx.extend(meta)：子树内 ctx[UnitScope.unit] 可读
   })
-  scoped.plugin(selectStoreProviderPlugin, { initialBody: descriptor.initialBody, schemaVersion: documentType.schemaVersion })
-  scoped.plugin(historyPlugin)
-  scoped.plugin(selectionPlugin)
+  // store（唯一的 provides:['store'] 登记）、history、selection、render、presence…：model-core 不 import 任何水平层 Provider 包
+  for (const p of providers) scoped.plugin(p.plugin, p.config)
   for (const p of documentType.unitPlugins) scoped.plugin(p)               // 垂直束自己的 UnitScope 服务，如 slides
   ctx.effect(() => {
     ctx.units.register(unit, scoped)
@@ -497,9 +497,10 @@ import storeMemoryPlugin from '@cordexjs/store-memory'
 // … 其余条目 import 从略，完整清单见 40-modules/11 §3.1 装配清单总表
 
 export const SLIDE_ENTRIES: PresetEntry[] = [
-  { id: '@cordexjs/i18n', plugin: i18nPlugin, config: { locale: 'zh-CN', fallback: 'zh-CN' } },
-  { id: '@cordexjs/model-core', plugin: modelCorePlugin, config: { defaultStoreProvider: 'store-memory', historyLimit: 200, coalesceMs: 500 } },
-  { id: '@cordexjs/store-memory', plugin: storeMemoryPlugin, config: { historyLimit: 200, freezeInDev: true } },
+  { id: '@cordexjs/i18n', plugin: i18nPlugin, scope: 'host', config: { locale: 'zh-CN', fallback: 'zh-CN' } },
+  { id: '@cordexjs/model-core', plugin: modelCorePlugin, scope: 'host', config: { historyLimit: 200, coalesceMs: 500 } },
+  // scope:'unit' 条目不挂根：mount 时经 units.registerUnitProvider 登记（rulings §4.20 FE-01）；store 由唯一的 provides:['store'] 登记决定
+  { id: '@cordexjs/store-memory', plugin: storeMemoryPlugin, scope: 'unit', provides: ['store'], config: { historyLimit: 200, freezeInDev: true } },
   // … model-slide、model-slide/editing、ooxml-pptx、engine-layout/render、render-dom、slide-render、ui-core、ui-react、slide-ui …
 ]
 
@@ -913,4 +914,4 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 - **G-6｜Host 组合根缺少等价于 Provider conformance 套件的"组合正确性"契约测试**：`04-api-surface.md` 明确"范围仅限 `packages/*`"，`apps/*` 不经过 api-extractor/`exports`/publint 门禁；`11-preset-assembly-and-app-shell.md` §3.5 的唯一 `createHost` 调用点检查（ESLint `apps/**` override，原称 `single-create-host-callsite`，TD-093）只保证"唯一入口"，不保证"这个入口组装出来的宿主行为正确"。整理 §2.7 时未在必读材料中找到面向 Host 组合根本身的标准正确性验证套件，建议评估是否需要补一套类似 `defineLifecycleSuite` 的组合根测试骨架。
 - **G-7｜"文案硬编码"反模式缺少对应的自动化扫描器**：本文 §3.8/§4 都需要回答"由谁强制"，但必读的 `06-scanners.md`（14 个扫描器全表；第 14 个 `doc-access-via-permission`，rulings §4.17 D3、§4.18 GV-11）与其余四篇 `09-type-discipline` 文档中，没有找到检测"面向用户文案未经 `i18n.bundle` 而直接硬编码"的规则或扫描器。`02-lint-rules.md`（59KB）未列入本次必读范围，不排除其中已有相关规则；建议架构-类型治理条线确认并回填本手册与 `08-policy-enforcement-matrix.md`。
 - **G-8｜preset 的 `configure`/`override` 合并机制为本文推断补全**：`03-kernel-and-plugin-model.md` §9 给出的 `PresetEntry` 形状是 `{ id, plugin, config?: unknown, disabled? }`（静态值），`40-modules/11` §3.1 用"默认配置（`configure[id]` 可覆盖）"一语带过具体机制，两处都未给出 `applyTrim`/`configure` 的精确合并算法（整体替换还是深合并、能否与 `override` 同时作用于同一条目等）。本文 §2.5 按"最小自洽"补全了一个 `SlidePresetOptionsSchema` 示意，标注为骨架级推断；实现期需要架构-结构条线给出 `@cordexjs/kernel/preset` 的精确类型定义。 **→ 2026-09-25 结案**（rulings §4.19，[50/03 §2](../50-frontend/03-preset-assembly-and-plugins.md) 定稿）：`applyTrim` 的 `configure` 与条目默认配置合并规则为**对象逐键深合并，数组与标量整体替换，`undefined` 忽略**；`exclude` 移除、`override` 替换 `plugin`，`override`/`configure` 的键不在清单 → `PRESET_UNKNOWN_ENTRY` 诊断、不抛；规则落在 `@cordexjs/kernel/src/preset/validate.ts`（M-02 §5.2），由 `preset/validate.test.ts` 与各 preset 的 `options-schema.test.ts` 断言。本文 §2.5 的骨架示意以此为准。
-- **G-9｜UnitScope 内水平层包（如 `engine-render`）如何被挂进隔离域，机制未在必读材料中说明**：`03-kernel-and-plugin-model.md` §5.1 的 `unit-plugin.ts` 伪代码直接写 `scoped.plugin(renderPlugin)`，容易读成"model-core 的 `unit-plugin.ts` 直接引用 `engine-render` 的插件"；但 `engine-render` 是 L5 水平层（秩 50），`model-core` 是 L1（秩 10），若 `unit-plugin.ts` 真的 `import` `engine-render`，会违反章程 §5.3 规则 2（只向下：`rank(to) ≤ rank(from)`，此处 `to` 秩更高）。`40-modules/11` §3.1 装配清单把 `engine-render`/`render-dom`/`collab-yjs` 的 scope 列标为"unit"，暗示它们由 **preset** 而非 model-core 直接挂进某个 Unit 的隔离域，但"谁在 Unit 打开时把这些条目追加进同一个 `createIsolatedScope` 结果"的具体机制，未在本次必读的 cordis-primer、03、40-modules 02/06/11 材料中给出可引用的代码或文字。本文 §2.4 代码骨架因此只展示了 model-core 自己直接拥有的 `store`/`history`/`selection` 三个默认 Provider，不虚构 `render`/`presence` 的挂载细节；建议架构-结构条线在 `03-kernel-and-plugin-model.md` §5 或 `40-modules/11` 补一段精确说明。
+- **G-9｜UnitScope 内水平层包（如 `engine-render`）如何被挂进隔离域，机制未在必读材料中说明**：`03-kernel-and-plugin-model.md` §5.1 的 `unit-plugin.ts` 伪代码直接写 `scoped.plugin(renderPlugin)`，容易读成"model-core 的 `unit-plugin.ts` 直接引用 `engine-render` 的插件"；但 `engine-render` 是 L5 水平层（秩 50），`model-core` 是 L1（秩 10），若 `unit-plugin.ts` 真的 `import` `engine-render`，会违反章程 §5.3 规则 2（只向下：`rank(to) ≤ rank(from)`，此处 `to` 秩更高）。`40-modules/11` §3.1 装配清单把 `engine-render`/`render-dom`/`collab-yjs` 的 scope 列标为"unit"，暗示它们由 **preset** 而非 model-core 直接挂进某个 Unit 的隔离域，但"谁在 Unit 打开时把这些条目追加进同一个 `createIsolatedScope` 结果"的具体机制，未在本次必读的 cordis-primer、03、40-modules 02/06/11 材料中给出可引用的代码或文字。本文 §2.4 代码骨架因此只展示了 model-core 自己直接拥有的 `store`/`history`/`selection` 三个默认 Provider，不虚构 `render`/`presence` 的挂载细节；建议架构-结构条线在 `03-kernel-and-plugin-model.md` §5 或 `40-modules/11` 补一段精确说明。 **→ 2026-09-26 结案**（rulings §4.20 FE-01）：机制为 UnitScope 默认 Provider 登记表——`units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，落在 model-core `unit/units.service.ts`（M-02 §2.1、§5.5、§6）；model-core 在 ready 时只自登记 history、selection，store、render、presence、collab-yjs、comments 由 preset 的 `scope:'unit'` 条目在 mount 时登记（kernel `preset/mount.ts` 调用）；`unit-plugin.ts` 只遍历打开时刻的登记表快照，不 import 任何秩更高的包；同一 `provides` 只允许登记一次、只影响之后打开的 Unit、preset dispose 时全部撤销；`Config.defaultStoreProvider` 删除。本文 §2.4 代码骨架与 §2.5 装配示例已按此改写。

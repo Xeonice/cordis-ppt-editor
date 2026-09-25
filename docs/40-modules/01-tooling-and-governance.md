@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-01） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q12：仓库许可证 Apache-2.0——根 `LICENSE`/`NOTICE` 入 M0 骨架，`create-package` 写 `license: "Apache-2.0"`）；2026-09-24（复核修正，rulings §4.17：TD 编号以 08 矩阵为准并顺延、Q-09 结案；D3 登记第 14 个扫描器 `doc-access-via-permission`；depcruise 第 9 条规则 `cordex-ui-bundle-core-framework-free`；playground glob 改实际路径）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md §3 BC-28/§4/§5/§7/§8/§9/§10、charter v0.2 §3/§5.3/§5.4、30-architecture/02-layering-and-packages.md §2/§5/§7/§8、30-architecture/09-type-discipline/{README,01-09}、30-architecture/adr/0040-0048、30-architecture/11-testing-strategy.md CI 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-01） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q12：仓库许可证 Apache-2.0——根 `LICENSE`/`NOTICE` 入 M0 骨架，`create-package` 写 `license: "Apache-2.0"`）；2026-09-24（复核修正，rulings §4.17：TD 编号以 08 矩阵为准并顺延、Q-09 结案；D3 登记第 14 个扫描器 `doc-access-via-permission`；depcruise 第 9 条规则 `cordex-ui-bundle-core-framework-free`；playground glob 改实际路径）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md §3 BC-28/§4/§5/§7/§8/§9/§10、charter v0.2 §3/§5.3/§5.4、30-architecture/02-layering-and-packages.md §2/§5/§7/§8、30-architecture/09-type-discipline/{README,01-09}、30-architecture/adr/0040-0048、30-architecture/11-testing-strategy.md CI 段
 
 # 01 工具链与治理骨架（限界上下文 BC-28〈工具链与治理〉）
 
@@ -112,7 +112,7 @@ flowchart LR
 | DepcruiseRule | `cordex-*`（kebab-case） | 恒 `error` | 全仓包图（按 `from`/`to` 选择器） | 9 条规则、10 个规则 id（规则 1 拆 file/package 两个 id） | `tooling/depcruise/rules/*.ts` |
 | EslintRule（自定义） | `cordex/*`（kebab-case） | 恒 `error`，`fixable` 恒 `undefined` | 按文件路径/包元数据匹配 | 21 条 | `tooling/eslint-config/eslint-plugin-cordex/rules/*.ts` |
 | Scanner | `scan-*`（kebab-case，脚本文件名） | 违规=退出码 1，脚本自身故障=退出码 2 | 按包/按文件跨图扫描 | 14 个 | `tooling/scripts/scan-*.ts` |
-| PolicyRow | `TD-\d{3}`，全文件唯一、单调可跳号、禁止复用废弃 id | N/A（陈述本身无严重级，由其"执行机制"列的工具决定） | 覆盖章程/primer/lessons/本方案/PRD 等来源 | 85 行（TD-001…TD-085，无跳号；TD-079…082 为 rulings §4.15 追加，TD-083…085 为 2026-09-24 复核补登） | `08-policy-enforcement-matrix.md` |
+| PolicyRow | `TD-\d{3}`，全文件唯一、单调可跳号、禁止复用废弃 id | N/A（陈述本身无严重级，由其"执行机制"列的工具决定） | 覆盖章程/primer/lessons/本方案/PRD 等来源 | 111 行（TD-001…TD-111；TD-079…082 为 rulings §4.15 追加，TD-083…085 为 2026-09-24 复核补登，TD-086…109 为 2026-09-25 补登，TD-110、TD-111 为 2026-09-26 rulings §4.20 TX-08/TX-09 追加；行数以 08 矩阵为准） | `08-policy-enforcement-matrix.md` |
 | CIJob | 英文短名（`lint`/`typecheck`/…） | 全部 `error` 阻断，无 `warn` | 每个 PR，无分支例外 | 13 个（见 §5.9） | `.github/workflows/*.yml` |
 | RatchetBudgetEntry | `<package>:<src\|test>:<kind>`（`<package>:bundle-size-bytes` 已移除：体积预算改在各 preset 的 `config/bundle-budget.json`，决策 T-BUNDLE，2026-09-25） | 值为非负整数上限 | 每包 | 动态（随包数增长） | `tooling/policy/budgets.json` |
 
@@ -153,7 +153,7 @@ flowchart LR
 | `src/manifest.ts`（每包，生成物，入库） | `scan-manifest.ts`（即 manifest-gen）从源码静态分析生成，头部标 `generated` | CI `--check` 重新生成比对，要求无 diff（rulings §4.18 GV-17） | `Manifest` 类型的 TS 常量 |
 | `cordex-manifest.json`（每包，构建产物，不入库） | 构建时由 `manifest.ts` 序列化，随包发布 | 未来插件市场/CLI | zod 推导的 `Manifest` 类型 |
 | `iso-smoke-manifest.json` | `scan-isomorphic.ts` | `iso-smoke` CI job | `{ package, publicEntry }[]` |
-| `requirement-test-matrix.json` | `scan-requirement-tags.ts` | `11-testing-strategy.md` 覆盖率矩阵 | `{ requirementId, testFiles }[]` |
+| `requirement-test-matrix.json` | `scan-requirement-tags.ts` | 需求追溯矩阵 [70/13](../70-testing/13-requirements-traceability.md)（rulings §4.20 TX-10，原引 `11-testing-strategy.md` 覆盖率矩阵改指） | `{ requirementId, testFiles }[]` |
 | `.api.md` / `etc/<name>-internal.d.ts` | api-extractor | 代码评审 / CI artifact | Markdown / `.d.ts` |
 | `pull_request` / `push` webhook | GitHub | `.github/workflows/*.yml` | GitHub Actions 事件 |
 
@@ -358,7 +358,7 @@ aeNode -- "extends" --> aeBase
 ├── .node-version                          # 26（fnm/nvm/CI setup-node 共读；rulings §4.15 Q9）
 ├── pnpm-workspace.yaml                    # packages: apps/*, packages/*, tooling/eslint-config, docs/20-design/playground；
 │                                            pnpm 设置全集（nodeLinker/strictPeerDependencies/…）；
-│                                            catalog: 第三方版本目录（cordis/zod/yjs/react/vitest/typescript…）
+│                                            catalog: 第三方版本目录（cordis/zod/yjs/react/vitest/typescript…）；patchedDependencies: sonner（§4.20 FE-18）
 ├── turbo.json                             # 任务图：build/typecheck/lint/test/test:typecheck/depcruise/
 │                                            api/manifest/scan/policy/iso-smoke（与根 scripts 同名，§2.6；
 │                                            原 api-extract/manifest-gen/policy-check 旧名作废，rulings §4.18 GV-13）
@@ -403,7 +403,8 @@ tooling/
 │   │   ├── dom-injection.ts               # 禁 innerHTML/outerHTML/insertAdjacentHTML/DOMParser 注入（§4.15 Q4）
 │   │   ├── assembly.ts                    # apps/** 无领域定义与唯一 createHost 调用点（TD-093）、preset 胶水 apply ≤ 60 行且 model-* 只许 import type（TD-094）、
 │   │   │                                  #   src/index.ts 只许 export … from（TD-096）；原称 no-domain-defs-in-apps 等（rulings §4.18 GV-15）
-│   │   ├── determinism.ts                 # ooxml-* 禁 Date.now / 无参 new Date() / performance.now / Math.random（TD-097，原称 codec-no-clock）
+│   │   ├── determinism.ts                 # 两个 override：① ooxml-* 禁 Date.now / 无参 new Date() / performance.now / Math.random（TD-097，原称 codec-no-clock，预算恒 0）；
+│   │   │                                  #   ② 全部生产与测试代码（TD-110，§4.20 TX-08）：生产禁 Date.now / Math.random / 无参 new Date()，测试另禁 performance.now
 │   │   ├── testing.ts                     # vitest/no-disabled-tests + playwright/no-skipped-test（TD-109，决策 T-CI；2026-09-25 登记）
 │   │   └── style.ts                       # console/prototype/裸 throw/debugger 等语义类禁用
 │   └── eslint-plugin-cordex/
@@ -471,7 +472,7 @@ tooling/
 │   ├── scan-observability-identifiers.ts   # 06§13
 │   ├── scan-bundle-budget.ts               # 06§14
 │   ├── scan-doc-access-via-permission.ts   # 06§18（第 14 个扫描器，rulings §4.17 D3；TD-085）
-│   ├── lockfile-guard.ts                   # 治理检查脚本：只允许根 pnpm-lock.yaml + 双锁一致（§4.15 Q9）
+│   ├── lockfile-guard.ts                   # 治理检查脚本：只允许根 pnpm-lock.yaml + 双锁一致（§4.15 Q9）；catalog 版本钉：typescript 5.9.x 或 6.x、yjs（13.6.x 内）与 y-protocols 精确版本（TD-079，§4.20 TX-13）
 │   ├── check-workspace-protocol.ts         # 治理检查脚本：内部依赖 workspace: 协议（§4.15 Q1）
 │   ├── check-rls-coverage.ts               # 治理检查脚本：文档级 Postgres RLS 覆盖（§4.15 Q6）
 │   ├── check-image-policy.ts               # 治理检查脚本：compose 镜像 digest/许可/renderer 版本锁（§4.15 Q10）；renderer 非 root/无凭据/沙箱开启静态规则（§4.18 GV-16）
@@ -529,7 +530,7 @@ tooling/
 |---|---|---|---|---|
 | `package.json` | 声明 workspace scripts、`packageManager`、`devEngines`、`engines.node` | npm scripts（§2.6） | — | rulings §4.15 Q9 双锁：`packageManager: "pnpm@11.<x>.<y>"`（精确版本，可附哈希；决策包实测 11.27.1）+ `devEngines.packageManager {name:"pnpm", version 同值, onFail:"error"}` + `devEngines.runtime {name:"node", version:">=26", onFail:"error"}`；`engines.node >=26`；根目录误用 `npm install` 即报 `EBADDEVENGINES`；corepack 仅为可选安装渠道；`private: true`；pnpm 12 切换检查点见 ADR-0004（最迟 2027-03-31） |
 | `.node-version` | Node 主版本基线的单一事实源 | — | — | 值 `26`；本地 fnm/nvm 与 CI `setup-node`（`node-version-file`）共读；与 `engines.node`/`devEngines.runtime` 一致性由 `lockfile-guard.ts` 断言 |
-| `pnpm-workspace.yaml` | 声明工作区包 glob、pnpm 设置全集与第三方版本 catalog | — | — | glob：`apps/*`、`packages/*`、`tooling/eslint-config`、`docs/20-design/playground`（以仓库实际路径为准，与 30-arch/02 §2、ADR-0004 一致；playground 纳入根 workspace 以共用根 lockfile，但**不进** turbo 任务图与 ESLint 门禁）；设置全部显式写在本文件（pnpm 11 不再从 `.npmrc` 读非鉴权设置）：`nodeLinker`、`strictPeerDependencies`、`autoInstallPeers`、`minimumReleaseAge: 1440`、`blockExoticSubdeps`、`allowBuilds` 白名单；`.npmrc` 只允许鉴权项（registry token），非鉴权设置一律删除；catalog 把 `typescript` 钉在 5.9 或 6.x（ADR-0046）；实际只有 `tooling/eslint-config` 在 tooling 下有 `package.json`，见 §12-D3 |
+| `pnpm-workspace.yaml` | 声明工作区包 glob、pnpm 设置全集与第三方版本 catalog | — | — | glob：`apps/*`、`packages/*`、`tooling/eslint-config`、`docs/20-design/playground`（以仓库实际路径为准，与 30-arch/02 §2、ADR-0004 一致；playground 纳入根 workspace 以共用根 lockfile，但**不进** turbo 任务图与 ESLint 门禁）；设置全部显式写在本文件（pnpm 11 不再从 `.npmrc` 读非鉴权设置）：`nodeLinker`、`strictPeerDependencies`、`autoInstallPeers`、`minimumReleaseAge: 1440`、`blockExoticSubdeps`、`allowBuilds` 白名单；`.npmrc` 只允许鉴权项（registry token），非鉴权设置一律删除；catalog 把 `typescript` 钉在 5.9 或 6.x（ADR-0046），`yjs`（13.6.x 内）与 `y-protocols` 钉精确版本（由 `lockfile-guard` (e) 核对，TD-079，rulings §4.20 TX-13）；`patchedDependencies` 登记 sonner 的 pnpm patch（删 import 时的 `__insertCSS`，样式改静态引入，rulings §4.20 FE-18+TX-06）；实际只有 `tooling/eslint-config` 在 tooling 下有 `package.json`，见 §12-D3 |
 | `turbo.json` | 任务图与增量缓存边界 | — | — | 失效边界含 `tooling/eslint-config/**`/`tooling/tsconfig/**`/`tooling/depcruise/**`/`tooling/policy/budgets.json`；`docs/20-design/playground` 不入任务图 |
 | `tsconfig.json` | `tsc -b` 总入口 | — | 全部包 `references` | 不含 `files`/`compilerOptions` |
 | `tsconfig.base.json` | 编辑器发现用 | — | `tooling/tsconfig/base.json` | 包自身不 `extends` 此文件 |
@@ -568,7 +569,7 @@ tooling/
 | `rules/restricted-globals.ts` | 同构全局名单生成器 | `restrictedGlobalsRules(pkgMeta)` | — | 仅 `cordex.iso === 'iso'` 的包生效 |
 | `rules/dom-injection.ts` | 文档内容 DOM 注入禁用（rulings §4.15 Q4 安全基线） | `domInjectionRules: FlatConfig['rules']` | — | 以 `no-restricted-properties`/`no-restricted-syntax` 生成：禁 `innerHTML`/`outerHTML`/`insertAdjacentHTML`/`DOMParser`/`Range#createContextualFragment`/`document.write`；对 `cordex.iso` 为 `dom` 的包生效，结构性禁止（无 `cordex-allow`）；文档内 SVG 只能以图像上下文（`<image>`/`<img>`）渲染的正向断言归 M-07 测试（`asvg:svgBlip` 夹具）；不新增自定义规则，21 条计数不变；**TD-081 的执行落点即本文件**（矩阵原登记 `rules/style.ts`，以本文件为准，rulings §4.17 复核 M16），负向用例 `el.innerHTML = svgText`/`new DOMParser()`/`insertAdjacentHTML` |
 | `rules/assembly.ts` | 组合根与装配层语义禁用（rulings §4.18 GV-15，原扫描器名 `no-domain-defs-in-apps`/`single-create-host-callsite`/`preset-glue-thin`/`index-pure`） | `assemblyRules: FlatConfig['rules']` | — | `apps/**` override 禁领域定义、`createHost(`/`createSlide*Preset(` 仅 `create-editor-host.ts` 放行（TD-093）；preset 胶水 `apply` ≤ 60 行且对 `@cordexjs/model-*` 只许 `import type`（TD-094）；`**/src/index.ts` 只许 `export … from`（TD-096）；规则口径以 09-02 §3 为准 |
-| `rules/determinism.ts` | 编解码确定性（rulings §4.18 GV-15，原扫描器名 `codec-no-clock`） | `determinismRules: FlatConfig['rules']` | — | 作用于 `ooxml-*`：禁 `Date.now`/`performance.now`/`Math.random` 与无参 `new Date()`（TD-097）；`cordex-allow` 预算恒为 0 |
+| `rules/determinism.ts` | 确定性（rulings §4.18 GV-15，原扫描器名 `codec-no-clock`；2026-09-26 增第二个 override，rulings §4.20 TX-08） | `determinismRules: FlatConfig['rules']` | — | override ①作用于 `ooxml-*`：禁 `Date.now`/`performance.now`/`Math.random` 与无参 `new Date()`（TD-097）；`cordex-allow` 预算恒为 0。override ②（TD-110）：生产源码 `packages/*/src/**`、`apps/*/src/**` 用 `no-restricted-properties` 禁 `Date.now`、`Math.random`，`no-restricted-syntax` 禁无参 `new Date()`，豁免 `packages/shared/src/{clock,random}.ts` 与 `apps/server/src/shared/clock.ts`（M-02 §4.1、M-12 §4.13）；测试代码 `apps/server/test/**`、`apps/web/e2e/**`、根 `test/**`、各包 `__tests__/**` 另禁 `performance.now`（豁免 `test/perf/**`）；`crypto.getRandomValues`、`randomUUID`、`node:crypto` 不禁；其余例外走 `cordex-allow`（须带 issue） |
 | `rules/testing.ts` | 测试停用禁令（2026-09-25 登记，TD-109） | `testingRules: FlatConfig['rules']` | `eslint-plugin-vitest`、`eslint-plugin-playwright` | `vitest/no-disabled-tests`、`playwright/no-skipped-test` 为 error；临时停用只走带 issue 与到期日的降级（70/12）；负向夹具 `it.skip`、`test.fixme` |
 | `rules/style.ts` | 语义类禁用 | `styleRules: FlatConfig['rules']` | — | console/prototype/裸 throw/debugger（debugger 零豁免） |
 
@@ -647,10 +648,10 @@ tooling/
 | 扫描器 | 输入 | 检查项（压缩） | 失败输出格式（要点） | 对应规则编号 |
 |---|---|---|---|---|
 | `scan-type-escapes.ts` | 全部 `packages/*/{src,__tests__}/**`、`apps/*/src/**`、`tooling/**` | 统计 `as`(非const)/`!`/尖括号断言/未说明 `@ts-expect-error`/`cordex-allow` 计数，按包×`src\|test`×`kind` 分组 | `[scan-type-escapes] budget exceeded: <pkg>:<src\|test>:<kind> current=N budget=M (delta +K)` + 新增位置列表 | ADR-0040；支撑几乎全部标"cordex-allow（预算制）"的 TD 行 |
-| `scan-contributions.ts` | `*.contribution.ts`、`plugin.ts`/`services/*.service.ts`、`manifest.ts`、`ui-core/context-keys.ts`、各包 `locales/*.json` | (a)`ctx.contribute`可追溯到`defineContributionPoint`；(b)id匹配`^[a-z]\w*\.[a-z]\w*$`；(c)(d)manifest↔源码双向一致；(e)`when` 引用的上下文键已登记（原名 `when-keys-declared`）；(f)各 locale 键集合与 `I18nKeys` 一致（原名 `i18n-keys-sync`）（rulings §4.18 GV-15） | 按 a–f 六类分行，(c)/(d) 打印并排 diff | 章程§5.5；TD-089（08 §12b，2026-09-25 补登，§12-D7 缺口关闭） |
+| `scan-contributions.ts` | `*.contribution.ts`、`plugin.ts`/`services/*.service.ts`、`manifest.ts`、`ui-core/context-keys.ts`、各包 `locales/*.json` | (a)`ctx.contribute`可追溯到`defineContributionPoint`；(b)id匹配`^[a-z]\w*\.[a-z]\w*$`；(c)(d)manifest↔源码双向一致；(e)`when` 与 `enablement` 子句引用的上下文键已登记（原名 `when-keys-declared`；2026-09-26 扩到 `enablement`，并校验 `can.<x>` 的 `<x>` 属于 protocol 能力位、ui-core 以外的包 `registerPrefixedKey('can.…')` 即违规，rulings §4.20 FE-06）；(f)各 locale 键集合与 `I18nKeys` 一致（原名 `i18n-keys-sync`）（rulings §4.18 GV-15） | 按 a–f 六类分行，(c)/(d) 打印并排 diff | 章程§5.5；TD-089（08 §12b，2026-09-25 补登，§12-D7 缺口关闭） |
 | `scan-effects.ts` | 每包 `plugin.ts` 是否含 effect/`ctx.on`/`ctx.contribute` + `__tests__/**` | (1)含 effect 包必有卸载后 `assertNoLiveEffects` 断言；(2)每个 `plugin.ts` 必有生命周期烟雾测试；(3)每个 preset 必有顺序无关与可插拔矩阵测试、查看器必有只读测试（原名 `preset-has-order-test`/`preset-pluggable-matrix`/`viewer-readonly-test-present`，rulings §4.18 GV-15） | `{package, hasEffects, hasDisposeTest, hasLifecycleSmokeTest, missingPresetTests?}[]`，仅列 `false` 项 | TD-011/TD-016/TD-019/TD-039/TD-071/TD-095 |
 | `scan-isomorphic.ts` | 全部 `cordex.iso==='iso'` 包 `src/**` | (a)全局名单静态扫描（兜底 ESLint）；(b)生成 `iso-smoke-manifest.json` | (a)同 type-escapes 格式扩展 `iso-global-leak`；(b)产物非报告 | TD-007/TD-034 |
-| `scan-manifest.ts` | `plugin.ts`/`*.contribution.ts`/`services/*.service.ts`/`manifest.ts`/`package.json`/`policy/dependency-limits.json` | (a)(b)从源码推导并重新生成 `manifest.ts`，与入库文件比对无 diff（`manifest.ts` 是生成物、头部 `generated`；`cordex-manifest.json` 构建时由它序列化、不入库，rulings §4.18 GV-17）；(c)`exports`↔`publicEntry`；(d)类型专用依赖误置；(e)`provide`必有conformance调用（旧文档里的 `provider-runs-conformance` 即本规则，GV-15）；(e2)每个 Definition 包 `./testing` 导出的契约 kit 在本包 `__tests__` 有 `runKitSelfTest` 调用（决策 T-KITS，TD-103）；(f)`./testing`不被`src`引用；(g)包名 scope 与 `private`/`publishConfig` 二选一；(h)需要单实例的 `@cordexjs/*` 依赖写在 `peerDependencies`（`shared` 例外；原名 `peer-policy`，GV-15）；(i)`package.json` 内部依赖 ⊆ 章程 §5.2 上限列 ∪ 隐式 L0（kernel/shared/protocol 对非 L0 包隐式允许，design 的 R18 与 shared 的 R11 例外），上限列来自 `policy/dependency-limits.json`（rulings §4.18 FE-02） | (b)类附统一 diff 块；其余按 a-i 分类列出 | (a)(b)(c)=TD-090；(d)=TD-042；(e)=TD-070；(e2)=TD-103；(f)=TD-072；(g)=TD-080；(h)=TD-100；(i)=TD-101（08 §12b，2026-09-25） |
+| `scan-manifest.ts` | `plugin.ts`/`*.contribution.ts`/`services/*.service.ts`/`manifest.ts`/`package.json`/`policy/dependency-limits.json` | (a)(b)从源码推导并重新生成 `manifest.ts`，与入库文件比对无 diff（`manifest.ts` 是生成物、头部 `generated`；`cordex-manifest.json` 构建时由它序列化、不入库，rulings §4.18 GV-17）；(c)`exports`↔`publicEntry`；(d)类型专用依赖误置；(e)`provide`必有conformance调用（旧文档里的 `provider-runs-conformance` 即本规则，GV-15）；(e2)每个 Definition 包 `./testing` 导出的契约 kit 在本包 `__tests__` 有 `runKitSelfTest` 调用（决策 T-KITS，TD-103）；(e3)每个 Definition 至少被定义包 `__tests__/**/*.type-test.ts` 中一个文件以标识符引用（Definition 集合 = 全部包的 `cordex.implements` 值 ∪ 各包 `defineContributionPoint()` 导出 ∪ kernel `Manifest`；缺失报 `rule:'e3'` 与 Definition 名；TD-111，rulings §4.20 TX-09）；(f)`./testing`不被`src`引用；(g)包名 scope 与 `private`/`publishConfig` 二选一；(h)需要单实例的 `@cordexjs/*` 依赖写在 `peerDependencies`（`shared` 例外；原名 `peer-policy`，GV-15）；(i)`package.json` 内部依赖 ⊆ 章程 §5.2 上限列 ∪ 隐式 L0（kernel/shared/protocol 对非 L0 包隐式允许，design 的 R18 与 shared 的 R11 例外），上限列来自 `policy/dependency-limits.json`（rulings §4.18 FE-02） | (b)类附统一 diff 块；其余按 a-i 分类列出 | (a)(b)(c)=TD-090；(d)=TD-042；(e)=TD-070；(e2)=TD-103；(e3)=TD-111；(f)=TD-072；(g)=TD-080；(h)=TD-100；(i)=TD-101（08 §12b，2026-09-25） |
 | `scan-config-usage.ts` | `contracts/*.schema.ts` 的 Config 字段 + 该包全部源码 | 每个顶层字段（含一层嵌套）在包内是否有引用点 | `{package, field, path}[]` | TD-040 |
 | `scan-deprecations.ts` | 全部 `@deprecated`/`@removeIn` JSDoc + `milestones.json` + 各包 `version` | `@removeIn` 指向的里程碑/semver 是否已到达/超过 | `{package, symbol, removeIn, reason}[]` | TD-036 |
 | `scan-policy.ts` | 08 矩阵文本、`policy-row.schema.json`、CI 工作流、21+9 条规则文件与测试、14 个扫描器夹具、全部 `cordex`/`tsconfig` | (1)矩阵自校验（格式/id/路径存在/job名封闭）；(2)覆盖率检查（硬编码来源清单）；(3)规则/扫描器负向测试完整性；(a)(b)全局不变式 | `{check, rowId?, detail}[]`，覆盖率缺口示例见 06§9 | TD-031/TD-055/TD-058/TD-077 |
@@ -663,7 +664,7 @@ tooling/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `lockfile-guard.ts` | 治理检查脚本（rulings §4.15 Q9）：(a) 全仓只允许根 `pnpm-lock.yaml`，任何子目录出现 `pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`npm-shrinkwrap.json` 即失败；(b) `packageManager` 版本 = `devEngines.packageManager.version`，`devEngines.*.onFail === "error"`，`.node-version`/`engines.node`/`devEngines.runtime` 主版本一致（26）；(c) `pnpm-workspace.yaml` 显式含全部安全设置键；(d) `.npmrc` 不含非鉴权设置 | CLI 入口（退出码同扫描器约定） | `lib/report.ts`、`lib/changed-files.ts` | 主执行点 = lefthook pre-commit；CI 并入现有 `scanners` job（不新增 job 名，13 个封闭集合不变）；负向夹具：子目录 `package-lock.json`、根目录 `npm install` 报 `EBADDEVENGINES`；对应 08 矩阵 **TD-079** |
+| `lockfile-guard.ts` | 治理检查脚本（rulings §4.15 Q9）：(a) 全仓只允许根 `pnpm-lock.yaml`，任何子目录出现 `pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`npm-shrinkwrap.json` 即失败；(b) `packageManager` 版本 = `devEngines.packageManager.version`，`devEngines.*.onFail === "error"`，`.node-version`/`engines.node`/`devEngines.runtime` 主版本一致（26）；(c) `pnpm-workspace.yaml` 显式含全部安全设置键；(d) `.npmrc` 不含非鉴权设置；(e) `pnpm-workspace.yaml#catalog` 版本钉（2026-09-26，rulings §4.20 TX-13）：`typescript` 为 5.9.x 或 6.x（不得 `^7` 或 `latest`），`yjs` 与 `y-protocols` 为精确版本（不带 `^`/`~`，`yjs` 在 13.6.x 内） | CLI 入口（退出码同扫描器约定） | `lib/report.ts`、`lib/changed-files.ts` | 主执行点 = lefthook pre-commit；CI 并入现有 `scanners` job（不新增 job 名，13 个封闭集合不变）；负向夹具：子目录 `package-lock.json`、根目录 `npm install` 报 `EBADDEVENGINES`，以及 (e) 的 `typescript ^7.0.0`、`yjs ^13.6.0`、`y-protocols ^1.0.0` 三例（TX-13）；对应 08 矩阵 **TD-079**（不新增 TD 行） |
 | `check-workspace-protocol.ts` | 治理检查脚本（rulings §4.15 Q1）：内部包之间的依赖一律 `workspace:` 协议——`peerDependencies` 写 `workspace:^`，其余写 `workspace:*`；禁止对内部包写 semver 范围（pnpm 11 会让 semver 范围走 registry，构成依赖混淆面） | CLI 入口 | `lib/report.ts`、`depcruise/package-metadata.ts` | CI 并入 `scanners` job；与 ADR-0002 §3 一致；对应 08 矩阵 **TD-080**——执行落点以本文件为准（矩阵原登记 syncpack + `scan-manifest` 规则 (g)，其中包名 scope 与 `private`/`publishConfig` 二选一仍由 `scan-manifest` (g) 承担，`workspace:` 协议由本脚本承担，rulings §4.17 复核 M16） |
 | `check-rls-coverage.ts` | 治理检查脚本（rulings §4.15 Q6，T-0 单组织）：`apps/server` 迁移中凡承载文档数据的业务表必须 `ENABLE ROW LEVEL SECURITY` 且存在按**文档权限**（D12）判定的 policy；不启用者须在 `policy/rls-exceptions.json` 显式登记理由 | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job；取代 14 §4.2 N-6 的 `repo-requires-tenant-id`（T-0 完全去租户后作废，见 §12-D10）；表清单与 policy 形态归 M-08/M-12；表清单**不含** S-3 溢写——溢写数据不在 PG（存于 Valkey 键与 `spill/` 对象前缀），不受 RLS 约束，只有 collab 角色的系统上下文可读写，回放写回 `document_updates` 时仍经 RLS 的系统作业角色（rulings §4.18 BE-20）；对应 08 矩阵 **TD-083**（2026-09-24 复核补登）；代码层对偶为扫描器 `scan-doc-access-via-permission`（TD-085） |
 | `check-image-policy.ts` | 治理检查脚本（rulings §4.15 Q10）：compose 文件与 Dockerfile 中全部镜像按 digest 钉死；主组件许可落在 `policy/image-license-allowlist.json`；renderer 镜像/Chromium 版本与 `server-headless` 声明的版本锁一致；renderer sidecar 三项静态规则——非 root（`USER` 非 0/root）、无凭据（不挂载凭据卷、不注入密钥类环境变量）、沙箱开启（Chromium 启动参数不含 `--no-sandbox`）（rulings §4.18 GV-16） | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job（静态检查）；renderer 的零出站与文档级 RLS 绕过（`security:rls`）两项运行时测试不在本脚本，属 `e2e` job 的 PR 冒烟子集、M3 起阻断（GV-16）；断网 compose e2e（原提议 job `compose-airgap-e2e`）并入现有 `e2e` job 的 main 全量段，M3 起阻断，不新增 job 名；对应 08 矩阵 **TD-084**（2026-09-24 复核补登） |
@@ -751,7 +752,7 @@ sequenceDiagram
 | `iso-smoke` | `ci.yml` | 架构-类型治理 | 每 PR，gated |
 | `depcruise` | `ci.yml` | 架构-类型治理 | 每 PR，gated |
 | `api-surface` | `ci.yml` | 架构-类型治理 | 每 PR，gated；`docs-coverage`、`scaffold-e2e` 步骤见 70/12 §2 |
-| `scanners` | `ci.yml` | 架构-类型治理 | 每 PR，gated；14 个扫描器 + §5.7 的 4 个治理检查脚本 + `license-allowlist`、`vuln-audit`（读 `policy/vuln-allow.json`）以步骤并入，不新增 job 名（rulings §4.15、§4.18 GV-14） |
+| `scanners` | `ci.yml` | 架构-类型治理 | 每 PR，gated；14 个扫描器 + §5.7 的 4 个治理检查脚本 + `license-allowlist`、`vuln-audit`（读 `policy/vuln-allow.json`）以步骤并入，不新增 job 名（rulings §4.15、§4.18 GV-14）；`check-migrations-sync`（迁移文件与 60/08–13 围栏逐字一致，DB-13）已在 70/12 §7 激活表登记，自 M1 第一个含 `apps/server/src/db/migrations/0001_*.sql` 的 PR 起 gated、不起容器，脚本参数与 `tooling/ci/steps.json` 条目随该 PR 登记进 §5.7（rulings §4.20 BE-03+TX-14） |
 | `xsd-validate` | `ci.yml` | 架构-结构 A（内容）+ 本模块（job 治理） | 每 PR，gated |
 | `coverage-patch` | `ci.yml` | 架构-运行时 B（阈值）+ 本模块（机制） | 每 PR，gated |
 | `policy-check` | `policy-matrix.yml` | 架构-类型治理 | 每 PR，gated |
@@ -818,7 +819,7 @@ tooling/
 │   ├── no-module-level-mutable-state.test.ts
 │   ├── ...                                              # 其余 19 条规则同名测试
 │   └── nest-controller-dto-from-protocol.test.ts
-├── eslint-config/__tests__/{assembly,determinism}.test.ts  # TD-093/094/096 与 TD-097 的正负向用例（rulings §4.18 GV-15）
+├── eslint-config/__tests__/{assembly,determinism}.test.ts  # TD-093/094/096 与 TD-097 的正负向用例（rulings §4.18 GV-15）；determinism 另含 TD-110 四例：测试文件调 Date.now（违规）、apps/web 组件调 Math.random（违规）、SystemClock 文件放行、生产代码 performance.now 放行（§4.20 TX-08）
 ├── depcruise/__tests__/fixtures/
 │   ├── no-circular/{ok,violation}/                      # 独立 package.json + 源文件的最小夹具仓库
 │   ├── layering/{ok,violation}/
@@ -841,13 +842,14 @@ tooling/
 │   ├── scan-bundle-budget.test.ts
 │   ├── scan-doc-access-via-permission.test.ts           # 负向：以 docId 为键的仓储方法首参为裸 string；非豁免仓储直查
 │   ├── lockfile-guard.test.ts                           # 负向：子目录 package-lock.json；双锁版本不一致；
-│   │                                                      .npmrc 含非鉴权设置；根目录 npm install → EBADDEVENGINES
+│   │                                                      .npmrc 含非鉴权设置；根目录 npm install → EBADDEVENGINES；
+│   │                                                      catalog typescript ^7.0.0 / yjs ^13.6.0 / y-protocols ^1.0.0（§4.20 TX-13）
 │   ├── check-workspace-protocol.test.ts                 # 负向：内部依赖写 semver 范围 / peer 写 workspace:*
 │   ├── check-rls-coverage.test.ts                       # 负向：文档数据表未启用 RLS 且未登记例外
 │   ├── check-image-policy.test.ts                       # 负向：tag 未钉 digest；AGPL 镜像进默认 profile；
 │   │                                                      renderer 以 root 运行 / 挂载凭据 / 带 --no-sandbox（§4.18 GV-16）
 │   └── __fixtures__/
-│       ├── scan-type-escapes/{ok,violation}/             # 14 组，每扫描器一组；scan-manifest/violation 另含 (e2) 缺 runKitSelfTest 与 (f) 豁免路径之外引用 ./testing 各一例（2026-09-25）
+│       ├── scan-type-escapes/{ok,violation}/             # 14 组，每扫描器一组；scan-manifest/violation 另含 (e2) 缺 runKitSelfTest 与 (f) 豁免路径之外引用 ./testing 各一例（2026-09-25），及 (e3) 定义包缺类型测试、某贡献点未被任何 type-test 引用两例（ok 侧一例全覆盖，§4.20 TX-09）；scan-contributions/violation 另含 enablement 引用未登记键、拼错的 can.doc.writ、第三方登记 can. 前缀三例（§4.20 FE-06）
 │       ├── ...
 │       └── license/{ok,violation}/                       # TD-050 许可证扫描专用夹具
 ├── tsconfig/__tests__/                                   # 草案：tsconfig 派生一致性负向夹具（01§1）
@@ -859,7 +861,7 @@ tooling/
 - **契约/一致性测试**：14 个扫描器各自的 `__tests__/*.test.ts` 对 `__fixtures__/<scanner-name>/{ok,violation}` 运行脚本本身并断言输出 JSON 的**关键字段**，而非整份输出快照（避免"带文件路径/行号"的报告类脚本产出脆弱的大快照）。
 - **依赖规则测试**：9 条 depcruise 规则的每个 `violation` 夹具即负向测试，`ok` 夹具证明规则不误伤合规代码；两者均为独立 `package.json` + 最小源文件的夹具仓库，由 depcruise 在夹具上运行并断言输出。
 - **集成/自校验测试**：`scan-policy.ts` 自身的测试覆盖 §5.9 描述的六类解析规则（行结构、覆盖率、规则/扫描器负向测试完整性等），是唯一"校验校验者"的测试层——其自身的负向测试由 08 矩阵引用的固定检查列表 + 人工评审兜底（09-README 已承认这是唯一无法自指校验的最外层）。
-- **覆盖率与性能预算**：tooling 自身的单测覆盖率门禁与仓库其余包一致，引用 11-testing-strategy.md §0 patch coverage 阈值（行 ≥80%/分支 ≥70%）；tooling 无渲染/协同性能预算，`scan-bundle-budget`（06§14）本身是其余包性能预算 ratchet 机制的复用范例，不是 tooling 自身的性能治理对象。
+- **覆盖率与性能预算**：tooling 自身的单测覆盖率门禁与仓库其余包一致，以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 的覆盖率门槛为准（rulings §4.20 TX-10，原引 11-testing-strategy.md §0 改指）；tooling 无渲染/协同性能预算，`scan-bundle-budget`（06§14）本身是其余包性能预算 ratchet 机制的复用范例，不是 tooling 自身的性能治理对象。
 
 ## 10. 机械约束
 
@@ -954,6 +956,7 @@ pnpm run check                # 全部门禁一次性执行，作为"首个可�
 | D-10 | rulings §4.15（章程 §10 Q1–Q10 裁决，2026-09-24）vs 本文档 v0.1、02§2、ADR-0004、14 §4.2 N-6 | (1) Q9：原 `pnpm@10.x`（corepack）+ `engines.node>=22` 作废，改 pnpm 11 双锁 + Node 26；设置从 `.npmrc` 迁入 `pnpm-workspace.yaml`；新增 `lockfile-guard`（lefthook + CI，CI 并入 `scanners`）；playground 纳入根 workspace（不进 turbo/ESLint）。(2) Q1：内部依赖 `workspace:` 协议加机械校验；`release.yml` 改 OIDC trusted publishing + provenance；`create-package` 区分 `publishConfig.access: public` / `private: true`。包名已于 2026-09-24 完成全仓更名（`@cordexjs/*`，rulings §4.15 Q1）。(3) Q4：文档内容 DOM 注入禁令落为 `rules/dom-injection.ts`。(4) T-0 + Q6：单组织完全去租户，14 §4.2 N-6 采纳的第 15 个扫描器 `repo-requires-tenant-id`（`scan-repo-tenant-id.ts`）**作废**，决策包 Q6 提议的「全部业务表带 `tenant_id`」同样作废，改为 `check-rls-coverage.ts` 校验**文档级** RLS。(5) Q10：镜像 digest/许可/renderer 版本锁落 `check-image-policy.ts`；断网 compose e2e 以步骤并入 `e2e` job，13 个 job 名封闭集合不变 | 需配合：02§2 根 `package.json`/`pnpm-workspace.yaml`/lefthook 行与删除 `.npmrc` 行；ADR-0004 版本线；09-07 §2.1/§3 加 lockfile-guard；08 矩阵已登记 TD-079（lockfile）/TD-080（workspace 协议）/TD-081（禁 HTML 注入）/TD-083（RLS 覆盖）/TD-084（镜像策略），Q-09 结案；14 §4.2 N-6 标注作废；09-06 首段注明「治理检查脚本」不计入十四个扫描器 |
 | D-11 | 复核报告 `00-charter/_evidence/review-2026-09-24.html`（H5/M16/M17/L1/L7）与 rulings §4.17 D3 vs 本文档 v0.1 | (1) H5：本文档 D-6/D-7/Q-07 原提议的 TD-079…083 与矩阵 §12a 已分配的 TD-079…082 冲突，矩阵行数也已从 78 变为 85；(2) M16：TD-080/081 的执行落点矩阵与本文档不一致（syncpack/`scan-manifest`(g) vs `check-workspace-protocol.ts`；`rules/style.ts` vs `rules/dom-injection.ts`），RLS 覆盖、镜像策略两个治理检查脚本在矩阵无行；(3) M17：`*-ui` 核心层框架无关的 depcruise 规则有四个名字且未进本文档规则表；(4) D3：`doc-access-via-permission` 此前只在 M-08/M-09/M-12 与 module-map 出现，本文档无文件；(5) L7：playground 实际路径为 `docs/20-design/playground` | **已落地（2026-09-24）**：(1) 以矩阵为准，D-6 顺延为 TD-086…088、D-7 顺延为 TD-089/090，Q-07 同步，Q-09 结案；新提议统一从 TD-086 起；(2) 执行落点以本文档文件为准（§5.3 `rules/dom-injection.ts`、§5.7 `check-workspace-protocol.ts`），RLS 覆盖 = TD-083、镜像策略 = TD-084；(3) 规则名统一为 `cordex-ui-bundle-core-framework-free`，登记为 §5.5 第 9 条规则（`rules/ui-bundle-core-framework-free.ts`，TD-082）——需配合：矩阵 TD-082「配置路径」列改指此文件；(4) 登记为第 14 个扫描器 `scan-doc-access-via-permission.ts`（§4/§5.7/§9 同步，TD-085），「十三个」口径全文改为十四——需配合：09-06 追加 §18、14:285 标注；(5) 全文 glob 改为 `docs/20-design/playground` |
 | D-12 | 2026-09-25 回写（rulings §4.19 D-TEST-INFRA、D-M2-CONTENT；决策 T-PERF-GATE、T-CI、T-REQ；70/12 §8 回写清单第 2 条、70/13 §11） | (1) §5.9 CI job 矩阵原逐 job 列步骤，与 70/12 §2 的步骤总表重复且已出现漂移；`perf` 行「main 分支（PR 仅告警）」与 T-PERF-GATE 冲突；(2) `tooling/ci/` 的步骤机器副本与入口脚本、`gen-requirements.ts`、`policy/{rulings,adrs,vuln-allow}.json` 在本模块无文件登记；`requirements.json` 仍标可选；`milestones.json` 无 `status`；(3) runner 与视觉基线口径未登记 | **已落地（2026-09-25）**：(1) §5.9 矩阵改为 13 个 job 的存在性 / 触发 / 阻断摘要，步骤、激活、分片、runner 与重试一律链接 70/12；`perf` 改为「每个 PR：D50 关键指标绝对 gate，相对回归只注释；main / nightly：全量与相对回归（> 10% 失败）」；(2) §4 目录树与 §5.7/§5.8/§5.9 登记 `tooling/ci/{steps.json,run-step.ts,required-checks.ts,report-comment.ts,flaky-report.ts}`、`tooling/scripts/gen-requirements.ts`、`tooling/policy/{rulings,adrs,vuln-allow}.json`，`requirements.json` 改为生成物、`milestones.json` 增 `status ∈ {planned,active,exit-review,done}`，`scan-requirement-tags` 行按 70/13 §1 改写三类标签，Q-03 的 requirements 部分结案；(3) §5.9 登记 runner：M1 `perf-larger`（GitHub larger runner）、`perf-selfhosted` 自托管专用 runner **M2 前**落地（原 M3 前）、CPU 4× 节流；视觉基线 Windows + PowerPoint 365 维护机不进 CI，macOS 基线 M2。需配合：09-06 §9 `scan-policy` 规则 (1) 增「工作流 matrix 与 `steps.json` 一致」子检查、09-06 §12 规则 (a) 正则改写（70/12 §12 第 3 条、70/13 §11），由类型治理分区执行 |
+| D-13 | 2026-09-26 回写（rulings §4.20 TX-08、TX-09、TX-10、TX-13、FE-06、BE-03+TX-14） | (1) 确定性 lint 原只覆盖 `ooxml-*`（TD-097），测试与其余生产代码的 `Date.now`/`Math.random` 无人拦；(2)「每个 Definition 至少一个 `*.type-test.ts`」无机械核对；(3) 覆盖率引用仍指 `11-testing-strategy.md`；(4) TD-079 未钉 typescript、yjs、y-protocols 版本；(5) `scan-contributions` 规则 (e) 不查 `enablement` 与 `can.` 前缀；(6) 迁移文件逐字比对未挂门禁 | 已落实：`rules/determinism.ts` 增第二个 override（TD-110，§4、§5.3、§9）；`scan-manifest` 增规则 (e3)（TD-111，§5.7、§9 夹具）；§2.1 PolicyRow 行数 85 → 111；`requirement-test-matrix.json` 改指 70/13、§9 覆盖率改指 70/01 §8；`lockfile-guard` 增 (e) catalog 版本钉与三条负向夹具（仍记 TD-079）；`scan-contributions` 规则 (e) 扩到 `enablement` 并校验 `can.<x>`（TD-089 同步）与三条负向夹具；§5.9 `scanners` 行登记 `check-migrations-sync`（M1 首个含 `0001_*.sql` 的 PR 起 gated，脚本参数届时补进 §5.7）；§4/§5.1 `pnpm-workspace.yaml` 登记 catalog 的 yjs、y-protocols 精确版本与 sonner 的 `patchedDependencies`（FE-18+TX-06） |
 
 ## 13. 未决问题
 

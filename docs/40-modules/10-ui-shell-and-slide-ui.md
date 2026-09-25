@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-10） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：00-module-map.md M-10 / BC-13…BC-15（BC-16/17 为下游）、charter v0.2 §5.2（design / ui-core / ui-react / slide-ui 四行）§5.4 UI 行 §5.5、30-architecture 02 §4.17–4.20、03 §3.6、05 §13.3、ADR-0017（含 2026-09-16 Rhea + 材质层修订段与 2026-09-18 术语修订）、rulings §4.6–§4.10（Q9–Q21）、20-design 09 v3.1 / 04 v0.5 / 03-screens 02·03·20·24·26、playground `src/index.css` 与 `src/components/**`；上游模块文档 M-02 §2.4/§2.6/§3/§6、M-03 §2.6/§6、M-06 §2.5、M-07 §2.5/§2.6/§3/§6
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-10） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）、2026-09-26（§4.20 FE-08） | 依赖：00-module-map.md M-10 / BC-13…BC-15（BC-16/17 为下游）、charter v0.2 §5.2（design / ui-core / ui-react / slide-ui 四行）§5.4 UI 行 §5.5、30-architecture 02 §4.17–4.20、03 §3.6、05 §13.3、ADR-0017（含 2026-09-16 Rhea + 材质层修订段与 2026-09-18 术语修订）、rulings §4.6–§4.10（Q9–Q21）、20-design 09 v3.1 / 04 v0.5 / 03-screens 02·03·20·24·26、playground `src/index.css` 与 `src/components/**`；上游模块文档 M-02 §2.4/§2.6/§3/§6、M-03 §2.6/§6、M-06 §2.5、M-07 §2.5/§2.6/§3/§6
 
 # 10 UI 基座与幻灯片 UI（限界上下文 BC-13 设计系统 · BC-14 UI 基座 · BC-15 幻灯片 UI）
 
@@ -17,7 +17,7 @@
 | 贡献点 | 提供（ui-core）：`ui.ribbon`、`ui.toolbar`、`ui.panel`、`ui.contextMenu`、`ui.statusBar`、`ui.dialog`、`ui.notification`、`ui.shortcut`、`ui.command`、`ui.theme`（十个，03 §3.6 / charter §5.5 原名，不新增 id）；消费（ui-core `ui`/`shortcuts`/`theme` 服务查表，ui-react 渲染）；slide-ui 向其中七个（`ui.ribbon`/`ui.panel`/`ui.toolbar`/`ui.contextMenu`/`ui.statusBar`/`ui.shortcut`/`ui.command`，除 `ui.dialog`/`ui.notification`/`ui.theme` 外）与 `i18n.bundle` 贡献条目（2026-09-25 更正，以 §3 逐项清单与 Manifest 为准：`ui.notification` 的模板只由 ui-react 贡献，slide-ui 的 toast 经 `ui.notify` 调用既有模板，rulings §4.18 FE-11） |
 | doc / sheet 通用性 | design / ui-core / ui-react：generic（`slot` 为开放字符串、`viewModes` 与 `unitType` 由 `DocumentType` 参数化）；slide-ui：vertical（`bundle=slide`，`doc-ui`/`sheet-ui` 样板） |
 | 批次 | 3（上游 M-02/M-03/M-07 定稿后可开工；M-11 等待本模块 §6 API 面） |
-| 文件规模 | 非复制件 **166** 个（design 26 · ui-core **38** · ui-react 47 · slide-ui 55）+ shadcn 复制件 44 个（机械生成，`pnpm dlx shadcn@4.21.0 add`；**2026-09-24**：`drawer`（vaul）不迁移，45→44，窄屏底部面板改用 `sheet` 的 `side=bottom`，rulings §4.15 Q2）；高于 00 §7 估算的 110–140，原因见 §12 G-15；**2026-09-18 更新**：ui-core 删除 `history-operations.ts`（39→38，C-02，撤销/重做改绑 M-02 `core.undo|redo`）；slide-ui 的放映编排已有 `application/present.ts`（原 55 内，C-04 只改其发布者语义，非新增文件），故仅 ui-core 减 1，总数 167→166 |
+| 文件规模 | 非复制件 **169** 个（design **27** · ui-core **38** · ui-react **49** · slide-ui 55；2026-09-26 增 design `css/theme.scoped.css`、ui-react `styles/embed.css` 与 `infrastructure/csp/trusted-style-constants.ts`，rulings §4.20 FE-12、FE-18）+ shadcn 复制件 44 个（机械生成，`pnpm dlx shadcn@4.21.0 add`；**2026-09-24**：`drawer`（vaul）不迁移，45→44，窄屏底部面板改用 `sheet` 的 `side=bottom`，rulings §4.15 Q2）；高于 00 §7 估算的 110–140，原因见 §12 G-15；**2026-09-18 更新**：ui-core 删除 `history-operations.ts`（39→38，C-02，撤销/重做改绑 M-02 `core.undo|redo`）；slide-ui 的放映编排已有 `application/present.ts`（原 55 内，C-04 只改其发布者语义，非新增文件），故仅 ui-core 减 1，总数 167→166 |
 
 ### 0.1 图示
 
@@ -55,7 +55,7 @@ slideUi -- "样板复用" --> m13
 
 ### 1.1 职责与非职责
 
-**BC-13 `@cordexjs/design`（做）**：以 playground `src/index.css` 为事实基线，生成并入库四份 CSS——基础色 / 语义色（shadcn 变量名 + `--border-control` + Cordex 扩展色 `--success|warning|info(-foreground|-muted)`、`--canvas`、`--doc-paper|ink`、`--stage*`、`--presence-1…12`）、材质 `--glass-*` 与 `--canvas-glow`、字阶 `--text-2xs`、圆角派生刻度、层级、动效、密度；亮暗双套并兼容宿主 `data-theme` 盖章；`@utility glass/glass-strong`；14 个浮层 `[data-slot]` 玻璃化规则与两块退化（`prefers-reduced-transparency` / `@supports not backdrop-filter`）；字段 / tabs / toggle / accordion（`inspector-groups`）/ `.cordex-well` `.cordex-group` / avatar-group 的 `[data-slot]` 规则；`body` 宿主防线；WCAG 对比度核算助手。**不做**：任何组件、图标、React / Radix / Tailwind 运行时 import（R18）；`--cordex-*` 记号（已作废，§12 G-1）；文档内容（幻灯片纸面内文字）的字号 / 颜色——那是 `model-slide` 的数据。
+**BC-13 `@cordexjs/design`（做）**：以 playground `src/index.css` 为事实基线，生成并入库五份 CSS（含作用域变体 `css/theme.scoped.css`，2026-09-26，50/09 §2）——基础色 / 语义色（shadcn 变量名 + `--border-control` + Cordex 扩展色 `--success|warning|info(-foreground|-muted)`、`--canvas`、`--doc-paper|ink`、`--stage*`、`--presence-1…12`）、材质 `--glass-*` 与 `--canvas-glow`、字阶 `--text-2xs`、圆角派生刻度、层级、动效、密度；亮暗双套并兼容宿主 `data-theme` 盖章；`@utility glass/glass-strong`；14 个浮层 `[data-slot]` 玻璃化规则与两块退化（`prefers-reduced-transparency` / `@supports not backdrop-filter`）；字段 / tabs / toggle / accordion（`inspector-groups`）/ `.cordex-well` `.cordex-group` / avatar-group 的 `[data-slot]` 规则；`body` 宿主防线；WCAG 对比度核算助手。**不做**：任何组件、图标、React / Radix / Tailwind 运行时 import（R18）；`--cordex-*` 记号（已作废，§12 G-1）；文档内容（幻灯片纸面内文字）的字号 / 颜色——那是 `model-slide` 的数据。
 
 **BC-14 `@cordexjs/ui-core`（做）**：十个 `ui.*` 贡献点的 item schema 与注册；`when` 子句解析 / 求值与反应式上下文键（`unitType`/`viewMode`/`editTargetKind`/`selectionKind`/`selectionCount`/`canUndo`/`canRedo`/`isCollab`/`isReadOnly`/`platform`/`density` + 新增建议 `breakpoint`/`textEditing`/`focusRegion`）；键盘 / 指针 / IME / 剪贴板 / 拖放五条输入管线（只产出**意图**，经 `dispatch` 统一转 `commands.execute`）；`ctx.shortcuts`（`Mod+Alt+M`、`Mod+,`、`Mod+/`、`Mod+Shift+P` 等默认表由贡献方注册，服务只做 chord 规范化、匹配与冲突诊断）；`ctx.theme`（theme / density 状态、根元素属性写入、design CSS 单例注入）；视图模型纯函数（Ribbon 树、检查器分区、状态栏、命令面板、右键菜单）；水平层 Operation `view.setMode`（2026-09-18 确认归本包，C-01；M-02 侧的重复定义 `command/builtin/view-operations.ts` 已删除）、`ui.openPanel|closePanel|toggleRibbonTab`。**不做**：import react / radix / tailwind / lucide（R14）；任何幻灯片字面量（`no-doc-type-literals`）；渲染——由 `UiRenderer` Provider 完成；撤销 / 重做 Operation（`history.undo|redo` 已删除，UI 改绑 M-02 内置 `core.undo|redo`，2026-09-18 C-02）。**`@cordexjs/ui-react`（做）**：`<EditorHost>` / `EditorShell`（三栏 240·画布·300，紧凑 / 仅查看态）、AppBar（返回 / 文档名 / 撤销重做 / 保存态 / 在场 / 分享 / 模式 / ⋯ / 头像）、Ribbon 宿主与 primitives、面板 / 工具条 / 右键 / 对话框 / 通知 / 命令面板宿主、状态胶囊、备注栏、画布宿主 + 缩放胶囊、快捷键面板、设置抽屉框架、`UserMenu`/`Brand`/`ThemeToggle`/`ViewModeSwitch`/`PresenceStack`/`ColorPickerPopover`、45 个 shadcn 复制件（`./ui` 子路径）、贡献渲染适配器（每个贡献一个错误边界）与 `ThemeBridge`。**不做**：任何 `slide.*` 命令绑定或幻灯片语义（页签内容、分区内容、缩略图内容全部来自贡献）；手改复制件（组件级视觉写 design 的 `[data-slot]` 规则，确需改标 `// Cordex override`）。
 
@@ -147,14 +147,14 @@ slideUi -- "CS 装配与挂载" --> down
 
 | 视图模型 | 事实源 | 所在文件 |
 |---|---|---|
-| `ContextKeyValues`（标准键 + `breakpoint`/`textEditing`/`focusRegion`/`unitLoaded` + 2026-09-25 新增标准键 `editorMode`；前缀键 `slide.editScope`/`slide.hasNotes`/`slide.multiSelectLayouts`/`slide.hasChartEditor`/`slide.placeholderSelected`/`slide.hasComments`） | 50/09 §6.3 | ui-core `domain/context-keys.ts`；slide 前缀键在 slide-ui `slide-ui.contribution.ts` |
-| `RibbonTree`、`InspectorSections`、`StatusBarModel`/`ContextMenuModel`/`CommandPaletteModel` | 50/09 §6 | ui-core `domain/{ribbon-model,inspector-model,bar-and-menu-models}.ts` |
+| `ContextKeyValues`（标准键 + `breakpoint`/`textEditing`/`focusRegion`/`unitLoaded` + 2026-09-25 新增标准键 `editorMode`；2026-09-26 登记标准键族 `can.<capability>`——`<capability>` 取 protocol `permissions/actions.ts` 能力位全集，`can.` 为 ui-core 保留前缀，第三方不得登记，`isReadOnly` ≡ `!can.doc.write`（rulings §4.20 FE-06）；前缀键 `slide.editScope`/`slide.hasNotes`/`slide.multiSelectLayouts`/`slide.hasChartEditor`/`slide.placeholderSelected`/`slide.hasComments`；键全集以 50/09 §6.3 为准，是 `when` 与 `enablement` 的唯一输入） | 50/09 §6.3 | ui-core `domain/context-keys.ts`；slide 前缀键在 slide-ui `slide-ui.contribution.ts` |
+| `RibbonTree`、`InspectorSections`、`StatusBarModel`/`ContextMenuModel`/`CommandPaletteModel` | 50/09 §7 | ui-core `domain/{ribbon-model,inspector-model,bar-and-menu-models}.ts` |
 | `ThemeState`（`ThemeService` 2026-09-25 增 `setTokens(partial)`、`registerStyleSheet(id, cssText)`；ui-react 增导出 `./styles.embed.css`） | 50/09 §3–§4 | ui-core `domain/theme-state.ts`、`application/services/theme.service.ts` |
-| `EditorLayoutState`（2026-09-25 增 `notesHeight`、`sectionsCollapsed`；`EditorLayoutOptions.remember`） | 50/10 §4 | ui-react `ui/shell/EditorShell.tsx`（布局记忆的键与清理见 50/02 §10） |
+| `EditorLayoutState`（2026-09-25 增 `notesHeight`、`sectionsCollapsed`；`EditorLayoutOptions.remember`，§2.5 已登记） | 50/10 §2.1 | ui-react `ui/shell/EditorShell.tsx`（布局记忆的键与清理见 50/02 §10） |
 | `CollabUiState`（UI 六态，`deriveCollabUiState` 派生，含「未保存到服务器」分级受众，rulings §4.19 INC-09） | 50/07 §3.2–§3.3、50/10 §11 | ui-core `domain/collab-ui-state.ts` |
-| `SlideSelectionView` | 50/09 §5 | slide-ui `domain/selection-kind.ts` |
-| `MasterEntryState`（2026-09-25 补 `degraded`、`view`）、`MasterViewState`（`targetId` 拆为 `paneSelection` 与 `target`）、会话记忆（只在内存） | 50/11 §3、§5 | slide-ui `domain/edit-target.ts`、`application/master-view.ts`、`infrastructure/session-memory.ts` |
-| `ThumbnailListModel` | 50/10 §5 | slide-ui `domain/thumbnails-model.ts` |
+| `SlideSelectionView` | 50/09 §6.3 | slide-ui `domain/selection-kind.ts` |
+| `MasterEntryState`（五值 `enabled`/`review`/`view`/`degraded`/`narrow`，2026-09-25 补 `degraded`、`view`）、`MasterViewState`（`targetId` 拆为 `paneSelection` 与 `target`）、会话记忆（只在内存） | 50/11 §3、§4、§2 | slide-ui `domain/edit-target.ts`、`application/master-view.ts`、`infrastructure/session-memory.ts` |
+| `ThumbnailListModel` | 50/10 §6 | slide-ui `domain/thumbnails-model.ts` |
 
 **图 2-1 贡献点流向**
 
@@ -177,7 +177,7 @@ viewModeKey -- "驱动 when 求值" --> uiCore
 
 ### 2.2 输入管线与适配器契约
 
-五条管线（键盘、指针、IME / 文本、剪贴板、拖放）在 ui-core `src/application/input/`，只产出意图对象，经 `dispatch()` 转 `commands.execute`，错误统一走 `ui.notify`、不抛异常；管线细节、Esc 逐级链与拖拽阈值以 50/09 §5、50/10 §7 为准，剪贴板 MIME 协商与撤销绑定以 50/04 §9 为准（原管线细化图与图 2-2 于 2026-09-25 移交 50/09）。
+五条管线（键盘、指针、IME / 文本、剪贴板、拖放）在 ui-core `src/application/input/`，只产出意图对象，经 `dispatch()` 转 `commands.execute`，错误统一走 `ui.notify`、不抛异常；管线细节、Esc 逐级链与拖拽阈值以 50/09 §8、50/10 §7 为准，剪贴板 MIME 协商与撤销绑定以 50/04 §9 为准（原管线细化图与图 2-2 于 2026-09-25 移交 50/09）。
 
 适配器契约（谁实现、谁调用）：
 
@@ -193,7 +193,8 @@ viewModeKey -- "驱动 when 求值" --> uiCore
 
 | 函数（签名草案） | 所在文件 | 说明 |
 |---|---|---|
-| `parseWhen(src: string): Result<WhenClause, WhenParseError>` / `evaluateWhen(clause, keys: ContextKeyValues): boolean` | ui-core `domain/when-clause.ts` | 语法：`==`/`!=`/`in`/`&&`/`\|\|`/`!`/括号；键名必须在登记表 |
+| `parseWhen(src: string): Result<WhenClause, WhenParseError>` / `evaluateWhen(clause, keys: ContextKeyValues): boolean` | ui-core `domain/when-clause.ts` | 语法：`==`/`!=`/`in`/`&&`/`\|\|`/`!`/括号；键名必须在登记表；`when` 与 `enablement` 共用 |
+| `explainWhen(clause, keys): ReasonKey \| null`（2026-09-26 登记，rulings §4.20 FE-12） | ui-core `domain/when-clause.ts` | 子句为真返回 `null`；为假时按求值顺序返回首个为假的原子条件对应的原因键（如 `editorMode == 'edit'` → 「评审模式下不可用」、`breakpoint == 'desktop'` → 「需要 ≥ 1024 宽度」、`can.doc.write` → 「需要编辑权限」）；命令面板条目、按钮 tooltip 与快捷键 Toast 共用同一组 i18n 键（50/09 §6.2，PRD ED-30） |
 | `normalizeChord(input: string, platform): Chord` / `chordFromEvent(e: KeyboardEvent, platform): Chord` / `formatChord(chord, platform): string` | ui-core `domain/chord.ts` | `Mod` 展开为 `Meta`（mac）/`Control`；显示 ⌘⌥⇧ 或 Ctrl/Alt/Shift；基于 `code` 不受布局影响 |
 | `buildRibbonTree(items: RibbonItem[], keys): RibbonTree` / `buildInspectorSections(items, keys)` / `buildStatusBar(items, keys)` / `buildContextMenu(items, keys, slot)` / `buildPalette(commands, shortcuts, keys)` | ui-core `domain/ribbon-model.ts` 等 | 过滤（`when`）→ 排序（`order`，同序按贡献时间）→ 折叠三级 |
 | `filterContributions<T>(set, slot, keys): T[]` | ui-core `application/services/ui.service.ts`（内部纯函数） | 上述五者的共同底座 |
@@ -201,7 +202,7 @@ viewModeKey -- "驱动 when 求值" --> uiCore
 | `resolveThemeState(stored, hostMark, prefersDark): ThemeState` | ui-core `domain/theme-state.ts` | 04 §3 解析顺序 |
 | `detectBreakpoint(width): Breakpoint` / `detectPlatform(nav): Platform` | ui-core `infrastructure/environment.ts` | 1024 / 640；`pointer: coarse` 视为 mobile |
 | `deriveSelectionKind(sel: Selection<SlideSelectionAnchor>, slides: SlidesService): SlideSelectionView` | slide-ui `domain/selection-kind.ts` | 多选异类 → `mixed`；容器为 layout/master → `layout`/`master` |
-| `impactCount(body, target: MasterId\|LayoutId): number` / `masterEntryState(keys): 'enabled'\|'review'\|'narrow'` | slide-ui `domain/edit-target.ts` | 复用 M-03 `dependentsOf`；Q12 判定 |
+| `impactCount(body, target: MasterId\|LayoutId): number` / `masterEntryState(keys): MasterEntryState` | slide-ui `domain/edit-target.ts` | 复用 M-03 `dependentsOf`（不计墓碑目标，rulings §4.20 FE-04）；Q12 判定，五值 `enabled`/`review`/`view`/`degraded`/`narrow`，优先级 review/view 先于 degraded 先于 narrow（50/11 §3，rulings §4.20 FE-11）；删除版式的 `reassignTo` 直接调 `@cordexjs/model-slide` 导出的 `defaultLayoutOf`，本包不另实现（FE-03） |
 | `buildThumbnailList(body, thumbs, selection, mode: 'normal'\|'master'): ThumbnailListModel` | slide-ui `domain/thumbnails-model.ts` | 母版 → 版式两级平铺；引用数实时 |
 | `ribbonSpec(): RibbonItem[]` / `inspectorSpec(): PanelItem[]` / `defaultShortcuts(): ShortcutItem[]` | slide-ui `domain/ribbon-spec.ts`、`inspector-spec.ts`、`shortcut-table.ts` | 声明式规格，`infrastructure/contributions/*` 只负责 `ctx.contribute` |
 | `contrastRatio(fg, bg): number` / `flattenAlpha(rgba, over): rgb` | design `utilities/contrast.ts` | WCAG 相对亮度；玻璃面板对比先按背景层压平 alpha |
@@ -262,18 +263,20 @@ interface UiRendererHandle { update(opts: Partial<UiMountOptions>): void; dispos
 
 **2026-09-24 补（rulings §4.15 Q2，React 19 收口 D10）**：①「UI 框架可换」改写为可验证范围——ui-core 全包 + 各 `*-ui` 的 `src/domain/**`、`src/application/**` 框架无关（depcruise 规则 `cordex-ui-bundle-core-framework-free`，M-01 第 9 条、TD-082，全仓统一名，见 §10；2026-09-24 复核 M17），`*-ui` 中 React 仅允许 `src/ui/**`（以类型治理 `30-architecture/09-type-discipline/02-lint-rules.md` 单点引入表为准，`infrastructure/**` 不在允许列表内，复核 L17）；换框架须**同时替换 ui-react 与全部 `*-ui` 的 `ui/` 层**。②形态 B（宿主自绘 UI）由 `embed-vanilla`（M-11）提供最小 `UiRenderer('vanilla')`（只挂画布与宿主容器、不渲染 `ui.*` 贡献），同样实例化 `runUiRendererConformance`；M-11 的 `FRAMEWORK_FREE_EXCLUDES` 同时排除 `ui-react` 与 `slide-ui`。③第三方 UI 贡献 = **声明式**（`kind` 默认控件，零框架代码）+ **React 组件**（`ComponentRef` → `React.ComponentType`）；`custom` 组件一律经 `ContributionRenderer` 的逐项 ErrorBoundary，且须在 ui-react `testing` 的 `axeCheck` 夹具下零违规（插件作者模板自带该用例）。④SDK 对宿主 React 声明 peer `^19.0`。
 
+**可用性子句 `enablement` 与 `can.*` 键族（2026-09-26 登记，rulings §4.20 FE-06；契约以 50/09 §6.1–§6.3 为准）**：`ContributionBase` 增可选 `enablement?: string`（`ui.shortcut` 的 `ShortcutItem`、`ui.command` 的 `CommandPresentation` 同样带），语法与 `when` 相同。`when` 只管**是否出现**，`enablement` 只管**是否可用**：为假时控件留在原位、`aria-disabled`，原因取 `explainWhen(enablement, keys)`（§2.3），对应 PRD ED-30「不可用必须说明原因」；控件可用性 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`can.<capability>`）∧ `enablement` 为真（50/10 §4）。标准键族 `can.<capability>` 的 `<capability>` 取 protocol `permissions/actions.ts` 能力位全集（M-02 §5.3），`can.` 为 ui-core 保留前缀，ui-core 以外的包调用 `registerPrefixedKey('can.…')` 即违规；`scan-contributions` 规则 (e) 检查 `when` **与** `enablement` 子句中的键，并校验 `can.<x>` 的 `<x>` 属于能力位（TD-089 同步，09-type-discipline/06 §3）。
+
 **配置 schema**（zod，各包 `config.ts`）：
 
 | 包 | 字段 | 默认 |
 |---|---|---|
 | ui-core | `UiCoreConfig{ theme: { initial: 'system'\|'light'\|'dark'; density: 'comfortable'\|'compact'; injectCss: boolean; honorHostDataTheme: boolean }; shortcuts: { enabled: boolean; ignoreWhenTyping: boolean }; input: { dragThresholdPx; dblClickMs; longPressMs }; breakpoints: { desktop: 1024; compact: 640 } }` | `system` / `comfortable` / `true` / `true`；`true` / `true`；`4` / `300` / `500` |
-| ui-react | `UiReactConfig{ layout: EditorLayoutOptions{ railWidth: 240; inspectorWidth: 300; historyWidth: 560; railRange: [160, 420]; inspectorRange: [240, 720] }; iconStrokeWidth: 1.5 \| 2; toastDurationMs: { default: 3500; withAction: 5000 }; maxBackdropFilters: 4 }` | 如列；`strokeWidth` 默认 `2`（Q-6） |
+| ui-react | `UiReactConfig{ layout: EditorLayoutOptions{ railWidth: 240; inspectorWidth: 300; historyWidth: 560; notesHeight: 120; railRange: [160, 420]; inspectorRange: [240, 720]; remember: boolean }; iconStrokeWidth: 1.5 \| 2; toastDurationMs: { default: 3500; withAction: 5000 }; maxBackdropFilters: 4 }` | 如列；`remember` 默认 `true`（`false` 时不读写 localStorage 布局记忆，PRD ED-22「可禁用」；`notesHeight`、`remember` 2026-09-26 登记，50/10 §2.1，rulings §4.20 FE-12）；`strokeWidth` 默认 `2`（Q-6） |
 | slide-ui | `SlideUiConfig{ thumbnails: { virtualize: boolean; overscan: number }; masterView: { rememberSession: boolean; minViewport: 1024 }; present: { fullscreen: boolean; blackScreenKey: 'B'; whiteScreenKey: 'W' }; miniToolbar: { enabled: boolean } }` | `true`/`6`；`true`/`1024`；`true`；`true` |
 | design | 无运行时配置；`build-theme --check` 校验入库 CSS 与 `tokens/` 一致 | — |
 
 ### 2.6 命令绑定（控件 → 命令 id；★ = M-03 §2.6 未列出的新增建议，见 §12 G-13）
 
-`view.setMode`、`ui.openPanel|closePanel|toggleRibbonTab` 为 ui-core 拥有的水平层 Operation（`application/operations/*`，`permission: ['doc.read']`，不入历史；`view.setMode` 归属 2026-09-18 经跨模块评审 C-01 确认，M-02 侧重复定义已删除）；撤销 / 重做**不再**是 ui-core 自有 Operation——应用栏按钮、`Mod+Z`/`Mod+Shift+Z`/`Mod+Y`、命令面板一律绑定 **M-02 内置 `core.undo|redo`**（ui-core 原 `history.undo|redo`/`history-operations.ts` 已删除，2026-09-18 C-02，§13 Q-3 结案）；其余全部引用 M-03 的 `slide.*` id。控件 `when` 省略即继承所属页签的 `when`；只读态（`isReadOnly`）下全部写命令控件禁用而非隐藏。
+`view.setMode`、`ui.openPanel|closePanel|toggleRibbonTab` 为 ui-core 拥有的水平层 Operation（`application/operations/*`，`permission: ['doc.read']`，不入历史；`view.setMode` 归属 2026-09-18 经跨模块评审 C-01 确认，M-02 侧重复定义已删除）；撤销 / 重做**不再**是 ui-core 自有 Operation——应用栏按钮、`Mod+Z`/`Mod+Shift+Z`/`Mod+Y`、命令面板一律绑定 **M-02 内置 `core.undo|redo`**（ui-core 原 `history.undo|redo`/`history-operations.ts` 已删除，2026-09-18 C-02，§13 Q-3 结案）；其余全部引用 M-03 的 `slide.*` id。控件 `when` 省略即继承所属页签的 `when`；只读态（`isReadOnly`）下全部写命令控件禁用而非隐藏（可用性按 §2.5「`enablement` 与 `can.*`」判定，原因经 `explainWhen` 给出，rulings §4.20 FE-06）。
 
 | 页签（`when`） | 组 | 控件 → 命令 id（参数装配见 slide-ui `application/command-bindings.ts`） |
 |---|---|---|
@@ -282,12 +285,12 @@ interface UiRendererHandle { update(opts: Partial<UiMountOptions>): void; dispos
 | | 字体 | 字体族 → `slide.setFontFamily`★；字号 → `slide.setFontSize`；B → `slide.toggleBold`；I / U / S → `slide.toggleItalic|toggleUnderline|toggleStrikethrough`★（同 `run.setProperties` 族）；文字颜色 / 高亮 → `slide.setTextColor|setTextHighlight`★；清除格式 → `slide.clearRunFormatting`★ |
 | | 段落 | 对齐四态 → `slide.setAlignment`；项目符号 / 编号 → `slide.setBullet`；缩进增减 → `slide.setIndentLevel`★；行距 ▾ → `slide.setLineSpacing`★ |
 | | 绘图 | 形状 ▾（网格 flyout）→ `slide.insertShape{containerId, kind, box}`；填充 → `slide.setFill`；线条 → `slide.setLine`；快速样式 ▾（P1）→ `slide.setFill`+`setLine`+`setEffect`★ 同一事务；排列 ▾ → `slide.bringForward|sendBackward|group|ungroup`、对齐分布 → `slide.alignShapes|distributeShapes`★ |
-| | 编辑 | 查找 `Mod+F` / 替换 `Mod+H` → UI 查找面板（只读遍历 `slides.body()`）+ `slide.deleteText`/`slide.insertText`；选择 ▾ → `slide.setSelection`（全选 `Mod+A`）；查找替换与全选均带 `when: unitLoaded`，渐进打开未到齐时禁用并提示等待（rulings §4.18 CO-12）|
-| 插入（恒显） | 幻灯片 / 表格 / 图像 / 插图 / 文本 / 评论 / 媒体 | 新建幻灯片 → `slide.addSlide`；表格 → `slide.insertTable{rows, cols}`；图片 → 文件选择 → `slide.insertPicture{blob}`；形状网格 → `slide.insertShape`；文本框 → `slide.insertShape{kind:'sp'}` + 进入文本编辑态；图表 → M3 `slide-render-chart` 存在时启用（`when: hasChartEditor`★ 前缀键）；评论 → `comments.addThread`（评论模块贡献，`when: isCollab`；本包只留槽位）；链接 / 媒体 → P2 禁用 |
+| | 编辑 | 查找 `Mod+F` / 替换 `Mod+H` → UI 查找面板（只读遍历 `slides.body()`）+ `slide.deleteText`/`slide.insertText`；选择 ▾ → `slide.setSelection`（全选 `Mod+A`）；查找替换与全选均带 `enablement: unitLoaded`（原写 `when`，2026-09-26 按 rulings §4.20 FE-06/FE-11 改为可用性子句：渐进打开未到齐时控件仍在、禁用并提示等待，rulings §4.18 CO-12）|
+| 插入（恒显） | 幻灯片 / 表格 / 图像 / 插图 / 文本 / 评论 / 媒体 | 新建幻灯片 → `slide.addSlide`；表格 → `slide.insertTable{rows, cols}`；图片 → 文件选择 → `slide.insertPicture{blob}`；形状网格 → `slide.insertShape`；文本框 → `slide.insertShape{kind:'sp'}` + 进入文本编辑态；图表 → M3 `slide-render-chart` 存在时启用（`enablement: slide.hasChartEditor`，未装载时禁用并给原因，rulings §4.20 FE-11）；评论 → slide-ui 贡献，`when: slide.hasComments`，命令 `comments.addThread`（`@cordexjs/comments` 包，M3；rulings §4.19 D-COMMENTS-PKG、§4.20 FE-11）；链接 / 媒体 → P2 禁用 |
 | 设计（`viewMode != 'master'`） | 主题 / 变体 / 自定义 | 主题预设卡 → `slide.applyTheme{masterId, theme}`；变体色块 → `slide.setThemeColors`；字体方案 → `slide.setThemeFonts`；幻灯片背景 → `slide.setSlideBackground`★（`slide.slide.setBackground` Mutation 已存在）；幻灯片大小 → P2 禁用 |
 | 切换（恒显；Q15 只读） | 切换效果 · 只读 / 计时 · 只读 / 说明 | 全部 `disabled`，显示当前页保留的效果名与时长；无命令；说明「已保留原文件的切换效果，M1–M3 暂不可编辑」 |
-| 视图（恒显） | 显示 / 缩放 / 窗口 | 网格 / 参考线 / 智能参考线 → `ui.setPreference`★（ui-core Operation，客户端偏好，不入历史）；缩放 ▾ → `slide.setZoom`；缩略图侧栏 / 备注 → `ui.togglePanel('thumbnails' \| 'notes')`（`panel-operations.ts`）；母版视图 → `view.setMode{mode:'master'}`（`entry != 'enabled'` 时禁用 + tooltip「评审模式下不可用」/「需要 ≥ 1024 宽度」，Q12）|
-| 母版（`viewMode == 'master'`，`order:-100`，强调色） | 编辑母版 | 新建母版 → `slide.insertMaster`；插入版式 → `slide.insertLayout{masterId, after}`；删除版式 → Q11 流程（引用 0 → `slide.deleteLayout` + 可撤销 toast；引用 N → `AlertDialog` → `slide.deleteLayout{reassignTo: 同母版默认版式}`，不可撤销）；重命名 → `slide.renameLayout` |
+| 视图（恒显） | 显示 / 缩放 / 窗口 | 网格 / 参考线 / 智能参考线 → `ui.setPreference`★（ui-core Operation，客户端偏好，不入历史）；缩放 ▾ → `slide.setZoom`；缩略图侧栏 / 备注 → `ui.togglePanel('thumbnails' \| 'notes')`（`panel-operations.ts`）；母版视图 → `view.setMode{mode:'master'}`（`enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'`，不可用时禁用、tooltip 取 `explainWhen`：「需要编辑权限」/「需要 ≥ 1024 宽度」，Q12；与 `masterEntryState` 同键同优先级，50/11 §3，rulings §4.20 FE-11）|
+| 母版（`viewMode == 'master'`，`order:-100`，强调色） | 编辑母版 | 新建母版 → `slide.insertMaster`；插入版式 → `slide.insertLayout{masterId, after}`；删除版式 → Q11 流程（引用 0 → `slide.deleteLayout` + 可撤销 toast；引用 N → `AlertDialog`（文案不再含「操作不可撤销」）→ `slide.deleteLayout{reassignTo: defaultLayoutOf(body, {masterId, type, exclude: 被删集合})}`（`defaultLayoutOf` 从 `@cordexjs/model-slide` import，rulings §4.20 FE-03）→ 带 [撤销] 的 Toast（Q11 修订为确认后可撤销，rulings §4.20 FE-05））；删除母版 → `AlertDialog`「N 个页面将改用剩余母版中对应的版式」→ `slide.deleteMaster{masterId, reassignTo: 按 order 首个剩余母版}`（不加母版选择器，rulings §4.20 FE-23）→ 带 [撤销] 的 Toast；重命名 → `slide.renameLayout` |
 | | 母版版式 | 插入占位符 ▾ → `slide.addPlaceholder{containerId, type, box}`（超同类上限 → `PLACEHOLDER_LIMIT_EXCEEDED` → toast，Q16）；标题 / 页脚复选 → `slide.addPlaceholder|removePlaceholder` |
 | | 主题 | 编辑主题 → `ThemeEditorPanel` → `slide.setThemeColors|setThemeFonts|applyTheme`；颜色 / 字体小按钮同上（Q10：主题控件留在母版页签） |
 | | 背景 | 背景样式 ▾ → `slide.editScope=='master' ? slide.setMasterBackground : slide.setLayoutBackground`；隐藏背景图形 → `slide.setLayoutProperties{showMasterSp}`★；背景格式… → 检查器「幻灯片」分区定位 |
@@ -338,8 +341,8 @@ uiReact -. "可选 uiRenderer 缺席则headless" .-> slideUi
 | 插件名 / `name` | `ui-core` |
 | `inject`（必需 / 可选） | 必需：`['contributions', 'commands', 'units', 'i18n']`；可选：`['documentTypes']`（校验 `view.setMode` 的 `mode ∈ viewModes`，缺失时只做字符串校验）、`['telemetry']`、`['errors']` |
 | `provide` | `['ui', 'shortcuts', 'theme']`；同时声明 `UiRenderer` Definition（服务名 `uiRenderer`，由 Provider 填座；缺席时 `ui` 服务可用但无渲染——headless，charter §5.4「UI 移除后系统能否启动：是」） |
-| 贡献点：提供 | `ui.ribbon`（`RibbonItem`，key=`id`，`conflict:'replace'`）、`ui.toolbar`（`ToolbarItem`，key=`id`，replace）、`ui.panel`（`PanelItem`，key=`id`，replace）、`ui.contextMenu`（`ContextMenuItem`，key=`id`，replace）、`ui.statusBar`（`StatusBarItem`，key=`id`，replace）、`ui.dialog`（`DialogItem`，key=`id`，replace）、`ui.notification`（`NotificationKind`，key=`id`，replace）、`ui.shortcut`（`ShortcutItem{id; chord; commandId; params?; when?}`，key=`id`，replace）、`ui.command`（`CommandPresentation{commandId; title; icon?; category; when?; keywords?}`，key=`commandId`，replace）、`ui.theme`（`ThemeContribution{id; tokens: Partial<TokenSet>; density?}`，key=`id`，replace，Beta）；全部 `conflict:'replace'`（03 §3.6：仅 `ui.*` 允许，用于主题 / 移动端覆盖）；item schema 校验失败 → 诊断 + 丢弃该项，不抛错 |
-| 贡献点：消费 | 同上十个（`ui` 服务消费前八个 + `ui.command`；`shortcuts` 消费 `ui.shortcut` + `ui.command.chord` 回填；`theme` 消费 `ui.theme`）；`core.command`（只读查表：命令面板只列已注册命令；`scan-contributions` 规则 (e) 校验 `ui.*` 的 `when`，原称 `when-keys-declared`，GV-15） |
+| 贡献点：提供 | `ui.ribbon`（`RibbonItem`，key=`id`，`conflict:'replace'`）、`ui.toolbar`（`ToolbarItem`，key=`id`，replace）、`ui.panel`（`PanelItem`，key=`id`，replace）、`ui.contextMenu`（`ContextMenuItem`，key=`id`，replace）、`ui.statusBar`（`StatusBarItem`，key=`id`，replace）、`ui.dialog`（`DialogItem`，key=`id`，replace）、`ui.notification`（`NotificationKind`，key=`id`，replace）、`ui.shortcut`（`ShortcutItem{id; chord; commandId; params?; when?; enablement?}`，key=`id`，replace）、`ui.command`（`CommandPresentation{commandId; title; icon?; category; when?; enablement?; keywords?}`，key=`commandId`，replace）、`ui.theme`（`ThemeContribution{id; tokens: Partial<TokenSet>; density?}`，key=`id`，replace，Beta）；全部 `conflict:'replace'`（03 §3.6：仅 `ui.*` 允许，用于主题 / 移动端覆盖）；全部 item 共享 `ContributionBase{id; slot; order; when?; enablement?; owner?}`（`enablement` 2026-09-26 登记，rulings §4.20 FE-06，见 §2.5）；item schema 校验失败 → 诊断 + 丢弃该项，不抛错 |
+| 贡献点：消费 | 同上十个（`ui` 服务消费前八个 + `ui.command`；`shortcuts` 消费 `ui.shortcut` + `ui.command.chord` 回填；`theme` 消费 `ui.theme`）；`core.command`（只读查表：命令面板只列已注册命令；`scan-contributions` 规则 (e) 校验 `ui.*` 的 `when` 与 `enablement` 子句中的键及 `can.<x>` 属于能力位（2026-09-26 扩到 `enablement`，rulings §4.20 FE-06），原称 `when-keys-declared`，GV-15） |
 | 事件：发布 | `ui/context-key-changed`、`ui/panel-opened`、`ui/panel-closed`、`ui/shortcut-conflict`（新增建议）、`ui/theme-changed`（新增建议）、`view/mode-changed` |
 | 事件：订阅 | `history/changed`、`selection/changed`、`permission/changed`、`unit/opened`、`unit/closed`、`command/executed`（刷新 `canUndo`）、`i18n/locale-changed`（重建 title 缓存）；presence 服务存在性（`ctx.get('presence', false)`）驱动 `isCollab` |
 | 配置 schema | `UiCoreConfig`（§2.5） |
@@ -368,13 +371,13 @@ uiReact -. "可选 uiRenderer 缺席则headless" .-> slideUi
 | 插件名 / `name` | `slide-ui` |
 | `inject`（必需 / 可选） | 必需：`['contributions', 'ui', 'shortcuts', 'commands', 'i18n', 'units']`；可选：`['uiRenderer']`（缺席 = headless，贡献仍注册但不渲染）、`['presence']`、`['documentTypes']`；UnitScope 内经 `unitOf(ctx)` 解析：`slides`、`selection`、`history`、`render`、`thumbnails`（均在使用点 `ctx.get(name, false)`，缺失时对应 UI 显示降级态而非抛错） |
 | `provide` | 无 |
-| 贡献点：提供（向 ui-core / i18n 的点贡献条目） | `ui.ribbon`：6 个页签 + 22 个组 + 约 70 个控件（§2.6 表；id 前缀 `slide.ribbon.*`）；`ui.panel`：`slide.panel.thumbnails`（slot `rail`，`when: viewMode != 'master'`）、`slide.panel.masterThumbnails`（slot `rail`，`when: viewMode == 'master'`）、`slide.panel.notes`（slot `notes`）、7 个检查器分区（slot `inspector`，按 `selectionKind`/`editTargetKind` 的 `when`）、`slide.panel.scopeBar`（slot `canvas.top`，`when: viewMode == 'master'`）；`ui.toolbar`：`slide.toolbar.textEditing`（slot `toolbar.text-editing`）、`slide.toolbar.imageSelected`、`slide.toolbar.appBarBadges`（slot `appBar.badges`：母版视图 + 影响 N 页徽标）；`ui.contextMenu`：`canvas`、`thumbnail`、`masterThumbnail`、`layoutThumbnail` 四个 slot 共 24 项；`ui.statusBar`：`slide.status.page`、`slide.status.selection`、`slide.status.masterScope`（left）、`slide.status.inheritanceHelp`（right，`when: viewMode == 'master'`）；`ui.shortcut`：默认键位表 26 条（`Mod+Alt+M`、`Mod+M`、`Mod+D`、`Mod+G`/`Mod+Shift+G`、`Mod+B/I/U`、`Mod+A`、`Mod+ +/-`、`Mod+Shift+↑/↓`、`PageUp/PageDown/Home/End`、`Delete`、`Esc`、`F5`/`Shift+F5`、`Mod+F`/`Mod+H`…）；`ui.command`：全部 `slide.*` 命令的 title / icon / category（约 60 条）；`i18n.bundle`：`slide.ui`（zh-CN / en-US） |
+| 贡献点：提供（向 ui-core / i18n 的点贡献条目） | `ui.ribbon`：6 个页签 + 22 个组 + 约 70 个控件（§2.6 表；id 前缀 `slide.ribbon.*`）；`ui.panel`：`slide.panel.thumbnails`（slot `rail`，`when: viewMode != 'master'`）、`slide.panel.masterThumbnails`（slot `rail`，`when: viewMode == 'master'`）、`slide.panel.notes`（slot `notes`）、7 个检查器分区（slot `inspector`，按 `selectionKind`/`editTargetKind` 的 `when`）、`slide.panel.scopeBar`（slot `canvas.top`，`when: viewMode == 'master'`）；`ui.toolbar`：`slide.toolbar.textEditing`（slot `toolbar.text-editing`）、`slide.toolbar.imageSelected`、`slide.toolbar.appBarBadges`（slot `appBar.badges`：母版视图 + 影响 N 页徽标）、评审工具条四项（slot `reviewBar`，2026-09-26 登记，rulings §4.20 FE-12，行为见 50/10 §3.2）：`slide.review.comment`（评论）、`slide.review.highlight`（高亮）——创建类，`when: editorMode == 'review' && slide.hasComments`；`slide.review.prevComment`（上一处评论）、`slide.review.nextComment`（下一处评论）——跳转类，`when: slide.hasComments`（只读浏览因此只剩跳转，不另写一套条目）；评审或只读浏览时 `reviewBar` 占 Ribbon 区域位，**条目全部不可见时**（M2 未装 `comments` 包、`slide.hasComments` 为假）该区域显示 `ReadonlyRibbonNotice` 细条（评审「评审模式 · 只读」、只读浏览「只读浏览中」，不留空卡）；评审工具条与细条右端的「主题 · ?」是 ui-react 外壳直接渲染的尾部区（§4.3 `RibbonHost.tsx`），不是 `reviewBar` 条目，条目全部不可见时照常显示（2026-09-26，rulings §4.20 FE-08）；`ui.contextMenu`：`canvas`、`thumbnail`、`masterThumbnail`、`layoutThumbnail` 四个 slot 共 24 项；`ui.statusBar`：`slide.status.page`、`slide.status.selection`、`slide.status.masterScope`（left）、`slide.status.inheritanceHelp`（right，`when: viewMode == 'master'`）；`ui.shortcut`：默认键位表 26 条（`Mod+Alt+M`、`Mod+M`、`Mod+D`、`Mod+G`/`Mod+Shift+G`、`Mod+B/I/U`、`Mod+A`、`Mod+ +/-`、`Mod+Shift+↑/↓`、`PageUp/PageDown/Home/End`、`Delete`、`Esc`、`F5`/`Shift+F5`、`Mod+F`/`Mod+H`…）；`ui.command`：全部 `slide.*` 命令的 title / icon / category（约 60 条）；`i18n.bundle`：`slide.ui`（zh-CN / en-US） |
 | 贡献点：消费 | 无（不定义贡献点；`render.overlay` 由 M-06/M-07 提供，本包不再贡献覆盖层渲染器） |
 | 事件：发布 | `slide/show-changed`（`{unitId; mode:'entering'\|'exiting'; slideId?}`，`application/present.ts`；2026-09-18 起本包发布，C-04；原 M-07 `slideshow.service.ts` 已删除） |
 | 事件：订阅 | `selection/changed`（→ `selectionKind`/`selectionCount` 桥接，`context-key-bridge.ts`）、`view/mode-changed`（会话记忆恢复 / 保存）、`store/transaction`（Unit 内，刷新引用数与「影响 N 页」）、`slide/thumbnail-updated`、`history/changed`（母版视图「未保存改动」文案） |
 | 配置 schema | `SlideUiConfig`（§2.5） |
 | 生命周期 | `ready`：批量 `ctx.contribute(...)`（全部 effect 拥有）+ 登记前缀上下文键 `slide.editScope`/`slide.hasNotes`/`slide.multiSelectLayouts`/`slide.hasChartEditor`★/`slide.placeholderSelected`★/`slide.hasComments`★（2026-09-25 按 50/09 §6.3、50/11 §11.4 改名与补登）；M3 起向 `@cordexjs/comments` 贡献 slide 锚点 resolver、检查器「评论」页签与画布评论钉（rulings §4.19 D-COMMENTS-PKG）；每个 `unit/opened{documentType:'slide'}` 挂桥接订阅（Unit 关闭自动撤销）；`dispose`：随 Fiber 清理；PENDING：`ui`/`shortcuts` 未就位（ui-core 缺席） |
-| Manifest 片段 | `{ "id": "@cordexjs/slide-ui", "bundle": "slide", "provides": [], "injects": ["contributions","ui","shortcuts","commands","i18n","units"], "optionalInjects": ["uiRenderer","presence","documentTypes"], "contributes": { "ui.ribbon": ["slide.ribbon.home","slide.ribbon.insert","slide.ribbon.design","slide.ribbon.transition","slide.ribbon.view","slide.ribbon.master","…"], "ui.panel": ["slide.panel.thumbnails","slide.panel.masterThumbnails","slide.panel.notes","slide.panel.scopeBar","slide.inspector.positionSize","slide.inspector.fillLine","slide.inspector.text","slide.inspector.slide","slide.inspector.placeholder","slide.inspector.container","slide.inspector.inheritance"], "ui.toolbar": ["slide.toolbar.textEditing","slide.toolbar.imageSelected","slide.toolbar.appBarBadges"], "ui.contextMenu": ["…"], "ui.statusBar": ["slide.status.page","slide.status.selection","slide.status.masterScope","slide.status.inheritanceHelp"], "ui.shortcut": ["…26"], "ui.command": ["…"], "i18n.bundle": ["slide.ui:zh-CN","slide.ui:en-US"] }, "events": ["slide/show-changed"], "contextKeys": ["slide.editScope","slide.hasNotes","slide.multiSelectLayouts","hasChartEditor"], "unitScoped": false, "isomorphism": "dom" }`（**2026-09-18** 新增 `"events"` 字段，C-04） |
+| Manifest 片段 | `{ "id": "@cordexjs/slide-ui", "bundle": "slide", "provides": [], "injects": ["contributions","ui","shortcuts","commands","i18n","units"], "optionalInjects": ["uiRenderer","presence","documentTypes"], "contributes": { "ui.ribbon": ["slide.ribbon.home","slide.ribbon.insert","slide.ribbon.design","slide.ribbon.transition","slide.ribbon.view","slide.ribbon.master","…"], "ui.panel": ["slide.panel.thumbnails","slide.panel.masterThumbnails","slide.panel.notes","slide.panel.scopeBar","slide.inspector.positionSize","slide.inspector.fillLine","slide.inspector.text","slide.inspector.slide","slide.inspector.placeholder","slide.inspector.container","slide.inspector.inheritance"], "ui.toolbar": ["slide.toolbar.textEditing","slide.toolbar.imageSelected","slide.toolbar.appBarBadges","slide.review.comment","slide.review.highlight","slide.review.prevComment","slide.review.nextComment"], "ui.contextMenu": ["…"], "ui.statusBar": ["slide.status.page","slide.status.selection","slide.status.masterScope","slide.status.inheritanceHelp"], "ui.shortcut": ["…26"], "ui.command": ["…"], "i18n.bundle": ["slide.ui:zh-CN","slide.ui:en-US"] }, "events": ["slide/show-changed"], "contextKeys": ["slide.editScope","slide.hasNotes","slide.multiSelectLayouts","slide.hasChartEditor","slide.placeholderSelected","slide.hasComments"], "unitScoped": false, "isomorphism": "dom" }`（**2026-09-18** 新增 `"events"` 字段，C-04；**2026-09-26** 补 `reviewBar` 四项，`contextKeys` 改为带前缀的现行键名，rulings §4.20 FE-12） |
 
 **可插拔证据（charter §5.4 UI 行）**：移除 `ui-react` → `ui-core`/`slide-ui` 全部贡献照常注册，`uiRenderer` 服务座为空，宿主 headless 运行（`server-headless` 路径正是如此）；移除 `slide-ui` → 壳渲染空 Ribbon（`ReadonlyRibbonNotice` 位置显示「无可用页签」）、空侧栏与空检查器，画布仍由 `render` 渲染且可缩放；移除 `ui-core` → `ui-react`/`slide-ui` 同时 PENDING（诊断可见，非失败）。三种情形均由 M-11 `preset-order-independence` 套件覆盖。
 
@@ -393,8 +396,8 @@ uiReact -. "可选 uiRenderer 缺席则headless" .-> slideUi
 | `components/theme-toggle.tsx` | ui-react `ui/shell/ThemeToggle.tsx` | 直接迁移 | 改读 `theme` 服务 |
 | `components/editor/EditorShell.tsx` | ui-react `ui/shell/EditorShell.tsx` | 直接迁移 | 三栏 + Sheet 断点态；`useEditorShell()` Context 保留 |
 | `components/editor/AppBar.tsx` | ui-react `ui/shell/AppBar.tsx` + `ui/shell/MoreMenu.tsx` | 拆分 | 右侧顺序 Q14；「⋯」菜单 Q20 独立文件，条目来自 `ui.contextMenu{slot:'appBar.more'}` |
-| `components/editor/Ribbon.tsx` | ui-react `ui/shell/RibbonHost.tsx` + `ui/shell/ViewModeSwitch.tsx`；`EditorRibbon`/`MasterRibbon` 两套页签集合 → 由 `ui.ribbon` 的 `when` 驱动（不再两个组件） | 拆分 | `RibbonTabValue` 硬编码作废，页签树来自 `buildRibbonTree` |
-| `components/editor/ribbon/primitives.tsx` | ui-react `ui/shell/ribbon-primitives.tsx` | 直接迁移 | `RibbonRoot`/`RibbonGroup`/`RibbonBigButton`/`RibbonTextButton`/`ReadonlyRibbonNotice` 供 `*-ui` 复用（经 `@cordexjs/ui-react` 根导出） |
+| `components/editor/Ribbon.tsx` | ui-react `ui/shell/RibbonHost.tsx` + `ui/shell/ViewModeSwitch.tsx`；`EditorRibbon`/`MasterRibbon` 两套页签集合 → 由 `ui.ribbon` 的 `when` 驱动（不再两个组件）；尾部区 `RibbonTrailing` → `RibbonHost.tsx` 包内组件（FE-08） | 拆分 | `RibbonTabValue` 硬编码作废，页签树来自 `buildRibbonTree`；playground 各路由自拼的评审工具条与 `ReadonlyRibbonNotice` 分支由 `RibbonHost` 按 `editorMode` 统一渲染 |
+| `components/editor/ribbon/primitives.tsx` | ui-react `ui/shell/ribbon-primitives.tsx` | 直接迁移 | `RibbonRoot`/`RibbonGroup`/`RibbonBigButton`/`RibbonTextButton`/`ReadonlyRibbonNotice` 供 `*-ui` 复用（经 `@cordexjs/ui-react` 根导出）；`RibbonTrailingSlot`/`ReviewToolbar`/`ReviewToolbarSeparator` 随文件迁移，只供 `RibbonHost` 使用、不进根导出（FE-08） |
 | `components/editor/ribbon/HomeTab.tsx` / `InsertTab.tsx` / `DesignTab.tsx` / `TransitionTab.tsx` / `ViewTab.tsx` / `MasterTab.tsx` | slide-ui `ui/ribbon/HomeTab.tsx` … `MasterTab.tsx` | 直接迁移 | mock 回调改为 `useCommand()` 派发 §2.6 命令；`MasterEntryState`/`LayoutDeleteTarget` 类型进 slide-ui `domain/edit-target.ts` |
 | `components/editor/ribbon/PluginTab.tsx` | ui-react `testing/index.ts`（`samplePluginRibbonTab` 夹具） | 仅演示不迁移（转夹具） | 第三方页签由插件贡献 |
 | `components/editor/ThumbnailRail.tsx`（含 `MasterThumbnails`、`SlideRow`、`MasterThumb`） | slide-ui `ui/thumbnails/ThumbnailRail.tsx` + `ui/thumbnails/MasterThumbnails.tsx` | 拆分 | `RailMode` 由 `viewMode` 键替代；缩略图像素改为 `ThumbnailDescriptor` |
@@ -415,16 +418,17 @@ uiReact -. "可选 uiRenderer 缺席则headless" .-> slideUi
 
 > 四包均遵守 00 §1 的 DDD 目录规范，UI 包以 `ui/` 代替 `interface/`；`design` 无 `domain/`（纯库，00 §1「哪类包可以不设 domain」第 2 条）；测试统一 `src/__tests__/` + `src/testing/`（子路径 `./testing`）。02 §4.17–4.20 的扁平骨架为历史草图，逐目录差异见 §12 G-3。
 
-### 4.1 `@cordexjs/design`（26 文件）
+### 4.1 `@cordexjs/design`（27 文件）
 
 ```text
 packages/design/
-├── package.json                 # cordex:{layer:'L7',iso:'dom',role:'library',publicEntry:[同 exports 键],stability:'beta'}（无 rank，§4.18 FE-21）；exports：'.'（types）、'./css/theme.css'、'./css/tokens.css'、'./css/tailwind-theme.css'、'./css/slots.css'、'./testing'（逐个登记进 publicEntry，FE-04）；dependencies:{}（R18）；sideEffects:['*.css']
+├── package.json                 # cordex:{layer:'L7',iso:'dom',role:'library',publicEntry:[同 exports 键],stability:'beta'}（无 rank，§4.18 FE-21）；exports：'.'（types）、'./css/theme.css'、'./css/theme.scoped.css'、'./css/tokens.css'、'./css/tailwind-theme.css'、'./css/slots.css'、'./testing'（逐个登记进 publicEntry，FE-04；theme.scoped.css 2026-09-26 登记，§4.20 FE-12）；dependencies:{}（R18）；sideEffects:['*.css']
 ├── tsconfig.json
 ├── css/                         # 生成物（入库便于 diff 评审；`build-theme --check` 守护一致性）
 │   ├── tokens.css               # 变量表：:root 亮色 → @media dark 兜底 → .dark / [data-cordex-theme=dark] → 宿主 data-theme 兼容；@theme inline 注册（颜色 / 圆角刻度 / --text-2xs / --font-*）
 │   ├── slots.css                # @utility glass/glass-strong + 14 个浮层 data-slot 玻璃化 + 遮罩 / tooltip + 控件 data-slot 规则 + 两块退化 + body 宿主防线（必须位于文件末尾）
 │   ├── theme.css                # 完整入口 = @import './tokens.css' + './slots.css'（ui-react 唯一 import 的 design 产物）
+│   ├── theme.scoped.css         # 作用域变体（2026-09-26 登记，§4.20 FE-12，50/09 §10）：同一 token 与 slot 规则限定在 [data-cordex-root] 下，不写 :root、不触碰宿主 body（宿主防线改写到根）；供 ui-react styles.embed.css 与 injectCss 运行时注入
 │   └── tailwind-theme.css       # 仅 @theme inline 注册片段（*-ui 无 preflight 入口 @import）
 ├── src/
 │   ├── index.ts                 # 仅类型与常量导出（§6）：ThemeVarName / TokenSet / ThemeName / Density / FLOATING_SLOTS
@@ -468,10 +472,10 @@ packages/ui-core/
 │   ├── config.ts                # UiCoreConfig zod（§2.5）
 │   ├── errors.ts                # UiError 码：WHEN_PARSE_ERROR / UNKNOWN_CONTEXT_KEY / INVALID_VIEW_MODE / PANEL_NOT_FOUND / DIALOG_NOT_FOUND / SHORTCUT_CONFLICT
 │   ├── domain/
-│   │   ├── contribution-items.ts    # 十个贡献点 item 类型 + zod strictObject：RibbonItem（kind 三级 union）、ToolbarItem、PanelItem、ContextMenuItem、StatusBarItem、DialogItem、NotificationKind、ShortcutItem、CommandPresentation、ThemeContribution；公共字段 {id, slot, order, when?, owner?}
+│   │   ├── contribution-items.ts    # 十个贡献点 item 类型 + zod strictObject：RibbonItem（kind 三级 union）、ToolbarItem、PanelItem、ContextMenuItem、StatusBarItem、DialogItem、NotificationKind、ShortcutItem、CommandPresentation、ThemeContribution；公共字段 {id, slot, order, when?, enablement?, owner?}（enablement 语法同 when，只管可用性，§4.20 FE-06）
 │   │   ├── component-ref.ts         # ComponentRef<P> 泛型占位（interface 声明合并点）、SlotProps{unitId; slot; ctx: ReadonlyHostCtx}
-│   │   ├── when-clause.ts           # WhenClause AST、parseWhen()、evaluateWhen()、collectKeys()（供 scan-contributions 规则 (e)，原称 when-keys-declared）
-│   │   ├── context-keys.ts          # ContextKeyName 联合（11 标准 + breakpoint/textEditing/focusRegion 新增建议）、ContextKeyValues、STANDARD_KEYS 登记表、registerPrefixedKey()（垂直束 / 第三方前缀键）
+│   │   ├── when-clause.ts           # WhenClause AST、parseWhen()、evaluateWhen()、explainWhen()（首个为假原子条件 → ReasonKey，§4.20 FE-12）、collectKeys()（供 scan-contributions 规则 (e)，when 与 enablement 同查，原称 when-keys-declared）
+│   │   ├── context-keys.ts          # ContextKeyName 联合（11 标准 + breakpoint/textEditing/focusRegion/unitLoaded/editorMode + can.<capability> 键族）、ContextKeyValues、STANDARD_KEYS 登记表、registerPrefixedKey()（垂直束 / 第三方前缀键；can. 为 ui-core 保留前缀，§4.20 FE-06）
 │   │   ├── view-mode.ts             # ViewMode 品牌字符串、isValidMode(documentType, mode)；re-export mapViewMode()（定义方 @cordexjs/engine-render，C-13）
 │   │   ├── chord.ts                 # Chord 值对象：normalizeChord / chordFromEvent / formatChord / chordEquals（KeyboardEvent.code 基）
 │   │   ├── ribbon-model.ts          # RibbonTree / RibbonTab / RibbonGroup / RibbonControl + buildRibbonTree()
@@ -485,7 +489,7 @@ packages/ui-core/
 │   │   ├── services/
 │   │   │   ├── ui.service.ts            # UiService('ui')：ribbon(unitId)/inspector()/statusBar()/contextMenu(slot)/palette()/toolbar(slot) 反应式视图模型；openPanel/closePanel/openDialog/closeDialog/notify（委托 Operation）；filterContributions() 内部纯函数
 │   │   │   ├── shortcuts.service.ts     # ShortcutsService('shortcuts')：bind()/unbind()/resolve(event, keys)/conflicts()/table(keys)（快捷键面板数据）；消费 ui.shortcut；发 ui/shortcut-conflict
-│   │   │   ├── theme.service.ts         # ThemeService('theme')：get()/set(mode)/setDensity()/observe()；合并 ui.theme 覆盖集；调用 theme-style-injector 与 root-attributes；发 ui/theme-changed
+│   │   │   ├── theme.service.ts         # ThemeService('theme')：get()/set(mode)/setDensity()/observe()/setTokens(partial)/registerStyleSheet(id, cssText)；合并 ui.theme 覆盖集（design 默认 < ui.theme < setTokens）；调用 theme-style-injector 与 root-attributes；发 ui/theme-changed
 │   │   │   └── context-keys.service.ts  # 内部（不 provide）：set/get/observe/batch；订阅 history/selection/permission/unit/command 事件 → 标准键；platform/breakpoint/density 来源于 environment 与 theme；发 ui/context-key-changed
 │   │   ├── operations/
 │   │   │   ├── view-set-mode.ts         # Operation view.setMode{unitId; mode}：校验 ∈ viewModes → 键 viewMode → render.setView({mode: mapViewMode}) → emit view/mode-changed；broadcast:true（mapViewMode 从 @cordexjs/engine-render re-export，C-13）
@@ -499,7 +503,7 @@ packages/ui-core/
 │   │   │   └── dispatch.ts              # dispatch(ctx, unitId, commandId, params)：commands.execute → 结果分派（ok 静默；PERMISSION_DENIED → isReadOnly 提示；其它 → ui.notify('command-failed')）；telemetry span
 │   ├── infrastructure/
 │   │   ├── points/ui-points.ts      # 十个 defineContributionPoint（id / schema / key / conflict:'replace' / describe）——贡献点定义的唯一物理位置（00 §1「Open Host Service」落点）
-│   │   ├── theme-style-injector.ts  # 注入 @cordexjs/design/css/theme.css 文本为单一 <style data-cordex-tokens>（按 document 去重；CSP nonce 透传）；dispose 移除
+│   │   ├── theme-style-injector.ts  # injectCss:true 时创建单一 <style data-cordex-tokens nonce>（按 document 去重、引用计数）：按序写入 design css/theme.scoped.css 与经 registerStyleSheet 登记的 ui-react / *-ui 嵌入样式（50/09 §10）；只用 textContent；dispose 移除
 │   │   ├── root-attributes.ts       # 写 / 还原根元素 `.dark` class、data-cordex-theme、data-cordex-density、style.colorScheme；MutationObserver 跟随宿主 <html data-theme>
 │   │   ├── open-external.ts         # openExternal(url)：唯一打开外部 URL 的入口，只放行 http(s)，window.open(url,'_blank','noopener,noreferrer')；其余位置禁 window.open（50/14 §5，2026-09-25 登记）
 │   │   └── environment.ts           # detectPlatform()（desktop/mobile，pointer:coarse）、detectBreakpoint(width)、matchMedia 订阅（prefers-color-scheme / reduced-motion / reduced-transparency）、KeyboardEvent.code → 键名表
@@ -509,11 +513,11 @@ packages/ui-core/
 └── src/__tests__/                   # §9
 ```
 
-### 4.3 `@cordexjs/ui-react`（47 文件 + 44 个 shadcn 复制件）
+### 4.3 `@cordexjs/ui-react`（49 文件 + 44 个 shadcn 复制件）
 
 ```text
 packages/ui-react/
-├── package.json                 # cordex:{layer:'L7',iso:'dom',role:'provider',implements:['uiRenderer'],publicEntry:['.','./ui','./styles.css','./testing'],stability:'beta'}（无 rank、补第八键 implements，§4.18 FE-21/FE-04）；exports：'.'（EditorHost、壳组件、hooks、primitives、插件）、'./ui'（复制件桶，R17 仅 ui-react/*-ui/apps）、'./styles.css'（构建产物 lib/styles.css）、'./testing'；peer：react ^19.0、react-dom ^19.0（SDK 只用 19.0 API 面，lint 禁用 19.1 起新增 API，rulings §4.15 Q2）；dependencies（R5 单点）：radix-ui、class-variance-authority、clsx、tailwind-merge、lucide-react、tw-animate-css、cmdk、sonner、react-resizable-panels、@fontsource-variable/geist
+├── package.json                 # cordex:{layer:'L7',iso:'dom',role:'provider',implements:['uiRenderer'],publicEntry:['.','./ui','./styles.css','./styles.embed.css','./testing'],stability:'beta'}（无 rank、补第八键 implements，§4.18 FE-21/FE-04）；exports：'.'（EditorHost、壳组件、hooks、primitives、插件）、'./ui'（复制件桶，R17 仅 ui-react/*-ui/apps）、'./styles.css'（构建产物 lib/styles.css）、'./styles.embed.css'（构建产物 lib/styles.embed.css，嵌入宿主静态引入，2026-09-26 登记，§4.20 FE-12）、'./testing'；peer：react ^19.0、react-dom ^19.0（SDK 只用 19.0 API 面，lint 禁用 19.1 起新增 API，rulings §4.15 Q2）；dependencies（R5 单点）：radix-ui、class-variance-authority、clsx、tailwind-merge、lucide-react、tw-animate-css、cmdk、sonner、react-resizable-panels、@fontsource-variable/geist
 ├── tsconfig.json
 ├── components.json              # shadcn CLI：style 'radix-rhea'、rsc false、tsx、tailwind.css 'src/styles/index.css'、baseColor neutral、cssVariables true、iconLibrary lucide、aliases @/components → src/ui/components、@/lib → src/lib、@/hooks → src/hooks
 ├── src/
@@ -530,7 +534,8 @@ packages/ui-react/
 │   │   └── use-command.ts       # useCommand(id) → { run(params), enabled, title, icon, chord }（合并 ui.command 元数据与 commands.has）
 │   ├── styles/
 │   │   ├── index.css            # `@import "tailwindcss"`（含 preflight，**全仓唯一**）+ `@import "tw-animate-css"` + `@import "@fontsource-variable/geist"` + `@import "@cordexjs/design/css/theme.css"` + `@custom-variant dark (&:is(.dark *))` + `@source "../"`；@tailwindcss/cli → lib/styles.css
-│   │   └── canvas-isolation.css # `.cordex-canvas-host` 隔离：preflight 不进入画布内容层（render-dom layers.css 自管 svg/img/video）
+│   │   ├── canvas-isolation.css # `.cordex-canvas-host` 隔离：preflight 不进入画布内容层（render-dom layers.css 自管 svg/img/video）
+│   │   └── embed.css            # 嵌入入口（2026-09-26 登记，§4.20 FE-12，50/09 §10「静态 · 嵌入」）：无 preflight；@import "@cordexjs/design/css/theme.scoped.css" + 限定在 [data-cordex-root] 内的最小重置 + @source "../"；@tailwindcss/cli → lib/styles.embed.css；运行时注入时同一文本经 theme.registerStyleSheet 登记
 │   ├── ui/
 │   │   ├── components/ui/       # shadcn/ui 复制件（radix-rhea），不手改；`pnpm dlx shadcn@4.21.0 diff` → add/合并；确需改标 `// Cordex override`
 │   │   │   ├── index.ts         # 桶文件 = './ui' 子路径；shadcn-copy.test.ts 断言与目录文件集一致（原称 shadcn-components-sync）
@@ -541,8 +546,8 @@ packages/ui-react/
 │   │   │   ├── EditorShell.tsx      # T-01：bg-canvas p-2 gap-2；悬浮工具卡（AppBar+RibbonHost）/ ResizablePanelGroup（rail 240 · CanvasHost · InspectorDock 300，像素）/ NotesBar / StatusBar；compact：rail → glass-strong w-11 图标条 + Sheet left w-72，检查器 → Sheet right w-80；narrow：仅查看提示条 + 两侧 Sheet；useEditorShell()
 │   │   │   ├── AppBar.tsx           # 48px：返回 · 文档名 + 重命名 · 撤销/重做（core.undo/core.redo，isReadOnly 隐藏，C-02）· 保存/同步态；右侧：PresenceStack · 分享 · 模式 Select（编辑/评审）· MoreMenu · UserMenu avatar；ui.toolbar{slot:'appBar.badges'} 徽标槽
 │   │   │   ├── MoreMenu.tsx         # 「⋯」DropdownMenu（Q20）：条目来自 ui.contextMenu{slot:'appBar.more'}；固定项 重命名 / 创建副本；「开发者」when platform=='desktop' && devMode
-│   │   │   ├── RibbonHost.tsx       # 页签行 36（Tabs 胶囊；第三方页签 text-primary + 归属徽标；ownerless 与 owner 分组排序）+ 内容区 91（组 self-stretch 83）；右侧：ViewModeSwitch · ThemeToggle · 「?」；渲染 RibbonTree 的 control → ContributionRenderer；只读态 ReadonlyRibbonNotice
-│   │   │   ├── ribbon-primitives.tsx # RibbonRoot / RibbonGroup（rounded-xl bg-foreground/[.03]，标题 text-2xs muted/70，gap-1.5 无竖线）/ RibbonBigButton（w-14 h-[60px]）/ RibbonTextButton（h-7）/ ReadonlyRibbonNotice；供 *-ui 复用
+│   │   │   ├── RibbonHost.tsx       # Ribbon 区域位宿主，按 editorMode 渲染三种形态：edit → 页签行 36（Tabs 胶囊；第三方页签 text-primary + 归属徽标；ownerless 与 owner 分组排序）+ 内容区 91（组 self-stretch 83），渲染 RibbonTree 的 control → ContributionRenderer；review / view → ReviewToolbar（条目 = useToolbar('reviewBar')，全部不可见时退化为 ReadonlyRibbonNotice「评审模式 · 只读」/「只读浏览中」）；没有页签 → ReadonlyRibbonNotice「无可用页签」。包内组件 RibbonTrailing（尾部区：[ViewModeSwitch] · ThemeToggle · 「?」CircleHelp → 快捷键面板）由本文件直接渲染在三种形态右端，不走 ui.toolbar 贡献；ViewModeSwitch 只在 edit 传入（Q12），review / view 不渲染也不留空位（§4.20 FE-08）
+│   │   │   ├── ribbon-primitives.tsx # RibbonRoot（trailing 放入 RibbonTrailingSlot）/ RibbonGroup（rounded-xl bg-foreground/[.03]，标题 text-2xs muted/70，gap-1.5 无竖线）/ RibbonBigButton（w-14 h-[60px]）/ RibbonTextButton（h-7）/ ReadonlyRibbonNotice（40，锁图标 + 文案，可带 trailing）供 *-ui 复用；RibbonTrailingSlot（data-slot="ribbon-trailing"，ml-auto px-2 gap-1：页签行、评审工具条、细条三处共用，切换模式时尾部区不横跳）/ ReviewToolbar（role=group「评审工具条」，40，28px 控件；无条目时退化为 ReadonlyRibbonNotice 并带同一 trailing）/ ReviewToolbarSeparator（16px 竖线）只供 RibbonHost，不进根导出（§4.20 FE-08）
 │   │   │   ├── ViewModeSwitch.tsx   # ToggleGroup single size=sm 胶囊 28px：项 = documentType.viewModes − 'presenter'，label/icon 来自 ui.command('view.setMode' + params.mode)；when: !isReadOnly && breakpoint=='desktop'（Q12，不渲染而非置灰）；→ view.setMode
 │   │   │   ├── PanelHost.tsx        # 通用 ui.panel 宿主：按 slot 渲染贡献（rail / notes / canvas.top / canvas.floating）；每项 ContributionRenderer
 │   │   │   ├── InspectorDock.tsx    # 四页签 Tabs（properties/comments/history/plugins；disabled + aria-disabled + tooltip 原因）+ ScrollArea + Accordion.inspector-groups；分区来自 ui.panel{slot:'inspector'}，额外页签来自 slot 'inspector.tab'；折叠态 localStorage；不因属性变化自动切页签
@@ -569,7 +574,8 @@ packages/ui-react/
 │   ├── infrastructure/
 │   │   ├── ui-renderer.provider.ts  # UiRenderer('react') 实现：createRoot(container) → <EditorHost>；update/dispose；slot → 宿主组件表（PanelHost/ToolbarHost/…）
 │   │   ├── csp/
-│   │   │   └── runtime-style-sinks.ts # 第三方运行时样式注入点清单（Radix / sonner 等），挂载时统一透传 theme.cssNonce；每次升级依赖按实际版本复核（50/14 §3，2026-09-25 登记）
+│   │   │   ├── runtime-style-sinks.ts # 第三方运行时样式注入点清单，挂载时统一透传 theme.cssNonce；2026-09-26 定稿（§4.20 FE-18+TX-06）：Radix ScrollArea/Select 经 TT default 策略放行、sonner 静态引入 sonner/dist/styles.css 并 pnpm patch 删 __insertCSS、react-resizable-panels 4.x 用 adoptedStyleSheets 无需处理；每次升级依赖按实际版本复核（50/14 §3）
+│   │   │   └── trusted-style-constants.ts # Trusted Types 名为 default 的策略与常量表（2026-09-26 登记，§4.20 FE-18+TX-06）：createHTML 只对登记的两段 Radix 固定样式文本（ScrollArea 1.2.18、Select 2.3.7 的 Viewport 常量）精确比对放行，其余一律返回 null
 │   │   └── icon-registry.ts         # Lucide 图标名 → 组件（按名 import 集合，tree-shaking）；第三方可注册同规范 SVG 组件；缺失回退 Puzzle；strokeWidth 统一入口
 │   └── testing/index.ts             # renderWithHost(ui, {host, unitId, contributions})、fakeUiRenderer、samplePluginRibbonTab 夹具、axeCheck(container)、countBackdropFilters(root)
 └── src/__tests__/                   # §9；/styleguide 路由（Playwright + axe 基准）随 playground 迁移后由本包 testing 提供入口
@@ -589,7 +595,7 @@ packages/slide-ui/
 │   ├── config.ts                # SlideUiConfig zod（§2.5）
 │   ├── domain/
 │   │   ├── selection-kind.ts    # SlideSelectionView + deriveSelectionKind(selection, slides)（none/slide/shapes/text/picture/table-cell/group/connector/degraded/mixed/layout/master/layouts-multi）
-│   │   ├── edit-target.ts       # EditTarget{kind, targetId}、EditScope、MasterEntryState、LayoutDeleteTarget；impactCount(body, target)、masterEntryState(keys)、defaultLayoutOf(master)（Q11 reassignTo 计算）
+│   │   ├── edit-target.ts       # EditTarget{kind, targetId}、EditScope、MasterEntryState（五值）、LayoutDeleteTarget；impactCount(body, target)（不计墓碑目标）、masterEntryState(keys)（五态与优先级，§4.20 FE-11）；reassignTo 由 @cordexjs/model-slide 的 defaultLayoutOf 计算，本包不另实现（§4.20 FE-03）
 │   │   ├── ribbon-spec.ts       # ribbonSpec(): RibbonItem[]——6 页签 / 22 组 / ~70 控件的声明式规格（§2.6 表的代码形态，含 when 与 commandId/params 装配器名）
 │   │   ├── inspector-spec.ts    # inspectorSpec(): PanelItem[]——7 分区 × selectionKind/editTargetKind when 矩阵 + defaultOpen 策略（位置与大小 + 最相关分区默认展开）
 │   │   ├── thumbnails-model.ts  # ThumbnailListModel + buildThumbnailList(body, thumbs, selection, mode)；refCount / unused / hidden / commentCount / warning
@@ -600,8 +606,8 @@ packages/slide-ui/
 │   │   ├── canvas-interaction.ts # PointerIntent → 选择（点选 / 框选 / Shift 追加 → slide.setSelection）、移动 / 缩放 / 旋转（drag-start 记录起点，drag-end 一次 slide.moveShapes|resizeShapes|rotateShapes）、双击进入文本编辑；handle 区域来自 HitResult.region；母版视图 M2 只读：拖动显示锁 + tooltip
 │   │   ├── text-editing.ts      # 进入 / 退出文本编辑态（textEditing 键 + render-dom TextInputHost focus）；TextIntent → slide.insertText/deleteText（compositionend 派发）；退出时选区回形状
 │   │   ├── master-view.ts       # enterMasterView(via) / exitMasterView()：Q12 可用性判定 → view.setMode('master') + slide.selectMasterOrLayout(当前页版式) → 会话记忆保存；退出恢复页 / 缩放 / 滚动 / 检查器页签；手动切评审即退出、降权保持只读母版态（§4.18 UX-20）；Esc 语义接入；「转到版式」
-│   │   ├── layout-actions.ts    # deleteLayouts(ids)：合并引用判定 → 引用 0 直接 slide.deleteLayout + 可撤销 toast；引用 N → LayoutDeleteDialog → slide.deleteLayout{reassignTo}（不可撤销）；applyLayout(slideIds, layoutId) → 不匹配计数 toast [撤销]（Q13）；resetSlides → 二次确认卡 + 可撤销 toast（Q16）；addPlaceholder 上限 toast
-│   │   ├── present.ts           # startPresent(from?) / exitPresent()：view.setMode('presenter') + Fullscreen API + 键盘（→/←/Space/PageDown/PageUp/Home/End/B/W/Esc）→ slide.setCurrentSlide；B/W 为黑屏 / 白屏切换键，blank 子态下再按同一键、点击画面或任一翻页键先恢复当前页、不翻页，Esc 仍直接退出（§4.18 UX-07）；**发布** slide/show-changed（2026-09-18 起，C-04；原由 M-07 发布）；不播放动画 / 切换（charter Q7）
+│   │   ├── layout-actions.ts    # deleteLayouts(ids)：合并引用判定 → 引用 0 直接 slide.deleteLayout + 可撤销 toast；引用 N → LayoutDeleteDialog → slide.deleteLayout{layoutIds, reassignTo: defaultLayoutOf(…)} + 带 [撤销] 的 toast（Q11 修订为确认后可撤销，§4.20 FE-05）；deleteMaster(id) → 对话框 → slide.deleteMaster{reassignTo: 按 order 首个剩余母版} + 带 [撤销] 的 toast（§4.20 FE-23）；applyLayout(slideIds, layoutId) → 不匹配计数 toast [撤销]（Q13）；resetSlides → 二次确认卡 + 可撤销 toast（Q16）；addPlaceholder 上限 toast
+│   │   ├── present.ts           # startPresent(from?) / exitPresent()：view.setMode('presenter') + Fullscreen API（在用户手势的同步回调里、await 之前调用 requestFullscreen；目标是跨路由常驻容器——apps/web 为应用根元素、嵌入为 [data-cordex-root]，由宿主注入，不是舞台元素，§4.20 FE-12，50/10 §9.1）+ 键盘（→/←/Space/PageDown/PageUp/Home/End/B/W/Esc）→ slide.setCurrentSlide；B/W 为黑屏 / 白屏切换键，blank 子态下再按同一键、点击画面或任一翻页键先恢复当前页、不翻页，Esc 仍直接退出（§4.18 UX-07）；**发布** slide/show-changed（2026-09-18 起，C-04；原由 M-07 发布）；不播放动画 / 切换（charter Q7）
 │   │   └── guides.ts            # 智能参考线派生（拖拽中相对其它形状 bbox / 页面中线的吸附候选；纯派生，不入 Store）→ 喂给 render-dom 'guides' 覆盖层的 OverlayContext 扩展字段
 │   ├── ui/
 │   │   ├── ribbon/
@@ -631,7 +637,7 @@ packages/slide-ui/
 │   │   │   └── ScopeBar.tsx              # 画布上方 glass h-9 rounded-2xl：「正在编辑：(版式|母版)」role=radiogroup + 当前对象名与继承来源 + 图例（实线 = 此版式 / 虚线 = 继承）；多选时「已选中 N 个版式」
 │   │   ├── layouts/
 │   │   │   ├── LayoutGallery.tsx    # 版式选择器：搜索框 / 按母版分组 / 跨母版选择（= 同时切母版与主题链，一个事务）/ 当前版式勾选角标 / Empty 态；→ layout-actions.applyLayout
-│   │   │   └── LayoutDeleteDialog.tsx # AlertDialog（Q11 文案：「该版式仍被 N 个页面使用，删除后这些页面将改用「与当前页相同」的默认版式，操作不可撤销」[删除][取消]）；多选合计文案
+│   │   │   └── LayoutDeleteDialog.tsx # AlertDialog（Q11 文案：「该版式仍被 N 个页面使用，删除后这些页面将改用「与当前页相同」的默认版式」[删除][取消]，删去「操作不可撤销」，§4.20 FE-05）；多选合计文案；删除母版变体文案「N 个页面将改用剩余母版中对应的版式」（§4.20 FE-23）
 │   │   ├── theme/ThemeEditorPanel.tsx   # 主题编辑：颜色方案 12 槽 / 字体方案（标题 / 正文）Tabs；预设 Popover；→ slide.setThemeColors/setThemeFonts/applyTheme；无「设为默认 / 另存」（Q17）
 │   │   ├── present/PresenterStage.tsx   # bg-stage 全屏舞台：画布 fit + 控制条 bg-stage-chrome/80 backdrop-blur-lg rounded-full（翻页 / 页码跳转 / 黑白屏 / 退出）+ 顶部信息胶囊；键盘经 present.ts
 │   │   └── status/SlideStatusItems.tsx  # ui.statusBar 条目：「第 N/M 页」「已选中 N 个对象」；母版视图「编辑版式 · 〈名〉 · 未保存改动 · 影响 N 页」（N=0 降级）/ 「关于母版继承 ⓘ」；ui.toolbar appBar.badges：「母版视图」info Badge + 「改动将影响 N 页」secondary Badge
@@ -643,7 +649,7 @@ packages/slide-ui/
 │   │   ├── comments/
 │   │   │   └── slide-anchor-resolver.ts # 向 @cordexjs/comments 贡献 slide 专属锚点 resolver：{slideId, shapeId?, range?} ↔ 页码 / 画布位置 / 脱离判定（M3，D-COMMENTS-PKG，2026-09-25 登记）
 │   │   ├── context-key-bridge.ts    # 每 Unit：selection/changed → deriveSelectionKind → selectionKind/selectionCount；view/mode-changed + slide.selectMasterOrLayout → editTargetKind；store/transaction → slide.hasNotes / impact 刷新；slide-render-chart 存在性 → hasChartEditor
-│   │   └── session-memory.ts        # 母版视图进入前状态（页 / 缩放 / 滚动 / 检查器页签 / Ribbon 页签）、窗格滚动位置、分区折叠态：只在内存按 unitId 分桶（HostRegistry 保活期间有效），不写 localStorage、不同步协作者（2026-09-25 更正，50/11 §3、§11.4）
+│   │   └── session-memory.ts        # 母版视图进入前状态（页 / 缩放 / 滚动 / 检查器页签 / Ribbon 页签）、窗格滚动位置：只在内存按 unitId 分桶（分区折叠态归 ui-react EditorLayoutState.sectionsCollapsed，§4.20 FE-11）（HostRegistry 保活期间有效），不写 localStorage、不同步协作者（2026-09-25 更正，50/11 §3、§11.4）
 │   ├── locales/
 │   │   ├── zh-CN.json               # slide.ui.* 文案（Ribbon / 分区 / 菜单 / toast / 对话框 / 状态栏，含 Q11/Q13/Q15/Q16 定稿文案）
 │   │   └── en-US.json
@@ -665,6 +671,7 @@ packages/slide-ui/
 | `css/tokens.css` | 变量表生成物（亮暗双套 + 宿主兼容 + `@theme inline` 注册） | CSS | — | 入库；`build-theme --check` 比对 |
 | `css/slots.css` | `@utility` + 浮层 / 控件 `[data-slot]` 规则 + 两块退化 + body 防线 | CSS | — | body 防线必须在文件末尾（`theme-vars-contract.test.ts` 子断言，原称扫描器，GV-15） |
 | `css/theme.css` | 完整入口 | CSS（`@import`×2） | `./tokens.css`、`./slots.css` | ui-react 唯一 import |
+| `css/theme.scoped.css` | 作用域变体生成物（2026-09-26 登记，rulings §4.20 FE-12） | CSS | — | 规则限定在 `[data-cordex-root]` 下、无 `:root` 变量、宿主防线改写到根；供 ui-react `styles.embed.css` 与 ui-core 运行时注入（50/09 §10）；`build-theme --check` 同样比对 |
 | `css/tailwind-theme.css` | 仅 `@theme inline` 注册片段 | CSS | — | `*-ui` 无 preflight 入口 |
 | `src/index.ts` | 类型 / 常量导出面 | `ThemeVarName`、`TokenSet`、`ThemeName`、`Density`、`FLOATING_SLOTS`、`LAYER` | `./tokens`、`./slots/slot-list` | 无运行时逻辑（R18 `src/**` 无副作用 import） |
 | `src/tokens/index.ts` | TokenSet 装配 | `TokenSet`、`lightTokens`、`darkTokens` | `./palette`…`./density` | high-contrast 预留（Q-7） |
@@ -699,10 +706,10 @@ packages/slide-ui/
 | `src/ui.contribution.ts` | 声明合并（服务 / 事件 / i18n 键） | 类型增强 | `@cordexjs/kernel`、`@cordexjs/i18n` | lint `cordex/events-must-be-declared`（原称 `events-declared`，GV-15） |
 | `src/config.ts` | 配置 schema | `UiCoreConfig` | zod（经 kernel 转发） | §2.5 |
 | `src/errors.ts` | 错误码 | `UiError`、`UI_ERROR_CODES` | kernel `errors` | 点式码 |
-| `src/domain/contribution-items.ts` | 十个 item 类型 + schema | `RibbonItem`…`ThemeContribution`、`*Schema` | `./component-ref`、`./when-clause` | strictObject；`when` 为字符串源，注册时 parse |
+| `src/domain/contribution-items.ts` | 十个 item 类型 + schema | `ContributionBase`、`RibbonItem`…`ThemeContribution`、`*Schema` | `./component-ref`、`./when-clause` | strictObject；`when`、`enablement`（2026-09-26，rulings §4.20 FE-06；`ShortcutItem`、`CommandPresentation` 同带）为字符串源，注册时 parse |
 | `src/domain/component-ref.ts` | 框架无关组件引用占位 | `ComponentRef<P>`、`SlotProps` | 无 | ui-react 声明合并 |
-| `src/domain/when-clause.ts` | when 语法 | `WhenClause`、`parseWhen()`、`evaluateWhen()`、`collectKeys()` | `./context-keys` | 纯函数 |
-| `src/domain/context-keys.ts` | 键登记表与类型 | `ContextKeyName`、`ContextKeyValues`、`STANDARD_KEYS`、`registerPrefixedKey()` | 无 | 新增建议键标注 |
+| `src/domain/when-clause.ts` | when / enablement 语法与不可用原因 | `WhenClause`、`parseWhen()`、`evaluateWhen()`、`explainWhen()`、`ReasonKey`、`collectKeys()` | `./context-keys` | 纯函数；`explainWhen` 2026-09-26 登记（rulings §4.20 FE-12，50/09 §6.2） |
+| `src/domain/context-keys.ts` | 键登记表与类型 | `ContextKeyName`、`ContextKeyValues`、`STANDARD_KEYS`、`registerPrefixedKey()` | `@cordexjs/protocol`（`Capability` 类型，`can.*` 键族取其全集） | 新增建议键标注；`can.` 为 ui-core 保留前缀，他包 `registerPrefixedKey('can.…')` 被拒（rulings §4.20 FE-06） |
 | `src/domain/view-mode.ts` | 视图模式品牌类型 + 映射函数 re-export | `ViewMode`、`isValidMode()`、`mapViewMode`（re-export，定义方为 engine-render） | `@cordexjs/engine-render`（`mapViewMode()`、`ViewDescriptor` 类型） | §12 G-18 结案（C-13，2026-09-18） |
 | `src/domain/chord.ts` | 和弦值对象 | `Chord`、`normalizeChord()`、`chordFromEvent()`、`formatChord()` | `../infrastructure/environment`（键名表，type-only） | 纯函数 |
 | `src/domain/ribbon-model.ts` | Ribbon 视图模型 | `RibbonTree`、`buildRibbonTree()` | `./contribution-items`、`./when-clause` | 纯函数 |
@@ -714,7 +721,7 @@ packages/slide-ui/
 | `src/domain/collab-ui-state.ts` | 协同 UI 六态派生（2026-09-25 登记） | `deriveCollabUiState(state, role, stats)`、`CollabUiState` | `@cordexjs/protocol`（`RoleName` 类型）；`SessionStats`/`SyncState` 以结构类型接收，不 import collab 包 | 纯函数、文档类型盲；与 50/07 §3.2 三层对照表逐行一致（单测）；含 INC-09 分级受众（发起方横幅 / 协作者胶囊弱提示） |
 | `src/application/services/ui.service.ts` | `ui` 服务 | `UiService` | `../../domain/*`、`./context-keys.service` | `Service` 子类 |
 | `src/application/services/shortcuts.service.ts` | `shortcuts` 服务 | `ShortcutsService` | `../../domain/chord`、`./context-keys.service` | 冲突诊断 |
-| `src/application/services/theme.service.ts` | `theme` 服务 | `ThemeService` | `../../domain/theme-state`、`../../infrastructure/{theme-style-injector,root-attributes,environment}` | 多 host 去重 |
+| `src/application/services/theme.service.ts` | `theme` 服务 | `ThemeService`（含 `setTokens(partial)`、`registerStyleSheet(id, cssText)`） | `../../domain/theme-state`、`../../infrastructure/{theme-style-injector,root-attributes,environment}` | 多 host 去重；覆盖顺序 design 默认 < `ui.theme` < `setTokens`，覆盖值经 CSSOM 写到主题根 `style`（50/09 §3.3） |
 | `src/application/services/context-keys.service.ts` | 上下文键内部服务 | `ContextKeysService` | `../../domain/context-keys`、`../../infrastructure/environment` | 批量合并、一帧一次事件 |
 | `src/application/operations/view-set-mode.ts` | `view.setMode` | `viewSetModeOperation` | `../../domain/view-mode`、`../services/context-keys.service` | broadcast:true |
 | `src/application/operations/panel-operations.ts` | 面板 / 对话框 / 偏好 Operation | `panelOperations[]` | `../services/*` | `ui.setPreference` 新增建议 |
@@ -725,7 +732,7 @@ packages/slide-ui/
 | `src/application/input/drag-pipeline.ts` | 拖放 | `attachDrop()` | `../../domain/input-intents` | 文件 / 重排 |
 | `src/application/input/dispatch.ts` | 意图 → 命令统一出口 | `dispatch()` | `commands` 服务契约、`../services/ui.service` | 错误 → notify |
 | `src/infrastructure/points/ui-points.ts` | 十个贡献点定义 | `ribbonPoint`…`themePoint`、`UI_POINTS` | `@cordexjs/kernel`、`../../domain/contribution-items` | 唯一 `defineContributionPoint` 位置 |
-| `src/infrastructure/theme-style-injector.ts` | CSS 单例注入 | `injectThemeCss()`、`removeThemeCss()` | `@cordexjs/design/css/theme.css`（`?raw` 或构建内联） | `data-cordex-tokens` 去重 |
+| `src/infrastructure/theme-style-injector.ts` | CSS 单例注入 | `injectThemeCss()`、`removeThemeCss()` | `@cordexjs/design/css/theme.scoped.css`（`?raw` 或构建内联） | `data-cordex-tokens` 去重、引用计数；按序写入 design 作用域变体与 `registerStyleSheet` 登记的嵌入样式（50/09 §10，rulings §4.20 FE-12） |
 | `src/infrastructure/root-attributes.ts` | 根元素属性 | `applyRootAttributes()`、`observeHostTheme()` | 无 | `.dark` + `data-cordex-*` |
 | `src/infrastructure/open-external.ts` | 外部 URL 唯一出口（2026-09-25 登记） | `openExternal(url)` | 无 | 只放行 `http(s)`，`noopener,noreferrer`；其余位置 `window.open` 由 lint `no-restricted-properties` 配置行禁止（50/14 §5），apps/web 复用 |
 | `src/infrastructure/environment.ts` | 平台 / 断点 / 媒体查询 | `detectPlatform()`、`detectBreakpoint()`、`observeMedia()`、`KEY_CODE_NAMES` | 无 | 1024 / 640 |
@@ -736,7 +743,7 @@ packages/slide-ui/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `package.json` | 包元数据、exports、第三方单点 | — | — | R5 / R17；peer react ^19.0（Q2） |
+| `package.json` | 包元数据、exports、第三方单点 | — | — | R5 / R17；peer react ^19.0（Q2）；exports 增 `./styles.embed.css`（2026-09-26，rulings §4.20 FE-12）；sonner 的 `__insertCSS` 由仓库根 `pnpm-workspace.yaml#patchedDependencies` 登记的 patch 删除（rulings §4.20 FE-18） |
 | `tsconfig.json` | TS 配置（`jsx: react-jsx`、paths `@/*`） | — | `tooling/tsconfig/dom.json` | — |
 | `components.json` | shadcn CLI 配置 | — | — | `style:'radix-rhea'`（`shadcn-copy.test.ts` 断言，原称 `shadcn-components-sync`，GV-15） |
 | `src/index.ts` | 公共 API 面 | 见 §6 | 包内 | 不导出 `ui/components/ui/*`（走 `./ui`） |
@@ -748,17 +755,18 @@ packages/slide-ui/
 | `src/hooks/use-host.ts` | 宿主上下文 hook | `useHost()`、`useUnitId()`、`useUnitCtx()` | `../ui/shell/HostContext` | 只读 ctx |
 | `src/hooks/use-contributions.ts` | 视图模型订阅 | `useRibbon()`、`useInspector()`、`useStatusBar()`、`useContextMenu()`、`useToolbar()`、`usePalette()` | `ui` 服务 | `useSyncExternalStore` |
 | `src/hooks/use-context-key.ts` | 键 / 主题订阅 | `useContextKey()`、`useContextKeys()`、`useTheme()` | `ui`/`theme` 服务 | — |
-| `src/hooks/use-command.ts` | 命令绑定 hook | `useCommand()` | `commands`、`ui` 服务、`@cordexjs/ui-core` dispatch | enabled 由 `when` + `commands.has` |
+| `src/hooks/use-command.ts` | 命令绑定 hook | `useCommand()` | `commands`、`ui` 服务、`@cordexjs/ui-core` dispatch | `enabled` = `commands.has` ∧ 能力位已授予 ∧ `enablement` 为真；不可用时附 `reason`（`explainWhen` 或权限门），控件 `aria-disabled` 留在原位（rulings §4.20 FE-06） |
 | `src/styles/index.css` | 样式入口（preflight 唯一） | CSS | tailwindcss、tw-animate-css、@fontsource-variable/geist、`@cordexjs/design/css/theme.css` | `@source "../"` |
 | `src/styles/canvas-isolation.css` | 画布隔离 | CSS | — | 视觉 oracle 回归 |
+| `src/styles/embed.css` | 嵌入样式入口（2026-09-26 登记，rulings §4.20 FE-12） | CSS | tailwindcss/theme + utilities、`@cordexjs/design/css/theme.scoped.css` | 无 preflight；规则限定在 `[data-cordex-root]`，含根作用域最小重置；产物 `lib/styles.embed.css`（`./styles.embed.css`）；运行时注入时经 `theme.registerStyleSheet` 登记同一文本（50/09 §10） |
 | `src/ui/components/ui/index.ts` | 复制件桶文件 | 全部复制件 | `./*.tsx` | `./ui` 子路径 |
 | `src/ui/shell/EditorHost.tsx` | 顶层宿主组件 | `EditorHost`、`EditorHostProps` | 全部 shell / bridge、hooks | §7 契约 |
 | `src/ui/shell/HostContext.ts` | React Context | `HostContext`、`HostContextValue` | react | — |
 | `src/ui/shell/EditorShell.tsx` | T-01 三栏壳与断点态 | `EditorShell`、`useEditorShell()`、`EditorShellPanelControl` | `../components/ui`（resizable、sheet、tooltip、button）、hooks | 240 / 300 / 560 像素 |
 | `src/ui/shell/AppBar.tsx` | 应用栏 | `AppBar`、`AppBarAction` | ui/*（button、button-group、select、separator）、`./MoreMenu`、`./UserMenu`、`./PresenceStack`、`./StatusBar`（保存态） | Q14 顺序 |
 | `src/ui/shell/MoreMenu.tsx` | 「⋯」菜单 | `MoreMenu` | ui/*（dropdown-menu、kbd）、hooks | Q20 条目来自贡献 |
-| `src/ui/shell/RibbonHost.tsx` | Ribbon 宿主 | `RibbonHost` | `./ribbon-primitives`、`./ViewModeSwitch`、`./ThemeToggle`、`../bridge/ContributionRenderer`、hooks | 36 + 91 |
-| `src/ui/shell/ribbon-primitives.tsx` | Ribbon 原语 | `RibbonRoot`、`RibbonGroup`、`RibbonBigButton`、`RibbonTextButton`、`ReadonlyRibbonNotice`、`RibbonTabDef` | ui/*（tabs、button、kbd、tooltip） | 供 `*-ui` |
+| `src/ui/shell/RibbonHost.tsx` | Ribbon 区域位宿主：按 `editorMode` 渲染页签 Ribbon、评审工具条（`reviewBar` 条目）或 `ReadonlyRibbonNotice`，三种形态右端都渲染同一尾部区 | `RibbonHost`（`RibbonTrailing` 为包内组件，不导出） | `./ribbon-primitives`、`./ViewModeSwitch`、`./ThemeToggle`、`../bridge/ContributionRenderer`、ui/*（button、tooltip）、hooks（`useRibbon`、`useToolbar('reviewBar')`、`useContextKey('editorMode')`） | 36 + 91 / 40；尾部区由外壳直接渲染、不走 `ui.toolbar` 贡献，`ViewModeSwitch` 只在编辑模式传入（Q12）；「?」打开 `ShortcutsPanel`（rulings §4.20 FE-08） |
+| `src/ui/shell/ribbon-primitives.tsx` | Ribbon 原语 | `RibbonRoot`、`RibbonGroup`、`RibbonBigButton`、`RibbonTextButton`、`ReadonlyRibbonNotice`、`RibbonTabDef`；包内：`RibbonTrailingSlot`、`ReviewToolbar`、`ReviewToolbarSeparator` | ui/*（tabs、button、kbd、tooltip） | 前五项供 `*-ui`；`RibbonTrailingSlot`（`data-slot="ribbon-trailing"`）为页签行、评审工具条、细条三处共用的尾部容器，`ReviewToolbar` 无条目时退化为带同一尾部区的 `ReadonlyRibbonNotice`，二者只供 `RibbonHost`、不进根导出（FE-08） |
 | `src/ui/shell/ViewModeSwitch.tsx` | 视图模式分段 | `ViewModeSwitch` | ui/*（toggle-group）、hooks | Q12：不渲染而非置灰 |
 | `src/ui/shell/PanelHost.tsx` | 面板槽宿主 | `PanelHost` | `../bridge/ContributionRenderer`、hooks | rail / notes / canvas.* |
 | `src/ui/shell/InspectorDock.tsx` | 检查器骨架 | `InspectorDock`、`InspectorTabValue`、`InspectorTabDef` | ui/*（tabs、scroll-area、accordion、badge、tooltip）、`./inspector-fields` | 页签禁用原因 tooltip |
@@ -782,7 +790,8 @@ packages/slide-ui/
 | `src/ui/bridge/ContributionRenderer.tsx` | 贡献项渲染 + 错误边界 | `ContributionRenderer`、`ContributionBoundary` | `../components/ui`、`../../infrastructure/icon-registry`、hooks | A11 |
 | `src/ui/bridge/ThemeBridge.tsx` | 主题属性桥 | `ThemeBridge` | `useTheme` | 多 host 作用域 |
 | `src/infrastructure/ui-renderer.provider.ts` | `UiRenderer('react')` | `createReactUiRenderer()` | react-dom/client、`../ui/shell/EditorHost` | 契约套件必测 |
-| `src/infrastructure/csp/runtime-style-sinks.ts` | 运行时样式注入点清单（2026-09-25 登记） | `RUNTIME_STYLE_SINKS`、`applyStyleNonce(nonce)` | 无 | 挂载时把同一 `theme.cssNonce` 交给全部第三方运行时样式注入点；依赖升级时复核（50/14 §3） |
+| `src/infrastructure/csp/runtime-style-sinks.ts` | 运行时样式注入点清单（2026-09-25 登记） | `RUNTIME_STYLE_SINKS`、`applyStyleNonce(nonce)` | 无 | 挂载时把同一 `theme.cssNonce` 交给全部第三方运行时样式注入点；2026-09-26 定稿（rulings §4.20 FE-18+TX-06）：Radix 两处经 TT `default` 策略、sonner 改静态 `sonner/dist/styles.css` + pnpm patch、react-resizable-panels 4.x 用 `adoptedStyleSheets` 无需处理；依赖升级时复核（50/14 §3） |
+| `src/infrastructure/csp/trusted-style-constants.ts` | Trusted Types `default` 策略与 Radix 固定样式常量表（2026-09-26 登记，rulings §4.20 FE-18+TX-06） | `TRUSTED_STYLE_CONSTANTS`、`installDefaultTrustedTypesPolicy()` | 无 | `createHTML` 只对 ScrollArea 1.2.18、Select 2.3.7 的 Viewport 常量逐字比对放行，其余一律返回 `null`；升级 Radix 时由 csp-strict e2e 复核（TT 与 style-src 违规都为 0，含拒绝未登记文本的负向用例，70/06） |
 | `src/infrastructure/icon-registry.ts` | 图标注册表 | `resolveIcon()`、`registerIcon()`、`DEFAULT_STROKE_WIDTH` | lucide-react | 回退 `Puzzle` |
 | `src/testing/index.ts` | 测试助手 | `renderWithHost()`、`fakeUiRenderer()`、`samplePluginRibbonTab`、`axeCheck()`、`countBackdropFilters()` | @testing-library/react、axe-core | `./testing` |
 
@@ -792,7 +801,7 @@ packages/slide-ui/
 |---|---|---|
 | `accordion.tsx` | Radix Accordion | 检查器分区（`inspector-groups`，`type="multiple"`） |
 | `alert.tsx` | 静态横幅 | 连接 / 权限横幅（`mx-2 mt-2 rounded-2xl`）、母版加载失败 |
-| `alert-dialog.tsx` | Radix AlertDialog | 不可撤销确认（删除被引用版式 Q11） |
+| `alert-dialog.tsx` | Radix AlertDialog | 破坏性操作确认（删除被引用版式 / 母版，Q11；2026-09-26 起确认后可撤销，rulings §4.20 FE-05） |
 | `avatar.tsx` | Radix Avatar + AvatarGroup | 在场头像、`UserMenu` 头像 |
 | `badge.tsx` | 徽标 | 计数 / 状态 / 「母版视图」/ 「影响 N 页」/ 「未使用」/ 「导入」 |
 | `breadcrumb.tsx` | 面包屑 | 应用壳文档列表（`apps/web`）、设置抽屉分组路径 |
@@ -847,7 +856,7 @@ packages/slide-ui/
 | `src/slide-ui.contribution.ts` | i18n 键与前缀上下文键声明合并 | 类型增强 | `@cordexjs/i18n`、`@cordexjs/ui-core` | `scan-contributions` 规则 (e) 读此登记（原称 `when-keys-declared`，GV-15） |
 | `src/config.ts` | 配置 schema | `SlideUiConfig` | zod | §2.5 |
 | `src/domain/selection-kind.ts` | 选区种类派生 | `SlideSelectionView`、`deriveSelectionKind()` | `@cordexjs/model-slide`（类型、`SlidesService`）、`@cordexjs/model-core`（`Selection`） | 纯函数 |
-| `src/domain/edit-target.ts` | 编辑目标 / 范围 / 入口态 / 影响页数 | `EditTarget`、`EditScope`、`MasterEntryState`、`LayoutDeleteTarget`、`impactCount()`、`masterEntryState()`、`defaultLayoutOf()` | `@cordexjs/model-slide`（`dependentsOf`） | Q11 / Q12 / Q16 |
+| `src/domain/edit-target.ts` | 编辑目标 / 范围 / 入口态 / 影响页数 | `EditTarget`、`EditScope`、`MasterEntryState`（五值）、`LayoutDeleteTarget`、`impactCount()`、`masterEntryState()` | `@cordexjs/model-slide`（`dependentsOf`、`defaultLayoutOf`） | Q11 / Q12 / Q16；本地 `defaultLayoutOf()` 删除，改用 model-slide 导出的同一符号（rulings §4.20 FE-03）；`masterEntryState` 五态与优先级见 50/11 §3（FE-11）；`impactCount` 不计墓碑目标（FE-04） |
 | `src/domain/ribbon-spec.ts` | Ribbon 声明式规格 | `ribbonSpec()` | `@cordexjs/ui-core`（`RibbonItem`）、`../application/when-bindings` | §2.6 表 |
 | `src/domain/inspector-spec.ts` | 分区规格 | `inspectorSpec()` | `@cordexjs/ui-core`（`PanelItem`）、`../application/when-bindings` | 03-screens/03 G-19 矩阵 |
 | `src/domain/thumbnails-model.ts` | 缩略图列表模型 | `ThumbnailListModel`、`buildThumbnailList()` | `@cordexjs/model-slide`、`@cordexjs/slide-render`（`ThumbnailDescriptor` 类型） | 纯函数 |
@@ -857,8 +866,8 @@ packages/slide-ui/
 | `src/application/canvas-interaction.ts` | 指针意图 → 选择 / 变换命令 | `createCanvasInteraction()` | `@cordexjs/ui-core`（意图类型、dispatch）、`@cordexjs/engine-render`（`HitResult`） | 一次拖拽一个命令 |
 | `src/application/text-editing.ts` | 文本编辑态编排 | `createTextEditing()` | `@cordexjs/ui-core`（`TextIntent`）、`render` 服务契约 | `textEditing` 键 |
 | `src/application/master-view.ts` | 母版视图进入 / 退出 | `enterMasterView()`、`exitMasterView()`、`goToLayout()` | `../domain/edit-target`、`../infrastructure/session-memory`、`@cordexjs/ui-core` dispatch | Q12 / 四种退出；编辑器模式切到评审时自动 `exitMasterView()`，降权不退出（rulings §4.18 UX-20） |
-| `src/application/layout-actions.ts` | 版式动作流程 | `deleteLayouts()`、`applyLayout()`、`resetSlides()`、`addPlaceholder()` | `../ui/layouts/LayoutDeleteDialog`（经 `ui.openDialog`）、sonner、dispatch | Q11 / Q13 / Q16 |
-| `src/application/present.ts` | 放映编排，**发布** `slide/show-changed`（2026-09-18 起，C-04） | `startPresent()`、`exitPresent()` | dispatch、Fullscreen API | charter Q7 不播动画；原由 M-07 `slideshow.service.ts` 发布，该文件已删除 |
+| `src/application/layout-actions.ts` | 版式 / 母版动作流程 | `deleteLayouts()`、`deleteMaster()`、`applyLayout()`、`resetSlides()`、`addPlaceholder()` | `../ui/layouts/LayoutDeleteDialog`（经 `ui.openDialog`）、sonner、dispatch、`@cordexjs/model-slide`（`defaultLayoutOf`） | Q11 / Q13 / Q16；带 `reassignTo` 的删除执行后给带 [撤销] 的 Toast（Q11 修订，rulings §4.20 FE-05）；`deleteMaster` 默认目标为按 `order` 首个剩余母版（FE-23）；多选删除走 `slide.deleteLayout{layoutIds}` 单事务，`applyLayout` 的 Toast 计数取命令结果（FE-24） |
+| `src/application/present.ts` | 放映编排，**发布** `slide/show-changed`（2026-09-18 起，C-04） | `startPresent()`、`exitPresent()` | dispatch、Fullscreen API | charter Q7 不播动画；原由 M-07 `slideshow.service.ts` 发布，该文件已删除；全屏目标是跨路由常驻容器（apps/web 应用根元素、嵌入 `[data-cordex-root]`，由宿主注入），且在用户手势的同步回调里调用 `requestFullscreen()`（rulings §4.20 FE-12，50/10 §9.1） |
 | `src/application/guides.ts` | 智能参考线派生 | `computeGuides()` | `@cordexjs/model-slide`（bbox）、`@cordexjs/engine-render`（`Viewport`） | 派生不入 Store |
 | `src/ui/ribbon/HomeTab.tsx` | 开始页签 | `HomeTab` | `@cordexjs/ui-react`（primitives）、`@cordexjs/ui-react/ui`、`useCommand` | 六组 |
 | `src/ui/ribbon/InsertTab.tsx` | 插入页签 | `InsertTab` | `@cordexjs/ui-react`（primitives）、`@cordexjs/ui-react/ui`、`useCommand` | 形状网格 flyout |
@@ -882,7 +891,7 @@ packages/slide-ui/
 | `src/ui/canvas-overlays/InheritedPlaceholderOutline.tsx` | 继承占位符描边 + 徽标 | `InheritedPlaceholderOutline` | `@cordexjs/ui-react/ui`（badge） | 母版视图专属 |
 | `src/ui/canvas-overlays/ScopeBar.tsx` | 范围条 | `ScopeBar` | `@cordexjs/ui-react/ui`（radio-group）、`../../domain/edit-target` | `slot 'canvas.top'` |
 | `src/ui/layouts/LayoutGallery.tsx` | 版式画廊 | `LayoutGallery` | `@cordexjs/ui-react/ui`（input-group、scroll-area、empty、badge）、`thumbnails` 服务 | 搜索 / 跨母版 |
-| `src/ui/layouts/LayoutDeleteDialog.tsx` | 删除版式确认 | `LayoutDeleteDialog` | `@cordexjs/ui-react/ui`（alert-dialog） | Q11 文案 |
+| `src/ui/layouts/LayoutDeleteDialog.tsx` | 删除版式 / 母版确认 | `LayoutDeleteDialog` | `@cordexjs/ui-react/ui`（alert-dialog） | Q11 文案删去「操作不可撤销」（rulings §4.20 FE-05）；母版变体「N 个页面将改用剩余母版中对应的版式」（FE-23） |
 | `src/ui/theme/ThemeEditorPanel.tsx` | 主题编辑面板 | `ThemeEditorPanel` | `@cordexjs/ui-react/ui`（tabs、field、select、input-group）、`ColorPickerPopover` | Q17 |
 | `src/ui/present/PresenterStage.tsx` | 放映舞台 + 控制条 | `PresenterStage`、`PresenterControls` | `render` 服务契约、`../../application/present` | T-05 |
 | `src/ui/status/SlideStatusItems.tsx` | 状态栏条目 + 应用栏徽标 | `PageStatus`、`SelectionStatus`、`MasterScopeStatus`、`InheritanceHelp`、`MasterViewBadges` | `@cordexjs/ui-react/ui`（badge）、`../../domain/edit-target` | Q16 |
@@ -901,16 +910,16 @@ packages/slide-ui/
 
 | 包 | `.` 导出概要 | 子路径 | 稳定级（推荐） |
 |---|---|---|---|
-| `@cordexjs/design` | **仅类型与常量**：`ThemeVarName`（shadcn 变量 \| `--glass-*` \| `--text-2xs` \| 扩展色 \| `--layer-*` \| `--duration-*` \| `--ease-*` \| `--control-h-*` 字面量联合）、`TokenSet`、`ThemeName`（`light\|dark`；`high-contrast` 预留）、`Density`、`FLOATING_SLOTS`、`LAYER` | `./css/theme.css`、`./css/tokens.css`、`./css/slots.css`、`./css/tailwind-theme.css`、`./testing` | `beta`：变量**名**一经 M1 发布视为 `stable`（`theme-vars-contract` 扫描器大量硬编码）；取值可随设计线微调（`patch`） |
-| `@cordexjs/ui-core` | 类型：`RibbonItem`…`ThemeContribution`、`WhenClause`、`ContextKeyName`/`ContextKeyValues`、`ViewMode`、`Chord`、`RibbonTree`/`InspectorModel`/`StatusBarModel`/`ContextMenuModel`/`CommandPaletteModel`、`ThemeState`、`PointerIntent`/`TextIntent`/`ClipboardIntent`/`DragIntent`、`UiRenderer`/`UiMountOptions`/`UiRendererHandle`/`EditorLayoutOptions`、`SlotProps`/`ComponentRef`、`UiService`/`ShortcutsService`/`ThemeService` 类型、`SlotName`；值：默认导出插件、`UI_POINTS`（十个贡献点对象）、`SLOTS`、`parseWhen`/`evaluateWhen`、`normalizeChord`/`formatChord`、`mapViewMode`（re-export 自 `@cordexjs/engine-render`，C-13）、`registerPrefixedKey`、`dispatch`、`attachKeyboard`/`attachPointer`/`attachClipboard`/`attachDrop`/`createTextIntentAdapter` | `./testing` | `beta`：item schema 字段随 M2 母版视图与移动端贡献实践可能增字段（只增不删）；`when` 语法与标准键名 M2 起 `stable` |
-| `@cordexjs/ui-react` | 值：`EditorHost`、`EditorShell`/`useEditorShell`、`AppBar`、`RibbonHost`、`RibbonRoot`/`RibbonGroup`/`RibbonBigButton`/`RibbonTextButton`/`ReadonlyRibbonNotice`、`InspectorDock`、`PropertyRow`/`PropertyRowPair`/`NumberField`/`MixedValueField`/`InspectorEmptyHint`/`SectionHeader`、`StatusBar`/`StatusText`、`NotesBar`、`CanvasHost`、`ZoomBar`、`PanelHost`/`ToolbarHost`/`ContextMenuHost`、`CommandPalette`、`DialogHost`/`NotificationHost`、`PresenceStack`、`ShortcutsPanel`、`SettingsDrawer`、`Brand`/`BrandMark`、`UserMenu`、`ThemeToggle`、`ViewModeSwitch`、`ColorPickerPopover`/`ColorSwatch`、`ContributionRenderer`、hooks（`useHost`/`useUnitId`/`useUnitCtx`/`useRibbon`/`useInspector`/`useStatusBar`/`useContextMenu`/`useToolbar`/`usePalette`/`useContextKey`/`useTheme`/`useCommand`/`useBreakpoint`）、`cn`、`resolveIcon`/`registerIcon`、默认导出插件；类型：`EditorHostProps`、`SaveState`/`SyncState`/`DocStatus`、`ZoomValue`、`InspectorTabValue` | `./ui`（45 复制件桶，R17）、`./styles.css`、`./testing` | `beta`；`./ui` 随 shadcn 上游 `minor` 漂移，由 `scanners` job 的 `shadcn-diff` 步骤报告（rulings §4.18 GV-14） |
+| `@cordexjs/design` | **仅类型与常量**：`ThemeVarName`（shadcn 变量 \| `--glass-*` \| `--text-2xs` \| 扩展色 \| `--layer-*` \| `--duration-*` \| `--ease-*` \| `--control-h-*` 字面量联合）、`TokenSet`、`ThemeName`（`light\|dark`；`high-contrast` 预留）、`Density`、`FLOATING_SLOTS`、`LAYER` | `./css/theme.css`、`./css/theme.scoped.css`（作用域变体，2026-09-26，rulings §4.20 FE-12）、`./css/tokens.css`、`./css/slots.css`、`./css/tailwind-theme.css`、`./testing` | `beta`：变量**名**一经 M1 发布视为 `stable`（`theme-vars-contract` 扫描器大量硬编码）；取值可随设计线微调（`patch`） |
+| `@cordexjs/ui-core` | 类型：`ContributionBase`（含 `enablement?`，FE-06）、`RibbonItem`…`ThemeContribution`、`WhenClause`、`ReasonKey`、`ContextKeyName`/`ContextKeyValues`、`ViewMode`、`Chord`、`RibbonTree`/`InspectorModel`/`StatusBarModel`/`ContextMenuModel`/`CommandPaletteModel`、`ThemeState`、`PointerIntent`/`TextIntent`/`ClipboardIntent`/`DragIntent`、`UiRenderer`/`UiMountOptions`/`UiRendererHandle`/`EditorLayoutOptions`、`SlotProps`/`ComponentRef`、`UiService`/`ShortcutsService`/`ThemeService` 类型（`ThemeService` 含 `setTokens`/`registerStyleSheet`，FE-12）、`SlotName`；值：默认导出插件、`UI_POINTS`（十个贡献点对象）、`SLOTS`、`parseWhen`/`evaluateWhen`/`explainWhen`（2026-09-26，FE-12）、`normalizeChord`/`formatChord`、`mapViewMode`（re-export 自 `@cordexjs/engine-render`，C-13）、`registerPrefixedKey`、`dispatch`、`attachKeyboard`/`attachPointer`/`attachClipboard`/`attachDrop`/`createTextIntentAdapter` | `./testing` | `beta`：item schema 字段随 M2 母版视图与移动端贡献实践可能增字段（只增不删）；`when` 语法与标准键名 M2 起 `stable` |
+| `@cordexjs/ui-react` | 值：`EditorHost`、`EditorShell`/`useEditorShell`、`AppBar`、`RibbonHost`、`RibbonRoot`/`RibbonGroup`/`RibbonBigButton`/`RibbonTextButton`/`ReadonlyRibbonNotice`、`InspectorDock`、`PropertyRow`/`PropertyRowPair`/`NumberField`/`MixedValueField`/`InspectorEmptyHint`/`SectionHeader`、`StatusBar`/`StatusText`、`NotesBar`、`CanvasHost`、`ZoomBar`、`PanelHost`/`ToolbarHost`/`ContextMenuHost`、`CommandPalette`、`DialogHost`/`NotificationHost`、`PresenceStack`、`ShortcutsPanel`、`SettingsDrawer`、`Brand`/`BrandMark`、`UserMenu`、`ThemeToggle`、`ViewModeSwitch`、`ColorPickerPopover`/`ColorSwatch`、`ContributionRenderer`、hooks（`useHost`/`useUnitId`/`useUnitCtx`/`useRibbon`/`useInspector`/`useStatusBar`/`useContextMenu`/`useToolbar`/`usePalette`/`useContextKey`/`useTheme`/`useCommand`/`useBreakpoint`）、`cn`、`resolveIcon`/`registerIcon`、`installDefaultTrustedTypesPolicy`/`TRUSTED_STYLE_CONSTANTS`（Trusted Types `default` 策略与两段 Radix 固定样式常量，供 apps/web 与形态 A 宿主，2026-09-26，rulings §4.20 FE-18+TX-06）、默认导出插件；类型：`EditorHostProps`、`SaveState`/`SyncState`/`DocStatus`、`ZoomValue`、`InspectorTabValue` | `./ui`（45 复制件桶，R17）、`./styles.css`、`./styles.embed.css`（嵌入宿主静态引入，2026-09-26，rulings §4.20 FE-12）、`./testing` | `beta`；`./ui` 随 shadcn 上游 `minor` 漂移，由 `scanners` job 的 `shadcn-diff` 步骤报告（rulings §4.18 GV-14） |
 | `@cordexjs/slide-ui` | 值：默认导出插件、`ribbonSpec`/`inspectorSpec`/`defaultShortcuts`（供 `doc-ui`/`sheet-ui` 参照与集成方裁剪）；类型：`SlideSelectionView`、`EditTarget`/`EditScope`/`MasterEntryState`、`ThumbnailListModel`、`SlideUiConfig`；**不导出**任何 React 组件（页签 / 分区只经贡献点到达壳；集成方替换用 `conflict:'replace'` 同 id 覆盖） | `./styles.css`、`./testing` | `beta`；M3 ML-03/04 编辑落地后再评估 `stable` |
 
 **关键类型契约草案**（≤ 40 行）：
 
 ```ts
 // ui-core：贡献项公共骨架 + Ribbon 三级 + when
-interface ContributionBase { id: string; slot: SlotName; order: number; when?: string; owner?: string }
+interface ContributionBase { id: string; slot: SlotName; order: number; when?: string; enablement?: string; owner?: string }  // enablement：可用性子句，语法同 when（FE-06）
 type RibbonItem = ContributionBase & (
   | { kind: 'tab'; title: I18nKey; accent?: boolean }
   | { kind: 'group'; title: I18nKey }
@@ -922,6 +931,8 @@ interface ContextKeyValues {
   selectionKind?: string; selectionCount: number; canUndo: boolean; canRedo: boolean
   isCollab: boolean; isReadOnly: boolean; platform: 'desktop' | 'mobile'; density: 'comfortable' | 'compact'
   breakpoint: 'desktop' | 'compact' | 'narrow'; textEditing: boolean; focusRegion?: 'canvas' | 'rail' | 'inspector' | 'ribbon'
+  editorMode: 'edit' | 'review' | 'view'; unitLoaded: boolean
+  [can: `can.${Capability}`]: boolean                  // ui-core 保留前缀，能力位全集取 protocol permissions/actions.ts（FE-06）
   [prefixed: `${string}.${string}`]: unknown           // 垂直束 / 第三方前缀键（须先 registerPrefixedKey）
 }
 interface UiService {
@@ -935,7 +946,8 @@ interface ShortcutsService {
   bind(item: ShortcutItem): () => void; resolve(e: KeyboardEvent, keys: ContextKeyValues): { commandId: CommandId; params?: JsonObject } | null
   conflicts(): readonly ShortcutConflict[]; table(keys: ContextKeyValues): readonly ShortcutGroup[]
 }
-interface ThemeService { get(): ThemeState; set(mode: ThemeState['mode']): void; setDensity(d: Density): void; observe(cb: (s: ThemeState) => void): () => void }
+interface ThemeService { get(): ThemeState; set(mode: ThemeState['mode']): void; setDensity(d: Density): void; observe(cb: (s: ThemeState) => void): () => void
+  setTokens(partial: Partial<TokenSet>): void; registerStyleSheet(id: string, cssText: string): () => void }  // FE-12，50/09 §3.3、§10
 
 // ui-react：宿主组件 props（§7 契约）
 interface EditorHostProps {
@@ -989,9 +1001,9 @@ packages/design/src/__tests__/
 └── theme-vars-contract.test.ts      # 遍历 ui-react / *-ui / apps 的 CSS 与 TSX 字面量：每个扩展变量须在 tokens.css 声明、--cordex-* 出现即失败、body 防线在 slots.css 末尾（原称扫描器 theme-vars-contract，rulings §4.18 GV-15，TD-092）
 
 packages/ui-core/src/__tests__/
-├── when-clause.test.ts              # 语法 / 求值 / 未登记键诊断 / fast-check 往返（parse→print→parse）
+├── when-clause.test.ts              # 语法 / 求值 / 未登记键诊断 / fast-check 往返（parse→print→parse）；explainWhen 真子句返回 null、假子句返回首个为假原子条件的原因键（50/09 V16，§4.20 FE-12）
 ├── context-keys.service.test.ts     # 事件 → 键映射；批量合并一帧一次；多 Unit 分桶；registerPrefixedKey 冲突
-├── ribbon-model.test.ts             # buildRibbonTree：when 过滤、order 排序、空组隐藏、第三方 owner 排序、conflict:'replace' 覆盖
+├── ribbon-model.test.ts             # buildRibbonTree：when 过滤、order 排序、空组隐藏、第三方 owner 排序、conflict:'replace' 覆盖；enablement 为假的控件保留并标 disabled + reason（§4.20 FE-06）
 ├── inspector-model.test.ts / bar-and-menu-models.test.ts
 ├── chord.test.ts                    # 平台规范化、code 基匹配、显示文案（⌘⌥⇧ vs Ctrl/Alt/Shift）
 ├── shortcuts.service.test.ts        # resolve / conflicts（同 chord 同 when）/ textEditing 放行规则 / Esc 逐级链（组合内文本编辑按三次 Esc 才到未选中，§4.18 UX-06）
@@ -1006,9 +1018,9 @@ packages/ui-react/src/__tests__/
 ├── conformance-ui-renderer.test.ts  # runUiRendererConformance(createReactUiRenderer)（scan-manifest 规则 (e)；2026-09-25 由 ui-renderer.conformance.test.ts 改名，符合 conformance* 前缀规则，70/02 §14 第 6 条）
 ├── editor-host.test.tsx             # 挂载 / 卸载 / unitId 切换不重建 root；mode edit|review|view 差异（view = 评审外观去掉「评论 / 高亮」等创建类按钮，只留跳转与阅读评论，模式下拉只列「只读浏览」与放映，§4.18 UX-19）；slots 注入
 ├── editor-shell.breakpoints.test.tsx # 1280 / 800 / 480 三断点：三栏 / 图标条 + Sheet / 仅查看提示条；拖拽范围 clamp
-├── ribbon-host.test.tsx             # RibbonTree 渲染；36+91 高度；第三方页签归属徽标；只读态 Notice；ViewModeSwitch 不渲染条件
+├── ribbon-host.test.tsx             # RibbonTree 渲染；36+91 高度；第三方页签归属徽标；只读态 Notice；ViewModeSwitch 不渲染条件；edit / review / view 三种模式（含 reviewBar 无条目）下主题切换与「?」恰好各一个且都在 [data-slot=ribbon-trailing] 内，review / view 无 ViewModeSwitch（§4.20 FE-08）
 ├── inspector-dock.test.tsx          # 页签禁用 + tooltip；分区折叠持久化；不自动切页签
-├── contribution-renderer.test.tsx   # 默认控件生成（big/small/toggle/select/checkbox）；错误边界隔离 + plugin/failed
+├── contribution-renderer.test.tsx   # 默认控件生成（big/small/toggle/select/checkbox）；错误边界隔离 + plugin/failed；enablement 为假时控件仍渲染且带 aria-disabled 与原因 tooltip（§4.20 FE-06）
 ├── hosts.test.tsx                   # ToolbarHost 锚定避让；ContextMenuHost；DialogHost 焦点回落；NotificationHost 时长
 ├── theme-bridge.test.tsx            # 根节点 class / data-cordex-* 同步；两个 EditorHost 各自作用域
 ├── shadcn-copy.test.ts              # components/ui/*.tsx 集合 == index.ts 导出 == components.json 记录；style == 'radix-rhea'；全仓只此一份复制件；无 `// Cordex override` 未登记（2026-09-25 由 shadcn-sync 改名，归并原扫描器 shadcn-components-sync/single-shadcn-copy/shadcn-overrides，rulings §4.18 GV-15，TD-091）
@@ -1017,19 +1029,24 @@ packages/ui-react/src/__tests__/
     ├── editor.visual.spec.ts        # /editor 亮暗截图基线；prefers-reduced-transparency 下面板不透明（--card）；宿主外壳（host-wrap）版 body 防线
     └── perf.spec.ts                 # 同屏 backdrop-filter 元素 ≤ 4；编译 CSS 同时含 backdrop-filter 与 -webkit- 版本；体积门禁 ≤ 900 KB gzip（EM-07）
 
+packages/ui-react/src/infrastructure/csp/__tests__/
+└── trusted-style-constants.test.ts  # default 策略：两段登记常量各一例原样放行；常量多一个空格、换行不同、任意 <b>x</b> 各一例返回 null（70/10 SEC-CL-02，§4.20 FE-18+TX-06）
+
+# 本模块界面的浏览器 e2e 落 apps/web/e2e/（70/06 §3.1，文件登记见 40/11 §9）：embed/style-isolation.spec.ts（嵌入样式隔离，FE-16）、editing/master-layout-delete.spec.ts 与 editing/theme-apply.spec.ts（70/06 §5 第 25 行，FE-05/FE-23/FE-24）、security/csp-strict.spec.ts 追加段与基线 security/fixtures/third-party-styles.json（FE-18+TX-06）
+
 packages/slide-ui/src/__tests__/
 ├── selection-kind.test.ts           # 全部 SlideSelectionAnchor 形态 → kind；mixed / layouts-multi
-├── edit-target.test.ts              # impactCount（dependentsOf）；masterEntryState 三态；defaultLayoutOf
-├── ribbon-spec.test.ts              # 规格完整性：每个 control 的 commandId ∈ M-03 §2.6 ∪ ★清单；when 键全部已登记（collectWhenKeys）；页签 when 矩阵（normal / master）
+├── edit-target.test.ts              # impactCount（dependentsOf，不计墓碑目标）；masterEntryState 五态与优先级（§4.20 FE-11）；删除版式的 reassignTo 使用 @cordexjs/model-slide 导出的同一 defaultLayoutOf 符号（§4.20 FE-03）
+├── ribbon-spec.test.ts              # 规格完整性：每个 control 的 commandId ∈ M-03 §2.6 ∪ ★清单；when / enablement 键全部已登记（collectWhenKeys）；页签 when 矩阵（normal / master）；插入页签评论按钮 when 为 slide.hasComments，图表与全文命令（查找替换、全选）用 enablement；reviewBar 四项 when（§4.20 FE-11/FE-12）
 ├── inspector-spec.test.ts           # selectionKind × editTargetKind → 分区集合矩阵（03-screens/03 G-19 / G-74）
 ├── command-bindings.test.ts         # 每个装配器产出参数通过对应 CommandDef.schema（createCommandHarness + fixtureSlideUnit）
 ├── canvas-interaction.test.ts       # 点选 / 框选 / Shift 追加；拖拽 N 帧 → 一次 moveShapes；母版视图 M2 只读锁
 ├── text-editing.test.ts             # 进入 / 退出；compositionend 才派发；Esc 回形状
 ├── master-view.test.ts              # Q12 判定；进入选中当前页版式；四种退出恢复会话记忆；手动切评审即退出并恢复会话记忆（§4.18 UX-20）；降权不强制退出、保持只读母版态；缩窄不强制退出；view/mode-changed 无历史项
-├── layout-actions.test.ts           # Q11 引用 0 / N 两路；多选合并判定；Q13 toast 文案；重置二次确认；占位符上限 toast
+├── layout-actions.test.ts           # Q11 引用 0 / N 两路；引用 N 执行后给带 [撤销] 的 toast 且对话框文案不含「不可撤销」（§4.20 FE-05）；deleteMaster 默认目标为 order 首个剩余母版（FE-23）；多选合并判定；Q13 toast 计数取 applyLayout 结果（FE-24）；重置二次确认；占位符上限 toast
 ├── thumbnails.test.tsx              # ThumbnailRail 虚拟化 / DnD → reorderSlides / 键盘等价；MasterThumbnails listbox 键盘 / 多选 / 骨架 > 300ms / 失败重试 / 「未使用」
 ├── inspector-sections.test.tsx      # 位置与大小编辑 → moveShapes；混合值；单位换算；占位符覆盖徽标 / 重置；InheritanceNotice 禁用条件
-├── present.test.ts                  # view.setMode presenter；键盘翻页；黑屏 / 白屏时按翻页键只恢复当前页不翻页、Esc 直接退出（§4.18 UX-07）；**发布** slide/show-changed（进入/退出各一次，C-04）；退出恢复
+├── present.test.ts                  # view.setMode presenter；requestFullscreen 目标为注入的常驻容器而非舞台元素（§4.20 FE-12，50/10 V8）；键盘翻页；黑屏 / 白屏时按翻页键只恢复当前页不翻页、Esc 直接退出（§4.18 UX-07）；**发布** slide/show-changed（进入/退出各一次，C-04）；退出恢复
 ├── shortcuts.test.ts                # 26 条无冲突（shortcuts.conflicts() 为空）；Mod+Alt+M 三入口等价
 ├── contributions.test.ts            # 插件 ready 后贡献计数与 id 命名（`slide.ribbon.*` 等）；dispose 全部撤销；ui-core 缺席 PENDING
 └── i18n-keys.test.ts                # zh-CN / en-US 键集合一致且覆盖全部 title 键（与 scan-contributions 规则 (f) 同口径，原称 i18n-keys-sync）
@@ -1044,7 +1061,7 @@ packages/slide-ui/src/__tests__/
 | `package.json#cordex` | `layer/iso/bundle/role/implements/publicEntry/stability`（2026-09-25 删 `rank`：秩由 `layer` 查秩表得出，L7 = 70、V-ui = 75，schema 拒绝 `rank` 等未知键；`implements` 为第八键，provider 必填，rulings §4.18 FE-21；`publicEntry` 与 `exports` 键集合逐一相等，FE-04） | design `L7/dom/—/library/—/六项/beta`；ui-core `L7/dom/—/definition/—/'.','./testing'/beta`；ui-react `L7/dom/—/provider/['uiRenderer']/'.','./ui','./styles.css','./testing'/beta`；slide-ui `V-ui/dom/slide/plugin/—/'.','./styles.css','./testing'/beta` | 00 §9 表；`role` 七值按 G-2 折叠为 depcruise 三角色 |
 | 秩只向下 | depcruise R2 `cordex-layer-downward` | 四包 | ui-core/ui-react/design（70）只依赖 ≤ 58；slide-ui（75）可依赖 slide-render（55）、ui-react（70） |
 | `*-ui` 核心层无框架（新增，rulings §4.15 Q2） | depcruise `cordex-ui-bundle-core-framework-free`（M-01 规则 9，TD-082；复核 M17 统一名） | slide-ui（及未来 doc-ui/sheet-ui）的 `src/domain/**`、`src/application/**` | 禁止 react/react-dom/radix/tailwind/lucide 等 R14 清单；React 系依赖仅 `src/ui/**` 放行（eslint 单点引入表，`infrastructure/**` 不放行，复核 L17） |
-| CSP 与 Trusted Types（新增，rulings §4.15 Q2） | ui-core `theme-style-injector.ts` 只用 `textContent` 写 `<style>` 并透传 CSP nonce；lint 禁 `dangerouslySetInnerHTML`/`innerHTML`（ui-react、`*-ui`） | ui-core / ui-react / slide-ui | CSP nonce **M2**；Trusted Types **M2 report-only → M3 强制**（`require-trusted-types-for 'script'`，策略由 M-11 `apps/web` 下发） |
+| CSP 与 Trusted Types（新增，rulings §4.15 Q2） | ui-core `theme-style-injector.ts` 只用 `textContent` 写 `<style>` 并透传 CSP nonce；lint 禁 `dangerouslySetInnerHTML`/`innerHTML`（ui-react、`*-ui`）；第三方运行时样式（2026-09-26 定稿，rulings §4.20 FE-18+TX-06）：TT 用名为 `default` 的策略，`createHTML` 只对 ui-react `infrastructure/csp/trusted-style-constants.ts` 登记的两段 Radix 固定样式文本精确比对放行、其余返回 `null`；sonner 静态引入 `sonner/dist/styles.css` 并以 pnpm patch 删 `__insertCSS`；react-resizable-panels 4.x 用 `adoptedStyleSheets` 无需处理 | ui-core / ui-react / slide-ui | CSP nonce **M2**；Trusted Types **M2 report-only → M3 强制**（`require-trusted-types-for 'script'`，策略由 M-11 `apps/web` 下发，`trusted-types` 取值含 `default`，50/14 §2.1）；csp-strict e2e 断言 TT 与 style-src 违规都为 0、Toast 与 ScrollArea 计算样式与基线一致，并含 `default` 策略拒绝未登记文本的负向用例（70/06） |
 | 无框架 | R14 `ui-core-no-framework`（扩展：react、react-dom、radix-ui、@radix-ui/*、tailwindcss、@tailwindcss/*、lucide-react、class-variance-authority、clsx、tailwind-merge、cmdk、sonner、vaul、react-resizable-panels、@fontsource-variable/geist、next-themes） | ui-core | 同时 eslint `no-restricted-imports` 双保险 + `no-framework.test.ts` |
 | design 只允许 CSS 与类型 | README C-6 / R14 子规则 `ui-core-design-css-only-import` | ui-core → design | 仅 `@cordexjs/design/css/*.css` 与 `import type` |
 | 复制件私有 | R17 `shadcn-ui-dir-private` | `@cordexjs/ui-react/ui` 与 `ui-react/src/ui/components/ui/**` | 仅 ui-react 自身、`cordex.layer=='V-ui'` 包、`apps/*` 可 import |
@@ -1054,7 +1071,7 @@ packages/slide-ui/src/__tests__/
 | 文档类型盲 | R3 `cordex-doc-type-blind` + lint `no-doc-type-literals` | design / ui-core / ui-react | 源码不得出现 `'slide'`/`'doc'`/`'sheet'` 字面量（测试目录除外） |
 | 同构 | R16 `cordex-isomorphism-compatibility` | 四包 dom | 不得被 iso/node 包依赖 |
 | 贡献点 id / 事件域 | lint `cordex/events-must-be-declared` 规则 3（域白名单，原称 `event-domain-whitelist`）、`scan-command-capabilities` 规则 (c)（id 格式，原称 `command-id-format`）（名称按 09-type-discipline/08 §11/§11.1 对账，rulings §4.18 GV-15） | ui-core 事件 `ui/*`、`view/*`（`view` 域待加入白名单，§12 G-5）；slide-ui 事件 `slide/show-changed`（`slide` 域已注册，C-04）；Operation id `view.setMode`、`ui.openPanel`（撤销/重做绑定 M-02 `core.undo\|redo`，不在本包 Operation id 空间内，C-02） | 二段 camelCase |
-| `when` 键登记 | `scan-contributions` 规则 (e)（原称 `when-keys-declared`，GV-15） | 全部 `ui.*` 贡献（slide-ui `when-bindings.ts`、ui-react 壳级贡献） | 读 `STANDARD_KEYS` + `registerPrefixedKey` 声明合并 |
+| `when` / `enablement` 键登记 | `scan-contributions` 规则 (e)（原称 `when-keys-declared`，GV-15；2026-09-26 扩到 `enablement` 子句，TD-089 同步，rulings §4.20 FE-06） | 全部 `ui.*` 贡献（slide-ui `when-bindings.ts`、ui-react 壳级贡献） | 读 `STANDARD_KEYS` + `registerPrefixedKey` 声明合并；`can.<x>` 的 `<x>` 须属于 protocol 能力位；ui-core 以外的包登记 `can.` 前缀即违规；三条负向夹具：`enablement` 引用未登记键、拼错的 `can.doc.writ`、第三方登记 `can.` 前缀 |
 | 事件声明 | lint `cordex/events-must-be-declared`（原称 `events-declared`，GV-15） | ui-core `ui.contribution.ts` | 六个事件 |
 | manifest | `scan-manifest` 规则 (a)（重新生成 `manifest.ts` 与入库比对；`plugin`/`provider`/`definition` 缺 `manifest.ts` 即违规；原称 `manifest-present`、`manifest-matches-runtime`，GV-15/GV-17） | ui-core / ui-react / slide-ui | design 豁免（library） |
 | 契约套件 | `scan-manifest` 规则 (e)（原称 `provider-runs-conformance`，GV-15） | ui-react `__tests__` 必含 `runUiRendererConformance` | — |
@@ -1083,7 +1100,7 @@ packages/slide-ui/src/__tests__/
 
 **M1–M2（rulings §4.12 U-08）**：`@media (forced-colors: active)` 系统色兜底（design `tokens/*`），不产生第三套 token；第三套 token 延后到 M3 P1（Q-7）。
 
-**M2**：母版视图全链路（`application/master-view.ts`、`ui/ribbon/{MasterTab,DesignTab,TransitionTab}.tsx`、`ui/thumbnails/MasterThumbnails.tsx`（只读 + 骨架 / 失败态）、`ui/canvas-overlays/{ScopeBar,InheritedPlaceholderOutline}.tsx`、`ui/inspector/{PlaceholderSection,InheritanceNotice}.tsx`、`infrastructure/session-memory.ts`、`Mod+Alt+M` 三入口与四种退出、Q12 可用性）；`LayoutGallery` + `layout-actions.applyLayout/resetSlides`（ML-02，Q13/Q16）；缩略图 DnD 与键盘等价；紧凑 / 仅查看断点；`ime-pipeline`/`clipboard-pipeline`/`drag-pipeline`；命令面板、快捷键面板、设置抽屉内容；协同状态胶囊与横幅宿主（`deriveCollabUiState`、`LiveAnnouncer`，含「未保存到服务器」分级提示——协同后端 M2 起承载服务端文档，rulings §4.19 D-M2-CONTENT / INC-09）；`guides.ts` 智能参考线、放映黑白屏（2026-09-25 按 PRD ED-09、ED-21 自 M3 提前，50/10 §12.3；备注编辑按 PRD 05 仍为 M3 P1，ED-18）；`ui.theme` 覆盖集；`shadcn-diff` 升为阻断；密度 compact 取值定稿（Q-5）；CSP nonce 透传 + Trusted Types report-only（rulings §4.15 Q2）。**M3**：ML-03/ML-04 编辑（`MasterTab` 编辑组启用、`LayoutDeleteDialog` + `deleteLayouts` Q11、多选批量删除、`ContainerPropertiesSection`、`ThemeEditorPanel`、占位符拖动 / 上限 toast）、放映舞台 `PresenterStage` 完整键盘、表格 / 图片分区与 `chart-selected`/`table-cell` 工具条、备注编辑（ED-18，P1）、多人协同体验层（在场 `PresenceStack`、软冲突 Toast 与「恢复我的值 / 恢复元素」、降权横幅；评论：`CommentPins`、`CommentsTab`、`slide-anchor-resolver.ts` 随 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG）、高对比第三套 token（M3 P1，Q-7，rulings §4.12 U-08）、Trusted Types 由 report-only 转强制（rulings §4.15 Q2）。
+**M2**：母版视图全链路（`application/master-view.ts`、`ui/ribbon/{MasterTab,DesignTab,TransitionTab}.tsx`、`ui/thumbnails/MasterThumbnails.tsx`（只读 + 骨架 / 失败态）、`ui/canvas-overlays/{ScopeBar,InheritedPlaceholderOutline}.tsx`、`ui/inspector/{PlaceholderSection,InheritanceNotice}.tsx`、`infrastructure/session-memory.ts`、`Mod+Alt+M` 三入口与四种退出、Q12 可用性）；`LayoutGallery` + `layout-actions.applyLayout/resetSlides`（ML-02，Q13/Q16）；缩略图 DnD 与键盘等价；紧凑 / 仅查看断点；`ime-pipeline`/`clipboard-pipeline`/`drag-pipeline`；命令面板、快捷键面板、设置抽屉内容；协同状态胶囊与横幅宿主（`deriveCollabUiState`、`LiveAnnouncer`，含「未保存到服务器」分级提示——协同后端 M2 起承载服务端文档，rulings §4.19 D-M2-CONTENT / INC-09）；`guides.ts` 智能参考线、放映黑白屏（2026-09-25 按 PRD ED-09、ED-21 自 M3 提前，50/10 §12.3；备注编辑按 PRD 05 仍为 M3 P1，ED-18）；`ui.theme` 覆盖集；`shadcn-diff` 升为阻断；密度 compact 取值定稿（Q-5）；CSP nonce 透传 + Trusted Types report-only（rulings §4.15 Q2），TT `default` 策略与 sonner 静态样式随之落地（rulings §4.20 FE-18+TX-06）；三种样式投放路径与嵌入隔离（design `css/theme.scoped.css`、ui-react `./styles.embed.css`、`setTokens`/`registerStyleSheet`，rulings §4.20 FE-12，50/09 §12.2）。**M3**：ML-03/ML-04 编辑（`MasterTab` 编辑组启用、`LayoutDeleteDialog` + `deleteLayouts` Q11、多选批量删除、`ContainerPropertiesSection`、`ThemeEditorPanel`、占位符拖动 / 上限 toast）、放映舞台 `PresenterStage` 完整键盘、表格 / 图片分区与 `chart-selected`/`table-cell` 工具条、备注编辑（ED-18，P1）、多人协同体验层（在场 `PresenceStack`、软冲突 Toast 与「恢复我的值 / 恢复元素」、降权横幅；评论：`CommentPins`、`CommentsTab`、`slide-anchor-resolver.ts` 随 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG）、高对比第三套 token（M3 P1，Q-7，rulings §4.12 U-08）、Trusted Types 由 report-only 转强制（rulings §4.15 Q2）。
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -1162,6 +1179,18 @@ packages/slide-ui/src/__tests__/
 | §4.19 D-COMMENTS-PKG、决策 INC-39 | §3、§4.4、§5.4、§11 | `CommentPins` 读取键 `resources['slide-comments.threads']` → `comments.threads`；slide-ui 贡献锚点 resolver（`infrastructure/comments/slide-anchor-resolver.ts`）、检查器评论页签（`ui/inspector/CommentsTab.tsx`）与画布评论钉，M3 |
 | §4.19 INC-09、D-M2-CONTENT | §2.1、§4.2、§5.2、§11 | 登记 ui-core `domain/collab-ui-state.ts`（`deriveCollabUiState`，含分级受众）；协同状态胶囊与横幅自 M2 起 |
 | 50 线回写表（50/06 §12、50/09 §13、50/10 §12.3、50/11 §11.4、50/14 §13、50/16 §11.3）与 70/02 §14 第 6 条 | §2.1、§2.2、§2.6、§3、§4、§5、§9、§11 | `onTextEditIntent` → `onEditIntent`；登记 `LiveAnnouncer`/`useAnnounce`、`infrastructure/csp/runtime-style-sinks.ts`、ui-core `infrastructure/open-external.ts`；上下文键 `editorMode`、`slide.hasChartEditor`（原 `hasChartEditor`）、`slide.placeholderSelected`、`slide.hasComments`；`ThemeService.setTokens`/`registerStyleSheet`；`EditorLayoutState.notesHeight`/`sectionsCollapsed`；`MasterEntryState` 补 `degraded`/`view`、`MasterViewState.targetId` 拆分；会话记忆只在内存；`Mod`+拖动复制 → `slide.duplicateShapes`★；智能参考线、放映黑白屏提前到 M2（备注编辑按 PRD 05 仍为 M3）；`ui-renderer.conformance.test.ts` → `conformance-ui-renderer.test.ts` |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-06（`enablement` 与 `can.*` 键族） | §2.1 `ContextKeyValues`、§2.5 新增段、§2.6 开篇、§3 ui-core 行、§4.2/§5.2 `contribution-items.ts`/`context-keys.ts`、§5.3 `use-command.ts`、§6、§9、§10 键登记行 | `ContributionBase.enablement?`（`ShortcutItem`、`CommandPresentation` 同带），不可用即禁用并给原因；`can.<capability>` 取 protocol 能力位全集、`can.` 为 ui-core 保留前缀；`scan-contributions` 规则 (e) 扩到 `enablement`（TD-089） |
+| FE-11（40/10 正文对齐 50） | §2.3 `masterEntryState`、§2.6 编辑组 / 插入页签 / 母版视图按钮、§4.4 `edit-target.ts`/`session-memory.ts`、§5.4、§9 | `MasterEntryState` 五值与优先级；查找替换与全选 `enablement: unitLoaded`；图表 `enablement: slide.hasChartEditor`；评论 `when: slide.hasComments` + `comments.addThread`（M3）；母版视图按钮 `enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'`；会话记忆不含分区折叠态 |
+| FE-12（待登记回写批） | §2.3 `explainWhen`、§2.5 `EditorLayoutOptions.remember`/`notesHeight`、§3 slide-ui `reviewBar` 四项与空条目 `ReadonlyRibbonNotice`、§4.1/§5.1 `css/theme.scoped.css`、§4.2/§5.2 `ThemeService.setTokens`/`registerStyleSheet` 与注入器、§4.3/§5.3 `./styles.embed.css` 与 `styles/embed.css`、§4.4/§5.4 `present.ts` 全屏目标、§6、§11 | 按 50/09 §6.2、§10、§13 与 50/10 §2.1、§3.2、§9.1 定稿登记 |
+| FE-13（引用 50 的章节号） | §2.1、§2.2 | 50/09 §6→§7、§5→§6.3、§5→§8；50/10 §4→§2.1、§5→§6；50/11 写为 §3、§4、§2 |
+| FE-03 ②、FE-04、FE-05、FE-23、FE-24 | §2.3、§2.6 删除版式 / 母版流程、§4.4/§5.4 `edit-target.ts`/`layout-actions.ts`/`LayoutDeleteDialog.tsx`、§5.3b `alert-dialog.tsx`、§9 | 删除 slide-ui 本地 `defaultLayoutOf`，改用 `@cordexjs/model-slide` 导出；`impactCount` 不计墓碑目标；带 `reassignTo` 的删除确认后可撤销（对话框删「操作不可撤销」、给带 [撤销] 的 Toast）；删除母版默认目标为按 `order` 首个剩余母版；`applyLayout` Toast 计数取命令结果 |
+| FE-18+TX-06（Trusted Types 与第三方运行时样式） | §4.3/§5.3 新增 `infrastructure/csp/trusted-style-constants.ts`、`runtime-style-sinks.ts` 与 `package.json` 行、§10 CSP 行、§11 M2 | TT `default` 策略只放行两段登记的 Radix 常量；sonner 静态 CSS + pnpm patch；react-resizable-panels 无需处理 |
+| FE-08（评审与只读模式「主题 · ?」位置） | §3 slide-ui `reviewBar` 说明、§3a `Ribbon.tsx`/`primitives.tsx` 行、§4.3/§5.3 `RibbonHost.tsx` 与 `ribbon-primitives.tsx`、§9 `ribbon-host.test.tsx` | 已回写（用户 2026-09-26 确认 playground 亮 / 暗 × 有 / 无条目样张）：尾部区 `RibbonTrailing`（[视图分段] · 主题 · ?）由 `RibbonHost` 直接渲染在页签行右侧、评审工具条右端或 `ReadonlyRibbonNotice` 右端，三处共用 `RibbonTrailingSlot`；`ReviewToolbar`、`ReviewToolbarSeparator` 落 `ribbon-primitives.tsx`、不进根导出；不新增文件 |
 
 ## 13. 未决问题
 

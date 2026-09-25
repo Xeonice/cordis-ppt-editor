@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§3.3 同步单点引入表与 `*-ui` domain/application 框架无关规则（Q2）；§4 syncpack 规则改为 peer `workspace:^`、其余 `workspace:*`（Q1），与 ADR-0002 §3 一致）；2026-09-24（复核修正，rulings §4.17：M17 `cordex-ui-bundle-core-framework-free` 定为全仓唯一名并指向 M-01 规则文件）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§3.3 同步单点引入表与 `*-ui` domain/application 框架无关规则（Q2）；§4 syncpack 规则改为 peer `workspace:^`、其余 `workspace:*`（Q1），与 ADR-0002 §3 一致）；2026-09-24（复核修正，rulings §4.17：M17 `cordex-ui-bundle-core-framework-free` 定为全仓唯一名并指向 M-01 规则文件）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 04、06 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 03 · 边界（dependency-cruiser）
 
@@ -98,7 +98,7 @@ flowchart LR
 
 本节四值 `role` 是 `package.json#cordex.role`（[02-layering-and-packages.md](../02-layering-and-packages.md) §4.0.1 的 7 值：`library|plugin|definition|provider|bundle|app|tooling`）到本子线三角色判定的折叠结果，折叠映射表见 02 §4.0.1（2026-09-18，14 §1 C-11，落实 `40-modules/00-module-map.md` G-2/Q-M1）：`definition→definition`、`provider→provider`、其余五值→`consumer`（除非该包同时是某 Definition 的 Provider）。
 
-`stability` 字段（可选，缺省视为 `stable`）：当一个包整体处于 `experimental`/`beta` 阶段（如 M5 的 `model-doc`/`model-sheet` 骨架），该包 `api-extractor.json` 的默认 release tag（[04 §2](./04-api-surface.md#2-api-md-基线与-pr-diff-流程)）从 `@public` 降级为对应级别，避免每个导出符号都要手工标注同一个稳定级；Changesets 依据此字段把变更分组展示（`stable` 包的变更单独高亮，`experimental` 包的变更默认折叠），具体分组规则由 [ADR-0002](../adr/0002-versioning-strategy.md)（架构-结构条线所有）定义，本子线只保证字段的类型与存在性。
+`stability` 字段（可选，缺省视为 `stable`）：当一个包整体处于 `experimental`/`beta` 阶段（如 M5 的 `model-doc`/`model-sheet` 骨架），该包 `api-extractor.json` 的默认 release tag（[04 §2](./04-api-surface.md#2-apimd-基线与-pr-diff-流程)）从 `@public` 降级为对应级别，避免每个导出符号都要手工标注同一个稳定级；Changesets 依据此字段把变更分组展示（`stable` 包的变更单独高亮，`experimental` 包的变更默认折叠），具体分组规则由 [ADR-0002](../adr/0002-versioning-strategy.md)（架构-结构条线所有）定义，本子线只保证字段的类型与存在性。
 
 新旧对照（供读过本文档早期版本或章程 v0.1 网格的读者核对）：`model-slide`/`model-doc`/`model-sheet` 原"L2" → `V-model`；`ooxml-pptx`/`ooxml-docx`/`ooxml-xlsx` 原"L3"（垂直行）→ `V-codec`（`ooxml-core` 本身仍是水平层，保留 `L3`，不受影响）；`slide-render`/`doc-render`/`sheet-render` 原"L6"（渲染行）→ `V-render`；`slide-ui`/`doc-ui`/`sheet-ui` 原"L6"（UI 贡献行）→ `V-ui`。`L2`、`L6` 自此不再是合法的 `layer` 取值。
 
@@ -159,7 +159,7 @@ L0=0  L1=10  V-model=15  L3=30  V-codec=35  L4=40  L5=50  V-render=55  LS=58  L7
 |---|---|---|---|
 | 1 | [01](./01-tsconfig-baseline.md#26-target-与-lib环境相关放在-isodomnode-三份文件而非-basejson) `iso.json` 的 `lib`/`types: []` | 源码里任何**类型层面可见**的 DOM/Node 全局引用，编译期报错 | 通过 `globalThis as any` 之类绕过类型系统的引用（但这本身已违反 [02](./02-lint-rules.md) 的 `any`/`as` 禁令，属于双重违规） |
 | 2 | [02 §5.2](./02-lint-rules.md#52-no-restricted-globals章程-53-规则-5同构隔离三重保障之一) `no-restricted-globals` | 同上，但不依赖类型检查是否运行（ESLint 独立通道），且给出更聚焦的架构性错误信息 | 与层 1 有意重叠，非互补 |
-| 3 | [06 scan-isomorphic](./06-scanners.md#4-scan-isomorphic) 的静态扫描 + `iso-smoke` CI job（`node --import` 冒烟） | **运行时**事实：某个 iso 包间接依赖的第三方库在模块求值阶段就访问了 `document`（这是层 1/2 都看不见的——它发生在别人的编译产物里，不在我们的 TS 源码里） | 需要真正执行到该代码路径才能触发；不做覆盖率保证 |
+| 3 | [06 scan-isomorphic](./06-scanners.md#5-scan-isomorphic) 的静态扫描 + `iso-smoke` CI job（`node --import` 冒烟） | **运行时**事实：某个 iso 包间接依赖的第三方库在模块求值阶段就访问了 `document`（这是层 1/2 都看不见的——它发生在别人的编译产物里，不在我们的 TS 源码里） | 需要真正执行到该代码路径才能触发；不做覆盖率保证 |
 | 4（图层） | 本节 `cordex-isomorphism-compatibility` | 结构性地阻止"直接依赖一个同构类不兼容的**内部**包"（含 `iso→dom`/`iso→node`/`dom→node`/`node→dom` 四个方向） | 不覆盖外部 npm 依赖本身的环境假设（外部依赖的同构性由人工评审 + `iso-smoke` 兜底） |
 
 ### 3.5 规则 6：三角色（对应章程 §5.3-6）

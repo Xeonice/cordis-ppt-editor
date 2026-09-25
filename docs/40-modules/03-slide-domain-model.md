@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
 
 # 03 幻灯片领域模型（限界上下文 BC-06 幻灯片领域模型）
 
@@ -73,8 +73,8 @@ flowchart LR
 | Presentation | 聚合根，单例，承载页序/母版序/默认文本样式/属性 | `Presentation`（`PresentationBody.presentation`） |
 | 归一化实体表 | 有身份对象按 `Record<Id, Entity>` 存储，顺序由 `order: FracKey` 字段承载，引用用 id | `PresentationBody` 的六张表 |
 | 占位符继承 | 页/版式上占位符形状的可继承字段缺省即向上查链解析，不烘焙 | `PlaceholderRef`、`InheritableField`、`ResolvedRunProperties` 等 |
-| `reassignTo` | 删除被引用版式/母版时，显式指定重指目标以避免 fail-closed 拒绝 | `deleteLayout({ layoutId, reassignTo? })` |
-| 默认版式 | 版式/母版删除或悬空修复时的回退目标：该母版首个版式 | `planLayoutChange`/不变量 `I-ML2` 共用的选取函数 |
+| `reassignTo` | 删除被引用版式/母版时，显式指定重指目标以避免 fail-closed 拒绝；`deleteLayout` 的是目标版式，`deleteMaster` 的是目标母版（逐页按 `defaultLayoutOf` 取对应 `type` 的版式，rulings §4.20 FE-23） | `deleteLayout({ layoutId, reassignTo?: LayoutId })`、`deleteMaster({ masterId, reassignTo?: MasterId })` |
+| 默认版式 | 版式/母版删除或悬空修复时的回退目标，按 30/04 §12.3 I-ML2 链选取：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式，跳过墓碑与 `exclude` 中的版式（rulings §4.20 FE-03） | `defaultLayoutOf(body, {masterId, type?, exclude?})`（`domain/invariants/reassign.ts`）：命令层 `reassignTo`、I-ML2 修复与 ADR-0034「`layoutId` 不存在」修复共用同一符号 |
 | FracKey 排序 | 同容器内形状/页/版式/母版的顺序键，`compare = (order, id)`，无数组下标 | `Shape.order`/`Slide.order`/`SlideLayout.order`/`SlideMaster.order: FracKey` |
 | 范围条 | 母版视图中「编辑版式\|母版」双态视图状态（不改变模型，Operation 级） | `slide.selectMasterOrLayout` Operation 的 `editTargetKind` 上下文键 |
 
@@ -99,19 +99,21 @@ flowchart LR
 | 实体 | ID 品牌类型 | 关键不变量（04 §12.3；id 见下表） | 并发 / CRDT 合并语义 |
 |---|---|---|---|
 | `Presentation`（单例，非表条目） | — | `masters` 非空（I-ML5） | 各字段独立键 LWW；`defaultTextStyle`/`properties` 整对象替换式 LWW |
-| `SlideMaster` | `MasterId` | `themeId ∈ themes`（I-ML4）；被 ≥1 母版引用的主题不可裸删（I-ML6 反向） | 新增/删除为顶层键 LWW；A 删除母版与 B 同时把某版式指向该母版 → I-ML3 兜底（下一行） |
-| `SlideLayout` | `LayoutId` | `masterId ∈ masters`（I-ML3） | A 删除版式（已确认，无 `reassignTo` 时 fail-closed 拒绝，见 §2.6）与 B 同时把页 `layoutId` 指向该版式并发收敛后悬空 → **I-ML2 兜底**：重指该母版首个版式并 `materialize` 占位符（04 §12.3、05 §13.4 场景 1） |
+| `SlideMaster` | `MasterId` | `themeId ∈ themes`（I-ML4）；被 ≥1 母版引用的主题不可裸删（I-ML6 反向） | 新增/删除为顶层键 LWW；A 删除母版与 B 同时把某版式指向该母版 → 墓碑期读时容错、硬删时 I-ML3 修复（同下一行，rulings §4.20 FE-04） |
+| `SlideLayout` | `LayoutId` | `masterId ∈ masters`（I-ML3） | A 删除版式（已确认，无 `reassignTo` 时 fail-closed 拒绝，见 §2.6）与 B 同时把页 `layoutId` 指向该版式，收敛后页引用的是墓碑版式 → **墓碑期读时容错**：页的 `layoutId` 保持不变（并发写落在墓碑上不丢），渲染、导出、样式链与 `impactCount` 读取时以 `defaultLayoutOf` 的结果替代（`impactCount` 不计墓碑目标），客户端发 `collab/soft-conflict{type:'delete-vs-reference'}`（50/11 §10）；A 撤销删除即恢复显示原版式；TTL 硬删作业在**同一事务**内按 I-ML2 链写修复并 `materialize` 占位符（`collab/repair{rule:'dangling-layout'}`，只写一次；04 §12.3、05 §13.4 场景 1，rulings §4.15 Q3、§4.20 FE-03/FE-04） |
 | `Slide` | `SlideId` | `layoutId ∈ layouts`（I-ML2） | `order`/`layoutId` 单键 LWW；同位并发插入按 `(order, id)` 全序（ADR-0032），无需 rebase |
 | `Shape`（判别联合） | `ShapeId` | `containerId` 存在、`parentId` 同容器（I-ML8）；占位符引用有效（I-ML7 软） | `order`+`parentId` 单键 LWW（移动/换组/调 z 序皆是 `set`，ADR-0032）；A 重置占位符覆盖与 B 移动同占位符并发 → 同键 LWW，双方各自可撤销自己的部分（05 §13.4 场景 2）；删除为**软删除**（`_deleted` 墓碑，rulings §4.15 Q3）：A 删除与 B 编辑并发 → B 的编辑保留在墓碑实体上，A 撤销删除即带着 B 的编辑恢复；A 撤销时若同一键已被 B 后写则跳过并提示（M-02 §2.5） |
 | `Theme` | `ThemeId` | 至少被一个母版引用（I-ML6，否则诊断 `THEME_UNREFERENCED_DROPPED`） | `colorScheme`/`fontScheme` **逐槽位**（12 槽 / 4 槽）LWW，非整对象覆盖（05 §13.1 `setColors`/`setFonts`） |
 | `MediaRef` | `MediaId` | 无孤儿校验（共享目标保留，04 §5.2） | `BlobRef` 内容寻址，不可变、天然无冲突 |
 | `OpaquePartRef`（`opaqueParts` 表） | `PartName`（string） | 不校验，透传 | 整键 LWW；删除页时级联清理其独占 opaque part，共享目标保留 |
 
-**`reassignTo` 与悬空引用兜底的分工**（04 §12.3 末段、05 §13.2/§13.4）：命令层是**第一道 fail-closed 前置**——`slide.deleteLayout`/`slide.deleteMaster` 在目标被引用且未提供 `reassignTo` 时直接返回 `err(LAYOUT_IN_USE | MASTER_IN_USE)`，不产生事务；提供 `reassignTo` 时，重指引用页与删除动作在**同一个事务**内完成（可一次撤销）。不变量 `I-ML2`/`I-ML3` 是**第二道兜底**——只在命令层前置被绕过的场景生效：(a) 协同并发（A 删除已确认、B 同时施加引用，CRDT 合并后才出现悬空）；(b) 服务端软门禁批量修复（ADR-0034，import/migrate 路径不经命令层）。两道机制的重指目标选取函数必须是**同一个纯函数**（当前定义为「该母版首个版式」），否则用户确认对话框里承诺的行为与实际收敛结果会不一致。
+**`reassignTo` 与悬空引用兜底的分工**（04 §12.3 末段、05 §13.2/§13.4）：命令层是**第一道 fail-closed 前置**——`slide.deleteLayout`/`slide.deleteMaster` 在目标被引用且未提供 `reassignTo` 时直接返回 `err(LAYOUT_IN_USE | MASTER_IN_USE)`，不产生事务；提供 `reassignTo` 时，重指引用页与删除动作在**同一个事务**内完成，执行后入撤销栈、可一次撤销（rulings §4.20 FE-05：Q11 修订为「确认后可撤销」——确认对话框保留、文案删去「操作不可撤销」，执行后给带 [撤销] 的 Toast；撤销时各页引用回退、版式以原 id 复活，协同下他人后写的键按 Q3 跳过并提示；墓碑 24 h 硬删后该步整步跳过）。不变量 `I-ML2`/`I-ML3` 是**第二道兜底**——只在命令层前置被绕过的场景生效：(a) 协同并发（A 删除已确认、B 同时施加引用，CRDT 合并后引用指向墓碑；墓碑期读时容错，TTL 硬删作业同事务写修复，见 §2.1 表 `SlideLayout` 行）；(b) 服务端软门禁批量修复（ADR-0034，import/migrate 路径不经命令层）。两道机制的重指目标选取函数必须是**同一个纯函数**——`defaultLayoutOf(body, {masterId, type?, exclude?})`（`domain/invariants/reassign.ts`，30/04 §12.3 I-ML2 链：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式，跳过墓碑与 `exclude`；rulings §4.20 FE-03），否则用户确认对话框里承诺的行为与实际收敛结果会不一致。
+
+**删除母版的目标规则（rulings §4.20 FE-23，PRD G-73 结案）**：`slide.deleteMaster{masterId, reassignTo?: MasterId}` 的 `reassignTo` 是目标**母版**；每个受影响页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（目标母版同 `type` 的首个版式 → 目标母版首个版式），被删母版及其版式一并写墓碑，整个删除是一个事务；UI 不加母版选择器，确认对话框默认取按 `order` 排序的首个剩余母版。
 
 **软删除墓碑与规模上限（rulings §4.15 Q3/Q5）**：
 - **墓碑**：`slides`/`shapes`/`layouts`/`masters`/`themes` 五张实体表的删除一律写 `_deleted: Tombstone`（M-02 `store/tombstone.ts`），实体 id 稳定、行不移除；级联删除（删页连带其形状、删版式连带其形状、删母版连带版式与形状）对每个被级联实体各写一个墓碑，撤销时一并清除。独占 opaque part（备注页、图表部件等）的级联清理推迟到服务端 TTL 硬删除（默认 24h，M-09 单写者执行）；导出（M-04）与渲染（M-07）经 `filterLive()` 视墓碑实体为不存在。
-- **读路径过滤**：`domain/query/selectors.ts`/`traverse.ts` 的全部公开选择器默认只返回存活实体；不变量 I-ML2…I-ML8 把「引用指向墓碑实体」视同悬空（按既有 repair 规则处理）。只有 `element-limits.ts` 的计数与协同/快照路径读原始表。
+- **读路径过滤**：`domain/query/selectors.ts`/`traverse.ts` 的全部公开选择器默认只返回存活实体。指向墓碑实体的关系分两类处理（rulings §4.20 FE-04，30/04 §3.1a(3) 与 §12.3）：**包含关系**（`containerId`、`parentId`）指向墓碑 → 引用者一并视为已删除（I-ML8 等按既有 repair 规则）；**引用关系**（`layoutId`、`masterId`、`themeId`）指向墓碑 → I-ML2…I-ML4 在**墓碑期读时容错**，不写修复，读路径以替代目标求值（`layoutId` 用 `defaultLayoutOf`，母版、主题按 30/04 §12.3 对应链），只在服务端 TTL 硬删作业的同一事务内写修复（每个引用只修一次）。消费方同样按替代目标读：M-07 `SceneProvider`、M-04 导出编码器解析 `layoutId` 时调用 `defaultLayoutOf`，导出的 pptx 中该页引用存活版式；`impactCount` 不计墓碑目标。只有 `element-limits.ts` 的计数与协同/快照路径读原始表。
 - **规模上限（部署可调）**：`maxSlides` 200、`maxElementsPerSlide` 1,000、`maxElementsPerDoc` 20,000（软警告 15,000）为默认值，来自部署配置、可完全调整（超出性能保证包络时告警，性能承诺不再成立）。**计数口径**：`shapes` 表全部行（含母版/版式上的形状、组合形状本身与其每个子形状各计 1），**墓碑计入**；`maxSlides` 计 `slides` 表全部行（含墓碑）。命令层守卫：会新增实体的命令（`addSlide`/`duplicateSlide`/`insertShape`/`insertPicture`/`insertTable`/`pasteShapes`/`insertLayout`/`insertMaster`/`applyLayout` 的占位符 `materialize` 等）在 `transact` 前按「提交后计数」判定，超限返回 `err(SLIDE_LIMIT_EXCEEDED \| ELEMENT_LIMIT_EXCEEDED)` 且无事务——两常量映射到 protocol 错误码 `document.quota_exceeded`（常量 `DOCUMENT_QUOTA_EXCEEDED`，M-02 `errors/codes.ts`；详情 `{dimension, limit, actual}`，HTTP 409，命令守卫拒绝、**不关连接**，rulings §4.17 D2）：`SLIDE_LIMIT_EXCEEDED` → `dimension:'slides'`，`ELEMENT_LIMIT_EXCEEDED` → `dimension:'elementsPerSlide'`（单页超限）或 `'elementsTotal'`（文档总元素超限）；达软警告线时命令成功但附诊断。不变量层 `I-LIM1` 只报告（协同并发合并后可能越线），**不 repair**（不能替用户删内容）。超出系统天花板的导入由 M-04 在解析期直接拒绝（渐进打开时在首批回传之前，`format.quota_exceeded`，与本段 `document.quota_exceeded`、存储侧 `storage.quota_exceeded` 三码并列；拒绝线是天花板，不是性能保证包络，rulings §4.18 UX-13），不进入本包。
 
 **图 2-1 幻灯片领域对象关系**
@@ -203,6 +205,7 @@ classDiagram
 | `walkShapes`/`pathOfShape` | `(body, rootIds, visitor) => void`（深度优先、z 序）；`(body, shapeId) => Path` | `domain/query/traverse.ts` | 是 |
 | `slideDocumentType.invariants[].check/repair` | 见 §2.1 不变量表；`{ id; check(body): Violation[]; repair?(body, violations): PresentationBody }` | `domain/invariants/index.ts` | 是（服务端软门禁 ADR-0034 复用） |
 | `validateChangeSet` | `(view: ReadonlyStoreView, changeSet: ChangeSet) => Result<void, Violation[]>`（按 `touched` 前缀选取相关不变量求值） | `domain/invariants/validate-change-set.ts` | 是 |
+| `defaultLayoutOf` | `(body, opts: {masterId: MasterId; type?: SlideLayout['type']; exclude?: readonly LayoutId[]}) => LayoutId \| undefined`：30/04 §12.3 I-ML2 链——`masterId` 下同 `type` 的首个版式 → `masterId` 首个版式 → 首个母版的首个版式，按 `(order, id)` 取首个，跳过墓碑与 `exclude`（`undefined` 只在全文档无存活版式时出现，I-ML5 下不应发生）；命令层 `reassignTo` 计算、I-ML2 修复、ADR-0034 修复、M-07/M-04 读时替代与 slide-ui 共用同一符号（rulings §4.20 FE-03/FE-04/FE-23） | `domain/invariants/reassign.ts` | 是 |
 | `createEmptyPresentation` | `() => PresentationBody`（默认主题 + 1 母版 + 若干版式 + 1 空白页） | `domain/create-empty.ts` | 是 |
 | `diffBodies` | `(a, b: PresentationBody) => readonly SlideMutation[]`（M3 版本恢复：`documentType.diff` 钩子的实现） | `application/diff.ts` | 是 |
 
@@ -297,17 +300,18 @@ sequenceDiagram
 | `slide.replacePicture`/`crop` | `{shapeId;blob?;rect?}` | `doc.write` | 一个事务 | `media.add?`/`shape.setProperties` | `picture-commands.ts` / ED-07 |
 | `slide.insertTable` | `{containerId;box;rows;cols}` | `doc.write` | 一个事务 | `shape.insert`（`graphicFrame:table`） | `table-commands.ts` / ED-10 |
 | `slide.table.insertRow`/`removeRow`/`insertColumn`/`removeColumn`/`setCellProperties`/`mergeCells`/`splitCell` | 见 `mutations/table.ts` | `doc.write` | 一个事务 | 同名 `table.*` | `table-commands.ts` / ED-10 |
-| `slide.applyLayout` | `{slideIds;layoutId}`：逐页 `planLayoutChange` → `slide.slide.setLayout` | `doc.write` | **一页一事务**（撤销粒度按页，05 §13.2） | `slide.setLayout`×N | `layout-commands.ts` / ML-02 |
+| `slide.applyLayout` | `{slideIds;layoutId}`：逐页 `planLayoutChange` → `slide.slide.setLayout`；结果含每页脱离占位符（`materialize`）的元素数 `{perSlide: {slideId; detached: number}[]}`，供 Q13 Toast 计数 N（rulings §4.20 FE-24） | `doc.write` | **一页一事务**（撤销粒度按页，05 §13.2） | `slide.setLayout`×N | `layout-commands.ts` / ML-02 |
 | `slide.resetSlide` | `{slideIds}`：`planReset` → `shape.clearOverrides`（仅占位符形状） | `doc.write` | 一个事务 | `shape.clearOverrides` | `layout-commands.ts` / ML-02 |
+| `slide.resetPlaceholderFields`（2026-09-26 登记，rulings §4.20 FE-24，50/11 §11） | `{shapeId; fields: InheritableField[]}`：只清所列字段的覆盖、恢复继承 | `doc.write` | 一个事务、一步撤销 | `shape.clearOverrides`（与 `resetSlide` 共用，不新增 Mutation） | `layout-commands.ts` / ML-02 |
 | `slide.setLayoutBackground` | `{layoutId;background}` | `doc.write` | 一个事务 | `layout.setBackground` | `layout-commands.ts` / ML-03 |
 | `slide.insertLayout`/`duplicateLayout` | `{masterId;after?;type?;name?}`/`{layoutId}` | `doc.write` | 一个事务 | `layout.insert` | `layout-commands.ts` / ML-03 |
-| `slide.deleteLayout` | `{layoutId;reassignTo?}` | `doc.write` | **fail-closed**：被引用且无 `reassignTo` → `err(LAYOUT_IN_USE)`，无事务；带 `reassignTo` → 一个事务（重指 + 删除不可分，Q11 不可撤销） | `layout.remove`（+`slide.setLayout`×N） | `layout-commands.ts` / ML-03、Q11 |
+| `slide.deleteLayout` | `{layoutId \| layoutIds; reassignTo?: LayoutId}`：多选删除为一个事务（rulings §4.20 FE-24）；`reassignTo` 由调用方以 `defaultLayoutOf(body, {masterId, type, exclude: 被删集合})` 计算（FE-03） | `doc.write` | **fail-closed**：被引用且无 `reassignTo` → `err(LAYOUT_IN_USE)`，无事务；带 `reassignTo` → 一个事务（重指 + 删除不可分），入撤销栈、一步撤销即各页引用回退、版式以原 id 复活（rulings §4.20 FE-05，Q11 修订：确认后可撤销） | `layout.remove`（+`slide.setLayout`×N） | `layout-commands.ts` / ML-03、Q11 |
 | `slide.renameLayout`/`reorderLayouts` | `{layoutId;name}`/`{layoutId;after?}` | `doc.write` | 一个事务 | `layout.setName`/`.setOrder` | `layout-commands.ts` / ML-03 |
-| `slide.addPlaceholder`/`removePlaceholder`/`updatePlaceholder` | `{containerId;type;index?;box}`/`{shapeId}`/`{shapeId;...}`；`addPlaceholder` 前置校验同类占位符上限（Q16） | `doc.write` | 一个事务；超限 → `err(PLACEHOLDER_LIMIT_EXCEEDED)` 无事务 | `shape.insert`/`.remove`/`setPlaceholder` | `layout-commands.ts` / ML-03、Q16 |
+| `slide.addPlaceholder`/`removePlaceholder`/`updatePlaceholder` | `{containerId;type;index?;box}`/`{shapeId}`/`{shapeId;...;lstStyle?}`（`lstStyle` 为占位符级别文本样式，不新增命令 id，rulings §4.20 FE-24）；`addPlaceholder` 前置校验同类占位符上限（Q16） | `doc.write` | 一个事务；超限 → `err(PLACEHOLDER_LIMIT_EXCEEDED)` 无事务 | `shape.insert`/`.remove`/`setPlaceholder` | `layout-commands.ts` / ML-03、Q16 |
 | `slide.setMasterBackground` | `{masterId;background}` | `doc.write` | 一个事务 | `master.setBackground` | `master-commands.ts` / ML-03 |
 | `slide.setMasterTextStyle` | `{masterId;kind;level;patch}` | `doc.write` | 一个事务 | `master.setTextStyle` | `master-commands.ts` / ML-03 |
 | `slide.insertMaster`/`duplicateMaster` | `{}`/`{masterId}` | `doc.write` | 一个事务 | `master.insert` | `master-commands.ts` / ML-03 |
-| `slide.deleteMaster` | `{masterId;reassignTo?}` | `doc.write` | fail-closed 同 `deleteLayout`（`err(MASTER_IN_USE)` 或一个事务，级联未引用版式） | `master.remove` | `master-commands.ts` / ML-03、Q11 |
+| `slide.deleteMaster` | `{masterId;reassignTo?: MasterId}`：`reassignTo` 是目标母版，每个受影响页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（目标母版同 `type` 首个 → 目标母版首个）；UI 默认取按 `order` 排序的首个剩余母版（rulings §4.20 FE-23） | `doc.write` | fail-closed 同 `deleteLayout`（`err(MASTER_IN_USE)` 或一个事务：逐页重指 + 母版及其版式写墓碑）；可撤销同 `deleteLayout`（FE-05） | `master.remove`（+`slide.setLayout`×N） | `master-commands.ts` / ML-03、Q11 |
 | `slide.setThemeColors`/`setThemeFonts` | `{themeId;...}` | `doc.write` | 一个事务 | `theme.setColors`/`.setFonts` | `theme-commands.ts` / ML-04 |
 | `slide.applyTheme` | `{masterId;theme:Theme\|ThemeId}` | `doc.write` | 一个事务（新增主题+切换、旧主题无引用则删除，同一事务） | `theme.insert`+`master.setTheme`(+`theme.remove`) | `theme-commands.ts` / ML-04 |
 | `slide.setCurrentSlide`/`setSelection`/`setZoom`（Operation） | 视图状态 | `doc.read`（默认） | 不入历史 | 无 | `operations.ts` / ED-22 |
@@ -352,7 +356,7 @@ flowchart TB
   hasReassign["提供 reassignTo"]
   failClosed["返回 err LAYOUT_IN_USE 不产生事务"]
   txDelete["同一事务 重指引用页并 layout.remove"]
-  invariantFallback["I-ML2 与 I-ML3 兜底 协同并发或服务端软门禁场景下重指该母版首个版式"]
+  invariantFallback["I-ML2 与 I-ML3 兜底 墓碑期读时容错 硬删或软门禁时按 defaultLayoutOf 链修复"]
   startApply --> planChange --> setLayoutMutation
   startReset --> planReset --> clearOverrides
   startDelete --> checkRef
@@ -363,7 +367,7 @@ flowchart TB
   txDelete -. "命令层前置被绕过时" .-> invariantFallback
 ```
 
-怎么读：命令层是第一道 fail-closed 前置（无 `reassignTo` 直接拒绝，不产生事务）；`I-ML2`/`I-ML3` 不变量是第二道兜底，只在协同并发或服务端批量修复绕过命令层时才生效，两者的重指目标选取函数必须一致。
+怎么读：命令层是第一道 fail-closed 前置（无 `reassignTo` 直接拒绝，不产生事务；带 `reassignTo` 的删除入撤销栈、可一步撤销）；`I-ML2`/`I-ML3` 不变量是第二道兜底，只在协同并发或服务端批量修复绕过命令层时才生效——协同并发下墓碑期只读时容错，TTL 硬删时才写修复；两者的重指目标选取函数是同一个 `defaultLayoutOf`（rulings §4.20 FE-03/FE-04/FE-05）。
 
 **图 2-4 新增实体命令的规模守卫时序**
 
@@ -449,7 +453,7 @@ flowchart LR
 
 ## 4. 目录树（完整到文件）
 
-> 顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`interface/`/`testing/`（与 02 §4.8 现存扁平结构的映射关系、差异原因见 §12 G-1）。共 110 个源文件（含 3 个 `__tests__`），落在章程估计的 90–110 区间上沿。**14 §1 C-03 新增的 18 个命令 id 不增加文件数**——全部落在既有 `application/commands/*.ts` 五个文件内（仅 `slide.setNotes` 需在 M3 于 `application/mutations/slide.ts` 追加一个 `MutationDef`，同一既有文件，不新增文件），故本节文件数估计维持不变。
+> 顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`interface/`/`testing/`（与 02 §4.8 现存扁平结构的映射关系、差异原因见 §12 G-1）。共 111 个源文件（含 3 个 `__tests__`；2026-09-26 增 `domain/invariants/reassign.ts`，rulings §4.20 FE-03），略超章程估计的 90–110 区间上沿。**14 §1 C-03 新增的 18 个命令 id 不增加文件数**——全部落在既有 `application/commands/*.ts` 五个文件内（仅 `slide.setNotes` 需在 M3 于 `application/mutations/slide.ts` 追加一个 `MutationDef`，同一既有文件，不新增文件），故本节文件数估计维持不变。
 
 **图 4-1 model-slide 分层依赖**
 
@@ -614,6 +618,7 @@ packages/model-slide/
 │   │   ├── invariants/               # 领域服务：引用完整性不变量（ADR-0034 的 slide 实例）
 │   │   │   ├── index.ts              # I-ML2…I-ML8 + 基础不变量（无环/order 合法）+ I-LIM1
 │   │   │   ├── element-limits.ts     # SlideLimits、countElements()（墓碑计入）、checkLimits()（§4.15 Q5）
+│   │   │   ├── reassign.ts           # defaultLayoutOf()：I-ML2 链唯一选取函数（§4.20 FE-03/FE-23）
 │   │   │   └── validate-change-set.ts
 │   │   ├── shape-kind/               # slide.shapeKind 贡献点定义与内建注册
 │   │   │   ├── shape-kind.point.ts
@@ -762,7 +767,7 @@ packages/model-slide/
 | `schema/text.schema.ts` | 文本校验 | `textBodySchema` | `model/text/*.ts` | — |
 | `schema/theme-drawing.schema.ts` | 主题与 drawing 组合校验 | `themeSchema` | `model/theme.ts`、`model/drawing/*.ts` | — |
 
-**`domain/style/`（8）、`domain/query/`（2）、`domain/invariants/`（3）、`domain/shape-kind/`（2）、`domain/` 根（2）**
+**`domain/style/`（8）、`domain/query/`（2）、`domain/invariants/`（4）、`domain/shape-kind/`（2）、`domain/` 根（2）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -777,6 +782,7 @@ packages/model-slide/
 | `query/selectors.ts` | 只读选择器 | `getSlide/getShape/getMasterOf/getPlaceholderOnLayout/slidesInOrder/shapesOf/childrenOf` | `domain/model`、`@cordexjs/model-core`（`filterLive`/`isTombstoned`） | 结果按 `(order,id)` 排序 + 派生缓存；默认过滤 `_deleted` 墓碑实体（rulings §4.15 Q3） |
 | `query/traverse.ts` | 遍历 | `walkShapes/pathOfShape` | `domain/model` | 深度优先、z 序；跳过墓碑实体及其子树 |
 | `invariants/element-limits.ts` | 规模上限（新增，rulings §4.15 Q5） | `SlideLimits`（2026-09-25 增 `softWarnSlides`）、`DEFAULT_SLIDE_LIMITS`、`countElements(body)`、`checkLimits(body, delta, limits)` | `domain/model` | 计数读原始表（墓碑计入，母版/版式形状与组合形状均计）；命令层守卫与 `I-LIM1` 共用同一函数；数值由插件 `Config.limits` 注入，不硬编码于调用点 |
+| `invariants/reassign.ts` | 默认版式选取（新增，rulings §4.20 FE-03） | `defaultLayoutOf(body, {masterId, type?, exclude?})` | `domain/model`、`domain/query/selectors` | 30/04 §12.3 I-ML2 链，跳过墓碑与 `exclude`；命令层 `reassignTo`、I-ML2 修复、ADR-0034 修复、`deleteMaster` 逐页选取（FE-23）与 M-07/M-04/M-10 读时替代共用；slide-ui 不得自行实现（40/14 N-21） |
 | `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + I-LIM1 + 基础项；I-LIM1 仅报告不 repair） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
 | `invariants/validate-change-set.ts` | 变更集校验映射 | `validateChangeSet` | `invariants/index.ts` | 默认实现来自 model-core，此处只配置前缀映射 |
 | `shape-kind/shape-kind.point.ts` | 贡献点类型 | `ShapeKindPoint`、`ShapeKindDef<T>` | `domain/model/shape` | 04 §3.3 |
@@ -809,8 +815,8 @@ packages/model-slide/
 | `commands/text-commands.ts` | 文本编辑命令 | 6 个 `CommandDef`＋9 个新增（`setFontFamily`/`toggleItalic`/`toggleUnderline`/`toggleStrikethrough`/`setTextColor`/`setTextHighlight`/`clearRunFormatting`/`setIndentLevel`/`setLineSpacing`，14 §1 C-03）＝15 个 | `application/mutations/text` | ED-02/03/04/13 |
 | `commands/picture-commands.ts` | 图片命令 | 3 个 `CommandDef` | `application/mutations/{media,shape}` | ED-07 |
 | `commands/table-commands.ts` | 表格命令 | 8 个 `CommandDef` | `application/mutations/table` | ED-10 |
-| `commands/layout-commands.ts` | 版式与占位符命令 | 11 个 `CommandDef`（含 `applyLayout`/`resetSlide`/`deleteLayout`）＋1 个新增（`setLayoutProperties`，14 §1 C-03）＝12 个 | `application/mutations/layout`、`domain/style/placeholder-match` | ML-02/03、Q11、Q16 |
-| `commands/master-commands.ts` | 母版命令 | 5 个 `CommandDef`＋1 个新增（`setMasterProperties`，14 §1 C-03）＝6 个 | `application/mutations/master` | ML-03、Q11 |
+| `commands/layout-commands.ts` | 版式与占位符命令 | 11 个 `CommandDef`（含 `applyLayout`/`resetSlide`/`deleteLayout`）＋1 个新增（`setLayoutProperties`，14 §1 C-03）＋`resetPlaceholderFields`（2026-09-26，rulings §4.20 FE-24）＝13 个 | `application/mutations/layout`、`domain/style/placeholder-match`、`domain/invariants/reassign` | ML-02/03、Q11、Q16；`deleteLayout` 支持 `layoutIds` 批量单事务、可撤销（FE-05/FE-24） |
+| `commands/master-commands.ts` | 母版命令 | 5 个 `CommandDef`＋1 个新增（`setMasterProperties`，14 §1 C-03）＝6 个 | `application/mutations/master`、`domain/invariants/reassign` | ML-03、Q11；`deleteMaster` 逐页按 `defaultLayoutOf({masterId: reassignTo, type})` 选取（FE-23） |
 | `commands/theme-commands.ts` | 主题命令 | 3 个 `CommandDef` | `application/mutations/theme` | ML-04 |
 | `commands/operations.ts` | 视图态 Operation | `slide.setCurrentSlide/setSelection/setZoom/selectMasterOrLayout` | `domain/selection` | 不入历史；`broadcast` 见 §2.6 |
 | `application/diff.ts` | 版本恢复差分 | `diffBodies` | `domain/model`、`application/mutations/*`（构造 Mutation） | M3；`documentType.diff` 钩子实现 |
@@ -837,7 +843,7 @@ packages/model-slide/
 `src/index.ts` 导出（类型为主；`Mutation`/`Command` 定义只在 `editing.ts` 内部向贡献点注册，根导出只给类型与纯函数，供 `slide-render`/`slide-ui` 直接调用只读能力而不必经 `commands.execute`）：
 
 - **类型**：`PresentationBody`、`Presentation`、`SlideMaster`、`SlideLayout`、`Slide`、`Shape`（`Sp|Pic|GrpSp|CxnSp|GraphicFrame|UnknownShape`）、`Theme`、`TextBody`、`PlaceholderRef`/`PlaceholderType`、`MasterId/LayoutId/SlideId/ShapeId/ThemeId/MediaId`、`SlideSelectionAnchor`、`ResolvedRunProperties`/`ResolvedParagraphProperties`/`ResolvedShapeVisual`、`SlidesService`、`PlaceholderRemap`、`InheritableField`。
-- **值**：`createEmptyPresentation`、`buildChain`/`resolveRunProperties`/`resolveParagraphProperties`/`resolveShapeVisual`/`resolveColor`、`placeholderFamily`/`matchPlaceholder`/`planLayoutChange`/`planReset`、`dependentsOf`、`createStyleCache`。
+- **值**：`createEmptyPresentation`、`buildChain`/`resolveRunProperties`/`resolveParagraphProperties`/`resolveShapeVisual`/`resolveColor`、`placeholderFamily`/`matchPlaceholder`/`planLayoutChange`/`planReset`、`dependentsOf`、`createStyleCache`、`defaultLayoutOf`（2026-09-26 新增，rulings §4.20 FE-03：slide-ui、slide-render、ooxml-pptx 从根入口 import 同一符号，不各自实现）。
 - **子路径导出**：`./editing`（编辑子插件，见 §3）、`./testing`（契约套件与夹具，见 §2.5/§9）。`package.json#cordex.publicEntry` 登记为 `['.', './editing', './testing']`，与 `exports` key 集合逐一相等；跨包 import 只能走这三条（rulings §4.18 FE-04）。
 - **api-extractor 稳定级**：`beta`（M1）——`ShapeProperties`/`extensions` 槽字段随 M2/M3 细化的概率高；`PresentationBody` 六张表的**键名**一经发布视为 `stable`（`ooxml-pptx`/`slide-render` 大量硬编码路径前缀，改名属破坏性变更）。
 
@@ -954,14 +960,15 @@ fixtures --> fixturests
 
 | 测试类别 | 覆盖内容 | 源文件 | 补充 |
 |---|---|---|---|
-| unit | 每个纯函数（`resolveRunProperties`/`planLayoutChange`/`dependentsOf`/`matchPlaceholder`…）的确定性与边界用例 | `domain/style/**`、`domain/query/**`、`domain/invariants/**` | 同级隐式单测，不在 §4 目录树重复标注 |
+| unit | 每个纯函数（`resolveRunProperties`/`planLayoutChange`/`dependentsOf`/`matchPlaceholder`…）的确定性与边界用例；`defaultLayoutOf`（rulings §4.20 FE-03/FE-23）：三级回退、跳过墓碑与 `exclude`、删除母版首个版式时 `reassignTo` ≠ 被删版式、`deleteMaster` 目标母版有同 `type` 版式时每页 `type` 不变、没有时落目标母版首个版式 | `domain/style/**`、`domain/query/**`、`domain/invariants/**`；`defaultLayoutOf` 的显式文件 `src/domain/invariants/__tests__/reassign.test.ts`（70/05 §7.1 `ml/default-layout-of-chain`，2026-09-26 登记） | 同级隐式单测，不在 §4 目录树重复标注 |
 | property | `lower()` 纯度、`repair` 幂等、`bodySchema` 往返；`planLayoutChange` 两条（rulings §4.18 CO-18）：带显式 `transform` 的占位符换版式后位置不变、`materialize` 后文本渲染快照不变（不只比包围盒） | `src/__tests__/mutations-property.test.ts`、`invariants-repair.test.ts` | fast-check（`@cordexjs/shared/testing` + 本包 `testing/builders.ts`） |
 | contract | 文档类型级契约套件 | `testing/conformance.ts`（`runSlideModelConformance`） | 本包 `__tests__` 与 M-04（往返后再跑一次）共同调用 |
 | lifecycle | 插件生命周期、`preset-slide-viewer` 不加载 `editing.ts` | `src/__tests__/lifecycle.test.ts` | `defineLifecycleSuite`（02 §4.0） |
-| 命令层集成 | `commands.execute` 端到端（权限/事务/审计）；渐进打开期间全文类命令等 `unit/loaded` 后才执行（rulings §4.18 CO-12） | 依赖 M-02 `command-harness.ts`；本包只提供 `slideDocumentType` 作为输入 | `LAYOUT_IN_USE`/`reassignTo` 用例见 05 §12 |
+| 命令层集成 | `commands.execute` 端到端（权限/事务/审计）；渐进打开期间全文类命令等 `unit/loaded` 后才执行（rulings §4.18 CO-12）；rulings §4.20：带 `reassignTo` 的 `deleteLayout`/`deleteMaster` 执行后撤销栈深度 +1、`core.undo` 一步恢复各页引用与版式（同一 id，FE-05）；`deleteMaster` 整个删除一个事务（FE-23）；`deleteLayout{layoutIds}` 批量单事务、`resetPlaceholderFields` 一步撤销且只清所列字段、`applyLayout` 结果计数与 Toast N 一致（FE-24）；property：`deleteLayout(reassignTo)` 结果与 I-ML2 修复一致（FE-03） | 依赖 M-02 `command-harness.ts`；本包只提供 `slideDocumentType` 作为输入；FE-05/FE-23/FE-24 用例文件 `src/__tests__/master-layout-delete.test.ts`（70/05 §7.1 `ml/*`，store-memory 与 store-yjs 各一次），property 文件 `src/__tests__/master-layout-property.test.ts`（70/05 §10）；两者不调用 kit，按 70/01 §4 归 `test/unit`（2026-09-26 登记） | `LAYOUT_IN_USE`/`reassignTo` 用例见 05 §12 |
+| 协同模拟（`test/collab-sim`，70/05） | rulings §4.20 FE-04：「A 删 L、B 同时对 P 应用 L」两端收敛；TTL 内 `P.layoutId` 仍为 L 且渲染用替代版式；A 撤销后 P 显示 L；硬删后 `P.layoutId` 等于 `defaultLayoutOf` 结果且修复只写一次；导出 pptx 中 P 引用存活版式；FE-05：撤销被引用版式删除时他人已改的页只跳过该键并提示 | 根 `test/collab-sim/`（不在本包） | 场景 id 以 70/05 为准 |
 | fixtures | 单页文本/母版继承/分组/表格四类典型 body | `testing/fixtures.ts` | M-07/M-10/M-13 复用 |
 
-覆盖率与性能预算引用架构 11（`11-testing-strategy.md`，本文档未逐条核对，仅按其编号引用）；样式解析缓存淘汰测试见 §2.3 `style/cache.ts`（A29）。
+覆盖率门槛与证据归档以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 为准，性能预算以 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引架构 11 改指）；样式解析缓存淘汰测试见 §2.3 `style/cache.ts`（A29）。
 
 ## 10. 机械约束
 
@@ -979,7 +986,8 @@ fixtures --> fixturests
 | 命令 id / Mutation type 命名 | `command-id-format`：`<domain>.<name>` / `<docType>.<entity>.<verb>` | 扫描器 `scan-command-capabilities` 规则 (c)（05 §12；原名 `command-id-format`，TD-099，rulings §4.18 GV-15） |
 | 失败不用 boolean | `no-boolean-command-result` | lint |
 | 事件先声明后使用 | `cordex/events-must-be-declared`（08 §11 对照名 `events-declared`；`src/events.ts` 与 `slide.contribution.ts` 一致） | lint（rulings §4.18 GV-15） |
-| 版式/母版删除 fail-closed | 无 `reassignTo` → `LAYOUT_IN_USE`/`MASTER_IN_USE` 且无事务；带 → 一次撤销恢复 | `command-harness` 契约测试（05 §12） |
+| 版式/母版删除 fail-closed | 无 `reassignTo` → `LAYOUT_IN_USE`/`MASTER_IN_USE` 且无事务；带 → 一次撤销恢复（rulings §4.20 FE-05：Q11 修订为确认后可撤销，`CommandDef.undoable` 不改） | `command-harness` 契约测试（05 §12） |
+| 默认版式单一选取函数 | `defaultLayoutOf` 只在 `domain/invariants/reassign.ts` 定义；slide-ui、slide-render、ooxml-pptx 从 `@cordexjs/model-slide` 根入口 import（rulings §4.20 FE-03） | 评审 + slide-ui `edit-target.test.ts` 断言使用同一导出符号（M-10 §9） |
 | 删除即墓碑（rulings §4.15 Q3） | 全部 `.remove` 类 `lower()` 只产出 `set(…._deleted)`，不对实体行发 `delete`/`remove` | `runSlideModelConformance` 的 lower 纯度分节 + property 测试 |
 | 规模上限守卫（rulings §4.15 Q5） | 新增实体的命令超限返回 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED`（→ `document.quota_exceeded{dimension, limit, actual}`，rulings §4.17 D2）且无事务；墓碑计入；上限值只来自 `Config.limits` | `command-harness` 契约测试 + 边界用例（19,999/20,000/20,001，含墓碑） |
 | `testing/` 不进生产 | `no-testing-in-prod`：`domain/**`/`application/**`/`infrastructure/**`/`interface/**` 不得 import `./testing` | depcruise（02 §4.0.2） |
@@ -1019,7 +1027,7 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | G-6 | charter §5.5、00-module-map BC-06 行 | 权威事件表只登记 `slide/slide-added`/`.removed`/`shape-added`/`.removed`/`.changed` 5 个；本文档 §2.4 为 ML-01…ML-04 新增建议 `slide/layout-added`/`.removed`、`master-added`/`.removed`、`theme-changed` | 需总编排在 charter §5.5 或事件总表中正式裁定是否采纳；若否，删除本包 `events.ts` 对应 5 个常量与其派生逻辑即可，模型字段不受影响 |
 | G-7 | 02 §4.8 `commands/slide-commands.ts` vs 05 §13.2 `layout-commands.ts` | 02 §4.8 在 `slide-commands.ts` 列出 `slide.changeLayout`；05 §13.2（更晚、ML 专项）在 `layout-commands.ts` 定义语义相近但签名不同的 `slide.applyLayout`（`{slideIds;layoutId}`，一页一事务）。本文档 §2.6/§5 采用 `slide.applyLayout` 为唯一权威，从 `slide-commands.ts` 移除 `changeLayout` | 建议 02 §4.8 同步删除 `changeLayout`，避免下游（M-10 `slide-ui`）Ribbon 绑定时误对接两个语义重叠的命令 id |
 | G-8 | PRD `07-masters-layouts-and-themes.md` ML-03（Q16）、架构 04 | PRD 只给出占位符上限的**描述性规则**（标题/居中标题、日期、页脚、页码各至多 1 个；「内容族上限以架构 04 模型约束为准」），但架构 04 全文未给出具体数字表 | 建议 04 号文档补一张「占位符类型 → 数量上限」表，被本包 `domain/invariants/index.ts`（新增建议条目 `I-ML9`）与 `addPlaceholder` 命令前置校验共同引用；本文档暂只声明校验点存在，数值留白 |
-| G-9 | PRD `07-masters-layouts-and-themes.md` ML-03「母版管理」段原文 | PRD 原文自述「目标版式选取细则待设计 26 补稿（登记于 G-73 待补）」——`slide.deleteMaster(reassignTo)` 跨母版重指到哪个版式尚未定案 | 本文档 §2.6 暂沿用与 `deleteLayout` 相同的「该母版首个版式」规则占位；待设计缺口补齐后，若细则不同需同步修订本文档该命令行与 §2.1 CRDT 合并语义描述 |
+| G-9 | PRD `07-masters-layouts-and-themes.md` ML-03「母版管理」段原文 | PRD 原文自述「目标版式选取细则待设计 26 补稿（登记于 G-73 待补）」——`slide.deleteMaster(reassignTo)` 跨母版重指到哪个版式尚未定案 | ~~本文档 §2.6 暂沿用与 `deleteLayout` 相同的「该母版首个版式」规则占位~~ **已结案（2026-09-26，rulings §4.20 FE-23）**：`reassignTo?: MasterId` 为目标母版，每个受影响页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`，整个删除一个事务；§2.1、§2.6 已改写，PRD G-73 结案 |
 
 ### 2026-09-18 收敛（回写员 R1，依据 `14-cross-module-review.md` §1 全部 30 条推荐裁定）
 
@@ -1059,6 +1067,17 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | 50/10 §7.2 | §2.6 | 登记 `slide.duplicateShapes{shapeIds, dx, dy}`（`Mod`+拖动复制，一次命令一个撤销步） |
 | PRD 05 §0.2（§4.19 修订） | §2.6 | 备注编辑 `slide.setNotes` 维持 M3（ED-18 P1，与 PRD 05 一致） |
 
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-03（默认版式统一为 I-ML2 链） | §1.2 默认版式、§2.1 `SlideLayout` 行与分工段、§2.3、图 2-2、§4/§5 新增 `domain/invariants/reassign.ts`、§6、§9、§10 | `defaultLayoutOf(body, {masterId, type?, exclude?})`：原母版同 `type` 首个 → 该母版首个 → 首个母版首个，跳过墓碑与 `exclude`；唯一定义处，slide-ui/slide-render/ooxml-pptx 从根入口 import |
+| FE-04（墓碑期读时容错） | §2.1 `SlideMaster`/`SlideLayout` 行、「读路径过滤」段、§9 协同模拟行 | 引用关系指向墓碑时不写修复，读路径以替代目标求值；只在 TTL 硬删作业同事务写修复；包含关系仍视同已删除 |
+| FE-05（被引用版式、母版删除确认后可撤销，Q11 修订） | §2.1 分工段、§2.6 `deleteLayout`/`deleteMaster` 行、图 2-2 怎么读、§9、§10、§13 Q7 结案 | 保留确认对话框、入撤销栈、带 [撤销] 的 Toast；`CommandDef.undoable` 不改 |
+| FE-23（删除母版的目标版式） | §2.1 新增「删除母版的目标规则」段、§2.6 `deleteMaster` 行、§5 `master-commands.ts`、§9、§12 G-9 与 §13 Q6 结案 | `reassignTo?: MasterId` 为目标母版，逐页 `defaultLayoutOf({masterId: reassignTo, type})`，一个事务；UI 默认按 `order` 首个剩余母版 |
+| FE-24（50/11 §11 其余待登记） | §2.6 新增 `slide.resetPlaceholderFields`、`deleteLayout` 批量、`applyLayout` 结果计数、`updatePlaceholder` 的 `lstStyle`；§5 `layout-commands.ts`（12 → 13 个） | 与 `resetSlide` 共用 `shape.clearOverrides`；批量删除一个事务；`themePreview` 登记在 M-07 |
+| TX-10 ⑤ | §9 末段 | 覆盖率改指 70/01 §8、性能预算改指 70/09 |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
@@ -1068,5 +1087,5 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | Q3 | `runSlideModelConformance` 的契约边界是否需要覆盖协同并发场景（04 §12.3「并发下由 I-ML2 兜底」提到的悬空引用） | 暂不覆盖——并发合并测试放在 M-05/M-09（协同/服务端）契约套件的协同分节，本包 `runSlideModelConformance` 只覆盖单机（本地事务）场景的不变量与 lower 纯度 | M-05（`collab-*`）、M-09（服务端软门禁）规划 agent 需在其契约套件里显式引用本包 `domain/invariants` 的 `repair` 函数并补协同分节 |
 | Q4 | §2.4 新增建议的 5 个 `slide/layout-*`/`master-*`/`theme-changed` 事件是否采纳（G-6） | 采纳——避免下游 UI 订阅粗粒度 `store/transaction` 再自行 diff；若担心事件表膨胀，可先只上 `slide/master-added`/`.removed`（母版数量变化最影响 UI 布局），版式/主题变化暂缓 | charter §5.5 事件总表；`slide-ui`（M-10）母版缩略图窗格的实现方式 |
 | Q5 | 占位符类型计数上限的具体数值（G-8：标题类=1 已明确，但内容族/媒体族上限缺表） | 推荐由架构-结构条线在 04 号文档补一张表，本包 `I-ML9` 与 `addPlaceholder` 引用同一常量表，避免命令层与不变量层各自硬编码不同数字 | 04 §12.1 需补表；本包 `domain/invariants/index.ts`、`application/commands/layout-commands.ts` |
-| Q6 | `slide.deleteMaster(reassignTo)` 的跨母版目标版式选取函数最终细则（G-9，依赖设计 26 补稿） | 暂用「该母版首个版式」占位（与 `deleteLayout` 同函数），设计缺口补齐后对齐 | 本文档 §2.1 CRDT 合并语义表、§2.6 `slide.deleteMaster` 行；PRD 07 `G-73` 待补项 |
-| Q7 | 母版/版式/主题删除采用墓碑后，`deleteLayout`/`deleteMaster` 带 `reassignTo` 的「Q11 不可撤销」口径与「可一次撤销」表述（§2.1 末段 vs §2.6 表）是否统一为「可撤销」 | 推荐统一为可撤销：墓碑使撤销代价与普通删除相同，重指与墓碑同一事务，一次撤销即恢复 | §2.1、§2.6 `slide.deleteLayout`/`deleteMaster` 行；PRD 07 ML-03 |
+| Q6 | ~~`slide.deleteMaster(reassignTo)` 的跨母版目标版式选取函数最终细则（G-9，依赖设计 26 补稿）~~ **（结案，2026-09-26，rulings §4.20 FE-23）** | `reassignTo` 是目标母版；逐页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（目标母版同 `type` 首个 → 目标母版首个，与 `deleteLayout`、I-ML2 同一函数）；整个删除一个事务；UI 默认取按 `order` 排序的首个剩余母版，对话框文案「N 个页面将改用剩余母版中对应的版式」 | 本文档 §2.1 CRDT 合并语义表、§2.6 `slide.deleteMaster` 行；PRD 07 `G-73` 待补项 |
+| Q7 | ~~母版/版式/主题删除采用墓碑后，`deleteLayout`/`deleteMaster` 带 `reassignTo` 的「Q11 不可撤销」口径与「可一次撤销」表述（§2.1 末段 vs §2.6 表）是否统一为「可撤销」~~ **（结案，2026-09-26，rulings §4.20 FE-05）** | 按推荐统一为可撤销（用户裁决「确认后可撤销」，记为 Q11 修订）：保留确认对话框（撤销栈只在会话内有效、墓碑 24 h 后硬删），文案删去「操作不可撤销」；执行后入撤销栈并给带 [撤销] 的 Toast；撤销时各页引用回退、版式以原 id 复活，他人后写的键按 Q3 跳过并提示；`CommandDef.undoable` 不改 | §2.1、§2.6 `slide.deleteLayout`/`deleteMaster` 行；PRD 07 ML-03 |

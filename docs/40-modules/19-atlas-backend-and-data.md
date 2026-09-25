@@ -1,4 +1,4 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（§4.19 N1） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18；30-architecture/06、07、08、10；ADR-0022、0023、0025、0026、0029、0033、0035、0037；40-modules/08、09、12、15、16
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（§4.19 N1）、2026-09-26（§4.20：依据引用改指，BE-11+TX-12） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18；30-architecture/06、07、08、10；ADR-0022、0023、0025、0026、0029、0033、0035、0037；40-modules/08、09、12、15、16
 
 # 19 架构图集（二）：后端、数据与部署
 
@@ -18,7 +18,7 @@
 - **错误码**：配额三码并列——导入 `format.quota_exceeded`、编辑期 `document.quota_exceeded`、存储 `storage.quota_exceeded`（D2）。
 - **矛盾收口（2026-09-25，rulings §4.18）**：分享链接解析 `ResolveShareLinkUseCase` 归 `PermissionsModule`，协同票据可带 `lnk`（BE-02）；全服务端「模块 × 角色 × 部件」装配以 40-modules/12 §7.1 矩阵为准（BE-13）；REST 统一前缀 `/api/v1`（BE-11）；`RenderStateToken` 取消，渲染状态一律注入（BE-04）；PG 故障期与回放期 Room 保持 `active` 并照常广播（CO-08、CO-15）；文档级删除称「永久删除文档」，元素级称「彻底删除元素」（CO-07）。
 
-**画法约定**：flowchart 中实线 = 调用、数据流或显式依赖，虚线 = 用例级依赖、订阅、守护或「包含」关系，终点为叉号（`--x`）= 被禁止的方向，圆形节点 = 网络；sequenceDiagram 中 `->>` 为请求、`-->>` 为应答；erDiagram 只列关键列，完整字段以 30-architecture/08 §5 为准。
+**画法约定**：flowchart 中实线 = 调用、数据流或显式依赖，虚线 = 用例级依赖、订阅、守护或「包含」关系，终点为叉号（`--x`）= 被禁止的方向，圆形节点 = 网络；sequenceDiagram 中 `->>` 为请求、`-->>` 为应答；erDiagram 只列关键列，完整字段以 60-backend/09–13 为准（原 30-architecture/08 §5 已删，rulings §4.20 BE-11+TX-12）。
 
 | 节 | 主题 | 图 |
 |---|---|---|
@@ -80,7 +80,7 @@ flowchart LR
 
 怎么读：浏览器只经 HTTPS 与 WSS 两个入口进入 Nest 壳；实线是调用或数据流。Nest 模块只做传输与编排，CRDT、编解码与持久化逻辑都在 cordis 宿主里的 `server-*` 包与 iso 插件中；worker 只经鉴权内部 RPC 驱动独立的 renderer，应用镜像本身不含 Chromium。
 
-依据：30-architecture/08 §0、§1、§4.2；ADR-0026 决策 1；ADR-0037 决策 1。
+依据：30-architecture/08 §0、§1、§4；ADR-0026 决策 1；ADR-0037 决策 1（原引的小节已不存在，改指 §4，rulings §4.20 BE-11+TX-12）。
 
 宿主是进程单例，其生命周期挂在 Nest 的生命周期钩子上；请求、作业与 WS 连接都不建 Fiber，只有每个 Room 对应一个 Unit。
 
@@ -115,7 +115,7 @@ sequenceDiagram
 
 怎么读：自上而下是进程从启动到退出的顺序；`alt` 分支说明装配失败时直接退出而非带病运行（D8「先失败、不部分激活」）。优雅关闭的三步——排空房间、暂停队列、销毁宿主——共用 30 s 上限。
 
-依据：30-architecture/08 §2 `main.ts`、§4.1；40-modules/09 §2.5「ServiceMap」段、§4.3。
+依据：40-modules/12 §4.13 `main.ts`；30-architecture/08 §4；40-modules/09 §2.5「ServiceMap」段、§4.3（依据改指，rulings §4.20 BE-11+TX-12）。
 
 `server-collab` 包本身不依赖 `pg`、`ioredis`，它只声明契约；实现这些契约的 IO 适配器是放在 Nest 目录里的 cordis Provider（08 S7、module-map §4.2 第 5 条）。
 
@@ -162,7 +162,7 @@ flowchart LR
 
 怎么读：标「server-collab 契约」的框是六个 Definition，标「modules/collab/infrastructure」的框是七个适配器（两个溢写档位合为一格）；`implements` 边从适配器指向它实现的 Definition，其余边是适配器触达的外部资源，虚线为频道订阅。七个适配器由 `BootstrapCollabServerService` 在 `OnModuleInit` 注入 `preset-server` 的 `server-collab` 配置项，驱动只出现在右框里。`AuthzSource` 按票据 `lnk` 经 M-08 `ResolveShareLinkUseCase` 复核链接状态，角色取直接授权与有效链接角色的较高者（2026-09-25，rulings §4.18 BE-02）。
 
-依据：40-modules/09 §2.5、§3.1、§3.4、§5.1；30-architecture/08 §3.1、§4.2 末段。
+依据：40-modules/09 §2.5、§3.1、§3.4、§5.1；30-architecture/08 §3–§4；40-modules/09 §4.4（依据改指，rulings §4.20 BE-11+TX-12）。
 
 ## 2. Nest 模块依赖
 
@@ -378,7 +378,7 @@ flowchart TB
 
 怎么读：菱形是启动断言，任一不满足即退出；判定的先后顺序正文未规定，图中顺序只为可读。`v4` 由 `CordisHostService.getService` 的 `ServiceMap` 编译期 key 校验配合运行期检查完成。`v5` 是 2026-09-25 新增的 `assertRoleAssembly`（rulings §4.18 BE-13）：装了不该装的、缺了该装的都退出，例如 api 不得装配 `SnapshotsModule` 与 `AdminController`、renderer 进程内不得存在 DB/Valkey/S3 客户端、worker 的 document-purge 参与者集合必须齐全；它与 M-09 `preset-server.ts` 的 `assertRoleConsistency` 互补。
 
-依据：ADR-0037「如何被机械验证」；40-modules/09 §2.5「ServiceMap」段、§4.3；40-modules/12 §7.1；30-architecture/08 §2 `config.module.ts`、§4.1；30-architecture/08 §9.1（production 拒绝无鉴权启动）。
+依据：ADR-0037「如何被机械验证」；40-modules/09 §2.5「ServiceMap」段、§4.3；40-modules/12 §7.1；60-backend/17 §5–§6；30-architecture/08 §4；30-architecture/08 §9.1（production 拒绝无鉴权启动）（依据改指，rulings §4.20 BE-11+TX-12）。
 
 ## 4. 部署拓扑
 
@@ -555,7 +555,7 @@ flowchart TB
 
 > 事实源（2026-09-25，rulings §4.19）：[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–[60/13](../60-backend/13-ddl-comments-webhooks-audit.md)（完整 DDL、RLS、写方所有权）与 [60/14](../60-backend/14-valkey-object-storage-and-retention.md)（键空间、对象键、保留期），冲突以其为准；快照保留按 rulings §4.19 C-06（30 天全量，之后每天最后一个至 `retention.autoSnapshotDailyDays`，默认 365，0 = 永久；named 永久且每文档 ≤ 200）。
 
-约定（30-architecture/08 §5）：全部表都没有 `tenant_id`；`id uuid` 为 v7、在应用层生成；软删除用 `deleted_at`；凡带 `doc_id` 的业务表启用文档级 RLS（见图 8-2）。先看「谁的表谁写」，再按域看 ER 图。
+约定（60-backend/08 §1、§6.4；原 30-architecture/08 §5 已删，rulings §4.20 BE-11+TX-12）：全部表都没有 `tenant_id`；`id uuid` 为 v7、在应用层生成；软删除用 `deleted_at`；凡带 `doc_id` 的业务表启用文档级 RLS（见图 8-2）。先看「谁的表谁写」，再按域看 ER 图。
 
 **图 5-0 表的写方所有权**
 
@@ -643,7 +643,7 @@ erDiagram
 
 怎么读：隔离边界是「文档」而非租户——`permissions` 是 fail-closed 的授权行，`share_links` 是需登录才能兑现的角色叠加令牌，二者同时是文档级 RLS 的判定依据。`users.password` 列不存在（服务端不持有密码）；无 `groups`、无 `pending_invitations`；`api_keys` 为 M4，不在 M1–M3 模型中。分享令牌的解析归 `permissions` 模块，经 SECURITY DEFINER 函数 `cordex_share_link_by_token`/`cordex_share_link_status` 只读 `share_links`（2026-09-25，rulings §4.18 BE-02）。用户的「最近 / 固定」记账表 `document_user_marks` 画在图 5-5。
 
-依据：30-architecture/08 §5；40-modules/08 §2.1、§2.2、§2.5；ADR-0029 2026-09-24 修订；rulings §4.18 BE-02。
+依据：60-backend/09；40-modules/08 §2.1、§2.2、§2.5；ADR-0029 2026-09-24 修订；rulings §4.18 BE-02（依据改指，rulings §4.20 BE-11+TX-12）。
 
 **图 5-2 文档与版本**
 
@@ -686,7 +686,7 @@ erDiagram
 
 怎么读：恢复一份文档 = 最新快照 + `seq > seq_upto` 的 updates；`latest_snapshot_id` 只指向 `import/auto/migration/restore/epoch` 中最新一个，不含 `named`。`document_updates` 只删 `seq ≤ 最新 auto 快照.seq_upto` 且早于 7 天的行；`purging` 是 S-2 永久删除文档编排的单向状态，可从 `active` 直接进入，处于该状态时加入房间一律被拒；`baseline_key` 2026-09-25 登记进架构 08 §5（rulings §4.18 BE-15、BE-25）。
 
-依据：30-architecture/08 §5「写路径关键约束」；ADR-0025 决策 1–5；40-modules/09 §2.1、§12 G-16；rulings §4.18 BE-15、BE-25。
+依据：60-backend/11（写路径与恢复顺序）；ADR-0025 决策 1–5；40-modules/09 §2.1、§12 G-16；rulings §4.18 BE-15、BE-25。
 
 **图 5-3 评论与审计**
 
@@ -727,7 +727,7 @@ erDiagram
 
 怎么读：`comments` 只是读模型——事实源在快照内的 `resources.comments.*`，服务端 Room 观察变更后 upsert，REST 除「导入为可编辑线程」外全部只读。`anchor_key` 不是 PG 生成列（TS 纯函数写不进生成列表达式），由 comment-mirror 写入时调用 `deriveAnchorKey` 计算，索引为 `(doc_id, anchor_key)`（2026-09-25，rulings §4.18 BE-25）。`audit_log` 以 `prev_hash → hash` 形成链式校验，数据库角色对它没有 UPDATE/DELETE 权限，每日 `audit-seal` 周期作业（只在 worker 注册，BE-19）重算前一日。
 
-依据：30-architecture/08 §5、§16.6；40-modules/12 §2.1、§2.3、§12 G-38；ADR-0031（经 08 §16.6 引用）；rulings §4.18 BE-19、BE-25。
+依据：60-backend/13；30-architecture/08 §16.6；40-modules/12 §2.1、§2.3、§12 G-38；ADR-0031（经 08 §16.6 引用）；rulings §4.18 BE-19、BE-25。
 
 **图 5-4 缩略图与媒体**
 
@@ -763,7 +763,7 @@ erDiagram
 
 怎么读：媒体按 sha256 在整个部署内去重，读取仍须经 `document_media` 关联与文档权限；永久删除文档编排只清 `document_media`，`media_blobs` 本身按 30 天无引用 GC。`thumbnails` 每页只保留最新一行：`embedded` 是 M2 取包内 `docProps/thumbnail.jpeg` 的过渡封面（只做头校验），`server` 是 M3 renderer 产出的 640 px WebP；DB 约束另保留 `client` 取值，M1–M3 领域层不产生该值（2026-09-25，rulings §4.18 BE-26）。
 
-依据：30-architecture/08 §5；40-modules/08 §2.1；40-modules/12 §2.1；ADR-0026 决策 2–4；rulings §4.18 BE-26。
+依据：60-backend/10（媒体段）、60-backend/12（缩略图）；40-modules/08 §2.1；40-modules/12 §2.1；ADR-0026 决策 2–4；rulings §4.18 BE-26（依据改指，rulings §4.20 BE-11+TX-12）。
 
 **图 5-5 作业、用户记账与 Webhook**
 
@@ -811,7 +811,7 @@ erDiagram
 
 怎么读：`job_runs` 是 BullMQ 作业的 Postgres 镜像，供进度查询（`GET /api/v1/jobs/:id`，2026-09-25 起唯一状态查询，决策 SG-08）与审计，`doc_id` 只是逻辑引用、不声明外键。幂等只对未失败且未取消的行生效：部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')`，同键命中 `failed`/`cancelled` 行时新建一行并以 `attempt_of` 指向旧行，二者始终是终态（2026-09-25，rulings §4.18 BE-18；`cancelled` 为导入取消，UX-14）。原 `collab_sessions` 表删除；新增 `document_user_marks` 作为用户对文档的「最近打开 / 固定」记账，主键 `(user_id, doc_id)`，受文档级 RLS 且只返回本人行，由 M-08 写入，永久删除文档时由参与者 `user-marks` 清理（BE-31）。Webhook 两表属 BC-30 出站集成，订阅由平台管理员管理；`pending` 覆盖待投递与重试中，`failed` 为不可重试的终止，`dead-lettered` 为重试用尽，状态机见图 7-4（BE-19）。
 
-依据：30-architecture/08 §5、§7；40-modules/12 §2.1、§2.2；rulings §4.18 BE-18、BE-19、BE-31。
+依据：60-backend/10（`document_user_marks`）、60-backend/12、60-backend/13；30-architecture/08 §7；40-modules/12 §2.1、§2.2；rulings §4.18 BE-18、BE-19、BE-31（依据改指，rulings §4.20 BE-11+TX-12）。
 
 关系库之外还有两处数据：对象存储承载体积，Valkey 只做易失协调（丢失可恢复）。
 
@@ -883,7 +883,7 @@ flowchart LR
 
 怎么读：框内是键或频道，框外是唯一的写入或发布方（`perm:doc` 另以虚线画出订阅方）。这些数据全部可以丢失：扇出中断只造成跨实例延迟，锁带 fencing token，溢写丢失由客户端重连 step2 补齐；Postgres 才是一致性关键路径。2026-09-25 起 `RenderStateToken` 键随令牌取消而删除（rulings §4.18 BE-04）；新增 `lock:spill:doc`（加载 Room 时认领心跳过期实例的溢写行，CO-16）、`room:ctl:doc`（永久删除文档与 epoch 管理动作跨实例踢会话、关 Room，BE-03、BE-15）与导入一次性 `uploadId`（BE-10）。
 
-依据：ADR-0022 决策表；ADR-0025 决策 9；ADR-0029 决策 1；30-architecture/06 §5.2；30-architecture/08 §2 collab 与 auth 目录、§8；40-modules/09 §4.1；40-modules/12 §2.5、§4.2、§4.8、§4.9；rulings §4.18 BE-04、BE-10、CO-16。
+依据：ADR-0022 决策表；ADR-0025 决策 9；ADR-0029 决策 1；30-architecture/06 §5.2；40-modules/09 §4.1、40-modules/08 §4.1；30-architecture/08 §8；40-modules/12 §2.5、§4.2、§4.8、§4.9；rulings §4.18 BE-04、BE-10、CO-16。
 
 ## 6. 关键时序
 
@@ -931,7 +931,7 @@ sequenceDiagram
 
 怎么读：前半段是标准授权码 + PKCE，后半段是本项目的 JIT 建号——服务端只在首次登录时于同一事务写 `users` 与 `user_identities`，并发首登靠 `(issuer, subject)` 唯一约束收敛。登录只产出会话，协同票据另行签发（图 6-2）。
 
-依据：30-architecture/08 §2 auth 目录、§9.1；40-modules/08 §2.4、§2.6、§4.1、§5.3；ADR-0029 2026-09-24 修订 2–4。
+依据：40-modules/08 §4.1；30-architecture/08 §9.1；40-modules/08 §2.4、§2.6、§5.3；ADR-0029 2026-09-24 修订 2–4。
 
 打开一份文档分两段：先经 REST 取快照并领取协同票据，再建立 WS 连接完成握手与同步。
 
@@ -962,7 +962,7 @@ sequenceDiagram
 
 怎么读：快照预加载让首屏不必等 WS——`syncing` 状态即可渲染与编辑，本地修改先进 pending 队列。票据只在 60 s 内、只能用一次，且把分享链接叠加后的最终角色写进 claims；经链接取得的票据另带 `lnk`（链接 id），WS 侧据此复核链接状态并记录到期时间，而不接触链接令牌本身，`sid` 为登录会话 id（2026-09-25，rulings §4.18 BE-02）。快照 REST 只在 collab 角色装配，拆分部署时反代把 `/api/v1/documents/:id/snapshots*` 转给 collab（BE-03）。
 
-依据：30-architecture/06 §5.3、§9.1；30-architecture/08 §2 snapshots 与 documents、§9.1；ADR-0029 决策 1、6；ADR-0023 决策 4；rulings §4.18 BE-02、BE-03。
+依据：30-architecture/06 §5.3、§9.1；40-modules/09 §4.2、40-modules/08 §4；30-architecture/08 §9.1；ADR-0029 决策 1、6；ADR-0023 决策 4；rulings §4.18 BE-02、BE-03。
 
 **图 6-3 打开文档（二）：WS 握手、房间准入与 bootstrap**
 
@@ -1088,7 +1088,7 @@ sequenceDiagram
 
 怎么读：档位由纯函数 `checkSpillTier` 决定，`SpillStore` 只负责写入与读出；溢写期客户端只收到 `tier=spill`，pending 不清理，因此即使本实例此时崩溃，客户端重连后仍会重发。临时键避免了多实例在 PG 不可用时各自分配 seq 而冲突。整个降级期 Room 保持 `active`（`spillTier≠none`），update 照常广播与扇出（2026-09-25，rulings §4.18 CO-08、CO-15）。
 
-依据：40-modules/09 §1.1、§2.3、§2.5、§2.6；30-architecture/08 §3.1 `spill-store.ts`、§12 溢写行；ADR-0025 修订 2026-09-24；评审 15 §3.7；rulings §4.18 CO-08、CO-15。
+依据：40-modules/09 §1.1、§2.3、§2.5、§2.6；40-modules/09 §4.4 `spill-store.ts`；30-architecture/08 §12 溢写行；ADR-0025 修订 2026-09-24；评审 15 §3.7；rulings §4.18 CO-08、CO-15。
 
 **图 6-6 Postgres 恢复后的回放**
 
@@ -1116,7 +1116,7 @@ sequenceDiagram
 
 怎么读：正式 seq 只在回放时由 Postgres 分配，所以 `document_updates` 的 seq 连续、无重复。回放期间 Room 始终保持 `active`（`replaying=true`），回放完成前新到的 update 排在回放队列之后落库，同一连接上 `tier=db` 的 ack 顺序不变（2026-09-25，rulings §4.18 CO-15）。每个实例只回放自己 `instanceId` 的行，避免两实例重复回放；已下线实例的遗留行由下次加载该文档的 Room 在 bootstrap 之后持 `lock:spill:doc` 租约认领（CO-16）。溢写数据若丢失，客户端重连 step2 凭 update 幂等补齐，NF-03 零丢失以 `tier=db` 为准；导出与缩略图读的是 `latest` 快照，不受回放影响。预算：PG 恢复到回放完成不超过 10 s（p95，D50 级溢写窗口）。
 
-依据：40-modules/09 §2.6、§7.3；30-architecture/06 §6.4；30-architecture/08 §5「写路径关键约束」、§12；ADR-0025 决策 8；rulings §4.18 CO-15、CO-16。
+依据：40-modules/09 §2.6、§7.3；30-architecture/06 §6.4；60-backend/11（写路径与恢复顺序）；30-architecture/08 §12；ADR-0025 决策 8；rulings §4.18 CO-15、CO-16。
 
 元素删除是软删除墓碑，id 稳定；TTL（默认 24 h，部署配置 `tombstone.ttlHours`）到期后由服务端单写者硬删除，客户端从不自行硬删（rulings §4.15 Q3、§4.17 D4）。
 
@@ -1149,7 +1149,7 @@ sequenceDiagram
 
 怎么读：硬删除只有这一条执行路径——`server-collab` 的 `tombstone-sweeper` 加租约锁，架构 08 早期的 BullMQ `tombstone-purge` 路径已作废。owner 的「彻底删除元素」也走这条路径：`POST /documents/:id/elements/purge{ids}` 只对墓碑态元素，经 `collabServer.purgeElements` 复用租约单写者与 `system('maintenance')` 事务立即硬删，Room 未加载则先加载，审计 `document.element_purged`（2026-09-25，rulings §4.18 CO-07）。文档级的「永久删除文档」与 GDPR 擦除不走本路径，而是经 S-2 编排调用 `purgeAll` 立即硬删，不等 TTL（图 6-16）。
 
-依据：40-modules/09 §1.1、§2.2、§2.6「彻底删除元素」行、§7.3；30-architecture/08 §3.1、§7 末段；ADR-0025 决策 9；rulings §4.18 CO-07。
+依据：40-modules/09 §1.1、§2.2、§2.6「彻底删除元素」行、§7.3；40-modules/09 §4.4；30-architecture/08 §7 末段；ADR-0025 决策 9；rulings §4.18 CO-07（依据改指，rulings §4.20 BE-11+TX-12）。
 
 **图 6-8 元素的删除、恢复与硬删除状态**
 
@@ -1208,7 +1208,7 @@ sequenceDiagram
 
 怎么读：导入分两步（2026-09-25，rulings §4.18 BE-10）：对象键 `docs/{docId}/imports/{jobId}/source.pptx` 与 `jobId`、`docId` 都由服务端预分配，客户端只拿到绑定本人、1 h 有效、用后即焚的 `uploadId`，提交他人的对象键或他人的 `uploadId` 一律 403；通用 `POST /storage/presign` 已删除。大文件直传对象存储、不经 Nest 进程内存，预签名 URL 按 `storage.s3.publicEndpoint` 生成、经反代 `s3.` 子域到达（BE-01）。幂等键更新既有文档为 `import:{docId}:{sha256}`、新建文档为 `import:user:{userId}:{sha256}`，只对非失败行生效：命中 `failed` 行时新建一行并以 `attempt_of` 指向旧行（BE-18）。「先写库再入队」的双写缺口由对账作业兜底（评审 15 §3.5）。2026-09-25 起（60/06 §6.1、§2.3–§2.4，决策 UPLOAD-QUARANTINE、JOB-IDEM、SG-08）：浏览器直传落在隔离区 `uploads/tmp/{uploadId}`，受理时由服务端复制到最终键；`upload:{uploadId}` 不再 `GETDEL`，受理后保留 TTL 并只能兑换出预分配的那一个作业，网络重试的 `POST /imports` 天然幂等；进度一律经 `GET /jobs/:id` 查询，`GET /imports/:jobId` 已删除。M2 起「新建空白 / 从模板新建」也走这条两步导入（rulings §4.19 D-M2-CONTENT）。
 
-依据：30-architecture/08 §2 import-export 目录、§7、§16.4、§16.5；40-modules/12 §1.1、§2.5、§2.6、§4.2；40-modules/08 §4.7；rulings §4.18 BE-01、BE-10、BE-18。
+依据：40-modules/12 §4.2；30-architecture/08 §7、§16.4、§16.5；40-modules/12 §1.1、§2.5、§2.6、§4.2；40-modules/08 §4.7；rulings §4.18 BE-01、BE-10、BE-18。
 
 **图 6-10 导入 pptx（二）：处理器执行**
 
@@ -1244,7 +1244,7 @@ sequenceDiagram
 
 怎么读：拒绝发生在创建文档之前——加密包、宏包与超规模天花板（页数 200、单页元素 1,000、总元素 20,000，部署可调）都直接失败，不做只读降级。成功路径上服务端对不可信图片只做头校验，栅格化只在 renderer 沙箱里进行。
 
-依据：30-architecture/08 §2 `import.processor.ts`、§3.3 `tasks/import.ts`（原 `import-pptx.ts`，与 40-modules/09 同步改为文档类型无关命名，rulings §4.18 FE-01）、§9.2；30-architecture/10 §1.4；40-modules/09 §5.5、§6；40-modules/12 §2.6、§4.2、§11；ADR-0026 决策 4、9；rulings §4.18 BE-10、FE-01。
+依据：40-modules/12 §4.2 `import.processor.ts`、40-modules/09 §4.5 `tasks/import.ts`（原 `import-pptx.ts`，与 40-modules/09 同步改为文档类型无关命名，rulings §4.18 FE-01）；30-architecture/08 §9.2；30-architecture/10 §1.4；40-modules/09 §5.5、§6；40-modules/12 §2.6、§4.2、§11；ADR-0026 决策 4、9；rulings §4.18 BE-10、FE-01。
 
 **图 6-11 服务端缩略图生成：worker 经鉴权 RPC 驱动 renderer sidecar（M3 前半段起）**
 
@@ -1282,7 +1282,7 @@ sequenceDiagram
 
 怎么读：失效粒度是「页内容哈希」——页子树、版式母版主题依赖闭包、媒体引用、页尺寸与序号、内嵌字体、`layoutAlgoVersion` 与 `fontProfile` 任一变化才重渲，外链不计入。renderer 从注入取得全部输入、不做任何网络拉取；`headless.mode=local` 时由 worker 进程内的 `browser-pool` 经 Playwright `page.evaluate` 注入、执行同一份代码。`RenderStateToken` 已取消，两种模式同一条注入路径，`renderId` 只作日志关联；ready 判据为「所请求页全部挂载 ∧ 字体结算 ∧ 此后一次待绘脏区为空的 `render/frame`」（2026-09-25，rulings §4.18 BE-04、FE-09）。预算：导入后首页不超过 10 s，D200 全量不超过 90 s，单页 400 ms p95，每页超时 10 s、失败重试 3 次。
 
-依据：ADR-0026 决策 1–7；30-architecture/07 §8、§10；30-architecture/08 §3.3、§7、§12；40-modules/09 §2.5；40-modules/11 §2.4；40-modules/12 §4.3；rulings §4.18 BE-04、FE-09。
+依据：ADR-0026 决策 1–7；30-architecture/07 §8、§10；40-modules/09 §4.5；30-architecture/08 §7、§12；40-modules/09 §2.5；40-modules/11 §2.4；40-modules/12 §4.3；rulings §4.18 BE-04、FE-09。
 
 导出按格式分两条队列：pptx 走 `export`，由 `server-headless` 在 Node 内编码；pdf、png、jpeg 走 `render-export`，由 renderer 栅格化或打印。
 
@@ -1317,7 +1317,7 @@ sequenceDiagram
 
 怎么读：编码是纯函数——不读时钟与随机源、固定 zip 条目顺序与 mtime，所以同一 Snapshot 在浏览器与 Node 导出字节一致（SV-02）。服务端导出不做文字重排，排版落盘量由编辑端写回模型。预算：导出 pptx D50 不超过 3 s、200 页不超过 12 s（p95）。
 
-依据：30-architecture/08 §2 `export.processor.ts`、§7、§16.2、§16.5；40-modules/12 §2.6、§4.2；40-modules/09 §5.5；rulings §4.18 FE-01。
+依据：40-modules/12 §4.2 `export.processor.ts`；30-architecture/08 §7、§16.2、§16.5；40-modules/12 §2.6、§4.2；40-modules/09 §5.5；rulings §4.18 FE-01。
 
 **图 6-13 导出 PDF、PNG、JPEG（PDF 为 M3 后半段）**
 
@@ -1388,7 +1388,7 @@ sequenceDiagram
 
 怎么读：分享链接不产生匿名 Principal——没有会话一律 401，登录后才把链接角色叠加到自身能力位上（S-1、Q6）；每次叠加都写审计。守卫顺序固定为 `SessionGuard` → `ShareLinkGuard`（无 `shareToken` 时直通）→ `DocumentRoleGuard`：前两者由 `AppModule` 依次注册为 `APP_GUARD`，`SessionGuard` 默认拒绝、只放行 `@Public()` 路由（2026-09-25，rulings §4.18 BE-05、BE-06；`ShareLinkAccessGuard` 统一改名为 `ShareLinkGuard`）。令牌解析归 `PermissionsModule`，`ShareLinkGuard`、`RoleResolverService` 与 M-09 `AuthzSource` 共用同一个 `ResolveShareLinkUseCase`（BE-02）。RLS 用 `app.share_doc_id` 让叠加得到的访问在数据库层同样可见，应用层与数据库层各判一次。
 
-依据：ADR-0029 2026-09-21 补充与「如何被机械验证」；40-modules/08 §2.4、§2.6、§3、§4.6、§5.5、§6；30-architecture/08 §5 约定段、§9.1；rulings §4.18 BE-02、BE-05、BE-06。
+依据：ADR-0029 2026-09-21 补充与「如何被机械验证」；40-modules/08 §2.4、§2.6、§3、§4.6、§5.5、§6；60-backend/08 §1、§6；30-architecture/08 §9.1；rulings §4.18 BE-02、BE-05、BE-06（依据改指，rulings §4.20 BE-11+TX-12）。
 
 **图 6-15 权限变更即时生效**
 
@@ -1468,7 +1468,7 @@ flowchart TB
 
 怎么读：箭头是编排的执行方向，发起方不跨模块直接 `DELETE` 别人的表（「谁的表谁写」）。载体定为「outbox 作业 + 参与者登记 + 收尾」（2026-09-25，rulings §4.18 BE-15，原「或发领域事件」二选一删除）：`schedule-purge` 在同一事务里置 `purging` 并写 `document-purge` 作业行；worker 的处理器先经 `room:ctl:doc` 让持有 Room 的 collab 实例踢出会话、关闭 Room，再按 `@PurgeParticipant` 登记逐个调用七个参与者（均幂等，任一失败整作业重试，投递丢失由对账作业兜底）；全部成功后 `finalize-purge` 用 ListObjectVersions 清掉 `snapshots/` 等前缀下该文档的全部对象版本、删除 `documents` 行并写审计。`share_links` 由 share-links 自己的参与者清理（BE-16），`document_user_marks` 由参与者 `user-marks` 清理（BE-31）；M-09 参与者在 worker 角色只装 `PgUpdateStore`/`PgSnapshotStore`，不激活 `collabServer`（BE-13）。`keep` 节点无连线，表示审计日志不在清理范围内。
 
-依据：40-modules/08 §2.1、§2.6、§4.6、§7；40-modules/09 §2.6、§3.3、§7.3；40-modules/12 §2.6、§7.1、§7.3；30-architecture/08 §5 `documents` 注释；评审 15 §3.3；rulings §4.18 BE-13、BE-15、BE-16、BE-31、CO-07。
+依据：40-modules/08 §2.1、§2.6、§4.6、§7；40-modules/09 §2.6、§3.3、§7.3；40-modules/12 §2.6、§7.1、§7.3；60-backend/10 `documents` 注释；评审 15 §3.3；rulings §4.18 BE-13、BE-15、BE-16、BE-31、CO-07。
 
 ## 7. 队列与作业
 
@@ -1577,7 +1577,7 @@ stateDiagram-v2
 
 怎么读：状态只能沿 `queued → running → succeeded | failed` 前进（`canTransitionJobStatus`），导入作业在 `queued`/`running` 可被用户取消转 `cancelled`（清理原件与产物、不建文档，PRD SV-01，rulings §4.18 UX-14）；`failed` 与 `cancelled` 是终态：幂等只对未失败且未取消的行生效，同键命中 `failed`/`cancelled` 行时不复活旧行，而是新建一行并以 `attempt_of` 指向旧行，数据库以部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')` 保证（2026-09-25，rulings §4.18 BE-18）。用户看到的进度来自这张镜像表，而不是直接读 BullMQ。
 
-依据：40-modules/12 §2.1、§2.2、§2.3、§2.6；30-architecture/08 §5、§7；rulings §4.18 BE-18、UX-14。
+依据：40-modules/12 §2.1、§2.2、§2.3、§2.6；60-backend/12；30-architecture/08 §7；rulings §4.18 BE-18、UX-14（依据改指，rulings §4.20 BE-11+TX-12）。
 
 **图 7-4 WebhookDelivery 投递状态**
 
@@ -1600,7 +1600,7 @@ stateDiagram-v2
 
 怎么读：`pending` 覆盖待投递与重试中，可重试错误期间状态不变、由 `attempt` 驱动指数退避；每次投递（含重试）之前都重新做出站校验，校验失败直接 `failed`、不发出任何请求；`failed` 只用于不可重试的终止（出站守卫拒绝、订阅已停用、除 408/429 外的 4xx），`dead-lettered` 表示可重试错误但 8 次重试用尽（2026-09-25，rulings §4.18 BE-19，原单列的「重试中」状态删除）。订阅 `status=disabled` 时事件根本不入队。
 
-依据：40-modules/12 §2.1、§2.5、§2.6、§4.11；30-architecture/08 §5 Webhook 表、§7；rulings §4.13 S-4、§4.18 BE-19。
+依据：40-modules/12 §2.1、§2.5、§2.6、§4.11；60-backend/13 Webhook 表；30-architecture/08 §7；rulings §4.13 S-4、§4.18 BE-19（依据改指，rulings §4.20 BE-11+TX-12）。
 
 ## 8. 安全边界
 
@@ -1667,7 +1667,7 @@ flowchart LR
 
 怎么读：左列是四类调用方，中列是它们使用的数据库身份，右列是被访问的表。系统作业不借 `BYPASSRLS` 绕过策略，而是用独立角色加显式上下文被策略放行；`BYPASSRLS` 只给迁移。GUC 名与 policy 以 40-modules/08 `rls-context.ts` 为准；热路径 policy 代价在 M1 基准中实测。分享令牌在登录用户尚无文档上下文时查找，只能经两个 SECURITY DEFINER 函数只读 `share_links`，函数定义归架构 08 §5 迁移（2026-09-25，rulings §4.18 BE-02）。
 
-依据：30-architecture/08 §5 约定段、§2 `db/client.ts`；40-modules/08 §1.2、§2.5、§5.5、§10；ADR-0022 修订 3；40-modules/12 §2.1 `AuditEntry`；rulings §4.18 BE-02。
+依据：60-backend/08 §1、§6；40-modules/12 §4.13 `db/client.ts`；40-modules/08 §1.2、§2.5、§5.5、§10；ADR-0022 修订 3；40-modules/12 §2.1 `AuditEntry`；rulings §4.18 BE-02。
 
 **图 8-3 WS 入站帧的门禁分层**
 

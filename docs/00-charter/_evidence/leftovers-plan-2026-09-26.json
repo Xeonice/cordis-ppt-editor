@@ -1,0 +1,1632 @@
+{
+ "plan": {
+  "rounds": [
+   {
+    "theme": "需要你拍板的三项取舍（按影响排序）",
+    "questions": [
+     {
+      "id": "BE-01+TX-03",
+      "header": "WS升级限流",
+      "question": "协同 WebSocket 升级现在按来源 IP 每分钟限 10 次，认证成功的连接也扣额度（60/16 §1；而 60/15 §8 又写「只计失败握手」，两处矛盾）。单组织部署大家共用办公出口 IP：实例滚动重启（1012 驱逐）或早上集中打开文档时，超过 10 人的部分会被 429，浏览器只看到 1006、按 1→30 s 退避，要几分钟才恢复，违反 PRD SV-05「≤ 5 s 重连到其它实例」；70/09 的单机容量压测也因此加不到 2000 连接。另外全线没有「每用户并发连接上限」，一个已认证账号能慢慢占满实例的 4000 个连接。怎么定？",
+      "options": [
+       {
+        "label": "先扣后退加上限（推荐）",
+        "description": "Origin 通过后、升级前从 IP 令牌桶扣 1；票据验签通过即退还（之后被 4503/4404/4426/4428 等准入规则拒绝也已退还），4401 票据无效或重放、4408 5 s 内没发 auth、4427 协议不符、升级后未认证就断开的不退。IP 桶实际只约束未认证升级，防空连接的力度不变；同一出口数十人被驱逐后约分 3 波、≤ 5 s 重连完（更大的出口由部署调高 connectPerIpPerMin）。另加每用户单实例并发上限 limits.ws.maxConnectionsPerUser（默认 32），超出回 auth.denied{collab.rate_limited} 并以 4429 关闭。代价：一次 Valkey 退还调用、一个进程内计数；需在 auth.denied 的 code 集合与 protocol 登记 collab.rate_limited。"
+       },
+       {
+        "label": "仅先扣后退",
+        "description": "同上，但不加每用户上限：少一个配置键和一条 4429 触发；一个已认证账号从一个 IP 每分钟能开的连接由 10 升到 ticket 档的 120，只受实例 4000 连接上限约束。"
+       },
+       {
+        "label": "调高默认值",
+        "description": "不改机制，只把 connectPerIpPerMin 默认调到 60（突发 60）。零代码，但未认证空连接的放行量同样放大 6 倍；出口后超过 60 人时恢复仍是分钟级，要在 PRD 登记 SV-05 例外，与「安全宁可提前」相悖。"
+       },
+       {
+        "label": "维持每次计数",
+        "description": "保持现状，只把 15 §8 改成与 16 一致。NAT 后集体重连分钟级恢复，须在 PRD 登记 SV-05 例外；70/09 ws-capacity 压测须单独放宽此键。"
+       }
+      ]
+     },
+     {
+      "id": "FE-05",
+      "header": "删被引用版式",
+      "question": "删除正被幻灯片引用的版式或母版时，会先弹确认框，受影响的页改用默认版式。9 月 18 日的裁决 Q11 定为「不可撤销」；但 9 月 24 日的 Q3 把删除改成了墓碑软删除（24 h 内可同 id 复活），撤销这次删除的代价已和普通删除一样，40/03 Q7 也建议改为可撤销；30/05、40/03 多处至今仍写「撤销一次恢复」，与 Q11 矛盾。这类删除要不要能撤销？",
+      "options": [
+       {
+        "label": "确认后可撤销（推荐）",
+        "description": "保留 Q11 的确认对话框（撤销栈只在会话内有效，墓碑 24 h 后硬删，所以仍要事前确认），文案删去「操作不可撤销」；执行后入撤销栈并给带 [撤销] 的 Toast（同 Q16 先例）。撤销时各页引用回退、版式以原 id 复活，协同下他人后写的键按 Q3 跳过并提示。CommandDef.undoable 不改，30/05、40/03 现有写法保留；要记一条 Q11 修订，改 PRD 07 ML-03 与 D9 行、设计 26 与 50/11 的对话框文案。"
+       },
+       {
+        "label": "维持不可撤销",
+        "description": "按 Q11：带 reassignTo 的删除（版式和母版）是单事务、不入撤销栈，未被引用的删除照常可撤销。需把 30/05 的 CommandDef.undoable 从布尔放宽为 boolean | (params) => boolean（新契约形式），40/02 与 commands.describe 同步，并改 30/05、40/03 六处。误删后只能手动重建版式并逐页改回。"
+       }
+      ]
+     },
+     {
+      "id": "BE-05+TX-22",
+      "header": "唯一owner空窗",
+      "question": "M3 起管理员可以停用或擦除用户（擦除只把人换成 deleted-user，不删文档）。如果此人是某文档唯一的 owner：分享链接是否有效只看撤销与过期、不看创建者状态，而撤销链接、授权、永久删除都需要 owner，于是这篇文档无人可管、他建的有效链接也无人能撤，直到 M4 管理面板 SV-14（目前是 M4 的 P2，可能更晚）。员工离职被停用比被擦除更常见。M3 到 M4 的空窗怎么处理？",
+      "options": [
+       {
+        "label": "加运维转移命令（推荐）",
+        "description": "M3 在 cordex-ops 加子命令 documents:reassign-owner --doc <id> --to <userId>：以系统上下文调用 PermissionsModule 导出的用例写 owner 授权、perm_version 加 1（在线会话随之重算），审计 admin.owner_reassigned；擦除、停用的响应与审计都附「唯一 owner 文档数」提醒管理员。新 owner 即可撤链接、授权或删除；M4 管理面板直接复用同一用例。"
+       },
+       {
+        "label": "擦除时撤销其链接",
+        "description": "擦除事务顺带撤销该用户创建的未撤销链接，堵住链接缺口；但文档仍无人可管，停用场景不覆盖，且 UsersModule 要跨模块写入，破坏叶子模块规则 I2。"
+       },
+       {
+        "label": "维持M4处理",
+        "description": "保持现状：M3 到 M4（SV-14 为 P2，可能更晚）之间孤儿文档无人可管、其有效链接无人能撤，只能直接操作数据库。"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "gapDefaults": [
+   {
+    "id": "TX-01+BE-10",
+    "title": "U-07 版本恢复可撤销：联合 ADR 立项与定稿时点（高）",
+    "default": "本轮就在 adr/README 把预留的 0038 登记为 version-restore-undo（提议）并建骨架：M-02 主笔，M-05、M-09 会签，70/05 出 rs/restore-revert-* 场景；M2 期间起草，M2 出口评审前定稿（即 U-07 的「M3 前」），未定稿则 M3 的版本恢复（CO-07）不开工；基线按 TX-01：持有 Room 的实例内单事务、不加锁、走命令管线（不用 revertTo），判断「他人后写」看当前值是否仍出自恢复事务的 struct 范围而非值相等，恢复时删掉的元素以原 id 复活；「谁能撤销」「可撤销时效」两处留到 ADR 定稿时再交互拍板。同步：40/02 Q-3、40/09 Q-9 改为随 ADR-0038 结案；60 README:296、50 README:280、50/08:17 改为 ADR-0038 链接；PRD 05 的 M3 验收加检查名 history:restore-revert 并在 70/13 §3.4 登记。"
+   },
+   {
+    "id": "FE-01",
+    "title": "UnitScope 默认 Provider 的登记 API（40/11 Q-2，高）",
+    "default": "定名 units.registerUnitProvider(entry): Disposer 与 units.listUnitProviders()，落在 model-core unit/units.service.ts；model-core 在 ready 时只登记 history、selection，store、render、presence、collab-yjs、comments 由 preset 的 scope:'unit' 条目在 mount 时登记；同一 provides 只允许登记一次（后来者被拒并记诊断、不抛）、只影响之后打开的 Unit、preset dispose 时全部撤销；删除 Config.defaultStoreProvider；30/03 §9 PresetEntry 补 scope 与 provides（对齐 40/11:805）；按 FE-01 fixPlan ①–⑥ 回写，M1 前定稿，加 model-core units 契约用例（重复登记被拒、只影响新 Unit、dispose 后无残留）。"
+   },
+   {
+    "id": "BE-02",
+    "title": "REST 限流档默认值定稿（ticket/search/job/public/upload 与 256 KiB）",
+    "default": "upload 改为 60/min、突发 20（插 20 张图约 20 s 传完），public 改为 300/min、突发 100（百人办公出口登录高峰与离线探测不再撞 429）；ticket 120/30、search 30/10、job 60/10 与默认请求体 256 KiB 维持并定稿；不加档位、不加配置键；同步 17:467 与 CFG-01 快照，60 README §8.4 与 15 §9:458 的重复待复核项一并移入已定稿，50/05 §8.3 删去「避免撞上 upload 限流档」这一误导理由（改为「429 按 Retry-After 等待」）。"
+   },
+   {
+    "id": "BE-03+TX-14",
+    "title": "迁移 SQL 与文档逐字一致（DB-13）：现在做什么、挂哪个门禁",
+    "default": "现在只做两件事：把 ddl-check.sh 第 5、35、81 行的 NNNN- 改为 NNNN_（与 60/08 §10.1 一致，纯 bug）；在 70/12 §7 激活表登记 scanners/check-migrations-sync（不起容器、直接 gated），60/08 §11 第 6 条、§13 DB-13、60 README §7 该行、40/12:964 与 :1097 的「待实现」改为「首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated」。比对实现随 M1 第一个含 0001_*.sql 的 PR 落地（40/12:1103 定 0001、0002 为 M1；test/server-integration 要 M2 才激活，所以挂 scanners 而不是它的前置）。"
+   },
+   {
+    "id": "FE-06",
+    "title": "ui-core 的 enablement 与 can.* 键族登记",
+    "default": "两个契约都采纳并一次登记齐：ContributionBase 增可选 enablement（ui.shortcut、ui.command 也带，语法同 when；不可用时禁用而不隐藏并给原因，对应 PRD ED-30）；标准键族 can.<capability> 取 protocol permissions/actions.ts 能力位全集，can. 为 ui-core 保留前缀；30/03 §3.6 项类型加 enablement?，键清单改为引用 50/09 §6.3 并补 editorMode、unitLoaded、can.*；40/10 §2.1、§2.5、§6 同步；09-06 scan-contributions 规则 (e) 扩到 enablement 子句并校验 can.<x> 属于能力位、第三方不得登记 can. 前缀（TD-089 同步），加三条负向夹具与 aria-disabled 单测。"
+   },
+   {
+    "id": "FE-18+TX-06",
+    "title": "Trusted Types 与第三方运行时样式（Radix、sonner、react-resizable-panels）",
+    "default": "现在就定、不等 M2 报告：TT 用名为 default 的策略，createHTML 只对登记的两段 Radix 固定样式文本（ScrollArea 1.2.18、Select 2.3.7 的 Viewport 常量）精确比对放行，其余一律返回 null，常量表放 ui-react src/infrastructure/csp/trusted-style-constants.ts；50/14:106 trusted-types 取值加 default、改写「不创建名为 default 的策略」并记为 TT-CSP-REPORT 修订，§4.1:259、§4.4:275 改为已定；sonner 改为静态引入 sonner/dist/styles.css 并用 pnpm patch 删掉 import 时的 __insertCSS（pnpm-workspace.yaml 登记 patchedDependencies），§3 表删去「只产生报告、外观不变」这一与零违规门禁矛盾的退路；react-resizable-panels 4.x 用 adoptedStyleSheets，注明无需处理；csp-strict e2e 断言 TT 与 style-src 违规都为 0、Toast 与 ScrollArea 计算样式与基线一致，并加 default 策略拒绝未登记文本的负向用例。"
+   },
+   {
+    "id": "FE-23",
+    "title": "删除被引用母版时各页改用哪个版式（PRD G-73、40/03 Q6/G-9）",
+    "default": "slide.deleteMaster{masterId, reassignTo?: MasterId}，reassignTo 是目标母版；每个受影响页取 defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})（目标母版同 type 首个 → 目标母版首个，与 FE-03 同一函数），整个删除一个事务；UI 不加母版选择器，默认取按 order 排序的首个剩余母版，对话框文案改为「N 个页面将改用剩余母版中对应的版式」；能否撤销随决策 FE-05；30/05:392、40/03:310 与 §2.1 CRDT 表写明规则，40/03 G-9、Q6，40/14 N-21，PRD G-73 结案，50/11 :315、:440 关闭；model-slide 单测覆盖同 type 保持、无同 type 落首个、单事务。"
+   },
+   {
+    "id": "TX-02",
+    "title": "M0 验收 2「未定义术语数 = 0」改为可机械检查的口径",
+    "default": "把 PRD 05:109 的验收 2 改写为「术语表登记的旧名在正文中残留 0 处」，实现为 docs/_tools/check-terms.py + terms.json（只用标准库、只读、有残留退出码 1）；首批只收已裁定更名的内部标识符：FakeClock/FakeServerClock→FixedClock、FixedMetricsMeasurer→FixedWidthMeasurer、*.test-d.ts→*.type-test.ts、render/error→render/element-failed、collab/permission-changed→permission/changed、ui.statusbar→ui.statusBar、@oce/oce-→@cordexjs/cordex；MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法不收；跳过 rulings、_evidence、adr/，放行状态头行、同行含正名或更名标注的行与每条的 allowIn 文件；70/13:169、:686 与 _tools/README 同步，rulings 回写流程加「新更名须登记 terms.json」；首轮清零与 TX-10 的 FakeClock 替换合并执行。"
+   },
+   {
+    "id": "TX-04",
+    "title": "docs/_tools 严格链接与章节引用检查",
+    "default": "新增 docs/_tools/check-links.py（只用标准库、只读）：按 GitHub 规则生成标题锚点（反引号内文字保留、重名加 -1/-2，另认显式 <a id>），检查目标文件存在、锚点精确匹配、不做相近改指；同一遍历检查带目录前缀的章节引用（NN/MM §x.y、<线目录>/NN §x.y 及同一行接着写的「、§x.y」，不带前缀的不查），失配报「文件:行 → 目标」并退出码 1；_tools/README 列为改文档后必跑，70 README:299 执行点改指它，gen-docs-site 报告注明相近改指不算通过；首跑前先修完 TX-11 的 32 处锚点、BE-11+TX-12 的失效节号，保证首跑为 0。"
+   },
+   {
+    "id": "BE-08+TX-07",
+    "title": "RendererPool 容量与 renderer 副本数（分诊 #119）",
+    "default": "容量 = headless.poolSize（按单个 worker、1 个 renderer 副本计），删去 60/06 §10.5:653 与 §14 中「按 endpoint 背后实际可用副本计」这句做不到的表述；多 worker 或多副本时的超额下发与容量闲置由 renderer 的 503 headless.renderer_busy + Retry-After 兜底（§9.1）；现在不加副本数配置键，M4 Helm 横向扩容时再加（备选：按 TX-07 现在就加 headless.rendererReplicas，默认 1）。"
+   },
+   {
+    "id": "FE-02",
+    "title": "放映中「远端更新可关闭」（PRD ED-21）",
+    "default": "删去 PRD 02-editing.md:356 的「（可关闭）」，M2–M3 放映始终实时应用远端更新（与设计 03-11、50/10 §9.3、50/05 §12 一致），不新增渲染暂停接口；主讲人要屏蔽改动时用「创建副本」后放映，随演讲者视图（M4+ P2）再议；50/10 §9.3:411 删去「待定」一句，§12.3:571 关闭。"
+   },
+   {
+    "id": "FE-08",
+    "title": "评审与只读模式下「主题 · ?」两个控件的位置",
+    "default": "放在评审工具条右端；工具条没有条目时（M2 未装 comments 包时是常态）放在 ReadonlyRibbonNotice 细条右端；由 ui-react 外壳直接渲染，与编辑模式页签行右侧同组件，不走 ui.toolbar 贡献；「普通 | 母版」切换在这两种模式仍不显示（Q12 不变）。按你的习惯先在 playground Main.tsx 做出来，用 playwright 截亮/暗 × 有/无条目四张样张给你看，确认后再回写 50/10 §1:48、§3.2:164，40/10:544 与设计 01:73。"
+   }
+  ],
+  "deferred": [
+   {
+    "id": "BE-07+TX-05",
+    "title": "ADR-0037 决策 5 最低主机规格的数值（溢写阈值已登记，无需动作）",
+    "trigger": "M3 出口前，renderer 与 worker 落地且 ops:compose 全绿后，在自托管 perf runner 上跑 host-footprint 场景（RM-S 负载，core 与 core+idp 两档）；测试设计线出 host-footprint.json，后端设计线按「峰值合计 × 1.3」回填 60/17 §11，架构线把 ADR-0037 决策 5 的表改为只留口径、数值链接 60/17 §11，并按修订惯例标注。ADR 字面「M3 前实测」按 M3 出口前理解（renderer 在 M3 才有）。溢写阈值已由 70/09:420 spill-calibration 登记（M2 自托管 runner 落地后校准、只收紧）。现在只做场景登记，见 mechanical「BE-07+TX-05·登记」。"
+   },
+   {
+    "id": "BE-03+TX-14·实现",
+    "title": "迁移目录逐字比对的实现（DB-13）",
+    "trigger": "M1 第一个包含 apps/server/src/db/migrations/0001_*.sql 的 PR：同一 PR 实现 ddl-check 的 --migrations <dir>（核对文件集合、文件名、逐字节内容，失败报「文件 + 编号 + 首个差异行」）、--write-migrations <dir>、--sync-only（不起容器），接 scanners/check-migrations-sync（gated），tooling/ci/steps.json 与 40/01 §5.7 同步登记，_tools/README 登记新参数，DB-13 改为已实现。负责：总编排（docs/_tools）与后端设计线。"
+   },
+   {
+    "id": "TX-01+BE-10·内容",
+    "title": "version-restore-undo ADR 的两处待确认",
+    "trigger": "ADR-0038 定稿时（M2 出口评审前）交互拍板：「谁能撤销恢复」（建议任一持 history.restore 者）与「可撤销时效」（建议只限最近一次恢复、其后无新恢复且仍在 update 保留 7 天内；备选把恢复前快照与恢复事务 update 标为受保护）。负责：M-02 主笔，M-05、M-09 会签；定稿后后端回填 60/05 §11 与 15 §3.8，70/05 落 rs/restore-revert-* 三类场景。"
+   },
+   {
+    "id": "BE-08+TX-07·M4",
+    "title": "按副本放大 RendererPool 并发的容量键",
+    "trigger": "M4 Helm 横向扩容 renderer、确需按副本放大并发时，在 60/17 §5 加显式容量键（如 headless.rendererReplicas）并改 60/06 §10.5；负责：后端设计线。"
+   },
+   {
+    "id": "FE-09·正文",
+    "title": "40-modules/20-comments-client.md 正文",
+    "trigger": "M3 开工前（comments 客户端包随 M3 交付）；负责：前端设计线补齐目录树、文件职责、契约套件、comments.anchorResolver 贡献点、comments UnitScope 服务、comments.reanchor 与 comments.importThreads 的文件落点、slide-ui 的 resolver 接口。本轮只登记占位（见 mechanical FE-09）。"
+   }
+  ],
+  "mechanical": [
+   {
+    "id": "BE-04",
+    "title": "限流与审计的客户端 IP：统一按 http.trustProxy 跳数自右向左取（高，安全）",
+    "fixPlan": "权威：配置 schema 归 60/17，http.trustProxy 为可信跳数；HTTP 与 WS 升级共用一个 clientIp()（proxy-addr，与 Fastify request.ip 同算法）。① 15 §8 public、csp 两行主体改为「来源 IP = clientIp()（按 http.trustProxy 跳数自右向左取，默认 1），不读 XFF 首跳；HMAC 规则不变」；② 60/01 §10 第 3 步改为 trustProxy = http.trustProxy，删网段表述，common/ 登记 clientIp()；③ 16 §1:22 改为「IP 取 clientIp(升级请求)，与 REST 同算法同配置，口径同 15 §8」（与决策 BE-01 同轮改）；④ 17 §3.1 proxy.conf 补 proxy_set_header X-Forwarded-For $remote_addr（覆盖不追加）；CORDEX_WEB_TLS_MODE=upstream 时用 realip 信任 LB 网段一跳（set_real_ip_from 取新配置 CORDEX_WEB_TRUSTED_LB_CIDRS，为空拒绝启动），使 $remote_addr、XFF、Casdoor 白名单一致；17:342 注明 compose 拓扑固定为 1；⑤ 70/10 SEC-RL 补「伪造 XFF 首跳不改变限流主体与审计 ip_hash」REST、WS 升级各一例，60/17 DEP-03（在 70/08 §4 执行）补 upstream 模式同一断言。"
+   },
+   {
+    "id": "TX-08",
+    "title": "确定性 lint TD-110：Date.now、Math.random 扩到全部生产与测试代码（高）",
+    "fixPlan": "前置：先做 TX-10 ①②。① 09-02 §3 在 TD-097 后加 TD-110（tooling/eslint-config/rules/determinism.ts 第二个 override）：生产源码 packages/*/src/**、apps/*/src/**（排除 packages/shared/src/{clock,random}.ts、apps/server/src/shared/clock.ts）用 no-restricted-properties 禁 Date.now、Math.random，no-restricted-syntax 禁无参 new Date()；测试代码 apps/server/test/**、apps/web/e2e/**、根 test/**、各包 __tests__/**（豁免 test/perf/**）另禁 performance.now；crypto.getRandomValues、randomUUID、node:crypto 不禁；其余例外走 cordex-allow（须带 issue）；ooxml-* 的 TD-097 预算恒为 0 不变。② 08 §12c 追加 TD-110（来源 30/11 §1、70/11 §1、70 README §7#9、50/07 V15；负向用例四例：测试文件调 Date.now、apps/web 组件调 Math.random、SystemClock 文件放行、生产代码 performance.now 放行；CI job lint；owner 架构-类型治理与测试线），矩阵行数与 TX-09 同轮改为 111，09 README 同步。③ 50/07:608 V15 改为「Date.now 等由 TD-110 覆盖；collab-* 另在 restricted-globals 禁 setTimeout/setInterval（改经 Clock 定时器），作为 TD-110 子项」。④ 40/01:406、:571、:821 补第二个 override 说明。⑤ 70/11:393 与 70 README §7 第 9 条改为已采纳（TD-110）。"
+   },
+   {
+    "id": "FE-03",
+    "title": "默认版式选取统一为 30/04 I-ML2 链，单一纯函数 defaultLayoutOf",
+    "fixPlan": "权威 30/04 §12.3 I-ML2（高于 40 与 PRD；ADR-0034 为提议状态）。defaultLayoutOf(body, {masterId, type?, exclude?}) 定义并导出于 model-slide domain/invariants/reassign.ts（40/14 N-21 点名），跳过墓碑与 exclude。① 40/03 登记并列入 §6 导出，:77、:103、:110、:355 改写为 I-ML2 链（含 exclude）；② 40/10 :592、:850 删除 slide-ui 本地实现，改为从 model-slide import；③ PRD 07 :59、:183 改为引用 30/04 I-ML2，:156 的 toast 文案改为「〈默认版式名〉」（信号按 FE-04、FE-14 合改）；④ 50/11 删 :25「不一致，待统一」，:313 改新签名，§11.4 :434 关闭；⑤ ADR-0034 :27 改为「按 30/04 §12.3 I-ML2」并记修订。验证：model-slide 单测覆盖三级回退、墓碑跳过、删除母版首个版式时 reassignTo ≠ 被删版式；slide-ui edit-target.test.ts 断言用的是同一导出符号；property 测试 deleteLayout(reassignTo) 结果与 I-ML2 修复一致。删除母版的目标规则见 gap FE-23。"
+   },
+   {
+    "id": "FE-04",
+    "title": "版式成墓碑后并发引用：墓碑期读时容错、硬删时同事务修复",
+    "fixPlan": "权威 rulings §4.15 Q3 与 30/06 §8 第 2、3 行（并发写落在墓碑上不丢、撤销即恢复），ADR-0034 墓碑修订对 layoutId 的明文。依赖 FE-03。① 40/03 :114 改为 I-ML2…I-ML4 对「引用指向墓碑」在墓碑期读时容错（读路径用 defaultLayoutOf 等替代），只在硬删时写修复；② 30/04 §3.1a(3) :329 注明「引用者一并视为已删除」只指包含关系（containerId、parentId），不适用于 layoutId、masterId、themeId；§12.3 I-ML2 行补「墓碑期读时容错，硬删作业同事务修复」；③ 30/05 §13.4 :421 冲突 (1) 改为「读时容错，硬删时修复」；④ 50/11 §10 :375 第 1 行改为读时容错并发 soft-conflict{delete-vs-reference}，删去即时 collab/repair，:376 保留；⑤ PRD 07 :156 与 FE-14 合改；⑥ 40/07 SceneProvider 与 40/04 导出编码器解析 layoutId 时调用 defaultLayoutOf，impactCount 不计墓碑目标。验证（test/collab-sim）：「A 删 L、B 同时对 P 应用 L」两端收敛；TTL 内 P.layoutId 仍为 L 且渲染用替代版式；A 撤销后 P 显示 L；硬删后 P.layoutId 等于 defaultLayoutOf 结果且修复只写一次；导出 pptx 中 P 引用存活版式。"
+   },
+   {
+    "id": "FE-10",
+    "title": "50/02 §6 会话内 permission/changed 不改 mode（按 UX-20）",
+    "fixPlan": "权威 rulings §4.18 UX-20。50/02 :269 改为「角色映射只在打开与重新打开时使用；会话内 permission/changed 不改 mode：降权进入 readonly-degraded，升权只更新模式下拉的可选项（50/10 §3.1）」；:285 状态图自环标签改为「permission/changed 更新角色与可选模式，unit/loaded 置 loaded」；50/10 §3.1 :155 末句删「冲突，登记回写」，§12.3 :562 关闭。无需新增用例（50/10 §12.1 V1 已断言会话内降权不改 editorMode）。"
+   },
+   {
+    "id": "FE-11",
+    "title": "40/10 正文对齐 50：masterEntryState 五值、插入页签评论与图表、enablement、会话记忆",
+    "fixPlan": "权威 rulings §4.19 分工（行为以 50 为准）。enablement 字段依赖 gap FE-06 先定。① :204 签名改 masterEntryState(keys): MasterEntryState（五值，优先级见 50/11 §3），:1022 注释改「五态与优先级」；② :286 图表改 enablement: slide.hasChartEditor，评论改「slide-ui 贡献，when: slide.hasComments，命令 comments.addThread（comments 包，M3）」；③ :285 编辑组改 enablement: unitLoaded，:289 母版视图按钮改 enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'；④ :646 session-memory.ts 注释删「分区折叠态」（归 ui-react EditorLayoutState.sectionsCollapsed）；⑤ 50/09 §13 :522、50/11 §11.4 :429 关闭。验证：slide-ui ribbon-spec.test.ts 断言评论按钮 when 为 slide.hasComments、图表与全文命令用 enablement；scan-contributions 规则 (e) 覆盖这些键。"
+   },
+   {
+    "id": "TX-09",
+    "title": "「每个 Definition 至少一个 *.type-test.ts」的机械核对：scan-manifest (e3)、TD-111",
+    "fixPlan": "先例 TD-103（kit 自测作为 (e2) 子项），不新增扫描器。① 09-06 §6 在规则 (e) 后加 (e3)：Definition 集合 = 全部包的 cordex.implements 值（与 (e) 同一张映射）∪ 各包 defineContributionPoint() 导出（与 scan-contributions (a) 同一索引）∪ kernel Manifest；判据：定义包 __tests__/**/*.type-test.ts 中至少一个文件以标识符引用该 Definition（import 或类型位置）；缺失报 rule:'e3' 与 Definition 名。② 08 §12c 追加 TD-111（来源 09-09 §6、70 README §7#10；执行点 scan-manifest (e3)；负向用例两个：定义包缺类型测试、某贡献点未被任何 type-test 引用；CI job scanners；无豁免），行数与 TX-08 同步为 111。③ 09-09:136 句末加「机械核对：06 §6 (e3)，TD-111」；70/01:287 同步；70 README §7 第 10 条标已采纳。④ 40/01 scan-manifest 夹具清单补 (e3) 正负例。"
+   },
+   {
+    "id": "TX-10",
+    "title": "70 回写清单残留：Clock/Random 端口登记、FakeClock 统一、语料与覆盖率改指",
+    "fixPlan": "按 70 README §8 执行（①② 是 TX-08 前置）。① 40/02 §4.1 shared 目录树加 clock.ts（Clock 接口 + SystemClock）、random.ts（Random 接口 + SystemRandom，bytes 用 crypto.getRandomValues）、testing/clock.ts（FixedClock）、testing/random.ts（SeededRandom）；ids.ts 的 newNodeId 与 order.ts 随机后缀改为接受 Clock + Random；§5.1 逐文件表加 4 行，跑 validate-module.py 核 §4/§5 计数，§12 汇总与文件总数同步。② 40/12 §4.13 目录树与 §5.13 表加 apps/server/src/shared/clock.ts（CLOCK 注入令牌 + SystemClock 提供者，实现 @cordexjs/shared 的 Clock）。③ 正文 14 处 FakeClock 改 FixedClock（60/02×2、60/03×2、60/04×3、60/06×3、60/10×1、60/12×2、70/07:414）；60/12:204 在 -- example 围栏内，改后重跑 ddl-check。④ 40/04:974 改为「T2/T3 语料存对象存储，只登记在 test/corpus/manifest.json（70/11 §10），只在 test/fidelity-roundtrip 步骤运行」。⑤ 40/03:964、40/07:909、40/13:912、40/01:862、40/06:817 的覆盖率与性能预算改指 70/01 §8 与 70/09（40/06 另指 50/13 数值表）；40/01:156「11-testing-strategy.md 覆盖率矩阵」改指 70/13；40/09:1010、40/12:1082 的 30/08 §12 改指 60/01 §12 与 70/09。⑥ 70 README §7 第 9、10 条处理列末尾分别加「→ 已采纳，TD-110（TX-08）」「→ 已采纳，TD-111（TX-09）」。"
+   },
+   {
+    "id": "BE-11+TX-12",
+    "title": "仍指向 30/08 已删节（§2、§3.1、§3.3、§4.1、§4.2、§5 小节、§9.3）的依据引用与登记台账收口",
+    "fixPlan": "权威 rulings §4.19（重复段落改引用）与 40/08、40/09、40/12 §4、60/08–13 现行落点；只改依据引用，不动正文结论。① 60/06:525 整句改为「computePageHashes 已登记在 40/09 §4.5、§5.5（infrastructure/thumbnails/content-hash.ts）」，60/06:814 对应回写行标已完成；60/06 §14 第二个 18 改为 19。② 按 TX-12 精确清单改指：40/19 :118→「40-modules/12 §4.13 main.ts；30-architecture/08 §4」，:165→「30/08 §3–§4；40/09 §4.4」，:381→「60-backend/17 §5–§6；30/08 §4」，:886→「40/09 §4.1、40/08 §4.1」，:934→「40/08 §4.1」，:965→「40/09 §4.2、40/08 §4」，:1091→「40/09 §4.4 spill-store.ts」，:1211→「40/12 §4.2」，:1247→「40/12 §4.2 import.processor.ts、40/09 §4.5 tasks/import.ts」，:1285→「40/09 §4.5」，:1320→「40/12 §4.2 export.processor.ts」，:1670→「40/12 §4.13 db/client.ts」；60/05:173→「40/09 §4.4；30/08 §14 S7」，60/05:610→「40/09 §4.4 snapshot.service.ts」，60/16:220→「40/09 §4.4 awareness-tick.ts」，60/17:615→「本文 §5–§6；40/12 §4.10」，60/18:359→「40/12 §4.6」，ADR-0037:170 关联改为「架构 08 §0/§10；60-backend/17」。③ 按规则改指 §5 已删小节：分区 → 60/08 §3，写路径与恢复顺序 → 60/11，媒体段与 documents 注释 → 60/10，Webhook 表 → 60/13，完整字段 → 60/09–13（40/19:21、:558、:646、:689、:730、:766、:814、:1119、:1391、:1471、:1580、:1603，60/11:54、:321、:374，60/12:494，60/10:127）；§9.3 → 60/15 §8 或 60/16 §13（与决策 BE-01、gap BE-02 同轮）。④ 状态行依赖删去 30/08 §2、§5：60/03:2、60/09:2、60/11:2、60/12:3、60/15:2（改为「30/08 §9、§11、§16.4」）、60/17:2（改为「30/08 §10；40/12 §4.13」）、60/18:2。⑤ 40/08:727 documents.module.ts 依赖列改为「PermissionsModule、JobsModule、StorageModule」。⑥ 60 README §8.4 已落实的 6 行迁入 §8.2，限流档一行按 gap BE-02 处理，15 §9:458 重复清单同步删去已收口项，§9 记变更。保留不动：变更记录与「原在 30/08 §2」类历史说明行（40/12:11、690、1103、1154、1157，40/00:1373，40/08:766、1077，60 README:189、191、318）；60/12:500 只把「总编排回写」改为「已回写」。验收：grep -rnE '30(/|-architecture/)08[^|；]*§ ?(2|3\\.[13]|4\\.[12]|9\\.3)([^0-9.]|$)' docs/40-modules docs/50-frontend docs/60-backend docs/70-testing docs/30-architecture/adr 只剩变更记录与历史说明行；§5 已删小节名（写路径关键约束、恢复顺序、约定段、Webhook 表、媒体段、documents 注释、数据模型 ②③）零命中；最后由 TX-04 的 check-links.py 章节引用检查兜底。"
+   },
+   {
+    "id": "BE-06",
+    "title": "cordex-ops 第二入口与子命令的文件级落点（40/12 Q-10）",
+    "fixPlan": "采纳 Q-10 推荐（40 管文件级登记，60/17 §9 管命令语义）。① 40/12 §4.13 目录树加 apps/server/src/ops/cli.ts（与 main.ts 同级、共用 config/ 解析），附「子命令 → 所属模块用例」对照：storage:init → M-08 StorageModule，audit-rotate/audit-verify → AuditModule，jobs:replay → JobsModule，webhooks:replay → WebhooksModule，thumbnails:rebuild → ThumbnailsModule，config:check → config/（M-12），db:* → db/migrator.ts；若决策 BE-05 选「加运维转移命令」，另加 documents:reassign-owner → PermissionsModule。② §5.13 文件表加一行，§13 Q-10 结案。③ 60/08:549 删「待登记」改指 40/12 §4.13。④ depcruise 规则：ops/** 只能 import 各模块公开导出、不直接写表。在 M2 migrate 一次性服务落地前完成。"
+   },
+   {
+    "id": "BE-07+TX-05·登记",
+    "title": "主机规格测量场景 host-footprint 的登记（数值见 deferred）",
+    "fixPlan": "权威 ADR-0037 决策 5（须实测）与 70 为测试设计唯一事实源。① 70/09 §6 服务端场景表加 host-footprint 一行：归 perf/perf-server nightly、自托管 runner，RM-S 负载，core 与 core+idp 两档，docker stats 采各容器峰值内存与 CPU，产物 host-footprint.json，只出报告不设 gate，自 M3 renderer 落地起运行；70/12 perf/perf-server 步骤内容同步；如 PRD 05 M3 验收 10（ops:compose）要引用这份证据，在 70/13 §3.4 登记。② 60/17 §11 注明「取数：host-footprint，合计 × 1.3；时点：M3 出口前」，60 README:297 同步。③ ADR-0037 决策 5 表与 :156 暂不改，回填时由架构线按修订惯例处理。"
+   },
+   {
+    "id": "BE-09+TX-15",
+    "title": "写入帧 error 与 db ack 的相对顺序：冻结 FIFO 定为最终口径",
+    "fixPlan": "权威 50/07 §6 与 60/16 §5 第 7 条（被拒后固定走导出后重载，多算的更新幂等合并，协同语义不简化）。50/07:632 状态从「暂缓（实现期优化）」改为「已关闭：冻结 FIFO、宁多勿少为最终口径（被拒后会话本就导出后重载，逐帧对应无用户可见收益）」，删去「若 60/16 能保证……可改为逐帧对应」；50/07:225 与 60/16 §5 第 7 条不改；分诊 #24 结案。"
+   },
+   {
+    "id": "FE-07",
+    "title": "应用主题：直接执行 + 可撤销 Toast（设计 03-28 §6 待决项收口）",
+    "fixPlan": "权威 PRD D9（可逆操作用可撤销 Toast）与 ML-04（一个事务可撤销）。设计 03-28 §3「保存」:84–:87 删「应用前明确告知」改为事后 Toast，§6 :111 第一条标已定；50/11 §9 :359 删「03-28 仍标待决」，主题卡、变体色块与主题面板「应用」都直接执行并给 Toast「已应用主题『X』，影响 N 页 [撤销]」（N 为该母版引用页数）；§11.4 :435 关闭。验证（slide-ui 主题单测）：不出现确认框、Toast 含 N、撤销后主题与 12 个色槽恢复原值。"
+   },
+   {
+    "id": "FE-09",
+    "title": "@cordexjs/comments 客户端包落点：确认 40/00 Q-M8，新建 40/20 占位",
+    "fixPlan": "Q-M8 标注为「待总编排确认」，按其推荐确认：新建 40-modules/20-comments-client.md 占位（行为以 50/08 为准，不并入 M-12 或 M-05）；40/00 Q-M8 标已确认，§7 M-12 行改指 40/20；40/README 索引登记 40/20（占位，M3 前完成）；50/08 §13 :310 去向改为 40/20。正文见 deferred「FE-09·正文」。"
+   },
+   {
+    "id": "FE-12",
+    "title": "40/10 待登记回写批：remember、explainWhen、reviewBar、放映全屏容器、ThemeService 新接口",
+    "fixPlan": "按 50/09 §6.2、§13 与 50/10 §2.1、§3.2、§9.1 定稿补 40/10：① §2.5 :270 EditorLayoutOptions 加 remember: boolean（默认 true）与 notesHeight；② §2.3 纯函数表加 explainWhen(clause, keys): ReasonKey | null（ui-core domain/when-clause.ts），:473、:704 同步；③ §3 slide-ui 贡献清单加 ui.toolbar{slot:'reviewBar'} 条目（评论、高亮、上一处、下一处，when 见 50/10 §3.2），写明条目为空时显示 ReadonlyRibbonNotice；④ :604、:861 注明全屏目标是跨路由常驻容器（apps/web 用应用根，嵌入用 [data-cordex-root]），且在用户手势同步回调里调用 requestFullscreen；⑤ §4.1、§4.3、§6 登记 setTokens、registerStyleSheet，ui-react 导出 ./styles.embed.css，登记 design 的作用域变体产物；⑥ 关闭 50/09 §13 :521、:523、:524 与 50/10 §12.3 :566、:568、:569、:573。"
+   },
+   {
+    "id": "FE-13",
+    "title": "40/10 §2.1、§2.2 引用 50 的章节号更正；50/01 §6 状态表字段更新",
+    "fixPlan": "按 50 各文实际标题更正 40/10：:151 RibbonTree 等 50/09 §6→§7；:153 EditorLayoutState 50/10 §4→§2.1；:155 SlideSelectionView 50/09 §5→§6.3；:156 写为「50/11 §3、§4、§2」（会话记忆定义在 50/11 §2）；:157 ThumbnailListModel 50/10 §5→§6；:180（§2.2）50/09 §5→§8。50/01 :286 MasterViewState 改为 {paneSelection, editScope, target, impact, multiSelect, entry, status, sessionMemory?}；:280 ContextKeyValues 补 editorMode、can.*（待 gap FE-06 确认后写）。验证：grep 列出 40/10 全部纯文本「50/NN §x」引用逐条对照标题（gen-docs-site 只覆盖链接锚点），语义人工复核。"
+   },
+   {
+    "id": "FE-14",
+    "title": "文案与规则名对齐：PRD 07 状态栏、dangling-layout、「母版与版式不支持评论」",
+    "fixPlan": "PRD 07 :151 改为「有未提交改动时，状态栏显示『未保存改动 · 影响 N 页』（同 ML-01）」；PRD 07 :156 与 07-design-coverage :546 的 Toast 触发信号改为 collab/soft-conflict{type:'delete-vs-reference'}（墓碑期），并注明硬删时由 collab/repair{rule:'dangling-layout'} 写修复（与 FE-04 合改），原 layout-missing 一律改 dangling-layout（以 30/04 §12.3 为准）；50/08 :117 改为「母版与版式不支持评论」（与设计 26、IA、PRD 07、50/10、50/11 同一 i18n 文案）；50/11 §11.4 :439 关闭。"
+   },
+   {
+    "id": "FE-15",
+    "title": "设计稿与 playground 回写批：placeholder 键、隐私组、窗格滚动、评审态「属性」页签",
+    "fixPlan": "权威 rulings §4.19 分工（行为以 50 为准）、决策 TELEMETRY-DEFAULT、IA §5.1。设计 06 :331 删「另增 'placeholder'」改指前缀键 slide.placeholderSelected；设计 03-23 线框与控件说明补「隐私与诊断」组（错误报告默认开、使用统计默认关，telemetry.otlp 为假时隐藏后一项），playground Settings.tsx 同步；设计 03-26 :135、:249 改为「随会话记忆保存在内存」；playground Main.tsx 评审分支检查器补只读「属性」页签（默认仍打开「评论」）；关闭 50/10 §12.3 :572 与 50/11 §11.4 :431、:433；playground 改完用 playwright 截图自审。"
+   },
+   {
+    "id": "FE-16",
+    "title": "跨文档纯登记：嵌入样式隔离用例、comment/* 事件脱敏、SceneNode.a11y 与渲染降级原因值",
+    "fixPlan": "权威 50/README §1 分工。70/06 §11 加嵌入样式隔离用例（挂载前后宿主 html、body 计算样式逐项相同，:root 无新增自定义属性，步骤 e2e/full-compose），50/09 §13 :525 关闭；50/15 事件表与 30/10 §11.1 登记 comment/* 正文默认脱敏、选项 comments.events.includeBody 与 origin 字段，50/08 §13 :309 关闭；30/07 §2.1 :121 SceneNode 加 a11y?: A11yDescriptor；30/10 为 render/element-degraded 补 media-decode-failed、media-unavailable，为 render/font-fallback 补 reason。"
+   },
+   {
+    "id": "FE-17",
+    "title": "50 各文待回写表中已完成项的状态更新",
+    "fixPlan": "只改状态、不改正文：50/07:636（deriveCollabUiState 已登记 40/10 :154、:483、:714）、50/06 :379、:382、:384（onEditIntent 改名、slide/autofit-changed 与 slide.applyAutofit 已登记 40/07:244、40/03:1058）、50/02 :562、:563（设计 03-16:52、设计 01:148 已改）、50/03:420、50/12:396（40/11 §12「2026-09-25 回写」已执行）改为「已回写（落点链接）」；50/05:648 改为「部分回写：40/06 已完成（:918），30/07、30/10 见 FE-16」；50/06 §12 回写表加「状态」列，6 行全部标「已回写（落点）」。"
+   },
+   {
+    "id": "FE-24",
+    "title": "50/11 §11 其余待登记：resetPlaceholderFields、deleteLayout 批量、applyLayout 计数、主题预览、占位符级别样式",
+    "fixPlan": "权威 rulings §4.19 分工（50/11 定行为，40/03、30/05 管命令表）。40/03 §2.6：新增 slide.resetPlaceholderFields{shapeId, fields}（与 resetSlide 共用 slide.shape.clearOverrides）；deleteLayout 行改为 {layoutId | layoutIds; reassignTo?}（多选删除一个事务）；applyLayout 写明结果含每页脱离占位符的元素数（Q13 Toast 计数）；updatePlaceholder 参数加 lstStyle（占位符级别文本样式，不新增命令 id）；30/05 §13.2 :383、:389 同步。ViewDescriptor 加 themePreview?: {masterId; colors?; fonts?}（只影响渲染、不入 Store、不广播、取消即清空），登记到 50/05 与 40/07。50/11 §11.4 :432（与决策 FE-05 一起）、:436、:437 关闭，§11.1 :398 改已定。验证：command-harness 中 resetPlaceholderFields 一步撤销且只清所列字段、批量删除单事务、applyLayout 计数与 Toast N 一致；slide-render 单测 themePreview 取覆盖值且 Store 无事务。"
+   },
+   {
+    "id": "TX-11",
+    "title": "09-type-discipline 与 ADR-0040 的 32 处锚点失配",
+    "fixPlan": "按目标文件现行标题（GitHub 锚点规则）逐一替换，同一目标多处一起改。06-scanners.md：#1-scan-type-escapes→#2-scan-type-escapes，#2-scan-contributions→#3-scan-contributions，#3-scan-effects→#4-scan-effects，#4-scan-isomorphic→#5-scan-isomorphic，#5-scan-manifest→#6-scan-manifest，#14-时长预算的假设前提→#16-时长预算的假设前提，#脚本自身的类型与测试要求（06:230）改指 #1-toolingscripts-目录树 或把第 54 行加粗段改为 #### 标题。03-boundaries.md：#4-同构隔离的三重保障→#同构隔离的三重保障，#5-规则-4第三方库单点引入→#33-规则-4第三方库单点引入对应章程-53-4，#6-规则-6三角色→#35-规则-6三角色对应章程-53-6，…对应章程-53-2-53-3→…对应章程-53-253-3。04-api-surface.md：#2-api-md-基线与-pr-diff-流程→#2-apimd-基线与-pr-diff-流程，#4-publint-与-arethetypeswrongcliattw-门禁→#4-publint-与-arethetypeswrongcliattw门禁，#5-与-changesets--版本策略adr-0002架构-结构条线所有的对接→#5-与-changesets--版本策略adr-0002版本策略架构-结构条线所有的对接。05-runtime-boundaries.md：#4-result-类型与异常的边界→#5-result-类型与异常的边界。01-tsconfig-baseline.md：#6-appsserver-的受限例外-nestjson→#6-appsserver-的受限例外nestjson，#1-toolingtsconfig-目录树→#1-toolingtsconfig-目录与继承树。4 处 #44-派生字段标记derivedt 是正确的，不要改。改完由 TX-04 的 check-links.py 复核为 0。"
+   },
+   {
+    "id": "TX-13",
+    "title": "TD-079（lockfile-guard）补 typescript 与 yjs、y-protocols 版本钉",
+    "fixPlan": "权威 rulings §4.15 Q9、Q3，ADR-0004、ADR-0046 补注、ADR-0020 决策 1。① 08:270 TD-079 陈述补一句：pnpm-workspace.yaml#catalog 中 typescript 为 5.9.x 或 6.x（不得 ^7 或 latest），yjs 与 y-protocols 为精确版本（不带 ^ 或 ~，yjs 在 13.6.x 内）；负向夹具加三例：typescript ^7.0.0、yjs ^13.6.0、y-protocols ^1.0.0。② 40/01:474 lockfile-guard 注释与 §5.7 同步。③ ADR-0046:44「待……补充为矩阵行」改为「TD-079」。④ 70/12:71 注明「含 yjs、y-protocols 精确版本与 typescript 5.9/6.x 断言（TD-079）」。不新增 TD 行。"
+   },
+   {
+    "id": "TX-16",
+    "title": "CI 语料桶环境变量命名（分诊 #166）",
+    "fixPlan": "按 60/17 CORDEX_ 惯例与 70/12 CORDEX_SUITE 先例：70/11 §10「存储」后登记 CORDEX_CORPUS_S3_ENDPOINT、CORDEX_CORPUS_BUCKET（普通变量）与 CORDEX_CORPUS_ACCESS_KEY_ID、CORDEX_CORPUS_SECRET_ACCESS_KEY（CI secrets，只读凭据；维护者本地同名变量放写凭据），其余 S3 参数取 SDK 默认；fetch-corpus.ts 缺变量报错退出、不静默跳过，fork PR 沿用 70/12 §3 规则；70/12 §3 注明需要这四个变量的步骤（test/fidelity-roundtrip、oracle 基线拉取）；分诊 #166 结案。"
+   },
+   {
+    "id": "TX-23",
+    "title": "PRD 05 未命名验收条目：以「<里程碑>#<序号>」为正式检查名并结案",
+    "fixPlan": "权威 70/13 §3.1（决策 T-REQ）。70/13:685 回写清单第 5 条划线并注明「不采纳：以 <里程碑>#<序号>（如 M0#1、M1#7）为正式检查名，PRD 05 不补名」；PRD 05 不改。"
+   }
+  ],
+  "dropped": [
+   "BE-12 / TX-17 / FE-19 IMPORT-OVERWRITE：rulings §4.19 N1 已裁决并回写（60/05:522、60/06:420 均为覆盖导入换纪元；40/08:522 已收窄为「覆盖导入/迁移窗口，版本恢复不加锁」；50 README 已无待裁项；ADR-0029 决策 5 已记修订），本轮复核属实",
+   "BE-13 / TX-18 DbModule 与应用骨架的文件级归属：已收口到 40/12 §4.13、§5.13（main.ts :698、db.module.ts :709），60/01 §3（:88、:111）已改指；残留分别由 mechanical BE-06、BE-11+TX-12 处理，本轮复核属实",
+   "BE-14 / FE-21 room.locked.reason 的来源：documents.lock_reason 列与 CHECK 约束已补（60/10:141、:163、:182），锁定用例写入，0095 已授列级 UPDATE（60/08:736），30/06 §6.3 room 帧下发 locked:{reason, until}",
+   "BE-15 / TX-19 ddl-check 未实现（#142）与 0095 列级授权依赖列名（#143）：ddl-check.sh 已入库并实跑通过（31 个迁移、29 个示例），列名变动会被迁移执行与 DB-06 同时拦下；逐字比对扩展见 gap BE-03+TX-14",
+   "BE-16 / TX-20 GET /auth/me 是否加 sessionExpiresAt（#8 #71 #85）：被动续期已闭环，50/02:557 已登记关闭，不加字段",
+   "FE-20 Mod+拖动复制的命令 id：slide.duplicateShapes{shapeIds, dx, dy} 已登记于 40/03:289 与 40/10 §2.6，50/10 §12.3 已标登记",
+   "FE-22 / TX-21 形状成墓碑时丢弃未上屏组合串（#38）：50/06 §5.5 已定义（组合串丢弃、已提交键入留在墓碑实体、恢复元素归 04 §7）"
+  ]
+ },
+ "all": [
+  {
+   "id": "BE-01",
+   "title": "WS 升级限流：认证成功后是否退还额度（先扣后退）",
+   "locations": [
+    "docs/60-backend/16-ws-protocol-server-view.md:18",
+    "docs/60-backend/16-ws-protocol-server-view.md:21",
+    "docs/60-backend/16-ws-protocol-server-view.md:79",
+    "docs/60-backend/16-ws-protocol-server-view.md:309",
+    "docs/60-backend/16-ws-protocol-server-view.md:332",
+    "docs/60-backend/15-rest-api-catalog.md:428",
+    "docs/60-backend/17-deployment-and-config.md:457",
+    "docs/60-backend/README.md:271",
+    "docs/30-architecture/06-collaboration.md:632",
+    "docs/50-frontend/07-collaboration-client.md:195",
+    "docs/10-prd/03-features/06-server-and-ops.md:225",
+    "docs/70-testing/10-security-testing.md:362",
+    "docs/70-testing/09-performance-and-capacity.md:234"
+   ],
+   "conflict": "16 §1 现写每个升级请求都扣按 IP 的额度（10 次/min），认证成功的连接也算；15 §8:428 却写「只计失败握手」，两处正文互相矛盾。代价是实打实的：50/07:195 规定 1012 后首轮立即重连，同一 NAT 出口后超过 10 人同时被驱逐时，多出来的人会收到 429（浏览器看不到状态码和 Retry-After，只表现为 1006），按 1→30 s 退避，要几分钟才能全部回来，违反 PRD SV-05「≤ 5 s 重连到其它实例」（06-server-and-ops.md:225）。「只计失败握手」也不行：不发 auth 的空连接要等 5 s 超时才计数。另有两处小问题：16 §1 与 §13 的出处写「30/08 §9.3」，但那一节现在只剩指回本线的链接，成了循环引用；16 §1 说部署「可调高」，§13 表头又说「门禁数值只收紧」（该键不属 L1–L4 门禁，字面上仍易误读）。补充发现：全线没有「每用户并发连接上限」，任何方案下一个已认证账号都能慢慢占满实例的 4000 个连接。复核补充：auth.denied 的 code 集合（30/06 §6.3:632、16 §3:79）里没有 collab.rate_limited；70/09 的 ws-capacity 场景要从单台压测机把连接逐步加到 2000，按现行「每次计数」口径，同一 IP 10 次/min 根本加不上去。",
+   "authority": "16 是 WS 限额数值的事实源（60 README §2）；PRD SV-05（≤ 5 s 重连）是验收阈值；用户偏好：安全宁可提前、协同语义不简化。rulings 未覆盖此项。",
+   "class": "decision",
+   "impact": "high",
+   "recommendation": "选「先扣后退加用户上限」：未认证的连接从升级那一刻起就计数，防护不减；NAT 后数十人的集体重连能在 5 s 内完成；用户上限兜住退还额度后被放大的已认证连接数。（复核：①退还点从 auth.ok 改为「票据验签通过」，之后被 4503 等准入规则拒绝的连接也退还，规则只剩一个退还点，也不会让已认证用户的重试消耗 IP 额度；②补上最简单的「调高默认值」选项作对照；③选 A 必须把 collab.rate_limited 登记进 auth.denied 的 code 集合（30/06 §6.3 与 protocol），原 fixPlan 漏了这一步；④「≤ 5 s」只在同一出口数十人时成立，更大的出口要靠部署调高此键，已改写；⑤70/09 ws-capacity 的单机压测在现行口径下爬不到 2000 连接，这是选 A 或 B 的又一个理由；⑥原 fixPlan 写的「70/08 DEP-05」实为 60/17 的编号，这条断言改落到 70/07 W4。）",
+   "options": [
+    {
+     "label": "先扣后退加用户上限",
+     "description": "Origin 通过后、升级前扣 1；票据验签通过即退还，之后无论是 auth.ok、只读降级，还是 4503、4404、4426、4428 这类准入拒绝都已退还；4401（票据无效、过期或重放）、4408（5 s 内没有 auth）、4427（协议不符，在票据之前判定），以及升级后未认证就断开的连接都不退。这样，桶实际只约束「未通过认证的升级」。已认证连接另有两道约束：每用户 ticket 档（120/min，票据单次有效），以及新增的每用户单实例并发连接上限 limits.ws.maxConnectionsPerUser（默认 32，超出时回 auth.denied{collab.rate_limited}，再以 4429 关闭，客户端按既有退避重连）。同一出口数十人被 1012 驱逐后约分 3 波、≤ 5 s 重连完；更大的出口由部署调高 connectPerIpPerMin。代价：多一次 Valkey Lua 退还调用和一个进程内计数。"
+    },
+    {
+     "label": "仅先扣后退",
+     "description": "同上，但不加每用户上限。单个已认证账号从一个 IP 每分钟能开的连接从 10 个升到 ticket 档的 120 个，只受实例 4000 个连接的上限约束。"
+    },
+    {
+     "label": "调高默认值",
+     "description": "不改机制，只把 connectPerIpPerMin 默认值调到 60（突发 60）。不用写代码，但未认证空连接的上限也放大到 6 倍；同一出口超过 60 人时恢复仍是分钟级，一样要在 PRD 登记例外；与「安全宁可提前」相悖。"
+    },
+    {
+     "label": "维持每次计数",
+     "description": "保持现状，部署可调高 limits.ws.connectPerIpPerMin。同一出口 IP 后超过 10 人被 1012 驱逐时，部分人要分钟级才能恢复，与 SV-05 冲突，需要在 PRD 登记例外；70/09 ws-capacity 需要单独放宽此键。15 §8:428 改为与 16 一致。"
+    }
+   ],
+   "fixPlan": "（按 A）1) 16 §1 表第 3 行与下方第一条改写为先扣后退：写明扣点（Origin 通过后、升级前）、退点（票据验签通过）和不退的情形（4401、4408、4427、升级后未认证就断开）；注明浏览器只能看到 1006，客户端按 50/07 常规退避；删去「待确认（总编排）」；出处改为「原 30/08 §9.3，现以本文为准」。第 22 行的 IP 口径按 BE-04 改。2) 16 §3 auth.denied 行（:79）与 30/06 §6.3（:632）的 code 集合加 collab.rate_limited（→ 4429），@cordexjs/protocol 的 ws/handshake 同步；16 §10 的 4429 行触发条件加「握手期每用户单实例连接数超限」；16 §12 准入判定顺序在票据之后加这一步。3) 16 §13：connectPerIpPerMin 行的作用点改为「升级前扣，票据验签通过退」，并注明此键不属 L1–L4 门禁、可以调高；新增 limits.ws.maxConnectionsPerUser 一行（32，握手期，超限 4429）。4) 16 §15 断言改为：同一 IP 并发 11 个未认证升级，第 11 个得 429；同一 IP 30 个连接依次认证成功，都不得 429；持有效票据但被 4503 拒绝的连接不消耗 IP 额度；同一用户在单实例上的第 33 个连接得 auth.denied{collab.rate_limited} 并以 4429 关闭。5) 15 §8:428 改为「每 IP 10 次/min，净计未通过认证的升级（先扣后退，见 16 §1）」。6) 17 §5.8 的 limits.ws 行加 maxConnectionsPerUser（环境变量 CORDEX_LIMITS_WS_MAX_CONNECTIONS_PER_USER），CFG-01 快照同步。7) 60 README §8.1 这一行移入已裁定表；§9 记一条变更。8) 70/10 SEC-RL-03 补正反两例；70/02 关闭码契约为 4429 补一条握手期触发用例；70/07 W4（优雅停机）加「同一出口 IP 30 个连接在 1012 后 ≤ 5 s 全部重连」；70/09 ws-capacity 注明按先扣后退爬升，不需要放宽此键。"
+  },
+  {
+   "id": "BE-02",
+   "title": "REST 限流档默认值评审（ticket / search / job / public / upload 与 256 KiB 请求体）",
+   "locations": [
+    "docs/60-backend/15-rest-api-catalog.md:403",
+    "docs/60-backend/15-rest-api-catalog.md:407",
+    "docs/60-backend/15-rest-api-catalog.md:408",
+    "docs/60-backend/15-rest-api-catalog.md:414",
+    "docs/60-backend/15-rest-api-catalog.md:421",
+    "docs/60-backend/15-rest-api-catalog.md:458",
+    "docs/60-backend/17-deployment-and-config.md:465",
+    "docs/60-backend/17-deployment-and-config.md:467",
+    "docs/60-backend/README.md:305",
+    "docs/50-frontend/05-rendering-and-thumbnails.md:394",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:406"
+   ],
+   "conflict": "评审前提：17:465 规定 REST 各档「只可收紧」，所以默认值就是部署能用的上限，偏紧的默认值部署侧改不了。逐档结论如下。ticket 120/30 合理（每次连接一张单次票据，外加被动续期）。search 30/10 合理（客户端 ≥ 2 字符、去抖 200 ms）。job 60/10 合理。默认请求体 256 KiB 合理：最大的 JSON 体是 elements/purge ≤ 1000 个 id，约 40 KiB，而且比 Fastify 默认的 1 MiB 更紧。有两处有问题。一是 upload 10/min、突发 5 同时管着媒体 presign 和 commit，每张图 2 次调用：插 20 张图要约 3.5 min，其他端 60 s 后会把这些图显示为 media-unavailable（commit 之后可恢复）；50/05:394 说「队列一次只跑一个上传，避免撞上限流档」，但串行并不能减少每分钟的调用次数，这个理由不成立。upload 10/min 原出自已删除的 30/08 §9.3，现在由 15 §8 独家管辖，可以调整。二是 public 60/min、突发 20 按来源 IP 计：单组织部署的用户大多共用办公出口 IP，登录一次要 3 次调用（config、login、callback），50/02:406 的离线探测在「疑似离线」时每 30 s 请求一次 /auth/config，百人办公网在登录高峰或 API 恢复后就会撞 429，而部署又无法放宽。15 §9:458 另有一份与 README §8.4 重复的「待复核」清单。",
+   "authority": "15 §8 是限流档的唯一源（60 README §2），17 §5.8 规定只可收紧。rulings 未覆盖。用户偏好：安全宁可提前，但不要过度设计。",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "推荐默认：upload 改为 60/min、突发 20（插 20 张图约 20 s 传完）；public 改为 300/min、突发 100（每个 IP 10 min 内最多约 3000 个 oidc:state 键，内存可忽略）；ticket 120/30、search 30/10、job 60/10 与默认请求体 256 KiB 维持并定稿。不增加档位，也不增加配置键。（复核：由 decision 改为 gap。这只是两个数值默认值的评审，安全面几乎不变：public 仍限制未认证的 oidc:state 写入，upload 仍受存储配额约束；原来的另外两个选项只是陪衬，一次确认即可。fixPlan 删去「70/07 限流快照同步」，因为 70/07:483 写明该表由 15 §8 生成、SEC-RL 读配置，不需要手改；另把 15 §9:458 那份重复的待复核清单一起收口。）",
+   "options": [],
+   "fixPlan": "1) 15 §8 表中 upload、public 两行改值；default 行的出处改为「原 30/08 §9.3，现以本表为准」（那一节已改为指回本表，现在是循环引用）；public、csp 两行的「主体」列按 BE-04 改写。2) 17:467 各档默认值那一句同步，CFG-01 快照同步。3) README §8.4 的限流档一行，连同 15 §9:458 里的同名待复核项，一起移入 §8.2「已按权威定稿」，注明 ticket、search、job、256 KiB 经评审维持。4) 50/05 §8.3 第 3 步删去「避免撞上 upload 限流档」这一误导理由，改为「429 按 Retry-After 等待（第 4 步）」（跨线回写，只改一句）。5) 70/07:483 与 70/10 SEC-RL 由 15 §8 和配置生成，无需手改。"
+  },
+  {
+   "id": "BE-03",
+   "title": "迁移 SQL 文件与文档逐字一致：何时工具化、挂在哪个门禁",
+   "locations": [
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:542",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:591",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:917",
+    "docs/_tools/ddl-check.sh:5",
+    "docs/_tools/ddl-check.sh:35",
+    "docs/_tools/ddl-check.sh:81",
+    "docs/70-testing/12-ci-gates-mapping.md:259",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:964",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1097",
+    "docs/60-backend/README.md:238"
+   ],
+   "conflict": "08 §10.1 已经规定迁移文件要与文档逐字一致，但 §11 第 6 条和 DB-13 仍标「待实现」（实现期扩展）。另有两个实际缺口。一是文件名分隔符不一致：ddl-check.sh:81 抽取出的文件名是 NNNN-<name>.sql（连字符），08 §10.1 要求 NNNN_<name>.sql（下划线），照现状扩展会直接比对失败。二是 70/12:259 写明 docs/_tools 不属于 13 个 CI job，即便扩展了 ddl-check 也拦不住 PR，而「挂到哪个 CI 步骤」目前没有登记。当前围栏 31 个，与 40/12:964 的登记一致（已核对）。M0 仓库里还没有 apps/server/src/db/migrations 目录。",
+   "authority": "08 §10.1、§11 第 6 条是需求本体（已定「实现期扩展」）；60 README §5 规定新检查只能落在既有 job 的步骤或 docs/_tools 脚本，不新增 job 和扫描器；70/12 §2、§7 是 CI 步骤总表与激活时间线。用户偏好：重视可机械验证、不要过度设计。",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "推荐默认：现在只做两件事，一是把 ddl-check 的文件名分隔符从 NNNN- 改为 NNNN_（纯 bug），二是在 70/12 §7 激活表登记「M2 建 db/migrations 的同一个 PR 中，scanners/check-migrations-sync 直接 gated」；比对（--migrations）、从围栏生成（--write-migrations）和只比对不起容器（--sync-only）三项随那个 PR 一起落地。（复核：由 decision 改为 gap。08 §11 第 6 条已经定了「实现期扩展」；M0 没有迁移目录，现在写比对逻辑既没有比对对象，也拦不住任何 PR，原选项 A 与 B 的实际差别只是脚本早写几个月。真正的缺口是 CI 步骤没登记：按 60 README §5 只能落在既有 job 的步骤上，scanners 是唯一合适的无 PG job，现在登记即可。另外，CI 步骤调用 docs/_tools 脚本需要一个跳过 Docker 的开关，原 fixPlan 只写了「放在起容器之前」，没写怎样只跑这一步。）",
+   "options": [],
+   "fixPlan": "1) 现在：ddl-check.sh 第 5、35、81 行的 NNNN- 改为 NNNN_（与 08 §10.1 一致）。2) 现在：70/12 §7 激活表登记 M2（db/migrations 建立的同一个 PR）scanners/check-migrations-sync 直接 gated；08 §11 第 6 条、§13 DB-13、README §7 该行、40/12:964 与 :1097 的「待实现」改为「M2 建目录的同一 PR 实现，由 scanners 步骤 gated」。3) M2 同一 PR：ddl-check.sh 新增 --migrations <dir>（核对文件集合、文件名与字节，失败时输出「文件 + 编号 + 首个差异行」）、--write-migrations <dir>（从围栏生成文件）、--sync-only（只抽取和比对，不起容器）；scanners 步骤调用 --migrations apps/server/src/db/migrations --sync-only；tooling/ci/steps.json 与 40/01 §5.7 的治理检查清单同步登记（policy-check 会核对两者一致）；_tools/README 登记新参数。"
+  },
+  {
+   "id": "BE-04",
+   "title": "限流与审计用的客户端 IP：15 §8「取 X-Forwarded-For 首跳」与 trustProxy 跳数语义矛盾（可被伪造）",
+   "locations": [
+    "docs/60-backend/15-rest-api-catalog.md:414",
+    "docs/60-backend/01-service-overview-and-roles.md:501",
+    "docs/60-backend/16-ws-protocol-server-view.md:22",
+    "docs/60-backend/17-deployment-and-config.md:342",
+    "docs/60-backend/17-deployment-and-config.md:156",
+    "docs/60-backend/17-deployment-and-config.md:199",
+    "docs/70-testing/10-security-testing.md:362"
+   ],
+   "conflict": "四处写法各不相同。15 §8 写「取 XFF 首跳（最左）」；17:342 的 http.trustProxy 是可信反代跳数（默认 1，即取 web 容器写入的最右一跳）；01:501 写「只信任 web 容器所在网段」，是网段语义；16:22 写「可信代理列表见 17」，但 17 里并没有列表。17 §3.1 的 proxy.conf 也没写 nginx 如何设置 XFF，只在 upstream 模式下一句「信任一跳 X-Forwarded-*」，没有给出 realip 配置。如果 nginx 追加 XFF 而服务端取最左一跳，攻击者每次请求伪造一个不同的首跳，就能绕过 public、csp、ws-connect 三个按 IP 计的限流，还会污染审计的 ip_hash。另外，在 upstream（前置 LB）模式下没配 realip 时，$remote_addr 是 LB 的地址：全部用户会落进同一个 IP 桶，Casdoor 管理路径的来源 IP 白名单也会失效。",
+   "authority": "配置 schema 归 17（60 README §2），所以以 http.trustProxy 的跳数语义为准；Fastify trustProxy 取整数时自右向左信任 n 跳；用户偏好：安全宁可提前。",
+   "class": "mechanical",
+   "impact": "high",
+   "recommendation": "以 17 为准，统一为「按 http.trustProxy 跳数自右向左取客户端 IP」；nginx 用 $remote_addr 覆盖 XFF 而不是追加，这样 http.trustProxy 恒为 1，也不给伪造留余地。（复核：WS 升级走 ws 库的原始 IncomingMessage，拿不到 Fastify 的 request.ip，所以 16 §1 不能只写「取 request.ip」，要写「与 request.ip 同算法（proxy-addr，同一个 http.trustProxy），HTTP 与 WS 升级共用一个 clientIp() 函数」；upstream 模式下新配置 CORDEX_WEB_TRUSTED_LB_CIDRS 为空时，web 容器应拒绝启动（fail-fast）；原 fixPlan 的 DEP-03 是 60/17 的编号，在 70/08 §4 执行。其余已逐处核实。）",
+   "options": [],
+   "fixPlan": "1) 15 §8 public、csp 两行的主体改为「来源 IP = clientIp()（按 http.trustProxy 跳数自右向左取，默认 1，与 Fastify request.ip 同算法），不读 XFF 首跳；HMAC 规则不变」。2) 01 §10 第 3 步改为「trustProxy = http.trustProxy（可信跳数）」，删去网段表述；在 common/ 登记共用的 clientIp()。3) 16 §1 第 22 行改为「IP 取 clientIp(升级请求)，与 REST 同算法、同配置，口径同 15 §8」。4) 17 §3.1 补 proxy.conf 要点：proxy_set_header X-Forwarded-For $remote_addr（覆盖，不追加）；CORDEX_WEB_TLS_MODE=upstream 时先用 realip 信任 LB 网段的一跳（set_real_ip_from 取新配置 CORDEX_WEB_TRUSTED_LB_CIDRS，该值为空则拒绝启动），使 $remote_addr、XFF、Casdoor 白名单三者一致；17:342 注明 compose 拓扑下固定为 1。5) 70/10 SEC-RL 补一例：伪造 XFF 首跳不改变限流主体和审计 ip_hash（REST 与 WS 升级各一）；60/17 DEP-03（在 70/08 §4 执行）补 upstream 模式下的同一断言。"
+  },
+  {
+   "id": "BE-05",
+   "title": "唯一 owner 被擦除或停用后，其文档在 M3 到 M4 之间无人可管，分享链接也无人能撤",
+   "locations": [
+    "docs/60-backend/03-modules-identity-and-access.md:113",
+    "docs/60-backend/02-auth-chain.md:338",
+    "docs/60-backend/09-ddl-identity-and-access.md:470",
+    "docs/60-backend/15-rest-api-catalog.md:120",
+    "docs/60-backend/15-rest-api-catalog.md:121",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1231"
+   ],
+   "conflict": "分诊 #86 把此项延后到 M4 SV-14 管理面板，依据是 PRD SV-11 规定擦除只替换主体标识、不删文档。核实后还有一个安全缺口：分享链接是否有效只看是否撤销、是否过期（02 §7.3），不看创建者状态；撤销链接要求调用者是该文档的 owner（09:470，任一 owner 都行）。所以当被擦除的人是唯一 owner 时，他建的有效链接在 M3 首个对外版本到 M4 之间无人能撤，文档也无人能授权或永久删除。擦除由管理员通过 POST /users/:id/erasure 发起（15:121，M3 P1）。M3 的停用（PATCH /users/:id → suspended，15:120）会造成同样的空窗，而且离职员工被停用比被擦除更常见。",
+   "authority": "PRD SV-11 的擦除语义与 M4 SV-14 的管理面板里程碑；rulings 未覆盖空窗期；用户偏好：安全宁可提前、不要过度设计。",
+   "class": "decision",
+   "impact": "medium",
+   "recommendation": "选「M3加运维转移命令」：复用正在登记的 cordex-ops 入口（BE-06），加一个子命令即可；它同时解决「无人可管」和「无法撤链接」两个问题，M4 管理面板直接复用同一个用例。（复核：原 locations 里的 15:27 实为「分享令牌」行，擦除路由在 15:121；09:470 的撤销权限是「文档任一 owner」，不是「owner 本人」，问题只在唯一 owner 时出现；同一空窗也覆盖 M3 的停用，A 的命令同样适用，擦除与停用的响应都附唯一 owner 文档数。其余选项核实无误；「擦除前若是唯一 owner 就拒绝」对已离职、无法配合转移的用户行不通，不列为选项。）",
+   "options": [
+    {
+     "label": "M3加运维转移命令",
+     "description": "cordex-ops documents:reassign-owner --doc <id> --to <userId>：以系统上下文调用 PermissionsModule 导出的用例，写入 owner 授权并把 perm_version 加 1（在线会话随之重算），审计记 admin.owner_reassigned。擦除响应、停用响应以及 user.erased、user.suspended 审计都附上「唯一 owner 文档数」，提醒管理员处理。"
+    },
+    {
+     "label": "擦除时撤销其链接",
+     "description": "擦除事务同时撤销该用户创建的全部未撤销链接，堵住安全缺口；文档仍然无人可管，要等 M4。需要从 UsersModule 跨模块写入，会破坏「叶子模块」规则 I2；停用场景仍不覆盖。"
+    },
+    {
+     "label": "维持M4处理",
+     "description": "保持现状。M3 到 M4 之间孤儿文档无人可管，其有效链接无人能撤，只能直接操作数据库。"
+    }
+   ],
+   "fixPlan": "（按 A）1) 03 §3.3 第 6 条改写：空窗期用 ops 命令处理；擦除响应增加 soleOwnerDocCount 字段；AdminUpdateUser 停用分支同样返回该字段（15 §3.2 的 erasure 与 PATCH /users/:id 两行同步）。2) 03 的 PermissionsModule 卡新增 ReassignOwnerUseCase（系统上下文、写审计、递增 perm_version）。3) 40/12 Q-10 与 60/17 §9 的子命令表加 documents:reassign-owner。4) 07 审计登记表加 admin.owner_reassigned。5) 70/07 加用例：擦除或停用唯一 owner 后执行转移，新 owner 能撤销原链接，在线会话 ≤ 1 s 重算。"
+  },
+  {
+   "id": "BE-06",
+   "title": "cordex-ops 第二入口与各子命令的文件级落点未登记（40/12 Q-10）",
+   "locations": [
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:694",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1231",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:549",
+    "docs/60-backend/17-deployment-and-config.md:689"
+   ],
+   "conflict": "60/17 §9 定义了 cordex-ops 的 db:*、storage:init、audit-rotate、audit-verify、jobs:replay、webhooks:replay、thumbnails:rebuild、config:check 等子命令，但 40 只登记了 db:* 三个子命令的实现 db/migrator.ts；入口文件和其余子命令没有文件级归属。M2 的 migrate 一次性服务就要用到这个入口。",
+   "authority": "40-modules 管文件级登记；40/12 Q-10 已给推荐；60/17 §9 管命令语义。",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "采纳 Q-10 的推荐：入口放在 apps/server/src/ops/cli.ts，与 main.ts 同级、共用 config/ 解析；每个子命令只调用所属模块导出的用例，不直接写表；在 M2 migrate 服务落地前登记完毕。（复核：由 gap 改为 mechanical。Q-10 已有推荐，只涉及文件级登记（40 线的职权），没有取舍，不必让用户确认；补上 config:check → config/（M-12）这一对照，原 fixPlan 漏了。）",
+   "options": [],
+   "fixPlan": "1) 40/12 §4.13 目录树加 ops/cli.ts，并附「子命令 → 所属模块用例」对照：storage:init → M-08 StorageModule，audit-* → AuditModule，jobs:replay → JobsModule，webhooks:replay → WebhooksModule，thumbnails:rebuild → ThumbnailsModule，config:check → config/（M-12），db:* → db/migrator.ts；如 BE-05 选 A，另加 documents:reassign-owner → PermissionsModule。2) §5.13 文件表加一行；§13 Q-10 结案。3) 60/08:549 删去「待登记」，改指 40/12 §4.13。4) depcruise 规则：ops/** 只能 import 各模块的公开导出。"
+  },
+  {
+   "id": "BE-07",
+   "title": "ADR-0037 决策 5 最低主机规格与溢写阈值（待 runner 压测）",
+   "locations": [
+    "docs/30-architecture/adr/0037-deployment-topology-and-packaging.md:64",
+    "docs/60-backend/17-deployment-and-config.md:723",
+    "docs/60-backend/17-deployment-and-config.md:480",
+    "docs/60-backend/01-service-overview-and-roles.md:595",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:383",
+    "docs/70-testing/09-performance-and-capacity.md:420",
+    "docs/60-backend/README.md:297"
+   ],
+   "conflict": "溢写阈值已有默认值（S21：16 MiB / 256 MiB / 4 MiB），70/09:420 也登记了 spill-calibration 场景：在 M2 前落地的自托管 runner 上校准，只收紧，登记完整。主机规格则不同：17 §11 和 ADR-0037 的表都写「待实测」，但 70 线没有任何场景或产物负责产出这些数字（全文检索无相关登记），到时无人取数；ADR 表和 17 §11 表还是重复的两份。（分诊 #140 并入本项。）",
+   "authority": "ADR-0037 决策 5（M3 前实测填入）；rulings §4.19 D-TEST-INFRA（自托管 runner 在 M2 前落地）；决策 SPILL（只收紧）。",
+   "class": "defer",
+   "impact": "medium",
+   "recommendation": "数值维持延后，等压测再定；现在只补一处登记：主机规格的测量场景。溢写阈值：runner 落地、单实例两级溢写实现后跑 spill-calibration，由后端设计线回填 17 §5.10 与 01 S21。主机规格：M3 出口前 ops:compose 全绿后，在 perf-selfhosted runner 上以 RM-S 负载取数，由测试设计线跑场景，后端设计线回填 17 §11。（复核：ADR-0037 是已接受的 ADR，把它的表改成链接须按修订惯例标注日期与依据（rulings §4.19：三线各为该侧唯一事实源）；ADR 与 17 §11 写的是「M3 前实测」，但 renderer 和 worker 在 M3 才有，应理解为「M3 出口前」，并在 17 §11 写明，避免被误读成 M3 开工前。延后本身合理，数值确实要等实测。）",
+   "options": [],
+   "fixPlan": "1) 70/09（或 70/08 full-compose 的 nightly 段）新增 host-footprint 场景：默认 profile 与加 idp 两档，在 RM-S 负载下用 docker stats 记录每个容器的峰值内存和 CPU，产物为 host-footprint.json；17 §11 注明「取数：host-footprint，合计 × 1.3；时点：M3 出口前」。2) ADR-0037 决策 5 的表改为只保留口径，数值链接到 60/17 §11，并按修订惯例标注「2026-09-25 修订（rulings §4.19）」，避免两处表格漂移（由架构线执行）。3) 溢写阈值无需改动。"
+  },
+  {
+   "id": "BE-08",
+   "title": "RendererPool 容量与 renderer 副本数（分诊 #119）",
+   "locations": [
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:653",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:535",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:815"
+   ],
+   "conflict": "池容量 = headless.poolSize × 副本数，文档写「worker 按 headless.endpoint 背后实际可用的副本计」，但单个 endpoint 无法告诉 worker 背后有几个副本；多个 worker 又各自按全量容量计算，会超额下发。超额部分由 renderer 对第 3 个请求直接返回 503 headless.renderer_busy（可重试）兜住，只影响效率，不影响正确性。M3 的 compose 拓扑是 1 个 worker 加 1 个 renderer，多副本要到 M4 Helm 才有。",
+   "authority": "60/06 §10.5（池）、§9.1（renderer 并发与 503）；17 §5 管配置键。",
+   "class": "gap",
+   "impact": "low",
+   "recommendation": "推荐默认：池容量 = headless.poolSize（按 1 个 renderer 副本计），删去「按 endpoint 背后实际可用副本计」这句无法实现的表述；多 worker 或多副本时的超额下发和容量闲置，由 renderer 的 503 headless.renderer_busy 加 Retry-After 兜底；到 M4 Helm 横向扩容、确实需要按副本放大并发时，再在 17 §5 加显式容量键。（复核：由 defer 改为 gap。M3 的 compose 拓扑就是 1 个 worker 加 1 个 renderer，没有要等的实现数据，现在就能定；推迟只会让一句无法实现的文字一直留到实现期。）",
+   "options": [],
+   "fixPlan": "1) 60/06 §10.5 池一句改为「容量 = headless.poolSize（按 1 个 renderer 副本计）；多 worker 或多副本时的超额下发由 renderer 的 503 headless.renderer_busy 加 Retry-After 兜底（§9.1），按副本放大并发的显式键在 M4 Helm 横向扩容时再加」。2) 60/06 §14 配置键那一行删去「池容量按实际副本数计」。"
+  },
+  {
+   "id": "BE-09",
+   "title": "写入帧的 error 与 db ack 的相对顺序（分诊 #24）",
+   "locations": [
+    "docs/60-backend/16-ws-protocol-server-view.md:167",
+    "docs/50-frontend/07-collaboration-client.md:225"
+   ],
+   "conflict": "服务端不保证 error 与批量提交后的 db ack 谁先到。客户端一收到 error 就冻结在途 FIFO，未确认的全部按被拒处理（宁多勿少），语义已经闭环；让服务端改为逐帧对应只是优化。核实：同一连接上，被拒帧 B 的 error 总是先于 B 之后到达的帧的 ack 发出，只有 B 之前的帧的 ack 可能落在 error 之后，被保守地多算进 rejected，导出时幂等合并，不丢工作。",
+   "authority": "16 §5 管服务端发 ack 的规则；50/07 §6 管客户端 FIFO；用户偏好：协同语义不简化。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "维持「冻结 FIFO、宁多勿少」，已收口。（复核：由 defer 改为 resolved。16 §5 第 7 条与 50/07 §6 的表互相引用，语义闭环，协同语义没有因此简化；「服务端保证 error 与 ack 按到达顺序发出」只是可选优化，M2 实现时如果要做，走正常设计变更即可，不必作为遗留项跟踪。）",
+   "options": [],
+   "fixPlan": "无需改动。"
+  },
+  {
+   "id": "BE-10",
+   "title": "U-07 版本恢复可撤销：联合 ADR 尚未立项（跨线，可能与前端簇重复）",
+   "locations": [
+    "docs/00-charter/rulings-2026-09-14.md:247",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:612",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:617",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:618",
+    "docs/60-backend/README.md:296",
+    "docs/50-frontend/08-comments-and-version-history.md:233"
+   ],
+   "conflict": "rulings U-07 要求由 M-02 × M-05 × M-09 联合出 ADR，M3 前定稿；目前各处都只有占位。后端已经预留了接口（RestoreResult 的 preRestoreSnapshotId、seqRange，以及恢复前 auto 快照、恢复 update、restore 快照组成的可追溯链），不阻塞 M2。版本恢复在 M3，协同后端已提前到 M2。",
+   "authority": "rulings §4.12 U-07（两个简化方案已被否决，必须专项设计）；用户偏好：协同与撤销语义不简化。",
+   "class": "defer",
+   "impact": "medium",
+   "recommendation": "维持占位，不简化语义。触发条件：M2 开工时立项，M2 出口评审前定稿（即 rulings 所说的「M3 前」），未定稿则 M3 的版本恢复不开工。负责方：架构线牵头，M-02 × M-05 × M-09 联合；ADR 定稿后由后端回填 60/05 §11 与 15 §3.8 的字段。（复核：触发条件改了。原写「最迟 M2 出口评审时立项」，与 rulings U-07「M3 前定稿」冲突：立项的同时就要定稿，不留设计时间；撤销语义不能简化，所以只能提前立项，不能压缩设计时间。占位在 60/05 §11（612–618 行），不是 §10。）",
+   "options": [],
+   "fixPlan": "在 60 README §8.3 U-07 行与 PRD 05 的 M2 出口检查项写明「U-07 version-restore-undo ADR：M2 开工立项、M2 出口前定稿（即 rulings 所说的『M3 前』），未定稿则 M3 版本恢复不开工」；其余等 ADR 定稿后由后端回填 60/05 §11 与 15 §3.8。"
+  },
+  {
+   "id": "BE-11",
+   "title": "历史引用与登记台账收口（30/08 已删节号、重复编号、过期依赖行、README §8.4）",
+   "locations": [
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:525",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:858",
+    "docs/60-backend/10-ddl-documents-marks-media.md:127",
+    "docs/60-backend/11-ddl-collab-updates-and-snapshots.md:54",
+    "docs/60-backend/11-ddl-collab-updates-and-snapshots.md:245",
+    "docs/60-backend/11-ddl-collab-updates-and-snapshots.md:321",
+    "docs/60-backend/11-ddl-collab-updates-and-snapshots.md:374",
+    "docs/60-backend/12-ddl-jobs-and-thumbnails.md:494",
+    "docs/60-backend/17-deployment-and-config.md:615",
+    "docs/60-backend/18-observability-and-ops-endpoints.md:359",
+    "docs/60-backend/03-modules-identity-and-access.md:2",
+    "docs/60-backend/15-rest-api-catalog.md:2",
+    "docs/60-backend/15-rest-api-catalog.md:407",
+    "docs/60-backend/15-rest-api-catalog.md:458",
+    "docs/40-modules/19-atlas-backend-and-data.md:21",
+    "docs/40-modules/19-atlas-backend-and-data.md:118",
+    "docs/40-modules/19-atlas-backend-and-data.md:381",
+    "docs/40-modules/19-atlas-backend-and-data.md:886",
+    "docs/40-modules/19-atlas-backend-and-data.md:1247",
+    "docs/40-modules/19-atlas-backend-and-data.md:1285",
+    "docs/40-modules/08-server-identity-documents-and-storage.md:727",
+    "docs/60-backend/README.md:300"
+   ],
+   "conflict": "30/08 §2（目录树）、§3.3、§4.1、§5 的 SQL 草案及其各小节、§9.3 的正文都已删除，只留指回 40 或 60 的链接，但仍有多处「依据」指向这些已删内容。60/06:525 还写「40/09 §4.5 需补登记 content-hash.ts」，实际已在 40/09:726、883 登记。60/06 §14 有两行都编号为 18（857、858）。40/08:727 的 documents.module.ts 行仍写依赖 AuthModule，与同文 §3（390）的「不再 import AuthModule，补 JobsModule、StorageModule」矛盾。README §8.4 除限流档外的 6 行已逐项核实落实（30/10:256 已登记 http 三码；40/08:390、434 的 imports 边；02:183 Session* 路由跳过 exp；17 §3.5 探针 404；01:252 退出码 78/70 与 A10、A11），但仍挂在「待复核」表里；15 §9:458 另有一份内容重复的待复核清单。复核补充：原清单不全，全文检索还有十余处——§3.3（40/19:1247、1285）、§4.1（40/19:118、381）、§5 已删小节（「写路径关键约束」「恢复顺序」「约定段」「Webhook 表」「媒体段」「documents 注释」「数据模型 ②③」：60/11:54、321、374，60/12:494，60/10:127，40/19:558、646、689、730、766、814、1119、1391、1471、1580、1603、1670），40/19:21 的「完整字段以 30/08 §5 为准」（应为 60/09–13），以及 60/09:2、60/11:2、60/12:3、60/17:2、60/18:2 状态行里的 30/08 §2、§5 依赖。（DB 笔记中「需另行分派」的各处都在本项。）",
+   "authority": "rulings §4.19（三线各为该侧唯一事实源，重复段落改为引用）；40/12 §4.6、§4.10、§4.13 与 40/09 §4.5 是现行的文件级落点；60/08 §3 是分区的唯一源；60/08–13 是表结构的唯一源。",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "按规则一次清理并用 grep 验收，纯登记修正，不改任何语义：有现行位置的改指现行位置；内容已迁入本文、原节只是出处的，写成「原 30/08 §x（已删），以本文为准」。（复核：原清单只列了 18 处，漏了 §3.3、§4.1、§5 各已删小节和多个状态行，按单条列举容易再漏；改为规则加 grep 验收，符合「可机械验证」偏好。变更记录行，以及「原在 30/08 §2」一类历史说明行（40/12:11、690、1103、1154、1157，40/00:1373，40/08:766、1077，60 README:189、191、318）保留不动。60/12:500 的差异表属于历史说明，只把「总编排回写」改为「已回写」。）",
+   "options": [],
+   "fixPlan": "1) 60/06:525 改为「computePageHashes 已登记于 40/09 §4.5 infrastructure/thumbnails/content-hash.ts」，删去「见文末未决」。2) 60/06 §14 第二个 18 改为 19。3) 按规则改指：30/08 §2 目录树 → 40/08、40/09、40/12 §4 对应目录（main.ts、config 类 → 40/12 §4.13、§4.10；health → 40/12 §4.6）；§3.3 → 40/09 §4；§4.1 → 30/08 §4 或 60/01 §9–§10；§5 的分区 → 60/08 §3，写路径与恢复顺序 → 60/11，媒体段与 documents 注释 → 60/10，Webhook 表 → 60/13，「完整字段」→ 60/09–13；§9.3 → 60/15 §8 或 60/16 §13（与 BE-01、BE-02 一并改）。4) 状态行的依赖删去 30/08 §2、§5：60/03:2、60/09:2、60/11:2、60/12:3、60/15:2、60/17:2、60/18:2。5) 40/08:727 的依赖列改为「PermissionsModule、JobsModule、StorageModule」。6) 60 README §8.4 这 6 行迁入 §8.2（或标「已复核」后删除），限流档一行按 BE-02 处理；15 §9:458 的重复清单同步删去已收口项；§9 记一条变更。7) 验收：grep -rnE '30(/|-architecture/)08[^|；]*§ ?(2|3\\.3|4\\.1|9\\.3)([^0-9.]|$)' docs/40-modules docs/50-frontend docs/60-backend docs/70-testing 只剩变更记录和历史说明行；§5 已删小节名（写路径关键约束、恢复顺序、约定段、Webhook 表、媒体段、documents 注释、数据模型 ②③）零命中。"
+  },
+  {
+   "id": "BE-12",
+   "title": "IMPORT-OVERWRITE（覆盖导入换纪元，恢复不锁）",
+   "locations": [
+    "docs/00-charter/rulings-2026-09-14.md:409",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:420",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:527",
+    "docs/40-modules/08-server-identity-documents-and-storage.md:522",
+    "docs/30-architecture/adr/0029-gateway-authorization.md:19",
+    "docs/50-frontend/README.md:239"
+   ],
+   "conflict": "原记录称 60/05 §9.2 与 60/06 §6.5 互相矛盾。核实结果：§4.19 N1 已裁决，两处现在都写「覆盖导入 = 换纪元」；40/08:522 已改为「覆盖导入/迁移窗口，版本恢复不加锁」；50 README 已不再把它列为待裁决（§8.3 只剩另外三项）；ADR-0029 决策 5 已记修订；全文检索「导入/恢复/迁移」只剩 ADR-0029 修订说明里的「原：」引文。",
+   "authority": "rulings §4.19 N1-IMPORT-OVERWRITE-RESTORE-LOCK。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口，无需动作。（复核：属实。）",
+   "options": [],
+   "fixPlan": "无需改动。"
+  },
+  {
+   "id": "BE-13",
+   "title": "DbModule 等基础模块与 main.ts、db/migrations 的文件级归属",
+   "locations": [
+    "docs/60-backend/01-service-overview-and-roles.md:88",
+    "docs/60-backend/01-service-overview-and-roles.md:111",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:688",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:543"
+   ],
+   "conflict": "核实结果：60/01 §3 中 Observability、Db、Redis 三个基础模块的「文件级」列已改指 40/12 §4.13；main.ts、app.module.ts、db/（含 migrations/*.sql）已在 40/12 §4.13、§5.13 登记（:698 为 main.ts）。剩余的 cordex-ops 入口见 BE-06，其余历史引用见 BE-11。",
+   "authority": "40/12 §4.13（2026-09-25 审稿登记）。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。（复核：属实。）",
+   "options": [],
+   "fixPlan": "无需改动（残项分别在 BE-06、BE-11）。"
+  },
+  {
+   "id": "BE-14",
+   "title": "room.locked.reason 的来源（documents.lock_reason）",
+   "locations": [
+    "docs/60-backend/10-ddl-documents-marks-media.md:141",
+    "docs/60-backend/10-ddl-documents-marks-media.md:163",
+    "docs/60-backend/10-ddl-documents-marks-media.md:182",
+    "docs/60-backend/04-modules-documents-storage-media.md:78",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:736"
+   ],
+   "conflict": "N1 笔记提出：中途加入的会话拿不到锁定原因。核实结果：documents 表已加 lock_reason 列，CHECK 约束它与 status=locked、locked_until 同进同出，取值只有 import、migration；锁定用例负责写入；0095 已授予 cordex_system 列级 UPDATE 权限（08:736）；列注释写明供 collab 在会话加入和 lockChanged 重读时填充 room.locked。",
+   "authority": "rulings §4.19 N1（补缺）。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。（复核：属实。）",
+   "options": [],
+   "fixPlan": "无需改动。"
+  },
+  {
+   "id": "BE-15",
+   "title": "ddl-check 未实现（#142）与 0095 列级授权依赖 09–13 列名（#143）",
+   "locations": [
+    "docs/_tools/ddl-check.sh:1",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:585",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:905",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:910"
+   ],
+   "conflict": "核实结果：ddl-check.sh 已随 8b2e610 入库，08 §11 注明「2026-09-25 起可用」，§12 记录 31 个迁移一次通过。0095 编号排在 09–13 的全部迁移（含 0090–0094）之后，ddl-check 按编号执行（DB-01），列名一旦改动 GRANT 就会报错；GRANT 快照（DB-06）也会同时报错。这两项都已由机械检查覆盖。",
+   "authority": "08 §11、§13 DB-01、DB-06。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。逐字比对这一扩展见 BE-03。（复核：属实。）",
+   "options": [],
+   "fixPlan": "无需改动。"
+  },
+  {
+   "id": "BE-16",
+   "title": "GET /auth/me 是否增加 sessionExpiresAt（#8 #71 #85）",
+   "locations": [
+    "docs/50-frontend/02-app-shell-routing-and-session.md:161",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:557",
+    "docs/60-backend/02-auth-chain.md:183"
+   ],
+   "conflict": "核实结果：被动续期（401 server.auth.expired → refresh → 重放一次）已经闭环，50/02:557 已登记「会话到期字段：已关闭、不需要」；协同的 auth.refresh 随被动续期触发。",
+   "authority": "50/02 §5（被动续期）；60/02 §4.2–§4.3。",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "不加字段，已收口。（复核：属实。）",
+   "options": [],
+   "fixPlan": "无需改动。"
+  },
+  {
+   "id": "FE-01",
+   "title": "UnitScope 默认 Provider 的登记 API 未定（40/11 Q-2）",
+   "locations": [
+    "docs/40-modules/11-preset-assembly-and-app-shell.md:1111",
+    "docs/50-frontend/03-preset-assembly-and-plugins.md:253",
+    "docs/50-frontend/03-preset-assembly-and-plugins.md:418",
+    "docs/50-frontend/README.md:279",
+    "docs/30-architecture/03-kernel-and-plugin-model.md:392",
+    "docs/30-architecture/03-kernel-and-plugin-model.md:581",
+    "docs/40-modules/02-kernel-protocol-and-document-core.md:199",
+    "docs/40-modules/02-kernel-protocol-and-document-core.md:580",
+    "docs/40-modules/14-cross-module-review.md:281",
+    "docs/40-modules/17-plugin-authoring-patterns.md:916",
+    "docs/40-modules/11-preset-assembly-and-app-shell.md:229",
+    "docs/40-modules/11-preset-assembly-and-app-shell.md:805"
+   ],
+   "conflict": "50/03 §6.2 已给出草案形状：register/list、同一 provides 只能登记一次、已打开的 Unit 不受后续登记影响。40/14 N-2 也推荐 `units.registerUnitProvider`。但 40/02 的 units 服务和 §6 API 面都没有登记它。30/03 §5.1 伪代码仍写 model-core 直接 `scoped.plugin(renderPlugin)`：照写会让 L1 的 model-core import L5 的 engine-render，违反章程 §5.3 的只向下规则（40/17 G-9）。`Config.defaultStoreProvider` 只是一个字符串，选不了 render、presence、collab。另外 40/11:229 写 comments 包「经 unitPlugins 挂」，但 unitPlugins 属于文档类型，文档类型盲的 comments 包用不了；50/03:366 写的是按 scope:'unit' 登记。30/03 §9 :581 的 `PresetEntry` 只有 `{id, plugin, config?, disabled?}`，缺 40/11 :805 已有的 `scope` 与 `provides`。",
+   "authority": "章程 §5.3 秩规则；ADR-0005；40/14 §4.2 N-2 推荐；50/03 §6.2（前端所需形状）；rulings §4.14 末段（G-9 留待实现期或后续补）",
+   "class": "gap",
+   "impact": "high",
+   "recommendation": "采纳 50/03 §6.2 的形状，定名 `units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，落在 model-core `unit/units.service.ts`。登记分工：model-core 在 ready 时自己登记 history、selection 的默认 Provider；store、render、presence、collab-yjs、comments 由 preset 的 `scope:'unit'` 条目在 mount 时登记。规则：同一 provides 只允许登记一次，后来者被拒并记诊断、不抛异常；登记表的变化只影响之后打开的 Unit；preset dispose 时撤销全部登记。删除 `Config.defaultStoreProvider`，store 由唯一的 `provides:['store']` 登记决定（derive.ts 已经做了 store-memory→store-yjs 替换）。M1 前定稿。（复核：属实，维持 gap。补一处漏项：30/03 §9 :581 的 `PresetEntry` 没有 `scope` 与 `provides`，登记表的键在架构层无源，须与 40/11 :805 对齐，已加入 fixPlan ⑥。）",
+   "options": [],
+   "fixPlan": "① 40/02：§2.1 units.open 第⑤步改为「按登记表挂载」；§6 API 面和 :879、:1172 的 UnitsService 行补这两个方法；:580 的 Config 删 defaultStoreProvider，30/02:441 同步。② 30/03 §5.1 伪代码 :392 改为遍历登记表，并注明 model-core 不 import 任何水平层 Provider。③ 50/03 §6.2 去掉「草案」字样；50/03 :418 与 50/README :279 改为已定。④ 40/11：Q-2 结案；:205 的 model-core 配置列、:358 的 derive.ts 注释删去 defaultStoreProvider；:229 的 comments 条目改为「scope:'unit' 登记」。⑤ 40/14 N-2（:281、:587）与 40/17 G-9（:916）标结案，40/17 :501 示例同步；rulings §4.14 末段 G-9 加结案注记。⑥ 30/03 §9 :581 `PresetEntry` 补 `scope: 'host' | 'unit'` 与 `provides?: readonly string[]`，与 40/11 :805 一致。机械验证（test/contract，model-core units 契约用例）：同一 provides 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项，已打开的 Unit 不变；dispose 后 `assertNoLiveEffects` 为空；model-core 不 import 秩更高的包，由既有 depcruise 秩规则兜底。"
+  },
+  {
+   "id": "FE-02",
+   "title": "放映中「远端更新可关闭」是否保留（PRD ED-21）",
+   "locations": [
+    "docs/10-prd/03-features/02-editing.md:356",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:411",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:571",
+    "docs/50-frontend/05-rendering-and-thumbnails.md:587",
+    "docs/20-design/03-screens/11-present-mode.md:124"
+   ],
+   "conflict": "PRD ED-21 的验收写「放映中远端协同更新仍应用（可关闭）」。设计 03-11「放映中内容被编辑」写的是画面实时反映最新状态，没有开关。50/10 §9.3 按照常应用写，并把开关登记为「需要渲染层提供暂停刷新接口，待定」。40/06 与 50/05 §12 都没有暂停接口。",
+   "authority": "没有上位裁决；设计 03-11、50/10 §9.3（前端事实源）、50/05 §12 与章程 D5（单一事实源）同向，只有 PRD 的一个括注不同",
+   "class": "gap",
+   "impact": "low",
+   "recommendation": "推荐默认：PRD ED-21 删去「（可关闭）」，M2–M3 放映始终实时应用远端更新，与设计 03-11、50/10 §9.3、50/05 §12 一致，不新增渲染接口、不加测试。主讲人需要屏蔽改动时，可用「创建副本」后放映；随演讲者视图（M4+ P2）再议。（复核：原判 decision，改判 gap、impact 降为 low。原选项一「删去」与选项三「推迟到 M4+」在 M2–M3 行为完全相同；选项二要新增冻结接口并补三条边界规则，与设计 03-11 相悖，属过度设计。不构成真实取舍，一次确认即可。）",
+   "options": [],
+   "fixPlan": "PRD 02-editing.md:356 删去「（可关闭）」；50/10 §9.3 :411 删去「PRD ED-21 的『远端更新可关闭』…待定（§12.3）」一句，§12.3 :571 该行关闭；50/05 §12 与设计 03-11 不动。机械验证：无新增；50/10 V9 的 ED-21 需求矩阵用例不变。"
+  },
+  {
+   "id": "FE-03",
+   "title": "默认版式选取函数：多数文档写「该母版首个版式」，30/04 I-ML2 写三级回退链",
+   "locations": [
+    "docs/30-architecture/04-document-model.md:956",
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:59",
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:156",
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:183",
+    "docs/40-modules/03-slide-domain-model.md:77",
+    "docs/40-modules/03-slide-domain-model.md:103",
+    "docs/40-modules/03-slide-domain-model.md:110",
+    "docs/40-modules/03-slide-domain-model.md:355",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:592",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:850",
+    "docs/40-modules/14-cross-module-review.md:300",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:25",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:313",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:434",
+    "docs/30-architecture/adr/0034-server-update-validation-and-repair.md:27"
+   ],
+   "conflict": "30/04 §12.3 I-ML2 的规则是：原母版下同 type 的首个 → 该母版首个 → 首个母版的首个。PRD 07 §1、40/03 §1.2、50/11 §1 和 ADR-0034 修复表（初版）都写「该母版首个版式」。第二个问题：`defaultLayoutOf` 目前登记在 slide-ui（40/10:592、:850），而 I-ML2 修复在 model-slide 的 invariants 里，服务端也要执行，等于两份实现，违反 40/03:110「两道机制必须是同一个纯函数」。第三个问题：`deleteLayout` 在删除前计算 `reassignTo`，若被删版式恰是该母版的首个版式，「该母版首个」会选回它自己。",
+   "authority": "30/04 §12.3 I-ML2（30 高于 40 和 PRD）。PRD 07 §1 自己写明「架构 04 可调整但两处必须一致」。ADR-0034 状态为「提议」，修复表标「初版」（rulings §4.1 P8 只采纳软门禁的执行口径），不算已接受的 ADR。40/03:110 的同一纯函数要求；40/14 N-21 已点名落点 `model-slide/src/domain/invariants/reassign.ts`",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "以 30/04 I-ML2 链为唯一规则。函数 `defaultLayoutOf(body, {masterId, type?, exclude?})` 定义在 model-slide `domain/invariants/reassign.ts` 并导出，跳过墓碑与 `exclude` 指定的版式；I-ML2 修复、`deleteLayout` 的 `reassignTo` 计算（以被删版式的母版与 type 调用，并 exclude 它自己）、渲染与导出的读时容错（FE-04）和 slide-ui 都调用这一个符号。（复核：两处更正。① 原稿称「deleteMaster 时按这条链会落到剩余首个母版的首个版式，40/03 Q6/G-9 与 PRD G-73 随之关闭」不成立：I-ML2 是悬空引用的修复规则，不规定删母版时选哪个目标母版；照原稿，被删母版下的所有页都会改成同一个首版式（通常是标题页），丢掉 type 对应，这是新的产品取舍，已拆为新增 FE-23，本项不再关闭 Q6/G-9/G-73 与 50/11 :440。② 补 `exclude`：否则删除母版首个版式时 reassignTo 会指回被删版式。函数落点按 40/14 N-21 定为 reassign.ts。）",
+   "options": [],
+   "fixPlan": "① 40/03：在 `domain/invariants/reassign.ts` 登记 `defaultLayoutOf`，列入 §6 导出；:77、:103、:110、:355 改写为 I-ML2 链（含 exclude 说明）。② 40/10 :592、:850 删除 slide-ui 自己的 `defaultLayoutOf`，改为从 model-slide import。③ PRD 07：:59、:183 的「当前为该母版首个版式」改为引用 30/04 I-ML2；:156 的 toast「首个版式名」改为「〈默认版式名〉」（:156 的信号另按 FE-04、FE-14 改）；:150 母版删除细则不在本项，见 FE-23。④ 50/11：删去 :25「不一致，待统一」一句；:313 的 `defaultLayoutOf(masterId)` 改为新签名；§11.4 :434 关闭。⑤ ADR-0034 :27 改为「按 30/04 §12.3 I-ML2」，并记一条修订。机械验证：model-slide 单测覆盖三级回退、墓碑跳过，以及「删除母版首个版式时 reassignTo ≠ 被删版式」；slide-ui `edit-target.test.ts` 断言用的是 model-slide 导出的同一符号，不再有本地实现；property 测试断言 `deleteLayout(reassignTo)` 的结果与 I-ML2 修复结果一致。"
+  },
+  {
+   "id": "FE-04",
+   "title": "版式被删成墓碑后，并发引用它的页何时改用默认版式",
+   "locations": [
+    "docs/40-modules/03-slide-domain-model.md:114",
+    "docs/30-architecture/04-document-model.md:329",
+    "docs/30-architecture/adr/0034-server-update-validation-and-repair.md:72",
+    "docs/30-architecture/05-command-and-history.md:421",
+    "docs/30-architecture/06-collaboration.md:834",
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:156",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:375",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:376"
+   ],
+   "conflict": "删除改为软删除墓碑后（rulings §4.15 Q3），「A 删版式 L、B 同时把页 P 改为 L」收敛后，P 指向已成墓碑的 L。各处说法不一：40/03:114 把指向墓碑视同悬空，立即按 I-ML2 写修复；ADR-0034 墓碑修订 :72 说指向墓碑不算违规，硬删后才修；30/04 §3.1a(3) :329 说按「引用者一并视为已删除」处理，用在 layoutId 上会把整页当删除，显然不适用；30/05 §13.4 :421 一边写 I-ML2 修复，一边写「A 撤销删除后 B 的引用重新有效」；50/11 §10 第 1 行按立即修复写（带 collab/repair），第 2 行按保留引用写。本项在核实 FE-03 时发现，原始记录里没有。",
+   "authority": "rulings §4.15 Q3（删除=墓碑、撤销=清除墓碑同 id 复活）与 30/06 §8 第 2、3 行的同一原则：并发写落在墓碑实体上不丢，删除方撤销后随之恢复；ADR-0034 墓碑修订对 layoutId 的明文（指向墓碑不算违规，硬删时同事务修复）；30/04 §12.3 表头已写「客户端读时容错」；30/05 §13.4「A 撤销删除后 B 的引用重新有效」只在读时容错下成立",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "墓碑期读时容错：墓碑 TTL 内保留 P 对 L 的引用，渲染和导出用 `defaultLayoutOf`（FE-03）临时替代；B 端收到 `soft-conflict{delete-vs-reference}` 后给 Toast；L 被硬删时，由硬删作业在同一事务里写 I-ML2 修复（`collab/repair{rule:'dangling-layout'}`，不再弹 Toast）。A 撤销删除后 B 的引用自动恢复。30/04 §3.1a(3) 的「引用者一并视为已删除」限定为包含关系（containerId、parentId），不适用于 layoutId、masterId、themeId 这类属性引用。（复核：原判 decision，改判 mechanical。rulings §4.15 Q3 与 30/06 §8 第 2、3 行已定下同一原则：并发写落在墓碑上不丢，删除方撤销即随之恢复。「墓碑即写修复」会让 A 撤销后 B 的页回不到 L，违反这一原则，也推翻 30/05 §13.4 已写的「B 的引用重新有效」，因此不是可选项。ADR-0034 墓碑修订对 layoutId 已有明文，用户偏好「撤销语义不简化」也同向。）",
+   "options": [],
+   "fixPlan": "① 40/03 :114 改为：I-ML2…I-ML4 对「引用指向墓碑」在墓碑期读时容错（读路径用 defaultLayoutOf 等替代），只在硬删时写修复。② 30/04 §3.1a(3) :329 注明「引用者一并视为已删除」仅指包含关系；§12.3 I-ML2 行补「墓碑期读时容错，硬删作业同事务修复」。③ 30/05 §13.4 :421 冲突 (1) 的「不变量 I-ML2 修复」改为「读时容错，硬删时修复」。④ 50/11 §10 :375 第 1 行改为读时容错并发 soft-conflict，删去即时 collab/repair；:376 第 2 行保留。⑤ PRD 07 :156 的收敛结果与信号同步改（与 FE-14 合并改）。⑥ 40/07 slide-render 的 SceneProvider 与 40/04 ooxml-pptx 导出编码器解析 layoutId 时各调用一次 defaultLayoutOf；impactCount 不计墓碑目标。机械验证（test/collab-sim）：「A 删 L，同时 B 对 P 应用 L」两端收敛一致；TTL 内 P.layoutId 仍为 L，渲染用的是 defaultLayoutOf 给出的版式；A 撤销后 P 显示 L；硬删后 P.layoutId 等于 defaultLayoutOf 的结果，且修复事务只写一次；导出的 pptx 中 P 引用的是存活版式。"
+  },
+  {
+   "id": "FE-05",
+   "title": "被引用版式和母版的删除能否撤销：Q11 定为不可撤销，30/05 与 40/03 多处仍写「撤销一次恢复」",
+   "locations": [
+    "docs/30-architecture/05-command-and-history.md:59",
+    "docs/30-architecture/05-command-and-history.md:357",
+    "docs/30-architecture/05-command-and-history.md:404",
+    "docs/30-architecture/05-command-and-history.md:421",
+    "docs/40-modules/03-slide-domain-model.md:110",
+    "docs/40-modules/03-slide-domain-model.md:304",
+    "docs/40-modules/03-slide-domain-model.md:310",
+    "docs/40-modules/03-slide-domain-model.md:982",
+    "docs/40-modules/03-slide-domain-model.md:1008",
+    "docs/40-modules/03-slide-domain-model.md:1072",
+    "docs/10-prd/07-design-coverage-and-gaps.md:651",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:313",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:323",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:432"
+   ],
+   "conflict": "rulings §4.10 Q11（2026-09-18）定为「确认后改用默认版式，不可撤销」，PRD 07、PRD D9 表、设计 26、40/03 §2.6 命令表（:304、:310）和 50/11 §8 都按这个写。但以下几处还是「撤销一次恢复」：40/03 §2.1 :110；§10 :982；§11 :1008 的 M3 验收；30/05 §12 :357；§13.2 图 :404；§13.4 :421。Q11 是在 §4.15 Q3（2026-09-24，删除改墓碑）之前定的，当时「不可逆」是前提；墓碑之后，撤销这次删除与撤销普通删除代价相同，40/03 Q7 :1072 正是就此提问并推荐改为可撤销。另有一个落地问题：30/05 §2 的 `CommandDef.undoable` 是静态布尔值，同一个 `slide.deleteLayout` 未被引用时可撤销、带 reassignTo 时不入栈，现有契约表达不了；50/11 写的「以 undoable:false 执行」因此没有落点。",
+   "authority": "rulings §4.10 Q11（用户裁决，高于 30 与 40）；rulings §4.15 Q3（其后引入墓碑，改变了 Q11 的前提）；40/03 Q7（开放，推荐可撤销）；PRD D9（07-design-coverage :651 把「删除被引用版式」列为不可逆，Q16 已有「确认卡 + 可撤销 Toast」双层先例）。改动 Q11 须用户裁决",
+   "class": "decision",
+   "impact": "medium",
+   "recommendation": "选「确认后可撤销」：保留 Q11 的确认对话框，执行后可以一步撤销。理由：Q11 的「不可逆」前提已被 Q3 墓碑改变；符合用户「撤销语义不简化」的偏好；不必为一个命令把 `CommandDef.undoable` 改成谓词，契约更简单；30/05 三处现有写法无需改。对话框保留，是因为撤销栈只在会话内有效，关掉页面或墓碑到期（24 h）后就撤不回了。（复核：原判 mechanical，改判 decision。原稿以 Q11 直接判定，同时顺手按 Q11 关闭 40/03 Q7，但 Q7 恰恰是在 Q3 之后就 Q11 的前提提出的开放问题，且与用户偏好相关，需要用户重新拍板，不能机械判定。原方案保留为选项二。）",
+   "options": [
+    {
+     "label": "确认后可撤销",
+     "description": "保留 Q11 确认对话框，文案删去「操作不可撤销」；执行仍是单个事务，但进入撤销栈，成功后给带 [撤销] 的 Toast（同 Q16「重置为版式默认」的双层先例）。撤销时各页 layoutId 回退，版式墓碑清除、同 id 复活；协同下他人后写的键按 Q3 跳过并提示；墓碑硬删后该步按整步跳过。CommandDef 不改；30/05 :357、:404、:421 与 40/03 :110、:982、:1008 的现有写法保留。需要改：rulings 记一条 Q11 修订（用户裁决）、PRD 07 ML-03 与 D9 行（07-design-coverage :651）、设计 26 对话框文案、40/03 :304 与 :310、50/11 §8（:313、:323、:337 图、怎么读）以及 i18n 文案；40/03 Q7 按其推荐结案。"
+    },
+    {
+     "label": "维持不可撤销",
+     "description": "按 Q11：带 reassignTo 的删除（版式和母版都算）是单个事务，不入撤销栈；未被引用的删除照常可撤销。30/05 §2 把 `CommandDef.undoable` 放宽为 `boolean | ((params) => boolean)`，deleteLayout 和 deleteMaster 取 `p => p.reassignTo === undefined`，40/02 与 `commands.describe` 同步；30/05 :357、:404、:421 与 40/03 :110、:982、:1008 改为「不入栈」；40/03 Q7 按 Q11 结案。代价：新增一种契约形式；误删后只能手动重建版式并逐页改回。"
+    }
+   ],
+   "fixPlan": "选项一：rulings 增 Q11 修订一行；PRD 07 ML-03 与 07-design-coverage :651 D9 行把「删除被引用版式」移出不可逆清单，写成确认 + 可撤销双层；设计 26 与 50/11 :313 对话框文案删「操作不可撤销」，:323 表行改为「入栈 · Toast 带撤销」；40/03 :304、:310 删「Q11 不可撤销」，Q7（:1072）结案；50/11 §11.4 :432 与 FE-24 一并关闭。机械验证（test/contract command-harness）：带 reassignTo 执行后撤销栈深度 +1，`core.undo` 一步恢复各页引用与版式（同一 id）；test/collab-sim：撤销时他人已改的页只跳过该键并提示。选项二：按原方案——① 30/05 §2 :59 给 `undoable` 加谓词形式，40/02 CommandDef 行同步；② 30/05 :357、:404、:421 改为「带 reassignTo → 单事务、不入撤销栈」；③ 40/03 :110、:982 同改，:1008 拆成「deleteMaster(reassignTo) 不入栈」与「applyTheme 撤销一致性」两条，Q7 结案；④ 50/11 :432 与 FE-24 一并关闭。机械验证：带 reassignTo 执行后撤销栈深度不变，`core.undo` 不撤回；未被引用的删除一步撤销且以同一 id 复活。"
+  },
+  {
+   "id": "FE-06",
+   "title": "审稿新增的 ui-core 契约 `ContributionBase.enablement` 与键族 `can.<action>` 未登记（连带 editorMode、unitLoaded）",
+   "locations": [
+    "docs/30-architecture/03-kernel-and-plugin-model.md:304",
+    "docs/30-architecture/03-kernel-and-plugin-model.md:305",
+    "docs/30-architecture/03-kernel-and-plugin-model.md:306",
+    "docs/30-architecture/03-kernel-and-plugin-model.md:315",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:150",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:140",
+    "docs/50-frontend/09-ui-system-and-theming.md:227",
+    "docs/50-frontend/09-ui-system-and-theming.md:277",
+    "docs/50-frontend/09-ui-system-and-theming.md:518",
+    "docs/50-frontend/09-ui-system-and-theming.md:519",
+    "docs/50-frontend/09-ui-system-and-theming.md:526",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:564",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:565"
+   ],
+   "conflict": "50/09 §6.1 和 §6.3 在审稿时补入了两个契约：一是 `when` 只管控件是否显示，新增的 `enablement` 管是否可用（不可用时禁用而不隐藏，并给出原因）；二是 `can.<能力位>` 键族，供「历史」页签和控件可用性判断使用。但登记没跟上：30/03 §3.6 的项类型只有 `when`，上下文键清单也缺 `editorMode`、`unitLoaded` 和 `can.*`；40/10 §2.1 的 ContextKeyValues 没有 `can.*`；scan-contributions 规则 (e) 只检查 `when` 子句里的键，`enablement` 里的键和 `can.` 前缀都没人检查。",
+   "authority": "rulings §4.19 事实源分工（ui-core 契约与上下文键以 50/09 为准，40/10 §2.1 自己也这样写）；PRD ED-30（命令不可用时必须说明原因）；设计原则「只读是禁用，不是隐藏」",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "两个契约都采纳，并一次登记齐：`ContributionBase` 增加可选的 `enablement`，`ui.shortcut` 和 `ui.command` 也带上，语法与 `when` 相同；标准键族 `can.<capability>` 的取值是 protocol `permissions/actions.ts` 的能力位全集，`can.` 作为 ui-core 保留前缀；30/03 §3.6 的键清单改为引用 50/09 §6.3，并补上 `editorMode`、`unitLoaded` 和 `can.*`；scan-contributions 规则 (e) 的检查范围扩到 `enablement`。",
+   "options": [],
+   "fixPlan": "① 30/03 §3.6：:304–:306 的项类型加 `enablement?`；:315 的键清单补上述三项，并注明「全集以 50/09 §6.3 为准」。② 40/10：§2.1 :150 补 `can.*`；§2.5 与 §6 里的 `ContributionBase`、`ShortcutItem`、`CommandItem` 类型带上 `enablement`。③ 09-type-discipline/06 §3 :140 规则 (e) 改为检查「`when` 与 `enablement` 子句中的键」，并规定：`can.<x>` 中的 `<x>` 必须是 protocol 定义的能力位；ui-core 以外的包调用 `registerPrefixedKey('can.…')` 即违规。08 矩阵的 TD-089 同步。④ 50/09 §13 的 :518、:519、:526 和 50/10 §12.3 的 :564、:565 关闭。机械验证（scanners/scan-contributions）：三条负向夹具都必须报违规——`enablement` 引用未登记的键、拼错的 `can.doc.writ`、第三方登记 `can.` 前缀。另有 ui-core 单测断言：`enablement` 为假时控件仍然渲染，且带 `aria-disabled`。"
+  },
+  {
+   "id": "FE-07",
+   "title": "应用主题后是否给可撤销 Toast（设计 03-28 §6 待决）",
+   "locations": [
+    "docs/20-design/03-screens/28-design-tab-and-themes.md:84",
+    "docs/20-design/03-screens/28-design-tab-and-themes.md:111",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:359",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:435",
+    "docs/10-prd/07-design-coverage-and-gaps.md:651"
+   ],
+   "conflict": "设计 03-28 前后不一：§3「保存」要求应用前告知「影响 N 个母版、M 页」；§6 又倾向「直接应用 + 可撤销 Toast」，并标为待决。50/11 §9 已按后者写：点主题卡后 Toast「已应用主题『X』，影响 N 页 [撤销]」。主题面板的「应用」按钮则没写反馈。",
+   "authority": "PRD D9（07-design-coverage :651：可逆操作用可撤销 toast，不可逆操作才弹确认）；PRD ML-04「一个事务，可撤销」；设计 03-28 §6 自身倾向；50/11 §9（前端事实源）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "主题卡、变体色块和主题面板的「应用」都直接执行，不弹事前确认。执行后给一条可撤销 Toast「已应用主题『X』，影响 N 页 [撤销]」，N 为该母版的引用页数，撤销一步即回到原主题。（复核：原判 gap，改判 mechanical。PRD D9 已给出「可逆操作用可撤销 Toast、不可逆才确认」的产品默认答案，ML-04 写明一个事务可撤销，03-28 §6 自己也倾向这样，不构成取舍，免去一次确认。）",
+   "options": [],
+   "fixPlan": "设计 03-28：§3「保存」:84–:87 删去「应用前明确告知」，改为事后 Toast；§6 :111 第一条标为已定。50/11：§9 :359 删去「03-28 仍标待决」，并给面板「应用」补上同一条 Toast；§11.4 :435 关闭。机械验证（test/unit，slide-ui 主题用例）：不出现确认对话框；Toast 文案里有 N；点「撤销」后主题与 12 个色槽都恢复原值。"
+  },
+  {
+   "id": "FE-08",
+   "title": "评审与只读浏览模式下，「主题 · ?」两个控件放在哪里",
+   "locations": [
+    "docs/50-frontend/10-editor-shell-and-interaction.md:164",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:48",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:176",
+    "docs/20-design/01-information-architecture.md:73",
+    "docs/20-design/playground/src/routes/editor/Main.tsx:187",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:544"
+   ],
+   "conflict": "50/10 §3.2 的矩阵写评审和只读浏览模式都保留「主题 · ?」（界面亮暗切换与帮助）。但这两个控件原本在 Ribbon 页签行右侧，而评审模式下 Ribbon 被评审工具条替换；playground 的评审工具条（Main.tsx:187–199）里没有它们，设计稿也没给位置。",
+   "authority": "50/10 §3.2（前端事实源）；设计 03-02 §2 对页签行右侧组成的规定",
+   "class": "gap",
+   "impact": "low",
+   "recommendation": "放在评审工具条的右端；工具条没有条目时，放在 ReadonlyRibbonNotice 细条的右端。位置和组件都与编辑模式下页签行右侧相同。这组尾部控件由 ui-react 外壳直接渲染，不走 `ui.toolbar` 贡献。「普通 | 母版」视图切换在这两种模式下仍不显示（Q12 不变）。（复核：属实，维持 gap。这是外观取舍，按用户习惯先出 playground 样张再拍板。补一点：M2 未装 comments 包时，评审工具条的条目全部不显示（50/10 :176），尾部控件落在 ReadonlyRibbonNotice 右端是 M2 的常态而非边缘情况，截图须覆盖这一状态。）",
+   "options": [],
+   "fixPlan": "50/10：§3.2 :164 与 §1 :48 写明位置。40/10 :544 说明 RibbonHost 与评审工具条共用同一个尾部区。设计 01 :73 的 Ribbon 行补一句。playground：Main.tsx 评审分支右端加上 `ThemeToggle` 和「?」，并补上无条目时的 ReadonlyRibbonNotice 分支；用 playwright 截亮色、暗色，以及「有条目 / 无条目」各一张图自审。机械验证（test/unit，ui-react editor-shell）：edit、review、view 三种模式下，主题切换和帮助按钮都恰好各有一个。"
+  },
+  {
+   "id": "FE-09",
+   "title": "`@cordexjs/comments` 客户端包缺文件级规划（40/00 Q-M8 待确认）",
+   "locations": [
+    "docs/40-modules/00-module-map.md:1418",
+    "docs/40-modules/00-module-map.md:1227",
+    "docs/50-frontend/08-comments-and-version-history.md:310"
+   ],
+   "conflict": "rulings §4.19 D-COMMENTS-PKG 新增了 iso 包 comments，但 40 里没有它的目录树、文件职责和契约套件，`comments.anchorResolver` 贡献点、`comments` UnitScope 服务，以及 `comments.reanchor`、`comments.importThreads` 两个命令也都没有文件落点。40/00 Q-M8 已提出推荐（新建 40/20），标注「待总编排确认」；50/08 §13 的对应行仍是待登记。",
+   "authority": "40/00 §10 Q-M8 的推荐（只待总编排确认）；rulings §4.19 D-COMMENTS-PKG；rulings §4.19 末段（其余遗留口径由总编排按权威收口）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "确认 Q-M8：新建 `40-modules/20-comments-client.md`，行为以 50/08 为准，不并入 M-12（只含服务端）或 M-05。本轮只定落点，文档正文在 M3 开工前写完。（复核：原判 gap，改判 mechanical。Q-M8 标注的是「待总编排确认」，不需要用户；落点只是文档组织。正文在 M3 开工前补齐属于排期，不是未决。）",
+   "options": [],
+   "fixPlan": "40/00：Q-M8 标为已确认，§7 的 M-12 行改指 40/20。40/README 索引登记 40/20（占位，M3 前完成）。50/08 §13 :310 的去向改为 40/20。M3 开工前，由前端设计线补齐目录树、文件职责、契约套件和 slide-ui 的 resolver 接口。"
+  },
+  {
+   "id": "FE-10",
+   "title": "50/02 §6 仍写「permission/changed 后按新角色重算 mode」，与 UX-20 冲突",
+   "locations": [
+    "docs/50-frontend/02-app-shell-routing-and-session.md:269",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:285",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:155",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:562"
+   ],
+   "conflict": "50/02 §6 的正文（:269）和状态图（:285）写：会话内收到 permission/changed 时，按新角色重算 EditorHost.mode。50/10 §3.1 和 rulings §4.18 UX-20 的规定是：会话内权限变化不改 editorMode，降权只进入 readonly-degraded。",
+   "authority": "rulings §4.18 UX-20",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "以 UX-20 为准：「角色 → mode」的映射只在打开和重新打开时使用；会话内降权进入 readonly-degraded，升权只更新模式下拉里的可选项。",
+   "options": [],
+   "fixPlan": "50/02 :269 改为「角色映射只在打开与重新打开时使用；会话内的 permission/changed 不改 mode：降权进入 readonly-degraded，升权只更新模式下拉的可选项（50/10 §3.1）」；:285 状态图的自环标签改为「permission/changed 更新角色与可选模式，unit/loaded 置 loaded」。50/10：§3.1 :155 末句删去「冲突，登记回写」；§12.3 :562 关闭。机械验证：50/10 §12.1 V1 已有「会话内降权不改 editorMode」的断言，不用新增。"
+  },
+  {
+   "id": "FE-11",
+   "title": "40/10 正文仍与 50 口径不一致：masterEntryState 三值、插入页签评论与图表、when/enablement、会话记忆",
+   "locations": [
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:204",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:1022",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:285",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:286",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:289",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:646",
+    "docs/50-frontend/09-ui-system-and-theming.md:522",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:429"
+   ],
+   "conflict": "共四处。(a) §2.3 :204 的签名是 `masterEntryState(keys): 'enabled'|'review'|'narrow'`，§9 :1022 的注释写「三态」；而 §2.1 :156 与 50/11 §3 已改为五值。(b) §2.6 插入页签 :286：图表写成 `when: hasChartEditor`，既没带前缀，用 `when` 还会让按钮直接消失；评论写成「评论模块贡献，when: isCollab，本包只留槽位」，与 50/08 §2（插入页签的评论按钮由 slide-ui 贡献）和 50/10 §4（`when: slide.hasComments`）冲突。M2 的协同 preset 有 presence、没有 comments 包，按 `isCollab` 判断会出现一个没有命令可执行的按钮。(c) 编辑组 :285 写 `when: unitLoaded`，应为 `enablement`，否则渐进打开期间控件会消失；视图页签 :289 的母版视图按钮也应写成 `enablement` 表达式。(d) §4.4 :646 的 `session-memory.ts` 注释包含「分区折叠态」，而 50/10 §2.1、§5 规定分区折叠态存在 ui-react 的 `EditorLayoutState.sectionsCollapsed`，写入 localStorage。",
+   "authority": "rulings §4.19 事实源分工（40/10 §2.1 自己写明行为以 50 为准）；50/11 §3；50/08 §2 与 rulings §4.19 D-COMMENTS-PKG；50/09 §6.1；50/10 §2.1、§5",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "40/10 按 50 改正文。其中 `enablement` 字段依赖 FE-06 先登记。",
+   "options": [],
+   "fixPlan": "① :204 签名改为 `masterEntryState(keys): MasterEntryState`（五值，优先级见 50/11 §3）；:1022 的注释改为「五态与优先级」。② :286：图表改为 `enablement: slide.hasChartEditor`；评论改为「slide-ui 贡献，`when: slide.hasComments`，命令 `comments.addThread`（comments 包，M3）」。③ :285 改为 `enablement: unitLoaded`；:289 母版视图按钮改为 `enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'`。④ :646 删去「分区折叠态」。⑤ 50/09 §13 :522 与 50/11 §11.4 :429 关闭。机械验证：slide-ui `ribbon-spec.test.ts` 断言插入页签评论按钮的 `when` 是 `slide.hasComments`，图表和全文命令使用 `enablement`；scan-contributions 规则 (e) 覆盖这些键。"
+  },
+  {
+   "id": "FE-12",
+   "title": "40/10 待登记回写批：remember、explainWhen、reviewBar、放映全屏容器、ThemeService 新接口",
+   "locations": [
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:270",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:196",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:473",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:704",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:604",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:861",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:152",
+    "docs/50-frontend/09-ui-system-and-theming.md:521",
+    "docs/50-frontend/09-ui-system-and-theming.md:523",
+    "docs/50-frontend/09-ui-system-and-theming.md:524",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:566",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:568",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:569",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:573"
+   ],
+   "conflict": "50/09 §13 与 50/10 §12.3 列为待登记、实际还没登记的有五项：`UiReactConfig.layout` 没有 `remember`（:270）；纯函数 `explainWhen` 不在 §2.3 纯函数表里，也不在 `when-clause.ts` 的注释和职责行里；slide-ui 的贡献清单里没有 `ui.toolbar{slot:'reviewBar'}` 条目；`present.ts`（:604、:861）没写全屏目标必须是跨路由常驻的容器；ThemeService 的 `setTokens`、`registerStyleSheet` 只在 §2.1 提了一句，目录树、`package.json` 导出和 §6 API 面都没改。",
+   "authority": "50/09 §6.2、§13；50/10 §2.1、§3.2、§9.1；rulings §4.19 分工（50 管行为，40 管文件落点）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "照 50 的定稿补齐 40/10 的登记，补完后关闭 50 两份表里对应的行。",
+   "options": [],
+   "fixPlan": "① §2.5 :270 的 `EditorLayoutOptions` 增加 `remember: boolean`（默认 true）和 `notesHeight`。② §2.3 纯函数表增加 `explainWhen(clause, keys): ReasonKey | null`（ui-core `domain/when-clause.ts`），:473 与 :704 同步。③ §3 slide-ui 的贡献清单增加 reviewBar 条目：评论、高亮、上一处评论、下一处评论，`when` 取值见 50/10 §3.2；同时写明条目为空时显示 ReadonlyRibbonNotice。④ :604 与 :861 注明：全屏目标是跨路由常驻的容器（apps/web 用应用根元素，嵌入场景用 `[data-cordex-root]`），并且在用户手势的同步回调里调用 requestFullscreen。⑤ §4.1、§4.3、§6 登记 `setTokens`、`registerStyleSheet`，ui-react 导出 `./styles.embed.css`，并登记 design 的作用域变体产物。⑥ 关闭 50/09 §13 的 :521、:523、:524 和 50/10 §12.3 的 :566、:568、:569、:573。"
+  },
+  {
+   "id": "FE-13",
+   "title": "40/10 §2.1、§2.2 引用 50 的章节号有误；50/01 §6 状态表字段过时",
+   "locations": [
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:151",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:153",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:155",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:156",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:157",
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:180",
+    "docs/50-frontend/01-overview-and-runtime-map.md:280",
+    "docs/50-frontend/01-overview-and-runtime-map.md:286"
+   ],
+   "conflict": "已对照 50 各文的实际标题逐条核过。40/10 应改的章节号：:151 RibbonTree 等写 50/09 §6，应为 §7（视图模型）；:153 EditorLayoutState 写 50/10 §4，应为 §2.1；:155 SlideSelectionView 写 50/09 §5（shadcn 复制件），应为 §6.3（`selectionKind` 取值表）；:156 MasterEntryState、MasterViewState、会话记忆写 50/11 §3、§5，应为 §3、§4、§2（会话记忆定义在 50/11 :92）；:157 ThumbnailListModel 写 50/10 §5，应为 §6；:180（§2.2）写 50/09 §5，应为 §8（输入管线）。50/01 §6 表：:286 的 MasterViewState 仍用单个 targetId（50/11 §4 已拆为 paneSelection 与 target，并加了 status）；:280 的 ContextKeyValues 缺 editorMode 与 can.*。",
+   "authority": "50/09、50/10、50/11 的实际标题；rulings §4.19 分工",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "按上面列出的正确章节号逐条改正；50/01 的两行照 50/11 §4 与 50/09 §6.3 更新。（复核：两处更正。① :156 这一行还登记了「会话记忆」，它的定义在 50/11 §2，应写 §3、§4、§2，不只是 §3、§4。② 原验证写「gen-docs-site 的失配锚点计数为 0」，但 gen-docs-site 只校验带链接的锚点，纯文本「50/NN §x」引用不在它的检查范围，改为脚本列出 40/10 中全部纯文本 50 引用并逐条对照标题。）",
+   "options": [],
+   "fixPlan": "逐行替换上述 6 处章节号（:156 写为「50/11 §3、§4、§2」）。50/01 :286 的取值改为 `{paneSelection, editScope, target, impact, multiSelect, entry, status, sessionMemory?}`；:280 补 `editorMode`、`can.*`（待 FE-06 定稿后写）。验证：用 grep 列出 40/10 中所有纯文本「50/NN §x」引用，与各文实际标题逐条对照（gen-docs-site 只覆盖链接锚点）；章节号的语义正确性人工复核。"
+  },
+  {
+   "id": "FE-14",
+   "title": "文案与规则名对齐：PRD 07 ML-03 状态栏常驻、`layout-missing`；50/08 图中「母版视图中不可评论」",
+   "locations": [
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:151",
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:156",
+    "docs/10-prd/07-design-coverage-and-gaps.md:546",
+    "docs/50-frontend/08-comments-and-version-history.md:117",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:439"
+   ],
+   "conflict": "三处不一致。PRD 07 ML-03 :151 写「状态栏常驻『未保存改动 · 影响 N 页』」，而 ML-01 :77 写「状态栏文案仅在有未提交改动时出现」，设计 26 :204、:248 和 50/11 §4 也都是后者。PRD 07 :156 与 07-design-coverage :546 的修复规则名写 `layout-missing`，30/04 §12.3 写的是 `dangling-layout`。50/08 §5 图 :117 写「母版视图中不可评论」，而设计 26 :101、IA :114、PRD 07 :73、50/10 :243、50/11 :83 都写「母版与版式不支持评论」，这句是同一个 i18n 键的文案。",
+   "authority": "PRD ML-01 :77 与设计 26、50/11 §4；30/04 §12.3（50/11 §11.4 :439 已定以 30/04 为准）；设计 26 与 IA 的统一文案；FE-04（墓碑期信号）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "三处都按多数且权威的一方改正。（复核：PRD 07 :156 与 07-design-coverage :546 不只是改名。按 FE-04，墓碑期 B 端收到的信号是 `collab/soft-conflict{type:'delete-vs-reference'}`，`collab/repair{rule:'dangling-layout'}` 只在硬删时出现，这两处要与 FE-04 一并改写。）",
+   "options": [],
+   "fixPlan": "PRD 07 :151 改为「有未提交改动时，状态栏显示『未保存改动 · 影响 N 页』（同 ML-01）」。PRD 07 :156 与 07-design-coverage :546：Toast 触发信号改为 `collab/soft-conflict{type:'delete-vs-reference'}`（墓碑期），并注明硬删时由 `collab/repair{rule:'dangling-layout'}` 写修复（按 FE-04）；原 `layout-missing` 一律改为 `dangling-layout`。50/08 :117 改为「母版与版式不支持评论」。50/11 §11.4 :439 关闭。"
+  },
+  {
+   "id": "FE-15",
+   "title": "设计稿与 playground 回写批：设计 06 的 placeholder、03-23 缺隐私组、03-26 窗格滚动持久化、评审态检查器缺「属性」页签",
+   "locations": [
+    "docs/20-design/06-extensibility-ux.md:331",
+    "docs/20-design/03-screens/23-settings-panel.md:39",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:466",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:470",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:572",
+    "docs/20-design/03-screens/26-master-view-and-editing.md:135",
+    "docs/20-design/03-screens/26-master-view-and-editing.md:249",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:431",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:433",
+    "docs/20-design/playground/src/routes/editor/Main.tsx:250",
+    "docs/20-design/playground/src/routes/Settings.tsx:138"
+   ],
+   "conflict": "共四处。设计 06 :331 仍写 `selectionKind` 另增 `'placeholder'`，50/09 §6.3 已改为前缀键 `slide.placeholderSelected`。设计 03-23 的线框和 playground 的 Settings.tsx 都没有「隐私与诊断」组，50/10 §10.3 已定：发送错误报告默认开，发送使用统计默认关。设计 03-26 :135、:249 写窗格滚动位置「记忆到客户端本地偏好」；50/11 §5 定为只存在内存里，理由是按 unitType 分键的本地偏好区分不了不同文档。playground 评审态的检查器只有「评论」「历史」两个页签（Main.tsx:250），而 IA §5.1 和 50/10 §3.2 写的是评审模式下「属性」只读展示。",
+   "authority": "rulings §4.19 分工（行为语义以 50 为准，设计只管外观）；决策 TELEMETRY-DEFAULT；IA §5.1",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "设计稿与 playground 按 50 的定稿回写。",
+   "options": [],
+   "fixPlan": "设计 06 :331 删去「另增 'placeholder'」，改为指向前缀键 `slide.placeholderSelected`。设计 03-23 的线框与控件说明补上「隐私与诊断」组：发送错误报告默认开，发送使用统计默认关，`telemetry.otlp` 为假时隐藏后一项；playground Settings.tsx 同步补上。设计 03-26 :135、:249 改为「随会话记忆保存在内存」。playground Main.tsx 评审分支的检查器补「属性」页签（只读，默认仍打开「评论」）。关闭 50/10 §12.3 :572 与 50/11 §11.4 :431、:433。playground 改完后用 playwright 截图自审。"
+  },
+  {
+   "id": "FE-16",
+   "title": "跨文档纯登记：嵌入样式隔离用例、comment/* 事件脱敏选项、SceneNode.a11y 进 30/07",
+   "locations": [
+    "docs/70-testing/06-frontend-component-and-e2e.md:499",
+    "docs/50-frontend/09-ui-system-and-theming.md:525",
+    "docs/50-frontend/08-comments-and-version-history.md:184",
+    "docs/50-frontend/08-comments-and-version-history.md:309",
+    "docs/30-architecture/07-rendering.md:121",
+    "docs/30-architecture/10-observability-and-errors.md:517",
+    "docs/50-frontend/05-rendering-and-thumbnails.md:648",
+    "docs/50-frontend/05-rendering-and-thumbnails.md:649"
+   ],
+   "conflict": "三项已在 50 里定稿，但目标文档还没有：70/06 没有 50/09 §12 V13 的嵌入样式隔离用例；50/15 与 30/10 §11.1 没有 `comment/*` 事件正文默认脱敏、选项名 `comments.events.includeBody` 和 `origin` 字段；30/07 :121 的 `SceneNode` 没有 `a11y`（40/06 已登记），30/10 的事件表也没有 `render/element-degraded` 新增的通用原因值。",
+   "authority": "50/README §1 分工：测试归 70，iso 契约本体归 30/07，事件载荷归 30/10",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "照 50 的定稿补登记。",
+   "options": [],
+   "fixPlan": "70/06 §11 增加一条嵌入样式隔离用例：挂载前后宿主 html、body 的计算样式逐项相同，`:root` 上没有新增自定义属性，步骤 e2e/full-compose；50/09 §13 :525 关闭。50/15 的事件表与 30/10 §11.1 登记 `comment/*` 的脱敏规则、`includeBody` 和 `origin`；50/08 §13 :309 关闭。30/07 §2.1 :121 的 `SceneNode` 增加 `a11y?: A11yDescriptor`；30/10 为 `render/element-degraded` 补上 `media-decode-failed`、`media-unavailable`，为 `render/font-fallback` 补 `reason`。"
+  },
+  {
+   "id": "FE-17",
+   "title": "50 各文未决与待回写表的状态陈旧：已完成的回写仍标「待回写」或「待登记」",
+   "locations": [
+    "docs/50-frontend/07-collaboration-client.md:636",
+    "docs/50-frontend/06-text-editing-and-ime.md:379",
+    "docs/50-frontend/06-text-editing-and-ime.md:382",
+    "docs/50-frontend/06-text-editing-and-ime.md:384",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:562",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:563",
+    "docs/50-frontend/03-preset-assembly-and-plugins.md:420",
+    "docs/50-frontend/12-viewer-embedding-and-render-page.md:396",
+    "docs/50-frontend/05-rendering-and-thumbnails.md:648"
+   ],
+   "conflict": "以下各项已核实完成，状态列却没改：deriveCollabUiState 已登记在 40/10 :154、:483、:714；onEditIntent 改名已完成，40/18 里没有旧名残留；slide/autofit-changed 与 slide.applyAutofit 已登记在 40/07 :244 和 40/03 :1058；设计 03-16 已改为「退出并取消选择」（:52）；设计 01 §4 深链已改（:148）；50/02、50/03、50/12 各自的「回写 40/11」已由 40/11 §12「2026-09-25 回写」表执行；50/05 §14.2 中属于 40/06 的部分已回写（40/06 :918），属于 30 的部分见 FE-16。",
+   "authority": "各目标文档的现状（逐条核实）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "把上述各行的状态改为「已回写（指向落点）」；50/05 §14.2 的行改为「部分回写：40/06 已完成，30/07、30/10 见 FE-16」。（复核：50/06 §12 的回写表只有「待回写项 | 去向」两列，没有状态列，原「只改状态列」的改法落不下去；该表 6 行已全部完成（TextEditIntent 已登记在 40/06，insertText 寻址已登记在 40/03 :1058），改法是加一列状态，或在去向后标「已回写」。）",
+   "options": [],
+   "fixPlan": "逐行修改状态列并补上落点链接；50/06 §12 表增加「状态」列，6 行全部标「已回写（落点）」。只改状态，不改正文。"
+  },
+  {
+   "id": "FE-18",
+   "title": "第三方运行时样式与 Trusted Types 兼容：Radix ScrollArea 和 Select、sonner、react-resizable-panels（triage #45、#54）",
+   "locations": [
+    "docs/50-frontend/14-client-security.md:94",
+    "docs/50-frontend/14-client-security.md:106",
+    "docs/50-frontend/14-client-security.md:214",
+    "docs/50-frontend/14-client-security.md:215",
+    "docs/50-frontend/14-client-security.md:216",
+    "docs/50-frontend/14-client-security.md:218",
+    "docs/50-frontend/14-client-security.md:259",
+    "docs/50-frontend/14-client-security.md:275"
+   ],
+   "conflict": "50/14 §4.4 把 Radix Viewport 以 dangerouslySetInnerHTML 注入样式列为开放问题，要在 M2 report-only 期按报告选方案；sonner 与 react-resizable-panels 是否支持 nonce 也留到 M2 锁版本时核实。但这三件事现在就能在 playground 已安装的版本上核实：sonner 2.0.8 在模块加载时用不带 nonce 的 `<style>` 注入（dist/index.mjs 第 2 行 `__insertCSS`），不支持 nonce；react-resizable-panels 4.12.4 只用 adoptedStyleSheets / insertRule（CSSOM），不建 `<style>` 也不写 innerHTML；@radix-ui/react-scroll-area 1.2.18（dist/index.mjs:136）与 react-select 2.3.7（:735）用 `<style dangerouslySetInnerHTML nonce>` 写一段固定常量，nonce 能过 CSP，但 React 写 innerHTML 属于 TT sink，M3 强制后必抛。另外，§3 表里 sonner 的退路写「运行时注入被拦只产生报告、外观不变」，而 §3 第 6 条的门禁要求 csp-strict e2e 的 style-src 违规数为 0，两者自相矛盾；style-src 在 M2 就强制（:94），这个问题 M2 就会暴露。",
+   "authority": "rulings §4.15 Q2（CSP nonce M2、TT M2 report-only → M3 强制）；50/14 §2.1、§3、§4.4；playground 锁定版本源码实测",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "现在就定，不等 M2 报告。① sonner：静态引入 `sonner/dist/styles.css`，并用 pnpm patch 删掉模块加载时的 `__insertCSS` 调用，保证零违规；§3 表中「运行时注入被拦只产生报告」一句改掉。② react-resizable-panels 4.x：无需处理，§3 表该行改为「CSSOM，不经 style-src」。③ Radix 两处：推荐乙方案，建一个 `default` 策略，其 `createHTML` 只对登记表里的两段 Radix 常量做精确比对放行，其余一律返回 null。这样保留 Radix 组件和自定义滚动条外观，其余 HTML sink 的严格程度不变；§2.1 :106 的 `trusted-types` 取值加 `default`，§4.1 :259 改为「default 策略只放行登记的固定样式文本」。甲方案（改用原生滚动）对 Select 没有简单绕法，改动更大，不推荐。以后升级任一依赖，由 csp-strict e2e 复核（style-src 与 TT 违规都为 0）。（复核：原判 defer，改判 gap。三项事实已能在锁定版本上核实，等 M2 报告只是在推迟；同时发现 sonner 的退路与 e2e 零违规门禁冲突，且 style-src 在 M2 就强制。）",
+   "options": [],
+   "fixPlan": "50/14：§3 表 :214 改为「TT 由 default 策略精确白名单放行（§4.1）」、:215 改为「不支持 nonce：静态 styles.css + pnpm patch 删运行时注入」、:216 改为「CSSOM（adoptedStyleSheets），无需处理」，并注明实测版本；§2.1 :106 与 §4.1 :259 按乙方案改写，登记常量表的落点（建议 ui-react `src/infrastructure/csp/trusted-style-constants.ts`）；§4.4 :275 改为已定。pnpm-workspace.yaml 登记 `patchedDependencies`（sonner）。70/06 csp-strict 用例补断言：TT 报告与 style-src 违规数都为 0，并且 Toast 与 ScrollArea 的计算样式与基线一致。"
+  },
+  {
+   "id": "FE-19",
+   "title": "IMPORT-OVERWRITE（N1）的前端落点",
+   "locations": [
+    "docs/50-frontend/README.md:3",
+    "docs/50-frontend/README.md:239",
+    "docs/50-frontend/07-collaboration-client.md:630",
+    "docs/50-frontend/08-comments-and-version-history.md:236",
+    "docs/40-modules/08-server-identity-documents-and-storage.md:522"
+   ],
+   "conflict": "原记录说 50/README 第 281 行仍把此事列为待用户裁决，40/08:522 仍写「导入/恢复/迁移窗口锁定」。现状：50/README §8.1 已有 N1 行，§8.3 的开放行已删（状态行有记录）；50/07 §17、50/08 §10 第 8 步已按「恢复不锁、覆盖导入换纪元」定稿；40/08:522 已收窄为「覆盖导入/迁移」。",
+   "authority": "rulings §4.19 N1",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口，无需处理。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "FE-20",
+   "title": "`Mod`+拖动复制的命令 id（50/10 §12.3）",
+   "locations": [
+    "docs/40-modules/10-ui-shell-and-slide-ui.md:297",
+    "docs/40-modules/03-slide-domain-model.md:289",
+    "docs/50-frontend/10-editor-shell-and-interaction.md:567"
+   ],
+   "conflict": "原记录说这个命令 id 仍待登记。现状：`slide.duplicateShapes{shapeIds, dx, dy}` 已登记在 40/03 §2.6 命令表（:289，一个事务、一个撤销步）和 40/10 §2.6 画布拖拽段，50/10 §12.3 也已标为已登记。",
+   "authority": "40/03 §2.6",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "FE-21",
+   "title": "`room.locked.reason` 没有数据来源（N1 补缺）",
+   "locations": [
+    "docs/60-backend/10-ddl-documents-marks-media.md:141",
+    "docs/60-backend/10-ddl-documents-marks-media.md:163",
+    "docs/60-backend/04-modules-documents-storage-media.md:78",
+    "docs/30-architecture/06-collaboration.md:639",
+    "docs/50-frontend/07-collaboration-client.md:341"
+   ],
+   "conflict": "原记录说 documents 表没有锁原因列，会话中途加入的人拿不到原因。现状：60/10 已给 documents 加 `lock_reason`（取值 import 或 migration，并有 CHECK 约束与 status 联动）；60/04 的 LockDocumentUseCase 写入该列；30/06 §6.3 的 `room` 帧在加入时下发一次 `locked:{reason, until}`；50/07 §8.1 读取这个字段。",
+   "authority": "rulings §4.19 N1；60/10、60/04",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "FE-22",
+   "title": "形状成墓碑时丢弃未上屏的输入法组合串（triage #38）",
+   "locations": [
+    "docs/50-frontend/06-text-editing-and-ime.md:217"
+   ],
+   "conflict": "分诊时判为实现期交互细节。现状：50/06 §5.5 已写明——丢弃未上屏的组合串（它从未进入 Store），已提交的键入保留在墓碑实体上，「恢复元素」由 04 §7 负责。",
+   "authority": "50/06 §5.5",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "已收口。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "FE-23",
+   "title": "删除被引用母版时，各页改用哪个版式（PRD G-73、40/03 Q6/G-9、40/14 N-21）",
+   "locations": [
+    "docs/10-prd/03-features/07-masters-layouts-and-themes.md:150",
+    "docs/40-modules/03-slide-domain-model.md:310",
+    "docs/40-modules/03-slide-domain-model.md:1022",
+    "docs/40-modules/03-slide-domain-model.md:1071",
+    "docs/40-modules/14-cross-module-review.md:300",
+    "docs/40-modules/14-cross-module-review.md:504",
+    "docs/40-modules/14-cross-module-review.md:643",
+    "docs/30-architecture/05-command-and-history.md:392",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:315",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:440"
+   ],
+   "conflict": "PRD 07 ML-03 只写「受影响页改用剩余母版的默认版式」，目标版式细则待设计 26 补稿（G-73）；40/03 暂用「该母版首个版式」占位；30/05 :392 的 deleteMaster 没写 `reassignTo` 的类型（deleteLayout 的是 LayoutId）。被删母版下的页原本用着不同 type 的版式，如果统一改到一个版式，所有页都会变成同一种版式。原分诊 FE-03 想借 I-ML2 链顺带关闭此项，结果会是「首个母版的首个版式」，丢掉 type 对应。",
+   "authority": "无上位裁决；PRD 07 ML-03 与 rulings §4.10 Q11（改用默认版式，占位符按类型与索引重新匹配）给出方向；30/04 §12.3 I-ML2 的「同 type 优先」原则",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "推荐默认：`slide.deleteMaster{masterId, reassignTo?: MasterId}`，`reassignTo` 是目标母版；每个受影响页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（与 FE-03 同一个函数：目标母版下同 type 的首个 → 目标母版首个），整个删除是一个事务。UI 不加母版选择器，确认对话框默认取按 order 排序的首个剩余母版，文案沿用 Q11，改为「N 个页面将改用剩余母版中对应的版式」。能否撤销随 FE-05 的裁决。（复核：新增，由 FE-03 拆出；原稿借 I-ML2 链关闭此项不成立。）",
+   "options": [],
+   "fixPlan": "30/05 :392 与 40/03 :310 写明 `reassignTo?: MasterId` 和逐页选取规则，40/03 §2.1 CRDT 合并语义表同步；40/03 G-9（:1022）、Q6（:1071）与 40/14 N-21（:300、:504、:643）结案；PRD 07 :150 删去「待设计 26 补稿（G-73）」并写入规则，G-73 结案；设计 26 删除母版对话框补一句文案；50/11 :315 与 §11.4 :440 关闭。机械验证（model-slide 单测）：目标母版有同 type 版式时，每页的 type 不变；没有时落到目标母版首个版式；整个删除是一个事务；与 I-ML2 修复共用同一符号。"
+  },
+  {
+   "id": "FE-24",
+   "title": "50/11 §11.1/§11.4 其余待登记：resetPlaceholderFields、deleteLayout 批量形式、applyLayout 结果计数、主题预览覆盖、占位符级别样式",
+   "locations": [
+    "docs/50-frontend/11-masters-layouts-and-themes.md:395",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:396",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:397",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:398",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:432",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:436",
+    "docs/50-frontend/11-masters-layouts-and-themes.md:437",
+    "docs/40-modules/03-slide-domain-model.md:304",
+    "docs/40-modules/03-slide-domain-model.md:306",
+    "docs/30-architecture/05-command-and-history.md:383",
+    "docs/30-architecture/05-command-and-history.md:389"
+   ],
+   "conflict": "50/11 §11.1 已给出调用约定，但 40/03 §2.6 与 30/05 §13.2 都没登记：`slide.resetPlaceholderFields{shapeId, fields}`（与 resetSlide 共用 `slide.shape.clearOverrides`）；`slide.deleteLayout` 的批量形式 `{layoutIds, reassignTo?}`（多选删除为一个事务）；`slide.applyLayout` 的结果带每页脱离占位符的元素数（Q13 Toast 计数用）。§9 已定主题预览经 `render.setView` 附带、不写文档，但字段名没登记到 05 与 40/07；「版式占位符按大纲级别的文本样式」的命令 id 仍待定（:398）。原分诊 FE-05 的 fixPlan 把 :432 整行关闭，但该行里的批量形式与结果计数没有任何条目处理。",
+   "authority": "rulings §4.19 分工（50/11 定行为，40/03、30/05 管命令表）；50/11 §9、§11.1；rulings §4.10 Q13、Q16；40/03 §2.6 已有 `slide.updatePlaceholder{shapeId;...}`",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "照 50/11 登记。前三项按 §11.1 原样写入 40/03 §2.6 与 30/05 §13.2。主题预览在 `ViewDescriptor` 增加可选字段 `themePreview?: { masterId; colors?; fonts? }`，只影响渲染，不入 Store、不广播，取消即清空，登记到 50/05 与 40/07。占位符级别文本样式复用既有 `slide.updatePlaceholder{shapeId, …}`，参数增加 `lstStyle`，不新增命令 id。以上都是 M3（ML-03/04）范围。（复核：新增。核实 FE-03、FE-05、FE-07 时发现，50/11 §11.4 还有这几行没被任何条目覆盖；后两项取最小方案，沿用既有载体、不新增接口。）",
+   "options": [],
+   "fixPlan": "40/03 §2.6：新增 resetPlaceholderFields 行；deleteLayout 行改为 `{layoutId | layoutIds; reassignTo?}`；applyLayout 写明结果类型；updatePlaceholder 参数加 `lstStyle`。30/05 §13.2 :383、:389 同步。50/05（ViewDescriptor 处）与 40/07 登记 `themePreview`。50/11 §11.4 的 :432（与 FE-05 一起）、:436、:437 关闭，§11.1 :398 改为已定。机械验证（command-harness）：resetPlaceholderFields 一步撤销，且只清除所列字段；批量删除是一个事务；applyLayout 返回的计数与 Toast 中的 N 一致。slide-render 单测：有 themePreview 时渲染取覆盖值，Store 不产生事务。"
+  },
+  {
+   "id": "TX-01",
+   "title": "U-07「版本恢复可撤销」联合 ADR 仍未立项",
+   "locations": [
+    "docs/00-charter/rulings-2026-09-14.md:247",
+    "docs/60-backend/README.md:296",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:612",
+    "docs/50-frontend/08-comments-and-version-history.md:17",
+    "docs/50-frontend/08-comments-and-version-history.md:233",
+    "docs/50-frontend/08-comments-and-version-history.md:260",
+    "docs/50-frontend/README.md:280",
+    "docs/40-modules/02-kernel-protocol-and-document-core.md:1666",
+    "docs/40-modules/02-kernel-protocol-and-document-core.md:1667",
+    "docs/40-modules/09-server-collab-gateway-and-headless-host.md:1174",
+    "docs/10-prd/03-features/03-collaboration.md:218",
+    "docs/10-prd/05-milestones-and-scope.md:86",
+    "docs/30-architecture/adr/README.md:55"
+   ],
+   "conflict": "U-07 已定由 M-02 × M-05 × M-09 联合出 version-restore-undo（拟 ADR），M3 前定稿。但至今没有 ADR 编号和负责人，60/05 §11、50/08 §10、50 README 都只留了占位。40/02 Q-3（restoreVersion 参数用 targetBody 还是 versionId）和 40/09 Q-9 都等它结案；PRD 05 的 M3 验收没有对应的检查名，70 也没有撤销恢复的场景。rulings §4.19 N1 已把恢复定为「在持有 Room 的 collab 进程内单事务完成、不加锁」，所以撤销恢复也只能在 Room 内以单事务完成。它也不能靠 Yjs UndoManager 实现：服务端 Room 会关闭后重开，撤销栈不会持久保存。另外，版本历史（CO-07）的服务端用例和界面都在 M3（PRD 05:86），而 API 冻结点是「M3 末冻结 Stable 集合」（PRD 05:249），M2 并没有 API 冻结。",
+   "authority": "rulings §4.12 U-07（做法与时限：M3 前定稿）；§4.15 Q3（中性撤销基线：他人后写则跳过，整步被跳过就停）；§4.17 D4 与 §4.18 CO-07（不复活他人删除的元素、wholeStep 口径）；§4.19 N1（单事务、不加锁）；§4.19 C-06（restore/auto 快照 30 天后按天稀疏）与 PRD 05:86（update 保留 7 天）；30/05:239 与 ADR-0020 决策 4（禁用 revertTo）；ADR README 编号规则（运行时线 0020–0039，0038 空闲）",
+   "class": "gap",
+   "impact": "high",
+   "recommendation": "默认：本轮就在 ADR README 登记 ADR-0038 version-restore-undo（提议），M-02 主笔，M-05、M-09 会签，70/05 出场景。按 U-07 原时限在 M3 开工前定稿（M2 出口评审时一并验收），实现随 CO-07 放在 M3。ADR 按 fixPlan 第 2 步的基线起草，标「待确认」的两处在 ADR 定稿时再交互拍板。（复核：原分为 decision，但三个选项并不构成真正的取舍。「M2 出口前定稿」和 U-07 的「M3 前定稿」是同一个时点；理由里说要赶在「model-core 的 M2 API 基线冻结」之前，但查不到这一冻结：PRD 05:249 的冻结是 M3 末冻结 Stable 集合，40/02:1589 也写明 restore-version-command 可以提前实现并单测。选项「降P2」违背「撤销语义不简化」。真正缺的只是编号和负责人，按 U-07 与 ADR README 编号规则就能落，因此改为 gap，由用户确认一次。基线另修两处：① 判断「他人后写」要按 Q3 中性撤销的口径，看恢复之后这个键有没有被写过（可以用恢复事务在 Y.Doc 中的 struct 范围判断当前值是否仍出自恢复事务），不能看「当前值是否等于恢复写入的值」，否则他人写回同一个值时会被误撤；② 时效不能「不另设上限」：update 行只保留 7 天，恢复前的 auto 快照 30 天后按天稀疏（C-06），可撤销期要限定在保留期内，或者把这些数据标为受保护。）",
+   "options": [],
+   "fixPlan": "1. 在 adr/README 的运行时线表中，把「0038–0039（预留）」里的 0038 登记为「version-restore-undo（提议）」，并新建 ADR 骨架：负责 M-02，会签 M-05、M-09，场景由 70/05 提供；定稿时点按 U-07 为 M3 开工前。\n2. 供主笔起草的基线：\n- 执行：POST /documents/:id/snapshots/:restoreSnapshotId/revert（能力位 history.restore）。在持有 Room 的实例内以单事务执行，不加锁、不断连（N1）。走命令管线（D4，不用 revertTo）；origin 沿用 system('restore')，meta 里带 revertOf，不新增 Origin 字面量。\n- 范围与冲突：只处理恢复事务改写过的键，判据与 Q3 中性撤销相同。恢复之后该键被任何人写过就跳过并计入提示，否则写回恢复前的值。「被写过」的判断方法是看当前值是否仍出自恢复事务的 struct 范围，不比较值是否相等。全部键都被跳过时不提交，返回 wholeStep:true。恢复时删掉的元素沿用原 id 复活；墓碑 TTL 已过或已被彻底删除的跳过。\n- 数据来源：恢复前的 auto 快照、恢复事务的 update 行（60/05 §11 已预留 preRestoreSnapshotId、seqRange），另在 restore 快照元数据里记下恢复事务的 struct 范围；不新增表。\n- 待确认 1（谁能撤销）：建议任一持有 history.restore 的人都可以，而不只是执行恢复的人。\n- 待确认 2（时效）：建议只能撤销「最近一次恢复」，且它之后没有新的恢复，并且仍在 update 行保留期（7 天）内。另一种做法是把恢复前快照和恢复事务的 update 行标为受保护，直到可撤销期结束。\n- 界面与事件：版本面板加「撤销此次恢复」入口，二次确认，并提示跳过的键数；审计事件 snapshot.restore_reverted；控制帧 CONTROL.event version.restore-reverted。\n3. 40/02 Q-3 与 40/09 Q-9 改为「随 ADR-0038 结案」；60 README:296、50 README:280、50/08:17 的「未立项」「占位」改为 ADR-0038 链接。\n4. PRD 05 的 M3 验收新增检查名 history:restore-revert，并在 70/13 §3.4 登记；70/05 新增 rs/restore-revert-* 场景，覆盖三种情况：他人在恢复后改过的键被跳过、整步被跳过就停、墓碑 TTL 已过。"
+  },
+  {
+   "id": "TX-02",
+   "title": "M0 验收 2「未定义术语数 = 0」没有脚本，按字面也很难机械化",
+   "locations": [
+    "docs/10-prd/05-milestones-and-scope.md:109",
+    "docs/10-prd/05-milestones-and-scope.md:114",
+    "docs/70-testing/13-requirements-traceability.md:169",
+    "docs/70-testing/13-requirements-traceability.md:686"
+   ],
+   "conflict": "M0 是当前阶段。验收 2 要求脚本扫描 docs/ 里出现的术语，与「章程 §4 + 各 README 术语补充」的并集比对，未定义的数量为 0；70/13 把它登记为机械项、由总编排实现，但脚本还不存在。照字面做，得先界定什么算术语，而在自由中文文本里没有可靠判据。实际发生的漂移是旧名残留，但大部分出现处是合法的历史记录：去掉 rulings、_evidence、adr、状态头行和带更名标注（原/弃/作废/取代/替换/→）的行后，正文真正的残留只有 14 处 FakeClock（应为 FixedClock）。MinIO 出现在 ADR-0022/0037 的方案比较里，pending_invitations 出现在 SEC-DA-04、MG5 的「无该表」负向断言里，runCollabConformance 出现在 40/05 Q-05-4 的假设性问题里，三者都是合法用法。render/frame 按 INC-08 与 perf/frame 并存，也不是旧名。可见禁用清单必须人工整理。",
+   "authority": "PRD 05 M0 验收 2（口径归产品线，改写需用户确认）；rulings §5 的事件名定稿与各节更名裁决（旧名来源）；check-scanner-names.py 的历史行豁免做法（先例）",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "默认：把验收 2 改写为「术语表登记的旧名在正文中残留 0 处」。实现为 check-terms.py + terms.json（只用标准库、只读，有残留时退出码 1）。首批只收已裁定更名的内部标识符：FakeClock/FakeServerClock、FixedMetricsMeasurer、*.test-d.ts、render/error、collab/permission-changed、ui.statusbar、@oce 与 oce- 前缀。rulings、_evidence、adr/ 目录不查；状态头行、同一行同时出现正名的行、带更名标注的行放行；每条还可以带 allowIn 文件清单，用来放行更名对照表。（复核：原分为 decision。但「全量术语覆盖」属于过度设计，「降为人工评审」又少了一项机械验证，两者都与用户偏好相反，实际上可以直接判定，因此改为 gap。首批清单也做了修正：去掉 MinIO、pending_invitations、runCollabConformance，它们在正文中都有合法出现，收进来只会带来噪声。按上述豁免规则只读实测，真实残留只有 14 处 FakeClock，随 TX-10 第 3 项清掉。）",
+   "options": [],
+   "fixPlan": "1. 新建 docs/_tools/terms.json（字段：deprecated、canonical、source、allowIn?）。首批收录：FakeClock/FakeServerClock→FixedClock（70/11 §2）、FixedMetricsMeasurer→FixedWidthMeasurer（70/11 §2）、*.test-d.ts→*.type-test.ts（ADR-0048、T-NAMING）、render/error→render/element-failed、collab/permission-changed→permission/changed、ui.statusbar→ui.statusBar（以上三条依据 rulings §5）、@oce/oce-→@cordexjs/cordex（rulings §4.15 Q1）。每条附出处。MinIO、pending_invitations、runCollabConformance、render/frame 不收。\n2. 新建 docs/_tools/check-terms.py，只用标准库、只读，有残留时退出码 1。豁免规则：\n- 跳过 00-charter/rulings-*、_evidence/、30-architecture/adr/。\n- 跳过「> 状态：」头行。\n- 同一行同时出现正名，或含「原名/原称/原：/弃/作废/取代/替换/→ 2026-/旧名」的行放行。\n- 每条的 allowIn 文件放行，首批登记 30-architecture/README.md（更名对照表）、70-testing/01-strategy-and-layers.md（废止表与 test-layout 负向断言）、70-testing/README.md。\n3. 改写 PRD 05:109 的验收 2；70/13:169 的断言摘要与落点同步；70/13:686 第 6 条标为完成；docs/_tools/README 表格加一行，并在 rulings 回写流程里加上「新更名须登记 terms.json」。\n4. 首轮运行清零，与 TX-10 第 3 项的 FakeClock 统一合并执行。"
+  },
+  {
+   "id": "TX-03",
+   "title": "WS 升级限流：认证成功后是否退还按 IP 扣的额度（先扣后退）",
+   "locations": [
+    "docs/60-backend/16-ws-protocol-server-view.md:18",
+    "docs/60-backend/16-ws-protocol-server-view.md:21",
+    "docs/60-backend/16-ws-protocol-server-view.md:309",
+    "docs/60-backend/17-deployment-and-config.md:457",
+    "docs/60-backend/14-valkey-object-storage-and-retention.md:86",
+    "docs/60-backend/README.md:271",
+    "docs/70-testing/10-security-testing.md:362"
+   ],
+   "conflict": "60/16 §1 对每个升级请求按 IP 计数（10 次/min，令牌桶 rl:ws-connect:ip:{ipHash}，认证成功的也扣），写明代价是「同一 NAT 后几十人同时重连会收到 429」，并留了一条「待确认（总编排）：是否改为先扣后退」；分诊 #104 以「压测后调参」推迟了它，完整性报告第 2 条列的也是同一件事。按 T-0，本项目是单组织部署，整个办公室常共用一个出口 IP，10 次/min 不只会在 1012 集体重连时触发，早上大家一起打开文档（每打开一篇就升级一次）时也会触发。认证成功的连接本来已受票据限制（ticket 每用户 120 次/min、单次有效），IP 额度真正要挡的是不带有效票据的空连接。",
+   "authority": "60/16 §1（待确认项）；rulings §4.15 T-0（单组织）；60/17:467 limits.rate.ticket 为 120/min；60/14 §3（ws-connect 桶按 IP，HMAC 后存）；没有更高层权威对此作过裁定",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "默认：先扣后退。升级前从 IP 令牌桶取 1 个令牌，首帧认证成功后退还 1 个（不超过桶容量），这样 IP 额度实际只约束失败和未完成的握手；默认值 10 不变。突发重连时仍可能有少量 429，由客户端退避吸收。（复核：原分为 decision。但「先扣后退」在防空连接和 NAT 集体重连两方面都不比另两个选项差，代价只是一次 Valkey 写，不构成真正的取舍，因此改为 gap。另更正实现口径：60/16:18 的计数器是令牌桶 rl:ws-connect:ip:{ipHash}（IP 先经审计盐 HMAC），不是 INCR/DECR rl:ws:{ip}，「退还」即给桶加回 1 个令牌。测试并入已有的 SEC-RL-03，不另起条目。）",
+   "options": [],
+   "fixPlan": "1. 改写 60/16:21：Origin 检查之后、升级之前，从令牌桶 rl:ws-connect:ip:{ipHash} 取 1 个令牌；首帧 CONTROL.auth 认证成功后退还 1 个，不超过桶容量。认证失败、4408 首帧超时、升级后未发 auth 就断开的，都不退还。删掉「待确认（总编排）」。\n2. 60/16:18 的检查表行、60/16:309 的限额表行、60/17:457 的配置行同步注明「认证成功即退还」；60/14:86 的 ws-connect 桶说明补一句。\n3. 60 README:271 从「仍待确认」表移出。\n4. 70/10 SEC-RL-03 增加两条断言：同一 IP 连续 30 次认证成功的升级不出现 429；未认证的空连接超过 limits.ws.connectPerIpPerMin 后返回 429。"
+  },
+  {
+   "id": "TX-04",
+   "title": "docs/_tools 缺严格的链接检查，文档站会把错误锚点悄悄改指",
+   "locations": [
+    "docs/_tools/README.md:13",
+    "docs/_tools/gen-docs-site.py:1425",
+    "docs/_tools/gen-docs-site.py:1459",
+    "docs/70-testing/README.md:299"
+   ],
+   "conflict": "70 README §10 把「相对链接目标存在」的执行点写成 gen-docs-site.py「生成结束时失配链接数要求为 0」。但这个脚本有三个问题：(1) 依赖 pip 装的 markdown 包；(2) 在第 1425–1450 行先按相近标题把错误锚点改指、再计数；(3) 只打印结果，不以非零退出码失败。按 GitHub 锚点规则、不做相近改指只读复测：4,563 条相对链接，缺文件 0 处，锚点失配 32 处（清单见 TX-11），全被文档站掩盖了。另外，章节号引用也会失效：只看「带目录前缀的 §x.y」（NN/MM §、30-architecture/08 § 这类），只读复测 2,611 处，有 7 处指向不存在的节，都是 30/08 §3.1、§3.3；同一行接着写的 §4.1、§4.2 还有 4 处。这些都是 30/08 改版后的遗留，已并入 TX-12。",
+   "authority": "70 README §10 第 4 行（要求失配为 0）；docs/_tools 先例 check-scanner-names.py（仅用标准库、只读、失配时退出码 1）",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "默认：新增 docs/_tools/check-links.py，只用标准库。按 GitHub 规则生成标题锚点，检查目标文件存在、锚点精确匹配，不做相近改指；同时检查带目录前缀的章节引用（NN/MM §x.y、<线目录>/NN §x.y，以及同一行接着写的 §），要求目标文件里有该编号的标题。有失配时报「文件:行 → 目标」并以退出码 1 结束。它与 mermaid-check、check-scanner-names 并列为改文档后必跑的检查；文档站的相近改指保留，只作展示时的容错。（复核：原稿说「不需要再写章节号检查器」，依据的统计只数了 NN/MM 简写，漏了「30-architecture/08 §3.1」这种写法。实测带前缀的失效章节引用至少 11 处，且集中出现在文档改版之后，正是需要机械守住的一类漂移。它和链接检查可以在同一次遍历里完成，不另起脚本。另注意：生成 slug 时，行内代码里的 <T> 要当作文字处理（例如「4.4 派生字段标记（`Derived<T>`）」的锚点是 44-派生字段标记derivedt），否则会多报 4 处误报。）",
+   "options": [],
+   "fixPlan": "1. 新建 docs/_tools/check-links.py：扫描 docs 下的 .md（跳过的目录与文档站相同），忽略围栏和行内代码里的链接。锚点取 #–###### 标题的 GitHub slug（去掉反引号但保留其中文字，重名时加 -1、-2 后缀），外加显式的 <a id>；外链和仓库外路径不查。\n2. 同一脚本检查章节引用：匹配「(10|20|30|40|50|60|70 或完整线目录)/NN §x.y」，以及同一行在它之后接着写的「、§x.y」；目标解析为唯一的 docs/<线>/NN-*.md，要求其中存在以该编号开头的标题。不带目录前缀的「08 §4.1」有歧义，不查。\n3. docs/_tools/README.md 表格加一行，并在「说明」段把它列为改文档后必跑。\n4. 70 README:299 的执行点改为 check-links.py；gen-docs-site 的报告行注明「相近改指的数量不算通过」。\n5. 先修完 TX-11 的 32 处锚点和 TX-12 的章节引用，保证首次运行结果就是 0。"
+  },
+  {
+   "id": "TX-05",
+   "title": "ADR-0037 最低主机规格：数值要靠实测，但测试线没有对应的测量场景",
+   "locations": [
+    "docs/30-architecture/adr/0037-deployment-topology-and-packaging.md:64",
+    "docs/30-architecture/adr/0037-deployment-topology-and-packaging.md:156",
+    "docs/60-backend/17-deployment-and-config.md:723",
+    "docs/60-backend/README.md:297",
+    "docs/70-testing/09-performance-and-capacity.md:420"
+   ],
+   "conflict": "ADR-0037 决策 5 要求 compose 全家桶的最低规格「M3 前实测后填入」；Postgres、Valkey、SeaweedFS、观测组件和 Casdoor 各项的口径都是「实测（testcontainers + compose 基准）」。60/17 §11 只引用，不自己填数。但 70（09 性能、08 部署）没有任何测量 compose 各容器资源占用的场景，没人会产出这些数值。溢写阈值另有安排：70/09:420 已定为 M2 在自托管 runner 上校准、只收紧，这部分无需再议。",
+   "authority": "ADR-0037 决策 5（已接受，rulings §4.15 Q10）；rulings §4.19 D-TEST-INFRA（自托管 runner 在 M2 前落地）；70 是测试设计的唯一事实源",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "默认：在 70/09 增加一个只出报告的场景 compose-footprint（归 perf-server，nightly，在自托管 runner 上自 M2 起跑）。它在 RM-S 负载下分 core 和 core+idp 两档，采集各容器的峰值 RSS 和 CPU，只报告、不设 gate；M3 开工前取结果加余量，回填 ADR-0037 决策 5 和 60/17 §11。",
+   "options": [],
+   "fixPlan": "1. 在 70/09 §6 服务端场景表加 compose-footprint 一行：负载与 RM-S 单实例场景相同，用 docker stats 采样，产物为 footprint.json，只出报告。\n2. 70/12 的 perf/perf-server 步骤内容加入该场景；如果 PRD 05 M3 验收 10 的 ops:compose 需要这份证据，在 70/13 §3.4 登记。\n3. M3 开工前，由后端设计线按报告把两档数值写进 ADR-0037 决策 5 的表和 60/17 §11，注明「实测于 <日期>」；ADR-0037:156「只有口径没有数字」一句随之删除。"
+  },
+  {
+   "id": "TX-06",
+   "title": "Trusted Types 与 CSP 的第三方样式注入点现在就能定，不必等到 M2",
+   "locations": [
+    "docs/50-frontend/14-client-security.md:106",
+    "docs/50-frontend/14-client-security.md:214",
+    "docs/50-frontend/14-client-security.md:215",
+    "docs/50-frontend/14-client-security.md:216",
+    "docs/50-frontend/14-client-security.md:275",
+    "docs/50-frontend/14-client-security.md:282"
+   ],
+   "conflict": "分诊把 #45（Radix ScrollArea/Select 与 Trusted Types）和 #54（sonner、react-resizable-panels 是否支持 nonce）推到 M2 实证。其实对照 playground 已装的版本只读核对，现在就能定：\n- Radix ScrollArea 1.2.18 和 Select 2.3.7 的 Viewport 都用 dangerouslySetInnerHTML 写一段固定 <style>（index.mjs:136、:735）。它们已透传 nonce，CSP 不受影响；但 innerHTML 是 Trusted Types 的注入点，强制模式下必然抛错。方案甲（改用原生滚动）只能解决 ScrollArea，Select 要么换掉组件，要么走方案乙。\n- sonner 2.0.8 在模块顶层执行 __insertCSS，用 createTextNode 往新建的 <style> 里写样式，没有 nonce 参数，会被 style-src 拦下；包里另外导出了 ./dist/styles.css。\n- react-resizable-panels 4.12.4 用 adoptedStyleSheets 和 replaceSync 构造样式表，不创建 <style> 元素，不需要 nonce。\n方案乙与 TT-CSP-REPORT 现行的「不提供 createHTML、不创建名为 default 的策略」（50/14:106）字面冲突。",
+   "authority": "50/14 §2.5 表与 §4.4（浏览器侧安全的唯一事实源）；rulings §4.15 Q2（CSP nonce 自 M2 起；Trusted Types 在 M2 只报告，M3 起强制）；决策 TT-CSP-REPORT（needsUser=false，总编排定；方案乙须总编排确认，50/14:282）",
+   "class": "gap",
+   "impact": "medium",
+   "recommendation": "默认：Trusted Types 采用方案乙，即名为 default 的策略，createHTML 只放行登记过的两段 Radix 固定样式文本（精确比对），其余一律返回 null；ScrollArea 是否改为原生滚动作为可选项。sonner 直接走「构建期抽成静态 CSS」；react-resizable-panels 从注入点清单移除。M2 只报告期仅用来验证 Trusted Types 报告为 0。（复核：方案乙改的是既有决策 TT-CSP-REPORT 的字面（「不提供 createHTML、不创建 default 策略」），确认时要明示这一点。安全上它与原决策等价：除两段常量 CSS 外返回 null，其余 innerHTML 调用照样抛错；而 Select 靠方案甲解决不了。sonner 还要补一步：它在 import 时就注入样式，只把 CSS 抽成静态文件并不够，还要在构建期去掉运行时注入，否则每次加载都会产生一条 style-src 违规报告，污染 /telemetry/csp。）",
+   "options": [],
+   "fixPlan": "1. 50/14 §4.4 从「开放问题」改为已定：以方案乙为默认，策略的常量表放在 ui-react 的 src/infrastructure/csp/（与 runtime-style-sinks.ts 同目录）；50/14:106 的 trusted-types 取值改为 cordex-default default，并改写「不创建名为 default 的策略」一句，同步记为 TT-CSP-REPORT 的修订。\n2. §2.5 表：sonner 行改为「2.x 不支持 nonce、在 import 时注入：样式改从 sonner/dist/styles.css 静态引入，构建期去掉运行时注入（Vite 插件把 __insertCSS 置空，或 pnpm patch）」；react-resizable-panels 行删除，或注明「用 adoptedStyleSheets，不创建 <style>，不走 nonce 路径」。保留「每次升级依赖都按实际版本复核」。\n3. 70/10 的 csp-strict e2e 断言 Trusted Types 违规为 0、style-src 违规为 0，并加负向用例：default 策略拒绝未登记的文本。"
+  },
+  {
+   "id": "TX-07",
+   "title": "RendererPool 容量公式里的 renderer 副本数没有配置键",
+   "locations": [
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:653",
+    "docs/60-backend/17-deployment-and-config.md:521",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:535"
+   ],
+   "conflict": "60/06 §10.5 写池容量 = headless.poolSize × renderer 副本数，并说「副本数由部署编排决定，worker 按 headless.endpoint 背后实际可用的副本计」。但 60/17 没有对应的配置键，也没写 worker 怎么知道副本数；照字面做就得引入服务发现。分诊 #119 以「实现期定键」推迟了它。",
+   "authority": "60/06 §10.5；60/17 配置表（配置键唯一登记处）；renderer 超出并发时返回 503 headless.renderer_busy 并带 Retry-After（60/06:535），所以容量算错只会多一次重试，不会出错",
+   "class": "gap",
+   "impact": "low",
+   "recommendation": "默认：登记配置键 headless.rendererReplicas（整数，默认 1，环境变量 CORDEX_HEADLESS_RENDERER_REPLICAS），池容量 = poolSize × rendererReplicas；compose 和 Helm 用同一个变量设副本数。不做服务发现，填错时由 503 背压兜底。（复核：补充一点，这个容量按单个 worker 计算。有多个 worker 副本时，全体在途请求可能超过 renderer 的总并发，同样由 503 加 Retry-After 兜底，不需要跨 worker 协调，在 60/06 §10.5 写明即可。）",
+   "options": [],
+   "fixPlan": "1. 在 60/17 的 headless.* 表加一行 headless.rendererReplicas。\n2. 改写 60/06:653 的容量说明：删去「按实际可用副本计」，注明「按单个 worker 计；多个 worker 超额时由 renderer 的 503 背压兜底」。\n3. 如果 ADR-0037 决策 1 或 3 列了 renderer 副本数，改为引用这个键（本轮核对未见）。\n4. 70/09 的缩略图与 PDF 场景注明副本数按该键配置。"
+  },
+  {
+   "id": "TX-08",
+   "title": "确定性 lint 没有写进 09-type-discipline（TD-097 只管 ooxml-*）",
+   "locations": [
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:133",
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:297",
+    "docs/70-testing/README.md:223",
+    "docs/70-testing/11-test-data-fixtures-and-determinism.md:12",
+    "docs/70-testing/11-test-data-fixtures-and-determinism.md:393",
+    "docs/30-architecture/11-testing-strategy.md:50",
+    "docs/50-frontend/07-collaboration-client.md:578",
+    "docs/50-frontend/07-collaboration-client.md:608",
+    "docs/40-modules/01-tooling-and-governance.md:406",
+    "docs/40-modules/01-tooling-and-governance.md:571",
+    "docs/40-modules/01-tooling-and-governance.md:821"
+   ],
+   "conflict": "09-02:133 和 08:297 的 TD-097 只作用于 ooxml-*。70/11:12 原则 1 写明「直接调用 Date.now()、Math.random() 只允许出现在 SystemClock/SystemRandom 里」，30/11:50 写「id、时钟、随机源一律注入」，但测试代码和其余生产代码都没有机械约束，70/11:393 仍停在「建议……待类型治理线采纳」。\n50/07:608 的 V15 声称「collab-* 的 no-restricted-globals 禁 setTimeout / Date.now（既有规则的配置）」，这实际拦不住：09-02 §5.2 的 no-restricted-globals 只对 iso 包配置了同构全局名单，而且 Date.now 是 Date 的属性、不是全局名，所以 V15 实际没有执行点。\n另外，70 建议的范围（**/__tests__/** 与 test/**）漏了 apps/server/test/** 和 apps/web/e2e/**。",
+   "authority": "30/11 §1（保留的原则段，层级高于 40/50/70）；70/11 §1 第 1 条（测试线唯一事实源，点名 Date.now、Math.random）；50/07:578（协同包全部计时器经可注入时钟）；70 README §7 第 9 条；先例 TD-109（70/12 的 no-skip lint 已按同样路径写进 09-02 和 08 §12c）",
+   "class": "mechanical",
+   "impact": "high",
+   "recommendation": "按上述权威直接落地：在同一个 rules/determinism.ts 里加第二个 override，把禁用范围从 ooxml-* 扩到全部生产源码（SystemClock/SystemRandom 的实现文件除外）和全部测试代码（test/perf/** 豁免）。ooxml-* 的「预算恒为 0」不变。安全随机数（crypto.*）不禁。（复核：生产代码这一侧只禁权威点名的 Date.now、Math.random 和无参 new Date()。performance.now 只在 ooxml-*（TD-097）和测试代码里禁：70/11 §1 没有点名它，渲染帧计时、性能遥测等生产代码直接测时长是合理用法，需要确定性时长的代码本来就可以走 Clock.monotonic。全仓生产代码都禁 performance.now 超出了权威范围，也会带来大量豁免。）",
+   "options": [],
+   "fixPlan": "1. 09-02 §3 表在 TD-097 行后加一行 TD-110：\n- 生产源码范围：packages/*/src/**、apps/*/src/**，排除 packages/shared/src/{clock,random}.ts 和 apps/server/src/shared/clock.ts。no-restricted-properties 禁 Date.now、Math.random；no-restricted-syntax 禁无参 new Date()。\n- 测试代码范围：apps/server/test/**、apps/web/e2e/**、根 test/**、各包 __tests__/**，豁免 test/perf/**。在上述三项之外再禁 performance.now。\n- crypto.getRandomValues、randomUUID、node:crypto 不禁：令牌、nonce、jti 必须直接取自 CSPRNG，不经可替换的 Random 端口。\n- 其余例外走 cordex-allow（须带 issue）。\n2. 08 §12c 追加 TD-110：来源为 30/11 §1、70/11 §1、70 README §7#9、50/07 V15；配置文件 tooling/eslint-config/rules/determinism.ts；负向用例在 determinism.test.ts 增加四例（测试文件里调 Date.now、apps/web 组件里调 Math.random、SystemClock 文件被放行、生产代码里调 performance.now 被放行）；CI job 为 lint；owner 为架构-类型治理与测试线。§13 和 09 README 的行数从 109 改为 110（与 TX-09 同轮做则为 111）。\n3. 50/07:608 的 V15 改为：Date.now 等由 TD-110 覆盖；collab-* 另外在 restricted-globals 配置里禁 setTimeout/setInterval（改经 Clock 的定时器），作为 TD-110 的子项登记，不再写「既有规则」。\n4. 40/01:406、:571、:821 对 determinism.ts 的说明补上第二个 override。\n5. 70/11:393 和 70 README §7 第 9 条改为「已采纳（TD-110）」。\n前置条件：先做 TX-10 第 1、2 项（在 40/02、40/12 登记 Clock/Random 和 SystemClock/SystemRandom 文件），否则豁免清单里没有文件可指。"
+  },
+  {
+   "id": "TX-09",
+   "title": "「每个 Definition 至少一个 *.type-test.ts」没有机械核对",
+   "locations": [
+    "docs/30-architecture/09-type-discipline/09-plugin-type-contracts.md:136",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:185",
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:312",
+    "docs/70-testing/01-strategy-and-layers.md:287",
+    "docs/70-testing/01-strategy-and-layers.md:382",
+    "docs/70-testing/README.md:224"
+   ],
+   "conflict": "09-09 §6 要求每个 Definition（包括具体的贡献点和 Manifest）至少一个类型测试，70/01 §7 和 §11 所有权表也照抄了。但 scan-manifest 规则 (e)/(e2) 只核对契约套件调用和 kit 自测，TD-103 也不包含类型测试，这条要求没有任何执行点。",
+   "authority": "09-09 §6（要求本身）；70 README §7 第 10 条（落点建议）；先例 TD-103（T-KITS 把 kit 自测作为 (e2) 子项并补了 TD 行，没有新增扫描器）",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "作为 scan-manifest 规则 (e) 的子项 (e3) 落地，与 (e) 在同一次遍历中完成，不新增扫描器，补一行 TD。",
+   "options": [],
+   "fixPlan": "1. 在 09-06 §6 规则 (e) 后加 (e3)：\n- Definition 集合 = 全部包的 cordex.implements 值（与 (e) 用同一张「服务名 → 定义包」映射）∪ 各包的 defineContributionPoint() 导出（与 scan-contributions (a) 用同一份索引）∪ kernel 的 Manifest。\n- 判据：定义包的 __tests__/**/*.type-test.ts 中至少有一个文件以标识符引用该 Definition（出现在 import 或类型位置）。\n- 缺失时报 rule:'e3' 和 Definition 名。\n2. 08 §12c 追加 TD-111：来源为 09-09 §6、70 README §7#10；执行点为 scan-manifest (e3)；负向用例两个（定义包缺类型测试、某贡献点没有被任何 type-test 引用）；CI job 为 scanners；无豁免。总行数与 TX-08 同步更新。\n3. 09-09:136 句末加「机械核对：06 §6 (e3)，TD-111」；70/01:287 同步；70 README §7 第 10 条标为已采纳。\n4. 40/01 的 scan-manifest 测试夹具清单补 (e3) 的正负例。"
+  },
+  {
+   "id": "TX-10",
+   "title": "70 回写清单还有残留：Clock/Random 端口未登记、FakeClock 未统一等",
+   "locations": [
+    "docs/70-testing/README.md:269",
+    "docs/70-testing/README.md:274",
+    "docs/70-testing/README.md:277",
+    "docs/70-testing/README.md:270",
+    "docs/70-testing/README.md:261",
+    "docs/40-modules/02-kernel-protocol-and-document-core.md:675",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:688",
+    "docs/60-backend/02-auth-chain.md:662",
+    "docs/60-backend/12-ddl-jobs-and-thumbnails.md:204",
+    "docs/70-testing/07-backend-integration-and-api-e2e.md:414",
+    "docs/40-modules/04-ooxml-format-and-pptx-codec.md:974",
+    "docs/40-modules/03-slide-domain-model.md:964",
+    "docs/40-modules/07-slide-rendering.md:909",
+    "docs/40-modules/01-tooling-and-governance.md:862",
+    "docs/40-modules/06-layout-and-render-engine.md:817",
+    "docs/40-modules/13-doc-sheet-extension-skeleton.md:912",
+    "docs/40-modules/09-server-collab-gateway-and-headless-host.md:1010",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1082"
+   ],
+   "conflict": "70 README §8 的回写大多已执行，逐条核对后仍有 5 处未落：\n(1) 40/02 §4.1 的 shared 目录树（675–698 行）没有 Clock/Random 端口、SystemClock/SystemRandom 和 testing/{clock,random}.ts，newNodeId 与 order.ts 也没写成可注入。\n(2) 40/12 §4.13 的 apps/server/src 根下没有 shared/clock.ts（CLOCK 令牌），而 70/11 §2 和 60/03:25 都在引用它。\n(3)「FakeClock」还有 14 处：60/02 两处、60/03 两处、60/04 三处、60/06 三处、60/10 一处、60/12 两处（其中一处在 -- example 围栏里）、70/07:414 一处；70/11 §2 已定名为 FixedClock。\n(4) 40/04:974 仍写 fixtures/pptx/wild/。\n(5) 40/03:964、40/07:909、40/13:912、40/01:156/862、40/06:817 讲覆盖率和性能预算时仍指向 30/11 或架构 07，没有改指 70/01 §8、70/09、70/13；40/09:1010、40/12:1082 指向 30/08 §12，而那一节现在只剩转引。",
+   "authority": "70 README §8（测试线回写清单，由总编排执行）；70/11 §2（确定性工具的唯一目录，决策 T-DETERMINISM）；70/01 §4 废止表；70/11 §10（决策 T-CORPUS）；30/08 §12（已改为转引 60/01 §12 与 70/09）",
+   "class": "mechanical",
+   "impact": "medium",
+   "recommendation": "按 70 README §8 逐条执行；其中第 1、2 项是 TX-08 的前置条件，要先做。（复核：第 5 项补漏 40/13:912，它同样指向 11-testing-strategy；40/09:1010、40/12:1082 指向的 30/08 §12 已只剩转引，也一并直接改指 60/01 §12 与 70/09。第 6 项简化：不给 70 README §7 新增「状态」列，只给第 9、10 条加去向标注，其余条目本来就写明了处理结果。）",
+   "options": [],
+   "fixPlan": "1. 40/02 §4.1：\n- 目录树加 clock.ts（Clock 接口 + SystemClock）、random.ts（Random 接口 + SystemRandom，bytes 用 crypto.getRandomValues）、testing/clock.ts（FixedClock）、testing/random.ts（SeededRandom）。\n- ids.ts 的 newNodeId 与 order.ts 的随机后缀改为接受 Clock + Random 参数。\n- §5.1 逐文件表同步增加 4 行；跑 validate-module.py 确认 §4 和 §5 的计数一致，§12 汇总和文件总数同步更新。\n2. 40/12 §4.13 目录树和 §5.13 表加 apps/server/src/shared/clock.ts：CLOCK 注入令牌加 SystemClock 提供者，实现 @cordexjs/shared 的 Clock 接口。\n3. 14 处 FakeClock 改为 FixedClock。60/12:204 在 -- example 围栏里，改后要重跑 ddl-check.sh（本次复核只读实跑结果：31 个迁移、29 个示例共 126 条语句全部通过）。\n4. 40/04:974 改为「T2/T3 语料（存对象存储，只登记在 test/corpus/manifest.json，见 70/11 §10）只在 test/fidelity-roundtrip 步骤运行」。\n5. 40/03:964、40/07:909、40/13:912、40/01:862、40/06:817 讲覆盖率和性能预算的地方改指 70/01 §8 和 70/09（40/06 另改指 50/13 的数值表）；40/01:156 的「11-testing-strategy.md 覆盖率矩阵」改指 70/13；40/09:1010、40/12:1082 改指 60/01 §12 与 70/09。\n6. 70 README §7 第 9、10 条的处理列末尾分别加「→ 已采纳，TD-110（TX-08）」「→ 已采纳，TD-111（TX-09）」。"
+  },
+  {
+   "id": "TX-11",
+   "title": "09-type-discipline 与 ADR-0040 有 32 处锚点失配",
+   "locations": [
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:91",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:125",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:145",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:169",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:200",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:208",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:323",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:362",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:366",
+    "docs/30-architecture/09-type-discipline/02-lint-rules.md:423",
+    "docs/30-architecture/09-type-discipline/01-tsconfig-baseline.md:142",
+    "docs/30-architecture/09-type-discipline/01-tsconfig-baseline.md:237",
+    "docs/30-architecture/09-type-discipline/03-boundaries.md:101",
+    "docs/30-architecture/09-type-discipline/03-boundaries.md:162",
+    "docs/30-architecture/09-type-discipline/04-api-surface.md:91",
+    "docs/30-architecture/09-type-discipline/05-runtime-boundaries.md:174",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:7",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:168",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:187",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:230",
+    "docs/30-architecture/09-type-discipline/06-scanners.md:231",
+    "docs/30-architecture/09-type-discipline/07-hooks-and-ci.md:42",
+    "docs/30-architecture/09-type-discipline/07-hooks-and-ci.md:178",
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:155",
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:156",
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:158",
+    "docs/30-architecture/09-type-discipline/README.md:116",
+    "docs/30-architecture/09-type-discipline/README.md:119",
+    "docs/30-architecture/09-type-discipline/README.md:136",
+    "docs/30-architecture/09-type-discipline/README.md:157",
+    "docs/30-architecture/09-type-discipline/README.md:158",
+    "docs/30-architecture/adr/0040-type-budgets-and-ratchet.md:43"
+   ],
+   "conflict": "09 子线各篇的章节重新编号后（例如 06 在首节插入了「tooling/scripts/ 目录树」），站内锚点仍指向旧编号，另有几处标题文字改过或含全角标点。共 32 处、指向 17 个目标。在 GitHub 上点击会落空；文档站因为会按相近标题改指，看不出问题。",
+   "authority": "目标文件现行的标题（按 GitHub 锚点规则生成）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "按现行标题逐一改正锚点。改完后用 TX-04 的 check-links.py 复核，结果应为 0。（复核：本轮另写脚本只读复测，同样是 32 处，逐一对照现行标题后改法全部成立。脚本另报的 4 处 #44-派生字段标记derivedt 是误报，它们正确，不要改。）",
+   "options": [],
+   "fixPlan": "按目标文件逐一替换锚点（同一目标的多处引用一起改）。\n06-scanners.md：\n- #1-scan-type-escapes → #2-scan-type-escapes\n- #2-scan-contributions → #3-scan-contributions\n- #3-scan-effects → #4-scan-effects\n- #4-scan-isomorphic → #5-scan-isomorphic\n- #5-scan-manifest → #6-scan-manifest\n- #14-时长预算的假设前提 → #16-时长预算的假设前提\n- #脚本自身的类型与测试要求（06:230）：它指向第 54 行的加粗段落，不是标题。改指 #1-toolingscripts-目录树，或把那段改成 #### 标题。\n03-boundaries.md：\n- #4-同构隔离的三重保障 → #同构隔离的三重保障\n- #5-规则-4第三方库单点引入 → #33-规则-4第三方库单点引入对应章程-53-4\n- #6-规则-6三角色 → #35-规则-6三角色对应章程-53-6\n- …对应章程-53-2-53-3 → …对应章程-53-253-3\n04-api-surface.md：\n- #2-api-md-基线与-pr-diff-流程 → #2-apimd-基线与-pr-diff-流程\n- #4-publint-与-arethetypeswrongcliattw-门禁 → #4-publint-与-arethetypeswrongcliattw门禁\n- #5-与-changesets--版本策略adr-0002架构-结构条线所有的对接 → #5-与-changesets--版本策略adr-0002版本策略架构-结构条线所有的对接\n05-runtime-boundaries.md：\n- #4-result-类型与异常的边界 → #5-result-类型与异常的边界\n01-tsconfig-baseline.md：\n- #6-appsserver-的受限例外-nestjson → #6-appsserver-的受限例外nestjson\n- #1-toolingtsconfig-目录树 → #1-toolingtsconfig-目录与继承树"
+  },
+  {
+   "id": "TX-12",
+   "title": "仍指向已删的 30/08 §2 目录树（以及不存在的 §3.1、§3.3、§4.1、§4.2）的依据引用",
+   "locations": [
+    "docs/40-modules/19-atlas-backend-and-data.md:118",
+    "docs/40-modules/19-atlas-backend-and-data.md:165",
+    "docs/40-modules/19-atlas-backend-and-data.md:381",
+    "docs/40-modules/19-atlas-backend-and-data.md:886",
+    "docs/40-modules/19-atlas-backend-and-data.md:934",
+    "docs/40-modules/19-atlas-backend-and-data.md:965",
+    "docs/40-modules/19-atlas-backend-and-data.md:1091",
+    "docs/40-modules/19-atlas-backend-and-data.md:1211",
+    "docs/40-modules/19-atlas-backend-and-data.md:1247",
+    "docs/40-modules/19-atlas-backend-and-data.md:1285",
+    "docs/40-modules/19-atlas-backend-and-data.md:1320",
+    "docs/40-modules/19-atlas-backend-and-data.md:1670",
+    "docs/60-backend/03-modules-identity-and-access.md:2",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:173",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:610",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:525",
+    "docs/60-backend/15-rest-api-catalog.md:2",
+    "docs/60-backend/16-ws-protocol-server-view.md:220",
+    "docs/60-backend/17-deployment-and-config.md:2",
+    "docs/60-backend/17-deployment-and-config.md:615",
+    "docs/60-backend/18-observability-and-ops-endpoints.md:359",
+    "docs/30-architecture/adr/0037-deployment-topology-and-packaging.md:170"
+   ],
+   "conflict": "30/08 §2 现在只剩一句「目录树的唯一源在 40 线，草图删除」；§3 是表格，没有 §3.1、§3.3；§4 下也没有 §4.1、§4.2。db-notes 点名的几处都还在：40/19 八处、60/06:525、60/03:2、60/15:2。原分诊另外核出 60/17:2、60/17:615、60/18:359 三处。本轮复核又找到 8 处：40/19:165（§3.1、§4.2 末段）、40/19:1091（§3.1 spill-store.ts）、40/19:1285（§3.3）、40/19:1670（§2 db/client.ts）、60/05:173（§3.1）、60/05:610（§3.1 snapshot.service.ts）、60/16:220（§3.1 awareness-tick.ts）、ADR-0037:170（关联里的「架构 08 §0/§2/§10」）。旧的 §3.1、§3.3 分别是 server-collab 与 server-headless 的包目录，现在分别对应 40/09 §4.4、§4.5。60/06:525 还写着「40/09 §4.5 需补登记 content-hash.ts」，而 40/09:726 和 :883 早已登记。",
+   "authority": "30/08 §2–§4 现行正文（§3 表格的「目录」列指向 40/08、40/09 §4）；rulings §4.19（目录树唯一源改为 40 各篇 §4）；已有改法先例：60/01 §9–§10（db-notes 第 4 条）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "逐处改指现行落点；只改依据引用，不动正文结论。（复核：补上漏掉的 8 处；更正 60/15:2 的改法，原文是「§2、§9、§11、§16.4」，不是「§2、§12」；40/19:1247、1285 与 60/06:525 的精确落点是 40/09 §4.5（server-headless）。）",
+   "options": [],
+   "fixPlan": "40/19 的依据行：\n- :118「30-architecture/08 §2 main.ts、§4.1」→「40-modules/12 §4.13 main.ts；30-architecture/08 §4」\n- :165「30-architecture/08 §3.1、§4.2 末段」→「30-architecture/08 §3–§4；40-modules/09 §4.4」\n- :381「§2 config.module.ts、§4.1」→「60-backend/17 §5–§6；30-architecture/08 §4」\n- :886「§2 collab 与 auth 目录」→「40-modules/09 §4.1、40-modules/08 §4.1」\n- :934「§2 auth 目录」→「40-modules/08 §4.1」\n- :965「§2 snapshots 与 documents」→「40-modules/09 §4.2、40-modules/08 §4」\n- :1091「30-architecture/08 §3.1 spill-store.ts」→「40-modules/09 §4.4 spill-store.ts」\n- :1211「§2 import-export 目录」→「40-modules/12 §4.2」\n- :1247「§2 import.processor.ts、§3.3 tasks/import.ts」→「40-modules/12 §4.2 import.processor.ts、40-modules/09 §4.5 tasks/import.ts」\n- :1285「30-architecture/08 §3.3」→「40-modules/09 §4.5」\n- :1320「§2 export.processor.ts」→「40-modules/12 §4.2 export.processor.ts」\n- :1670「§2 db/client.ts」→「40-modules/12 §4.13 db/client.ts」\n60 各篇：\n- 60/03:2 状态头的依赖里删掉 30/08 的 §2\n- 60/05:173「30-architecture/08 §3.1、§14 S7」→「40-modules/09 §4.4；30-architecture/08 §14 S7」\n- 60/05:610「30-architecture/08 §3.1 snapshot.service.ts」→「40-modules/09 §4.4 snapshot.service.ts」\n- 60/15:2 的「30-architecture/08 §2、§9、§11、§16.4」改为「30-architecture/08 §9、§11、§16.4」\n- 60/16:220「30-architecture/08 §3.1 awareness-tick.ts」→「40-modules/09 §4.4 awareness-tick.ts」\n- 60/17:2 的「[30/08 §2 / §10]」改为「[30/08 §10]；40/12 §4.13」\n- 60/17:615「30/08 §2 config.module.ts」改为「本文 §5–§6；40/12 §4.10」\n- 60/18:359「30/08 §2 health 行」改为「40/12 §4.6」\n- 60/06:525 整句改为「computePageHashes 已登记在 40/09 §4.5、§5.5（infrastructure/thumbnails/content-hash.ts）」，并把 60/06:814 的对应回写行标为已完成\nADR：\n- ADR-0037:170 关联中的「架构 08 §0/§2/§10」改为「架构 08 §0/§10；60-backend/17」"
+  },
+  {
+   "id": "TX-13",
+   "title": "TD-079 没有写入 typescript 和 yjs 的版本钉",
+   "locations": [
+    "docs/30-architecture/09-type-discipline/08-policy-enforcement-matrix.md:270",
+    "docs/30-architecture/adr/0004-monorepo-and-build-toolchain.md:21",
+    "docs/30-architecture/adr/0004-monorepo-and-build-toolchain.md:58",
+    "docs/30-architecture/adr/0046-native-typescript-compiler-evaluation.md:9",
+    "docs/30-architecture/adr/0046-native-typescript-compiler-evaluation.md:44",
+    "docs/30-architecture/adr/0020-crdt-selection.md:18",
+    "docs/70-testing/12-ci-gates-mapping.md:71",
+    "docs/40-modules/01-tooling-and-governance.md:474"
+   ],
+   "conflict": "几处上游都要求把版本钉住：ADR-0004:58 列出新 TD 要包含「catalog.typescript 匹配 5.9/6.x」；ADR-0046 的补注要求把「暂不采用 TS 7」机械落地；ADR-0020 决策 1 要求 yjs（连同 y-protocols）13.6.x 锁精确版本、不跟 dist-tag；70/12:71 也写 scanners/lockfile-guard「含 yjs 精确版本断言」。但 TD-079 的陈述、负向夹具和 40/01 对 lockfile-guard 的说明都没有这两项。分诊 #187 把它推到「实现期补 TD 行」，其实只需要改文档中的一行。",
+   "authority": "rulings §4.15 Q9（crossConflicts[29]，钉住 TypeScript 版本）与 Q3（Yjs 锁精确版本）；ADR-0004 的版本目录行与验证段；ADR-0046 补注；ADR-0020 决策 1",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "并入已有的 TD-079（lockfile-guard），不新增行。（复核：ADR-0020 决策 1 锁定的是 yjs 与 y-protocols 两个包，断言要一并覆盖 y-protocols，否则 y-protocols 可以随 ^ 漂移。）",
+   "options": [],
+   "fixPlan": "1. 08:270 TD-079 的陈述补一句：pnpm-workspace.yaml#catalog 中 typescript 为 5.9.x 或 6.x（不得写 ^7 或 latest），yjs 与 y-protocols 为精确版本（不带 ^ 或 ~，yjs 在 13.6.x 内）。负向夹具加三例：typescript ^7.0.0、yjs ^13.6.0、y-protocols ^1.0.0。\n2. 40/01:474 的 lockfile-guard 注释与 §5.7 说明同步。\n3. ADR-0046:44「待……补充为矩阵行」改为「TD-079」。\n4. 70/12:71 注明「含 yjs、y-protocols 精确版本与 typescript 5.9/6.x 断言（TD-079）」。"
+  },
+  {
+   "id": "TX-14",
+   "title": "迁移 SQL 文件须与文档逐字一致（DB-13），目前没有工具",
+   "locations": [
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:542",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:591",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:917",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1097",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:1103"
+   ],
+   "conflict": "60/08 §10.1 要求 db/migrations/*.sql 与 60/08–13 的 -- migrate: 围栏逐字一致，并把 DB-13 登记为待实现。ddl-check 目前只读文档（本次只读实跑：31 个迁移按编号执行通过，0001 重跑通过，29 个示例全部通过）。仓库还没有 db/migrations 目录；40/12:1103 定的是 0001、0002 在 M1 入库，其余基线段随 M2。",
+   "authority": "60/08 §10.1、§11 第 6 条、§13 DB-13；40/12 §11 的 M0/M1 交付口径",
+   "class": "defer",
+   "impact": "medium",
+   "recommendation": "推迟到首批迁移文件入库：在提交 0001、0002 的同一个 PR 里实现 ddl-check 的比对步骤，DB-13 随之转为已实现。",
+   "options": [],
+   "fixPlan": "触发条件：M1 第一个包含 apps/server/src/db/migrations/0001_*.sql 的 PR。\n负责方：总编排（docs/_tools）与后端设计线。\n做法：\n1. ddl-check.sh 增加 --compare <dir>，不起容器也能跑。比对三项：文件集合等于围栏编号集合；文件名等于围栏首行加 .sql；内容逐字节相等。失败时报「文件 + 编号 + 首个差异行」。\n2. 把这个比对接到 test/server-integration 的前置（与 DB-02 同一步骤），让代码仓里的迁移一旦漂移，PR 就失败。\n3. 60/08:591、:917 和 40/12:1097 的「待实现」改为「已实现」。"
+  },
+  {
+   "id": "TX-15",
+   "title": "写入帧的 error 与 db ack 的相对顺序",
+   "locations": [
+    "docs/50-frontend/07-collaboration-client.md:225",
+    "docs/50-frontend/07-collaboration-client.md:632",
+    "docs/60-backend/16-ws-protocol-server-view.md:170"
+   ],
+   "conflict": "被拒的帧只回 error，db ack 要等批量提交后才发，两者先后不保证。客户端用「冻结 FIFO、宁多勿少」兜底：此刻还没确认的 pending 全部进入被拒集合，多算的部分在导出时与服务端幂等合并，不丢数据。50/07:632 把「改成逐帧对应」留作实现期优化（分诊 #24）。但被拒之后会话本来就停止发送、走「导出后重载」（60/16 §5 第 7 条、30/06 §18.4），逐帧对应只会让被拒集合少几条已落库的更新，没有用户可见的收益。",
+   "authority": "50/07 §6 与 §16 待决表（前端唯一事实源）；60/16 §5 第 7 条（被拒帧回 error、不回 ack，客户端导出后重载）；现有兜底已满足 NF-03 零丢失口径",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "现在就结案：把「冻结 FIFO、宁多勿少」定为最终口径，删去「可改为逐帧对应」的暂缓项，60/16 不需要新增顺序保证。（复核：原列为 defer，但这项推迟只是在拖。被拒之后流程固定是导出后重载，多算的更新会幂等合并，逐帧对应没有可衡量的收益；反过来，要让 error 和 ack 同序，就得改动服务端的批量提交路径。现有兜底正确，也没有简化协同语义，可以直接定稿，不需要用户拍板。）",
+   "options": [],
+   "fixPlan": "1. 50/07:632 这一行的状态从「暂缓（实现期优化）」改为「已关闭：冻结 FIFO 为最终口径（被拒后会话本就导出后重载，逐帧对应无用户可见收益）」，删去「若 60/16 能保证……可改为逐帧对应」。\n2. 50/07:225 与 60/16 §5 第 7 条不改。\n3. 分诊 #24 标记结案。"
+  },
+  {
+   "id": "TX-16",
+   "title": "CI 语料桶地址的环境变量名",
+   "locations": [
+    "docs/70-testing/11-test-data-fixtures-and-determinism.md:354",
+    "docs/70-testing/12-ci-gates-mapping.md:148"
+   ],
+   "conflict": "T-CORPUS 已经定了对象存储、键布局、只读凭据和 sha256 清单，只剩 fetch-corpus.ts 读哪几个环境变量还没命名（分诊 #166）。命名已有现成惯例：部署配置一律用 CORDEX_ 前缀（60/17），CI 也已有 CORDEX_SUITE 的先例（70/12:148）。",
+   "authority": "70/11 §10（决策 T-CORPUS）；60/17 §5 环境变量命名惯例（CORDEX_<键>）；70/12 §3 先例 CORDEX_SUITE",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "现在就按惯例命名登记，不必推迟，也不需要用户拍板。（复核：原列为 defer，但变量名按既有 CORDEX_ 惯例就能定，等到实现期再定只是把一件小事往后拖。）",
+   "options": [],
+   "fixPlan": "1. 在 70/11 §10「存储」一条后登记四个变量：\n- CORDEX_CORPUS_S3_ENDPOINT、CORDEX_CORPUS_BUCKET：普通变量。\n- CORDEX_CORPUS_ACCESS_KEY_ID、CORDEX_CORPUS_SECRET_ACCESS_KEY：CI secrets，只读凭据；维护者本地用同名变量放写凭据。\n其余 S3 参数取 SDK 默认，不另设变量。fetch-corpus.ts 缺变量时报错退出，不静默跳过；fork PR 的行为沿用 70/12 §3 既有规则（维护者批准前保持 pending）。\n2. 70/12 §3 注明需要这四个变量的步骤（test/fidelity-roundtrip、oracle 基线拉取）。\n3. 分诊 #166 标记结案。"
+  },
+  {
+   "id": "TX-17",
+   "title": "IMPORT-OVERWRITE 与 N1 补完记录中的跨线残留（已收口）",
+   "locations": [
+    "docs/00-charter/rulings-2026-09-14.md:409",
+    "docs/60-backend/05-modules-collab-and-snapshots.md:522",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:420",
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:811",
+    "docs/40-modules/08-server-identity-documents-and-storage.md:522",
+    "docs/60-backend/10-ddl-documents-marks-media.md:141",
+    "docs/60-backend/10-ddl-documents-marks-media.md:182",
+    "docs/30-architecture/adr/0029-gateway-authorization.md:19"
+   ],
+   "conflict": "完整性报告第 1 条说 60/05 §9.2 与 60/06 §6.5 互相矛盾，这已消除：两处现在都写「覆盖导入 = 换纪元」（60/05:522、60/06:420），60/06:811 也标了已裁定。n1-notes 点名的几处也都已处理：40/08:522 已改为「覆盖导入/迁移窗口；版本恢复不加锁」；50 README 里已没有这条待裁项；room.locked.reason 的来源已由 documents.lock_reason 列及其 CHECK 约束补上（60/10:141、:163、:182）；ADR-0029 决策 5 已记修订（:19、:148）。",
+   "authority": "rulings §4.19 N1",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "结案，无需动作。（复核：逐处核对属实；全仓检索「导入/恢复」「恢复/迁移」这类锁定措辞，只剩带「作废」「原：」标注的历史记录。）",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "TX-18",
+   "title": "DbModule 与应用骨架的文件级归属（已收口）",
+   "locations": [
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:688",
+    "docs/40-modules/12-server-jobs-comments-and-ops.md:930",
+    "docs/60-backend/01-service-overview-and-roles.md:88",
+    "docs/60-backend/01-service-overview-and-roles.md:111",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:543"
+   ],
+   "conflict": "完整性报告第 3 条的两个问题已由 40/12 §4.13 和 §5.13 收口：60/01 §3 的 DbModule「文件级」原先指向已删的目录树，现已改指 12 §4.13；main.ts、app.module.ts、db/migrations 原本无处登记，现已登记（db.module.ts、client.ts、migrator.ts、schema/、migrations/）。60/01:111 也说明了 AppModule 和 main.ts 不计入 24 个模块。其余仍指向旧目录树的历史引用见 TX-12。",
+   "authority": "40/12 §4.13（文件级唯一落点）",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "结案，无需动作。",
+   "options": [],
+   "fixPlan": "无；残留引用按 TX-12 处理。"
+  },
+  {
+   "id": "TX-19",
+   "title": "ddl-check 未实现（#142）与 0095 列级授权依赖列名（#143）（已不成立）",
+   "locations": [
+    "docs/_tools/ddl-check.sh:4",
+    "docs/_tools/README.md:12",
+    "docs/60-backend/08-db-conventions-roles-rls-migrations.md:591"
+   ],
+   "conflict": "#142「ddl-check 未实现」已不成立：docs/_tools/ddl-check.sh 已入库。本次在 postgres:18-alpine（PG 18.6）上只读实跑通过：31 个迁移按编号执行、0001 重跑，结构核对通过（18 张表、38 条 policy、4 个 SECURITY DEFINER 函数），29 个示例共 126 条语句全部通过。#143「0095 列级授权依赖 09–13 的列名」：0095_grants 在每次 ddl-check 时都会真实执行，列名一旦不符就报错，已有机械保障。",
+   "authority": "60/08 §11；docs/_tools/README.md",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "两项都结案；改动 60 的任何 SQL 围栏后重跑 ddl-check 即可。（复核：本轮在临时容器里再次只读实跑，结果一致，仓库工作区无改动。）",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "TX-20",
+   "title": "GET /auth/me 是否增加 sessionExpiresAt（#8 #71 #85）",
+   "locations": [
+    "docs/60-backend/15-rest-api-catalog.md:108",
+    "docs/50-frontend/02-app-shell-routing-and-session.md:161",
+    "docs/50-frontend/07-collaboration-client.md:392",
+    "docs/50-frontend/07-collaboration-client.md:569"
+   ],
+   "conflict": "被动续期已写在 50/02:161：请求遇到 401 server.auth.expired 时调 POST /auth/token/refresh，再重试。协同侧在续期成功后发 auth.refresh 重新绑定（50/07:569），刷新失败的分流见 50/07:392。GET /auth/me 返回的 Principal 不含到期时间，全仓也没有 sessionExpiresAt 的残留文字。",
+   "authority": "50/02 §4（只做被动续期）；rulings §4.18 UX-02",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "结案：不加这个字段。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "TX-21",
+   "title": "文本框变成墓碑时丢弃未上屏的组合串（#38）",
+   "locations": [
+    "docs/50-frontend/06-text-editing-and-ime.md:217"
+   ],
+   "conflict": "50/06 §5.5 已定：形状被他人删除（成为墓碑）时，丢弃未上屏的组合串（它从未进入 Store）；此前已提交的键入落在墓碑实体上，不会丢；「恢复元素」提示归 04 §7。行为已定义、可以测试，没有剩余口径。",
+   "authority": "50/06 §5.5（前端文本编辑唯一事实源）",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "结案。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "TX-22",
+   "title": "唯一 owner 被擦除后，文档在 M1–M3 无人持有 doc.manage（#86）",
+   "locations": [
+    "docs/60-backend/03-modules-identity-and-access.md:113",
+    "docs/10-prd/07-design-coverage-and-gaps.md:647",
+    "docs/10-prd/05-milestones-and-scope.md:235"
+   ],
+   "conflict": "这是既定决策的后果：PRD 07 D5 定了「转移所有权 M3 不做（P2），所有者变更由集成方后台完成」，SV-11 定了「擦除只替换主体标识、不删文档」。60/03:113 已写明由 M4 的 SV-14 管理面板提供「指定新 owner / 永久删除」。这不涉及越权或数据泄露；平时 owner 也可以提前把他人设为共同 owner（PUT permissions 允许多个 owner）。",
+   "authority": "PRD 07 D5；PRD SV-11、SV-14；60/03 §7 第 6 条",
+   "class": "resolved",
+   "impact": "low",
+   "recommendation": "结案，随 M4 SV-14 承接；它不属于要等实测数据的推迟项。",
+   "options": [],
+   "fixPlan": "无。"
+  },
+  {
+   "id": "TX-23",
+   "title": "PRD 05 未命名的验收条目补检查名（#187 其一）",
+   "locations": [
+    "docs/70-testing/13-requirements-traceability.md:169",
+    "docs/70-testing/13-requirements-traceability.md:685"
+   ],
+   "conflict": "PRD 05 里未命名的验收条目（M0 验收 1–5、M1 验收 7、8）已由 70/13 用「<里程碑>#<序号>」作键（如 M0#2），可以机械追溯；补名只是提高可读性。#187 的另外两项分别见 TX-02（术语扫描）和 TX-13（编译器版本钉）。但 70/13:685 回写清单第 5 条仍以「建议补检查名」的开放状态挂着。",
+   "authority": "70/13 §3.1（检查名目录，决策 T-REQ）",
+   "class": "mechanical",
+   "impact": "low",
+   "recommendation": "不补名，以「<里程碑>#<序号>」为正式检查名，并把 70/13 回写清单第 5 条就地结案。（复核：原判 resolved、无需动作，但文档里这条建议还开着，不改的话这一项在文档上没有收口，因此改为 mechanical，只改一行。）",
+   "options": [],
+   "fixPlan": "1. 70/13:685 第 5 条划线，并注明「不采纳：以 <里程碑>#<序号>（如 M0#1、M1#7）为正式检查名，PRD 05 不补名」。\n2. PRD 05 不改。"
+  }
+ ]
+}

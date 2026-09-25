@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§3 `test` / `e2e` / `perf` 行的步骤清单改链 70-testing/12，保留 job 名与四条治理；§2.3 链 70-testing/01 §9 本地命令） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§3 `test` / `e2e` / `perf` 行的步骤清单改链 70-testing/12，保留 job 名与四条治理；§2.3 链 70-testing/01 §9 本地命令）；2026-09-26（§4.20）（TX-11：指向 04、06 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 07 · Hooks 与 CI
 
@@ -39,7 +39,7 @@ tooling/
 
 ### 2.2 `commit-msg`
 
-`commitlint`，规则集 Conventional Commits（`feat`/`fix`/`refactor`/`docs`/`test`/`chore`/`build`/`ci` 等类型前缀），与 Changesets 的语义化版本流程对齐（[04 §5](./04-api-surface.md#5-与-changesets--版本策略adr-0002架构-结构条线所有的对接)）。失败信息为 commitlint 原生输出，指出不符合的具体子规则（如缺少类型前缀、描述以大写字母开头等，具体子规则集由 `tooling/commitlint.config.ts` 固化，本篇不逐条列举，因其与类型规约无直接关系，仅作为提交流程完整性的记录）。
+`commitlint`，规则集 Conventional Commits（`feat`/`fix`/`refactor`/`docs`/`test`/`chore`/`build`/`ci` 等类型前缀），与 Changesets 的语义化版本流程对齐（[04 §5](./04-api-surface.md#5-与-changesets--版本策略adr-0002版本策略架构-结构条线所有的对接)）。失败信息为 commitlint 原生输出，指出不符合的具体子规则（如缺少类型前缀、描述以大写字母开头等，具体子规则集由 `tooling/commitlint.config.ts` 固化，本篇不逐条列举，因其与类型规约无直接关系，仅作为提交流程完整性的记录）。
 
 ### 2.3 `pre-push`（目标总预算：< 120 秒，全量）
 
@@ -175,5 +175,5 @@ flowchart TB
 |---|---|---|
 | 全部 CI job 在每个 PR 触发、无分支例外 | [06 scan-policy](./06-scanners.md#9-scan-policy) 的 CI job 名封闭性检查（间接：矩阵引用的 job 名若在工作流文件里被限定了分支触发条件，属于 CI 工作流定义本身的配置问题，机械校验的边界见 README 待决事项——scan-policy 目前只校验"job 名存在"，不解析工作流文件的触发条件表达式，这是已知盲区） | 见 README 待决事项 |
 | 无 `--quiet` 等价参数 | 代码评审 + CI 工作流文件的 PR diff 可见性（同上，非完全机械） | 同上 |
-| `pre-commit`/`pre-push` 预算达标 | M1 起用真实规模测量并回写本文（同 [06 §14](./06-scanners.md#14-时长预算的假设前提) 的假设前提说明） | 见 06 |
+| `pre-commit`/`pre-push` 预算达标 | M1 起用真实规模测量并回写本文（同 [06 §14](./06-scanners.md#16-时长预算的假设前提) 的假设前提说明） | 见 06 |
 | 缓存失效边界正确 | Turborepo 自身的 hash 机制（第三方工具原生保证，非本项目自研） | Turborepo 原生诊断 |

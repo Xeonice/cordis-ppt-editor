@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-19（按 2026-09-18 裁决：AS 行入总表、M2 补 `shell:home` / `shell:account-menu`、`master:view` / `layout:apply` / `master:edit` 按 Q11 / Q12 / Q16 修订）；2026-09-24（rulings §4.15：M0 依赖改为 Q1–Q10 已裁决；M1 SmartArt/OLE 必渲染；M2 EMF 栅格化、过渡封面、客户端安全基线；M3 图表五类、组管理推迟、OIDC、缩略图/PDF 分列、RLS/撤销跳过/墓碑/两级 ack/按权重准入验收、compose 洁净栈出口；M4 JWT/API Key 与 Helm；SV-15 残留修正）；2026-09-24（rulings §4.16：Q13 不定周期、Q15 M1 P1 去掉 `.pptm`、Q11 M4 试点改为内部非核心成员、Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.10、§4.15、§4.16、§4.18、§4.19
+> 状态：草稿 | 负责：产品 | 更新：2026-09-19（按 2026-09-18 裁决：AS 行入总表、M2 补 `shell:home` / `shell:account-menu`、`master:view` / `layout:apply` / `master:edit` 按 Q11 / Q12 / Q16 修订）；2026-09-24（rulings §4.15：M0 依赖改为 Q1–Q10 已裁决；M1 SmartArt/OLE 必渲染；M2 EMF 栅格化、过渡封面、客户端安全基线；M3 图表五类、组管理推迟、OIDC、缩略图/PDF 分列、RLS/撤销跳过/墓碑/两级 ack/按权重准入验收、compose 洁净栈出口；M4 JWT/API Key 与 Helm；SV-15 残留修正）；2026-09-24（rulings §4.16：Q13 不定周期、Q15 M1 P1 去掉 `.pptm`、Q11 M4 试点改为内部非核心成员、Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：M0 验收 2 改为术语表旧名残留 0 处（TX-02）；M3 验收 14 按 FE-05、FE-23 改为确认后可撤销并写明删除母版的版式选取；新增 M3 验收 18 `history:restore-revert` 与 ADR-0038 依赖（TX-01+BE-10）；§0.3 补唯一 owner 空窗的运维转移命令（BE-05）） | 依赖：charter v0.2；rulings §4.10、§4.15、§4.16、§4.18、§4.19、§4.20
 
 # 05 里程碑与范围
 
@@ -80,10 +80,10 @@ flowchart TB
 | 能力 | M2（协同后端） | M3（多人协同体验层） |
 |---|---|---|
 | 身份与会话 | OIDC 登录（服务端换码、httpOnly cookie 会话、JIT 建号、登出）；一方 Ticket（60 s 单次）签发与续期；登录过期「重新登录」（UX-02） | —（集成方签名 JWT / API Key 为 M4） |
-| 文档目录 | 新建（空白 / 内置模板）、创建副本、列表与元数据、改名、回收站（移入与恢复）、最近与固定（rulings §4.12 U-04） | 永久删除文档（含回收站到期清理）与用户数据擦除（SV-11，P1） |
+| 文档目录 | 新建（空白 / 内置模板）、创建副本、列表与元数据、改名、回收站（移入与恢复）、最近与固定（rulings §4.12 U-04） | 永久删除文档（含回收站到期清理）与用户数据擦除（SV-11，P1）；唯一 owner 被停用或擦除后的空窗由运维命令 `cordex-ops documents:reassign-owner` 转移 owner（SV-11，rulings §4.20 BE-05+TX-22） |
 | 权限 | 建档者即 owner；REST 与网关按能力位 fail-closed 校验；分享入口不开放 | 按人分享、分享链接、四种角色、权限变更 ≤ 2 s 生效、降权与被拒回滚、查看者变体（rulings §4.18 UX-19）；文档级 RLS 测试自 M3 起阻断合并（GV-16） |
 | 协同网关与 Room | 单实例：握手、Room 生命周期与按权重准入、硬门禁与软门禁（CO-12）、update 落库后回 `ack{seq, tier:'db'}`、awareness 中继（服务端转发随网关就位）；同一用户多标签页经网关互见 | 多实例扇出（Valkey pub/sub）、容量验收（`server:scale`）、名额按用户计与满员只读、在场的多人体验、优雅停机跨实例重连 |
-| 持久化与快照 | update 追加表、压缩生成 `auto` 快照、「最新快照 + 尾巴 update」引导打开；kill -9 后已 ack(db) 零丢失；墓碑 TTL 清扫；schema 迁移与换纪元；配套保留期作业（`auto` 快照按天稀疏化，rulings §4.19 C-06；update 7 天） | 版本历史（CO-07，P1）：命名版本、版本列表、预览与恢复——服务端用例与界面都在 M3；「彻底删除元素」 |
+| 持久化与快照 | update 追加表、压缩生成 `auto` 快照、「最新快照 + 尾巴 update」引导打开；kill -9 后已 ack(db) 零丢失；墓碑 TTL 清扫；schema 迁移与换纪元；配套保留期作业（`auto` 快照按天稀疏化，rulings §4.19 C-06；update 7 天） | 版本历史（CO-07，P1）：命名版本、版本列表、预览与恢复——服务端用例与界面都在 M3；恢复的撤销按 ADR-0038（M2 出口评审前定稿，未定稿则版本恢复不开工，rulings §4.20 TX-01+BE-10）；「彻底删除元素」 |
 | Postgres 故障 | 单实例：两级溢写（Valkey → 对象存储）与 `ack{tier:'spill'}`（客户端保留 pending）、降级期照常广播、恢复后回放并补 `ack{seq, tier:'db'}`；`CONTROL.room.persist` 信号；发起方横幅「未保存到服务器 N 项」与其余协作者状态胶囊弱提示「服务器保存延迟」（rulings §4.18 CO-08、§4.19 INC-09） | 多实例：只回放本实例溢写行、心跳过期实例遗留行由下一个加载该文档的实例认领回放（rulings §4.18 CO-16）；降级期跨实例扇出 |
 | 连接中断 | 基础重连：指数退避自动重连，先鉴权再同步，补发未获 db 确认的更改；状态胶囊显示连接中 / 同步中 / 已同步 / 重连中；有未确认更改时离开保护（`beforeunload`） | 离线体验（CO-06）：30 s 离线判据与离线横幅、周期重连、离线积累更改的分块同步、长时间离线提示 |
 | 导入 | 服务端导入（SV-01）：两步上传、异步作业、可取消、超天花板拒绝、`#/import` 过渡页；新建空白 / 模板 = 服务端导入内置模板字节（AS-01）；创建副本走同一导入处理器；导入即得包内过渡封面（SV-04） | — |
@@ -106,12 +106,12 @@ flowchart TB
 - **范围**：本 PRD 全部文件；设计 20-design；架构 30-architecture 含 ADR-0001/0002/0003/0020/0021/0022/0023/0040 至少「已提议」状态；`tooling/*` 门禁配置。
 - **验收标准（机械/半机械）**：
   1. 文档评审：三条线 README 的「待决事项」全部有决策人，「对章程的异议」全部有总编排裁决记录（人工，评审纪要）。
-  2. 术语一致：脚本扫描 `docs/` 中出现的术语与章程 §4 + 各 README 术语补充的并集，未定义术语数 = 0。
+  2. 术语一致：术语表登记的旧名在正文中残留 0 处——`python3 docs/_tools/check-terms.py` 退出码 0（旧名 → 正名登记在 `docs/_tools/terms.json`，首批为已裁定更名的内部标识符；豁免规则见 `docs/_tools/README.md`；rulings §4.20 TX-02）。新术语仍按章程 §9.2 第 5 条在各线 README「术语补充」中定义。
   3. 需求可追溯：本 PRD 每条 P0 需求有唯一 id、优先级、里程碑、验收标准（脚本校验字段齐全）。
   4. 门禁就位：「规范 ↔ 执行」矩阵 CI 校验通过（章程 §7 M0 可插拔证据）；dependency-cruiser、eslint、tsconfig、扫描器、lefthook 在空骨架上跑通。
   5. ADR-0001 声明合并 spike 有结论（可行 / 退路）。
 - **依赖**：章程 v0.2；章程 §10 Q1–Q10 已由用户裁决（2026-09-24，rulings §4.15）；Q1（npm org 注册，首次公开发布前）与 Q9（pnpm 11 + Node 26 工具链）须在「首个可运行切片」之前落地。
-- **风险**：R-M0-1 ADR-0001 类型方案不可行 → 退路（primer §5.2）已定义；R-M0-2 各条线术语漂移 → 术语扫描脚本。
+- **风险**：R-M0-1 ADR-0001 类型方案不可行 → 退路（primer §5.2）已定义；R-M0-2 各条线术语漂移 → 更名裁决回写时登记 `docs/_tools/terms.json`，由 `check-terms.py` 检查旧名残留（rulings §4.20 TX-02）。
 
 ---
 
@@ -171,7 +171,7 @@ flowchart TB
   16. `collab:gate`（CO-12，原 M3 验收 12 提前）：Ticket 握手（60 s 单次）及六种失败码各 ≥ 1 个用例；硬门禁（单帧 ≤ 1 MiB、速率、能力位、可解析性、结构数上限）拒绝即不广播、不落库；注入 5% 非法 update（父子环 / 悬空引用 / 越权路径），最终全部合法；每条修复规则有黄金用例；修复与拒绝进入审计（ADR-0034）；图片与媒体只经资源上传通道，CRDT 内只有 `BlobRef`。
   17. `collab:degraded`（单实例 Postgres 故障，rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08、§4.19 INC-09）：PG 写失败注入下不拒绝新编辑，超阈值依次溢写 Valkey → 对象存储，溢写期只回 `ack{tier:'spill'}`、客户端保留 pending，恢复后回放补 `ack{seq, tier:'db'}`，回放后断言无 `pendingStructs`、seq 连续不丢、不重复落库；降级期两个客户端（同一用户两标签页即可）仍互见编辑；服务端 ≤ 1 s 推 `room.persist:'degraded'`、回放完成且无溢写后推 `ok`；发起方在满足判据（`degraded` ∨ 仅获 spill 确认 ∨ 最老在途 ≥ `unsavedWarnAfterMs`，默认 15000）时显示横幅「未保存到服务器 N 项」，其余会话只在状态胶囊见「服务器保存延迟」，恢复后二者消失；有未确认更改时刷新或关闭标签页触发离开保护。
 - **可插拔证据（章程）**：第三方示例插件新增一种元素渲染与一个 ribbon 按钮，零改内核 —— CI 检查 `pluggable:m2`：构建 `examples/plugin-qr-shape`（只 import 公开入口，depcruise 校验），e2e 验证插入二维码元素、渲染、导出（作为图片回退 + `extLst` 数据）、撤销；该 PR 对 `packages/{kernel,model-core,engine-render,render-dom,ui-core,ui-react}` diff = 0 行。
-- **依赖**：架构 05（命令/历史/自动逆操作）、07（覆盖层/命中测试）、03（贡献点 UI）、设计 01/03/04/06；React 19；`@cordexjs/design` token；协同后端提前带来的依赖（rulings §4.19 D-M2-CONTENT）：ADR-0020（CRDT 映射）、0022（存储）、0023（协议）、0029（鉴权）、0034（软门禁）、0035（单实例部分）、架构 06/08 与 `protocol` 包、`40-modules/09` §11「M2 切片」；Postgres 18 / Valkey 测试床（testcontainers）与 oidc-provider mock；协同与服务端压测所需的自托管专用 runner 在 M2 开工前落地，macOS + PowerPoint 365 基线机加入（rulings §4.19 D-TEST-INFRA）。
+- **依赖**：架构 05（命令/历史/自动逆操作）、07（覆盖层/命中测试）、03（贡献点 UI）、设计 01/03/04/06；React 19；`@cordexjs/design` token；协同后端提前带来的依赖（rulings §4.19 D-M2-CONTENT）：ADR-0020（CRDT 映射）、0022（存储）、0023（协议）、0029（鉴权）、0034（软门禁）、0035（单实例部分）、架构 06/08 与 `protocol` 包、`40-modules/09` §11「M2 切片」；Postgres 18 / Valkey 测试床（testcontainers）与 oidc-provider mock；协同与服务端压测所需的自托管专用 runner 在 M2 开工前落地，macOS + PowerPoint 365 基线机加入（rulings §4.19 D-TEST-INFRA）；[ADR-0038 `version-restore-undo`](../30-architecture/adr/0038-version-restore-undo.md)（提议，M-02 主笔，M-05、M-09 会签）在 M2 期间起草、**M2 出口评审前定稿**——它不阻塞 M2 出口，但未定稿则 M3 的版本恢复（CO-07）不开工（rulings §4.20 TX-01+BE-10）。
 - **风险**：
 
 | 编号 | 风险 | 缓解 |
@@ -208,12 +208,13 @@ flowchart TB
   11. `comments:roundtrip`：评论导出为现代评论部件 → PowerPoint 365 可见且作者/时间正确（抽样 20 个）。
   12. `collab:softgate`：已随网关提前到 M2（M2 验收 16，rulings §4.19）；M3 在多实例与多客户端下重跑，并补 `commenter` 触及评论以外路径、修改他人评论两条修复规则的黄金用例。
   13. `collab:rejected-rollback`：降权后仍有 pending update → 服务端拒绝 → 客户端「导出后重载」，本地状态与服务端一致，「未同步更改」可导出（架构 06 §18.4）。
-  14. `master:edit`：母版/版式编辑脚本语料（≥ 20 个：占位符增删与类型修改、母版文本样式、背景、版式增删改名与重排）→ 全部引用页与缩略图 ≤ 500 ms 更新（D50）；删除被引用版式经确认对话框后受影响页在同一事务内改用同母版默认版式且不可撤销（Q11），引用数 = 0 时可撤销；Shift / Mod 多选批量删除一次确认；同类占位符达上限时插入被阻止并 toast（Q16）；导出后 PowerPoint 母版视图一致（SSIM ≥ 0.90）；ML-03 协同冲突表 5 行各 ≥ 1 个模拟用例收敛且提示正确。
+  14. `master:edit`：母版/版式编辑脚本语料（≥ 20 个：占位符增删与类型修改、母版文本样式、背景、版式增删改名与重排）→ 全部引用页与缩略图 ≤ 500 ms 更新（D50）；删除被引用版式经确认对话框后，受影响页在同一事务内改用默认版式（`defaultLayoutOf`，即架构 04 §12.3 I-ML2 的回退链：同母版同 type 首个 → 该母版首个 → 首个母版首个），该事务入撤销栈并给带 [撤销] 的 Toast，撤销一步恢复各页引用、版式以原 id 复活，协同下他人后写的键按 Q3 跳过并提示（Q11 经 rulings §4.20 FE-05 修订）；引用数 = 0 时直接删除并可撤销；删除被引用母版时各页改用目标母版（默认按 order 排序的首个剩余母版）中与原版式同 type 的首个版式，无同 type 时落目标母版首个版式，整个删除一个事务、同样可撤销（rulings §4.20 FE-23）；Shift / Mod 多选批量删除一次确认；同类占位符达上限时插入被阻止并 toast（Q16）；导出后 PowerPoint 母版视图一致（SSIM ≥ 0.90）；ML-03 协同冲突表 5 行各 ≥ 1 个模拟用例收敛且提示正确。
   15. `theme:edit`（P1）：修改 12 主题色与主题字体后全文重算 ≤ 300 ms（D50），显式 `srgbClr` 元素像素不变；导出 `theme*.xml` 重生成且 `extraClrSchemeLst` 字节保留；从模板应用主题两种模式各 ≥ 5 个样本正确。
   16. `security:rls`：绕过应用层直接以另一用户身份查询/写入无权限文档被文档级 Postgres RLS 拒绝（rulings §4.15 Q6）；**每个 PR 运行**（e2e 冒烟子集，testcontainers 起 Postgres，M3 起阻断合并，rulings §4.18 GV-16）；分享链接要求登录有 e2e；OIDC 登录与 `auth.selfSignup` 默认关的 e2e 自 M2 起运行（CI：Casdoor 容器 + oidc-provider mock）。
   17. `collab:undo`（rulings §4.15 Q3）：他人后写同一键 → 撤销跳过该键并提示；整步被跳过 → 停下不连撤（`undo-skip-no-cascade`）；删除 vs 编辑 → 软删除墓碑、恢复沿用原 id、与删除方撤销并发不产生重复元素；TTL 到期硬删除、文档擦除与永久删除文档不等 TTL；owner 对墓碑态元素「彻底删除元素」后立即硬删除并写审计 `document.element_purged`，删除方之后撤销该步按整步跳过（`wholeStep:true`，rulings §4.18 CO-07）；`store-memory` 与 `store-yjs` 同一契约套件通过。
+  18. `history:restore-revert`（CO-07，P1；rulings §4.20 TX-01+BE-10，检查名登记在 `70-testing/13` §3.4）：按 [ADR-0038](../30-architecture/adr/0038-version-restore-undo.md) 撤销一次版本恢复——他人在恢复之后改过的键被跳过并提示，其余键回到恢复前的值；全部键都被跳过时不提交、按整步跳过即停（`wholeStep:true`）；恢复时删掉的元素以原 id 复活，墓碑 TTL 已过或已被「彻底删除元素」的跳过；恢复与撤销恢复都在持有 Room 的实例内单事务执行、不加锁、在线会话不断连。场景取自 `70-testing/05` 的 `rs/restore-revert-*`。
 - **可插拔证据（章程）**：`store-yjs` 替换 `store-memory` 仅改 preset 配置 —— CI 检查 `pluggable:m3`：比对 `preset-slide` 与 `preset-slide-collab` 的 Manifest，差异集合恰为白名单 `{-store-memory, +store-yjs, -collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`（`+comments` 即新 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG；`-collab-core#local-presence` 是协同 preset 以 `collab-yjs` 替换单人兜底在场条目的结果；可选的 `collab-offline-idb` 不计入；原稿中并不存在的 `+comments-ui`、`+presence-ui`、`+history-ui` 与重复的 `+collab-core` 已删）；M2 全部编辑 e2e 在 `store-yjs`（本地、无服务端）下重跑通过；移除 `collab-*` 后仍能启动（CO-11）。
-- **依赖**：M2 交付的协同后端（§0.3 左列）；ADR-0020（CRDT 与页序/富文本映射，已接受）、0023（权限即时性）、0026（headless 缩略图，已接受）、0035（多实例与溢写认领）、0037（部署拓扑，新增）、架构 06/08；设计 05、设计 08（分享对话框，去组）；SeaweedFS 测试床（testcontainers）；PowerPoint 机器（Windows 与 macOS）用于评论互操作。
+- **依赖**：M2 交付的协同后端（§0.3 左列）；ADR-0038（版本恢复的撤销，M2 出口评审前定稿；未定稿则 CO-07 版本恢复不开工，rulings §4.20 TX-01+BE-10）；ADR-0020（CRDT 与页序/富文本映射，已接受）、0023（权限即时性）、0026（headless 缩略图，已接受）、0035（多实例与溢写认领）、0037（部署拓扑，新增）、架构 06/08；设计 05、设计 08（分享对话框，去组）；SeaweedFS 测试床（testcontainers）；PowerPoint 机器（Windows 与 macOS）用于评论互操作。
 - **风险**：
 
 | 编号 | 风险 | 缓解 |

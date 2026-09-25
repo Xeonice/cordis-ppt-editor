@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 03 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 01 · tsconfig 基线
 
@@ -139,7 +139,7 @@ dom.json   lib: ["ES2023", "DOM", "DOM.Iterable"]   types: []
 node.json  lib: ["ES2023"]                          types: ["node"]
 ```
 
-- `iso.json` 的 `types: []` 是同构隔离三重保障的第一重（详见 [03 §4](./03-boundaries.md#4-同构隔离的三重保障)）：显式清空后，即使 `node_modules` 里因为幽灵依赖而存在 `@types/node` 或 `@types/web`，也不会被自动纳入全局类型环境——TS 默认会把 `node_modules/@types/*` 下所有包自动纳入，`types: []` 是唯一能关掉这个"自动包含"行为的选项。
+- `iso.json` 的 `types: []` 是同构隔离三重保障的第一重（详见 [03 §4](./03-boundaries.md#同构隔离的三重保障)）：显式清空后，即使 `node_modules` 里因为幽灵依赖而存在 `@types/node` 或 `@types/web`，也不会被自动纳入全局类型环境——TS 默认会把 `node_modules/@types/*` 下所有包自动纳入，`types: []` 是唯一能关掉这个"自动包含"行为的选项。
 - `dom.json` 不含 `types: ["node"]`：一个 `dom` 包如果引用了 `process.env`，必须报类型错误，而不是"因为同一 monorepo 里某处装了 `@types/node` 而意外可用"。
 - `node.json` 不含 `DOM`：Node 包不应该引用 `document`/`window`（`server-headless` 需要无头渲染时，走的是显式的 headless 适配层，不是让 TS 把 `document` 当全局幽灵可用）。
 - `nest.json`（§6）在 `node.json` 基础上追加 `experimentalDecorators`/`emitDecoratorMetadata`，`lib`/`types` 不变。
@@ -234,5 +234,5 @@ See docs/30-architecture/09-type-discipline/01-tsconfig-baseline.md §6.
 | 每个包的 tsconfig 未偏离其应继承的基线 | `policy-check` job：`tsc --showConfig` 逐字段比对 | §6 示例 |
 | 类型错误 0 容忍 | `typecheck` job：`tsc --build`，`noEmitOnError: true` | tsc 原生诊断，按包分组 |
 | `references` 与实际依赖一致 | `06 scan-manifest`（见 [06](./06-scanners.md#6-scan-manifest)） | scan-manifest 报告 |
-| iso 包不泄漏 DOM/Node 环境类型 | `iso.json` 的 `lib`/`types` + [03 §4](./03-boundaries.md#4-同构隔离的三重保障) | 见 03 |
+| iso 包不泄漏 DOM/Node 环境类型 | `iso.json` 的 `lib`/`types` + [03 §4](./03-boundaries.md#同构隔离的三重保障) | 见 03 |
 | `enum`/遗留装饰器不出现在 `packages/*` | `erasableSyntaxOnly: true`（编译错误） | tsc 原生诊断：`TS(erasableSyntaxOnly 相关代码)` |

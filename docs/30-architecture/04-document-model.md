@@ -1,6 +1,6 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG / INC-39 评论命名空间 `comments.threads`（§2.7、§10）；D-M2-CONTENT 版本恢复服务端用例随 M2 协同后端（§2.1、§10））；2026-09-25（§4.19） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG / INC-39 评论命名空间 `comments.threads`（§2.7、§10）；D-M2-CONTENT 版本恢复服务端用例随 M2 协同后端（§2.1、§10））；2026-09-25（§4.19）；2026-09-26（§4.20）（FE-03：§12.3 I-ML2 回退链落为单一纯函数 `defaultLayoutOf`；FE-04：§3.1a 第 3 条「引用者视为已删除」限于包含关系，I-ML2 墓碑期读时容错、硬删作业同事务修复；FE-23/FE-05：§12.3 末段 `deleteMaster.reassignTo` 目标母版规则与可撤销） | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
@@ -326,7 +326,7 @@ interface PresentationBody {
 
 1. **打标记**：命令层产出的删除 Mutation 降级为 `set(['shapes', id, '_deleted'], { at, by })`（墓碑）；实体 id 保持稳定，不复用、不换新 id。
 2. **读路径过滤**：`query/selectors.ts`、`slides` 服务、SceneProvider、导出编码器一律跳过带 `_deleted` 的实体；`_deleted` 实体不参与 `(order, id)` 排序结果。
-3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理；墓碑在 TTL 内计入文档总元素上限（§5.5）。
+3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理——**这只指包含关系**（`containerId`、`parentId`：父被删则子随之不可见，恢复父即恢复子），不适用于 `layoutId`、`masterId`、`themeId` 这类引用：它们在墓碑期读时容错（读路径取替代目标渲染、不改写引用，撤销删除即恢复），只在目标被硬删时由硬删作业同一事务修复（§12.3，2026-09-26 rulings §4.20 FE-04）；墓碑在 TTL 内计入文档总元素上限（§5.5）。
 4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；08 §3、60-backend/05 §8、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
 5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。墓碑已被硬删除（TTL 到期或被「彻底删除元素」）后，删除方再撤销该步 → 按整步跳过（`store/undo-skipped{wholeStep:true}`，05 §6，CO-07）。
 
@@ -345,7 +345,7 @@ stateDiagram-v2
   tomb --> purged: TTL 到期，默认 24 h，tombstone.ttlHours → tombstone-sweeper 单写者 + LeaseLock，origin system#40;'maintenance'#41;
   tomb --> purged: 彻底删除元素，仅 owner，经审计 REST → M-09 单写者，不等 TTL
   purged --> [*]
-  note right of tomb: 读路径过滤；不得被新引用指向，既有引用者一并视为已删除；TTL 内计入文档总元素上限；非删除方的撤销以它为目标 → 跳过并提示，永不复活，D4
+  note right of tomb: 读路径过滤；不得被新引用指向；包含关系上的既有引用者一并视为已删除，layoutId、masterId、themeId 读时容错、硬删时修复；TTL 内计入文档总元素上限；非删除方的撤销以它为目标 → 跳过并提示，永不复活，D4
   note right of purged: 永久删除文档（S-2 文档擦除）是整文档清除，不是单个实体的状态迁移，故不画为迁移边
 ```
 
@@ -953,7 +953,7 @@ declare function dependentsOf(body: PresentationBody, id: LayoutId | MasterId | 
 
 | 不变量 | 检查 | 修复（纯函数；服务端 origin `system('repair')`，客户端读时容错） |
 |---|---|---|
-| I-ML2 `slide.layoutId ∈ layouts` | 每页的版式存在 | 重指到：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式；该页占位符形状 `materialize`（旧版式已不可得时退化为母版占位符 → 默认框）；发 `collab/repair{ rule:'dangling-layout' }` |
+| I-ML2 `slide.layoutId ∈ layouts` | 每页的版式存在 | 重指到：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式；该页占位符形状 `materialize`（旧版式已不可得时退化为母版占位符 → 默认框）；发 `collab/repair{ rule:'dangling-layout' }`。回退链由单一纯函数 `defaultLayoutOf(body, { masterId, type?, exclude? })` 实现（model-slide `domain/invariants/reassign.ts` 导出，跳过墓碑与 `exclude`），删除版式/母版的 `reassignTo` 默认值、slide-ui、SceneProvider 与导出编码器都调用同一导出，不得各写一份（2026-09-26，rulings §4.20 FE-03）。**墓碑期读时容错，硬删作业同事务修复**：`layoutId` 指向墓碑版式时不视为违规、不改写引用，读路径用 `defaultLayoutOf` 取替代版式渲染并发 `collab/soft-conflict{ type:'delete-vs-reference' }`；目标被硬删时由硬删作业在同一事务内按本行修复（FE-04，ADR-0034 墓碑修订） |
 | I-ML3 `layout.masterId ∈ masters` | 每个版式的母版存在 | 重挂到首个母版；依赖页缓存失效 |
 | I-ML4 `master.themeId ∈ themes` | 主题存在 | 指向任一现存主题；无主题 → 注入默认 Office 主题实体 |
 | I-ML5 `masters` 非空 | PowerPoint 需 ≥ 1 母版 | 注入 `createEmptyPresentation()` 的默认母版 + 版式 + 主题 |
@@ -961,7 +961,7 @@ declare function dependentsOf(body: PresentationBody, id: LayoutId | MasterId | 
 | I-ML7 同一版式内占位符 `(type, idx)` 唯一 | 软不变量 | 只诊断不修复（PowerPoint 亦容忍） |
 | I-ML8 形状 `containerId` 存在且 `parentId` 同容器 | 形状属于存在的页/版式/母版 | 容器不存在 → 级联删除形状；父组异容器 → `parentId = null` |
 
-命令层 fail-closed 前置（避免主动制造悬空）：`slide.deleteLayout` 在版式被任一页引用时返回 `err(LAYOUT_IN_USE)`，除非参数 `reassignTo` 给出目标版式（同一事务内先对引用页 `applyLayout` 再删除）；`slide.deleteMaster` 同理并级联删除其未引用版式。并发下（A 删版式、B 同时把它应用到页）CRDT 合并仍可能悬空——由 I-ML2 兜底（06 §8）。
+命令层 fail-closed 前置（避免主动制造悬空）：`slide.deleteLayout` 在版式被任一页引用时返回 `err(LAYOUT_IN_USE)`，除非参数 `reassignTo` 给出目标版式（同一事务内先对引用页 `applyLayout` 再删除）；`slide.deleteMaster` 同理并级联删除其未引用版式，其 `reassignTo?: MasterId` 是目标母版，每个受影响页取 `defaultLayoutOf(body, { masterId: reassignTo, type: 原版式的 type })`（目标母版同 `type` 首个 → 目标母版首个），整个删除一个事务（rulings §4.20 FE-23）。两种带 `reassignTo` 的删除都入撤销栈、一步撤销（版式/母版以原 id 复活，FE-05；05 §13.2）。并发下（A 删版式、B 同时把它应用到页）CRDT 合并后引用指向墓碑——墓碑期读时容错，硬删时由 I-ML2 兜底修复（06 §8，05 §13.4）。
 
 ### 12.4 视图模式与渲染契约
 

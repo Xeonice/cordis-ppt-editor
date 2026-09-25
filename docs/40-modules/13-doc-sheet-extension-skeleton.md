@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2）；2026-09-26（§4.20） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -909,7 +909,7 @@ flowchart LR
 | 装配矩阵 | 「移除任一 Provider 仍可启动」（章程 §5.4 模式） | `preset-doc/__tests__/exclude-matrix.test.ts`、`preset-sheet/__tests__/exclude-matrix.test.ts` | `pnpm --filter @cordexjs/preset-doc test` |
 | 共存 | 同一 host 同时打开 slide+doc+sheet 三个 Unit 互不影响（12 §5 总验收项） | 仓库根 `test/preset-blind/preset-coexist.test.ts`（与 `preset-blind.test.ts` 同目录，CI 步骤 `test/preset-blind`；2026-09-25 由根级散文件移入，决策 T-NAMING，70/01 §5、70/02 §11） | `pnpm exec vitest run test/preset-blind/preset-coexist.test.ts` |
 
-覆盖率与性能预算引用架构 `11-testing-strategy.md`（本文档不逐条核对，仅按其编号引用，同 03/04/07 §9 惯例）；sheet 10 万 `cells` 打开性能预算见 §11 M5 验收命令。
+覆盖率门槛与证据归档以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 为准，性能预算以 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引架构 `11-testing-strategy.md` 改指，同 03/04/07 §9）；sheet 10 万 `cells` 打开性能预算见 §11 M5 验收命令。
 
 ## 10. 机械约束
 
@@ -1021,6 +1021,12 @@ pnpm exec vitest run test/preset-blind/preset-coexist.test.ts                   
 | T-NAMING（70/01 §5） | 根级散文件 `test/preset-blind.test.ts`、`test/preset-coexist.test.ts` 移入 `test/preset-blind/{preset-blind,preset-coexist}.test.ts`，由 `test` job 的 `test/preset-blind` 步骤收集（70/02 §11） | §8.3 运行时层行、§8.5 命令、§9 图与共存行、§11 第 4 步验收命令 |
 | D-COMMENTS-PKG | 评论客户端为文档类型盲的 L4 iso 包 `@cordexjs/comments`，doc / sheet 只贡献锚点解析器 | §8.2 新增 BC-25 客户端行；§13 Q5 部分结案 |
 | D-M2-CONTENT | 服务端内容只存协同快照，打开走快照 + WS；本模块 M5 骨架的服务端复用路径不受影响（`snapshot/codec.ts` 的 `$ref` 分支仍是唯一参数化点） | 无正文改动（§8.2 总口径不变） |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| TX-10 ⑤ | §9 末段 | 覆盖率与性能预算改指 70/01 §8 与 70/09 |
 
 ## 13. 未决问题
 

@@ -1,6 +1,6 @@
 # 03 内核与插件模型：kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset 与版本协商
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG）） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG））；2026-09-26（§4.20）（FE-06：§3.6 `ContributionBase.enablement`、`ui.shortcut`/`ui.command` 带 `enablement`，上下文键补 `editorMode`、`unitLoaded`、`can.*` 并改指 50-frontend/09 §6.3；FE-01：§5.1 伪代码改为按登记表挂载、新增 §5.1a `units.registerUnitProvider`/`listUnitProviders`、§9 `PresetEntry` 补 `scope` 与 `provides`；§11 补两行机械验证） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
 > 事实来源：`cordis@4.0.0-rc.10` 生成式 API 文档（Context / Fiber / Events / Registry / Service）与 `cordis-primer.md`。凡标注「草案」的签名允许在实现期微调，但**语义**（谁拥有生命周期、失败如何隔离、何时 PENDING）不得改变。
 
 ---
@@ -301,9 +301,9 @@ classDiagram
 | `errors.sink` | kernel | `ErrorSink { id; report(err, ctx) }` | `id` | error | `errors`（扇出） |
 | `telemetry.sink` | kernel | `TelemetrySink { id; counter/histogram/span/event 接收端 }` | `id` | error | `telemetry`（扇出） |
 | `i18n.bundle` | i18n | `{ namespace; locale; messages }` | `${namespace}:${locale}` | replace | `i18n` |
-| `ui.ribbon` / `ui.toolbar` / `ui.panel` / `ui.contextMenu` / `ui.statusBar` / `ui.dialog` / `ui.notification` | ui-core | 各自项类型（含 `slot`、`order`、`when`） | `id` | replace | `ui` |
-| `ui.shortcut` | ui-core | `{ id; chord; commandId; when }` | `id` | replace | `shortcuts` |
-| `ui.command` | ui-core | 命令**呈现元数据** `{ commandId; title; icon; when }` | `commandId` | replace | `ui`（命令面板/菜单） |
+| `ui.ribbon` / `ui.toolbar` / `ui.panel` / `ui.contextMenu` / `ui.statusBar` / `ui.dialog` / `ui.notification` | ui-core | 各自项类型，公共骨架 `ContributionBase { id; slot; order; when?; enablement?; owner? }`：`when` 只管**可见性**（为假不渲染），`enablement` 只管**可用性**（语法同 `when`；为假时禁用而不隐藏、`aria-disabled` 并给出原因，PRD ED-30；2026-09-26，rulings §4.20 FE-06） | `id` | replace | `ui` |
+| `ui.shortcut` | ui-core | `{ id; chord; commandId; params?; when?; enablement? }`（`when` 为假时和弦不匹配、交还浏览器；`enablement` 为假时和弦仍被消费并提示原因） | `id` | replace | `shortcuts` |
+| `ui.command` | ui-core | 命令**呈现元数据** `{ commandId; title; icon?; category; when?; enablement?; keywords? }`（`enablement` 为假或能力位未授予时置灰并附原因，不隐藏） | `commandId` | replace | `ui`（命令面板/菜单） |
 | `ui.theme` | ui-core | `ThemeContribution { id; tokens: Partial<TokenSet>; density? }`（设计 token 覆盖集，Beta） | `id` | replace | `theme` |
 | `slide.shapeKind` | model-slide | `ShapeKindDef` | `kind` | error | `slides`、slide-render |
 | `comments.anchorResolver` | comments（2026-09-25，rulings §4.19 D-COMMENTS-PKG） | `CommentAnchorResolver { documentType; resolve(anchor, unit); describe(anchor) }`（锚点抽象由文档类型提供解析，评论包本身文档类型盲） | `documentType` | error | `comments`（slide 的 resolver 由 slide-ui 贡献，02 §4.12c） |
@@ -312,7 +312,7 @@ classDiagram
 
 命名规则：id 一律 `<域>.<名>`，`<名>` 为 camelCase（`core.documentType`、`ui.contextMenu`、`ui.statusBar`）；事件一律 `<域>/<动作>`（kebab-case 动作）。**第三方前缀**（章程 D15；PRD CS-07 的定稿）：第三方插件的贡献点 `<vendor>:<域>.<名>`、事件 `<vendor>:<域>/<动作>`、能力位 `<vendor>:<域>.<action>`，其中 `vendor` = 包的 npm scope 去 `@`（`@acme/cordex-comments` → `acme:comments.thread`、`acme:comments/added`）；内核与垂直束的域名单固定为 `core kernel contribution unit command store history selection permission format render layout ui i18n collab collab-server presence plugin error perf view export comment slide doc sheet`（与章程 §5.5 合并为一份并集，2026-09-18，14 §1 C-24；`app` 为应用壳私有域，不入此表，见章程 §5.5）。扫描器 `event-domain-whitelist`：拒绝既不在名单又无 `<vendor>:` 前缀的域，并校验前缀与声明该事件/贡献点的包的 scope 机械对应（无 scope 的第三方包不得声明公开事件与贡献点 id）。`telemetry.sink`/`errors.sink` 是贡献点；`collabTransport`、`BlobStore` 一类**单例可替换能力**是服务 Provider 座而非贡献点（判据：集合 → 贡献点；单例 → 服务）。
 
-**`when` 子句上下文键**（`ui-core/context-keys.ts`；`ui.*` 贡献的 `when` 只能引用此处登记的键，由 `scan-contributions` 规则 (e) 校验（09-06 §3，TD-089；原称扫描器 `when-keys-declared`））：`unitType`（documentType id）、**`viewMode`**（取值受 `DocumentType.viewModes` 约束；slide：`normal | master | presenter`——ML-01 母版视图下 ribbon/panel/contextMenu 据此切换贡献，例 `when: "unitType == 'slide' && viewMode == 'master'"`）、**`editTargetKind`**（`slide | layout | master`，母版视图中的当前编辑目标）、`selectionKind`、`selectionCount`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform`（`desktop | mobile`）、`density`、**`breakpoint`**（`desktop | compact | narrow`，与 `platform` 正交，取视口宽度语义）、**`textEditing`**、**`focusRegion`**（`canvas | rail | inspector | ribbon`）（后三者 2026-09-18 新增（40-modules），见 14 §2/§5.5）。垂直束可登记前缀键（如 `slide.hasNotes`、`slide.hasChartEditor`），第三方按 D15 `<vendor>:` 前缀。上下文键由 `view.setMode`（ui-core 内置 Operation，14 §1 C-01）/`slide.selectMasterOrLayout` 等 Operation 更新（05 §13.3），反应式驱动 `ui` 服务重新过滤贡献。
+**`when` / `enablement` 子句上下文键**（`ui-core/context-keys.ts`；`ui.*` 贡献的 `when` 与 `enablement` 只能引用此处登记的键，由 `scan-contributions` 规则 (e) 校验（09-06 §3，TD-089；原称扫描器 `when-keys-declared`；2026-09-26 起检查范围含 `enablement`，rulings §4.20 FE-06）。**键全集、取值与来源以 [50-frontend/09](../50-frontend/09-ui-system-and-theming.md) §6.3 为准**，本段只列架构口径）：`unitType`（documentType id）、**`viewMode`**（取值受 `DocumentType.viewModes` 约束；slide：`normal | master | presenter`——ML-01 母版视图下 ribbon/panel/contextMenu 据此切换贡献，例 `when: "unitType == 'slide' && viewMode == 'master'"`）、**`editTargetKind`**（`slide | layout | master`，母版视图中的当前编辑目标）、`selectionKind`、`selectionCount`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform`（`desktop | mobile`）、`density`、**`breakpoint`**（`desktop | compact | narrow`，与 `platform` 正交，取视口宽度语义）、**`textEditing`**、**`focusRegion`**（`canvas | rail | inspector | ribbon`）（后三者 2026-09-18 新增（40-modules），见 14 §2/§5.5）、**`editorMode`**（`edit | review | view`，打开或重开 Unit 时按角色映射，会话内只随用户切换，`permission/changed` 不改它）、**`unitLoaded`**（渐进打开首批后为假、`unit/loaded` 后为真；全文命令入口以 `enablement: unitLoaded` 禁用而非隐藏）、**`can.<capability>`** 键族（布尔；`<capability>` 取 protocol `permissions/actions.ts` 的能力位全集，即 `can.doc.read`、`can.doc.comment`、`can.doc.write`、`can.doc.export`、`can.doc.manage`、`can.history.read`、`can.history.restore`；由打开时的权限快照与之后的 `permission/changed` 逐位写入；`isReadOnly` ≡ `!can.doc.write`）（后三者 2026-09-26 登记，rulings §4.20 FE-06）。**`can.` 是 ui-core 保留前缀**：`can.<x>` 的 `<x>` 必须是 protocol 定义的能力位，ui-core 以外的包（垂直束与第三方）以 `registerPrefixedKey('can.…')` 登记即违规，由 `scan-contributions` 规则 (e) 执行。垂直束可登记前缀键（如 `slide.hasNotes`、`slide.hasChartEditor`），第三方按 D15 `<vendor>:` 前缀。条目最终可用 = 目标命令已注册 ∧ 命令声明的能力位已授予（`can.<capability>`）∧ `enablement` 为真，三者任一为假都只禁用、不隐藏（50-frontend/09 §6.1）。上下文键由 `view.setMode`（ui-core 内置 Operation，14 §1 C-01）/`slide.selectMasterOrLayout` 等 Operation 更新（05 §13.3），反应式驱动 `ui` 服务重新过滤贡献。
 
 ---
 
@@ -385,11 +385,13 @@ flowchart TB
        └─ Fiber[unit:<UnitId>]  ← ctx.plugin(unitPlugin, { descriptor })        ← 「打开 Unit」= 挂载此 Fiber
             apply(ctx) {
               const scoped = createIsolatedScope(ctx, {
-                services: [...ISOLATED_SERVICES, ...documentType.unitServices],   // ['store','history','selection','render','presence', 'slides']
+                services: [...ISOLATED_SERVICES, ...documentType.unitServices, ...registeredProvides],   // ['store','history','selection','render','presence', 'slides', …登记项的 provides]
                 meta: { [UnitScope.unit]: unit }                                  // ctx.extend(meta)：子树内 ctx[UnitScope.unit] 可读
               })
-              scoped.plugin(storeProviderPlugin, { initialBody, schemaVersion })  // provide 'store' —— 在隔离域内
-              scoped.plugin(historyPlugin); scoped.plugin(selectionPlugin); scoped.plugin(renderPlugin)
+              const providers = unitProviderRegistry.snapshot()                  // 打开时刻的登记表快照（§5.1a，model-core 内部读完整条目）；之后的登记变化不影响本 Unit
+              const store = providers.find(e => e.provides.includes('store'))     // 唯一登记；缺席 → 依赖方 PENDING
+              if (store) scoped.plugin(store.plugin, { ...store.config, initialBody, schemaVersion })   // provide 'store' —— 在隔离域内
+              for (const e of providers) if (e !== store) scoped.plugin(e.plugin, e.config)             // history/selection/render/presence/collab-yjs/comments …
               for (const p of documentType.unitPlugins) scoped.plugin(p)         // 如 slides 服务
               ctx.effect(() => { ctx.units.register(unit, scope); return () => ctx.units.unregister(unit.id) })
               ctx.emit('unit/opened', unit)                                       // 在 store 就绪后（见 5.3）
@@ -401,16 +403,38 @@ flowchart TB
 - 「关闭 Unit」= `unitFiber.dispose()`：cordis 逆序运行全部 effect（子 Fiber 先于父）；`store`/`render`/DOM 节点/WS 全部释放。
 - 子树内的插件 `inject: ['store']` 解析到本 Unit 的 store；根级插件看不到任何 `store`（从未在根提供）。
 
+#### 5.1a Unit 默认 Provider 登记表（2026-09-26，rulings §4.20 FE-01）
+
+`unit-plugin` 挂载哪些 Provider 由 `units` 服务的登记表决定，**model-core 不 import 任何水平层 Provider**（`engine-render`、`store-*`、`collab-*`、`comments` 的秩都高于 model-core，直接 `scoped.plugin(renderPlugin)` 会违反章程 §5.3 的只向下规则；原伪代码作废，40-modules/17 G-9）。
+
+```ts
+// model-core unit/units.service.ts（签名草案；契约以 40-modules/02 §6 为准）
+interface UnitProviderEntry { id: PluginId; plugin: Plugin; config?: unknown; provides: readonly string[] }
+interface UnitsService {
+  registerUnitProvider(entry: UnitProviderEntry): Disposer                      // 返回撤销函数，由登记方的 effect 持有
+  listUnitProviders(): readonly { id: PluginId; provides: readonly string[] }[]  // 供插件管理器与诊断
+  // open / close / get / list / observe … 见 40-modules/02
+}
+```
+
+- **登记分工**：model-core 在 `ready` 时只登记 `history`、`selection` 两个默认 Provider；`store`（store-memory / store-yjs）、`render`、`presence`、`collab-yjs`、`comments` 由 preset 中 `scope: 'unit'` 的条目在 preset mount 时登记（§9 `PresetEntry.scope`/`provides`）。原 `model-core.Config.defaultStoreProvider` 删除：store 由唯一的 `provides: ['store']` 登记决定。
+- **唯一性**：同一 `provides` 服务名只允许登记一次；后来者被拒并记诊断（不抛异常），返回 no-op disposer。被 `exclude` 的条目不登记，打开的 Unit 中对应服务缺席、依赖方 `PENDING`（§7）。
+- **时效**：登记在 `units.open` 之前或之后都可以；登记表变化**只影响之后打开的 Unit**，已打开的 Unit 不受影响（需重开才生效）。
+- **撤销**：preset dispose 时撤销其全部登记；已打开的 Unit 随 host 一并销毁。
+- **隔离**：登记项声明的 `provides` 服务名一并计入该 Unit 的隔离集（与「所选 store Provider 的全部 provide 名」同理，§5.2），例如 `comments` 服务按 Unit 各一份；对外的 `listUnitProviders()` 只给 `id` 与 `provides`，完整条目只在 model-core 内部读取。
+- 机械验证（model-core `units` 契约用例，M1 前定稿）：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项、已打开的 Unit 不变；dispose 后 `assertNoLiveEffects` 为空；model-core 不 import 秩更高的包由既有 depcruise 秩规则兜底。前端对接口形状的要求见 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §6.2。
+
 ### 5.2 被隔离的服务集
 
 | 服务 | 由谁提供 | 为什么按 Unit 隔离 |
 |---|---|---|
-| `store` | store-memory / store-yjs（按 descriptor/preset 选择） | 每个文档一份状态与一份 Y.Doc |
-| `history` | model-core 默认 Provider | 撤销栈按文档 |
-| `selection` | model-core 默认 Provider | 选区按文档 |
-| `render` | engine-render | 每个文档有自己的 target/viewport |
-| `presence` | collab-core 本地 / collab-yjs | 房间按文档 |
+| `store` | store-memory / store-yjs（preset 的 `scope:'unit'` 条目登记，登记表中唯一 `provides:['store']`，§5.1a） | 每个文档一份状态与一份 Y.Doc |
+| `history` | model-core 默认 Provider（`ready` 时自行登记） | 撤销栈按文档 |
+| `selection` | model-core 默认 Provider（`ready` 时自行登记） | 选区按文档 |
+| `render` | engine-render（preset 登记） | 每个文档有自己的 target/viewport |
+| `presence` | collab-core 本地 / collab-yjs（preset 登记） | 房间按文档 |
 | `documentType.unitServices` | 垂直束（如 `slides`） | 类型化读 API 绑定到本 Unit 的 store |
+| Unit 默认 Provider 登记项的其余 `provides`（如 `comments`，M3） | 该登记项（preset 的 `scope:'unit'` 条目，§5.1a） | 服务状态按文档（如评论线程镜像）；2026-09-26 登记，rulings §4.20 FE-01 |
 | store Provider 额外 `provide` 的服务（如 store-yjs 的 `yjsBackend`） | 该 Provider | `unit-plugin` 对所选 store Provider 的**全部** `provide` 名做 isolate，因此 collab-yjs `inject ['yjsBackend']` 在 store-memory 的 Unit 下自然 PENDING（可诊断的「协同需要 yjs 存储」）；取代 02 旧稿的 symbol 键 `doc-access`（B 线建议二选一） |
 
 不隔离的：`commands`、`permissions`、`formats`、`units`、`layout`（缓存按内容哈希，天然共享）、`ui`、`i18n`。理由：它们是无状态或按 `unitId` 参数化的能力。lint `no-unit-scoped-inject-at-root` 保证根级插件不会误 inject 隔离服务。
@@ -463,8 +487,8 @@ stateDiagram-v2
 1. 解析 `documentType`（`documentTypes.get`；缺 → `UNIT_UNKNOWN_DOCUMENT_TYPE`）；
 2. `source.kind === 'bytes'` → `formats.import` → `SnapshotBundle`；`'snapshot'` → 直接使用；`'state'`（`encoding: 'yjs-update' | 'snapshot-json'`，服务端/离线恢复用，B 线 08）→ 交给所选 store Provider 的 `loadState(bytes)`（store-memory 只接受 `snapshot-json`）；`'empty'` → `documentType.createEmpty()`；
 3. `migrations.run(snapshot)` 到 `documentType.schemaVersion`；`validateSnapshot`；
-4. 建隔离域、挂 store Provider 并 `load(body)`；`resources.apply(unitScope, snapshot.resources)`；
-5. 挂 history/selection/render/presence 默认 Provider 与 `unitPlugins`；`await` 全部 Fiber 稳定（缺依赖的进入 PENDING 不算失败，见 §7）；
+4. 建隔离域、挂登记表中 `provides:['store']` 的 Provider 并 `load(body)`；`resources.apply(unitScope, snapshot.resources)`；
+5. 按登记表（§5.1a，打开时刻的快照）挂其余 Unit 默认 Provider（history/selection/render/presence/collab-yjs/comments 等）与 `unitPlugins`；`await` 全部 Fiber 稳定（缺依赖的进入 PENDING 不算失败，见 §7）；
 6. 注册到 `units` 表；`emit('unit/opened')`。
 
 ### 5.4 多 Unit 共存的保证
@@ -578,7 +602,16 @@ flowchart TB
 preset 的形状（草案）：
 
 ```ts
-interface PresetEntry { id: string; plugin: Plugin; config?: unknown; disabled?: boolean }   // 稳定 id 便于 fiber.update 与诊断（对应 loader 的 id）
+// 原始定义在 @cordexjs/kernel/preset（40-modules/11 §6、40-modules/02 §4.2 preset/entry.ts）；2026-09-26 对齐 40-modules/11（rulings §4.20 FE-01）
+interface PresetEntry {
+  id: PluginId                        // 稳定 id 便于 fiber.update 与诊断（对应 loader 的 id）
+  plugin: Plugin
+  config?: unknown
+  scope: 'host' | 'unit'              // 'host' 挂根；'unit' 不挂根，mount 时经 units.registerUnitProvider 登记为 Unit 默认 Provider（§5.1a）
+  required?: boolean                  // 为真时不可被 exclude
+  provides?: readonly string[]        // 登记表的键：scope:'unit' 条目按它登记，同一服务名只允许一个条目登记（§5.1a）
+}
+// 原 `disabled?: boolean` 作废：移除条目走 PresetTrim.exclude（40-modules/11）
 declare function createSlidePreset(options?: SlidePresetOptions): Plugin
 // options.exclude / options.override 允许「移除 Provider」与「替换 Provider」而不改 preset 源码（章程 §5.4 验收）
 ```
@@ -613,3 +646,5 @@ declare function createSlidePreset(options?: SlidePresetOptions): Plugin
 | 顺序无关 | preset `order-independence.test.ts`（存在性由 `scan-effects` 规则 (3) 保证，TD-095） |
 | 版本失配阻断 | kernel `version-mismatch.test.ts` |
 | `throw new Error` / `console.*` 禁止 | lint `no-bare-throw`、`no-console`（sink 白名单） |
+| `when` / `enablement` 只引用已登记的键；`can.<x>` 属于 protocol 能力位；`can.` 前缀只由 ui-core 登记（§3.6，2026-09-26 rulings §4.20 FE-06） | `scan-contributions` 规则 (e)（09-06 §3，TD-089；负向夹具三条：`enablement` 引用未登记的键、拼错的 `can.doc.writ`、第三方登记 `can.` 前缀）；ui-core 单测断言 `enablement` 为假时控件仍渲染且带 `aria-disabled` |
+| Unit 默认 Provider 登记表（§5.1a，FE-01） | model-core `units` 契约用例：同一 `provides` 重复登记被拒且有诊断、只影响之后打开的 Unit、dispose 后无残留；model-core 不 import 秩更高的包由 depcruise 秩规则兜底 |

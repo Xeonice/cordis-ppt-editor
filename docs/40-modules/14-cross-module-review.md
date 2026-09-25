@@ -1,4 +1,4 @@
-> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（rulings §4.16：M-04/G-7 行标已裁决）、2026-09-24（复核修正，rulings §4.17）（D3 覆盖标注）、2026-09-25（矛盾收口，rulings §4.18）（GV-11/GV-15/BE-08/BE-25/BE-28 覆盖标注） | 依赖：00–13
+> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（rulings §4.16：M-04/G-7 行标已裁决）、2026-09-24（复核修正，rulings §4.17）（D3 覆盖标注）、2026-09-25（矛盾收口，rulings §4.18）（GV-11/GV-15/BE-08/BE-25/BE-28 覆盖标注）、2026-09-26（§4.20）（N-2、N-21 结案标注） | 依赖：00–13
 
 # 14 跨模块评审（阶段三）
 
@@ -278,7 +278,7 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | # | 被引用的东西 | 引用方（文件:行） | 当前归属 | 推荐归属（文件路径） |
 |---|---|---|---|---|
 | N-1 | `runFormatCodecConformance` | charter §5.5（命名约定例证）、M-04 §2.5/§9.2/G-2（`04-…:665`）/Q-1（`:676`） | **无** | `packages/model-core/src/testing/format-codec-conformance.ts`（M-02，经 `./testing` 导出） |
-| N-2 | `units.registerUnitProvider(entry)` | M-11 Q-2（`11-…:988`）：`assembly/mount.ts` 需要它把 `scope:'unit'` 条目登记为 Unit 默认 Provider | **无**（M-02 只有 `Config.defaultStoreProvider` 字符串） | `packages/model-core/src/unit/units.service.ts`（M-02 §6 API 面新增） |
+| N-2 | `units.registerUnitProvider(entry)` | M-11 Q-2（`11-…:988`）：`assembly/mount.ts` 需要它把 `scope:'unit'` 条目登记为 Unit 默认 Provider | ~~**无**（M-02 只有 `Config.defaultStoreProvider` 字符串）~~ **已结案（2026-09-26，rulings §4.20 FE-01）**：`units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()` 已登记于 M-02 §2.1、§5.5、§6；`Config.defaultStoreProvider` 删除 | `packages/model-core/src/unit/units.service.ts`（M-02 §6 API 面新增） |
 | N-3 | `RenderPageProtocol` / `RenderPageQuerySchema` / `RenderPageSignal` / `RenderStateResponse` | M-09（`09-…:542`）、M-11 G-7（`11-…:971`）、`/render` 页 | 分散在 `server-headless` 与 `apps/web` | `packages/protocol/src/render/page.ts`（M-02） |
 | N-4 | `ThumbnailRenderer` 的取得方式 | M-12 §5.3 `headless-renderer.accessor.ts`、G-26（`12-…:681`）/Q-1（`:692`） | 接口在 `server-headless/infrastructure/thumbnails/thumbnail-renderer.ts`，但**不在 §6 对外 API 面** | `server-headless` 的 `HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`（M-09 §6） |
 | N-5 | `tooling/scripts/scan-horizontal-freeze.ts`（产出 `fixtures/horizontal-freeze.lock`） | 00 §6.4/§6.5（路径写作 `tooling/scanners/horizontal-freeze.ts`）、M-01 §8（`01-…:550`、`:552`）/D-4（`:648`）/Q-01（`:658`）、M-13 §8.2 | **骨架占位**，不在 09-06 的 13 个扫描器清单内 | `tooling/scripts/scan-horizontal-freeze.ts`（M-01）；00 §6.4 的路径 `tooling/scanners/…` 需回写 （→ 2026-09-25 覆盖（§4.18 GV-11）：D3 后现有扫描器为 14 个（第 14 个为 `doc-access-via-permission`），horizontal-freeze 若纳入为第 15 个、追加 06 §19） |
@@ -297,7 +297,7 @@ charter §5.5 登记：全局 `units documentTypes commands formats resources mi
 | N-18 | `ViewerThumbnailStrip` / `ViewerNotesSheet` 组件 | M-10 G-20（`10-…:973`）要求 M-11 列出；M-11 G-3（`11-…:967`）拒绝 | **无**（两侧都没进文件表） | 按 §1 C-06 落 `preset-slide-viewer/src/shell/{thumbnail-strip,notes-sheet}.ts`（纯 CSS `[data-slot]`），M-11 §4.3 补两行 |
 | N-19 | `MemoryBlobStore` 跑 `runBlobStoreConformance` 的「基础三方法子集」 | M-08 G-8（`08-…:668`） | 套件在 `server-storage`，`MemoryBlobStore` 在 `model-core/testing` | 把套件定义上移到 `packages/model-core/src/testing/blob-store-conformance.ts`（Definition 所在包，符合 charter §5.5「由 Definition 所在包的 `./testing` 导出」），`server-storage` 只实例化 |
 | N-20 | 占位符类型 → 数量上限数值表 | M-03 G-8（`03-…:717`）/Q5（`:728`）：命令层与不变量层需引用同一常量表 | **无**（PRD 只给描述性规则，架构 04 无数字表） | `30-architecture/04-document-model.md` §12.1 补表 + `model-slide/src/domain/invariants/placeholder-limits.ts` |
-| N-21 | `slide.deleteMaster(reassignTo)` 的跨母版目标版式选取细则 | M-03 G-9（`03-…:718`）/Q6（`:729`）；PRD 07 自述「待设计 26 补稿（G-73）」 | **无** | 设计 26 补稿 → 回写 `model-slide/src/domain/invariants/reassign.ts`（与 `deleteLayout` 共用同一纯函数） |
+| N-21 | `slide.deleteMaster(reassignTo)` 的跨母版目标版式选取细则 | M-03 G-9（`03-…:718`）/Q6（`:729`）；PRD 07 自述「待设计 26 补稿（G-73）」 | ~~**无**~~ **已结案（2026-09-26，rulings §4.20 FE-23）**：`reassignTo?: MasterId` 为目标母版，每个受影响页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（目标母版同 type 首个 → 目标母版首个），整个删除一个事务；UI 默认取按 order 排序的首个剩余母版；已写入 M-03 §2.1、§2.6 | `model-slide/src/domain/invariants/reassign.ts`（`defaultLayoutOf`，与 `deleteLayout` 共用同一纯函数，rulings §4.20 FE-03） |
 | N-22 | `TD-079…TD-083` 五行规范↔执行矩阵条目 | M-01 D-6（`01-…:650`）/D-7（`:651`）/Q-07（`:664`） | **无**（三条 lint 规则与两个扫描器无 TD 行） | `30-architecture/09-type-discipline/08-policy-enforcement-matrix.md` 新增五行（编号由类型治理条线统一分配） |
 
 **统计**：归属重叠 **11** 项（O-1…O-11，其中 O-1 已自行消解）；缺口 **22** 项（N-1…N-22）。
@@ -501,7 +501,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-10/G-10 | `04` §2.7–2.13 token 命名：`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--row-h`；间距用 Tailwind 4pt 阶；字阶只留 `--text-2xs`；阴影只留 `--glass-shadow` | 采纳→回写 |
 | M-10/G-11 + M-10/Q-5 | `04` §2.13 紧凑密度下的 Ribbon 高度与控件尺寸（推荐：页签行 32 + 内容区 36，小控件 24） | **待条线**（M2 定稿） |
 | M-10/Q-6 | `04` §2.14 Lucide `strokeWidth` 定为 2（与 playground 与 45 个复制件一致） | 采纳→回写 |
-| M-03/G-9 + M-03/Q6 | 设计 26 补稿「`slide.deleteMaster(reassignTo)` 跨母版目标版式选取细则」（PRD 07 的 G-73 待补项） | **待条线**（设计线） |
+| M-03/G-9 + M-03/Q6 | 设计 26 补稿「`slide.deleteMaster(reassignTo)` 跨母版目标版式选取细则」（PRD 07 的 G-73 待补项） | ~~**待条线**（设计线）~~ **已结案（2026-09-26，rulings §4.20 FE-23）**：规则见 §4.2 N-21 |
 | M-11/G-17 | 设计 29/01/23/25/11 的 `#/…` hash 路由 | **驳回并说明**：playground 事实照实描述，正式应用用 path 路由；差异在 `apps/web/README.md` 说明 |
 | M-10/Q-7 | 高对比 / `forced-colors` 第三套主题 | **待条线**（M3 P1，先用系统色兜底） |
 
@@ -557,7 +557,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-08/Q-2 | `create-tenant` 是否对外暴露公开自助注册 | 否，M3 仅内部/管理脚本可调用 | M3——**已裁决（rulings §4.12 U-10）** （→ 2026-09-24 rulings §4.15 覆盖：T-0：无租户，`create-tenant` 用例删除；注册由部署级开关 `auth.selfSignup`（默认关）控制，账号在外置 OIDC IdP 建立、首次登录 JIT 建号（Q6）） |
 | M-08/Q-3 | `permissions.principal_type='group'` 是否 M4+ 补齐组管理，否则从枚举移除 | M-08 范围内不实现，枚举保留但不可达 | M4——**已裁决（rulings §4.12 U-11）**：M3 即实现组管理（提前于 M4） （→ 2026-09-24 rulings §4.15 覆盖：Q6：组管理推迟（不再 M3 实现），M3 只按人分享） |
 | M-08/Q-7 | 是否补服务端操作日志以支持管理员「撤销误操作」 | M3 不做，靠 `audit_log` 人工核对 + 回收站 | M4——**已裁决（rulings §4.12 U-12）** |
-| M-09/Q-9 + M-02/Q-2 + M-09/G-21 | PRD CO-07「恢复……可撤销」与 `core.restoreVersion` 用 `origin:system('restore')`（不入撤销栈）冲突 | 务实折中：恢复前强制落一个 `auto` 快照，用户「恢复到那个快照」变相撤销；**不**新增 `Origin` 变体 | M3（版本恢复验收口径）——**已裁决（rulings §4.12 U-07）**：本行「务实折中」与「进本地撤销栈」两个简单方案均已否决，转专项设计 `version-restore-undo`（M-02 × M-05 × M-09，M3 前出 ADR） （→ 2026-09-24 rulings §4.15 覆盖：Q3：撤销写入 DocumentStore 中性契约（同一键被他人后写→跳过并提示；整步被跳过→停下不连撤；删除改软删除墓碑 + TTL），U-07 `version-restore-undo` 专项设计以此为基线） |
+| M-09/Q-9 + M-02/Q-2 + M-09/G-21 | PRD CO-07「恢复……可撤销」与 `core.restoreVersion` 用 `origin:system('restore')`（不入撤销栈）冲突 | 务实折中：恢复前强制落一个 `auto` 快照，用户「恢复到那个快照」变相撤销；**不**新增 `Origin` 变体 | M3（版本恢复验收口径）——**已裁决（rulings §4.12 U-07）**：本行「务实折中」与「进本地撤销栈」两个简单方案均已否决，转专项设计 `version-restore-undo`（M-02 × M-05 × M-09，M3 前出 ADR） （→ 2026-09-24 rulings §4.15 覆盖：Q3：撤销写入 DocumentStore 中性契约（同一键被他人后写→跳过并提示；整步被跳过→停下不连撤；删除改软删除墓碑 + TTL），U-07 `version-restore-undo` 专项设计以此为基线）（→ 2026-09-26 rulings §4.20 TX-01+BE-10：专项登记为 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)，M-02 主笔、M-05/M-09 会签，M2 出口评审前定稿） |
 | M-10/Q-7 | 高对比 / `forced-colors` 第三套主题何时进入 `TokenSet` | M3 P1：先以 `@media (forced-colors: active)` 系统色兜底 | M3——**已裁决（rulings §4.12 U-08）**：M1–M2 系统色兜底，M3 P1 正式第三套 token |
 | M-11/Q-6 | 「最近 / 固定」M2 是否只做本地 IndexedDB，服务端同步推到 M3 | M2 本地，M3 合并 | M2/M3——**已裁决（rulings §4.12 U-04）：M2 即服务端同步，IndexedDB 仅离线缓存** |
 | M-11/Q-8 | 查看器 `allowExport` 默认关还是开（PRD OF-14 未明说；02 §4.21b 暗示开） | **默认关**（体积与数据外泄面最小，集成方一行开启） | M2——**已裁决（rulings §4.12 U-03）** |
@@ -584,7 +584,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-11/Q-3 + M-11/G-5 | 装配运行时归属：`preset-slide-viewer/assembly/` / `@cordexjs/kernel/preset/` / 新包 `@cordexjs/preset-core` | **`@cordexjs/kernel/preset/`**（§1 C-07） | M1（三预设都依赖它） |
 | M-11/Q-4 | 查看器壳「最小原子组件」实现方式 | 纯 CSS `[data-slot]` 类（零框架，≤ 15 KB） | M2 |
 | M-11/Q-1 | `apps/web` path 路由还是 hash 路由 | **path 路由** + SPA fallback（§1 C-20） | M2 |
-| M-11/Q-2 | UnitScope 级 Provider 的登记 API（`registerUnitProvider`） | 由 M-02 在 `units` 服务暴露（§4.2 N-2） | M1 |
+| M-11/Q-2 | UnitScope 级 Provider 的登记 API（`registerUnitProvider`） | 由 M-02 在 `units` 服务暴露（§4.2 N-2）；**已结案（2026-09-26，rulings §4.20 FE-01）** | M1 |
 | M-11/Q-10 | 形态 E `postMessage` 消息形状是否纳入 `@cordexjs/protocol` | 纳入（`protocol/src/embed/messages.ts`，M3 P2） | M3 |
 | M-11/Q-13 | `examples/**`（EM-17）归属 | 追加为 M-11 附属交付 | M2 |
 | M-12/Q-1 + M-12/G-26 | `ThumbnailRenderer` 对外导出形态 | `HeadlessHost.thumbnails: ThumbnailRenderer` 只读字段（§1 C-09） | M2 |
@@ -640,7 +640,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-02/Q-5 | M-08 | `ROLE_CAPABILITIES` 运行时初始值 | 类型先行，M-08 落地时与 PRD CO 域对齐后回填（M-08 §2.2 已给表，可结案） | M3 |
 | M-03/Q3 | M-05 + M-09 | `runSlideModelConformance` 是否覆盖协同并发 | 不覆盖；并发合并测试放 M-05/M-09 契约套件的协同分节 | M3 |
 | M-03/Q5 | 架构-结构 A（04 号文档） | 占位符类型 → 数量上限的具体数值 | 补表；命令层与不变量层引用同一常量 | M2 |
-| M-03/Q6 | 设计线（设计 26 补稿） | `slide.deleteMaster(reassignTo)` 跨母版目标版式选取细则 | 暂用「该母版首个版式」，与 `deleteLayout` 同一纯函数 | M2 |
+| M-03/Q6 | 设计线（设计 26 补稿） | `slide.deleteMaster(reassignTo)` 跨母版目标版式选取细则 | ~~暂用「该母版首个版式」~~ **已结案（2026-09-26，rulings §4.20 FE-23）**：目标母版同 type 首个 → 目标母版首个（`defaultLayoutOf`），与 `deleteLayout` 同一纯函数，整个删除一个事务 | M2 |
 | M-04/Q-4 | M-01 | `no-doc-type-literals` 是否显式覆盖 `ooxml-core/src/**` | 是（水平层通用规则天然覆盖），需在矩阵/实现中显式列出 | M1 |
 | M-05/Q-05-1 | M-10 | `SyncState` 六态 vs PRD 的 `connecting`/`reconnecting` 两种文案 | 维持六态，UI 用 `SessionStats.reconnectAttempt>0` 派生 | M3 |
 | M-05/Q-05-3 | M-05 内部 | 软冲突场景 4（并发插入同一间隙）是否需要第 13 个 `SoftConflictType` | 新增 `concurrent-insert` 或复用 `reorder`；可只留 telemetry 不下发用户事件 | M3 |

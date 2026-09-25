@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
 
 # 02 内核、协议与文档内核（限界上下文 BC-01 内核与插件运行时、BC-02 共享基础设施、BC-03 协议与发布语言、BC-04 国际化、BC-05 文档内核）
 
@@ -180,7 +180,7 @@ interface UnitScope {
 
 - 文件：`model-core/src/unit/unit-scope.ts`。
 - `UnitScope` 不是独立聚合，是 `Unit` 在 cordis 世界的**实现载体**：一个 Unit = 一个插件 Fiber（`ctx.plugin(unitPlugin, { descriptor })`）；「关闭 Unit」= `fiber.dispose()`（cordis 逆序运行全部 effect）。
-- `ctx` 是对隔离服务集合逐个 `isolate()` 后的子 Context；隔离服务集合 = `['store','history','selection','render','presence']` ∪ `documentType.unitServices` ∪ 所选 `store` Provider 的全部 `provide` 名（如 `store-yjs` 的 `yjsBackend`，使 `collab-yjs` 在 `store-memory` 场景下自然 `PENDING`，ADR-0005 第 3 条）。
+- `ctx` 是对隔离服务集合逐个 `isolate()` 后的子 Context；隔离服务集合 = `['store','history','selection','render','presence']` ∪ `documentType.unitServices` ∪ 所选 `store` Provider 的全部 `provide` 名（如 `store-yjs` 的 `yjsBackend`，使 `collab-yjs` 在 `store-memory` 场景下自然 `PENDING`，ADR-0005 第 3 条）∪ 打开时刻 UnitScope 默认 Provider 登记项声明的全部 `provides`（如 `comments` 服务按 Unit 各一份；`ISOLATED_SERVICES` 常量只含前五项，登记项部分由 `unit-plugin.ts` 在 `createIsolatedScope` 时并入，30/03 §5.1a、§5.2；rulings §4.20 FE-01）。
 - 归属查询：`unitOf(ctx): Unit | undefined`（读 `ctx[UnitScope.unit]`，`extend()` 挂载的元数据）；事件载荷一律显式携带 `unitId`，不依赖 ctx 推断（检查项 `unit-events-carry-unitId`：不是独立扫描器，按 rulings §4.18 GV-15 落为类型测试断言 `model-core/__tests__/unit-events.type-test.ts`（TD-098），对照见 09-type-discipline/08 §11.1）。
 
 **UnitScope 生命周期状态机**（权威定义于架构 03 §5.3，本节固化为 model-core 的实现契约；状态名与迁移条件不得在实现中漂移）：
@@ -196,7 +196,9 @@ stateDiagram-v2
   ready --> ready: 渐进打开 后续批次以 system import 追加 全部到齐 → emit unit/loaded
 ```
 
-`units.open` 的六个步骤（实现于 `model-core/src/unit/unit-plugin.ts`，任一步失败即 `Result.err` 并迁移到 `failed`）：① 解析 `documentType`（`documentTypes.get`；缺失 → `UNIT_UNKNOWN_DOCUMENT_TYPE`，值 `format.no_document_type`）；② 按 `source.kind`（`'bytes'`→`formats.import`；`'snapshot'`→直接用；`'state'`→交给所选 Provider 的 `loadState`；`'empty'`→`documentType.createEmpty()`）取得 `SnapshotBundle`；③ `migrations.run(snapshot)` 到 `documentType.schemaVersion`、`validateSnapshot`；④ `createIsolatedScope` 建隔离域并挂 store Provider、`store.load(body)`（渐进打开时只装首批 body）、`resources.apply(...)`；⑤ 挂 history/selection/render/presence 默认 Provider 与 `documentType.unitPlugins`，等待全部子 Fiber 稳定（`PENDING` 不算失败，见 03 §7）；⑥ 注册进 `units` 表、`emit('unit/opened')`（渐进打开时此刻首批已可渲染、可编辑，`loadState='partial'`）。`opening` 期间的中间反馈经 `unit/open-progress` 事件（大文件导入进度）。
+`units.open` 的六个步骤（实现于 `model-core/src/unit/unit-plugin.ts`，任一步失败即 `Result.err` 并迁移到 `failed`）：① 解析 `documentType`（`documentTypes.get`；缺失 → `UNIT_UNKNOWN_DOCUMENT_TYPE`，值 `format.no_document_type`）；② 按 `source.kind`（`'bytes'`→`formats.import`；`'snapshot'`→直接用；`'state'`→交给所选 Provider 的 `loadState`；`'empty'`→`documentType.createEmpty()`）取得 `SnapshotBundle`；③ `migrations.run(snapshot)` 到 `documentType.schemaVersion`、`validateSnapshot`；④ `createIsolatedScope` 建隔离域，按 UnitScope 默认 Provider 登记表（下段）挂 `provides` 含 `store` 的那一条 Provider、`store.load(body)`（渐进打开时只装首批 body）、`resources.apply(...)`；⑤ **按登记表挂载**其余默认 Provider（打开时刻登记表的快照：history、selection 由 model-core 自登记，render、presence、collab-yjs、comments 等由 preset 登记）与 `documentType.unitPlugins`，等待全部子 Fiber 稳定（`PENDING` 不算失败，见 03 §7；某服务无人登记即缺席，依赖方 `PENDING`）；⑥ 注册进 `units` 表、`emit('unit/opened')`（渐进打开时此刻首批已可渲染、可编辑，`loadState='partial'`）。`opening` 期间的中间反馈经 `unit/open-progress` 事件（大文件导入进度）。
+
+**UnitScope 默认 Provider 登记表（rulings §4.20 FE-01，40/11 Q-2 结案）**：`units` 服务（`model-core/src/unit/units.service.ts`）提供 `units.registerUnitProvider(entry: UnitProviderEntry): Disposer` 与 `units.listUnitProviders(): readonly { id: PluginId; provides: readonly string[] }[]`，`UnitProviderEntry = { id: PluginId; plugin: Plugin; config?: unknown; provides: readonly string[] }`（形状即 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) §6.2，`Disposer = () => void`）。登记分工：model-core 在 ready 时只自登记 `history`、`selection` 两个默认 Provider；`store`（store-memory 或 store-yjs）、`render`、`presence`、`collab-yjs`、`comments` 由 preset 的 `scope:'unit'` 条目在 mount 时登记（kernel `mountEntries()` 对这类条目不在根挂载，改调本 API，见 §2.3）。规则：① 同一 `provides` 服务名只允许登记一次，后来者被拒并记诊断（经 `errors`/`telemetry`）、不抛异常；② 登记表的变化只影响之后打开的 Unit，已打开的 Unit 不变（需重开才生效）；③ preset dispose 时经返回的 `Disposer` 撤销全部登记，撤销后 `listUnitProviders()` 无残留。model-core 不 import 任何秩更高的水平层 Provider 包（章程 §5.3 只向下，既有 depcruise 秩规则兜底）；原 `Config.defaultStoreProvider` 字符串删除，store 由唯一的 `provides:['store']` 登记决定（collab 预设的 store-memory → store-yjs 替换在 40/11 `derive.ts` 完成）。登记表用例（`model-core/src/unit/__tests__/units-registry.test.ts`，归 `test/unit`：登记表只有 model-core 一个实现、不调用 kit，按 70/01 §4 文件名前缀规则不进 `test/contract`；用例 id 见 70/02 §9.1，见 §9）：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项、已打开的 Unit 不变；dispose 后 `assertNoLiveEffects` 为空。M1 前定稿。
 
 **渐进打开：首批装载、后台追加（rulings §4.18 CO-12/CO-11，按架构 07 §14.2）**：`source.kind==='bytes'` 且所选 `FormatCodec` 实现了可选的 `importProgressive()`（§2.2）时走此路径，否则仍一次装载。① codec 在 Worker 内跑导入管线，**先完成全部页的规模计数**——超系统天花板整体拒绝（`format.quota_exceeded`），不会装到一半才失败；② 首批（主题/母版/版式 + 首页所在批次）以 `SnapshotBundle` 回传，经第 ③ 步迁移校验后按 ④–⑥ 装载并发 `unit/opened`；③ 后续批次以 `origin: system('import')` 的事务追加进 Store（见 §2.5「import 追加语义」：只新增、不入撤销栈、DirtyTracker 忽略该来源，零编辑导出零脏部件）；④ 全部批次到齐后 `loadState='loaded'` 并 `emit('unit/loaded')`；⑤ 用户跳转到未解析的实体时，`units.prioritize(unitId, entityId)` 调 `ProgressiveImport.prioritize(entityId)`，Worker 完成当前页后先解析该实体所在批次，已解析未装载的批次提到装载队首。Worker 入口与分批协议由 codec 所在模块登记（slide 为 M-04 `ooxml-pptx`）。协同模式不走此路径（Y 状态由 HTTP 快照 bootstrap，`source.kind==='state'`）。
 
@@ -222,7 +224,7 @@ stateDiagram-v2
 | `FormatCodec<S>` / `ImportResult<S>` / `ProgressiveImport<S>` | `{ id; documentType; mimeTypes; extensions; canImport; canExport; import(); export(); importProgressive?() }` / `{ snapshot; diagnostics }` / `{ first: ImportResult<S>; batches: AsyncIterable<BodyBatch<S>>; prioritize(entityId): void; cancel(): void; done: Promise<Result<void, FormatError>> }`——`importProgressive` 可选，返回 `first` 之前必须完成规模包络计数（超天花板整体拒绝）；`BodyBatch` 只含新增实体与有序集合键（rulings §4.18 CO-12/CO-11） | 贡献时经 `core.format` 的 `schema` | `format/format-codec.ts` |
 | `ContributionPointSpec<T,K>` / `ContributionPoint<T,K>` | `{ id: PointId; schema; key; conflict?; describe? }` | `defineContributionPoint()` 构造时自检字段完整性 | `kernel/src/contribution/point.ts` |
 | `Manifest` | 见 §1.2 补充术语表 | `manifest/schema.ts` 的 Standard Schema | `kernel/src/manifest/types.ts` |
-| `PresetEntry` / `LazyPresetEntry` / `PresetTrim` / `PresetReport` | 新增（14 §1 C-07）：`PresetEntry{id;plugin;config?}`（稳定 id 的插件条目）、`LazyPresetEntry`（`entry` 字段为动态 `import()`）、`PresetTrim`（`exclude`/`override` 裁剪描述）、`PresetReport`（`Promise.allSettled` 汇总，逐条 ok/failed） | `kernel/src/preset/entry.ts`（`PresetEntry`/`LazyPresetEntry`）、`kernel/src/preset/report.ts`（`PresetReport`） |
+| `PresetEntry` / `LazyPresetEntry` / `PresetTrim` / `PresetReport` | 新增（14 §1 C-07）：`PresetEntry{id;plugin;config?;scope:'host'\|'unit';required?;provides?: readonly string[]}`（稳定 id 的插件条目；`scope`、`provides` 与 40/11 §6 契约草案一致，`scope:'unit'` 条目经 `units.registerUnitProvider` 登记，rulings §4.20 FE-01）、`LazyPresetEntry`（`entry` 字段为动态 `import()`）、`PresetTrim`（`exclude`/`override` 裁剪描述）、`PresetReport`（`Promise.allSettled` 汇总，逐条 ok/failed） | `kernel/src/preset/entry.ts`（`PresetEntry`/`LazyPresetEntry`）、`kernel/src/preset/report.ts`（`PresetReport`） |
 | `CordexError` / `ErrorTable` | 见 §1.2 补充术语表 | `defineErrors(domain, table)` 构造时校验 `table` 形状 | `kernel/src/services/errors.service.ts` |
 | `Capability` / 角色→能力位映射 | 见 §1.2 补充术语表；角色 `owner\|editor\|commenter\|viewer` | zod 字面量联合 + `ROLE_CAPABILITIES` 表 | `protocol/src/permissions/{actions,roles}.ts` |
 | DrawingML 值对象群 | `Color`/`Fill`/`Line`/`EffectList`/`Geometry`/`Transform`/`FontRef`/`TextBody` 家族/`Hyperlink`/`OpaqueXml` | 各自 `drawing/schema/*.schema.ts` | `model-core/src/drawing/*.ts` |
@@ -235,7 +237,7 @@ stateDiagram-v2
 
 | 签名（草案） | 所在文件 | 两端共用 | 备注 |
 |---|---|---|---|
-| `between(a?: FracKey, b?: FracKey): FracKey` | `shared/src/order.ts` | 是 | 含 2 字符随机后缀，**只能在命令层调用**，不得出现在 `lower()` 内（ADR-0013） |
+| `between(a?: FracKey, b?: FracKey, random?: Random): FracKey` | `shared/src/order.ts` | 是 | 含 2 字符随机后缀（取自注入的 `Random`，缺省 `SystemRandom`；rulings §4.20 TX-10），**只能在命令层调用**，不得出现在 `lower()` 内（ADR-0013） |
 | `compareOrder(a: [FracKey,string], b: [FracKey,string]): number` | `shared/src/order.ts` | 是 | 排序键 `(order, id)` |
 | `rekey(keys: readonly FracKey[]): readonly FracKey[]` | `shared/src/order.ts` | 是 | 键长治理（origin=`system('maintenance')`） |
 | `sha256(bytes: Uint8Array): Promise<Sha256Hex>` | `shared/src/hash.ts` | 是 | WebCrypto `subtle`，同构 |
@@ -245,7 +247,7 @@ stateDiagram-v2
 | `satisfies(range: string, version: string): boolean` | `kernel/src/manifest/version.ts` | 是 | 内置最小 semver 子集（`^`/`~`/`>=`/精确/`\|\|`），避免拉入 `semver` 包（ADR-0002） |
 | `validateSnapshot(snapshot, documentType, resourceHooks): Diagnostics` | `model-core/src/snapshot/validate.ts` | 是 | 组合 `bodySchema` + 各 `ResourceHook.schema` + `blobs` 清单一致性 |
 | `dumpFiberTree(ctx): FiberNode[]` | `kernel/src/diagnostics/fiber-tree.ts` | 是 | 诊断，非领域逻辑但无副作用 |
-| `mountEntries(ctx, entries: PresetEntry[]): Promise<PresetReport>` | `kernel/src/preset/mount.ts` | 是 | 新增（14 §1 C-07）：装配运行时核心——按序 `ctx.plugin()` 挂载，单条失败不阻塞其余（`allSettled` 语义），供 `preset-slide*`/未来 `preset-doc`/`preset-sheet` 复用 |
+| `mountEntries(ctx, entries: PresetEntry[]): Promise<PresetReport>` | `kernel/src/preset/mount.ts` | 是 | 新增（14 §1 C-07）：装配运行时核心——按序 `ctx.plugin()` 挂载，单条失败不阻塞其余（`allSettled` 语义），供 `preset-slide*`/未来 `preset-doc`/`preset-sheet` 复用；`scope:'unit'` 条目不在根挂载，改为调用 `units.registerUnitProvider`（kernel 只声明结构类型 `UnitProviderRegistrar`，不 import model-core），撤销函数由 preset effect 持有（rulings §4.20 FE-01，§2.1） |
 | `lazy(loader: () => Promise<Plugin>): LazyPresetEntry` | `kernel/src/preset/lazy.ts` | 是 | 惰性插件条目包装，供 `slide-render-chart` 等重型可选特性拆包套路复用（00 §6.2） |
 | `trim(entries, opts: {exclude?; override?}): PresetEntry[]` | `kernel/src/preset/validate.ts` | 是 | `exclude`/`override` 裁剪校验，支撑「移除任一 Provider 仍可启动」验收（BC-16） |
 | `format(pattern, params, locale): string`（ICU 子集） | `i18n/src/format.ts` | 是 | `plural`/`select` + `Intl` 数字/日期 |
@@ -577,8 +579,8 @@ sequenceDiagram
 | 贡献点：消费 | 同上七个（自身定义、自身消费，供六个查询服务查表） |
 | 事件：发布 | 见 §2.4 全表（`unit/*`、`command/*`、`store/*`、`history/changed`、`selection/changed`、`permission/*`、`export/*`；`view/mode-changed` 已按 C-01 移出本包，改由 ui-core 发布） |
 | 事件：订阅 | 无声明式 `ctx.on`（内部监听 Fiber 生命周期与贡献表变化以驱动 `documentTypes`/`commands` 等服务的反应式视图） |
-| 配置 schema | `Config{ defaultStoreProvider?: string; historyLimit: number; coalesceMs: number }` |
-| 生命周期 | ready = 七个服务 `Service` 子类挂载完成（此时**尚未**打开任何 Unit，服务可用但 `units.list()` 为空）；UnitScope 内：`unit-plugin.ts` 在隔离 `ctx` 下挂载 store Provider/history/selection 等（§2.1 状态机）；PENDING：`contributions`/`errors`/`telemetry` 未就位 |
+| 配置 schema | `Config{ historyLimit: number; coalesceMs: number }`（原 `defaultStoreProvider?: string` 删除：store 由 UnitScope 默认 Provider 登记表中唯一的 `provides:['store']` 条目决定，rulings §4.20 FE-01，§2.1） |
+| 生命周期 | ready = 七个服务 `Service` 子类挂载完成，并向 `units` 登记表自登记 `history`、`selection` 两个默认 Provider（此时**尚未**打开任何 Unit，服务可用但 `units.list()` 为空）；UnitScope 内：`unit-plugin.ts` 在隔离 `ctx` 下挂载 store Provider/history/selection 等（§2.1 状态机）；PENDING：`contributions`/`errors`/`telemetry` 未就位 |
 | Manifest 片段 | `{ "id": "@cordexjs/model-core", "provides": ["units","documentTypes","commands","formats","resources","migrations","permissions"], "injects": ["contributions","errors","telemetry"], "points": ["core.documentType","core.command","core.mutation","core.format","core.resource","core.migration","core.permissionPolicy"], "unitScoped": false }` |
 
 **`@cordexjs/store-memory`**
@@ -678,7 +680,9 @@ storeYjs --> yjs
 packages/shared/src/
 ├── index.ts                    仅 re-export
 ├── brand.ts                    Brand<T,Tag>、brand()/unbrand()
-├── ids.ts                      UnitId/NodeId/DocumentId 等品牌 id、newNodeId()、isNodeId()
+├── ids.ts                      UnitId/NodeId/DocumentId 等品牌 id、newNodeId(deps?)、isNodeId()（UUIDv7 的时间与随机段经 Clock + Random 注入）
+├── clock.ts                    （新增，§4.20 TX-10）Clock 接口 + SystemClock（唯一允许读 Date.now 的客户端生产文件，TD-110 豁免）
+├── random.ts                   （新增，§4.20 TX-10）Random 接口 + SystemRandom（bytes 用 crypto.getRandomValues，TD-110 豁免）
 ├── units/
 │   ├── emu.ts                  Emu/Pt/Px/Inch/Cm/Mm 品牌数值、换算常量与函数
 │   ├── angle.ts                Angle60k/Percent1000/Percent100k
@@ -687,7 +691,7 @@ packages/shared/src/
 ├── assert.ts                   invariant/assertNever/unreachable
 ├── json.ts                     JsonValue/JsonObject/JsonArray、isJsonValue、stableStringify
 ├── path.ts                     Path/PathSegment、pathEquals/startsWith/append/toString
-├── order.ts                    FracKey、between()/compareOrder()/rekey()（ADR-0032 纯函数实现）
+├── order.ts                    FracKey、between()/compareOrder()/rekey()（ADR-0032 纯函数实现；随机后缀取自注入的 Random）
 ├── collections.ts              groupBy/sortBy/binarySearchBy/dedupe（无模块级可变状态）
 ├── hash.ts                     sha256()（WebCrypto subtle）、fnv1a32()
 ├── text.ts                     grapheme 切分（Intl.Segmenter 封装+降级）
@@ -695,7 +699,9 @@ packages/shared/src/
 ├── deep-freeze.ts              deepFreeze()（开发期不变性校验）
 ├── typed-events.ts             极简类型化 emitter（非 cordis 生命周期场景）
 └── testing/
-    └── index.ts                fast-check arbitraries：ids/units/JsonValue/Path
+    ├── index.ts                fast-check arbitraries：ids/units/JsonValue/Path
+    ├── clock.ts                （新增，§4.20 TX-10）FixedClock：手动推进的 now/monotonic/定时器（70/11 §2）
+    └── random.ts               （新增，§4.20 TX-10）SeededRandom：种子化伪随机，fork(label) 派生子流
 ```
 
 ### 4.2 `@cordexjs/kernel`
@@ -723,9 +729,9 @@ packages/kernel/src/
 │   └── version.ts               satisfies(range, version) 最小 semver 子集
 ├── scope.ts                    createIsolatedScope(ctx, spec)（文档无关；model-core 用它构造 UnitScope，裁决 C-4）
 ├── preset/                     （新增，14 §1 C-07）装配运行时，源自 M-11 §4 assembly/，收编进 kernel 避免 L8 同秩定向依赖链
-│   ├── entry.ts                 PresetEntry/LazyPresetEntry 类型
+│   ├── entry.ts                 PresetEntry/LazyPresetEntry 类型；UnitProviderRegistrar 结构类型（scope:'unit' 条目登记用，§4.20 FE-01）
 │   ├── lazy.ts                  lazy(loader): LazyPresetEntry
-│   ├── mount.ts                 mountEntries(ctx, entries): Promise<PresetReport>
+│   ├── mount.ts                 mountEntries(ctx, entries): Promise<PresetReport>；scope:'unit' 条目改调 units.registerUnitProvider
 │   ├── report.ts                PresetReport 类型 + 汇总工具
 │   └── validate.ts              trim(entries, {exclude,override,configure}): PresetEntry[]；configure 合并＝对象逐键深合并、数组与标量整体替换、undefined 忽略（50/03 §2，2026-09-25）
 ├── services/
@@ -875,8 +881,8 @@ packages/model-core/src/
 │   ├── unit.ts                           Unit{id,documentType,meta,state}
 │   ├── unit-descriptor.ts                OpenUnitDescriptor（bytes|snapshot|state|empty 四种 source）
 │   ├── unit-scope.ts                     UnitScope{unit,ctx,fiber,dispose()}；ISOLATED_SERVICES 常量；UnitScope.unit symbol
-│   ├── unit-plugin.ts                    unitPlugin(ctx,{descriptor,...})：状态机六步（§2.1）
-│   ├── units.service.ts                  UnitsService：open/close/get/list/observe
+│   ├── unit-plugin.ts                    unitPlugin(ctx,{descriptor,...})：状态机六步（§2.1），按登记表快照挂 Provider
+│   ├── units.service.ts                  UnitsService：open/close/get/list/observe/whenLoaded/prioritize；UnitScope 默认 Provider 登记表 registerUnitProvider/listUnitProviders（§4.20 FE-01）
 │   └── errors.ts                         （新增）UnitError 码：UNIT_UNKNOWN_DOCUMENT_TYPE（值 format.no_document_type，14 §1 C-16 唯一权威拼写）/MIGRATION_PATH_MISSING 引用/UNIT_NOT_FOUND 引用
 ├── document-type/
 │   ├── document-type.ts                  DocumentType<S> 接口、BodyShapeHints
@@ -1040,7 +1046,9 @@ packages/store-yjs/src/
 |---|---|---|---|---|
 | `index.ts` | 公共 API 面 | 全部下列符号 | 无（`shared` 依赖上限为空，R11 `shared-has-no-deps`） | api-extractor 入口 |
 | `brand.ts` | 品牌类型工具 | `Brand<T,Tag>`、`brand()`、`unbrand()` | 无 | `declare const tag: unique symbol` 模式 |
-| `ids.ts` | 品牌 id 与生成器 | `UnitId`、`NodeId`、`DocumentId`、`newNodeId()`、`isNodeId()` | 无 | `newNodeId` 用 UUIDv7（ADR-0014） |
+| `ids.ts` | 品牌 id 与生成器 | `UnitId`、`NodeId`、`DocumentId`、`newNodeId()`、`isNodeId()` | 无 | `newNodeId` 用 UUIDv7（ADR-0014）；时间段与随机段经 `{clock?: Clock; random?: Random}` 注入，缺省 `SystemClock`/`SystemRandom`，测试注入 `FixedClock`/`SeededRandom` 可按种子重放（70/11 §1，rulings §4.20 TX-10） |
+| `clock.ts` | 时钟端口（新增，rulings §4.20 TX-10） | `Clock`（`now()`/`monotonic()`/`setTimeout(cb, ms): Disposable`）、`SystemClock` | 无 | 签名以 70/11 §2 为准；客户端生产代码中唯一允许 `Date.now()`/`performance.now()` 的文件（TD-110 豁免，09-type-discipline/08 §12c） |
+| `random.ts` | 随机源端口（新增，rulings §4.20 TX-10） | `Random`（`next(): number`、`bytes(n): Uint8Array`）、`SystemRandom` | 无 | `bytes` 用 `crypto.getRandomValues`；唯一允许 `Math.random()` 的生产文件（TD-110 豁免） |
 | `units/emu.ts` | 几何/字号单位品牌 | `Emu`、`Pt`、`Px`、`Inch`、`Cm`、`Mm`、`EMU_PER_INCH`、`emu()`、`pt()`、`toPx()` | 无 | 唯一模型几何单位（04 §8） |
 | `units/angle.ts` | 角度/百分比品牌 | `Angle60k`、`Percent1000`、`Percent100k` | 无 | DrawingML 定点数对齐 |
 | `units/index.ts` | 子目录聚合 | re-export | 无 | — |
@@ -1048,14 +1056,16 @@ packages/store-yjs/src/
 | `assert.ts` | 断言与不可达分支 | `invariant()`、`assertNever()`、`unreachable()` | 无 | 生产保留；抛 `AssertionFailure`，由 `errors` 服务归类 |
 | `json.ts` | JSON 值与稳定序列化 | `JsonValue`/`JsonObject`/`JsonArray`、`isJsonValue()`、`stableStringify()` | 无 | 键排序，供哈希与快照 diff |
 | `path.ts` | 路径寻址基元 | `Path`、`PathSegment`、`pathEquals`/`startsWith`/`append`/`toString` | 无 | Store/Mutation 寻址的唯一表示 |
-| `order.ts` | 有序集合并发安全键 | `FracKey`、`between()`、`compareOrder()`、`rekey()` | 无 | ADR-0032 纯函数实现；随机后缀只在此处产生 |
+| `order.ts` | 有序集合并发安全键 | `FracKey`、`between()`、`compareOrder()`、`rekey()` | 无 | ADR-0032 纯函数实现；随机后缀只在此处产生，取自注入的 `Random`（缺省 `SystemRandom`，rulings §4.20 TX-10） |
 | `collections.ts` | 不可变友好集合工具 | `groupBy`/`sortBy`/`binarySearchBy`/`dedupe` | 无 | 无模块级可变状态（lint 校验） |
 | `hash.ts` | 哈希 | `sha256()`、`fnv1a32()` | 无 | `sha256` 用 WebCrypto，同构 |
 | `text.ts` | 文本切分基元 | grapheme 切分函数、Unicode 空白/标点判定 | 无 | 供 `engine-layout`/`model-doc`（M-06/M5） |
 | `disposable.ts` | 非 cordis 场景清理基元 | `Disposable`、`composeDisposers()`、`once()` | 无 | 插件内一律用 `ctx.effect`，此处仅供纯库自用 |
 | `deep-freeze.ts` | 开发期不变性校验 | `deepFreeze()` | 无 | `store-memory` 的 `freezeInDev` 用它 |
 | `typed-events.ts` | 极简类型化 emitter | 泛型 `TypedEmitter<T>` | 无 | 仅供不在 cordis 生命周期内的纯库（如 opc 读取进度） |
-| `testing/index.ts` | 测试专用构造器 | fast-check arbitraries（ids/units/JsonValue/Path） | `fast-check`（devDependency） | `./testing` 子路径导出；生产代码禁止 import |
+| `testing/index.ts` | 测试专用构造器 | fast-check arbitraries（ids/units/JsonValue/Path）；re-export `FixedClock`、`SeededRandom` | `fast-check`（devDependency） | `./testing` 子路径导出；生产代码禁止 import |
+| `testing/clock.ts` | 假时钟（新增，rulings §4.20 TX-10） | `FixedClock`（`constructor(startMs)`、`advance(ms)`、`set(ms)`） | 无 | 客户端与服务端共用，不另建 `FakeServerClock`（70/11 §2）；旧名 FakeClock 作废 |
+| `testing/random.ts` | 种子化随机源（新增，rulings §4.20 TX-10） | `SeededRandom`（`constructor(seed)`、`fork(label)`） | 无 | 协同模拟、退避抖动、DTO 工厂、UUIDv7 随机段 |
 
 ### 5.2 `@cordexjs/kernel`
 
@@ -1079,9 +1089,9 @@ packages/store-yjs/src/
 | `manifest/verify.ts` | 声明-运行时一致性 | `verifyManifestAgainstRuntime()`、`MismatchReport` | cordis（类型） | 不一致→`strictManifest` 时 FAILED，否则诊断 |
 | `manifest/version.ts` | 版本范围比较 | `satisfies()` | 无 | 只支持 `^`/`~`/`>=`/精确/`\|\|`（ADR-0002），不拉入 `semver` |
 | `scope.ts` | 隔离作用域工具 | `createIsolatedScope()` | cordis | 文档无关；被 model-core 调用构造 UnitScope（裁决 C-4） |
-| `preset/entry.ts` | 装配条目类型 | `PresetEntry`、`LazyPresetEntry` | shared（类型） | 新增（14 §1 C-07）；源自 M-11 §4 `assembly/entry.ts` |
+| `preset/entry.ts` | 装配条目类型 | `PresetEntry`（含 `scope`、`provides?`）、`LazyPresetEntry`、`UnitProviderRegistrar` | shared（类型） | 新增（14 §1 C-07）；源自 M-11 §4 `assembly/entry.ts`；`UnitProviderRegistrar` 只含 `registerUnitProvider(entry): () => void`，使 kernel 不 import model-core 即可登记（rulings §4.20 FE-01） |
 | `preset/lazy.ts` | 惰性条目包装 | `lazy()` | `./entry` | 新增；供重型可选特性拆包复用（00 §6.2） |
-| `preset/mount.ts` | 装配挂载核心 | `mountEntries()` | cordis、`./entry`、`./report` | 新增；`allSettled` 语义，单条失败不阻塞其余 |
+| `preset/mount.ts` | 装配挂载核心 | `mountEntries()` | cordis、`./entry`、`./report` | 新增；`allSettled` 语义，单条失败不阻塞其余；`scope:'unit'` 条目经 `ctx.get('units')` 调 `registerUnitProvider`，撤销函数挂在 preset 的 effect 上（rulings §4.20 FE-01） |
 | `preset/report.ts` | 装配报告类型 | `PresetReport` | 无 | 新增 |
 | `preset/validate.ts` | 裁剪校验 | `trim()` | `./entry` | 新增；`exclude`/`override` 支持「移除任一 Provider 仍可启动」验收；`configure` 合并规则（对象深合并、数组与标量替换、`undefined` 忽略，50/03 §2，2026-09-25 定稿，40/17 G-8 结案） |
 | `services/errors.service.ts` | 错误服务 | `ErrorsService`、`defineErrors()`、`CordexError` | cordis、shared、`../contribution` | `report()` 扇出到 `errors.sink` |
@@ -1109,7 +1119,7 @@ packages/store-yjs/src/
 | `version.ts` | 协议版本与兼容矩阵 | `PROTOCOL_VERSION`、兼容判定函数 | 无 | 客户端↔服务端握手用（06/08） |
 | `errors/codes.ts` | 错误码字面量与 HTTP 映射 | 错误码联合、`ERROR_HTTP_STATUS` | 无 | 禁止 `enum`（lint `no-enum-in-protocol`）；码名、域清单与 HTTP 映射的唯一源是 30/10 §1.1 与 http-map，本文件是其代码落点。含 `quota_exceeded`（rulings §4.15 Q5，超系统天花板导入即拒、性能包络只告警，UX-13；HTTP 413，`details` 带维度与上限值）。**2026-09-25 按决策 INC-10/SG-04（F36）登记**：新域 `server.{auth,users,documents,media,jobs,share_links,snapshots,import,export,thumbnails,comments,webhooks,audit,http}`、`plugin`、`shell`；新码含 `server.snapshots.persist_degraded`、`server.auth.{csrf_rejected,origin_rejected,account_disabled,idp_unavailable,unavailable}`、`server.users.{not_found,last_admin}`、`server.share_links.not_found`、`server.documents.element_not_tombstoned`、`server.import.job_terminal`、`server.media.unsupported_type`、`server.webhooks.egress_blocked`、`permission.{principal_not_found,principal_unsupported,last_owner}`、`storage.{integrity_mismatch,upload_not_found}`、`collab.{payload_too_large,bootstrap_failed,lock_lost,auth_timeout,quarantined,validation_failed}`、`server.jobs.*`、`server.import.*`、`server.export.{not_ready,expired}`、`server.thumbnails.*`、12 个 `headless.*`、`render.{bad_payload,version_mismatch,state_expired}`、`command.unit_not_found`；`format.unsupported_binary` 补 HTTP 映射；废 `share_link.*`、`user.*`、`collab.server.room_full`（统一 `collab.room_full`），WS 握手 `collab.unauthenticated` 映射 4401 |
 | `errors/envelope.ts` | 错误信封 | `ErrorEnvelope` | zod | REST/WS 统一错误形状 |
-| `permissions/actions.ts` | 权限能力位词汇 | `Capability`、`PermissionAction`（别名） | zod | Q-T8：AND 语义、非空数组 |
+| `permissions/actions.ts` | 权限能力位词汇 | `Capability`、`PermissionAction`（别名） | zod | Q-T8：AND 语义、非空数组；ui-core 标准上下文键族 `can.<capability>` 的 `<capability>` 全集取自此处（rulings §4.20 FE-06，40/10 §2.1） |
 | `permissions/roles.ts` | 角色→能力位映射类型 | `RoleName`、`ROLE_CAPABILITIES` | `./actions` | 组合细节见 PRD CO 域（新增文件，§12 G-5） |
 | `permissions/principal.ts` | 主体 | `Principal` | zod | `{userId,roles,sessionId}`（rulings §4.15 T-0：无 `tenantId`） |
 | `permissions/decision.ts` | 权限决策 | `PermissionDecision` | 无 | `{allow:true}\|{allow:false;reason}` |
@@ -1121,11 +1131,11 @@ packages/store-yjs/src/
 | `rest/webhooks.ts`（新增，rulings §4.12 U-14） | Webhook REST DTO | 注册/更新/删除订阅、投递日志查询 schema | zod、`../ids` | M-12 §2.1/§4.11/§7.2 落地，M3 |
 | `rest/telemetry.ts`（新增，rulings §4.18 BE-30） | 浏览器遥测 REST DTO | `ClientErrorReport` schema | zod | `POST /telemetry/errors` 载荷，与架构 10 前端错误事件同形状、请求体 ≤ 64 KiB；`POST /telemetry/otlp` 走标准 OTLP/HTTP protobuf（≤ 512 KiB，只转发 traces），不另建 schema；两端点需登录、令牌桶限流，由 M-12 `ClientTelemetryController` 承接（api 角色），路径相对 `apiBase` |
 | `rest/index.ts` | 子目录聚合 | re-export | 无 | — |
-| `ws/handshake.ts` | WS 握手帧 | 请求/应答 schema | zod、`../permissions/decision` | `roomId`/`permissions`/`serverVersion` |
-| `ws/frames.ts` | WS 帧与 CONTROL 判别联合 | `sync`/`awareness`/`control`（`auth`、`auth.ok`、`auth.denied`、`auth.refresh`、`permission`、`ack`、`error`、`repair`、`room`、`event`、`ping`/`pong`） | zod、`./handshake` | 成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；M-05/M-09 各自实现，服务端处理见 60/16 |
+| `ws/handshake.ts` | WS 握手帧 | 请求/应答 schema | zod、`../permissions/decision` | `roomId`/`permissions`/`serverVersion`；应答 `auth.denied` 的 code 字面量联合含 `'collab.rate_limited'`（握手期每用户单实例连接数超限，随后以 4429 关闭；与 `frames.ts` 同一联合，集合以 30/06 §6.3 为准，rulings §4.20 BE-01+TX-03） |
+| `ws/frames.ts` | WS 帧与 CONTROL 判别联合 | `sync`/`awareness`/`control`（`auth`、`auth.ok`、`auth.denied`、`auth.refresh`、`permission`、`ack`、`error`、`repair`、`room`、`event`、`ping`/`pong`） | zod、`./handshake` | 成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；`auth.denied` 的 code 集合含 `collab.rate_limited`（握手期每用户单实例连接数超限，随后以 4429 关闭；集合以 30/06 §6.3 与 60/16 §3 为准，rulings §4.20 BE-01+TX-03）；M-05/M-09 各自实现，服务端处理见 60/16 |
 | `ws/index.ts` | 子目录聚合 | re-export | 无 | — |
 | `collab/frame.ts` | 二进制信封帮助函数 | `encodeFrame`、`decodeFrame` | `../ws/frames` | 2026-09-25 登记（决策 INC-01）；经根入口 `.` 导出 |
-| `collab/close-codes.ts` | 关闭码常量 | `CLOSE_CODES`（常量对象） | 无 | 含 1011、4427、4428（决策 INC-06）；客户端行为见 50/07 §9，触发条件见 60/16 §10 |
+| `collab/close-codes.ts` | 关闭码常量 | `CLOSE_CODES`（常量对象） | 无 | 含 1011、4427、4428（决策 INC-06）；4429 的触发条件增「握手期每用户单实例连接数超限」（rulings §4.20 BE-01+TX-03）；客户端行为见 50/07 §9，触发条件见 60/16 §10 |
 | `collab/awareness.ts` | awareness 状态 schema | `AwarenessStateSchema` | zod | ≤ 2 KiB（ADR-0024）；M-05 `domain/awareness-state.ts` 对齐 |
 | `collab/ticket.ts` | 协同票据 claims | `CollabTicketClaims` | zod、`../ids` | 线上 claim `perm_ver`、TS 字段 `permVersion`（决策 MECH-INC 之 INC-28）；可选 `sid`、`lnk`（rulings §4.18 BE-02）；签发在 M-08 |
 | `collab/ticket-claims.type-test.ts` | 类型测试 | — | `./ticket` | `CollabTicketClaims` 键集合为 60/02 §8 封闭集合，无 tenant 类键（70/10 SEC-DA-04；后缀 `*.type-test.ts`，决策 T-NAMING） |
@@ -1166,10 +1176,10 @@ packages/store-yjs/src/
 | `manifest.ts` | Manifest 生成物 | `manifest` | 无 | — |
 | `model-core.contribution.ts` | Context/Events 全表 + 七个贡献点导出 | 见 §2.4/§2.5 | protocol（类型） | 事件先声明后使用（lint `cordex/events-must-be-declared`，08 §11 对照名 `events-declared`，GV-15）；登记新增的 `unit/loaded`（§4.18 CO-12） |
 | `unit/unit.ts` | Unit 聚合根类型 | `Unit` | protocol（`Principal` 类型，可选） | 04 §2.1 |
-| `unit/unit-descriptor.ts` | 打开描述符 | `OpenUnitDescriptor` | protocol、`../snapshot/snapshot` | 四种 `source.kind` |
+| `unit/unit-descriptor.ts` | 打开描述符 | `OpenUnitDescriptor` | protocol、`../snapshot/snapshot` | 四种 `source.kind`；原 `storeProvider?: string` 字段删除（2026-09-26 定稿，ADR-0005 决策 7 交本文定：同一 `provides` 只登记一次后描述符已无可选项，store 一律取登记表中唯一的 `provides:['store']` 条目，同一 host 内各 Unit 用同一 store Provider；rulings §4.20 FE-01） |
 | `unit/unit-scope.ts` | UnitScope 句柄与隔离常量 | `UnitScope`、`ISOLATED_SERVICES`、`UnitScope.unit` symbol | kernel（`createIsolatedScope`） | ADR-0005 |
-| `unit/unit-plugin.ts` | Unit 生命周期实现 | `unitPlugin()` | kernel、`./unit-scope`、`../store/*`、`../migration/migrations.service` | §2.1 六步状态机 |
-| `unit/units.service.ts` | Units 服务 | `UnitsService` | `./unit`、`./unit-descriptor`、`./unit-plugin` | `provide('units')` |
+| `unit/unit-plugin.ts` | Unit 生命周期实现 | `unitPlugin()` | kernel、`./unit-scope`、`../store/*`、`../migration/migrations.service` | §2.1 六步状态机；第 ④⑤ 步按打开时刻的登记表快照挂载 Provider（rulings §4.20 FE-01） |
+| `unit/units.service.ts` | Units 服务与 UnitScope 默认 Provider 登记表 | `UnitsService`（`open`/`close`/`get`/`list`/`observe`/`whenLoaded`/`prioritize`/`registerUnitProvider`/`listUnitProviders`）、`UnitProviderEntry` | `./unit`、`./unit-descriptor`、`./unit-plugin`；kernel（`PluginId` 类型） | `provide('units')`；登记规则见 §2.1（同一 `provides` 只登记一次、后来者被拒记诊断不抛；只影响之后打开的 Unit；dispose 全部撤销）；ready 时自登记 `history`、`selection`（rulings §4.20 FE-01） |
 | `unit/errors.ts` | Unit 错误码 | `UnitError`（`UNIT_UNKNOWN_DOCUMENT_TYPE`/`UNIT_NOT_FOUND`） | `../../services/errors.service`（kernel） | 新增：填补 `Result<UnitScope,UnitError>` 的类型空白；`UNIT_UNKNOWN_DOCUMENT_TYPE` 值为 `format.no_document_type`（14 §1 C-16 唯一权威拼写，与 ADR-0016 同步） |
 
 **`document-type/`**
@@ -1381,11 +1391,11 @@ packages/store-yjs/src/
 
 | 包 | `.` 导出概要 | `./testing` 导出概要 | 稳定级（推荐） |
 |---|---|---|---|
-| `@cordexjs/shared` | 品牌类型、`Result`、断言、`FracKey`、集合/哈希/文本工具（纯类型+纯函数） | fast-check arbitraries | `stable`：面最小且几乎不随 cordis 升级变化 |
+| `@cordexjs/shared` | 品牌类型、`Result`、断言、`FracKey`、集合/哈希/文本工具（纯类型+纯函数）；`Clock`/`SystemClock`、`Random`/`SystemRandom`（rulings §4.20 TX-10） | fast-check arbitraries；`FixedClock`、`SeededRandom` | `stable`：面最小且几乎不随 cordis 升级变化 |
 | `@cordexjs/kernel` | `Context`/`Service`/`Plugin`/`Fiber`/`Events` 类型转发、`createHost`、`defineContributionPoint`、`Manifest` 类型、`errors`/`telemetry` 契约、`createIsolatedScope`、诊断函数；`preset/{entry,lazy,mount,report,validate}` 装配运行时（`PresetEntry`/`LazyPresetEntry`/`PresetTrim`/`PresetReport`/`mountEntries()`，新增，14 §1 C-07）；`HostOptions.scriptUrlPolicy` 与 `toScriptUrl()`（2026-09-25，50/14 §4.2） | `createTestHost`、`defineLifecycleSuite`、fakes、`defineConformanceKit`/`runKitSelfTest`/`ResourceTracker`（2026-09-25，70/02 §2.1） | `beta`（推荐）：cordis 处于 rc，ADR-0001 桥接 spike 未收尾前不承诺 `stable` |
 | `@cordexjs/protocol` | 全部 REST/WS/错误码/权限 zod schema 与推导类型；`render/page.ts` 的 `RenderPageQuerySchema`（`renderId`）/`RenderPageSignal`/`RenderStateResponse`（注入载荷）（新增，14 §1 C-27，供 M-09/M-11 import；§4.18 BE-04） | DTO 工厂 | `beta`（推荐）：M-08/M-09 落地传输时大概率新增字段 |
 | `@cordexjs/i18n` | `I18nService` 类型、`I18nKeys` 声明合并点、`createI18n()`（无 host 页面用，2026-09-25） | `fixedLocale()` | `stable` |
-| `@cordexjs/model-core` | `Unit`/`UnitScope`/`DocumentType`/`DocumentStore`/`CommandDef`/`MutationDef`/`OperationDef`/`Snapshot`/`Migration`/`PermissionPolicy`/`Selection`/`drawing/**`；内置 `core.undo`/`core.redo`（`OperationDef` 实例，新增，14 §1 C-02） | `runDocumentStoreConformance`、`runFormatCodecConformance`（新增，14 §1 C-26）、`createCommandHarness`、`fixture`/`fixture-grid` 两套文档类型 | `beta`（推荐）：`StoreOp`/`Mutation` 形状随 M2 实践可能微调，M3 起收紧为 `stable` |
+| `@cordexjs/model-core` | `Unit`/`UnitScope`/`DocumentType`/`DocumentStore`/`CommandDef`/`MutationDef`/`OperationDef`/`Snapshot`/`Migration`/`PermissionPolicy`/`Selection`/`drawing/**`；内置 `core.undo`/`core.redo`（`OperationDef` 实例，新增，14 §1 C-02）；`UnitsService.registerUnitProvider`/`listUnitProviders` 与 `UnitProviderEntry`（UnitScope 默认 Provider 登记表，rulings §4.20 FE-01） | `runDocumentStoreConformance`、`runFormatCodecConformance`（新增，14 §1 C-26）、`createCommandHarness`、`fixture`/`fixture-grid` 两套文档类型 | `beta`（推荐）：`StoreOp`/`Mutation` 形状随 M2 实践可能微调，M3 起收紧为 `stable` |
 | `@cordexjs/store-memory` | `MemoryStore` 工厂 | `createMemoryStore` | `beta`（推荐），随 `DocumentStore` 契约一起收紧 |
 | `@cordexjs/store-yjs` | `YjsStore`/`YjsBackend` **抽象**类型（禁止出现 `Y.*`，09-api-surface §2.2 正则守护） | `createYjsStore`、`twoDocsInSync` | `beta`（推荐） |
 
@@ -1477,7 +1487,7 @@ BC-05（model-core）是 12 号文档「共享（水平层拥有、零改动）�
 
 4. **Snapshot 编解码的 body 分片扩展点**（12 §3.3）：`SnapshotBundle` 允许 `body` 引用外部 blob 分片 `{ $ref: BlobRef }`；`decodeSnapshot` 在 M1 即支持 `$ref` 解析，slide 不使用，为 M5 的 `model-sheet`（巨大 `cells` 表）预留。落点：`snapshot/codec.ts`（`decodeSnapshot` 的 `$ref` 分支）、`snapshot/snapshot.ts`（`Snapshot.body` 类型允许分片标记）。M0/M1 milestone 要求：即使不实现分片读取的性能优化，`$ref` 分支必须存在且有单测，否则 M5 引入分片会改动本应「零改动」的水平层文件。
 
-**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 203 个文件都在冻结范围内；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
+**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 207 个文件都在冻结范围内（2026-09-26 shared 增 4 个，rulings §4.20 TX-10）；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
 
 ## 9. 测试布局
 
@@ -1504,6 +1514,8 @@ packages/<pkg>/src/__tests__/
 | protocol | `schema-snapshot.test.ts` | `rest/*`、`ws/*` | contract（zod→JSON Schema 输出入库 diff） |
 | i18n | `keys-sync.test.ts` | `keys.ts`、`locales/*.json` | 包内自测（各 locale 键集合等于 zh-CN）；CI 权威执行点为 `scan-contributions` 规则 (f)（原名 `i18n-keys-sync`，TD-089，GV-15） |
 | model-core | `unit-scope.test.ts` | `unit/unit-scope.ts`、`unit/unit-plugin.ts` | integration（ADR-0005：隔离、关闭清理） |
+| model-core | `unit/__tests__/units-registry.test.ts` | `unit/units.service.ts`、`unit/unit-plugin.ts` | unit（rulings §4.20 FE-01；不调用 kit，按 70/01 §4 归 `test/unit`，用例 id 见 70/02 §9.1）：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项、已打开的 Unit 不变；dispose 后 `assertNoLiveEffects` 为空 |
+| shared | `clock-random.test.ts` | `clock.ts`、`random.ts`、`testing/{clock,random}.ts`、`ids.ts`、`order.ts` | unit：`SeededRandom` 同种子序列相同、`fork` 互不干扰；注入 `FixedClock`+`SeededRandom` 时 `newNodeId()` 与 `between()` 输出可复现（rulings §4.20 TX-10） |
 | model-core | `pipeline.test.ts` | `command/pipeline.ts` | integration（七阶段、VETOED、审计） |
 | model-core | `permissions.test.ts` | `permission/permissions.service.ts` | integration（ADR-0012） |
 | model-core | `lifecycle.test.ts` | `plugin.ts` | contract |
@@ -1519,7 +1531,7 @@ packages/<pkg>/src/__tests__/
 
 | 包 | `package.json#cordex` | 关键 depcruise 规则 | 关键 eslint / 扫描器规则 | 09-type-discipline |
 |---|---|---|---|---|
-| shared | `L0 / iso / — / library` | R1 无环；R11 `shared-has-no-deps`（`dependencies` 必须为空） | — | 03-boundaries §3.1 |
+| shared | `L0 / iso / — / library` | R1 无环；R11 `shared-has-no-deps`（`dependencies` 必须为空） | TD-110 确定性 lint（`determinism` 第二个 override：禁 `Date.now`/`Math.random`/无参 `new Date()`；`clock.ts`、`random.ts` 为豁免文件，rulings §4.20 TX-08） | 03-boundaries §3.1；08 §12c TD-110 |
 | kernel | `L0 / iso / — / plugin` | R12 `only-kernel-imports-cordis`（唯一允许 `import 'cordis'`） | `no-mixin-outside-kernel`、`no-register-methods`、`no-module-level-mutable-state`、`no-bare-throw`、`no-console` | 03-boundaries §3.3 |
 | protocol | `L0 / iso / — / library` | R1；R5 `third-party-single-entry`（`zod` 集中） | `no-enum-in-protocol` | 03-boundaries §3.3 |
 | i18n | `L0 / iso / — / plugin` | R1、R2 | `scan-contributions` 规则 (f)（原名 `i18n-keys-sync`，TD-089；rulings §4.18 GV-15） | 06 §3、08 §11.1（09-type-discipline 无 i18n 专项扫描器） |
@@ -1544,7 +1556,7 @@ packages/<pkg>/src/__tests__/
 
 ### M0：骨架（对应 02 §8 骨架创建顺序第 3 步前半段）
 
-建包顺序：`shared → kernel → protocol → i18n → model-core → store-memory → store-yjs`；每个包先用 `tooling/scripts/create-package` 生成占位骨架（`index.ts`/`plugin.ts`〔library 除外〕/`manifest.ts`〔生成〕/`__tests__/lifecycle.test.ts`），使 `pnpm check` 全绿。范围：shared 全部 18 文件落地（零外部依赖，最快完成）；kernel 的 `createHost`/`ContributionPoint`/`Manifest`/`errors`/`telemetry` 骨架 + `failure-isolation.test.ts` 通过；protocol 先落 `Capability`/`BlobRef`/`ErrorEnvelope` 三个最小 schema（其余 REST/WS DTO 随 M-08/M-09 排期，不阻塞本模块）；i18n 的 `i18n.bundle` 贡献点 + 空 `zh-CN.json`；model-core 七个服务的 `plugin.ts` 骨架 + 七个贡献点定义（`fixture`/`fixture-grid` 尚不要求完整）；store-memory/store-yjs 的 `provide` 声明到位，`runDocumentStoreConformance` 骨架存在但允许暂时跳过。
+建包顺序：`shared → kernel → protocol → i18n → model-core → store-memory → store-yjs`；每个包先用 `tooling/scripts/create-package` 生成占位骨架（`index.ts`/`plugin.ts`〔library 除外〕/`manifest.ts`〔生成〕/`__tests__/lifecycle.test.ts`），使 `pnpm check` 全绿。范围：shared 全部 22 文件落地（含 2026-09-26 新增的 `clock.ts`、`random.ts`、`testing/{clock,random}.ts`）（零外部依赖，最快完成）；kernel 的 `createHost`/`ContributionPoint`/`Manifest`/`errors`/`telemetry` 骨架 + `failure-isolation.test.ts` 通过；protocol 先落 `Capability`/`BlobRef`/`ErrorEnvelope` 三个最小 schema（其余 REST/WS DTO 随 M-08/M-09 排期，不阻塞本模块）；i18n 的 `i18n.bundle` 贡献点 + 空 `zh-CN.json`；model-core 七个服务的 `plugin.ts` 骨架 + 七个贡献点定义（`fixture`/`fixture-grid` 尚不要求完整）；store-memory/store-yjs 的 `provide` 声明到位，`runDocumentStoreConformance` 骨架存在但允许暂时跳过。
 
 ### M1：首个可运行切片——打开 fixture 文档类型 → 执行命令 → 撤销
 
@@ -1658,13 +1670,23 @@ M2 起 `yjsBackend` 需被 `collab-yjs`（M-05）实际注入验证，`protocol`
 | 70/02 §14 第 7 条、70/10 §17 第 5 条、决策 T-NAMING / T-KITS | §4.2、§4.3、§4.5、§5、§9 | kernel `testing/conformance/kit.ts`；model-core `testing/permission-policy-conformance.ts`（`runPermissionPolicyConformance`）；protocol `testing/redirect-samples.ts` 与 `collab/ticket-claims.type-test.ts`；`augment.test-d.ts` → `augment.type-test.ts` |
 | §4.19 D-M2-CONTENT | §11 | `ws/*`、`collab/*` 与 `rest/snapshots.ts` 的消费方随协同后端提前到 M2 |
 
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-01（UnitScope 默认 Provider 登记 API，40/11 Q-2 结案） | §2.1（`units.open` 第 ④⑤ 步 + 新增「登记表」段）、§2.2 `PresetEntry` 行、§2.3 `mountEntries` 行、§3 model-core `Config`/生命周期、§4.2/§5.2 `preset/{entry,mount}.ts`、§4.5/§5.5 `unit/{units.service,unit-plugin}.ts`、§6、§9 | `units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()` 落在 `unit/units.service.ts`（不新增文件）；model-core ready 时只自登记 history、selection，其余由 preset `scope:'unit'` 条目在 mount 时登记；同一 `provides` 只登记一次（后来者被拒记诊断、不抛）、只影响之后打开的 Unit、preset dispose 全部撤销；删除 `Config.defaultStoreProvider`；kernel 以结构类型 `UnitProviderRegistrar` 调用，不 import model-core；`OpenUnitDescriptor.storeProvider` 删除（§5.5，ADR-0005 决策 7）；隔离集并入登记项的 `provides`（§2.1 UnitScope 段）；登记表用例 `unit/__tests__/units-registry.test.ts`（`test/unit`，70/02 §9.1） |
+| TX-10 ①（Clock/Random 端口登记，70 README §8） | §2.3 `between` 行、§4.1/§5.1（新增 `clock.ts`、`random.ts`、`testing/clock.ts`、`testing/random.ts`；`ids.ts`、`order.ts` 改为接受注入）、§6、§9、§10 shared 行、§11 M0（18 → 22 文件）、§8 冻结文件数（203 → 207） | 签名以 70/11 §2 为准；`FixedClock` 为唯一假时钟名（旧名 FakeClock 作废）；`clock.ts`/`random.ts` 为 TD-110 确定性 lint 的豁免文件（TX-08） |
+| TX-01+BE-10（U-07 联合 ADR 立项） | §13 Q-2、Q-3 | 改为随 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 结案（M2 出口评审前定稿，未定稿则 M3 版本恢复不开工） |
+| BE-01+TX-03（WS 升级限流先扣后退 + 每用户上限） | §5.3 `ws/frames.ts`、`collab/close-codes.ts` | `auth.denied` code 集合含 `collab.rate_limited`（→ 4429）；4429 增握手期触发条件 |
+| FE-06（`can.*` 键族） | §5.3 `permissions/actions.ts` | `can.<capability>` 的能力位全集取自本文件 |
+
 ## 13. 未决问题
 
 | 编号 | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
 | Q-1 | ADR-0001 声明合并桥接 spike（S1–S8）尚未跑，本文档 `augment.ts`/`*.contribution.ts` 结构假设 spike 通过 | 假设通过（当前草案）；若失败改用退路 B，文件数不变、内容形态变（`declare module 'cordis'` 限定进各 `*.contribution.ts`） | `kernel/src/augment.ts`；全七包的 `*.contribution.ts` |
-| Q-2 | ~~`core.restoreVersion` 的事务 `origin` 用 `system('restore')`（04 §10 字面）会使其**不进入**标准撤销栈（05 §6：`undo` 只按 `local` 过滤），用户无法一键撤销一次误恢复~~ **（转专项设计，2026-09-19）** | 「维持 `system('restore')`」与「改进本地撤销栈」两个简单方案均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR），需回答多人协同下他人已在恢复后内容上继续编辑时如何回退、是否引入受保护的「恢复事务」与二次确认、与 CRDT 合并/快照链的关系；**基线已由 rulings §4.15 Q3 给出**：专项在 §2.5「中性撤销语义」（跳过他人后写并提示、整步跳过即停、软删除墓碑）之上设计，不得另起覆盖他人的撤销语义 | `command/builtin/restore-version-command.ts`、`store/origin.ts`、05 §6；ADR（待建） |
-| Q-3 | ~~`core.restoreVersion` 参数是完整 `targetBody`（本文档选择）还是 `{ versionId }` 由 model-core 自行解析~~ **（转专项设计，2026-09-19）** | 参数形状与撤销语义耦合（`versionId` 形态更利于「恢复事务」记录可回退的目标版本），**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR）一并裁定 | `command/builtin/restore-version-command.ts`；M-09 版本恢复 REST 端点；ADR（待建） |
+| Q-2 | ~~`core.restoreVersion` 的事务 `origin` 用 `system('restore')`（04 §10 字面）会使其**不进入**标准撤销栈（05 §6：`undo` 只按 `local` 过滤），用户无法一键撤销一次误恢复~~ **（转专项设计，2026-09-19）** | 「维持 `system('restore')`」与「改进本地撤销栈」两个简单方案均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR），需回答多人协同下他人已在恢复后内容上继续编辑时如何回退、是否引入受保护的「恢复事务」与二次确认、与 CRDT 合并/快照链的关系；**基线已由 rulings §4.15 Q3 给出**：专项在 §2.5「中性撤销语义」（跳过他人后写并提示、整步跳过即停、软删除墓碑）之上设计，不得另起覆盖他人的撤销语义。**随 ADR-0038 结案（rulings §4.20 TX-01+BE-10）**：专项已登记为 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议；M-02 主笔，M-05、M-09 会签，70/05 出 `rs/restore-revert-*` 场景），M2 期间起草、M2 出口评审前定稿，未定稿则 M3 版本恢复（CO-07）不开工；起草基线：持有 Room 的实例内单事务、不加锁、走命令管线（不用 `revertTo`），「他人后写」按当前值是否仍出自恢复事务的 struct 范围判断而非值相等，恢复时删掉的元素以原 id 复活；「谁能撤销」「可撤销时效」留到 ADR 定稿时交互拍板 | `command/builtin/restore-version-command.ts`、`store/origin.ts`、05 §6；ADR-0038 |
+| Q-3 | ~~`core.restoreVersion` 参数是完整 `targetBody`（本文档选择）还是 `{ versionId }` 由 model-core 自行解析~~ **（转专项设计，2026-09-19）** | 参数形状与撤销语义耦合（`versionId` 形态更利于「恢复事务」记录可回退的目标版本），**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR）一并裁定。**随 ADR-0038 结案（rulings §4.20 TX-01+BE-10）**：参数形状在 [ADR-0038](../30-architecture/adr/0038-version-restore-undo.md) 定稿（M2 出口评审前）时一并裁定；此前 `restore-version-command.ts` 维持 `targetBody` 草案，不单独改动 | `command/builtin/restore-version-command.ts`；M-09 版本恢复 REST 端点；ADR-0038 |
 | Q-4 | `fixture-grid` 的稀疏 `cells.<r>:<c>` 键形状是否需要与未来 `model-sheet`（M-13/M5）字段级对齐 | 不强制对齐——`fixture-grid` 只是水平层验证工具，非 `model-sheet` 预实现 | `model-core/testing/fixtures/fixture-grid/**`；M-13 |
 | Q-5 | `ROLE_CAPABILITIES` 的具体映射值（PRD CO 域，未列入本模块必读） | 类型先行（本文档已定形状），运行时初始值等 M-08 落地时与 PRD CO 域对齐后回填 | `protocol/src/permissions/roles.ts`；M-08 |
 | Q-6 | `store-memory.contribution.ts` 当前无实际声明，是否应从骨架省略以保持精简 | 保留（七包结构对称性优先），标注为可选精简项 | `store-memory/src/store-memory.contribution.ts`；`create-package` 脚手架模板 |

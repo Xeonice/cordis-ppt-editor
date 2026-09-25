@@ -1,4 +1,4 @@
-> 状态：索引 v0.6（新增 18、19 两份架构图集；v0.5 新增 16 插件总账与 17 书写模式手册；21 项用户裁决 + K-1…K-3 已落地；30 个限界上下文；本目录共 222 张 Mermaid 图，其中图集 18 为 36 张、19 为 46 张） | 负责：架构-模块（总编排） | 更新：2026-09-22、2026-09-24（rulings §4.15：单组织去租户 T-0 与章程 Q1–Q10 回写）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图：00–13 与 16 补图，新增图集 18/19 并收入索引与阅读顺序）、2026-09-25（矛盾收口，rulings §4.18；行数按 wc -l 重算）、2026-09-25（§4.19）；2026-09-25（设计线拆分：定位段首标「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」） | 依赖：00-module-map.md、_template.md、01–13、14-cross-module-review.md、18-atlas-system-and-frontend.md、19-atlas-backend-and-data.md
+> 状态：索引 v0.6（新增 18、19 两份架构图集；v0.5 新增 16 插件总账与 17 书写模式手册；21 项用户裁决 + K-1…K-3 已落地；30 个限界上下文；本目录共 222 张 Mermaid 图，其中图集 18 为 36 张、19 为 46 张） | 负责：架构-模块（总编排） | 更新：2026-09-22、2026-09-24（rulings §4.15：单组织去租户 T-0 与章程 Q1–Q10 回写）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图：00–13 与 16 补图，新增图集 18/19 并收入索引与阅读顺序）、2026-09-25（矛盾收口，rulings §4.18；行数按 wc -l 重算）、2026-09-25（§4.19）；2026-09-25（设计线拆分：定位段首标「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」）；2026-09-26（§4.20：索引登记 20-comments-client 占位，FE-09） | 依赖：00-module-map.md、_template.md、01–13、14-cross-module-review.md、18-atlas-system-and-frontend.md、19-atlas-backend-and-data.md
 
 # 40-modules · 模块设计线索引
 
@@ -8,7 +8,7 @@
 
 它与其它条线的分工：`00-charter/` 定边界与命名（服务名 / 事件名 / 贡献点 id / 秩表 / 铁律），`30-architecture/` 定机制与契约，**本目录定「哪个文件放在哪里、由谁写、依赖谁」**。实现阶段的每个 PR 都应能在某一份模块文档的 §5 文件职责表里找到对应行。
 
-> **2026-09-25 分工收窄（rulings §4.19）：前端 / 后端 / 测试设计以 [50-frontend](../50-frontend/README.md) / [60-backend](../60-backend/README.md) / [70-testing](../70-testing/README.md) 为准，本目录保留包 / 文件级规划。** 领域模型与运行时行为（状态机、时序、错误与重试、遥测口径）的事实源移到 [`50-frontend/`](../50-frontend/README.md) 与 [`60-backend/`](../60-backend/README.md)，测试场景、断言与 CI 步骤的事实源移到 [`70-testing/`](../70-testing/README.md)；本目录各文档 §2 只保留类型落点与接口签名、§9 只保留测试文件清单，冲突以 50/60/70 为准。M2/M3 边界以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准（D-M2-CONTENT：协同网关、Room、update 持久化与快照、服务端导入进 M2）。评论客户端包 `@cordexjs/comments`（D-COMMENTS-PKG）暂登记在 M-12 行，包级文档去向见 `00-module-map.md` §10 Q-M8。
+> **2026-09-25 分工收窄（rulings §4.19）：前端 / 后端 / 测试设计以 [50-frontend](../50-frontend/README.md) / [60-backend](../60-backend/README.md) / [70-testing](../70-testing/README.md) 为准，本目录保留包 / 文件级规划。** 领域模型与运行时行为（状态机、时序、错误与重试、遥测口径）的事实源移到 [`50-frontend/`](../50-frontend/README.md) 与 [`60-backend/`](../60-backend/README.md)，测试场景、断言与 CI 步骤的事实源移到 [`70-testing/`](../70-testing/README.md)；本目录各文档 §2 只保留类型落点与接口签名、§9 只保留测试文件清单，冲突以 50/60/70 为准。M2/M3 边界以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准（D-M2-CONTENT：协同网关、Room、update 持久化与快照、服务端导入进 M2）。评论客户端包 `@cordexjs/comments`（D-COMMENTS-PKG）的包级规划为 [`20-comments-client.md`](20-comments-client.md)（占位，M3 开工前补齐正文；`00-module-map.md` §10 Q-M8 已确认，rulings §4.20 FE-09）。
 
 「方法论术语」（限界上下文 / 聚合 / 值对象 / 领域事件 / 仓储 / 应用服务 / 防腐层 ACL / 发布语言 / 共享内核 / 开放主机服务 OHS / 客户方-供应方 / 遵奉者）不重复定义，取 DDD 行业通用语义；它们与 cordis 机制的对应见 `00-module-map.md` §1。章程 §4 术语表只收本项目自造或收窄语义的词，故不收录这批词（`00-module-map.md` §8 G-5）。
 
@@ -54,6 +54,7 @@ s5 --> s6["批次3 M-10至M-13"]
 | M-11 | [`11-preset-assembly-and-app-shell.md`](11-preset-assembly-and-app-shell.md) | 预设装配与应用壳 | BC-16 · 17 | `@cordexjs/preset-slide` `preset-slide-collab` `preset-slide-viewer` · `apps/web`（L8，秩 80，dom） | 3 | M-02 · M-03 · M-05 · M-06 · M-07 · M-10 | **无（终端）** | 1248 | **162 源 + 59 测试** |
 | M-12 | [`12-server-jobs-comments-and-ops.md`](12-server-jobs-comments-and-ops.md) | 服务端作业、评论与运维 | BC-23 · 24 · 25 · 26 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,webhooks,audit,health,metrics,internal,telemetry}` · `common/*` · `config/*`（L8，node；2026-09-25 增 `telemetry`，rulings §4.18 BE-30） | 3 | M-08 · M-09 | **无（终端）** | 1187 | 未汇总（约 95–110） |
 | M-13 | [`13-doc-sheet-extension-skeleton.md`](13-doc-sheet-extension-skeleton.md) | doc/sheet 扩展骨架 | BC-29 | M5 新建 10 包：`model-doc` `model-sheet` · `ooxml-docx` `ooxml-xlsx` · `doc-render` `sheet-render` · `doc-ui` `sheet-ui` · `preset-doc` `preset-sheet` | 3 | 运行时：M-02 · M-04（`ooxml-core`）· M-06 · M-10（`ui-core`/`ui-react`）；样板参照：M-03 · M-07 · M-11 · `ooxml-pptx` · `slide-ui`（2026-09-25，rulings §4.18 FE-16） | **无（终端）** | 1024 | 约 **105**（骨架级，十包） |
+| — | [`20-comments-client.md`](20-comments-client.md) | 评论客户端包（**占位**，M3 开工前补齐正文；行为以 50/08 为准） | BC-25（客户端部分） | `@cordexjs/comments`（L4，秩 40，iso） | — | M-02 | M-10 · M-11 | — | 待补 |
 | — | [`00-module-map.md`](00-module-map.md) | 模块切分总图 | 全部 30 个 BC | — | — | — | 01–13 | 1415 | — |
 | — | [`_template.md`](_template.md) | 模块设计文档模板 | — | — | — | — | 01–13 | 131 | — |
 | — | [`14-cross-module-review.md`](14-cross-module-review.md) | 跨模块评审（阶段三） | — | — | — | 00–13 | 总编排回写 | 921 | — |

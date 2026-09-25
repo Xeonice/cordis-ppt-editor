@@ -1,6 +1,6 @@
 # 05 命令与历史：命令三分法、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：评论 Mutation 示例改 `comments.thread.add`（D-COMMENTS-PKG）；§6–§9 UI 表达加 50-frontend/04 链接） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：评论 Mutation 示例改 `comments.thread.add`（D-COMMENTS-PKG）；§6–§9 UI 表达加 50-frontend/04 链接）；2026-09-26（§4.20）（FE-05：§2 `CommandDef.undoable` 保持静态布尔、带 `reassignTo` 的删除确认后可撤销（Q11 修订），§12、§13.2 图与行同步；FE-23：`deleteMaster.reassignTo?: MasterId` 逐页按原版式 `type` 选取；FE-24：`resetPlaceholderFields`、`deleteLayout` 批量、`applyLayout` 计数、`updatePlaceholder.lstStyle`；FE-04：§13.4 冲突 (1) 改为墓碑期读时容错、硬删时修复；TX-01+BE-10：§6 U-07 链接 ADR-0038） | 依赖：charter v0.1
 > 继承 Univer K1（命令三分法，「最正确的一项」），规避其缺陷 #3（手写逆操作）与 `return false` 2,244 次的失败静默。签名为「草案」。
 
 ---
@@ -56,7 +56,7 @@ interface CommandDef<P = unknown, R = void> {
   readonly documentType?: string                            // 省略 = 应用级或类型盲命令
   readonly schema: StandardSchemaV1<unknown, P>            // 参数（parse, don't validate）
   readonly permission: readonly Capability[]               // **必填、非空、AND 语义**（全部能力位满足才放行；rulings §4.2 Q-T8；PRD CO-05：未声明即拒绝；lint `command-declares-capability`）；只读命令显式 `['doc.read']`；词汇来自 protocol：'doc.read' | 'doc.comment' | 'doc.write' | 'doc.export' | 'doc.manage' | 'history.read' | 'history.restore' | `${string}:${string}.${string}`（第三方 `<vendor>:<域>.<action>`，章程 D15）；需按参数细化资源时用 `MutationDef.permission?(m)`（Mutation 级）
-  readonly undoable?: boolean                               // 默认 true；false = 事务不入历史（如「保存」）
+  readonly undoable?: boolean                               // 默认 true；false = 事务不入历史（如「保存」）。保持静态布尔，不按参数取值：带 reassignTo 删除被引用版式/母版同样入栈可撤销（UI 事前确认，rulings §4.20 FE-05，§13.2）
   readonly label?: I18nKey                                  // 历史条目显示名
   handler(ctx: Context /* UnitScope ctx 或 root ctx */, params: P, tx: Transaction): Promise<R> | R
 }
@@ -236,7 +236,7 @@ type SlideMutation =
   2. **整步被跳过 → 停下不连撤**：若一个撤销单元的全部键都被跳过（实际无任何回退），本次 `history.undo()` 返回 `ok({ applied: false, skipped })` 并停止，**不**继续撤销更早的一步（Yjs 默认会「连撤两步」，由 undo 包装层阻断）。
   3. **删除 = 软删除墓碑**：用户删除有身份实体写 `_deleted` 墓碑而非删键（04 §3.1a），删除方撤销 = 清除墓碑、同一 id 复活；与并发编辑不会产生重复元素。**撤销目标已被他人删除（墓碑 TTL 内亦然）→ 跳过并提示，不看 TTL**：撤销永不复活他人删除的元素，恢复由删除方撤销或「恢复元素」（新事务）完成（rulings §4.17 D4）。墓碑 TTL（默认 24 h）后硬删除；文档级「永久删除文档」（S-2 文档擦除）与元素级经审计的「彻底删除元素」（仅墓碑态、仅 owner，04 §3.1a）不等 TTL。墓碑已被硬删除（TTL 到期或被彻底删除元素）后，删除方再撤销该步 → 目标不复存在，按**整步被跳过**处理（`store/undo-skipped{ wholeStep: true }`，同第 2 条，2026-09-25 rulings §4.18 CO-07）。
   4. 文本 `text` op 的撤销按 CRDT 字符级语义回退本地插入/删除，远端插入保留（字符级无「同键」概念，不触发跳过）。
-  - U-07 版本恢复撤销（version-restore-undo）以本语义为基线，不采用「revertTo 整体回滚」式实现（它绕过 D4）。
+  - U-07 版本恢复撤销（version-restore-undo）以本语义为基线，不采用「revertTo 整体回滚」式实现（它绕过 D4）。2026-09-26 立项为 [ADR-0038](adr/0038-version-restore-undo.md)（提议，rulings §4.20 TX-01+BE-10）：持有 Room 的实例内单事务、走命令管线；「他人后写」判据按本节第 1 条的中性口径——看当前值是否仍出自恢复事务的 struct 范围，而非值相等；恢复时删掉的元素以原 id 复活。
 - `history` 策略层：
   - 合并（coalesce）：同 `label`、同 origin、间隔 < `coalesceMs`（默认 500ms）的连续文本事务合并为一个撤销单元；
   - 分组：`history.beginGroup(label) … endGroup()` 把多个命令并成一个撤销单元（如拖拽过程）；
@@ -354,7 +354,7 @@ UI 表达（提示条、「恢复我的值」「恢复元素」两个恢复命�
 | 命令必须声明能力位 | lint `cordex/command-must-declare-capabilities`（09-02 §4.16，TD-061）+ `scan-command-capabilities`（09-06 §11）；lint `cordex/capability-vocabulary-single-source`（09-02 §4.19，TD-067；能力位字面量必须来自 protocol，或带 `<vendor>:` 前缀且 vendor 与声明包的 npm scope 一致，章程 D15）。原称 `command-declares-capability`/`capabilities-in-protocol`（09-08 §11） |
 | Mutation 载荷无数组下标 | lint `cordex/no-index-in-mutation`（09-02 §4.17，TD-065；06 I4） |
 | 权限变更单一发出者 | 扫描器：`emit('permission/changed'` 只允许出现在 `model-core/permission/permissions.service.ts` |
-| 版式删除 fail-closed（§13.2） | `command-harness`：被引用版式 `deleteLayout` 无 `reassignTo` → `LAYOUT_IN_USE` 且无事务；带 `reassignTo` → 单事务、撤销一次恢复引用与版式 |
+| 版式删除 fail-closed（§13.2） | `command-harness`（`model-slide/src/__tests__/master-layout-delete.test.ts`，70-testing/05 §7.1 `ml/*`；不调用 kit，按 70-testing/01 §4 归 `test/unit`）：被引用版式 `deleteLayout` 无 `reassignTo` → `LAYOUT_IN_USE` 且无事务；带 `reassignTo` → 单事务、撤销栈深度 +1，`core.undo` 一步恢复各页引用与版式（同一 id 复活，rulings §4.20 FE-05）；`layoutIds` 批量删除为单事务；`deleteMaster(reassignTo)` 目标母版有同 `type` 版式时各页 `type` 不变、无同 `type` 时落目标母版首个版式、整个删除单事务（FE-23）；`resetPlaceholderFields` 一步撤销且只清所列字段、`applyLayout` 结果计数与 Toast N 一致（FE-24）；`test/collab-sim`：撤销时他人已改的页只跳过该键并提示 |
 | `view.setMode` 文档类型盲 | 类型/运行时测试：`mode ∉ documentType.viewModes` → `INVALID_PARAMS`；`fixture` 类型只接受 `'normal'` |
 
 ---
@@ -380,16 +380,17 @@ UI 表达（提示条、「恢复我的值」「恢复元素」两个恢复命�
 
 | id | 语义 | 需求 |
 |---|---|---|
-| `slide.applyLayout` | `{ slideIds; layoutId }`：每页 `planLayoutChange` → `slide.slide.setLayout`；**一页一事务**（撤销粒度按页） | ML-02 |
+| `slide.applyLayout` | `{ slideIds; layoutId }`：每页 `planLayoutChange` → `slide.slide.setLayout`；**一页一事务**（撤销粒度按页）；结果含每页脱离占位符（`materialize`）的元素数，供 Q13 Toast「N 个元素无法匹配新版式的占位符」计数（2026-09-26，rulings §4.20 FE-24） | ML-02 |
 | `slide.resetSlide` | `{ slideIds }`：`planReset` → `slide.shape.clearOverrides`（仅占位符形状） | ML-02 |
+| `slide.resetPlaceholderFields` | `{ shapeId; fields: InheritableField[] }`：只清所列字段的显式覆盖，与 `resetSlide` 共用 `slide.shape.clearOverrides`；一个事务、一步撤销（2026-09-26，rulings §4.20 FE-24） | ML-02 |
 | `slide.setMasterBackground` / `slide.setLayoutBackground` | 母版视图中的背景编辑 | ML-03 |
 | `slide.setMasterTextStyle` | `{ masterId; kind; level; patch }` | ML-03 |
 | `slide.insertLayout` | `{ masterId; after?: LayoutId; type?; name? }`：从母版占位符生成新版式；`order` 经 `between` 计算 | ML-03 |
 | `slide.duplicateLayout` | 复制版式与形状（新 `NodeId`；`ooxml` id 清空，导出分配） | ML-03 |
-| `slide.deleteLayout` | `{ layoutId; reassignTo?: LayoutId }`：被引用且无 `reassignTo` → `err(LAYOUT_IN_USE)`；否则同一事务内先重指再删除（04 §12.3） | ML-03 |
+| `slide.deleteLayout` | `{ layoutId \| layoutIds; reassignTo?: LayoutId }`：被引用且无 `reassignTo` → `err(LAYOUT_IN_USE)`；否则同一事务内先重指再删除（04 §12.3）；`layoutIds` 为多选批量删除，整批一个事务（2026-09-26，FE-24）。**入撤销栈**：删除被引用版式由 UI 事前确认，执行后给带 [撤销] 的 Toast，撤销一步恢复各页引用、版式以原 id 复活（rulings §4.20 FE-05，Q11 修订；撤销栈只在会话内有效、墓碑 24 h 后硬删，所以仍要事前确认） | ML-03 |
 | `slide.renameLayout` / `slide.reorderLayouts` | `{ layoutId; name }` / `{ layoutId; after?: LayoutId }` | ML-03 |
-| `slide.addPlaceholder` / `slide.removePlaceholder` / `slide.updatePlaceholder` | `{ containerId: LayoutId \| MasterId; type; index?; box }` / `{ shapeId }` / `{ shapeId; placeholder?; transform?; bodyProperties? }`；母版占位符是版式占位符的继承源 | ML-03 |
-| `slide.deleteMaster` / `slide.duplicateMaster` / `slide.insertMaster` | 删除前置：无版式被页引用（否则 `MASTER_IN_USE`，可带 `reassignTo`）；复制含版式、形状与主题引用 | ML-03 |
+| `slide.addPlaceholder` / `slide.removePlaceholder` / `slide.updatePlaceholder` | `{ containerId: LayoutId \| MasterId; type; index?; box }` / `{ shapeId }` / `{ shapeId; placeholder?; transform?; bodyProperties?; lstStyle? }`（`lstStyle` 为占位符级别文本样式，不新增命令 id，2026-09-26 FE-24）；母版占位符是版式占位符的继承源 | ML-03 |
+| `slide.deleteMaster` / `slide.duplicateMaster` / `slide.insertMaster` | 删除 `{ masterId; reassignTo?: MasterId }`：前置无版式被页引用（否则 `MASTER_IN_USE`，可带 `reassignTo`）；`reassignTo` 是**目标母版**，每个受影响页取 `defaultLayoutOf(body, { masterId: reassignTo, type: 原版式的 type })`（目标母版同 `type` 的首个版式 → 目标母版首个版式，与 I-ML2 同一纯函数，04 §12.3），整个删除一个事务，入撤销栈同 `deleteLayout`；UI 不加母版选择器，默认取按 `order` 排序的首个剩余母版（2026-09-26，rulings §4.20 FE-23、FE-05）；复制含版式、形状与主题引用 | ML-03 |
 | `slide.setThemeColors` / `slide.setThemeFonts` | `{ themeId; … }` | ML-04 |
 | `slide.applyTheme` | `{ masterId; theme: Theme \| ThemeId }`：新主题 → `theme.insert` + `master.setTheme`；旧主题无引用 → `theme.remove`（同一事务） | ML-04 |
 
@@ -401,12 +402,12 @@ flowchart TB
   del --> q1{"版式被任一页引用，且未给 reassignTo？"}
   q1 -- "是" --> err["err#40;LAYOUT_IN_USE#41;：fail-closed，不开事务"]
   q1 -- "否" --> tx["同一事务：先把引用页 applyLayout 到 reassignTo 重指，再 slide.layout.remove，级联删除 containerId == layoutId 的形状"]
-  tx --> undo["撤销一次即同时恢复引用与版式"]
+  tx --> undo["入撤销栈：撤销一次即同时恢复各页引用与版式，版式以原 id 复活；协同下他人后写的键跳过并提示"]
 ```
 
-怎么读：只有两条出口——拒绝（不产生事务）或一个原子事务；`slide.deleteMaster` 同理，前置不满足时返回 `MASTER_IN_USE`，可带 `reassignTo`。
+怎么读：只有两条出口——拒绝（不产生事务）或一个原子事务；`slide.deleteMaster` 同理，前置不满足时返回 `MASTER_IN_USE`，可带 `reassignTo`（目标母版，逐页按原版式 `type` 选取）。被引用时的事前确认对话框由 UI 负责（50-frontend/11），命令本身不区分是否经过确认；删除入撤销栈（rulings §4.20 FE-05）。
 
-依据：本节 §13.1、§13.2；§12 机械验证表「版式删除 fail-closed」行；04 §12.3。
+依据：本节 §13.1、§13.2；§12 机械验证表「版式删除 fail-closed」行；04 §12.3；rulings §4.20 FE-05（Q11 修订：确认后可撤销）、FE-23。
 
 ### 13.3 视图态 Operation
 
@@ -418,6 +419,6 @@ flowchart TB
 ### 13.4 协同下的撤销与冲突语义要点（详见 06 §8，B 线）
 
 - 母版/版式/主题都是实体表条目：编辑 = 单键 LWW；撤销按 origin 只撤本地，且遵循 §6 的跳过/停止语义；撤销母版编辑会使全部依赖页重绘（`dependentsOf` → 渲染脏映射）。
-- 冲突面（06 需覆盖）：(1) **删除 vs 引用**：A 删版式（写墓碑）、B 同时应用该版式 → 合并后引用指向墓碑 → 不变量 I-ML2 修复（04 §12.3）+ `collab/soft-conflict{ type: 'delete-vs-reference' }`；A 撤销删除 = 清除墓碑，B 的引用重新有效；(2) **重置 vs 移动**：A `clearOverrides(transform)` 与 B `setTransform` 并发 → 同键 LWW，后写者胜；先写者撤销时该键已被他人后写 → **跳过并提示**（§6 第 1 条，可选「恢复我的值」新事务），后写者撤销则正常回退自己的写入；若先写者的撤销单元只含这一键 → 整步被跳过、停下不连撤（§6 第 2 条）；(3) **主题槽位**：`colorScheme.*` 逐槽位 LWW；(4) **版式复制 vs 母版删除**：新版式 `masterId` 指向被删母版 → I-ML3 修复。
+- 冲突面（06 需覆盖）：(1) **删除 vs 引用**：A 删版式（写墓碑）、B 同时应用该版式 → 合并后 `slide.layoutId` 指向墓碑 → **墓碑期读时容错、硬删时修复**（2026-09-26，rulings §4.20 FE-04）：墓碑 TTL 内不改写引用，读路径（SceneProvider、导出编码器、slide-ui）经 `defaultLayoutOf` 取替代版式渲染，并发 `collab/soft-conflict{ type: 'delete-vs-reference' }`；A 撤销删除 = 清除墓碑，B 的引用重新有效；墓碑到期硬删时，硬删作业在同一事务内按 I-ML2 写修复（04 §12.3，`collab/repair{ rule: 'dangling-layout' }`，只写一次）。原「合并后即由 I-ML2 修复」作废；(2) **重置 vs 移动**：A `clearOverrides(transform)` 与 B `setTransform` 并发 → 同键 LWW，后写者胜；先写者撤销时该键已被他人后写 → **跳过并提示**（§6 第 1 条，可选「恢复我的值」新事务），后写者撤销则正常回退自己的写入；若先写者的撤销单元只含这一键 → 整步被跳过、停下不连撤（§6 第 2 条）；(3) **主题槽位**：`colorScheme.*` 逐槽位 LWW；(4) **版式复制 vs 母版删除**：新版式 `masterId` 指向被删母版 → I-ML3 修复。
 - 母版视图是**视图态**（Operation），不锁内容；可选软锁（PRD PD-19，awareness 级）由 06 定。
-- 事务边界：`applyLayout` 一页一事务；`deleteLayout(reassignTo)`、`applyTheme` 各为一个原子事务（重指/换主题 + 删除不可分）。
+- 事务边界：`applyLayout` 一页一事务；`deleteLayout(reassignTo)`（含 `layoutIds` 批量）、`deleteMaster(reassignTo)`、`applyTheme` 各为一个原子事务（重指/换主题 + 删除不可分），均入撤销栈、一步撤销（rulings §4.20 FE-05）。

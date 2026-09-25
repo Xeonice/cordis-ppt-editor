@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§5.1 单点引入表补 radix-ui/cva/lucide/tailwind/react-router 行与 apps/web 放行、`y-indexeddb` 行改归 collab-offline-idb、预留 `@y/y` 系、ioredis 行注明 Valkey；私有包名暂不改，随全仓更名统一处理）；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`；L16 `lib0` 允许包按章程 §5.3 去掉 `store-yjs`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19 登记的 INC-33、T-CI 与 F63/F70：§4.12 扩展范围 ③ `apps/web/src/**`、组合根豁免收窄；§4.15 遥测事件名 `<域>/<动作>` + `telemetry.event`；§3 TD-081 作用范围扩到 ui-core 与 apps/web 剪贴板管线、登记 `vitest/no-disabled-tests` 与 `playwright/no-skipped-test`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§5.1 单点引入表补 radix-ui/cva/lucide/tailwind/react-router 行与 apps/web 放行、`y-indexeddb` 行改归 collab-offline-idb、预留 `@y/y` 系、ioredis 行注明 Valkey；私有包名暂不改，随全仓更名统一处理）；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`；L16 `lib0` 允许包按章程 §5.3 去掉 `store-yjs`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19 登记的 INC-33、T-CI 与 F63/F70：§4.12 扩展范围 ③ `apps/web/src/**`、组合根豁免收窄；§4.15 遥测事件名 `<域>/<动作>` + `telemetry.event`；§3 TD-081 作用范围扩到 ui-core 与 apps/web 剪贴板管线、登记 `vitest/no-disabled-tests` 与 `playwright/no-skipped-test`）；2026-09-26（§4.20）（TX-08：§3 在 TD-097 后增 TD-110「生产与测试代码经 Clock / Random 端口」，`rules/determinism.ts` 第二个 override；TX-11：指向 01、03、05、06 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 02 · Lint 规则集
 
@@ -22,7 +22,8 @@ tooling/eslint-config/
 │   ├── style.ts                console/prototype/裸 throw/debugger 等语义类禁用（非格式化，见 §6 归属判断）
 │   ├── assembly.ts             路径级 overrides：apps/** 无领域定义与唯一组合根调用点、preset 胶水极薄、
 │   │                            src/index.ts 纯再导出（§3 新增行，2026-09-25 rulings §4.18 GV-15）
-│   └── determinism.ts          ooxml-* 编解码确定性：禁时钟与随机源（§3 新增行，同上）
+│   └── determinism.ts          确定性：override ① ooxml-* 编解码禁时钟与随机源（TD-097）；override ② 全仓生产与测试
+│                                代码经 Clock / Random 端口取时间与随机数（TD-110，2026-09-26 rulings §4.20 TX-08）
 ├── eslint-plugin-cordex/          自定义规则插件（内部 npm 包 @cordexjs/eslint-plugin）
 │   ├── package.json
 │   ├── index.ts                规则注册表 + `recommended`/`strict` 两档导出 config
@@ -72,7 +73,7 @@ tooling/eslint-config/
 │       └── nest-controller-dto-from-protocol.test.ts
 ├── __tests__/
 │   ├── assembly.test.ts        rules/assembly.ts 的 valid/invalid 用例（RuleTester 驱动内建规则配置）
-│   └── determinism.test.ts     rules/determinism.ts 的 valid/invalid 用例
+│   └── determinism.test.ts     rules/determinism.ts 两个 override 的 valid/invalid 用例
 └── biome-boundary.md            速查表：某条规则该找 ESLint 还是 Biome（人类可读镜像，机器权威见 ADR-0044）
 ```
 
@@ -88,7 +89,7 @@ tooling/eslint-config/
 
 | 规则 | 预设默认 | 本项目调整 | 理由 |
 |---|---|---|---|
-| `@typescript-eslint/no-explicit-any` | `warn`（`recommended`）/ 未强制 error | **error，且不接受任何 `ignoreRestArgs` 例外** | R7 核心；显式 `any` 的机械预算见 [06 scan-type-escapes](./06-scanners.md#1-scan-type-escapes) |
+| `@typescript-eslint/no-explicit-any` | `warn`（`recommended`）/ 未强制 error | **error，且不接受任何 `ignoreRestArgs` 例外** | R7 核心；显式 `any` 的机械预算见 [06 scan-type-escapes](./06-scanners.md#2-scan-type-escapes) |
 | `@typescript-eslint/no-unsafe-*` 系列（`no-unsafe-argument`/`assignment`/`call`/`member-access`/`return`） | `strict-type-checked` 内已是 `error` | 维持 `error`，**不下调** | 这是 `any` 在类型系统里"扩散"的唯一检测点：显式 `any` 被禁止后，`no-unsafe-*` 拦截"any 从未类型化的第三方库偷渡进来"这一条剩余通道 |
 | `@typescript-eslint/consistent-type-imports` | `stylistic` 内为 `error`，`fixStyle` 默认 `separate-declarations` | `fixStyle: 'top-level'` 改为按文件场景配置：`*.contribution.ts` 强制 `inline-type-imports: false`（禁止内联 `import { type X }`，必须整条 `import type`），其余文件维持 `separate-declarations` | `*.contribution.ts` 的"零运行时导入"约束（见 §4.6/[09](./09-plugin-type-contracts.md)）要求该文件里任何 `import` 语句本身就是可疑信号，整条 `import type` 便于人工/脚本快速扫描该文件是否有非 type 导入 |
 | `@typescript-eslint/no-non-null-assertion` | `recommended` 内 `error` | 维持 `error`；补充 `no-restricted-syntax` 精确匹配 `TSNonNullExpression` 以获得统一的 `cordex-allow` 引用格式（见 §3） | 统一豁免格式需要 |
@@ -122,15 +123,18 @@ tooling/eslint-config/
 | `object` / `{}` 类型 | 同上 | `object` 用 `Record<string, unknown>` 或具体接口替代；`{}` 用 `Record<string, never>`（真正的"空对象"）或 `unknown` 替代 |
 | `enum` | `no-restricted-syntax`（`TSEnumDeclaration`）+ 编译期 `erasableSyntaxOnly`（[01](./01-tsconfig-baseline.md#23-r7-专项isolateddeclarations-与-verbatimmodulesyntax)，`packages/*` 强制） | 无例外；详见 [ADR-0042](../adr/0042-no-enums-const-objects.md) |
 | `namespace`/`module` 的运行时用法 | `no-restricted-syntax`（`TSModuleDeclaration[body.body.length>0]` 排除仅含 `interface`/`type` 声明的合并场景；纯类型声明合并——即 `declare module '@cordexjs/kernel' { interface Events {...} }`——不受影响） | 类型声明合并（[09](./09-plugin-type-contracts.md)）不受限；带可执行语句的 `namespace Foo { export function bar() {} }` 一类禁止 |
-| 裸 `throw new Error(...)` | `no-restricted-syntax`，选择器 `ThrowStatement > NewExpression[callee.name='Error']`（同时覆盖 `TypeError`/`RangeError` 等内建 Error 子类的字面量构造） | 必须 `throw` 一个继承自 `CordexError`（[05](./05-runtime-boundaries.md#4-result-类型与异常的边界) / [ADR-0043](../adr/0043-result-vs-exceptions.md)，类型契约由架构-运行时 B 的错误码体系提供基类）的实例 |
+| 裸 `throw new Error(...)` | `no-restricted-syntax`，选择器 `ThrowStatement > NewExpression[callee.name='Error']`（同时覆盖 `TypeError`/`RangeError` 等内建 Error 子类的字面量构造） | 必须 `throw` 一个继承自 `CordexError`（[05](./05-runtime-boundaries.md#5-result-类型与异常的边界) / [ADR-0043](../adr/0043-result-vs-exceptions.md)，类型契约由架构-运行时 B 的错误码体系提供基类）的实例 |
 | `console.*` | `no-console`（全禁，不设 `allow` 列表） | 结构化 `logger` 服务（primer/章程 D11）替代；测试文件同样禁止，测试断言失败信息用测试框架自身的报告机制 |
 | `debugger` 语句 | `no-debugger`（**零豁免**，不接受 `cordex-allow`——这是用户全局开发纪律的强制项，见 [07](./07-hooks-and-ci.md#2-lefthook-阶段) 的 pre-commit 说明） | 无 |
 | `prototype` 赋值 | `no-restricted-syntax`，选择器覆盖 `AssignmentExpression[left.property.name='prototype']` 与 `MemberExpression[property.name='prototype'] = ...` 的成员赋值形态 | 仅 `packages/kernel/src/**` 允许（`ctx.mixin` 的内部实现），由 `cordex/no-mixin-outside-kernel`（§4.10）而非本条 ESLint 内建规则承担"外部包用了就报错"的语义，本条 `no-restricted-syntax` 是**全局**兜底（含 `kernel` 自身文件命名不规范时的兜底），两者共同覆盖 primer MUST NOT #7 |
 | 以 HTML 注入渲染文档内容（`innerHTML`/`outerHTML`/`insertAdjacentHTML`/`DOMParser`/`document.write`）（2026-09-24 新增，rulings §4.15 Q4） | `no-restricted-properties`（赋值/调用上述成员）+ `no-restricted-syntax`（`NewExpression[callee.name='DOMParser']`），作用于 `engine-render`/`render-dom`/`*-render`/`*-ui`，2026-09-25 起另含 `ui-core` 与 `apps/web/src/**`（剪贴板管线的粘贴 HTML 解析与富文本转换同样处理文档派生内容，50-frontend/04 §9）；文档内 SVG 只能经 `<image>`/`<img>` 图像上下文渲染（执行矩阵 TD-081） | 无（架构性禁止）；需要解析 SVG 做尺寸探测的代码走 ooxml-core 的 XML 解析器，不经 DOM |
+| Worker 脚本 URL 未经 Trusted Types 策略（2026-09-26 登记，50-frontend/14 §4.2） | `no-restricted-syntax`，选择器 `NewExpression[callee.name=/^(Worker\|SharedWorker)$/]:not([arguments.0.type='CallExpression'][arguments.0.callee.name='toScriptUrl'])`：`new Worker(` / `new SharedWorker(` 的第一个实参必须是 `toScriptUrl(…)` 调用；作用于全部 dom 包与 `apps/web/src/**`（`rules/style.ts` 的一行配置，不新增扫描器与 TD 行，执行随 TD-081 同批夹具） | 无；形态 A 宿主经 `createHost({scriptUrlPolicy})` 传入自己的策略 |
+| 在 `openExternal` 之外打开外部窗口（2026-09-26 登记，50-frontend/14 §5） | `no-restricted-properties`（`window.open`，另以 `no-restricted-globals` 禁裸 `open`），作用于全部 dom 包与 `apps/web/src/**`；唯一例外文件 ui-core `src/infrastructure/open-external.ts`（40-modules/10 §5.2，只放行 `http(s)` 并带 `noopener,noreferrer`，apps/web 复用）（`rules/style.ts` 的一行配置，不新增扫描器与 TD 行） | 无（例外只按文件路径 override，不接受 `cordex-allow`） |
 | apps 内出现领域定义（`defineCommand(`/`defineMutation(`/`defineOperation(`/`defineContributionPoint(`/`ctx.contribute(`/`declare module '@cordexjs/kernel'`）；`createHost(` 与 `createSlide*Preset(` 出现在 `apps/web/src/application/host/create-editor-host.ts` 以外（2026-09-25 新增，rulings §4.18 GV-15，原扫描器名 `no-domain-defs-in-apps`、`single-create-host-callsite`） | `no-restricted-syntax`（`rules/assembly.ts` 对 `apps/**` 的 override；`create-editor-host.ts` 单独放行后两项；执行矩阵 TD-093） | 无（架构性禁止）；依赖侧白名单见 [03 §3.7](./03-boundaries.md) `cordex-apps-only-assemble` |
 | preset 胶水插件过厚（原扫描器名 `preset-glue-thin`） | `max-lines-per-function`（60，作用于 preset 包 `plugins/*.plugin.ts`、`policies/*.plugin.ts`、`shell/*.plugin.ts` 的 `apply`）+ `no-restricted-imports`（同路径对 `@cordexjs/model-*` 只许 `import type`）（`rules/assembly.ts`；TD-094） | 无 |
 | 包入口 `src/index.ts` 含顶层可执行语句（原扫描器名 `index-pure`） | `no-restricted-syntax`（`**/src/index.ts` override：只允许带 `source` 的 `ExportNamedDeclaration`/`ExportAllDeclaration` 与 `import type`；`rules/assembly.ts`；TD-096） | 无（`sideEffects: false` 的保证） |
 | 编解码读取时钟或随机源（原扫描器名 `codec-no-clock`，30-arch/04 §11 导出确定性） | `no-restricted-properties`（`Date.now`、`performance.now`、`Math.random`）+ `no-restricted-syntax`（无参 `new Date()`），作用于 `ooxml-*`（`rules/determinism.ts`；TD-097） | `cordex-allow` 预算恒为 0；需要时间戳的导出字段由调用方经参数注入 |
+| 生产与测试代码直接读时钟或随机源（2026-09-26 新增，rulings §4.20 TX-08；决策 T-DETERMINISM、70-testing/11 §1） | `rules/determinism.ts` 第二个 override（TD-110）：生产源码 `packages/*/src/**`、`apps/*/src/**` 用 `no-restricted-properties` 禁 `Date.now`、`Math.random`，`no-restricted-syntax` 禁无参 `new Date()`；测试代码（`apps/server/test/**`、`apps/web/e2e/**`、根 `test/**`、各包 `__tests__/**`）同样禁止并另禁 `performance.now`（`test/perf/**` 豁免 `performance.now`）；时间与随机数一律经 `@cordexjs/shared` 的 `Clock` / `Random` 端口（测试用 `FixedClock`、`SeededRandom`）或服务端 `CLOCK` 注入令牌取得；`crypto.getRandomValues`、`crypto.randomUUID`、`node:crypto` 不禁 | 端口实现文件放行：`packages/shared/src/{clock,random}.ts`、`apps/server/src/shared/clock.ts`；其余例外走 `cordex-allow`（须带 issue）；`ooxml-*` 仍受 TD-097（预算恒为 0）约束，不因本行放宽 |
 | 跳过的测试（`it.skip` / `describe.skip` / `test.skip` / `test.fixme`）（2026-09-25 新增，决策 T-CI、70-testing/12） | `vitest/no-disabled-tests`（error，作用于 Vitest 测试文件）+ `playwright/no-skipped-test`（error，作用于 `apps/web/e2e/**` 与根 `test/**` 的 Playwright 文件）（执行矩阵 TD-109） | `cordex-allow` 且必须带 issue 链接与到期日（≤ 30 天，70-testing/01 §10 的临时降级）；不设隔离清单 |
 | 第三方库单点引入 | `no-restricted-imports`（§5.1 生成） | 见 §5.1 |
 | 同构全局越界 | `no-restricted-globals`（§5.2 生成，仅 iso 包） | 见 §5.2 |
@@ -142,7 +146,7 @@ tooling/eslint-config/
 
 **共同设计原则**：凡是"事实分散在多个文件才能判断"的规范（Provider/Consumer 关系、Config 字段是否被读取），本插件只做**同文件/单符号的启发式检测**，给出编辑期的即时反馈；**跨文件的权威裁决**交给 [06-scanners.md](./06-scanners.md) 对应的扫描器或 [03-boundaries.md](./03-boundaries.md) 的 dependency-cruiser 规则，CI 以扫描器/depcruise 的结果为准。每条规则下方标注它与哪个权威裁决者配对。
 
-**共同豁免格式**：`// cordex-allow(<rule-id>): <issue-url>`，`<rule-id>` 为不带 `cordex/` 前缀的规则名（如 `cordex-allow(no-mixin-outside-kernel): https://github.com/.../issues/123`）。豁免不是免检——每条豁免计入 [06 scan-type-escapes](./06-scanners.md#1-scan-type-escapes) 或对应扫描器的预算统计，受 [ADR-0040](../adr/0040-type-budgets-and-ratchet.md) 的 ratchet 约束。全部 21 条规则均**不提供自动修复**（`fixable: undefined`）：它们检测的是架构/语义违规，机械改写有很高概率产出"能通过 lint 但语义错误"的代码（例如把 `register*` 方法机械改名成别的前缀并不能让它真正变成一个 ContributionPoint）；自动修复只属于 Biome 管辖的纯格式化范畴（[ADR-0044](../adr/0044-eslint-and-biome-split.md)）。
+**共同豁免格式**：`// cordex-allow(<rule-id>): <issue-url>`，`<rule-id>` 为不带 `cordex/` 前缀的规则名（如 `cordex-allow(no-mixin-outside-kernel): https://github.com/.../issues/123`）。豁免不是免检——每条豁免计入 [06 scan-type-escapes](./06-scanners.md#2-scan-type-escapes) 或对应扫描器的预算统计，受 [ADR-0040](../adr/0040-type-budgets-and-ratchet.md) 的 ratchet 约束。全部 21 条规则均**不提供自动修复**（`fixable: undefined`）：它们检测的是架构/语义违规，机械改写有很高概率产出"能通过 lint 但语义错误"的代码（例如把 `register*` 方法机械改名成别的前缀并不能让它真正变成一个 ContributionPoint）；自动修复只属于 Biome 管辖的纯格式化范畴（[ADR-0044](../adr/0044-eslint-and-biome-split.md)）。
 
 ### 4.1 `cordex/no-register-methods-outside-kernel`
 
@@ -166,7 +170,7 @@ tooling/eslint-config/
 - **检测方式（AST）**：调用表达式匹配一份可配置的"原生资源构造器"名单（`setTimeout`/`setInterval`/`requestAnimationFrame`/`addEventListener`/`new MutationObserver`/`new ResizeObserver`/`new IntersectionObserver`/`new WebSocket`/`new BroadcastChannel`）时，向上遍历祖先节点，要求存在一个祖先 `CallExpression`，其 `callee` 是 `*.effect`（成员表达式的属性名为 `effect`）且当前节点位于该调用**第一个参数**（返回 disposer 的函数）的函数体内。未找到这样的祖先则报错。
 - **自动修复**：无。
 - **负向测试样例**：`apply(ctx) { window.addEventListener('resize', onResize) }`（无包裹）→ 报错；`apply(ctx) { ctx.effect(() => { window.addEventListener('resize', onResize); return () => window.removeEventListener('resize', onResize) }) }` → 通过。
-- **与权威裁决者的关系**：配对 [06 scan-effects](./06-scanners.md#3-scan-effects)——本规则只能证明"资源获取调用**在词法上**被 `ctx.effect` 包裹"，无法证明"卸载后该资源真的被释放"（运行时事实）；scan-effects 审计每个定义了 effect 的包是否存在断言 `fiber.getEffects()` 卸载后为空的测试用例，把primer MUST #7 的"测试卸载"落到实处。
+- **与权威裁决者的关系**：配对 [06 scan-effects](./06-scanners.md#4-scan-effects)——本规则只能证明"资源获取调用**在词法上**被 `ctx.effect` 包裹"，无法证明"卸载后该资源真的被释放"（运行时事实）；scan-effects 审计每个定义了 effect 的包是否存在断言 `fiber.getEffects()` 卸载后为空的测试用例，把primer MUST #7 的"测试卸载"落到实处。
 
 ### 4.4 `cordex/events-must-be-declared`（含域白名单子检测，响应架构-结构条线 `event-domain-whitelist`）
 
@@ -197,7 +201,7 @@ tooling/eslint-config/
   4. `manifest.ts` 文件必须导出 `const manifest: Manifest`（类型标注是硬性的——呼应 [09 §5](./09-plugin-type-contracts.md#5-isolateddeclarations-下的导出约束) 的 `isolatedDeclarations` 要求）。
 - **自动修复**：无（涉及文件重命名，ESLint fixer 不操作文件系统路径）。
 - **负向测试样例**：`shape-kind.ts`（非 `.contribution.ts`）内出现 `declare module '@cordexjs/kernel'` → 报错；`shape-kind.contribution.ts` 内 `import { ShapeKindService } from '../services/shape-kind.service'`（值导入）→ 报错；同文件改为 `import type { ShapeKindService } from '../services/shape-kind.service'` 并只调用 `defineContributionPoint(...)` → 通过。
-- **与权威裁决者的关系**：配对 [06 scan-contributions](./06-scanners.md#2-scan-contributions)——本规则保证"文件形状正确"，scan-contributions 保证"内容与 manifest.ts / 生成的 `cordex-manifest.json` 一致"（跨文件事实）。
+- **与权威裁决者的关系**：配对 [06 scan-contributions](./06-scanners.md#3-scan-contributions)——本规则保证"文件形状正确"，scan-contributions 保证"内容与 manifest.ts / 生成的 `cordex-manifest.json` 一致"（跨文件事实）。
 
 ### 4.7 `cordex/no-provider-import-in-consumer`
 
@@ -205,7 +209,7 @@ tooling/eslint-config/
 - **检测方式（AST + 包元数据）**：读取当前文件所属包的 `package.json#cordex.role`；若为 `consumer` 且 `compositionRoot` 不为 `true`（元数据 schema 见 [03 §2](./03-boundaries.md#2-包元数据-schema)），解析每条 `import`/动态 `import()` 的目标模块归属包，若目标包 `cordex.role === 'provider'`，报错。
 - **自动修复**：无。
 - **负向测试样例**：`packages/slide-render`（role: consumer, compositionRoot: false）内 `import { YjsStore } from '@cordexjs/store-yjs'` → 报错，信息含"consumer 只能依赖 Definition（@cordexjs/model-core），具体 Provider 由 preset 组装"；同文件改为 `import type { DocumentStore } from '@cordexjs/model-core'` → 通过；`packages/preset-slide-collab`（`compositionRoot: true`）内导入 `@cordexjs/store-yjs` → 通过。
-- **与权威裁决者的关系**：本规则是**代理**，权威在 [03](./03-boundaries.md#6-规则-6三角色) 的 `cordex-role-provider-no-cross-import`/`cordex-role-consumer-definition-only` dependency-cruiser 规则——depcruise 看到的是整个包图（含本规则看不到的动态 import、re-export 链、类型剥离后的构建产物依赖），是 CI 阻断的最终依据；本规则只提供编辑器内的即时红线。
+- **与权威裁决者的关系**：本规则是**代理**，权威在 [03](./03-boundaries.md#35-规则-6三角色对应章程-53-6) 的 `cordex-role-provider-no-cross-import`/`cordex-role-consumer-definition-only` dependency-cruiser 规则——depcruise 看到的是整个包图（含本规则看不到的动态 import、re-export 链、类型剥离后的构建产物依赖），是 CI 阻断的最终依据；本规则只提供编辑器内的即时红线。
 
 ### 4.8 `cordex/deprecated-must-have-removal-version`
 
@@ -320,7 +324,7 @@ tooling/eslint-config/
 - **检测方式（类型信息）**：`apps/server/src/**/*.controller.ts` 内，`@Body()`/`@Query()`/`@Param()` 装饰的参数类型与方法返回类型（含 `Promise<T>` 的 `T`），必须是从 `@cordexjs/protocol` 导入的类型引用（直接引用或 `Pick`/`Omit` 等工具类型包裹一个从 `@cordexjs/protocol` 导入的类型），不得是本文件内联声明的 `interface`/`type` 字面量。
 - **自动修复**：无。
 - **负向测试样例**：`@Post() create(@Body() body: { title: string }) {}`（内联字面量类型）→ 报错；改为 `@Body() body: CreateDocumentRequest`（`CreateDocumentRequest` 从 `@cordexjs/protocol` 导入）→ 通过。
-- **与权威裁决者的关系**：权威（单文件类型信息可判定）；与 [01§6](./01-tsconfig-baseline.md#6-appsserver-的受限例外-nestjson) 的 `apps/server` 受限例外并列——都是"`apps/server` 有自己的一组专属规则，不与 `packages/*` 共享"这一设计的具体体现。
+- **与权威裁决者的关系**：权威（单文件类型信息可判定）；与 [01§6](./01-tsconfig-baseline.md#6-appsserver-的受限例外nestjson) 的 `apps/server` 受限例外并列——都是"`apps/server` 有自己的一组专属规则，不与 `packages/*` 共享"这一设计的具体体现。
 
 ---
 
@@ -359,11 +363,11 @@ error  'yjs' import is restricted from being used except in
   @typescript-eslint/no-restricted-imports
 ```
 
-与 [03](./03-boundaries.md#5-规则-4第三方库单点引入) 的 depcruise 同名语义规则互为代理/权威关系（同 §4.7 的模式）：ESLint 版本是编辑期反馈，depcruise 版本覆盖构建产物与类型-only 导入等 ESLint 未必触达的路径，是 CI 最终依据。
+与 [03](./03-boundaries.md#33-规则-4第三方库单点引入对应章程-53-4) 的 depcruise 同名语义规则互为代理/权威关系（同 §4.7 的模式）：ESLint 版本是编辑期反馈，depcruise 版本覆盖构建产物与类型-only 导入等 ESLint 未必触达的路径，是 CI 最终依据。
 
 ### 5.2 `no-restricted-globals`（章程 §5.3 规则 5，同构隔离三重保障之一）
 
-`rules/restricted-globals.ts` **仅对 `package.json#cordex.iso === 'iso'` 的包**生效（`dom`/`node` 包不配置本规则——理由见 [03 §4](./03-boundaries.md#4-同构隔离的三重保障)：这两类包的环境假设是被允许的，风险仅存在于自称"同构"却偷偷依赖某一方环境的 `iso` 包）。禁止名单：
+`rules/restricted-globals.ts` **仅对 `package.json#cordex.iso === 'iso'` 的包**生效（`dom`/`node` 包不配置本规则——理由见 [03 §4](./03-boundaries.md#同构隔离的三重保障)：这两类包的环境假设是被允许的，风险仅存在于自称"同构"却偷偷依赖某一方环境的 `iso` 包）。禁止名单：
 
 ```
 浏览器方向：window, document, navigator, localStorage, sessionStorage,
@@ -420,5 +424,5 @@ flowchart TB
 |---|---|---|
 | 预设规则全部 `error`、无 `warn` | `policy-check` 读取 `eslint --print-config` 的解析结果，断言不存在 `severity: 1`（warn）的规则项 | scan-policy 报告 |
 | 每条 `cordex/*` 规则都有负向测试 | `policy-check`（§1 已述） | scan-policy 报告 |
-| 豁免计入预算 | [06 scan-type-escapes](./06-scanners.md#1-scan-type-escapes) | 见 06 |
+| 豁免计入预算 | [06 scan-type-escapes](./06-scanners.md#2-scan-type-escapes) | 见 06 |
 | lint 本身在 CI 上以 `error` 阻断且不允许 `--quiet` | [07](./07-hooks-and-ci.md#3-ci-工作流矩阵) `lint` job | 见 07 |

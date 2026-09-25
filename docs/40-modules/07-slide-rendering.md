@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-07） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：服务端缩略图为 640 px WebP；`raster` 移出可配置 Provider 枚举、只用于单页导出；`cordex-slide-render-allowlist` 降为说明、`emf-converter` 单点登记进 M-01 规则 5）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-07、charter v0.2 §4/§5.2 `slide-render`/`slide-render-chart` 行/§5.5/§6.1 D16、30-architecture `07-rendering.md` §4/§11/§14.1/§14.4、`04-document-model.md` §12.4、`02-layering-and-packages.md` §4.16/§4.16b、40-modules `03-slide-domain-model.md` §2/§6、`06-layout-and-render-engine.md` §2.5/§6/§12/§13、PRD `10-prd/03-features/01-open-and-fidelity.md` OF-07…OF-15、rulings §4.15（Q4/Q7/Q8）、`07-masters-layouts-and-themes.md` ML-01 §3、ADR-0021/0026
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-07） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：服务端缩略图为 640 px WebP；`raster` 移出可配置 Provider 枚举、只用于单页导出；`cordex-slide-render-allowlist` 降为说明、`emf-converter` 单点登记进 M-01 规则 5）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-07、charter v0.2 §4/§5.2 `slide-render`/`slide-render-chart` 行/§5.5/§6.1 D16、30-architecture `07-rendering.md` §4/§11/§14.1/§14.4、`04-document-model.md` §12.4、`02-layering-and-packages.md` §4.16/§4.16b、40-modules `03-slide-domain-model.md` §2/§6、`06-layout-and-render-engine.md` §2.5/§6/§12/§13、PRD `10-prd/03-features/01-open-and-fidelity.md` OF-07…OF-15、rulings §4.15（Q4/Q7/Q8）、`07-masters-layouts-and-themes.md` ML-01 §3、ADR-0021/0026
 
 # 07 幻灯片渲染（限界上下文 BC-12 幻灯片渲染）
 
@@ -154,6 +154,8 @@ sr -. "SeparateWays 仅共享水平层" .- bc29
 
 **Layer 顺序不变量**：背景独立于三层，恒最先绘制；三层内部顺序固定为 master→layout→slide（普通页上母版 / 版式层只绘制非占位符形状，占位符只经继承链作用于页层，见上表 `occluded`）；同层内形状顺序取自 M-03 的 `(order, id)` 全序，本包不重新排序。母版视图分支（`viewMode==='master'`）由 `domain/compose/compose-master-view.ts` 单独实现：目标为 `LayoutId` 时合成 `{layout: 目标版式, master: 其母版}` 两层并置 `showMasterShapes` 语义；目标为 `MasterId` 时只合成 `{master: 目标母版}` 一层；两种情形均不合成 `slide` 层，占位符渲染为提示框（自带 prompt 或按 `type` 的 i18n 默认文案，04 §12.4）。
 
+**主题预览 `ViewDescriptor.themePreview`（2026-09-26 登记，rulings §4.20 FE-24；行为以 50/11 §9、50/05 为准）**：slide-render 识别 `ViewDescriptor` 的扩展键 `themePreview?: {masterId: MasterId; colors?: Partial<ColorScheme>; fonts?: Partial<FontScheme>}`（M-06 `ViewDescriptor` 以索引签名承载扩展键，engine-render 不感知）：合成时该母版链的主题解析改用覆盖值，只影响渲染——不入 Store、不产生事务、不广播，取消预览即清空该键。单测（`__tests__/master-view.test.ts`）断言渲染取覆盖值且 Store 无事务。
+
 **`viewMode` 取值来源**（2026-09-18，跨模块评审 C-13）：`ComposedSlide.viewMode` 的四个取值 `edit|master|thumbnail|present` 与 `build(unitScope, view: ViewDescriptor)` 传入的 `ViewDescriptor.mode` 一一对应，由**engine-render（M-06）**的 `mapViewMode()` 统一从 ui-core 的 `normal|master|presenter` 映射得出；本包只按 `view.mode` 透传赋值，不重新实现或反向定义该映射（§5.1 `domain/contracts/composed-slide.ts` 备注同步）。
 
 **可访问描述的派生（2026-09-25 登记，50/05 §11，决策 A11Y-TREE）**：`toSceneNodes` 为每个可见元素附 `SceneNode.a11y: A11yDescriptor`（`role`、`name`、`position`、`order{z, placeholder?}`、`missingAlt`、`decorative`；字段与取值以 50/05 §11 为准，`SceneNode.a11y` 是 M-06 `Scene` 契约的类型盲扩展）；**未挂载页**不构建 Scene、不排版、不建 DOM，由 `describeSlideForA11y(slides, slideId)` 以同一派生规则直接读模型生成描述，供 render-dom `a11y-mirror` 覆盖全部已装载页（可访问树不随虚拟化裁剪）；实现文件 `domain/scene/a11y-descriptor.ts`（§4.1）。
@@ -213,7 +215,7 @@ m1m2 -. "拆包演进" .-> m3
 
 | 函数 | 签名（草案） | 所在文件 | 说明 |
 |---|---|---|---|
-| `composeSlide` | `(slides: SlidesService, slideId: SlideId) => ComposedSlide` | `domain/compose/compose-slide.ts` | 普通编辑/放映视图；内部调用 `effectiveBackground`/`matchPlaceholder`（M-03） |
+| `composeSlide` | `(slides: SlidesService, slideId: SlideId) => ComposedSlide` | `domain/compose/compose-slide.ts` | 普通编辑/放映视图；内部调用 `effectiveBackground`/`matchPlaceholder`（M-03）；页 `layoutId` 指向墓碑或不存在的版式时，以 M-03 `defaultLayoutOf(body, {masterId, type})` 的结果替代求值（墓碑期读时容错，不写 Store；硬删时由服务端同事务修复，rulings §4.20 FE-03/FE-04） |
 | `composeMasterView` | `(slides: SlidesService, target: LayoutId \| MasterId) => ComposedSlide` | `domain/compose/compose-master-view.ts` | 母版视图分支（04 §12.4），标注 `inheritedFrom` |
 | `toSceneNodes` | `(composed: ComposedSlide) => SceneNode[]` | `domain/scene/to-scene-nodes.ts` | 约定 `SceneNode.id === shapeId`（§2.6、§12 G-3） |
 | `toLayoutInput` | `(run: ResolvedRunProperties, paragraph: ResolvedParagraphProperties) => TextBodyModel` | `domain/scene/to-layout-input.ts` | 供 `engine-layout.layoutTextBody()` 消费 |
@@ -654,7 +656,7 @@ packages/slide-render-chart/
 |---|---|---|---|---|
 | `domain/contracts/composed-slide.ts` | 合成模型类型 | `ComposedSlide`/`ComposedLayer`/`ComposedElement`、`ThumbnailDescriptor` | `@cordexjs/model-slide`（类型）、`@cordexjs/engine-render`（`SceneNode`类型、`ViewDescriptor`类型） | §2.1/§2.2；`viewMode` 字段值透传自 `ViewDescriptor.mode`，映射函数 `mapViewMode()` 归属 `engine-render`（M-06），本包只消费不重新实现（2026-09-18，C-13） |
 | `domain/contracts/dirty-classification.ts` | 脏区分类与占位符解析值对象 | `PlaceholderResolution`、`DirtyClassificationEntry` | `@cordexjs/model-slide`（`PlaceholderRef`类型） | §2.1/§2.2 |
-| `domain/compose/compose-slide.ts` | 三层合成纯函数（占位符遮蔽 + 背景来源） | `composeSlide` | `domain/contracts/*`、`@cordexjs/model-slide`（`matchPlaceholder`/`effectiveBackground`） | §2.3 |
+| `domain/compose/compose-slide.ts` | 三层合成纯函数（占位符遮蔽 + 背景来源） | `composeSlide` | `domain/contracts/*`、`@cordexjs/model-slide`（`matchPlaceholder`/`effectiveBackground`/`defaultLayoutOf`） | §2.3；引用墓碑版式时读时替代（rulings §4.20 FE-04）；`ViewDescriptor.themePreview` 覆盖值在此处注入主题解析（FE-24） |
 | `domain/compose/compose-master-view.ts` | 母版视图分支合成 | `composeMasterView` | `domain/compose/compose-slide.ts` | 04 §12.4 |
 | `domain/compose/animation-end-state.ts` | 动画结束态按场景：`edit`/`thumbnail`/PDF 全部可见；`present` 时按主序列（`p:timing` 只读保留数据）计算可见性终态 | `resolveEndStateVisibility(view, timing): ReadonlySet<ShapeId>` | `@cordexjs/model-slide`（`p:timing` 只读视图类型） | rulings §4.15 Q7；M2 P1；只读、不编辑动画 |
 | `domain/scene/to-scene-nodes.ts` | `ComposedSlide` → `SceneNode[]` | `toSceneNodes` | `domain/contracts/*`、`@cordexjs/engine-render`（类型） | `SceneNode.id===ShapeId` 约定落地处（§12 G-3） |
@@ -898,7 +900,7 @@ flowchart LR
 |---|---|---|---|
 | unit | `composeSlide`/`composeMasterView`/`classify`/`thumbnailSize`/`resolvePaint` 等纯函数的确定性与边界用例 | `domain/**`（slide-render）、`domain/chart-layout.ts`（chart） | 同级隐式单测，不在 §5 重复标注 |
 | 集成（合成/回收） | 版式切换复用元素实例；z 变化只移动 DOM 节点；共享模板页联动更新 | `__tests__/compose-reconcile.test.ts`、`__tests__/template-cache-eviction.test.ts` | 对齐历史用例（07 §4.3） |
-| 集成（母版视图） | `ViewDescriptor{mode:'master'}` 合成 + 继承覆盖层 + 占位符提示框 | `__tests__/master-view.test.ts` | 04 §12.4、PRD ML-01 |
+| 集成（母版视图） | `ViewDescriptor{mode:'master'}` 合成 + 继承覆盖层 + 占位符提示框；`themePreview` 取覆盖值且 Store 无事务（rulings §4.20 FE-24）；页引用墓碑版式时渲染用 `defaultLayoutOf` 替代版式（FE-04） | `__tests__/master-view.test.ts` | 04 §12.4、PRD ML-01 |
 | 反制（脏区） | `ChangeSet.touched` 按实体类型的 `DirtySet` 归类逐行覆盖（§2.4 表 7 行） | `__tests__/dirty-mapping.test.ts` | 00-module-map §4.2 第 4 条「适配层」职责的直接验证 |
 | 反制（缓存淘汰） | `LayerTemplateCache` 超 32 项后 LRU 淘汰；被淘汰条目下次访问重渲一次 | `__tests__/template-cache-eviction.test.ts` | A29；架构 07 §11「三处 LRU」外的第 4 处（§12 G-7） |
 | 反制（错误隔离） | 元素抛错→占位框+`render/element-failed`（render-dom 兜底）；预期降级→占位框+`render/element-degraded`（本包自发） | `__tests__/degrade.test.ts` | A11、OF-13；§2.4/§12 G-4 |
@@ -906,7 +908,7 @@ flowchart LR
 | 缩略图 | 两种 Provider 去抖、`maxMounted`、切换一致性、脏页驱动更新 ≤500 ms；单页导出 `exportImage` | `__tests__/thumbnails.test.ts` | OF-15 |
 | fixtures | 覆盖每个 `kind` 的最小 `ComposedSlide`/`Scene`；母版继承样例；图表最小夹具 | `testing/index.ts`（两包） | 复用 `@cordexjs/model-slide/testing` 的 body 夹具（03 §9） |
 
-覆盖率与性能预算引用架构 11（`11-testing-strategy.md`，本文档未逐条核对，仅按编号引用）；性能预算断言见 §11 里程碑的验收命令。
+覆盖率门槛与证据归档以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 为准，性能预算以 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引架构 11 改指）；性能预算断言见 §11 里程碑的验收命令。
 
 ---
 
@@ -1035,6 +1037,14 @@ pnpm --filter @cordexjs/slide-render test:visual -- --fixture single-text-slide 
 | 50/05 §11、决策 A11Y-TREE | §2.1、§4.1、§5.1 | 登记 `domain/scene/a11y-descriptor.ts`：`SceneNode.a11y` 派生与未挂载页直接读模型生成描述 |
 | 50/06 §7、§12 | §2.4 | `slide/autofit-changed` 由本包 emit（声明在 M-03），slide-ui 执行 `slide.applyAutofit` |
 | §4.19 事实源分工 | §2 首段 | 渲染行为以 50/05、50/06 为准 |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-03、FE-04 ⑥ | §2.3 `composeSlide` 行、§5 `compose-slide.ts` 行、§9 母版视图测试行 | 页 `layoutId` 指向墓碑版式时以 M-03 `defaultLayoutOf` 替代求值（读时容错，不写 Store） |
+| FE-24 | §2.1 新增「主题预览」段、§5、§9 | 登记 `ViewDescriptor.themePreview?: {masterId; colors?; fonts?}`：只影响渲染、不入 Store、不广播、取消即清空 |
+| TX-10 ⑤ | §9 末段 | 覆盖率与性能预算改指 70/01 §8 与 70/09 |
 
 ## 13. 未决问题
 

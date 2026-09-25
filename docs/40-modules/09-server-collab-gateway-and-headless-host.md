@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；30-architecture/08-backend-nestjs.md §1/§2/§3.1/§3.3/§4/§5/§8/§9/§11/§16.1–16.5；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；30-architecture/08-backend-nestjs.md §1/§4/§8/§9/§11/§16.1–16.5；60-backend/05、11、16（原 30/08 §2、§3.1、§3.3、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
 
 # 09 服务端协同网关与 Headless 宿主（限界上下文 BC-21 协同网关与持久化、BC-22 快照与版本、BC-27 Headless 渲染与批处理宿主）
 
@@ -289,7 +289,7 @@ storagePkg -- "ctx.blobStore 读取面" --> hostSvc
 | 编排式清理协同数据（document-purge 参与者 `collab`） | `collab/application/purge-collab-data.usecase.ts` | 60/05 §12；[60/04 §4](../60-backend/04-modules-documents-storage-media.md) |
 | headless 任务执行（`withUnit`，按 `documentType` 经 `formats` 取 codec） | `server-headless/domain/unit-runner.ts` + `application/tasks/*.ts` | [60/06 §8](../60-backend/06-modules-jobs-import-export-thumbnails.md) |
 
-恢复的撤销语义另立专项 `version-restore-undo`（rulings §4.12 U-07，本文 §13 Q-9；60/05 §11 占位）。
+恢复的撤销语义另立专项 `version-restore-undo`（rulings §4.12 U-07，本文 §13 Q-9；60/05 §11 占位），2026-09-26 登记为 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议，M2 出口评审前定稿，rulings §4.20 TX-01+BE-10）。
 **图 2-4 update 接收与扇出**
 
 ```mermaid
@@ -566,7 +566,7 @@ apps/server/src/modules/collab/
 │       ├── redis-spill.store.ts            # SpillStore 一级 Provider：Redis 有界列表
 │       └── blob-spill.store.ts             # SpillStore 二级 Provider：ctx.blobStore 分块
 ├── interface/                              # 外部世界进入本模块的唯一入口
-│   ├── collab.gateway.ts                   # WS Gateway：连接计数/IP 限流/首帧 5 s 超时，把 socket 交给 RoomManager.attach()
+│   ├── collab.gateway.ts                   # WS Gateway：连接计数/IP 限流（Origin 通过后、升级前扣 1，票据验签通过即退还）/每用户单实例并发上限（limits.ws.maxConnectionsPerUser，超限 auth.denied{collab.rate_limited} + 4429）/首帧 5 s 超时，把 socket 交给 RoomManager.attach()（限额口径 60/16 §1、§13，§4.20 BE-01+TX-03）
 │   ├── ws-connection.adapter.ts            # ws.WebSocket → server-collab ServerConnection 契约
 │   ├── ticket-verifier.ts                  # JWT 验签（M-08 票据验签面）+ jti 防重放（Redis SETNX）+ permVersion 比对 + purging 拒绝 + 记录 lnk
 │   └── element-purge.controller.ts         # POST /documents/:id/elements/purge{ids}（相对 /api/v1；DocumentRoleGuard doc.manage 即仅 owner；新增，§4.18 CO-07）
@@ -676,7 +676,7 @@ packages/server-collab/
 │   │   ├── snapshot/
 │   │   │   └── snapshot.service.ts         # 命名快照 + restore：解析目标 → commands.execute('core.restoreVersion')
 │   │   └── awareness/
-│   │       └── awareness-relay.ts          # 服务端 Awareness 实例；新加入者拿全量；断开即移除广播
+│   │       └── awareness-relay.ts          # 服务端 Awareness 实例；新加入者拿全量；断开即移除广播；满员合并 tick（60/16 §7）
 │   ├── infrastructure/
 │   │   └── telemetry.ts                    # span/metric 常量（本包自身无 pg/redis 依赖，全部经 inject 获得）
 │   ├── interface/                          # 外部世界进入本包的唯一入口
@@ -762,7 +762,7 @@ packages/server-headless/
 | `infrastructure/redis-membership-registry.ts` | `MembershipRegistry` Provider（2026-09-25 登记） | `RedisMembershipRegistry` | `ioredis`（Lua 原子判定） | 60/05 §2.2、§4.2；键 `room:{docId}:members`、`instance:{instanceId}:alive`（决策 C-11） |
 | `infrastructure/spill/redis-spill.store.ts` | `SpillStore` 一级 Provider（新增，S-3） | `RedisSpillStore` | `ioredis` | §3.4；`writeTier1` |
 | `infrastructure/spill/blob-spill.store.ts` | `SpillStore` 二级 Provider（新增，S-3） | `BlobSpillStore` | `ctx.blobStore` | §3.4；`writeTier2`/`readAllOrdered`/`clear` |
-| `interface/collab.gateway.ts` | WS Gateway | `CollabGateway` | `@nestjs/websockets`、`ws-connection.adapter.ts` | 路由 `/collab/v1/rooms/:documentId` |
+| `interface/collab.gateway.ts` | WS Gateway | `CollabGateway` | `@nestjs/websockets`、`ws-connection.adapter.ts` | 路由 `/collab/v1/rooms/:documentId`；升级限流「先扣后退加上限」（2026-09-26，rulings §4.20 BE-01+TX-03）：Origin 通过后、升级前从 IP 桶扣 1，票据验签通过即退还（之后被 4503/4404/4426/4428 等准入拒绝也已退还），4401、4408、4427 与升级后未认证就断开的不退；另以进程内计数实施每用户单实例并发上限 `limits.ws.maxConnectionsPerUser`（默认 32），超出回 `auth.denied{collab.rate_limited}` 并以 4429 关闭；IP 取 `clientIp()`（与 REST 同算法同配置）；数值与判定顺序以 60/16 §1、§12、§13 为准 |
 | `interface/ws-connection.adapter.ts` | 连接适配 | `WsConnectionAdapter` | `ws`、`server-collab`（`ServerConnection` 类型） | — |
 | `interface/ticket-verifier.ts` | 票据校验 | `TicketVerifier` | M-08 `AuthModule` 导出的票据验签面（`JwtService`，JWKS 公钥）、Drizzle（只读 `documents.status`，BE-15）、`ioredis`（SETNX） | ADR-0029；`purging` 文档拒绝（BE-15）；记录 `lnk`（BE-02）；imports 已补（BE-07） |
 | `interface/element-purge.controller.ts` | REST 端点（新增，§4.18 CO-07） | `ElementPurgeController` | `@cordexjs/protocol` `rest/documents.ts`、M-08 `DocumentRoleGuard` | `POST /documents/:id/elements/purge{ids}`（相对 `/api/v1`）；`doc.manage` 即仅 owner；反代转 collab |
@@ -847,7 +847,7 @@ packages/server-headless/
 | `application/persistence/replay-spilled.usecase.ts` | 恢复后回放（新增，S-3；2026-09-24 S-3a） | `ReplaySpilledUseCase` | `SpillStore`/`UpdateStore`/`LeaseLock`（注入） | §2.6；只读本实例行（`readAllOrdered(docId, instanceId)`），过期实例遗留行持 `lock:spill:{doc}` 认领；正式 `seq` 由 PG 分配，补发 `ack{seq,tier:'db'}`（原会话已断开即丢弃），断言无 `pendingStructs` 后 `SpillStore.clear`；全程 Room 保持 `active`（rulings §4.18 CO-15/CO-16/CO-10） |
 | `application/persistence/tombstone-sweeper.ts` | 墓碑 TTL 硬删除（新增，rulings §4.15 Q3） | `TombstoneSweeper` | `LeaseLock`（注入）、`@cordexjs/model-core`（`commands`） | §2.6；服务端单写者，`origin=system('maintenance')`；墓碑硬删除唯一执行者（复核 H2）；`purgeNow(docId, ids)` 供「彻底删除元素」复用同一事务（rulings §4.18 CO-07） |
 | `application/snapshot/snapshot.service.ts` | 命名快照 + 恢复 | `SnapshotService` | `@cordexjs/model-core`（`commands.execute`） | §2.6 核心 |
-| `application/awareness/awareness-relay.ts` | Awareness 中继 | `AwarenessRelay` | `y-protocols`（awareness 编码）、`@cordexjs/collab-core`（awareness 模型与校验契约，FE-15；不复用 `collab-yjs` Provider） | §7.1（06 号文档） |
+| `application/awareness/awareness-relay.ts` | Awareness 中继；房间在线 ≥ `awarenessTickThreshold`（20）时按 `awarenessTickMs`（100 ms）合并下发（满员合并 tick 不另建文件，语义以 60/16 §7 为准；2026-09-26，rulings §4.20 BE-11+TX-12） | `AwarenessRelay` | `y-protocols`（awareness 编码）、`@cordexjs/collab-core`（awareness 模型与校验契约，FE-15；不复用 `collab-yjs` Provider） | §7.1（06 号文档） |
 | `infrastructure/telemetry.ts` | 遥测常量 | span/metric 名常量 | kernel `telemetry`（类型） | 本包无 pg/redis |
 | `interface/contracts/connection.ts` | `ServerConnection` 契约 | `ServerConnection` | 无 | §2.5 |
 | `interface/frame-router.ts` | 信封解码与分派 | `FrameRouter` | `@cordexjs/protocol`（`ws/frames`）、`../domain/gate/hard-gate` | 外部字节唯一入口 |
@@ -1007,7 +1007,7 @@ apps/server/
 
 > 部署口径（2026-09-24，rulings §4.15 Q10）：「Redis」在本文档指 Redis 协议——自托管 compose 部署为 **Valkey**；Postgres 基线 18；对象存储 S3 兼容端为 **SeaweedFS**（替换 MinIO）；镜像基线 Node 26。`collab`/`renderer` 角色经同一镜像 `CORDEX_ROLE` 环境变量切换（`config/roles.ts`，M-12）。
 
-> 覆盖率与性能预算引用 §11 验收命令与架构 08 §12（预算与测量表）；软门禁 p95 ≤ 5 ms、update 处理 p95 ≤ 20 ms、Room bootstrap p95 ≤ 500 ms@8MB 等预算由 `test/perf/budgets.json`（M-01 骨架）承接。
+> 覆盖率与性能预算以 [60/01 §12](../60-backend/01-service-overview-and-roles.md)（服务端预算总览）与 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引已删的架构 08 §12 改指）；软门禁 p95 ≤ 5 ms、update 处理 p95 ≤ 20 ms、Room bootstrap p95 ≤ 500 ms@8MB 等预算由 `test/perf/budgets.json`（70/09 §2）承接。
 
 ## 10. 机械约束
 
@@ -1048,7 +1048,7 @@ apps/server/
 
 ### M3 展望（多人协同体验层与规模化，不在本模块 M0/M2 交付范围）
 
-- **版本历史**（PRD CO-07，P1）：命名版本、版本列表与恢复（`create-named-snapshot`/`list-snapshots`/`restore-snapshot` 三个用例与 `snapshot-restore.e2e-spec.ts`：命名快照 → 继续编辑 → 恢复 → 两个在线客户端**不断连**且收敛为目标快照；依赖 M-02 `core.restoreVersion` 与 `version-restore-undo` ADR，rulings §4.12 U-07）；版本保留按 rulings §4.19 C-06（图 2-1）。
+- **版本历史**（PRD CO-07，P1）：命名版本、版本列表与恢复（`create-named-snapshot`/`list-snapshots`/`restore-snapshot` 三个用例与 `snapshot-restore.e2e-spec.ts`：命名快照 → 继续编辑 → 恢复 → 两个在线客户端**不断连**且收敛为目标快照；依赖 M-02 `core.restoreVersion` 与 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（M2 出口评审前定稿，未定稿则本项不开工，rulings §4.12 U-07、§4.20 TX-01+BE-10）；版本保留按 rulings §4.19 C-06（图 2-1）。
 - **权限细化**：链接会话重算与到期降权（BE-02，随 M-08 分享链接）；降权即时生效与被拒回滚的多人场景。
 - **彻底删除元素**：`POST /documents/:id/elements/purge`（CO-07，复用 M2 已交付的 `tombstone-sweeper` 单写者）。
 - **编排式硬删除清理**（S-2/BE-15）：`purgeAll(docId)` 与 `purge-collab-data.usecase.ts`，随「永久删除文档」（60/15 §3.3，M3）；验收：与 M-08/M-12 联调端到端级联清理（SV-11），在线编辑中立即删除后无 update 落库。
@@ -1067,7 +1067,7 @@ apps/server/
 | G-18 | module-map §8 G-1、08-backend-nestjs §16.1 S8 | `server-collab` 的 cordis 形态在 02-layering §4.22 标"library"，08 §16.1 提案"library + plugin" | 本文档 §0/§3.1 直接采纳"library + plugin"（既是可被 Nest 解耦调用的函数库，又经 `plugin.ts` 提供 `collabServer` 服务），视为对 module-map G-1/Q-M1 类问题在本模块范围内的落地确认，不是新差异，特此记录采纳事实 |
 | G-19（新增建议） | ADR-0023 v0.2 补充 | 存在"集成方签名 JWT（≤ 1 h，JWKS 验签，claims `sub/tenant/doc/caps[]/exp`）直接放入 `auth` 帧"的第二条鉴权路径（EM-03）；**2026-09-24 rulings §4.15 Q6/T-0 覆盖**：集成方签名 JWT 降为 M4（届时 JIT 建影子用户），claims 去 `tenant`，M1–M3 WS 只认一方 ticket，与常规 60 s 单次 ticket 并列；本文档 §4.1/§5.1 对 `interface/ticket-verifier.ts` 的职责描述只概括为"票据校验" | 建议实现期把 `ticket-verifier.ts` 显式拆成两个校验分支（一方 ticket / 集成方 JWT），`domain/collab-principal.ts` 的 `CollabPrincipal` 值对象需要区分两种来源，否则容易在实现时遗漏第二条路径 |
 | G-20 | `30-architecture/08-backend-nestjs.md` §13 B5 vs ADR-0025 决策 5、PRD CO-07 | 08 §13 B5 单独写"`document_updates` 保留期 7 天（待决）"，容易让人误以为整个版本历史只保留 7 天；ADR-0025 决策 5 与 PRD CO-07 清楚区分"update 追加日志 7 天"与"`auto` 快照 30 天后按天稀疏化 + `named` 快照永久"两层保留策略 | 本文档 §2.1/§2.2 已明确写出两层；建议 08 号文档在 B5 旁加一句指路到 ADR-0025 决策 5，避免读者只读到"7 天"就误解整体版本历史保留期 |
-| G-21（新增建议） | `10-prd/03-features/03-collaboration.md` CO-07 vs `40-modules/02-kernel-protocol-and-document-core.md` §13 Q-2 | PRD CO-07 验收标准原文"恢复……因此可撤销"，与 M-02 §13 Q-2 选定 `core.restoreVersion` 用 `origin:system('restore')`（**不**进入标准撤销栈）之间存在字面张力 | **转专项设计 `version-restore-undo`（2026-09-19，rulings §4.12 U-07）**：本文档 §2.6 曾给出的务实折中（恢复前落一个可回退的 `auto` 快照变相撤销）与"进本地撤销栈"两个简单方案均已否决；改由 M-02 × M-05 × M-09 联合专项设计，M3 前出 ADR，需回答多人协同下他人已在恢复后内容继续编辑时如何回退、是否引入受保护的"恢复事务"与二次确认、与 CRDT 合并/快照链的关系（本文档 §13 Q-9） |
+| G-21（新增建议） | `10-prd/03-features/03-collaboration.md` CO-07 vs `40-modules/02-kernel-protocol-and-document-core.md` §13 Q-2 | PRD CO-07 验收标准原文"恢复……因此可撤销"，与 M-02 §13 Q-2 选定 `core.restoreVersion` 用 `origin:system('restore')`（**不**进入标准撤销栈）之间存在字面张力 | **转专项设计 `version-restore-undo`（2026-09-19，rulings §4.12 U-07）**：本文档 §2.6 曾给出的务实折中（恢复前落一个可回退的 `auto` 快照变相撤销）与"进本地撤销栈"两个简单方案均已否决；改由 M-02 × M-05 × M-09 联合专项设计，M3 前出 ADR，需回答多人协同下他人已在恢复后内容继续编辑时如何回退、是否引入受保护的"恢复事务"与二次确认、与 CRDT 合并/快照链的关系（本文档 §13 Q-9）。**→ 2026-09-26**：随 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 结案（rulings §4.20 TX-01+BE-10） |
 | G-22（新增建议） | `30-architecture/08-backend-nestjs.md` §2（`SnapshotsController` 路由列举） | 08 §2 列举的 `snapshots.controller.ts` 路由（列表/`latest`/`:id`/命名/恢复）不含"版本对比"端点 | 本文档 §4.2/§5.2 新增 `diff-snapshots.usecase.ts` 与隐含的 `GET .../:a/diff/:b`，承接 PRD CO-07"可对比（元素级增删改高亮，P2）"验收标准；标记"新增建议"，P2 优先级，不阻塞 §11 M2 验收范围 |
 | G-23（S-2 落地） | `40-modules/15` §3.3（严重）；rulings §4.13 S-2 | SV-11 硬删除级联与 GDPR 擦除无模块归属 | **已落地（2026-09-21，M-09 部分）**：`UpdateStore`/`SnapshotStore` 契约新增 `purgeAll(docId)`（§2.5）；`PgUpdateStore`/`PgSnapshotStore` 补实现（§4.1/§5.1）；`collab/application/purge-collab-data.usecase.ts` 订阅 M-08 编排信号（§2.6/§4.1/§5.1）；§7.3 边界表新增一行；M-08/M-12 部分由对应回写员落地。**→ 2026-09-25**：「订阅编排信号」改为作为 document-purge 参与者被调用（rulings §4.18 BE-15） |
 | G-24（S-3 落地） | `40-modules/15` §3.7（有问题）；rulings §4.13 S-3 | Room 在 Postgres 持续故障下的内存背压无硬上限，理论上可致单实例 OOM 波及其它文档 | **已落地（2026-09-21）**：不拒绝新编辑，改为两级溢写——`domain/gate/spill-policy.ts` 纯函数判定档位（§2.3），`SpillStore` Definition（§2.5）+ `RedisSpillStore`/`BlobSpillStore` 两个 Provider（§3.4/§4.1/§5.1），`application/persistence/{spill-coordinator,replay-spilled.usecase}.ts` 编排溢写与回放（§2.6/§4.4/§5.4），`Room` 聚合新增 `pendingBytes`/`spillTier` 字段（§2.1）；里程碑落 M3（§11） |
@@ -1157,6 +1157,14 @@ apps/server/
 | C-27 | `RenderPageProtocol` 三个 schema 改由 `@cordexjs/protocol/render/page`（M-02）定义；本模块 `render-page-protocol.ts` 降为薄适配层 | §2.5、§4.5、§5.5 |
 | C-07 | 装配运行时（`PresetEntry`/`mountEntries` 等）收编进 `@cordexjs/kernel/preset` | 本文件未引用该装配运行时（`preset-server.ts` 是服务端插件束装配，与 C-07 所指的客户端 `assembly/` 无关），无需改动 |
 
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| TX-01+BE-10（U-07 联合 ADR 立项） | §13 Q-9（及「Q-9 预留」行） | 改为随 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 结案：M2 出口评审前定稿，未定稿则 M3 版本恢复不开工 |
+| BE-01+TX-03（WS 升级限流） | §4.1 `collab.gateway.ts`、§5.1 同名行 | 先扣后退：升级前扣、票据验签通过即退；每用户单实例并发上限 32，超出 `auth.denied{collab.rate_limited}` + 4429；数值以 60/16 为准 |
+| TX-10 ⑤ | §9 末段 | 覆盖率与性能预算改指 60/01 §12 与 70/09 |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
@@ -1169,6 +1177,6 @@ apps/server/
 | Q-6 | ~~`apps/server/src/cordis-host` 物理归属本模块（继承 08 §7 G-11）是否需要总编排在 00-module-map §7 表格显式确认~~ **（结案，2026-09-18）** | 确认归属本模块（已在 §0/§1.3/§4.3 落地）。**结案依据**：跨模块评审 C-10 裁定归 M-09，00-module-map §7 M-09 行"覆盖的包与目录"补 `cordis-host/**`、M-12 行加注"引用非新增"（由总编排回写 00） | `00-module-map.md` §7 表格 M-09 行的"覆盖的包与目录"列 |
 | Q-7 | `domain/gate/soft-gate.ts`/`repair-planner.ts` 遍历 `DocumentType.invariants` 的方式目前是本模块自行实现循环，是否应由 M-02 在 `model-core` 提供统一的 `runInvariants(documentType, body)`/`repairInvariants(documentType, violations, body)` 两个薄封装纯函数 | 建议 M-02 补齐（避免本模块与未来其他消费方如 CLI 校验工具各自重复遍历逻辑）；本文档 M0/M2 范围内先自行实现，接口收敛后再替换 | M-02 `model-core/src/document-type/` 或 `invariant/` 目录；本模块 `domain/gate/soft-gate.ts` |
 | Q-8 | "恢复前自动快照"（§2.6 恢复流程注记）的精确触发阈值 | 复用 `compaction-policy.ts` 的 `shouldCompact()` 判定，不新增独立阈值参数 | `snapshots/application/restore-snapshot.usecase.ts` |
-| （Q-9 预留） | — | G-21/§2.6 恢复流程注记提及"本文档 §13 Q-9 记录"`version-restore-undo` 专项设计（rulings §4.12 U-07，M-02×M-05×M-09 联合 ADR），但该行此前未实际创建；本次回写核对后确认编号占位仍待联合 ADR 产出时一并补齐，不由本次 S-2/S-3 评审回写员代填 | `snapshots/application/restore-snapshot.usecase.ts` |
+| （Q-9 预留） | — | G-21/§2.6 恢复流程注记提及"本文档 §13 Q-9 记录"`version-restore-undo` 专项设计（rulings §4.12 U-07，M-02×M-05×M-09 联合 ADR），但该行此前未实际创建；本次回写核对后确认编号占位仍待联合 ADR 产出时一并补齐，不由本次 S-2/S-3 评审回写员代填。→ 2026-09-26：编号已由本表下方 Q-9 行使用，随 ADR-0038 结案（rulings §4.20 TX-01+BE-10） | `snapshots/application/restore-snapshot.usecase.ts` |
 | Q-10 | ~~Room 在 Postgres 持续故障下的内存背压无硬上限：已在线 Room 是否应在超限后拒绝新编辑（体验降级但安全），还是维持无上限攒积（体验不降级但有 OOM 风险，可能波及同实例其它文档房间）（评审 40-modules/15 §3.7，有问题）~~ **（结案，2026-09-21）** | **不拒绝新编辑**，改为两级溢写背压：超一级阈值溢写 Redis，超二级阈值分块落 `BlobStore`；PG 恢复后按 `seq` 顺序回放到 `document_updates`。**结案依据**：用户裁决 rulings §4.13 S-3，落地见 §1.1/§2.1/§2.3/§2.5/§2.6/§3.1/§4.1/§4.4/§5.1/§5.4/§7.3/§11/§12 G-24 | `server-collab/domain/room.ts`；`server-collab/domain/gate/spill-policy.ts`；`collab/infrastructure/spill/*.ts` |
-| Q-9 | ~~PRD CO-07"可撤销"与 `core.restoreVersion` 的 `origin:system('restore')` 不进入标准撤销栈之间的张力（G-21）~~ **（转专项设计，2026-09-19）** | §2.6 的务实折中（恢复前落一个可回退的 `auto` 快照变相撤销）与"进本地撤销栈"均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR） | M-02 `command/builtin/restore-version-command.ts`、`store/origin.ts`；本模块 `snapshot.service.ts`；ADR（待建） |
+| Q-9 | ~~PRD CO-07"可撤销"与 `core.restoreVersion` 的 `origin:system('restore')` 不进入标准撤销栈之间的张力（G-21）~~ **（转专项设计，2026-09-19）** | §2.6 的务实折中（恢复前落一个可回退的 `auto` 快照变相撤销）与"进本地撤销栈"均已否决（rulings §4.12 U-07）；**转专项设计 `version-restore-undo`**（M-02 × M-05 × M-09，M3 前出 ADR）。**随 ADR-0038 结案（2026-09-26，rulings §4.20 TX-01+BE-10）**：专项登记为 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议；M-02 主笔，M-05、M-09 会签，70/05 出 `rs/restore-revert-*` 场景），M2 期间起草、M2 出口评审前定稿，未定稿则 M3 版本恢复（CO-07）不开工；起草基线：持有 Room 的实例内单事务、不加锁、走命令管线（不用 `revertTo`），「他人后写」按当前值是否仍出自恢复事务的 struct 范围判断，恢复时删掉的元素以原 id 复活；本模块已预留的 `RestoreResult.preRestoreSnapshotId`/`seqRange` 与恢复前 auto 快照链是其数据来源；「谁能撤销」「可撤销时效」在 ADR 定稿时交互拍板 | M-02 `command/builtin/restore-version-command.ts`、`store/origin.ts`；本模块 `snapshot.service.ts`；ADR-0038 |

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：Q3 Yjs 13.6.x 精确锁版本、撤销语义统一（§2.2、§8 #2/#3/#10/#11）、软删除墓碑 + TTL；S-3a 两级 ack（§6.3/§6.4）；Q5 房间按文档实测权重准入、内存按实测（§9.1、§14）；T-0 去租户（§12、§18.6）；Q10 Valkey；Q9 Node 26）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素（§2.2、§8 #10）；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}`、单独统计；M1 ack 帧形状以 M-02 为准；M3 撤销契约用例名照抄 M-02 §2.5；M20 P1/P2 标注 Q16/Q17 已裁决、local-batcher 注释补 tier；M21 删「≥ 200 活跃房间」）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：UX-03 离线判据改按时间 30 s（`offlineAfterMs`）、CO-03 offline 后 30 s 周期重连（§4.3、§5.1、§12）；UX-02 令牌刷新按原因分流、401 直接进「登录已过期」（§18.3）；CO-08 PG 故障降级期照常广播（§6.4）；CO-09 ack 在途 FIFO 对应、CO-10 step2 视同一帧与超限拆块（§6.3、§6.4、§9.3、§12）；CO-14 空闲房间 LRU 提前回收、CO-16 PG 不可达收尾与遗留溢写回放（§5.2、§6.4、§14）；BE-29 实例内存预算定义（§14）；BE-02 票据 `lnk` 与链接角色重算、BE-23 权限 REST 动词、BE-11 `/api/v1` 前缀（§5.3、§10）；CO-07 术语「彻底删除元素 / 永久删除文档」（§8、§18.1）；CO-20 P8 已裁决（§11、§15、§18.5）；GV-20 契约套件名（§3.2、§4.2）；CO-15 回放期 Room 保持 active、BE-15 purging 拒绝加入（§5.2）；CO-12 协同模式不走 Worker 分批打开（§9.1）；GV-15 `index` 字段检查改指 lint `cordex/no-index-in-mutation`（§1、§17））；2026-09-25（§4.19：D-M2-CONTENT 网关 / Room / 持久化 / 快照随协同后端提前到 M2、M3 保留多人体验层（§0.1）；INC-02~07 CONTROL 成员与判别键 `type`、`auth.epoch` / `maxSchemaVersion`、`auth.ok.reason` 拆 `capacity` / `over_ceiling`、`room.locked`、`event version.restored`、关闭码 1011 / 4427 / 4428（§6.3、§6.5）；INC-09 `room.persist` 与「未保存到服务器」判据（§6.4）；INC-27 `auth.refresh{ticket}` 只重新绑定（§18.3）；SYNC 写入门槛 ≥ commenter + L4 路径限制（§10、§11，D-COMMENTS-PKG）；§8 #1 prop-lww 提示；INC-21 媒体端点（§9.1）；C-06 快照保留（§15 P2）；§5.1 状态机迁 50/07；§4.2 删 `createCollabCluster` / `NetworkModel`（T-NAMING）；各节加 50 / 60 线落点链接）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：锁定窗口收窄为覆盖导入与迁移、覆盖导入换纪元、版本恢复不锁（§6.3、§6.5、§9.4、§15 P5、§18.4）） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：Q3 Yjs 13.6.x 精确锁版本、撤销语义统一（§2.2、§8 #2/#3/#10/#11）、软删除墓碑 + TTL；S-3a 两级 ack（§6.3/§6.4）；Q5 房间按文档实测权重准入、内存按实测（§9.1、§14）；T-0 去租户（§12、§18.6）；Q10 Valkey；Q9 Node 26）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素（§2.2、§8 #10）；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}`、单独统计；M1 ack 帧形状以 M-02 为准；M3 撤销契约用例名照抄 M-02 §2.5；M20 P1/P2 标注 Q16/Q17 已裁决、local-batcher 注释补 tier；M21 删「≥ 200 活跃房间」）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：UX-03 离线判据改按时间 30 s（`offlineAfterMs`）、CO-03 offline 后 30 s 周期重连（§4.3、§5.1、§12）；UX-02 令牌刷新按原因分流、401 直接进「登录已过期」（§18.3）；CO-08 PG 故障降级期照常广播（§6.4）；CO-09 ack 在途 FIFO 对应、CO-10 step2 视同一帧与超限拆块（§6.3、§6.4、§9.3、§12）；CO-14 空闲房间 LRU 提前回收、CO-16 PG 不可达收尾与遗留溢写回放（§5.2、§6.4、§14）；BE-29 实例内存预算定义（§14）；BE-02 票据 `lnk` 与链接角色重算、BE-23 权限 REST 动词、BE-11 `/api/v1` 前缀（§5.3、§10）；CO-07 术语「彻底删除元素 / 永久删除文档」（§8、§18.1）；CO-20 P8 已裁决（§11、§15、§18.5）；GV-20 契约套件名（§3.2、§4.2）；CO-15 回放期 Room 保持 active、BE-15 purging 拒绝加入（§5.2）；CO-12 协同模式不走 Worker 分批打开（§9.1）；GV-15 `index` 字段检查改指 lint `cordex/no-index-in-mutation`（§1、§17））；2026-09-25（§4.19：D-M2-CONTENT 网关 / Room / 持久化 / 快照随协同后端提前到 M2、M3 保留多人体验层（§0.1）；INC-02~07 CONTROL 成员与判别键 `type`、`auth.epoch` / `maxSchemaVersion`、`auth.ok.reason` 拆 `capacity` / `over_ceiling`、`room.locked`、`event version.restored`、关闭码 1011 / 4427 / 4428（§6.3、§6.5）；INC-09 `room.persist` 与「未保存到服务器」判据（§6.4）；INC-27 `auth.refresh{ticket}` 只重新绑定（§18.3）；SYNC 写入门槛 ≥ commenter + L4 路径限制（§10、§11，D-COMMENTS-PKG）；§8 #1 prop-lww 提示；INC-21 媒体端点（§9.1）；C-06 快照保留（§15 P2）；§5.1 状态机迁 50/07；§4.2 删 `createCollabCluster` / `NetworkModel`（T-NAMING）；各节加 50 / 60 线落点链接）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：锁定窗口收窄为覆盖导入与迁移、覆盖导入换纪元、版本恢复不锁（§6.3、§6.5、§9.4、§15 P5、§18.4））；2026-09-26（§4.20）（BE-01+TX-03：§6.3 `auth.denied` 增 `collab.rate_limited`（→ 4429）、握手图与判定顺序补「先扣后退」IP 限流与每用户单实例连接上限，§6.5 4429 行同步；FE-04：§8 #3 注明「引用者视为已删除」限于包含关系） | 依赖：charter v0.1
 
 # 06 协同（Collaboration）：CRDT 映射、同步协议、房间与会话、presence、离线、权限即时性、冲突语义
 
@@ -629,7 +629,7 @@ byte 1..      : payload
 |---|---|---|---|
 | C→S | `auth` | `ticket, protocolVersion: 1, clientId: number(Yjs clientID), capabilities: string[], appVersion, epoch?: number, maxSchemaVersion: number, traceparent?` | 连接后首帧；5 s 内未到 → 关闭 4408。`epoch` 是客户端本地状态所属的文档纪元（取自 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 或 OfflineStore `meta.epoch`；无本地状态时省略）；`maxSchemaVersion` 是客户端支持的最高文档 schema。服务端按「协议版本 → 票据 → 纪元 → schema」顺序判定（60/16 §12）。`documentId` 由 URL 给出，`roomId` 不上线 |
 | S→C | `auth.ok` | `sessionId, role, serverSeq, schemaVersion, limits{maxUpdateBytes, msgRateHz, msgBurst}, serverTime, reason?: 'capacity' \| 'over_ceiling'` | 成功后客户端才发 SYNC。`limits` 以服务端配置为准，客户端 `maxUpdateBytes` 配置只是收到本帧前的兜底（决策 INC-07，废 `updateRateHz`）。`reason` 只在只读降级加入时出现：`capacity` = 编辑者名额满（§14），`over_ceiling` = 部署调低天花板后文档超限、只读打开；二者客户端文案不同 |
-| S→C | `auth.denied` | `code: 'collab.unauthenticated' \| 'collab.forbidden' \| 'collab.doc_not_found' \| 'collab.doc_purging' \| 'collab.schema_too_new' \| 'collab.protocol_mismatch' \| 'collab.epoch_changed' \| 'collab.room_full'` | 之后按 §6.5 关闭：4401 / 4403 / 4404（含 `doc_purging`）/ 4426 / 4427 / 4428 / 4503 |
+| S→C | `auth.denied` | `code: 'collab.unauthenticated' \| 'collab.forbidden' \| 'collab.doc_not_found' \| 'collab.doc_purging' \| 'collab.schema_too_new' \| 'collab.protocol_mismatch' \| 'collab.epoch_changed' \| 'collab.room_full' \| 'collab.rate_limited'` | 之后按 §6.5 关闭：4401 / 4403 / 4404（含 `doc_purging`）/ 4426 / 4427 / 4428 / 4503 / 4429。`collab.rate_limited`（2026-09-26，rulings §4.20 BE-01+TX-03）只在握手期出现：票据验签通过后，同一用户在本实例的连接数超过 `limits.ws.maxConnectionsPerUser`（默认 32）即拒绝；protocol `ws/handshake.ts` 的 code 联合同步 |
 | C→S | `auth.refresh` | `ticket` | 客户端新换的 collab ticket（`POST …/collab-ticket`）；服务端验签、`jti` 单次、`sub` / `doc` / `sid` 与当前会话一致后**重新绑定**会话并重算角色（变化则发 `permission`），失败关闭 4401。M1–M3 的 WS 会话寿命 = 票据 `sid` 指向的登录会话，本帧不延长寿命、成功不回应答帧；M4 集成方 JWT 复用本帧，以新 JWT 的 `exp` 续期（决策 INC-27，ADR-0029 修订 2026-09-25） |
 | S→C | `permission` | `role, reason: 'granted' \| 'revoked' \| 'changed', permVersion` | 权限即时生效（§10）；帧名是 `permission`（`permission/changed` 只是客户端 cordis 事件，INC-02） |
 | S→C | `ack` | `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq: number}`（形状以 40-modules/02 `ws/frames.ts` 为准，不含 `count`/`localCounter`） | 两级 ack（rulings §4.15 S-3a）：服务端对每个入站 update 帧（含重连的 SyncStep2，§6.4）按到达顺序恰好回一帧 `tier:'db'`，带**该帧落库时分配的 seq**（逐帧应答，不是累计确认；at-least-once 保证的可观察点，客户端以在途 FIFO 队首对应并清 pending，§6.4）；`tier:'spill'` 表示 PG 故障期已写入溢写存储，无 seq，客户端**保留** pending、不据它做对应 |
@@ -651,7 +651,8 @@ sequenceDiagram
   participant VK as Valkey
   participant RM as RoomManager
   C->>G: WS 升级 /collab/v1/rooms/:documentId
-  G->>G: 连接计数、IP 限流、启动首帧 5 s 计时
+  G->>VK: Origin 通过后、升级前从 IP 令牌桶扣 1，先扣后退
+  G->>G: 连接计数、启动首帧 5 s 计时
   alt 5 s 内未收到 CONTROL.auth
     G-->>C: 关闭 4408
   else 收到首帧
@@ -662,6 +663,8 @@ sequenceDiagram
     TV->>VK: jti 防重放，SETNX 60 s
     TV->>VK: 对比 permVersion，与最新值不同则以库为准
     TV-->>G: claims：sub、doc、role、permVersion，可选 sid 与 lnk
+    G->>VK: 票据验签通过即退还 IP 令牌，之后被准入规则拒绝也已退还
+    G->>G: 本用户在本实例的连接数不超过 maxConnectionsPerUser，否则 auth.denied rate_limited
     G->>RM: attach connection 与 ticketClaims，比对纪元与 schema
     alt 准入成功
       RM-->>C: CONTROL.auth.ok{sessionId, role, serverSeq, schemaVersion, limits, serverTime, reason?}
@@ -669,12 +672,12 @@ sequenceDiagram
     else 拒绝
       RM-->>C: CONTROL.auth.denied{code}
       Note over C,RM: unauthenticated→4401，forbidden→4403，doc_not_found 与 doc_purging→4404，schema_too_new→4426
-      Note over C,RM: protocol_mismatch→4427，epoch_changed→4428，room_full→4503
+      Note over C,RM: protocol_mismatch→4427，epoch_changed→4428，room_full→4503，rate_limited→4429
     end
   end
 ```
 
-怎么读：两层 `alt` 分别是「首帧是否按时到达」与「鉴权和准入是否通过」；拒绝时先回 `auth.denied` 再按注记里的 code→关闭码映射关闭连接。判定顺序为协议版本（在票据之前：协议不兼容时票据的解析方式也不可信）→ 票据 → 纪元 → schema → 名额（60/16 §12）；只读降级加入时 `auth.ok.reason` 为 `capacity` 或 `over_ceiling`。票据 claims 中 `sid` 是登录会话 id，`lnk` 是可选的分享链接 id（凭链接取得角色时才有，rulings §4.18 BE-02），供 §10 的角色重算复核链接状态。房间满时的只读降级见 §14 下图。
+怎么读：两层 `alt` 分别是「首帧是否按时到达」与「鉴权和准入是否通过」；拒绝时先回 `auth.denied` 再按注记里的 code→关闭码映射关闭连接。判定顺序为协议版本（在票据之前：协议不兼容时票据的解析方式也不可信）→ 票据 → 每用户单实例连接数 → 纪元 → schema → 名额（60/16 §12）。**WS 升级限流是「先扣后退」**（rulings §4.20 BE-01+TX-03）：Origin 通过后、升级前从按 IP 的令牌桶扣 1，票据验签通过即退还（之后被 4503 / 4404 / 4426 / 4428 等准入规则拒绝也已退还）；4401（票据无效或重放）、4408（5 s 内未发 auth）、4427（协议不符）与升级后未认证就断开的连接不退，所以 IP 桶实际只约束未认证的升级，同一出口数十人被 1012 驱逐后约分 3 波、≤ 5 s 重连完（更大的出口由部署调高 `limits.ws.connectPerIpPerMin`）；已认证连接另受每用户单实例上限 `limits.ws.maxConnectionsPerUser`（默认 32，超出回 `auth.denied{collab.rate_limited}` 并以 4429 关闭）约束。数值与键的事实源是 60/16 §1、§13；只读降级加入时 `auth.ok.reason` 为 `capacity` 或 `over_ceiling`。票据 claims 中 `sid` 是登录会话 id，`lnk` 是可选的分享链接 id（凭链接取得角色时才有，rulings §4.18 BE-02），供 §10 的角色重算复核链接状态。房间满时的只读降级见 §14 下图。
 依据：本文 §6.3、§6.5、§10、§18.5；60-backend/02 §8–§9（票据与 WS 鉴权）、60-backend/16 §1、§12；文件落点 40-modules/09 §4（`collab.gateway.ts`、`ticket-verifier.ts`）。
 
 ### 6.4 ack 与 at-least-once 持久化
@@ -764,7 +767,7 @@ flowchart TB
 | 4426 | schema 过新，客户端需升级（`collab.schema_too_new`） | 提示刷新 |
 | 4427 | 协议版本不兼容（`collab.protocol_mismatch`） | 提示刷新 |
 | 4428 | 文档纪元已变更（`collab.epoch_changed`；运维换纪元或覆盖既有文档的导入，§9.4） | 丢弃本地 Y 状态、重新 bootstrap；pending 移入 `rejected` 并提供导出（不复用 4426：行为不同） |
-| 4429 | 速率限制（`collab.rate_limited`） | 退避后重连 |
+| 4429 | 速率限制（`collab.rate_limited`；含握手期每用户单实例连接数超 `limits.ws.maxConnectionsPerUser`，rulings §4.20 BE-01+TX-03） | 退避后重连 |
 | 4503 | 房间不可用/满/draining/bootstrap 失败（`collab.room_full`、`collab.bootstrap_failed`） | 退避重连 |
 
 ---
@@ -831,7 +834,7 @@ sequenceDiagram
 |---|---|---|---|
 | 1 | A、B 同时把形状 S 移到不同位置（`xfrm.off`） | 两键 LWW，B（更晚时钟/更大 clientID）胜 | A（本地 60 s 内写过该键且被远端覆盖的一方）看到 S「跳」到 B 的位置，并收到提示「B 移动了该形状」+「恢复我的值」（新的本地事务，写回 A 最后一次写入的值，可审计、可再撤销；不是撤销）；emit `collab/soft-conflict{type:'prop-lww'}`（rulings §4.15 Q3；PRD CO-08） |
 | 2 | A 删除形状 S，B 同时编辑 S 文本 | 删除 = 写 `_deleted` 墓碑（rulings §4.15 Q3，04 §3.1a），实体与其 `XmlText` 仍在 Y.Doc 中；B 的文本编辑落在墓碑实体上、**不丢失**；读路径过滤使 S 不可见 | B 端：observe 到 S 被标墓碑且本地 60 s 内有对 S 的本地事务 → UI 提示「元素已被 A 删除」+「恢复」（清除墓碑，**原 id** 复活，连同 B 的编辑；这是 B 的新事务而非撤销）；A 撤销删除同样是清除墓碑、原 id 复活，二者并发不会产生重复元素；TTL（默认 24 h）后硬删除，或所有者对墓碑态元素做经审计的「彻底删除元素」（rulings §4.18 CO-07）后立即硬删除，之后不可恢复；删除方此后再撤销该步按整步跳过（`wholeStep:true`），与 TTL 到期同一路径 |
-| 3 | A 删除幻灯片 P，B 在 P 中新增形状 | P 写墓碑；B 新增的形状 `containerId` 指向墓碑页 → 随 P 一并不可见（不变量：引用墓碑的形状视为已删除） | 同 #2 的提示，粒度为页；「恢复此页」清除 P 的墓碑，P 以原 id、原 `order` 复活，B 新增的形状随之可见 |
+| 3 | A 删除幻灯片 P，B 在 P 中新增形状 | P 写墓碑；B 新增的形状 `containerId` 指向墓碑页 → 随 P 一并不可见（不变量：以包含关系 `containerId`/`parentId` 引用墓碑的形状视为已删除；`layoutId`/`masterId`/`themeId` 指向墓碑则读时容错、硬删时修复，见 05 §13.4、04 §12.3，rulings §4.20 FE-04） | 同 #2 的提示，粒度为页；「恢复此页」清除 P 的墓碑，P 以原 id、原 `order` 复活，B 新增的形状随之可见 |
 | 4 | A、B 都在第 3 页之后插入新页 | 两页都存在；`order` 键都在 (k3, k4) 之间，比较 `(order, id)` 得到确定顺序 | 两页相邻出现，顺序在所有端一致；无提示 |
 | 5 | A 把 X 放入组 G，B 同时把 G 放入 X（父子环） | 两个 `parentId` 各自 LWW 成功 → 形成环 | **修复规则**（客户端 observe 后与服务端软门禁都执行，结果确定）：沿环取 id 字典序最大的节点，把它 `parentId` 置为 null（回到页根）；记录 `collab/repair`。fuzz 断言：修复后无环且所有端一致 |
 | 6 | A 改 S 填充色，B 改 S 位置 | 不同键，都存活 | 期望行为 |

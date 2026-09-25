@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-09：§6「每个 Definition 至少一个 `*.type-test.ts`」登记机械核对点 scan-manifest (e3)、TD-111） | 依赖：charter v0.1
 
 # 09 · 插件类型契约
 
@@ -133,7 +133,7 @@ export const shapeKindPoint: ContributionPoint<ShapeKindContribution> =
 **组织约定**：
 
 - 类型测试文件命名 `*.type-test.ts`，与同名的行为测试（`*.test.ts`）分开存放，均在各包 `__tests__/` 目录下。
-- 每个 Definition（如 `DocumentStore`、`ContributionPoint<T>` 的具体贡献点、`Manifest`）至少一个 `*.type-test.ts`，用 `describe`/`it` 组织，每个 `it` 对应一个"这个类型契约应该拒绝/接受什么形状"的具体断言。
+- 每个 Definition（如 `DocumentStore`、`ContributionPoint<T>` 的具体贡献点、`Manifest`）至少一个 `*.type-test.ts`，用 `describe`/`it` 组织，每个 `it` 对应一个"这个类型契约应该拒绝/接受什么形状"的具体断言。机械核对：[06 §6](./06-scanners.md#6-scan-manifest) 子项 (e3)，TD-111（2026-09-26，rulings §4.20 TX-09；Definition 集合 = `cordex.implements` 值 ∪ `defineContributionPoint()` 导出 ∪ kernel `Manifest`）。
 - `@ts-expect-error` 用于负向类型测试（"这段代码应该编译失败"），**每一处**必须带说明注释，格式与 [02§3](./02-lint-rules.md#3-禁用清单--具体规则映射) 的 `@ts-expect-error` 全局格式要求一致（`cordex-allow` 引用格式不适用于类型测试场景——类型测试里的 `@ts-expect-error` 本身就是**预期行为**，不是逃逸，因此改用更简单的行内说明格式：紧跟一行注释说明"这里应该因为什么原因编译失败"，机械校验只检查"说明非空"，不要求 `cordex-allow`/issue 链接格式，两者用途不同不应共用同一格式约定，避免开发者误把"合法的负向类型测试"当成"需要走豁免流程的违规"）。
 
 ```ts

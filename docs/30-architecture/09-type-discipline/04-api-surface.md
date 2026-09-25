@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 06 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 04 · API 表面（api-extractor / exports / publint / attw）
 
@@ -88,7 +88,7 @@ tooling/api-extractor/
 | 工具 | 检查什么 | 典型失败场景 | 严重级别 |
 |---|---|---|---|
 | **publint** | `package.json` 字段的内部一致性（`exports` 条件顺序——`types` 必须排在同一条件对象的首位，否则部分工具链会解析到错误的运行时文件而拿到过期/缺失的类型提示；`files` 字段是否遗漏了 `exports` 实际引用的产物；`main`/`module` 遗留字段与 `exports` 的兼容性） | `exports['.'] = { import: '...', types: '...' }`（`types` 顺序在后）→ 部分打包工具按声明顺序解析条件，可能匹配到 `import` 而忽略 `types` | `error`，零豁免 |
-| **@arethetypeswrong/cli (attw)** | 跨模块解析模式（`node10`、`node16-cjs`、`node16-esm`、`bundler`）的类型解析结果是否与运行时解析结果一致；专门捕获"伪装成 CJS"（"masquerading as CJS"）与"假 ESM"问题 | 包用 `"type": "module"` 但某个历史遗留字段组合让 `node16-cjs` 解析模式下类型解析失败或指向错误文件 | 默认 `error`；允许通过 attw 自身的规则级忽略列表（`ignoreRules`，写在该包 `package.json` 的 `attw` 字段）豁免**特定已知且评审过**的规则项，豁免同样计入 [06](./06-scanners.md#1-scan-type-escapes) 的豁免预算体系（豁免格式与 `cordex-allow` 统一：`attw` 字段旁必须有紧邻的 JSON 注释❌（标准 JSON 不支持注释）——改为要求在同目录 `ATTW_WAIVERS.md` 写明每条豁免的 issue 链接，由 scan-policy 校验该文件与 `package.json#attw.ignoreRules` 条目数一致） |
+| **@arethetypeswrong/cli (attw)** | 跨模块解析模式（`node10`、`node16-cjs`、`node16-esm`、`bundler`）的类型解析结果是否与运行时解析结果一致；专门捕获"伪装成 CJS"（"masquerading as CJS"）与"假 ESM"问题 | 包用 `"type": "module"` 但某个历史遗留字段组合让 `node16-cjs` 解析模式下类型解析失败或指向错误文件 | 默认 `error`；允许通过 attw 自身的规则级忽略列表（`ignoreRules`，写在该包 `package.json` 的 `attw` 字段）豁免**特定已知且评审过**的规则项，豁免同样计入 [06](./06-scanners.md#2-scan-type-escapes) 的豁免预算体系（豁免格式与 `cordex-allow` 统一：`attw` 字段旁必须有紧邻的 JSON 注释❌（标准 JSON 不支持注释）——改为要求在同目录 `ATTW_WAIVERS.md` 写明每条豁免的 issue 链接，由 scan-policy 校验该文件与 `package.json#attw.ignoreRules` 条目数一致） |
 
 两者都在 CI `api-surface` job 内、`api-extractor` 之后运行（顺序：`tsc --build` → `api-extractor run` → `pnpm pack` → `publint` → `attw --pack`）。
 

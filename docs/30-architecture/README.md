@@ -1,6 +1,6 @@
 # 架构文档总览（30-architecture）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§2 登记三条设计线与三线总边界表，08 / 11 改为摘要 + 链接、06 §0.1 与 08 §0.1 写 M2/M3 新边界）；2026-09-25（设计线拆分：§2 首加「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」，07、10 索引行改注摘要 + 链接） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§2 登记三条设计线与三线总边界表，08 / 11 改为摘要 + 链接、06 §0.1 与 08 §0.1 写 M2/M3 新边界）；2026-09-25（设计线拆分：§2 首加「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」，07、10 索引行改注摘要 + 链接）；2026-09-26（§4.20）（FE-01：§3 UnitScope 行登记 Unit 默认 Provider 登记表） | 依赖：charter v0.1
 > 本 README 由架构-结构条线起草；「文档索引」中 06/07/08/10/11 由架构-运行时条线撰写，09-type-discipline/ 由类型治理条线撰写。总编排合并时以此为入口。
 
 ---
@@ -120,7 +120,7 @@ flowchart TB
 | 版本策略 | 水平 L0–L1 lockstep（Changesets fixed 组）；垂直束与 Provider 独立 semver；`peerDependencies` 在**加载期**校验，失配即 FAILED（不是 log） | 0002 |
 | Manifest | `src/manifest.ts` 由静态分析**生成并入库**，CI 校验无 diff；运行时与实际 provide/contribute/on 比对 | 0003 |
 | 工具链 | pnpm + Turborepo；库用 `tsc -b` 产出未打包 ESM + 逐文件 `.d.ts`；apps 用 Vite；Changesets | 0004 |
-| UnitScope | 每个 Unit 是一个插件 Fiber，其 `apply` 内 `ctx.isolate()` 隔离 `store/history/selection/render/presence` + 文档类型声明的服务 | 0005 |
+| UnitScope | 每个 Unit 是一个插件 Fiber，其 `apply` 内 `ctx.isolate()` 隔离 `store/history/selection/render/presence` + 文档类型声明的服务；挂哪些 Provider 由 `units.registerUnitProvider` 登记表决定（model-core 只登记 history、selection，其余由 preset 的 `scope:'unit'` 条目登记，同一 `provides` 只登记一次，03 §5.1a，rulings §4.20 FE-01） | 0005 |
 | 唯一注册 | `defineContributionPoint` / `ctx.contribute` / `ctx.contributions`；贡献由 effect 拥有 | 0006 |
 | Store 与撤销 | `DocumentStore` 是 Definition；逆操作由 Provider 在 `StoreOp` 层推导；`history` 是策略层 | 0007 |
 | 不透明保留 | 部件级 verbatim + 节点级 `OpaqueXml` 槽 + 脏部件重生成；二进制走内容寻址 blob | 0008 |

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 06 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
 
 # 05 · 运行时边界（parse, don't validate）
 
@@ -171,7 +171,7 @@ flowchart TB
 |---|---|---|
 | §1 清单的每个边界都有 schema 校验 | 代码评审 + [06 scan-manifest](./06-scanners.md#6-scan-manifest)（对 `FormatCodec`/`DocumentStore` 等 Definition 实现的输入输出做符号级扫描，检测是否存在校验调用） | scan-manifest 报告；本项属该扫描器的已知覆盖率限制之一，详见 06 |
 | 类型即 schema 推导 | [02 `cordex/schema-type-must-be-inferred`](./02-lint-rules.md#411-cordexschema-type-must-be-inferred新增超出建议清单) | ESLint 诊断 |
-| 品牌类型不被绕过 | [02](./02-lint-rules.md) 的 `as`/`any`/`!` 禁令（间接） | ESLint 诊断 + [06 scan-type-escapes](./06-scanners.md#1-scan-type-escapes) 预算 |
+| 品牌类型不被绕过 | [02](./02-lint-rules.md) 的 `as`/`any`/`!` 禁令（间接） | ESLint 诊断 + [06 scan-type-escapes](./06-scanners.md#2-scan-type-escapes) 预算 |
 | 裸 `throw new Error` 不出现 | [02 §3](./02-lint-rules.md#3-禁用清单--具体规则映射) `no-restricted-syntax` | ESLint 诊断 |
 | Result 判别联合被穷尽处理 | tsc `strict` 家族的穷尽性检查（[01](./01-tsconfig-baseline.md)） | tsc 诊断 |
 | 派生字段不进入 Snapshot | `Derived<T>`/`Persisted<M>` 类型结构（[§4.4](#44-派生字段标记derivedt)）+ [09 §6](./09-plugin-type-contracts.md#6-类型测试的组织方式) 类型测试 | tsc 诊断 / Vitest `--typecheck` 诊断 |

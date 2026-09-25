@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
 
 # 04 OOXML 格式与 PPTX 编解码（限界上下文 BC-07 OOXML 格式基础设施、BC-08 PPTX 编解码）
 
@@ -825,7 +825,7 @@ packages/ooxml-pptx/
 | `infrastructure/export/presentation.ts` | 演示文稿生成 | `writePresentation` | `ooxml-core`、`model-slide`（类型） | |
 | `infrastructure/export/master.ts` | 母版生成 | `writeMaster` | `ooxml-core`、`model-slide`（类型） | reinsert OpaqueXml |
 | `infrastructure/export/layout.ts` | 版式生成 | `writeLayout` | `ooxml-core`、`model-slide`（类型） | |
-| `infrastructure/export/slide.ts` | 页生成 | `writeSlide` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/slide.ts` | 页生成 | `writeSlide` | `ooxml-core`、`model-slide`（类型；纯函数 `defaultLayoutOf`） | 页 `layoutId` 指向墓碑或不存在的版式时，经 `defaultLayoutOf` 取存活替代版式写 slide→slideLayout 关系，导出的 pptx 中该页引用存活版式（墓碑期读时容错，rulings §4.20 FE-04；不改 Store） |
 | `infrastructure/export/theme.ts` | 主题生成 | `writeTheme` | `ooxml-core`、`model-slide`（类型） | |
 | `infrastructure/export/shape-tree.ts` | 形状树生成 | `writeShapeTree` | `ooxml-core`、`alternate-content.ts`、`model-slide`（类型） | 按 (order,id) 排序；删除 `UnknownShape`（M1 P0）即整体移除其 `mc:AlternateContent` |
 | `infrastructure/export/alternate-content.ts` | AlternateContent 变换回写 | `writeAlternateContentTransform` | `ooxml-core/drawingml/transform.ts` | M2 P1：移动/缩放后把新 `xfrm` 写入 Choice 与 Fallback 每个分支，其余字节不动（PD-18 结案） |
@@ -971,7 +971,7 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 | 契约套件 | 复用 M-02 的 `runFormatCodecConformance(() => pptxCodec, pptxFixtures)`（§2.5，M-02 现存缺口） | `interface/codec.ts` |
 | CI（`test` job 的 `fidelity-roundtrip` 步骤） | 架构 04 §5.4：M1 只跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定；保真失败照样阻断合并，看 `test` job 日志（rulings §4.18 GV-14） | — |
 
-覆盖率与性能预算：引用 §11 里程碑验收命令；`fidelity-roundtrip` 步骤的阈值只收紧不放松（ratchet，同 ADR-0040 精神，PRD OF-20）。`fixtures/pptx/wild/`（脱敏真实文件，T2/T3 语料）只在 CI `test` job 的 `fidelity-roundtrip` 步骤跑（GV-14），不进入本地 `vitest` 默认套件（体积/时长考虑）。
+覆盖率与性能预算：引用 §11 里程碑验收命令；`fidelity-roundtrip` 步骤的阈值只收紧不放松（ratchet，同 ADR-0040 精神，PRD OF-20）。T2/T3 语料（脱敏真实文件，存对象存储，只登记在 `test/corpus/manifest.json`，见 [70/11](../70-testing/11-test-data-fixtures-and-determinism.md) §10）只在 `test/fidelity-roundtrip` 步骤运行，不进入本地 `vitest` 默认套件（体积/时长考虑；rulings §4.20 TX-10，原写仓库内 `fixtures/pptx/wild/` 作废）。
 
 ## 10. 机械约束
 
@@ -1096,6 +1096,13 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | 50/13 §7、§13（F72） | §4、§5 | 登记导出 Worker 入口 `infrastructure/export/export.worker.ts`（经 kernel `toScriptUrl` 创建，导出完成即终止） |
 | 决策 INC-39、§4.19 D-COMMENTS-PKG | §4、§5 `import/comments.ts`、`export/comments.ts` | 评论部件映射的 ResourceHook 键 `resources['slide-comments.threads']` → `resources['comments.threads']`（由 `@cordexjs/comments` 声明） |
 | §4.19 D-M2-CONTENT | —（无改动） | 服务端导入自 M2 起经 M-09 `server-headless` 调用本包 `pptxCodec`（M-12 导入作业），本包 codec 接口不变 |
+
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-04 ⑥ | §5 `infrastructure/export/slide.ts` 行 | 导出时页引用墓碑版式改经 M-03 `defaultLayoutOf` 取存活替代版式 |
+| TX-10 ④ | §9 末段 | T2/T3 语料存对象存储、只登记在 `test/corpus/manifest.json`（70/11 §10），只在 `test/fidelity-roundtrip` 步骤运行 |
 
 ## 13. 未决问题
 

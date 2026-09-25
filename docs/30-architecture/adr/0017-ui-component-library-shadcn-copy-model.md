@@ -1,6 +1,6 @@
 # ADR-0017 UI 组件库选型：shadcn/ui 复制模式（Radix + Tailwind 4 + Lucide + Geist）
 
-> 状态：已接受 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M17：depcruise 规则名统一）；2026-09-25（矛盾收口，rulings §4.18：措辞对齐，语义不变） | 依赖：charter v0.1（D10 修订见 charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.7、§4.11 C-21/C-22、§4.15 Q2/Q9、§4.18 GV-14/GV-15）
+> 状态：已接受 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M17：depcruise 规则名统一）；2026-09-25（矛盾收口，rulings §4.18：措辞对齐，语义不变）；2026-09-26（§4.20）（FE-18+TX-06：严格 CSP / Trusted Types 段定下 Radix 常量样式经 `default` 策略精确比对放行、sonner 静态 CSS + pnpm patch、react-resizable-panels 无需处理） | 依赖：charter v0.1（D10 修订见 charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.7、§4.11 C-21/C-22、§4.15 Q2/Q9、§4.18 GV-14/GV-15）
 
 ## 状态
 
@@ -67,7 +67,7 @@
 - **形态 B（框架无关嵌入）= 宿主自绘 UI**：`FRAMEWORK_FREE_EXCLUDES` 加入 `slide-ui`（此前只排除 `ui-react`，slide-ui 仍会带入 React/Radix）；`examples/embed-vanilla` 实现最小 `UiRenderer('vanilla')` 并跑 `runUiRendererConformance`。
 - **第三方插件 UI** = 声明式条目为主；高级形态允许 React 组件（`ComponentRef`），必须经 `ContributionRenderer` 的 ErrorBoundary 并通过 `axeCheck` 夹具；随 M4 Stable 冻结 `ui.*` schema。
 - **复制件清单调整**：`drawer.tsx` 与 `vaul`（上游 README 声明已停止维护，playground 无引用）**不迁移**；`sonner.tsx` 标注 `// Cordex override`，改读 `ThemeBridge`、去掉 `next-themes`（后者只被 sonner 使用），并改为静态引入其 `styles.css`。
-- **严格 CSP / Trusted Types**（EM-14，M2 P0）：M2 贯通 CSP nonce（Radix 组件传 nonce；Radix select/scroll-area 以 `dangerouslySetInnerHTML` 注入常量 `<style>`，sonner 运行时追加 `<style>`，改动过的复制件标 `// Cordex override`）；Trusted Types M2 **report-only** → M3 **强制**（default policy 按哈希只放行已知常量 CSS）；Playwright 门禁：CSP/TT 违规数为 0。
+- **严格 CSP / Trusted Types**（EM-14，M2 P0）：M2 贯通 CSP nonce（Radix 组件传 nonce；Radix select/scroll-area 以 `dangerouslySetInnerHTML` 注入常量 `<style>`，sonner 运行时追加 `<style>`，改动过的复制件标 `// Cordex override`）；Trusted Types M2 **report-only** → M3 **强制**；Playwright 门禁：CSP/TT 违规数为 0。第三方运行时样式的处理（2026-09-26 修订，rulings §4.20 FE-18+TX-06，现在就定、不等 M2 报告；细则以 50-frontend/14 §3、§4 为准）：① Radix——另建名为 `default` 的 Trusted Types 策略，`createHTML` 只对登记的两段固定样式文本（ScrollArea 1.2.18、Select 2.3.7 的 Viewport 常量）**精确比对**放行，其余一律返回 `null`，常量表放 ui-react `src/infrastructure/csp/trusted-style-constants.ts`，CSP `trusted-types` 取值相应加 `default`（记为 TT-CSP-REPORT 修订）；② sonner——静态引入 `sonner/dist/styles.css`，并以 pnpm patch 删去 import 时的 `__insertCSS`（`pnpm-workspace.yaml` 登记 `patchedDependencies`），不再有运行时 `<style>` 注入，也不保留「注入被拦只产生报告、外观不变」的退路；③ react-resizable-panels 4.x 用 `adoptedStyleSheets`，无需处理。csp-strict e2e 断言 TT 与 `style-src` 违规都为 0、Toast 与 ScrollArea 计算样式与基线一致，并有 `default` 策略拒绝未登记文本的负向用例。原「default policy 按哈希只放行已知常量 CSS」作废（改为精确比对）。
 - **命令写法**（Q9）：本 ADR 中所有 `npx shadcn …` 已改为 `pnpm dlx shadcn@4.21.0 …`。
 - **决策 2–5 回写**：见正文决策 2（cn 精确锁版本）、3（`--cordex-*` 作废，C-22）、4（槽位宿主，14 §5.3 M-10/G-8、O-7）、5（三选择器等价，C-21）；§5.3 规则 4 为 `apps/web` 放行 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`。
 - **新增机械验证**：depcruise `cordex-ui-bundle-core-framework-free`（上述 `*-ui` 路径规则；全仓统一名，登记于 40-modules/01 depcruise 规则表，对应 TD-082；原名 `ui-domain-framework-free` 作废，2026-09-24 复核修正）；检查 `shadcn-overrides` 清单含 `sonner.tsx`；全仓无 `vaul`/`next-themes`；lint `react-19-0-api-floor`；Playwright CSP/TT 违规计数门禁（M2 report-only 计数、M3 强制）。

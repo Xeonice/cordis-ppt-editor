@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：charter §5.2/§5.4/§5.5、03-kernel-and-plugin-model、00-module-map §3、40-modules 01–13 §3
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20：两处「10/11 §3」写全为 40/10 §3、40/11 §3，供 check-links 解析，TX-04） | 依赖：charter §5.2/§5.4/§5.5、03-kernel-and-plugin-model、00-module-map §3、40-modules 01–13 §3
 
 # 16 插件总账与可插拔矩阵
 
@@ -268,11 +268,11 @@ provUiReact -. "可替换" .-> altUiVue
 | `ui.ribbon` | ui-core | `RibbonItem` | `id` | replace | slide-ui（6 页签+22 组+约 70 控件） | ui | 是 | 03 §3.6；10 §3 |
 | `ui.toolbar` | ui-core | `ToolbarItem` | `id` | replace | slide-ui（3 个） | ui | 是 | 03 §3.6；10 §3 |
 | `ui.panel` | ui-core | `PanelItem` | `id` | replace | slide-ui（11 个：缩略图/母版缩略图/备注/scopeBar/7 个检查器分区） | ui | 是 | 03 §3.6；10 §3 |
-| `ui.contextMenu` | ui-core | `ContextMenuItem` | `id` | replace | slide-ui（4 个 slot 共 24 项）；shell-glue（7 项） | ui | 是 | 03 §3.6；10/11 §3 |
+| `ui.contextMenu` | ui-core | `ContextMenuItem` | `id` | replace | slide-ui（4 个 slot 共 24 项）；shell-glue（7 项） | ui | 是 | 03 §3.6；40/10 §3、40/11 §3 |
 | `ui.statusBar` | ui-core | `StatusBarItem` | `id` | replace | slide-ui（4 个） | ui | 是 | 03 §3.6；10 §3 |
 | `ui.dialog` | ui-core | `DialogItem` | `id` | replace | ui-react（3 个：shortcuts-panel/settings-drawer/command-palette） | ui | 是 | 03 §3.6；10 §3 |
 | `ui.notification` | ui-core | `NotificationKind` | `id` | replace | ui-react（4 个） | ui | 是 | 03 §3.6；10 §3 |
-| `ui.shortcut` | ui-core | `ShortcutItem{id;chord;commandId;when}` | `id` | replace | ui-react（约 6 条）；slide-ui（26 条）；shell-glue（1 条 `Mod+E`） | shortcuts | 是 | 03 §3.6；10/11 §3 |
+| `ui.shortcut` | ui-core | `ShortcutItem{id;chord;commandId;when}` | `id` | replace | ui-react（约 6 条）；slide-ui（26 条）；shell-glue（1 条 `Mod+E`） | shortcuts | 是 | 03 §3.6；40/10 §3、40/11 §3 |
 | `ui.command` | ui-core | `CommandPresentation{commandId;title;icon;when}` | `commandId` | replace | ui-core 自身（6 条）；ui-react（4 条）；slide-ui（约 60 条） | ui（命令面板/菜单） | 是 | 03 §3.6；10 §3 |
 | `ui.theme` | ui-core | `ThemeContribution{id;tokens;density}` | `id` | replace | 40-modules 01–13 未见实际贡献方（Beta，预留） | theme | 是 | 03 §3.6；10 §3 |
 | `slide.shapeKind` | model-slide | `ShapeKindDef` | `kind` | error | model-slide 自身（9 项内建：sp/pic/grpSp/cxnSp/graphicFrame:table/chart/ole/diagram/unknown） | slides、slide-render | 是 | 03 §3.6；03 §3 |

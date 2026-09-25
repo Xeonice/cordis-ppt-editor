@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
 
 # 11 预设装配与应用壳（限界上下文 BC-16 预设装配、BC-17 应用壳）
 
@@ -70,7 +70,7 @@ presetSlide -- "作为样板" --> m13
 
 | 术语 | 定义 | 对应类型名（所在文件） |
 |---|---|---|
-| 预设条目 | 稳定 id 的插件挂载单元：`{ id; plugin \| lazy(); config?; scope:'host'\|'unit'; activateWhen? }`；id 与 loader 的条目 id 同义（ADR-0010 决策 1） | `PresetEntry`（**`@cordexjs/kernel/src/preset/entry.ts`**，2026-09-18 起，C-07；原 `preset-slide-viewer/src/assembly/entry.ts` 已删除） |
+| 预设条目 | 稳定 id 的插件挂载单元：`{ id; plugin \| lazy(); config?; scope:'host'\|'unit'; provides?; activateWhen? }`；id 与 loader 的条目 id 同义（ADR-0010 决策 1）；`scope:'unit'` 条目不挂根，mount 时经 `units.registerUnitProvider` 登记为 UnitScope 默认 Provider（rulings §4.20 FE-01，M-02 §2.1） | `PresetEntry`（**`@cordexjs/kernel/src/preset/entry.ts`**，2026-09-18 起，C-07；原 `preset-slide-viewer/src/assembly/entry.ts` 已删除） |
 | 惰性条目 | `lazy: () => Promise<Plugin>` + 三种触发（`{ event }`/`{ contributionSeen }`/`'manual'`）；未加载前对应能力走占位 | `LazyPresetEntry`、`ActivateWhen`（`@cordexjs/kernel/src/preset/lazy.ts`，C-07） |
 | 装配报告 | 全部条目 `allSettled` 后的 `ACTIVE/PENDING/FAILED/LAZY` 汇总，供插件管理器（PS-11）与 `plugin/*` 遥测 | `PresetReport`（`@cordexjs/kernel/src/preset/report.ts`，C-07） |
 | 裁剪点 | `exclude: PluginId[]`、`override: Record<PluginId, Plugin>`、`configure: Partial<Record<PluginId, unknown>>` 三种不改 preset 源码的定制手段 | `PresetTrim`（`@cordexjs/kernel/src/preset/entry.ts`，C-07） |
@@ -202,8 +202,8 @@ presetSlide -- "deriveCollabEntries 替换 store 加协同包与 comments" --> p
 |---|---|---|---|---|---|---|---|---|
 | `kernel` | `@cordexjs/kernel`（host 自带，非条目；列出仅为清单完整） | host | ● | ● | ● | `HostOptions` 由 `createHost` 传入 | 秩 0，永不 PENDING | 不可 exclude（不是条目） |
 | `i18n` | `@cordexjs/i18n` 默认导出 | host | ● | ● | ● | `{ locale: options.locale, fallback: 'zh-CN' }` | 只依赖 `contributions` | exclude → 文案显示 key（宿主可启动） |
-| `model-core` | `@cordexjs/model-core` 默认导出 | host | ● | ● | ● | viewer `{ defaultStoreProvider:'store-memory', historyLimit: 0, coalesceMs: 500 }`；slide `{ …, historyLimit: 200 }`；collab `{ defaultStoreProvider:'store-yjs', historyLimit: 200 }` | 依赖 `contributions/errors/telemetry`（kernel） | 不建议 exclude（无 `units` 即无法打开；`pluggable.test.ts` 仍断言 host 可启动） |
-| `store-memory` | `@cordexjs/store-memory` | unit | ● | ● | ○ | `{ historyLimit: 同上, freezeInDev: true }` | UnitScope 内挂载，与根顺序无关 | override → `store-yjs`/`noop`（PRD `pluggable:m1`：`store=noop` → `unit/open-failed{code}` 非崩溃） |
+| `model-core` | `@cordexjs/model-core` 默认导出 | host | ● | ● | ● | viewer `{ historyLimit: 0, coalesceMs: 500 }`；slide `{ …, historyLimit: 200 }`；collab 同 slide（原 `defaultStoreProvider` 删除：store 由登记表中唯一的 `provides:['store']` 条目决定，rulings §4.20 FE-01） | 依赖 `contributions/errors/telemetry`（kernel） | 不建议 exclude（无 `units` 即无法打开；`pluggable.test.ts` 仍断言 host 可启动） |
+| `store-memory` | `@cordexjs/store-memory` | unit | ● | ● | ○ | `{ historyLimit: 同上, freezeInDev: true }` | UnitScope 内挂载，与根顺序无关；`provides:['store']`，mount 时经 `units.registerUnitProvider` 登记（rulings §4.20 FE-01） | override → `store-yjs`/`noop`（PRD `pluggable:m1`：`store=noop` → `unit/open-failed{code}` 非崩溃） |
 | `store-yjs` | `@cordexjs/store-yjs` | unit | ○ | ○ | ▲ | `{ gc: true, undoCaptureTimeout: 500, clientId: user.id }` | 同上；`collab-yjs` 在其 `yjsBackend` 就位前 PENDING（可诊断，ADR-0005） | exclude → `collab-yjs` 永久 PENDING（诊断非失败） |
 | `model-slide` | `@cordexjs/model-slide`（主插件，只读部分） | host | ● | ● | ● | 无 | 依赖 `contributions/documentTypes` | exclude → 打开 `slide` 返回 ``format.no_document_type`（常量 `FORMAT_NO_DOCUMENT_TYPE`）`，宿主健康（charter §5.4） |
 | `model-slide-editing` | `@cordexjs/model-slide/editing`（子路径，独立 chunk） | host | **○（ADR-0015 第一道）** | ● | ● | 无 | 依赖 `contributions/commands` | viewer 中被 `override` 强行装载 → 仍被 `read-only` 策略 `PERMISSION_DENIED`（第二道，`readonly.test.ts`） |
@@ -226,7 +226,7 @@ presetSlide -- "deriveCollabEntries 替换 store 加协同包与 comments" --> p
 | `collab-transport-ws` | `@cordexjs/collab-transport-ws` | host（根作用域） | ○ | ○ | ● | `{ urlTemplate: options.collab.endpoint, connectTimeoutMs: 5000, backoff: 默认, heartbeatMs: 15000 }` | 无依赖，按需 `connect()` | override → `collab-transport-webrtc`（未来）；exclude → `collab-yjs` PENDING，单人可编辑 |
 | `collab-yjs` | `@cordexjs/collab-yjs` | unit | ○ | ○ | ● | `{ flushMs: 50, awareness: 默认, maxUpdateBytes: 1 MiB, offline: { enabled: options.collab.offline.enabled } }` + `getToken`/`user` | 依赖 `store/yjsBackend/collabTransport/permissions` | exclude → 单人模式（`presence` 缺席，`isCollab=false`） |
 | `collab-offline-idb` | `@cordexjs/collab-offline-idb` | unit | ○ | ○ | ◐（`collab.offline.enabled:true` 时装载；M3 默认关，M4 P2） | `{ dbNamePrefix: 'cordex-collab', maxPendingBytes: 50 MiB, ttlDays: 30 }` | 缺失即内存队列降级（M-05 §2.5） | exclude 等价于未启用 |
-| `comments` | `@cordexjs/comments` 默认导出（iso 横向能力、文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象；2026-09-25 新增，rulings §4.19 D-COMMENTS-PKG） | host（UnitScope 内经 `unitPlugins` 挂 `comments.threads` 资源） | ○ | ○ | ●（**M3** 起装载） | 无（上限沿用 CO-04 默认） | 依赖 `contributions/commands/units/resources`；slide 专属锚点 resolver、检查器「评论」页签与画布评论钉由 `slide-ui` 贡献（M-10） | exclude → 无评论能力，编辑与协同照常；`pluggable:m3` 白名单含 `+comments` |
+| `comments` | `@cordexjs/comments` 默认导出（iso 横向能力、文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象；2026-09-25 新增，rulings §4.19 D-COMMENTS-PKG） | host（宿主级贡献 ResourceHook `comments.threads` 与 `comments.*` 命令）+ unit（按 Unit 的 `comments` 服务以 `scope:'unit'` 条目在 mount 时经 `units.registerUnitProvider` 登记，rulings §4.20 FE-01；原写「经 `unitPlugins` 挂」作废——`unitPlugins` 属文档类型，文档类型盲的 comments 包用不了，50/03 §6.2） | ○ | ○ | ●（**M3** 起装载） | 无（上限沿用 CO-04 默认） | 依赖 `contributions/commands/units/resources`；slide 专属锚点 resolver、检查器「评论」页签与画布评论钉由 `slide-ui` 贡献（M-10） | exclude → 无评论能力，编辑与协同照常；`pluggable:m3` 白名单含 `+comments` |
 
 **超集 / 派生关系（`superset.test.ts`、`derive.ts`）**：`SLIDE_ENTRIES = VIEWER_ENTRIES − { read-only, design-css, viewer-shell, viewer-thumbnails, viewer-notes, viewer-search } + { model-slide-editing, local-presence, ui-core, ui-react, slide-ui, shell-glue }`（与 §1.2「超集关系」、02 §4.21b 同一扣除集合，rulings §4.18 FE-07），并把 `model-core`/`engine-render` 的 `configure` 换成编辑器默认；`COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES)` = `SLIDE_ENTRIES` ▲ `store-yjs` − `local-presence` + { `collab-transport-ws`, `collab-yjs`, `comments`（M3）, ◐`collab-offline-idb` }；`pluggable:m3` manifest 差异白名单 `{ −store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments }`（`collab-offline-idb` 可选不计入；PRD 05 原白名单中不存在的 `+comments-ui`/`+presence-ui`/`+history-ui` 与重复的 `+collab-core` 删去，rulings §4.19 D-COMMENTS-PKG，50/03 §11）。三张清单都是**静态数组**（`plugins/index.ts` 导出），`manifest-gen` 据此生成聚合 `manifest.ts`（子插件 manifest 引用列表），供扫描器与文档站在不运行的情况下读出「装了什么」（ADR-0003 精神）。
 
@@ -355,7 +355,7 @@ packages/preset-slide-collab/src/
 ├── manifest.ts                      # 生成物：extends @cordexjs/preset-slide + replaces/adds/optional（package.json 见本节末）
 ├── plugins/
 │   ├── index.ts                     # COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES, options)
-│   ├── derive.ts                    # 纯函数 deriveCollabEntries：store-memory→store-yjs；删 local-presence；追加 collab.entries（含 M3 起的 comments）；改 model-core.defaultStoreProvider
+│   ├── derive.ts                    # 纯函数 deriveCollabEntries：store-memory→store-yjs（二者同为 provides:['store'] 的 unit 条目，§4.20 FE-01）；删 local-presence；追加 collab.entries（含 M3 起的 comments）
 │   └── collab.entries.ts            # collab-transport-ws（host）、collab-yjs（unit）、collab-offline-idb（unit，offline.enabled 时）、comments（@cordexjs/comments，M3，rulings §4.19 D-COMMENTS-PKG）及 Config 映射（endpoint/getToken/user）
 ├── config/
 │   ├── options.ts                   # SlideCollabPresetOptionsSchema = SlidePresetOptionsSchema.omit(storeProvider).extend({ storeProvider:'yjs', collab })
@@ -566,7 +566,7 @@ apps/web/
     │   ├── media/
     │   │   └── media-uploader.ts    # 媒体上传默认实现：POST /documents/:id/media/presign → direct-upload → commit（文档作用域，INC-21；50/02 §1，2026-09-25 登记）
     │   ├── security/
-    │   │   └── trusted-types.ts     # 建立 cordex-default Trusted Types 策略并经 createHost({scriptUrlPolicy}) 交给 SDK；main.tsx 在任何 Worker 创建前调用（50/14 §4.2，2026-09-25 登记）
+    │   │   └── trusted-types.ts     # 建立 cordex-default Trusted Types 策略并经 createHost({scriptUrlPolicy}) 交给 SDK；另调 ui-react 的 installDefaultTrustedTypesPolicy() 建名为 default 的策略（createHTML 只对常量表逐字放行，其余返回 null，§4.20 FE-18）；main.tsx 在任何 Worker 创建前调用（50/14 §4.1–§4.2，2026-09-25 登记）
     │   ├── auth/session-client.ts   # cookie 会话探测 / 刷新计时；token 模式（嵌入）下持有 getToken 回调，不持久化令牌
     │   ├── storage/
     │   │   ├── preferences-store.ts # localStorage `cordex.prefs`（PreferencesSchema 校验；损坏即回默认）
@@ -763,7 +763,7 @@ apps/web/
 | `src/infrastructure/api/import-export.api.ts` | 导入导出 REST（2026-09-25 由 `tasks.api.ts` 改名，BE-12） | `ImportExportApi` | `./http`、`@cordexjs/protocol`（`rest/import-export`） | `/imports/uploads`、`/imports`、`/imports/:jobId/cancel`、`/jobs/:id`（唯一状态查询，SG-08；删 `/imports/:jobId`）（`#/import` 过渡页「取消」：上传中中止 PUT、解析中取消作业，作业转 `cancelled`，rulings §4.18 UX-14）、`/documents/:id/export`、`/exports/:jobId`；`TaskState` 轮询（退避） |
 | `src/infrastructure/render-injection.ts` | 渲染态注入接收（2026-09-24 替代 `api/render-state.api.ts`，rulings §4.15 Q8） | `awaitRenderInjection(renderId)`（超时取页面常量 `RENDER_INJECT_TIMEOUT_MS`，默认 60 s，rulings §4.18 BE-04） | `../pages/render/render-page-protocol` | 仅 `/render` chunk；不 import `./api/http`（零外呼，lint 断言） |
 | `src/infrastructure/media/media-uploader.ts` | 媒体上传默认实现（2026-09-25 登记） | `createMediaUploader(api)` | `../api/*` | `POST /documents/:id/media/presign` → `direct-upload` → `.../media/commit`（文档作用域，INC-21）；供 preset 的媒体插入使用 |
-| `src/infrastructure/security/trusted-types.ts` | Trusted Types 策略（2026-09-25 登记） | `installTrustedTypes(): TrustedTypePolicy \| undefined` | 无 | `cordex-default` 策略：`createScriptURL` 只放行同源 `/assets/`；`main.tsx` 在任何 Worker 创建前调用，经 `createHost({scriptUrlPolicy})` 交给 SDK（50/14 §4.2）；浏览器不支持时不创建 |
+| `src/infrastructure/security/trusted-types.ts` | Trusted Types 策略（2026-09-25 登记；2026-09-26 增 `default` 策略，rulings §4.20 FE-18+TX-06） | `installTrustedTypes(): TrustedTypePolicy \| undefined` | `@cordexjs/ui-react`（`installDefaultTrustedTypesPolicy`，40/10 `src/infrastructure/csp/trusted-style-constants.ts`） | `cordex-default` 策略：`createScriptURL` 只放行同源 `/assets/`；`main.tsx` 在任何 Worker 创建、任何组件挂载前调用，经 `createHost({scriptUrlPolicy})` 交给 SDK（50/14 §4.2）；随后调用 ui-react 导出的 `installDefaultTrustedTypesPolicy()` 建名为 `default` 的策略（形态 A 宿主用同一导出）：只有 `createHTML`，输入与常量表中的两段 Radix 固定样式文本逐字相等才原样放行，其余一律返回 `null`，不提供 `createScript`/`createScriptURL`（50/14 §4.1、§4.4）；浏览器不支持时两个策略都不创建；单测 `__tests__/trusted-types.test.ts`（70/10 SEC-CL-02） |
 | `src/infrastructure/auth/session-client.ts` | 会话客户端 | `SessionClient`（cookie 模式 / token 模式） | `./api/auth.api` | 不持久化令牌（EM-03） |
 | `src/infrastructure/storage/preferences-store.ts` | 偏好存储 | `PreferencesStore` | `../../domain/preferences` | localStorage；损坏回默认 |
 | `src/infrastructure/storage/recent-store.ts` | 最近存储 | `RecentStore` | `../../domain/recent-document` | IndexedDB；≤ 50 条 |
@@ -947,6 +947,10 @@ apps/web/e2e/
 ├── editor-intents.spec.ts       # ⋯ 菜单七项导航；Mod+E 打开导出对话框；账户菜单四项；设置唯一入口
 ├── render-page.spec.ts          # /render?renderId → inject → __cordex.ready：断言 FE-09 ready 判据（字体到达后的重排帧已绘制才 ready）与网络请求数为 0（§4.18 BE-04/FE-09）；截图与 M-09 oracle 对比（ADR-0026，CI 有 Chromium 时）
 ├── collab-two-browsers.spec.ts  # M3：双浏览器同文档编辑收敛、在场头像
+├── embed/style-isolation.spec.ts            # 嵌入挂载前、后、卸载后宿主 html/body 计算样式逐项相同，:root 无新增自定义属性（e2e/full-compose；70/06 §11，§4.20 FE-16）
+├── editing/master-layout-delete.spec.ts     # 删被引用版式：对话框不含「操作不可撤销」、确认后带 [撤销] 的 Toast 一步恢复；删被引用母版：文案「N 个页面将改用剩余母版中对应的版式」（70/06 §5 第 25 行，§4.20 FE-05/FE-23）
+├── editing/theme-apply.spec.ts              # 应用主题与预览（themePreview）；Q13 计数（70/06 §5 第 25 行，§4.20 FE-24）
+├── security/fixtures/third-party-styles.json  # csp-strict 追加段的计算样式基线：sonner Toast、Radix ScrollArea / Select、react-resizable-panels 的登记属性与基线值（70/06 §10.1，§4.20 FE-18+TX-06）
 └── a11y.spec.ts                 # axe：开始页 / 列表 / 设置 / 查看器无严重违规；1024/640 断点快照
 ```
 
@@ -1103,12 +1107,18 @@ pnpm --filter apps-web e2e -- home-to-editor viewer                             
 | GV-15、F63（F64） | §8、§10 | `no-doc-type-literals-app` 改为 lint `cordex/no-doc-type-literals` 扩展范围（TD-086），例外只有 `domain/document-type.ts` 与 `application/host/create-editor-host.ts`；删 `app/templates.ts`（模板清单并入 `DOCUMENT_TYPES[*].newCards`） |
 | 50 线回写表（50/02 §13.3、50/03 §13.3、50/04 §13、50/05 §14.2、50/12 §12.3、50/13 §13、50/14 §13、50/16 §11.3） | §2.2、§3.5、§4.3、§4.4、§5.4 | `CreateEditorHostParams.preset` 改 `'edit' \| 'collab' \| 'view'`；`SlidePresetOptions.leaveGuard`；`RuntimeConfig` 字段增删；`RenderPageQuery.mode` 增 `image`、注入只收 `snapshot-json`；`Preferences.a11y.readingOrder`；viewer 命名空间；登记 `infrastructure/api/{direct-upload,query-cache}.ts`、`infrastructure/media/media-uploader.ts`、`infrastructure/security/trusted-types.ts`、`application/sharing/share-landing.ts`、`public/fonts/font-profile.json`、`bundle-budget.json`（路由 chunk）；登录端点 `GET /auth/oidc/login?mode=`、导入轮询 `GET /jobs/:id`、放映参数 `?page=` |
 
+### 2026-09-26 回写（rulings §4.20 遗留小项收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| FE-01（UnitScope 默认 Provider 登记 API） | §1.2 预设条目、§3.1 `model-core`/`store-memory`/`comments` 行、§4.2 `derive.ts`、§13 Q-2 结案 | `scope:'unit'` 条目在 mount 时经 `units.registerUnitProvider` 登记；删 `model-core.defaultStoreProvider`；comments 按 Unit 的服务改为 `scope:'unit'` 登记，不再经 `unitPlugins` |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
 | Q-1 | ~~`apps/web` 用 path 路由（`/home`）还是沿 playground 的 hash 路由（`#/home`，静态托管 / iframe 嵌入更省事）~~ **（结案，2026-09-18）** | path 路由 + 托管层 SPA fallback；`/embed/:id` 额外支持 `#mode=` 以便集成方免配路由。**结案依据**：跨模块评审 C-20 采纳本行推荐默认值为定案；设计文档（playground `#/…`）不回写，照实描述为 playground 事实、非产品约束 | `app/routes.tsx`、`domain/routes.ts`、部署文档 |
-| Q-2 | UnitScope 内 Provider（`store-*`、`collab-yjs`、`engine-render`、`render-dom`、`local-presence`）由 preset 以 `scope:'unit'` 标记后，经 M-02 何种 API 登记为 Unit 默认 Provider（`model-core.Config.defaultStoreProvider` 只是字符串） | 请 M-02 在 `units` 服务暴露 `registerUnitProvider(entry)`（或 `documentType.unitPlugins` 之外的 host 级默认表）；本文 `@cordexjs/kernel/src/preset/mount.ts`（2026-09-18 起，C-07）对 `scope:'unit'` 条目调用该 API | `@cordexjs/kernel/src/preset/mount.ts`、M-02 §6 |
+| Q-2 | ~~UnitScope 内 Provider（`store-*`、`collab-yjs`、`engine-render`、`render-dom`、`local-presence`）由 preset 以 `scope:'unit'` 标记后，经 M-02 何种 API 登记为 Unit 默认 Provider（`model-core.Config.defaultStoreProvider` 只是字符串）~~ **（结案，2026-09-26，rulings §4.20 FE-01）** | 定名 `units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，落在 model-core `unit/units.service.ts`（M-02 §2.1、§5.5、§6）；model-core ready 时只自登记 history、selection，store、render、presence、collab-yjs、comments 由本文各 preset 的 `scope:'unit'` 条目在 mount 时登记（`@cordexjs/kernel/src/preset/mount.ts` 调用）；同一 `provides` 只允许登记一次（后来者被拒记诊断、不抛）、只影响之后打开的 Unit、preset dispose 时全部撤销；`Config.defaultStoreProvider` 删除（§3.1 model-core 行、§4.2 `derive.ts` 已同步）；登记表用例见 M-02 §9 `units-registry.test.ts`（`test/unit`，70/02 §9.1），M1 前定稿 | `@cordexjs/kernel/src/preset/mount.ts`、M-02 §2.1/§6 |
 | Q-3 | ~~装配运行时长期归属：`preset-slide-viewer/src/assembly/`（本文）/ `@cordexjs/kernel/preset/`（G-5 建议）/ 新包 `@cordexjs/preset-core`~~ **（结案，2026-09-18）** | kernel（03 §9 已把形状写在 kernel 章节；避免新增包）。**结案依据**：跨模块评审 C-07 采纳，`@cordexjs/kernel/src/preset/` 为最终归属 | G-5 结案 |
 | Q-4 | 查看器壳「最小原子组件」实现：纯 CSS `[data-slot]` 类（本文）vs 极小无框架 TS 组件库 vs 允许引入 `@cordexjs/ui-react/ui` 的 React 复制件 | 纯 CSS 类（零框架、≤ 15 KB；与 design `slots.css` 同一 `[data-slot]` 语言） | `shell/**`、`styles/viewer.css`、设计 25 |
 | Q-5 | viewer 的 `model-core.historyLimit: 0`——M-02 是否允许 0（禁用历史）而非仅缩小上限 | 允许 0（无 `UndoManager`，省内存）；否则取 1 | `plugins/core.entries.ts`、M-02 `Config` |

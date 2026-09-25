@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 05 · 运行时边界（parse, don't validate）
 
@@ -21,6 +21,34 @@
 | URL 参数（深链接：文档 id、幻灯片序号、评论锚点） | 路由参数解析后立即 | `@cordexjs/protocol` 或 `apps/web` 路由层的本地 schema | 品牌类型（`UnitId`/`SlideId` 等，见 §4） |
 
 判定理由（为什么 OOXML 解码输出也算"边界"）：`.pptx` 文件是任意来源的输入（用户上传、第三方生成、格式不规范的历史文件），XML 结构在类型系统看来是 `unknown`（`ooxml-core` 的 XML 解析结果本身是命名空间感知但**结构无知**的节点树），从这棵树"认领"出符合 `model-slide` 结构的强类型对象，正是一次典型的 parse 操作——`ooxml-pptx` 对不认识的子树执行「不透明保留」（章程 D7）本身就是 parse 失败时的降级路径，而不是校验失败后的报错路径，这是本项目与"REST DTO 校验失败即拒绝"这类边界的关键差异，§5 展开。
+
+**信任边界与校验落点**
+
+```mermaid
+flowchart LR
+  subgraph sources["不受本进程类型系统约束的输入"]
+    direction TB
+    cfg["插件 Config：ctx.plugin 加载期"]
+    rest["REST DTO：apps/server 控制器入站"]
+    ws["WS 消息：server-collab 双向逐帧"]
+    codec["FormatCodec 解码输出：OPC/XML → model-*"]
+    snap["Snapshot 载入：反序列化前"]
+    local["localStorage / IndexedDB 读取"]
+    url["URL 参数：路由解析后"]
+  end
+  parse["schema parse：Standard Schema / zod 4，schema 在边界所属包的 contracts/*.schema.ts"]
+  typed["强类型值 / 品牌类型：之后不再校验"]
+  resultErr["Result 失败分支：调用方必须处理"]
+  cfgErr["ValidationError：cordis 原生 throw/reject，插件不启动"]
+  opaque["未识别子树 → 不透明保留，降级而非报错"]
+  sources --> parse
+  parse -- "成功" --> typed
+  parse -- "失败：Config 以外一律" --> resultErr
+  cfg -. "失败" .-> cfgErr
+  codec -. "不认识的结构" .-> opaque
+```
+
+怎么读：左侧七类边界全部先经 schema parse 才进入强类型世界；校验失败统一走 `Result`，唯一例外是插件 Config（cordis 直接抛 `ValidationError`，虚线）；另一条虚线是降级而非失败——OOXML 解码遇到不认识的子树走不透明保留（§1 判定理由）。
 
 ---
 
@@ -110,8 +138,22 @@ type SlideSnapshot = Persisted<SlideModel>   // 派生字段在这里已经不�
 完整决策见 [ADR-0043](../adr/0043-result-vs-exceptions.md)；本节给出边界处的具体分工。
 
 - **预期失败**（用户输入不合法、网络请求失败、权限被拒绝、OOXML 解析遇到不认识的结构）：函数签名返回 `Result<T, E>`（判别联合：成功/失败两态），调用方**必须**处理两态（[02](./02-lint-rules.md) 的 `strict-type-checked` 预设本身通过穷尽性检查间接强制这一点——忽略判别联合的一支在 `switch`/`if` 收窄后若还有未处理分支，`noFallthroughCasesInSwitch`/返回值类型不匹配会报错）。§1 表格里的每一个校验边界，其校验失败路径统一走 `Result`，**不**抛异常——插件 `Config` 校验失败是唯一例外（cordis 原生行为：`ValidationError` 在 `ctx.plugin()` 层面就是 throw/reject，见 cordis primer §3.2，本项目不重新包装这一层，因为它发生在插件"能否启动"这个更早、更根本的时机，与"插件已启动、运行期处理一份不合法数据"是不同性质的失败）。
-- **程序员错误/不变量违反**（"这不应该发生"：内部状态机进入了未定义分支、`fiber.getEffects()` 在断言应为空时非空、贡献点 key 冲突）：throw，且必须是继承自 `CordexError` 的类型化异常（不是裸 `throw new Error`，见 [02 §3](./02-lint-rules.md#3-禁用清单--具体规则映射)）。cordis 自身的 `CordisError`/`ValidationError` 正是这一类异常的先例（`ctx.effect()` 在 Fiber 已销毁时抛 `CordisError('INACTIVE_EFFECT')`——这是"调用方违反了生命周期契约"，不是"用户输入了脏数据"）。
+- **程序员错误/不变量违反**（"这不应该发生"：内部状态机进入了未定义分支、`fiber.getEffects()` 在断言应为空时非空）：throw，且必须是继承自 `CordexError` 的类型化异常（不是裸 `throw new Error`，见 [02 §3](./02-lint-rules.md#3-禁用清单--具体规则映射)）。cordis 自身的 `CordisError`/`ValidationError` 正是这一类异常的先例（`ctx.effect()` 在 Fiber 已销毁时抛 `CordisError('INACTIVE_EFFECT')`——这是"调用方违反了生命周期契约"，不是"用户输入了脏数据"）。贡献点 key 冲突**不属于**此类：按 `03-kernel-and-plugin-model.md` §3.3 的 `conflict` 策略处理（缺省拒绝后者 + `duplicate` 诊断，不抛异常，见 [09 §1.2](./09-plugin-type-contracts.md#12-唯一键类型)；2026-09-25 rulings §4.18 GV-18）。
 - **异常在边界处的转换**：任何未被捕获的类型化异常，在到达以下三个终点之一时必须被转换为该终点的标准错误呈现形式，不得原样穿透：Fiber `apply` 顶层（cordis 内建捕获 + 转为 `FAILED` 状态，primer 决策表相关行为）、Nest 全局异常过滤器（`apps/server`）、React 错误边界（`apps/web`）。三个终点的错误码呈现体系由架构-运行时条线 B 的 10-observability 文档定义；本篇只约束"异常必须是类型化的、必须携带一个来自封闭 union 的 `code` 字段"这一**类型契约**，不定义具体错误码取值——该值域的所有权与本篇的交接需求见本次任务汇报的「跨条线要求」。
+
+**预期失败与程序员错误的分流**
+
+```mermaid
+flowchart TB
+  failure["一次失败"] --> q{"预期失败，还是程序员错误 / 不变量违反？"}
+  q -- "预期失败：非法输入、网络失败、权限拒绝、OOXML 不认识的结构" --> result["返回 Result 判别联合，调用方必须穷尽处理"]
+  q -- "程序员错误：状态机未定义分支、effect 未清空" --> throwTyped["throw 继承 CordexError 的类型化异常，带封闭 union 的 code"]
+  throwTyped --> fiberTop["Fiber apply 顶层：cordis 捕获，转为 FAILED"]
+  throwTyped --> nestFilter["Nest 全局异常过滤器：apps/server"]
+  throwTyped --> reactBoundary["React 错误边界：apps/web"]
+```
+
+怎么读：预期失败一律走 `Result`，不抛异常；类型化异常只用于程序员错误，并且必须在三个终点之一被转换为该终点的标准错误呈现，不得原样穿透（插件 Config 校验失败是 cordis 原生抛出的例外，见上文）。
 
 ---
 

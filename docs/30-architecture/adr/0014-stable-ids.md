@@ -1,6 +1,6 @@
 # ADR-0014 稳定 id：CRDT 友好 `NodeId` 与 OOXML id 的双向映射
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-15
 
 ## 状态
 
@@ -41,7 +41,7 @@ OOXML 的 id 是**部件局部**的：`p:cNvPr/@id` 是 uint32、每个 slide �
 - `ooxml-pptx/__tests__/ids.test.ts`：往返后 `cNvPrId`/`creationId`/`sldId` 不变；新增形状 id 唯一且不与不透明子树引用碰撞（扫描 `p:timing` 的 `spid`）；重复 id 语料修复并诊断。
 - `shared/__tests__/ids.test.ts`：`newNodeId` 单调（同毫秒内递增）、格式校验。
 - model-slide property test：任意 Mutation 序列后实体表键唯一、`parentId` 无环。
-- 扫描器 `no-numeric-model-ids`：`model-*` 中实体表键类型必须为 `NodeId` 品牌。
+- 类型测试断言（`*.type-test.ts`，09-type-discipline/09 §6，`test-typecheck` job，TD-098；原名 `no-numeric-model-ids`、原称扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：`model-*` 中实体表键类型必须为 `NodeId` 品牌。
 
 ## 关联
 

@@ -1,10 +1,10 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17、§4.18
 
 # ADR-0029 协同网关鉴权与授权：短票据握手 + 每帧角色检查 + 权限版本传播
 
 ## 状态
 
-**已接受**（2026-09-24，用户裁决 `00-charter/rulings-2026-09-14.md` §4.15 T-0 与 Q6）。原状态「提议（章程 D12、Q6）」。接受时的修订见文末「2026-09-24 修订」：单组织完全去租户；服务端只认 OIDC（外置 IdP，compose 可选 Casdoor），集成方签名 JWT 与 API Key 降为 M4；`auth.selfSignup` 部署级开关默认关；数据访问兜底加文档级 Postgres RLS；组管理推迟。凡正文与该节冲突处以该节为准，下文已就地标注。
+**已接受**（2026-09-24，用户裁决 `00-charter/rulings-2026-09-14.md` §4.15 T-0 与 Q6）。原状态「提议（章程 D12、Q6）」。接受时的修订见文末「2026-09-24 修订」：单组织完全去租户；服务端只认 OIDC（外置 IdP，compose 可选 Casdoor），集成方签名 JWT 与 API Key 降为 M4；`auth.selfSignup` 部署级开关默认关；数据访问兜底加文档级 Postgres RLS；组管理推迟。凡正文与该节冲突处以该节为准，下文已就地标注。2026-09-25 按 rulings §4.18 再次修订（分享链接解析归属与 WS 重算、守卫顺序、刷新失败分流、IdP 对外入口），见文末「修订（2026-09-25）」索引，正文已就地改写。
 
 ## 背景
 
@@ -12,13 +12,64 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 
 ## 决策
 
-1. **票据**：`POST /documents/:id/collab-ticket` 由 REST 会话鉴权后签发 JWT（ES256，60 s，`jti` 单次），claims：`sub, doc, role, perm_ver, sid?`（2026-09-24 删去 `tid`——T-0 去租户）。网关验签 + `jti` 防重放（Redis SETNX 60 s）+ `perm_ver` 对比 Redis 最新值（不一致以库为准）。
+1. **票据**：`POST /documents/:id/collab-ticket`（路径相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11）由 REST 会话鉴权后签发 JWT（ES256，60 s，`jti` 单次），claims：`sub, doc, role, perm_ver, sid?, lnk?`（2026-09-24 删去 `tid`——T-0 去租户）。`sid` 为**登录会话 id**（与 `Principal`/`Session` 的 `sessionId` 同义，按 JWT/OIDC 惯例）；`lnk` 为可选的**分享链接 id**——换票请求携带有效分享令牌时写入，供 WS 侧重算链接角色（见下方「2026-09-25 修订」；2026-09-25 修订，rulings §4.18 BE-02；原：claims 只有 `sub, doc, role, perm_ver, sid?` 且 `sid` 未定义含义，作废）。网关验签 + `jti` 防重放（Redis SETNX 60 s）+ `perm_ver` 对比 Redis 最新值（不一致以库为准）。
 2. **握手**：连接后首帧必须为 `CONTROL.auth`（5 s 超时 → 4408）；成功前任何 SYNC/AWARENESS 帧 → 4401。
 3. **每帧检查**：`SYNC update/step2` 帧要求 `session.role ≥ editor`；`AWARENESS` 允许 `viewer+`；CONTROL 只允许白名单类型。违规 → `error{collab.forbidden}`，累计 3 次 → 4403。
 4. **权限变更即时生效**：PermissionsService 写库后 `perm_ver++` 并 `PUBLISH perm:doc:{id}`；各实例对相关 Session 重算 role → `CONTROL.permission` 或关闭 4403；预算 ≤ 1 s p95。
-5. **文档锁定**（`documents.status='locked'`）：网关拒写（同降权），用于导入/恢复/迁移窗口。
-6. **观看链接（share link）**：REST 换票据时把 link 角色折叠进 `role`；WS 不直接接受 link token。**匿名访问路径与登录前置条件的完整定义见下方"2026-09-21 修订"一节**（rulings §4.13 S-1）。
+5. **文档锁定**（`documents.status='locked'`）：网关拒写（同降权），用于导入/恢复/迁移窗口。**擦除中**（`documents.status='purging'`，S-2 文档擦除或「永久删除文档」）：网关**拒绝加入**，已打开的 Room 经 `forceEpoch` 踢出会话并关闭后才清 `document_updates`/快照，防止清理后在线 Room 把新 update 写回（2026-09-25，rulings §4.18 BE-15）。
+6. **观看链接（share link）**：REST 换票据时把 link 角色折叠进 `role`，并在票据中带上 `lnk`（链接 id）；WS 不直接接受 link token，会话内的链接角色按 `lnk` 重算与到期降权（2026-09-25 修订，rulings §4.18 BE-02，见文末同名修订节）。**匿名访问路径与登录前置条件的完整定义见下方"2026-09-21 修订"一节**（rulings §4.13 S-1）。
 7. **API Key**：**降为 M4**（rulings §4.15 Q6），M1–M3 服务端不接受 API Key；M4 引入时仍不允许直接走 WS，须先经 REST 换票据（原 B7 待决随之结案）。
+
+**图 1 票据签发、握手与每帧检查（M1–M3）**
+
+```mermaid
+sequenceDiagram
+  participant client as 客户端
+  participant rest as REST
+  participant gw as WS 网关
+  participant valkey as Valkey
+  client->>rest: POST /api/v1/documents/:id/collab-ticket，携带 OIDC 登录会话
+  Note over rest: 依次执行 SessionGuard 解析 Principal → ShareLinkGuard 带分享令牌时叠加链接角色 → DocumentRoleGuard 要求 ≥ viewer
+  rest-->>client: 票据 JWT ES256，60 s，jti 单次，claims sub、doc、role、perm_ver、sid 可选、lnk 可选，无 tid
+  client->>gw: WS 连接，首帧 CONTROL.auth
+  Note over gw: 5 s 内未收到 auth 关闭 4408，auth 成功前收到 SYNC 或 AWARENESS 关闭 4401
+  gw->>gw: 验签
+  gw->>valkey: SETNX jti，60 s，防重放
+  gw->>valkey: 读取最新 perm_ver，与票据不一致时以库为准
+  gw-->>client: auth 成功
+  loop 每个入站帧
+    client->>gw: SYNC update 或 step2 需 role ≥ editor，AWARENESS 需 viewer 及以上，CONTROL 只允许白名单类型
+    gw-->>client: 违规回 error collab.forbidden，累计 3 次关闭 4403
+  end
+```
+
+怎么读：纵线是参与方，自上而下是时间顺序。三个守卫的先后是固定的：链接角色必须在 `DocumentRoleGuard` 判定前进入 `Principal`，否则只凭链接、没有直接授权的用户会先被 403（2026-09-25 修订，rulings §4.18 BE-05；原 Note「SessionGuard 解析 Principal，DocumentRoleGuard 要求 ≥ viewer，可选叠加 ShareLinkGuard」未定先后，作废）。WS 网关不接受分享链接令牌，链接角色在 REST 换票据时就已折叠进 `role`，票据另带 `lnk` 供会话内重算；M1–M3 票据只由 OIDC 会话换取，集成方签名 JWT 与 API Key 降为 M4。
+
+**图 2 权限变更的即时传播**
+
+```mermaid
+sequenceDiagram
+  participant permSvc as PermissionsService
+  participant pg as Postgres
+  participant valkey as Valkey
+  participant inst as 各 collab 实例
+  participant client as 相关 Session 的客户端
+  permSvc->>pg: 写库，perm_ver 加 1
+  permSvc->>valkey: 更新 perm_ver 缓存并 PUBLISH perm:doc:{id}
+  valkey-->>inst: 订阅者收到
+  inst->>inst: 对相关 Session 重算 role，取直接授权与 lnk 对应有效链接角色的较高者
+  alt 推送新角色
+    inst-->>client: CONTROL.permission
+  else 关闭连接
+    inst-->>client: 关闭 4403
+  end
+  Note over permSvc,client: 预算 ≤ 1 s p95，门禁 ≤ 2 s
+  Note over inst,client: 会话记录 linkExpiresAt，链接到期时主动重算并降权，不等下一次推送
+```
+
+怎么读：自上而下是一次权限写入扩散到所有实例的顺序。网关不必每帧查库，而是靠这条推送链更新会话内缓存的 `role`；`perm_ver` 在 PG 与 Redis 协议层双写，以 PG 为准。链接撤销同样经 `perm_ver` 加 1 与 `perm:doc:{id}` 推送生效；重算时取「直接授权」与「票据 `lnk` 对应链接此刻的有效角色」两者的较高者，所以他人改动权限不会把只凭链接加入的会话误降为 none（2026-09-25 修订，rulings §4.18 BE-02；原：重算只看票据主体的直接授权，作废）。
+
+依据：本文决策 4、「后果」与补充（v0.2）；门禁 ≤ 2 s 见 ADR-0023 补充（v0.2）。
 
 ## 备选方案与放弃原因
 
@@ -40,7 +91,7 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 
 - **凭据两种形态**：(a) 一方票据（60 s、`jti` 单次），用于 `apps/web` 与 OIDC 登录用户——**M1–M3 唯一形态**；(b) **集成方签名 JWT**（≤ 1 h，JWKS 验签；claims 草案 `sub`、`doc`、`caps[]`（能力位）、`exp`；2026-09-24 删去 `tenant`）直接放入 `CONTROL.auth`，无需先换票据——**2026-09-24 起降为 M4**，届时按 `sub` JIT 建影子用户（`documents.owner_id`、`comments.author_id` 需外键），ticket-verifier 增加该分支（14 §5.10 G-19）。
 - **权限来源可替换**（随 (b) 降为 M4；M1–M3 权限来源只有服务端 `permissions` 表）：默认读 JWT claims（`caps[]` → Role/能力位）；可配置为回调集成方权限服务（缓存 ≤ 60 s）；撤销通过 `perm:doc:{id}` 推送 ≤ 2 s 生效（不等缓存过期）。
-- **令牌刷新**：客户端 `getToken()` 在到期前 60 s 刷新并以 `CONTROL.auth.refresh{ token }` 续期（不断连）；服务端校验后更新 session 的过期时间与 role；刷新失败 → `reconnecting` → 30 s → `offline`。
+- **令牌刷新**：客户端 `getToken()` 在到期前 60 s 刷新并以 `CONTROL.auth.refresh{ token }` 续期（不断连）；服务端校验后更新 session 的过期时间与 role；刷新失败**按原因分流**（2026-09-25 修订，rulings §4.18 UX-02/UX-03）：**网络错误** → `reconnecting`，与重连共用同一个 30 s 离线计时（自进入重连起累计 30 s 仍未连上 → `offline`，ADR-0023 决策 5），不另设计时器；**鉴权失败（401，`server.auth.expired`）** → 直接进入「登录已过期」，不经过「重连中 → 离线」。「登录已过期」时由横幅在**弹窗或新标签**完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页，原页重获焦点时也探测 `/auth/me`；弹窗被拦截退化为新标签链接），原页不跳转、待同步队列保留；登录回来的用户 id 与原会话一致时取新票据，按 06 §5.1 已有的 `denied → connecting` 边重连 → 同步中 → 已恢复；**不一致时不重放队列**，按只读处理并提供导出本地副本（防止以他人身份提交更改）；该横幅处理前不可关闭。（原：「刷新失败 → `reconnecting` → 30 s → `offline`」，不分原因，作废。）
 - **单人模式**：无服务端时集成方直接传入能力位，客户端命令管线 fail-closed（CO-05）。
 - **错误码映射**：PRD `auth/invalid-token`、`auth/expired`、`auth/forbidden` → `server.auth.invalid_token`、`server.auth.expired`、`server.auth.forbidden`（HTTP 401/401/403；WS 4401/4401/4403），均触发 `collab/auth-failed` 事件且不泄露内部细节（10 §11.2）。
 - **构造消息绕过客户端**（CO-05）：服务端拒绝该 update 并在累计 3 次后断开（4403），审计 `collab.update_rejected`。
@@ -51,8 +102,13 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 
 - **不支持真正匿名访问**：分享链接的 `role` 只叠加在**已登录**的 `Principal` 上（M1–M3 仅 `kind:'user'`；`'apiKey'` 随 API Key 降 M4）——同一部署内任意已登录账号凭有效链接令牌即可访问文档并获得链接角色（2026-09-24 删去「包括其它租户的用户」——T-0）。服务端**不产出** `Principal.kind='shareLink'`；`@cordexjs/protocol` 与 `40-modules/08` 的 `Principal` 类型不再声明该字面量（40-modules/08 §1.2 同步）。
 - **鉴权路径**：REST 侧新增 `ShareLinkGuard`（`share-links/interface/guards/share-link-access.guard.ts`）——在 `SessionGuard`/`ApiKeyGuard` 已解析出 `Principal` 之后运行，解析请求中的分享令牌（Header 或 Query）→ 校验未撤销（`revokedAt` 为空）且未过期（`expiresAt` 未到）→ 把令牌对应的 `role` 叠加进当前 `Principal.scopes`，不落库、不产生新 `Principal`。未登录访客访问带分享令牌的资源时，`SessionGuard`/`ApiKeyGuard` 按原有 fail-closed 语义返回 401，由前端跳转登录（不是本 ADR 新增行为，只是明确"分享链接不豁免登录检查"这一前提）。
+  - **守卫顺序**（2026-09-25 修订，rulings §4.18 BE-05/BE-06）：固定为 rate-limit →`SessionGuard`（由 `AppModule` 以 `APP_GUARD` 全局注册、默认拒绝，只有 `@Public()` 白名单放行，非 HTTP 上下文直接放行、WS 靠首帧票据）→ `ShareLinkGuard`（请求带分享令牌时生效；可注册为紧随 `SessionGuard` 的第二个 `APP_GUARD`，无令牌直通）→ `DocumentRoleGuard`（控制器级）。类名统一为 `ShareLinkGuard`（文件名沿用 `share-link-access.guard.ts`；原 40-modules 写法 `ShareLinkAccessGuard` 作废）。
+  - **令牌解析归权限模块**（2026-09-25 修订，rulings §4.18 BE-02，用户选「解析归权限模块」）：`ResolveShareLinkUseCase`（token → `{docId, role, linkId, expiresAt}` 与 linkId → 当前有效角色两条路径，**只读**，经受控的 `SECURITY DEFINER` 函数查 `share_links`，ADR-0022 修订 §3）归 `PermissionsModule` 并导出；`ShareLinksModule` 只管链接的创建、撤销、列表与 `ShareLinkGuard`，依赖方向为 ShareLinks → Permissions 单向、无环。`ShareLinkGuard` 与 `RoleResolverService` 都调用同一个用例解析令牌，两处结果必然一致；`Principal.scopes` 的链接条目形状为 `{docId, role, linkId, expiresAt}`，`RoleResolverService` 与 `DocumentRoleGuard` 取「直接授权」与 scopes 中本文档链接角色的较高者（5 s 缓存只缓存直接授权部分）。（原：未规定解析用例归属，40-modules/08 曾写 ShareLinks 导出解析用例供 RoleResolver 消费、同时 import Permissions，成环，作废。）
 - **无账号访客的路径**（2026-09-24 改写，原「服务端 `register-personal-account.usecase.ts` 创建 `tenantId=null` 的个人 User」作废——服务端不持有密码、无租户）：由部署级开关 **`auth.selfSignup`（默认关）** 决定。关闭时由管理员在 IdP 中建号（**服务端不设「待接受邀请」表、无邀请兑现流程**；分享邀请只对已存在账号生效，被邀请者尚无账号时提示「联系管理员开通账号」——2026-09-24 复核修正，rulings §4.17 D1）；开启时访客在 **IdP**（compose 可选 Casdoor 或任意 OIDC IdP）自助注册，服务端在**首次 OIDC 登录时 JIT 建号**。登录成功后即为已登录 `Principal`，随后按上一条路径兑现分享链接。
-- **WS 侧不变**：决策 2/6 原有"WS 不直接接受 link token"维持不变——协同 ticket 签发（`POST /documents/:id/collab-ticket`）本身就挂在 `DocumentRoleGuard`（≥ viewer）之后，同样可选叠加 `ShareLinkGuard`；票据一旦签发，claims 里的 `role` 已经是叠加后的最终角色，WS 网关侧无需感知令牌来源。
+- **WS 侧**：决策 2/6 原有"WS 不直接接受 link token"维持不变——协同 ticket 签发（`POST /documents/:id/collab-ticket`）同样按 `SessionGuard → ShareLinkGuard（可选）→ DocumentRoleGuard（≥ viewer）` 的顺序执行；票据签发时 claims 里的 `role` 已经是叠加后的最终角色。**但会话中途的重算需要知道链接来源**（2026-09-25 修订，rulings §4.18 BE-02；原：「WS 网关侧无需感知令牌来源」作废——按原写法，只凭链接加入的会话在文档发生任何一次权限变更后会被误降为 none 并踢出，链接到期也不会触发重算）：
+  - 票据带可选 claim `lnk`（链接 id），会话记录 `linkId` 与 `linkExpiresAt`；
+  - collab 侧 `AuthzSource`（M-09）收到 `perm:doc:{id}` 重算时取 **max(直接授权, `lnk` 对应链接此刻的有效角色)**，链接角色经 `PermissionsModule` 导出的 `ResolveShareLinkUseCase`（linkId 路径）查询，collab 角色因此装配 `PermissionsModule`（另按装配矩阵装 `ShareLinksModule`，ADR-0037 决策 1），`CollabModule` 经 import `PermissionsModule` 取得该用例；
+  - 链接被撤销：撤销写库后 `perm_ver++` 并推送 `perm:doc:{id}`，会话 ≤ 1 s 降权；链接到期：会话按 `linkExpiresAt` 设定时器**主动**重算降权，不等推送。
 - **外部访问审计**：`ShareLinkGuard` 每次成功叠加角色（即每次真实的外部访问）写一条审计 `share-link.accessed`（`{docId,linkId,principalId,role}`，仅审计，不采样），由 `40-modules/12` 审计模块消费；对照决策 6 表格上方"如何被机械验证"的既有断言口径，本条新增审计断言（见下）。
 - **PRD 承接**：`10-prd/03-features/03-collaboration.md` CO-15 原"免登录"表述改为"登录后凭链接即得角色"（由对应回写员同步，不在本 ADR 重复措辞）。
 
@@ -63,12 +119,22 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 > 方向性裁决：多租户/SaaS 设计属过度复杂化，本项目只做**单组织「用户登录 + 协同」**。证据包 `00-charter/_evidence/q1-q10-decision-pack.json` 的 Q6 推荐（三种凭据模式、Keycloak、tenant_memberships、租户级 RLS、另立 ADR-0036）与本节冲突处**以本节为准**；不另开 ADR-0036，身份与去租户口径记录在本节。
 
 1. **单组织、完全去租户（T-0）**：一次部署 = 一个组织；数据模型、API、票据 claims、权限中**无 tenant**（本 ADR 已删 `tid`/`tenant` claim）。U-10「租户不开放自助创建」、S-1 的跨租户措辞、S-3 按租户分桶、§4.13 `GroupRepository.findById` 补 `tenantId` 均以本节为准而失效。将来若做 SaaS 另立项、以迁移加回。
-2. **外置 IdP，服务端只认 OIDC（M1–M3）**：服务端是 OIDC RP，**不持有用户密码**；compose 提供**可选** `idp` profile，内置 **Casdoor**（Apache-2.0，Go 实现、轻量；原生支持企业微信/钉钉/飞书，国内 IM 经 Casdoor 代理，服务端不写私有 OAuth 适配器），可换成任意 OIDC IdP。用户以 `(issuer, subject)` 唯一识别，具体表结构由 40-modules/08 定稿（不含租户与成员关系表）。
+2. **外置 IdP，服务端只认 OIDC（M1–M3）**：服务端是 OIDC RP，**不持有用户密码**；compose 提供**可选** `idp` profile，内置 **Casdoor**（Apache-2.0，Go 实现、轻量；原生支持企业微信/钉钉/飞书，国内 IM 经 Casdoor 代理，服务端不写私有 OAuth 适配器），可换成任意 OIDC IdP。用户以 `(issuer, subject)` 唯一识别，具体表结构由 40-modules/08 定稿（不含租户与成员关系表）。**issuer 用浏览器可达的对外 URL**：内置 Casdoor 经反向代理子域 `idp.<域名>` 暴露（Casdoor 仍只在 backend 网络、不开宿主端口，ADR-0037 决策 3）；应用侧的 OIDC 发现与 JWKS 请求经反代在内网的网络别名访问同一 URL，仍满足「唯一常规出站」；`redirectUri` 为 `/api/v1/auth/oidc/callback`（2026-09-25 修订，rulings §4.18 BE-01/BE-11；原：未规定 issuer 取内网还是对外地址，按原拓扑浏览器无法到达 Casdoor 登录页，作废）。
 3. **集成方签名 JWT 与 API Key 降为 M4**：届时按 `sub` JIT 建影子用户；M1–M3 票据只由 OIDC 会话换取。
 4. **注册策略 = 部署级开关 `auth.selfSignup`，默认关**：关闭时由管理员在 IdP 建号（邀请仅对已存在账号生效，无待接受邀请表，rulings §4.17 D1）；开启时在 IdP 自助注册、首次登录 JIT 建号。分享链接**始终要求登录**（延续 S-1 不匿名）。`apps/web` 的 `auth.mode:'none'` 只限 dev 构建，服务端在 production 下拒绝无鉴权启动。
-5. **数据访问兜底 = 文档权限检查（D12）+ 文档级 Postgres RLS**：RLS 以「当前主体对该 `doc_id` 的权限」为判定（设计见 ADR-0022 修订 §3）；它是纵深防御，不替代本 ADR 决策 1–4 的网关检查与 REST Guard。机械上为**两道防线**（2026-09-24 复核修正，rulings §4.17 D3）：代码层扫描器 `doc-access-via-permission`（M-01 第 14 个扫描器：按文档读写的仓储方法必须经权限服务）+ 数据库层文档级 RLS（治理检查脚本 `check-rls-coverage`）。
+5. **数据访问兜底 = 文档权限检查（D12）+ 文档级 Postgres RLS**：RLS 以「当前主体对该 `doc_id` 的权限」为判定（设计见 ADR-0022 修订 §3）；它是纵深防御，不替代本 ADR 决策 1–4 的网关检查与 REST Guard。机械上为**两道防线**（2026-09-24 复核修正，rulings §4.17 D3）：代码层扫描器 `scan-doc-access-via-permission`（M-01 第 14 个扫描器：按文档读写的仓储方法必须经权限服务）+ 数据库层文档级 RLS（治理检查脚本 `check-rls-coverage`）。
 6. **CI 分层认证**：PR 门禁 = Casdoor 容器 + `oidc-provider` mock（可离线稳定运行）；nightly / 发布前认证 Keycloak、Entra ID、飞书等外部 IdP。
 7. **组管理（U-11）推迟**：M3 只按人分享；权限主体仅 `user`（与分享链接叠加），不出现 `group`。
+
+## 修订（2026-09-25，rulings §4.18）：分享链接解析归属与 WS 重算、守卫顺序、刷新失败分流、IdP 对外入口
+
+> 用户裁决 `00-charter/rulings-2026-09-14.md` §4.18（文档矛盾收口）。各条已就地改写正文，并以「原：…作废」保留演进；本节只做索引。
+
+1. **BE-02 分享链接角色（用户选「解析归权限模块」）**：`ResolveShareLinkUseCase` 归 `PermissionsModule` 并导出，`ShareLinksModule` 只管创建、撤销、列表与守卫，依赖单向无环；票据新增可选 claim `lnk`，`sid` 定义为登录会话 id；WS 重算取 max(直接授权, 有效链接角色)，会话记录 `linkExpiresAt` 到期主动降权——见决策 1、决策 6、图 2 与 2026-09-21 修订节的「鉴权路径」「WS 侧」两条。
+2. **BE-05 / BE-06 守卫顺序**：rate-limit → `SessionGuard`（全局 `APP_GUARD`，`@Public()` 白名单）→ `ShareLinkGuard`（可选，带令牌时生效）→ `DocumentRoleGuard`——见图 1 与「鉴权路径」。
+3. **UX-02 / UX-03 刷新失败分流**：网络错误走重连并共用 30 s 离线计时；401 直接「登录已过期」，新窗口重新登录、同一用户才重放——见补充（v0.2）「令牌刷新」。
+4. **BE-01 / BE-11 IdP 对外入口**：issuer 用对外 URL（`idp.<域名>` 反代子域），`redirectUri` 为 `/api/v1/auth/oidc/callback`——见 2026-09-24 修订第 2 条。
+5. **GV-15**：扫描器按正式名 `scan-doc-access-via-permission` 书写。
 
 ## 如何被机械验证
 
@@ -81,9 +147,12 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 - （2026-09-24）T-0：票据 claims、仓储签名、迁移脚本中不出现 `tid`/`tenant`/`tenantId`（扫描器）。
 - （2026-09-24）Q6：M1–M3 服务端拒绝集成方 JWT 与 API Key 凭据（4401/401）；`auth.selfSignup` 缺省为 `false`；production 构建下 `auth.mode:'none'` 启动失败；PR CI 跑 Casdoor 容器 + `oidc-provider` mock 的 OIDC 登录 e2e。
 - （2026-09-24）文档级 RLS：`check-rls-coverage` 门禁（40-modules/01 治理检查脚本；原名 `rls-policy-coverage` 作废，2026-09-24 复核修正）+ 故障注入 e2e（绕过应用层权限检查时跨文档读取仍被拒），M3 出口。
-- （2026-09-24 复核修正，rulings §4.17 D3）代码层：扫描器 `doc-access-via-permission` 对 `apps/server` 仓储方法生效，与上条 RLS 门禁构成两道防线。
+- （2026-09-24 复核修正，rulings §4.17 D3）代码层：扫描器 `scan-doc-access-via-permission` 对 `apps/server` 仓储方法生效，与上条 RLS 门禁构成两道防线（2026-09-25 按 09-type-discipline/06 §18 的正式名书写，rulings §4.18 GV-15；原写 `doc-access-via-permission`）。
+- （2026-09-25，rulings §4.18 BE-02/BE-05）分享链接的 REST 与 WS 路径：只有链接、没有直接授权的用户访问 `GET /api/v1/documents/:id` 与 `collab-ticket` 均返回 200，且票据含 `lnk`；只凭链接加入的会话在**他人**权限变更（`perm:doc` 推送）后不被踢出、角色不变；链接撤销后 ≤ 1 s 降权；链接到期后按 `linkExpiresAt` 主动降权（FixedClock 断言）；`ShareLinkGuard` 与 `RoleResolverService` 对同一令牌解析出相同角色（同一 `ResolveShareLinkUseCase`）；depcruise `no-circular` 覆盖 Permissions ↔ ShareLinks。
+- （2026-09-25，rulings §4.18 UX-02）令牌刷新：网络错误 → `reconnecting` 且 30 s 后才 `offline`；401 → 直接「登录已过期」、不经 `offline`；新窗口登录回来的用户 id 不同 → 不重放 pending、会话只读、可导出本地副本。
+- （2026-09-25，rulings §4.18 BE-06）遍历路由表：除 `@Public()` 白名单（`/auth/oidc/login`、`/auth/oidc/callback`、`/auth/config`、`/auth/.well-known/jwks.json`、`/healthz`、`/readyz`）外，无会话请求一律 401（e2e）。
 - （2026-09-24 复核修正，rulings §4.17 D1）邀请：对未注册邮箱发起分享邀请 → 返回「账号不存在，请联系管理员」且不落任何待接受记录；服务端无 `pending_invitations` 表与邀请兑现端点。
 
 ## 关联
 
-章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6；ADR-0022（RLS 设计）/0037（Casdoor profile）；ADR-0023/0035；架构 06 §10、08 §2（auth/collab 模块）、§9.1（分享链接需登录 + 外部访问审计，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。
+章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6、§4.18 BE-01/BE-02/BE-05/BE-06/BE-11/UX-02/GV-15；ADR-0022（RLS 设计、`SECURITY DEFINER` 查找函数）/0037（Casdoor profile、反代子域、角色装配）；ADR-0023/0035；架构 06 §10、08 §2（auth/collab 模块）、§9.1（分享链接需登录 + 外部访问审计，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 01 · tsconfig 基线
 
@@ -20,6 +20,39 @@ tooling/tsconfig/
 ├── build.json     extends ./base.json；供 composite 构建 / api-extractor 输入使用（declaration 相关字段）
 └── vitest.json    extends 对应环境配置；测试专用 types 覆盖（不引入 vitest/globals，显式 import）
 ```
+
+**tsconfig 继承树**
+
+```mermaid
+flowchart BT
+  cfgBase["base.json：全部包共享的严格选项集合"]
+  subgraph envCfg["同构环境配置"]
+    cfgIso["iso.json：lib 仅 ES 标准库，types 显式清空"]
+    cfgDom["dom.json：lib 追加 DOM / DOM.Iterable"]
+    cfgNode["node.json：types 显式含 node"]
+  end
+  cfgNest["nest.json：仅 apps/server 的受限例外，§6"]
+  cfgBuild["build.json：composite 构建 / api-extractor 输入"]
+  cfgVitest["vitest.json：测试专用 types 覆盖"]
+  pkgIso["iso 包的 tsconfig.json"]
+  pkgDom["dom 包的 tsconfig.json"]
+  pkgNode["node 包的 tsconfig.json"]
+  appServer["apps/server/tsconfig.json"]
+  testCfg["tsconfig.vitest.json"]
+  cfgIso --> cfgBase
+  cfgDom --> cfgBase
+  cfgNode --> cfgBase
+  cfgBuild --> cfgBase
+  cfgNest --> cfgNode
+  cfgVitest -. "extends 对应环境配置" .-> envCfg
+  pkgIso --> cfgIso
+  pkgDom --> cfgDom
+  pkgNode --> cfgNode
+  appServer --> cfgNest
+  testCfg --> cfgVitest
+```
+
+怎么读：箭头方向是 `extends`（子配置指向被继承者）；各包与 apps 只能 extends iso/dom/node/nest 四者之一，不得重复书写编译选项，测试配置单独 extends vitest.json。
 
 每个 `packages/<name>/tsconfig.json`、`apps/<name>/tsconfig.json` 不得重复书写编译选项，只能：
 
@@ -61,7 +94,7 @@ tooling/tsconfig/
 | `noUnusedLocals` / `noUnusedParameters` | 死代码与「忘记接线」的参数（如声明了 `ctx` 却没用，暗示这个插件其实不需要该依赖）不会被编译器捕获 | tsc 是 CI 的最终真源（即使 ESLint 被跳过也拦得住）；[02](./02-lint-rules.md) 的 `@typescript-eslint/no-unused-vars` 提供更快的编辑期反馈与自动修复，两者不冲突（见 [ADR-0044](../adr/0044-eslint-and-biome-split.md)） |
 | `noUncheckedSideEffectImports` | `import './x'`（无绑定的副作用导入）在目标模块不存在时不报错，常见于误删导出后忘记清理的导入 | 对 `*.contribution.ts` 的类型增强导入尤其重要——它是本项目里"看起来无副作用、实则决定类型环境"的导入 |
 | `allowUnreachableCode: false` | 不可达代码不报错 | 显式设为 `false`（tsc 默认 `undefined` 即报告，此处显式声明避免依赖默认值） |
-| `allowUnusedLabels: false` | 同上，显式声明 |
+| `allowUnusedLabels: false` | 未使用的标签不报错 | 同上，显式声明 |
 | `forceConsistentCasingInFileNames` | macOS/Windows 大小写不敏感文件系统下，`import './Foo'` 误写成 `import './foo'` 本地不报错、CI（Linux）才炸 | 本仓库开发机为 macOS（见环境信息），此项是**唯一**能在本地复现 CI 路径大小写错误的机制 |
 
 ### 2.3 R7 专项：`isolatedDeclarations` 与 `verbatimModuleSyntax`
@@ -123,9 +156,30 @@ node.json  lib: ["ES2023"]                          types: ["node"]
 
 ## 4. 项目引用（Project References）拓扑
 
-- 每个 `packages/*`、`apps/*` 是一个 `composite: true` 的 TS 工程，`references` 指向其在章程 §5.2「依赖上限」列出的包（不多不少——`references` 与实际 `import` 不一致时，`tsc --build` 要么编译出多余的包（`references` 多列），要么无法解析导入（`references` 漏列，`isolatedModules`/`moduleResolution: nodenext` 会直接报模块找不到）。这使得 `references` 字段天然是依赖上限的**第二道**机械校验——第一道是 [03](./03-boundaries.md) 的 dependency-cruiser。两者校验的对象不同（`references` 校验"类型层是否声明了依赖"，dependency-cruiser 校验"源码里实际 import 了什么"），因此不是重复：常见的漂移模式是"`references` 里还挂着一个已经不再 import 的包"，这由 [06 scan-manifest](./06-scanners.md#6-scan-manifest) 的清单一致性检查捕获，而非本节直接负责。
+- 每个 `packages/*`、`apps/*` 是一个 `composite: true` 的 TS 工程。**口径**（2026-09-25，rulings §4.18 FE-02）：`references` = 该包 `package.json` 的内部依赖（`@cordexjs/*`，含 `peerDependencies`），由 `tooling/scripts/sync-references.ts` 双向校验、不多不少；而 package.json 内部依赖 ⊆ 章程 §5.2「依赖上限」列 ∪ 隐式 L0（`kernel`/`shared`/`protocol` 对非 L0 包隐式允许，`design`（R18）与 `shared`（R11）例外，L0 包之间仍逐条显式），由 [06 scan-manifest](./06-scanners.md#6-scan-manifest) 规则 (i) 读取上限列导出的 `tooling/policy/dependency-limits.json` 校验并配负向夹具（执行矩阵 TD-101）。原稿「`references` 指向依赖上限列出的包，不多不少」作废：依赖上限是**上限**且含通配（`model-*`、「上述」），不能同时充当逐包的实际依赖清单。`references` 与实际 `import` 不一致时，`tsc --build` 要么编译出多余的包（`references` 多列），要么无法解析导入（`references` 漏列，`isolatedModules`/`moduleResolution: nodenext` 会直接报模块找不到）。这使得 `references` 字段天然是依赖关系的**第二道**机械校验——第一道是 [03](./03-boundaries.md) 的 dependency-cruiser。两者校验的对象不同（`references` 校验"类型层是否声明了依赖"，dependency-cruiser 校验"源码里实际 import 了什么"），因此不是重复：常见的漂移模式是"`references`/package.json 里还挂着一个已经不再 import 的包"，这由 knip（[03 §4](./03-boundaries.md#4-knip--manypkg--syncpack-的分工)）与 [06 scan-manifest](./06-scanners.md#6-scan-manifest) 捕获，而非本节直接负责。
 - 根 `tsconfig.json`（仓库根）只有一个 `references` 数组，`files: []`，用作 `tsc --build` 的总入口；不含任何 `compilerOptions`。
 - Turborepo 的任务图（`turbo.json`，架构-结构条线拥有该文件的产品级配置，本篇只声明类型检查任务本身的输入输出契约）以 `references` 拓扑为基础做增量调度：`typecheck` 任务的 `outputs` 声明为各包的 `.tsbuildinfo` 与 `dist/*.d.ts`，缓存键包含 `tooling/tsconfig/**`。
+
+**项目引用拓扑与依赖上限的双重校验**
+
+```mermaid
+flowchart TB
+  root["根 tsconfig.json：只有 references，files 为空，无 compilerOptions"]
+  pkgs["每个 packages/* 与 apps/*：composite: true 的 TS 工程"]
+  refs["references = package.json 内部依赖，sync-references 校验；内部依赖 ⊆ 上限列 ∪ 隐式 L0"]
+  tscBuild["tsc --build：总入口，按引用拓扑构建与类型检查"]
+  depcruise["dependency-cruiser：第一道，校验源码实际 import 了什么"]
+  scanManifest["scan-manifest 规则 i：内部依赖 ⊆ dependency-limits.json；knip 捕获不再 import 的依赖"]
+  turbo["Turborepo typecheck 任务：以 references 拓扑增量调度"]
+  root --> pkgs --> refs
+  root --> tscBuild
+  refs -- "第二道：类型层是否声明了依赖" --> tscBuild
+  depcruise -. "校验对象不同，互补" .- refs
+  scanManifest -. "漂移检测" .-> refs
+  turbo --> tscBuild
+```
+
+怎么读：实线是配置的引用关系与构建入口；`references` 与 package.json 内部依赖逐一相等，dependency-cruiser 从源码层约束实际 import（虚线表示互补而非重复）；依赖是否超出章程上限由 scan-manifest 规则 (i) 判定。
 
 ---
 

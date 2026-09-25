@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # ADR-0048：类型测试工具选型
 
@@ -8,7 +8,7 @@
 
 ## 背景
 
-本方案多处依赖"类型测试"（断言某段代码**应该**编译通过、某段代码**应该**编译失败）作为机械验证手段：[09§6](../09-type-discipline/09-plugin-type-contracts.md#6-类型测试的组织方式) 的贡献点/Manifest 类型契约测试、[09§7](../09-type-discipline/09-plugin-type-contracts.md#7-provider-一致性套件的类型接口) 的 Provider 合规套件的类型断言部分、[lessons A14](../../00-charter/reference-univer-lessons.md)（幽灵泛型）相关的反例测试。社区常见方案有三类：独立工具 `tsd`（基于注释指令 `// $ExpectType`）、独立库 `expect-type`（`expectTypeOf` API，不依赖特定测试运行器）、以及 Vitest 内建的类型测试能力（同样提供 `expectTypeOf`/`assertType`，与 `expect-type` 同源但直接集成进 Vitest 的 `--typecheck` 运行模式）。章程 D9 已经选定 Vitest 作为测试运行时。
+本方案多处依赖"类型测试"（断言某段代码**应该**编译通过、某段代码**应该**编译失败）作为机械验证手段：[09§6](../09-type-discipline/09-plugin-type-contracts.md#6-类型测试的组织方式) 的贡献点/Manifest 类型契约测试、[09§7](../09-type-discipline/09-plugin-type-contracts.md#7-provider-一致性套件的类型接口) 的 Provider 契约套件（`run<Definition>Conformance`）的类型断言部分、[lessons A14](../../00-charter/reference-univer-lessons.md)（幽灵泛型）相关的反例测试。社区常见方案有三类：独立工具 `tsd`（基于注释指令 `// $ExpectType`）、独立库 `expect-type`（`expectTypeOf` API，不依赖特定测试运行器）、以及 Vitest 内建的类型测试能力（同样提供 `expectTypeOf`/`assertType`，与 `expect-type` 同源但直接集成进 Vitest 的 `--typecheck` 运行模式）。章程 D9 已经选定 Vitest 作为测试运行时。
 
 ## 决策
 
@@ -39,5 +39,5 @@
 
 ## 关联
 
-- 章程 D9（Vitest）；[09-plugin-type-contracts.md §6](../09-type-discipline/09-plugin-type-contracts.md#6-类型测试的组织方式)、§7（Provider 合规套件）。
+- 章程 D9（Vitest）；[09-plugin-type-contracts.md §6](../09-type-discipline/09-plugin-type-contracts.md#6-类型测试的组织方式)、§7（Provider 契约套件；2026-09-25 按章程 `run<Definition>Conformance` 命名统一，原「合规套件」作废，rulings §4.18 GV-19）。
 - [lessons A14](../../00-charter/reference-univer-lessons.md)（幽灵泛型，类型测试覆盖的典型反例场景之一）。

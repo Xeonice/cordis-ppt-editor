@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4、§4.18 CO-01
 
 # ADR-0021 渲染介质：DOM/SVG 单实现，Canvas 仅作栅格化/度量/预留 RenderTarget
 
@@ -18,6 +18,28 @@
 2. `RenderTarget` 是贡献点；`dom`（HTML+SVG）为**唯一实现**：编辑、查看、放映、服务端缩略图与 PDF 共用同一套 SVG 渲染。canvas 只承担三个角色：① `toImage` 的栅格化画板；② `measureText` 度量器（ADR-0027）；③ 预留的 `RenderTarget('canvas')` 座位（M1–M3 不实现产品 Provider）。~~缩略图/放映可走 canvas~~（2026-09-24 删去）。
 3. 文本编辑宿主与文本排版策略分别由 ADR-0028、ADR-0027 决定（均与介质选择耦合：自绘文本行需要自有断行）。
 4. 虚拟化：只挂载可见页（± 1）；缩略图独立 Provider（07 §8）：可见缩略图 `dom-scaled`；位图走**主线程** `toImage`（游离 DOM → SVG 序列化 → Image → Canvas），**不做 Worker 版本**（SVG 无法在 Worker 中解码）。显式推翻 14 §5.4 对 offscreen-canvas Provider 的采纳（M-07/G-2）。
+
+**图 1 dom 唯一实现与 canvas 的三个角色**
+
+```mermaid
+flowchart LR
+  renderTarget["RenderTarget 贡献点"] --> domTarget["dom：HTML 容器 + SVG 图形 + SVG text 自绘文本行，唯一实现"]
+  domTarget --> editUse["编辑"]
+  domTarget --> viewUse["查看"]
+  domTarget --> showUse["放映：同一 dom 全屏挂载"]
+  domTarget --> thumbUse["可见缩略图：dom-scaled"]
+  domTarget --> serverUse["服务端缩略图与 PDF：headless Chromium 复用同一代码，ADR-0026"]
+  subgraph canvasRoles["canvas 只承担三个角色"]
+    toImage["① toImage 栅格化画板：主线程，游离 DOM → SVG 序列化 → Image → Canvas，不做 Worker 版"]
+    measureText["② measureText 度量器，ADR-0027"]
+    canvasSeat["③ 预留的 RenderTarget canvas 座位：M1–M3 不实现产品 Provider，M3 末 experimental 最小 Provider 验证契约"]
+  end
+  domTarget -- "位图需求" --> toImage
+  toImage --> pngExport["客户端 PNG 导出"]
+  renderTarget -. "预留" .-> canvasSeat
+```
+
+怎么读：实线是当前实际走的渲染路径，全部落在同一个 `dom` 实现上；虚线是只留座位、不交付产品 Provider 的 canvas RenderTarget。canvas RenderTarget 不出现在任何编辑、查看、放映或缩略图的主路径上（2026-09-24 删去「缩略图/放映可走 canvas」）；canvas 在主路径上只以 `toImage` 栅格化画板和 `measureText` 度量器的身份出现。
 
 ## 备选方案与放弃原因
 
@@ -47,11 +69,28 @@
 ## 修订（2026-09-24，rulings §4.15 Q4）：单实现口径、回退规则、canvas 契约验证、安全基线
 
 1. **首帧预算统一**：对外门禁只有 DX-1000「首页可见 ≤ 2.5 s、交互 ≥ 30 fps」（PRD NF-01）；原「1,000 元素页首帧 ≤ 200 ms」降为引擎内部的分解目标（场景构建 + 首次挂载），不作独立门禁，避免两套口径。
-2. **DX-1000 回退规则**（M1 中期 spike 不达标时，按序执行）：① 先做合成层优化——拖动对象放入独立合成层、`content-visibility`、减少滤镜与属性写入；② 静态层栅格化放到最后才考虑（它会碰上 Web 字体问题，并破坏「一个元素 = 一个 DOM 节点」）；③ 仍不达标时，**只对查看与放映**启用 canvas RenderTarget，编辑保持 SVG，a11y 由对象列表兜底。门禁不放宽（Q5 两层口径：性能包络只收紧）。
+2. **DX-1000 回退规则**（M1 中期 spike 不达标时，按序执行）：① 先做合成层优化——拖动对象放入独立合成层、`content-visibility`、减少滤镜与属性写入；② 仍不达标，再考虑静态层栅格化（这是 SVG/DOM 路线内的最后手段：会碰上 Web 字体问题，并破坏「一个元素 = 一个 DOM 节点」）；（2026-09-25 修订，rulings §4.18 CO-01：顺序按「按序执行」与图 2 定为 ① → ② → ③，② 是 DOM 路线内的最后手段、排在 canvas 之前；原：「② 静态层栅格化放到最后才考虑」，字面可读成排在 ③ 之后，作废；07 §1 把静态层栅格缓存并进 ① 的写法同时作废）③ 仍不达标时，**只对查看与放映**启用 canvas RenderTarget，编辑保持 SVG，a11y 由对象列表兜底。门禁不放宽（Q5 两层口径：性能包络只收紧）。
 3. **放映与缩略图口径**：放映 = 同一 `dom` RenderTarget 全屏挂载；可见缩略图 = `dom-scaled`；位图（封面、批量 PNG）= 主线程 `toImage`。`toImage` 用不到页面 Web 字体（SVG 作为图像加载不读 FontFace，CJK 尤甚，二手资料待实测）列为 **M2 位图 spike**；结论出来前，位图封面与批量 PNG 从 M3 起走 `server-png`（ADR-0026），M2 列表封面取包内 `docProps/thumbnail.jpeg`。07 §14.6「导出在 Worker」作废，改为主线程分片或 server-png。
 4. **M3 末最小 canvas Provider 验证**：在 experimental 包里实现最小 canvas Provider（fixture 元素 + rect/path/text），跑 `runRenderTargetConformance`，检验 `render.overlay` 的 `mount(ctx, target)`、宿主 `mount(container)`/`createSurface(host)`、`TextInputHost` 等处的 DOM 偏置；通过后 `render.target` 才能在 M4 转 Stable。与 Q2 的 `UiRenderer('vanilla')` 同一规则（契约须有第二实现验证）。
 5. **客户端安全基线**（DOM 路线最大的代价是不可信 pptx 内容进入活动 DOM）：文档内 SVG（`asvg:svgBlip`）**只以图像上下文渲染**（`<image>`/`<img>`，不执行脚本、不加载外链），禁止内联 SVG 标记；`render-dom` 与 `slide-render` 禁止用 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 注入文档内容；超链接协议白名单在渲染层再校验一次。EM-14 客户端 SVG 处理归属渲染层（M-07），与 Q2 的 CSP nonce / Trusted Types、Q7 的 `externalResources` 合成一份客户端安全基线。
 6. **IME 与介质无关**：IME 由 ADR-0028 隐藏 textarea 承担，设计 07 §4 把 IME 对齐归功于 DOM 文本节点的说法需更正（由设计线回写）。
+
+**图 2 DX-1000 回退规则**
+
+```mermaid
+flowchart TD
+  spike["M1 中期 spike：perf 场景 dx-1000"] --> gate0{"达 NF-01 门禁？首页可见 ≤ 2.5 s，交互 ≥ 30 fps"}
+  gate0 -- "是" --> done["达标，门禁不放宽"]
+  gate0 -- "否" --> step1["① 合成层优化：拖动对象放入独立合成层、content-visibility、减少滤镜与属性写入"]
+  step1 --> gate1{"达标？"}
+  gate1 -- "是" --> done
+  gate1 -- "否" --> step2["② 静态层栅格化：DOM 路线内的最后手段，会碰上 Web 字体问题，并破坏一个元素 = 一个 DOM 节点"]
+  step2 --> gate2{"达标？"}
+  gate2 -- "是" --> done
+  gate2 -- "否" --> step3["③ 只对查看与放映启用 canvas RenderTarget，编辑保持 SVG，a11y 由对象列表兜底"]
+```
+
+怎么读：自上而下按序执行，每一步后都用同一门禁复测，达标即停；② 是 SVG/DOM 路线内的最后手段，排在 ③ canvas 之前（2026-09-25 修订节点措辞，rulings §4.18 CO-01；原节点「放到最后才考虑」作废）；任何分支都不放宽门禁，③ 也不改变编辑态的 SVG 实现。
 
 ## 如何被机械验证
 

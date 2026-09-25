@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§5.1 单点引入表补 radix-ui/cva/lucide/tailwind/react-router 行与 apps/web 放行、`y-indexeddb` 行改归 collab-offline-idb、预留 `@y/y` 系、ioredis 行注明 Valkey；私有包名暂不改，随全仓更名统一处理）；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`；L16 `lib0` 允许包按章程 §5.3 去掉 `store-yjs`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§5.1 单点引入表补 radix-ui/cva/lucide/tailwind/react-router 行与 apps/web 放行、`y-indexeddb` 行改归 collab-offline-idb、预留 `@y/y` 系、ioredis 行注明 Valkey；私有包名暂不改，随全仓更名统一处理）；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`；L16 `lib0` 允许包按章程 §5.3 去掉 `store-yjs`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 02 · Lint 规则集
 
@@ -19,7 +19,10 @@ tooling/eslint-config/
 │   ├── type-safety.ts          禁 any/as/!/@ts-ignore/Function/object/{}/enum/namespace 等（§3）
 │   ├── restricted-imports.ts   §5 单点引入表 → no-restricted-imports 的按包 overrides 生成器
 │   ├── restricted-globals.ts   §5 iso 同构全局名单 → no-restricted-globals 配置
-│   └── style.ts                console/prototype/裸 throw/debugger 等语义类禁用（非格式化，见 §6 归属判断）
+│   ├── style.ts                console/prototype/裸 throw/debugger 等语义类禁用（非格式化，见 §6 归属判断）
+│   ├── assembly.ts             路径级 overrides：apps/** 无领域定义与唯一组合根调用点、preset 胶水极薄、
+│   │                            src/index.ts 纯再导出（§3 新增行，2026-09-25 rulings §4.18 GV-15）
+│   └── determinism.ts          ooxml-* 编解码确定性：禁时钟与随机源（§3 新增行，同上）
 ├── eslint-plugin-cordex/          自定义规则插件（内部 npm 包 @cordexjs/eslint-plugin）
 │   ├── package.json
 │   ├── index.ts                规则注册表 + `recommended`/`strict` 两档导出 config
@@ -67,6 +70,9 @@ tooling/eslint-config/
 │       ├── capability-vocabulary-single-source.test.ts
 │       ├── store-transact-in-commands-only.test.ts
 │       └── nest-controller-dto-from-protocol.test.ts
+├── __tests__/
+│   ├── assembly.test.ts        rules/assembly.ts 的 valid/invalid 用例（RuleTester 驱动内建规则配置）
+│   └── determinism.test.ts     rules/determinism.ts 的 valid/invalid 用例
 └── biome-boundary.md            速查表：某条规则该找 ESLint 还是 Biome（人类可读镜像，机器权威见 ADR-0044）
 ```
 
@@ -121,6 +127,10 @@ tooling/eslint-config/
 | `debugger` 语句 | `no-debugger`（**零豁免**，不接受 `cordex-allow`——这是用户全局开发纪律的强制项，见 [07](./07-hooks-and-ci.md#2-lefthook-阶段) 的 pre-commit 说明） | 无 |
 | `prototype` 赋值 | `no-restricted-syntax`，选择器覆盖 `AssignmentExpression[left.property.name='prototype']` 与 `MemberExpression[property.name='prototype'] = ...` 的成员赋值形态 | 仅 `packages/kernel/src/**` 允许（`ctx.mixin` 的内部实现），由 `cordex/no-mixin-outside-kernel`（§4.10）而非本条 ESLint 内建规则承担"外部包用了就报错"的语义，本条 `no-restricted-syntax` 是**全局**兜底（含 `kernel` 自身文件命名不规范时的兜底），两者共同覆盖 primer MUST NOT #7 |
 | 以 HTML 注入渲染文档内容（`innerHTML`/`outerHTML`/`insertAdjacentHTML`/`DOMParser`/`document.write`）（2026-09-24 新增，rulings §4.15 Q4） | `no-restricted-properties`（赋值/调用上述成员）+ `no-restricted-syntax`（`NewExpression[callee.name='DOMParser']`），作用于 `engine-render`/`render-dom`/`*-render`/`*-ui`；文档内 SVG 只能经 `<image>`/`<img>` 图像上下文渲染（执行矩阵 TD-081） | 无（架构性禁止）；需要解析 SVG 做尺寸探测的代码走 ooxml-core 的 XML 解析器，不经 DOM |
+| apps 内出现领域定义（`defineCommand(`/`defineMutation(`/`defineOperation(`/`defineContributionPoint(`/`ctx.contribute(`/`declare module '@cordexjs/kernel'`）；`createHost(` 与 `createSlide*Preset(` 出现在 `apps/web/src/application/host/create-editor-host.ts` 以外（2026-09-25 新增，rulings §4.18 GV-15，原扫描器名 `no-domain-defs-in-apps`、`single-create-host-callsite`） | `no-restricted-syntax`（`rules/assembly.ts` 对 `apps/**` 的 override；`create-editor-host.ts` 单独放行后两项；执行矩阵 TD-093） | 无（架构性禁止）；依赖侧白名单见 [03 §3.7](./03-boundaries.md) `cordex-apps-only-assemble` |
+| preset 胶水插件过厚（原扫描器名 `preset-glue-thin`） | `max-lines-per-function`（60，作用于 preset 包 `plugins/*.plugin.ts`、`policies/*.plugin.ts`、`shell/*.plugin.ts` 的 `apply`）+ `no-restricted-imports`（同路径对 `@cordexjs/model-*` 只许 `import type`）（`rules/assembly.ts`；TD-094） | 无 |
+| 包入口 `src/index.ts` 含顶层可执行语句（原扫描器名 `index-pure`） | `no-restricted-syntax`（`**/src/index.ts` override：只允许带 `source` 的 `ExportNamedDeclaration`/`ExportAllDeclaration` 与 `import type`；`rules/assembly.ts`；TD-096） | 无（`sideEffects: false` 的保证） |
+| 编解码读取时钟或随机源（原扫描器名 `codec-no-clock`，30-arch/04 §11 导出确定性） | `no-restricted-properties`（`Date.now`、`performance.now`、`Math.random`）+ `no-restricted-syntax`（无参 `new Date()`），作用于 `ooxml-*`（`rules/determinism.ts`；TD-097） | `cordex-allow` 预算恒为 0；需要时间戳的导出字段由调用方经参数注入 |
 | 第三方库单点引入 | `no-restricted-imports`（§5.1 生成） | 见 §5.1 |
 | 同构全局越界 | `no-restricted-globals`（§5.2 生成，仅 iso 包） | 见 §5.2 |
 | 自造框架核心方法（如 `ctx.fork()`） | `no-restricted-properties`，配置为禁止定义或调用属性名匹配一份"cordis 保留名单"（`fork` 等 primer 明确排除的 API）的成员，作用域为除 `packages/kernel/src/**` 外的全部包；与 `cordex/contribution-file-naming`（§4.6）共同限制"合法的 `declare module 'cordis'`/`'@cordexjs/kernel'` 增强范围"——后者管住"在哪个文件可以做声明合并"，本条管住"声明合并里不能凭空发明框架已明确不存在的核心 API" | primer MUST NOT #6 的直接执行点；`cordex-allow` 可用但预算恒为 0（该名单本身极小且稳定，出现豁免大概率意味着 cordis 版本升级引入了同名新 API，需先核实而非绕过） |
@@ -233,6 +243,7 @@ tooling/eslint-config/
 
 - **目的**：章程 R5/§5.1（"文档类型盲"）在**值**层面的对偶——[03](./03-boundaries.md) 的 `cordex-doc-type-blind` depcruise 规则只能拦住水平层 `import` 垂直束**包**；一个水平层文件完全可以不 `import` 任何垂直束包，却硬编码一个恰好等于某个文档类型 id 的字符串字面量做比较（如 `if (kind === 'slide') { ... }`），这种"认识具体文档类型"的耦合不经过依赖图，import 图规则看不见它。
 - **检测方式（AST + 包元数据）**：读取工作区内全部包 `package.json#cordex.bundle` 出现过的取值集合，作为"已知文档类型 id"名单（**自动从元数据派生，不手工维护**——手工维护的名单本身会漂移，见 §5 的教训）；在 `cordex.bundle` 为空（水平层）的包内，扫描 `BinaryExpression`（`===`/`==`/`!==`/`!=`）与 `SwitchCase` 的字面量操作数，若其值等于名单中的某个 id，报错。
+- **扩展范围**（2026-09-25，rulings §4.18 GV-15，不新造规则名）：① 扫描路径扩至 `apps/server/src/modules/**`（原扫描器名 `no-doc-type-literals-server`，40-modules/08 G-13、14 N-7：服务端 Nest 模块须文档类型通用）；② 子检测：`engine-render`、`model-core` 导出类型的**属性名**不得含文档类型词根（`slide`/`slides`/`sheet`/`workbook`/`docx`/`pptx`/`xlsx`/`paragraph` 等，原扫描器名 `no-doc-fields-in-contracts`，ADR-0016、30-arch/12），与 api-extractor 基线审查互补。组合根（preset-*、apps/web、apps/server 的 `src/cordis-host/**`，与 FE-01 的 R3 组合根豁免同口径）与垂直束包不在检查范围；apps/web 的 `domain/document-type.ts` 与 `create-editor-host.ts` 是按 `documentType` 分发的两个参数化点，经 `switch` 查表而非散落比较。执行矩阵 TD-086。
 - **自动修复**：无。
 - **负向测试样例**：`packages/engine-render/src/dispatch.ts` 内 `if (unit.documentType === 'slide') { ... }` → 报错（`engine-render` 是水平层，`'slide'` 是已知 `bundle` 取值）；同样的比较出现在 `packages/model-slide/src/**`（`bundle: 'slide'` 自身）→ 通过（一个垂直束认识自己的 id 不是耦合）；水平层代码改为 `ctx.documentTypes.get(unit.documentType).render(...)`（经贡献点查表分发，不做字面量比较）→ 通过。
 - **与权威裁决者的关系**：本规则是权威（名单本身由元数据自动派生，不存在"名单没跟上"的漂移风险；检测范围是单文件语法匹配，不需要跨文件事实）。
@@ -382,6 +393,21 @@ error  'window' is restricted: packages/engine-layout is an iso package
 | 该规则是否需要读取 TS 类型信息（跨符号/跨文件的类型解析）？ | ESLint（typescript-eslint 或 `cordex/*`） | 继续下一问 |
 | 该规则是否纯粹关于空白/引号/分号/换行/尾逗号/import 排序等"文本形状"？ | Biome（格式化器，写入即生效，无需人工决策） | 继续下一问 |
 | 该规则是否是本项目特有的架构/命名/文件组织约束，且不需要类型信息（如 §4.6 的文件名约束的"文件名匹配"部分）？ | ESLint 自定义规则（`cordex/*`）——保持所有架构类规则集中在一处，避免"部分架构规则归 Biome、部分归 ESLint"的心智负担 | 默认归 ESLint |
+
+**规则归属判定：ESLint 还是 Biome**
+
+```mermaid
+flowchart TB
+  rule["一条待归属的规则"] --> q1{"需要读取 TS 类型信息，跨符号/跨文件？"}
+  q1 -- "是" --> eslintTyped["ESLint：typescript-eslint 或 cordex/*"]
+  q1 -- "否" --> q2{"纯粹是空白/引号/分号/换行/尾逗号/import 排序等文本形状？"}
+  q2 -- "是" --> biome["Biome 格式化器：写入即生效"]
+  q2 -- "否" --> q3{"本项目特有的架构/命名/文件组织约束，且不需类型信息？"}
+  q3 -- "是" --> eslintCustom["ESLint 自定义规则 cordex/*：架构类规则集中一处"]
+  q3 -- "否" --> eslintDefault["默认归 ESLint，如 no-debugger / no-console"]
+```
+
+怎么读：自上而下依次回答三个判定问题，第一个「是」即决定归属；只有纯文本形状的规则交给 Biome，其余全部落在 ESLint。
 
 `debugger`/`console.*` 属于"语义类禁用"（判定问题 1 为否、问题 2 为否、问题 3 为否——它们不需要类型信息，也不是文本形状，也不是本项目特有架构约束，而是通用的运行时卫生规则），按默认落在 ESLint（`no-debugger`/`no-console` 本身是 ESLint 核心规则，Biome 虽也有等价规则 `noDebugger`/`noConsole`，但本项目选择**不**在两个工具里重复配置同一条通用规则，统一收口在 ESLint，避免两份配置漂移）。
 

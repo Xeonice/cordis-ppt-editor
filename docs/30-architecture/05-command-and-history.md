@@ -1,6 +1,6 @@
 # 05 命令与历史：命令三分法、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 > 继承 Univer K1（命令三分法，「最正确的一项」），规避其缺陷 #3（手写逆操作）与 `return false` 2,244 次的失败静默。签名为「草案」。
 
 ---
@@ -16,7 +16,34 @@
 **类型层面的强制**（不是约定）：
 - `CommandDef.handler(ctx, params, tx)` 拿到 `Transaction`；`OperationDef.handler(ctx, params)` **没有** `tx`，且 `OperationDef` 所在文件由 lint 禁止 import 任何 `MutationDef`（`operation-has-no-tx`）。
 - `Mutation` 对象本身没有 `execute` 方法，也没有 `undo` 字段；`MutationDef.schema` 是 `strictObject`，出现 `undo`/`inverse` 键即校验失败（ADR-0007 的机械化）。
-- 只有 `Transaction.mutate` 能应用 Mutation；`Transaction` 只在 `store.transact` 回调内存在，而 `store.transact` 只由 `commands` 服务的管线调用（`store.transact` 在生产代码中的调用点由扫描器限定为 `model-core/command/pipeline.ts` 一处，ADR-0015）。
+- 只有 `Transaction.mutate` 能应用 Mutation；`Transaction` 只在 `store.transact` 回调内存在，而 `store.transact` 只由 `commands` 服务的管线调用（`store.transact` 在生产代码中的调用点由 lint `cordex/store-transact-in-commands-only`（09-02 §4.20）限定为 `model-core/command/pipeline.ts` 一处，ADR-0015）。
+
+**命令三分法流水线**
+
+```mermaid
+flowchart LR
+  exec["commands.execute：Command 与 Operation 同一入口、同一权限门、同一审计"]
+  cmd["Command：用户意图，异步，一个事务 = 一个撤销单元"]
+  op["Operation：视图状态变化，同步或异步"]
+  mut["Mutation：唯一改 Store 的操作，同步、纯、必须可序列化"]
+  lower["lower#40;#41;：纯函数"]
+  storeOps["StoreOp#91;#93;：set / delete / insert / remove / text"]
+  store["DocumentStore：应用并在 StoreOp 层推导逆操作"]
+  history["history：撤销单元"]
+  viewSvc["视图服务：selection、render.viewport、ui；不入历史"]
+  presence["presence 广播：broadcast: true 时"]
+  crdt["网络：只传 CRDT update；Command / Mutation 不上网络"]
+  exec --> cmd
+  exec --> op
+  cmd -- "只能经 tx.mutate#40;#41;" --> mut
+  mut --> lower --> storeOps --> store
+  cmd -- "事务记录" --> history
+  op --> viewSvc
+  viewSvc -. "可序列化" .-> presence
+  store -. "协同模式由 store-yjs 产出" .-> crdt
+```
+
+怎么读：左侧一个入口分出 Command 与 Operation 两条路；只有 Command 能经事务产出 Mutation，Mutation 降级为 5 种 StoreOp 后才进 Store；Operation 只改视图服务，不入历史；虚线是可选的对外传播（presence 广播、协同下的 CRDT update）。
 
 ---
 
@@ -59,34 +86,63 @@ interface Mutation { readonly type: `${string}.${string}.${string}`; readonly un
 
 ## 3. 执行管线（waterfall 阶段）
 
+**命令执行管线 · 主干 ①–⑦**
+
+```mermaid
+flowchart TB
+  exec["commands.execute#40;unitId, id, params, opts#41;"]
+  exec --> s1["① resolve：contributions#40;core.command#41;.get#40;id#41;；unitId != null → units.get#40;unitId#41;"]
+  s1 -- "缺 / 不匹配" --> e1["err#40;COMMAND_NOT_FOUND / UNIT_NOT_FOUND / COMMAND_NOT_APPLICABLE#41;"]
+  s1 --> s2["② validate：def.schema.parse#40;params#41;"]
+  s2 -- "失败" --> e2["err#40;INVALID_PARAMS, issues#41;"]
+  s2 --> s3
+  subgraph s3["③ waterfall 'command/execute'#40;request, next#41;：唯一拦截链，A8/A30"]
+    direction TB
+    gate["#91;prepend#93; permission-gate：permissions.check#40;#123; principal, unitId, action: def.permission #125;#41;"]
+    tele["telemetry：span 计时，调用 next"]
+    third["…第三方 waterfall 监听器：必须 next#40;#41;"]
+    inner["#91;内建最内层 next#93; → ④"]
+    gate --> tele --> third --> inner
+  end
+  gate -- "deny，fail-closed，不调用 next" --> e3["err#40;PERMISSION_DENIED#41;"]
+  third -- "未调用 next" --> veto["视为否决，审计记录 VETOED"]
+  inner --> guard{"规模守卫，§8：新增元素触及 maxElementsPerDoc / 单页 / 页数上限？"}
+  guard -- "超限：document.quota_exceeded，不开事务" --> rejected
+  guard -- "未超限" --> s4{"④ transact：Operation 还是 Command？"}
+  s4 -- "Operation：直接 handler#40;ctx, params#41;" --> s7
+  s4 -- "Command：store.transact，见下图" --> s5["⑤ history：undoable → history.push#40;record#41;，策略层可能与上一条合并"]
+  s4 -- "handler 抛错 / mutate 失败未处理 → 事务回滚" --> failed["err#40;HANDLER_FAILED / MUTATION_REJECTED#41; → emit 'command/failed'#40;unitId, id, error#41; + errors.report"]
+  s5 --> s6["⑥ events：store 已 emit 'store/transaction'#40;changeSet#41;；emit 'command/executed'#40;unitId, id, params, result#41;"]
+  s6 --> s7["⑦ audit：最外层 waterfall 监听器 append，构造 AuditRecord#123; principal, unitId, commandId, mutationTypes, result, at #125; → emit 'command/audited'"]
+  e1 --> rejected["①–③ 拒绝 → emit 'command/rejected'#40;unitId, id, reason ∈ not-found / validation / permission / readonly#41;，不 errors.report，只遥测计数"]
+  e2 --> rejected
+  e3 --> rejected
 ```
- commands.execute(unitId, id, params, opts)
-   │
-   ├─ ① resolve      contributions(core.command).get(id)  → 缺 → err(COMMAND_NOT_FOUND)
-   │                  unitId != null → units.get(unitId)   → 缺 → err(UNIT_NOT_FOUND)；documentType 不匹配 → err(COMMAND_NOT_APPLICABLE)
-   ├─ ② validate     def.schema.parse(params)             → 失败 → err(INVALID_PARAMS, issues)
-   │
-   ├─ ③ waterfall 'command/execute'(request, next)        ← **唯一拦截链**（A8/A30）
-   │     ├─ [prepend] permission-gate：permissions.check({ principal, unitId, action: def.permission }) → deny → err(PERMISSION_DENIED)（fail-closed；不调用 next）
-   │     ├─ telemetry：span 计时（调用 next）
-   │     ├─ …第三方 waterfall 监听器（必须 next()，否则视为否决并被审计记录为 VETOED）
-   │     └─ [内建最内层 next] ④
-   │
-   ├─ ④ transact     Operation：直接 handler(ctx, params)；跳到 ⑦
-   │                  Command：store.transact(tx => handler(ctx, params, tx), { origin: local(clientId), label: def.id, undoable })
-   │                    tx.mutate(m)：
-   │                       a. contributions(core.mutation).get(m.type) → 缺 → MUTATION_UNKNOWN
-   │                       b. def.schema.parse(m) → 失败 → MUTATION_INVALID
-   │                       c. permissions.check(mutationDef.permission?.(m) ?? 命令 action) → deny → PERMISSION_DENIED（Mutation 级二次检查，D12）
-   │                       d. ops = lower(m, view) → 失败 → LOWER_FAILED
-   │                       e. store 应用 ops，记录 inverse（Provider 内部）
-   │                    handler 抛错 / 任一 mutate 失败且 handler 未处理 → 整个事务回滚 → err(HANDLER_FAILED | MUTATION_REJECTED)
-   │
-   ├─ ⑤ history      undoable → history.push(record)（策略层可能与上一条合并）
-   ├─ ⑥ events       store 已 emit 'store/transaction'(changeSet)；此处 emit 'command/executed'(unitId, id, params, result)
-   └─ ⑦ audit        最外层 waterfall 监听器（append）：构造 AuditRecord{ principal, unitId, commandId, mutationTypes, result, at } → emit 'command/audited'
-                     失败路径：①–③ 阶段拒绝 → emit 'command/rejected'(unitId, id, reason ∈ not-found|validation|permission|readonly)（不 errors.report，只遥测计数）；④ 阶段失败/回滚 → emit 'command/failed'(unitId, id, error) + errors.report
+
+怎么读：纵向主干是成功路径 ①→⑦，子图是 ③ 唯一拦截链内监听器的顺序；左右分出的节点是失败出口——①–③ 的拒绝汇入 `command/rejected`，④ 的失败回滚走 `command/failed`；Operation 跳过事务与历史直接到审计；③ 与 ④ 之间的规模守卫取自 §8 表末行。
+
+**命令执行管线 · ④ 事务内的 tx.mutate**
+
+```mermaid
+flowchart TB
+  transact["store.transact#40;tx =#62; handler#40;ctx, params, tx#41;, #123; origin: local#40;clientId#41;, label: def.id, undoable #125;#41;"]
+  transact --> mutate["handler 内每次 tx.mutate#40;m#41;"]
+  mutate --> a["a. contributions#40;core.mutation#41;.get#40;m.type#41;"]
+  a -- "缺" --> ea["MUTATION_UNKNOWN"]
+  a --> b["b. def.schema.parse#40;m#41;"]
+  b -- "失败" --> eb["MUTATION_INVALID"]
+  b --> c["c. permissions.check#40;mutationDef.permission?.#40;m#41; ?? 命令 action#41;：Mutation 级二次检查，D12"]
+  c -- "deny" --> ec["PERMISSION_DENIED"]
+  c --> d["d. ops = lower#40;m, view#41;"]
+  d -- "失败" --> ed["LOWER_FAILED"]
+  d --> e["e. store 应用 ops，记录 inverse：Provider 内部"]
+  ea --> rollback["handler 抛错 / 任一 mutate 失败且 handler 未处理 → 整个事务回滚 → err#40;HANDLER_FAILED / MUTATION_REJECTED#41;"]
+  eb --> rollback
+  ec --> rollback
+  ed --> rollback
 ```
+
+怎么读：a–e 是单个 Mutation 进入 Store 前的五步，任一步失败都返回类型化错误；handler 未处理该错误（或自身抛错）时整个事务回滚，事务成功后回到主干 ⑤。
 
 ### 3.1 请求与结果类型
 
@@ -135,7 +191,7 @@ type SlideMutation =
 // 载荷中**没有** index/toIndex（06 I4、ADR-0032）：命令层用 `between(prev?.order, next?.order)`（`@cordexjs/shared/order`）把「插到 X 之后」变成具体 order 键；lower() 因而保持纯且确定。
 ```
 
-- 每个成员一个 `MutationDef`，贡献到 `core.mutation`；`type` 三段式 `<documentType>.<entity>.<verb>`（扫描器校验命名）。
+- 每个成员一个 `MutationDef`，贡献到 `core.mutation`；`type` 三段式 `<documentType>.<entity>.<verb>`（`scan-command-capabilities` 规则 (c) 校验命名，09-06 §11）。
 - 第三方插件可贡献新 Mutation（如 `slide-comments.thread.add`），无需改 `model-slide`。
 - 水平层对联合无知：`commands` 只按 `m.type` 查表。
 
@@ -178,7 +234,7 @@ type SlideMutation =
 - **协同撤销语义（rulings §4.15 Q3，不跟随 CRDT 库默认）**：写入 `DocumentStore` 契约的中性字段 `undo.remoteConflict: 'skip'`（字段名与 CRDT 无关），store-yjs 与 store-memory 同语义，由 `runDocumentStoreConformance`「中性撤销语义」分节（用例名以 40-modules/02 §2.5 为准：`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`、`delete-vs-edit-undo`、`read-path-filters-tombstone`）验收：
   1. **同一键被他人后写 → 跳过并提示**：撤销单元中某个 `set` 的目标键在本地事务之后已被远端写过，该键**不回退**（不覆盖他人）；其余未被他人触碰的键照常回退。被跳过的键经事件 `store/undo-skipped(unitId, { skipped: UndoSkip[], wholeStep })` 报告（载荷以 40-modules/02 §2.4 为准；该事件**单独统计**跳过次数与整步跳过次数，不计入 `collab/soft-conflict` 软冲突率，rulings §4.17 D5），UI 以提示条告知，并提供「恢复我的值」——这是一个**新的本地事务**（重新写回本地旧值，进入历史栈），不是撤销的延续。
   2. **整步被跳过 → 停下不连撤**：若一个撤销单元的全部键都被跳过（实际无任何回退），本次 `history.undo()` 返回 `ok({ applied: false, skipped })` 并停止，**不**继续撤销更早的一步（Yjs 默认会「连撤两步」，由 undo 包装层阻断）。
-  3. **删除 = 软删除墓碑**：用户删除有身份实体写 `_deleted` 墓碑而非删键（04 §3.1a），删除方撤销 = 清除墓碑、同一 id 复活；与并发编辑不会产生重复元素。**撤销目标已被他人删除（墓碑 TTL 内亦然）→ 跳过并提示，不看 TTL**：撤销永不复活他人删除的元素，恢复由删除方撤销或「恢复元素」（新事务）完成（rulings §4.17 D4）。墓碑 TTL（默认 24 h）后硬删除；文档擦除与「立即彻底删除」不等 TTL。
+  3. **删除 = 软删除墓碑**：用户删除有身份实体写 `_deleted` 墓碑而非删键（04 §3.1a），删除方撤销 = 清除墓碑、同一 id 复活；与并发编辑不会产生重复元素。**撤销目标已被他人删除（墓碑 TTL 内亦然）→ 跳过并提示，不看 TTL**：撤销永不复活他人删除的元素，恢复由删除方撤销或「恢复元素」（新事务）完成（rulings §4.17 D4）。墓碑 TTL（默认 24 h）后硬删除；文档级「永久删除文档」（S-2 文档擦除）与元素级经审计的「彻底删除元素」（仅墓碑态、仅 owner，04 §3.1a）不等 TTL。墓碑已被硬删除（TTL 到期或被彻底删除元素）后，删除方再撤销该步 → 目标不复存在，按**整步被跳过**处理（`store/undo-skipped{ wholeStep: true }`，同第 2 条，2026-09-25 rulings §4.18 CO-07）。
   4. 文本 `text` op 的撤销按 CRDT 字符级语义回退本地插入/删除，远端插入保留（字符级无「同键」概念，不触发跳过）。
   - U-07 版本恢复撤销（version-restore-undo）以本语义为基线，不采用「revertTo 整体回滚」式实现（它绕过 D4）。
 - `history` 策略层：
@@ -187,6 +243,33 @@ type SlideMutation =
   - 容量：默认 200 条；淘汰有测试；
   - 事件 `history/changed(unitId, { canUndo, canRedo, depth })` 驱动 UI 上下文键。
 - `undoable: false` 的命令（导出、保存）不入栈。
+- `system(...)` origin 的事务一律不入任何撤销栈——包括渐进打开时首批之后以 `system('import')` 追加的批次（04 §2.2，2026-09-25 rulings §4.18 CO-12），打开完成前后 `canUndo(local)` 都不因装载而变化。
+
+**协同撤销跳过判定**
+
+```mermaid
+flowchart TB
+  start["history.undo#40;#41; → store.undo#40;local#40;clientId#41;#41;：取最近一个本地撤销单元"]
+  start --> eachOp["逐个检查撤销单元内的写入"]
+  eachOp --> qText{"是 text op？"}
+  qText -- "是" --> textRevert["按 CRDT 字符级语义回退本地插入/删除，远端插入保留，不触发跳过"]
+  qText -- "否" --> qOther{"目标键在本地事务之后已被他人写过，或目标实体已被他人删除，墓碑 TTL 内亦然？"}
+  qOther -- "是" --> skip["跳过：不回退该键，不覆盖他人，永不复活他人删除的元素，记入 skipped"]
+  qOther -- "否" --> revert["回退该键；删除方撤销自己的删除 = 清除 _deleted，同一 id 复活"]
+  textRevert --> qWhole
+  skip --> qWhole
+  revert --> qWhole
+  qWhole{"整步全部键都被跳过？"}
+  qWhole -- "是" --> stop["返回 ok#40;#123; applied: false, skipped #125;#41; 并停止，不连撤更早一步"]
+  qWhole -- "否" --> partial["其余未被他人触碰的键照常回退"]
+  stop --> emit["emit store/undo-skipped#40;unitId, #123; skipped, wholeStep #125;#41;：单独统计，不计入软冲突率"]
+  partial -- "有被跳过的键时" --> emit
+  emit --> hint["UI 提示条 + 「恢复我的值」：新的本地事务，进入历史栈"]
+```
+
+怎么读：菱形是逐键判定，最终按「整步是否全部跳过」决定停下还是部分回退；有跳过就发 `store/undo-skipped` 并由 UI 提示，恢复他人覆盖前的值要走新事务而不是继续撤销。
+
+依据：本节第 1–4 条；04 §3.1a；rulings §4.15 Q3、§4.17 D4、D5。
 
 ---
 
@@ -205,7 +288,7 @@ type SlideMutation =
 | 一个用户动作触发多个 Mutation | 一个 Command、一个 `tx`、多次 `tx.mutate` → 一个撤销单元 |
 | 一个用户动作由多个命令组成（拖拽：连续 setTransform） | `history.beginGroup()`；或以一个 `slide.moveShapes` 命令收口（首选） |
 | 命令调用命令 | 允许：`ctx.commands.execute(...)` 在 handler 内调用会开启**新事务**（嵌套事务被 Store 拒绝 `STORE_NESTED_TRANSACTION`）；因此复合命令应当直接 `tx.mutate`，而不是递归执行子命令（lint 提示 `no-nested-execute-in-handler`，warning 级→M2 起 error） |
-| 导入/迁移写入 | `origin = system(...)`，`undoable: false`，不经命令管线（唯一例外，且只在 `units.open` 内部；扫描器允许列表） |
+| 导入/迁移写入 | `origin = system(...)`，`undoable: false`，不经命令管线（唯一例外，且只在 `units.open` 内部，含渐进打开首批之后的 `system('import')` 追加批次，04 §2.2；`cordex/store-transact-in-commands-only` 的允许列表） |
 | 跨 Unit 命令 | 不支持（每个命令绑定一个 unitId 或 null）；复制粘贴分两条命令 |
 | 新增元素触及规模上限（rulings §4.15 Q5） | 命令守卫在 ③ 之后、④ 之前检查 `maxElementsPerDoc`（默认 20,000，软警告 15,000，墓碑计入）与单页 1,000、页数 200：超限 → `command/rejected{ reason: 'validation' }` + `document.quota_exceeded{ dimension, limit, actual }`（编辑期上限码，409、不关连接，`dimension` 取值见 10 §1.4，rulings §4.17 D2），不开事务；数字来自部署配置（04 §5.5） |
 
@@ -238,7 +321,7 @@ type SlideMutation =
 | `permission/denied` | emit | `(request, decision)` | `permissions` |
 | `permission/changed` | emit | `(unitId, { added: Capability[]; removed: Capability[] })`（本地策略变化或网关下发 `applyRemoteDecisions` 后；唯一发出者） | `permissions` |
 
-全部在 `model-core.contribution.ts` 的 `Events` 增强中声明（扫描器 `events-declared`）。
+全部在 `model-core.contribution.ts` 的 `Events` 增强中声明（lint `cordex/events-must-be-declared`，09-02 §4.4；原称扫描器 `events-declared`）。
 
 ---
 
@@ -255,19 +338,19 @@ type SlideMutation =
 
 | 规则 | 机制 |
 |---|---|
-| Mutation 是唯一改 Store 的途径 | 扫描器：`store.transact(` 调用点仅 `model-core/command/pipeline.ts` 与 `unit-plugin.ts`（load）；`tx.mutate` 只在 `CommandDef.handler` 词法内 |
+| Mutation 是唯一改 Store 的途径 | lint `cordex/store-transact-in-commands-only`（09-02 §4.20，TD-068）：`store.transact(` 调用点仅 `model-core/command/pipeline.ts` 与 `unit-plugin.ts`（load 与渐进打开的 `system('import')` 追加）；`tx.mutate` 只在 `CommandDef.handler` 词法内 |
 | Operation 不能改 Store | 类型：`OperationDef.handler` 无 `tx`；lint `operation-has-no-tx` |
 | 无手写逆操作 | lint `no-inverse-in-mutation`；`MutationDef.schema` strictObject |
 | 失败不用 boolean | lint `no-boolean-command-result` |
 | 权限 fail-closed | `command-harness` 测试：无策略 → 全部 `PERMISSION_DENIED`；`denyAll` 覆盖 `allowAll` |
 | waterfall 监听器忘记 next 会被发现 | 审计 `VETOED` 记录 + kernel `waterfall-contract.test.ts`（指南 §128） |
 | 只撤本地 | 契约套件协同分节：两 store 同步后各自 undo 只回退自己的事务 |
-| 不覆盖他人、整步跳过即停、删除可复活（§6，rulings §4.15 Q3） | 契约套件「中性撤销语义」分节用例（名称照抄 40-modules/02 §2.5）`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`、`delete-vs-edit-undo`、`read-path-filters-tombstone`（store-memory 与 store-yjs 同一套）；40-modules/05 确定性用例 + fuzz |
-| 事件先声明后使用 | 扫描器 `events-declared` |
-| 命令 id / Mutation type 命名 | 扫描器 `command-id-format`（`<domain>.<name>`、`<docType>.<entity>.<verb>`） |
+| 不覆盖他人、整步跳过即停、删除可复活（§6，rulings §4.15 Q3） | 契约套件「中性撤销语义」分节用例（名称照抄 40-modules/02 §2.5）`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`、`delete-vs-edit-undo`、`read-path-filters-tombstone`（store-memory 与 store-yjs 同一套），另补「墓碑被彻底删除元素后删除方撤销返回 `wholeStep: true`」用例（CO-07，用例名由 40-modules/02 §2.5 登记）；40-modules/05 确定性用例 + fuzz |
+| 事件先声明后使用 | lint `cordex/events-must-be-declared`（09-02 §4.4，TD-017） |
+| 命令 id / Mutation type 命名 | `scan-command-capabilities` 规则 (c)（09-06 §11，TD-099；原称扫描器 `command-id-format`）：`<domain>.<name>`、`<docType>.<entity>.<verb>` |
 | 嵌套事务被拒 | 契约套件 `STORE_NESTED_TRANSACTION` |
-| 命令必须声明能力位 | lint `command-declares-capability`；扫描器 `capabilities-in-protocol`（能力位字面量必须来自 protocol，或带 `<vendor>:` 前缀且 vendor 与声明包的 npm scope 一致，章程 D15） |
-| Mutation 载荷无数组下标 | 扫描器 `no-index-in-mutation`（06 I4） |
+| 命令必须声明能力位 | lint `cordex/command-must-declare-capabilities`（09-02 §4.16，TD-061）+ `scan-command-capabilities`（09-06 §11）；lint `cordex/capability-vocabulary-single-source`（09-02 §4.19，TD-067；能力位字面量必须来自 protocol，或带 `<vendor>:` 前缀且 vendor 与声明包的 npm scope 一致，章程 D15）。原称 `command-declares-capability`/`capabilities-in-protocol`（09-08 §11） |
+| Mutation 载荷无数组下标 | lint `cordex/no-index-in-mutation`（09-02 §4.17，TD-065；06 I4） |
 | 权限变更单一发出者 | 扫描器：`emit('permission/changed'` 只允许出现在 `model-core/permission/permissions.service.ts` |
 | 版式删除 fail-closed（§13.2） | `command-harness`：被引用版式 `deleteLayout` 无 `reassignTo` → `LAYOUT_IN_USE` 且无事务；带 `reassignTo` → 单事务、撤销一次恢复引用与版式 |
 | `view.setMode` 文档类型盲 | 类型/运行时测试：`mode ∉ documentType.viewModes` → `INVALID_PARAMS`；`fixture` 类型只接受 `'normal'` |
@@ -280,7 +363,7 @@ type SlideMutation =
 
 | type | 载荷（草案） | `lower` 要点 |
 |---|---|---|
-| `slide.slide.setLayout` | `{ slideId; layoutId; remap: PlaceholderRemap[] }`（`remap` 由命令经 `planLayoutChange` 计算并**携带**，Mutation 保持确定性） | `set(['slides', id, 'layoutId'])`；对 `materialize` 项 `set(['shapes', sid, 'properties', 'transform'], …)` 等显式化 |
+| `slide.slide.setLayout` | `{ slideId; layoutId; remap: PlaceholderRemap[] }`（`remap` 由命令经 `planLayoutChange` 计算并**携带**，Mutation 保持确定性） | `set(['slides', id, 'layoutId'])`；`materialize` 项按 `InheritableField` 全集显式化全部继承字段（`set(['shapes', sid, 'properties', field], …)`）并 `delete(['shapes', sid, 'nonVisual', 'placeholder'])`（脱离占位符）；`inherit` 项保留已有显式覆盖（含 transform），`rewriteRef` 非空时 `set(['shapes', sid, 'nonVisual', 'placeholder'], rewriteRef)` 改写引用（04 §12.2；2026-09-25 rulings §4.18 CO-18） |
 | `slide.shape.clearOverrides` | `{ shapeId; fields: InheritableField[] }` | 逐字段 `delete(['shapes', id, 'properties', field])`（重置 = 恢复继承） |
 | `slide.master.setBackground` / `slide.layout.setBackground` | `{ id; background: Background \| null }` | `set/delete([..., 'commonSlide', 'background'])` |
 | `slide.master.setTextStyle` | `{ masterId; kind: 'title' \| 'body' \| 'other'; level: 0..8; patch: Partial<ParagraphProperties> }` | `set(['masters', id, 'textStyles', kind, 'levels', level], merged)`（合并在 `lower` 内按当前视图计算，确定性） |
@@ -307,6 +390,21 @@ type SlideMutation =
 | `slide.deleteMaster` / `slide.duplicateMaster` / `slide.insertMaster` | 删除前置：无版式被页引用（否则 `MASTER_IN_USE`，可带 `reassignTo`）；复制含版式、形状与主题引用 | ML-03 |
 | `slide.setThemeColors` / `slide.setThemeFonts` | `{ themeId; … }` | ML-04 |
 | `slide.applyTheme` | `{ masterId; theme: Theme \| ThemeId }`：新主题 → `theme.insert` + `master.setTheme`；旧主题无引用 → `theme.remove`（同一事务） | ML-04 |
+
+**版式删除 fail-closed 判定**
+
+```mermaid
+flowchart TB
+  del["slide.deleteLayout#40;#123; layoutId, reassignTo? #125;#41;"]
+  del --> q1{"版式被任一页引用，且未给 reassignTo？"}
+  q1 -- "是" --> err["err#40;LAYOUT_IN_USE#41;：fail-closed，不开事务"]
+  q1 -- "否" --> tx["同一事务：先把引用页 applyLayout 到 reassignTo 重指，再 slide.layout.remove，级联删除 containerId == layoutId 的形状"]
+  tx --> undo["撤销一次即同时恢复引用与版式"]
+```
+
+怎么读：只有两条出口——拒绝（不产生事务）或一个原子事务；`slide.deleteMaster` 同理，前置不满足时返回 `MASTER_IN_USE`，可带 `reassignTo`。
+
+依据：本节 §13.1、§13.2；§12 机械验证表「版式删除 fail-closed」行；04 §12.3。
 
 ### 13.3 视图态 Operation
 

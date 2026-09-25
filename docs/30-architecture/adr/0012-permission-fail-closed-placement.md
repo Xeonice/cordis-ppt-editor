@@ -1,6 +1,6 @@
 # ADR-0012 权限 fail-closed 的放置：命令管线（含 Mutation 级）+ 服务端网关
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-15
 
 ## 状态
 
@@ -38,7 +38,7 @@
 
 ## 如何被机械验证
 
-- lint `command-declares-capability`；扫描器 `capabilities-in-protocol`（命令/Mutation 引用的能力位必须来自 `protocol` 字面量集合，或带 `<vendor>:` 前缀且与声明包的 npm scope 机械对应，章程 D15）。
+- lint `cordex/command-must-declare-capabilities`（原 `command-declares-capability`）；lint `cordex/capability-vocabulary-single-source`（09-type-discipline/02 §4.19、TD-067；原称「扫描器」，2026-09-25 按正式名改写，rulings §4.18 GV-15，对照见 08 §11）（命令/Mutation 引用的能力位必须来自 `protocol` 字面量集合，或带 `<vendor>:` 前缀且与声明包的 npm scope 机械对应，章程 D15）。
 - `command-harness`：零策略 → 全部 `PERMISSION_DENIED`；`denyAll` 覆盖 `allowAll`；Mutation 级拒绝回滚整个事务。
 - model-core `__tests__/permissions.test.ts`：`applyRemoteDecisions` 后 `permission/changed` 恰发一次且随后命令被拒。
 - 服务端 e2e（08/11）：viewer token 的 WS update 被拒 + `permission/denied{surface:'ws'}`；权限降级 ≤ 2 s 内客户端命令被拒。

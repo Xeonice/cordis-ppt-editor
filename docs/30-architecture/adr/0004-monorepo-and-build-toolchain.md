@@ -1,6 +1,6 @@
 # ADR-0004 monorepo 与构建工具链：pnpm + Turborepo；库 `tsc -b`；apps Vite；Changesets
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q9、§4.18 FE-13/GV-15
 
 ## 状态
 
@@ -22,7 +22,7 @@
 | 任务编排 | Turborepo：`build`(dependsOn `^build`)、`typecheck`、`lint`、`test`、`depcruise`、`manifest`、`api`、`iso-smoke`、`policy`；输出缓存 `lib/**`、`etc/**` | 增量与缓存 |
 | **库构建** | **`tsc -b`（项目引用）产出未打包 ESM + 逐文件 `.d.ts` + sourcemap**；`isolatedDeclarations: true`；`type: module`；不发 CJS | (1) 消除 dev/prod 分叉：开发与发布都用 `lib/`；(2) 逐文件 `.d.ts` 保留 `declare module` 增强（ADR-0001 S4）；(3) `isolatedDeclarations` 使 d.ts 生成并行且快；(4) 消费方（Vite/Node）自行打包与 tree-shake（`sideEffects:false`） |
 | 打包器 | 不用于库；`tsdown` 保留给未来「独立浏览器包」（如 pptx-renderer 的 `browser.es.js` 形态）—— 单独包 `@cordexjs/standalone`（未列入 v0.1） | 避免双构建产物不一致 |
-| apps | Vite 7（web）；Nest CLI（server，`tsc`）；apps 通过 workspace 依赖消费 `lib/` | |
+| apps | Vite 8 + React 19 + react-router 8（包名 `react-router`）（web）；Nest CLI（server，`tsc`）；apps 通过 workspace 依赖消费 `lib/` | 2026-09-25 按 rulings §4.15 决策包 `results[10].decisions[1].docUpdates[4]` 改写（rulings §4.18 FE-13；原「Vite 7（web）」作废），与 playground 基线一致 |
 | 开发期解析 | 根 `tsc -b --watch`；**不**用 `exports.development` 条件或 Vite alias 指向 `src` | 与发布形态一致；避免「编译过、运行崩」类问题（A27 的同族） |
 | 测试 | Vitest（workspace 模式；iso→node 环境，dom→happy-dom + browser mode 子集）；Playwright（apps/web e2e、视觉 oracle） | |
 | 格式与 lint | Biome 只做 formatter；ESLint flat config + typescript-eslint `strict-type-checked` + 自定义规则包 | 规则集单一来源 |
@@ -57,7 +57,7 @@
 - `lockfile-guard`（lefthook pre-commit + CI）：除根 `pnpm-lock.yaml` 外任何 lockfile（`yarn.lock`、`package-lock.json`、子目录 `pnpm-lock.yaml`）出现即失败。
 - 09-type-discipline/08 矩阵新增一行 TD：`packageManager` 版本 = `devEngines.packageManager` 版本；`pnpm-workspace.yaml` 中上述安全设置全部显式存在；`.npmrc` 不含非鉴权键；`catalog.typescript` 匹配 5.9/6.x。负向用例：子目录出现 `package-lock.json` → 失败；根目录 `npm install` → `EBADDEVENGINES`。
 - `.node-version`、`devEngines.runtime`、服务端 Dockerfile 基础镜像三处 Node 主版本一致（26）。
-- 扫描器 `no-src-conditions`：任何包 `exports` 不得含 `development`/`source` 条件或指向 `src/`。
+- 扫描器 `scan-manifest` 规则 (c) 的子检查 + publint（09-type-discipline/04 §4，TD-090；原名 `no-src-conditions`、原称独立扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：任何包 `exports` 不得含 `development`/`source` 条件或指向 `src/`。
 
 ## 关联
 

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 09 · 类型治理 —— 强类型规约与机械约束机制
 
@@ -38,6 +38,28 @@
 
 读者会在 [02](./02-lint-rules.md)、[03](./03-boundaries.md)、[06](./06-scanners.md) 里反复看到同一种分工：凡是"事实分散在多个文件才能判断"的规范（Provider/Consumer 关系是否越界、Config 字段是否被消费、effect 是否真的在卸载后清空），本方案配两层检查——一层是**同文件/单符号的 ESLint 启发式规则**，给出编辑期的即时红线，容忍一定漏报；另一层是**跨文件/跨图的扫描器或 dependency-cruiser 规则**，是 CI 阻断的权威依据。这不是重复劳动，是刻意的纵深防御：编辑期代理让开发者在写错的那一刻就知道，跨文件权威保证"代理漏掉的情形"不会真的流入主干。[03](./03-boundaries.md) 的依赖规则同样遵循"没有一条规则被期望单独完备，完备性来自多条规则的交集"这一姿态（层号秩序 + 束间隔离 + 同构标记 + 三角色，四条规则彼此有意重叠）。
 
+**编辑期代理 + 跨文件权威**
+
+```mermaid
+flowchart LR
+  dev["开发者写代码"]
+  subgraph proxy["编辑期代理：同文件 / 单符号"]
+    eslint["ESLint 启发式规则：cordex/* 等，容忍一定漏报"]
+  end
+  subgraph authority["跨文件权威：CI 阻断依据"]
+    direction TB
+    scanners["扫描器：tooling/scripts/scan-*"]
+    depcruise["dependency-cruiser 规则：多条规则有意重叠，完备性来自交集"]
+  end
+  redline["写错的那一刻看到红线"]
+  block["代理漏掉的情形不流入主干"]
+  dev --> eslint --> redline
+  dev -- "推送 / PR" --> authority
+  authority --> block
+```
+
+怎么读：同一条规范配两层检查——左侧编辑期代理给即时反馈，右侧跨文件、跨图的权威检查在 CI 阻断；事实分散在多个文件才能判断的规范（Provider/Consumer 越界、Config 字段是否被消费、effect 是否在卸载后清空）以右侧为准。
+
 ---
 
 ## 3. 阅读指引
@@ -45,13 +67,13 @@
 | 文件 | 一句话 |
 |---|---|
 | [01-tsconfig-baseline.md](./01-tsconfig-baseline.md) | 编译选项全集、iso/dom/node/nest 四套基线、项目引用、`apps/server` 的受限例外 |
-| [02-lint-rules.md](./02-lint-rules.md) | typescript-eslint 预设姿态、禁用清单、16 条 `cordex/*` 自定义规则、ESLint/Biome 切分 |
+| [02-lint-rules.md](./02-lint-rules.md) | typescript-eslint 预设姿态、禁用清单（含 apps/preset/index.ts/编解码确定性四类路径级内建规则配置）、21 条 `cordex/*` 自定义规则、ESLint/Biome 切分 |
 | [03-boundaries.md](./03-boundaries.md) | dependency-cruiser 八条规则的语义规格、包元数据、三重保障、knip/manypkg/syncpack 分工 |
 | [04-api-surface.md](./04-api-surface.md) | api-extractor、`.api.md`、exports 策略、publint/attw、Changesets 对接 |
 | [05-runtime-boundaries.md](./05-runtime-boundaries.md) | 必须校验的边界清单、schema 即类型源、品牌类型、`Derived<T>` 派生字段标记、Result 与异常的边界 |
-| [06-scanners.md](./06-scanners.md) | 十四个自研扫描器的完整规格（第 14 个 `doc-access-via-permission`，rulings §4.17 D3） |
+| [06-scanners.md](./06-scanners.md) | 十四个自研扫描器的完整规格（第 14 个 `doc-access-via-permission`，rulings §4.17 D3）；其余文档中出现的「扫描器」名按 rulings §4.18 GV-15 归并为子规则，见 08 §11.1 |
 | [07-hooks-and-ci.md](./07-hooks-and-ci.md) | lefthook 阶段、CI job 矩阵、缓存策略 |
-| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（82 行，机器可解析）+ 架构-结构条线规则命名对照 |
+| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（102 行，机器可解析）+ 架构-结构条线规则命名对照与扫描器名对账（§11.1） |
 | [09-plugin-type-contracts.md](./09-plugin-type-contracts.md) | ContributionPoint/Manifest 类型契约、声明合并边界、类型测试组织 |
 
 建议阅读顺序：先读本文件，再按 01→09 顺序通读一遍建立全貌，之后以 [08](./08-policy-enforcement-matrix.md) 为索引按需跳转（"这条规范在哪、谁执行、违反了会怎样"这类问题直接查矩阵比重新通读全文快）。
@@ -71,7 +93,7 @@ tooling/
 │                            event-domains.json / policy-row schema / 包元数据 schema → 06 §15
 ├── xsd/                    OOXML 脏部件重生成结果的 XSD 有效性校验工具；内容归属
 │                            架构-结构条线（ooxml-core 设计），本子线登记目录与 CI job → 07 §3
-├── lefthook.yml            pre-commit / commit-msg / pre-push 三阶段              → 07
+├── lefthook.yml            pre-commit / commit-msg / pre-push 三阶段（物理位于仓库根，此处只登记内容归属）→ 07
 └── commitlint.config.ts    Conventional Commits 规则                             → 07
 ```
 
@@ -79,7 +101,7 @@ tooling/
 
 ## 4. 「规范→工具→门禁」矩阵入口
 
-[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：82 行，覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地（4 行，§12a）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
+[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：102 行，覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地与 2026-09-24 复核补登（7 行，§12a）、2026-09-25 矛盾收口补登（17 行，§12b：40-modules/01 Q-07 的五行、GV-15 扫描器名对账、FE-02 依赖上限、FE-21 包元数据封闭 schema）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
 
 ---
 
@@ -119,7 +141,7 @@ tooling/
 | Q-T6 | `scan-policy` 对"CI job 是否真的在每个 PR 无分支例外触发""是否真的不含 `--quiet`"目前只能做 job **名称**的封闭性检查，无法解析工作流文件的触发条件/参数表达式（[07§6](./07-hooks-and-ci.md#6-如何被机械验证汇总) 已标注此盲区） | 记录为已知盲区，暂不新增机制 | 架构-类型治理 + 总编排 |
 | Q-T7 | 是否需要为常改动的 iso 包提供一个可选的本地冒烟命令（当前 `iso-smoke` 只在 CI 跑，见 [06§5](./06-scanners.md#5-scan-isomorphic)） | 暂不提供，M1 视开发体验反馈决定 | 架构-类型治理 |
 | Q-T8 | `CommandDef.permission` 字段的最终形状（单值 `CapabilityBit` 还是数组 `CapabilityBit[]`）未定——[02§4.16](./02-lint-rules.md#416-cordexcommand-must-declare-capabilities新增响应-prd-co-05-fail-closed-权限要求架构-结构条线别名-command-declares-capability) 暂时透传两种可能，不预设 | `cordex/command-must-declare-capabilities` 规则按"非空/非默认值"通用判定，不假设具体形状 | 架构-结构 A（`CommandDef` 类型定义） |
-| Q-T9 | "`schema-lock`"的确切语义存在歧义：本子线暂按"`schemaVersion` 发布后 schema 形状不可变"登记为 TD-063；也可能实际指"schema 即类型源"（已有 `cordex/schema-type-must-be-inferred` 覆盖，TD-045）| 按不可变性语义实现 TD-063，与 TD-045 并存 | 架构-结构 A（确认原始意图，见 [08§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名)） |
+| ~~Q-T9~~ | ~~"`schema-lock`"的确切语义~~ | **已结案（2026-09-25，rulings §4.18 GV-14/GV-15）**：ADR-0009「如何被机械验证」即快照 schema 版本锁，TD-063 语义成立，与 TD-045 并存；执行形态为 `scanners` job 的 `schema-lock` 步骤（[08§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名)） | — |
 | Q-T10 | `tooling/policy/requirements.json`（需求 id 清单镜像）与 `tooling/policy/event-domains.json`（第一方事件域清单）两个文件由谁建立与维护未定；`scan-requirement-tags`/`cordex/events-must-be-declared` 域白名单子检测在这两个文件不存在时分别退化为"仅格式校验，跳过存在性核对"与"无法拒绝未知域" | 两文件均视为可选输入，缺失时功能性降级而非报错 | 产品条线（requirements.json）+ 架构-结构 A（event-domains.json） |
 | Q-T11 | `tooling/xsd/` 的具体 XSD 版本、校验粒度（全量 OOXML schema 还是仅脏部件涉及的子集）未定，本子线只登记目录与 `xsd-validate` job | job 存在但校验逻辑留空，等待架构-结构条线 `ooxml-core` 设计产出 | 架构-结构 A |
 | Q-T12 | `cordex/store-transact-in-commands-only`、`cordex/no-unit-scoped-inject-at-root` 两条规则的精确检测逻辑依赖 `openUnitScope`/命令管线的最终运行时 API 形态，当前按启发式实现 | 按当前启发式上线，待 API 定稿后收窄漏报面 | 架构-结构 A |

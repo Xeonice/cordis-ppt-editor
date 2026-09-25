@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1）） | 依赖：charter v0.1
 
 # 10 观测性与错误（Observability & Errors）：错误码体系、结构化日志、telemetry、诊断、客户端上报
 
@@ -10,17 +10,29 @@
 
 ## 0. 一页总览
 
+**观测与错误一页总览**
+
+```mermaid
+flowchart LR
+  plugin["插件代码"]
+  subgraph kernel["@cordexjs/kernel：L0"]
+    errors["ctx.errors：create / raise / wrap / report / assert"]
+    logger["ctx.logger name：结构化字段 + 脱敏 + 采样"]
+    telemetry["ctx.telemetry：span / metric / event"]
+    diagnostics["diagnostics：dumpFiberTree / effects / pending / contributions"]
+  end
+  plugin --> errors & logger & telemetry
+  errors --> reporter["Reporter Provider：控制台、Sentry 或服务端 API"]
+  logger --> sink["Sink Provider：console、pino 或 ring buffer + 上报"]
+  telemetry --> otel["OTel SDK Provider：浏览器 OTLP/HTTP，Node OTLP/gRPC"]
+  fiberErr["Fiber apply 抛错"] --> fiberCatch["内核捕获 → FAILED + errors.report，不传播到兄弟 Fiber，A11"]
+  renderErr["渲染器抛错"] --> renderCatch["元素占位 + errors.report，见 07"]
+  nestErr["Nest 层错误"] --> filter["CordexExceptionFilter → problem+json，映射表在 protocol"]
+  fiberCatch --> errors
+  renderCatch --> errors
 ```
-                 ┌──────────────── @cordexjs/kernel（L0）────────────────┐
-  插件代码 ────►  │ ctx.errors    create / raise / wrap / report / assert │ ──► Reporter Provider（控制台 | Sentry | 服务端 API）
-                 │ ctx.logger(name)  结构化字段 + 脱敏 + 采样            │ ──► Sink Provider（console | pino | ring buffer + 上报）
-                 │ ctx.telemetry span / metric / event                  │ ──► OTel SDK Provider（浏览器 OTLP/HTTP | Node OTLP/gRPC）
-                 │ diagnostics   dumpFiberTree / effects / pending / contributions │
-                 └────────────────────────────────────────────────────┘
-  Fiber apply 抛错 ──► 内核捕获 → FAILED + errors.report（不传播到兄弟 Fiber，A11）
-  渲染器抛错 ──► 元素占位 + errors.report（07）
-  Nest 层 ──► CordexExceptionFilter → problem+json（映射表在 protocol）
-```
+
+怎么读：kernel 框内是四项基础能力，其中三项各连到一个可替换的 Provider；框外 Fiber、渲染器、Nest 层三条链是三个边界各自捕获错误的方式，其中内核与渲染两条最终汇入 `errors.report`。
 
 三条铁律：
 1. **没有裸错误**：生产代码中 `throw new Error(...)`/`new Error(...)`/`throw '...'` 被 lint 禁止（由 09-02 承接）；只能 `throw ctx.errors.create(code, details)`、`return err(...)` 或 `invariant(...)`。
@@ -57,14 +69,90 @@ export const collabErrors = defineErrors({          // 运行时元数据（严�
 
 - 扫描器（09-06）：任何 `errors.create('x.y', …)` 的 `'x.y'` 必须在 `ErrorCodes` 中声明；未声明即编译失败（类型层）+ 扫描器统计每个 domain 的码数。
 
+**错误码域**
+
+```mermaid
+flowchart LR
+  code["错误码：domain.snake_case_name，domain 至多 2 段，与包 / 服务域一致"]
+  subgraph coreG["内核与文档模型"]
+    dKernel["kernel"]
+    dStore["store"]
+    dCommand["command"]
+    dPermission["permission"]
+    dDocument["document：编辑期配额"]
+  end
+  subgraph formatG["格式编解码"]
+    dFormat["format：含导入配额"]
+    dOoxml["ooxml"]
+  end
+  subgraph renderG["排版、渲染与幻灯片垂直束"]
+    dLayout["layout"]
+    dRender["render"]
+    dSlide["slide"]
+  end
+  subgraph collabG["协同"]
+    dCollab["collab"]
+    dTransport["transport"]
+    dPresence["presence"]
+  end
+  subgraph serverG["服务端"]
+    dHeadless["headless"]
+    dStorage["storage：含存储配额"]
+    dServer["server.auth · server.documents · server.media · server.jobs"]
+  end
+  removed["tenant：随 rulings §4.15 T-0 删除"]
+  code --> coreG & formatG & renderG & collabG & serverG
+  code -. "已删除" .-> removed
+```
+
+怎么读：左侧是编码格式，右侧分组列出全部 domain（分组只为阅读，按所属包的层次归类）；虚线指向已删除的域。配额类错误按阶段分属 `format`、`document`、`storage` 三个域，见 §1.4。
+
+**错误码登记与校验**
+
+```mermaid
+flowchart LR
+  errorsTs["各包 errors.ts：declare module @cordexjs/kernel，声明合并 ErrorCodes 并携带 details 类型"] --> iface["ErrorCodes 接口"]
+  errorsTs --> meta["defineErrors：运行时元数据，severity、retryable、user"]
+  create["errors.create 某码与 details"] -- "类型层：未声明即编译失败" --> iface
+  scanner["扫描器 09-06：核对码已声明，统计每个 domain 的码数"] --> iface
+  iface --> httpMap["protocol/src/errors/http-map.ts：到 HTTP / WS 的映射，见 §1.4"]
+```
+
+怎么读：错误码的唯一来源是各包的 `errors.ts`；类型层与扫描器两道检查都指向同一个 `ErrorCodes` 接口，协议层映射表再据此给出对外的状态码。
+
 ### 1.2 错误类层次（刻意扁平）
 
+**错误类层次**
+
+```mermaid
+classDiagram
+  class CordexError["CordexError：泛型 C extends ErrorCode"]
+  CordexError : +code
+  CordexError : +details 类型为 ErrorCodes 按 C 取值
+  CordexError : +severity
+  CordexError : +retryable
+  CordexError : +user
+  CordexError : +cause 可选
+  CordexError : +fingerprint
+  CordexError : +context 含可选 unitId、traceId
+  class CordexValidationError["CordexValidationError"]
+  CordexValidationError : +code = domain.validation_failed
+  CordexValidationError : +issues 为 StandardSchemaV1.Issue 数组
+  class CordexAggregateError["CordexAggregateError"]
+  CordexAggregateError : +code = kernel.aggregate
+  CordexAggregateError : +errors 为 CordexError 数组
+  class CordexInvariantError["CordexInvariantError"]
+  CordexInvariantError : +code = kernel.invariant_violation
+  CordexInvariantError : +severity = fatal
+  CordexError <|-- CordexValidationError
+  CordexError <|-- CordexAggregateError
+  CordexError <|-- CordexInvariantError
+  note for CordexValidationError "D2 边界校验失败"
+  note for CordexAggregateError "parallel 事件多失败、批量作业"
+  note for CordexInvariantError "由 invariant 产生，表示程序错误"
 ```
-CordexError<C extends ErrorCode>            code / details: ErrorCodes[C] / severity / retryable / user / cause? / fingerprint / context{unitId?, traceId?}
-├── CordexValidationError                   code = '<domain>.validation_failed'；issues: StandardSchemaV1.Issue[]（D2 边界校验失败）
-├── CordexAggregateError                    code = 'kernel.aggregate'；errors: CordexError[]（parallel 事件多失败、批量作业）
-└── CordexInvariantError                    code = 'kernel.invariant_violation'；由 invariant() 产生；severity 'fatal'；表示程序错误
-```
+
+怎么读：空心三角箭头指向父类；层次刻意只有一层，分类靠 `code`、`severity`、`user` 而非子类。
 
 - 不为每个 domain 建子类；分类靠 `code`/`severity`/`user`（是否可向用户展示）。理由：子类层次会诱导 `instanceof` 分支，而 `code` 判别联合能被穷尽检查。
 - 与 cordis：`CordisError`/`ValidationError` 在 kernel 边界被 `wrap` 为 `kernel.cordis_error` / `kernel.config_invalid`。
@@ -78,6 +166,28 @@ CordexError<C extends ErrorCode>            code / details: ErrorCodes[C] / seve
 | **程序错误**（不变量被破坏、不可能分支） | `invariant(cond, 'kernel.invariant_violation', details)` → throw | 立刻暴露；不进入 Result |
 | **边界层**（插件 `apply`、命令执行、Nest handler、job processor） | 允许 `throw CordexError`；边界统一捕获：内核 → Fiber `FAILED`；commands → `command/failed` 事件；Nest → filter；job → 重试/死信 | 边界是唯一把 Result 转成异常的地方 |
 | 第三方异常 | `ctx.errors.wrap(cause, code, details)` | 保留 `cause` 链 |
+
+**错误从产生到边界的流向**
+
+```mermaid
+flowchart TB
+  pure["纯函数 / iso 库的预期失败：解析、编解码、校验、几何求值、路径定位"] --> result["返回 Result：T 或 CordexError"]
+  svc["服务方法的外部失败：网络、存储、浏览器 API"] --> presult["返回 Promise 包裹的 Result，调用方无法继续时才 raise"]
+  bug["程序错误：不变量被破坏、不可能分支"] --> inv["invariant → throw kernel.invariant_violation"]
+  third["第三方异常"] --> wrap["ctx.errors.wrap：保留 cause 链"]
+  subgraph boundaries["边界层：允许 throw CordexError，唯一把 Result 转成异常的地方"]
+    b1["插件 apply → 内核：Fiber FAILED"]
+    b2["命令执行 → command/failed 事件"]
+    b3["Nest handler → filter"]
+    b4["job processor → 重试 / 死信"]
+  end
+  result -- "在边界转成异常" --> boundaries
+  presult -- "在边界转成异常" --> boundaries
+  inv -- "边界统一捕获" --> boundaries
+  wrap -- "边界统一捕获" --> boundaries
+```
+
+怎么读：上排四类失败各有固定的表达方式，箭头指向调用方不就地处理（重试、降级）时最终收口的边界；边界框内列出四个边界各自的收口动作。
 
 替代写法速查（禁止 → 允许）：`throw new Error('x')` → `throw ctx.errors.create('domain.name', {...})`；`if (!x) throw …` → `invariant(x, …)` 或 `return err(...)`；`catch (e) { throw e }` → `catch (e) { throw ctx.errors.wrap(e, 'domain.name') }`；`console.error(e)` → `ctx.errors.report(e)`。
 
@@ -107,6 +217,17 @@ CordexError<C extends ErrorCode>            code / details: ErrorCodes[C] / seve
 | `format.quota_exceeded` | 导入（服务端 `import.processor` / 客户端 Worker 解析） | `slides` \| `elementsPerSlide` \| `elementsTotal` \| `fileSize` | 超天花板直接拒绝导入，不创建文档；`fileSize` 为单文件（含媒体）上限，默认 200 MB |
 | `document.quota_exceeded` | 编辑期（命令守卫） | `slides` \| `elementsPerSlide` \| `elementsTotal`（与导入同名） | 409，命令被拒、连接保持；墓碑计入 `elementsTotal` |
 | `storage.quota_exceeded` | 存储（上传/新建文档） | `bytes` \| `documents` | 部署级存储字节与每用户文档数 |
+
+**配额三码按阶段分流**
+
+```mermaid
+flowchart LR
+  importStage["导入：服务端 import.processor 或客户端 Worker 解析"] --> fq["format.quota_exceeded → 413：dimension 为 slides、elementsPerSlide、elementsTotal、fileSize，超天花板直接拒绝、不创建文档"]
+  editStage["编辑期：命令守卫"] --> dq["document.quota_exceeded → 409：dimension 与导入同名，命令被拒、连接保持，墓碑计入 elementsTotal"]
+  storageStage["存储：上传 / 新建文档"] --> sq["storage.quota_exceeded → 上传 413 或 429：dimension 为 bytes、documents"]
+```
+
+怎么读：三行互不相交，按错误发生的阶段选码；三码的 `details` 都是 `{ dimension, limit, actual }`，编辑期码不占用 WS 关闭码（4429 专属速率限制）。
 
 `problem+json` 字段：`type/title/status/detail/instance/code/traceId/retryable`；`details` 只有 `user:true` 的错误才回传。
 
@@ -206,6 +327,29 @@ interface TelemetryService {
 
 传播：HTTP `traceparent` 头；WS 的 CONTROL.auth 携带 `traceparent` 建立会话父 span，每个 update 帧不建 span（用指标 + 1% 抽样 span）；BullMQ job 数据带 `traceparent`。
 
+**trace 上下文传播**
+
+```mermaid
+sequenceDiagram
+  participant B as 浏览器
+  participant API as apps/server HTTP
+  participant G as collab 网关
+  participant Q as BullMQ
+  participant W as job processor
+  B->>API: HTTP 请求，携带 traceparent 头
+  API->>API: 自动仪表化的 HTTP span 以其为父
+  B->>G: WS CONTROL.auth，携带 traceparent
+  G->>G: 建立会话父 span
+  B->>G: 后续 update 帧
+  G->>G: 不逐帧建 span，改用指标 + 1% 抽样 span
+  API->>Q: 入队，job 数据带 traceparent
+  Q->>W: 取作业
+  W->>W: 从 job 数据恢复 traceparent 建子 span
+```
+
+怎么读：三种跨进程边界各有一个 traceparent 载体——HTTP 头、WS 首帧 CONTROL.auth、job 数据；自指箭头是接收方据此建立或续接 span 的动作，update 帧本身不携带 traceparent。
+依据：本文 §3.2；08 §7 处理器基类。
+
 ### 3.3 Metric 清单（Prometheus 命名；单位在名内）
 
 | 指标 | 类型 | 标签 | 消费者（仪表盘/告警） |
@@ -221,6 +365,7 @@ interface TelemetryService {
 | `cordex_collab_persist_latency_ms` | histogram | — | SLO |
 | `cordex_collab_updates_rejected_total` | counter | reason | 安全告警 |
 | `cordex_collab_repairs_total` | counter | rule | 数据质量告警 |
+| `cordex_collab_broadcast_before_persist_total` | counter | tier(none/valkey/blob) | PG 故障降级期「先广播后持久化」的次数（rulings §4.18 CO-08，06 §6.4）；持续增长即 PG 故障告警的旁证 |
 | `cordex_store_undo_skipped_total` | counter | whole_step(true/false) | 撤销跳过面板（与软冲突率分开，rulings §4.17 D5） |
 | `cordex_ydoc_bytes` / `cordex_ydoc_structs` | gauge | doc（抽样） | epoch 触发（06 §9.4） |
 | `cordex_snapshot_bytes` / `cordex_snapshot_compactions_total` | histogram/counter | kind | 存储 |
@@ -254,11 +399,49 @@ interface TelemetryService {
 
 ## 5. 客户端错误上报
 
-- 端点：`POST /api/v1/telemetry/errors`（DTO：`protocol/telemetry/client-report.ts`），批量 ≤ 20 条/请求，节流 1 req/10 s，`sendBeacon` 兜底。
+- 端点：`POST /api/v1/telemetry/errors`（DTO：`protocol/rest/telemetry.ts` 的 `ClientErrorReport`，落点见 40-modules/02 §4.3，rulings §4.18 BE-30），批量 ≤ 20 条/请求，节流 1 req/10 s，`sendBeacon` 兜底；浏览器 OTLP/HTTP 走 `POST /api/v1/telemetry/otlp` 代理。
+- 承接模块（rulings §4.18 BE-30）：两个端点由 M-12 新增的 `client-telemetry` 控制器承接（`client-telemetry.controller.ts` + `otlp-proxy.service.ts`，40-modules/12），只装在 api 角色；**要求登录**（全局 SessionGuard，不在 `@Public` 白名单），加令牌桶限流与请求体上限：errors ≤ 64 KiB，otlp ≤ 512 KiB 且**只转发 traces**（metrics/logs 由服务端自己产出，不接受浏览器转发）。
 - 载荷：`{ code, message(脱敏), fingerprint, stack(源映射前), appVersion, pluginManifestHash, unitId?, sessionId?, traceId?, breadcrumbs: ring-buffer 最近 50 条日志（脱敏）, env{ua, viewport, memory?} }`。
 - 服务端：写入日志管道并转发到错误平台（Sentry Provider 可选）；source map 在 CI 上传（09-07）。
 - 采样：`severity ≥ error` 100%；`warning` 10%；同 fingerprint 客户端 60 s 去重。
 - 隐私：见 §2.3；用户可在设置里关闭「诊断上报」（产品确认 O2）。
+
+**遥测、日志与错误上报流**
+
+```mermaid
+flowchart LR
+  subgraph browserSide["浏览器：apps/web"]
+    bTel["ctx.telemetry"]
+    bOtel["OTel SDK Provider：OTLP/HTTP 导出"]
+    bLog["ctx.logger：生产用 ring-buffer sink，最近 500 条 debug+"]
+    bErr["ctx.errors.report：同 fingerprint 60 s 去重，error 及以上 100%、warning 10% 采样"]
+  end
+  subgraph nodeSide["Node：apps/server"]
+    errApi["client-telemetry：POST /api/v1/telemetry/errors，要求登录，≤ 64 KiB"]
+    otlpProxy["client-telemetry：POST /api/v1/telemetry/otlp 代理，要求登录，≤ 512 KiB，只转发 traces"]
+    nTel["ctx.telemetry + HTTP / DB / Valkey 自动仪表化"]
+    nOtel["OTel SDK Provider：OTLP/gRPC"]
+    nLog["ctx.logger → pino JSON 行 → stdout，level ≥ info"]
+  end
+  collector["OTel Collector"]
+  jaeger["Jaeger：traces，默认栈"]
+  prometheus["Prometheus：metrics，默认栈"]
+  loki["Loki：显式开启的 AGPL 可选 profile"]
+  sentry["错误平台：Sentry Provider 可选"]
+  bTel --> bOtel --> otlpProxy --> collector
+  bLog -- "仅在 errors.report 触发时，最近 50 条脱敏日志作为 breadcrumbs" --> bErr
+  bErr -- "批量 ≤ 20 条，节流 1 req/10 s，sendBeacon 兜底" --> errApi
+  errApi -- "写入日志管道" --> nLog
+  errApi -. "转发" .-> sentry
+  nTel --> nOtel --> collector
+  nLog --> collector
+  collector -- "traces" --> jaeger
+  collector -- "metrics" --> prometheus
+  collector -. "可选 logs" .-> loki
+```
+
+怎么读：左框是浏览器侧的三条出口，右框是服务端侧；实线是默认链路，虚线是可选 Provider 或可选 profile。所有日志在进入 sink 前统一脱敏（§2.3），从不记录文档内容。浏览器 OTLP/HTTP 经服务端 client-telemetry 代理端点进入 Collector（ADR-0030 决策 1，rulings §4.18 BE-30），两个浏览器端点都要求登录并限流。Collector 在默认栈里有两条出口：traces 进 Jaeger、metrics 进 Prometheus（ADR-0037 默认观测组件）；Loki 只在显式开启 AGPL profile 时接 logs。
+依据：本文 §2.4、§3.1、§3.2、§5；ADR-0030 决策 1–2；rulings §4.15 Q10（观测默认 OTel Collector + Jaeger + Prometheus，Loki/Grafana 为 AGPL 可选 profile）。
 
 ---
 
@@ -280,7 +463,7 @@ packages/kernel/src/
 | 编号 | Univer | 本项目 | 机械验证 |
 |---|---|---|---|
 | A24 | `ILogContext`/错误码/telemetry 零实现、1 个消费者 | 三服务 M1 接入；每个 span/metric 有消费者登记 | 扫描器：`telemetry.span('x')` 的 `'x'` 必在 §3.2/3.3 登记表且有 `consumer` 字段；`console.*` 与裸 `Error` lint 报错（09-02/06） |
-| A25 | dispose 门禁文档被删 | `assertNoLiveEffects` 是每个插件生命周期测试的必含断言；`cordex_effects_live` 告警 | 测试模板（11 §4）+ 扫描器检查每个 `plugin.ts` 有对应 lifecycle 测试 |
+| A25 | dispose 门禁文档被删 | `assertNoLiveEffects` 是每个插件生命周期测试的必含断言；`cordex_effects_live` 告警 | 测试模板（11 §4）+ 扫描器 `scan-effects` 规则 (2) 检查每个 `plugin.ts` 有对应 lifecycle 测试 |
 | A11 | 一崩全崩 | Fiber FAILED 隔离 + 元素级隔离 | 单测：抛错插件/渲染器不影响其余 |
 | A16 | 门禁 warn 全失效 | 所有规则 `error`；豁免 `// cordex-allow(<rule>): <issue-url>` 计数进预算 | 09-06 |
 | D 级观测 | — | 错误码/日志字段/指标名三张登记表由类型系统 + 扫描器守护 | 类型测试 + 扫描器 |
@@ -312,17 +495,17 @@ packages/kernel/src/
 
 > 追加于产品线与 A 线落盘之后。事件登记表本体在 03（kernel `Events` 增强）；本节是运行时线对「一套定稿名」的提案，供总编排合并；PRD EM-05 表在定稿后同步。
 
-### 11.1 公开事件定稿提案（`<域>/<动作>`；全部在 `Events` 接口声明，扫描器 `events-declared` 校验）
+### 11.1 公开事件定稿提案（`<域>/<动作>`；全部在 `Events` 接口声明，lint 规则 `cordex/events-must-be-declared` 校验，原称 `events-declared`，09-08 §11 对照）
 
 | 域 | 事件（定稿） | 分发 | 载荷要点 | 发出者 | 取代（PRD / A 线 / 本线草稿） |
 |---|---|---|---|---|---|
-| unit | `unit/opened` `unit/open-progress` `unit/open-failed` `unit/closed` `unit/dirty-changed` `unit/saved` `unit/migrated` | emit | unitId、阶段/百分比、code、schemaVersion | model-core | – |
+| unit | `unit/opened` `unit/loaded` `unit/open-progress` `unit/open-failed` `unit/closed` `unit/dirty-changed` `unit/saved` `unit/migrated` | emit | unitId、阶段/百分比、code、schemaVersion；`unit/opened` 在首批装载后发（可渲染、可编辑），`unit/loaded` 在全部批次到齐后发（全文类命令据此解禁，rulings §4.18 CO-12，07 §14.2） | model-core | – |
 | command | `command/executed` `command/rejected` `command/failed` `command/audited` | emit | id、durationMs、reason、审计摘要 | 命令管线（05） | – |
 | store | `store/transaction`（公开订阅 ≥ 50 ms 合并）、`store/loaded` | emit | transactionId、`origin{ kind, via? }`、touched 数、影响元素数 | store Provider | 本线 `store/history-changed` → `history/changed` |
 | history | `history/changed` | emit | canUndo / canRedo / depth | history | – |
 | store | `store/undo-skipped` | emit | `{ skipped: UndoSkip[]; wholeStep: boolean }`（载荷以 40-modules/02 §2.4 为准；撤销时同键已被他人后写而跳过，rulings §4.15 Q3） | store Provider | – |
 | selection / view | `selection/changed`；`view/page-changed` `view/zoom-changed` `view/mode-changed` | emit | 摘要（类型、数量、页；无文本） | `selection` / viewport | – |
-| render | `render/first-paint` `render/frame`（cordis 事件，进程内消费）`render/element-failed` `render/element-degraded` `render/font-fallback` | emit | unitId、pageId、kind、reason、font；`render/frame` 载荷 `{ pages, elementsUpdated, ms, overrun }` | engine-render / render-dom | 总编排定稿：弃 02 的 `render/painted`；遥测事件 `perf/frame` 由 `render/frame` 派生（§3.4，抽样），不是 cordis 事件；A `render/error` 与本线 `render/element-error` → `render/element-failed` |
+| render | `render/first-paint` `render/frame`（cordis 事件，进程内消费）`render/element-failed` `render/element-degraded` `render/font-fallback` | emit | unitId、pageId、kind、reason、font；`render/frame` 载荷 `{ pages, elementsUpdated, ms, overrun, pendingDirty }`（`pendingDirty` 为本帧后仍待绘的脏节点数，`/render` ready 判据用，rulings §4.18 FE-09，07 §10） | engine-render / render-dom | 总编排定稿：弃 02 的 `render/painted`；遥测事件 `perf/frame` 由 `render/frame` 派生（§3.4，抽样），不是 cordis 事件；A `render/error` 与本线 `render/element-error` → `render/element-failed` |
 | layout | `layout/fonts-ready` `layout/measurer-changed` | emit | families / measurerId | render-dom / engine-layout | – |
 | export | `export/started` `export/completed` `export/failed` | emit | format、pages、ms、bytes | formats | – |
 | collab | `collab/state-changed` `collab/synced` `collab/soft-conflict` `collab/auth-failed` `collab/reconnect` `collab/update-rejected` `collab/repair` | emit | prev/next、type、code、reason、paths | collab-yjs | 本线 `collab/session-state` 与 A `collab/status-changed` → `collab/state-changed`；本线 `collab/rejected` → `collab/update-rejected`；`collab/backpressure` 降为指标 |
@@ -338,7 +521,7 @@ packages/kernel/src/
 
 | PRD | 定稿 | HTTP / WS |
 |---|---|---|
-| `auth/invalid-token` `auth/expired` `auth/forbidden` | `server.auth.invalid_token` `server.auth.expired` `server.auth.forbidden` | 401 / 401 / 403；4401 / 4401 / 4403 |
+| `auth/invalid-token` `auth/expired` `auth/forbidden` | `server.auth.invalid_token` `server.auth.expired` `server.auth.forbidden` | 401 / 401 / 403；4401 / 4401 / 4403。令牌刷新失败按原因分流（rulings §4.18 UX-02，06 §18.3）：401（`server.auth.expired`）直接进入「登录已过期」、不经 reconnecting/offline；只有网络错误才走 `collab/reconnect{reason:'auth-refresh'}` 并共用 30 s 离线计时 |
 | `collab/auth-failed` | 事件 `collab/auth-failed`，载荷 code ∈ `collab.unauthenticated \| collab.forbidden \| collab.doc_not_found \| collab.schema_too_new \| collab.protocol_mismatch \| collab.room_full` | 见 06 §6.5（`protocol_mismatch` = 4427） |
 | `format/limit-exceeded{limit, actual}` | `format.limit_exceeded` | 413 |
 | `collab/soft-conflict{type}` | 事件（非错误）；指标 `cordex_collab_soft_conflicts_total{type}`；`type` **不含** `undo-skipped`——撤销跳过走 `store/undo-skipped` 单独统计（rulings §4.17 D5） | – |

@@ -1,22 +1,32 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
 
 ## 1. 总览：三个边界
 
+**三个边界：外部格式 → 持久化形态 → 运行时形态**
+
+```mermaid
+flowchart LR
+  subgraph extFmt["外部格式"]
+    pptx[".pptx：OPC"]
+  end
+  subgraph persisted["持久化形态"]
+    bundle["SnapshotBundle：Snapshot#40;JSON#41; + Blob 集合#40;内容寻址#41;，schemaVersion"]
+  end
+  subgraph runtime["运行时形态：模型只经 Store 读写，D5"]
+    store["DocumentStore#60;S#62;：state#40;#41;: Persisted#60;S#62;；transact / observe；undo / redo#40;origin#41;"]
+  end
+  pptx -- "边界 A · FormatCodec import：编解码，有损/无损由不透明保留保证" --> bundle
+  bundle -- "FormatCodec export" --> pptx
+  bundle -- "边界 B · Store.load：显式编解码 + 迁移，D6" --> store
+  store -- "toSnapshot" --> bundle
 ```
-  外部格式                 持久化形态                      运行时形态
- ┌─────────┐  FormatCodec ┌────────────────────┐  Store.load ┌────────────────────────┐
- │ .pptx   │─── import ──►│ SnapshotBundle      │──────────► │ DocumentStore<S>        │
- │ (OPC)   │◄── export ───│  Snapshot(JSON)     │◄───────────│  state(): Persisted<S>  │
- └─────────┘              │  + Blob 集合(内容寻址)│ toSnapshot │  transact / observe     │
-                          │  schemaVersion       │            │  undo / redo (origin)   │
-                          └────────────────────┘            └────────────────────────┘
-      边界 A：编解码（有损/无损由不透明保留保证）  边界 B：显式编解码 + 迁移（D6）   模型只经 Store 读写（D5）
-```
+
+怎么读：三个子图是同一份文档的三种形态，左右两组往返箭头分别是边界 A（格式编解码）与边界 B（快照编解码与迁移）；运行时没有第二份模型。
 
 - 边界 A 由 `core.format` 贡献的 `FormatCodec` 负责；未建模内容以 `OpaqueXml`/`OpaquePartRef` 穿过边界（§5）。
 - 边界 B 由 `model-core/snapshot/codec.ts` 负责；`Derived<T>` 字段在此被剔除（§7）。
@@ -73,7 +83,9 @@ interface DocumentStore<S = unknown> {
 interface TransactOptions { origin: Origin; label: string; meta?: JsonObject; undoable?: boolean /* 默认 true */ }
 ```
 
-契约测试（`model-core/testing/document-store-conformance.ts`）覆盖：原子性、`state()` 引用语义、`observe` 时序（一次事务一次通知）、`undo/redo` 按 origin、`load` 后 `canUndo` 为 false、快照往返 `toSnapshotBody()` 深等于 `load` 入参、`text` op 语义、嵌套事务拒绝（`STORE_NESTED_TRANSACTION`）。
+**渐进打开的追加语义**（2026-09-25，rulings §4.18 CO-12，与 07 §14.2 同口径）：本地打开大文件时，Worker 跑 import-pipeline，**先**完成规模包络计数（超系统天花板整体拒绝，不装到一半才失败），**再**分批回传；首批经 `load(body, system('load'))` 装入后立即发 `unit/opened`（可渲染、可编辑），后续批次经 `transact(fn, { origin: { kind:'system', reason:'import' }, undoable: false })` **追加**——只写入首批未出现的实体键，不改写已有键；该来源不入撤销栈（`canUndo(local)` 不受影响）、`dirty()` 不计入（codec 的 DirtyTracker 忽略 `system('import'|'load')` 来源，§5.2），全部批次到齐后发 `unit/loaded`（事件表登记见 40-modules/02）。全选、查找替换、导出、跨页重排等全文类命令在 `unit/loaded` 之前等待或禁用（40-modules/03 命令守卫）。协同模式不走此路径：Y 状态由 HTTP 快照 bootstrap（06 §5）。
+
+契约测试（`model-core/testing/document-store-conformance.ts`）覆盖：原子性、`state()` 引用语义、`observe` 时序（一次事务一次通知）、`undo/redo` 按 origin、`load` 后 `canUndo` 为 false、快照往返 `toSnapshotBody()` 深等于 `load` 入参、`text` op 语义、嵌套事务拒绝（`STORE_NESTED_TRANSACTION`）、**import 追加**（首批 `load` + 若干 `system('import')` 追加批次后：`toSnapshotBody()` 深等于一次性 `load` 全量的结果；`canUndo` 为 false；`dirty()` 为 null；追加批次触碰已有键时拒绝）。
 
 ### 2.3 `StoreOp` 原语（ADR-0013）
 
@@ -93,7 +105,7 @@ type TextDelta = readonly ({ insert: string; attributes?: JsonObject } | { retai
 - `FracKey` 由**命令层**经 `@cordexjs/shared/order.between(prev, next)` 生成并放入 Mutation 载荷（含随机后缀，因此不能在纯函数 `lower()` 内生成）；Mutation 载荷禁止数组下标（06 I4）。
 - 逆操作在原语层推导：`set`→`set(旧值)`或`delete`，`insert`→`remove`，`text`→delta 求逆（需旧文本，Provider 在应用时捕获）。
 - StoreOp 只在本地应用，**不上网络**；协同传输的是 CRDT update（06）。
-- 有身份实体的**用户删除**不直接产出实体键的 `delete`，而是写 `_deleted` 墓碑（§3.1a，rulings §4.15 Q3）；实体键的 `delete` 只由 TTL 硬删除作业、文档擦除与「立即彻底删除」路径产生。
+- 有身份实体的**用户删除**不直接产出实体键的 `delete`，而是写 `_deleted` 墓碑（§3.1a，rulings §4.15 Q3）；实体键的 `delete` 只由三条服务端路径产生，全部以 `system('maintenance')` 单写者执行：TTL 硬删除作业、文档擦除（文档级「永久删除文档」，S-2 purgeAll）、经审计的「彻底删除元素」（元素级，仅对墓碑态、仅 owner，2026-09-25 rulings §4.18 CO-07，见 §3.1a）。
 
 ### 2.4 `Transaction` / `TransactionRecord` / `ChangeSet`
 
@@ -114,7 +126,7 @@ interface ChangeSet {
 type Origin =
   | { kind: 'local'; clientId: string; via?: 'undo' | 'redo' }                                   // via：撤销/重做产生的本地事务
   | { kind: 'remote' }
-  | { kind: 'system'; reason: 'load' | 'import' | 'migration' | 'repair' | 'restore' | 'maintenance' }   // repair：服务端不变量修复；restore：版本恢复；maintenance：rekey 等治理
+  | { kind: 'system'; reason: 'load' | 'import' | 'migration' | 'repair' | 'restore' | 'maintenance' }   // import：渐进打开的后续追加批次（§2.2，不入撤销栈、不标脏）；repair：服务端不变量修复；restore：版本恢复；maintenance：rekey、TTL 硬删除与经审计的彻底删除元素等治理
   | { kind: 'replay' }
 ```
 
@@ -195,6 +207,95 @@ interface FormatCodec<S = unknown> {
 interface ImportResult<S> { snapshot: Snapshot<S>; diagnostics: readonly ImportDiagnostic[] }
 ```
 
+**model-core 抽象关系 · Store 与事务**
+
+```mermaid
+classDiagram
+  direction LR
+  class DocumentType~S~ {
+    id / displayName / schemaVersion / bodySchema：Persisted~S~ 的 schema / shape：BodyShapeHints
+    unitPlugins / unitServices / selectionKinds / viewModes
+    invariants / validateChangeSet / diff 可选
+  }
+  class DocumentStore~S~ {
+    state / get / load / toSnapshotBody / dirty
+    transact：原子，失败回滚 / observe：事务提交后同步通知
+    undo / redo / canUndo / canRedo：按 origin
+  }
+  class Transaction {
+    origin / label / meta
+    mutate：校验 → 权限 → lower → 应用
+    ops：已应用的 StoreOp
+  }
+  class TransactionRecord {
+    id / origin / label / at / undoable
+    mutations / ops：RecordedOp / inverse
+  }
+  class ChangeSet {
+    transactionId / origin
+    ops：StoreOp 或 null / derived
+    touched：权威字段
+  }
+  class StoreOp {
+    set / delete / insert / remove / text
+  }
+  class Origin {
+    local / remote / system / replay
+  }
+  DocumentType ..> DocumentStore : bodySchema 与 shape 约束
+  DocumentStore --> Transaction : transact 回调内存在
+  DocumentStore --> TransactionRecord : transact 返回
+  DocumentStore --> ChangeSet : observe 通知
+  Transaction --> StoreOp : 已应用原语
+  TransactionRecord --> Origin
+  ChangeSet --> StoreOp
+```
+
+怎么读：每个框是 §2 中的一个接口（只列要点字段/方法名），实线箭头是「返回/持有」，虚线箭头是「约束/使用」；Store 只理解 5 种 StoreOp，事务通过 `mutate` 把 Mutation 降级为 StoreOp。
+
+**model-core 抽象关系 · 快照与编解码**
+
+```mermaid
+classDiagram
+  direction LR
+  class Snapshot~S~ {
+    documentType / schemaVersion / unitId
+    body：Persisted~S~
+    resources：每个命名空间的 version + data
+    blobs：BlobRef 完整性清单
+  }
+  class SnapshotBundle~S~ {
+    snapshot / blobs：BlobStore
+  }
+  class BlobRef {
+    hash：Sha256Hex / size / contentType
+  }
+  class BlobStore {
+    get / put / has
+  }
+  class FormatCodec~S~ {
+    id / documentType / mimeTypes / extensions
+    canImport / canExport
+    import：bytes → ImportResult
+    export：UnitScope → bytes
+  }
+  class Migration {
+    documentType / from / to / migrate / migrateResources 可选
+  }
+  class ResourceHook {
+    namespace / version / schema / toJson / fromJson
+  }
+  SnapshotBundle *-- Snapshot
+  SnapshotBundle --> BlobStore
+  Snapshot --> BlobRef : blobs
+  BlobStore ..> BlobRef : 按 ref 存取
+  FormatCodec --> Snapshot : import 产出 ImportResult，含 snapshot + diagnostics
+  Migration ..> Snapshot : 链式 from → from + 1
+  ResourceHook ..> Snapshot : resources 读写
+```
+
+怎么读：实心菱形是「组成」，实线箭头是「引用/产出」，虚线箭头是「作用于」；二进制一律经 BlobStore，快照与 Y.Doc 内只有 BlobRef。
+
 ---
 
 ## 3. model-slide 对象模型
@@ -223,37 +324,166 @@ interface PresentationBody {
 1. **打标记**：命令层产出的删除 Mutation 降级为 `set(['shapes', id, '_deleted'], { at, by })`（墓碑）；实体 id 保持稳定，不复用、不换新 id。
 2. **读路径过滤**：`query/selectors.ts`、`slides` 服务、SceneProvider、导出编码器一律跳过带 `_deleted` 的实体；`_deleted` 实体不参与 `(order, id)` 排序结果。
 3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理；墓碑在 TTL 内计入文档总元素上限（§5.5）。
-4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlMs < now`，origin `system('maintenance')`；08 §3.1、40-modules/09）；**文档擦除（S-2）与经审计的「立即彻底删除」路径不等 TTL**，直接硬删除。
-5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。
+4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；08 §3.1、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
+5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。墓碑已被硬删除（TTL 到期或被「彻底删除元素」）后，删除方再撤销该步 → 按整步跳过（`store/undo-skipped{wholeStep:true}`，05 §6，CO-07）。
 
 store-memory 与 store-yjs 语义一致（`runDocumentStoreConformance` 协同分节覆盖）。
 
+**有身份实体的墓碑生命周期**
+
+```mermaid
+stateDiagram-v2
+  state "存活：读路径可见，参与（order, id）排序" as live
+  state "墓碑：_deleted = #123; at, by #125;，id 不变" as tomb
+  state "已硬删除：实体键 delete" as purged
+  [*] --> live: 新建实体
+  live --> tomb: 用户删除 → 删除 Mutation 降级为 set _deleted
+  tomb --> live: 删除方撤销 → 清除 _deleted，同一 id 复活
+  tomb --> purged: TTL 到期，默认 24 h，tombstone.ttlHours → tombstone-sweeper 单写者 + LeaseLock，origin system#40;'maintenance'#41;
+  tomb --> purged: 彻底删除元素，仅 owner，经审计 REST → M-09 单写者，不等 TTL
+  purged --> [*]
+  note right of tomb: 读路径过滤；不得被新引用指向，既有引用者一并视为已删除；TTL 内计入文档总元素上限；非删除方的撤销以它为目标 → 跳过并提示，永不复活，D4
+  note right of purged: 永久删除文档（S-2 文档擦除）是整文档清除，不是单个实体的状态迁移，故不画为迁移边
+```
+
+怎么读：三个状态对应实体在 Store 中的三种形态，箭头上是触发者与写入方式；只有删除方自己的撤销能把墓碑变回存活；实体级硬删除只从墓碑出发（TTL 到期或 owner 经审计的彻底删除元素），存活实体不能直接跳到已硬删除；文档级的永久删除文档作为注记，不属于实体状态机（与 PRD 03 图「tomb → gone」、ADR-0020 图 2 同口径）。
+
+依据：本节 §3.1a、§2.3 末条；05 §6 第 3 条；rulings §4.15 Q3、§4.17 D4、§4.18 CO-07。
+
 ### 3.2 对象图
 
-```
- Presentation           Slide{order} ──layoutId──► SlideLayout{order} ──masterId──► SlideMaster{order} ──themeId──► Theme
-      │                        │                     │                        │
-      │ defaultTextStyle       │ commonSlide          │ commonSlide             │ commonSlide · colorMap · textStyles
-      ▼                        ▼                     ▼                        ▼
-   slideSize · properties  CommonSlideData { background?, controls?, customData?, extensions }   （页/版式/母版的形状经 shapes 表按 containerId 反查，按 (order, id) 排序）
-                                             │
-                                             ▼  (shapes 表，按 id；containerId · parentId · order)
-   Shape (kind 判别联合) ── sp ─── properties(ShapeProperties) · style?(ShapeStyle) · textBody?(TextBody) · useBackgroundFill
-                        ── pic ── blipFill(mediaId…) · properties · style? · media?
-                        ── grpSp ─ groupProperties(GroupTransform)（子形状 = shapes 表中 parentId 指向本组者，按 (order, id) 排序）
-                        ── cxnSp ─ properties · style? · startConnection?/endConnection?(shapeId, index)
-                        ── graphicFrame ─ transform · graphic: Table | Chart | Ole | Diagram | UnknownGraphic
-                        ── unknown ─ xml: OpaqueXml
-   ShapeBase { id, kind, containerId: SlideId | LayoutId | MasterId, parentId: ShapeId | null, order: FracKey, nonVisual{ name, hidden, description, title, hyperlink?, placeholder?: PlaceholderRef, locks? }, ooxml{ cNvPrId?, creationId? }, extensions }
+**对象图 · 容器与继承引用**
 
-   TextBody { bodyProperties, listStyle?, paragraphs[] }
-     Paragraph { properties(ParagraphProperties: level 0..8, alignment, indent, margins, spacing, bullet, tabs, defaultRunProperties?), runs: Inline[], endProperties? }
-       Inline = Run{ text, properties?: RunProperties } | LineBreak | Field{ type, id, text }
-       RunProperties { size?, bold?, italic?, underline?, strike?, caps?, baseline?, spacing?, kerning?, fill?, highlight?, latin?/eastAsian?/complexScript?/symbol?: FontRef, hyperlink?, language?, effects?: OpaqueXml }
-
-   Theme { colorScheme(dk1 lt1 dk2 lt2 accent1..6 hlink folHlink), fontScheme{ major, minor: FontSet }, formatScheme{ fills[3], lines[3], effects[3], backgroundFills[3] }, extensions }
-   PlaceholderRef { type: title|body|ctrTitle|subTitle|dt|ftr|sldNum|pic|chart|tbl|dgm|media|clipArt|obj|hdr, index?, orientation?, size?, hasCustomPrompt }
+```mermaid
+classDiagram
+  direction LR
+  class Presentation {
+    defaultTextStyle：ListStyle
+    slideSize / properties
+  }
+  class Slide {
+    order：FracKey / layoutId / commonSlide
+  }
+  class SlideLayout {
+    order：FracKey / masterId / commonSlide
+  }
+  class SlideMaster {
+    order：FracKey / themeId / commonSlide / colorMap / textStyles
+  }
+  class Theme {
+    colorScheme：dk1 lt1 dk2 lt2 accent1..6 hlink folHlink
+    fontScheme：major、minor：FontSet
+    formatScheme：fills、lines、effects、backgroundFills 各 3 项 / extensions
+  }
+  class CommonSlideData {
+    background 可选 / controls 可选 / customData 可选 / extensions
+  }
+  class Shape {
+    id / kind 判别联合
+    containerId：SlideId 或 LayoutId 或 MasterId
+    parentId：ShapeId 或 null
+    order：FracKey
+  }
+  Slide --> SlideLayout : layoutId
+  SlideLayout --> SlideMaster : masterId
+  SlideMaster --> Theme : themeId
+  Slide *-- CommonSlideData : commonSlide
+  SlideLayout *-- CommonSlideData : commonSlide
+  SlideMaster *-- CommonSlideData : commonSlide
+  Shape --> Slide : containerId
+  Shape --> SlideLayout : containerId
+  Shape --> SlideMaster : containerId
+  Shape --> Shape : parentId，父组或 null
 ```
+
+怎么读：实线箭头是按 id 的引用，实心菱形是内嵌组成；形状不挂在页/版式/母版对象里，而是存在 shapes 表中按 `containerId` 反查，同级按 `(order, id)` 排序。
+
+**对象图 · Shape 判别联合**
+
+```mermaid
+classDiagram
+  direction LR
+  class ShapeBase {
+    id / kind / containerId / parentId / order：FracKey / extensions
+    nonVisual：name、hidden、description、title
+    nonVisual 可选项：hyperlink、placeholder、locks
+    ooxml：cNvPrId 可选、creationId 可选
+  }
+  class Sp {
+    properties：ShapeProperties / style 可选：ShapeStyle
+    textBody 可选：TextBody / useBackgroundFill
+  }
+  class Pic {
+    blipFill：mediaId… / properties / style 可选 / media 可选
+  }
+  class GrpSp {
+    groupProperties：GroupTransform
+  }
+  class CxnSp {
+    properties / style 可选 / startConnection、endConnection 可选：shapeId, index
+  }
+  class GraphicFrame {
+    transform / graphic：Table、Chart、Ole、Diagram、UnknownGraphic
+  }
+  class UnknownShape {
+    kind unknown / xml：OpaqueXml
+  }
+  class PlaceholderRef {
+    type：title、body、ctrTitle、subTitle、dt、ftr、sldNum、pic
+    type 续：chart、tbl、dgm、media、clipArt、obj、hdr
+    index 可选 / orientation 可选 / size 可选 / hasCustomPrompt
+  }
+  Sp --|> ShapeBase
+  Pic --|> ShapeBase
+  GrpSp --|> ShapeBase
+  CxnSp --|> ShapeBase
+  GraphicFrame --|> ShapeBase
+  UnknownShape --|> ShapeBase
+  ShapeBase --> PlaceholderRef : nonVisual.placeholder
+  GrpSp ..> ShapeBase : 子形状 = parentId 指向本组者
+```
+
+怎么读：空心三角是「属于 Shape 联合的一个分支」，公共字段在 ShapeBase；组的子形状不是数组，而是 shapes 表中 `parentId` 指向本组的形状（虚线）。
+
+**对象图 · 文本体**
+
+```mermaid
+classDiagram
+  direction LR
+  class TextBody {
+    bodyProperties / listStyle 可选 / paragraphs：Paragraph 列表
+  }
+  class Paragraph {
+    properties：ParagraphProperties / runs：Inline 列表 / endProperties 可选
+  }
+  class ParagraphProperties {
+    level 0..8 / alignment / indent / margins / spacing / bullet / tabs / defaultRunProperties 可选
+  }
+  class Inline {
+    Run、LineBreak、Field 的联合
+  }
+  class Run {
+    text / properties 可选：RunProperties
+  }
+  class LineBreak
+  class Field {
+    type / id / text
+  }
+  class RunProperties {
+    size / bold / italic / underline / strike / caps / baseline / spacing / kerning，均可选
+    fill / highlight / hyperlink / language / effects：OpaqueXml，均可选
+    latin / eastAsian / complexScript / symbol：FontRef，均可选
+  }
+  TextBody *-- Paragraph
+  Paragraph --> ParagraphProperties
+  Paragraph *-- Inline
+  Run --|> Inline
+  LineBreak --|> Inline
+  Field --|> Inline
+  Run --> RunProperties
+```
+
+怎么读：实心菱形是有序组成（段落列表、行内元素列表），空心三角是 Inline 联合的三个分支；各级属性字段均为可选，缺省即继承（§6、§12.1）。
 
 字段级草案见 02 §4.8（每个文件一行）。以下只列**决策性**字段：
 
@@ -441,6 +671,28 @@ type SlideSelectionAnchor =
  形状的 containerId/parentId/order 变化 → 其所在（及原所在）容器部件脏
 ```
 
+**脏追踪传播图**
+
+```mermaid
+flowchart TB
+  importReg["codec.import：registerPartPrefixes#40;dirtyTracker, body#41;，建立路径前缀 → 部件映射"]
+  tx["每次 store 事务"] --> touched["changeSet.touched"]
+  touched --> lookup["形状路径先经 shapes#91;id#93;.containerId 反查所在页 / 版式 / 母版"]
+  lookup --> markDirty["dirtyTracker.markDirty#40;paths#41; → 受影响部件集合"]
+  importReg --> markDirty
+  subgraph structural["结构性变化的传播"]
+    direction TB
+    orderChg["任一 slides.id.order 变化 → presentation.xml 脏"]
+    newSlide["新增页 → 新部件 + presentation.xml + rels 脏"]
+    delSlide["删除页 → presentation.xml 脏；该部件连同独占 rels 目标从表移除，共享目标保留"]
+    shapeMove["形状 containerId / parentId / order 变化 → 所在及原所在容器部件脏"]
+  end
+  structural -. "补充规则" .-> markDirty
+  markDirty --> exportStep["导出：脏部件重生成，其余 verbatim，见 §5.3 图"]
+```
+
+怎么读：导入时注册映射、编辑时按 `touched` 路径标脏，两条实线在 `markDirty` 汇合；子图是结构性变化额外触发的标脏规则，以虚线补充到 `markDirty`。
+
 ### 5.3 导出算法
 
 ```
@@ -463,6 +715,34 @@ type SlideSelectionAnchor =
  ids: 回写 cNvPr/@id（ADR-0014）
 ```
 
+**导出逐部件判定图**
+
+```mermaid
+flowchart TB
+  part["PartTable 中的每个 part"] --> qOpaque{"part ∈ opaqueParts？"}
+  qOpaque -- "是" --> verbatim["write verbatim#40;blob#41;"]
+  qOpaque -- "否" --> qDirty{"dirty#40;part#41;？"}
+  qDirty -- "否" --> verbatim
+  qDirty -- "是" --> generate["generate#40;entity#41;：模型 → XML，spTree / sldIdLst 等按 #40;order, id#41; 排序"]
+  generate --> reinsert["reinsert#40;xml, entity.extensions#41;：按 schema-order 插回 OpaqueXml，含被编辑元素自身"]
+  reinsert --> fixTiming["fixTimingRefs#40;xml, removedShapeIds#41;：清理 p:timing 悬空 spid"]
+  fixTiming --> conformance["writeBackConformance#40;xml#41;：C 案反向映射为 Strict，B 案 Transitional"]
+  conformance --> xsd{"validateXsd#40;xml#41; 通过？"}
+  xsd -- "是" --> write["write serialize#40;xml#41;"]
+  xsd -- "否" --> fallback["诊断；Strict 场景回退 B 案，STRICT_FALLBACK_TRANSITIONAL"]
+  verbatim --> tail
+  write --> tail
+  subgraph tail["全部部件之后"]
+    direction TB
+    media["media：被引用 MediaRef → 部件，去重；未被引用的原媒体部件保留"]
+    rels["rels / #91;Content_Types#93;：从 PartTable 重生成；opaque 部件 rels verbatim"]
+    ids["ids：回写 cNvPr/@id"]
+    zip["zip 写入确定性：部件名排序、固定 mtime 1980-01-01、固定压缩级别与方法"]
+  end
+```
+
+怎么读：菱形是逐部件判定，左支 verbatim 是「未修改零丢失」的来源，右支是脏部件的重生成流水线（插回不透明内容、清理悬空引用、按一致性类写回、XSD 校验）；子图是所有部件处理完后的收尾步骤与确定性约束。
+
 ### 5.4 「部件级 diff 零差异」的唯一口径（与 PRD `01-open-and-fidelity.md` §4.1 / CS-01 合并；替代旧待决 A-12）
 
 | 情形 | 判定 |
@@ -474,7 +754,7 @@ type SlideSelectionAnchor =
 | **删除页** | 页部件及其独占的 rels 目标（媒体、图表、备注）被移除；共享目标保留；无孤儿部件（除非源文件本就有） |
 
 验证实现：
-- `ooxml-pptx/testing/roundtrip.ts` 实现上表判定并输出 `PartDiff[]`；CI job `fidelity-roundtrip`（M1 跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定）。
+- `ooxml-pptx/testing/roundtrip.ts` 实现上表判定并输出 `PartDiff[]`；`test` job 的 `fidelity-roundtrip` 步骤（M1 跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定；失败即阻断合并，在 test job 日志中查看；CI job 名以 09-07 §3 的 13 个封闭集合为准，2026-09-25 rulings §4.18 GV-14）。
 - **修改一页**：脏部件集合恰为预期（`dirty-tracker.test.ts`）。
 - **重生成部件的保真**：每个已建模部件 `parse → generate → c14n` 与原 c14n 相等（codec 往返测试）；差异即建模缺口，进入 `diagnostics` 与保真指标（PRD MT-02）。
 - **XSD**：`tooling/xsd/` 收录 ECMA-376 Transitional 与 Strict 的 PresentationML/DrawingML XSD，导出测试逐部件校验（运行时导出可选开启校验，默认只在 Strict 回退判定时运行）。
@@ -494,18 +774,22 @@ type SlideSelectionAnchor =
 
 ### 6.1 链
 
+**样式继承链**
+
+```mermaid
+flowchart TB
+  c1["Run.properties"] --> c2["Paragraph.properties.defaultRunProperties：同段"]
+  c2 --> c3["TextBody.listStyle.levels#91;level#93;"]
+  c3 --> c4["Shape#40;sp#41;.style.fontRef：字体与颜色"]
+  c4 --> c5["占位符继承：Layout 上匹配的占位符 shape 的 textBody.listStyle.levels#91;level#93; → 其 Run/Paragraph 默认"]
+  c5 --> c6["Master 上匹配的占位符 shape 的同上"]
+  c6 --> c7["Master.textStyles#91;title / body / other 按占位符类型#93;.levels#91;level#93;"]
+  c7 --> c8["Presentation.defaultTextStyle.levels#91;level#93;"]
+  c8 --> c9["Theme：fontScheme 解析 '+mj-lt' 等；colorScheme + colorMap，含 override，解析 schemeClr"]
+  c9 --> c10["内建缺省：如 sz=1800、latin=+mn-lt"]
 ```
- Run.properties
-   → Paragraph.properties.defaultRunProperties（同段）
-   → TextBody.listStyle.levels[level]
-   → Shape(sp).style.fontRef（字体与颜色）
-   → 占位符继承：Layout 上匹配的占位符 shape 的 textBody.listStyle.levels[level] → 其 Run/Paragraph 默认
-   → Master 上匹配的占位符 shape 的同上
-   → Master.textStyles[title | body | other 按占位符类型].levels[level]
-   → Presentation.defaultTextStyle.levels[level]
-   → Theme：fontScheme 解析 '+mj-lt' 等；colorScheme + colorMap（含 override）解析 schemeClr
-   → 内建缺省（如 sz=1800、latin=+mn-lt）
-```
+
+怎么读：自上而下是字段解析的查找顺序，上一级未给出值才落到下一级；占位符两级按下方匹配规则找不到对应占位符时跳过该层。
 
 占位符匹配规则（`style/inheritance-chain.ts`）：先 `type+index` 精确匹配；再 `type` 匹配（body/obj 视为同类，ctrTitle→title）；找不到则跳过该层。
 
@@ -596,20 +880,20 @@ type Persisted<T> = T extends readonly (infer U)[] ? readonly Persisted<U>[]
 
 | 规则 | 机制 |
 |---|---|
-| 水平层无文档类型字面量 | lint `no-doc-type-literals`（含 `model-core/src/drawing/`） |
+| 水平层无文档类型字面量 | lint `cordex/no-doc-type-literals`（09-02 §4.12，TD-086；含 `model-core/src/drawing/`，并检查 `model-core` 导出类型属性名不含文档类型词根） |
 | 派生字段不入快照 | 类型测试 `Persisted<PresentationBody>`；运行时 `bodySchema.parse(toSnapshotBody())` |
-| schema 变更必升版本 | CI `schema-lock` |
+| schema 变更必升版本 | `scanners` job 的 `schema-lock` 步骤（09-08 TD-063） |
 | 迁移链完整 | `fixtures/snapshots/<type>/v*/` 全部可迁移到当前版本并通过校验 |
-| 干净文件零丢失 / 编辑后口径 | `roundtrip.ts` 实现 §5.4 全部判定（M1 零编辑、M2 编辑后；job `fidelity-roundtrip`） |
+| 干净文件零丢失 / 编辑后口径 | `roundtrip.ts` 实现 §5.4 全部判定（M1 零编辑、M2 编辑后；`test` job 的 `fidelity-roundtrip` 步骤，rulings §4.18 GV-14） |
 | 局部修改只重生成脏部件 | `dirty-tracker.test.ts` + 每个 features 语料的随机单形状修改测试 |
 | 元素级保留（CS-06） | `preserve-*` 语料：编辑同页另一元素 → 目标元素与 `p:timing`/`extLst` c14n 一致；编辑带 `extLst` 的元素本身 → `extLst` 仍在且顺序合法（XSD） |
 | 悬空动画引用清理（OF-12） | `timing-refs.test.ts` |
 | Strict 三案 | `strict-*` 语料：零编辑字节相同；有编辑 → C 通过 Strict XSD 或回退 B 且诊断存在 |
 | 图表只读解析不产生模型 | 类型测试：`ChartReadModel` 不出现在 `PresentationBody`/`Snapshot`；`chartml` 单测覆盖 §2.6 图表类型的 `numCache`/`strCache` 提取 |
-| 导出确定性（SV-02） | `roundtrip.ts` determinism：同一 SnapshotBundle 两次导出（浏览器 + Node）SHA-256 相同；扫描器 `codec-no-clock`（ooxml-* 禁止 `Date.now`/`new Date()`）；R2 秩表禁止 V-codec import engine-layout |
+| 导出确定性（SV-02） | `roundtrip.ts` determinism：同一 SnapshotBundle 两次导出（浏览器 + Node）SHA-256 相同；lint `no-restricted-properties`/`no-restricted-syntax`（09-02 §3 `rules/determinism.ts`，TD-097；原称扫描器 `codec-no-clock`：ooxml-* 禁止 `Date.now`、无参 `new Date()`、`performance.now`、`Math.random`）；R2 秩表禁止 V-codec import engine-layout |
 | 不变量与修复为纯函数 | `invariants/*.test.ts`：`repair(check 失败的 body)` 后 `check` 为空；property：随机破坏 body → repair 幂等 |
 | 列表形状标注与原语一致 | 契约套件：`insert/remove` 作用于 `shape.entityTables` 路径 → `STORE_INVALID_PATH`；实体表键写入必须含 `order` |
-| 版式应用/重置可逆（ML-02） | property：对无显式覆盖的页，`applyLayout(L2)` → `applyLayout(L1)` → `resetSlide` ≡ 原页；`planLayoutChange` 确定性；`materialize` 后形状包围盒不变（渲染快照比对） |
+| 版式应用/重置可逆（ML-02） | property：对无显式覆盖的页，`applyLayout(L2)` → `applyLayout(L1)` → `resetSlide` ≡ 原页；`planLayoutChange` 确定性；`materialize` 后形状包围盒不变且**文本渲染快照不变**（不只比较包围盒）；**带显式 transform 的占位符换版式后位置不变**（inherit 保留显式覆盖，2026-09-25 rulings §4.18 CO-18） |
 | 引用完整性修复幂等（ML-03） | `invariants/*.test.ts`：随机删除版式/母版/主题后 `repair` 一次即 `check` 为空，再 `repair` 无变化；导出通过 XSD 且 PowerPoint 打开无修复（oracle 语料 `fixtures/pptx/features/masters-*`） |
 | 母版编辑只脏母版部件、但依赖页重绘 | `dirty-tracker.test.ts`：改母版 → 脏部件 == {masterN.xml}；RecordingTarget：全部依赖页 SceneNode 重绘（`dependentsOf`），缩略图 ≤ 500 ms（OF-15） |
 
@@ -638,11 +922,14 @@ declare function placeholderFamily(type: PlaceholderType): PlaceholderFamily
 declare function matchPlaceholder(target: PlaceholderRef, candidates: readonly { shapeId: ShapeId; ph: PlaceholderRef }[]): ShapeId | undefined
 
 // 版式切换的重匹配计划（纯函数；命令据此产出确定性的 Mutation，05 §13.1）
-interface PlaceholderRemap { shapeId: ShapeId; from: ShapeId | null; to: ShapeId | null; action: 'inherit' | 'materialize' | 'keep' }
+interface PlaceholderRemap { shapeId: ShapeId; from: ShapeId | null; to: ShapeId | null; action: 'inherit' | 'materialize' | 'keep'; rewriteRef?: PlaceholderRef }
 declare function planLayoutChange(body: PresentationBody, slideId: SlideId, newLayoutId: LayoutId): readonly PlaceholderRemap[]
-//   inherit：找到新匹配且形状无显式 transform → 继续继承（无 Mutation）
-//   materialize：找不到匹配 → 把旧版式解析出的 transform/geometry/bodyProperties 写成显式值（形状不跳位、不丢内容）
+//   inherit：找到匹配 → 形状上已有的显式覆盖（含 transform）原样保留，未覆盖字段随新版式继承；
+//            若匹配到的占位符 (type, idx) 与形状现有 PlaceholderRef 不同，rewriteRef 给出新 ref（命令据此改写 ref，不算「无 Mutation」）
+//   materialize：找不到匹配 → 按 InheritableField 全集把旧版式解析出的值（transform、geometry、fill、line、effects、bodyProperties、listStyle）
+//            写成显式值并**移除 PlaceholderRef**（脱离占位符，导出不再带 p:ph；形状不跳位、不丢内容）
 //   keep：非占位符形状不动
+//   （PRD 07-masters :110–:114 显式覆盖保留、无匹配脱离占位符；2026-09-25 rulings §4.18 CO-18）
 
 // 重置：删除占位符形状上的覆盖字段
 type InheritableField = 'transform' | 'geometry' | 'fill' | 'line' | 'effects' | 'style' | 'bodyProperties' | 'listStyle'

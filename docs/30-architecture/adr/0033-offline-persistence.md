@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q3/S-3a；PRD 05 §M3/§M4
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q3/S-3a、§4.18；PRD 05 §M3/§M4
 
 # ADR-0033 离线队列与本地持久化：IndexedDB Provider（独立 dom 包），collab-yjs 保持 iso
 
@@ -19,6 +19,39 @@ M3 要求断线期间可继续编辑并在重连后合并；刷新页面不应�
 5. 安全：登出/切换账号清空该用户全部本地库；不做客户端加密（P4）；`epoch`/`schemaVersion` 不匹配的本地数据 → 移入 `rejected` 供导出后清理。
 6. 「未同步更改」UI：来自 `Session.stats.pendingLocalUpdates` 与 `rejected` 计数（设计 20-design/05）。
 
+**图 1 OfflineStore 的包结构与交付时点**
+
+```mermaid
+flowchart LR
+  collabCore["collab-core：定义 OfflineStore Definition"]
+  collabYjs["collab-yjs：iso，只依赖 OfflineStore Definition"] -- "依赖" --> collabCore
+  memImpl["同接口的内存实现：断线期间可编辑、重连合并，刷新即丢，M3 交付"] -- "实现" --> collabCore
+  idbPkg["@cordexjs/collab-offline-idb：L4、dom，只 implements offlineStore，M4 交付"] -- "实现" --> collabCore
+  collabYjs -. "缺失 Provider 时降级" .-> memImpl
+  idbPkg --> idbDb["IndexedDB 库 cordex-collab，按 {userId}/{documentId} 分对象仓"]
+  idbDb --> idbStores["updates：本地未 ack 的 update + localSeq，state：compact 后完整状态，rejected：被服务端拒绝的事务快照，meta：epoch、schemaVersion、lastAckSeq"]
+```
+
+怎么读：实线「依赖 / 实现」指向 Definition，两种实现可互换，collab-yjs 本身不引用 IndexedDB、保持 iso。M3 只有内存实现，M4 才加上 IDB Provider；IDB 包不提供 `BlobStore`（修订 2026-09-18）。
+
+**图 2 打开 Unit 时的本地恢复流程**
+
+```mermaid
+flowchart TD
+  openUnit["打开 Unit"] --> hasState{"本地有 state？"}
+  hasState -- "有" --> applyState["先应用本地 state，origin import"]
+  hasState -- "无" --> httpBoot
+  applyState --> httpBoot["HTTP 快照 bootstrap"]
+  httpBoot --> replay["重放本地 updates：origin local 重放，不入撤销栈"]
+  replay --> wsSync["WS 同步"]
+  wsSync --> ackTier{"收到的 ack"}
+  ackTier -- "ack tier spill" --> keepPending["不清理，只更新「已被服务端接收」"]
+  ackTier -- "ack seq 与 tier db" --> cleanup["清理对应 updates"]
+  cleanup -- "synced 后" --> compactLocal["compact"]
+```
+
+怎么读：自上而下是决策 3 的顺序；只有 `tier:'db'` 的 ack 才让本地 pending 被清理，无论内存实现还是 IDB 实现都一样。跨刷新恢复（先应用本地 `state`）是 M4 能力，M3 内存实现在刷新后没有本地数据可恢复。
+
 ## 备选方案与放弃原因
 
 | 方案 | 放弃原因 |
@@ -37,7 +70,7 @@ M3 要求断线期间可继续编辑并在重连后合并；刷新页面不应�
 
 ## 如何被机械验证
 
-- conformance（`runCollabConformance` 的离线场景）：断线 → 编辑 → 刷新（重新创建宿主并复用同一 IDB fake）→ 重连 → 合并且 `updates` 被 `ack` 清理。
+- conformance（`runOfflineStoreConformance` 与 `runCollabTransportConformance` 的离线场景；2026-09-25 按章程 `run<Definition>Conformance` 命名改写，rulings §4.18 GV-20，原 `runCollabConformance` 作废）：断线 → 编辑 → 刷新（重新创建宿主并复用同一 IDB fake）→ 重连 → 合并且 `updates` 被 `ack` 清理。
 - e2e：Playwright `context.setOffline(true)` 编辑 → reload → 上线 → 另一浏览器看到更改；降权后 `rejected` 可导出。
 - 扫描器：`collab-yjs` 无 `indexedDB` 引用；`collab-offline-idb` 为 dom 类。
 
@@ -59,3 +92,9 @@ M3 要求断线期间可继续编辑并在重连后合并；刷新页面不应�
 - **软删除墓碑**（Q3）：离线期间产生的删除同样是 `_deleted` 标记，重连后与他人编辑合并不产生重复元素（ADR-0020）。
 - **机械验证调整**：M3 的 conformance 离线场景改为「断线 → 编辑 → 重连 → 合并」（不含刷新）；「刷新后恢复」的 conformance 与 e2e 用例标注 M4 启用。
 
+## 修订 2026-09-25（rulings §4.18 CO-09 / CO-10 / UX-02 / GV-20）
+
+- **ack 对应**（CO-09）：决策 3 的「收到 `ack{seq, tier:'db'}` 后清理」按 40-modules/02 `ws/frames.ts`（ack 帧唯一事实源）逐帧对应——客户端按连接维护在途 FIFO（元素为 `localSeq`），每收到一帧 `tier:'db'` 弹出队首并调用 `OfflineStore.ackUpTo(该 localSeq)`，服务端 `seq` 只写入 `meta.lastAckSeq`；`tier:'spill'` 不参与对应。
+- **重连 step2**（CO-10）：图 2 的「WS 同步」把离线期间的更改合成一个 `SyncStep2`，它视同一个 update 帧、对应一个 FIFO 条目（发送时 pending 的最大 `localSeq`），收到 db ack 即一次清理被覆盖的 pending、不再逐帧重发；超过单帧 1 MiB 时先用 `mergeUpdates` 按 `localSeq` 切块、逐块以普通 update 帧发送，仍超限则上报遥测并提示导出（规则全文见 ADR-0023 决策 7）。决策 4 的 50 MiB 本地上限因此不会让重连卡在 1 MiB 硬门禁上。
+- **重新登录与队列**（UX-02）：「登录已过期」在新窗口完成重新登录时原页不刷新，M3 内存队列保留；回来的用户 id 与原会话不同时不重放队列、会话只读，队列只可导出（与决策 5「切换账号清空本地库」同一原则：本地未同步更改不得以他人身份提交）。
+- **契约套件名**（GV-20）：见「如何被机械验证」。

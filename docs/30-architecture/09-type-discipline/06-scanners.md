@@ -1,10 +1,12 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q1：§6 scan-manifest 增规则 (g) 包名 scope / workspace 协议 / publishConfig 与 private）；2026-09-24（复核修正，rulings §4.17：D3 登记第 14 个扫描器 `scan-doc-access-via-permission`（§1、§18），「十三个」口径改十四；M16 规则 (g) 的 `workspace:` 协议部分移交 `check-workspace-protocol.ts`；L1 更名语句；M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q1：§6 scan-manifest 增规则 (g) 包名 scope / workspace 协议 / publishConfig 与 private）；2026-09-24（复核修正，rulings §4.17：D3 登记第 14 个扫描器 `scan-doc-access-via-permission`（§1、§18），「十三个」口径改十四；M16 规则 (g) 的 `workspace:` 协议部分移交 `check-workspace-protocol.ts`；L1 更名语句；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 06 · 自研扫描脚本规格
 
 本篇定义 `tooling/scripts/` 下的自研扫描器。扫描器与 [02](./02-lint-rules.md) 自定义 ESLint 规则、[03](./03-boundaries.md) dependency-cruiser 规则的分工原则一致且已在两篇反复出现：**扫描器负责单文件/单符号规则无法判断的跨文件、跨包、跨时间事实**。十四个扫描器均输出「JSON（机器可读，CI 消费）+ 人类可读摘要（终端/PR 评论）」双格式，遵循同一套预算/ratchet 机制（[ADR-0040](../adr/0040-type-budgets-and-ratchet.md)）。
 
 **范围声明**：本篇覆盖章程要求的八个具名扫描器（§2–§9：`scan-type-escapes`、`scan-contributions`、`scan-effects`、`scan-isomorphic`、`scan-manifest`、`scan-config-usage`、`scan-deprecations`、`scan-policy`），加上响应产品 PRD（`06-metrics-and-analytics.md` 埋点、CO-05 权限、需求 id 可追溯性）与架构-结构/架构-运行时条线新增需求追加的五个（§10–§14：`scan-telemetry-events`、`scan-command-capabilities`、`scan-requirement-tags`、`scan-observability-identifiers`、`scan-bundle-budget`），以及 rulings §4.17 D3 正式登记的第 14 个（§18：`scan-doc-access-via-permission`，按文档读写的仓储方法必须经权限服务；与文档级 RLS 构成代码层 + 数据库层两道防线）。[04](./04-api-surface.md#5-与-changesets--版本策略adr-0002架构-结构条线所有的对接) 提到的"changeset 存在性检查"等零散一次性检查，仍实现为 `tooling/scripts/lib/` 下的共享小函数，由某个既有 CI job 的收尾步骤调用，不升格为独立具名扫描器——十四个是当前的完整清单，继续新增需要与本节同等分量的独立价值论证（避免扫描器清单无节制膨胀导致维护面模糊）。
+
+**名字对账（2026-09-25，rulings §4.18 GV-15）**：ADR、架构正文与模块文档里写成「扫描器 `x`」的其余约 31 个名字不是第 15、16…个扫描器，而是逐个归并为本篇扫描器的子规则（如 `provider-runs-conformance` = scan-manifest (e)、`manifest-present` = scan-manifest (a)、`peer-policy` = scan-manifest (h)、`when-keys-declared`/`i18n-keys-sync` = scan-contributions (e)/(f)、`command-id-format` = scan-command-capabilities (c)、`preset-has-order-test` 等 = scan-effects (3)、`deprecated-expiry` = scan-deprecations）、lint 规则或测试断言，逐名对照与执行矩阵行见 [08 §11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名)；已作废的（`repo-requires-tenant-id`）只在对照表留档。今后文档中写成「扫描器 `x`」的名字必须能在本篇或 08 §11 查到（由 `docs/_tools` 的文档检查守护），十四个的上限与 scan-policy 的职责不变。
 
 ---
 
@@ -56,6 +58,31 @@ tooling/scripts/
 - 每个脚本至少一个 `ok` 夹具（不应报告任何问题）与一个 `violation` 夹具（应报告至少一个问题），后者是本篇对 [lessons A17](../../00-charter/reference-univer-lessons.md) 的执行——`scan-policy`（§9）反过来校验这一点对全部十四个脚本都成立，形成校验闭环（谁来校验扫描器本身有负向测试？答案是 scan-policy，它的负向测试则由 [08](./08-policy-enforcement-matrix.md) 引用的固定检查列表 + 人工评审兜底，这是唯一无法自指校验的最外层，记录在 [README](./README.md) 的原则说明中）。
 - 输出退出码约定：`0` = 通过（含"有豁免但未超预算"）；`1` = 超预算或发现未豁免违规；`2` = 脚本自身执行失败（配置错误、无法解析某个 tsconfig 等，与"业务性失败"区分，便于 CI 区分"这个仓库有问题"还是"这个工具坏了"）。
 
+**十四个扫描器在 hook / CI 中的执行位置**
+
+```mermaid
+flowchart LR
+  gA["pre-commit 快速模式 + pre-push 全量 + CI：scan-type-escapes"]
+  gB["pre-commit + CI：scan-deprecations、scan-requirement-tags"]
+  gC["pre-push + CI：scan-contributions、scan-effects、scan-isomorphic 静态部分 a、scan-manifest、scan-config-usage、scan-telemetry-events、scan-command-capabilities、scan-observability-identifiers、scan-doc-access-via-permission"]
+  gD["仅 CI，turbo 中排在 build 之后：scan-bundle-budget"]
+  gE["pre-push + CI policy-check：scan-policy"]
+  preCommit["lefthook pre-commit"]
+  prePush["lefthook pre-push"]
+  ciScanners["CI scanners job：先 lockfile-guard，再 13 个扫描器"]
+  ciPolicy["CI policy-check job"]
+  isoSmoke["CI iso-smoke job：逐包 node --import 冒烟"]
+  gA & gB --> preCommit
+  gA & gC & gE --> prePush
+  gA & gB & gC & gD --> ciScanners
+  gE --> ciPolicy
+  gC -. "scan-isomorphic 生成的清单被消费" .-> isoSmoke
+```
+
+怎么读：左侧每个节点按「在哪些阶段运行」把扫描器分组，箭头指向运行它们的 hook 或 CI job；scan-policy 单独占 `policy-check` job，scan-isomorphic 的冒烟部分由独立的 `iso-smoke` job 执行。
+
+依据：本文 §2–§14、§18 各表「CI job」「本地 hook 阶段」两行；07 §3。
+
 ---
 
 ## 2. scan-type-escapes
@@ -84,6 +111,24 @@ tooling/scripts/
   the budget with a linked issue.
 ```
 
+**预算 ratchet 判定**
+
+```mermaid
+flowchart TB
+  count["按预算键「包 : src 或 test : 逃逸类别」统计当前计数"] --> q1{"当前计数超过 budgets.json 预算？"}
+  q1 -- "是" --> failOver["退出码 1：超预算"]
+  q1 -- "否" --> q2{"PR 分支 budgets.json 相比 main 有任何数值上升？"}
+  q2 -- "是" --> q3{"PR 附 ADR-0040 例外流程记录：issue 链接？"}
+  q3 -- "否" --> failRatchet["退出码 1：违反 ratchet"]
+  q3 -- "是" --> pass["通过"]
+  q2 -- "否" --> q4{"当前计数低于预算？"}
+  q4 -- "是" --> hint["通过，并提示可下调 budgets.json 该行；不自动改写"]
+  q4 -- "否" --> pass
+  toolErr["脚本自身执行失败：配置错误、无法解析 tsconfig"] --> exit2["退出码 2：工具坏了，而非仓库有问题"]
+```
+
+怎么读：菱形依次判定「是否超预算」「预算是否被上调」「是否可下调」；预算只能由人在 PR 里手动下调或经例外流程上调，扫描器从不自动改写；退出码 2 与业务性失败分开。
+
 ---
 
 ## 3. scan-contributions
@@ -92,8 +137,8 @@ tooling/scripts/
 |---|---|
 | **目的** | 章程 §5.5（贡献点 id 命名模式）+ D3/D9 的清单一致性：`ctx.contribute()` 调用点、`defineContributionPoint()` 声明、`manifest.ts` 的 `contributes` 字段三者互相印证 |
 | **输入** | 每个包的 `*.contribution.ts`（贡献点定义与声明合并）、`plugin.ts`/`services/*.service.ts`（`ctx.contribute()` 调用点）、`manifest.ts` |
-| **规则** | (a) 每个 `ctx.contribute(pointRef, item)` 调用，`pointRef` 必须能静态追溯到一个 `defineContributionPoint()` 返回值（同包或显式导入）；(b) 每个 `defineContributionPoint({ id, ... })` 的 `id` 必须匹配 `^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$`（章程 §5.5 的 `<域>.<名>` 模式，域与名两段均定稿为 camelCase，如 `ui.statusBar`；不接受 kebab-case/snake_case 段——三套命名空间以分隔符**加**大小写风格双重区分：贡献点 id 用 `.` + camelCase，事件名用 `/` + kebab-case，遥测事件名用 `_` + snake_case，见 [02 §4.15](./02-lint-rules.md#415-cordextelemetry-events-must-be-declared新增响应-prd-06-metrics-and-analyticsmd-埋点需求)）；(c) `manifest.ts` 的 `contributes` 数组列出的每一项，必须在该包源码中存在至少一个对应的 `ctx.contribute()` 调用（除非该贡献项标注为 `optional: true`，用于"贡献点本身在此包定义、但由其他包实际贡献"的场景）；(d) 反向：源码里存在的 `ctx.contribute()` 调用，其贡献必须出现在 `manifest.ts` 里（防止 manifest 漏报） |
-| **输出格式** | JSON：每条规则违规各自成行，含 `rule: 'a'\|'b'\|'c'\|'d'`、文件位置、涉及的贡献点 id；人类可读：按包分组，(c)/(d) 类失败额外打印"清单 vs 源码"的并排 diff |
+| **规则** | (a) 每个 `ctx.contribute(pointRef, item)` 调用，`pointRef` 必须能静态追溯到一个 `defineContributionPoint()` 返回值（同包或显式导入）；(b) 每个 `defineContributionPoint({ id, ... })` 的 `id` 必须匹配 `^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$`（章程 §5.5 的 `<域>.<名>` 模式，域与名两段均定稿为 camelCase，如 `ui.statusBar`；不接受 kebab-case/snake_case 段——三套命名空间以分隔符**加**大小写风格双重区分：贡献点 id 用 `.` + camelCase，事件名用 `/` + kebab-case，遥测事件名用 `_` + snake_case，见 [02 §4.15](./02-lint-rules.md#415-cordextelemetry-events-must-be-declared新增响应-prd-06-metrics-and-analyticsmd-埋点需求)）；(c) `manifest.ts` 的 `contributes` 数组列出的每一项，必须在该包源码中存在至少一个对应的 `ctx.contribute()` 调用（除非该贡献项标注为 `optional: true`，用于"贡献点本身在此包定义、但由其他包实际贡献"的场景）；(d) 反向：源码里存在的 `ctx.contribute()` 调用，其贡献必须出现在 `manifest.ts` 里（防止 manifest 漏报）；(e)（2026-09-25，rulings §4.18 GV-15，原名 `when-keys-declared`）`ui.*` 贡献项 `when` 子句中出现的每个上下文键，必须在 ui-core `STANDARD_KEYS` 或某个 `*.contribution.ts` 的前缀键声明合并（`registerPrefixedKey`）中登记；(f)（同上，原名 `i18n-keys-sync`）每个贡献 `i18n.bundle` 的包，其各语言 `locales/*.json` 的键集合两两相等，且等于该包 `*.contribution.ts` 对 `I18nKeys` 的声明合并集合（多出或缺失都报）。规则 (a) 即 ADR-0006 所称 `contribute-static-ident`。执行矩阵 TD-089 |
+| **输出格式** | JSON：每条规则违规各自成行，含 `rule: 'a'\|'b'\|'c'\|'d'\|'e'\|'f'`、文件位置、涉及的贡献点 id（(e) 附未登记键名，(f) 附语言与键名差集）；人类可读：按包分组，(c)/(d) 类失败额外打印"清单 vs 源码"的并排 diff |
 | **预算与 ratchet** | 本扫描器**不设预算**——这是一致性检查，不是"允许一定数量违规"的逃逸统计；任何违规即失败，无 `cordex-allow` 通道（清单与代码不一致没有"可接受的豁免理由"，只有"清单没写全"或"代码没实现"两种情况，都应直接修复） |
 | **CI job** | `scanners` |
 | **本地 hook 阶段** | `pre-push` only（需要整包视图，不适合按暂存文件增量运行） |
@@ -107,8 +152,8 @@ tooling/scripts/
 |---|---|
 | **目的** | 落实 primer MUST #7「测试卸载/重载，不只测试启动」+ [lessons A25](../../00-charter/reference-univer-lessons.md)（内存/dispose 门禁文档被重构删除）；与 [02 §4.3 `cordex/effect-owned-resources`](./02-lint-rules.md#43-cordexeffect-owned-resources) 互补——该 ESLint 规则证明"资源获取在词法上被 `ctx.effect` 包裹"，本扫描器证明"卸载后确实无残留 effect"这一运行时断言**存在对应测试**，把两者串成完整闭环。规则 (2) 响应架构-运行时条线"每个 `plugin.ts` 有 lifecycle 测试"，把覆盖范围从"含 effect 的包"扩大到"全部定义了插件的包"（含零 effect 的简单插件） |
 | **输入** | 每个包的 `plugin.ts`（是否存在）+ 是否定义了至少一个 `ctx.effect()`/`ctx.contribute()`/`ctx.on()` 调用 + 该包 `__tests__/**` 目录 |
-| **规则** | (1) 对每个"含 effect 的包"（原有规则，不变），其 `__tests__/` 内必须存在至少一个测试，满足：调用了一个名称匹配 `/assertNoLiveEffects\|getEffects/` 的断言辅助（`@cordexjs/kernel` 导出的诊断工具，primer §5.1 `assertNoLiveEffects(fiber)`），且该断言出现在"先 dispose/unload、再断言"的语句顺序之后（简化的顺序启发式：断言调用在同一测试函数体内，位于最后一次 `dispose()`/`fiber.dispose()` 调用之后）。(2) 对**每一个**定义了 `plugin.ts` 的包（不论是否含 effect），其 `__tests__/` 内必须存在至少一个"生命周期烟雾测试"：加载插件（`ctx.plugin(plugin, config)`）、断言 Fiber 达到 `ACTIVE` 状态（或在预期依赖缺失时达到 `PENDING`，不视为失败）、随后 `dispose()` 且不抛出。规则 (1) 是规则 (2) 在"含 effect 场景"下的加强版（规则 (1) 通过的包自动满足规则 (2)，不重复计违规）。任一规则不满足即违规 |
-| **输出格式** | JSON：`{ package: string, hasEffects: boolean, hasDisposeTest: boolean, hasLifecycleSmokeTest: boolean, testFiles: string[] }[]`；人类可读：仅列出任一布尔值为 `false` 的包 |
+| **规则** | (1) 对每个"含 effect 的包"（原有规则，不变），其 `__tests__/` 内必须存在至少一个测试，满足：调用了一个名称匹配 `/assertNoLiveEffects\|getEffects/` 的断言辅助（`@cordexjs/kernel` 导出的诊断工具，primer §5.1 `assertNoLiveEffects(fiber)`），且该断言出现在"先 dispose/unload、再断言"的语句顺序之后（简化的顺序启发式：断言调用在同一测试函数体内，位于最后一次 `dispose()`/`fiber.dispose()` 调用之后）。(2) 对**每一个**定义了 `plugin.ts` 的包（不论是否含 effect），其 `__tests__/` 内必须存在至少一个"生命周期烟雾测试"：加载插件（`ctx.plugin(plugin, config)`）、断言 Fiber 达到 `ACTIVE` 状态（或在预期依赖缺失时达到 `PENDING`，不视为失败）、随后 `dispose()` 且不抛出。规则 (1) 是规则 (2) 在"含 effect 场景"下的加强版（规则 (1) 通过的包自动满足规则 (2)，不重复计违规）。(3)（2026-09-25，rulings §4.18 GV-15，归并原名 `preset-has-order-test`、`preset-pluggable-matrix`、`viewer-readonly-test-present`）对每个 `preset-*` 包（`compositionRoot: true` 且 `layer: 'L8'`）：`__tests__/order-independence.test.ts` 必须存在并调用 `defineLifecycleSuite`；`__tests__/pluggable.test.ts` 必须存在且以该包导出的条目清单（`*_ENTRIES`）为数据源逐条 `exclude` 非 `required` 条目（覆盖由构造保证，扫描器只核对测试以清单常量为输入）；`preset-slide-viewer` 另须有 `__tests__/readonly.test.ts` 且断言 `PERMISSION_DENIED`。任一规则不满足即违规；执行矩阵 TD-071（规则 (2)）、TD-095（规则 (3)） |
+| **输出格式** | JSON：`{ package: string, hasEffects: boolean, hasDisposeTest: boolean, hasLifecycleSmokeTest: boolean, presetTests?: { order: boolean, pluggable: boolean, readonly?: boolean }, testFiles: string[] }[]`；人类可读：仅列出任一布尔值为 `false` 的包 |
 | **预算与 ratchet** | 不设数值预算（是/否判定，不是计数）；`cordex-allow` 级别的豁免在此处**不适用**——若某个包确有理由暂时缺失该测试，需在包的 `__tests__/README.md`（若存在）说明并由 scan-policy（§9）统计为一种特殊的「已知缺口」登记项，避免与其余"计数型"豁免混用同一注释语法造成 [08](./08-policy-enforcement-matrix.md) 矩阵的豁免格式约定不一致 |
 | **CI job** | `scanners` |
 | **本地 hook 阶段** | `pre-push` |
@@ -135,11 +180,11 @@ tooling/scripts/
 
 | 项目 | 内容 |
 |---|---|
-| **目的** | ADR-0003（架构-结构条线所有，清单生成策略）的类型侧执行：源码是唯一事实源，`cordex-manifest.json` 是派生产物，两者不一致即失败（[lessons A9](../../00-charter/reference-univer-lessons.md)）；同时承担两项与"清单"性质相近但独立的检查：`exports`/`publicEntry` 一致性（[04 §3](./04-api-surface.md#3-exports-显式子路径策略)）与类型专用依赖归属（[lessons A34](../../00-charter/reference-univer-lessons.md)，与 knip 互补，见 [03 §4](./03-boundaries.md#4-knip--manypkg--syncpack-的分工)） |
-| **输入** | 每个包的 `plugin.ts`、`*.contribution.ts`、`services/*.service.ts`、`manifest.ts`、`package.json` |
-| **规则** | (a) 静态分析 `plugin.ts`/`services/*.service.ts` 推导出实际的 `provides`/`injects` 事实（`provide`/`inject` 字段字面量、`Service` 子类构造函数第二参数），与 `manifest.ts` 里 `export const manifest: Manifest` 的同名字段逐一比对；(b) 用同一推导结果生成 `cordex-manifest.json`（写入 `packages/<name>/cordex-manifest.json`，**入库**，机制与 [04](./04-api-surface.md) 的 `.api.md` 一致——CI 比对生成结果与入库文件是否一致，不一致则失败并展示 diff）；(c) `package.json#exports` 的 key 集合与 `package.json#cordex.publicEntry` 逐一相等；(d) 对每个 `import` 语句，判定其是否为纯类型导入（`import type` 或 `verbatimModuleSyntax` 下可静态确认的等价形式），若某个包整体只以类型导入方式使用、却出现在 `dependencies`（而非 `devDependencies`），报告为 A34 违规；(e) 对每个 `cordex.role === 'provider'` 的包，其 `__tests__/` 内必须存在至少一处对该 Provider 所属 Definition 包 `./testing` 子路径导出的合规套件函数（如 `runDocumentStoreComplianceSuite`）的调用（[09 §7](./09-plugin-type-contracts.md#7-provider-一致性套件的类型接口)），缺失即报违规——响应架构-运行时条线"每个 `provide` 有对应 conformance 套件调用"；(f) 任意包 `src/**`（非 `__tests__/**`）内若出现对任意包 `./testing` 子路径的 `import`，报违规（[04 §3](./04-api-surface.md#3-exports-显式子路径策略)"`./testing` 唯一用途是测试"约束的权威执行点）；(g)（2026-09-24，rulings §4.15 Q1，执行矩阵 TD-080）`packages/*` 与 `apps/*` 的 `name` 必须匹配项目 npm scope（`^@cordexjs/`；已于 2026-09-24 完成全仓更名）；内部依赖的 `workspace:` 协议（`peerDependencies` 为 `workspace:^`，其余为 `workspace:*`）由治理检查脚本 `check-workspace-protocol.ts` 承担（40-modules/01 §5.7，复核 M16），本规则不重复检查；无 `private: true` 的包必须带 `publishConfig.access: "public"`，`private: true` 的包不得带 `publishConfig` |
-| **输出格式** | JSON：按 (a)(b)(c)(d)(e)(f)(g) 七类分别列出违规；(b) 类額外输出统一 diff 块 |
-| **预算与 ratchet** | (a)(b)(c)(e)(f)(g) 不设预算（一致性检查，同 §3 scan-contributions 的立场）；(d) 走标准预算/ratchet（`<package>:type-only-dep-misplaced`，允许极少数因下游工具链限制暂时无法挪动的例外，需 `cordex-allow` 等价的 package.json 级豁免，格式与 [04 §4](./04-api-surface.md#4-publint-与-arethetypeswrongcliattw-门禁) 的 `ATTW_WAIVERS.md` 模式一致，登记在同目录 `DEPENDENCY_WAIVERS.md`） |
+| **目的** | ADR-0003（架构-结构条线所有，清单生成策略）的类型侧执行，本脚本即 ADR-0003/03 §4.2 所称的 manifest-gen（`tooling/manifest-gen` 与本文件是同一物，40-modules/01 D-1）：源码是唯一事实源，`manifest.ts` 是入库的生成物，`cordex-manifest.json` 是构建时由 `manifest.ts` 序列化的产物，生成结果与入库文件不一致即失败（[lessons A9](../../00-charter/reference-univer-lessons.md)；2026-09-25 rulings §4.18 GV-17 统一为「生成物」口径）；同时承担两项与"清单"性质相近但独立的检查：`exports`/`publicEntry` 一致性（[04 §3](./04-api-surface.md#3-exports-显式子路径策略)）与类型专用依赖归属（[lessons A34](../../00-charter/reference-univer-lessons.md)，与 knip 互补，见 [03 §4](./03-boundaries.md#4-knip--manypkg--syncpack-的分工)） |
+| **输入** | 每个包的 `plugin.ts`、`*.contribution.ts`、`services/*.service.ts`、`manifest.ts`、`package.json`；规则 (i) 另读 `tooling/policy/dependency-limits.json`（章程 §5.2 依赖上限列导出，rulings §4.18 FE-02；负向夹具「依赖超上限」「非 L0 且未列入上限的边」，TD-101） |
+| **规则** | (a) 从源码（`plugin.ts`/`services/*.service.ts`/`*.contribution.ts`）静态分析推导实际的 `provides`/`injects`/`contributes`/`points`/`events` 事实（`provide`/`inject` 字段字面量、`Service` 子类构造函数第二参数、`ctx.contribute` 调用点），**重新生成** `src/manifest.ts`（头部标记 `generated`，`export const manifest: Manifest` 显式标注类型），`--check` 模式下与入库文件比对，有 diff 即失败并展示 diff；`cordex.role ∈ {plugin, provider, definition}` 的包缺 `manifest.ts` 即违规（原名 `manifest-present`；`library`/`app`/`tooling` 不要求）；(b) `cordex-manifest.json` 只在构建时由 `manifest.ts` 序列化（先过 `ManifestSchema.parse`，[09 §3](./09-plugin-type-contracts.md#3-manifest-类型与-json-schema)），随包发布、**不入库**：检查 `package.json#files` 含该文件、`exports` 登记 `./cordex-manifest.json`，仓库中出现入库副本即违规（原稿「生成 `cordex-manifest.json` 入库并比对」作废，比对对象改为 `manifest.ts`）；(c) `package.json#exports` 的 key 集合与 `package.json#cordex.publicEntry` 逐一相等（跨包可达子路径 = publicEntry，`.` 必有；禁 `./*` 通配与 `./src/*`、`./lib/*` 目录导出，2026-09-25 rulings §4.18 FE-04）；`exports` 条件不得含 `development`/`source` 或指向 `src/`（原名 `no-src-conditions`，ADR-0004）；(d) 对每个 `import` 语句，判定其是否为纯类型导入（`import type` 或 `verbatimModuleSyntax` 下可静态确认的等价形式），若某个包整体只以类型导入方式使用、却出现在 `dependencies`（而非 `devDependencies`），报告为 A34 违规；(e) 对每个 `cordex.role === 'provider'` 的包，其 `__tests__/` 内必须存在至少一处对该 Provider 所属 Definition 包 `./testing` 子路径导出的契约套件函数（`run<Definition>Conformance`，如 `runDocumentStoreConformance`，charter §5.5）的调用（[09 §7](./09-plugin-type-contracts.md#7-provider-一致性套件的类型接口)），缺失即报违规——响应架构-运行时条线"每个 `provide` 有对应 conformance 套件调用"（原名 `provider-runs-conformance`）；(f) 任意包 `src/**`（非 `__tests__/**`）内若出现对任意包 `./testing` 子路径的 `import`，报违规（[04 §3](./04-api-surface.md#3-exports-显式子路径策略)"`./testing` 唯一用途是测试"约束的权威执行点）；(g)（2026-09-24，rulings §4.15 Q1，执行矩阵 TD-080）`packages/*` 与 `apps/*` 的 `name` 必须匹配项目 npm scope（`^@cordexjs/`；已于 2026-09-24 完成全仓更名）；内部依赖的 `workspace:` 协议（`peerDependencies` 为 `workspace:^`，其余为 `workspace:*`）由治理检查脚本 `check-workspace-protocol.ts` 承担（40-modules/01 §5.7，复核 M16），本规则不重复检查；无 `private: true` 的包必须带 `publishConfig.access: "public"`，`private: true` 的包不得带 `publishConfig`；(h)（2026-09-25 rulings §4.18 GV-15，原名 `peer-policy`，ADR-0002）`cordex.role ∈ {plugin, provider, definition}` 的包，对 `@cordexjs/*`（`shared` 除外）的运行时依赖必须写在 `peerDependencies`（开发副本在 `devDependencies`），不得出现在 `dependencies`；(i)（2026-09-25 rulings §4.18 FE-02）每包 `package.json` 的内部依赖（`@cordexjs/*`，含 `peerDependencies`）⊆ 章程 §5.2「依赖上限」列 ∪ 隐式 L0（`kernel`/`shared`/`protocol` 对非 L0 包隐式允许；`design` 受 R18、`shared` 受 R11 约束，不享受隐式放行；L0 包之间仍逐条显式）；上限列由 `tooling/policy/dependency-limits.json` 导出，`model-*`/`preset-*` 一类通配在该文件中展开为包名清单；tsconfig `references` 与 package.json 内部依赖相等由 `tooling/scripts/sync-references.ts` 保证（[01 §4](./01-tsconfig-baseline.md#4-项目引用project-references拓扑)），本规则只管「⊆ 上限」 |
+| **输出格式** | JSON：按 (a)–(i) 九类分别列出违规；(a) 类额外输出统一 diff 块 |
+| **预算与 ratchet** | (a)(b)(c)(e)(f)(g)(h)(i) 不设预算（一致性检查，同 §3 scan-contributions 的立场）；(d) 走标准预算/ratchet（`<package>:type-only-dep-misplaced`，允许极少数因下游工具链限制暂时无法挪动的例外，需 `cordex-allow` 等价的 package.json 级豁免，格式与 [04 §4](./04-api-surface.md#4-publint-与-arethetypeswrongcliattw-门禁) 的 `ATTW_WAIVERS.md` 模式一致，登记在同目录 `DEPENDENCY_WAIVERS.md`） |
 | **CI job** | `scanners` |
 | **本地 hook 阶段** | `pre-push` |
 | **运行时长目标** | < 15 秒（全量，是十四个脚本里最重的一个——需要同时做 AST 分析与文件生成 diff） |
@@ -221,8 +266,8 @@ references it. Add a row before merging.
 |---|---|
 | **目的** | PRD CO-05（fail-closed 权限）的跨文件权威裁决；配对 [02 §4.16 `cordex/command-must-declare-capabilities`](./02-lint-rules.md#416-cordexcommand-must-declare-capabilities新增响应-prd-co-05-fail-closed-权限要求架构-结构条线别名-command-declares-capability)——该 ESLint 规则保证单个 Command 定义对象的 `capabilities` 字段格式合法，本扫描器保证**没有旁路**：每一个真正通过 `commands` 贡献点注册、因而会被执行管线实际调用的 Command，都能追溯到一个满足该规则的声明 |
 | **输入** | 每个包的 `commands/*.command.ts`（草案路径约定，与既有 `services/*.service.ts` 同构）+ `ctx.contribute(commandsPoint, ...)` 调用点 + `CapabilityBit` 封闭集合定义（归属由架构-结构条线的 `permissions` 服务设计决定，本扫描器只读取消费） |
-| **规则** | (a) 每个 `ctx.contribute(commandsPoint, ...)` 调用贡献的 Command，其对象字面量（或可静态追溯到的引用）必须满足 `capabilities: CapabilityBit[]` 非空字段的存在性（与 lint 规则重叠部分用于兜底"字段合法但从未真正贡献注册"这类 lint 单文件视角看不见的绕过）；(b) 声明的 `capabilities` 取值全部落在当前 `CapabilityBit` 封闭集合内，防止能力位集合变更后出现"孤儿引用" |
-| **输出格式** | JSON：按 (a)(b) 两类分别列出违规 |
+| **规则** | (a) 每个 `ctx.contribute(commandsPoint, ...)` 调用贡献的 Command，其对象字面量（或可静态追溯到的引用）必须满足 `capabilities: CapabilityBit[]` 非空字段的存在性（与 lint 规则重叠部分用于兜底"字段合法但从未真正贡献注册"这类 lint 单文件视角看不见的绕过）；(b) 声明的 `capabilities` 取值全部落在当前 `CapabilityBit` 封闭集合内，防止能力位集合变更后出现"孤儿引用"；(c)（2026-09-25，rulings §4.18 GV-15，原名 `command-id-format`）每个经 `core.command` 贡献的命令 id 匹配 `<domain>.<name>`（两段 camelCase），每个 Mutation type 匹配 `<docType>.<entity>.<verb>` 三段式（`05-command-and-history.md` §12）；执行矩阵 TD-061（(a)(b)）、TD-099（(c)） |
+| **输出格式** | JSON：按 (a)(b)(c) 三类分别列出违规 |
 | **预算与 ratchet** | 不设预算（fail-closed 的一致性检查没有"允许一定数量未声明权限的 Command"这种预算语义） |
 | **CI job** | `scanners` |
 | **本地 hook 阶段** | `pre-push` |
@@ -251,7 +296,7 @@ references it. Add a row before merging.
 |---|---|
 | **目的** | 错误码/tracing span 名/metric 名的登记与消费者核对——章程 D11（`errors`/`telemetry`/`logger` L0 服务）与架构-运行时条线 `10-observability-and-errors.md` 的类型侧执行；与 [scan-telemetry-events](#10-scan-telemetry-events) 结构同构（都是"声明在中心注册表 ↔ 调用点/消费点核对"），但注册表**所有者不同**——遥测事件是产品分析指标（PRD 所有），错误码/span/metric 是可观测性基础设施（架构-运行时条线所有），因此拆成两个独立扫描器，各自对应各自的登记文件与责任人，避免一个扫描器要向两个不同条线报告问题时职责不清 |
 | **输入** | `packages/kernel/src/errors/codes.ts`（草案路径，`CordexError` 子类可用的 `code` 封闭集合注册表）+ 全部 `throw new <XxxError>(...)` 调用点的 `code` 取值 + tracing span/metric 名称的中心注册表（草案路径同上目录下 `spans.ts`/`metrics.ts`）+ 全部埋点调用点 |
-| **规则** | 对错误码/span/metric 三类，各自执行同一对检查：(a) 调用点使用的标识符必须在对应注册表声明；(b) 注册表声明的标识符必须至少有一个调用点消费（防止"声明了但没执行"，[lessons A24](../../00-charter/reference-univer-lessons.md)） |
+| **规则** | 对错误码/span/metric 三类，各自执行同一对检查：(a) 调用点使用的标识符必须在对应注册表声明；(b) 注册表声明的标识符必须至少有一个调用点消费（防止"声明了但没执行"，[lessons A24](../../00-charter/reference-univer-lessons.md)）；(c) 注册表内同类标识符不得重复（错误码全仓唯一，ADR-0011 所称 `error-codes-unique` 即本条，2026-09-25 rulings §4.18 GV-15 归并） |
 | **输出格式** | JSON：按 `{ category: 'error-code'\|'span'\|'metric', rule: 'a'\|'b', ... }` 分类列出违规 |
 | **预算与 ratchet** | 不设预算（一致性检查） |
 | **CI job** | `scanners` |
@@ -319,7 +364,7 @@ tooling/policy/
 |---|---|
 | **目的** | 把 charter D12「数据访问兜底 = 文档权限检查」从评审约定变成编译期可检事实：凡按文档读写的仓储方法必须经权限服务取得访问凭证后才能调用。与治理检查脚本 `check-rls-coverage`（TD-083，数据库层文档级 RLS）构成**代码层 + 数据库层两道防线**；取代 T-0 去租户后作废的 `repo-requires-tenant-id` |
 | **输入** | `apps/server/src/modules/**/infrastructure/*.repository.ts`；M-08 的 `DocAccess` / `SystemContext` 品牌类型声明 |
-| **规则** | 以 `docId` 为键的仓储**公共方法**，首参类型必须是 `DocAccess`（仅 `RoleResolverService.authorize()` 可构造）或 `SystemContext`（仅系统用例/作业可构造）；首参为裸 `string`/`DocumentId` 即违规。豁免仅限权限服务自身的数据源 `PermissionRepository` / `ShareLinkRepository`，以脚本内常量显式登记，新增须评审 |
+| **规则** | 以 `docId` 为键的仓储**公共方法**，首参类型必须是 `DocAccess`（仅 `RoleResolverService.authorize()` 可构造）或 `SystemContext`（仅系统用例/作业可构造）；首参为裸 `string`/`DocumentId` 即违规。豁免仅限权限服务自身的数据源 `PermissionRepository` / `ShareLinkRepository`，以脚本内常量显式登记，新增须评审。2026-09-25 rulings §4.18 BE-02：分享链接**解析**归 PermissionsModule（`ResolveShareLinkUseCase` 经 SECURITY DEFINER 函数按令牌只读 `share_links`，入参是链接令牌而非 `docId`，不落入本规则的判定面）；`ShareLinkRepository` 豁免只覆盖 share-links 模块的创建/撤销/列表 |
 | **输出格式** | JSON：`{ file: string, method: string, firstParamType: string }[]`（仅列违规项） |
 | **预算与 ratchet** | 零预算（架构性禁止，不走 `budgets.json`）；豁免只经脚本内常量登记 |
 | **CI job** | `scanners` |

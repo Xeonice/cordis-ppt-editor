@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 07 · Hooks 与 CI
 
@@ -10,9 +10,11 @@
 
 ```
 tooling/
-├── lefthook.yml              §2 本地 hook 各阶段定义
+├── lefthook.yml              §2 本地 hook 各阶段定义（内容归属登记；物理位于仓库根，见下注）
 └── commitlint.config.ts      §2.2 commit-msg 阶段的规则配置（Conventional Commits）
 ```
+
+注：`lefthook.yml` **物理位于仓库根**（lefthook 的配置发现约定要求与 `.git` 同级；40-modules/01 §12 D-2），此处只登记其内容设计归属于本篇；`commitlint.config.ts` 留在 `tooling/`，由根 `lefthook.yml` 的 `commit-msg` 阶段以 `--config` 显式指向（2026-09-25，rulings §4.18 GV-13）。
 
 （`tooling/scripts/`、`tooling/policy/` 已在 [06](./06-scanners.md) 详述；`tooling/eslint-config/`、`tooling/depcruise/`、`tooling/api-extractor/`、`tooling/tsconfig/` 已在各自章节详述；本篇不重复目录树，只描述它们如何被 hook/CI **调用**。）
 
@@ -31,8 +33,9 @@ tooling/
 | 4 | `tsc --build`（增量，仅重新检查受影响的项目引用节点） | 是 |
 | 5 | `scan-type-escapes`（快速模式，仅暂存文件，见 [06 §2](./06-scanners.md#2-scan-type-escapes)） | 是（超预算） |
 | 6 | `scan-deprecations`（见 [06 §8](./06-scanners.md#8-scan-deprecations)） | 是 |
+| 7 | `scan-requirement-tags`（见 [06 §12](./06-scanners.md#12-scan-requirement-tags)；纯文本扫描，< 3 秒；2026-09-25 rulings §4.18 GV-12 补登，与 06 §12「本地 hook 阶段 = pre-commit」一致） | 是 |
 
-不在 `pre-commit` 的检查：dependency-cruiser（需要整图，成本与暂存文件规模不成比例）、api-extractor（需要先构建）、其余六个扫描器（需要整包视图）、测试（见 §2.3 的取舍说明）。
+不在 `pre-commit` 的检查：dependency-cruiser（需要整图，成本与暂存文件规模不成比例）、api-extractor（需要先构建）、其余十一个扫描器（需要整包视图或构建产物）、测试（见 §2.3 的取舍说明）。
 
 ### 2.2 `commit-msg`
 
@@ -44,11 +47,47 @@ tooling/
 |---|---|
 | 1 | `dependency-cruiser`（全图，[03](./03-boundaries.md)） |
 | 2 | `tsc --build`（全量，非增量，确保本地缓存未被误用掩盖真实错误） |
-| 3 | 八个扫描器中标注"本地 hook 阶段含 pre-push"的全部（[06](./06-scanners.md) 各节已逐条标注，实质是除运行时较重的 `iso-smoke` 冒烟本体外的全部静态检查） |
+| 3 | 十四个扫描器中标注"本地 hook 阶段含 pre-push"的全部（[06](./06-scanners.md) 各节已逐条标注，实质是除运行时较重的 `iso-smoke` 冒烟本体外的全部静态检查） |
 | 4 | `api-extractor run --local`（本地模式，直接更新 `.api.md`，与 CI 的"仅比对不覆写"模式不同——本地允许覆写是为了让开发者在推送前就能看到 diff 并决定是否需要写 changeset） |
 | 5 | knip / manypkg / syncpack（[03 §4](./03-boundaries.md#4-knip--manypkg--syncpack-的分工)） |
 
 **为什么测试（`test`/`test-typecheck`/`e2e`）不在本地 hook 中**：测试套件的运行时长预算由架构-运行时条线 B（[11-testing-strategy.md](../11-testing-strategy.md)）拥有，本篇不预先给出数值假设；作为跨条线要求（见本次任务汇报），若 B 确认单测套件可在合理时间内（如 < 30 秒）跑完，`pre-push` 应追加该步骤——当前版本先把"本地不强制跑全部测试、但 CI 强制跑"作为默认姿态，避免在未获得 B 的实际预算数据前对本地开发体验做出unfounded 的承诺。
+
+**本地 lefthook 三阶段执行流**
+
+```mermaid
+flowchart TB
+  commit["git commit"]
+  subgraph preCommit["pre-commit：仅暂存文件，目标总预算 15 秒以内"]
+    direction TB
+    pc0["0 lockfile-guard：根目录外 lockfile、版本不一致、安全设置缺失、入库 .npmrc 含非鉴权设置 → 失败"]
+    pc1["1 Biome 格式化 --write：自动 git add，不阻断"]
+    pc2["2 Biome lint：含 noDebugger，零豁免"]
+    pc3["3 ESLint --fix：修复后仍有 error 才阻断"]
+    pc4["4 tsc --build：增量"]
+    pc5["5 scan-type-escapes：快速模式，超预算阻断"]
+    pc6["6 scan-deprecations"]
+    pc7["7 scan-requirement-tags：纯文本扫描"]
+    pc0 --> pc1 --> pc2 --> pc3 --> pc4 --> pc5 --> pc6 --> pc7
+  end
+  commitMsg["commit-msg：commitlint，Conventional Commits"]
+  committed["提交完成"]
+  push["git push"]
+  subgraph prePush["pre-push：全量，目标总预算 120 秒以内"]
+    direction TB
+    pp1["1 dependency-cruiser：全图"]
+    pp2["2 tsc --build：全量，非增量"]
+    pp3["3 标注本地 hook 阶段含 pre-push 的扫描器"]
+    pp4["4 api-extractor run --local：本地允许覆写 .api.md"]
+    pp5["5 knip / manypkg / syncpack"]
+    pp1 --> pp2 --> pp3 --> pp4 --> pp5
+  end
+  pushed["推送完成：测试不在本地 hook，由 CI 强制"]
+  commit --> preCommit --> commitMsg --> committed
+  push --> prePush --> pushed
+```
+
+怎么读：两条纵向主线分别是提交与推送；子图内是该阶段的串行步骤，除注明不阻断的格式化外任一步失败即中止提交或推送。
 
 ---
 
@@ -60,19 +99,56 @@ tooling/
 |---|---|---|---|
 | `lint` | ESLint 全量（类型感知，`--max-warnings 0`——由于全部规则本就是 `error`，本参数是双保险，防止未来有人误将某条规则降级为 `warn` 而不被察觉） | 类型治理 | 完整 |
 | `typecheck` | `tsc --build`（全量，项目引用图） | 类型治理 | 完整 |
-| `test` | Vitest 单测 + 契约测试 | 架构-运行时 B（11-testing-strategy） | 仅 job 存在性与"必须在 PR 触发、不得 `--quiet`"的治理要求 |
-| `test-typecheck` | `vitest --typecheck`（[09 §6](./09-plugin-type-contracts.md#6-类型测试的组织方式) 的类型测试套件） | 类型治理 | 完整 |
-| `iso-smoke` | 消费 [06 scan-isomorphic](./06-scanners.md#5-scan-isomorphic) 生成的清单，逐包 `node --import` 冒烟 | 类型治理 | 完整 |
+| `test` | Vitest 单测 + 契约测试。所含步骤（2026-09-25 rulings §4.18 GV-14：各文档中的 job 旧名一律改写为本 job 的步骤）：`unit`、`contract`（`run<Definition>Conformance` 契约套件）、`lifecycle`（`defineLifecycleSuite`）、`fidelity-roundtrip`（保真往返，失败即阻断合并，在本 job 日志中查看）、`collab-sim`（协同模拟）、`snapshot-migration-corpus`（快照迁移语料），以及原 `doc-type-blindness` 中的水平层 fixture 文档类型测试 | 架构-运行时 B（11-testing-strategy） | 仅 job 存在性与"必须在 PR 触发、不得 `--quiet`"的治理要求 |
+| `test-typecheck` | `vitest --typecheck`（[09 §6](./09-plugin-type-contracts.md#6-类型测试的组织方式) 的类型测试套件；11 旧称 `types` 即本 job） | 类型治理 | 完整 |
+| `iso-smoke` | 消费 [06 scan-isomorphic](./06-scanners.md#5-scan-isomorphic) 生成的清单，逐包 `node --import` 冒烟（11 旧称 `iso` 即本 job） | 类型治理 | 完整 |
 | `depcruise` | [03](./03-boundaries.md) 全部规则 | 类型治理 | 完整 |
 | `api-surface` | [04](./04-api-surface.md) 全部检查（api-extractor diff / publint / attw / changeset 存在性） | 类型治理 | 完整 |
-| `scanners` | 先执行 `lockfile-guard` 全量模式（与 §2.1 步骤 0 同一脚本；并入本 job 是为了不改动 job 名封闭集合，rulings §4.15 Q9），再执行 [06](./06-scanners.md) 十三个扫描器（十四个中除 scan-policy，含 rulings §4.17 D3 登记的 `scan-doc-access-via-permission`）与治理检查脚本 `check-workspace-protocol`/`check-rls-coverage`/`check-image-policy`（08 矩阵 TD-080/083/084，不计入扫描器数；`scan-bundle-budget` 在 Turborepo 任务图中被声明为 `build` 任务的下游，仍属本 job，只是执行顺序受约束，非独立 job） | 类型治理 | 完整 |
+| `scanners` | 先执行 `lockfile-guard` 全量模式（与 §2.1 步骤 0 同一脚本；并入本 job 是为了不改动 job 名封闭集合，rulings §4.15 Q9），再执行 [06](./06-scanners.md) 十三个扫描器（十四个中除 scan-policy，含 rulings §4.17 D3 登记的 `scan-doc-access-via-permission`）与治理检查脚本 `check-workspace-protocol`/`check-rls-coverage`/`check-image-policy`（08 矩阵 TD-080/083/084，不计入扫描器数；`scan-bundle-budget` 在 Turborepo 任务图中被声明为 `build` 任务的下游，仍属本 job，只是执行顺序受约束，非独立 job）。另含以下**步骤**（2026-09-25 rulings §4.18 GV-14/GV-16，不新增 job 名）：`scan-manifest --check`（ADR-0003 旧称 job `manifest-check`）、`schema-lock`（ADR-0009）、`shadcn-diff`（ADR-0017，报告，M2 稳定后阻断）、`horizontal-freeze`（ADR-0016，M5 起）；`check-image-policy` 同时静态检查 renderer 镜像非 root、无凭据、Chromium 沙箱开启 | 类型治理 | 完整 |
 | `policy-check` | [06 scan-policy](./06-scanners.md#9-scan-policy) | 类型治理 | 完整 |
 | `xsd-validate` | 脏部件重生成结果的 OOXML XSD 有效性校验（D7 不透明保留/保真契约的一部分）；校验逻辑与具体 XSD 版本归属架构-结构条线（`ooxml-core` 设计），本篇只登记 job 存在性、触发条件（每个 PR）与不可跳过性，与其余门禁同等对待 | 架构-结构 A（校验内容）+ 类型治理（job 治理机制） | 仅 job 存在性与治理要求，工具本身见 `tooling/xsd/`（README `tooling/` 全景索引） |
 | `coverage-patch` | 新增/改动代码的行覆盖率阈值（patch coverage，反制 [lessons A19](../../00-charter/reference-univer-lessons.md)："`patch: off`"） | 架构-运行时 B（阈值数值与统计口径） + 类型治理（"必须存在且不可关闭"的门禁机制） | 阈值数字由 B 确认，机制由本篇管辖：见跨条线要求 |
-| `e2e` | Playwright 端到端 | 架构-运行时 B | 仅 job 存在性治理要求 |
+| `e2e` | Playwright 端到端。所含步骤（2026-09-25 rulings §4.18 GV-14/GV-16）：视觉 oracle（PR 跑 gated 类别、nightly 全量；11 旧称 job `oracle`）；PR 冒烟子集含 `security:rls`（testcontainers 起 PG，绕过应用层验证文档级 RLS）与 renderer 零出站测试，M3 起阻断；断网 compose e2e 仍在 main 全量段（40-modules/01 §5.9） | 架构-运行时 B | 仅 job 存在性治理要求 |
 | `perf` | 性能预算（渲染/加载/协同延迟） | 架构-运行时 B / 产品 | 仅 job 存在性治理要求 |
 
+**封闭集合**：上表 13 个 job 名是 CI 的完整清单（scan-policy 校验 08 矩阵「CI job」列只取这些值）。其余文档里出现过的 job 名——`unit`/`contract`/`lifecycle`/`roundtrip`/`fidelity-roundtrip`/`collab-sim`/`snapshot-migration-corpus`（→ `test`）、`types`（→ `test-typecheck`）、`iso`（→ `iso-smoke`）、`oracle`/visual oracle（→ `e2e`）、`manifest-check`/`schema-lock`/`horizontal-freeze`/`shadcn-diff`（→ `scanners`）、`doc-type-blindness`（拆回 `depcruise`/`lint`/`test`）、`compose-airgap-e2e`（→ `e2e` main 段）——一律是上述 job 的**步骤**，不是新 job（2026-09-25 rulings §4.18 GV-14；先例 ADR-0004:18、本节 lockfile-guard、40-modules/01:643）。
+
 对"内容 owner 非类型治理（或非独占）"的 job（`test`/`e2e`/`perf`/`coverage-patch` 的阈值、`xsd-validate` 的校验内容，以及广义上 `test-typecheck` 之外的测试策略细节），本篇的立场是：**job 必须存在、必须在每个 PR 上运行、必须以 error 级别阻断、不得配置为可跳过**——这四条是类型治理对"机械约束机制"这一硬约束（R7）的普遍主张，适用于全部门禁而不只是类型相关的门禁；job **内部**测什么、阈值多少，由内容 owner 决定并写入其各自文档。
+
+**CI 工作流矩阵执行流**
+
+```mermaid
+flowchart TB
+  pr["每个 PR，含 draft：无分支白名单例外"]
+  install["共用安装步骤：pnpm install --frozen-lockfile；lockfile 不一致、Node 低于 26 或误用 npm / yarn 即失败"]
+  subgraph typeOwned["类型治理完整覆盖的 job"]
+    direction LR
+    lint["lint：ESLint 全量，--max-warnings 0"]
+    typecheck["typecheck：tsc --build 全量"]
+    testTypecheck["test-typecheck：vitest --typecheck"]
+    isoSmoke["iso-smoke：逐包 node --import 冒烟，不缓存"]
+    depcruise["depcruise：03 全部规则"]
+    apiSurface["api-surface：api-extractor / publint / attw / changeset"]
+    scanners["scanners：先 lockfile-guard，再 13 个扫描器与 3 个治理检查脚本，另含 manifest --check / schema-lock / shadcn-diff 等步骤"]
+    policyCheck["policy-check：scan-policy"]
+  end
+  subgraph existOnly["类型治理只管存在、PR 触发、error 阻断、不可跳过的 job"]
+    direction LR
+    test["test：内容 owner B"]
+    xsd["xsd-validate：校验内容 owner A"]
+    coverage["coverage-patch：阈值 owner B"]
+    e2e["e2e：owner B"]
+    perf["perf：owner B / 产品"]
+  end
+  gate["门禁结果：全部 job 以 error 阻断，不得 --quiet / --silent"]
+  pr --> install
+  install --> typeOwned
+  install --> existOnly
+  typeOwned --> gate
+  existOnly --> gate
+```
+
+怎么读：每个 PR 先走同一安装步骤，再运行两组 job；左组由本篇完整定义内容，右组的内容由其 owner 决定，本篇只保证 job 存在且不可静默；任一 job 失败都阻断该 PR。
 
 ---
 

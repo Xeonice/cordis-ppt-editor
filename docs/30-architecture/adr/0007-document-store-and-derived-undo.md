@@ -1,6 +1,6 @@
 # ADR-0007 DocumentStore 契约与 Store 推导的逆操作
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-15
 
 ## 状态
 
@@ -21,6 +21,22 @@
 7. `observe` 在事务提交后同步通知一次 `ChangeSet`（不是逐 op 通知），避免中间态被观察。
 8. 契约由 `runDocumentStoreConformance` 固化；任何 Provider 必须通过。
 
+**图 1 Store 写路径与逆操作推导**
+
+```mermaid
+flowchart LR
+  docSvc["slides 等文档服务：state 的读视图 + 命令封装"] -- "Mutation" --> lowerFn["lower：降级为原语，ADR-0013"]
+  lowerFn -- "5 种 StoreOp：set、delete、insert、remove、text" --> provider["Store Provider：store-memory 在原语层推导逆操作，store-yjs 由 UndoManager 在 CRDT 层实现"]
+  provider -- "apply-op 返回 next 与 inverse" --> stateView["state：不可变视图，结构共享，事务后引用变化"]
+  provider -- "记录逆原语" --> txRecord["TransactionRecord.inverse：审计与回放"]
+  provider -- "事务提交后同步通知一次" --> changeSet["observe：ChangeSet，不逐 op 通知"]
+  changeSet -- "失效" --> derived["渲染缓存、布局缓存：派生数据，不回写模型"]
+  stateView -- "读" --> docSvc
+  history["history 服务：策略层，合并、分组、容量，不持有第二份状态"] -- "undo/redo 按 origin 过滤，协同下只撤本地" --> provider
+```
+
+怎么读：箭头是数据或调用的流向。整张图只有 `state` 一份模型；文档服务读它、渲染缓存和布局缓存从 `ChangeSet` 失效，都不会另存第二份状态，撤销也只经 `history` 回到同一个 Provider。
+
 ## 备选方案与放弃原因
 
 | 方案 | 放弃原因 |
@@ -38,10 +54,10 @@
 
 ## 如何被机械验证
 
-- `@cordexjs/model-core/testing/document-store-conformance.ts`：两个 Provider 的 `__tests__` 必须实例化（扫描器 `provider-runs-conformance` 读取 `cordex.implements` 并检查测试文件 import）。
+- `@cordexjs/model-core/testing/document-store-conformance.ts`：两个 Provider 的 `__tests__` 必须实例化（扫描器 `scan-manifest` 规则 (e) 读取 `cordex.implements` 并检查测试文件 import；原名 `provider-runs-conformance`，2026-09-25 按正式名改写，rulings §4.18 GV-15，TD-070）。
 - property test（store-memory）：`apply(inverse(apply(s, op))) ≡ s`，随机 op 序列。
 - lint `no-inverse-in-mutation`（Mutation 类型与 Def 禁止 `undo|inverse|revert`）。
-- 扫描器 `single-model`：`packages/**` 中除 store Provider 外禁止对 `PresentationBody`（及其它 body 类型）做可变赋值（`readonly` 深类型 + lint `prefer-readonly-parameter-types` 的选择性启用，09-02 定）。
+- 类型测试断言（`*.type-test.ts`，09-type-discipline/09 §6，`test-typecheck` job，TD-098；原名 `single-model`、原称扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：`packages/**` 中除 store Provider 外禁止对 `PresentationBody`（及其它 body 类型）做可变赋值（`readonly` 深类型 + lint `prefer-readonly-parameter-types` 的选择性启用，09-02 定）。
 - 类型测试：`state()` 返回类型为深只读。
 
 ## 关联

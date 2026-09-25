@@ -1,6 +1,6 @@
 # ADR 索引
 
-> 状态：草稿 | 负责：总编排（合并自三条架构子线） | 更新：2026-09-24（rulings §4.15 章程 §10 Q1–Q10 裁决回写：0020/0021/0022/0026/0029/0035 转已接受，新增 0037）；2026-09-24 复核修正（rulings §4.17：0013/0017/0020/0022/0025/0026/0029/0031/0034/0035/0037 按复核报告机械修正清单与 D1–D5 回写） | 依赖：charter v0.2
+> 状态：草稿 | 负责：总编排（合并自三条架构子线） | 更新：2026-09-24（rulings §4.15 章程 §10 Q1–Q10 裁决回写：0020/0021/0022/0026/0029/0035 转已接受，新增 0037）；2026-09-24 复核修正（rulings §4.17：0013/0017/0020/0022/0025/0026/0029/0031/0034/0035/0037 按复核报告机械修正清单与 D1–D5 回写）；2026-09-25（矛盾收口，rulings §4.18：0002–0010/0011–0017/0020–0023/0025–0027/0029/0030/0032–0035/0037 按 15 项决策、23 项默认值与机械修正回写，已接受 ADR 以「2026-09-25 修订（rulings §4.18 <id>）」就地注记并保留「原：…作废」） | 依赖：charter v0.2
 > 编号分配（章程 §8）：0001–0019 结构线；0020–0039 运行时线；0040–0049 类型治理线。M0 阶段 ADR 默认为**提议**状态，进入 M1 前经评审转为「已接受」；已由用户裁决的在下表「章程关联」列标「已接受」及依据（0017：rulings §4.7；0020/0021/0022/0026/0029/0035/0037：rulings §4.15）；跨线分歧的裁决见 `docs/00-charter/rulings-2026-09-14.md`。
 
 ## 模板
@@ -37,13 +37,13 @@
 | [0020](./0020-crdt-selection.md) | CRDT 选型：Yjs 13.6.x 精确锁版本（Loro 为已评估替代，阈值重评）；有序实体移动语义；CO-08 逐行收敛表；协同撤销中性契约（跳过并提示 / 整步跳过即停 / 软删除墓碑 + TTL；撤销永不复活他人删除的元素，D4；`store/undo-skipped` 单独统计，D5） | 已接受（Q3，rulings §4.15）、§6.2 |
 | [0021](./0021-rendering-medium.md) | 渲染介质：DOM/SVG 单实现，Canvas 仅作栅格化/度量/预留 RenderTarget；DX-1000 回退规则；客户端安全基线 | 已接受（Q4，rulings §4.15）、§6.2 |
 | [0022](./0022-server-storage.md) | 服务端存储栈：Postgres 18 + Valkey（Redis 协议）+ SeaweedFS（S3 兼容）；单组织去租户；文档级 RLS | 已接受（Q10/Q6/T-0，rulings §4.15）、§6.2 |
-| [0023](./0023-transport-and-protocol.md) | 协同传输与协议：WebSocket + y-protocols 负载 + CONTROL 控制面；权限变更 ≤ 2 s；两级 ack | §6.2、S-3a |
+| [0023](./0023-transport-and-protocol.md) | 协同传输与协议：WebSocket + y-protocols 负载 + CONTROL 控制面；权限变更 ≤ 2 s；两级 ack（逐帧 FIFO 对应、step2 视同一帧）；重连 30 s 转离线、离线周期回连；Room 七态 | §6.2、S-3a |
 | [0024](./0024-presence-and-awareness.md) | Presence / Awareness 模型；`Selection<A>` 序列化即载荷；满员房间服务端合并 tick | §4、Q5 |
-| [0025](./0025-update-persistence-and-compaction.md) | Update 持久化与快照压缩策略；PG 故障溢写期两级 ack；墓碑 TTL 硬删除作业 | Q17、S-3a、Q3 |
-| [0026](./0026-headless-rendering-and-thumbnails.md) | 服务端 headless 渲染与缩略图（含 PDF）：独立零出站 renderer sidecar；按页内容哈希失效；640 px WebP；M2 包内 `thumbnail.jpeg`；D200 ≤ 90 s；不用 sharp | 已接受（Q8，rulings §4.15） |
+| [0025](./0025-update-persistence-and-compaction.md) | Update 持久化与快照压缩策略；PG 故障溢写期两级 ack、降级期照常广播、溢写按实例回放；墓碑 TTL 硬删除作业（「彻底删除元素」复用同一事务） | Q17、S-3a、Q3 |
+| [0026](./0026-headless-rendering-and-thumbnails.md) | 服务端 headless 渲染与缩略图（含 PDF）：独立零出站 renderer sidecar；两种模式都只经注入（RenderStateToken 拉取已取消）；按页内容哈希失效；640 px WebP；M2 包内 `thumbnail.jpeg`；D200 ≤ 90 s；不用 sharp | 已接受（Q8，rulings §4.15） |
 | [0027](./0027-text-measurement-strategy.md) | 文本度量与断行策略（导出从不重排）；竖排/RTL 分阶段；受限字体仅只读渲染 | §5.4 度量、Q7 |
 | [0028](./0028-text-editing-host.md) | 文本编辑宿主：单一隐藏 textarea + 自绘光标/选区；`TextInputHost` 为包内可插拔点（14 §5.3）；IME spike 计划 | M2 风险 |
-| [0029](./0029-gateway-authorization.md) | 协同网关鉴权与授权：短票据握手 + 每帧角色检查 + 权限版本传播；单组织去租户；OIDC（可选 Casdoor），JWT/API Key 降 M4；`auth.selfSignup` 默认关；无待接受邀请表（D1）；扫描器 `doc-access-via-permission` + 文档级 RLS（`check-rls-coverage`）两道防线（D3） | 已接受（D12、Q6/T-0，rulings §4.15） |
+| [0029](./0029-gateway-authorization.md) | 协同网关鉴权与授权：短票据握手 + 每帧角色检查 + 权限版本传播；单组织去租户；OIDC（可选 Casdoor），JWT/API Key 降 M4；`auth.selfSignup` 默认关；无待接受邀请表（D1）；分享链接解析归权限模块、票据 `lnk` 与 WS 重算（§4.18 BE-02）；扫描器 `scan-doc-access-via-permission` + 文档级 RLS（`check-rls-coverage`）两道防线（D3） | 已接受（D12、Q6/T-0，rulings §4.15） |
 | [0030](./0030-observability-stack.md) | 观测性技术栈：OpenTelemetry 全链路 + pino + Prometheus（Sentry 可选 Provider）；Grafana/Loki 为 AGPL 可选 profile | D11、Q10 |
 | [0031](./0031-comments-and-anchors-storage.md) | 评论存储：Snapshot `ResourceHook` 为事实源、Postgres 为镜像；id/RelativePosition 锚点（v0.2 修订）；墓碑 TTL 内以原 id 恢复、线程回到原锚点（2026-09-24 复核修正） | PRD CO-04 |
 | [0032](./0032-ordered-collections-fractional-index.md) | 有序集合的并发语义：实体表 + fractional index；Snapshot 保留 `order` 键；墓碑保留键 | 裁决 A-9、Q3 |
@@ -51,7 +51,7 @@
 | [0034](./0034-server-update-validation-and-repair.md) | 服务端对 update 的校验：硬门禁拒绝 + 软门禁补偿修复（不回滚、不分叉）；墓碑不变量；溢写期门禁时序 | D12、裁决 P8、Q3、S-3a |
 | [0035](./0035-gateway-horizontal-scaling.md) | 协同网关横向扩展：多副本房间 + Redis 协议扇出（Valkey），不依赖房间亲和；按文档实测权重准入、多副本相乘 | 已接受（Q5/Q10，rulings §4.15） |
 | 0036 | （预留；原拟 identity-and-tenant-isolation，因 T-0 去租户不再开设，身份口径并入 0029 修订） | — |
-| [0037](./0037-deployment-topology-and-packaging.md) | 部署拓扑与交付件：同镜像按 `CORDEX_ROLE`（all/api/collab/worker/renderer）运行；compose 组件与许可（D13 镜像主组件白名单，AGPL 仅可选 profile）；最低主机规格；M3 出口（断网 e2e、digest、SBOM、许可门禁）；M4 P1（离线包、多架构、Helm） | 已接受（Q10，rulings §4.15）、D13 |
+| [0037](./0037-deployment-topology-and-packaging.md) | 部署拓扑与交付件：同镜像按 `CORDEX_ROLE`（all/api/collab/worker/renderer）运行（逐模块装配矩阵以 40-modules/12 §7.1 为准）；反代按 `/api`、`/collab` 分流并以 `idp.*`、`s3.*` 子域暴露 IdP 与对象存储；compose 组件与许可（D13 镜像主组件白名单，AGPL 仅可选 profile）；最低主机规格；M3 出口（断网 e2e、digest、SBOM、许可门禁）；M4 P1（离线包、多架构、Helm） | 已接受（Q10，rulings §4.15）、D13 |
 | 0038–0039 | （预留） | — |
 
 ## 类型治理线（0040–0049）

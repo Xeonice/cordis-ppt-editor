@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7、§4.18 CO-19/GV-20
 
 # ADR-0027 文本度量与断行策略
 
@@ -13,9 +13,11 @@ PowerPoint 文本语义（`normAutofit fontScale/lnSpcReduction`、`spAutoFit`�
 ## 决策
 
 1. **自己断行（layout-then-paint）**：`engine-layout.layoutTextBody()` 产出 `LineBox[]`（行 y、run x 推进、字形高度）；渲染只绘制已定位的行（`<text>/<tspan x>`）。
-2. **度量器 Definition `Measurer`**，两个 Provider：
+2. **度量器 Definition `TextMeasurer`**（贡献点 `layout.measurer`），Provider：
    - `canvas`（render-dom）：`OffscreenCanvas.getContext('2d').measureText`（含 `fontBoundingBoxAscent/Descent`），字体回退由浏览器实际执行；**客户端与 headless Chromium 都用它**，故两端一致。
-   - `fontkit`（server-headless，可选，M4+）：Node 解析字体文件的 advance/OS2 度量，用于无浏览器路径（PDF 导出、校验）；标注「近似一致」。
+   - `node-font`（server-headless，可选，M4+）：以 opentype/fontkit 解析字体文件的 advance/OS2 度量（fontkit 只是实现说明，不是 Provider id），用于无浏览器路径（PDF 导出、校验）；标注「近似一致」。
+   - `fixed`（testing）：固定宽度度量，使布局测试确定。
+   （2026-09-25 修订，rulings §4.18 CO-19：正文直接使用架构 07 §14.1 定稿名；原：Definition `Measurer`、两个 Provider `canvas`/`fontkit`，作废。）
 3. 一致性保障：受控字体集（回退表 07 §5.3，客户端与服务端同一 JSON；度量兼容替身 Carlito/Caladea/Liberation）+ 字体就绪后再度量（`document.fonts.load`）+ `layoutAlgorithmVersion` 进入缩略图缓存键。
 4. 断行：UAX#14 机会点（`Intl.Segmenter` 可用时用之，否则内置表）+ CJK 禁则 + run 边界重置字距；autofit 迭代 ≤ 6 次（二分 fontScale）。
 5. 度量缓存：按 `(fontKey, word)` LRU 50k 条，淘汰有测试（A29）。
@@ -40,7 +42,7 @@ PowerPoint 文本语义（`normAutofit fontScale/lnSpcReduction`、`spAutoFit`�
 
 ## 补充（v0.2）：Node 端度量与服务端 PDF/缩略图的关系、命名对齐、OF-05 指标
 
-- **命名**：度量器 Definition 为 `TextMeasurer`，贡献点 `layout.measurer`（02 §4.13）；Provider id：`canvas`（render-dom）、`node-font`（server-headless，opentype/fontkit 解析字体文件）、`fixed`（testing）。本 ADR 前文的 `Measurer`/`fontkit` 读作 `TextMeasurer`/`node-font`。
+- **命名**：度量器 Definition 为 `TextMeasurer`，贡献点 `layout.measurer`（02 §4.13）；Provider id：`canvas`（render-dom）、`node-font`（server-headless，opentype/fontkit 解析字体文件）、`fixed`（testing）。（2026-09-25 起前文已直接改用 `TextMeasurer`/`node-font`，原「本 ADR 前文的 `Measurer`/`fontkit` 读作 `TextMeasurer`/`node-font`」一句作废。）
 - **服务端缩略图与 PDF 不使用 Node 度量**：二者在 headless Chromium 中运行同一渲染代码，度量器是 `canvas`，与客户端逐像素一致（ADR-0026）。
 - **导出从不重新排版**：`ooxml-pptx.encode` 是 Snapshot（+ 基线包）的纯函数，不读取 `layout` 服务（L3 也不允许 import L5）。排版结果中需要落盘的量（`a:normAutofit@fontScale/@lnSpcReduction`、`spAutoFit` 增高后的 `xfrm.ext`）由**编辑端**在布局时作为 Mutation 写回模型；因此服务端导出与客户端导出字节级一致（SV-02）不依赖任何度量器。
 - **`node-font` 的用途**：`server-headless.tasks.validate/diagnostics` 中的溢出/换行诊断报告、未来无浏览器的 PDF 路径；标注「近似一致」（advance 误差 ≤ 1%，无 shaping）。它是可选 Provider：缺失时 `layout` 服务 `PENDING`，不影响导入/导出/迁移任务。
@@ -59,7 +61,7 @@ PowerPoint 文本语义（`normAutofit fontScale/lnSpcReduction`、`spAutoFit`�
 
 ## 如何被机械验证
 
-- `runMeasurerConformance` 对 `canvas` 与 `fontkit` 通过；两者对同一字体的 advance 误差 ≤ 1%（近似一致声明的量化）。
+- `runTextMeasurerConformance` 对 `canvas` 与 `node-font` 通过（2026-09-25 按章程 `run<Definition>Conformance` 命名改写，rulings §4.18 GV-20/CO-19；原 `runMeasurerConformance`、`fontkit` 作废）；两者对同一字体的 advance 误差 ≤ 1%（近似一致声明的量化）。
 - 断行黄金用例（`engine-layout/__tests__`）：给定 FixedWidthMeasurer 的确定输出；CJK 禁则用例。
 - 视觉 oracle 文本类别 gated。
 - 缩略图一致性：服务端渲染图 vs 客户端截图像素差 ≤ 0.5%（ADR-0026）。

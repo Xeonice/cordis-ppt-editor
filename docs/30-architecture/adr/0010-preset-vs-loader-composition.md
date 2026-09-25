@@ -1,6 +1,6 @@
 # ADR-0010 preset（程序化）与 loader（配置驱动）的分工
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 FE-01
 
 ## 状态
 
@@ -12,7 +12,7 @@ cordis 提供两种组合方式：程序化 `ctx.plugin()`（任何环境）与 
 
 ## 决策
 
-1. **preset 是唯一的一等组合形态**（浏览器与 `server-headless` 都用）：一个函数插件 `createXxxPreset(options)`，`apply` 内以**无序集合**挂载 `PresetEntry[]`，每项带稳定 `id`（对应 loader 的 id 概念，供 `fiber.update` 局部重配置与诊断）。
+1. **preset 是唯一的一等组合形态**（浏览器与服务端都用；服务端的 preset 是 `apps/server` 的 `cordis-host/preset-server.ts`，它选定 slide 等垂直束的 iso 插件集，经 `createHeadlessHost({ plugins })` 交给文档类型盲的 `server-headless` 挂载，`worker_threads` 按清单模块路径加载——2026-09-25，rulings §4.18 FE-01）：一个函数插件 `createXxxPreset(options)`，`apply` 内以**无序集合**挂载 `PresetEntry[]`，每项带稳定 `id`（对应 loader 的 id 概念，供 `fiber.update` 局部重配置与诊断）。
 2. **惰性条目**：`PresetEntry.lazy?: () => Promise<Plugin>` + `activateWhen: { contributionSeen: { point; key } } | { event } | 'manual'`。示例：图表渲染器条目在 `SceneProvider` 首次产出 `kind: 'graphicFrame:chart'` 节点时动态 import（独立 chunk，PRD ≤ 400 KB）；语言包在 `i18n/locale-changed` 时加载。惰性条目未加载前对应元素走占位渲染（`unknown`）。
 3. **可插拔口径的机械化**：`options.exclude: PluginId[]`、`options.override: Record<PluginId, Plugin>`；`preset-*` 的 `__tests__` 对每个 Provider 逐一 `exclude` 并断言 host 可启动（章程 §5.4；PRD `pluggable:m1`：`store=noop` → `unit/open-failed{code}` 非崩溃；`render.target=noop` → `unit/opened`、画布空）。
 4. **loader**：仅 `server-headless` 可选启用（`createHeadlessHost({ composition: { kind: 'loader', configPath } })`），用于运维按 YAML 增删插件与 HMR 调试；默认关闭，浏览器**永不**引入 loader（R12 例外只对 `server-headless`）。
@@ -41,7 +41,7 @@ cordis 提供两种组合方式：程序化 `ctx.plugin()`（任何环境）与 
 - `preset-*/__tests__/pluggable.test.ts`：exclude 矩阵。
 - `preset-*/__tests__/order-independence.test.ts`：条目随机顺序 100 次结果一致。
 - `preset-*/__tests__/lazy.test.ts`：图表条目在无图表文档中**不**加载（网络/import 计数为 0），遇到图表时加载一次。
-- CI 体积门禁（PRD EM-07）：三档组合 gzip 预算，超 5% 失败（`tooling/scanners/bundle-budget`，09-07）。
+- CI 体积门禁（PRD EM-07）：三档组合 gzip 预算，超 5% 失败（扫描器 `scan-bundle-budget`，09-type-discipline/06 §14；原写路径 `tooling/scanners/bundle-budget`，2026-09-25 按正式名改写，rulings §4.18 GV-15）。
 - depcruise R12：`@cordisjs/plugin-loader` 只允许出现在 `server-headless`。
 
 ## 关联

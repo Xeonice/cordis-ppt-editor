@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§3.3 同步单点引入表与 `*-ui` domain/application 框架无关规则（Q2）；§4 syncpack 规则改为 peer `workspace:^`、其余 `workspace:*`（Q1），与 ADR-0002 §3 一致）；2026-09-24（复核修正，rulings §4.17：M17 `cordex-ui-bundle-core-framework-free` 定为全仓唯一名并指向 M-01 规则文件） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：§3.3 同步单点引入表与 `*-ui` domain/application 框架无关规则（Q2）；§4 syncpack 规则改为 peer `workspace:^`、其余 `workspace:*`（Q1），与 ADR-0002 §3 一致）；2026-09-24（复核修正，rulings §4.17：M17 `cordex-ui-bundle-core-framework-free` 定为全仓唯一名并指向 M-01 规则文件）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 03 · 边界（dependency-cruiser）
 
@@ -20,11 +20,14 @@ tooling/depcruise/
 ├── rules/
 │   ├── no-circular.ts       规则 1：包级 + 文件级循环检测
 │   ├── layering.ts          规则 2：只向下（数值秩比较）
-│   ├── doc-type-blind.ts    规则 3：文档类型盲（水平↛垂直）+ 束间隔离（垂直 A ↛ 垂直 B）
+│   ├── doc-type-blind.ts    规则 3：文档类型盲（非组合根水平↛垂直）+ 束间隔离（垂直 A ↛ 垂直 B）
 │   ├── single-entry.ts      规则 4：第三方库单点引入
+│   ├── ui-bundle-core-framework-free.ts  规则 4 路径级补充：`*-ui` 的 domain/application 框架无关（§3.3，TD-082）
 │   ├── isomorphism.ts       规则 5：同构隔离（包图层，与 02 §5.2/06 scan-isomorphic 互补）
 │   ├── roles.ts              规则 6：三角色（Definition/Provider/Consumer）
-│   └── no-deep-import.ts     规则 7：无深引用（exports 子路径白名单）
+│   ├── no-deep-import.ts     规则 7：无深引用（查询目标包 publicEntry）
+│   ├── apps-only-assemble.ts 补充：组合根 apps 白名单（§3.7，02-layering R9）
+│   └── viewer-no-editing.ts  补充：查看器 preset 不含编辑链与 React（§3.7）
 └── __tests__/
     └── fixtures/              每条规则的最小违规/合规仓库夹具（独立 package.json + 源文件，
                                  供 depcruise 在夹具上运行并断言输出）
@@ -34,16 +37,43 @@ tooling/depcruise/
         ├── single-entry/{ok,violation}/
         ├── isomorphism/{ok,violation}/
         ├── roles/{ok,violation}/
-        └── no-deep-import/{ok,violation}/
+        ├── no-deep-import/{ok,violation}/
+        ├── apps-only-assemble/{ok,violation}/
+        └── viewer-no-editing/{ok,violation}/
 ```
 
 每条规则的 `violation` 夹具就是该规则的**负向测试**（[lessons A17](../../00-charter/reference-univer-lessons.md) 对 depcruise 规则的同等要求，机制与 ESLint 侧一致，判定见 [06 scan-policy](./06-scanners.md#9-scan-policy)）。
+
+**depcruise 规则求值与门禁流程**
+
+```mermaid
+flowchart LR
+  pkgJson["packages/* 与 apps/* 的 package.json#cordex"]
+  schemaFile["tooling/policy/schema/cordex-package-metadata.schema.json"]
+  meta["package-metadata.ts：启动时一次读入，构建包名 → 元数据查找表"]
+  layers["layers.ts：层号秩表与允许目标判定"]
+  rules["rules/*.ts：no-circular、layering、doc-type-blind、single-entry、isomorphism、roles、no-deep-import、apps-only-assemble、viewer-no-editing"]
+  index["index.cjs：主配置入口，仓库根 .dependency-cruiser.cjs 仅 re-export"]
+  report["depcruise 原生报告：规则名 + from/to 路径 + 环路"]
+  gates["pre-push 本地执行 / CI depcruise job 阻断"]
+  fixtures["__tests__/fixtures/规则名/ok 与 violation"]
+  scanPolicy["scan-policy：夹具完整性 + 元数据 schema 逐包校验"]
+  pkgJson --> meta --> rules
+  layers --> rules
+  rules --> index --> report --> gates
+  fixtures -- "负向测试" --> rules
+  scanPolicy -. "检查夹具存在且非空" .-> fixtures
+  schemaFile --> scanPolicy
+  pkgJson -. "逐包校验" .-> scanPolicy
+```
+
+怎么读：上半条是规则求值链（元数据 → 查找表 → 规则模块 → 报告 → 门禁）；下半条是治理闭环——scan-policy 校验每条规则都有夹具、每个包的元数据合法，depcruise 自身假定元数据已合法。
 
 ---
 
 ## 2. 包元数据 Schema
 
-每个 `packages/*/package.json`、`apps/*/package.json` 必须包含 `cordex` 字段。**编码规则（总编排裁决，与架构-结构条线合一，章程 v0.2 §5.1/§5.3 已正式收录）**：垂直束包**不**借用水平层的数值层号（历史草案曾让 `model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui` 分别顶着 `L2`/`L3`/`L6`/`L6` 的层号，与同号的水平层含义冲突，且掩盖了"两个垂直束包数值同层"这一真实存在的横向越界场景）；改为四个独立的 `V-*` 层带，`bundle` 字段在 `layer` 以 `V-` 开头时**必填**，否则**必须省略或为 `null`**：
+每个 `packages/*/package.json`、`apps/*/package.json` 必须包含 `cordex` 字段。**编码规则（总编排裁决，与架构-结构条线合一，章程 v0.2 §5.1/§5.3 已正式收录）**：垂直束包**不**借用水平层的数值层号（历史草案曾让 `model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui` 分别顶着 `L2`/`L3`/`L6`/`L6` 的层号，与同号的水平层含义冲突，且掩盖了"两个垂直束包数值同层"这一真实存在的横向越界场景）；改为四个独立的 `V-*` 层带，`bundle` 字段在 `layer` 以 `V-` 开头时**必填**；`compositionRoot: true` 的 preset 选填（用于束间隔离判定，2026-09-25 rulings §4.18 FE-01）；其余包**必须省略或为 `null`**：
 
 ```jsonc
 // 示意，非最终 JSON Schema 文本
@@ -53,9 +83,12 @@ tooling/depcruise/
     "layer": "V-model",                // "L0"|"L1"|"L3"|"L4"|"L5"|"L7"|"L8"|"LS"
                                         // |"V-model"|"V-codec"|"V-render"|"V-ui"，见 §3.1 秩表
     "iso": "iso",                      // "iso" | "dom" | "node"
-    "bundle": "slide",                 // "slide" | "doc" | "sheet"；当且仅当 layer 以 "V-" 开头时必填
-    "role": "definition",              // "definition" | "provider" | "consumer" | "n/a"
-    "compositionRoot": false,          // 仅 preset-*、apps/web、apps/server 可为 true
+    "bundle": "slide",                 // "slide" | "doc" | "sheet"；layer 以 "V-" 开头时必填；
+                                        // compositionRoot 的 preset 选填（preset-slide* 标 slide、preset-doc 标 doc，
+                                        // 填了即受束间隔离约束）；其余包省略（rulings §4.18 FE-01）
+    "role": "definition",              // "definition" | "provider" | "consumer" | "n/a"（由 02 §4.0.1 七值折叠）
+    "implements": [],                  // provider 必填：所实现的 Definition 服务名，如 ["store"]；三角色规则读取
+    "compositionRoot": false,          // 仅 preset-*、apps/web、apps/server 可为 true，且这些包必须显式写 true
     "publicEntry": [".", "./testing"], // 必须是 package.json#exports 的 key 集合（见 04）
     "stability": "stable"              // 可选："stable" | "beta" | "experimental"；包级 API 稳定级，
                                         // 供 api-extractor release tag 默认值与 Changesets 分组消费（架构-结构条线新增字段）
@@ -69,7 +102,9 @@ tooling/depcruise/
 
 新旧对照（供读过本文档早期版本或章程 v0.1 网格的读者核对）：`model-slide`/`model-doc`/`model-sheet` 原"L2" → `V-model`；`ooxml-pptx`/`ooxml-docx`/`ooxml-xlsx` 原"L3"（垂直行）→ `V-codec`（`ooxml-core` 本身仍是水平层，保留 `L3`，不受影响）；`slide-render`/`doc-render`/`sheet-render` 原"L6"（渲染行）→ `V-render`；`slide-ui`/`doc-ui`/`sheet-ui` 原"L6"（UI 贡献行）→ `V-ui`。`L2`、`L6` 自此不再是合法的 `layer` 取值。
 
-`package-metadata.ts` 在 depcruise 启动时一次性读入全部包的该字段，构建内存查找表；**不**在规则求值期间反复读盘（性能考量，见 [07](./07-hooks-and-ci.md#5-缓存策略) 的时间预算）。字段本身的 JSON Schema 合法性（`layer` 是否是受认可的十二个取值之一、`bundle` 是否满足"当且仅当 `V-` 前缀时必填"的条件约束）由 `tooling/policy/schema/cordex-package-metadata.schema.json` 定义，[06 scan-policy](./06-scanners.md#9-scan-policy) 的全局不变式检查逐包校验，**不**由 depcruise 自身校验（depcruise 假定元数据已合法，若不合法会以规则误判的方式暴露，而非清晰的 schema 错误——这是已知的诊断体验短板）。该 schema 文件是架构-结构条线与本子线的共享产物：任何一方新增/调整 `layer`/`bundle`/`role` 的取值集合，须同步更新此文件并知会另一方，避免两份各自维护的"合法取值表"漂移。
+**封闭八键**（2026-09-25，rulings §4.18 FE-21）：`cordex` 字段只允许 `layer`/`iso`/`bundle`/`role`/`implements`/`compositionRoot`/`publicEntry`/`stability` 八个键，schema 以 `additionalProperties: false` 拒绝其余键——包括 `rank`：秩由 `layer` 查 §3.2 秩表得出，**不写进** package.json（模块文档里写了 `rank: 70/75/80` 的示例一律删除）。`role` 为 `provider` 时 `implements` 必填且非空；`preset-*`、`apps/web`、`apps/server` 必须显式写 `compositionRoot: true`（§3.2 R3 豁免与 §3.5 三角色豁免都只读这个显式值）。执行矩阵 TD-102。
+
+`package-metadata.ts` 在 depcruise 启动时一次性读入全部包的该字段，构建内存查找表；**不**在规则求值期间反复读盘（性能考量，见 [07](./07-hooks-and-ci.md#5-缓存策略) 的时间预算）。字段本身的 JSON Schema 合法性（`layer` 是否是受认可的十二个取值之一、`bundle` 是否满足"`V-` 前缀必填、组合根 preset 选填、其余省略"的条件约束、是否出现八键以外的键）由 `tooling/policy/schema/cordex-package-metadata.schema.json` 定义，[06 scan-policy](./06-scanners.md#9-scan-policy) 的全局不变式检查逐包校验，**不**由 depcruise 自身校验（depcruise 假定元数据已合法，若不合法会以规则误判的方式暴露，而非清晰的 schema 错误——这是已知的诊断体验短板）。该 schema 文件是架构-结构条线与本子线的共享产物：任何一方新增/调整 `layer`/`bundle`/`role` 的取值集合，须同步更新此文件并知会另一方，避免两份各自维护的"合法取值表"漂移。
 
 ---
 
@@ -95,7 +130,7 @@ L0=0  L1=10  V-model=15  L3=30  V-codec=35  L4=40  L5=50  V-render=55  LS=58  L7
 推导依据（定稿版）：`V-model`（15）须高于 `L1`（10，model-\* 依赖 store 抽象所在的 model-core）且低于 `L3`（30）；`V-codec`（35）须同时高于 `L3`（30，ooxml-pptx 依赖 ooxml-core）与 `V-model`（15，依赖 model-slide），故取值介于两者与 `L4`（40）之间；`V-render`（55）须高于 `L5`（50，依赖 engine-render/render-dom）与 `V-model`；`V-ui`（75）须高于 `V-render`（55）与 `L7`（70，依赖 ui-react）。`LS`（服务端 `server-collab`/`server-storage`/`server-headless`）定为 58：`server-headless` 需要触达 `L5`（50）——`engine-layout` 用于服务端文本度量、`engine-render` 的契约用于 headless 渲染管线——故 `LS` 秩值必须 > 50；同时不得让 `LS` 数值上"顺便"够到 `L7`/`V-ui`/`L8`（不需要也不应该），58 满足"> 50 且 < 70"这一区间，是当前依赖上限下的定稿值。`LS` 是否会数值上"够到" `V-render`（55，58 ≥ 55）？会，但这不构成漏洞：`V-render` 是 `dom`，`LS`（`server-headless` 等）是 `node`，两者被 §3.4 的同构类规则（`node` 不得 `import` `dom`）结构性拦截——这正是本篇段首"纵深防御"原则的又一实例：数值秩规则只需要防住"同构类规则管不到"的越界，不需要独自做到滴水不漏。
 
 - **`cordex-layer-downward`**（规则 2）：`from` = 任意模块；`to` = 任意模块；违规条件 = `rank(to 所属包) > rank(from 所属包)`。这是**粗粒度**规则，唯一职责是"不允许向层号更高的包导入"，**不**单独承担"同层横向"或"同构越界"的判定（分别是下面 `cordex-bundle-isolation` 与 §3.4 同构类规则的职责）。
-- **`cordex-doc-type-blind`**（规则 3 前半）：`from` = `cordex.bundle` 为空（水平层）的包；`to` = `cordex.bundle` 非空（垂直束）的包；无条件违规（不比较层号——水平层任何理由都不能 import 垂直束）。反例：`packages/engine-render`（水平，`bundle` 省略）出现 `import type { SlideShape } from '@cordexjs/model-slide'`（`layer: 'V-model'`，即使只是类型导入）→ 报错。这是章程给出的原始反例场景（Univer A1：`engine-render` 66% 是三产品专用组件）。
+- **`cordex-doc-type-blind`**（规则 3 前半）：`from` = `cordex.bundle` 为空（水平层）**且 `cordex.compositionRoot !== true`** 的包；`to` = `cordex.layer` 以 `V-` 开头（垂直束）的包（与章程 §5.3 规则 3 同一判据；带 `bundle` 的 preset 是组合根，不作 to 侧判据，更低层包指向它已被规则 2 秩拦截）；无条件违规（不比较层号——非组合根的水平层任何理由都不能 import 垂直束）。**组合根豁免**（2026-09-25，rulings §4.18 FE-01）：`compositionRoot: true` 的 preset-*、apps/web、apps/server 的职责就是装配垂直束，按元数据显式豁免本条；豁免不是放任——preset 带 `bundle` 后受下方 `cordex-bundle-isolation` 约束（preset-doc 不得 import slide 束），apps/web 仍受 §3.7 `cordex-apps-only-assemble` 白名单约束（不得直接 import 束包），apps/server 只允许 `src/cordis-host/**` 装配 iso 插件、`src/modules/**` 仍禁 `model-*`/`ooxml-*`（02-layering `server-app-thin`）；`server-headless` 不是组合根，仍文档类型盲（插件清单由 apps/server 的 `preset-server.ts` 传入）。判定面包含测试文件（`__tests__/`、`testing/`、`*.test.ts` 不排除）：非组合根水平层的测试同样只能用 `model-core/testing` 的 `fixture`/`fixture-grid` 类型（即原称 `horizontal-tests-use-fixture-only` 的要求，并入本条，rulings §4.18 GV-15，08 §11.1）。负向夹具：`engine-render → model-slide` 拒绝、`preset-doc → model-slide` 被规则 8 拒绝、`apps/web → model-slide` 被 §3.7 拒绝；正向夹具：`apps/web → preset-slide`、`preset-slide → model-slide` 通过。反例：`packages/engine-render`（水平，`bundle` 省略）出现 `import type { SlideShape } from '@cordexjs/model-slide'`（`layer: 'V-model'`，即使只是类型导入）→ 报错。这是章程给出的原始反例场景（Univer A1：`engine-render` 66% 是三产品专用组件）。
 - **`cordex-bundle-isolation`**（规则 3 后半，即章程 §5.3 第 8 条"垂直束互不依赖"）：`from` = `cordex.bundle === X`（X 非空）；`to` = `cordex.bundle === Y` 且 `Y !== X`（Y 非空）；无条件违规。反例：`packages/model-slide`（`layer: 'V-model'`, `bundle: 'slide'`）`import` 了 `packages/model-doc`（`layer: 'V-model'`, `bundle: 'doc'`）——两者不仅数值秩相等，`layer` 取值本身完全相同，仅 `bundle` 不同，规则 2 对此完全不拦截，本规则拦截。`V-*` 层带编码相比旧的"借用水平层数值"方案，让这一横向越界场景在包元数据层面**结构性可见**（同一个 `layer` 字符串、不同 `bundle` 字符串），不再依赖"凑巧数值相等"这一容易被忽视的巧合，这是本次编码调整额外带来的诊断收益。
 
 ### 3.3 规则 4：第三方库单点引入（对应章程 §5.3-4）
@@ -134,7 +169,34 @@ L0=0  L1=10  V-model=15  L3=30  V-codec=35  L4=40  L5=50  V-render=55  LS=58  L7
 
 ### 3.6 规则 7：无深引用（对应章程 §5.3-7）
 
-`cordex-no-deep-import`：`from` = 任意包；`to` = 解析路径匹配 `@cordexjs/[^/]+/(?!testing$)` 的导入（即 `@cordexjs/<pkg>/` 后面跟了除 `testing` 外的任何路径段，例如 `@cordexjs/model-core/src/store`）；违规。这一规则依赖各包 `package.json#exports` 只暴露 `"."` 与 `"./testing"` 两个子路径（[04](./04-api-surface.md#2-exports-显式子路径策略) 的职责），depcruise 在**模块解析**层面验证"即使有人试图绕过 exports 直接深引用源码路径，也会被识别为一次深引用违规"——`exports` 字段本身在 Node/bundler 的模块解析算法里已经会让这类导入直接报"找不到模块"，本规则的增量价值是在**类型检查通过、看似只是路径写法问题**的场景下（例如某些打包工具的宽松解析模式）依然给出明确的架构性错误，而不是一个模糊的"模块未找到"。
+`cordex-no-deep-import`：`from` = 任意包；`to` = 解析路径为 `@cordexjs/<pkg>/<subpath>`、且 `./<subpath>` **不在目标包 `cordex.publicEntry` 中**的导入（例如 `@cordexjs/model-core/src/store`、未登记的 `@cordexjs/kernel/internal`）；违规。判定改为**查询目标包元数据**而非固定正则（2026-09-25，rulings §4.18 FE-04：原正则 `@cordexjs/[^/]+/(?!testing$)` 会拦下 C-07 的 `@cordexjs/kernel/preset`、A-9 的 `@cordexjs/shared/order`、R17 的 `@cordexjs/ui-react/ui` 等已裁定子路径）。各包 `exports` 只暴露 `publicEntry` 显式登记的子路径（`.` 必有、`./testing` 仅供测试、其余逐个登记、禁 `./*` 通配，[04](./04-api-surface.md#3-exports-显式子路径策略) 的职责），depcruise 在**模块解析**层面验证"即使有人试图绕过 exports 直接深引用源码路径，也会被识别为一次深引用违规"——`exports` 字段本身在 Node/bundler 的模块解析算法里已经会让这类导入直接报"找不到模块"，本规则的增量价值是在**类型检查通过、看似只是路径写法问题**的场景下（例如某些打包工具的宽松解析模式）依然给出明确的架构性错误，而不是一个模糊的"模块未找到"。子路径专项限制另由 02-layering R17（`ui-react/ui` 只供 ui-react、`*-ui`、apps）与 R18（design 只导出 css）承担。负向夹具三个：未登记子路径、`src` 深引用、`./*` 通配（`tooling/depcruise/__tests__/fixtures/no-deep-import/violation`，TD-009）。
+
+### 3.7 补充规则：组合根白名单与查看器纯度（2026-09-25，rulings §4.18 FE-05 / GV-15）
+
+章程八条之外，02-layering §7 另有两条只作用于组合根的依赖规则，这里给出 depcruise 形态（均 `error`，均附 `ok`/`violation` 夹具）：
+
+- **`cordex-apps-only-assemble`**（02-layering §7 R9，执行矩阵 TD-093）：`from` = `apps/web/**`；`to` 允许集合 = `@cordexjs/preset-*`、`@cordexjs/protocol`、`@cordexjs/design`、`@cordexjs/ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、`@cordexjs/i18n`、`@cordexjs/shared`、`@cordexjs/kernel`，以及章程 §5.3 规则 4 放行的 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`；其中 `@cordexjs/kernel` 的**值导入**只许出现在 `apps/web/src/application/host/**`，其余位置只许 `import type`（以 11 §10 为准，2026-09-25 rulings §4.18 FE-05）；集合外的 `@cordexjs/*`（`model-*`、`ooxml-*`、`engine-*`、`render-dom`、`slide-*`、`collab-*`、`store-*`）一律违规。`from` = `apps/server/**`：`src/modules/**` 只许 `@cordexjs/server-*`、`@cordexjs/protocol`、`@cordexjs/kernel`（类型）；`src/cordis-host/**`（`preset-server.ts`）另可 import 装配所需的 iso 插件包（FE-01/FE-02）。负向夹具：`apps/web → @cordexjs/model-slide`、`apps/web/src/pages/** → @cordexjs/kernel`（值导入）、`apps/server/src/modules/** → @cordexjs/model-slide`；正向夹具：`apps/web/src/application/host/create-editor-host.ts → @cordexjs/kernel`。
+- **`cordex-viewer-no-editing`**（原扫描器名 `no-editing-in-viewer`，执行矩阵 TD-094）：`from` = `packages/preset-slide-viewer/**`（及其传递依赖图）；`to` = `@cordexjs/model-slide/editing`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui`、`react`、`react-dom`；违规。它是 ADR-0015「查看器两道只读保证」第一道（清单里没有编辑链）的依赖图执行点，第二道（`read-only` 权限策略）由 `readonly.test.ts` 与 06 scan-effects 规则 (3) 保证。
+
+**纵深防御：一条 import 边同时经过的规则**
+
+```mermaid
+flowchart TB
+  edge["一条 import 边：from 包 → to 包"]
+  edge --> r1["规则 1 无环：cordex-no-circular-file / cordex-no-circular-package"]
+  edge --> r2["规则 2 只向下：cordex-layer-downward，rank to ≤ rank from"]
+  edge --> r3["规则 3 文档类型盲：cordex-doc-type-blind"]
+  edge --> r8["规则 8 束间隔离：cordex-bundle-isolation"]
+  edge --> r4["规则 4 第三方单点引入：single-entry，含 cordex-ui-bundle-core-framework-free"]
+  edge --> r5["规则 5 同构隔离：cordex-isomorphism-compatibility，3×3 矩阵"]
+  edge --> r6["规则 6 三角色：cordex-role-provider-no-cross-import / cordex-role-consumer-definition-only"]
+  edge --> r7["规则 7 无深引用：cordex-no-deep-import"]
+  r2 -. "同层横向盲区由规则 8 堵上" .-> r8
+  r2 -. "LS 秩 58 数值上够到 V-render 55，由规则 5 的 node ✗ dom 拦截" .-> r5
+  r1 & r2 & r3 & r8 & r4 & r5 & r6 & r7 --> verdict["全部通过才合法；任一 error 即 CI 阻断"]
+```
+
+怎么读：实线表示同一条边被每组规则独立求值，结果取交集；虚线标出粗粒度规则 2 的已知盲区分别由哪条规则兜住——没有一条规则被期望单独完备。
 
 ---
 
@@ -164,5 +226,6 @@ L0=0  L1=10  V-model=15  L3=30  V-codec=35  L4=40  L5=50  V-render=55  LS=58  L7
 |---|---|---|
 | 八条规则全部配置为 `error` 且在 CI 阻断 | [07](./07-hooks-and-ci.md#3-ci-工作流矩阵) `depcruise` job；`pre-push` 本地执行同一配置 | depcruise 原生 JSON 报告（规则名 + from/to 路径 + 环路，如适用） |
 | 每条规则都有 `ok`/`violation` 夹具（负向测试） | [06 scan-policy](./06-scanners.md#9-scan-policy) | scan-policy 报告，列出缺失夹具的规则名 |
-| 包元数据字段合法 | scan-policy 全局不变式检查（§2 已述） | scan-policy 报告 |
+| 包元数据字段合法（封闭八键，拒绝 `rank` 等未知键） | scan-policy 全局不变式检查（§2 已述，TD-102） | scan-policy 报告 |
+| 组合根补充规则（`cordex-apps-only-assemble`、`cordex-viewer-no-editing`）为 `error` 且有夹具 | `depcruise` job + scan-policy 夹具完整性（§3.7，TD-093/TD-094） | depcruise 原生报告 |
 | 秩表（含 `LS=58`）与架构-结构条线 02 文档一致 | 已由总编排裁决定稿（本文 §3.2），架构-结构条线在 `02-layering-and-packages.md` 中采用同一数值；人工评审 + `scan-policy` 读取该文档中若存在的同名层号表做字符串级比对（该文档若含机器可解析的层号表则可自动比对，否则退化为人工评审——记录于 [README](./README.md) 已知盲区，非待决） | 见 README |

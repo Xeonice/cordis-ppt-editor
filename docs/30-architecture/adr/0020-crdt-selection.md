@@ -1,10 +1,10 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
 
 # ADR-0020 CRDT 选型：Yjs（Loro 为已评估替代）
 
 ## 状态
 
-**已接受**（2026-09-24，用户裁决 `00-charter/rulings-2026-09-14.md` §4.15 Q3；证据 `00-charter/_evidence/q1-q10-decision-pack.json` `results[10].decisions[2]`）。原状态「提议（默认值，用户可否决；章程 §6.2 / §10 Q3）」。本次接受同时新增「协同撤销语义」一节（见文末），并把 Loro 重评估条件改为可机械检验的阈值。
+**已接受**（2026-09-24，用户裁决 `00-charter/rulings-2026-09-14.md` §4.15 Q3；证据 `00-charter/_evidence/q1-q10-decision-pack.json` `results[10].decisions[2]`）。原状态「提议（默认值，用户可否决；章程 §6.2 / §10 Q3）」。本次接受同时新增「协同撤销语义」一节（见文末），并把 Loro 重评估条件改为可机械检验的阈值。2026-09-25 按 rulings §4.18 修订「协同撤销语义」第 3 条与图 2：删除 Mutation 降级为 `set _deleted`（CO-05），元素级「彻底删除元素」只从墓碑态出发（CO-07），均以「原：…作废」就地保留演进。
 
 ## 背景
 
@@ -99,12 +99,58 @@ Yjs：纯 JS，`yjs + y-protocols` 经 esbuild minify 后 ≈ 30 KB gzip（2026-
 1. **同一键被他人后写 → 跳过并提示**：撤销时若自己改过的某键已被他人随后改写，跳过该键，本步其余变更照常撤销，提示「X 之后修改了此处，已跳过」。契约字段为中性名 `undo.remoteConflict: 'skip'`（不把 Yjs 的 `ignoreRemoteMapChanges` 之类开关名写进契约——该名在 v14 已改）。CO-08 `prop-lww` 提示条上的动作改为显式命令「恢复我的值」：一个新事务，可审计、可再撤销。
 2. **整步被跳过 → 停下，不连撤**：一步内全部变更都被跳过（目标已被他人删除，或全部键被覆盖）时，丢弃该步并提示，**不继续撤销更早一步**。由 store-yjs 包装 UndoManager 实现，发出 `store/undo-skipped` 事件（载荷 `{ skipped: UndoSkip[]; wholeStep: boolean }`，以 40-modules/02 §2.4 为准）；store-memory 同语义。**埋点单独统计**（2026-09-24 复核修正，rulings §4.17 D5）：`store/undo-skipped` 单列跳过次数与整步跳过次数，**不计入软冲突率**。
    - **目标被他人删除（墓碑 TTL 内亦然）→ 跳过并提示，不看 TTL**（2026-09-24 复核修正，rulings §4.17 D4）：撤销**永不复活他人删除的元素**；该元素的恢复只能由删除方撤销自己的删除，或由任一有权限者执行显式命令「恢复元素」（新事务）完成。
-3. **删除改为软删除墓碑 + TTL 硬删除**：`delete` 在 store 层落为 `_deleted` 标记（`StoreOp` 仍为 5 原语，不新增 op；ADR-0013 的 delete 语义随之改为「`_deleted` 标记 + TTL 硬删除 + 读路径过滤 + 不变量」）。读路径、渲染、导出、不变量一律过滤墓碑；**id 稳定**，恢复 = 清除墓碑（仅限删除方撤销自己的删除或显式「恢复元素」命令，见第 2 条 D4 子项）。服务端单写者在 **TTL（默认 24 h，可配置）** 到期后硬删除（server-collab 墓碑硬删除作业）。
+3. **删除改为软删除墓碑 + TTL 硬删除**：删除 Mutation 降级为 `set _deleted`——文档类型的 `lower()` 产出 `set(<实体路径>/_deleted, {at, by})`，逆操作由 Store 推导为 `delete(<实体路径>/_deleted)`；**实体键的 `delete` 只由服务端 TTL 硬删除（origin `system('maintenance')`）、文档擦除与经审计的「彻底删除元素」产生**（`StoreOp` 仍为 5 原语，不新增 op；ADR-0013 的 delete 语义随之改为「`_deleted` 标记 + TTL 硬删除 + 读路径过滤 + 不变量」）。（2026-09-25 修订，rulings §4.18 CO-05：以架构 04 §3.1a、40-modules/02 §2.1 与 40-modules/03 为准；原：「`delete` 在 store 层落为 `_deleted` 标记」，可读作 `lower()` 仍产出实体键 `delete`、由 Provider 解释为墓碑，作废。）读路径、渲染、导出、不变量一律过滤墓碑；**id 稳定**，恢复 = 清除墓碑（仅限删除方撤销自己的删除或显式「恢复元素」命令，见第 2 条 D4 子项）。服务端单写者在 **TTL（默认 24 h，可配置）** 到期后硬删除（server-collab 墓碑硬删除作业）。
    - 墓碑在 TTL 内计入 Q5 文档总元素上限与 Y 状态体积；TTL 内被删内容仍会同步给后加入者（含查看者），相关访问写审计。
-   - **文档擦除（S-2 purge）与「立即彻底删除」不等 TTL**，直接硬删除。
+   - **文档擦除（S-2 purge，文档级操作改称「永久删除文档」）与「彻底删除元素」不等 TTL**，直接硬删除。「彻底删除元素」（2026-09-25 修订，rulings §4.18 CO-07）只对**已是墓碑**的元素开放、只能由 owner 经审计 REST（`POST /documents/:id/elements/purge{ids}`）发起，由 M-09 单写者复用墓碑硬删除事务立即执行，写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表仍按保留期存在（界面明示「历史版本仍含该内容，要连历史清除请永久删除文档」）；删除方此后撤销该步按整步跳过（`wholeStep:true`，与 TTL 到期同一路径）。（原：「文档擦除（S-2 purge）与『立即彻底删除』不等 TTL」，同一术语混指文档级与元素级，且元素级可从存活态直接硬删，作废。）
    - 设计 02/05「不复用原 id」与 PRD CO-08 的恢复措辞随之改写（由对应文档回写）。
 4. U-07 version-restore-undo 以本节为基线，**不采用** Loro 式 `revertTo`（它绕过 D4 的 Mutation 唯一入口）。
 5. S-3 溢写期的两级 ack 与 CRDT 选型无关，单列为 S-3a，见 ADR-0025。
+
+**图 1 撤销一步时的跳过判定**
+
+```mermaid
+flowchart TD
+  start["undo：取本地撤销栈顶的一步"] --> eachItem["逐项检查本步的变更"]
+  eachItem --> deletedByOther{"目标元素已被他人删除？墓碑 TTL 内亦然"}
+  deletedByOther -- "是" --> skipItem["跳过该项，不复活他人删除的元素"]
+  deletedByOther -- "否" --> keyOverwritten{"该键在自己之后被他人改写？"}
+  keyOverwritten -- "是" --> skipItem
+  keyOverwritten -- "否" --> revertItem["撤销该项"]
+  skipItem --> stepResult{"本步结果"}
+  revertItem --> stepResult
+  stepResult -- "无跳过" --> normal["正常撤销"]
+  stepResult -- "部分跳过" --> partial["其余变更照常撤销，提示「X 之后修改了此处，已跳过」，store/undo-skipped，wholeStep 为 false"]
+  stepResult -- "全部跳过" --> whole["丢弃该步并提示，不继续撤销更早一步，store/undo-skipped，wholeStep 为 true"]
+```
+
+怎么读：上半部是对每一项变更的判定，下半部是整步的结局。三种结局在 store-memory 与 store-yjs 上必须相同；`store/undo-skipped` 单独统计跳过次数与整步跳过次数，不计入软冲突率（D5）。被跳过的键如要找回，走「恢复我的值」或「恢复元素」这类新事务，不是撤销的延续。
+
+依据：本节第 1–2 条；`wholeStep` 取值见 40-modules/02 §2.5 用例 `remote-conflict-skip`、`undo-skip-no-cascade`。
+
+**图 2 实体的软删除墓碑生命周期**
+
+```mermaid
+stateDiagram-v2
+  state "存活" as Alive
+  state "墓碑：带 _deleted 标记" as Tombstone
+  state "已硬删除" as Purged
+  direction LR
+  [*] --> Alive
+  Alive --> Tombstone : 删除 Mutation 降级为 set _deleted
+  Tombstone --> Alive : 删除方撤销或「恢复元素」
+  Tombstone --> Purged : TTL 到期由服务端单写者硬删除，或 owner 经审计 REST 彻底删除元素
+  Purged --> [*]
+  note right of Tombstone
+    id 稳定，恢复即以原 id 清除墓碑
+    他人的撤销不能让它复活，D4
+    读路径、渲染、导出、不变量一律过滤
+    TTL 默认 24 h，可配置
+    TTL 内计入文档总元素上限与 Y 状态体积
+    彻底删除元素只从墓碑出发，只清当前状态
+  end note
+```
+
+怎么读：方框是一个有身份实体在 store 层的状态，箭头上写触发条件。只有「墓碑 → 存活」这一条能恢复实体，且只允许删除方撤销或显式「恢复元素」；进入「已硬删除」后不可恢复。进入「已硬删除」只能从墓碑出发，触发有两种：TTL 到期，或 owner 对墓碑态元素的「彻底删除元素」。S-2 文档擦除是整文档清除、不是单个实体的状态迁移，图中不画（2026-09-25 修订，rulings §4.18 CO-05/CO-07；原图有「存活 → 已硬删除：S-2 擦除或『立即彻底删除』」一条边，边标签「delete 落为 _deleted」，作废）。
 
 契约用例（`runDocumentStoreConformance` 协同分节，memory 与 yjs 必须同结果；**用例名以 40-modules/02 §2.5 为唯一事实源**，此处照抄，2026-09-24 复核修正）：`remote-conflict-skip`、`undo-skip-no-cascade`、`soft-delete-tombstone`（软删除后 id 稳定、删除方撤销即以原 id 恢复）、`delete-vs-edit-undo`（删除方撤销与他人「恢复元素」并发 → 仍只有一份、编辑不丢；他人撤销时目标已被删除 → 整步跳过、不复活，D4）、`read-path-filters-tombstone`。（原：`soft-delete-restore-same-id`、`delete-vs-edit-no-dup`、`tombstone-filtered-on-read`，作废。）
 
@@ -116,7 +162,8 @@ Yjs：纯 JS，`yjs + y-protocols` 经 esbuild minify 后 ≈ 30 KB gzip（2026-
 - collab-sim fuzz（11 §8）：随机移动/进出组/分段在乱序网络下收敛、无环、无重复。
 - 版本锁（2026-09-24）：`pnpm-lock.yaml` 中 `yjs` 为精确 13.6.x 版本，`package.json`/catalog 不得使用 dist-tag 或 `@y/y` 的 rc 标签（lockfile-guard 附加断言）。
 - 撤销语义（2026-09-24）：上节契约用例对 store-memory 与 store-yjs 都通过；fuzz 增加「删除 vs 编辑 × 删除方撤销」随机场景，断言零重复、零丢失；墓碑硬删除作业的集成测试断言 TTL 到期后 Y 状态中无残留实体、purge 路径不等 TTL。
+- （2026-09-25，rulings §4.18）`soft-delete-tombstone` 用例补断言「用户删除的降级结果中没有实体键的 `delete`」（CO-05）；「彻底删除元素」只接受墓碑态、限 owner，执行后删除方撤销该步得 `wholeStep:true`（CO-07，归入 40-modules/02 §2.5 用例 `undo-skip-no-cascade` 的「目标实体已被硬删除」分支）。
 
 ## 关联
 
-章程 D4/D5、§5.4、§10 Q3；`00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/S-3a；Univer K1、A13、A31；ADR-0013、0032、0025、0024、0033；架构 05 §6/§13.4、06 §8；PRD CO-07/08/09。
+章程 D4/D5、§5.4、§10 Q3；`00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/S-3a、§4.18 CO-05/CO-07；Univer K1、A13、A31；ADR-0013、0032、0025、0024、0033；架构 05 §6/§13.4、06 §8；PRD CO-07/08/09。

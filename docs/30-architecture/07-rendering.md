@@ -1,9 +1,9 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-18（§11 按 14 §1 C-12 改「三处 LRU」为「四处」）；2026-09-24（rulings §4.15：Q4 DOM/SVG 单实现、canvas 三角色、toImage 主线程 + Web 字体 M2 spike、推翻 offscreen-canvas Provider、§14.6 删「导出在 Worker」；Q7 图表按 D16 与五类、SmartArt dsp 只读渲染、OLE 预览、EMF/WMF M2 惰性栅格化、chartex 占位、外链资源自动加载可收紧、文档内 SVG 只作图像上下文；Q5 堆预算与 20,000 元素关系；Q8 缩略图 M2 包内封面 / M3 renderer sidecar）；2026-09-24（rulings §4.16 Q19：R3 服务端字体包结案）；2026-09-24（复核修正，rulings §4.17：M13 renderer 契约 `render/sidecar.ts`、客户端 `remote-renderer.client.ts`、配置 `headless.mode/endpoint` 以 ADR-0037 为准；L11 服务端缩略图描述改 640 px WebP） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-18（§11 按 14 §1 C-12 改「三处 LRU」为「四处」）；2026-09-24（rulings §4.15：Q4 DOM/SVG 单实现、canvas 三角色、toImage 主线程 + Web 字体 M2 spike、推翻 offscreen-canvas Provider、§14.6 删「导出在 Worker」；Q7 图表按 D16 与五类、SmartArt dsp 只读渲染、OLE 预览、EMF/WMF M2 惰性栅格化、chartex 占位、外链资源自动加载可收紧、文档内 SVG 只作图像上下文；Q5 堆预算与 20,000 元素关系；Q8 缩略图 M2 包内封面 / M3 renderer sidecar）；2026-09-24（rulings §4.16 Q19：R3 服务端字体包结案）；2026-09-24（复核修正，rulings §4.17：M13 renderer 契约 `render/sidecar.ts`、客户端 `remote-renderer.client.ts`、配置 `headless.mode/endpoint` 以 ADR-0037 为准；L11 服务端缩略图描述改 640 px WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：CO-19 §0–§5、§7 统一换用 v0.2 契约名（SceneProvider / Scene / DirtySet / ElementRenderer.render·update(handle, node) / TextMeasurer，Provider `canvas`/`node-font`/`fixed`）；CO-01/CO-02 DX-1000 回退顺序与 200 ms 只作内部分解目标（§1）；FE-18 render-dom 不依赖 design（§0、§3.2）；GV-20 契约套件名（§2.4、§4.3、§5.4）；GV-21 章程锚点层带写法；CO-12/CO-11 打开管线首批装载后台追加、`unit/loaded`、`prioritize` 消息（§14.2）；FE-09 `/render` ready 判据（§10）；BE-04 renderer 注入单一路径） | 依赖：charter v0.1
 
 # 07 渲染（Rendering）：DOM/SVG 管线、贡献点运行时、布局引擎、脏区、命中测试、文本编辑宿主、缩略图、性能预算、服务端 headless
 
 > 读者：实现 `@cordexjs/engine-layout`、`@cordexjs/engine-render`、`@cordexjs/render-dom`、`@cordexjs/slide-render`、`@cordexjs/server-headless`（缩略图部分）的工程师。
-> 章程锚点：§2.3（不做 Canvas 优先）、§5.2 L5/L6 包边界、§6.2 ADR-0021、§10 Q4/Q8、Univer A1/A4/A5（引擎对文档类型盲）、A28（脏区必须被消费）、A29（缓存淘汰必须接线）、A30（渲染热路径无拦截链）、A32（无第二份编辑缓冲）、A11（逐元素错误隔离）。
+> 章程锚点：§2.3（不做 Canvas 优先）、§5.2 L5/V-render 包边界、§6.2 ADR-0021、§10 Q4/Q8、Univer A1/A4/A5（引擎对文档类型盲）、A28（脏区必须被消费）、A29（缓存淘汰必须接线）、A30（渲染热路径无拦截链）、A32（无第二份编辑缓冲）、A11（逐元素错误隔离）。
 > 相关 ADR：0021（渲染介质）、0026（headless 渲染与缩略图）、0027（文本度量策略）、0028（文本编辑宿主）。
 > 样式继承链解析（Element→Placeholder→Layout→Master→Theme）是 model-slide 的纯函数，见架构 04；本文只定义渲染层如何**缓存与失效**它的结果。
 
@@ -11,30 +11,68 @@
 
 ## 0. 一页总览
 
+**渲染一页总览**
+
+```mermaid
+flowchart TB
+  observeIn["store.observe：ChangeSet.paths"]
+  viewIn["viewport / selection / presence 变化"]
+  subgraph engineRender["engine-render：iso，对幻灯片无知"]
+    dirty["脏集合并：SceneProvider.diff 产出 DirtySet{nodeIds, full, changed?}，FrameScheduler 合并"]
+    scheduler["FrameScheduler：rAF / 宏任务合并 → 一帧一次 flush，帧预算 8 ms 脚本"]
+    styleCache["StyleCache：Scene 节点 → 已解析样式，反向依赖索引驱动失效，LRU 淘汰"]
+    viewport["Viewport：缩放 / 滚动 / 可见页集合，虚拟化"]
+    hit["HitTester：bail 事件链，覆盖层优先 → 几何命中，纯函数"]
+    points["贡献点：render.scene 即 SceneProvider、render.target 即 RenderTarget、render.element 即 ElementRenderer、render.overlay"]
+  end
+  subgraph renderDom["render-dom：dom"]
+    domTarget["DomRenderTarget：mount 得 TargetHandle，内部实现 PageView / LayerHandle"]
+    svgApi["SVG 图元 API：path / fill / stroke / clip / text"]
+    overlay["OverlayLayer：选中框 / 手柄 / 远端光标 / 评论钉"]
+    textHost["TextInputHost：隐藏 textarea + IME + 自绘光标"]
+    fontMedia["FontFaceLoader、MediaCache：LRU，Blob URL"]
+  end
+  subgraph slideRender["slide-render：dom，垂直束"]
+    compose["SceneProvider slide：composeSlide 见 04 → Scene，master / layout 模板层缓存"]
+    elements["ElementRenderer：sp / pic / grpSp / cxnSp / graphicFrame"]
+    thumbs["缩略图 Provider：dom-scaled / raster / server-png"]
+    show["放映模式"]
+  end
+  engineLayout["engine-layout：iso，文本度量与断行，TextMeasurer 可插拔，prstGeom → path，单位换算，字体回退表"]
+  observeIn --> engineRender
+  viewIn --> engineRender
+  engineRender -- "查表 targetId:kind → ElementRenderer" --> renderDom
+  engineRender -- "查表 targetId:kind → ElementRenderer" --> slideRender
+  engineLayout --> renderDom
 ```
- store.observe(ChangeSet.paths)                                   viewport / selection / presence 变化
-        │                                                                     │
-        ▼                                                                     ▼
- ┌─────────────────────── engine-render（iso，对幻灯片无知） ─────────────────────────────┐
- │ DirtyTracker ── paths → DirtyRegion{unitId, pageId, elementIds|'page'|'all', reason} │
- │ FrameScheduler ── rAF/宏任务合并 → 一帧一次 flush（帧预算 8 ms 脚本）                  │
- │ StyleCache ── (pageId, elementId) → 已解析样式，反向依赖索引驱动失效，LRU 淘汰       │
- │ Viewport ── 缩放/滚动/可见页集合（虚拟化）                                            │
- │ HitTester ── bail 事件链（覆盖层优先）→ 几何命中（纯函数）                             │
- │ 贡献点 render.target（RenderTarget）· render.element（ElementRenderer）· render.overlay │
- └───────────────────────────────────────────────────────────────────────────────────────┘
-        │ 查表（kind, target）→ ElementRenderer                          │
-        ▼                                                                 ▼
- ┌── render-dom（dom）───────────────────────┐    ┌── slide-render（dom，垂直束）────────────────────┐
- │ DomRenderTarget：Surface/Layer/PageView    │    │ 页合成：composeSlide()（04）→ master/layout 层缓存 │
- │ SVG 图元 API（path/fill/stroke/clip/text）  │    │ ElementRenderer：sp/pic/grpSp/cxnSp/graphicFrame  │
- │ OverlayLayer：选中框/手柄/远端光标/评论钉    │    │ 缩略图 Provider：dom-scaled / raster / server-png  │
- │ TextInputHost：隐藏 textarea + IME + 自绘光标│    │ 放映模式                                          │
- │ FontFaceLoader、MediaCache(LRU, Blob URL)   │    │                                                   │
- └───────────────────────────────────────────┘    └───────────────────────────────────────────────────┘
-        ▲
- engine-layout（iso）：文本度量与断行（Measurer 可插拔）、prstGeom→path、单位换算、字体回退表
+
+怎么读：上方两个输入驱动 engine-render；engine-render 只持有契约、调度、缓存与命中，按 `${targetId}:${kind}` 查表把绘制交给 render-dom（输出介质）与 slide-render（幻灯片垂直束）；engine-layout 为 render-dom 提供度量与几何。本文 §0–§7 使用 v0.2 契约名（§14.1 对照表保留旧名到新名的映射，rulings §4.18 CO-19）。
+
+**渲染相关包依赖**
+
+```mermaid
+flowchart TB
+  slideRender["@cordexjs/slide-render：dom，垂直束"]
+  renderDom["@cordexjs/render-dom：dom"]
+  engineRender["@cordexjs/engine-render：iso"]
+  engineLayout["@cordexjs/engine-layout：iso"]
+  modelSlide["@cordexjs/model-slide"]
+  ooxmlCore["@cordexjs/ooxml-core"]
+  kernel["@cordexjs/kernel"]
+  shared["@cordexjs/shared"]
+  serverHeadless["@cordexjs/server-headless：LS，node"]
+  slideRender --> modelSlide & engineRender & renderDom & engineLayout
+  slideRender -- "仅用于只读解析 chartml 与 diagram drawing" --> ooxmlCore
+  renderDom --> engineRender & engineLayout
+  engineRender --> kernel & engineLayout & shared
+  engineLayout --> shared
+  serverHeadless -- "允许：iso 契约" --> engineLayout
+  serverHeadless -- "允许：iso 契约" --> engineRender
+  serverHeadless -. "禁止 import" .-> renderDom
 ```
+
+怎么读：实线是 `package.json` 声明或 §14.5 允许的依赖，全部指向秩不高于自身的包，且 iso 包从不指向 dom 包；虚线是分层规则明确禁止的依赖（node 包不得 import dom 包）。M3 起图表渲染从 slide-render 拆为 `@cordexjs/slide-render-chart`（§13 S6），图中未单列。render-dom 不依赖 `@cordexjs/design`（章程秩表：L5 不得依赖 L7；§3.2 已按此改，覆盖层主题色直接写 CSS 变量名字符串）。
+依据：本文 §2.4、§3.2、§4.3、§5.4、§14.5。
 
 ---
 
@@ -43,10 +81,27 @@
 - **DOM/SVG 单实现**（rulings §4.15 Q4，ADR-0021 已接受）：主画布 = SVG（图形）+ 自绘文本行（SVG `<text>`），容器为 HTML。编辑、查看、放映、可见缩略图、服务端缩略图与 PDF **共用同一套 SVG 渲染**，不存在第二套渲染实现。选 SVG 而非 Canvas：任意缩放清晰、DOM 可检查/可测试（Playwright 断言节点属性）、a11y 有挂点、插件贡献一个 kind 的渲染器只需产出 SVG 节点、无自绘命中/无重绘管理负担。
 - **canvas 只承担三个角色**：① `toImage` 的栅格化画板（主线程：游离 DOM → SVG 序列化 → `Image` → `<canvas>`，§8）；② `measureText` 度量器（`measurer-canvas.ts`，§5）；③ 为 `render.target` 预留的 `RenderTarget` 座位（`id:'canvas'`，当前无 Provider）。「缩略图/放映走 canvas」的旧口径删除；14 §5.4 对 offscreen-canvas Provider 的采纳被推翻。
 - **可替换性验证**：M3 末用一个最小 canvas Provider（只画矩形/图片/单行文本）跑 `runRenderTargetConformance`，证明 `render.target` 契约不含 DOM 偏置；它不进入产品。
-- **DX-1000 回退规则**：单页 1,000 元素（DX-1000）若不达标，先做合成层优化（`content-visibility`、静态层栅格缓存、减少 `<tspan>`），仍不达标才**仅在查看/放映**启用 canvas Provider；编辑态始终 DOM/SVG。首帧预算以 ADR-0021「≤ 200 ms」为元素级口径，DX-1000 以「首页可见 ≤ 2.5 s」为文稿级口径。
+- **DX-1000 回退规则**（按序执行，依据 ADR-0021 修订 2，rulings §4.18 CO-01）：单页 1,000 元素（DX-1000）若不达标，① 先做合成层优化（独立合成层、`content-visibility`、减少滤镜与 `<tspan>`）；② 仍不达标，再做静态层栅格化（SVG/DOM 路线内的最后手段：会碰上 Web 字体问题并破坏一元素一 DOM 节点）；③ 仍不达标才**仅在查看/放映**启用 canvas Provider；编辑态始终 DOM/SVG。**对外门禁只有 DX-1000**：首页可见 ≤ 2.5 s、交互 ≥ 30 fps；原「≤ 200 ms」只是引擎内部的分解目标（场景构建 + 首次挂载），不作门禁（ADR-0021 修订 1，rulings §4.18 CO-02）。
 - **文档内 SVG 只以图像上下文渲染**：`asvg:svgBlip`、SVG 媒体一律经 `<image href=blob:…>` 渲染（浏览器在图像上下文中不执行脚本、不加载外部资源）；禁止以 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 把文档内容注入 DOM（09-08 TD-081）。
 - **单位**：模型是 `Emu`；SVG 用户单位 = **px@96dpi**（1 px = 9525 EMU），`viewBox = 0 0 W H`（如 960×540），缩放用容器 `transform: scale(z)`，保持 SVG 内数值量级稳定（避免 EMU 级大数导致的精度/抗锯齿问题）。字号 `sz`（百分点）→ px = sz/100 × 96/72。
-- **层叠**：每个 `PageView` 三层容器：`master-layer` / `layout-layer` / `slide-layer`（各一 `<svg>`），上面再叠 `overlay-layer`（`<svg>` + 少量 HTML）与 `text-input-host`（隐藏）。母版/版式层对同版式的多个页共享 DOM 模板（`cloneNode(true)`）。
+- **层叠**：每个 `PageView`（render-dom 的内部实现名；对外契约是 `RenderTarget.mount()` 返回的 `TargetHandle`，§2.1）三层容器：`master-layer` / `layout-layer` / `slide-layer`（各一 `<svg>`），上面再叠 `overlay-layer`（`<svg>` + 少量 HTML）与 `text-input-host`（隐藏）。母版/版式层对同版式的多个页共享 DOM 模板（`cloneNode(true)`）。
+
+**PageView 的 DOM 分层**
+
+```mermaid
+flowchart TB
+  surface[".cordex-surface：宿主元素内的 Surface"] --> page[".cordex-page：带 data-page-id，一个 PageView"]
+  page --> master["svg.master：master-layer"]
+  page --> layout["svg.layout：layout-layer"]
+  page --> slide["svg.page：slide-layer"]
+  page --> overlayLayer["svg.overlay：overlay-layer，svg + 少量 HTML"]
+  page --> textHost["div.text-host：text-input-host，隐藏"]
+  template["母版 / 版式 DOM 模板：同版式多页共享"] -. "cloneNode true" .-> master
+  template -. "cloneNode true" .-> layout
+```
+
+怎么读：实线是 DOM 父子关系，五个子层按 master、layout、page、overlay、text-host 的顺序由底到顶叠放；虚线表示母版层与版式层由共享模板克隆而来，不逐页重渲。
+依据：本文 §1 层叠、§3.1 职责。
 
 ---
 
@@ -55,66 +110,95 @@
 ### 2.1 贡献点（草案；ContributionPoint 机制见架构 03）
 
 ```ts
-// render.target —— 输出介质
+// 签名以 02 §4.13–4.16 与 40-modules/06 §2.5 为准（rulings §4.18 CO-19）；本块只作管线说明
+// render.scene —— 文档类型把模型合成为 Scene（key = documentType；引擎对「幻灯片」无知，A5）
+interface SceneProvider {
+  readonly documentType: string
+  build(unitScope: UnitScopeHandle, view: ViewDescriptor): Scene
+  diff(changeSet: ChangeSetLike, prev: Scene): DirtySet               // 路径归类是垂直束的知识
+}
+interface Scene { id: string; size: { w: Emu; h: Emu }; nodes: SceneNode[]; background?: SceneNode }
+interface SceneNode { id: NodeId; kind: string; bbox: Rect; transform: Transform; zIndex: number; children?: SceneNode[]; data: unknown; revision: number }
+interface DirtySet { nodeIds: ReadonlySet<NodeId>; full: boolean; changed?: ReadonlyMap<NodeId, PathKey[]> }   // 必须被 paint 消费（A28）
+// render.target —— 输出介质（key = id）
 interface RenderTarget {
-  id: 'dom' | 'canvas' | string
-  createSurface(host: unknown, opts: SurfaceOptions): Surface        // dom: host 为 HTMLElement（唯一实现）；'canvas' 为预留座位，M3 末仅以最小 Provider 验证契约（§1）
-}
-interface Surface {
-  mountPage(pageId: PageId, layers: readonly LayerSpec[]): PageView
-  unmountPage(pageId: PageId): void
-  readonly pages: ReadonlyMap<PageId, PageView>
+  readonly id: string                                                  // 'dom'（唯一实现）| 'canvas'（预留座位，M3 末仅以最小 Provider 验证契约，§1）
+  mount(container: unknown, opts?: MountOptions): TargetHandle         // 每个已挂载页一个句柄；PageView/LayerHandle 是 render-dom 内部实现名
+  paint(scene: Scene, dirty: DirtySet): void
+  hitTest(point: Point): HitResult | null
+  toImage?(scene: Scene, opts: ToImageOptions): Promise<Blob | Uint8Array>   // 只在主线程（§8）
   dispose(): void
 }
-interface PageView {
-  layer(id: LayerId): LayerHandle                                    // 'master' | 'layout' | 'page' | 'overlay'
-  setTransform(scale: number, offset: Point): void
-  setSize(size: Size): void
-}
-// render.element —— 按 kind 注册的元素渲染器；引擎对 kind 无知（A5）
-interface ElementRenderer<TModel = unknown, TStyle = unknown> {
-  kind: string                                                        // 'sp' | 'pic' | … | 第三方
-  target: RenderTarget['id']
-  mount(ctx: ElementRenderContext<TStyle>, model: TModel, layer: LayerHandle): ElementInstance<TModel>
-}
-interface ElementInstance<TModel> {
-  update(model: TModel, changed: ReadonlySet<PathKey>, style: unknown): void   // 只收到该元素的脏路径（A28）
-  hitTest?(point: Point): boolean                                              // 可选的精确命中（否则用几何盒）
-  dispose(): void
+interface TargetHandle { readonly pageId: NodeId; setTransform(zoom: number, pan: Point): void; setSize(size: Size): void; dispose(): void }
+// render.element —— 按 `${targetId}:${kind}` 注册的元素渲染器；无状态查表项
+interface ElementRenderer<TData = unknown> {
+  readonly targetId: string
+  readonly kind: string                                                // 'sp' | 'pic' | … | 第三方
+  render(node: SceneNode & { data: TData }, ctx: RenderContext): ElementHandle
+  update(handle: ElementHandle, node: SceneNode & { data: TData }): void   // 只对 DirtySet 中的节点调用（A28）
+  dispose(handle: ElementHandle): void
 }
 // render.overlay —— 覆盖层贡献（选中框、手柄、远端光标、评论钉、参考线）
-interface OverlayRenderer { id: string; zIndex: number; mount(ctx: OverlayContext, layer: LayerHandle): OverlayInstance }
+interface OverlayRenderer { readonly id: string; readonly zIndex: number; mount(ctx: OverlayContext, target: TargetHandle): OverlayInstance }
 ```
 
-- 渲染器选择 = `Map<`${kind}/${target}`, ElementRenderer>` **查表**，无链式拦截（A30）。找不到渲染器 → `kind:'unknown'` 的占位渲染器（虚线框 + kind 文本），并 `errors.report('render.renderer_missing')` 一次/kind。
-- 每个元素 `mount/update` 包在 try/catch：异常 → 该元素替换为错误占位符（红色虚线框），`errors.report('render.element_failed', {kind, elementId})`，**不**影响同页其他元素（A11；借鉴 pptx-renderer 的逐节点隔离）。
+- 渲染器选择 = `Map<`${targetId}:${kind}`, ElementRenderer>` **查表**，无链式拦截（A30）。找不到渲染器 → `kind:'unknown'` 的占位渲染器（虚线框 + kind 文本），并 `errors.report('render.renderer_missing')` 一次/kind。
+- 每个节点的 `render/update` 包在 try/catch：异常 → 该元素替换为错误占位符（红色虚线框），`errors.report('render.element_failed', {kind, elementId})`，**不**影响同页其他元素（A11；借鉴 pptx-renderer 的逐节点隔离）。
+
+**元素渲染器查表与错误隔离**
+
+```mermaid
+flowchart LR
+  node["待渲染节点：SceneNode.kind"] --> lookup{"查表 Map：targetId:kind → ElementRenderer"}
+  lookup -- "命中" --> mount["render 或 update，包在 try/catch 内"]
+  lookup -- "未命中" --> unknown["kind:'unknown' 占位渲染器：虚线框 + kind 文本"]
+  unknown --> reportMissing["errors.report render.renderer_missing，每个 kind 一次"]
+  mount -- "正常" --> done["该元素完成"]
+  mount -- "抛错" --> errPlaceholder["替换为错误占位符：红色虚线框"]
+  errPlaceholder --> reportFailed["errors.report render.element_failed，携带 kind、elementId"]
+  errPlaceholder -. "不影响" .-> siblings["同页其他元素照常渲染"]
+```
+
+怎么读：选择渲染器是一次查表而非拦截链（A30）；两条失败路径都只替换当前元素并上报一次错误码，虚线强调同页其他元素不受影响（A11）。
 
 ### 2.2 帧管线
 
-```
-ChangeSet.paths ──► DirtyTracker.mark(paths)          路径前缀 → DirtyRegion 归类：
-                     │                                  slides/<S>/shapes/<E>/… → {page S, element E}
-                     │                                  slides/<S>/(layoutId|background|order) → {page S, 'page'}
-                     │                                  layouts/<L>/… → 所有 layoutId=L 的已挂载页（反向索引）
-                     │                                  masters/<M>|themes/<T>/… → 所有相关页（反向索引）
-                     ▼
-              FrameScheduler.request()                 合并到下一帧（requestAnimationFrame；Node 下 setImmediate）
-                     ▼ flush()
-              for page in Viewport.visible ∩ dirty:     不可见页只记脏、不渲染（虚拟化）
-                 StyleCache.invalidate(region)          反向依赖索引 → 精确失效
-                 PageRenderer.render(page, region)      垂直束提供（slide-render）：合成 → 逐元素 mount/update/dispose
-              Thumbnails.notify(dirtyPages)             缩略图 Provider 自己去抖
-              telemetry.span('render.frame', {pages, elements, ms})
+**帧管线：路径归类**
+
+```mermaid
+flowchart LR
+  paths["ChangeSet.touched"] --> mark["SceneProvider.diff：路径前缀 → DirtySet 归类，垂直束实现"]
+  mark -- "slides/S/shapes/E/…" --> r1["页 S 的 Scene：nodeIds 含 E"]
+  mark -- "slides/S/ 下的 layoutId、background、order" --> r2["页 S 的 Scene：full"]
+  mark -- "layouts/L/…" --> r3["所有 layoutId=L 的已挂载页，经反向索引"]
+  mark -- "masters/M/… 或 themes/T/…" --> r4["所有相关页，经反向索引"]
 ```
 
+怎么读：边上的文字是路径前缀（S、E、L、M、T 分别代表页、元素、版式、母版、主题 id），箭头指向归类出的 `DirtySet`；归类规则由 slide-render 的 `SceneProvider.diff` 提供，engine-render 不识别 `slides`。
+
+**帧管线：一帧的执行顺序**
+
+```mermaid
+flowchart TB
+  mark["invalidate DirtySet：来自 SceneProvider.diff"] --> request["FrameScheduler.request：mergeDirtySet 合并到下一帧，requestAnimationFrame，Node 下 setImmediate"]
+  request -- "flush" --> loop{"for page in Viewport.visible ∩ dirty"}
+  loop -- "不可见页" --> skip["只记脏、不渲染：虚拟化"]
+  loop -- "可见且脏的页" --> invalidate["StyleCache.invalidate dirty：反向依赖索引 → 精确失效"]
+  invalidate --> pageRender["RenderTarget.paint scene, dirty：逐节点 ElementRenderer.render / update / dispose"]
+  pageRender -- "本帧所有页处理完后" --> notify["Thumbnails.notify dirtyPages：缩略图 Provider 自己去抖"]
+  notify --> span["telemetry.span render.frame：pages、elements、ms"]
+```
+
+怎么读：自上而下是一次 flush 内的步骤；菱形按可见性分流，只有可见且脏的页进入失效与渲染，不可见页的脏标记保留到下次可见（§2.3）。
+
 - **帧预算**：脚本 ≤ 8 ms/帧（留给浏览器样式/布局/绘制 ≥ 8 ms）；超过预算时 `FrameScheduler` 把剩余脏页顺延到下一帧（时间切片，按可见性优先级），不会掉帧到 < 30 fps。
-- **A28 反制测试**（`engine-render/__tests__/dirty-consumed.test.ts`）：用 spy 渲染器挂 100 个元素，改 1 个元素的 1 个属性，断言 `update` 恰被调用 1 次且 `changed` 集合等于该路径；改 `layoutId` 断言 `page` 级重合成但已有元素实例被**复用**（`mount` 不再调用）。
+- **A28 反制测试**（`engine-render/__tests__/dirty-consumed.test.ts`）：用 spy 渲染器挂 100 个元素，改 1 个元素的 1 个属性，断言 `update` 恰被调用 1 次且 `DirtySet.changed` 中该节点的路径等于该路径；改 `layoutId` 断言整页（`full`）重合成但已有元素句柄被**复用**（`render` 不再调用，只调 `update`）。
 - **A29 反制测试**：`StyleCache` 上限 = 已挂载页的元素数 × 2，塞入 3× 后断言 `evicted` 计数 > 0 且命中率统计可读；`MediaCache` 同理（按字节 LRU，默认 256 MiB）。
 
 ### 2.3 Viewport 与虚拟化
 
 - `Viewport`（UnitScope 服务 `render` 的一部分）：`zoom`、`scroll`、`mode: 'single' | 'continuous' | 'grid' | 'show'`、`visiblePages()`（含 overscan 1 页）。
-- 只对可见页 `mountPage`；离开视口 + 超时 5 s → `unmountPage`（DOM 释放，元素实例 dispose），其 dirty 记录保留为 `'all'`，下次可见时全量重建。
+- 只对可见页 `RenderTarget.mount`（得到该页的 `TargetHandle`）；离开视口 + 超时 5 s → `TargetHandle.dispose()`（DOM 释放，元素句柄 dispose），其脏记录保留为 `full`，下次可见时全量重建。
 - 单页编辑模式下同时挂载的页 ≤ 3（当前 ± 1）；连续滚动模式 ≤ 6。缩略图侧栏的可见项 ≤ 12（见 §8）。
 
 ### 2.4 目录结构（`packages/engine-render/`）
@@ -127,30 +211,31 @@ packages/engine-render/
 │   ├── plugin.ts                     name='engine-render'；provide=['render']（UnitScope）；注册贡献点定义；Config
 │   ├── manifest.ts
 │   ├── config.ts                     zod：{ frameBudgetMs: 8, overscanPages: 1, unmountDelayMs: 5000, styleCache: { maxEntriesFactor: 2 }, mediaCache: { maxBytes: 256 MiB } }
-│   ├── render.contribution.ts        defineContributionPoint：render.target / render.element / render.overlay；Context { render: RenderService }；Events：render/frame（进程内消费；遥测事件 perf/frame 由其派生）、render/element-failed、render/page-mounted|unmounted
+│   ├── render.contribution.ts        defineContributionPoint：render.scene / render.target / render.element / render.overlay；Context { render: RenderService }；Events：render/frame（进程内消费；遥测事件 perf/frame 由其派生）、render/element-failed、render/page-mounted|unmounted
 │   ├── contracts/
-│   │   ├── render-target.ts          RenderTarget/Surface/PageView/LayerHandle/LayerSpec
-│   │   ├── element-renderer.ts       ElementRenderer/ElementInstance/ElementRenderContext（含 style、layout 服务、media 解析器、errors）
+│   │   ├── scene.ts                  Scene/SceneNode/Transform
+│   │   ├── scene-provider.ts         SceneProvider Definition { documentType; build(unitScope, view) → Scene; diff(changeSet, prev) → DirtySet }：垂直束实现「一页如何由模型合成为 Scene」
+│   │   ├── render-target.ts          RenderTarget/TargetHandle（PageView/LayerHandle 只是 render-dom 内部实现名，不进契约）
+│   │   ├── element-renderer.ts       ElementRenderer<TData>/ElementHandle/RenderContext（layout 服务、media 解析器、onError）
 │   │   ├── overlay.ts                OverlayRenderer/OverlayInstance/OverlayContext（selection、presence、viewport 只读句柄）
-│   │   ├── page-renderer.ts          PageRenderer Definition：垂直束实现「一页如何由模型合成为元素列表并驱动渲染器」
 │   │   ├── hit-test.ts               HitTester 契约；'render/hit-test' bail 事件签名
-│   │   └── dirty.ts                  DirtyRegion/PathKey/归类规则接口（归类规则由垂直束通过 PageRenderer.classify(paths) 提供，引擎不识别 'slides'）
+│   │   └── dirty-set.ts              DirtySet/PathKey + 纯函数 mergeDirtySet（归类规则由垂直束的 SceneProvider.diff 提供，引擎不识别 'slides'）
 │   ├── services/
-│   │   └── render.service.ts         RenderService（name 'render'）：attach(surface) / viewport / scheduler / caches / stats；组合下列模块
+│   │   └── render.service.ts         RenderService（name 'render'）：attach(target) / invalidate(dirty) / viewport / scheduler / caches / stats；组合下列模块
 │   ├── scheduler/
 │   │   ├── frame-scheduler.ts        请求合并、时间切片、优先级（可见 > 近邻 > 其他）；Scheduler 抽象（rAF | setImmediate | 手动步进用于测试）
-│   │   └── dirty-tracker.ts          路径 → DirtyRegion；页/元素级去重；反向索引（layout/master/theme → pages）由 PageRenderer.dependencies() 提供
+│   │   └── dirty-merge.ts            DirtySet 合并与页级去重；反向依赖（layout/master/theme → pages）由 SceneProvider.diff 在垂直束内计算
 │   ├── cache/
-│   │   ├── style-cache.ts            (pageId, elementId) → ResolvedStyle；依赖键集合；invalidateByPath；LRU；统计（hits/misses/evicted）
+│   │   ├── style-cache.ts            (pageId, nodeId) → ResolvedStyle；依赖键集合；invalidate(DirtySet)；LRU；统计（hits/misses/evicted）
 │   │   ├── media-cache.ts            sha256 → 已解码资源句柄（Blob URL 或 ImageBitmap 由 target 决定）；字节 LRU；引用计数与 revoke 钩子
 │   │   └── lru.ts                    通用 LRU（带 onEvict 回调，测试可断言调用）
 │   ├── viewport/
 │   │   └── viewport.ts               zoom/scroll/mode/visiblePages；fit-to-width/height 计算；变化事件
 │   ├── hit-test/
-│   │   ├── hit-tester.ts             bail 链（overlay 优先）→ 几何命中：逆变换 → 包围盒 → 可选 instance.hitTest（精确路径）
+│   │   ├── hit-tester.ts             bail 链（overlay 优先）→ RenderTarget.hitTest（dom：elementFromPoint）→ 几何回退：逆变换 → 包围盒 → 精确路径采样
 │   │   └── geometry.ts               旋转/翻转矩阵、包围盒、点-多边形（Path 采样）纯函数
 │   ├── registry/
-│   │   └── renderer-table.ts         贡献点 → `${kind}/${target}` 查表；unknown 占位；contribution/changed 时重建表（effect 拥有）
+│   │   └── renderer-table.ts         贡献点 → `${targetId}:${kind}` 查表；unknown 占位；contribution/changed 时重建表（effect 拥有）
 │   ├── errors.ts                     render.renderer_missing / render.element_failed / render.target_missing / render.frame_overrun
 │   └── __tests__/
 │       ├── dirty-consumed.test.ts    A28 反制
@@ -160,7 +245,8 @@ packages/engine-render/
 │       ├── error-isolation.test.ts   抛错渲染器 → 占位符，其余元素正常（A11）
 │       └── lifecycle.test.ts         attach/detach 后无 effect；多 Unit 各自 render 服务
 └── testing/
-    └── index.ts                      `@cordexjs/engine-render/testing`：ManualScheduler、SpyRenderer(kind)、FakeSurface（记录 DOM 操作而不需要 DOM）、runRenderTargetConformance(factory)、runElementRendererConformance(renderer, fixtures)
+    └── index.ts                      `@cordexjs/engine-render/testing`：ManualScheduler、SpyRenderer(kind)、RecordingTarget（记录 paint/render/update 调用而不需要 DOM）、runRenderTargetConformance(factory)
+                                      （不设 ElementRenderer 契约套件，暂不落地，40-modules/06 G-8；实现方用 SpyRenderer/RecordingTarget 自测）
 ```
 
 ---
@@ -169,7 +255,7 @@ packages/engine-render/
 
 ### 3.1 职责
 
-- HTML/SVG 输出：`DomSurface` 在宿主元素内创建 `.cordex-surface > .cordex-page[data-page-id] > (svg.master, svg.layout, svg.page, svg.overlay, div.text-host)`。
+- HTML/SVG 输出：`DomRenderTarget.mount()` 在宿主元素内创建 `.cordex-surface > .cordex-page[data-page-id] > (svg.master, svg.layout, svg.page, svg.overlay, div.text-host)`，返回该页的 `TargetHandle`；`DomSurface`/`PageView`/`LayerHandle` 是本包内部实现名，不进 `render.target` 契约（§14.1）。
 - 图元 API（供垂直束渲染器使用，避免每个渲染器手写 DOM）：`svg.path()/rect()/image()/text()/group()/clipPath()/gradient()/pattern()`，返回带 `set(attrs)` 的薄句柄；属性 diff 由句柄做（只写变化的 attribute）。
 - `FontFaceLoader`：把 `engine-layout` 的字体请求（`FontRequest{family, weight, style}`）解析为 `FontFace` 加载（嵌入字体 `fntdata` 由 ooxml-pptx 反混淆后以 `BlobRef` 提供；宿主字体经配置 URL），`document.fonts.load` 完成后触发 `layout/fonts-ready(families)` → 相关文本元素标脏重排。
 - `MediaResolver`：`BlobRef` → `blob:` URL（`MediaCache` 持有，revoke 在淘汰/页卸载时；借鉴 pptx-renderer 的 Blob URL 生命周期）。
@@ -179,17 +265,18 @@ packages/engine-render/
 
 ```
 packages/render-dom/
-├── package.json                      deps: @cordexjs/engine-render @cordexjs/engine-layout @cordexjs/design(仅 CSS 变量名常量) ；dom
+├── package.json                      deps: @cordexjs/engine-render @cordexjs/engine-layout；dom（不依赖 @cordexjs/design：L5 不得依赖 L7，
+│                                     覆盖层主题色直接写 CSS 变量名字符串，rulings §4.18 FE-18）
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                     name='render-dom'；inject=['render','layout']；contribute render.target{ id:'dom' }；contribute render.overlay（selection/handles/remote-cursors）
 │   ├── manifest.ts
 │   ├── config.ts                     zod：{ pixelRatioCap: 3, textHost: { imeCandidateOffsetPx: 2 }, overlays: { remoteCursorFadeMs: 3000 } }
 │   ├── target/
-│   │   ├── dom-render-target.ts      RenderTarget Provider：createSurface
-│   │   ├── dom-surface.ts            Surface：页容器管理、ResizeObserver（effect 拥有）、DPR 变化监听
-│   │   ├── dom-page-view.ts          PageView：三层 svg + overlay + text-host；setTransform → CSS transform；模板层克隆
-│   │   └── layer-handle.ts           LayerHandle：z-order 插入（按 FracKey 比较后 insertBefore）、批量 DocumentFragment 提交
+│   │   ├── dom-render-target.ts      RenderTarget Provider（id 'dom'）：mount → TargetHandle、paint(scene, dirty)、hitTest（elementFromPoint → data-cordex-node）、toImage（主线程）
+│   │   ├── dom-surface.ts            内部实现：页容器管理、ResizeObserver（effect 拥有）、DPR 变化监听
+│   │   ├── dom-page-view.ts          内部实现 PageView（即 TargetHandle 的 dom 实现）：三层 svg + overlay + text-host；setTransform → CSS transform；模板层克隆
+│   │   └── layer-handle.ts           内部实现 LayerHandle：z-order 插入（按 FracKey 比较后 insertBefore）、批量 DocumentFragment 提交
 │   ├── primitives/
 │   │   ├── svg.ts                    图元句柄工厂（属性 diff、命名空间、`<defs>` 管理）
 │   │   ├── paint.ts                  fill/stroke → SVG 属性/`<linearGradient>`/`<pattern>`/`<image>` 平铺；混合模式与不透明度
@@ -197,7 +284,8 @@ packages/render-dom/
 │   │   └── clip.ts                   几何裁切、图片 srcRect 裁切
 │   ├── fonts/
 │   │   ├── font-face-loader.ts       FontFace 加载、去重、失败回退、fonts-ready 事件
-│   │   └── measurer-canvas.ts        engine-layout Measurer Provider：OffscreenCanvas.measureText（+ fontBoundingBox）缓存（ADR-0027）
+│   │   └── measurer-canvas.ts        TextMeasurer Provider（贡献 layout.measurer，id 'canvas'）：OffscreenCanvas.measureText（+ fontBoundingBox）缓存（ADR-0027）；
+│   │                                 __tests__ 实例化 runTextMeasurerConformance
 │   ├── media/
 │   │   └── media-resolver.ts         BlobRef → blob: URL；接入 engine-render MediaCache；`<image>` decode 事件
 │   ├── overlay/
@@ -223,12 +311,33 @@ packages/render-dom/
 
 ### 4.1 页合成（master → layout → slide）
 
-1. `composeSlide(store, slideId)`（model-slide 纯函数，架构 04）返回 `CompositeSlide { background, layers: { master: Element[], layout: Element[], slide: Element[] }, dependencies: { themeId, masterId, layoutId } }`：已按 `showMasterSp`、占位符覆盖规则（slide 有同 idx/type 占位符则隐藏 layout/master 的对应占位符）与 `(parentId, z)` 展开成绘制顺序。
-2. `SlidePageRenderer`（实现 engine-render 的 `PageRenderer`）：
-   - `master`/`layout` 层：以 `(layoutId, showMasterSp, themeVersion)` 为键缓存**渲染后的 DOM 模板**（`LayerTemplateCache`，LRU 32 项），新页挂载时 `cloneNode`；相关路径脏时失效并重渲一次、再广播给共享它的页。
-   - `slide` 层：按元素 id 做 keyed reconcile：新增 → `mount`；删除 → `dispose`；`z`/`parentId` 变化 → 只移动 DOM 节点；属性变化 → `update(changed)`。
-   - `background`：单独的 `<rect>` + paint，属于 `page` 级脏。
-3. `classify(paths)`：把 `StorePath` 归类为 DirtyRegion（这是垂直束的知识，engine-render 不认识 `slides`）。
+1. `SlideSceneProvider`（`slide-render/scene/slide-scene-provider.ts`，实现 engine-render 的 `SceneProvider('slide')`）的 `build(unitScope, view)` 调 model-slide 的合成纯函数 `composeSlide`（架构 04，输入 `slides.resolved.*` 与 `layout` 服务），产出一个 `Scene`：母版/版式/页三层 = 同一个 `Scene`，节点带 `data.layer` 标签；已按 `showMasterSp`、占位符覆盖规则（slide 有同 idx/type 占位符则隐藏 layout/master 的对应占位符）与 `(parentId, z)` 展开成绘制顺序；`dependencies`（themeId、masterId、layoutId）用于反向索引。
+2. 绘制由 dom target 的 `paint(scene, dirty)` 驱动：
+   - `master`/`layout` 层：以 `(layoutId, showMasterSp, themeVersion)` 为键缓存**渲染后的 DOM 模板**（`LayerTemplateCache`，LRU 32 项，dom target 内部优化），新页挂载时 `cloneNode`；相关路径脏时失效并重渲一次、再广播给共享它的页。
+   - `slide` 层：按节点 id 做 keyed reconcile：新增 → `ElementRenderer.render(node, ctx)`；删除 → `dispose(handle)`；`z`/`parentId` 变化 → 只移动 DOM 节点；属性变化 → `update(handle, node)`（`DirtySet.changed` 给出属性级精度）。
+   - `background`：`Scene.background` 节点，单独的 `<rect>` + paint，属于整页（`full`）脏。
+3. `diff(changeSet, prev)`：把 `ChangeSet.touched` 的 `StorePath` 归类为 `DirtySet`（这是垂直束的知识，engine-render 不认识 `slides`）。
+
+**页合成与三层渲染**
+
+```mermaid
+flowchart TB
+  compose["SlideSceneProvider.build：调 composeSlide，model-slide 纯函数"] --> composite["Scene：三层节点带 data.layer 标签，background 节点，dependencies 为 themeId / masterId / layoutId"]
+  composite --> rules["已按 showMasterSp、占位符覆盖规则与 parentId、z 展开成绘制顺序"]
+  rules --> renderer["dom RenderTarget.paint scene, dirty"]
+  renderer --> tplLayers["master / layout 层"]
+  renderer --> slideLayer["slide 层：按节点 id 做 keyed reconcile"]
+  renderer --> bg["background 节点：单独 rect + paint，整页脏"]
+  tplLayers --> tplCache["LayerTemplateCache：键为 layoutId、showMasterSp、themeVersion，LRU 32 项"]
+  tplCache --> clone["新页挂载时 cloneNode"]
+  tplCache --> invalidate["相关路径脏：失效并重渲一次，再广播给共享它的页"]
+  slideLayer --> added["新增 → ElementRenderer.render"]
+  slideLayer --> removed["删除 → dispose handle"]
+  slideLayer --> moved["z 或 parentId 变化 → 只移动 DOM 节点"]
+  slideLayer --> changed["属性变化 → update handle, node"]
+```
+
+怎么读：自上而下是一页从模型到 DOM 的合成路径；`Scene` 交给 dom target 的 `paint` 后分三路处理三类内容，模板层走缓存与克隆，slide 层走按 id 的最小化协调。
 
 ### 4.2 元素渲染器（`render.element` 贡献，target `dom`）
 
@@ -244,7 +353,7 @@ packages/render-dom/
 | `graphicFrame/ole` | 保留不编辑 | 显示 `Ole.preview`（`mc:Fallback` 中的 `p:pic`，由 ooxml-pptx 导入时提取）走 `pic` 路径；预览为 EMF/WMF 时同 `pic` 行；无预览时才占位 |
 | `unknown` | — | 由 engine-render 占位 |
 
-所有渲染器都是**无状态查表项**：每个元素实例只持有自己的 DOM 句柄与上次模型引用。
+所有渲染器都是**无状态查表项**：状态只在 `render()` 返回的 `ElementHandle` 里（DOM 句柄与上次节点 revision），渲染器对象本身不持有实例。
 
 ### 4.3 目录结构（`packages/slide-render/`）
 
@@ -253,12 +362,12 @@ packages/slide-render/
 ├── package.json                      deps: @cordexjs/model-slide @cordexjs/engine-render @cordexjs/render-dom @cordexjs/engine-layout @cordexjs/ooxml-core（仅用于只读解析 chartml 与 diagram drawing，rulings §4.15 Q7 修订 §4.11 C-28）；dom
 ├── src/
 │   ├── index.ts
-│   ├── plugin.ts                     name='slide-render'；inject=['render','layout','slides']；contribute render.element × N、PageRenderer、thumbnails Provider
+│   ├── plugin.ts                     name='slide-render'；inject=['render','layout','slides']；contribute render.element × N、render.scene（SceneProvider 'slide'）、thumbnails Provider
 │   ├── manifest.ts
 │   ├── config.ts                     zod：{ layerTemplateCache: 32, thumbnails: { provider: 'dom-scaled' | 'server-png'（M3 起列表封面/网格；raster 只用于单页导出）, width: 192, debounceMs: 300, maxMounted: 12 }, charts: { enabled: true } }
 │   ├── slide-render.contribution.ts  Context { thumbnails: ThumbnailService }（UnitScope）；Events：slide/thumbnail-updated、slide/show-changed
-│   ├── page/
-│   │   ├── slide-page-renderer.ts    PageRenderer 实现：合成、keyed reconcile、classify、dependencies
+│   ├── scene/
+│   │   ├── slide-scene-provider.ts   SceneProvider('slide') 实现：build（合成 → Scene）、diff（ChangeSet.touched → DirtySet，含反向依赖索引）
 │   │   ├── layer-template-cache.ts   master/layout 模板缓存（LRU + 失效 + 统计）
 │   │   └── background.ts            背景绘制
 │   ├── elements/
@@ -277,7 +386,7 @@ packages/slide-render/
 │   │       └── text-body.ts          txBody → engine-layout.layoutTextBody → text-lines；autofit 循环（normAutofit fontScale/lnSpcReduction）
 │   ├── thumbnails/
 │   │   ├── thumbnail.service.ts      ThumbnailService：get(slideId) → { url | element, version }；订阅 dirtyPages；去抖；Provider 选择
-│   │   ├── dom-scaled.provider.ts    可见缩略图 = 独立小 Surface 挂载页（复用模板层）+ CSS scale；≤ maxMounted，IntersectionObserver 驱动
+│   │   ├── dom-scaled.provider.ts    可见缩略图 = 独立的小 TargetHandle 挂载页（复用模板层）+ CSS scale；≤ maxMounted，IntersectionObserver 驱动
 │   │   ├── raster.provider.ts        主线程 toImage 栅格化（游离 DOM → SVG 序列化 → Image → canvas）；Web 字体可用性待 M2 spike，结论前不用于封面与批量 PNG（替代原 offscreen-canvas Provider）
 │   │   └── server-png.provider.ts    从 `GET /api/v1/documents/:id/thumbnails/:slideId` 取 640 px WebP（M3 起，renderer sidecar 生成，08/ADR-0026）；识别 `provisional`（M2 包内 thumbnail.jpeg 过渡封面）并在其后回退 dom-scaled；本地脏页在图到达前用 dom-scaled 兜底
 │   ├── show/
@@ -285,7 +394,7 @@ packages/slide-render/
 │   ├── errors.ts                     slide.render.*（geometry_unsupported、chart_parse_failed、chartex_unsupported、external_resource_blocked、emf_raster_failed）
 │   └── __tests__/
 │       ├── compose-reconcile.test.ts 版式切换复用元素实例；z 变化只移动节点
-│       ├── elements/*.test.ts        每个渲染器的 SVG 快照（规范化）+ runElementRendererConformance
+│       ├── elements/*.test.ts        每个渲染器的 SVG 快照（规范化），用 engine-render/testing 的 SpyRenderer/RecordingTarget 断言调用次数（不设 ElementRenderer 契约套件）
 │       ├── template-cache.test.ts    共享版式的页在 layout 改动后同时更新（且仅重渲模板一次）
 │       ├── autofit.test.ts           normAutofit/spAutoFit 收敛（≤ 6 次迭代）
 │       └── thumbnails.test.ts        去抖、maxMounted、Provider 切换
@@ -300,9 +409,10 @@ packages/slide-render/
 ### 5.1 策略：自己断行（layout-then-paint），度量器可插拔
 
 - **为什么不用浏览器 CSS 排版文本**：PowerPoint 语义（`normAutofit` 的 `fontScale`/`lnSpcReduction`、`spAutoFit` 增高、`anchor`/`anchorCtr`、多栏 `numCol`、`wrap="none"`、缩进/悬挂/项目符号、`spcPct` 行距、东亚标点禁则、竖排）需要确定的几何来做命中、选区矩形、光标位置与缩略图一致性；CSS 排版的结果不可读取为行模型（只能用 Range 反推，代价高且不稳定），且服务端/客户端结果难以逐像素一致。
-- **度量器 Definition**（`Measurer`）：`measure(text, font) → { advances: Float32Array; ascent; descent; lineGap }`，两个 Provider：
+- **度量器 Definition**（`TextMeasurer`，贡献点 `layout.measurer`，key = id；签名以 40-modules/06 §2.5 为准）：`measure(text, font) → MeasureResult`（advance、ascent、descent、lineGap）、`supports(font)`，三个 Provider：
   - `canvas`（render-dom）：`OffscreenCanvas.measureText`，含实际字体回退行为，**客户端与 headless Chromium 都用它**，因此两端一致（同字体集）。
-  - `fontkit`（server-headless，可选，M4+）：Node 解析字体文件计算 advance，用于**无浏览器**的服务端路径（例如导出 PDF/校验），标注为「近似一致」（无 shaping 差异保证）。
+  - `node-font`（server-headless）：Node 端以 opentype/fontkit 一类库解析字体文件计算 advance（fontkit 只是实现手段，不是 Provider id），用于**无浏览器**的服务端路径（例如导出校验），标注为「近似一致」（无 shaping 差异保证）。
+  - `fixed`（`engine-layout/testing`）：每字等宽的确定性度量，供单测使用。
 - 断行算法：按 UAX#14 行断机会（`Intl.Segmenter` 或内置表）+ 东亚禁则；run 边界为字距重置点（与 PowerPoint 行为一致）；每行输出 `LineBox { y, ascent, descent, runs: [{ x, text, attrs }] }`。
 - **一致性策略**：字体集受控（§5.3）+ 度量缓存键含 `fontKey + text`（按 word 缓存）+ 版本化的 `layoutAlgorithmVersion` 进入缩略图缓存键（服务端缩略图（640 px WebP）与客户端算法版本不一致时以客户端为准并触发重生成）。
 
@@ -314,7 +424,7 @@ interface LayoutService {                                 // ctx.layout（根作
   presetGeometry(name: string, adj: Record<string, number>, box: Rect): GeometryPath   // 187 种 prstGeom（编译期表）
   customGeometry(spec: CustomGeometrySpec, box: Rect): GeometryPath
   fonts: FontFallbackTable                                // 请求族 → 候选族（含度量兼容替身）
-  measurer: Measurer                                      // 当前 Provider
+  measurer(): TextMeasurer                                // 当前 Provider（layout.measurer 贡献点）
 }
 interface TextLayout { lines: LineBox[]; contentHeight: number; overflow: boolean; fontScale: number; lnSpcReduction: number; caretMap: CaretMap }
 ```
@@ -340,12 +450,12 @@ packages/engine-layout/
 ├── package.json                      deps: @cordexjs/shared；iso（Intl.Segmenter 可用性检测 + 内置回退表）
 ├── src/
 │   ├── index.ts
-│   ├── plugin.ts                     name='engine-layout'；provide=['layout']；inject 可选 measurer（ctx.get('measurer')，缺失 → PENDING 等待 Provider，符合 primer）
+│   ├── plugin.ts                     name='engine-layout'；provide=['layout']；经 layout.measurer 贡献点取当前 TextMeasurer（缺失 → PENDING 等待 Provider，符合 primer）
 │   ├── manifest.ts
 │   ├── config.ts                     zod：{ fallbackTable: FontFallbackTable(默认内置), measureCache: { maxEntries: 50_000 }, autofit: { maxIterations: 6 } }
-│   ├── layout.contribution.ts        Context { layout: LayoutService; measurer: Measurer }
+│   ├── layout.contribution.ts        Context { layout: LayoutService }；defineContributionPoint：layout.measurer（TextMeasurer，key = id）
 │   ├── contracts/
-│   │   ├── measurer.ts               Measurer Definition + FontKey 规范化
+│   │   ├── text-measurer.ts          TextMeasurer Definition + FontKey 规范化
 │   │   ├── text-layout.ts            TextBodyModel(引擎视角的最小结构，与 model-slide 解耦：paragraphs[]→runs[]→attrs)、LineBox、CaretMap
 │   │   └── geometry.ts               GeometryPath（命令序列 + 文本矩形 + 连接点 + adj 手柄描述）
 │   ├── text/
@@ -367,7 +477,7 @@ packages/engine-layout/
 │   ├── errors.ts                     layout.measurer_missing / layout.geometry_formula_error
 │   └── __tests__/                    断行黄金用例（含 CJK/混排/禁则）、几何表全量求值不抛错、autofit 收敛、度量缓存淘汰
 └── testing/
-    └── index.ts                      `@cordexjs/engine-layout/testing`：FixedWidthMeasurer（每字等宽，确定性）、runMeasurerConformance(factory)
+    └── index.ts                      `@cordexjs/engine-layout/testing`：FixedWidthMeasurer（Provider id 'fixed'，每字等宽，确定性）、runTextMeasurerConformance(factory)
 ```
 
 ---
@@ -387,14 +497,29 @@ packages/engine-layout/
 
 ### 6.2 事件 → Mutation 流
 
+**文本输入事件 → Mutation**
+
+```mermaid
+flowchart LR
+  subgraph inputs["TextInputHost 收到的浏览器事件"]
+    keydown["keydown：非字符"]
+    beforeinput["beforeinput：insertText、deleteContent*、insertParagraph"]
+    cStart["compositionstart"]
+    cUpdate["compositionupdate"]
+    cEnd["compositionend"]
+    paste["paste"]
+  end
+  keydown --> cmd["命令：方向键 / 删除 / 回车 / 快捷键 → commands.execute，见 05"]
+  beforeinput --> textMut["text.* Mutation：一个事务，captureTimeout 合并撤销"]
+  cStart --> enter["进入组合态：记录锚点 RelativePosition，覆盖层渲染组合串"]
+  cUpdate --> overlayOnly["只更新覆盖层，不写 Store"]
+  cEnd --> insertTx["一次 text.insert 事务"]
+  paste --> pasteCmd["命令层：HTML / 纯文本 / OOXML 剪贴板 → Mutation 批"]
+  cStart -. "组合进行中" .-> cUpdate
+  cUpdate -. "组合结束" .-> cEnd
 ```
-keydown(非字符) ──► 命令（方向键/删除/回车/快捷键）→ commands.execute（05）
-beforeinput(insertText/deleteContent*/insertParagraph) ──► text.* Mutation（一个事务；captureTimeout 合并撤销）
-compositionstart ──► 进入组合态：记录锚点 RelativePosition，覆盖层渲染组合串
-compositionupdate ──► 只更新覆盖层（不写 Store）
-compositionend ──► 一次 text.insert 事务
-paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
-```
+
+怎么读：左框是隐藏 textarea 上监听的事件，实线指向各事件的处理结果；虚线是 IME 组合的先后顺序——组合期间只动覆盖层，`compositionend` 才写一次 Store（A32：无第二份编辑缓冲）。
 
 - 光标位置 = `StablePosition`（06 §2.2）→ `CaretMap` → 像素；远端光标同理（presence）。
 - 文本编辑期间的重排：只重排被编辑的 txBody（元素级脏）；autofit 迭代上限 6 次；预算：键入 → 屏幕 ≤ 16 ms（p95 ≤ 33 ms）。
@@ -403,9 +528,28 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 
 ## 7. 命中测试与覆盖层
 
-- **命中链**：`ctx.bail('render/hit-test', point, ctx)`：覆盖层（手柄 > 评论钉 > 远端光标标签）优先返回 `HitResult{ kind:'handle'|'pin'|…}`；无人接管 → `HitTester.geometric()`：视口逆变换 → 页坐标 → 自顶层 `z` 逆序遍历 `(包围盒 + 旋转逆变换)` → 命中候选再问 `instance.hitTest`（精确路径采样，Path2D `isPointInPath` 在 dom 可用；Node 用多边形）→ 返回 `ShapeId`；组合：先命中子元素，按「组合选择规则」（首次点击选组，双击进组）由交互层决定。
-- 覆盖层数据源：`selection`（A 线 UnitScope 服务）、`presence.remotes`、comments 客户端服务（可选）。覆盖层**不**参与内容脏区：它们订阅各自数据源，独立的 `overlay` 层重绘不触发内容渲染（测试：改变选区不会调用任何 ElementInstance.update）。
+- **命中链**：`ctx.bail('render/hit-test', point, ctx)`：覆盖层（手柄 > 评论钉 > 远端光标标签）优先返回 `HitResult{ kind:'handle'|'pin'|…}`；无人接管 → `RenderTarget.hitTest(point) → HitResult{ nodeId, region, local }`：dom target 先用 `elementFromPoint → data-cordex-node`，几何回退为 `HitTester.geometric()`：视口逆变换 → 页坐标 → 自顶层 `z` 逆序遍历 `(包围盒 + 旋转逆变换)` → 命中候选再做精确路径采样（Path2D `isPointInPath` 在 dom 可用；Node 用多边形）→ 返回 `ShapeId`；组合：先命中子元素，按「组合选择规则」（首次点击选组，双击进组）由交互层决定。
+- 覆盖层数据源：`selection`（A 线 UnitScope 服务）、`presence.remotes`、comments 客户端服务（可选）。覆盖层**不**参与内容脏区：它们订阅各自数据源，独立的 `overlay` 层重绘不触发内容渲染（测试：改变选区不会调用任何 `ElementRenderer.update(handle, node)`）。
 - 远端光标渲染：`caret.anchor/head`（RelativePosition）→ `store.resolveStablePosition` → `CaretMap` → 像素；目标形状未挂载/不可见时只显示头像于页缩略图。
+
+**命中链**
+
+```mermaid
+flowchart TB
+  point["指针位置 point"] --> bail["ctx.bail render/hit-test"]
+  bail --> overlays{"覆盖层接管？优先级依次为手柄、评论钉、远端光标标签"}
+  overlays -- "是" --> hitResult["返回 HitResult：kind 为 handle、pin 等"]
+  overlays -- "无人接管" --> targetHit["RenderTarget.hitTest：dom 先 elementFromPoint → data-cordex-node"]
+  targetHit -- "未命中或旋转盒、组合" --> geometric["几何回退 HitTester.geometric"]
+  geometric --> inverse["视口逆变换 → 页坐标"]
+  inverse --> traverse["自顶层 z 逆序遍历：包围盒 + 旋转逆变换"]
+  traverse --> precise["命中候选再做精确路径采样：dom 用 Path2D isPointInPath，Node 用多边形"]
+  precise --> shapeId["返回 ShapeId"]
+  shapeId --> group["组合：先命中子元素，首次点击选组、双击进组，由交互层决定"]
+```
+
+怎么读：自上而下是一次命中的判定顺序；菱形是 bail 链的短路点，覆盖层一旦接管就不再做几何命中。覆盖层自身不参与内容脏区，改变选区不会触发任何 `ElementRenderer.update`。dom target 先用 `elementFromPoint → data-cordex-node`，几何命中只作回退（§14.1）。
+依据：本文 §7、§14.1。
 
 ---
 
@@ -419,6 +563,25 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 | `server-png`（Q8，ADR-0026） | **M3 前半段起**：文档列表封面、全览网格、批量 PNG、分享预览；由独立 renderer sidecar（headless Chromium，同一份渲染代码）生成 **640 px WebP**（分享/版本预览按需 1280 px）；按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s | 网络请求 + 缓存；本地脏页在图到达前用 dom-scaled 兜底 |
 
 - 14 §5.4 采纳的 offscreen-canvas 缩略图 Provider 被推翻（rulings §4.15 Q4），由上表 `raster` 取代；canvas 在本节只作 `raster` 的栅格画板。
+
+**缩略图 Provider 的选用**
+
+```mermaid
+flowchart TB
+  need{"要缩略图的场景"}
+  need -- "侧栏等可见缩略图" --> domScaled["dom-scaled：缩放 DOM 克隆，M1 起唯一方案，≤ 12 个，IntersectionObserver 驻留"]
+  need -- "复制为图片、导出单页 PNG" --> raster["raster：主线程 toImage，游离 DOM → SVG 序列化 → Image → canvas → Blob"]
+  need -- "文档列表封面" --> coverStage{"所处阶段"}
+  need -- "全览网格、批量 PNG、分享预览" --> serverPng
+  coverStage -- "M2 过渡" --> embedded["包内 docProps/thumbnail.jpeg：服务端只做 JPEG 头校验，标 provisional"]
+  coverStage -- "M3 前半段起" --> serverPng["server-png：renderer sidecar 生成 640 px WebP，分享与版本预览按需 1280 px"]
+  embedded -- "无该部件" --> placeholder["显示占位"]
+  serverPng -- "本地脏页的图未到达，或取到 provisional 封面" --> fallback["本地用 dom-scaled 兜底"]
+  raster -. "M2 位图 spike 结论前不用于封面与批量 PNG" .-> spike["Web 字体在图像上下文不可用：M2 spike"]
+```
+
+怎么读：从顶部菱形按场景分流到四种来源；边上文字是选用条件，虚线标出 raster 的已知限制。三个客户端 Provider 在 `slide-render/thumbnails/` 下，服务端图由 08 §3.3 的 renderer 路径生成（§10）。
+依据：本文 §4.3 `thumbnails/`、§8；rulings §4.15 Q4、Q8。
 
 放映模式：`Viewport.mode='show'` + Fullscreen API；渲染同一 Surface（DOM/SVG，fit 到屏幕），不走 canvas；不播放动画/切换（Q7）。**动画结束态按场景**（rulings §4.15 Q7）：编辑、缩略图、PDF 等静态场景一律全部元素可见；放映时按主动画序列的可见性终态显示（`p:timing` 只读解析，M2 P1）。预留 `slide.showTransition` 贡献点（M4+）。
 
@@ -447,18 +610,35 @@ paste ──► 命令层：HTML/纯文本/OOXML 剪贴板 → Mutation 批
 
 ## 10. 服务端 headless 渲染路径（Q8，ADR-0026）
 
-```
-M2：导入时取包内 docProps/thumbnail.jpeg 作过渡封面（头校验，不解码，不渲染）
-M3 前半段：
-BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = 页内容哈希
-  → worker（CORDEX_ROLE=worker，持凭据）组装 state + 媒体 + 字体 → remote-renderer.client.ts 鉴权内部 RPC（契约 @cordexjs/protocol/render/sidecar.ts）→ renderer sidecar
-  → renderer（CORDEX_ROLE=renderer，独立容器，零出站，非 root，chromiumSandbox + seccomp，无任何凭据）
-       每任务新建 BrowserContext；/render 静态包内置于镜像；state/资源/字体全部经注入，不做任何网络拉取
-       同一份 preset-slide-viewer（无 UI、无协同）→ 打开 Unit → mount 该页 → 等 fonts-ready + render/frame 静止
-       → 截图并在沙箱内直接编码 640 px WebP → 返回字节
-  → worker → S3（SeaweedFS/客户 S3）→ thumbnails 表 upsert{ source:'server', contentHash }
+**服务端缩略图：renderer sidecar 时序**
+
+```mermaid
+sequenceDiagram
+  participant Q as BullMQ 队列 thumbnails
+  participant W as worker 角色 CORDEX_ROLE=worker，持凭据
+  participant R as renderer sidecar，CORDEX_ROLE=renderer
+  participant S3 as S3 存储，SeaweedFS 或客户 S3
+  participant DB as thumbnails 表
+  Note over Q,DB: M2：导入时取包内 docProps/thumbnail.jpeg 作过渡封面，只做头校验，不解码、不渲染
+  Note over Q,DB: 以下为 M3 前半段起
+  Q->>W: job thumbnails.render{docId, slideId, contentHash}，去重键 = 页内容哈希
+  W->>W: 组装 state + 媒体 + 字体
+  W->>R: remote-renderer.client.ts 鉴权内部 RPC，契约 @cordexjs/protocol/render/sidecar.ts
+  Note over R: 独立容器，零出站，非 root，chromiumSandbox + seccomp，无任何凭据
+  R->>R: 每任务新建 BrowserContext，/render 静态包内置于镜像
+  R->>R: 调 window.__cordex.inject 注入 state、资源、字体，页面不做任何网络拉取
+  R->>R: 同一份 preset-slide-viewer，无 UI、无协同、惰性加载关闭 → 打开 Unit → 挂载所请求页
+  R->>R: ready：所请求页全部 page-mounted，字体请求全部结算，此后一帧 render/frame 无待绘脏区
+  R->>R: 截图并在沙箱内直接编码 640 px WebP
+  R-->>W: 返回字节
+  W->>S3: 写入缩略图对象
+  W->>DB: upsert{ source:'server', contentHash }
 ```
 
+怎么读：从上到下是一次缩略图作业；只有 worker 持凭据并与存储交互，renderer 只接受 worker 的入站 RPC、自身不做任何网络访问，所有输入都由 worker 注入。
+
+- **注入是唯一路径**（rulings §4.18 BE-04）：`local` 与 `remote` 两种模式都由编排方（`local`：worker 内 Playwright `page.evaluate`；`remote`：renderer sidecar 收到 RPC 后在页内调用）调用 `window.__cordex.inject` 注入 state、资源与字体，页面只有这一条路径；原 `/internal/render/:token/state` 的 RenderStateToken 网络拉取**已取消**（ADR-0026 决策 1），`/render` 的查询参数只带 `renderId` 作日志关联。机械验证：两种模式各跑一次 e2e，断言 `/render` 页的网络请求数为 0。
+- **ready 判据**（rulings §4.18 FE-09，40-modules/11 与本节同一条）：`/render` 装配 viewer 时关闭惰性加载（`lazy.charts`、`lazy.locales` 置 false）；ready = 所请求页全部 `render/page-mounted` ∧ 这些页的字体请求全部结算（`layout/fonts-ready` 或 `render/font-fallback`；无字体需加载视为已结算）∧ 此后出现一次待绘脏区为空的 `render/frame`（`render/frame` 的 stats 补 `pendingDirty` 计数，或 render 服务提供只读 `hasPendingWork()`，落点 40-modules/06）。注入等待超时（页面常量，默认 60 s）与 ADR-0026 每页 10 s 渲染超时分开计；由 `render-page.spec.ts` 断言。
 - 与客户端**同一渲染代码、同一字体包、同一布局算法版本** ⇒ 像素级一致（视觉 oracle 在 11 中同时校验客户端与服务端输出）。
 - **失效**：按页内容哈希——输入 = 页子树 + 版式/母版/主题依赖闭包 + 媒体 BlobRef + slideSize + 页序号 + 内嵌字体集合 + `layoutAlgorithmVersion` + fontProfile；外链一律占位且不计入哈希。Compaction 之后只把哈希变化的页入队。
 - 预算：导入完成后首页高优先生成 ≤ 10 s；D200 全量 ≤ 90 s；其余页按需惰性生成；失败重试 3 次。
@@ -472,8 +652,8 @@ BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = �
 | 编号 | Univer | 本项目 |
 |---|---|---|
 | A1/A5 | engine-render 66% 是产品组件；`IRange` 进通用契约 | engine-render 只有契约/调度/缓存/命中；元素渲染全在垂直束；契约只认 `kind`、几何盒、路径 |
-| A4 | 布局基类跨三包继承 | engine-layout 纯函数 + Measurer Definition；模型包不 import 引擎 |
-| A28 | 脏矩形无人读 | DirtyTracker → PageRenderer 消费；反制测试 |
+| A4 | 布局基类跨三包继承 | engine-layout 纯函数 + TextMeasurer Definition；模型包不 import 引擎 |
+| A28 | 脏矩形无人读 | SceneProvider.diff 产出 DirtySet → RenderTarget.paint 消费；反制测试 |
 | A29 | 缓存淘汰未接线 | 四处 LRU：StyleCache / MediaCache / measure-cache（engine 侧）+ LayerTemplateCache（slide-render 侧），均有淘汰测试与统计指标（2026-09-18 由「三处」改，14 §1 C-12） |
 | A30 | 热路径穿 20 个拦截器 | 渲染器查表；`waterfall` 在 engine-render/render-dom/slide-render 中被 lint 禁止（由 09-02 承接） |
 | A11 | 一崩全崩 | 元素级 try/catch + 占位符 + errors 上报 |
@@ -500,9 +680,9 @@ BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = �
 
 | 术语 | 定义 |
 |---|---|
-| Surface / PageView / Layer | RenderTarget 的三级输出容器 |
-| DirtyRegion | 页/元素级脏标记，含原因 |
-| Measurer | 文本度量 Provider |
+| TargetHandle | `RenderTarget.mount()` 为每个已挂载页返回的句柄；dom target 内部以 Surface / PageView / LayerHandle 实现 |
+| DirtySet | `SceneProvider.diff` 产出的脏节点集合（`nodeIds`、`full`、可选 `changed`；旧名 DirtyRegion） |
+| TextMeasurer | 文本度量 Provider（`layout.measurer`：`canvas`、`node-font`、`fixed`；旧名 Measurer） |
 | LayerTemplate | 母版/版式层渲染结果的可克隆 DOM 模板 |
 | CaretMap | 文本偏移 ↔ 像素的双向映射 |
 | Overlay | 不属于文档内容的覆盖层（选中、手柄、presence、评论钉） |
@@ -511,7 +691,7 @@ BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = �
 
 ## 14. v0.2 补充：与架构 02/04 契约的对齐、PRD（NF-01/ED/PD/SV）条目的承接、章程 v0.2 裁决
 
-> 追加于 A 线 02/04 与产品线落盘之后。签名以 02/04 为准，本文负责管线与性能；凡与前文冲突处以本节为准。
+> 追加于 A 线 02/04 与产品线落盘之后。签名以 02/04 为准，本文负责管线与性能；凡与前文冲突处以本节为准。2026-09-25 起 §0–§7 正文、代码块、目录树与图已按 §14.1 换用新名（rulings §4.18 CO-19），§14.1 表保留作旧名对照。
 
 ### 14.1 术语与签名对齐（02 §4.13–4.16、04 §10）
 
@@ -522,7 +702,7 @@ BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = �
 | `DirtyRegion{ page, elementIds }` | `DirtySet{ nodeIds, full }` | **对 A 线的增补请求**：`DirtySet` 增加可选 `changed?: Map<NodeId, PathKey[]>`；否则渲染器只能整节点重绘（仍满足 A28「只重绘该形状」，但丢失属性级最小更新） |
 | `ElementRenderer.mount` / `ElementInstance.update(model, changed, style)` | `ElementRenderer<TData>{ targetId, kind, render(node, ctx) → ElementHandle, update(handle, node), dispose(handle) }`，key `${targetId}:${kind}` | `node.data` = 已解析样式 + 布局输入，由 SceneProvider 产出 |
 | `Surface` / `PageView` / `LayerHandle` | `RenderTarget{ mount(container) → TargetHandle, paint(scene, dirty), hitTest, toImage?, dispose }` | 每个已挂载页一个 `TargetHandle`（虚拟化窗口 ≤ 3/6）；模板层克隆是 dom target 内部优化 |
-| `Measurer` / 服务 `measurer` | `TextMeasurer`，贡献点 `layout.measurer`（key = id：`canvas`、`node-font`、`fixed`） | `ctx.layout.measurer()` 取当前 Provider；本文各处 `Measurer` 读作 `TextMeasurer` |
+| `Measurer` / 服务 `measurer` | `TextMeasurer`，贡献点 `layout.measurer`（key = id：`canvas`、`node-font`、`fixed`） | `ctx.layout.measurer()` 取当前 Provider；原 Provider `fontkit` 并入 `node-font`（fontkit 只是实现说明）；本文正文已直接用 `TextMeasurer`（CO-19） |
 | 事件 `render/frame`、`render/element-error` | 总编排定稿：cordis 事件 `render/frame(unitId, stats)`（进程内消费）+ 遥测事件 `perf/frame`（由前者派生，10 §3.4）；`render/element-failed`（保留）、`render/first-paint`、`render/element-degraded`、`render/font-fallback`；02 的 `render/painted` 弃用 | `render/frame` 每帧一次，只供进程内订阅（渲染统计、devtools、缩略图去抖）；对外只暴露 `perf/frame` 遥测事件（抽样）与 `render/first-paint`；本文各处 `render/element-error` 读作 `render/element-failed` |
 | 命中：几何优先 | dom target：`elementFromPoint → data-cordex-node`，几何回退（旋转盒/组合） | 契约 `hitTest(point) → HitResult{ nodeId, region, local }` 不变；`bail` 链 overlay → target |
 | 隐藏 `textarea` 宿主 | 02 `render-dom/layers/ime-host.ts` 写作 contenteditable | 由 ADR-0028 决定：`TextInputHost` 为可替换 Definition，Provider `hidden-textarea`（默认）与 `contenteditable-mirror`（备选），spike 后定稿（R-M2-1） |
@@ -531,15 +711,35 @@ BullMQ job thumbnails.render{docId, slideId, contentHash}          去重键 = �
 
 ### 14.2 打开管线：Worker 解析、分片加载与主线程预算（NF-01）
 
-```
-main: units.open(bytes)                                worker（同一 iso 插件束：ooxml-core / ooxml-pptx / model-slide 校验；无 store 写入）
-  ├─ 转移 ArrayBuffer ───────────────────────────────► parse：zip 索引（A-13：全量内存 + 懒解压媒体）→ 主题/母版/版式 → 首页 → 其余页（按 `order` 键顺序每批 8 页）
-  │◄── unit/open-progress{ stage, pct } ◄─────────────┤ 每批以结构化克隆返回 SnapshotBody 片段；媒体字节按需 Transferable
-  ├─ store.load(首批) → render/first-paint      门禁：D50 ≤ 1.5 s、D200 ≤ 3.0 s、DX-1000 ≤ 2.5 s、DX-MEDIA ≤ 3.0 s（RM-A p75）
-  ├─ 后续批次经 scheduler.yield() / MessageChannel 分片进入 store，每片 ≤ 50 ms（NF-01「主线程最长阻塞任务 ≤ 50 ms」）
-  └─ 跳转到未解析页 → 该页批次提升到队首（≤ 300 ms 可见）；已解析页 ≤ 100 ms（本文内部目标 ≤ 50 ms）
+**打开管线：主线程与 Worker 分工**
+
+```mermaid
+sequenceDiagram
+  participant M as main 主线程，units.open bytes
+  participant W as worker 用同一 iso 插件束，ooxml-core、ooxml-pptx、model-slide 校验，无 store 写入
+  M->>W: 转移 ArrayBuffer
+  W->>W: parse：zip 索引，A-13 全量内存 + 懒解压媒体
+  W->>W: 包络计数：页数、单页元素、总元素，超系统天花板整体拒绝
+  W-->>M: unit/open-progress{ stage, pct }
+  W->>W: 主题 / 母版 / 版式 → 首页 → 其余页，按 order 键顺序每批 8 页
+  W-->>M: 首批 SnapshotBody 片段，结构化克隆，媒体字节按需 Transferable
+  M->>M: store.load 首批 → emit unit/opened，可渲染、可编辑 → render/first-paint
+  Note over M: 门禁 RM-A p75：D50 ≤ 1.5 s、D200 ≤ 3.0 s、DX-1000 ≤ 2.5 s、DX-MEDIA ≤ 3.0 s
+  W-->>M: 后续批次
+  M->>M: 以 origin system('import') 追加，不入撤销栈、不标脏，经 scheduler.yield 分片，每片 ≤ 50 ms
+  Note over M: NF-01：主线程最长阻塞任务 ≤ 50 ms
+  M->>W: prioritize{ slideId }：用户跳转到未解析页
+  W->>W: 完成当前页后先解析该页所在批次
+  M->>M: 已解析未装载的批次提到装载队首
+  Note over M,W: 未解析页 ≤ 300 ms 可见，已解析未装载页 ≤ 100 ms，本文内部目标 ≤ 50 ms
+  M->>M: 全部批次到齐 → emit unit/loaded，全文类命令解禁
 ```
 
+怎么读：左列主线程只做 store 装载与渲染，右列 Worker 只做纯计算解析、不持有可写模型（A31/D5）；虚线箭头是 Worker 回传的进度与分批结果，`M->>W` 的 `prioritize` 是主线程发给 Worker 的抢占消息；自指箭头是该方的内部步骤。包络计数在回传首批之前完成，超天花板整体拒绝，不会装到一半才失败（rulings §4.18 CO-12）。
+
+- **首批装载、后台追加**（rulings §4.18 CO-12）：首批 `store.load` 后立即发 `unit/opened`（可渲染、可编辑）；后续批次以 origin `system('import')`（04 的 Origin 定义）追加进 Store，不入撤销栈，ooxml-core 的导出脏部件追踪（DirtyTracker）忽略该来源（打开 200 页后零编辑导出 = 零脏部件）；全部到齐后发新事件 `unit/loaded`（登记进事件表）。`loaded` 之前，全选、查找替换、导出、跨页重排等全文类命令等待或禁用（M-03 命令守卫）。DocumentStore 契约的追加语义与用例、`units.open` 第④⑥步、Worker 入口文件与分批协议分别由 40-modules/02、04 落地（02：`FormatCodec.importProgressive() → ProgressiveImport{ first, batches, prioritize, cancel, done }` 与 `units.prioritize(unitId, entityId)`/`units.whenLoaded`；04：`ooxml-pptx` 的 `infrastructure/import/import.worker.ts` 与 `batch-protocol.ts`，消息 `start / batch / prioritize / cancel / done / error`）。
+- **跳转抢占**（rulings §4.18 CO-11）：「未解析页」指 Worker 尚未解析到的页，只重排主线程装载队列解决不了；主线程发 `prioritize{ slideId }` 消息给 Worker，Worker 完成当前页后先解析该页所在批次，主线程同时把已解析未装载的批次提到装载队首。
+- **协同模式不走本路径**：协同打开时 Y 状态由 HTTP 快照 bootstrap（06 §9.1），不经 Worker 分批解析。
 - Worker 只做**纯计算**且不持有可写模型（A31/D5）：解析结果进入主线程 Store；导出同理——`formats.export` 在 Worker 中对 `store.exportSnapshot()` 的结构化克隆副本运行（NF-01 1.4「导出期间 UI 可编辑」），基线包字节由 Worker 持有。
 - 无 Worker 环境（旧宿主、Node 主线程）：同一代码在主线程分片执行，行为等价只是更慢。
 - 度量：`unit/open-progress` 阶段时间戳 + `PerformanceObserver('longtask')` 在 perf 场景断言无 > 50 ms 任务。

@@ -1,6 +1,6 @@
 # ADR-0008 不透明保留与脏部件重生成
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.12 U-02、§4.15 Q7
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.12 U-02、§4.15 Q7、§4.18 GV-14/GV-15
 
 ## 状态
 
@@ -45,7 +45,7 @@ R6/D7：直接读取 pptx 并在线协同编辑，未建模部分不透明保留
 
 ## 如何被机械验证
 
-- 口径 = 04 §5.4（与 PRD CS-01/§4.1 合并）。`ooxml-pptx/testing/roundtrip.ts` 实现：零编辑 → 部件集合与每部件 SHA-256 相同（含 `[Content_Types].xml` 与 `.rels`；zip 元数据不计）；编辑后 → 未触碰部件字节相同 + 脏部件良构且通过 ECMA-376 XSD（`tooling/xsd/`，Transitional 与 Strict 两套）+ 规范化 diff 仅在被编辑子树 + 被编辑元素 `extensions` 全保留 + `cNvPr@id` 唯一且引用一致 + 派生部件白名单 + 删页无孤儿（CI job `fidelity-roundtrip`：M1 零编辑、M2 编辑后）。
+- 口径 = 04 §5.4（与 PRD CS-01/§4.1 合并）。`ooxml-pptx/testing/roundtrip.ts` 实现：零编辑 → 部件集合与每部件 SHA-256 相同（含 `[Content_Types].xml` 与 `.rels`；zip 元数据不计）；编辑后 → 未触碰部件字节相同 + 脏部件良构且通过 ECMA-376 XSD（`tooling/xsd/`，Transitional 与 Strict 两套）+ 规范化 diff 仅在被编辑子树 + 被编辑元素 `extensions` 全保留 + `cNvPr@id` 唯一且引用一致 + 派生部件白名单 + 删页无孤儿（test job 的 `fidelity-roundtrip` 步骤：M1 零编辑、M2 编辑后；保真失败仍阻断合并，在 test job 日志中查看——2026-09-25，rulings §4.18 GV-14，13 个 job 名封闭集合不变，原「CI job `fidelity-roundtrip`」作废）。
 - 元素级保留测试：对 `fixtures/pptx/features/preserve-*`（含 `extLst`/未知属性/`p:timing`）编辑同页另一元素 → 目标元素与不透明子树 c14n 逐字节一致；编辑带 `extLst` 的元素本身 → 其 `extLst` 仍在且顺序合法。
 - `timing-refs.test.ts`：删除被动画引用的形状 → 导出无悬空 `spid`，XSD 通过。
 - （2026-09-24）白名单 (b)(c)：`alternate-content-xfrm.test.ts`（移动/缩放 AlternateContent 对象 → Choice 与 Fallback 分支 `xfrm` 一致、其余字节不变）；`orphan-embeddings.test.ts`（删除最后一个 OLE 引用 → 嵌入部件与 Content Types 条目被移除，其余部件字节不变）；扫描器断言对不透明子树的写操作只出现在这三处白名单模块。
@@ -55,7 +55,7 @@ R6/D7：直接读取 pptx 并在线协同编辑，未建模部分不透明保留
 - codec 往返测试：已建模部件 `parse → generate → c14n` 与原 c14n 相等；差异计数进保真指标。
 - `schema-order` 生成器单测覆盖已建模复杂类型。
 - 安全：`zip-limits.test.ts`（超限拒绝）、外部关系**激活**协议白名单测试（保留全部、只激活 http(s)）。
-- 扫描器 `no-bytes-in-snapshot`：`Snapshot` 类型与 Y 映射中不得出现 `Uint8Array`/`ArrayBuffer`（只允许 `BlobRef`）。
+- 类型测试断言（`*.type-test.ts`，09-type-discipline/09 §6，`test-typecheck` job，TD-098；原名 `no-bytes-in-snapshot`、原称扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：`Snapshot` 类型与 Y 映射中不得出现 `Uint8Array`/`ArrayBuffer`（只允许 `BlobRef`）。
 
 ## 关联
 

@@ -1,8 +1,8 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：新增 §12a TD-079～TD-082——lockfile/packageManager/devEngines、内部依赖 `workspace:` 协议与包名 scope、文档内容禁 HTML 注入、`*-ui` domain/application 框架无关）；2026-09-24（复核修正，rulings §4.17：D3/M16 §12a 补 TD-083 RLS 覆盖、TD-084 镜像策略、TD-085 `doc-access-via-permission`，总数 82→85；TD-080/081/082 执行落点以 40-modules/01 文件为准；「十三个扫描器」改十四；M18 锚点 `-oce` → `-cordex`；L1 更名语句） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：新增 §12a TD-079～TD-082——lockfile/packageManager/devEngines、内部依赖 `workspace:` 协议与包名 scope、文档内容禁 HTML 注入、`*-ui` domain/application 框架无关）；2026-09-24（复核修正，rulings §4.17：D3/M16 §12a 补 TD-083 RLS 覆盖、TD-084 镜像策略、TD-085 `doc-access-via-permission`，总数 82→85；TD-080/081/082 执行落点以 40-modules/01 文件为准；「十三个扫描器」改十四；M18 锚点 `-oce` → `-cordex`；L1 更名语句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 08 · 规范↔执行矩阵
 
-本篇是 R7「每条规范都要有机械执行点，且『规范↔执行』的对应关系本身要被 CI 校验」的直接落地物。矩阵覆盖章程 §5.3 全部八条（第 8 条"垂直束互不依赖"已由总编排裁决编入，章程 v0.2 已收录）、cordis primer §4 全部 16 条铁律（MUST 1-8、MUST NOT 1-8）、[reference-univer-lessons.md](../../00-charter/reference-univer-lessons.md) 的 A16–A27 全部 12 项、A6/A8/A10/A12/A14/A30/A34/K9/K10，以及本方案为落实章程已定决策（D2/D4/D7/D9/D11/D13）、自身完备性、与产品 PRD、架构-结构、架构-运行时三条线新增需求而追加的条目，和章程 §10 Q1–Q10 裁决落地条目及 2026-09-24 复核补登条目（共 85 行，§9–§12a）。本文件被 [06 scan-policy](./06-scanners.md#9-scan-policy) 机器解析，格式约定见 §1，**任何编辑本文件表格的人都必须遵守 §1**，否则 `policy-check` job 会因解析失败而阻断（失败信息会指出具体哪一行/哪一列不符合格式，而不是笼统的"解析错误"）。
+本篇是 R7「每条规范都要有机械执行点，且『规范↔执行』的对应关系本身要被 CI 校验」的直接落地物。矩阵覆盖章程 §5.3 全部八条（第 8 条"垂直束互不依赖"已由总编排裁决编入，章程 v0.2 已收录）、cordis primer §4 全部 16 条铁律（MUST 1-8、MUST NOT 1-8）、[reference-univer-lessons.md](../../00-charter/reference-univer-lessons.md) 的 A16–A27 全部 12 项、A6/A8/A10/A12/A14/A30/A34/K9/K10，以及本方案为落实章程已定决策（D2/D4/D7/D9/D11/D13）、自身完备性、与产品 PRD、架构-结构、架构-运行时三条线新增需求而追加的条目，和章程 §10 Q1–Q10 裁决落地条目、2026-09-24 复核补登条目及 2026-09-25 矛盾收口补登条目（共 102 行，§2–§12b）。本文件被 [06 scan-policy](./06-scanners.md#9-scan-policy) 机器解析，格式约定见 §1，**任何编辑本文件表格的人都必须遵守 §1**，否则 `policy-check` job 会因解析失败而阻断（失败信息会指出具体哪一行/哪一列不符合格式，而不是笼统的"解析错误"）。
 
 ---
 
@@ -19,6 +19,28 @@
 - **豁免方式列**：`cordex-allow（预算制）` / `无（架构性禁止）` / `无（零豁免）` / `package.json 字段登记`（attw/依赖类豁免） / `N/A`。
 - **owner 列**：本文件全部行填 `架构-类型治理`；若某行的阈值/内容由其他条线共同决定（如 coverage-patch 的具体百分比），额外注明，格式 `架构-类型治理（机制）+ <条线>（阈值/内容）`。
 
+**scan-policy 对本矩阵的逐行校验**
+
+```mermaid
+flowchart TB
+  md["08-policy-enforcement-matrix.md"] --> concat["按表头拼接为一张逻辑表：九列固定顺序、列名逐字匹配；表头不匹配的表格被忽略"]
+  concat --> row["逐行校验"]
+  row --> c1["id 为 TD- 加三位数字，全文件唯一，废弃 id 不复用"]
+  row --> c2["整行过 policy-row.schema.json"]
+  row --> c3["机制同 TD-0NN 只能向前引用，不成环"]
+  row --> c4["配置路径存在；写同 TD-0NN 的行直接继承"]
+  row --> c5{"负向测试路径为 N/A？"}
+  c5 -- "是" --> c5a["不查路径，计入 N/A 行数并单独列出"]
+  c5 -- "否" --> c5b["路径存在且非空"]
+  row --> c6["CI job 值属于 07 §3 的 job 名集合，或为 N/A 人工评审"]
+  md --> cov["覆盖率：内置来源 id 清单逐一在「来源」列被引用"]
+  c1 & c2 & c3 & c4 & c5a & c5b & c6 & cov --> report["scan-policy 报告；任一不满足即 policy-check job 失败"]
+```
+
+怎么读：左支是逐行的格式与存在性检查，右支是对整张矩阵的覆盖率检查，二者汇总为同一份报告；N/A 行不做路径检查但会被计数，供定期复核。
+
+依据：本节格式约定；06 §9 scan-policy。
+
 ---
 
 ## 2. 章程 §5.3 依赖规则 + §5.1 铁律
@@ -28,12 +50,12 @@
 | TD-001 | 包级依赖图无环 | charter§5.3-1 | `cordex-no-circular-package`（03§3.1） | `tooling/depcruise/rules/no-circular.ts` | `tooling/depcruise/__tests__/fixtures/no-circular/violation` | depcruise | 无（架构性禁止） | 架构-类型治理 |
 | TD-002 | 文件级依赖图无环 | charter§5.3-1 | `cordex-no-circular-file`（03§3.1） | `tooling/depcruise/rules/no-circular.ts` | `tooling/depcruise/__tests__/fixtures/no-circular/violation` | depcruise | 无（架构性禁止） | 架构-类型治理 |
 | TD-003 | 只向下：import 目标层号秩 ≤ 自身秩 | charter§5.3-2 | `cordex-layer-downward`（03§3.2，粗粒度，定义防御纵深） | `tooling/depcruise/layers.ts`、`tooling/depcruise/rules/layering.ts` | `tooling/depcruise/__tests__/fixtures/layering/violation` | depcruise | 无（架构性禁止） | 架构-类型治理 |
-| TD-004 | 文档类型盲：水平层不得 import 垂直束 | charter§5.3-3 | `cordex-doc-type-blind`（03§3.2） | `tooling/depcruise/rules/doc-type-blind.ts` | `tooling/depcruise/__tests__/fixtures/doc-type-blind/violation` | depcruise | 无（架构性禁止） | 架构-类型治理 |
+| TD-004 | 文档类型盲：**非组合根**的水平层不得 import 垂直束（`compositionRoot: true` 的 preset-*、apps/web、apps/server 豁免，另受 R4 束间隔离与 R9 白名单约束；2026-09-25 rulings §4.18 FE-01） | charter§5.3-3 | `cordex-doc-type-blind`（03§3.2，from 侧排除 `compositionRoot: true`） | `tooling/depcruise/rules/doc-type-blind.ts` | `tooling/depcruise/__tests__/fixtures/doc-type-blind/violation`（engine-render→model-slide 拒绝、preset-doc→model-slide 被 R4 拒绝、apps/web→model-slide 被 R9 拒绝）、`.../doc-type-blind/ok`（apps/web→preset、preset-slide→model-slide 通过） | depcruise | 无（架构性禁止）；`compositionRoot` 是元数据显式声明的结构化豁免 | 架构-类型治理 |
 | TD-005 | 束间隔离：垂直束互不依赖 | charter§5.3-8 | `cordex-bundle-isolation`（03§3.2，堵住 TD-003 的同层横向盲区；`V-*` 层带编码使该盲区在包元数据层面结构性可见） | `tooling/depcruise/rules/doc-type-blind.ts` | `tooling/depcruise/__tests__/fixtures/doc-type-blind/violation`（同文件覆盖两条规则，夹具内分别构造两种违规） | depcruise | 无（架构性禁止） | 架构-类型治理 |
 | TD-006 | 第三方库单点引入（cordis/yjs/react/@nestjs） | charter§5.3-4 | ESLint `no-restricted-imports`（02§5.1）+ depcruise `single-entry`（03§3.3） | `tooling/eslint-config/rules/restricted-imports.ts`、`tooling/depcruise/rules/single-entry.ts` | `tooling/eslint-config/eslint-plugin-cordex/__tests__/`（同機制共用，见 02§5.1 说明）、`tooling/depcruise/__tests__/fixtures/single-entry/violation` | lint、depcruise | 无（架构性禁止） | 架构-类型治理 |
 | TD-007 | 同构隔离（iso/dom/node 三者兼容矩阵 + 三重保障） | charter§5.3-5 | depcruise `cordex-isomorphism-compatibility`（3×3 兼容矩阵，含 `dom↔node` 互斥） + tsconfig lib/types + `no-restricted-globals` + `scan-isomorphic`/`iso-smoke`（03§4 四层机制） | `tooling/depcruise/rules/isomorphism.ts`、`tooling/tsconfig/iso.json`、`tooling/eslint-config/rules/restricted-globals.ts`、`tooling/scripts/scan-isomorphic.ts` | `tooling/depcruise/__tests__/fixtures/isomorphism/violation`、`tooling/scripts/__tests__/__fixtures__/scan-isomorphic/violation` | depcruise、lint、scanners、iso-smoke | 无（架构性禁止，静态部分）；`iso-smoke` 运行时问题走 issue 修复而非豁免 | 架构-类型治理 |
 | TD-008 | 三角色：Provider 互不 import；Consumer 只 import Definition | charter§5.3-6 | depcruise `cordex-role-*`（03§3.5）+ `cordex/no-provider-import-in-consumer`（02§4.7，编辑期代理） | `tooling/depcruise/rules/roles.ts`、`tooling/eslint-config/eslint-plugin-cordex/rules/no-provider-import-in-consumer.ts` | `tooling/depcruise/__tests__/fixtures/roles/violation`、`.../__tests__/no-provider-import-in-consumer.test.ts` | depcruise、lint | 无（架构性禁止）；`compositionRoot: true` 是结构化豁免，非临时豁免 | 架构-类型治理 |
-| TD-009 | 无深引用：跨包只走 `exports` 显式子路径 | charter§5.3-7 | depcruise `cordex-no-deep-import`（03§3.6） | `tooling/depcruise/rules/no-deep-import.ts` | `tooling/depcruise/__tests__/fixtures/no-deep-import/violation` | depcruise | 无（架构性禁止） | 架构-类型治理 |
+| TD-009 | 无深引用：跨包只走目标包 `exports` 显式登记的子路径（= `cordex.publicEntry`），禁通配与 `src`/`lib` 深引用，`./testing` 仅限测试（2026-09-25 rulings §4.18 FE-04） | charter§5.3-7 | depcruise `cordex-no-deep-import`（03§3.6，查询目标包 `publicEntry`，非固定正则） | `tooling/depcruise/rules/no-deep-import.ts` | `tooling/depcruise/__tests__/fixtures/no-deep-import/violation`（未登记子路径、`src` 深引用、`./*` 通配各一） | depcruise | 无（架构性禁止） | 架构-类型治理 |
 
 ---
 
@@ -166,9 +188,9 @@
 | `events-declared` | `cordex/events-must-be-declared`（02§4.4，TD-017） | 同一概念，建议双方统一采用本子线全名 |
 | `no-enum-in-protocol` | [ADR-0042](../adr/0042-no-enums-const-objects.md) 仓库级 `enum` 禁令（覆盖 `@cordexjs/protocol` 及全部包，TD 见 08§8 D9 相关行） | 结构线诉求已被本子线更严格的仓库级规则覆盖，无需单独规则 |
 | `no-boolean-command-result` | `cordex/no-boolean-command-result`（02§4.14，本轮新增） | 命名完全一致 |
-| `exports-explicit` | [04§3](./04-api-surface.md#3-exports-显式子路径策略) exports 策略 + `cordex-no-deep-import`（03§3.6，TD-009/TD-041） | 同一概念 |
-| `schema-lock` | 暂登记为 TD-063（本节 §10），语义按"`schemaVersion` 发布后不可变"理解 | **语义存在歧义，需结构线确认**：是指"schema 即类型源"（已有 `cordex/schema-type-must-be-inferred`，02§4.11，TD-045）还是"Snapshot schema 版本化后不可变"（TD-063，本轮按此理解新增）；确认后如判定为前者，TD-063 作废并入 TD-045，本行更新 |
-| `manifest-diff` | `scan-manifest`（06§6，TD 见 08§6/§7 多处） | 同一概念，命名差异仅为"动词短语" vs "scan- 前缀脚本名"的风格差异，建议文档交叉引用时统一写 `scan-manifest` |
+| `exports-explicit` | [04§3](./04-api-surface.md#3-exports-显式子路径策略) exports 策略 + `scan-manifest` 规则 (c)（exports key = `publicEntry`）+ `cordex-no-deep-import`（03§3.6，读目标包 `publicEntry`，TD-009/TD-041） | 同一概念（2026-09-25 rulings §4.18 FE-04：放行集合由「`.` 与 `./testing`」改为「目标包 `publicEntry` 显式登记的子路径」） |
+| `schema-lock` | TD-063（本节 §10），语义为"已发布 `schemaVersion` 的 schema 形状不可变"；作为 `scanners` job 的 `schema-lock` 步骤执行 | ADR-0009「如何被机械验证」的 `schema-lock` 即此义（快照 schema 版本锁），歧义结案；ADR-0009 所写「CI job」按 07§3 封闭集合改读为步骤（2026-09-25 rulings §4.18 GV-14） |
+| `manifest-diff` / `manifest-gen` | `scan-manifest`（06§6，即 `tooling/scripts/scan-manifest.ts`，40-modules/01 D-1；TD-090） | 同一物：manifest-gen 生成 `manifest.ts` 并入库，`--check` 重新生成无 diff（2026-09-25 rulings §4.18 GV-17），文档交叉引用统一写 `scan-manifest` |
 | `Derived<T>` 类型测试 | [05§4.4](./05-runtime-boundaries.md#44-派生字段标记derivedt) + [09§6](./09-plugin-type-contracts.md#6-类型测试的组织方式)（本轮新增，TD-059） | 已覆盖 |
 | `package.json#cordex` 字段 schema | `tooling/policy/schema/cordex-package-metadata.schema.json`（[03§2](./03-boundaries.md#2-包元数据-schema)，本轮补充落地路径） | 已覆盖，双方共享维护该 schema 文件（见 03§2 说明） |
 | `no-index-in-mutation` | `cordex/no-index-in-mutation`（02§4.17，TD-065） | 命名完全一致（架构-结构条线本轮明确给出此名，与架构-运行时条线的诉求一致，双线收敛到同一名字） |
@@ -179,6 +201,42 @@
 | `error-codes-catalog` | `scan-observability-identifiers`（06§13，TD-073，覆盖错误码/span/metric 三类，不止错误码） | 结构线诉求是本扫描器覆盖范围的一个子集（三分之一），已覆盖 |
 | `event-domain-whitelist` | `cordex/events-must-be-declared` 规则 3（02§4.4，域白名单子检测，TD-074） | 已并入既有事件声明规则，非独立规则文件 |
 | `bundle-budget` | `scan-bundle-budget`（06§14，TD-075） | 命名完全一致 |
+
+### 11.1 扫描器名对账（2026-09-25，rulings §4.18 GV-15）
+
+ADR、架构正文与模块文档中写成「扫描器 `x`」、但此前在 06/本表都查不到的名字逐个归并如下（不新增扫描器，十四个的上限与 scan-policy 职责不变）。对得上既有机制的写原机制；对不上的落为既有扫描器子规则、lint 规则或测试断言，并在 §12b 补执行行。各出处原文改用本表「本子线对应机制」列的正式名；今后文档中出现的扫描器名必须能在 06 或本节查到（`docs/_tools` 文档检查守护）。
+
+| 结构线名称（出处） | 本子线对应机制 | 关系说明 |
+|---|---|---|
+| `provider-runs-conformance`（ADR-0007、40-modules/02/06/08/09/10） | `scan-manifest` 规则 (e)（06§6，TD-070） | 同一机制 |
+| `manifest-present`（ADR-0003、40-modules/02/10/16） | `scan-manifest` 规则 (a)：`plugin`/`provider`/`definition` 角色缺 `manifest.ts` 即违规（TD-090） | 已并入 |
+| `deprecated-expiry`（ADR-0002；30-arch/02 §5 旧目录） | `scan-deprecations`（06§8，TD-036） | 同一机制 |
+| `contribute-static-ident`（ADR-0006） | `scan-contributions` 规则 (a)（06§3，TD-089） | 同一机制 |
+| `lifecycle-test-present`（30-arch/03 §11、40-modules/17） | `scan-effects` 规则 (2)（06§4，TD-071） | 同一机制 |
+| `when-keys-declared`（30-arch/03 §3.6、40-modules/10） | `scan-contributions` 规则 (e)（06§3，TD-089） | 新子规则 |
+| `i18n-keys-sync`（30-arch/02 §5 旧目录、40-modules/00） | `scan-contributions` 规则 (f)（06§3，TD-089） | 新子规则；06 没有「i18n 专项扫描器」 |
+| `command-id-format`（30-arch/05 §12、40-modules/03） | `scan-command-capabilities` 规则 (c)（06§11，TD-099） | 新子规则 |
+| `peer-policy`（30-arch/02 §4.0.1、ADR-0002） | `scan-manifest` 规则 (h)（06§6，TD-100） | 新子规则 |
+| `no-src-conditions`（ADR-0004） | `scan-manifest` 规则 (c) 子检查 + publint（04§4，TD-090） | 已并入 |
+| `error-codes-unique`（ADR-0011） | `scan-observability-identifiers` 规则 (c)（06§13，TD-073） | 已并入 |
+| `index-pure`（30-arch/03 §2.3、40-modules/17） | ESLint `no-restricted-syntax`：`**/src/index.ts` 只许 `export … from`（02§3，TD-096） | 落为 lint 规则 |
+| `codec-no-clock`（30-arch/04 §11） | ESLint `no-restricted-properties`/`no-restricted-syntax`：`ooxml-*` 禁 `Date.now`、无参 `new Date()`、`performance.now`、`Math.random`（02§3，TD-097） | 落为 lint 规则 |
+| `no-doc-type-literals-server`（40-modules/08、14 N-7） | `cordex/no-doc-type-literals` 扫描路径扩至 `apps/server/src/modules/**`（02§4.12，TD-086） | 不新造规则名 |
+| `no-doc-fields-in-contracts`（ADR-0016、12） | `cordex/no-doc-type-literals` 子检测：`engine-render`/`model-core` 导出类型的属性名禁文档类型词根（02§4.12，TD-086）+ api-extractor 基线审查 | 已并入 |
+| `shadcn-components-sync`、`single-shadcn-copy`、`shadcn-overrides`（ADR-0017、30-arch/02 R17、40-modules/10） | 测试断言 `packages/ui-react/src/__tests__/shadcn-copy.test.ts`（`test` job）+ `scanners` job 的 `shadcn-diff` 步骤（报告，M2 稳定后阻断）（TD-091） | 落为测试断言 |
+| `theme-vars-contract`（ADR-0017、30-arch/02 R18、40-modules/10） | 测试断言 `packages/design/src/__tests__/theme-vars-contract.test.ts`（TD-092） | 落为测试断言 |
+| `no-domain-defs-in-apps`、`single-create-host-callsite`（30-arch/02 §3、40-modules/11） | ESLint `no-restricted-syntax`（`apps/**` override，02§3）+ depcruise `cordex-apps-only-assemble`（03§3.7）（TD-093） | 落为 lint 与依赖规则 |
+| `no-editing-in-viewer`（40-modules/11） | depcruise `cordex-viewer-no-editing`（03§3.7，TD-094） | 落为依赖规则 |
+| `preset-glue-thin`（40-modules/11） | ESLint `max-lines-per-function`（60）+ `no-restricted-imports`（`@cordexjs/model-*` 仅允许 `import type`），作用于 preset 胶水插件（02§3，TD-094） | 落为 lint 规则 |
+| `preset-has-order-test`、`preset-pluggable-matrix`、`viewer-readonly-test-present`（40-modules/11） | `scan-effects` 规则 (3)（06§4，TD-095） | 新子规则 |
+| `no-bytes-in-snapshot`（ADR-0008）、`no-numeric-model-ids`（ADR-0014）、`no-execution-flags`（ADR-0015）、`single-model`（ADR-0007） | 类型测试断言（`*.type-test.ts`，09§6，`test-typecheck` job；`no-execution-flags` 另有 api-extractor 基线）（TD-098） | 落为类型测试 |
+| `unit-events-carry-unitId`（ADR-0005、40-modules/02） | 类型测试断言：`model-core` 的 `Events` 声明里 `unit/*`、`store/*`、`history/*`、`selection/*` 事件参数元组首元素为 `UnitId`（`packages/model-core/__tests__/unit-events.type-test.ts`，09§6，`test-typecheck` job）（TD-098） | 落为类型测试；原称「扫描器」 |
+| `ui-writes-via-commands`（40-modules/10） | `cordex/store-transact-in-commands-only`（02§4.20，TD-068） | 同一机制 |
+| `doc-access-via-permission`（ADR-0022/0029、40-modules/00/01/08/12） | `scan-doc-access-via-permission`（06§18，TD-085） | 同一扫描器，短名可用 |
+| `repo-requires-tenant-id`（40-modules/01/08、14 N-6） | ~~已作废~~：T-0 单组织去租户（rulings §4.15），由 `scan-doc-access-via-permission` 与文档级 RLS（TD-083/TD-085）取代 | 仅留档，出处应删去或标注作废 |
+| `type-budget`、`config-fields-read`、`policy-check`（30-arch/02 §5 旧目录名） | `scan-type-escapes` 预算（06§2）、`scan-config-usage`（06§7）、`scan-policy`（06§9；CI job 名仍为 `policy-check`） | 旧目录名，30-arch/02 §5 已改指 `tooling/scripts/` |
+| `horizontal-tests-use-fixture-only`（ADR-0016、30-arch/12 §6、40-modules/00/05/13） | depcruise `cordex-doc-type-blind`（03§3.2，TD-004）：判定面含各包 `__tests__/`、`testing/` 与 `*.test.ts`，非组合根的水平层测试同样不得 import 垂直束，只能用 `@cordexjs/model-core/testing` 的 `fixture`/`fixture-grid` 类型 | 已并入 R3（不另立规则文件；原写作 R3/R10 的「姐妹规则」） |
+| `horizontal-freeze`（ADR-0016、40-modules/13） | M5 起 `scanners` job 的步骤；若正式纳入为第 15 个扫描器 `scan-horizontal-freeze`（需追加 06§19，40-modules/01 Q-01） | 当前不计入十四个 |
 
 ---
 
@@ -218,6 +276,32 @@
 
 ---
 
+## 12b. 矛盾收口补登（2026-09-25，rulings §4.18）
+
+TD-086…TD-090 即 40-modules/01 §13 Q-07 所提的五行（D-6/D-7 覆盖缺口，按复核 H5 顺延后的编号），其余各行来自 GV-15 扫描器名对账（§11.1）与 FE-02/FE-21 的包元数据约束。
+
+| id | 陈述 | 来源 | 执行机制 | 配置路径 | 负向测试路径 | CI job | 豁免方式 | owner |
+|---|---|---|---|---|---|---|---|---|
+| TD-086 | 非垂直束代码不得以文档类型 id 字面量分支；`engine-render`/`model-core` 导出类型的属性名不得含文档类型词根；范围含 `apps/server/src/modules/**` | charter§5.1；本方案（02§4.12，doc-type-blind 值层对偶）；ADR-0016 | `cordex/no-doc-type-literals`（02§4.12，含服务端路径与导出属性名子检测） | `tooling/eslint-config/eslint-plugin-cordex/rules/no-doc-type-literals.ts` | `tooling/eslint-config/eslint-plugin-cordex/__tests__/no-doc-type-literals.test.ts` | lint | 无（架构性禁止） | 架构-类型治理 |
+| TD-087 | UnitScope 服务（store/history/selection/render/presence）不得在根 Context inject | 本方案（02§4.13，UnitScope 隔离约定） | `cordex/no-unit-scoped-inject-at-root`（02§4.13，启发式） | `tooling/eslint-config/eslint-plugin-cordex/rules/no-unit-scoped-inject-at-root.ts` | `tooling/eslint-config/eslint-plugin-cordex/__tests__/no-unit-scoped-inject-at-root.test.ts` | lint | cordex-allow（预算制，启发式漏报由 code review 兜底） | 架构-类型治理 |
+| TD-088 | Command 处理器不得返回裸 `boolean` | charter-D4 | `cordex/no-boolean-command-result`（02§4.14） | `tooling/eslint-config/eslint-plugin-cordex/rules/no-boolean-command-result.ts` | `tooling/eslint-config/eslint-plugin-cordex/__tests__/no-boolean-command-result.test.ts` | lint | 无（架构性禁止） | 架构-类型治理 |
+| TD-089 | 贡献清单一致：`ctx.contribute` 引用可静态追溯、贡献点 id 命名合规、manifest `contributes` 与源码双向一致、`when` 上下文键已登记、各语言 i18n 键集合与 `I18nKeys` 声明一致 | charter§5.5；charter-D3；ADR-0006 | `scan-contributions` 规则 (a)–(f)（06§3） | `tooling/scripts/scan-contributions.ts` | `tooling/scripts/__tests__/scan-contributions.test.ts` | scanners | 无（一致性检查） | 架构-类型治理 |
+| TD-090 | `manifest.ts` 由源码生成并入库、`--check` 无 diff；`cordex-manifest.json` 构建时序列化不入库；`exports` key 集合 = `publicEntry`，不含 `development`/`source` 条件 | ADR-0003；ADR-0004；charter§5.3-7 | `scan-manifest` 规则 (a)(b)(c)（06§6） | `tooling/scripts/scan-manifest.ts` | `tooling/scripts/__tests__/scan-manifest.test.ts` | scanners | 无（一致性检查） | 架构-类型治理 |
+| TD-091 | shadcn 复制件唯一且与 `components.json`、桶文件一致；改动过的复制件文件头标 `// Cordex override` 并单列 | 本方案（ADR-0017） | 测试断言 `shadcn-copy.test.ts` + `scanners` job 的 `shadcn-diff` 步骤（报告，M2 稳定后阻断） | `packages/ui-react/components.json`、`packages/ui-react/src/components/ui/` | `packages/ui-react/src/__tests__/shadcn-copy.test.ts` | test、scanners | 无（架构性禁止） | 架构-类型治理（机制）+ 前端 M-10（复制件清单） |
+| TD-092 | ui-react、`*-ui`、apps 使用的主题变量与 `@theme inline` 名必须在 `design` 的 tokens CSS 声明；`--cordex-*` 前缀出现即失败 | 本方案（ADR-0017；rulings C-22） | 测试断言 `theme-vars-contract.test.ts` | `packages/design/css/tokens.css` | `packages/design/src/__tests__/theme-vars-contract.test.ts` | test | 无（架构性禁止） | 架构-类型治理（机制）+ 前端 M-10（变量表） |
+| TD-093 | apps 只组装：`apps/**` 不含领域定义（`defineCommand`/`defineMutation`/`defineOperation`/`defineContributionPoint`/`ctx.contribute(`）；`createHost(`、`createSlide*Preset(` 只在 `create-editor-host.ts` 出现；apps/web 只 import 白名单包、kernel 值导入只在 `application/host/**` | charter§5.2（apps 只组装）；本方案（30-arch/02 §3、§7 R9；rulings §4.15 Q2） | ESLint `no-restricted-syntax`（`apps/**` override，02§3）+ depcruise `cordex-apps-only-assemble`（03§3.7） | `tooling/eslint-config/rules/assembly.ts`、`tooling/depcruise/rules/apps-only-assemble.ts` | `tooling/eslint-config/__tests__/assembly.test.ts`、`tooling/depcruise/__tests__/fixtures/apps-only-assemble/violation` | lint、depcruise | 无（架构性禁止） | 架构-类型治理 |
+| TD-094 | preset 只装配：查看器不含编辑链与 React（不 import `@cordexjs/model-slide/editing`、ui-core、ui-react、slide-ui、react）；胶水插件 `apply` ≤ 60 行且对 `@cordexjs/model-*` 只许 `import type` | 本方案（ADR-0015；40-modules/11 §10） | depcruise `cordex-viewer-no-editing`（03§3.7）+ ESLint `max-lines-per-function`/`no-restricted-imports`（preset override，02§3） | `tooling/depcruise/rules/viewer-no-editing.ts`、`tooling/eslint-config/rules/assembly.ts` | `tooling/depcruise/__tests__/fixtures/viewer-no-editing/violation`、`tooling/eslint-config/__tests__/assembly.test.ts` | depcruise、lint | 无（架构性禁止） | 架构-类型治理 |
+| TD-095 | 每个 preset 必有顺序无关测试与可插拔矩阵测试；查看器必有只读测试 | charter§5.4；ADR-0010；ADR-0015 | `scan-effects` 规则 (3)（06§4） | `tooling/scripts/scan-effects.ts` | `tooling/scripts/__tests__/scan-effects.test.ts` | scanners | 无（存在性判定） | 架构-类型治理 |
+| TD-096 | 包入口 `src/index.ts` 只含 `export … from` 再导出，无顶层可执行语句（`sideEffects: false` 的保证） | 本方案（30-arch/03 §2.3） | ESLint `no-restricted-syntax`（`**/src/index.ts` override，02§3） | `tooling/eslint-config/rules/assembly.ts` | `tooling/eslint-config/__tests__/assembly.test.ts` | lint | 无（架构性禁止） | 架构-类型治理 |
+| TD-097 | 编解码导出确定性：`ooxml-*` 不读时钟与随机源 | charter-D7；本方案（30-arch/04 §11，SV-02） | ESLint `no-restricted-properties`/`no-restricted-syntax`（`ooxml-*` override，02§3） | `tooling/eslint-config/rules/determinism.ts` | `tooling/eslint-config/__tests__/determinism.test.ts` | lint | cordex-allow（预算恒为 0） | 架构-类型治理 |
+| TD-098 | 模型与执行入口的类型层不变式：`Snapshot` 不含字节类型（只许 `BlobRef`）；`model-*` 实体表键为 `NodeId` 品牌；`commands.execute` 的 opts 不得新增键；文档 body 在 store Provider 外为深只读；Unit 级事件（`unit/*`、`store/*`、`history/*`、`selection/*`）签名首参为 `unitId`（2026-09-25 补，GV-15） | 本方案（ADR-0005、ADR-0007、ADR-0008、ADR-0014、ADR-0015） | 类型测试断言（`*.type-test.ts`，09§6）+ api-extractor 基线（04§2） | `packages/model-core/__tests__/`、`packages/kernel/__tests__/` | `packages/model-core/__tests__/snapshot-invariants.type-test.ts`、`packages/model-core/__tests__/unit-events.type-test.ts`、`packages/kernel/__tests__/execute-options.type-test.ts` | test-typecheck、api-surface | 无（架构性禁止） | 架构-类型治理（机制）+ 架构-结构 A（类型定义） |
+| TD-099 | 命令 id 为 `<domain>.<name>`、Mutation type 为 `<docType>.<entity>.<verb>` | charter§5.5；本方案（30-arch/05 §12） | `scan-command-capabilities` 规则 (c)（06§11） | `tooling/scripts/scan-command-capabilities.ts` | `tooling/scripts/__tests__/scan-command-capabilities.test.ts` | scanners | 无（一致性检查） | 架构-类型治理 |
+| TD-100 | 需要单实例的 `@cordexjs/*` 依赖写在 `peerDependencies`（`shared` 例外） | 本方案（ADR-0002） | `scan-manifest` 规则 (h)（06§6） | `tooling/scripts/scan-manifest.ts` | `tooling/scripts/__tests__/scan-manifest.test.ts` | scanners | 无（架构性禁止） | 架构-类型治理 |
+| TD-101 | 每包内部依赖 ⊆ 章程 §5.2 依赖上限 ∪ 隐式 L0（kernel/shared/protocol；design、shared 例外）；tsconfig `references` = package.json 内部依赖 | charter§5.2；rulings §4.18 FE-02 | `scan-manifest` 规则 (i)（06§6）+ `sync-references`（01§4） | `tooling/policy/dependency-limits.json`、`tooling/scripts/scan-manifest.ts`、`tooling/scripts/sync-references.ts` | `tooling/scripts/__tests__/scan-manifest.test.ts`（负向：依赖超上限；上限列未含且非 L0 的边） | scanners | 无（上限变更须经章程 §5.2 修订） | 架构-类型治理（机制）+ 架构-结构 A（上限列内容） |
+| TD-102 | 包元数据 `cordex` 字段为封闭八键（layer/iso/bundle/role/implements/compositionRoot/publicEntry/stability），`rank` 等未知键拒绝；`provider` 必填 `implements`；`compositionRoot: true` 仅 preset-*、apps/web、apps/server 且须显式声明；`bundle` V-* 必填、preset 选填、其余省略 | charter§5.2；rulings §4.18 FE-21、FE-01 | scan-policy 全局不变式（包元数据 schema 校验，06§9）+ `cordex-package-metadata.schema.json`（03§2） | `tooling/policy/schema/cordex-package-metadata.schema.json` | `tooling/scripts/__tests__/scan-policy.test.ts`（元数据 schema 负向用例：`rank` 键、provider 缺 `implements`、非组合根写 `compositionRoot: true`） | policy-check | 无（schema 封闭） | 架构-类型治理 |
+
+---
+
 ## 13. 覆盖率自检（人工版本，供本文件初次评审使用；机器版本见 scan-policy）
 
 - 章程 §5.3 八条（含第 8 条"垂直束互不依赖"）：TD-001 ～ TD-009，覆盖 8/8。
@@ -231,8 +315,9 @@
 - lessons A30：TD-066，覆盖 1/1。
 - 架构-运行时/架构-结构条线第二轮追加需求（§12）：TD-064 ～ TD-078，共 15 行，逐行来源见 §12 表格「来源」列（含 charter-D4/D7/D9/D11 延伸、lessons-A27/K1 延伸、本方案响应两条线具体提案）；命名对照见 §11。
 - 章程 §10 Q1–Q10 裁决落地（§12a）：TD-079 ～ TD-082，共 4 行（Q9 lockfile 双锁、Q1 workspace 协议与包名 scope、Q4 禁 HTML 注入、Q2 `*-ui` 核心框架无关）；2026-09-24 复核补登（rulings §4.17）：TD-083 ～ TD-085，共 3 行（Q6 文档级 RLS 覆盖、Q10 镜像策略、D3 `doc-access-via-permission`）。
+- 2026-09-25 矛盾收口补登（§12b，rulings §4.18）：TD-086 ～ TD-102，共 17 行（TD-086…090 即 40-modules/01 Q-07 的五行；TD-091…100 来自 GV-15 扫描器名对账；TD-101 FE-02 依赖上限；TD-102 FE-21 包元数据封闭 schema）；另改写 TD-004（FE-01 组合根豁免）与 TD-009（FE-04 publicEntry）两行的陈述与夹具。
 
-**总计**：TD-001 ～ TD-085，共 85 行规范行（当前为连续编号，未出现废弃跳号；后续若有行废弃，按 [08§1](#1-表格格式约定) 约定保留 id 不复用，届时总行数与最大 id 数值会出现差值，具体以 [06 scan-policy](./06-scanners.md#9-scan-policy) 的机器版逐行解析结果为准，不依赖人工数数）。
+**总计**：TD-001 ～ TD-102，共 102 行规范行（当前为连续编号，未出现废弃跳号；后续若有行废弃，按 [08§1](#1-表格格式约定) 约定保留 id 不复用，届时总行数与最大 id 数值会出现差值，具体以 [06 scan-policy](./06-scanners.md#9-scan-policy) 的机器版逐行解析结果为准，不依赖人工数数）。
 
 ---
 

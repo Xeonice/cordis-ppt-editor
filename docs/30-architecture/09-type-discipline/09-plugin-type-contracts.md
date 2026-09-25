@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
 
 # 09 · 插件类型契约
 
@@ -18,14 +18,33 @@ function defineContributionPoint<S extends StandardSchemaV1>(options: {
   id: `${string}.${string}`
   schema: S
   key: (item: StandardSchemaV1.InferOutput<S>) => string
+  conflict?: 'error' | 'replace'   // 缺省 'error'；'replace' 须在定义时显式声明（rulings K-3）
+  describe?: (item: StandardSchemaV1.InferOutput<S>) => string
 }): ContributionPoint<StandardSchemaV1.InferOutput<S>>
 ```
 
-关键约束：**调用方不能显式传入贡献项的类型参数**——签名里唯一的类型参数 `S` 绑定的是 `schema` 本身，贡献项类型 `StandardSchemaV1.InferOutput<S>` 是从 `S` **反推**出来的返回类型位置，不对调用方开放书写。这意味着"schema 与类型不一致"这种失配在类型层面**不可表达**：贡献项类型永远等于 schema 的推导输出，不存在第二个独立声明的机会。与 [05§3](./05-runtime-boundaries.md#3-schema-即类型源)「schema 即类型源」是同一原则在贡献点场景下的具体化。
+关键约束：**调用方不能显式传入贡献项的类型参数**——签名里唯一的类型参数 `S` 绑定的是 `schema` 本身，贡献项类型 `StandardSchemaV1.InferOutput<S>` 是从 `S` **反推**出来的返回类型位置，不对调用方开放书写。这意味着"schema 与类型不一致"这种失配在类型层面**不可表达**：贡献项类型永远等于 schema 的推导输出，不存在第二个独立声明的机会。与 [05§3](./05-runtime-boundaries.md#3-schema-即类型源)「schema 即类型源」是同一原则在贡献点场景下的具体化。`conflict`、`describe` 两个可选字段只描述运行时行为（语义见 `03-kernel-and-plugin-model.md` §3.2/§3.3），不引入第二个类型参数（2026-09-25，rulings §4.18 GV-18 补齐 K-3 已确认存在的 `conflict` 字段）。
+
+**贡献点类型推导链**
+
+```mermaid
+flowchart LR
+  schema["schema：S extends StandardSchemaV1"] --> define["defineContributionPoint#60;S#62;：唯一类型参数绑定 schema"]
+  define --> infer["贡献项类型 = StandardSchemaV1.InferOutput#60;S#62;：反推得到，调用方不可显式传入"]
+  infer --> point["ContributionPoint#60;T#62;：导出常量显式标注类型，isolatedDeclarations，§5"]
+  point --> contribute["ctx.contribute 只接受 T：schema 与类型失配不可表达"]
+  contribFile["*.contribution.ts：declare module 增强 + defineContributionPoint 调用，零运行时导入，§2"] -. "唯一合法位置" .-> define
+```
+
+怎么读：实线是类型从 schema 一路推导到调用点的方向，中间没有第二处手写类型的机会；虚线标出贡献点定义只能出现在 `*.contribution.ts`。
 
 ### 1.2 唯一键类型
 
-`key: (item: T) => string` 是贡献点内部用于去重/查找的键提取函数，`ContributionPoint<T>` 内部以 `Map<string, T>` 形式维护贡献集合。**键冲突处理**：同一贡献点内两个不同 Fiber 贡献了相同 `key(item)` 结果，判定为程序员错误（配置冲突，非预期失败），按 [05§5](./05-runtime-boundaries.md#5-result-类型与异常的边界) 的分工，`ctx.contribute()` 在此情形下抛出类型化异常（如 `DuplicateContributionError extends CordexError`），不静默覆盖、不走 `Result`——冲突发生在"贡献是否被接受"这个更早、更根本的时机，性质上与插件 `Config` 校验失败（同样是 throw，见 [05§5](./05-runtime-boundaries.md#5-result-类型与异常的边界) 的例外说明）一致，而不是运行期处理一份不合法业务数据。
+`key: (item: T) => string` 是贡献点内部用于去重/查找的键提取函数，`ContributionPoint<T>` 内部以 `Map<string, T>` 形式维护贡献集合。**键冲突处理**（2026-09-25，rulings §4.18 GV-18：运行时语义归 `03-kernel-and-plugin-model.md` §3.3，本篇只消费）：同一贡献点内两个不同 Fiber 贡献了相同 `key(item)` 结果时，按该贡献点定义时声明的 `conflict` 策略处理——
+- `conflict: 'error'`（缺省）：**拒绝后来的那一项**，记 `ContributionDiagnostic{ reason: 'duplicate' }` 并经 `errors.report` 上报，`ctx.contribute()` 返回一个 no-op disposer，**不抛异常**、不静默覆盖——一个坏贡献不应拖垮整个插件的 `apply`（lessons A11），先到者继续生效；
+- `conflict: 'replace'`：后者覆盖前者并发 `replaced` 诊断；只有在定义时显式声明的贡献点可用（当前取值见 `03-kernel-and-plugin-model.md` §3.6 总表 conflict 列，rulings K-3 / §4.18 GV-24）。
+
+原稿的 `DuplicateContributionError` 作废：它与 `03-kernel-and-plugin-model.md` §3.3、ADR-0006 与 `ContributionDiagnostic.reason` 的 `'duplicate'` 取值相矛盾。类型层面的约束只有一条：`ctx.contribute()` 的返回类型恒为 disposer，被拒绝与被接受在类型上不可区分，调用方如需确认只能读诊断（`contributions.diagnostics()`）。
 
 ### 1.3 与旧式 `register*`/switch-on-kind 的对比
 
@@ -49,8 +68,30 @@ const ManifestSchema = /* z.object({ id, version, iso, provides, injects, contri
 type Manifest = z.infer<typeof ManifestSchema>
 ```
 
-- `Manifest` 本身遵循 [05§3](./05-runtime-boundaries.md#3-schema-即类型源)「schema 即类型源」——`type Manifest` 不是手写接口，是 `z.infer` 的产物，与 `cordex-manifest.json`（[06 scan-manifest](./06-scanners.md#6-scan-manifest) 生成）共用同一份 schema 校验：生成时用 `ManifestSchema.parse()` 校验生成结果的结构合法性，未来任何工具（如插件市场、CLI）读取 `cordex-manifest.json` 时同样先过这道 schema，不需要重新理解 TS 类型定义——这是"把 Manifest 当成一个真正的边界产物"的直接体现（[05§1](./05-runtime-boundaries.md#1-必须校验的边界清单) 清单可延伸追加"Manifest 读取"这一行，当有非 TS 工具消费 `cordex-manifest.json` 时生效；M0 阶段消费方仅为本仓库自身的 CI，暂不追加为独立边界行，避免为尚不存在的消费者预先设计校验路径）。
-- `Manifest` 每个包一份（`manifest.ts` 导出），字段值由 [06 scan-manifest](./06-scanners.md#6-scan-manifest) 从源码静态推导后与手写内容比对（"源码是唯一事实源，manifest.ts 是需要保持同步的声明，`cordex-manifest.json` 是两者一致后的派生产物"——三层关系，不是简单的"生成"关系，因为 `manifest.ts` 本身仍需人工编写以获得**意图声明**的价值：一个尚未实现的 `provides` 项若写进 `manifest.ts`，scan-manifest 会因"声明了但源码找不到对应实现"而报错，这正是防止 [lessons A9](../../00-charter/reference-univer-lessons.md) 类问题——"无 manifest、无法知道插件贡献了什么"——的反面失败模式：manifest 存在但与事实脱节）。
+- `Manifest` 本身遵循 [05§3](./05-runtime-boundaries.md#3-schema-即类型源)「schema 即类型源」——`type Manifest` 不是手写接口，是 `z.infer` 的产物，与 `cordex-manifest.json`（构建时由 `manifest.ts` 序列化）共用同一份 schema 校验：生成时用 `ManifestSchema.parse()` 校验生成结果的结构合法性，未来任何工具（如插件市场、CLI）读取 `cordex-manifest.json` 时同样先过这道 schema，不需要重新理解 TS 类型定义——这是"把 Manifest 当成一个真正的边界产物"的直接体现（[05§1](./05-runtime-boundaries.md#1-必须校验的边界清单) 清单可延伸追加"Manifest 读取"这一行，当有非 TS 工具消费 `cordex-manifest.json` 时生效；M0 阶段消费方仅为本仓库自身的 CI，暂不追加为独立边界行，避免为尚不存在的消费者预先设计校验路径）。
+- `Manifest` 每个包一份（`manifest.ts` 导出）。**生成策略归结构线 `03-kernel-and-plugin-model.md` §2.3/§4.2 与 ADR-0003**（2026-09-25，rulings §4.18 GV-17，依据 charter 术语「Manifest……由源码生成」与 §6.2「静态分析生成并入库，CI 无 diff」）：`manifest.ts` 由 manifest-gen（即 `tooling/scripts/scan-manifest.ts`，40-modules/01 D-1）从源码静态分析**生成**，头部标记 `generated`、禁止人工编辑、**入库**；CI 以 `--check` 模式重新生成，要求与入库文件无 diff；`cordex-manifest.json` 是构建时由 `manifest.ts` 序列化的产物，随包发布、**不入库**。源码是唯一事实源——一个尚未实现的 `provides` 项不可能出现在生成的 `manifest.ts` 里，手改 `manifest.ts` 会在 `--check` 时以 diff 失败，这同样防住 [lessons A9](../../00-charter/reference-univer-lessons.md) 的反面失败模式「manifest 存在但与事实脱节」。原稿「`manifest.ts` 人工编写以获得意图声明」的三层写法作废（ADR-0003 已否决「手写 manifest.ts」备选）。
+
+**Manifest 的生成链**
+
+```mermaid
+flowchart LR
+  src["源码：唯一事实源"]
+  gen["manifest-gen，即 scan-manifest.ts：从源码静态分析"]
+  manifestTs["manifest.ts：生成物，头部 generated，入库，显式标注 Manifest 类型"]
+  check["CI --check：重新生成与入库文件无 diff"]
+  json["cordex-manifest.json：构建时由 manifest.ts 序列化，随包发布，不入库"]
+  schema["ManifestSchema：type Manifest = z.infer"]
+  tools["未来的读取方：插件市场、CLI 等"]
+  src --> gen
+  gen --> manifestTs
+  manifestTs --> check
+  manifestTs -- "构建" --> json
+  schema -. "序列化时 ManifestSchema.parse 校验结构" .-> json
+  json --> tools
+  schema -. "读取时同样先过 schema" .-> tools
+```
+
+怎么读：源码经生成器得到入库的 manifest.ts，CI 用重新生成比对防止手改与漂移；发布用的 JSON 只在构建时从 manifest.ts 派生；虚线表示同一份 schema 同时约束生成与读取两端。
 
 ---
 
@@ -114,11 +155,11 @@ describe('ContributionPoint<ShapeKindContribution>', () => {
 
 ## 7. Provider 一致性套件的类型接口
 
-每个 Definition 包（如 `model-core` 之于 `DocumentStore`）在其 `"./testing"` 导出子路径（[04§3](./04-api-surface.md#3-exports-显式子路径策略)）下提供一个**共享的合规测试套件**，形状示意：
+每个 Definition 包（如 `model-core` 之于 `DocumentStore`）在其 `"./testing"` 导出子路径（[04§3](./04-api-surface.md#3-exports-显式子路径策略)）下提供一个**共享的契约套件**（统一命名 `run<Definition>Conformance`，charter §5.5；2026-09-25 rulings §4.18 GV-19 由旧名 `run…ComplianceSuite`/「合规套件」改正），形状示意：
 
 ```ts
 // 示意，定义于 @cordexjs/model-core 的 ./testing 子路径
-function runDocumentStoreComplianceSuite(
+function runDocumentStoreConformance(
   createStore: () => DocumentStore,
 ): void   // 内部调用 describe/it，注册一组行为 + 类型双重断言
 ```
@@ -126,14 +167,36 @@ function runDocumentStoreComplianceSuite(
 每个 Provider 包（`store-memory`、`store-yjs`）的 `__tests__/` 内导入并调用该函数，传入自己的构造器：
 
 ```ts
-// 示意，定义于 @cordexjs/store-yjs/__tests__/compliance.test.ts
-import { runDocumentStoreComplianceSuite } from '@cordexjs/model-core/testing'
-runDocumentStoreComplianceSuite(() => new YjsDocumentStore(/* ... */))
+// 示意，定义于 @cordexjs/store-yjs/__tests__/conformance.test.ts
+import { runDocumentStoreConformance } from '@cordexjs/model-core/testing'
+runDocumentStoreConformance(() => new YjsDocumentStore(/* ... */))
 ```
 
-**这一设计与 [04§3](./04-api-surface.md#3-exports-显式子路径策略) `"./testing"` 导出策略互相印证**：章程 §5.3 规则 7 要求禁止深引用、只开放 `"."` 与 `"./testing"` 两个子路径，`"./testing"` 存在的**理由**在本篇第一次给出具体场景——它不是一个"顺手加上的测试工具口子"，而是「三角色」（Definition/Provider/Consumer）模式要求"每个 Provider 必须能被同一套断言验证"这一治理目标的直接实现载体。合规套件本身同时包含**行为断言**（运行时正确性，如"写入后能读回"）与**类型断言**（`expectTypeOf`，如"`transact` 的回调参数类型与 `DocumentStore.transact` 声明一致"），后者部分与 §6 的类型测试组织约定共用同一工具链。
+**这一设计与 [04§3](./04-api-surface.md#3-exports-显式子路径策略) `"./testing"` 导出策略互相印证**：章程 §5.3 规则 7 要求禁止深引用、跨包只走目标包 `exports` 显式登记的子路径（= `cordex.publicEntry`，其中 `"."` 与 `"./testing"` 为必有项，2026-09-25 rulings §4.18 FE-04），`"./testing"` 存在的**理由**在本篇第一次给出具体场景——它不是一个"顺手加上的测试工具口子"，而是「三角色」（Definition/Provider/Consumer）模式要求"每个 Provider 必须能被同一套断言验证"这一治理目标的直接实现载体。契约套件本身同时包含**行为断言**（运行时正确性，如"写入后能读回"）与**类型断言**（`expectTypeOf`，如"`transact` 的回调参数类型与 `DocumentStore.transact` 声明一致"），后者部分与 §6 的类型测试组织约定共用同一工具链。
 
-**打包卫生说明**：`runDocumentStoreComplianceSuite` 内部使用 `describe`/`it`/`expectTypeOf` 时，`vitest` 不应成为 `model-core` 这类 Definition 包的 `dependencies`（它是终端 SDK 包，不应强制消费者安装测试框架）。做法：`vitest` 只作为 `model-core` 的 `devDependencies` 用于**本包自身**测试，`./testing` 子路径导出的 `runDocumentStoreComplianceSuite` 改为接受 `describe`/`it`/`expectTypeOf` 作为参数（由调用方——即 Provider 包自己的测试文件——传入其本地 `vitest` 导入），而不是在 `model-core` 内部直接 `import { describe } from 'vitest'`。这一约束是 [lessons A34](../../00-charter/reference-univer-lessons.md)（类型/测试专用依赖不得渗入运行时依赖表）在"合规套件"这一具体场景下的应用，机械校验点与 A34 共用（[06 scan-manifest](./06-scanners.md#6-scan-manifest) 规则 (d) 会把"`./testing` 子路径源码里出现 `import ... from 'vitest'` 的值导入"识别为同一类违规）。
+**打包卫生说明**：`runDocumentStoreConformance` 内部使用 `describe`/`it`/`expectTypeOf` 时，`vitest` 不应成为 `model-core` 这类 Definition 包的 `dependencies`（它是终端 SDK 包，不应强制消费者安装测试框架）。做法：`vitest` 只作为 `model-core` 的 `devDependencies` 用于**本包自身**测试，`./testing` 子路径导出的 `runDocumentStoreConformance` 改为接受 `describe`/`it`/`expectTypeOf` 作为参数（由调用方——即 Provider 包自己的测试文件——传入其本地 `vitest` 导入），而不是在 `model-core` 内部直接 `import { describe } from 'vitest'`。这一约束是 [lessons A34](../../00-charter/reference-univer-lessons.md)（类型/测试专用依赖不得渗入运行时依赖表）在"契约套件"这一具体场景下的应用，机械校验点与 A34 共用（[06 scan-manifest](./06-scanners.md#6-scan-manifest) 规则 (d) 会把"`./testing` 子路径源码里出现 `import ... from 'vitest'` 的值导入"识别为同一类违规）。
+
+**Provider 一致性套件的调用关系**
+
+```mermaid
+flowchart LR
+  subgraph defPkg["Definition 包：model-core"]
+    direction TB
+    suite["./testing 导出的 DocumentStore 契约套件 runDocumentStoreConformance：行为断言 + 类型断言，接受 describe / it / expectTypeOf 作参数"]
+    devDep["vitest 仅在 devDependencies，用于本包自身测试"]
+  end
+  memTest["store-memory 的 __tests__：传入本地 vitest 导入与自己的构造器"]
+  yjsTest["store-yjs 的 __tests__/conformance.test.ts：同上"]
+  jobs["CI test / test-typecheck job 运行该套件"]
+  guard["scan-manifest 规则 d：./testing 源码值导入 vitest 即违规"]
+  memTest -- "import @cordexjs/model-core/testing" --> suite
+  yjsTest -- "import @cordexjs/model-core/testing" --> suite
+  memTest --> jobs
+  yjsTest --> jobs
+  guard -. "守护打包卫生" .-> suite
+```
+
+怎么读：每个 Provider 的测试从 Definition 包的 `./testing` 子路径导入同一套件并注入自己的构造器；测试框架由调用方传入，Definition 包不把 vitest 带进运行时依赖（虚线为对应的机械守护）。
 
 ---
 
@@ -146,4 +209,4 @@ runDocumentStoreComplianceSuite(() => new YjsDocumentStore(/* ... */))
 | Manifest 与源码事实一致 | [06 scan-manifest](./06-scanners.md#6-scan-manifest) | scan-manifest 报告 |
 | 贡献点/Manifest 常量导出类型显式 | `isolatedDeclarations`（[01](./01-tsconfig-baseline.md)） | tsc 诊断 |
 | 类型测试的负向用例有说明 | `@typescript-eslint/ban-ts-comment`（[02§3](./02-lint-rules.md#3-禁用清单--具体规则映射)，格式扩展至类型测试场景） | ESLint 诊断 |
-| 每个 Provider 通过其 Definition 的合规套件 | `test`/`test-typecheck` job 运行该套件 | Vitest 原生输出（含具体失败的行为/类型断言） |
+| 每个 Provider 通过其 Definition 的契约套件 | `test`/`test-typecheck` job 运行该套件 | Vitest 原生输出（含具体失败的行为/类型断言） |

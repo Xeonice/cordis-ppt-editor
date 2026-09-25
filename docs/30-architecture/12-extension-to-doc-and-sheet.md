@@ -1,6 +1,6 @@
 # 12 向 doc / sheet 扩展：文档类型盲的验证方案
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：FE-01 R3 只约束非组合根的水平层、组合根豁免，冻结范围改为「无 bundle 且非组合根的包」，server-headless 文档类型盲（§2 图、§4.1、§4.4）；GV-14 「doc-type-blindness」不是 job，四层拆回 depcruise / lint / test / scanners（§4）；GV-15 扫描器名改正式名、`horizontal-freeze` 路径改 `tooling/scripts/`（§4.1、§4.4）） | 依赖：charter v0.1
 > 目标（章程 R5、M5）：`model-doc` 与 `model-sheet` 骨架落地时，**水平层零改动**（dependency-cruiser 零横向依赖 + 水平层文件哈希冻结）。本文列出这两种类型会对水平层提出的抽象要求，标明哪些已在 M1 设计中满足、哪些必须参数化，并定义自动化「盲测套件」。
 
 ---
@@ -62,6 +62,50 @@
 3. `ui.*` 的 `slot` 为开放字符串；
 4. Snapshot 编解码保留 body 分片扩展点（可选，不阻塞 M1）。
 
+**水平层与三类垂直束**
+
+```mermaid
+flowchart TB
+  subgraph verticals["垂直束：layer 为 V-* 的包，cordex.bundle 必填"]
+    direction LR
+    slideB["slide：model-slide · slide-render · ooxml-pptx"]
+    docB["doc，M5 骨架：model-doc · doc-render · ooxml-docx"]
+    sheetB["sheet，M5 骨架：model-sheet · sheet-render · ooxml-xlsx"]
+  end
+  inject["注入口：DocumentType 声明 + 贡献点 core.mutation、core.command、render.scene、render.element、core.format、ui.*，见 §3.2"]
+  subgraph horizontal["水平层：无 cordex.bundle 且非组合根的包，含 server-*，M5 零改动、文件哈希冻结"]
+    direction TB
+    l7["L7 ui-core：贡献点 slot 为开放字符串 + when 子句"]
+    l5["L5 engine-layout · engine-render 的 Scene / RenderTarget / ElementRenderer 契约 · render-dom"]
+    l4["L4 collab-*：契约按 Unit"]
+    l3["L3 ooxml-core：OPC / XML / DrawingML 编解码与不透明保留引擎"]
+    l1["L1 model-core：Unit / UnitScope、DocumentType、DocumentStore + StoreOp、Snapshot / Migration / ResourceHook、Command 管线、permissions、Selection、FormatCodec、drawing"]
+    l0["L0 shared/order 的 FracKey、i18n、errors / telemetry"]
+  end
+  slideB & docB & sheetB --> inject
+  inject --> horizontal
+  horizontal -. "反向依赖被禁止：depcruise R3 cordex-doc-type-blind" .-> verticals
+  roots["组合根 compositionRoot:true：preset-*、apps/web、apps/server，豁免 R3"] --> verticals
+  roots --> horizontal
+```
+
+怎么读：「垂直束」框里三列平行存在、互不依赖，都只经同一个注入口使用同一套水平层；虚线是被 depcruise 禁止的反向依赖。组合根是唯一能同时 import 水平层与垂直束的包（rulings §4.18 FE-01）：preset 可带 `bundle` 并受 R4 束间隔离约束（preset-doc 不得 import slide 束），apps/web 仍受 R9 白名单约束、不能直接 import 束包，apps/server 只在 `cordis-host/preset-server.ts` 装配束并把插件清单交给 server-headless。sheet 可另行贡献 `render.target:'canvas-grid'` 作为 Provider 替换，不改水平层契约。
+依据：本文 §2 表、§3.1、§3.2、§4.1。
+
+**M1 需预先参数化的四处与 sheet 行列插入**
+
+```mermaid
+flowchart LR
+  docPaging["doc：分页"] --> k1["engine-layout：layoutTextBody 支持 maxHeight 与 startLine，返回 lines 与 overflowFrom"]
+  sheetView["sheet：可见行列窗口，节点数随滚动变化"] --> k2["engine-render：ViewDescriptor 保留文档类型自定义字段，SceneProvider.build 的 view 为开放类型"]
+  sheetFormula["sheet：公式栏"] --> k3["ui-core：slot 为开放字符串而非枚举"]
+  sheetCells["sheet：巨大 cells 表"] --> k4["Snapshot 编解码：body 可引用外部 blob 分片 $ref，可选，M5 评估"]
+  sheetRows["sheet：行列插入产生大量 set / delete 键重写"] -. "契约不变，Provider 在同一事务内批量优化" .-> k5["DocumentStore + 5 原语"]
+  k5 -. "M5 实测不可接受时" .-> renameKeys["评估新增原语 rename-keys，需 ADR"]
+```
+
+怎么读：左列是 doc/sheet 的具体需求，实线指向必须在 M1 就定好的接口形状（表中 ⚠ 的四处）；虚线是不改契约的性能兜底与其升级路径。
+
 ---
 
 ## 3. 必须参数化 vs 可以共享
@@ -95,15 +139,30 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
 
 ## 4. 「文档类型盲」自动化测试套件（ADR-0016）
 
-四层，全部在 CI 的 `doc-type-blindness` job 中运行：
+四层，**不单设 CI job**：`doc-type-blindness` 只是这四层检查的统称，按 09-07 §3 的 13 个 job 封闭集合拆回既有 job 执行（rulings §4.18 GV-14）——静态层归 `depcruise` 与 `lint`，夹具层与运行时层归 `test`，冻结层是 M5 起 `scanners` job 的 `horizontal-freeze` 步骤：
+
+**文档类型盲测试的四层**
+
+```mermaid
+flowchart LR
+  blind["文档类型盲四层：拆回既有 CI job，不新增 job 名"]
+  blind -- "depcruise、lint" --> s1["静态层：depcruise R3 cordex-doc-type-blind 零横向依赖 · lint cordex/no-doc-type-literals，含导出类型属性名子检测"]
+  blind -- "test" --> s2["夹具层：fixture 文档类型，水平层 __tests__ 只允许用 fixture"]
+  blind -- "test" --> s3["运行时层：preset-blind.test.ts 只挂水平层 + fixture，fixture 与 fixture-grid 并存互不干扰，移除 fixture 后 host 仍健康"]
+  blind -- "scanners，M5 起" --> s4["冻结层：horizontal-freeze 计算水平层 src 内容哈希写入 horizontal-freeze.lock"]
+  s4 -- "M5 的 model-doc / model-sheet PR" --> noDiff["要求锁文件无 diff"]
+  s4 -- "确需改动水平层" --> adr["PR 附 ADR 并显式更新锁文件"]
+```
+
+怎么读：四层检查分别落在边上所写的既有 CI job 里；冻结层是 M5 验收的出口，两条出边分别是常规情况与经 ADR 审计的例外。
 
 ### 4.1 静态层
 
 | 检查 | 机制 | 失败示例 |
 |---|---|---|
-| 水平层零横向依赖 | depcruise R3 `doc-type-blind`（无 `cordex.bundle` 的包 → 有 `cordex.bundle` 的包禁止） | `model-core` import `@cordexjs/model-slide` |
+| 水平层零横向依赖 | depcruise R3 `cordex-doc-type-blind`（**非组合根**的水平层包 → 垂直束包禁止：`from` = 无 `cordex.bundle` 且 `compositionRoot !== true`，`to` = layer 为 `V-*` 的包；组合根 preset-*、apps/web、apps/server 豁免，另受 R4 与 R9 约束，rulings §4.18 FE-01） | `model-core` import `@cordexjs/model-slide`；`server-headless` import `@cordexjs/ooxml-pptx` |
 | 水平层无文档类型字面量 | lint `no-doc-type-literals`：水平层源码中禁止字符串字面量/标识符片段 `slide|slides|sheet|workbook|docx|pptx|xlsx|paragraph`（允许列表：`fixtures`、注释、`model-core/testing/fixture-*`、`ooxml-core` 中的 MIME 常量表——后者是格式知识不是模型知识，单独审查） | `model-core/unit/unit.ts` 出现 `'slide'` |
-| 通用契约无文档字段 | api-extractor 基线审查 + 扫描器 `no-doc-fields-in-contracts`：`engine-render`/`model-core` 公共类型属性名不得含上述词根 | `SceneNode.slideId` |
+| 通用契约无文档字段 | api-extractor 基线审查 + lint `cordex/no-doc-type-literals` 的子检测（原写作扫描器 `no-doc-fields-in-contracts`，已并入该规则，09-08 §11.1，rulings §4.18 GV-15）：`engine-render`/`model-core` 导出类型属性名不得含上述词根；同一规则的扫描路径含 `apps/server/src/modules/**` | `SceneNode.slideId` |
 
 ### 4.2 夹具层（`fixture` 文档类型）
 
@@ -132,7 +191,7 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
 
 ### 4.4 冻结层（M5 验收）
 
-`horizontal-freeze`：`tooling/scanners/horizontal-freeze.ts` 计算所有无 `cordex.bundle` 的包 `src/**`（排除 `__tests__`）的内容哈希并写入 `fixtures/horizontal-freeze.lock`。M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**；若确需改动水平层，PR 必须附 ADR 并显式更新锁文件（可审计的「水平层改动」）。
+`horizontal-freeze`：`tooling/scripts/scan-horizontal-freeze.ts`（M5 起作为 `scanners` job 的步骤；当前不计入十四个扫描器，若正式纳入为第 15 个需追加 09-06 §19，rulings §4.18 GV-11/GV-15）计算所有**无 `cordex.bundle` 且非组合根**的包 `src/**`（排除 `__tests__`）的内容哈希并写入 `fixtures/horizontal-freeze.lock`（FE-01：组合根可随新文档类型装配而改动，不在冻结范围）。冻结范围含 `server-*`：server-headless 已按 FE-01 改为文档类型盲（导入导出经 `formats` 按 documentType 取 codec，插件清单由 apps/server 的 `preset-server.ts` 提供），因此 M5 新增 doc 时 `server-*` 的 diff 为 0（PRD 05 M5 验收）。M5 的 `model-doc`/`model-sheet` PR 要求锁文件**无 diff**；若确需改动水平层，PR 必须附 ADR 并显式更新锁文件（可审计的「水平层改动」）。
 
 ---
 
@@ -140,10 +199,11 @@ sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `se
 
 | 项 | 验收 |
 |---|---|
-| `model-doc` 骨架 | `DocumentType 'doc'` + 3 个 Mutation + 2 个命令 + JSON 编解码 + SceneProvider 渲染出段落行（用 FixedMetricsMeasurer）；`horizontal-freeze` 无 diff |
+| `model-doc` 骨架 | `DocumentType 'doc'` + 3 个 Mutation + 2 个命令 + JSON 编解码 + SceneProvider 渲染出段落行（用 `engine-layout/testing` 的 FixedWidthMeasurer，即 TextMeasurer Provider `fixed`，07 §5.1）；`horizontal-freeze` 无 diff |
 | `model-sheet` 骨架 | `DocumentType 'sheet'` + 稀疏 cells + 行插入 Mutation + Scene 网格窗口；`horizontal-freeze` 无 diff |
 | depcruise | 报告零横向依赖（R3/R4） |
 | 同页多类型 | 一个 host 同时打开 slide + doc + sheet 三个 Unit，各自渲染，关闭任一不影响其余 |
+| 服务端 | `server-*` diff 为 0：doc 的服务端导入导出只需在 apps/server 的 `preset-server.ts` 插件清单里加 `model-doc`/`ooxml-docx`（组合根改动，不在冻结范围，rulings §4.18 FE-01） |
 | 性能 | sheet 10 万 cells 打开 < 预算（PRD 04 定）；若不达标触发 §3.2 的 `rename-keys` ADR 评估 |
 
 ---

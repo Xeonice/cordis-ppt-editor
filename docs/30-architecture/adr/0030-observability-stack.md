@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q10
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q10、§4.18 BE-30/BE-14
 
 # ADR-0030 观测性技术栈：OpenTelemetry 全链路 + pino + Prometheus（Sentry 为可选 Provider）
 
@@ -12,9 +12,9 @@ D11 要求 `errors`/`telemetry`/`logger` 为 L0 服务且 M1 接入；§5.4 要�
 
 ## 决策
 
-1. **协议与 SDK**：OpenTelemetry（traces/metrics/logs）为唯一遥测契约；Node 用 `@opentelemetry/sdk-node` + 自动仪表化（http/pg/ioredis/ws），浏览器用 `@opentelemetry/sdk-trace-web` + OTLP/HTTP 导出（经 `POST /api/v1/telemetry/otlp` 代理，避免暴露 collector）。
+1. **协议与 SDK**：OpenTelemetry（traces/metrics/logs）为唯一遥测契约；Node 用 `@opentelemetry/sdk-node` + 自动仪表化（http/pg/ioredis/ws），浏览器用 `@opentelemetry/sdk-trace-web` + OTLP/HTTP 导出（经 `POST /api/v1/telemetry/otlp` 代理，避免暴露 collector）。浏览器错误上报 `POST /api/v1/telemetry/errors` 与 OTLP 代理由 M-12 新增的 `client-telemetry` 控制器承接、装在 **api 角色**（ADR-0037 决策 1）：**要求登录**（登录前页面出的错只留在浏览器控制台），按用户令牌桶限流，请求体上限 errors ≤ 64 KiB、otlp ≤ 512 KiB，OTLP 代理**只转发 traces**（2026-09-25，rulings §4.18 BE-30；原：只给出端点路径，未定承接模块、鉴权与限额）。
 2. **日志**：kernel `logger` 适配 cordis logger；Node sink = pino JSON → stdout → OTel Collector（filelog/OTLP）→ OTel logs 后端（Loki 仅在显式开启的 AGPL 可选 profile 中提供）；浏览器 sink = 控制台（dev）/环形缓冲随错误上报（prod）。
-3. **指标**：Prometheus 暴露（`/metrics`，内部端口）+ OTel metrics 导出二选一按部署配置；命名见 10 §3.3。
+3. **指标**：Prometheus 暴露（`/metrics`，内部端口）+ OTel metrics 导出二选一按部署配置；命名见 10 §3.3。renderer 角色例外：它只挂零出站的 `render` 网络，Prometheus 抓不到，因此**不装 `MetricsModule`、关闭 OTLP 导出、日志只写 stdout**，渲染耗时/超时/崩溃指标由 worker 侧 `remote-renderer.client` 按 RPC 结果记录（2026-09-25，rulings §4.18 BE-14，ADR-0037 决策 1）。
 4. **错误**：kernel `errors` 的 Reporter Provider 默认 = 日志 + `cordex_errors_total`；可选 Sentry Provider（`apps/*` 装配层选择，SDK 包不依赖 Sentry）。
 5. **登记制**：span/metric/event/错误码名称通过声明合并登记，扫描器校验每个名称在登记表中且有 `consumer`（仪表盘/告警/测试）字段（A24 反制）。
 6. **采样**：traces 头采样 10%（错误路径 100% 尾采样在 collector）；WS update 帧不建 span（1% 抽样）；产品事件不采样但去标识。
@@ -37,11 +37,12 @@ D11 要求 `errors`/`telemetry`/`logger` 为 L0 服务且 M1 接入；§5.4 要�
 
 ## 如何被机械验证
 
-- 扫描器：`telemetry.span/counter/histogram/event` 的名称 ∈ 登记表且有 consumer；`console.*`/裸 `Error` lint。
+- 扫描器 `scan-observability-identifiers`（span/metric 名，09-type-discipline/06 §13）与 `scan-telemetry-events`（产品事件名，06 §10）：`telemetry.span/counter/histogram/event` 的名称 ∈ 登记表且有 consumer（2026-09-25 补写执行点正式名，rulings §4.18 GV-15）；`console.*`/裸 `Error` lint。
+- （2026-09-25，rulings §4.18 BE-30）`client-telemetry` 控制器：未登录请求 401；超过 64 KiB 的 errors 与 512 KiB 的 otlp 请求体被拒（413）；超出令牌桶返回 429；OTLP 代理丢弃 metrics/logs 信号、只转发 traces；该控制器只在 api（及 all）角色装配。
 - 单测：移除 Provider 后 `telemetry`/`errors`/`logger` 调用不抛且为 no-op；脱敏规则测试（内容字段被拒）。
 - 集成：一次「导入 → 房间加入 → 编辑 → 缩略图」的 trace 在 Jaeger 中为单一 trace（e2e 断言 traceId 贯穿 WS auth 帧与 job 数据）。
 - 仪表盘即代码：Grafana 面板 JSON 入库并引用登记表中的指标名（CI 校验引用有效）。
 
 ## 关联
 
-章程 D11、§5.4；Univer A24/A25；架构 10；08 §2（metrics/health 模块）。
+章程 D11、§5.4；Univer A24/A25；架构 10；08 §2（metrics/health 模块）；40-modules/12（`client-telemetry` 控制器，BE-30）；ADR-0037 决策 1（renderer 不装 Metrics，BE-14）。

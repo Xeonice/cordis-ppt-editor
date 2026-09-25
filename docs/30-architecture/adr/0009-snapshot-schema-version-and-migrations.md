@@ -1,6 +1,6 @@
 # ADR-0009 Snapshot `schemaVersion` 与迁移注册表
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-14
 
 ## 状态
 
@@ -38,8 +38,9 @@
 
 ## 如何被机械验证
 
-- CI job `schema-lock`（`tooling/scanners/schema-lock.ts`）。
-- CI job `snapshot-migration-corpus`：`fixtures/snapshots/**` 全部迁移并校验。
+- scanners job 的 `schema-lock` 步骤（哈希锁校验；执行点见 09-type-discipline/08 §11 `schema-lock` 行与 TD-063，脚本落 `tooling/scripts/` 以 40-modules/01 为准，原写 `tooling/scanners/schema-lock.ts`）。
+- test job 的 `snapshot-migration-corpus` 步骤：`fixtures/snapshots/**` 全部迁移并校验。
+- （2026-09-25，rulings §4.18 GV-14：上两条原为「CI job `schema-lock`」「CI job `snapshot-migration-corpus`」，改写为 07 §3 既有 job 的步骤，13 个 job 名封闭集合不变。）
 - model-core `__tests__/migrations.test.ts`：缺链、乱序注册、重复键（`conflict:'error'`）。
 - 类型测试：`Persisted<S>` 无 `Derived` 字段；运行时 `bodySchema.parse(toSnapshotBody())`。
 - protocol：`SnapshotEnvelope.schemaVersion` 必填；服务端拒绝版本不匹配的协同握手（06/08 测试）。

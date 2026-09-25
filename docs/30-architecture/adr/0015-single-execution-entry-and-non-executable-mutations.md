@@ -1,6 +1,6 @@
 # ADR-0015 单一执行入口：Command 与 Operation 都经 `commands.execute`；Mutation 不可外部执行
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-15
 
 ## 状态
 
@@ -35,8 +35,8 @@ Univer 的 `commandService.executeCommand` 可执行 Command、Mutation、Operat
 
 ## 如何被机械验证
 
-- 扫描器 `store-transact-callsites`：`\.transact\(` 在生产代码中仅允许两处。
-- 扫描器 `no-execution-flags`：`commands.execute` 的 opts 类型不得新增键（api-extractor 基线 + 类型测试）。
+- lint `cordex/store-transact-in-commands-only`（09-type-discipline/02 §4.20、TD-068；原称「扫描器」，2026-09-25 按正式名改写，rulings §4.18 GV-15，对照见 08 §11）：`\.transact\(` 在生产代码中仅允许两处。
+- 类型测试断言（`*.type-test.ts`，09-type-discipline/09 §6，`test-typecheck` job，TD-098，另有 api-extractor 基线；原名 `no-execution-flags`、原称扫描器，2026-09-25 按 09-type-discipline/08 §11 对照表改写，rulings §4.18 GV-15）：`commands.execute` 的 opts 类型不得新增键（api-extractor 基线 + 类型测试）。
 - `preset-slide-viewer/__tests__/readonly.test.ts`：执行 `slide.insertShape` → `COMMAND_NOT_FOUND`；强行 override 加载 editing 后 → `PERMISSION_DENIED`。
 - `command-harness`：Operation 不产生 `store/transaction`、不入历史、经过权限门。
 - lint `operation-has-no-tx`。

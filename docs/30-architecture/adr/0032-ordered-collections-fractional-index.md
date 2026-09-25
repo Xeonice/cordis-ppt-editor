@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.18 CO-05
 
 # ADR-0032 有序集合的并发语义：实体表 + fractional index（不用数组）
 
@@ -18,7 +18,7 @@
 4. **键长治理**：键长 > 64 字符时（长期在同一间隙反复插入的病态情况），由服务端在房间 `draining`/无编辑者时执行「重排键（rekey）」事务（origin `maintenance`）为该集合重新分配等距键；客户端不主动 rekey（避免与并发移动竞争）。
 5. 跨父移动（进出组）：`parentId` 单键 LWW + `order` 在新父下重新生成；父子环由修复规则处理（06 §8 #5）。
 6. Snapshot 中的顺序**保留 `order: FracKey` 键**（总编排裁决，采 A 线 ADR-0013 第 7 条），不转数组：`load`/`toSnapshotBody` 原样搬运键，无「生成等距键 / 排序还原」步骤；只有导出到 OOXML 时由编解码器按 `(order, id)` 排序产生 `sldIdLst`/`spTree` 的顺序。
-7. Mutation 载荷禁止数组下标（06 I4）：键由**命令层**经 `@cordexjs/shared/order` 计算（`between(prev.order, next.order)`），Mutation 携带**最终键**，`lower()` 保持纯函数——插入 → `set(entities/<id>, record{ order })`、移动 → `set(entities/<id>/order, key)`、删除 → `delete(entities/<id>)`；Store 不解析下标。`StoreOp` 定为 5 原语（`set/delete/insert/remove/text`，总编排裁决）：**弃用 `move`** 的原因是有身份实体的顺序已由键承载，原子数组极少移动且 `Y.Array` 无原生 move——`remove` + `insert` 即可，其并发重复的已知风险由幂等规则与 rekey 兜底；索引式 `insert/remove` 只用于非身份数组。
+7. Mutation 载荷禁止数组下标（06 I4）：键由**命令层**经 `@cordexjs/shared/order` 计算（`between(prev.order, next.order)`），Mutation 携带**最终键**，`lower()` 保持纯函数——插入 → `set(entities/<id>, record{ order })`、移动 → `set(entities/<id>/order, key)`、删除 → `set(entities/<id>/_deleted, {at, by})`（软删除墓碑，见文末两节修订；2026-09-25 按 rulings §4.18 CO-05 改写，原「删除 → `delete(entities/<id>)`」作废）；Store 不解析下标。`StoreOp` 定为 5 原语（`set/delete/insert/remove/text`，总编排裁决）：**弃用 `move`** 的原因是有身份实体的顺序已由键承载，原子数组极少移动且 `Y.Array` 无原生 move——`remove` + `insert` 即可，其并发重复的已知风险由幂等规则与 rekey 兜底；索引式 `insert/remove` 只用于非身份数组。
 
 ## 备选方案与放弃原因
 
@@ -57,7 +57,7 @@ ADR-0020；章程 D4/D6；Univer A2（寻址不绑定产品）；架构 06 §1�
 
 ## 修订 2026-09-24：有序集合中的软删除墓碑（rulings §4.15 Q3）
 
-- 决策 7 中「删除 → `delete(entities/<id>)`」在 Store 层落为 `_deleted` 墓碑（ADR-0013 修订、ADR-0020「协同撤销语义」）：墓碑实体**保留其 `order` 键**，有序读视图按 `(order, id)` 排序时过滤墓碑；恢复 = 清除墓碑，实体回到原位置，无需重新计算键。
+- 决策 7 中的删除由 `lower()` 直接产出 `set(entities/<id>/_deleted, {at, by})`，逆操作由 Store 推导为 `delete(entities/<id>/_deleted)`；实体键的 `delete` 只由服务端 TTL 硬删除、文档擦除与经审计的「彻底删除元素」产生（2026-09-25 修订，rulings §4.18 CO-05，ADR-0013 修订、ADR-0020「协同撤销语义」；原：「删除 → `delete(entities/<id>)` 在 Store 层落为 `_deleted` 墓碑」，作废）：墓碑实体**保留其 `order` 键**，有序读视图按 `(order, id)` 排序时过滤墓碑；恢复 = 清除墓碑，实体回到原位置，无需重新计算键。
 - 在墓碑相邻处插入时，命令层以**可见邻居**计算 `between(prev.order, next.order)`；因墓碑保留原键，新键可能与墓碑键相邻，这不影响全序与收敛。rekey 作业跳过墓碑还是一并重排由 40-modules/02 定（建议一并重排，保证恢复后顺序稳定）。
 - 墓碑计入文档总元素上限（Q5）与 `order` 键长治理统计；TTL 硬删除后其键随实体消失。
 - 机械验证：协同分节新增「删除 → 并发在同一间隙插入 → 恢复」用例，断言两端顺序一致且无重复。

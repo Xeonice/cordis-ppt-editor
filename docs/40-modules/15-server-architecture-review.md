@@ -1,4 +1,4 @@
-> 状态：评审 v0.1 | 负责：后端架构评审 | 更新：2026-09-21、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（复核修正，rulings §4.17）（L19 覆盖标注措辞） | 依赖：00 §3/§4.2/§5.3、08/09/12、架构 08、PRD 06
+> 状态：评审 v0.1 | 负责：后端架构评审 | 更新：2026-09-21、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（复核修正，rulings §4.17）（L19 覆盖标注措辞）、2026-09-25（矛盾收口，rulings §4.18）（覆盖标注） | 依赖：00 §3/§4.2/§5.3、08/09/12、架构 08、PRD 06
 
 # 15 服务端模块拆分评审
 
@@ -33,7 +33,7 @@
 | `tenants` | 租户设置与配额 | `tenants` | 无 | 无实质问题 | 保持 | 08 （→ 2026-09-24 rulings §4.15 覆盖：T-0：`tenants` 模块与 `tenants` 表删除） |
 | `users` | OIDC subject↔user 映射 | `users` | 无 | 体量小但有独立生命周期，非贫血 | 保持 | 08 |
 | `groups` | 组管理（M3 新增） | `groups`、`group_members` | `users`（同租户校验） | `findById` 缺 `tenantId`，跨租户越权风险（§3.1，**严重**） | 保持模块；修正仓储签名 | 08 （→ 2026-09-24 rulings §4.15 覆盖：Q6：组管理（U-11）推迟，`groups` 模块移出 M3；T-0 下 §3.1 失效） |
-| `documents` | 文档目录 CRUD/回收站/锁定/最近固定 | `documents`（除 `head_seq`/`epoch`） | `permissions` | `head_seq`/`epoch` 共享列（§3.4）；硬删除级联无归属（§3.3） | 保持；新增 `schedule-purge.usecase.ts` | 08、架构 08 |
+| `documents` | 文档目录 CRUD/回收站/锁定/最近固定 | `documents`（除 `head_seq`/`epoch`） | `permissions` | `head_seq`/`epoch` 共享列（§3.4）；硬删除级联无归属（§3.3） | 保持；新增 `schedule-purge.usecase.ts` | 08、架构 08 （→ 2026-09-25 覆盖（§4.18 BE-31）：最近/固定记账表定为 `document_user_marks`（M-08 写），`collab_sessions` 删除） |
 | `permissions` | 授权/撤销/角色解析/权限广播 | `permissions`、`document_perm_versions` | `groups`、`share-links` | `grant-permission` 对 group 的校验未显式核对租户（同 §3.1） | 保持 | 08 （→ 2026-09-24 rulings §4.15 覆盖：Q6：M3 不再依赖 `groups`，只按人授权） |
 | `share-links` | 分享链接创建/撤销/解析 | `share_links` | 无直接，供 `permissions` 消费 | 缺匿名访问守卫（§3.2，**严重**） | 保持；导出新增 `ShareLinkGuard` | 08、ADR-0029 |
 | `storage` | 通用预签名端点（供 M-12 导入通道复用） | 无（`ctx.blobStore` 薄 accessor） | `server-storage` | 模块很薄，但跨模块复用是正当理由 | 保持 | 08 |
@@ -52,10 +52,10 @@
 | `audit` | 审计只追加 + 哈希链（U-15） | `audit_log` | 被 M-08/M-09/M-12 反向消费（标注点） | 无重大问题，本轮最扎实的模块之一 | 保持 | 12 |
 | `health` | 存活/就绪探针 | 无 | pg/redis/blobStore/`cordis-host` | 与 `metrics` 合并候选（非必须） | 保持 | 12 |
 | `metrics` | Prometheus 文本端点 | 无 | 无 | 4 文件、无 domain 层，偏贫血，但独立端口是正当理由 | 保持（可选与 `health` 合并为 ops） | 12 |
-| `internal` | 渲染态 token 签发 + 管理动作 + 诊断 | 无（token 存 Redis） | `server-collab`/`server-headless`（admin 动作代理） | token/admin/诊断三种技术关注点合一，偏技术面而非领域面 | 保持（网络隔离是合理理由） | 12 （→ 2026-09-24 rulings §4.15 覆盖：Q8：`/render` 页改为从注入取得 state 与资源，`RenderStateToken` 网络拉取去掉或降为兜底） |
+| `internal` | 渲染态 token 签发 + 管理动作 + 诊断 | 无（token 存 Redis） | `server-collab`/`server-headless`（admin 动作代理） | token/admin/诊断三种技术关注点合一，偏技术面而非领域面 | 保持（网络隔离是合理理由） | 12 （→ 2026-09-24 rulings §4.15 覆盖：Q8：`/render` 页改为从注入取得 state 与资源，`RenderStateToken` 网络拉取去掉或降为兜底） （→ 2026-09-25 覆盖（§4.18 BE-04、BE-03）：`RenderStateToken` 取消，internal 不再签发 token；`DiagnosticsController` 各角色装配，`AdminController`（compact/migrate/epoch）只在 collab 装配） |
 | `common/` | 异常过滤器/审计拦截器/限流原语/请求上下文 | 无 | 被全部模块消费 | 无 | 保持 | 08 §3、12 §4.9 |
-| `config/` | 环境变量 Schema/`CORDEX_ROLE` 装配表 | 无 | 无 | `roles.ts` 与 `preset-server.ts` 两套按角色开关未见一致性校验（§3.6） | 保持；补启动期断言 | 12 §4.10、架构 08 §4.2 |
-| `preset-server` | 服务端 cordis 宿主插件束装配脚本 | 无 | 全部 iso 包 + 3 个 LS 包 | 同上（角色开关同步） | 保持 | 架构 08 §4.2、09 §4.3/§5.3 |
+| `config/` | 环境变量 Schema/`CORDEX_ROLE` 装配表 | 无 | 无 | `roles.ts` 与 `preset-server.ts` 两套按角色开关未见一致性校验（§3.6） | 保持；补启动期断言 | 12 §4.10、架构 08 §4.2 （→ 2026-09-25 覆盖（§4.18 BE-13）：全服务端「模块 × 角色 × 部件」矩阵定于 40-modules/12 §7.1，启动断言 `assertRoleAssembly` 逐项核对） |
+| `preset-server` | 服务端 cordis 宿主插件束装配脚本 | 无 | 全部 iso 包 + 3 个 LS 包 | `roles.ts` 与 `preset-server.ts` 两套按角色开关未见一致性校验（角色开关同步） | 保持 | 架构 08 §4.2、09 §4.3/§5.3 |
 
 ## 3. 关键问题深评
 
@@ -72,7 +72,7 @@
 
 - **现状**：`ShareLink` 定义为"免登录角色化访问令牌"（08:77），`Principal` 值对象也明确包含 `kind:'shareLink'`（08:71）。但 `ShareLinksModule` 的 REST 端点"复用 `SessionGuard`"（08:320），而 `SessionGuard` 是"会话 JWT / API Key → Principal（fail-closed：无有效凭据 401）"（08:356 附近）——没有第三条"仅凭分享令牌"的凭据路径。ADR-0029 仅说明"REST 换票据时把 link 角色折叠进 role；WS 不直接接受 link token"（0029:20），暗示访客必须先有一个已解析的 `Principal` 才能"折叠"link 角色，但完全匿名（无 OIDC 账号）的访客如何先获得这个 `Principal`，全篇未定义。
 - **风险**：若实现期按现有守卫清单直译，"分享链接免登录访问"这一 CO-15/PRD 明确要求的产品能力会在服务端没有落地路径，可能被迫在最后关头改为"分享链接必须先登录"这种与产品预期相反的行为，或者被工程师私下加一个未经审查的旁路鉴权（风险更大）。
-- **建议**：在 `share-links` 模块新增导出 `ShareLinkGuard`（`share-links/interface/guards/share-link-access.guard.ts`），接受 URL 查询参数或 Header 中的分享令牌，产出 `Principal{kind:'shareLink', id:linkId, tenantId, scopes}`；`auth`/`documents` 的公开可读端点（文档详情、协同票据签发）改为 `SessionGuard OR ApiKeyGuard OR ShareLinkGuard` 的组合守卫。需要产品先确认 S-1（§6）。
+- **建议**：在 `share-links` 模块新增导出 `ShareLinkGuard`（`share-links/interface/guards/share-link-access.guard.ts`），接受 URL 查询参数或 Header 中的分享令牌，产出 `Principal{kind:'shareLink', id:linkId, tenantId, scopes}`；`auth`/`documents` 的公开可读端点（文档详情、协同票据签发）改为 `SessionGuard OR ApiKeyGuard OR ShareLinkGuard` 的组合守卫。需要产品先确认 S-1（§6）。 （→ 2026-09-25 覆盖（§4.18 BE-02、BE-05）：令牌解析 `ResolveShareLinkUseCase` 归 `PermissionsModule`（SECURITY DEFINER 函数只读 `share_links`），`ShareLinkGuard` 由 AppModule 注册为紧随 `SessionGuard` 的第二个 `APP_GUARD`；票据带 `lnk`，M-09 按链接状态复核）
 - **代价**：新增一个 Guard + 一条组合鉴权路径；`RoleResolverService` 已有"直接授权 + 分享链接 + 租户默认"的合并逻辑（08:663），改动集中在"谁能触发这条合并逻辑"而非合并逻辑本身。
 - **处置**：已回写 `40-modules/08-server-identity-documents-and-storage.md`、PRD `10-prd/03-features/03-collaboration.md` CO-15、`30-architecture/adr/0029-gateway-authorization.md`（rulings §4.13 S-1）。
 - → 2026-09-24 rulings §4.15 覆盖：Q6 服务端不再提供个人账号自助注册——账号在外置 OIDC IdP（可选内置 Casdoor）建立，注册由部署级开关 `auth.selfSignup` 控制（默认关），首次登录 JIT 建 `users` + `user_identities`；分享链接始终要求登录；T-0 下不存在「其它租户用户」。
@@ -81,10 +81,10 @@
 
 - **现状**：PRD SV-11 要求"文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图、blob、索引全部清除，审计保留）；用户数据擦除 API"（06-server-and-ops.md:164），优先级 P1、里程碑 M3。检索 08/09/12 三份模块文档全文，`documents` 模块只有 `trash-and-restore.usecase.ts`（软删除/恢复，08:274/642）；架构 08 §7 的 `maintenance` 队列职责写的是"media GC、exports 清理、updates 裁剪、audit 分区维护"（架构08:395），不含"文档硬删除"；09/12 的用例表（§2.6）同样没有跨 `document_updates`/`document_snapshots`/`thumbnails`/`comments`/`media_blobs`/`permissions`/`share_links` 七张表的清理编排。
 - **风险**：这是一个明确写入 P1/M3 验收标准、但没有任何模块认领实现细节的能力缺口；若无人在实现前分配归属，最可能的结果是某个工程师在 `documents` 模块里直接跨模块 `DELETE FROM document_snapshots/comments/...`，违反本评审在其它维度反复确认的"谁的表谁写"原则（B 维度总表）。
-- **建议**：采用编排式（choreography）而非集中式：`documents`（M-08）新增 `schedule-purge.usecase.ts`，30 天宽限期满后把文档标记为 `purging` 并通过既有 `jobs` 基础设施（M-12）入队 `document-purge` 队列；`server-collab`/`server-headless`（M-09）在 `UpdateStore`/`SnapshotStore` 契约上各自新增 `purgeAll(docId)` 方法自行清理 `document_updates`/`document_snapshots`；`thumbnails`/`comments`（M-12）各自新增 `purge-document-*.usecase.ts` 清理自己的表；`media`（M-08）按既有 30 天无引用 GC 规则顺带处理。`audit_log` 按规则保留，不参与清理。GDPR 擦除 API 复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。
+- **建议**：采用编排式（choreography）而非集中式：`documents`（M-08）新增 `schedule-purge.usecase.ts`，30 天宽限期满后把文档标记为 `purging` 并通过既有 `jobs` 基础设施（M-12）入队 `document-purge` 队列；`server-collab`/`server-headless`（M-09）在 `UpdateStore`/`SnapshotStore` 契约上各自新增 `purgeAll(docId)` 方法自行清理 `document_updates`/`document_snapshots`；`thumbnails`/`comments`（M-12）各自新增 `purge-document-*.usecase.ts` 清理自己的表；`media`（M-08）按既有 30 天无引用 GC 规则顺带处理。`audit_log` 按规则保留，不参与清理。GDPR 擦除 API 复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。 （→ 2026-09-25 覆盖（§4.18 BE-15、BE-16）：定为「单作业 + 参与者登记 + 收尾」：`job_runs(kind=document-purge)`（`maintenance` 队列作业名），worker 处理器逐个调用 `@PurgeParticipant`，`finalize-purge` 用 ListObjectVersions 清全部对象版本后删行；`share_links` 由 share-links 自己的参与者清理）
 - **代价**：新增约 5 个小用例文件，分散在三个模块，无跨模块直接建表访问；需要 M-08/M-09/M-12 三条线协调一次接口签名（`purgeAll(docId)` 的返回值/幂等语义）。见 S-2（§6）。
 - **处置**：已回写 `40-modules/08-server-identity-documents-and-storage.md`、`40-modules/09-server-collab-gateway-and-headless-host.md`、`40-modules/12-server-jobs-comments-and-ops.md`、PRD `10-prd/03-features/06-server-and-ops.md` SV-11（rulings §4.13 S-2）。
-- → 2026-09-24 rulings §4.15 覆盖：Q3 删除改软删除墓碑 + TTL（默认 24h），TTL 到期硬删除由服务端单写者执行；S-2 擦除与「立即彻底删除」不等 TTL、立即硬删除（含墓碑）；Q8 起 purge 还须覆盖 embedded 来源缩略图。
+- → 2026-09-24 rulings §4.15 覆盖：Q3 删除改软删除墓碑 + TTL（默认 24h），TTL 到期硬删除由服务端单写者执行；S-2 擦除与「立即彻底删除」不等 TTL、立即硬删除（含墓碑）；Q8 起 purge 还须覆盖 embedded 来源缩略图。 （→ 2026-09-25 覆盖（§4.18 CO-07）：术语拆分：文档级「立即彻底删除」改称「永久删除文档」；元素级「彻底删除元素」另设 owner 入口 `POST /documents/:id/elements/purge`，只对墓碑态元素，经 tombstone-sweeper 同一单写者立即硬删）
 
 ### 3.4 `documents.head_seq`/`epoch` 共享列多写者，仅靠约定隔离（有问题，维度 B）
 
@@ -98,7 +98,7 @@
 
 - **现状**：`import-export` 创建导入作业是"单事务写 `job_runs` + 异步 BullMQ 入队"（12:199）；`webhooks` 投递事件是"无库事务（BullMQ 入队）；`webhook_deliveries` 落状态行"（12:210）。两处都是"先提交一次 DB 写，再做一次独立的 Redis/BullMQ 入队"，中间没有事务性保证——这正是分布式系统里经典的"双写不一致"缺口：进程在 DB 提交之后、BullMQ 入队之前崩溃，`job_runs`/`webhook_deliveries` 行会永久停在 `queued`/`pending`，没有任何 worker 会去处理它，也没有文档提到的对账/补偿扫描来发现这类"孤儿行"。
 - **风险**：这不是理论风险——BullMQ 连接抖动、Node 进程被 OOM-kill、K8s 滚动发布时的 SIGTERM 窗口都可能命中这个间隙；发生后用户看到的是"作业永远卡在 queued"或"评论创建了但集成方从未收到 webhook"，且没有系统信号会主动暴露它（不是一个报错，而是沉默丢失）。
-- **建议**：采用标准 Transactional Outbox / 定期对账两种之一（业界常见组合是两者都做）：①最小改动版——`jobs`/`webhooks` 模块各加一个 `maintenance` cron 任务，定期扫描 `status='queued'`/`'pending'` 且 `queued_at` 超过阈值（如 2× 处理器超时）而无对应 BullMQ job 的行，重新入队；②更彻底版——`job_runs`/`webhook_deliveries` 的写入放在真正的 outbox 表里，由一个独立 relay 进程/BullMQ repeatable job 轮询未投递的 outbox 行并入队，成功后标记已投递。M3 建议先做①（成本低、复用现有 `maintenance` 队列），把②列为 M4 待评估。
+- **建议**：采用标准 Transactional Outbox / 定期对账两种之一（业界常见组合是两者都做）：①最小改动版——`jobs`/`webhooks` 模块各加一个 `maintenance` cron 任务，定期扫描 `status='queued'`/`'pending'` 且 `queued_at` 超过阈值（如 2× 处理器超时）而无对应 BullMQ job 的行，重新入队；②更彻底版——`job_runs`/`webhook_deliveries` 的写入放在真正的 outbox 表里，由一个独立 relay 进程/BullMQ repeatable job 轮询未投递的 outbox 行并入队，成功后标记已投递。M3 建议先做①（成本低、复用现有 `maintenance` 队列），把②列为 M4 待评估。 （→ 2026-09-25 覆盖（§4.18 BE-19）：周期作业统一用 BullMQ Job Scheduler 挂 `maintenance` 队列、只由 worker 启动时注册；Webhook 投递队列定名 `webhook-delivery`）
 - **代价**：①只需一个新 cron 任务 + 一个索引（`status, queued_at`），成本很低，建议直接采纳而非等待用户裁决。
 - **处置**：已回写 `40-modules/12-server-jobs-comments-and-ops.md`（rulings §4.13 同时确认段）。
 
@@ -106,7 +106,7 @@
 
 - **现状**：Nest 侧的角色→模块列表由 `config/roles.ts` 决定（架构08:88）；cordis 侧的角色→插件集由 `cordis-host/preset-server.ts` 用注释标注"`server-collab`（role collab）"、"`server-headless`（tasks；role worker 时含 thumbnails）"（架构08:277,279）。这是两套独立维护的"按 `CORDEX_ROLE` 决定装配什么"的开关，全篇未见任何一处交叉校验或共享单一数据源。连带的一个具体实例：`comments` 模块的 `CommentMirrorObserver` 需要订阅 `collabServer` 的 Room 广播（12:355），但 `collabServer` 服务只在 `role=collab` 时被 `preset-server` 激活（09:692）；`CommentsModule` 若像 REST 部分要求的那样在 `role=api` 下也被注册（12 §7.1 `import-export/thumbnails/comments REST controller` 归 `api`），`CommentMirrorObserver` 在 `api` 角色进程里的降级行为（no-op？还是抛错？）没有任何文档提及。
 - **风险**：两套开关分裂本身不是 bug，但缺乏机械校验意味着"改了 `roles.ts` 忘了改 `preset-server.ts`"（或反之）不会在 CI 报错，只会在特定角色的生产环境里表现为某个功能悄悄不可用（例如 `role=collab` 实例忘记装配 `server-collab` 导致 WS 网关连上了但 `collabServer` 服务解析不到）。
-- **建议**：①给 `CordisHostService` 增加一个启动期断言：`role=collab` 时必须能 `getService('collabServer')` 成功，否则 fail-fast 退出（比运行时静默 `undefined` 更安全，也符合 D8"先失败、不部分激活"的既有原则，架构08:259）；②`CommentMirrorObserver.onModuleInit` 显式检查 `collabServer` 是否可用，不可用时记录一条诊断日志并跳过订阅而非抛错。顺带一提：`CordisHostService.getService<T>(name)`（09:575）目前是字符串弱类型查找，建议补一个 `ServiceMap` 接口做编译期 key 校验，与本仓库对 `any`/`as` 类型预算的整体严格程度保持一致。
+- **建议**：①给 `CordisHostService` 增加一个启动期断言：`role=collab` 时必须能 `getService('collabServer')` 成功，否则 fail-fast 退出（比运行时静默 `undefined` 更安全，也符合 D8"先失败、不部分激活"的既有原则，架构08:259）；②`CommentMirrorObserver.onModuleInit` 显式检查 `collabServer` 是否可用，不可用时记录一条诊断日志并跳过订阅而非抛错。顺带一提：`CordisHostService.getService<T>(name)`（09:575）目前是字符串弱类型查找，建议补一个 `ServiceMap` 接口做编译期 key 校验，与本仓库对 `any`/`as` 类型预算的整体严格程度保持一致。 （→ 2026-09-25 覆盖（§4.18 BE-03、BE-13）：`CommentMirrorObserver` 定为只在 collab 角色注册，不再需要 api 角色下的降级分支；快照 REST 同样只在 collab 装配）
 - **代价**：两处断言/日志改动很小；`ServiceMap` 类型收紧是渐进式的，可与实现同步做。
 - **处置**：已回写 `40-modules/09-server-collab-gateway-and-headless-host.md`、`30-architecture/08-backend-nestjs.md`（rulings §4.13 同时确认段）。
 
@@ -147,7 +147,7 @@
 
 以下是评审维度里明确要求核查、但复核后判定合理、不构成问题的项，逐条附依据，以说明并非未检查：
 
-- **headless 渲染页鉴权**：`RenderStateToken` 一次性、TTL 60 s（12:80,127），`GET /internal/render/:token/state` 挂在 `internal/*`（网络策略限内网，12:63），一次性令牌 + 网络隔离双重防线，未见缺口。 （→ 2026-09-24 rulings §4.15 覆盖：Q8：渲染改在独立零出站 renderer sidecar，渲染页不再外呼拉取 state，见 §3.12）
+- **headless 渲染页鉴权**：`RenderStateToken` 一次性、TTL 60 s（12:80,127），`GET /internal/render/:token/state` 挂在 `internal/*`（网络策略限内网，12:63），一次性令牌 + 网络隔离双重防线，未见缺口。 （→ 2026-09-24 rulings §4.15 覆盖：Q8：渲染改在独立零出站 renderer sidecar，渲染页不再外呼拉取 state，见 §3.12） （→ 2026-09-25 覆盖（§4.18 BE-04）：`RenderStateToken` 取消，`/render` 页只收注入状态，查询参数只带 `renderId`）
 - **`snapshots` 与 `collab` 的模块关系**：`snapshots` 是"Conformist：读写面依赖 BC-21 内 `snapshot.service.ts` 的存储机制，不持有独立存储实现"（module-map BC-22 行），本质是同一份数据在 WS 与 REST 两种传输面上的 CQRS 式切分，边界清楚，保持现状。
 - **BullMQ 队列划分与幂等键**：`import`/`export`/`thumbnails`/`render-export`/`compaction`/`maintenance` 按资源画像（Chromium 并发 1 vs 导入导出并发 4）分队列，幂等键格式统一为 `${domain}:${docId}:${inputHash}`（12:120），未见重复或遗漏。
 - **`fill-template`/`validate`/`migrate`/`convert` 归属**：已按用户裁决 U-13 并入 `import-export`、不新设 `automation` 模块（12:254 Q-3 结案），本评审认为该决策合理，不再重复裁决。
@@ -170,7 +170,7 @@
 | BC-18 | 身份与租户 | `auth`、`tenants`、`users`、`groups` | `GroupRepository` 接口签名加 `tenantId`（§3.1）；`auth`/`share-links` 之间新增 `ShareLinkGuard` 协作（§3.2） （→ 2026-09-24 rulings §4.15 覆盖：T-0：BC-18 不再含租户，`tenants` 删除、`groups` 随 U-11 推迟，承载模块为 `auth`、`users`；`GroupRepository` 签名一项失效） |
 | BC-19 | 文档目录与权限 | `documents`、`permissions`、`share-links` | `documents` 新增 `schedule-purge.usecase.ts`（§3.3）；`documents` 仓储更新方法类型收紧排除 `headSeq`/`epoch`（§3.4） |
 | BC-21 | 协同网关与持久化 | `collab`、`@cordexjs/server-collab` | `UpdateStore`/`SnapshotStore` 契约新增 `purgeAll(docId)`；`server-collab` 新增按 Room 的未持久化字节上限（§3.7） |
-| BC-23…26 | 作业/缩略图/评论/审计运维 | `import-export`、`jobs`、`thumbnails`、`comments`、`audit`、`health`、`metrics`、`internal` | `jobs`/`webhooks` 新增对账 cron（§3.5）；`comments` 新增 `purge-document-comments.usecase.ts`；`thumbnails` 同理 |
+| BC-23…26 | 作业/缩略图/评论/审计运维 | `import-export`、`jobs`、`thumbnails`、`comments`、`audit`、`health`、`metrics`、`internal` | `jobs`/`webhooks` 新增对账 cron（§3.5）；`comments` 新增 `purge-document-comments.usecase.ts`；`thumbnails` 同理 （→ 2026-09-25 覆盖（§4.18 BE-19）：对账改为 BullMQ Job Scheduler 周期作业（只由 worker 注册），不另设 cron） |
 | **BC-30（新增）** | **Webhook 与事件出口** | `webhooks` | 从"寄生于 BC-25"改为独立登记（§3.10）；新增 `egress-guard.ts` SSRF 校验（§3.8） |
 
 ### 4.2 现状模块图（按 `CORDEX_ROLE` 进程角色分组）

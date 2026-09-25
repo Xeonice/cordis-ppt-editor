@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
 
 # 17 插件书写模式手册
 
@@ -19,6 +19,8 @@
 | E Bundle/preset | 我要把一批插件打包成一个开箱即用的产品形状 | `preset-slide`/`preset-slide-collab`/`preset-slide-viewer` | §2.5 |
 | F Library（非插件） | 我只提供纯函数/纯类型，没有生命周期可言 | `@cordexjs/shared`；`@cordexjs/ooxml-core`；`@cordexjs/design` | §2.6 |
 | G Host 组合根 | 我在应用或服务入口创建一个 cordis 宇宙 | `apps/web` 的 `create-editor-host.ts`；`server-headless` 的 `createHeadlessHost`；`apps/server` 的 `cordis-host.service.ts` | §2.7 |
+
+**图 0-1 模式判定决策树**
 
 ```mermaid
 flowchart TB
@@ -186,7 +188,7 @@ packages/store-yjs/src/
 ├── infrastructure/
 │   └── yjs-store.service.ts       # Service 子类：DocumentStore 的具体实现
 └── __tests__/
-    └── compliance.test.ts         # runDocumentStoreConformance(() => new YjsDocumentStore(...))
+    └── conformance.test.ts        # runDocumentStoreConformance(() => new YjsDocumentStore(...))（2026-09-25 由 compliance.test.ts 改名，与章程 :646、架构 11 §3 的 conformance.test.ts 一致，rulings §4.18 GV-19）
 ```
 
 **代码骨架**：
@@ -546,17 +548,17 @@ export function apply(ctx: Context, config: ShellOptions): void {
 ```
 
 **检查清单**：
-- [ ] `apply` 里是否只有 `ctx.plugin(...)` 循环与至多一处胶水插件的贡献，没有任何"业务规则"（`preset-glue-thin` 扫描器：胶水文件 ≤ 60 行）？
+- [ ] `apply` 里是否只有 `ctx.plugin(...)` 循环与至多一处胶水插件的贡献，没有任何"业务规则"（ESLint `max-lines-per-function`（60）+ `no-restricted-imports`，原称扫描器 `preset-glue-thin`，rulings §4.18 GV-15：胶水文件 ≤ 60 行）？
 - [ ] `exclude`/`override` 是否真的能让对应能力"干净地缺席"（`pluggable.test.ts` 断言宿主仍能启动）？
 - [ ] 装配清单是否是模块级 `const` 数组而非在 `apply` 内现场构造（manifest-gen 需要静态可分析）？
 - [ ] 体积敏感的 preset（如 `preset-slide-viewer`）是否有对应的 `config/bundle-budget.json` 记录与 CI 校验？
 - [ ] `order-independence.test.ts` 是否覆盖了这个 preset？
 
 **常见错误**：
-- `apply` 里对某个条目的 Config 做业务判断（如按文档大小切换渲染策略）→ preset 变成藏着业务逻辑的黑盒，`preset-glue-thin` 扫描器判定超范围 → 业务判断下沉到对应插件自己的 Config/apply。
+- `apply` 里对某个条目的 Config 做业务判断（如按文档大小切换渲染策略）→ preset 变成藏着业务逻辑的黑盒，胶水极薄 lint（原称 `preset-glue-thin`，GV-15）判定超范围 → 业务判断下沉到对应插件自己的 Config/apply。
 - `for (const e of entries)` 时逐个 `await ctx.plugin(e.plugin, e.config)` → 一个条目 `PENDING`/`FAILED` 会卡住或中断后续条目的挂载 → 全部 `ctx.plugin` 调用完再 `Promise.allSettled`。
 - `exclude` 实现成"从数组里 splice 掉"却忘记同步更新 `manifest.ts` 的 `entries` → manifest 与实际装配不一致，scan-manifest 报错 → `applyTrim` 的产出与 manifest 生成必须来自同一份静态清单。
-- 在 `apps/web` 里直接 `ctx.contribute(...)` 而不是通过 preset 的胶水插件 → 违反"apps 只做组装，零业务逻辑"，`no-domain-defs-in-apps` 拒绝 → 应用层需要的贡献放进 preset 的 `plugins/*.plugin.ts`。
+- 在 `apps/web` 里直接 `ctx.contribute(...)` 而不是通过 preset 的胶水插件 → 违反"apps 只做组装，零业务逻辑"，ESLint `no-restricted-syntax` 的 `apps/**` override 拒绝（原称 `no-domain-defs-in-apps`，GV-15）→ 应用层需要的贡献放进 preset 的 `plugins/*.plugin.ts`。
 
 ---
 
@@ -616,7 +618,7 @@ export function fnv1a(input: string): string {
   return (hash >>> 0).toString(16)
 }
 
-// packages/shared/src/index.ts —— 唯一入口：只 re-export，无任何顶层可执行语句（扫描器 index-pure，primer §5.3）
+// packages/shared/src/index.ts —— 唯一入口：只 re-export，无任何顶层可执行语句（ESLint no-restricted-syntax，原称扫描器 index-pure，rulings §4.18 GV-15；primer §5.3）
 export type { Brand, Emu, Pt, UnitId, SlideId, NodeId } from './brand'
 export { ok, err, isOk } from './result'
 export type { Result } from './result'
@@ -625,7 +627,7 @@ export { fnv1a } from './hash'
 ```
 
 ```jsonc
-// packages/shared/package.json（节选）—— 无 role:"plugin"/"definition"/"provider"，manifest-present 扫描器豁免本包
+// packages/shared/package.json（节选）—— 无 role:"plugin"/"definition"/"provider"，scan-manifest 规则 (a) 豁免本包（原称 manifest-present，GV-15）
 {
   "name": "@cordexjs/shared",
   "sideEffects": false,
@@ -646,13 +648,13 @@ export function classifyPart(pkg: OpcPackage, name: PartName): PartKind {
 }
 ```
 
-**对应的 cordis 机制**：没有——这正是本模式的定义。库文件零 `import` cordis/`@cordexjs/kernel`；没有 `apply`/`inject`/`provide`/`ctx.contribute`。它与 cordis 世界的唯一接触点是"被某个插件的源码 `import`"，那次 import 发生在别的包的 `plugin.ts`/`services/*.ts` 里，不发生在库自己的文件里。`package.json#cordex.role:'library'` 是唯一需要显式声明的元数据，供 depcruise 三角色规则与 `manifest-present` 扫描器识别（02-layering-and-packages §4.0.1 七值折叠表）。
+**对应的 cordis 机制**：没有——这正是本模式的定义。库文件零 `import` cordis/`@cordexjs/kernel`；没有 `apply`/`inject`/`provide`/`ctx.contribute`。它与 cordis 世界的唯一接触点是"被某个插件的源码 `import`"，那次 import 发生在别的包的 `plugin.ts`/`services/*.ts` 里，不发生在库自己的文件里。`package.json#cordex.role:'library'` 是唯一需要显式声明的元数据，供 depcruise 三角色规则与 `scan-manifest` 规则 (a)（原称 `manifest-present`，GV-15）识别（02-layering-and-packages §4.0.1 七值折叠表）。
 
-**Manifest 片段**：无——`role:'library'` 的包不产生 `cordex-manifest.json`（`manifest-present` 扫描器豁免，02 §3 `@cordexjs/shared`/`@cordexjs/protocol` 行）。它仍需过 api-extractor/`exports`/publint 门禁（04-api-surface §1 把 `apps/*`/`tooling/*` 排除在门禁外，但未排除 library 角色的 `packages/*`）——只是不需要 cordis 意义上的 Manifest。
+**Manifest 片段**：无——`role:'library'` 的包不产生 `cordex-manifest.json`（`scan-manifest` 规则 (a) 豁免，原称 `manifest-present`，GV-15；02 §3 `@cordexjs/shared`/`@cordexjs/protocol` 行）。它仍需过 api-extractor/`exports`/publint 门禁（04-api-surface §1 把 `apps/*`/`tooling/*` 排除在门禁外，但未排除 library 角色的 `packages/*`）——只是不需要 cordis 意义上的 Manifest。
 
 **检查清单**：
 - [ ] 是否真的零 `import` cordis/`@cordexjs/kernel`（哪怕只是 type-only）？
-- [ ] `index.ts` 是否只有 `export … from` 语句，没有任何顶层可执行代码（扫描器 `index-pure`）？
+- [ ] `index.ts` 是否只有 `export … from` 语句，没有任何顶层可执行代码（ESLint `no-restricted-syntax`：`**/src/index.ts` 只许 `export … from`，原称 `index-pure`，GV-15）？
 - [ ] `package.json#cordex.role` 是否填了 `'library'`，`sideEffects` 是否为 `false`（design 的 CSS 除外）？
 - [ ] 是否存在模块级可变状态把一个"纯库"悄悄变成了"有状态的东西"？
 - [ ] 导出的类型/函数是否遵守 `isolatedDeclarations`（同样适用于库包）？
@@ -690,7 +692,7 @@ apps/server/src/cordis-host/
 
 ```ts
 // apps/web/src/application/host/create-editor-host.ts —— 浏览器侧唯一「知道插件存在」的应用代码
-// （扫描器 single-create-host-callsite：createHost(/createSlide*Preset( 只允许出现在本文件，11 §3.5）
+// （ESLint no-restricted-syntax 的 apps/** override，原称扫描器 single-create-host-callsite：createHost(/createSlide*Preset( 只允许出现在本文件，11 §3.5；rulings §4.18 GV-15）
 import { createHost } from '@cordexjs/kernel'
 import { createSlidePreset, createSlideCollabPreset, createSlideViewerPreset } from '@cordexjs/preset-slide'   // 示意：实际分属三个包
 import { pickSinks } from './sinks'
@@ -738,7 +740,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 }
 ```
 
-**对应的 cordis 机制**：`createHost` 是 kernel 新概念（不在 cordis 里，见 §1 表）：`new Context()` + 挂载 kernel 自身插件（`provide` `contributions`/`errors`/`telemetry`）+ 挂失败隔离监听 + 记录 `kernelVersion`（03 §1.2 步骤①–④）。一个进程可以调用多次 `createHost()` 得到互不相干的宇宙——这正是为什么"单一入口"必须靠扫描器锁定文件而不是语言机制本身阻止：cordis/kernel 从不限制你调用 `createHost` 的次数，限制来自 `single-create-host-callsite` 扫描器与 depcruise `apps-only-assemble` 规则。`host.plugin(preset)` 只是把 preset 当一个普通插件挂载（模式 E），`host.dispose()` 销毁根 Fiber，触发 cordis 原生的逆序 effect 清理，级联到全部子 Fiber。
+**对应的 cordis 机制**：`createHost` 是 kernel 新概念（不在 cordis 里，见 §1 表）：`new Context()` + 挂载 kernel 自身插件（`provide` `contributions`/`errors`/`telemetry`）+ 挂失败隔离监听 + 记录 `kernelVersion`（03 §1.2 步骤①–④）。一个进程可以调用多次 `createHost()` 得到互不相干的宇宙——这正是为什么"单一入口"必须靠扫描器锁定文件而不是语言机制本身阻止：cordis/kernel 从不限制你调用 `createHost` 的次数，限制来自 ESLint `apps/**` override 的唯一 `createHost` 调用点检查（原称扫描器 `single-create-host-callsite`）与 depcruise `cordex-apps-only-assemble` 规则（TD-093，rulings §4.18 GV-15）。`host.plugin(preset)` 只是把 preset 当一个普通插件挂载（模式 E），`host.dispose()` 销毁根 Fiber，触发 cordis 原生的逆序 effect 清理，级联到全部子 Fiber。
 
 **Manifest 片段**：无——`apps/*` 不发布，不产生 Manifest（04-api-surface §1："范围仅限 `packages/*`……`apps/web`/`apps/server` 是终端应用……不经过本篇任何门禁"）。Host 组合根没有 Manifest 意义上的"契约"，最接近的机械产物是 `host.diagnostics()` 的返回形状（Fiber 树 + 贡献诊断 + manifest 不一致清单，03 §1.2/§3.5），以及它挂载的 preset 自身的 Manifest（模式 E）。
 
@@ -769,7 +771,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 反例：贡献点 id 用 PascalCase 或 kebab-case（`Core.DocumentType`、`slide.shape-kind`）；事件名用 `.` 分隔（`unit.opened`）；第三方包不带 vendor 前缀直接注册 `comments.thread`。
 
-由谁强制：`scan-contributions` 规则 (b)（正则 `^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$`）；`event-domain-whitelist` 扫描器（03 §3.6）。
+由谁强制：`scan-contributions` 规则 (b)（正则 `^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$`）；lint `cordex/events-must-be-declared` 规则 3（域白名单，原称 `event-domain-whitelist`，GV-15；03 §3.6）。
 
 ### 3.2 依赖声明
 
@@ -829,7 +831,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 反例：想拦截某个流程却用 `ctx.on`（普通事件，监听器返回值被忽略，根本拦不住）；用贡献点模拟"发生的事"（贡献是声明，不是事件，03 §3.4）。
 
-由谁强制：扫描器 `events-declared`（03 §11）；`waterfall` 权限门的 `prepend` 只能由 `commands` 服务自身在 `apply` 内注册（03 §6）。
+由谁强制：lint 规则 `cordex/events-must-be-declared`（原称 `events-declared`，09-type-discipline/08 §11，rulings §4.18 GV-15；03 §11）；`waterfall` 权限门的 `prepend` 只能由 `commands` 服务自身在 `apply` 内注册（03 §6）。
 
 ### 3.8 i18n
 
@@ -852,7 +854,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 | `MutationDef` 手写 `inverse` | 逆操作必须由 Store 从 `StoreOp` 推导，手写容易与实际应用的操作语义漂移 | lint `no-inverse-in-mutation`（02 §2.6） | 只写 `lower()`，逆操作交给 Store 推导 |
 | 贡献项 schema 校验失败时在 `apply` 里 `try/catch` 后再抛错 | 一个坏条目会拖垮整个插件的全部其他正常贡献 | 违反 03 §3.3 明确语义；无独立 lint，靠 code review | 让 `ctx.contribute` 自己走诊断+丢弃路径，不要包一层再抛 |
 | 公共 API 暴露 `Y.*` 类型 | 消费方被迫认识具体 CRDT 类型，架空单点引入规则的意图 | 04-api-surface §2.2 对 `.api.md` 的正则扫描 | 声明本包自己的抽象类型（如 `RichText`） |
-| `apps/*` 里直接 `ctx.contribute(...)`/定义领域契约 | 违反"apps 只做组装，零业务逻辑" | lint `no-domain-defs-in-apps`（11 §3.3 提及） | 领域定义放回对应 `packages/*`，apps 只挑选与装配 |
+| `apps/*` 里直接 `ctx.contribute(...)`/定义领域契约 | 违反"apps 只做组装，零业务逻辑" | ESLint `no-restricted-syntax`（`apps/**` override）+ depcruise `cordex-apps-only-assemble`（原称 `no-domain-defs-in-apps`，11 §10，GV-15） | 领域定义放回对应 `packages/*`，apps 只挑选与装配 |
 | 跨垂直束 `import`（如 `model-slide` import `model-doc`） | 两个垂直束数值秩相同、只 `bundle` 不同，规则 2（只向下）看不出，需要专门规则堵 | depcruise `cordex-bundle-isolation`（03-boundaries §3.2） | 需要共享的逻辑下沉到水平层（如 `model-core`） |
 | `dom` 包被 `node` 包 `import`（或反过来） | 环境相关全局假设被传递性引入，即使自己源码一行 `window`/`process` 都没写 | depcruise `cordex-isomorphism-compatibility`（03-boundaries §3.4，`node→dom`/`dom→node` 是新增检查方向） | 通过 Definition + 各自环境的 Provider 解耦 |
 | 插件里直接 `new` 第三方客户端（如 `new Redis(...)`）而不走 Provider | 绕开三角色规则，无法替换、无法被 conformance 套件验证 | depcruise `cordex-role-consumer-definition-only`（03-boundaries §3.5）；primer MUST #5 | 先定义/复用 Definition，具体客户端封装成 Provider（如 `RedisFanoutBus implements FanoutBus`） |
@@ -882,18 +884,18 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 | depcruise `cordex-bundle-isolation` | 垂直束互不 `import` | §4 第 7 行 | depcruise 报告：规则名 + 违规边（03-boundaries §3.2） |
 | depcruise `cordex-isomorphism-compatibility` | iso/dom/node 三态兼容矩阵 | §4 第 8 行 | depcruise 报告（03-boundaries §3.4） |
 | kernel `failure-isolation.test.ts` | 一个 Fiber `FAILED` 不影响兄弟 Fiber，坏插件的贡献不残留 | §3.3 | 断言 `errors` sink 恰有一条 `kernel/PLUGIN_FAILED`（03 §8 原文机械验证描述） |
-| 扫描器 `lifecycle-test-present` | 每个插件包必须存在 `__tests__/lifecycle.test.ts` | §6 步骤 7 | 列出缺失该文件的包名（03 §11） |
+| `scan-effects` 规则 (2)（原称 `lifecycle-test-present`，GV-15） | 每个插件包必须存在 `__tests__/lifecycle.test.ts` | §6 步骤 7 | 列出缺失该文件的包名（03 §11） |
 
 ---
 
 ## 6. 新增一个插件的 checklist
 
 1. **选模式**——用 §0 决策树定主轴；命中多个模式（如同时是 Provider 又是 UnitScope 插件）时，逐个过一遍对应小节的检查清单。
-2. **建包**——`packages/<name>/package.json#cordex`：`layer`/`iso`/`bundle`（仅 `V-*` 层必填）/`role`（`library|plugin|definition|provider|bundle|app|tooling`，Provider 需给出 `implements`）/`stability`；`exports` 只留 `.` 与 `./testing`。
+2. **建包**——`packages/<name>/package.json#cordex`：`layer`/`iso`/`bundle`（`V-*` 层必填；组合根 preset 选填，填了即受 R4 约束；其余省略，rulings §4.18 FE-01）/`role`（`library|plugin|definition|provider|bundle|app|tooling`）/`implements`（Provider 必填，第八键，FE-21）/`compositionRoot`（仅 preset-*、apps/* 为 `true`）/`publicEntry`/`stability`；不写 `rank`（由 `layer` 查秩表得出，schema 拒绝未知键，FE-21）；`exports` 只登记显式子路径且与 `publicEntry` 逐一相等（`.` 与 `./testing` 必有，其余按需逐个登记，禁止通配与 `src`/`lib` 深引用，`./testing` 仅限测试使用，FE-04）。
 3. **写 `plugin.ts`**——`name`/`inject`（必需与可选分清）/`provide`/`Config`（Standard Schema，默认值写进 schema）/`apply`（显式标注返回类型）。
 4. **定义或实现契约**——模式 A：写 `contracts/*.ts` + `testing/*-conformance.ts`（命名 `run<Definition>Conformance`）；模式 B：在 `__tests__` 里调用对方的契约套件。
 5. **注册贡献**——需要新贡献点时写 `*.contribution.ts`（`defineContributionPoint` + `declare module`，文件内零其他运行时语句）；在 `apply` 内 `ctx.contribute`。
-6. **写 Manifest**——`manifest.ts` 手写意图声明；`manifest-gen --check` 校验与源码一致；产出入库的 `cordex-manifest.json`。
+6. **写 Manifest**——运行 manifest-gen（即 `tooling/scripts/scan-manifest.ts`）从源码生成 `manifest.ts`（头部 `generated`）并提交；CI `--check` 重新生成要求无 diff；`cordex-manifest.json` 是构建时由 `manifest.ts` 序列化、随包发布的产物，不入库（2026-09-25 更正原「手写意图声明」，以 ADR-0003 与章程「由源码生成」为准，rulings §4.18 GV-17）。
 7. **写测试**——`__tests__/lifecycle.test.ts`（挂载 → `ACTIVE`/`PENDING` → `dispose` → `assertNoLiveEffects`）；契约套件；至少一个"缺依赖时进入 `PENDING`"用例。
 8. **接入 preset**——加入对应 `preset-*` 的装配清单（`plugins/index.ts`）；确认 `exclude`/`override` 场景下宿主仍能启动（`pluggable.test.ts`）。
 9. **跑扫描器**——本地 `pre-push` 全绿：`scan-manifest`/`scan-contributions`/`scan-effects`/`scan-type-escapes`/depcruise 八条规则/`scan-policy`。
@@ -904,11 +906,11 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 ## 7. 发现的缺口与不一致（只报告，不改）
 
 - **G-1｜`16-plugin-catalog.md` 在本文写作期间才产出，已回头核对术语一致性**：本文动笔时 `docs/40-modules/` 目录止于 `15-server-architecture-review.md`，按任务指示改用 charter §5.2–§5.5 的包清单与形态词起草；写作过程中该文件被产出，收尾时已回读其 §1"分类口径"——其七类形态（host/definition/provider/plugin 贡献型/bundle/library/Nest 模块）与本文模式 A（definition）/B（provider）/C（plugin 贡献型）/E（bundle）/F（library）/G（host）逐一对应，命名口径一致；本文模式 D（UnitScope 内插件）是它未覆盖的正交轴（部署作用域，而非 cordis 形态），不构成冲突。唯一补充：16 号文档把"Nest 模块（非 cordis Fiber）"列为与 host 并列的第八类，本文已据此在 §2.7 补一条边界说明。建议：本文与 16 号文档互相加一条"另见"引用，避免后续读者只查到其中一份。
-- **G-2｜`conflict:'replace'` 的适用范围文档口径不一致**：`03-kernel-and-plugin-model.md` §3.2 `ContributionPointSpec.conflict` 字段注释写"`'replace'`：后者覆盖（**仅 `ui.*` 允许**，用于主题/移动端覆盖）"；但同一文档 §3.6 贡献点总表里 `render.overlay`（`engine-render` 定义）也标 `replace`，`40-modules/07` §3 `slide-render` 的 `render.element` 贡献表里 `graphicFrame:chart` 一键同样用 `conflict:'replace'`（供 `slide-render-chart` 覆盖），均不属于 `ui.*`。建议架构-结构条线澄清§3.2 注释措辞与实际用法的差异。
+- **G-2｜`conflict:'replace'` 的适用范围文档口径不一致**：`03-kernel-and-plugin-model.md` §3.2 `ContributionPointSpec.conflict` 字段注释写"`'replace'`：后者覆盖（**仅 `ui.*` 允许**，用于主题/移动端覆盖）"；但同一文档 §3.6 贡献点总表里 `render.overlay`（`engine-render` 定义）也标 `replace`，`40-modules/07` §3 `slide-render` 的 `render.element` 贡献表里 `graphicFrame:chart` 一键同样用 `conflict:'replace'`（供 `slide-render-chart` 覆盖），均不属于 `ui.*`。建议架构-结构条线澄清§3.2 注释措辞与实际用法的差异。 **→ 2026-09-25 结案**（rulings §4.18 GV-24）：各处不再手写 replace 允许清单，统一写「须在贡献点定义时显式声明，当前取值以 03 §3.6 总表 conflict 列为准（`ui.*`、`render.element`、`render.overlay`、`i18n.bundle`）」。
 - **G-3｜kernel re-export 草案把 `Service` 列为 type-only**：`03-kernel-and-plugin-model.md` §1.1 的 `@cordexjs/kernel/src/index.ts`（草案）代码块中，`Service` 出现在 `export type { Context, Service, Plugin, ... } from 'cordis'`，与 `FiberState`/`CordisError`/`ValidationError` 的值导出分开写。但 `cordis-primer.md` §3.5 与 `03-kernel-and-plugin-model.md` §2.1/§2.3 都把"`class X extends Service`"列为标准写法（`services/*.service.ts` 文件约定），要求 `Service` 必须作为**值**可从 `@cordexjs/kernel` 导入。本文 §1/§2.2/§2.4 的代码骨架按后者的明确意图处理，但这处草案两行代码本身互相矛盾，建议实现 kernel re-export 面时一并修正。
 - **G-4｜`defineContributionPoint` 的泛型签名两份文档不完全一致**：`03-kernel-and-plugin-model.md` §3.2 给出双类型参数版本（`<T, K extends string>`，`key` 返回 `K`）；`09-plugin-type-contracts.md` §1.1 给出单类型参数版本（`<S extends StandardSchemaV1>`，贡献项类型由 `StandardSchemaV1.InferOutput<S>` 反推，`key` 统一返回 `string`，且明确"调用方不能显式传入贡献项类型参数"）。本文 §1/§2.3 采用 09 号（更严格、且论证了取舍理由）作为代码骨架依据，建议两条线对齐一份最终签名。
 - **G-5｜UnitScope 隔离服务集合存在历史遗留符号的过渡状态**：`40-modules/02` §2.5 提到"取代 02 旧稿的 symbol 键 `doc-access`（B 线建议二选一）"，即该文档自己记录了新旧两种设计并存、尚未完全清理的痕迹。本文 §2.2/§2.4 统一采用 `03-kernel-and-plugin-model.md` §5 描述的 `createIsolatedScope`/`ctx.isolate(name)` 风格，建议 02 号文档下次修订时移除该脚注或明确其已废弃。
-- **G-6｜Host 组合根缺少等价于 Provider conformance 套件的"组合正确性"契约测试**：`04-api-surface.md` 明确"范围仅限 `packages/*`"，`apps/*` 不经过 api-extractor/`exports`/publint 门禁；`11-preset-assembly-and-app-shell.md` §3.5 的 `single-create-host-callsite` 扫描器只保证"唯一入口"，不保证"这个入口组装出来的宿主行为正确"。整理 §2.7 时未在必读材料中找到面向 Host 组合根本身的标准正确性验证套件，建议评估是否需要补一套类似 `defineLifecycleSuite` 的组合根测试骨架。
-- **G-7｜"文案硬编码"反模式缺少对应的自动化扫描器**：本文 §3.8/§4 都需要回答"由谁强制"，但必读的 `06-scanners.md`（13 个扫描器全表）与其余四篇 `09-type-discipline` 文档中，没有找到检测"面向用户文案未经 `i18n.bundle` 而直接硬编码"的规则或扫描器。`02-lint-rules.md`（59KB）未列入本次必读范围，不排除其中已有相关规则；建议架构-类型治理条线确认并回填本手册与 `08-policy-enforcement-matrix.md`。
+- **G-6｜Host 组合根缺少等价于 Provider conformance 套件的"组合正确性"契约测试**：`04-api-surface.md` 明确"范围仅限 `packages/*`"，`apps/*` 不经过 api-extractor/`exports`/publint 门禁；`11-preset-assembly-and-app-shell.md` §3.5 的唯一 `createHost` 调用点检查（ESLint `apps/**` override，原称 `single-create-host-callsite`，TD-093）只保证"唯一入口"，不保证"这个入口组装出来的宿主行为正确"。整理 §2.7 时未在必读材料中找到面向 Host 组合根本身的标准正确性验证套件，建议评估是否需要补一套类似 `defineLifecycleSuite` 的组合根测试骨架。
+- **G-7｜"文案硬编码"反模式缺少对应的自动化扫描器**：本文 §3.8/§4 都需要回答"由谁强制"，但必读的 `06-scanners.md`（14 个扫描器全表；第 14 个 `doc-access-via-permission`，rulings §4.17 D3、§4.18 GV-11）与其余四篇 `09-type-discipline` 文档中，没有找到检测"面向用户文案未经 `i18n.bundle` 而直接硬编码"的规则或扫描器。`02-lint-rules.md`（59KB）未列入本次必读范围，不排除其中已有相关规则；建议架构-类型治理条线确认并回填本手册与 `08-policy-enforcement-matrix.md`。
 - **G-8｜preset 的 `configure`/`override` 合并机制为本文推断补全**：`03-kernel-and-plugin-model.md` §9 给出的 `PresetEntry` 形状是 `{ id, plugin, config?: unknown, disabled? }`（静态值），`40-modules/11` §3.1 用"默认配置（`configure[id]` 可覆盖）"一语带过具体机制，两处都未给出 `applyTrim`/`configure` 的精确合并算法（整体替换还是深合并、能否与 `override` 同时作用于同一条目等）。本文 §2.5 按"最小自洽"补全了一个 `SlidePresetOptionsSchema` 示意，标注为骨架级推断；实现期需要架构-结构条线给出 `@cordexjs/kernel/preset` 的精确类型定义。
 - **G-9｜UnitScope 内水平层包（如 `engine-render`）如何被挂进隔离域，机制未在必读材料中说明**：`03-kernel-and-plugin-model.md` §5.1 的 `unit-plugin.ts` 伪代码直接写 `scoped.plugin(renderPlugin)`，容易读成"model-core 的 `unit-plugin.ts` 直接引用 `engine-render` 的插件"；但 `engine-render` 是 L5 水平层（秩 50），`model-core` 是 L1（秩 10），若 `unit-plugin.ts` 真的 `import` `engine-render`，会违反章程 §5.3 规则 2（只向下：`rank(to) ≤ rank(from)`，此处 `to` 秩更高）。`40-modules/11` §3.1 装配清单把 `engine-render`/`render-dom`/`collab-yjs` 的 scope 列标为"unit"，暗示它们由 **preset** 而非 model-core 直接挂进某个 Unit 的隔离域，但"谁在 Unit 打开时把这些条目追加进同一个 `createIsolatedScope` 结果"的具体机制，未在本次必读的 cordis-primer、03、40-modules 02/06/11 材料中给出可引用的代码或文字。本文 §2.4 代码骨架因此只展示了 model-core 自己直接拥有的 `store`/`history`/`selection` 三个默认 Provider，不虚构 `render`/`presence` 的挂载细节；建议架构-结构条线在 `03-kernel-and-plugin-model.md` §5 或 `40-modules/11` 补一段精确说明。

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-01） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q12：仓库许可证 Apache-2.0——根 `LICENSE`/`NOTICE` 入 M0 骨架，`create-package` 写 `license: "Apache-2.0"`）；2026-09-24（复核修正，rulings §4.17：TD 编号以 08 矩阵为准并顺延、Q-09 结案；D3 登记第 14 个扫描器 `doc-access-via-permission`；depcruise 第 9 条规则 `cordex-ui-bundle-core-framework-free`；playground glob 改实际路径） | 依赖：00-module-map.md §3 BC-28/§4/§5/§7/§8/§9/§10、charter v0.2 §3/§5.3/§5.4、30-architecture/02-layering-and-packages.md §2/§5/§7/§8、30-architecture/09-type-discipline/{README,01-09}、30-architecture/adr/0040-0048、30-architecture/11-testing-strategy.md CI 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-01） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q12：仓库许可证 Apache-2.0——根 `LICENSE`/`NOTICE` 入 M0 骨架，`create-package` 写 `license: "Apache-2.0"`）；2026-09-24（复核修正，rulings §4.17：TD 编号以 08 矩阵为准并顺延、Q-09 结案；D3 登记第 14 个扫描器 `doc-access-via-permission`；depcruise 第 9 条规则 `cordex-ui-bundle-core-framework-free`；playground glob 改实际路径）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md §3 BC-28/§4/§5/§7/§8/§9/§10、charter v0.2 §3/§5.3/§5.4、30-architecture/02-layering-and-packages.md §2/§5/§7/§8、30-architecture/09-type-discipline/{README,01-09}、30-architecture/adr/0040-0048、30-architecture/11-testing-strategy.md CI 段
 
 # 01 工具链与治理骨架（限界上下文 BC-28〈工具链与治理〉）
 
@@ -6,7 +6,7 @@
 
 | 项 | 值 |
 |---|---|
-| 职责一句话 | 把章程 R7"强类型规约 + 机械约束"落成可执行物：tsconfig 基线、21 条自定义 lint 规则、9 条 depcruise 依赖规则、14 个自研扫描器（第 14 个 `doc-access-via-permission` 为 rulings §4.17 D3 登记）、4 个治理检查脚本（lockfile/workspace 协议/RLS 覆盖/镜像策略，rulings §4.15 新增，不计入十四个扫描器）、85 行规范↔执行矩阵（TD-001…TD-085）、lefthook/CI 门禁与 Changesets 配置，使"规范"与"违反即失败"之间不存在人工判断缺口 |
+| 职责一句话 | 把章程 R7"强类型规约 + 机械约束"落成可执行物：tsconfig 基线、21 条自定义 lint 规则、9 条 depcruise 依赖规则、14 个自研扫描器（第 14 个 `scan-doc-access-via-permission` 为 rulings §4.17 D3 登记）、4 个治理检查脚本（lockfile/workspace 协议/RLS 覆盖/镜像策略，rulings §4.15 新增，不计入十四个扫描器）、85 行规范↔执行矩阵（TD-001…TD-085）、lefthook/CI 门禁与 Changesets 配置，使"规范"与"违反即失败"之间不存在人工判断缺口 |
 | 覆盖的上下文 | BC-28（工具链与治理） |
 | 承载包 / 目录 | `tooling/*`（不参与 `cordex.layer` 秩体系，无层/秩；node，构建期）；根 `lefthook.yml`/`.dependency-cruiser.cjs`/`biome.json`/`.changeset/config.json`/`turbo.json`/`pnpm-workspace.yaml`/`.node-version`/`.github/workflows/*` |
 | cordis 形态 | library（构建期工具；不创建 cordis Fiber，不参与 `ctx.plugin()` 树） |
@@ -124,7 +124,7 @@ flowchart LR
 
 ### 2.2 配置值对象
 
-- **`package.json#cordex` 字段**（八键，schema 见 `tooling/policy/schema/cordex-package-metadata.schema.json`）：`layer`（12 取值：`L0|L1|L3|L4|L5|L7|L8|LS|V-model|V-codec|V-render|V-ui`）、`iso`（`iso|dom|node`）、`bundle`（`slide|doc|sheet`，仅 `layer` 以 `V-` 开头时必填，否则必须省略/`null`）、`role`（`definition|provider|consumer|n/a`，与架构-结构条线 `library|plugin|definition|provider|bundle|app|tooling` 七值折叠映射：`package.json#cordex.role` 按人类可读的七值之一标注，`depcruise` 的三角色规则读取时按固定表折叠为四值——`definition→definition`、`provider→provider`、`library|plugin|bundle|app|tooling→consumer`（**例外**：若该包同时是某 Definition 的 Provider，如 kernel 自身，则折叠为 `provider`），`n/a` 用于 `tooling/*` 等不参与秩体系的包；折叠表权威见 14-cross-module-review.md §1 C-11、`00-module-map.md` §8 G-2，本文档 §12-D8）、`compositionRoot`（布尔，仅 `preset-*`/`apps/web`/`apps/server` 可为 `true`）、`publicEntry`（字符串数组，须与 `exports` key 集合逐一相等）、`stability`（可选，`stable|beta|experimental`，缺省 `stable`）。`tooling/*` 自身包**不**填该字段（不参与秩体系，见 §10）。
+- **`package.json#cordex` 字段**（八键，schema 见 `tooling/policy/schema/cordex-package-metadata.schema.json`；schema `additionalProperties:false`，拒绝 `rank` 等未知键——秩由 `layer` 查秩表得出、不写进 package.json，rulings §4.18 FE-21）：`layer`（12 取值：`L0|L1|L3|L4|L5|L7|L8|LS|V-model|V-codec|V-render|V-ui`）、`iso`（`iso|dom|node`）、`bundle`（`slide|doc|sheet`：`layer` 以 `V-` 开头时必填；`compositionRoot:true` 的 preset 选填——`preset-slide*` 标 `slide`、`preset-doc` 标 `doc`、`preset-sheet` 标 `sheet`，填了即受 `cordex-bundle-isolation`（章程 §5.3 规则 8）约束；其余包必须省略，rulings §4.18 FE-01）、`role`（`definition|provider|consumer|n/a`，与架构-结构条线 `library|plugin|definition|provider|bundle|app|tooling` 七值折叠映射：`package.json#cordex.role` 按人类可读的七值之一标注，`depcruise` 的三角色规则读取时按固定表折叠为四值——`definition→definition`、`provider→provider`、`library|plugin|bundle|app|tooling→consumer`（**例外**：若该包同时是某 Definition 的 Provider，如 kernel 自身，则折叠为 `provider`），`n/a` 用于 `tooling/*` 等不参与秩体系的包；折叠表权威见 14-cross-module-review.md §1 C-11、`00-module-map.md` §8 G-2，本文档 §12-D8）、`implements`（字符串数组：`role` 为 provider 的包必填，列出所实现的 Definition 服务名，如 store Provider 写 `['store']`；三角色规则 `cordex-role-*`（02 R7）读取它；其余包省略）、`compositionRoot`（布尔，仅 `preset-*`/`apps/web`/`apps/server` 可为 `true`，且这些包必须显式写 `true`——`cordex-doc-type-blind` 的组合根豁免与三角色豁免都读取它）、`publicEntry`（字符串数组，须与 `exports` key 集合逐一相等；跨包 import 只能走这里登记的子路径，`cordex-no-deep-import` 据此判定，rulings §4.18 FE-04）、`stability`（可选，`stable|beta|experimental`，缺省 `stable`）。`tooling/*` 自身包**不**填该字段（不参与秩体系，见 §10）。
 - **ratchet 预算值对象**：`budgets.json` 的每条 entry = `{ key: string, value: number }`，`key` 形状见 2.1 RatchetBudgetEntry 行；按 `src`/`test` 分离统计。
 - **策略行 schema**：`policy-row.schema.json` 描述 08 矩阵九列（`id`/`陈述`/`来源`/`执行机制`/`配置路径`/`负向测试路径`/`CI job`/`豁免方式`/`owner`）的字段类型与枚举取值（豁免方式封闭为 5 种取值，见 §5.7）。
 - **其余数据值对象**：`milestones.json`（里程碑→日期/版本映射）、`requirements.json`（PRD 需求 id 清单镜像，可选）、`event-domains.json`（第一方事件域清单）、`license-allowlist.json`（许可证白名单，TD-050）。
@@ -139,6 +139,7 @@ flowchart LR
 | `formatReport<T>(rows: T[], mode: 'json' \| 'human'): string` | `tooling/scripts/lib/report.ts` | 统一的双格式输出器 |
 | `computeChangedFiles(baseRef: string): string[]` | `tooling/scripts/lib/changed-files.ts` | `git diff` 范围计算，供 pre-commit 快速模式复用 |
 | `isBundleIsolationViolation(from: CordexMeta, to: CordexMeta): boolean` | `tooling/depcruise/rules/doc-type-blind.ts` | 判定 `bundle` 字段不同的两个非空值是否互相 import |
+| `isDocTypeBlindViolation(from: CordexMeta, to: CordexMeta): boolean` | `tooling/depcruise/rules/doc-type-blind.ts` | `from.compositionRoot!==true && from.bundle 为空 && to.layer 以 V- 开头`（规则 3，组合根豁免，to 侧判据与章程 §5.3 规则 3 一致，rulings §4.18 FE-01） |
 
 这些函数均无副作用、无 IO（IO 由调用它们的脚本外壳负责），是十四个扫描器与 9 条 depcruise 规则共享的图分析/元数据解析内核。
 
@@ -149,7 +150,8 @@ flowchart LR
 | 事件/产物 | 产生者 | 消费者 | 格式 |
 |---|---|---|---|
 | 十四份扫描器 JSON 报告 | 各 `scan-*.ts` | CI 日志、`scan-policy`（部分） | 见 06 各节"输出格式" |
-| `cordex-manifest.json`（每包） | `scan-manifest.ts` | 未来插件市场/CLI（M0 阶段仅 CI 自比对） | zod 推导的 `Manifest` 类型 |
+| `src/manifest.ts`（每包，生成物，入库） | `scan-manifest.ts`（即 manifest-gen）从源码静态分析生成，头部标 `generated` | CI `--check` 重新生成比对，要求无 diff（rulings §4.18 GV-17） | `Manifest` 类型的 TS 常量 |
+| `cordex-manifest.json`（每包，构建产物，不入库） | 构建时由 `manifest.ts` 序列化，随包发布 | 未来插件市场/CLI | zod 推导的 `Manifest` 类型 |
 | `iso-smoke-manifest.json` | `scan-isomorphic.ts` | `iso-smoke` CI job | `{ package, publicEntry }[]` |
 | `requirement-test-matrix.json` | `scan-requirement-tags.ts` | `11-testing-strategy.md` 覆盖率矩阵 | `{ requirementId, testFiles }[]` |
 | `.api.md` / `etc/<name>-internal.d.ts` | api-extractor | 代码评审 / CI artifact | Markdown / `.d.ts` |
@@ -224,13 +226,129 @@ flowchart LR
 | 事件：发布 / 订阅 | 无（cordis `Events`）；构建期报告事件见 §2.4 |
 | 配置 schema | 无插件 `Config`；本模块自身的"配置"是 §2.2 的值对象（`cordex` 字段 schema、`budgets.json` 等），经文件读取而非 `ctx.plugin(plugin, config)` 装配期校验 |
 | 生命周期 | 无 Fiber 生命周期；本模块的等价物是 CI job 的"存在性 + 每 PR 触发 + 不可跳过"三条治理姿态（09-07 §3），与 `ready`/`dispose`/`PENDING` 无对应关系 |
-| Manifest 片段 | 无——`tooling/*` 不生成 `cordex-manifest.json`（`scan-manifest.ts` 的**输入**是其余各包的 `manifest.ts`，`tooling` 自身不是被治理对象） |
+| Manifest 片段 | 无——`tooling/*` 自身不产出 `manifest.ts`/`cordex-manifest.json`（`scan-manifest.ts` 的**输入**是其余各包的源码，**输出**其 `manifest.ts`，`tooling` 自身不是被治理对象；rulings §4.18 GV-17） |
 
 **为什么是 N/A**：BC-28 明确"不参与运行时依赖图（无秩）"（module-map §3 BC-28 行），cordis 形态登记为 `library`——它是构建期以 CLI 子进程、Node 脚本、GitHub Actions job 形式运行的工具集合，从未调用 `createHost()`/`ctx.plugin()`，因此模板 §3 的全部字段均不适用。这与 `@cordexjs/design`（BC-13，同样是零依赖 `library`）在"无插件形态"这一点上同构，但 `@cordexjs/design` 至少是运行时产物（CSS 文件被 `import`），本模块连运行时产物都不是。
 
 ## 4. 目录树（完整到文件）
 
 > 本树采用 09-type-discipline 各子文档给出的**实际文件路径**（因 08 矩阵逾 20 行"配置路径"列已固化这些路径并被 `scan-policy` 机器校验），而非 02§5 草图里 `manifest-gen/`/`scanners/`/`policy-check/`/`iso-smoke/` 四个独立顶层目录名——02§5 本身注明"详细规格由 09 承接"，差异与映射关系见 §12-D1。测试文件与夹具目录见 §9，不在本树重复。
+
+**图 4-1 根入口文件到 tooling 的依赖**
+
+```mermaid
+flowchart LR
+subgraph root["仓库根入口文件"]
+rPkg["package.json scripts"]
+rTsBase["tsconfig.base.json"]
+rTsSol["tsconfig.json solution"]
+rEslint["eslint.config.js"]
+rDepcruise[".dependency-cruiser.cjs"]
+rLefthook["lefthook.yml"]
+rChangeset[".changeset/config.json"]
+end
+subgraph wf[".github/workflows"]
+wCi["ci.yml"]
+wPolicy["policy-matrix.yml"]
+wE2e["e2e.yml"]
+wRelease["release.yml"]
+end
+tTsconfig["tooling/tsconfig/base.json"]
+tEslint["@cordexjs/eslint-config"]
+tDepcruise["tooling/depcruise/index.cjs"]
+tScripts["tooling/scripts/*"]
+tCommitlint["tooling/commitlint.config.ts"]
+tFixed["tooling/changeset-config/fixed-groups.ts"]
+allPkgs["全部包"]
+perf["Playwright 与 test/perf 内容属架构-运行时 B"]
+rTsBase -- "extends" --> tTsconfig
+rTsSol -- "references" --> allPkgs
+rEslint -- "import createConfig" --> tEslint
+rDepcruise -- "re-export" --> tDepcruise
+rLefthook -- "三阶段钩子" --> tScripts
+rLefthook -- "commit-msg 阶段显式指向" --> tCommitlint
+tFixed -- "生成 fixed 数组" --> rChangeset
+wCi -- "调用根 scripts" --> rPkg
+wPolicy -- "pnpm policy" --> rPkg
+wE2e --> perf
+wRelease --> rChangeset
+```
+
+怎么读：箭头为依赖方向（使用方 → 被使用方），唯一的反向是 `fixed-groups.ts` 生成并写回 `.changeset/config.json`；根目录文件只做薄转发，真正的规则实现都落在 `tooling/*`。
+
+依据：§5.1 各文件「允许依赖」列。
+
+**图 4-2 tooling 内部目录依赖**
+
+```mermaid
+flowchart LR
+eslintIndex["eslint-config/index.ts"]
+eslintBase["eslint-config/base.ts"]
+eslintRules["eslint-config/rules/*"]
+pluginIndex["eslint-plugin-cordex/index.ts"]
+pluginRules["eslint-plugin-cordex/rules 21 条"]
+depIndex["depcruise/index.cjs"]
+pkgMeta["depcruise/package-metadata.ts"]
+layers["depcruise/layers.ts"]
+depRules["depcruise/rules 9 条规则"]
+fixedGroups["changeset-config/fixed-groups.ts"]
+scanners["scripts/scan-*.ts 14 个扫描器"]
+checkWs["scripts/check-workspace-protocol.ts"]
+checks["lockfile-guard check-rls-coverage check-image-policy"]
+lib["scripts/lib 四个共享文件"]
+budgets["policy/budgets.json"]
+policyData["policy/milestones.json 与 schema"]
+policyChecks["policy/rls-exceptions.json 与 image-license-allowlist.json"]
+eslintIndex --> eslintBase
+eslintIndex --> eslintRules
+eslintIndex --> pluginIndex
+pluginIndex --> pluginRules
+depIndex --> pkgMeta
+depIndex --> layers
+depIndex --> depRules
+fixedGroups --> pkgMeta
+checkWs --> pkgMeta
+checkWs -- "report.ts" --> lib
+scanners --> lib
+checks -- "report.ts" --> lib
+lib -- "budget.ts 只读" --> budgets
+scanners -- "scan-deprecations 与 scan-policy" --> policyData
+checks -- "check-rls-coverage 与 check-image-policy" --> policyChecks
+```
+
+怎么读：箭头为 import 或读取方向；`depcruise/package-metadata.ts` 是跨子目录复用最多的元数据解析内核（depcruise、changeset 分组、workspace 协议检查共用），`scripts/lib/` 是十四个扫描器与治理检查脚本共享的报告、预算、变更范围与 ts-morph 封装层。
+
+依据：§5.3–§5.9 各文件「允许依赖」列与 §5.8 数据文件消费者备注。
+
+**图 4-3 tsconfig 与 api-extractor 继承链**
+
+```mermaid
+flowchart BT
+tsBase["tsconfig/base.json"]
+tsIso["iso.json"]
+tsDom["dom.json"]
+tsNode["node.json"]
+tsNest["nest.json 仅 apps/server"]
+tsBuild["build.json"]
+tsVitest["vitest.json"]
+aeBase["api-extractor.base.json"]
+aeIso["api-extractor.iso.json"]
+aeDom["api-extractor.dom.json"]
+aeNode["api-extractor.node.json"]
+tsIso -- "extends" --> tsBase
+tsDom -- "extends" --> tsBase
+tsNode -- "extends" --> tsBase
+tsBuild -- "extends" --> tsBase
+tsNest -- "extends" --> tsNode
+tsVitest -. "extends 对应环境配置" .-> tsIso
+aeIso -- "extends" --> aeBase
+aeDom -- "extends" --> aeBase
+aeNode -- "extends" --> aeBase
+```
+
+怎么读：自下而上是 `extends` 方向；`nest.json` 是唯一两级继承（经 `node.json`），`vitest.json` 按测试所在环境继承 iso/dom/node 之一（虚线只画 iso 作代表）；三份 api-extractor 配置在 M0 阶段内容一致，只是按同构类分叉的占位。
+
+依据：§5.2、§5.6 各文件「允许依赖」列。
 
 ```text
 /                                          仓库根（本模块只治理其中的门禁/配置文件，非全部根文件）
@@ -241,8 +359,9 @@ flowchart LR
 ├── pnpm-workspace.yaml                    # packages: apps/*, packages/*, tooling/eslint-config, docs/20-design/playground；
 │                                            pnpm 设置全集（nodeLinker/strictPeerDependencies/…）；
 │                                            catalog: 第三方版本目录（cordis/zod/yjs/react/vitest/typescript…）
-├── turbo.json                             # 任务图：build/typecheck/lint/test/depcruise/
-│                                            api-extract/manifest-gen/iso-smoke/policy-check
+├── turbo.json                             # 任务图：build/typecheck/lint/test/test:typecheck/depcruise/
+│                                            api/manifest/scan/policy/iso-smoke（与根 scripts 同名，§2.6；
+│                                            原 api-extract/manifest-gen/policy-check 旧名作废，rulings §4.18 GV-13）
 ├── tsconfig.json                          # solution 文件：仅 references，无 compilerOptions
 ├── tsconfig.base.json                     # extends tooling/tsconfig/base.json（仅供编辑器发现）
 ├── eslint.config.js                       # import @cordexjs/eslint-config 的 createConfig(pkgMeta)
@@ -282,6 +401,9 @@ tooling/
 │   │   ├── restricted-imports.ts          # 第三方库单点引入表 → no-restricted-imports 生成器
 │   │   ├── restricted-globals.ts          # iso 同构全局名单 → no-restricted-globals 配置
 │   │   ├── dom-injection.ts               # 禁 innerHTML/outerHTML/insertAdjacentHTML/DOMParser 注入（§4.15 Q4）
+│   │   ├── assembly.ts                    # apps/** 无领域定义与唯一 createHost 调用点（TD-093）、preset 胶水 apply ≤ 60 行且 model-* 只许 import type（TD-094）、
+│   │   │                                  #   src/index.ts 只许 export … from（TD-096）；原称 no-domain-defs-in-apps 等（rulings §4.18 GV-15）
+│   │   ├── determinism.ts                 # ooxml-* 禁 Date.now / 无参 new Date() / performance.now / Math.random（TD-097，原称 codec-no-clock）
 │   │   └── style.ts                       # console/prototype/裸 throw/debugger 等语义类禁用
 │   └── eslint-plugin-cordex/
 │       ├── package.json                   # name: @cordexjs/eslint-plugin
@@ -320,7 +442,9 @@ tooling/
 │       ├── isomorphism.ts                 # 规则 5：cordex-isomorphism-compatibility（3×3 矩阵）
 │       ├── roles.ts                       # 规则 6：cordex-role-provider-no-cross-import 等
 │       ├── no-deep-import.ts              # 规则 7：cordex-no-deep-import
-│       └── ui-bundle-core-framework-free.ts # 规则 9：cordex-ui-bundle-core-framework-free（TD-082，§4.15 Q2）
+│       ├── ui-bundle-core-framework-free.ts # 规则 9：cordex-ui-bundle-core-framework-free（TD-082，§4.15 Q2）
+│       ├── apps-only-assemble.ts          # 补充：cordex-apps-only-assemble（02 R9，09-03 §3.7，TD-093；rulings §4.18 FE-05）
+│       └── viewer-no-editing.ts           # 补充：cordex-viewer-no-editing（09-03 §3.7，TD-094）
 ├── api-extractor/
 │   ├── api-extractor.base.json            # 公共规则：report 路径、release tag、消息级别覆盖
 │   ├── api-extractor.iso.json             # extends base；iso 包专用
@@ -349,7 +473,7 @@ tooling/
 │   ├── lockfile-guard.ts                   # 治理检查脚本：只允许根 pnpm-lock.yaml + 双锁一致（§4.15 Q9）
 │   ├── check-workspace-protocol.ts         # 治理检查脚本：内部依赖 workspace: 协议（§4.15 Q1）
 │   ├── check-rls-coverage.ts               # 治理检查脚本：文档级 Postgres RLS 覆盖（§4.15 Q6）
-│   ├── check-image-policy.ts               # 治理检查脚本：compose 镜像 digest/许可/renderer 版本锁（§4.15 Q10）
+│   ├── check-image-policy.ts               # 治理检查脚本：compose 镜像 digest/许可/renderer 版本锁（§4.15 Q10）；renderer 非 root/无凭据/沙箱开启静态规则（§4.18 GV-16）
 │   ├── create-package.ts                   # 从 §4.0 模板生成新包（cordex 字段/references/changeset 占位/publishConfig）
 │   ├── sync-references.ts                  # tsconfig references ↔ package.json 依赖一致性
 │   ├── compile-preset-geometry.ts          # presetShapeDefinitions.xml → engine-layout geometry 表
@@ -367,6 +491,7 @@ tooling/
 │   ├── license-allowlist.json              # 依赖许可证白名单（TD-050，MIT/Apache-2.0/BSD/ISC）
 │   ├── image-license-allowlist.json        # compose 镜像按主组件许可白名单（D13 对镜像的口径，§4.15 Q10）
 │   ├── rls-exceptions.json                 # 不启用文档级 RLS 的表的显式登记（§4.15 Q6）
+│   ├── dependency-limits.json              # 章程 §5.2 依赖上限列的机器版（scan-manifest 规则 (i) 消费，§4.18 FE-02）
 │   └── schema/
 │       ├── policy-row.schema.json          # 08 矩阵九列行结构校验
 │       └── cordex-package-metadata.schema.json # package.json#cordex 字段合法性校验
@@ -430,6 +555,8 @@ tooling/
 | `rules/restricted-imports.ts` | 第三方库单点引入生成器 | `restrictedImportsRules(pkgMeta)` | — | 消费 §5.7 单点引入静态表，按包生成 overrides |
 | `rules/restricted-globals.ts` | 同构全局名单生成器 | `restrictedGlobalsRules(pkgMeta)` | — | 仅 `cordex.iso === 'iso'` 的包生效 |
 | `rules/dom-injection.ts` | 文档内容 DOM 注入禁用（rulings §4.15 Q4 安全基线） | `domInjectionRules: FlatConfig['rules']` | — | 以 `no-restricted-properties`/`no-restricted-syntax` 生成：禁 `innerHTML`/`outerHTML`/`insertAdjacentHTML`/`DOMParser`/`Range#createContextualFragment`/`document.write`；对 `cordex.iso` 为 `dom` 的包生效，结构性禁止（无 `cordex-allow`）；文档内 SVG 只能以图像上下文（`<image>`/`<img>`）渲染的正向断言归 M-07 测试（`asvg:svgBlip` 夹具）；不新增自定义规则，21 条计数不变；**TD-081 的执行落点即本文件**（矩阵原登记 `rules/style.ts`，以本文件为准，rulings §4.17 复核 M16），负向用例 `el.innerHTML = svgText`/`new DOMParser()`/`insertAdjacentHTML` |
+| `rules/assembly.ts` | 组合根与装配层语义禁用（rulings §4.18 GV-15，原扫描器名 `no-domain-defs-in-apps`/`single-create-host-callsite`/`preset-glue-thin`/`index-pure`） | `assemblyRules: FlatConfig['rules']` | — | `apps/**` override 禁领域定义、`createHost(`/`createSlide*Preset(` 仅 `create-editor-host.ts` 放行（TD-093）；preset 胶水 `apply` ≤ 60 行且对 `@cordexjs/model-*` 只许 `import type`（TD-094）；`**/src/index.ts` 只许 `export … from`（TD-096）；规则口径以 09-02 §3 为准 |
+| `rules/determinism.ts` | 编解码确定性（rulings §4.18 GV-15，原扫描器名 `codec-no-clock`） | `determinismRules: FlatConfig['rules']` | — | 作用于 `ooxml-*`：禁 `Date.now`/`performance.now`/`Math.random` 与无参 `new Date()`（TD-097）；`cordex-allow` 预算恒为 0 |
 | `rules/style.ts` | 语义类禁用 | `styleRules: FlatConfig['rules']` | — | console/prototype/裸 throw/debugger（debugger 零豁免） |
 
 ### 5.4 `tooling/eslint-config/eslint-plugin-cordex/`（21 条自定义规则）
@@ -465,7 +592,7 @@ tooling/
 
 全部 21 条规则：`fixable` 恒 `undefined`（不提供自动修复，见 ADR-0044）；豁免格式统一 `// cordex-allow(<rule-id>): <issue-url>`；每条必须在 `__tests__/` 有同名负向测试（见 §9）。
 
-### 5.5 `tooling/depcruise/`（9 条依赖规则）
+### 5.5 `tooling/depcruise/`（9 条依赖规则 + 2 条组合根补充规则）
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -477,15 +604,17 @@ tooling/
 |---|---|---|---|---|
 | 1 | `cordex-no-circular-file` / `cordex-no-circular-package`：任意→任意，检测环 | `error` | `rules/no-circular.ts` | TD-001/TD-002 |
 | 2 | `cordex-layer-downward`：`rank(to) > rank(from)` 即违规 | `error` | `rules/layering.ts` | TD-003 |
-| 3 | `cordex-doc-type-blind`：`bundle` 为空→`bundle` 非空，无条件违规 | `error` | `rules/doc-type-blind.ts` | TD-004 |
+| 3 | `cordex-doc-type-blind`：from 为非组合根（`compositionRoot!==true`）且 `bundle` 为空 → to 的 `layer` 以 `V-` 开头（垂直束），即违规；`compositionRoot:true` 的 `preset-*`、`apps/web`、`apps/server` 在 from 侧豁免（`apps/web` 仍受 R9 白名单约束，不能直接 import 束包；rulings §4.18 FE-01） | `error` | `rules/doc-type-blind.ts` | TD-004 |
 | 4 | `cordex-bundle-isolation`：`bundle==X`→`bundle==Y≠X`，无条件违规 | `error` | `rules/doc-type-blind.ts`（同文件两条规则） | TD-005 |
 | 5 | `cordex-third-party-single-entry`：非允许包→`cordis`/`yjs`/…（§2.5 单点引入表；2026-09-24 复核 L18 登记 `emf-converter` → 仅 `slide-render/src/infrastructure/media/emf-rasterizer.worker.ts`，M-07 §10） | `error` | `rules/single-entry.ts` | TD-006/TD-076 |
 | 6 | `cordex-isomorphism-compatibility`：3×3 `iso/dom/node` 兼容矩阵（含 `dom↔node` 互斥） | `error` | `rules/isomorphism.ts` | TD-007/TD-034 |
 | 7 | `cordex-role-provider-no-cross-import` / `cordex-role-consumer-definition-only` | `error` | `rules/roles.ts` | TD-008/TD-014 |
-| 8 | `cordex-no-deep-import`：任意→`@cordexjs/[^/]+/(?!testing$)` | `error` | `rules/no-deep-import.ts` | TD-009/TD-041 |
+| 8 | `cordex-no-deep-import`：任意→`@cordexjs/<pkg>/<sub>`，`./<sub>` 不在目标包 `cordex.publicEntry`（= `exports` 显式登记的子路径）内即违规；`./*` 通配与 `src`/`lib` 深引用一律违规；`./testing` 只许测试文件引用（由固定正则改为查询目标包 `publicEntry`，rulings §4.18 FE-04） | `error` | `rules/no-deep-import.ts` | TD-009/TD-041 |
 | 9 | `cordex-ui-bundle-core-framework-free`：`*-ui` 包的 `domain/**`、`application/**` → `react`/`react-dom`/`radix-ui`/`@cordexjs/ui-react` 即违规（`ui/**` 不受限；rulings §4.15 Q2，四处旧名统一为此名） | `error` | `rules/ui-bundle-core-framework-free.ts` | TD-082 |
+| 补 1 | `cordex-apps-only-assemble`：`apps/web/**` 只许 import `preset-*`、`protocol`、`design`、`ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、`i18n`、`shared`、`kernel`（值导入仅 `src/application/host/**`，其余只许 `import type`）及规则 4 放行的 react/react-dom/react-router/tailwind；`apps/server/src/modules/**` 只许 `server-*`、`protocol`、`kernel`（类型），`src/cordis-host/**` 另可 import 装配所需 iso 插件包（以 40-modules/11 §10 与 09-03 §3.7 为准，rulings §4.18 FE-05/FE-01） | `error` | `rules/apps-only-assemble.ts` | TD-093 |
+| 补 2 | `cordex-viewer-no-editing`：`preset-slide-viewer` 及其传递依赖 → `model-slide/editing`、`ui-core`、`ui-react`、`slide-ui`、`react`、`react-dom` 即违规（原称扫描器 `no-editing-in-viewer`） | `error` | `rules/viewer-no-editing.ts` | TD-094 |
 
-每条规则的 `violation` 夹具即负向测试（见 §9）；9 条规则**彼此有意重叠**（纵深防御，03§0），不追求单条规则独自完备。
+每条规则的 `violation` 夹具即负向测试（见 §9）；9 条规则与 2 条组合根补充规则（09-03 §3.7，2026-09-25 补登）**彼此有意重叠**（纵深防御，03§0），不追求单条规则独自完备。
 
 ### 5.6 `tooling/api-extractor/`
 
@@ -505,15 +634,15 @@ tooling/
 | 扫描器 | 输入 | 检查项（压缩） | 失败输出格式（要点） | 对应规则编号 |
 |---|---|---|---|---|
 | `scan-type-escapes.ts` | 全部 `packages/*/{src,__tests__}/**`、`apps/*/src/**`、`tooling/**` | 统计 `as`(非const)/`!`/尖括号断言/未说明 `@ts-expect-error`/`cordex-allow` 计数，按包×`src\|test`×`kind` 分组 | `[scan-type-escapes] budget exceeded: <pkg>:<src\|test>:<kind> current=N budget=M (delta +K)` + 新增位置列表 | ADR-0040；支撑几乎全部标"cordex-allow（预算制）"的 TD 行 |
-| `scan-contributions.ts` | `*.contribution.ts`、`plugin.ts`/`services/*.service.ts`、`manifest.ts` | (a)`ctx.contribute`可追溯到`defineContributionPoint`；(b)id匹配`^[a-z]\w*\.[a-z]\w*$`；(c)(d)manifest↔源码双向一致 | 按 a/b/c/d 四类分行，(c)/(d) 打印并排 diff | 章程§5.5；08 未单独登记（§12-D7） |
-| `scan-effects.ts` | 每包 `plugin.ts` 是否含 effect/`ctx.on`/`ctx.contribute` + `__tests__/**` | (1)含 effect 包必有卸载后 `assertNoLiveEffects` 断言；(2)每个 `plugin.ts` 必有生命周期烟雾测试 | `{package, hasEffects, hasDisposeTest, hasLifecycleSmokeTest}[]`，仅列 `false` 项 | TD-011/TD-016/TD-019/TD-039/TD-071 |
+| `scan-contributions.ts` | `*.contribution.ts`、`plugin.ts`/`services/*.service.ts`、`manifest.ts`、`ui-core/context-keys.ts`、各包 `locales/*.json` | (a)`ctx.contribute`可追溯到`defineContributionPoint`；(b)id匹配`^[a-z]\w*\.[a-z]\w*$`；(c)(d)manifest↔源码双向一致；(e)`when` 引用的上下文键已登记（原名 `when-keys-declared`）；(f)各 locale 键集合与 `I18nKeys` 一致（原名 `i18n-keys-sync`）（rulings §4.18 GV-15） | 按 a–f 六类分行，(c)/(d) 打印并排 diff | 章程§5.5；TD-089（08 §12b，2026-09-25 补登，§12-D7 缺口关闭） |
+| `scan-effects.ts` | 每包 `plugin.ts` 是否含 effect/`ctx.on`/`ctx.contribute` + `__tests__/**` | (1)含 effect 包必有卸载后 `assertNoLiveEffects` 断言；(2)每个 `plugin.ts` 必有生命周期烟雾测试；(3)每个 preset 必有顺序无关与可插拔矩阵测试、查看器必有只读测试（原名 `preset-has-order-test`/`preset-pluggable-matrix`/`viewer-readonly-test-present`，rulings §4.18 GV-15） | `{package, hasEffects, hasDisposeTest, hasLifecycleSmokeTest, missingPresetTests?}[]`，仅列 `false` 项 | TD-011/TD-016/TD-019/TD-039/TD-071/TD-095 |
 | `scan-isomorphic.ts` | 全部 `cordex.iso==='iso'` 包 `src/**` | (a)全局名单静态扫描（兜底 ESLint）；(b)生成 `iso-smoke-manifest.json` | (a)同 type-escapes 格式扩展 `iso-global-leak`；(b)产物非报告 | TD-007/TD-034 |
-| `scan-manifest.ts` | `plugin.ts`/`*.contribution.ts`/`services/*.service.ts`/`manifest.ts`/`package.json` | (a)(b)源码↔manifest.ts↔cordex-manifest.json 三层一致；(c)`exports`↔`publicEntry`；(d)类型专用依赖误置；(e)`provide`必有conformance调用；(f)`./testing`不被`src`引用 | (b)类附统一 diff 块；其余按 a-f 分类列出 | (d)=TD-042；(e)=TD-070；(f)=TD-072；(a)(b)(c)未单独登记（§12-D7） |
+| `scan-manifest.ts` | `plugin.ts`/`*.contribution.ts`/`services/*.service.ts`/`manifest.ts`/`package.json`/`policy/dependency-limits.json` | (a)(b)从源码推导并重新生成 `manifest.ts`，与入库文件比对无 diff（`manifest.ts` 是生成物、头部 `generated`；`cordex-manifest.json` 构建时由它序列化、不入库，rulings §4.18 GV-17）；(c)`exports`↔`publicEntry`；(d)类型专用依赖误置；(e)`provide`必有conformance调用（旧文档里的 `provider-runs-conformance` 即本规则，GV-15）；(f)`./testing`不被`src`引用；(g)包名 scope 与 `private`/`publishConfig` 二选一；(h)需要单实例的 `@cordexjs/*` 依赖写在 `peerDependencies`（`shared` 例外；原名 `peer-policy`，GV-15）；(i)`package.json` 内部依赖 ⊆ 章程 §5.2 上限列 ∪ 隐式 L0（kernel/shared/protocol 对非 L0 包隐式允许，design 的 R18 与 shared 的 R11 例外），上限列来自 `policy/dependency-limits.json`（rulings §4.18 FE-02） | (b)类附统一 diff 块；其余按 a-i 分类列出 | (a)(b)(c)=TD-090；(d)=TD-042；(e)=TD-070；(f)=TD-072；(g)=TD-080；(h)=TD-100；(i)=TD-101（08 §12b，2026-09-25） |
 | `scan-config-usage.ts` | `contracts/*.schema.ts` 的 Config 字段 + 该包全部源码 | 每个顶层字段（含一层嵌套）在包内是否有引用点 | `{package, field, path}[]` | TD-040 |
 | `scan-deprecations.ts` | 全部 `@deprecated`/`@removeIn` JSDoc + `milestones.json` + 各包 `version` | `@removeIn` 指向的里程碑/semver 是否已到达/超过 | `{package, symbol, removeIn, reason}[]` | TD-036 |
 | `scan-policy.ts` | 08 矩阵文本、`policy-row.schema.json`、CI 工作流、21+9 条规则文件与测试、14 个扫描器夹具、全部 `cordex`/`tsconfig` | (1)矩阵自校验（格式/id/路径存在/job名封闭）；(2)覆盖率检查（硬编码来源清单）；(3)规则/扫描器负向测试完整性；(a)(b)全局不变式 | `{check, rowId?, detail}[]`，覆盖率缺口示例见 06§9 | TD-031/TD-055/TD-058/TD-077 |
 | `scan-telemetry-events.ts` | `kernel/src/telemetry/events.ts` 注册表 + `ctx.telemetry.track(...)` 调用点 | (a)调用点在注册表；(b)注册表必有调用；(c)`<域>_<动作>` 命名 | 按a/b/c分类 | TD-060 |
-| `scan-command-capabilities.ts` | `commands/*.command.ts` + `ctx.contribute(commandsPoint,...)` + `Capability` 集合 | (a)贡献的 Command 必有非空 `permission`；(b)取值落在封闭集合内 | 按a/b分类 | TD-061 |
+| `scan-command-capabilities.ts` | `commands/*.command.ts` + `ctx.contribute(commandsPoint,...)` + `Capability` 集合 | (a)贡献的 Command 必有非空 `permission`；(b)取值落在封闭集合内；(c)命令 id 为 `<domain>.<name>`、Mutation type 为 `<docType>.<entity>.<verb>`（原名 `command-id-format`，rulings §4.18 GV-15） | 按a/b/c分类 | TD-061/TD-099 |
 | `scan-requirement-tags.ts` | 测试文件 `// @req <id>` 标签 + 可选 `requirements.json` | (a)格式`^[A-Z]{2,3}-\d{2,3}$`；(b)id存在性（若清单存在）；(c)生成 `requirement-test-matrix.json` | (c)为产物，供 11 号文档消费 | 章程需求编号约定；TD-062 |
 | `scan-observability-identifiers.ts` | 错误码/span/metric 注册表 + 全部调用点 | 三类各自(a)调用点在注册表(b)注册表必有调用；错误码类目额外校验**双轨命名通则**（TS 常量名 `UPPER_SNAKE`、错误码值点式，如常量 `FORMAT_NO_DOCUMENT_TYPE` 对应值 `format.no_document_type`，二者须一一对应且值全文件唯一，见 14 §1 C-16） | `{category, rule, ...}[]` | TD-073 |
 | `scan-bundle-budget.ts` | `preset-*`/`*-ui`/`*-render` 的 `dist/**` | 构建产物字节数 vs `budgets.json` 的 `bundle-size-bytes` | `{package, actualBytes, budgetBytes, delta}[]` | TD-075；ADR-0040 复用实例 |
@@ -523,10 +652,10 @@ tooling/
 |---|---|---|---|---|
 | `lockfile-guard.ts` | 治理检查脚本（rulings §4.15 Q9）：(a) 全仓只允许根 `pnpm-lock.yaml`，任何子目录出现 `pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`npm-shrinkwrap.json` 即失败；(b) `packageManager` 版本 = `devEngines.packageManager.version`，`devEngines.*.onFail === "error"`，`.node-version`/`engines.node`/`devEngines.runtime` 主版本一致（26）；(c) `pnpm-workspace.yaml` 显式含全部安全设置键；(d) `.npmrc` 不含非鉴权设置 | CLI 入口（退出码同扫描器约定） | `lib/report.ts`、`lib/changed-files.ts` | 主执行点 = lefthook pre-commit；CI 并入现有 `scanners` job（不新增 job 名，13 个封闭集合不变）；负向夹具：子目录 `package-lock.json`、根目录 `npm install` 报 `EBADDEVENGINES`；对应 08 矩阵 **TD-079** |
 | `check-workspace-protocol.ts` | 治理检查脚本（rulings §4.15 Q1）：内部包之间的依赖一律 `workspace:` 协议——`peerDependencies` 写 `workspace:^`，其余写 `workspace:*`；禁止对内部包写 semver 范围（pnpm 11 会让 semver 范围走 registry，构成依赖混淆面） | CLI 入口 | `lib/report.ts`、`depcruise/package-metadata.ts` | CI 并入 `scanners` job；与 ADR-0002 §3 一致；对应 08 矩阵 **TD-080**——执行落点以本文件为准（矩阵原登记 syncpack + `scan-manifest` 规则 (g)，其中包名 scope 与 `private`/`publishConfig` 二选一仍由 `scan-manifest` (g) 承担，`workspace:` 协议由本脚本承担，rulings §4.17 复核 M16） |
-| `check-rls-coverage.ts` | 治理检查脚本（rulings §4.15 Q6，T-0 单组织）：`apps/server` 迁移中凡承载文档数据的业务表必须 `ENABLE ROW LEVEL SECURITY` 且存在按**文档权限**（D12）判定的 policy；不启用者须在 `policy/rls-exceptions.json` 显式登记理由 | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job；取代 14 §4.2 N-6 的 `repo-requires-tenant-id`（T-0 完全去租户后作废，见 §12-D10）；表清单与 policy 形态归 M-08/M-12；对应 08 矩阵 **TD-083**（2026-09-24 复核补登）；代码层对偶为扫描器 `scan-doc-access-via-permission`（TD-085） |
-| `check-image-policy.ts` | 治理检查脚本（rulings §4.15 Q10）：compose 文件与 Dockerfile 中全部镜像按 digest 钉死；主组件许可落在 `policy/image-license-allowlist.json`；renderer 镜像/Chromium 版本与 `server-headless` 声明的版本锁一致 | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job（静态检查）；断网 compose e2e（原提议 job `compose-airgap-e2e`）并入现有 `e2e` job 的 main 全量段，M3 起阻断，不新增 job 名；对应 08 矩阵 **TD-084**（2026-09-24 复核补登） |
+| `check-rls-coverage.ts` | 治理检查脚本（rulings §4.15 Q6，T-0 单组织）：`apps/server` 迁移中凡承载文档数据的业务表必须 `ENABLE ROW LEVEL SECURITY` 且存在按**文档权限**（D12）判定的 policy；不启用者须在 `policy/rls-exceptions.json` 显式登记理由 | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job；取代 14 §4.2 N-6 的 `repo-requires-tenant-id`（T-0 完全去租户后作废，见 §12-D10）；表清单与 policy 形态归 M-08/M-12；表清单**不含** S-3 溢写——溢写数据不在 PG（存于 Valkey 键与 `spill/` 对象前缀），不受 RLS 约束，只有 collab 角色的系统上下文可读写，回放写回 `document_updates` 时仍经 RLS 的系统作业角色（rulings §4.18 BE-20）；对应 08 矩阵 **TD-083**（2026-09-24 复核补登）；代码层对偶为扫描器 `scan-doc-access-via-permission`（TD-085） |
+| `check-image-policy.ts` | 治理检查脚本（rulings §4.15 Q10）：compose 文件与 Dockerfile 中全部镜像按 digest 钉死；主组件许可落在 `policy/image-license-allowlist.json`；renderer 镜像/Chromium 版本与 `server-headless` 声明的版本锁一致；renderer sidecar 三项静态规则——非 root（`USER` 非 0/root）、无凭据（不挂载凭据卷、不注入密钥类环境变量）、沙箱开启（Chromium 启动参数不含 `--no-sandbox`）（rulings §4.18 GV-16） | CLI 入口 | `lib/report.ts` | CI 并入 `scanners` job（静态检查）；renderer 的零出站与文档级 RLS 绕过（`security:rls`）两项运行时测试不在本脚本，属 `e2e` job 的 PR 冒烟子集、M3 起阻断（GV-16）；断网 compose e2e（原提议 job `compose-airgap-e2e`）并入现有 `e2e` job 的 main 全量段，M3 起阻断，不新增 job 名；对应 08 矩阵 **TD-084**（2026-09-24 复核补登） |
 | `create-package.ts` | 从模板生成新包骨架 | CLI 入口 | `lib/*` | 写入 `cordex` 字段/`tsconfig#references`/空 changeset；可发布包写 `publishConfig.access: "public"`（配合 OIDC provenance），私有包写 `private: true`；全部包写 `license: "Apache-2.0"`（rulings §4.16 Q12）；内部依赖写 `workspace:` 协议；私有包名 `@cordexjs/eslint-config`/`@cordexjs/eslint-plugin`/`@cordexjs/test-suite` 已于 2026-09-24 完成全仓更名（rulings §4.15 Q1） |
-| `sync-references.ts` | `tsconfig#references` ↔ 依赖一致性 | CLI 入口 | `lib/ts-project.ts` | 校验对象是"类型层声明"而非"源码实际 import"（后者归 depcruise） |
+| `sync-references.ts` | `tsconfig#references` ↔ 依赖一致性 | CLI 入口 | `lib/ts-project.ts` | 校验对象是"类型层声明"而非"源码实际 import"（后者归 depcruise）；口径为「`references` = `package.json` 内部依赖」，不再要求与章程上限列「不多不少」——「内部依赖 ⊆ 上限列 ∪ 隐式 L0」由 `scan-manifest` 规则 (i) 读 `policy/dependency-limits.json` 校验（TD-101，rulings §4.18 FE-02） |
 | `compile-preset-geometry.ts` | 预设几何编译 | CLI 入口 | — | 内容属架构-结构 A（`engine-layout`），本模块仅登记脚本壳 |
 | `compile-schema-order.ts` | XSD → 保留顺序表 | CLI 入口 | — | 内容属架构-结构 A（`ooxml-core`），本模块仅登记脚本壳 |
 | `lib/ts-project.ts` | ts-morph 项目加载封装 | `loadProject(tsconfigPath)` | ts-morph | 按包/按 tsconfig 批量加载，全部扫描器复用 |
@@ -535,6 +664,35 @@ tooling/
 | `lib/changed-files.ts` | git diff 范围计算 | `computeChangedFiles()`（见 2.3） | — | 供 pre-commit `--changed-only` 模式复用 |
 
 **ratchet 预算只减不增的实现**（跨 `scan-type-escapes.ts`/`scan-bundle-budget.ts`/`lib/budget.ts` 三文件）：`lib/budget.ts` 的 `compareBudget(actual, baseline)` 只做单值比较，真正的"只减不增"约束落在 CI 步骤——`scanners` job 对比 **PR 分支**与 **`main` 分支**两份 `tooling/policy/budgets.json` 的对应键值，若 PR 分支的值 > main 分支的值且 PR 描述未链接 ADR-0040 例外 issue，判定为违反 ratchet；数值下降或持平始终允许。该 diff 比较本身是一段 shell/CI 步骤（`git show main:tooling/policy/budgets.json` 与工作区文件对比），不是 `lib/budget.ts` 内的函数职责——`lib/budget.ts` 只回答"这个包这个键当前是否超预算"，不回答"预算基线本身是否被非法上调"。
+
+**图 5-1 ratchet 预算判定时序**
+
+```mermaid
+sequenceDiagram
+  participant pr as PR 分支
+  participant job as CI scanners job
+  participant scanner as scan-type-escapes 或 scan-bundle-budget
+  participant budget as lib/budget.ts
+  participant mainRef as main 分支 budgets.json
+  pr->>job: 每个 PR 触发
+  job->>scanner: 运行扫描器
+  scanner->>budget: compareBudget actual 对 baseline
+  budget-->>scanner: ok 或 exceeded 或 lowerable
+  alt exceeded
+    scanner-->>job: 退出码 1 并列出新增位置
+  end
+  job->>mainRef: git show 读取 main 分支同一文件
+  job->>job: 逐键对比 PR 工作区值与 main 值
+  alt PR 值大于 main 且 PR 描述未链接 ADR-0040 例外 issue
+    job-->>pr: 判定违反 ratchet 阻断合并
+  else 下降或持平
+    job-->>pr: 允许
+  end
+```
+
+怎么读：上半段是「当前是否超预算」（`compareBudget` 单值比较，扫描器退出码 1 即阻断），下半段是「基线是否被非法上调」（CI 步骤对比 PR 与 `main` 两份 `budgets.json`），两件事分属不同执行点，互不替代。
+
+依据：本节「ratchet 预算只减不增的实现」段；ADR-0040。
 
 ### 5.8 `tooling/policy/`
 
@@ -547,6 +705,7 @@ tooling/
 | `license-allowlist.json` | 许可证白名单 | 数据文件 | — | TD-050；MIT/Apache-2.0/BSD/ISC 兼容，禁 AGPL |
 | `image-license-allowlist.json` | compose 镜像主组件许可白名单 | 数据文件 | — | `check-image-policy.ts` 消费；D13 对镜像按主组件许可解释（rulings §4.15 Q10）；默认栈（Postgres 18、Valkey、SeaweedFS、renderer、可选 Casdoor、OTel Collector/Jaeger/Prometheus）须全部命中；Grafana/Loki 等 AGPL 组件只允许出现在显式开启的可选 profile |
 | `rls-exceptions.json` | 不启用文档级 RLS 的表登记 | 数据文件 | — | `check-rls-coverage.ts` 消费；每条 `{table, reason}`，新增条目须评审 |
+| `dependency-limits.json` | 章程 §5.2「依赖上限」列的机器版 | 数据文件 | — | 由章程 §5.2 表导出（每包 → 允许依赖的内部包集合；`model-*`/`preset-*` 等通配展开为包名清单；kernel/shared/protocol 对非 L0 包隐式允许，design、shared 例外，L0 之间逐条显式）；`scan-manifest` 规则 (i) 消费（TD-101）；负向夹具：内部依赖越出上限一例（rulings §4.18 FE-02） |
 | `schema/policy-row.schema.json` | 08 矩阵行结构 JSON Schema | schema 文件 | — | `scan-policy` 规则1消费 |
 | `schema/cordex-package-metadata.schema.json` | `cordex` 字段合法性 JSON Schema | schema 文件 | — | `scan-policy` 全局不变式(b)消费；与架构-结构条线共享维护（03§2） |
 
@@ -565,16 +724,16 @@ tooling/
 |---|---|---|---|
 | `lint` | `ci.yml` | 架构-类型治理 | 每 PR |
 | `typecheck` | `ci.yml` | 架构-类型治理 | 每 PR |
-| `test` | `ci.yml` | 架构-运行时 B | 每 PR（本模块仅治理存在性） |
-| `test-typecheck` | `ci.yml` | 架构-类型治理 | 每 PR |
+| `test` | `ci.yml` | 架构-运行时 B | 每 PR（本模块仅治理存在性）；步骤：unit、contract（各 `run<Definition>Conformance`）、lifecycle、`fidelity-roundtrip`、collab-sim、snapshot-migration-corpus——保真失败照样阻断合并，看 test job 日志（rulings §4.18 GV-14） |
+| `test-typecheck` | `ci.yml` | 架构-类型治理 | 每 PR；步骤：类型测试（原称 types） |
 | `iso-smoke` | `ci.yml` | 架构-类型治理 | 每 PR |
 | `depcruise` | `ci.yml` | 架构-类型治理 | 每 PR |
 | `api-surface` | `ci.yml` | 架构-类型治理 | 每 PR |
-| `scanners` | `ci.yml` | 架构-类型治理 | 每 PR（含 §5.7 的 4 个治理检查脚本：`lockfile-guard`/`check-workspace-protocol`/`check-rls-coverage`/`check-image-policy`，rulings §4.15 并入，不新增 job 名） |
+| `scanners` | `ci.yml` | 架构-类型治理 | 每 PR（含 §5.7 的 4 个治理检查脚本：`lockfile-guard`/`check-workspace-protocol`/`check-rls-coverage`/`check-image-policy`，rulings §4.15 并入，不新增 job 名）；另以步骤并入：manifest-check（= `scan-manifest --check`）、schema-lock、`shadcn-diff`（报告，M2 后阻断）、`scan-horizontal-freeze`（M5 起）（rulings §4.18 GV-14） |
 | `xsd-validate` | `ci.yml` | 架构-结构 A（内容）+ 本模块（job 治理） | 每 PR |
 | `coverage-patch` | `ci.yml` | 架构-运行时 B（阈值）+ 本模块（机制） | 每 PR |
 | `policy-check` | `policy-matrix.yml` | 架构-类型治理 | 每 PR |
-| `e2e` | `e2e.yml` | 架构-运行时 B | 每 PR（冒烟子集）/main（全量；M3 起含断网 compose e2e 段，rulings §4.15 Q10 的 `compose-airgap-e2e` 以步骤并入本 job） |
+| `e2e` | `e2e.yml` | 架构-运行时 B | 每 PR（冒烟子集：含视觉 oracle 的 gated 类别；M3 起含 `security:rls`〔testcontainers 起 PG，绕过应用层直连验证文档级 RLS〕与 renderer 零出站测试并阻断，rulings §4.18 GV-14/GV-16）/main（全量：视觉 oracle 全部类别；M3 起含断网 compose e2e 段，rulings §4.15 Q10 的 `compose-airgap-e2e` 以步骤并入本 job） |
 | `perf` | `e2e.yml` | 架构-运行时 B / 产品 | main 分支（PR 仅告警） |
 
 CI 统一跑在 Node 26（`setup-node` 读 `.node-version`）+ pnpm 11（按 `packageManager` 安装），安装一律 `pnpm install --frozen-lockfile`。全部 13 个 job：无分支白名单例外，不含 `--quiet`/`--silent` 等价参数，`error` 级别阻断（lessons A16/A18）。
@@ -601,7 +760,7 @@ CI 统一跑在 Node 26（`setup-node` 读 `.node-version`）+ pnpm 11（按 `pa
 
 本模块不区分浏览器/Node/两端——它治理的对象跨两端，自身只在**构建期**（本地 pre-commit/pre-push、CI runner）执行，从不出现在 `apps/web`/`apps/server` 的运行时产物中：
 
-- `apps/web`（dom）：接入点是其 `tsconfig.json extends tooling/tsconfig/dom.json`、`package.json` devDependency `@cordexjs/eslint-config`；无进程间契约（tooling 不跨网络边界）。
+- `apps/web`（dom）：接入点是其 `tsconfig.json extends tooling/tsconfig/dom.json`、`package.json` devDependency `@cordexjs/eslint-config`；无进程间契约（tooling 不跨网络边界）。`apps/web` 是组合根（`compositionRoot:true`），规则 3 在 from 侧豁免，但仍受 R9 `apps-only-assemble` 白名单约束（配置与 03-boundaries 同口径，以 40-modules/11 §10 为准）：可 import `preset-*`、`protocol`、`design`、`ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、`i18n`、`shared`、`kernel`（值导入仅限 `application/host/**`，其余只许 `import type`），另放行 `react`/`react-dom`/`react-router`/`tailwind`；负向夹具：`apps/web` → `model-slide` 拒绝、`application/host/**` 以外对 `kernel` 的值导入拒绝、`host/**` 内值导入 `createHost` 通过（rulings §4.18 FE-05）。R9 的依赖规则名为 depcruise `cordex-apps-only-assemble`（03-boundaries §3.7），apps 内「无领域定义」由 ESLint `no-restricted-syntax`（`apps/**` override）执行（原名 `no-domain-defs-in-apps`，TD-093，GV-15）。
 - `apps/server`（node）：接入点是 `tsconfig.json extends tooling/tsconfig/nest.json`（§5.2 受限例外）；`apps/server/src/modules/**` 额外受 `server-app-thin` 变体（R9，02§3.2）与 `cordex/nest-controller-dto-from-protocol`（§5.4 4.21）约束。
 - 服务端两个 cordis 宿主包（`server-collab`/`server-headless`，`LS` 层）：使用 `tooling/tsconfig/node.json`（非 `nest.json`），若出现 Nest 装饰器导入即判定为 `nest.json` 例外范围外扩散（01§6 范围边界，`scan-policy` 全局不变式(a)）。
 - 不存在"同一 Definition 的不同 Provider"这一模式——本模块自身没有 Definition/Provider 概念（§3 已说明无 cordis 形态）；唯一近似物是 §5.6 提到的三份 api-extractor 基础配置（iso/dom/node），但它们是**同一份内容的三个占位分叉**，不是运行时可替换的 Provider。
@@ -620,9 +779,9 @@ CI 统一跑在 Node 26（`setup-node` 读 `.node-version`）+ pnpm 11（按 `pa
 1. `tooling/policy/schema/cordex-package-metadata.schema.json`——`bundle` 字段当前枚举 `slide|doc|sheet`；新增第四个 bundle（如未来的 `form`）需在此加一个枚举值，否则该 bundle 的包在 `scan-policy` 全局不变式(b)会被判定为元数据非法。
 2. `tooling/policy/event-domains.json`——若新 bundle 引入新的事件域前缀（如 `form/opened`），需把该域加入第一方保留域清单，否则 `cordex/events-must-be-declared` 规则3（域白名单）会拒绝它。
 3. `tooling/eslint-config/rules/restricted-imports.ts` 与 `tooling/depcruise/rules/single-entry.ts` 的单点引入静态表——仅当新 bundle 引入**新的、需要单点引入的第三方库**（如 sheet 用了新的表格计算库）时才需要新增一行；仅新增 bundle 本身不触发改动。
-4. `tooling/scripts/scan-horizontal-freeze.ts`（**M5 新增建议**，见下）——首次为该 bundle 生成冻结基线时需运行一次写入 `fixtures/horizontal-freeze.lock`；脚本代码本身不因新增 bundle 而改（其输入定义为"全部无 `cordex.bundle` 字段的包"，新 bundle 包自身带 `bundle` 字段，天然被排除在冻结范围之外）。
+4. `tooling/scripts/scan-horizontal-freeze.ts`（**M5 新增建议**，见下）——首次为该 bundle 生成冻结基线时需运行一次写入 `fixtures/horizontal-freeze.lock`；脚本代码本身不因新增 bundle 而改（其输入定义为"全部无 `cordex.bundle` 字段且非组合根的包"，新 bundle 包自身带 `bundle` 字段、`preset-*`/`apps/*` 是 `compositionRoot:true` 的装配点，天然被排除在冻结范围之外；rulings §4.18 FE-01、ADR-0016 冻结范围同步）。
 
-**`horizontal-freeze` 机制的落点（09-06 现存 14 个扫描器**不含**此项，属 §12-D4 登记的 M5 新增建议）**：module-map §6.4 要求"对全部无 `cordex.bundle` 字段的包计算内容哈希并写入 `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件无 diff"。本模块为此预留骨架文件 `tooling/scripts/scan-horizontal-freeze.ts`（沿用 `scripts/` 落点与双格式输出/`lib/report.ts` 约定），但**不**在 M0 阶段把它计入"十四个扫描器"——09-06 首段明确当前清单即完整清单，继续新增需要与本节同等分量的独立价值论证（第 14 个 `doc-access-via-permission` 已按 rulings §4.17 D3 纳入并占用 06 §18）；正式纳入（届时数量由 14 变为 15，需追加 06 号文档 §19）的时机与谁来提议，登记为 §13 Q-01。
+**`horizontal-freeze` 机制的落点（09-06 现存 14 个扫描器**不含**此项，属 §12-D4 登记的 M5 新增建议）**：module-map §6.4 要求"对全部无 `cordex.bundle` 字段且非组合根的包计算内容哈希并写入 `fixtures/horizontal-freeze.lock`；M5 的 `model-doc`/`model-sheet` PR 要求锁文件无 diff"（`server-*` 在冻结范围内，M5 新增 doc 时 diff = 0；文档类型装配落在组合根 `apps/server` 的 `preset-server.ts`，rulings §4.18 FE-01）。M5 起它作为 `scanners` job 的步骤运行，不新增 job 名（rulings §4.18 GV-14）。本模块为此预留骨架文件 `tooling/scripts/scan-horizontal-freeze.ts`（沿用 `scripts/` 落点与双格式输出/`lib/report.ts` 约定），但**不**在 M0 阶段把它计入"十四个扫描器"——09-06 首段明确当前清单即完整清单，继续新增需要与本节同等分量的独立价值论证（第 14 个 `scan-doc-access-via-permission` 已按 rulings §4.17 D3 纳入并占用 06 §18）；正式纳入（届时数量由 14 变为 15，需追加 06 号文档 §19）的时机与谁来提议，登记为 §13 Q-01。
 
 **束间隔离规则的参数化点**：`cordex-bundle-isolation`（depcruise）与 `no-doc-type-literals`（lint）均以 `cordex.bundle` 取值的**相等/不等比较**为唯一判据，不硬编码 `'slide'`/`'doc'`/`'sheet'` 字面量——这是本模块在设计阶段就把"新增垂直束"当作一等场景对待的直接证据，与章程铁律 2（束间隔离）的表述一致。
 
@@ -635,17 +794,24 @@ tooling/
 │   ├── no-module-level-mutable-state.test.ts
 │   ├── ...                                              # 其余 19 条规则同名测试
 │   └── nest-controller-dto-from-protocol.test.ts
+├── eslint-config/__tests__/{assembly,determinism}.test.ts  # TD-093/094/096 与 TD-097 的正负向用例（rulings §4.18 GV-15）
 ├── depcruise/__tests__/fixtures/
 │   ├── no-circular/{ok,violation}/                      # 独立 package.json + 源文件的最小夹具仓库
 │   ├── layering/{ok,violation}/
-│   ├── doc-type-blind/{ok,violation}/                   # 同文件覆盖规则 3 与规则 8 两种违规
+│   ├── doc-type-blind/{ok,violation}/                   # 同文件覆盖规则 3 与规则 8 两种违规；§4.18 FE-01 五例：
+│   │                                                      apps/web→preset 通过、preset-slide→model-slide 通过、
+│   │                                                      engine-render→model-slide 拒绝（doc-type-blind）、
+│   │                                                      preset-doc→model-slide 拒绝（bundle-isolation）、apps/web→model-slide 拒绝（R9）
 │   ├── single-entry/{ok,violation}/
 │   ├── isomorphism/{ok,violation}/
 │   ├── roles/{ok,violation}/
-│   ├── no-deep-import/{ok,violation}/
+│   ├── no-deep-import/{ok,violation}/                   # §4.18 FE-04 负向三例：未登记子路径、src 深引用、./* 通配
+│   ├── apps-only-assemble/{ok,violation}/               # R9（与 03-boundaries 同口径）：§4.18 FE-05 负向夹具
+│   ├── viewer-no-editing/{ok,violation}/                # 补 2：preset-slide-viewer → model-slide/editing、ui-react 拒绝（TD-094）
 │   └── ui-bundle-core-framework-free/{ok,violation}/     # 规则 9：*-ui 的 domain/application import react 即违规
 ├── scripts/__tests__/
 │   ├── scan-type-escapes.test.ts                        # 14 个文件，与 §5.7 扫描器一一同名
+│   │                                                      （scan-manifest.test.ts 含 (i) 依赖越上限负向例，§4.18 FE-02）
 │   ├── scan-contributions.test.ts
 │   ├── ...                                               # 其余 11 个扫描器同名测试
 │   ├── scan-bundle-budget.test.ts
@@ -654,7 +820,8 @@ tooling/
 │   │                                                      .npmrc 含非鉴权设置；根目录 npm install → EBADDEVENGINES
 │   ├── check-workspace-protocol.test.ts                 # 负向：内部依赖写 semver 范围 / peer 写 workspace:*
 │   ├── check-rls-coverage.test.ts                       # 负向：文档数据表未启用 RLS 且未登记例外
-│   ├── check-image-policy.test.ts                       # 负向：tag 未钉 digest；AGPL 镜像进默认 profile
+│   ├── check-image-policy.test.ts                       # 负向：tag 未钉 digest；AGPL 镜像进默认 profile；
+│   │                                                      renderer 以 root 运行 / 挂载凭据 / 带 --no-sandbox（§4.18 GV-16）
 │   └── __fixtures__/
 │       ├── scan-type-escapes/{ok,violation}/             # 14 组，每扫描器一组
 │       ├── ...
@@ -695,7 +862,7 @@ tooling/
 
 1. 根文件：`LICENSE`（Apache-2.0 全文）与 `NOTICE`（rulings §4.16 Q12）；`package.json`（先写 §2.6 的 12 个 scripts 占位，内容后续步骤逐步填实；同时写 `packageManager` + `devEngines` 双锁与 `engines.node >=26`）、`.node-version`（26）、`pnpm-workspace.yaml`（含 pnpm 设置全集与 `docs/20-design/playground` glob；playground 删除自带 `package-lock.json` 后纳入根 workspace）、`turbo.json`、`tsconfig.json`（空 `references`）、`eslint.config.js`（先 import 尚未存在的 `@cordexjs/eslint-config`，允许阶段性失败）。
 2. `tooling/tsconfig/`：`base.json` → `iso.json`/`dom.json`/`node.json` → `nest.json`/`build.json`/`vitest.json`（7 文件全部就位后，`tsconfig.json` 的 `references` 才有意义）。
-3. `tooling/eslint-config/`：`package.json` → `base.ts` → `rules/*.ts`（4 文件）→ `index.ts`；`tooling/eslint-config/eslint-plugin-cordex/`：`package.json` → `index.ts`（空注册表）→ 21 条规则逐条补齐（每条规则落地时同步写 `__tests__/` 同名负向测试，不允许"规则先上、测试后补"，见 §9）。
+3. `tooling/eslint-config/`：`package.json` → `base.ts` → `rules/*.ts`（7 文件，含 2026-09-25 新增的 `assembly.ts`、`determinism.ts`，rulings §4.18 GV-15）→ `index.ts`；`tooling/eslint-config/eslint-plugin-cordex/`：`package.json` → `index.ts`（空注册表）→ 21 条规则逐条补齐（每条规则落地时同步写 `__tests__/` 同名负向测试，不允许"规则先上、测试后补"，见 §9）。
 4. `tooling/depcruise/`：`package-metadata.ts` → `layers.ts` → 8 个 `rules/*.ts`（含各自 `__tests__/fixtures/{ok,violation}`）→ `index.cjs` → 根 `.dependency-cruiser.cjs`。
 5. `tooling/api-extractor/`：4 个 JSON（M0 阶段内容一致，见 §5.6）。
 6. `tooling/policy/`：`schema/cordex-package-metadata.schema.json`、`schema/policy-row.schema.json` 先行（供 §5.9 步骤 3 使用）；`budgets.json`/`milestones.json`/`event-domains.json`/`license-allowlist.json`（全部键从 0/空集起步）。
@@ -703,6 +870,32 @@ tooling/
 8. `08-policy-enforcement-matrix.md` 与 `scan-policy.ts` 同步完成（矩阵是文档，脚本是校验器，两者必须成对交付，否则"声明了没执行"——lessons A17/A31 的直接反例）。
 9. 根 `lefthook.yml`、`tooling/commitlint.config.ts`、`.github/workflows/{ci,policy-matrix,e2e,release}.yml`。
 10. `tooling/changeset-config/`、根 `.changeset/config.json`、`tooling/xsd/README.md`（占位）。
+
+**图 11-1 M0 骨架建设顺序**
+
+```mermaid
+flowchart TB
+s1["1 根文件 LICENSE NOTICE package.json 双锁 .node-version pnpm-workspace turbo tsconfig eslint.config"]
+s2["2 tooling/tsconfig 七个文件"]
+s3["3 eslint-config 与 eslint-plugin-cordex 规则与负向测试同步落地"]
+s4["4 depcruise package-metadata layers rules index 根 .dependency-cruiser.cjs"]
+slice["首个可运行切片 零源码但门禁全绿"]
+s5["5 api-extractor 四个 JSON"]
+s6["6 policy schema 先行 预算与清单数据从 0 起步"]
+s7["7 scripts lib 先行 扫描器 create-package sync-references 治理检查脚本"]
+s8["8 08 矩阵与 scan-policy 成对交付"]
+s9["9 lefthook commitlint 四个 workflow"]
+s10["10 changeset-config .changeset/config.json xsd 占位"]
+done["pnpm run check 全绿 M-01 骨架切片完成"]
+next["M-02 起用 create-package 生成包骨架"]
+s1 --> s2 --> s3 --> s4
+s4 --> slice
+s4 --> s5 --> s6 --> s7 --> s8 --> s9 --> s10 --> done --> next
+```
+
+怎么读：纵向是建设先后，每一步完成即可运行对应校验命令；步骤 1–4 完成即到达「首个可运行切片」，其后继续补齐到步骤 10，以 `pnpm run check` 全绿为 M-01 完成判据，再交给 M-02 生成下游包骨架。
+
+依据：本节 M0 骨架建设顺序 1–10 条与验收命令。
 
 **首个可运行切片**：完成步骤 1–4（tsconfig + eslint-config + depcruise 三件套，对应 02§8 第 1 步字面枚举的"根文件 + tsconfig + eslint-config + depcruise + lefthook + ci.yml"）后，仓库应处于"零 `packages/*`/`apps/*` 源码，但门禁全绿"的状态——这是 M0 验收的第一个可观察里程碑。
 
@@ -747,7 +940,7 @@ pnpm run check                # 全部门禁一次性执行，作为"首个可�
 | Q-04 | `tooling/xsd/` 的具体 XSD 版本与校验粒度（09-README 原 Q-T11，转发） | job 存在（`xsd-validate`）但校验逻辑留空，等待架构-结构 A 的 `ooxml-core` 设计产出 | M-04（OOXML 格式与 PPTX 编解码）落地时序 |
 | Q-05 | `cordex/no-unit-scoped-inject-at-root`、`cordex/store-transact-in-commands-only` 两条规则的检测精度依赖 `openUnitScope`/命令管线最终 API 形态（09-README 原 Q-T12，转发） | 按当前启发式先行上线，M-02 定稿 `CommandDef`/`openUnitScope` 后回来收紧规则实现 | §5.4 4.13/4.20 两条规则实现文件 |
 | Q-06 | `CommandDef.permission` 的最终形状（单值 `Capability` 还是数组 `Capability[]`，09-README 原 Q-T8，转发） | 推荐数组 `Capability[]`（与"一个命令可能需要多个能力位"的语义更贴合，且 fail-closed 下"非空数组"比"非默认单值"更容易机械判定） | `cordex/command-must-declare-capabilities.ts`、`scan-command-capabilities.ts`、M-02 的 `CommandDef` 类型定义 |
-| Q-07 | 08 矩阵是否新增 TD-086…TD-090 五行以消除 §12-D6/D7 发现的覆盖缺口（原 TD-079…083 已被矩阵分配，2026-09-24 按复核 H5 顺延；TD-083…085 已由复核补登 RLS 覆盖/镜像策略/`doc-access-via-permission`） | 建议新增（成本低、收益是 `scan-policy` 覆盖率检查的硬编码来源清单可以真正做到"零遗漏"）；编号按矩阵最大 id 顺延，从 TD-086 起，最终以架构-类型治理条线登记为准 | `08-policy-enforcement-matrix.md` §2/§9/§13（总行数与覆盖率自检段落） |
+| Q-07 | 08 矩阵是否新增 TD-086…TD-090 五行以消除 §12-D6/D7 发现的覆盖缺口（**已结案，2026-09-25**：08 矩阵 §12b 已按本提议补登 TD-086…TD-090，并为 rulings §4.18 GV-15 扫描器名对账与 FE-02/FE-21 顺延登记 TD-091…TD-102，以 08 矩阵为准）（原 TD-079…083 已被矩阵分配，2026-09-24 按复核 H5 顺延；TD-083…085 已由复核补登 RLS 覆盖/镜像策略/`doc-access-via-permission`） | 建议新增（成本低、收益是 `scan-policy` 覆盖率检查的硬编码来源清单可以真正做到"零遗漏"）；编号按矩阵最大 id 顺延，从 TD-086 起，最终以架构-类型治理条线登记为准 | `08-policy-enforcement-matrix.md` §2/§9/§13（总行数与覆盖率自检段落） |
 | Q-08 | 根 `package.json` 的 npm scripts 是否采用本文档 §2.6 细化后的 12 个（含新增的 `test:typecheck`/`scan`/`iso-smoke`），还是维持 02§2 原始的 9 个笼统脚本 | 推荐采用本文档的 12 个细化脚本（与 09-07§3 的 13 个 CI job 一一对应更清晰，避免"一个 `check` 脚本内部黑盒跑十几件事"导致本地调试困难） | 根 `package.json`、`lefthook.yml` 各阶段调用点、`.github/workflows/ci.yml` |
 | Q-09 | rulings §4.15 新增的机械约束在 08 矩阵的 TD 编号与执行机制归类：(a) 双锁一致 + 安全设置显式 + 只允许根 lockfile（`lockfile-guard.ts`）；(b) 内部依赖 `workspace:` 协议（`check-workspace-protocol.ts`）；(c) 禁 DOM 注入文档内容 + `asvg:svgBlip` 只经 `<image>`（`rules/dom-injection.ts` + M-07 测试）；(d) 文档级 RLS 覆盖（`check-rls-coverage.ts`）；(e) 镜像 digest/许可/renderer 版本锁（`check-image-policy.ts`） | **已结案（2026-09-24，rulings §4.17 复核 H5/M16）**：以 08 矩阵为准——(a) TD-079、(b) TD-080、(c) TD-081、(d) TD-083、(e) TD-084；Q-07 候选顺延为 TD-086…090，冲突消除；四个脚本维持「治理检查脚本」身份、不计入 09-06 的十四个扫描器 | `08-policy-enforcement-matrix.md`、`09-06` 首段、`scan-policy` 的 CI job 封闭集合（不变） |
 

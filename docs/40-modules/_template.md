@@ -1,4 +1,4 @@
-> 状态：模板 v0.1 | 负责：架构-模块（总编排） | 更新：2026-09-18 | 依赖：40-modules/00-module-map.md、charter v0.2 §4–§5、30-architecture 02/03、09-type-discipline
+> 状态：模板 v0.1 | 负责：架构-模块（总编排） | 更新：2026-09-18；2026-09-25（矛盾收口，rulings §4.18：`cordex` 封闭八键、`publicEntry` 子路径口径、扫描器名与 CI job 名口径） | 依赖：40-modules/00-module-map.md、charter v0.2 §4–§5、30-architecture 02/03、09-type-discipline
 
 # 模块设计文档模板（阶段二每个模块必须遵守）
 
@@ -76,7 +76,7 @@
 
 ```text
 packages/<pkg>/
-├── package.json              # cordex: { layer, iso, bundle?, stability }
+├── package.json              # cordex（封闭八键）: { layer, iso, bundle?, role, implements?, compositionRoot?, publicEntry, stability? }
 ├── tsconfig.json
 ├── src/
 │   ├── index.ts              # 公共 API 面（§6）
@@ -99,7 +99,7 @@ packages/<pkg>/
 （逐文件一行；与 §4 一一对应；测试文件放 §9）
 
 ## 6. 对外 API 面
-（`index.ts` 导出清单：类型 / 值；子路径导出；api-extractor 稳定级；关键类型契约草案 TS 代码块 ≤ 40 行）
+（`index.ts` 导出清单：类型 / 值；子路径导出——须与 `package.json#exports` 及 `cordex.publicEntry` 逐一相等，跨包只能 import 这里登记的子路径，禁 `./*` 通配与 `src`/`lib` 深引用；api-extractor 稳定级；关键类型契约草案 TS 代码块 ≤ 40 行）
 
 ## 7. 前后端与运行时
 （浏览器 / Node / 两端；同一 Definition 的不同 Provider；`apps/web` / `apps/server` 的接入文件路径；进程间契约经 `@cordexjs/protocol` 的哪些 schema）
@@ -119,7 +119,7 @@ tests/
 （每类测试对应的源文件；夹具来源 `fixtures/`；覆盖率与性能预算引用 11）
 
 ## 10. 机械约束
-（depcruise 规则 id、eslint `no-restricted-imports/globals` 条目、扫描器检查项、`package.json#cordex` 字段值、api-extractor 报告；引用 09-type-discipline 规则编号）
+（depcruise 规则 id、eslint `no-restricted-imports/globals` 条目、扫描器检查项、`package.json#cordex` 字段值、api-extractor 报告；引用 09-type-discipline 规则编号。写成「扫描器 `x`」的名字必须能在 09-type-discipline/06 或 08 §11 查到——不在十四个扫描器之列的检查写成对应的扫描器子规则、lint 规则或测试断言；CI 只引用 09-07 §3 的 13 个 job 名，其余检查写成某个 job 的步骤）
 
 ## 11. 里程碑与实施顺序
 （M0 骨架 / M1 / M2 / M3 各建哪些文件；首个可运行切片及其验收命令）

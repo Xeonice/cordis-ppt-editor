@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -11,7 +11,7 @@
 | 承载包 / 目录 | 现存只读引用：`@cordexjs/model-core`（`testing/fixtures/{fixture,fixture-grid}/**`，M-02 已交付，本文档不改动一行）；M5 新建 10 包：`@cordexjs/model-doc`、`@cordexjs/model-sheet`（V-model·秩15·iso）、`@cordexjs/ooxml-docx`、`@cordexjs/ooxml-xlsx`（V-codec·秩35·iso）、`@cordexjs/doc-render`、`@cordexjs/sheet-render`（V-render·秩55·dom）、`@cordexjs/doc-ui`、`@cordexjs/sheet-ui`（V-ui·秩75·dom）、`@cordexjs/preset-doc`、`@cordexjs/preset-sheet`（L8·秩80·dom，已收录章程（rulings §4.12 U-01），module-map §8 G-3） |
 | cordis 形态 | plugin ×8（`model-*`/`ooxml-*`/`*-render`/`*-ui`，均为「只读主插件 + `editing` 编辑子插件」二段式）；bundle ×2（`preset-*`，纯装配，无 DDD 分层） |
 | 运行位置 | 两端：`model-doc`/`model-sheet`/`ooxml-docx`/`ooxml-xlsx` 为 iso，浏览器与 `server-headless` 加载同一份源码；仅浏览器：`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`/`preset-doc`/`preset-sheet` 为 dom |
-| 上游（依赖） | M-02（作为**被消费**的水平层契约，非运行时 import——本模块通过贡献点接入，不 `import` M-02 类型之外的任何东西）；M-03、M-04、M-06、M-07、M-10（**仅作样板参照**，抄目录结构与模式，非运行时依赖，铁律 2 禁止真实 import） |
+| 上游（依赖） | **运行时**（按贡献点与 Definition 的定义方分，2026-09-25 更正，rulings §4.18 FE-16）：M-02（`core.*` 贡献点与 `model-core` 契约）、M-04（`ooxml-core`：`ooxml-docx`/`ooxml-xlsx` 复用其 OPC/XML 工具）、M-06（`engine-layout`/`engine-render`：`render.*` 贡献点由 `engine-render` 定义，charter:316）、M-10（`ui-core`/`ui-react`：`ui.*` 贡献点由 `ui-core` 定义，charter:321）——这些都是水平层，束包 import 它们合规（铁律 2 只禁束间 import）；**样板参照**（抄目录结构与模式，非运行时依赖，铁律 2 禁止真实 import）：M-03、M-07、M-11、`ooxml-pptx`（M-04 内的 slide 束部分）、`slide-ui`（M-10 内的 slide 束部分） |
 | 下游（被依赖） | 无（终端模块） |
 | 对外服务 | 未来：`ctx.docs`/`ctx.sheets`（类比 `ctx.slides`，UnitScope 内挂载，M5 落地） |
 | 贡献点 | 提供：`core.documentType`（'doc'/'sheet'）、`core.mutation`、`core.command`、`core.migration`、`core.format`、`render.scene`、`render.element`、`ui.*`；消费：无（本模块是水平层全部贡献点的**消费方**，不消费其它垂直束的贡献） |
@@ -24,21 +24,30 @@
 
 ```mermaid
 flowchart LR
-subgraph up["上游 被消费的水平层契约"]
-  m02["M-02 贡献点契约"]
-  m03["M-03/M-04/M-06/M-07/M-10 仅作样板参照"]
+subgraph up["上游 运行时水平层契约"]
+  m02["M-02 core 贡献点与 model-core"]
+  m04["M-04 ooxml-core"]
+  m06["M-06 engine-layout engine-render"]
+  m10["M-10 ui-core ui-react"]
 end
+tpl["M-03 M-07 M-11 ooxml-pptx slide-ui 仅作样板参照"]
 subgraph mod["M-13 doc / sheet 扩展骨架"]
   docPkgs["model-doc / ooxml-docx / doc-render / doc-ui / preset-doc"]
   sheetPkgs["model-sheet / ooxml-xlsx / sheet-render / sheet-ui / preset-sheet"]
 end
-m02 -- "core.documentType / core.mutation / core.command / render.scene / ui.*" --> docPkgs
-m02 -- "core.documentType / core.mutation / core.command / render.scene / ui.*" --> sheetPkgs
-m03 -. "抄目录结构与模式，非运行时依赖" .-> docPkgs
-m03 -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
+m02 -- "core.documentType core.mutation core.command core.format" --> docPkgs
+m02 -- "core.documentType core.mutation core.command core.format" --> sheetPkgs
+m04 -- "ooxml-core OPC 与 XML 工具" --> docPkgs
+m04 -- "ooxml-core OPC 与 XML 工具" --> sheetPkgs
+m06 -- "render.scene render.element" --> docPkgs
+m06 -- "render.scene render.element" --> sheetPkgs
+m10 -- "ui.* 贡献点" --> docPkgs
+m10 -- "ui.* 贡献点" --> sheetPkgs
+tpl -. "抄目录结构与模式，非运行时依赖" .-> docPkgs
+tpl -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
 ```
 
-图怎么读：本模块没有真实下游（终端模块）；对样板模块 M-03/M-04/M-06/M-07/M-10 只是模式参照（虚线），真正的运行时依赖只有 M-02 的贡献点契约。
+图怎么读：本模块没有真实下游（终端模块）；实线是运行时依赖，按贡献点的**定义方**分边——`core.*` 来自 M-02，`render.*` 来自 M-06 的 `engine-render`，`ui.*` 来自 M-10 的 `ui-core`，`ooxml-docx`/`ooxml-xlsx` 复用 M-04 的 `ooxml-core`（2026-09-25 更正，此前把 `render.*`、`ui.*` 算在 M-02 名下，rulings §4.18 FE-16）；虚线是对 slide 束样板（M-03、M-07、M-11、`ooxml-pptx`、`slide-ui`）的模式参照，非运行时依赖。
 
 ## 1. 限界上下文与边界
 
@@ -63,7 +72,7 @@ m03 -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
 |---|---|---|
 | 文档类型盲（doc-type blindness） | 水平层代码不知道、也不需要知道自己被哪种文档类型使用 | ADR-0016 |
 | `BodyShapeHints` | `DocumentType.shape` 的 `{entityTables,atomicLists,richTexts}` 路径前缀标注，供 Store Provider 选择底层结构 | `model-core/src/document-type/document-type.ts`（M-02 §2.2，只读引用） |
-| 水平层冻结（horizontal-freeze） | 对全部无 `cordex.bundle` 字段的包 `src/**` 计算内容哈希并锁定，M5 PR 要求锁文件无 diff | `fixtures/horizontal-freeze.lock`（§8） |
+| 水平层冻结（horizontal-freeze） | 对全部**无 `cordex.bundle` 字段且非组合根**（`compositionRoot` 不为 `true`）的包 `src/**` 计算内容哈希并锁定，M5 PR 要求锁文件无 diff（2026-09-25 冻结范围按 rulings §4.18 FE-01 更正：组合根 preset-*、apps/* 可带或不带 bundle，均不属冻结层；server-* 文档类型盲后纳入冻结，M5 新增 doc 时 diff = 0） | `fixtures/horizontal-freeze.lock`（§8） |
 | 夹具文档类型（`fixture`/`fixture-grid`） | M-02 已交付的两个测试专用文档类型，前者模拟树状通用文档，后者模拟网格键空间（sheet 的验证代理） | `model-core/testing/fixtures/{fixture,fixture-grid}/**` |
 | 垂直束模板 | 样板包（`model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui`/`preset-slide`）中结构可原样复制、仅内容重写的文件（03/04/07/10 号文档各自 §8 已逐文件标注） | — |
 | 骨架（skeleton） | M5 立项前的占位实现：`DocumentType` 注册 + 3 Mutation + 2 Command + 直通编解码 + 最小渲染，不含完整业务逻辑 | 12 §5 验收清单 |
@@ -75,8 +84,37 @@ m03 -. "抄目录结构与模式，非运行时依赖" .-> sheetPkgs
 | BC-06 幻灯片领域模型（`model-slide` 等 slide 垂直束） | **Separate Ways**（铁律 2 强制）——本模块与 slide 束互不 `import`，唯一的"关系"是都复制自同一批样板模式 | 无契约传递，隔离由 `cordex-bundle-isolation`（depcruise R4）机械保证 | 无 |
 | BC-05/07/09/10/11/13/14 等水平层（Customer–Supplier） | 本模块（客户）单向依赖各水平层（供应方）的贡献点契约；水平层对本模块零感知 | 各垂直束自身的 `document-type.ts`/`codec.ts`/`*-scene-provider.ts`/`*.contribution.ts`——即 §4 对应表中标"垂直束模板"的组装文件 | `DocumentType<S>`、`MutationDef`/`CommandDef`、`FormatCodec`、`SceneProvider`、`ui.*` 贡献 |
 | BC-05 现存 `fixture`/`fixture-grid`（Conformist） | 本模块的四层验收口径完全遵从 ADR-0016 已定的夹具形状与错误码约定，无议价权 | 无（直接复用，不做适配） | `fixtureDocumentType`/`fixtureGridDocumentType`（只读引用） |
-| BC-16 预设装配（`preset-slide*`，Open Host Service 的镜像） | `preset-doc`/`preset-sheet` 复制 `preset-slide`/`preset-slide-viewer` 的组合根模式，非依赖关系（bundle 之间不互相 import） | `plugins.ts`/`options.ts` 结构对照（§4.9/§4.10） | 无跨包契约，仅模式复制 |
+| BC-16 预设装配（`preset-slide*`，Open Host Service 的镜像） | `preset-doc`/`preset-sheet` 复制 `preset-slide`/`preset-slide-viewer` 的组合根模式，非依赖关系（bundle 之间不互相 import） | `preset.ts`/`plugins/*.entries.ts`/`config/options.ts` 结构对照（按 11 §4，rulings §4.18 FE-12；§4.9/§4.10） | 无跨包契约，仅模式复制 |
 | BC-21/22/27、BC-23/24/25（服务端 Nest 模块与 `preset-server`） | Customer–Supplier 的镜像：`preset-server` 消费本模块产出的 `FormatCodec`/`invariants`，本模块对服务端零感知 | `apps/server/src/cordis-host/preset-server.ts` 的 `core.format` 贡献列表（§7） | `FormatCodec`、`documentType.invariants`、`RenderRoute.documentType` 字符串 |
+
+**图 1-1 对外契约与上下游关系**
+
+```mermaid
+flowchart LR
+horiz["BC-05 07 09 10 11 13 14 等水平层"]
+fixture["BC-05 现存 fixture 与 fixture-grid"]
+slideBundle["BC-06 slide 垂直束"]
+presetSlide["BC-16 preset-slide 系列"]
+subgraph mod["本模块 BC-29"]
+docCol["doc 五包"]
+sheetCol["sheet 五包"]
+end
+server["服务端 preset-server 与 Nest 模块"]
+horiz -- "CS DocumentType MutationDef CommandDef FormatCodec SceneProvider ui.* 贡献" --> docCol
+horiz -- "CS 相同的水平层契约" --> sheetCol
+fixture -- "Conformist 四层验收口径照单全收" --> docCol
+fixture -- "Conformist 四层验收口径照单全收" --> sheetCol
+slideBundle -. "SeparateWays 互不 import" .- docCol
+slideBundle -. "SeparateWays 互不 import" .- sheetCol
+presetSlide -. "组合根模式镜像 非依赖" .-> docCol
+presetSlide -. "组合根模式镜像 非依赖" .-> sheetCol
+docCol -- "FormatCodec invariants RenderRoute.documentType" --> server
+sheetCol -- "FormatCodec invariants RenderRoute.documentType" --> server
+```
+
+怎么读：实线从契约提供方指向消费方（与图 0-1 同向）；本模块单向依赖水平层契约、水平层对本模块零感知，服务端只在 `preset-server` 等参数化点消费本模块产出；虚线是非依赖关系——与 slide 束互不 import，与 `preset-slide*` 只是模式镜像。doc 与 sheet 两列之间同样互不 import（铁律 2）。
+
+依据：本节上表；§7 参数化点表。
 
 ## 2. 领域模型
 
@@ -199,7 +237,7 @@ fourLayerTest --> freezeAccept
 
 ## 3. cordis 插件定义
 
-> 十包合一张表（逐包再展开模板式表格会大幅超出篇幅预算，§4 对应表已逐文件说明差异，本节只给插件级元信息）。八个 plugin 角色包均沿用 `model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui` 的"只读主插件 + `editing` 子插件"二段式（ADR-0015 只读保证模式，`*-render`/`*-ui` 无编辑态区分故只有单一 `plugin.ts`）；`preset-doc`/`preset-sheet` 是纯装配 bundle，不设 `inject`/`provide`/贡献点，只有 `plugins.ts` 组合根（00-module-map §1 规则 3）。
+> 十包合一张表（逐包再展开模板式表格会大幅超出篇幅预算，§4 对应表已逐文件说明差异，本节只给插件级元信息）。八个 plugin 角色包均沿用 `model-slide`/`ooxml-pptx`/`slide-render`/`slide-ui` 的"只读主插件 + `editing` 子插件"二段式（ADR-0015 只读保证模式，`*-render`/`*-ui` 无编辑态区分故只有单一 `plugin.ts`）；`preset-doc`/`preset-sheet` 是纯装配 bundle（组合根，`compositionRoot:true`），不设 `inject`/`provide`/贡献点，文件布局按 11 §4（`preset.ts`、`entries.ts`、`config/options.ts`、`plugins/*.entries.ts`；00-module-map §1 规则 3 的「不设 DDD 分层目录」仍成立，rulings §4.18 FE-12）。
 
 | 包 | `name` | `inject`（必需） | `provide` | 贡献点：提供 | 贡献点：消费 | 事件 | 生命周期 |
 |---|---|---|---|---|---|---|---|
@@ -207,14 +245,51 @@ fourLayerTest --> freezeAccept
 | `model-sheet` | `'model-sheet'` | `['documentTypes','commands']` | 无 | `core.documentType`('sheet')、`core.mutation`×3、`core.command`×2、`core.migration` | 无 | 发布 `sheet/*`×3 | ready 贡献注册；`editing.ts` 仅编辑预设加载（同 ADR-0015） |
 | `ooxml-docx` | `'ooxml-docx'` | `['formats']` | 无 | `core.format`（`docxCodec`） | 无 | 无 | ready 贡献注册；无 `editing.ts`（编解码无只读/编辑之分） |
 | `ooxml-xlsx` | `'ooxml-xlsx'` | `['formats']` | 无 | `core.format`（`xlsxCodec`） | 无 | 无 | ready 贡献注册；无 `editing.ts`（编解码无只读/编辑之分） |
-| `doc-render` | `'doc-render'` | `['scenes','documentTypes']` | 无 | `render.scene`('doc')、`render.element`×N（`dom:doc:*`） | `render.target`('dom')（消费 `render-dom`） | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
-| `sheet-render` | `'sheet-render'` | `['scenes','documentTypes']` | 无 | `render.scene`('sheet')、`render.element`×N（`dom:sheet:*`） | `render.target`('dom') | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
-| `doc-ui` | `'doc-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`doc.*`） | `ui.contextKey`（`unitType`） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
-| `sheet-ui` | `'sheet-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`sheet.*`，含公式栏 `slot`） | `ui.contextKey`（`unitType`） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
-| `preset-doc` | — | — | — | 无（装配根不自行贡献，只挂载子插件） | — | — | `plugins.ts` 无序挂载，稳定 id 记录供 `fiber.update` |
-| `preset-sheet` | — | — | — | 无 | — | — | `plugins.ts` 无序挂载，稳定 id 记录供 `fiber.update` |
+| `doc-render` | `'doc-render'` | 根级 `['contributions']`；`unitPlugins` 内 `['render','layout','store']`（照 M-07 §3 `slide-render` 样板；2026-09-25 删去章程服务名表中不存在的 `scenes`，rulings §4.18 FE-17） | 无 | `render.scene`('doc')、`render.element`×N（`dom:doc:*`） | 无（`render.target` 的消费方是 `engine-render`，不是束包，FE-17） | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
+| `sheet-render` | `'sheet-render'` | 同 `doc-render`（根级 `['contributions']`；`unitPlugins` 内 `['render','layout','store']`） | 无 | `render.scene`('sheet')、`render.element`×N（`dom:sheet:*`） | 无 | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
+| `doc-ui` | `'doc-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`doc.*`） | 无（`when` 子句读取 ui-core 上下文键 `unitType`；上下文键不是贡献点，章程 §5.5 贡献点清单无 `ui.contextKey`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
+| `sheet-ui` | `'sheet-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`sheet.*`，含公式栏 `slot`） | 无（`when` 子句读取 ui-core 上下文键 `unitType`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
+| `preset-doc` | — | — | — | 无（装配根不自行贡献，只挂载子插件） | — | — | `preset.ts` 对 `plugins/index.ts` 的 `DOC_ENTRIES` 无序挂载，稳定 id 记录供 `fiber.update`（文件布局按 11 §4，FE-12） |
+| `preset-sheet` | — | — | — | 无 | — | — | 同 `preset-doc`（`SHEET_ENTRIES`） |
+
+领域读服务：若 M5 后续 `doc-render`/`doc-ui` 需要按实体读文档（类比 `ctx.slides`），届时先在章程 §5.5 服务名表登记 `docs`/`sheets` 再注入；骨架阶段不注入（FE-17）。
 
 配置 schema：八个 plugin 包各自的 `config.ts`（`XxxConfig` zod）字段模式复制样板（`lazySlides`→`lazyParagraphs`/`lazySheets` 等），骨架阶段留最小字段集，不在本节展开（§4 对应表已标注）。Manifest 片段：十包均由 `src/manifest.ts` 序列化生成 `cordex-manifest.json`，字段结构与样板包 1:1（`preset-*` 的 `manifest.ts` 只聚合子插件清单）。
+
+**图 3-1 doc 列插件与贡献点装配**
+
+```mermaid
+flowchart LR
+presetDoc["preset-doc 纯装配 bundle"]
+horizPlugins["水平层插件"]
+modelDoc["model-doc 主插件与 editing"]
+ooxmlDocx["ooxml-docx"]
+docRender["doc-render"]
+docUi["doc-ui"]
+pDocType["core.documentType doc"]
+pEdit["core.mutation 3 个 与 core.command 2 个"]
+pMigration["core.migration"]
+pFormat["core.format docxCodec"]
+pScene["render.scene doc 与 render.element dom:doc:*"]
+pUi["ui.ribbon ui.panel ui.shortcut ui.command"]
+pKey["上下文键 unitType · ui-core 服务"]
+presetDoc -- "无序挂载" --> modelDoc
+presetDoc -- "无序挂载" --> ooxmlDocx
+presetDoc -- "无序挂载" --> docRender
+presetDoc -- "无序挂载" --> docUi
+presetDoc -- "同时挂载" --> horizPlugins
+modelDoc -- "贡献" --> pDocType
+modelDoc -- "editing 仅编辑预设加载" --> pEdit
+modelDoc -- "贡献" --> pMigration
+ooxmlDocx -- "贡献" --> pFormat
+docRender -- "贡献" --> pScene
+docUi -- "贡献" --> pUi
+docUi -. "when 读取" .-> pKey
+```
+
+怎么读：实线「贡献」指插件向水平层贡献点塞条目；虚线「when 读取」指 `doc-ui` 的贡献项在 `when` 子句里读取 ui-core 登记的上下文键 `unitType`——它是上下文键、不是贡献点（2026-09-25 更正，删去原「消费 `ui.contextKey`」与「消费 `render.target`」两条：前者章程无此贡献点 id，后者的消费方是 `engine-render`，rulings §4.18 FE-17）；`preset-doc` 只负责挂载、自己不贡献。sheet 列结构与本图一一对应（`model-sheet`/`ooxml-xlsx` 的 `xlsxCodec`/`sheet-render` 的 `dom:sheet:*`/`sheet-ui` 另含公式栏 `slot`），不重复画出。
+
+依据：本节上表；§8.1 第 6 条。
 
 ## 4. 目录树（完整到文件）
 
@@ -499,43 +574,51 @@ packages/sheet-ui/
 
 ### 4.9 `@cordexjs/preset-doc` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01））
 
-样板：`@cordexjs/preset-slide`（30-architecture/02-layering-and-packages.md §4.21，因 `11-preset-assembly-and-app-shell.md` 尚未成文，本节以该节为准）。纯装配包，无 DDD 分层（00-module-map §1 规则 3）。
+样板：`@cordexjs/preset-slide`（**以 11 §4 为准**；2026-09-25 更正，11 已成文，原「以 02 §4.21 为准」作废，rulings §4.18 FE-12）。纯装配包，不设 DDD 分层目录，文件布局按 11 §4（00-module-map §1 规则 3）。
 
 ```text
 packages/preset-doc/
-├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle' }
+├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle', bundle:'doc', compositionRoot:true, publicEntry:['.','./entries','./testing'], stability:'experimental' }（bundle 与 compositionRoot 2026-09-25 补：组合根豁免 R3，带 bundle 以受 R4 约束，rulings §4.18 FE-01/FE-21）
 ├── src/
-│   ├── index.ts                  # createDocPreset(options?: DocPresetOptions): Plugin
-│   ├── plugin.ts                 # 无序挂载各子插件；每个子插件用稳定 id 记录以便 fiber.update 局部重配置；复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07，零成本继承 preset-slide 同款装配运行时）
-│   ├── manifest.ts               # 聚合清单
-│   ├── options.ts                # DocPresetOptions（zod）：{ locale; theme; storeProvider:'memory'; renderTarget:'dom'; permissions; exclude?; override? }
-│   ├── plugins.ts                # 显式列表：model-core、store-memory、model-doc、ooxml-docx、engine-layout、engine-render、render-dom、doc-render、design(css)、ui-core、ui-react、doc-ui、i18n
+│   ├── index.ts                  # createDocPreset(options?: DocPresetOptions): Preset
+│   ├── preset.ts                 # createDocPreset：校验 options → applyTrim(DOC_ENTRIES) → 函数插件无序挂载；稳定 id 记录以便 fiber.update；复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（C-07）
+│   ├── manifest.ts               # 生成物：聚合清单
+│   ├── entries.ts                # 子路径 ./entries：DOC_ENTRIES（供 M5 后续 preset-doc-collab/viewer 派生，零副作用）
+│   ├── plugins/
+│   │   ├── index.ts              # DOC_ENTRIES = 水平层条目（照抄 11 §4 的 core/render/ui 条目）+ doc.entries
+│   │   └── doc.entries.ts        # 束条目：model-doc（主 + editing）、ooxml-docx、doc-render、doc-ui
+│   ├── config/
+│   │   └── options.ts            # DocPresetOptionsSchema（zod）：{ locale; theme; storeProvider:'memory'; renderTarget:'dom'; permissions; exclude?; override? }
 │   ├── testing/
 │   │   └── index.ts              # mountDocPreset(host, opts)
 │   └── __tests__/
 │       └── exclude-matrix.test.ts # 「移除任一 Provider 仍可启动」矩阵（章程 §5.4、M1 验收模式）
 ```
 
-**与样板对应表**：全部文件为**同名模板**——`preset-slide` 的 `plugins.ts` 换 slide 系列包为 doc 系列包，`options.ts` 字段结构 1:1 复制。**关键差异**：`preset-doc` 不存在 `preset-doc-collab`/`preset-doc-viewer` 的骨架阶段展开（12 §5/PRD M5 P0 范围只要求单人打开/渲染骨架，协同/查看器留待 M5 后续），对应 `preset-slide-collab`/`preset-slide-viewer` 暂无对照文件。**装配运行时（2026-09-18，C-07）**：`PresetEntry`/`mountEntries`/`applyTrim` 等类型与纯函数已收编进 `@cordexjs/kernel/src/preset/`（跨模块评审 C-07），`preset-doc`/`preset-sheet` 与 `preset-slide` 一样直接 `import { mountEntries, applyTrim } from '@cordexjs/kernel/preset'`，不依赖也不复制 `preset-slide-viewer`（该包已删除本地 `assembly/`）。
+**与样板对应表**：全部文件为**同名模板**（按 11 §4 / §8 的样板对照复制）——`preset-slide` 的 `plugins/slide.entries.ts` 换为 `plugins/doc.entries.ts`（slide 系列包换 doc 系列包），`config/options.ts` 字段结构 1:1 复制，`preset.ts`/`entries.ts`/`plugins/index.ts` 只改 id 与清单 import（rulings §4.18 FE-12）。**关键差异**：`preset-doc` 不存在 `preset-doc-collab`/`preset-doc-viewer` 的骨架阶段展开（12 §5/PRD M5 P0 范围只要求单人打开/渲染骨架，协同/查看器留待 M5 后续），对应 `preset-slide-collab`/`preset-slide-viewer` 暂无对照文件。**装配运行时（2026-09-18，C-07）**：`PresetEntry`/`mountEntries`/`applyTrim` 等类型与纯函数已收编进 `@cordexjs/kernel/src/preset/`（跨模块评审 C-07），`preset-doc`/`preset-sheet` 与 `preset-slide` 一样直接 `import { mountEntries, applyTrim } from '@cordexjs/kernel/preset'`，不依赖也不复制 `preset-slide-viewer`（该包已删除本地 `assembly/`）。
 
 ### 4.10 `@cordexjs/preset-sheet` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01），同 4.9）
 
 ```text
 packages/preset-sheet/
-├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle' }
+├── package.json                  # cordex: { layer:'L8', iso:'dom', role:'bundle', bundle:'sheet', compositionRoot:true, publicEntry:['.','./entries','./testing'], stability:'experimental' }（§4.18 FE-01/FE-21）
 ├── src/
-│   ├── index.ts                  # createSheetPreset(options?): Plugin
-│   ├── plugin.ts                 # 同 preset-doc：复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（2026-09-18，C-07）
-│   ├── manifest.ts
-│   ├── options.ts                # SheetPresetOptions
-│   ├── plugins.ts                # model-core、store-memory、model-sheet、ooxml-xlsx、engine-layout、engine-render、render-dom、sheet-render、design(css)、ui-core、ui-react、sheet-ui、i18n
+│   ├── index.ts                  # createSheetPreset(options?): Preset
+│   ├── preset.ts                 # 同 preset-doc：复用 @cordexjs/kernel/preset 的 mountEntries/applyTrim（C-07）
+│   ├── manifest.ts               # 生成物
+│   ├── entries.ts                # 子路径 ./entries：SHEET_ENTRIES
+│   ├── plugins/
+│   │   ├── index.ts              # SHEET_ENTRIES = 水平层条目 + sheet.entries
+│   │   └── sheet.entries.ts      # model-sheet、ooxml-xlsx、sheet-render、sheet-ui
+│   ├── config/
+│   │   └── options.ts            # SheetPresetOptionsSchema
 │   ├── testing/
 │   │   └── index.ts
 │   └── __tests__/
 │       └── exclude-matrix.test.ts
 ```
 
-**命名待决**：module-map §8 G-3 建议包名 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`（与 `@cordexjs/preset-slide` 对称）；PRD `05-milestones-and-scope.md` M5 段落原文写的是 `preset-doc-skeleton`/`preset-sheet-skeleton`。两处命名不一致，本文档采用 module-map §8 G-3 的口径（与章程 §5.1 网格的既有八个包名风格一致），差异登记见 §12 G-2、§13 Q1。
+**命名已定**（2026-09-25 删去原「命名待决」段，rulings §4.18 FE-12）：包名 `@cordexjs/preset-doc`/`@cordexjs/preset-sheet`，不带 `-skeleton` 后缀，已由 rulings §4.12 U-01 与跨模块评审 C-19 结案、章程登记（§12 G-2/G-6、§13 Q1）；`preset-doc-viewer`/`preset-doc-collab` 两档属 M5 后续，届时经章程修订登记。
 
 ## 5. 文件职责表
 
@@ -627,17 +710,21 @@ packages/preset-sheet/
 | `sheet-ui` | `testing/index.ts` | `fixtureSheetUnit()`、`renderSheetEditor()` |
 | `sheet-ui` | `__tests__/lifecycle.test.ts` | 测试文件，无导出 |
 | `preset-doc` | `index.ts` | `createDocPreset(options?): Plugin` |
-| `preset-doc` | `plugin.ts` | 函数插件：无序 `ctx.plugin` 各子插件 |
-| `preset-doc` | `manifest.ts` | 聚合清单 |
-| `preset-doc` | `options.ts` | `DocPresetOptions` zod |
-| `preset-doc` | `plugins.ts` | 子插件显式列表（含 `model-doc`/`ooxml-docx`/`doc-render`/`doc-ui`） |
+| `preset-doc` | `preset.ts` | `createDocPreset` 实现：无序 `ctx.plugin` 各子插件（原 `plugin.ts`，FE-12） |
+| `preset-doc` | `manifest.ts` | 聚合清单（生成物） |
+| `preset-doc` | `entries.ts` | `DOC_ENTRIES`（`./entries` 子路径） |
+| `preset-doc` | `plugins/index.ts` | `DOC_ENTRIES` 清单拼装 |
+| `preset-doc` | `plugins/doc.entries.ts` | 束条目（`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui`；原 `plugins.ts`） |
+| `preset-doc` | `config/options.ts` | `DocPresetOptionsSchema` zod（原 `options.ts`） |
 | `preset-doc` | `testing/index.ts` | `mountDocPreset(host, opts)` |
 | `preset-doc` | `__tests__/exclude-matrix.test.ts` | 测试文件，无导出 |
 | `preset-sheet` | `index.ts` | `createSheetPreset(options?): Plugin` |
-| `preset-sheet` | `plugin.ts` | 函数插件：无序 `ctx.plugin` 各子插件 |
-| `preset-sheet` | `manifest.ts` | 聚合清单 |
-| `preset-sheet` | `options.ts` | `SheetPresetOptions` zod |
-| `preset-sheet` | `plugins.ts` | 子插件显式列表（含 `model-sheet`/`ooxml-xlsx`/`sheet-render`/`sheet-ui`） |
+| `preset-sheet` | `preset.ts` | `createSheetPreset` 实现（原 `plugin.ts`，FE-12） |
+| `preset-sheet` | `manifest.ts` | 聚合清单（生成物） |
+| `preset-sheet` | `entries.ts` | `SHEET_ENTRIES`（`./entries` 子路径） |
+| `preset-sheet` | `plugins/index.ts` | `SHEET_ENTRIES` 清单拼装 |
+| `preset-sheet` | `plugins/sheet.entries.ts` | 束条目（`model-sheet`/`ooxml-xlsx`/`sheet-render`/`sheet-ui`；原 `plugins.ts`） |
+| `preset-sheet` | `config/options.ts` | `SheetPresetOptionsSchema` zod（原 `options.ts`） |
 | `preset-sheet` | `testing/index.ts` | `mountSheetPreset(host, opts)` |
 | `preset-sheet` | `__tests__/exclude-matrix.test.ts` | 测试文件，无导出 |
 
@@ -720,7 +807,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 3. `ooxml-<ext>`：复用 `ooxml-core`，只写 `classify.ts`/`config.ts`/`pipeline.ts`/`codec.ts` 四个骨架文件（§4.3/4.4）。
 4. `<type>-render`：一个 `SceneProvider` + 至少一个 `ElementRenderer`（§4.5/4.6）。
 5. `<type>-ui`：`ribbon-spec.ts`/`inspector-spec.ts` + 贡献注册（§4.7/4.8）。
-6. `preset-<type>`：`plugins.ts` 列出以上四包 + 水平层包（§4.9/4.10）。
+6. `preset-<type>`：`plugins/<type>.entries.ts` 列出以上四包、`plugins/index.ts` 拼上水平层条目（§4.9/4.10，文件布局按 11 §4，rulings §4.18 FE-12）。
 7. `tooling/policy/schema/cordex-package-metadata.schema.json` 的 `bundle` 枚举加一个值（01 §8 第 1 条"需要改的文件"）；若引入新事件域前缀，`tooling/policy/event-domains.json` 加一行（01 §8 第 2 条）。
 8. 首次为该 bundle 运行 `scan-horizontal-freeze` 生成冻结基线（§8.3）。
 
@@ -728,7 +815,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 
 ### 8.2 必须零改动的水平层文件清单（`horizontal-freeze` 冻结范围汇总）
 
-> 按 module-map §6.4 机制：对全部无 `cordex.bundle` 字段的包 `src/**`（含 `testing/**`，不含 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`。下表汇总各模块文档已各自声明的冻结范围，本模块不重新罗列文件名（信息权威来源仍是各自模块文档的 §8），只做**总账**：
+> 按 module-map §6.4 机制：对全部无 `cordex.bundle` 字段且非组合根的包 `src/**`（含 `testing/**`，不含 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`（2026-09-25 按 rulings §4.18 FE-01 补「非组合根」）。下表汇总各模块文档已各自声明的冻结范围，本模块不重新罗列文件名（信息权威来源仍是各自模块文档的 §8），只做**总账**：
 
 | BC | 模块文档 | 冻结文件数 | 冻结范围来源 |
 |---|---|---|---|
@@ -750,7 +837,32 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 | 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `doc-type-blind`（R3）/`cordex-bundle-isolation`（R4）；lint `no-doc-type-literals` | 十包不 import 任何 slide 束包（铁律 2）；depcruise 报告零横向依赖（12 §5） |
 | 夹具层 | 水平层可被非 slide 类型驱动 | `model-core/testing/fixtures/{fixture,fixture-grid}/**`（M-02 已交付） | 本模块只读引用，不修改；证明水平层设计时已考虑 doc/sheet 形状 |
 | 运行时层 | 同时打开 `fixture`/`fixture-grid` 互不干扰；移除类型后返回未知类型错误，host 仍健康 | `preset-blind.test.ts`（M-02） | 本模块的 `preset-doc`/`preset-sheet` 装配矩阵测试（`__tests__/exclude-matrix.test.ts`）是同一模式在真实垂直束上的复现 |
-| 冻结层 | §8.2 全表无 diff | `tooling/scanners/horizontal-freeze.ts`（**M5 新增建议**，01 §8/§12 D-4，当前不计入 13 个现有扫描器，纳入后编号变为第 14 个） | M-13/M5 PR 门禁 |
+| 冻结层 | §8.2 全表无 diff | `tooling/scripts/scan-horizontal-freeze.ts`（**M5 新增建议**，01 §8/§12 D-4；当前不计入 14 个现有扫描器，纳入后为第 15 个（需追加 06 §19）——第 14 个已由 `doc-access-via-permission` 占用，rulings §4.17 D3、§4.18 GV-11；M5 前以 `scanners` job 的步骤运行，GV-14）；冻结范围为「无 `bundle` 且非组合根的包」（FE-01） | M-13/M5 PR 门禁 |
+
+**图 8-1 运行时层验收时序**
+
+```mermaid
+sequenceDiagram
+  participant test as preset-coexist 与 exclude-matrix 测试
+  participant host as 同一 host
+  participant units as model-core units
+  participant types as documentTypes 服务
+  test->>host: 装配 preset-slide preset-doc preset-sheet
+  test->>units: open slide Unit
+  test->>units: open doc Unit
+  test->>units: open sheet Unit
+  units->>types: 按 documentType 解析
+  types-->>units: 各自建立隔离的 UnitScope
+  units-->>test: 三个 Unit 互不影响
+  test->>host: exclude 某一文档类型后重新装配
+  test->>units: open 该类型 Unit
+  units-->>test: err format.no_document_type
+  test->>host: 断言宿主仍健康
+```
+
+怎么读：前半段验证同一宿主内三种文档类型并存互不干扰，后半段验证移除某类型后打开返回统一错误码而宿主不受影响——这正是 M-02 `preset-blind.test.ts` 的夹具模式在真实垂直束上的复现。
+
+依据：本节上表运行时层行；§8.4 `preset-coexist`；module-map §6.5。
 
 ### 8.4 验收命令（草案，供 M5 立项引用；12 §5 验收清单的可执行化）
 
@@ -802,14 +914,14 @@ flowchart LR
 
 | 约束 | 规则 / 字段 | 引用 |
 |---|---|---|
-| `package.json#cordex` | 八个 plugin 包：`{layer:'V-model'\|'V-codec'\|'V-render'\|'V-ui', bundle:'doc'\|'sheet', iso:'iso'\|'dom', role:'plugin', stability:'experimental'}`；两个 bundle 包：`{layer:'L8', iso:'dom', role:'bundle'}`（`bundle` 字段不适用于 L8，同 `preset-slide`） | charter §5.2 schema；02 §4.0.1 |
+| `package.json#cordex` | 八个 plugin 包：`{layer:'V-model'\|'V-codec'\|'V-render'\|'V-ui', bundle:'doc'\|'sheet', iso:'iso'\|'dom', role:'plugin', stability:'experimental'}`；两个 bundle 包：`preset-doc` 为 `{layer:'L8', iso:'dom', role:'bundle', bundle:'doc', compositionRoot:true}`、`preset-sheet` 为 `{…, bundle:'sheet', compositionRoot:true}`（2026-09-25 更正原「`bundle` 字段不适用于 L8」：组合根豁免 R3，preset 选填 `bundle` 以受 R4 约束，与 `preset-slide` 带 `bundle:'slide'` 同口径，rulings §4.18 FE-01/FE-21）；各包不写 `rank`（由 `layer` 查秩表得出） | charter §5.2 schema；02 §4.0.1 |
 | 束间隔离 | R4 `cordex-bundle-isolation`：`model-doc`/`ooxml-docx`/`doc-render`/`doc-ui` 不得 import 任何 `bundle:'sheet'`或`bundle:'slide'`的包，反之亦然 | depcruise；charter 铁律 2 |
 | 只向下依赖 | R2/铁律 3：`V-model`(15) < `V-codec`(35) < `V-render`(55) < `V-ui`(75) < L8(80)；同层带内按此秩序向下 import（如 `doc-ui` 可 import `doc-render` 契约类型，反之不可） | depcruise；charter §5.1 |
 | 水平层零横向依赖 | R3 `doc-type-blind`：十包可以 import 水平层（generic 包），水平层不得反向 import 十包 | depcruise；ADR-0016 |
 | 水平层测试盲性 | R3 姐妹规则 `horizontal-tests-use-fixture-only`：不适用于本模块自身（本模块**是**垂直束，其测试天然使用自己的夹具），但本模块的存在是该规则在水平层侧成立的**证明对象** | 05 §10 同一表述 |
 | 第三方单点 | 十包均不引入新的第三方库单点（复用 `ooxml-core` 的 `fflate`、`engine-*` 的度量算法等，无需新增 R5 白名单行）；若 M5 实际开发中引入新库（如 sheet 专属表格计算库），需在 `tooling/eslint-config/rules/restricted-imports.ts` 补一行（01 §8 第 3 条） | charter §5.3 规则 4 |
 | `no-doc-type-literals` 反向验证 | 本模块十包**允许**出现 `'doc'`/`'sheet'` 字面量（它们本来就是该规则的"已知取值"来源，自动派生，01 §8 已述），但不得出现 `'slide'`/`'pptx'` 等其它束字面量 | 09-02 §4.12（M-01 §8） |
-| `provider-runs-conformance` | 不适用——十包均为 plugin/bundle 角色，无 Definition/Provider 对（同 12-server §10 对比说明） | — |
+| Provider 必跑契约套件（`scan-manifest` 规则 (e)，原称 `provider-runs-conformance`，rulings §4.18 GV-15） | 不适用——十包均为 plugin/bundle 角色，无 Definition/Provider 对（同 12-server §10 对比说明） | — |
 | 事件先声明后使用 | `events-declared`：`doc.contribution.ts`/`sheet.contribution.ts` 与各自 `events.ts` 内容一致 | 扫描器（02 §4.0.2） |
 | API 报告 | 十份 `etc/<pkg>.api.md` 入库（八个 plugin 包 + 两个 bundle 包），PR diff 必审 | api-extractor + CI |
 | 类型治理 | 品牌类型（`BlockId`/`SheetId`/`CellKey`）/`Result`/禁 `enum`（`selectionKinds` 等用字面量联合） | 09-type-discipline（ADR-0042/0047） |
@@ -842,7 +954,7 @@ pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"
 pnpm --filter @cordexjs/doc-ui test -- --grep "ribbon renders empty when no selection"
 ```
 
-**第 4 步：preset（`preset-doc`/`preset-sheet`）**：按 §4.9/4.10 组装，`plugins.ts` 显式列出前三步产出的包。验收（12 §5 总验收清单）：
+**第 4 步：preset（`preset-doc`/`preset-sheet`）**：按 §4.9/4.10 组装，`plugins/<type>.entries.ts` 显式列出前三步产出的包（文件布局按 11 §4，FE-12）。验收（12 §5 总验收清单）：
 ```bash
 pnpm --filter @cordexjs/preset-doc test src/__tests__/exclude-matrix.test.ts
 pnpm depcruise packages/model-doc packages/model-sheet packages/ooxml-docx packages/ooxml-xlsx \
@@ -885,6 +997,19 @@ pnpm exec vitest run test/preset-coexist.test.ts                         # 同�
 |---|---|---|
 | T-0 / Q6 | 单组织去租户；组管理（U-11）推迟；M-08 Nest 模块 9→7 | §8.2 BC-18/19/20 行 |
 | Q2 | `*-ui` 核心层框架无关（depcruise 子规则）；形态 B 同时排除 `*-ui`；shadcn 复制件 45→44 | §4.7 样板说明、§8.2 BC-13/14 行 |
+
+### 2026-09-25 收敛（rulings §4.18 矛盾收口）
+
+> 按 `00-charter/rulings-2026-09-14.md` §4.18 回写；与旧正文冲突处以 §4.18 为准。
+
+| 编号 | 裁定摘要 | 本文件落地位置 |
+|---|---|---|
+| FE-01/FE-21 | `preset-doc`/`preset-sheet` 带 `bundle:'doc'`/`'sheet'` 并标 `compositionRoot:true`（组合根豁免 R3、受 R4 约束），不写 `rank`；冻结范围改为「无 bundle 且非组合根」 | §2 冻结行、§4.9/§4.10、§8.2 前言、§8.3、§10 |
+| FE-12 | 样板依据改「以 11 §4 为准」；骨架文件对齐 `preset.ts`/`entries.ts`/`config/options.ts`/`plugins/*.entries.ts`；删「命名待决」 | §1.3、§3、§4.9/§4.10、§5、§8.1、§11 第 4 步 |
+| FE-16 | 上游按贡献点定义方分：运行时 M-02（`core.*`）、M-04（`ooxml-core`）、M-06（`render.*`）、M-10（`ui.*`）；样板 M-03、M-07、M-11、`ooxml-pptx`、`slide-ui` | §0 上游行、图 0-1 |
+| FE-17 | `doc-ui`/`sheet-ui` 不「消费 `ui.contextKey`」（`when` 读 ui-core 上下文键 `unitType`）；`*-render` inject 改为根级 `['contributions']`、`unitPlugins` `['render','layout','store']`，不「消费 `render.target`」 | §3 表、图 3-1 |
+| GV-11 | `horizontal-freeze` 路径改 `tooling/scripts/`，纳入后为第 15 个扫描器（06 §19） | §8.3 |
+| GV-15 | `provider-runs-conformance` → `scan-manifest` 规则 (e) | §10 |
 
 ## 13. 未决问题
 

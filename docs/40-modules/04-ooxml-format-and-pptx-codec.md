@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
 
 # 04 OOXML 格式与 PPTX 编解码（限界上下文 BC-07 OOXML 格式基础设施、BC-08 PPTX 编解码）
 
@@ -12,7 +12,7 @@
 | cordis 形态 | library（`ooxml-core`，无 Fiber、无 `plugin.ts`）+ plugin（`ooxml-pptx`，`contribute core.format(pptxCodec)`） |
 | 运行位置 | 两端（浏览器与 `server-headless` 加载同一份源码，无条件编译分支） |
 | 上游（依赖） | M-02（`model-core`：`DocumentType`/`FormatCodec` 契约、`BlobStore`、`drawing/` 词汇类型、`SnapshotBundle`）、M-03（`model-slide`：`PresentationBody` 六张实体表、`OoxmlIds`、样式继承服务） |
-| 下游（被依赖） | M-09（`server-headless` 导入/导出/校验任务）、M-12（服务端导入导出作业编排）、M-13（`ooxml-docx`/`ooxml-xlsx` 以本模块为垂直束样板） |
+| 下游（被依赖） | M-07（`slide-render` 只读解析 chartml 与 `dsp:drawing`，直接调用 `ooxml-core`，C-28 经 rulings §4.15 Q7 放行）、M-09（`apps/server` 的 `cordis-host/preset-server.ts` 把本模块装配进 `server-headless`；`server-headless` 自身文档类型盲，经 `formats` 按 `documentType` 取 codec，rulings §4.18 FE-01）、M-12（服务端导入导出作业编排）、M-13（`ooxml-core` 是 `ooxml-docx`/`ooxml-xlsx` 的运行时依赖；`ooxml-pptx` 作为垂直束样板，rulings §4.18 FE-16） |
 | 对外服务 | 无 `ctx.<name>` 服务（`ooxml-core` 非 cordis 实体；`ooxml-pptx` 能力经 `core.format` 贡献点暴露，不 `provide` 独立服务，module-map BC-08 行） |
 | 贡献点 | 提供：`core.format`（key=`codec.id`，本模块贡献条目 `'ooxml-pptx'`）；消费：无 |
 | doc / sheet 通用性 | `ooxml-core` = generic（供未来 `ooxml-docx`/`ooxml-xlsx` 复用同一 OPC/XML/DrawingML 编解码与不透明保留引擎，是文档类型盲的关键证据）；`ooxml-pptx` = vertical（`bundle=slide`） |
@@ -74,7 +74,7 @@ flowchart LR
 - 媒体部件内容寻址去重、`p:timing` 悬空引用清理（PRD OF-12）、现代评论/图表内嵌工作簿（M3）。
 - 宏包拒绝（rulings §4.16 Q15，偏离原默认「宏原样保留」）：扩展名 `.pptm`、主内容类型为 `macroEnabled`、或包内存在 `vbaProject.bin`（含 `application/vnd.ms-office.vbaProject` 内容类型）任一命中即**拒绝导入**并返回 `format.macro_rejected`，不解析任何页、不保留宏部件；`.ppsx`/`.potx` 不受影响；检测点见 §2.6。
 - 加密包拒绝（rulings §4.16 Q15，2026-09-24 复核 H6）：输入字节以 CFB 魔数 `D0 CF 11 E0 A1 B1 1A E1` 开头、且 CFB 目录含 `EncryptionInfo`（或 `EncryptedPackage`）流即**拒绝导入**并返回 `format.encrypted`（HTTP 415，提示「请先去除密码再导入」），M1–M4 一律如此；该判定先于 zip 解析，**不得**报成无效包；检测点见 §2.6。
-- 导入规模包络检查（rulings §4.15 Q5）：文件大小 / 页数 / 单页元素 / 文档总元素超出**部署配置**给定上限（默认 200 MB / 200 / 1,000 / 20,000；`dimension` 依次为 `fileSize`/`slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 取值表一致）即**拒绝导入**并返回 `format.quota_exceeded`，不做只读降级打开；检测点见 §2.6。
+- 导入规模上限检查（rulings §4.15 Q5；上限即**系统天花板**，不是性能保证包络，§4.18 UX-13）：文件大小 / 页数 / 单页元素 / 文档总元素超出**部署配置**给定上限（默认 200 MB / 200 / 1,000 / 20,000；`dimension` 依次为 `fileSize`/`slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 取值表一致）即**拒绝导入**并返回 `format.quota_exceeded`，不做只读降级打开；检测点见 §2.6。
 - OLE 预览提取：`mc:Fallback` 里的 `p:pic` 提取为 `Ole.preview`（M1 显示预览图；EMF/WMF 预览的栅格化属 M-07 的 M2 惰性 Worker，rulings §4.15 Q7）。
 - `mc:AlternateContent` 对象建模：`UnknownShape` 携带 `transform` 与渲染提示；删除（M1 P0）整体移除，移动/缩放（M2 P1）把新 `xfrm` 回写到每个分支（Choice 与 Fallback），PD-18 随之结案（rulings §4.15 Q7）。
 - `docProps/thumbnail.jpeg`：导入时原样保留供服务端取封面（M2，服务端只做头校验不解码，rulings §4.15 Q8）；导出时经 `encode()` 显式输入 `thumbnailJpeg?: BlobRef` 替换，缺省则 verbatim。
@@ -116,6 +116,41 @@ flowchart LR
 | BC-27（`server-headless`） | Conformist（加载与浏览器相同的 iso 插件，不改契约） | 无独立文件（直接 import 本模块两个包） | 同一份源码，无条件编译分支 |
 | BC-29（未来 `ooxml-docx`/`ooxml-xlsx`） | 样板关系（非依赖） | — | 目录结构与 `import/export/mapping` 三段式模式（§8） |
 
+**图 1-1 对外契约与上下游关系**
+
+```mermaid
+flowchart LR
+  subgraph up["上游契约方"]
+    drawing["BC-02 与 BC-05 model-core/drawing 值对象类型"]
+    modelCore["BC-05 model-core FormatCodec BlobStore SnapshotBundle"]
+    modelSlide["BC-06 model-slide PresentationBody"]
+  end
+  subgraph mod["本模块"]
+    core["BC-07 ooxml-core"]
+    pptx["BC-08 ooxml-pptx"]
+  end
+  subgraph down["消费方"]
+    pointFormat["core.format 贡献点"]
+    headless["BC-27 server-headless"]
+    slideRender["M-07 slide-render"]
+    future["BC-29 ooxml-docx 与 ooxml-xlsx"]
+  end
+  drawing -- "SharedKernel 只 import 类型" --> core
+  modelCore -- "CS FormatCodec 契约签名 SnapshotBundle" --> pptx
+  modelSlide -- "ACL PresentationBody 六表与 XML 互译" --> pptx
+  core -- "CS OpcPackage XmlDocument DrawingML 函数 DirtyTracker diffPackage" --> pptx
+  pptx -- "OHS 贡献 pptxCodec" --> pointFormat
+  core -- "Conformist 同一份 iso 源码" --> headless
+  pptx -- "Conformist 同一份 iso 源码" --> headless
+  core -- "只读 parseChartSpace 与 dsp:drawing 解析 C-28 经 Q7 放行" --> slideRender
+  core -. "复用 OPC XML DrawingML 与不透明保留引擎" .-> future
+  pptx -. "样板 import export mapping 三段式" .-> future
+```
+
+怎么读：箭头从契约提供方指向消费方，边上文字是关系类型（SharedKernel/CS/ACL/OHS/Conformist）与传递的契约；虚线是 M5 样板或复用关系，不是当前的运行时依赖。`slide-render` 直连 `ooxml-core` 只读解析一条取自 §1.1（rulings §4.15 Q7），§0 下游字段已按 rulings §4.18 FE-14 补列 M-07。
+
+依据：本节上表；§1.1；rulings §4.11 C-28 经 §4.15 Q7 修订。
+
 ## 2. 领域模型（ACL 模型改写）
 
 > 本节按总编排要求改写为 ACL 视角，跨越 BC-07/BC-08 两个上下文一并描述；§4/§5 再按包拆分落到具体文件。
@@ -131,33 +166,92 @@ flowchart LR
 | `Relationship`/`RelationshipTable` | 一个部件的 `.rels` | `{ id: RId; type; target; targetMode: 'Internal'\|'External' }`；不变量：`rId` 同 `.rels` 内唯一；**全部关系原样保留**（任意 `External` 目标——`http(s)`/`mailto:`/`file:`/相对路径——的 `Target` 字符串与 `TargetMode` 在重生成 `.rels` 时逐字带回，零编辑往返不丢，D7/OF-18、ADR-0008 决策 5），**仅 `http(s)` 可激活**（`isActivatableExternal(rel)`；超链接点击与外链资源加载只对其放行，OF-24/EM-14 安全约束）。M1 必修（rulings §4.15 Q7） | `ooxml-core/infrastructure/opc/relationships.ts` |
 | `XmlDocument`/`XmlElement` | 命名空间感知最小保真 DOM | `root: XmlElement`、`declaration`；不变量：保留前缀、属性顺序、空白文本、注释、PI（保真第一层） | `ooxml-core/infrastructure/xml/node.ts`、`parser.ts` |
 | `OpaqueXml`/`OpaquePartRef`（值对象，类型来自 M-03） | 不透明保留槽的载荷 | `OpaqueXml{ xml; anchor:{after,ordinal}; namespaces }`；`OpaquePartRef` = 未建模整部件的引用 | 生成/消费于 `ooxml-core/infrastructure/preserve/opaque.ts`；类型定义见 03 §2.2 |
-| `DirtyTracker` | 部件级脏追踪 | `registerPart(name, pathPrefixes)`、`markDirty(paths)`、`isDirty(name)`、`clear()` | `ooxml-core/infrastructure/preserve/dirty-tracker.ts` |
+| `DirtyTracker` | 部件级脏追踪 | `registerPart(name, pathPrefixes)`、`markDirty(paths)`、`markDirtyFrom(change)`、`isDirty(name)`、`clear()`；不变量：`markDirtyFrom` 忽略 `origin` 为 `system('load')`/`system('import')` 的 `ChangeSet`——渐进打开的后续批次追加不标脏，打开 200 页后零编辑导出零脏部件（rulings §4.18 CO-12） | `ooxml-core/infrastructure/preserve/dirty-tracker.ts` |
 | `PptxCodec`（`pptxCodec`，BC-08 聚合根） | 一个 `FormatCodec<PresentationBody>` 实例 | `id/documentType/mimeTypes/extensions/canImport/canExport/import/export`（§2.5） | `ooxml-pptx/interface/codec.ts` |
 | `OoxmlIdMap` | 导入/导出会话内的双向 id 映射 | `partName + cNvPrId ↔ NodeId`；缺失/冲突 → 分配并诊断 `format.pptx.id_collision_repaired` | `ooxml-pptx/domain/ids/ooxml-id-map.ts` |
 
-**PPTX 部件图**（建模 / 不透明 / 媒体三分类，对应 §4.1 部件级映射表）：
+**PPTX 部件图**（建模 / 不透明 / 媒体三分类，对应 §4.1 部件级映射表；原 ASCII 部件图按「建模与重生成」「不透明、媒体与拒绝」拆为下面两张）：
 
-```text
- OpcPackage
- ├── [Content_Types].xml, _rels/.rels              重生成（PartTable 派生）
- ├── ppt/presentation.xml ──────────────┐          建模 → Presentation
- ├── ppt/slideMasters/*.xml ────────────┼──────    建模 → SlideMaster ─┐
- ├── ppt/slideLayouts/*.xml ────────────┼──────    建模 → SlideLayout  ├─ OoxmlIdMap
- ├── ppt/slides/*.xml（懒解析）─────────┼──────    建模 → Slide        │  双向映射
- ├── ppt/theme/*.xml ───────────────────┘          建模 → Theme      ─┘
- ├── ppt/notesSlides|notesMasters|handoutMasters    不透明（+ 备注只读文本提取）
- ├── ppt/comments/*.xml                             不透明（M3 只读镜像 resources.comments.*）
- ├── ppt/charts/*.xml + embeddings/*.xlsx           不透明写回；ChartML 只读解析供渲染（ooxml-core）
- ├── ppt/charts/chartEx*.xml（cx:）                  不透明写回；不解析，渲染出占位 + chartex 诊断
- ├── ppt/media/*                                    MediaRef：内容寻址 blob，永不重生成
- ├── ppt/embeddings/*.bin|.docx（OLE）               不透明；mc:Fallback 的 p:pic → Ole.preview
- ├── ppt/diagrams/*.xml（SmartArt）                  不透明；drawing*.xml（dsp:）只读解析供渲染（M1）
- ├── ppt/fonts/*.fntdata                            不透明写回；M2 解混淆 + fsType 判定后只读加载
- ├── ppt/tags|customXml                             不透明
- ├── ppt/vbaProject.bin（宏）                        命中即拒绝导入 format.macro_rejected（Q15，rulings §4.16）
- └── docProps/{core,app,custom,thumbnail}            core 建模；其余不透明（派生部件白名单）；
-                                                    thumbnail.jpeg 可由 encode 的 thumbnailJpeg 显式替换
+**图 2-3 PPTX 部件图之一 建模与重生成部件**
+
+```mermaid
+flowchart LR
+  partTable["PartTable 派生"]
+  subgraph opc["OpcPackage 建模与重生成部件"]
+    partCt["Content_Types.xml 与 _rels/.rels"]
+    partPres["ppt/presentation.xml"]
+    partMaster["ppt/slideMasters/*.xml"]
+    partLayout["ppt/slideLayouts/*.xml"]
+    partSlide["ppt/slides/*.xml Worker 分批解析"]
+    partTheme["ppt/theme/*.xml"]
+    partDocCore["docProps/core.xml"]
+  end
+  subgraph model["建模目标"]
+    entPres["Presentation"]
+    entMaster["SlideMaster"]
+    entLayout["SlideLayout"]
+    entSlide["Slide"]
+    entTheme["Theme"]
+    entCore["core 文档属性"]
+  end
+  idMap["OoxmlIdMap 双向映射"]
+  partTable -- "重生成" --> partCt
+  partPres -- "建模" --> entPres
+  partMaster -- "建模" --> entMaster
+  partLayout -- "建模" --> entLayout
+  partSlide -- "建模" --> entSlide
+  partTheme -- "建模" --> entTheme
+  partDocCore -- "建模" --> entCore
+  entMaster -.- idMap
+  entLayout -.- idMap
+  entSlide -.- idMap
+  entTheme -.- idMap
 ```
+
+怎么读：实线是「部件 → 建模实体」的导入方向，`[Content_Types].xml`（Mermaid 标签内省去方括号）与 `_rels/.rels` 不 verbatim、始终由 `PartTable` 重生成；虚线表示 `SlideMaster`/`SlideLayout`/`Slide`/`Theme` 四类实体经 `OoxmlIdMap` 与部件内 id 双向映射（原图括号范围：母版至主题，不含 `presentation.xml`）。
+
+**图 2-4 PPTX 部件图之二 不透明、媒体与拒绝部件**
+
+```mermaid
+flowchart LR
+  subgraph parts["OpcPackage 其余部件"]
+    pNotes["ppt/notesSlides notesMasters handoutMasters"]
+    pComments["ppt/comments/*.xml"]
+    pCharts["ppt/charts/*.xml 与 embeddings/*.xlsx"]
+    pChartEx["ppt/charts/chartEx*.xml cx 命名空间"]
+    pMedia["ppt/media/*"]
+    pOle["ppt/embeddings/*.bin 或 .docx OLE"]
+    pDiagrams["ppt/diagrams/*.xml SmartArt"]
+    pFonts["ppt/fonts/*.fntdata"]
+    pTags["ppt/tags 与 customXml"]
+    pVba["ppt/vbaProject.bin 宏"]
+    pDocOther["docProps/app custom thumbnail"]
+  end
+  cOpaque["不透明 原样写回"]
+  cReadOnly["只读路径 供渲染 不写回 不进模型"]
+  cMedia["MediaRef 内容寻址 blob 永不重生成"]
+  cPreview["Ole.preview 预览图"]
+  cReject["命中即拒绝导入 format.macro_rejected"]
+  pNotes -- "不透明 加备注只读文本提取" --> cOpaque
+  pComments -- "不透明 M3 只读镜像 resources.comments.*" --> cOpaque
+  pCharts -- "不透明写回" --> cOpaque
+  pCharts -- "ChartML 只读解析 ooxml-core" --> cReadOnly
+  pChartEx -- "不透明写回 不解析 渲染出占位加 chartex 诊断" --> cOpaque
+  pMedia --> cMedia
+  pOle -- "不透明" --> cOpaque
+  pOle -- "mc:Fallback 的 p:pic" --> cPreview
+  pDiagrams -- "不透明" --> cOpaque
+  pDiagrams -- "drawing*.xml 即 dsp 命名空间 M1 只读解析" --> cReadOnly
+  pFonts -- "不透明写回" --> cOpaque
+  pFonts -- "M2 解混淆加 fsType 判定后只读加载" --> cReadOnly
+  pTags -- "不透明" --> cOpaque
+  pVba -- "Q15 rulings §4.16" --> cReject
+  pDocOther -- "不透明 派生部件白名单" --> cOpaque
+```
+
+怎么读：每个部件指向它的处理类别；同一部件有两条出边时两条路径并存（如图表部件既原样写回、又被 `ooxml-core` 只读解析供渲染）。`docProps/thumbnail.jpeg` 虽归不透明类，但可由 `encode` 的 `thumbnailJpeg` 显式替换（§2.2 `EncodeInputs`）。
+
+依据：本节原 ASCII 部件图；§1.1 BC-07/BC-08 职责；rulings §4.15 Q7/Q8、§4.16 Q15。
 
 ### 2.2 值对象
 
@@ -175,7 +269,7 @@ flowchart LR
 | `FontEmbeddingPermission` | `'installable' \| 'editable' \| 'preview-print' \| 'restricted'`（OS/2 `fsType` 位 0x0000/0x0008/0x0004/0x0002，多位并存取最严）；`usage = installable\|editable ? 'edit' : 'render-only'` | 判别字面量 | `ooxml-core/infrastructure/fonts/embedded-font.ts` | 本包（M2） |
 | `PartClassification` | `'modeled' \| 'opaque-part' \| 'media'` | 判别字面量 | `ooxml-pptx/domain/classify.ts` | 本包（ooxml-pptx） |
 | `WriteBackStrategy` | `'preserve-consistency-class' \| 'transitional-fallback'` | 判别字面量 | `ooxml-pptx/domain/conformance-strategy.ts` | 本包（ooxml-pptx） |
-| `PptxCodecConfig` | `{ lazySlides: boolean; zipLimits?: Partial<ZipLimits>; strictWriteBack: 'preserve'\|'transitional'; envelope?: Partial<ImportEnvelope> }` | zod（`core.format` 贡献 schema 的插件配置部分；`envelope` 由组合根从部署配置注入） | `ooxml-pptx/domain/config.ts` | 本包（ooxml-pptx） |
+| `PptxCodecConfig` | `{ progressive: boolean; batchSize: number; zipLimits?: Partial<ZipLimits>; strictWriteBack: 'preserve'\|'transitional'; envelope?: Partial<ImportEnvelope> }`（`progressive` 取代原 `lazySlides`：不再是「Store 内按需物化」，而是 Worker 分批回传、主线程首批装载后台追加，rulings §4.18 CO-12） | zod（`core.format` 贡献 schema 的插件配置部分；`envelope` 由组合根从部署配置注入） | `ooxml-pptx/domain/config.ts` | 本包（ooxml-pptx） |
 | `ImportEnvelope` | `{ maxSlides=200; maxElementsPerSlide=1000; maxElementsTotal=20000 }`（rulings §4.15 Q5 系统天花板；部署配置**完全可调**，调高超出性能保证包络时由装配方告警、性能承诺不再成立，本模块只按传入值判定） | zod | `ooxml-pptx/domain/import-envelope.ts` | 本包（ooxml-pptx） |
 | `EncodeInputs` | `{ thumbnailJpeg?: BlobRef }`（rulings §4.15 Q8；由 `export-pipeline` 在调用前解析为字节随调用传入，`encode` 自身不做 IO） | 纯类型 | `ooxml-pptx/infrastructure/export/writer.ts` | 本包（ooxml-pptx） |
 | `OoxmlIds`（`{ cNvPrId?: number; creationId?: string }`） | 见 03 §2.2 | zod | 类型定义在 `model-slide/src/ids.ts`（M-03），本包只读写 | Conformist |
@@ -281,19 +375,60 @@ export const pptxCodec: FormatCodec<PresentationBody> = {
 
 | 服务 | 职责 | 所在文件 |
 |---|---|---|
-| 导入管线 | `bytes → OpcPackage.open → 定位 presentation 部件 → 遍历 rels 图 → classifyPart → 按类型分派到 infrastructure/import/* → 组装 PresentationBody + opaqueParts + media → SnapshotBundle` | `ooxml-pptx/application/import-pipeline.ts` |
+| 导入管线 | `bytes → OpcPackage.open → 定位 presentation 部件 → 遍历 rels 图 → classifyPart → 按类型分派到 infrastructure/import/* → 组装 PresentationBody + opaqueParts + media → SnapshotBundle`；渐进打开（`progressive:true`，M-02 `importProgressive`）时整条管线在 `import.worker.ts` 内运行：全量轻量计数 → 首批（主题/母版/版式 + 首页）回传 → 其余页按 order 每批 `batchSize` 页回传，`prioritize(slideId)` 抢占（rulings §4.18 CO-12/CO-11） | `ooxml-pptx/application/import-pipeline.ts` |
 
 **加密包拒绝的检测点**（rulings §4.16 Q15，2026-09-24 复核 H6；`checkNotEncrypted` 纯函数）：导入管线**第一步**、`OpcPackage.open` 之前执行——CFB 魔数命中且目录含 `EncryptionInfo`/`EncryptedPackage` 流即 `Result.err(format.encrypted{container:'cfb'})`（HTTP 415，经 `unit/open-failed` 上报，界面提示「请先去除密码再导入」）；不尝试解密、不进入 zip 解析，因而不会被误报为无效包/zip 解析失败。服务端上传导入与浏览器本地打开走同一纯函数。
 
 **宏包拒绝的检测点**（rulings §4.16 Q15；`checkMacroFree` 纯函数）：`OpcPackage.open` 读完 `[Content_Types].xml` 与中央目录（部件名列表）之后、解析 `ppt/presentation.xml` 与任何页之前执行；命中即 `Result.err(format.macro_rejected{reason})`（HTTP 415，经 `unit/open-failed` 上报，界面提示「请另存为 .pptx 后再导入」），不解压 `vbaProject.bin` 本体、不产出 `SnapshotBundle`。服务端上传导入与浏览器本地打开走同一纯函数。
 
-**导入规模包络检查的检测点**（rulings §4.15 Q5；`checkImportEnvelope` 纯函数，上限取自 `PptxCodecConfig.envelope`，即部署配置）：
+**导入规模上限（系统天花板）检查的检测点**（rulings §4.15 Q5、§4.18 UX-13；`checkImportEnvelope` 纯函数，名称沿用，上限取自 `PptxCodecConfig.envelope`，即部署配置的系统天花板）：
 0. **读入字节后、`checkNotEncrypted` 之后**：`bytes.byteLength > maxFileSize` → `Result.err(format.quota_exceeded{dimension:'fileSize'})`（服务端上传入口先按同一上限拒收，M-12）。
 1. **`ZipLimits` 之后、解析任何页之前**：`ppt/presentation.xml` 的 `p:sldIdLst` 条目数 > `maxSlides` → 立即 `Result.err(format.quota_exceeded{dimension:'slides'})`，不解压任何 `ppt/slides/*`。
-2. **建懒解析索引时**（`infrastructure/import/lazy.ts`）：对每个 slide 部件做一次只计数不物化的轻量扫描（`p:sp`/`p:pic`/`p:graphicFrame`/`p:grpSp`/`p:cxnSp`/`mc:AlternateContent`/`p:contentPart`，组内子元素逐个计入，与 `model-slide` 的 `maxElementsPerDoc` 计数口径一致），逐页累加；首个超出 `maxElementsPerSlide` 或累计超出 `maxElementsTotal` 即中止并返回 `format.quota_exceeded{dimension:'elementsPerSlide'|'elementsTotal'}`。懒解析不豁免这一步——包络判定必须在返回 `SnapshotBundle` 之前完成。
-3. 超包络一律**拒绝导入**（HTTP 413，经 `unit/open-failed` 上报），不做「只读打开」降级；母版/版式上的元素是否计入总数随 `model-slide` 的 `maxElementsPerDoc` 口径（未定，见 §13 Q-7）。
+2. **Worker 排程之初、首批回传之前**（`infrastructure/import/lazy.ts`）：对每个 slide 部件做一次只计数不物化的轻量扫描（`p:sp`/`p:pic`/`p:graphicFrame`/`p:grpSp`/`p:cxnSp`/`mc:AlternateContent`/`p:contentPart`，组内子元素逐个计入，与 `model-slide` 的 `maxElementsPerDoc` 计数口径一致），逐页累加；首个超出 `maxElementsPerSlide` 或累计超出 `maxElementsTotal` 即中止并返回 `format.quota_exceeded{dimension:'elementsPerSlide'|'elementsTotal'}`。渐进打开不豁免这一步——天花板判定必须在回传首批 `SnapshotBundle` 之前对**全部页**完成，超限整体拒绝，不会装到一半才失败（rulings §4.18 CO-12）。
+3. 超系统天花板一律**拒绝导入**（HTTP 413，经 `unit/open-failed` 上报），不做「只读打开」降级；`ImportEnvelope` 的取值是系统天花板而非性能保证包络——超出性能包络但未到天花板的文件照常打开，只由装配方告警（rulings §4.18 UX-13）；母版/版式上的元素是否计入总数随 `model-slide` 的 `maxElementsPerDoc` 口径（未定，见 §13 Q-7）。
 | 导出管线 | `unitScope.store.state() → 解析 BlobRef（含可选 thumbnailJpeg）→ 取/建 baselinePackage → 调用纯函数 encode(…, { thumbnailJpeg }) → OPC 写出 bytes` | `ooxml-pptx/application/export-pipeline.ts` |
-| 保真报告生成 | 复用 `ooxml-core/testing/diffPackage` 产出 `PartDiff[]`，供 CI job `fidelity-roundtrip`（M1 零编辑、M2 起随机单元素编辑）与保真诊断面板（PRD MT-02）消费 | `ooxml-pptx/testing/roundtrip.ts` |
+| 保真报告生成 | 复用 `ooxml-core/testing/diffPackage` 产出 `PartDiff[]`，供 `test` job 的 `fidelity-roundtrip` 步骤（M1 零编辑、M2 起随机单元素编辑；CI job 名维持 13 个封闭集合，rulings §4.18 GV-14）与保真诊断面板（PRD MT-02）消费 | `ooxml-pptx/testing/roundtrip.ts` |
+
+**图 2-5 导入准入检查时序**
+
+```mermaid
+sequenceDiagram
+  participant caller as units.open 或服务端上传导入
+  participant pipeline as application/import-pipeline
+  participant admission as domain/import-admission
+  participant envelope as domain/import-envelope
+  participant opc as ooxml-core OpcPackage
+  participant lazy as Worker 内 lazy.ts 排程
+  caller->>pipeline: bytes
+  pipeline->>admission: checkNotEncrypted 读 CFB 头
+  alt CFB 且含 EncryptionInfo 或 EncryptedPackage
+    admission-->>pipeline: err format.encrypted 415 不进入 zip 解析
+  end
+  pipeline->>envelope: 字节数对比 maxFileSize
+  alt 超限
+    envelope-->>pipeline: err format.quota_exceeded dimension fileSize
+  end
+  pipeline->>opc: OpcPackage.open 按 ZipLimits
+  opc-->>pipeline: Content_Types 与中央目录部件名
+  pipeline->>admission: checkMacroFree
+  alt 命中宏扩展名 或 macroEnabled 或 vbaProject
+    admission-->>pipeline: err format.macro_rejected 415 不解压宏部件
+  end
+  pipeline->>envelope: sldIdLst 条目数对比 maxSlides
+  alt 超限
+    envelope-->>pipeline: err format.quota_exceeded dimension slides
+  end
+  pipeline->>lazy: 全部页只计数不物化 在首批回传之前
+  alt 单页或累计元素超限
+    lazy-->>pipeline: err format.quota_exceeded elementsPerSlide 或 elementsTotal
+  end
+  pipeline-->>caller: 首批 SnapshotBundle 其余页按批次追加
+  Note over caller,pipeline: 任一 err 经 unit/open-failed 上报 超天花板为 413 不做只读降级
+```
+
+怎么读：自上而下即四个检测点的执行先后——加密检测先于 zip 解析，宏检测在读完内容类型与中央目录之后、解析 `presentation.xml` 之前，页数与全部页的元素计数在回传首批 `SnapshotBundle` 之前完成（渐进打开的后续批次只在全部检测通过后才开始，rulings §4.18 CO-12）；每个 `alt` 框表示命中即短路返回，不再执行后续步骤。
+
+依据：本节「加密包拒绝」「宏包拒绝」「导入规模上限检查」三段；rulings §4.15 Q5、§4.16 Q15、§4.18 CO-12/UX-13。
 
 **图 2-2 导入导出管线**
 
@@ -337,7 +472,7 @@ flowchart LR
 | 贡献点：提供 | `core.format`，item = `pptxCodec`（`id='ooxml-pptx'`），`key: (codec) => codec.id`，`conflict: 'error'`（同 id 二次贡献即报错，防止重复注册） |
 | 贡献点：消费 | 无 |
 | 事件：发布 / 订阅 | 均无（§2.4：诊断经返回值向上传递，由 `formats`/`units` 服务转译） |
-| 配置 schema | `PptxCodecConfig{ lazySlides: boolean = true; zipLimits?: Partial<ZipLimits>; strictWriteBack: 'preserve'\|'transitional' = 'preserve'; envelope?: Partial<ImportEnvelope> }`（zod，§2.2；`envelope` 缺省取 200 MB / 200 / 1,000 / 20,000（`maxFileSize`/`maxSlides`/`maxElementsPerSlide`/`maxElementsTotal`），由组合根从部署配置注入） |
+| 配置 schema | `PptxCodecConfig{ progressive: boolean = true; batchSize: number = 8; zipLimits?: Partial<ZipLimits>; strictWriteBack: 'preserve'\|'transitional' = 'preserve'; envelope?: Partial<ImportEnvelope> }`（zod，§2.2；`envelope` 缺省取 200 MB / 200 / 1,000 / 20,000（`maxFileSize`/`maxSlides`/`maxElementsPerSlide`/`maxElementsTotal`），由组合根从部署配置注入） |
 | 生命周期 | `ready` 时向 `core.format` 贡献一次；`dispose` 时 cordis 自动调用 `contribute()` 返回的 disposer 撤销贡献；不持有 `UnitScope` 内状态——编解码函数按调用独立，无跨请求可变状态（`no-module-level-mutable-state`） |
 | Manifest 片段 | `{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx"] }, "unitScoped": false }` |
 
@@ -350,6 +485,45 @@ flowchart LR
 ### 4.1 `@cordexjs/ooxml-core`
 
 按 00-module-map §1「哪类包可以不设 `domain/`」规则 2（纯库包）：无业务规则、只有工具函数/编解码算法，**不设 `domain/`/`application/`/`interface/`**，全部实现内容归入 `infrastructure/`（规则 2 给出的两个选项中取「视全部内容为 `infrastructure/`」，而非彻底摊平，以便与本文档其余部分及未来 `ooxml-docx`/`ooxml-xlsx` 保持同一套物理约定）；`testing/` 与 `__tests__/` 独立于 `infrastructure/` 之外，两者都是所有包无条件必需的顶层目录。
+
+**图 4-1 ooxml-core 子目录依赖**
+
+```mermaid
+flowchart LR
+  subgraph infra["infrastructure"]
+    opc["opc"]
+    xml["xml"]
+    drawingml["drawingml"]
+    chartml["chartml"]
+    diagramml["diagramml"]
+    preserve["preserve"]
+    fonts["fonts 无外部依赖"]
+    units["units.ts"]
+    errors["errors.ts"]
+  end
+  testing["testing"]
+  fflate["fflate"]
+  mcDrawing["@cordexjs/model-core/drawing"]
+  shared["@cordexjs/shared/units"]
+  kernel["@cordexjs/kernel errors"]
+  opc -- "content-types relationships" --> xml
+  opc -- "zip.ts" --> fflate
+  chartml --> xml
+  diagramml --> xml
+  diagramml --> drawingml
+  diagramml -- "types.ts" --> mcDrawing
+  drawingml -- "只 import 类型" --> mcDrawing
+  preserve -- "opaque.ts" --> xml
+  preserve -- "verbatim.ts" --> opc
+  units --> shared
+  errors --> kernel
+  testing --> opc
+  testing --> xml
+```
+
+怎么读：箭头为 import 方向（依赖方 → 被依赖方），边上文字标出发起依赖的具体文件；只有 `opc/zip.ts` 引入第三方 `fflate`，全部 DrawingML 运行时类型来自 `model-core/drawing`，本包不重定义。
+
+依据：§5.1 各文件「允许依赖」列。
 
 ```text
 packages/ooxml-core/
@@ -404,7 +578,7 @@ packages/ooxml-core/
 │   │   ├── preserve/
 │   │   │   ├── opaque.ts              captureUnknown/reinsert；被触碰元素自身 extensions 同样经此回写（CS-06）
 │   │   │   ├── schema-order.ts        主要 CT_* 复杂类型子元素顺序（由 ECMA-376 XSD 编译，仅覆盖已建模类型）
-│   │   │   ├── dirty-tracker.ts       DirtyTracker：registerPart/markDirty/isDirty/clear
+│   │   │   ├── dirty-tracker.ts       DirtyTracker：registerPart/markDirty/markDirtyFrom/isDirty/clear（忽略 system load/import 来源，§4.18 CO-12）
 │   │   │   └── verbatim.ts            原字节保留：Part 读入即 sha256 → BlobRef；导出时干净部件按 ref 取回
 │   │   ├── units.ts                   ST_Coordinate/ST_Angle/ST_Percentage/ST_TextFontSize 词法 ↔ 品牌数值
 │   │   ├── diagnostics.ts             ImportDiagnostic、DiagnosticsCollector
@@ -423,6 +597,48 @@ packages/ooxml-core/
 ```
 
 ### 4.2 `@cordexjs/ooxml-pptx`
+
+**图 4-2 ooxml-pptx 分层依赖**
+
+```mermaid
+flowchart LR
+  plugin["plugin.ts"]
+  iface["interface/codec.ts"]
+  appImport["application/import-pipeline"]
+  appExport["application/export-pipeline"]
+  domain["domain 判定规则与值对象"]
+  infraImport["infrastructure/import"]
+  infraExport["infrastructure/export"]
+  infraMapping["infrastructure/mapping"]
+  testing["testing/roundtrip.ts"]
+  core["@cordexjs/ooxml-core"]
+  coreTesting["ooxml-core/testing diffPackage"]
+  modelSlide["@cordexjs/model-slide"]
+  blobStore["BlobStore M-02"]
+  plugin --> iface
+  iface --> appImport
+  iface --> appExport
+  iface -- "config.ts" --> domain
+  appImport --> domain
+  appImport --> infraImport
+  appImport --> core
+  appExport --> domain
+  appExport --> infraExport
+  infraImport --> core
+  infraImport --> modelSlide
+  infraImport -- "media.ts" --> blobStore
+  infraImport -- "ids lazy" --> domain
+  infraExport --> core
+  infraExport -- "PresentationBody 类型" --> modelSlide
+  infraExport -- "ids conformance-strategy" --> domain
+  infraMapping -- "dirty-tracker" --> core
+  domain -- "Part Relationship errors" --> core
+  testing --> coreTesting
+```
+
+怎么读：箭头为 import 方向；自左向右是 `plugin → interface → application → domain/infrastructure` 的分层，导入、导出两侧都读 `model-slide` 的类型（导入产出 `PresentationBody`，导出以它为输入，rulings §4.18 FE-19），ACL 仍然单向——`model-slide` 从不反向认识 XML；全部 OPC/XML 能力都向下落到 `ooxml-core`。
+
+依据：§5.2 各文件「允许依赖」列。
 
 不属于 00-module-map §1 的四类豁免（非纯 Provider、非纯库、非纯装配 bundle、非框架绑定），按完整 DDD 五层重排：`domain/` 承载 id 映射、部件分类、一致性写回策略、编解码器配置这四类**无 IO 的判定规则**；`application/` 是导入/导出两条管线的编排入口（对应 `FormatCodec.import/export` 签名）；`infrastructure/` 是按 OOXML 部件类型逐一实现的解析器/生成器（技术细节，体量最大）；`interface/` 只有一个文件——对外暴露的 `pptxCodec` 实例。根目录保留 `plugin.ts`/`manifest.ts`/`errors.ts`/`diagnostics.ts` 等跨切面文件，与 `model-slide`（03 §4）的组织惯例一致。
 
@@ -451,7 +667,7 @@ packages/ooxml-pptx/
 │   │   ├── conformance-strategy.ts    WriteBackStrategy 类型 + chooseWriteBackStrategy()（架构 04 §4.4 三案）
 │   │   ├── config.ts                  PptxCodecConfig schema（zod，§2.2）
 │   │   ├── import-admission.ts        checkNotEncrypted()：CFB+EncryptionInfo → format.encrypted；checkMacroFree()：.pptm / macroEnabled / vbaProject.bin → format.macro_rejected（rulings §4.16 Q15）
-│   │   └── import-envelope.ts         ImportEnvelope + checkImportEnvelope()：超包络拒绝导入 format.quota_exceeded（rulings §4.15 Q5）
+│   │   └── import-envelope.ts         ImportEnvelope（= 系统天花板，非性能保证包络）+ checkImportEnvelope()：超天花板拒绝导入 format.quota_exceeded（rulings §4.15 Q5、§4.18 UX-13）
 │   ├── application/                   # 管线编排（§2.6）
 │   │   ├── import-pipeline.ts         importPptx(bytes, blobs, opts) → Result<ImportResult<PresentationBody>>
 │   │   └── export-pipeline.ts         exportPptx(unitScope, opts) → Result<Uint8Array>；解析 BlobRef、取 baselinePackage 后调用纯 encode()
@@ -460,7 +676,7 @@ packages/ooxml-pptx/
 │   │   │   ├── presentation.ts        ppt/presentation.xml → Presentation
 │   │   │   ├── master.ts              ppt/slideMasters/*.xml → SlideMaster
 │   │   │   ├── layout.ts              ppt/slideLayouts/*.xml → SlideLayout
-│   │   │   ├── slide.ts               ppt/slides/*.xml → Slide（懒解析入口）
+│   │   │   ├── slide.ts               ppt/slides/*.xml → Slide（由 lazy.ts 排程逐页调用）
 │   │   │   ├── theme.ts               ppt/theme/*.xml → Theme
 │   │   │   ├── shape-tree.ts          p:spTree → shapes 表；按 kind 分派；mc:AlternateContent → UnknownShape（transform + 渲染提示；cx → chartex 占位）
 │   │   │   ├── placeholder.ts         p:ph 解析与 layout/master 占位符索引
@@ -473,7 +689,9 @@ packages/ooxml-pptx/
 │   │   │   ├── embedded-fonts.ts      M2：p:embeddedFontLst → 字体条目 + usage（edit / render-only，按 fsType）；超限跳过并诊断
 │   │   │   ├── comments.ts            M3：现代评论部件 → resources['slide-comments.threads']；M1–M2 仅不透明保留
 │   │   │   ├── ids.ts                 cNvPr/@id + a16:creationId → NodeId 分配（调用 domain/ids）
-│   │   │   └── lazy.ts                懒解析：先建 slide 索引，内容按需物化
+│   │   │   ├── lazy.ts                Worker 内解析顺序与抢占：全量轻量计数 → 主题/母版/版式 → 首页 → 其余页按 order 每批 batchSize 页；prioritize 抢占（§4.18 CO-12/CO-11）
+│   │   │   ├── import.worker.ts       Worker 入口：在 Worker 内跑 importPptxProgressive，结构化克隆回传批次（§4.18 CO-12）
+│   │   │   └── batch-protocol.ts      主线程 ↔ Worker 分批协议：start / batch / prioritize / cancel / done / error 消息 schema
 │   │   ├── export/
 │   │   │   ├── writer.ts              encode(snapshot, baselinePackage, dirty, { thumbnailJpeg? }) → OpcPackage（纯函数，§2.3、架构 08 §16.2）
 │   │   │   ├── presentation.ts        Presentation → XML
@@ -510,7 +728,7 @@ packages/ooxml-pptx/
 
 ## 5. 文件职责表
 
-> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@cordexjs/kernel`/`@cordexjs/shared`（除显式列出用于强调的行）。
+> 逐文件一行，与 §4 一一对应；「允许依赖」省略 `@cordexjs/kernel`/`@cordexjs/shared`（除显式列出用于强调的行）——章程 §5.2 上限列对非 L0 包隐式允许 kernel/shared/protocol（rulings §4.18 FE-02），故省略不构成越界；`ooxml-pptx` → `model-core`（`BlobStore`、`ChangeSet` 等类型）已按 FE-02 补入章程上限列。
 
 ### 5.1 `@cordexjs/ooxml-core`
 
@@ -550,7 +768,7 @@ packages/ooxml-pptx/
 | `infrastructure/fonts/embedded-font.ts` | 内嵌字体解混淆与嵌入许可 | `deobfuscateFont`、`readFsType`、`FontEmbeddingPermission` | — | M2（OF-17）；`restricted`/`preview-print` 仅只读渲染；单 ≤ 20 MB、总 ≤ 60 MB |
 | `infrastructure/preserve/opaque.ts` | 未知内容捕获/插回 | `captureUnknown`、`reinsert` | `xml/*`、`schema-order.ts` | 元素级保留（CS-06） |
 | `infrastructure/preserve/schema-order.ts` | 子元素顺序表 | `SCHEMA_ORDER` | — | 由 XSD 编译生成 |
-| `infrastructure/preserve/dirty-tracker.ts` | 脏部件追踪 | `DirtyTracker` | — | |
+| `infrastructure/preserve/dirty-tracker.ts` | 脏部件追踪 | `DirtyTracker` | `@cordexjs/model-core`（`ChangeSet`/`Origin` 类型） | `markDirtyFrom` 忽略 `system('load'\|'import')` 来源（rulings §4.18 CO-12） |
 | `infrastructure/preserve/verbatim.ts` | 原字节保留 | `verbatimRef` | `opc/part.ts` | sha256 → BlobRef |
 | `infrastructure/units.ts` | OOXML 单位词法 | `parseCoordinate`/`parseAngle`/`parsePercentage` | `@cordexjs/shared/units` | "50%" 与 50000 两种记法 |
 | `infrastructure/diagnostics.ts` | 诊断类型与收集器 | `ImportDiagnostic`、`DiagnosticsCollector` | — | |
@@ -563,7 +781,7 @@ packages/ooxml-pptx/
 | `__tests__/xml-parser-roundtrip.property.test.ts` | 往返 property | — | `testing/*` | fast-check |
 | `__tests__/zip-limits.test.ts` | 限额诊断 | — | `opc/zip.ts` | 超限 → 诊断而非崩溃 |
 | `__tests__/relationships-external.test.ts` | 外部关系保留 | — | `opc/relationships.ts` | `mailto:`/`file:`/相对目标零编辑往返逐字保留；激活判定仅 `http(s)`（M1 必修） |
-| `__tests__/dirty-tracker.test.ts` | 脏追踪单测 | — | `preserve/dirty-tracker.ts` | |
+| `__tests__/dirty-tracker.test.ts` | 脏追踪单测 | — | `preserve/dirty-tracker.ts` | 含「`system('import')` 批次不标脏」用例（§4.18 CO-12） |
 
 ### 5.2 `@cordexjs/ooxml-pptx`
 
@@ -578,15 +796,15 @@ packages/ooxml-pptx/
 | `domain/ids/ooxml-id-map.ts` | id 双向映射 | `OoxmlIdMap`、`createIdMap`/`allocateId`/`lookupId` | — | ADR-0014 |
 | `domain/classify.ts` | 部件分类 | `PartClassification`、`classifyPart` | `ooxml-core` `Part`/`Relationship` | 纯函数 |
 | `domain/conformance-strategy.ts` | 写回策略决策 | `WriteBackStrategy`、`chooseWriteBackStrategy` | — | 架构 04 §4.4 三案 |
-| `domain/config.ts` | 编解码器配置 | `PptxCodecConfig`（zod） | — | `lazySlides`/`zipLimits`/`strictWriteBack`/`envelope` |
+| `domain/config.ts` | 编解码器配置 | `PptxCodecConfig`（zod） | — | `progressive`/`batchSize`/`zipLimits`/`strictWriteBack`/`envelope`（`progressive` 取代 `lazySlides`，§4.18 CO-12） |
 | `domain/import-admission.ts` | 加密包与宏包拒绝判定 | `checkNotEncrypted`、`checkMacroFree` | `ooxml-core` errors | 纯函数；`checkNotEncrypted` 为导入管线第一步（CFB 魔数 + `EncryptionInfo`/`EncryptedPackage` 流 → `format.encrypted`，复核 H6）；`.pptm`/macroEnabled/`vbaProject.bin` → `format.macro_rejected`（§4.16 Q15）；均在包络检查（`fileSize` 除外）之前执行 |
-| `domain/import-envelope.ts` | 导入规模包络判定 | `ImportEnvelope`、`checkImportEnvelope` | `ooxml-core` errors | 纯函数；超限拒绝导入 `format.quota_exceeded{dimension}`（§4.15 Q5；`fileSize`/`slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 一致）；上限来自部署配置 |
-| `application/import-pipeline.ts` | 导入编排 | `importPptx` | `domain/**`、`infrastructure/import/**`、`ooxml-core` | 对应 `FormatCodec.import`；宏包拒绝与两处包络检测点见 §2.6 |
+| `domain/import-envelope.ts` | 导入规模上限（系统天花板）判定 | `ImportEnvelope`、`checkImportEnvelope`（名称沿用，语义是系统天花板而非性能保证包络，rulings §4.18 UX-13） | `ooxml-core` errors | 纯函数；超天花板拒绝导入 `format.quota_exceeded{dimension}`（§4.15 Q5；`fileSize`/`slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 一致）；上限来自部署配置 |
+| `application/import-pipeline.ts` | 导入编排 | `importPptx`、`importPptxProgressive` | `domain/**`、`infrastructure/import/**`、`ooxml-core` | 对应 `FormatCodec.import` 与可选的 `importProgressive`（M-02 §2.2 `ProgressiveImport`；在 Worker 内运行，经 `batch-protocol.ts` 回传首批与后续批次，rulings §4.18 CO-12）；宏包拒绝与天花板检测点见 §2.6 |
 | `application/export-pipeline.ts` | 导出编排 | `exportPptx` | `domain/**`、`infrastructure/export/**` | 对应 `FormatCodec.export`；解析 BlobRef 后调用纯 `encode()` |
 | `infrastructure/import/presentation.ts` | 演示文稿部件解析 | `parsePresentation` | `ooxml-core`、`model-slide` | `sldSz`/`defaultTextStyle`/`kinsoku` |
 | `infrastructure/import/master.ts` | 母版解析 | `parseMaster` | `ooxml-core`、`model-slide` | |
 | `infrastructure/import/layout.ts` | 版式解析 | `parseLayout` | `ooxml-core`、`model-slide` | |
-| `infrastructure/import/slide.ts` | 页解析 | `parseSlide` | 同上、`lazy.ts` | 懒解析入口 |
+| `infrastructure/import/slide.ts` | 页解析 | `parseSlide` | 同上、`lazy.ts` | 由 `lazy.ts` 排程逐页调用 |
 | `infrastructure/import/theme.ts` | 主题解析 | `parseTheme` | 同上、`lazy.ts` | formatScheme 3×4 |
 | `infrastructure/import/shape-tree.ts` | 形状树解析 | `parseShapeTree` | `placeholder.ts`、`table.ts`、`chart.ts`、`ole.ts`、`diagram.ts`、`ooxml-core/xml/mce.ts` | 顶层 order 等距 FracKey；`mc:AlternateContent` → `UnknownShape{ transform; renderHint }`（`transform` 取被选分支的 `xfrm`；`renderHint`：`'branch'`=渲染被选分支、`'chartex-placeholder'`=占位 + `chartex_unsupported` 诊断；整体另存 OpaqueXml） |
 | `infrastructure/import/placeholder.ts` | 占位符解析 | `parsePlaceholder`、`indexPlaceholders` | — | |
@@ -599,14 +817,16 @@ packages/ooxml-pptx/
 | `infrastructure/import/embedded-fonts.ts` | 内嵌字体条目解析 | `parseEmbeddedFonts` | `ooxml-core/fonts/embedded-font.ts` | M2（OF-17）；按 `fsType` 标 `usage: 'edit'\|'render-only'`（受限字体编辑态用回退字体）；超限跳过 + `embedded_font_skipped`；字体部件本身 verbatim |
 | `infrastructure/import/comments.ts` | 评论部件解析 | `parseComments` | — | M3；M1–M2 仅不透明 |
 | `infrastructure/import/ids.ts` | id 分配（导入侧） | `assignImportIds` | `domain/ids/ooxml-id-map.ts` | |
-| `infrastructure/import/lazy.ts` | 懒解析索引 | `buildLazyIndex` | `slide.ts`、`domain/import-envelope.ts` | 建索引时逐页轻量计数元素，供包络检测点 2 |
-| `infrastructure/export/writer.ts` | 纯导出核心 | `encode`、`EncodeInputs` | `ooxml-core`、`preserve/*` | 纯函数（架构 08 §16.2）；`thumbnailJpeg?: BlobRef` 显式输入（§4.15 Q8） |
-| `infrastructure/export/presentation.ts` | 演示文稿生成 | `writePresentation` | `ooxml-core` | |
-| `infrastructure/export/master.ts` | 母版生成 | `writeMaster` | `ooxml-core` | reinsert OpaqueXml |
-| `infrastructure/export/layout.ts` | 版式生成 | `writeLayout` | `ooxml-core` | |
-| `infrastructure/export/slide.ts` | 页生成 | `writeSlide` | `ooxml-core` | |
-| `infrastructure/export/theme.ts` | 主题生成 | `writeTheme` | `ooxml-core` | |
-| `infrastructure/export/shape-tree.ts` | 形状树生成 | `writeShapeTree` | `ooxml-core`、`alternate-content.ts` | 按 (order,id) 排序；删除 `UnknownShape`（M1 P0）即整体移除其 `mc:AlternateContent` |
+| `infrastructure/import/lazy.ts` | Worker 内解析顺序与抢占 | `buildParseSchedule`、`preempt` | `slide.ts`、`domain/import-envelope.ts` | 先对全部页做只计数不物化的轻量扫描（检测点 2，**在首批回传之前完成**，超天花板整体拒绝）；再按「主题/母版/版式 → 首页 → 其余页按 order 每批 `batchSize` 页」排程；收到 `prioritize(slideId)` 时当前页完成后先解析该页所在批次（rulings §4.18 CO-12/CO-11；不再是「Store 内按需物化」） |
+| `infrastructure/import/import.worker.ts` | Worker 入口 | Worker 模块（无命名导出） | `application/import-pipeline.ts`、`batch-protocol.ts` | 新增（§4.18 CO-12）：由 `importProgressive()` 以 `new Worker(new URL('./import.worker.ts', import.meta.url), { type:'module' })` 创建；Node 端（`server-headless`）同一入口以 `worker_threads` 加载；每批以结构化克隆回传 `BodyBatch`（只含新增实体与有序集合键） |
+| `infrastructure/import/batch-protocol.ts` | 分批协议 | `ImportWorkerMessage`、`ImportHostMessage`（判别联合） | — | 新增（§4.18 CO-12/CO-11）：主线程 → Worker：`start{bytes, config}`、`prioritize{slideId}`、`cancel`；Worker → 主线程：`batch{seq, body, first}`、`done{diagnostics}`、`error{code, details}`；`first:true` 的批次含主题/母版/版式与首页，之后每批按 order 递增 |
+| `infrastructure/export/writer.ts` | 纯导出核心 | `encode`、`EncodeInputs` | `ooxml-core`、`preserve/*`、`model-slide`（类型，`PresentationBody` 为输入，§4.18 FE-19） | 纯函数（架构 08 §16.2）；`thumbnailJpeg?: BlobRef` 显式输入（§4.15 Q8） |
+| `infrastructure/export/presentation.ts` | 演示文稿生成 | `writePresentation` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/master.ts` | 母版生成 | `writeMaster` | `ooxml-core`、`model-slide`（类型） | reinsert OpaqueXml |
+| `infrastructure/export/layout.ts` | 版式生成 | `writeLayout` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/slide.ts` | 页生成 | `writeSlide` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/theme.ts` | 主题生成 | `writeTheme` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/shape-tree.ts` | 形状树生成 | `writeShapeTree` | `ooxml-core`、`alternate-content.ts`、`model-slide`（类型） | 按 (order,id) 排序；删除 `UnknownShape`（M1 P0）即整体移除其 `mc:AlternateContent` |
 | `infrastructure/export/alternate-content.ts` | AlternateContent 变换回写 | `writeAlternateContentTransform` | `ooxml-core/drawingml/transform.ts` | M2 P1：移动/缩放后把新 `xfrm` 写入 Choice 与 Fallback 每个分支，其余字节不动（PD-18 结案） |
 | `infrastructure/export/ids.ts` | id 回写（导出侧） | `writeBackIds` | `domain/ids/ooxml-id-map.ts` | 新节点分配未占用 uint |
 | `infrastructure/export/rels.ts` | 关系重建 | `rebuildRels` | `ooxml-core/opc/relationships.ts` | |
@@ -659,6 +879,7 @@ export interface Part {
 export interface DirtyTracker {
   registerPart(name: PartName, pathPrefixes: readonly Path[]): void
   markDirty(paths: readonly Path[]): void
+  markDirtyFrom(change: Pick<ChangeSet, 'origin' | 'touched'>): void  // 忽略 system('load'|'import')，§4.18 CO-12
   isDirty(name: PartName): boolean
   clear(): void
 }
@@ -705,7 +926,7 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 | `domain/ids/ooxml-id-map.ts` | **候选提升为 generic**（新增建议，§12） | `cNvPr/@id`/`creationId` 机制是 DrawingML/OOXML 通用 id 策略，非 pptx 专属；当前物理位置在本包，docx/xlsx 若原样复制算法而不改一行，说明它其实该属于 `ooxml-core`——本文档不擅自迁移，留待 M-13 或 ADR 决定 |
 | `domain/classify.ts` | 垂直束模板 | `PartClassification` 判别类型可复用，但「哪些内容类型归为 `modeled`」的具体表必须按 WordprocessingML/SpreadsheetML 重写 |
 | `domain/conformance-strategy.ts` | 垂直束模板（算法通用） | Strict/Transitional 一致性类概念覆盖全部三种 OOXML 主 schema，`chooseWriteBackStrategy` 签名与实现可**逐字复制**，仅需换调用方 |
-| `domain/config.ts` | 垂直束模板 | 字段模式复制（`lazySlides`→`lazyParagraphs`/`lazySheets`），值不同 |
+| `domain/config.ts` | 垂直束模板 | 字段模式复制（`progressive`/`batchSize` 同名沿用，批次单位换成段落块或工作表），值不同 |
 | `application/{import,export}-pipeline.ts` | 垂直束模板 | 五阶段管线模式（open→classify→dispatch→assemble→snapshot）复制，具体解析器分派表按各自领域重写 |
 | `infrastructure/import|export/{presentation,master,layout,slide,theme}.ts` | slide 专属 | docx 对应 `{document,styles,numbering,sections,headers-footers}`；xlsx 对应 `{workbook,worksheet,styles,shared-strings}`；完全重写 |
 | `infrastructure/import|export/shape-tree.ts`、`placeholder.ts` | slide 专属（PowerPoint 概念） | docx/xlsx 无「占位符」概念；docx 可能需要「书签/域」的平行文件 |
@@ -743,11 +964,12 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 | 零编辑往返（M1 验收） | `__tests__/roundtrip-minimal.test.ts` | `fixtures/pptx/minimal/**`；断言部件集合相同 + 每部件 SHA-256 相同（§5.4 判定表） |
 | 编辑后往返（M2 起） | `__tests__/roundtrip-features.test.ts` | `fixtures/pptx/features/**`（含 `strict-*` 三案覆盖，架构 04 §4.4）；断言未触碰部件字节相同、脏部件 XSD 有效 |
 | 导出确定性（SV-02） | `__tests__/determinism.test.ts` | 浏览器（Playwright）与 Node 对同一 `Snapshot`（及同一 `thumbnailJpeg` 输入，含缺省）导出，SHA-256 相等 |
-| 规模包络（§4.15 Q5） | `__tests__/import-envelope.test.ts` | 页数 / 单页元素 / 总元素三维度超限拒绝；检测点 1 在解析任何页之前触发 |
+| 规模上限（系统天花板，§4.15 Q5、§4.18 UX-13） | `__tests__/import-envelope.test.ts` | 页数 / 单页元素 / 总元素三维度超天花板拒绝；检测点 1 在解析任何页之前触发；超出性能包络但未到天花板的文件照常打开；渐进打开时在首批回传前拒绝（§4.18 CO-12） |
+| 渐进打开（§4.18 CO-12/CO-11） | `__tests__/roundtrip-minimal.test.ts`（渐进分节） | 200 页语料：首批只含主题/母版/版式与首页、其余按 order 分批；`first`+全部批次合并后与一次导入语义等价；零编辑导出零脏部件（`system('import')` 批次不标脏）；`prioritize` 后目标页所在批次先于其余批次到达 |
 | 契约套件 | 复用 M-02 的 `runFormatCodecConformance(() => pptxCodec, pptxFixtures)`（§2.5，M-02 现存缺口） | `interface/codec.ts` |
-| CI job | `fidelity-roundtrip`（架构 04 §5.4）：M1 只跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定 | — |
+| CI（`test` job 的 `fidelity-roundtrip` 步骤） | 架构 04 §5.4：M1 只跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定；保真失败照样阻断合并，看 `test` job 日志（rulings §4.18 GV-14） | — |
 
-覆盖率与性能预算：引用 §11 里程碑验收命令；`fidelity-roundtrip` 的阈值只收紧不放松（ratchet，同 ADR-0040 精神，PRD OF-20）。`fixtures/pptx/wild/`（脱敏真实文件，T2/T3 语料）只在 CI 保真回归 job 跑，不进入本地 `vitest` 默认套件（体积/时长考虑）。
+覆盖率与性能预算：引用 §11 里程碑验收命令；`fidelity-roundtrip` 步骤的阈值只收紧不放松（ratchet，同 ADR-0040 精神，PRD OF-20）。`fixtures/pptx/wild/`（脱敏真实文件，T2/T3 语料）只在 CI `test` job 的 `fidelity-roundtrip` 步骤跑（GV-14），不进入本地 `vitest` 默认套件（体积/时长考虑）。
 
 ## 10. 机械约束
 
@@ -759,7 +981,7 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 | 束间隔离（R4，`cordex-bundle-isolation`） | 不适用 | `bundle:'slide'`；不得 import 未来 `ooxml-docx`/`ooxml-xlsx`（`bundle:'doc'\|'sheet'`） |
 | 第三方库单点（R5） | `fflate` **仅** `ooxml-core`（+ `server-storage`，与本模块无关）；其余包一律不得直接 `import 'fflate'` | 不得直接 `import 'fflate'`——zip 能力只能经 `ooxml-core` 的 `openPackage`/`writePackage` 间接获得 |
 | 无深引用（R7） | 跨包只能走 `.`/`./testing` 显式子路径；禁止 `@cordexjs/ooxml-core/src/*` | 同左 |
-| 自定义 lint | `codec-no-clock`：`infrastructure/opc/zip.ts` 的 mtime 常量禁止 `Date.now()`（固定 1980-01-01） | `codec-no-clock`：`infrastructure/export/**`（尤其 `writer.ts` 的 `encode`）禁止 `Date.now()`/`Math.random()`/读取任何时钟或随机源（SV-02 前提，架构 08 §16.2） |
+| 自定义 lint（ESLint `no-restricted-properties`/`no-restricted-syntax`，TD-097，原称 `codec-no-clock`，rulings §4.18 GV-15） | 禁时钟：`infrastructure/opc/zip.ts` 的 mtime 常量禁止 `Date.now()`（固定 1980-01-01） | 禁时钟与随机源：`infrastructure/export/**`（尤其 `writer.ts` 的 `encode`）禁止 `Date.now()`/`Math.random()`/读取任何时钟或随机源（SV-02 前提，架构 08 §16.2） |
 | 09-type-discipline 章节 | `03-boundaries.md` §3.2（秩表推导段落） | 同左 |
 | depcruise 无环（R1） | 与其余全部包一致，机械检查 | 同左 |
 
@@ -769,7 +991,7 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 
 ### M0：骨架
 
-按 §4 建两包全部空文件（含 `package.json#cordex`、`tsconfig*.json`、`api-extractor.json`）；`ooxml-core/src/index.ts` 先 re-export 类型占位；`ooxml-pptx/src/plugin.ts` 能被 `createTestHost`（`@cordexjs/kernel/testing`）加载并通过 `defineLifecycleSuite`（`interface/codec.ts` 此时可先返回 `canImport:false, canExport:false` 的桩，只验证贡献点注册/注销不泄漏）。CI 门禁先行就位：depcruise R1/R2/R3/R4/R5、`codec-no-clock` lint、`iso-smoke`（M-01 产出，本模块只消费）。
+按 §4 建两包全部空文件（含 `package.json#cordex`、`tsconfig*.json`、`api-extractor.json`）；`ooxml-core/src/index.ts` 先 re-export 类型占位；`ooxml-pptx/src/plugin.ts` 能被 `createTestHost`（`@cordexjs/kernel/testing`）加载并通过 `defineLifecycleSuite`（`interface/codec.ts` 此时可先返回 `canImport:false, canExport:false` 的桩，只验证贡献点注册/注销不泄漏）。CI 门禁先行就位：depcruise R1/R2/R3/R4/R5、ooxml-* 禁时钟与随机源的 ESLint 规则（TD-097，原称 `codec-no-clock`）、`iso-smoke`（M-01 产出，本模块只消费）。
 
 ### M1：首个可运行切片——打开夹具 pptx → 导出 → `diffPackage` 零差异
 
@@ -791,7 +1013,7 @@ M1 范围内另须覆盖（rulings §4.15，2026-09-24 回写）：
 - SmartArt `dsp:drawing` 只读解析（含 `dsp:txXfrm`，Q7/OF-10）；`ChartReadModel`（`parseChartSpace`）只读解析（D16）——两者都由 `slide-render` 在 M1 直接调用。
 - OLE `mc:Fallback` 的 `p:pic` → `Ole.preview`（Q7）。
 - `mc:AlternateContent` → `UnknownShape{ transform; renderHint }`，删除（P0）整体移除；`cx` 不选 Fallback，出占位 + `chartex_unsupported`（Q7）。
-- 导入规模包络检查：超出部署配置上限即 `format.quota_exceeded` 拒绝（Q5）。
+- 导入规模上限检查：超出部署配置的系统天花板即 `format.quota_exceeded` 拒绝（Q5；§4.18 UX-13）；渐进打开在首批回传前完成全部页计数（§4.18 CO-12）。
 - 宏包拒绝：`.pptm` / macroEnabled / `vbaProject.bin` 即 `format.macro_rejected`（rulings §4.16 Q15；`import-admission.test.ts`）。
 - 加密包拒绝：CFB + `EncryptionInfo` 即 `format.encrypted`，先于 zip 解析（rulings §4.16 Q15，复核 H6；`import-admission.test.ts`）。
 
@@ -837,7 +1059,7 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | Q7 OLE 预览 | `mc:Fallback` 的 `p:pic` 提取为 `Ole.preview` | §1.1、§2.1 部件图、§4.2/§5.2 `ole.ts` |
 | Q7 AlternateContent 建模（PD-18 结案） | `UnknownShape` 带 `transform` + 渲染提示；删除 M1 P0、移动缩放 M2 P1（分支 `xfrm` 回写）；`a14`/`am3d`/`p14` 走 Fallback；`cx` 不选 Fallback → 占位 + `chartex_unsupported` | §1.1、§2.3 `resolveAlternateContent`、§4.2/§5.2 `shape-tree.ts`/`alternate-content.ts`、§11 |
 | Q7 受限字体 / OF-17 上限 | `fsType` 为 restricted / preview-print 的内嵌字体仅用于只读渲染，编辑态用回退字体；单 ≤ 20 MB、总 ≤ 60 MB | §1.1、§2.2、§4.1/§5.1 `fonts/embedded-font.ts`、§4.2/§5.2 `embedded-fonts.ts`、§11 M2 |
-| Q5 规模包络 | 超包络导入**直接拒绝**（`format.quota_exceeded`，不做只读打开）；上限部署配置完全可调；两处检测点 | §1.1、§2.2 `ImportEnvelope`、§2.3 `checkImportEnvelope`、§2.6、§3 配置、§4.2/§5.2 `import-envelope.ts` |
+| Q5 规模上限 | 超系统天花板的导入**直接拒绝**（`format.quota_exceeded`，不做只读打开；rulings 原文「超包络」即超天花板，§4.18 UX-13）；上限部署配置完全可调；两处检测点 | §1.1、§2.2 `ImportEnvelope`、§2.3 `checkImportEnvelope`、§2.6、§3 配置、§4.2/§5.2 `import-envelope.ts` |
 | Q8 服务端封面 | 导入时 `docProps/thumbnail.jpeg` 原样保留供服务端取封面（服务端只做头校验不解码）；`encode()` 新增显式输入 `thumbnailJpeg?: BlobRef`，`determinism.test` 覆盖有/无两种输入 | §1.1、§2.2 `EncodeInputs`、§2.3 `encode`、§2.6、§5.2 `writer.ts`/`determinism.test.ts` |
 | T-0 去租户 | `ZipLimits` 的「租户可收紧」改为「集成方/部署配置可收紧」 | §2.2 |
 
@@ -872,7 +1094,7 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | Q-1 | ~~`runFormatCodecConformance`（G-2）由 M-02 补齐的时间点——是否必须先于本模块 M1 完成，还是本模块可先用局部替身（仅 `pptxCodec` 自建的最小断言集）过渡~~ **（结案，2026-09-18）** | 允许过渡：M-04 M1 先用 `interface/codec.ts` 自带的最小断言（`canImport/canExport` 一致性、`import→bodySchema.parse`）验收；`runFormatCodecConformance` 就绪后在 `__tests__` 补一次正式接入，不阻塞 M1。**结案依据**：跨模块评审 C-26 已裁定由 M-02 补齐 `model-core/src/testing/format-codec-conformance.ts`，过渡方案维持不变 | 本模块 §2.5/§9.2；M-02 排期 |
 | Q-2 | ~~`OoxmlIdMap`（G-6）是否提升为 `ooxml-core` 的公共能力~~ **（结案，2026-09-18）** | 暂缓：留在 `ooxml-pptx/domain/ids/`，待 M-13（doc/sheet 扩展骨架）立项时用「`ooxml-docx` 复制该文件是否零改动」的实测结果决定，需要迁移则走 ADR。**结案依据**：跨模块评审 C-18 裁定 M-13 §4.3 直接改为临时复制一份，不再以「立项评估」为前置条件；提升与否留待后续 ADR | M-13 的样板文件清单；`ooxml-core` 的秩 30 公共面是否新增 id 分配能力 |
 | Q-3 | ~~Strict 写回 C 案（反向映射表）的完整程度是否可以在 M1 只做「检测 + 自动回退 B + 诊断」，把「真正让 C 案生效」的反向映射表覆盖推迟到 M2~~ **（结案，2026-09-19）** | 否：**M1 即做 C 案完整写回**（反向映射表 + 字节级验证），B 回退仅作异常兜底。**结案依据**：rulings §4.12 U-02（章程 §10 Q14 用户裁决为 C） | §11 里程碑范围；PRD OF-18 验收口径；章程 §10 Q14 |
-| Q-4 | `no-doc-type-literals`（或等价扫描器）是否已在 M-01 工具链中显式覆盖 `ooxml-core/src/**` 路径，还是目前只覆盖了 `model-core/src/drawing/`（04 §11 机械验证清单原文只提到后者） | 假定是（水平层通用规则天然覆盖全部无 `bundle` 字段的包），但需 M-01 在 `08-policy-enforcement-matrix.md` 或扫描器实现里显式确认路径清单包含 `ooxml-core` | `tooling/scanners/*`；本文档 §10 的机械约束表准确性 |
+| Q-4 | lint 规则 `cordex/no-doc-type-literals`（02-lint-rules §4.12；它是 lint 规则而非扫描器，rulings §4.18 GV-15）是否已在 M-01 工具链中显式覆盖 `ooxml-core/src/**` 路径，还是目前只覆盖了 `model-core/src/drawing/`（04 §11 机械验证清单原文只提到后者） | 假定是（水平层通用规则天然覆盖全部无 `bundle` 字段的包），但需 M-01 在 `08-policy-enforcement-matrix.md` 或扫描器实现里显式确认路径清单包含 `ooxml-core` | `tooling/eslint-config/eslint-plugin-cordex/rules/no-doc-type-literals.ts`（M-01 §5.4 4.12）；本文档 §10 的机械约束表准确性 |
 | Q-5 | ~~`format.pptx.signature_invalidated` 诊断码（G-7）与 `_xmlsignatures` 部件的显式部件表行是否采纳~~ **（结案，2026-09-19）** | 采纳。**结案依据**：rulings §4.12 U-05 | PRD `01-open-and-fidelity.md` 未来修订；架构 04 §4.1 部件表（已补）；本模块 §2.4、`errors.ts`/`infrastructure/export/conformance-writer.ts` |
 | Q-6 | 本文档把两包 `src/**` 文件数控制在 48 + 54 = 102（2026-09-24 随 rulings §4.15 新增 9 个：`diagramml/` 3、`fonts/` 1、`import-envelope.ts`、`embedded-fonts.ts`、`alternate-content.ts` 与 2 个测试），高于 module-map §7 给出的「70–90」估计区间 | 维持现状：新增文件均对应 §4.15 已裁定的独立职责，不建议为凑数而合并 | 无实质影响；仅供总编排核对预算口径时参考 |
 | Q-7 | 导入规模包络的元素计数口径：母版/版式上的元素是否计入「文档总元素 20,000」；组形状本身是否计 1 | 推荐：只计页（`shapes` 表）元素，组与其子元素各计 1，与 `model-slide` 的 `maxElementsPerDoc` 用同一计数函数（由 M-03 定义、本模块在检测点 2 复用）；待 03 确认 | §2.6 检测点 2；`03-slide-domain-model.md` `maxElementsPerDoc` |

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
 
 # 06 布局与渲染引擎（限界上下文 BC-10 布局与度量引擎、BC-11 渲染管线与目标）
 
@@ -153,13 +153,13 @@ flowchart LR
 
 ### 2.4 领域事件
 
-全部在 `layout.contribution.ts`（`engine-layout`）/`render.contribution.ts`（`engine-render`）的 `Events` 增强中声明（扫描器 `events-declared`）；域名固定为章程 §5.5 保留域 `layout`/`render`/`perf` 之一。与 M-02 §2.4 的模式一致：事件在 Definition 包声明，但**发布者文件可以是 Provider 包**（此处即 `render-dom`）。
+全部在 `layout.contribution.ts`（`engine-layout`）/`render.contribution.ts`（`engine-render`）的 `Events` 增强中声明（lint `cordex/events-must-be-declared`，08 §11 对照名 `events-declared`，rulings §4.18 GV-15）；域名固定为章程 §5.5 保留域 `layout`/`render`/`perf` 之一。与 M-02 §2.4 的模式一致：事件在 Definition 包声明，但**发布者文件可以是 Provider 包**（此处即 `render-dom`）。
 
 | 事件 | 模式 | 载荷（要点） | 发布者文件 | 典型订阅者 |
 |---|---|---|---|---|
 | `layout/measurer-changed` | emit | `(measurerId: string)` | `engine-layout/src/application/services/layout.service.ts` | `render-dom` 度量缓存失效；`slide-render` 的已缓存 `TextLayout` 标脏重排 |
 | `render/first-paint` | emit | `(unitId, stats: { ms })` | `engine-render/src/application/services/render.service.ts` | 首屏计时遥测（NF-01 D50/D200 门禁） |
-| `render/frame` | emit | `(unitId, stats: { pages, elements, ms })`（进程内消费，公开订阅按 ≥ 50 ms 合并；`render/painted` 已弃用，见 §12） | `engine-render/src/application/services/frame-scheduler.ts` | 渲染统计面板；`slide-render` 缩略图去抖；`perf/frame` 遥测事件由其派生（**`render/frame`/`perf/frame` 两层区分已获总编排正式追认**，14-cross-module-review.md §1 C-25：进程内业务事件与遥测事件并存非改名，`00-charter/rulings-2026-09-14.md` §4.11 已补注确认，不再是本文档单方立场） |
+| `render/frame` | emit | `(unitId, stats: { pages, elements, ms, pendingDirty })`（进程内消费，公开订阅按 ≥ 50 ms 合并；`render/painted` 已弃用，见 §12）；`pendingDirty` = 本帧提交后仍待绘的脏节点数（字体到达后标脏的重排、惰性块到达后的重绘都会使它 > 0），`/render` 页 ready 判据取「所请求页全部 `render/page-mounted` ∧ 字体请求全部结算 ∧ 此后出现一次 `pendingDirty === 0` 的 `render/frame`」（rulings §4.18 FE-09，由 M-11 `render-page.spec.ts` 断言） | `engine-render/src/application/services/frame-scheduler.ts` | 渲染统计面板；`slide-render` 缩略图去抖；`perf/frame` 遥测事件由其派生（**`render/frame`/`perf/frame` 两层区分已获总编排正式追认**，14-cross-module-review.md §1 C-25：进程内业务事件与遥测事件并存非改名，`00-charter/rulings-2026-09-14.md` §4.11 已补注确认，不再是本文档单方立场） |
 | `render/element-failed` | emit | `(unitId, nodeId, kind, code)` | `render-dom/src/infrastructure/paint/painter.ts` | `errors.report`、审计、UI 错误提示（A11 反制测试的断言点） |
 | `render/element-degraded` | emit | `(unitId, nodeId, kind, reason)` | `render-dom/src/infrastructure/paint/painter.ts`（本模块内仅媒体解码失败等通用原因；`chart-unavailable` 等文档类型相关原因由 M-07 发出） | UI 提示、遥测 |
 | `render/font-fallback` | emit | `(unitId, requested, fallback, scope)` | `render-dom/src/infrastructure/fonts/font-face-loader.ts` | 诊断面板、字体许可审计 |
@@ -184,7 +184,7 @@ interface RenderTarget {
 interface TargetHandle { readonly pageId: NodeId; setTransform(zoom: number, pan: Point): void; setSize(size: Size): void; dispose(): void }
 ```
 
-契约套件 `runRenderTargetConformance(factory: () => RenderTarget)`（`engine-render/src/testing/index.ts`），覆盖：重复 `paint` 同一 `dirty` 不重复触发 `ElementRenderer.render`（只触发 `update`）；`dirty.full` 时全部可见节点被访问；空场景 `hitTest` 返回 `null`；`dispose()` 后无残留 effect（配合 `@cordexjs/kernel/testing` 的 `assertNoLiveEffects`）。`render-dom` 的 `__tests__` **必须**实例化本套件（扫描器 `provider-runs-conformance`）。
+契约套件 `runRenderTargetConformance(factory: () => RenderTarget)`（`engine-render/src/testing/index.ts`），覆盖：重复 `paint` 同一 `dirty` 不重复触发 `ElementRenderer.render`（只触发 `update`）；`dirty.full` 时全部可见节点被访问；空场景 `hitTest` 返回 `null`；`dispose()` 后无残留 effect（配合 `@cordexjs/kernel/testing` 的 `assertNoLiveEffects`）。`render-dom` 的 `__tests__` **必须**实例化本套件（`scan-manifest` 规则 (e)，原名 `provider-runs-conformance`，rulings §4.18 GV-15）。
 
 `render.target` 契约的介质中立性验证（rulings §4.15 Q4）：`'canvas'` 只是预留座位，本模块不交付生产 canvas Provider；**M3 末**在 `engine-render/src/__tests__/canvas-target-contract.test.ts` 用一个最小 canvas Provider（仅画矩形/路径/文本三类图元，不追求保真）跑同一套 `runRenderTargetConformance`，证明契约不隐含 DOM 假设——这是 PRD 04-plugin-sdk「`render.target`：dom；canvas 预留，Stable 前须通过最小 canvas Provider 契约」的验收点。`toImage?` 在 `render-dom` 中的实现固定为**主线程**（游离 DOM → SVG 序列化 → `Image` → `Canvas`），不提供 Worker/OffscreenCanvas 版本（SVG 在 Worker 内无法解码；不挂 DOM 的 canvas 栅格化等于第二套渲染器，违背 ADR-0026），大批量导出由调用方主线程分片或转 `server-png`。
 
@@ -228,7 +228,7 @@ interface OverlayContext { selection: SelectionSnapshot; presence: PresenceSnaps
 interface OverlayInstance { update(ctx: OverlayContext): void; dispose(): void }
 ```
 
-覆盖层不参与内容脏区：改变 `selection`/`presence` 不触发任何 `ElementInstance.update()`（`overlay-independent.test.ts` 断言，见架构 07 §7）。
+覆盖层不参与内容脏区：改变 `selection`/`presence` 不触发任何 `ElementRenderer.update(handle, node)`（`overlay-independent.test.ts` 断言，见架构 07 §7；v0.1 旧名 `ElementInstance.update` 已按架构 07 §14.1 作废，rulings §4.18 CO-19）。
 
 **`TextMeasurer`（Definition；贡献点 `layout.measurer`，key = `id`；`engine-layout/src/domain/contracts/text-measurer.ts`；默认 Provider：`render-dom`，`id:'canvas'`；M-09 追加 `id:'node-font'`，契约在此定义、实现不在本模块）**
 
@@ -332,6 +332,30 @@ flowchart LR
 
 怎么读：`BC-12`（`slide-render`）把 `ChangeSet.touched` 转换成 `DirtySet` 推给本模块；`flush()` 内部按可见性排序后才做布局度量与逐元素绘制；覆盖层始终独立于内容脏区刷新，不会因选区/在场变化而触发整页重绘。
 
+**图 2-3 文本编辑意图回路时序**
+
+```mermaid
+sequenceDiagram
+  participant ui as slide-ui 等 UI 层 消费方
+  participant rs as engine-render RenderService
+  participant host as render-dom TextInputHost
+  participant cmd as M-02 commands
+  participant sr as slide-render BC-12
+  ui->>rs: attach targetId container callbacks.onEditIntent
+  Note over host: 隐藏 textarea 收到 beforeinput keydown composition 事件
+  host->>host: 归约为中性 TextEditIntent 不含 Mutation 知识
+  host-->>ui: callbacks.onEditIntent 交付意图 IoC
+  ui->>cmd: commands.execute 对应文本命令
+  cmd-->>sr: store/transaction 经 Store 通知
+  sr->>sr: SceneProvider.diff 得到 DirtySet
+  sr->>rs: invalidate dirty
+  rs->>rs: 下一帧 flush 并 target.paint
+```
+
+怎么读：编辑意图从 `render-dom` 回到 UI 层走的是 `attach()` 时注入的回调而不是 cordis 事件，因此本模块不反向依赖 UI；把意图翻译成 Mutation 并调用命令的是消费方 `slide-ui`，重绘则经 BC-12 的 `diff → invalidate` 回到本模块的帧调度。
+
+依据：§1.1 不做什么第 5 条；§2.4 末段；§2.5 `TextInputHost`；§13 Q-2 结案。
+
 ## 3. cordis 插件定义
 
 > 三个包按 cordis 形态分两类：`engine-layout`/`engine-render` 是标准函数插件（`engine-layout` 的形态标注 definition + plugin，因为它的核心价值是 `TextMeasurer` 契约而非某个可替换实现；`engine-render` 标注 definition，因为其四个贡献点才是价值所在）；`render-dom` 是 provider（`implements` 两个 Definition 的贡献条目）。三者均不提供新的 UnitScope 隔离机制，`engine-render`/`render-dom` 挂载在 model-core 的 UnitScope 内（由 L8 预设包并列装配，§1.3）。
@@ -358,7 +382,7 @@ flowchart LR
 | 插件名 / `name` | `engine-render` |
 | `inject`（必需 / 可选） | 必需：`['contributions', 'layout']`（`layout` 供 `RenderContext.layout` 透传给 `ElementRenderer`）；可选：`ctx.get('errors', false)`/`ctx.get('telemetry', false)`（缺失时降级为静默） |
 | `provide` | `['render']`（UnitScope 内） |
-| 贡献点：提供 | `render.scene`（key=`documentType`）、`render.target`（key=`id`）、`render.element`（key=`` `${targetId}:${kind}` ``）、`render.overlay`（key=`id`）；四者均 `conflict:'error'` |
+| 贡献点：提供 | `render.scene`（key=`documentType`）、`render.target`（key=`id`）、`render.element`（key=`` `${targetId}:${kind}` ``）、`render.overlay`（key=`id`）；`conflict` 在贡献点定义时显式声明：`render.scene`/`render.target` 为 `'error'`，`render.element`/`render.overlay` 为 `'replace'`（M-07 图表占位由 `./chart` 子路径与 `slide-render-chart` 同 key 覆盖）——取值以架构 03 §3.6 总表 conflict 列为准（K-3，rulings §4.18 GV-24；取代 C-23 时「四者均 `'error'`」的裁定） |
 | 贡献点：消费 | 同上四个（自身定义、自身在 `renderer-table.ts`/`render.service.ts` 中查表消费） |
 | 事件：发布 | `render/first-paint`、`render/frame`、`render/element-failed`、`render/element-degraded`、`render/font-fallback`、`render/page-mounted`、`render/page-unmounted`（`Events` 声明处；实际 `ctx.emit` 调用点分布在本包与 `render-dom`，见 §2.4 备注） |
 | 事件：订阅 | 无（不订阅 `store/transaction`；`invalidate(dirty)` 由调用方主动推送，§1.3/§4.2 第 4 条边界） |
@@ -384,6 +408,52 @@ flowchart LR
 ## 4. 目录树（完整到文件）
 
 > **总编排裁定**：三棵树均把 DDD 五目录 `domain/`、`application/`、`infrastructure/`、`interface/`、`testing/` 作为 `src/` 下的物理目录（不是 §1 表格式的概念映射注释）；02 §4.13–4.15 的扁平骨架（`scene/`、`target/`、`viewport/`、`hit-test/`、`cache/`、`scheduler/`、`registry/`、`layers/`、`paint/`、`primitives/`、`overlay/` 等）在此按 00-module-map §1 规则重新落入这五个物理目录，新旧路径对照与差异见 §12。三包均无 UI/协议对外呈现面（不像 `ui-react`/`apps/server` 那样有 `interface/`/`ui/` 消费者），因此**不设 `interface/`**：对外 API 完全由 `src/index.ts` 汇总（§6），贡献点声明本身即是 OHS 对外接口，归入 `domain/contracts/`（同 00-module-map §1 对 `model-core` 的处理）。`render-dom` 是纯 Provider 包（00-module-map §1 规则 1）：**不设 `domain/`**，全部实现细节归入单一 `infrastructure/`。包级样板文件（`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<name>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`）三个包完全遵循 02 §4.0「包模板」，不在下列三棵树中重复展开。测试布局沿用 02 §4.0：`src/__tests__/`（单测，本节不展开，见 §9）+ `src/testing/`（`./testing` 子路径，契约套件与测试替身，本节展开）。
+
+**图 4-1 三包与关键子目录依赖**
+
+```mermaid
+flowchart LR
+subgraph sgLayout["engine-layout"]
+lContracts["domain/contracts text-measurer text-layout geometry"]
+lDomain["domain/text geometry fonts 纯函数"]
+lService["application/services/layout.service"]
+end
+subgraph sgRender["engine-render"]
+rContracts["domain/contracts scene render-target element-renderer overlay"]
+rService["application/services render frame-scheduler viewport"]
+rInfra["infrastructure cache scheduler registry"]
+end
+subgraph sgDom["render-dom 纯 Provider"]
+dTarget["target 与 paint"]
+dPrimitives["primitives"]
+dMeasurer["measurer/canvas-measurer"]
+dTextHost["text-host"]
+dMedia["media"]
+dOverlay["overlay hit-test export"]
+end
+kernel["@cordexjs/kernel"]
+shared["@cordexjs/shared"]
+lContracts --> kernel
+lContracts --> shared
+lDomain --> shared
+lService --> kernel
+rContracts --> kernel
+rContracts --> shared
+rContracts -- "element-renderer 引用布局类型" --> lContracts
+rService --> kernel
+rService -- "frame-scheduler" --> rInfra
+rInfra -- "registry 类型" --> kernel
+dTarget --> rContracts
+dPrimitives -- "TextLayout GeometryPath 类型" --> lContracts
+dMeasurer --> lContracts
+dTextHost -- "CaretMap 类型" --> lContracts
+dMedia -- "MediaCache 类型" --> rInfra
+dOverlay --> rContracts
+```
+
+怎么读：箭头为 import 方向；三包对 `model-*` 零依赖（R15），`engine-render` 只以类型方式引用 `engine-layout`，`render-dom` 只实现两者的契约、不被任何 iso/node 包依赖（同构铁律 4）；三包唯一的上游模块是 M-02 的 `kernel`/`shared`。
+
+依据：§5.1–§5.3 各文件「允许依赖」列。
 
 ### 4.1 `@cordexjs/engine-layout`
 
@@ -684,7 +754,7 @@ interface TextMeasurer {
 - `apps/web`：不直接 import 本模块——经 `preset-slide`/`preset-slide-viewer`（M-11）间接装配；`/render` headless 渲染路由（架构 07 §10/§14.7）加载同一 preset，使 `render-dom` 在 headless Chromium 内运行。
 - `apps/server`：`modules/thumbnails`（M-12）编排 Playwright 打开 `apps/web` 的 `/render` 路由；`server-headless`（M-09）只依赖 `engine-layout`/`engine-render` 的 iso 部分做校验/重排，不依赖 `render-dom`。
 
-本模块**不产生任何跨进程契约**（不 import `@cordexjs/protocol`）：服务端缩略图（640 px WebP，rulings §4.15 Q8；2026-09-24 复核 L11 更正原「PNG」）的下载 HTTP 契约（`GET /documents/:id/thumbnails/:slideId`）由 M-08/M-09/M-12 在 `@cordexjs/protocol` 中定义，本模块只是那条链路末端「像素怎么画出来」的实现者。
+本模块**不产生任何跨进程契约**（不 import `@cordexjs/protocol`）：服务端缩略图（640 px WebP，rulings §4.15 Q8；2026-09-24 复核 L11 更正原「PNG」）的下载 HTTP 契约（`GET /documents/:id/thumbnails/:slideId`，路径相对 `apiBase`＝`https://<host>/api/v1`，rulings §4.18 BE-11）由 M-08/M-09/M-12 在 `@cordexjs/protocol` 中定义，本模块只是那条链路末端「像素怎么画出来」的实现者。
 
 **图 7-1 两端 Provider 矩阵**
 
@@ -722,7 +792,7 @@ flowchart LR
 
 - 静态层：depcruise 规则 `doc-type-blind`（水平层不得反向依赖有 `cordex.bundle` 的包）对三包天然成立（三包本来就不 import 任何垂直束）；lint `no-doc-type-literals` 扫描 `packages/{engine-layout,engine-render,render-dom}/src/**` 源码，禁止出现 `slide|sheet|workbook|docx|pptx|xlsx|paragraph` 等词根。
 - 夹具层：`model-core/testing/fixture-document-type.ts` 已声明 `SceneProvider`：「每个 `box` 一个 `SceneNode`（`kind:'fixture:box'`）」，`ElementRenderer` 在 `RecordingTarget` 上记录——本模块 `testing/index.ts` 的 `RecordingTarget`/`fakeScene` 正是这条夹具链路的被消费方，证明契约不含文档类型知识。
-- 冻结层：M5（对应 M-13）验收时，`tooling/scanners/horizontal-freeze.ts` 对三包 `src/**`（排除 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`；`model-doc`/`model-sheet`/`doc-render`/`sheet-render` 的 PR 要求该锁文件**无 diff**——这是「零改动」在 CI 层面的可审计证明，而非仅设计意图。
+- 冻结层：M5（对应 M-13）验收时，`tooling/scripts/scan-horizontal-freeze.ts`（路径遵 09-06 的 `scripts/` 落点，当前不计入 14 个现有扫描器、纳入后为第 15 个，rulings §4.18 GV-11）对三包 `src/**`（排除 `__tests__/`）计算内容哈希写入 `fixtures/horizontal-freeze.lock`；`model-doc`/`model-sheet`/`doc-render`/`sheet-render` 的 PR 要求该锁文件**无 diff**——这是「零改动」在 CI 层面的可审计证明，而非仅设计意图。
 
 ## 9. 测试布局
 
@@ -768,7 +838,7 @@ src/__tests__/                      vitest browser mode（真实 Chromium）+ ha
 ├── reconcile.test.ts               z 变化只移动节点，对应 infrastructure/paint/reconcile.ts
 ├── font-fallback.test.ts           字体回退命中 → emit render/font-fallback，对应 infrastructure/fonts/font-face-loader.ts
 ├── ime-composition.test.ts         合成 compositionstart/update/end 事件序列，对应 infrastructure/text-host/**
-├── overlay-coordinates.test.ts     覆盖层坐标 + overlay-independent 断言（改 selection 不触发任何 ElementInstance.update）
+├── overlay-coordinates.test.ts     覆盖层坐标 + overlay-independent 断言（改 selection 不触发任何 ElementRenderer.update）
 ├── hit-test.test.ts                elementFromPoint + 几何回退，对应 infrastructure/hit-test/dom-hit-test.ts
 ├── text-lines-bidi.test.ts         每行一个 <text>、run 不设 x；RTL/混排行由浏览器 bidi 重排（阿拉伯/希伯来黄金用例），对应 infrastructure/primitives/text-lines.ts
 ├── svg-image-context.test.ts       安全基线：文档内 SVG 只以 <image> 渲染、含 <script>/外链的 SVG 不执行不出网；断言本包无 innerHTML/insertAdjacentHTML/DOMParser 调用点
@@ -793,9 +863,9 @@ fixture 来源：`testing/index.ts` 的 `mountTestSurface()`/`mountInHappyDom()`
 | 文本编辑用隐藏 `textarea` + 自绘光标（ADR-0028） | `ime-composition.test.ts`；`TextInputHostProvider` 默认 `'hidden-textarea'` | `render-dom/src/infrastructure/text-host/text-input-host.ts` |
 | 贡献点校验失败走诊断而非抛错 | `ContributionService.contribute()` 语义（架构 03 §3.3，同 M-02 §10） | 四个 `render.*` 贡献点 + `layout.measurer` 的注册处（domain/contracts/**） |
 | `./testing` 子路径生产代码禁止 import | depcruise `no-testing-in-prod` | 三包 `src/testing/index.ts` |
-| Provider 必须实例化契约套件 | 扫描器 `provider-runs-conformance` | `render-dom/src/__tests__/`（`runRenderTargetConformance`、`runTextMeasurerConformance` 均需实例化） |
+| Provider 必须实例化契约套件 | `scan-manifest` 规则 (e)（原名 `provider-runs-conformance`，rulings §4.18 GV-15） | `render-dom/src/__tests__/`（`runRenderTargetConformance`、`runTextMeasurerConformance` 均需实例化） |
 | 无本模块新增第三方库单点 | 章程 §5.3 规则 4（不引入 `cordis`/`yjs`/`react` 等受控第三方库） | 三包 `package.json#dependencies` |
-| 禁以 `innerHTML`/`insertAdjacentHTML`/`DOMParser`（及 `outerHTML`/`createContextualFragment`）注入文档内容（rulings §4.15 Q4 安全基线） | 09-type-discipline/08 矩阵新增 TD 行 + M-01 新增对应扫描器（待 M-01/08 矩阵分配编号）；本包 `svg-image-context.test.ts` 负向用例 | `render-dom/src/infrastructure/primitives/svg-primitives.ts`、`text-lines.ts` 等全部 DOM 写入点 |
+| 禁以 `innerHTML`/`insertAdjacentHTML`/`DOMParser`（及 `outerHTML`/`createContextualFragment`）注入文档内容（rulings §4.15 Q4 安全基线） | lint `rules/dom-injection.ts`（08 矩阵 TD-081，M-01 §5.4；是 lint 规则，不另设扫描器，rulings §4.18 GV-15）；本包 `svg-image-context.test.ts` 负向用例 | `render-dom/src/infrastructure/primitives/svg-primitives.ts`、`text-lines.ts` 等全部 DOM 写入点 |
 | 文档内 SVG（`asvg:svgBlip`）只以图像上下文渲染 | 09-type-discipline/08 矩阵新增的同一 TD 行（`asvg:svgBlip` 只能经 `<image>` 渲染）；`svg-image-context.test.ts` | `render-dom/src/infrastructure/media/media-resolver.ts` |
 | 无 canvas 生产渲染路径、`toImage` 不入 Worker（ADR-0021/ADR-0026） | 代码评审 + `render.target` 贡献表只有 `'dom'` 生产条目（`canvas-target-contract.test.ts` 的最小 Provider 只存在于 `__tests__/`） | `render-dom/src/plugin.ts`、`infrastructure/export/to-image.ts` |
 
@@ -846,7 +916,7 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 | G-7 | 架构 07 §11「三处 LRU（style/media/template）」vs 本文档 §10「三处 LRU」 | 07 §11 的 `template` 特指 `slide-render`（M-07）的 `LayerTemplateCache`，不在本模块三包内；00-module-map M-06 行「三处 LRU」约束若字面对应 07 §11 会跨模块统计 | **已结案（14-cross-module-review.md §1 C-12）**：系统级共 **4 处**缓存，模块级分别为——本模块三处（`style-cache`/`media-cache`/`measure-cache`）+ M-07 一处（`LayerTemplateCache`）。`00-module-map.md` §7 M-06/M-07 两行已加注区分（M-06 行「模块内三处，不含 M-07 的 `LayerTemplateCache`」；M-07 行「含 1 处模板 LRU」），`30-architecture/07-rendering.md` §11 待架构-运行时条线改为「四处」并注明归属，本文档口径与已结案裁定一致，无需再改 |
 | G-8 | 07 §2.4 `testing/index.ts` 历史草案含 `runElementRendererConformance` vs 本文档 §2.5/§5 未落地该套件 | 07 历史草案列出 `runElementRendererConformance(renderer, fixtures)`；本文档判断 `ElementRenderer`/`SceneProvider`/`OverlayRenderer` 的正确性天然依赖文档类型语义，不设通用契约套件（§2.5 已说明理由） | 若 M-07 后续发现多个 `ElementRenderer` 实现方间有共性可测（如「`dispose` 后无残留 DOM」），可在 `engine-render/src/testing/index.ts` 补 `runElementRendererConformance`；本追加建议不计入本文档 90–110 文件预算 |
 | G-9 | 本文档新增类型 `ZoomFactor`、`HitTestIndex` | 章程/07/02 均未显式命名这两个类型（07 只说「zoom: number」「命中：几何优先」）；本文档按 §2.1/§2.2 硬性要求补了品牌类型与索引结构名 | 建议采纳为正式类型名；若总编排要求与 07 表述逐字对齐，可改回匿名 `number`/内联逻辑（影响 `engine-render` 两个文件的导出符号） |
-| G-10 | 本文档 §3 为 `render.scene`/`render.target`/`render.element`/`render.overlay` 补 `conflict:'error'` | 章程/07/02 均未逐一注明四个贡献点的 `conflict` 策略（只有 `layout.measurer`/`i18n.bundle` 等少数点在既有文档中注明） | **已裁定（14-cross-module-review.md §1 C-23）**：`render.overlay` 项类型以本文档 §2.5 的 `OverlayRenderer{id;zIndex;mount(ctx,target)}` 为准（`30-architecture/03-kernel-and-plugin-model.md` §3.6 此前给出的 `OverlayContribution{id;layer;render(ctx)}` 形状作废，`mount/unmount` 生命周期是覆盖层持有 DOM 节点的必要形态，`zIndex` 数字比四值 `layer` 枚举更利于第三方插入层间）；四个贡献点 `conflict` 同时按本文档 `'error'` 选择裁定。**`30-architecture/03` §3.6 将按本文档（M-06）回写**，非本文档待改 |
+| G-10 | 本文档 §3 为 `render.scene`/`render.target`/`render.element`/`render.overlay` 补 `conflict:'error'` | 章程/07/02 均未逐一注明四个贡献点的 `conflict` 策略（只有 `layout.measurer`/`i18n.bundle` 等少数点在既有文档中注明） | **已裁定（14-cross-module-review.md §1 C-23）**：`render.overlay` 项类型以本文档 §2.5 的 `OverlayRenderer{id;zIndex;mount(ctx,target)}` 为准（`30-architecture/03-kernel-and-plugin-model.md` §3.6 此前给出的 `OverlayContribution{id;layer;render(ctx)}` 形状作废，`mount/unmount` 生命周期是覆盖层持有 DOM 节点的必要形态，`zIndex` 数字比四值 `layer` 枚举更利于第三方插入层间）；四个贡献点 `conflict` 同时按本文档 `'error'` 选择裁定。**`30-architecture/03` §3.6 将按本文档（M-06）回写**，非本文档待改。**2026-09-25 更正**：rulings §4.14 K-3 放宽为「`'replace'` 须在贡献点定义时显式声明」，§4.18 GV-24 定为以 03 §3.6 总表 conflict 列为准（`ui.*`、`render.element`、`render.overlay`、`i18n.bundle` 为 `'replace'`），本文档 §3 已改：`render.scene`/`render.target` 仍为 `'error'`，`render.element`/`render.overlay` 为 `'replace'` |
 
 ### 2026-09-18 收敛（回写员 R1，依据 `14-cross-module-review.md` §1 全部 30 条推荐裁定）
 
@@ -881,5 +951,5 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 | Q-3 | ~~`TextInputHost` 是否需要升级为跨包贡献点（G-5）~~ **已结案（14 §5.3 M-06/G-5+Q-3 → ADR-0028 回写）** | 定稿：维持 `render-dom` 包内可插拔点；升级为 `render.textInputHost` 贡献点的条件见 §2.5（R-M2-1 spike 否定隐藏 textarea，或出现需跨包可发现的第三方实现；升级时回写章程 §5.5 与 ADR-0028 并补契约套件） | `render-dom/src/infrastructure/text-host/text-input-host.ts`；仅触发升级条件时才动章程 §5.5 |
 | Q-4 | `HitTestIndex` 在单页 300+ 元素、频繁缩放场景下是否需要空间加速结构（四叉树/BVH）而非按 `zIndex` 线性扫描，以满足 NF-01 命中测试 p95 ≤ 2 ms | M1 用线性扫描（配合包围盒提前退出）；M2 按 bench 结果决定是否引入四叉树 | `engine-render/src/domain/contracts/hit-test.ts` |
 | Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐架构 07 §3.2 的文件清单）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
-| Q-6 | 四个 `render.*` 贡献点与 `layout.measurer` 的 `conflict` 策略是否应统一为 `'error'`（G-10） | `'error'`（同 id 重复注册视为配置错误，不静默覆盖） | `engine-render/src/render.contribution.ts`、`engine-layout/src/layout.contribution.ts` |
+| Q-6 | ~~四个 `render.*` 贡献点与 `layout.measurer` 的 `conflict` 策略是否应统一为 `'error'`（G-10）~~ **（结案，2026-09-25）** | 不统一：`render.scene`/`render.target`/`layout.measurer` 为 `'error'`（同 id 重复注册视为配置错误），`render.element`/`render.overlay` 为 `'replace'`（K-3、rulings §4.18 GV-24，以架构 03 §3.6 为准） | `engine-render/src/render.contribution.ts`、`engine-layout/src/layout.contribution.ts` |
 | Q-7 | `Viewport.zoom` 的 min/max 默认值（本文档示例 0.1/8）未见产品侧规定 | `min: 0.1`（10%）/`max: 8`（800%），参考主流桌面演示软件常见缩放范围 | `engine-render/src/config.ts`；若产品侧有既定范围，PRD 应补充并覆盖本默认值 |

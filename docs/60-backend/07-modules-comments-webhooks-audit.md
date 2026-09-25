@@ -1,5 +1,5 @@
 # 07 模块设计：评论镜像、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[30/08](../30-architecture/08-backend-nestjs.md) §16.6；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[30/08](../30-architecture/08-backend-nestjs.md) §16.6；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
 
 
 ## 0. 本文定位
@@ -446,9 +446,9 @@ flowchart LR
 | `request.rate_limited` | security | RateLimitGuard 返回 429 | 二 | ✓ | `bucket, route` | M2 |
 | `user.provisioned` | admin | 首次登录 JIT 建号（与登录同事务） | 一 | — | `issuer` | M2 |
 | `user.profile_updated` | admin | `PATCH /users/me/profile` | 一 | — | `fields` | M3 |
-| `user.suspended` / `user.reactivated` | admin | `PATCH /users/:id {status}` | 一 | — | — | M3 |
+| `user.suspended` / `user.reactivated` | admin | `PATCH /users/:id {status}` | 一 | — | `user.suspended`：`soleOwnerDocCount`（该用户是唯一可用 owner 的文档数，rulings §4.20 BE-05）；`user.reactivated`：— | M3 |
 | `user.role_changed` | admin | `PATCH /users/:id {platformRole}`；登录时按 `auth.bootstrapAdmins` 把首个管理员升为 `admin`（[02](02-auth-chain.md) §3） | 一 | — | `from, to, via: admin\|bootstrap` | M2（bootstrap）/ M3（管理端点） |
-| `user.erased` | admin | `POST /users/:id/erasure`（C-24、INC-22） | 一 | — | `sessionsRevoked, identitiesDeleted, commentBody` | M3 |
+| `user.erased` | admin | `POST /users/:id/erasure`（C-24、INC-22） | 一 | — | `sessionsRevoked, identitiesDeleted, commentBody, soleOwnerDocCount` | M3 |
 
 ### 9.2 文档、权限、分享与媒体
 
@@ -507,6 +507,7 @@ flowchart LR
 | `webhook.delivery_replayed` | admin | ops `webhooks:replay` | 一 | — | `deliveryIds` | M3 |
 | `admin.job_replayed` | admin | ops 重放死信作业（[06](06-modules-jobs-import-export-thumbnails.md) §5.3） | 一 | — | `jobId, queue, attemptOf` | M3 |
 | `admin.thumbnails_rebuilt` | admin | ops `thumbnails:rebuild`（[06](06-modules-jobs-import-export-thumbnails.md) §11） | 一 | — | `docId?, all` | M3 |
+| `admin.owner_reassigned` | admin | ops `documents:reassign-owner`（[03](03-modules-identity-and-access.md) §4.2 `ReassignOwnerUseCase`、[17](17-deployment-and-config.md) §9；rulings §4.20 BE-05+TX-22）；M4 管理面板经会话复用同一用例 | 一 | — | `toUserId, previousRole, formerOwnerIds, permVersion` | M3 |
 | `admin.compacted` | admin | `/internal/admin/documents/:id/compact` | 一 | — | — | M2 |
 | `admin.migrated` | admin | `/internal/admin/documents/:id/migrate` | 一 | — | `fromVersion, toVersion` | M2 |
 | `admin.epoch_forced` | admin | `/internal/admin/documents/:id/epoch` | 一 | — | `epoch` | M2 |

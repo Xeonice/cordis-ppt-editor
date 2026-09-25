@@ -1,6 +1,6 @@
 # 06 模块设计：作业、导入导出、缩略图与 renderer sidecar
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[30-architecture/08](../30-architecture/08-backend-nestjs.md) §7、§9.2、§16.2、§16.3；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30-architecture/08](../30-architecture/08-backend-nestjs.md) §7、§9.2、§16.2、§16.3；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1
 
 ## 0. 定位与边界
 
@@ -134,7 +134,7 @@ flowchart LR
 | `ReconciliationJob` | 周期作业 | 对账孤儿行（§3） | worker |
 | `JobSchedulerRegistrar` | 启动钩子 | 启动时与每 5 min 对 `MAINTENANCE_SCHEDULES` 逐项 `upsertJobScheduler`（幂等，Valkey 数据丢失后自愈） | worker |
 
-`JobsModule` imports `ConfigModule`、`RedisModule`、`WebhooksModule`（对账只读 `webhook_deliveries`，BE-07），exports `JobRunsRepository`、`GetJobUseCase`、`QUEUE_NAMES`、`BaseProcessor`。时间一律经 `apps/server/src/shared/clock.ts` 的 Clock 端口取得，测试注入 FakeClock（依据：决策 T-DETERMINISM，authority：30/11 §1 确定性原则）。
+`JobsModule` imports `ConfigModule`、`RedisModule`、`WebhooksModule`（对账只读 `webhook_deliveries`，BE-07），exports `JobRunsRepository`、`GetJobUseCase`、`QUEUE_NAMES`、`BaseProcessor`。时间一律经 `apps/server/src/shared/clock.ts` 的 Clock 端口取得，测试注入 FixedClock（依据：决策 T-DETERMINISM，authority：30/11 §1 确定性原则）。
 
 ### 2.2 JobRun 状态机
 
@@ -522,7 +522,7 @@ SV-13 的 `fill-template`（模板填充）、`validate`、`migrate`、`convert`
 | `diffSnapshots` | `tasks/diff-snapshots.ts` | 两份 state → `Mutation[]` | [05 §10](05-modules-collab-and-snapshots.md) 恢复 |
 | `computePageHashes` | `thumbnails/content-hash.ts` | state → `[{slideId, index, contentHash}]` | `ThumbnailsProcessor`（§11.1） |
 
-`computePageHashes` 已在 30/08 §3.3 的目录中（`content-hash.ts`），40-modules/09 §4.5 的目录树需补登记（见文末未决）。`node-font` 度量器以 `layout.measurer` 贡献（`key: 'node-font'`），字体取与浏览器、renderer 同一 fontProfile 的字体包（依据：决策 FONTS，authority：ADR-0027 回退表两端共用）；服务端导出不重排，度量器只供校验与迁移任务使用，缺失时相关插件保持 PENDING、不阻断导入导出。
+`computePageHashes` 已登记在 40-modules/09 §4.5、§5.5（`infrastructure/thumbnails/content-hash.ts`）。`node-font` 度量器以 `layout.measurer` 贡献（`key: 'node-font'`），字体取与浏览器、renderer 同一 fontProfile 的字体包（依据：决策 FONTS，authority：ADR-0027 回退表两端共用）；服务端导出不重排，度量器只供校验与迁移任务使用，缺失时相关插件保持 PENDING、不阻断导入导出。
 
 配置键：`headless.mode`、`headless.endpoint`（ADR-0037 为事实源）、`headless.poolSize`（`remote` 为每个 renderer 进程的并发页数，`local` 为 worker 进程内 Chromium 池的大小，两种模式同一个键）、`headless.pageTimeoutMs`、`headless.renderSigningKeyFile` / `headless.renderVerifyKeyFile`、`headless.worker.*` 与 `fonts.extraDirs` 见 [17 §5](17-deployment-and-config.md)。注入等待超时是 `/render` 页的常量 60 s（rulings §4.18 FE-09），不设配置键。
 
@@ -650,7 +650,7 @@ flowchart LR
 
 - **两段超时分开计**（rulings §4.18 FE-09）：页面等待注入的超时是 `/render` 页常量（默认 60 s，归 [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)）；每页渲染超时 10 s（`headless.pageTimeoutMs`，经 manifest 的 `limits.pageTimeoutMs` 传入）由 renderer 入口在注入完成后逐页计时。worker 的 RPC 总超时 = 注入等待常量 60 s（与 `/render` 页常量同值，FE-09）+ `headless.pageTimeoutMs` × 页数 + 15 s 余量。
 - **重试**：renderer 无状态、自身不重试。worker 对 retryable 状态码与网络错误在同一作业内最多再发 2 次（带抖动，尊重 `Retry-After`），仍失败则抛给 BullMQ 按 §1 退避；页级失败的页在一个新请求里再试 1 次，仍失败则按 §11.3 处理（缩略图返回占位并上报，导出作业失败）。
-- **池**：`RendererPool`（`remote-renderer.client.ts` 内）是一个带优先级的信号量，容量 = `headless.poolSize` × renderer 副本数（默认 2 × 1；副本数由部署编排决定，worker 按 `headless.endpoint` 背后实际可用的副本计）。等待者按 P0（导入完成的首页缩略图）> P1（render-export）> P2（按需与批量缩略图）严格排序，同级 FIFO；等待超过 120 s 抛 `headless.renderer_busy`（retryable）。队列并发（§1）只限制在途作业数，真正的渲染并行度由池决定。
+- **池**：`RendererPool`（`remote-renderer.client.ts` 内）是一个带优先级的信号量，容量 = `headless.poolSize`（默认 2，按单个 worker、1 个 renderer 副本计；rulings §4.20 BE-08+TX-07）。多 worker 或多 renderer 副本时，各 worker 各按这一容量下发，可能超额或闲置：超额部分由 renderer 的 503 `headless.renderer_busy` + `Retry-After` 兜底（§9.1，按下面的重试规则退避），只影响效率、不影响正确性，不做跨 worker 协调与服务发现。按副本放大并发的显式容量键在 M4 Helm 横向扩容 renderer 时再加（届时改本条与 [17 §5.12](17-deployment-and-config.md)）。等待者按 P0（导入完成的首页缩略图）> P1（render-export）> P2（按需与批量缩略图）严格排序，同级 FIFO；等待超过 120 s 抛 `headless.renderer_busy`（retryable）。队列并发（§1）只限制在途作业数，真正的渲染并行度由池决定。
 - **指标**：renderer 不暴露指标；RPC 时长、单页时长、池占用与容量、失败原因由 worker 记录（`cordex_render_*`，名表见 [18 §4](18-observability-and-ops-endpoints.md)），span 名 `render.rpc` 与 `thumbnail.render`。
 
 ### 10.6 版本锁步
@@ -812,7 +812,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | `compaction` 队列 | 删除（§1）：压缩只在持有 Room 的 collab 实例内执行 | 已定稿 |
 | 他线登记 | 07 §9 的 `admin.job_replayed`、`admin.thumbnails_rebuilt`；18 §4 的 `cordex_jobs_unclassified_errors_total`、`cordex_thumbnails_page_failures_total`；01 §12 的导入 50 MB（S10）与 PNG 全量 D200（S22） | 已落实 |
 | 40-modules 回写 | 40/09 §4.5 补 `computePageHashes`；40/09 删除 `headless.zip_limit_exceeded`、`headless.decode_failed`；40/12 删除 `GET /imports/:jobId`、`ThumbnailKey.fontProfile` / `snapshotSeq` 与 `ImportUploadStore` 的 `GETDEL` 描述，缩略图 `?seq=` 参数改为 `?size=` | 已完成（2026-09-25，40/09 §4.5 与 §12、40/12 §2.6 与 §12 已回写） |
-| 配置键 | 已按 [17 §5](17-deployment-and-config.md) 改用 `headless.poolSize`（两种模式共用）、`headless.pageTimeoutMs`、`headless.worker.*`、`http.port`、`scale.maxFileBytes`（`renderer.*`、`browserPool.*`、`headless.injectTimeoutMs` 已废）；队列重试与超时、对账放弃时限、浏览器回收、RPC 体积上限、缩略图孤儿宽限（14 §8 固定 24 h）、注入等待 60 s 为常量；renderer 副本数由部署编排决定，池容量按实际副本数计 | 已落实 |
+| 配置键 | 已按 [17 §5](17-deployment-and-config.md) 改用 `headless.poolSize`（两种模式共用）、`headless.pageTimeoutMs`、`headless.worker.*`、`http.port`、`scale.maxFileBytes`（`renderer.*`、`browserPool.*`、`headless.injectTimeoutMs` 已废）；队列重试与超时、对账放弃时限、浏览器回收、RPC 体积上限、缩略图孤儿宽限（14 §8 固定 24 h）、注入等待 60 s 为常量；`RendererPool` 容量 = `headless.poolSize`（单 worker、单 renderer 副本计，多副本超额由 503 背压兜底，§10.5；副本数键推迟到 M4，rulings §4.20 BE-08+TX-07） | 已落实 |
 
 ## 13. 预算
 
@@ -841,18 +841,18 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 2 | 同键命中 `failed` / `cancelled` 行时新建一行，`attempt_of` 指向上一行；命中 `succeeded` 返回既有行 | 同上 |
 | 3 | 同一 `uploadId` 重放 `POST /imports` 得到同一作业；他人或过期 `uploadId` 一律 403 且响应不可区分 | 70/07 §8、[70/10](../70-testing/10-security-testing.md) §7 |
 | 4 | 取消导入后不存在该 `docId` 的文档行、`imports/` 原件、`baseline/` 与封面对象 | 70/07 §11 |
-| 5 | FakeClock 推进 31 天：`imports-cleanup` 已删原件，导出仍成功且字节与第 1 天相同（基线独立） | [70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md) §10 |
+| 5 | FixedClock 推进 31 天：`imports-cleanup` 已删原件，导出仍成功且字节与第 1 天相同（基线独立） | [70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md) §10 |
 | 6 | 同一 Snapshot 在浏览器与 Node 导出 pptx 的 sha256 相等（语料全集） | 70/03 §6，`test/fidelity-roundtrip` |
 | 7 | 超页数样本被拒时从未解压 `ppt/slides/*`；加密、宏、超限、损坏各类样本得到 §6.3 的码且不建文档 | 70/03 §8 |
 | 8 | `local` 与 `remote` 两种模式下 `/render` 页发出的网络请求数为 0、`blockedRequests = 0` | 70/10 §9（`e2e/smoke` 的 renderer-egress）、[70/06](../70-testing/06-frontend-component-and-e2e.md) render-page.spec |
 | 9 | 无签名、过期签名、body 被改、`renderId` 重放的 RPC 均 401；版本不符 409 | 70/10 §9 |
 | 10 | renderer 进程内无 DB / Valkey / S3 客户端，带凭据环境变量即拒绝启动；非 root、沙箱与 seccomp 开启、未用 `--ipc=host` | [70/08](../70-testing/08-deployment-and-environment-e2e.md) role-assembly；`scanners/check-image-policy` |
 | 11 | 写行后杀进程不入队，≤ 2 × 超时 + 1 min 被补投；清空 Valkey 后全部非终态行被补投、Job Scheduler 在 5 min 内恢复 | 70/07 §11 |
-| 12 | FakeClock 推进后 §4 每个周期作业的删除与标记符合表中规则；周期作业只在 worker 注册 | 70/07 §11；70/08 role-assembly |
+| 12 | FixedClock 推进后 §4 每个周期作业的删除与标记符合表中规则；周期作业只在 worker 注册 | 70/07 §11；70/08 role-assembly |
 | 13 | 只改一页并压缩后只有该页重渲；`layout_algo_version` 过期的行被返回并重渲；缩略图响应带 `nosniff` 与 CSP `sandbox` | 70/07 §11、70/10 §9 |
 | 14 | embedded 封面：非 JPEG 头、超 1 MB、超像素上限均不设封面；服务端依赖树无 `sharp` 与 `@img/sharp-libvips` | 70/10 §9、§13 |
 | 15 | `queues.ts` 的 `QUEUE_DEFAULTS` 与 `MAINTENANCE_SCHEDULES` 与本文 §1、§4 表一致（快照测试）；其中配置键被 `scan-config-usage` 覆盖 | `test/unit`；`scanners/scan-config-usage` |
 | 16 | §13 各键满足 gate | 70/09，`perf/perf-server` |
 | 17 | 创建副本：两次受理得到两份副本；同一 `Idempotency-Key` 重放返回同一 `{docId, jobId}`；副本内容等于源文档 `seq ≤ srcSeq` 的状态，只复制被新快照引用的媒体关联；源文档 `purging` 时作业 `failed` 且不留 `docs/{newDocId}/` 对象 | 70/07 §11 |
 | 18 | 覆盖导入（§6.5）：开工后 ≤ 1 s 在线会话收到 `room{locked:{reason:'import'}}`、写入在 L2 被拒；成功后文档 `active`、`documents.epoch = E + 1`，指针指向 `epoch = E + 1`、`seq_upto = H` 的 `import` 快照；两个 collab 实例上的会话都以 4428 关闭，重连后 `X-Cordex-Epoch = E + 1`；屏蔽控制频道时旧纪元实例下一次取号插入 0 行并自行 4428；失败或取消后文档解锁、纪元与指针不变；worker 装配中没有调用 collab 的 HTTP / RPC 客户端 | 70/07 §9 W17、§11 J7 |
-| 18 | 队列集合恰为 §1 的七条（无 `compaction`） | `test/unit`（`QUEUE_NAMES` 快照） |
+| 19 | 队列集合恰为 §1 的七条（无 `compaction`） | `test/unit`（`QUEUE_NAMES` 快照） |

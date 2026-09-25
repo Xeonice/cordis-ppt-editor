@@ -1,5 +1,5 @@
 # 04 模块设计：文档、存储与媒体（含永久删除编排）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）| 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1；[30/08](../30-architecture/08-backend-nestjs.md)；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1；[30/08](../30-architecture/08-backend-nestjs.md)；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)
 
 本文是 `DocumentsModule`、`StorageModule`、`MediaModule` 三个 Nest 模块运行时设计的唯一事实源，也是「永久删除文档」编排（rulings §4.18 BE-15）的**唯一源**：[05](05-modules-collab-and-snapshots.md)、[06](06-modules-jobs-import-export-thumbnails.md)、[07](07-modules-comments-webhooks-audit.md)、[03](03-modules-identity-and-access.md) 中的 purge 参与者只写自己那一步并链接本文 §4。
 
@@ -39,7 +39,7 @@
 - 不签发协同票据：`POST /documents/:id/collab-ticket` 归 [15](15-rest-api-catalog.md) §3.7 与 [03](03-modules-identity-and-access.md)，本模块不 import `AuthModule`。
 - 不做元素级「彻底删除元素」与墓碑 TTL 硬删除（M-09，[05](05-modules-collab-and-snapshots.md) §8），不做用户数据擦除（[03](03-modules-identity-and-access.md) §3）。
 
-**`owner_id` 的语义**：计费所有者——存储配额归属（§9）、「我的文档」筛选、卡片上的「所有者」。不变量：`owner_id` 指向的用户在 `permissions` 中持 `owner` 角色。M1–M3 不提供转移所有者端点；`PermissionsModule` 拒绝降级或移除 `owner_id` 指向的用户（校验与错误码归 [03](03-modules-identity-and-access.md) §4，本文只登记这条跨模块不变量）。
+**`owner_id` 的语义**：计费所有者——存储配额归属（§9）、「我的文档」筛选、卡片上的「所有者」。不变量：`owner_id` 指向的用户在 `permissions` 中持 `owner` 角色。M1–M3 不提供转移所有者端点（M3 的运维命令 `documents:reassign-owner` 只给目标用户补 owner 授权、不改 `owner_id`，[03](03-modules-identity-and-access.md) §4.2，rulings §4.20 BE-05）；`PermissionsModule` 拒绝降级或移除 `owner_id` 指向的用户（校验与错误码归 [03](03-modules-identity-and-access.md) §4，本文只登记这条跨模块不变量）。
 
 ## 2. 文档状态机
 
@@ -131,7 +131,7 @@ stateDiagram-v2
 
 依据：决策 INC-22（永久删除入口）、RETENTION（`trash-expiry` 与 `retention.trashDays`）、C-02（四值状态）。
 
-**Clock 注入点**（DocumentsModule）：`deleted_at` 与 `updated_at` 盖章、`trash-expiry` 截止时间、`locked_until` 计算与到期判断、`TouchRecent` 的 60 s 节流、UUIDv7（文档 id、副本预分配的新文档 id）的时间部分——一律经服务端 Clock 端口 `apps/server/src/shared/clock.ts`，测试注入 FakeClock（决策 T-DETERMINISM）。数据库侧 `now()` 只用于 `created_at` / `updated_at` 的插入默认值（`media_blobs.unreferenced_since` 也由调用方传入 Clock 时间，[10](10-ddl-documents-marks-media.md) §6）。
+**Clock 注入点**（DocumentsModule）：`deleted_at` 与 `updated_at` 盖章、`trash-expiry` 截止时间、`locked_until` 计算与到期判断、`TouchRecent` 的 60 s 节流、UUIDv7（文档 id、副本预分配的新文档 id）的时间部分——一律经服务端 Clock 端口 `apps/server/src/shared/clock.ts`，测试注入 FixedClock（决策 T-DETERMINISM）。数据库侧 `now()` 只用于 `created_at` / `updated_at` 的插入默认值（`media_blobs.unreferenced_since` 也由调用方传入 Clock 时间，[10](10-ddl-documents-marks-media.md) §6）。
 
 ### 3.3 创建副本（受理）
 
@@ -601,10 +601,10 @@ renderer 角色不装本文任何模块（renderer 进程内无 DB / Valkey / S3
 | DOC-10 | M-08 仓储不写 M-09 列：① `DocumentMetaPatch` 传 `headSeq` 编译失败（`*.type-test.ts`）；② 记录 `DocumentRepository` 发出的 SQL 不含 M-09 列名；③ `cordex_app` 执行 `UPDATE documents SET head_seq = …` 报权限错误 | `test-typecheck`；`test/server-integration` |
 | DOC-11 | 提交校验：sha256 不符 422；申报 `image/png` 实为 HTML 得 415；含 `script` / `onload` / 外链 `href` 的 SVG 消毒后不含这些构造且返回新 sha256；像素超限 413；响应不含去重命中信息 | 70/07、70/10 |
 | DOC-12 | `media-gc` 选中某行后、删对象前发起同 sha256 的提交，结束后「行存在 ⇒ 对象存在」恒成立 | 70/07 |
-| DOC-13 | FakeClock 下走完引用链：彻底删除元素 → 快照写入置 `detached_at` → 保留作业推进后删关联 → `unreferenced_since` 置位 → 30 天后 blob 与对象删除；被命名快照引用的图不被删除 | 70/07 |
+| DOC-13 | FixedClock 下走完引用链：彻底删除元素 → 快照写入置 `detached_at` → 保留作业推进后删关联 → `unreferenced_since` 置位 → 30 天后 blob 与对象删除；被命名快照引用的图不被删除 | 70/07 |
 | DOC-14 | `runBlobStoreConformance` 在 S3（SeaweedFS）与 local 两个 Provider 上通过 | [70/02](../70-testing/02-contract-suites-and-pluggability.md)，`test/contract` |
 | DOC-15 | production 下 `snapshots` 桶未开版本化或 `data` 桶开过版本化时拒绝启动 | 70/08 |
-| DOC-16 | FakeClock 推进 `retention.trashDays` 后文档进入 `purging`；`locked_until` 过期的锁在下一次 `trash-expiry` 后释放 | 70/07 |
+| DOC-16 | FixedClock 推进 `retention.trashDays` 后文档进入 `purging`；`locked_until` 过期的锁在下一次 `trash-expiry` 后释放 | 70/07 |
 | DOC-17 | `GetPresignedPutUseCase` 拒绝模板外的键 | `test/unit` |
 | DOC-18 | 超 `quota.documentsPerUser` 429，超 bytes 413；editor 往他人文档上传时按文档 owner 计量 | 70/07 |
 | DOC-19 | §9 全部配置键有读取点 | `scanners/scan-config-usage` |

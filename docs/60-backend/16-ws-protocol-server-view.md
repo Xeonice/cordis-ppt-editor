@@ -1,5 +1,5 @@
 # 16 WS 协议（服务端视角）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）| 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG
 
 本文是 WS 协同通道在服务端的唯一事实源：升级与握手的检查顺序、每类 CONTROL 帧的服务端处理、入站门禁 L1–L4、ack 的发出规则、同步与 awareness 的处理、权限重算、关闭码的触发条件、跨实例扇出语义与限额数值。帧、CONTROL 成员与关闭码的**定义**在 30-architecture/06 §6 与 `@cordexjs/protocol`，本文不重述字段表；房间、持久化、溢写与准入的机制在 [05](05-modules-collab-and-snapshots.md)；客户端行为在 [50/07](../50-frontend/07-collaboration-client.md)。
 
@@ -15,11 +15,12 @@
 |---|---|---|
 | 1 | `:documentId` 是 UUID | 400 `collab.validation_failed`（按 [15](15-rest-api-catalog.md) 的 `<域>.validation_failed` 口径） |
 | 2 | `Origin` 命中 `security.allowedOrigins`（缺 `Origin` 同样拒绝；非浏览器客户端与测试须显式带 `Origin`） | 403 `server.auth.origin_rejected`，计数（决策 INC-24） |
-| 3 | 该 IP 最近 1 min 的升级请求未超 10 次（令牌桶 `rl:ws-connect:ip:{ipHash}`，IP 经审计盐 HMAC、不存明文，键模板见 [14](14-valkey-object-storage-and-retention.md) §3） | 429 `server.http.rate_limited`，`Retry-After` |
+| 3 | 从该 IP 的令牌桶取 1 个令牌（`rl:ws-connect:ip:{ipHash}`，默认每分钟补 10、容量 10，IP 经审计盐 HMAC、不存明文，键模板见 [14](14-valkey-object-storage-and-retention.md) §3）；票据验签通过后退还（见下方「先扣后退」） | 429 `server.http.rate_limited`，`Retry-After` |
 | 4 | 本实例连接数 < `limits.ws.maxConnectionsPerInstance` | 503，LB 改投其他实例 |
 
-- 按 30/08 §9.3「WS 连接 10 次/min/IP」对每个升级请求计数（Origin 检查之后、升级之前扣减），认证成功的连接同样消耗额度：只计失败握手时，不发 `auth` 的空连接要等 5 s 首帧超时才被计数，一个 IP 在这 5 s 内可以开出大量连接。已知代价：同一 NAT 出口后几十人同时重连（如 1012 驱逐后）会有人收到 429、按退避重试；部署可调高 `limits.ws.connectPerIpPerMin`。待确认（总编排）：是否改为「先扣后退」（认证成功即退还额度）以兼顾两者。
-- IP 取自反代传入的可信转发头（可信代理列表见 [17](17-deployment-and-config.md)）。
+- **先扣后退**（定稿，rulings §4.20 BE-01+TX-03；数值出处原为 30/08 §9.3，现以本文为准）：Origin 通过后、升级之前从 IP 令牌桶扣 1；首帧 `auth` 的票据**验签通过即退还** 1 个令牌（给桶加回 1，不超过容量；「验签通过」指 `TicketVerifier` 的验签、`exp`、`doc` 与 URL 一致、`jti` 单次、`sid` 未吊销全部通过，即此后不会再以 4401 拒绝）。退还点只有这一个：之后无论 `auth.ok`、只读降级，还是被 4503、4404、4426、4428 等准入规则拒绝，额度都已退还。**不退**的情形：4401（票据无效、过期、重放或会话已吊销）与票据 `doc` 与 URL 不符的 4403、4408（5 s 内没发 `auth`）、4427（协议版本不符，在票据之前判定，§12），以及升级后未认证就断开的连接。因此 IP 桶实际只约束「未通过认证的升级」，防空连接的力度不变（不发 `auth` 的空连接从升级那一刻起就占额度，不必等 5 s 超时）；已认证连接另受每用户 ticket 档（120 / min，票据单次有效，[15](15-rest-api-catalog.md) §8）与下一条的每用户并发上限约束。同一出口 IP 后数十人被 1012 驱逐后约分 3 波、≤ 5 s 全部重连完（PRD SV-05）；更大的出口由部署调高 `limits.ws.connectPerIpPerMin`（该键不属 L1–L4 门禁，可以调高，§13）。浏览器看不到 429 的状态码与 `Retry-After`，只观察到 1006，客户端按 [50/07](../50-frontend/07-collaboration-client.md) 的常规退避重试。退还是一次 Valkey Lua 调用；退还失败只记日志与计数、不影响本次握手。
+- **每用户单实例并发上限**：票据验签通过（并已退还 IP 令牌）后，若该用户在本实例已持有 `limits.ws.maxConnectionsPerUser`（默认 32）个已认证连接，回 `auth.denied{code:'collab.rate_limited'}` 并以 4429 关闭，客户端按既有退避重连。计数是进程内按 `userId` 的计数器：票据验签通过即计入、连接关闭即扣除，被本条拒绝的连接不计入。它兜住「退还额度后已认证连接被放大」的风险——没有这道上限时，一个已认证账号能慢慢占满实例的 4000 个连接。
+- IP 取 `clientIp(升级请求)`：与 REST 同算法、同配置（按 `http.trustProxy` 跳数自右向左取，默认 1，不读 `X-Forwarded-For` 首跳），口径同 [15](15-rest-api-catalog.md) §8；web 容器覆盖写入 `X-Forwarded-For` 的做法见 [17](17-deployment-and-config.md) §3.1（rulings §4.20 BE-04）。
 - 升级成功后启动首帧计时：5 s 内必须收到 `CONTROL.auth`，否则 4408；此前收到 SYNC 或 AWARENESS 立即 4401；其他 CONTROL 类型丢弃。
 
 **图 16-1 握手与拒绝分支（服务端视角）**
@@ -32,12 +33,13 @@ sequenceDiagram
   participant VK as Valkey
   participant RM as RoomManager
   C->>G: HTTP Upgrade，带 Origin
-  opt Origin 不在白名单、该 IP 升级次数超限或实例连接已满
+  G->>VK: Origin 通过后从 rl:ws-connect:ip:ipHash 扣 1 个令牌
+  opt Origin 不在白名单、该 IP 令牌不足或实例连接已满
     G-->>C: HTTP 403、429 或 503，不升级
   end
   G->>G: 升级成功，启动首帧 5 s 计时
   alt 5 s 内无 auth，或先发了 SYNC 或 AWARENESS
-    G-->>C: 关闭 4408 或 4401
+    G-->>C: 关闭 4408 或 4401，IP 令牌不退还
   else 收到 CONTROL.auth
     G->>G: 协议版本不在支持窗口则 auth.denied 并关闭 4427
     G->>TV: 校验票据
@@ -45,6 +47,10 @@ sequenceDiagram
     TV->>VK: SET ticket:jti:jti NX PX 60000，EXISTS session:sid
     TV->>VK: GET perm:ver:docId，缺失回源 PG，不一致以库为准
     TV-->>G: 票据无效、重放或会话已吊销则 4401
+    G->>VK: 票据验签通过，退还 1 个 IP 令牌
+    opt 该用户在本实例的已认证连接已达 32
+      G-->>C: auth.denied collab.rate_limited，关闭 4429
+    end
     G->>RM: attach，claims 含 sub、role、permVersion、sid、lnk
     RM->>RM: 文档状态、纪元、schema、角色重算、权重与名额准入，见 05 §3.1
     alt 任一拒绝
@@ -56,9 +62,9 @@ sequenceDiagram
   end
 ```
 
-怎么读：纵线是参与方，自上而下是时间；`opt` 是升级前的 HTTP 拒绝，外层 `alt` 区分首帧是否按时到达，内层 `alt` 区分鉴权与准入结果。拒绝时总是先回 `auth.denied{code}`（升级前的拒绝除外）再按码关闭，码与关闭码的对照见 §10。
+怎么读：纵线是参与方，自上而下是时间；第一个 `opt` 是升级前的 HTTP 拒绝，外层 `alt` 区分首帧是否按时到达，内层 `alt` 区分鉴权与准入结果。IP 令牌在升级前扣、票据验签通过后退还，所以只有未通过认证的升级真正消耗额度；退还之后的第二个 `opt` 是每用户单实例并发上限。拒绝时总是先回 `auth.denied{code}`（升级前的拒绝除外）再按码关闭，码与关闭码的对照见 §10。
 
-依据：30-architecture/06 §6.3 握手图；ADR-0029 决策 1–2、5；决策 INC-24、INC-06；rulings §4.18 BE-02、BE-15。
+依据：30-architecture/06 §6.3 握手图；ADR-0029 决策 1–2、5；决策 INC-24、INC-06；rulings §4.18 BE-02、BE-15，§4.20 BE-01+TX-03、BE-04。
 
 ## 2. 信封与帧类型
 
@@ -76,7 +82,7 @@ sequenceDiagram
 |---|---|---|
 | `auth` | C→S | 只接受作为首帧；按 §1 图与 [05](05-modules-collab-and-snapshots.md) §3.1 的顺序校验；成功后才接受 SYNC / AWARENESS；认证后再收到 `auth` 视为坏帧（4400） |
 | `auth.ok` | S→C | 成功时发一次：`sessionId`、`role`（封顶后的有效角色）、`serverSeq`（加入时的 `documents.head_seq`）、`schemaVersion`、`limits{maxUpdateBytes, msgRateHz, msgBurst}`（决策 INC-07）、`serverTime`；只读降级时带 `reason`：`'capacity'` = 编辑者名额满，`'over_ceiling'` = 部署调低天花板后元素数超限、只读打开（[05](05-modules-collab-and-snapshots.md) §4.1；两者客户端提示不同，决策 INC-03/04/05） |
-| `auth.denied` | S→C | 拒绝时发一次再关闭；`code` 取 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_found`、`collab.doc_purging`、`collab.schema_too_new`、`collab.protocol_mismatch`、`collab.epoch_changed`、`collab.room_full` 之一，关闭码见 §10 |
+| `auth.denied` | S→C | 拒绝时发一次再关闭；`code` 取 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_found`、`collab.doc_purging`、`collab.schema_too_new`、`collab.protocol_mismatch`、`collab.epoch_changed`、`collab.room_full`、`collab.rate_limited`（每用户单实例并发上限，§1）之一，关闭码见 §10 |
 | `auth.refresh` | C→S | 载荷 `{ticket}`，为客户端新换的 collab ticket（决策 INC-27，验票步骤以 [02](02-auth-chain.md) §9.5 为准）：验签、`jti` 单次、`sub`、`doc` 与 `sid` 均须与当前会话一致，否则 4401；通过后重算角色（变化则发 `permission`）。M1–M3 会话有效期绑定 `sid` 指向的登录会话（[05](05-modules-collab-and-snapshots.md) §3.4），`auth.refresh` 不延长期限、成功不回应答帧；M4 集成方 JWT 复用本帧，届时以新 JWT 的 `exp` 延长 |
 | `permission` | S→C | 角色重算结果变化时发 `{role, reason:'granted' \| 'changed' \| 'revoked', permVersion}`；`revoked` 后立即关闭 4403（§8） |
 | `ack` | S→C | 规则见 §5 |
@@ -99,7 +105,7 @@ stateDiagram-v2
   [*] --> awaiting: 升级成功
   awaiting --> closed: 5 s 超时 4408，先发 SYNC 4401，坏帧 4400
   awaiting --> admitting: 收到 CONTROL.auth
-  admitting --> closed: auth.denied，4401 4403 4404 4426 4427 4428 4503
+  admitting --> closed: auth.denied，4401 4403 4404 4426 4427 4428 4429 4503
   admitting --> writer: auth.ok，可写角色
   admitting --> readonly: auth.ok，只读角色或 reason capacity、over_ceiling
   writer --> readonly: permission changed 或 room locked
@@ -217,7 +223,7 @@ sequenceDiagram
 - **身份绑定**：状态的 Yjs clientID 必须等于该会话在 `auth.clientId` 声明的值，`user.id` 必须等于会话用户；不符即丢弃——一个会话不能冒充他人的光标或在场。
 - **节流**：同一 clientID 的更新至多每 `awarenessMinIntervalMs`（50 ms）转发一次，窗口内只保留最新值（合并而非拒绝）。
 - **查看者只上报 view**：只读会话的状态只保留 `v`、`user`、`client`、`view`、`idle`、`ts`，其余字段（选区、光标、正在编辑）在转发前剥掉。
-- **满员合并 tick**：房间在线用户 ≥ `awarenessTickThreshold`（20）时改为每 `awarenessTickMs`（100 ms）把期间变化合并成一个 awareness 帧下发（30-architecture/08 §3.1 `awareness-tick.ts`）。
+- **满员合并 tick**：房间在线用户 ≥ `awarenessTickThreshold`（20）时改为每 `awarenessTickMs`（100 ms）把期间变化合并成一个 awareness 帧下发（文件级见 40-modules/09 §4.4、§5.4 的 `application/awareness/awareness-relay.ts`，tick 并在该文件内、不另建文件）。
 - **加入与离开**：新会话认证后立即收到全量状态；会话断开时服务端主动广播该 clientID 的移除，不等 30 s 超时。
 - awareness 帧经扇出送达其他副本（§11），也计入 L1 令牌桶。
 
@@ -261,7 +267,7 @@ sequenceDiagram
 | 4426 | `collab.schema_too_new` | 文档 schema 高于客户端声明的支持上限（加入时；或迁移后在线客户端落后） |
 | 4427 | `collab.protocol_mismatch` | `auth.protocolVersion` 不在服务端支持窗口 |
 | 4428 | `collab.epoch_changed` | 客户端声明的本地纪元与文档纪元不符（加入时）；收到 `epoch` 控制消息（运维 `forceEpoch`，或覆盖导入提交，rulings §4.19 N1）；取号纪元栅栏生效 |
-| 4429 | `collab.rate_limited` | 令牌桶耗尽或每分钟字节超限 |
+| 4429 | `collab.rate_limited` | 令牌桶耗尽或每分钟字节超限；握手期该用户在本实例的已认证连接数已达 `limits.ws.maxConnectionsPerUser`（先回 `auth.denied{collab.rate_limited}`，§1） |
 | 4503 | `collab.room_full` / `collab.bootstrap_failed` | 名额或实例预算不足；Room 进入 `failed`；等待迁移租约超时 |
 
 ## 11. 跨实例扇出语义
@@ -283,7 +289,7 @@ sequenceDiagram
 
 ## 12. 版本协商
 
-加入时按以下顺序判定，前一项失败就不看后一项：
+加入时按以下顺序判定，前一项失败就不看后一项。完整的握手期顺序是：第 1 项协议版本 → 票据校验（§1，失败 4401）→ 退还 IP 令牌并判每用户单实例并发上限（§1，超限 4429）→ attach（[05](05-modules-collab-and-snapshots.md) §3.1，第 2、3 项在其第 1 步）：
 
 1. **协议版本**：`auth.protocolVersion` ∈ [`PROTOCOL_MIN`, `PROTOCOL_MAX`]（常量在 protocol `ws/handshake.ts`，M2 起均为 1）→ 否则 `collab.protocol_mismatch` / 4427（提示刷新）。放在票据校验之前：协议不兼容时连票据的解析方式都不可信。
 2. **文档纪元**：客户端声明的本地纪元存在且 ≠ `documents.epoch` → `collab.epoch_changed` / 4428（客户端丢弃本地 Y 状态、重新 bootstrap，pending 移入 `rejected` 并可导出）。
@@ -293,7 +299,7 @@ sequenceDiagram
 
 ## 13. 速率与限制数值
 
-数值的归属在本文（决策「WS 协同分工」），配置键名与校验以 [17](17-deployment-and-config.md) 为唯一源，二者须一致；全部可由部署调整，门禁数值只收紧。
+数值的归属在本文（决策「WS 协同分工」），配置键名与校验以 [17](17-deployment-and-config.md) 为唯一源，二者须一致；全部可由部署调整。L1–L4 门禁的数值只收紧；`limits.ws.connectPerIpPerMin` 与 `limits.ws.maxConnectionsPerUser` 是握手期的连接约束、不属 L1–L4 门禁，可以调高（例如更大的办公出口，§1）。
 
 | 配置键 | 默认 | 作用点 | 超限出口 | 出处 |
 |---|---|---|---|---|
@@ -306,7 +312,8 @@ sequenceDiagram
 | `limits.awarenessTickThreshold` / `limits.awarenessTickMs` | 20 / 100 | 满员合并 tick | — | 本文 §7 |
 | `limits.ws.firstFrameTimeoutMs` | 5000 | 首帧计时 | 4408 | ADR-0029 决策 2 |
 | `limits.idleTimeoutMs` | 45000 | 无任何入站帧（客户端 15 s 心跳 × 3） | 断开（1006） | 本文 §3 |
-| `limits.ws.connectPerIpPerMin` | 10 | 升级前，按 IP 计升级请求 | HTTP 429 | 30/08 §9.3（口径见 §1） |
+| `limits.ws.connectPerIpPerMin` | 10 | 升级前从 IP 令牌桶扣 1，票据验签通过退还（先扣后退，§1）；实际只约束未通过认证的升级；不属 L1–L4 门禁，可以调高 | HTTP 429 | 原 30/08 §9.3，现以本文为准；rulings §4.20 BE-01+TX-03 |
+| `limits.ws.maxConnectionsPerUser` | 32 | 握手期，票据验签通过之后：每用户在单个实例上的已认证连接数（进程内计数） | `auth.denied{collab.rate_limited}` + 4429 | rulings §4.20 BE-01+TX-03 |
 | `limits.ws.maxConnectionsPerInstance` | 4000 | 升级前 | HTTP 503 | RM-S 单实例 ≥ 2,000 的 2 倍余量（与 [17](17-deployment-and-config.md) 一致） |
 | `collab.repair.quarantineThreshold` / `windowMs` | 5 / 600000 | L4 | 4409 | ADR-0034 决策 2 |
 | L2 违规累计 | 3 次 | L2 | 4403 | ADR-0029 决策 3 |
@@ -314,7 +321,7 @@ sequenceDiagram
 
 ## 14. 与相邻文档的对齐项
 
-2026-09-25 按 rulings §4.19 回填后已全部落实，保留此表便于反查：
+2026-09-25 按 rulings §4.19 回填后已全部落实，保留此表便于反查；2026-09-26 按 rulings §4.20 新增末行：
 
 | 项 | 落点 | 状态 |
 |---|---|---|
@@ -322,6 +329,7 @@ sequenceDiagram
 | SYNC 写入门槛 ≥ commenter、路径限制在 L4 | ADR-0029 决策 3 修订、30-architecture/06 §10 与 §11、[02](02-auth-chain.md) §9.4 | 已改（rulings §4.19 D-COMMENTS-PKG） |
 | 锁定 / 解锁经 `perm:doc:{docId}` 通知在线会话 | [04](04-modules-documents-storage-media.md) §2、[14](14-valkey-object-storage-and-retention.md) §3.2 | 已落实 |
 | §13 各键与 `limits.ws.maxConnectionsPerInstance = 4000` | [17](17-deployment-and-config.md) §5 | 已登记 |
+| `auth.denied` 的 code 集合加 `collab.rate_limited`（→ 4429，每用户单实例并发上限）；`limits.ws.maxConnectionsPerUser = 32` | 30-architecture/06 §6.3、protocol `ws/handshake.ts`（40-modules/02）；[17](17-deployment-and-config.md) §5.8 | 17 已登记；30/06 与 protocol 随 rulings §4.20 BE-01+TX-03 同轮回写 |
 
 ## 15. 机械验证
 
@@ -329,7 +337,8 @@ sequenceDiagram
 
 | 断言 | 落点 |
 |---|---|
-| 握手拒绝分支逐条可达：跨源升级 403 `server.auth.origin_rejected`；同一 IP 1 min 内第 11 次升级 429；5 s 无 auth → 4408；先发 SYNC → 4401；票据过期、重放、`sid` 吊销 → 4401；协议版本不符 → 4427；纪元不符 → 4428；schema 过新 → 4426；`purging` → 4404；名额与预算不足 → 4503 | `test/server-integration`、`e2e/smoke`（跨源 WS 升级被拒） |
+| 握手拒绝分支逐条可达：跨源升级 403 `server.auth.origin_rejected`；同一 IP 并发 11 个未认证升级，第 11 个得 429；5 s 无 auth → 4408；先发 SYNC → 4401；票据过期、重放、`sid` 吊销 → 4401；协议版本不符 → 4427；纪元不符 → 4428；schema 过新 → 4426；`purging` → 4404；名额与预算不足 → 4503 | `test/server-integration`、`e2e/smoke`（跨源 WS 升级被拒） |
+| 先扣后退与每用户上限（rulings §4.20 BE-01+TX-03）：同一 IP 30 个连接依次认证成功，都不得 429；持有效票据但被 4503 拒绝的连接不消耗 IP 额度；4401、4408、4427 与升级后未认证即断开的连接不退还额度；同一用户在单实例上的第 33 个连接得 `auth.denied{collab.rate_limited}` 并以 4429 关闭、其前 32 个连接不受影响；伪造的 `X-Forwarded-For` 首跳不改变 IP 桶的主体（`clientIp()`，BE-04）；同一出口 IP 的 30 人被 1012 驱逐后 ≤ 5 s 全部重连 | `test/server-integration`（安全侧另见 [70/10](../70-testing/10-security-testing.md) SEC-RL-03；每用户上限的契约用例 [70/02](../70-testing/02-contract-suites-and-pluggability.md) §5.2 `admission/per-user-connection-cap-4429`；集体重连 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §9 W4「同一出口 IP 30 人、≤ 5 s」） |
 | 门禁 L1–L4 负向用例：超 1 MiB → 4413；坏 JSON → 4400；超速 → 4429；viewer 写入得 `error` 且连接保持、第 3 次 4403；降权后 2 s 内到达的在途写入只回 `error` 不计数、2 s 后的越权写入计数；commenter 只写 `resources['comments.threads']` 被放行、改其他路径被修复还原；`Tombstone.byUser` 不等于来源会话 userId 的删除被修复还原；结构数超限 4400；超元素天花板得 `error{document.quota_exceeded}` 且不关闭；5 次修复 → 4409 | `test/contract`（`runCollabServerConformance`）+ `test/server-integration`（组合根 soft-gate 分节） |
 | ack：每个写入帧恰好一帧 db ack 且顺序等于到达顺序；step2 空差量回 db ack 且 `seq = head`；拆块后每块一帧 db ack；降级期先 spill 后 db；被拒帧不回 ack | `test/contract` |
 | 关闭码全表：`close-codes.ts` 与 §10 一致，每个码至少一条触发用例（`heartbeat-and-close-codes.test`） | `test/contract`（客户端与服务端各一份） |

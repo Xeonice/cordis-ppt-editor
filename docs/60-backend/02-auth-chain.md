@@ -1,5 +1,5 @@
 # 02 鉴权链路：OIDC、会话、CSRF、票据、分享链接与 RLS 上下文
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[charter](../00-charter/charter.md) §4.2、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.13 S-1、§4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-01/BE-02/BE-05/BE-06/BE-07/BE-09/BE-11/UX-02/UX-03、§4.19 D-M2-CONTENT/D-COMMENTS-PKG；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)；PRD [SV-06/SV-11/SV-12](../10-prd/03-features/06-server-and-ops.md)、[CO-05/CO-15](../10-prd/03-features/03-collaboration.md)、[EM-03](../10-prd/03-features/05-embedding-and-integration.md)；[30/06](../30-architecture/06-collaboration.md) §6、§10；[30/10](../30-architecture/10-observability-and-errors.md) §1、§2.3；[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[charter](../00-charter/charter.md) §4.2、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.13 S-1、§4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-01/BE-02/BE-05/BE-06/BE-07/BE-09/BE-11/UX-02/UX-03、§4.19 D-M2-CONTENT/D-COMMENTS-PKG；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)；PRD [SV-06/SV-11/SV-12](../10-prd/03-features/06-server-and-ops.md)、[CO-05/CO-15](../10-prd/03-features/03-collaboration.md)、[EM-03](../10-prd/03-features/05-embedding-and-integration.md)；[30/06](../30-architecture/06-collaboration.md) §6、§10；[30/10](../30-architecture/10-observability-and-errors.md) §1、§2.3；[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)
 
 > 读者：实现 `apps/server` 的 auth、users、permissions、share-links、collab 模块的工程师；安全评审。
 > 定位：服务端鉴权**端到端唯一事实源**：主体模型、OIDC RP、首次登录建号、登录会话与吊销、CSRF 与 Origin、REST 守卫链、分享令牌、协同票据、WS 鉴权、RLS 会话上下文、权限变更传播。请求头名 `X-Cordex-Request`（CSRF）与 `X-Cordex-Share-Token`（分享令牌）、cookie 名与属性在本文定义，前端引用。
@@ -63,7 +63,7 @@ type ShareLinkScope = { docId: DocumentId; role: 'viewer' | 'commenter' | 'edito
 - **角色格**：`owner > editor > commenter > viewer > none`。文档上的**有效角色** = max(直接授权, 本文档有效链接角色)（rulings §4.18 BE-02）。直接授权来自 `permissions` 中未过期的行；链接角色在 REST 侧来自 `Principal.scopes`，在 WS 侧来自票据 `lnk` 按链接 id 复核的结果。
 - **能力位**：`protocol permissions/actions.ts` 为唯一定义；运行时初值 `ROLE_CAPABILITIES` 由 PermissionsModule 持有（[03 §4](03-modules-identity-and-access.md)），矩阵与 [15 §2](15-rest-api-catalog.md) 一致：viewer = `doc.read`；commenter 另加 `doc.comment`；editor 另加 `doc.write`、`doc.export`、`history.read`；owner 另加 `doc.manage`、`history.restore`（依据：rulings §4.12 U-09；40/08 §2.2）。
 - **`DocAccess`**：品牌类型 `{docId, userId, role}`，只能由 `RoleResolverService.authorize(principal, docId, capability)` 在判定通过后构造；以 `docId` 为键的仓储公共方法首参必须是 `DocAccess` 或 `SystemContext`（扫描器 `scan-doc-access-via-permission`，40/08 §10）。
-- **`SystemContext`**：品牌类型 `{job: SystemJobName}`，只能由作业入口（BullMQ 处理器、Job Scheduler、server-collab 单写者）构造；配套 DB 登录角色 `cordex_system` 与 GUC `app.system_job`（§10）。系统上下文**不代表任何用户**，不能出现在 REST 处理器里。
+- **`SystemContext`**：品牌类型 `{job: SystemJobName}`，只能由作业入口（BullMQ 处理器、Job Scheduler、server-collab 单写者、`cordex-ops` 子命令入口）构造；配套 DB 登录角色 `cordex_system` 与 GUC `app.system_job`（§10）。系统上下文**不代表任何用户**，不能出现在 REST 处理器里。
 - **平台管理员**：`platformRole='admin'` 只授予部署级管理动作（用户状态与角色、Webhook、审计查询），**不隐含任何文档角色**——读写文档仍须文档权限（40/08 §1.2）。
 
 ---
@@ -276,7 +276,7 @@ stateDiagram-v2
 
 | 顺序 | 守卫 | 注册 | 归属模块 | 通过条件 | 拒绝出口 |
 |---|---|---|---|---|---|
-| ① | `RateLimitGuard` | `APP_GUARD` #1 | common（机制，M-12） | 令牌桶有余量；主体取会话 JWT 的 `sub`（只验签、不复核会话），无会话按客户端 IP；档位见 15 §8 | 429 `*.rate_limited` + `Retry-After` |
+| ① | `RateLimitGuard` | `APP_GUARD` #1 | common（机制，M-12） | 令牌桶有余量；主体取会话 JWT 的 `sub`（只验签、不复核会话），无会话按客户端 IP（`clientIp()`，按 `http.trustProxy` 跳数自右向左取，rulings §4.20 BE-04）；档位见 15 §8 | 429 `*.rate_limited` + `Retry-After` |
 | ② | `SessionGuard` | `APP_GUARD` #2 | AuthModule | §4.2；`@Public` 放行；`Session*` 允许 JWT 过期 | 401 `server.auth.unauthenticated` / `expired` / `invalid_token`；503 `server.auth.unavailable` |
 | ③ | `CsrfGuard` | `APP_GUARD` #3 | AuthModule | §5 | 403 `server.auth.csrf_rejected` |
 | ④ | `ShareLinkGuard` | `APP_GUARD` #4 | ShareLinksModule | 带 `X-Cordex-Share-Token` 时解析并叠加链接角色；**从不拒绝**，无效令牌只记录原因（§7.4） | — |
@@ -659,10 +659,10 @@ sequenceDiagram
 | AC-03 | 跨源 WS 升级被拒（HTTP 403，不建立连接），计数指标 +1 | [70/10](../70-testing/10-security-testing.md) |
 | AC-04 | OIDC：oidc-provider mock 与 Casdoor（selfSignup 开 / 关）登录成功并 JIT 建号；服务端与 Valkey 中查不到 IdP access / refresh token；绑定 cookie 不符 → 失败；`next=//evil.example` 被改写为 `/` | `e2e/smoke` 的 login-oidc-mock、login-casdoor（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | AC-05 | 同一 `(issuer, subject)` 并发首登只产生一个用户；同邮箱、不同 issuer 产生两个用户；未验证邮箱不写入 `users.email` | `test/server-integration` |
-| AC-06 | 会话（FakeClock）：登出后 ≤ 5 s REST 401、WS 4401；停用用户 ≤ 5 s 失去 REST 与 WS；刷新密钥重放吊销该 `sid`；10 s 宽限内的并发刷新不吊销；满 30 天封顶后刷新 401；登出返回 200，mock IdP 带 `end_session_endpoint` 时 `endSessionUrl` 含 `client_id`、`post_logout_redirect_uri`、`id_token_hint`，去掉该端点后响应省略 `endSessionUrl` | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
+| AC-06 | 会话（FixedClock）：登出后 ≤ 5 s REST 401、WS 4401；停用用户 ≤ 5 s 失去 REST 与 WS；刷新密钥重放吊销该 `sid`；10 s 宽限内的并发刷新不吊销；满 30 天封顶后刷新 401；登出返回 200，mock IdP 带 `end_session_endpoint` 时 `endSessionUrl` 含 `client_id`、`post_logout_redirect_uri`、`id_token_hint`，去掉该端点后响应省略 `endSessionUrl` | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 | AC-07 | 只有链接、没有直接授权的用户：`GET /documents/:id` 与 `collab-ticket` 返回 200，票据含 `lnk`；未登录带令牌 401；令牌放在 query 不生效；令牌属于别的文档不生效；间隔超过 1 s 的两次访问各写一条 `share_link.accessed`，1 s 内的多次访问合并为一行且 `count` 等于访问次数 | `test/server-integration` |
 | AC-08 | 过期或撤销的令牌：直通不叠加；无直接授权时 403 且 `details.reason` 为 `share_link.expired` / `share_link.revoked` | `test/server-integration` |
-| AC-09 | 撤销链接后凭该链接的 WS 会话 ≤ 1 s 降权；链接到期后主动降权（FakeClock）；他人修改权限不踢出只凭链接加入的会话 | `test/server-integration` |
+| AC-09 | 撤销链接后凭该链接的 WS 会话 ≤ 1 s 降权；链接到期后主动降权（FixedClock）；他人修改权限不踢出只凭链接加入的会话 | `test/server-integration` |
 | AC-10 | 票据：重放 → 4401；过期 → 4401；`aud=cordex-session` 的 JWT 冒充票据 → 4401；`doc` 与 URL 不符 → 4403 `collab.forbidden`；旧 `perm_ver` 以库为准；`auth.refresh` 换 `sub` 或 `sid` → 4401 | `test/server-integration`（ticket-verifier 契约，[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 | AC-11 | 绕过应用层直连 PG：`cordex_app` 只设 `app.user_id` 时读不到无授权文档的任何行；伪造或过期的 `app.share_token_hash` 不产生链接角色；未设 `app.system_job` 的 `cordex_system` 连接看不到任何文档作用域行 | `e2e/smoke` 的 security-rls（[70/10](../70-testing/10-security-testing.md)） |
 | AC-12 | 服务端日志、trace 与错误上报中不出现 `X-Cordex-Share-Token`、cookie、票据原文 | [70/10](../70-testing/10-security-testing.md) |

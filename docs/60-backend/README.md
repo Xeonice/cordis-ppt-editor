@@ -1,11 +1,11 @@
 # 60 后端设计线：定位、边界与导航
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（审稿） | 依赖：charter §7、§8、§9.2；rulings §4.11–§4.19；30-architecture/README；40-modules/README；30-architecture/08 §0；40-modules/19
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（审稿）；2026-09-26（§4.20） | 依赖：charter §7、§8、§9.2；rulings §4.11–§4.20；30-architecture/README；40-modules/README；30-architecture/08 §0；40-modules/19
 
 ## 1. 定位
 
 `docs/60-backend/` 是**后端运行时设计的唯一事实源**，覆盖：`apps/server`（NestJS 11 + Fastify）、`@cordexjs/server-collab`、`@cordexjs/server-storage`、`@cordexjs/server-headless`、renderer sidecar，以及 PostgreSQL 18、Valkey、SeaweedFS 三类存储上的全部结构与约定。它与 [50-frontend](../50-frontend/README.md)、[70-testing](../70-testing/README.md) 并列，各管一侧、互不覆盖（三线总边界表见 [docs/README.md](../README.md)）。
 
-**口径链**（冲突时自左向右取前者）：rulings（§4.11–§4.19，后者覆盖前者；§4.19 已登记三条设计线各为该侧唯一事实源）> charter > 已接受 ADR > 30-architecture 正文 > **50 / 60 / 70** > 40-modules（包与文件级）> PRD / 设计的既定口径。其中验收阈值与检查名以 PRD 为准、测试如何执行以 70 为准。
+**口径链**（冲突时自左向右取前者）：rulings（§4.11–§4.20，后者覆盖前者；§4.19 已登记三条设计线各为该侧唯一事实源）> charter > 已接受 ADR > 30-architecture 正文 > **50 / 60 / 70** > 40-modules（包与文件级）> PRD / 设计的既定口径。其中验收阈值与检查名以 PRD 为准、测试如何执行以 70 为准。
 
 **与 30、40 的分工**：[30-architecture/08](../30-architecture/08-backend-nestjs.md) 收缩为跨端原则——Nest 薄壳、cordis 宿主内嵌、fail-closed 双点、驱动放行、文档类型盲——其余运行侧细节由本线承接并在原处改为「摘要 + 链接」（清单见 §6）；40-modules 保留包目录树、逐文件职责、扩展缝、测试文件清单与机械约束，它的服务端 §1、§2、§6、§7 与「Nest 模块定义表」改为链接本线。
 
@@ -173,7 +173,7 @@ flowchart LR
 - **DDL** 一律写在 ```` ```sql ```` 围栏里，首行为 `-- migrate: NNNN_<name>`（可执行，由 `docs/_tools/ddl-check` 按编号在 PG 18 容器中顺序执行）或 `-- example`（只做语法解析）。迁移编号全线唯一，按计划 ownership 分配：08 占 0001–0009、0095–0099；09 占 0010–0019、0030–0039、0090；10 占 0020–0029、0050–0059、0091；11 占 0040–0049、0092；12 占 0060–0069、0093；13 占 0070–0079、0094。
 - 表名、列名、Valkey 键模板、对象键前缀、路由、配置键、审计 action、指标名**以本线为准**；其他文档出现不同写法时以本线为准回改对方。
 - 每份文件末尾设「机械验证」小节，只写断言（what）并注明 70 的套件或 CI 步骤名；不新增扫描器（上限 14）与 CI job（13 个封闭集合），新检查只能是既有扫描器子规则、lint 规则、既有 job 的步骤或 `docs/_tools` 脚本。
-- 已定决策（needsUser=false）与 rulings 已裁定项直接写结论并注明「依据：决策 id + authority」；仍需用户确认的项按推荐写，段首标「待确认（总编排）：<决策 id>」，裁定后改为定稿并删去标注（本轮按 rulings §4.19 清理，剩余项见 §8.1）。
+- 已定决策（needsUser=false）与 rulings 已裁定项直接写结论并注明「依据：决策 id + authority」；仍需用户确认的项按推荐写，段首标「待确认（总编排）：<决策 id>」，裁定后改为定稿并删去标注（按 rulings §4.19、§4.20 清理，2026-09-26 起已无剩余项，见 §8.1）。
 - 图用 Mermaid（绘图规范见 [_tools/README](../_tools/README.md)），每图上一行加粗图名、下一行「怎么读」，必要时加「依据」；写完运行 `mermaid-check` 要求 0 invalid。
 
 ---
@@ -227,15 +227,15 @@ flowchart LR
 | 01 | 服务端 gate 与 `budgets.json` 一致 | `perf/perf-server`、`perf/perf-collab` |
 | 02 | 路由鉴权覆盖、跨源 POST 403、跨源 WS 升级被拒、票据重放 4401、停用 ≤ 5 s 失去会话、只凭链接的用户 200、撤销 ≤ 1 s 与到期降权 | `test/server-integration`；链接会话三场景另在 `test/contract`（`runCollabServerConformance`） |
 | 02、08–13 | 绕过应用层直连 PG 被 RLS 拒绝（角色 × 表 × 操作矩阵） | `e2e/smoke`（security-rls） |
-| 03、04 | 最后 owner / admin 并发保护；擦除后无身份行且会话失效；永久删除后无 update 落库、两个桶无版本残留、中途失败重试一致；跨文档取媒体 404；M-08 仓储不写 M-09 列 | `test/server-integration` |
-| 05、16 | Room 与门禁场景（step2 空 diff 回 db ack、PG 断开照常广播并推 persist、先回收空闲房间、purging 拒绝加入、epoch 4428）；关闭码全表；CONTROL schema 快照 | `test/contract`（`runCollabServerConformance`、heartbeat-and-close-codes） |
+| 03、04 | 最后 owner / admin 并发保护；擦除后无身份行且会话失效；停用与擦除的响应附唯一 owner 文档数，运维转移 owner 后新 owner 能撤销原链接、在线会话 ≤ 1 s 重算；永久删除后无 update 落库、两个桶无版本残留、中途失败重试一致；跨文档取媒体 404；M-08 仓储不写 M-09 列 | `test/server-integration` |
+| 05、16 | Room 与门禁场景（step2 空 diff 回 db ack、PG 断开照常广播并推 persist、先回收空闲房间、purging 拒绝加入、epoch 4428）；WS 升级先扣后退与每用户单实例并发上限 4429；关闭码全表；CONTROL schema 快照 | `test/contract`（`runCollabServerConformance`、heartbeat-and-close-codes） |
 | 05 | 集群集成：降级互见、回放无重复、第 21 个编辑者准入原子性 | `test/server-integration` |
 | 06 | 幂等（并发同键一行、失败后得新行）、取消不留原件、未签名 RPC 被拒 | `test/server-integration` |
 | 06 | 两种模式下 `/render` 网络请求为 0 | `e2e/smoke`（renderer-egress） |
 | 06 | 浏览器与 Node 导出同一快照的 sha256 相等 | `test/fidelity-roundtrip` |
 | 07 | 镜像 ≤ 1 s、HMAC 验签、重试与死信、SSRF 拒绝私网、审计只追加与链校验、分区轮换后可续验 | `test/server-integration` |
 | 08 | 迁移按编号在 PG 18 中全部执行通过 | `docs/_tools/ddl-check` |
-| 08 | 迁移 SQL 文件须与文档逐字一致：`apps/server/src/db/migrations/` 的文件集合、文件名与内容等于 08–13 的围栏（**待实现**） | `docs/_tools/ddl-check` 实现期扩展（08 §11 第 6 条、DB-13） |
+| 08 | 迁移 SQL 文件须与文档逐字一致：`apps/server/src/db/migrations/` 的文件集合、文件名与内容等于 08–13 的围栏（首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated） | `scanners/check-migrations-sync`（不起容器，调用 `docs/_tools/ddl-check` 的比对模式；08 §11 第 6 条、DB-13；rulings §4.20 BE-03+TX-14） |
 | 08 | 启用 RLS 的表清单与例外清单一致 | `scanners`（`check-rls-coverage`） |
 | 08 | drizzle schema 与 DDL 一致；GRANT 快照 | `test/server-integration` |
 | 14 | 键名只由 `redis-keys.ts` / `keys.ts` 生成且与登记表一致；BlobStore 契约覆盖按版本删除与反代 Host | `test/unit`、`test/contract`（`runBlobStoreConformance`） |
@@ -251,9 +251,9 @@ flowchart LR
 
 ## 8. 待决与待确认
 
-### 8.1 已由 rulings §4.19 裁定的项与仍待确认的项
+### 8.1 已由 rulings §4.19、§4.20 裁定的项与仍待确认的项
 
-**已裁定**（原按推荐写入的三项与本线相关的另两项，2026-09-25 全线回填；补完阶段分诊出的 N1 同日由用户裁决并回填；文中「待确认」标注已删除）：
+**已裁定**（原按推荐写入的三项与本线相关的另两项，2026-09-25 全线回填；补完阶段分诊出的 N1 同日由用户裁决并回填；2026-09-26 按 rulings §4.20 回填末四行；文中「待确认」标注已删除）：
 
 | 决策 | 裁决 | 本线落点 |
 |---|---|---|
@@ -263,12 +263,12 @@ flowchart LR
 | D-COMMENTS-PKG | 评论客户端为 iso 包 `@cordexjs/comments`，ResourceHook `comments.threads`；本线的评论路径统一写 `resources['comments.threads']` | 05 §13、07 §1、13 §2、16 §4 |
 | D-TEST-INFRA | 协同与服务端压测的自托管专用 runner 在 M2 前落地 | 01 §12、05 §6.2、06 §6.3、17 §5.10（阈值在该 runner 上校准） |
 | N1-IMPORT-OVERWRITE-RESTORE-LOCK | 恢复不锁、覆盖导入换纪元：版本恢复是持有 Room 的 collab 进程内单事务、不加锁、在线不断连；覆盖既有文档的导入期间文档 `locked`，worker 写 `epoch + 1` 的 `import` 快照并经 `room:{docId}:ctl` 通知，在线会话 4428 后重新 bootstrap，未获 db 确认的更改移入 `rejected` 可导出；不新增 worker → collab 通道；锁 `reason` 只剩 `import`、`migration` | 06 §6.5、05 §3.3 / §9.2 / §10、04 §2–§3 / §5 / §8、02 §9.3 / §11、07 §9、10 §2（`documents.epoch` 列注释）、11 §7.2、14 §3.1、15 §3.9（导入受理 409 `server.documents.locked`）、16 §8 / §10 |
+| BE-01+TX-03（§4.20） | WS 升级限流先扣后退：Origin 通过后、升级前从 IP 令牌桶扣 1，票据验签通过即退还（之后被准入规则拒绝也已退还），4401、4408、4427 与未认证断开不退；另加每用户单实例并发上限 `limits.ws.maxConnectionsPerUser`（默认 32），超出 `auth.denied{collab.rate_limited}` + 4429 | 16 §1、§3、§10、§12、§13、§15，15 §8，14 §3，17 §5.8 |
+| BE-05+TX-22（§4.20） | 唯一 owner 空窗：M3 在 `cordex-ops` 加 `documents:reassign-owner --doc <id> --to <userId>`，以系统上下文调用 PermissionsModule 的 `ReassignOwnerUseCase` 写 owner 授权、`perm_version` 加 1，审计 `admin.owner_reassigned`；停用、擦除的响应与审计附唯一 owner 文档数（SECURITY DEFINER 函数 `cordex_sole_owner_doc_count`）；M4 管理面板复用同一用例 | 03 §3.2–§3.3 / §4、07 §9、08 §4.3 / §6.5 / §9、09 §7（0035）、15 §3.2、17 §6 / §9 |
+| BE-02、BE-03+TX-14、BE-08+TX-07（§4.20 默认值） | REST 限流档定稿（upload 60 / 20、public 300 / 100，其余与 256 KiB 维持）；迁移目录逐字比对在首批迁移文件入库的同一 PR 实现、由 `scanners/check-migrations-sync` gated；`RendererPool` 容量 = `headless.poolSize`（单 worker、单 renderer 副本计），超额由 503 背压兜底，副本数键推迟到 M4 | 15 §8、17 §5.8 / §5.12、08 §10.1 / §11 / §13、06 §10.5 |
+| TX-01+BE-10（§4.20 默认值） | U-07 立项为 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议）：M2 期间起草、M2 出口评审前定稿，未定稿则 M3 版本恢复（CO-07）不开工；定稿后本线回填 05 §11 与 15 §3.8 | 05 §11、本节 §8.3 |
 
-**仍待确认**：
-
-| 项 | 所在 | 说明 |
-|---|---|---|
-| 待确认（总编排）：WS 升级限流「先扣后退」 | 16 §1 | 认证成功是否退还按 IP 的升级额度，兼顾 NAT 出口下的集体重连 |
+**仍待确认**：无（原唯一一项「WS 升级限流先扣后退」已由 rulings §4.20 BE-01+TX-03 裁定，见上表）。
 
 ### 8.2 已按权威定稿的后端相关决策
 
@@ -286,6 +286,9 @@ flowchart LR
 | SG-01、CSP-NONCE、TT-CSP-REPORT、C-16/INC-30 | renderer 签名 RPC；nonce 由 web 容器每响应生成；CSP 上报端点；Webhook 密钥加密存储 | 06、17、18、07 |
 | METRICS、INC-31/INC-29 | 指标统一名 `cordex_<subsystem>_<name>_<unit>`；审计 action `<resource>.<snake_action>`；Webhook 事件名 | 18、07 |
 | INC-37、T-DETERMINISM、T-DB-ISOLATION | 里程碑口径已被 rulings §4.19 D-M2-CONTENT 覆盖（协同后端提前到 M2，见 01 §3）；服务端 Clock 端口 `shared/clock.ts`；测试数据库按模板克隆、用非属主角色 | 01、03–07、70/07 |
+| BE-04（rulings §4.20 机械修正） | 限流与审计的客户端 IP 统一为 `clientIp()`：按 `http.trustProxy` 跳数自右向左取（proxy-addr，与 Fastify `request.ip` 同算法），HTTP 与 WS 升级共用；web 容器覆盖写入 `X-Forwarded-For`，`upstream` 模式以 realip 只信 `CORDEX_WEB_TRUSTED_LB_CIDRS` 一跳 | 01 §10、15 §8、16 §1、17 §3.1 / §3.6 / §5.1 |
+| 限流档数值与默认请求体上限（原 §8.4 待复核项，rulings §4.20 BE-02 定稿） | upload 改为 60 / min、突发 20，public 改为 300 / min、突发 100；ticket 120 / 30、search 30 / 10、job 60 / 10 与默认请求体 256 KiB 经评审维持；不加档位、不加配置键 | 15 §8、17 §5.8 |
+| 原 §8.4 其余六项（2026-09-26 收口，rulings §4.20 BE-11+TX-12） | `server.http.*` 三码与原 15 §7 待登记码已登记进 30/10 §1.1 与 http-map，命名版本上限码为非配额码 `server.snapshots.named_limit_reached`；`DocumentsModule → JobsModule` 的 imports 边已回写 40/08 §3；`UsersModule` 为叶子、票据签发在 `AuthModule`、`DocumentsModule` 不 import `AuthModule`；`/auth/token/refresh`、`/auth/logout` 为 `Session*`、不进 `@Public` 快照；探针不经反代；启动断言退出码 78 / 70 与 A10、A11 | 15 §2、§4、§7，01 §6–§8，17 §3 |
 | SESSION 的实现细化（本线提出，效果不变） | 停用、擦除、登出对 WS 的作用统一由每 5 s 批量会话复核以 4401 实现，删去控制频道的 `kick` 操作（`room:{docId}:ctl` 只剩 `close`、`epoch`）；吊销仍 ≤ 5 s 同时作用于 REST 与 WS，无需按房间点名 | 02 §9.5、05 §3.3、14 §3、16 §10 |
 | BE-10 的细化（本线提出，意图不变） | JOB-IDEM：导入幂等键 `import:{docId}:{sha256}:{baseSeq}`；UPLOAD-QUARANTINE：导入直传落隔离区 `uploads/tmp/{uploadId}`、受理时服务端复制到原件键、`upload:{uploadId}` 不 `GETDEL`、导入 PUT 有效期等于 `uploadId` 寿命 1 h | 06 §2.3、§6.1，12 §8，14 §3、§5，15 §3.9，17 §5 |
 
@@ -293,21 +296,13 @@ flowchart LR
 
 | 项 | 状态 | 本线处理 |
 |---|---|---|
-| U-07 version-restore-undo（版本恢复的撤销语义） | M-02 × M-05 × M-09 联合 ADR，未立项 | [05](05-modules-collab-and-snapshots.md) 只留占位与接口预留 |
-| ADR-0037 决策 5 最低主机规格 | M3 前实测填入 | [17](17-deployment-and-config.md) 引用，不自填数值 |
+| U-07 version-restore-undo（版本恢复的撤销语义） | 已立项为 [ADR-0038](../30-architecture/adr/0038-version-restore-undo.md)（提议）：M-02 主笔，M-05、M-09 会签，70/05 出 `rs/restore-revert-*` 场景；M2 期间起草、M2 出口评审前定稿（即 U-07 的「M3 前」），未定稿则 M3 的版本恢复（CO-07）不开工（rulings §4.20 TX-01+BE-10）；「谁能撤销」「可撤销时效」两处留到定稿时交互拍板 | [05](05-modules-collab-and-snapshots.md) §11 只留占位与接口预留，定稿后回填 05 §11 与 15 §3.8 |
+| ADR-0037 决策 5 最低主机规格 | 推迟项（rulings §4.20 BE-07+TX-05）：取数 = [70/09](../70-testing/09-performance-and-capacity.md) §6 的 `host-footprint` 场景（产物 `test/perf/results/host-footprint.json`，分 core 与 core+idp 两档），峰值合计 × 1.3；时点 = M3 出口前 | [17](17-deployment-and-config.md) §11 登记取数与时点，不自填数值 |
 | 溢写阈值（SPILL） | 已给默认值，在 M2 前落地的自托管 runner 上压测校准、只收紧（rulings §4.19 D-TEST-INFRA） | [01 §12](01-service-overview-and-roles.md#12-服务端预算总览) S21 |
 
 ### 8.4 本线写作中新提出、待总编排复核的项
 
-| 项 | 所在 | 说明 |
-|---|---|---|
-| `server.http.*` 三码与原 15 §7 标「待登记」的其余码 | 15 §7 | 已按 INC-10 登记进 30-architecture/10 §1.1 与 http-map（rulings §4.19 回填）；命名版本上限码定为非配额码 `server.snapshots.named_limit_reached` |
-| 限流档数值（ticket、search、public、job）与默认请求体上限 256 KiB | 15 §8 | default 与 upload 取自 30-architecture/08 §9.3，telemetry 与 csp 取自 18 §9.1，其余为新定默认，配置键归 17 |
-| `DocumentsModule → JobsModule` 的 imports 边 | 01 §8 | schedule-purge 同事务写 `job_runs`，40-modules/08 §3 漏登；回写时补进 40 的 imports 列 |
-| `UsersModule` 为叶子（`SessionStore` 放在其中）；票据签发控制器在 `AuthModule`，`DocumentsModule` 不 import `AuthModule` | 01 §8 I1、I2 | 与 03、04 的 imports 表一致；40-modules/08 §3 的 `DocumentsModule → AuthModule` 回写时删除 |
-| `/auth/token/refresh`、`/auth/logout` 允许过期会话 JWT（`Session*`），不进 `@Public` 快照 | 15 §2、§4 | 须与 02 的会话机制一致 |
-| 探针 `/healthz`、`/readyz` 不经反代 | 01 §7 | 安全宁可提前；17 的 web 容器配置须同步 |
-| 启动断言退出码 78 / 70 的划分与 A10、A11 两条新断言 | 01 §6 | A11 依据决策 DB-ROLES，A10 依据决策 INC-26 |
+无。原列七项已于 2026-09-26 全部收口并移入 §8.2（限流档数值按 rulings §4.20 BE-02 定稿，其余六项按 BE-11+TX-12 确认已落实）；[15](15-rest-api-catalog.md) §9 的同名清单同步删去。
 
 ---
 
@@ -315,6 +310,7 @@ flowchart LR
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
-| 2026-09-25 | v0.1（审稿） | 装配与数据库基础设施的文件级收口：30-architecture/08 §2 目录树删除后，`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像、迁移 SQL）登记到 40-modules/12 §4.13、§5.13；01 §3 的 `ObservabilityModule`、`DbModule`、`RedisModule`「文件级」列与 01、08 中「依据：30/08 §2、§4.1、§5」一类历史引用改指新位置；08 §10.1 写明迁移 SQL 文件须与文档逐字一致，§11 第 6 条与 §13 DB-13 登记 ddl-check 实现期扩展为对比 `db/migrations`（待实现）；`SystemJobName` 落点登记为 `db/system-jobs.ts` |
+| 2026-09-26 | v0.1（§4.20） | 按 rulings §4.20 落实后端相关条目：WS 升级限流先扣后退 + 每用户单实例并发上限 32（16、15 §8、14 §3、17 §5.8）；REST 限流档定稿（upload 60 / 20、public 300 / 100）；客户端 IP 统一为 `clientIp()` 与 web 容器覆盖写入转发头（BE-04）；运维命令 `documents:reassign-owner` 与停用、擦除响应附唯一 owner 文档数（新增 0035 `cordex_sole_owner_doc_count`，第五个 SECURITY DEFINER 函数）；审计 `admin.owner_reassigned`；`RendererPool` 容量按单副本；迁移目录比对改挂 `scanners/check-migrations-sync`；U-07 链接 ADR-0038；`host-footprint` 取数登记；`FakeClock` 统一为 `FixedClock`；指向 30/08 已删小节的依据引用改指 40 / 60 现行落点；§8.1 待确认项与 §8.4 全部收口 |
+| 2026-09-25 | v0.1（审稿） | 装配与数据库基础设施的文件级收口：30-architecture/08 §2 目录树删除后，`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像、迁移 SQL）登记到 40-modules/12 §4.13、§5.13；01 §3 的 `ObservabilityModule`、`DbModule`、`RedisModule`「文件级」列与 01、08 中指向 30/08 已删目录树与草案小节的一类历史依据引用改指新位置；08 §10.1 写明迁移 SQL 文件须与文档逐字一致，§11 第 6 条与 §13 DB-13 登记 ddl-check 实现期扩展为对比 `db/migrations`（待实现）；`SystemJobName` 落点登记为 `db/system-jobs.ts` |
 | 2026-09-25 | v0.1（§4.19） | 按 rulings §4.19 回填：协同网关、Room、持久化与快照、服务端导入提前到 M2（01 §3 里程碑总表），删除 pptx 内容版本全部设计；INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA 定稿；新增创建副本（04 §3.3、06 §6.6、15 §3.3）；装配矩阵补 providers 格与 Http 模块拆分规则；collab purge 参与者只依赖 Pg 存储；删除 `compaction` 队列与 `kick` 控制操作；媒体读取改 200 JSON；RP-initiated logout；外键前导索引补齐并在 PG 18.6 重跑全部 DDL |
 | 2026-09-25 | v0.1 | 新建后端设计线：README、01–18。01 的装配矩阵迁自 40-modules/12 §7.1（BE-13 内容不变、落点变更，补全局守卫行与 purge 参与者列）；15 以接口盘点的 59 条 REST 为底，按决策 INC-18、INC-21、INC-22、SG-03、SG-06/SG-07、SG-08、SG-10、MECH-INC 修正后定稿；三项待用户确认（C-06、D-M2-CONTENT、INC-09）按推荐写入并标注 |

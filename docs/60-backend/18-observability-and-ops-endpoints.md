@@ -1,5 +1,5 @@
 # 18 可观测性与运维端点
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[30/08](../30-architecture/08-backend-nestjs.md) §2、§12；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[30/08](../30-architecture/08-backend-nestjs.md) §12；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
 
 
 ## 0. 本文定位
@@ -356,7 +356,7 @@ flowchart TB
 
 怎么读：自上而下；先看生命周期（启动未完成或正在 draining 直接 503），再按角色选检查集合；「硬依赖」失败一律 503，「降级项」失败返回 200 `degraded`，二者都通过才是 `ok`。collab 把 PG 与对象存储列为降级项，worker 把 renderer 列为降级项，三个角色都把审计未来分区不足列为降级项；renderer 只有一个检查。
 
-依据：30/08 §2 health 行；rulings §4.18 BE-06、BE-11、BE-14、CO-08；ADR-0035「如何被机械验证」混沌条。
+依据：40-modules/12 §4.6（`health/` 文件级）；rulings §4.18 BE-06、BE-11、BE-14、CO-08；ADR-0035「如何被机械验证」混沌条。
 
 ## 7. MetricsModule 与内部端口
 

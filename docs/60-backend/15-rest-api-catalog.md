@@ -1,5 +1,5 @@
 # 15 REST API 目录
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked` | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；30-architecture/08 §2、§9、§11、§16.4；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；30-architecture/08 §9、§11、§16.4；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
 
 > 读者：实现 `apps/server` 控制器与 `@cordexjs/protocol` `rest/*` 的工程师；前端（[50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 的用例层只引用本表，不复写守卫与错误码）；测试（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 由本表生成「角色 × 能力位 × 路由」矩阵）。
 > 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry）链接本文。
@@ -117,8 +117,8 @@ flowchart LR
 |---|---|---|---|---|---|---|---|---|---|
 | GET | `/users?query=` | `Session` | — | `query` 至少 2 个字符；按显示名前缀匹配，邮箱只做**精确**匹配且不回显 → 至多 20 条 `{ id, displayName, avatarUrl }`（依据：决策 SG-05） | 200 | `server.users.validation_failed`（400，query 过短） | — | search | M3 |
 | PATCH | `/users/me/profile` | `Session` | — | `{ displayName?, avatarUrl? }` → `User` | 200 | 仅隐含码 | `user.profile_updated` | default | M3 |
-| PATCH | `/users/:id` | `Session` → `Admin` | — | `{ status?: 'active' \| 'suspended', platformRole?: 'member' \| 'admin' }` → `User`；停用即吊销该用户全部 `sid` 并以 4401 踢出其 WS（决策 SESSION） | 200 | `server.users.not_found`（404）、`server.users.last_admin`（409，停用或降级最后一名 admin） | `user.suspended` / `user.reactivated` / `user.role_changed` | default | M3 |
-| POST | `/users/:id/erasure` | `Session` → `Admin` | — | `{ reason? }` → `{ userId, erasedAt }`，同步完成：用户行原地脱敏（`status='erased'`，显示名 `deleted-user`，邮箱与头像置空）、删除全部 `user_identities`、吊销全部会话；指向该用户的外键、审计行与其为 owner 的文档都不动，不进入永久删除编排（[03](03-modules-identity-and-access.md) §3.3；依据：决策 C-24、INC-22） | 200 | `server.users.not_found`（404）、`server.users.last_admin`（409） | `user.erased` | job | M3 P1 |
+| PATCH | `/users/:id` | `Session` → `Admin` | — | `{ status?: 'active' \| 'suspended', platformRole?: 'member' \| 'admin' }` → `User`，本次改为 `suspended` 时另带 `soleOwnerDocCount`（该用户是唯一可用 owner 的文档数，提醒管理员用 ops 命令 `documents:reassign-owner` 转移，[03](03-modules-identity-and-access.md) §3.3、[17](17-deployment-and-config.md) §9，rulings §4.20 BE-05）；停用即吊销该用户全部 `sid` 并以 4401 踢出其 WS（决策 SESSION） | 200 | `server.users.not_found`（404）、`server.users.last_admin`（409，停用或降级最后一名 admin） | `user.suspended` / `user.reactivated` / `user.role_changed` | default | M3 |
+| POST | `/users/:id/erasure` | `Session` → `Admin` | — | `{ reason? }` → `{ userId, erasedAt, soleOwnerDocCount }`（含义同上，rulings §4.20 BE-05），同步完成：用户行原地脱敏（`status='erased'`，显示名 `deleted-user`，邮箱与头像置空）、删除全部 `user_identities`、吊销全部会话；指向该用户的外键、审计行与其为 owner 的文档都不动，不进入永久删除编排（[03](03-modules-identity-and-access.md) §3.3；依据：决策 C-24、INC-22） | 200 | `server.users.not_found`（404）、`server.users.last_admin`（409） | `user.erased` | job | M3 P1 |
 
 ### 3.3 documents
 
@@ -400,19 +400,19 @@ flowchart LR
 
 ## 8. 限流与请求体上限
 
-**限流档**（Valkey 令牌桶，键 `rl:{bucket}:{subject}`，键模板见 [14](14-valkey-object-storage-and-retention.md)；数值为默认值，配置键 `limits.rate.<档>.{perMin, burst}` 见 [17](17-deployment-and-config.md)，只收紧）：
+**限流档**（Valkey 令牌桶，键 `rl:{bucket}:{subject}`，键模板见 [14](14-valkey-object-storage-and-retention.md)；数值为默认值，配置键 `limits.rate.<档>.{perMin, burst}` 见 [17](17-deployment-and-config.md)，只收紧）。各档数值与默认请求体上限已经评审定稿（rulings §4.20 BE-02）：upload、public 两档上调，其余维持；不加档位、不加配置键。
 
 | 档 | 主体 | 默认速率 / 突发 | 适用 |
 |---|---|---|---|
-| default | 用户 | 600 次 / min，突发 100 | 未另注明的全部 `Session` 路由（30-architecture/08 §9.3） |
-| upload | 用户 | 10 次 / min，突发 5 | media presign / commit、`/imports/uploads` |
+| default | 用户 | 600 次 / min，突发 100 | 未另注明的全部 `Session` 路由（数值原出自 30/08 §9.3，现以本表为准） |
+| upload | 用户 | 60 次 / min，突发 20 | media presign / commit、`/imports/uploads`（每张图 presign + commit 两次调用，连插 20 张图约 20 s 传完；原 10 / 5 下要约 3.5 min，BE-02） |
 | job | 用户 | 60 次 / min，突发 10 | `POST /imports`、取消导入、创建副本、导出、永久删除文档、用户擦除、审计导出 |
-| ticket | 用户 | 120 次 / min，突发 30 | `POST /documents/:id/collab-ticket`（重连风暴时单独限流，ADR-0023；M2 自托管 runner 压测校准） |
+| ticket | 用户 | 120 次 / min，突发 30 | `POST /documents/:id/collab-ticket`（重连风暴时单独限流，ADR-0023；每次连接一张单次票据，外加被动续期） |
 | search | 用户 | 30 次 / min，突发 10 | `GET /users?query=`（防枚举，决策 SG-05） |
 | telemetryErrors | 用户 | 容量 5、每 10 s 补 1（数值以 [18](18-observability-and-ops-endpoints.md) §9.1 为准） | `/telemetry/errors` |
 | telemetryOtlp | 用户 | 容量 20、每秒补 1（同上） | `/telemetry/otlp` |
-| public | 来源 IP（取 `X-Forwarded-For` 首跳，只信任 web 容器网段） | 60 次 / min，突发 20 | `@Public` 的 auth 四条 |
-| csp | 来源 IP（HMAC 后） | 容量 10、每 2 s 补 1，另有全局每秒 100 次（18 §9.1） | `/telemetry/csp` |
+| public | 来源 IP = `clientIp()`（按 `http.trustProxy` 跳数自右向左取，默认 1；不读 `X-Forwarded-For` 首跳；HMAC 后作主体，BE-04） | 300 次 / min，突发 100 | `@Public` 的 auth 四条（单组织部署多数用户共用办公出口 IP：登录一次 3 次调用，离线探测「疑似离线」时每 30 s 一次 `/auth/config`，百人出口在登录高峰或 API 恢复后不再撞 429，BE-02） |
+| csp | 来源 IP = `clientIp()`（同上，HMAC 后） | 容量 10、每 2 s 补 1，另有全局每秒 100 次（18 §9.1） | `/telemetry/csp` |
 
 **请求体上限**（超限 413 `server.http.payload_too_large`；由 Fastify `bodyLimit` 按路由覆盖）：
 
@@ -425,7 +425,9 @@ flowchart LR
 | `POST /telemetry/csp` | 16 KiB |
 | 文件字节（媒体、导入原件） | 不经 Nest：浏览器按预签名直传对象存储，大小由预签名条件与 commit / 受理时的 HEAD 校验约束；导入原件 ≤ `scale.maxFileBytes`（200 MB） |
 
-WS 升级的失败握手限流（每 IP 10 次 / min，只计失败握手）、帧大小与帧速率不在本表，见 [16](16-ws-protocol-server-view.md) §1。
+`clientIp(req)`：HTTP 与 WS 升级共用的来源 IP 取法（`common/`，与 Fastify `request.ip` 同为 proxy-addr 算法），按 `http.trustProxy`（[17](17-deployment-and-config.md) §5.1）的可信跳数从右向左取；web 容器覆盖写入 `X-Forwarded-For`（[17](17-deployment-and-config.md) §3.1），伪造的首跳既不改变限流主体，也不改变审计 `ip_hash`（rulings §4.20 BE-04；文件级为 `apps/server/src/common/rate-limit/client-ip.ts`，登记在 40-modules/12 §4.9、§5.9）。
+
+WS 升级限流（每 IP 10 次 / min，先扣后退：升级前扣、票据验签通过即退还，净计未通过认证的升级；另有每用户单实例已认证连接上限 32）、帧大小与帧速率不在本表，见 [16](16-ws-protocol-server-view.md) §1、§13。
 
 ---
 
@@ -455,7 +457,7 @@ WS 升级的失败握手限流（每 IP 10 次 / min，只计失败握手）、�
 | `/telemetry/csp` 为第七条 `@Public` | §3.14、§4 | TT-CSP-REPORT：rulings §4.15 Q2 + §4.18 BE-30 |
 | 错误码域按 `server.<资源>` 收编，废 `share_link.*`、`user.*`、`snapshot.*` 前缀 | §7 | INC-10/SG-04：30-architecture/10 §1.1 |
 
-**本文新增、未经上游决策、需总编排复核的项**（错误码已随 30/10 登记，不再列入）：§8 各限流档的具体数值（default、upload 取自 30-architecture/08 §9.3，telemetry、csp 取自 [18](18-observability-and-ops-endpoints.md) §9.1，job、ticket、search、public 为新定默认）；`server.snapshots.persist_degraded` 码名；§8 默认请求体上限 256 KiB；探针不经反代；`/auth/token/refresh` 与 `/auth/logout` 的 `Session*` 写法（与 [02](02-auth-chain.md) 的会话机制须一致）。
+**本文新增项的复核**：原列在此处待总编排复核的五项已全部收口（2026-09-26，rulings §4.20 BE-02、BE-11+TX-12；与 [README](README.md) §8.2 同一口径，不再在两处重复维护）——§8 各限流档数值与默认请求体上限 256 KiB 经评审定稿（upload、public 上调，其余维持）；`server.snapshots.persist_degraded` 码名随 30/10 §1.1 登记；探针不经反代；`/auth/token/refresh` 与 `/auth/logout` 的 `Session*` 写法与 [02](02-auth-chain.md) 一致。
 
 **已删除端点**（任何文档、代码或测试再出现即视为回退）：
 

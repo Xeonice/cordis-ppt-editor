@@ -1,5 +1,5 @@
 # 05 模块设计：协同与快照（含 server-collab 契约）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）
 
 本文是服务端协同的唯一事实源：CollabModule 与 SnapshotsModule 的职责与装配、`@cordexjs/server-collab` 的契约、Room 在服务端的运行机制（准入、持久化、降级溢写、压缩、墓碑、迁移与换纪元）、快照 REST 的用例、永久删除参与者。帧与 CONTROL 的定义只在 30-architecture/06 §6 与 protocol 文件；服务端对帧的处理、门禁与关闭码见 [16](16-ws-protocol-server-view.md)；表结构见 [11](11-ddl-collab-updates-and-snapshots.md)；Valkey 键与对象键模板只引用 [14](14-valkey-object-storage-and-retention.md)；路由、守卫、错误码与审计名以 [15](15-rest-api-catalog.md) §3.7、§3.8 为准。包与文件级规划留在 40-modules/09。
 
@@ -7,7 +7,7 @@
 
 ## 1. CollabModule
 
-职责：把 `@cordexjs/server-collab`（文档类型盲的函数库 + cordis 插件，提供 `collabServer`）接到 Nest 与 IO 上。网关 `CollabGateway` 只做连接适配：WS 升级时的 Origin 白名单、按 IP 的失败握手计数与实例连接上限、首帧 5 s 计时、票据校验（`TicketVerifier`），校验通过后把连接交给 `collabServer.attach()`；房间、门禁、持久化全部在 server-collab 内。
+职责：把 `@cordexjs/server-collab`（文档类型盲的函数库 + cordis 插件，提供 `collabServer`）接到 Nest 与 IO 上。网关 `CollabGateway` 只做连接适配：WS 升级时的 Origin 白名单、按 IP 的升级令牌桶（先扣后退：升级前扣、票据验签通过退还）与实例连接上限、首帧 5 s 计时、票据校验（`TicketVerifier`）、每用户单实例并发上限（[16](16-ws-protocol-server-view.md) §1），校验通过后把连接交给 `collabServer.attach()`；房间、门禁、持久化全部在 server-collab 内。
 
 **装配**（`CollabModule.forRole(role)`，矩阵唯一版本见 [01](01-service-overview-and-roles.md) §5）：
 
@@ -170,7 +170,7 @@ flowchart LR
 
 怎么读：左框是包内契约，实线表示 `CollabServer` 依赖（注入）这些 Definition；右框是 Nest 模块目录下的 Node 适配器，虚线「实现」表示它提供左侧契约。包内不出现任何驱动，驱动只在右框（R5 `third-party-single-entry`）。
 
-依据：40-modules/09 §2.5、§3.4；30-architecture/08 §3.1、§14 S7；决策 C-11、KEYS。
+依据：40-modules/09 §2.5、§3.4、§4.4；30-architecture/08 §14 S7；决策 C-11、KEYS。
 
 ## 3. Room 生命周期
 
@@ -187,7 +187,7 @@ flowchart LR
 
 ### 3.1 加入房间
 
-票据校验（验签、`jti`、`sid`、`permVersion`，[16](16-ws-protocol-server-view.md) §1、§3）之后，`attach` 按以下顺序执行，任一步拒绝都先回 `auth.denied{code}` 再按码关闭：
+票据校验（验签、`jti`、`sid`、`permVersion`，[16](16-ws-protocol-server-view.md) §1、§3）通过后，网关先退还 IP 升级令牌并判每用户单实例并发上限（超限 `auth.denied{collab.rate_limited}` + 4429，16 §1），再调 `attach`；`attach` 按以下顺序执行，任一步拒绝都先回 `auth.denied{code}` 再按码关闭：
 
 1. 读 `documents` 行（系统作业名 `collab.gateway`，[08](08-db-conventions-roles-rls-migrations.md) §6.5）：不存在或 `trashed` → `collab.doc_not_found`（4404）；`purging` → `collab.doc_purging`（4404，rulings §4.18 BE-15）；`locked`（覆盖导入或迁移窗口）→ 角色封顶为 `viewer`（L2 拒写，ADR-0029 决策 5，2026-09-25 按 rulings §4.19 N1 收窄，版本恢复不加锁）；客户端声明的纪元与 `documents.epoch` 不符 → `collab.epoch_changed`（4428）；文档 `schema_version` 高于客户端支持 → `collab.schema_too_new`（4426）。
 2. `AuthorizationSource.resolveRole`：取 max(直接授权, 票据 `lnk` 对应链接此刻的有效角色)，`none` → `collab.forbidden`（4403）；记录 `linkExpiresAt`（rulings §4.18 BE-02）。
@@ -607,11 +607,11 @@ sequenceDiagram
 
 怎么读：纵线是参与方，自上而下是时间。恢复不重写历史、不加锁、不断开任何连接：它和普通编辑一样是一次落库并广播的事务，只是由服务端以系统身份发起；`opt` 段是恢复前的数据安全快照。
 
-依据：ADR-0025 决策 6；30-architecture/08 §3.1 `snapshot.service.ts`；rulings §4.18 BE-03、§4.19 N1。
+依据：ADR-0025 决策 6；40-modules/09 §4.4 `snapshot.service.ts`；rulings §4.18 BE-03、§4.19 N1。
 
 ## 11. 恢复的撤销语义（占位）
 
-PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M-05 × M-09 联合 ADR `version-restore-undo` 定稿（rulings §4.12 U-07，M3 前出）；「恢复前落快照变相撤销」与「进本地撤销栈」两个简单方案已被否决。本文在 ADR 产出前只固定以下服务端事实与接口预留，客户端表达见 [50/08](../50-frontend/08-comments-and-version-history.md)：
+PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M-05 × M-09 联合 ADR [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议；M-02 主笔，M-05、M-09 会签）定稿：M2 期间起草、M2 出口评审前定稿（即 rulings §4.12 U-07 的「M3 前」），未定稿则 M3 的版本恢复（CO-07）不开工（rulings §4.20 TX-01+BE-10）；「恢复前落快照变相撤销」与「进本地撤销栈」两个简单方案已被否决。ADR 的起草基线与本文一致：在持有 Room 的实例内单事务、不加锁、走命令管线（不用 `revertTo`），判断「他人后写」看当前值是否仍出自恢复事务的 struct 范围而非值相等，恢复时删掉的元素以原 id 复活；「谁能撤销」「可撤销时效」两处在 ADR 定稿时交互拍板，定稿后本节与 [15](15-rest-api-catalog.md) §3.8 回填字段。本文在 ADR 定稿前只固定以下服务端事实与接口预留，客户端表达见 [50/08](../50-frontend/08-comments-and-version-history.md)：
 
 - 恢复是一个 `origin = system('restore')` 的服务端事务，不进入任何客户端的撤销栈；在线用户看到的是远端变更（他们自己的撤销仍按「他人后写则跳过」的中性撤销规则运行，30-architecture/05）。
 - 每次恢复都留下可追溯的链：恢复前的 `auto` 快照（§10 第 2 步）、恢复事务的 update 行、`kind='restore'` 快照及其 `restored_from`。ADR 若选择「受保护的恢复事务」，可直接以这条链定位要回退的事务范围，不需要新表。
@@ -650,7 +650,7 @@ PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M
 | `collab.doc_not_found` / `collab.doc_purging` | 文档不存在或在回收站 / 处于 `purging` | 4404 |
 | `collab.schema_too_new` / `collab.protocol_mismatch` / `collab.epoch_changed` | 版本协商失败（[16](16-ws-protocol-server-view.md) §12） | 4426 / 4427 / 4428 |
 | `collab.room_full` / `collab.bootstrap_failed` | 名额或实例预算不足 / Room 进入 `failed` | 4503 |
-| `collab.bad_frame`、`collab.auth_timeout`、`collab.quarantined`、`collab.payload_too_large`、`collab.rate_limited` | 门禁与握手（[16](16-ws-protocol-server-view.md) §4） | 4400、4408、4409、4413、4429 |
+| `collab.bad_frame`、`collab.auth_timeout`、`collab.quarantined`、`collab.payload_too_large`、`collab.rate_limited` | 门禁与握手（[16](16-ws-protocol-server-view.md) §4）；`collab.rate_limited` 另用于握手期每用户单实例并发上限（16 §1，先回 `auth.denied`） | 4400、4408、4409、4413、4429 |
 | `collab.lock_lost` | 单写者租约在写入前失效 | 仅日志与计数，不对外 |
 | `document.quota_exceeded` | L3 发现 update 会使元素总数超天花板（ADR-0034 修订） | `error`，不关闭 |
 | `server.documents.element_not_tombstoned` | 元素彻底删除的 ids 含非墓碑态 | 409 |

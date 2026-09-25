@@ -1,5 +1,5 @@
 # 01 服务总览、进程角色与 cordis 宿主
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿） | 依赖：charter §5.2、§7；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19；ADR-0026、ADR-0035、ADR-0037；30-architecture/08 §0；40-modules/08、09、12
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20） | 依赖：charter §5.2、§7；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19；ADR-0026、ADR-0035、ADR-0037；30-architecture/08 §0；40-modules/08、09、12
 
 > 读者：实现 `apps/server`、`@cordexjs/server-collab`、`@cordexjs/server-storage`、`@cordexjs/server-headless` 的工程师；运维。
 > 定位：后端运行时的总入口。本文是以下内容的**唯一事实源**：Nest 模块清单、`CORDEX_ROLE` 语义、「模块 × 角色 × 部件」装配矩阵（迁自 40-modules/12 §7.1；rulings §4.18 BE-13 的内容不变，落点迁到本文的依据是 rulings §4.19「三线各为该侧唯一事实源、重复段落改为引用」）、启动断言、反代路径到角色的分流、Nest 模块 imports 总图、cordis 宿主生命周期映射、进程启动与优雅关闭、服务端预算总览、服务端里程碑口径（§3）。
@@ -498,7 +498,7 @@ sequenceDiagram
 
 1. 启动 OTel SDK（`import './observability/otel'`，在一切有副作用的 import 之前）。
 2. 读取并解析配置（zod，失败退出 78）；执行 A1–A4a。
-3. `NestFactory.create(AppModule.forRole(role), new FastifyAdapter({ trustProxy, bodyLimit }))`；`trustProxy` 只信任 web 容器所在网段（取 `X-Forwarded-For` 用于限流与审计 IP 哈希）。
+3. `NestFactory.create(AppModule.forRole(role), new FastifyAdapter({ trustProxy, bodyLimit }))`；`trustProxy = http.trustProxy`（可信反代跳数，compose 固定为 1，[17](17-deployment-and-config.md) §5.1）。限流与审计 IP 哈希的来源 IP 一律取 `common/` 的 `clientIp(req)`：按该跳数自右向左取（proxy-addr，与 Fastify `request.ip` 同算法），HTTP 请求与 WS 升级共用，不读 `X-Forwarded-For` 首跳（[15](15-rest-api-catalog.md) §8，rulings §4.20 BE-04；文件级登记在 40-modules/12 §4.9）。
 4. `setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] })`（rulings §4.18 BE-11）。
 5. collab / all 注册 `WsAdapter(ws)`，网关路径 `/collab/v1/rooms/:documentId`。
 6. 全局件：`CordexExceptionFilter`（CordexError → problem+json）、`ZodPipe`、`RequestContextInterceptor`（requestId / traceparent / principal → ALS，事务内 `SET LOCAL` RLS 上下文）、`AuditInterceptor`；`APP_GUARD` 链由 `AppModule` 按角色注册。

@@ -1,5 +1,5 @@
 # 17 部署拓扑与配置 schema
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[30/08 §2 / §10](../30-architecture/08-backend-nestjs.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18](../00-charter/rulings-2026-09-14.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[30/08 §10](../30-architecture/08-backend-nestjs.md)、[40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18](../00-charter/rulings-2026-09-14.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)
 
 > 读者：运维、写 `apps/server/src/config/**`、Dockerfile 与 compose 的工程师。
 > 本文是**配置 schema 全字段表**（§5）的唯一源，也是 compose、web 容器、镜像、迁移作业与备份的部署事实源。进程角色的模块装配矩阵在 [01](./01-service-overview-and-roles.md)；CSP 策略正文在 [50/14](../50-frontend/14-client-security.md)，本文只负责「每响应生成 nonce 并下发」；RuntimeConfig 的字段在 [50/02](../50-frontend/02-app-shell-routing-and-session.md)，本文只负责「启动时渲染进 index.html」。
@@ -153,7 +153,9 @@ services:
 | `idp.<域名>` | casdoor:8000 | 保持 Host，`X-Forwarded-Proto https`；管理后台路径（随 Casdoor 版本维护的清单文件）只允许 `CORDEX_WEB_IDP_ADMIN_ALLOW` 中的来源 IP |
 | `s3.<域名>` | seaweedfs:8333 | 保持 Host（SigV4 把 Host 算进签名）；`proxy_request_buffering off`；单请求上限 32 MiB（≥ 10 MB 的上传走分片）；访问日志只记路径不记 query（query 里有预签名签名）；响应一律加 `Content-Security-Policy: sandbox` 与 `nosniff`（预签名 GET 返回的是用户上传内容，不得在该源执行，[04 §11](./04-modules-documents-storage-media.md)） |
 
-TLS 证书覆盖 `<host>`、`idp.<域名>`、`s3.<域名>` 三个名字；前面另有 TLS 终止的负载均衡时设 `CORDEX_WEB_TLS_MODE=upstream`，此时 web 只监听 8080 并信任一跳 `X-Forwarded-*`。使用客户自有 S3 或外部 IdP 时省略对应子域（`CORDEX_WEB_S3_HOST` / `CORDEX_WEB_IDP_HOST` 置空）。
+TLS 证书覆盖 `<host>`、`idp.<域名>`、`s3.<域名>` 三个名字；前面另有 TLS 终止的负载均衡时设 `CORDEX_WEB_TLS_MODE=upstream`，此时 web 只监听 8080 并信任一跳 `X-Forwarded-*`：nginx 以 realip 模块只信任 `CORDEX_WEB_TRUSTED_LB_CIDRS` 网段来的这一跳（`set_real_ip_from` 逐项取该变量、`real_ip_header X-Forwarded-For`、不递归，即取 LB 追加的最后一个地址），该变量为空时容器拒绝启动。使用客户自有 S3 或外部 IdP 时省略对应子域（`CORDEX_WEB_S3_HOST` / `CORDEX_WEB_IDP_HOST` 置空）。
+
+**来源 IP 口径**（rulings §4.20 BE-04）：web 容器转发给应用的请求一律**覆盖**（不追加）`X-Forwarded-For $remote_addr`，客户端伪造的 `X-Forwarded-For` 首跳因此到不了应用；应用按 `http.trustProxy = 1`（compose 拓扑固定为 1，§5.1）只信 web 容器这一跳，HTTP 与 WS 升级共用 `clientIp()`（[15](./15-rest-api-catalog.md) §8、[16](./16-ws-protocol-server-view.md) §1）。`upstream` 模式下 realip 已把 `$remote_addr` 换成 LB 报告的客户端地址，所以 `$remote_addr`、应用看到的来源 IP、审计 `ip_hash` 与 Casdoor 管理路径的来源 IP 白名单（`CORDEX_WEB_IDP_ADMIN_ALLOW`）四者一致。
 
 ### 3.2 CSP nonce 与响应头
 
@@ -199,6 +201,8 @@ server {
     proxy_pass http://collab_upstream; include /etc/nginx/cordex/proxy.conf;
   }
   location /api/ { client_max_body_size 11m; proxy_pass http://api_upstream; include /etc/nginx/cordex/proxy.conf; }
+  # proxy.conf 含 proxy_set_header X-Forwarded-For $remote_addr;（覆盖，不用 $proxy_add_x_forwarded_for 追加，BE-04）
+  # TLS_MODE=upstream 时 server 块另 include realip.conf：set_real_ip_from 取 CORDEX_WEB_TRUSTED_LB_CIDRS 每项；real_ip_header X-Forwarded-For;
   location /collab/ {
     proxy_pass http://collab_upstream; include /etc/nginx/cordex/proxy.conf;
     proxy_http_version 1.1;
@@ -258,6 +262,7 @@ server {
 | `CORDEX_WEB_ENV` | `production` | `production` 或 `test`；只有 e2e 预览服务器与 [70/08](../70-testing/08-deployment-and-environment-e2e.md) 的 `compose.test.yml` 设为 `test`，供下一行的启动校验判定 |
 | `CORDEX_WEB_DIAGNOSTICS_E2E_TRACE` | `false` | RuntimeConfig `diagnostics.e2eTrace`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3、[50/15](../50-frontend/15-events-errors-and-telemetry.md) §10）；为 `true` 且 `CORDEX_WEB_ENV` 不是 `test` 时容器拒绝启动（生产部署配置拒绝其为真，§5.15） |
 | `CORDEX_WEB_TLS_MODE` | `terminate` | `terminate` 或 `upstream` |
+| `CORDEX_WEB_TRUSTED_LB_CIDRS` | 空 | `upstream` 模式必填：前置负载均衡所在网段（逗号分隔的 CIDR），渲染为 realip 的 `set_real_ip_from`；为空时 `upstream` 模式拒绝启动，`terminate` 模式忽略（§3.1，rulings §4.20 BE-04） |
 | `CORDEX_WEB_UPSTREAM_API` / `CORDEX_WEB_UPSTREAM_COLLAB` | `app:3000` / `app:3000` | 拆分部署时分别指向 api、collab（§8） |
 
 **图 3-1 web 容器的分流、子域与 nonce 生成**
@@ -339,7 +344,7 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | `http.port` | 整数 | 3000 | 1–65535 | — | `CORDEX_HTTP_PORT` | 否 |
 | `http.internalPort` | 整数 | 9464 | ≠ `http.port`；只绑 backend 网络（`/metrics`、`/internal/*`） | — | `CORDEX_HTTP_INTERNAL_PORT` | 否 |
 | `http.internalHost` | 字符串 | dev 为 `127.0.0.1` | 内部端口的监听地址；production 必须显式配置且不得为通配地址 `0.0.0.0` / `::`（[01 §6](./01-service-overview-and-roles.md) A10）；compose 模板注入容器在 backend 网络上的地址 | 是（api、collab、worker） | `CORDEX_HTTP_INTERNAL_HOST` | 否 |
-| `http.trustProxy` | 整数 | 1 | 0–3（可信反代跳数） | — | `CORDEX_HTTP_TRUST_PROXY` | 否 |
+| `http.trustProxy` | 整数 | 1 | 0–3（可信反代跳数）；compose 拓扑固定为 1（web 容器一跳；`upstream` 模式下 LB 那一跳已由 web 容器的 realip 剥掉，§3.1）；`clientIp()` 按此跳数自右向左取来源 IP，限流与审计 `ip_hash` 共用（[15 §8](./15-rest-api-catalog.md)） | — | `CORDEX_HTTP_TRUST_PROXY` | 否 |
 | `http.bodyLimitBytes` | 整数 | 262144 | ≤ 16 MiB；未另注明路由的 JSON 请求体上限，按路由的覆盖值见 [15 §8](./15-rest-api-catalog.md) | — | `CORDEX_HTTP_BODY_LIMIT_BYTES` | 否 |
 | `http.multipartMaxBytes` | 整数 | 10485760 | ≤ 10 MiB（小文件 multipart 直传） | — | `CORDEX_HTTP_MULTIPART_MAX_BYTES` | 否 |
 | `http.shutdownGraceMs` | 整数 | 30000 | 5000–60000（SIGTERM 排空上限） | — | `CORDEX_HTTP_SHUTDOWN_GRACE_MS` | 否 |
@@ -454,7 +459,8 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | `limits.awarenessTickThreshold` / `limits.awarenessTickMs` | 整数 | 20 / 100 | 房间在线人数达阈值后 awareness 按 tick 合并转发（16 §7） | — | `CORDEX_LIMITS_AWARENESS_TICK_THRESHOLD` / `CORDEX_LIMITS_AWARENESS_TICK_MS` | 否 |
 | `limits.idleTimeoutMs` | 整数 | 45000 | 无任何入站帧即断开（客户端 15 s 心跳 × 3，16 §3） | — | `CORDEX_LIMITS_IDLE_TIMEOUT_MS` | 否 |
 | `limits.ws.maxConnectionsPerInstance` | 整数 | 4000 | RM-S 单实例 ≥ 2,000 连接的 2 倍余量；数值归 [16 §13](./16-ws-protocol-server-view.md) | — | `CORDEX_LIMITS_WS_MAX_CONNECTIONS_PER_INSTANCE` | 否 |
-| `limits.ws.connectPerIpPerMin` / `limits.ws.firstFrameTimeoutMs` | 整数 | 10 / 5000 | — | — | `CORDEX_LIMITS_WS_CONNECT_PER_IP_PER_MIN` / `CORDEX_LIMITS_WS_FIRST_FRAME_TIMEOUT_MS` | 否 |
+| `limits.ws.connectPerIpPerMin` / `limits.ws.firstFrameTimeoutMs` | 整数 | 10 / 5000 | 前者：IP 令牌桶 `ws-connect` 的补充速率与容量，升级前扣 1、票据验签通过退还（先扣后退，[16 §1](./16-ws-protocol-server-view.md)）；不属 L1–L4 门禁，可以调高（更大的办公出口） | — | `CORDEX_LIMITS_WS_CONNECT_PER_IP_PER_MIN` / `CORDEX_LIMITS_WS_FIRST_FRAME_TIMEOUT_MS` | 否 |
+| `limits.ws.maxConnectionsPerUser` | 整数 | 32 | ≥ 1；每用户在单个 collab 实例上的已认证 WS 连接数上限（进程内计数），超限 `auth.denied{collab.rate_limited}` + 4429；数值归 [16 §13](./16-ws-protocol-server-view.md)（rulings §4.20 BE-01+TX-03） | — | `CORDEX_LIMITS_WS_MAX_CONNECTIONS_PER_USER` | 否 |
 | `limits.rate.<档>.perMin` / `limits.rate.<档>.burst` | 整数 | 见表后各档默认 | 令牌桶的补充速率与容量；档名、适用路由与主体以 [15 §8](./15-rest-api-catalog.md) 为准，桶键见 [14 §3.2](./14-valkey-object-storage-and-retention.md)；只可收紧 | — | `CORDEX_LIMITS_RATE_<档>_PER_MIN` / `CORDEX_LIMITS_RATE_<档>_BURST`（档名转大写蛇形） | 否 |
 | `limits.media.maxBytes` | 整数 | 104857600 | 资源上传单文件 100 MiB | — | `CORDEX_LIMITS_MEDIA_MAX_BYTES` | 否 |
 | `limits.zip.maxEntries` | 整数 | 4000 | 只可收紧；放宽不超过 2 倍（OF-24），否则拒绝启动 | — | `CORDEX_LIMITS_ZIP_MAX_ENTRIES` | 否 |
@@ -464,7 +470,7 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | `limits.fonts.maxEmbeddedBytes` / `limits.fonts.maxEmbeddedTotalBytes` | 整数 | 20 MB / 60 MB | PRD OF-17 | — | `CORDEX_LIMITS_FONTS_MAX_EMBEDDED_BYTES` / `CORDEX_LIMITS_FONTS_MAX_EMBEDDED_TOTAL_BYTES` | 否 |
 | `limits.import.parseTimeoutMs` | 整数 | 60000 | 10000–300000 | — | `CORDEX_LIMITS_IMPORT_PARSE_TIMEOUT_MS` | 否 |
 
-`limits.rate` 各档默认（perMin / burst）：`default` 600 / 100、`upload` 10 / 5、`job` 60 / 10、`ticket` 120 / 30、`search` 30 / 10、`public` 60 / 20 取自 15 §8；`telemetryErrors` 6 / 5、`telemetryOtlp` 60 / 20、`csp` 30 / 10 取自 18 §9.1（`csp` 另有全局每秒 100 次，为常量）。档名同时是 Valkey 桶名 `rl:{档}:{subject}`；WS 升级限流不在此列，用 `limits.ws.connectPerIpPerMin`（桶 `ws-connect`）。
+`limits.rate` 各档默认（perMin / burst）：`default` 600 / 100、`upload` 60 / 20、`job` 60 / 10、`ticket` 120 / 30、`search` 30 / 10、`public` 300 / 100 取自 15 §8（已评审定稿，rulings §4.20 BE-02）；`telemetryErrors` 6 / 5、`telemetryOtlp` 60 / 20、`csp` 30 / 10 取自 18 §9.1（`csp` 另有全局每秒 100 次，为常量）。档名同时是 Valkey 桶名 `rl:{档}:{subject}`；WS 升级限流不在此列，用 `limits.ws.connectPerIpPerMin`（桶 `ws-connect`）。
 
 ### 5.9 规模与配额
 
@@ -518,7 +524,7 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | `jobs.webhookDelivery.concurrency` | 整数 | 4 | 1–32（重试上限 8 次为固定值，BE-19） | — | `CORDEX_JOBS_WEBHOOK_DELIVERY_CONCURRENCY` | 否 |
 | `headless.mode` | 枚举 | `remote` | `remote`、`local`（ADR-0037 为这两个键的事实源） | — | `CORDEX_HEADLESS_MODE` | 否 |
 | `headless.endpoint` | URL | `http://renderer:3000`（renderer 的 `http.port`） | `remote` 时必填；只在 render 网络可达 | worker（remote） | `CORDEX_HEADLESS_ENDPOINT` | 否 |
-| `headless.poolSize` | 整数 | 2 | 1–16（`remote`：每个 renderer 进程的并发页数；`local`：worker 进程内 Chromium 池大小，[06 §8.2](./06-modules-jobs-import-export-thumbnails.md)） | — | `CORDEX_HEADLESS_POOL_SIZE` | 否 |
+| `headless.poolSize` | 整数 | 2 | 1–16（`remote`：每个 renderer 进程的并发页数，worker 的 `RendererPool` 容量也取此值——按单个 worker、1 个 renderer 副本计，多 worker 或多副本时的超额由 renderer 的 503 背压兜底，[06 §10.5](./06-modules-jobs-import-export-thumbnails.md)；`local`：worker 进程内 Chromium 池大小，[06 §8.2](./06-modules-jobs-import-export-thumbnails.md)）；不设副本数键，M4 Helm 横向扩容时再加（rulings §4.20 BE-08+TX-07） | — | `CORDEX_HEADLESS_POOL_SIZE` | 否 |
 | `headless.pageTimeoutMs` | 整数 | 10000 | 每页渲染超时，注入完成后计时（决策 SG-01）；注入等待是 `/render` 页常量 60 s，不设配置键（rulings §4.18 FE-09） | — | `CORDEX_HEADLESS_PAGE_TIMEOUT_MS` | 否 |
 | `headless.renderSigningKeyFile` | 路径 | — | Ed25519 私钥；只有 worker 持有 | worker（remote） | `CORDEX_HEADLESS_RENDER_SIGNING_KEY_FILE` | 是 |
 | `headless.renderVerifyKeyFile` | 路径 | — | 对应公钥；只有 renderer 持有（公钥不是凭据，renderer 仍零出站） | renderer | `CORDEX_HEADLESS_RENDER_VERIFY_KEY_FILE` | 否 |
@@ -576,7 +582,7 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | 机密（配置键） | api | collab | worker | renderer | ops 命令 |
 |---|---|---|---|---|---|
 | `db.app.passwordFile` | 必需 | 必需 | 必需 | 禁止 | 仅 `audit-verify` |
-| `db.system.passwordFile` | **禁止** | 必需 | 必需 | 禁止 | 仅 `jobs:replay`、`webhooks:replay`、`thumbnails:rebuild` |
+| `db.system.passwordFile` | **禁止** | 必需 | 必需 | 禁止 | 仅 `jobs:replay`、`webhooks:replay`、`thumbnails:rebuild`、`documents:reassign-owner` |
 | `db.migrator.passwordFile` | 禁止 | 禁止 | 禁止 | 禁止 | `db:migrate`、`db:status`、`audit-rotate` |
 | `valkey.passwordFile` | 可选 | 可选 | 可选 | 禁止 | 可选 |
 | `storage.s3.accessKeyIdFile` 与 `secretAccessKeyFile` | 必需 | 必需 | 必需 | 禁止 | 必需（`storage:init`） |
@@ -612,7 +618,7 @@ flowchart TD
 ```
 
 怎么读：自上而下是一次启动的配置阶段；任何一步失败都汇入同一个出口（退出码 78，EX_CONFIG），不会带着部分配置继续启动。超包络只告警不阻止启动，因为规模数字是部署方有权调大的（性能承诺随之失效）。
-依据：PRD SV-09「配置经 Standard Schema 校验、--dry-run」；30/08 §2 `config.module.ts`；ADR-0037「如何被机械验证」；rulings §4.15 Q5。
+依据：PRD SV-09「配置经 Standard Schema 校验、--dry-run」；本文 §5–§6（`config.module.ts` 的文件级见 40/12 §4.10）；ADR-0037「如何被机械验证」；rulings §4.15 Q5。
 
 ## 7. 规模配置与超包络告警
 
@@ -623,7 +629,7 @@ flowchart TD
 | `scale.maxPages`、`scale.maxElementsPerSlide`、`scale.maxElementsPerDoc` | 200、1000、20000 | 允许，性能承诺保持 | 允许；启动告警、`/readyz` 响应体 `scaleEnvelopeExceeded` 列出这些键（仍返回 200），性能承诺不再成立 |
 | `scale.maxFileBytes` | 200 MiB | 同上 | 同上 |
 | `collab.room.maxEditors`、`collab.room.maxViewers` | 20、50 | 同上 | 同上 |
-| `limits.zip.*`、`limits.xml.*` | 30/08 §9.2 表 | 允许 | 最多放宽到默认的 2 倍（OF-24），超过即退出码 78 |
+| `limits.zip.*`、`limits.xml.*` | [06 §6.3](./06-modules-jobs-import-export-thumbnails.md) 表 | 允许 | 最多放宽到默认的 2 倍（OF-24），超过即退出码 78 |
 | `spill.*` | §5.10 | 允许 | 不建议；M2 自托管 runner 压测后只收紧 |
 
 超包络时另有指标与告警（名称见 [18](./18-observability-and-ops-endpoints.md)）。
@@ -686,7 +692,7 @@ flowchart LR
 
 ## 9. 数据库迁移作业与 ops 命令
 
-`cordex-ops` 是 `cordex-server` 镜像里的第二个入口，可在一次调用里按序执行多个子命令，首个失败即退出。
+`cordex-ops` 是 `cordex-server` 镜像里的第二个入口，可在一次调用里按序执行多个子命令，首个失败即退出。本节管命令语义；入口文件 `apps/server/src/ops/cli.ts`（与 `main.ts` 同级、共用 `config/` 解析）与「子命令 → 所属模块用例」对照的文件级登记在 [40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)（rulings §4.20 BE-06）。子命令只调用各模块公开导出的用例，不直接写表。
 
 | 命令 | 作用 | 数据库 / 存储身份 | compose 入口 | Helm 入口（M4） |
 |---|---|---|---|---|
@@ -699,7 +705,10 @@ flowchart LR
 | `jobs:replay` | 按队列或 jobId 重放失败或死信作业：按原 `payload` 新建一行（`attempt_of` 指向原行）再入队，审计 `admin.job_replayed`（[06](./06-modules-jobs-import-export-thumbnails.md) §5.3） | `cordex_system` + Valkey | 手动 | 手动 |
 | `webhooks:replay` | 把 `dead-lettered` 或 `failed` 投递重置为 `pending` 并入队，审计 `webhook.delivery_replayed`（[07](./07-modules-comments-webhooks-audit.md) §5.4） | `cordex_system` + Valkey | 手动 | 手动 |
 | `thumbnails:rebuild` | 按文档或全部重建缩略图（字体包升级后），审计 `admin.thumbnails_rebuilt`（[06](./06-modules-jobs-import-export-thumbnails.md) §11.1） | `cordex_system` + Valkey | 手动 | 手动 |
+| `documents:reassign-owner --doc <id> --to <userId>`（M3） | 唯一 owner 被停用或擦除后给文档指定新 owner：以系统上下文调用 PermissionsModule 导出的 `ReassignOwnerUseCase` 写目标用户的 owner 授权、`perm_version` 加 1（提交后广播，在线会话随之重算），审计 `admin.owner_reassigned`（[03](./03-modules-identity-and-access.md) §4.2、[07](./07-modules-comments-webhooks-audit.md) §9.4）；新 owner 随即可撤销链接、授权或永久删除文档。停用与擦除的响应附「唯一 owner 文档数」提醒管理员执行本命令（[15](./15-rest-api-catalog.md) §3.2）；文档 id 取自协作者手里的文档链接。M4 管理面板直接复用同一用例（rulings §4.20 BE-05+TX-22） | `cordex_system` + Valkey | 手动 | 手动 |
 | `config:check` | 等同 `--dry-run` | — | `migrate` 之前 | Job 首步 |
+
+- 退出码沿用 sysexits 约定（[01 §6](./01-service-overview-and-roles.md)）：成功 0；配置错误 78。`documents:reassign-owner` 的失败另分三种，均不写任何行、不写审计：`--to` 用户不存在或状态不是 `active`（已停用、已擦除）→ **67**（EX_NOUSER）；`--doc` 文档不存在 → **66**（EX_NOINPUT）；文档处于 `purging` → **65**（EX_DATAERR）。参数缺失或格式不符 → **64**（EX_USAGE）。断言见 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §7.4 O5（2026-09-26，rulings §4.20 BE-05+TX-22）。
 
 - `audit-rotate` 需要 DDL 权限，不能挂在 worker 的 `maintenance` 队列里（应用进程不持有 `cordex_migrator`），因此是周期作业统一走 Job Scheduler 的第二个例外；Helm 的这一个 CronJob 与 rulings §4.18 BE-19「K8s 不另设 CronJob」不冲突（后者针对 maintenance 队列的作业）。
 - `ops-cron` 是唯一长期运行且持有 `cordex_migrator` 口令的容器：只挂 backend 网络、无端口、只读根文件系统、只执行 `audit-rotate`；不想常驻时可删掉该服务，改由宿主机 cron 每日执行 `docker compose run --rm ops-cron cordex-ops audit-rotate`。`/readyz` 在未来分区不足 1 个月时标记降级（[08 §3](./08-db-conventions-roles-rls-migrations.md)）。
@@ -722,7 +731,9 @@ flowchart LR
 
 ## 11. 主机规格
 
-依据：ADR-0037 决策 5——compose 全家桶的最低规格 **与 RM-S 分开写**：RM-S（2 vCPU / 4 GB）只是 collab 单实例口径。数值 M3 前实测后填入，以「core（默认 profile）」与「core + idp」两档给出；`observability-agpl` 不计入。
+依据：ADR-0037 决策 5——compose 全家桶的最低规格 **与 RM-S 分开写**：RM-S（2 vCPU / 4 GB）只是 collab 单实例口径。数值以「core（默认 profile）」与「core + idp」两档给出；`observability-agpl` 不计入。
+
+**取数与时点**（rulings §4.20 BE-07+TX-05，推迟项）：取数自 [70/09](../70-testing/09-performance-and-capacity.md) §6 的 `host-footprint` 场景（自托管 perf runner、RM-S 负载，core 与 core + idp 两档，`docker stats` 采各容器峰值内存与 CPU，产物 `test/perf/results/host-footprint.json`），按「峰值合计 × 1.3」回填下表；时点为 M3 出口前（renderer 与 worker 落地、`ops:compose` 全绿之后；ADR 字面「M3 前实测」按此理解）。回填后由架构线把 ADR-0037 决策 5 的表改为只留口径、数值链接本节。
 
 | 项 | 口径 | core | core + idp |
 |---|---|---|---|
@@ -745,7 +756,7 @@ flowchart LR
 | CFG-04 | 超包络配置启动告警且 `/readyz` 附 `scaleEnvelopeExceeded` | `test/server-integration` |
 | DEP-01 | `ops:compose`：默认 profile 一条命令启动，`/readyz` 3 min 内全部就绪；production 下既无 `idp` profile 又未配外部 issuer 即拒绝启动 | `e2e/full-compose` |
 | DEP-02 | `ops:airgap`：禁止宿主出站后登录 → 导入 → 协同编辑 → 缩略图 → 导出全链路通过，记录到任何出站尝试即失败 | `e2e/full-airgap` |
-| DEP-03 | web 容器：每次 index.html 响应的 nonce 不同且与 CSP 头一致；CSP 在任何模式下都是强制头，`CORDEX_WEB_CSP_MODE=report-only` 时只有 Trusted Types 两条指令出现在 `-Report-Only` 头；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；index.html `no-store`、`/assets/*` `immutable`；`/internal/*`、`/metrics`、`/readyz` 经反代 404；预签名经 `s3.` 子域且保持 Host 可用；Casdoor 与 SeaweedFS 宿主端口未开放；s3 访问日志不含 query | `e2e/full-compose` |
+| DEP-03 | web 容器：来源 IP 口径（§3.1）——客户端伪造的 `X-Forwarded-For` 首跳不改变限流主体与审计 `ip_hash`，`terminate` 与 `upstream` 两种模式各一例：应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加，`upstream` 模式下 realip 只信任 `CORDEX_WEB_TRUSTED_LB_CIDRS` 网段来的一跳，该值为空即拒绝启动（rulings §4.20 BE-04；`upstream` 模式的执行点为 [70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 G12）；每次 index.html 响应的 nonce 不同且与 CSP 头一致；CSP 在任何模式下都是强制头，`CORDEX_WEB_CSP_MODE=report-only` 时只有 Trusted Types 两条指令出现在 `-Report-Only` 头；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；index.html `no-store`、`/assets/*` `immutable`；`/internal/*`、`/metrics`、`/readyz` 经反代 404；预签名经 `s3.` 子域且保持 Host 可用；Casdoor 与 SeaweedFS 宿主端口未开放；s3 访问日志不含 query | `e2e/full-compose` |
 | DEP-04 | `ops:image-licenses`、digest 钉死、SBOM 存在；renderer 与 worker 镜像同版本；三个镜像的字体 sha256 一致；renderer 非 root、无凭据、沙箱开启 | 治理检查 `check-image-policy`（`scanners`）与 `e2e/full-compose` |
 | DEP-05 | 滚动重启期间双浏览器编辑不丢（ack 全部到达）；collab 下线 ≤ 30 s | `e2e/full-compose`（发布演练，70/08 §8） |
 | DEP-06 | 备份恢复演练达到 RPO ≤ 1 min、RTO ≤ 15 min，恢复后导出 sha256 与备份前一致 | 70/08 §9（M3，人工证据归档） |

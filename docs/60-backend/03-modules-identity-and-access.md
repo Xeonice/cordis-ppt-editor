@@ -1,5 +1,5 @@
 # 03 模块设计：身份与访问（Auth、Users、Permissions、ShareLinks）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[02](02-auth-chain.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §1–§3、§6、§7、§10；[30/08](../30-architecture/08-backend-nestjs.md) §1、§2、§9.1；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)；[30/10](../30-architecture/10-observability-and-errors.md) §1.1、§1.4、§11.2；PRD [SV-06、SV-11](../10-prd/03-features/06-server-and-ops.md)、[CO §1、CO-05、CO-15](../10-prd/03-features/03-collaboration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-09、§4.15 T-0/Q6、§4.17 D1、§4.18 BE-02/BE-05/BE-06/BE-07/BE-08/BE-15
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[02](02-auth-chain.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §1–§3、§6、§7、§10；[30/08](../30-architecture/08-backend-nestjs.md) §1、§9.1；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)；[30/10](../30-architecture/10-observability-and-errors.md) §1.1、§1.4、§11.2；PRD [SV-06、SV-11](../10-prd/03-features/06-server-and-ops.md)、[CO §1、CO-05、CO-15](../10-prd/03-features/03-collaboration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-09、§4.15 T-0/Q6、§4.17 D1、§4.18 BE-02/BE-05/BE-06/BE-07/BE-08/BE-15
 
 > 读者：实现 `apps/server/src/modules/{auth,users,permissions,share-links}` 的工程师；评审模块边界的人。
 > 定位：四个身份与访问 Nest 模块运行时设计的唯一事实源，并**首次定义 03–07 共用的「模块设计卡」模板**（§1）。鉴权机制本身（OIDC、会话、CSRF、票据、分享令牌、RLS 上下文）以 [02](02-auth-chain.md) 为准，本文只写用例、事务边界、依赖与所属数据。
@@ -22,7 +22,7 @@
 | 7 | 错误码 | 码名 + 触发条件（HTTP / WS 映射引 30/10 §1.4） | 用户文案（[50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md)） |
 | 8 | 角色装配 | 在哪些 `CORDEX_ROLE`、以哪些部件出现 | 矩阵本体（[01 §5](01-service-overview-and-roles.md)） |
 | 9 | purge 参与者 | 是否登记 `@PurgeParticipant`、清哪些表与对象 | 编排与顺序（[04 §4](04-modules-documents-storage-media.md)） |
-| 10 | Clock 注入点 | 哪些判断取当前时间；一律经 `shared/clock.ts` 的 Clock 端口，测试注入 FakeClock | — |
+| 10 | Clock 注入点 | 哪些判断取当前时间；一律经 `shared/clock.ts` 的 Clock 端口，测试注入 FixedClock | — |
 | 11 | 机械验证 | 断言 + 70 的套件或 CI 步骤名 | 测试实现（70） |
 
 书写约定：用例名用类名（`XxxUseCase` / `XxxQuery`）；「事务边界」写「单事务：…」「只读」「无 DB（Valkey）」「调用方事务内」之一；以 `docId` 为键的仓储方法首参必须是 `DocAccess` 或 `SystemContext`（扫描器 `scan-doc-access-via-permission`），卡片里不再重复说明。
@@ -74,10 +74,10 @@
 | 职责 | 身份目录：首次登录 JIT 建号、按人搜索、本人资料、平台管理员改状态与平台角色、用户数据擦除；会话存储 `SessionStore`（会话键的唯一读写代码）；只读目录面 `UserDirectory` |
 | 非职责 | 不做 OIDC 与令牌（AuthModule）；不判定文档权限；无邀请表、无邀请兑现（rulings §4.17 D1）；无租户与组（T-0、U-11 推迟）；擦除**不删除**用户拥有的文档（§3.3） |
 | 路由 | [15 §3.2](15-rest-api-catalog.md) 全部 4 条 |
-| 仓储与所属表 | `UserRepository`（`findByIdentity(issuer, subject)`、`createWithIdentity(tx, …)`、`findById`、`findActiveByIds`、`searchActive(q)`、`updateProfile`、`setStatusAndRole(tx, …)`、`lockActiveAdmins(tx)`、`scrubForErasure(tx, id)`、`deleteIdentities(tx, userId)`、`touchLastSeen`）；表 `users`、`user_identities`（[09 §2、§3](09-ddl-identity-and-access.md)）。Valkey：`SessionStore` 读写 `session:{sid}`、`user:{userId}:sessions` |
+| 仓储与所属表 | `UserRepository`（`findByIdentity(issuer, subject)`、`createWithIdentity(tx, …)`、`findById`、`findActiveByIds`、`searchActive(q)`、`updateProfile`、`setStatusAndRole(tx, …)`、`lockActiveAdmins(tx)`、`scrubForErasure(tx, id)`、`deleteIdentities(tx, userId)`、`touchLastSeen`、`countSoleOwnedDocs(tx, userId)`（只调 SECURITY DEFINER 函数 `cordex_sole_owner_doc_count`，只取一个数字，[09 §7](09-ddl-identity-and-access.md)）；表 `users`、`user_identities`（[09 §2、§3](09-ddl-identity-and-access.md)）。Valkey：`SessionStore` 读写 `session:{sid}`、`user:{userId}:sessions` |
 | imports | 无业务模块（叶子；[01](01-service-overview-and-roles.md) 规则 I2） |
 | exports | `ProvisionOnFirstLoginUseCase`、`UserDirectory`、`SessionStore`、`TouchLastSeenUseCase`（均供 AuthModule）；`UserDirectory` 另供 PermissionsModule、CommentsModule（提及显示名） |
-| 事件与审计 | `user.provisioned`、`user.profile_updated`、`user.suspended` / `user.reactivated`、`user.role_changed`（含 bootstrap 升级）、`user.erased`；停用与擦除另记 `auth.session_revoked{scope:'all'}`；无跨进程频道 |
+| 事件与审计 | `user.provisioned`、`user.profile_updated`、`user.suspended` / `user.reactivated`、`user.role_changed`（含 bootstrap 升级）、`user.erased`（停用与擦除的 details 带 `soleOwnerDocCount`，rulings §4.20 BE-05）；停用与擦除另记 `auth.session_revoked{scope:'all'}`；无跨进程频道 |
 | 错误码 | `server.users.not_found`、`server.users.last_admin`、`server.users.validation_failed`（§9） |
 | 角色装配 | api：REST；collab、worker：作为 PermissionsModule 与 AuthModule 的依赖只装 providers |
 | purge 参与者 | 无（不持有文档作用域数据） |
@@ -91,8 +91,8 @@
 | `ProvisionOnFirstLoginUseCase` | AuthModule 回调 | issuer 等于配置；字段来源与邮箱规则见 02 §3 | 单事务：命中 `(issuer, subject)` → 更新 `last_login_at`、`email_at_login`、已验证邮箱、`avatar_url`；未命中 → `INSERT users` + `INSERT user_identities`，唯一冲突回滚后改为读取；`auth.bootstrapAdmins` 命中且无 active admin → 同事务 `lockActiveAdmins` 后升为 admin | `user.provisioned`；bootstrap 时 `user.role_changed{via:'bootstrap'}`；返回 `{user, created}` |
 | `SearchUsersQuery` | `GET /users?query=` | `query` 去首尾空白后 ≥ 2 个字符、≤ 100；按用户令牌桶限流（search 档） | 只读 | 含 `@` → 按 `lower(email)` **精确**匹配；否则 `lower(display_name)` 前缀匹配（`LIKE` 转义 `%`、`_`、`\`）；只返回 `status='active'`；≤ 20 条；字段只有 `id`、`displayName`、`avatarUrl`，从不回显邮箱（决策 SG-05） |
 | `UpdateOwnProfileUseCase` | `PATCH /users/me/profile` | `displayName` 1–128 字符；`avatarUrl` 为 `https://` 且 ≤ 2048 或 `null`（浏览器能否显示受 CSP `img-src` 约束，50/14；服务端从不抓取该 URL） | 单事务 | `user.profile_updated` |
-| `AdminUpdateUserUseCase` | `PATCH /users/:id` | `PlatformAdminGuard`；目标存在且非 `erased`（否则 `server.users.not_found`）；停用或降级 admin 时做最后 admin 保护 | 单事务：`SELECT … FOR UPDATE` 目标行；涉及 admin 时 `lockActiveAdmins`（按 id 顺序锁全部 active admin 行）计数，仅剩目标一人 → `server.users.last_admin` | 提交后停用 → `SessionStore.revokeAll(userId)` 并记 `auth.session_revoked{scope:'all', reason:'suspended'}`；`user.suspended` / `user.reactivated` / `user.role_changed` |
-| `EraseUserUseCase` | `POST /users/:id/erasure` | 同上；目标为 admin 时最后 admin 保护 | 单事务：`scrubForErasure`（§3.3）+ `deleteIdentities` | 提交后 `SessionStore.revokeAll(userId)` 并记 `auth.session_revoked{scope:'all', reason:'erased'}`；`user.erased` |
+| `AdminUpdateUserUseCase` | `PATCH /users/:id` | `PlatformAdminGuard`；目标存在且非 `erased`（否则 `server.users.not_found`）；停用或降级 admin 时做最后 admin 保护 | 单事务：`SELECT … FOR UPDATE` 目标行；涉及 admin 时 `lockActiveAdmins`（按 id 顺序锁全部 active admin 行）计数，仅剩目标一人 → `server.users.last_admin`；停用分支在同一事务末尾 `countSoleOwnedDocs` | 提交后停用 → `SessionStore.revokeAll(userId)` 并记 `auth.session_revoked{scope:'all', reason:'suspended'}`；`user.suspended`（details `soleOwnerDocCount`）/ `user.reactivated` / `user.role_changed`；停用时响应附 `soleOwnerDocCount`（15 §3.2） |
+| `EraseUserUseCase` | `POST /users/:id/erasure` | 同上；目标为 admin 时最后 admin 保护 | 单事务：`scrubForErasure`（§3.3）+ `deleteIdentities` + `countSoleOwnedDocs` | 提交后 `SessionStore.revokeAll(userId)` 并记 `auth.session_revoked{scope:'all', reason:'erased'}`；`user.erased`（details `soleOwnerDocCount`）；响应附 `soleOwnerDocCount` |
 | `UserDirectory` | 只读面 | — | 只读 | `findActiveById`（授权目标校验）、`getDisplayInfo(ids)`（擦除用户显示 `deleted-user`） |
 | `TouchLastSeenUseCase` | `SessionValidator` 缓存未命中 | 距上次写入 ≥ 5 min | 单语句 `UPDATE` | — |
 | `SessionStore` | AuthModule（签发、刷新、登出、复核）、本模块（吊销） | — | 无 DB（Valkey） | `create`、`get`、`rotate`（Lua 原子）、`revoke(sid)`、`revokeAll(userId)` |
@@ -110,8 +110,8 @@
 3. **吊销全部会话**：提交后 `SessionStore.revokeAll`；即使 Valkey 删除失败，`status` 已非 `active`，REST 与 WS 仍在 ≤ 5 s 内失效（02 §4.5）。
 4. **不动的东西**：指向该用户的外键（`permissions.principal_id`、`documents.owner_id`、`comments.author_id`、`document_updates.user_id` 等）与审计行保持原样，界面显示 `deleted-user`；该用户的直接授权行保留但永远不会再被使用（没有身份即无法登录）。
 5. **评论正文**：`retention.erasure.commentBody` 默认 `keep`（作者显示 `deleted-user`）；`redact` 在 M4 实现，由 M-09 以 `system('maintenance')` 改写当前状态，历史按保留期存在（C-24）。
-6. **文档不连带删除**：PRD SV-11 对用户擦除的要求是「用 `deleted-user` 替换主体标识」（其「复用同一编排」一句的实质是把清除换成替换；本设计所有指向用户的外键都指向 `users` 行，原地脱敏这一行即完成全部替换，不需要逐模块编排），决策 C-24 也只列脱敏、删身份、吊销会话。该用户作为 owner 的文档保留，其他协作者照常使用；若他是唯一 owner，文档在 M1–M3 无人持有 `doc.manage`，由 M4 管理面板（SV-14）提供「指定新 owner / 永久删除」。实现上也避免了 UsersModule → DocumentsModule → PermissionsModule → UsersModule 的环。
-7. **结果**：同步完成，返回 `{userId, erasedAt}`；审计 `user.erased`（操作者记在审计行的 `actor_id`，details 键见 [07 §9.1](07-modules-comments-webhooks-audit.md)）。
+6. **文档不连带删除**：PRD SV-11 对用户擦除的要求是「用 `deleted-user` 替换主体标识」（其「复用同一编排」一句的实质是把清除换成替换；本设计所有指向用户的外键都指向 `users` 行，原地脱敏这一行即完成全部替换，不需要逐模块编排），决策 C-24 也只列脱敏、删身份、吊销会话。该用户作为 owner 的文档保留，其他协作者照常使用。若他是唯一可用 owner，该文档无人持有 `doc.manage`，他建的有效分享链接也无人能撤（链接有效性只看撤销与过期，不看创建者状态）；停用同样造成这一空窗，且比擦除更常见。空窗的处理（rulings §4.20 BE-05+TX-22）：擦除与停用的响应、审计都附 `soleOwnerDocCount`（该用户是唯一可用 owner 的文档数，经 SECURITY DEFINER 函数 `cordex_sole_owner_doc_count` 计数，[09 §7](09-ddl-identity-and-access.md)）提醒管理员；M3 起管理员用运维命令 `cordex-ops documents:reassign-owner --doc <id> --to <userId>`（[17 §9](17-deployment-and-config.md)）以系统上下文调用 PermissionsModule 的 `ReassignOwnerUseCase`（§4.2）指定新 owner，新 owner 即可撤链接、授权或永久删除；M4 管理面板（SV-14）直接复用同一用例。计数只调函数、转移由 PermissionsModule 执行，UsersModule 仍是叶子，避免了 UsersModule → DocumentsModule → PermissionsModule → UsersModule 的环。
+7. **结果**：同步完成，返回 `{userId, erasedAt, soleOwnerDocCount}`；审计 `user.erased`（操作者记在审计行的 `actor_id`，details 键见 [07 §9.1](07-modules-comments-webhooks-audit.md)）。
 
 **图 3-1 用户擦除**
 
@@ -152,15 +152,15 @@ sequenceDiagram
 
 | 栏目 | 内容 |
 |---|---|
-| 职责 | 按人授予、改角色、撤销、列出（fail-closed：无行即无权）；`RoleResolverService`（有效角色与 `DocAccess` 签发）；`ResolveShareLinkUseCase` + `ShareLinkReader`（分享令牌只读解析，BE-02）；`permVersion` 的唯一写入点与提交后广播；`RlsContext`；`DocumentRoleGuard` 与 `@DocCapability`；`ROLE_CAPABILITIES` 运行时初值；新建文档的首条 owner 行 |
+| 职责 | 按人授予、改角色、撤销、列出（fail-closed：无行即无权）；运维转移 owner（`ReassignOwnerUseCase`，系统上下文，rulings §4.20 BE-05）；`RoleResolverService`（有效角色与 `DocAccess` 签发）；`ResolveShareLinkUseCase` + `ShareLinkReader`（分享令牌只读解析，BE-02）；`permVersion` 的唯一写入点与提交后广播；`RlsContext`；`DocumentRoleGuard` 与 `@DocCapability`；`ROLE_CAPABILITIES` 运行时初值；新建文档的首条 owner 行 |
 | 非职责 | 不写 `share_links`（ShareLinksModule）；不做组授权（U-11 推迟，M3 只按人）；不做 WS 会话重算的执行（collab `AuthzSource` 调本模块的读面）；不写 `documents`（04） |
 | 路由 | [15 §3.4](15-rest-api-catalog.md) 全部 3 条 |
 | 仓储与所属表 | `PermissionRepository`（`findDirect(userId, docId)`、`listByDoc(access)`、`upsertGrant(tx, …)`、`deleteGrant(tx, …)`、`lockOwners(tx, docId)`、`bumpPermVersion(tx, docId)`、`readPermVersion(access)`、`purgeByDoc(ctx, docId)`）；`ShareLinkReader`（`byTokenHash`、`statusOf`，只调 SECURITY DEFINER 函数）；表 `permissions`、`document_perm_versions`（[09 §4、§5](09-ddl-identity-and-access.md)）。Valkey：`perm:ver:{docId}`（只增）、频道 `perm:doc:{docId}` |
 | imports | `UsersModule`（`UserDirectory`：授权目标须存在且 active） |
-| exports | `RoleResolverService`、`ResolveShareLinkUseCase`、`DocumentRoleGuard` 与 `@DocCapability`、`RlsContext`、`GrantInitialOwnerInTx`、`PermVersionBumper`、`PermChangePublisher`、`PermVersionReader` |
-| 事件与审计 | `permission.granted`、`permission.revoked`、`permission.denied`（`DocumentRoleGuard` 403；details 键见 07 §9.2）；跨进程频道 `perm:doc:{docId}`，载荷 `{docId, permVersion}`；`permission/changed` 只是客户端 cordis 事件名，服务端不用（决策 INC-31/INC-29） |
+| exports | `RoleResolverService`、`ResolveShareLinkUseCase`、`DocumentRoleGuard` 与 `@DocCapability`、`RlsContext`、`GrantInitialOwnerInTx`、`PermVersionBumper`、`PermChangePublisher`、`PermVersionReader`、`ReassignOwnerUseCase`（供 `cordex-ops`，M4 管理面板复用） |
+| 事件与审计 | `permission.granted`、`permission.revoked`、`permission.denied`（`DocumentRoleGuard` 403；details 键见 07 §9.2）；`admin.owner_reassigned`（运维转移 owner，07 §9.4）；跨进程频道 `perm:doc:{docId}`，载荷 `{docId, permVersion}`；`permission/changed` 只是客户端 cordis 事件名，服务端不用（决策 INC-31/INC-29） |
 | 错误码 | `permission.denied`、`permission.last_owner`、`permission.principal_not_found`、`permission.principal_unsupported`（§9） |
-| 角色装配 | api：REST + `DocumentRoleGuard`；collab：`RoleResolverService`、`ResolveShareLinkUseCase`、`DocumentRoleGuard`（快照等 REST）、`RlsContext`；worker：参与者 `permissions` |
+| 角色装配 | api：REST + `DocumentRoleGuard`；collab：`RoleResolverService`、`ResolveShareLinkUseCase`、`DocumentRoleGuard`（快照等 REST）、`RlsContext`；worker：参与者 `permissions`；`cordex-ops`：`ReassignOwnerUseCase`（M3） |
 | purge 参与者 | `permissions`：清 `permissions`、`document_perm_versions`，提交后 `DEL perm:ver:{docId}`（§10） |
 | Clock 注入点 | 授权 `expires_at` 判定；链接 `expires_at` 判定（`ResolveShareLinkUseCase`）；直接授权 5 s 缓存 |
 | 机械验证 | §11 M-01–M-03、M-08；02 §15 AC-07–AC-09、AC-11、AC-14 |
@@ -181,6 +181,7 @@ sequenceDiagram
 | `PermVersionReader.read(access)` | `IssueCollabTicketUseCase` | — | 只读 | 行缺失视为 0 |
 | `RlsContext.run(ctx, fn)` | 全部用户上下文事务 | — | 开启事务并 `set_config` 三个 GUC 中适用的两个（02 §10） | — |
 | `PurgeDocumentPermissionsUseCase` | document-purge 处理器（`@PurgeParticipant('permissions')`） | `SystemContext`，`app.system_job='worker.document-purge'` | 单事务：`DELETE permissions`、`DELETE document_perm_versions` `WHERE doc_id` | 提交后 `DEL perm:ver:{docId}`；不写审计（04 §4.3 规则 5） |
+| `ReassignOwnerUseCase(ctx, docId, toUserId)`（M3） | `cordex-ops documents:reassign-owner --doc <id> --to <userId>`（[17 §9](17-deployment-and-config.md)）；M4 管理面板（SV-14）复用 | `SystemContext`，`app.system_job='ops.documents-reassign-owner'`；文档存在且非 `purging`；目标经 `UserDirectory` 存在且 `active`（否则 `permission.principal_not_found`）；目标已是 owner → 幂等，不写、不递增、不广播 | 单事务：删目标旧授权行（取 `previousRole`）→ 插 owner 行（`granted_by` = 目标本人）→ `bumpPermVersion`；原 owner 的授权与 `documents.owner_id` 不动（语句见 [09 §10](09-ddl-identity-and-access.md) ⑦） | 提交后 `PermChangePublisher.publish`，在线会话 ≤ 1 s 重算；审计 `admin.owner_reassigned`（`actor_type='ops'`，07 §9.4）；命令输出新 `perm_version` |
 
 **`ROLE_CAPABILITIES` 运行时初值**（`permissions/domain/role.ts`；类型以 `protocol permissions/roles.ts`、`actions.ts` 为准；依据 rulings §4.12 U-09、40/08 §2.2；与 [15 §2](15-rest-api-catalog.md) 同一矩阵）：
 
@@ -269,7 +270,7 @@ sequenceDiagram
 |---|---|---|
 | AuthModule | Users、Permissions、Documents（只取 `DocumentStateGuard`、`TouchRecentUseCase`） | `SessionGuard`、`CsrfGuard` → AppModule；`PlatformAdminGuard` → Users、Webhooks、Audit 控制器；`SessionValidator`、`TicketVerificationKeys` → CollabModule |
 | UsersModule | 无 | `ProvisionOnFirstLoginUseCase`、`SessionStore`、`TouchLastSeenUseCase` → Auth；`UserDirectory` → Auth、Permissions、Comments |
-| PermissionsModule | Users | `DocumentRoleGuard`、`RlsContext` → 全部文档作用域模块；`RoleResolverService`、`ResolveShareLinkUseCase` → Auth、Collab、ShareLinks；`GrantInitialOwnerInTx` → Documents；`PermVersionBumper`、`PermChangePublisher` → ShareLinks；`PermVersionReader` → Auth |
+| PermissionsModule | Users | `DocumentRoleGuard`、`RlsContext` → 全部文档作用域模块；`RoleResolverService`、`ResolveShareLinkUseCase` → Auth、Collab、ShareLinks；`GrantInitialOwnerInTx` → Documents；`PermVersionBumper`、`PermChangePublisher` → ShareLinks；`PermVersionReader` → Auth；`ReassignOwnerUseCase` → `cordex-ops` 入口（文件级见 40/12 §4.13） |
 | ShareLinksModule | Permissions | `ShareLinkGuard` → AppModule |
 
 无环理由（depcruise `no-circular` 覆盖 `apps/server/src/modules/**`）：
@@ -360,7 +361,7 @@ classDiagram
 |---|---|---|---|---|
 | `users` | Users | `ProvisionOnFirstLogin`、`UpdateOwnProfile`、`AdminUpdateUser`、`EraseUser`、`TouchLastSeen` | Auth（`GetMe`、`SessionValidator`）、`UserDirectory` 的消费方 | [09 §2](09-ddl-identity-and-access.md) |
 | `user_identities` | Users | `ProvisionOnFirstLogin`、`EraseUser`（删除） | `ProvisionOnFirstLogin` | [09 §3](09-ddl-identity-and-access.md) |
-| `permissions` | Permissions | `GrantPermission`、`RevokePermission`、`GrantInitialOwnerInTx`、参与者 `permissions` | `RoleResolverService`、`ListPermissions`、`cordex_doc_role`；DocumentsModule 列表查询以 SQL join 只读（04） | [09 §4](09-ddl-identity-and-access.md) |
+| `permissions` | Permissions | `GrantPermission`、`RevokePermission`、`GrantInitialOwnerInTx`、`ReassignOwner`（`cordex_system`）、参与者 `permissions` | `RoleResolverService`、`ListPermissions`、`cordex_doc_role`；DocumentsModule 列表查询以 SQL join 只读（04） | [09 §4](09-ddl-identity-and-access.md) |
 | `document_perm_versions` | Permissions | 只有 `bumpPermVersion`（经 Grant / Revoke / `PermVersionBumper`）与 `GrantInitialOwnerInTx`（插入 0）、参与者 `permissions`（C-28） | `PermVersionReader`、collab `TicketVerifier`（回源） | [09 §5](09-ddl-identity-and-access.md) |
 | `share_links` | ShareLinks | `CreateShareLink`、`RevokeShareLink`、参与者 `share-links` | `ResolveShareLinkUseCase`（只经 SECURITY DEFINER 函数）、`ListShareLinks`、`cordex_doc_role` | [09 §6](09-ddl-identity-and-access.md) |
 
@@ -392,7 +393,8 @@ action 命名 `<resource>.<snake_action>`，全量登记与 details 字段以 [0
 | `user.profile_updated` | Users | 本人改资料 | 只记字段名 |
 | `user.suspended` / `user.reactivated` | Users | 平台管理员改状态 | — |
 | `user.role_changed` | Users | 平台管理员改平台角色；bootstrap 升级（02 §3） | 带前后值 |
-| `user.erased` | Users | 擦除完成 | 操作者记在 `actor_id` |
+| `user.erased` | Users | 擦除完成 | 操作者记在 `actor_id`；details 带 `soleOwnerDocCount`（停用的 `user.suspended` 同） |
+| `admin.owner_reassigned` | Permissions | `cordex-ops documents:reassign-owner` 提交后 | `actor_type='ops'`；details 键见 07 §9.4 |
 | `permission.granted` / `permission.revoked` | Permissions | 授予或改角色 / 撤销 | 带 `previousRole` |
 | `permission.denied` | Permissions | `DocumentRoleGuard` 403 | 缓冲通路，合并计数 |
 | `share_link.created` / `share_link.revoked` | ShareLinks | 创建 / 撤销 | 不记令牌 |
@@ -456,7 +458,7 @@ WS 握手的 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_fou
 | M-02 | 授予、改角色、撤销、撤销链接四种变更都使 `perm_version` 恰好 +1，且与业务写入同事务（注入提交失败后两者都未变化）；对不存在的授权 `DELETE` 不递增 | `test/server-integration` |
 | M-03 | `ShareLinkGuard` 与 `RoleResolverService` 对同一令牌解析出相同角色；`byToken` 与 `byLinkId` 两条路径结果一致；`ShareLinkReader` 不含对 `share_links` 的直接 `SELECT` | `test/unit` + `test/server-integration` |
 | M-04 | 最后 admin：并发降级两名仅有的 admin，恰好一个 409 `server.users.last_admin`；擦除最后一名 admin 同样被拒 | `test/server-integration` |
-| M-05 | 擦除后：`user_identities` 无该用户行；`users` 行满足 `ck_users_erased_scrubbed`；该用户 ≤ 5 s 内 REST 401、WS 4401（FakeClock）；外键与审计行仍在；同一 IdP 账号再登录得到新用户 id | `test/server-integration` |
+| M-05 | 擦除后：`user_identities` 无该用户行；`users` 行满足 `ck_users_erased_scrubbed`；该用户 ≤ 5 s 内 REST 401、WS 4401（FixedClock）；外键与审计行仍在；同一 IdP 账号再登录得到新用户 id | `test/server-integration` |
 | M-06 | 停用后 ≤ 5 s 失去 REST 与 WS；重新启用后可以重新登录；PATCH 无法把状态设为 `erased` | `test/server-integration` |
 | M-07 | 用户搜索：1 个字符 → 400；结果 ≤ 20；响应不含 `email` 字段；邮箱只精确匹配（部分邮箱查不到）；不返回非 active 用户；超出令牌桶 → 429 | `test/server-integration` |
 | M-08 | `GrantInitialOwnerInTx` 与 `documents` 插入在同一事务：注入失败后两表都无行；新建文档后 `perm_version = 0` | `test/server-integration` |
@@ -464,4 +466,5 @@ WS 握手的 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_fou
 | M-10 | 参与者：`@PurgeParticipant` 收集到的集合含 `permissions`、`share-links`；两者重复执行结果相同；执行后该文档两张表与 `perm:ver:{docId}` 均为空 | `test/server-integration`（04 §4 同一套件） |
 | M-11 | 模块依赖：depcruise `no-circular` 覆盖四个模块；UsersModule 不 import 任何业务模块；PermissionsModule 不 import ShareLinksModule；DocumentsModule 不 import AuthModule | `scanners/check-*`（既有依赖检查） |
 | M-12 | `ROLE_CAPABILITIES` 与 09 §8 policy 矩阵一致：`runPermissionPolicyConformance`（默认拒绝、异常即拒绝、能力位全集含 `history.read` / `history.restore`，决策 T-KITS）+ RLS 矩阵用例 | `test/contract`（[70/02](../70-testing/02-contract-suites-and-pluggability.md)）+ `e2e/smoke` 的 security-rls |
+| M-13 | 唯一 owner 空窗（rulings §4.20 BE-05+TX-22）：停用或擦除唯一 owner 时响应与审计的 `soleOwnerDocCount` 等于该用户是唯一可用 owner 的文档数（另有 active owner 的不计，其余 owner 均已停用的计入）；执行 `documents:reassign-owner` 后 `perm_version` 恰好 +1、在线会话 ≤ 1 s 重算、新 owner 能撤销原 owner 建的分享链接、原 owner 授权与 `owner_id` 不变、审计 `admin.owner_reassigned`；目标非 active 或文档 `purging` 时命令失败且不写库；重复执行幂等 | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 

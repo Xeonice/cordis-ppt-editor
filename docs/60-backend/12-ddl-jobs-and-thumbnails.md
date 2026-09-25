@@ -1,6 +1,6 @@
 # 12 DDL：作业与缩略图
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[30-architecture/08](../30-architecture/08-backend-nestjs.md) §5、§7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[30-architecture/08](../30-architecture/08-backend-nestjs.md) §7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
 
 ## 1. 域说明
 
@@ -113,7 +113,7 @@ COMMENT ON COLUMN job_runs.updated_at IS '由仓储在每次更新时写入';
 约束说明：
 
 - `ck_job_runs_status` 为五值（依据：决策 MECH-C 之 C-18，authority：rulings §4.18 BE-18、UX-14）；合法迁移由应用层 `canTransitionJobStatus` 把关（[06 §2.2](06-modules-jobs-import-export-thumbnails.md)），DB 用三条状态相关 CHECK（失败必有码、终态必有 `finished_at`、运行或成功必有 `started_at`）守住不可能组合。
-- **不设时间先后 CHECK**：`queued_at` / `started_at` / `finished_at` 由不同进程（api 受理、worker 开工、api 取消）经各自的 Clock 端口写入，多主机时钟偏差或测试中的 FakeClock 都会让「`started_at ≥ queued_at`」偶发不成立，把正常迁移变成约束错误；三列一律由仓储显式写入（DDL 默认值只作兜底），先后关系由状态机保证。
+- **不设时间先后 CHECK**：`queued_at` / `started_at` / `finished_at` 由不同进程（api 受理、worker 开工、api 取消）经各自的 Clock 端口写入，多主机时钟偏差或测试中的 FixedClock 都会让「`started_at ≥ queued_at`」偶发不成立，把正常迁移变成约束错误；三列一律由仓储显式写入（DDL 默认值只作兜底），先后关系由状态机保证。
 - `ck_job_runs_doc_scoped`：当前四种 kind 都有文档作用域（新建导入用预分配 id），`doc_id` 保持可空只为 M4 可能出现的无文档作业（如独立格式转换）留位，届时以 expand 迁移放宽。
 - `attempt_of` 用 `ON DELETE SET NULL`（已登记在 [08 §2](08-db-conventions-roles-rls-migrations.md) 的例外表）：`job-runs-prune` 按时间删除终态行时，较新的重试行可能还引用较旧的失败行，RESTRICT 会让清理作业卡住；链条断开只损失排障线索，不影响正确性。
 
@@ -201,7 +201,7 @@ SELECT *
 
 ```sql
 -- example
--- 「现在」一律由 Clock 端口传入（前一条的 $3、后一条的 $2），不用数据库 now()，FakeClock 才能驱动这些作业（06 §4）
+-- 「现在」一律由 Clock 端口传入（前一条的 $3、后一条的 $2），不用数据库 now()，FixedClock 才能驱动这些作业（06 §4）
 PREPARE job_runs_orphan_candidates (interval, text, timestamptz) AS
 SELECT id, kind, status, payload, traceparent
   FROM job_runs
@@ -491,13 +491,13 @@ erDiagram
 
 怎么读：实线是声明的外键，虚线是只作查询用的逻辑引用；两端符号是基数（`||` 恰一、`|o` 零或一、`o{` 零或多）。`job_runs` 故意不挂到 `documents` 上，作业记录比文档活得久；`thumbnails` 随文档存在，由永久删除参与者先删行、再由 finalize-purge 删文档行，RESTRICT 保证漏删会报错而不是静默级联。
 
-依据：决策 FK-POLICY、DDL-COLS、C-13、C-21；30/08 §5 数据模型 ②③；40-modules/19 图 5-4、5-5（本图为迁入后的唯一版本）。
+依据：决策 FK-POLICY、DDL-COLS、C-13、C-21；本文 §2–§4（完整字段；原 30/08 §5 草案已删，rulings §4.19）；40-modules/19 图 5-4、5-5（本图为迁入后的唯一版本）。
 
 ## 8. 未决与对旧稿的修正
 
 | 项 | 内容 | 状态 |
 |---|---|---|
-| 与 30/08 §5 的差异 | `job_runs` 增 `created_by`（C-22）、`traceparent`、`updated_at`，全部约束命名化；`thumbnails` 的 `source` 保留 `client`（BE-26）、增 `updated_at` 与前缀、尺寸约束，`created_at` 不再作失效依据 | 本文为准，30/08 §5 改为链接（总编排回写） |
+| 与 30/08 §5 的差异 | `job_runs` 增 `created_by`（C-22）、`traceparent`、`updated_at`，全部约束命名化；`thumbnails` 的 `source` 保留 `client`（BE-26）、增 `updated_at` 与前缀、尺寸约束，`created_at` 不再作失效依据 | 本文为准，30/08 §5 改为链接（已回写） |
 | `attempt_of` 的删除策略 | `ON DELETE SET NULL`（§2） | 已在 08 §2 登记 |
 | 系统放行表达式 | 改用 08 §6.2 的 `cordex_system_job() IS NOT NULL`，app policy 用 `cordex_role_at_least`、命名加 `p_` 前缀（§5） | 已与 08 对齐 |
 | `job_runs` 的 app UPDATE 列级授予 | `UPDATE (status, finished_at, updated_at)` | 已与 08 §4.2 / 0095 对齐 |

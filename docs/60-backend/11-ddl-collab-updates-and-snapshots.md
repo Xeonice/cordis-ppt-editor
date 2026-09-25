@@ -1,5 +1,5 @@
 # 11 DDL：协同更新与版本快照
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；30-architecture/08 §5；ADR-0022、ADR-0025；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06
 
 本文是 `document_snapshots`、`document_updates` 两张表的唯一事实源：建表语句、约束、索引、RLS、读写方、保留与清理都以本文为准。写入这两张表的只有 M-09（CollabModule 的 `PgUpdateStore`、`PgSnapshotStore`），运行机制（批量写、压缩、溢写回放、恢复、墓碑清扫）见 [05](05-modules-collab-and-snapshots.md)。
 
@@ -51,7 +51,7 @@ erDiagram
 
 怎么读：连线两端是基数（`||` 恰一，`o|` 零或一，`o{` 零或多），连线文字是外键列与删除动作。`documents` 与 `document_snapshots` 互相引用：快照经 `doc_id` 从属于文档（RESTRICT），文档经 `latest_snapshot_id` 指回「当前检查点」（复合外键保证只能指本文档的快照，快照被保留作业删除时指针置空）。`contributors` 实际类型是 `uuid[]`，图中写作 `uuid_array`。
 
-依据：30-architecture/08 §5；ADR-0025 决策 1–5；决策 FK-POLICY、DDL-COLS、C-07、C-30。
+依据：[08](08-db-conventions-roles-rls-migrations.md) §1–§3（约定、外键、分区；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 1–5；决策 FK-POLICY、DDL-COLS、C-07、C-30。
 
 ## 2. document_snapshots（0040）
 
@@ -242,7 +242,7 @@ COMMENT ON COLUMN document_updates.user_id IS
 
 设计说明：
 
-- **分区**：`HASH(doc_id)` 16 个分区 `document_updates_p00…p15`（ADR-0022、30/08 §5）。一篇文档的全部行落在同一分区，`loadSince`、裁剪、贡献者统计都只扫一个分区；分区不单独授权，应用只能经父表访问，父表的 RLS 因此对所有行生效。
+- **分区**：`HASH(doc_id)` 16 个分区 `document_updates_p00…p15`（ADR-0022、[08](08-db-conventions-roles-rls-migrations.md) §3）。一篇文档的全部行落在同一分区，`loadSince`、裁剪、贡献者统计都只扫一个分区；分区不单独授权，应用只能经父表访问，父表的 RLS 因此对所有行生效。
 - **`update` 列 `STORAGE EXTERNAL`**：Yjs V2 update 已是紧凑编码，再做 TOAST 压缩只费 CPU；子分区继承父表的 storage 设置（PG 18.6 实测 16 个分区均为 `e`）。列名 `update` 在 PostgreSQL 中是非保留关键字，无需加引号。
 - **主键即顺序**：`(doc_id, seq)` 同时支撑 `loadSince`（`seq > $n ORDER BY seq`）与按区间统计贡献者；`ix_document_updates_doc_created` 只服务 7 天裁剪。`seq` 由 `documents.head_seq` 在同一事务内分配（§5），不用序列：序列跨文档共享且回滚会留洞，而 at-least-once 的 ack 语义要求「提交即有 seq、seq 即落库」。
 - **行来源**：本实例客户端发来的 update（含重连 step2 的非空差量）、服务端事务（软门禁修复、恢复、迁移、墓碑硬删除）的 update、PG 恢复后回放的溢写行。跨实例扇入的 update 只应用不落库（ADR-0035 决策 3），所以同一内容至多由一个实例写一行；客户端重发导致的重复行对 Yjs 幂等无害。
@@ -318,7 +318,7 @@ sequenceDiagram
 
 怎么读：纵线是参与方，自上而下是时间。三条分支对应取号的三种结果；只有第一条分支会回 `tier db` 的 ack，且在 COMMIT 返回之后发出。降级分支的溢写与回放在 [05](05-modules-collab-and-snapshots.md) §6。
 
-依据：30-architecture/08 §5 写路径关键约束；ADR-0025 决策 1、8；rulings §4.18 CO-08、CO-10、BE-15。
+依据：本文 §5（写路径的唯一源；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 1、8；rulings §4.18 CO-08、CO-10、BE-15。
 
 ## 6. 恢复查询
 
@@ -371,7 +371,7 @@ flowchart TB
 
 怎么读：菱形是判定，方框是动作；自上而下是一次状态重建。左支是新建空文档，右支按快照是内联还是对象存储分两路，汇合后都要叠加检查点之后的 updates。唯一的失败出口是大快照对象缺失，此时宁可让加入失败也不回退到更旧的状态。
 
-依据：30-architecture/08 §5「恢复顺序」；ADR-0025 决策 2、4；决策 C-08/OBJ、C-30。
+依据：本文 §6（状态重建的唯一源；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 2、4；决策 C-08/OBJ、C-30。
 
 ## 7. RLS（0092）
 

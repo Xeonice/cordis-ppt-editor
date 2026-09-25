@@ -1,8 +1,8 @@
 # 09 DDL：身份与权限
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[30/08](../30-architecture/08-backend-nestjs.md) §5；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
 
 > 读者：写 `apps/server/src/db/migrations/` 与 `db/schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 的工程师；DBA；安全评审。
-> 定位：身份与权限域五张表、三个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
+> 定位：身份与权限域五张表、四个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
 > 不在本文：命名、外键、角色、GUC 与 policy 写法的通则见 [08](08-db-conventions-roles-rls-migrations.md)；表级与列级 GRANT 由 08 的 0095 统一落地（本文 §8.4 只给本域规格）；Valkey 会话键与保留期总表见 [14](14-valkey-object-storage-and-retention.md)；用例与事务边界见 [03](03-modules-identity-and-access.md)。
 
 ---
@@ -17,9 +17,9 @@
 | `document_perm_versions` | PermissionsModule | `PermissionRepository.bumpPermVersion`（唯一写入点） | 0031 | ENABLE + FORCE（0090） | M2 建表并随协同票据携带（rulings §4.19 D-M2-CONTENT 把网关提前到 M2）；M3 起随授权 REST 递增与广播 |
 | `share_links` | ShareLinksModule（写）/ PermissionsModule（只读解析） | `ShareLinkRepository` / `ShareLinkReader` | 0032 | ENABLE + FORCE（0090） | M3 |
 
-本文占用的迁移号（全线唯一分配）：0010–0019（本文用 0010、0011）、0030–0039（本文用 0030–0034）、0090。执行顺序与依赖：0001、0002（08）→ **0010 → 0011** → 0020（10）→ **0030 → 0031 → 0032 → 0033 → 0034** → 0040–0073（11–13）→ **0090** → 0091–0094 → 0095、0096（08）。
+本文占用的迁移号（全线唯一分配）：0010–0019（本文用 0010、0011）、0030–0039（本文用 0030–0035）、0090。执行顺序与依赖：0001、0002（08）→ **0010 → 0011** → 0020（10）→ **0030 → 0031 → 0032 → 0033 → 0034 → 0035** → 0040–0073（11–13）→ **0090** → 0091–0094 → 0095、0096（08）。
 
-**实测**：本文全部 `-- migrate:` 围栏已在 `postgres:18-alpine` 中配合 08 的 0001、0002 与 10 的 0020 按编号顺序执行通过；§8.5 的行为矩阵与 §10 的 `-- example` 逐条实测（2026-09-25）；正式校验由 `docs/_tools/ddl-check` 执行。
+**实测**：本文全部 `-- migrate:` 围栏已在 `postgres:18-alpine` 中配合 08 的 0001、0002 与 10 的 0020 按编号顺序执行通过；§8.5 的行为矩阵与 §10 的 `-- example` 逐条实测（2026-09-25；0035 与其行为断言、§10 ⑦ 于 2026-09-26 随 ddl-check 执行通过，断言做过变异验证）；正式校验由 `docs/_tools/ddl-check` 执行。
 
 本文采用的决策（均为 needsUser=false）：
 
@@ -271,9 +271,9 @@ COMMENT ON COLUMN share_links.revoked_at IS '撤销时刻；未撤销时为 NULL
 
 ---
 
-## 7. SECURITY DEFINER 函数（0033、0034）
+## 7. SECURITY DEFINER 函数（0033–0035）
 
-依据：决策 RLS-GUC、DB-ROLES、C-35；schema-inventory G-06（policy 自引用递归）、G-17（函数加固）；[08 §4.3](08-db-conventions-roles-rls-migrations.md)（全线只有这三个 SECURITY DEFINER 函数）。
+依据：决策 RLS-GUC、DB-ROLES、C-35；rulings §4.20 BE-05（0035）；schema-inventory G-06（policy 自引用递归）、G-17（函数加固）；[08 §4.3](08-db-conventions-roles-rls-migrations.md)（全线 SECURITY DEFINER 函数的唯一清单：本文四个，另有 10 的 `cordex_storage_usage`）。
 
 ```sql
 -- migrate: 0033_share_link_lookup_functions
@@ -371,12 +371,113 @@ COMMENT ON FUNCTION cordex_doc_role(uuid) IS
   '当前用户对该文档的有效角色 = max(直接授权, app.share_token_hash 对应的有效链接角色)，另含建档窗口引导；用户非 active 或无上下文时返回 NULL（60/09 §7）。';
 ```
 
-| 加固项（[08 §4.3](08-db-conventions-roles-rls-migrations.md)、决策 G-17） | 三个函数 |
+```sql
+-- migrate: 0035_sole_owner_doc_count
+-- 执行者：cordex_migrator。平台管理员停用或擦除用户时统计「该用户是唯一可用 owner」的文档数（rulings §4.20 BE-05）：
+-- 管理员在 RLS 下看不到他人文档的授权行，api 又只有 cordex_app 连接池，只能以属主身份计数；只返回数字
+CREATE FUNCTION cordex_sole_owner_doc_count(p_user_id uuid)
+  RETURNS bigint
+  LANGUAGE plpgsql
+  STABLE
+  SECURITY DEFINER
+  SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1
+                   FROM public.users AS u
+                  WHERE u.id = public.cordex_current_user()
+                    AND u.status = 'active'
+                    AND u.platform_role = 'admin') THEN
+    RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'cordex_sole_owner_doc_count: caller is not an active platform admin';
+  END IF;
+  RETURN (
+    SELECT count(*)
+      FROM public.permissions AS p
+      JOIN public.documents AS d ON d.id = p.doc_id
+     WHERE p.principal_type = 'user'
+       AND p.principal_id = p_user_id
+       AND p.role = 'owner'
+       AND d.status <> 'purging'
+       AND NOT EXISTS (
+             SELECT 1
+               FROM public.permissions AS o
+               JOIN public.users AS ou ON ou.id = o.principal_id
+              WHERE o.doc_id = p.doc_id
+                AND o.principal_type = 'user'
+                AND o.role = 'owner'
+                AND o.principal_id <> p_user_id
+                AND ou.status = 'active'));
+END $$;
+
+ALTER FUNCTION cordex_sole_owner_doc_count(uuid) OWNER TO cordex_migrator;
+REVOKE ALL ON FUNCTION cordex_sole_owner_doc_count(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION cordex_sole_owner_doc_count(uuid) TO cordex_app;
+
+COMMENT ON FUNCTION cordex_sole_owner_doc_count(uuid) IS
+  '该用户持 owner 授权、且没有其他 active 用户持 owner 的非 purging 文档数（60/09 §7）。只允许 active 平台管理员调用，只返回数字；供停用与擦除的响应和审计提醒管理员执行 cordex-ops documents:reassign-owner。';
+```
+
+`cordex_sole_owner_doc_count` 的口径与边界（rulings §4.20 BE-05+TX-22）：
+
+- **「唯一可用 owner」**：该用户持 owner 授权，且文档里没有**其他 active 用户**持 owner——其余 owner 都已停用或擦除的文档同样计入，因为它们同样无人能执行 `doc.manage`。`purging` 文档不计。
+- **暴露面**：只有 active 平台管理员能调用（否则 42501），只返回一个数字、不返回文档 id；只授予 `cordex_app`（调用方是 api 的 `AdminUpdateUserUseCase`、`EraseUserUseCase`，[03 §3.2](03-modules-identity-and-access.md)），系统作业不需要。
+- 运维命令 `documents:reassign-owner` 的写入不经本函数：它以 `cordex_system` 执行，写法见 §10 ⑦。
+
+```sql
+-- example
+-- 0035 行为断言（§8.5 I-15）：非管理员调用被拒；管理员得到「唯一可用 owner」文档数，另一位 owner 停用后该文档随之计入。
+-- 超级用户会话执行（SET ROLE 需要）；整段一个事务、以 ROLLBACK 结束，不留数据。任一 RAISE 即断言失败。
+BEGIN;
+SET LOCAL ROLE cordex_app;
+SET LOCAL app.user_id = '0199a000-0000-7000-8000-0000000a11ce';
+INSERT INTO users (id, email, display_name, platform_role) VALUES
+  ('0199a000-0000-7000-8000-00000000ad01', 'admin@example.test', 'admin', 'admin'),
+  ('0199a000-0000-7000-8000-0000000a11ce', 'alice@example.test', 'alice', 'member'),
+  ('0199a000-0000-7000-8000-000000000b0b', 'bob@example.test', 'bob', 'member');
+-- alice 建 d1、d2（建档窗口写首条 owner 行），再把 d1 的 owner 也授给 bob
+INSERT INTO documents (id, title, doc_type, owner_id) VALUES
+  ('0199a000-0000-7000-8000-0000000000d1', 'd1', 'slide', '0199a000-0000-7000-8000-0000000a11ce'),
+  ('0199a000-0000-7000-8000-0000000000d2', 'd2', 'slide', '0199a000-0000-7000-8000-0000000a11ce');
+INSERT INTO permissions (id, doc_id, principal_type, principal_id, role, granted_by) VALUES
+  ('0199a000-0000-7000-8000-00000000e0d1', '0199a000-0000-7000-8000-0000000000d1', 'user',
+   '0199a000-0000-7000-8000-0000000a11ce', 'owner', '0199a000-0000-7000-8000-0000000a11ce'),
+  ('0199a000-0000-7000-8000-00000000e0d2', '0199a000-0000-7000-8000-0000000000d2', 'user',
+   '0199a000-0000-7000-8000-0000000a11ce', 'owner', '0199a000-0000-7000-8000-0000000a11ce');
+INSERT INTO permissions (id, doc_id, principal_type, principal_id, role, granted_by) VALUES
+  ('0199a000-0000-7000-8000-00000000e0b1', '0199a000-0000-7000-8000-0000000000d1', 'user',
+   '0199a000-0000-7000-8000-000000000b0b', 'owner', '0199a000-0000-7000-8000-0000000a11ce');
+-- 非管理员（alice 自己）调用被拒
+DO $$
+BEGIN
+  BEGIN
+    PERFORM cordex_sole_owner_doc_count('0199a000-0000-7000-8000-0000000a11ce');
+    RAISE EXCEPTION '0035 失败：非管理员调用未被拒绝';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;  -- 42501
+  END;
+END $$;
+-- 管理员：d1 另有 active owner bob，不计；只计 d2
+SET LOCAL app.user_id = '0199a000-0000-7000-8000-00000000ad01';
+DO $$ BEGIN
+  IF cordex_sole_owner_doc_count('0199a000-0000-7000-8000-0000000a11ce') <> 1 THEN
+    RAISE EXCEPTION '0035 失败：d1 另有 active owner，应只计 d2';
+  END IF;
+END $$;
+-- bob 被停用后 d1 也无人可管，计入
+UPDATE users SET status = 'suspended' WHERE id = '0199a000-0000-7000-8000-000000000b0b';
+DO $$ BEGIN
+  IF cordex_sole_owner_doc_count('0199a000-0000-7000-8000-0000000a11ce') <> 2 THEN
+    RAISE EXCEPTION '0035 失败：另一位 owner 停用后 d1 应计入';
+  END IF;
+END $$;
+ROLLBACK;
+```
+
+| 加固项（[08 §4.3](08-db-conventions-roles-rls-migrations.md)、决策 G-17） | 四个函数 |
 |---|---|
 | 属主 `cordex_migrator`（唯一 `BYPASSRLS`），函数内读表不再触发 RLS | ✓ |
 | `SET search_path = pg_catalog, pg_temp`；表与辅助函数一律 `public.` 限定 | ✓ |
 | `STABLE`，只读，不写任何表 | ✓ |
-| `REVOKE … FROM PUBLIC`，只授 `cordex_app`、`cordex_system` | ✓ |
+| `REVOKE … FROM PUBLIC`，只授 `cordex_app`、`cordex_system`（0035 只授 `cordex_app`） | ✓ |
 | 入参不做字符串拼接，无动态 SQL | ✓ |
 
 `cordex_doc_role` 的四个设计点：
@@ -517,7 +618,8 @@ GRANT UPDATE (revoked_at) ON share_links TO cordex_app;
 | I-11 | owner 把已撤销链接的 `revoked_at` 改回 NULL | policy 拒绝（撤销不可逆） | — |
 | I-12 | 非 owner 调 `cordex_share_link_by_token` / `cordex_share_link_status`；直接 `SELECT share_links` | 函数返回链接行（有效性由用例判定）；直接查询 0 行 | — |
 | I-13 | 两个 owner 并发互相撤销（`FOR UPDATE` 锁 owner 行后计数） | 先者看到 2 行并删除对方；后者在锁释放后只看到 1 行，被应用层拒绝 | — |
-| I-14 | 三个函数的加固属性 | `prosecdef`、`search_path=pg_catalog, pg_temp`、属主 `cordex_migrator`、PUBLIC 无 EXECUTE、`cordex_doc_role` 的 `COST 1000` | 08 0096 ④ |
+| I-14 | 四个函数的加固属性 | `prosecdef`、`search_path=pg_catalog, pg_temp`、属主 `cordex_migrator`、PUBLIC 无 EXECUTE、`cordex_doc_role` 的 `COST 1000` | 08 0096 ④ |
+| I-15 | 非平台管理员调用 `cordex_sole_owner_doc_count`；管理员查询「另有 active owner」与「其余 owner 均已停用」的文档 | 前者 42501；后者前一类不计、后一类计入（§7 的 example 断言，ddl-check 每次执行） | — |
 
 ---
 
@@ -546,6 +648,7 @@ GRANT UPDATE (revoked_at) ON share_links TO cordex_app;
 | 部署内至少一名 active admin | `AdminUpdateUserUseCase`、`EraseUserUseCase` | 按 `id` 顺序 `FOR UPDATE` 锁全部 active admin 行后计数 |
 | 授权目标必须是已存在且 active 的用户 | `GrantPermissionUseCase` | 外键保证存在；`status` 由 `UserDirectory` 在同一事务读取 |
 | `perm_version` 与授权、链接变更同事务 +1 | `bumpPermVersion(tx)` | 行锁由 `ON CONFLICT … DO UPDATE` 取得 |
+| 运维转移 owner 只增不减：写目标用户的 owner 行，原 owner 的授权与 `documents.owner_id` 不动 | `ReassignOwnerUseCase`（03 §4.2，`cordex_system`） | 同一事务内先删目标用户旧授权行再插 owner 行（`cordex_system` 对 `permissions` 只有 S I D，08 §4.2），随后 `bumpPermVersion` |
 
 ```sql
 -- example
@@ -606,6 +709,22 @@ SELECT id, display_name, avatar_url
  WHERE status = 'active' AND lower(email) = lower($1)
  ORDER BY id
  LIMIT 20;
+```
+
+```sql
+-- example
+-- ⑦ 运维转移 owner（ReassignOwnerUseCase；cordex_system，app.system_job = 'ops.documents-reassign-owner'；rulings §4.20 BE-05）
+-- 前置：文档存在且非 purging，目标用户 active（均在应用层判定，读取如下）
+SELECT status FROM documents WHERE id = $1;
+SELECT status FROM users WHERE id = $1;
+-- cordex_system 对 permissions 只有 S I D：目标已有授权行时先删（取旧角色供审计 previousRole）再插 owner 行
+DELETE FROM permissions WHERE doc_id = $1 AND principal_type = 'user' AND principal_id = $2 RETURNING role;
+INSERT INTO permissions (id, doc_id, principal_type, principal_id, role, granted_by)
+VALUES ($1, $2, 'user', $3, 'owner', $3);
+INSERT INTO document_perm_versions AS v (doc_id, perm_version) VALUES ($1, 1)
+ON CONFLICT (doc_id) DO UPDATE SET perm_version = v.perm_version + 1, updated_at = now()
+RETURNING v.perm_version;
+-- granted_by 取目标用户本人（与建档首条 owner 行同一写法）；运维身份记在审计 admin.owner_reassigned 的 actor_type = 'ops'
 ```
 
 ---
@@ -674,10 +793,10 @@ erDiagram
 
 | # | 断言 | 执行 |
 |---|---|---|
-| D-01 | 本文 `-- migrate:` 围栏（0010、0011、0030–0034、0090）与 08、10–13 的围栏按编号在 PG 18 空库顺序执行通过；本文 `-- example` 围栏可解析 | `docs/_tools/ddl-check`（08 §11） |
+| D-01 | 本文 `-- migrate:` 围栏（0010、0011、0030–0035、0090）与 08、10–13 的围栏按编号在 PG 18 空库顺序执行通过；本文 `-- example` 围栏可解析 | `docs/_tools/ddl-check`（08 §11） |
 | D-02 | `permissions`、`document_perm_versions`、`share_links` 为 ENABLE + FORCE，各有 `TO cordex_app` 与 `TO cordex_system` policy；`users`、`user_identities` 在例外清单且未开 RLS；policy 文本不含 `current_setting('app.` 与对 `permissions` / `share_links` 的子查询 | 治理检查 `check-rls-coverage`（`scanners/check-rls-coverage`）+ 08 的 0096 自检 |
-| D-03 | 三个 SECURITY DEFINER 函数：属主 `cordex_migrator`、`search_path=pg_catalog, pg_temp`、PUBLIC 无 EXECUTE（§8.5 I-14） | 08 的 0096 自检 |
-| D-04 | §8.5 行为矩阵 I-01–I-12 全部符合 | `e2e/smoke` 的 security-rls（M3 起阻断）+ `test/server-integration` |
+| D-03 | 四个 SECURITY DEFINER 函数：属主 `cordex_migrator`、`search_path=pg_catalog, pg_temp`、PUBLIC 无 EXECUTE（§8.5 I-14） | 08 的 0096 自检 |
+| D-04 | §8.5 行为矩阵 I-01–I-12、I-15 全部符合 | `e2e/smoke` 的 security-rls（M3 起阻断）+ `test/server-integration` |
 | D-05 | 并发：两个 owner 互相撤销只有一个成功（I-13）；两名 admin 并发互降只有一个成功 | `test/server-integration` |
 | D-06 | 列级 GRANT 快照含 §8.4 五条；应用角色改 `users.id`、`permissions.doc_id`、`share_links.token_hash` 得 `permission denied` | `test/server-integration`（08 DB-06） |
 | D-07 | drizzle `schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 与迁移后的库无漂移；无 `password` 类列、无 `tenant_id` | `test/server-integration`（08 DB-03） |

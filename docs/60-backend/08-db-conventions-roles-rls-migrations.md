@@ -1,5 +1,5 @@
 # 08 数据库总约定：命名、角色、RLS 框架与迁移顺序
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）| 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/08](../30-architecture/08-backend-nestjs.md)、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/08](../30-architecture/08-backend-nestjs.md)、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
 
 > 读者：写 `apps/server/src/db/**`、迁移脚本与仓储的工程师；DBA 与运维。
 > 本文是 PostgreSQL 18 的「总约定」：命名与类型、外键与分区、数据库角色与 GRANT、连接池、文档级 RLS 的框架（GUC、辅助函数、policy 写法、例外清单、测试矩阵）、表写方所有权、迁移编号与纪律。**各表的建表语句与 policy 本体**在 [09](./09-ddl-identity-and-access.md)–[13](./13-ddl-comments-webhooks-audit.md)；Valkey 键、对象键与保留总表在 [14](./14-valkey-object-storage-and-retention.md)；配置键在 [17](./17-deployment-and-config.md)。
@@ -107,7 +107,7 @@ S = SELECT，I = INSERT，U = UPDATE，D = DELETE；「I(列)」「U(列)」表�
 
 ### 4.3 函数与 SECURITY DEFINER 加固
 
-- **SECURITY DEFINER 只有四个**：09 的 `cordex_share_link_by_token`、`cordex_share_link_status`（0033，决策 MECH-C 中 C-35）与 `cordex_doc_role`（0034）；10 的 `cordex_storage_usage`（0052，决策 G-09：按 owner 汇总配额要统计调用者看不到的行，函数先以 `cordex_doc_role` 校验调用者对该文档至少 editor，只返回数字，只授予 `cordex_app`）。新增须改本条并说明理由。
+- **SECURITY DEFINER 只有五个**：09 的 `cordex_share_link_by_token`、`cordex_share_link_status`（0033，决策 MECH-C 中 C-35）、`cordex_doc_role`（0034）与 `cordex_sole_owner_doc_count`（0035，rulings §4.20 BE-05：平台管理员停用或擦除用户时要统计该用户是唯一可用 owner 的文档数，管理员在 RLS 下看不到他人文档的授权行、api 又只有 `cordex_app`；函数先校验调用者是 active 平台管理员，只返回数字，只授予 `cordex_app`）；10 的 `cordex_storage_usage`（0052，决策 G-09：按 owner 汇总配额要统计调用者看不到的行，函数先以 `cordex_doc_role` 校验调用者对该文档至少 editor，只返回数字，只授予 `cordex_app`）。新增须改本条并说明理由。
 - 规则：属主 `cordex_migrator`；`SET search_path = pg_catalog, pg_temp`；函数体内表名一律 `public.` 限定；`STABLE`；`REVOKE EXECUTE … FROM PUBLIC` 后只授予需要的应用角色（`cordex_app`、`cordex_system` 之一或两者）。0096 自检逐项核对前两条与「无 PUBLIC EXECUTE」。
 - 非 SECURITY DEFINER 的辅助函数（0002 的四个）不设 `SET search_path`，以便在 policy 中被内联；函数体一律 `pg_catalog.` 限定。
 - 0001 设置 `ALTER DEFAULT PRIVILEGES FOR ROLE cordex_migrator REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`，今后新建函数默认不对 PUBLIC 开放。
@@ -304,7 +304,8 @@ COMMIT;
 - 取值为 `{scope}.{name}` 字面量，代码中是字面量联合 `SystemJobName`（落点 `apps/server/src/db/system-jobs.ts`，40/12 §4.13，2026-09-25 审稿登记）：
   - collab：`collab.gateway`、`collab.bootstrap`、`collab.persist`、`collab.spill-replay`、`collab.compact`、`collab.tombstone-sweep`（含元素彻底删除）、`collab.snapshot`（命名、恢复、迁移、epoch）、`collab.comment-mirror`、`collab.webhook-produce`；
   - worker：`worker.import`、`worker.export`、`worker.thumbnails`、`worker.render-export`、`worker.webhook-delivery`、`worker.document-purge`；
-  - 周期作业：`maintenance.{作业名}`，作业名取 [06 §4](./06-modules-jobs-import-export-thumbnails.md) 的周期作业清单（唯一源；[14 §8.5](./14-valkey-object-storage-and-retention.md) 为其保留视角的摘录）。
+  - 周期作业：`maintenance.{作业名}`，作业名取 [06 §4](./06-modules-jobs-import-export-thumbnails.md) 的周期作业清单（唯一源；[14 §8.5](./14-valkey-object-storage-and-retention.md) 为其保留视角的摘录）；
+  - ops 命令（持 `cordex_system` 口令的子命令，[17 §6、§9](./17-deployment-and-config.md)）：`ops.{子命令}`，冒号改连字符，如 `ops.jobs-replay`、`ops.webhooks-replay`、`ops.thumbnails-rebuild`、`ops.documents-reassign-owner`（rulings §4.20 BE-05）。
 - `SystemContext` 只能由系统用例构造（40/08），请求处理器拿不到 `withSystem`。
 
 ### 6.6 与 S-3 溢写的关系
@@ -381,14 +382,14 @@ flowchart TD
 |---|---|---|---|---|---|---|
 | `users` | Users（M-08） | `UserRepository` | 首登 JIT、资料、平台管理员改状态 / 角色、擦除脱敏（app） | Auth、Permissions、按人搜索；评论镜像（system） | [09](./09-ddl-identity-and-access.md) | 0010 |
 | `user_identities` | Users | `UserRepository` | 首登 JIT、`linkIdentity`、擦除删除（app） | Auth 回调 | 09 | 0011 |
-| `documents` | Documents（M-08）；M-09 列归 Collab | `DocumentRepository`（入参 Omit 全部 M-09 列）；M-09 列由 `PgUpdateStore` / `PgSnapshotStore` 等写 | M-08：建档写 `id、title、doc_type、owner_id`，此后 `title、status、deleted_at、updated_at`（app）；锁定与解锁（`status、locked_until`）、回收站到期置 `purging`（system）；`owner_id` 建档后不改（M1–M3 无转移所有者）。M-09：`head_seq、epoch、latest_snapshot_id、schema_version、element_count、slide_count、size_bytes、content_updated_at`（system，快照 / 压缩时节流写）；导入建档、`finalize-purge` 删行（system） | 全体（列表经授权过滤） | [10](./10-ddl-documents-marks-media.md) | 0020、0041 |
+| `documents` | Documents（M-08）；M-09 列归 Collab | `DocumentRepository`（入参 Omit 全部 M-09 列）；M-09 列由 `PgUpdateStore` / `PgSnapshotStore` 等写 | M-08：建档写 `id、title、doc_type、owner_id`，此后 `title、status、deleted_at、updated_at`（app）；锁定与解锁（`status、locked_until`）、回收站到期置 `purging`（system）；`owner_id` 建档后不改（M1–M3 无转移所有者；运维命令 `documents:reassign-owner` 只写授权行、不改本列）。M-09：`head_seq、epoch、latest_snapshot_id、schema_version、element_count、slide_count、size_bytes、content_updated_at`（system，快照 / 压缩时节流写）；导入建档、`finalize-purge` 删行（system） | 全体（列表经授权过滤） | [10](./10-ddl-documents-marks-media.md) | 0020、0041 |
 | `document_user_marks` | Documents | `UserMarksRepository` | 最近 / 固定（app）；参与者 user-marks（system） | 开始页、列表 | 10 | 0021 |
 | `document_updates` | Collab（M-09） | `PgUpdateStore` | 持久化、溢写回放、`updates-prune`、参与者 collab（system） | 装载、压缩（system） | [11](./11-ddl-collab-updates-and-snapshots.md) | 0042 |
 | `document_snapshots` | Collab / Snapshots（M-09） | `PgSnapshotStore` | 压缩、命名、恢复、迁移、epoch；导入经 M-09 导出的 `SnapshotStore.put`；`snapshots-retention`、参与者 collab（system） | 快照 REST（app）；装载、导出（system） | 11 | 0040 |
 | `media_blobs` | Media（M-08） | `MediaBlobRepository` | 媒体提交（app）；导入、`media-gc`（system） | 媒体读取、配额（经 0052 的 `cordex_storage_usage`） | 10 | 0050、0052 |
 | `document_media` | Media | `DocumentMediaRepository` | 提交关联（app）；导入关联、压缩置 `detached_at`（经 Media 导出的用例）、`snapshots-retention`、参与者 media（system） | 媒体读取授权、GC | 10 | 0051 |
-| `permissions` | Permissions（M-08） | `PermissionRepository` | 授予 / 改角色 / 撤销、建档 owner 行（app）；导入建档、参与者 permissions（system） | `cordex_doc_role`、RoleResolver、列表 | 09 | 0030 |
-| `document_perm_versions` | Permissions | `PermissionRepository.bumpPermVersion(tx)`（唯一写入点） | 授权变更与链接撤销同事务（app）；导入建档、参与者（system） | 票据签发、TicketVerifier | 09 | 0031 |
+| `permissions` | Permissions（M-08） | `PermissionRepository` | 授予 / 改角色 / 撤销、建档 owner 行（app）；导入建档、参与者 permissions、运维转移 owner（system，`ops.documents-reassign-owner`） | `cordex_doc_role`、RoleResolver、列表 | 09 | 0030 |
+| `document_perm_versions` | Permissions | `PermissionRepository.bumpPermVersion(tx)`（唯一写入点） | 授权变更与链接撤销同事务（app）；导入建档、参与者、运维转移 owner（system） | 票据签发、TicketVerifier | 09 | 0031 |
 | `share_links` | ShareLinks（M-08） | `ShareLinkRepository`；只读解析经 Permissions 的 `ShareLinkReader` → SECURITY DEFINER 函数 | 创建、撤销（app）；参与者 share-links（system） | `cordex_doc_role`、ResolveShareLinkUseCase | 09 | 0032 |
 | `comments` | Comments（M-12） | `CommentsRepository` | CommentMirrorObserver（collab，system）；参与者 comments（system） | 评论 REST（app）；Webhook 载荷（system） | [13](./13-ddl-comments-webhooks-audit.md) | 0070 |
 | `thumbnails` | Thumbnails（M-12） | `ThumbnailsRepository` | 导入封面、缩略图处理器、参与者 thumbnails（system） | 缩略图 REST（app） | [12](./12-ddl-jobs-and-thumbnails.md) | 0061 |
@@ -492,7 +493,7 @@ erDiagram
 | 0001–0009 | 08（本文） | 0001 角色、库与 schema 权限、台账（管理员执行；不装扩展）；0002 RLS 基础函数；0003–0009 保留 | — |
 | 0010–0019 | [09](./09-ddl-identity-and-access.md) | 0010 `users`；0011 `user_identities` | 0001 |
 | 0020–0029 | [10](./10-ddl-documents-marks-media.md) | 0020 `documents`（暂不含 `latest_snapshot_id` 外键）；0021 `document_user_marks` | 0010 |
-| 0030–0039 | 09 | 0030 `permissions`；0031 `document_perm_versions`；0032 `share_links`；0033 两个分享链接函数；0034 `cordex_doc_role` | 0020、0002 |
+| 0030–0039 | 09 | 0030 `permissions`；0031 `document_perm_versions`；0032 `share_links`；0033 两个分享链接函数；0034 `cordex_doc_role`；0035 `cordex_sole_owner_doc_count`（SECURITY DEFINER，§4.3） | 0020、0002 |
 | 0040–0049 | [11](./11-ddl-collab-updates-and-snapshots.md) | 0040 `document_snapshots`；0041 补 `documents.latest_snapshot_id` 外键（SET NULL）；0042 `document_updates`（16 分区） | 0020 |
 | 0050–0059 | 10 | 0050 `media_blobs`；0051 `document_media`；0052 `cordex_storage_usage`（SECURITY DEFINER，§4.3） | 0020；0052 另需 0034 |
 | 0060–0069 | [12](./12-ddl-jobs-and-thumbnails.md) | 0060 `job_runs`；0061 `thumbnails`；0062 `job_runs` 索引 | 0010、0020 |
@@ -514,7 +515,7 @@ flowchart LR
   m0001 --> m0010["0010–0011 users、user_identities"]
   m0010 --> m0020["0020–0021 documents、document_user_marks"]
   m0020 --> m0030["0030–0032 permissions、perm_versions、share_links"]
-  m0030 --> m0033["0033–0034 三个 SECURITY DEFINER 函数"]
+  m0030 --> m0033["0033–0035 四个 SECURITY DEFINER 函数"]
   m0002 --> m0033
   m0020 --> m0040["0040–0042 snapshots、补外键、updates"]
   m0020 --> m0050["0050–0052 media_blobs、document_media、用量函数"]
@@ -539,14 +540,14 @@ flowchart LR
 ### 10.1 SQL 文件是事实源，drizzle 是类型镜像
 
 - 迁移是 `apps/server/src/db/migrations/NNNN_<name>.sql` 手写 SQL；分区、RLS、函数、GRANT 只能手写。
-- **迁移 SQL 文件须与文档逐字一致**：迁移内容的唯一事实源是本线 08–13 的 `-- migrate:` 围栏（本文的 0001、0002、0095、0096 在内），一个围栏对应一个文件。文件名取围栏首行 `-- migrate: NNNN_<name>` 中的 `NNNN_<name>`，再加 `.sql`。文件内容等于围栏正文（含首行，末尾一个换行），也就是 ddl-check 提取物的字节；台账 `checksum` 取这份内容的 sha256，因此文档、仓库文件与台账三者同源。改迁移时先改文档围栏，再同步文件，不反向。机械校验由 ddl-check 在实现期扩展（§11 第 6 条、§13 DB-13，**待实现**）。
+- **迁移 SQL 文件须与文档逐字一致**：迁移内容的唯一事实源是本线 08–13 的 `-- migrate:` 围栏（本文的 0001、0002、0095、0096 在内），一个围栏对应一个文件。文件名取围栏首行 `-- migrate: NNNN_<name>` 中的 `NNNN_<name>`，再加 `.sql`。文件内容等于围栏正文（含首行，末尾一个换行），也就是 ddl-check 提取物的字节；台账 `checksum` 取这份内容的 sha256，因此文档、仓库文件与台账三者同源。改迁移时先改文档围栏，再同步文件，不反向。机械校验由 ddl-check 的迁移目录比对执行（§11 第 6 条、§13 DB-13）：首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated（rulings §4.20 BE-03+TX-14）。
 - 文件级落点（2026-09-25 审稿登记）：`db/migrations/`、`db/schema/`、连接池与系统事务入口 `db/client.ts`、执行器 `db/migrator.ts` 都登记在 [40/12 §4.13、§5.13](../40-modules/12-server-jobs-comments-and-ops.md)（M-12「应用骨架与基础设施」），原先所指的 30/08 §2 目录树已删；M-12 只承载这些文件，表结构与迁移内容仍以本线为准。
 - `apps/server/src/db/schema/*.ts`（drizzle）只是仓储用的类型镜像；`drizzle-kit generate` 可用来起草普通表的 SQL，但生成物不直接入库，按本线编号改写后提交。
 - 漂移检查：空库执行全部迁移后，用 drizzle 的内省结果与 `schema/*.ts` 比对列名、类型、可空性与默认值，不一致即失败（[70/07 §4](../70-testing/07-backend-integration-and-api-e2e.md)，`test/server-integration`）。
 
 ### 10.2 执行器 `cordex-ops db:migrate`
 
-- 实现在 `apps/server/src/db/migrator.ts`（`db:bootstrap`、`db:migrate`、`db:status` 三个子命令与 `/readyz` 的迁移判据共用，文件级见 40/12 §4.13；`cordex-ops` 入口文件的落点待登记，见 40/12 §13 Q-10）。
+- 实现在 `apps/server/src/db/migrator.ts`（`db:bootstrap`、`db:migrate`、`db:status` 三个子命令与 `/readyz` 的迁移判据共用，文件级见 40/12 §4.13；`cordex-ops` 入口 `apps/server/src/ops/cli.ts` 同样登记在 40/12 §4.13，命令语义见 [17 §9](./17-deployment-and-config.md)，rulings §4.20 BE-06）。
 - 以 `cordex_migrator` 登录；先取 `pg_advisory_lock`（常量键）防止并发执行；按编号升序执行台账里没有的迁移，每个文件一个事务，成功后写入 `cordex_schema_migrations`（编号、名称、文件 sha256、应用版本、耗时）。
 - 台账里已有的迁移若文件 sha256 变了 → 拒绝执行（基线冻结后迁移不可改写）。
 - 0001 需要管理员权限，由 `cordex-ops db:bootstrap`（托管库由 DBA 执行）或 compose 的 postgres 初始化钩子执行并登记（[17 §9](./17-deployment-and-config.md)）；`db:migrate` 发现台账缺 0001 时报错并提示先 bootstrap，不自行提权。
@@ -588,11 +589,11 @@ flowchart LR
 3. `-- example` 围栏每段一个回滚事务：带 `$N` 参数的 DML 用 `PREPARE` 做解析与语义分析（列名、类型、函数签名都会被检查），`DROP` 与不能放进事务块的语句（`… CONCURRENTLY`）只做语法解析，其余语句真实执行——因此 §13 的 RLS 断言脚本在 ddl-check 里会真正跑一遍。
 4. 0096 的自检随迁移运行（RLS 覆盖、例外清单、分区权限、审计只追加、函数加固、角色属性）；ddl-check 另外核对（期望集合直接从本文 §1、§4.3、§6.4 的原文解析，不在脚本里另抄一份）：业务表集合 = §1 的 17 张 + 台账，§1「不建」的表一张都不出现；带 `doc_id` 的表（§6.4 例外除外）都 ENABLE + FORCE 且各有 `cordex_app` 与 `cordex_system` 的 policy；`pg_policy` 中无 `current_setting` 字面量、policy 名符合 `p_{表}_{app|system}_{操作|all}`（§6.2 机械修正、§1 命名）；SECURITY DEFINER 函数集合 = §4.3 清单；§1「外键索引」列出的外键列都是某个索引的前导列；业务表无 DEFAULT 分区、无触发器（§1、§3）。
 5. 失败时输出「文件:行号 + 编号 + PG 错误」；成功时导出 `pg_dump --schema-only` 作为产物，供 GRANT 快照与 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) 的迁移测试复用。
-6. **迁移目录比对（待实现，实现期扩展；2026-09-25 审稿登记）**：`apps/server/src/db/migrations/` 建立后，ddl-check 在第 1 步之后增加一步比对，实现「迁移 SQL 文件须与文档逐字一致」（§10.1）。比对三项，任一不满足即失败：目录中的 `NNNN_<name>.sql` 文件集合等于围栏编号集合，多一个、少一个都算；文件名等于围栏首行的 `NNNN_<name>` 加 `.sql`；文件内容与第 1 步的提取物逐字节相同（sha256 与 manifest 一致）。失败时输出「文件 + 编号 + 首个差异行」。M0 蓝图阶段仓库没有该目录，本条只登记为待实现的机械验证项（§13 DB-13）；实现前由评审人工核对。
+6. **迁移目录比对（首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated；2026-09-25 审稿登记，rulings §4.20 BE-03+TX-14 定挂点）**：`apps/server/src/db/migrations/` 建立后，ddl-check 在第 1 步之后增加一步比对，实现「迁移 SQL 文件须与文档逐字一致」（§10.1）。比对三项，任一不满足即失败：目录中的 `NNNN_<name>.sql` 文件集合等于围栏编号集合，多一个、少一个都算；文件名等于围栏首行的 `NNNN_<name>` 加 `.sql`；文件内容与第 1 步的提取物逐字节相同（sha256 与 manifest 一致）。失败时输出「文件 + 编号 + 首个差异行」。实现时点：M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 §11 定 0001、0002 在 M1 入库），同一 PR 给 ddl-check 加 `--migrations <dir>`（比对）、`--write-migrations <dir>`（从围栏生成文件）与 `--sync-only`（只抽取与比对、不起容器）三个参数，并接入 `scanners/check-migrations-sync`（不起容器、直接 gated，登记在 [70/12](../70-testing/12-ci-gates-mapping.md) §7 激活表）；挂在 scanners 而不是 `test/server-integration` 的前置，因为后者 M2 才激活。M0 仓库没有该目录，此前由评审人工核对。
 
 ## 12. 本文自有迁移的 SQL
 
-四个迁移已在 `postgres:18`（18.6）容器中与 09–13 的现行迁移按编号一起执行通过（含 0001 重复执行、0096 的负向用例：去掉某表 FORCE、给分区子表授权、给审计表 DELETE 时自检报错）。2026-09-25 以 `docs/_tools/ddl-check.sh` 在 `postgres:18-alpine`（18.6）空库重跑：08–13 全部 31 个迁移一次通过，建成 18 张表（另有 20 个分区）、124 个索引（其中 56 个在分区上）、27 个外键、38 条 policy、11 张 RLS 表、4 个 SECURITY DEFINER 函数；§11 第 4 条的结构核对、28 段 example 与 §13 的 RLS 负向断言全部通过。
+四个迁移已在 `postgres:18`（18.6）容器中与 09–13 的现行迁移按编号一起执行通过（含 0001 重复执行、0096 的负向用例：去掉某表 FORCE、给分区子表授权、给审计表 DELETE 时自检报错）。2026-09-26 以 `docs/_tools/ddl-check.sh` 在 `postgres:18-alpine`（18.6）空库重跑（含 rulings §4.20 BE-05 新增的 09 `0035`）：08–13 全部 32 个迁移一次通过，建成 18 张表（另有 20 个分区）、124 个索引（其中 56 个在分区上）、27 个外键、38 条 policy、11 张 RLS 表、5 个 SECURITY DEFINER 函数；§11 第 4 条的结构核对、30 段 example（含 09 §7 的 0035 行为断言）与 §13 的 RLS 负向断言全部通过。
 
 ### 12.1 0001 角色、库权限与迁移台账
 
@@ -914,7 +915,7 @@ END $$;
 | DB-10 | §6.7 四个 RLS 基准场景达标 | `perf/perf-server` |
 | DB-11 | 服务端测试用非属主角色连接、按测试文件克隆 template 库，不用事务回滚式隔离（会掩盖 `SET LOCAL` 与 RLS 问题） | `test/server-integration`（决策 T-DB-ISOLATION） |
 | DB-12 | 迁移与仓储中不出现 `tenant_id` / `tenantId` | ADR-0022「如何被机械验证」既有检查 |
-| DB-13（2026-09-25 审稿登记，**待实现**） | 迁移 SQL 文件须与文档逐字一致：`apps/server/src/db/migrations/` 的文件集合、文件名与内容逐字节等于本线 08–13 的 `-- migrate:` 围栏（§10.1） | `docs/_tools/ddl-check.sh` 在实现期扩展为对比 `db/migrations`（§11 第 6 条）；扩展落地前由评审人工核对 |
+| DB-13（2026-09-25 审稿登记；首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated） | 迁移 SQL 文件须与文档逐字一致：`apps/server/src/db/migrations/` 的文件集合、文件名与内容逐字节等于本线 08–13 的 `-- migrate:` 围栏（§10.1） | `scanners/check-migrations-sync`（调用 `docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only`，§11 第 6 条；rulings §4.20 BE-03+TX-14）；落地前由评审人工核对 |
 
 **RLS 负向断言样例**：两个模拟用户，alice 按 §6.3 第 6 条建档、再由系统作业写入一条 update，bob 对该文档没有任何授权也没有链接。脚本用 `SET LOCAL ROLE` 切换应用角色、用 `SET LOCAL app.*` 设置会话变量（字面量写法；代码里一律 `set_config(…, true)`，§6.1），断言 bob 读不到、改不动、冒充不了 owner（R2、R12），未设用户或作业名时一行不可见（R1、R8），最后以 alice 可见作对照，证明前面的「0 行」不是夹具空转。ddl-check 执行本段（§11 第 3 条），任一 `RAISE` 即失败；2026-09-25 实跑通过，并做过变异验证：给 `documents` 加一条 `USING (true)` 的 SELECT policy、给 `permissions` 加 `WITH CHECK (true)` 的 INSERT policy、把系统 policy 改回 `current_setting(…) IS NOT NULL` 写法，三种改动分别被 R2、R12、R8 拦下。它只是文档级冒烟：整段放在一个回滚事务里，**不是** DB-11 所说的测试隔离方式，正式的 R1–R14 用例按 70/07 用 template 库执行。
 

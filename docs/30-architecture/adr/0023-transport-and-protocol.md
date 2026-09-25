@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q9/S-3a、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：CONTROL 成员补全与判别键 `type`（决策 3）、关闭码 1011 / 4427 / 4428、令牌刷新按 INC-27、协同后端随 M2 交付，见文末修订）；2026-09-25（§4.19） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q9/S-3a、§4.18
 
 # ADR-0023 协同传输与协议：WebSocket + y-protocols 负载 + 自定义 CONTROL 控制面
 
@@ -14,7 +14,7 @@
 
 1. **传输**：WebSocket（`wss://…/collab/v1/rooms/{documentId}`），客户端 Provider `@cordexjs/collab-transport-ws` 使用全局 `WebSocket`（iso：Node 内建；基线 Node 26，rulings §4.15 Q9），服务端 Nest `ws` 适配器。
 2. **负载**：sync 与 awareness 复用 y-protocols 编码（不自造 CRDT 同步）；由 collab-yjs/server-collab 编解码。
-3. **信封与控制面**（`@cordexjs/protocol/collab`）：1 字节类型（`SYNC 0 / AWARENESS 1 / CONTROL 2 / QUERY_AWARENESS 3`，与 y-websocket 编号兼容）+ payload；CONTROL 为 UTF-8 JSON，zod 判别联合（`auth`/`auth.ok`/`auth.denied`/`permission`/`ack`/`error`/`repair`/`ping`/`pong`/`room`/`event`），定义见 06 §6.3。
+3. **信封与控制面**（`@cordexjs/protocol/collab`）：1 字节类型（`SYNC 0 / AWARENESS 1 / CONTROL 2 / QUERY_AWARENESS 3`，与 y-websocket 编号兼容）+ payload；CONTROL 为 UTF-8 JSON，zod 判别联合（判别键统一 `type`，含 `ack`；成员 `auth`/`auth.ok`/`auth.denied`/`auth.refresh`/`permission`/`ack`/`error`/`repair`/`ping`/`pong`/`room`/`event`，2026-09-25 补 `auth.refresh`，决策 INC-02~05），定义见 06 §6.3；联合在 protocol `ws/frames.ts`、握手在 `ws/handshake.ts`，不建 `collab/control.ts`（决策 INC-01）。
 4. **鉴权握手**：REST `POST /documents/:id/collab-ticket`（相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11）领取 60 s 单次票据（JWT ES256，含 doc/role/permVersion/jti，凭分享链接换票时另含可选 `lnk`，ADR-0029 决策 1）；WS 连接后 5 s 内首帧 `auth`，成功前拒绝一切 SYNC/AWARENESS（ADR-0029）。
 5. **重连**：指数退避 1 s→30 s（±20% 抖动）；1012（服务端驱逐/重启）首轮不退避。**离线判据按时间**（2026-09-25 修订，rulings §4.18 UX-03）：自进入重连起**累计 30 s** 仍未连上即进入离线模式（本地继续编辑，ADR-0033；配置 `offlineAfterMs: 30000`），`navigator.onLine=false` 时立即进入（去抖 2 s）；令牌刷新的网络失败共用同一计时，不另设计时器（ADR-0029 补充 v0.2）。**离线出口**（2026-09-25 修订，rulings §4.18 CO-03，与 06 §5.1 一致）：进入离线后不停止重试，每 30 s（±20% 抖动）自动重连一次，`navigator.onLine=false` 期间暂停；收到 `online` 事件或用户点「立即重连」（`reconnectNow`）时立即进入 connecting。（原：「6 次失败或 `offline` 事件进入离线模式」，且未写离线后如何回到在线，作废——6 次退避叠加连接超时实际落在约 25 s 到 1 min，与 PRD/设计/ADR-0029 的「30 s」不一致，也无法按时长断言。）
 6. **权限变更**：服务端推 `CONTROL.permission`（06 §10），并对每个入站 update 帧做 role 检查。
@@ -99,9 +99,16 @@ flowchart TD
 - **容量策略**：`maxEditors: 20` + `maxViewers: 50`；编辑者满 → 以 `role: viewer, reason: 'capacity'` 只读加入；查看者也满 → `auth.denied{ collab.room_full }`（4503）。房间空置销毁延迟 **60 s**（取代 30 s）。
 - **速率**：每连接 ≤ 200 帧/s（突发 500，令牌桶）；单帧 ≤ 1 MiB；awareness 节流 ≥ 50 ms；未知 CONTROL 类型丢弃并计数（不关闭）。
 - **协议版本协商**：`auth.protocolVersion` 与服务端支持窗口 `[min, max]` 比对；不兼容 → `auth.denied{ collab.protocol_mismatch }` + 关闭码 **4427**（与 schema 版本的 4426 区分）。
-- **凭据两种形态（EM-03）**：(a) 一方票据（60 s、`jti` 单次，REST 换取）——M1–M3 唯一形态；(b) 集成方签名 JWT（≤ 1 h，JWKS 验签，claims `sub/doc/caps[]/exp`；2026-09-24 删 `tenant`——T-0；**降为 M4**——rulings §4.15 Q6，见 ADR-0029 修订）直接放入 `auth` 帧，无需先换票据；权限来源可为 claims 或集成方回调（缓存 ≤ 60 s，撤销经推送 ≤ 2 s）。到期前 60 s 由 `getToken()` 刷新并以新增 CONTROL 消息 `auth.refresh{ token }` 续期（不断连）；刷新失败按原因分流（2026-09-25 修订，rulings §4.18 UX-02）：网络错误 → `reconnecting`，与重连共用 30 s 离线计时（决策 5）；401 → 直接进入「登录已过期」（新窗口重新登录，同一用户才重放队列，见 ADR-0029 补充 v0.2）。（原：「刷新失败 → `reconnecting`，30 s 后 → `offline`」，不分原因，作废。）
+- **凭据两种形态（EM-03）**：(a) 一方票据（60 s、`jti` 单次，REST 换取）——M1–M3 唯一形态；(b) 集成方签名 JWT（≤ 1 h，JWKS 验签，claims `sub/doc/caps[]/exp`；2026-09-24 删 `tenant`——T-0；**降为 M4**——rulings §4.15 Q6，见 ADR-0029 修订）直接放入 `auth` 帧，无需先换票据；权限来源可为 claims 或集成方回调（缓存 ≤ 60 s，撤销经推送 ≤ 2 s）。（2026-09-25 修订，决策 INC-27）浏览器登录会话每次被动续期成功后，客户端换新 collab ticket 并以 CONTROL 消息 `auth.refresh{ ticket }` 发送（不断连）；一方票据只重新绑定会话、重算角色，不延长寿命（寿命 = 票据 `sid` 指向的登录会话），M4 集成方 JWT 复用同一帧并以新 `exp` 续期（原：「到期前 60 s 由 `getToken()` 刷新并以 `auth.refresh{ token }` 续期」，作废）；刷新失败按原因分流（2026-09-25 修订，rulings §4.18 UX-02）：网络错误 → `reconnecting`，与重连共用 30 s 离线计时（决策 5）；401 → 直接进入「登录已过期」（新窗口重新登录，同一用户才重放队列，见 ADR-0029 补充 v0.2）。（原：「刷新失败 → `reconnecting`，30 s 后 → `offline`」，不分原因，作废。）
 - **停机与传播**：1012 → 客户端 ≤ 5 s 重连到其它实例；跨实例 ≤ 50 ms；房间内广播 p95 ≤ 100 ms。
 - **事件名**：`collab/state-changed`、`collab/auth-failed`、`collab/reconnect{reason}`（PRD EM-05）取代本 ADR 草稿名；定稿表见 10 §11。
+
+## 修订 2026-09-25（rulings §4.19）
+
+1. **CONTROL 成员与字段**（决策 INC-02~07、INC-09）：以 06 §6.3 为唯一定义——`auth` 增可选 `epoch`（客户端本地纪元，取自 `GET snapshots/latest` 响应头 `X-Cordex-Epoch`，无本地状态时省略）与 `maxSchemaVersion`；`auth.ok.limits = {maxUpdateBytes, msgRateHz, msgBurst}`（废 `updateRateHz`），可选 `reason: 'capacity' | 'over_ceiling'`；`auth.denied.code` 增 `collab.protocol_mismatch`、`collab.epoch_changed`、`collab.doc_purging`；`room` 增可选 `persist: 'ok' | 'degraded'` 与 `locked: {reason, until}`；`event` 登记 `comments.changed{threadIds[]}` 与 `version.restored{snapshotId, name?, by}`。服务端按「协议版本 → 票据 → 纪元 → schema」顺序判定。
+2. **关闭码**（决策 INC-06）：补 1011（服务端内部错误，退避重连并上报）、4427（协议不兼容，提示刷新）、4428（纪元已变更：丢弃本地 Y 状态重新 bootstrap，pending 移入 `rejected` 并可导出）；`collab.doc_purging` 归 4404；全表见 06 §6.5。
+3. **令牌刷新**（决策 INC-27）：见补充（v0.2）「凭据两种形态」末句，已就地改写。
+4. **里程碑**（rulings §4.19 D-M2-CONTENT，PRD 05 §0.3）：本 ADR 的传输、握手、ack 与房间生命周期随协同后端在 **M2** 交付（单实例，基础重连：退避、先鉴权再同步、补发未获 db 确认的更改）；`tier:'spill'` 两级 ack 的降级路径随单实例 Postgres 故障溢写同在 M2（PRD 05 §0.3「Postgres 故障」行）；决策 5 的离线判据与离线出口、多实例 1012 跨实例重连属 M3。
 
 ## 如何被机械验证
 
@@ -113,4 +120,4 @@ flowchart TD
 
 ## 关联
 
-章程 D12、§5.4；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q9/S-3a、§4.18 UX-02/UX-03/CO-03/CO-09/CO-10/CO-13/CO-14/CO-16/GV-20；ADR-0025/0029/0033/0034/0035；架构 06 §5–6、08 §2（collab 模块）。
+章程 D12、§5.4；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q9/S-3a、§4.18 UX-02/UX-03/CO-03/CO-09/CO-10/CO-13/CO-14/CO-16/GV-20；ADR-0025/0029/0033/0034/0035；架构 06 §5–6、08 §1；60-backend/16。

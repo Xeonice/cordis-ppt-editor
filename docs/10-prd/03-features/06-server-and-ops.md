@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 功能域 06：服务端能力与运维
 
@@ -11,7 +11,7 @@
 1. **服务端与客户端跑同一份模型/格式代码**（章程 §2.2）：导入、导出、校验、迁移在 `server-headless` 的 cordis 宿主中用 `iso` 插件完成，不存在「服务端另一套解析器」。
 2. **服务端是权限与持久化的最终裁决者**：客户端体验优先，服务端安全兜底（D12）。
 3. **可运维即产品能力**：健康检查、指标、审计、配额、备份恢复是 M3 验收项，不是「上线后再补」。
-4. **单体起步、可水平扩展**：M3 交付自托管 docker-compose 洁净栈（Q10），同一镜像按 `CORDEX_ROLE`（`all`/`api`/`collab`/`worker`/`renderer`）运行；协同网关从第一天支持多实例（Valkey pub/sub，Redis 协议兼容），不做架构返工。M1–M5 只交付集成方/自有部署，**不自营 SaaS**。
+4. **单体起步、可水平扩展**：M3 交付自托管 docker-compose 洁净栈（Q10），同一镜像按 `CORDEX_ROLE`（`all`/`api`/`collab`/`worker`/`renderer`）运行；协同网关从第一天支持多实例（Valkey pub/sub，Redis 协议兼容），不做架构返工。M1–M5 只交付集成方/自有部署，**不自营 SaaS**。协同后端提前到 M2（rulings §4.19 D-M2-CONTENT）：OIDC 登录、协同网关与 Room（单实例）、update 持久化与快照、服务端导入自 M2 起交付，参考应用的文档内容自 M2 起只以协同快照为事实源、不设过渡的 pptx 内容版本端点；单实例的 Postgres 故障溢写与两级 ack 同在 M2；多实例扩展（含跨实例溢写认领）、服务端导出与缩略图、洁净栈出口仍为 M3。逐项边界见 `05-milestones-and-scope.md` §0.3。
 5. **单组织**（rulings §4.15 T-0）：一次部署 = 一个组织；数据模型、API、权限中没有租户（tenant）概念。将来若做 SaaS 另立项，以迁移加回。
 
 ---
@@ -59,7 +59,7 @@ flowchart TB
 
 ### SV-01 文档导入（服务端）
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`server-headless`（cordis 宿主加载 `ooxml-pptx` 等 `iso` 插件）、`server-storage`、`FormatCodec`、`Snapshot`
+- 优先级：P0 | 目标里程碑：M2（由 M3 提前，rulings §4.19 D-M2-CONTENT） | 依赖能力：`server-headless`（cordis 宿主加载 `ooxml-pptx` 等 `iso` 插件）、`server-storage`、`FormatCodec`、`Snapshot`
 - 用户故事：作为集成方后端工程师，我希望上传一个 pptx 后服务端生成协同所需的初始 `Snapshot` 与资源清单，客户端打开时直接加入房间而不必各自解析原文件。
 - 验收标准：
   - 上传：预签名直传到 blob 存储（≥ 10 MB 分片），随后调用「导入」API；也支持小文件（≤ 10 MB）直接 multipart。浏览器经反向代理的存储子域（`s3.<域名>`）直达对象存储，预签名 URL 按对外端点生成，对象存储本身不开宿主端口（rulings §4.18 BE-01，见 SV-09）。
@@ -68,6 +68,7 @@ flowchart TB
   - 输入限制与客户端一致（OF-24）；文档规模超出系统天花板（页数 / 单页元素 / 文档总元素，SV-08）时**直接拒绝导入**，返回 `format.quota_exceeded{dimension, limit, actual}` 并指明超出哪一项，不做只读降级打开（rulings §4.15 Q5）。上限取自部署配置。
   - 失败：类型化错误码（与客户端同一张表）；保留失败样本（可配置、脱敏路径）用于排障。
   - 病毒扫描钩子（P2）：导入前调用集成方扫描回调，拒绝即失败。
+  - 参考应用「新建空白 / 模板」（AS-01）走同一导入作业：服务端以内置模板字节为导入源建档，文档内容自此以协同快照为唯一事实源（rulings §4.19 D-M2-CONTENT）。
 
 **图 2-1 服务端导入：上传、作业与产物**
 
@@ -134,13 +135,13 @@ stateDiagram-v2
 
 ### SV-03 快照与 update 持久化
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`server-collab`（update 追加、快照压缩）、ADR-0022 存储、`Snapshot`、`migrations`
+- 优先级：P0 | 目标里程碑：M2（update 追加与两级 ack、Postgres 故障溢写与回放、压缩与 `auto` 快照、快照引导打开、墓碑 TTL 清扫、schema 迁移与换纪元、配套保留期作业，rulings §4.19 D-M2-CONTENT）/ M3（命名版本、版本列表与恢复（CO-07）、「彻底删除元素」、多实例一致性与溢写认领） | 依赖能力：`server-collab`（update 追加、快照压缩）、ADR-0022 存储、`Snapshot`、`migrations`
 - 用户故事：作为管理员，我希望任何时刻服务器宕机都不会丢失用户已同步的编辑，并且历史版本可追溯。
 - 验收标准：
   - 每条被服务端接受的 CRDT update 在返回 ack 前持久化（追加表/日志）；RPO ≤ 1 s（已 ack 的 update 不丢）。Postgres 故障溢写期采用**两级 ack**（rulings §4.15 S-3a，见 SV-05）：只有 `ack{seq, tier:'db'}` 才表示已落库并允许客户端清除 pending。
   - 软删除墓碑（rulings §4.15 Q3）：服务端作为单写者，在墓碑 TTL（默认 24 h，部署可配）到期后执行硬删除（普通事务，origin=`system`）；文档擦除与「永久删除文档」（SV-11）不等 TTL；元素级「彻底删除元素」（CO-08，仅 owner、只对墓碑态）由服务端单写者以同一硬删路径立即执行并写审计 `document.element_purged`，只清当前文档状态，历史快照与 update 表按保留期存在（rulings §4.18 CO-07）。
   - 压缩（Compaction）：按策略（章程 Q17 默认，部署配置可调：每 500 个 update 或 10 分钟）把 update 折叠为新的快照并保留 update 尾巴用于重连；压缩 10,000 update ≤ 2 s。
-  - 版本（CO-07）与保留（章程 Q17 已裁决，rulings §4.16：默认值不变，**全部进入部署配置可调**）：自动版本 = 压缩点的快照 + 元数据（贡献者集合、时间），保留 30 天；命名版本 = 用户触发的快照，永久；update 追加表保留 7 天（压缩后）；导入原件保留 30 天；元素墓碑 TTL 24 h；以上均为部署配置默认值；过期清理为后台作业。不透明保留所需的部件 Blob 随文档生命周期保留，不在此列。
+  - 版本（CO-07）与保留（章程 Q17 已裁决，rulings §4.16：默认值不变，**全部进入部署配置可调**）：自动版本 = 压缩点的快照 + 元数据（贡献者集合、时间），30 天内全量保留；此后每天保留最后一个，保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；import / migration / restore / epoch 事件快照按自动版本口径（rulings §4.19 C-06）；命名版本 = 用户触发的快照，永久保留，每文档上限 200；update 追加表保留 7 天（压缩后）；导入原件保留 30 天；元素墓碑 TTL 24 h；以上均为部署配置默认值；过期清理为后台作业。不透明保留所需的部件 Blob 随文档生命周期保留，不在此列。
   - 新客户端加入：下发最新快照 + 尾巴 update；D50 初始同步 ≤ 2 s、D200 ≤ 5 s（p75）。
   - 迁移：服务端启动时对旧 `schemaVersion` 的快照惰性迁移（读取时），并可运行「全量迁移」作业；迁移失败的文档标记并告警，不影响其它文档。
   - 一致性：多实例场景下同一文档的 update 顺序由 CRDT 保证，持久化只需「至少一次」；重复 update 幂等。
@@ -153,10 +154,10 @@ flowchart LR
   log["update 追加表：ack 前持久化，压缩后保留 7 天"]
   comp["Compaction：每 500 个 update 或 10 分钟"]
   snap["新快照，保留 update 尾巴用于重连"]
-  auto["自动版本：压缩点快照 + 贡献者集合与时间，保留 30 天"]
+  auto["自动版本：压缩点快照 + 贡献者集合与时间；30 天内全量，此后每天留最后一个，至 retention.autoSnapshotDailyDays，默认 365，0 为永久"]
   join["新客户端加入：最新快照 + 尾巴 update"]
   subgraph keep["其它保留对象"]
-    named["命名版本：用户触发的快照，永久"]
+    named["命名版本：用户触发的快照，永久，每文档上限 200"]
     tomb["元素墓碑：TTL 24 h 后由服务端单写者硬删除"]
     orig["导入原件：保留 30 天"]
     base["不透明保留所需的部件 Blob：随文档生命周期保留"]
@@ -167,13 +168,13 @@ flowchart LR
 ```
 
 怎么读：实线为数据从 update 到快照的流动，「其它保留对象」子图列出不在这条路径上的保留对象；图中所有期限都是部署配置默认值、全部可调，过期清理为后台作业。
-依据：本条 SV-03；CO-07；章程 Q17，rulings §4.16。
+依据：本条 SV-03；CO-07；章程 Q17，rulings §4.16；自动版本稀疏化见 rulings §4.19 C-06。
 
 ### SV-04 缩略图服务
 
 - 优先级：P0 | 目标里程碑：M2（过渡封面）/ M3 前半段（权威缩略图，章程 Q8，rulings §4.15） | 依赖能力：`server-headless` 的 headless Chromium 适配（ADR-0026 已接受）、独立 renderer sidecar（SV-09）、`RenderTarget('dom')`（与客户端同一份渲染代码）
 - 验收标准：
-  - **M2 过渡封面**：导入或保存时取包内 `docProps/thumbnail.jpeg` 作为文档卡片封面；服务端**不解码**，只做 JPEG 头校验（SOI/SOF 中的尺寸不超过 OF-24 像素上限，体积 ≤ 1 MB），原字节以 `image/jpeg` + `nosniff` + CSP `sandbox` 头下发，标记 `source=embedded`；包内没有时显示占位。已知限制：M2 编辑后封面会过时（同一设备用本地 dom-scaled 缓存覆盖）；该来源纳入 SV-11 purge。导入完成即有过渡封面（NF-01）。
+  - **M2 过渡封面**：服务端导入时（SV-01，含以内置模板字节新建的文档）取包内 `docProps/thumbnail.jpeg` 作为文档卡片封面；M2 没有 pptx 内容版本保存路径（rulings §4.19 D-M2-CONTENT），封面只在导入时生成；服务端**不解码**，只做 JPEG 头校验（SOI/SOF 中的尺寸不超过 OF-24 像素上限，体积 ≤ 1 MB），原字节以 `image/jpeg` + `nosniff` + CSP `sandbox` 头下发，标记 `source=embedded`；包内没有时显示占位。已知限制：M2 编辑后封面会过时（同一设备用本地 dom-scaled 缓存覆盖）；该来源纳入 SV-11 purge。导入完成即有过渡封面（NF-01）。
   - **M3 权威缩略图**：headless Chromium 运行与客户端同一份渲染代码；导入完成后首页高优先生成 ≤ 10 s，其余页按需惰性生成；全量 D200 ≤ 90 s（统一预算）。
   - 规格：只存一档——卡片 640 px WebP（在沙箱内直接输出，不用 sharp/libvips）；分享预览与版本预览按需生成 1280 px。
   - 失效：按**页内容哈希**失效，哈希输入 = 页子树 + 版式/母版/主题依赖闭包 + 媒体 `BlobRef` + `slideSize` + 页序号 + 内嵌字体集合 + `layoutAlgoVersion` + `fontProfile`；外链资源一律占位、不计入哈希；Compaction 之后只把哈希变化的页入队。
@@ -211,7 +212,7 @@ flowchart TB
 
 ### SV-05 协同网关
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`server-collab`（房间、awareness 广播、跨实例 pub/sub）、`protocol`（WS 帧、握手）、Valkey（Redis 协议兼容）
+- 优先级：P0 | 目标里程碑：M2（单实例：握手、Room 生命周期与按权重准入、门禁、两级 ack、Postgres 故障溢写与降级期广播、`room.persist` 信号、awareness 中继、消息限额，rulings §4.19 D-M2-CONTENT）/ M3（多实例扇出与跨实例传播、容量验收、名额按用户计与满员只读、优雅停机跨实例重连、溢写行认领回放） | 依赖能力：`server-collab`（房间、awareness 广播、跨实例 pub/sub）、`protocol`（WS 帧、握手）、Valkey（Redis 协议兼容）
 - 验收标准：
   - 房间生命周期：首个连接创建、最后一个连接离开后延迟 60 s 销毁（期间保留内存状态以应对快速重连）；房间状态可查询（管理 API）。
   - 握手：令牌校验（EM-03）、文档能力位加载、容量检查（20 编辑者 + 50 查看者，名额按用户计、owner 不占编辑者名额、commenter 计查看者，CO-01；超限只读加入，再超 → `collab.room_full`，关闭码 4503）、协议版本协商（不兼容 → `collab/auth-failed{code: collab.protocol_mismatch}`，关闭码 4427）。
@@ -223,7 +224,8 @@ flowchart TB
   - 容量（collab 单实例 2 vCPU / 4 GB，RM-S）：≥ 2,000 并发 WS；活跃房间数按文档规模分档、按文档实测权重准入（见上条；各档房间数 M1 实测后回填，只收紧；原「RSS > 75% 时新房间转其它实例」的**判定方式**作废，rulings §4.15 Q5；75% 作为权重预算比例保留——实例内存预算 = 容器内存上限（cgroup 限额，无限额取物理内存）× `room.memoryAdmissionPct`（默认 75，部署可调），rulings §4.18 BE-29）；p95 广播延迟 ≤ 100 ms、CPU < 70%。
   - 优雅停机：收到 SIGTERM 后停止接受新连接、通知客户端重连（`collab/reconnect{reason:"server-shutdown"}`）、flush 持久化、≤ 30 s 退出；客户端在 ≤ 5 s 内重连到其它实例。
   - Postgres 持续故障韧性（rulings §4.13 S-3，§4.15 S-3a 细化）：已在线房间**不拒绝新编辑**——超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储（BlobStore）；两级阈值与回放耗时预算见架构 08 §12、NF-01 §1.7、NF-03。
-  - 降级期照常广播（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入任一降级档（内存退避重试、Valkey、对象存储）后**立即**在本实例广播并跨实例扇出，不等持久化，协作者互相可见；「先落库后广播」只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他客户端重连时经 step2 回填；界面显示「未保存到服务器」；降级广播次数计入指标 `cordex_collab_broadcast_before_persist_total`（SV-10）。
+  - 降级期照常广播（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入任一降级档（内存退避重试、Valkey、对象存储）后**立即**在本实例广播并跨实例扇出，不等持久化，协作者互相可见；「先落库后广播」只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他客户端重连时经 step2 回填；降级广播次数计入指标 `cordex_collab_broadcast_before_persist_total`（SV-10）。
+  - 「未保存到服务器」的判定与受众（rulings §4.19 INC-09）：服务端经 `CONTROL.room` 的可选字段 `persist: 'ok' | 'degraded'` 显式通知（PG 写失败 ≤ 1 s 内推 `degraded`，回放完成且无溢写后推 `ok`），不新增帧类型；客户端判据 = `room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（`collab-yjs` 配置，默认 15000）；有本地未获 db 确认项的**发起方**显示横幅「未保存到服务器 N 项」，**其余协作者**只在状态胶囊显示弱提示「服务器保存延迟」。该信号与分级提示随协同网关自 M2 起生效（`05-milestones-and-scope.md` M2 验收 17）。
   - **两级 ack**（S-3a）：溢写成功回 `ack{tier:'spill'}`，客户端**保留 pending**；落库成功回 `ack{seq, tier:'db'}` 才清除 pending。正式 `seq` 在回放时由 Postgres 分配；溢写行按 `(instanceId, localCounter)` 排序回放；回放 bootstrap 之后断言无 `pendingStructs`。即使溢写数据丢失，客户端也能在重连 step2 凭 update 幂等性自动补齐，NF-03「已 ack 零丢失」以 `tier:'db'` 为口径。
 
 **图 2-5 房间生命周期**
@@ -295,17 +297,20 @@ sequenceDiagram
     gw->>peers: 通过门禁即照常广播并跨实例扇出，不等持久化
     gw->>spill: 超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储
     gw-->>client: ack，tier 为 spill
-    client->>client: 保留 pending，界面显示未保存到服务器
+    gw-->>peers: CONTROL room，persist 为 degraded
+    client->>client: 保留 pending，发起方横幅：未保存到服务器 N 项
+    peers->>peers: 状态胶囊弱提示：服务器保存延迟
     Note over gw,pg: Postgres 恢复后，溢写行按 instanceId 与 localCounter 排序回放，正式 seq 由 Postgres 分配
     gw->>pg: 回放
     gw-->>client: ack，带 seq，tier 为 db
-    client->>client: 清除 pending
+    gw-->>peers: CONTROL room，persist 为 ok
+    client->>client: 清除 pending，横幅消失
   end
   Note over client,gw: 回放 bootstrap 后断言无 pendingStructs；溢写数据若丢失，客户端在重连 step2 凭 update 幂等性补齐
 ```
 
 怎么读：纵向为时间；只有 `tier` 为 `db` 的 ack 才允许客户端清除 pending，NF-03「已 ack 零丢失」以此为口径。PG 正常时先落库后广播；故障期不等持久化照常广播，协作不中断。两级阈值与回放耗时预算见架构 08 §12。
-依据：本条 SV-05 韧性、降级期广播与两级 ack；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08。
+依据：本条 SV-05 韧性、降级期广播与两级 ack；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08、§4.19 INC-09。
 
 **图 2-8 滚动升级时的优雅停机**
 
@@ -327,7 +332,7 @@ sequenceDiagram
 
 ### SV-06 鉴权与权限
 
-- 优先级：P0 | 目标里程碑：M3（OIDC、按人分享）/ M4（集成方签名 JWT、API Key） | 依赖能力：`apps/server` Auth 模块、`protocol` 权限模型（能力位，无 `enum`，规避 Univer A3）
+- 优先级：P0 | 目标里程碑：M2（OIDC 登录、会话、JIT 建号、建档者为 owner 与能力位校验、一方 Ticket，rulings §4.19 D-M2-CONTENT）/ M3（按人分享、分享链接、权限管理 API、权限即时生效、RLS 出口测试）/ M4（集成方签名 JWT、API Key） | 依赖能力：`apps/server` Auth 模块、`protocol` 权限模型（能力位，无 `enum`，规避 Univer A3）
 - 验收标准（rulings §4.15 T-0 / Q6）：
   - 单组织：一次部署 = 一个组织；资源、API、权限中**没有租户**（无 `tenantId`、无租户解析、无租户角色、无跨租户访问语义）；部署级配置（配额、保留策略、字体目录、存储桶）即全局配置。将来若做 SaaS 另立项。
   - 身份：服务端 M1–M3 **只认 OIDC**（授权码 + PKCE，用于 `apps/web`，**由服务端 auth 模块完成换码**并以 httpOnly cookie 建立会话，浏览器只负责跳转、不持有 PKCE verifier 与 IdP 令牌，rulings §4.18 BE-09；JWKS 轮换支持），不持有密码与凭据；可接任意 OIDC IdP，docker-compose 可选内置 **Casdoor**（国内 IM 登录经 Casdoor 代理）；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
@@ -366,7 +371,7 @@ flowchart TB
 
 ### SV-07 审计
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`commands` 管线 `waterfall` 审计检查点（章程 D12/K1）、Audit 模块
+- 优先级：P0 | 目标里程碑：M2（随 M2 端点写入：登录登出、建档、导入、打开、硬门禁拒绝与软门禁修复等，登记表见 `60-backend/07` §9）/ M3（查询、导出、哈希链与每日封存） | 依赖能力：`commands` 管线 `waterfall` 审计检查点（章程 D12/K1）、Audit 模块
 - 用户故事：作为管理员，我需要回答「谁在什么时候对哪个文档做了什么」，以满足合规与排查。
 - 验收标准：
   - 事件类别：访问（打开/加入房间/导出/下载）、编辑（`Transaction` 摘要：命令 id、影响页与元素数，不含内容）、评论（增删改解决）、权限（授予/撤销/变更）、版本（创建/恢复）、管理（删除/配额变更）、安全（鉴权失败、限流、越权尝试、硬门禁拒绝 `collab.update_rejected`、软门禁修复 `collab.repaired`，ADR-0034）。
@@ -376,7 +381,7 @@ flowchart TB
 
 ### SV-08 配额与限制
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：部署配置、网关容量检查（按权重准入）、导入限制
+- 优先级：P0 | 目标里程碑：M3（导入限制——系统天花板与 200 MB——随 SV-01、WS 消息与速率限制随网关自 M2 生效，rulings §4.19 D-M2-CONTENT；存储配额、名额与管理查询为 M3） | 依赖能力：部署配置、网关容量检查（按权重准入）、导入限制
 - 两层口径（rulings §4.15 Q5）：
   - **性能保证包络**：D200（200 页 × 平均 30 ≈ 6,000 元素）、DX-1000 单页 1,000 元素、20 编辑者 + 50 查看者、200 MB。NF-01 性能门禁只在包络内成立，只收紧不放宽。
   - **系统天花板**：200 页（软警告 150）/ 单页 1,000 元素 / **文档总元素 20,000**（软警告 15,000，软删除墓碑计入）；服务端房间按文档实测权重准入（SV-05）。
@@ -403,7 +408,7 @@ flowchart TB
 | WS 消息速率 | 200/s/连接 | 限流 + 计数 |
 | 资源上传单文件 | 100 MB | 拒绝 |
 
-  - 所有配额有读取点（规避 Univer A26，`scan-config-usage` 覆盖）与测试；配额用量可查询（管理 API 与管理面板）。错误码以架构 10 为准。
+  - 所有配额有读取点（规避 Univer A26，`scan-config-usage` 覆盖）与测试；配额用量可查询（管理 API 与管理面板）。错误码以架构 10 为准。本表是产品口径；对应的部署配置键与默认值以后端设计线 `60-backend/17` 为准。
 
 **图 2-10 规模两层口径与配额三码**
 
@@ -481,16 +486,17 @@ flowchart LR
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`telemetry` 服务（服务端 Provider：Prometheus/OTel）、`logger`
 - 验收标准：
-  - 指标（Prometheus 命名草案）：`cordex_ws_connections`、`cordex_rooms_active`、`cordex_update_apply_seconds`（直方图）、`cordex_broadcast_latency_seconds`、`cordex_import_duration_seconds`、`cordex_export_duration_seconds`、`cordex_thumbnail_duration_seconds`、`cordex_job_queue_depth`、`cordex_persist_lag_seconds`、`cordex_auth_failures_total`、`cordex_rate_limited_total`、`cordex_collab_soft_conflicts_total{type}`、`cordex_collab_updates_rejected_total{reason}`、`cordex_collab_repairs_total{rule}`、`cordex_collab_broadcast_before_persist_total`（PG 降级期未落库即广播的次数，rulings §4.18 CO-08）、`cordex_permission_denied_total{action}`、`cordex_plugin_failures_total`、进程/DB/Valkey 标准指标（命名与架构 10 §11.3 一致）。
+  - 指标（Prometheus 命名草案；Prometheus 只暴露统一名 `cordex_<子系统>_<名称>_<单位>`，下列旧名作为别名列登记在 `60-backend/18` §4）：`cordex_ws_connections`、`cordex_rooms_active`、`cordex_update_apply_seconds`（直方图）、`cordex_broadcast_latency_seconds`、`cordex_import_duration_seconds`、`cordex_export_duration_seconds`、`cordex_thumbnail_duration_seconds`、`cordex_job_queue_depth`、`cordex_persist_lag_seconds`、`cordex_auth_failures_total`、`cordex_rate_limited_total`、`cordex_collab_soft_conflicts_total{type}`、`cordex_collab_updates_rejected_total{reason}`、`cordex_collab_repairs_total{rule}`、`cordex_collab_broadcast_before_persist_total`（PG 降级期未落库即广播的次数，rulings §4.18 CO-08）、`cordex_permission_denied_total{action}`、`cordex_plugin_failures_total`、进程/DB/Valkey 标准指标（命名与架构 10 §11.3 一致）。
+  - 浏览器侧指标不在服务端 `/metrics`：`cordex_collab_soft_conflicts_total{type}` 与协同撤销跳过计数 `cordex_store_undo_skipped_total{whole_step}`（CO-09）由浏览器产生，浏览器 OTLP 代理只转发 traces，两项由客户端遥测与开发者面板采集（`50-frontend/15`，`60-backend/18` §4.3）。
   - SLO（初始）：协同服务可用性 99.9%/月；广播延迟 p95 ≤ 100 ms；导入成功率 ≥ 99.5%；导出成功率 ≥ 99.5%；持久化滞后 p99 ≤ 1 s。
   - 告警（默认规则随 compose 提供）：就绪探针失败 > 1 min；p95 广播延迟 > 300 ms 持续 5 min；队列深度 > 100 持续 5 min；鉴权失败突增（> 10× 基线）；磁盘 > 85%；Chromium 池耗尽。
-  - 观测栈（Q10）：compose 默认 OTel Collector + Jaeger + Prometheus，默认告警规则随 compose 提供；仪表盘模板（Grafana JSON：总览、协同、作业、安全）随可选 Grafana/Loki profile 提供（AGPL，需显式开启）。
+  - 观测栈（Q10）：compose 默认 OTel Collector + Jaeger + Prometheus + node-exporter（宿主磁盘与内存指标，供「磁盘 > 85%」告警，Apache-2.0，`60-backend/18` §1），默认告警规则随 compose 提供；仪表盘模板（Grafana JSON：总览、协同、作业、安全）随可选 Grafana/Loki profile 提供（AGPL，需显式开启）。
   - 追踪：导入/导出/握手链路 OTel trace（采样可配）。
 
 ### SV-11 数据保留、删除与合规
 
-- 优先级：P1 | 目标里程碑：M3 | 依赖能力：Documents 模块、后台作业
-- 验收标准：文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图（含 M2 包内过渡封面）、blob、索引全部清除，审计保留）；文档擦除与**永久删除文档**（回收站中永久删除，或跳过 30 天宽限直接永久删除）立即硬删除，**不等**元素墓碑 TTL（CO-08）；术语：文档级称「永久删除文档」，元素级称「彻底删除元素」（CO-08，rulings §4.18 CO-07）；永久删除时该文档的在线会话被踢出、之后拒绝加入（rulings §4.18 BE-15）；用户数据擦除 API（GDPR：用 `deleted-user` 替换主体标识，评论正文按部署策略保留/删除）；数据驻留：存储与数据库位置由部署决定，SDK 无隐式跨区调用；导出部署全部数据（P2）。保留期（软删除宽限、自动快照 30 天、update 7 天、导入原件 30 天、墓碑 TTL 24 h）均为部署配置默认值，全部可调（章程 Q17，rulings §4.16）。
+- 优先级：P1 | 目标里程碑：M3（回收站移入与恢复、配套保留期作业随 M2 文档目录与持久化先行，rulings §4.19 D-M2-CONTENT；永久删除文档、回收站到期清理与用户数据擦除为 M3） | 依赖能力：Documents 模块、后台作业
+- 验收标准：文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图（含 M2 包内过渡封面）、blob、索引全部清除，审计保留）；文档擦除与**永久删除文档**（回收站中永久删除，或跳过 30 天宽限直接永久删除）立即硬删除，**不等**元素墓碑 TTL（CO-08）；术语：文档级称「永久删除文档」，元素级称「彻底删除元素」（CO-08，rulings §4.18 CO-07）；永久删除时该文档的在线会话被踢出、之后拒绝加入（rulings §4.18 BE-15）；用户数据擦除 API（GDPR：用 `deleted-user` 替换主体标识，评论正文按部署策略保留/删除）；数据驻留：存储与数据库位置由部署决定，SDK 无隐式跨区调用；导出部署全部数据（P2）。保留期（软删除宽限 30 天；自动快照 30 天内全量，此后每天保留最后一个，至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久），rulings §4.19 C-06；命名版本永久、每文档上限 200；update 7 天；导入原件 30 天；墓碑 TTL 24 h）均为部署配置默认值，全部可调（章程 Q17，rulings §4.16）。
   - 级联清单（编排式，rulings §4.13 S-2，§4.18 BE-15 细化）：`documents` 宽限期满（或永久删除 / 擦除时立即）发起 `schedule-purge`，以单个持久作业编排；`permissions`、`share-links`、`media`、`thumbnails`、`comments`、最近 / 固定记录（`user-marks`，rulings §4.18 BE-31）、`document_updates`/`document_snapshots`（server-collab）各自执行 purge 用例清理自己的表，谁的表谁写；最后删除对象存储中该文档的全部对象版本；失败整作业重试、结果一致，可审计；GDPR 擦除复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。
 
 **图 2-12 文档删除的级联清理**
@@ -529,8 +535,8 @@ flowchart TB
 
 ### SV-12 服务端安全
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：OF-24 输入限制、`protocol` schema、Nest 守卫
-- 验收标准：全部输入 schema 校验（REST/WS/文件）；zip 与 XML 限制同客户端；WS Origin 校验与令牌绑定；CSRF 对 cookie 会话防护；速率限制（SV-08）；TLS 终止在代理层，内部可选 mTLS；密钥轮换不停机；依赖漏洞门禁（高危阻断）；渗透测试清单（OWASP ASVS L2）作为 M3 出口条件之一；安全事件进入审计。
+- 优先级：P0 | 目标里程碑：M2（随 M2 端点的安全基线：输入校验、CSRF、WS Origin、速率限制，rulings §4.19 D-M2-CONTENT）/ M3（渗透测试出口、renderer 沙箱与镜像供应链） | 依赖能力：OF-24 输入限制、`protocol` schema、Nest 守卫
+- 验收标准：全部输入 schema 校验（REST/WS/文件）；zip 与 XML 限制同客户端；WS Origin 校验与令牌绑定——WS 升级校验 Origin 白名单，拒绝返回 403 `server.auth.origin_rejected` 并计数；CSRF 对 cookie 会话防护——cookie 会话（HttpOnly、Secure、SameSite=Lax）下所有非安全方法要求 Origin 命中 `security.allowedOrigins`（缺 Origin 时 `Sec-Fetch-Site` 必须为 `same-origin`）且带自定义头 `X-Cordex-Request: 1`，否则 403 `server.auth.csrf_rejected`，Bearer（M4）豁免，跨源 POST 与跨源 WS 升级各有 e2e（设计线遗留口径 INC-24）；速率限制（SV-08）；TLS 终止在代理层，内部可选 mTLS；密钥轮换不停机；依赖漏洞门禁（高危阻断）；渗透测试清单（OWASP ASVS L2）作为 M3 出口条件之一；安全事件进入审计。
 
 ### SV-13 Headless 自动化 API
 
@@ -549,7 +555,7 @@ flowchart TB
 - 用户故事：作为无常驻前端的集成方后端，我希望通过 Webhook 而非事件回调接收评论等协同事件，以便离线处理通知与审批流程。
 - 验收标准：
   - **M3 范围**（与客户端 EM-05 事件回调并行，两者都做，CO-04）：评论事件（`comment/added`、`comment/mentioned`、`comment/resolved`）以签名 Webhook 推送；管理 API：注册/更新/删除订阅（目标 URL、事件过滤、状态）；投递采用 HMAC 签名 + 指数退避重试 + 死信队列（超限转死信，不再自动重试）；投递日志可查询；服务端另提供跨文档「@我」REST（无需 `docId`）。
-  - 事件 schema 版本化；订阅明文签名密钥仅在创建响应出现一次，落库只存 hash。
+  - 事件 schema 版本化；订阅签名密钥明文仅在创建响应出现一次，落库以部署 KEK（`CORDEX_SECRETS_KEK_FILE`）经 AES-256-GCM 加密存储并带密钥版本，轮换期新旧双密钥并存；签名头 `X-Cordex-Signature: t=<时间戳>, v1=<HMAC-SHA256>`（HMAC 须持有密钥本体，只存 hash 无法签名；设计线遗留口径 C-16/INC-30）。
   - 出站 SSRF 防护（rulings §4.13 S-4）：默认严格拒绝私网（RFC1918）/回环/链路本地（含云元数据端点 `169.254.169.254`）目标；订阅创建/更新与每次实际投递前均解析主机名并校验，投递前锁定解析出的 IP 再建连以防 DNS 重绑定；提供部署级配置项放宽为显式白名单（面向自托管内网场景）。
   - **M4 展望**：文档事件（创建/更新/删除/导出完成/权限）以同一 Webhook 机制推送，扩大事件覆盖面；重试退避 ≤ 24 h。
 
@@ -575,7 +581,7 @@ flowchart TB
   retry -->|"超限"| dlq
 ```
 
-怎么读：自上而下是一次投递；同样的主机名校验也在订阅创建与更新时执行，每次实际投递前再做一次。订阅的签名密钥明文只在创建响应中出现一次，落库只存 hash。
+怎么读：自上而下是一次投递；同样的主机名校验也在订阅创建与更新时执行，每次实际投递前再做一次。订阅的签名密钥明文只在创建响应中出现一次，落库为部署 KEK 加密后的密文（C-16）。
 依据：本条 SV-15；rulings §4.13 S-4。
 
 ---

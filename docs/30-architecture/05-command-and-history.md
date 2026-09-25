@@ -1,6 +1,6 @@
 # 05 命令与历史：命令三分法、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：评论 Mutation 示例改 `comments.thread.add`（D-COMMENTS-PKG）；§6–§9 UI 表达加 50-frontend/04 链接） | 依赖：charter v0.1
 > 继承 Univer K1（命令三分法，「最正确的一项」），规避其缺陷 #3（手写逆操作）与 `return false` 2,244 次的失败静默。签名为「草案」。
 
 ---
@@ -192,7 +192,7 @@ type SlideMutation =
 ```
 
 - 每个成员一个 `MutationDef`，贡献到 `core.mutation`；`type` 三段式 `<documentType>.<entity>.<verb>`（`scan-command-capabilities` 规则 (c) 校验命名，09-06 §11）。
-- 第三方插件可贡献新 Mutation（如 `slide-comments.thread.add`），无需改 `model-slide`。
+- 第三方插件可贡献新 Mutation（如 `@cordexjs/comments` 的 `comments.thread.add`，rulings §4.19 D-COMMENTS-PKG），无需改 `model-slide`。
 - 水平层对联合无知：`commands` 只按 `m.type` 查表。
 
 ### 4.2 `lower()` 的规则
@@ -271,6 +271,8 @@ flowchart TB
 
 依据：本节第 1–4 条；04 §3.1a；rulings §4.15 Q3、§4.17 D4、D5。
 
+UI 表达（提示条、「恢复我的值」「恢复元素」两个恢复命令与 UndoSkip 记录的保留规则，决策 RESTORE-CMD）的唯一源是 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §6；本节契约不变。
+
 ---
 
 ## 7. Operation 与 presence
@@ -289,7 +291,7 @@ flowchart TB
 | 一个用户动作由多个命令组成（拖拽：连续 setTransform） | `history.beginGroup()`；或以一个 `slide.moveShapes` 命令收口（首选） |
 | 命令调用命令 | 允许：`ctx.commands.execute(...)` 在 handler 内调用会开启**新事务**（嵌套事务被 Store 拒绝 `STORE_NESTED_TRANSACTION`）；因此复合命令应当直接 `tx.mutate`，而不是递归执行子命令（lint 提示 `no-nested-execute-in-handler`，warning 级→M2 起 error） |
 | 导入/迁移写入 | `origin = system(...)`，`undoable: false`，不经命令管线（唯一例外，且只在 `units.open` 内部，含渐进打开首批之后的 `system('import')` 追加批次，04 §2.2；`cordex/store-transact-in-commands-only` 的允许列表） |
-| 跨 Unit 命令 | 不支持（每个命令绑定一个 unitId 或 null）；复制粘贴分两条命令 |
+| 跨 Unit 命令 | 不支持（每个命令绑定一个 unitId 或 null）；复制粘贴分两条命令（剪贴板管线见 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §9） |
 | 新增元素触及规模上限（rulings §4.15 Q5） | 命令守卫在 ③ 之后、④ 之前检查 `maxElementsPerDoc`（默认 20,000，软警告 15,000，墓碑计入）与单页 1,000、页数 200：超限 → `command/rejected{ reason: 'validation' }` + `document.quota_exceeded{ dimension, limit, actual }`（编辑期上限码，409、不关连接，`dimension` 取值见 10 §1.4，rulings §4.17 D2），不开事务；数字来自部署配置（04 §5.5） |
 
 ---
@@ -298,7 +300,7 @@ flowchart TB
 
 - 所有入口返回 `Result<T, CordexError>`（`shared/result.ts`）；禁止 `boolean` 结果（lint `no-boolean-command-result`：`CommandDef.handler` 返回类型不得为 `boolean`；`commands.execute` 调用处不得用 `if (!ok)` 模式——以类型 `Result` 强制解构）。
 - 每个失败码都有 `data`（issues、mutationType、fiber 名），`errors.report` 统一上报（PERMISSION_DENIED 只发 `permission/denied` 事件与遥测计数，不作为错误上报，避免噪音）。
-- UI 层 `useCommand(id)` 返回 `{ run, lastError }`，通知组件把错误码映射为 i18n 文案（`i18n` key = 错误码）。
+- UI 层 `useCommand(id)` 返回 `{ run, lastError }`，通知组件把错误码映射为 i18n 文案（命名空间 `errors.<code>.{title, action}`，决策 ERR-COPY）；错误码 → UI 处理矩阵见 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §4。
 - 审计记录含 `result: 'ok' | code`。
 
 ---

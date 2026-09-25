@@ -1,6 +1,6 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG / INC-39 评论命名空间 `comments.threads`（§2.7、§10）；D-M2-CONTENT 版本恢复服务端用例随 M2 协同后端（§2.1、§10））；2026-09-25（§4.19） | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
@@ -55,7 +55,7 @@ interface DocumentType<S = unknown> {
   // —— 服务端可调用的纯函数面（B 线 08/ADR-0034 要求；全部无副作用、可在 server-headless 运行）——
   readonly invariants: readonly Invariant<S>[]         // 不变量：{ id; check(body): Violation[]; repair?(body, violations): S }（无父子环、parentId/layoutId 存在、order 唯一…）
   validateChangeSet(view: ReadonlyStoreView<S>, changeSet: ChangeSet): Result<void, readonly Violation[]>   // 默认实现 = 对 touched 路径相关的 invariants 求值（服务端软门禁）
-  diff?(a: Persisted<S>, b: Persisted<S>): readonly Mutation[]   // M3：版本恢复 = 计算 a→b 的 Mutation 序列并作为一个事务（origin system('restore')）写回
+  diff?(a: Persisted<S>, b: Persisted<S>): readonly Mutation[]   // 版本恢复 = 计算 a→b 的 Mutation 序列并作为一个事务（origin system('restore')）写回；版本恢复的服务端用例与界面均为 M3（PRD 05 §0.3）
 }
 interface BodyShapeHints { entityTables: readonly Path[]; atomicLists: readonly Path[]; richTexts: readonly Path[] }   // 路径含通配段 '*'
 ```
@@ -165,7 +165,7 @@ interface MigrationsService {
 ### 2.7 `ResourceHook`（K6 继承）
 
 ```ts
-type ResourceNamespace = `${string}.${string}`         // `${pluginId}.${name}`，如 'slide-comments.threads'
+type ResourceNamespace = `${string}.${string}`         // `${pluginId}.${name}`，如 'comments.threads'（插件 @cordexjs/comments，id 'comments'）
 interface ResourceHook<T extends JsonValue = JsonValue> {
   namespace: ResourceNamespace; version: number; schema: StandardSchemaV1<unknown, T>
   toJson(scope: UnitScope): T | undefined              // undefined = 本 Unit 无数据，不写入
@@ -174,6 +174,9 @@ interface ResourceHook<T extends JsonValue = JsonValue> {
 ```
 
 `resources.collect/apply` 逐 hook 容错：单个 hook 抛错 → 诊断 + `errors.report`，其它 hook 继续（K6 的集中容错）。
+
+- **命名空间必须文档类型盲**：横向插件的命名空间不带文档类型前缀。评论即 `resources['comments.threads'] = { version, data }`，`data` 内含 `threads` 与 `replies` 两张实体表（EntityTable，以 id 为键），由 iso 包 `@cordexjs/comments` 注册（02 §4.12c；rulings §4.19 D-COMMENTS-PKG、决策 INC-39——服务端评论镜像按 `comments.` 前缀识别、不得识别文档类型，rulings §4.18 FE-01）。协同模式下该命名空间在 Y.Doc 顶层 `resources` 下的同名键（06 §1.3），服务端软门禁的 commenter 路径前缀与之逐字一致（ADR-0031、ADR-0034）。
+- **未注册命名空间原样保留**：打开的 Snapshot 或 Y 状态带有当前 preset 未注册的命名空间时（例如单人 preset 打开含 `comments.threads` 的文档），数据原样随 Snapshot / Y 状态往返与导出，不渲染、不可编辑；`validateSnapshot` 对未注册命名空间只校验其为合法 JSON，不报错（与 50-frontend/04 §1 同一口径）。
 
 ### 2.8 `permissions`（fail-closed；放置见 ADR-0012）
 
@@ -324,7 +327,7 @@ interface PresentationBody {
 1. **打标记**：命令层产出的删除 Mutation 降级为 `set(['shapes', id, '_deleted'], { at, by })`（墓碑）；实体 id 保持稳定，不复用、不换新 id。
 2. **读路径过滤**：`query/selectors.ts`、`slides` 服务、SceneProvider、导出编码器一律跳过带 `_deleted` 的实体；`_deleted` 实体不参与 `(order, id)` 排序结果。
 3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理；墓碑在 TTL 内计入文档总元素上限（§5.5）。
-4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；08 §3.1、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
+4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；08 §3、60-backend/05 §8、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
 5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。墓碑已被硬删除（TTL 到期或被「彻底删除元素」）后，删除方再撤销该步 → 按整步跳过（`store/undo-skipped{wholeStep:true}`，05 §6，CO-07）。
 
 store-memory 与 store-yjs 语义一致（`runDocumentStoreConformance` 协同分节覆盖）。
@@ -869,8 +872,8 @@ type Persisted<T> = T extends readonly (infer U)[] ? readonly Persisted<U>[]
 | 缩略图/导出图像 | 经 `RenderTarget.toImage`；服务端走 `server-headless.tasks.thumbnail` | 07/08 |
 | 迁移与校验任务 | `server-headless.tasks.migrate/validate` 使用 `migrations.run/runOnUnit` 与 `validateSnapshot` | 08 |
 | 服务端软门禁与修复（ADR-0034） | `documentType.validateChangeSet(view, changeSet)` + `documentType.invariants[].repair`（纯函数，origin `system('repair')`）；A 线在 model-slide `invariants/` 提供：无父子环、`parentId`/`containerId`/`layoutId`/`masterId` 存在、`order` 为合法 FracKey、占位符引用有效 | 08 |
-| 版本恢复 | `documentType.diff(a, b) → Mutation[]`（M3）作为一个事务写回（origin `system('restore')`）；`units.open` 支持 `source: { kind:'state'; encoding:'yjs-update' \| 'snapshot-json'; bytes }` 与 `'empty'` | 08 |
-| 现代评论部件 | `ooxml-pptx/import|export/comments.ts` ↔ `resources['slide-comments.threads']`（M3；ResourceHook 由 comments 插件定义，存储见 ADR-0031） | 06/08 |
+| 版本恢复 | `documentType.diff(a, b) → Mutation[]` 作为一个事务写回（origin `system('restore')`；版本历史（命名、列表、预览与恢复）的服务端用例与界面均在 M3，PRD 05 §0.3「持久化与快照」行）；`units.open` 支持 `source: { kind:'state'; encoding:'yjs-update' \| 'snapshot-json'; bytes }` 与 `'empty'` | 08 |
+| 现代评论部件 | `ooxml-pptx/import|export/comments.ts` ↔ `resources['comments.threads']`（M3；ResourceHook 由 `@cordexjs/comments` 定义，§2.7，存储见 ADR-0031；决策 INC-39） | 06/08 |
 | 图表内嵌工作簿 | `ooxml-pptx/export/chart-workbook.ts`：从 `Chart.data` 生成最小 `.xlsx`（M3 P1；PD-06 由 B 决定不可行时的降级） | 08 |
 | 导出确定性 | §5.3「确定性」四条；`roundtrip.ts` determinism 用例在浏览器与 Node 各跑一次并比对哈希 | 08/11 |
 

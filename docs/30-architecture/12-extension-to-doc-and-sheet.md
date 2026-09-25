@@ -1,6 +1,6 @@
 # 12 向 doc / sheet 扩展：文档类型盲的验证方案
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：FE-01 R3 只约束非组合根的水平层、组合根豁免，冻结范围改为「无 bundle 且非组合根的包」，server-headless 文档类型盲（§2 图、§4.1、§4.4）；GV-14 「doc-type-blindness」不是 job，四层拆回 depcruise / lint / test / scanners（§4）；GV-15 扫描器名改正式名、`horizontal-freeze` 路径改 `tooling/scripts/`（§4.1、§4.4）） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：FE-01 R3 只约束非组合根的水平层、组合根豁免，冻结范围改为「无 bundle 且非组合根的包」，server-headless 文档类型盲（§2 图、§4.1、§4.4）；GV-14 「doc-type-blindness」不是 job，四层拆回 depcruise / lint / test / scanners（§4）；GV-15 扫描器名改正式名、`horizontal-freeze` 路径改 `tooling/scripts/`（§4.1、§4.4））；2026-09-25（§4.19：§3.2、§4.3 加 50-frontend/03 前端参数化点链接；`preset-blind` 测试落点按 T-NAMING） | 依赖：charter v0.1
 > 目标（章程 R5、M5）：`model-doc` 与 `model-sheet` 骨架落地时，**水平层零改动**（dependency-cruiser 零横向依赖 + 水平层文件哈希冻结）。本文列出这两种类型会对水平层提出的抽象要求，标明哪些已在 M1 设计中满足、哪些必须参数化，并定义自动化「盲测套件」。
 
 ---
@@ -129,6 +129,8 @@ Unit/UnitScope、DocumentStore + StoreOp、Transaction/History、Snapshot/Migrat
 | Path 前缀 → Part 的注册 | codec 调用 `registerPartPrefixes` |
 | UI | `ui.*` 贡献 + `when` 子句上下文键（`unitType`） |
 
+前端侧的参数化点（`apps/web` 的 `DOCUMENT_TYPES` 表、组合根按 `documentType` 分发、新建模板清单）见 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §12；`apps/web/src/**` 中除这两个参数化点外不得出现文档类型字面量比较（09-type-discipline/02 §4.12 扩展范围 ③）。
+
 sheet 行列插入的性能：`sheet.row.insert` 的 `lower` 会产生大量 `set/delete`（键重写）。契约不变，但允许 Provider 对同一事务内的批量原语做**内部**优化（store-yjs 在一次 `Y.transact` 内应用；store-memory 一次 produce）。若 M5 测得不可接受，再评估新增原语 `rename-keys`（会是 M5 对水平层的唯一契约扩展，需 ADR）。
 
 ### 3.3 Snapshot 分片（可选扩展点）
@@ -184,7 +186,7 @@ flowchart LR
 
 ### 4.3 运行时层（preset 矩阵）
 
-`preset-blind.test.ts`：只挂载水平层插件 + `fixture` 类型，断言：
+`test/preset-blind/`（根跨包套件，决策 T-NAMING；70-testing/02）：只挂载水平层插件 + `fixture` 类型，断言（前端装配侧的参数化见 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §12）：
 - `units.open({ documentType:'fixture', source:{kind:'empty'} })` 成功；
 - 两个不同 documentType（`fixture` 与第二个夹具 `fixture-grid`——网格键空间，模拟 sheet）同时打开、互不干扰；
 - 移除 `fixture` 后打开返回 `UNIT_UNKNOWN_DOCUMENT_TYPE`，host 仍健康（章程 §5.4「打开空壳」）。

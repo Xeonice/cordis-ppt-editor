@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
 > **2026-09-18 修订说明**：按 rulings §4.10 与 playground 回写——§1 应用壳补开始页 `#/home`（PRD AS-01…06）；§2.1 / §2.2 / §4 应用栏「返回首页」、「⋯」更多菜单与账户头像（Q14 / Q20）；§2.4 / §5a 母版视图改为"同一个编辑器"（母版页签置首、五组、其余页签照常、母版缩略图窗格、Ribbon 分段主入口、`Mod+Alt+M`、检查器仅禁评论、评审 / 窄屏不提供入口，Q12）；§8.1 查看器补可选缩略图条与备注抽屉（Q18）；§9 路由表与 `registry.ts` 19 条对齐（删除已退役原型的 `text-editing` / `pages`）。
 
 # 01 信息架构（Information Architecture）
@@ -145,7 +145,7 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 | 应用壳 → 编辑器 | 跨文档 | 开始页「新建 · 空白 / 主题模板」「最近」或文档列表点击文档卡片进入，路由携带文档 id；编辑器应用栏「返回首页」回到开始页 `#/home`（03-screens/29，09 T-07） |
 | 缩略图侧栏点击/拖拽排序 | 文档内跨页 | 主要的页面级导航；拖拽排序即命令（产生 Mutation） |
 | 键盘 PageUp/PageDown、Ctrl+G 跳转 | 文档内跨页 | 键盘用户/放映场景的等效路径，见 07-accessibility-and-i18n.md |
-| 深链接（页面锚点） | 文档内定位 | URL 格式 `/d/{documentId}?page={slideId}&comment={threadId}`；打开后直接定位到页与评论线程（用于评论通知、分享指定页）；切页/切模式时同步更新 URL（可复制分享），浏览器返回时恢复上一页、滚动位置与筛选状态（评审规则 deep-linking / state-preservation） |
+| 深链接（页面锚点） | 文档内定位 | URL 格式 `/documents/{documentId}?page={slideId}&comment={threadId}`（放映深链参数同名 `page`；原 `/d/` 形式废止，路由表以 `50-frontend/02` 为唯一源，设计线遗留口径 INC-35）；打开后直接定位到页与评论线程（用于评论通知、分享指定页）；切页/切模式时同步更新 URL（可复制分享），浏览器返回时恢复上一页、滚动位置与筛选状态（评审规则 deep-linking / state-preservation） |
 | 命令面板（`Mod+Shift+P`，PRD ED-30；不是常见的 `Mod+K`） | 全局 | 命令级导航：模糊搜索所有满足条件的 `ui.command` 呈现元数据（对应 `core.command` 注册的命令本体），含"跳转到第 N 页"这类内置命令；执行当前不可用的命令需提示原因（权限/选区类型），见设计 06 §2.5 |
 | 检查器坞 Tab 条 | 面板级 | 见 §2.3 |
 | 右键菜单 | 上下文相关 | 就地操作，不改变导航位置 |
@@ -161,7 +161,7 @@ flowchart LR
   obj["对象 · 画布选中"]
   prop["属性 · 检查器坞"]
   palette["命令面板 Mod+Shift+P"]
-  deep["深链接 /d/{documentId}?page=&comment="]
+  deep["深链接 /documents/{documentId}?page=&comment="]
   shellNav -->|"新建 / 最近 / 点击文档卡片，路由携带文档 id"| slide
   slide -->|"在画布上选中对象"| obj
   obj -->|"检查器坞显示所选对象的属性"| prop
@@ -412,4 +412,4 @@ flowchart LR
 
 怎么读：目录页只是演示用的元信息入口；三个分组按本文区域 / 模式归类，节点末尾的数字是对应的 03-screens 界面文件编号。这些路由只为逐状态审阅而拆分，不是产品真实信息架构。
 
-深链接格式（§4 已定的 `/d/{documentId}?page=&comment=`）是产品运行时的真实路由约定，与本节的 playground 演示路由是两套独立机制：前者面向集成方与最终用户，后者仅面向本设计稿的评审者，两者不应混淆或互相替代。
+深链接格式（§4 已定的 `/documents/{documentId}?page=&comment=`）是产品运行时的真实路由约定，与本节的 playground 演示路由是两套独立机制：前者面向集成方与最终用户，后者仅面向本设计稿的评审者，两者不应混淆或互相替代。

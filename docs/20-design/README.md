@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15：D7 结案；T-0 / Q3 / Q5 / Q6 / Q7 / Q8 回写 02、04、05、07、03-screens/01、06、08、10、11、12、13、18、19、22、29）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15：D7 结案；T-0 / Q3 / Q5 / Q6 / Q7 / Q8 回写 02、04、05、07、03-screens/01、06、08、10、11、12、13、18、19、22、29）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
 > 章程已升至 v0.2（向后兼容、只增不改语义，见 `00-charter/charter.md` 顶部变更说明）；本文档集已核对 v0.2 新增内容（`preset-slide-viewer`、Q20、§5.5 贡献点 id 定稿等）并按其更新，状态头按章程原文约定继续标注「charter v0.1」，无需重写。
 
 # 设计条线总览
@@ -164,7 +164,7 @@ flowchart TB
 | 10 | toast/横幅无 live region；对话框无 `role="dialog"`、无焦点循环与归还（toast-accessibility / focus-management） | 补齐语义与焦点管理 | 03-screens/10、12、08、原型 |
 | 11 | 页签用 `span`，缩略图/评论钉用 `div`（keyboard-nav） | `role="tablist/tab"` 的 `button` + 方向键；缩略图与评论钉为 `button` | 07 §1.2、03-screens/02、原型 |
 | 12 | hover/按下无过渡；原型未实现 `prefers-reduced-motion`（state-transition / reduced-motion） | 120–180ms 过渡，退出 0.6–0.7×，reduced-motion 降为 1ms | 04 §2.12、12、原型 |
-| 13 | 深链接无明确格式（deep-linking / state-preservation） | `/d/{documentId}?page=&comment=`，返回恢复状态 | 01 §4 |
+| 13 | 深链接无明确格式（deep-linking / state-preservation） | `/documents/{documentId}?page=&comment=`（2026-09-25 由 `/d/` 改，INC-35），返回恢复状态 | 01 §4 |
 | 14 | Tooltip 仅 hover（aria-labels） | `:focus-visible` 也显示，且不替代 `aria-label` | 04 §2.14/§4.1、07 §2 |
 | 15 | 地标与跳转链接未落到线框（skip-links） | header/main/aside/footer + "跳至画布" | 03-screens/02、原型 |
 

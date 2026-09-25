@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 反代 collab 路由清单、worker 接入 edge 供 Webhook 出站、`audit-rotate` 以 ops-cron 运行；M2 部署口径，见文末修订） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
 
 # ADR-0037 部署拓扑与交付件：同镜像按角色运行 + 自托管 compose 洁净栈
 
@@ -52,7 +52,7 @@
 
 3. **网络拓扑与出站策略**：
    - **三个 compose 网络**：`edge`（对外，只有静态前端/反向代理与 api、collab 入口）、`backend`（应用 ↔ Postgres / Valkey / SeaweedFS / Casdoor / 观测组件，`internal: true`；反向代理也接入本网络，但只用于下一条的两个子域转发）、`render`（**只有** worker（或 `all`）与 renderer，`internal: true`）。
-   - **反代路由**（2026-09-25 修订，rulings §4.18 BE-11/BE-03）：按路径前缀分流——`/api` → api 角色（REST 统一挂 `/api/v1` 全局前缀，Nest `setGlobalPrefix`，排除 `/healthz`、`/readyz`；`/metrics` 走独立内部端口）；其中 `/api/v1/documents/:id/snapshots*` 与 `/api/v1/documents/:id/elements/purge` → **collab 角色**（快照 REST 只在 collab 装配，决策 1；「彻底删除元素」REST 由 M-09 `element-purge.controller.ts` 承载，rulings §4.18 CO-07，与 40-modules/12 §7.1、架构 08 §10.1 一致）；`/collab` → collab 角色（WS 维持 `/collab/v1/rooms/:id`）；其余 → 静态文件（`apps/web`，SPA path 路由）。`all` 模式三者同进程，行为不变，拆分部署只多上述快照与彻底删除元素两条路由。（原：只写「edge 有 api、collab 入口」，未定前缀与快照归属，作废。）
+   - **反代路由**（2026-09-25 修订，rulings §4.18 BE-11/BE-03；collab 路由清单另见文末「修订 2026-09-25（§4.19）」第 1 条）：按路径前缀分流——`/api` → api 角色（REST 统一挂 `/api/v1` 全局前缀，Nest `setGlobalPrefix`，排除 `/healthz`、`/readyz`；`/metrics` 走独立内部端口）；其中 `/api/v1/documents/:id/snapshots*` 与 `/api/v1/documents/:id/elements/purge` → **collab 角色**（快照 REST 只在 collab 装配，决策 1；「彻底删除元素」REST 由 M-09 `element-purge.controller.ts` 承载，rulings §4.18 CO-07，与 40-modules/12 §7.1、架构 08 §10.1 一致）；`/collab` → collab 角色（WS 维持 `/collab/v1/rooms/:id`）；其余 → 静态文件（`apps/web`，SPA path 路由）。`all` 模式三者同进程，行为不变，拆分部署只多上述快照与彻底删除元素两条路由。（原：只写「edge 有 api、collab 入口」，未定前缀与快照归属，作废。）
    - **对外入口：IdP 与对象存储子域**（2026-09-25 修订，rulings §4.18 BE-01：OIDC 授权码流程要求浏览器直达 IdP 登录页，预签名直传/直读要求浏览器直达 S3 端点，原拓扑两者都在 `internal` 的 backend 网络而没有对外路径）：反向代理按子域把 `idp.<域名>` 转发到 Casdoor（OIDC 端点与登录页）、把 `s3.<域名>` 转发到 SeaweedFS S3 网关（只接预签名请求），**保持 Host 头不变**（S3 SigV4 把 Host 算进签名）；Casdoor 与 SeaweedFS 仍只在 backend 网络、**不开宿主端口**。配套：TLS 证书多 `idp.*`、`s3.*` 两个域名；SeaweedFS 桶配 CORS（AllowedOrigins = 应用源，允许 PUT/GET，ExposeHeaders 含 `ETag`，供分片上传收尾）；预签名一律按新配置 `storage.s3.publicEndpoint`（`https://s3.<域名>`）生成，服务端自身读写走内网 endpoint；`apps/web` 的 CSP（`connect-src`、`img-src`）与「网络请求只含同源」e2e 断言加入存储源；Casdoor 管理后台建议在反代上按来源 IP 限制访问。使用客户自有 S3 或外部 IdP 时，`publicEndpoint` 与 issuer 直接填对方的对外地址，本条两条子域规则可省略。
    - **renderer 零出站**（ADR-0026 决策 1/6，Q8 口径严于 Q10 复核）：renderer 只挂 `render` 网络，**只接受 worker 的鉴权内部 RPC 入站**，不暴露无鉴权的 Playwright run-server WS；快照 state、`/render` 静态包（内置在镜像中）、字体都经注入/内置提供，不走网络（字体包 = 内置 Noto（含 CJK）+ Liberation + Carlito/Caladea（均开源，不内置商业字体），**部署方可挂载自有授权字体目录**（只读卷，配置 `fonts.extraDirs`，rulings §4.16 Q19）；挂载目录属本地卷，不破坏零出站）；**不持有** DB/S3/IdP 凭据；非 root、`chromiumSandbox: true` + seccomp、`--shm-size` 而非 `--ipc=host`。自带 Nest 的集成方（EM-10 b）保留本地 launch 模式。
    - **renderer 配置键（本 ADR 为事实源，2026-09-24 复核修正 M13）**：`headless.mode: 'local' | 'remote'`——`remote`（compose 默认）经鉴权内部 RPC 调用独立 renderer sidecar，此时必填 `headless.endpoint`（renderer 的内部 RPC 地址，只在 `render` 网络内可达）；`local`（EM-10 b）在 worker 进程内启动 Chromium，无需 `headless.endpoint`。其余文档（架构 07/08、40-modules/09/12）一律照抄此两键，不另起 `renderer.*` 等别名。配套命名：sidecar RPC 契约文件 `render/sidecar.ts`（`@cordexjs/protocol`），worker 侧客户端 `remote-renderer.client.ts`（40-modules/09）。
@@ -100,7 +100,7 @@ flowchart LR
     workerRole["worker"]
   end
   proxy -- "/api：api 入口" --> apiRole
-  proxy -- "/collab、快照路由 snapshots* 与 elements/purge" --> collabRole
+  proxy -- "/collab 与同一条 location 规则：snapshots*、elements/purge、comments/import" --> collabRole
   subgraph backendNet["backend 网络：internal"]
     pg["Postgres 18"]
     valkey["Valkey"]
@@ -117,12 +117,19 @@ flowchart LR
   end
   workerRole -- "render：鉴权内部 RPC" --> renderer
   appRoles -. "唯一常规出站：OIDC 发现与 JWKS，可只指向内网 IdP" .-> extIdp["外部 OIDC IdP，未启用 idp profile 时必配"]
-  appRoles -. "Webhook 出站，S-4 默认严格：拒私网、回环、链路本地、云元数据端点" .-> webhook["Webhook 目标"]
+  workerRole -. "经 edge 网络的 Webhook 出站，无入站端口；S-4 默认严格：拒私网、回环、链路本地、云元数据端点" .-> webhook["Webhook 目标"]
 ```
 
 怎么读：标「网络」的分组是 compose 网络，`cordex-server` 分组是同一镜像的三个角色而非网络；实线是网络内的访问方向，虚线是应用对外的出站。反向代理按路径把 `/api` 转给 api、把 `/collab`、快照路由与彻底删除元素路由转给 collab，另按子域把浏览器的 OIDC 登录与预签名直传/直读转给 Casdoor 与 SeaweedFS——两者仍只在 backend 网络、不开宿主端口，浏览器只经反代到达。renderer 只挂 `render` 网络、只接受 worker 的入站；服务端永不加载文档外链资源，因此图中没有这类出站。Grafana/Loki 所在的 `observability-agpl` profile 与 `dev` profile 不在默认栈，图中不画。
 
 依据：本文决策 1–4（2026-09-25 修订：rulings §4.18 BE-01 的两条子域、BE-03 与 BE-11 的路径分流、CO-07 的彻底删除元素路由）。
+
+**决策 3 修订（2026-09-25，rulings §4.19 登记的设计线收口）**
+
+1. **collab 路由清单**：反代转给 collab 角色的 REST 路由为 `/api/v1/documents/:id/snapshots*`、`/api/v1/documents/:id/elements/purge`、`/api/v1/documents/:id/comments/import`（P1），三者写成**同一条 location 规则**（按 `documents/[^/]+/(snapshots|elements/purge|comments/import)` 匹配），加上 `/collab`；新增只挂 collab 的 REST 须加入这条规则并同步 60-backend/01 §7 的反代分流表。依据：rulings §4.18 BE-03（快照与管理动作只挂 collab）、CO-07（彻底删除元素由 M-09 承载）、决策 SG-03（评论导入经 Room 写 CRDT，唯一写入口在 collab）。
+2. **worker 接入 edge 网络**：`backend` 与 `render` 都是 `internal: true`、无出站，而决策 3「服务端出站」要求 Webhook 投递（rulings §4.12 U-14，M3）能到达外部目标，故 worker（及 `all`）额外接入 `edge` 网络，**只用于出站、不发布任何入站端口**；出站仍受 S-4 严格策略约束（拒私网、回环、链路本地、云元数据端点，防 DNS 重绑定）。api、collab 不需要此出站。
+3. **`audit-rotate` 以 ops-cron 运行**：审计分区轮换（按整月 DETACH + DROP PARTITION、预建未来 3 个月分区，决策 C-20）需要 DDL 权限，只能由 `cordex_migrator` 凭据执行，因此不走 BullMQ Job Scheduler，而以 compose 的 `ops-cron` 服务（Helm 为 `CronJob`）调用 `cordex-ops audit-rotate`；它是「周期作业统一走 Job Scheduler、只由 worker 注册」（rulings §4.18 BE-19）之外的**第二个例外**（第一个是墓碑清扫的 LeaseLock），应用角色与 `cordex_system` 均不持有该凭据。
+4. **M2 部署口径**（rulings §4.19 D-M2-CONTENT，PRD 05 §0.3）：协同后端随 M2 交付，M2 以单实例 `CORDEX_ROLE=all` 运行（开发与内部环境；对象存储可用本地 Provider），collab 角色的装配内容（网关、Room、快照 REST）自 M2 起存在；按角色拆分部署、renderer 与本 ADR 决策 6 的洁净栈出口仍为 M3。
 
 ## 备选方案与放弃原因
 

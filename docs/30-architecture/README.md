@@ -1,6 +1,6 @@
 # 架构文档总览（30-architecture）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§2 登记三条设计线与三线总边界表，08 / 11 改为摘要 + 链接、06 §0.1 与 08 §0.1 写 M2/M3 新边界）；2026-09-25（设计线拆分：§2 首加「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」，07、10 索引行改注摘要 + 链接） | 依赖：charter v0.1
 > 本 README 由架构-结构条线起草；「文档索引」中 06/07/08/10/11 由架构-运行时条线撰写，09-type-discipline/ 由类型治理条线撰写。总编排合并时以此为入口。
 
 ---
@@ -33,6 +33,8 @@
 
 ## 2. 文档索引
 
+> **前端 / 后端 / 测试设计以 [50-frontend](../50-frontend/README.md) / [60-backend](../60-backend/README.md) / [70-testing](../70-testing/README.md) 为准**（rulings §4.19）：本目录只保留跨端原则、跨端协议、iso 契约与 ADR；下表中标注「摘要 + 链接」的文件，其运行侧细节已迁入三条设计线，冲突时以设计线为准（已接受 ADR 与 rulings 除外）。边界表见本节末。
+
 | 文件 | 内容 | 负责 |
 |---|---|---|
 | [`01-overview.md`](./01-overview.md) | C4 L1/L2、四大原则、打开/编辑/协同/导出端到端数据流 | 结构 |
@@ -41,13 +43,25 @@
 | [`04-document-model.md`](./04-document-model.md) | model-core 抽象、model-slide 对象模型、OOXML 映射表、不透明保留、样式继承、单位、稳定 id、schema 迁移 | 结构 |
 | [`05-command-and-history.md`](./05-command-and-history.md) | 命令三分法契约、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播 | 结构 |
 | [`06-collaboration.md`](./06-collaboration.md) | CRDT 映射、同步协议、presence、离线、权限即时性、冲突语义 | 运行时（B） |
-| [`07-rendering.md`](./07-rendering.md) | 渲染管线、RenderTarget/ElementRenderer、布局引擎、命中测试、缩略图、性能预算 | 运行时（B） |
-| [`08-backend-nestjs.md`](./08-backend-nestjs.md) | Nest 模块图、cordis 宿主、存储、导入导出、网关、鉴权、部署拓扑 | 运行时（B） |
+| [`07-rendering.md`](./07-rendering.md) | 渲染介质与坐标、贡献点与帧管线契约、SceneProvider / TextMeasurer / RenderTarget、打开管线契约、headless 渲染跨端约束；目录树、文本编辑宿主、命中与缩略图、性能预算为摘要 + 链接（40-modules/06、07，50-frontend/04–06、13，60-backend/06，70-testing/09） | 运行时（B） |
+| [`08-backend-nestjs.md`](./08-backend-nestjs.md) | 后端一页总览、五条跨端原则、服务端里程碑边界；其余各节为 60-backend 的摘要与链接 | 运行时（B） |
 | [`09-type-discipline/`](./09-type-discipline/README.md) | 类型治理：tsconfig、lint、boundaries、api-surface、runtime-boundaries、scanners、hooks-and-ci、policy 矩阵、plugin 类型契约 | 类型治理 |
-| [`10-observability-and-errors.md`](./10-observability-and-errors.md) | 错误码体系、日志、遥测、诊断（Fiber/effect 树） | 运行时（B） |
-| [`11-testing-strategy.md`](./11-testing-strategy.md) | 单测/契约测试/同构冒烟/视觉 oracle/协同模拟/插件兼容套件 | 运行时（B） |
+| [`10-observability-and-errors.md`](./10-observability-and-errors.md) | 错误码体系（格式、域登记、HTTP/WS 映射）、日志命名与脱敏、遥测 API 与命名规则、公开事件定稿；Sink、span / 指标清单、诊断与客户端错误上报为摘要 + 链接（50-frontend/15、60-backend/18） | 运行时（B） |
+| [`11-testing-strategy.md`](./11-testing-strategy.md) | 测试原则与门禁口径摘要；各类测试细则链接 70-testing | 运行时（B） |
 | [`12-extension-to-doc-and-sheet.md`](./12-extension-to-doc-and-sheet.md) | 文档类型盲验证方案、model-doc/model-sheet 对水平层的抽象要求、盲测套件定义 | 结构 |
 | [`adr/README.md`](./adr/README.md) | ADR 索引：0001–0019 结构、0020–0039 运行时、0040–0049 类型治理 | 结构（索引）|
+
+### 三条设计线与本目录的边界（rulings §4.19）
+
+2026-09-25 起，前端、后端、测试设计分出三条设计线，各为该侧设计的**唯一事实源**；本目录保留跨端原则、跨端协议与 ADR，40-modules 保留包 / 文件级规划，重复段落改为引用。本目录某节与设计线不一致时，以设计线为准（已接受 ADR 与 rulings 除外）。
+
+| 主题 | 本目录保留（跨端） | 唯一事实源 |
+|---|---|---|
+| 前端（浏览器应用壳、preset 装配、渲染与缩略图、协同客户端、评论与版本历史、性能与体积、客户端安全、事件与遥测、i18n 与无障碍） | 01 总图、02 包级定位、05 命令契约、06 协议与语义、07 管线契约、10 命名与脱敏规则 | [50-frontend](../50-frontend/README.md) |
+| 后端（Nest 模块与角色矩阵、鉴权链、完整 DDL、对象存储与保留、REST 目录、WS 服务端视角、部署配置、观测端点） | 08 一页总览与五条跨端原则、06 协议、10 错误码登记与 http-map | [60-backend](../60-backend/README.md) |
+| 测试（分层、契约套件、round-trip 与语料、视觉 oracle、协同模拟、e2e、性能与容量、安全、CI 映射、需求追溯） | 11 原则与门禁口径摘要、09-type-discipline 的扫描器与 lint 定义 | [70-testing](../70-testing/README.md) |
+
+里程碑口径：协同后端（网关、Room、update 持久化与快照、服务端导入）随 M2 交付，M3 为多人协同体验层（rulings §4.19 D-M2-CONTENT；逐项以 PRD 05 §0.3 为准，本目录落点见 06 §0.1、08 §0.1）。
 
 ### 阅读顺序建议
 

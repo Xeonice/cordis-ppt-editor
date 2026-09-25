@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15：矩阵增至 82 行（§12a TD-079～082）；lint-guard/workspace 协议/HTML 注入/`*-ui` 框架无关落点见 02/03/07/08）；2026-09-24（复核修正，rulings §4.17：D3 扫描器十三个 → 十四个；M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：矩阵增至 109 行（08 §12c）；02 §4.12 / §4.15、06 §6 / §10 / §12 / §14 / §18 按三条设计线收口回写） | 依赖：charter v0.1
 
 # 09 · 类型治理 —— 强类型规约与机械约束机制
 
@@ -73,7 +73,7 @@ flowchart LR
 | [05-runtime-boundaries.md](./05-runtime-boundaries.md) | 必须校验的边界清单、schema 即类型源、品牌类型、`Derived<T>` 派生字段标记、Result 与异常的边界 |
 | [06-scanners.md](./06-scanners.md) | 十四个自研扫描器的完整规格（第 14 个 `doc-access-via-permission`，rulings §4.17 D3）；其余文档中出现的「扫描器」名按 rulings §4.18 GV-15 归并为子规则，见 08 §11.1 |
 | [07-hooks-and-ci.md](./07-hooks-and-ci.md) | lefthook 阶段、CI job 矩阵、缓存策略 |
-| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（102 行，机器可解析）+ 架构-结构条线规则命名对照与扫描器名对账（§11.1） |
+| [08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) | 规范↔执行矩阵（109 行，机器可解析）+ 架构-结构条线规则命名对照与扫描器名对账（§11.1） |
 | [09-plugin-type-contracts.md](./09-plugin-type-contracts.md) | ContributionPoint/Manifest 类型契约、声明合并边界、类型测试组织 |
 
 建议阅读顺序：先读本文件，再按 01→09 顺序通读一遍建立全貌，之后以 [08](./08-policy-enforcement-matrix.md) 为索引按需跳转（"这条规范在哪、谁执行、违反了会怎样"这类问题直接查矩阵比重新通读全文快）。
@@ -101,7 +101,7 @@ tooling/
 
 ## 4. 「规范→工具→门禁」矩阵入口
 
-[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：102 行，覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地与 2026-09-24 复核补登（7 行，§12a）、2026-09-25 矛盾收口补登（17 行，§12b：40-modules/01 Q-07 的五行、GV-15 扫描器名对账、FE-02 依赖上限、FE-21 包元数据封闭 schema）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
+[08-policy-enforcement-matrix.md](./08-policy-enforcement-matrix.md) 是本子线的核心可审计产物：109 行（2026-09-25 按 rulings §4.19 补 §12c TD-103～TD-109），覆盖章程 §5.3 全部八条依赖规则（9 行）、cordis primer §4 全部 16 条 MUST/MUST NOT（15 行）、[lessons](../../00-charter/reference-univer-lessons.md) A6/A8/A10/A12/A14/A30（6 行）、A16–A27 全部 12 项（12 行）、A34/K9/K10（3 行）、章程已定决策 D2/D4/D7/D9/D11/D13 的类型化具体化（6 行）、本方案为完备性新增的机制（8 行）、产品 PRD 新增需求（3 行）、架构-结构/架构-运行时条线两轮追加需求（15 行）、章程 §10 Q1–Q10 裁决落地与 2026-09-24 复核补登（7 行，§12a）、2026-09-25 矛盾收口补登（17 行，§12b：40-modules/01 Q-07 的五行、GV-15 扫描器名对账、FE-02 依赖上限、FE-21 包元数据封闭 schema）。矩阵本身的格式约定（固定列顺序、id 正则 `^TD-\d{3}$`）见该文件 §1，[§11](./08-policy-enforcement-matrix.md#11-命名对照架构-结构条线规则别名) 提供与其他条线规则命名的对照表，矩阵自身被 [06 scan-policy](./06-scanners.md#9-scan-policy) 逐行机器校验——这不是一份"写完就过时"的文档，是一份被 CI 持续验真的清单。
 
 ---
 

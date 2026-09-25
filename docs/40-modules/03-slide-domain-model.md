@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
 
 # 03 幻灯片领域模型（限界上下文 BC-06 幻灯片领域模型）
 
@@ -14,7 +14,7 @@
 | 上游（依赖） | M-02（`@cordexjs/kernel`/`@cordexjs/shared`/`@cordexjs/model-core`：`DocumentType`、`DocumentStore`/`StoreOp`、Command/Mutation/Operation 三分法、`Snapshot`/`Persisted<T>`、`ResourceHook`、`permissions`、`drawing/` 共享绘图词汇） |
 | 下游（被依赖） | M-04（`ooxml-pptx` 对本包做 ACL）、M-07（`slide-render` 读 `slides` 服务）、M-10（`slide-ui` 消费命令与只读服务）、M-11（预设装配挂载本包）、M-13（`model-doc`/`model-sheet` 的样板） |
 | 对外服务 | `ctx.slides`（UnitScope 内，只读投影 + 便捷命令封装，见 04 §3.4） |
-| 贡献点 | 提供：`slide.shapeKind`；向 BC-05 贡献条目：`core.documentType`（1 个：`slide`）、`core.mutation`（46 个，M3 起 47 个，§2.6）、`core.command`（73 个，含 4 个 Operation，§2.6；14 §1 C-03 新增 18 个后由 55 上修，1 个即 `slide.setNotes` 待 M3）、`core.migration`（M1 为空表但注册） |
+| 贡献点 | 提供：`slide.shapeKind`；向 BC-05 贡献条目：`core.documentType`（1 个：`slide`）、`core.mutation`（46 个，M3 起 47 个，§2.6）、`core.command`（75 个——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit`——含 4 个 Operation，§2.6；14 §1 C-03 新增 18 个后由 55 上修，1 个即 `slide.setNotes` 待 M3）、`core.migration`（M1 为空表但注册） |
 | doc / sheet 通用性 | vertical（`bundle=slide`；对应 BC-29 规划位的 `model-doc`/`model-sheet`，铁律 2 强制互不 import） |
 | 批次 | 1 |
 
@@ -220,6 +220,7 @@ classDiagram
 | `slide/master-added`（**新增建议**） | `{ unitId; masterId: MasterId }` | `interface/services/slides.service.ts`（内部订阅 `store/transaction`，按 `touched` 前缀分类派生，非跨包订阅） | `slide-ui` 母版缩略图窗格 |
 | `slide/master-removed`（**新增建议**） | `{ unitId; masterIds: readonly MasterId[] }` | `interface/services/slides.service.ts`（内部订阅 `store/transaction`，按 `touched` 前缀分类派生，非跨包订阅） | `slide-ui` 母版缩略图窗格 |
 | `slide/theme-changed`（**新增建议**） | `{ unitId; themeId: ThemeId; slot: 'colors'\|'fonts'\|'variant' }` | `interface/services/slides.service.ts`（内部订阅 `store/transaction`，按 `touched` 前缀分类派生，非跨包订阅） | `slide-ui`（设计/主题面板） |
+| `slide/autofit-changed`（2026-09-25 登记，50/06 §7） | `{ unitId; shapeId: ShapeId; fontScale?: number; lnSpcReduction?: number; height?: Emu }` | 声明在本包 `events.ts`（`slide` 域）；**发布者**是 slide-render（M-07 §2.4：文本事务提交后的那一帧比较算得的 autofit 结果与模型值，不同才发，只在正在编辑该形状的本机发） | slide-ui `text-editing.ts`（执行 `slide.applyAutofit`，并入同一撤销单元） |
 
 charter §5.5 与 module-map BC-06 行只登记前 5 个事件（面向页/形状）；后 5 个是本文档为 ML-01…ML-04 新增的建议（§12 记录），使母版/版式/主题结构性变化无需下游订阅粗粒度 `store/transaction` 再自行 diff。若总编排认为应统一走 `store/transaction`，本包届时删除对应 `events.ts` 常量与派生逻辑即可（不影响模型字段）。
 
@@ -285,10 +286,12 @@ sequenceDiagram
 | `slide.insertShape` | `{containerId;kind;box}` | `doc.write` | 一个事务 | `shape.insert` | `shape-commands.ts` / ED-05 |
 | `slide.deleteShapes` | `{shapeIds}` | `doc.write` | 一个事务 | `shape.remove` | `shape-commands.ts` / ED-08 |
 | `slide.moveShapes`/`resizeShapes`/`rotateShapes` | `{shapeIds;...}`（拖拽连续帧首选一个命令收口，05 §8） | `doc.write` | 一个事务 | `shape.setTransform`×N | `shape-commands.ts` / ED-05 |
+| `slide.duplicateShapes`（2026-09-25 登记，`Mod`+拖动复制，50/10 §7.2） | `{shapeIds; dx; dy}`：复制为新 id 并按位移放置 | `doc.write` | 一个事务、一个撤销步；新增实体计入规模守卫 | `shape.insert`×N | `shape-commands.ts` / ED-05 |
+| `slide.applyAutofit`（2026-09-25 登记，50/06 §7） | `{shapeId; fontScale?; lnSpcReduction?; height?}`：autofit 回写的薄命令，只由正在编辑该形状的本机在收到 `slide/autofit-changed` 后执行，label 与触发它的键入相同以并入同一撤销单元；打开 / 查看 / 放映 / `/render` 永不回写 | `doc.write` | 一个事务 | `textBody.setBodyProperties`、`shape.setTransform`（复用既有 Mutation） | `text-commands.ts` / ED-02/ED-24 |
 | `slide.setFill`/`slide.setLine` | `{shapeIds;fill\|line}` | `doc.write` | 一个事务 | `shape.setProperties`/`.setStyle` | `shape-commands.ts` / ED-06 |
 | `slide.bringForward`/`sendBackward` | `{shapeIds}` | `doc.write` | 一个事务 | `shape.setOrder`×N | `shape-commands.ts` / ED-08 |
 | `slide.group`/`ungroup` | `{shapeIds}`/`{groupId}` | `doc.write` | 一个事务 | `shape.group`/`.ungroup` | `shape-commands.ts` / ED-08 |
-| `slide.insertText`/`deleteText` | `{shapeId;paragraph;offset;text\|range}` | `doc.write` | 一个事务 | `text.applyDelta` | `text-commands.ts` / ED-02/ED-13 |
+| `slide.insertText`/`deleteText` | `{target: TextTarget; paragraph; offset; text\|range; replace?}`，`TextTarget = {shapeId} \| {shapeId; cell:[row,col]} \| {slideId; notes:true}`（2026-09-25 扩到表格单元格与备注，50/06 §6；旧 `{shapeId; paragraph; offset}` 即 `target:{shapeId}`）。分段与软换行都经 `TextDelta` 表达：分段 = 在 `offset` 处插入段落分隔（`split-paragraph`，产生新 `a:p`，新段继承原段 `pPr`），软换行 = 嵌入 `a:br`（`line-break`，段内换行、不产生新段）；`replace` 存在时同一事务先删后插 | `doc.write` | 一个事务 | `text.applyDelta`（单元格走 `table` 同族 Mutation 的文本分支，备注走 `slide.setNotes` 同族的字符级分支，M3） | `text-commands.ts` / ED-02/ED-10/ED-13/ED-18 |
 | `slide.toggleBold`/`setFontSize`/`setAlignment`/`setBullet` | `{shapeId;range;...}` | `doc.write` | 一个事务 | `run.setProperties`/`paragraph.setProperties` | `text-commands.ts` / ED-03/ED-04 |
 | `slide.insertPicture` | `{containerId;box;blob}` | `doc.write` | 一个事务（含 `media.add`+`shape.insert`） | `media.add`+`shape.insert` | `picture-commands.ts` / ED-07 |
 | `slide.replacePicture`/`crop` | `{shapeId;blob?;rect?}` | `doc.write` | 一个事务 | `media.add?`/`shape.setProperties` | `picture-commands.ts` / ED-07 |
@@ -416,10 +419,10 @@ sequenceDiagram
 | 插件名 / `name` | `@cordexjs/model-slide/editing`（子路径导出） |
 | `inject`（必需） | `['contributions', 'commands']` |
 | `provide` | 无 |
-| 贡献点：提供 | `core.mutation`（46 个，M3 起 47 个，key=`type`，见 §2.6）；`core.command`（73 个，含 4 个 Operation，key=`id`，见 §2.6；14 §1 C-03） |
+| 贡献点：提供 | `core.mutation`（46 个，M3 起 47 个，key=`type`，见 §2.6）；`core.command`（75 个——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit`——含 4 个 Operation，key=`id`，见 §2.6；14 §1 C-03） |
 | 贡献点：消费 | 无 |
 | 事件：发布 / 订阅 | 无独立（命令执行的 `command/*` 由 M-02 `commands` 服务发出） |
-| 配置 schema | `Config{ limits: { maxSlides: 200; maxElementsPerSlide: 1000; maxElementsPerDoc: 20000; softWarnElementsPerDoc: 15000 } }`——默认值为性能保证包络，宿主从部署配置注入、可完全调整（rulings §4.15 Q5）；只被命令层守卫读取 |
+| 配置 schema | `Config{ limits: { maxSlides: 200; maxElementsPerSlide: 1000; maxElementsPerDoc: 20000; softWarnElementsPerDoc: 15000; softWarnSlides: 150 } }`（`softWarnSlides` 2026-09-25 登记：页数软警告 150，PRD 06 SV-08，由部署键 `scale.softWarnPages` 注入，60/17；超过只提示、不拒绝，UI 见 50/04 §10）——默认值为性能保证包络，宿主从部署配置注入、可完全调整（rulings §4.15 Q5）；只被命令层守卫读取 |
 | 生命周期 | `ready` 时批量 `ctx.contribute(core.mutation, m)`/`ctx.contribute(core.command, c)`；`preset-slide-viewer` **不加载本插件**——即使命令管线被绕过调用，`core.mutation`/`core.command` 表里也不存在任何幻灯片写操作（ADR-0015 两道只读保证之一，另一道见 09-04） |
 | Manifest 片段 | `{"name":"@cordexjs/model-slide/editing","provides":[],"contributes":{"core.mutation":["slide.slide.insert","…"],"core.command":["slide.addSlide","…"]},"isomorphism":"iso"}` |
 
@@ -773,7 +776,7 @@ packages/model-slide/
 | `style/cache.ts` | 样式缓存与失效 | `createStyleCache/invalidate` | `@cordexjs/model-core`（`ChangeSet`） | LRU 5000，淘汰需被测试（A29） |
 | `query/selectors.ts` | 只读选择器 | `getSlide/getShape/getMasterOf/getPlaceholderOnLayout/slidesInOrder/shapesOf/childrenOf` | `domain/model`、`@cordexjs/model-core`（`filterLive`/`isTombstoned`） | 结果按 `(order,id)` 排序 + 派生缓存；默认过滤 `_deleted` 墓碑实体（rulings §4.15 Q3） |
 | `query/traverse.ts` | 遍历 | `walkShapes/pathOfShape` | `domain/model` | 深度优先、z 序；跳过墓碑实体及其子树 |
-| `invariants/element-limits.ts` | 规模上限（新增，rulings §4.15 Q5） | `SlideLimits`、`DEFAULT_SLIDE_LIMITS`、`countElements(body)`、`checkLimits(body, delta, limits)` | `domain/model` | 计数读原始表（墓碑计入，母版/版式形状与组合形状均计）；命令层守卫与 `I-LIM1` 共用同一函数；数值由插件 `Config.limits` 注入，不硬编码于调用点 |
+| `invariants/element-limits.ts` | 规模上限（新增，rulings §4.15 Q5） | `SlideLimits`（2026-09-25 增 `softWarnSlides`）、`DEFAULT_SLIDE_LIMITS`、`countElements(body)`、`checkLimits(body, delta, limits)` | `domain/model` | 计数读原始表（墓碑计入，母版/版式形状与组合形状均计）；命令层守卫与 `I-LIM1` 共用同一函数；数值由插件 `Config.limits` 注入，不硬编码于调用点 |
 | `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + I-LIM1 + 基础项；I-LIM1 仅报告不 repair） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
 | `invariants/validate-change-set.ts` | 变更集校验映射 | `validateChangeSet` | `invariants/index.ts` | 默认实现来自 model-core，此处只配置前缀映射 |
 | `shape-kind/shape-kind.point.ts` | 贡献点类型 | `ShapeKindPoint`、`ShapeKindDef<T>` | `domain/model/shape` | 04 §3.3 |
@@ -1046,6 +1049,15 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | 裁决 | 改动位置 | 摘要 |
 |---|---|---|
 | D2 编辑期超上限错误码 | §2.1「规模上限」段、§4/§5 `src/errors.ts`、§10 规模上限守卫行 | `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` 不再有独立点式值（`slide.slide_limit_exceeded`/`slide.element_limit_exceeded` 作废），改为映射到 protocol 的 `document.quota_exceeded{dimension, limit, actual}`（409，命令守卫拒绝、不关连接）；`dimension` 取值 `slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 取值表一致；与 `format.quota_exceeded`（导入，M-04）、`storage.quota_exceeded`（存储，M-08）三码并列 |
+
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| PRD 06 SV-08（页数软警告 150）、50/04 §13 | §3 编辑子插件 `Config.limits`、§5 `element-limits.ts` | 增 `softWarnSlides: 150`，由部署键 `scale.softWarnPages` 注入（60/17） |
+| 50/06 §6–§7、§12（F69） | §2.4、§2.6 | `slide.insertText`/`deleteText` 目标扩到表格单元格与备注（`TextTarget`），写明分段与软换行的 `TextDelta` 表达；登记 `slide/autofit-changed` 事件（发布者 slide-render）与 `slide.applyAutofit` 薄命令 |
+| 50/10 §7.2 | §2.6 | 登记 `slide.duplicateShapes{shapeIds, dx, dy}`（`Mod`+拖动复制，一次命令一个撤销步） |
+| PRD 05 §0.2（§4.19 修订） | §2.6 | 备注编辑 `slide.setNotes` 维持 M3（ED-18 P1，与 PRD 05 一致） |
 
 ## 13. 未决问题
 

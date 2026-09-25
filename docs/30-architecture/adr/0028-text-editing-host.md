@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24 | 依赖：charter v0.1；`40-modules/14` §5.3（M-06/G-5 + Q-3）；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（§4.19：IME e2e 落点按 T-NAMING 改到 `apps/web/e2e/`） | 依赖：charter v0.1；`40-modules/14` §5.3（M-06/G-5 + Q-3）；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q4/Q7
 
 # ADR-0028 文本编辑宿主：单一隐藏 textarea + 自绘光标/选区
 
@@ -44,7 +44,7 @@
 - **范围**：Chrome/Edge/Firefox/Safari（macOS）+ iOS Safari + Android Chrome；输入法：中文拼音（Windows 微软拼音、macOS 简体拼音、搜狗）、日文（Windows IME、macOS 日本語）、韩文；场景：段中输入、行尾换行处输入、跨 run 边界输入、选区替换、候选窗定位跟随缩放/滚动、组合中远端并发插入、撤销粒度。
 - **退出标准**：(1) 全部场景无丢字/重复字；(2) 候选窗与光标像素偏差 ≤ 4 px；(3) IME 组合更新 p95 ≤ 80 ms（NF-01 1.2）；(4) `compositionend` 恰一次事务；(5) VoiceOver/NVDA 可朗读当前段落并跟随光标；(6) 双 Provider 在 spike 场景矩阵上的通过率对比表。
 - **决策规则**：`hidden-textarea` 通过全部退出标准 → 定稿并把 `contenteditable-mirror` 降为兼容备选；若 Safari/iOS 上仅 contenteditable 通过 → 按 UA 在包内选择实现（同一包内接口），不改对外契约；此时是否升级为贡献点按上一条的条件评审。
-- **产出**：`test/e2e/specs/ime/*.spec.ts`（Playwright 合成组合事件 + 真机手测清单）、spike 报告回写本 ADR 状态。
+- **产出**：`apps/web/e2e/ime/*.spec.ts`（2026-09-25 按决策 T-NAMING，原 `test/e2e/specs/ime/` 废止）（Playwright 合成组合事件 + 真机手测清单）、spike 报告回写本 ADR 状态。
 
 ## 修订 2026-09-24：竖排 / RTL 编辑时点、IME 与渲染介质（rulings §4.15 Q4/Q7）
 

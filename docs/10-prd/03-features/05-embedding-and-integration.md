@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 功能域 05：嵌入与集成（面向集成方）
 
@@ -86,7 +86,7 @@ flowchart LR
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`FormatCodec`、`Unit`、`unit/*` 事件
 - 验收标准：
   - 输入：`ArrayBuffer`/`Blob`/`File`/`ReadableStream`/URL（带自定义 `fetch` 与请求头回调）；输出：`exportPptx(): Promise<Blob>`、`exportSnapshot(): Snapshot`、`exportImage(pageIndex, options)`。
-  - 保存策略由集成方选择：(a) 回调式——SDK 在 dirty + 触发条件（Mod+S / 自动保存 / 主动调用）时调用 `onSave(bytes | snapshot)`；(b) 协同式——由服务端快照负责，集成方不处理字节（CO-01）。
+  - 保存策略由集成方选择：(a) 回调式——SDK 在 dirty + 触发条件（Mod+S / 自动保存 / 主动调用）时调用 `onSave(bytes | snapshot)`；(b) 协同式——由服务端快照负责，集成方不处理字节（CO-01）。参考应用 `apps/web` 自 M2 起只走 (b)：文档内容以协同快照为唯一事实源，不设 pptx 内容版本端点（rulings §4.19 D-M2-CONTENT）。
   - `Snapshot` 可作为「热保存」格式（比 pptx 导出快 ≥ 5 倍），带 `schemaVersion`，旧快照打开时自动迁移并上报 `unit/migrated`。
   - 打开进度、dirty 状态、保存结果均有事件（EM-05）。
 
@@ -111,10 +111,10 @@ flowchart TB
 
 ### EM-03 鉴权与身份对接
 
-- 优先级：P0 | 目标里程碑：M3（OIDC；单人模式 M2 仅需身份信息）/ M4（集成方签名 JWT、API Key） | 依赖能力：`protocol` 鉴权握手、`permissions`、`collab-transport-ws`
+- 优先级：P0 | 目标里程碑：M2（OIDC 登录与一方 Ticket，随协同后端提前，rulings §4.19 D-M2-CONTENT；单人嵌入模式只需身份信息）/ M3（服务端文档权限细化：按人分享、撤销 ≤ 2 s）/ M4（集成方签名 JWT、API Key） | 依赖能力：`protocol` 鉴权握手、`permissions`、`collab-transport-ws`
 - 用户故事：作为集成方，我已有自己的登录体系（任意标准 OIDC IdP），我希望服务端直接信任它，不要求我迁移用户或让服务端保存密码。
 - 验收标准（rulings §4.15 Q6）：
-  - 客户端：集成方提供 `getToken(): Promise<string>` 回调（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4）。M3 只返回 OIDC 登录后换取的一方 Ticket；ADR-0029）与 `user: { id, displayName, avatarUrl?, color? }`；SDK 在握手与刷新时调用；不持久化令牌。
+  - 客户端：集成方提供 `getToken(): Promise<string>` 回调（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4）。M2–M3 只返回 OIDC 登录后换取的一方 Ticket；ADR-0029）与 `user: { id, displayName, avatarUrl?, color? }`；SDK 在握手与刷新时调用；不持久化令牌。
   - 服务端 M1–M3：`apps/server` Auth 模块**只认 OIDC**（可接任意 OIDC IdP；docker-compose 可选内置 **Casdoor**，国内 IM 登录经 Casdoor 代理）；服务端不持有密码与凭据；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
   - 服务端 M4：新增「集成方签名 JWT」与「API Key」两种模式（JWKS 验签；首次出现的主体 JIT 建影子用户）；JWT claims 约定（草案）：`sub`、`doc`、`caps[]`（能力位）、`exp`（单组织，无租户声明）。
   - 权限来源：M3 为服务端文档权限（章程 D12，撤销 ≤ 2 s 通过推送实现，CO-05）；M4 起可配置为从 JWT claims 读或回调集成方权限服务（缓存 ≤ 60 s）。
@@ -132,11 +132,11 @@ flowchart LR
     shadow["首次出现的主体 JIT 建影子用户"]
     perm4["权限来源可配置为读 JWT claims 或回调集成方权限服务，缓存 ≤ 60 s"]
   end
-  subgraph m3["M1–M3 服务端"]
+  subgraph m3["M2–M3 服务端：OIDC 与 Ticket 自 M2，权限细化 M3"]
     idp["任意 OIDC IdP，compose 可选内置 Casdoor"]
     auth["apps/server Auth：只认 OIDC，不持有密码；用户以 issuer 与 sub 标识，首次登录 JIT 建号"]
     ticket["getToken 回调返回一方 Ticket：60 s、单次"]
-    perm["权限来源：服务端文档权限，撤销 ≤ 2 s 推送"]
+    perm["权限来源：服务端文档权限；M2 建档者为 owner，M3 起分享与撤销 ≤ 2 s 推送"]
   end
   subgraph single["单人模式，无服务端"]
     caps["集成方直接传入能力位，客户端管线 fail-closed"]
@@ -148,12 +148,12 @@ flowchart LR
   jwt --> perm4
 ```
 
-怎么读：三个子图分别是单人模式、M1–M3 服务端与 M4 新增的来源；箭头为身份到凭据、身份到权限的推导方向。注册策略为部署级开关 `auth.selfSignup`（默认关），分享链接始终要求登录。
+怎么读：三个子图分别是单人模式、M2–M3 服务端（M1 无服务端）与 M4 新增的来源；箭头为身份到凭据、身份到权限的推导方向。注册策略为部署级开关 `auth.selfSignup`（默认关），分享链接始终要求登录。
 依据：本条 EM-03；SV-06；rulings §4.15 Q6。
 
 ### EM-04 存储对接
 
-- 优先级：P0 | 目标里程碑：M2（字节回调）/ M3（服务端 Provider） | 依赖能力：`server-storage` Definition + Provider（S3 兼容，compose 默认 SeaweedFS / 本地）、资源上传通道（CO-12）
+- 优先级：P0 | 目标里程碑：M2（字节回调；参考应用的服务端 `blobStore` 本地 Provider 与资源上传通道随协同后端提前，rulings §4.19 D-M2-CONTENT）/ M3（S3 兼容 Provider，compose 默认 SeaweedFS） | 依赖能力：`server-storage` Definition + Provider（S3 兼容，compose 默认 SeaweedFS / 本地）、资源上传通道（CO-12）
 - 验收标准：
   - 前端：文档字节来源与去向由集成方掌握（EM-02）；图片/媒体插入时的二进制走「资源上传回调」`uploadAsset(file) → { url | assetId }`（协同模式必需，单人模式可选：不提供则内嵌到 pptx）。
   - 服务端：`blobStore` 服务的 Provider 座可替换（任意 S3 兼容服务——自托管 compose 默认 SeaweedFS、本地文件系统、集成方自定义），接口含 put/get/head/delete/presign；切换 Provider 只改配置并通过 `runBlobStoreConformance`。
@@ -202,7 +202,7 @@ flowchart LR
   - 字体：UI 字体族可配置；画布内容字体不受 UI 主题影响（内容保真优先）。
   - 图标可替换（图标集作为 token 引用，P1）。
   - z-index：编辑器所有浮层使用 token 化层级，集成方可整体平移以适配自家浮层；浮层默认渲染到编辑器容器内（可选 `portal` 到 body）。
-  - 样式隔离：所有类名带前缀；P1 提供 Shadow DOM 模式。
+  - 样式隔离：Cordex 自有类名一律带 `cordex-` 前缀、自有 data 属性一律为 `data-cordex-*`，嵌入样式只作用于编辑器根容器 `[data-cordex-root]` 之内、不外溢到宿主；shadcn/ui 复制件使用的 Tailwind 工具类不加前缀（ADR-0017 已接受：复制模型、变量裸名；落地见 `50-frontend/09` §10）；P1 提供 Shadow DOM 模式。
 
 ### EM-07 按需加载与体积
 
@@ -340,7 +340,7 @@ flowchart LR
 ### EM-17 参考集成与快速开始
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`apps/web`
-- 验收标准：`apps/web` 演示登录、**开始页（AS-01：新建 / 模板 / 最近 / 指南）、账户菜单（AS-06）**、文档列表、打开/编辑/导出、（M3）分享与协同；`examples/embed-react`、`examples/embed-vanilla`（形态 B 最小示例）、`examples/headless-node`；每个示例 ≤ 200 行且 CI 可运行。
+- 验收标准：`apps/web` 演示登录、**开始页（AS-01：新建 / 模板 / 最近 / 指南）、账户菜单（AS-06）**、文档列表、打开/编辑/导出（M2 起经协同网关持久化，rulings §4.19 D-M2-CONTENT）、（M3）分享与多人协同；`examples/embed-react`、`examples/embed-vanilla`（形态 B 最小示例）、`examples/headless-node`；每个示例 ≤ 200 行且 CI 可运行。
 
 ### EM-18 集成检查清单（文档交付物）
 

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
 
 # 06 布局与渲染引擎（限界上下文 BC-10 布局与度量引擎、BC-11 渲染管线与目标）
 
@@ -103,6 +103,8 @@ flowchart LR
 
 ## 2. 领域模型
 
+> **事实源（rulings §4.19）**：帧管线、命中链、字体供给、媒体与降级、缩略图、画布可访问树等渲染运行时行为以 [50/05](../50-frontend/05-rendering-and-thumbnails.md) 为准，文本编辑宿主与 IME 以 [50/06](../50-frontend/06-text-editing-and-ime.md) 为准；本节保留契约签名（§2.5 Definition 本体）与文件落点，冲突以 50 为准。
+>
 > 本节跨 `engine-layout`/`engine-render`/`render-dom` 三包统一建模（模块粒度，非包粒度）；每行标注所在包与文件。这里的「聚合」是运行时派生结构而非持久化实体——权威事实源始终是 `model-core` 的 `DocumentStore`（BC-05），本模块的全部结构在文档重新打开或 `SceneProvider.build()` 重新调用时可从零重建，不参与 CRDT 合并（协同层面的并发只发生在 BC-05/09；本节结构是单进程、每次 `build`/`layoutTextBody` 调用后即重新生成的派生视图）。
 
 ### 2.1 场景图与视口聚合
@@ -110,7 +112,7 @@ flowchart LR
 | 名称 | 归类 | 关键字段 | 不变量 | 所在文件（包） |
 |---|---|---|---|---|
 | `Scene` | 聚合根（每次 `SceneProvider.build()` 调用的返回值，UnitScope + ViewDescriptor 定位） | `id`、`size:{w,h:Emu}`、`nodes: SceneNode[]`、`background?: SceneNode` | 不可变值：`build()` 每次返回全新引用；`nodes[].id` 在同一 `Scene` 内唯一（by construction，运行时用 `Set` 断言） | `engine-render/src/domain/contracts/scene.ts` |
-| `SceneNode` | 实体（属于某个 `Scene`，可嵌套 `children`） | `id: NodeId`、`kind: string`、`bbox: Rect<Emu>`、`transform?: Transform`、`zIndex: number`、`children?: SceneNode[]`、`data: unknown`、`revision: number` | `kind` 引擎不解释（只做查表 key 的一部分）；`revision` 单调递增，`diff()` 用它判断节点是否需要重新 `update()` | `engine-render/src/domain/contracts/scene.ts` |
+| `SceneNode` | 实体（属于某个 `Scene`，可嵌套 `children`） | `id: NodeId`、`kind: string`、`bbox: Rect<Emu>`、`transform?: Transform`、`zIndex: number`、`children?: SceneNode[]`、`data: unknown`、`revision: number`、`a11y?: A11yDescriptor`（2026-09-25 登记的类型盲扩展：`{ role; name; position; order:{z, placeholder?}; missingAlt; decorative }`，`decorative` 为真时不入可访问树、不提示缺替代文字；字段与派生规则以 50/05 §11 为准，render-dom `a11y-mirror.ts` 消费） | `kind` 引擎不解释（只做查表 key 的一部分）；`revision` 单调递增，`diff()` 用它判断节点是否需要重新 `update()` | `engine-render/src/domain/contracts/scene.ts` |
 | `Viewport` | 聚合根（UnitScope 内，一次 `attach()` 一个实例，非持久化） | `zoom: ZoomFactor`、`pan: Point`、`mode: 'single'\|'continuous'\|'grid'\|'show'`、`page?: NodeId` | `zoom` 恒 clamp 在 `config.zoom.min..max`；`mode:'show'` 时 `pan`/`zoom` 由 fit-to-screen 计算覆盖用户手动值 | `engine-render/src/domain/contracts/viewport.ts`（类型 + 纯函数）、`application/services/viewport-state.ts`（有状态实例） |
 | `DirtySet` | 聚合根（`SceneProvider.diff()` 的返回值，一帧内可被多次 `invalidate()` 合并） | `nodeIds: ReadonlySet<NodeId>`、`full: boolean`、`changed?: ReadonlyMap<NodeId, PathKey[]>` | `full:true` 时语义为「该 `Scene` 全部节点」，消费方必须整页重绘；`merge(a,b)` 是幂等、可结合的纯函数（并集 `nodeIds`、`full` 取或、`changed` 逐键并集） | `engine-render/src/domain/contracts/dirty-set.ts` |
 | `HitTestIndex` | 派生索引（由某一版本的 `Scene` 派生，只读） | 按 `zIndex` 降序排列的节点引用 + 预计算的世界坐标逆变换 | 生命周期绑定其所属 `Scene` 版本；`Scene` 更新后旧索引失效，禁止对失效索引查询（`hitTest()` 内部断言） | `engine-render/src/domain/contracts/hit-test.ts`（类型）；由 `render.service.ts` 在每次 `paint()` 后重建 |
@@ -128,7 +130,7 @@ flowchart LR
 | `LineBox` | `{ y: Px, ascent, descent, runs: RunBox[] }`；`RunBox{ x: Px, text, attrs }` | zod | `engine-layout/src/domain/contracts/text-layout.ts` |
 | `CaretMap` | `(paragraphIndex, offset) ↔ (lineIndex, x: Px)` 双向查表结构 | 无（运行时结构，非线上数据） | `engine-layout/src/domain/contracts/text-layout.ts` |
 | `ZoomFactor` | `Brand<number, 'ZoomFactor'>`，恒正 | zod：`0 < value`，业务上再由 `config.zoom.{min,max}` clamp | `engine-render/src/domain/contracts/viewport.ts` |
-| `HitResult` | `{ nodeId: NodeId, region: 'body'\|'handle'\|'text', local: Point }` | zod | `engine-render/src/domain/contracts/hit-test.ts` |
+| `HitResult` | 两种形状合并为一个判别联合（2026-09-25，50/05 §5.1）：内容命中 `{ kind: 'node'; nodeId: NodeId; region: 'body'\|'text'; local: Point }`；覆盖层接管 `{ kind: 'handle'; nodeId; handle: 'resize-n'…'rotate'\|'adjust'; index? } \| { kind: 'pin'; threadId } \| { kind: 'presence-label'; clientId }`；原 `region:'handle'` 并入 `kind:'handle'` | zod | `engine-render/src/domain/contracts/hit-test.ts` |
 
 ### 2.3 纯函数
 
@@ -159,12 +161,12 @@ flowchart LR
 |---|---|---|---|---|
 | `layout/measurer-changed` | emit | `(measurerId: string)` | `engine-layout/src/application/services/layout.service.ts` | `render-dom` 度量缓存失效；`slide-render` 的已缓存 `TextLayout` 标脏重排 |
 | `render/first-paint` | emit | `(unitId, stats: { ms })` | `engine-render/src/application/services/render.service.ts` | 首屏计时遥测（NF-01 D50/D200 门禁） |
-| `render/frame` | emit | `(unitId, stats: { pages, elements, ms, pendingDirty })`（进程内消费，公开订阅按 ≥ 50 ms 合并；`render/painted` 已弃用，见 §12）；`pendingDirty` = 本帧提交后仍待绘的脏节点数（字体到达后标脏的重排、惰性块到达后的重绘都会使它 > 0），`/render` 页 ready 判据取「所请求页全部 `render/page-mounted` ∧ 字体请求全部结算 ∧ 此后出现一次 `pendingDirty === 0` 的 `render/frame`」（rulings §4.18 FE-09，由 M-11 `render-page.spec.ts` 断言） | `engine-render/src/application/services/frame-scheduler.ts` | 渲染统计面板；`slide-render` 缩略图去抖；`perf/frame` 遥测事件由其派生（**`render/frame`/`perf/frame` 两层区分已获总编排正式追认**，14-cross-module-review.md §1 C-25：进程内业务事件与遥测事件并存非改名，`00-charter/rulings-2026-09-14.md` §4.11 已补注确认，不再是本文档单方立场） |
+| `render/frame` | emit | `(unitId, stats: { pages, elementsUpdated, ms, overrun, pendingDirty })`（2026-09-25 按决策 INC-08：`elements` 改名 `elementsUpdated`、补 `overrun` = 本帧耗时是否超帧预算；与遥测事件 `perf/frame{frameMs, interaction, pages, elementsUpdated, overrun}` 并存、非改名）（进程内消费，公开订阅按 ≥ 50 ms 合并；`render/painted` 已弃用，见 §12）；`pendingDirty` = 本帧提交后仍待绘的脏节点数（字体到达后标脏的重排、惰性块到达后的重绘都会使它 > 0），`/render` 页 ready 判据取「所请求页全部 `render/page-mounted` ∧ 字体请求全部结算 ∧ 此后出现一次 `pendingDirty === 0` 的 `render/frame`」（rulings §4.18 FE-09，由 M-11 `render-page.spec.ts` 断言） | `engine-render/src/application/services/frame-scheduler.ts` | 渲染统计面板；`slide-render` 缩略图去抖；`perf/frame` 遥测事件由其派生（**`render/frame`/`perf/frame` 两层区分已获总编排正式追认**，14-cross-module-review.md §1 C-25：进程内业务事件与遥测事件并存非改名，`00-charter/rulings-2026-09-14.md` §4.11 已补注确认，不再是本文档单方立场） |
 | `render/element-failed` | emit | `(unitId, nodeId, kind, code)` | `render-dom/src/infrastructure/paint/painter.ts` | `errors.report`、审计、UI 错误提示（A11 反制测试的断言点） |
-| `render/element-degraded` | emit | `(unitId, nodeId, kind, reason)` | `render-dom/src/infrastructure/paint/painter.ts`（本模块内仅媒体解码失败等通用原因；`chart-unavailable` 等文档类型相关原因由 M-07 发出） | UI 提示、遥测 |
-| `render/font-fallback` | emit | `(unitId, requested, fallback, scope)` | `render-dom/src/infrastructure/fonts/font-face-loader.ts` | 诊断面板、字体许可审计 |
+| `render/element-degraded` | emit | `(unitId, nodeId, kind, reason)`；本模块发出的通用 `reason` 为 `media-decode-failed`（解码失败）与 `media-unavailable`（取回累计 60 s 仍失败）（2026-09-25 登记，50/05 §8.2、§9） | `render-dom/src/infrastructure/paint/painter.ts`、`media/media-resolver.ts`（`chart-unavailable` 等文档类型相关原因由 M-07 发出） | UI 提示、遥测 |
+| `render/font-fallback` | emit | `(unitId, requested, fallback, scope, reason)`，`reason ∈ font-license \| substitute \| missing \| limit \| load-failed \| timeout`（2026-09-25 登记，50/05 §7.2；同一 Unit 同一 `(requested, reason)` 只上报一次，只约束遥测） | `render-dom/src/infrastructure/fonts/font-face-loader.ts` | 诊断面板、字体许可审计 |
 | `render/page-mounted` / `render/page-unmounted` | emit | `(unitId, pageId)` | `render-dom/src/infrastructure/target/dom-render-target.ts` | 缩略图挂载策略、资源清理 |
-| `perf/frame`（遥测事件，非 `Events` 声明式；经 `telemetry.defineTelemetryEvents` 注册） | span/event | 由 `render/frame` 抽样派生 | `engine-render/src/application/services/render.service.ts`（`ctx.telemetry.span('render.frame', …)`） | 遥测后端（10 号文档） |
+| `perf/frame`（遥测事件，非 `Events` 声明式；经 `telemetry.defineTelemetryEvents` 注册） | span/event | `{ frameMs, interaction, pages, elementsUpdated, overrun }`，只取交互期间的帧；交互态由 `RenderService.noteInteraction(kind)` 标记（`kind ∈ drag \| zoom \| scroll \| type`，2026-09-25 登记）；派生与抽样口径以 [50/15 §8](../50-frontend/15-events-errors-and-telemetry.md) 为准，默认关 | `engine-render/src/application/services/render.service.ts`（`ctx.telemetry.span('render.frame', …)`） | 遥测后端（10 号文档） |
 
 `TextEditIntent` 不是 cordis `Events`：它经调用方在 `attach()` 时传入的回调 `callbacks.onEditIntent`（IoC）交付，消费方 `slide-ui`，理由见 §1.1 第 5 条与 §13 Q-2（已结案），避免 `render-dom` 反向依赖 UI 层。
 
@@ -186,7 +188,7 @@ interface TargetHandle { readonly pageId: NodeId; setTransform(zoom: number, pan
 
 契约套件 `runRenderTargetConformance(factory: () => RenderTarget)`（`engine-render/src/testing/index.ts`），覆盖：重复 `paint` 同一 `dirty` 不重复触发 `ElementRenderer.render`（只触发 `update`）；`dirty.full` 时全部可见节点被访问；空场景 `hitTest` 返回 `null`；`dispose()` 后无残留 effect（配合 `@cordexjs/kernel/testing` 的 `assertNoLiveEffects`）。`render-dom` 的 `__tests__` **必须**实例化本套件（`scan-manifest` 规则 (e)，原名 `provider-runs-conformance`，rulings §4.18 GV-15）。
 
-`render.target` 契约的介质中立性验证（rulings §4.15 Q4）：`'canvas'` 只是预留座位，本模块不交付生产 canvas Provider；**M3 末**在 `engine-render/src/__tests__/canvas-target-contract.test.ts` 用一个最小 canvas Provider（仅画矩形/路径/文本三类图元，不追求保真）跑同一套 `runRenderTargetConformance`，证明契约不隐含 DOM 假设——这是 PRD 04-plugin-sdk「`render.target`：dom；canvas 预留，Stable 前须通过最小 canvas Provider 契约」的验收点。`toImage?` 在 `render-dom` 中的实现固定为**主线程**（游离 DOM → SVG 序列化 → `Image` → `Canvas`），不提供 Worker/OffscreenCanvas 版本（SVG 在 Worker 内无法解码；不挂 DOM 的 canvas 栅格化等于第二套渲染器，违背 ADR-0026），大批量导出由调用方主线程分片或转 `server-png`。
+`render.target` 契约的介质中立性验证（rulings §4.15 Q4）：`'canvas'` 只是预留座位，本模块不交付生产 canvas Provider；**M3 末**在 `engine-render/src/__tests__/conformance-canvas-target.test.ts`（2026-09-25 由 `canvas-target-contract.test.ts` 改名，符合 `conformance*` 前缀规则，70/02 §14 第 6 条） 用一个最小 canvas Provider（仅画矩形/路径/文本三类图元，不追求保真）跑同一套 `runRenderTargetConformance`，证明契约不隐含 DOM 假设——这是 PRD 04-plugin-sdk「`render.target`：dom；canvas 预留，Stable 前须通过最小 canvas Provider 契约」的验收点。`toImage?` 在 `render-dom` 中的实现固定为**主线程**（游离 DOM → SVG 序列化 → `Image` → `Canvas`），不提供 Worker/OffscreenCanvas 版本（SVG 在 Worker 内无法解码；不挂 DOM 的 canvas 栅格化等于第二套渲染器，违背 ADR-0026），大批量导出由调用方主线程分片或转 `server-png`。
 
 **`SceneProvider`（Definition；贡献点 `render.scene`，key = `documentType`；`engine-render/src/domain/contracts/scene-provider.ts`；本模块无默认实现，由 M-07 `slide-render` 实现 `SceneProvider('slide')`）**
 
@@ -242,21 +244,7 @@ interface TextMeasurer {
 
 契约套件 `runTextMeasurerConformance(factory: () => TextMeasurer)`（`engine-layout/src/testing/index.ts`），覆盖：空字符串 `width:0`；单调性（更长文本 `width` 不减）；`ascent+descent > 0`；`supports` 对未知字体族返回 `false` 而非抛错。`render-dom` 与 M-09 的 `node-font` Provider 都**必须**实例化本套件。
 
-**`TextInputHost`（本包内部可插拔点，非跨包贡献点；`render-dom/src/infrastructure/text-host/text-input-host.ts`；默认 Provider `'hidden-textarea'`，备选 `'contenteditable-mirror'`，ADR-0028 v0.2 补充，spike 后定稿，R-M2-1）**
-
-```ts
-interface TextInputHostProvider {
-  readonly id: 'hidden-textarea' | 'contenteditable-mirror'
-  attach(host: HTMLElement, opts: TextInputHostOptions): TextInputHostHandle
-}
-interface TextInputHostHandle {
-  focus(caret: CaretMap, position: StablePosition): void
-  onIntent(cb: (intent: TextEditIntent) => void): () => void
-  dispose(): void
-}
-```
-
-不经 `ctx.contribute` 的理由：两个候选 Provider 都是 DOM 相关实现细节（与渲染介质无关——IME 归因是「隐藏 textarea」而非 SVG/canvas 之选），选择权只在 `render-dom` 自己的 `config.textHost.provider`。**已结案（14 §5.3 M-06/G-5 + Q-3，ADR-0028 回写为包内可插拔点）**：维持包内可插拔点；**升级为 `render.textInputHost` 贡献点的条件**（须同时满足前两条之一与第三条）：① R-M2-1 spike 判定 `'hidden-textarea'` 方案不可行（IME/无障碍/移动端任一硬伤无法在包内修复）；或 ② 出现需跨包可发现的第三方/框架特定文本宿主实现；③ 升级时同步回写章程 §5.5 贡献点清单与 ADR-0028，并为其补 `runTextInputHostConformance`。M0–M2 不登记该贡献点 id。
+**`TextInputHost`（render-dom 包内可插拔点，非跨包贡献点）**：2026-09-25 起接口签名、`TextEditIntent` 形状、IME 策略与升级为 `render.textInputHost` 贡献点的条件移交 [50/06](../50-frontend/06-text-editing-and-ime.md) §3–§4（rulings §4.19，referencePlan；原 §2.6 图 2-3 一并移交）；本文只保留落点：默认 Provider `'hidden-textarea'`（`render-dom/src/infrastructure/text-host/text-input-host.ts`）、备选 `'contenteditable-mirror'`（同目录，R-M2-1 spike 后定稿），选择权在 `render-dom` 的 `config.textHost.provider`；回调名 `callbacks.onEditIntent`（消费方 slide-ui，§13 Q-2 已结案）。
 
 **图 2-1 Definition 与 Provider 关系**
 
@@ -332,29 +320,7 @@ flowchart LR
 
 怎么读：`BC-12`（`slide-render`）把 `ChangeSet.touched` 转换成 `DirtySet` 推给本模块；`flush()` 内部按可见性排序后才做布局度量与逐元素绘制；覆盖层始终独立于内容脏区刷新，不会因选区/在场变化而触发整页重绘。
 
-**图 2-3 文本编辑意图回路时序**
-
-```mermaid
-sequenceDiagram
-  participant ui as slide-ui 等 UI 层 消费方
-  participant rs as engine-render RenderService
-  participant host as render-dom TextInputHost
-  participant cmd as M-02 commands
-  participant sr as slide-render BC-12
-  ui->>rs: attach targetId container callbacks.onEditIntent
-  Note over host: 隐藏 textarea 收到 beforeinput keydown composition 事件
-  host->>host: 归约为中性 TextEditIntent 不含 Mutation 知识
-  host-->>ui: callbacks.onEditIntent 交付意图 IoC
-  ui->>cmd: commands.execute 对应文本命令
-  cmd-->>sr: store/transaction 经 Store 通知
-  sr->>sr: SceneProvider.diff 得到 DirtySet
-  sr->>rs: invalidate dirty
-  rs->>rs: 下一帧 flush 并 target.paint
-```
-
-怎么读：编辑意图从 `render-dom` 回到 UI 层走的是 `attach()` 时注入的回调而不是 cordis 事件，因此本模块不反向依赖 UI；把意图翻译成 Mutation 并调用命令的是消费方 `slide-ui`，重绘则经 BC-12 的 `diff → invalidate` 回到本模块的帧调度。
-
-依据：§1.1 不做什么第 5 条；§2.4 末段；§2.5 `TextInputHost`；§13 Q-2 结案。
+**图 2-3 文本编辑意图回路时序**：2026-09-25 移交 [50/06](../50-frontend/06-text-editing-and-ime.md) §3（rulings §4.19，referencePlan），本文不再保留副本；回路要点不变：render-dom `TextInputHost` 只产出中性 `TextEditIntent`，经 `callbacks.onEditIntent` 交 slide-ui 执行 `slide.insertText`/`deleteText`（M-03），本模块对文档类型无知。
 
 ## 3. cordis 插件定义
 
@@ -386,7 +352,7 @@ sequenceDiagram
 | 贡献点：消费 | 同上四个（自身定义、自身在 `renderer-table.ts`/`render.service.ts` 中查表消费） |
 | 事件：发布 | `render/first-paint`、`render/frame`、`render/element-failed`、`render/element-degraded`、`render/font-fallback`、`render/page-mounted`、`render/page-unmounted`（`Events` 声明处；实际 `ctx.emit` 调用点分布在本包与 `render-dom`，见 §2.4 备注） |
 | 事件：订阅 | 无（不订阅 `store/transaction`；`invalidate(dirty)` 由调用方主动推送，§1.3/§4.2 第 4 条边界） |
-| 配置 schema | `Config{ frameBudgetMs: 8; overscanPages: 1; unmountDelayMs: 5000; zoom: { min: 0.1; max: 8 }; styleCache: { maxEntriesFactor: 2 }; mediaCache: { maxBytes: 256 MiB } }` |
+| 配置 schema | `Config{ frameBudgetMs: 8; overscanPages: 1; unmountDelayMs: 5000; zoom: { min: 0.1; max: 8 }; styleCache: { maxEntriesFactor: 2 }; mediaCache: { maxBytes: 256 MiB } }`（`zoom` 为引擎 clamp；产品缩放范围 10–400% 由 preset 默认配置下发，50/05 §4.1，§13 Q-7 结案） |
 | 生命周期 | ready = `RenderService` 在 UnitScope 隔离 `ctx` 下挂载完成（尚未 `attach` 任何 target）；dispose = 卸载全部已挂载 `TargetHandle` + 清空两处缓存（`ctx.effect` 拥有）；**UnitScope 内**；PENDING：`layout` 未就位时 PENDING |
 | Manifest 片段 | `{ "id": "@cordexjs/engine-render", "provides": ["render"], "injects": ["contributions", "layout"], "points": ["render.scene", "render.target", "render.element", "render.overlay"], "unitScoped": true }` |
 
@@ -401,7 +367,7 @@ sequenceDiagram
 | 贡献点：消费 | `render.element`（`painter.ts` 按 `` `dom:${kind}` `` 查表以决定用哪个渲染器） |
 | 事件：发布 | `render/element-failed`、`render/element-degraded`、`render/font-fallback`、`render/page-mounted`、`render/page-unmounted`（`Events` 声明在 `engine-render`，`ctx.emit` 调用点在本包，模式同 M-02 的 `store/transaction`） |
 | 事件：订阅 | 无（不监听 `store/transaction`；被动响应 `target.paint(scene, dirty)` 调用） |
-| 配置 schema | `Config{ svgPrecision: 2; pixelRatioCap: 3; textHost: { provider: 'hidden-textarea', imeCandidateOffsetPx: 2 }; overlays: { remoteCursorFadeMs: 3000 } }` |
+| 配置 schema | `Config{ svgPrecision: 2; pixelRatioCap: 3; textHost: { provider: 'hidden-textarea', imeCandidateOffsetPx: 2 }; overlays: { remoteCursorFadeMs: 3000 }; fonts: { firstPaintWaitMs: 100; loadTimeoutMs: 3000 } }`（`fonts` 段 2026-09-25 登记：首帧最多等主题字体 100 ms、单次字体加载超时 3000 ms 即视为已结算并按回退链重排，50/05 §7.3） |
 | 生命周期 | ready = 三类贡献条目注册完成（尚未 `mount` 任何容器；真正 DOM 操作发生在 `RenderTarget.mount()` 被调用时）；dispose = 卸载全部已挂载 Surface + 撤销贡献（`ctx.effect` 拥有 `ResizeObserver`/字体加载等）；**UnitScope 内**；PENDING：`render` 或 `layout` 未就位时 PENDING |
 | Manifest 片段 | `{ "id": "@cordexjs/render-dom", "provides": [], "injects": ["render", "layout"], "implements": ["render.target:dom", "layout.measurer:canvas"], "unitScoped": true }` |
 
@@ -489,7 +455,7 @@ packages/engine-layout/src/
 │   └── units.ts                    Emu↔Px（dpi）、Pt↔Px 换算纯函数
 ├── application/
 │   └── services/
-│       └── layout.service.ts       LayoutService('layout')：layoutTextBody/presetGeometry/customGeometry/fonts/measurer() 门面；查表取当前 measurer 贡献；驱动 autofit 迭代；emit layout/measurer-changed
+│       └── layout.service.ts       LayoutService('layout')：layoutTextBody/presetGeometry/customGeometry/fonts/measurer() 门面；只读查询 fontsSettled(pageIds)（2026-09-25 登记，50/05 §7.3 第 6 条）；查表取当前 measurer 贡献；驱动 autofit 迭代；emit layout/measurer-changed
 ├── infrastructure/
 │   └── cache/
 │       ├── measure-cache.ts        (fontKey, word) → MeasureResult，LRU 50k 条（A29 反制测试对象之一）
@@ -526,7 +492,7 @@ packages/engine-render/src/
 │       └── hit-geometry.ts         pointInRotatedRect、pointInPolygon（Path 采样命中）
 ├── application/
 │   └── services/
-│       ├── render.service.ts       RenderService('render')：attach/detach/setView/invalidate(dirty)/requestPaint()/hitTest/snapshotImage；编排 §2.6 九阶段
+│       ├── render.service.ts       RenderService('render')：attach/detach/setView/invalidate(dirty)/requestPaint()/hitTest/snapshotImage/noteInteraction(kind)（2026-09-25 登记，50/05 §2）；编排 §2.6 九阶段
 │       ├── frame-scheduler.ts      合并 DirtySet（调 mergeDirtySet）、按 Viewport 优先级时间切片、8ms 预算超限顺延
 │       └── viewport-state.ts       持有当前 Viewport 值、setZoom/setPan/setMode 变更入口、emit 内部变更供 frame-scheduler 消费
 ├── infrastructure/
@@ -625,7 +591,7 @@ packages/render-dom/src/
 | `domain/fonts/fallback-table.ts` | 字体回退表 | `DEFAULT_FALLBACK_TABLE`、`mergeFallbackTable()` | 无 | 07 §5.3 数据 |
 | `domain/fonts/font-key.ts` | 字体键规范化 | `normalizeFontKey()` | 无 | — |
 | `domain/units.ts` | 单位换算 | `emuToPx()`/`pxToEmu()`/`ptToPx()` | `@cordexjs/shared` | dpi 由 Config 提供 |
-| `application/services/layout.service.ts` | 布局应用服务 | `LayoutService`（`'layout'`） | `@cordexjs/kernel` | 查表当前 `measurer` 贡献；驱动 autofit |
+| `application/services/layout.service.ts` | 布局应用服务 | `LayoutService`（`'layout'`） | `@cordexjs/kernel` | 查表当前 `measurer` 贡献；驱动 autofit；按页记录字体请求集合并提供只读查询 `fontsSettled(pageIds): boolean`（这些页记录的每个字体请求都已到达、超时或失败即为真；`/render` ready 判据读取，50/05 §7.3 第 6 条、50/12 §11.5；2026-09-25 登记） |
 | `infrastructure/cache/measure-cache.ts` | 度量结果缓存 | `MeasureCache` | 无 | LRU 50k（A29） |
 | `infrastructure/cache/layout-result-cache.ts` | 布局结果缓存 | `LayoutResultCache` | 无 | 内容哈希键 LRU |
 | `testing/index.ts` | 测试子路径聚合 | `FixedWidthMeasurer`、`runTextMeasurerConformance()` | `@cordexjs/kernel/testing`（类型） | `./testing` |
@@ -653,7 +619,7 @@ packages/render-dom/src/
 | `domain/geometry/transform.ts` | 变换合成/求逆 | `composeTransform()`、`invertTransform()` | 无 | — |
 | `domain/geometry/bbox.ts` | 包围盒运算 | `rotatedBBox()` | 无 | — |
 | `domain/geometry/hit-geometry.ts` | 命中几何 | `pointInRotatedRect()`、`pointInPolygon()` | 无 | — |
-| `application/services/render.service.ts` | 渲染应用服务 | `RenderService`（`'render'`） | `@cordexjs/kernel` | 编排 §2.6 九阶段 |
+| `application/services/render.service.ts` | 渲染应用服务 | `RenderService`（`'render'`） | `@cordexjs/kernel` | 编排 §2.6 九阶段；`noteInteraction(kind: 'drag' \| 'zoom' \| 'scroll' \| 'type')` 标记交互态供 `perf/frame` 取帧（ui-core 拖拽与键入管线调用，Viewport 缩放与滚动自标，2026-09-25 登记） |
 | `application/services/frame-scheduler.ts` | 帧调度编排 | `FrameScheduler` | 无（引用本包 `infrastructure/scheduler`） | 合并/切片/优先级 |
 | `application/services/viewport-state.ts` | 视口状态服务 | `ViewportState` | 无 | setZoom/setPan/setMode |
 | `infrastructure/cache/style-cache.ts` | 样式缓存 | `StyleCache` | 无 | A29 之一 |
@@ -719,6 +685,7 @@ interface Scene { id: string; size: { w: Emu; h: Emu }; nodes: SceneNode[]; back
 interface SceneNode {
   id: NodeId; kind: string; bbox: Rect<Emu>; transform?: Transform
   zIndex: number; children?: SceneNode[]; data: unknown; revision: number
+  a11y?: A11yDescriptor            // 2026-09-25：类型盲扩展，字段见 §2.1 与 50/05 §11
 }
 interface DirtySet { nodeIds: ReadonlySet<NodeId>; full: boolean; changed?: ReadonlyMap<NodeId, PathKey[]> }
 interface RenderTarget {
@@ -824,7 +791,7 @@ src/__tests__/
 ├── hit-test.test.ts                旋转/翻转/组合下命中，对应 domain/geometry/hit-geometry.ts
 ├── error-isolation.test.ts         A11 反制：抛错渲染器→占位符，其余元素不受影响（配合 SpyRenderer 抛错模式）
 ├── renderer-table.test.ts          查表 + unknown 占位 + contribution/changed 时重建
-└── canvas-target-contract.test.ts  M3 末：最小 canvas Provider（仅矩形/路径/文本）跑 runRenderTargetConformance，验证 render.target 契约介质中立（rulings §4.15 Q4）
+└── conformance-canvas-target.test.ts  M3 末：最小 canvas Provider（仅矩形/路径/文本）跑 runRenderTargetConformance，验证 render.target 契约介质中立（rulings §4.15 Q4）
 ```
 
 fixture 来源：`testing/index.ts` 的 `fakeScene()`/`RecordingTarget`/`SpyRenderer(kind)`/`ManualScheduler`。
@@ -867,7 +834,7 @@ fixture 来源：`testing/index.ts` 的 `mountTestSurface()`/`mountInHappyDom()`
 | 无本模块新增第三方库单点 | 章程 §5.3 规则 4（不引入 `cordis`/`yjs`/`react` 等受控第三方库） | 三包 `package.json#dependencies` |
 | 禁以 `innerHTML`/`insertAdjacentHTML`/`DOMParser`（及 `outerHTML`/`createContextualFragment`）注入文档内容（rulings §4.15 Q4 安全基线） | lint `rules/dom-injection.ts`（08 矩阵 TD-081，M-01 §5.4；是 lint 规则，不另设扫描器，rulings §4.18 GV-15）；本包 `svg-image-context.test.ts` 负向用例 | `render-dom/src/infrastructure/primitives/svg-primitives.ts`、`text-lines.ts` 等全部 DOM 写入点 |
 | 文档内 SVG（`asvg:svgBlip`）只以图像上下文渲染 | 09-type-discipline/08 矩阵新增的同一 TD 行（`asvg:svgBlip` 只能经 `<image>` 渲染）；`svg-image-context.test.ts` | `render-dom/src/infrastructure/media/media-resolver.ts` |
-| 无 canvas 生产渲染路径、`toImage` 不入 Worker（ADR-0021/ADR-0026） | 代码评审 + `render.target` 贡献表只有 `'dom'` 生产条目（`canvas-target-contract.test.ts` 的最小 Provider 只存在于 `__tests__/`） | `render-dom/src/plugin.ts`、`infrastructure/export/to-image.ts` |
+| 无 canvas 生产渲染路径、`toImage` 不入 Worker（ADR-0021/ADR-0026） | 代码评审 + `render.target` 贡献表只有 `'dom'` 生产条目（`conformance-canvas-target.test.ts` 的最小 Provider 只存在于 `__tests__/`） | `render-dom/src/plugin.ts`、`infrastructure/export/to-image.ts` |
 
 ## 11. 里程碑与实施顺序
 
@@ -901,7 +868,7 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 
 - M1（本模块内，rulings §4.15 Q7 竖排/RTL 分阶段）：`text-lines.ts` 按「每行一个 `<text>`、run 不设 x」输出，RTL **查看**交给浏览器 bidi；竖排 `vert`/`vert270` 以文本框旋转实现、`eaVert` 近似；竖排编辑 E~(P2)，RTL 编辑与 HarfBuzz shaping 放 M4/M5（ADR-0027 口径不变：canvas `measureText` + 自研断行）。
 - M2：`server-headless`（M-09）实现 `node-font` Provider，实例化本模块的 `runTextMeasurerConformance`；`TextInputHost` 的 `contenteditable-mirror` 备选 spike（R-M2-1）定案（结论决定 §2.5 升级条件是否触发）；**`toImage` Web 字体位图 spike**（SVG-as-image 取不到页面字体，CJK 尤甚），结论前位图封面/批量 PNG 自 M3 起走 `server-png`。
-- M3：`slide-render-chart` 等新 `render.element` 贡献方接入，验证 §8 的「零改动」冻结层锁文件仍无 diff；**M3 末**以最小 canvas Provider 跑 `runRenderTargetConformance`（`canvas-target-contract.test.ts`），验证 `render.target` 契约（rulings §4.15 Q4）。
+- M3：`slide-render-chart` 等新 `render.element` 贡献方接入，验证 §8 的「零改动」冻结层锁文件仍无 diff；**M3 末**以最小 canvas Provider 跑 `runRenderTargetConformance`（`conformance-canvas-target.test.ts`），验证 `render.target` 契约（rulings §4.15 Q4）。
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -935,21 +902,30 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 |---|---|---|
 | Q4 DOM/SVG 单实现（ADR-0021 已接受） | §1.1（新增「渲染介质口径」段）、§2.5 `RenderTarget`（`'canvas'` 改为预留座位 + 契约验证段）、§7（介质口径段） | canvas 只做 `toImage` 栅格化 / `measureText` / 预留座位；删除「缩略图/放映可走 canvas」；DX-1000 不达标先做合成层优化 |
 | Q4 toImage 主线程 | §1.1、§2.5、§4.3/§5.3 `to-image.ts`、§9.3 `to-image.test.ts` | 游离 DOM → SVG 序列化 → Image → Canvas，不做 Worker/OffscreenCanvas 版本；Web 字体问题列 M2 spike |
-| Q4 M3 末最小 canvas Provider | §2.5、§9.2 `canvas-target-contract.test.ts`、§11 | 验证 `render.target` 契约介质中立，不作生产 Provider |
+| Q4 M3 末最小 canvas Provider | §2.5、§9.2 `canvas-target-contract.test.ts`（2026-09-25 改名 `conformance-canvas-target.test.ts`）、§11 | 验证 `render.target` 契约介质中立，不作生产 Provider |
 | Q4 安全基线 | §4.3/§5.3 `svg-primitives.ts`/`media-resolver.ts`、§9.3 `svg-image-context.test.ts`、§10 两行 | 文档内 SVG 只以 `<image>` 图像上下文渲染；禁 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 注入文档内容 |
 | Q7 竖排/RTL 分阶段 | §4.3/§5.3 `text-lines.ts`、§9.3 `text-lines-bidi.test.ts`、§11 M1 行 | 每行一个 `<text>` 块、run 不设 x（交给浏览器 bidi）；竖排 M1 旋转近似；竖排编辑 E~(P2)；RTL 编辑 M4/M5 |
 | 14 §5.3 M-06/G-5+Q-3、§6.2 M-06/Q-2+G-6 | §1.1 第 5 条、§2.4 末段、§2.5 `TextInputHost` 段、§13 Q-2/Q-3 | Q-2/Q-3 结案：`callbacks.onEditIntent` IoC、消费方 `slide-ui`；`TextInputHost` 维持包内可插拔点并写明升级条件 |
 
 说明：§4 目录树与 §5 文件表**未增删文件**（新增的均为 `__tests__/` 下测试文件，列于 §9），§4/§5 计数不变。
 
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| §4.19 事实源分工 + referencePlan | §2 首段、§2.5 `TextInputHost` 段、原图 2-3、§13 Q-1/Q-7 | 渲染运行时行为以 50/05 为准；`TextInputHost` 签名、`TextEditIntent` 与 IME 策略及图 2-3 移交 50/06；Q-7 结案（产品缩放 10–400% 由 preset 下发，引擎 clamp 0.1–8） |
+| 决策 INC-08（30/10 §11.1 > 40） | §2.4 | `render/frame` 载荷 `elements` → `elementsUpdated`、补 `overrun`；与遥测 `perf/frame{frameMs, interaction, pages, elementsUpdated, overrun}` 并存 |
+| 50/05 §14.2、50/15 §11 回写 4 | §2.1、§2.2、§2.4、§3、§4.2、§5.2、§6 | `HitResult` 两种形状合并为判别联合；`SceneNode.a11y: A11yDescriptor`（含 `decorative`）；`RenderService.noteInteraction(kind)`；`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`；`render/font-fallback` 增 `reason`；render-dom `fonts.{firstPaintWaitMs, loadTimeoutMs}` |
+| 70/02 §14 第 6 条 | §2.5、§9、§10、§11 | `canvas-target-contract.test.ts` → `conformance-canvas-target.test.ts` |
+
 ## 13. 未决问题
 
 | 编号 | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
-| Q-1 | `TextMeasurer.measure()` 单值返回 vs 逐字符 `advances` 批量返回的性能取舍（G-4）是否需要在 M1 就补 `measureRun` | M1 不加；等 `CaretMap` 逐字符调用 `measure()` 的实测性能不达标（键入延迟 p95 > 33 ms 或命中测试 p95 > 2 ms）再补批量方法 | `engine-layout/src/domain/contracts/text-measurer.ts`、`engine-layout/src/domain/text/caret-map.ts`、`render-dom/src/infrastructure/measurer/canvas-measurer.ts` |
+| Q-1（2026-09-25 移交 50/06 §7：逐字符度量若使键入 p95 超 33 ms 再补 `measureRun`） | `TextMeasurer.measure()` 单值返回 vs 逐字符 `advances` 批量返回的性能取舍（G-4）是否需要在 M1 就补 `measureRun` | M1 不加；等 `CaretMap` 逐字符调用 `measure()` 的实测性能不达标（键入延迟 p95 > 33 ms 或命中测试 p95 > 2 ms）再补批量方法 | `engine-layout/src/domain/contracts/text-measurer.ts`、`engine-layout/src/domain/text/caret-map.ts`、`render-dom/src/infrastructure/measurer/canvas-measurer.ts` |
 | Q-2 | ~~`TextEditIntent` 的确切消费方（`slide-render` 还是 `slide-ui`）与回调注册 API 形状（G-6）~~ **已结案（14 §5.4 M-06/G-6+Q-2、§6.2，rulings §4.15 Q4 回写）** | 定稿：`RenderService.attach(targetId, container, callbacks?)` 的可选 `callbacks.onEditIntent`（IoC），消费方为 `slide-ui`（持有编辑态与命令调用权）；`render-dom` 不新增依赖边 | `engine-render/src/application/services/render.service.ts`（`attach` 签名）、`render-dom/src/infrastructure/text-host/**`；M-10 §1.3 登记消费方、02 §4.15 `layers/ime-host.ts` 注释回写（14 §5.4） |
 | Q-3 | ~~`TextInputHost` 是否需要升级为跨包贡献点（G-5）~~ **已结案（14 §5.3 M-06/G-5+Q-3 → ADR-0028 回写）** | 定稿：维持 `render-dom` 包内可插拔点；升级为 `render.textInputHost` 贡献点的条件见 §2.5（R-M2-1 spike 否定隐藏 textarea，或出现需跨包可发现的第三方实现；升级时回写章程 §5.5 与 ADR-0028 并补契约套件） | `render-dom/src/infrastructure/text-host/text-input-host.ts`；仅触发升级条件时才动章程 §5.5 |
 | Q-4 | `HitTestIndex` 在单页 300+ 元素、频繁缩放场景下是否需要空间加速结构（四叉树/BVH）而非按 `zIndex` 线性扫描，以满足 NF-01 命中测试 p95 ≤ 2 ms | M1 用线性扫描（配合包围盒提前退出）；M2 按 bench 结果决定是否引入四叉树 | `engine-render/src/domain/contracts/hit-test.ts` |
 | Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐架构 07 §3.2 的文件清单）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
 | Q-6 | ~~四个 `render.*` 贡献点与 `layout.measurer` 的 `conflict` 策略是否应统一为 `'error'`（G-10）~~ **（结案，2026-09-25）** | 不统一：`render.scene`/`render.target`/`layout.measurer` 为 `'error'`（同 id 重复注册视为配置错误），`render.element`/`render.overlay` 为 `'replace'`（K-3、rulings §4.18 GV-24，以架构 03 §3.6 为准） | `engine-render/src/render.contribution.ts`、`engine-layout/src/layout.contribution.ts` |
-| Q-7 | `Viewport.zoom` 的 min/max 默认值（本文档示例 0.1/8）未见产品侧规定 | `min: 0.1`（10%）/`max: 8`（800%），参考主流桌面演示软件常见缩放范围 | `engine-render/src/config.ts`；若产品侧有既定范围，PRD 应补充并覆盖本默认值 |
+| Q-7（**已结案**，2026-09-25） | `Viewport.zoom` 的 min/max 默认值 | 引擎 clamp 保持 `min: 0.1`/`max: 8`；产品缩放范围 10–400% 由 preset 默认配置下发（50/05 §4.1、50/10 §7；40/11 `SlidePresetOptions`） | `engine-render/src/config.ts` |

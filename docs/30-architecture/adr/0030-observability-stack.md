@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q10、§4.18 BE-30/BE-14
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19 登记的 INC-33：决策 6 产品事件采样按 PRD 06） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q10、§4.18 BE-30/BE-14
 
 # ADR-0030 观测性技术栈：OpenTelemetry 全链路 + pino + Prometheus（Sentry 为可选 Provider）
 
@@ -17,7 +17,7 @@ D11 要求 `errors`/`telemetry`/`logger` 为 L0 服务且 M1 接入；§5.4 要�
 3. **指标**：Prometheus 暴露（`/metrics`，内部端口）+ OTel metrics 导出二选一按部署配置；命名见 10 §3.3。renderer 角色例外：它只挂零出站的 `render` 网络，Prometheus 抓不到，因此**不装 `MetricsModule`、关闭 OTLP 导出、日志只写 stdout**，渲染耗时/超时/崩溃指标由 worker 侧 `remote-renderer.client` 按 RPC 结果记录（2026-09-25，rulings §4.18 BE-14，ADR-0037 决策 1）。
 4. **错误**：kernel `errors` 的 Reporter Provider 默认 = 日志 + `cordex_errors_total`；可选 Sentry Provider（`apps/*` 装配层选择，SDK 包不依赖 Sentry）。
 5. **登记制**：span/metric/event/错误码名称通过声明合并登记，扫描器校验每个名称在登记表中且有 `consumer`（仪表盘/告警/测试）字段（A24 反制）。
-6. **采样**：traces 头采样 10%（错误路径 100% 尾采样在 collector）；WS update 帧不建 span（1% 抽样）；产品事件不采样但去标识。
+6. **采样**：traces 头采样 10%（错误路径 100% 尾采样在 collector）；WS update 帧不建 span（1% 抽样）；产品事件的采样以 PRD 06 为权威（决策 MECH-INC 之 INC-33）：高频事件（`render/frame` 派生的 `perf/frame`、`collab/latency` 等）默认采样 1%，部分事件按 PRD 06 §3.2 事件表的采样率（如 `render/page-rendered`、`selection/changed` 10%、`perf/input-latency` 5%），错误与生命周期事件不采样；全部可配置，一律去标识。（2026-09-25 修订：本 ADR 未接受，不高于 PRD 口径；原：「产品事件不采样但去标识」，作废。）
 7. **compose 观测组件**（2026-09-24，rulings §4.15 Q10，D13 镜像口径见 ADR-0037）：默认 profile = **OTel Collector + Jaeger + Prometheus**（均 Apache-2.0），默认告警规则随 compose 提供（SV-10）；**Grafana / Loki（及 Tempo）为 AGPL-3.0，只作为需显式开启的可选 profile**，附许可提示；仪表盘 JSON 仍入库。（原：otel-collector + Jaeger/Tempo + Prometheus/Grafana。）
 
 ## 备选方案与放弃原因
@@ -45,4 +45,4 @@ D11 要求 `errors`/`telemetry`/`logger` 为 L0 服务且 M1 接入；§5.4 要�
 
 ## 关联
 
-章程 D11、§5.4；Univer A24/A25；架构 10；08 §2（metrics/health 模块）；40-modules/12（`client-telemetry` 控制器，BE-30）；ADR-0037 决策 1（renderer 不装 Metrics，BE-14）。
+章程 D11、§5.4；Univer A24/A25；架构 10；60-backend/18（metrics/health 模块）；40-modules/12（`client-telemetry` 控制器，BE-30）；ADR-0037 决策 1（renderer 不装 Metrics，BE-14）。

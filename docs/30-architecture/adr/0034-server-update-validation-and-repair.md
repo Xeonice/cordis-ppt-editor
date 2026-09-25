@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18
 
 # ADR-0034 服务端对 update 的校验：硬门禁拒绝 + 软门禁补偿修复（不回滚、不分叉）
 
@@ -49,12 +49,12 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 ## 补充（v0.2）：与 PRD CO-12 的分歧、可配置模式、路径级权限规则
 
 - **分歧**：PRD CO-12 写「服务端对每条 update 做权限校验，不做内容语义校验；恶意 update 导致的模型异常由客户端『解码失败即忽略并上报』处理」。本 ADR 的反对理由：(1) CRDT update 一旦被服务端应用并扇出，非法结构就永久存在于所有副本中，客户端「忽略」无法把它从他人的文档里移除；(2) 服务端自身（导出、缩略图、迁移作业）也消费该模型，会因非法数据失败；(3) 评论的作者级规则（ADR-0031 v0.2）与 commenter 的路径限制只能在服务端执行。因此**保留软门禁**，但降低推行成本：
-- **配置 `softGate.mode`**：`repair`（默认，M3）——执行不变量与权限路径修复；`report-only`——只校验并计数/告警不修复；`off`。`softGate.schemaMode` 单独控制 zod 类型校验（M3 默认 `report-only`，避免 schema 演进期误修复）。**已裁决：rulings §4.1 P8**（采纳本 ADR：softGate `repair`（不变量）+ `report-only`（schema）；2026-09-25 按 rulings §4.18 CO-20 改写，原「待总编排裁决（06 P8）」作废）。
+- **配置 `softGate.mode`**：`repair`（默认，随协同后端自 M2 生效）——执行不变量与权限路径修复；`report-only`——只校验并计数/告警不修复；`off`。`softGate.schemaMode` 单独控制 zod 类型校验（默认 `report-only`，避免 schema 演进期误修复）。**已裁决：rulings §4.1 P8**（采纳本 ADR：softGate `repair`（不变量）+ `report-only`（schema）；2026-09-25 按 rulings §4.18 CO-20 改写，原「待总编排裁决（06 P8）」作废）。
 - **新增修复规则（路径级权限）**：
 
 | 违规 | 修复 |
 |---|---|
-| `commenter` 的 update 触及 `resources.comments.*` 以外路径 | 用 Y 事件携带的旧值还原（`Y.Map` 事件 `changes.keys[k].oldValue`；`Y.Text` 反向 delta）；计数 |
+| `commenter` 的 update 触及 `resources['comments.threads']` 以外路径 | 用 Y 事件携带的旧值还原（`Y.Map` 事件 `changes.keys[k].oldValue`；`Y.Text` 反向 delta）；计数 |
 | 回复/线程实体的 `authorId ≠ session.userId`（创建或修改他人评论） | 还原/删除该实体（owner 除外）；计数 |
 | 触及 `meta.*`（`schemaVersion`/`epoch`）或 `resources.<其他插件命名空间>` 而无相应能力位（`caps[]`） | 还原旧值；计数 |
 
@@ -75,6 +75,11 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 **2. S-3a 溢写期的门禁时序**：硬门禁与软门禁都在服务端 Unit 上**先于** `ack{tier:'spill'}` 执行（PG 故障不影响房间内存中的 Unit）；通过门禁的 update（及软门禁产生的修复事务）进入 none / valkey / blob 任一降级档后**立即在本实例广播并跨实例扇出，不等持久化**（2026-09-25 修订，rulings §4.18 CO-08，ADR-0025 决策 1；原文未提广播）；软门禁产生的修复事务与普通 update 一样进入溢写、按 `(instanceId, localCounter)` 顺序回放并由 PG 分配 `seq`。回放阶段不重跑软门禁（已在溢写前执行），只断言回放后 `pendingStructs` 为空。
 
+## 修订 2026-09-25：评论路径前缀（rulings §4.19 D-COMMENTS-PKG；决策 INC-39）
+
+- 路径级规则中 commenter 的放行前缀统一为 `resources['comments.threads']`（ResourceHook 命名空间 `comments.threads`，由 iso 包 `@cordexjs/comments` 注册；其 `data` 内含 threads 与 replies 两张实体表，04 §2.7），与 ADR-0031 修订、60-backend/16 §4 与 60-backend/07 逐字一致；原 `resources.comments.*` 写法作废。
+- 网关 L2 的 SYNC 写入门槛相应为 ≥ commenter（ADR-0029 决策 3 修订 2026-09-25）：commenter 的帧先过 L2，再由本 ADR 的路径级规则把写入范围限定在上述前缀、作者只能改自己的实体；viewer 的写入仍在 L2 拒绝。软门禁随协同后端自 M2 生效（rulings §4.19 D-M2-CONTENT），commenter 角色本身随按人分享在 M3 出现。
+
 ## 如何被机械验证
 
 - 单测（server-collab gate）：每条硬门禁有拒绝用例且无广播；每条修复规则有输入/输出黄金用例；隔离阈值。
@@ -85,4 +90,4 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 ## 关联
 
-章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20；ADR-0020/0025/0032/0035；架构 06 §11/§14、08 §3.1。
+章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20；ADR-0020/0025/0032/0035；架构 06 §11/§14、08 §3；60-backend/16 §4。

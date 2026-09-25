@@ -1,4 +1,4 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、30-architecture 01–07 与 ADR-0037、40-modules 00/02/03/05/06/07/10/11/13/16/17
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、30-architecture 01–07 与 ADR-0037、40-modules 00/02/03/05/06/07/10/11/13/16/17
 
 # 18 架构图集（一）：系统与前端
 
@@ -469,6 +469,8 @@ flowchart TB
 
 ## 4. 前端运行时装配
 
+> 事实源（2026-09-25，rulings §4.19）：[50/01](../50-frontend/01-overview-and-runtime-map.md)（运行时总图）、[50/03](../50-frontend/03-preset-assembly-and-plugins.md)（preset 装配），冲突以其为准。M2 起服务端文档一律经 `preset-slide-collab` 打开（D-M2-CONTENT），M3 起 collab 预设另装 `comments`（D-COMMENTS-PKG），本节图尚未画出这两点。
+
 浏览器里一个编辑器实例的诞生分四步：选 preset → 挂插件 → 插件提供服务、登记贡献点 → UI 按贡献点渲染。本节先给主链与时序，再给服务分布、UI 渲染链与三种 preset 的差异。
 
 **图 4-1 前端装配主链**
@@ -657,6 +659,8 @@ stateDiagram-v2
 
 ## 5. slide 垂直束与水平层依赖
 
+> 事实源（2026-09-25，rulings §4.19）：[50/01](../50-frontend/01-overview-and-runtime-map.md)，包级依赖以 40/00 与章程 §5.2 为准，冲突以其为准。
+
 **图 5-1 slide 束四层带与水平层依赖**
 
 ```mermaid
@@ -739,6 +743,8 @@ flowchart LR
 依据：40-modules/03 §0、§3；07 §0、§3；10 §0；16 §4。
 
 ## 6. 浏览器内一次编辑的数据流
+
+> 事实源（2026-09-25，rulings §4.19）：[50/04](../50-frontend/04-document-commands-and-undo.md)（命令与撤销）、[50/09](../50-frontend/09-ui-system-and-theming.md)（输入管线与上下文键）、[50/06](../50-frontend/06-text-editing-and-ime.md)（文本编辑回调 `onEditIntent`），冲突以其为准。
 
 **图 6-1 一次编辑的数据流总览**
 
@@ -865,7 +871,7 @@ flowchart LR
   compUpdate["compositionupdate"]
   compEnd["compositionend"]
   overlay["瞬态覆盖层显示组合串 · 不写 Store"]
-  slideUiText["slide-ui text-editing · onTextEditIntent 回调"]
+  slideUiText["slide-ui text-editing · onEditIntent 回调"]
   paste["paste · HTML 纯文本 OOXML 剪贴板"]
   commands["commands.execute"]
   keydown --> shortcuts --> commands
@@ -885,6 +891,8 @@ flowchart LR
 依据：30-architecture/07 §6；40-modules/10 §2.2、§2.5（`render.attach` 回调）；07 §2.6。
 
 ## 7. 前端插件模型
+
+> 事实源（2026-09-25，rulings §4.19）：[50/03](../50-frontend/03-preset-assembly-and-plugins.md)、[50/09](../50-frontend/09-ui-system-and-theming.md)，冲突以其为准。
 
 **图 7-1 cordis 插件的基本构件**
 
@@ -1013,6 +1021,8 @@ classDiagram
 依据：30-architecture/03 §3.1–§3.6；40-modules/07 §3；11 §3.3；16 §4；17 §2.3。
 
 ## 8. 查看器与嵌入形态
+
+> 事实源（2026-09-25，rulings §4.19）：[50/12](../50-frontend/12-viewer-embedding-and-render-page.md)（查看器、嵌入形态、`/render` 页），冲突以其为准；`/render` 注入只收 `snapshot-json`，`mode` 含 `image`。
 
 **图 8-1 嵌入形态 A–F 与各自入口**
 
@@ -1226,6 +1236,8 @@ flowchart TB
 依据：40-modules/00 §6.5；13 §0、§8.3；30-architecture/03 §5、12 §5；charter §5.4 文档类型行。
 
 ## 10. 绘图中发现的口径分歧（未画入图，待裁定）
+
+> 2026-09-25（rulings §4.19）：本节原列分歧已由 rulings §4.18 全部裁定；此后新发现的前端分歧统一收入 [50-frontend/README](../50-frontend/README.md) 的待决表，本节不再增补。
 
 2026-09-25：原列 8 条分歧已全部由 rulings §4.18 裁定，对应图与「怎么读」已按裁定改画，条目删除，当前无待裁定分歧：
 

@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包口径）；2026-09-24 复核修正（rulings §4.17；复核报告 L11、L13）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q8/Q10、§4.16 Q19、§4.18
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包口径）；2026-09-24 复核修正（rulings §4.17；复核报告 L11、L13）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 客户端读取改为 `ETag = contentHash` + `private, no-cache`，见文末修订；M2 过渡封面随 M2 服务端导入产出）；2026-09-25（§4.19） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q8/Q10、§4.16 Q19、§4.18
 
 # ADR-0026 服务端 headless 渲染与缩略图
 
@@ -14,7 +14,7 @@
 
 1. **服务端渲染 = 同一份客户端渲染代码在 headless Chromium 中运行**，交付时点 **M3 前半段**。Chromium 运行在**独立零出站 renderer sidecar**：同镜像 `CORDEX_ROLE=renderer` 变体或自建最小 `chromium-headless-shell` 镜像（ADR-0037）；只接受 worker 的入站请求，走**鉴权内部 RPC**（契约放 `@cordexjs/protocol`），**不暴露**无鉴权的 Playwright run-server WS，**不持有** DB/S3 凭据。渲染页为 `apps/web` 的 `/render` 路由（viewer 模式 preset，无 UI/协同），其静态包**内置在镜像中**；快照 state、媒体、字体全部**经 RPC 注入**，不走网络。**RenderStateToken 网络拉取已取消**（2026-09-25 修订，rulings §4.18 BE-04，用户选「彻底取消拉取」）：`local`（EM-10 b，worker 进程内 Playwright）与 `remote`（sidecar）两种模式都由编排方（`page.evaluate` / sidecar RPC）调用 `window.__cordex.inject` 注入，`/render` 页只有这一条路径、**零外呼**；`IssueRenderStateTokenUseCase`、`RenderStateTokenStore`、`render-state.controller` 与 `GET /internal/render/:token/state` 一并删除，Thumbnails 对 Internal 模块的依赖随之消失；`RenderPageQuery.token` 改为 `renderId`，只用于日志关联；页面状态 `fetchingState` 改为 `awaitingInject`，注入等待超时为页面常量（默认 60 s，与决策 6 的每页 10 s 渲染超时分开计，rulings §4.18 FE-09）；`RenderStateResponse` 保留为注入载荷类型。（原：「原 `/internal/render/:token/state` 的 RenderStateToken 网络拉取降为兜底或取消（由 40-modules/09 定）」，40-modules/09 曾定为「local 模式兜底」，作废。）自带 Nest 的集成方（EM-10 b）保留本地 launch 模式。（原：`playwright-core` 进程内 1 browser、N 页面池，经一次性 token 拉 state。）
 2. **失效与触发 = 按页内容哈希**（PRD SV-04 原文，属冲突修正）。`contentHash` 输入 = 页子树 + 版式/母版/主题依赖闭包 + 媒体 BlobRef + slideSize + 页序号 + 内嵌字体集合 + `layoutAlgoVersion` + `fontProfile`；外链资源一律占位、不计入。触发：压缩完成后**只把哈希变化的页**入队；导入完成后**首页高优先**生成，其余页按需惰性生成；admin 手动。BullMQ `thumbnails` 队列去重键 `doc:{id}:slide:{slideId}:hash:{contentHash}`（以架构 08 §7 与 40-modules/12 为准，2026-09-24 复核修正；原写 `…:{contentHash}` 缺 `hash:` 段）。（原：去重键 `doc:{id}:seq:{seq}`，更高 seq 作废旧任务。）
-3. **规格**：只存一档——卡片 **640 px WebP**，在沙箱内由 `page.screenshot({ type: 'webp' })` 直接产出；分享预览与版本预览**按需**生成 1280 px。对象键 `thumbs/{slideId}/{contentHash}.webp` → `thumbnails` 表；客户端 `GET /documents/:id/thumbnails/:slideId`（路径相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11；ETag = contentHash、immutable）。（原：PNG @2×、1280×720 逻辑尺寸、键含 seq。）
+3. **规格**：只存一档——卡片 **640 px WebP**，在沙箱内由 `page.screenshot({ type: 'webp' })` 直接产出；分享预览与版本预览**按需**生成 1280 px。对象键 `thumbs/{slideId}/{contentHash}.webp` → `thumbnails` 表；客户端 `GET /documents/:id/thumbnails/:slideId?size=640|1280`（路径相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11；封面 `slideId` 用保留 id `__cover`，决策 SG-10；`ETag = contentHash`、`Cache-Control: private, no-cache`，每次以 `If-None-Match` 复核——同一 URL 的内容随哈希变化，不能标 immutable，见文末「修订 2026-09-25」）。（原：PNG @2×、1280×720 逻辑尺寸、键含 seq；2026-09-25 前写「ETag = contentHash、immutable」，作废。）
 4. **来源与客户端 Provider 策略**：`thumbnails.source ∈ { embedded, server, client }`，其中 `client` **仅为保留位**（M1–M3 不写入：客户端不再上传缩略图，见下方「客户端路径」；保留枚举值以免将来恢复客户端上报时改表约束，2026-09-24 复核修正）。**M2 过渡封面**取导入包内 `docProps/thumbnail.jpeg`（`source=embedded`，标 provisional）：服务端**只做 JPEG 头校验不解码**（SOI/SOF 中尺寸不超过 OF-24 像素上限、体积 ≤ 1 MB），原字节带 `image/jpeg`、`nosniff` 与 CSP sandbox 头下发；包内没有则显示占位；S-2 purge 覆盖此来源。客户端：可见项 `dom-scaled`（实时），其余 `server-png`（Provider 名沿用历史命名，实际取回的是服务端 640 px WebP，2026-09-24 复核修正）；`server-png` 识别 provisional，其后回退到 `dom-scaled`；本地脏页在服务端图到达前用 `dom-scaled` 兜底（07 §8）。（原：无 embedded 来源。）
 5. **一致性键**：`layoutAlgoVersion`（engine-layout 断行算法版本）+ `fontProfile` 并入决策 2 的 `contentHash`；任一变化即该页重新生成。
 6. **安全**（作为 NF-04 / SV-12 M3 出口的自动化安全测试）：非 root 运行，`chromiumSandbox: true` 并加载 seccomp（playwright-core 默认 false，官方镜像以 root 运行、沙箱关闭，仅供测试开发）；**零出站**；不挂任何凭据；每个任务新建 `BrowserContext`，定期回收浏览器进程；使用 `--shm-size`，**不用** `--ipc=host`；**自建镜像**，每周跟随 Chrome 稳定版重建，与 worker 锁步发布（官方镜像存在已知 CVE 窗口）；每页渲染超时 10 s（由编排方在注入之后计时，与 `/render` 页自身的注入等待超时分开计；页面 ready 判据 = 所请求页全部 `render/page-mounted` ∧ 这些页的字体请求全部结算（`fonts-ready` 或 `font-fallback`，无字体需加载视为已结算）∧ 此后出现一次待绘脏区为空的 `render/frame`，`/render` 装配 viewer 时关闭惰性加载——2026-09-25，rulings §4.18 FE-09，判据正文以 40-modules/11 与架构 07 为准）；崩溃自愈重建 browser。（原：仅「禁外网（仅允许 apps/server 内部地址）」。）
@@ -37,12 +37,12 @@ flowchart LR
   renderPage -- "返回 WebP 字节" --> worker
   worker -- "对象键 thumbs/{slideId}/{contentHash}.webp" --> objectStore["对象存储"]
   worker --> thumbTable["thumbnails 表"]
-  client["客户端 GET /api/v1/documents/:id/thumbnails/:slideId，ETag = contentHash，immutable"] -- "经 REST 端点读取" --> thumbTable
+  client["客户端 GET /api/v1/documents/:id/thumbnails/:slideId，ETag = contentHash，private no-cache，按 ETag 复核"] -- "经 REST 端点读取" --> thumbTable
 ```
 
 怎么读：从左到右依次是触发、排队、编排、沙箱渲染、落存储、客户端读取。renderer 方框内没有任何凭据、也不发起出站，只接受 worker 的鉴权 RPC 并返回字节；写对象存储与写表都由 worker 完成。
 
-依据：本文决策 1–3、6；返回字节与落存储由 worker 侧 `remote-renderer.client.ts` 承担，见 30-architecture/08 §3.3 与 40-modules/09 §2.5。
+依据：本文决策 1–3、6；返回字节与落存储由 worker 侧 `remote-renderer.client.ts` 承担，见 60-backend/06 §10 与 40-modules/09 §2.5。
 
 **图 2 缩略图来源与客户端取图**
 
@@ -100,6 +100,11 @@ flowchart TD
 - 依赖扫描：服务端依赖树中无 `sharp`/`@img/sharp-libvips`。
 - （2026-09-25，rulings §4.18 BE-04）`/render` 零外呼 e2e：`local` 与 `remote` 两种模式各跑一次，断言 `/render` 页发出的网络请求数为 0（静态包与字体均内置，state 经 `window.__cordex.inject` 注入）；代码库中不存在 `/internal/render/:token/state` 路由与 `RenderStateTokenStore`。
 - （2026-09-25，rulings §4.18 FE-09）`render-page.spec.ts` 断言决策 6 的 ready 判据：字体到达引起的重排帧绘制完成后才 ready；注入等待超时（页面常量）与每页 10 s 渲染超时分别触发、分别计数。
+
+## 修订 2026-09-25（rulings §4.19；后端事实源 60-backend/15 §3.10）
+
+1. **决策 3 客户端读取的缓存头**：缩略图端点按 `slideId`（与 `size`）寻址，URL 不含内容哈希，页内容变化后同一 URL 返回新图；因此响应为 `ETag = contentHash` + `Cache-Control: private, no-cache`，浏览器每次以 `If-None-Match` 复核、未变返回 304。原「immutable」会让浏览器在页被编辑后继续显示旧图，作废。前端不另设缓存层（决策 APP-DATA）；`__cover` 的包内过渡封面同样适用。
+2. **M2 过渡封面的来源**：协同后端提前到 M2 后（rulings §4.19 D-M2-CONTENT），M2 的新建、导入都经服务端导入作业，决策 4 的包内 `docProps/thumbnail.jpeg` 就在 M2 导入处理器中取出；「首页 ≤ 10 s」的 renderer 缩略图仍为 M3 前半段、PDF 为 M3 后半段（PRD 05 §0.3）。
 
 ## 关联
 

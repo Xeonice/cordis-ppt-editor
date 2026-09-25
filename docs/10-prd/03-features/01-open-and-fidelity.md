@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16、§4.18
 
 # 功能域 01：打开 / 渲染 / 保真 / 导出
 
@@ -542,7 +542,7 @@ flowchart LR
   - **编辑后导出**：Given 仅编辑第 k 页的一个文本，Then 只有第 k 页部件（及必要的 `[Content_Types].xml`/rels/`docProps/thumbnail`）被重生成，其余部件字节相同；重生成部件通过 ECMA-376 Transitional XSD 校验；规范化 XML diff 仅位于被编辑的 `a:p`/`a:r` 子树。
   - **元素级保留**：Given 被编辑元素带 `extLst`/未知属性/未知子元素，Then 重生成后全部保留且顺序符合 schema 序列要求。
   - **新增部件**：插入图片/媒体时新部件命名不与现有冲突（`image<N>.<ext>`，N 取最大值+1），内容类型与 rels 同步更新。
-  - **互操作**：导出文件在 PowerPoint 365（Windows/macOS，当前通道）打开无修复提示：语料库 100%；LibreOffice Impress 24.x 可打开不崩溃（best-effort，记录差异）。
+  - **互操作**：导出文件在 PowerPoint 365（Windows/macOS，当前通道）打开无修复提示：语料库 100%（M1 以一台 Windows + PowerPoint 365 维护机验收，macOS 自 M2 起加入，rulings §4.19 D-TEST-INFRA）；LibreOffice Impress 24.x 可打开不崩溃（best-effort，记录差异）。
   - **Strict 输入**（章程 §10 Q14 已裁决：方案 C，2026-09-19，rulings §4.12 U-02）：方案 C「保持原一致性类」——脏部件反向映射写回 Strict，未触碰部件字节相同；**M1 即支持 Strict 完整写回**（反向映射表 + 字节级验证）；方案 B「整包转 Transitional」仅作反向映射失败时的异常兜底，并在导出报告中说明。无论方案：零编辑往返字节相同、PowerPoint 365 打开无修复。
   - 导出在 Worker 中执行，不阻塞 UI（D50 ≤ 3 s，D200 ≤ 12 s）。
 
@@ -654,7 +654,7 @@ flowchart TB
 
 ### 4.4 互操作
 
-- PowerPoint 365 Win/Mac 打开无修复提示：100%。
+- PowerPoint 365 Win/Mac 打开无修复提示：100%（Mac 自 M2 起，rulings §4.19 D-TEST-INFRA）。
 - 重新用 PowerPoint 保存后再用我们打开：不崩溃，SSIM 不低于首次打开的 0.98 倍（稳定性回归）。
 
 ---

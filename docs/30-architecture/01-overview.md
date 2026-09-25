@@ -1,6 +1,6 @@
 # 01 架构总览：系统上下文、容器、原则与端到端数据流
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-M2-CONTENT 打开路径改为 M1 本地字节 / M2 起协同快照 + 票据 + WS（§4.1）、协同后端提前到 M2（§4.3）；INC-02 `permission` 帧名；§4.1–§4.4、§5 加 50 / 60 线链接）；2026-09-25（§4.19） | 依赖：charter v0.1
 
 ---
 
@@ -163,25 +163,24 @@ flowchart LR
 
 ## 4. 端到端数据流总图
 
-### 4.1 打开文档（单人，M1）
+### 4.1 打开文档
 
-**打开文档时序图（单人，M1）**
+两条打开路径（rulings §4.19 D-M2-CONTENT）：**M1 本地字节**（查看器、嵌入形态与 SDK 单人 preset 拿到的 .pptx 字节在浏览器 Worker 中解析，不经服务端；参考应用自 M2 起的导入改走服务端导入作业）与 **M2 起服务端文档**（应用壳新建 / 打开的文档内容以协同快照为唯一事实源，`GET snapshots/latest` 直接回字节 + 票据 + WS；不存在返回原始 pptx 预签名 URL 的内容端点，也不设过渡的 pptx 内容版本端点）。
+
+**打开本地 .pptx 时序图（M1 起）**
 
 ```mermaid
 sequenceDiagram
   participant user as 用户
   participant web as apps/web
-  participant srv as 服务端
   participant host as SDK host
   participant codec as formats / ooxml-pptx
   participant core as model-core
   participant render as 渲染
-  user->>web: 点击文档
-  web->>srv: GET /api/v1/documents/:id
-  srv-->>web: 元数据 + 原始 pptx 的预签名 URL
-  web->>web: fetch#40;bytes#41;
+  user->>web: 查看器或嵌入宿主提供 .pptx 字节
+  web->>web: 读取文件字节，本地，不经服务端
   web->>host: units.open#40;#123; documentType:'slide', source:#123; format:'…presentationml…', bytes #125; #125;#41;
-  host->>codec: formats.import#40;bytes#41;
+  host->>codec: formats.import#40;bytes#41;，Worker 内
   codec->>codec: OPC 读 → Part 表
   codec->>codec: 分类：建模 / 不透明
   codec->>codec: 解析 → Snapshot + blobs
@@ -197,7 +196,36 @@ sequenceDiagram
   render-->>user: 首屏
 ```
 
-怎么读：从左到右是参与方，实线箭头是调用或事件，虚线箭头是返回；「服务端」一列对应原图中标注为 `(server)` 的元数据请求（REST 路径统一挂 `/api/v1` 前缀，rulings §4.18 BE-11）；导入产出的是 Snapshot + blobs，随后才建 UnitScope 并加载 Store。本图画的是小文件的一次装载；大文件按渐进打开执行（07 §14.2、04 §2.2，rulings §4.18 CO-12）：Worker 先完成规模包络计数（超天花板整体拒绝），首批 `store.load` 后即发 `unit/opened`（可渲染、可编辑），后续批次以 `system('import')` 追加（不入撤销栈、不标脏），全部到齐再发 `unit/loaded`；协同模式不走此路径，Y 状态由 HTTP 快照 bootstrap。
+怎么读：从左到右是参与方，实线箭头是调用或事件，虚线箭头是返回；全程不经服务端。导入产出的是 Snapshot + blobs，随后才建 UnitScope 并加载 Store。本图画的是小文件的一次装载；大文件按渐进打开执行（07 §14.2、04 §2.2，rulings §4.18 CO-12）：Worker 先完成规模包络计数（超天花板整体拒绝），首批 `store.load` 后即发 `unit/opened`（可渲染、可编辑），后续批次以 `system('import')` 追加（不入撤销栈、不标脏），全部到齐再发 `unit/loaded`。
+
+**打开服务端文档时序图（M2 起）**
+
+```mermaid
+sequenceDiagram
+  participant user as 用户
+  participant web as apps/web
+  participant api as 服务端 REST
+  participant host as SDK host，store-yjs
+  participant gw as Collab Gateway
+  user->>web: 点击文档
+  web->>api: GET /api/v1/documents/:id
+  api-->>web: 元数据、role、capabilities
+  web->>api: GET /api/v1/documents/:id/snapshots/latest
+  api-->>web: 快照字节，V2 update，zstd；超 1 MiB 流式代理；ETag 与 X-Cordex-Epoch
+  web->>host: units.open，source 为 state，encoding yjs-update
+  host->>host: 空 Y.Doc 上 applyUpdate，origin import，可渲染可编辑
+  web->>api: POST /api/v1/documents/:id/collab-ticket
+  api-->>web: ticket，60 s 单次
+  host->>gw: WS /collab/v1/rooms/:id，CONTROL.auth，ticket 与 epoch
+  gw-->>host: CONTROL.auth.ok，role 与 limits
+  host->>gw: SYNC step1 与 step2，交换差量
+  gw-->>host: SYNC step2 与 ack，进入 live
+  host-->>user: 首屏不等 live，syncing 期间已可编辑
+```
+
+怎么读：先经 HTTP 取最新协同快照完成 bootstrap（不走 Worker 分批解析），再换票据建立 WS 交换差量；快照响应头 `X-Cordex-Epoch` 下发文档纪元，客户端在 `auth` 里回报（06 §6.3）。新建文档与服务端导入同样产出协同快照（08 §7），此后打开都走本路径。REST 路径统一挂 `/api/v1` 前缀、WS 维持 `/collab/v1/rooms/:id`（rulings §4.18 BE-11）。
+
+依据：rulings §4.19 D-M2-CONTENT；决策 MECH-INC 之 INC-14（`snapshots/latest` 直接回字节）；06 §5.3、§9.1。前端视角（路由、会话、`bytes` 与 `state` 两类 source 的装配）见 [50-frontend/01](../50-frontend/01-overview-and-runtime-map.md) §5.1，服务端视角（Snapshots 只挂 collab 角色、反代分流）见 [60-backend/01](../60-backend/01-service-overview-and-roles.md) §7 与 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md) §10。
 
 要点：
 - 导入产出的是 **Snapshot + Blob 集合**，不是运行时对象；Store 再从 Snapshot 构造状态（D6 的显式编解码边界）。
@@ -227,11 +255,13 @@ flowchart TB
   emitTx --> emitExec["emit 'command/executed'"] --> uiState["UI 状态：canUndo 等"]
 ```
 
-怎么读：自上而下是一次编辑命令经过的阶段；子图是单个事务内部的顺序步骤；两次 emit 依次发出，各自引出一条支线：`store/transaction` 驱动局部重绘，`command/executed` 驱动 UI 状态。
+怎么读：自上而下是一次编辑命令经过的阶段；子图是单个事务内部的顺序步骤；两次 emit 依次发出，各自引出一条支线：`store/transaction` 驱动局部重绘，`command/executed` 驱动 UI 状态。M2 起服务端文档的 Store 是 store-yjs，同一事务再经 collab-yjs 上网络（§4.3）；命令、撤销与错误的 UI 表达见 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md)，前端主干总览见 [50-frontend/01](../50-frontend/01-overview-and-runtime-map.md) §5.2。
 
-### 4.3 协同（M3；协议细节见 06）
+### 4.3 协同（M2 起网关与持久化，M3 多人体验层；协议细节见 06）
 
-**协同数据流图（M3）**
+协同后端随 M2 交付（rulings §4.19 D-M2-CONTENT）：网关、Room、update 持久化与快照、服务端导入在 M2，单人编辑也经下图上半条链路持久化；在场、评论、权限细化（分享与降权下发）、离线重连体验与服务端缩略图属 M3 多人协同体验层（06 §0.1，以 PRD 05 修订为准）。
+
+**协同数据流图（update 链路与 awareness 服务端中继 M2 起；在场的多人呈现与权限变更分支 M3）**
 
 ```mermaid
 flowchart LR
@@ -245,7 +275,7 @@ flowchart LR
     gAuth["鉴权检查点"]
     gPersist["持久化：Postgres"]
     gBroadcast["广播：Valkey"]
-    gPerm["网关下发 permission-changed 帧"]
+    gPerm["网关下发 CONTROL.permission 帧"]
   end
   subgraph clientB["客户端 B"]
     bCollab["collab-yjs"]
@@ -267,7 +297,7 @@ flowchart LR
 
 怎么读：箭头是数据或控制的流向；上两条是 CRDT update（先鉴权、再持久化、再广播）与 awareness 两条通道（awareness 同样经服务端房间广播，server-collab 负责 awareness 广播，图中以边标签表示、未展开网关内部），最下一条是权限变更经网关下发、在客户端下一次执行命令时生效——发起者是持有 `doc.manage` 的**文档所有者**，部署级平台管理员不持有文档角色、不能改文档权限（40-modules/08 ROLE_CAPABILITIES；2026-09-25 rulings §4.18 BE-22）。Postgres 可用时按「鉴权 → 持久化 → 广播」顺序；PG 故障降级期 update 通过门禁、进入溢写档后即在本实例广播并跨实例扇出，不等持久化，持久性由发起方 pending 兜底（06 §6.4，rulings §4.18 CO-08）。
 
-要点：CRDT 文档是唯一事实源（D5）；Mutation 不上网络，网络上只有 CRDT update；权限在两处（管线 + 网关）检查（D12）。
+要点：CRDT 文档是唯一事实源（D5）；Mutation 不上网络，网络上只有 CRDT update；权限在两处（管线 + 网关）检查（D12），网关的 SYNC 写入门槛为 ≥ commenter、commenter 的写入范围由软门禁路径规则限定在评论资源（06 §10–§11）。前端协同客户端见 [50-frontend/07](../50-frontend/07-collaboration-client.md)，服务端 Room、持久化与 WS 协议服务端视角见 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md) 与 [60-backend/16](../60-backend/16-ws-protocol-server-view.md)。
 
 ### 4.4 导出（M1 起）
 
@@ -287,10 +317,10 @@ flowchart TB
   media --> zip
   rels --> zip
   zip --> download["下载"]
-  zip --> post["POST /api/v1/documents/:id/export：服务端同一代码路径经 server-headless"]
+  zip --> post["M3 服务端导出：POST /api/v1/documents/:id/export，同一代码路径经 server-headless"]
 ```
 
-怎么读：导出命令经 `formats` 服务交给 ooxml-pptx 编码器，按部件类型分四路处理后汇合为 zip 字节，最后在浏览器下载或提交服务端（两端走同一份编码代码）。
+怎么读：导出命令经 `formats` 服务交给 ooxml-pptx 编码器，按部件类型分四路处理后汇合为 zip 字节，最后在浏览器下载（M1 起）或由服务端导出作业产出（M3，两端走同一份编码代码）。浏览器导出管线见 [50-frontend/01](../50-frontend/01-overview-and-runtime-map.md) §5.4，服务端导入导出作业见 [60-backend/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)。
 
 ---
 
@@ -323,9 +353,11 @@ flowchart TB
 
 - 一个页面可以有多个 host（多编辑器实例），互不干扰（无模块级状态，A10）。
 - 一个 host 可以打开多个 Unit（同页多文档），服务按 Unit 隔离（K2）。
+- 浏览器侧运行时对象关系的展开见 [50-frontend/01](../50-frontend/01-overview-and-runtime-map.md) §4；服务端 cordis 宿主与 Nest 生命周期的映射见 [60-backend/01](../60-backend/01-service-overview-and-roles.md) §9。
 
 ---
 
 ## 6. 与其它文档的边界
 
 - 本文只给总图。分层与目录 → 02；内核与插件 → 03；模型与格式 → 04；命令 → 05；协同/渲染/后端/观测/测试 → 06/07/08/10/11（运行时线）；规则的执行细节 → 09（类型治理线）。
+- 各侧设计的唯一事实源（rulings §4.19）：前端 → [50-frontend](../50-frontend/README.md)；后端（含完整 DDL）→ [60-backend](../60-backend/README.md)；测试 → [70-testing](../70-testing/README.md)。本目录保留跨端原则与 ADR，重复段落改为引用。

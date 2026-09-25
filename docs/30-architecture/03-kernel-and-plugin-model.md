@@ -1,6 +1,6 @@
 # 03 内核与插件模型：kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset 与版本协商
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG）） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
 > 事实来源：`cordis@4.0.0-rc.10` 生成式 API 文档（Context / Fiber / Events / Registry / Service）与 `cordis-primer.md`。凡标注「草案」的签名允许在实现期微调，但**语义**（谁拥有生命周期、失败如何隔离、何时 PENDING）不得改变。
 
 ---
@@ -306,6 +306,7 @@ classDiagram
 | `ui.command` | ui-core | 命令**呈现元数据** `{ commandId; title; icon; when }` | `commandId` | replace | `ui`（命令面板/菜单） |
 | `ui.theme` | ui-core | `ThemeContribution { id; tokens: Partial<TokenSet>; density? }`（设计 token 覆盖集，Beta） | `id` | replace | `theme` |
 | `slide.shapeKind` | model-slide | `ShapeKindDef` | `kind` | error | `slides`、slide-render |
+| `comments.anchorResolver` | comments（2026-09-25，rulings §4.19 D-COMMENTS-PKG） | `CommentAnchorResolver { documentType; resolve(anchor, unit); describe(anchor) }`（锚点抽象由文档类型提供解析，评论包本身文档类型盲） | `documentType` | error | `comments`（slide 的 resolver 由 slide-ui 贡献，02 §4.12c） |
 
 > 2026-09-18（14 §1 C-05）：Ribbon 页签与检查器分区复用 `ui.ribbon`/`ui.panel` 集合内的条目——Ribbon 页签 = `ui.ribbon{kind:'tab'}`，检查器分区 = `ui.panel{slot:'inspector'}`——不新增 `ui.ribbonTab`/`ui.inspector` 贡献点 id。
 

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；08-backend-nestjs.md §16.2
 
 # 04 OOXML 格式与 PPTX 编解码（限界上下文 BC-07 OOXML 格式基础设施、BC-08 PPTX 编解码）
 
@@ -687,7 +687,7 @@ packages/ooxml-pptx/
 │   │   │   ├── media.ts               媒体部件 → BlobRef（sha256 去重）→ MediaRef
 │   │   │   ├── notes-text.ts          备注部件只读文本提取（PRD OF-11；部件本身仍不透明保留）
 │   │   │   ├── embedded-fonts.ts      M2：p:embeddedFontLst → 字体条目 + usage（edit / render-only，按 fsType）；超限跳过并诊断
-│   │   │   ├── comments.ts            M3：现代评论部件 → resources['slide-comments.threads']；M1–M2 仅不透明保留
+│   │   │   ├── comments.ts            M3：现代评论部件 → resources['comments.threads']（ResourceHook 由 @cordexjs/comments 声明，2026-09-25 由 slide-comments.threads 改名，决策 INC-39）；M1–M2 仅不透明保留
 │   │   │   ├── ids.ts                 cNvPr/@id + a16:creationId → NodeId 分配（调用 domain/ids）
 │   │   │   ├── lazy.ts                Worker 内解析顺序与抢占：全量轻量计数 → 主题/母版/版式 → 首页 → 其余页按 order 每批 batchSize 页；prioritize 抢占（§4.18 CO-12/CO-11）
 │   │   │   ├── import.worker.ts       Worker 入口：在 Worker 内跑 importPptxProgressive，结构化克隆回传批次（§4.18 CO-12）
@@ -704,10 +704,11 @@ packages/ooxml-pptx/
 │   │   │   ├── ids.ts                 NodeId → cNvPr/@id 回写（复用原 id；新节点分配未占用 uint）
 │   │   │   ├── rels.ts                关系重建；opaque 部件 rels 原样保留
 │   │   │   ├── timing-refs.ts         删除形状后清理不透明 p:timing 悬空 spid（PRD OF-12）
-│   │   │   ├── comments.ts            M3：resources → 评论部件（PD-04 可关）；M1–M2 verbatim
+│   │   │   ├── comments.ts            M3：resources['comments.threads'] → 评论部件（PD-04 可关）；M1–M2 verbatim
 │   │   │   ├── chart-workbook.ts      M3 P1：Chart.data → 最小内嵌 .xlsx（PD-06 不可行则诊断 chart_workbook_dropped）
 │   │   │   ├── conformance-writer.ts  §4.4 三案执行：C（toStrict 反向映射）→ XSD 校验 → 失败回退 B
-│   │   │   └── content-types.ts       新增部件命名（image<N>.<ext>）分配、内容类型/rels 同步
+│   │   │   ├── content-types.ts       新增部件命名（image<N>.<ext>）分配、内容类型/rels 同步
+│   │   │   └── export.worker.ts       导出 Worker 入口（2026-09-25 登记，50/13 §7）：在 Worker 内跑 exportPptx，输入 store.exportSnapshot() 的结构化克隆 + 基线包字节，回传 pptx Blob；导出完成即终止，经 kernel toScriptUrl 创建（50/14 §4.2）；惰性子路径化见 M-11 G-14
 │   │   └── mapping/
 │   │       └── part-map.ts            registerPartPrefixes(dirtyTracker, body)：桥接 PresentationBody 路径 ↔ 部件名
 │   ├── interface/
@@ -815,7 +816,7 @@ packages/ooxml-pptx/
 | `infrastructure/import/media.ts` | 媒体解析 | `parseMedia` | `BlobStore`（M-02） | sha256 去重 |
 | `infrastructure/import/notes-text.ts` | 备注文本提取 | `extractNotesText` | — | PRD OF-11，只读 |
 | `infrastructure/import/embedded-fonts.ts` | 内嵌字体条目解析 | `parseEmbeddedFonts` | `ooxml-core/fonts/embedded-font.ts` | M2（OF-17）；按 `fsType` 标 `usage: 'edit'\|'render-only'`（受限字体编辑态用回退字体）；超限跳过 + `embedded_font_skipped`；字体部件本身 verbatim |
-| `infrastructure/import/comments.ts` | 评论部件解析 | `parseComments` | — | M3；M1–M2 仅不透明 |
+| `infrastructure/import/comments.ts` | 评论部件解析 | `parseComments` | — | M3（写入 `resources['comments.threads']`，INC-39）；M1–M2 仅不透明 |
 | `infrastructure/import/ids.ts` | id 分配（导入侧） | `assignImportIds` | `domain/ids/ooxml-id-map.ts` | |
 | `infrastructure/import/lazy.ts` | Worker 内解析顺序与抢占 | `buildParseSchedule`、`preempt` | `slide.ts`、`domain/import-envelope.ts` | 先对全部页做只计数不物化的轻量扫描（检测点 2，**在首批回传之前完成**，超天花板整体拒绝）；再按「主题/母版/版式 → 首页 → 其余页按 order 每批 `batchSize` 页」排程；收到 `prioritize(slideId)` 时当前页完成后先解析该页所在批次（rulings §4.18 CO-12/CO-11；不再是「Store 内按需物化」） |
 | `infrastructure/import/import.worker.ts` | Worker 入口 | Worker 模块（无命名导出） | `application/import-pipeline.ts`、`batch-protocol.ts` | 新增（§4.18 CO-12）：由 `importProgressive()` 以 `new Worker(new URL('./import.worker.ts', import.meta.url), { type:'module' })` 创建；Node 端（`server-headless`）同一入口以 `worker_threads` 加载；每批以结构化克隆回传 `BodyBatch`（只含新增实体与有序集合键） |
@@ -831,10 +832,11 @@ packages/ooxml-pptx/
 | `infrastructure/export/ids.ts` | id 回写（导出侧） | `writeBackIds` | `domain/ids/ooxml-id-map.ts` | 新节点分配未占用 uint |
 | `infrastructure/export/rels.ts` | 关系重建 | `rebuildRels` | `ooxml-core/opc/relationships.ts` | |
 | `infrastructure/export/timing-refs.ts` | 悬空引用清理 | `fixTimingRefs` | — | PRD OF-12 |
-| `infrastructure/export/comments.ts` | 评论部件生成 | `writeComments` | — | M3；PD-04 可关 |
+| `infrastructure/export/comments.ts` | 评论部件生成 | `writeComments` | — | M3；读 `resources['comments.threads']`（INC-39）；PD-04 可关 |
 | `infrastructure/export/chart-workbook.ts` | 内嵌工作簿生成 | `writeChartWorkbook` | — | M3 P1；PD-06 |
 | `infrastructure/export/conformance-writer.ts` | 一致性类写回执行 | `writeBackConformance` | `domain/conformance-strategy.ts`、`ooxml-core/xml/normalize.ts` | C→XSD→回退 B |
 | `infrastructure/export/content-types.ts` | 新增部件命名与内容类型 | `allocatePartName`、`registerContentType` | `ooxml-core/opc/content-types.ts` | `image<N>.<ext>` |
+| `infrastructure/export/export.worker.ts` | 导出 Worker 入口（2026-09-25 登记） | Worker 模块（无命名导出） | `application/export-pipeline.ts`、`@cordexjs/kernel`（`toScriptUrl`，由调用方创建） | 主线程只做 `store.exportSnapshot()` 与基线字节传递，编码在 Worker 内；导出完成后终止、基线字节只在此期间常驻；目标从基线 chunk 移出约 25 KB（50/13 §6、§7，M-11 G-14） |
 | `infrastructure/mapping/part-map.ts` | 路径 ↔ 部件名桥接 | `registerPartPrefixes` | `ooxml-core/preserve/dirty-tracker.ts` | |
 | `interface/codec.ts` | 对外契约实例 | `pptxCodec` | `application/**`、`domain/config.ts` | §2.5 |
 | `testing/index.ts` | 测试工具桶导出 | 见下 | — | |
@@ -1086,6 +1088,14 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | H6 加密包拒绝 | 新增错误码 `format.encrypted`（`ooxml-core` errors，`ENCRYPTED`，HTTP 415，`details:{container:'cfb'}`，与 30-architecture/10 §1.4 同表）；检测点 = 导入管线**第一步**、先于 `OpcPackage.open`：CFB 魔数 `D0 CF 11 E0 A1 B1 1A E1` + 目录中存在 `EncryptionInfo`（或 `EncryptedPackage`）流即拒绝，**不得**回落为 zip 解析失败/无效包；CFB 但无上述流（旧版二进制 `.ppt`）返回 `format.unsupported_mime` | §1.1、§2.3 `checkNotEncrypted`、§2.6 检测点、§4.2/§5.2 `import-admission.ts` 与测试（复用既有文件，§4/§5 不增文件）、§5.1 `ENCRYPTED`、§11 M1 |
 | M19 配额 `dimension` 取值 | 与 30-architecture/10 §1.4「配额三码并列与 `dimension` 取值表」一致：`format.quota_exceeded` 取 `slides`/`elementsPerSlide`/`elementsTotal`/`fileSize`；`ImportEnvelope` 增 `maxFileSize`（默认 200 MB） | §1.1、§2.2、§2.3、§2.6、§3、§5.2 |
 | L2 残句 | §13 Q-8 原问题描述改为「PRD 06 原用 tenant 域配额码（T-0 已废止）」 | §13 Q-8 |
+
+### 2026-09-25 回写（rulings §4.19）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| 50/13 §7、§13（F72） | §4、§5 | 登记导出 Worker 入口 `infrastructure/export/export.worker.ts`（经 kernel `toScriptUrl` 创建，导出完成即终止） |
+| 决策 INC-39、§4.19 D-COMMENTS-PKG | §4、§5 `import/comments.ts`、`export/comments.ts` | 评论部件映射的 ResourceHook 键 `resources['slide-comments.threads']` → `resources['comments.threads']`（由 `@cordexjs/comments` 声明） |
+| §4.19 D-M2-CONTENT | —（无改动） | 服务端导入自 M2 起经 M-09 `server-headless` 调用本包 `pptxCodec`（M-12 导入作业），本包 codec 接口不变 |
 
 ## 13. 未决问题
 

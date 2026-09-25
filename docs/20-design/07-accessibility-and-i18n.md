@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q4：章程引用改 §6.2、注明虚拟化下 Ctrl+F 限制、IME 对齐归因改为隐藏 textarea）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q4：章程引用改 §6.2、注明虚拟化下 Ctrl+F 限制、IME 对齐归因改为隐藏 textarea）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.1
 
 # 07 可访问性与国际化（Accessibility & i18n）
 
@@ -28,9 +28,9 @@ flowchart LR
   skip -.-> canvas
 ```
 
-怎么读：实线是 `F6` 的前进顺序（`Shift+F6` 反向），末尾循环回到 Ribbon；虚线是 `Tab` 的自然顺序与跳转链接，`Tab` 用于区域内外的精细遍历。
+怎么读：实线是 `F6` 的前进顺序（`Shift+F6` 反向；部分浏览器会截获 `F6` 聚焦地址栏，因此同时注册 `Ctrl+F6` / `Ctrl+Shift+F6` 作为备用键，与 Office 网页版一致，`50-frontend/16` §6.1），末尾循环回到 Ribbon；虚线是 `Tab` 的自然顺序与跳转链接，`Tab` 用于区域内外的精细遍历。
 
-以上顺序与循环键直接采用 PRD `03-features/02-editing.md` ED-29 的验收口径：**`F6`/`Shift+F6` 循环切换主要区域**（不是 `Tab`——`Tab` 在区域内部/之间都按 DOM 自然顺序移动，用于精细遍历；`F6` 是"跳到下一大块"的粗粒度移动，这是许多复杂桌面级 Web 应用——如 IDE——的通行做法，避免用户为切换区域而反复按 `Tab` 穿过整个 Ribbon）。App Bar 不在 ED-29 枚举的循环范围内，作为循环起点之前的自然 Tab 顺序存在。每个区域是一个 ARIA landmark（`role="banner"`/`toolbar`/`navigation`/`main`/`complementary`/`contentinfo` 或等价语义），额外提供"跳至画布"跳转链接（Skip Link）作为 `Tab` 用户的快速入口。无键盘陷阱（WCAG 2.1.2）：任何浮层必须有可达的关闭路径。
+以上顺序与循环键直接采用 PRD `03-features/02-editing.md` ED-29 的验收口径：**`F6`/`Shift+F6` 循环切换主要区域**（备用键 `Ctrl+F6` / `Ctrl+Shift+F6` 行为相同）（不是 `Tab`——`Tab` 在区域内部/之间都按 DOM 自然顺序移动，用于精细遍历；`F6` 是"跳到下一大块"的粗粒度移动，这是许多复杂桌面级 Web 应用——如 IDE——的通行做法，避免用户为切换区域而反复按 `Tab` 穿过整个 Ribbon）。App Bar 不在 ED-29 枚举的循环范围内，作为循环起点之前的自然 Tab 顺序存在。每个区域是一个 ARIA landmark（`role="banner"`/`toolbar`/`navigation`/`main`/`complementary`/`contentinfo` 或等价语义），额外提供"跳至画布"跳转链接（Skip Link）作为 `Tab` 用户的快速入口。无键盘陷阱（WCAG 2.1.2）：任何浮层必须有可达的关闭路径。
 
 ### 1.2 区域内部导航（Roving Tabindex，遵循 WAI-ARIA APG 的 Toolbar/Grid/Menu 模式）
 

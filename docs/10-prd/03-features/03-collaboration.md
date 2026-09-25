@@ -1,8 +1,8 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户；Q6 OIDC 与组管理推迟，M3 只按人分享；Q3 撤销语义——他人后写跳过并提示、整步跳过即停、软删除墓碑 + TTL 24 h，CO-08「恢复我的值」、CO-09 重写；Q5 名额按用户计）；2026-09-24（rulings §4.16 Q17：CO-07 版本策略标已裁决、部署配置可调；Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户；Q6 OIDC 与组管理推迟，M3 只按人分享；Q3 撤销语义——他人后写跳过并提示、整步跳过即停、软删除墓碑 + TTL 24 h，CO-08「恢复我的值」、CO-09 重写；Q5 名额按用户计）；2026-09-24（rulings §4.16 Q17：CO-07 版本策略标已裁决、部署配置可调；Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 功能域 03：协同
 
-> 需求编号前缀 `CO-`。本文件是 M3「协同」的主要验收来源。协同的技术选型（CRDT、传输、存储）由架构 ADR-0020/0022/0023 决定；本文只定义用户可感知的行为、语义与预算。协同 UX（远端光标样式、冲突可视化、离线态）由设计 05 负责。
+> 需求编号前缀 `CO-`。本文件是 M3「多人协同」的主要验收来源；协同会话、唯一同步路径与握手 / 门禁 / 资源通道（CO-01、CO-02 的单人部分与 CO-12）随协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT，逐项边界见 `05-milestones-and-scope.md` §0.3）。协同的技术选型（CRDT、传输、存储）由架构 ADR-0020/0022/0023 决定；本文只定义用户可感知的行为、语义与预算。协同 UX（远端光标样式、冲突可视化、离线态）由设计 05 负责。
 
 ---
 
@@ -62,7 +62,7 @@ flowchart LR
 
 ### CO-01 协同会话与房间
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`collab` 服务（`collab-core` Definition，`collab-yjs` + `collab-transport-ws` Provider）、`UnitScope`、`server-collab`
+- 优先级：P0 | 目标里程碑：M2（会话建立、初始同步、修改自动持久化到服务端、基础重连，rulings §4.19 D-M2-CONTENT）/ M3（多人：名额与房间容量、满员只读加入、在场） | 依赖能力：`collab` 服务（`collab-core` Definition，`collab-yjs` + `collab-transport-ws` Provider）、`UnitScope`、`server-collab`
 - 用户故事：作为编辑者，我打开一个共享文稿时希望自动加入协同会话，看到谁在线，并且我的修改被自动保存到服务端。
 - 验收标准：
   - Given 集成方以协同 preset 打开文档，When 鉴权握手成功，Then 在 ≤ 2 s（D50，p75）内完成初始同步并触发 `collab/synced`；期间编辑器可用（本地先行），同步完成前显示「同步中」状态。
@@ -74,7 +74,7 @@ flowchart LR
 
 ### CO-02 实时同步与收敛
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`store-yjs`、`collab-yjs`、`Mutation` 可序列化性
+- 优先级：P0 | 目标里程碑：M2（唯一同步路径、单 update 上限与拆分、本地回显）/ M3（多客户端延迟预算与收敛验收） | 依赖能力：`store-yjs`、`collab-yjs`、`Mutation` 可序列化性
 - 验收标准：
   - 所有编辑以 `Mutation` 形式经 CRDT 同步；不存在绕过 `DocumentStore` 的同步路径。
   - 延迟预算（同区域，RTT ≤ 50 ms）：客户端 A 提交 → 客户端 B 可见 p50 ≤ 150 ms、p95 ≤ 400 ms；本地回显 ≤ 16 ms。
@@ -98,7 +98,7 @@ flowchart LR
 
 ### CO-04 评论
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`ResourceHook`（评论作为 `Snapshot` 内的插件资源）、`Command`（评论增删改为 `Mutation`）、`FormatCodec`（现代评论部件导入/导出）、`permissions`
+- 优先级：P0 | 目标里程碑：M3 | 依赖能力：iso 包 `@cordexjs/comments`（文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象；slide 专属锚点解析、检查器评论页签与画布评论钉由 `slide-ui` 贡献，rulings §4.19 D-COMMENTS-PKG）、`ResourceHook`（评论作为 `Snapshot` 内的插件资源）、`Command`（评论增删改为 `Mutation`）、`FormatCodec`（现代评论部件导入/导出）、`permissions`
 - 用户故事：作为评论者，我希望针对某一页、某个元素或一段文字发起评论线程，@ 同事，并在问题解决后标记已解决。
 - 验收标准：
   - 锚点类型：页、元素、文本范围（同一 run 或跨 run，按相对位置锚定）；元素被删除时线程变为「已脱离锚点」而不是消失，仍可在评论面板查看并可重新锚定（P1）。
@@ -145,7 +145,8 @@ flowchart LR
 - 验收标准：
   - Given 用户无 `doc.write`，Then 所有编辑命令在客户端管线被拒绝（不产生 `Transaction`），UI 编辑控件禁用并提示；Given 客户端被绕过（构造消息），Then 服务端拒绝该 update 并断开会话，记录审计。
   - 权限变更（如 owner 把某编辑者降为查看者）在 ≤ 2 s 内传播到该用户：其会话进入 `readonly-degraded`，未同步的本地编辑被回滚（机制：「导出后重载」，见 CO-12）并提示「你的 N 项更改未被保存（权限已变更）」，可导出为本地副本。
-  - 令牌过期：提前 60 s 刷新（参考应用走 OIDC 刷新；嵌入场景经集成方回调换取新 Ticket）；刷新失败**按原因分流**（rulings §4.18 UX-02）：网络错误 → `reconnecting`，离线判据与重连计时同 CO-06（不另设计时器）；服务端返回 401（登录已失效）→ 直接显示「登录已过期」横幅，不经过「重连中 → 离线」。
+  - 访问被撤销与降权分开处理：降为仍有读权限的角色（`viewer` / `commenter`）时，未同步的本地更改可导出为本地副本（上条）；访问被撤销（降为无任何角色）时**不提供**本地副本导出，只显示「访问权限已变更」阻断横幅（申请访问 / 返回列表），本地未同步更改随之丢弃——此时文档已不在该用户可读范围内，安全优先，与下文「登录回来换了人不重放队列」同一原则（设计 03-screens/12）。
+  - 令牌过期（随网关自 M2 起生效）：提前 60 s 刷新（参考应用走 OIDC 刷新；嵌入场景经集成方回调换取新 Ticket）；刷新失败**按原因分流**（rulings §4.18 UX-02）：网络错误 → `reconnecting`，离线判据与重连计时同 CO-06（不另设计时器）；服务端返回 401（登录已失效）→ 直接显示「登录已过期」横幅，不经过「重连中 → 离线」。
   - 重新登录：横幅「重新登录」在弹窗或新标签完成 OIDC 登录（弹窗被拦截时退化为新标签链接），**原页不跳转、待同步队列保留**；登录完成后原页取新票据重连 → 同步中 → 已恢复。登录回来的用户与原会话不是同一人时不重放队列，按只读处理并提供「导出为本地副本」，防止以他人身份提交更改；该横幅处理前不可关闭。
   - 命令未声明能力位 → 默认拒绝（扫描器保证每个命令声明；架构 05）。
   - 权限判定不依赖 UI 状态；单人模式（无协同）下 `permissions` 由集成方直接配置（如只读嵌入）。
@@ -171,7 +172,7 @@ sequenceDiagram
 
 ### CO-06 离线、断线与重连
 
-- 优先级：P0 | 目标里程碑：M3（会话内队列）/ M4（跨刷新持久化，P2） | 依赖能力：`collab-core` 离线队列接口、`collab-transport-ws` 重连退避、`store-yjs` update 编码
+- 优先级：P0 | 目标里程碑：M3（会话内队列与离线体验；M2 只有基础重连——指数退避自动重连、先鉴权再同步、补发未获 db 确认的更改、有未确认更改时离开保护，见 `05-milestones-and-scope.md` §0.3）/ M4（跨刷新持久化，P2） | 依赖能力：`collab-core` 离线队列接口、`collab-transport-ws` 重连退避、`store-yjs` update 编码
 - 用户故事：作为编辑者，地铁里断网 5 分钟，我希望继续编辑，恢复网络后自动合并且不丢失。
 - 验收标准：
   - 断线期间：编辑继续，状态显示「离线，N 项更改待同步」；评论可创建（待同步）；presence 停止。
@@ -179,7 +180,7 @@ sequenceDiagram
   - 离线判据（rulings §4.18 UX-03）：自进入重连起**累计 30 s** 仍未连上即转 `offline`；浏览器报告离线（`navigator.onLine=false`）时立即转 `offline`（去抖 2 s）。
   - 离线后自动回到在线（rulings §4.18 CO-03）：进入 `offline` 后不停止重试，每 30 s（±20% 抖动）自动重连一次，浏览器报告离线期间暂停；收到浏览器 online 事件或用户点「立即重连」时立即重连。服务端恢复后，`offline` 会话 ≤ 36 s 内自动回连；断网期间不发起连接。
   - 离线积累的更改超过单帧上限（1 MiB）时，重连后分块同步：全部送达、不因超限被断连、不重复落库（rulings §4.18 CO-10）。
-  - 重连时若权限已变化，按 CO-05 处理；若文档已被删除，提示并允许导出本地副本。
+  - 重连时若权限已变化，按 CO-05 处理（访问被撤销、降为无任何角色时不提供本地副本导出）；若文档已被删除，提示并允许导出本地副本。
   - 会话内队列在页面刷新后丢失（M3 默认，明确提示「刷新将丢失未同步更改」；「重新登录」在新窗口完成、不刷新原页，队列保留，见 CO-05）；跨刷新持久化（IndexedDB，按 `Unit` 隔离，加密可选）为 M4 P2（PD-05；由 `collab-offline-idb` 作为 `OfflineStore` Provider 提供，章程 §5.2、ADR-0033）。
   - 离线超过 24 h 的队列重连时提示「较长时间离线，合并后请检查」并列出受影响页（P1）。
   - 单人模式不存在离线概念（保存走集成方回调）。
@@ -211,7 +212,7 @@ flowchart TB
 - 优先级：P1 | 目标里程碑：M3 | 依赖能力：`Snapshot`（带 `schemaVersion`）、`server-collab` 快照持久化（SV-03）、`migrations`、`permissions`（`history.*`）
 - 用户故事：作为所有者，我希望查看文稿的历史版本、预览并恢复到某个版本，且恢复本身可撤销。
 - 验收标准：
-  - 自动版本：服务端按策略生成（章程 Q17 已裁决，rulings §4.16：默认每 10 分钟且有变更，或每 500 个 update；保留 30 天；全部进入部署配置可调）；命名版本：用户手动创建，附名称与说明，永久保留（受配额）。
+  - 自动版本：服务端按策略生成（章程 Q17 已裁决，rulings §4.16：默认每 10 分钟且有变更，或每 500 个 update；30 天内全量保留，此后每天保留最后一个，至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久），rulings §4.19 C-06；全部进入部署配置可调）；命名版本：用户手动创建，附名称与说明，永久保留，每文档上限 200。
   - 版本列表显示时间、创建者（自动版本显示该时段的贡献者集合）、是否命名；分页加载。
   - 预览版本：只读渲染，不影响当前会话；可对比（元素级增删改高亮，P2）。
   - 恢复：作为一个新的 `Transaction` 应用到当前文档（把当前状态替换为该版本内容），因此可撤销、被其它协作者实时看到、进入审计；不重写历史。恢复的撤销（rulings §4.12 U-07 `version-restore-undo`，M3 前出 ADR）以 Q3 撤销子裁决为基线（rulings §4.15）：撤销恢复时不覆盖他人在恢复之后的写入（跳过并提示），整步被跳过即停；不采用绕过命令管线（D4）的 `revertTo` 式整体回滚。
@@ -220,7 +221,7 @@ flowchart TB
 
 ### CO-08 冲突语义（软冲突）
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`store-yjs` 数据结构映射（ADR-0020）、`telemetry`
+- 优先级：P0 | 目标里程碑：M3（软删除墓碑与 TTL 清扫随协同后端自 M2 起就位，`05-milestones-and-scope.md` §0.3「持久化与快照」行） | 依赖能力：`store-yjs` 数据结构映射（ADR-0020）、`telemetry`
 - 定义：CRDT 保证收敛，因此没有「硬冲突」；**软冲突**指并发操作虽合并成功但结果可能不符合任一用户意图的情形。产品要求：结果确定、可预测、有提示、可恢复（撤销只作用于自己的部分且不覆盖他人后写；需要取回自己被覆盖的值时用显式命令「恢复我的值」，rulings §4.15 Q3）。
 
 | 场景 | 期望收敛结果（与 ADR-0020 §D、架构 06 冲突表一致） | 用户提示 | 埋点 |
@@ -244,7 +245,7 @@ flowchart TB
 - 墓碑的附加约束：TTL 内被删内容仍会同步给后加入的协作者（含查看者），相关访问写审计；墓碑计入文档总元素上限（SV-08）；文档级的擦除与「永久删除文档」（SV-11，GDPR）以及元素级经审计的「彻底删除元素」（见本节末条）不等 TTL，立即硬删除。
 - 验收标准：以上每一行都有确定性协同模拟用例；提示出现率 100%；提示可关闭且不打断输入；软冲突事件计数进入健康指标（`06-metrics-and-analytics.md`）。
 - 「正在编辑」即时提示（第二行）是**预防性**机制：当另一用户在同一文本框有活跃文本光标时，在文本框边缘显示其名字；这是 presence 的一部分而非锁。
-- **彻底删除元素**（P1，M3，与墓碑同期；rulings §4.18 CO-07）：术语拆开——文档级称「永久删除文档」（SV-11），元素级称「彻底删除元素」。验收：
+- **彻底删除元素**（P1，M3；墓碑与 TTL 硬删路径自 M2 起已就位；rulings §4.18 CO-07）：术语拆开——文档级称「永久删除文档」（SV-11），元素级称「彻底删除元素」。验收：
   - 只对已删除（墓碑态）的元素开放，**仅 owner** 可发起；执行前确认对话框，写审计 `document.element_purged`。
   - 服务端单写者立即硬删除（与 TTL 到期同一硬删路径）；只清当前文档状态——历史快照与 update 表按保留期存在，引用的图片原件按 30 天无引用回收；确认对话框与结果提示明示「历史版本仍含该内容，要连历史清除请永久删除文档」。
   - 清除后删除方再撤销该步，按「整步被跳过」处理（同 TTL 到期，CO-09）。
@@ -321,7 +322,7 @@ flowchart TB
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`Preset` 组合、`DocumentStore` Provider 替换
 - 验收标准：
-  - `preset-slide-collab` 与 `preset-slide` 的 `Manifest` 差异仅为：`store-memory` ↔ `store-yjs`、新增 `collab-*` 与评论/presence/版本历史 UI 插件；CI 脚本比对两者插件清单并断言差异集合恰为白名单。
+  - `preset-slide-collab` 与 `preset-slide` 的 `Manifest` 差异恰为白名单 `{-store-memory, +store-yjs, -collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`：`store-memory` ↔ `store-yjs`、单人兜底在场换成 `collab-yjs`、新增 `collab-transport-ws` 与评论包 `@cordexjs/comments`（rulings §4.19 D-COMMENTS-PKG）；CI 脚本比对两者插件清单并断言差异集合恰为白名单。
   - 移除全部 `collab-*` 插件后 `preset-slide-collab` 仍能启动并以单人模式工作（`collab/state-changed` 不触发，UI 隐藏协作区域）。
   - 用 `store-yjs` 但不连接服务端（本地 CRDT）时，全部 M2 编辑功能测试通过（同一套 e2e 在两种 store 下各跑一遍）。
 
@@ -334,30 +335,33 @@ flowchart LR
   base["共同部分：M2 全部编辑插件"]
   sm["store-memory"]
   sy["store-yjs"]
-  cc["collab-* 插件"]
-  ui["评论、presence、版本历史 UI 插件"]
+  lp["local-presence：collab-core 提供的单人兜底在场"]
+  cc["collab-yjs、collab-transport-ws"]
+  cm["comments：@cordexjs/comments，M3 起"]
   ps --> base
   ps --> sm
+  ps --> lp
   pc --> base
   pc --> sy
   pc --> cc
-  pc --> ui
+  pc --> cm
   sm -.->|"同一 DocumentStore 契约，可互换"| sy
+  lp -.->|"由 collab-yjs 的在场替换"| cc
 ```
 
-怎么读：两个 preset 指向各自装入的插件，共同部分完全相同；CI 比对两者 Manifest，差异集合必须恰好是「store-memory 换成 store-yjs，加上 collab-* 与三类 UI 插件」（白名单）。移除全部 `collab-*` 后协同 preset 仍能以单人模式启动。
-依据：本条 CO-11；§0 第 2 条；`05-milestones-and-scope.md` M3 `pluggable:m3`。
+怎么读：两个 preset 指向各自装入的插件，共同部分完全相同；CI 比对两者 Manifest，差异集合必须恰好是白名单 `{-store-memory, +store-yjs, -collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`（可选的 `collab-offline-idb` 不计入）。在场、版本历史等界面由 `ui-react` / `slide-ui` 提供，两个 preset 都装、单人时隐藏，因此不在差异中。自 M2 起参考应用编辑器用 `preset-slide-collab` 接协同网关（M2 时尚不含 `comments`）；移除全部 `collab-*` 后协同 preset 仍能以单人模式启动。
+依据：本条 CO-11；§0 第 2 条；`05-milestones-and-scope.md` M3 `pluggable:m3`；rulings §4.19 D-COMMENTS-PKG、D-M2-CONTENT。
 
 ### CO-12 协同安全、门禁与资源
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`protocol`（WS 握手/消息 schema）、`server-collab`（硬门禁 + 软门禁，ADR-0034）、`blobStore`（资源上传通道）、`permissions`
+- 优先级：P0 | 目标里程碑：M2（随协同网关提前，rulings §4.19 D-M2-CONTENT；`commenter` 相关修复规则随评论在 M3 补黄金用例） | 依赖能力：`protocol`（WS 握手/消息 schema）、`server-collab`（硬门禁 + 软门禁，ADR-0034）、`blobStore`（资源上传通道）、`permissions`
 - 用户故事：作为管理员，我希望任何客户端（包括有 bug 或恶意的）都不能把非法结构或越权修改留在共享文档里，同时正常用户不会因此丢失工作或看到分叉。
 - 验收标准：
   - 握手：OIDC 登录会话换取的一方 Ticket（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4），ADR-0029）→ 服务端校验签名、文档能力位、协议版本；失败以 `collab/auth-failed{code}` 关闭，`code ∈ collab.unauthenticated | collab.forbidden | collab.doc_not_found | collab.schema_too_new | collab.protocol_mismatch | collab.room_full`（WS 关闭码见架构 10 §1.4，协议不匹配 4427）。
   - **硬门禁（应用前，服务端）**：信封/schema/大小/速率（单帧 ≤ 1 MiB；每连接 ≤ 200 帧/s，突发 500）、角色与能力位（`doc.write`、锁定窗口）、update 可解析性与结构数上限；任一失败 → 不广播、不落库，返回类型化错误或关闭连接；未知消息类型丢弃并计数。
   - **软门禁（应用后，服务端；章程 D12「数据完整性边界」，ADR-0034）**：
-    - `softGate.mode = repair`（M3 默认）：只修复**不变量**违规——父子环、悬空 `parentId`/`layoutId`、非法 `order` 键、`schemaVersion`/`epoch` 被改、实体 id 与键不一致、`commenter` 触及评论以外路径、修改他人评论（owner 除外）。修复由确定性纯函数生成补偿事务（origin=`repair`），服务端应用并广播，同时通知来源会话（`collab/repair{reason, paths}`）。
-    - `softGate.schemaMode = report-only`（M3 默认）：zod 类型校验只计数/告警，不修复（避免 schema 演进期误修复）。
+    - `softGate.mode = repair`（默认，随协同后端自 M2 生效）：只修复**不变量**违规——父子环、悬空 `parentId`/`layoutId`、非法 `order` 键、`schemaVersion`/`epoch` 被改、实体 id 与键不一致、`commenter` 触及评论以外路径、修改他人评论（owner 除外）。修复由确定性纯函数生成补偿事务（origin=`repair`），服务端应用并广播，同时通知来源会话（`collab/repair{reason, paths}`）。
+    - `softGate.schemaMode = report-only`（默认，自 M2 起）：zod 类型校验只计数/告警，不修复（避免 schema 演进期误修复）。
     - 修复**不改变用户内容语义**：不改文本、不改样式值、不移动用户放置的元素（环修复仅把节点放回页根）；不透明保留内容只校验为字串，不受修复影响。
     - 同一会话 10 分钟内触发 ≥ 5 次修复 → 隔离（关闭码 4409）并审计。预算：软门禁 p95 ≤ 5 ms/update（只校验变更路径）。
   - **用户可见行为**：

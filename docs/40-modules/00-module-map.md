@@ -1,4 +1,4 @@
-> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引
+> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿） | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引
 > 修订：按 `14-cross-module-review.md` §8 修订（R-01…R-24 全部落实，本次为回写员 R1 收敛）
 
 # 00 模块切分总图（DDD 限界上下文 × cordis 插件）
@@ -21,18 +21,14 @@ ooxmlcore["ooxml-core L3"]
 collabcore["collab-core L4"]
 collabyjs["collab-yjs L4"]
 collabtransportws["collab-transport-ws L4"]
-enginelayout["engine-layout L5"]
-enginerender["engine-render L5"]
+comments["comments L4"]
+engine["engine-layout / engine-render L5"]
 end
 subgraph domband["前端 dom"]
 collabofflineidb["collab-offline-idb L4"]
 renderdom["render-dom L5"]
-design["design L7"]
-uicore["ui-core L7"]
-uireact["ui-react L7"]
-presetslide["preset-slide L8"]
-presetslidecollab["preset-slide-collab L8"]
-presetslideviewer["preset-slide-viewer L8"]
+uicore["design / ui-core / ui-react L7"]
+presets["preset-slide / -collab / -viewer L8"]
 appsweb["apps/web L8"]
 end
 subgraph nodeband["后端 node"]
@@ -45,6 +41,7 @@ modelcore --> kernel
 storememory --> modelcore
 storeyjs --> modelcore
 collabyjs --> storeyjs
+comments --> modelcore
 servercollab --> storeyjs
 serverheadless --> modelcore
 uicore --> kernel
@@ -53,7 +50,7 @@ appsserver --> servercollab
 appsserver --> serverheadless
 ```
 
-怎么读：三条水平泳道对应原网格的「共享(iso)／前端(dom)／后端(node)」三行；节点标签沿用 L0…L8/LS 层号；本图共 26 个节点＝24 个按 `cordex.layer` 计的水平层包＋`apps/web`/`apps/server` 两个组合根应用；`L7`/`L8` 没有 iso 包；箭头只画少量代表性依赖以示意铁律 3「只向下」，并非详尽依赖表，详尽依赖见各模块文档 §4/§10。
+怎么读：三条水平泳道对应原网格的「共享(iso)／前端(dom)／后端(node)」三行；节点标签沿用 L0…L8/LS 层号；图中覆盖 25 个按 `cordex.layer` 计的水平层包（2026-09-25 新增 `comments` L4 iso，rulings §4.19 D-COMMENTS-PKG）＋`apps/web`/`apps/server` 两个组合根应用，同层同泳道且无代表性边的包合并为一个节点（`engine-layout / engine-render`、`design / ui-core / ui-react`、三个 preset，2026-09-25 为满足单图 25 节点上限而合并，共 22 个节点）；`L7`/`L8` 没有 iso 包；箭头只画少量代表性依赖以示意铁律 3「只向下」，并非详尽依赖表，详尽依赖见各模块文档 §4/§10。
 
 **垂直束网格图**
 
@@ -356,7 +353,7 @@ slideui --> uicore2
 | 消费的服务 | `ctx.store`、`ctx.yjsBackend`（来自 BC-05 的 store-yjs）、`ctx.permissions`（BC-05）、`ctx.telemetry`（BC-01） |
 | 提供的贡献点 | 无（协同能力是服务 Provider 座，不是贡献点集合） |
 | 消费的贡献点 | 无 |
-| 发布事件 | `collab/state-changed`、`collab/synced`、`collab/soft-conflict`、`collab/auth-failed`、`collab/reconnect`、`collab/update-rejected`、`collab/repair`、`collab/backpressure`、`collab/latency`、`presence/joined`、`presence/left`、`presence/changed`（后两个新增，PRD CO-13 诊断面板所需，见 R-03/M-05/G-3） |
+| 发布事件 | `collab/state-changed`、`collab/synced`、`collab/soft-conflict`、`collab/auth-failed`、`collab/reconnect`、`collab/update-rejected`、`collab/repair`、`presence/joined`、`presence/left`、`presence/changed`（2026-09-25：原新增名 `collab/backpressure` 改为客户端指标 `cordex_collab_outbound_queued`、`collab/latency` 改为遥测专用事件 `{rttMs, applyMs}`，均不进 cordis `Events`，依据 30/10 §11.1 与决策 INC-33，M-05 G-3 结案） |
 | 订阅事件 | `store/transaction`（本地事务 → 编码为 update 广播） |
 | doc-sheet 通用性 | generic（协同契约按 Unit 工作，不认识 slide；富文本/实体表映射对任意 `DocumentType.shape` 标注生效） |
 | 主要 ADR | 0020、0023、0024、0025、0032、0033 |
@@ -681,20 +678,20 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 评论 |
-| 职责一句话 | 评论线程 CRUD、锚点、解决、实时通知（经协同房间控制帧）；服务端数据库为 CRDT `ResourceHook` 的**镜像读模型**，事实源在客户端 |
-| 核心聚合与实体 | `CommentThread`（读模型）、`Anchor` |
-| 所属层/层带、秩 | L8，秩 80 |
-| 同构类 | node |
-| 运行位置 | 服务端（事实源在浏览器 CRDT） |
-| 承载包 | `apps/server`（`modules/comments`） |
-| cordis 形态 | library（Conformist：只读镜像 `resources.comments.*`，不持有事实数据） |
+| 职责一句话 | 评论线程 CRUD、锚点、解决、实时通知（经协同房间控制帧）；事实源是文档内的 CRDT `ResourceHook`（客户端插件 `@cordexjs/comments`），服务端数据库为其**镜像读模型** |
+| 核心聚合与实体 | `threads`/`replies`（客户端 ResourceHook 实体）、`CommentThread`（服务端读模型）、`Anchor` |
+| 所属层/层带、秩 | 客户端插件 L4（iso，秩同 collab 四包，章程 §5.2 `@cordexjs/comments` 行，2026-09-25 新增）；服务端镜像 L8，秩 80 |
+| 同构类 | iso（`@cordexjs/comments`）+ node（`apps/server` 镜像） |
+| 运行位置 | 浏览器（事实源，M3 起装入 `preset-slide-collab`）+ 服务端（镜像） |
+| 承载包 | `@cordexjs/comments`（2026-09-25 新增，rulings §4.19 D-COMMENTS-PKG；横向能力、文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象，具体锚点由文档类型以 resolver 提供——slide 的 resolver、检查器评论页签与画布评论钉由 `slide-ui` 贡献）；`apps/server`（`modules/comments`） |
+| cordis 形态 | 客户端：plugin（贡献 `core.command`、`ResourceHook`、`ui.panel` 等由 `slide-ui` 补 slide 专属部分）；服务端：library（Conformist：只读镜像 `resources.comments.*`，不持有事实数据） |
 | 提供的服务 | 无 cordis 服务 |
 | 消费的服务 | BC-21（经 `Room.broadcastControl` 发通知）、BC-05（`resources.comments.*` 的 `ResourceHook` 事实数据，经 server-collab 观察后 upsert 镜像） |
 | 提供的贡献点 | 无 |
 | 消费的贡献点 | 无 |
-| 发布事件 | 无 cordis 事件（`CONTROL.event{comments.changed}` 是协同信封消息，非 cordis `Events`） |
+| 发布事件 | 客户端：`comment/added`、`comment/replied`、`comment/resolved`、`comment/reopened`、`comment/deleted`、`comment/mentioned`（`@cordexjs/comments` 发布，载荷见 50/08 §8）；服务端：无 cordis 事件（`CONTROL.event{comments.changed}` 是协同信封消息，非 cordis `Events`） |
 | 订阅事件 | 无 |
-| doc-sheet 通用性 | parametrized（`ResourceHook` 机制本身对文档类型盲；锚点形状 `{slideId, shapeId}` 由幻灯片领域定义，未来 doc/sheet 锚点形状不同） |
+| doc-sheet 通用性 | generic（2026-09-25 起：`@cordexjs/comments` 与服务端镜像均文档类型盲，锚点形状由文档类型以 resolver 提供，slide 的 resolver 在 `slide-ui`；与 §6 表 R-15 改判一致） |
 | 主要 ADR | 0031 |
 
 ### BC-26 审计与健康运维
@@ -702,12 +699,12 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 审计与健康运维 |
-| 职责一句话 | 审计记录（append-only）、健康探针、指标端点、内部诊断/管理 API、配置 Schema 与可观测性适配（pino/OTel） |
+| 职责一句话 | 审计记录（append-only）、健康探针、指标端点、内部诊断/管理 API、配置 Schema 与可观测性适配（pino/OTel）；`apps/server` 应用骨架与基础设施（进程入口、根模块 `AppModule`、OTel 启动、Valkey 客户端、PG 连接池、drizzle 类型镜像与迁移 SQL 文件；2026-09-25 审稿登记，迁移内容以 60-backend/08–13 为唯一事实源） |
 | 核心聚合与实体 | `AuditRecord` |
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | node |
 | 运行位置 | 服务端 |
-| 承载包 | `apps/server`（`modules/audit`、`modules/health`、`modules/metrics`、`modules/internal`、`common/interceptors`、`config`） |
+| 承载包 | `apps/server`（`modules/audit`、`modules/health`、`modules/metrics`、`modules/internal`、`common/interceptors`、`config`；2026-09-25 审稿补 `main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`，见 M-12 §4.13） |
 | cordis 形态 | library（8 个 Nest 模块 + `common/`/`config/` 全部纯 Nest DI）。三个 `errors.sink`/`telemetry.sink` 的 Node 实现由 M-09 在 `cordis-host/adapters/` 提供（R-10） |
 | 提供的服务 | 无新服务名；`errors.sink`/`telemetry.sink` 的 Node 实现物理归属 BC-21/27（M-09 的 `cordis-host/adapters/`），本上下文只消费其效果（结构化日志/指标出现在 `modules/health`/`modules/metrics`） |
 | 消费的服务 | 无 |
@@ -911,7 +908,7 @@ bc21 -- "CS 经 Redis perm:doc 频道 permVersion" --> bc19
 bc22 -- "CF document_snapshots 表 SnapshotEnvelope" --> bc21
 bc23 -- "OHS tasks API ImportResult 导出 bytes" --> bc27
 bc24 -- "OHS 缩略图 WebP 640 px" --> bc27
-bc25 -- "CF 镜像读模型 slide-comments.threads" --> bc05
+bc25 -- "CF 镜像读模型 comments.threads" --> bc05
 bc26 -- "CS command/audited AuditRecord" --> bc05
 bc19 -- "OHS BlobStore" --> bc20
 bc23 -- "OHS BlobStore" --> bc20
@@ -982,7 +979,7 @@ bc06 -. "SeparateWays 铁律2 无共享类型" .- bc29
 | BC-21 协同网关与持久化 | BC-22 快照与版本 | Conformist（快照 REST 依赖 server-collab 内部表结构） | `apps/server/src/modules/snapshots/*` | `document_snapshots` 表、`SnapshotEnvelope` |
 | BC-27 Headless 渲染与批处理宿主 | BC-23 导入导出与作业编排 | Open Host Service（`tasks` API） | `server-headless/src/tasks/{import,export}.ts`（文档类型无关命名，经 `formats` 按 `documentType` 取 codec，rulings §4.18 FE-01） | `ImportResult`/导出 `bytes` |
 | BC-27 Headless 渲染与批处理宿主 | BC-24 缩略图 | Open Host Service | `server-headless/src/thumbnails/thumbnail-renderer.ts` | 缩略图 WebP 字节（640 px，Q8） |
-| BC-05（ResourceHook） | BC-25 评论 | Conformist（镜像读模型必须照单全收） | `apps/server/src/modules/comments/comments.service.ts` | `resources['slide-comments.threads']` |
+| BC-05（ResourceHook） | BC-25 评论 | Conformist（镜像读模型必须照单全收） | `apps/server/src/modules/comments/infrastructure/comment-mirror.observer.ts` | `resources['comments.threads']`（命名空间 `comments.*`，由 `@cordexjs/comments` 声明；2026-09-25 由 `slide-comments.threads` 改名，决策 INC-39：服务端镜像按 `comments.` 前缀识别、文档类型盲） |
 | BC-05（事件） | BC-26 审计与健康运维 | Customer–Supplier | `apps/server/src/common/interceptors/audit.interceptor.ts` | `command/audited`、`AuditRecord` |
 | BC-20 对象存储与媒体 | BC-19/23/24/09（本地缓存） | Open Host Service（`BlobStore`） | `server-storage/src/blob-store.ts` | `BlobRef`、`presignPut`/`presignGet` |
 | BC-21（server-collab）/BC-27（server-headless） | BC-18…26（Nest Module） | Open Host Service（只调用，不重实现业务逻辑） | `apps/server/src/cordis-host/cordis-host.service.ts` | `openUnit`/`closeUnit`/`diagnostics()` |
@@ -1002,6 +999,8 @@ bc06 -. "SeparateWays 铁律2 无共享类型" .- bc29
 ---
 
 ## 5. 前后端切分
+
+> 2026-09-25（rulings §4.19）：前端运行时总图与包在浏览器中的分工以 [50-frontend/01](../50-frontend/01-overview-and-runtime-map.md) 为准，服务端模块清单、进程角色与装配矩阵以 [60-backend/01](../60-backend/01-service-overview-and-roles.md) 为准；本节保留包级前后端切分。M2 起服务端文档内容以协同快照为唯一事实源（D-M2-CONTENT），浏览器端服务端文档一律经 `preset-slide-collab` 打开；评论客户端插件 `@cordexjs/comments` 只在浏览器（M3）。
 
 **进程与契约图**
 
@@ -1110,7 +1109,7 @@ g6 -. "BC-21 只复用 collab-core 契约 不复用 Provider" .- g10
 
 ### 5.3 服务端 Nest 模块与内嵌 cordis 宿主 `preset-server` 的边界
 
-Nest 模块（BC-18/19/20/22/23/24/25/26）只做传输、校验、鉴权、限流、审计——不得出现 `import '@cordexjs/model-*'`/`'yjs'`（depcruise `server-app-thin`，02 §3.2）；全部业务逻辑经 `preset-server`（08 §4.2：kernel 基础服务 Provider + model-core + store-yjs + model-slide + ooxml-core/pptx + engine-layout + server-collab + server-storage + server-headless）装配的 cordis 宿主完成。**进程间契约全部经 `@cordexjs/protocol`**（§4.2 第 1 条），浏览器与服务端不存在任何绕开 protocol 的私有通道。
+Nest 模块（BC-18/19/20/22/23/24/25/26）只做传输、校验、鉴权、限流、审计——不得出现 `import '@cordexjs/model-*'`/`'yjs'`（depcruise `server-app-thin`，02 §3.2）；全部业务逻辑经 `preset-server`（插件清单以 60-backend/01 §9 为准，原 08 §4.2 已删：kernel 基础服务 Provider + model-core + store-yjs + model-slide + ooxml-core/pptx + engine-layout + server-collab + server-storage + server-headless）装配的 cordis 宿主完成。**进程间契约全部经 `@cordexjs/protocol`**（§4.2 第 1 条），浏览器与服务端不存在任何绕开 protocol 的私有通道。
 
 ---
 
@@ -1221,11 +1220,11 @@ l5 -.-> renderscene{"render.scene"}
 | M-05 | 协同（客户端）<br>`docs/40-modules/05-collaboration-client.md` | BC-09 | `@cordexjs/collab-core`、`@cordexjs/collab-yjs`、`@cordexjs/collab-transport-ws`、`@cordexjs/collab-offline-idb` | M-02 | M-09（`server-collab` 依赖 `collab-core` 契约）、M-11 | `06-collaboration.md` 全篇（§0–§18）；charter §4.2 术语；`adr/0020`、`0023`、`0024`、`0025`、`0032`、`0033`；`02-layering-and-packages.md` §4.11、§4.12、§4.12b | `yjsBackend` 是唯一受控访问面（禁止 `Y.*` 类型外泄）；撤销只回滚本地 `origin`；12 种软冲突场景需 fuzz 覆盖；`OfflineStore` 缺失时降级为内存队列。**M-09 的 `server-collab` 依赖本模块 `collab-core` 的 Definition 契约（awareness 模型、权限检查点、房间状态机契约），不复用 `collab-yjs`/`collab-transport-ws` 等 Provider；帧格式另经 `@cordexjs/protocol`，两端需协议帧版本一致（rulings §4.18 FE-15）** | 2 | 70–90 | 含测试，无机械生成复制件 |
 | M-06 | 布局与渲染引擎<br>`docs/40-modules/06-layout-and-render-engine.md` | BC-10、11 | `@cordexjs/engine-layout`、`@cordexjs/engine-render`、`@cordexjs/render-dom` | M-02 | M-07、M-09、M-10、M-11、M-13（`render.*` 契约与 `engine-layout` 运行时依赖） | `07-rendering.md` 全篇（§0–§14）；`adr/0021`、`0026`、`0027`、`0028`；`02-layering-and-packages.md` §4.13、§4.14、§4.15 | `engine-render` 对 `model-*` 零依赖（R15）；`DirtySet` 必须被消费（A28 反制测试）；三处 LRU 必须有淘汰测试（A29；**模块内三处** = `StyleCache`/`MediaCache`/`measure-cache`，不含 M-07 的 `LayerTemplateCache`，系统级共四处，见 R-19/C-12）；文本编辑用隐藏 `textarea` + 自绘光标（ADR-0028） | 2 | 90–110 | 含测试（含三处 LRU 淘汰测试），无机械生成复制件 |
 | M-07 | 幻灯片渲染<br>`docs/40-modules/07-slide-rendering.md` | BC-12 | `@cordexjs/slide-render`、`@cordexjs/slide-render-chart` | M-03、M-04（`ooxml-core` 只读解析，C-28/§4.15 Q7）、M-06 | M-10、M-11、M-13（作为样板） | `07-rendering.md` §4 全篇、§14.1（术语对齐）、§14.4（图表）；`04-document-model.md` §12.4（母版视图渲染契约）；`02-layering-and-packages.md` §4.16、§4.16b；charter D16 | M1–M2 图表只读解析、M3 拆包 `slide-render-chart`；母版视图 `ViewDescriptor{mode:'master',target}`；缩略图三种 Provider 策略取舍；**含 1 处模板 LRU（`LayerTemplateCache`），与 M-06 三处合为架构 07 §11 的系统级缓存集**（R-20/C-12） | 2 | 70–85 | 含测试（含 1 处模板 LRU 淘汰测试），无机械生成复制件（R-23：由 50–70 上修） |
-| M-08 | 服务端身份、文档与对象存储<br>`docs/40-modules/08-server-identity-documents-and-storage.md` | BC-18、19、20 | `apps/server`（`modules/{auth,users,documents,permissions,share-links,storage,media}`；2026-09-24 删 `tenants`/`groups`，rulings §4.15 T-0 / U-11 推迟）、`@cordexjs/server-storage` | M-02 | M-09、M-12 | `08-backend-nestjs.md` §1、§2（对应模块目录）、§5（`users`/`user_identities`/`documents`/`permissions`/`media_blobs` 表）、§6、§9.1、§16.4；`02-layering-and-packages.md` §4.23；PRD `06-server-and-ops.md` SV-06、SV-08 | fail-closed 双点（REST guard + WS）+ 文档级 Postgres RLS（M3 出口）；按文档读写须经权限服务（`DocAccess`，扫描器 `scan-doc-access-via-permission`，取代原「租户隔离」，§4.15 T-0 / Q6）；外置 OIDC、服务端不持有密码；预签名直传（≥10 MB 分片）；SVG 消毒 | 2 | 100–125 | 含测试，无机械生成复制件（R-23：由 80–100 上修） |
+| M-08 | 服务端身份、文档与对象存储<br>`docs/40-modules/08-server-identity-documents-and-storage.md` | BC-18、19、20 | `apps/server`（`modules/{auth,users,documents,permissions,share-links,storage,media}`；2026-09-24 删 `tenants`/`groups`，rulings §4.15 T-0 / U-11 推迟）、`@cordexjs/server-storage` | M-02 | M-09、M-12 | `08-backend-nestjs.md` §1、§2（对应模块目录；该目录树 2026-09-25 删除，文件级以 M-08 §4 为准，`db/` 等公共件见 M-12 §4.13）、§5（`users`/`user_identities`/`documents`/`permissions`/`media_blobs` 表）、§6、§9.1、§16.4；`02-layering-and-packages.md` §4.23；PRD `06-server-and-ops.md` SV-06、SV-08 | fail-closed 双点（REST guard + WS）+ 文档级 Postgres RLS（M3 出口）；按文档读写须经权限服务（`DocAccess`，扫描器 `scan-doc-access-via-permission`，取代原「租户隔离」，§4.15 T-0 / Q6）；外置 OIDC、服务端不持有密码；预签名直传（≥10 MB 分片）；SVG 消毒 | 2 | 100–125 | 含测试，无机械生成复制件（R-23：由 80–100 上修） |
 | M-09 | 服务端协同网关与 Headless 宿主<br>`docs/40-modules/09-server-collab-gateway-and-headless-host.md` | BC-21、22、27 | `apps/server`（`modules/{collab,snapshots}`、`cordis-host/**`（含 `adapters/`，物理归属本模块，见 R-21/C-10））、`@cordexjs/server-collab`、`@cordexjs/server-headless` | M-02、M-04、M-05（`collab-core` 契约）、M-06、M-08 | M-12 | `08-backend-nestjs.md` §1、§3.1、§3.3、§4、§5（`document_updates`/`document_snapshots`）、§8、§16.1–16.3、§16.5；`06-collaboration.md` §5、§9、§11；`07-rendering.md` §10；`02-layering-and-packages.md` §4.22、§4.24；`adr/0022`、`0023`、`0025`、`0026`、`0034`、`0035` | 硬门禁/软门禁两级校验；Redis 扇出不要求房间亲和；`server-headless` 不得 `import render-dom`（同构铁律 4）；快照 `kind` 枚举固定；`server-headless` 文档类型盲，不 import `model-slide`/`ooxml-pptx`，slide 束由 `apps/server` 的 `cordis-host/preset-server.ts` 选定插件清单交 `createHeadlessHost({ plugins })` 挂载（rulings §4.18 FE-01）。**依赖 M-05 的 `collab-core` 契约（不复用其 Provider），帧格式另经 `@cordexjs/protocol`（rulings §4.18 FE-15）** | 2 | 90–110 | 含测试；102 为实测文件数，独立统计口径，与其余模块不可直接比较（§8 Q-M5 结案） |
 | M-10 | UI 基座与幻灯片 UI<br>`docs/40-modules/10-ui-shell-and-slide-ui.md` | BC-13、14、15 | `@cordexjs/design`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui` | M-02、M-03、M-06、M-07（间接 M-05） | M-11、M-13（`ui-core`/`ui-react` 运行时依赖；`slide-ui` 作为 doc-ui / sheet-ui 样板） | `02-layering-and-packages.md` §4.17–4.20；`03-kernel-and-plugin-model.md` §3.6（`when` 上下文键）；rulings §4.6–4.8（母版视图/shadcn/iOS 27 现代化裁决）；`05-command-and-history.md` §13.3（`view.setMode`）；`adr/0017` | `ui-core` 禁止 `import react/radix/tailwind`（R14）；shadcn 复制件只能被 `ui-react`/`*-ui`/`apps/*` 引用（R17）；`viewMode` 上下文键驱动 Ribbon 页签切换 | 3 | 160–180 | 含 45 个机械生成 shadcn 复制件（单列，不与其余模块同口径比较）；含测试（R-23：由 110–140 上修） |
 | M-11 | 预设装配与应用壳<br>`docs/40-modules/11-preset-assembly-and-app-shell.md` | BC-16、17 | `@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer`、`apps/web` | M-02、M-03、M-05、M-06、M-07、M-10 | 无（终端模块） | `02-layering-and-packages.md` §3.1、§4.21、§4.21b；`03-kernel-and-plugin-model.md` §9（preset vs loader）；charter §5.2 `apps/web` 行；rulings §4.9/§4.10（应用栏「⋯」菜单/账户头像/开始页） | `preset-slide-viewer` 两道机械只读保证（ADR-0015）；`apps/web` 零编辑器领域逻辑（`apps-only-assemble`）；查看器体积 ≤ 350 KB gzip | 3 | 150–170 | 含 59 个测试文件（单列，不与其余模块同口径比较）；不含机械生成复制件（R-23：由 60–80 上修） |
-| M-12 | 服务端作业、评论与运维<br>`docs/40-modules/12-server-jobs-comments-and-ops.md` | BC-23、24、25、26、30（BC-30 为 2026-09-21 新增，rulings §4.13 S-5） | `apps/server`（`modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks}`、`common/*`、`config/*`、`cordis-host/adapters/*`（引用，非新增；物理归属 M-09，见 R-22/C-10）） | M-08、M-09 | 无（终端模块） | `08-backend-nestjs.md` §1、§2（对应模块）、§5（`job_runs`/`audit_log`/`comments`/`thumbnails` 表）、§7、§16.6；PRD `06-server-and-ops.md` SV-01、SV-02、SV-04、SV-07、SV-10、SV-15；`adr/0026`、`0030`、`0031` | 评论表是读模型、事实源在客户端 CRDT；审计表只追加（数据库角色无 UPDATE/DELETE）；BullMQ 幂等键约定；Webhook 出站默认拒绝私网/回环/链路本地/云元数据地址（rulings §4.13 S-4） | 3 | 70–90 | 含测试，无机械生成复制件 |
+| M-12 | 服务端作业、评论与运维<br>`docs/40-modules/12-server-jobs-comments-and-ops.md` | BC-23、24、25、26、30（BC-30 为 2026-09-21 新增，rulings §4.13 S-5；BC-25 自 2026-09-25 含客户端插件） | `@cordexjs/comments`（2026-09-25 新增 iso 客户端插件，rulings §4.19 D-COMMENTS-PKG；包级目录树与文件职责表待补，见 §10 Q-M8）、`apps/server`（`modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`、`common/*`、`config/*`、应用骨架与基础设施 `src/{main.ts,app.module.ts}` 与 `src/{observability,redis,db}/**`（含 `db/migrations/*.sql`，2026-09-25 审稿登记，M-12 §4.13）、`cordis-host/adapters/*`（引用，非新增；物理归属 M-09，见 R-22/C-10）） | M-08、M-09 | 无（终端模块） | `08-backend-nestjs.md` §1、§2（对应模块；该目录树 2026-09-25 删除，文件级以 M-12 §4 为准）、§5（`job_runs`/`audit_log`/`comments`/`thumbnails` 表）、§7、§16.6；PRD `06-server-and-ops.md` SV-01、SV-02、SV-04、SV-07、SV-10、SV-15；`adr/0026`、`0030`、`0031` | 评论表是读模型、事实源在客户端 CRDT；审计表只追加（数据库角色无 UPDATE/DELETE）；BullMQ 幂等键约定；Webhook 出站默认拒绝私网/回环/链路本地/云元数据地址（rulings §4.13 S-4） | 3 | 70–90 | 含测试，无机械生成复制件 |
 | M-13 | doc/sheet 扩展骨架<br>`docs/40-modules/13-doc-sheet-extension-skeleton.md` | BC-29 | 现存：`@cordexjs/model-core`（`testing/fixture-document-type.ts`，只读引用）；M5 新建：`@cordexjs/model-doc`、`@cordexjs/ooxml-docx`、`@cordexjs/doc-render`、`@cordexjs/doc-ui`、`@cordexjs/preset-doc`（追加建议）、`@cordexjs/model-sheet`、`@cordexjs/ooxml-xlsx`、`@cordexjs/sheet-render`、`@cordexjs/sheet-ui`、`@cordexjs/preset-sheet`（追加建议） | 运行时：M-02（`core.*` 贡献点与 `DocumentType`/Snapshot/夹具）、M-04（`ooxml-core`）、M-06（`render.*` 契约、`engine-layout`）、M-10（`ui-core`/`ui-react`，`ui.*`）；样板参照（非运行时依赖，铁律 2 禁止真实 import）：M-03、M-07、M-11、`ooxml-pptx`、`slide-ui`（rulings §4.18 FE-16） | 无（终端模块） | `12-extension-to-doc-and-sheet.md` 全篇；charter §5.1（垂直束网格）；`02-layering-and-packages.md` §4.8（`model-slide` 作为样板）；`adr/0016` | 水平层零改动（`horizontal-freeze` 无 diff）；束间隔离（不得 `import model-slide` 等）；M5 验收清单（12 §5） | 3 | 90–120 | 骨架占位估算，M5 落地前非精确值（R-23：由 40–60 上修） |
 
 **模块依赖图**
@@ -1369,6 +1368,10 @@ m11 -. "样板参照" .-> m13
 
 ---
 
+**2026-09-25 回写（rulings §4.19）**：§0 水平层网格图补 `comments` L4 iso 节点（27 个节点）；§3 BC-25 扩为「客户端插件 `@cordexjs/comments`（事实源）+ 服务端镜像」并改判 generic，BC-09 发布事件删 `collab/backpressure`、`collab/latency`（改指标 / 遥测专用事件，INC-33）；§4 关系表与图中 ResourceHook 命名空间 `slide-comments.threads` → `comments.threads`（INC-39）；§5 前后端切分加事实源链接 50/01、60/01；§7 M-12 行登记 `@cordexjs/comments`，包级规划去向见 §10 Q-M8。
+
+**2026-09-25 审稿（应用骨架与数据库基础设施的文件级收口）**：30-architecture/08 §2 的 `apps/server` 目录树删除后，`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、drizzle 类型镜像、`db/migrations/*.sql`）在 40-modules 无文件级归属；按 M-12 承载 `common/`、`config/`、`health/`、`metrics/`、`internal/` 的既有惯例归 M-12（§3 BC-26 行、§7 M-12 行，文件级 M-12 §4.13、§5.13），迁移 SQL 内容仍以 60-backend/08–13 为唯一事实源；§7 M-12 行补漏登的 `telemetry`；§5.3 `preset-server` 插件清单改指 60-backend/01 §9。
+
 ## 9. 机械约束映射
 
 > 依据来源：`02-layering-and-packages.md` §7（R1–R18）、`09-type-discipline/03-boundaries.md` §2/§3（`cordex-*` 八条规则的 dependency-cruiser 实现）、`03-kernel-and-plugin-model.md` §11、`04-document-model.md` §11、`05-command-and-history.md` §12。**范围说明**：`08-policy-enforcement-matrix.md` 的 78 行 `TD-\d{3}` 编号本文档未逐一读取（仅读取其 README 索引），故下表引用**已在 02/03/04/05/06/07/08/09-boundaries 中直接核实的规则名**（`R1`–`R18`、`cordex-*`、lint 规则名），不引用未直接核实的 `TD-\d{3}` 具体编号，避免向读者提供未经核对的编号。
@@ -1412,4 +1415,4 @@ m11 -. "样板参照" .-> m13
 | Q-M5 | M-09（服务端协同网关与 Headless 宿主）把 `server-collab` 与 `server-headless` 两个包合并进同一规划模块，若阶段二发现两者由不同 agent/团队承担导致耦合过重，是否需要拆分为两个模块（如 `09a-server-collab-gateway.md` + `09b-server-headless-host.md`） | 先合并规划，由 M-09 的规划 agent 在写作过程中判断是否需要拆分并向总编排申请 | §7 表格 M-09 行；不影响其余模块编号 | **结案**：M-09 不拆，102 文件在区间内 |
 | Q-M6 | 阶段二 13 个模块的输出文件命名（`docs/40-modules/<NN>-<slug>.md`）与 §7 表格是否由总编排锁定，禁止阶段二团队自行更改编号/文件名 | 锁定 | 全部 40-modules 下游文档的引用一致性 | **结案**：已锁 |
 | Q-M7（新增） | 模块文档 G/Q 编号体系分裂：`02`/`08`/`09`/`12` 组成全局连号 G-5…G-31，其余八份各自从 G-1 起；Q 编号四种写法（`Q-01`/`Q-1`/`Q1`/`Q-05-1`） | 统一为模块前缀式引用 `M-xx/G-n` 与 `M-xx/Q-n`（§1 C-29）；**不要求**回改各模块文档内部编号，只要求 §5/§6 与 `README.md` 索引、以及未来跨文档引用一律带模块前缀 | `40-modules/_template.md` §12/§13（已回写）；`40-modules/README.md` 索引；全部 40-modules 下游文档的跨文档引用写法 | **结案**：已裁定统一为 `M-xx/G-n`/`M-xx/Q-n`，`_template.md` 已回写 |
-
+| Q-M8（新增，2026-09-25） | 新增 iso 包 `@cordexjs/comments`（rulings §4.19 D-COMMENTS-PKG）的包级规划（目录树、文件职责、契约套件、`slide-ui` 贡献的 resolver 接口）落在哪份模块文档 | 新增 `40-modules/20-comments-client.md`（M3 前完成，行为以 50/08 为准；BC-25 客户端部分），不并入 M-12（其文档只含服务端）或 M-05（其四包对评论无感知） | §7 M-12 行；M-10 `slide-ui` 的 `CommentPins`/`CommentsTab`/`slide-anchor-resolver.ts`；M-11 `collab.entries.ts` 的 `commentsEntry` | 待总编排确认 |

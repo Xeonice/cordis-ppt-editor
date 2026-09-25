@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 H1/H2：墓碑硬删除 origin 与执行者）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 H1/H2：墓碑硬删除 origin 与执行者）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 5 快照保留按 C-06 定稿；协同后端随 M2 交付，见文末修订）；2026-09-25（§4.19） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18
 
 # ADR-0025 Update 持久化与快照压缩策略
 
@@ -16,7 +16,7 @@ CRDT update 是小而多的二进制增量；需要：崩溃不丢已 ack 的更
 2. **快照**：`document_snapshots` 存整份 `encodeStateAsUpdateV2(doc)`（zstd），`kind ∈ import|auto|named|migration|restore|epoch`；≤ 1 MiB 内联 PG，否则 S3。`documents.latest_snapshot_id` 指向最新 `auto/import/migration/restore/epoch`。
 3. **压缩（compaction）触发**：自上次快照起 pending updates ≥ 500 **或** ≥ 5 MiB **或** ≥ 10 分钟且有新 update；由持有 `lock:compact:{doc}` 租约的实例执行：写新 `auto` 快照 → 裁剪 `seq ≤ seq_upto` 且 `created_at < now()-7d` 的 update 行。
 4. **bootstrap**：latest snapshot + `updates where seq > seq_upto`；客户端也可直接 `GET /snapshots/latest` 做 HTTP 预加载（06 §9.1）。
-5. **命名快照**：用户显式「保存版本」→ `kind named`（永久保留，P2 待决）；自动快照保留 30 天后按天稀疏化（每天保留最后一个）。
+5. **命名快照**：用户显式「保存版本」→ `kind named`（永久保留，每文档上限 200）；自动快照 30 天内全量保留，30 天后每天只保留最后一个 auto 快照，保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；import / migration / restore / epoch 事件快照按 auto 口径；全部部署可配（2026-09-25 定稿，rulings §4.19 C-06；原「永久保留，P2 待决」结案）。
 6. **恢复（restore）**：不回滚日志；把目标快照加载到临时 Unit，与当前状态做**模型级 diff**（A 线 `diffSnapshots`）生成一次事务（origin `restore`）写回当前文档并落 `kind restore` 快照——CRDT 连续性保持，在线客户端无需重连。
 7. **GC**：所有对端 `gc:true`；版本历史完全由服务端快照承担。
 8. **两级 ack（S-3a）**：PG 故障期按 S-3 溢写（第一阈值 Redis 协议层 / 第二阈值对象存储）成功后回 `ack{tier:'spill'}`，客户端**保留 pending**；恢复后回放落库、由 PG 分配正式 `seq`，再回 `ack{seq, tier:'db'}`，客户端此时才清理 pending。降级期的广播不等溢写或落库（决策 1，rulings §4.18 CO-08）。详见文末修订。
@@ -94,7 +94,7 @@ flowchart TD
 
 负面 / 代价：
 - 「按时间点恢复」在 7 天外只能到快照粒度（P2）。
-- 恢复需要模型级 diff（A 线契约），复杂度在 model-slide；M3 可先实现「整体替换式 diff」（删除全部实体再插入）——正确但撤销栈与他人光标体验差，M4 精化。
+- 恢复需要模型级 diff（A 线契约），复杂度在 model-slide；首版（版本历史的服务端用例与界面均在 M3，PRD 05 §0.3）可先实现「整体替换式 diff」（删除全部实体再插入）——正确但撤销栈与他人光标体验差，M4 精化。
 - 压缩期间的租约丢失（fencing）需处理：写快照前校验 token；失败仅记录，下一次再试。
 - 快照 zstd：Node 内置 `zlib.zstdCompress`（Node 26 基线已具备，rulings §4.15 Q9）或 `@bokuweb/zstd-wasm`；浏览器解压走 `DecompressionStream('zstd')` 可用性检测，回退 gzip（在 `Content-Encoding` 协商中处理）。
 
@@ -122,6 +122,12 @@ flowchart TD
 2. **溢写回放按实例归属（CO-16）**：修订 2026-09-24 第 1 条的回放**只读本实例 `instanceId` 的溢写行**（`readAllOrdered(docId, instanceId)`），两个同时在线的实例各回放各自的行、不重复落库（对齐 ADR-0035 决策 3）；心跳已过期（ADR-0035 决策 5，TTL 60 s）实例留下的行，由下一次加载该文档的 Room 在 bootstrap 之后持 `lock:spill:{doc}` 租约认领回放（与墓碑「未打开的文档加载时顺带执行」同一模式）；关闭或 SIGTERM 时若 PG 不可达，先把内存档强制写入一级溢写再进入 `closed`，不在 `persisting` 久等（ADR-0035 决策 9）。（原：回放读出该文档全部实例的溢写行，作废。）
 3. **ack 对应（CO-09/CO-10）**：修订 2026-09-24 第 2 条的「落库后回 `tier:'db'`」按 40-modules/02 `ws/frames.ts`（ack 帧唯一事实源）逐帧对应：客户端按连接维护在途 FIFO，`tier:'db'` 弹出队首并 `ackUpTo(该 localSeq)`，`tier:'spill'` 不参与对应；重连 `SyncStep2` 视同一个 update 帧（空 diff 也回 db ack）；溢写回放补发 ack 时原会话已断开即丢弃，由重连兜底。完整规则见 ADR-0023 决策 7。
 4. **彻底删除元素（CO-07）**：见决策 9 与图 2；文档级操作改称「永久删除文档」，走 S-2 擦除，不经本 ADR 的硬删除事务。
+
+## 修订 2026-09-25（rulings §4.19）
+
+1. **快照保留（C-06）**：见决策 5，已就地定稿；清理由 maintenance 周期作业 `snapshots-retention` 执行（配置键与作业清单以 60-backend/14 §8、60-backend/06 §4 为准）。命名快照达上限返回非配额码（`server.snapshots.named_limit_reached`，409）。
+2. **里程碑（D-M2-CONTENT）**：update 追加表、db ack、压缩生成 auto 快照与「最新快照 + 尾巴 update」bootstrap、单实例两级溢写与 `ack{tier:'spill'}` 及回放、保留期稀疏化作业、墓碑 TTL 清扫随协同后端在 **M2** 交付（单实例）；命名快照、版本列表与恢复、跨实例溢写认领、彻底删除元素属 **M3**（PRD 05 §0.3）。
+3. **压缩不经队列**：压缩只在持有 Room 的 collab 实例内、持租约执行，架构 08 §7 原「本实例负载高时委托 `compaction` 队列」的可选路径删除。
 
 ## 如何被机械验证
 

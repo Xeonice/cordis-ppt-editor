@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 06 指标与埋点
 
@@ -21,7 +21,7 @@
 
 - 定义：单周内满足以下全部条件的会话数：`unit/opened` 成功 → ≥ 1 个 `store/transaction`（来源 = 本地）→ 会话内无 `error/raised{severity:"fatal"}` → 会话结束前有 `unit/saved` 或（协同）`collab/synced` 且待同步 = 0。
 - 为什么：它同时要求「打得开」「能编辑」「不崩」「不丢」，是 SDK 价值链的完整闭环；比 DAU 更能反映产品是否真的被用来干活。
-- 里程碑：M2 起可计算（单人）；M3 起含协同会话。
+- 里程碑：M2 起可计算（参考应用的单人编辑自 M2 起即经协同网关持久化，按 `collab/synced` 且待同步 = 0 判定，rulings §4.19 D-M2-CONTENT；SDK 嵌入的单人 preset 按 `unit/saved` 判定）；M3 起含多人协同会话。
 - 配套（查看器场景）：周成功查看会话数（WSVS）= `unit/opened` 成功 + 停留 ≥ 10 s + 无 fatal。
 
 **图 1-1 一个会话如何计入 WSES**
@@ -96,72 +96,72 @@ flowchart LR
 
 ### 3.2 事件表
 
-> 列「触发」为触发条件；「属性」为除公共属性外的载荷；「里程碑」为事件首次存在的里程碑；「服务」为对应的指标/告警。运行时事件名以裁决记录 §5 与架构 10 §11.1 定稿表为准；标「遥测专用」者只存在于遥测登记表。
+> 列「类别」：**cordis 事件**＝镜像同名的 cordis 运行时事件（遥测登记表条目带 `mirrorOf`，属性由投影得到）；**遥测专用**＝没有对应的运行时事件，由发布方直接 `telemetry.event` 发出，只存在于遥测登记表（设计线遗留口径 INC-33：本表为遥测清单权威，逐行分类与 `50-frontend/15` §8 一致）。列「触发」为触发条件；「属性」为除公共属性外的载荷；「里程碑」为事件首次存在的里程碑；「服务」为对应的指标/告警。运行时事件名以裁决记录 §5 与架构 10 §11.1 定稿表为准。
 
-| 事件 | 触发 | 属性 | 隐私 | 里程碑 | 服务 |
-|---|---|---|---|---|---|
-| `session/started` | 宿主创建 | `entry`（集成入口形态 A–F） | P0 | M1 | 会话计数 |
-| `session/ended` | 宿主销毁 / 页面隐藏 ≥ 30 s | `durationMs`, `transactions`, `fatal` | P0 | M1 | WSES、MT-04 |
-| `unit/opened` | 打开成功（首批装载后即触发，OF-03） | `durationMs`, `source`（buffer/url/stream/snapshot）, `conformance`, `contentType`, `pagesParsed`, `lazy` | P0 | M1 | MT-01、MT-03 |
-| `unit/loaded` | 全部页装载到齐（rulings §4.18 CO-12） | `durationMs`（自打开起）, `pages` | P0 | M1 | NF-01「后台全部解析完成」 |
-| `unit/open-progress` | 阶段变化（仅采样 10%） | `stage`, `percent`, `elapsedMs` | P0 | M1 | 打开漏斗 |
-| `unit/open-failed` | 打开失败 | `code`, `stage`, `durationMs` | P0 | M1 | MT-01、MT-23 |
-| `unit/closed` | 关闭 | `durationMs`, `dirtyAtClose` | P0 | M1 | |
-| `unit/dirty-changed` | dirty 切换 | `dirty` | P0 | M2 | |
-| `unit/saved` | 保存回调成功 / 快照落盘 | `kind`（pptx/snapshot/collab）, `durationMs`, `bytes` | P0 | M2 | WSES |
-| `unit/save-failed` | 保存失败 | `code`, `retryable` | P0 | M2 | MT-23 |
-| `unit/migrated` | 快照迁移 | `fromVersion`, `toVersion`, `durationMs` | P0 | M2 | 迁移健康 |
-| `render/first-paint` | 首页可见 | `elapsedMs`, `page`, `elements` | P0 | M1 | MT-03 |
-| `render/page-rendered` | 任一页首次渲染（采样 10%） | `page`, `durationMs`, `elements` | P0 | M1 | 性能 |
-| `render/element-degraded` | 降级渲染 | `kind`, `reason`（emf-no-preview / 3d-flattened / effect-approx / smartart-no-dsp / math-fallback / unsupported-media …） | P0 | M1 | MT-02 |
-| `render/element-failed` | 渲染抛错 | `kind`, `code` | P0 | M1 | MT-02、MT-23 |
-| `render/font-fallback` | 字体回退 | `requestedFont`（字体名不视为内容）, `fallbackFont`, `scope`（latin/ea/cs/sym） | P0 | M1 | MT-02 |
-| `perf/frame` | 交互期间帧时间（采样 1%；**派生自 cordis 事件 `render/frame`**，帧级数据只走遥测） | `frameMs`, `interaction`（drag/zoom/scroll/type） | P0 | M2 | MT-11 |
-| `perf/input-latency` | 键入到绘制（采样 5%） | `latencyMs`, `ime` | P0 | M2 | MT-10 |
-| `perf/memory` | 会话结束 / 每 5 min（采样） | `heapUsedMB`, `pages`, `elements` | P0 | M1 | MT-21 |
-| `perf/long-task` | 主线程任务 > 50 ms | `durationMs`, `phase` | P0 | M1 | 性能 |
-| `command/executed` | 命令成功 | `id`, `durationMs`, `elementsAffected`, `source`（ui/shortcut/api/plugin/palette） | P0 | M2 | MT-12、MT-14、MT-22 |
-| `command/rejected` | 命令被管线拒绝 | `id`, `reason`（permission/validation/selection/readonly） | P0 | M2 | MT-13 |
-| `command/failed` | 命令抛错回滚 | `id`, `code` | P0 | M2 | MT-12、MT-23 |
-| `store/transaction` | 事务提交（高频合并 ≥ 50 ms） | `origin.kind`（local / remote / system / replay）, `origin.via`（undo / redo）, `origin.reason`（load / import / migration / repair / restore）, `mutations`, `count` | P0 | M2 | WSES、MT-05 |
-| `history/undo` / `history/redo` | 撤销/重做（遥测专用；运行时事件为 `history/changed`） | `steps`, `skipped`（整步被跳过的步数，停下不连撤）, `keysSkipped`（因他人后写被跳过的键数，rulings §4.15 Q3） | P0 | M2 | MT-14 |
-| `selection/changed` | 选区变化（采样 10%） | `kinds`（元素类型集合）, `count` | P0 | M2 | 功能使用 |
-| `view/page-changed` | 翻页 | `from`, `to`, `method`（click/key/thumb/link/follow） | P0 | M1 | 导航行为 |
-| `view/zoom-changed` | 缩放 | `zoom`, `method` | P0 | M2 | |
-| `view/mode-changed` | 编辑 ↔ 放映 ↔ 母版视图 | `mode`, `durationMsInPrev` | P0 | M2 | 放映使用 |
-| `export/started` / `export/completed` / `export/failed` | 导出 | `format`, `pages`, `durationMs`, `bytes`, `code`, `side`（client/server） | P0 | M2 | MT-07 |
-| `search/performed` | 查找 | `resultCount`, `durationMs`（不含查询词） | P0 | M2 | 功能使用 |
-| `clipboard/pasted` | 粘贴 | `mime`（internal/image/html/text）, `elements` | P0 | M2 | 功能使用 |
-| `collab/state-changed` | 会话状态机迁移 | `from`, `to`, `reason`, `durationMsInPrev` | P0 | M3 | MT-06、MT-16 |
-| `collab/synced` | 初始/重连同步完成 | `durationMs`, `updatesApplied`, `initial` | P0 | M3 | 初始同步时长 |
-| `collab/latency` | 往返延迟（采样 1%） | `rttMs`, `applyMs` | P0 | M3 | MT-17 |
-| `collab/soft-conflict` | 软冲突检测 | `type`（text-same-pos/prop-lww/delete-vs-edit/reorder）, `resolvedBy`（auto/restore-my-value/restore-element） | P0 | M3 | MT-15 |
-| `store/undo-skipped` | 协同撤销被跳过（rulings §4.17 D5：**单独统计，不是 `collab/soft-conflict` 的 type，不计入软冲突率 MT-15**） | `skipped`（本次被跳过的键数）, `wholeStep`（整步被跳过、停下不连撤）；遥测只统计跳过次数与整步跳过次数，不含路径内容 | P0 | M3 | MT-14 旁注、撤销体验 |
-| `collab/reconnect` | 重连尝试 | `attempt`, `backoffMs`, `success`, `queued` | P0 | M3 | MT-16 |
-| `collab/auth-failed` | 握手失败 | `code` ∈ collab.unauthenticated / forbidden / doc_not_found / schema_too_new / protocol_mismatch / room_full；`protocol_mismatch` 时附 `client`, `server` 版本 | P0 | M3 | 安全告警、升级健康 |
-| `collab/update-rejected` | 服务端硬门禁拒绝本地 update（降权/锁定窗口） | `reason`, `rejectedTransactions` | P0 | M3 | 权限即时性、体验信号 |
-| `collab/repair` | 服务端软门禁修复触及本地 | `rule`, `paths`（路径数） | P0 | M3 | 数据完整性（`cordex_collab_repairs_total{rule}`） |
-| `presence/joined` / `presence/left` | 协作者进出 | `participants`（当前人数） | P0 | M3 | 协作规模 |
-| `presence/follow` | 跟随开始/结束 | `durationMs` | P0 | M3 | 功能使用 |
-| `comment/added` / `comment/replied` / `comment/resolved` / `comment/reopened` / `comment/deleted` | 评论操作 | `anchorKind`（page/element/text）, `threadDepth`, `hasMention`（不含正文） | P0 | M3 | MT-18 |
-| `comment/orphaned` | 锚点元素被删 | `anchorKind` | P0 | M3 | 体验信号 |
-| `history/version-created` / `history/version-restored` / `history/version-previewed` | 版本历史 | `kind`（auto/named）, `ageMs` | P0 | M3 | 功能使用 |
-| `permission/changed` | 能力位变化 | `added`, `removed`, `propagationMs` | P0 | M3 | CO-05 ≤ 2 s |
-| `permission/denied` | 服务端拒绝 | `capability`, `surface`（rest/ws） | P0 | M3 | 安全告警 |
-| `plugin/loaded` | 插件 ACTIVE | `pluginId`, `version`, `official`, `durationMs`, `contributions` | P0 | M2 | MT-08、MT-20 |
-| `plugin/failed` | 插件 FAILED | `pluginId`, `version`, `code`, `phase`（config/apply/runtime） | P0 | M2 | MT-19 |
-| `plugin/incompatible` | 版本协商失败 | `pluginId`, `required`, `actual` | P0 | M2 | 升级健康 |
-| `plugin/pending` | 进入 PENDING 超过 5 s | `pluginId`, `missing`（服务名） | P0 | M2 | 诊断 |
-| `ui/panel-toggled` | 面板开关 | `panelId`, `open` | P0 | M2 | 功能使用 |
-| `ui/ribbon-tab-changed` | 页签切换 | `tabId` | P0 | M2 | 功能使用 |
-| `ui/shortcut-used` | 快捷键触发 | `commandId`, `scope` | P0 | M2 | 功能使用 |
-| `ui/theme-changed` | 主题/密度切换 | `theme`, `density` | P0 | M2 | |
-| `i18n/missing-key` | 缺 key | `key`, `locale` | P0 | M2 | 质量 |
-| `error/raised` | 任一类型化错误 | `code`, `severity`, `retryable`, `surface`, `pluginId?` | P0 | M1 | MT-04、MT-23 |
-| `a11y/screen-reader-detected` | 检测到辅助技术（启发式，可关闭） | `hint` | P0 | M2 | a11y 使用 |
-| `quota/exceeded` | 配额拒绝（遥测专用；派生自 `error/raised{code: format.quota_exceeded | document.quota_exceeded | storage.quota_exceeded | collab.room_full}`；`dimension` 取值照抄架构 10 §3 取值表：`slides` / `elementsPerSlide` / `elementsTotal` / `fileSize`，存储为 `bytes` / `documents`） | `code`, `dimension`, `limit` | P0 | M3 | SV-08 |
+| 事件 | 类别 | 触发 | 属性 | 隐私 | 里程碑 | 服务 |
+|---|---|---|---|---|---|---|
+| `session/started` | 遥测专用 | 宿主创建 | `entry`（集成入口形态 A–F） | P0 | M1 | 会话计数 |
+| `session/ended` | 遥测专用 | 宿主销毁 / 页面隐藏 ≥ 30 s | `durationMs`, `transactions`, `fatal` | P0 | M1 | WSES、MT-04 |
+| `unit/opened` | cordis 事件 | 打开成功（首批装载后即触发，OF-03） | `durationMs`, `source`（buffer/url/stream/snapshot）, `conformance`, `contentType`, `pagesParsed`, `lazy` | P0 | M1 | MT-01、MT-03 |
+| `unit/loaded` | cordis 事件 | 全部页装载到齐（rulings §4.18 CO-12） | `durationMs`（自打开起）, `pages` | P0 | M1 | NF-01「后台全部解析完成」 |
+| `unit/open-progress` | cordis 事件 | 阶段变化（仅采样 10%） | `stage`, `percent`, `elapsedMs` | P0 | M1 | 打开漏斗 |
+| `unit/open-failed` | cordis 事件 | 打开失败 | `code`, `stage`, `durationMs` | P0 | M1 | MT-01、MT-23 |
+| `unit/closed` | cordis 事件 | 关闭 | `durationMs`, `dirtyAtClose` | P0 | M1 | |
+| `unit/dirty-changed` | cordis 事件 | dirty 切换 | `dirty` | P0 | M2 | |
+| `unit/saved` | cordis 事件 | 保存回调成功 / 快照落盘 | `kind`（pptx/snapshot/collab）, `durationMs`, `bytes` | P0 | M2 | WSES |
+| `unit/save-failed` | 遥测专用 | 保存失败 | `code`, `retryable` | P0 | M2 | MT-23 |
+| `unit/migrated` | cordis 事件 | 快照迁移 | `fromVersion`, `toVersion`, `durationMs` | P0 | M2 | 迁移健康 |
+| `render/first-paint` | cordis 事件 | 首页可见 | `elapsedMs`, `page`, `elements` | P0 | M1 | MT-03 |
+| `render/page-rendered` | 遥测专用 | 任一页首次渲染（采样 10%） | `page`, `durationMs`, `elements` | P0 | M1 | 性能 |
+| `render/element-degraded` | cordis 事件 | 降级渲染 | `kind`, `reason`（emf-no-preview / 3d-flattened / effect-approx / smartart-no-dsp / math-fallback / unsupported-media …） | P0 | M1 | MT-02 |
+| `render/element-failed` | cordis 事件 | 渲染抛错 | `kind`, `code` | P0 | M1 | MT-02、MT-23 |
+| `render/font-fallback` | cordis 事件 | 字体回退 | `requestedFont`（字体名不视为内容）, `fallbackFont`, `scope`（latin/ea/cs/sym） | P0 | M1 | MT-02 |
+| `perf/frame` | 遥测专用 | 交互期间帧时间（采样 1%；**派生自 cordis 事件 `render/frame`**，帧级数据只走遥测） | `frameMs`, `interaction`（drag/zoom/scroll/type）, `pages`, `elementsUpdated`, `overrun`（与 `render/frame` 的 `stats` 同名，决策 INC-08） | P0 | M2 | MT-11 |
+| `perf/input-latency` | 遥测专用 | 键入到绘制（采样 5%） | `latencyMs`, `ime` | P0 | M2 | MT-10 |
+| `perf/memory` | 遥测专用 | 会话结束 / 每 5 min（采样） | `heapUsedMB`, `pages`, `elements` | P0 | M1 | MT-21 |
+| `perf/long-task` | 遥测专用 | 主线程任务 > 50 ms | `durationMs`, `phase` | P0 | M1 | 性能 |
+| `command/executed` | cordis 事件 | 命令成功 | `id`, `durationMs`, `elementsAffected`, `source`（ui/shortcut/api/plugin/palette） | P0 | M2 | MT-12、MT-14、MT-22 |
+| `command/rejected` | cordis 事件 | 命令被管线拒绝 | `id`, `reason`（permission/validation/selection/readonly） | P0 | M2 | MT-13 |
+| `command/failed` | cordis 事件 | 命令抛错回滚 | `id`, `code` | P0 | M2 | MT-12、MT-23 |
+| `store/transaction` | cordis 事件 | 事务提交（高频合并 ≥ 50 ms） | `origin.kind`（local / remote / system / replay）, `origin.via`（undo / redo）, `origin.reason`（load / import / migration / repair / restore）, `mutations`, `count` | P0 | M2 | WSES、MT-05 |
+| `history/undo` / `history/redo` | 遥测专用 | 撤销/重做（遥测专用；运行时事件为 `history/changed`） | `steps`, `skipped`（整步被跳过的步数，停下不连撤）, `keysSkipped`（因他人后写被跳过的键数，rulings §4.15 Q3） | P0 | M2 | MT-14 |
+| `selection/changed` | cordis 事件 | 选区变化（采样 10%） | `kinds`（元素类型集合）, `count` | P0 | M2 | 功能使用 |
+| `view/page-changed` | cordis 事件 | 翻页 | `from`, `to`, `method`（click/key/thumb/link/follow） | P0 | M1 | 导航行为 |
+| `view/zoom-changed` | cordis 事件 | 缩放 | `zoom`, `method` | P0 | M2 | |
+| `view/mode-changed` | cordis 事件 | 编辑 ↔ 放映 ↔ 母版视图 | `mode`, `durationMsInPrev` | P0 | M2 | 放映使用 |
+| `export/started` / `export/completed` / `export/failed` | cordis 事件 | 导出 | `format`, `pages`, `durationMs`, `bytes`, `code`, `side`（client/server） | P0 | M2 | MT-07 |
+| `search/performed` | 遥测专用 | 查找 | `resultCount`, `durationMs`（不含查询词） | P0 | M2 | 功能使用 |
+| `clipboard/pasted` | 遥测专用 | 粘贴 | `mime`（internal/image/html/text）, `elements` | P0 | M2 | 功能使用 |
+| `collab/state-changed` | cordis 事件 | 会话状态机迁移 | `from`, `to`, `reason`, `durationMsInPrev` | P0 | M2 | MT-06、MT-16 |
+| `collab/synced` | cordis 事件 | 初始/重连同步完成 | `durationMs`, `updatesApplied`, `initial` | P0 | M2 | 初始同步时长 |
+| `collab/latency` | 遥测专用 | 往返延迟（采样 1%；不进 `Events` 接口，由 collab-yjs 经 `telemetry.event` 发出，架构 10 §11.1） | `rttMs`, `applyMs` | P0 | M2 | MT-17 |
+| `collab/soft-conflict` | cordis 事件 | 软冲突检测 | `type`（text-same-pos/prop-lww/delete-vs-edit/delete-vs-reference/reorder；`delete-vs-reference` 为 ML-03 母版与版式冲突，见 `50-frontend/07` §12）, `resolvedBy`（auto/restore-my-value/restore-element） | P0 | M3 | MT-15 |
+| `store/undo-skipped` | cordis 事件 | 协同撤销被跳过（rulings §4.17 D5：**单独统计，不是 `collab/soft-conflict` 的 type，不计入软冲突率 MT-15**） | `skipped`（本次被跳过的键数）, `wholeStep`（整步被跳过、停下不连撤）；遥测只统计跳过次数与整步跳过次数，不含路径内容 | P0 | M3 | MT-14 旁注、撤销体验 |
+| `collab/reconnect` | cordis 事件 | 重连尝试 | `attempt`, `backoffMs`, `success`, `queued` | P0 | M2 | MT-16 |
+| `collab/auth-failed` | cordis 事件 | 握手失败 | `code` ∈ collab.unauthenticated / forbidden / doc_not_found / schema_too_new / protocol_mismatch / room_full；`protocol_mismatch` 时附 `client`, `server` 版本 | P0 | M2 | 安全告警、升级健康 |
+| `collab/update-rejected` | cordis 事件 | 服务端硬门禁拒绝本地 update（降权/锁定窗口） | `reason`, `rejectedTransactions` | P0 | M2 | 权限即时性、体验信号 |
+| `collab/repair` | cordis 事件 | 服务端软门禁修复触及本地 | `rule`, `paths`（路径数） | P0 | M2 | 数据完整性（`cordex_collab_repairs_total{rule}`） |
+| `presence/joined` / `presence/left` | cordis 事件 | 协作者进出 | `participants`（当前人数） | P0 | M3 | 协作规模 |
+| `presence/follow` | 遥测专用 | 跟随开始/结束 | `durationMs` | P0 | M3 | 功能使用 |
+| `comment/added` / `comment/replied` / `comment/resolved` / `comment/reopened` / `comment/deleted` | cordis 事件 | 评论操作 | `anchorKind`（page/element/text）, `threadDepth`, `hasMention`（不含正文） | P0 | M3 | MT-18 |
+| `comment/orphaned` | 遥测专用 | 锚点元素被删 | `anchorKind` | P0 | M3 | 体验信号 |
+| `history/version-created` / `history/version-restored` / `history/version-previewed` | 遥测专用 | 版本历史 | `kind`（auto/named）, `ageMs` | P0 | M3 | 功能使用 |
+| `permission/changed` | cordis 事件 | 能力位变化 | `added`, `removed`, `propagationMs` | P0 | M3 | CO-05 ≤ 2 s |
+| `permission/denied` | cordis 事件 | 服务端拒绝 | `capability`, `surface`（rest/ws） | P0 | M3 | 安全告警 |
+| `plugin/loaded` | cordis 事件 | 插件 ACTIVE | `pluginId`, `version`, `official`, `durationMs`, `contributions` | P0 | M2 | MT-08、MT-20 |
+| `plugin/failed` | cordis 事件 | 插件 FAILED | `pluginId`, `version`, `code`, `phase`（config/apply/runtime） | P0 | M2 | MT-19 |
+| `plugin/incompatible` | cordis 事件 | 版本协商失败 | `pluginId`, `required`, `actual` | P0 | M2 | 升级健康 |
+| `plugin/pending` | 遥测专用 | 进入 PENDING 超过 5 s | `pluginId`, `missing`（服务名） | P0 | M2 | 诊断 |
+| `ui/panel-toggled` | 遥测专用 | 面板开关 | `panelId`, `open` | P0 | M2 | 功能使用 |
+| `ui/ribbon-tab-changed` | 遥测专用 | 页签切换 | `tabId` | P0 | M2 | 功能使用 |
+| `ui/shortcut-used` | 遥测专用 | 快捷键触发 | `commandId`, `scope` | P0 | M2 | 功能使用 |
+| `ui/theme-changed` | cordis 事件 | 主题/密度切换 | `theme`, `density` | P0 | M2 | |
+| `i18n/missing-key` | 遥测专用 | 缺 key | `key`, `locale` | P0 | M2 | 质量 |
+| `error/raised` | cordis 事件 | 任一类型化错误 | `code`, `severity`, `retryable`, `surface`, `pluginId?` | P0 | M1 | MT-04、MT-23 |
+| `a11y/screen-reader-detected` | 遥测专用 | 检测到辅助技术（启发式，可关闭） | `hint` | P0 | M2 | a11y 使用 |
+| `quota/exceeded` | 遥测专用 | 配额拒绝（遥测专用；派生自 `error/raised{code: format.quota_exceeded | document.quota_exceeded | storage.quota_exceeded | collab.room_full}`；`dimension` 取值照抄架构 10 §3 取值表：`slides` / `elementsPerSlide` / `elementsTotal` / `fileSize`，存储为 `bytes` / `documents`） | `code`, `dimension`, `limit` | P0 | M2 | SV-08 |
 
-服务端事件（Prometheus/OTel 指标为主，见 SV-10）；审计事件（SV-07）**不是**遥测，不进本表。
+服务端事件（Prometheus/OTel 指标为主，见 SV-10）；审计事件（SV-07）**不是**遥测，不进本表。协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT），参考应用经协同网关打开文档，因此会话、同步、重连、握手、门禁类 `collab/*` 事件与导入配额的 `quota/exceeded` 自 M2 起存在；在场、评论、软冲突、权限变更等多人事件仍为 M3。
 
 ---
 
@@ -223,7 +223,7 @@ flowchart LR
 | 事件 schema 注册表 | 每个事件在 `telemetry` 的 schema 表中声明（名称、版本、属性 schema、隐私级、采样率）；扫描器拒绝未注册事件 | M1 |
 | 隐私审查 | 新事件/属性合入前经隐私检查清单（无内容、无明文标识）；CI 用属性名黑名单（`text`、`title`、`name`、`content`、`url`、`email`）初筛 | M1 |
 | 默认 no-op | SDK 出厂不发送任何遥测；参考应用 `apps/web` 以显式配置开启 | M1 |
-| 采样与批量 | 客户端本地缓冲 ≤ 5 s 或 ≤ 50 事件批量发送；页面隐藏时 `sendBeacon` | M2 |
+| 采样与批量 | 客户端本地缓冲 ≤ 5 s 或 ≤ 50 事件批量发送；页面隐藏时用 `fetch` 的 `keepalive` 补发（不用 `sendBeacon`：它不能带 CSRF 防护要求的 `X-Cordex-Request` 头，SV-12） | M2 |
 | 与 telemetry.sink 契约 | 事件对象 + 公共属性 → Provider；提供 OTel 示例（PS-04） | M2 |
 | 指标计算文档 | 每个 MT 指标的 SQL/查询定义随参考应用发布 | M3 |
 | 事件量预算 | 每会话·小时 ≤ 500 事件（采样后）；超出告警 | M2 |
@@ -236,7 +236,7 @@ flowchart LR
   tel["telemetry 服务：镜像运行时事件并追加度量属性，如 perf/frame 派生自 render/frame"]
   common["附公共属性：sessionId、unitId 哈希、userId 哈希、sdk.version、env.*、doc.* 等"]
   sample["采样：render/frame、collab/latency 等高频事件默认 1%；错误与生命周期事件不采样"]
-  batch["批量：本地缓冲 ≤ 5 s 或 ≤ 50 事件；页面隐藏时 sendBeacon"]
+  batch["批量：本地缓冲 ≤ 5 s 或 ≤ 50 事件；页面隐藏时 fetch keepalive 补发"]
   sink["telemetry.sink Provider：出厂 no-op；OTel 示例；集成方自定义"]
   scan["开发期：扫描器拒绝未在 schema 注册表声明的事件；CI 属性名黑名单初筛隐私"]
   rt --> tel --> common --> sample --> batch --> sink

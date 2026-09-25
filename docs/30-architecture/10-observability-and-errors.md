@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1）） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1））；2026-09-25（§4.19 登记的 INC-10 / SG-04、INC-08、INC-24、INC-25、INC-33、TELEMETRY-DEFAULT：§1.1 新域与码一次登记（§1.1a）、§1.4 http-map 补表（含 `format.unsupported_binary`）、§2.3 脱敏头、§3.4 产品事件以 PRD 06 为权威、§5 `fetch` keepalive、§11.1 `render/frame` 与 `perf/frame` 字段；各节加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§2.4 Sink、§3.2 span 清单、§3.3 指标清单、§4 诊断、§5 客户端错误上报改为跨端规则摘要 + 链接 50-frontend/15 与 60-backend/18；§1、§2.1–§2.3、§3.1、§3.4、§11 保留） | 依赖：charter v0.1
 
 # 10 观测性与错误（Observability & Errors）：错误码体系、结构化日志、telemetry、诊断、客户端上报
 
@@ -45,7 +45,7 @@ flowchart LR
 
 ### 1.1 编码格式
 
-- 代码为**字串字面量** `<domain>.<snake_case_name>`，如 `collab.forbidden`、`store.target_missing`、`format.pptx.invalid_package`。domain ≤ 2 段，与包/服务域一致：`kernel` `store` `command` `permission` `format` `ooxml` `layout` `render` `slide` `collab` `transport` `presence` `headless` `storage` `server.auth` `server.documents` `server.media` `server.jobs` `document`（`tenant` 域随 rulings §4.15 T-0 删除；配额/规模类错误按阶段分三码：导入 `format.quota_exceeded`、编辑期 `document.quota_exceeded`、存储 `storage.quota_exceeded`，见 §1.4 取值表，rulings §4.17 D2）。
+- 代码为**字串字面量** `<domain>.<snake_case_name>`，如 `collab.forbidden`、`store.target_missing`、`format.pptx.invalid_package`。domain ≤ 2 段，与包/服务域一致：`kernel` `store` `command` `permission` `format` `ooxml` `layout` `render` `slide` `collab` `transport` `presence` `headless` `storage` `document` `plugin` `shell`；服务端 REST 域 `server.auth` `server.users` `server.documents` `server.share_links` `server.media` `server.snapshots` `server.jobs` `server.import` `server.export` `server.thumbnails` `server.comments` `server.webhooks` `server.audit` `server.http`（2026-09-25 按决策 INC-10 / SG-04 一次登记，逐码见 §1.1a；废 `share_link.*`、`user.*`、`snapshot.*` 与 `collab.server.room_full`——统一为 `server.share_links.*`、`server.users.*`、`server.snapshots.*` 与 `collab.room_full`；`plugin` 与章程 §5.5 事件域 `plugin/*` 同名；`tenant` 域随 rulings §4.15 T-0 删除；配额/规模类错误按阶段分三码：导入 `format.quota_exceeded`、编辑期 `document.quota_exceeded`、存储 `storage.quota_exceeded`，见 §1.4 取值表，rulings §4.17 D2）。
 - 不用数字编号（A3：避免闭合枚举与人为分配冲突）；不用 TS `enum`（lint 禁止）。
 - 每个错误码在其所属包的 `errors.ts` 中通过声明合并注册到 `ErrorCodes` 接口，携带 `details` 类型：
 
@@ -98,14 +98,19 @@ flowchart LR
   subgraph serverG["服务端"]
     dHeadless["headless"]
     dStorage["storage：含存储配额"]
-    dServer["server.auth · server.documents · server.media · server.jobs"]
+    dServer["server.auth · server.users · server.documents · server.share_links · server.media · server.snapshots · server.jobs"]
+    dServer2["server.import · server.export · server.thumbnails · server.comments · server.webhooks · server.audit · server.http"]
+  end
+  subgraph shellG["插件与应用壳"]
+    dPlugin["plugin"]
+    dShell["shell"]
   end
   removed["tenant：随 rulings §4.15 T-0 删除"]
-  code --> coreG & formatG & renderG & collabG & serverG
+  code --> coreG & formatG & renderG & collabG & serverG & shellG
   code -. "已删除" .-> removed
 ```
 
-怎么读：左侧是编码格式，右侧分组列出全部 domain（分组只为阅读，按所属包的层次归类）；虚线指向已删除的域。配额类错误按阶段分属 `format`、`document`、`storage` 三个域，见 §1.4。
+怎么读：左侧是编码格式，右侧分组列出全部 domain（分组只为阅读，按所属包的层次归类）；虚线指向已删除的域。配额类错误按阶段分属 `format`、`document`、`storage` 三个域，见 §1.4；服务端 REST 域于 2026-09-25 按决策 INC-10 / SG-04 补齐（§1.1a）。
 
 **错误码登记与校验**
 
@@ -119,6 +124,35 @@ flowchart LR
 ```
 
 怎么读：错误码的唯一来源是各包的 `errors.ts`；类型层与扫描器两道检查都指向同一个 `ErrorCodes` 接口，协议层映射表再据此给出对外的状态码。
+
+#### 1.1a 域与码登记表（2026-09-25，决策 INC-10 / SG-04 一次登记）
+
+下表登记 60 线与 50 线（60-backend/03 §9、05 §14、06 §12、07 §10、15 §7；50-frontend/12 §11、03）提出的新域与新码；各码的 `details` 类型与运行时元数据仍在所属包的 `errors.ts` 声明（本节只登记名与出口），HTTP / WS 映射见 §1.4。已在 §1.4 与 §11.2 出现的码不再重复。60 线各码表的「待登记」「INC-10」标注以本表为准结案。
+
+| 域 | 码（`<域>.` 省略） | 出口 | 触发（唯一源） |
+|---|---|---|---|
+| `server.auth` | `csrf_rejected` / `origin_rejected` | 403 / 403（WS 升级） | 非安全方法缺 `X-Cordex-Request` 或 Origin 不在白名单；WS 升级 Origin 不在白名单（INC-24，60/02 §5） |
+| `server.auth` | `account_disabled` / `idp_unavailable` / `unavailable` | 回调 `?error=` / 503 / 503（retryable） | 停用或已擦除用户登录；IdP 发现或令牌端点不可达；会话复核所需 Valkey 或 PG 不可达（60/03 §9） |
+| `server.users` | `not_found` / `last_admin` / `validation_failed` | 404 / 409 / 400 | 目标用户不存在；停用、降级或擦除最后一名平台管理员（原 `user.last_admin`）（60/03 §9） |
+| `server.documents` | `locked` / `element_not_tombstoned` | 409 / 409 | 对 `locked` 文档写；彻底删除元素的 ids 含非墓碑态（60/04、60/05） |
+| `server.share_links` | `not_found` / `validation_failed` | 404 / 400 | 链接不存在或不属于该文档（原 `share_link.not_found`） |
+| `server.media` | `not_found` / `unsupported_type` / `payload_too_large` | 404 / 415 / 413 | 无 `document_media` 关联；MIME 不在白名单；超单文件 / SVG / 像素上限（60/04 §7） |
+| `server.snapshots` | `not_found` / `named_limit_reached` / `persist_degraded` | 404 / 409 / 503（retryable） | 快照不存在；命名版本超每文档上限 200（非配额码，C-06；原 `snapshot.quota_exceeded`）；命名或恢复时 Room `persist ≠ ok`（60/05 §10） |
+| `server.jobs` | `not_found` / `invalid_transition` / `orphaned` | 404 / 409 / 作业结果 | 作业不存在或不可见；违反 JobRun 状态机；孤儿超放弃时限（60/06 §2–§3） |
+| `server.import` | `upload_forbidden` / `source_missing` / `checksum_mismatch` / `job_terminal` | 403 / 409 / 作业结果 / 409 | `uploadId` 不存在、过期或非本人；受理时对象缺失；处理器 sha256 不符；取消已终态作业（60/06 §6） |
+| `server.export` | `not_ready` / `expired` | 409 / 410 | 导出未成功；对象已过 24 h 保留期（60/06 §7.3） |
+| `server.thumbnails` | `not_found` | 404（带 `Retry-After`） | 变体未生成（已惰性入队）或 slideId 不存在（60/06 §11） |
+| `server.comments` | `not_found` / `import_unsupported` | 404 / 409 | 线程不存在；无可导入的只读评论（60/07 §10） |
+| `server.webhooks` | `not_found` / `invalid_url` / `egress_blocked` / `invalid_event_filter` | 404 / 422 / 422 / 422 | 订阅不存在；URL 不合法；出站守卫拒绝；事件过滤非法（60/07 §10） |
+| `server.audit` | `range_too_large` / `export_too_large` / `verify_busy` | 400 / 422 / 409 | 查询区间超 366 天；导出超 1,000,000 行；链校验进行中（60/07 §10） |
+| `server.http` | `rate_limited` / `payload_too_large` / `unsupported_media_type` | 429（`Retry-After`）/ 413 / 415 | REST 上 `*.rate_limited`、`*.payload_too_large` 的唯一落点；Content-Type 不被路由接受（60/15 §8） |
+| `permission` | `principal_not_found` / `principal_unsupported` / `last_owner` | 404 / 400 / 409 | 授权目标不存在或非 active；`principalType ≠ 'user'`；撤销或降级最后一个 owner（60/03 §9） |
+| `storage` | `integrity_mismatch` / `upload_not_found` | 422 / 404 | commit 时 sha256 或字节数不符；`uploadId` 不存在或过期（60/04 §6–§7） |
+| `collab` | `doc_purging` / `protocol_mismatch` / `epoch_changed` / `bootstrap_failed` / `auth_timeout` / `quarantined` / `payload_too_large` / `validation_failed` / `lock_lost` | 4404 / 4427 / 4428 / 4503 / 4408 / 4409 / 4413 / 4400 / 仅日志与计数 | WS 握手与门禁（06 §6.3、§6.5；60/16 §10）；`lock_lost` = 单写者租约在写入前失效，不对外 |
+| `headless` | `task_timeout` / `task_oom` / `worker_crashed` / `bad_request` / `rpc_unauthorized` / `request_too_large` / `version_mismatch` / `renderer_busy` / `inject_timeout` / `browser_crashed` / `render_timeout` / `response_invalid` | 作业结果或内部 RPC 400 / 401 / 413 / 409 / 503 / 504 / 500（60/06 §10.4） | worker 解析线程与 renderer RPC（60/06 §12.2）；`headless.zip_limit_exceeded`、`headless.decode_failed` 不再使用（改为 `format.limit_exceeded`、`format.pptx.*`） |
+| `render` | `bad_query` / `bad_payload` / `version_mismatch` / `state_expired` | `/render` 页 `window.__cordex.error` | 查询非法；注入载荷校验失败；`appVersion` 与页面不一致；60 s 未注入（50-frontend/12 §11） |
+| `plugin` | `incompatible` / `wrong_environment` | 插件 `FAILED` + 事件 `plugin/incompatible` | `hostApi` 范围不满足（`details{required, actual}`，PRD 04 PS-07）；dom 插件被 Node 宿主加载（PS-14） |
+| `shell` | `no_host` | 诊断（不抛） | `shell.intent` 的宿主未提供 `onIntent`（50-frontend/03 §8，40-modules/11） |
 
 ### 1.2 错误类层次（刻意扁平）
 
@@ -196,11 +230,11 @@ flowchart TB
 | 码（前缀/示例） | HTTP | WS 关闭码 | problem+json `type` |
 |---|---|---|---|
 | `*.validation_failed` | 400 | 4400 | `/errors/validation` |
-| `server.auth.unauthenticated` | 401 | 4401 | — |
+| `server.auth.unauthenticated` / `collab.unauthenticated` | 401 | 4401 | WS 握手用 `collab.unauthenticated`（决策 INC-10） |
 | `permission.denied` / `collab.forbidden` | 403 | 4403 | — |
 | `server.documents.not_found` / `collab.doc_not_found` | 404 | 4404 | — |
 | `collab.schema_too_new` | 409 | 4426 | — |
-| `collab.room_full` | 503 | 4503 | — |
+| `collab.room_full`（原 `collab.server.room_full` 作废） | 503 | 4503 | — |
 | `*.payload_too_large` | 413 | 4413 | — |
 | `*.rate_limited` | 429 | 4429 | — |
 | `format.quota_exceeded`（导入超规模天花板，直接拒绝导入，rulings §4.15 Q5） | 413 | — | `details: { dimension, limit, actual }` |
@@ -208,6 +242,19 @@ flowchart TB
 | `format.macro_rejected`（`.pptm` / macroEnabled 主内容类型 / 含 `vbaProject.bin` 的宏包直接拒绝导入，rulings §4.16 Q15；登记于 `ooxml-core` errors，检测见 40-modules/04 §2.6） | 415 | — | `details: { reason: 'extension' \| 'content_type' \| 'vba_part' }`；取 415 而非 422：拒绝依据是**文件类型本身**（宏启用的媒体类型不受理），而非内容语义校验失败——与 `format.unsupported_binary` 同类；用户文案「请另存为 .pptx 后再导入」 |
 | `document.quota_exceeded`（**编辑期**上限码：编辑中新增页/元素触及天花板，命令守卫拒绝，rulings §4.17 D2；M-03 的 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` 常量映射到本码） | 409 | —（命令守卫拒绝、**不关连接**；4429 专属速率限制） | `details: { dimension, limit, actual }` |
 | `storage.quota_exceeded`（部署级存储/每用户文档数配额） | 413（上传）/ 429 | — | `details: { dimension, limit, actual }` |
+| `format.unsupported_binary`（旧二进制 `.ppt` 等非 OOXML 容器，直接拒绝导入） | 415 | — | 与 `format.macro_rejected`、`format.encrypted` 同类：拒绝依据是文件类型本身（2026-09-25 补登 HTTP 映射，60-backend/15 §7） |
+| `server.auth.expired` / `server.auth.invalid_token` | 401 | 4401 | 见 §11.2 |
+| `server.auth.csrf_rejected` / `server.auth.origin_rejected` / `server.auth.forbidden` | 403 | —（WS 升级 Origin 拒绝在升级前以 HTTP 403 返回） | INC-24；`forbidden` 为 `PlatformAdminGuard` 拒绝 |
+| `server.auth.idp_unavailable` / `server.auth.unavailable` / `server.snapshots.persist_degraded` | 503 | — | `retryable: true`；OIDC 回调中的 IdP 失败与 `account_disabled` 一律以 302 带 `?error=<code>` 回前端 |
+| `*.not_found`（`server.users` `server.share_links` `server.media` `server.snapshots` `server.jobs` `server.thumbnails` `server.comments` `server.webhooks`、`permission.principal_not_found`、`storage.upload_not_found`） | 404 | — | `server.thumbnails.not_found` 带 `Retry-After`（已惰性入队） |
+| 冲突类（`server.documents.locked` `server.documents.element_not_tombstoned` `server.users.last_admin` `permission.last_owner` `server.snapshots.named_limit_reached` `server.jobs.invalid_transition` `server.import.source_missing` `server.import.job_terminal` `server.export.not_ready` `server.comments.import_unsupported` `server.audit.verify_busy`） | 409 | — | — |
+| `server.export.expired` | 410 | — | 导出对象已过保留期 |
+| `server.import.upload_forbidden` | 403 | — | `uploadId` 不存在、过期或非本人不区分（防枚举） |
+| 语义校验类（`storage.integrity_mismatch` `server.webhooks.invalid_url` `server.webhooks.egress_blocked` `server.webhooks.invalid_event_filter` `server.audit.export_too_large`） | 422 | — | — |
+| `permission.principal_unsupported` / `server.audit.range_too_large` | 400 | — | 与 `*.validation_failed` 同档 |
+| `server.media.unsupported_type` / `server.http.unsupported_media_type` | 415 | — | — |
+| `server.http.rate_limited` / `server.http.payload_too_large` | 429 / 413 | — | REST 上 `*.rate_limited`、`*.payload_too_large` 的具体码（60-backend/15 §8）；WS 侧为 `collab.rate_limited`（4429）与 `collab.payload_too_large`（4413） |
+| `collab.doc_purging` / `collab.protocol_mismatch` / `collab.epoch_changed` / `collab.bootstrap_failed` / `collab.auth_timeout` / `collab.quarantined` | — | 4404 / 4427 / 4428 / 4503 / 4408 / 4409 | 客户端行为见 06 §6.5 |
 | `kernel.invariant_violation` 及未知 | 500 | 1011 | `/errors/internal`（不泄漏 details） |
 
 **配额三码并列与 `dimension` 取值表**（rulings §4.17 D2；各处——PRD 06、设计 13、40-modules/03/04/08/12——照抄本表，不另起名）：
@@ -275,16 +322,12 @@ interface ErrorReporter { report(e: CordexError, ctx: ErrorContext): void }     
 ### 2.3 脱敏（sink 前统一执行，`kernel/logger/redact.ts`）
 
 - **从不记录文档内容**：任何 `text`/`body`/`update`/`state`/`snapshot` 字段被拒绝（开发模式抛 `kernel.log_content_forbidden`，生产模式替换为 `[redacted:content]`）。
-- 用户标识：邮箱/姓名 → sha256 前 12 位；IP → /24 掩码；token/ticket/cookie/authorization → `[redacted]`。
+- 用户标识：邮箱/姓名 → sha256 前 12 位；IP → /24 掩码；token/ticket/cookie/authorization → `[redacted]`；请求头 `x-cordex-share-token`（分享令牌，决策 INC-25）与 `x-cordex-ops-token`（运维令牌，决策 INC-26）在日志与 trace 属性中一律 `[redacted]`（2026-09-25 补）。
 - 路径类字段（`StorePath`）允许，但富文本偏移不携带文本。
 
 ### 2.4 Sink Provider
 
-| 环境 | Provider | 行为 |
-|---|---|---|
-| 浏览器开发 | `console` | 彩色、含 fields |
-| 浏览器生产 | `ring-buffer`（最近 500 条 `debug+`）+ 上报 | 仅在 `errors.report` 触发时把环形缓冲随错误一起上报（§6） |
-| Node | `pino`（JSON 行）→ stdout → OTel Collector（Loki 为显式开启的 AGPL 可选 profile，rulings §4.15 Q10） | `level ≥ info`；`debug` 按 logger 名开关（环境变量 `CORDEX_LOG_DEBUG=collab-yjs:*`） |
+Sink 是可替换 Provider：浏览器开发期为 `console`，生产为 `ring-buffer`（最近 500 条 `debug+`，只在 `errors.report` 触发时随错误上报，§5）；Node 为 `pino` JSON 行 → stdout → OTel Collector（Loki 为显式开启的 AGPL 可选 profile，rulings §4.15 Q10），`level ≥ info`，`debug` 按 logger 名开关。实现与配置的唯一源：服务端见 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §1–§2，客户端见 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §6（2026-09-25 设计线拆分，原 Provider 表迁出）；§2.1–§2.3 的命名与脱敏规则是两端共同约束。
 
 ---
 
@@ -307,23 +350,7 @@ interface TelemetryService {
 
 ### 3.2 Span 清单（名称、关键属性、所在包）
 
-| span | 属性 | 位置 |
-|---|---|---|
-| `unit.open` | doc_type, source_kind, bytes | model-core |
-| `format.import` / `format.export` | codec, bytes, parts, warnings | ooxml-pptx |
-| `command.execute` | command_id, mutations, undoable | model-core（05） |
-| `store.transaction` | origin_kind, paths | store-* |
-| `render.frame` | pages, elements_updated, overrun | engine-render |
-| `render.page_compose` | page_id, elements | slide-render |
-| `layout.text_body` | chars, lines, autofit_iterations | engine-layout |
-| `collab.bootstrap` | http_ms, step2_bytes | collab-yjs |
-| `collab.sync_roundtrip` | bytes | collab-yjs（抽样） |
-| `server.room.load` | doc_id, snapshot_bytes, updates | server-collab |
-| `server.collab.update` | bytes, gate_result | server-collab |
-| `server.snapshot.compact` | pending, bytes | server-collab |
-| `thumbnail.render` | slides, ms_per_slide | server-headless |
-| `job.<kind>` | attempts | apps/server |
-| HTTP/DB/Valkey（Redis 协议） | 自动仪表化（`@opentelemetry/instrumentation-*`） | apps/server |
+span 清单按运行位置分属两条设计线（2026-09-25 设计线拆分，原清单表迁出）：浏览器与 iso 包的 span（`unit.open`、`format.import` / `format.export`、`command.execute`、`store.transaction`、`render.frame`、`render.page_compose`、`layout.text_body`、`collab.bootstrap`、`collab.sync_roundtrip`）以 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §7.1 为唯一源；服务端 span（`server.<子系统>.<操作>`、`job.<kind>`、`render.rpc`、`thumbnail.render`，以及 HTTP / DB / Valkey 自动仪表化）与采样规则以 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §3 为唯一源。两端共同约束：名称经 `SpanName` 声明合并登记（§3.1），由扫描器 `scan-observability-identifiers` 核对登记与调用点；span 属性不携带文档内容、令牌、完整 URL 与查询串（§2.3）。
 
 传播：HTTP `traceparent` 头；WS 的 CONTROL.auth 携带 `traceparent` 建立会话父 span，每个 update 帧不建 span（用指标 + 1% 抽样 span）；BullMQ job 数据带 `traceparent`。
 
@@ -352,59 +379,41 @@ sequenceDiagram
 
 ### 3.3 Metric 清单（Prometheus 命名；单位在名内）
 
-| 指标 | 类型 | 标签 | 消费者（仪表盘/告警） |
-|---|---|---|---|
-| `cordex_render_frame_ms` | histogram | mode | 前端性能面板；预算门禁（11） |
-| `cordex_render_elements_updated_total` | counter | kind | A28 监控 |
-| `cordex_command_latency_ms` | histogram | command_id | — |
-| `cordex_collab_update_bytes` | histogram | direction | 容量 |
-| `cordex_collab_roundtrip_ms` | histogram | — | SLO |
-| `cordex_collab_session_transitions_total` | counter | from,to | 稀疏重连告警 |
-| `cordex_collab_pending_updates` | gauge | — | 客户端「未同步」提示 |
-| `cordex_collab_rooms_active` / `cordex_collab_clients` | gauge | instance | 容量告警 |
-| `cordex_collab_persist_latency_ms` | histogram | — | SLO |
-| `cordex_collab_updates_rejected_total` | counter | reason | 安全告警 |
-| `cordex_collab_repairs_total` | counter | rule | 数据质量告警 |
-| `cordex_collab_broadcast_before_persist_total` | counter | tier(none/valkey/blob) | PG 故障降级期「先广播后持久化」的次数（rulings §4.18 CO-08，06 §6.4）；持续增长即 PG 故障告警的旁证 |
-| `cordex_store_undo_skipped_total` | counter | whole_step(true/false) | 撤销跳过面板（与软冲突率分开，rulings §4.17 D5） |
-| `cordex_ydoc_bytes` / `cordex_ydoc_structs` | gauge | doc（抽样） | epoch 触发（06 §9.4） |
-| `cordex_snapshot_bytes` / `cordex_snapshot_compactions_total` | histogram/counter | kind | 存储 |
-| `cordex_ws_connections` | gauge | instance | HPA |
-| `cordex_import_duration_ms` / `cordex_export_duration_ms` / `cordex_thumbnail_duration_ms` | histogram | — | 作业 SLO |
-| `cordex_fiber_state` | gauge | plugin,state | PENDING/FAILED 告警 |
-| `cordex_effects_live` | gauge | plugin | 泄漏告警（A25） |
-| `cordex_cache_events_total` | counter | cache,event(hit/miss/evict) | A29 |
-| `cordex_errors_total` | counter | code,severity | 错误率告警 |
+指标名表同样按运行位置分属两线（2026-09-25 设计线拆分，原清单表迁出）：服务端 `/metrics` 暴露的统一名表（含旧名别名列、标签值集合与消费者）以 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §4 为唯一源；浏览器侧指标（只进开发者面板、诊断包与遥测，不进服务端 `/metrics`）以 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §7.2 为唯一源，二者不重名。两端共用的命名规则（决策 METRICS）：
+
+- 名称形如 `cordex_<subsystem>_<name>_<unit>`，协同类一律 `cordex_collab_*`；计数器以 `_total` 结尾，大小用 `_bytes`；服务端时长用 `_seconds`（Prometheus 基本单位，旧 `_ms` 名只作别名），浏览器侧沿用 `_ms`（如 `cordex_render_frame_ms`）。
+- 标签值集合封闭；禁止 `doc_id`、`user_id`、`session_id`、`jti`、URL 等高基数或标识性标签。
+- 名称经 `MetricName` 声明合并登记，每项带消费者（告警、面板或测试）；扫描器 `scan-observability-identifiers` 核对「调用点 ⊆ 登记表」与「登记项至少一个调用点」（ADR-0030 决策 5）。
+- kernel 两端共用的指标沿用原名：`cordex_errors_total{code,severity}`、`cordex_fiber_state{plugin,state}`、`cordex_effects_live{plugin}`、`cordex_cache_events_total{cache,event}`，两张事实源表都登记同名条目。
 
 ### 3.4 产品事件（`telemetry.event`，与 PRD 06 对应）
 
-最小集合（PRD 06 为权威清单，此处定义命名与去标识规则）：`doc_opened{doc_type, source, slides}`、`doc_exported`、`edit_committed{command_id}`（按会话抽样 10%）、`collab_joined{clients}`、`collab_reconnected`、`collab_conflict_notice{kind}`（06 §8 #2/#3 的提示展示）、`plugin_loaded{plugin}`、`perf_budget_exceeded{metric}`、`perf/frame{ ms, pages, elements, overrun }`（总编排定稿：由 cordis 事件 `render/frame` 派生的**遥测事件**，抽样 ≤ 1%，不是 cordis 事件）。规则：不含文档内容与自由文本；用户 id 哈希；事件 schema 为 zod（`protocol/telemetry`）。
+产品遥测以 **PRD 06 为权威**（事件清单、属性、采样率、隐私级，决策 MECH-INC 之 INC-33）；前端管线、事件 schema 注册与出口见 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md)。本节只定跨端规则：
+
+- **命名**：`<域>/<动作>`（与 cordis 事件同形，如 `unit/open-progress`、`perf/frame`、`collab/latency`），经 `telemetry.event(name, props)` 发出；PRD 06 事件表逐行标注「cordis 事件」或「遥测专用」。原 snake_case `<域>_<动作>`（`doc_opened`、`collab_joined` 等）与 `ctx.telemetry.track` 写法作废（09-02 §4.15、09-06 §10 同步）。
+- **派生事件**：`perf/frame` 是由 cordis 事件 `render/frame` 派生的遥测专用事件，载荷 `{ frameMs, interaction, pages, elementsUpdated, overrun }`（决策 INC-08），二者并存、不是改名；帧级数据只走遥测。
+- **采样**：高频事件（`perf/frame`、`collab/latency` 等）默认 1%，部分事件按 PRD 06 事件表的采样率，错误与生命周期事件不采样；全部可配置（ADR-0030 决策 6 修订 2026-09-25）。
+- **隐私与默认值**（决策 TELEMETRY-DEFAULT）：不含文档内容与自由文本，用户 id 哈希，属性名黑名单见 PRD 06 §5（扫描器 09-06 §10）；SDK 默认 no-op，`apps/web` 的产品遥测默认关、客户端错误上报默认开（§5），Preferences 提供 `diagnostics.productTelemetry` 与 `diagnostics.errorReports` 两个开关。
 
 ---
 
 ## 4. 诊断
 
-| 能力 | API / 入口 | 说明 |
-|---|---|---|
-| Fiber 树 dump | `dumpFiberTree(ctx) → { name, uid, state, children[] }`；`GET /internal/diagnostics/fibers` | 从 `ctx.registry` 遍历 runtimes/fibers |
-| effect 树 dump | `fiber.getEffects()` 聚合；`GET /internal/diagnostics/effects?plugin=` | 卸载后应为空（A25 断言函数 `assertNoLiveEffects`） |
-| PENDING 检视器 | `listPending(ctx) → [{ fiber, missing: string[] }]` | 用 `Inject.resolve(plugin.inject)` 与 `ctx.get(name)` 比对得出缺失服务名；dev 面板 500 ms 后提示；服务端 `/readyz` 附带 |
-| 贡献点清单 | `ctx.contributions(point)` + `listContributionPoints(ctx)`；`GET /internal/diagnostics/contributions` | 与 Manifest 对比差异（ADR-0003） |
-| 协同诊断 | `ctx.collab.session(unitId).stats` + `yjsBackend.stats()`；dev 面板「协同」页 | 状态、pending、state vector 摘要、最近帧 |
-| 渲染诊断 | `ctx.render.stats()`：帧时长直方、脏区计数、缓存命中率、已挂载页 | dev 面板「渲染」页 |
-| 开发者面板 | `ui.panel` 贡献 `cordex.devtools`（仅 `import.meta.env.DEV` 或 `?cordex-devtools=1`） | 由 slide-ui/ui-react 承载，数据来自上述 API |
-| CLI | `cordex-headless diag <file.pptx>`：导入 → validate → 报告 | server-headless |
+kernel 提供四个两端共用的诊断 API：`dumpFiberTree(ctx)`（Fiber 树）、`fiber.getEffects()` 聚合（卸载后应为空，断言函数 `assertNoLiveEffects`，A25）、`listPending(ctx)`（用 `Inject.resolve(plugin.inject)` 与 `ctx.get(name)` 比对得出缺失服务名）、`listContributionPoints(ctx)`（与 Manifest 对比，ADR-0003）；另有 `ctx.collab.session(unitId).stats` / `yjsBackend.stats()` 与 `ctx.render.stats()` 两组运行统计，以及 `cordex-headless diag <file.pptx>` 命令行诊断（server-headless）。消费端的唯一源（2026-09-25 设计线拆分，原能力表迁出）：
+
+- 浏览器：开发者面板（`ui.panel` 贡献 `cordex.devtools`）、`diagnostics.dump()` 诊断包与 e2e 诊断通道见 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §10。
+- 服务端：`/internal/diagnostics/{fibers|effects|pending|contributions}` 与管理端点（内部端口、运维令牌、fail-closed）、`/readyz` 附带的 PENDING 信息见 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §6–§8。
 
 ---
 
 ## 5. 客户端错误上报
 
-- 端点：`POST /api/v1/telemetry/errors`（DTO：`protocol/rest/telemetry.ts` 的 `ClientErrorReport`，落点见 40-modules/02 §4.3，rulings §4.18 BE-30），批量 ≤ 20 条/请求，节流 1 req/10 s，`sendBeacon` 兜底；浏览器 OTLP/HTTP 走 `POST /api/v1/telemetry/otlp` 代理。
-- 承接模块（rulings §4.18 BE-30）：两个端点由 M-12 新增的 `client-telemetry` 控制器承接（`client-telemetry.controller.ts` + `otlp-proxy.service.ts`，40-modules/12），只装在 api 角色；**要求登录**（全局 SessionGuard，不在 `@Public` 白名单），加令牌桶限流与请求体上限：errors ≤ 64 KiB，otlp ≤ 512 KiB 且**只转发 traces**（metrics/logs 由服务端自己产出，不接受浏览器转发）。
-- 载荷：`{ code, message(脱敏), fingerprint, stack(源映射前), appVersion, pluginManifestHash, unitId?, sessionId?, traceId?, breadcrumbs: ring-buffer 最近 50 条日志（脱敏）, env{ua, viewport, memory?} }`。
-- 服务端：写入日志管道并转发到错误平台（Sentry Provider 可选）；source map 在 CI 上传（09-07）。
-- 采样：`severity ≥ error` 100%；`warning` 10%；同 fingerprint 客户端 60 s 去重。
-- 隐私：见 §2.3；用户可在设置里关闭「诊断上报」（产品确认 O2）。
+客户端管线（fingerprint 与去重、环形缓冲 breadcrumbs、sink 选择、发送队列与节流、卸载补发、同意与默认）以 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §6、§9 为唯一源；服务端端点（`client-telemetry` 控制器、限流、体积上限、OTLP 代理只转发 traces、错误平台转发）以 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §9 为唯一源，路由见 [60-backend/15](../60-backend/15-rest-api-catalog.md) §3.14（2026-09-25 设计线拆分，原细则迁出）。跨端约束：
+
+- 两个端点：`POST /api/v1/telemetry/errors`（DTO `protocol/rest/telemetry.ts` 的 `ClientErrorReport`，落点 40-modules/02 §4.3）与 `POST /api/v1/telemetry/otlp`（浏览器 OTLP/HTTP 代理）；只装在 api 角色，**要求登录**（不在 `@Public` 白名单），errors ≤ 64 KiB、otlp ≤ 512 KiB（rulings §4.18 BE-30）。
+- 卸载补发用 `fetch(…, { keepalive: true })` 并照常携带 CSRF 头 `X-Cordex-Request: 1`，不用 `sendBeacon`（决策 INC-24，与 PRD 06 §5 同一口径）。
+- 采样 `severity ≥ error` 100%、`warning` 10%，同 fingerprint 60 s 去重；载荷只含脱敏后的 message、源映射前的 stack 与最近 50 条脱敏日志，不含文档内容。
+- 默认值（决策 TELEMETRY-DEFAULT）：SDK 默认 no-op；`apps/web` 的客户端错误上报默认开、用户可在设置里关闭（`diagnostics.errorReports`），数据只进部署方自己的服务端。
 
 **遥测、日志与错误上报流**
 
@@ -430,7 +439,7 @@ flowchart LR
   sentry["错误平台：Sentry Provider 可选"]
   bTel --> bOtel --> otlpProxy --> collector
   bLog -- "仅在 errors.report 触发时，最近 50 条脱敏日志作为 breadcrumbs" --> bErr
-  bErr -- "批量 ≤ 20 条，节流 1 req/10 s，sendBeacon 兜底" --> errApi
+  bErr -- "批量 ≤ 20 条，节流 1 req/10 s，卸载时 fetch keepalive 带 CSRF 头" --> errApi
   errApi -- "写入日志管道" --> nLog
   errApi -. "转发" .-> sentry
   nTel --> nOtel --> collector
@@ -475,7 +484,7 @@ packages/kernel/src/
 | # | 事项 | 默认 | 决策人 |
 |---|---|---|---|
 | O1 | 错误平台：自建（OTel logs）vs Sentry | OTel 全链路 + Sentry 可选 Provider | 运维 |
-| O2 | 客户端诊断上报是否需用户同意开关 | 提供开关，默认开 | 产品/法务 |
+| O2 | 客户端诊断上报是否需用户同意开关 | **已裁决**（决策 TELEMETRY-DEFAULT）：错误上报默认开、设置可关；产品遥测默认关 | 已裁决 |
 | O3 | 日志保留期 | 14 天热、90 天冷 | 运维 |
 | O4 | `debug` 日志在生产是否允许按文档/用户开启 | 允许（环境变量 + 5 分钟 TTL；单组织部署无租户维度） | 运维 |
 
@@ -505,15 +514,17 @@ packages/kernel/src/
 | history | `history/changed` | emit | canUndo / canRedo / depth | history | – |
 | store | `store/undo-skipped` | emit | `{ skipped: UndoSkip[]; wholeStep: boolean }`（载荷以 40-modules/02 §2.4 为准；撤销时同键已被他人后写而跳过，rulings §4.15 Q3） | store Provider | – |
 | selection / view | `selection/changed`；`view/page-changed` `view/zoom-changed` `view/mode-changed` | emit | 摘要（类型、数量、页；无文本） | `selection` / viewport | – |
-| render | `render/first-paint` `render/frame`（cordis 事件，进程内消费）`render/element-failed` `render/element-degraded` `render/font-fallback` | emit | unitId、pageId、kind、reason、font；`render/frame` 载荷 `{ pages, elementsUpdated, ms, overrun, pendingDirty }`（`pendingDirty` 为本帧后仍待绘的脏节点数，`/render` ready 判据用，rulings §4.18 FE-09，07 §10） | engine-render / render-dom | 总编排定稿：弃 02 的 `render/painted`；遥测事件 `perf/frame` 由 `render/frame` 派生（§3.4，抽样），不是 cordis 事件；A `render/error` 与本线 `render/element-error` → `render/element-failed` |
+| render | `render/first-paint` `render/frame`（cordis 事件，进程内消费）`render/element-failed` `render/element-degraded` `render/font-fallback` | emit | unitId、pageId、kind、reason、font；`render/frame(unitId, stats)`，`stats = { pages, elementsUpdated, ms, overrun, pendingDirty }`（`pendingDirty` 为本帧后仍待绘的脏节点数，`/render` ready 判据用，rulings §4.18 FE-09，07 §10；决策 INC-08：40-modules/06 的 `elements` 改名 `elementsUpdated` 并补 `overrun`） | engine-render / render-dom | 总编排定稿：弃 02 的 `render/painted`；遥测事件 `perf/frame{ frameMs, interaction, pages, elementsUpdated, overrun }` 由 `render/frame` 派生（§3.4，采样 1%），不是 cordis 事件，二者并存非改名（INC-08）；A `render/error` 与本线 `render/element-error` → `render/element-failed` |
 | layout | `layout/fonts-ready` `layout/measurer-changed` | emit | families / measurerId | render-dom / engine-layout | – |
 | export | `export/started` `export/completed` `export/failed` | emit | format、pages、ms、bytes | formats | – |
 | collab | `collab/state-changed` `collab/synced` `collab/soft-conflict` `collab/auth-failed` `collab/reconnect` `collab/update-rejected` `collab/repair` | emit | prev/next、type、code、reason、paths | collab-yjs | 本线 `collab/session-state` 与 A `collab/status-changed` → `collab/state-changed`；本线 `collab/rejected` → `collab/update-rejected`；`collab/backpressure` 降为指标 |
 | presence | `presence/joined` `presence/left` `presence/changed` | emit | clientId、userId、page | presence | – |
 | permission | `permission/changed` `permission/denied` | emit | 能力位差异、被拒命令 id | **`permissions` 服务唯一发出**（`applyRemoteDecisions` 之后 / 命令管线拒绝时） | 本线与 A 线的 `collab/permission-changed` 弃用；collab-yjs 不发权限事件 |
-| comment | `comment/added` `comment/replied` `comment/resolved` `comment/reopened` `comment/deleted` `comment/mentioned` | emit | threadId、authorId、mentioned、锚点摘要（正文可配置脱敏） | comments 插件（观察 `resources.comments.*`） | – |
+| comment | `comment/added` `comment/replied` `comment/resolved` `comment/reopened` `comment/deleted` `comment/mentioned` | emit | threadId、authorId、mentioned、锚点摘要（正文可配置脱敏） | `@cordexjs/comments`（观察 `resources['comments.threads']`，rulings §4.19 D-COMMENTS-PKG） | – |
 | plugin | `plugin/loaded` `plugin/failed` `plugin/incompatible` | emit | id、version、code | kernel | – |
 | error | `error/raised` | emit | code、severity、retryable、unitId? | `errors.report` | – |
+
+`collab/latency`（PRD CO-13）是**遥测专用**事件：不进 `Events` 接口、不经 cordis 事件总线，由 collab-yjs 经 `telemetry.event` 发出，默认采样 1%（§3.4），自 M2 起随协同客户端上报。
 
 规则：载荷不含文档文本（评论正文除外且可脱敏）；同一 Unit 内按发生顺序；`store/transaction` 先于 `command/executed`；`waterfall` 拦截点（如 `command/before-execute`）属 05 管线内部契约，不进公开表；公开事件订阅返回 disposer（`ctx.on` 语义）。
 
@@ -522,7 +533,7 @@ packages/kernel/src/
 | PRD | 定稿 | HTTP / WS |
 |---|---|---|
 | `auth/invalid-token` `auth/expired` `auth/forbidden` | `server.auth.invalid_token` `server.auth.expired` `server.auth.forbidden` | 401 / 401 / 403；4401 / 4401 / 4403。令牌刷新失败按原因分流（rulings §4.18 UX-02，06 §18.3）：401（`server.auth.expired`）直接进入「登录已过期」、不经 reconnecting/offline；只有网络错误才走 `collab/reconnect{reason:'auth-refresh'}` 并共用 30 s 离线计时 |
-| `collab/auth-failed` | 事件 `collab/auth-failed`，载荷 code ∈ `collab.unauthenticated \| collab.forbidden \| collab.doc_not_found \| collab.schema_too_new \| collab.protocol_mismatch \| collab.room_full` | 见 06 §6.5（`protocol_mismatch` = 4427） |
+| `collab/auth-failed` | 事件 `collab/auth-failed`，载荷 code ∈ `collab.unauthenticated \| collab.forbidden \| collab.doc_not_found \| collab.doc_purging \| collab.schema_too_new \| collab.protocol_mismatch \| collab.epoch_changed \| collab.room_full` | 见 06 §6.5（`protocol_mismatch` = 4427，`epoch_changed` = 4428，`doc_purging` = 4404） |
 | `format/limit-exceeded{limit, actual}` | `format.limit_exceeded` | 413 |
 | `collab/soft-conflict{type}` | 事件（非错误）；指标 `cordex_collab_soft_conflicts_total{type}`；`type` **不含** `undo-skipped`——撤销跳过走 `store/undo-skipped` 单独统计（rulings §4.17 D5） | – |
 | `collab/reconnect{reason:"server-shutdown"}` | 事件 `collab/reconnect`，reason ∈ `server-shutdown \| network \| auth-refresh \| capacity` | – |

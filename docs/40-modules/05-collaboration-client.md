@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-05） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：M9 IDB 键 `{userId}/{documentId}` 与 `OfflineStore.open({userId, documentId})`；M2/M3 撤销载荷与用例名照抄 M-02；D4 不复活他人删除；D5 `store/undo-skipped` 单独统计）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-05、charter v0.2 §4.2/§5.2 collab-\* 四包行/§5.5、30-architecture `06-collaboration.md` 全篇（含 §18 v0.2 对齐）、`02-layering-and-packages.md` §4.11/§4.12/§4.12b、`02-kernel-protocol-and-document-core.md`（`yjsBackend`/protocol WS 帧/`ctx.permissions`/按 origin 撤销）、ADR-0020/0023/0024/0025/0032/0033、PRD `10-prd/03-features/03-collaboration.md`
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-05） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：M9 IDB 键 `{userId}/{documentId}` 与 `OfflineStore.open({userId, documentId})`；M2/M3 撤销载荷与用例名照抄 M-02；D4 不复活他人删除；D5 `store/undo-skipped` 单独统计）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：00-module-map.md M-05、charter v0.2 §4.2/§5.2 collab-\* 四包行/§5.5、30-architecture `06-collaboration.md` 全篇（含 §18 v0.2 对齐）、`02-layering-and-packages.md` §4.11/§4.12/§4.12b、`02-kernel-protocol-and-document-core.md`（`yjsBackend`/protocol WS 帧/`ctx.permissions`/按 origin 撤销）、ADR-0020/0023/0024/0025/0032/0033、PRD `10-prd/03-features/03-collaboration.md`
 
 # 05 协同（客户端）（限界上下文 BC-09 协同（客户端））
 
@@ -45,25 +45,17 @@ flowchart LR
 
 ### 1.1 职责与非职责
 
-**做什么**：
+> **事实源分工（rulings §4.19）**：浏览器侧协同运行时（Session 状态机与三层对照、连接建立、重连与离线、出站合并与两级 ack、离线队列、权限与令牌、关闭码行为、awareness 与在场 UI、软冲突信号分流、计时器）的唯一事实源是 [50-frontend/07](../50-frontend/07-collaboration-client.md)；本文只保留包 / 文件级规划（§3 插件定义、§4 目录树、§5 文件职责、§9–§11）与本包接口签名，行为段落一律改为摘要 + 链接，冲突以 50/07 为准。
 
-- 定义并驱动客户端 `Session` 状态机：内部 FSM 11 态（`idle/connecting/authenticating/backoff/syncing/live/readonly/denied/offline/quarantined/closed`，06 §5.1）投影为对外 `SyncState` 六态（`disconnected/connecting/syncing/synced/offline/error`，02-layering §4.11）。
-- 编排 CRDT 同步的**客户端一侧**：通过 `store-yjs` 暴露的 `yjsBackend`（`encodeStateAsUpdate`/`applyUpdate`/`onUpdate`/`stateVector`/`stats`）收发 update，自身**不**导入或暴露 `Y.*` 类型（唯一受控访问面，charter §4.2 第 3 条边界）。
-- 实现 awareness/presence：本地状态节流广播、远端状态校验清洗、光标/选区经 `RelativePosition` 编解码。
-- 实现离线队列：`OfflineStore` Definition + 内存降级实现（Provider 缺失时）+ `collab-offline-idb` 的 IndexedDB Provider。
-- 落地权限检查点：把服务端 `CONTROL.permission` 帧编排为对 `permissions.applyRemoteDecisions()` 的唯一调用（不自行判定权限、不自行发 `permission/changed`）。
-- 定义并覆盖 12 种软冲突场景的确定性分类与 fuzz（§2.3、§9）。
-- 实现 WebSocket 传输、Ticket 握手、指数退避重连、应用层心跳（`collab-transport-ws`）。
+**做什么**（行为细节见 50/07 对应节）：
 
-**不做什么（指向负责模块）**：
+- 客户端 `Session` 状态机的纯 reducer（`session-fsm.ts`，内部 11 态 → 对外 `SyncState` 六态，50/07 §3）与其 Provider 侧执行器。
+- 经 `store-yjs` 的 `yjsBackend` 受控面编排 CRDT 同步的客户端一侧，自身不导入或暴露 `Y.*` 类型（charter §4.2 第 3 条边界；50/07 §1、§5）。
+- 两级 ack 与在途 FIFO、「未保存到服务器」判据（rulings §4.19 INC-09，50/07 §6）；离线队列（`OfflineStore` Definition + 内存实现 + `collab-offline-idb`，50/07 §7）。
+- 权限检查点：`CONTROL.permission` 只经 `permissions.applyRemoteDecisions()` 进入客户端（50/07 §8）；awareness / presence 模型（50/07 §10）；12 种软冲突的通用版分类与 fuzz（§2.3，信号分流见 50/07 §12）。
+- WebSocket 传输、票据握手、退避重连、应用层心跳（`collab-transport-ws`，50/07 §2、§4、§9）。
 
-- 不做 CRDT 数据结构本身、`Y.Doc` 持有、`StoreOp`→Y 操作映射、`DocumentStore` 契约定义——是 M-02（`model-core`/`store-yjs`）的职责；本模块只消费 `yjsBackend` 这一受控服务面。
-- 不做 WS 帧/CONTROL 消息/错误码/能力位/角色 schema 的**定义**——是 M-02（`protocol`）的职责；本模块只引用 `@cordexjs/protocol` 的推导类型，不私定义跨进程 DTO（module-map §4.2 第 1 条铁律）。
-- 不做服务端 Room 状态机、update 持久化与压缩、硬/软门禁校验、跨实例 pub/sub——是 M-09（`server-collab`）的职责；跨进程只通过 `06-collaboration.md` 定义的协议帧握手；包依赖只有一条——`server-collab` 复用 `collab-core` 的 Definition 契约，不复用 `collab-yjs`/`collab-transport-ws` 等 Provider（awareness 模型、权限检查点、房间状态机契约，rulings §4.18 FE-15）。
-- 不认识 `slide`/`shape`/`parentId` 等词汇——保持文档类型盲（generic，§8）；06 §8 用幻灯片场景描述的 12 种软冲突，在本模块内一律用 `@cordexjs/model-core/testing` 的通用 `fixture` 文档类型复现（§2.3）。
-- 不做在线头像/远端光标渲染/冲突提示 UI/协同诊断面板——是 M-10（`slide-ui`）的职责；本模块只发出事件与暴露只读状态，不渲染任何 DOM。
-- 不做权限**判定**（fail-closed 的决策逻辑）——是 M-02（`permissions` 服务）的职责；本模块只是决策从服务端进入客户端的**唯一入口**（06 §18.3）。
-
+**不做什么（指向负责模块）**：CRDT 数据结构、`Y.Doc` 持有与 `DocumentStore` 契约（M-02 `model-core` / `store-yjs`）；WS 帧、CONTROL、关闭码、错误码、能力位的**定义**（M-02 `protocol`，按 30/06 §6）；服务端 Room、持久化、门禁、扇出（M-09，服务端视角见 [60/05](../60-backend/05-modules-collab-and-snapshots.md)、[60/16](../60-backend/16-ws-protocol-server-view.md)；`server-collab` 只复用 `collab-core` 的 Definition 契约，rulings §4.18 FE-15）；幻灯片词汇（保持文档类型盲，§8）；在场头像、远端光标、横幅与诊断面板等 UI（M-10，[50/10](../50-frontend/10-editor-shell-and-interaction.md) §11）；权限判定（M-02 `permissions`）。
 ### 1.2 通用语言
 
 复用 charter §4.2 协同术语：Room、Session、Ticket、Update / StateVector、Compaction、Repair、FracKey、Version、Soft Conflict（软冲突）。本上下文补充术语表：
@@ -123,106 +115,51 @@ bc06 -. "Conformist 对幻灯片词汇零感知 无共享类型" .- collab
 
 ### 2.1 聚合与实体
 
+> 本节只列本包的类型签名与不变量；Session 内部 11 态状态机、11 → 6 投影表、UI 六态派生与横幅出现条件的唯一事实源是 [50/07 §3](../50-frontend/07-collaboration-client.md)（2026-09-25 自本节与 30/06 §5.1 迁入，rulings §4.19），本节原状态机图与投影表已删除。
+
 **`Session`（聚合根；`collab-core/domain/session.ts`）**
 
 ```ts
 interface Session {
-  readonly state: SyncState                 // 对外六态；见下方投影表
+  readonly state: SyncState                 // 对外六态（disconnected|connecting|syncing|synced|offline|error），由 projectSyncState 投影
   readonly role: RoleName                   // 来自服务端 auth.ok / CONTROL.permission
-  readonly stats: SessionStats              // pendingLocalUpdates/lastSyncedAt/bytesIn/Out/rtt/spillOnlyInFlight/oldestInFlightMs（CO-08）
-  flush(): Promise<void>                    // 等待本地 pending 全部被服务端 ack{tier:'db'}（spill 级 ack 不算）
+  readonly stats: SessionStats              // 字段见 §2.2
+  flush(opts?: { timeoutMs?: number }): Promise<void>  // 等待 pending 全部获 ack{tier:'db'}（spill 不算）；离线期保持等待（50/07 §6）
   reconnectNow(): void
-  close(): Promise<void>
+  close(): Promise<void>                    // leave() 以 leaveFlushTimeoutMs（默认 5 s）为上限 flush
 }
 ```
 
-- 不变量：一个 `UnitId` 至多一个活跃 `Session`（`ctx.collab.join()` 幂等，重复 join 返回同一实例）；`state` 只能由内部 FSM 驱动迁移，UI/插件无 public setter。
-- 并发/CRDT 下的合并语义：`Session` 是**本地连接句柄**，不参与 CRDT、不跨端合并；它管理的是「本地文档副本与服务端的同步关系」，收敛发生在 `store-yjs` 持有的 `Y.Doc`（M-02），`Session` 只是该收敛过程的连接状态投影。
-- **状态机**：内部 FSM 11 态（Provider 执行 effects，纯 reducer 见 §2.3）投影为对外 `SyncState` 六态（`domain/session-state.ts`，02-layering §4.11 定稿）：
+- 不变量：一个 `UnitId` 至多一个活跃 `Session`（`ctx.collab.join()` 幂等）；`state` 只能由 `session-fsm.ts` 的 reducer 驱动迁移，UI 与插件无 public setter；`Session` 是本地连接句柄，不参与 CRDT 合并（收敛发生在 M-02 `store-yjs` 持有的 `Y.Doc`）。
+- 状态文件落点：内部态与 `SyncState` 在 `domain/session-state.ts`，reducer 与允许迁移表在 `domain/fsm/session-fsm.ts`，effects 判别联合在 `domain/fsm/session-fsm-effects.ts`；UI 六态派生函数 `deriveCollabUiState` 归 M-10 `ui-core`（[40/10](10-ui-shell-and-slide-ui.md)），不在本模块。
 
-```mermaid
-stateDiagram-v2
-  [*] --> idle
-  idle --> connecting: join()
-  connecting --> authenticating: transport open
-  connecting --> backoff: connect error / timeout
-  authenticating --> syncing: auth.ok(role, docState)
-  authenticating --> denied: auth.denied(code)
-  authenticating --> backoff: auth timeout(5s)
-  syncing --> live: SyncStep2 applied && pending==0
-  syncing --> backoff: transport closed
-  live --> readonly: CONTROL.permission(role#60;editor)
-  readonly --> live: CONTROL.permission(role>=editor)
-  live --> backoff: transport closed
-  backoff --> connecting: timer fired
-  backoff --> offline: 自进入重连累计 30s 未连上 或 navigator offline
-  offline --> connecting: online 事件 / reconnectNow() / 30s 周期重连
-  live --> denied: auth.refresh 被拒 401 登录已过期
-  denied --> connecting: 重新登录取得新票据 reconnectNow()
-  live --> quarantined: close 4409
-  live --> closed: leave()/unit closed
-```
+**`Room`（客户端侧只读投影，非聚合；`collab-core/domain/room-descriptor.ts`）**：`RoomDescriptor{ documentId; endpoint; token }` 与 `RoomInfo{ clients: number; draining?: boolean; persist: 'ok' | 'degraded' }`。`persist` 取自 `CONTROL.room` 的可选字段 `persist`（缺席视为 `'ok'`，rulings §4.19 INC-09；帧形状由 M-02 `ws/frames.ts` 定义）。Room 的权威七态状态机在服务端（M-09，[60/05](../60-backend/05-modules-collab-and-snapshots.md)），本模块不复制。
 
-| 内部态 | 对外 `SyncState` | 备注 |
-|---|---|---|
-| `idle` | `disconnected` | 尚未 `join()` |
-| `connecting`、`authenticating` | `connecting` | 含首次连接与 `backoff` 重试期（重试不占用第 7 个字面量，UI 层用 `stats.reconnectAttempt>0` 区分「重连中」文案，§13 Q-05-1） |
-| `syncing` | `syncing` | HTTP 快照已应用，WS 差量同步中；此时已可编辑（本地 pending 排队） |
-| `live` | `synced` | 正常在线；`role>=editor` |
-| `readonly` | `synced` + `role` 降级标志 | `Session.role` 本身即降级信号，不新增 `SyncState` 字面量（06 §18.3） |
-| `backoff` | `connecting` | 自进入重连起累计未满 `offlineAfterMs`（30 s）；令牌刷新的网络失败共用同一计时，不另设计时器（rulings §4.18 UX-03） |
-| `offline` | `offline` | 自进入重连累计 30 s 仍未连上，或 `navigator.onLine=false`（任何在线态收到 offline 事件立即转入，去抖 2 s）；本地仍可编辑；**不停止重试**：每 `offlineRetryMs`（30 s，±20% 抖动）周期重连一次，`navigator.onLine=false` 期间暂停，`online` 事件或「立即重连」立即进入 `connecting`（rulings §4.18 UX-03/CO-03） |
-| `denied`、`quarantined` | `error` | 均附 `code`（`collab.forbidden`/`collab.room_full`/… 或 `collab.quarantined`）；令牌续期遇 401（`server.auth.expired`/`collab.unauthenticated`）直接进 `denied`，UI 呈现「登录已过期」，不经 `backoff → offline`；重新登录取得新票据后经 `denied → connecting` 重连（rulings §4.18 UX-02） |
-| `closed` | `disconnected` | 终态；`leave()`/Unit 关闭 |
+**`Presence`/`Awareness`（聚合；UnitScope；`collab-core/application/contracts/presence.service.ts`）**：`PresenceService{ setLocal(patch); readonly local: AwarenessState; readonly remotes: ReadonlyMap<ClientId, AwarenessState> }`；每 client 一份 LWW 状态、30 s 超时移除（ADR-0024；节流与在场 UI 见 50/07 §10–§11）。
 
-**图 2-1 对外六态会话状态机**
-
-```mermaid
-stateDiagram-v2
-  [*] --> disconnected
-  disconnected --> connecting: join
-  connecting --> syncing: auth.ok role docState
-  connecting --> error: auth.denied
-  connecting --> offline: 自进入重连累计 30s 未连上 或 navigator offline
-  syncing --> synced: SyncStep2 applied pending 为零
-  syncing --> connecting: transport closed 进入 backoff
-  synced --> connecting: transport closed 进入 backoff
-  synced --> error: close 4409 quarantined 或续期 401
-  synced --> disconnected: leave 或 unit closed
-  offline --> connecting: online 或 reconnectNow 或 30s 周期重连
-  error --> connecting: 登录过期后取得新票据 reconnectNow
-```
-
-怎么读：这是上表"内部态→对外 SyncState"投影的状态机版本，是 UI 实际绑定的六个字面量；内部 `authenticating`/`backoff`/`live`/`readonly`/`denied`/`quarantined`/`idle` 等十一态全部折叠进这六态，具体折叠规则见上表与 §2.1 内部 FSM 图。
-
-**`Room`（客户端侧只读投影，非聚合；`collab-core/domain/room-descriptor.ts`）**：`RoomDescriptor{ documentId; endpoint; token }`（连接参数）与 `RoomInfo{ clients: number; draining?: boolean }`（来自 `CONTROL.room` 帧的房间元信息，用于 UI「N 人在线」）。**Room 的权威状态机在服务端**（`loading/active/draining/persisting/evicting/closed/failed` 七态，06 §5.2，M-09 `RoomManager` 拥有；`evicting` 由 shutdown 或内存压力触发、客户端收到 1012，rulings §4.18 CO-13）；本模块不复制该状态机，只被动接收 `RoomInfo` 快照，不参与决策。
-
-**`Presence`/`Awareness`（聚合；UnitScope；`collab-core/application/contracts/presence.service.ts`）**：`PresenceService{ setLocal(patch); readonly local: AwarenessState; readonly remotes: ReadonlyMap<ClientId, AwarenessState> }`；`remotes` 是反应式只读集合，变化触发 `presence/changed`。并发语义：每 client 一份 LWW 状态（y-protocols/awareness 原生语义，ADR-0024），30 s 超时自动移除，不参与文档 CRDT 收敛。
-
-**`OfflineQueue`（聚合；`collab-core/domain/offline-queue.ts`）**：`{ pending: readonly PendingUpdate[]; rejected: readonly RejectedEntry[]; meta: { epoch; schemaVersion; lastAckSeq } }`。不变量：`pending` 按 `localSeq` 严格升序；`ackUpTo(localSeq)` 只删除 `≤localSeq` 的项，且**只由 `ack{tier:'db', seq}` 触发**——客户端按连接维护在途 FIFO（元素为 `localSeq`），每收到一帧 `db` 弹出队首并 `ackUpTo(该 localSeq)`，服务端 `seq` 只更新 `meta.lastAckSeq`，不与 `localSeq` 比较（rulings §4.18 CO-09，规则以 M-02 `ws/frames.ts` 为准）；服务端 PG 故障溢写期的 `ack{tier:'spill'}` 不参与 FIFO，只更新 `SessionStats`/诊断，不清 pending（rulings §4.15 S-3a 两级 ack；正式 `seq` 由 PG 在回放时分配）；断线即清空在途 FIFO，未确认的 pending 留待重连时经 step2 发送（§2.6，CO-10）；`epoch`/`schemaVersion` 与服务端不一致时整体移入 `rejected`（ADR-0033）。有 `OfflineStore` Provider 时持久化到 IndexedDB，缺失时纯内存（刷新即丢，"降级"不改变接口形状）。
-
+**`OfflineQueue`（聚合；`collab-core/domain/offline-queue.ts`）**：`{ pending: readonly PendingUpdate[]; rejected: readonly RejectedEntry[]; meta: { epoch; schemaVersion; lastAckSeq } }`。不变量：`pending` 按 `localSeq` 严格升序；`ackUpTo(localSeq)` 只删除 `≤ localSeq` 的项，且只由 `ack{tier:'db'}` 经在途 FIFO 对应后触发，服务端 `seq` 只写 `meta.lastAckSeq`（rulings §4.18 CO-09、§4.15 S-3a）；`epoch` / `schemaVersion` 与服务端不一致时整体移入 `rejected`（ADR-0033）。ack 对应、step2 拆块、冻结 FIFO 与被拒集合的收拢规则见 [50/07 §6、§8.2](../50-frontend/07-collaboration-client.md)。
 ### 2.2 值对象
 
 | 名称 | 字段（要点） | 校验 schema | 所在文件 |
 |---|---|---|---|
 | `SyncState` | 六态字面量联合 | 无 zod（内部运行时值，不跨进程） | `domain/session-state.ts` |
-| `SessionStats` | `{ pendingLocalUpdates; lastSyncedAt?; bytesIn; bytesOut; rtt?; reconnectAttempt; spillOnlyInFlight; oldestInFlightMs? }`——`spillOnlyInFlight`：已收到 `ack{tier:'spill'}`、尚未收到 `tier:'db'` 的在途条目数；`oldestInFlightMs`：在途 FIFO 队首等待 `db` 应答的时长（2026-09-25 新增，rulings §4.18 CO-08） | 无；UI（M-10 状态栏同步项）按「`spillOnlyInFlight > 0`，或 `state==='synced'` 且 `oldestInFlightMs ≥ heartbeatMs`（服务端 none 档退避重试、未回任何 ack）」派生 warning「未保存到服务器」，收到覆盖全部在途条目的 `tier:'db'` 后恢复（设计 05 §7「服务端存储降级期」、12 使用准则） | `domain/session.ts` |
+| `SessionStats` | `{ pendingLocalUpdates; inFlight; spillOnlyInFlight; oldestInFlightMs?; roomPersist: 'ok' \| 'degraded'; readonlyReason: 'downgraded' \| 'capacity' \| 'over_ceiling' \| 'locked' \| 'identity-changed' \| null; reconnectAttempt; lastSyncedAt?; bytesIn; bytesOut; rtt? }`——`inFlight`：在途 FIFO 条目数；`spillOnlyInFlight`：已获 `ack{tier:'spill'}`、尚无 `tier:'db'` 的在途条目数；`oldestInFlightMs`：在途队首等待 db 应答的时长；`roomPersist`：最近一次 `CONTROL.room.persist`（缺席为 `'ok'`）；`readonlyReason`：`readonly` 态的原因（非降级的查看者 / 评论者会话为 `null`）。`inFlight`、`roomPersist`、`readonlyReason` 于 2026-09-25 新增（rulings §4.19 INC-09，50/07 §3.2）；`readonlyReason` 的 `over_ceiling`（`auth.ok.reason='over_ceiling'`）与 `locked`（`CONTROL.room.locked`）同日补登（50/07 §8.1、30/06 §6.3） | 无；「未保存到服务器」判据改为 rulings §4.19 INC-09：`roomPersist === 'degraded'` ∨ `spillOnlyInFlight > 0` ∨ `oldestInFlightMs ≥ unsavedWarnAfterMs`（`collab-yjs` 配置键，默认 15000，不再借用 `heartbeatMs`）；受众分级（发起方横幅「未保存到服务器 N 项」、其余协作者状态胶囊弱提示「服务器保存延迟」）与消失条件见 [50/07 §6.1](../50-frontend/07-collaboration-client.md)、[50/10 §11](../50-frontend/10-editor-shell-and-interaction.md)；派生函数 `deriveCollabUiState` 归 M-10 | `domain/session.ts` |
 | `Ticket` | `{ value: string; expiresAt; permVersion; refreshAt }` | 无（不透明凭据，由服务端签发/校验；类型形状供刷新逻辑用） | `domain/ticket.ts` |
 | `AwarenessState` | `v:1; user{id,name,color,avatar?}; client{id,device,appVersion}; view?; selection?: SerializedSelection; caret?; editing?; idle?; ts` | zod（对齐 `@cordexjs/protocol/collab/awareness.ts`，≤2 KiB） | `domain/awareness-state.ts` |
 | `SerializedSelection` | `{ kind; slideId?; ids: string[]; range?: { anchor; head } }`（`range` 为 `RelativePosition` base64） | 由 `DocumentType.selectionKinds` 对应 schema 校验，本模块内容不透明 | `domain/awareness-state.ts` |
 | `PendingUpdate` | `{ localSeq: number; update: Uint8Array }` | 无（本地运行时，不跨进程序列化外的额外校验） | `domain/offline-queue.ts` |
-| `RejectedEntry` | `{ update: Uint8Array; records: TransactionRecordSummary[]; reason; at }` | 无 | `domain/offline-queue.ts` |
+| `RejectedEntry` | `{ update: Uint8Array; records: TransactionRecordSummary[]; reason: 'permission' \| 'locked' \| 'identity-changed' \| 'payload-too-large' \| 'quota-exceeded' \| 'epoch-changed'; at }`（取值集合以 [50/07 §8.2](../50-frontend/07-collaboration-client.md) 为准，2026-09-25 登记） | 无 | `domain/offline-queue.ts` |
 | `BackoffPolicy` | `{ baseMs:1000; maxMs:30000; jitter:0.2; offlineAfterMs:30000; offlineRetryMs:30000 }`——离线判据按时间：自进入重连起累计 `offlineAfterMs` 未连上即 offline（取代原 `maxAttemptsBeforeOffline:6`）；offline 后每 `offlineRetryMs`（±`jitter`）周期重连（rulings §4.18 UX-03/CO-03） | 无（纯策略配置） | `domain/backoff.ts` |
 | `SoftConflictType` | 12 种字面量联合（见 §2.3 表） | 无（内部事件载荷判别字段） | `domain/soft-conflict.ts` |
-| `RoomDescriptor`/`RoomInfo` | 见 §2.1 | `RoomDescriptor` 部分字段来自 `@cordexjs/protocol` ids | `domain/room-descriptor.ts` |
+| `RoomDescriptor`/`RoomInfo` | 见 §2.1；`RoomInfo.persist` 取自 `CONTROL.room.persist?`（rulings §4.19 INC-09） | `RoomDescriptor` 部分字段来自 `@cordexjs/protocol` ids；`persist` 字段形状由 M-02 `ws/frames.ts` 的 CONTROL 判别联合定义 | `domain/room-descriptor.ts` |
 
 ### 2.3 领域服务
 
-纯函数清单（全部 `iso`，无 IO，不读时钟除非标注）：
+纯函数清单（全部 `iso`，无 IO，不读时钟除非标注）。下方 12 种软冲突表是 `fixture` 通用版包内用例的唯一登记处（70/05 §6 引用）；各信号到 UI 的分流、Toast 文案与恢复动作以 [50/07 §12](../50-frontend/07-collaboration-client.md) 为准，跨包的幻灯片场景 `sc-*` 见 [70/05](../70-testing/05-collab-simulation-and-property-tests.md) §6。
 
 | 签名（草案） | 所在文件 | 两端共用 | 备注 |
 |---|---|---|---|
-| `reduce(state: InternalState, event: SessionEvent): { next: InternalState; effects: readonly Effect[] }` | `domain/fsm/session-fsm.ts` | 否（服务端 Room FSM 是 M-09 独立实现，不复用本函数） | §2.1 状态机的权威实现；`effects` 为描述对象（`connect`/`send`/`schedule`/`backoff`/`notify`），由 `collab-yjs` 的 `SessionDriver` 执行，reducer 本身零 IO |
+| `reduce(state: InternalState, event: SessionEvent): { next: InternalState; effects: readonly Effect[] }` | `domain/fsm/session-fsm.ts` | 否（服务端 Room FSM 是 M-09 独立实现，不复用本函数） | 50/07 §3.1 内部 11 态状态机的权威实现；`effects` 为描述对象（`connect`/`send`/`schedule`/`backoff`/`notify`），由 `collab-yjs` 的 `SessionDriver` 执行，reducer 本身零 IO |
 | `projectSyncState(internal: InternalState, degraded: boolean): SyncState` | `domain/session-state.ts` | 否 | 11→6 投影（§2.1 表） |
 | `nextDelay(attempt: number, policy: BackoffPolicy, rand: () => number): number` | `domain/backoff.ts` | 是（算法本身通用；`rand` 显式注入以保证可测试确定性） | 指数退避 + 抖动；`collab-transport-ws` 与未来其它传输 Provider 均可复用 |
 | `classifySoftConflict(input: ConflictSignal): SoftConflictType \| null` | `domain/classify-soft-conflict.ts` | 是（对文档类型盲，输入只含通用 `ChangeSet`/本地操作日志，见下表） | 12 种场景的判定核心，§8 冲突表覆盖 |
@@ -277,13 +214,12 @@ fuzz 追加两条性质（`soft-conflict-fuzz.test.ts`）：(1) 任一客户端�
 | `presence/left` | emit | `(unitId, clientId)` | `collab-yjs/infrastructure/awareness/presence.service.ts` | 在场头像列表（M-10） |
 | `presence/changed` | emit | `(unitId, clientId \| null)` | `collab-yjs/infrastructure/awareness/presence.service.ts`（`null` = 本地状态变化） | 光标/选区覆盖层（M-10） |
 
-**新增建议，已提请章程收编**（14-cross-module-review.md §1 C-24 采纳：PRD CO-13 诊断面板明确需要，06 §3.1 已定义背压阈值；未进入 module-map §3 BC-09 官方列表，本文档提议补入 charter §5.5 事件总表，见 §12 G-3）：
+**原「新增建议」两项的定稿**（2026-09-25 结案，依据 30/10 §11.1（30 > 40）与决策 INC-33「产品遥测以 PRD 06 为权威、逐行标 cordis 事件或遥测专用」；§12 G-3 结案，不再提请章程 §5.5 收编）：
 
-| 事件 | 模式 | 载荷 | 理由 |
-|---|---|---|---|
-| `collab/backpressure` | emit | `(unitId, { queued: number })` | 06 §3.1 草案已定义（`outboundHighWater` 超限），PRD CO-13 诊断面板需要「发送积压」信号；当前缺席会使 UI 无法区分「慢」与「离线」 |
-| `collab/latency` | emit | `(unitId, { rttMs })`（采样，非逐帧） | PRD CO-13 明确列出 `collab/latency`（采样）为诊断事件，但 module-map/charter §5.5 尚未登记 |
-
+| 名称 | 定稿形态 | 载荷 / 类型 | 发布者 | 说明 |
+|---|---|---|---|---|
+| `collab/backpressure` | **不设 cordis 事件**，改为客户端指标 `cordex_collab_outbound_queued`（gauge，出站积压帧数） | 数值；超过 `outboundHighWater`（§3）时诊断面板标红 | `collab-yjs/infrastructure/sync/local-batcher.ts` 经 `telemetry` 服务写指标 | 30/10 §11.1「降为指标」；诊断面板「协同」页读取（[50/07 §14](../50-frontend/07-collaboration-client.md)）；指标名登记进 [50/15 §7.2](../50-frontend/15-events-errors-and-telemetry.md) 浏览器指标表 |
+| `collab/latency` | **遥测专用事件**（不进 `Events` 声明、不经 `ctx.emit`） | `{ rttMs; applyMs }`（PRD 06；每 30 s 采样一次） | `collab-yjs/infrastructure/session-driver.ts` 经 `telemetry.event` 上报 | 同时写 `cordex_collab_roundtrip_ms` 直方图；`applyMs` 为远端 update 应用耗时 |
 **明确不发出**：`permission/changed` **不由本模块发出**——CONTROL.permission 帧经 `degrade-permission` 应用服务唯一调用 `permissions.applyRemoteDecisions()`（M-02），该服务是 `permission/changed` 的**唯一**发布者（06 §18.3；draft 名 `collab/permission-changed` 已弃用）。命令管线与 UI 均只订阅 `permissions` 服务发出的事件，不订阅任何 `collab/*` 事件来判断权限。
 
 ### 2.5 仓储 / 存储契约
@@ -294,7 +230,7 @@ fuzz 追加两条性质（`soft-conflict-fuzz.test.ts`）：(1) 任一客户端�
 |---|---|---|---|
 | `collab`（`CollabService`） | `join(unitId, opts: JoinOptions): Session`（幂等，重复 join 返回同一实例）；`leave(unitId): Promise<void>`；`session(unitId): Session \| undefined` | `collab-yjs`（唯一生产实现） | **无独立套件**：`CollabService` 与 `store-yjs` 强耦合（依赖 `yjsBackend`），不是「可自由替换实现」的 Definition；其正确性由 `store-yjs` 的 `runDocumentStoreConformance` 协同分节（收敛）+ `collab-yjs` 自身 `__tests__`（状态机/事件）共同覆盖，不重复定义 `runCollabConformance` |
 | `collabTransport`（`CollabTransport`） | `connect(target: TransportTarget, ticket: string, signal: AbortSignal): Promise<Connection>`；`Connection{ send(frame: Uint8Array): void; onFrame(cb): Disposable; onClose(cb): Disposable; close(code?, reason?): void }` | `collab-transport-ws`（生产，WebSocket）；`MemoryTransport`（测试） | `runCollabTransportConformance(factory)`（`collab-core/testing`）：握手成功/超时、断线触发重连、背压事件在超过 `outboundHighWater` 时触发、乱序/重复帧不崩溃、`close(code)` 精确传递关闭码；离线判据与出口（FixedClock：重连 29.9 s 未离线、30 s 离线；服务端恢复后 offline 会话 ≤ 36 s 自动回连、`navigator.onLine=false` 期间不发起连接，rulings §4.18 UX-03/CO-03，与 ADR-0023「如何被机械验证」一致） |
-| `offlineStore`（`OfflineStore`） | 见下方签名（06 §18.6，权威） | `collab-offline-idb`（生产，IndexedDB）；`collab-yjs` 内置**同接口**内存实现（Provider 缺失时的降级路径，非契约套件的「测试替身」） | `runOfflineStoreConformance(factory)`（`collab-core/testing`）：`appendPending`→`loadPending` 顺序一致、`ackUpTo` 幂等（重复调用无副作用）、`compact` 原子性（并发 `appendPending` 不丢追加）、配额超限返回 `Result.err` 不抛异常、`moveToRejected`/`listRejected`/`clearRejected` 往返 |
+| `offlineStore`（`OfflineStore`） | 见下方签名（06 §18.6，权威） | `collab-offline-idb`（生产，IndexedDB）；`collab-yjs` 内置**同接口**内存实现（Provider 缺失时的降级路径，非契约套件的「测试替身」；按 `{userId}/{documentId}` 挂在**根作用域**、随页面生命周期存在，使 Unit 重开（被拒回滚、4428）后仍能 `listRejected()`，50/07 §7，2026-09-25 登记） | `runOfflineStoreConformance(factory)`（`collab-core/testing`）：`appendPending`→`loadPending` 顺序一致、`ackUpTo` 幂等（重复调用无副作用）、`compact` 原子性（并发 `appendPending` 不丢追加）、配额超限返回 `Result.err` 不抛异常、`moveToRejected`/`listRejected`/`clearRejected` 往返 |
 
 ```ts
 // OfflineStore（collab-core/application/contracts/offline-store.ts；06 §18.6 权威签名）
@@ -322,104 +258,17 @@ interface OfflineDocStore {
 
 ### 2.6 应用服务与命令
 
-**本模块不贡献任何 `core.command`/`core.mutation`**——协同是服务 Provider 座（charter §5.5），不产生文档编辑操作；用户可感知的运维态动作（如「立即重连」）是 `Session` 上的直接方法调用，不经 `commands.execute()` 管线（不改 `DocumentStore`、无需撤销/权限位）。本节按「连接/断开/同步/离线回放/权限降级」五个应用服务描述编排步骤（纯描述，实际 IO 由 Provider 执行，对齐 cordis 的 `ctx.effect` 所有权模型）：
+**本模块不贡献任何 `core.command`/`core.mutation`**——协同是服务 Provider 座（charter §5.5），不产生文档编辑操作；「立即重连」等运维态动作是 `Session` 上的直接方法调用，不经 `commands.execute()` 管线。五个应用服务的编排步骤、时序图与边界条件的唯一事实源是 50/07（2026-09-25 起本节只保留「描述文件 → 执行文件」的落点，原图 2-2 至 2-4 已由 50/07 §2、§6、§8 的时序图取代）：
 
-| 应用服务 | 编排步骤 | 触发者 | 描述所在文件 / 执行所在文件 |
+| 应用服务 | 行为事实源 | 触发者 | 描述所在文件 / 执行所在文件 |
 |---|---|---|---|
-| 连接（connect） | `join()` → FSM `idle→connecting` → `collabTransport.connect()` → CONTROL.auth 握手 → `authenticating→syncing`（与 HTTP 快照 bootstrap 并行，06 §9.1）→ SyncStep1/2 → pending 清空 → `syncing→live` | `ctx.collab.join(unitId, opts)`（`preset-slide-collab` 在 Unit 打开后调用） | `application/session-lifecycle.ts`（描述）→ `collab-yjs/infrastructure/session-driver.ts`（执行） |
-| 断开（disconnect） | `leave()` → `flush()`（等待 pending 清空，超时跳过）→ `Connection.close(1000)` → awareness 广播移除 → FSM → `closed` | `ctx.collab.leave(unitId)`（Unit 关闭时自动调用） | `application/session-lifecycle.ts`（描述）→ `collab-yjs/infrastructure/session-driver.ts`（执行） |
-| 同步（sync） | 出站：`yjsBackend.onUpdate` → `LocalBatcher`（50 ms 合并）→ 编码 → `Connection.send`；入站：`onFrame` → 解码 → `yjsBackend.applyUpdate(origin=remote)` | 持续循环，无显式调用者 | `collab-yjs/infrastructure/sync/{yjs-sync-engine,local-batcher}.ts` |
-| 离线回放（offline replay） | Unit 打开：`offlineStore.loadState()` → `applyUpdate(origin=import)` → `loadPending()` → 按 `localSeq` 升序 `applyUpdate(origin=local，重放，不入撤销栈)` → WS 同步：未确认的 pending 不逐帧重发，而是并入一个 `SyncStep2`——**step2 视同一个入站 update 帧**，以发送时 pending 的最大 localSeq 作为一个在途 FIFO 条目，收到服务端对它的 `db` 应答即 `ackUpTo` 该 localSeq（空 diff 服务端也回，`seq` 取当前 head）；差量超过 `maxUpdateBytes`（1 MiB）时先按 localSeq 用 `mergeUpdates` 切成不超限的块、逐块以普通 update 帧发送（每块一个 FIFO 条目，取块内最大 localSeq），再发只含剩余差量的 step2（剩余差量按服务端 step1 的 state vector 并上已发各块的 state vector 计算，通常为空），仍超限则上报遥测并提示导出、不无限重试（rulings §4.18 CO-10）→ 收到 `ack{tier:'db'}` 后 `ackUpTo` 清理（`tier:'spill'` 不清、不参与 FIFO，rulings §4.15 S-3a、§4.18 CO-09）→ `synced` 后 `compact` | Unit 打开时自动 | `application/replay-offline-queue.ts`（描述）→ `collab-yjs/infrastructure/offline/offline-queue-runtime.ts`（执行） |
-| 权限降级（permission degradation） | 收到 `CONTROL.permission` → `permissions.applyRemoteDecisions(decisions)`（唯一入口，M-02）→ 若降权：`permission-gate` 本地拦截后续 outbound update + FSM `live→readonly`；若彻底撤销：`Connection.close(4403)` | 服务端推送（被动） | `application/degrade-permission.ts`（描述）→ `collab-yjs/infrastructure/permission/permission-gate.ts`（执行） |
+| 连接（connect） | [50/07 §2](../50-frontend/07-collaboration-client.md)（HTTP 快照 bootstrap 与票据并行、WS 握手、双向差量、进入 `live`） | `ctx.collab.join(unitId, opts)`（`preset-slide-collab` 在 Unit 打开后调用） | `application/session-lifecycle.ts` → `collab-yjs/infrastructure/session-driver.ts` |
+| 断开（disconnect） | 50/07 §6（`leave()` 以 `leaveFlushTimeoutMs` 为上限 flush）、§10（awareness 移除） | `ctx.collab.leave(unitId)`（Unit 关闭时自动调用） | `application/session-lifecycle.ts` → `collab-yjs/infrastructure/session-driver.ts` |
+| 同步（sync） | 50/07 §5（50 ms 合并、客户端自限、拆分）、§6（两级 ack 与在途 FIFO、「未保存到服务器」判据） | 持续循环 | `collab-yjs/infrastructure/sync/{yjs-sync-engine,local-batcher}.ts` |
+| 离线回放（offline replay） | 50/07 §6（step2 恰一个在途条目、超 `maxUpdateBytes` 先拆块，rulings §4.18 CO-10）、§7（离线队列两档） | Unit 打开时自动 | `application/replay-offline-queue.ts` → `collab-yjs/infrastructure/offline/offline-queue-runtime.ts` |
+| 权限降级（permission degradation） | 50/07 §8.1（唯一入口 `applyRemoteDecisions`）、§8.2（`rejectSettleMs` 收拢、被拒回滚与导出本地副本） | 服务端推送（被动） | `application/degrade-permission.ts` → `collab-yjs/infrastructure/permission/permission-gate.ts` |
 
-事务边界与撤销：五个应用服务均**不产生** `Transaction`/`TransactionRecord`（那是 M-02 命令管线的职责）；撤销语义（跳过他人后写、整步跳过即停、软删除墓碑）由 M-02 `store-yjs` 的撤销包装层实现，本模块只保证入站远端 update 一律以 `origin=remote` 应用，使包装层的「键→最后写入 origin」表能识别他人后写（rulings §4.15 Q3）；离线回放阶段重放的 update 以 `origin=local` 应用是为了让 `Y.UndoManager` 正确识别其为「可能被本地撤销」的历史（但显式标注「重放，不入撤销栈」——即重放本身不创建新的可撤销单元，只恢复既有 CRDT 状态）。
-
-**图 2-2 两端同步时序**
-
-```mermaid
-sequenceDiagram
-  participant clientA as 客户端 A
-  participant gateway as BC-21 协同网关
-  participant clientB as 客户端 B
-  clientA->>clientA: yjsBackend.onUpdate 本地变更
-  clientA->>clientA: LocalBatcher 50毫秒合并编码
-  clientA->>gateway: Connection.send 二进制帧
-  gateway->>clientB: 转发 SYNC 帧
-  clientB->>clientB: onFrame 解码
-  clientB->>clientB: yjsBackend.applyUpdate origin 为 remote
-  gateway-->>clientA: SyncStep2 applied
-  clientA-->>clientA: emit collab/synced
-  gateway-->>clientB: SyncStep2 applied
-  clientB-->>clientB: emit collab/synced
-```
-
-怎么读：出站方向经 `LocalBatcher` 合并节流再编码发送；入站方向解码后交给 `yjsBackend.applyUpdate` 且 `origin` 标记为 remote；两端各自在 `SyncStep2` 完成、`pending` 清零后独立发出 `collab/synced`，不存在跨端同步的单一事件。
-
-**图 2-3 离线回放与两级 ack 时序**
-
-```mermaid
-sequenceDiagram
-  participant unit as Unit 打开
-  participant runtime as offline-queue-runtime
-  participant offline as offlineStore
-  participant backend as yjsBackend
-  participant sync as yjs-sync-engine 与 collabTransport
-  participant gateway as BC-21 协同网关
-  unit->>runtime: 自动触发离线回放
-  runtime->>offline: loadState
-  offline-->>runtime: 本地状态字节
-  runtime->>backend: applyUpdate origin import
-  runtime->>offline: loadPending
-  offline-->>runtime: PendingUpdate 按 localSeq 升序
-  runtime->>backend: 逐条 applyUpdate origin local 重放 不入撤销栈
-  alt pending 合并差量超过 1MiB
-    sync->>gateway: 按 localSeq mergeUpdates 分块 逐块 update 帧 每块一个 FIFO 条目
-  end
-  sync->>gateway: SyncStep2 剩余差量 记一个 FIFO 条目 取 pending 最大 localSeq
-  alt 服务端 PG 故障溢写期
-    gateway-->>sync: ack tier spill
-    sync-->>runtime: 只更新 SessionStats 与诊断 不清 pending
-  end
-  gateway-->>sync: ack tier db 携带 seq 空 diff 也回
-  sync-->>runtime: 弹出在途 FIFO 队首 得到 localSeq
-  runtime->>offline: ackUpTo 该 localSeq 清理已落库 pending
-  runtime->>offline: synced 后 compact
-  Note over runtime,gateway: epoch 或 schemaVersion 与服务端不一致时 pending 整体移入 rejected
-```
-
-怎么读：本地先恢复状态、再按 `localSeq` 重放未确认更新，然后经 WS 同步——pending 不逐帧重发，而是合成一个 step2（超 1 MiB 时先分块以普通 update 帧发出），step2 与每个分块各占一个在途 FIFO 条目；两级 ack 中只有 `tier db` 才弹出 FIFO 队首并 `ackUpTo` 对应 localSeq，`tier spill` 只表示服务端已暂存、不参与 FIFO，客户端 OfflineStore 仍保留，直到服务端回放落库并补发 `tier db`（原会话已断开则由重连 step2 兜底）。
-
-依据：§2.1 `OfflineQueue` 不变量；§2.6「离线回放」行；rulings §4.15 S-3a、§4.18 CO-09/CO-10；M-02 `ws/frames.ts` 应答规则。
-
-**图 2-4 权限降级时序**
-
-```mermaid
-sequenceDiagram
-  participant gateway as BC-21 协同网关
-  participant gate as permission-gate 执行 degrade-permission
-  participant perms as M-02 permissions 服务
-  participant fsm as session-fsm 与 SessionDriver
-  participant conn as Connection
-  gateway->>gate: CONTROL.permission
-  gate->>perms: applyRemoteDecisions decisions 唯一入口
-  perms-->>perms: emit permission/changed 唯一发布者
-  alt 降权 role 低于 editor
-    gate->>gate: 本地拦截后续 outbound update
-    gate->>fsm: live 迁移到 readonly
-  else 彻底撤销
-    gate->>conn: close 4403
-  end
-  opt 降权时仍有 pending update
-    gateway-->>gate: 服务端硬门禁拒绝 不落库不广播
-    gate-->>gate: 回滚到服务端状态 被拒事务移入 rejected
-    gate-->>gate: emit collab/update-rejected
-  end
-```
-
-怎么读：服务端推送的权限决策只经 `permissions.applyRemoteDecisions()` 一个入口进入客户端，`permission/changed` 只由 `permissions` 服务发出，本模块不发；降权只拦截出站并切只读态、不断连，彻底撤销才以 4403 关闭连接；`opt` 框对应软冲突场景 12。
-
-依据：§2.4「明确不发出」段；§2.6「权限降级」行；§2.3 场景 12。
-
+事务边界与撤销：五个应用服务均**不产生** `Transaction`/`TransactionRecord`（M-02 命令管线的职责）；撤销语义（跳过他人后写、整步跳过即停、软删除墓碑）由 M-02 `store-yjs` 的撤销包装层实现，本模块只保证入站远端 update 一律以 `origin=remote` 应用、离线回放以本端 clientId 写入且不计为「他人后写」（rulings §4.15 Q3；用例 `::offline-replay-not-other-writer`，§2.3）。`prop-lww` 与 `delete-vs-edit` 两类软冲突在 emit 的同时向 `history` 登记恢复记录（`source:'conflict'`，登记接口由 M-02 定义，[50/04 §6](../50-frontend/04-document-commands-and-undo.md)）。
 ## 3. cordis 插件定义
 
 > 四包按 cordis 形态分三类：`collab-core` 是 definition 包，但**额外**导出一个自成一体的最小函数插件（单人 presence 兜底，装配层显式挂载，不随包 import 自动注册）；`collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 是标准 provider（各自 `implements` 一个服务名）。四包均无自身贡献点（协同是服务 Provider 座，charter §5.5）。
@@ -448,7 +297,7 @@ sequenceDiagram
 | 贡献点：提供 / 消费 | 无 / 无 |
 | 事件：发布 | §2.4 表中除 `permission/changed` 外的全部 `collab/*`/`presence/*` 事件（本包是真正的发布者） |
 | 事件：订阅 | `store/transaction`（`yjsBackend.onUpdate` 的间接来源；本包不直接 `ctx.on('store/transaction')`，而是通过 `yjsBackend.onUpdate` 只接收非 remote 的 update，避免重复编码） |
-| 配置 schema | `Config{ flushMs:50; awareness:{cursorHz:20; stateHz:2; timeoutMs:30000}; maxUpdateBytes:1MiB; outboundHighWater:200; offline:{enabled:true; maxBytes:50MiB} }` |
+| 配置 schema | `Config{ flushMs:50; awareness:{cursorHz:20; stateHz:2; timeoutMs:30000}; maxUpdateBytes:1MiB; outboundHighWater:200; offline:{enabled:true; maxBytes:50MiB}; unsavedWarnAfterMs:15000; rejectSettleMs:2000; leaveFlushTimeoutMs:5000; conflictWindowMs:60000 }`——后四键 2026-09-25 新增，默认值与语义以 [50/07 §13](../50-frontend/07-collaboration-client.md) 计时器总表（§17 登记表）为准：`unsavedWarnAfterMs` 最老在途超过即「未保存到服务器」（rulings §4.19 INC-09，不借用 `heartbeatMs`）；`rejectSettleMs` 降权后收拢被拒集合的等待上限；`leaveFlushTimeoutMs` `leave()` 等待 pending 的上限；`conflictWindowMs` 本端多久内写过的键被覆盖才发软冲突信号 |
 | 生命周期 | ready = `SyncEngine`+`AwarenessAdapter`+`SessionDriver` 挂载完成并开始尝试连接（`connecting`，**不等于** `synced`，初始同步是异步过程）；dispose = 关闭 transport 连接、清理 awareness（广播移除）、尽力 flush 离线队列、`ctx.effect` 逆序清理；UnitScope 内；PENDING：`store-memory` 场景下 `yjsBackend` 未就位 → 整体 `PENDING`（可诊断，非失败，ADR-0005 第 3 条） |
 | Manifest 片段 | `{ "id": "@cordexjs/collab-yjs", "provides": ["collab","presence"], "injects": ["store","yjsBackend","collabTransport","permissions"], "unitScoped": true }` |
 
@@ -481,7 +330,7 @@ sequenceDiagram
 
 ## 4. 目录树（完整到文件）
 
-> 四包根配置文件均遵循 02 §4.0 包模板：`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`，共 9 个 × 4 = 36 个，同构不逐包重复展开；`cordex` 字段差异见 §3。顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`testing/`（本模块无 UI，省略 `interface/`；三个纯 Provider 包按 module-map §1 规则只设 `infrastructure/`，无 `domain/`/`application/`，与 02 §4.11/4.12/4.12b 现存扁平结构的映射关系、差异原因见 §12 G-1）。四包 `src/` 共 86 个源文件。
+> 四包根配置文件均遵循 02 §4.0 包模板：`package.json`/`tsconfig.json`/`tsconfig.test.json`/`vitest.config.ts`/`api-extractor.json`/`etc/<pkg>.api.md`/`README.md`/`CHANGELOG.md`/`cordex-manifest.json`，共 9 个 × 4 = 36 个，同构不逐包重复展开；`cordex` 字段差异见 §3。顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`testing/`（本模块无 UI，省略 `interface/`；三个纯 Provider 包按 module-map §1 规则只设 `infrastructure/`，无 `domain/`/`application/`，与 02 §4.11/4.12/4.12b 现存扁平结构的映射关系、差异原因见 §12 G-1）。四包 `src/` 共 88 个源文件（2026-09-25：collab-yjs 补 `session-scripts.test.ts`，collab-transport-ws 补 `conformance.test.ts`；`createCollabCluster`/`NetworkModel` 移出本模块，落根 `test/collab-sim/`，决策 T-NAMING）。
 
 **图 4-1 四包 import 依赖与服务注入**
 
@@ -563,7 +412,7 @@ packages/collab-core/src/
 
 每个顶层目录一句职责：`domain/` 不依赖 `application/`/`infrastructure/`（只依赖 `@cordexjs/model-core`/`@cordexjs/protocol`/`@cordexjs/shared` 的类型）；`application/contracts/` 只声明接口，不实现；`application/` 其余文件依赖 `domain/`，产出编排描述供 Provider 包消费；`infrastructure/` 依赖 `domain/`+`application/contracts/`，是本包唯一有 `ctx.effect` 副作用的文件；`testing/` 依赖以上全部，供本包与 `collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 的契约测试复用。
 
-### 4.2 `@cordexjs/collab-yjs`（27 个源文件）
+### 4.2 `@cordexjs/collab-yjs`（28 个源文件）
 
 ```text
 packages/collab-yjs/src/
@@ -590,7 +439,7 @@ packages/collab-yjs/src/
 │   └── permission/
 │       └── permission-gate.ts        CONTROL.permission → permissions.applyRemoteDecisions（唯一入口）；outbound 本地拦截
 ├── testing/
-│   └── index.ts                      createCollabCluster(n, networkModel)、NetworkModel（`@cordexjs/collab-yjs/testing`）
+│   └── index.ts                      不跨包的替身：createFixturePeers(n)——n 个 collab-yjs 客户端经 MemoryTransport 接内存中继（只转发帧、回 db ack，无 Room 与门禁），只用 `fixture` 文档类型（`@cordexjs/collab-yjs/testing`）
 └── __tests__/
     ├── conformance.test.ts           跑 collab-core/testing 的两个契约套件（针对内存 transport/offline 实现）
     ├── sync-engine.test.ts           step1/step2/update 与参考实现帧互操作
@@ -599,13 +448,14 @@ packages/collab-yjs/src/
     ├── permission-gate.test.ts       降权后本地拦截、升权恢复、事件顺序
     ├── offline-queue.test.ts         离线积累 → 重连合并；拒绝路径保留可导出
     ├── lifecycle.test.ts             多 Unit 并存；卸载无 effect；Provider 替换（memory transport ↔ ws）
+    ├── session-scripts.test.ts       会话脚本 rs/*（70/05 §9：重连、关闭码、未保存提示、降权收拢等，FixedClock）
     ├── soft-conflict-scenarios.test.ts 12 种场景确定性用例（§2.3 表，固定 clientID 与时钟）
     └── soft-conflict-fuzz.test.ts    fast-check 随机 op 序列 + 随机分区/乱序交换 update，收敛哈希断言
 ```
 
 本包（唯一插件包）依赖方向：`infrastructure/` 全部文件依赖 `@cordexjs/collab-core`（`domain/`+`application/contracts`）与 `@cordexjs/store-yjs` 的 `yjsBackend`；`sync/`/`awareness/` 允许 `import 'yjs'`/`'y-protocols'`（章程 §5.3 规则 4）但仅用于**编码工具函数**（`Y.mergeUpdates`/`Y.decodeUpdateV2`等操作 `Uint8Array` 的静态函数）与 awareness 协议编解码，**不**持有或导出 `Y.Doc`/`Awareness` 实例——真正的 `new Awareness(doc)` 构造封装在 `store-yjs` 的 `yjsBackend.awareness()` 内部并以 `AwarenessHandle` 返回（§1.2、06 §2.3），这是「`yjsBackend` 唯一受控访问面」约束在本包的具体落地点。
 
-### 4.3 `@cordexjs/collab-transport-ws`（13 个源文件）
+### 4.3 `@cordexjs/collab-transport-ws`（14 个源文件）
 
 ```text
 packages/collab-transport-ws/src/
@@ -622,6 +472,7 @@ packages/collab-transport-ws/src/
 ├── testing/
 │   └── index.ts                      内存 WS 对（服务端替身，供本包与 collab-yjs 测试）
 └── __tests__/
+    ├── conformance.test.ts           跑 `@cordexjs/collab-core/testing` 的 runCollabTransportConformance（本机回环 ws 服务端；`scan-manifest` 规则 (e)，70/02 §6.1）
     ├── handshake.test.ts             成功/超时/拒绝/协议版本不匹配（4427）
     ├── reconnect-backoff.test.ts     指数退避序列、抖动范围、1012 首轮不退避；假时钟「29.9 s 未离线、30 s 离线」；offline 周期回连 ≤36 s、断网期间不发连接（§4.18）
     └── heartbeat-and-close-codes.test.ts  心跳判死、全部关闭码（06 §6.5）到客户端行为的映射
@@ -678,7 +529,7 @@ packages/collab-offline-idb/src/
 | `events.ts` | 事件名常量 | 事件名对象 | — | 与 contribution.ts 一致（`events-declared`） |
 | `errors.ts` | 错误码 | `defineErrors('collab', table)` | — | `collab.auth_failed`/`collab.room_full` 等引用型码（实际抛出方在 provider 包） |
 | `domain/session.ts` | `Session` 聚合 + `SessionStats` | `Session`、`SessionStats` | `@cordexjs/protocol`（`RoleName`） | 只读句柄，无 public setter |
-| `domain/session-state.ts` | 会话状态机的状态类型 | `SyncState`、`InternalState`、`projectSyncState()` | — | §2.1 投影表的实现 |
+| `domain/session-state.ts` | 会话状态机的状态类型 | `SyncState`、`InternalState`、`projectSyncState()` | — | 50/07 §3.2 三层对照表的实现 |
 | `domain/room-descriptor.ts` | 房间只读投影 | `RoomDescriptor`、`RoomInfo` | `@cordexjs/protocol`（ids） | 不复制服务端 Room FSM |
 | `domain/ticket.ts` | 短时凭据值对象 | `Ticket` | — | 类型形状，签发/校验在服务端 |
 | `domain/awareness-state.ts` | 在场状态值对象 | `AwarenessState`、`SerializedSelection`、`serializeAwareness()`、`parseAwareness()` | `@cordexjs/protocol`（awareness zod） | ≤2 KiB 校验 |
@@ -707,7 +558,7 @@ packages/collab-offline-idb/src/
 | `__tests__/classify-soft-conflict.test.ts` | 分类单测 | — | `../domain/classify-soft-conflict` | 12 种全覆盖 |
 | `__tests__/lifecycle.test.ts` | 生命周期单测 | — | `defineLifecycleSuite`（`@cordexjs/kernel/testing`） | 插件包强制项 |
 
-**`@cordexjs/collab-yjs`（27）**
+**`@cordexjs/collab-yjs`（28）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -728,7 +579,7 @@ packages/collab-offline-idb/src/
 | `infrastructure/offline/offline-queue-runtime.ts` | 离线队列运行时 | `OfflineQueueRuntime` | `@cordexjs/collab-core`（`application/contracts/offline-store`） | load→重放→ack→compact |
 | `infrastructure/offline/memory-offline-fallback.ts` | 内存降级实现 | `MemoryOfflineFallback` | `@cordexjs/collab-core`（同接口） | Provider 缺失时使用，非测试替身 |
 | `infrastructure/permission/permission-gate.ts` | 权限降级落地 | `PermissionGate` | `@cordexjs/collab-core`（`application/degrade-permission`） | 调用 `permissions.applyRemoteDecisions` |
-| `testing/index.ts` | 测试子路径 | `createCollabCluster()`、`NetworkModel` | `infrastructure/*` | `./testing` |
+| `testing/index.ts` | 测试子路径（不跨包的替身） | `createFixturePeers(n)` | `infrastructure/*`、`@cordexjs/collab-core/testing`（`MemoryTransport`） | `./testing`；只用 `fixture` 文档类型（R3）；跨包的 `createCollabCluster`/`NetworkModel` 在根 `test/collab-sim/`（[70/05 §2.1](../70-testing/05-collab-simulation-and-property-tests.md)，决策 T-NAMING） |
 | `__tests__/conformance.test.ts` | 契约测试 | — | `@cordexjs/collab-core/testing` | 两套契约套件 |
 | `__tests__/sync-engine.test.ts` | 同步引擎测试 | — | `infrastructure/sync/*` | step1/2/update 互操作 |
 | `__tests__/batcher.test.ts` | 批处理测试 | — | `infrastructure/sync/local-batcher` | 合并窗口/背压/ack；负向：只收到 `spill` 级 ack 时 pending 不减少、`flush()` 不 resolve；收到 `db` 级 ack 后清理到对应 `localSeq`；在途 FIFO 对应与「连续 spill 不影响对应」（CO-09）；「重连 step2 后 pending 一次清空且不重复落库」「离线累计 5 MiB 更改重连后全部同步、无 4413 断连、不重复落库」（CO-10） |
@@ -736,10 +587,11 @@ packages/collab-offline-idb/src/
 | `__tests__/permission-gate.test.ts` | 权限门测试 | — | `infrastructure/permission/*` | 降权/升权/事件顺序 |
 | `__tests__/offline-queue.test.ts` | 离线队列测试 | — | `infrastructure/offline/*` | 积累/合并/拒绝可导出 |
 | `__tests__/lifecycle.test.ts` | 生命周期测试 | — | `defineLifecycleSuite` | 多 Unit、Provider 替换 |
+| `__tests__/session-scripts.test.ts` | 会话脚本测试 | — | `@cordexjs/collab-core/testing`（`scenarios.ts`、`MemoryTransport`）、`testing/index.ts` | `rs/*` 脚本清单以 70/05 §9 为准（含 `rs/unsaved-indicator`：`roomPersist` degraded→ok、最老在途 ≥ `unsavedWarnAfterMs` 两条路径，rulings §4.19 INC-09）；FixedClock，2026-09-25 新增 |
 | `__tests__/soft-conflict-scenarios.test.ts` | 12 种场景确定性用例 | — | `@cordexjs/model-core/testing`（`fixture`） | §2.3 表逐行 |
 | `__tests__/soft-conflict-fuzz.test.ts` | fuzz 覆盖 | — | `fast-check`、`@cordexjs/model-core/testing` | 随机 op + 随机分区/乱序 |
 
-**`@cordexjs/collab-transport-ws`（13）**
+**`@cordexjs/collab-transport-ws`（14）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
@@ -753,6 +605,7 @@ packages/collab-offline-idb/src/
 | `infrastructure/heartbeat.ts` | 应用层心跳 | `Heartbeat` | — | 2 次未响应判死 |
 | `infrastructure/reconnect.ts` | 重连编排 | `Reconnector` | `@cordexjs/collab-core`（`domain/backoff`） | online/offline 钩子；离线判据按时间：自进入重连起累计 `offlineAfterMs`（30 s）未连上即 offline，`navigator.onLine=false` 立即 offline（去抖 2 s），令牌刷新的网络失败共用同一计时；offline 后每 `offlineRetryMs`（30 s ±20%）周期重连，`onLine=false` 期间暂停（rulings §4.18 UX-03/CO-03） |
 | `testing/index.ts` | 测试子路径 | 内存 WS 对工厂 | `infrastructure/*` | `./testing` |
+| `__tests__/conformance.test.ts` | 契约测试 | — | `@cordexjs/collab-core/testing` | `runCollabTransportConformance`，本机回环 ws 服务端（`scan-manifest` 规则 (e) 要求，70/02 §6.1；2026-09-25 新增） |
 | `__tests__/handshake.test.ts` | 握手测试 | — | `infrastructure/handshake` | 成功/超时/拒绝/协议不匹配 |
 | `__tests__/reconnect-backoff.test.ts` | 重连测试 | — | `infrastructure/reconnect` | 退避序列/抖动/1012 首轮；FixedClock 断言「29.9 s 未离线、30 s 离线」（UX-03）；服务端恢复后 offline 会话 ≤36 s 自动回连、`navigator.onLine=false` 期间不发起连接（CO-03） |
 | `__tests__/heartbeat-and-close-codes.test.ts` | 心跳与关闭码测试 | — | `infrastructure/heartbeat` | 06 §6.5 关闭码全表 |
@@ -781,64 +634,32 @@ packages/collab-offline-idb/src/
 | 包 | `.` 导出概要 | `./testing` 导出概要 | 稳定级（推荐） |
 |---|---|---|---|
 | `@cordexjs/collab-core` | `Session`/`SyncState`/`AwarenessState`/`OfflineQueue`/`SoftConflictType`/`BackoffPolicy` 等值对象类型、`CollabService`/`PresenceService`/`CollabTransport`/`SyncEngine`/`OfflineStore` 抽象契约、`localPresencePlugin`、纯函数（`nextDelay`/`classifySoftConflict`/`projectSyncState`） | `runCollabTransportConformance`、`runOfflineStoreConformance`、`MemoryTransport`、`MemoryOfflineStore`、`FakeTicketIssuer`、场景脚本 | `beta`（推荐）：`SoftConflictType`/`Effect` 判别联合随实践可能增删分支，M3 起收紧 |
-| `@cordexjs/collab-yjs` | `YjsCollabService`/`YjsPresenceService` 类型（`implements:['collab','presence']`） | `createCollabCluster`、`NetworkModel` | `beta`（推荐） |
+| `@cordexjs/collab-yjs` | `YjsCollabService`/`YjsPresenceService` 类型（`implements:['collab','presence']`） | `createFixturePeers`（`createCollabCluster`/`NetworkModel` 已移到根 `test/collab-sim/`） | `beta`（推荐） |
 | `@cordexjs/collab-transport-ws` | `WsTransportProvider` 类型（`implements:['collabTransport']`） | 内存 WS 对工厂 | `beta`（推荐） |
 | `@cordexjs/collab-offline-idb` | `IdbOfflineStore` 类型（`implements:['offlineStore']`） | fake-indexeddb 环境助手 | `experimental`（M3 默认不加载，M4 P2 落地后收紧为 `beta`） |
 
-关键类型契约草案（本模块两个最核心的抽象，≤ 40 行）：
-
-```ts
-// collab-core：CollabService 是协同能力的唯一入口
-interface CollabService extends Service<'collab'> {
-  join(unitId: UnitId, opts: JoinOptions): Session
-  leave(unitId: UnitId): Promise<void>
-  session(unitId: UnitId): Session | undefined
-}
-interface Session {
-  readonly state: SyncState                 // disconnected|connecting|syncing|synced|offline|error
-  readonly role: RoleName
-  readonly stats: SessionStats
-  flush(): Promise<void>
-  reconnectNow(): void
-  close(): Promise<void>
-}
-
-// collab-core：OfflineStore 是离线持久化的唯一入口（缺失时 collab-yjs 用同接口内存实现）
-interface OfflineStore {
-  open(scope: { userId: UserId; documentId: DocumentId }): Promise<OfflineDocStore>  // T-0 去 tenantId；IDB 键 `{userId}/{documentId}`（同机多账号隔离，复核 M9）
-  clearAll(scope: { userId: UserId }): Promise<void>
-  estimate(): Promise<{ usedBytes: number; quotaBytes: number }>
-}
-interface OfflineDocStore {
-  loadPending(): Promise<readonly PendingUpdate[]>
-  appendPending(update: Uint8Array, localSeq: number): Promise<Result<void, CordexError<'collab.offline_quota_exceeded'>>>
-  ackUpTo(localSeq: number): Promise<void>
-  compact(state: Uint8Array, meta: OfflineMeta): Promise<void>
-}
-```
+关键类型契约：`CollabService`（§2.5）、`Session`（§2.1）、`OfflineStore`/`OfflineDocStore`（§2.5，06 §18.6 权威签名）；本节不再重复抄写（2026-09-25，rulings §4.19 回写：40 只保留一处签名）。各契约在浏览器中的调用顺序与语义见 [50/07](../50-frontend/07-collaboration-client.md) §1–§8。
 
 ## 7. 前后端与运行时
 
-三个 iso 包（`collab-core`/`collab-yjs`/`collab-transport-ws`）通过 `node --import` 冒烟（`iso-smoke`，§10），**理论上**可被任意 iso 宿主加载；但 module-map §5（BC-09 行）明确：服务端对应能力是 BC-21/`server-collab`，它只依赖 `collab-core` 的 Definition 契约，不复用 `collab-yjs`/`collab-transport-ws`/`collab-offline-idb` 等 Provider（rulings §4.18 FE-15）。因此「两端适用性」当前是非对称的：
+> 摘要（2026-09-25，rulings §4.19）：四包在浏览器中的装配、服务所在作用域与缺席降级以 [50/07 §1](../50-frontend/07-collaboration-client.md) 与 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) 为准；服务端视角（门禁、ack 发出规则、Room）以 [60/16](../60-backend/16-ws-protocol-server-view.md)、[60/05](../60-backend/05-modules-collab-and-snapshots.md) 为准。本节只保留包级的「谁加载本模块」边界。
 
 | 场景 | 是否加载本模块 | 说明 |
 |---|---|---|
-| 浏览器（`preset-slide-collab`） | 是，四包全部 | 唯一的生产使用场景 |
-| 浏览器（`preset-slide`） | 仅 `collab-core` 的 `localPresencePlugin` | 单人模式 presence 兜底 |
-| 浏览器（`preset-slide-viewer`） | 否 | viewer 不加载 `localPresencePlugin`（M-11 §12 G-13 已裁，rulings §4.18 FE-07） |
-| `server-headless`（M-09，导入/导出/校验/迁移批处理） | 否 | 批处理任务不参与协同会话；三个 iso 包对其安全（冒烟通过）但未被 `preset-server`（08 §4.2）纳入插件清单 |
-| `server-collab`（M-09，协同网关） | 仅 `collab-core` 的 Definition 契约（类型与契约，不含任何 Provider） | 服务端 Room 状态机、硬/软门禁是 `server-collab` 自身代码；跨进程通信只经 `@cordexjs/protocol` 的 WS 帧；package.json 依赖 `collab-core`（awareness 模型、权限检查点、房间状态机契约），不复用 `collab-yjs`/`collab-transport-ws` 等 Provider（rulings §4.18 FE-15） |
+| 浏览器（`preset-slide-collab`） | 是：`collab-core`（不加载 `localPresencePlugin`）+ `collab-yjs` + `collab-transport-ws`；`collab-offline-idb` 可选（M4 P2） | 唯一的生产使用场景；自 M2 起服务端文档一律经此路径打开（rulings §4.19 D-M2-CONTENT，§11） |
+| 浏览器（`preset-slide`） | 仅 `collab-core` 的 `localPresencePlugin` | 本地文件单人编辑的 presence 兜底 |
+| 浏览器（`preset-slide-viewer`） | 否 | viewer 不加载 `localPresencePlugin`（M-11 §12 G-13，rulings §4.18 FE-07） |
+| `server-headless`（M-09） | 否 | 批处理任务不参与协同会话 |
+| `server-collab`（M-09） | 仅 `collab-core` 的 Definition 契约（不含任何 Provider） | 服务端 Room 与门禁是 `server-collab` 自身代码（rulings §4.18 FE-15） |
 
-`apps/web` 不直接 import 本模块任何包——接入点是 `packages/preset-slide-collab/src/plugins/*.entries.ts`（M-11 §4.1 文件布局）：装配 `store-yjs`（替换 `store-memory`）+ `collab-core`（不加载 `localPresencePlugin`）+ `collab-yjs` + `collab-transport-ws` + 可选 `collab-offline-idb`；`apps/web` 只调用 `createSlidePreset({ mode: 'collab', collabEndpoint, getToken })` 一类工厂（module-map §5.2）。
-
-进程间契约：本模块与 M-09 之间**唯一**允许的跨进程通道是 `@cordexjs/protocol` 的 `ws/{handshake,frames}.ts`、`errors/codes.ts`、`permissions/{actions,roles,decision}.ts`（§1.3、module-map §4.2 第 1 条）；SYNC/AWARENESS 段的 payload 对 `protocol` 不透明（`Uint8Array`），由本模块与 `server-collab` 各自用 y-protocols 解码——协议帧版本（`PROTOCOL_VERSION`）与能力位形状是本模块与 M-09 唯一需要对齐的地方，两者按同一份 `06-collaboration.md` 规格开发；包依赖只有 `server-collab` 复用 `collab-core` 的 Definition 契约，不复用 `collab-yjs`/`collab-transport-ws` 等 Provider（module-map §7 M-05 行，rulings §4.18 FE-15）。
+`apps/web` 不直接 import 本模块任何包，接入点是 `packages/preset-slide-collab/src/plugins/*.entries.ts`（M-11 §4.1）。跨进程唯一通道是 `@cordexjs/protocol` 的 `collab/{frame,close-codes,awareness,ticket}.ts` 与 `ws/{handshake,frames}.ts`（M-02 §4.3，决策 INC-01）、`errors/codes.ts`、`permissions/{actions,roles,decision}.ts`；SYNC / AWARENESS 段 payload 对 `protocol` 不透明，由本模块与 `server-collab` 各自用 y-protocols 解码。
 
 **图 7-1 两端 Provider 装配边界**
 
 ```mermaid
 flowchart LR
   subgraph browserSide["浏览器"]
-    fullFour["preset-slide-collab 装配 collab-core collab-yjs collab-transport-ws collab-offline-idb"]
+    fullFour["preset-slide-collab 装配 collab-core collab-yjs collab-transport-ws 可选 collab-offline-idb"]
     localPresence["preset-slide 仅 localPresencePlugin viewer 不加载"]
   end
   subgraph nodeSide["Node 服务端"]
@@ -848,22 +669,21 @@ flowchart LR
   fullFour -. "protocol WS 帧 CONTROL 消息 唯一跨进程通道" .-> serverCollab
 ```
 
-怎么读：本模块的 Provider 只在浏览器实例化；`preset-slide-viewer` 不加载 `localPresencePlugin`（M-11 G-13，rulings §4.18 FE-07）；`server-headless` 不加载本模块任何包；`server-collab` 只依赖 `collab-core` 的 Definition 契约（类型与契约），不复用任何 Provider，与浏览器四包的跨进程通信只经 `@cordexjs/protocol` 的 WS 帧（rulings §4.18 FE-15）。
-
+怎么读：本模块的 Provider 只在浏览器实例化；`server-headless` 不加载本模块任何包；`server-collab` 只依赖 `collab-core` 的 Definition 契约，与浏览器四包的跨进程通信只经 `@cordexjs/protocol` 的 WS 帧（rulings §4.18 FE-15）。
 ## 8. doc / sheet 扩展缝
 
 四包**全部标注 generic**（对文档类型盲，无 `cordex.bundle` 字段，水平层）：
 
 - `collab-core`/`collab-yjs` 的全部类型与逻辑只操作 `UnitId`/`ChangeSet`/`Origin`/`Selection<A>`/`DocumentStore` 通用契约（M-02），不出现 `slide`/`shape`/`layoutId` 等词汇；§2.3 的 12 种软冲突场景用 `@cordexjs/model-core/testing` 的 `fixture`/`fixture-grid` 文档类型复现，而非 `model-slide`，这本身就是「文档类型盲」的机械证据（depcruise `horizontal-tests-use-fixture-only`，R3）。
 - `collab-transport-ws`/`collab-offline-idb` 更进一步对**文档模型**本身无感知，只处理字节流（Uint8Array）与连接元数据（`documentId`；T-0 后无 `tenantId`），甚至不 import `@cordexjs/model-core`。
-- **doc/sheet 复用时零改动的文件清单**：四包 `src/**` 全部文件（86 个）。M-13（`model-doc`/`model-sheet`）落地时，`preset-doc`/`preset-sheet`（追加建议包名，module-map §8 G-3）若需要协同能力，直接复用本模块四包、只需在装配层引用同一批服务名（`collab`/`collabTransport`/`presence`/`offlineStore`），无需新建 `collab-doc`/`collab-sheet` 或修改本模块任何文件。
+- **doc/sheet 复用时零改动的文件清单**：四包 `src/**` 全部文件（88 个）。M-13（`model-doc`/`model-sheet`）落地时，`preset-doc`/`preset-sheet`（追加建议包名，module-map §8 G-3）若需要协同能力，直接复用本模块四包、只需在装配层引用同一批服务名（`collab`/`collabTransport`/`presence`/`offlineStore`），无需新建 `collab-doc`/`collab-sheet` 或修改本模块任何文件。
 - 对应 12 号文档（`12-extension-to-doc-and-sheet.md`）§3 的参数化点：本模块**不在**已内建的四处参数化点清单中（那四处专属 `model-slide`/`ooxml-pptx` 等垂直束），是「水平层零改动」承诺的直接对象，与 `model-core`/`store-yjs`（M-02）同级。
 
 ## 9. 测试布局
 
 物理位置遵循 02 §4.0 包模板的同位测试约定（`src/__tests__/` + `src/testing/` 子路径），四包均无独立顶层 `tests/` 目录（§4/§5 已逐文件列出）：
 
-**测试类别到物理位置映射（四包共 86 个源文件，含 22 个测试文件）**
+**测试类别到物理位置映射（四包共 88 个源文件，含 24 个测试文件）**
 
 ```mermaid
 flowchart LR
@@ -880,7 +700,8 @@ flowchart LR
 | 测试类别 | 覆盖内容 | 源文件 | 补充 |
 |---|---|---|---|
 | unit | FSM 全迁移路径、11→6 投影、退避序列、握手成功/超时/拒绝、心跳判死 | `collab-core/__tests__/{session-fsm,backoff}.test.ts`、`collab-transport-ws/__tests__/*.test.ts` | 确定性，固定时钟/`rand` 注入 |
-| contract | `collabTransport`/`offlineStore` 两个 Definition 的一致性套件 | `collab-core/testing/conformance.ts` | 由 `collab-yjs`（内存 transport/offline）、`collab-transport-ws`、`collab-offline-idb` 三包各自 `__tests__` 实例化（`scan-manifest` 规则 (e) 强制，原名 `provider-runs-conformance`） |
+| 会话脚本 | 重连、关闭码、未保存提示（INC-09）、降权收拢等 `rs/*` 脚本 | `collab-yjs/__tests__/session-scripts.test.ts` | 脚本清单以 70/05 §9 为准；FixedClock |
+| contract | `collabTransport`/`offlineStore` 两个 Definition 的一致性套件 | `collab-core/testing/conformance.ts` | 由 `collab-yjs`（内存 transport/offline）、`collab-transport-ws`（`conformance.test.ts`，本机回环 ws）、`collab-offline-idb` 三包各自 `__tests__` 实例化（`scan-manifest` 规则 (e) 强制，原名 `provider-runs-conformance`） |
 | lifecycle | 插件/Provider 生命周期（无残留 effect、Provider 替换、多 Unit 隔离） | 四包 `__tests__/lifecycle.test.ts` | `defineLifecycleSuite`（02 §4.0） |
 | 软冲突（确定性） | §2.3 表 12 种场景，逐一断言收敛结果 + 事件/`SoftConflictType` 触发 | `collab-yjs/__tests__/soft-conflict-scenarios.test.ts` | 用 `@cordexjs/model-core/testing` 的 `fixture` 文档类型（§8） |
 | 软冲突（fuzz） | 随机 op 序列 + 随机网络分区/乱序/重复交换 update，断言最终一致 | `collab-yjs/__tests__/soft-conflict-fuzz.test.ts` | fast-check；覆盖场景 4/5 的重复触发路径 |
@@ -888,7 +709,7 @@ flowchart LR
 | 权限/离线集成 | 降权本地拦截、升权恢复、离线积累→合并、拒绝可导出 | `collab-yjs/__tests__/{permission-gate,offline-queue}.test.ts` | 对应 §2.3 场景 11/12 |
 | IndexedDB 专项 | 刷新后恢复、配额超限、TTL 淘汰 | `collab-offline-idb/__tests__/*.test.ts` | `fake-indexeddb`（`testing/index.ts`） |
 
-**不在本模块文件清单内、但依赖本模块的测试**：跨进程全链路 fuzz（`test/collab-sim/`，仓库根级，与 M-09 共享，20 客户端 × 1,000 次随机命令，PRD CO-02 验收）与端到端双浏览器测试（Playwright，M-11/架构 11）；本模块只保证**自身**四包在「内存 transport + 内存/IDB offline」组合下的确定性与 fuzz 正确，不在本文档重复定义跨进程测试的文件结构。覆盖率与性能预算引用架构 `11-testing-strategy.md`（本文档不逐条核对，仅按其编号引用）。
+**不在本模块文件清单内、但依赖本模块的测试**：跨包全链路模拟（根 `test/collab-sim/`：`cluster.ts` 的 `createCollabCluster`、`network-model.ts` 的 `NetworkModel`、`sc-*` 幻灯片场景与 20 客户端 × 1,000 次随机命令，与 M-09 共享，PRD CO-02 验收；2026-09-25 由 `collab-yjs/testing` 迁出，决策 T-NAMING，[70/05](../70-testing/05-collab-simulation-and-property-tests.md) §2）与端到端双浏览器测试（Playwright，[70/06](../70-testing/06-frontend-component-and-e2e.md)）；本模块只保证**自身**四包在「内存 transport + 内存/IDB offline」组合下的确定性与 fuzz 正确，不在本文档重复定义跨进程测试的文件结构。覆盖率与性能预算引用架构 `11-testing-strategy.md`（本文档不逐条核对，仅按其编号引用）。
 
 ## 10. 机械约束
 
@@ -913,9 +734,14 @@ flowchart LR
 
 **M0 骨架**（与 M-01 工具链并行，晚于 M-02 的 `store-yjs`/`protocol` 落地）：建包顺序 `collab-core → collab-transport-ws → collab-offline-idb → collab-yjs`（先建 Definition 与两个技术相对独立的 Provider，`collab-yjs` 最后建因其需同时对接 `store-yjs`/`collab-transport-ws`/`collab-offline-idb` 三方）。范围：四包根配置各 9 个文件落地；`collab-core` 的 `domain/**`（全部值对象与 `session-fsm` reducer）+ `application/contracts/**`（五个抽象契约）+ `infrastructure/local-presence.provider.ts`；`collab-transport-ws`/`collab-offline-idb` 的 `provide` 声明到位、`__tests__/lifecycle.test.ts` 通过；`collab-yjs` 的 `plugin.ts`/`infrastructure/**` 骨架落地，`inject:['yjsBackend']` 在 `store-memory` 场景下正确 `PENDING`（可诊断，非失败）。验收：`pnpm check` 全绿；四包 `runCollabTransportConformance`/`runOfflineStoreConformance` 骨架存在但允许暂时跳过实现细节。
 
-**M2：首个可运行切片——两个客户端经 ws 同步一次形状移动 + 本地撤销不回滚对方改动**（本模块无独立 M1，批次 2 的首个切片直接对齐章程 M2 里程碑，需 M-02 `store-yjs`/`protocol`、M-03 `model-slide` 已具备；后两者**仅作为集成测试的场景素材**，不构成 §0 表「上游模块」列之外的新增包依赖）：
+**M2：协同客户端随协同后端进入 M2 交付**（rulings §4.19 D-M2-CONTENT：M2 起服务端文档内容以协同快照为唯一事实源，单人编辑也经网关与 Room 持久化；本模块无独立 M1，需 M-02 `store-yjs`/`protocol` 与 M-09 M2 切片就绪）：
 
-**M2 首个可运行切片：两客户端经内存 WS 对同步、本地撤销不回滚对方改动**
+- `collab-core` 全部 `domain/**`、`application/**` 与 `testing/**`（两个契约套件、`MemoryTransport`、场景脚本）落地。
+- `collab-transport-ws`：握手（`CONTROL.auth` 5 s 超时、`auth.refresh`）、应用层心跳、退避重连（含 1012 首轮立即）、关闭码全表的客户端行为；`conformance.test.ts` 通过。
+- `collab-yjs`：`SessionDriver`、`YjsSyncEngine`（HTTP 快照 bootstrap 后的双向差量）、`LocalBatcher`（50 ms 合并、客户端自限、两级 ack 与在途 FIFO、step2 恰一个在途条目与超限拆块，rulings §4.18 CO-09/CO-10）、`flush`/`leave`（`leaveFlushTimeoutMs`）、内存 `OfflineQueue`；`SessionStats` 全字段与「未保存到服务器」判据（`roomPersist`、`spillOnlyInFlight`、`unsavedWarnAfterMs`，rulings §4.19 INC-09，自 M2 起生效，50/10 §11）；`PermissionGate` 的唯一入口 `applyRemoteDecisions` 就位（M2 只有文档所有者单人编辑，降权与被拒回滚的完整验收在 M3）。
+- 装配：`preset-slide-collab` 自 M2 起承载服务端文档的打开 / 新建 / 导入后编辑（M-11 §11），`apps/web` 的离开保护与登出清理只看协同在途与离线队列（[50/02](../50-frontend/02-app-shell-routing-and-session.md)）。
+
+**M2 技术切片：两客户端经内存 WS 对同步、本地撤销不回滚对方改动**
 
 ```mermaid
 sequenceDiagram
@@ -923,44 +749,44 @@ sequenceDiagram
     participant b as 客户端 B
     participant ws as 内存 WS 对/网关替身
     participant yjs as yjsBackend
-    Note over a,b: 两个进程内 host 实例模拟客户端 A、B，复用 collab-transport-ws/testing 的内存 WS 对，即真实 collab-transport-ws Provider + 真实 WS 帧格式，仅端点为本地内存、非跨进程
-    Note over a,b: createHost 调用两次：A、B 各自装配 model-core + store-yjs + model-slide（M-02/M-03 已交付），再叠加 collab-core（不加载 localPresencePlugin）+ collab-transport-ws（连到内存 WS 对端）+ collab-yjs
+    Note over a,b: 两个进程内 host 实例，复用 collab-transport-ws/testing 的内存 WS 对，真实 Provider 与真实帧格式，仅端点为本地内存
+    Note over a,b: 跨包全链路，放根 test/collab-sim/，可装配 model-slide；包内测试只用 fixture 文档类型
     a->>a: units.open，documentType 为 slide，source.kind 为 empty
     a->>yjs: commands.execute A，slide.insertShape
     yjs->>ws: 编码并发送 update
     ws->>b: 转发 update 给 B
     Note over a,b: 等待双端 collab/synced
     Note over b: 断言：B 侧 store.state 深等于 A 侧，新 shape 已同步
-    a->>yjs: commands.execute A，slide.moveShapes，shapeIds 为 s，dx 为 10，dy 为 0（A 的可撤销事务）
-    b->>yjs: commands.execute B，slide.setFill，shapeIds 为 s2，fill 为新值（B 并发编辑另一形状的另一属性）
+    a->>yjs: commands.execute A，slide.moveShapes，shapeIds 为 s，dx 为 10，dy 为 0
+    b->>yjs: commands.execute B，slide.setFill，shapeIds 为 s2，fill 为新值
     yjs->>ws: 双方编码并交换 update
     ws->>a: 转发 B 的 update 给 A
     ws->>b: 转发 A 的 update 给 B
     Note over a,b: 等待双端 collab/synced
     a->>a: history.undo，local A.clientId
     Note over a: 断言 A 侧：shape s 回到移动前坐标；s2 的 fill 仍为 B 设置的值
-    Note over b: 断言 B 侧（关键）：s2 的 fill 不变，且 B 从未收到「撤销」相关的 store 事件
-    Note over b: B 只是像收到一次普通远端 update 一样，观察到 s 的坐标变回旧值——I3：撤销只回滚本地 origin，对 B 而言与「A 又做了一次移动」在 CRDT 层不可区分
+    Note over b: 断言 B 侧：s2 的 fill 不变，且 B 从未收到撤销相关的 store 事件
 ```
 
-怎么读：`yjsBackend` 泳道代表 A、B 两端各自独立的编码与解码层，图中合并展示以精简；关键断言在末尾两条 Note——B 全程未感知「撤销」这一操作，只观察到一次普通的远端坐标变化，对应正文 I3 不变量。
+怎么读：`yjsBackend` 泳道代表 A、B 两端各自独立的编码与解码层，图中合并展示；关键断言在末尾两条 Note——B 全程未感知「撤销」，只观察到一次普通的远端坐标变化（I3：撤销只回滚本地 origin）。本切片验证同步与撤销语义，属技术验收；多人协同的体验层（在场、软冲突提示等）仍归 M3。
 
 验收命令（草案）：
 
 ```bash
 pnpm --filter "@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}" build
 pnpm --filter "@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb}" test
-pnpm --filter @cordexjs/collab-yjs test -- --grep "conformance|soft-conflict-scenarios"
+pnpm --filter @cordexjs/collab-yjs test -- --grep "conformance|soft-conflict-scenarios|batcher|session-scripts"
 turbo run typecheck lint depcruise manifest api iso-smoke policy \
   --filter="@cordexjs/{collab-core,collab-transport-ws,collab-offline-idb,collab-yjs}"
-# 集成切片（新增测试文件，建议落在 collab-yjs/__tests__/two-client-ws-move-undo.test.ts）：
-pnpm --filter @cordexjs/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
+# 跨包技术切片（根 test/collab-sim/，决策 T-NAMING；collab-yjs 包内不得 import model-slide，R3）：
+pnpm vitest run test/collab-sim/two-client-move-undo.test.ts
 ```
 
-通过标准：`runCollabTransportConformance`/`runOfflineStoreConformance` 在各自 Provider 上全绿；`soft-conflict-scenarios.test.ts` 12 项 + 4 个撤销语义附加用例（rulings §4.15 Q3；用例名照抄 M-02 §2.5，`::delete-vs-edit-undo` 含 D4 分支）全部通过；`batcher.test.ts` 的两级 ack 用例通过（S-3a）；上述两客户端集成切片通过（尤其 I3 断言：B 侧从不出现「B 的编辑被撤销」）。
+通过标准：两个契约套件在各自 Provider 上全绿；`soft-conflict-scenarios.test.ts` 12 项 + 4 个撤销语义附加用例（rulings §4.15 Q3，`::delete-vs-edit-undo` 含 D4 分支）全部通过；`batcher.test.ts` 两级 ack 与 step2 用例通过（S-3a、CO-10）；`session-scripts.test.ts` 的 `rs/unsaved-indicator` 通过（INC-09）；两客户端技术切片通过（I3）；与 M-09 M2 切片联调：单人编辑经真实网关写入 `document_updates`、刷新后经 `GET snapshots/latest` + WS 恢复同一状态。
 
-**M3 展望**（不在本模块交付范围，仅标注依赖前提）：`collab-offline-idb` 实际接入 `preset-slide-collab`（PRD CO-06 M4 P2，M3 默认仍为内存队列）；与 M-09 的真实跨进程握手/权限即时生效/软门禁修复联调（需 `server-collab` 就绪）；`test/collab-sim/` 跨进程 fuzz（20 客户端 × 1,000 次随机命令，PRD CO-02）需 M-09 配合。
+**M3：多人协同体验层**（rulings §4.19：在场、评论、权限细化、离线重连等留在 M3；逐项边界以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准——M2 只含基础重连：指数退避自动重连、先鉴权再同步、补发未获 db 确认的更改）：`AwarenessAdapter`/`PresenceService` 与在场 UI 联调（M-10）；软冲突信号与 UI 分流、恢复记录（50/07 §12）；权限降级、被拒回滚与导出本地副本、名额降级（50/07 §8）；离线判据（30 s 累计）、`offline` 周期重连与 `offline:queue` 验收（50/07 §4、§7，rulings §4.18 UX-03/CO-03）；过期重新登录（UX-02）；`test/collab-sim/` 20 客户端 × 1,000 次随机命令（PRD CO-02）与跨进程变体（需 M-09）。
 
+**M4**：`collab-offline-idb` 随 `preset-slide-collab` 可选启用（PRD CO-06 P2）与多标签页互斥（决策 OFFLINE-TABS，50/07 §7）。
 ## 12. 与现有文档的差异与追加建议
 
 延续 module-map §8 与各阶段二模块文档的编号惯例（每文档独立起 G-1，非全局序列，参照 40-modules/03 §12 前例），以下为本文档写作过程中发现、按硬规则「不得擅自改写既有骨架」原则记录于此：
@@ -969,7 +795,7 @@ pnpm --filter @cordexjs/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
 |---|---|---|---|
 | G-1 | `02-layering-and-packages.md` §4.11/§4.12/§4.12b | 三节给出的是扁平骨架（`contracts/`/`presence/`/`sync/`/`awareness/` 等直接挂在 `src/` 下，无 `domain/`/`application/`/`infrastructure/` 顶层目录） | 总编排裁定本文档 §4/§5 按 DDD 五目录物理落地为事实源（见本文档裁定说明）；建议 02 §4.11/§4.12/§4.12b 在下一次修订中补充「与 40-modules/05 的映射关系」脚注，仿 40-modules/03 §12 G-1 先例 |
 | G-2 | `06-collaboration.md` §3.2 | 草案目录树未展示 `collab-core` 如何把 `presence/local-presence.ts` 挂载为可运行 Provider（无 `plugin.ts`），容易误读为纯类型包 | 本文档明确设计：`local-presence.provider.ts` 是一个独立最小函数插件，由装配层（`preset-slide`）显式 `ctx.plugin()` 挂载，`preset-slide-collab` 用 override/exclude 替换为 `collab-yjs`（§3、§4.1）；建议 06 §3.2 补一句说明或直接引用本文档 |
-| G-3 | module-map §3 BC-09 行、charter §5.5 事件表 | 官方事件列表未包含 `collab/backpressure`（06 §3.1 草案已定义）与 `collab/latency`（PRD CO-13 明确要求的诊断事件） | **已裁定并采纳（14-cross-module-review.md §1 C-24）**：标「新增建议，已提请章程 §5.5 收编」，见 §2.4；收编前扫描器按临时白名单放行（与 `40-modules/02` §2.4 的 `export` 域同类处理） |
+| G-3 | module-map §3 BC-09 行、charter §5.5 事件表 | 官方事件列表未包含 `collab/backpressure`（06 §3.1 草案已定义）与 `collab/latency`（PRD CO-13 明确要求的诊断事件） | ~~已裁定并采纳（14 §1 C-24）：标「新增建议，已提请章程 §5.5 收编」~~ → **已结案（2026-09-25，30/10 §11.1 + 决策 INC-33）**：`collab/backpressure` 改为客户端指标 `cordex_collab_outbound_queued`，`collab/latency` 改为遥测专用事件 `{rttMs, applyMs}`，均不进 cordis `Events`、不再提请章程 §5.5 收编，临时白名单撤销（§2.4） |
 | G-4 | ADR-0033「后果」段 | 该 ADR 末尾提到 `collab-offline-idb`「同时提供浏览器侧 `BlobStore` 的 IndexedDB Provider（本地媒体缓存，04 §10）」，但 module-map BC-09 行、charter §5.2 `collab-offline-idb` 行、本模块 §0/§3 均只描述其 `implements:['offlineStore']`，未提及 `BlobStore` | **已结案（14-cross-module-review.md §1 C-30）**：**不纳入**——`collab-offline-idb` 明确不兼任 `BlobStore`，保持单一职责（`implements:['offlineStore']`）。依据：`OfflineStore` 与 `BlobStore` 是两个不同 Definition，混入一个 Provider 包会让「移除协同后本地媒体缓存也没了」；浏览器侧本无持久 `BlobStore`（00 §5.1：媒体经 CRDT 只存 `BlobRef`，字节由服务端持有）。ADR-0033「后果」段该句已确认应删除，由架构-结构条线回写；本文档 §4/§5 不追加任何 `BlobStore` Provider 文件，Q-05-2 同步结案 |
 | G-5 | `06-collaboration.md` §3.2 | 草案把 `testing/index.ts` 命名为单一 `runCollabConformance(factory)` 契约套件（针对整个 `CollabService`） | 本文档遵照总编排硬性要求，改为 `runCollabTransportConformance`/`runOfflineStoreConformance` 两套（对应真正「可换 Provider」的 `collabTransport`/`offlineStore`），`collab` 本身因与 `store-yjs` 强耦合而不设独立套件（§2.5 已说明理由）；建议 06 §3.2 同步更新命名 |
 | G-6 | `06-collaboration.md` §2.2/§18.2 vs `02-kernel-protocol-and-document-core.md` §2.2 | 06 用 `TransactionMeta{origin: TransactionOrigin}` 与类层级命名（`LocalOrigin`/`RemoteOrigin`/`RepairOrigin`…），02 用判别字面量 `Origin = local(clientId,via?) \| remote \| system(reason) \| replay`；06 §18.2 已自陈「以 04/05 契约为准」并请求 02 增补 `system.reason∈{'repair','restore','maintenance'}`、`local.via∈{'undo','redo'}` | **已结案（14-cross-module-review.md §1 C-14）**：02 已正式接受该增补并回填（`02-kernel-protocol-and-document-core.md` §2.2、§12 收敛小节），`TransactionOrigin`/类层级命名作废，以 02 的 `Origin` 判别字面量为准。本文档 `domain/session-state.ts` 等处 `system('repair')`/`local.via` 的写法与 02 口径一致，不再是假定，删除原「假定…已被接受」的假设前提表述 |
@@ -1007,6 +833,17 @@ pnpm --filter @cordexjs/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
 | D5 撤销跳过埋点 | §2.4 订阅行 | `store/undo-skipped` 单独统计（跳过次数、整步跳过次数，指标 `cordex_store_undo_skipped_total{whole_step}`），**不**派生 `collab/soft-conflict`、**不**计入软冲突率 MT-15 |
 | M9 T-0 残留 | §2.5/§7 `OfflineStore.open`、§4/§5 `idb-schema.ts` | IDB 键 `{userId}/{documentId}`；`OfflineStore.open({userId, documentId})`（与 30-architecture/06 §18.6、ADR-0033 一致） |
 
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| §4.19 事实源分工 + referencePlan | §1.1、§2.1、§2.6、§6、§7 | 行为段落改为摘要 + 链接 [50/07](../50-frontend/07-collaboration-client.md)；删原图 2-1 至 2-4 与状态机投影表（50/07 §3、§2、§6、§8 为唯一源）；§3 插件定义、§4、§5、§9–§11 保留为包 / 文件级事实源 |
+| §4.19 INC-09 | §2.1 `RoomInfo.persist`、§2.2 `SessionStats`、§3 `collab-yjs` Config | 判据改为 `roomPersist === 'degraded'` ∨ `spillOnlyInFlight > 0` ∨ `oldestInFlightMs ≥ unsavedWarnAfterMs`（默认 15000），不再借用 `heartbeatMs`；新增 `inFlight`/`roomPersist`/`readonlyReason` 字段与 `unsavedWarnAfterMs`/`rejectSettleMs`/`leaveFlushTimeoutMs`/`conflictWindowMs` 四键（50/07 §13、§17） |
+| §4.19 D-M2-CONTENT | §7 表、§11 | 协同客户端随协同后端进入 M2 交付（单人编辑经网关持久化）；M3 保留在场、软冲突提示、权限降级与被拒回滚、离线重连等体验层；撤销 INC-37 的「M3 前置技术切片」口径 |
+| 决策 INC-33（30/10 §11.1） | §2.4、G-3 | `collab/backpressure` → 客户端指标，`collab/latency` → 遥测专用事件 `{rttMs, applyMs}`；G-3 结案 |
+| 决策 T-NAMING + 70/02 §14 第 6 条 + 70/05 §14 第 2 条 | §4.2、§4.3、§5、§6、§9、§11、Q-05-5 | `createCollabCluster`/`NetworkModel` 移到根 `test/collab-sim/`，`collab-yjs/testing` 只留 `createFixturePeers`；collab-yjs 补 `session-scripts.test.ts`，collab-transport-ws 补 `conformance.test.ts`；两客户端切片改放根 `test/collab-sim/` |
+| 50/07 §17 登记表 | §2.2 `RejectedEntry.reason`、§2.5 内存 `OfflineStore` | 被拒原因六值；内存版离线存储挂根作用域 |
+
 ## 13. 未决问题
 
 | 编号 | 问题 | 推荐默认值 | 影响范围 |
@@ -1015,4 +852,4 @@ pnpm --filter @cordexjs/collab-yjs test -- --grep "two clients.*ws.*move.*undo"
 | Q-05-2（**已结案**，14 §1 C-30） | ADR-0033 提到的 `collab-offline-idb` 浏览器侧 `BlobStore` Provider 能力（G-4）是否纳入本模块 | **不纳入**——保持 `collab-offline-idb` 单一职责（`OfflineStore`），`BlobStore` 的浏览器侧本地缓存如需实现，建议新增追加包或并入 M-11 装配层；总编排已按此裁定，ADR-0033「后果」段该句待架构-结构条线删除 | `collab-offline-idb` 文件清单；module-map BC-09/BC-20 行 |
 | Q-05-3 | §2.3 场景 4（并发插入同一间隙）缺少 06/PRD 官方 `SoftConflictType`/事件 tag，本文档新增建议 `concurrent-insert` | 采纳为「新增建议」（`domain/soft-conflict.ts` 第 13 个预留位或复用 `reorder`）；因结果对用户始终「符合预期、无需提示」，也可选择**不**下发用户可见事件、仅保留 telemetry 计数 | `domain/soft-conflict.ts`；§2.3/§2.4 表；telemetry 登记表 |
 | Q-05-4 | `collab`（`CollabService`）当前唯一生产 Provider 是 `collab-yjs`，未来若出现第二个（如接入 Loro，ADR-0020 已预留 `store-loro`/`collab-loro`）是否需要补一个 `runCollabConformance` | 暂不预先设计；届时按「出现第二个 Provider 才需要契约套件」的一般原则由该实现的规划者决定套件形状（可能仍是「同步收敛」外包给 `store-<crdt>` 的 conformance，`collab-<crdt>` 只需状态机/事件层面的套件） | `collab-core/testing/`；未来 `collab-loro` 规划文档 |
-| Q-05-5 | 本文档 §11 M2 切片依赖 M-03（`model-slide`）作为测试场景素材，但 §0/module-map 的「上游模块」列只列 M-02；是否需要在 module-map 中把 M-03 登记为「测试期依赖」而非运行时依赖 | 不需要——`model-slide` 仅用于集成测试场景真实感，四包源码零 import `model-slide`（§8 已证明 generic）；若总编排要求测试期依赖也需登记，建议在 module-map §7 表格新增一列而非改写「上游模块」语义 | module-map §7 表格；本文档 §11 |
+| Q-05-5（**已结案**，2026-09-25） | 本文档 §11 M2 切片依赖 M-03（`model-slide`）作为测试场景素材，但 §0/module-map 的「上游模块」列只列 M-02 | 用到 `model-slide` 的两客户端切片移到根 `test/collab-sim/`（决策 T-NAMING：跨包全链路放根 `test/<suite>/`），四包的包内测试只用 `fixture`（R3），因此无需在 module-map 登记测试期依赖 | 本文档 §9、§11 |

@@ -1,4 +1,4 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18；30-architecture/06、07、08、10；ADR-0022、0023、0025、0026、0029、0033、0035、0037；40-modules/08、09、12、15、16
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（§4.19 N1） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18；30-architecture/06、07、08、10；ADR-0022、0023、0025、0026、0029、0033、0035、0037；40-modules/08、09、12、15、16
 
 # 19 架构图集（二）：后端、数据与部署
 
@@ -33,6 +33,8 @@
 | §9 | 未画与待澄清 | —— |
 
 ## 1. 后端总体
+
+> 事实源（2026-09-25，rulings §4.19）：[60/01](../60-backend/01-service-overview-and-roles.md)（服务总览、进程角色、宿主），冲突以其为准。M2 起协同网关、Room、update 持久化与快照、服务端导入即交付（D-M2-CONTENT，PRD 05 §0.3），本图集中的「M3」标注若与此冲突以 PRD 05 为准。
 
 `apps/server` 是 NestJS 11 传输壳，业务逻辑全部在进程内嵌的 cordis 宿主里（章程 D8）：宿主由 `preset-server` 装配 iso 插件与三个 `server-*` 包，Nest 模块只做传输、校验、鉴权与编排。
 
@@ -164,6 +166,8 @@ flowchart LR
 
 ## 2. Nest 模块依赖
 
+> 事实源（2026-09-25，rulings §4.19）：[60/01 §8](../60-backend/01-service-overview-and-roles.md)（imports 总图与无环约束）、[60/03](../60-backend/03-modules-identity-and-access.md)、[60/04](../60-backend/04-modules-documents-storage-media.md)，冲突以其为准（如 DocumentsModule 不再 import AuthModule、改 import JobsModule 与 StorageModule）。
+
 下面两张图画 19 个业务 Nest 模块之间的依赖：**实线**是 `@Module({ imports })` 里登记的 import，**虚线**是经 global 模块注入、无需登记 imports 的依赖。2026-09-25 起文件职责表写明的跨模块依赖已全部补进 imports 列，原「用例级依赖」虚线不再存在（rulings §4.18 BE-07）。全局基础模块（`ConfigModule`、`DbModule`、`RedisModule`、`ObservabilityModule`）的边省略，见表 2-1。
 
 **图 2-1 身份、文档、存储与协同模块的依赖（M-08、M-09）**
@@ -260,6 +264,8 @@ flowchart LR
 
 ## 3. 进程角色 `CORDEX_ROLE` 与模块激活
 
+> 事实源（2026-09-25，rulings §4.19）：[60/01 §4–§6](../60-backend/01-service-overview-and-roles.md)（角色五值、「模块 × 角色 × 部件」矩阵——迁自 40/12 §7.1——与启动断言），冲突以其为准。
+
 同一个 `cordex-server` 镜像按 `CORDEX_ROLE` 选择装配（`config/roles.ts` → `AppModule.forRole`，cordis 侧由 `preset-server.ts` 按角色装配插件束）。
 
 **图 3-1 五个角色与各自装配的主体**
@@ -297,7 +303,7 @@ flowchart LR
   gHeadless -- "headless.mode=remote 时鉴权内部 RPC" --> gRender
 ```
 
-怎么读：左框五个角色取自 ADR-0037 决策 1；`all` 等于 api、collab、worker 三者同进程（虚线「包含」），renderer 仍建议独立容器。右侧各格汇总自 40-modules/12 §7.1「模块 × 角色 × 部件」矩阵（2026-09-25 起为全服务端唯一装配矩阵，rulings §4.18 BE-13）：快照 REST 与管理动作依赖 `collabServer`，只在 collab 装配，反代把 `/api/v1/documents/:id/snapshots*` 与 `…/elements/purge` 转给 collab（BE-03）；周期作业全部由 worker 启动时经 BullMQ Job Scheduler 注册，全局只跑一份，墓碑清理仍是 `tombstone-sweeper` 加租约锁的例外（BE-19）；worker 装 document-purge 处理器与各模块参与者，M-09 参与者只装 `PgUpdateStore`/`PgSnapshotStore`（BE-15）；renderer 只有渲染入口与不含凭据的 `HealthModule.forRole('renderer')`（BE-14）。`headless.mode=local` 时 worker 在本进程内启动 Chromium（EM-10 b）。
+怎么读：左框五个角色取自 ADR-0037 决策 1；`all` 等于 api、collab、worker 三者同进程（虚线「包含」），renderer 仍建议独立容器。右侧各格汇总自「模块 × 角色 × 部件」矩阵（2026-09-25 起唯一源为 60-backend/01 §5，自 40-modules/12 §7.1 迁入，rulings §4.18 BE-13、§4.19）：快照 REST 与管理动作依赖 `collabServer`，只在 collab 装配，反代把 `/api/v1/documents/:id/snapshots*` 与 `…/elements/purge` 转给 collab（BE-03）；周期作业全部由 worker 启动时经 BullMQ Job Scheduler 注册，全局只跑一份，墓碑清理仍是 `tombstone-sweeper` 加租约锁的例外（BE-19）；worker 装 document-purge 处理器与各模块参与者，M-09 参与者只装 `PgUpdateStore`/`PgSnapshotStore`（BE-15）；renderer 只有渲染入口与不含凭据的 `HealthModule.forRole('renderer')`（BE-14）。`headless.mode=local` 时 worker 在本进程内启动 Chromium（EM-10 b）。
 
 依据：ADR-0037 决策 1、决策 3；40-modules/09 §3.3、§7.1；40-modules/12 §7.1；40-modules/16 §6.1；rulings §4.18 BE-03、BE-13、BE-14、BE-15、BE-19。
 
@@ -375,6 +381,8 @@ flowchart TB
 依据：ADR-0037「如何被机械验证」；40-modules/09 §2.5「ServiceMap」段、§4.3；40-modules/12 §7.1；30-architecture/08 §2 `config.module.ts`、§4.1；30-architecture/08 §9.1（production 拒绝无鉴权启动）。
 
 ## 4. 部署拓扑
+
+> 事实源（2026-09-25，rulings §4.19）：[60/17](../60-backend/17-deployment-and-config.md)（部署拓扑与配置 schema）、[60/01 §7](../60-backend/01-service-overview-and-roles.md)（反代分流），冲突以其为准。
 
 M1–M5 只交付集成方或自有部署的 docker-compose「洁净栈」，不自营 SaaS；ADR-0037 是部署拓扑的单一事实源。
 
@@ -545,6 +553,8 @@ flowchart TB
 
 ## 5. 数据模型
 
+> 事实源（2026-09-25，rulings §4.19）：[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–[60/13](../60-backend/13-ddl-comments-webhooks-audit.md)（完整 DDL、RLS、写方所有权）与 [60/14](../60-backend/14-valkey-object-storage-and-retention.md)（键空间、对象键、保留期），冲突以其为准；快照保留按 rulings §4.19 C-06（30 天全量，之后每天最后一个至 `retention.autoSnapshotDailyDays`，默认 365，0 = 永久；named 永久且每文档 ≤ 200）。
+
 约定（30-architecture/08 §5）：全部表都没有 `tenant_id`；`id uuid` 为 v7、在应用层生成；软删除用 `deleted_at`；凡带 `doc_id` 的业务表启用文档级 RLS（见图 8-2）。先看「谁的表谁写」，再按域看 ER 图。
 
 **图 5-0 表的写方所有权**
@@ -584,7 +594,7 @@ flowchart LR
   m12 -. "只读 latest 快照" .-> tCollab
 ```
 
-怎么读：实线表示该模块是这组表的唯一写方，虚线是跨模块只读。`documents` 一行被 M-08 与 M-09 按列分写，是唯一的共享表列冲突面，M-08 侧由 `DocumentRepository` 更新入参 `Omit<Document,'headSeq'|'epoch'>` 在编译期排除；`epoch` 由 M-09 `collabServer.forceEpoch()` 递增，触发入口是 M-12 管理端点（rulings §4.18 BE-21）。`job_runs` 中 `kind=document-purge` 的行由 M-08 `schedule-purge` 经 `JobRunsRepository` 写入（BE-15）。2026-09-25 起 M-08 增写 `document_user_marks`，`collab_sessions` 删除（BE-31）。
+怎么读：实线表示该模块是这组表的唯一写方，虚线是跨模块只读。`documents` 一行被 M-08 与 M-09 按列分写，是唯一的共享表列冲突面，M-08 侧由 `DocumentRepository` 更新入参 `Omit<Document,'headSeq'|'epoch'>` 在编译期排除；`epoch` 由 M-09 `collabServer.forceEpoch()` 递增，触发入口是 M-12 管理端点（rulings §4.18 BE-21）；覆盖既有文档的导入另由 M-12 导入处理器在 worker 的 `persist` 事务内调用 M-09 的 `SnapshotStore.put(kind='import', epochFrom)` 推进，仍是 M-09 的代码写列（rulings §4.19 N1，60/06 §6.5）。`job_runs` 中 `kind=document-purge` 的行由 M-08 `schedule-purge` 经 `JobRunsRepository` 写入（BE-15）。2026-09-25 起 M-08 增写 `document_user_marks`，`collab_sessions` 删除（BE-31）。
 
 依据：40-modules/08 §2.1、§7；40-modules/09 §7.3；40-modules/12 §7.3；rulings §4.13 同时确认段、§4.18 BE-15、BE-21、BE-31。
 
@@ -799,7 +809,7 @@ erDiagram
   }
 ```
 
-怎么读：`job_runs` 是 BullMQ 作业的 Postgres 镜像，供进度查询（`GET /api/v1/imports/:jobId`）与审计，`doc_id` 只是逻辑引用、不声明外键。幂等只对未失败且未取消的行生效：部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')`，同键命中 `failed`/`cancelled` 行时新建一行并以 `attempt_of` 指向旧行，二者始终是终态（2026-09-25，rulings §4.18 BE-18；`cancelled` 为导入取消，UX-14）。原 `collab_sessions` 表删除；新增 `document_user_marks` 作为用户对文档的「最近打开 / 固定」记账，主键 `(user_id, doc_id)`，受文档级 RLS 且只返回本人行，由 M-08 写入，永久删除文档时由参与者 `user-marks` 清理（BE-31）。Webhook 两表属 BC-30 出站集成，订阅由平台管理员管理；`pending` 覆盖待投递与重试中，`failed` 为不可重试的终止，`dead-lettered` 为重试用尽，状态机见图 7-4（BE-19）。
+怎么读：`job_runs` 是 BullMQ 作业的 Postgres 镜像，供进度查询（`GET /api/v1/jobs/:id`，2026-09-25 起唯一状态查询，决策 SG-08）与审计，`doc_id` 只是逻辑引用、不声明外键。幂等只对未失败且未取消的行生效：部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')`，同键命中 `failed`/`cancelled` 行时新建一行并以 `attempt_of` 指向旧行，二者始终是终态（2026-09-25，rulings §4.18 BE-18；`cancelled` 为导入取消，UX-14）。原 `collab_sessions` 表删除；新增 `document_user_marks` 作为用户对文档的「最近打开 / 固定」记账，主键 `(user_id, doc_id)`，受文档级 RLS 且只返回本人行，由 M-08 写入，永久删除文档时由参与者 `user-marks` 清理（BE-31）。Webhook 两表属 BC-30 出站集成，订阅由平台管理员管理；`pending` 覆盖待投递与重试中，`failed` 为不可重试的终止，`dead-lettered` 为重试用尽，状态机见图 7-4（BE-19）。
 
 依据：30-architecture/08 §5、§7；40-modules/12 §2.1、§2.2；rulings §4.18 BE-18、BE-19、BE-31。
 
@@ -812,6 +822,7 @@ flowchart LR
   subgraph s3["S3 兼容存储，默认 SeaweedFS，键无租户前缀"]
     kMedia["media/sha256 前两位/sha256，不可变"]
     kSnap["docs/docId/snapshots/seq_upto-kind.yup2.zst，大于 1 MiB 的快照"]
+    kTmp["uploads/tmp/uploadId，导入与媒体直传隔离区，24 h 清理"]
     kImp["docs/docId/imports/jobId/source.pptx，默认保留 30 天"]
     kExp["docs/docId/exports/jobId/文件名，TTL 24 h"]
     kThumb["docs/docId/thumbs/slideId/contentHash.webp，M3"]
@@ -820,21 +831,22 @@ flowchart LR
   end
   wMedia["media 模块：预签名 PUT 后 commit 重算 sha256"]
   wSnap["PgSnapshotStore"]
-  wImp["导入通道：POST /imports/uploads 由服务端预分配键，浏览器预签名直传"]
+  wImp["导入通道：POST /imports/uploads 预分配 uploadId，浏览器预签名直传隔离区，受理时服务端复制"]
   wExp["export 与 render-export 处理器"]
   wThumb["thumbnails 处理器"]
   wCover["import 处理器：只做 JPEG 头校验，不解码"]
   wSpill["BlobSpillStore：二级溢写"]
   wMedia --> kMedia
   wSnap --> kSnap
-  wImp --> kImp
+  wImp --> kTmp
+  kTmp -- "受理时 CopyObject" --> kImp
   wExp --> kExp
   wThumb --> kThumb
   wCover --> kCover
   wSpill --> kSpill
 ```
 
-怎么读：每个键前缀只由图中对应的一类组件写入，`exports/` 由两个导出处理器共用。`snapshots/` 前缀必须开启版本化（SV-09 备份依赖），永久删除文档收尾时用 ListObjectVersions 加按 versionId 删除清掉全部历史版本（rulings §4.18 BE-15）；`exports/` 由生命周期规则按 TTL 删除；媒体下载经 `GET /media/:sha256` 302 到 1 h 预签名 GET，或经服务端流式代理。导入原件的 `jobId`、`docId` 与对象键由服务端预分配，客户端只回传一次性 `uploadId`，通用 `POST /storage/presign` 已删除（BE-10）；预签名 URL 一律按 `storage.s3.publicEndpoint` 生成（BE-01）。
+怎么读：每个键前缀只由图中对应的一类组件写入，`exports/` 由两个导出处理器共用。`snapshots/` 前缀必须开启版本化（SV-09 备份依赖），永久删除文档收尾时用 ListObjectVersions 加按 versionId 删除清掉全部历史版本（rulings §4.18 BE-15）；`exports/` 由生命周期规则按 TTL 删除；媒体下载经 `GET /documents/:id/media/:sha256` 取 JSON `{url, expiresAt}`（1 h 预签名 GET，不 302，60/15 §3.6），再由浏览器以不带凭据与自定义头的请求直取。导入原件的 `jobId`、`docId` 与对象键由服务端预分配，客户端只回传一次性 `uploadId`，通用 `POST /storage/presign` 已删除（BE-10）；浏览器直传先落隔离区 `uploads/tmp/`，受理时复制到 `imports/`，未提交的对象由 `uploads-tmp-cleanup` 每小时清理（2026-09-25，决策 UPLOAD-QUARANTINE，60/06 §6.1）；预签名 URL 一律按 `storage.s3.publicEndpoint` 生成（BE-01）。
 
 依据：30-architecture/08 §6、§16.3、§16.4；40-modules/09 §3.4；40-modules/12 §2.6、§4.2、§4.3；rulings §4.18 BE-01、BE-10、BE-15。
 
@@ -848,7 +860,7 @@ flowchart LR
     hClients["room:docId:clients，HSET，TTL 60 s 心跳"]
     lock["租约锁 lock:compact:doc、lock:tombstone:doc、lock:spill:doc、collab:migrate:doc"]
     ctl["控制频道 room:ctl:doc：跨实例踢会话与关 Room"]
-    up["导入一次性 uploadId，TTL 1 h，GETDEL 消费"]
+    up["导入一次性 uploadId，TTL 1 h，受理时改写 jobId、不 GETDEL"]
     jti["票据 jti，SETNX 60 s"]
     oidc["OIDC state 与 PKCE，TTL 10 min"]
     bull["BullMQ 队列"]
@@ -874,6 +886,8 @@ flowchart LR
 依据：ADR-0022 决策表；ADR-0025 决策 9；ADR-0029 决策 1；30-architecture/06 §5.2；30-architecture/08 §2 collab 与 auth 目录、§8；40-modules/09 §4.1；40-modules/12 §2.5、§4.2、§4.8、§4.9；rulings §4.18 BE-04、BE-10、CO-16。
 
 ## 6. 关键时序
+
+> 事实源（2026-09-25，rulings §4.19）：[60/02](../60-backend/02-auth-chain.md)（鉴权链路）、[60/05](../60-backend/05-modules-collab-and-snapshots.md)（协同与快照，含 PG 故障期 `CONTROL.room.persist` 信号，INC-09）、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)（导入导出与缩略图）、[60/16](../60-backend/16-ws-protocol-server-view.md)（WS 服务端视角），冲突以其为准。
 
 本节序列图按「登录 → 打开文档 → 编辑 → 故障与维护 → 作业 → 授权」的顺序排列。参与者只取正文写明的组件；房间状态机与客户端会话状态机已在 30-architecture/06 §5.1/§5.2 画出，此处不重复。图中 REST 路径均相对全局前缀 `/api/v1`（rulings §4.18 BE-11）。
 
@@ -1173,25 +1187,26 @@ sequenceDiagram
   participant q as BullMQ import 队列
   web->>api: POST /imports/uploads，fileName、byteSize、sha256，可选 docId
   api->>api: 已登录，指定 docId 时需 doc.write，byteSize 不超过 200 MB，部署可调
-  api->>api: 预分配 jobId，新建文档时同时预分配 docId，定出对象键
-  api->>up: 签发一次性 uploadId，绑定 userId，TTL 1 h
+  api->>api: 预分配 jobId、新建时的 docId 与 uploadId，直传落点为隔离区 uploads/tmp/uploadId
+  api->>up: 写 upload 记录，绑定 userId 与 jobId，TTL 1 h
   api-->>web: 按 publicEndpoint 签名的预签名 PUT 与 uploadId
-  web->>s3: 直传原件，10 MB 以上用 S3 分片，不经 Nest 内存
+  web->>s3: 直传到隔离区，10 MB 以上用 S3 分片，不经 Nest 内存
   Note over web,api: 10 MB 以内也可 multipart 直传 Nest，受 REST 限流约束
   web->>api: POST /imports，只带 uploadId
-  api->>up: GETDEL 消费，不存在、已用或非本人则 403
-  api->>s3: HEAD 确认对象存在
-  api->>pg: 单事务写 job_runs，同幂等键命中非 failed 行则直接返回
+  api->>up: 读 upload 记录，不存在、过期或非本人则 403，jobId 已建行则直接返回该行
+  api->>s3: HEAD 隔离区对象，复制到 docs/docId/imports/jobId/source.pptx
+  api->>pg: 单事务写 job_runs，同幂等键命中活动行则返回该行并改写 upload 记录的 jobId
   api->>q: 入队 import，每实例并发默认 4，重试 3 次，指数退避 10 s 起
-  api-->>web: jobId
-  loop 轮询进度
-    web->>api: GET /imports/:jobId
+  api->>s3: 删除隔离区对象，失败由 uploads-tmp-cleanup 兜底
+  api-->>web: 202 jobId 与 docId，重放返回 200 与同一行
+  loop 轮询进度，1 s 起指数增长到 5 s
+    web->>api: GET /jobs/:id
     api->>pg: 读 job_runs 状态与保真报告
   end
   Note over api,q: 提交后、入队前崩溃留下的孤儿行，由 reconciliation 周期作业对账后重新入队
 ```
 
-怎么读：导入分两步（2026-09-25，rulings §4.18 BE-10）：对象键 `docs/{docId}/imports/{jobId}/source.pptx` 与 `jobId`、`docId` 都由服务端预分配，客户端只拿到绑定本人、1 h 有效、用后即焚的 `uploadId`，提交他人的对象键或他人的 `uploadId` 一律 403；通用 `POST /storage/presign` 已删除。大文件直传对象存储、不经 Nest 进程内存，预签名 URL 按 `storage.s3.publicEndpoint` 生成、经反代 `s3.` 子域到达（BE-01）。幂等键更新既有文档为 `import:{docId}:{sha256}`、新建文档为 `import:user:{userId}:{sha256}`，只对非失败行生效：命中 `failed` 行时新建一行并以 `attempt_of` 指向旧行（BE-18）。「先写库再入队」的双写缺口由对账作业兜底（评审 15 §3.5）。
+怎么读：导入分两步（2026-09-25，rulings §4.18 BE-10）：对象键 `docs/{docId}/imports/{jobId}/source.pptx` 与 `jobId`、`docId` 都由服务端预分配，客户端只拿到绑定本人、1 h 有效、用后即焚的 `uploadId`，提交他人的对象键或他人的 `uploadId` 一律 403；通用 `POST /storage/presign` 已删除。大文件直传对象存储、不经 Nest 进程内存，预签名 URL 按 `storage.s3.publicEndpoint` 生成、经反代 `s3.` 子域到达（BE-01）。幂等键更新既有文档为 `import:{docId}:{sha256}`、新建文档为 `import:user:{userId}:{sha256}`，只对非失败行生效：命中 `failed` 行时新建一行并以 `attempt_of` 指向旧行（BE-18）。「先写库再入队」的双写缺口由对账作业兜底（评审 15 §3.5）。2026-09-25 起（60/06 §6.1、§2.3–§2.4，决策 UPLOAD-QUARANTINE、JOB-IDEM、SG-08）：浏览器直传落在隔离区 `uploads/tmp/{uploadId}`，受理时由服务端复制到最终键；`upload:{uploadId}` 不再 `GETDEL`，受理后保留 TTL 并只能兑换出预分配的那一个作业，网络重试的 `POST /imports` 天然幂等；进度一律经 `GET /jobs/:id` 查询，`GET /imports/:jobId` 已删除。M2 起「新建空白 / 从模板新建」也走这条两步导入（rulings §4.19 D-M2-CONTENT）。
 
 依据：30-architecture/08 §2 import-export 目录、§7、§16.4、§16.5；40-modules/12 §1.1、§2.5、§2.6、§4.2；40-modules/08 §4.7；rulings §4.18 BE-01、BE-10、BE-18。
 
@@ -1261,7 +1276,7 @@ sequenceDiagram
   wk->>pg: upsert thumbnails，source=server，contentHash
   web->>api: GET /documents/:id/thumbnails/:slideId
   api->>pg: 读 thumbnails 行
-  api-->>web: 缩略图，ETag 为 contentHash，immutable
+  api-->>web: 缩略图，ETag 为 contentHash，private no-cache 按 ETag 复核
   Note over api,web: 未命中时惰性入队，本地脏页在服务端图到达前用 dom-scaled 兜底
 ```
 
@@ -1457,6 +1472,8 @@ flowchart TB
 
 ## 7. 队列与作业
 
+> 事实源（2026-09-25，rulings §4.19）：[60/06 §1–§5](../60-backend/06-modules-jobs-import-export-thumbnails.md)（队列总表唯一版本、周期作业、幂等键 JOB-IDEM；`document-purge` 为独立队列），冲突以其为准。
+
 BullMQ 跑在 Valkey 上；处理器基类统一恢复 `traceparent`、把错误分为 retryable 与 terminal、超限进死信并告警，`job_runs` 是作业在 Postgres 中的镜像。
 
 **图 7-1 文档类作业：生产者、队列与处理器**
@@ -1507,9 +1524,6 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  rm["RoomManager：本实例负载高时委托"]
-  qComp["compaction 队列，可选，并发 4，幂等 doc"]
-  pComp["compaction.processor，调 server-collab compactor"]
   sched["BullMQ Job Scheduler：只由 worker 启动时注册"]
   qMaint["maintenance 队列，并发 1"]
   pMaint["media GC、exports 清理、updates 裁剪、audit 分区维护"]
@@ -1522,8 +1536,8 @@ flowchart LR
   qJobs["import 等作业队列，见图 7-1"]
   subgraph noBull["不经 BullMQ"]
     sweeper["tombstone-sweeper：定时，LeaseLock 单写者"]
+    compactor["压缩：持有 Room 的 collab 实例内执行，持 lock:compact 租约"]
   end
-  rm --> qComp --> pComp
   sched -- "周期作业" --> qMaint
   qMaint --> pMaint
   qMaint --> recon
@@ -1534,7 +1548,7 @@ flowchart LR
   recon -. "同一规则" .-> qJobs
 ```
 
-怎么读：压缩默认在持有租约的 collab 实例内执行，只有负载高时才委托给 compaction 队列；Webhook 投递与作业入队都是「先写库再入队」，由对账作业兜底孤儿行。周期作业（对账每 1 min、审计封存每日、media GC 等）全部用 BullMQ Job Scheduler 挂在 `maintenance` 队列、只由 worker 启动时注册，全局只跑一份；Webhook 投递队列定名 `webhook-delivery`（并发 4、指数退避、最多 8 次）；`document-purge` 是 `maintenance` 队列上的作业名，由 M-08 `schedule-purge` 入队（2026-09-25，rulings §4.18 BE-15、BE-19，原「调度方式正文未写明」的单独成框删除）。墓碑硬删除仍明确不走 BullMQ（图 6-7）。
+怎么读：压缩只在持有 Room 的 collab 实例内、持租约执行，不设 `compaction` 队列（2026-09-25，60-backend/06 §1、30-architecture/08 §7）；Webhook 投递与作业入队都是「先写库再入队」，由对账作业兜底孤儿行。周期作业（对账每 1 min、审计封存每日、media GC 等）全部用 BullMQ Job Scheduler 挂在 `maintenance` 队列、只由 worker 启动时注册，全局只跑一份；Webhook 投递队列定名 `webhook-delivery`（并发 4、指数退避、最多 8 次）；`document-purge` 是 `maintenance` 队列上的作业名，由 M-08 `schedule-purge` 入队（2026-09-25，rulings §4.18 BE-15、BE-19，原「调度方式正文未写明」的单独成框删除）。墓碑硬删除仍明确不走 BullMQ（图 6-7）。
 
 依据：30-architecture/08 §7；40-modules/08 §2.6；40-modules/12 §2.1、§2.6、§4.1、§4.5、§4.11、§7.1、§12 G-37；40-modules/09 §2.6；评审 15 §3.5；rulings §4.18 BE-15、BE-19。
 
@@ -1589,6 +1603,8 @@ stateDiagram-v2
 依据：40-modules/12 §2.1、§2.5、§2.6、§4.11；30-architecture/08 §5 Webhook 表、§7；rulings §4.13 S-4、§4.18 BE-19。
 
 ## 8. 安全边界
+
+> 事实源（2026-09-25，rulings §4.19）：[60/02](../60-backend/02-auth-chain.md)、[60/08 §4–§6](../60-backend/08-db-conventions-roles-rls-migrations.md)（DB 角色、GRANT、RLS）、[60/14](../60-backend/14-valkey-object-storage-and-retention.md)，冲突以其为准。
 
 章程 D12 要求 fail-closed，检查点在命令管线与服务端网关两处；Q6 与 D3 在此之上补了两道机械防线——代码层扫描器与数据库层 RLS。
 
@@ -1758,6 +1774,10 @@ flowchart TB
 依据：40-modules/12 §2.1、§2.3、§2.5、§2.6、§4.11、§12 G-35；rulings §4.13 S-4、§4.18 BE-19；ADR-0037 决策 3。
 
 ## 9. 未画与待澄清
+
+> 2026-09-25（rulings §4.19）：后端待澄清项统一收入 [60-backend/README §8](../60-backend/README.md)，本节不再增补。
+>
+> 同轮改画：图 5-6 补导入与媒体直传隔离区 `uploads/tmp/{uploadId}`；图 6-9 按 60/06 §6.1 改为「直传隔离区 → 受理时复制 → `upload:{uploadId}` 不 `GETDEL` → 轮询 `GET /jobs/:id`」（决策 UPLOAD-QUARANTINE、JOB-IDEM、SG-08）；§5 `job_runs` 的进度查询端点改为 `GET /api/v1/jobs/:id`。
 
 2026-09-25：原列 8 条已全部由 rulings §4.18 裁定，对应图与「怎么读」已按裁定改画，条目删除；当前无待澄清项。
 

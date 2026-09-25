@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q7 竖排编辑改 E~(P2)、PD-18 结案与 AlternateContent 口径、放映结束态按场景；Q3 撤销语义与软删除墓碑）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q7 竖排编辑改 E~(P2)、PD-18 结案与 AlternateContent 口径、放映结束态按场景；Q3 撤销语义与软删除墓碑）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.18、§4.19
 
 # 功能域 02：编辑
 
@@ -224,7 +224,7 @@ sequenceDiagram
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`history`（UnitScope 内）、`Transaction`、逆操作由 `DocumentStore` 推导（章程 D4）
 - 用户故事：作为编辑者，我希望 Ctrl+Z 精确撤销「我刚做的那一步」，并且连续打字被合并成合理的步骤。
 - 验收标准：
-  - 粒度 = `Transaction`；连续键入（同一文本框、间隔 ≤ 1 s、无光标跳转）合并为一步；格式修改、拖动、粘贴各为一步。
+  - 粒度 = `Transaction`；连续键入（同一文本框、间隔 < 500 ms、无光标跳转）合并为一步（合并窗口即 `history` 的 `coalesceMs`，默认 500 ms，架构 05 §6；原「≤ 1 s」作废）；格式修改、拖动、粘贴各为一步。
   - 历史深度 ≥ 100 步（可配置）；内存占用受 NF-01 约束。
   - 撤销栈随 `Unit` 隔离；切换页不清空栈；撤销时自动跳转到受影响页并选中受影响元素。
   - 撤销/重做 p95 ≤ 50 ms；撤销后再重做，模型哈希与撤销前一致（属性测试：随机 1,000 步命令序列，规避 Univer 缺陷 #3 手写逆操作）。
@@ -236,7 +236,7 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   ev["一次用户动作"]
-  typing["连续键入：同一文本框、间隔 ≤ 1 s、无光标跳转"]
+  typing["连续键入：同一文本框、间隔 < 500 ms、无光标跳转"]
   single["格式修改、拖动、粘贴等其它提交"]
   none["不可撤销操作：导出、保存"]
   opn["Operation：选区、缩放、当前页、放映"]
@@ -331,13 +331,13 @@ flowchart TB
 
 ### ED-18 演讲者备注编辑
 
-- 优先级：P1 | 目标里程碑：M2 | 依赖能力：`Command`、`FormatCodec`（备注部件生成）
+- 优先级：P1 | 目标里程碑：M3（2026-09-25 由 M2 调整：备注编辑依赖的 `slide.setNotes` Mutation 在 `40-modules/03` §2.6 排 M3，M1–M2 备注区只读显示，OF-11） | 依赖能力：`Command`、`FormatCodec`（备注部件生成）
 - 验收标准：备注面板可展开/收起/拖高；纯文本 + 基本格式（粗斜体、项目符号）；无备注页的幻灯片首次输入时按备注母版生成备注部件；导出后 PowerPoint 备注视图一致。
 
 ### ED-19 超链接
 
 - 优先级：P1 | 目标里程碑：M2 | 依赖能力：`Command`、`FormatCodec`（外部关系）
-- 验收标准：为文本选区或形状设置 URL（协议白名单 http/https/mailto/tel）、跳转到本文稿某页（`ppaction://hlinksldjump`）、移除；编辑态 Ctrl/Cmd+点击打开；放映态点击打开；`javascript:`/`data:` 拒绝。
+- 验收标准：为文本选区或形状设置 URL（可写入的协议白名单 http/https/mailto/tel，四种都作为外部关系写入并随导出原样保留）、跳转到本文稿某页（`ppaction://hlinksldjump`）、移除；**应用内激活只允许 http(s)**——编辑态 Ctrl/Cmd+点击、放映态点击只打开 http(s) 与页内跳转，mailto/tel 在应用内不激活（显示目标、可复制）；`javascript:`/`data:` 拒绝写入（rulings §4.15 Q7；ADR-0008 决策 5「Relationship 全部保留、仅 http(s) 可激活」）。
 
 ### ED-20 幻灯片背景
 
@@ -365,7 +365,7 @@ flowchart TB
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`store/transaction` 事件、集成方保存回调（EM-04）、`FormatCodec` 导出
 - 验收标准：
   - 任一 `Transaction` 提交后 `unit/dirty-changed{dirty:true}`；保存成功后 `dirty:false`。
-  - 保存方式：Mod+S / 自动保存（默认间隔 30 s 且仅在 dirty 时，可配置或关闭）/ 集成方主动调用；保存 = 导出 pptx 字节交给集成方回调，或（协同模式）由服务端快照负责（见 CO-01）。
+  - 保存方式：Mod+S / 自动保存（默认间隔 30 s 且仅在 dirty 时，可配置或关闭）/ 集成方主动调用；保存 = 导出 pptx 字节交给集成方回调，或（协同模式）由服务端快照负责（见 CO-01）。参考应用自 M2 起走协同模式：每个更改经协同网关落库（`ack{tier:'db'}`）即视为已保存，不另设 pptx 内容保存端点，「保存态」以同步状态呈现（rulings §4.19 D-M2-CONTENT）；回调式保存用于 SDK 嵌入（EM-02）。
   - dirty 时关闭标签页触发 `beforeunload` 提示（集成方可关闭）；保存失败提示可重试，并保留本地脏状态。
   - 保存过程不阻塞编辑；保存期间的新编辑归入下一次保存。
 

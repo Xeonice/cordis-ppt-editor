@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q3/S-3a、§4.18；PRD 05 §M3/§M4
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：内存队列随协同后端提前到 M2 的基础重连，离线体验仍 M3，见文末修订） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q3/S-3a、§4.18；PRD 05 §M3/§M4
 
 # ADR-0033 离线队列与本地持久化：IndexedDB Provider（独立 dom 包），collab-yjs 保持 iso
 
@@ -98,3 +98,10 @@ flowchart TD
 - **重连 step2**（CO-10）：图 2 的「WS 同步」把离线期间的更改合成一个 `SyncStep2`，它视同一个 update 帧、对应一个 FIFO 条目（发送时 pending 的最大 `localSeq`），收到 db ack 即一次清理被覆盖的 pending、不再逐帧重发；超过单帧 1 MiB 时先用 `mergeUpdates` 按 `localSeq` 切块、逐块以普通 update 帧发送，仍超限则上报遥测并提示导出（规则全文见 ADR-0023 决策 7）。决策 4 的 50 MiB 本地上限因此不会让重连卡在 1 MiB 硬门禁上。
 - **重新登录与队列**（UX-02）：「登录已过期」在新窗口完成重新登录时原页不刷新，M3 内存队列保留；回来的用户 id 与原会话不同时不重放队列、会话只读，队列只可导出（与决策 5「切换账号清空本地库」同一原则：本地未同步更改不得以他人身份提交）。
 - **契约套件名**（GV-20）：见「如何被机械验证」。
+
+## 修订 2026-09-25（rulings §4.19 D-M2-CONTENT；PRD 05 §0.3）
+
+- **内存实现提前到 M2**：协同后端随 M2 交付后，单人编辑也经网关持久化，决策 1 的「同接口的内存实现」随之在 M2 交付——它承担 M2 的**基础重连**：指数退避自动重连、先鉴权再同步、补发未获 db 确认的更改，有未确认更改时离开保护（`beforeunload`）。上文 2026-09-24 修订中的「M3：内存实现」按此前移。
+- **M3 仍是离线体验**（CO-06）：30 s 离线判据与离线横幅、offline 后周期重连、离线积累更改的分块同步、长时间离线提示；M3 验收的「离线重连」指这一层。
+- **M4 不变**：`@cordexjs/collab-offline-idb` 与跨刷新恢复；`OfflineStore` Definition 与契约套件在 M2 即定稿（随 collab-core 交付），M4 只新增 Provider。
+- **多标签页**（决策 OFFLINE-TABS，M4 启用前定稿）：`navigator.locks` 独占锁 `cordex-offline:{userId}:{documentId}`，持锁标签页使用 OfflineStore，其余标签页用内存队列并提示；不支持 Web Locks 时经 BroadcastChannel 协商。

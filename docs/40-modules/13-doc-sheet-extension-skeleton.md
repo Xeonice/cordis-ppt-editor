@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -826,6 +826,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 | BC-18/19/20（`apps/server` 身份/文档/存储模块 + `server-storage`；2026-09-24 起为 7 个 Nest 模块 auth/users/documents/permissions/share-links/storage/media，`tenants` 随 T-0 单组织去租户删除、`groups` 随组管理推迟移出，rulings §4.15 T-0/Q6） | M-08 §8 | 全部（本模块无独立计数，按"全部"标注） | 08 §8 |
 | BC-21/22/27（`server-collab`/`server-headless` + Nest `collab`/`snapshots`） | M-09 §8 | 全部 | 09 §8"本模块全部文件零改动" |
 | BC-23/24/25/26（Nest `jobs`/`import-export`/`thumbnails`/`comments`/`audit`/`health`/`metrics`/`internal`） | M-12 §8 | 全部，除两个 processor 与 `RenderRoute`/`Anchor` 三个**参数化点**文件 | 12 §8（导入/导出任务名、渲染页路由、评论锚点三处透传） |
+| BC-25 客户端（`@cordexjs/comments`，L4 iso、文档类型盲；2026-09-25 登记，rulings §4.19 D-COMMENTS-PKG） | M-12 行登记（包文档待定，00 §10 Q-M8） | 全部（`comments.threads` 资源、`comments.*` 命令、`comment/*` 事件与锚点解析器抽象均不含 slide 概念） | doc / sheet 只在各自 `*-ui` 贡献锚点解析器（与 slide-ui `infrastructure/comments/slide-anchor-resolver.ts` 同构），不改本包 |
 | BC-28（`tooling/**`） | M-01 §8 | 全部（治理规则对 bundle 值做相等性比较，非枚举） | 01 §8 |
 
 **总口径**：`horizontal-freeze.lock` 覆盖的包 = 上表全部 BC 对应的物理包；M5 的 `model-doc`/`model-sheet`（及未来 `ooxml-docx`/`ooxml-xlsx`/`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`）PR 要求该锁文件相对 M4 基线**无 diff**。唯一允许的例外是 §2.1/§2.2 已标注 ⚠ 的参数化点文件（M-02 的 `snapshot/codec.ts`/`snapshot.ts` 的 `$ref` 分支——该分支 M1 起已存在，M5 只是**使用**它，不修改它，因此仍属"无 diff"）。
@@ -836,7 +837,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 |---|---|---|---|
 | 静态层 | 水平层零横向依赖；水平层无文档类型字面量 | depcruise `doc-type-blind`（R3）/`cordex-bundle-isolation`（R4）；lint `no-doc-type-literals` | 十包不 import 任何 slide 束包（铁律 2）；depcruise 报告零横向依赖（12 §5） |
 | 夹具层 | 水平层可被非 slide 类型驱动 | `model-core/testing/fixtures/{fixture,fixture-grid}/**`（M-02 已交付） | 本模块只读引用，不修改；证明水平层设计时已考虑 doc/sheet 形状 |
-| 运行时层 | 同时打开 `fixture`/`fixture-grid` 互不干扰；移除类型后返回未知类型错误，host 仍健康 | `preset-blind.test.ts`（M-02） | 本模块的 `preset-doc`/`preset-sheet` 装配矩阵测试（`__tests__/exclude-matrix.test.ts`）是同一模式在真实垂直束上的复现 |
+| 运行时层 | 同时打开 `fixture`/`fixture-grid` 互不干扰；移除类型后返回未知类型错误，host 仍健康 | `test/preset-blind/preset-blind.test.ts`（M-02） | 本模块的 `preset-doc`/`preset-sheet` 装配矩阵测试（`__tests__/exclude-matrix.test.ts`）是同一模式在真实垂直束上的复现 |
 | 冻结层 | §8.2 全表无 diff | `tooling/scripts/scan-horizontal-freeze.ts`（**M5 新增建议**，01 §8/§12 D-4；当前不计入 14 个现有扫描器，纳入后为第 15 个（需追加 06 §19）——第 14 个已由 `doc-access-via-permission` 占用，rulings §4.17 D3、§4.18 GV-11；M5 前以 `scanners` job 的步骤运行，GV-14）；冻结范围为「无 `bundle` 且非组合根的包」（FE-01） | M-13/M5 PR 门禁 |
 
 **图 8-1 运行时层验收时序**
@@ -878,9 +879,9 @@ pnpm tsx tooling/scripts/scan-horizontal-freeze.ts --check                     #
 # 骨架验收（12 §5 逐项）
 pnpm --filter @cordexjs/model-doc test -- --grep "DocumentType 'doc'"               # 注册 + 3 Mutation + 2 Command
 pnpm --filter @cordexjs/model-sheet test -- --grep "DocumentType 'sheet'"           # 注册 + 稀疏 cells + row.insert
-pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"         # SceneProvider 渲染出段落行（FixedMetricsMeasurer）
+pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"         # SceneProvider 渲染出段落行（FixedWidthMeasurer）
 pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"          # Scene 网格窗口
-pnpm exec vitest run test/preset-coexist.test.ts                               # 同页 slide+doc+sheet 三个 Unit 互不影响
+pnpm exec vitest run test/preset-blind/preset-coexist.test.ts                             # 同页 slide+doc+sheet 三个 Unit 互不影响
 ```
 
 ## 9. 测试布局
@@ -893,7 +894,7 @@ pnpm exec vitest run test/preset-coexist.test.ts                               #
 flowchart LR
     staticLayer["静态层"] -- "位于" --> staticFiles["tooling/depcruise/rules/doc-type-blind.ts 与 cordex-bundle-isolation.ts；tooling/eslint-config/eslint-plugin-cordex/rules/no-doc-type-literals.ts；M-01 现存，只读"]
     fixtureLayer["夹具层"] -- "位于" --> fixtureFiles["packages/model-core/src/testing/fixtures 下 fixture 与 fixture-grid 两套目录；M-02 现存，只读，每套 8 文件，共两套"]
-    runtimeLayer["运行时层"] -- "位于" --> runtimeFiles["test/preset-blind.test.ts，仓库根级；M-02 现存，只读"]
+    runtimeLayer["运行时层"] -- "位于" --> runtimeFiles["test/preset-blind 目录：preset-blind.test.ts 为 M-02 现存只读；preset-coexist.test.ts 为本模块 M5 新增"]
     freezeLayer["冻结层"] -- "位于" --> freezeFiles["tooling/scripts/scan-horizontal-freeze.ts，M5 新增建议，对应 01 §8 与 §12 D-4；本模块 M5 落地时首次运行生成基线；产物为 fixtures/horizontal-freeze.lock"]
 ```
 
@@ -906,7 +907,7 @@ flowchart LR
 | lifecycle | 插件生命周期（八个 plugin 角色包各一份，强制项） | 各包 `__tests__/lifecycle.test.ts` | `pnpm --filter @cordexjs/model-doc test src/__tests__/lifecycle.test.ts` |
 | 契约 | `DocumentStore`/`FormatCodec` 一致性套件在 doc/sheet body 上重跑（M-02/M-04 已提供套件工厂，本模块只提供入参） | `model-doc/testing/index.ts` 的 `runDocModelConformance`；`ooxml-docx/testing/index.ts` 的 `roundTrip` | `pnpm --filter @cordexjs/model-doc test -- --grep conformance` |
 | 装配矩阵 | 「移除任一 Provider 仍可启动」（章程 §5.4 模式） | `preset-doc/__tests__/exclude-matrix.test.ts`、`preset-sheet/__tests__/exclude-matrix.test.ts` | `pnpm --filter @cordexjs/preset-doc test` |
-| 共存 | 同一 host 同时打开 slide+doc+sheet 三个 Unit 互不影响（12 §5 总验收项） | 仓库根 `test/preset-coexist.test.ts`（新增建议，位置类比 `test/collab-sim/`，05 §9） | `pnpm exec vitest run test/preset-coexist.test.ts` |
+| 共存 | 同一 host 同时打开 slide+doc+sheet 三个 Unit 互不影响（12 §5 总验收项） | 仓库根 `test/preset-blind/preset-coexist.test.ts`（与 `preset-blind.test.ts` 同目录，CI 步骤 `test/preset-blind`；2026-09-25 由根级散文件移入，决策 T-NAMING，70/01 §5、70/02 §11） | `pnpm exec vitest run test/preset-blind/preset-coexist.test.ts` |
 
 覆盖率与性能预算引用架构 `11-testing-strategy.md`（本文档不逐条核对，仅按其编号引用，同 03/04/07 §9 惯例）；sheet 10 万 `cells` 打开性能预算见 §11 M5 验收命令。
 
@@ -947,7 +948,7 @@ pnpm --filter @cordexjs/ooxml-docx test -- --grep "opens minimal docx"
 pnpm --filter @cordexjs/ooxml-xlsx test -- --grep "opens minimal xlsx"
 ```
 
-**第 3 步：render/ui（`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`）**：按 §4.5–4.8 建立骨架，`SceneProvider` 用 `FixedMetricsMeasurer`（对齐 06 §9.1 fixture 惯例，避免真实字体度量引入不确定性）。验收：
+**第 3 步：render/ui（`doc-render`/`sheet-render`/`doc-ui`/`sheet-ui`）**：按 §4.5–4.8 建立骨架，`SceneProvider` 用 `FixedWidthMeasurer`（对齐 06 §9.1 fixture 惯例，避免真实字体度量引入不确定性）。验收：
 ```bash
 pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"
 pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"
@@ -961,7 +962,7 @@ pnpm depcruise packages/model-doc packages/model-sheet packages/ooxml-docx packa
   packages/doc-render packages/sheet-render packages/doc-ui packages/sheet-ui \
   packages/preset-doc packages/preset-sheet                              # 报告零横向依赖
 pnpm tsx tooling/scripts/scan-horizontal-freeze.ts --check               # 锁文件无 diff
-pnpm exec vitest run test/preset-coexist.test.ts                         # 同页 slide+doc+sheet 三 Unit 互不影响
+pnpm exec vitest run test/preset-blind/preset-coexist.test.ts                       # 同页 slide+doc+sheet 三 Unit 互不影响
 # 性能：sheet 10 万 cells 打开 < PRD 04 性能预算；若不达标触发 §2.2 rename-keys ADR 评估（12 §5 最后一行）
 ```
 
@@ -1011,6 +1012,16 @@ pnpm exec vitest run test/preset-coexist.test.ts                         # 同�
 | GV-11 | `horizontal-freeze` 路径改 `tooling/scripts/`，纳入后为第 15 个扫描器（06 §19） | §8.3 |
 | GV-15 | `provider-runs-conformance` → `scan-manifest` 规则 (e) | §10 |
 
+### 2026-09-25 回写（rulings §4.19）
+
+> 按 `00-charter/rulings-2026-09-14.md` §4.19 与 70 测试线回写；与旧正文冲突处以 §4.19 为准。
+
+| 编号 | 裁定摘要 | 本文件落地位置 |
+|---|---|---|
+| T-NAMING（70/01 §5） | 根级散文件 `test/preset-blind.test.ts`、`test/preset-coexist.test.ts` 移入 `test/preset-blind/{preset-blind,preset-coexist}.test.ts`，由 `test` job 的 `test/preset-blind` 步骤收集（70/02 §11） | §8.3 运行时层行、§8.5 命令、§9 图与共存行、§11 第 4 步验收命令 |
+| D-COMMENTS-PKG | 评论客户端为文档类型盲的 L4 iso 包 `@cordexjs/comments`，doc / sheet 只贡献锚点解析器 | §8.2 新增 BC-25 客户端行；§13 Q5 部分结案 |
+| D-M2-CONTENT | 服务端内容只存协同快照，打开走快照 + WS；本模块 M5 骨架的服务端复用路径不受影响（`snapshot/codec.ts` 的 `$ref` 分支仍是唯一参数化点） | 无正文改动（§8.2 总口径不变） |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
@@ -1019,6 +1030,6 @@ pnpm exec vitest run test/preset-coexist.test.ts                         # 同�
 | Q2 | ~~"移除全部 `DocumentType` 后打开"错误码的唯一权威拼写~~（§12 G-1）**（结案，2026-09-18）** | `format.no_document_type`（与 charter/PRD 点式错误码风格一致）。**结案依据**：跨模块评审 C-16 确认本行推荐默认值为全仓唯一权威拼写 | M-02 `model-core` 实际抛出点；ADR-0016、module-map §6.5、本文档 §8.4/§11 的验收命令 |
 | Q3 | sheet 巨大 `cells` 表分片的具体调用接口（`shardBody` 由 `codec.ts` 调用还是 `store.toSnapshotBody()` 调用）——03 §12 G-5 已提出，本文档标记为 `model-sheet` 骨架开工前的**阻塞项** | 由 `store.toSnapshotBody()` 统一调用（与文档类型无关，避免每个垂直束 codec 各自实现分片判定逻辑） | §4.2 `infrastructure/sharding.ts` 签名；M-02 `snapshot/codec.ts` |
 | Q4 | `sheet.row.insert` 的批量键重写性能若 M5 实测不达标，是否需要新增 `rename-keys` `StoreOp` 原语（12 §3.2 已预告"唯一可能的水平层契约扩展，需 ADR"） | 先不新增；M5 先实测 Provider 内部批量优化（单次 `Y.transact`/单次 produce）是否足够，不达标再启动 ADR 评估 | M-02 `StoreOp` 五原语；`model-sheet` `application/mutations.ts` |
-| Q5 | BC-24（缩略图）/BC-25（评论）的 `parametrized` 分类是否需要 12 号文档作者正式确认（module-map §10 Q-M4 的延续，本模块 §7/§8.2 的参数化点表直接依赖该分类成立） | 待确认；本文档暂按 module-map §6.1 既有判断执行 | 12 号文档未来修订范围；本文档 §7 参数化点表、§8.2 冻结范围归类 |
+| Q5 | BC-24（缩略图）/BC-25（评论）的 `parametrized` 分类是否需要 12 号文档作者正式确认（module-map §10 Q-M4 的延续，本模块 §7/§8.2 的参数化点表直接依赖该分类成立） | **BC-25 客户端侧已定（2026-09-25，rulings §4.19 D-COMMENTS-PKG）**：评论客户端为文档类型盲的 `@cordexjs/comments`，锚点差异由各类型 `*-ui` 贡献的解析器承担，属 generic、整包冻结（§8.2 新增行）；服务端 `Anchor` 透传参数化点与 BC-24 分类仍按 module-map §6.1 既有判断执行，待 12 号文档作者确认 | 12 号文档未来修订范围；本文档 §7 参数化点表、§8.2 冻结范围归类 |
 | Q6 | 本文档 §2 为 doc/sheet 新增建议的 `doc/*`/`sheet/*` 六个事件（`doc/block-added` 等）是否需要总编排正式采纳进 charter §5.5 权威事件表（类比 03 §12 G-6 slide 新增事件的同一流程） | 采纳（命名遵循既有 `<域>/<动作>` 约定，无冲突） | charter §5.5 事件总表；§2.1/2.2、§3、§5 的事件行；若不采纳，删除对应 `events.ts` 常量不影响模型字段 |
 | Q7 | ~~`domain/ids/ooxml-id-map.ts` 提升为 `ooxml-core` generic 文件的 ADR（§12 G-4）若未在 M5 启动前完成，`ooxml-docx`/`ooxml-xlsx` 是否临时各自复制一份~~ **（结案，2026-09-18）** | 是，临时复制，待提升后收编（避免相互阻塞，同 03 §8 对 slide 专属文件的处理先例）。**结案依据**：跨模块评审 C-18 采纳本行推荐默认值为定案（不再是条件从句，直接执行），§4.3/§4.4/§5 已落地 | §4.3/4.4；`ooxml-core`/`ooxml-pptx` 后续修订 |

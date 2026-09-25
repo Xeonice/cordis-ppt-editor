@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：Q3 Yjs 13.6.x 精确锁版本、撤销语义统一（§2.2、§8 #2/#3/#10/#11）、软删除墓碑 + TTL；S-3a 两级 ack（§6.3/§6.4）；Q5 房间按文档实测权重准入、内存按实测（§9.1、§14）；T-0 去租户（§12、§18.6）；Q10 Valkey；Q9 Node 26）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素（§2.2、§8 #10）；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}`、单独统计；M1 ack 帧形状以 M-02 为准；M3 撤销契约用例名照抄 M-02 §2.5；M20 P1/P2 标注 Q16/Q17 已裁决、local-batcher 注释补 tier；M21 删「≥ 200 活跃房间」）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：UX-03 离线判据改按时间 30 s（`offlineAfterMs`）、CO-03 offline 后 30 s 周期重连（§4.3、§5.1、§12）；UX-02 令牌刷新按原因分流、401 直接进「登录已过期」（§18.3）；CO-08 PG 故障降级期照常广播（§6.4）；CO-09 ack 在途 FIFO 对应、CO-10 step2 视同一帧与超限拆块（§6.3、§6.4、§9.3、§12）；CO-14 空闲房间 LRU 提前回收、CO-16 PG 不可达收尾与遗留溢写回放（§5.2、§6.4、§14）；BE-29 实例内存预算定义（§14）；BE-02 票据 `lnk` 与链接角色重算、BE-23 权限 REST 动词、BE-11 `/api/v1` 前缀（§5.3、§10）；CO-07 术语「彻底删除元素 / 永久删除文档」（§8、§18.1）；CO-20 P8 已裁决（§11、§15、§18.5）；GV-20 契约套件名（§3.2、§4.2）；CO-15 回放期 Room 保持 active、BE-15 purging 拒绝加入（§5.2）；CO-12 协同模式不走 Worker 分批打开（§9.1）；GV-15 `index` 字段检查改指 lint `cordex/no-index-in-mutation`（§1、§17）） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：Q3 Yjs 13.6.x 精确锁版本、撤销语义统一（§2.2、§8 #2/#3/#10/#11）、软删除墓碑 + TTL；S-3a 两级 ack（§6.3/§6.4）；Q5 房间按文档实测权重准入、内存按实测（§9.1、§14）；T-0 去租户（§12、§18.6）；Q10 Valkey；Q9 Node 26）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素（§2.2、§8 #10）；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}`、单独统计；M1 ack 帧形状以 M-02 为准；M3 撤销契约用例名照抄 M-02 §2.5；M20 P1/P2 标注 Q16/Q17 已裁决、local-batcher 注释补 tier；M21 删「≥ 200 活跃房间」）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：UX-03 离线判据改按时间 30 s（`offlineAfterMs`）、CO-03 offline 后 30 s 周期重连（§4.3、§5.1、§12）；UX-02 令牌刷新按原因分流、401 直接进「登录已过期」（§18.3）；CO-08 PG 故障降级期照常广播（§6.4）；CO-09 ack 在途 FIFO 对应、CO-10 step2 视同一帧与超限拆块（§6.3、§6.4、§9.3、§12）；CO-14 空闲房间 LRU 提前回收、CO-16 PG 不可达收尾与遗留溢写回放（§5.2、§6.4、§14）；BE-29 实例内存预算定义（§14）；BE-02 票据 `lnk` 与链接角色重算、BE-23 权限 REST 动词、BE-11 `/api/v1` 前缀（§5.3、§10）；CO-07 术语「彻底删除元素 / 永久删除文档」（§8、§18.1）；CO-20 P8 已裁决（§11、§15、§18.5）；GV-20 契约套件名（§3.2、§4.2）；CO-15 回放期 Room 保持 active、BE-15 purging 拒绝加入（§5.2）；CO-12 协同模式不走 Worker 分批打开（§9.1）；GV-15 `index` 字段检查改指 lint `cordex/no-index-in-mutation`（§1、§17））；2026-09-25（§4.19：D-M2-CONTENT 网关 / Room / 持久化 / 快照随协同后端提前到 M2、M3 保留多人体验层（§0.1）；INC-02~07 CONTROL 成员与判别键 `type`、`auth.epoch` / `maxSchemaVersion`、`auth.ok.reason` 拆 `capacity` / `over_ceiling`、`room.locked`、`event version.restored`、关闭码 1011 / 4427 / 4428（§6.3、§6.5）；INC-09 `room.persist` 与「未保存到服务器」判据（§6.4）；INC-27 `auth.refresh{ticket}` 只重新绑定（§18.3）；SYNC 写入门槛 ≥ commenter + L4 路径限制（§10、§11，D-COMMENTS-PKG）；§8 #1 prop-lww 提示；INC-21 媒体端点（§9.1）；C-06 快照保留（§15 P2）；§5.1 状态机迁 50/07；§4.2 删 `createCollabCluster` / `NetworkModel`（T-NAMING）；各节加 50 / 60 线落点链接）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：锁定窗口收窄为覆盖导入与迁移、覆盖导入换纪元、版本恢复不锁（§6.3、§6.5、§9.4、§15 P5、§18.4）） | 依赖：charter v0.1
 
 # 06 协同（Collaboration）：CRDT 映射、同步协议、房间与会话、presence、离线、权限即时性、冲突语义
 
@@ -78,7 +78,7 @@ flowchart TB
 ```
 
 怎么读：实线是各包 `package.json` 声明的依赖，虚线是 Provider 对 Definition 的实现关系与 S1/S2 的单点引入约定。`yjs` 只被 store-yjs、collab-yjs、server-collab 三处引入；collab-core 与 collab-transport-ws 都不碰 yjs，因此可被其他 CRDT Provider 复用。
-依据：本文 §2.4、§3.2、§4.2、§4.3、§16 S1/S2、§18.6；08 §3.1。
+依据：本文 §2.4、§3.2、§4.2、§4.3、§16 S1/S2、§18.6；08 §3；60-backend/05 §2。
 
 十条不变量（后文逐条给出机械验证）：
 
@@ -95,13 +95,25 @@ flowchart TB
 | I9 | 离线期间的修改在恢复后**要么被合并要么被明确告知拒绝**，不静默丢失 | e2e：离线编辑 → 降权 → 重连 → 提示导出 |
 | I10 | 房间关闭前所有 `ack{tier:'db'}` 确认的 update 已落库（at-least-once 持久化；`tier:'spill'` 不算落库，客户端保留 pending，S-3a） | 单测：kill 进程前的 `ack` 语义；集成：重启后状态相同；spill-and-replay 测试断言回放后无 `pendingStructs` |
 
+### 0.1 里程碑边界（rulings §4.19 D-M2-CONTENT）
+
+协同后端随 M2 交付：M2 起参考应用新建、导入、打开的文档内容**只以协同快照为事实源**，单人编辑也经网关持久化；不设过渡的 pptx 内容版本端点。M3 只保留多人协同体验层。逐项边界的权威是 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md)（冲突时以它为准），下表只给本文各节的落点。
+
+| 里程碑 | 本文范围 | 留给后续里程碑 |
+|---|---|---|
+| M1 | 无协同链路：查看器打开本地字节（01 §4.1） | — |
+| M2 | 单实例协同后端：CollabGateway 与票据握手（§6.3）、Room 生命周期与按权重准入（§5.2、§14）、硬门禁 L1–L3 与软门禁 L4（§11）、update 落库后回 `ack{seq, tier:'db'}`（§6.4）、PG 故障两级溢写、`ack{tier:'spill'}`、降级期广播与回放及 `room.persist` 信号（§6.4）、awareness 服务端中继（§7）、墓碑 TTL 清扫、保留期稀疏化（C-06）与换纪元（§9.4）、压缩生成 auto 快照与「最新快照 + 尾巴 update」bootstrap（§9.1、ADR-0025）、服务端导入产出 `import` 快照（08 §7）；客户端 store-yjs + collab-yjs + collab-transport-ws 经 `preset-slide-collab`（不含 `comments`）装配、基础重连（退避、先鉴权再同步、补发未获 db 确认的更改）、发起方「未保存到服务器 N 项」横幅与其余会话状态胶囊弱提示（§6.4） | 见下行 |
+| M3 | 多人协同体验层：多实例扇出、容量与名额按用户计（§14、ADR-0035）、跨实例溢写认领；在场的多人呈现（§7）；评论（`@cordexjs/comments`，ADR-0031）；按人分享、分享链接、降权与被拒回滚（§10、§18.4）；离线体验（offline 判据与横幅、周期重连、分块同步，§12）；软冲突与撤销跳过提示（§8）；彻底删除元素；版本历史（命名、列表、恢复）；服务端缩略图（ADR-0026）与服务端导出 / PDF | 跨刷新离线持久化 `collab-offline-idb`（M4 P2，PD-05） |
+
+依据：rulings §4.19 D-M2-CONTENT（覆盖决策 INC-37 中「WS 网关、快照 REST、服务端导入归 M3」一句；40-modules/09 所称「M2 切片」即 M2 交付）、INC-09、C-06、D-TEST-INFRA（协同与服务端压测所需的自托管专用 runner 在 M2 前落地）；PRD 05 §0.3。
+
 ---
 
 ## 1. model-slide 在 Y.Doc 中的结构
 
 ### 1.1 设计原则
 
-1. **Store 对文档类型盲**：store-yjs 不认识「幻灯片」，只认识 6 种**值形状**（§1.2；作用于其上的操作是 04 §2.3 的 5 种 `StoreOp`）。model-slide 用这 6 种值形状声明自己的树形 schema（在架构 04 的 `DocumentType` 声明中），store-yjs 与 store-memory 都实现同一原语集，从而满足 M3 验收「store-yjs 替换 store-memory 仅改 preset 配置」。
+1. **Store 对文档类型盲**：store-yjs 不认识「幻灯片」，只认识 6 种**值形状**（§1.2；作用于其上的操作是 04 §2.3 的 5 种 `StoreOp`）。model-slide 用这 6 种值形状声明自己的树形 schema（在架构 04 的 `DocumentType` 声明中），store-yjs 与 store-memory 都实现同一原语集，从而满足章程 §7 的可插拔证据「store-yjs 替换 store-memory 仅改 preset 配置」（CI 检查 `pluggable:m3`，M3 出口判定，PRD 05 图 0-3；M2 起参考应用已用 `preset-slide-collab`，Manifest 比对随之提前运行，见 70-testing/02）。
 2. **实体表 + 引用**，不用嵌套数组：所有有身份的东西（slide/layout/master/theme/shape/media）都是 `EntityTable` 中以 id 为键的 `Record`；顺序用 `order` 类型的 fractional key 属性表达（ADR-0032）。
 3. **属性粒度 = 用户可独立编辑的最小单位**：任何能被两个用户同时独立修改的属性必须是独立的 Y.Map 键（例如 `xfrm.off.x` 与 `xfrm.ext.cx` 分开），使并发的「移动」与「缩放」都能存活。
 4. **富文本用 `Y.XmlFragment`**，段落是元素、文本是带属性的 `Y.XmlText`（§1.4）。
@@ -139,7 +151,7 @@ Y.Doc (guid = unitId)                                 说明
 ├── slides:   Y.Map<SlideId,  Y.Map>                  见 1.3.1
 ├── notes?:   Y.Map<NotesId,  Y.Map>                  备注页（M1 保留，M3 可编辑文本）
 ├── media:    Y.Map<MediaId,  Y.Map>                  { ref: BlobRef, originalPartName }；MediaId = sha256 前 16 hex
-└── resources: Y.Map<string, Y.Map>                   ResourceHook 数据；键为 `${pluginId}.${string}`（见架构 04）
+└── resources: Y.Map<string, Y.Map>                   ResourceHook 数据；键为 `${pluginId}.${string}`（见架构 04 §2.7），如评论 `comments.threads`（内含 threads / replies 两张实体表）
 ```
 
 **Y.Doc 实体引用关系**
@@ -385,7 +397,7 @@ interface SyncEngine {
 interface OfflineStore { load(unitId): Promise<Uint8Array | null>; append(unitId, update): Promise<void>; compact(unitId, state): Promise<void>; clear(unitId): Promise<void> }
 ```
 
-事件（在 `collab.contribution.ts` 中 `declare module '@cordexjs/kernel'`）：`collab/session-state(unitId, prev, next)`（定稿名 `collab/state-changed`，10 §11）、`collab/synced(unitId)`、`collab/rejected(unitId, code, count)`（定稿名 `collab/update-rejected`）、`collab/backpressure(unitId, queued)`、`presence/changed(unitId, clientId | null)`。权限变更事件 `permission/changed` **不由 collab 发出**：由 `permissions` 服务在 `applyRemoteDecisions` 之后唯一发出（§18.3；原草稿 `collab/permission-changed` 弃用）。
+事件（在 `collab.contribution.ts` 中 `declare module '@cordexjs/kernel'`）：`collab/session-state(unitId, prev, next)`（定稿名 `collab/state-changed`，10 §11）、`collab/synced(unitId)`、`collab/rejected(unitId, code, count)`（定稿名 `collab/update-rejected`）、`collab/backpressure(unitId, queued)`（已降为客户端指标，不作 cordis 事件，10 §11.1）、`presence/changed(unitId, clientId | null)`。权限变更事件 `permission/changed` **不由 collab 发出**：由 `permissions` 服务在 `applyRemoteDecisions` 之后唯一发出（§18.3；原草稿 `collab/permission-changed` 弃用）。
 
 ### 3.2 目录结构（`packages/collab-core/`）
 
@@ -431,7 +443,7 @@ flowchart TB
       syncEngine["YjsSyncEngine：y-protocols/sync 的 readSyncMessage、writeSyncStep1、writeUpdate，applyUpdate 时 origin=RemoteOrigin"]
       awarenessAdapter["AwarenessAdapter：y-protocols/awareness 的 Awareness doc，本地状态节流，远端状态 zod 清洗后进 presence"]
       localBatcher["LocalBatcher：yjsBackend.onUpdate → 50 ms 内 Y.mergeUpdates → 一帧发送，离线时写 OfflineStore"]
-      permissionGate["PermissionGate：role 低于 editor 时本地拦截 outbound update 并触发 collab/rejected，接收 CONTROL.permission 帧更新 permissions"]
+      permissionGate["PermissionGate：role 为 viewer 或 none 时本地拦截 outbound update 并触发 collab/rejected，commenter 只放行评论写入，接收 CONTROL.permission 帧更新 permissions"]
       sessionDriver["SessionDriver：执行 session-fsm 的 effects，即 connect、send、schedule、backoff、notify"]
     end
     transportWs["collab-transport-ws：provide collabTransport，根作用域也可"]
@@ -452,7 +464,9 @@ packages/collab-yjs/
 │   ├── plugin.ts                     name='collab-yjs'；inject 如上；provide=['collab'（根）,'presence'（Unit）]；apply 里全部资源走 ctx.effect
 │   ├── manifest.ts
 │   ├── config.ts                     zod：{ flushMs: 50, awareness: { cursorHz: 20, stateHz: 2, timeoutMs: 30000 }, maxUpdateBytes: 1 MiB,
-│   │                                       outboundHighWater: 200, offline: { enabled: true, maxBytes: 50 MiB } }
+│   │                                       outboundHighWater: 200, unsavedWarnAfterMs: 15000, offline: { enabled: true, maxBytes: 50 MiB } }
+│   │                                     maxUpdateBytes 只作收到 auth.ok.limits 之前的兜底（INC-07）；unsavedWarnAfterMs 为
+│   │                                     「未保存到服务器」判据之一（最老在途项等待时长，rulings §4.19 INC-09，§6.4）
 │   ├── services/
 │   │   ├── yjs-collab.service.ts     CollabService Provider：Session 创建、SessionDriver、与 transport/offline 协调、stats
 │   │   └── yjs-presence.service.ts   PresenceService Provider：基于 AwarenessAdapter；RelativePosition 光标编码；节流
@@ -477,7 +491,9 @@ packages/collab-yjs/
 │       ├── offline-queue.test.ts     离线积累 → 重连合并；拒绝路径保留可导出
 │       └── lifecycle.test.ts         多 Unit 并存；卸载无 effect；Provider 替换（memory transport ↔ ws）
 └── testing/
-    └── index.ts                      `@cordexjs/collab-yjs/testing`：createCollabCluster(n, networkModel)（n 个客户端 + 内存服务端）、NetworkModel
+    └── index.ts                      `@cordexjs/collab-yjs/testing`：只放不跨包的替身；多客户端 + 内存服务端的集群与网络模型
+                                      （原 createCollabCluster / NetworkModel）移到仓库根 `test/collab-sim/`（跨包全链路套件，决策 T-NAMING；
+                                      40-modules/05 §4 同步）
 ```
 
 ### 4.3 目录结构（`packages/collab-transport-ws/`）
@@ -495,7 +511,8 @@ packages/collab-transport-ws/
 │   │                                     离线判据按时间（rulings §4.18 UX-03）：自进入重连起累计 offlineAfterMs 仍未连上即 offline，
 │   │                                     不再按重试次数；offline 后每 offlineRetryMs（±20% 抖动）周期重连一次（CO-03）
 │   ├── ws-transport.service.ts       CollabTransport Provider：connect → 握手（handshake.ts）→ Connection；binaryType='arraybuffer'
-│   ├── handshake.ts                  发送 CONTROL.auth{ticket, protocolVersion, clientId, capabilities} → 等待 auth.ok / auth.denied（5 s 超时）
+│   ├── handshake.ts                  发送 CONTROL.auth{ticket, protocolVersion, clientId, capabilities, appVersion, epoch?, maxSchemaVersion}
+│   │                                 → 等待 auth.ok / auth.denied（5 s 超时）；字段见 §6.3
 │   ├── heartbeat.ts                  应用层 ping/pong（CONTROL.ping）用于浏览器不可见的 WS ping；2 次未响应即判死
 │   ├── reconnect.ts                  使用 collab-core/backoff；离线计时（offlineAfterMs，令牌刷新的网络失败共用同一计时）与
 │   │                                 offline 周期重连（navigator.onLine=false 期间暂停）；online/offline 事件钩子（可注入，iso 安全）
@@ -509,40 +526,11 @@ packages/collab-transport-ws/
 
 ### 5.1 客户端 Session 状态机（collab-core `session-fsm.ts`，Provider 执行 effects）
 
-**客户端 Session 状态机**
+客户端 Session 内部状态机（11 态）、对外 `SyncState` 投影与 UI 六态的对照，唯一源是 [50-frontend/07 §3](../50-frontend/07-collaboration-client.md)（2026-09-25 自本节迁出，rulings §4.19 三线拆分）；本节只保留跨端约束：
 
-```mermaid
-stateDiagram-v2
-  [*] --> idle
-  idle --> connecting: join 调用
-  connecting --> authenticating: transport open
-  connecting --> backoff: connect error 或 timeout
-  authenticating --> syncing: CONTROL.auth.ok，携带 role、docState
-  authenticating --> denied: CONTROL.auth.denied，携带 code
-  authenticating --> backoff: auth timeout，5 s
-  syncing --> live: SyncStep2 applied 且 pending 为 0
-  syncing --> backoff: transport closed
-  live --> live: update、awareness、ack
-  live --> readonly: CONTROL.permission，role 低于 editor
-  readonly --> live: CONTROL.permission，role 不低于 editor
-  live --> backoff: transport closed，1001、1006、1012、4503；或令牌刷新网络错误
-  live --> denied: 令牌刷新 401，登录已过期
-  readonly --> backoff: transport closed
-  backoff --> connecting: timer fired
-  backoff --> offline: 进入重连起累计 30 s 未连上，或 navigator.onLine=false
-  offline --> connecting: online 事件、reconnectNow 调用，或 30 s 周期重连（onLine=false 时暂停）
-  live --> quarantined: close 4409，schema repair threshold
-  denied --> connecting: permission granted later，或重新登录后换新票据
-  live --> closed: leave 调用或 unit closed
-  offline --> closed: leave 调用
-  quarantined --> closed: leave 调用
-```
-
-怎么读：箭头是状态转换，冒号后是触发条件；`live --> live` 是停留在 live 时处理的帧。对外只暴露投影后的 `SyncState`（§18.3），本图是内部 FSM。进入 offline 的判据按时间（rulings §4.18 UX-03：累计 30 s，`navigator.onLine=false` 立即），offline 的三条出口见 CO-03 默认值；令牌刷新失败按原因分流（UX-02：网络错误走 backoff 并共用同一 30 s 计时，401 直接进 denied，对外投影为「登录已过期」）。
-
-- **本地编辑在任何非 `closed` 状态下都允许**（含 `offline`/`backoff`），前提是 `role ≥ editor`；`readonly`/`denied` 下 `permissions` 快照使 commands 管线拒绝 Mutation（D12 客户端检查点）。
-- `syncing` 期间用户已可编辑（先应用 HTTP bootstrap 快照，见 §9.1），本地 update 进入 pending 队列，`live` 后冲刷。
-- 每次状态变化：`ctx.emit('collab/session-state', …)` + telemetry 计数 `cordex_collab_session_transitions_total{from,to}`。
+- 状态机是纯 reducer（`reduce(state, event) → { next, effects[] }`，零 IO），effects 由 collab-yjs 的 SessionDriver 执行；每次迁移 emit `collab/state-changed`（原草稿名 `collab/session-state`，10 §11）并计数 `cordex_collab_session_transitions_total{from,to}`。
+- 本地编辑在一切非 `closed` 态都允许（含 `offline` / `backoff`），前提是权限快照含写能力位；`readonly` / `denied` 下命令管线按 `permissions` 拒绝（D12 客户端检查点），commenter 在 `readonly` 下仍可执行评论命令。`syncing` 期间已可渲染与编辑（先应用 HTTP bootstrap 快照，§9.1），本地 update 进入 pending。
+- 与服务端相关的转换依据：握手拒绝码与关闭码见 §6.3、§6.5；offline 判据按时间（累计 30 s 或 `navigator.onLine=false`，rulings §4.18 UX-03）、offline 后 30 s 周期重连（CO-03）；令牌刷新失败按原因分流（UX-02）。
 
 ### 5.2 服务端 Room 状态机（server-collab `RoomManager`）
 
@@ -564,7 +552,7 @@ stateDiagram-v2
   closed --> [*]
 ```
 
-怎么读：箭头是 Room 生命周期转换，冒号后是触发条件或该转换伴随的动作；draining 的 60 s 宽限期内有人重新加入即回到 active。内存压力或准入不足时先按 LRU 提前结束 draining 房间（无在线客户端，不发 1012），仍超预算才驱逐 active 房间；没有 draining → evicting 这条边（rulings §4.18 CO-14）。
+怎么读：箭头是 Room 生命周期转换，冒号后是触发条件或该转换伴随的动作；draining 的 60 s 宽限期内有人重新加入即回到 active。内存压力或准入不足时先按 LRU 提前结束 draining 房间（无在线客户端，不发 1012），仍超预算才驱逐 active 房间；没有 draining → evicting 这条边（rulings §4.18 CO-14）。本图是跨端协议的照抄源（CO-13），服务端机制（加入流程、名额原子判定、溢写档位与回放、控制频道）见 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md) §3–§6。
 
 - 一个 Room = 服务端 cordis 宿主里的一个 **Unit**（同一份 store-yjs + model-slide 代码；D5/D8），因此 schema 校验、修复、迁移与客户端行为一致。
 - **PG 故障期与溢写回放期间 Room 保持 `active`**（`spillTier ≠ none` 或 `replaying = true` 只是 active 内的持久化子状态）：在线客户端不断连、不拒写；`persisting` 只通向 `closed`，不回 active（rulings §4.18 CO-15）。
@@ -585,13 +573,13 @@ sequenceDiagram
   participant PG as Postgres
   participant VK as Valkey
   C->>API: GET /api/v1/documents/:id/snapshots/latest，HTTP，ETag
-  API-->>C: 200 state，V2，zstd
+  API-->>C: 200 state，V2，zstd；ETag 为 snapshotId，响应头 X-Cordex-Epoch
   C->>C: importState，local
   C->>API: POST /api/v1/documents/:id/collab-ticket
   API-->>C: ticket，60 s
   C->>G: WS connect /collab/v1/rooms/:id
-  C->>G: CONTROL.auth{ticket}
-  G->>G: verify JWT → role → room.join
+  C->>G: CONTROL.auth{ticket, epoch, maxSchemaVersion}
+  G->>G: 协议版本 → verify JWT → 纪元与 schema → role → room.join
   G-->>C: CONTROL.auth.ok{sessionId, role, serverSeq}
   C->>G: SYNC step1，sv
   G-->>C: SYNC step2，diff
@@ -610,7 +598,7 @@ sequenceDiagram
   G->>G: leave → draining 60 s → persisting
 ```
 
-怎么读：从上到下是时间顺序，实线箭头是请求或推送，虚线箭头是响应；自指箭头是该方的内部处理。两个 HTTP 请求由 apps/server 的 Snapshots 与 Documents 模块提供（08 §2），REST 统一挂 `/api/v1` 前缀、WS 维持 `/collab/v1/rooms/:id`（rulings §4.18 BE-11）；拆分部署时 `…/snapshots*` 由反代转给 collab 角色（BE-03）。握手的拒绝分支见 §6.3 下图，ack 的两级语义与 step2 的对应规则见 §6.4。
+怎么读：从上到下是时间顺序，实线箭头是请求或推送，虚线箭头是响应；自指箭头是该方的内部处理。快照响应头 `X-Cordex-Epoch` 下发文档纪元，客户端把它作为 `auth.epoch` 回报，服务端据此判定 4428（§6.3）；快照 > 1 MiB 时由服务端从 snapshots 桶流式代理，不返回预签名 URL（决策 MECH-INC 之 INC-14）。两个 HTTP 请求由 apps/server 的 Snapshots 与 Documents 模块提供（08 §2），REST 统一挂 `/api/v1` 前缀、WS 维持 `/collab/v1/rooms/:id`（rulings §4.18 BE-11）；拆分部署时 `…/snapshots*` 由反代转给 collab 角色（BE-03）。握手的拒绝分支见 §6.3 下图，ack 的两级语义与 step2 的对应规则见 §6.4。
 
 ---
 
@@ -635,19 +623,23 @@ byte 1..      : payload
 
 ### 6.3 CONTROL 消息（zod 判别联合 `type`，草案）
 
+判别键统一为 `type`（含 `ack`；zod `discriminatedUnion` 只能有一个判别键，决策 INC-03/04/05）；联合定义在 protocol `ws/frames.ts`，握手 schema 在 `ws/handshake.ts`（不建 `collab/control.ts`，决策 INC-01）。本表是成员集合的唯一定义处（决策 INC-02）；服务端处理见 [60-backend/16](../60-backend/16-ws-protocol-server-view.md) §3，客户端处理见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §2、§8、§9。
+
 | 方向 | type | 字段 | 说明 |
 |---|---|---|---|
-| C→S | `auth` | `ticket, protocolVersion: 1, clientId: number(Yjs clientID), capabilities: string[], appVersion` | 连接后首帧；5 s 内未到 → 关闭 4408 |
-| S→C | `auth.ok` | `sessionId, role, serverSeq, schemaVersion, limits{maxUpdateBytes, updateRateHz}, serverTime` | 成功后客户端才发 SYNC |
-| S→C | `auth.denied` | `code: 'collab.unauthenticated' \| 'collab.forbidden' \| 'collab.doc_not_found' \| 'collab.schema_too_new' \| 'collab.room_full'` | 之后关闭 4401/4403/4404/4426/4503 |
-| S→C | `permission` | `role, reason: 'granted' \| 'revoked' \| 'changed', permVersion` | 权限即时生效（§10） |
-| S→C | `ack` | `{kind:'ack', tier:'spill'} \| {kind:'ack', tier:'db', seq: number}`（帧形状以 40-modules/02 `ws/frames.ts` 为准，不含 `count`/`localCounter`） | 两级 ack（rulings §4.15 S-3a）：服务端对每个入站 update 帧（含重连的 SyncStep2，§6.4）按到达顺序恰好回一帧 `tier:'db'`，带**该帧落库时分配的 seq**（逐帧应答，不是累计确认；at-least-once 保证的可观察点，客户端以在途 FIFO 队首对应并清 pending，§6.4）；`tier:'spill'` 表示 PG 故障期已写入溢写存储，无 seq，客户端**保留** pending、不据它做对应 |
-| S→C | `error` | `code, retryable, details?` | 非致命错误（例如单个 update 被拒） |
-| S→C | `repair` | `reason, paths[]` | 服务端发出修复事务时通知（§11） |
+| C→S | `auth` | `ticket, protocolVersion: 1, clientId: number(Yjs clientID), capabilities: string[], appVersion, epoch?: number, maxSchemaVersion: number, traceparent?` | 连接后首帧；5 s 内未到 → 关闭 4408。`epoch` 是客户端本地状态所属的文档纪元（取自 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 或 OfflineStore `meta.epoch`；无本地状态时省略）；`maxSchemaVersion` 是客户端支持的最高文档 schema。服务端按「协议版本 → 票据 → 纪元 → schema」顺序判定（60/16 §12）。`documentId` 由 URL 给出，`roomId` 不上线 |
+| S→C | `auth.ok` | `sessionId, role, serverSeq, schemaVersion, limits{maxUpdateBytes, msgRateHz, msgBurst}, serverTime, reason?: 'capacity' \| 'over_ceiling'` | 成功后客户端才发 SYNC。`limits` 以服务端配置为准，客户端 `maxUpdateBytes` 配置只是收到本帧前的兜底（决策 INC-07，废 `updateRateHz`）。`reason` 只在只读降级加入时出现：`capacity` = 编辑者名额满（§14），`over_ceiling` = 部署调低天花板后文档超限、只读打开；二者客户端文案不同 |
+| S→C | `auth.denied` | `code: 'collab.unauthenticated' \| 'collab.forbidden' \| 'collab.doc_not_found' \| 'collab.doc_purging' \| 'collab.schema_too_new' \| 'collab.protocol_mismatch' \| 'collab.epoch_changed' \| 'collab.room_full'` | 之后按 §6.5 关闭：4401 / 4403 / 4404（含 `doc_purging`）/ 4426 / 4427 / 4428 / 4503 |
+| C→S | `auth.refresh` | `ticket` | 客户端新换的 collab ticket（`POST …/collab-ticket`）；服务端验签、`jti` 单次、`sub` / `doc` / `sid` 与当前会话一致后**重新绑定**会话并重算角色（变化则发 `permission`），失败关闭 4401。M1–M3 的 WS 会话寿命 = 票据 `sid` 指向的登录会话，本帧不延长寿命、成功不回应答帧；M4 集成方 JWT 复用本帧，以新 JWT 的 `exp` 续期（决策 INC-27，ADR-0029 修订 2026-09-25） |
+| S→C | `permission` | `role, reason: 'granted' \| 'revoked' \| 'changed', permVersion` | 权限即时生效（§10）；帧名是 `permission`（`permission/changed` 只是客户端 cordis 事件，INC-02） |
+| S→C | `ack` | `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq: number}`（形状以 40-modules/02 `ws/frames.ts` 为准，不含 `count`/`localCounter`） | 两级 ack（rulings §4.15 S-3a）：服务端对每个入站 update 帧（含重连的 SyncStep2，§6.4）按到达顺序恰好回一帧 `tier:'db'`，带**该帧落库时分配的 seq**（逐帧应答，不是累计确认；at-least-once 保证的可观察点，客户端以在途 FIFO 队首对应并清 pending，§6.4）；`tier:'spill'` 表示 PG 故障期已写入溢写存储，无 seq，客户端**保留** pending、不据它做对应 |
+| S→C | `error` | `code, retryable, details?` | 非致命错误（例如单个 update 被 L2 拒绝或超元素天花板）；被拒的帧不回 ack |
+| S→C | `repair` | `reason, paths[]` | 服务端发出修复事务时通知来源会话（§11） |
 | C↔S | `ping` / `pong` | `t` | 应用层心跳 |
-| S→C | `room` | `clients: number, draining?: boolean` | 房间元信息（用于 UI「N 人在线」的权威值） |
+| S→C | `room` | `clients: number, draining?: boolean, persist?: 'ok' \| 'degraded', locked?: { reason, until }` | 房间元信息，加入后发一次、此后仅在变化时发。`clients` 是 UI「N 人在线」的权威值；`persist` 是 PG 持久化状态（PG 写失败 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`，rulings §4.19 INC-09，§6.4）；`locked` 是文档锁定窗口的会话信号（`reason` 取 `'import' \| 'migration'`、`until` 为 `locked_until`，解锁时推不带 `locked` 的 `room`）——锁定不借 `permission{reason:'changed'}`，因为角色并未改变；锁定窗口只有覆盖导入与迁移，版本恢复不加锁（rulings §4.19 N1），覆盖导入成功时以 4428 收尾而不是解锁（§9.4） |
+| S→C | `event` | `name, payload` | 服务端事件通道（决策 SG-03），已登记：`comments.changed{threadIds[]}`（评论镜像落库后）、`version.restored{snapshotId, name?, by}`（版本恢复提交后，供其他协作者提示）；由产生事件的实例发布一次、经扇出送达所有副本的会话。新增 `name` 须在本表登记 |
 
-所有 CONTROL 消息经 zod `parse`（D2）；解析失败 → 4400 并记录 `collab.bad_frame`。
+所有 CONTROL 消息经 zod `parse`（D2）；解析失败 → 4400 并记录 `collab.bad_frame`；未知 `type` 丢弃并计数、不关闭（ADR-0023 补充 v0.2）。
 
 **Ticket → WS 握手与拒绝分支**
 
@@ -663,26 +655,27 @@ sequenceDiagram
   alt 5 s 内未收到 CONTROL.auth
     G-->>C: 关闭 4408
   else 收到首帧
-    C->>G: CONTROL.auth{ticket, protocolVersion:1, clientId, capabilities, appVersion}
+    C->>G: CONTROL.auth{ticket, protocolVersion:1, clientId, capabilities, appVersion, epoch, maxSchemaVersion}
+    G->>G: 协议版本不在支持窗口则 auth.denied protocol_mismatch
     G->>TV: 校验 ticket
     TV->>TV: JWT 验签
     TV->>VK: jti 防重放，SETNX 60 s
     TV->>VK: 对比 permVersion，与最新值不同则以库为准
     TV-->>G: claims：sub、doc、role、permVersion，可选 sid 与 lnk
-    G->>RM: attach connection 与 ticketClaims
+    G->>RM: attach connection 与 ticketClaims，比对纪元与 schema
     alt 准入成功
-      RM-->>C: CONTROL.auth.ok{sessionId, role, serverSeq, schemaVersion, limits, serverTime}
+      RM-->>C: CONTROL.auth.ok{sessionId, role, serverSeq, schemaVersion, limits, serverTime, reason?}
       C->>RM: 此后才发 SYNC step1
     else 拒绝
       RM-->>C: CONTROL.auth.denied{code}
-      Note over C,RM: unauthenticated→4401，forbidden→4403，doc_not_found→4404，schema_too_new→4426，room_full→4503
-      Note over C,RM: 协议版本协商失败 collab.protocol_mismatch→4427，见 §18.5
+      Note over C,RM: unauthenticated→4401，forbidden→4403，doc_not_found 与 doc_purging→4404，schema_too_new→4426
+      Note over C,RM: protocol_mismatch→4427，epoch_changed→4428，room_full→4503
     end
   end
 ```
 
-怎么读：两层 `alt` 分别是「首帧是否按时到达」与「鉴权和准入是否通过」；拒绝时先回 `auth.denied` 再按注记里的 code→关闭码映射关闭连接。票据 claims 中 `sid` 是登录会话 id，`lnk` 是可选的分享链接 id（凭链接取得角色时才有，rulings §4.18 BE-02），供 §10 的角色重算复核链接状态。房间满时的只读降级见 §14 下图。
-依据：本文 §6.3、§6.5、§10、§18.5；08 §2 `collab.gateway.ts`、`ticket-verifier.ts`、`ticket.service.ts`。
+怎么读：两层 `alt` 分别是「首帧是否按时到达」与「鉴权和准入是否通过」；拒绝时先回 `auth.denied` 再按注记里的 code→关闭码映射关闭连接。判定顺序为协议版本（在票据之前：协议不兼容时票据的解析方式也不可信）→ 票据 → 纪元 → schema → 名额（60/16 §12）；只读降级加入时 `auth.ok.reason` 为 `capacity` 或 `over_ceiling`。票据 claims 中 `sid` 是登录会话 id，`lnk` 是可选的分享链接 id（凭链接取得角色时才有，rulings §4.18 BE-02），供 §10 的角色重算复核链接状态。房间满时的只读降级见 §14 下图。
+依据：本文 §6.3、§6.5、§10、§18.5；60-backend/02 §8–§9（票据与 WS 鉴权）、60-backend/16 §1、§12；文件落点 40-modules/09 §4（`collab.gateway.ts`、`ticket-verifier.ts`）。
 
 ### 6.4 ack 与 at-least-once 持久化
 
@@ -691,8 +684,10 @@ sequenceDiagram
 - **重连 step2 的应答与超限拆块**（rulings §4.18 CO-10）：`SyncStep2` 视同一个入站 update 帧——服务端对每个 step2 恰好回一帧 `tier:'db'`（空 diff 也回，seq 取当前 head）；客户端以发送 step2 时 pending 的最大 `localSeq` 作为**一个** FIFO 条目，收到即 `ackUpTo`，被 step2 覆盖的 pending 不再逐帧重发（避免重复落库）。step2 超过 `maxUpdateBytes`（1 MiB，§11 L1）时，先按 `localSeq` 用 `mergeUpdates` 切成不超限的块、逐块以普通 update 帧发送（每块一个 FIFO 条目，取块内最大 `localSeq`），再发只含剩余差量的 step2——剩余差量按服务端 step1 的 state vector 并上已发各块的 state vector 计算，通常为空；仍超限则上报遥测并提示导出、不无限重试（与 §9.3 编辑期拆分互相引用）。拆块只改客户端算法，帧格式与服务端门禁都不变。
 - **PG 故障溢写期（S-3，细化为两级 ack，rulings §4.15 S-3a）**：update 写入溢写存储（Valkey / 对象存储）成功后回 `ack{tier:'spill'}`，客户端保留 pending；溢写行以 provisional key `(instanceId, localCounter)` 排序，**正式 seq 在 PG 恢复后回放时由 PG 分配**，回放完成后逐个回 `ack{seq, tier:'db'}`（补发时原会话已断开即丢弃，由重连 step2 兜底）；回放完成前新到的 update 排在回放队列之后落库，以保持 db ack 顺序；回放 bootstrap 之后断言服务端 Y.Doc 无 `pendingStructs`。即使溢写数据丢失，客户端重连 step2 仍凭 update 幂等性补齐，NF-03「已 ack（db）零丢失」成立；多实例临时 seq 冲突与 seqRange 契约矛盾一并消除。
 - **回放归属**（rulings §4.18 CO-16）：存活实例只回放自己 `instanceId` 的溢写行（`readAllOrdered(docId, instanceId)`），不读其他在线实例的行，避免两实例重复回放（ADR-0035 决策 3）；心跳过期实例留下的行，由下次加载该文档的 Room 在 bootstrap 之后持 `lock:spill:{doc}` 租约认领回放。
-- **降级期照常广播**（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入 none（内存退避重试）/ valkey / blob 任一档后，**立即**在本实例广播并跨实例扇出，不等持久化；`persistBeforeBroadcast` 只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他收到广播的客户端重连时经 step2 回填，风险窗口与 `persistBeforeBroadcast=false` 相同，NF-03 不受影响；UI 显示「未保存到服务器」；指标 `cordex_collab_broadcast_before_persist_total` 记录降级广播次数。
+- **降级期照常广播**（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入 none（内存退避重试）/ valkey / blob 任一档后，**立即**在本实例广播并跨实例扇出，不等持久化；`persistBeforeBroadcast` 只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他收到广播的客户端重连时经 step2 回填，风险窗口与 `persistBeforeBroadcast=false` 相同，NF-03 不受影响；指标 `cordex_collab_broadcast_before_persist_total` 记录降级广播次数。
+- **「未保存到服务器」的判定与受众**（rulings §4.19 INC-09）：服务端显式信号为主——`CONTROL.room.persist`（§6.3），PG 写失败 ≤ 1 s 内推 `degraded`，回放完成且无溢写后推 `ok`，不新增帧类型。客户端判据 = `room.persist === 'degraded'` ∨ 在途含仅获 `tier:'spill'` 确认的项 ∨ 最老在途项等待 ≥ `unsavedWarnAfterMs`（collab-yjs 配置，默认 15000，不借用心跳间隔）。受众分级：有本地未获 db 确认项的**发起方**显示横幅「未保存到服务器 N 项」；**其余协作者**只在状态胶囊显示弱提示「服务器保存延迟」（他们此期间看到的他人修改可能丢失）。三条判据都可在故障注入测试中机械断言。
 - `Session.flush()` = 等待 `pending == 0`；关闭页面前由 UI 调用（`beforeunload` 提示）。
+- **落点**：本节是跨端协议语义；客户端在途 FIFO、step2 拆块与「未保存」派生规则见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §6，服务端 ack 发出规则见 [60-backend/16](../60-backend/16-ws-protocol-server-view.md) §5，溢写档位、`persist` 信号与回放见 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md) §6。
 - 服务端崩溃于「已广播未落库」窗口：其他客户端已应用该 update 但库中缺失 → 它们下次同步时 step1/step2 会把该内容回填给服务端（CRDT 幂等），因此**最终不丢**；只有当所有持有该 update 的客户端都消失时才丢，故要求：PG 可用时广播前先落库（默认），或在配置 `persistBeforeBroadcast=false`（低延迟模式）时接受这一窄窗口。默认 `true`。
 
 **update 两级 ack 时序**
@@ -726,7 +721,7 @@ sequenceDiagram
 ```
 
 怎么读：`alt` 两个分支分别是 PG 可用与 PG 故障降级期；只有 `tier:'db'` 的 ack 让客户端弹出在途 FIFO 队首并清 pending，`tier:'spill'` 只表示已进溢写存储、客户端必须继续保留（S-3a）。PG 可用时先落库后广播（`persistBeforeBroadcast=true`），降级期通过门禁即广播（rulings §4.18 CO-08）。
-依据：本文 §6.3、§6.4；08 §5 写路径关键约束、§3.1 `update-writer.ts`、`spill-store.ts`；rulings §4.15 S-3a、§4.18 CO-08/CO-09。
+依据：本文 §6.3、§6.4；08 §5（CRDT 持久化形态）；60-backend/05 §5–§6、60-backend/16 §5；rulings §4.15 S-3a、§4.18 CO-08/CO-09。
 
 **PG 故障溢写与回放**
 
@@ -751,21 +746,26 @@ flowchart TB
 
 ### 6.5 关闭码约定（`@cordexjs/protocol/src/collab/close-codes.ts`）
 
-| 码 | 含义 | 客户端行为 |
+本表补全后是 `close-codes.ts` 的唯一源（决策 INC-06），`heartbeat-and-close-codes.test` 覆盖全表；「客户端行为」列不同即分码。服务端触发条件见 [60-backend/16](../60-backend/16-ws-protocol-server-view.md) §10，客户端行为与 UI 文案细则见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §9。
+
+| 码 | 含义（错误码） | 客户端行为 |
 |---|---|---|
 | 1000 | 正常 | closed |
-| 1001/1006 | 网络/对端离开 | backoff 重连 |
+| 1001/1006 | 网络/对端离开（服务端 45 s 无入站帧即断开，客户端观察到 1006） | backoff 重连 |
+| 1011 | 服务端内部错误（`kernel.invariant_violation` 及未知异常，不向客户端泄漏细节） | 退避重连并上报 |
 | 1012 | 服务重启/驻留实例驱逐 | 立即重连（不退避首轮） |
-| 4400 | 坏帧 | 上报 bug，重连（计数超 3 次进入 quarantined） |
-| 4401 | 未认证/票据过期 | 换票据重连 |
-| 4403 | 无权限 | denied（监听权限变化） |
-| 4404 | 文档不存在/已删除 | closed + 提示 |
-| 4408 | 认证超时 | 重连 |
-| 4409 | 被隔离（重复触发修复） | quarantined，提示刷新 |
-| 4413 | 帧过大 | 丢弃该 update 到「未同步更改」并提示 |
-| 4426 | schema 过新（客户端需升级） | 提示刷新 |
-| 4429 | 速率限制 | 退避后重连 |
-| 4503 | 房间不可用/满/draining | 退避重连 |
+| 4400 | 坏帧（`collab.bad_frame`） | 上报 bug，重连（计数超 3 次进入 quarantined） |
+| 4401 | 未认证/票据过期/登录会话已吊销/`auth.refresh` 校验失败（`collab.unauthenticated`） | 换票据重连；换票 401 → 「登录已过期」 |
+| 4403 | 无权限（`collab.forbidden`，含票据 `doc` 与 URL 不符） | denied（监听权限变化） |
+| 4404 | 文档不存在/已删除/永久删除中（`collab.doc_not_found`、`collab.doc_purging`） | closed + 提示 |
+| 4408 | 认证超时（`collab.auth_timeout`） | 重连 |
+| 4409 | 被隔离（`collab.quarantined`，重复触发修复） | quarantined，提示刷新 |
+| 4413 | 帧过大（`collab.payload_too_large`，payload > `maxUpdateBytes`） | 丢弃该 update 到「未同步更改」并提示 |
+| 4426 | schema 过新，客户端需升级（`collab.schema_too_new`） | 提示刷新 |
+| 4427 | 协议版本不兼容（`collab.protocol_mismatch`） | 提示刷新 |
+| 4428 | 文档纪元已变更（`collab.epoch_changed`；运维换纪元或覆盖既有文档的导入，§9.4） | 丢弃本地 Y 状态、重新 bootstrap；pending 移入 `rejected` 并提供导出（不复用 4426：行为不同） |
+| 4429 | 速率限制（`collab.rate_limited`） | 退避后重连 |
+| 4503 | 房间不可用/满/draining/bootstrap 失败（`collab.room_full`、`collab.bootstrap_failed`） | 退避重连 |
 
 ---
 
@@ -791,6 +791,7 @@ interface AwarenessState {
 - 频率：`caret`/`selection` 变化最多 20 Hz；`view` 等 2 Hz；`idle` 在 60 s 无输入后置位。awareness 超时 30 s（y-protocols 默认）→ 服务端也在会话断开时主动广播「移除」。
 - Presence 服务是 UnitScope 服务，UI 覆盖层（07 §7）与设计 20-design/05 消费 `presence.remotes`。
 - 不持久化、不审计内容（只审计 join/leave）。
+- 落点：本节 schema 为跨端契约；客户端节流与在场 UI 见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §10–§11，服务端 relay、校验与满员合并 tick 见 [60-backend/16](../60-backend/16-ws-protocol-server-view.md) §7。
 
 **Awareness 广播时序**
 
@@ -816,7 +817,7 @@ sequenceDiagram
 ```
 
 怎么读：实线是 awareness 状态的流向，`--x` 表示连接中断；`alt` 是服务端对单个 awareness 帧的两种处理。客户端 B 收到后由 UI 覆盖层（07 §7）消费 `presence.remotes`。
-依据：本文 §4.1、§7.1、§14；08 §3.1 `awareness-relay.ts`、`awareness-tick.ts`、`broadcast.ts`。
+依据：本文 §4.1、§7.1、§14；60-backend/16 §7（awareness relay 与满员合并 tick）。
 
 ### 7.2 「软锁」语义
 
@@ -828,7 +829,7 @@ sequenceDiagram
 
 | # | 场景 | 原语层结果 | 用户可见结果与缓解 |
 |---|---|---|---|
-| 1 | A、B 同时把形状 S 移到不同位置（`xfrm.off`） | 两键 LWW，B（更晚时钟/更大 clientID）胜 | A 看到 S 「跳」到 B 的位置；无提示（与主流编辑器一致） |
+| 1 | A、B 同时把形状 S 移到不同位置（`xfrm.off`） | 两键 LWW，B（更晚时钟/更大 clientID）胜 | A（本地 60 s 内写过该键且被远端覆盖的一方）看到 S「跳」到 B 的位置，并收到提示「B 移动了该形状」+「恢复我的值」（新的本地事务，写回 A 最后一次写入的值，可审计、可再撤销；不是撤销）；emit `collab/soft-conflict{type:'prop-lww'}`（rulings §4.15 Q3；PRD CO-08） |
 | 2 | A 删除形状 S，B 同时编辑 S 文本 | 删除 = 写 `_deleted` 墓碑（rulings §4.15 Q3，04 §3.1a），实体与其 `XmlText` 仍在 Y.Doc 中；B 的文本编辑落在墓碑实体上、**不丢失**；读路径过滤使 S 不可见 | B 端：observe 到 S 被标墓碑且本地 60 s 内有对 S 的本地事务 → UI 提示「元素已被 A 删除」+「恢复」（清除墓碑，**原 id** 复活，连同 B 的编辑；这是 B 的新事务而非撤销）；A 撤销删除同样是清除墓碑、原 id 复活，二者并发不会产生重复元素；TTL（默认 24 h）后硬删除，或所有者对墓碑态元素做经审计的「彻底删除元素」（rulings §4.18 CO-07）后立即硬删除，之后不可恢复；删除方此后再撤销该步按整步跳过（`wholeStep:true`），与 TTL 到期同一路径 |
 | 3 | A 删除幻灯片 P，B 在 P 中新增形状 | P 写墓碑；B 新增的形状 `containerId` 指向墓碑页 → 随 P 一并不可见（不变量：引用墓碑的形状视为已删除） | 同 #2 的提示，粒度为页；「恢复此页」清除 P 的墓碑，P 以原 id、原 `order` 复活，B 新增的形状随之可见 |
 | 4 | A、B 都在第 3 页之后插入新页 | 两页都存在；`order` 键都在 (k3, k4) 之间，比较 `(order, id)` 得到确定顺序 | 两页相邻出现，顺序在所有端一致；无提示 |
@@ -841,7 +842,7 @@ sequenceDiagram
 | 11 | 离线的 A 修改了 S，在线的 B 早已删除 S | S 为墓碑：重连后 A 的修改合入墓碑实体（不可见但不丢）；若 B 的删除已超过 TTL 被硬删除，A 的修改落在已删类型上被丢弃 | A 收到 #2 的提示，可「恢复」（TTL 内）；超 TTL 时 A 的离线更改可从「未同步更改」导出为 JSON |
 | 12 | A 被降权为 viewer 时仍有 pending update | 服务端拒绝（`error{collab.forbidden}`），不落库不广播 | A 端把被拒的本地事务放入「未同步更改」（本地 OfflineStore 的 `rejected` 区），横幅提示可导出/复制；本地视图保留还是回滚？→ **回滚**到服务端状态（fail-closed 一致性优先），提供导出（待产品确认 P3） |
 
-**机械验证**：每一行对应 `test/collab-sim/scenarios/<n>.test.ts` 的确定性脚本（固定 clientID 与时钟），加 fuzz 的随机覆盖。
+**机械验证**：每一行对应 `test/collab-sim/scenarios/<n>.test.ts` 的确定性脚本（固定 clientID 与时钟），加 fuzz 的随机覆盖。本表为跨端语义；客户端信号分流（哪类冲突向谁 emit、Toast 与恢复命令）见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §12，「恢复我的值」「恢复元素」命令契约见 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §6（决策 RESTORE-CMD）。
 
 ---
 
@@ -849,14 +850,14 @@ sequenceDiagram
 
 ### 9.1 加载策略：HTTP 快照 bootstrap + WS 增量
 
-1. `GET /api/v1/documents/:id/snapshots/latest`（ETag = snapshot id；zstd 压缩的 V2 update；可被 CDN/浏览器缓存）→ 客户端在空 Y.Doc 上 `applyUpdate`（origin=`import`，不入撤销栈）。
+1. `GET /api/v1/documents/:id/snapshots/latest`（直接返回字节：zstd 压缩的 V2 update，> 1 MiB 由服务端从 snapshots 桶流式代理、不返回预签名 URL，决策 MECH-INC 之 INC-14；`ETag = snapshotId`、私有缓存每次以 `If-None-Match` 复核；响应头 `X-Cordex-Epoch` 下发文档纪元，供 `auth.epoch` 回报，§6.3）→ 客户端在空 Y.Doc 上 `applyUpdate`（origin=`import`，不入撤销栈）。M2 起应用壳打开服务端文档一律走本路径（rulings §4.19 D-M2-CONTENT，§0.1）。
 2. 并行建立 WS；`auth.ok` 后 `SyncStep1` 只交换**差量**（通常几十 KB）。
 3. 首屏渲染不等待 `live`：`syncing` 状态即可渲染与编辑（本地 pending 排队）。协同模式**不走** 07 §14.2 的「Worker 分批解析 + 首批装载、后台追加」打开路径（那条路径只用于本地打开 .pptx，rulings §4.18 CO-12）：Y 状态一次由 HTTP 快照 bootstrap。
-4. 媒体字节按需拉取（`BlobRef.sha256` → `GET /api/v1/media/:sha256`，强缓存），并受渲染层 LRU（07）约束。
+4. 媒体字节按需拉取（`BlobRef.sha256` → `GET /api/v1/documents/:id/media/:sha256`：要求 `doc.read` 且该文档与媒体的关联存在，否则 404；返回 200 JSON `{url, expiresAt}`（1 h 预签名 GET，不 302，60-backend/15 §3.6），客户端再以不带凭据与自定义头的请求直取，决策 INC-21、INC-25），blob URL 生命周期由客户端 MediaCache 管理（决策 MEDIA-CLIENT），并受渲染层 LRU（07）约束。无文档作用域的 `/media/*` 端点已删除。
 
 体积估算与预算（供设计容量）：200 页 × 30 形状 × ~25 键 × ~40 B ≈ 6 MB（未压缩 V2 update），富文本 200 页 × 600 字 ≈ 1 MB；**预算：单文档 Y 状态 ≤ 16 MB（未压缩）/ ≤ 4 MB（zstd）**（D200 包络内）。**内存按实测**（决策包实测 Yjs 约 13.8 KB 堆/元素）：D200（≈ 6,000 元素）≈ 85 MB、D50 ≈ 17.8 MB、天花板 20,000 元素 ≈ 276 MB；墓碑在 TTL 内计入元素数与 Y 状态体积。服务端房间准入据此改为**按文档实测权重**（§14），不再按固定 MB/房间；`store.limits` 在 64 MiB 触发告警（不阻断）。**时间预算：** 200 页文档在 10 Mbps 下 time-to-synced ≤ 3 s（p75），首页可见 ≤ 1.5 s（见 07）。测量：span `collab.bootstrap`（含 HTTP 与 step2）。
 
-### 9.2 为什么 M3 不用 Yjs subdocs（按页懒加载）
+### 9.2 为什么不用 Yjs subdocs（按页懒加载）
 
 - 200 页的 CRDT 状态在预算之内；subdocs 的 provider 支持不成熟（y-websocket 部分支持，Hocuspocus 不支持），跨 subdoc 的 UndoManager/RelativePosition/事务原子性（跨页移动形状）都要自造。
 - **触发重评估的条件**（写入 ADR-0020 后果）：实测 p95 bootstrap 超预算 2 倍、或产品把规模上限提升到 ≥ 1000 页。届时方案：`slides/<id>` 值改为 `Y.Doc`（subdoc），页顺序仍在父文档。
@@ -869,7 +870,9 @@ sequenceDiagram
 
 ### 9.4 长期增长：结构数与 epoch（已知限制）
 
-Yjs 删除留下结构元数据（内容 GC 后仍占若干字节/结构）。监控 `cordex_ydoc_structs`（来自 `yjsBackend.stats()`），阈值 5M。超阈值的治理路径「**换纪元（epoch）**」：服务端在无在线编辑者的维护窗口把当前模型 `exportSnapshot()` 后导入全新 Y.Doc（`meta.epoch + 1`），旧纪元客户端连入时收到 `auth.denied{collab.epoch_changed}` 需刷新；其离线更改通过模型级 diff 转成新纪元的 Mutation（M5+ 才实现；M3 只做监控与手动触发）。列入待决事项 P5。
+Yjs 删除留下结构元数据（内容 GC 后仍占若干字节/结构）。监控 `cordex_ydoc_structs`（来自 `yjsBackend.stats()`），阈值 5M。超阈值的治理路径「**换纪元（epoch）**」：服务端在无在线编辑者的维护窗口把当前模型 `exportSnapshot()` 后导入全新 Y.Doc（`meta.epoch + 1`），旧纪元客户端连入时收到 `auth.denied{collab.epoch_changed}` 需刷新；其离线更改通过模型级 diff 转成新纪元的 Mutation（M5+ 才实现；M3 只做监控与手动触发，PRD 05 §0.3）。客户端判定纪元变化依据 `auth.epoch` 与关闭码 4428（§6.3、§6.5）。列入待决事项 P5。
+
+**覆盖导入同样换纪元**（2026-09-25，rulings §4.19 N1）：带 `docId` 的服务端导入整体替换既有文档的内容，导入期间文档 `locked`（在线会话收到 `room{locked:{reason:'import'}}` 转只读），worker 上的导入处理器写 `epoch + 1` 的 `import` 快照并在同一事务推进 `documents.epoch`、解锁，随后经既有的 `room:{docId}:ctl` 发 `epoch`；在线会话以 4428 断开后重新 bootstrap，未获 db 确认的本地更改移入 `rejected` 并可导出（与运维换纪元同一客户端流程，§18.4）。不新增 worker → collab 的触发通道，旧纪元副本漏收通知时由取号的纪元栅栏兜底。与此相对，**版本恢复不加锁、不换纪元**：它是持有 Room 的 collab 进程内的单个事务，在线会话不断连（ADR-0025 决策 6）。机制唯一源：[60-backend/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §6.5、[60-backend/05](../60-backend/05-modules-collab-and-snapshots.md) §9.2、§10。
 
 ---
 
@@ -889,10 +892,12 @@ flowchart TB
   up --> upC["客户端：permissions 快照更新 → 命令管线放开，readonly → live"]
   down --> downC["客户端：pending 里 role 不足的 update 本地丢弃到 rejected，live → readonly"]
   revoke --> revokeC["awareness 移除广播"]
-  inbound["服务端每个入站 SYNC update 帧"] --> check["检查 session.role ≥ editor：fail-closed，不依赖客户端自律"]
+  inbound["服务端每个入站 SYNC 写入帧"] --> check["L2 检查 session.role ≥ commenter 且文档未锁定，commenter 的写入范围由 L4 路径规则限定：fail-closed，不依赖客户端自律"]
 ```
 
-怎么读：上半部分是一次权限变更从 REST 写库到各实例、各会话的传播，三个分支按变更方向分别下发不同的 CONTROL.permission；与主链不相连的最后两个节点是与传播并行、始终生效的服务端逐帧检查。客户端侧收到权限帧后经 `permissions.applyRemoteDecisions` 唯一入口生效（§18.3）。
+怎么读：上半部分是一次权限变更从 REST 写库到各实例、各会话的传播，三个分支按变更方向分别下发不同的 CONTROL.permission；与主链不相连的最后两个节点是与传播并行、始终生效的服务端逐帧检查。客户端侧收到权限帧后经 `permissions.applyRemoteDecisions` 唯一入口生效（§18.3）。同一频道 `perm:doc:{id}` 还承载文档锁定通知：载荷为 `{docId, permVersion?, lockChanged?}`，锁定或解锁提交后发布 `{docId, lockChanged: true}`（不递增 `permVersion`），各实例重读 `documents.status` 后推 `CONTROL.room{locked}`，解锁推不带 `locked` 的 `room`（§6.3）；控制频道 `room:{docId}:ctl` 只承载 `close` 与 `epoch`（60-backend/14 §3.2、60-backend/16 §8）。
+
+**D12 原则**：客户端命令管线与服务端网关两点都缺省拒绝；网关是安全边界。SYNC 写入门槛为 **≥ commenter**：评论的事实源是 ResourceHook `comments.threads`（包 `@cordexjs/comments`，经 `comments.*` 命令写 CRDT，rulings §4.19 D-COMMENTS-PKG、PRD PD-04），commenter 必须能写 CRDT；其写入范围由 L4 路径级规则限定在 `resources['comments.threads']`，且作者只能改自己的实体（§11，ADR-0034 补充 v0.2），viewer 的写入一律在 L2 拒绝（ADR-0029 决策 3 修订 2026-09-25）。服务端传播链路（`perm:doc` 频道、`perm:ver`、AuthzSource 重算）见 [60-backend/02](../60-backend/02-auth-chain.md) §11；客户端降权处理（pending 丢入 `rejected`、横幅与导出）见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §8。
 
 - 票据（ticket）里携带 `permVersion`；连接时若与 Valkey 中的最新值不同则以库为准（防止用旧票据绕过）。
 - **凭分享链接加入的会话**（rulings §4.18 BE-02，「解析归权限模块」）：票据增可选 claim `lnk`（shareLinkId；`sid` 仍指登录会话 id）。链接令牌的解析由 PermissionsModule 导出的 `ResolveShareLinkUseCase`（经 SECURITY DEFINER 函数只读 `share_links`）完成，REST 侧 ShareLinkGuard 与 WS 侧 AuthzSource 共用同一用例，两处解析结果必须一致；ShareLinks 模块只管创建、撤销、列表与守卫。AuthzSource 重算时取 `max(直接授权, lnk 对应链接仍有效时的角色)`，因此他人改动文档权限不会把只凭链接加入的会话误降为 none；链接撤销随 `permVersion` 广播，≤ 1 s 降权；会话记录 `linkExpiresAt`，到期由服务端主动重算降权，不等下一次权限事件。机械验证：集成用例「他人改权限不踢链接会话」「撤销链接后 ≤ 1 s 降权」「链接到期后主动降权」（落点 40-modules/08、09）。
@@ -906,9 +911,9 @@ flowchart TB
 | 层 | 检查 | 失败处理 | 成本 |
 |---|---|---|---|
 | 硬门禁 L1（帧） | 信封类型合法、CONTROL zod 通过、payload ≤ 1 MiB、速率 | 4400/4413/4429；不广播不落库 | O(1) |
-| 硬门禁 L2（权限） | `session.role ≥ editor`；文档非 `locked` | `error{collab.forbidden}`；计数；3 次 → 4403 | O(1) |
+| 硬门禁 L2（权限） | SYNC 写入要求 `session.role ≥ commenter`；文档非 `locked`；AWARENESS 要求 ≥ viewer | `error{collab.forbidden}`；计数；3 次 → 4403 | O(1) |
 | 硬门禁 L3（结构） | `Y.decodeUpdateV2` 可解析；结构数 ≤ 50k/帧 | 4400 | O(帧大小) |
-| 软门禁 L4（语义） | 在服务端 Unit 上 `applyUpdate` 后，对 `ChangeSet.paths` 做 zod 校验（model-slide 的 schema，架构 04）与不变量检查（无父子环、`parentId` 存在、`layoutId` 存在、`order` 为合法 FracKey、`schemaVersion` 未被改） | **修复事务**：服务端以 origin=`repair` 写补偿 Mutation（如置 `parentId=null`、恢复 `schemaVersion`、为非法 `order` 生成新键），广播 `CONTROL.repair`；同一 session 10 分钟内触发 ≥ 5 次 → 4409 quarantined | O(变更路径) |
+| 软门禁 L4（语义） | 在服务端 Unit 上 `applyUpdate` 后，对 `ChangeSet.paths` 做 zod 校验（model-slide 的 schema，架构 04）与不变量检查（无父子环、`parentId` 存在、`layoutId` 存在、`order` 为合法 FracKey、`schemaVersion` 未被改）；路径级权限：commenter 的写入只能触及 `resources['comments.threads']`，且只能改自己作者的实体 | **修复事务**：服务端以 origin=`repair` 写补偿 Mutation（如置 `parentId=null`、恢复 `schemaVersion`、为非法 `order` 生成新键），广播 `CONTROL.repair`；同一 session 10 分钟内触发 ≥ 5 次 → 4409 quarantined | O(变更路径) |
 
 - 为什么不「拒绝并回滚」：CRDT 已把 update 交给了其他客户端（或即将），单点拒绝会导致分叉；补偿事务保持全网收敛（I7）。
 - 为什么仍要做：schema 与不变量是渲染/导出代码的前提（fail-closed 的另一面——数据层不能信任任意客户端）。
@@ -920,11 +925,11 @@ flowchart TB
 flowchart TB
   frame["入站帧"] --> l1{"L1 帧：信封类型合法、CONTROL zod 通过、payload ≤ 1 MiB、速率"}
   l1 -- "失败" --> l1f["关闭 4400 / 4413 / 4429，不广播不落库"]
-  l1 -- "通过" --> l2{"L2 权限：session.role ≥ editor 且文档非 locked"}
+  l1 -- "通过" --> l2{"L2 权限：SYNC 写入要求 session.role ≥ commenter 且文档非 locked"}
   l2 -- "失败" --> l2f["error{collab.forbidden} 并计数，3 次 → 4403"]
   l2 -- "通过" --> l3{"L3 结构：Y.decodeUpdateV2 可解析、结构数 ≤ 50k/帧"}
   l3 -- "失败" --> l3f["关闭 4400"]
-  l3 -- "通过" --> l4["L4 语义：在服务端 Unit 上 applyUpdate，对 ChangeSet.paths 做 zod 校验与不变量检查"]
+  l3 -- "通过" --> l4["L4 语义：在服务端 Unit 上 applyUpdate，对 ChangeSet.paths 做 zod 校验、不变量与 commenter 路径级检查"]
   l4 --> ok{"schema 与不变量成立？"}
   ok -- "否" --> repair["修复事务：origin=repair 写补偿 Mutation，广播 CONTROL.repair"]
   repair --> quarantine["同一 session 10 分钟内 ≥ 5 次 → 4409 quarantined"]
@@ -932,11 +937,13 @@ flowchart TB
   repair --> persist
 ```
 
-怎么读：菱形是逐层判定，L1–L3 是硬门禁，失败即拒绝且不扇出（I8）；L4 是软门禁，不拒绝而是追加修复事务以保持全网收敛（I7）。L4 的行为受 `softGate` 配置（`repair`、`report-only`、`off`）控制：M3 默认不变量 `repair`、schema 类型 `report-only`，已裁决（rulings §4.1 P8：采纳 ADR-0034，§18.5）。
+怎么读：菱形是逐层判定，L1–L3 是硬门禁，失败即拒绝且不扇出（I8）；L4 是软门禁，不拒绝而是追加修复事务以保持全网收敛（I7）。L4 的行为受 `softGate` 配置（`repair`、`report-only`、`off`）控制：默认不变量 `repair`、schema 类型 `report-only`，已裁决（rulings §4.1 P8：采纳 ADR-0034，§18.5），随协同后端自 M2 生效（PRD 05 §0.3 CO-12）。门禁分层的服务端实现、数值与出口见 [60-backend/16](../60-backend/16-ws-protocol-server-view.md) §4（ADR-0034 仍为决策）。
 
 ---
 
 ## 12. 离线队列与重连（详见 ADR-0033）
+
+> 里程碑（§0.1，PRD 05 §0.3）：基础重连（指数退避、先鉴权再同步、补发未获 db 确认的更改）随协同后端在 M2 交付；offline 判据与横幅、offline 后周期重连、离线积累更改的分块同步属 M3 离线体验（CO-06）；跨刷新的 IndexedDB 持久化（`collab-offline-idb`）为 M4 P2（PD-05）。客户端实现（计时器、横幅、多标签页离线库独占锁，决策 OFFLINE-TABS）见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §4、§7；本节保留跨端约束。
 
 - Provider：`OfflineStore` 由 `y-indexeddb`-风格的 IndexedDB 实现；**collab-yjs 本身保持 iso**，IndexedDB 实现放在 dom 包 `@cordexjs/collab-offline-idb`（L4，总编排已批准 S1，进入章程 v0.2 包清单；未加载该 Provider 时 collab-yjs 降级为内存队列，刷新即丢）。
 - 存储布局：`cordex-collab/<userId>/<documentId>`（单组织部署无租户维度，rulings §4.15 T-0；按用户分库便于登出清空）：`updates`（追加的本地 update，附 `localSeq`）、`state`（compact 后的完整状态）、`rejected`（被服务端拒绝的事务快照，供导出）、`meta{epoch, schemaVersion, lastAckSeq}`。上限 50 MiB/文档；超限停止写入并提示。
@@ -993,6 +1000,8 @@ sequenceDiagram
 
 ## 14. 性能与可靠性预算汇总（测量方式见 10/11）
 
+> 本表是协同链路的跨端预算摘要；客户端预算与测量细则见 [50-frontend/13](../50-frontend/13-performance-and-bundling.md) §4，服务端预算总览见 [60-backend/01](../60-backend/01-service-overview-and-roles.md) §12，门禁与测量方式见 [70-testing/09](../70-testing/09-performance-and-capacity.md)。
+
 | 指标 | 预算 | 测量 |
 |---|---|---|
 | 本地回显 | 同步（observe 在 transact 返回前触发） | 单测 |
@@ -1000,7 +1009,7 @@ sequenceDiagram
 | 端到端传播（客户端→服务端→其他客户端） | ≤ RTT + 100 ms p95 | e2e 双浏览器时间戳差 |
 | time-to-synced（200 页，10 Mbps） | ≤ 3 s p75 | span `collab.bootstrap` |
 | 键入 update 大小（合并后） | ≤ 200 B p50 | 单测统计 |
-| 房间容量 | 20 编辑者 + 50 查看者（Q5/SV-05）；**名额按用户计**（同一用户多标签/多设备占 1；commenter 计入查看者；owner 保席、不占编辑者名额）；编辑者满 → 只读加入，查看者也满 → 拒绝（`collab.room_full`）；满员房间由服务端做 awareness 合并 tick，查看者只上报 view | conformance「房间满」 |
+| 房间容量 | 20 编辑者 + 50 查看者（Q5/SV-05）；**名额按用户计**（同一用户多标签/多设备占 1；commenter 计入查看者；owner 保席、不占编辑者名额）；编辑者满 → 以 viewer 只读加入（`auth.ok.reason:'capacity'`，本次连接内不升回），查看者也满 → 拒绝（`collab.room_full`）；部署调低天花板后超限的文档只读打开（`auth.ok.reason:'over_ceiling'`）；满员房间由服务端做 awareness 合并 tick，查看者只上报 view | conformance「房间满」 |
 | 权限变更传播 | ≤ 1 s p95 | 审计时间戳 vs 客户端事件 |
 | 重连恢复（网络抖动 1 次） | ≤ 3 s 至 live | e2e 断网模拟 |
 | Room bootstrap | ≤ 500 ms p95 @ 8 MB | span `server.room.load` |
@@ -1030,7 +1039,7 @@ flowchart TB
 ```
 
 怎么读：上半段是实例级准入（按文档实测权重，rulings §4.15 Q5；预算不足时先回收空闲房间再重判，rulings §4.18 CO-14），下半段是房间内名额（按用户计：同一用户多标签/多设备占 1，commenter 计入查看者）。准入先于 loading，权重取 `documents.element_count`，不需预加载文档；本实例已有 Room 时只判名额。满员房间由服务端做 awareness 合并 tick、查看者只上报 view。
-依据：本文 §14、§18.5 SV-05；08 §3.1 `room-manager.ts`、§8、§16.5（预算取内存的 75%）。
+依据：本文 §14、§18.5 SV-05；08 §8、§16.5；60-backend/05 §4（准入与名额，预算取内存的 75%）。
 
 ---
 
@@ -1039,10 +1048,10 @@ flowchart TB
 | # | 事项 | 默认 | 决策人 |
 |---|---|---|---|
 | P1 | 是否需要「排他编辑锁」（形状级/页级） | **已裁决**（章程 Q16，rulings §4.16）：不做，只有 awareness 软提示 | 已裁决 |
-| P2 | 版本历史保留策略（自动快照频率与保留期） | **已裁决**（章程 Q17，rulings §4.16）：自动每 10 min 或 500 updates、保留 30 天；命名快照永久；全部进入部署配置可调（08 `retention`/`compaction`） | 已裁决 |
-| P3 | 降权后本地未同步更改：回滚还是保留只读视图 | 回滚 + 可导出 | 产品/设计 |
+| P2 | 版本历史保留策略（自动快照频率与保留期） | **已裁决**（章程 Q17，rulings §4.16；保留细则 rulings §4.19 C-06）：自动每 10 min 或 500 updates；auto 快照 30 天内全量保留，30 天后每天只留最后一个，保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；命名快照永久、每文档上限 200；import / migration / restore / epoch 事件快照按 auto 口径；全部进入部署配置可调（配置键以 60-backend/17 为准） | 已裁决 |
+| P3 | 降权后本地未同步更改：回滚还是保留只读视图 | 回滚；仍有读权限的降权可导出本地副本，撤销访问（降为 none，4403）不提供导出（PRD CO-05 / CO-06，50-frontend/07 §8） | 产品/设计 |
 | P4 | 离线本地库是否加密 | 不加密；登出清空 | 安全/产品 |
-| P5 | epoch 换纪元的触发与 UX | M3 仅监控；手动维护 | 架构 A + 产品 |
+| P5 | epoch 换纪元的触发与 UX | M2 起结构数仅监控、手动维护；覆盖既有文档的导入固定换纪元（**已裁决**，rulings §4.19 N1，§9.4）；客户端经 4428 丢弃本地状态并重新 bootstrap | 架构 A + 产品 |
 | P6 | 评论锚点在目标删除后的展示 | 转为「已分离」列表（08 §6） | 设计 |
 | P7 | `persistBeforeBroadcast` 默认值 | `true`（一致性优先），只约束 PG 可用时的顺序；PG 故障降级期照常广播（rulings §4.18 CO-08，§6.4） | 架构 B（本文默认） |
 | P8 | 服务端是否执行语义软门禁（PRD CO-12 说「不做」，ADR-0034 主张「不变量修复」） | **已裁决**（rulings §4.1 P8：采纳 ADR-0034）：`softGate: repair`（不变量）+ `report-only`（schema 类型） | 已裁决 |
@@ -1114,29 +1123,31 @@ flowchart TB
 - 网关下发的权限帧 → `permissions.applyRemoteDecisions(decisions)`（collab-core `permission-checkpoint.ts`，02 §4.11）→ 命令管线 `waterfall` 检查点即时生效并 emit `permission/changed`（PRD EM-05 名称）。**`applyRemoteDecisions` 是权限变更进入客户端的唯一入口**：collab-yjs 不维护自己的权限快照、不发权限事件；`permission/changed` 由 `permissions` 服务唯一发出，命令管线与 UI 都只订阅它（`collab/permission-changed` 弃用）。传播预算：**PRD/SV-05 门禁 ≤ 2 s**；内部目标 ≤ 1 s p95。
 - `AwarenessState.selection: SerializedSelection` = `Selection<A>.serialize()`（05：`broadcast: true` 的 Operation 经 `presence` 序列化广播）；collab-core 对其内容不透明，由 `DocumentType.selectionKinds` 的 schema 校验。本文 §7.1 的 `selection`/`caret` 字段合并为该结构（幻灯片：`{ kind: 'slides'|'shapes'|'text'|'tableCells', slideId, ids[], range?: { anchor, head } }`，`range` 为 RelativePosition base64）。
 - 会话状态：公开 `Session.state: SyncState`（02 §4.11：`disconnected|connecting|syncing|synced|offline|error`）是本文 §5.1 内部 FSM 的投影；PRD 名称对照：`readonly-degraded` = 本文 `readonly`（投影为 `synced` + `role` 降级标志）；`reconnecting` = `backoff`；`quarantined`/`denied` 投影为 `error`（附 code）。事件定稿 `collab/state-changed`（10 §11）。
-- 令牌（CO-05/EM-03）：`getToken()` 回调在到期前 60 s 刷新，以新增 CONTROL 消息 `auth.refresh{token}` 续期（不断连）；**刷新失败按原因分流**（rulings §4.18 UX-02）：网络错误 → `reconnecting`（内部 `backoff`，与重连共用同一 30 s 离线计时，不另设计时器）；401（`server.auth.expired` / `collab.unauthenticated`）→ 直接进入「登录已过期」（内部 `denied`，投影 `error`），不经 `reconnecting → offline`，避免先给出误导性的「离线」。「重新登录」在弹窗或新标签完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页），原页不跳转、pending 队列保留，拿到新票据后经 `denied → connecting` 重连 → 同步中 → 已恢复；回来的用户 id 与原会话不同则不重放队列、按只读处理并提供导出本地副本，该横幅处理前不可关闭（应用壳落点 40-modules/11）。M1–M3 令牌只来自 OIDC 登录（rulings §4.15 Q6）；集成方签名 JWT 与 API Key 降为 M4（届时 JIT 建影子用户），见 ADR-0029。
+- 令牌（CO-05/EM-03，决策 INC-27）：浏览器登录会话每次被动续期成功之后，客户端经 `getToken()` 换新 collab ticket 并以 CONTROL `auth.refresh{ticket}` 发送（不断连）；服务端验签 + `jti` + `sid` 一致后**重新绑定**会话、重算角色，**不延长** WS 会话寿命——M1–M3 的寿命 = 票据 `sid` 指向的登录会话，会话被吊销时服务端以 4401 关闭；M4 集成方 JWT 复用同一帧并以新 `exp` 续期（§6.3，ADR-0029 修订 2026-09-25）。**刷新失败按原因分流**（rulings §4.18 UX-02）：网络错误 → `reconnecting`（内部 `backoff`，与重连共用同一 30 s 离线计时，不另设计时器）；401（`server.auth.expired` / `collab.unauthenticated`）→ 直接进入「登录已过期」（内部 `denied`，投影 `error`），不经 `reconnecting → offline`，避免先给出误导性的「离线」。「重新登录」在弹窗或新标签完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页），原页不跳转、pending 队列保留，拿到新票据后经 `denied → connecting` 重连 → 同步中 → 已恢复；回来的用户 id 与原会话不同则不重放队列、按只读处理并提供导出本地副本，该横幅处理前不可关闭（应用壳落点 40-modules/11）。M1–M3 令牌只来自 OIDC 登录（rulings §4.15 Q6）；集成方签名 JWT 与 API Key 降为 M4（届时 JIT 建影子用户），见 ADR-0029。客户端会话与重新登录的实现见 [50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 与 [50-frontend/07](../50-frontend/07-collaboration-client.md) §8.3。
 
 ### 18.4 被拒 update 的本地回滚（05 §11 交由 06 决定）
 
-被拒只发生在降权或锁定窗口：服务端未应用、他人未见，但本地 Y.Doc 已含这些事务。策略 = **导出后重载**：
+被拒只发生在降权、锁定窗口或纪元变更（4428，含覆盖导入，§9.4）时：服务端未应用、他人未见，但本地 Y.Doc 已含这些事务。策略 = **导出后重载**：
 1. `rejectedDiff = encodeStateAsUpdate(localDoc, serverStateVector)`（恰为未被 ack 的本地更改）连同对应 `TransactionRecord` 摘要写入 OfflineStore `rejected` 区（可导出为 JSON / 本地 pptx 副本）；
 2. 丢弃本地 Y.Doc → HTTP 快照 + step1/2 重新 bootstrap（origin `system('load')`），撤销栈清空；
 3. UI 横幅「你的 N 项更改未被保存（权限已变更）」+ 导出按钮（CO-05 措辞）。
-`history` 不参与回退（`collab/update-rejected` 事件仅供 UI/遥测），不用撤销栈做一致性修复。
+`history` 不参与回退（`collab/update-rejected` 事件仅供 UI/遥测），不用撤销栈做一致性修复。客户端实现（含撤销访问时不提供导出的分支）见 [50-frontend/07](../50-frontend/07-collaboration-client.md) §8.2。
 
 ### 18.5 与 PRD CO/SV/EM 的逐条承接
 
-| PRD | 承接 |
-|---|---|
-| CO-12 / EM-04 资源上传通道 | 图片/媒体经集成方 `uploadAsset(file) → { assetId }`（协同模式必需）或 `apps/server` 预签名 PUT（≥ 10 MB 分片，不经 Nest 内存；URL 按 `storage.s3.publicEndpoint` 生成、经反代子域到达对象存储，rulings §4.18 BE-01，08 §6）；CRDT 只存 `BlobRef`；上传中/失败元素显示占位并可重试（`pic.mediaId` 先指向本地临时 id，成功后一次 `set` 替换） |
-| CO-12 消息限制 | 单帧 ≤ 1 MiB；**每连接 ≤ 200 帧/s（突发 500）**（取代本文 §9.3 的 100/s）；awareness 节流 ≥ 50 ms；未知 CONTROL 类型丢弃并计数 |
-| CO-12「服务端不做内容语义校验」 | 与 ADR-0034 软门禁不一致。本文坚持服务端**至少**执行不变量修复：非法结构一旦进入 CRDT 就会永久留在文档中，客户端「解码失败即忽略」无法把它从其他端移除，且服务端导出/缩略图作业自身会消费该模型。折中：配置 `softGate: 'repair' \| 'report-only' \| 'off'`，M3 默认不变量 `repair`、schema 类型 `report-only`。**已裁决（rulings §4.1 P8：采纳 ADR-0034；PRD CO-12 已同步）** |
-| SV-05 容量 | `maxEditors: 20`、`maxViewers: 50`，超限只读加入（`auth.ok{ role:'viewer', reason:'capacity' }`），再超 → `auth.denied{ collab.room_full }`；房间空置销毁延迟 **60 s**（取代 30 s）；协议版本协商失败 → `collab.protocol_mismatch`（关闭码 4427，与 schema 版本的 4426 区分） |
-| SV-05 多实例与停机 | 跨实例 ≤ 50 ms、房间内广播 p95 ≤ 100 ms、持久化滞后 p99 ≤ 1 s、优雅停机 ≤ 30 s、客户端 ≤ 5 s 重连到其它实例（1012 首轮不退避）；单实例（RM-S 2 vCPU/4 GB）≥ 2,000 WS、CPU < 70%；房间**按文档实测权重准入**（rulings §4.15 Q5，§14、08 §16.5），各档（按文档规模）房间数 M1 实测回填，不再写固定「≥ 200 活跃房间」 |
-| CO-05 | 见 18.3/18.4；`permission/denied` 由命令管线发出 |
-| CO-08 | 每行收敛结果见 ADR-0020 补充表 D；「X 也在编辑此文本框」的预防性提示来自 presence `caret`/`editing` |
-| CO-04 / PD-04 评论 | ADR-0031 v0.2：评论为 Snapshot 内 `ResourceHook`（命名空间 `comments.*`）为事实源；服务端软门禁执行作者规则；PG 为镜像读模型 |
-| NF-01 1.6 协同预算 | A→B 可见 p50 ≤ 150 / p95 ≤ 400 ms（门禁；本文 `RTT + 100 ms` 为内部目标）；初始同步 D50 ≤ 2 s / D200 ≤ 5 s（p75）；重连重同步（≤ 5,000 update）≤ 3 s；presence 传播 p95 ≤ 200 ms；权限 ≤ 2 s —— 一并进入 `test/perf/budgets.json` 的 `gate` 字段 |
+「落点」列指向三条设计线中承接实现的文件（rulings §4.19：50 / 60 / 70 为各侧设计唯一事实源）。
+
+| PRD | 承接 | 落点 |
+|---|---|---|
+| CO-12 / EM-04 资源上传通道 | 图片/媒体经 preset 选项 `media.upload(file) → { assetId, sha256 }`（集成方可替换，`apps/web` 默认实现：`POST /api/v1/documents/:id/media/presign` → 直传 `uploads/tmp/` → `…/media/commit`，≥ 10 MB 分片，不经 Nest 内存；URL 按 `storage.s3.publicEndpoint` 生成、经反代子域到达对象存储，rulings §4.18 BE-01，决策 INC-21、MEDIA-CLIENT）；CRDT 只存 `BlobRef`；上传中/失败元素显示占位并可重试（`pic.mediaId` 先指向本地临时 id，成功后一次 `set` 替换） | [50/05](../50-frontend/05-rendering-and-thumbnails.md)、[60/04](../60-backend/04-modules-documents-storage-media.md) |
+| CO-12 消息限制 | 单帧 ≤ 1 MiB（`maxUpdateBytes`）；**每连接 ≤ 200 帧/s（突发 500）**（`msgRateHz` / `msgBurst`，取代本文 §9.3 的 100/s）；awareness 节流 ≥ 50 ms；未知 CONTROL 类型丢弃并计数 | [60/16](../60-backend/16-ws-protocol-server-view.md) §13 |
+| CO-12「服务端不做内容语义校验」 | 与 ADR-0034 软门禁不一致。本文坚持服务端**至少**执行不变量修复：非法结构一旦进入 CRDT 就会永久留在文档中，客户端「解码失败即忽略」无法把它从其他端移除，且服务端导出/缩略图作业自身会消费该模型。折中：配置 `softGate: 'repair' \| 'report-only' \| 'off'`，默认不变量 `repair`、schema 类型 `report-only`。**已裁决（rulings §4.1 P8：采纳 ADR-0034；PRD CO-12 已同步）** | [60/16](../60-backend/16-ws-protocol-server-view.md) §4 |
+| SV-05 容量 | `maxEditors: 20`、`maxViewers: 50`，超限只读加入（`auth.ok{ role:'viewer', reason:'capacity' }`），再超 → `auth.denied{ collab.room_full }`；房间空置销毁延迟 **60 s**（取代 30 s）；协议版本协商失败 → `collab.protocol_mismatch`（关闭码 4427，与 schema 版本的 4426 区分） | [60/05](../60-backend/05-modules-collab-and-snapshots.md) §4 |
+| SV-05 多实例与停机 | 跨实例 ≤ 50 ms、房间内广播 p95 ≤ 100 ms、持久化滞后 p99 ≤ 1 s、优雅停机 ≤ 30 s、客户端 ≤ 5 s 重连到其它实例（1012 首轮不退避）；单实例（RM-S 2 vCPU/4 GB）≥ 2,000 WS、CPU < 70%；房间**按文档实测权重准入**（rulings §4.15 Q5，§14、08 §16.5），各档（按文档规模）房间数实测回填，不再写固定「≥ 200 活跃房间」 | [60/05](../60-backend/05-modules-collab-and-snapshots.md)、[70/09](../70-testing/09-performance-and-capacity.md) |
+| CO-05 | 见 18.3/18.4；`permission/denied` 由命令管线发出 | [50/07](../50-frontend/07-collaboration-client.md) §8 |
+| CO-08 | 每行收敛结果见 ADR-0020 补充表 D；「X 也在编辑此文本框」的预防性提示来自 presence `caret`/`editing` | [50/07](../50-frontend/07-collaboration-client.md) §11–§12 |
+| CO-04 / PD-04 评论 | ADR-0031 v0.2：评论为 Snapshot 内 `ResourceHook` `comments.threads`（iso 包 `@cordexjs/comments`，文档类型盲，rulings §4.19 D-COMMENTS-PKG）为事实源；commenter 经 `comments.*` 命令写 CRDT，服务端软门禁执行路径与作者规则（§11）；PG 为镜像读模型，REST 只读 | [50/08](../50-frontend/08-comments-and-version-history.md)、[60/07](../60-backend/07-modules-comments-webhooks-audit.md) |
+| NF-01 1.6 协同预算 | A→B 可见 p50 ≤ 150 / p95 ≤ 400 ms（门禁；本文 `RTT + 100 ms` 为内部目标）；初始同步 D50 ≤ 2 s / D200 ≤ 5 s（p75）；重连重同步（≤ 5,000 update）≤ 3 s；presence 传播 p95 ≤ 200 ms；权限 ≤ 2 s —— 一并进入 `test/perf/budgets.json` 的 `gate` 字段 | [50/13](../50-frontend/13-performance-and-bundling.md) §4、[70/09](../70-testing/09-performance-and-capacity.md) |
 
 ### 18.6 `OfflineStore` Definition（签名级草案；collab-core `contracts/offline.ts`；Provider：`@cordexjs/collab-offline-idb`，缺失时 collab-yjs 用同接口的内存实现）
 

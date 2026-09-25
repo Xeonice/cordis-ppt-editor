@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（rulings §4.15 Q9：pre-commit 与 CI 加 lockfile-guard（并入既有 `scanners` job，不新增 job 名）；CI 安装一律 `pnpm install --frozen-lockfile`）；2026-09-24（复核修正，rulings §4.17：D3 `scanners` job 扫描器数随第 14 个扫描器更新，并列三个治理检查脚本）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§3 `test` / `e2e` / `perf` 行的步骤清单改链 70-testing/12，保留 job 名与四条治理；§2.3 链 70-testing/01 §9 本地命令） | 依赖：charter v0.1
 
 # 07 · Hooks 与 CI
 
@@ -51,7 +51,7 @@ tooling/
 | 4 | `api-extractor run --local`（本地模式，直接更新 `.api.md`，与 CI 的"仅比对不覆写"模式不同——本地允许覆写是为了让开发者在推送前就能看到 diff 并决定是否需要写 changeset） |
 | 5 | knip / manypkg / syncpack（[03 §4](./03-boundaries.md#4-knip--manypkg--syncpack-的分工)） |
 
-**为什么测试（`test`/`test-typecheck`/`e2e`）不在本地 hook 中**：测试套件的运行时长预算由架构-运行时条线 B（[11-testing-strategy.md](../11-testing-strategy.md)）拥有，本篇不预先给出数值假设；作为跨条线要求（见本次任务汇报），若 B 确认单测套件可在合理时间内（如 < 30 秒）跑完，`pre-push` 应追加该步骤——当前版本先把"本地不强制跑全部测试、但 CI 强制跑"作为默认姿态，避免在未获得 B 的实际预算数据前对本地开发体验做出unfounded 的承诺。
+**为什么测试（`test`/`test-typecheck`/`e2e`）不在本地 hook 中**：测试套件的运行时长预算由测试设计线拥有（本地与 CI 分工、本地复现命令见 [70-testing/01](../../70-testing/01-strategy-and-layers.md) §9 与 [70-testing/12](../../70-testing/12-ci-gates-mapping.md) §12；原由架构-运行时条线 B 的 [11-testing-strategy.md](../11-testing-strategy.md) 承担），本篇不预先给出数值假设；作为跨条线要求（见本次任务汇报），若 B 确认单测套件可在合理时间内（如 < 30 秒）跑完，`pre-push` 应追加该步骤——当前版本先把"本地不强制跑全部测试、但 CI 强制跑"作为默认姿态，避免在未获得 B 的实际预算数据前对本地开发体验做出unfounded 的承诺。
 
 **本地 lefthook 三阶段执行流**
 
@@ -99,7 +99,7 @@ flowchart TB
 |---|---|---|---|
 | `lint` | ESLint 全量（类型感知，`--max-warnings 0`——由于全部规则本就是 `error`，本参数是双保险，防止未来有人误将某条规则降级为 `warn` 而不被察觉） | 类型治理 | 完整 |
 | `typecheck` | `tsc --build`（全量，项目引用图） | 类型治理 | 完整 |
-| `test` | Vitest 单测 + 契约测试。所含步骤（2026-09-25 rulings §4.18 GV-14：各文档中的 job 旧名一律改写为本 job 的步骤）：`unit`、`contract`（`run<Definition>Conformance` 契约套件）、`lifecycle`（`defineLifecycleSuite`）、`fidelity-roundtrip`（保真往返，失败即阻断合并，在本 job 日志中查看）、`collab-sim`（协同模拟）、`snapshot-migration-corpus`（快照迁移语料），以及原 `doc-type-blindness` 中的水平层 fixture 文档类型测试 | 架构-运行时 B（11-testing-strategy） | 仅 job 存在性与"必须在 PR 触发、不得 `--quiet`"的治理要求 |
+| `test` | Vitest 单测、契约测试、生命周期、保真往返、协同模拟与快照迁移语料等步骤（旧 job 名一律是本 job 的步骤，见下方「封闭集合」）；步骤清单、激活里程碑与本地复现命令以 [70-testing/12](../../70-testing/12-ci-gates-mapping.md) §2、§7、§12 为唯一源（2026-09-25 设计线拆分，本行不再列步骤） | 测试设计线（[70-testing](../../70-testing/README.md)） | 仅 job 存在性与"必须在 PR 触发、不得 `--quiet`"的治理要求 |
 | `test-typecheck` | `vitest --typecheck`（[09 §6](./09-plugin-type-contracts.md#6-类型测试的组织方式) 的类型测试套件；11 旧称 `types` 即本 job） | 类型治理 | 完整 |
 | `iso-smoke` | 消费 [06 scan-isomorphic](./06-scanners.md#5-scan-isomorphic) 生成的清单，逐包 `node --import` 冒烟（11 旧称 `iso` 即本 job） | 类型治理 | 完整 |
 | `depcruise` | [03](./03-boundaries.md) 全部规则 | 类型治理 | 完整 |
@@ -108,8 +108,8 @@ flowchart TB
 | `policy-check` | [06 scan-policy](./06-scanners.md#9-scan-policy) | 类型治理 | 完整 |
 | `xsd-validate` | 脏部件重生成结果的 OOXML XSD 有效性校验（D7 不透明保留/保真契约的一部分）；校验逻辑与具体 XSD 版本归属架构-结构条线（`ooxml-core` 设计），本篇只登记 job 存在性、触发条件（每个 PR）与不可跳过性，与其余门禁同等对待 | 架构-结构 A（校验内容）+ 类型治理（job 治理机制） | 仅 job 存在性与治理要求，工具本身见 `tooling/xsd/`（README `tooling/` 全景索引） |
 | `coverage-patch` | 新增/改动代码的行覆盖率阈值（patch coverage，反制 [lessons A19](../../00-charter/reference-univer-lessons.md)："`patch: off`"） | 架构-运行时 B（阈值数值与统计口径） + 类型治理（"必须存在且不可关闭"的门禁机制） | 阈值数字由 B 确认，机制由本篇管辖：见跨条线要求 |
-| `e2e` | Playwright 端到端。所含步骤（2026-09-25 rulings §4.18 GV-14/GV-16）：视觉 oracle（PR 跑 gated 类别、nightly 全量；11 旧称 job `oracle`）；PR 冒烟子集含 `security:rls`（testcontainers 起 PG，绕过应用层验证文档级 RLS）与 renderer 零出站测试，M3 起阻断；断网 compose e2e 仍在 main 全量段（40-modules/01 §5.9） | 架构-运行时 B | 仅 job 存在性治理要求 |
-| `perf` | 性能预算（渲染/加载/协同延迟） | 架构-运行时 B / 产品 | 仅 job 存在性治理要求 |
+| `e2e` | Playwright 端到端：视觉 oracle、PR 冒烟子集（含 `security:rls` 与 renderer 零出站）与 main 全量段（含断网 compose e2e）等步骤；步骤清单、触发段与激活里程碑以 [70-testing/12](../../70-testing/12-ci-gates-mapping.md) §2–§4、§7 为唯一源（2026-09-25 设计线拆分，本行不再列步骤） | 测试设计线（70-testing） | 仅 job 存在性治理要求 |
+| `perf` | 性能预算（渲染 / 加载 / 协同延迟）：每个 PR 跑 D50 关键指标的绝对 gate，超 gate 即失败，相对回归只报告（决策 T-PERF-GATE）；步骤、runner 标签与门禁规则以 [70-testing/12](../../70-testing/12-ci-gates-mapping.md) §2 与 [70-testing/09](../../70-testing/09-performance-and-capacity.md) §9–§10 为唯一源 | 测试设计线（70-testing）/ 产品 | 仅 job 存在性治理要求 |
 
 **封闭集合**：上表 13 个 job 名是 CI 的完整清单（scan-policy 校验 08 矩阵「CI job」列只取这些值）。其余文档里出现过的 job 名——`unit`/`contract`/`lifecycle`/`roundtrip`/`fidelity-roundtrip`/`collab-sim`/`snapshot-migration-corpus`（→ `test`）、`types`（→ `test-typecheck`）、`iso`（→ `iso-smoke`）、`oracle`/visual oracle（→ `e2e`）、`manifest-check`/`schema-lock`/`horizontal-freeze`/`shadcn-diff`（→ `scanners`）、`doc-type-blindness`（拆回 `depcruise`/`lint`/`test`）、`compose-airgap-e2e`（→ `e2e` main 段）——一律是上述 job 的**步骤**，不是新 job（2026-09-25 rulings §4.18 GV-14；先例 ADR-0004:18、本节 lockfile-guard、40-modules/01:643）。
 

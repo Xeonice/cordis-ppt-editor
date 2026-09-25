@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17、§4.18
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 SYNC 写入门槛改 ≥ commenter、令牌刷新按 INC-27 只重新绑定，见文末「修订（2026-09-25，rulings §4.19）」）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：决策 5 锁定窗口收窄为导入与迁移，见文末「修订（2026-09-25，rulings §4.19 N1）」） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17、§4.18、§4.19 N1
 
 # ADR-0029 协同网关鉴权与授权：短票据握手 + 每帧角色检查 + 权限版本传播
 
@@ -14,9 +14,9 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 
 1. **票据**：`POST /documents/:id/collab-ticket`（路径相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11）由 REST 会话鉴权后签发 JWT（ES256，60 s，`jti` 单次），claims：`sub, doc, role, perm_ver, sid?, lnk?`（2026-09-24 删去 `tid`——T-0 去租户）。`sid` 为**登录会话 id**（与 `Principal`/`Session` 的 `sessionId` 同义，按 JWT/OIDC 惯例）；`lnk` 为可选的**分享链接 id**——换票请求携带有效分享令牌时写入，供 WS 侧重算链接角色（见下方「2026-09-25 修订」；2026-09-25 修订，rulings §4.18 BE-02；原：claims 只有 `sub, doc, role, perm_ver, sid?` 且 `sid` 未定义含义，作废）。网关验签 + `jti` 防重放（Redis SETNX 60 s）+ `perm_ver` 对比 Redis 最新值（不一致以库为准）。
 2. **握手**：连接后首帧必须为 `CONTROL.auth`（5 s 超时 → 4408）；成功前任何 SYNC/AWARENESS 帧 → 4401。
-3. **每帧检查**：`SYNC update/step2` 帧要求 `session.role ≥ editor`；`AWARENESS` 允许 `viewer+`；CONTROL 只允许白名单类型。违规 → `error{collab.forbidden}`，累计 3 次 → 4403。
+3. **每帧检查**：`SYNC update/step2` 帧要求 `session.role ≥ commenter`，commenter 的写入范围由服务端软门禁路径级规则限定在 `resources['comments.threads']`、作者只能改自己的实体（ADR-0034）；`AWARENESS` 允许 `viewer+`；CONTROL 只允许白名单类型。违规 → `error{collab.forbidden}`，累计 3 次 → 4403；在途帧不计数——服务端发出降权 `CONTROL.permission` 或 `CONTROL.room{locked}` 之前已到达、以及发出后 2 s 内到达的写入帧都视为在途，只回 `error{collab.forbidden}`；此后到达的越权写入才计数（60-backend/16 §4）。（2026-09-25 修订，rulings §4.19，见文末同名修订节；原：「`SYNC update/step2` 帧要求 `session.role ≥ editor`」，作废——评论的事实源在 CRDT，按原写法协同模式下 commenter 无法评论。）
 4. **权限变更即时生效**：PermissionsService 写库后 `perm_ver++` 并 `PUBLISH perm:doc:{id}`；各实例对相关 Session 重算 role → `CONTROL.permission` 或关闭 4403；预算 ≤ 1 s p95。
-5. **文档锁定**（`documents.status='locked'`）：网关拒写（同降权），用于导入/恢复/迁移窗口。**擦除中**（`documents.status='purging'`，S-2 文档擦除或「永久删除文档」）：网关**拒绝加入**，已打开的 Room 经 `forceEpoch` 踢出会话并关闭后才清 `document_updates`/快照，防止清理后在线 Room 把新 update 写回（2026-09-25，rulings §4.18 BE-15）。
+5. **文档锁定**（`documents.status='locked'`）：网关拒写（同降权），用于**覆盖导入与迁移**窗口；版本恢复不加锁，覆盖导入以换纪元收尾（在线会话 4428 后重新 bootstrap）而不是解锁（2026-09-25 修订（rulings §4.19 N1），见文末同名修订节；原：「用于导入/恢复/迁移窗口」，作废——恢复是持有 Room 的 collab 进程内单事务，加锁只会让协作者的并发编辑被 L2 拒绝并触发「导出后重载」，且覆盖导入若经恢复用例实现会与锁自冲突）。**擦除中**（`documents.status='purging'`，S-2 文档擦除或「永久删除文档」）：网关**拒绝加入**，已打开的 Room 经 `forceEpoch` 踢出会话并关闭后才清 `document_updates`/快照，防止清理后在线 Room 把新 update 写回（2026-09-25，rulings §4.18 BE-15）。
 6. **观看链接（share link）**：REST 换票据时把 link 角色折叠进 `role`，并在票据中带上 `lnk`（链接 id）；WS 不直接接受 link token，会话内的链接角色按 `lnk` 重算与到期降权（2026-09-25 修订，rulings §4.18 BE-02，见文末同名修订节）。**匿名访问路径与登录前置条件的完整定义见下方"2026-09-21 修订"一节**（rulings §4.13 S-1）。
 7. **API Key**：**降为 M4**（rulings §4.15 Q6），M1–M3 服务端不接受 API Key；M4 引入时仍不允许直接走 WS，须先经 REST 换票据（原 B7 待决随之结案）。
 
@@ -38,7 +38,7 @@ sequenceDiagram
   gw->>valkey: 读取最新 perm_ver，与票据不一致时以库为准
   gw-->>client: auth 成功
   loop 每个入站帧
-    client->>gw: SYNC update 或 step2 需 role ≥ editor，AWARENESS 需 viewer 及以上，CONTROL 只允许白名单类型
+    client->>gw: SYNC update 或 step2 需 role ≥ commenter，AWARENESS 需 viewer 及以上，CONTROL 只允许白名单类型
     gw-->>client: 违规回 error collab.forbidden，累计 3 次关闭 4403
   end
 ```
@@ -91,7 +91,7 @@ sequenceDiagram
 
 - **凭据两种形态**：(a) 一方票据（60 s、`jti` 单次），用于 `apps/web` 与 OIDC 登录用户——**M1–M3 唯一形态**；(b) **集成方签名 JWT**（≤ 1 h，JWKS 验签；claims 草案 `sub`、`doc`、`caps[]`（能力位）、`exp`；2026-09-24 删去 `tenant`）直接放入 `CONTROL.auth`，无需先换票据——**2026-09-24 起降为 M4**，届时按 `sub` JIT 建影子用户（`documents.owner_id`、`comments.author_id` 需外键），ticket-verifier 增加该分支（14 §5.10 G-19）。
 - **权限来源可替换**（随 (b) 降为 M4；M1–M3 权限来源只有服务端 `permissions` 表）：默认读 JWT claims（`caps[]` → Role/能力位）；可配置为回调集成方权限服务（缓存 ≤ 60 s）；撤销通过 `perm:doc:{id}` 推送 ≤ 2 s 生效（不等缓存过期）。
-- **令牌刷新**：客户端 `getToken()` 在到期前 60 s 刷新并以 `CONTROL.auth.refresh{ token }` 续期（不断连）；服务端校验后更新 session 的过期时间与 role；刷新失败**按原因分流**（2026-09-25 修订，rulings §4.18 UX-02/UX-03）：**网络错误** → `reconnecting`，与重连共用同一个 30 s 离线计时（自进入重连起累计 30 s 仍未连上 → `offline`，ADR-0023 决策 5），不另设计时器；**鉴权失败（401，`server.auth.expired`）** → 直接进入「登录已过期」，不经过「重连中 → 离线」。「登录已过期」时由横幅在**弹窗或新标签**完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页，原页重获焦点时也探测 `/auth/me`；弹窗被拦截退化为新标签链接），原页不跳转、待同步队列保留；登录回来的用户 id 与原会话一致时取新票据，按 06 §5.1 已有的 `denied → connecting` 边重连 → 同步中 → 已恢复；**不一致时不重放队列**，按只读处理并提供导出本地副本（防止以他人身份提交更改）；该横幅处理前不可关闭。（原：「刷新失败 → `reconnecting` → 30 s → `offline`」，不分原因，作废。）
+- **令牌刷新**（2026-09-25 修订，决策 INC-27，见文末「修订（2026-09-25，rulings §4.19）」）：浏览器登录会话每次被动续期成功之后，客户端换新 collab ticket 并以 `CONTROL.auth.refresh{ ticket }` 发送（不断连）；服务端验签 + `jti` 单次 + `sub` / `doc` / `sid` 与当前会话一致后**只重新绑定**会话并重算 role，**不延长**会话寿命——M1–M3 一方票据的 WS 会话寿命 = 票据 `sid` 指向的登录会话，登录会话被吊销时以 4401 关闭；M4 集成方签名 JWT 复用同一帧，届时才以新 JWT 的 `exp` 续期。（原：「`getToken()` 在到期前 60 s 刷新并以 `auth.refresh{ token }` 续期，服务端更新 session 的过期时间」，作废。）刷新失败**按原因分流**（2026-09-25 修订，rulings §4.18 UX-02/UX-03）：**网络错误** → `reconnecting`，与重连共用同一个 30 s 离线计时（自进入重连起累计 30 s 仍未连上 → `offline`，ADR-0023 决策 5），不另设计时器；**鉴权失败（401，`server.auth.expired`）** → 直接进入「登录已过期」，不经过「重连中 → 离线」。「登录已过期」时由横幅在**弹窗或新标签**完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页，原页重获焦点时也探测 `/auth/me`；弹窗被拦截退化为新标签链接），原页不跳转、待同步队列保留；登录回来的用户 id 与原会话一致时取新票据，按 06 §5.1 已有的 `denied → connecting` 边重连 → 同步中 → 已恢复；**不一致时不重放队列**，按只读处理并提供导出本地副本（防止以他人身份提交更改）；该横幅处理前不可关闭。（原：「刷新失败 → `reconnecting` → 30 s → `offline`」，不分原因，作废。）
 - **单人模式**：无服务端时集成方直接传入能力位，客户端命令管线 fail-closed（CO-05）。
 - **错误码映射**：PRD `auth/invalid-token`、`auth/expired`、`auth/forbidden` → `server.auth.invalid_token`、`server.auth.expired`、`server.auth.forbidden`（HTTP 401/401/403；WS 4401/4401/4403），均触发 `collab/auth-failed` 事件且不泄露内部细节（10 §11.2）。
 - **构造消息绕过客户端**（CO-05）：服务端拒绝该 update 并在累计 3 次后断开（4403），审计 `collab.update_rejected`。
@@ -136,9 +136,27 @@ sequenceDiagram
 4. **BE-01 / BE-11 IdP 对外入口**：issuer 用对外 URL（`idp.<域名>` 反代子域），`redirectUri` 为 `/api/v1/auth/oidc/callback`——见 2026-09-24 修订第 2 条。
 5. **GV-15**：扫描器按正式名 `scan-doc-access-via-permission` 书写。
 
+## 修订（2026-09-25，rulings §4.19）：SYNC 写入门槛与令牌刷新
+
+> 依据：rulings §4.19 D-COMMENTS-PKG（评论事实源为 ResourceHook `comments.threads`，经 `comments.*` 命令写 CRDT）+ PRD PD-04（用户裁决）+ ADR-0034 补充 v0.2（路径级规则）；设计线遗留口径 INC-27（rulings §4.19 登记，needsUser=false）。决策 3 与「令牌刷新」已就地改写，本节只做索引。
+
+1. **决策 3 写入门槛**：`SYNC update/step2` 的角色门槛由 ≥ editor 改为 **≥ commenter**。commenter 的写入范围由服务端软门禁路径级规则限定在 `resources['comments.threads']`，作者只能改自己的实体，越界写入以补偿事务还原并计数、达阈值 4409（ADR-0034 修订 2026-09-25）；viewer 的任何写入仍在 L2 拒绝（`error{collab.forbidden}`，3 次 4403；降权或锁定时已在途的帧不计入这 3 次）。服务端细则见 60-backend/16 §4、60-backend/02 §9。
+2. **令牌刷新（INC-27）**：一方票据的 `auth.refresh{ticket}` 只重新绑定会话、重算角色，不延长寿命（寿命由 `sid` 指向的登录会话承担，吊销即 4401）；触发点是浏览器会话每次被动续期成功之后，不再按「到期前 60 s」计时；M4 集成方 JWT 才以新 `exp` 续期。帧定义见 06 §6.3。
+3. **分享令牌传递**（决策 INC-25 的对齐）：API 只接受请求头 `X-Cordex-Share-Token`，不接受 query；上文 2026-09-21 修订节「Header 或 Query」按此收窄。
+4. **文档锁定的会话信号**：决策 5 的锁定窗口经 `CONTROL.room{ locked:{reason, until} }` 通知在线会话（解锁推送不带 `locked` 的 `room`），不借 `permission{reason:'changed'}`——角色并未改变（06 §6.3）。
+
+## 修订（2026-09-25，rulings §4.19 N1）：锁定窗口收窄为导入与迁移
+
+> 依据：rulings §4.19 表末行 N1-IMPORT-OVERWRITE-RESTORE-LOCK（用户裁决「恢复不锁、覆盖导入换纪元」）。决策 5 已就地改写，本节记录要点。
+
+1. **锁定窗口**：`documents.status='locked'` 只用于覆盖既有文档的导入与 schema 迁移，锁原因（`room.locked.reason`、审计 `document.locked.reason`）取值为 `import`、`migration`（原：含 `restore`，作废）。
+2. **版本恢复不加锁**：恢复是持有 Room 的 collab 进程内的单个事务（`origin=system('restore')`），不调用锁定用例、不推 `room{locked}`，在线会话不断连，协作者的并发编辑与恢复事务按 CRDT 合并；文档因覆盖导入或迁移处于 `locked` 时，恢复请求与其他写路由一样得 409 `server.documents.locked`（60-backend/05 §10）。
+3. **覆盖导入 = 换纪元**：导入期间文档 `locked`，会话按决策 5 转只读；worker 上的导入处理器写 `epoch + 1` 的 `import` 快照、在同一事务推进 `documents.epoch` 并解锁，随后经既有控制频道 `room:{docId}:ctl` 发 `epoch`，在线会话以 4428 断开后重新 bootstrap，未获 db 确认的本地更改移入 `rejected` 并可导出（决策 INC-06 的 4428 流程）；不新增 worker → collab 的触发通道，旧纪元副本漏收通知时由取号的纪元栅栏兜底（60-backend/06 §6.5、60-backend/05 §9.2）。
+4. **与 `permVersion` 的关系不变**：锁定与解锁经 `perm:doc:{id}` 的 `lockChanged` 通知、不递增 `perm_ver`；纪元递增与 `perm_ver` 仍互不联动（决策 4、rulings §4.11 C-17）。
+
 ## 如何被机械验证
 
-- conformance/e2e：过期票据 4401；重放票据 4401；viewer 发 update → error 且连接保持；3 次后 4403；降权 → ≤ 1 s 收到 permission 帧且后续 update 被拒；锁定文档拒写。
+- conformance/e2e：过期票据 4401；重放票据 4401；viewer 发 update → error 且连接保持；3 次后 4403；commenter 写 `resources['comments.threads']` 自己的实体 → 落库并广播，写其他路径或他人实体 → 补偿事务还原（2026-09-25，§4.19）；`auth.refresh` 成功后会话到期时间不变、`sid` 被吊销 → 4401（INC-27）；降权 → ≤ 1 s 收到 permission 帧且后续 update 被拒；锁定文档拒写且在线会话收到 `room.locked`（2026-09-25 修订（rulings §4.19 N1）：`reason` 只取 `import` / `migration`；恢复进行中任何会话都收不到 `room.locked` 且写入照常获 db ack；覆盖导入成功后锁定中的会话以 4428 关闭、重连后纪元加一）。
 - 单测：`jti` 单次；`perm_ver` 不一致时以库为准（模拟旧票据）。
 - 安全扫描：WS URL/日志中不出现票据以外的凭据（日志脱敏测试）。
 - 审计：`permission.*`、`collab.join/leave/forbidden` 事件存在于 `audit_log`（集成测试断言）。
@@ -155,4 +173,4 @@ sequenceDiagram
 
 ## 关联
 
-章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6、§4.18 BE-01/BE-02/BE-05/BE-06/BE-11/UX-02/GV-15；ADR-0022（RLS 设计、`SECURITY DEFINER` 查找函数）/0037（Casdoor profile、反代子域、角色装配）；ADR-0023/0035；架构 06 §10、08 §2（auth/collab 模块）、§9.1（分享链接需登录 + 外部访问审计，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。
+章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6、§4.18 BE-01/BE-02/BE-05/BE-06/BE-11/UX-02/GV-15、§4.19 N1（锁定窗口收窄；机制见 60-backend/04 §2、05 §9.2 / §10、06 §6.5）；ADR-0022（RLS 设计、`SECURITY DEFINER` 查找函数）/0037（Casdoor profile、反代子域、角色装配）；ADR-0023/0035；架构 06 §10、08 §1、§9.1；60-backend/02（鉴权链）、§9.1（分享链接需登录 + 外部访问审计，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；30-architecture/08-backend-nestjs.md §1/§2/§3.1/§3.3/§4/§5/§8/§9/§11/§16.1–16.5；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；30-architecture/08-backend-nestjs.md §1/§2/§3.1/§3.3/§4/§5/§8/§9/§11/§16.1–16.5；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
 
 # 09 服务端协同网关与 Headless 宿主（限界上下文 BC-21 协同网关与持久化、BC-22 快照与版本、BC-27 Headless 渲染与批处理宿主）
 
@@ -67,7 +67,7 @@ collabNest -- "评论镜像、审计标注点" --> m12
 - Redis 跨实例扇出（不要求房间亲和）、单写者任务租约锁（压缩/迁移/换纪元）、在线人数聚合。
 - WS 握手第二道 fail-closed 检查点：collab ticket 校验（JWT 验签 + `jti` 防重放 + `permVersion` 比对）；文档 `status='purging'` 一律拒绝加入（rulings §4.18 BE-15）。
 - **链接会话的角色重算**（新增，rulings §4.18 BE-02）：票据带可选 claim `lnk`（分享链接 id）的会话，`AuthzSource` 重算时取 `max(直接授权, 该链接仍有效时的角色)`（链接状态经 M-08 `PermissionsModule` 导出的 `ResolveShareLinkUseCase` 复核），因此他人修改权限不会把只凭链接的会话误降为 `none` 踢出；链接撤销随 `permVersion` 广播 ≤ 1 s 降权；会话记录 `linkExpiresAt`，到期由本模块主动重算降权。
-- **Room 背压溢写**（新增，rulings §4.13 S-3，2026-09-21）：Postgres 持续故障期间不拒绝新编辑——按 Room 未持久化字节两级阈值判定，超一级阈值溢写 Redis，超二级阈值分块落 `BlobStore`；PG 恢复后按溢写临时键顺序回放到 `document_updates`。**两级 ack（2026-09-24，rulings §4.15 S-3a）**：溢写成功回 `ack{tier:'spill'}`（客户端保留 pending，不清 OfflineStore），落库成功回 `ack{seq,tier:'db'}` 才清 pending；溢写行只带临时键 `(instanceId, localCounter)`，正式 `seq` 在回放时由 PG 分配；回放完成后断言 Room 的 Y.Doc 无 `pendingStructs`。**2026-09-25 补充（rulings §4.18）**：PG 写失败即进入降级期，update 通过门禁、进入 `none`/`valkey`/`blob` 任一档后**立即**在本实例广播并跨实例扇出，不等持久化，`persistBeforeBroadcast` 只约束 PG 可用时的顺序，指标 `cordex_collab_broadcast_before_persist_total`（CO-08）；故障期与回放期 Room 保持 `active`（`spillTier≠none` 或 `replaying=true`），不进 `persisting`（CO-15）；存活实例只回放自己 `instanceId` 的溢写行，心跳过期实例的遗留行由下次加载该文档的 Room 持 `lock:spill:{doc}` 租约认领回放；关闭或 SIGTERM 时 PG 不可达则先把内存档强制写入一级溢写再 `closed`（CO-16）。
+- **Room 背压溢写**（新增，rulings §4.13 S-3，2026-09-21）：Postgres 持续故障期间不拒绝新编辑——按 Room 未持久化字节两级阈值判定，超一级阈值溢写 Redis，超二级阈值分块落 `BlobStore`；PG 恢复后按溢写临时键顺序回放到 `document_updates`。**两级 ack（2026-09-24，rulings §4.15 S-3a）**：溢写成功回 `ack{tier:'spill'}`（客户端保留 pending，不清 OfflineStore），落库成功回 `ack{seq,tier:'db'}` 才清 pending；溢写行只带临时键 `(instanceId, localCounter)`，正式 `seq` 在回放时由 PG 分配；回放完成后断言 Room 的 Y.Doc 无 `pendingStructs`。**2026-09-25 补充（rulings §4.18）**：PG 写失败即进入降级期，update 通过门禁、进入 `none`/`valkey`/`blob` 任一档后**立即**在本实例广播并跨实例扇出，不等持久化，`persistBeforeBroadcast` 只约束 PG 可用时的顺序，指标 `cordex_collab_broadcast_before_persist_total`（CO-08）；故障期与回放期 Room 保持 `active`（`spillTier≠none` 或 `replaying=true`），不进 `persisting`（CO-15）；存活实例只回放自己 `instanceId` 的溢写行，心跳过期实例的遗留行由下次加载该文档的 Room 持 `lock:spill:{doc}` 租约认领回放；关闭或 SIGTERM 时 PG 不可达则先把内存档强制写入一级溢写再 `closed`（CO-16）。**2026-09-25 追加（rulings §4.19 INC-09）**：PG 写失败 ≤ 1 s 内经 `CONTROL.room` 的可选字段 `persist:'degraded'` 通知房间内全部会话（不新增帧类型），回放完成且无溢写后推 `persist:'ok'`；客户端据此与自身在途状态分级提示「未保存到服务器 N 项」/「服务器保存延迟」（[60/05 §6.1](../60-backend/05-modules-collab-and-snapshots.md)、[50/07 §6.1](../50-frontend/07-collaboration-client.md)）。
 - **删除墓碑 TTL 硬删除**（新增，2026-09-24，rulings §4.15 Q3）：元素删除在 CRDT 内为软删除墓碑（id 稳定；删除方撤销或「恢复元素」可恢复，他人撤销不会复活——rulings §4.17 D4），TTL（默认 24 h，部署配置）到期后由服务端**单写者**（`LeaseLock` 选举，与 Compaction 同一锁族）发出 `origin=system('maintenance')` 硬删除事务（`reason` 取 M-02 `store/origin.ts` 既有枚举 `'repair'|'restore'|'maintenance'`，不另增取值）；客户端从不自行硬删除。**执行者事实源（2026-09-24 复核 H2，rulings §4.17）**：墓碑硬删除只有一条执行路径——本模块 `server-collab/application/persistence/tombstone-sweeper.ts` + `LeaseLock` 单写者；`30-architecture/08` 中的 BullMQ `tombstone-purge` 周期任务路径作废、以本模块为准。到期判定读墓碑字段 `_deleted.at`（M-03/架构 04 §3.1a 墓碑形状 `{at, by}`），TTL 取部署配置 `tombstone.ttlHours`（默认 24，与架构 08 配置表同键）。文档擦除（S-2）与「永久删除文档」（文档级，原称「立即彻底删除」）不等 TTL，作为 document-purge 参与者走 `purgeAll` 立即硬删。**彻底删除元素**（元素级，新增，rulings §4.18 CO-07）：只对墓碑态元素开放、只能由 owner 发起（`POST /documents/:id/elements/purge{ids}`，M-08 `DocumentRoleGuard(doc.manage)` 鉴权），由同一单写者复用 `tombstone-sweeper` 的 `system('maintenance')` 事务立即硬删（房间未加载时先加载再执行），写审计 `document.element_purged`；只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件按 30 天无引用 GC；删除方此后撤销该步按整步跳过（`wholeStep:true`，同 TTL 到期）。
 - **按文档实测权重准入**（新增，2026-09-24，rulings §4.15 Q5）：房间准入与内存预算按文档实测权重（元素数/字节/墓碑计入）而非固定房间数；编辑者/查看者名额**按用户计**（同一用户多标签/多设备占 1；commenter 计入查看者；owner 不占编辑者名额）；全部规模数字为部署配置、完全可调（超出性能保证包络时告警）。**2026-09-25（rulings §4.18 CO-17/CO-14）**：按 06 §14 先准入后 `loading`——只在本实例还没有该文档的 Room 时做实例级权重判定（权重取 `documents.element_count`，不需预加载），已有 Room 只判名额；预算不足时先按 LRU 提前结束 `draining` 房间再重判，仍不足才拒绝或驱逐 `active` 房间。
 - **编排式硬删除清理**（新增，rulings §4.13 S-2，2026-09-21）：`UpdateStore`/`SnapshotStore` 契约新增 `purgeAll(docId)`，作为 M-08 document-purge 作业的参与者（`@PurgeParticipant('collab')`）被调用，清理 `document_updates`/`document_snapshots`（"谁的表谁写"）；该参与者只依赖 `PgUpdateStore`/`PgSnapshotStore`，在 worker 角色装配、不激活 `collabServer`（rulings §4.18 BE-15/BE-13）。处理器的第一步经 Valkey 控制频道通知本模块踢出该文档会话并关闭 Room。
@@ -95,7 +95,7 @@ collabNest -- "评论镜像、审计标注点" --> m12
 | Compaction | 用一个快照替换其前的 update 序列 | ADR-0025 |
 | Repair | 服务端软门禁发出的补偿事务（`origin=system('repair')`） | ADR-0034 |
 | HeadSeq | `documents.head_seq`：已持久化的最大 update seq，与 `document_updates.seq` 同事务递增 | 08-backend-nestjs §5 |
-| Epoch | `documents.epoch`：结构数过大时的"换纪元"计数器，仅本模块可写；递增即**强制全体客户端重连**（断连再握手），与 `permVersion`（仅重算权限、不断连）不自动联动（2026-09-18，C-17，与 08 §2.1/§2.2/§7 同口径） | 06 §9.4、08 §7 |
+| Epoch | `documents.epoch`："换纪元"计数器，仅本模块代码可写（`forceEpoch`；覆盖既有文档的导入由 M-12 处理器经本模块 `SnapshotStore.put` 推进，2026-09-25，rulings §4.19 N1）；用于结构数过大时的治理与覆盖导入；递增即**强制全体客户端重连**（断连再握手），与 `permVersion`（仅重算权限、不断连）不自动联动（2026-09-18，C-17，与 08 §2.1/§2.2/§7 同口径）；版本恢复不递增、不断连 | 06 §9.4、08 §7；[60/05 §9.2](../60-backend/05-modules-collab-and-snapshots.md) |
 | SnapshotKind | `document_snapshots.kind` 枚举：`import\|auto\|named\|migration\|restore\|epoch` | 08-backend-nestjs §5、ADR-0025 |
 | HardGate / SoftGate | 应用前的协议/权限/结构校验（拒绝不广播不落库）／应用后的语义与不变量校验（修复不回滚） | ADR-0034 |
 | LeaseLock / FanoutBus | 单写者租约锁（compaction/migration/epoch 选举）／跨实例 pub/sub 扇出抽象 | 08-backend-nestjs §3.1 |
@@ -122,31 +122,36 @@ collabNest -- "评论镜像、审计标注点" --> m12
 
 ### 2.1 聚合与实体
 
-| 聚合 / 实体 | 字段 / 持有 | 不变量 / 并发语义 | 所在文件 |
-|---|---|---|---|
-| `Room`（聚合根，= 服务端 `Unit`） | `docId`、`state`（状态机）、`unit: UnitHandle`（持有 store-yjs Unit）、`sessions: Map<SessionId,RoomSession>`、`headSeq`、`epoch`、`schemaVersion`、`pendingBytes`/`spillTier`（新增，rulings §4.13 S-3：未持久化字节计数与当前溢写档位 `'none'\|'valkey'\|'blob'`） | 一个 doc 在**一个实例内**至多一个 Room；跨实例可有多个副本（ADR-0035，正确性由 CRDT 保证）；状态转换照抄 06 §5.2 七态（见 §1.1 与图 2-2，rulings §4.18 CO-13）；**2026-09-21 补强（S-3）**：PG 持续故障期间 `pendingBytes` 超一级阈值即溢写 `SpillStore` Redis 档，超二级阈值转分块落 `BlobStore` 档，**不拒绝新编辑**；PG 恢复后 `replay-spilled.usecase.ts` 按溢写临时键 `(instanceId, localCounter)` 顺序把**本实例**的溢写内容回放进 `document_updates`（正式 `seq` 此时由 PG 分配，S-3a；遗留行认领见 §2.6，CO-16），**PG 故障期与回放期间 Room 保持 `active`**（`spillTier≠none` 或 `replaying=true` 是 active 内的持久化子状态，2026-09-25 更正，rulings §4.18 CO-15），回放后断言无 `pendingStructs` | `server-collab/domain/room.ts` |
-| `RoomSession`（实体，= `Participant`） | `sessionId`、`role`、`clientId`（yjs）、令牌桶状态、`lastActiveAt`、违规计数、`ackTracking`（两级：`spill` 已确认 / `db` 已确认，S-3a）、`linkId?`/`linkExpiresAt?`（票据带 `lnk` 时记录，到期主动重算降权，rulings §4.18 BE-02） | 同一 `userId` 可多端同时在线（各自独立 Session），**名额按 `userId` 去重计数**（Q5）；降权/踢出立即生效（fail-closed，06 §10） | `server-collab/domain/room-session.ts` |
-| `UpdateLog`（聚合，`document_updates` 追加日志的领域投影） | `docId`、`seq`（与 `documents.headSeq` 同事务递增）、`byteSize`、`clientId`、`sessionId` | 只追加、`seq` 严格单调；裁剪只删 `seq ≤ 最新 auto 快照.seq_upto` 且 `created_at < now()-7d` 的行（ADR-0022/0025）；**新增（rulings §4.13 S-2）**：`purgeAll(docId)` 整表清空该 `docId` 全部行，由 M-08 document-purge 作业作为参与者调用（rulings §4.18 BE-15），"谁的表谁写" | `domain/contracts/update-store.ts`（契约）+ `application/persistence/update-writer.ts`（写入） |
-| `Snapshot` / `Version`（聚合，`document_snapshots` 一行的服务端投影） | `id`、`docId`、`seqUpto`、`kind: SnapshotKind`、`name?`、`stateInline\|stateKey`、`stateVector`、`epoch`、`layoutAlgoVersion`、`baselineKey?`（`kind='import'` 专用，见 §12 补齐项） | `named` 永久保留（配额限制）；`auto` 保留 30 天后按天稀疏化（每天仅留最后一个，ADR-0025 决策 5）；`documents.latest_snapshot_id` 只指向 `import\|auto\|migration\|restore\|epoch` 中最新一个（不含 `named`）；**新增（rulings §4.13 S-2）**：`purgeAll(docId)` 整表清空该 `docId` 全部行，语义同上 | `domain/contracts/snapshot-store.ts`（契约）+ `application/snapshot/snapshot.service.ts`（生成/恢复） |
-| `HeadlessJobContext`（聚合，headless 宿主内一次任务执行域） | `unit: UnitHandle`、`documentType`、`principal='system'`、`traceId` | 一次 `withUnit()` 调用 = 一个 `HeadlessJobContext`；`finally` 必然关闭 Unit；dev/test 下 `assertNoLiveEffects` | `server-headless/domain/unit-runner.ts` |
+> **事实源（rulings §4.19）**：服务端协同的运行机制（Room 生命周期、准入与名额、持久化与扇出、PG 故障降级与 `persist` 信号、压缩与版本保留、墓碑、迁移与换纪元、快照 REST 用例、永久删除参与者）以 [60/05](../60-backend/05-modules-collab-and-snapshots.md) 为准；表结构与 SQL 以 [60/11](../60-backend/11-ddl-collab-updates-and-snapshots.md) 为准；服务端对帧的处理、门禁、ack 与关闭码以 [60/16](../60-backend/16-ws-protocol-server-view.md) 为准；装配矩阵以 [60/01](../60-backend/01-service-overview-and-roles.md) §5 为准；表写方所有权以 [60/08](../60-backend/08-db-conventions-roles-rls-migrations.md) §7 为准。本节（§2）只保留类型到文件的落点与本包接口清单，冲突以 60 为准；本节图为落点示意，机制细节以 60/05 同名图为准。
 
-**`Room.epoch` 与权限重算的边界（2026-09-18，跨模块评审 C-17，与 `40-modules/08` §2.1/§2.2/§7 同口径）**：`Room.epoch` 只读镜像 `documents.epoch`（本模块是唯一写方，§7.3）；其递增语义是**强制全体会话断线重连**，触发点是 `collabServer.forceEpoch()`（§2.5）经 `internal/admin.controller.ts`（M-12；`AdminController` 只在 collab（及 all）角色装配，rulings §4.18 BE-03）调用；多副本部署下，递增 `epoch` 后经 Valkey 通知其他持有该 Room 的 collab 实例一并踢出会话（BE-03）。这与权限变更导致的 `permVersion` 递增（M-08 写、本模块经 `AuthorizationSource.onPermissionChanged` 订阅、§2.5）语义不同——后者只驱动受影响会话**静默重算能力位**，不断开连接。两者不自动联动：一次纯粹的权限调整不应附带踢出全部在线用户的副作用。
+| 聚合 / 实体 | 要点（机制见 60/05） | 所在文件 |
+|---|---|---|
+| `Room`（聚合根，= 服务端 `Unit`） | `docId`、`state`（照抄 30/06 §5.2 七态，图 2-2）、`unit`、`sessions`、`headSeq`、`epoch`、`schemaVersion`、`pendingBytes`/`spillTier`（`'none'\|'valkey'\|'blob'`）、`persist: 'ok'\|'degraded'`（2026-09-25 新增，rulings §4.19 INC-09：PG 写失败 ≤ 1 s 内经 `CONTROL.room{persist:'degraded'}` 推给房间内全部会话，回放完成且无溢写后推 `'ok'`，不新增帧类型；[60/05 §6.1](../60-backend/05-modules-collab-and-snapshots.md)）；PG 故障期与回放期保持 `active`（CO-15） | `server-collab/domain/room.ts` |
+| `RoomSession`（实体） | `sessionId`、`role`、`clientId`、令牌桶、`ackTracking`（两级 ack，S-3a）、`linkId?`/`linkExpiresAt?`（BE-02）；名额按 `userId` 去重（Q5） | `server-collab/domain/room-session.ts` |
+| `UpdateLog`（聚合） | `document_updates` 追加日志的领域投影；`purgeAll(docId)` 供 document-purge 参与者（S-2、BE-15）；裁剪条件以 60/11 §8 为准 | `domain/contracts/update-store.ts` + `application/persistence/update-writer.ts` |
+| `Snapshot`/`Version`（聚合） | `document_snapshots` 一行的投影；`SnapshotKind` 六值；保留口径见图 2-1（rulings §4.19 C-06） | `domain/contracts/snapshot-store.ts` + `application/snapshot/snapshot.service.ts` |
+| `HeadlessJobContext`（聚合） | 一次 `withUnit()` = 一个上下文，`finally` 必然关闭 Unit | `server-headless/domain/unit-runner.ts` |
+
+`Room.epoch` 只读镜像 `documents.epoch`（本模块唯一写方），递增即强制全体会话断线重连（4428，决策 INC-06），与 `permVersion`（只重算能力位、不断连）不自动联动（C-17；机制见 [60/05 §9.2](../60-backend/05-modules-collab-and-snapshots.md)）。
 
 **图 2-1 快照与版本保留策略**
 
 ```mermaid
 stateDiagram-v2
 [*] --> PendingUpdates
-PendingUpdates --> AutoSnapshot : shouldCompact 三选一 OR 触发 Compaction
-[*] --> NamedSnapshot : 用户创建命名快照
+PendingUpdates --> AutoSnapshot : shouldCompact 任一阈值触发 Compaction
+[*] --> NamedSnapshot : 用户创建命名版本
 [*] --> EventSnapshot : 导入 迁移 恢复 换纪元 各自触发
 AutoSnapshot --> RetainedThirtyDays : 30 天内全留
-RetainedThirtyDays --> SparsifiedDaily : 超 30 天按天稀疏化仅留最后一个
-NamedSnapshot --> NamedSnapshot : 永久保留 受配额限制
-EventSnapshot --> EventSnapshot : kind 分别为 import migration restore epoch
+EventSnapshot --> RetainedThirtyDays : 按 auto 口径
+RetainedThirtyDays --> DailyLast : 30 天后每个 UTC 日只留最后一个
+DailyLast --> Deleted : 超过 autoSnapshotDailyDays 默认 365 天
+DailyLast --> DailyLast : autoSnapshotDailyDays 为 0 时永久
+NamedSnapshot --> NamedSnapshot : 永久保留 每文档上限 200
+Deleted --> [*]
 ```
 
-图怎么读：`auto` 快照由 Compaction 阈值触发并按 30 天规则稀疏化；`named` 快照永久保留；`import`/`migration`/`restore`/`epoch` 四种事件性快照各自在触发点生成一次，不参与稀疏化。
+图怎么读：`auto` 快照由 Compaction 阈值触发；`import`/`migration`/`restore`/`epoch` 事件快照按 `auto` 口径（rulings §4.19 C-06）：30 天内全留，之后每天只留最后一个，保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；`named` 永久且每文档上限 200（`quota.namedSnapshotsPerDoc`）；`documents.latest_snapshot_id` 所指行永不删除。带基线的 `import` 快照的例外（基线随文档生命周期，决策 C-07）以 [60/11 §8](../60-backend/11-ddl-collab-updates-and-snapshots.md) 为准。全部数值为部署配置可调（rulings §4.16 Q17）。
 
 **图 2-2 Room 生命周期状态机**
 
@@ -162,7 +167,7 @@ stateDiagram-v2
   [*] --> loading: 准入通过且本实例无该 Room
   loading --> active: bootstrap 完成 latest 快照加 loadSince 必要时迁移
   loading --> failed: bootstrap 出错 加入请求以 4503 拒绝
-  active --> active: join leave update awareness 持久化 溢写与回放
+  active --> active: join leave update awareness 持久化 溢写与回放 persist 信号
   active --> draining: 最后一个客户端离开
   draining --> active: 宽限期内有客户端回归
   draining --> persisting: 宽限到期 或内存压力与准入不足时按 LRU 提前结束
@@ -173,10 +178,9 @@ stateDiagram-v2
   closed --> [*]
 ```
 
-怎么读：状态与转换照抄 06 §5.2（rulings §4.18 CO-13）。PG 故障期与溢写回放期间 Room 始终是 `active`（`spillTier≠none` 或 `replaying=true` 只是 active 内的持久化子状态），在线客户端不断连、不拒写，`persisting` 只通向 `closed`（CO-15）；内存压力或准入不足时先按 LRU 提前结束 `draining` 房间（无在线客户端，不发 1012），仍超预算才驱逐 `active` 房间，没有 `draining→evicting` 这条边（CO-14）；无人在线的 Room 收尾时若 PG 不可达，先把内存档强制写入一级溢写再关闭，不在 `persisting` 久等（CO-16）。
+怎么读：状态与转换照抄 30/06 §5.2（rulings §4.18 CO-13）；PG 故障期与溢写回放期间 Room 始终是 `active`，其间经 `CONTROL.room.persist` 通知降级与恢复（rulings §4.19 INC-09）；没有 `draining→evicting` 边（CO-14）；无人在线的 Room 收尾时若 PG 不可达，先写一级溢写再关闭（CO-16）。
 
-依据：06 §5.2；§2.1 `Room` 行；§2.6「离开房间」「内存压力回收」「回放溢写数据」行；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-13/CO-14/CO-15/CO-16。
-
+依据：30/06 §5.2；[60/05 §3、§6](../60-backend/05-modules-collab-and-snapshots.md)；rulings §4.18 CO-13/CO-14/CO-15/CO-16、§4.19 INC-09。
 ### 2.2 值对象
 
 | 名称 | 字段 / 校验 | 所在文件 |
@@ -188,10 +192,11 @@ stateDiagram-v2
 | `CompactionThresholds`（= Compaction 阈值） | `{maxPendingUpdates:500, maxPendingBytes:5 MiB, maxAgeMs:600000}`（三选一 OR 触发，ADR-0025 决策 3） | `server-collab/config.ts` |
 | `GateLimits` | `{maxFrameBytes:1 MiB, msgRateHz:200, msgBurst:500, awarenessMinIntervalMs:50, awarenessMaxBytes:2 KiB, structsPerUpdate:50000}` | `server-collab/config.ts` |
 | `RoomCapacity` | `{maxEditors:20, maxViewers:50, drainGraceMs:60000, memoryAdmissionPct:75, weight:{maxElementsPerDoc:20000, softWarnElements:15000}}`；2026-09-24（rulings §4.15 Q5）起 `maxActiveRooms` 固定房间数改为**按文档实测权重准入**（`admitByWeight`，§2.3），名额按用户计，全部数值为部署配置可调（超出性能保证包络告警） | `server-collab/config.ts` |
-| `SpillAck`（新增，rulings §4.15 S-3a；2026-09-24 复核 M1 与 M-02 对齐） | 帧形状以 M-02 为准：`{kind:'ack', tier:'spill'}` \| `{kind:'ack', tier:'db', seq}`（帧内不带 `localCounter`/`count`）；`SpillKey = {instanceId, localCounter}` 仅为服务端溢写行临时键（回放时换成 PG 分配的正式 `seq`），不上线 | 帧：`@cordexjs/protocol` `ws/frames.ts`（M-02 帧归属方，本模块不另建 `collab/control.ts` 帧）；`SpillKey`：`server-collab/domain/contracts/spill-store.ts` |
+| `SpillAck`（rulings §4.15 S-3a） | 帧形状以 30/06 §6.3 与 M-02 `ws/frames.ts` 为准：`{type:'ack', tier:'spill'}` \| `{type:'ack', tier:'db', seq}`（判别键统一为 `type`，决策 INC-03/04/05，2026-09-25 更正）；`SpillKey = {instanceId, localCounter}` 仅为服务端溢写行临时键，不上线 | 帧：`@cordexjs/protocol` `ws/frames.ts`；`SpillKey`：`server-collab/domain/contracts/spill-store.ts` |
 | `TombstoneTtl`（新增，rulings §4.15 Q3；2026-09-24 复核 L10 统一键名） | 部署配置键 `tombstone.ttlHours`（默认 24，与 `30-architecture/08` 配置表同键）；到期判定 `_deleted.at + ttlHours < now` | `server-collab/config.ts`（由 apps/server 配置注入） |
 | `SoftGateMode` | `mode:'repair'\|'report-only'\|'off'`；`schemaMode` 同枚举独立配置（ADR-0034 v0.2） | `server-collab/config.ts` |
-| `CloseCode` | WS 关闭码常量对象：`1000/1001/1006/1012/4400/4401/4403/4404/4408/4409/4413/4426/4427/4429/4503` | `@cordexjs/protocol` `collab/close-codes.ts`（新增建议，见 §12） |
+| `RoomPersist`（新增，rulings §4.19 INC-09） | `'ok' \| 'degraded'`；随 `CONTROL.room` 的可选字段 `persist` 下发（缺席即 `'ok'`），PG 写失败 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`；客户端判据与受众见 [50/07 §6.1](../50-frontend/07-collaboration-client.md) | 帧字段：`@cordexjs/protocol` `ws/frames.ts`；状态：`server-collab/domain/room.ts` |
+| `CloseCode` | WS 关闭码常量对象：`1000/1001/1006/1011/1012/4400/4401/4403/4404/4408/4409/4413/4426/4427/4428/4429/4503`（2026-09-25 补 1011 服务端内部错误、4428 纪元变更，决策 INC-06；触发条件见 [60/16 §10](../60-backend/16-ws-protocol-server-view.md)） | `@cordexjs/protocol` `collab/close-codes.ts`（M-02 §4.3 已登记，决策 INC-01） |
 
 ### 2.3 领域服务（纯函数）
 
@@ -203,7 +208,7 @@ stateDiagram-v2
 | `shouldCompact` | `(pending: {count:number;bytes:number;ageMs:number}, thresholds: CompactionThresholds) => boolean`（三选一 OR，ADR-0025 决策 3） | `server-collab/domain/gate/compaction-policy.ts` | 否 |
 | `checkSpillTier`（新增，rulings §4.13 S-3） | `(pendingBytes: number, thresholds: SpillThresholds) => 'none'\|'valkey'\|'blob'`（两级阈值判定，纯函数，不触发 IO；PG 持续故障期间由 `spill-coordinator.ts` 调用后决定写 `SpillStore` 的哪一档） | `server-collab/domain/gate/spill-policy.ts` | 否（服务端专有，与 compaction 阈值同量级配置） |
 | `admitByWeight`（新增，rulings §4.15 Q5） | `(doc: {elements:number; tombstones:number; bytes:number}, capacity: RoomCapacity, instance: {usedWeightBytes:number; budgetBytes:number}) => 'admit'\|'readonly'\|'reject'`（文档实测权重判定：`usedWeightBytes + 新房间权重 ≤ budgetBytes` 才接纳，`budgetBytes` = 容器内存上限（cgroup 限额，`process.constrainedMemory()`；无限额取物理内存）× `memoryAdmissionPct`；超 `maxElementsPerDoc` 的文档不接纳编辑。2026-09-25 更正，rulings §4.18 BE-29/CO-17；原入参 `memory: {usedPct}`（按进程内存占比判定）作废） | `server-collab/domain/gate/admission-policy.ts` | 否 |
-| `planVersionRetention` | `(snapshots: readonly SnapshotMeta[], now: number) => { keep: SnapshotId[]; sparsify: SnapshotId[] }`（30 天内全留，30 天外按天稀疏化只留每天最后一个，`named` 永久排除在外，ADR-0025 决策 5） | `server-collab/domain/gate/version-retention-policy.ts` | 否 |
+| `planVersionRetention` | `(snapshots: readonly SnapshotMeta[], now: number, cfg: { autoSnapshotDays: number; autoSnapshotDailyDays: number }) => { keep: SnapshotId[]; drop: SnapshotId[] }`（rulings §4.19 C-06：非 `named` 快照 30 天内全留，之后每个 UTC 日只留最后一个，保留至 `autoSnapshotDailyDays`（默认 365，0 = 永久）；`named` 与指针所指行永不入 `drop`；生产执行是 worker 上的 `snapshots-retention` 周期作业与 60/11 §8 的 e7 SQL，本函数供 `MemorySnapshotStore` 与单测对照同一规则） | `server-collab/domain/gate/version-retention-policy.ts` | 否 |
 | `consumeTokenBucket` | `(bucket: TokenBucketState, cost: number, now: number) => Result<TokenBucketState, 'rate_limited'>` | `server-collab/domain/gate/token-bucket.ts` | 否 |
 | `diffForRestore` | `(current: Persisted<S>, target: Persisted<S>, documentType: DocumentType<S>) => Mutation[]`（薄封装 `documentType.diff()`；供版本对比预览与 `core.restoreVersion` 命令内部共用同一纯函数，避免重复实现，见 §2.6/§13） | `server-headless/application/tasks/diff-snapshots.ts` | 是（纯函数来自 model-core/model-slide，两端均可调用） |
 
@@ -223,97 +228,24 @@ stateDiagram-v2
 
 ### 2.5 仓储 / 存储契约
 
-**`collabServer`（服务面；`plugin.ts` 以 `provide=['collabServer']` 暴露；实现 = `application/room-manager.ts`）**：
+> 签名的唯一源是 [60/05 §2.1](../60-backend/05-modules-collab-and-snapshots.md)（`CollabServer`、`UpdateStore`、`SnapshotStore`、`SpillStore`、`FanoutBus`、`LeaseLock`、`AuthorizationSource`、`MembershipRegistry`、`ServerConnection`），IO 适配器表见 60/05 §2.2；本节 2026-09-25 起只列 Definition 到文件、Provider 与契约套件的落点（rulings §4.19）。套件的运行方式与用例 id 以 [70/02](../70-testing/02-contract-suites-and-pluggability.md) 为准；需要容器的 Provider 调用一律在 `apps/server/test/integration/conformance/*.int-spec.ts`（决策 T-NAMING，70/02 §14 第 2 条）。
 
-```ts
-interface CollabServer {
-  attach(connection: ServerConnection, claims: CollabTicketClaims): Promise<Result<RoomSession, GateError>>
-  drainAll(reason: string): Promise<void>
-  getRoomStats(docId: RoomId): RoomStats | undefined
-  forceEpoch(docId: RoomId): Promise<void>              // internal/admin 强制换纪元 = 强制全体重连（08 §7、本文档 §2.1，C-17）；递增后经 Valkey 通知其他持有该 Room 的实例一并踢会话（§4.18 BE-03）
-  closeRoom(docId: RoomId, reason: 'purge'): Promise<void>   // document-purge 第一步：踢会话、关 Room（§4.18 BE-15）
-  purgeElements(docId: RoomId, ids: readonly string[]): Promise<Result<void, GateError>>  // 彻底删除元素：只收墓碑态 id（§4.18 CO-07）
-}
-```
+| Definition / 服务 | 契约文件 | Provider（文件） | 契约套件（导出处 → 实例化处） |
+|---|---|---|---|
+| `collabServer`（`CollabServer`） | `server-collab/application/room-manager.ts`（实现）；类型在 `index.ts` 导出 | `server-collab` 自身（`plugin.ts` `provide=['collabServer']`） | `runCollabServerConformance(createCluster)`（`server-collab/testing`）→ 内存版 `createServerCluster(n)` 自测；真实适配器版 `apps/server/test/integration/conformance/collab-server.int-spec.ts` |
+| `UpdateStore` | `domain/contracts/update-store.ts` | `collab/infrastructure/pg-update-store.ts` | `runUpdateStoreConformance` → `MemoryUpdateStore` 自测；`conformance/pg-update-store.int-spec.ts` |
+| `SnapshotStore` | `domain/contracts/snapshot-store.ts` | `collab/infrastructure/pg-snapshot-store.ts` | `runSnapshotStoreConformance` → `MemorySnapshotStore` 自测；`conformance/pg-snapshot-store.int-spec.ts` |
+| `SpillStore` | `domain/contracts/spill-store.ts` | `collab/infrastructure/spill/{redis-spill.store,blob-spill.store}.ts`（合组实现） | `runSpillStoreConformance` → `MemorySpillStore` 自测；`conformance/{redis-spill-store,blob-spill-store}.int-spec.ts` |
+| `FanoutBus` | `domain/contracts/fanout-bus.ts` | `collab/infrastructure/redis-fanout.bus.ts` | `runFanoutBusConformance`（GV-20）→ `MemoryFanoutBus` 自测；`conformance/redis-fanout-bus.int-spec.ts` |
+| `LeaseLock` | `domain/contracts/lease-lock.ts` | `collab/infrastructure/redis-lease-lock.ts` | `runLeaseLockConformance`（GV-20）→ `MemoryLeaseLock` 自测；`conformance/redis-lease-lock.int-spec.ts` |
+| `AuthorizationSource` | `domain/contracts/authz-source.ts` | `collab/infrastructure/authz-source.ts` | 不设独立套件；链接会话三场景由 `runCollabServerConformance` 覆盖（BE-02） |
+| `MembershipRegistry`（2026-09-25 登记，60/05 §2.1、§4.2：名额跨实例原子判定，决策 C-11） | `domain/contracts/membership-registry.ts` | `collab/infrastructure/redis-membership-registry.ts` | 不设独立套件；准入原子性由 `runCollabServerConformance` 覆盖 |
+| `ServerConnection` | `interface/contracts/connection.ts` | `collab/interface/ws-connection.adapter.ts` | 由 `collab-server.int-spec.ts` 覆盖 |
+| `layout.measurer`（M-06 定义，`node-font`） | M-06 `engine-layout` | `server-headless/infrastructure/measurer/node-font-measurer.ts` | `runTextMeasurerConformance`（`engine-layout/testing`）→ `__tests__/measurer-conformance.test.ts` |
+| `ThumbnailRenderer`（适配器接口，本模块唯一实现） | `server-headless/infrastructure/thumbnails/thumbnail-renderer.ts` | 同左；`local`（`browser-pool.ts`）与 `remote`（`remote-renderer.client.ts`）两种模式 | 不设跨包 kit，由像素 oracle 覆盖（决策 T-KITS）；运行形态、RPC 与 ready 判据见 [60/06 §8–§10](../60-backend/06-modules-jobs-import-export-thumbnails.md) 与 [50/12 §11](../50-frontend/12-viewer-embedding-and-render-page.md) |
 
-契约套件：`runCollabServerConformance(createCluster: (n: number) => ServerCluster)`（消费 `testing/index.ts` 的 `createServerCluster`），覆盖：两实例去重扇出、崩溃后重放、限流、软门禁修复、容量驱逐（先回收空闲房间再驱逐活跃房间，CO-14）、drain、PG 断开时两客户端互见编辑且恢复后 `seq` 连续不丢（CO-08）、step2 空 diff 也回一帧 `tier:'db'`（CO-10）、链接会话三场景（他人改权限不踢链接会话、撤销 ≤ 1 s 降权、到期降权，BE-02）、`purging` 文档拒绝加入（BE-15）（§9）。
-
-**`UpdateStore`（Definition；`domain/contracts/update-store.ts`；默认 Provider：`collab/infrastructure/pg-update-store.ts`）**：
-```ts
-interface UpdateStore {
-  append(docId: RoomId, rows: readonly UpdateRow[]): Promise<Seq[]>     // 与 documents.headSeq 同事务
-  loadSince(docId: RoomId, seq: Seq): AsyncIterable<UpdateRow>
-  pruneBefore(docId: RoomId, seq: Seq, olderThan: Date): Promise<number>
-  purgeAll(docId: RoomId): Promise<void>          // 新增（rulings §4.13 S-2）：整表清空该 docId 全部行，编排式硬删除的本模块落点
-}
-```
-
-**`SnapshotStore`（Definition；`domain/contracts/snapshot-store.ts`；默认 Provider：`collab/infrastructure/pg-snapshot-store.ts`）**：
-```ts
-interface SnapshotStore {
-  latest(docId: RoomId): Promise<SnapshotMeta | undefined>
-  put(docId: RoomId, snap: SnapshotInput): Promise<SnapshotMeta>
-  get(id: SnapshotId): Promise<SnapshotBody | undefined>
-  list(docId: RoomId, opts?: { limit?: number; cursor?: string }): Promise<Page<SnapshotMeta>>
-  purgeAll(docId: RoomId): Promise<void>          // 新增（rulings §4.13 S-2）：语义同 UpdateStore.purgeAll
-}
-```
-
-**`SpillStore`（Definition，新增；`domain/contracts/spill-store.ts`；两个 Provider：`collab/infrastructure/spill/redis-spill.store.ts`（一级）、`collab/infrastructure/spill/blob-spill.store.ts`（二级），rulings §4.13 S-3）**：
-```ts
-interface SpillStore {
-  // 2026-09-24（rulings §4.15 S-3a）：溢写行不带正式 seq，只带临时键 SpillKey = { instanceId, localCounter }
-  writeTier1(docId: RoomId, rows: readonly SpillRow[]): Promise<void>        // Redis：有界列表/流，超一级阈值时改走本方法而非 UpdateStore.append
-  writeTier2(docId: RoomId, chunk: Uint8Array, keyRange: [SpillKey, SpillKey]): Promise<void>  // BlobStore：超二级阈值分块落盘
-  readAllOrdered(docId: RoomId, instanceId: string): AsyncIterable<SpillRow> // 只读指定实例的行（§4.18 CO-16），按 localCounter 升序合并两档；seq 回放时由 PG 分配
-  listInstances(docId: RoomId): Promise<string[]>                           // 该文档有溢写行的 instanceId，供认领心跳过期实例的遗留行（CO-16）
-  clear(docId: RoomId, instanceId: string): Promise<void>                   // 回放成功后清空该实例的溢写暂存
-}
-```
-契约套件：`runSpillStoreConformance(factory)`（`server-collab/testing/index.ts` 新增 `MemorySpillStore`；两个 Provider 各自 `.spec.ts` 实例化，由 `scan-manifest` 规则 (e) 检查，原称 `provider-runs-conformance`，rulings §4.18 GV-15）。**未持久化字节两级阈值判定**（`checkSpillTier`，§2.3）与本契约是纯函数/IO 分离的标准搭配：门禁只决定"该写哪一档"，`SpillStore` 只负责把字节写进去/读出来，不做阈值判断。
-
-两者契约套件：`runUpdateStoreConformance`/`runSnapshotStoreConformance`（`server-collab/testing/index.ts` 的 `MemoryUpdateStore`/`MemorySnapshotStore` 自测；`collab/infrastructure/{pg-update-store,pg-snapshot-store}.spec.ts` 用 testcontainers Postgres 实例化同一套件，由 `scan-manifest` 规则 (e) 检查（原称 `provider-runs-conformance`，rulings §4.18 GV-15），沿用 M-02 §2.5 约定；2026-09-21 起两套件均追加 `purgeAll` 断言：清空后 `loadSince`/`latest` 返回空，rulings §4.13 S-2）。`FanoutBus`/`LeaseLock`/`AuthorizationSource` 同为 Definition + Provider 模式（Provider 分别是 `collab/infrastructure/{redis-fanout.bus,redis-lease-lock,authz-source}.ts`），签名：
-
-```ts
-interface FanoutBus { publish(docId: RoomId, msg: { instanceId: string; frame: Uint8Array }): Promise<void>; subscribe(docId: RoomId, handler: (msg: FanoutMessage) => void): Disposable }
-interface LeaseLock { acquire(key: string, ttlMs: number): Promise<Lease | null> }
-interface AuthorizationSource {
-  // 取 max(直接授权, lnk 对应链接仍有效时的角色)；返回链接到期时间供会话主动降权（§4.18 BE-02）
-  resolveRole(docId: RoomId, principal: CollabPrincipal): Promise<{ role: Role; linkExpiresAt?: number }>
-  onPermissionChanged(docId: RoomId, cb: (permVersion: number) => void): Disposable   // 授权变更与链接撤销都会递增 permVersion
-}
-```
-
-**`FanoutBus`/`LeaseLock` 契约套件**（2026-09-25 补齐，rulings §4.18 GV-20，关闭 16 §8 G-6 的对应部分）：`runFanoutBusConformance(factory)`（跨实例投递、按 `instanceId` 去重、订阅释放后不再收到）与 `runLeaseLockConformance(factory)`（互斥、租约过期后可被他人取得、fencing token 单调），由 `server-collab/testing/index.ts` 导出，`MemoryFanoutBus`/`MemoryLeaseLock` 自测，`collab/__tests__/{redis-fanout.bus,redis-lease-lock}.spec.ts` 用 testcontainers Valkey 实例化。`AuthorizationSource` 不设独立套件，其链接会话三场景由 `runCollabServerConformance` 覆盖。
-
-**`ThumbnailRenderer`（适配器接口；`server-headless/infrastructure/thumbnails/thumbnail-renderer.ts`；本模块唯一实现）**：
-```ts
-interface ThumbnailRenderer {
-  render(docState: Uint8Array, slideIds: readonly string[], opts: RenderOptions): Promise<readonly PngResult[]>
-  renderPdf(docState: Uint8Array, opts: PdfOptions): Promise<Uint8Array>
-}
-interface RenderOptions { deviceScaleFactor: number; layoutAlgoVersion: number; fontProfile: string }
-```
-**两种运行模式（2026-09-24，rulings §4.15 Q8）**：`local`（进程内 `browser-pool.ts`，EM-10 b 单容器部署）与 `remote`（经 `remote-renderer.client.ts` 调用**独立零出站 renderer sidecar**：非 root、Chromium 沙箱开启、无任何凭据、网络零出站、每任务独立 `BrowserContext` 并按任务数/时长回收、字体与渲染代码版本与 api 镜像锁步）。sidecar RPC 契约（请求 = 注入的 state 字节 + 资源字节 + 选项，响应 = WebP（缩略图 640 px）/PDF 字节）放入 `@cordexjs/protocol/render/sidecar.ts`（M-02 配合）；`/render` 页从注入取得 state 与资源，不做任何外呼。**`RenderStateToken` 网络拉取已取消（2026-09-25，rulings §4.18 BE-04）**：`local`（Playwright `page.evaluate`/`exposeBinding`）与 `remote`（sidecar RPC）两种模式都由编排方调用 `window.__cordex.inject` 注入，页面只有一条路径；`RenderPageQuery.token` 改为 `renderId`，仅作日志关联；注入等待超时为页面常量（默认 60 s），与 ADR-0026 每页 10 s 渲染超时分开计；两种模式各跑一次「`/render` 网络请求数为 0」e2e（§9）。PDF 导出 M3 后半段；缩略图 M3 前半段，按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s。
-**取得方式（2026-09-18，跨模块评审 C-09 结案）**：`HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`（§6），M-12 的 BullMQ 处理器（`headless-renderer.accessor.ts`）经 `createHeadlessHost(adapters).thumbnails` 取得实例，是唯一调用方；不再规划独立的 `renderThumbnails` 工厂函数导出（该命名已作废，历史见 `30-architecture/08-backend-nestjs.md` §2，由总编排回写改名）。不设跨包契约套件（本模块是唯一实现，且强依赖真实 Chromium 进程）；`__tests__/thumbnails.test.ts` 仅在 CI 具备 Chromium 时运行像素级 oracle（服务端渲染位图与客户端 Playwright 截图差 ≤ 0.5%，ADR-0026；对外产物为 640 px WebP）。
-
-**`RenderPageProtocol`（跨进程契约；2026-09-18，跨模块评审 C-27 结案）**：`headless Chromium ↔ apps/web /render 路由`是真实跨进程边界，`RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse` 三个 schema 现由 **M-02 在 `@cordexjs/protocol/render/page.ts` 统一定义**（`renderId` 查询参数与注入载荷、`window.__cordex.ready` 信号、错误上报三部分；`RenderStateResponse` 保留为注入载荷类型，不再有「token/state 拉取 URL」，rulings §4.18 BE-04；ready 判据见 M-11 §2.4，§4.18 FE-09）；本模块的 `infrastructure/thumbnails/render-page-protocol.ts` 改为**薄适配层**，只 `import type { RenderPageQuerySchema, RenderPageSignal, RenderStateResponse } from '@cordexjs/protocol/render/page'` 并补 Node 侧 URL 拼装辅助函数，不再是该契约的定义源（§4.5/§5.5 同步）。`render/frame`/`perf/frame`（上表末行）与本契约是两回事：前者是渲染帧遥测，后者是页面加载状态机协议。
-
-**`TextMeasurer`（M-06 定义的 Definition，本模块提供 `node-font` Provider）**：`server-headless/infrastructure/measurer/node-font-measurer.ts` **必须**实例化 M-06 的 `runTextMeasurerConformance(factory)`（`engine-layout/testing`），与 `render-dom` 的 `canvas` Provider 共用同一套件，度量结果标注"近似一致"而非逐字节相同（06-layout-and-render-engine §2.5）。
-
-**`ServiceMap`（新增，评审 §3.6，2026-09-21；`cordis-host/cordis-host.service.ts`）**：`CordisHostService.getService<T>(name)`（08 §13 Q-5 在此定案）此前是裸字符串查找，`name` 拼错或服务未装配只在运行时报诊断，不在编译期报错。新增编译期 key→类型映射，替代弱类型签名：
-```ts
-interface ServiceMap {
-  collabServer: CollabServer
-  blobStore: ServerBlobStore
-  // 随新增服务持续登记；未登记的 name 编译期报错
-}
-declare class CordisHostService {
-  getService<K extends keyof ServiceMap>(name: K): ServiceMap[K] | undefined
-  diagnostics(): HostDiagnostics
-}
-```
-配套**启动期角色一致性断言**（`cordis-host/preset-server.ts`/`cordis-host.module.ts` 的 `OnApplicationBootstrap`）：比对 `config/roles.ts`（角色→模块列表）与 `preset-server.ts`（角色→插件束）两套独立维护的开关，`role=collab` 必须能 `getService('collabServer')` 成功，`role=worker` 必须能取得 headless 宿主，否则 fail-fast 退出（而非运行时静默 `undefined`），符合 D8"先失败、不部分激活"（架构08:259）。2026-09-25 追加（rulings §4.18 BE-03/BE-13）：`role=api` 时不得装配 `SnapshotsModule` 与 M-12 的 `AdminController`；`role=worker` 只装 `PurgeCollabDataUseCase` 所需的 `PgUpdateStore`/`PgSnapshotStore`、不激活 `collabServer`；`role=renderer` 不装 `CordisHostModule`；逐项以 40-modules/12 §7.1 矩阵为准。
+- **`/render` 页契约**：`@cordexjs/protocol/render/page.ts`（M-02 定义）与 `render/sidecar.ts`；本模块 `render-page-protocol.ts` 只做 Node 侧薄适配（C-27）；两种模式都由编排方调用 `window.__cordex.inject` 注入，页面零外呼（rulings §4.18 BE-04），注入载荷只收 `snapshot-json`（50/12 §11.3）。
+- **`ServiceMap`**（`cordis-host/cordis-host.service.ts`）：`getService<K extends keyof ServiceMap>(name: K): ServiceMap[K] | undefined`，编译期 key 校验（评审 §3.6）；启动期角色一致性断言的条目以 [60/01 §6](../60-backend/01-service-overview-and-roles.md) 为准（含 `role=api` 不装 `SnapshotsModule` 与 `AdminController`、`role=worker` 不激活 `collabServer`、`role=renderer` 不装 `CordisHostModule`，rulings §4.18 BE-03/BE-13）。
 
 **图 2-3 preset-server 宿主装配**
 
@@ -336,30 +268,28 @@ collabPkg -- "collabServer.attach" --> collabModule
 storagePkg -- "ctx.blobStore 读取面" --> hostSvc
 ```
 
-图怎么读：`preset-server` 是唯一的装配入口，把 `server-collab`/`server-headless`/M-08 的 `server-storage` 一起挂进同一个 `CordisHostService`；Nest 模块只经该宿主的读取面消费服务，不各自重复装配。`preset-server.ts` 位于组合根 `apps/server`（`compositionRoot:true`，R3 豁免），是服务端唯一 import `model-slide`/`ooxml-pptx` 的地方，它选定 iso 插件清单交给文档类型盲的 `server-headless`（`createHeadlessHost({ plugins })`，`worker_threads` 按清单模块路径加载；rulings §4.18 FE-01）。
-
+图怎么读：`preset-server` 是唯一的装配入口，把 `server-collab`/`server-headless`/M-08 的 `server-storage` 一起挂进同一个 `CordisHostService`；Nest 模块只经该宿主的读取面消费服务。`preset-server.ts` 位于组合根 `apps/server`（`compositionRoot:true`，R3 豁免），是服务端唯一 import `model-slide`/`ooxml-pptx` 的地方（rulings §4.18 FE-01）；宿主生命周期映射见 [60/01 §9](../60-backend/01-service-overview-and-roles.md)。
 ### 2.6 应用服务与命令
 
-| 应用服务 | 职责 | 所在文件 |
+> 各应用服务的步骤、事务边界与失败处理以 60 线为准（rulings §4.19）；本表只保留「服务 → 文件 → 事实源」。下方图 2-4 至 2-7 保留为落点示意，机制细节以 60/05、60/16 同名流程为准。
+
+| 应用服务 | 所在文件 | 事实源 |
 |---|---|---|
-| 加入房间 | ticket 校验（`interface/ticket-verifier.ts`；票据带 `lnk` 时会话记录 `linkId`/`linkExpiresAt`，rulings §4.18 BE-02）→ 读 `documents.status`，`purging` 一律拒绝（`locked` 按 ADR-0029 决策 5 拒写，§4.18 BE-15）→ `collabServer.attach()` → 本实例无该 Room 时先按 06 §14 做实例级权重准入（权重取 `documents.element_count`，不需预加载），通过后才进入 `loading`（bootstrap：latest snapshot + `loadSince` → `applyUpdate` → 必要时迁移），bootstrap 之后认领心跳过期实例的遗留溢写行（见「回放溢写数据」）；已有 Room 只做名额判定（§4.18 CO-17）→ `auth.ok` | `collab/interface/{collab.gateway,ticket-verifier}.ts` + `server-collab/application/room-manager.ts` |
-| 离开房间 | 移除 Session → awareness 广播"移除" → 最后一个客户端离开则进入 `draining`（60 s 宽限，超时未回归则 `persisting→closed`）；关闭或 SIGTERM 时若 PG 不可达，先把内存档强制写入一级溢写再进入 `closed`，不在 `persisting` 久等（rulings §4.18 CO-16） | `server-collab/application/room-manager.ts` |
-| 接收 update | `interface/frame-router.ts` 解出 SYNC → 硬门禁（L1–L3）→ `applyUpdate`（origin `remote`）→ 软门禁 L4 → PG 可用时落库（`persistBeforeBroadcast` 分支控制顺序）→ `ack{seq,tier:'db'}`（S-3a）→ 广播；**PG 写失败即进入降级期**：update 进入 `none`/`valkey`/`blob` 任一档后立即在本实例广播并经 `FanoutBus` 跨实例扇出，不等持久化，计数 `cordex_collab_broadcast_before_persist_total`（rulings §4.18 CO-08）。**`SyncStep2` 视同一个入站 update 帧**：对每个 step2 恰好回一帧 `tier:'db'`（空 diff 也回，`seq` 取当前 head）；超单帧上限（服务端 `limits.maxFrameBytes`，经 `auth.ok.limits.maxUpdateBytes` 下发给客户端，默认 1 MiB）的 step2 由客户端先按 `localSeq` 用 `mergeUpdates` 拆块、以普通 update 帧逐块发送，服务端门禁不变（06 §6.4，CO-10） | `server-collab/interface/frame-router.ts` + `application/persistence/update-writer.ts` |
-| 广播 | 本地 Session 遍历 + `FanoutBus.publish`；按 `instanceId` 去重；**只持久化自身客户端发来的 update**，跨实例扇入的 update 只应用不落库（ADR-0035 决策 3） | `server-collab/application/broadcast.ts` |
-| 快照生成（自动/命名） | Compaction 触发判定（`shouldCompact`）→ `LeaseLock` → `encodeStateAsUpdateV2` → zstd → `SnapshotStore.put(kind:'auto'\|'named')` → 裁剪日志 | `server-collab/application/persistence/compactor.ts`、`snapshots/application/create-named-snapshot.usecase.ts` |
-| 快照恢复 | 解析目标快照 → 解码得 `targetBody: Persisted<S>` → 权限检查 `history.restore` → `commands.execute(unitId,'core.restoreVersion',{targetBody},{principal:'system'})`（复用 M-02 内置命令，单事务、`origin:system('restore')`）→ 落 `kind:'restore'` 快照 | `snapshots/application/restore-snapshot.usecase.ts` |
-| Room 背压溢写（新增，rulings §4.13 S-3） | `update-writer.ts` 持久化失败（PG 不可达）→ `checkSpillTier(pendingBytes)` 判定档位 → 未超阈值走原退避重试；超一级阈值改调用 `SpillStore.writeTier1`；超二级阈值改调用 `SpillStore.writeTier2` 分块；溢写成功对客户端回 `ack{tier:'spill'}`（不拒写；客户端不清 pending，2026-09-24 rulings §4.15 S-3a 两级 ack，取代原「全程 `ack{seq}`」），溢写行以 `(instanceId, localCounter)` 为临时键，`Room.spillTier` 同步更新；三档（含 `none`）都照常广播与扇出（§4.18 CO-08）；整个降级期 Room 保持 `active`（CO-15），UI 显示「未保存到服务器」 | `server-collab/application/persistence/spill-coordinator.ts` |
-| 回放溢写数据（新增，rulings §4.13 S-3） | PG 恢复信号 → Room 保持 `active` 并置 `replaying=true`（2026-09-25 更正，不再进入 `persisting`，rulings §4.18 CO-15）→ `SpillStore.readAllOrdered(docId, 本实例 instanceId)` 按 `localCounter` 升序读出（只回放自己的行，避免两实例重复回放，ADR-0035 决策 3，CO-16）→ 逐条 `UpdateStore.append` 写回 `document_updates`（**正式 `seq` 此时由 PG 分配**，S-3a；回放完成前新到的 update 排在回放队列之后落库，保持同一连接上 db ack 的顺序）→ 对原会话补发 `ack{seq,tier:'db'}`（原会话已断开即丢弃，由重连 step2 兜底，CO-10）→ 断言 Room Y.Doc 无 `pendingStructs` → `SpillStore.clear(docId, instanceId)` → `replaying=false`（在线客户端不断连）。**遗留行认领**：心跳过期（ADR-0035 决策 5，TTL 60 s）实例留下的行，由下次加载该文档的 Room 在 bootstrap 之后持 `lock:spill:{doc}` 租约（`LeaseLock`）按同一流程认领回放（CO-16） | `server-collab/application/persistence/replay-spilled.usecase.ts` |
-| 编排式清理协同数据（新增，rulings §4.13 S-2） | 作为 M-08 document-purge 作业的参与者被调用（`@PurgeParticipant('collab')`，rulings §4.18 BE-15）→ `UpdateStore.purgeAll(docId)` + `SnapshotStore.purgeAll(docId)`（同一用例内先后调用，非跨库事务，幂等，任一失败整作业重试）；只依赖 `PgUpdateStore`/`PgSnapshotStore`，在 worker 角色装配、不激活 `collabServer`（BE-13）；作业第一步已让 collab 实例经 `closeRoom(docId,'purge')` 踢会话、关 Room，之后加入一律被拒，清理后不会再有 update 写回 | `collab/application/purge-collab-data.usecase.ts` |
-| 墓碑 TTL 硬删除（新增，rulings §4.15 Q3） | 定时 → `LeaseLock` 选出单写者 → 扫描 Room 内墓碑（`_deleted.at + tombstone.ttlHours < now`）→ 以 `origin=system('maintenance')` 单事务硬删除 → 正常落库与广播（本用例是墓碑硬删除的唯一执行者，复核 H2）；未打开的文档由 Compaction 路径在加载时顺带执行；文档擦除/「永久删除文档」不走本路径（作为 document-purge 参与者直接 `purgeAll`，rulings §4.18 CO-07/BE-15） | `server-collab/application/persistence/tombstone-sweeper.ts` |
-| 房间准入（修订，rulings §4.15 Q5） | 本实例无该 Room 时，先按 `admitByWeight` 做实例级权重判定（权重取 `documents.element_count`，墓碑计入，不需预加载），**预算不足时先按 LRU 提前结束 `draining` 房间再重判**，仍不足才拒绝准入：`auth.denied{collab.room_full}` / 关闭码 4503（客户端重连到其他实例；不设只读降级，与 30-architecture/06、08 同口径，复核 M4）；已有 Room 只做名额判定：编辑者名额按 `userId` 去重计数（owner 不占、commenter 计查看者）（rulings §4.18 CO-17/CO-14） | `server-collab/application/room-manager.ts` + `domain/gate/admission-policy.ts` |
-| headless 任务执行 | `withUnit(source, fn)` 在隔离 Unit 上执行 import/export/validate/migrate/diff，`finally` 关闭 Unit；导入导出按 `documentType` 经 `formats` 服务取 codec，diff 经 `documentTypes` 服务（本包文档类型盲，rulings §4.18 FE-01） | `server-headless/domain/unit-runner.ts` + `application/tasks/*.ts` |
-| 内存压力回收（新增，rulings §4.18 CO-14） | 内存压力或准入不足 → 先按 LRU 提前结束 `draining` 房间（`draining→persisting→closed`，无在线客户端，不发 1012）→ 仍超预算才对 `active` 房间走 `active→evicting`（发 1012，客户端 ≤ 5 s 重连到其他实例） | `server-collab/application/room-manager.ts` |
-| 链接会话降权（新增，rulings §4.18 BE-02） | 收到 `perm:doc:{id}`（授权变更或链接撤销）→ 对该 Room 每个 Session 调 `AuthzSource.resolveRole`：取 `max(直接授权, lnk 对应链接仍有效时的角色)`，他人改权限不会踢出只凭链接的会话，链接撤销 ≤ 1 s 降权；另按会话 `linkExpiresAt` 设定时器，到期主动重算降权（`CONTROL.permission`，降为 `none` 时关闭 4403） | `server-collab/application/room-manager.ts` + `collab/infrastructure/authz-source.ts` |
-| 彻底删除元素（新增，rulings §4.18 CO-07） | `POST /documents/:id/elements/purge{ids}`（M-08 `DocumentRoleGuard(doc.manage)`，即仅 owner）→ 校验 `ids` 全为墓碑态 → `collabServer.purgeElements`：Room 未加载则先加载 → 经 `LeaseLock` 单写者复用 `tombstone-sweeper` 的 `system('maintenance')` 事务立即硬删 → 正常落库与广播 → 审计 `document.element_purged`；只清当前文档状态（历史快照与 update 表按保留期存在，图片原件按 30 天无引用 GC），删除方此后撤销该步按整步跳过（`wholeStep:true`） | `collab/interface/element-purge.controller.ts` + `collab/application/purge-elements.usecase.ts` + `server-collab/application/persistence/tombstone-sweeper.ts` |
+| 加入房间（票据校验、`purging` 拒绝、先准入后 `loading`、认领遗留溢写行） | `collab/interface/{collab.gateway,ticket-verifier}.ts` + `server-collab/application/room-manager.ts` | [60/05 §3.1、§4](../60-backend/05-modules-collab-and-snapshots.md)；[60/16 §1、§6](../60-backend/16-ws-protocol-server-view.md) |
+| 离开房间、内存压力回收（先回收 `draining` 再驱逐 `active`） | `server-collab/application/room-manager.ts` | 60/05 §3、§4（CO-14、CO-16） |
+| 接收 update（L1–L4 门禁、落库或降级、ack、广播；step2 视同一帧） | `interface/frame-router.ts`、`application/persistence/update-writer.ts`、`application/broadcast.ts` | 60/16 §4–§6；60/05 §5 |
+| PG 故障降级与 `persist` 信号（rulings §4.19 INC-09：PG 写失败 ≤ 1 s 推 `CONTROL.room{persist:'degraded'}`，回放完成且无溢写后推 `ok`；降级期照常广播，CO-08） | `application/persistence/{update-writer,spill-coordinator}.ts`、`application/broadcast.ts` | [60/05 §6.1–§6.2](../60-backend/05-modules-collab-and-snapshots.md) |
+| 回放溢写数据（只回放本实例行、认领过期实例遗留行、补发 `tier:'db'`） | `application/persistence/replay-spilled.usecase.ts` | 60/05 §6.3–§6.4（S-3a、CO-15、CO-16） |
+| 广播与跨实例扇出（只持久化自身客户端 update） | `application/broadcast.ts` | 60/05 §5；60/16 §11 |
+| 快照生成（自动 / 命名）与版本保留（C-06） | `application/persistence/compactor.ts`、`snapshots/application/create-named-snapshot.usecase.ts`；保留作业在 worker 的 `SnapshotsRetentionUseCase` | 60/05 §7、§10；[60/11 §8](../60-backend/11-ddl-collab-updates-and-snapshots.md) |
+| 快照恢复（`core.restoreVersion`，`origin:system('restore')`；持有 Room 的 collab 进程内单事务，不加锁、在线不断连，rulings §4.19 N1） | `snapshots/application/restore-snapshot.usecase.ts` | 60/05 §10–§11 |
+| 墓碑 TTL 硬删除、彻底删除元素（CO-07） | `application/persistence/tombstone-sweeper.ts`、`collab/application/purge-elements.usecase.ts`、`collab/interface/element-purge.controller.ts` | 60/05 §8 |
+| 迁移与换纪元（4426 / 4428；覆盖导入的换纪元由 worker 上的 M-12 导入处理器经 `pg-snapshot-store.ts` 的 `put(kind='import', epochFrom)` 执行并经 `room:{docId}:ctl` 通知，不经 `collabServer`、不新增 worker → collab 通道，rulings §4.19 N1） | `application/persistence/migration-runner.ts`、`collabServer.forceEpoch`、`collab/infrastructure/pg-snapshot-store.ts` | 60/05 §9；[60/06 §6.5](../60-backend/06-modules-jobs-import-export-thumbnails.md) |
+| 链接会话降权（BE-02） | `application/room-manager.ts` + `collab/infrastructure/authz-source.ts` | 60/16 §8；[60/02](../60-backend/02-auth-chain.md) |
+| 编排式清理协同数据（document-purge 参与者 `collab`） | `collab/application/purge-collab-data.usecase.ts` | 60/05 §12；[60/04 §4](../60-backend/04-modules-documents-storage-media.md) |
+| headless 任务执行（`withUnit`，按 `documentType` 经 `formats` 取 codec） | `server-headless/domain/unit-runner.ts` + `application/tasks/*.ts` | [60/06 §8](../60-backend/06-modules-jobs-import-export-thumbnails.md) |
 
-> 恢复"可撤销"的产品期望（PRD CO-07："可撤销"）与 `origin:system('restore')` 不进入标准撤销栈（M-02 §13 Q-2）之间的张力：`restore-snapshot.usecase.ts` 在执行恢复前，若当前 `headSeq` 距最近一次快照超过一个 Compaction 周期，仍会强制先落一个覆盖"恢复前状态"的 `auto` 快照（数据安全兜底，保留）；但**「恢复到那个快照」即等同撤销**这一结论已被否决——**转专项设计（2026-09-19，rulings §4.12 U-07）**：撤销语义需在多人协同场景下专项设计 `version-restore-undo`（M-02 × M-05 × M-09，M3 前出 ADR），§13 本文档 Q-9 记录。
-
+恢复的撤销语义另立专项 `version-restore-undo`（rulings §4.12 U-07，本文 §13 Q-9；60/05 §11 占位）。
 **图 2-4 update 接收与扇出**
 
 ```mermaid
@@ -436,6 +366,7 @@ sequenceDiagram
   participant pg as UpdateStore PG
   writer->>pg: 持久化 update
   pg-->>writer: 失败 PG 不可达 进入降级期
+  writer-->>client: 1 秒内 CONTROL.room persist degraded 推给房间全部会话
   writer->>writer: 本实例广播并跨实例扇出 不等持久化
   writer->>spill: checkSpillTier pendingBytes
   alt 未超一级阈值
@@ -453,12 +384,13 @@ sequenceDiagram
   replay-->>client: 补发 ack seq tier db 原会话已断开则丢弃
   replay->>replay: 断言 Room Y.Doc 无 pendingStructs
   replay->>store: clear docId instanceId
+  replay-->>client: 无遗留溢写后 CONTROL.room persist ok
   Note over replay,client: replaying 结束 在线客户端全程不断连
 ```
 
-怎么读：PG 持续故障期间不拒绝新编辑，也不停止广播——update 进入任一档后立即广播与扇出（rulings §4.18 CO-08），按未持久化字节两级阈值选择溢写档位，并只回 `tier spill`；PG 恢复后 Room 始终保持 `active`（CO-15），只回放本实例的行（CO-16），正式 `seq` 由 PG 分配后才补发 `tier db`，客户端据此清理 pending；心跳过期实例的遗留行由下次加载该文档的 Room 持 `lock:spill:{doc}` 租约认领。
+怎么读：PG 持续故障期间不拒绝新编辑，也不停止广播——update 进入任一档后立即广播与扇出（rulings §4.18 CO-08），并在 1 s 内经 `CONTROL.room.persist` 告知房间内全部会话进入降级、回放完成且无遗留溢写后再推 `ok`（rulings §4.19 INC-09，客户端据此分级提示），按未持久化字节两级阈值选择溢写档位，并只回 `tier spill`；PG 恢复后 Room 始终保持 `active`（CO-15），只回放本实例的行（CO-16），正式 `seq` 由 PG 分配后才补发 `tier db`，客户端据此清理 pending；心跳过期实例的遗留行由下次加载该文档的 Room 持 `lock:spill:{doc}` 租约认领。
 
-依据：06 §6.4；§1.1 Room 背压溢写；§2.6「Room 背压溢写」「回放溢写数据」行；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08/CO-15/CO-16。
+依据：06 §6.4；§1.1 Room 背压溢写；§2.6「PG 故障降级与 `persist` 信号」「回放溢写数据」行；[60/05 §6](../60-backend/05-modules-collab-and-snapshots.md)；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08/CO-15/CO-16、§4.19 INC-09。
 
 **图 2-7 墓碑 TTL 硬删除时序**
 
@@ -492,7 +424,7 @@ sequenceDiagram
 | 项 | 值 |
 |---|---|
 | 插件名 / `name` | `'server-collab'` |
-| `inject`（必需） | `['units','updateStore','snapshotStore','fanoutBus','leaseLock','authzSource','telemetry','spillStore']`（`spillStore` 2026-09-21 新增，rulings §4.13 S-3） |
+| `inject`（必需） | `['units','updateStore','snapshotStore','fanoutBus','leaseLock','authzSource','telemetry','spillStore','membershipRegistry']`（`spillStore` 2026-09-21 新增，rulings §4.13 S-3；`membershipRegistry` 2026-09-25 登记，名额跨实例原子判定，60/05 §2.1、§4.2） |
 | `inject`（可选） | 无 |
 | `provide` | `['collabServer']` |
 | 贡献点：提供 / 消费 | 均无（能力经服务名暴露，不占用贡献点机制） |
@@ -500,7 +432,7 @@ sequenceDiagram
 | 事件：订阅 | 无 cordis 事件（Redis `perm:doc:{id}` 经注入的 `authzSource.onPermissionChanged` 回调转译为内部调用，不是 cordis Events） |
 | 配置 schema | `{ room:{drainGraceMs,maxEditors,maxViewers,memoryAdmissionPct,weight:{maxElementsPerDoc,softWarnElements}}, limits:{maxFrameBytes,msgRateHz,msgBurst,updateBytesPerMin,awarenessMinIntervalMs,awarenessMaxBytes,structsPerUpdate}, persistence:{flushMs,flushMaxUpdates,persistBeforeBroadcast}, compaction:{maxPendingUpdates,maxPendingBytes,maxAgeMs,retainUpdatesAfterSnapshotMs}, softGate:{mode,schemaMode}, repair:{quarantineThreshold,windowMs}, spill:{tier1MaxBytesPerDoc,tier2ChunkBytes}, tombstone:{ttlHours} }`（zod，默认值见 §11、架构 08 §3.1/§12；`spill` 段 2026-09-21 新增，S-3；2026-09-24 `room.maxActiveRooms` 改为 `room.weight` 按文档实测权重准入、新增 `tombstone` 段，rulings §4.15 Q3/Q5；全部数值部署配置可调） |
 | 生命周期 | `ready`：向宿主暴露 `collabServer`；`dispose`：`drainAll('shutdown')` → flush → 释放全部 Room 的 effect；本包**不**在单一 `UnitScope` 内运行——它自行管理"每 Room 一个 Unit"的多份隔离域，不经宿主一次性 `isolate()` |
-| Manifest 片段 | `{ "id":"@cordexjs/server-collab", "provides":["collabServer"], "injects":["units","updateStore","snapshotStore","fanoutBus","leaseLock","authzSource","telemetry","spillStore"], "points":[], "unitScoped": false }` |
+| Manifest 片段 | `{ "id":"@cordexjs/server-collab", "provides":["collabServer"], "injects":["units","updateStore","snapshotStore","fanoutBus","leaseLock","authzSource","telemetry","spillStore","membershipRegistry"], "points":[], "unitScoped": false }` |
 
 ### 3.2 `@cordexjs/server-headless`（host + provider）
 
@@ -517,26 +449,19 @@ sequenceDiagram
 
 ### 3.3 Nest 模块定义表
 
-| 模块 | `imports` | `providers`（含 IO 适配器） | `controllers` / gateway | `exports` |
-|---|---|---|---|---|
-| `CollabModule`（`CollabModule.forRole(role)`：`collab` 装全部；`worker` 只装 `PgUpdateStore`/`PgSnapshotStore`/`PurgeCollabDataUseCase` 参与者，不注册网关与控制器、不激活 `collabServer`，rulings §4.18 BE-13/BE-15） | `CordisHostModule`、`ConfigModule`、`DbModule`、`RedisModule`、M-08 `PermissionsModule`（`AuthzSource` 取 `RoleResolverService` 与 `ResolveShareLinkUseCase`）、M-08 `AuthModule`（`TicketVerifier` 取票据验签面）（2026-09-25 补进 imports，rulings §4.18 BE-07/BE-02）；`documents.status` 经 `DbModule` 只读查询（本模块本就写同表 `head_seq`/`epoch`），`@PurgeParticipant` 只是 TS 装饰器 import，均不需 import M-08 `DocumentsModule` | `RedisFanoutBus`、`RedisLeaseLock`、`PgUpdateStore`、`PgSnapshotStore`、`AuthzSource`、`TicketVerifier`、`WsConnectionAdapter`、`RedisSpillStore`、`BlobSpillStore`（新增，S-3）、`PurgeCollabDataUseCase`（新增，S-2；`@PurgeParticipant('collab')`）、`PurgeElementsUseCase`（新增，§4.18 CO-07） | `CollabGateway`（`@WebSocketGateway({path:'/collab/v1/rooms/:documentId'})`）、`ElementPurgeController`（`POST /documents/:id/elements/purge`，相对 `/api/v1`，CO-07） | 无（网关为终端） |
-| `SnapshotsModule`（**只在 collab 与 all 角色装配**，反代把 `/api/v1/documents/:id/snapshots*` 转给 collab，启动断言 `role=api` 不装配本模块，rulings §4.18 BE-03） | `CordisHostModule`、M-08 `PermissionsModule`（控制器守卫 `DocumentRoleGuard`；2026-09-25 补进 imports，与 BE-07 同一原则：Nest 只能注入经 imports 引入的导出） | `CollabServerAccessor`、四个 usecase | `SnapshotsController` | 无 |
-| `CordisHostModule`（`global`；装 api/collab/worker，renderer 不装，rulings §4.18 BE-13） | `ConfigModule` | `CordisHostService`、`PinoLoggerAdapter`、`OtelTelemetryAdapter`、`ErrorsReporterAdapter` | 无 | `CordisHostService` |
+> 结构规则（2026-09-25，[60/01](../60-backend/01-service-overview-and-roles.md) §5）：有 rest 部件的业务模块拆为两个 Nest 模块——`XxxModule` 只含 providers 与 exports、供其他模块 import；`XxxHttpModule` 只含 controllers、import `XxxModule`，只由角色根模块 `AppModule.forRole(role)` import。本组为 `CollabHttpModule`（`elements/purge`）与 `SnapshotsHttpModule`，均只由 collab（及 all）根模块 import；worker 上的 collab purge 参与者只装 Pg 存储（`PgUpdateStore` / `PgSnapshotStore`，60/05 §12）。
+
+> 2026-09-25 起改为摘要 + 链接（rulings §4.19）：`imports`/`providers`/`controllers`/`exports` 与按角色装配的唯一源是 [60/05 §1、§10](../60-backend/05-modules-collab-and-snapshots.md)（CollabModule、SnapshotsModule）与 [60/01 §3、§5、§8](../60-backend/01-service-overview-and-roles.md)（模块清单、装配矩阵、imports 总图）；本表只保留模块到目录的落点。
+
+| 模块 | 目录（§4） | 装配角色（摘要） | 事实源 |
+|---|---|---|---|
+| `CollabModule`（`forRole(role)`） | `apps/server/src/modules/collab/` | collab 装网关、`ElementPurgeController`、`collabServer` 与全部 IO 适配器；worker 只装 purge 参与者与保留作业所需的存储适配器、不激活 `collabServer`（BE-13/BE-15） | 60/05 §1；60/01 §5 |
+| `SnapshotsModule` | `apps/server/src/modules/snapshots/` | 只在 collab 与 all 装配；反代把 `/api/v1/documents/:id/snapshots*` 转给 collab；`role=api` 不装配（BE-03） | 60/05 §10；60/01 §6–§7 |
+| `CordisHostModule`（global） | `apps/server/src/cordis-host/` | api / collab / worker 装，renderer 不装（BE-13） | 60/01 §9 |
 
 ### 3.4 IO 适配器插件表（挂在 `server-collab` 契约上的 Provider，物理位置 `collab/infrastructure/`，逻辑归属 BC-21）
 
-| 适配器 | 实现的 Definition | `implements` | 关键依赖 | 所在文件 |
-|---|---|---|---|---|
-| `RedisFanoutBus` | `FanoutBus` | `['fanoutBus']` | `ioredis`（pub/sub 连接与命令连接分离） | `collab/infrastructure/redis-fanout.bus.ts` |
-| `RedisLeaseLock` | `LeaseLock` | `['leaseLock']` | `ioredis`（`SET NX PX` + 续租 + fencing token） | `collab/infrastructure/redis-lease-lock.ts` |
-| `PgUpdateStore` | `UpdateStore` | `['updateStore']` | Drizzle（`document_updates` 按 `hash(doc_id)` 16 分区） | `collab/infrastructure/pg-update-store.ts` |
-| `PgSnapshotStore` | `SnapshotStore` | `['snapshotStore']` | Drizzle + `ctx.blobStore`（> 1 MiB 落 S3） | `collab/infrastructure/pg-snapshot-store.ts` |
-| `AuthzSource` | `AuthorizationSource` | `['authzSource']` | M-08 `RoleResolverService` + `ResolveShareLinkUseCase`（`lnk` 链接复核，rulings §4.18 BE-02）+ Redis 订阅 `perm:doc:{id}` | `collab/infrastructure/authz-source.ts` |
-| `RedisSpillStore`（新增，rulings §4.13 S-3） | `SpillStore`（一级方法 `writeTier1`） | `['spillStore']`（与 `BlobSpillStore` 共同实现同一 Definition，见下） | `ioredis`（有界列表，按 `docId` 分 key） | `collab/infrastructure/spill/redis-spill.store.ts` |
-| `BlobSpillStore`（新增，rulings §4.13 S-3） | `SpillStore`（二级方法 `writeTier2`/`readAllOrdered`/`clear`） | `['spillStore']` | `ctx.blobStore`（分块对象键，复用 §6 对象存储布局命名风格） | `collab/infrastructure/spill/blob-spill.store.ts` |
-
-> 七个适配器（原五个 + 新增两个溢写档位）由 `CollabModule.onModuleInit` 装配进 `preset-server` 的 `server-collab` 配置项（对应其 `inject` 数组的服务名），落地 charter D8/08-backend-nestjs S7："Definition 的 Node 适配器（pg/redis/s3）作为 cordis 插件放在 `apps/server` 对应模块目录下"。`RedisSpillStore`/`BlobSpillStore` 合组实现同一个 `SpillStore` Definition（一级/二级分工），装配层按 `inject:'spillStore'` 注入一个组合实例（内部按方法名路由到对应档位的 Provider），不违反"三角色规则"（Provider 互不 import——两者不互相 import，只被同一个组合器分别持有）。
-
+> 摘要 + 链接：适配器、依赖、键与表、契约套件的唯一源是 [60/05 §2.2](../60-backend/05-modules-collab-and-snapshots.md)（八个适配器：`PgUpdateStore`、`PgSnapshotStore`、`RedisSpillStore`、`BlobSpillStore`、`RedisFanoutBus`、`RedisLeaseLock`、`AuthzSource`、`RedisMembershipRegistry`，另有连接适配器 `WsConnectionAdapter`）；Valkey 键模板只由 `collab/domain/redis-keys.ts` 生成，模板登记见 [60/14](../60-backend/14-valkey-object-storage-and-retention.md)。文件落点见 §2.5 表与 §4.1；装配规则不变：由 `CollabModule.onModuleInit` 注入 `preset-server` 的 `server-collab` 配置项（charter D8 / 30/08 S7），两个溢写适配器合组实现同一个 `SpillStore`，Provider 互不 import。
 ## 4. 目录树（完整到文件）
 
 > 五棵树：两个 Nest 目录（`collab/`、`snapshots/`）+ 一个宿主装配目录（`cordis-host/`，物理归属本模块，见 §1.3/08 §7 G-11）+ 两个包（`server-collab`、`server-headless`）。每个目录一句职责；DDD 五层套用 00-module-map §1 的规则，`interface/` 是"外部世界进入本目录的唯一入口"。
@@ -627,7 +552,7 @@ apps/server/src/modules/collab/
 │   ├── collab-principal.ts                 # CollabTicketClaims 消费端值对象 + 解析后的 Principal（含 linkId，§4.18 BE-02）
 │   └── errors.ts                           # 握手阶段（attach 之前）拒绝原因码（含 document_purging），与 server-collab 自身 errors.ts 互补不重叠
 ├── application/                            # 模块启动期编排与 REST 用例
-│   ├── bootstrap-collab-server.service.ts  # OnModuleInit：把 7 个 infra 适配器注入 preset-server 的 server-collab 配置项
+│   ├── bootstrap-collab-server.service.ts  # OnModuleInit：把 8 个 infra 适配器注入 preset-server 的 server-collab 配置项（2026-09-25 补 membershipRegistry）
 │   ├── purge-collab-data.usecase.ts        # @PurgeParticipant('collab')：UpdateStore/SnapshotStore.purgeAll（rulings §4.13 S-2；§4.18 BE-15 由订阅改为参与者被调用）
 │   └── purge-elements.usecase.ts           # 彻底删除元素：校验墓碑态 → collabServer.purgeElements → 审计 document.element_purged（新增，§4.18 CO-07）
 ├── infrastructure/                         # Definition 的 Node 适配器（D8/S7，逻辑归属 BC-21，见 §3.4）
@@ -636,6 +561,7 @@ apps/server/src/modules/collab/
 │   ├── pg-update-store.ts                  # UpdateStore Provider（新增 purgeAll，S-2）
 │   ├── pg-snapshot-store.ts                # SnapshotStore Provider（新增 purgeAll，S-2）
 │   ├── authz-source.ts                     # AuthorizationSource Provider
+│   ├── redis-membership-registry.ts        # MembershipRegistry Provider：ioredis + Lua，room:{docId}:members、instance:{id}:alive（2026-09-25 登记，60/05 §2.2）
 │   └── spill/                              # 新增，rulings §4.13 S-3
 │       ├── redis-spill.store.ts            # SpillStore 一级 Provider：Redis 有界列表
 │       └── blob-spill.store.ts             # SpillStore 二级 Provider：ctx.blobStore 分块
@@ -644,16 +570,20 @@ apps/server/src/modules/collab/
 │   ├── ws-connection.adapter.ts            # ws.WebSocket → server-collab ServerConnection 契约
 │   ├── ticket-verifier.ts                  # JWT 验签（M-08 票据验签面）+ jti 防重放（Redis SETNX）+ permVersion 比对 + purging 拒绝 + 记录 lnk
 │   └── element-purge.controller.ts         # POST /documents/:id/elements/purge{ids}（相对 /api/v1；DocumentRoleGuard doc.manage 即仅 owner；新增，§4.18 CO-07）
-└── __tests__/
-    ├── ticket-verifier.spec.ts
-    ├── redis-fanout.bus.spec.ts             # testcontainers Valkey，实例化 runFanoutBusConformance（§4.18 GV-20）
-    ├── redis-lease-lock.spec.ts             # testcontainers Valkey，实例化 runLeaseLockConformance（新增，GV-20）
-    ├── pg-update-store.spec.ts              # testcontainers Postgres，实例化 runUpdateStoreConformance（含 purgeAll 断言，S-2）
-    ├── purge-elements.usecase.spec.ts       # 非 owner 403、非墓碑 id 拒绝、清除后删除方撤销得 wholeStep:true（新增，CO-07）
-    ├── collab.gateway.e2e-spec.ts           # 两浏览器模拟客户端经网关同步
-    └── spill/                               # 新增，实例化 runSpillStoreConformance（S-3）
-        ├── redis-spill.store.spec.ts
-        └── blob-spill.store.spec.ts
+└── __tests__/                              # 纯逻辑与内存替身测试（*.test.ts）；接容器的契约调用与 e2e 在 apps/server/test/（下方与 §9，决策 T-NAMING，2026-09-25）
+    ├── ticket-verifier.test.ts              # ttl/jti/permVersion 边界、purging 拒绝、记录 lnk（内存 Valkey 替身）
+    └── purge-elements.usecase.test.ts       # 非 owner 403、非墓碑 id 拒绝、清除后删除方撤销得 wholeStep:true（CO-07）
+```
+
+```text
+apps/server/test/integration/conformance/    # 本模块 Provider 的容器版契约调用（testcontainers PG 18 / Valkey / SeaweedFS；70/02 §1、§14 第 2 条）
+├── collab-server.int-spec.ts               # runCollabServerConformance：真实适配器组装的集群
+├── pg-update-store.int-spec.ts             # runUpdateStoreConformance（含 purgeAll，S-2）
+├── pg-snapshot-store.int-spec.ts           # runSnapshotStoreConformance（含 purgeAll）
+├── redis-spill-store.int-spec.ts           # runSpillStoreConformance 一级（S-3）
+├── blob-spill-store.int-spec.ts            # runSpillStoreConformance 二级（S-3）
+├── redis-fanout-bus.int-spec.ts            # runFanoutBusConformance（GV-20）
+└── redis-lease-lock.int-spec.ts            # runLeaseLockConformance（GV-20）
 ```
 
 ### 4.2 `apps/server/src/modules/snapshots/`
@@ -664,7 +594,7 @@ apps/server/src/modules/snapshots/
 ├── domain/
 │   ├── version.ts                          # Version 值对象（命名快照的 REST 视图）
 │   ├── snapshot-view.ts                    # Snapshot REST 视图值对象（脱敏字段裁剪）
-│   └── errors.ts                           # snapshot.* 错误码（not_found、quota_exceeded 等）
+│   └── errors.ts                           # server.snapshots.* 错误码（not_found、quota_exceeded、persist_degraded，域按决策 INC-10 改名）
 ├── application/
 │   ├── list-snapshots.usecase.ts           # 分页列表
 │   ├── get-latest-snapshot.usecase.ts      # ETag/zstd 协商，Cache-Control: private, max-age=0, must-revalidate
@@ -676,9 +606,9 @@ apps/server/src/modules/snapshots/
 ├── interface/
 │   └── snapshots.controller.ts             # GET 列表/latest/:id、POST 命名、POST :id/restore（相对 /api/v1；只在 collab/all 角色装配，rulings §4.18 BE-03/BE-11）
 └── __tests__/
-    ├── restore-snapshot.usecase.spec.ts
-    ├── get-latest-snapshot.usecase.spec.ts
-    └── create-named-snapshot.usecase.spec.ts
+    ├── restore-snapshot.usecase.test.ts
+    ├── get-latest-snapshot.usecase.test.ts
+    └── create-named-snapshot.usecase.test.ts
 ```
 
 ### 4.3 `apps/server/src/cordis-host/`（宿主装配，物理归属本模块）
@@ -695,7 +625,7 @@ apps/server/src/cordis-host/
 │   ├── otel-telemetry.adapter.ts           # kernel telemetry 服务的 Node 实现
 │   └── errors-reporter.adapter.ts          # kernel errors 服务的 Node 实现
 └── __tests__/
-    └── cordis-host.service.spec.ts         # getService 未知名称报诊断而非抛错；diagnostics() 输出结构；新增：role=collab/worker 断言缺失服务时 fail-fast（评审 §3.6）
+    └── cordis-host.service.test.ts         # getService 未知名称报诊断而非抛错；diagnostics() 输出结构；新增：role=collab/worker 断言缺失服务时 fail-fast（评审 §3.6）
 ```
 
 ### 4.4 `packages/server-collab/`
@@ -713,15 +643,16 @@ packages/server-collab/
 │   │   ├── room.ts                         # Room 聚合根：状态机 + 持有 UnitHandle + sessions + pendingBytes/spillTier（新增字段，S-3）
 │   │   ├── room-session.ts                 # RoomSession 实体：role/令牌桶/ack 追踪/违规计数
 │   │   ├── ids.ts                          # RoomId/Seq 品牌类型
-│   │   ├── errors.ts                       # collab.server.*（room_full、capacity、bootstrap_failed、lock_lost…）
-│   │   ├── collab-server.contribution.ts   # Context{collabServer,updateStore,snapshotStore,fanoutBus,leaseLock,authzSource,spillStore}；Events 声明
+│   │   ├── errors.ts                       # collab.*（room_full、bootstrap_failed、lock_lost、bad_frame、auth_timeout、quarantined、payload_too_large、rate_limited…；码表以 60/05 §14 为准，collab.server.* 前缀已废，决策 INC-10）
+│   │   ├── collab-server.contribution.ts   # Context{collabServer,updateStore,snapshotStore,fanoutBus,leaseLock,authzSource,spillStore,membershipRegistry}；Events 声明
 │   │   ├── contracts/                      # 仓储/适配器契约（无实现，纯接口）
 │   │   │   ├── update-store.ts             # UpdateStore Definition（新增 purgeAll，S-2）
 │   │   │   ├── snapshot-store.ts           # SnapshotStore Definition（新增 purgeAll，S-2）
 │   │   │   ├── fanout-bus.ts               # FanoutBus Definition
 │   │   │   ├── lease-lock.ts               # LeaseLock Definition
 │   │   │   ├── authz-source.ts             # AuthorizationSource Definition
-│   │   │   └── spill-store.ts              # SpillStore Definition（新增，S-3）
+│   │   │   ├── spill-store.ts              # SpillStore Definition（新增，S-3）
+│   │   │   └── membership-registry.ts      # MembershipRegistry Definition：名额跨实例原子判定（2026-09-25 登记，60/05 §4.2，决策 C-11）
 │   │   └── gate/                           # 门禁与策略纯函数（§2.3）
 │   │       ├── hard-gate.ts                # L1/L2/L3 判定
 │   │       ├── soft-gate.ts                # L4：validateChangeSet + invariants 迭代（doc-type 盲）
@@ -775,7 +706,7 @@ packages/server-headless/
 │   ├── index.ts                            # 公共 API 面（§6）
 │   ├── domain/
 │   │   ├── unit-runner.ts                  # UnitRunner：withUnit(source, fn) → 结果；finally 关闭 Unit
-│   │   └── errors.ts                       # headless.*（zip_limit_exceeded、decode_failed、browser_crashed、render_timeout）
+│   │   └── errors.ts                       # headless.* 12 码（task_timeout、task_oom、worker_crashed、bad_request、rpc_unauthorized、request_too_large、version_mismatch、renderer_busy、inject_timeout、browser_crashed、render_timeout、response_invalid，60/06 §12.2）；zip 限额与包解码失败改用 format.limit_exceeded / format.pptx.*（2026-09-25 删 zip_limit_exceeded、decode_failed）
 │   ├── application/
 │   │   └── tasks/
 │   │       ├── import.ts                   # bytes + documentType → zipLimits 校验 → formats 服务取 codec.decode → Snapshot → withUnit(store-yjs) → {state,mediaRefs,warnings}（原 import-pptx.ts，文档类型无关命名提前到 2026-09-25，rulings §4.18 FE-01）
@@ -792,6 +723,7 @@ packages/server-headless/
 │   │   │   ├── browser-pool.ts             # local 模式 playwright-core Chromium 池：沙箱开启、每任务独立 BrowserContext、按次数回收、崩溃自愈（Q8）
 │   │   │   ├── remote-renderer.client.ts   # remote 模式：调用独立零出站 renderer sidecar（契约 @cordexjs/protocol/render/sidecar，新增，rulings §4.15 Q8）
 │   │   │   ├── thumbnail-renderer.ts       # ThumbnailRenderer 实现：render()/renderPdf()
+│   │   │   ├── content-hash.ts             # computePageHashes：state → [{slideId, index, contentHash}]；页划分与依赖闭包由文档类型提供（2026-09-25 登记，60/06 §8.2、§11.1）
 │   │   │   ├── render-page-protocol.ts     # 薄适配层：re-export @cordexjs/protocol/render/page 类型 + Node 侧 /render?renderId= URL 拼装与 window.__cordex.inject 注入（C-27；RenderStateToken 拉取已取消，§4.18 BE-04）
 │   │   │   └── png.ts                      # 截图后处理（尺寸、sRGB）
 │   │   └── worker.ts                       # worker_threads 任务运行器（超时/内存限额；每任务新宿主，按插件清单模块路径加载插件，§4.18 FE-01）
@@ -819,7 +751,7 @@ packages/server-headless/
 | `domain/redis-keys.ts` | Redis 键/频道命名 | `docChannel()`、`clientsKey()`、`compactLockKey()`、`spillClaimLockKey()`、`roomControlChannel()` | 无 | 纯函数，无 IO；`lock:spill:{doc}`（CO-16）、`room:ctl:{doc}`（踢会话/关 Room，BE-03/BE-15） |
 | `domain/collab-principal.ts` | 解析后的连接主体值对象 | `CollabPrincipal` | `@cordexjs/protocol`（类型） | 与 M-08 `CollabTicketClaims` 同形状；含 `sid`（登录会话 id）与可选 `linkId`（来自 `lnk`，rulings §4.18 BE-02） |
 | `domain/errors.ts` | 握手阶段（attach 前）拒绝原因码 | `HandshakeError` | 无 | 与 server-collab 自身 `errors.ts` 互补不重叠 |
-| `application/bootstrap-collab-server.service.ts` | 装配 7 个 infra 适配器进 `preset-server` 的 server-collab 配置 | `BootstrapCollabServerService` | `CordisHostService`、`infrastructure/*` | `OnModuleInit`；2026-09-21 补 `spillStore` 两个 Provider（S-3） |
+| `application/bootstrap-collab-server.service.ts` | 装配 8 个 infra 适配器进 `preset-server` 的 server-collab 配置 | `BootstrapCollabServerService` | `CordisHostService`、`infrastructure/*` | `OnModuleInit`；2026-09-21 补 `spillStore` 两个 Provider（S-3）；2026-09-25 补 `membershipRegistry`（60/05 §2.2） |
 | `application/purge-collab-data.usecase.ts` | 编排式清理协同数据（新增，S-2） | `PurgeCollabDataUseCase` | `infrastructure/{pg-update-store,pg-snapshot-store}.ts`、M-08 `PurgeParticipant` 装饰器 | `@PurgeParticipant('collab')`，作为 document-purge 参与者被调用（rulings §4.18 BE-15，取代「订阅编排信号」）；可在 worker 装配、不激活 `collabServer`；见 §2.6/§7 |
 | `application/purge-elements.usecase.ts` | 彻底删除元素（新增，§4.18 CO-07） | `PurgeElementsUseCase` | `CordisHostService`（`collabServer.purgeElements`）、M-12 `@Audited` | 校验全为墓碑态 → 单写者立即硬删 → 审计 `document.element_purged` |
 | `infrastructure/redis-fanout.bus.ts` | `FanoutBus` Provider | `RedisFanoutBus` | `ioredis` | §3.4 |
@@ -827,20 +759,22 @@ packages/server-headless/
 | `infrastructure/pg-update-store.ts` | `UpdateStore` Provider | `PgUpdateStore` | Drizzle、`db/schema/document_updates.ts` | §3.4；新增 `purgeAll` 方法（S-2） |
 | `infrastructure/pg-snapshot-store.ts` | `SnapshotStore` Provider | `PgSnapshotStore` | Drizzle、`ctx.blobStore` | §3.4；新增 `purgeAll` 方法（S-2） |
 | `infrastructure/authz-source.ts` | `AuthorizationSource` Provider | `AuthzSource` | M-08 `RoleResolverService`、M-08 `ResolveShareLinkUseCase`、`ioredis` | §3.4；取 `max(直接授权, lnk 对应链接仍有效时的角色)` 并返回 `linkExpiresAt`（rulings §4.18 BE-02） |
+| `infrastructure/redis-membership-registry.ts` | `MembershipRegistry` Provider（2026-09-25 登记） | `RedisMembershipRegistry` | `ioredis`（Lua 原子判定） | 60/05 §2.2、§4.2；键 `room:{docId}:members`、`instance:{instanceId}:alive`（决策 C-11） |
 | `infrastructure/spill/redis-spill.store.ts` | `SpillStore` 一级 Provider（新增，S-3） | `RedisSpillStore` | `ioredis` | §3.4；`writeTier1` |
 | `infrastructure/spill/blob-spill.store.ts` | `SpillStore` 二级 Provider（新增，S-3） | `BlobSpillStore` | `ctx.blobStore` | §3.4；`writeTier2`/`readAllOrdered`/`clear` |
 | `interface/collab.gateway.ts` | WS Gateway | `CollabGateway` | `@nestjs/websockets`、`ws-connection.adapter.ts` | 路由 `/collab/v1/rooms/:documentId` |
 | `interface/ws-connection.adapter.ts` | 连接适配 | `WsConnectionAdapter` | `ws`、`server-collab`（`ServerConnection` 类型） | — |
 | `interface/ticket-verifier.ts` | 票据校验 | `TicketVerifier` | M-08 `AuthModule` 导出的票据验签面（`JwtService`，JWKS 公钥）、Drizzle（只读 `documents.status`，BE-15）、`ioredis`（SETNX） | ADR-0029；`purging` 文档拒绝（BE-15）；记录 `lnk`（BE-02）；imports 已补（BE-07） |
 | `interface/element-purge.controller.ts` | REST 端点（新增，§4.18 CO-07） | `ElementPurgeController` | `@cordexjs/protocol` `rest/documents.ts`、M-08 `DocumentRoleGuard` | `POST /documents/:id/elements/purge{ids}`（相对 `/api/v1`）；`doc.manage` 即仅 owner；反代转 collab |
-| `__tests__/ticket-verifier.spec.ts` | 单测 | — | — | ttl/jti/permVersion 边界 |
-| `__tests__/redis-fanout.bus.spec.ts` | 契约测试 | — | testcontainers Valkey、`runFanoutBusConformance` | 两实例扇出、去重（rulings §4.18 GV-20） |
-| `__tests__/redis-lease-lock.spec.ts` | 契约测试（新增，GV-20） | — | testcontainers Valkey、`runLeaseLockConformance` | 互斥、过期后可重取、fencing token 单调 |
-| `__tests__/pg-update-store.spec.ts` | 契约测试 | — | testcontainers、`runUpdateStoreConformance` | 含 `purgeAll` 断言（S-2） |
-| `__tests__/purge-elements.usecase.spec.ts` | 单测（新增，CO-07） | — | — | 非 owner 403、非墓碑 id 拒绝、清除后删除方撤销得 `wholeStep:true` |
-| `__tests__/collab.gateway.e2e-spec.ts` | e2e | — | Nest Testing | 两浏览器模拟客户端经网关同步 |
-| `__tests__/spill/redis-spill.store.spec.ts` | 契约测试（新增，S-3） | — | testcontainers Redis、`runSpillStoreConformance` | — |
-| `__tests__/spill/blob-spill.store.spec.ts` | 契约测试（新增，S-3） | — | `runSpillStoreConformance` | — |
+| `__tests__/ticket-verifier.test.ts` | 单测（2026-09-25 由 `.spec.ts` 改名，T-NAMING） | — | 内存 Valkey 替身 | ttl/jti/permVersion 边界、`purging` 拒绝、记录 `lnk` |
+| `__tests__/purge-elements.usecase.test.ts` | 单测（CO-07；2026-09-25 改名） | — | — | 非 owner 403、非墓碑 id 拒绝、清除后删除方撤销得 `wholeStep:true` |
+| `apps/server/test/integration/conformance/collab-server.int-spec.ts` | 容器版契约调用（2026-09-25 登记，T-NAMING） | — | testcontainers、`runCollabServerConformance` | 真实适配器组装的集群；原 `collab.gateway.e2e-spec.ts` 的两客户端同步并入 §9 `collab-two-clients.e2e-spec.ts` |
+| `apps/server/test/integration/conformance/pg-update-store.int-spec.ts` | 容器版契约调用（自 `collab/__tests__/pg-update-store.spec.ts` 迁出） | — | testcontainers Postgres、`runUpdateStoreConformance` | 含 `purgeAll` 断言（S-2） |
+| `apps/server/test/integration/conformance/pg-snapshot-store.int-spec.ts` | 容器版契约调用（新增登记） | — | testcontainers Postgres + SeaweedFS、`runSnapshotStoreConformance` | 含 `purgeAll` 断言 |
+| `apps/server/test/integration/conformance/redis-spill-store.int-spec.ts` | 容器版契约调用（自 `__tests__/spill/redis-spill.store.spec.ts` 迁出） | — | testcontainers Valkey、`runSpillStoreConformance` | 一级（S-3） |
+| `apps/server/test/integration/conformance/blob-spill-store.int-spec.ts` | 容器版契约调用（自 `__tests__/spill/blob-spill.store.spec.ts` 迁出） | — | testcontainers SeaweedFS、`runSpillStoreConformance` | 二级（S-3） |
+| `apps/server/test/integration/conformance/redis-fanout-bus.int-spec.ts` | 容器版契约调用（自 `__tests__/redis-fanout.bus.spec.ts` 迁出） | — | testcontainers Valkey、`runFanoutBusConformance` | 两实例扇出、去重（GV-20） |
+| `apps/server/test/integration/conformance/redis-lease-lock.int-spec.ts` | 容器版契约调用（自 `__tests__/redis-lease-lock.spec.ts` 迁出） | — | testcontainers Valkey、`runLeaseLockConformance` | 互斥、过期后可重取、fencing token 单调（GV-20） |
 
 ### 5.2 `apps/server/src/modules/snapshots/`
 
@@ -849,7 +783,7 @@ packages/server-headless/
 | `snapshots.module.ts` | Nest 模块装配 | `SnapshotsModule` | `@nestjs/*`、M-08 `PermissionsModule` | 只在 collab/all 角色装配（rulings §4.18 BE-03）；imports M-08 `PermissionsModule` 取 `DocumentRoleGuard`（BE-07） |
 | `domain/version.ts` | 命名快照 REST 视图值对象 | `Version` | 无 | — |
 | `domain/snapshot-view.ts` | Snapshot REST 视图值对象 | `SnapshotView` | 无 | 字段裁剪，不泄漏内部存储路径 |
-| `domain/errors.ts` | 错误码 | `SnapshotError` | 无 | `not_found`/`quota_exceeded` |
+| `domain/errors.ts` | 错误码 | `SnapshotError` | 无 | `server.snapshots.not_found`/`quota_exceeded`/`persist_degraded`（2026-09-25 域改为 `server.snapshots`，决策 INC-10；HTTP 映射见 60/15 §3.8） |
 | `application/list-snapshots.usecase.ts` | 分页列表 | `ListSnapshotsUseCase` | `infrastructure/collab-server.accessor.ts` | — |
 | `application/get-latest-snapshot.usecase.ts` | `latest` 协商 | `GetLatestSnapshotUseCase` | `infrastructure/collab-server.accessor.ts` | ETag/zstd |
 | `application/create-named-snapshot.usecase.ts` | 创建命名快照 | `CreateNamedSnapshotUseCase` | `infrastructure/collab-server.accessor.ts` | 权限 `doc.manage`，见 §6 |
@@ -857,9 +791,9 @@ packages/server-headless/
 | `application/diff-snapshots.usecase.ts` | 两版本模型级 diff 预览 | `DiffSnapshotsUseCase` | 同上、`CordisHostService` | 新增建议（P2，见 §12） |
 | `infrastructure/collab-server.accessor.ts` | `collabServer` 服务面访问器 | `CollabServerAccessor` | `CordisHostService.getService('collabServer')` | 不直连 PG/S3（Conformist，module-map BC-22 行） |
 | `interface/snapshots.controller.ts` | REST 端点 | `SnapshotsController` | `@cordexjs/protocol` `rest/snapshots.ts` | §6；路径相对 `/api/v1`，反代把 `/api/v1/documents/:id/snapshots*` 转 collab（BE-03/BE-11） |
-| `__tests__/restore-snapshot.usecase.spec.ts` | 单测 | — | — | 权限/事务边界 |
-| `__tests__/get-latest-snapshot.usecase.spec.ts` | 单测 | — | — | ETag 命中/未命中 |
-| `__tests__/create-named-snapshot.usecase.spec.ts` | 单测 | — | — | 配额上限 |
+| `__tests__/restore-snapshot.usecase.test.ts` | 单测 | — | — | 权限/事务边界 |
+| `__tests__/get-latest-snapshot.usecase.test.ts` | 单测 | — | — | ETag 命中/未命中 |
+| `__tests__/create-named-snapshot.usecase.test.ts` | 单测 | — | — | 配额上限 |
 
 ### 5.3 `apps/server/src/cordis-host/`
 
@@ -871,7 +805,7 @@ packages/server-headless/
 | `adapters/pino-logger.adapter.ts` | kernel `logger` 服务的 Node 实现 | `PinoLoggerAdapter` | `pino` | — |
 | `adapters/otel-telemetry.adapter.ts` | kernel `telemetry` 服务的 Node 实现 | `OtelTelemetryAdapter` | `@opentelemetry/*` | — |
 | `adapters/errors-reporter.adapter.ts` | kernel `errors` 服务的 Node 实现 | `ErrorsReporterAdapter` | 无 | — |
-| `__tests__/cordis-host.service.spec.ts` | 单测 | — | — | `getService` 未知名称报诊断而非抛错；新增：`role=collab`/`worker` 关键服务缺失时 fail-fast（评审 §3.6） |
+| `__tests__/cordis-host.service.test.ts` | 单测 | — | — | `getService` 未知名称报诊断而非抛错；新增：`role=collab`/`worker` 关键服务缺失时 fail-fast（评审 §3.6） |
 
 ### 5.4 `packages/server-collab/`
 
@@ -886,7 +820,7 @@ packages/server-headless/
 | `domain/room.ts` | Room 聚合根 | `Room`、`RoomState` | `./room-session`、store-yjs `UnitHandle`（类型） | §2.1；新增 `pendingBytes`/`spillTier` 字段（S-3） |
 | `domain/room-session.ts` | RoomSession 实体 | `RoomSession` | `./ids` | §2.1 |
 | `domain/ids.ts` | 品牌类型 | `RoomId`、`Seq` | `@cordexjs/shared` | §2.2 |
-| `domain/errors.ts` | 领域错误码 | `CollabServerError` | kernel `errors` 契约 | `room_full`/`capacity`/`bootstrap_failed`/`lock_lost` |
+| `domain/errors.ts` | 领域错误码 | `CollabServerError` | kernel `errors` 契约 | `collab.*` 码表以 [60/05 §14](../60-backend/05-modules-collab-and-snapshots.md) 为准（`collab.room_full` 统一、`collab.server.*` 与 `capacity` 已废，决策 INC-10/SG-04，2026-09-25）；关闭码映射见 60/16 §10 |
 | `domain/collab-server.contribution.ts` | Context/Events 声明 | `Context.collabServer` 类型增强 | kernel（类型） | §2.4 事件登记 |
 | `domain/contracts/update-store.ts` | `UpdateStore` Definition | `UpdateStore` | `./ids`（类型） | §2.5；新增 `purgeAll` 方法（S-2） |
 | `domain/contracts/snapshot-store.ts` | `SnapshotStore` Definition | `SnapshotStore` | `./ids`（类型） | §2.5；新增 `purgeAll` 方法（S-2） |
@@ -894,6 +828,7 @@ packages/server-headless/
 | `domain/contracts/lease-lock.ts` | `LeaseLock` Definition | `LeaseLock`、`Lease` | 无 | §2.5 |
 | `domain/contracts/authz-source.ts` | `AuthorizationSource` Definition | `AuthorizationSource` | `@cordexjs/protocol`（`Role`类型） | §2.5 |
 | `domain/contracts/spill-store.ts` | `SpillStore` Definition（新增，S-3） | `SpillStore` | `./ids`（类型） | §2.5 |
+| `domain/contracts/membership-registry.ts` | `MembershipRegistry` Definition（2026-09-25 登记） | `MembershipRegistry` | `./ids`（类型） | 签名见 60/05 §2.1；名额跨实例原子判定（决策 C-11） |
 | `domain/gate/hard-gate.ts` | L1/L2/L3 判定 | `checkHardGate` | `./token-bucket`、`../ids`、`@cordexjs/collab-core`（L2 角色判定复用权限检查点契约类型，类型导入；rulings §4.18 FE-15） | §2.3 |
 | `domain/gate/soft-gate.ts` | L4 语义校验 | `runSoftGate` | `@cordexjs/model-core`（`DocumentType`类型） | §2.3，doc-type 盲 |
 | `domain/gate/repair-planner.ts` | 违规 → 补偿 Mutation | `planRepair` | `@cordexjs/model-core`（`Mutation`类型） | §2.3 |
@@ -934,7 +869,7 @@ packages/server-headless/
 | `tsconfig.json` | 编译配置 | — | — | — |
 | `src/index.ts` | 公共 API 面 | `createHeadlessHost`、任务函数类型（`importDocument`/`exportDocument` 等） | 本包各子路径 | §6 |
 | `domain/unit-runner.ts` | UnitRunner 生命周期封装 | `withUnit` | `@cordexjs/model-core`（`units`类型） | §2.1 |
-| `domain/errors.ts` | 领域错误码 | `HeadlessError` | kernel `errors` 契约 | `zip_limit_exceeded`/`decode_failed`/`browser_crashed`/`render_timeout` |
+| `domain/errors.ts` | 领域错误码 | `HeadlessError` | kernel `errors` 契约 | `headless.*` 12 码以 [60/06 §12.2](../60-backend/06-modules-jobs-import-export-thumbnails.md) 为准；2026-09-25 删 `headless.zip_limit_exceeded`（统一为 `format.limit_exceeded`）与 `headless.decode_failed`（统一为 `format.pptx.*`），依据 30/08 §16.5、30/10 §1.1（30 > 40，决策 INC-10） |
 | `application/tasks/import.ts` | 导入任务（原 `import-pptx.ts`，rulings §4.18 FE-01） | `importDocument` | `@cordexjs/model-core`（`formats` 服务，按 `documentType` 取 codec）、`domain/unit-runner.ts` | zipLimits 校验（09.2）；超系统天花板直接拒绝（`format.quota_exceeded`） |
 | `application/tasks/export.ts` | 导出任务（原 `export-pptx.ts`，FE-01） | `exportDocument` | `@cordexjs/model-core`（`formats` 服务）、`domain/unit-runner.ts` | 字节级确定性（08 §16.2） |
 | `application/tasks/validate.ts` | 校验任务 | `validateSnapshotTask` | `@cordexjs/model-core`（`validateSnapshot`） | 供 admin/诊断 |
@@ -945,6 +880,7 @@ packages/server-headless/
 | `infrastructure/thumbnails/browser-pool.ts` | local 模式 Chromium 进程池 | `BrowserPool` | `playwright-core` | 沙箱开启、每任务 `BrowserContext`、回收策略、崩溃自愈（Q8） |
 | `infrastructure/thumbnails/remote-renderer.client.ts` | remote 模式 sidecar 客户端（新增，rulings §4.15 Q8） | `RemoteRendererClient` | `@cordexjs/protocol/render/sidecar`（M-02 配合） | 注入 state + 资源字节，sidecar 零出站、无凭据、非 root；版本锁步校验 |
 | `infrastructure/thumbnails/thumbnail-renderer.ts` | `ThumbnailRenderer` 实现，经 `HeadlessHost.thumbnails` 只读字段导出；按 `headless.mode` 选 local/remote | `render`、`renderPdf` | `browser-pool.ts`、`remote-renderer.client.ts`、`render-page-protocol.ts` | §2.5/§6；C-09 |
+| `infrastructure/thumbnails/content-hash.ts` | 页内容哈希（2026-09-25 登记） | `computePageHashes` | `@cordexjs/model-core`（经 `documentTypes` 取页划分与依赖闭包，文档类型盲） | 哈希输入与失效规则见 [60/06 §11.1](../60-backend/06-modules-jobs-import-export-thumbnails.md)；`ThumbnailsProcessor` 调用（M-12） |
 | `infrastructure/thumbnails/render-page-protocol.ts` | 薄适配层：re-export `@cordexjs/protocol/render/page` 类型 + URL 拼装与注入辅助函数（**不再是契约定义源**） | `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`（re-export；`RenderStateResponse` 为注入载荷）+ `buildRenderUrl`（`renderId` 仅作日志关联）、`injectRenderState` | `@cordexjs/protocol/render/page`（M-02） | 注入载荷/ready 信号；C-27；`RenderStateToken` 与 token/state 拉取 URL 已取消（rulings §4.18 BE-04） |
 | `infrastructure/thumbnails/png.ts` | 截图后处理 | `postProcessPng` | 无 | 尺寸、sRGB |
 | `infrastructure/worker.ts` | worker_threads 任务运行器 | `runInWorker` | `node:worker_threads`、`interface/host/create-server-host.ts` | 超时/内存限额，每任务新宿主；按组合根提供的插件清单模块路径动态加载（FE-01） |
@@ -985,54 +921,19 @@ interface HeadlessHost {
 
 ## 7. 前后端与运行时
 
-本模块**仅服务端**（module-map §5：BC-21/22/27 均"仅服务端"一栏；唯一例外是 headless Chromium 内运行的 `render-dom` 代码——那是浏览器进程，由本模块从 Node 侧编排但产出物不在本模块目录内，属 M-06/M-11）。
+本模块**仅服务端**（module-map §5；headless Chromium 内运行的 `render-dom` 属 M-06/M-11）。2026-09-25 起本节改为摘要 + 链接（rulings §4.19）。
 
 ### 7.1 服务端进程内位置
 
-| 资源 | 归属 | 激活的进程角色（`CORDEX_ROLE`） |
-|---|---|---|
-| `CordisHostService`（进程单例 Context） | `apps/server/src/cordis-host` | `api`/`collab`/`worker`（及 `all`）；**`renderer` 不装**（rulings §4.18 BE-13） |
-| `collabServer` 服务 | `preset-server` 装配进同一进程 Context，仅 `role=collab` 时激活 | `collab` |
-| `server-headless` 宿主 | 按需 `createHeadlessHost({ adapters, plugins })`（每任务独立实例；`infrastructure/worker.ts` 用 `worker_threads` 隔离，插件清单由 `preset-server.ts` 提供，FE-01） | `worker` |
-| WS 网关 | `apps/server/src/modules/collab/interface/collab.gateway.ts` | `collab` |
-| 快照 REST | `apps/server/src/modules/snapshots` | **`collab`（`all` 含）**；反代把 `/api/v1/documents/:id/snapshots*` 转给 collab；恢复在本实例打开 Room 执行、多副本经 `FanoutBus` 收敛；启动断言 `role=api` 不装配（2026-09-25 更正，rulings §4.18 BE-03） |
-| 彻底删除元素 REST（新增，§4.18 CO-07） | `collab/interface/element-purge.controller.ts` | `collab`（`all` 含）；反代把 `/api/v1/documents/:id/elements/purge` 转给 collab |
-| document-purge 参与者 `PurgeCollabDataUseCase`（§4.18 BE-15） | `collab/application/purge-collab-data.usecase.ts`（只依赖 `PgUpdateStore`/`PgSnapshotStore`） | `worker`（`CollabModule.forRole('worker')`，不激活 `collabServer`，纳入 12 §7.1 矩阵） |
-| 踢会话/关 Room 与 `forceEpoch` 通知 | Valkey 控制频道 `room:ctl:{doc}`（`domain/redis-keys.ts`） | 发布方：worker（document-purge）/collab（`forceEpoch`）；订阅方：全部 `collab` 实例（BE-03/BE-15） |
+角色装配的唯一源是 [60/01 §5](../60-backend/01-service-overview-and-roles.md)（「模块 × 角色 × 部件」矩阵，迁自 40/12 §7.1）与 §6（启动断言）；反代分流见 60/01 §7。摘要：`CordisHostService` 装 api / collab / worker（renderer 不装）；`collabServer`、WS 网关、快照 REST、彻底删除元素 REST 只在 collab（及 all）；`server-headless` 宿主与 document-purge 参与者 `PurgeCollabDataUseCase`、保留周期作业在 worker（不激活 `collabServer`）；踢会话 / 关 Room / `forceEpoch` 通知经 Valkey 控制频道 `room:ctl:{doc}`（BE-03/BE-13/BE-15）。
 
 ### 7.2 与浏览器共享的 protocol schema 清单
 
-| schema | 文件（现状 / 新增建议） | 用途 |
-|---|---|---|
-| WS 信封判别联合 | `@cordexjs/protocol` `ws/frames.ts`（M-02 既有） | SYNC/AWARENESS/CONTROL/QUERY_AWARENESS 顶层判别 |
-| WS 握手 | `@cordexjs/protocol` `ws/handshake.ts`（M-02 既有） | 握手请求/应答骨架 |
-| 二进制信封细节 | `@cordexjs/protocol` `collab/frame.ts`（**新增建议**，与 M-05 共同落地） | encode/decode 帮助函数 |
-| CONTROL 判别联合 | `@cordexjs/protocol` `ws/frames.ts`（M-02 帧归属方；2026-09-24 复核 M1：本模块**不另建** `collab/control.ts`） | `auth`/`auth.ok`/`auth.denied`/`permission`/`ack`/`error`/`repair`/`ping`/`pong`/`room`；`ws/frames.ts` 尚未覆盖的成员由本模块向 M-02 提请增补进该文件；`ack` 形状以 M-02 为准：`{kind:'ack', tier:'spill'}` \| `{kind:'ack', tier:'db', seq}`（rulings §4.15 S-3a，M-02/M-05 配合） |
-| 关闭码 | `@cordexjs/protocol` `collab/close-codes.ts`（**新增建议**） | 常量对象（非 `enum`，A3） |
-| Awareness 状态 | `@cordexjs/protocol` `collab/awareness.ts`（**新增建议**） | `AwarenessState` |
-| Ticket claims | `@cordexjs/protocol` `collab/ticket.ts`（**新增建议**，08 §2.2 已预留路径） | `CollabTicketClaims`（含可选 `sid` 登录会话 id、`lnk` 分享链接 id，rulings §4.18 BE-02） |
-| renderer sidecar RPC | `@cordexjs/protocol` `render/sidecar.ts`（**新增建议**，2026-09-24，rulings §4.15 Q8，M-02 配合） | `remote` 模式请求/响应：注入 state 与资源字节、选项、WebP（640 px 缩略图）/PDF 字节；版本锁步字段 |
-| 快照/版本 REST DTO | `@cordexjs/protocol` `rest/snapshots.ts`（M-02 既有骨架，本模块按需补字段） | 列表/`latest`/命名/恢复/`diff` |
-| 错误码 / 权限位 | `@cordexjs/protocol` `errors/codes.ts`、`permissions/actions.ts`（M-02 既有） | `collab.*`/`history.read`/`history.restore` |
-
-> `collab/` 下四个"新增建议"文件（`frame.ts`/`close-codes.ts`/`awareness.ts`/`ticket.ts`；CONTROL 帧并入 M-02 `ws/frames.ts`，复核 M1）由本模块与 M-05（客户端协同）**联合落地**（`render/sidecar.ts` 由本模块与 M-02 落地）——两者按同一份帧格式并行开工，协议版本必须一致；包依赖上 `server-collab` 依赖 M-05 的 `collab-core`（只复用 Definition 契约，不复用 Provider，rulings §4.18 FE-15；module-map §7 M-05/M-09 行同步）；本模块只消费/编码这些 schema，不改变 M-02 已交付的 `ws/{handshake,frames}.ts` 字面内容。
+文件登记的唯一处是 [40/02 §4.3](02-kernel-protocol-and-document-core.md)（M-02）；服务端对各帧的处理见 [60/16](../60-backend/16-ws-protocol-server-view.md)，帧与 CONTROL 的定义见 30/06 §6。本模块消费：`ws/{frames,handshake}.ts`（信封、CONTROL 判别联合含 `ack`、`room.persist?`，判别键 `type`）、`collab/{frame,close-codes,awareness,ticket}.ts`（决策 INC-01 已登记进 M-02，经根入口导出，不建 `collab/control.ts`）、`render/{page,sidecar}.ts`、`rest/snapshots.ts`、`errors/codes.ts`、`permissions/actions.ts`。`server-collab` 另依赖 M-05 `collab-core` 的 Definition 契约，不复用 Provider（rulings §4.18 FE-15）。
 
 ### 7.3 与 M-08 / M-12 的边界表（谁写哪张表、谁发哪些事件）
 
-| 关注点 | 谁写 | 谁读 / 订阅 |
-|---|---|---|
-| `documents.title/status/ownerId/…` | M-08 | 本模块只读展示 |
-| `documents.headSeq`/`documents.epoch` | **本模块**（乐观递增：`UPDATE … SET head_seq=… WHERE id=… AND head_seq<…`；`epoch` 递增＝强制全体重连，触发点 `forceEpoch()`，入口为 M-12 `AdminController`（仅 collab 角色），递增后经 Valkey 通知其他持有该 Room 的实例踢会话；M-08 §7 边界表已同步更正，rulings §4.18 BE-21/BE-03） | M-08 只读展示，不写这两列（08 §7）；2026-09-21 起该约束由 M-08 `DocumentRepository` 更新方法入参类型 `Omit<Document,'headSeq'\|'epoch'>` 在编译期强制（评审 §3.4，rulings §4.13 同时确认段），本行是该修复在本模块侧的对应记录 |
-| `permissions`/`document_perm_versions`（`permVersion`） | M-08（递增＝仅重算权限，不断连；分享链接撤销同样递增） | 本模块订阅 `perm:doc:{id}` 频道，经 `AuthorizationSource.onPermissionChanged` 回调；重算取 `max(直接授权, 有效链接角色)`，链接会话另按 `linkExpiresAt` 到期主动降权（rulings §4.18 BE-02） |
-| `document_updates`/`document_snapshots` | **本模块** | M-12（导出/审计只读引用 `latest` 快照） |
-| `document_updates`/`document_snapshots` 的编排式清空（新增，rulings §4.13 S-2，2026-09-21） | **本模块**（`UpdateStore.purgeAll`/`SnapshotStore.purgeAll`，由 `purge-collab-data.usecase.ts` 作为 `@PurgeParticipant('collab')` 被调用，rulings §4.18 BE-15） | M-08 `documents.schedule-purge.usecase.ts` 是唯一编排发起点（30 天宽限期满、GDPR 擦除或「永久删除文档」），worker 上的 document-purge 处理器先经 `room:ctl:{doc}` 让本模块踢会话、关 Room（加入房间见 `purging` 一律拒绝），再依次调用各参与者；本模块只响应不发起；M-12 `thumbnails`/`comments` 各自作为参与者清自己的表，互不跨表写 |
-| Room 背压溢写暂存（Redis 一级 / BlobStore 二级，新增，rulings §4.13 S-3，2026-09-21） | **本模块**（`spill-coordinator.ts` 写，`replay-spilled.usecase.ts` 读本实例行并回放后清空，过期实例的遗留行持 `lock:spill:{doc}` 认领） | 纯本模块内部状态，不对 M-08/M-12 暴露；PG 故障期与回放期 Room 保持 `active`（2026-09-25 更正，删去原「PG 恢复前停留 `persisting`」，rulings §4.18 CO-15/CO-16）；M-12 的导出/缩略图任务读 `latest` 快照不受影响（快照恢复路径与溢写回放路径相互独立） |
-| CRDT 内删除墓碑的 TTL 硬删除（新增，2026-09-24，rulings §4.15 Q3） | **本模块**（`tombstone-sweeper.ts`，`LeaseLock` 单写者，`origin=system('maintenance')`；唯一执行者，架构 08 的 BullMQ 路径作废） | 客户端只产生软删除墓碑、从不硬删；文档擦除与「永久删除文档」走 S-2 `purgeAll`，不等 TTL；owner 发起的「彻底删除元素」经本模块 REST 复用同一单写者立即硬删，写审计 `document.element_purged`（rulings §4.18 CO-07） |
-| `audit_log` | M-12（拦截器实现，只追加） | 本模块只发布事件供其记录，不直接写表 |
-| `comments`（读模型） | M-12（观察 Room 广播后 upsert） | 本模块只转发 `CONTROL.event{comments.changed}`，不持有该表 |
-| `thumbnails`/`job_runs` | M-12 | 本模块只提供 `ThumbnailRenderer`/`tasks.*` 被调用，不写这两张表 |
-| 事件 `collab-server/*` | **本模块**发布 | M-12 审计拦截器订阅 |
-| 事件 `command/audited`（M-02 既有，经本模块 headless 任务以 `principal:system` 执行命令时产生） | 本模块触发 | M-12 |
+表写方所有权的唯一源是 [60/08 §7](../60-backend/08-db-conventions-roles-rls-migrations.md)；`documents` 列写方见 [60/04 §5](../60-backend/04-modules-documents-storage-media.md)。本模块写：`document_updates`、`document_snapshots`（含永久删除参与者的清空与保留作业的删除）、`documents` 的 M-09 列（`head_seq`、`epoch`、`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at`、`latest_snapshot_id`，决策 C-03）、溢写暂存（Valkey 一级 / 对象存储二级）；发布 `collab-server/*` 事件与 `CONTROL.room.persist` 信号（rulings §4.19 INC-09）。不写：`permissions`/`document_perm_versions`（M-08）、`audit_log`、`comments`、`thumbnails`、`job_runs`（M-12）。
 
 **图 7-1 进程边界**
 
@@ -1049,12 +950,11 @@ subgraph chromium["headless Chromium 进程"]
   renderRoute["apps/web /render 路由"]
 end
 clientApp -- "ws/handshake、ws/frames 经 @cordexjs/protocol" --> gateway
-headlessHost -- "RenderPageQuerySchema 经 @cordexjs/protocol/render/page" --> chromium
+headlessHost -- "注入 snapshot-json 经 @cordexjs/protocol/render/page" --> chromium
 chromium -- "window.__cordex.ready 信号 经 @cordexjs/protocol/render/page" --> headlessHost
 ```
 
-图怎么读：真实浏览器客户端与网关之间、以及本模块编排的 headless Chromium 与其加载的 `/render` 页面之间，都是真实进程边界，全部经 `@cordexjs/protocol` 定义的 schema 通信，本模块不直接引入 `render-dom`。
-
+图怎么读：真实浏览器客户端与网关之间、以及本模块编排的 headless Chromium 与其加载的 `/render` 页面之间，都是真实进程边界，全部经 `@cordexjs/protocol` 定义的 schema 通信；`/render` 页只接受注入、零外呼（rulings §4.18 BE-04，[50/12 §11](../50-frontend/12-viewer-embedding-and-render-page.md)）。
 ## 8. doc / sheet 扩展缝
 
 全部 **generic**（Room 即 Unit，两个包与三个 Nest 目录对 `slide` 一词均无感知，module-map §3 BC-21/22/27 行）。
@@ -1081,15 +981,16 @@ packages/server-headless/
 ├── src/__tests__/             round-trip、validate、缩略图（CI 有 Chromium 时）、measurer 契约
 └── testing/                   createTestHost()、语料库 fixtures
 apps/server/
-├── src/modules/collab/__tests__/       握手/适配器/网关 e2e
+├── src/modules/collab/__tests__/       握手与用例单测（*.test.ts）
 ├── src/modules/snapshots/__tests__/    usecase 单测
 ├── src/cordis-host/__tests__/          宿主装配单测
-└── test/                                集成/e2e（Nest Testing + testcontainers Postgres 18/Valkey/SeaweedFS + Casdoor 容器或 oidc-provider mock；2026-09-24 rulings §4.15 Q6/Q10）
-    ├── e2e/collab-two-clients.e2e-spec.ts    两浏览器经网关同步（§11 M2 验收）
-    ├── e2e/snapshot-restore.e2e-spec.ts      命名快照→编辑→恢复（§11 M2 验收）
-    ├── e2e/pg-outage-broadcast.e2e-spec.ts   PG 断开时两客户端互见编辑、恢复后 seq 连续不丢（§4.18 CO-08）
+└── test/                                集成/e2e（Nest Testing + testcontainers Postgres 18/Valkey/SeaweedFS + Casdoor 容器或 oidc-provider mock；2026-09-24 rulings §4.15 Q6/Q10；场景与断言以 70/07、70/05 §12 为准）
+    ├── e2e/collab-two-clients.e2e-spec.ts    两客户端经网关同步、单人编辑刷新后经快照 bootstrap 恢复（§11 M2 验收，rulings §4.19 D-M2-CONTENT）
+    ├── e2e/snapshot-restore.e2e-spec.ts      命名快照→编辑→恢复（§11 M3 验收，随 CO-07 版本历史）
+    ├── e2e/pg-outage-broadcast.e2e-spec.ts   PG 断开时两客户端互见编辑、1 s 内收到 CONTROL.room persist degraded、恢复后推 ok 且 seq 连续不丢（§4.18 CO-08、§4.19 INC-09）
     ├── e2e/share-link-session.e2e-spec.ts    只凭链接的会话：他人改权限不被踢、链接撤销 ≤ 1 s 降权、链接到期主动降权（§4.18 BE-02）
-    ├── e2e/render-zero-egress.e2e-spec.ts    /render 页网络请求数为 0，local 与 remote 各一次（§4.18 BE-04）
+    ├── e2e/smoke/renderer-egress.e2e-spec.ts /render 页网络请求数为 0，local 与 remote 各一次（§4.18 BE-04；自 render-zero-egress.e2e-spec.ts 改名进冒烟子集，GV-16，70/07 §17）
+    ├── integration/conformance/*.int-spec.ts  本模块 Provider 的容器版契约调用（§4.1）
     ├── integration/soft-gate-repair.int-spec.ts  组合根内同时装 server-collab 与 model-slide invariants 的协同分节（自 server-collab 迁入，§4.18 FE-01）
     ├── integration/pptx-roundtrip.int-spec.ts    经 preset-server 插件清单驱动 server-headless 的 pptx 语料往返（自 server-headless 迁入，FE-01）
     └── fixtures/
@@ -1123,34 +1024,37 @@ apps/server/
 
 - 两个包最小骨架：`package.json`/`tsconfig.json`/`index.ts`/`plugin.ts`/`config.ts`（`server-collab`）、`index.ts`/`interface/host/create-server-host.ts`（`server-headless`，`createHeadlessHost` 先返回空宿主）；三个 Nest 目录的 `*.module.ts` 空壳注册进 `AppModule`。
 - `domain/contracts/*.ts` 五个 Definition 接口、`domain/ids.ts`、`config.ts` 落地；`cordis-host/preset-server.ts` 能装配 M-02 的 `model-core`+`store-memory`（尚不含 `store-yjs`/协同能力）跑通 `fiber.await()`。
-- 验收命令：`pnpm --filter @cordexjs/server-collab build && pnpm --filter @cordexjs/server-headless build`；`pnpm --filter apps/server test -- cordis-host.service.spec.ts` 全绿。
+- 验收命令：`pnpm --filter @cordexjs/server-collab build && pnpm --filter @cordexjs/server-headless build`；`pnpm --filter apps/server test -- cordis-host.service.test.ts` 全绿。
 
 ### M1 展望（不在本模块 M0/M2 交付范围，仅标注依赖前提）
 
 - 依赖 M-04（`ooxml-pptx`）与 M-06（`engine-layout`）的 M1 交付：在此之前 `server-headless` 的 `application/tasks/{import,export,validate}.ts`（2026-09-25 由 `import-pptx`/`export-pptx` 改名，rulings §4.18 FE-01）只有骨架签名，无法编写真实逻辑。
 - 依赖 M-02 的 `store-yjs`/`yjsBackend`（M1 交付）：在此之前 `server-collab` 的 `domain/room.ts` 无法持有真实 Unit。
 
-### M2：首个可运行切片——两个浏览器客户端经网关同步 + 服务端快照 + 恢复
+### M2：协同后端切片——网关、Room、update 持久化与快照、服务端导入（M2 交付）
 
-- `server-collab`：`domain/gate/*` 全部四级门禁、`application/room-manager.ts`/`broadcast.ts`/`persistence/*` 落地（单实例验收；`FanoutBus`/`LeaseLock` 允许用内存 Provider 通过本切片，暂不要求 `createServerCluster(2)` 全绿）。
-- `collab/interface/*` 三文件 + `collab/infrastructure/*` 五个适配器落地（真实 Redis/Postgres，经 testcontainers）。
-- `snapshots`：`restore-snapshot.usecase.ts` 打通 `commands.execute('core.restoreVersion')`（依赖 M-02 M2 交付的该内置命令）。
-- `server-headless`：`import`/`export` 任务打通（`pptxCodec` 由 M-04 M1 交付、经组合根 `preset-server.ts` 装配后按 `documentType` 经 `formats` 服务取用，rulings §4.18 FE-01）。
+> 里程碑口径（2026-09-25，rulings §4.19 D-M2-CONTENT）：本切片**是 M2 交付**，不是「M3 前置技术切片」（撤销决策 INC-37 的改名要求）；M2 起服务端文档内容以协同快照为唯一事实源，单人编辑也经网关与 Room 持久化，不设 pptx 内容版本端点。M3 保留多人协同体验层（在场、评论、权限细化、离线重连、服务端缩略图等）；逐项边界以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。
+
+- `server-collab`（单实例，PRD 05 §0.3）：`domain/gate/*` 全部门禁（L4 `softGate.mode` 可先 `report-only`）、`application/room-manager.ts`（先准入后 `loading`、按权重准入，Q5/CO-17）/`broadcast.ts`/`awareness/awareness-relay.ts`（服务端转发随网关就位；同一用户多标签页经网关互见）/`persistence/*`（`update-writer`、`bootstrap-loader`、`compactor` 与 `auto` 快照、`tombstone-sweeper`（墓碑 TTL 清扫，Q3）、`migration-runner`（schema 迁移）与 `forceEpoch`（换纪元）、`spill-coordinator`、`replay-spilled`——本实例溢写与回放，S-3/S-3a、CO-08/CO-15）落地；保留期作业（`auto` 快照按天稀疏化，rulings §4.19 C-06；update 7 天）随 worker 注册；PG 故障降级期经 `CONTROL.room.persist` 推 `degraded`/`ok`（rulings §4.19 INC-09，客户端「未保存到服务器」提示自 M2 起生效）。单实例验收：`FanoutBus`/`LeaseLock` 可用内存 Provider 通过本切片，但 `redis-fanout-bus`/`redis-lease-lock` 两个容器版契约调用须绿。
+- `collab/interface/*` 与 `collab/infrastructure/*` 八个适配器落地（真实 PG/Valkey/SeaweedFS，经 testcontainers）；`apps/server/test/integration/conformance/*.int-spec.ts` 全绿。
+- `snapshots`：`get-latest-snapshot.usecase.ts`（`GET /documents/:id/snapshots/latest`，打开时的 HTTP bootstrap）；票据签发 `POST /documents/:id/collab-ticket` 由 M-08 同期交付。
+- `server-headless`：`import`/`export`/`validate` 任务打通（codec 经组合根 `preset-server.ts` 装配、按 `documentType` 经 `formats` 取用，FE-01）；M-12 导入作业（两步上传、`GET /jobs/:id`）调用 `import` 任务写 `kind='import'` 快照与 embedded `__cover` 封面（带 `docId` 覆盖既有文档时导入期间文档 `locked`、同一事务纪元加一，在线会话 4428 后重新 bootstrap，rulings §4.19 N1）——新建空白 / 内置模板与导入 .pptx 都经此路径进入编辑器（M-11 §11、[60/06 §6](../60-backend/06-modules-jobs-import-export-thumbnails.md)）。
+- `cordis-host`：`ServiceMap` 与 `all` 角色的启动期一致性断言（评审 §3.6；M2 部署为单实例 `all`，按角色拆分部署与逐角色断言属 M3，PRD 05 §0.3）。
 - 验收命令与场景：
-  1. `pnpm --filter apps/server test:e2e -- collab-two-clients.e2e-spec.ts`：浏览器 A 编辑一个形状 → 浏览器 B（经同一 Nest 进程）≤ 300 ms 内看到；
-  2. 写入 ≥ 500 个 update 后断言触发一次 Compaction（`document_snapshots` 新增一行 `kind='auto'`，`document_updates` 对应裁剪）；
-  3. `pnpm --filter apps/server test:e2e -- snapshot-restore.e2e-spec.ts`：命名快照 → 继续编辑 → 恢复到命名快照 → 两个在线客户端**不断连**且状态收敛为目标快照。
+  1. `pnpm --filter apps/server test:e2e -- collab-two-clients.e2e-spec.ts`：浏览器 A 编辑一个形状 → 浏览器 B（经同一 Nest 进程）≤ 300 ms 内看到；A 刷新后经 `snapshots/latest` + WS 恢复同一状态（技术验收；在场与软冲突提示等体验层属 M3）；
+  2. 写入 ≥ 500 个 update 后断言触发一次 Compaction（`document_snapshots` 新增一行 `kind='auto'`，`document_updates` 按 60/11 §8 裁剪）；
+  3. 导入一份 D50 pptx → 作业成功 → `import` 快照写入 → 浏览器经 `snapshots/latest` 打开并可编辑（与 M-12 §11 联调）；
+  4. `pg-outage-broadcast.e2e-spec.ts`：PG 断开时两客户端互见编辑、1 s 内收到 `persist:'degraded'`、恢复后推 `ok` 且 `seq` 连续不丢（CO-08、INC-09）。
 
-### M3 展望（不在本模块 M0/M2 交付范围，仅标注依赖前提）
+### M3 展望（多人协同体验层与规模化，不在本模块 M0/M2 交付范围）
 
-- ADR-0035 完整多实例（`createServerCluster` 全部场景绿）、SV-05 全部容量数值达标、`softGate.mode` 从 `report-only` 收紧为生产默认、headless Chromium 缩略图/PDF（依赖 M-11 的 `apps/web` `/render` 路由与 M-12 的 BullMQ 处理器编排）、epoch 换纪元手动触发路径。
-- **Room 背压溢写**（新增，rulings §4.13 S-3，2026-09-21）：`spill-policy.ts`/`spill-coordinator.ts`/`replay-spilled.usecase.ts` 三件套落地 + `redis-spill.store.ts`/`blob-spill.store.ts` 两个 Provider；验收：故障注入测试（kill PG 连接）验证不拒写、两级阈值正确触发、恢复后 `document_updates` 按 `seq` 完整无重复，纳入 §11 M3 故障注入测试矩阵；**2026-09-24 追加（rulings §4.15 S-3a）**：两级 ack（溢写期只回 `tier:'spill'`，客户端不清 pending；回放落库后补 `ack{seq,tier:'db'}`）、溢写行按 `(instanceId, localCounter)` 排序且 `seq` 回放时由 PG 分配、回放后断言 `pendingStructs` 为空。
-- **编排式硬删除清理**（新增，rulings §4.13 S-2，2026-09-21）：`UpdateStore`/`SnapshotStore` 的 `purgeAll(docId)` 落地 + `purge-collab-data.usecase.ts`；验收：与 M-08/M-12 联调端到端级联清理（SV-11）。
-- **墓碑 TTL 硬删除 + 按权重准入**（新增，2026-09-24，rulings §4.15 Q3/Q5）：`tombstone-sweeper.ts`（单写者，默认 24 h）与 `admission-policy.ts`（按文档实测权重准入、名额按用户计、超出实例权重预算拒绝 `collab.room_full`/4503，D200 房间内存按实测 ≈ 85 MB 校准）；验收：`server-collab` 容量与墓碑场景用例全绿。
-- **renderer 双模式**（新增，2026-09-24，rulings §4.15 Q8）：M3 前半段缩略图（local + remote 零出站 sidecar，按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s），M3 后半段 PDF；sidecar 以非 root、沙箱开启、无凭据、零出站运行，每任务独立 `BrowserContext`。
-- **`ServiceMap` 与角色一致性断言**（新增，评审 §3.6，2026-09-21）：`cordis-host.service.ts`/`preset-server.ts` 补强；验收：`role=collab` 故意漏配 `server-collab` 时进程 fail-fast 退出（而非静默 `undefined`）。
-- **矛盾收口追加**（2026-09-25，rulings §4.18）：Room 状态机照抄 06 §5.2 七态（CO-13）、故障期与回放期保持 `active`（CO-15）、降级期照常广播（CO-08）、只回放本实例溢写行并认领过期实例遗留行（CO-16）、先准入后 loading 与空闲房间 LRU 回收（CO-17/CO-14）、step2 应答（CO-10）、链接会话重算与到期降权（BE-02）、快照 REST 与管理动作只在 collab（BE-03）、`purging` 拒绝加入与 document-purge 参与者（BE-15）、彻底删除元素（CO-07）、`server-headless` 文档类型盲与插件清单注入（FE-01）、`FanoutBus`/`LeaseLock` 契约套件（GV-20）、`/render` 零外呼 e2e（BE-04）；验收见 §9 新增用例。
-
+- **版本历史**（PRD CO-07，P1）：命名版本、版本列表与恢复（`create-named-snapshot`/`list-snapshots`/`restore-snapshot` 三个用例与 `snapshot-restore.e2e-spec.ts`：命名快照 → 继续编辑 → 恢复 → 两个在线客户端**不断连**且收敛为目标快照；依赖 M-02 `core.restoreVersion` 与 `version-restore-undo` ADR，rulings §4.12 U-07）；版本保留按 rulings §4.19 C-06（图 2-1）。
+- **权限细化**：链接会话重算与到期降权（BE-02，随 M-08 分享链接）；降权即时生效与被拒回滚的多人场景。
+- **彻底删除元素**：`POST /documents/:id/elements/purge`（CO-07，复用 M2 已交付的 `tombstone-sweeper` 单写者）。
+- **编排式硬删除清理**（S-2/BE-15）：`purgeAll(docId)` 与 `purge-collab-data.usecase.ts`，随「永久删除文档」（60/15 §3.3，M3）；验收：与 M-08/M-12 联调端到端级联清理（SV-11），在线编辑中立即删除后无 update 落库。
+- **规模化**：ADR-0035 完整多实例（`createServerCluster` 与真实集群全部场景绿，Valkey 扇出）、名额按用户计与满员只读、SV-05 容量数值达标（D200 房间内存 ≈ 85 MB 校准）、`softGate.mode` 收紧为生产默认；多实例溢写：只回放本实例行、过期实例遗留行由下一个加载该文档的实例认领（CO-16）；按角色拆分部署与逐角色启动断言（BE-03/BE-13）；溢写三个阈值已在 M2 前落地的自托管 runner 上压测校准（60/05 §6.2、70/09 §12，rulings §4.19 D-TEST-INFRA），M3 只在多实例负载下复核（只收紧）。
+- **renderer 双模式**（rulings §4.15 Q8）：M3 前半段服务端缩略图（local + remote 零出站 sidecar，按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s），M3 后半段 PDF；`smoke/renderer-egress.e2e-spec.ts` 自 M3 起阻断（GV-16）。
+- **矛盾收口追加**（2026-09-25，rulings §4.18）中已随本切片进入 M2 的：Room 七态（CO-13）、故障期与回放期保持 `active`（CO-15）、降级期照常广播（CO-08）、本实例溢写回放（CO-16 单实例部分）、先准入后 loading 与空闲房间回收（CO-17/CO-14）、step2 应答（CO-10）、`server-headless` 文档类型盲（FE-01）、`FanoutBus`/`LeaseLock` 契约套件（GV-20）；管理动作 compact / migrate / epoch 随换纪元同在 M2（PRD 05 §0.3，60/01 §3）；留在 M3 的：链接会话（BE-02）、快照 REST 的命名 / 列表 / 恢复（BE-03；`SnapshotsModule` 只在 collab 装配的规则自 M2 的 `latest` 起即生效）、`purging` 与 document-purge 参与者（BE-15）、彻底删除元素（CO-07）、`/render` 零外呼（BE-04）；验收见 §9。
 ## 12. 与现有文档的差异与追加建议
 
 > 延续 module-map §8、08-server-identity-documents-and-storage §12 的编号（G-1…G-14 已在该两份文档），以下延续为 G-15 起。
@@ -1173,6 +1077,20 @@ apps/server/
 | G-28（S-3a 落地） | rulings §4.15 S-3a；原 §2.6「全程 `ack{seq}`」 | 溢写期回 `ack{seq}` 会让客户端误以为已落库而清空 pending，PG 未恢复前实例崩溃即丢数据 | **已落地（2026-09-24）**：两级 ack、`SpillKey=(instanceId, localCounter)`、回放时 PG 分配 `seq`、回放后断言无 `pendingStructs`（§1.1/§2.1/§2.2/§2.5/§2.6/§4.4/§5.4/§11）；`@cordexjs/protocol` `ws/frames.ts` 的 ack 帧 `{kind:'ack',tier:'spill'}|{kind:'ack',tier:'db',seq}`（M-02 定义，复核 M1）与客户端 LocalBatcher 按两级 ack 清理 OfflineStore（M-05）需配合 |
 | G-29（Q3/Q5 落地） | rulings §4.15 Q3、Q5 | 删除改软删除墓碑 + TTL 硬删除需要服务端单写者；房间准入由固定 `maxActiveRooms` 改为按文档实测权重 | **已落地（2026-09-24）**：新增 `tombstone-sweeper.ts`、`admission-policy.ts`（§2.3/§2.6/§4.4/§5.4/§7.3），`RoomCapacity`/`TombstoneTtl` 配置（§2.2/§3.1）；`maxElementsPerDoc` 命令守卫需 M-03 配合，导入超系统天花板即拒绝需 M-12/M-04 配合（2026-09-25 更正「超包络」为「超天花板」：性能保证包络只用于告警，rulings §4.18 UX-13） |
 | G-30（Q8 落地） | rulings §4.15 Q8；ADR-0026 | headless Chromium 与凭据同容器、沙箱关闭此前未登记；`/render` 页经网络拉取 state | **已落地（2026-09-24）**：`headless.mode` local/remote（键名复核 M13 以 ADR-0037 为准），新增 `remote-renderer.client.ts`，sidecar 零出站/非 root/沙箱/无凭据/每任务 `BrowserContext`，RPC 契约 `@cordexjs/protocol/render/sidecar.ts`（M-02 配合）；`/render` 页从注入取得 state（M-11 配合）；缩略图 M3 前半段、PDF M3 后半段（§2.5/§3.2/§4.5/§5.5/§7.2/§11） |
+
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| §4.19 事实源分工 + referencePlan | §2.1–§2.6、§3.3、§3.4、§7.1–§7.3 | 改为摘要 + 链接 60/05、60/11、60/16、60/01、60/08；§2.5 签名改指 60/05 §2.1（本文只留 Definition → 文件 → 套件落点）；§3.1–§3.2、§4、§5、§9 保留为包 / 文件级事实源；图 2-1 至 2-7 保留为落点示意 |
+| §4.19 D-M2-CONTENT | §11 | 「M2 切片」保留为 M2 交付（撤销决策 INC-37 的「M3 前置技术切片」改名）：网关、Room、awareness 中继、持久化与 `auto` 快照、墓碑 TTL 清扫、schema 迁移与换纪元、本实例溢写与 `persist` 信号、`snapshots/latest`、服务端导入进 M2（单实例 `all`）；版本历史（命名 / 列表 / 恢复）、链接会话、彻底删除元素、永久删除参与者、多实例规模化与跨实例认领回放、按角色拆分、renderer 留 M3（PRD 05 §0.3）；`snapshot-restore.e2e-spec.ts` 随 CO-07 改为 M3 验收 |
+| §4.19 INC-09 | §1.1、§2.1、§2.2 `RoomPersist`、§2.6、图 2-6、§9 | 服务端 PG 写失败 ≤ 1 s 推 `CONTROL.room{persist:'degraded'}`，回放完成且无溢写后推 `ok`；`pg-outage-broadcast.e2e-spec.ts` 增断言 |
+| §4.19 C-06 | 图 2-1、§2.3 `planVersionRetention` | 事件快照按 `auto` 口径：30 天全留，之后每天最后一个至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；`named` 永久且每文档 ≤ 200；带基线 `import` 的例外以 60/11 §8 为准 |
+| 决策 INC-10/SG-04、F38（30/10 §1.1 > 40） | §4.4/§4.5/§5 各 `errors.ts` | 删 `headless.zip_limit_exceeded`、`headless.decode_failed`（统一 `format.limit_exceeded`、`format.pptx.*`）；`collab.server.*` → `collab.*`；`snapshot.*` → `server.snapshots.*` |
+| 60/06 §12.6 回写表 | §4.5、§5.5 | 补 `infrastructure/thumbnails/content-hash.ts`（`computePageHashes`） |
+| 决策 T-NAMING + 70/02 §14 第 2 条 + 70/07 §17 | §2.5、§4.1、§5.1、§9 | Pg / Valkey / SeaweedFS 适配器的契约调用移到 `apps/server/test/integration/conformance/*.int-spec.ts`（新增 `collab-server`、`pg-snapshot-store` 两个）；包内纯逻辑测试改 `*.test.ts`；`collab.gateway.e2e-spec.ts` 并入 `collab-two-clients.e2e-spec.ts`；`render-zero-egress` → `smoke/renderer-egress` |
+| 60/05 §2.1–§2.2 | §2.5、§3.1、§4.1、§4.4、§5 | 登记 `MembershipRegistry` Definition 与 `RedisMembershipRegistry` 适配器（名额跨实例原子判定，决策 C-11）；`SpillAck` 判别键 `kind` → `type`（INC-03/04/05）；关闭码补 1011、4428（INC-06） |
+| §4.19 N1（恢复不锁、覆盖导入换纪元） | §1.2 Epoch、§2.6、§11 M2 | 快照恢复不加锁、在线不断连；覆盖导入 = 换纪元：导入期间 `locked`，M-12 处理器经 `SnapshotStore.put(kind='import', epochFrom)` 同一事务推进 `documents.epoch` 并经既有 `room:{docId}:ctl` 发 `epoch`，在线会话 4428；不新增 worker → collab 通道；机制唯一源 60/05 §9.2、§10 与 60/06 §6.5 |
 
 ### 2026-09-25 收敛（rulings §4.18 矛盾收口）
 
@@ -1246,7 +1164,7 @@ apps/server/
 | Q-1 | Q-M5：`server-collab` 与 `server-headless` 是否应拆分为两个规划模块（`09a`/`09b`） | **不拆分**：两者共享"Room=Unit"生命周期语义与同一 `preset-server` 组合根，文件数（115，2026-09-21 由 102 增至 112，新增 10 个见 §12 G-23/G-24；2026-09-24 再增 3 个见 §12 G-29/G-30；2026-09-25 再增 4 个：`purge-elements.usecase.ts`、`element-purge.controller.ts`、`redis-lease-lock.spec.ts`、`purge-elements.usecase.spec.ts`，另有 `import-pptx`/`export-pptx` 改名，见 §12「2026-09-25 收敛」）落在目标区间内，拆分不会减少总工作量、反而割裂 §1.3/§7 的边界表；若阶段二实现期证实两者团队分工彻底独立，再按本文档 §4.4/§4.5 已经边界清晰的两棵树直接物理拆分（无需重写内容） | §7 表格 M-09 行；不影响其余模块编号 |
 | Q-2 | 08 §13 B5（`document_updates` 保留 7 天）与 ADR-0025 决策 5（`auto` 快照 30 天稀疏化）是否需要在一处文档正式合并表述 | 以 ADR-0025 决策 3/5 为准，08 号文档 B5 旁补指路（G-20） | 08-backend-nestjs.md §13；本文档 §2.1 已按两层落地 |
 | Q-3 | EM-03 集成方 JWT 直连路径的实现分工（`ticket-verifier.ts` 内部分支 vs 独立文件） | 先做内部分支，若校验逻辑膨胀（如引入多个集成方 JWKS 源）再拆 `interface/integration-jwt-verifier.ts`；**2026-09-24 rulings §4.15 Q6 覆盖**：集成方签名 JWT 整体降为 M4，M1–M3 不实现该分支 | `collab/interface/ticket-verifier.ts` |
-| Q-4 | ~~`epoch` 与 `permVersion` 是否需要联动机制以支持"强制踢出"~~（继承 08 §7 G-9/Q-4，本模块是实际落地方）**（是否联动已结案，2026-09-18）** | 不联动（跨模块评审 C-17 结案，语义见 §2.1/§7）；本模块只提供 `collabServer.forceEpoch()` 供 `internal/admin.controller.ts` 调用，**具体触发策略（自动 vs 纯手动）仍留待 M3**（本条子问题未结案） | `server-collab/domain/room.ts`；`internal/admin.controller.ts`（M-12） |
+| Q-4 | ~~`epoch` 与 `permVersion` 是否需要联动机制以支持"强制踢出"~~（继承 08 §7 G-9/Q-4，本模块是实际落地方）**（是否联动已结案，2026-09-18）** | 不联动（跨模块评审 C-17 结案，语义见 §2.1/§7）；本模块只提供 `collabServer.forceEpoch()` 供 `internal/admin.controller.ts` 调用，**结构数治理的具体触发策略（自动 vs 纯手动）仍留待 M3**（本条子问题未结案；覆盖既有文档的导入固定换纪元，已由 rulings §4.19 N1 裁定，不属本条） | `server-collab/domain/room.ts`；`internal/admin.controller.ts`（M-12） |
 | Q-5 | `diff-snapshots.usecase.ts`/`GET .../diff` 端点（G-22）是否采纳进 M3 正式交付范围 | 采纳为新增建议，P2 优先级，不阻塞 §11 M2 核心验收 | `snapshots` 模块 §4.2/§5.2 |
 | Q-6 | ~~`apps/server/src/cordis-host` 物理归属本模块（继承 08 §7 G-11）是否需要总编排在 00-module-map §7 表格显式确认~~ **（结案，2026-09-18）** | 确认归属本模块（已在 §0/§1.3/§4.3 落地）。**结案依据**：跨模块评审 C-10 裁定归 M-09，00-module-map §7 M-09 行"覆盖的包与目录"补 `cordis-host/**`、M-12 行加注"引用非新增"（由总编排回写 00） | `00-module-map.md` §7 表格 M-09 行的"覆盖的包与目录"列 |
 | Q-7 | `domain/gate/soft-gate.ts`/`repair-planner.ts` 遍历 `DocumentType.invariants` 的方式目前是本模块自行实现循环，是否应由 M-02 在 `model-core` 提供统一的 `runInvariants(documentType, body)`/`repairInvariants(documentType, violations, body)` 两个薄封装纯函数 | 建议 M-02 补齐（避免本模块与未来其他消费方如 CLI 校验工具各自重复遍历逻辑）；本文档 M0/M2 范围内先自行实现，接口收敛后再替换 | M-02 `model-core/src/document-type/` 或 `invariant/` 目录；本模块 `domain/gate/soft-gate.ts` |

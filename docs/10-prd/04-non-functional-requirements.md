@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：Q5 两层口径、DX-20K、按权重准入与 RM-S 口径；Q9 Node 26；S-3a 两级 ack；Q8 缩略图 M2/M3 口径；Q7 EMF chunk；Q2/Q4/Q7 客户端安全基线；Q10 Valkey、镜像供应链；T-0/Q6 去租户、文档级 RLS）；2026-09-24（rulings §4.16 Q20：a11y 分阶段口径与移动端范围标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：Q5 两层口径、DX-20K、按权重准入与 RM-S 口径；Q9 Node 26；S-3a 两级 ack；Q8 缩略图 M2/M3 口径；Q7 EMF chunk；Q2/Q4/Q7 客户端安全基线；Q10 Valkey、镜像供应链；T-0/Q6 去租户、文档级 RLS）；2026-09-24（rulings §4.16 Q20：a11y 分阶段口径与移动端范围标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 04 非功能需求
 
@@ -16,6 +16,8 @@
 | RM-B（低端） | 2018 款 4 核 / 4 GB Windows 笔记本，Chrome 稳定版 | 「可用」下限：预算 × 2 仍须满足 |
 | RM-S（服务端） | collab 单实例：2 vCPU / 4 GB 容器，Node 26（项目基线，rulings §4.15 Q9） | 服务端单实例预算；docker-compose 全家桶（含 renderer、可选 Casdoor）的主机规格另立，见 ADR-0037 |
 | 网络 | 客户端预算默认**文件字节已在内存**（排除下载）；协同预算按同区域 RTT ≤ 50 ms | |
+
+CI 中的实现（rulings §4.19 D-TEST-INFRA）：M1 以 GitHub larger runner（4 核）承担 RM-A 口径的性能门禁；协同与服务端压测所需的自托管专用 runner 在 M2 开工前落地（随协同后端提前）；RM-B 以 CDP CPU 4× 节流近似。视觉 oracle 基线由一台 Windows + PowerPoint 365 维护机生成（不进 CI，脚本生成基线后提 PR 并评审签字），macOS 基线自 M2 起加入。测量与判定细则见 `70-testing/09`、`04`。
 
 ### 0.2 参考文稿（语料库 T3 的固定成员）
 
@@ -74,6 +76,8 @@ flowchart LR
 
 ## NF-01 性能预算
 
+> 本节只定 gate 数值；测量方法、场景、样本数与判定规则见测试设计线 `70-testing/09`（2026-09-25 起为唯一事实源），客户端预算的分解与 chunk 地图见 `50-frontend/13`，服务端预算总览见 `60-backend/01` §12。
+
 ### 1.1 打开与首屏（客户端，RM-A，p75）
 
 | 指标 | D50 | D200 | 说明 |
@@ -123,14 +127,16 @@ flowchart LR
 | 关闭后 `fiber.getEffects()` | 空 | 空 |
 | blob URL 泄漏 | 0 | 0 |
 
-### 1.4 导出（客户端，Worker）
+### 1.4 导出（客户端）
 
 | 指标 | D50 | D200 |
 |---|---|---|
-| 导出 pptx | ≤ 3 s | ≤ 12 s |
-| 导出单页 PNG @1920 | ≤ 300 ms | ≤ 300 ms |
-| 导出全部 PNG @1280 | ≤ 15 s | ≤ 60 s |
+| 导出 pptx（Worker 编码） | ≤ 3 s | ≤ 12 s |
+| 导出单页 PNG @1920（主线程 `toImage`，按页分片） | ≤ 300 ms | ≤ 300 ms |
+| 导出全部 PNG @1280（M2 客户端，只作报告） | ≤ 15 s | ≤ 60 s |
 | 导出期间 UI 可编辑 | 是 | 是 |
+
+口径（2026-09-25 按前端设计线 `50-frontend/05` §10.3 与 `13` §3 回写，架构 07 §14.6）：PNG 需要 DOM 布局与 SVG 序列化，只能在主线程按页分片完成（每片 ≤ 50 ms 让出主线程），不进 Worker；M2 位图 spike（把用到的字体子集内联进序列化 SVG）结论前，单页 PNG 预算只对「单页、无 Web 字体依赖」场景门禁；「导出全部 PNG」自 M3 起由服务端 `server-png` 承担（SV-02），客户端批量导出不再门禁。
 
 ### 1.5 体积（gzip，初始加载，不含字体与 peer 依赖）
 
@@ -158,6 +164,8 @@ flowchart LR
 | 20 远端选区覆盖层 | ≥ 55 fps |
 | 单 update 大小 | ≤ 1 MB（超限拆分/走资源通道） |
 
+协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT）：本地回显、初始同步、单 update 大小三行自 M2 起门禁（单人经网关）；其余多人口径（A→B、presence、重连重同步、权限变更、远端选区）为 M3。
+
 ### 1.7 服务端（RM-S，单实例）
 
 | 指标 | 预算 |
@@ -177,6 +185,8 @@ flowchart LR
 | 优雅停机 | ≤ 30 s |
 | 模板填充 + 导出 100 × D50（4 worker） | ≤ 60 s |
 | Postgres 故障溢写两级阈值与恢复后回放（rulings §4.13 S-3） | 见架构 08 §12（超阈值依次溢写 Valkey→对象存储，不拒绝新编辑；溢写期回 `ack{tier:'spill'}`、落库后回 `ack{seq, tier:'db'}`（S-3a）；恢复后回放 `document_updates`，正式 `seq` 由 Postgres 分配，耗时预算同处） |
+
+里程碑（rulings §4.19 D-M2-CONTENT）：导入、快照压缩、持久化滞后、过渡封面与 Postgres 故障溢写（单实例）自 M2 起门禁（`all` 角色）；导出、缩略图、PDF、并发 WS、活跃房间、广播与跨实例传播、优雅停机、模板填充与多实例溢写认领为 M3。
 
 ---
 
@@ -218,13 +228,13 @@ flowchart LR
 |---|---|---|
 | 客户端崩溃自由会话率（无 `fatal`） | ≥ 99.5% | M2 |
 | 插件失败不影响其它功能 | 100%（CTK） | M2 |
-| 已 ack 的协同 update 丢失 | 0（RPO ≤ 1 s；「已 ack」指 `ack{seq, tier:'db'}`，`tier:'spill'` 时客户端保留 pending，rulings §4.15 S-3a） | M3 |
+| 已 ack 的协同 update 丢失 | 0（RPO ≤ 1 s；「已 ack」指 `ack{seq, tier:'db'}`，`tier:'spill'` 时客户端保留 pending，rulings §4.15 S-3a） | M2（单实例，随协同后端提前，rulings §4.19 D-M2-CONTENT）/ M3（多实例） |
 | 协同服务月可用性 | ≥ 99.9% | M3 |
 | 灾难恢复 | RPO ≤ 1 min（含 DB）、RTO ≤ 15 min | M3 |
 | 客户端崩溃后重开 | 最近已同步状态可用；单人模式最多丢失一次自动保存间隔（30 s）的编辑 | M2/M3 |
 | 导出失败可重试且不损坏源 | 100% | M2 |
 | 并发上限行为 | 超限只读/拒绝并提示，不崩溃 | M3 |
-| Postgres 持续故障期间编辑连续性（rulings §4.13 S-3） | 不拒绝新编辑：两级阈值溢写 Valkey→对象存储，两级 ack（S-3a），恢复后回放并断言无 `pendingStructs`；降级期 update 通过门禁即照常广播、协作者互见，界面显示「未保存到服务器」，「已 ack(db) 零丢失」不受影响（rulings §4.18 CO-08，SV-05）；集成测试：PG 断开时两客户端互见编辑、恢复后 seq 连续不丢；阈值与回放耗时预算见架构 08 §12 | M3 |
+| Postgres 持续故障期间编辑连续性（rulings §4.13 S-3；单实例自 M2 起，rulings §4.19 D-M2-CONTENT） | 不拒绝新编辑：两级阈值溢写 Valkey→对象存储，两级 ack（S-3a），恢复后回放并断言无 `pendingStructs`；降级期 update 通过门禁即照常广播、协作者互见，发起方横幅「未保存到服务器 N 项」、其余协作者状态胶囊「服务器保存延迟」（rulings §4.19 INC-09），「已 ack(db) 零丢失」不受影响（rulings §4.18 CO-08，SV-05）；集成测试：PG 断开时两客户端互见编辑、恢复后 seq 连续不丢；阈值与回放耗时预算见架构 08 §12 | M2（单实例）/ M3（多实例认领回放） |
 
 ---
 
@@ -234,8 +244,8 @@ flowchart LR
 |---|---|---|
 | 输入 | 所有文件/消息/参数经 schema 或限制校验（OF-24、CO-12）；XML 无实体扩展；zip 限制 | M1 |
 | 内容 | 文档内 SVG 只以图像上下文渲染、禁止 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 注入文档内容（扫描器强制）；超链接协议白名单；外部关系全部保留、仅 http(s) 可激活，外链资源按部署配置 `externalResources`（默认 auto）加载，服务端永不加载；粘贴清洗 | M1/M2 |
-| 权限 | fail-closed；客户端 + 服务端双检查点；越权尝试进入审计 | M2（客户端）/ M3 |
-| 传输 | TLS；WS Origin 校验；令牌短期、不落地（WS 握手 Ticket 60 s 单次；集成方签名 JWT ≤ 1 h，M4；ADR-0029） | M3 |
+| 权限 | fail-closed；客户端 + 服务端双检查点；越权尝试进入审计 | M2（客户端与服务端 REST / 网关检查点，随协同后端提前，rulings §4.19 D-M2-CONTENT）/ M3（分享与权限细化） |
+| 传输 | TLS；WS Origin 校验；令牌短期、不落地（WS 握手 Ticket 60 s 单次；集成方签名 JWT ≤ 1 h，M4；ADR-0029） | M2（随协同网关，rulings §4.19 D-M2-CONTENT） |
 | 存储 | 静态加密由存储 Provider 提供；密钥不入库；文档级 Postgres RLS 越权测试 100% 通过（单组织，无租户隔离概念，rulings §4.15 T-0/Q6） | M3 |
 | 供应链 | 许可证白名单（D13）；漏洞门禁（高危阻断）；npm OIDC trusted publishing + provenance；SBOM；内部依赖 `workspace:` 协议校验 | M1 起 |
 | 镜像 | 镜像按主组件许可白名单（D13 对镜像的解释，rulings §4.15 Q10）；镜像 digest 钉死；镜像 SBOM；renderer sidecar 沙箱与零出站自动化测试（SV-09） | M3 |
@@ -313,7 +323,7 @@ flowchart LR
 
 | 目标 | 口径 | 里程碑 |
 |---|---|---|
-| PowerPoint 365（Win/Mac，当前通道） | 导出文件打开无修复 100%；编辑往返语料 SSIM ≥ 0.95（相对导出前渲染） | M1/M2 |
+| PowerPoint 365（Win/Mac，当前通道） | 导出文件打开无修复 100%；编辑往返语料 SSIM ≥ 0.95（相对导出前渲染） | M1（Windows）/ M2（加入 macOS，rulings §4.19 D-TEST-INFRA） |
 | PowerPoint 2016/2019 | 打开无修复（best-effort，抽样 20%） | M2 |
 | LibreOffice Impress 24.x | 打开不崩溃；差异记录 | M1 |
 | Google Slides / Keynote / WPS 导出的 pptx | 作为输入：打开成功率 100%（T2 含 ≥ 5 生产者） | M1 |
@@ -328,7 +338,7 @@ flowchart LR
 | 需求可追溯 | 每条 P0 需求 id 出现在 ≥ 1 个测试的元数据中；CI 生成「需求 ↔ 测试」矩阵并对缺失的 P0 失败（与「规范 ↔ 执行」矩阵同机制） |
 | 新代码测试 | patch 覆盖率 ≥ 80%（规避 Univer A19） |
 | 语料回归 | 每 PR 跑 T1 子集（≤ 10 min）；每日跑全量 T1+T2 |
-| 性能回归 | 每 PR 跑 D50 关键指标（首屏、键入延迟、导出）；超预算 5% 失败 |
+| 性能回归 | 每 PR 跑 D50 关键指标（首屏、键入延迟、导出）；超 NF-01 绝对预算即失败（原「超预算 5% 失败」按更严口径执行，5% 容差只保留在体积预算），相对 main 基线的回归只作 PR 注释；main 与 nightly 相对滚动中位数回归 > 10% 失败并自动建 issue；内存 20 次开关增长 ≤ 5%（设计线遗留口径 T-PERF-GATE；测量与判定见 `70-testing/09` §10） |
 | 体积回归 | EM-07 |
 | 文档覆盖 | 公开 API / 贡献点 / 错误码 100% 有文档 |
 | 无 `any` / 无裸 throw / 无 register* / 无模块级可变状态 | 类型治理扫描器（ADR-0040） |

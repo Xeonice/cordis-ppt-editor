@@ -1,6 +1,6 @@
 # ADR-0001 声明合并桥接：插件只 `declare module '@cordexjs/kernel'`
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14 | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（§4.19：类型测试后缀按 T-NAMING 改为 `*.type-test.ts`） | 依赖：charter v0.1
 
 ## 状态
 
@@ -70,7 +70,7 @@ declare module '@cordexjs/kernel' {
 
 - depcruise R12：非 kernel 包 import `cordis` → error（含 `import type`）。
 - lint `contribution-file-purity`：`declare module` 只允许在 `*.contribution.ts`，且该文件只含 `import type`。
-- kernel `__tests__/augment.test-d.ts`：类型测试 S1/S7/S8。
+- kernel `__tests__/augment.type-test.ts`（2026-09-25 按 ADR-0048 / 决策 T-NAMING 改后缀，原 `*.test-d.ts` 废止）：类型测试 S1/S7/S8。
 - CI 在 `tsc -b` 与 api-extractor 双通道验证 S4/S5。
 
 ## 关联

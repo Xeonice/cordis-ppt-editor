@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D4/D5；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：Yjs 14 升级 spike 时点随协同后端提前到 M2 开工前） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
 
 # ADR-0020 CRDT 选型：Yjs（Loro 为已评估替代）
 
@@ -19,7 +19,7 @@
 2. **移动语义**：不用 `Y.Array` 的删除+插入，不等待未发布的 y-move；实体放 `Y.Map<id, Y.Map>`，顺序用实体属性上的 **fractional index**（ADR-0032）。并发移动 = 单键 LWW，无重复无丢失；跨父移动（进出组）= `parentId` LWW + 环修复规则（06 §8 #5）。
 3. **富文本**：`Y.XmlFragment`（`<p>` 元素 + 带属性 `Y.XmlText`，embed 表示 br/fld/opaque），理由见 06 §1.4。
 4. **Loro 作为已评估替代**：保持 `DocumentStore` 原语集（06 §1.2）与 CRDT 无关；如未来切换，新增 `@cordexjs/store-loro`/`@cordexjs/collab-loro` Provider，Definition 与 Consumer 不变（章程 §5.4「可替换为 store-loro」）。**重评估触发阈值**（满足任一即重评，均可机械检验）：① Loro 协同增量 wasm ≤ 200 KB gzip；② `loro-protocol` ≥ 1.0；③ store-loro 原型通过 `runDocumentStoreConformance`；④ Q5 规模上调（含文档总元素上限上调超过 20,000，rulings §4.15 Q5）。
-5. **Yjs 14 升级 spike**：`@y/y` 14 GA 后、M3 开工前做一次升级 spike（API 改名如 `ignoreRemoteMapChanges`→`ignoreRemoteAttributeChanges`、`lib0` v1、协议兼容）；章程 §5.3 规则 4 与 depcruise（server-app-thin 等）**预留** `@y/y`、`@y/protocols`、`lib0` v1，与 `yjs`/`y-protocols` 同受三包白名单约束。
+5. **Yjs 14 升级 spike**：`@y/y` 14 GA 后、协同后端开工前（M2，rulings §4.19 D-M2-CONTENT 把协同后端从 M3 提前；原「M3 开工前」）做一次升级 spike（API 改名如 `ignoreRemoteMapChanges`→`ignoreRemoteAttributeChanges`、`lib0` v1、协议兼容）；章程 §5.3 规则 4 与 depcruise（server-app-thin 等）**预留** `@y/y`、`@y/protocols`、`lib0` v1，与 `yjs`/`y-protocols` 同受三包白名单约束。
 6. **撤销语义写进中性契约**：不跟随任一 CRDT 库的默认行为，写入 `DocumentStore` 契约（字段名与 CRDT 无关），store-memory 与 store-yjs 同语义——详见文末「协同撤销语义」。
 
 ## 备选方案与放弃原因

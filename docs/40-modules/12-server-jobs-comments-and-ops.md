@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；30-architecture/08-backend-nestjs.md §1/§2/§5/§7/§9.3/§10/§12/§16.1–16.6；30-architecture/10-observability-and-errors.md 全篇；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（§4.19 N1） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；30-architecture/08-backend-nestjs.md §1/§2/§5/§7/§9.3/§10/§12/§16.1–16.6；30-architecture/10-observability-and-errors.md 全篇；60-backend/01 §3/§5/§10、60-backend/08 §5/§6.5/§9–§11/§13、60-backend/14 §2、60-backend/18 §1/§3/§4（§4.13 应用骨架与基础设施）；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
 
 # 12 服务端作业、评论与运维（限界上下文 BC-23 导入导出与作业编排、BC-24 缩略图、BC-25 评论、BC-26 审计与健康运维、BC-30 出站集成〔Webhook〕）
 
@@ -6,10 +6,10 @@
 
 | 项 | 值 |
 |---|---|
-| 职责一句话 | 导入/导出作业编排与 BullMQ 基础设施（BC-23）；缩略图/PDF 渲染作业（BC-24）；评论镜像读模型与通知扇出（BC-25）；审计只追加记录、健康探针、指标与内部运维端点（BC-26）——实际格式转换/CRDT/渲染全部委托 M-09，本模块只做编排、校验、审计与限流 |
+| 职责一句话 | 导入/导出作业编排与 BullMQ 基础设施（BC-23）；缩略图/PDF 渲染作业（BC-24）；评论镜像读模型与通知扇出（BC-25）；审计只追加记录、健康探针、指标与内部运维端点（BC-26）；`apps/server` 的应用骨架与基础设施（进程入口、根模块、OTel 启动、Valkey 客户端、PG 连接池、drizzle 类型镜像与迁移 SQL 文件，§4.13）——实际格式转换/CRDT/渲染全部委托 M-09，本模块只做编排、校验、审计与限流 |
 | 覆盖的上下文 | BC-23 导入导出与作业编排、BC-24 缩略图、BC-25 评论、BC-26 审计与健康运维、BC-30 出站集成（Webhook，2026-09-21 新增登记，此前寄生于 BC-25，rulings §4.13 S-5） |
-| 承载包 / 目录 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`（`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为 2026-09-25 新增，承接浏览器遥测上报，rulings §4.18 BE-30）、`apps/server/src/common/*`、`apps/server/src/config/*`（均 L8 · node · app，秩 80）；`apps/server/src/cordis-host/adapters/*` **只引用、新增 0 个文件**（物理归属 M-09，2026-09-18 跨模块评审 C-10 结案，见 §12 G-23） |
-| cordis 形态 | library（10 个 Nest 模块 + `common/`/`config/` 全部纯 Nest DI，非 cordis Fiber，module-map §4.2 第 5 条；`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为新增，rulings §4.18 BE-30） |
+| 承载包 / 目录 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`（`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为 2026-09-25 新增，承接浏览器遥测上报，rulings §4.18 BE-30）、`apps/server/src/common/*`、`apps/server/src/config/*`、应用骨架与基础设施 `apps/server/src/{main.ts,app.module.ts}` 与 `apps/server/src/{observability,redis,db}/**`（含 `db/migrations/*.sql`；2026-09-25 审稿登记，原在已删除的 30-architecture/08 §2 目录树里、40-modules 无文件级归属，见 §4.13）（均 L8 · node · app，秩 80）；`apps/server/src/cordis-host/adapters/*` **只引用、新增 0 个文件**（物理归属 M-09，2026-09-18 跨模块评审 C-10 结案，见 §12 G-23） |
+| cordis 形态 | library（10 个 Nest 模块 + `common/`/`config/` + 基础模块 `ObservabilityModule`/`DbModule`/`RedisModule` 与根模块 `AppModule`（§4.13）全部纯 Nest DI，非 cordis Fiber，module-map §4.2 第 5 条；`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为新增，rulings §4.18 BE-30） |
 | 运行位置 | 服务端 |
 | 上游（依赖） | M-08（`DocumentRepository`、`DocumentRoleGuard`/`RoleResolverService`、全局 `SessionGuard`（AppModule `APP_GUARD`，rulings §4.18 BE-06）、`GetPresignedPutUseCase`（两步导入，BE-10）、`@PurgeParticipant`（BE-15）、`ctx.blobStore` 读取面）、M-09（`server-headless.{importDocument,exportDocument,validateSnapshotTask,migrateTask,diffSnapshots,HeadlessJobContext}`（2026-09-25 由 `importPptx`/`exportPptx` 改名，FE-01）、`ThumbnailRenderer`、`collabServer`/`Room.broadcastControl`、`CordisHostService.diagnostics()`） |
 | 下游（被依赖） | 无（终端模块，module-map §7 M-12 行） |
@@ -52,7 +52,7 @@ m09 -- "CordisHostService.diagnostics" --> opsMod
 - 不做：不做 OOXML 编解码本身与 SV-02 字节级一致性的算法保证（M-04/M-09 的 `ooxml-pptx.encode` 纯函数）；不做 BullMQ 通用队列/重试/死信基础设施（本 BC 内 `jobs` 子模块承担）。
 
 **BC-24 缩略图**
-- 做：缩略图 REST（按版本/页查询，ETag/immutable 缓存头）+ BullMQ `thumbnails`/`render-export` 处理器；调用 M-09 `ThumbnailRenderer.render()`/`.renderPdf()`；按 `layoutAlgoVersion` + 字体 profile 的缓存键与失效判定；按 `DocumentType` 参数化的渲染页路由透传。
+- 做：缩略图 REST（按页查询，`ETag = contentHash` + `private, no-cache`，每次按 ETag 复核，不标 immutable，60/06 §11.5）+ BullMQ `thumbnails`/`render-export` 处理器；调用 M-09 `ThumbnailRenderer.render()`/`.renderPdf()`；按 `layoutAlgoVersion` + 字体 profile 的缓存键与失效判定；按 `DocumentType` 参数化的渲染页路由透传。
 - 不做：不做 Chromium 进程池管理本身（`browser-pool.ts` 在 M-09 `server-headless`）；不做实际像素渲染（M-06/M-07/M-11 的 `/render` 路由）。
 
 **BC-25 评论**
@@ -60,8 +60,8 @@ m09 -- "CordisHostService.diagnostics" --> opsMod
 - 不做：不持有评论事实数据（事实源是 Snapshot 内 `resources.comments.*`，ADR-0031 v0.2）；不执行评论写入的作者级权限判定（M-09 软门禁，ADR-0034）；不提供评论 CRUD 的 REST 写路径（客户端经协同 WS 命令直写 CRDT，本模块 controller 除「导入为可编辑线程」外全部只读）。
 
 **BC-26 审计与健康运维**
-- 做：`audit_log` 只追加写入（AOP `@Audited()` 拦截器 + 事件订阅两条通路）、按时间范围/类别查询与导出；`/healthz`/`/readyz` 探针（pg/redis/s3/headless 宿主/RoomManager draining；renderer 角色只装 `HealthModule.forRole('renderer')` 精简变体，rulings §4.18 BE-14）；`/metrics` Prometheus 端点（renderer 不装）；`/internal/*` 诊断与管理端点（管理动作 `AdminController` 只在 collab 角色装配，BE-03；`RenderStateToken` 签发与 `/internal/render/:token/state` 已取消，BE-04）；浏览器遥测上报 `/api/v1/telemetry/errors` 与 OTLP 代理 `/api/v1/telemetry/otlp`（`telemetry` 模块，装在 api 角色，BE-30）；「模块 × 角色 × 部件」装配矩阵（§7.1，BE-13）；全部周期作业经 BullMQ Job Scheduler 挂 `maintenance` 队列、只由 worker 启动时注册（BE-19）；`common/*` 的异常过滤器/审计拦截器/限流解释器/日志字段；`config/*` 的环境变量 Standard Schema。
-- 不做：不做鉴权/权限策略本身（M-08）；不做协同门禁/CRDT 修复（M-09）；不物理定义 `cordis-host/adapters/{pino-logger,otel-telemetry,errors-reporter}`（已由 M-09 完整定义并物理归属该模块，见 §12 G-23）。
+- 做：`audit_log` 只追加写入（AOP `@Audited()` 拦截器 + 事件订阅两条通路）、按时间范围/类别查询与导出；`/healthz`/`/readyz` 探针（pg/redis/s3/headless 宿主/RoomManager draining；renderer 角色只装 `HealthModule.forRole('renderer')` 精简变体，rulings §4.18 BE-14）；`/metrics` Prometheus 端点（renderer 不装）；`/internal/*` 诊断与管理端点（管理动作 `AdminController` 只在 collab 角色装配，BE-03；`RenderStateToken` 签发与 `/internal/render/:token/state` 已取消，BE-04）；浏览器遥测上报 `/api/v1/telemetry/errors` 与 OTLP 代理 `/api/v1/telemetry/otlp`（`telemetry` 模块，装在 api 角色，BE-30）；「模块 × 角色 × 部件」装配矩阵（§7.1，BE-13）；全部周期作业经 BullMQ Job Scheduler 挂 `maintenance` 队列、只由 worker 启动时注册（BE-19）；`common/*` 的异常过滤器/审计拦截器/限流解释器/日志字段；`config/*` 的环境变量 Standard Schema；**应用骨架与基础设施**（§4.13，2026-09-25 审稿登记）：进程入口 `main.ts`、根模块 `AppModule.forRole(role)`、`observability/`（OTel 启动与服务端 span / 指标登记表）、`redis/`（Valkey 客户端与 `apps/server` 侧键模板）、`db/`（按角色的 app / system 连接池、系统事务入口、迁移执行器、drizzle 类型镜像 `schema/*.ts`、迁移 SQL 文件 `migrations/NNNN_<name>.sql`）。
+- 不做：不决定表结构、约束、RLS policy 与迁移内容（唯一事实源 60/08–13，本模块只承载文件，迁移文件与文档围栏逐字一致）；不决定表写方（60/08 §7，各表仓储在所属模块的 `infrastructure/`）；不做鉴权/权限策略本身（M-08）；不做协同门禁/CRDT 修复（M-09）；不物理定义 `cordis-host/adapters/{pino-logger,otel-telemetry,errors-reporter}`（已由 M-09 完整定义并物理归属该模块，见 §12 G-23）。
 
 **BC-30 出站集成（Webhook）**（2026-09-21 新增登记，此前寄生于 BC-25，rulings §4.13 S-5）
 - 做：Webhook 订阅管理（注册/更新/删除/查询，平台管理员——部署级 admin，`PlatformAdminGuard` 由 M-08 导出；2026-09-24 rulings §4.15 T-0 去租户）；事件投递（HMAC 签名 + 指数退避重试 + 死信队列）；投递前出站地址校验（拒绝私网/回环/链路本地/云元数据端点，防 DNS 重绑定，rulings §4.13 S-4）；投递日志查询。
@@ -72,11 +72,11 @@ m09 -- "CordisHostService.diagnostics" --> opsMod
 | 术语 | 定义 | 所在文件 |
 |---|---|---|
 | `JobRun` | 跨域通用作业记录（`job_runs` 一行）：`kind/docId/status/attempts/errorCode/payload/result/idempotencyKey/attemptOf`（`attemptOf` 指向同键上一条 `failed` 行，rulings §4.18 BE-18） | `jobs/domain/job-run.ts` |
-| `IdempotencyKey` | 幂等键，约定 `<域>:<docId>:<inputHash>`；新建文档的导入用 `import:user:{userId}:{sha256}`（BE-10/BE-18）；同键命中 `queued`/`running`/`succeeded` 行直接返回既有 `JobRun`，命中 `failed` 或 `cancelled` 行则新建一行并以 `attemptOf` 指向上一行（`cancelled` 同为终态，2026-09-25 随 UX-14 补入） | `jobs/domain/idempotency-key.ts` |
+| `IdempotencyKey` | 幂等键，格式按决策 JOB-IDEM（60/06 §2.3，2026-09-25）：`import:{docId}:{sha256}:{baseSeq}`、`export:{docId}:{sourceRef}:pptx`、`render-export:…`、`document-purge:{docId}`；同键命中活动行返回既有 `JobRun`，命中 `failed`/`cancelled` 新建一行并以 `attemptOf` 指向上一行（BE-18、UX-14） | `jobs/domain/idempotency-key.ts` |
 | `ImportUpload`（新增，rulings §4.18 BE-10） | 两步导入的一次性上传凭证：`{uploadId,jobId,docId,userId,objectKey,expiresAt}`，绑定 `userId`、1 h 有效、用后即焚 | `import-export/infrastructure/import-upload.store.ts` |
 | `ImportJob`/`ExportJob` | `JobRun` 的导入/导出特化视图（`kind='import'\|'export'`），携带保真报告/下载 URL | `import-export/domain/{import-job,export-job}.ts` |
 | `Thumbnail` | `doc_id+slide_id` 的渲染产物元数据；领域类型 `source ∈ embedded\|server`（2026-09-24，rulings §4.15 Q8）；DB 约束保留 `client` 位（ADR-0026 决策 4 的保留枚举值，M1–M3 不写入），领域层不产生该值（2026-09-25，rulings §4.18 BE-26） | `thumbnails/domain/thumbnail.ts` |
-| `ThumbnailKey` | 缓存键值对象：`{docId,slideId,contentHash,layoutAlgoVersion,fontProfile}`（`contentHash` = 页内容哈希，2026-09-24 取代 `snapshotSeq` 作失效依据，rulings §4.15 Q8） | `thumbnails/domain/thumbnail-key.ts` |
+| `ThumbnailKey` | 缓存键值对象：`{docId,slideId,contentHash,layoutAlgoVersion}`（`contentHash` = 页内容哈希，含 `fontProfile` 等输入，2026-09-24 取代 `snapshotSeq`，rulings §4.15 Q8；2026-09-25 删独立 `fontProfile` 字段，60/06 §11.1） | `thumbnails/domain/thumbnail-key.ts` |
 | `CommentThread`（镜像） | `comments` 表一行的读模型投影，非事实源 | `comments/domain/comment-thread.ts` |
 | `Anchor`（镜像） | `{slideId,shapeId?,range?,snapshotSeq}`，服务端只校验格式不解码 CRDT（ADR-0031 §2） | `comments/domain/anchor.ts` |
 | `AuditEntry` | `audit_log` 一行：`actorType/action/targetType/docId/details` | `audit/domain/audit-entry.ts` |
@@ -107,63 +107,40 @@ m09 -- "CordisHostService.diagnostics" --> opsMod
 
 ### 2.1 聚合与实体
 
-| 聚合 / 实体 | 字段 / 持有 | 不变量 / 并发语义 | 所在文件 |
-|---|---|---|---|
-| `JobRun`（聚合根，跨域通用） | `id,kind,docId?,status,attempts,errorCode?,payload,result?,idempotencyKey?,attemptOf?,queuedAt,startedAt?,finishedAt?`（`idempotencyKey`/`attemptOf` 2026-09-25 新增，rulings §4.18 BE-18；`kind` 含 `document-purge`，由 M-08 `schedule-purge` 写入，BE-15） | `status` 只能沿 `queued→running→succeeded\|failed` 迁移，`queued`/`running` 另可被用户取消转 `cancelled`（导入作业，处理器在阶段边界读到 `cancelled` 即中止并清理原件与已生成产物、不建文档；2026-09-25 随 PRD SV-01 补入，rulings §4.18 UX-14）（`canTransitionJobStatus`）；**幂等只对未失败且未取消的行生效**：同 `IdempotencyKey` 命中 `queued`/`running`/`succeeded` 行直接返回既有行，命中 `failed`/`cancelled` 行则新建一行并以 `attemptOf` 指向上一行（状态机保持单向）；DB 以部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')` 保证并发同键只建一行（DDL 归架构 08 §5） | `jobs/domain/job-run.ts` |
-| `ImportJob`（`JobRun` 特化视图，`kind='import'`） | `+ sourceKey（服务端预分配，BE-10）,uploadId,fidelityReport,createdDocId?`（新建文档时 `createdDocId` 即上传阶段预分配的 `docId`，由它与 `job_runs` 幂等键共同保证不重复建文档，不给 `documents` 加 `import_job_id` 列，BE-18） | `succeeded` 态必然存在对应 `document_snapshots(kind='import')` 行且 `baselineKey` 非空（09 §12 G-16） | `import-export/domain/import-job.ts` |
-| `ExportJob`（`JobRun` 特化视图，`kind='export'`） | `+ format:'pptx'\|'pdf'\|'png'\|'jpeg',snapshotSeq,downloadUrl?,expiresAt?` | `format='pptx'` 时必须字节级可复现（SV-02，由 M-09 纯函数保证，本模块只搬运结果）；非 `pptx` 转发至 `thumbnails` 模块的 `render-export` 队列（§7） | `import-export/domain/export-job.ts` |
-| `Thumbnail`（聚合，`thumbnails` 表一行） | `docId,slideId,source:'embedded'\|'server',snapshotSeq,layoutAlgoVersion,storageKey,width,height,contentHash`（`source` 2026-09-24 新增，rulings §4.15 Q8） | 联合主键 `(docId,slideId)` 只保留最新一行；失效依据为页内容哈希 `contentHash` 变化（非 `snapshotSeq` 变化，未改动的页不重渲）；`source='embedded'` 为 M2 起导入时取包内 `docProps/thumbnail.jpeg` 的封面（仅头校验、不解码），`server` 为 M3 headless 渲染结果（640 px WebP 卡片）；原 `client`（客户端上报）已随 Q8 取消，领域层不产生该值；DB 约束 `check in ('embedded','server','client')` 保留 `client` 位（ADR-0026 决策 4，2026-09-25 更正措辞，rulings §4.18 BE-26）；旧版本对象由 blob 生命周期规则清理，行本身被覆盖（ADR-0026 决策 5） | `thumbnails/domain/thumbnail.ts` |
-| `CommentThread`（读模型聚合，`comments` 表一行） | `id,docId,threadId,parentId?,authorId,body,anchor,anchorKey,anchorState,resolvedAt?,resolvedBy?,createdAt,editedAt?,deletedAt?`（`anchorKey` 为新增派生列，由 `comment-mirror` 写入时调用 `deriveAnchorKey` 在应用层计算，**不是** PG `GENERATED` 生成列——TS 纯函数写不进生成列表达式，§3.9 回执；2026-09-25 更正，rulings §4.18 BE-25） | 只由 `comment-mirror.observer.ts` 写入；REST 层除「导入为可编辑线程」外不可变更任何行（事实源在客户端 CRDT，ADR-0031 v0.2）；`anchorKey` 由 `deriveAnchorKey(anchor)`（§2.3）按判别式提取，索引建在 `anchorKey` 而非具体字段名，doc/sheet 新锚点变体零改动 | `comments/domain/comment-thread.ts` |
-| `AuditEntry`（聚合，`audit_log` 一行，只追加） | `id,actorType,actorId?,action,targetType,targetId,docId?,sessionId?,requestId,ipHash?,userAgentHash?,details,createdAt,prevHash,hash`（`prevHash`/`hash` 为新增，rulings §4.12 U-15） | 数据库角色对 `audit_log` 无 `UPDATE`/`DELETE` 权限（数据库层强制，非仅应用层约定，SV-07）；按月分区；`hash = chainHash(prevHash, entry)` 形成链式校验，任一历史行被篡改则后续校验失败（M3 即实现，见 §2.3/§2.6） | `audit/domain/audit-entry.ts` |
-| `WebhookSubscription`（聚合根，新增，rulings §4.12 U-14） | `id,targetUrl,eventFilter,signingSecretHash,status:'active'\|'disabled'` | `targetUrl` 必须 `https://`（生产环境）；`signingSecretHash` 落库只存 hash，明文只在创建响应出现一次；`status='disabled'` 时投递直接跳过（不入队）；创建/更新时经 `egress-guard.ts` 尽力校验非私网/回环/链路本地/云元数据地址，关键防线在每次投递前重新校验（S-4/§3.8 回执，rulings §4.13） | `webhooks/domain/webhook-subscription.ts` |
-| `WebhookDelivery`（实体，隶属 WebhookSubscription，新增，rulings §4.12 U-14） | `id,subscriptionId,event,payloadHash,attempt,status:'pending'\|'succeeded'\|'failed'\|'dead-lettered',responseCode?,deliveredAt?` | 状态语义（2026-09-25，rulings §4.18 BE-19）：`pending` = 待投递**或重试中**；`succeeded` = 2xx；`failed` = **不可重试**的终止（出站守卫拒绝、订阅已停用、除 408/429 外的 4xx）；`dead-lettered` = 可重试错误但重试用尽（`webhook-delivery` 队列最多 8 次，指数退避）；`attempt` 递增驱动退避 | `webhooks/domain/webhook-delivery.ts` |
+> **事实源（rulings §4.19）**：作业、导入导出、缩略图、server-headless 运行形态与 renderer RPC 以 [60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) 为准；评论镜像、Webhook、审计以 [60/07](../60-backend/07-modules-comments-webhooks-audit.md) 为准；表结构以 [60/12](../60-backend/12-ddl-jobs-and-thumbnails.md)、[60/13](../60-backend/13-ddl-comments-webhooks-audit.md) 为准；健康、指标、遥测与内部端点以 [60/18](../60-backend/18-observability-and-ops-endpoints.md) 为准；角色装配矩阵以 [60/01 §5](../60-backend/01-service-overview-and-roles.md) 为准。本节（§2）只保留聚合 / 仓储 / 纯函数到文件的落点，冲突以 60 为准。
 
-**图 2-3 JobRun 状态机**
+| 聚合 / 实体 | 要点（细节见 60） | 所在文件 |
+|---|---|---|
+| `JobRun`（聚合根，跨域通用） | `kind ∈ import \| export \| render-export \| thumbnails \| document-purge …`；`status` 五值含 `cancelled`（UX-14）；`idempotencyKey`/`attemptOf`（BE-18）；状态机唯一版本见 60/06 §2.2 | `jobs/domain/job-run.ts` |
+| `ImportJob`（`kind='import'` 视图） | 两步上传（BE-10），新建文档时 `docId` 在上传阶段预分配；成功即写 `kind='import'` 快照与 embedded `__cover`（60/06 §6.4） | `import-export/domain/import-job.ts` |
+| `ExportJob`（`kind='export'` 视图） | `sourceRef`（`s{snapshotId}` 或 `q{headSeq}`）；pptx 字节级可复现（SV-02）；非 pptx 转 `render-export` | `import-export/domain/export-job.ts` |
+| `Thumbnail`（`thumbnails` 表一行） | `(docId, slideId)` 只留最新；`source ∈ embedded \| server`；按页内容哈希 `contentHash` 失效，领域类型不再有 `snapshotSeq`（决策 MECH-C 之 C-13） | `thumbnails/domain/thumbnail.ts` |
+| `CommentThread`（读模型） | 镜像只读，事实源在客户端 CRDT `resources['comments.threads']`（ResourceHook 命名空间 `comments.*`，rulings §4.19 D-COMMENTS-PKG / 决策 INC-39）；`anchor_key` 应用层派生（BE-25） | `comments/domain/comment-thread.ts` |
+| `AuditEntry`（只追加） | `prevHash`/`hash` 哈希链（U-15），主键 `(id, created_at)`（C-19） | `audit/domain/audit-entry.ts` |
+| `WebhookSubscription` / `WebhookDelivery` | 投递状态 `pending → succeeded \| failed \| dead-lettered`（BE-19）；出站守卫（S-4） | `webhooks/domain/*.ts` |
 
-```mermaid
-stateDiagram-v2
-  state "queued 已入队" as queued
-  state "running 执行中" as running
-  state "succeeded 成功" as succeeded
-  state "failed 失败" as failed
-  state "cancelled 已取消" as cancelled
-  [*] --> queued: 创建作业 同键命中 queued running succeeded 行即返回既有行 命中 failed 或 cancelled 则新建一行
-  queued --> queued: 对账扫描判定为孤儿行 重新入队
-  queued --> running: worker 拉取
-  running --> succeeded
-  running --> failed
-  queued --> cancelled: 用户取消导入
-  running --> cancelled: 用户取消 处理器在阶段边界中止并清理原件与产物
-  succeeded --> [*]
-  failed --> [*]
-  cancelled --> [*]
-```
-
-怎么读：`status` 只能沿 `queued→running→succeeded|failed` 单向迁移（`canTransitionJobStatus`），唯一的自环是对账作业把超时无对应 BullMQ job 的 `queued` 行重新入队；导入作业在 `queued`/`running` 可被用户取消转 `cancelled`，取消即清理导入原件与已生成产物、不建文档（PRD SV-01，rulings §4.18 UX-14）；`failed` 与 `cancelled` 都是终态——用同一幂等键重新提交时不复活旧行，而是新建一行并以 `attemptOf` 指向旧行（rulings §4.18 BE-18），见图 2-2。
-
-依据：§2.1 `JobRun` 行；§2.3 `canTransitionJobStatus`、`isOrphanedQueueRow`；§2.6 对账扫描行与「取消导入作业」行；rulings §4.18 BE-18、UX-14；PRD SV-01。
+**图 2-3 JobRun 状态机**：2026-09-25 迁至 [60/06 §2.2](../60-backend/06-modules-jobs-import-export-thumbnails.md) 图 2-1（迁入后的唯一版本，含对账重投自环、`queued → failed` 放弃与导入取消），本文不再保留副本。
 
 ### 2.2 值对象
 
-| 名称 | 字段 / 校验 | 所在文件 |
+| 名称 | 要点 | 所在文件 |
 |---|---|---|
-| `JobStatus` | `'queued'\|'running'\|'succeeded'\|'failed'\|'cancelled'`（字面量联合，非 enum；`cancelled` 2026-09-25 随 PRD SV-01 补入，rulings §4.18 UX-14） | `jobs/domain/job-status.ts` |
-| `IdempotencyKey` | `Brand<string,'IdempotencyKey'>`，格式 `` `${domain}:${docId}:${inputHash}` ``；新建文档导入时尚无既有文档，改用 `` `import:user:${userId}:${sha256}` ``（rulings §4.18 BE-10/BE-18） | `jobs/domain/idempotency-key.ts` |
-| `FidelityReportSummary` | `{degradedParts:string[],missingFonts:string[],limitHits:LimitHit[]}`，服务端对 M-04 `ooxml-pptx/testing` `PartDiff[]` 的投影（04 §2.6） | `import-export/domain/import-job.ts` |
-| `ThumbnailKey` | `{docId,slideId,contentHash,layoutAlgoVersion,fontProfile}` → 缓存/去重键字符串（2026-09-24 加入页内容哈希，rulings §4.15 Q8） | `thumbnails/domain/thumbnail-key.ts` |
-| `RenderRoute` | 按 `DocumentType` 参数化的渲染页查询参数 `{documentType,mode:'thumbnail'\|'print'}`（BC-24 唯一的参数化落点，§8） | `thumbnails/domain/thumbnail-key.ts`（与 `ThumbnailKey` 同文件） |
-| `Anchor`（镜像） | `{slideId,shapeId?,range?:{anchor:string,head:string},snapshotSeq}`；服务端只校验 zod 形状，不解码 `RelativePosition`（ADR-0031 §2） | `comments/domain/anchor.ts` |
-| `CommentLimits` | `{maxBodyChars:5000,maxThreadsPerDoc:5000,maxRepliesPerThread:500}`（CO-04/SV-08） | `comments/domain/comment-limits.ts` |
-| `RetentionPolicy` | `{auditDays:365,importSourceDays:30,exportDays:1,thumbnailStale:'on-invalidate'}`（SV-07/SV-11/16.5，部署配置可调；2026-09-24 去租户） | `audit/domain/retention-policy.ts` |
-| ~~`RenderStateToken`~~ | **2026-09-25 取消**（rulings §4.18 BE-04）：local（Playwright `page.evaluate`）与 remote（sidecar RPC）两种模式都由处理器注入 state 与资源字节，`RenderPageQuery.token` 改为只作日志关联的 `renderId` | — |
-
+| `JobStatus` | `'queued'\|'running'\|'succeeded'\|'failed'\|'cancelled'`（字面量联合） | `jobs/domain/job-status.ts` |
+| `IdempotencyKey` | 按决策 JOB-IDEM（60/06 §2.3）：`import:{docId}:{sha256}:{baseSeq}`（新建时 `docId` 为预分配 id、`baseSeq=0`）、`export:{docId}:{sourceRef}:pptx`、`render-export:{docId}:{sourceRef}:{format}:{optsDigest}`、`document-purge:{docId}`；2026-09-25 取代旧 `import:user:{userId}:{sha256}` | `jobs/domain/idempotency-key.ts` |
+| `FidelityReportSummary` | 服务端对 M-04 `PartDiff[]` 的投影 | `import-export/domain/import-job.ts` |
+| `ThumbnailKey` | `{docId, slideId, contentHash, layoutAlgoVersion}`（2026-09-25 删 `fontProfile`——字体配置已计入 `contentHash`，60/06 §11.1） | `thumbnails/domain/thumbnail-key.ts` |
+| `RenderRoute` | 按 `DocumentType` 参数化的渲染页查询参数（BC-24 唯一参数化落点，§8） | `thumbnails/domain/thumbnail-key.ts` |
+| `Anchor`（镜像） | 服务端只校验 zod 形状，不解码 `RelativePosition`（ADR-0031）；锚点解析由文档类型提供 resolver（客户端 `@cordexjs/comments` + slide-ui，D-COMMENTS-PKG） | `comments/domain/anchor.ts` |
+| `CommentLimits` | `{maxBodyChars:5000, maxThreadsPerDoc:5000, maxRepliesPerThread:500}` | `comments/domain/comment-limits.ts` |
+| `RetentionPolicy` | 保留期配置键唯一源是 [60/17](../60-backend/17-deployment-and-config.md)（决策 RETENTION） | `audit/domain/retention-policy.ts` |
+| ~~`RenderStateToken`~~ | 2026-09-25 取消（BE-04） | — |
 ### 2.3 领域服务（纯函数）
 
 | 函数 | 签名草案 | 所在文件 | 两端共用 |
 |---|---|---|---|
-| `buildIdempotencyKey` | `(domain:string,docId:string,inputHash:string) => IdempotencyKey`；另有 `buildNewDocImportKey(userId,sha256)`（BE-10/BE-18） | `jobs/domain/idempotency-key.ts` | 否（服务端专属） |
+| `buildIdempotencyKey` | 按 kind 的构造函数族（`importKey(docId, sha256, baseSeq)`、`duplicateKey(newDocId, srcDocId, srcSeq)`、`exportKey(docId, sourceRef)`、`renderExportKey(docId, sourceRef, format, optsDigest)`、`purgeKey(docId)`），键格式按决策 JOB-IDEM（[60/06 §2.3](../60-backend/06-modules-jobs-import-export-thumbnails.md)）；2026-09-25 删 `buildNewDocImportKey(userId, sha256)` | `jobs/domain/idempotency-key.ts` | 否（服务端专属） |
 | `canTransitionJobStatus` | `(from:JobStatus,to:JobStatus) => boolean`（允许 `queued→running`、`running→succeeded\|failed`、`queued\|running→cancelled` 与对账自环 `queued→queued`） | `jobs/domain/job-status.ts` | 否 |
-| `buildThumbnailKey` / `shouldInvalidateThumbnail` | `(params) => ThumbnailKey`；`(existing:Thumbnail,incoming:{contentHash,algoVersion}) => boolean`（按页内容哈希失效，Q8） | `thumbnails/domain/thumbnail-key.ts` | 否 |
+| `buildThumbnailKey` / `shouldInvalidateThumbnail` | `(params) => ThumbnailKey`；`(existing:Thumbnail,incoming:{contentHash,algoVersion}) => boolean`（按页内容哈希失效，Q8；哈希由 M-09 `computePageHashes` 计算，60/06 §11.1） | `thumbnails/domain/thumbnail-key.ts` | 否 |
 | `inspectEmbeddedCover`（新增，rulings §4.15 Q8） | `(bytes:Uint8Array,limits:{maxBytes:number;maxPixels:number}) => Result<{width:number;height:number},'not_jpeg'\|'too_large'\|'bad_header'>`（只读 JPEG SOI/SOF 头取宽高、校验上限，**不解码像素、不用 sharp**——libvips 为 LGPL） | `thumbnails/domain/embedded-cover.ts` | 否 |
 | `extractMentionTokens` | `(body:string) => string[]`（纯文本扫描 `@[a-zA-Z0-9_-]+` token，不做用户目录解析） | `comments/infrastructure/mention-parser.ts` | 否（用户目录解析需 M-08 用户仓储，属应用层） |
 | `checkCommentLimits` | `(body:string,threadCount:number,replyCount:number,limits:CommentLimits) => Result<void,'body_too_long'\|'thread_limit'\|'reply_limit'>` | `comments/domain/comment-limits.ts` | 否（镜像层只读展示口径，写路径硬校验在客户端 + M-09 软门禁，ADR-0031 §2） |
@@ -217,7 +194,7 @@ auditInterceptor -- "controller/usecase 成功后" --> auditLog
 
 | 仓储 | 方法签名草案 | 所在文件 |
 |---|---|---|
-| `JobRunsRepository` | `create\|findById\|findByIdempotencyKey\|updateStatus\|listByDocAndKind(docId,kind,opts)`；`findByIdempotencyKey` **排除 `failed` 与 `cancelled` 行**（与部分唯一索引 `where status not in ('failed','cancelled')` 同一口径），`create` 遇部分唯一索引冲突即读回既有行（并发同键只建一行，rulings §4.18 BE-18/UX-14） | `jobs/infrastructure/job-runs.repository.ts` |
+| `JobRunsRepository` | 方法集以 [60/06 §2.1](../60-backend/06-modules-jobs-import-export-thumbnails.md) 为准（2026-09-25）：`create(input, tx?)`（可在调用方事务内执行，供 M-08 `SchedulePurgeUseCase` 同事务写行）、`findById`、`findActiveByKey`、`findLatestTerminalByKey`、`transition`、`listOrphans`、`releaseKey`、`pruneTerminalBefore`；创建算法与部分唯一索引见 60/06 §2.3、60/12 §3 | `jobs/infrastructure/job-runs.repository.ts` |
 | `ThumbnailsRepository` | `findLatest(docId,slideId)\|upsert\|listByDoc(docId)\|deleteByDoc(docId)` | `thumbnails/infrastructure/thumbnails.repository.ts` |
 | `CommentsRepository` | `upsertThread\|upsertReply\|listByDoc(docId,view)\|findMentioned(userId)\|markDetached(threadId)` | `comments/infrastructure/comments.repository.ts` |
 | `WebhookRepository`（新增，rulings §4.12 U-14） | `createSubscription\|updateSubscription\|deleteSubscription\|findSubscriptionsByEvent(event)\|insertDelivery\|updateDeliveryStatus\|listDeliveries(subscriptionId,cursor)` | `webhooks/infrastructure/webhook.repository.ts` |
@@ -227,40 +204,28 @@ auditInterceptor -- "controller/usecase 成功后" --> auditLog
 
 > 注（S-4/§3.8 回执，rulings §4.13）：`EgressGuard`（`webhooks/infrastructure/egress-guard.ts`）不是仓储，是投递前置校验契约——`assertAllowed(targetUrl):Promise<{ip:string}>` 解析主机名、经 `isBlockedEgressAddress`（§2.3）拒绝阻断地址、返回锁定的目标 IP 供后续连接固定使用（防 DNS 重绑定）；只用 Node 内置 `dns`/`net`，不引入外部服务依赖。
 > 注（§3.9 回执，rulings §4.13）：`comments` 表原按 `anchor->>'slideId'` 具名字段建索引，改为对派生列 `anchor_key`（应用层计算：`comment-mirror` 写入时调 `deriveAnchorKey`，非 PG 生成列，2026-09-25 更正，rulings §4.18 BE-25；§2.1/§2.3）建索引 `(doc_id, anchor_key)`，文档类型无关；索引 DDL 归属架构 08 §5。
-> 注（rulings §4.18 BE-10）：`ImportUploadStore`（`import-export/infrastructure/import-upload.store.ts`）不是仓储，是 Valkey 一次性凭证存储——`issue(upload):Promise<uploadId>`、`consume(uploadId,userId):Promise<ImportUpload|'forbidden'|'expired'>`（`GETDEL`，绑定 `userId`、TTL 1 h）。
+> 注（rulings §4.18 BE-10）：`ImportUploadStore`（`import-export/infrastructure/import-upload.store.ts`）不是仓储，是 Valkey 一次性凭证存储——`issue(upload)`、`consume(uploadId, userId)`（绑定 `userId`、TTL 1 h）；2026-09-25 起 `upload:{uploadId}` **不再 `GETDEL`**：受理时改写其 `jobId` 并保留 TTL，使同一 `uploadId` 的重放拿回同一作业（决策 UPLOAD-QUARANTINE、JOB-IDEM，60/06 §2.3、§6.1）。
 
 ### 2.6 应用服务与命令
 
-本模块没有 `CommandDef`/`MutationDef`（那是 BC-05 CRDT 内容层的专属机制）；"命令"是普通 Nest 用例，事务边界是数据库事务或"编排一次 headless/collab 调用"。
+本模块没有 `CommandDef`/`MutationDef`；「命令」是普通 Nest 用例。参数、守卫、事务边界与补偿以 60 为准（2026-09-25 起本表只保留「用例 → 文件 → 事实源 → 里程碑」，里程碑按 rulings §4.19 D-M2-CONTENT）：
 
-| 用例 | 参数（protocol DTO） | 权限能力位 / 前置检查 | 事务边界 | 补偿/逆操作 | 所在文件 |
-|---|---|---|---|---|---|
-| 申请导入上传（新增，rulings §4.18 BE-10） | `rest/import-export.ts` uploads schema `{fileName,byteSize,sha256,docId?}` | 已登录用户；指定 `docId`（更新既有文档）时需 `doc.write`；`byteSize` ≤ `scale.maxUploadBytes`（默认 200 MB） | 无库事务：预分配 `jobId`（新建文档时同时预分配 `docId`=UUIDv7）→ 按对象键 `docs/{docId}/imports/{jobId}/source.pptx` 调 M-08 `GetPresignedPutUseCase`（`publicEndpoint` 签名，BE-01）→ `ImportUploadStore.issue` 签发绑定 `userId`、1 h 有效的一次性 `uploadId` | 不适用（凭证过期即失效，原件按 30 天保留期清理） | `import-export/application/create-import-upload.usecase.ts` |
-| 创建导入作业 | `rest/import-export.ts` create schema `{uploadId}`（2026-09-25 起不再接收 `storageKey`，BE-10） | 已登录用户；`ImportUploadStore.consume(uploadId, userId)`：不存在/已用/非本人 → 403；`HEAD` 确认对象存在；处理器解析后超出系统天花板（页数/单页元素/文档总元素，部署配置可调）**直接拒绝** `format.quota_exceeded{dimension, limit, actual}`（2026-09-24 rulings §4.15 Q5；前缀按复核 L8 补齐，与编辑期 `document.quota_exceeded`、存储 `storage.quota_exceeded` 三码并列，rulings §4.17 D2） | 单事务写 `job_runs`（幂等键：更新既有文档 `import:{docId}:{sha256}`，新建文档 `import:user:{userId}:{sha256}`，BE-18）+ 异步 BullMQ 入队 | 无；失败后用同幂等键重新提交会新建一行、`attemptOf` 指向失败行（BE-18） | `import-export/application/create-import-job.usecase.ts` |
-| 查询作业状态 | `{jobId}` | `doc.read` 或作业创建者 | 只读 | 不适用 | `jobs/application/get-job.usecase.ts`（跨模块复用） |
-| 取消导入作业（新增，rulings §4.18 UX-14，PRD SV-01） | `{jobId}`（`POST /imports/:jobId/cancel`） | 作业创建者；只接受 `queued`/`running`，已终态返回 409 | 单事务把 `job_runs.status` 置 `cancelled`；`queued` 行同时移除 BullMQ job，`running` 行由 `ImportProcessor` 在阶段边界读到后中止；随后删除导入原件 `docs/{docId}/imports/{jobId}/` 与已生成的快照/缩略图产物，新建文档场景不建 `documents` 行 | 不可逆（原件已删；用户重新上传即新建作业，同幂等键命中 `cancelled` 行新建一行） | `import-export/application/cancel-import-job.usecase.ts` |
-| 创建导出作业 | `{docId,format,snapshotId?}` | `doc.export` | 单事务写 `job_runs`；`format='pptx'` 入队 `export`，`pdf\|png\|jpeg` 转发 `thumbnails` 模块 `render-export` 队列 | 无 | `import-export/application/create-export-job.usecase.ts` |
-| 模板填充 / 校验 / 迁移 / 转换（占位，M4，rulings §4.12 U-13） | `rest/import-export.ts`（M4 扩展）draft schema | 待 M4 定（暂定按动作分别为 `doc.write`/`doc.export`） | 待 M4 定 | 待 M4 定 | `import-export/application/{fill-template,validate,migrate,convert}.usecase.ts`（占位，M4；四者均并入 `import-export`，不新增 `modules/automation/`，见 §12 G-31） |
-| 查询/惰性生成缩略图 | `{docId,slideId,seq?}` | `doc.read` | 只读，未命中时触发入队 | 不适用 | `thumbnails/application/get-thumbnail.usecase.ts` |
-| 失效缩略图（内部） | `{docId,slideId,newSeq}` | 系统调用（compaction/导入完成事件触发） | 只读判定 + 入队 | 不适用 | `thumbnails/application/invalidate-thumbnails.usecase.ts` |
-| 列出评论线程 | `{docId,view:'all'\|'page'\|'unresolved'\|'mentions'}` | `doc.read` | 只读 | 不适用 | `comments/application/list-threads.usecase.ts` |
-| 镜像评论变更（内部） | Room 广播载荷 | 系统调用（观察者，唯一写入口） | 单事务 upsert | 不适用（镜像可从 CRDT 重放重建） | `comments/application/mirror-comment-change.usecase.ts` |
-| 导入为可编辑线程（P1） | `{docId,importedThreadIds}` | `doc.comment` | 单事务：经 `HeadlessJobContext` 触发服务端 CRDT 写入 | 逆操作 = 客户端手动删除 | `comments/application/import-as-editable-thread.usecase.ts` |
-| 跨文档「@我」查询（新增，rulings §4.12 U-14） | `{cursor?}`（无需 `docId`） | `SessionGuard`（按 `RoleResolverService` 逐文档过滤，同列表口径） | 只读，跨文档聚合查询 | 不适用 | `comments/application/list-my-mentions.usecase.ts` |
-| 注册/更新/删除 Webhook 订阅（新增，rulings §4.12 U-14） | `rest/webhooks.ts`（新增）create/update schema、`{id}` | 平台管理员 | 单事务 | 更新/删除互为逆操作；创建的逆操作=删除 | `webhooks/application/manage-webhook-subscription.usecase.ts` |
-| 投递 Webhook 事件（内部，新增，rulings §4.12 U-14） | `{event,payload}` | 系统调用（`comments` 模块触发，唯一入口）；投递前经 `EgressGuard.assertAllowed(targetUrl)`（§2.3/§2.5）前置校验，拒绝则直接标记 `failed` 不发出出站请求（S-4/§3.8 回执） | 无库事务（BullMQ `webhook-delivery` 队列入队，并发 4）；`webhook_deliveries` 落 `pending` 行 | HMAC 签名 + 指数退避重试（最多 8 次，重试期间保持 `pending`）；不可重试错误（出站守卫拒绝、订阅停用、除 408/429 外的 4xx）→ `failed`；重试用尽 → `dead-lettered`（rulings §4.18 BE-19） | `webhooks/application/deliver-webhook-event.usecase.ts` |
-| 查询投递日志（新增，rulings §4.12 U-14） | `{subscriptionId,cursor?}` | 平台管理员 | 只读 | 不适用 | `webhooks/application/list-webhook-deliveries.usecase.ts` |
-| 清理文档缩略图（内部，新增，S-2/§3.3 回执） | `{docId}` | 系统调用：作为 M-08 document-purge 作业的参与者被调用（`@PurgeParticipant('thumbnails')`，rulings §4.18 BE-15；宽限期满、GDPR 擦除或「永久删除文档」触发，后两者不等宽限期，§4.15 Q3、§4.18 CO-07） | 单事务：删除该文档全部 `thumbnails` 行，**含 `source='embedded'` 包内封面**及其 blob 对象（2026-09-24 rulings §4.15 Q8；对象版本最终由 M-08 `finalize-purge` 按前缀全部清除） | 幂等，可重复执行；不适用逆操作 | `thumbnails/application/purge-document-thumbnails.usecase.ts` |
-| 清理文档评论镜像（内部，新增，S-2/§3.3 回执） | `{docId}` | 系统调用（同上，`@PurgeParticipant('comments')`，BE-15） | 单事务：删除该文档全部 `comments` 镜像行 | 幂等；镜像可从 CRDT 重放重建，无需逆操作 | `comments/application/purge-document-comments.usecase.ts` |
-| 对账扫描孤儿作业与投递（内部，新增，§3.5 回执） | 无（BullMQ Job Scheduler：`maintenance` 队列作业 `reconciliation`，每 1 min，只由 worker 启动时注册，rulings §4.18 BE-19） | 系统调用 | 只读扫描 `job_runs`/`webhook_deliveries` 中 `status='queued'\|'pending'` 且超阈值（2× 处理器超时）无对应 BullMQ job 的行 → 重新入队 + 告警；覆盖 `kind='document-purge'` 行（M-08 编排的兜底，BE-15） | 幂等（重复扫描不重复入队，见 §4.1） | `jobs/infrastructure/reconciliation.job.ts` |
-| 记录审计事件 | `AuditEntry` 草稿 | 系统调用（拦截器/订阅器唯一入口） | 单批量 insert（每用户每秒合并，SV-07 吞吐要求）；写入前计算 `chainHash(prevHash,entry)` 得到 `hash`，与 `prevHash` 同事务落库（rulings §4.12 U-15，M3 即实现） | 不适用（append-only） | `audit/application/record-audit-event.usecase.ts` |
-| 查询 / 导出审计 | `{range,category}` | 平台管理员 | 只读 + CSV/JSON 流式导出 | 不适用 | `audit/application/query-audit-log.usecase.ts` |
-| 校验哈希链（新增，rulings §4.12 U-15） | `{range}` | 平台管理员 | 只读：逐行重算 `chainHash` 比对 `hash`/`prevHash` | 不适用 | `audit/application/verify-chain.usecase.ts` |
-| 每日封存作业（内部，新增，rulings §4.12 U-15） | 无（BullMQ Job Scheduler：`maintenance` 队列作业 `audit-seal`，每日；只由 worker 启动时注册，避免 `AuditModule` 在每个角色各封存一次，rulings §4.18 BE-19/BE-13） | 系统调用 | 单事务：对前一日全部 `audit_log` 行重算校验 + 落一条封存摘要记录 | 不适用（append-only） | `audit/infrastructure/seal.job.ts` |
-| 就绪判定 | 无 | 无（内部探针） | 只读并发探测 5 项 | 不适用 | `health/application/evaluate-readiness.usecase.ts` |
-| 浏览器遥测上报（新增，rulings §4.18 BE-30） | `rest/telemetry.ts` errors schema；OTLP/HTTP protobuf 请求体 | 需登录（全局 `SessionGuard`）+ 令牌桶限流（`@RateLimit`）；请求体上限 errors ≤ 64 KiB、otlp ≤ 512 KiB；OTLP 只转发 traces | 无库事务：errors 经 kernel logger 落结构化日志；otlp 经 `otlp-proxy.service.ts` 转发 OTel Collector（→ Jaeger） | 不适用 | `telemetry/interface/client-telemetry.controller.ts` |
-| 管理动作（compact/migrate/epoch） | `{docId,action}` | 平台管理员（`PlatformAdminGuard`）；`AdminController` **只在 collab（及 all）角色装配**，启动断言 `role=api` 不装配（rulings §4.18 BE-03） | 单事务，委托 M-09 `collabServer`/`server-headless` 执行；`epoch` 由 M-09 `forceEpoch()` 递增后经 Valkey 通知其他持有该 Room 的 collab 实例踢会话（BE-03/BE-21） | 视动作而定（`epoch` 不可逆） | `internal/application/run-admin-action.usecase.ts` |
-
+| 用例 | 所在文件 | 事实源 | 里程碑 |
+|---|---|---|---|
+| 申请导入上传、创建导入作业、取消导入（两步上传 BE-10，取消 UX-14） | `import-export/application/{create-import-upload,create-import-job,cancel-import-job}.usecase.ts` | [60/06 §6](../60-backend/06-modules-jobs-import-export-thumbnails.md) | **M2** |
+| 查询作业状态（`GET /jobs/:id`，唯一状态查询；`GET /imports/:jobId` 已删，决策 SG-08） | `jobs/application/get-job.usecase.ts` | 60/06 §2.4 | **M2** |
+| 导入处理器：解析 → `import` 快照 → embedded `__cover`；带 `docId` 的覆盖导入 = 加锁 → 换纪元 → 解锁（rulings §4.19 N1） | `import-export/infrastructure/import.processor.ts` | 60/06 §6.3–§6.5、§11.2 | **M2** |
+| 对账扫描孤儿作业与投递（`reconciliation`，Job Scheduler 挂 maintenance，BE-19） | `jobs/infrastructure/reconciliation.job.ts` | 60/06 §3–§4 | **M2**（投递部分随 Webhook M3） |
+| 创建导出作业、导出处理器、下载地址（`GET /exports/:jobId` 只给地址，SV-02） | `import-export/application/create-export-job.usecase.ts`、`import-export/infrastructure/export.processor.ts` | 60/06 §7 | M3 |
+| 模板填充 / 校验 / 迁移 / 转换（占位，U-13） | `import-export/application/{fill-template,validate,migrate,convert}.usecase.ts` | 60/06 §7.4 | M4 |
+| 读取缩略图（`GET /documents/:id/thumbnails/:slideId?size=640\|1280`，封面 `__cover`；删 `?seq=`，决策 SG-10） | `thumbnails/application/get-thumbnail.usecase.ts` | 60/06 §11.5 | `__cover` embedded **M2**；服务端渲染 M3 前半段 |
+| 失效与生成服务端缩略图、render-export（PDF/PNG/JPEG） | `thumbnails/application/invalidate-thumbnails.usecase.ts`、`thumbnails/infrastructure/{thumbnails,render-export}.processor.ts` | 60/06 §9–§11 | M3 前半段 / 后半段 |
+| 评论：列出线程、跨文档「@我」、镜像写入、导入为可编辑线程（P1） | `comments/application/*.usecase.ts` | [60/07 §1–§3](../60-backend/07-modules-comments-webhooks-audit.md) | M3 |
+| Webhook：订阅管理、投递、日志 | `webhooks/application/*.usecase.ts` | 60/07 §4–§6 | M3 |
+| 审计：记录（拦截器 / 订阅器）、查询导出、校验哈希链、每日封存 | `audit/application/*.usecase.ts`、`audit/infrastructure/seal.job.ts` | 60/07 §7–§8 | 记录 M2；查询、哈希链、封存 M3 |
+| 就绪判定、浏览器遥测上报（BE-30） | `health/application/evaluate-readiness.usecase.ts`、`telemetry/interface/client-telemetry.controller.ts` | [60/18](../60-backend/18-observability-and-ops-endpoints.md) | M2 |
+| 管理动作 compact / migrate / epoch（`AdminController` 只在 collab，BE-03） | `internal/interface/admin.controller.ts` | 60/18；60/05 §9 | **M2**（随压缩、schema 迁移与换纪元，PRD 05 §0.3；60/01 §3） |
+| document-purge 参与者 `thumbnails`、`comments`（BE-15） | `thumbnails/application/purge-document-thumbnails.usecase.ts`、`comments/application/purge-document-comments.usecase.ts` | [60/04 §4](../60-backend/04-modules-documents-storage-media.md) | M3 |
 **图 2-2 导入作业管线**
 
 ```mermaid
@@ -355,7 +320,11 @@ sequenceDiagram
 
 ## 3. Nest 模块定义表
 
+> 结构规则（2026-09-25，[60/01](../60-backend/01-service-overview-and-roles.md) §5）：有 rest 部件的业务模块拆为两个 Nest 模块——`XxxModule` 只含 providers 与 exports、供其他模块 import；`XxxHttpModule` 只含 controllers、import `XxxModule`，只由角色根模块 `AppModule.forRole(role)` import。本组涉及 `CommentsHttpModule`（只读 REST，api）与 `CommentsImportHttpModule`（`comments/import`，collab，P1）等（逐模块以 60/06、60/07 为准）；机密由 `ConfigModule` 导出的 secrets provider 提供，不设 `SecretsModule`。
+
 Nest 模块不是 cordis Fiber（module-map §5.3），本节列 imports/providers/controllers/exports，取代模板原 §3 的插件定义表（与 M-08 §3、M-09 §3.3 体例一致）。
+
+> 2026-09-25（rulings §4.19）：`imports`/`providers`/`controllers`/`exports` 的唯一源改为 [60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §2.1、§12（Jobs、ImportExport、Thumbnails）、[60/07 §10.2](../60-backend/07-modules-comments-webhooks-audit.md)（Comments、Webhooks、Audit）、[60/18](../60-backend/18-observability-and-ops-endpoints.md)（Health、Metrics、Internal、ClientTelemetry），imports 总图见 [60/01 §8](../60-backend/01-service-overview-and-roles.md)；下表保留为模块到目录的落点摘要，冲突以 60 为准。
 
 | 模块 | imports | providers（关键） | controllers | exports |
 |---|---|---|---|---|
@@ -364,11 +333,13 @@ Nest 模块不是 cordis Fiber（module-map §5.3），本节列 imports/provide
 | `ThumbnailsModule` | `JobsModule`、`CordisHostModule` | `ThumbnailsRepository`、`GetThumbnailUseCase`、`InvalidateThumbnailsUseCase`、`PurgeDocumentThumbnailsUseCase`（`@PurgeParticipant('thumbnails')`，BE-15）、`ThumbnailsProcessor`、`RenderExportProcessor`、`HeadlessRendererAccessor` | `ThumbnailsController` | `RenderExportProducerService`（供 `ImportExportModule` 注入的跨模块生产者，§7）；2026-09-25 起不再依赖 `InternalModule`（`RenderStateToken` 取消，BE-04） |
 | `CommentsModule` | `CordisHostModule`（取 `collabServer` 观察 Room 广播）、`DocumentsModule`（M-08）、`WebhooksModule`（新增，触发投递，U-14） | `CommentsRepository`、`ListThreadsUseCase`、`MirrorCommentChangeUseCase`、`ImportAsEditableThreadUseCase`、`ListMyMentionsUseCase`（新增）、`PurgeDocumentCommentsUseCase`（`@PurgeParticipant('comments')`，BE-15）、`CommentMirrorObserver`（**只在 collab 角色注册**，按角色条件装配，rulings §4.18 BE-03/BE-13） | `CommentsController`（评论 REST 留在 api） | 无 |
 | `WebhooksModule`（新增，rulings §4.12 U-14） | `ConfigModule`、`RedisModule`（BullMQ 连接） | `WebhookRepository`、`ManageWebhookSubscriptionUseCase`、`DeliverWebhookEventUseCase`（生产者，api/collab 均装）、`ListWebhookDeliveriesUseCase`、`WebhookDeliveryProcessor`（`webhook-delivery` 队列，只在 worker 注册，BE-19/BE-13） | `WebhooksController` | `DeliverWebhookEventUseCase`（供 `CommentsModule` 注入）、`WebhookRepository`（供 `JobsModule` 的对账作业扫描 `webhook_deliveries`，§3.5） |
-| `AuditModule`（`global`） | `ConfigModule`、`CordisHostModule` | `AuditRepository`、`RecordAuditEventUseCase`、`QueryAuditLogUseCase`、`AuditEventSubscriber`、`VerifyChainUseCase`（新增，U-15）、`SealJob`（新增，U-15，每日封存；Job Scheduler 部件**只在 worker 注册**，其余角色不跑，rulings §4.18 BE-19/BE-13） | `AuditController` | `RecordAuditEventUseCase`（供 `common/interceptors/audit.interceptor.ts` 注入） |
+| `AuditModule`（`global`） | `ConfigModule`、`CordisHostModule` | `AuditRepository`、`RecordAuditEventUseCase`、`QueryAuditLogUseCase`、`AuditEventSubscriber`、`VerifyChainUseCase`（新增，U-15）、`SealJob`（新增，U-15，每日封存；Job Scheduler 部件**只在 worker 注册**，其余角色不跑，rulings §4.18 BE-19/BE-13） | `AuditController`、`AuditVerifyController`（`POST /internal/admin/audit/verify`，2026-09-25 自 InternalModule 归入，60/01 §5） | `RecordAuditEventUseCase`（供 `common/interceptors/audit.interceptor.ts` 注入） |
 | `HealthModule`（`HealthModule.forRole(role)`） | api/collab/worker：`ConfigModule`、`DbModule`、`RedisModule`、`CordisHostModule`（`@nestjs/terminus`）；**renderer 变体不 import 这四者**（无任何凭据，rulings §4.18 BE-14） | `EvaluateReadinessUseCase`（内联调用 `CordisHostService.diagnostics()` 判定宿主/RoomManager draining，不单列探针类）、`PgProbe`/`RedisProbe`/`BlobStoreProbe`；renderer 变体只有 `ChromiumPoolProbe` | `HealthController`（`/healthz`、`/readyz`；renderer 变体只 `/healthz` + Chromium 池就绪） | 无 |
 | `MetricsModule` | `ConfigModule` | `PrometheusRegistryProvider` | `PrometheusController`（独立端口 9464） | 无；**renderer 不装**（renderer 只挂 render 网络、零出站，Prometheus 抓不到；渲染耗时/超时/崩溃指标由 worker 侧 `remote-renderer.client` 按 RPC 结果记录，BE-14） |
 | `InternalModule` | `CordisHostModule` | `RunAdminActionUseCase`、`FiberDiagnosticsAccessor` | `DiagnosticsController`（各角色，renderer 除外）、`AdminController`（compact/migrate/epoch，**只在 collab 与 all 角色装配**，rulings §4.18 BE-03） | 无（2026-09-25 删 `IssueRenderStateTokenUseCase`、`RenderStateTokenStore`、`RenderStateController` 与 `GET /internal/render/:token/state`，BE-04；`ThumbnailsModule` 不再依赖本模块） |
 | `ClientTelemetryModule`（新增，rulings §4.18 BE-30） | `ConfigModule`、`RedisModule`（令牌桶） | `OtlpProxyService` | `ClientTelemetryController`（`POST /telemetry/errors`、`POST /telemetry/otlp`，相对 `/api/v1`） | 无；只装在 api 角色 |
+
+**基础模块与根模块的落点**（2026-09-25 审稿登记）：60/01 §3 的五个 global 基础模块中，`ConfigModule` 在 §4.10，`ObservabilityModule`、`DbModule`、`RedisModule` 在 §4.13，`CordisHostModule` 归 M-09（09 §4.3）；根模块 `AppModule.forRole(role)` 与进程入口 `main.ts` 也在 §4.13。它们的装配角色以 60/01 §4–§5 为准（`DbModule` 在 api 只提供 app 池、collab / worker / all 另有 system 池，60/08 §5；renderer 不装 `DbModule`、`RedisModule`，只保留 pino 写 stdout、OTLP 导出关闭），启动顺序与优雅关闭以 60/01 §10 为准。本节不再为它们另列定义行。
 
 **图 3-1 作业、评论与 Webhook 模块 imports 依赖**
 
@@ -441,7 +412,7 @@ interceptor -. "RecordAuditEventUseCase" .-> audit
 
 ## 4. 目录树（完整到文件）
 
-> 十二棵树：10 个 Nest 模块（含新增 `webhooks`，见 §4.11，rulings §4.12 U-14；新增 `telemetry`，见 §4.12，rulings §4.18 BE-30）+ `common/` + `config/`；`cordis-host/adapters/` 无新增（§3）。每个目录一句职责；DDD 五层套用 00-module-map §1 的规则，`interface/` 是"外部世界进入本目录的唯一入口"。
+> 十三棵树：10 个 Nest 模块（含新增 `webhooks`，见 §4.11，rulings §4.12 U-14；新增 `telemetry`，见 §4.12，rulings §4.18 BE-30）+ `common/` + `config/` + 应用骨架与基础设施（§4.13，2026-09-25 审稿登记）；`cordis-host/adapters/` 无新增（§3）。每个目录一句职责；DDD 五层套用 00-module-map §1 的规则，`interface/` 是"外部世界进入本目录的唯一入口"。
 
 ### 4.1 `apps/server/src/modules/jobs/`
 
@@ -463,9 +434,8 @@ apps/server/src/modules/jobs/
 ├── interface/                        # 外部世界进入本模块的唯一入口
 │   └── jobs.controller.ts            # GET /jobs/:id
 └── __tests__/
-    ├── job-status.spec.ts            # 状态机非法迁移拒绝
-    ├── job-runs.repository.spec.ts   # 并发同键只建一行；失败后同键重提得新行且 attemptOf 指向旧行（新增，§4.18 BE-18）
-    └── base.processor.spec.ts        # 错误分类与死信路径
+    ├── job-status.test.ts            # 状态机非法迁移拒绝
+    └── base.processor.test.ts        # 错误分类与死信路径（内存替身）
 ```
 
 ### 4.2 `apps/server/src/modules/import-export/`
@@ -483,17 +453,15 @@ apps/server/src/modules/import-export/
 │   ├── cancel-import-job.usecase.ts  # 取消导入：queued/running → cancelled，移除 BullMQ job，清理原件与产物（新增，§4.18 UX-14）
 │   └── create-export-job.usecase.ts  # 按 format 分派 export / render-export 队列
 ├── infrastructure/                   # 处理器只编排，转换逻辑全在 server-headless（铁律 4）
-│   ├── import.processor.ts           # BullMQ import（各阶段边界检查 status=cancelled 即中止并清理，UX-14）：拉原件 → 超天花板预检（超限 format.quota_exceeded 直接拒绝，Q5）→ HeadlessJobContext.importDocument（§4.18 FE-01）→ 写快照(kind=import)+媒体关联 → 包内 thumbnail.jpeg 头校验后记 source=embedded 封面（不解码，Q8）→ 创建/更新文档 → 审计
+│   ├── import.processor.ts           # BullMQ import（各阶段边界检查 status=cancelled 即中止并清理，UX-14）：拉原件 → 超天花板预检（超限 format.quota_exceeded 直接拒绝，Q5）→ HeadlessJobContext.importDocument（§4.18 FE-01）→ 写快照(kind=import)+媒体关联 → 包内 thumbnail.jpeg 头校验后记 source=embedded 封面（不解码，Q8）→ 创建/更新文档 → 审计；带 docId 覆盖导入：开工加锁、persist 事务内 epoch+1 并解锁、提交后发 room:{docId}:ctl epoch（60/06 §6.5，§4.19 N1）
 │   ├── export.processor.ts           # BullMQ export：快照 → HeadlessJobContext.exportDocument → BlobStore → 预签名下载 URL（24 h）
-│   ├── import-upload.store.ts        # Valkey 一次性 uploadId：绑定 userId、TTL 1 h、GETDEL 消费（新增，BE-10）
+│   ├── import-upload.store.ts        # Valkey 一次性 uploadId：绑定 userId、TTL 1 h；受理时改写 jobId 并保留 TTL，不 GETDEL（新增，BE-10；2026-09-25 按 60/06 §2.3、§6.1 更正）
 │   └── source-file.accessor.ts       # 经 ctx.blobStore/multipart 读取导入原始文件字节
 ├── interface/
-│   ├── imports.controller.ts         # POST /imports/uploads、POST /imports{uploadId}（2026-09-25 起不收 storageKey，BE-10；单文件 ≤ 200 MB，Q5）|multipart≤10MB、GET /imports/:jobId、POST /imports/:jobId/cancel（UX-14）；相对 /api/v1
+│   ├── imports.controller.ts         # POST /imports/uploads、POST /imports{uploadId}（2026-09-25 起不收 storageKey，BE-10；单文件 ≤ 200 MB，Q5）|multipart≤10MB、POST /imports/:jobId/cancel（UX-14）；状态查询统一 GET /jobs/:id，删 GET /imports/:jobId（决策 SG-08）；相对 /api/v1
 │   └── exports.controller.ts         # POST /documents/:id/export{format}、GET /exports/:jobId
 └── __tests__/
-    ├── create-import-job.usecase.spec.ts  # 提交他人 uploadId 或已用 uploadId → 403；对象不存在拒绝（新增，BE-10）
-    ├── import.processor.spec.ts      # 保真报告生成、失败重试
-    └── export.processor.spec.ts      # SV-02 字节级一致断言（复用 M-09 语料库）
+    └── create-import-job.usecase.test.ts  # 提交他人 uploadId 或已用 uploadId → 403；对象不存在拒绝（新增，BE-10）
 ```
 
 ### 4.3 `apps/server/src/modules/thumbnails/`
@@ -507,7 +475,7 @@ apps/server/src/modules/thumbnails/
 │   ├── embedded-cover.ts             # inspectEmbeddedCover：包内 thumbnail.jpeg 只做头校验不解码（新增，rulings §4.15 Q8）
 │   └── errors.ts                     # server.thumbnails.* 错误码
 ├── application/
-│   ├── get-thumbnail.usecase.ts      # ETag/immutable 判定；未命中惰性入队
+│   ├── get-thumbnail.usecase.ts      # ETag（contentHash）复核判定，private no-cache；未命中惰性入队
 │   ├── invalidate-thumbnails.usecase.ts  # 压缩完成/导入完成/admin 触发的失效判定
 │   ├── render-export-producer.service.ts # 跨模块生产者：import-export 的非 pptx 导出请求经此入队 render-export
 │   └── purge-document-thumbnails.usecase.ts  # 新增（S-2/§3.3 回执）：@PurgeParticipant('thumbnails')，由 document-purge 作业调用，清理该文档全部缩略图行（§4.18 BE-15）
@@ -517,10 +485,9 @@ apps/server/src/modules/thumbnails/
 │   ├── thumbnails.repository.ts      # thumbnails 表 Drizzle 仓储
 │   └── headless-renderer.accessor.ts # 经 CordisHostService 打开的 HeadlessHost.thumbnails 只读字段取 ThumbnailRenderer（2026-09-18 结案，C-09，§12 G-26）
 ├── interface/
-│   └── thumbnails.controller.ts      # GET /documents/:id/thumbnails/:slideId?seq=
+│   └── thumbnails.controller.ts      # GET /documents/:id/thumbnails/:slideId?size=640|1280（封面 slideId='__cover'；删 ?seq=，决策 SG-10）
 └── __tests__/
-    ├── thumbnail-key.spec.ts         # 缓存键与失效判定
-    └── thumbnails.processor.spec.ts  # 去重键作废旧任务、超时重试 1 次后占位图
+    └── thumbnail-key.test.ts         # 缓存键与失效判定
 ```
 
 ### 4.4 `apps/server/src/modules/comments/`
@@ -544,10 +511,11 @@ apps/server/src/modules/comments/
 │   ├── comment-mirror.observer.ts    # 订阅 collabServer 的 Room 广播 CONTROL.event{comments.changed}；只在 collab 角色注册（§4.18 BE-03/BE-13）
 │   └── mention-parser.ts             # extractMentionTokens 纯函数 + 经 M-08 UsersRepository 解析显示名
 ├── interface/
-│   └── comments.controller.ts        # GET 线程列表/详情/@我（单文档）、GET /comments/mentions 跨文档「@我」（新增，U-14）；POST 导入为可编辑线程（其余 CRUD 走 CRDT，不经 REST）
+│   ├── comments.controller.ts        # GET 线程列表/详情/@我（单文档）、GET /comments/mentions 跨文档「@我」（新增，U-14）；其余 CRUD 走 CRDT，不经 REST
+│   └── comments-import.controller.ts # CommentsImportController：POST /documents/:id/comments/import（P1，M3）；只在 collab 角色装配（事务须在持有 Room 的实例内执行，60/15 §3.11、60/01 §5；2026-09-25 自 comments.controller 拆出）
 └── __tests__/
-    ├── comment-limits.spec.ts        # 5,000 字符/5,000 线程/500 回复镜像层断言
-    └── mirror-comment-change.usecase.spec.ts  # 幂等 upsert、锚点脱离状态迁移
+    ├── comment-limits.test.ts        # 5,000 字符/5,000 线程/500 回复镜像层断言
+    └── mirror-comment-change.usecase.test.ts  # 幂等 upsert、锚点脱离状态迁移
 ```
 
 ### 4.5 `apps/server/src/modules/audit/`
@@ -569,11 +537,11 @@ apps/server/src/modules/audit/
 │   ├── audit-event.subscriber.ts     # 订阅 command/audited、plugin/failed、collab-server/repair、collab-server/update-rejected、permission/denied（§2.4）
 │   └── seal.job.ts                   # 新增（rulings §4.12 U-15）：每日封存作业，重算校验前一日全部 audit_log 行；Job Scheduler audit-seal，只由 worker 注册（§4.18 BE-19）
 ├── interface/
-│   └── audit.controller.ts           # GET /audit（平台管理员查询）、GET /audit/export
+│   ├── audit.controller.ts           # GET /audit（平台管理员查询）、GET /audit/export
+│   └── audit-verify.controller.ts    # AuditVerifyController：POST /internal/admin/audit/verify（内部端口，AuditModule 在 api/collab/worker 都装；2026-09-25 自 InternalModule 归入 AuditModule，60/01 §5、60/07 §8.5）
 └── __tests__/
-    ├── retention-policy.spec.ts      # 365 天默认 + 月分区判定
-    ├── audit.repository.append-only.spec.ts  # 断言数据库角色拒绝 UPDATE/DELETE
-    └── audit-chain.spec.ts           # 新增（rulings §4.12 U-15）：chainHash 篡改检测断言
+    ├── retention-policy.test.ts      # 365 天默认 + 月分区判定
+    └── audit-chain.test.ts           # 新增（rulings §4.12 U-15）：chainHash 篡改检测断言
 ```
 
 ### 4.6 `apps/server/src/modules/health/`
@@ -586,14 +554,14 @@ apps/server/src/modules/health/
 ├── application/
 │   └── evaluate-readiness.usecase.ts # 聚合 pg/redis/s3/headless 宿主/RoomManager draining 五项判定
 ├── infrastructure/
-│   ├── pg.probe.ts                   # SELECT 1 ping
+│   ├── pg.probe.ts                   # SELECT 1 ping + 迁移判据（经 db/migrator.ts 的 checkApplied，60/08 §10.5；2026-09-25 审稿补）
 │   ├── redis.probe.ts                # PING
 │   ├── blob-store.probe.ts           # ctx.blobStore.head() 探测
 │   └── chromium-pool.probe.ts        # renderer 变体唯一探针：Chromium 池就绪（新增，BE-14）
 ├── interface/
 │   └── health.controller.ts          # GET /healthz（进程存活）、GET /readyz（就绪前不接流量）；两者标 @Public()、不加 /api/v1 前缀（rulings §4.18 BE-06/BE-11）
 └── __tests__/
-    └── evaluate-readiness.usecase.spec.ts  # 任一探针失败 → 503；Redis 不可用单独断言（08-backend-nestjs §8）
+    └── evaluate-readiness.usecase.test.ts  # 任一探针失败 → 503；Redis 不可用单独断言（08-backend-nestjs §8）
 ```
 
 ### 4.7 `apps/server/src/modules/metrics/`
@@ -606,7 +574,7 @@ apps/server/src/modules/metrics/
 ├── interface/
 │   └── prometheus.controller.ts      # GET /metrics（独立内部端口 9464，架构 10 §3.3 指标清单）
 └── __tests__/
-    └── prometheus.controller.spec.ts # 指标名均在登记表且格式合法
+    └── prometheus.controller.test.ts # 指标名均在登记表且格式合法
 ```
 
 ### 4.8 `apps/server/src/modules/internal/`
@@ -622,7 +590,7 @@ apps/server/src/modules/internal/
 │   ├── diagnostics.controller.ts     # GET /internal/diagnostics/{fibers,effects,pending,contributions}
 │   └── admin.controller.ts           # POST /internal/admin/documents/:id/{compact,migrate,epoch}（仅 collab 角色）
 └── __tests__/
-    └── run-admin-action.usecase.spec.ts   # epoch 动作不可逆、compact/migrate 幂等
+    └── run-admin-action.usecase.test.ts   # epoch 动作不可逆、compact/migrate 幂等
 ```
 
 ### 4.9 `apps/server/src/common/`
@@ -652,8 +620,8 @@ apps/server/src/common/
 ```text
 apps/server/src/config/
 ├── config.module.ts                  # 解析一次，注入 typed AppConfig；解析失败 → 进程退出码 78；支持 --dry-run
-├── config.schema.ts                  # zod Standard Schema：role/http/db/redis/storage/auth/collab/limits/headless/telemetry（08-backend-nestjs §2 骨架的权威落点）；新增 webhookEgressAllowlist 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式）；storage.s3.publicEndpoint（预签名专用，§4.18 BE-01）；http.globalPrefix='api/v1' 与排除清单（BE-11）
-├── roles.ts                          # CORDEX_ROLE=all|api|collab|worker|renderer → §7.1「模块 × 角色 × 部件」矩阵的代码形态（roles.ts→AppModule.forRole + 启动断言逐项核对；all/renderer 2026-09-24 补，rulings §4.15 Q10；矩阵 §4.18 BE-13）
+├── config.schema.ts                  # zod Standard Schema：role/http/db/redis/storage/auth/collab/limits/headless/telemetry（字段全表以 60/17 §5–§6 为准；原 08-backend-nestjs §2 草图已删）；新增 webhookEgressAllowlist 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式）；storage.s3.publicEndpoint（预签名专用，§4.18 BE-01）；http.globalPrefix='api/v1' 与排除清单（BE-11）
+├── roles.ts                          # CORDEX_ROLE=all|api|collab|worker|renderer → 「模块 × 角色 × 部件」矩阵的代码形态（矩阵唯一源 60/01 §5）的代码形态（roles.ts→AppModule.forRole + 启动断言逐项核对；all/renderer 2026-09-24 补，rulings §4.15 Q10；矩阵 §4.18 BE-13）
 ├── env-overrides.ts                  # 按 NODE_ENV/CORDEX_ROLE 的覆盖合并规则（硬规则"按环境的覆盖"）
 └── secrets.ts                        # 机密来源适配（环境变量 | 挂载文件 | 外部 secret manager）+ 启动前存在性校验
 ```
@@ -681,8 +649,7 @@ webhooks/
 ├── interface/
 │   └── webhooks.controller.ts            POST/GET/PATCH/DELETE /webhooks、GET /webhooks/:id/deliveries
 └── __tests__/
-    ├── manage-webhook-subscription.usecase.spec.ts
-    └── webhook-delivery.processor.spec.ts    指数退避与死信断言
+    └── manage-webhook-subscription.usecase.test.ts
 ```
 
 ### 4.12 `apps/server/src/modules/telemetry/`（新增，rulings §4.18 BE-30，2026-09-25）
@@ -697,10 +664,74 @@ apps/server/src/modules/telemetry/
 ├── interface/
 │   └── client-telemetry.controller.ts  # POST /telemetry/errors（≤ 64 KiB）、POST /telemetry/otlp（≤ 512 KiB，只 traces）；相对 /api/v1；@RateLimit
 └── __tests__/
-    └── client-telemetry.controller.spec.ts  # 未登录 401、超限 413、限流 429、非 traces 信号 400
+    └── client-telemetry.controller.test.ts  # 未登录 401、超限 413、限流 429、非 traces 信号 400
+```
+
+**服务端集成测试（接真实 PG / Valkey / SeaweedFS 的用例，决策 T-NAMING：`apps/server/test/integration/**/*.int-spec.ts`；2026-09-25 自各模块 `__tests__/*.spec.ts` 迁出）**：
+
+```text
+apps/server/test/integration/
+├── jobs/
+│   ├── job-runs.int-spec.ts                  # 并发同键只建一行；终态后同键重提得新行且 attemptOf 指向旧行（BE-18，JOB-IDEM）
+│   ├── import.processor.int-spec.ts          # 保真报告生成、失败重试、阶段边界取消与清理（UX-14）
+│   ├── export.processor.int-spec.ts          # SV-02 字节级一致断言（复用 M-09 语料库）
+│   ├── thumbnails.processor.int-spec.ts      # 去重键作废旧任务、超时重试 1 次后占位图
+│   └── webhook-delivery.processor.int-spec.ts  # 指数退避与死信断言
+├── audit/
+│   └── audit-append-only.int-spec.ts         # 以 cordex_app / cordex_system 执行 UPDATE / DELETE / TRUNCATE 被拒（70/10 SEC-DA-05）
+└── boot/
+    └── role-assembly.int-spec.ts             # 逐角色启动：api 不装快照与 AdminController、renderer 无 DB/Valkey/S3 客户端、周期作业只在 worker（BE-03/BE-13/BE-14/BE-19；自 e2e/role-assembly.e2e-spec.ts 改为集成测试）
 ```
 
 **`cordis-host/adapters/` 增量**：无新增文件（§3 已述；既有 3 个适配器由 M-09 定义与维护）。
+
+### 4.13 `apps/server/src/`：应用骨架与基础设施（2026-09-25 审稿登记）
+
+这些文件原在 30-architecture/08 §2 的 `apps/server` 目录树里；该树随 rulings §4.19 三线拆分删除后，进程入口、根模块与 `observability/`、`redis/`、`db/` 在 40-modules 没有文件级归属。按本模块既有惯例（与业务上下文无关的装配与运维件——`common/`、`config/`、`health/`、`metrics/`、`internal/`——归 M-12）统一登记于此。运行侧事实源：启动顺序与优雅关闭见 [60/01 §10](../60-backend/01-service-overview-and-roles.md)，按角色装配见 60/01 §4–§5，连接池与 RLS 框架见 [60/08 §5–§6](../60-backend/08-db-conventions-roles-rls-migrations.md)，迁移编号、纪律与 ddl-check 见 60/08 §9–§11，Valkey 键见 [60/14 §2–§3](../60-backend/14-valkey-object-storage-and-retention.md)，span 与指标名见 [60/18 §3–§4](../60-backend/18-observability-and-ops-endpoints.md)。
+
+- **迁移 SQL 的内容以 60/08–13 的 `-- migrate:` 围栏为唯一事实源**。本模块只承载文件：一个围栏对应一个文件，文件名取围栏首行的 `NNNN_<name>` 再加 `.sql`，内容与围栏逐字一致。改迁移时先改文档围栏，再同步文件，不反向（60/08 §10.1、§11 第 6 条）。
+- `db/schema/*.ts` 是 drizzle 类型镜像，不是迁移的事实源；各表的仓储仍放在表所属模块的 `infrastructure/`（写方见 60/08 §7），本目录不含任何仓储。
+- `cordex-ops` 第二入口（60/17 §9 的 `db:*`、`storage:init`、`audit-rotate`、`jobs:replay` 等子命令）只把 `db:*` 三个子命令的实现登记为 `db/migrator.ts`；入口文件与其余子命令的落点见 §13 Q-10。
+
+```text
+apps/server/src/
+├── main.ts                           # 进程入口：先 import './observability/otel' → 解析配置并做启动断言 A1–A4a（失败退出 78）→ NestFactory(Fastify, AppModule.forRole(role)) → setGlobalPrefix('api/v1'，排除 healthz/readyz) → collab/all 注册 WsAdapter → 全局 filter/pipe/interceptor → enableShutdownHooks、listen；步骤与 SIGTERM 时序以 60/01 §10 为准
+├── app.module.ts                     # AppModule.forRole(role)：按 config/roles.ts（60/01 §5 矩阵的代码形态）import 各 XxxModule 与矩阵 rest 格非空的 XxxHttpModule；以 APP_GUARD 按序注册 RateLimitGuard → SessionGuard → CsrfGuard → ShareLinkGuard（顺序以 60/02 为准）
+├── observability/
+│   ├── otel.ts                       # OTel Node SDK 启动（traces、metrics；自动仪表化 http/fastify/pg/ioredis/ws）；renderer 关闭 OTLP 导出（60/18 §1）
+│   ├── observability.module.ts       # ObservabilityModule（global）：Nest 侧的日志与遥测提供者；api/collab/worker 装配（60/01 §5 表后注）
+│   ├── spans.ts                      # 服务端 span 名登记表 server.<子系统>.<操作>，声明合并（60/18 §3）
+│   └── metrics.ts                    # 服务端指标登记表 cordex_<subsystem>_<name>_<unit>，每项带 consumer（60/18 §4）
+├── redis/
+│   ├── redis.module.ts               # RedisModule（global）：Valkey 客户端（ioredis）与 BullMQ 连接工厂；renderer 不装（60/01 §4）
+│   └── keys.ts                       # apps/server 侧 Valkey 键模板 perm:/ticket:/oidc:/session:/user:/upload:/rl:（60/14 §2–§3；另一处是 server-collab 的 redis-keys.ts）
+└── db/
+    ├── db.module.ts                  # DbModule（global）：按 CORDEX_ROLE 提供 app / system 两个池（api 无 system 池、renderer 不装，60/08 §5）；池首次连接时做启动断言 A11
+    ├── client.ts                     # pg Pool 与 drizzle 实例、连接参数、事务基元与系统事务入口 withSystem；请求路径的 withRls 在 M-08 permissions/infrastructure/rls-context.ts
+    ├── system-jobs.ts                # SystemJobName 字面量联合（取值约定 60/08 §6.5；周期作业名取 60/06 §4）
+    ├── migrator.ts                   # 迁移执行器：cordex-ops db:bootstrap / db:migrate / db:status 的实现，以及 /readyz 的迁移判据（60/08 §10.2、§10.5）
+    ├── schema/                       # drizzle 类型镜像，每张业务表一个文件；只供仓储类型与漂移检查（60/08 §10.1）
+    │   ├── index.ts                  # 汇总导出，供 client.ts 构造 drizzle 实例与漂移检查内省比对
+    │   ├── users.ts
+    │   ├── user_identities.ts
+    │   ├── documents.ts
+    │   ├── document_user_marks.ts
+    │   ├── document_updates.ts
+    │   ├── document_snapshots.ts
+    │   ├── media_blobs.ts
+    │   ├── document_media.ts
+    │   ├── permissions.ts
+    │   ├── document_perm_versions.ts
+    │   ├── share_links.ts
+    │   ├── comments.ts
+    │   ├── thumbnails.ts
+    │   ├── job_runs.ts
+    │   ├── audit_log.ts
+    │   ├── webhook_subscriptions.ts
+    │   └── webhook_deliveries.ts
+    └── migrations/                   # 手写迁移 SQL；基线段当前 31 个文件（0001–0096），编号与名称以 60/08–13 的围栏为准
+        └── NNNN_<name>.sql           # 每个 -- migrate: 围栏一个文件，文件名取围栏首行，内容逐字一致；基线冻结后只从 0100 起追加（60/08 §10.4）
+```
 
 ## 5. 文件职责表
 
@@ -711,7 +742,7 @@ apps/server/src/modules/telemetry/
 | `jobs.module.ts` | 模块装配 + BullMQ 连接注册 | `JobsModule` | Nest、`@nestjs/bullmq` | exports 见 §3 |
 | `domain/job-run.ts` | 通用作业聚合类型 | `JobRun` | 无 | 跨域复用 |
 | `domain/job-status.ts` | 状态字面量联合 + 迁移判定 | `JobStatus`、`canTransitionJobStatus` | 无 | 非 enum |
-| `domain/idempotency-key.ts` | 幂等键值对象 + 构造函数 | `IdempotencyKey`、`buildIdempotencyKey`、`buildNewDocImportKey` | `@cordexjs/shared`（Brand） | `<域>:<docId>:<inputHash>`；新建文档导入 `import:user:{userId}:{sha256}`（rulings §4.18 BE-10/BE-18） |
+| `domain/idempotency-key.ts` | 幂等键值对象 + 构造函数 | `IdempotencyKey`、`buildIdempotencyKey` 族（`importKey`/`duplicateKey`/`exportKey`/`renderExportKey`/`purgeKey`） | `@cordexjs/shared`（Brand） | 键格式按决策 JOB-IDEM（60/06 §2.3）；2026-09-25 删 `buildNewDocImportKey` 与 `import:user:{userId}:{sha256}` |
 | `domain/errors.ts` | `server.jobs.*` 错误码 | `JobsError` | 无 | queue_unavailable/not_found |
 | `application/get-job.usecase.ts` | 通用作业查询 | `GetJobUseCase` | `../infrastructure/job-runs.repository` | 跨模块导出 |
 | `infrastructure/queues.ts` | 队列名与默认配置常量 | `QUEUE_NAMES`、`QUEUE_DEFAULTS`、`MAINTENANCE_SCHEDULES` | `bullmq` | 并发/优先级/重试/退避表；新增 `webhook-delivery`（并发 4、指数退避、最多 8 次）；`maintenance` 队列的 Job Scheduler 周期作业表（reconciliation 每 1 min、audit-seal 每日、media GC）；新增独立队列 `document-purge`（schedule-purge 入队、同文档串行，不是周期作业，不并入 `maintenance`）（rulings §4.18 BE-19/BE-15；与架构 08 §7 队列表一致） |
@@ -719,9 +750,9 @@ apps/server/src/modules/telemetry/
 | `infrastructure/job-runs.repository.ts` | `job_runs` 表仓储（含 `idempotency_key`、`attempt_of` 列，BE-18） | `JobRunsRepository` | `drizzle-orm` | 按文档读写须经权限服务（扫描器 `doc-access-via-permission`，M-01 第 14 个扫描器，rulings §4.17 D3；2026-09-24 取代 tenant_id 强制，rulings §4.15 T-0） |
 | `infrastructure/reconciliation.job.ts`（新增，§3.5 回执） | 对账扫描孤儿 `job_runs`/`webhook_deliveries` 行（含 `document-purge` 作业） | `ReconciliationJob` | `../infrastructure/job-runs.repository`；跨模块消费 `webhooks` 仓储（`JobsModule` imports `WebhooksModule`，见 §3） | BullMQ Job Scheduler 每 1 min，只由 worker 启动时注册（rulings §4.18 BE-19），见 §2.6 |
 | `interface/jobs.controller.ts` | 通用状态查询端点 | `JobsController` | protocol `rest/import-export.ts` | `GET /jobs/:id` |
-| `__tests__/job-status.spec.ts` | 单测 | — | — | 非法迁移拒绝 |
-| `__tests__/job-runs.repository.spec.ts` | 单测（新增，rulings §4.18 BE-18） | — | testcontainers Postgres | 并发同键只建一行；失败后同键重提得新行、`attemptOf` 指向旧行 |
-| `__tests__/base.processor.spec.ts` | 单测 | — | — | 错误分类/死信 |
+| `__tests__/job-status.test.ts` | 单测 | — | — | 非法迁移拒绝 |
+| `apps/server/test/integration/jobs/job-runs.int-spec.ts` | 集成（自 `__tests__/job-runs.repository.spec.ts` 迁出，T-NAMING） | — | testcontainers Postgres | 并发同键只建一行；终态后同键重提得新行、`attemptOf` 指向旧行（BE-18、JOB-IDEM） |
+| `__tests__/base.processor.test.ts` | 单测 | — | — | 错误分类/死信 |
 
 ### 5.2 `import-export/`
 
@@ -735,15 +766,15 @@ apps/server/src/modules/telemetry/
 | `application/create-import-job.usecase.ts` | 创建导入作业 | `CreateImportJobUseCase` | `../infrastructure/*`、`JobsModule` | 只收 `uploadId`：consume 校验归属（非本人 403）、`HEAD` 确认对象；幂等键去重（命中 `failed`/`cancelled` 新建一行，BE-18/UX-14） |
 | `application/cancel-import-job.usecase.ts` | 取消导入作业（新增，rulings §4.18 UX-14） | `CancelImportJobUseCase` | `JobsModule`（`JobRunsRepository`）、`../infrastructure/source-file.accessor` | 仅作业创建者；`queued`/`running` → `cancelled`（终态 409）；删原件与已生成产物，不建文档 |
 | `application/create-export-job.usecase.ts` | 创建导出作业 | `CreateExportJobUseCase` | `../infrastructure/*`、`JobsModule` + `RenderExportProducerService` | 按 format 分派 |
-| `infrastructure/import.processor.ts` | 导入 BullMQ 处理器 | `ImportProcessor` | `@cordexjs/server-headless`（经 `CordisHostService`，调 `importDocument`，rulings §4.18 FE-01）、`thumbnails/domain/embedded-cover` | 铁律 4；超天花板拒绝 `format.quota_exceeded`（Q5）；embedded 封面（Q8） |
+| `infrastructure/import.processor.ts` | 导入 BullMQ 处理器 | `ImportProcessor` | `@cordexjs/server-headless`（经 `CordisHostService`，调 `importDocument`，rulings §4.18 FE-01）、`thumbnails/domain/embedded-cover`、M-08 `DocumentsModule`（`Lock` / `Unlock` / `RenewLock` 用例）、M-09 `SnapshotStore`、global `RedisModule`（§4.13） | 铁律 4；超天花板拒绝 `format.quota_exceeded`（Q5）；embedded 封面（Q8）；带 `docId` 的覆盖导入 = 换纪元：开工后加锁（`reason:'import'`，重跑续期），`persist` 单事务 `SnapshotStore.put(kind='import', epochFrom)` 推进纪元并解锁，提交后发 `room:{docId}:ctl` 的 `epoch`，失败 / 取消在 `finally` 解锁；不调用恢复用例（60/06 §6.5，rulings §4.19 N1） |
 | `infrastructure/export.processor.ts` | 导出 BullMQ 处理器 | `ExportProcessor` | `@cordexjs/server-headless`（经 `CordisHostService`，调 `exportDocument`，FE-01） + `ctx.blobStore` | SV-02 |
-| `infrastructure/import-upload.store.ts` | 一次性上传凭证存储（新增，BE-10） | `ImportUploadStore` | `ioredis` | 绑定 `userId`、TTL 1 h、`GETDEL` 消费 |
+| `infrastructure/import-upload.store.ts` | 一次性上传凭证存储（新增，BE-10） | `ImportUploadStore` | `ioredis` | 绑定 `userId`、TTL 1 h；受理时改写 `jobId`、保留 TTL，**不 `GETDEL`**（60/06 §6.1，2026-09-25） |
 | `infrastructure/source-file.accessor.ts` | 原始文件读取 | `SourceFileAccessor` | `ctx.blobStore` | — |
-| `interface/imports.controller.ts` | 导入 REST | `ImportsController` | protocol `rest/import-export.ts` | `POST /imports/uploads`、`POST /imports{uploadId}`、`GET /imports/:jobId`、`POST /imports/:jobId/cancel`（取消导入，UX-14）（相对 `/api/v1`，BE-10/BE-11） |
+| `interface/imports.controller.ts` | 导入 REST | `ImportsController` | protocol `rest/import-export.ts` | `POST /imports/uploads`、`POST /imports{uploadId}`、`POST /imports/:jobId/cancel`（取消导入，UX-14）（相对 `/api/v1`，BE-10/BE-11） |
 | `interface/exports.controller.ts` | 导出 REST | `ExportsController` | protocol `rest/import-export.ts` | — |
-| `__tests__/create-import-job.usecase.spec.ts` | 单测（新增，BE-10） | — | — | 他人或已用 `uploadId` → 403；对象不存在拒绝 |
-| `__tests__/import.processor.spec.ts` | 单测 | — | — | 保真报告/失败重试 |
-| `__tests__/export.processor.spec.ts` | 单测 | — | — | 字节级一致断言 |
+| `__tests__/create-import-job.usecase.test.ts` | 单测（新增，BE-10） | — | — | 他人或已用 `uploadId` → 403；对象不存在拒绝 |
+| `apps/server/test/integration/jobs/import.processor.int-spec.ts` | 集成（自 `__tests__/import.processor.spec.ts` 迁出） | — | testcontainers PG / Valkey / SeaweedFS | 保真报告、失败重试、阶段边界取消 |
+| `apps/server/test/integration/jobs/export.processor.int-spec.ts` | 集成（自 `__tests__/export.processor.spec.ts` 迁出） | — | testcontainers PG / Valkey / SeaweedFS | 字节级一致断言（SV-02，M3） |
 
 ### 5.3 `thumbnails/`
 
@@ -762,9 +793,9 @@ apps/server/src/modules/telemetry/
 | `infrastructure/render-export.processor.ts` | PDF/PNG/JPEG 处理器 | `RenderExportProcessor` | `@cordexjs/server-headless` | 共享 Chromium 池 |
 | `infrastructure/thumbnails.repository.ts` | `thumbnails` 表仓储 | `ThumbnailsRepository` | `drizzle-orm` | — |
 | `infrastructure/headless-renderer.accessor.ts` | 经 `HeadlessHost.thumbnails` 取 `ThumbnailRenderer` 实例 | `HeadlessRendererAccessor` | `CordisHostService` | §12 G-26 结案（C-09） |
-| `interface/thumbnails.controller.ts` | 缩略图 REST | `ThumbnailsController` | protocol（新增建议） | ETag/immutable |
-| `__tests__/thumbnail-key.spec.ts` | 单测 | — | — | — |
-| `__tests__/thumbnails.processor.spec.ts` | 单测 | — | — | 去重/超时/占位图 |
+| `interface/thumbnails.controller.ts` | 缩略图 REST | `ThumbnailsController` | protocol（新增建议） | `ETag = contentHash` + `private, no-cache`（不标 immutable，ADR-0026 修订 2026-09-25） |
+| `__tests__/thumbnail-key.test.ts` | 单测 | — | — | — |
+| `apps/server/test/integration/jobs/thumbnails.processor.int-spec.ts` | 集成（自 `__tests__/thumbnails.processor.spec.ts` 迁出） | — | — | 去重 / 超时 / 占位图（M3） |
 
 ### 5.4 `comments/`
 
@@ -783,9 +814,10 @@ apps/server/src/modules/telemetry/
 | `infrastructure/comments.repository.ts` | `comments` 表仓储 | `CommentsRepository` | `drizzle-orm` | — |
 | `infrastructure/comment-mirror.observer.ts` | 订阅 Room 控制帧 | `CommentMirrorObserver` | `collabServer`（经 `CordisHostService`） | `CONTROL.event{comments.changed}`；只在 collab 角色注册（rulings §4.18 BE-03/BE-13），写入时调 `deriveAnchorKey` 计算 `anchor_key`（BE-25） |
 | `infrastructure/mention-parser.ts` | @提及解析 | `extractMentionTokens`、`MentionResolver` | M-08 `UsersRepository` | 纯函数 + 目录查找分层 |
-| `interface/comments.controller.ts` | 评论只读 REST（含跨文档 `GET /comments/mentions`，新增 U-14） | `CommentsController` | protocol（新增建议 `rest/comments.ts`） | 除导入线程外全只读 |
-| `__tests__/comment-limits.spec.ts` | 单测 | — | — | 镜像层展示口径断言 |
-| `__tests__/mirror-comment-change.usecase.spec.ts` | 单测 | — | — | 幂等 upsert、锚点脱离迁移 |
+| `interface/comments.controller.ts` | 评论只读 REST（含跨文档 `GET /comments/mentions`，新增 U-14） | `CommentsController` | protocol（新增建议 `rest/comments.ts`） | 全只读 |
+| `interface/comments-import.controller.ts` | 导入为可编辑线程（2026-09-25 登记） | `CommentsImportController` | `../application/import-as-editable-thread.usecase`（60/07 §2） | P1、M3；只在 collab 角色装配（60/01 §5 A5） |
+| `__tests__/comment-limits.test.ts` | 单测 | — | — | 镜像层展示口径断言 |
+| `__tests__/mirror-comment-change.usecase.test.ts` | 单测 | — | — | 幂等 upsert、锚点脱离迁移 |
 
 ### 5.5 `audit/`
 
@@ -803,9 +835,11 @@ apps/server/src/modules/telemetry/
 | `infrastructure/audit-event.subscriber.ts` | cordis 事件订阅 | `AuditEventSubscriber` | `CordisHostService` | §2.4 通路① |
 | `infrastructure/seal.job.ts`（新增，rulings §4.12 U-15） | 每日定时封存作业 | `SealJob` | `../application/verify-chain.usecase`、`jobs` 的 `maintenance` 队列 | BullMQ Job Scheduler `audit-seal` 每日，只由 worker 注册（rulings §4.18 BE-19）；落封存摘要记录 |
 | `interface/audit.controller.ts` | 审计查询 REST | `AuditController` | protocol `rest/audit.ts` | 平台管理员 |
-| `__tests__/retention-policy.spec.ts` | 单测 | — | — | 月分区判定 |
-| `__tests__/audit.repository.append-only.spec.ts` | 单测 | — | — | 断言 UPDATE/DELETE 被拒 |
-| `__tests__/audit-chain.spec.ts`（新增，rulings §4.12 U-15） | 单测 | — | — | 篡改检测断言 |
+| `interface/audit-verify.controller.ts` | 哈希链校验内部端点（2026-09-25 自 InternalModule 归入） | `AuditVerifyController` | `../application/verify-chain.usecase` | `POST /internal/admin/audit/verify`（内部端口 9464，平台运维令牌）；装配见 60/01 §5，校验工具见 60/07 §8.5 |
+| `__tests__/retention-policy.test.ts` | 单测 | — | — | 月分区判定 |
+| `apps/server/test/integration/audit/audit-append-only.int-spec.ts` | 集成（自 `__tests__/audit.repository.append-only.spec.ts` 迁出） | — | testcontainers Postgres | 断言 UPDATE / DELETE / TRUNCATE 被拒（SEC-DA-05） |
+| `apps/server/test/integration/boot/role-assembly.int-spec.ts` | 集成（自 `e2e/role-assembly.e2e-spec.ts` 改为集成测试，T-NAMING、T-CI） | — | Nest Testing + testcontainers | 逐角色启动断言（BE-03/BE-13/BE-14/BE-19）；矩阵唯一源 60/01 §5 |
+| `__tests__/audit-chain.test.ts`（新增，rulings §4.12 U-15） | 单测 | — | — | 篡改检测断言 |
 
 ### 5.6 `health/`
 
@@ -814,12 +848,12 @@ apps/server/src/modules/telemetry/
 | `health.module.ts` | 模块装配 | `HealthModule`（`forRole(role)`） | `@nestjs/terminus` | exports 见 §3；renderer 变体不 import Db/Redis/CordisHost（rulings §4.18 BE-14） |
 | `domain/probe-result.ts` | 探针结果值对象 | `HealthProbe` | 无 | — |
 | `application/evaluate-readiness.usecase.ts` | 五项判定聚合 | `EvaluateReadinessUseCase` | `../infrastructure/*`、`CordisHostService` | pg/redis/s3/宿主/draining |
-| `infrastructure/pg.probe.ts` | PG 探针 | `PgProbe` | `drizzle-orm` | `SELECT 1` |
+| `infrastructure/pg.probe.ts` | PG 探针 | `PgProbe` | `drizzle-orm`、`../../../db/migrator`（`checkApplied`） | `SELECT 1`；迁移未全部应用或校验和不一致 → 503，原因 `migrations_pending` / `migration_checksum_mismatch`（60/08 §10.5，2026-09-25 审稿补） |
 | `infrastructure/redis.probe.ts` | Redis 探针 | `RedisProbe` | `ioredis` | `PING` |
 | `infrastructure/blob-store.probe.ts` | 存储探针 | `BlobStoreProbe` | `ctx.blobStore` | `head()` |
 | `infrastructure/chromium-pool.probe.ts` | Chromium 池就绪探针（新增，BE-14） | `ChromiumPoolProbe` | M-09 `server-headless` 的池状态读取面（容器内，无凭据） | renderer 变体唯一探针 |
 | `interface/health.controller.ts` | 探针端点 | `HealthController` | 无 protocol 依赖（纯运维端点）；M-08 `@Public()` | `/healthz`、`/readyz`：标 `@Public()` 越过全局 `SessionGuard`，在 `setGlobalPrefix` 的排除清单内（rulings §4.18 BE-06/BE-11） |
-| `__tests__/evaluate-readiness.usecase.spec.ts` | 单测 | — | — | 任一探针失败 → 503 |
+| `__tests__/evaluate-readiness.usecase.test.ts` | 单测 | — | — | 任一探针失败 → 503 |
 
 ### 5.7 `metrics/`
 
@@ -828,7 +862,7 @@ apps/server/src/modules/telemetry/
 | `metrics.module.ts` | 模块装配 | `MetricsModule` | Nest | 独立端口监听 |
 | `infrastructure/prometheus-registry.provider.ts` | OTel→Prometheus 桥接 | `PrometheusRegistryProvider` | `@cordexjs/kernel`（telemetry 类型）、`prom-client` | 10 §3.3 指标清单 |
 | `interface/prometheus.controller.ts` | 指标端点 | `PrometheusController` | 无 protocol 依赖 | `GET /metrics`（内部端口 9464） |
-| `__tests__/prometheus.controller.spec.ts` | 单测 | — | — | 指标名均在登记表 |
+| `__tests__/prometheus.controller.test.ts` | 单测 | — | — | 指标名均在登记表 |
 
 ### 5.8 `internal/`
 
@@ -839,7 +873,7 @@ apps/server/src/modules/telemetry/
 | `infrastructure/fiber-diagnostics.accessor.ts` | 诊断数据读取 | `FiberDiagnosticsAccessor` | `CordisHostService.diagnostics()` | — |
 | `interface/diagnostics.controller.ts` | 诊断端点 | `DiagnosticsController` | protocol（内部专用） | fibers/effects/pending/contributions |
 | `interface/admin.controller.ts` | 管理端点 | `AdminController` | protocol（内部专用） | compact/migrate/epoch；仅 collab/all 角色（BE-03） |
-| `__tests__/run-admin-action.usecase.spec.ts` | 单测 | — | — | epoch 不可逆断言 |
+| `__tests__/run-admin-action.usecase.test.ts` | 单测 | — | — | epoch 不可逆断言 |
 
 ### 5.9 `common/`
 
@@ -860,8 +894,8 @@ apps/server/src/modules/telemetry/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `config.module.ts` | 配置解析装配 | `ConfigModule` | `./config.schema` | 失败退出码 78 |
-| `config.schema.ts` | 环境变量 Standard Schema | `AppConfigSchema`、`AppConfig` | `zod` | 08-backend-nestjs §2 权威落点；新增 `webhookEgressAllowlist` 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式） |
-| `roles.ts` | 角色 → 模块装配表（§7.1 矩阵的代码形态，rulings §4.18 BE-13） | `ROLE_MODULES`、`assertRoleAssembly` | `../modules/**`（类型） | `CORDEX_ROLE=all\|api\|collab\|worker\|renderer`（同一镜像按角色运行；`all` 为单容器全装配，`renderer` 为独立零出站 sidecar，只装 M-09 renderer 入口、不装任何含凭据的模块；2026-09-24 rulings §4.15 Q10） |
+| `config.schema.ts` | 环境变量 Standard Schema | `AppConfigSchema`、`AppConfig` | `zod` | 字段全表以 60/17 §5–§6 为准（原 08-backend-nestjs §2 草图已删，2026-09-25 审稿改指）；新增 `webhookEgressAllowlist` 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式） |
+| `roles.ts` | 角色 → 模块装配表（60/01 §5 矩阵的代码形态，rulings §4.18 BE-13；2026-09-25 矩阵迁入 60/01） | `ROLE_MODULES`、`assertRoleAssembly` | `../modules/**`（类型） | `CORDEX_ROLE=all\|api\|collab\|worker\|renderer`（同一镜像按角色运行；`all` 为单容器全装配，`renderer` 为独立零出站 sidecar，只装 M-09 renderer 入口、不装任何含凭据的模块；2026-09-24 rulings §4.15 Q10） |
 | `env-overrides.ts` | 按环境覆盖合并 | `applyEnvOverrides` | `./config.schema` | NODE_ENV/CORDEX_ROLE |
 | `secrets.ts` | 机密来源适配 | `resolveSecret` | 无（不 import 具体 secret manager SDK，留 Provider 缝） | 启动前存在性校验 |
 
@@ -881,8 +915,8 @@ apps/server/src/modules/telemetry/
 | `infrastructure/webhook-delivery.processor.ts` | BullMQ 投递处理器 | `WebhookDeliveryProcessor` | `../application/deliver-webhook-event.usecase` | `webhook-delivery` 队列（并发 4）；指数退避最多 8 次 → `dead-lettered`；不可重试 → `failed`；只在 worker 注册（rulings §4.18 BE-19） |
 | `infrastructure/egress-guard.ts`（新增，S-4/§3.8 回执） | 出站 SSRF 校验：解析→拒绝私网/回环/链路本地/云元数据端点→锁定 IP 防 DNS 重绑定 | `EgressGuard`、`isBlockedEgressAddress`（§2.3） | `node:dns`、`node:net`、`../../config`（白名单配置） | 订阅创建/更新与每次投递前均调用，投递前为关键防线 |
 | `interface/webhooks.controller.ts` | REST 端点 | `WebhooksController` | protocol `rest/webhooks.ts`（新增，§7.2） | — |
-| `__tests__/manage-webhook-subscription.usecase.spec.ts` | 单测 | — | — | 覆盖 URL 校验 |
-| `__tests__/webhook-delivery.processor.spec.ts` | 单测 | — | — | 覆盖指数退避与死信转移 |
+| `__tests__/manage-webhook-subscription.usecase.test.ts` | 单测 | — | — | 覆盖 URL 校验 |
+| `apps/server/test/integration/jobs/webhook-delivery.processor.int-spec.ts` | 集成（自 `__tests__/webhook-delivery.processor.spec.ts` 迁出） | — | testcontainers PG / Valkey | 指数退避与死信转移（M3） |
 
 ### 5.12 `telemetry/`（新增，rulings §4.18 BE-30）
 
@@ -891,7 +925,43 @@ apps/server/src/modules/telemetry/
 | `telemetry.module.ts` | 模块装配 | `ClientTelemetryModule` | Nest、`ConfigModule`、`RedisModule` | 只装在 api 角色（§7.1） |
 | `infrastructure/otlp-proxy.service.ts` | OTLP traces 代理 | `OtlpProxyService` | `node:http`/`undici`（出站仅到 OTel Collector） | 只转发 traces；拒绝 metrics/logs |
 | `interface/client-telemetry.controller.ts` | 浏览器遥测 REST | `ClientTelemetryController` | protocol `rest/telemetry.ts`（M-02 §4.3/§5.3 已登记 `ClientErrorReport`）、`common/decorators/rate-limit.decorator` | `POST /telemetry/errors`（≤ 64 KiB）、`POST /telemetry/otlp`（≤ 512 KiB）；需登录、令牌桶 |
-| `__tests__/client-telemetry.controller.spec.ts` | 单测 | — | — | 未登录 401、超限 413、限流 429、非 traces 400 |
+| `__tests__/client-telemetry.controller.test.ts` | 单测 | — | — | 未登录 401、超限 413、限流 429、非 traces 400 |
+
+### 5.13 应用骨架与基础设施（`apps/server/src/` 根文件、`observability/`、`redis/`、`db/`；2026-09-25 审稿登记）
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `main.ts` | 进程入口与启动顺序 | 无（进程入口） | `./observability/otel`（必须是首个 import）、`./config/*`、`./app.module`、`@nestjs/core`、`@nestjs/platform-fastify`、`@nestjs/platform-ws` | 步骤与 SIGTERM 时序以 60/01 §10 为准；A1–A4a 失败退出 78；`--dry-run` 完成配置校验后打印脱敏配置并退出（60/17） |
+| `app.module.ts` | 根模块与全局守卫链 | `AppModule`（`forRole(role)`） | `./config/roles`、`./modules/**/*.module`、`./observability/observability.module`、`./redis/redis.module`、`./db/db.module`；M-08 的守卫类（经 `APP_GUARD` 注册） | 只 import 矩阵 rest 格非空的 Http 模块（60/01 §5 结构规则、A9）；守卫顺序以 60/02 为准 |
+| `observability/otel.ts` | OTel Node SDK 启动 | 无（副作用模块） | `@opentelemetry/sdk-node` 与自动仪表化包 | 必须先于一切有副作用的 import；renderer 关闭 OTLP 导出（60/18 §1） |
+| `observability/observability.module.ts` | 可观测性基础模块 | `ObservabilityModule` | Nest、`./otel` | global；api/collab/worker 装配（60/01 §5 表后注）；kernel 的 pino / OTel 适配器在 M-09 `cordis-host/adapters/`，本模块不重复定义（§3、G-23） |
+| `observability/spans.ts` | 服务端 span 名登记表 | `ServerSpans`（声明合并） | 无 | 名称 `server.<子系统>.<操作>` 以 60/18 §3 为准 |
+| `observability/metrics.ts` | 服务端指标登记表 | `ServerMetrics`（声明合并） | 无 | 名称与 consumer 以 60/18 §4 为准；`scan-observability-identifiers` 核对「调用点 ⊆ 登记表」与「登记项至少一个调用点」 |
+| `redis/redis.module.ts` | Valkey 客户端基础模块 | `RedisModule`、`REDIS_CLIENT`、`bullmqConnection` | `ioredis`、`../config` | global；renderer 不装（A4b）；`ioredis`、`bullmq` 的放行位置见 60/01 §11 |
+| `redis/keys.ts` | `apps/server` 侧 Valkey 键模板 | `redisKeys`（`perm`、`ticket`、`oidc`、`session`、`user`、`upload`、`rl`） | 无 | 模板集合以 60/14 §3 为准；其它文件不得拼接这些前缀（60/14 VK-01） |
+| `db/db.module.ts` | PG 基础模块 | `DbModule`、`DB_APP`、`DB_SYSTEM`（注入 token） | Nest、`./client`、`../config` | global；按角色建池（60/08 §5：api 只有 app 池，配置了 system 口令即拒绝启动）；A11：池的登录角色不是 `cordex_migrator` 且 `rolbypassrls = false` |
+| `db/client.ts` | 连接池、事务基元与系统事务入口 | `createPools`、`withTransaction`、`withSystem` | `pg`、`drizzle-orm`、`./schema`、`./system-jobs`；M-08 的 `SystemContext` 品牌类型 | 连接参数（`application_name`、`statement_timeout`、`lock_timeout`、`idle_in_transaction_session_timeout`、`poolMax`）以 60/08 §5 为准；GUC 一律 `set_config(…, true)`，仓储只拿事务句柄（60/08 §6.1）；`withRls` 在 M-08 `permissions/infrastructure/rls-context.ts` |
+| `db/system-jobs.ts` | 系统作业名 | `SystemJobName` | 无 | 取值 `{scope}.{name}` 以 60/08 §6.5 为准（该处「落点由 40 登记」即本文件） |
+| `db/migrator.ts` | 迁移执行器 | `bootstrap`、`migrate`、`status`、`checkApplied` | `pg`、`node:crypto`；随镜像打包的 `./migrations/*.sql` | 以 `cordex_migrator` 登录、`pg_advisory_lock`、每个文件一个事务、台账记 sha256、校验和变化拒绝执行、首个失败即停、无 down 迁移（60/08 §10.2）；`checkApplied` 供 `health` 的 `PgProbe` 判定 `migrations_pending` / `migration_checksum_mismatch`（60/08 §10.5） |
+| `db/schema/index.ts` | 类型镜像汇总导出 | 全部表对象 | `./*` | 供 `client.ts` 与漂移检查（70/07 §4 MG7） |
+| `db/schema/users.ts` | `users` 类型镜像 | `users` | `drizzle-orm/pg-core` | DDL 60/09（0010）；写方 Users（M-08） |
+| `db/schema/user_identities.ts` | `user_identities` 类型镜像 | `userIdentities` | `drizzle-orm/pg-core` | DDL 60/09（0011）；写方 Users（M-08） |
+| `db/schema/documents.ts` | `documents` 类型镜像 | `documents` | `drizzle-orm/pg-core` | DDL 60/10（0020）与 60/11（0041 外键）；M-08 列写方 Documents，M-09 列写方 Collab（C-03） |
+| `db/schema/document_user_marks.ts` | `document_user_marks` 类型镜像 | `documentUserMarks` | `drizzle-orm/pg-core` | DDL 60/10（0021）；写方 Documents（M-08） |
+| `db/schema/document_updates.ts` | `document_updates` 类型镜像 | `documentUpdates` | `drizzle-orm/pg-core` | DDL 60/11（0042，16 个哈希分区只经父表访问）；写方 Collab（M-09） |
+| `db/schema/document_snapshots.ts` | `document_snapshots` 类型镜像 | `documentSnapshots` | `drizzle-orm/pg-core` | DDL 60/11（0040）；写方 Collab / Snapshots（M-09） |
+| `db/schema/media_blobs.ts` | `media_blobs` 类型镜像 | `mediaBlobs` | `drizzle-orm/pg-core` | DDL 60/10（0050）；写方 Media（M-08） |
+| `db/schema/document_media.ts` | `document_media` 类型镜像 | `documentMedia` | `drizzle-orm/pg-core` | DDL 60/10（0051）；写方 Media（M-08） |
+| `db/schema/permissions.ts` | `permissions` 类型镜像 | `permissions` | `drizzle-orm/pg-core` | DDL 60/09（0030）；写方 Permissions（M-08） |
+| `db/schema/document_perm_versions.ts` | `document_perm_versions` 类型镜像 | `documentPermVersions` | `drizzle-orm/pg-core` | DDL 60/09（0031）；唯一写入点 `PermissionRepository.bumpPermVersion(tx)`（M-08） |
+| `db/schema/share_links.ts` | `share_links` 类型镜像 | `shareLinks` | `drizzle-orm/pg-core` | DDL 60/09（0032）；写方 ShareLinks（M-08），只读解析经 0033 的 SECURITY DEFINER 函数 |
+| `db/schema/comments.ts` | `comments` 类型镜像 | `comments` | `drizzle-orm/pg-core` | DDL 60/13（0070）；写方 Comments（本模块） |
+| `db/schema/thumbnails.ts` | `thumbnails` 类型镜像 | `thumbnails` | `drizzle-orm/pg-core` | DDL 60/12（0061）；写方 Thumbnails（本模块） |
+| `db/schema/job_runs.ts` | `job_runs` 类型镜像 | `jobRuns` | `drizzle-orm/pg-core` | DDL 60/12（0060、0062）；写方 Jobs（本模块） |
+| `db/schema/audit_log.ts` | `audit_log` 类型镜像 | `auditLog` | `drizzle-orm/pg-core` | DDL 60/13（0071，按月分区）；写方 Audit（本模块，只追加） |
+| `db/schema/webhook_subscriptions.ts` | `webhook_subscriptions` 类型镜像 | `webhookSubscriptions` | `drizzle-orm/pg-core` | DDL 60/13（0072）；写方 Webhooks（本模块） |
+| `db/schema/webhook_deliveries.ts` | `webhook_deliveries` 类型镜像 | `webhookDeliveries` | `drizzle-orm/pg-core` | DDL 60/13（0073）；写方 Webhooks（本模块） |
+| `db/migrations/NNNN_<name>.sql` | 迁移 SQL（每个围栏一个文件） | — | 无（纯 SQL） | 文件集合、文件名与内容 = 60/08–13 的 `-- migrate:` 围栏，当前 31 个：0001、0002、0010–0011、0020–0021、0030–0034、0040–0042、0050–0052、0060–0062、0070–0073、0090–0096；逐字一致由 ddl-check 实现期扩展校验（60/08 §11 第 6 条、DB-13，待实现）；执行顺序与执行者见 60/08 §9–§10 |
 
 ## 6. 对外 API 面
 
@@ -899,14 +969,17 @@ apps/server/src/modules/telemetry/
 |---|---|---|---|
 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`、`common`、`config` | 无公共包导出（Nest 应用内部模块，不对外发布，与 M-09 §6 对 `collab`/`snapshots`/`cordis-host` 的裁定一致） | — | 不适用（`apps/*` 不产出 npm 包） |
 
-关键类型契约草案（≤ 40 行；跨模块复用的三个面）：
+关键类型契约草案（≤ 40 行；跨模块复用的三个面；REST 端点以 [60/15](../60-backend/15-rest-api-catalog.md) §3.9–§3.14 为准，模块卡以 60/06、60/07、60/18 为准）：
 
 ```ts
 // jobs：跨模块基础设施面
-interface JobRunsRepository {
-  create(input: NewJobRun): Promise<JobRun>
-  findByIdempotencyKey(key: IdempotencyKey): Promise<JobRun | undefined>   // 排除 failed 与 cancelled 行（§4.18 BE-18/UX-14）
-  updateStatus(id: JobRunId, status: JobStatus, patch?: Partial<JobRun>): Promise<void>
+interface JobRunsRepository {   // 方法集以 60/06 §2.1 为准（2026-09-25）
+  create(input: NewJobRun, tx?: Tx): Promise<JobRun>                        // 可在调用方事务内执行（M-08 SchedulePurgeUseCase）
+  findById(id: JobRunId): Promise<JobRun | undefined>
+  findActiveByKey(key: IdempotencyKey): Promise<JobRun | undefined>         // 只看非 failed / cancelled 行（BE-18/UX-14）
+  findLatestTerminalByKey(key: IdempotencyKey): Promise<JobRun | undefined> // attempt_of 候选
+  transition(id: JobRunId, to: JobStatus, patch?: Partial<JobRun>): Promise<void>
+  listOrphans(now: Date): Promise<JobRun[]>; releaseKey(id: JobRunId): Promise<void>; pruneTerminalBefore(cutoff: Date): Promise<number>
 }
 abstract class BaseProcessor<TPayload, TResult> {
   protected abstract handle(job: Job<TPayload>, ctx: HeadlessJobContext | undefined): Promise<TResult>
@@ -928,68 +1001,17 @@ interface DeliverWebhookEventUseCase {
 
 ### 7.1 服务端进程内位置：「模块 × 角色 × 部件」装配矩阵
 
-2026-09-25 起本节是全服务端（M-08/M-09/M-12）Nest 模块按 `CORDEX_ROLE` 装配的**唯一矩阵**（rulings §4.18 BE-13），ADR-0037 决策 1 与架构 08 §0 引用本表；`config/roles.ts` 是它的代码形态，启动时 `assertRoleAssembly` 逐项核对（装了不该装的、缺了该装的都 fail-fast）。`all` = api ∪ collab ∪ worker 同进程；renderer 仍建议独立容器。部件缩写：rest（HTTP 控制器）、producer（入队/生产者）、processor（BullMQ 处理器）、observer（事件/广播观察者）、cron（BullMQ Job Scheduler 周期作业）、guard（全局守卫）。
+**2026-09-25 起矩阵整体迁入 [60/01 §5](../60-backend/01-service-overview-and-roles.md)**（rulings §4.19；BE-13 内容不变、落点变更，60/01 补了全局守卫行与 purge 参与者列），启动断言清单见 60/01 §6，反代分流见 60/01 §7；ADR-0037 决策 1 与 charter §5.2 `apps/server` 行的引用改指 60/01。本模块只保留代码落点：`config/roles.ts` 是矩阵的代码形态，`assertRoleAssembly` 逐项核对（装了不该装的、缺了该装的都 fail-fast），与 M-09 `preset-server.ts` 的 `assertRoleConsistency` 互补；集成测试 `apps/server/test/integration/boot/role-assembly.int-spec.ts`（§4 集成块）。
 
-| 模块（归属） | 部件 | api | collab | worker | renderer |
-|---|---|---|---|---|---|
-| `ConfigModule`/`DbModule`/`RedisModule`（global 基础设施） | — | ✓ | ✓ | ✓ | — |
-| `CordisHostModule`（M-09，global） | — | ✓ | ✓ | ✓ | —（BE-13） |
-| `AuthModule`（M-08） | rest（`/auth/*`）；guard（`SessionGuard`，`APP_GUARD`） | rest + guard | guard | guard | — |
-| `UsersModule`（M-08） | rest | ✓ | 仅 providers（`PermissionsModule` 依赖） | — | — |
-| `DocumentsModule`（M-08） | rest、producer（`schedule-purge`）；processor（`document-purge`）与参与者 `user-marks` | rest + producer | — | processor + 参与者 | — |
-| `PermissionsModule`（M-08） | rest；providers（`RoleResolverService`、`ResolveShareLinkUseCase`）；参与者 `permissions` | rest | providers（`AuthzSource`，BE-02） | 参与者 | — |
-| `ShareLinksModule`（M-08） | rest；guard（`ShareLinkGuard`，第二个 `APP_GUARD`）；参与者 `share-links` | rest + guard | guard | 参与者 | — |
-| `StorageModule`/`MediaModule`（M-08） | rest（media）；providers；参与者 `media` | ✓ | providers（`ctx.blobStore`） | providers + 参与者 | — |
-| `CollabModule`（M-09） | WS gateway、rest（`/documents/:id/elements/purge`，CO-07）；参与者 `collab`（`PurgeCollabDataUseCase`） | — | ✓ | 仅参与者（不激活 `collabServer`，BE-15） | — |
-| `SnapshotsModule`（M-09） | rest（`/documents/:id/snapshots*`） | —（启动断言，BE-03） | ✓ | — | — |
-| `JobsModule` | rest（`/jobs/:id`）；producer；cron（`reconciliation` 每 1 min） | rest + producer | producer | cron | — |
-| `ImportExportModule` | rest（`/imports/uploads`、`/imports`、`/documents/:id/export`）；producer；processor（`import`/`export`） | rest + producer | — | processor | — |
-| `ThumbnailsModule` | rest；producer（`render-export`、失效入队）；processor（`thumbnails`/`render-export`）；参与者 `thumbnails` | rest + producer | producer（compaction 后失效入队） | processor + 参与者 | — |
-| `CommentsModule` | rest（只读）；observer（`CommentMirrorObserver`）；参与者 `comments` | rest | observer（BE-03） | 参与者 | — |
-| `WebhooksModule` | rest（订阅管理）；producer（`DeliverWebhookEventUseCase`）；processor（`webhook-delivery`） | rest + producer | producer（评论镜像触发） | processor | — |
-| `AuditModule`（global） | rest；observer（订阅器 + 拦截器）；cron（`audit-seal` 每日） | rest + observer | observer | observer + cron | — |
-| `HealthModule` | rest（`/healthz`、`/readyz`） | ✓ | ✓ | ✓ | `forRole('renderer')`：只 `/healthz` + Chromium 池就绪，无凭据（BE-14） |
-| `MetricsModule` | rest（`/metrics`，端口 9464） | ✓ | ✓ | ✓ | —（渲染指标由 worker 侧 `remote-renderer.client` 记录，BE-14） |
-| `InternalModule` | rest：`DiagnosticsController`；`AdminController`（compact/migrate/epoch） | Diagnostics | Diagnostics + Admin（BE-03） | Diagnostics | — |
-| `ClientTelemetryModule`（新增） | rest（`/telemetry/errors`、`/telemetry/otlp`） | ✓（BE-30） | — | — | — |
-| M-09 renderer 入口（`server-headless` sidecar） | 渲染 RPC | — | — | 调用方（`headless.mode='remote'`；`'local'` 时 worker 进程内含 Chromium 池） | ✓（非 root、沙箱开启、无凭据、零出站） |
-
-启动断言（`config/roles.ts` 的 `assertRoleAssembly`，与 M-09 `preset-server.ts` 的 `assertRoleConsistency` 互补）：`role=api` 不得装配 `SnapshotsModule` 与 `AdminController`（BE-03）；`role=renderer` 进程内不得存在 DB/Valkey/S3 客户端实例（BE-14）；`role=worker` 的 document-purge 参与者集合必须等于 `{permissions, share-links, media, collab, thumbnails, comments, user-marks}`（BE-15）；cron 部件只在 worker 注册，墓碑清理仍是 M-09 `tombstone-sweeper` + `LeaseLock` 的例外（BE-19）。反代路由：`/api/v1/documents/:id/snapshots*` 与 `/api/v1/documents/:id/elements/purge` 转 collab，其余 `/api/*` 转 api，`/collab/*` 转 collab，`/internal/*` 不转发（BE-03/BE-11；ADR-0037 决策 3 同步）。
-
-> 部署口径（2026-09-24，rulings §4.15 Q10）：本文档的「Redis」「`RedisModule`」「`ioredis`」指 Redis 协议客户端，自托管 compose 部署为 **Valkey**；Postgres 基线 18；对象存储 S3 兼容端为 **SeaweedFS**（替换 MinIO）；镜像基线 Node 26；观测默认 OTel Collector + Jaeger + Prometheus（Grafana/Loki 为显式开启的 AGPL 可选 profile）。
+> 部署口径（rulings §4.15 Q10）：「Redis」指 Redis 协议客户端，自托管 compose 为 **Valkey**；Postgres 18；S3 兼容端 **SeaweedFS**；Node 26；镜像与配置见 [60/17](../60-backend/17-deployment-and-config.md)。
 
 ### 7.2 与浏览器共享的 protocol schema 清单
 
-下表「用途」列的 REST 路径一律**相对 `apiBase`**（`RuntimeConfig.apiBase = https://<host>/api/v1`，Nest `setGlobalPrefix('api/v1')`，排除 `/healthz`、`/readyz`；`/internal/*` 不加前缀、反代不转发，rulings §4.18 BE-11）。
-
-| schema | 文件（现状 / 新增建议） | 用途 |
-|---|---|---|
-| 导入导出任务 DTO | `@cordexjs/protocol` `rest/import-export.ts`（M-02 既有，需按 §2.1 补 `fidelityReport`/进度阶段字段；2026-09-25 补 uploads 请求/响应与 `{uploadId}` 创建 schema、删 `storageKey`，rulings §4.18 BE-10） | `POST /imports/uploads`、`POST /imports`、`POST /imports/:jobId/cancel`（UX-14）、`POST /documents/:id/export`、状态查询（均相对 `/api/v1`，BE-11；`TaskState` 含 `cancelled`） |
-| 通用作业状态 DTO | `@cordexjs/protocol` `rest/import-export.ts`（复用 `TaskState`） | `GET /jobs/:id` |
-| 审计记录 DTO | `@cordexjs/protocol` `rest/audit.ts`（M-02 既有骨架，本模块补查询/导出参数） | `GET /audit` |
-| 缩略图查询 DTO | `@cordexjs/protocol` `rest/thumbnails.ts`（**新增建议**） | `GET /documents/:id/thumbnails/:slideId` |
-| 评论 REST DTO | `@cordexjs/protocol` `rest/comments.ts`（**新增建议**） | 线程列表/详情/导入为可编辑线程/跨文档「@我」（新增，U-14） |
-| Webhook 订阅/投递 DTO（新增，rulings §4.12 U-14） | `@cordexjs/protocol` `rest/webhooks.ts`（**新增建议**） | 注册/更新/删除订阅、投递日志查询 |
-| 浏览器遥测 DTO（新增，rulings §4.18 BE-30） | `@cordexjs/protocol` `rest/telemetry.ts`（M-02 §4.3/§5.3 已登记，`ClientErrorReport`） | `POST /telemetry/errors` 载荷（与架构 10 的前端错误事件同形状）；OTLP 走标准 protobuf，不另建 schema |
-| 错误码新增 domain | `@cordexjs/protocol` `errors/codes.ts`（**新增建议**，§1.3 末尾/§12 G-24） | `server.import`/`server.export`/`server.thumbnails`/`server.comments`/`server.audit`/`server.webhook`（新增，U-14） |
+文件登记的唯一处是 [40/02 §4.3](02-kernel-protocol-and-document-core.md)，路由与 DTO 字段以 [60/15](../60-backend/15-rest-api-catalog.md) 为准（全部相对 `apiBase`=`/api/v1`，BE-11）。本模块消费：`rest/import-export.ts`（两步上传、`{uploadId}` 创建、`JobStatus`；`GET /jobs/:id` 唯一状态查询）、`rest/thumbnails.ts`、`rest/comments.ts`（评论 REST 只读，决策 INC-38 / C-27）、`rest/webhooks.ts`、`rest/audit.ts`、`rest/telemetry.ts`；错误码新域（`server.import`、`server.export`、`server.jobs`、`server.thumbnails`、`server.comments`、`server.webhooks`、`server.audit`、12 个 `headless.*`）由决策 INC-10/SG-04 登记进 30/10 §1.1 与 `errors/codes.ts`，本组码名清单见 60/06 §12.2、60/07 §10.3。
 
 ### 7.3 与 M-08 / M-09 的边界表（谁写哪张表、谁发哪些事件）
 
-| 关注点 | 谁写 | 谁读 / 订阅 |
-|---|---|---|
-| `job_runs` | **本模块**（`jobs/infrastructure/job-runs.repository.ts`；`kind='document-purge'` 行由 M-08 `schedule-purge` 经本模块导出的 `JobRunsRepository` 在同一事务写入，rulings §4.18 BE-15） | 本模块自身（`GetJobUseCase`、对账作业）；M-08 document-purge 处理器 |
-| `audit_log` | **本模块**（`AuditRepository`，只追加） | 本模块（`QueryAuditLogUseCase`）；M-08/M-09 只发布事件或标注 `@Audited()`，不直接写表 |
-| `thumbnails` | **本模块**（`ThumbnailsRepository`；文档硬删除级联由 `purge-document-thumbnails.usecase.ts` 清空整表行，S-2/§3.3 回执） | 本模块自身；客户端经 REST 只读 |
-| `comments`（镜像） | **本模块**（`CommentsRepository`，唯一写入口 `comment-mirror.observer.ts`；文档硬删除级联由 `purge-document-comments.usecase.ts` 清空整表行，S-2/§3.3 回执） | 本模块自身；事实源在客户端 CRDT，不在本表范围 |
-| `webhook_subscriptions`/`webhook_deliveries`（新增，rulings §4.12 U-14） | **本模块**（`WebhookRepository`） | 本模块自身（`webhooks.controller.ts` 查询投递日志；`reconciliation.job.ts` 对账扫描孤儿投递行，§3.5 回执） |
-| 文档硬删除编排触发（新增，S-2/§3.3 回执） | M-08 `documents/application/schedule-purge.usecase.ts`（30 天宽限期满、GDPR 擦除或「永久删除文档」时发起，同一事务写 `job_runs(kind=document-purge)`） | M-08 worker 上的 document-purge 处理器依次调用各 `@PurgeParticipant`：本模块 `thumbnails`/`comments` 两个参与者清各自的表；`permissions`/`share-links`/`media`/`user-marks` 归 M-08，`document_updates`/`document_snapshots` 归 M-09，均不在本模块范围（rulings §4.18 BE-15） |
-| `document_updates`/`document_snapshots` | M-09 | 本模块只读引用 `latest` 快照（导出/审计） |
-| `documents.title/status/ownerId/…` | M-08 | 本模块只读展示 |
-| `permissions`/`document_perm_versions` | M-08 | 本模块 controller 经 `DocumentRoleGuard`/`RoleResolverService` 消费判定结果 |
-| 事件 `command/audited`/`plugin/failed`/`permission/denied` | M-02/kernel 发布 | 本模块 `AuditEventSubscriber` 订阅 |
-| 事件 `collab-server/repair`/`collab-server/update-rejected` | M-09 发布 | 本模块 `AuditEventSubscriber` 订阅（命名差异见 §12 G-25） |
-| 协同控制帧 `CONTROL.event{comments.changed}` | M-09 转发（观察 Room 内 `resources.comments.*` 变更） | 本模块 `comment-mirror.observer.ts` |
-
+表写方所有权的唯一源是 [60/08 §7](../60-backend/08-db-conventions-roles-rls-migrations.md)。本模块写：`job_runs`（`kind='document-purge'` 行由 M-08 经本模块导出的 `JobRunsRepository.create(tx, …)` 同事务写入）、`thumbnails`、`comments`（镜像，唯一写入口 `comment-mirror.observer.ts`）、`webhook_subscriptions`/`webhook_deliveries`、`audit_log`（只追加）；各自作为 document-purge 参与者清理自己的行（BE-15）。只读：`document_snapshots`（导出引用快照，M-09 写）、`documents`、`permissions`（M-08 写）。订阅：`command/audited`/`plugin/failed`/`permission/denied`（M-02/kernel）、`collab-server/*`（M-09）、`CONTROL.event{comments.changed}`（M-09 转发）。
 **图 7-1 进程角色划分**（本模块仅服务端、无浏览器代码，改画 `CORDEX_ROLE` 进程角色与 M-09 headless Chromium 的关系；`all` 角色即 api+collab+worker 合一，图中不单列）
 
 ```mermaid
@@ -1020,7 +1042,7 @@ m09Collab -- "CONTROL.event comments.changed" --> mirrorObs
 adminCtl -- "compact migrate epoch" --> m09Collab
 ```
 
-图怎么读：同一镜像按 `CORDEX_ROLE` 部署成多种进程角色（`all`/`api`/`collab`/`worker`/`renderer`），逐模块装配以 §7.1 矩阵为准；本模块自己不管理 Chromium 进程池，`thumbnails` 处理器只是 M-09 `ThumbnailRenderer` 的调用方，`remote` 模式下渲染发生在独立零出站的 `renderer` 容器内（renderer 只装精简健康探针）；管理动作与快照 REST 只在 collab（rulings §4.18 BE-03），周期作业只由 worker 注册（BE-19），浏览器遥测只在 api（BE-30）。
+图怎么读：同一镜像按 `CORDEX_ROLE` 部署成多种进程角色（`all`/`api`/`collab`/`worker`/`renderer`），逐模块装配以 60/01 §5 矩阵为准；本模块自己不管理 Chromium 进程池，`thumbnails` 处理器只是 M-09 `ThumbnailRenderer` 的调用方，`remote` 模式下渲染发生在独立零出站的 `renderer` 容器内（renderer 只装精简健康探针）；管理动作与快照 REST 只在 collab（rulings §4.18 BE-03），周期作业只由 worker 注册（BE-19），浏览器遥测只在 api（BE-30）。
 
 ## 8. doc / sheet 扩展缝
 
@@ -1043,7 +1065,7 @@ apps/server/test/                              端到端（跨模块）：Nest T
 ├── e2e/comments-mirror.e2e-spec.ts             客户端经协同 WS 写评论 → 服务端镜像 ≤ 1 s 收敛 → REST 查询一致
 ├── e2e/webhooks-delivery.e2e-spec.ts           新增（rulings §4.12 U-14）：注册订阅 → 评论事件触发投递 → HMAC 签名验证 → 重试与死信
 ├── e2e/audit-and-health.e2e-spec.ts            关键动作产生审计行并只追加、哈希链可校验（新增，U-15）；探针依赖故障注入 → 503
-├── e2e/role-assembly.e2e-spec.ts               逐角色启动：api 不装快照与 AdminController、renderer 进程内无 DB/Valkey/S3 客户端、周期作业只在 worker 注册（新增，§4.18 BE-03/BE-13/BE-14/BE-19）
+├── integration/boot/role-assembly.int-spec.ts  逐角色启动：api 不装快照与 AdminController、renderer 进程内无 DB/Valkey/S3 客户端、周期作业只在 worker 注册（§4.18 BE-03/BE-13/BE-14/BE-19；2026-09-25 由 e2e 改为集成测试，T-NAMING）
 ├── e2e/client-telemetry.e2e-spec.ts            未登录 401、超限 413、限流 429、OTLP 只转发 traces（新增，§4.18 BE-30）
 ├── fixtures/                                    语料库子集（复用 M-04/M-09 fixtures）、用户/文档种子
 └── helpers/                                     supertest 封装、BullMQ 测试队列 helper、mock OIDC
@@ -1051,9 +1073,10 @@ apps/server/test/                              端到端（跨模块）：Nest T
 
 | 测试类型 | 覆盖 | 对应源文件 |
 |---|---|---|
-| 单元 | 幂等键（含「命中 failed 或 cancelled 新建一行」与并发同键只建一行，BE-18/UX-14）、状态机、缓存键、上限校验、保留策略、@提及解析、`uploadId` 归属（BE-10） | 各模块 `__tests__/*.spec.ts`（§5） |
-| 处理器集成 | BullMQ 处理器 + 真实 Postgres 18/Valkey（testcontainers） | `{import,export,thumbnails,render-export}.processor.spec.ts` |
-| append-only 断言 | 数据库角色拒绝 `audit_log` 的 `UPDATE`/`DELETE` | `audit.repository.append-only.spec.ts` |
+| 单元 | 幂等键（含「命中 failed 或 cancelled 新建一行」与并发同键只建一行，BE-18/UX-14）、状态机、缓存键、上限校验、保留策略、@提及解析、`uploadId` 归属（BE-10） | 各模块 `__tests__/*.test.ts`（§5；2026-09-25 由 `*.spec.ts` 改名，T-NAMING） |
+| 处理器集成 | BullMQ 处理器 + 真实 Postgres 18/Valkey（testcontainers） | `apps/server/test/integration/jobs/*.processor.int-spec.ts`（§4 集成块） |
+| append-only 断言 | 数据库角色拒绝 `audit_log` 的 `UPDATE`/`DELETE` | `apps/server/test/integration/audit/audit-append-only.int-spec.ts` |
+| 迁移与类型镜像（2026-09-25 审稿补，§4.13） | 空库全量、编号与只追加、drizzle 漂移、GRANT 与 RLS 快照等 MG1–MG8，用例与断言以 70/07 §4 为准；迁移文件与文档围栏逐字一致不在此处，由 ddl-check 扩展校验（60/08 §11 第 6 条，待实现） | `apps/server/test/integration/migrations/*.int-spec.ts`（被测：`db/migrations/*.sql`、`db/schema/*.ts`、`db/migrator.ts`） |
 | e2e | 见上表主链路与 2026-09-25 新增的角色装配、浏览器遥测两条 | `apps/server/test/e2e/*` |
 
 覆盖率与性能预算引用 08-backend-nestjs.md §12（导入 D50 ≤ 5 s / D200 ≤ 20 s p95、导出 pptx ≤ 3/12 s、缩略图 ≤ 400 ms/页 p95 等）；本模块特有预算：评论镜像收敛 ≤ 1 s（ADR-0031）、审计写入吞吐 ≤ 50 事务/s/文档无背压（SV-07）、`/readyz` 判定 ≤ 200 ms（新增建议，未见于既有文档，§12 G-28）。
@@ -1068,35 +1091,35 @@ apps/server/test/                              端到端（跨模块）：Nest T
 | append-only | `audit_log` 表的数据库角色无 `UPDATE`/`DELETE` 权限（迁移脚本层面授权，非仅应用层约定） | SV-07；硬规则 |
 | Provider 必跑契约套件（`scan-manifest` 规则 (e)，原称 `provider-runs-conformance`，rulings §4.18 GV-15） | 不适用——本模块全部仓储为普通 Nest DI，无 cordis Definition/Provider（§2.5 已述） | 对比 M-08 §2.5/M-09 §2.5 |
 | 文档类型字面量（lint `cordex/no-doc-type-literals` 扩展范围，原称 `no-doc-type-literals-server`，GV-15） | 扩展至本模块 10 个 Nest 目录 `apps/server/src/modules/{jobs,import-export,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}/**`（`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为新增，§4.18 BE-30） | 08 §12 G-13；本文档 §8 |
-| 幂等键格式 | `` `${domain}:${docId}:${inputHash}` ``，由 `buildIdempotencyKey` 唯一生成；新建文档导入用 `buildNewDocImportKey` 生成 `import:user:{userId}:{sha256}`；幂等只对未失败且未取消的行生效，DB 部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')`（rulings §4.18 BE-10/BE-18；`cancelled` 随 UX-14 补入） | 硬规则；§2.2/§2.3 |
-| 角色装配 | `config/roles.ts` 的 `assertRoleAssembly` 按 §7.1 矩阵逐项核对，不一致即 fail-fast（rulings §4.18 BE-13） | §7.1 |
+| 幂等键格式 | 按决策 JOB-IDEM（60/06 §2.3，2026-09-25 取代 `import:user:{userId}:{sha256}`）：`import:{docId}:{sha256}:{baseSeq}` 等，由 `jobs/domain/idempotency-key.ts` 的构造函数族唯一生成；幂等只对未失败且未取消的行生效，DB 部分唯一索引 `unique(idempotency_key) where status not in ('failed','cancelled')`（rulings §4.18 BE-10/BE-18；`cancelled` 随 UX-14 补入） | 硬规则；§2.2/§2.3 |
+| 角色装配 | `config/roles.ts` 的 `assertRoleAssembly` 按 60/01 §5 矩阵逐项核对，不一致即 fail-fast（rulings §4.18 BE-13） | §7.1 |
 | 限流/审计解释器单点 | `@Audited()`/`@RateLimit()` 解释器只能在 `common/`，标注使用点分布在各 BC 自身模块 | M-08 §3 裁定 |
+| 迁移文件与文档逐字一致（2026-09-25 审稿登记） | `db/migrations/` 的文件集合 = 60/08–13 的 `-- migrate:` 围栏编号集合，文件名 = 围栏首行 + `.sql`，内容逐字节相同；不一致即失败 | 60/08 §11 第 6 条、§13 DB-13：`docs/_tools/ddl-check.sh` 实现期扩展，**待实现**（M0 蓝图阶段仓库尚无该目录） |
+| 驱动放行（2026-09-25 审稿登记） | `pg`、`drizzle-orm` 只在 `db/**` 与 `modules/*/infrastructure/**`；`ioredis`、`bullmq` 只在 `redis/**`、`modules/*/infrastructure/**`、`common/rate-limit/**` | 60/01 §11；`depcruise` |
 | 09-type-discipline 章节 | 03-boundaries §3.3（L8 · node · app，与 M-08/M-09 共享秩 80） | module-map §9 BC-23…26 行 |
 
 ## 11. 里程碑与实施顺序
 
-**M0 骨架**：10 个 `*.module.ts`（含 `webhooks.module.ts`，rulings §4.12 U-14；实现推迟到 M3，见下；`telemetry.module.ts`，§4.18 BE-30） + 各 `domain/` 聚合/值对象类型（无实现）+ `common/`/`config/` 全部文件（异常过滤器/审计拦截器骨架可先 no-op）；`AppModule.forRole()` 按 §7.1 矩阵完成本模块 10 个模块的注册（08-backend-nestjs §2 提及的根装配由本模块补齐，见 §7）；`jobs/infrastructure/queues.ts` 定义全部队列名但处理器为空实现；`config/config.schema.ts` 能让进程以 `--dry-run` 校验通过。
+**M0 骨架**：10 个 `*.module.ts`（含 `webhooks.module.ts`，rulings §4.12 U-14；实现推迟到 M3，见下；`telemetry.module.ts`，§4.18 BE-30） + 各 `domain/` 聚合/值对象类型（无实现）+ `common/`/`config/` 全部文件（异常过滤器/审计拦截器骨架可先 no-op）；`AppModule.forRole()` 按 60/01 §5 矩阵完成本模块 10 个模块的注册；§4.13 的应用骨架与基础设施（`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/` 的连接池、系统事务入口与迁移执行器骨架；原在已删除的 30-architecture/08 §2 目录树里，2026-09-25 审稿登记）由本模块提供，迁移 SQL 与 `db/schema/*.ts` 按 60/08 §9 的首次交付口径入库（0001、0002 为 M1，全部基线段随 M2 建立）；`jobs/infrastructure/queues.ts` 定义全部队列名但处理器为空实现；`config/config.schema.ts` 能让进程以 `--dry-run` 校验通过。
 
 **M1**：`jobs`（`BaseProcessor`/`JobRunsRepository`/`GetJobUseCase` 完整）；`health`/`metrics`（探针与指标端点打通，依赖 M-08/M-09 骨架服务）；`audit`（`AuditInterceptor`+`RecordAuditEventUseCase`+`AuditEventSubscriber` 打通，覆盖 M-08 usecase 的 `@Audited()` 标注点）；`common/`/`config/` 完整（含限流/异常过滤器真实实现）。
 
-**M2 首个可运行切片**：申请上传并直传 pptx → 凭 `uploadId` 创建导入作业（两步式，rulings §4.18 BE-10；`import.processor.ts` 调用 M-09 `importDocument`，依赖 M-09 M2 交付的 `server-headless` 任务打通）→ 快照写入与文档创建 → 封面取包内 `docProps/thumbnail.jpeg`（`inspectEmbeddedCover` 只头校验不解码、不用 sharp，记 `source='embedded'`；无包内封面则占位图；2026-09-24 rulings §4.15 Q8，修正原文「首页缩略图」与验收「≤ 10 s」的自相矛盾——服务端 headless 渲染属 M3）→ `/healthz`/`/readyz` 反映全链路健康。
+**M2 首个可运行切片——服务端导入进 M2**（rulings §4.19 D-M2-CONTENT：服务端导入与协同后端一起从 M3 提前到 M2，M2 起服务端文档内容以协同快照为唯一事实源，不设 pptx 内容版本端点）：申请上传并直传 pptx（`POST /imports/uploads`，服务端预分配 `jobId`/`docId`）→ 凭 `uploadId` 创建导入作业（两步式，BE-10；幂等键 `import:{docId}:{sha256}:{baseSeq}`，JOB-IDEM / BE-18；可取消，UX-14）→ `import.processor.ts` 调用 M-09 `importDocument` → 写 `kind='import'` 快照与文档行 → 封面取包内 `docProps/thumbnail.jpeg` 写 embedded `__cover`（`inspectEmbeddedCover` 只头校验、不解码、不用 sharp；无包内封面或空白文档用占位图，Q8）→ 浏览器经 `GET /jobs/:id` 轮询到成功后以 `snapshots/latest` + 票据 + WS 打开（M-09、M-11）。新建空白 / 内置模板同样由前端取模板字节走本路径，创建副本也走同一导入处理器（50/02、PRD 05 §0.3）。同期交付：`jobs`（`JobRunsRepository` 全方法、`GET /jobs/:id`、对账 `reconciliation` 与 Job Scheduler 注册，BE-19）、单实例 `all` 角色的装配断言 `assertRoleAssembly`（BE-13；矩阵见 60/01 §5；按角色拆分部署与 `boot/role-assembly.int-spec.ts` 逐角色断言属 M3，PRD 05 §0.3）、审计写入通路（M1 已有）覆盖 `import.*` action、`telemetry` 模块（BE-30）、`/healthz`/`/readyz`。
 
 验收命令（草案，最终以 CI 配置为准）：
 ```bash
-pnpm --filter apps-server test -- jobs audit health            # 单元 + append-only 断言
-pnpm --filter apps-server test:e2e -- import-export-roundtrip  # 上传→导入→快照→导出字节级一致（SV-02）
-pnpm --filter apps-server test:e2e -- thumbnails-pipeline      # M2 段：导入完成→embedded 封面可见（≤10 s / D200 ≤90 s 属 M3 段）
+pnpm --filter apps-server test -- jobs audit health                         # 单元（*.test.ts）
+pnpm --filter apps-server test:integration -- jobs/job-runs jobs/import.processor
+pnpm --filter apps-server test:e2e -- import-export-roundtrip               # M2 段：上传 → 导入 → import 快照 → snapshots/latest 可打开；他人 uploadId 403
+pnpm --filter apps-server test:e2e -- thumbnails-pipeline                   # M2 段：导入完成 → embedded __cover 可见（≤ 10 s / D200 ≤ 90 s 属 M3 段）
 curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 ```
 
-**M3 Webhook 出口**（rulings §4.12 U-14，2026-09-19 新增，属本模块交付范围）：新增 `webhooks` 模块——注册/更新/删除订阅、投递（HMAC 签名 + 指数重试 + 死信队列）、投递日志查询（§2.6/§4.11/§5.11）；`comments/application/mirror-comment-change.usecase.ts` 接入 `DeliverWebhookEventUseCase`；`comments` 模块新增跨文档「@我」REST（`list-my-mentions.usecase.ts`）。验收：`pnpm --filter apps-server test:e2e -- webhooks-delivery`（注册→投递→签名验证→重试与死信，见 §9）。
+**M3 导出与渲染**（SV-02 服务端导出仍为 M3，D-M2-CONTENT 只提前导入）：`POST /documents/:id/export` 与 `GET /exports/:jobId`、`export.processor.ts`（pptx 字节级一致）；**M3 前半段**服务端缩略图（headless Chromium，local/remote renderer，按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s，640 px WebP，`source='server'`；1280 px 按需变体，SG-10）；**M3 后半段** PDF/PNG/JPEG `render-export`；`RenderStateToken` 取消（BE-04）与 renderer 精简健康探针（BE-14）；M3 出口：断网 compose e2e、镜像 digest 钉死、SBOM、镜像许可门禁（Q8/Q10）。
 
-**M3 矛盾收口追加**（2026-09-25，rulings §4.18，属本模块交付范围）：§7.1 装配矩阵与 `assertRoleAssembly`（BE-13）、`InternalModule` 拆分与 `AdminController` 只在 collab（BE-03）、`RenderStateToken` 取消（BE-04）、幂等键命中 failed 新建一行（BE-18）、`webhook-delivery` 队列与投递状态语义、Job Scheduler 周期作业（BE-19）、renderer 精简健康探针（BE-14）、`telemetry` 模块（BE-30）、thumbnails/comments 两个 purge 参与者（BE-15）。验收：`pnpm --filter apps-server test:e2e -- role-assembly client-telemetry import-export-roundtrip`。
+**M3 多人协同体验层与集成**：`comments` 模块打通（依赖 M-09 的 `CONTROL.event{comments.changed}` 转发与软门禁；客户端评论插件为 iso 包 `@cordexjs/comments`，ResourceHook 命名空间 `comments.*`，服务端镜像保持文档类型盲，rulings §4.19 D-COMMENTS-PKG）；**Webhook 出口**（U-14）：订阅管理、投递（HMAC + 指数重试 + 死信）、投递日志，`mirror-comment-change.usecase.ts` 接入 `DeliverWebhookEventUseCase`，跨文档「@我」REST；**审计哈希链**（U-15）：`prevHash`/`hash`、`verify-chain.usecase.ts` 与 `AuditVerifyController`、`seal.job.ts` 每日封存；`AdminController`（compact/migrate/epoch，只在 collab，BE-03）；thumbnails/comments 两个 document-purge 参与者（BE-15，随永久删除 M3）；按角色拆分部署与 `boot/role-assembly.int-spec.ts` 逐角色断言（BE-03/BE-13/BE-14/BE-19）。验收：`pnpm --filter apps-server test:e2e -- webhooks-delivery comments-mirror audit-and-health client-telemetry`。
 
-**M3 审计哈希链**（rulings §4.12 U-15，2026-09-19 新增，属本模块交付范围）：`AuditEntry` 增加 `prevHash`/`hash`（§2.1）；纯函数 `chainHash`（§2.3）；`verify-chain.usecase.ts` 校验工具、`seal.job.ts` 每日封存作业（§2.6/§4.5/§5.5）；数据库角色隔离（无 `UPDATE`/`DELETE`）与哈希链并行生效，互不替代。验收：`pnpm --filter apps-server test -- audit-chain`（篡改检测断言，见 §9）。
-
-**M3 展望**（不在 M0/M2 交付范围）：`comments` 模块打通（依赖 M-09 的 `CONTROL.event{comments.changed}` 转发与 ADR-0034 软门禁落地）；**M3 前半段**服务端缩略图（headless Chromium，local/remote renderer，按页内容哈希失效，导入后首页 ≤ 10 s、D200 全量 ≤ 90 s，卡片 640 px WebP，`source='server'`）；**M3 后半段** PDF/PNG/JPEG `render-export` 队列完整落地（队列优先级低于 thumbnails，按用户配额）；M3 出口：断网 compose e2e、镜像 digest 钉死、SBOM、镜像许可门禁（2026-09-24 rulings §4.15 Q8/Q10）。**M4 展望**：SV-13 headless 自动化 API 四种作业类型（`fill-template`/`validate`/`migrate`/`convert`）均并入 `import-export`，经既有 `HeadlessJobContext` + M-02 命令管线编排，不新增 `server-headless` 任务导出，细节 M4 一起定（rulings §4.12 U-13，§2.6 已加占位行，见 §13 Q-3）。
-
+**M4 展望**：SV-13 headless 自动化 API 四种作业类型（`fill-template`/`validate`/`migrate`/`convert`）并入 `import-export`，经既有 `HeadlessJobContext` + M-02 命令管线编排，不新增 `server-headless` 任务导出（U-13，§13 Q-3）。
 ## 12. 与现有文档的差异与追加建议
 
 > 延续 module-map §8、08-server-identity-documents-and-storage §12（G-1…G-14）、09-server-collab-gateway-and-headless-host §12（G-15…G-22）的编号，以下延续为 G-23 起。
@@ -1123,6 +1146,26 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 | G-39（T-0 落地） | rulings §4.15 T-0；原 `job_runs`/`audit_log`/`webhook_subscriptions` 的 `tenant_id`、「租户管理员」措辞 | 单组织完全去租户 | **已落地（2026-09-24）**：`JobRun`/`AuditEntry`/`WebhookSubscription` 去 `tenantId`（§2.1），`WebhookRepository`/`DeliverWebhookEventUseCase` 去租户参数（§2.5/§6），审计查询/哈希链校验/Webhook 管理/管理动作改由平台管理员（部署级 admin，M-08 `PlatformAdminGuard`）执行（§1.1/§2.6/§4/§5），`RetentionPolicy` 改部署配置；`job-runs.repository.ts` 的约束改为扫描器 `doc-access-via-permission`（M-01 配合改名）；架构 `08-backend-nestjs.md` §5 相关表需删 `tenant_id` 列 |
 | G-40（Q8 落地） | rulings §4.15 Q8；ADR-0026；原 §11 M2 切片正文与验收命令矛盾 | M2 服务端无 headless 渲染，却验收「首页缩略图 ≤ 10 s」；缩略图失效只按 `snapshotSeq` 会导致未改页重渲 | **已落地（2026-09-24）**：`Thumbnail.source`（embedded/server；`client` 已取消，复核 L11；→ 2026-09-25：领域层不产生 `client`，DB 约束按 ADR-0026 决策 4 保留该位，rulings §4.18 BE-26）、`ThumbnailKey.contentHash`（按页内容哈希失效）、新增 `domain/embedded-cover.ts`（只头校验不解码、不用 sharp），M2 用包内封面过渡，M3 前半段 headless（≤ 10 s / D200 ≤ 90 s），M3 后半段 PDF；`render-export` 队列优先级与配额；S-2 purge 覆盖 embedded（§2.1/§2.2/§2.3/§2.6/§4.3/§5.3/§9/§11）。M-11 `DocumentCardVM.thumbnailUrl` 的 provisional 标记、M-07 `server-png` Provider 识别 provisional 需配合 |
 | G-41（Q10 落地） | rulings §4.15 Q10、Q9 | 进程角色只有 api/collab/worker，无单容器 `all` 与独立 `renderer`；测试栈仍写 MinIO/Redis | **已落地（2026-09-24）**：`roles.ts` 补 `all`/`renderer`（§4.10/§5.10/§7.1/图 7-1）；testcontainers 改 Postgres 18/Valkey/SeaweedFS（§9）；镜像基线 Node 26、M3 出口断网 compose e2e/digest/SBOM/许可门禁（§11）；启动期角色一致性断言（09 §12 G-25）需同步覆盖新角色 |
+
+### 2026-09-25 审稿（应用骨架与数据库基础设施的文件级收口）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.19（30-architecture/08 §2 目录树删除，目录树唯一源改为 40-modules §4）；60/01 §3 基础模块清单 | §0、§1.1、§3、§4.13、§5.13、§11 | `main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像 17 个、迁移 SQL）在 40-modules 没有文件级登记，按本模块既有惯例归入新增的「应用骨架与基础设施」小节；§4 与 §5 各增 31 项，差值不变 |
+| 60/08 §6.5「`SystemJobName` 落点由 40 登记」、§10.1–§10.5 | §4.6/§5.6 `pg.probe.ts`、§4.13/§5.13 `db/system-jobs.ts`、`db/migrator.ts` | 登记 `SystemJobName` 落点；`/readyz` 的迁移判据经 `migrator.checkApplied` 进入 `PgProbe` |
+| 60/08 §11 第 6 条、§13 DB-13（待实现） | §9、§10、§5.13 | 迁移文件与文档围栏逐字一致：内容以 60/08–13 为唯一事实源，由 `docs/_tools/ddl-check.sh` 在实现期扩展为对比 `db/migrations/` |
+| rulings §4.19（历史引用改指：30-architecture/08 §2 草图已删） | §4.10/§5.10 `config.schema.ts`、§11 | 「08-backend-nestjs §2 骨架的权威落点」改指 60/17 §5–§6；M0 根装配改指 §4.13 |
+| — | §13 Q-10 | `cordex-ops` 入口与其余子命令的落点待登记 |
+
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| §4.19 事实源分工 + referencePlan | §2、§3、§6、§7.1–§7.3 | 改为摘要 + 链接 60/06、07、12、13、18、01、08；§7.1「模块 × 角色 × 部件」矩阵整体迁入 60/01 §5（BE-13 内容不变、落点变更）；图 2-3 JobRun 状态机迁至 60/06 §2.2 唯一版本 |
+| §4.19 D-M2-CONTENT | §2.6 里程碑列、§11 | 导入作业（两步上传、取消、`GET /jobs/:id`、对账与 Job Scheduler、embedded `__cover`、创建副本）与单实例 `all` 的装配断言进 M2（按角色拆分与逐角色断言 M3，PRD 05 §0.3）；管理动作（compact / migrate / epoch）随换纪元进 M2；服务端导出、服务端缩略图与 render-export、评论、Webhook、审计哈希链、purge 参与者留 M3 |
+| §4.19 D-COMMENTS-PKG、决策 INC-39 | §2.1、§2.2、§11 | 评论 ResourceHook 命名空间 `comments.*`；客户端 iso 包 `@cordexjs/comments`，服务端镜像保持文档类型盲 |
+| 60 线回写表（60/06 §2.1、§2.3、§12.6；60/01 §5） | §2.2、§2.3、§2.5、§4.2、§4.3、§4.5、§5、§6、§10 | `JobRunsRepository` 方法集以 60/06 §2.1 为准；`IdempotencyKey` 按 JOB-IDEM；删 `GET /imports/:jobId`（SG-08）、缩略图 `?seq=`（SG-10）、`ImportUploadStore` 的 `GETDEL`、`ThumbnailKey.fontProfile`/`snapshotSeq`；`AuditVerifyController` 与 `/internal/admin/audit/verify` 归 AuditModule |
+| 决策 T-NAMING + 70/01 §4 + 70/07 §17 | §4、§5、§9 | 包内纯逻辑 `*.spec.ts` → `*.test.ts`；接真实 PG / Valkey 的处理器与 append-only 断言迁到 `apps/server/test/integration/{jobs,audit}/*.int-spec.ts`；`role-assembly.e2e-spec.ts` → `apps/server/test/integration/boot/role-assembly.int-spec.ts` |
 
 ### 2026-09-25 收敛（rulings §4.18 矛盾收口）
 
@@ -1185,3 +1228,4 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 | Q-7 | 导入/导出并发默认值 2 vs 4 的最终口径（G-29） | 采纳 08-backend-nestjs §16.5 的 4/实例 | `jobs/infrastructure/queues.ts` |
 | Q-8 | `/readyz` 判定延迟预算 200 ms（G-28）是否需正式写入 08-backend-nestjs §12 | 是 | 08-backend-nestjs.md §12 |
 | Q-9 | ~~`audit_log` 哈希链（SV-07"不可篡改…P1：哈希链"）是否在 M3 范围内实现~~ **（结案，2026-09-19）** | **M3 即实现**：`prevHash`/`hash` 链式校验 + `chainHash` 纯函数 + 校验工具 + 每日封存作业；与数据库角色权限隔离并行生效。**结案依据**：用户裁决 rulings §4.12 U-15，落地见 §2.1/§2.3/§2.6/§4.5/§5.5/§11/§12 G-33 | `audit/domain/audit-entry.ts`；`audit/domain/audit-chain.ts`；`audit.repository.ts` |
+| Q-10（新增，2026-09-25 审稿） | `cordex-ops` 第二入口（60/17 §9：`db:bootstrap`、`db:migrate`、`db:status`、`storage:init`、`audit-rotate`、`audit-verify`、`jobs:replay`、`webhooks:replay`、`thumbnails:rebuild`、`config:check`）的入口文件与各子命令实现落点未登记；§4.13 只登记了 `db:*` 三个子命令的实现 `db/migrator.ts` | 入口放在本模块应用骨架下（`apps/server/src/ops/cli.ts`，与 `main.ts` 同级、共用 `config/` 解析），每个子命令只调用表或能力所属模块导出的用例（`storage:init` → M-08 `StorageModule`，`audit-*` → `AuditModule`，`jobs:replay` → `JobsModule`，`webhooks:replay` → `WebhooksModule`，`thumbnails:rebuild` → `ThumbnailsModule`），不在入口里直接写表；随 M2 的 `migrate` 一次性服务落地前补进 §4.13 / §5.13 | §4.13、§5.13；60/17 §9；M-08 `storage/` |

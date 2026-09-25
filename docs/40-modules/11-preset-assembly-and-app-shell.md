@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
 
 # 11 预设装配与应用壳（限界上下文 BC-16 预设装配、BC-17 应用壳）
 
@@ -52,6 +52,8 @@ presetSlide -- "作为样板" --> m13
 
 ## 1. 限界上下文与边界
 
+> 2026-09-25（rulings §4.19）：BC-17 应用壳的行为（路由、会话、用例、页面状态、存储键与清理）以 [50/02](../50-frontend/02-app-shell-routing-and-session.md) 为准，BC-16 装配语义以 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) 为准；本节只保留职责边界，冲突以 50 为准。
+
 ### 1.1 职责与非职责
 
 **BC-16 预设装配（做）**：维护三份显式、可静态分析的插件清单（`plugins/*.entries.ts`），把 Provider 选择（`store-memory` vs `store-yjs`、`local-presence` vs `collab-yjs`）、惰性边界（图表渲染器、语言包、查看器可选条 / 抽屉）、默认配置与 `exclude`/`override`/`configure` 裁剪点收敛为一个 `createXxxPreset(options)` 工厂；`apply` 内无序挂载并以 `Promise.allSettled` 汇总 `PresetReport`；为 `preset-slide-viewer` 提供两道机械只读保证（不装 `@cordexjs/model-slide/editing` + `read-only` 权限策略，ADR-0015）与 ≤ 350 KB gzip 的体积门禁（`config/bundle-budget.json`）；提供框架无关的查看器壳（`shell/`，02 §4.21b、设计 25）。
@@ -91,25 +93,17 @@ presetSlide -- "作为样板" --> m13
 | BC-16 → BC-17 | Customer–Supplier | `apps/web/src/application/host/create-editor-host.ts` | `createSlidePreset(options)`、`createSlideCollabPreset(options)`、`createSlideViewerPreset(options)`、`PresetReport` |
 | BC-14（ui-react） → BC-17 | Conformist（照单全收 `EditorHostProps`） | `apps/web/src/pages/editor/EditorPage.tsx` | `<EditorHost host unitId mode layout slots documentTitle onNavigateBack onRename onSignOut />`、`UserMenu`/`Brand`/`SettingsDrawer` |
 | BC-03 protocol → BC-17 | Published Language | `apps/web/src/infrastructure/api/http.ts`（`parse, don't validate`：响应体一律 `schema.parse`） | `rest/{auth,documents,snapshots,import-export,audit}.ts`、`errors/{codes,envelope}.ts`、`permissions/*`、`ws/*`（间接经 collab 包） |
-| BC-18/19/22/23/24（服务端 Nest 模块） ↔ BC-17 | Customer–Supplier（经 protocol） | `infrastructure/api/*.api.ts` | `/auth/*`、`/documents/*`、`/documents/:id/snapshots*`、`/imports/uploads`、`/imports`、`/imports/:jobId`、`/documents/:id/export`、`/exports/:jobId`、`/documents/:id/thumbnails/*`（2026-09-25 由 `/tasks/*` 改为服务端既定路径，全部相对 `apiBase` = `/api/v1`，rulings §4.18 BE-12/BE-10/BE-11） |
+| BC-18/19/22/23/24（服务端 Nest 模块） ↔ BC-17 | Customer–Supplier（经 protocol） | `infrastructure/api/*.api.ts` | `/auth/*`、`/documents/*`、`/documents/:id/snapshots*`、`/imports/uploads`、`/imports`、`/imports/:jobId/cancel`、`/jobs/:id`（唯一状态查询，2026-09-25 取代 `/imports/:jobId`，决策 SG-08）、`/documents/:id/export`、`/exports/:jobId`、`/documents/:id/thumbnails/*`（2026-09-25 由 `/tasks/*` 改为服务端既定路径，全部相对 `apiBase` = `/api/v1`，rulings §4.18 BE-12/BE-10/BE-11） |
 | BC-27（server-headless） ↔ BC-17 | Open Host Service（`apps/web` 向服务端开放 `/render` 页） | `apps/web/src/pages/render/RenderPage.tsx` + `render-page-protocol.ts` | `RenderPageQuery`、`window.__cordex.inject(payload)`（renderer sidecar 注入 state 与资源，页面零外呼，rulings §4.15 Q8）、`window.__cordex.ready/error` |
 | BC-16（slide） ↔ BC-29（未来 preset-doc/sheet） | Separate Ways（束间隔离） | — | 无共享；原共用的 `assembly/` 已上移 `@cordexjs/kernel/src/preset/`（2026-09-18，C-07，§12 G-5 结案），`preset-doc`/`preset-sheet` 零成本复用 |
 
 ## 2. 领域模型（装配 / 应用模块改写：2.1 装配模型与应用级视图模型 · 2.2 值对象 · 2.3 纯函数 · 2.4 事件 · 2.5 外部契约 · 2.6 用例清单）
 
+> **事实源分工（rulings §4.19）**：`apps/web` 的路由、会话、运行时配置、用例与页面状态以 [50/02](../50-frontend/02-app-shell-routing-and-session.md) 为准；preset 装配语义、选项、嵌入形态与插件管理器以 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) 为准；查看器、嵌入与 `/render` 页以 [50/12](../50-frontend/12-viewer-embedding-and-render-page.md) 为准；事件转发与遥测以 [50/15](../50-frontend/15-events-errors-and-telemetry.md) 为准；体积与路由 chunk 预算以 [50/13](../50-frontend/13-performance-and-bundling.md) 为准。本节 2026-09-25 起只保留类型 / 函数到文件的落点与包级接口名；§3.1–§3.3 装配清单与 §3.5 接入点表仍是包级事实源。
+
 ### 2.1 装配模型与应用级视图模型
 
-**装配模型（BC-16，`@cordexjs/kernel/src/preset/`，被三个 preset 共用；2026-09-18 起，C-07，§12 G-5 结案——原 `preset-slide-viewer/src/assembly/` 已删除）**
-
-| 类型 | 字段 / 不变量 | 所在文件 |
-|---|---|---|
-| `PresetEntry` | `{ id: PluginId; plugin: Plugin; config?: unknown; scope: 'host' \| 'unit'; disabled?: boolean; provides?: readonly string[] }`；不变量：同一 preset 内 `id` 唯一（`validateEntries`）；`scope:'unit'` 的条目不在根 `ctx.plugin`，而是登记为 UnitScope 默认 Provider（M-02 §2.1 `units.open` 步骤 ④⑤；具体登记 API 以 M-02 §6 为准，§13 Q-2） | `@cordexjs/kernel/src/preset/entry.ts` |
-| `LazyPresetEntry` | `{ id; lazy: () => Promise<Plugin>; activateWhen: ActivateWhen; config?; scope }`；`ActivateWhen = { event: EventName; when?: (payload) => boolean } \| { contributionSeen: { point; key } } \| 'manual'`（ADR-0010 决策 2 三种触发；`when` 谓词为本文新增建议，用于 `render/element-degraded{reason:'chart-unavailable'}` 过滤，§12 G-6） | `@cordexjs/kernel/src/preset/lazy.ts` |
-| `PresetTrim` | `{ exclude?: PluginId[]; override?: Record<PluginId, Plugin>; configure?: Partial<Record<PluginId, unknown>> }`；不变量：`override`/`configure` 的键必须存在于清单（否则 `PRESET_UNKNOWN_ENTRY` 诊断，不抛错）；`exclude` 任意条目后 host 仍可启动（章程 §5.4，`pluggable.test.ts`） | `@cordexjs/kernel/src/preset/entry.ts` |
-| `Preset` | `Plugin & { readonly presetId: 'slide' \| 'slide-collab' \| 'slide-viewer'; readonly entries: readonly (PresetEntry \| LazyPresetEntry)[]; report(): Promise<PresetReport> }`；`apply(ctx, options)` 无序遍历 `entries`（`Set` 语义），每项 `ctx.plugin(entry.plugin, config)` 并以 `entry.id` 记录 Fiber 句柄供 `fiber.update` 局部重配置 | `@cordexjs/kernel/src/preset/mount.ts` |
-| `PresetReport` | `{ presetId; startedAt; settledAt; entries: { id; state: 'ACTIVE' \| 'PENDING' \| 'FAILED' \| 'LAZY' \| 'EXCLUDED'; error?: ErrorEnvelope; ms: number }[] }`；不变量：`entries.length === preset.entries.length`；`FAILED` 不阻断其余条目（03 §8 失败隔离） | `@cordexjs/kernel/src/preset/report.ts` |
-
-**2026-09-18 起（跨模块评审 C-07，§12 G-5 结案）**：以上五个类型与 `mountEntries`/`validateEntries`/`applyTrim` 纯函数全部收编进 **`@cordexjs/kernel/src/preset/`**（M-02 承载），`preset-slide-viewer/src/assembly/**` 目录整体删除；三个 preset 包改为 `import { … } from '@cordexjs/kernel/preset'`。
+**装配模型**（`@cordexjs/kernel/src/preset/`，M-02 承载，C-07）：`PresetEntry`、`LazyPresetEntry`（`ActivateWhen` 三种触发 + `when` 谓词，§12 G-6）、`PresetTrim`（`exclude`/`override`/`configure`，`configure` 合并算法见 50/03 §2：对象深合并、数组与标量替换）、`Preset`（`presetId: 'slide' | 'slide-collab' | 'slide-viewer'`）、`PresetReport`（`FAILED` 不阻断其余条目）；五文件见 M-02 §4.2。
 
 **图 2-1 三预设装配关系**
 
@@ -123,182 +117,81 @@ kernelPreset -- "PresetEntry / LazyPresetEntry / PresetTrim" --> presetSlide
 kernelPreset -- "同一装配基座" --> presetCollab
 kernelPreset -- "同一装配基座" --> presetViewer
 presetViewer -- "VIEWER_ENTRIES 加编辑与 UI 条目" --> presetSlide
-presetSlide -- "deriveCollabEntries 替换 store-memory 为 store-yjs 加 collab 四包" --> presetCollab
+presetSlide -- "deriveCollabEntries 替换 store 加协同包与 comments" --> presetCollab
 ```
 
-图怎么读：三个 preset 共用 `@cordexjs/kernel/preset` 的装配运行时；派生方向与 §3.1、§4、§5 及 02 §4.21b 一致——`preset-slide` 以 `preset-slide-viewer` 的 `./entries`（`VIEWER_ENTRIES`）为基础，减去 viewer 专属条目、加上编辑与 UI 条目得到，`preset-slide-collab` 再由 `preset-slide` 的 `./entries` 经 `deriveCollabEntries` 派生（2026-09-25 更正箭头方向，rulings §4.18 FE-06）。C-07 之后 `assembly/` 链已消失，但 `./entries` 派生链 viewer ← slide ← collab 仍在，由 R1/R2 约束，不另设规则。
+图怎么读：三个 preset 共用 `@cordexjs/kernel/preset` 的装配运行时；`preset-slide` 以 viewer 的 `VIEWER_ENTRIES` 为基础派生，`preset-slide-collab` 再由 `preset-slide` 的 `./entries` 经 `deriveCollabEntries` 派生（rulings §4.18 FE-06）；自 M2 起服务端文档一律经 collab 预设打开（rulings §4.19 D-M2-CONTENT，§11），M3 起 collab 预设另装评论插件 `@cordexjs/comments`（D-COMMENTS-PKG，§3.1）。
 
-**应用级视图模型（BC-17，`apps/web/src/domain/`）**
+**应用级视图模型**（`apps/web/src/domain/`，状态机与字段以 50/02 为准）：
 
-| 视图模型 | 状态机 / 字段 | 所在文件 |
+| 视图模型 | 事实源 | 所在文件 |
 |---|---|---|
-| `Session` | `unknown → anonymous \| authenticated → expired`；`{ state; principal?: Principal; expiresAt?; refreshInFlight: boolean }`；`Principal` 直接复用 protocol `permissions/principal.ts` | `domain/session.ts` |
-| `EditorPageState` | `idle → creatingHost → opening(progress) → ready → (failed{code} \| closing → closed)`；持有 `{ host?; unitId?; report?; role: RoleName; documentTitle; saveState }` | `domain/editor-page-state.ts` |
-| `RecentDocumentEntry` | `{ documentId; documentType; title; openedAt; pinned; role; ownerName; thumbnailUrl?; thumbnailProvisional? }`；排序：`pinned` 优先，其后 `openedAt` 降序；≤ 5 条展示 | `domain/recent-document.ts` |
-| `DocumentCardVM` | 由 `DocumentSummary` DTO（protocol `rest/documents.ts`）派生：`{ id; documentType; title; ownerLabel; collaborators[]; readOnly; updatedAtLabel; thumbnailUrl?; thumbnailProvisional? }`；`thumbnailProvisional=true` 表示封面来自包内 `docProps/thumbnail.jpeg`（M2 过渡，服务端只做头校验）或客户端临时图，服务端 headless 缩略图（M3 前半段）就绪后替换（rulings §4.15 Q8） | `domain/document-card.ts` |
-| `RenderPageState` | `booting → awaitingInject → opening → painting → ready \| failed{code}`（2026-09-25 `fetchingState` 改为 `awaitingInject`：页面只等编排方注入、从不拉取，注入等待超时为页面常量 `RENDER_INJECT_TIMEOUT_MS`（默认 60 s），与 ADR-0026 每页 10 s 渲染超时分开计，rulings §4.18 BE-04/FE-09）；`ready` 时调用 `window.__cordex.ready(pageIds)`，判据见 §2.4 | `domain/render-page-state.ts` |
-| `OnlineState` | `online \| offline`（`navigator.onLine` + 心跳探测），驱动开始页离线横幅与新建 / 模板 / 导入卡禁用（AS-01） | `domain/online-state.ts` |
+| `Session`（`unknown → anonymous \| authenticated → expired`） | 50/02 §4.1 | `domain/session.ts` |
+| `EditorPageState` | 50/02 §6 | `domain/editor-page-state.ts` |
+| `RecentDocumentEntry` / `DocumentCardVM`（M2 起卡片封面取导入处理器写的 embedded `__cover`，空白文档用占位；服务端缩略图 M3 前半段替换，`thumbnailProvisional`） | 50/02 §9；60/06 §11.2 | `domain/recent-document.ts`、`domain/document-card.ts` |
+| `RenderPageState`（`booting → awaitingInject → opening → painting → ready \| failed`） | 50/12 §11 | `domain/render-page-state.ts` |
+| `OnlineState` | 50/02 §9.5 | `domain/online-state.ts` |
 
 ### 2.2 值对象
 
-| 名称 | 字段 | 校验 schema（Standard Schema，`z` 来自 `@cordexjs/protocol/schema`，R5 单点） | 所在文件 |
-|---|---|---|---|
-| `SlidePresetOptions` | `{ locale: 'zh-CN'; theme: { mode: 'system'; density: 'comfortable'; injectCss: true }; permissions: 'allowAll' \| { capabilities: Capability[] } \| PermissionPolicy[]; user?: { id; displayName; avatarUrl?; color? }; storeProvider: 'memory'（字面量固定）; renderTarget: 'dom'; history: { limit: 200 }; lazy: { charts: true; locales: true }; shell: ShellOptions; i18n: { bundles: I18nBundle[] }; exclude?; override?; configure? }` | `SlidePresetOptionsSchema`（`strictObject`；校验失败在 `createSlidePreset` 调用时抛出 `PRESET_INVALID_OPTIONS`，含字段路径，EM-01「启动前抛出，不部分激活」） | `preset-slide/src/config/options.ts` |
-| `ShellOptions` | `{ moreMenu: { export: true; fidelityReport: true; versionHistory: true; pluginManager: true; rename: true; duplicate: true; developer: false }; onIntent?(intent: ShellIntent): void \| Promise<void> }`；`developer` 仅开发模式（Q20） | `ShellOptionsSchema` | `preset-slide/src/config/shell.ts` |
-| `ShellIntent` | `{ target: 'export' \| 'fidelity-report' \| 'version-history' \| 'plugin-manager' \| 'rename' \| 'duplicate' \| 'developer'; unitId: UnitId; payload?: JsonObject }` | `ShellIntentSchema`（Operation `shell.intent` 的参数 schema） | `preset-slide/src/config/shell.ts` |
-| `SlideCollabPresetOptions` | `Omit<SlidePresetOptions,'storeProvider'> & { storeProvider: 'yjs'; collab: { endpoint: string（`wss://{host}/collab/v1/rooms/{documentId}` 模板）; documentId: DocumentId; getToken(): Promise<string>; user: { id; displayName; avatarUrl?; color? }; offline: { enabled: false; maxBytes: 50 MiB }; awareness?: Partial<AwarenessConfig> } }` | `SlideCollabPresetOptionsSchema` | `preset-slide-collab/src/config/options.ts` |
-| `ViewerPresetOptions` | `{ locale: 'zh-CN'; theme: { mode: 'system'; injectCss: true }; fit: 'contain' \| 'width'; zoom: { min: 0.1; max: 4 }; thumbnails: false; notes: false; search: false（M2 P1）; allowExport: false; fidelitySummary: true; hyperlinks: 'new-tab' \| 'ignore'; lazy: { charts: true; locales: true }; callbacks?: { onOpenDetails?(); onDownloadOriginal?() }; exclude?; override?; configure? }`（设计 25：`thumbnails`/`notes` 为宿主开关，默认关） | `ViewerPresetOptionsSchema` | `preset-slide-viewer/src/config/options.ts` |
-| `BundleBudget` | `{ preset; gzipKb: number; chunks: Record<string, number>; tolerancePct: 5 }` | `BundleBudgetSchema`（`config/bundle-budget.json` 的 schema，被 扫描器 `scan-bundle-budget`（09-type-discipline/06 §14，rulings §4.18 GV-15） 读取） | `preset-slide-viewer/src/config/budget.ts` |
-| `RoutePath` | 路由字面量联合与构造函数（§3a 路由表），`documentRoute(id, sub?)` | 无运行时 schema（TS 字面量） | `apps/web/src/domain/routes.ts` |
-| `RuntimeConfig` | `{ apiBase: URL（= `https://<host>/api/v1`，已含 REST 全局前缀，各端点路径均相对 `apiBase`，rulings §4.18 BE-11）; wsBase: URL（WS 维持 `/collab/v1/rooms/:id`）; auth: { mode: 'oidc' \| 'token' \| 'none'; selfSignup: boolean; signupUrl?: URL }; externalResources: 'auto' \| 'confirm' \| 'never'; brand: BrandConfig; features: { collab: boolean; embed: boolean; developerMenu: boolean }; help: { centerUrl?; releaseNotesUrl?; guides: Record<GuideId, string \| 'builtin'> }; csp: { styleNonce?: string } }`，来自 `window.__CORDEX_CONFIG__`（`index.html` 注入）与 `import.meta.env`。**2026-09-24（rulings §4.15 Q6/Q7）**：`auth.mode:'oidc'` 走外置 IdP（任意 OIDC，compose 可选内置 Casdoor），服务端不持有密码；`'token'`（集成方签名 JWT）降为 **M4**；`'none'` **只在 dev 构建生效**（生产构建 `RuntimeConfigSchema` 拒绝该值并渲染配置错误页）；`selfSignup` 镜像服务端部署级开关 `auth.selfSignup`（默认 `false`），仅为 `true` 时登录页显示「注册」入口（跳 `signupUrl`，即 IdP 注册页）；`externalResources` 为部署配置（默认 `'auto'`：文档内 http(s) 外链图片 / 媒体在客户端自动加载；`'confirm'` 逐文档确认；`'never'` 不加载并标 `external-resource-blocked`），同时决定 CSP `img-src`/`media-src`（§10），服务端永不加载外链 | `RuntimeConfigSchema`（启动时 `parse`，失败渲染配置错误页） | `apps/web/src/app/config.ts` |
-| `BrandConfig` | `{ name: 'Cordex 幻灯片'; markUrl?: string; faviconUrl?; primaryHex?: '#3A5CE6'; primaryDarkHex?: '#6B93FF' }`（品牌替换点，§7） | `BrandConfigSchema` | `apps/web/src/app/brand.ts` |
-| `CreateEditorHostParams` | M-10 §7 形状 + 本文补齐：`{ preset: 'slide' \| 'slide-collab' \| 'slide-viewer'; documentType: string; source: OpenUnitDescriptor['source']; ui: { theme?; density?; injectCss?; locale?; layout? }; permissions: SlidePresetOptions['permissions']; user?; collab?: SlideCollabPresetOptions['collab']; viewer?: Partial<ViewerPresetOptions>; callbacks: { onNavigateBack(); onSignOut(); onRename(t): Promise<void>; onIntent(i: ShellIntent) }; sinks?: { errors?: ErrorSink[]; telemetry?: TelemetrySink[] } }` | `CreateEditorHostParamsSchema` | `apps/web/src/application/host/create-editor-host.ts` |
-| `RenderPageQuery` | `{ renderId: string（仅作日志关联，2026-09-25 取代 `token: RenderStateToken`，rulings §4.18 BE-04）; documentType: string; mode: 'thumbnail' \| 'print'; slides?: string[]; deviceScaleFactor: 1 \| 2 \| 3; fontProfile: string; layoutAlgoVersion: number }`（M-09 `RenderOptions` + M-12 `RenderRoute` 的并集） | `RenderPageQuerySchema`（解析失败 → `window.__cordex.error('render.bad_query')`） | `apps/web/src/pages/render/render-page-protocol.ts` |
-| `Preferences` | `{ theme: 'system'; density: 'comfortable'; locale: 'zh-CN'; unit: 'cm' \| 'in' \| 'pt' \| 'px'; autosaveSec: 30; smartGuides: true; pasteDefault: 'keep-source'; notify: { collaboratorJoin: false; mention: true; importDetails: true } }`（设计 23；个人本地偏好，不同步协作者） | `PreferencesSchema` | `apps/web/src/domain/preferences.ts` |
+包级选项类型（字段与默认值以 50/03 §4–§5 为准；schema 用 `@cordexjs/protocol/schema` 的 `z`，R5 单点）：
 
+| 名称 | 本包登记的要点 | 所在文件 |
+|---|---|---|
+| `SlidePresetOptions` | `storeProvider:'memory'`；`leaveGuard: boolean`（默认 `true`：单人模式 dirty 时关闭 / 刷新标签页触发 `beforeunload`，集成方可关，50/04 §8，2026-09-25 登记）；`zoom` 默认下发产品范围 10–400%（引擎 clamp 仍为 0.1–8，50/05 §4.1）；`thumbnails.fetchImage?: (req: { documentId; slideId; size: 640 \| 1280; signal }) => Promise<Blob>`——`server-png` 缩略图与封面 `__cover` 的取数回调，缺省时 `server-png` 不可选，apps/web 默认实现经 `http.ts`（带分享令牌头，50/05 §10.2；2026-09-25 登记） | `preset-slide/src/config/options.ts` |
+| `ShellOptions` / `ShellIntent` | `shell.intent` Operation 的参数与目标集合 | `preset-slide/src/config/shell.ts` |
+| `SlideCollabPresetOptions` | `storeProvider:'yjs'`；`collab{ endpoint; documentId; getToken; user; offline:{enabled:false} }`；离开保护只看协同在途与离线队列（50/02 §10） | `preset-slide-collab/src/config/options.ts` |
+| `ViewerPresetOptions` | 查看器选项；i18n 命名空间 `viewer`（查看器工具条与壳文案，随 preset-slide-viewer 的 `i18n.bundle` 贡献，50/16 §11.3，2026-09-25 登记） | `preset-slide-viewer/src/config/options.ts` |
+| `BundleBudget` | `{ preset; gzipKb; chunks; lazy; tolerancePct: 5 }`（`scan-bundle-budget` 读取） | `preset-slide-viewer/src/config/budget.ts` |
+| `RoutePath` | 路由字面量与构造函数（路由表唯一源 50/02 §2） | `apps/web/src/domain/routes.ts` |
+| `RuntimeConfig` | 只放静态部署项、由 web 容器渲染进 `index.html`（决策 RUNTIME-CONFIG）；2026-09-25 删 `auth.selfSignup`/`signupUrl`/`csp.styleNonce`/`features.collab`，增 `publicUrl`、`storagePublicOrigin`、`appVersion`、`embed.allowedHostOrigins`、`diagnostics.e2eTrace`；可变开关只从 `GET /auth/config` 读（50/02 §3） | `apps/web/src/app/config.ts` |
+| `BrandConfig` | 品牌替换点（§7） | `apps/web/src/app/brand.ts` |
+| `CreateEditorHostParams` | `preset: 'edit' \| 'collab' \| 'view'`（2026-09-25 由 `'slide' \| 'slide-collab' \| 'slide-viewer'` 改名，与 `DOCUMENT_TYPES[*].presetKeys[params.preset]` 一致，50/03 §5）；`source`：服务端文档一律 `{kind:'state'}` + collab（M2 起，D-M2-CONTENT），`{kind:'bytes' \| 'empty'}` 只留本地文件与 M1 查看器 | `apps/web/src/application/host/create-editor-host.ts` |
+| `RenderPageQuery` | `{ renderId; documentType; mode: 'thumbnail' \| 'print' \| 'image'; slides?; deviceScaleFactor; fontProfile; layoutAlgoVersion }`（2026-09-25 `mode` 增 `image`；注入载荷 `state` 只收 `snapshot-json`，50/12 §11.3） | `apps/web/src/domain/render-page-state.ts` |
+| `Preferences` | 个人本地偏好；2026-09-25 增 `a11y.readingOrder`（50/16 §9） | `apps/web/src/domain/preferences.ts` |
 ### 2.3 纯函数
 
-| 签名草案 | 所在文件 | 两端共用 | 说明 |
-|---|---|---|---|
-| `validateEntries(entries, trim): Result<ResolvedEntry[], PresetDiagnostic[]>` | `@cordexjs/kernel/src/preset/validate.ts`（2026-09-18 起，C-07；原 `preset-slide-viewer/src/assembly/validate.ts`） | 否（dom 包，但函数本身无 DOM） | 重复 id → `PRESET_DUPLICATE_ENTRY`；`override`/`configure` 未知键 → `PRESET_UNKNOWN_ENTRY`；应用 `exclude` 后返回最终清单 |
-| `applyTrim(entries, trim): ResolvedEntry[]` | `@cordexjs/kernel/src/preset/validate.ts` | — | `exclude` 移除、`override` 替换 `plugin`、`configure` 深合并 `config`；纯函数，`order-independence.test.ts` 用随机顺序调用 |
-| `isSuperset(a: readonly PresetEntry[], b: readonly PresetEntry[], except: PluginId[]): boolean` | `@cordexjs/kernel/src/preset/validate.ts` | — | `superset.test.ts` 断言 `preset-slide ⊇ viewer − except` |
-| `deriveCollabEntries(base): PresetEntry[]` | `preset-slide-collab/src/plugins/derive.ts` | — | `store-memory → store-yjs`、删 `local-presence`、加 collab 条目；保证「从 preset-slide 切到 collab 只改 preset」（02 §4.21） |
-| `computeBudget(stats: RollupStats, budget: BundleBudget): BudgetReport` | `preset-slide-viewer/src/config/budget.ts` | 是（Node 构建期调用） | 按 chunk 名归组 gzip 字节，惰性 chunk（`chart`、`locale-*`、`viewer-thumbnails`、`viewer-notes`）不计入基线；超 `tolerancePct` → 失败 |
-| `readOnlyPolicy(caps: readonly Capability[]): PermissionPolicy` | `preset-slide-viewer/src/policies/read-only.policy.ts` | — | 仅 allow `doc.read`（+ `doc.export` 当 `allowExport`）；其余 deny（ADR-0015 第二道保证） |
-| `paramsToPresetOptions(p: CreateEditorHostParams, cfg: RuntimeConfig): SlidePresetOptions \| SlideCollabPresetOptions \| ViewerPresetOptions` | `apps/web/src/domain/host-options.ts` | — | 纯映射，不调用 `createHost`（保持唯一调用点在 `create-editor-host.ts`） |
-| `mergeRecent(local: RecentDocumentEntry[], server: DocumentSummary[]): RecentDocumentEntry[]` | `apps/web/src/domain/recent-document.ts` | — | 以 `documentId` 去重、`pinned` 优先、取 5 |
-| `resolveDocumentType(dt: string): DocumentTypeParam` | `apps/web/src/domain/document-type.ts` | — | 未知类型 → `fallback` 参数（图标 / 文案通用；打开由 SDK 以 ``format.no_document_type`（常量 `FORMAT_NO_DOCUMENT_TYPE`）` 失败，§8） |
-| `classifyAuthError(env: ErrorEnvelope): 'expired' \| 'forbidden' \| 'network'` | `apps/web/src/domain/session.ts` | — | 令牌刷新遇 401（`server.auth.expired`）直接判 `expired`，只有网络错误才判 `network`（走重连中，UX-02）；`expired` 时：协同会话**有 pending 时不自动跳转**，发 `app/session-changed{state:'expired'}` 交横幅承接「重新登录」（新窗口完成 OIDC），无 pending 的非编辑页才跳 `/login?next=`（rulings §4.18 UX-02）；`forbidden` → 403 页 |
-| `isSameReauthPrincipal(before: Principal, after: Principal): boolean` | `apps/web/src/domain/session.ts` | — | 新窗口重新登录回来后比对 `principal.id`：相同则按 `denied→connecting` 重连并重放队列；不同则不重放队列、按只读处理并提供导出本地副本（UX-02） |
-| `nextAfterLogin(search: URLSearchParams): RoutePath` | `apps/web/src/domain/routes.ts` | — | 白名单站内路径，防开放重定向 |
+| 签名 | 所在文件 | 说明（行为以 50/02、50/03 为准） |
+|---|---|---|
+| `validateEntries` / `applyTrim` / `isSuperset` | `@cordexjs/kernel/src/preset/validate.ts`（C-07） | 重复 id 诊断；`configure` 深合并；超集断言 |
+| `deriveCollabEntries(base)` | `preset-slide-collab/src/plugins/derive.ts` | `store-memory → store-yjs`、删 `local-presence`、加 collab 条目与 `comments`（M3） |
+| `computeBudget(stats, budget)` | `preset-slide-viewer/src/config/budget.ts` | 按 chunk 归组 gzip 字节（T-BUNDLE，50/13 §6） |
+| `readOnlyPolicy(caps)` | `preset-slide-viewer/src/policies/read-only.policy.ts` | 仅 `doc.read`（+ `doc.export`） |
+| `paramsToPresetOptions(p, cfg)` | `apps/web/src/domain/host-options.ts` | 纯映射，不调 `createHost` |
+| `mergeRecent`、`resolveDocumentType`、`classifyAuthError`、`isSameReauthPrincipal`、`nextAfterLogin` | `apps/web/src/domain/{recent-document,document-type,session,routes}.ts` | 最近合并、未知类型回退、令牌 401 直接 `expired`（UX-02）、换人判定、站内白名单重定向（样本集见 protocol `testing/redirect-samples.ts`） |
 
 ### 2.4 事件
 
-**本模块不声明任何 cordis `Events`**（module-map BC-16/BC-17 行：发布 / 订阅均为「无」；胶水插件亦不 `ctx.emit`）。`apps/web` 只**转发**：`application/host/host-event-bridge.ts` 在 `createEditorHost` 返回后对下表事件逐个 `ctx.on`（disposer 交 `dispose()`），转发到三类接收方——① 应用状态（`EditorPageState`/保存态/toast），② 集成方回调（`CreateEditorHostParams.callbacks.onEvent?`，形态 A/E），③ iframe `postMessage`（形态 E，`infrastructure/embed/post-message-bridge.ts`）。事件名与载荷完全沿用 PRD EM-05 / 架构 10 §11.1，不改名、不增字段。
-
-| 域 | 转发的事件（`unit/*` 等，上游发布者） | 应用侧用途 | 转发策略 |
-|---|---|---|---|
-| unit | `unit/opened`、`unit/open-progress`、`unit/open-failed`、`unit/closed`、`unit/dirty-changed`、`unit/saved`、`unit/migrated`（M-02） | 编辑器页状态机、打开进度条（设计 13）、标题脏标、最近文档写入（`opened` 时 `recent-store.record()`） | 全量转发 |
-| command / history / selection | `command/executed`、`command/rejected`、`command/failed`、`command/audited`、`history/changed`、`selection/changed`（M-02） | 遥测；`command/rejected{permission}` → 权限降级 toast 由 ui-react 处理，应用只埋点 | 全量转发（`selection/changed` 集成方可选） |
-| store | `store/transaction`、`store/loaded` | 单人模式回调式保存（EM-02 (a)）：dirty + `Mod+S`/自动保存间隔 → `export-document.usecase` | ≥ 50 ms 合并（EM-05） |
-| view | `view/mode-changed`（M-10 ui-core）、`view/page-changed`、`view/zoom-changed`（发布者待定，§12 G-9） | 放映路由同步 URL `?slide=`；查看器壳页码 | 全量 |
-| render / layout | `render/first-paint`、`render/frame`（≥ 50 ms 合并）、`render/page-mounted`、`render/element-degraded`、`render/element-failed`、`render/font-fallback`、`layout/fonts-ready`、`layout/measurer-changed`（M-06/M-07） | `/render` 页 ready 判定（2026-09-25 统一，rulings §4.18 FE-09）= 所请求页全部 `render/page-mounted` ∧ 这些页的字体请求全部结算（`layout/fonts-ready` 或 `render/font-fallback`；无字体需加载视为已结算）∧ 此后出现一次待绘脏区为空的 `render/frame`（`pendingDirty === 0`，或 render 服务只读 `hasPendingWork() === false`，M-06 配合）；`/render` 装配 viewer 时 `lazy.charts`/`lazy.locales` 置 `false`，首帧后不再有惰性重绘；保真摘要计数 | `/render` 页全量；编辑器页只转发 degraded/failed/font-fallback |
-| export | `export/started`、`export/completed`、`export/failed`（M-02 `core.export`） | 导出对话框进度与失败重试（设计 22） | 全量 |
-| collab / presence | `collab/state-changed`、`collab/synced`、`collab/soft-conflict`、`collab/auth-failed`、`collab/reconnect`、`collab/update-rejected`、`collab/repair`、`presence/joined`、`presence/left`、`presence/changed`（M-05） | `collab/auth-failed{code:'server.auth.expired'}` → 会话刷新 → `getToken` 重试；其余由 ui-react 状态栏呈现 | 全量（M3） |
-| comment / permission | `comment/*`（M-12 镜像源为客户端插件）、`permission/changed`、`permission/denied` | 通知偏好（设计 23「评论 @ 我时提示」）；`permission/changed` → `EditorHost mode` 重算（`commenter → review`） | 全量 |
-| plugin / error | `plugin/loaded`、`plugin/failed`、`plugin/incompatible`、`error/raised`（M-02 kernel） | 插件管理器页（PS-11，读 `PresetReport` + 这三件事件）；`error/raised{severity:'fatal'}` → 错误边界页 | 全量 |
-
-**应用级事件（新增建议，非 cordis）**：`apps/web/src/domain/app-events.ts` 定义 typed `EventTarget`，命名沿用 `<域>/<动作>` 但域固定为 `app`，**不进入** charter §5.5 保留域名单、不经 lint `cordex/events-must-be-declared`（原称 `events-declared`，rulings §4.18 GV-15）：`app/navigated{from,to}`、`app/session-changed{state}`、`app/online-changed{online}`、`app/document-opened{documentId,documentType}`、`app/document-closed{documentId,dirtyDiscarded}`、`app/preferences-changed{keys}`、`app/intent{target}`（`shell.intent` 到达宿主后的回声，供遥测）。若总编排希望统一登记，建议 charter §5.5 增加 `app` 为「应用壳私有域，禁止 SDK 包使用」（§12 G-6）。
+本模块不声明任何 cordis `Events`；`apps/web/src/application/host/host-event-bridge.ts` 只转发。转发表、合并窗口与遥测口径以 [50/15](../50-frontend/15-events-errors-and-telemetry.md) 与 [50/02 §6](../50-frontend/02-app-shell-routing-and-session.md) 为准（放映 URL 参数 2026-09-25 由 `?slide=` 改为 `?page=`）；`/render` 页 ready 判据（rulings §4.18 FE-09）以 [50/12 §11.5](../50-frontend/12-viewer-embedding-and-render-page.md) 为准，代码落点 `domain/render-page-state.ts` 的 `isRenderReady`。应用级事件（非 cordis，域固定 `app`）定义在 `apps/web/src/domain/app-events.ts`。
 
 ### 2.5 外部契约
 
-| 契约 | 来源 | 本模块使用点 | 说明 |
-|---|---|---|---|
-| `createHost(options: HostOptions): CordexHost`，`HostOptions{ kernelVersion?; strictManifest?; defaultSinks?; loggerSink?; clock? }` | M-02 kernel `host.ts` | 仅 `application/host/create-editor-host.ts` | `strictManifest: import.meta.env.DEV`；`defaultSinks:false` 并注入 `sinks.ts` 选定的 `errors.sink`/`telemetry.sink` 贡献（由 kernel 自身贡献点承接，非 apps 贡献——经 `HostOptions.loggerSink` 与 preset `configure['kernel']`） |
-| `units.open(descriptor: OpenUnitDescriptor): Promise<Result<Unit, UnitError>>`；`source.kind ∈ bytes \| snapshot \| state \| empty` | M-02 model-core `unit/unit-descriptor.ts` | `create-editor-host.ts`（打开）、`pages/render/RenderPage.tsx`（`state` 或 `snapshot`） | 本地导入 → `bytes`；服务端文档 → `snapshot`（`GET /documents/:id/snapshots/latest` 直接返回快照字节，ETag/304，rulings §4.18 BE-12）；协同 → `state`（`encoding:'yjs-update'`，由 collab 同步填充）；新建 → `empty` |
-| `EditorHostProps` | M-10 ui-react §6 | `pages/editor/EditorPage.tsx`、`pages/present/PresentPage.tsx` | `mode` 由角色映射：`owner\|editor → 'edit'`、`commenter → 'review'`、`viewer → 'view'`（查看者进 `/documents/:id` 协同编辑器只读变体：评审外观去掉「评论 / 高亮」等创建类按钮，模式下拉只列「只读浏览」与放映，能实时看到修改与在场、计入查看者名额；viewer 不走 `/documents/:id/view`，rulings §4.18 UX-19；M-10 §6 示例同步）；`slots['appBar.right']` 不注入（应用栏顺序 Q14 由 ui-react 固定）；`onNavigateBack → navigate('/home')`（rulings：返回落首页） |
-| `UserMenu`/`Brand`/`ThemeToggle`/`SettingsDrawer`/`ShortcutsPanel` | M-10 ui-react | `app/layouts/ShellLayout.tsx`、`pages/settings/SettingsPage.tsx` | 在**无 host** 的开始页 / 文档列表 / 设置页使用，要求组件 host-optional（§12 G-10） |
-| `Plugin` 默认导出 + 各包 `Config` | M-02…M-10 各包 `plugin.ts` | `plugins/*.entries.ts` | 见 §3 装配清单表的「默认配置」列 |
-| `@cordexjs/model-slide/editing` 子路径 | M-03 §3 | `preset-slide/src/plugins/slide.entries.ts` | viewer 不 import（depcruise `cordex-viewer-no-editing` 检查，原称 `no-editing-in-viewer`，rulings §4.18 GV-15） |
-| `localPresencePlugin` | M-05 `collab-core/infrastructure/local-presence.provider.ts` | `preset-slide/src/plugins/presence.entries.ts` | viewer **不加载**（M-05 §7 留给 M-11 的判断：查看器无 presence UI，§12 G-13） |
-| protocol REST：`rest/auth.ts`（login/callback/me/refresh/logout、协同 ticket）、`rest/documents.ts`（列表 / 详情 / 创建 / 重命名 / 删除 / 权限 / 分享链接）、`rest/snapshots.ts`（快照索引 / `latest` 字节 / 版本恢复）、`rest/import-export.ts`（`/imports/uploads` 两步导入、`/imports`、`/documents/:id/export`、`/exports/:jobId`、`TaskState`，BE-10/BE-12）、`rest/audit.ts` | M-02 protocol §4.3；服务端实现 M-08 / M-09 / M-12 | `infrastructure/api/*.api.ts` | 全部响应 `schema.parse`；错误体 `errors/envelope.ts` → `ErrorEnvelope`；`errors/codes.ts` 的 HTTP 映射表驱动重试 / 跳登录 |
-| protocol `permissions/{roles,actions,principal}.ts` | M-02 | `domain/session.ts`、`EditorPage` 角色 → `mode` | `ROLE_CAPABILITIES[role]` 直接作为单人模式 `permissions.capabilities` |
-| `RenderPageProtocol`（查询参数、`window.__cordex.inject(payload)`、`window.__cordex.ready(pageIds)`/`.error(code)`；2026-09-24 删除 `GET /internal/render/:token/state` 拉取，rulings §4.15 Q8） | **`@cordexjs/protocol/src/render/page.ts`（M-02，2026-09-18 起，C-27，§12 G-7 结案）**；`RenderStateToken` 于 2026-09-25 整体取消（M-12 删除签发与存储，rulings §4.18 BE-04），查询参数只带 `renderId` 供日志关联；`RenderStateResponse` 保留为注入载荷类型 | `pages/render/render-page-protocol.ts`（**改为 import**，不再镜像）+ `RenderPage.tsx` | 跨进程契约已进 `@cordexjs/protocol`，M-09 与本文同源 |
-| 服务端 OIDC 回环：`POST /api/v1/auth/oidc/login → { authorizationUrl }`、浏览器跳转 IdP（反代子域 `idp.<域名>`，rulings §4.18 BE-01）、IdP → `GET /api/v1/auth/oidc/callback`（`redirectUri`，服务端换码、设 httpOnly cookie，BE-11）→ 302 `apps/web /auth/callback?next=`；「重新登录」时在弹窗或新标签完成同一流程，回调页 `/auth/popup-callback` 经 `BroadcastChannel('cordex-auth')` 通知原页（原页重获焦点也探测 `/auth/me`），弹窗被拦截退化为新标签链接（UX-02） | M-08 §4.1 `auth.controller.ts` | `pages/auth/LoginPage.tsx`、`CallbackPage.tsx`、`PopupCallbackPage.tsx`（新增，UX-02）、`infrastructure/auth/session-client.ts` | 浏览器**不**持有 `openid-client`/PKCE（与 02 §3.1 的差异见 §12 G-4）；嵌入场景由集成方提供 `getToken` |
+| 契约 | 来源 | 本模块使用点 |
+|---|---|---|
+| `createHost(options)`（含 `scriptUrlPolicy`，2026-09-25） | M-02 kernel `host.ts`、`host-options.ts` | 仅 `application/host/create-editor-host.ts`（唯一调用点）；Trusted Types 策略由 `infrastructure/security/trusted-types.ts` 在任何 Worker 创建前建立（50/14 §4.2） |
+| `units.open(descriptor)`（`source.kind ∈ bytes \| snapshot \| state \| empty`） | M-02 | `create-editor-host.ts`、`/render` 用例 |
+| `EditorHostProps` | M-10 ui-react | `pages/editor/EditorPage.tsx`、`pages/present/PresentPage.tsx`（角色 → `mode` 只在打开时映射，会话内降权不改 `editorMode`，50/10 §3.1） |
+| protocol REST 与 `render/page.ts` | M-02；路由唯一源 [60/15](../60-backend/15-rest-api-catalog.md) | `infrastructure/api/*.api.ts`（唯一 `fetch` 封装 `http.ts`；预签名直传另走 `direct-upload.ts`，50/02 §7） |
+| 服务端 OIDC 回环 | [60/02](../60-backend/02-auth-chain.md) | `GET /auth/oidc/login?mode=redirect\|popup`（2026-09-25 由 `POST` 更正，50/02 §4.4） |
 
-### 2.6 用例清单（`apps/web/src/application/**/*.usecase.ts`；均为无状态函数，注入 `Api`/`Storage`/`Navigate` 端口）
+### 2.6 用例清单（`apps/web/src/application/**/*.usecase.ts`）
 
-| 用例 | 触发 | protocol 调用 | 结果 / 导航 | 所在文件 |
-|---|---|---|---|---|
-| 打开文档 | 开始页最近 / 文档卡 / 深链 `/documents/:id`（任何角色，含查看者，UX-19） | `GET /documents/:id`（角色、`documentType`、锁定态）→ `GET /documents/:id/snapshots/latest`（直接返回快照字节，ETag/304；2026-09-25 删「预签名 URL → 字节」两跳，rulings §4.18 BE-12） | `createEditorHost({ preset: byRoleAndFeature, source })` → `EditorPageState.ready`；`recent-store.record` | `application/documents/open-document.usecase.ts` |
-| 新建（空白 / 主题模板） | 开始页「新建」卡（AS-01） | `POST /documents{ documentType:'slide', title, template? }` | 导航 `/documents/:id`；首页为标题版式由 `documentType.createEmpty()`（SDK，D14） | `application/documents/create-document.usecase.ts` |
-| 导入 .pptx | 开始页「导入」卡 / 文档列表按钮 / `/import` 拖放 | 本地：无（`source.kind:'bytes'` 直接打开，`OF-01`）；入库（两步，rulings §4.18 BE-10/BE-12）：`POST /imports/uploads`（服务端预分配 `jobId`/`docId`，返回预签名 PUT 与一次性 `uploadId`）→ 浏览器经 `s3.<域名>` 直传 → `POST /imports{uploadId}` → 轮询 `GET /imports/:jobId`；客户端从不提交对象键 | 进度阶段与失败态全集（设计 13）；成功 → `/documents/:id` | `application/import-export/import-pptx.usecase.ts` |
-| 导出 | 「⋯ → 导出…」/ `Mod+E`（`shell.intent{target:'export'}`） | pptx：客户端 `commands.execute(unitId,'core.export',{format:'pptx'})`；PDF/PNG：`POST /documents/:id/export{format}` → 轮询 `GET /exports/:jobId`（BE-12） | 导出对话框（设计 22）；下载 / 失败重试 | `application/import-export/export-document.usecase.ts` |
-| 最近与固定 | 开始页「最近」段 | `GET /documents?filter=recent&limit=5`（`pinned` 字段待 protocol 追加，§12 G-8；M2 固定为本地） | `mergeRecent`；固定 / 从最近移除（可撤销 toast 5 s） | `application/documents/recent-documents.usecase.ts` |
-| 列表 / 筛选 / 重命名 / 删除 / 创建副本 | `/documents` 页与卡片「⋯」 | `GET /documents?filter&cursor`、`PATCH /documents/:id{title}`、`DELETE /documents/:id`、`POST /documents/:id/duplicate`（待追加，G-8） | 虚拟滚动追加、内联重命名、淡出移除 | `application/documents/manage-documents.usecase.ts` |
-| 分享 | 应用栏「分享」/ 卡片「分享」 | `GET/PUT /documents/:id/permissions`、`POST/DELETE /documents/:id/share-links` | 分享对话框（设计 08）；权限变化经 WS `permission/changed` 到编辑器 | `application/sharing/share-document.usecase.ts` |
-| 版本 | 「⋯ → 版本历史」 | `GET /documents/:id/snapshots`（自动 / 命名版本）、`PATCH …/snapshots/:v{ name }`、`POST …/snapshots/:v/restore` | 版本历史页（设计 07）；恢复后 `units` 重开 | `application/versions/versions.usecase.ts` |
-| 设置 | 账户菜单「设置」/ `Mod+,` | 无（本地偏好） | `preferences-store` 写入 → `app/preferences-changed` → host `i18n.setLocale`/`theme.set`/`ui.setPreference` | `application/settings/preferences.usecase.ts` |
-| 登录 / 会话探测 / 登出 | 受保护路由守卫、账户菜单「退出登录」 | `GET /auth/me`、`POST /auth/oidc/login`、`POST /auth/token/refresh`、`POST /auth/logout` | `Session` 状态机；刷新遇 401 直接 `expired`（网络错误才走重连中）；编辑器页有未同步更改时**不跳转**，发 `app/session-changed{state:'expired'}` 交横幅承接，其余页面跳 `/login?next=`（rulings §4.18 UX-02） | `application/auth/session.usecase.ts` |
-| 新窗口重新登录（新增，rulings §4.18 UX-02） | 横幅「重新登录」（处理前横幅不可关闭） | `POST /auth/oidc/login` 在弹窗或新标签打开 `authorizationUrl`；回调页经 `BroadcastChannel` 通知；原页重获焦点探测 `GET /auth/me` | 原页不跳转、队列保留；`isSameReauthPrincipal` 为真 → 取新票据按 `denied→connecting` 重连 → 同步中 → 已恢复；为假 → 不重放队列、按只读处理并提供导出本地副本；弹窗被拦截退化为新标签链接 | `application/auth/reauth-in-window.usecase.ts` |
-| 放映 / 查看 | 应用栏模式下拉「放映」/ `F5`；M1 查看器与嵌入 | 无新增（复用已打开 host；M1 查看器 `GET …/snapshots/latest`） | `/documents/:id/present`（复用 `HostRegistry` 中的 host，`view.setMode('presenter')`）；`/documents/:id/view`（`preset-slide-viewer`）**只留给 M1 查看器与嵌入**，不作为 viewer 角色入口——查看者走 `/documents/:id` 编辑器 `mode='view'`（rulings §4.18 UX-19） | `application/host/host-registry.ts`、`open-document.usecase.ts` |
-| headless 渲染 | 服务端 Chromium 打开 `/render?renderId…` | 无 REST：local 与 remote 两种模式都由编排方经 `window.__cordex.inject` 注入 state 与资源（rulings §4.15 Q8、§4.18 BE-04） | `ready(pageIds)`（判据见 §2.4，FE-09）/ `error(code)` | `application/render/render-page.usecase.ts` |
+用例的触发、REST 调用与导航以 [50/02 §8](../50-frontend/02-app-shell-routing-and-session.md) 为准；本表只保留文件落点与 rulings §4.19 D-M2-CONTENT 带来的路径变化：
 
-**图 2-2 应用壳路由与 host 创建流程**
+| 用例 | 所在文件 | 2026-09-25 口径 |
+|---|---|---|
+| 打开文档 | `application/documents/open-document.usecase.ts` | M2 起服务端文档 = `GET /documents/:id` → `GET snapshots/latest` + `POST collab-ticket` + WS（collab 预设、`source.kind:'state'`）；本地文件与 M1 查看器才走 `bytes` |
+| 新建（空白 / 内置模板） | `application/documents/create-document.usecase.ts` | 前端取模板字节（`DOCUMENT_TYPES[*].newCards`）→ 服务端两步导入 → `GET /jobs/:id` → 以 `import` 快照打开；无 pptx 内容版本端点 |
+| 导入 .pptx | `application/import-export/import-pptx.usecase.ts` | 本地打开 = `bytes`；入库 = `POST /imports/uploads` → `direct-upload.ts` 直传 → `POST /imports{uploadId}` → 轮询 `GET /jobs/:id`（删 `GET /imports/:jobId`，SG-08） |
+| 导出 | `application/import-export/export-document.usecase.ts` | pptx 客户端 `core.export`（M2）；PDF / PNG 服务端（M3） |
+| 最近与固定、列表 / 重命名 / 删除 / 创建副本 | `application/documents/{recent-documents,manage-documents}.usecase.ts` | 服务端同步（U-04），读缓存 `infrastructure/api/query-cache.ts`（决策 APP-DATA） |
+| 分享、版本 | `application/sharing/share-document.usecase.ts`、`application/versions/versions.usecase.ts` | M3（权限细化、版本历史） |
+| 设置 | `application/settings/preferences.usecase.ts` | 本地偏好 |
+| 登录 / 会话 / 登出、新窗口重新登录 | `application/auth/{session,reauth-in-window}.usecase.ts` | 50/02 §4–§5、§10（登出清理只看协同在途与离线队列） |
+| 分享链接落地 | `application/sharing/share-landing.ts`（2026-09-25 登记，50/02 §11） | 片段令牌读入 sessionStorage 后立即清地址栏 |
+| 放映 / 查看、headless 渲染 | `application/render/render-page.usecase.ts` 等 | `/render` 只接受注入（BE-04），`state` 只收 `snapshot-json`，50/12 §11 |
 
-```mermaid
-flowchart LR
-home["开始页 /home"]
-docsList["文档列表 /documents"]
-editorRoute["编辑器路由 /documents/:id"]
-createHostFile["create-editor-host.ts 唯一createHost调用点"]
-editorHost["EditorHost 组件"]
-renderPage["/render 页 供M-09编排headless"]
-home -- "打开或新建文档" --> editorRoute
-docsList -- "打开文档" --> editorRoute
-editorRoute -- "调用" --> createHostFile
-createHostFile -- "createHost 加 createSlidePreset 系列" --> editorHost
-createHostFile -. "preset slide-viewer 精简装配" .-> renderPage
-```
-
-图怎么读：开始页与文档列表殊途同归，都在编辑器路由内调用同一个 `create-editor-host.ts`；这是仓库中唯一的 `createHost` 调用点；`/render` 页复用同一函数但装配精简后的查看器 preset，不挂载 `EditorHost`。
-
-**图 2-3 打开文档时序**
-
-```mermaid
-sequenceDiagram
-  participant page as EditorPage 编辑器路由
-  participant uc as open-document.usecase
-  participant api as infrastructure/api 响应一律 schema.parse
-  participant hostFn as create-editor-host.ts
-  participant host as cordis 宿主与 preset
-  page->>uc: 打开文档 documentId
-  uc->>api: GET 文档详情 取角色 documentType 锁定态
-  uc->>api: GET 最新快照 直接返回字节 ETag
-  api-->>uc: 快照字节
-  Note over page: EditorPageState 由 idle 进入 creatingHost
-  uc->>hostFn: createEditorHost 按角色与特性选 preset 与 source
-  hostFn->>host: createHost 加 createSlidePreset 系列
-  host->>host: apply 无序挂载 Promise.allSettled 汇总 PresetReport
-  hostFn->>host: units.open source.kind snapshot
-  host-->>page: unit/open-progress 经 host-event-bridge
-  Note over page: EditorPageState 为 opening 显示进度
-  host-->>page: unit/opened
-  page->>page: EditorPageState 进入 ready
-  page->>page: recent-store.record 写最近文档
-```
-
-怎么读：两次 REST 调用都经 `@cordexjs/protocol` 的 schema 校验后才进入用例（`latest` 直接返回字节，没有预签名中转，rulings §4.18 BE-12）；宿主创建与 preset 装配集中在唯一的 `create-editor-host.ts`，某个插件失败只记入 `PresetReport` 而不阻断其余条目；页面状态只由转发的 `unit/*` 事件驱动。
-
-依据：§2.1 `EditorPageState` 与 `PresetReport`；§2.4 转发表 unit 行；§2.5 `units.open`；§2.6「打开文档」行。
-
-**图 2-4 /render 页 headless 渲染时序**
-
-```mermaid
-sequenceDiagram
-  participant chromium as headless Chromium 由 M-09 编排
-  participant page as RenderPage
-  participant uc as render-page.usecase
-  participant hostFn as create-editor-host 查看器精简装配
-  chromium->>page: 打开 /render 携带 RenderPageQuery 与 renderId
-  Note over page: RenderPageState 由 booting 进入 awaitingInject 超时为页面常量
-  chromium->>page: window.__cordex.inject 注入 state 与资源 页面零外呼
-  page->>uc: 开始渲染
-  uc->>hostFn: preset-slide-viewer 与 units.open state 或 snapshot
-  Note over page: 经 opening 与 painting
-  uc->>uc: 等所请求页全部 page-mounted 且字体结算 再等一次待绘脏区为空的 render/frame
-  alt 全部就绪
-    page-->>chromium: window.__cordex.ready pageIds
-  else 失败
-    page-->>chromium: window.__cordex.error code
-  end
-```
-
-怎么读：渲染页从不向服务端拉取状态，local 与 remote 两种模式都由编排方注入 state 与资源（`RenderStateToken` 已取消，查询参数只带 `renderId` 作日志关联，rulings §4.18 BE-04），页面全程零外呼；ready 判据是「所请求页全部挂载 ∧ 这些页字体全部结算 ∧ 此后一次待绘脏区为空的 `render/frame`」（FE-09），`/render` 装配时关闭惰性加载，任一失败即以错误码回报。
-
-依据：§1.3 BC-27 行；§2.1 `RenderPageState`；§2.4 render/layout 行；§2.5 `RenderPageProtocol` 行；rulings §4.15 Q8、§4.18 BE-04/FE-09。
-
+原图 2-2（应用壳路由与 host 创建）、图 2-3（打开文档时序）、图 2-4（`/render` 时序）2026-09-25 移交 50/02 §6、§8 与 50/12 §11 的同名流程图，本文不再保留副本（M2 起打开路径已改为快照 bootstrap，旧图的「字节打开」已不成立）。
 ## 3. cordis 插件定义
 
 > 三个 preset 均为 bundle：`createXxxPreset(options)` 校验 options 后返回一个函数插件，其 `apply(ctx)` 对 `applyTrim(entries, options)` 的结果**无序**挂载（`for (const e of new Set(entries)) ctx.plugin(e.plugin, e.config)`），依赖由 cordis `inject` 反应式解决，任何顺序结果一致（`order-independence.test.ts` 随机 100 次）；惰性条目只登记触发器，不挂载。`apps/web` 不是 cordis 插件，其接入点表见本节末。
@@ -333,8 +226,9 @@ sequenceDiagram
 | `collab-transport-ws` | `@cordexjs/collab-transport-ws` | host（根作用域） | ○ | ○ | ● | `{ urlTemplate: options.collab.endpoint, connectTimeoutMs: 5000, backoff: 默认, heartbeatMs: 15000 }` | 无依赖，按需 `connect()` | override → `collab-transport-webrtc`（未来）；exclude → `collab-yjs` PENDING，单人可编辑 |
 | `collab-yjs` | `@cordexjs/collab-yjs` | unit | ○ | ○ | ● | `{ flushMs: 50, awareness: 默认, maxUpdateBytes: 1 MiB, offline: { enabled: options.collab.offline.enabled } }` + `getToken`/`user` | 依赖 `store/yjsBackend/collabTransport/permissions` | exclude → 单人模式（`presence` 缺席，`isCollab=false`） |
 | `collab-offline-idb` | `@cordexjs/collab-offline-idb` | unit | ○ | ○ | ◐（`collab.offline.enabled:true` 时装载；M3 默认关，M4 P2） | `{ dbNamePrefix: 'cordex-collab', maxPendingBytes: 50 MiB, ttlDays: 30 }` | 缺失即内存队列降级（M-05 §2.5） | exclude 等价于未启用 |
+| `comments` | `@cordexjs/comments` 默认导出（iso 横向能力、文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象；2026-09-25 新增，rulings §4.19 D-COMMENTS-PKG） | host（UnitScope 内经 `unitPlugins` 挂 `comments.threads` 资源） | ○ | ○ | ●（**M3** 起装载） | 无（上限沿用 CO-04 默认） | 依赖 `contributions/commands/units/resources`；slide 专属锚点 resolver、检查器「评论」页签与画布评论钉由 `slide-ui` 贡献（M-10） | exclude → 无评论能力，编辑与协同照常；`pluggable:m3` 白名单含 `+comments` |
 
-**超集 / 派生关系（`superset.test.ts`、`derive.ts`）**：`SLIDE_ENTRIES = VIEWER_ENTRIES − { read-only, design-css, viewer-shell, viewer-thumbnails, viewer-notes, viewer-search } + { model-slide-editing, local-presence, ui-core, ui-react, slide-ui, shell-glue }`（与 §1.2「超集关系」、02 §4.21b 同一扣除集合，rulings §4.18 FE-07），并把 `model-core`/`engine-render` 的 `configure` 换成编辑器默认；`COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES)`。三张清单都是**静态数组**（`plugins/index.ts` 导出），`manifest-gen` 据此生成聚合 `manifest.ts`（子插件 manifest 引用列表），供扫描器与文档站在不运行的情况下读出「装了什么」（ADR-0003 精神）。
+**超集 / 派生关系（`superset.test.ts`、`derive.ts`）**：`SLIDE_ENTRIES = VIEWER_ENTRIES − { read-only, design-css, viewer-shell, viewer-thumbnails, viewer-notes, viewer-search } + { model-slide-editing, local-presence, ui-core, ui-react, slide-ui, shell-glue }`（与 §1.2「超集关系」、02 §4.21b 同一扣除集合，rulings §4.18 FE-07），并把 `model-core`/`engine-render` 的 `configure` 换成编辑器默认；`COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES)` = `SLIDE_ENTRIES` ▲ `store-yjs` − `local-presence` + { `collab-transport-ws`, `collab-yjs`, `comments`（M3）, ◐`collab-offline-idb` }；`pluggable:m3` manifest 差异白名单 `{ −store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments }`（`collab-offline-idb` 可选不计入；PRD 05 原白名单中不存在的 `+comments-ui`/`+presence-ui`/`+history-ui` 与重复的 `+collab-core` 删去，rulings §4.19 D-COMMENTS-PKG，50/03 §11）。三张清单都是**静态数组**（`plugins/index.ts` 导出），`manifest-gen` 据此生成聚合 `manifest.ts`（子插件 manifest 引用列表），供扫描器与文档站在不运行的情况下读出「装了什么」（ADR-0003 精神）。
 
 ### 3.2 三个 preset 的装配定义表
 
@@ -376,23 +270,7 @@ sequenceDiagram
 | 历史 | `model-core.historyLimit: 0`（§13 Q-5） | 配置 |
 | 图表 / 语言包 / 缩略图条 / 备注抽屉 / 搜索 | 惰性 chunk，不计基线 | `lazy.test.ts`：无图表文档 import 计数 0；`thumbnails:false` 时无 `viewer-thumbnails` 请求 |
 
-| 预算分解（gzip，基线 chunk） | KB | 说明 |
-|---|---|---|
-| `@cordexjs/kernel` + `@cordexjs/shared` + cordis 运行时 | 25 | `satisfies` 自实现，不含 semver |
-| `@cordexjs/protocol`（zod 4 + 本包 schema，tree-shaken）+ `@cordexjs/i18n` | 20 | viewer 只用 `errors/`、`permissions/`、`blob.ts`、`snapshot/` |
-| `@cordexjs/model-core` + `@cordexjs/store-memory` | 40 | 含 `drawing/**` 值对象 |
-| `@cordexjs/model-slide`（主插件，不含 editing） | 45 | 归一化实体表 + 样式解析 + 不变量 |
-| `@cordexjs/ooxml-core` + `@cordexjs/ooxml-pptx`（含 fflate、导入 / 导出双向） | 90 | 若 M-04 把 `export/` 拆为惰性子路径可再省 ≈ 25 KB（§12 G-14） |
-| `@cordexjs/engine-layout` | 25 | 文本布局 + 度量缓存 |
-| `@cordexjs/engine-render` + `@cordexjs/render-dom` | 45 | 场景图 / 脏区 / SVG 绘制 / 4 个覆盖层 |
-| `@cordexjs/slide-render`（不含图表渲染器） | 35 | `SceneProvider` + 9 个元素渲染器 |
-| `@cordexjs/design` `theme.css`（经 `design-css` 注入） | 6 | token / 材质 / `[data-slot]` |
-| 查看器壳 `shell/**` + `styles/viewer.css` | 12 | 02 §4.21b 上限 15 KB |
-| `read-only` 策略 + preset 胶水 | 2 | 2026-09-18：`assembly/**`（原 ≈1 KB）已上移 `@cordexjs/kernel`（C-07），并入上方 `@cordexjs/kernel` 行；本行数值维持不变（M2 按实测校准） |
-| **合计** | **345** | 余量 5 KB；CI 超 5%（367.5 KB）失败，超预算但 ≤ 5% 报告警告 |
-| 惰性（不计基线） | 图表 ≤ 400；单语言包 ≤ 30；`viewer-thumbnails` ≤ 20；`viewer-notes` ≤ 10；`viewer-search` ≤ 15 | 各自独立 chunk，`computeBudget` 单独校验 |
-
-编辑器（`preset-slide` + ui-react + slide-ui，不含 React 本体）预算 ≤ 900 KB：viewer 基线 345 − 壳 / 策略 14 + `editing` 60 + `ui-core` 40 + `ui-react`（含 45 个 shadcn 复制件与 radix，tree-shaken）200 + `slide-ui` 120 + `lucide-react` 图标子集 20 + `shell-glue` 3 ≈ 774 KB；协同增量（`store-yjs` + yjs 60、collab 三包 45、lib0/y-protocols 25、在场 / 评论 UI 20）≈ 150 KB ≤ 200 KB。三档预算全部写在各自 `config/bundle-budget.json`，M2 按实测校准（EM-07「初始预算」）。
+**预算分解**：各 chunk 的 gzip 预算、编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 的构成、惰性 chunk 上限与计量口径（T-BUNDLE：`config/bundle-budget.json` + chunk gzip）的唯一源是 [50/13](../50-frontend/13-performance-and-bundling.md) §6、§12（2026-09-25 自本节迁出，rulings §4.19）；本包只保留预算文件落点 `src/config/bundle-budget.json`（schema 与 `computeBudget` 见 §2.2–§2.3）。自 M2 起服务端文档实际加载协同增量（rulings §4.19 D-M2-CONTENT）。
 
 ### 3.5 `apps/web` 接入点表（非 cordis 插件；仓库中「知道插件存在」的应用代码仅第一行）
 
@@ -401,35 +279,15 @@ sequenceDiagram
 | 调用 `createHost` 与 `createSlidePreset`/`createSlideCollabPreset`/`createSlideViewerPreset` | `apps/web/src/application/host/create-editor-host.ts` | `createHost({ strictManifest, defaultSinks:false, loggerSink })` → `host.plugin(preset)` → 等 `preset.report()` → `units.open(descriptor)` → 返回 `{ host, unitId, report, dispose }`；按 `documentType` 与 `preset` 键 `switch` 选择工厂（§8 参数化点） | ESLint `no-restricted-syntax`（`apps/**` override）：`createHost(` 与 `createSlide*Preset(` 在 `apps/**` 只允许出现在此文件（原称 `single-create-host-callsite`，rulings §4.18 GV-15）；depcruise `cordex-apps-only-assemble`：`@cordexjs/kernel` **值导入**只放行 `application/host/**`（本文件、`sinks.ts`、`host-event-bridge.ts`），其余文件只许 `import type`（与 §10 一致，FE-05） |
 | 选择 `errors.sink`/`telemetry.sink` | `application/host/sinks.ts` | 按 `RuntimeConfig.telemetry` 返回 console / OTel Web / no-op sink 实例，经 `HostOptions.loggerSink` 与 `configure['kernel']` 交给 kernel 自身的贡献点（apps 不 `contribute`） | 同上：`application/host/**` 值导入白名单（FE-05） |
 | 挂载 `<EditorHost>` | `pages/editor/EditorPage.tsx` | `<EditorHost host unitId mode layout documentTitle onNavigateBack onRename onSignOut />`；`mode` 由角色映射；卸载时 `dispose()`（除非跳转到编辑器族兄弟路由——由 `HostRegistry` 保活） | ui-react 是 R17 允许 apps 引用的唯一 UI 包 |
-| 挂载查看器壳 | `pages/viewer/ViewerPage.tsx` | `createEditorHost({ preset:'slide-viewer', viewer: { thumbnails, notes } })` → `preset.mount(containerRef.current)` | ui-react 是 R17 允许 apps 引用的唯一 UI 包 |
+| 挂载查看器壳 | `pages/viewer/ViewerPage.tsx` | `createEditorHost({ preset:'view', viewer: { thumbnails, notes } })`（2026-09-25 `preset` 取值改为 `'edit' \| 'collab' \| 'view'`，50/03 §5） → `preset.mount(containerRef.current)` | ui-react 是 R17 允许 apps 引用的唯一 UI 包 |
 | 放映 | `pages/present/PresentPage.tsx` | 复用 `HostRegistry.get(documentId)` 的 host；`commands.execute(unitId,'view.setMode',{mode:'presenter'})`（归属 ui-core 已确认，2026-09-18，C-01）+ `<EditorHost mode='view' layout={{ chrome:'none' }} />`；无 host（直接深链）时先走 `open-document.usecase` | — |
-| headless 渲染页 | `pages/render/RenderPage.tsx` | 解析 `RenderPageQuery` → 等待 `window.__cordex.inject({ state, resources })`（local 与 remote 都由编排方注入，页面零外呼；等待超时为页面常量，rulings §4.15 Q8、§4.18 BE-04）→ `createEditorHost({ preset:'slide-viewer', source:{kind:'snapshot'\|'state'}, viewer:{ exclude:['viewer-shell','design-css'], lazy:{ charts:false, locales:false } } })` → `render.attach(#stage, { mode:'thumbnail'\|'print', pages })` → ready 判定（§2.4，FE-09）→ `window.__cordex.ready(pageIds)` | `/render` **不**挂 `<EditorHost>`（M-10 §7），UI 四包不进服务端 Chromium 的 chunk |
+| headless 渲染页 | `pages/render/RenderPage.tsx` | 解析 `RenderPageQuery` → 等待 `window.__cordex.inject({ state, resources })`（local 与 remote 都由编排方注入，页面零外呼；等待超时为页面常量，rulings §4.15 Q8、§4.18 BE-04）→ `createEditorHost({ preset:'view', source:{kind:'snapshot'\|'state'}, viewer:{ exclude:['viewer-shell','design-css'], lazy:{ charts:false, locales:false } } })` → `render.attach(#stage, { mode:'thumbnail'\|'print', pages })` → ready 判定（§2.4，FE-09）→ `window.__cordex.ready(pageIds)` | `/render` **不**挂 `<EditorHost>`（M-10 §7），UI 四包不进服务端 Chromium 的 chunk |
 | 宿主事件桥 | `application/host/host-event-bridge.ts` | §2.4 事件表 → 应用状态 / 集成方回调 / `postMessage` | `ctx.on` 只读订阅；不 `emit` |
 | 壳意图接收 | `pages/editor/editor-intents.ts` | `onIntent(intent)`：`export → openDialog(ExportDialog)`；`fidelity-report → navigate(…/fidelity)`；`version-history → …/history`；`plugin-manager → …/plugins`；`rename → 内联重命名（同 onRename）`；`duplicate → manage-documents.usecase.duplicate`；`developer → DevPanel`（gating 取或 `import.meta.env.DEV \|\| features.developerMenu`，rulings §4.12 U-16，§13 Q-11 结案；原「`&&`」表述有误已更正） | — |
 
 ### 3a. 路由表与 playground 归位表
 
-**`apps/web` 路由表（`app/routes.tsx`；path 路由，`/` → `/home`；`#/…` 为 playground 的 hash 形态，正式应用改为 path，§13 Q-1）**
-
-| 路由 | 页面组件（`pages/`） | 布局 | 守卫 | 用例（§2.6） | protocol 调用 | 里程碑 |
-|---|---|---|---|---|---|---|
-| `/home`（`/` 重定向） | `home/HomePage.tsx`（`NewSection`/`RecentSection`/`GuideSection`） | `ShellLayout`（224 px 导航卡 + 主区 ≤ 1024） | `RequireSession` | 新建、最近与固定、导入入口 | `GET /documents?filter=recent&limit=5`、`POST /documents` | M1（无服务端时本地夹具）/ M2 |
-| `/documents`（`?filter=all\|owned\|shared\|recent&q=`） | `documents/DocumentsPage.tsx` | `ShellLayout` | `RequireSession` | 列表 / 筛选 / 重命名 / 删除 / 创建副本 / 分享 | `GET /documents`、`PATCH`/`DELETE /documents/:id`、缩略图 `GET /documents/:id/thumbnails/:page` | M2 |
-| `/import`（也可作对话框由首页触发） | `import/ImportPage.tsx` | `ShellLayout` | `RequireSession` | 导入 .pptx（本地打开 / 入库任务） | `POST /imports/uploads` → 直传 → `POST /imports{uploadId}`、`GET /imports/:jobId`（rulings §4.18 BE-10/BE-12） | M1（本地）/ M2（入库） |
-| `/documents/:id` | `editor/EditorPage.tsx` | `BareLayout`（全幅，chrome 由 `<EditorHost>` 提供） | `RequireSession` | 打开文档、导出、分享、版本、放映；**全部角色的入口**（viewer 以 `mode='view'` 只读变体进入，rulings §4.18 UX-19） | `GET /documents/:id`、`GET …/snapshots/latest`（直接字节）、协同：`POST /documents/:id/collab-ticket`（M-08 §6） | M1（本地夹具，只读渲染）/ M2 编辑 / M3 协同 |
-| `/documents/:id/view` | `viewer/ViewerPage.tsx`（`preset-slide-viewer`） | `BareLayout` | `RequireSession`（分享链接**始终要求登录**，不做匿名，rulings §4.13 S-1 / §4.15 Q6；带 `shareToken` 时登录后回跳叠加链接角色） | 查看（**只留给 M1 查看器与嵌入**，不作为 viewer 角色入口，rulings §4.18 UX-19） | `GET …/snapshots/latest` | M1 |
-| `/documents/:id/present`（`?slide=`） | `present/PresentPage.tsx` | `BareLayout`（全屏） | `RequireSession` | 放映 | 无新增 | M2 |
-| `/documents/:id/share` | `share/ShareDialog.tsx`（对话框路由，叠在编辑器或列表之上） | 继承父路由 | `RequireSession` + `doc.manage` | 分享 | `GET/PUT …/permissions`、`POST/DELETE …/share-links` | M3 |
-| `/documents/:id/history` | `history/VersionHistoryPage.tsx` | `BareLayout`（右侧抽屉页，设计 07） | `RequireSession` + `history.read` | 版本 | `GET …/snapshots`、`PATCH …/snapshots/:v`、`POST …/snapshots/:v/restore` | M3 |
-| `/documents/:id/export` | `export/ExportDialog.tsx`（对话框路由） | 继承 | `RequireSession` + `doc.export` | 导出 | 客户端 `core.export`；`POST /documents/:id/export`、`GET /exports/:jobId`（BE-12） | M2 |
-| `/documents/:id/fidelity` | `fidelity/FidelityReportPage.tsx`（设计 10） | `BareLayout`（抽屉页） | `RequireSession` | — | 读 `unit/opened` 载荷中的 `ImportResult` 诊断（无 REST） | M2 |
-| `/documents/:id/plugins` | `plugins/PluginManagerPage.tsx`（设计 09，PS-11） | `BareLayout`（抽屉页） | `RequireSession` | — | 读 `PresetReport` + `plugin/*` 事件（无 REST） | M2 |
-| `/settings` | `settings/SettingsPage.tsx`（宿主 ui-react `SettingsDrawer` 独立态；关闭 = 保存并返回来路，无来路回 `/home`） | 叠加在来路之上 | `RequireSession` | 设置 | 无 | M2 |
-| `/templates` | `templates/TemplatesPage.tsx`（AS-03 模板库） | `ShellLayout` | `RequireSession` | 新建（模板） | `GET /templates`（protocol 待追加，G-8） | M3 |
-| `/login`、`/auth/callback`、`/auth/popup-callback` | `auth/LoginPage.tsx`、`auth/CallbackPage.tsx`、`auth/PopupCallbackPage.tsx`（新窗口重新登录回调：`BroadcastChannel` 通知原页后自关，rulings §4.18 UX-02） | `BareLayout` | 无 | 登录 / 会话 / 重新登录 | `POST /auth/oidc/login`、`GET /auth/me` | M2 |
-| `/render`（`?renderId&documentType&mode&slides&deviceScaleFactor&fontProfile&layoutAlgoVersion`；`renderId` 仅作日志关联，rulings §4.18 BE-04） | `render/RenderPage.tsx` | `RenderLayout`（无 chrome、无字体外呼、固定视口） | `RenderQuery`（只校验查询形状，非会话；2026-09-25 由 `RenderToken` 改名） | headless 渲染 | 无（sidecar 注入 state 与资源，rulings §4.15 Q8） | M3（随 M-12 缩略图） |
-| `/embed/:id`（`?mode=view\|edit`） | `embed/EmbedPage.tsx`（形态 E，`postMessage` 桥） | `BareLayout` | `RequireSession` 或集成方 token | 查看 / 编辑 | 同编辑器 / 查看器 | M3 P2 |
-| `*` | `errors/NotFoundPage.tsx`；根 `errors/AppErrorBoundary.tsx` | — | — | — | — | M1 |
+**`apps/web` 路由表**：唯一源是 [50/02 §2](../50-frontend/02-app-shell-routing-and-session.md)（2026-09-25 自本节迁出，rulings §4.19；同时生效的更正：放映参数 `?slide=` → `?page=`，深链 `/documents/:id?page=&comment=`（INC-35），`/documents/:id/view` 删 `shareToken` 参数并只留给 M1 查看器与嵌入，登录端点 `GET /auth/oidc/login?mode=`，导入轮询 `GET /jobs/:id`，`/documents/:id` 在 M2 起以协同快照打开）。代码落点：`app/routes.tsx`（`createBrowserRouter`，每页 `React.lazy` 独立 chunk）；页面组件见 §4.4 `pages/`。
 
 **playground 19 条路由（`src/routes/registry.ts`）→ `apps/web` 归位**（`/` Hub 未登记于 registry，一并列出）
 
@@ -497,8 +355,8 @@ packages/preset-slide-collab/src/
 ├── manifest.ts                      # 生成物：extends @cordexjs/preset-slide + replaces/adds/optional（package.json 见本节末）
 ├── plugins/
 │   ├── index.ts                     # COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES, options)
-│   ├── derive.ts                    # 纯函数 deriveCollabEntries：store-memory→store-yjs；删 local-presence；追加 collab.entries；改 model-core.defaultStoreProvider
-│   └── collab.entries.ts            # collab-transport-ws（host）、collab-yjs（unit）、collab-offline-idb（unit，offline.enabled 时）及 Config 映射（endpoint/getToken/user）
+│   ├── derive.ts                    # 纯函数 deriveCollabEntries：store-memory→store-yjs；删 local-presence；追加 collab.entries（含 M3 起的 comments）；改 model-core.defaultStoreProvider
+│   └── collab.entries.ts            # collab-transport-ws（host）、collab-yjs（unit）、collab-offline-idb（unit，offline.enabled 时）、comments（@cordexjs/comments，M3，rulings §4.19 D-COMMENTS-PKG）及 Config 映射（endpoint/getToken/user）
 ├── config/
 │   ├── options.ts                   # SlideCollabPresetOptionsSchema = SlidePresetOptionsSchema.omit(storeProvider).extend({ storeProvider:'yjs', collab })
 │   ├── defaults.ts                  # DEFAULT_COLLAB_OPTIONS（offline.enabled:false、awareness 默认）
@@ -528,7 +386,7 @@ packages/preset-slide-viewer/src/
 │   ├── shell.entries.ts             # viewer-shell + 惰性 viewer-thumbnails / viewer-notes / viewer-search（manual）
 │   ├── design-css.plugin.ts         # 注入 @cordexjs/design/css/theme.css 单例（nonce 可选）；viewer 无 ui-core 故自带注入器
 │   └── locales/
-│       ├── zh-CN.ts                 # 惰性语言包聚合（同 preset-slide，但只含 viewer 用到的命名空间）
+│       ├── zh-CN.ts                 # 惰性语言包聚合（同 preset-slide，但只含 viewer 用到的命名空间；查看器壳文案命名空间为 `viewer`，50/16 §11.3，2026-09-25 登记）
 │       └── en-US.ts
 ├── policies/
 │   ├── read-only.policy.ts          # 纯函数 readOnlyPolicy(allowExport): PermissionPolicy —— 仅 doc.read（+doc.export）
@@ -611,10 +469,13 @@ apps/web/
 ├── index.html                       # 单页入口；<script nonce> 注入 window.__CORDEX_CONFIG__；CSP <meta> 仅开发用（生产由反向代理下发，§7）
 ├── playwright.config.ts             # e2e：chromium/webkit/firefox 三项目；baseURL；`pnpm --filter apps-web e2e`
 ├── README.md                        # 运行 / 配置 / 品牌替换 / CSP 说明
-├── .env.example                     # VITE_API_BASE、VITE_WS_BASE、VITE_AUTH_MODE、VITE_FEATURE_COLLAB…
+├── .env.example                     # VITE_API_BASE、VITE_WS_BASE、VITE_AUTH_MODE…（2026-09-25 删 VITE_FEATURE_COLLAB：服务端文档一律协同打开，RuntimeConfig.features.collab 已删）
+├── bundle-budget.json               # 路由 chunk 预算（首屏路由 chunk ≤ 250 KB gzip，不含 preset；BundleBudget 同形态，scan-bundle-budget 读取；数值唯一源 50/13 §12，2026-09-25 登记）
 ├── public/
 │   ├── favicon.svg                  # 品牌替换点（BrandConfig.faviconUrl 覆盖）
 │   ├── brand/mark.svg               # 默认 BrandMark（主色圆角方块 + 16:9 幻灯片）
+│   ├── fonts/                       # 同源自托管字体 /fonts/<family>/<version>/<subset>.<hash>.woff2（immutable）；部署方字体目录挂载与配置键见 60/17（50/05 §7.1、§7.5，2026-09-25 登记）
+│   │   └── font-profile.json        # fontProfile 清单（no-cache，ETag = 清单哈希 = fontProfile id；启动时并入部署方字体）
 │   └── fixtures/sample.pptx         # M1 首个切片用的示例文档（软链到 fixtures/pptx/sample-basic.pptx）
 ├── e2e/                             # Playwright（§9）
 └── src/
@@ -626,7 +487,6 @@ apps/web/
     │   ├── providers.tsx            # TooltipProvider / Toaster（ui-react 再导出）/ SessionProvider / PreferencesProvider / OnlineProvider / AppI18nProvider
     │   ├── config.ts                # RuntimeConfigSchema + loadRuntimeConfig()（window.__CORDEX_CONFIG__ ⊕ import.meta.env）
     │   ├── brand.ts                 # BrandConfigSchema、DEFAULT_BRAND、applyBrandCss(brand)（写 --primary 等变量到 :root）
-    │   ├── templates.ts             # AS-03 内置 4 套主题模板卡（Office / 极简灰 / 暖色商务 / 深色科技）→ POST /documents{ template }
     │   ├── layouts/
     │   │   ├── ShellLayout.tsx      # 224 px glass-strong 导航卡（Brand、主导航、底部 UserMenu）+ 主区 ≤ 1024；< 1024 折叠为顶部抽屉（AS-01）
     │   │   ├── BareLayout.tsx       # 全幅：编辑器族 / 登录 / 查看器 / 放映
@@ -649,8 +509,8 @@ apps/web/
     │   ├── editor/
     │   │   ├── EditorPage.tsx       # useLoader(open-document) → createEditorHost → <EditorHost …/>；EditorPageState 渲染；卸载 dispose（HostRegistry 保活例外）
     │   │   └── editor-intents.ts    # onIntent(intent) 分发表（§3.5）
-    │   ├── viewer/ViewerPage.tsx    # preset-slide-viewer：createEditorHost({preset:'slide-viewer'}) → preset.mount(container)
-    │   ├── present/PresentPage.tsx  # 复用 HostRegistry host；view.setMode('presenter')；?slide= 同步；退出 → 回编辑器
+    │   ├── viewer/ViewerPage.tsx    # preset-slide-viewer：createEditorHost({preset:'view'}) → preset.mount(container)（只留给 M1 查看器与嵌入）
+    │   ├── present/PresentPage.tsx  # 复用 HostRegistry host；view.setMode('presenter')；?page= 同步（2026-09-25 由 ?slide= 改名）；退出 → 回编辑器
     │   ├── share/ShareDialog.tsx    # 对话框路由（设计 08）：按人邀请（只对已存在账号生效，无账号提示联系管理员，rulings §4.17 D1）/ 角色 / 链接权限（链接始终需登录）/ 即时反馈；M3 只按人分享，无组主体（U-11 推迟，rulings §4.15 Q6）
     │   ├── history/VersionHistoryPage.tsx  # 抽屉页（设计 07）：自动 / 命名版本、对比、恢复（AlertDialog 确认）
     │   ├── export/ExportDialog.tsx  # 对话框路由（设计 22）：格式 / 范围 / 进度 / 失败重试
@@ -659,7 +519,7 @@ apps/web/
     │   ├── settings/SettingsPage.tsx        # ui-react SettingsDrawer 独立态；关闭 = 保存并返回来路（无来路 → /home）
     │   ├── templates/TemplatesPage.tsx      # M3：分类 / 搜索 / 预览 / 集成方模板源
     │   ├── auth/
-    │   │   ├── LoginPage.tsx        # 「使用组织账号登录」→ POST /auth/oidc/login → 302 至外置 IdP（可选 Casdoor）；「注册」入口仅 auth.selfSignup=true 时显示（跳 IdP 注册页）；无租户选择 / 切换；auth.mode:'none' 仅 dev 构建直接进 /home（rulings §4.15 Q6）
+    │   │   ├── LoginPage.tsx        # 「使用组织账号登录」→ GET /auth/oidc/login?mode=redirect → 302 至外置 IdP（可选 Casdoor）；「注册」入口按 GET /auth/config 的 selfSignup 显示（跳 IdP 注册页；2026-09-25 可变开关不再放 RuntimeConfig，50/02 §3、§4.4）；无租户选择 / 切换；auth.mode:'none' 仅 dev 构建直接进 /home（rulings §4.15 Q6）
     │   │   ├── CallbackPage.tsx     # 读 ?next= → GET /auth/me → 写 Session → navigate(nextAfterLogin)
     │   │   └── PopupCallbackPage.tsx  # 新窗口重新登录回调：BroadcastChannel('cordex-auth') 通知原页 → window.close()（新增，§4.18 UX-02）
     │   ├── render/
@@ -677,14 +537,16 @@ apps/web/
     │   │   ├── host-event-bridge.ts # §2.4 转发表：ctx.on → AppEvents / callbacks.onEvent / postMessage；≥ 50 ms 合并
     │   │   └── host-registry.ts     # documentId → { host, unitId, refCount }；编辑器族路由间切换不重建 host；离开族或 idle 60 s dispose
     │   ├── documents/
-    │   │   ├── open-document.usecase.ts     # GET /documents/:id → GET …/snapshots/latest 直接取字节（ETag/304，§4.18 BE-12）→ CreateEditorHostParams；viewer 角色 mode='view'（UX-19）
-    │   │   ├── create-document.usecase.ts   # 空白 / 模板 → POST /documents → navigate
+    │   │   ├── open-document.usecase.ts     # GET /documents/:id → GET …/snapshots/latest 直接取字节（ETag/304，BE-12）+ POST collab-ticket → CreateEditorHostParams{preset:'collab', source:{kind:'state'}}（M2 起服务端文档一律协同快照打开，rulings §4.19 D-M2-CONTENT）；viewer 角色 mode='view'（UX-19）
+    │   │   ├── create-document.usecase.ts   # 空白 / 内置模板（DOCUMENT_TYPES[*].newCards）：取模板字节 → 服务端两步导入 → GET /jobs/:id → 以 import 快照打开（M2，D-M2-CONTENT；无 pptx 内容版本端点）
     │   │   ├── recent-documents.usecase.ts  # mergeRecent(local, server)；pin / unpin / removeFromRecent（可撤销）
     │   │   └── manage-documents.usecase.ts  # list(filter, cursor) / rename / delete / duplicate
     │   ├── import-export/
-    │   │   ├── import-pptx.usecase.ts       # 本地 bytes 直开；入库两步：POST /imports/uploads → 直传 → POST /imports{uploadId} → 轮询 GET /imports/:jobId（§4.18 BE-10/BE-12）
+    │   │   ├── import-pptx.usecase.ts       # 本地 bytes 直开；入库两步：POST /imports/uploads → direct-upload 直传 → POST /imports{uploadId} → 轮询 GET /jobs/:id（BE-10；SG-08 删 GET /imports/:jobId）
     │   │   └── export-document.usecase.ts   # pptx：commands.execute core.export；pdf/png：POST /documents/:id/export → 轮询 GET /exports/:jobId（BE-12）；单人回调式保存（Mod+S / 自动保存）
-    │   ├── sharing/share-document.usecase.ts   # permissions / share-links
+    │   ├── sharing/
+    │   │   ├── share-document.usecase.ts    # permissions / share-links（M3）
+    │   │   └── share-landing.ts             # 分享链接落地：片段令牌读入 sessionStorage cordex.share.{docId} 后清地址栏片段（50/02 §11，2026-09-25 登记）
     │   ├── versions/versions.usecase.ts        # 列表 / 命名 / 恢复
     │   ├── settings/preferences.usecase.ts     # 读写 Preferences；广播 app/preferences-changed；同步到 host（i18n/theme/ui.setPreference）
     │   ├── auth/
@@ -693,12 +555,18 @@ apps/web/
     │   └── render/render-page.usecase.ts       # 等注入（页面常量超时）→ open → attach → ready 判定（§2.4，§4.18 BE-04/FE-09）
     ├── infrastructure/
     │   ├── api/
-    │   │   ├── http.ts              # fetch 封装：credentials:'include'、ErrorEnvelope 解析、401 → refresh 一次、`parse(schema)`（parse, don't validate）
+    │   │   ├── http.ts              # 唯一 fetch 封装：credentials:'include'、X-Cordex-Request 头、ErrorEnvelope 解析、401 → refresh 一次、`parse(schema)`（parse, don't validate）
+    │   │   ├── direct-upload.ts     # 对 storagePublicOrigin 的预签名直传：credentials:'omit'、不带 X-Cordex-* 头、分片（50/02 §7，2026-09-25 登记）
+    │   │   ├── query-cache.ts       # 轻量内存缓存：用例名 + 规范化参数为键，stale-while-revalidate，写后失效（决策 APP-DATA，50/02 §9.5，2026-09-25 登记）
     │   │   ├── auth.api.ts          # /auth/oidc/login、/auth/me、/auth/token/refresh、/auth/logout、协同 ticket（rest/auth.ts）
     │   │   ├── documents.api.ts     # /documents*、permissions、share-links、thumbnails（rest/documents.ts）
     │   │   ├── snapshots.api.ts     # /documents/:id/snapshots*（rest/snapshots.ts）；latest 直接取字节，无预签名中转（§4.18 BE-12）
-    │   │   └── import-export.api.ts # /imports/uploads、/imports、/imports/:jobId、/imports/:jobId/cancel（UX-14）、/documents/:id/export、/exports/:jobId（rest/import-export.ts；2026-09-25 由 tasks.api.ts 改名，BE-12/BE-10）
+    │   │   └── import-export.api.ts # /imports/uploads、/imports、/imports/:jobId/cancel（UX-14）、/jobs/:id（唯一状态查询，SG-08）、/documents/:id/export、/exports/:jobId（rest/import-export.ts；2026-09-25 由 tasks.api.ts 改名，BE-12/BE-10）
     │   ├── render-injection.ts      # 等待并校验 window.__cordex.inject({state,resources})（RenderStateResponse schema）；超时为页面常量 RENDER_INJECT_TIMEOUT_MS；页面零外呼（仅 /render 页使用，替代原 api/render-state.api.ts，rulings §4.15 Q8、§4.18 BE-04）
+    │   ├── media/
+    │   │   └── media-uploader.ts    # 媒体上传默认实现：POST /documents/:id/media/presign → direct-upload → commit（文档作用域，INC-21；50/02 §1，2026-09-25 登记）
+    │   ├── security/
+    │   │   └── trusted-types.ts     # 建立 cordex-default Trusted Types 策略并经 createHost({scriptUrlPolicy}) 交给 SDK；main.tsx 在任何 Worker 创建前调用（50/14 §4.2，2026-09-25 登记）
     │   ├── auth/session-client.ts   # cookie 会话探测 / 刷新计时；token 模式（嵌入）下持有 getToken 回调，不持久化令牌
     │   ├── storage/
     │   │   ├── preferences-store.ts # localStorage `cordex.prefs`（PreferencesSchema 校验；损坏即回默认）
@@ -715,7 +583,7 @@ apps/web/
     │   ├── routes.ts                # RoutePath、documentRoute()、nextAfterLogin()
     │   ├── recent-document.ts       # RecentDocumentEntry、mergeRecent
     │   ├── document-card.ts         # DocumentCardVM ← DocumentSummary DTO
-    │   ├── document-type.ts         # DocumentTypeParam 表（slide；未来 doc/sheet）+ resolveDocumentType（§8 参数化点 ①）
+    │   ├── document-type.ts         # DOCUMENT_TYPES：DocumentTypeParam{ id; label; icon; presetKeys:{edit;collab;view}; newCards: TemplateCard[] }（内置 4 套模板卡随 newCards，2026-09-25 自已删的 app/templates.ts 迁入，50/03 §8）+ resolveDocumentType（§8 参数化点 ①）
     │   ├── editor-page-state.ts     # EditorPageState 状态机（纯 reducer）
     │   ├── render-page-state.ts     # RenderPageState 状态机（awaitingInject）+ isRenderReady(events)：页全部挂载 ∧ 字体结算 ∧ 此后一次 pendingDirty=0 的 render/frame（§4.18 FE-09）
     │   ├── online-state.ts          # OnlineState
@@ -766,10 +634,10 @@ apps/web/
 | `src/preset.ts` | 工厂 + 函数插件 | `createSlideCollabPreset(options): Preset` | `./plugins`、`./config/options`、`@cordexjs/kernel/preset` | `name:'preset-slide-collab'` |
 | `src/manifest.ts` | 聚合 Manifest 生成物 | `manifest` | 无 | `extends/replaces/adds/optional` |
 | `src/plugins/index.ts` | 协同清单 | `collabEntries(options)` | `./derive`、`./collab.entries`、`@cordexjs/preset-slide/entries` | — |
-| `src/plugins/derive.ts` | 派生纯函数 | `deriveCollabEntries(base, options)` | `@cordexjs/kernel/preset`（类型，C-07）、`@cordexjs/store-yjs` | 替换 / 删除 / 追加；`derive.test.ts` |
-| `src/plugins/collab.entries.ts` | collab 条目 | `transportEntry`、`collabYjsEntry`、`offlineEntry` | `@cordexjs/collab-transport-ws`、`@cordexjs/collab-yjs`、`@cordexjs/collab-offline-idb` | `getToken`/`user`/`endpoint` 映射到各包 Config |
+| `src/plugins/derive.ts` | 派生纯函数 | `deriveCollabEntries(base, options)` | `@cordexjs/kernel/preset`（类型，C-07）、`@cordexjs/store-yjs` | 替换 / 删除 / 追加（含 `comments`）；`derive.test.ts` 断言 manifest 差异恰为 `pluggable:m3` 白名单 |
+| `src/plugins/collab.entries.ts` | collab 条目 | `transportEntry`、`collabYjsEntry`、`offlineEntry`、`commentsEntry`（M3） | `@cordexjs/collab-transport-ws`、`@cordexjs/collab-yjs`、`@cordexjs/collab-offline-idb`、`@cordexjs/comments` | `getToken`/`user`/`endpoint` 映射到各包 Config；`commentsEntry` 2026-09-25 新增（D-COMMENTS-PKG），M3 起装载 |
 | `src/config/options.ts` | 选项 schema | `SlideCollabPresetOptionsSchema` | `@cordexjs/preset-slide`（`SlidePresetOptionsSchema`）、`@cordexjs/protocol`（`DocumentId`） | `collab.endpoint` 须为 `wss:`（开发允许 `ws://localhost`） |
-| `src/config/defaults.ts` | 默认值 | `DEFAULT_COLLAB_OPTIONS` | 无 | `offline.enabled:false`（M3；M4 P2 开） |
+| `src/config/defaults.ts` | 默认值 | `DEFAULT_COLLAB_OPTIONS` | 无 | `offline.enabled:false`（M2–M3；M4 P2 开） |
 | `src/config/bundle-budget.json` | 体积预算 | — | — | `incrementKb: 200` |
 | `src/testing/index.ts` | 测试助手 | `mountCollabPreset`、`fakeCollabEndpoint` | `@cordexjs/kernel/testing`、`@cordexjs/collab-core/testing` | — |
 | `src/testing/mock-collab-server.ts` | 内存 WS 对端 | `startMockCollabServer()` | `@cordexjs/protocol`（`ws` DTO；protocol 未登记 `./ws` 子路径，经根入口 import，rulings §4.18 FE-04） | 仅握手 / ping；供 `lifecycle.test.ts` |
@@ -818,9 +686,11 @@ apps/web/
 | `tsconfig.json` | 编译 | — | `tooling/tsconfig/dom.json` | `references` 与 deps 一致（`sync-references`） |
 | `index.html` | 入口 HTML | — | — | `window.__CORDEX_CONFIG__` 注入点（带 nonce）；品牌 `<title>`/favicon |
 | `playwright.config.ts` | e2e 配置 | — | `@playwright/test` | 三浏览器；`webServer` 起 `vite preview` |
+| `bundle-budget.json` | 路由 chunk 预算（2026-09-25 登记） | — | — | 首屏路由 chunk ≤ 250 KB gzip（不含 preset），BundleBudget 同形态，`scan-bundle-budget` 读取；数值唯一源 50/13 §12；另登记两个只报告、不计基线的惰性 chunk 条目 `lazy: { 'otel-web', 'cordex.devtools' }`——构建入口分别为 `application/host/sinks.ts` 内对 OTel Web sink 的动态 `import()`（随 `telemetry.otlp` ∧ 用户开关加载，M3）与 ui-react 开发者面板 `cordex.devtools` 的动态 `import()`（开发者菜单可见且打开时加载，M2），50/13 §6 |
 | `README.md` / `.env.example` | 文档 / 环境样例 | — | — | 品牌替换、CSP、部署说明 |
 | `public/favicon.svg`、`public/brand/mark.svg` | 品牌资源 | — | — | 替换点 |
 | `public/fixtures/sample.pptx` | M1 示例文档 | — | — | 软链 `fixtures/pptx/sample-basic.pptx` |
+| `public/fonts/font-profile.json` | fontProfile 清单（2026-09-25 登记） | — | — | `/fonts/<family>/<version>/<subset>.<hash>.woff2` 同源自托管；清单 `no-cache`、ETag = fontProfile id；部署方字体目录见 60/17（50/05 §7.1、§7.5） |
 | `src/main.tsx` | React 根 | — | `./app/App`、`./app/config`、`./infrastructure/i18n/app-i18n` | 不创建 host |
 | `src/env.d.ts` | 环境类型 | `ImportMetaEnv`、`Window.__CORDEX_CONFIG__`、`Window.__cordex` | — | — |
 | `src/app/App.tsx` | 应用根 | `App` | `./providers`、`./routes`、`react-router` | 根错误边界 |
@@ -828,14 +698,13 @@ apps/web/
 | `src/app/providers.tsx` | 全局 Provider | `Providers` | `@cordexjs/ui-react`（`TooltipProvider`/`Toaster`）、`../application/*`、`../infrastructure/*` | Session / Preferences / Online / AppI18n |
 | `src/app/config.ts` | 运行时配置 | `RuntimeConfigSchema`、`loadRuntimeConfig()`、`useRuntimeConfig()` | `@cordexjs/protocol/schema` | 解析失败 → 配置错误页 |
 | `src/app/brand.ts` | 品牌替换点 | `BrandConfigSchema`、`DEFAULT_BRAND`、`applyBrandCss` | `@cordexjs/design`（`ThemeVarName` 类型） | 写 `--primary`/`--primary-foreground` 等 |
-| `src/app/templates.ts` | 内置模板卡 | `BUILTIN_TEMPLATES`（4 套） | `../domain/document-type` | M3 `TemplatesPage` 合并集成方源 |
 | `src/app/layouts/ShellLayout.tsx` | 导航卡布局 | `ShellLayout` | `@cordexjs/ui-react`（`Brand`/`UserMenu`/`ThemeToggle`、`./ui` 原子件）、`../../application/auth/*` | AS-01 左栏 224 px；< 1024 抽屉 |
 | `src/app/layouts/BareLayout.tsx` | 全幅布局 | `BareLayout` | `react-router` | — |
 | `src/app/layouts/RenderLayout.tsx` | 渲染页布局 | `RenderLayout` | — | 禁字体外呼、固定视口 `#stage` |
 | `src/app/guards/RequireSession.tsx` | 会话守卫 | `RequireSession` | `../../application/auth/session.usecase`、`../../domain/routes` | `expired`：编辑器页有 pending 时不跳转、交横幅（UX-02），否则跳 `/login?next=` |
 | `src/app/guards/RenderQuery.tsx` | 渲染页查询守卫（2026-09-25 由 `RenderToken.tsx` 改名，BE-04） | `RenderQuery` | `../../pages/render/render-page-protocol` | 非会话；只校验 `RenderPageQuery` 形状 |
 | `src/pages/home/HomePage.tsx` | 开始页容器 | `HomePage` | `./NewSection`/`RecentSection`/`GuideSection`/`OfflineBanner`、`@cordexjs/ui-react/ui` | 主区 ≤ 1024，三段锚点 |
-| `src/pages/home/NewSection.tsx` | 新建段 | `NewSection` | `../../application/documents/create-document.usecase`、`../../app/templates` | 离线禁用 + tooltip |
+| `src/pages/home/NewSection.tsx` | 新建段 | `NewSection` | `../../application/documents/create-document.usecase`、`../../domain/document-type`（`DOCUMENT_TYPES[*].newCards`） | 离线禁用 + tooltip；多文档类型时按类型分组 |
 | `src/pages/home/RecentSection.tsx` | 最近段 | `RecentSection` | `../../application/documents/recent-documents.usecase` | 空态 / Skeleton × 4 / 可撤销 toast |
 | `src/pages/home/GuideSection.tsx` | 指南段 | `GuideSection` | `../../app/config`（help 链接）、`@cordexjs/ui-react`（`ShortcutsPanel` 触发） | 五卡 + 新功能徽标 |
 | `src/pages/home/OfflineBanner.tsx` | 离线横幅 | `OfflineBanner` | `../../domain/online-state`、`@cordexjs/ui-react/ui` | Alert(warning) |
@@ -845,15 +714,15 @@ apps/web/
 | `src/pages/import/ImportPage.tsx` | 导入页 | `ImportPage` | `../../application/import-export/import-pptx.usecase` | 设计 13 进度 / 失败态 |
 | `src/pages/editor/EditorPage.tsx` | 编辑器页 | `EditorPage` | `@cordexjs/ui-react`（`EditorHost`）、`../../application/host/*`、`../../application/documents/open-document.usecase`、`./editor-intents` | `mode` 由角色三路映射（owner/editor→edit、commenter→review、viewer→view，rulings §4.18 UX-19）；`onNavigateBack → /home` |
 | `src/pages/editor/editor-intents.ts` | 壳意图分发 | `createIntentHandler(deps)` | `../../domain/routes`、`../../application/documents/manage-documents.usecase` | §3.5 表 |
-| `src/pages/viewer/ViewerPage.tsx` | 查看器页 | `ViewerPage` | `../../application/host/create-editor-host`（`preset:'slide-viewer'`） | `preset.mount(container)` |
-| `src/pages/present/PresentPage.tsx` | 放映页 | `PresentPage` | `../../application/host/host-registry`、`@cordexjs/ui-react`（`EditorHost`） | `view.setMode('presenter')`；`?slide=` |
+| `src/pages/viewer/ViewerPage.tsx` | 查看器页 | `ViewerPage` | `../../application/host/create-editor-host`（`preset:'view'`） | `preset.mount(container)`；只留给 M1 查看器与嵌入 |
+| `src/pages/present/PresentPage.tsx` | 放映页 | `PresentPage` | `../../application/host/host-registry`、`@cordexjs/ui-react`（`EditorHost`） | `view.setMode('presenter')`；`?page=`（2026-09-25 由 `?slide=` 改名） |
 | `src/pages/share/ShareDialog.tsx` | 分享对话框 | `ShareDialog` | `../../application/sharing/share-document.usecase`、`@cordexjs/ui-react/ui` | 设计 08；只按人分享（无组，rulings §4.15 Q6） |
 | `src/pages/history/VersionHistoryPage.tsx` | 版本历史 | `VersionHistoryPage` | `../../application/versions/versions.usecase` | 设计 07 |
 | `src/pages/export/ExportDialog.tsx` | 导出对话框 | `ExportDialog` | `../../application/import-export/export-document.usecase` | 设计 22 |
 | `src/pages/fidelity/FidelityReportPage.tsx` | 保真报告 | `FidelityReportPage` | `../../application/host/host-registry`（读 `unit/opened` 载荷缓存） | 设计 10 |
 | `src/pages/plugins/PluginManagerPage.tsx` | 插件管理器 | `PluginManagerPage` | `../../application/host/host-registry`（`PresetReport`） | 设计 09；PS-11 |
 | `src/pages/settings/SettingsPage.tsx` | 设置页 | `SettingsPage` | `@cordexjs/ui-react`（`SettingsDrawer` 独立态）、`../../application/settings/preferences.usecase` | 关闭 = 保存并返回 |
-| `src/pages/templates/TemplatesPage.tsx` | 模板库（M3） | `TemplatesPage` | `../../app/templates`、`infrastructure/api/documents.api`（`GET /templates` 待追加） | AS-03 |
+| `src/pages/templates/TemplatesPage.tsx` | 模板库（M3） | `TemplatesPage` | `../../domain/document-type`（`newCards`）、`infrastructure/api/documents.api`（模板端点待 60/15 登记，50/02 §13.3） | AS-03 |
 | `src/pages/auth/LoginPage.tsx` | 登录页 | `LoginPage` | `../../application/auth/session.usecase` | 外置 OIDC；注册入口随 `auth.selfSignup`（默认关）；`auth.mode:'none'` 仅 dev 构建直进（rulings §4.15 Q6） |
 | `src/pages/auth/CallbackPage.tsx` | 回调页 | `CallbackPage` | 同上、`../../domain/routes` | `nextAfterLogin` 白名单 |
 | `src/pages/auth/PopupCallbackPage.tsx` | 新窗口重新登录回调页（新增，rulings §4.18 UX-02） | `PopupCallbackPage` | `../../application/auth/reauth-in-window.usecase` | `BroadcastChannel('cordex-auth')` 通知原页后 `window.close()`；弹窗被拦截时以新标签打开，同样通知 |
@@ -872,24 +741,29 @@ apps/web/
 | `src/application/host/sinks.ts` | sink 选择 | `selectSinks(cfg): { loggerSink; configure }` | `../../infrastructure/telemetry/console-sink`、`@cordexjs/kernel`（类型） | 经 `HostOptions`，非 `contribute` |
 | `src/application/host/host-event-bridge.ts` | 事件桥 | `attachHostEventBridge(handle, sinks: { app; onEvent?; postMessage? }): () => void` | `@cordexjs/kernel`（`ctx.on` 类型）、`../../domain/app-events` | §2.4 表；≥ 50 ms 合并 |
 | `src/application/host/host-registry.ts` | host 保活登记 | `HostRegistry`（`get/acquire/release`）、`useHostRegistry` | `./create-editor-host` | 编辑器族路由间复用；idle 60 s dispose |
-| `src/application/documents/open-document.usecase.ts` | 打开文档 | `openDocument(id, deps): Promise<Result<CreateEditorHostParams, ErrorEnvelope>>` | `../ports`、`../../domain/*` | 角色 → `preset`：collab 特性开启 → `slide-collab`（任何角色，含 viewer，以便实时看到修改与在场），否则 `slide`；viewer 角色 `mode='view'`，**不再**路由到 `slide-viewer`（2026-09-25，rulings §4.18 UX-19）；`latest` 直接取字节（BE-12） |
-| `src/application/documents/create-document.usecase.ts` | 新建 | `createDocument({ documentType, title, template? })` | `../ports` | `POST /documents` |
+| `src/application/documents/open-document.usecase.ts` | 打开文档 | `openDocument(id, deps): Promise<Result<CreateEditorHostParams, ErrorEnvelope>>` | `../ports`、`../../domain/*` | 服务端文档一律 `preset:'collab'`、`source.kind:'state'`：`GET snapshots/latest` 直接取字节（BE-12）+ 票据 + WS（任何角色，含 viewer 以 `mode='view'`，UX-19）；2026-09-25 删「collab 特性开启」分支——M2 起内容以协同快照为唯一事实源（rulings §4.19 D-M2-CONTENT） |
+| `src/application/documents/create-document.usecase.ts` | 新建 | `createDocument({ documentType, title, templateId? })` | `../ports`、`../../domain/document-type`（`newCards`） | 取模板字节 → 服务端两步导入 → `GET /jobs/:id` → 以 `import` 快照打开（M2，D-M2-CONTENT；无 pptx 内容版本端点） |
 | `src/application/documents/recent-documents.usecase.ts` | 最近 / 固定 | `loadRecent`、`pin`、`unpin`、`removeFromRecent`（返回 undo 句柄） | `../ports`、`../../domain/recent-document` | M2 本地 + 服务端合并 |
 | `src/application/documents/manage-documents.usecase.ts` | 列表 / 重命名 / 删除 / 副本 | `listDocuments`、`renameDocument`、`deleteDocument`、`duplicateDocument` | `../ports`、`../../domain/document-card` | 游标分页 |
-| `src/application/import-export/import-pptx.usecase.ts` | 导入 | `importLocal(file)`、`importToServer(file, onProgress)` | `../ports` | 本地 → `source.kind:'bytes'`；入库两步 `POST /imports/uploads` → 直传 → `POST /imports{uploadId}`，客户端不提交对象键（rulings §4.18 BE-10/BE-12） |
+| `src/application/import-export/import-pptx.usecase.ts` | 导入 | `importLocal(file)`、`importToServer(file, onProgress)` | `../ports` | 本地 → `source.kind:'bytes'`；入库两步 `POST /imports/uploads` → `direct-upload` 直传 → `POST /imports{uploadId}` → 轮询 `GET /jobs/:id`（SG-08），客户端不提交对象键（BE-10） |
 | `src/application/import-export/export-document.usecase.ts` | 导出 / 回调式保存 | `exportPptx(handle)`、`exportServer(id, format)`、`saveIfDirty(handle)` | `../ports`、`@cordexjs/kernel`（`commands` 类型） | `core.export`（M-02 内置命令） |
 | `src/application/sharing/share-document.usecase.ts` | 分享 | `loadSharing`、`grant`、`revoke`、`createShareLink`、`deleteShareLink` | `../ports` | — |
+| `src/application/sharing/share-landing.ts` | 分享链接落地（2026-09-25 登记） | `landShareToken(location)` | `../ports`（Storage） | 片段令牌读入 sessionStorage `cordex.share.{docId}` 后清地址栏片段；`share-landing.test.ts`（50/02 §11、§13.1） |
 | `src/application/versions/versions.usecase.ts` | 版本 | `listVersions`、`nameVersion`、`restoreVersion` | `../ports` | 恢复后 `HostRegistry.release` + 重开 |
 | `src/application/settings/preferences.usecase.ts` | 偏好 | `readPreferences`、`updatePreferences(patch)`、`syncPreferencesToHost(handle, prefs)` | `../ports`、`../../domain/preferences`、`../../domain/app-events` | 同步：`i18n.setLocale`、`theme.set/setDensity`、`ui.setPreference` |
 | `src/application/auth/session.usecase.ts` | 会话 | `probeSession`、`beginLogin(next)`、`refreshSession`、`logout`、`SessionStore` | `../ports`、`../../domain/session` | 状态机唯一写入者；刷新 401 → `expired`、网络错误才 `network`；有 pending 时不自动跳转（UX-02） |
 | `src/application/auth/reauth-in-window.usecase.ts` | 新窗口重新登录（新增，UX-02） | `reauthInWindow(deps): Promise<'same-user'\|'other-user'\|'cancelled'>` | `../ports`、`../../domain/session` | 弹窗 / 新标签 OIDC；`BroadcastChannel` + 重获焦点探测 `/auth/me`；同一用户 → 取新票据按 `denied→connecting` 重连；不同用户 → 不重放队列、只读 + 导出本地副本 |
 | `src/application/render/render-page.usecase.ts` | 渲染页流程 | `runRenderPage(query, deps): Promise<void>` | `../host/create-editor-host`、`../../domain/render-page-state` | ready 判定（rulings §4.18 FE-09）：所请求页全部 `render/page-mounted` ∧ 这些页字体全部结算（`fonts-ready` 或 `font-fallback`）∧ 此后一次 `pendingDirty === 0` 的 `render/frame`；装配时 `lazy.charts/locales=false`；注入等待超时为页面常量（BE-04） |
 | `src/infrastructure/api/http.ts` | HTTP 封装 | `createHttp(cfg)`、`parseWith(schema)` | `@cordexjs/protocol`（`ErrorEnvelope`、`errors/codes` HTTP 映射） | 401 → refresh 一次；`traceId` 透传 |
+| `src/infrastructure/api/direct-upload.ts` | 预签名直传（2026-09-25 登记） | `directUpload(target, bytes, onProgress)` | 无（不复用 `http.ts` 的头） | `credentials:'omit'`、无 `X-Cordex-*` 头、分片；目标限 `storagePublicOrigin`（50/02 §7、50/14 §13 V10） |
+| `src/infrastructure/api/query-cache.ts` | 读缓存（2026-09-25 登记） | `createQueryCache()` | 无 | 键 = 用例名 + 规范化参数，stale-while-revalidate，写后失效，登出随整页重载清空（决策 APP-DATA） |
 | `src/infrastructure/api/auth.api.ts` | 鉴权 REST | `AuthApi` | `./http`、`@cordexjs/protocol`（`rest/auth` DTO；protocol 未登记 `./rest` 子路径，经根入口 import，FE-04） | 协同 ticket 路径以 M-08 为准 |
 | `src/infrastructure/api/documents.api.ts` | 文档 REST | `DocumentsApi` | `./http`、`@cordexjs/protocol`（`rest/documents`） | 含 permissions / share-links / thumbnails |
 | `src/infrastructure/api/snapshots.api.ts` | 快照 REST | `SnapshotsApi` | `./http`、`@cordexjs/protocol`（`rest/snapshots`） | `GET …/latest` 直接取字节（ETag/304；2026-09-25 删「预签名 → 字节 fetch」，rulings §4.18 BE-12） |
-| `src/infrastructure/api/import-export.api.ts` | 导入导出 REST（2026-09-25 由 `tasks.api.ts` 改名，BE-12） | `ImportExportApi` | `./http`、`@cordexjs/protocol`（`rest/import-export`） | `/imports/uploads`、`/imports`、`/imports/:jobId`、`/imports/:jobId/cancel`（`#/import` 过渡页「取消」：上传中中止 PUT、解析中取消作业，作业转 `cancelled`，rulings §4.18 UX-14）、`/documents/:id/export`、`/exports/:jobId`；`TaskState` 轮询（退避） |
+| `src/infrastructure/api/import-export.api.ts` | 导入导出 REST（2026-09-25 由 `tasks.api.ts` 改名，BE-12） | `ImportExportApi` | `./http`、`@cordexjs/protocol`（`rest/import-export`） | `/imports/uploads`、`/imports`、`/imports/:jobId/cancel`、`/jobs/:id`（唯一状态查询，SG-08；删 `/imports/:jobId`）（`#/import` 过渡页「取消」：上传中中止 PUT、解析中取消作业，作业转 `cancelled`，rulings §4.18 UX-14）、`/documents/:id/export`、`/exports/:jobId`；`TaskState` 轮询（退避） |
 | `src/infrastructure/render-injection.ts` | 渲染态注入接收（2026-09-24 替代 `api/render-state.api.ts`，rulings §4.15 Q8） | `awaitRenderInjection(renderId)`（超时取页面常量 `RENDER_INJECT_TIMEOUT_MS`，默认 60 s，rulings §4.18 BE-04） | `../pages/render/render-page-protocol` | 仅 `/render` chunk；不 import `./api/http`（零外呼，lint 断言） |
+| `src/infrastructure/media/media-uploader.ts` | 媒体上传默认实现（2026-09-25 登记） | `createMediaUploader(api)` | `../api/*` | `POST /documents/:id/media/presign` → `direct-upload` → `.../media/commit`（文档作用域，INC-21）；供 preset 的媒体插入使用 |
+| `src/infrastructure/security/trusted-types.ts` | Trusted Types 策略（2026-09-25 登记） | `installTrustedTypes(): TrustedTypePolicy \| undefined` | 无 | `cordex-default` 策略：`createScriptURL` 只放行同源 `/assets/`；`main.tsx` 在任何 Worker 创建前调用，经 `createHost({scriptUrlPolicy})` 交给 SDK（50/14 §4.2）；浏览器不支持时不创建 |
 | `src/infrastructure/auth/session-client.ts` | 会话客户端 | `SessionClient`（cookie 模式 / token 模式） | `./api/auth.api` | 不持久化令牌（EM-03） |
 | `src/infrastructure/storage/preferences-store.ts` | 偏好存储 | `PreferencesStore` | `../../domain/preferences` | localStorage；损坏回默认 |
 | `src/infrastructure/storage/recent-store.ts` | 最近存储 | `RecentStore` | `../../domain/recent-document` | IndexedDB；≤ 50 条 |
@@ -902,7 +776,7 @@ apps/web/
 | `src/domain/routes.ts` | 路由值对象 | `RoutePath`、`documentRoute`、`nextAfterLogin` | 无 | 白名单防开放重定向 |
 | `src/domain/recent-document.ts` | 最近条目 | `RecentDocumentEntry`、`mergeRecent` | `@cordexjs/protocol`（`DocumentSummary`） | — |
 | `src/domain/document-card.ts` | 卡片 VM | `DocumentCardVM`、`toCardVM` | `@cordexjs/protocol` | — |
-| `src/domain/document-type.ts` | 文档类型参数 | `DocumentTypeParam`、`DOCUMENT_TYPES`、`resolveDocumentType` | 无 | §8 参数化点 ① |
+| `src/domain/document-type.ts` | 文档类型参数 | `DocumentTypeParam`、`DOCUMENT_TYPES`、`resolveDocumentType` | 无 | §8 参数化点 ①；`presetKeys:{edit;collab;view}` 与 `newCards`（内置模板卡，2026-09-25 自已删的 `app/templates.ts` 迁入，50/03 §8） |
 | `src/domain/editor-page-state.ts` | 编辑器页状态机 | `EditorPageState`、`reduceEditorPage` | 无 | 纯 reducer |
 | `src/domain/render-page-state.ts` | 渲染页状态机 | `RenderPageState`、`isRenderReady`、`RENDER_INJECT_TIMEOUT_MS` | 无 | `awaitingInject` 取代 `fetchingState`（BE-04）；`isRenderReady` 按 FE-09 三条件合取 |
 | `src/domain/online-state.ts` | 在线态 | `OnlineState` | 无 | — |
@@ -971,22 +845,13 @@ declare function createSlideViewerPreset(o?: z.input<typeof ViewerPresetOptionsS
 
 ## 7. 前后端与运行时
 
-- **仅浏览器**：四个交付物均 `iso:'dom'`；depcruise R16 禁止 iso / node 包 import 它们。服务端的等价装配是 M-09 `preset-server`（kernel 基础服务 + model-core + store-yjs + model-slide + ooxml + engine-layout + server-collab + server-storage + server-headless），与本模块**无包依赖**，只共享上游插件。
-- **同一 Definition 的不同 Provider（由 preset 选择）**：`DocumentStore`：`store-memory`（slide / viewer）vs `store-yjs`（collab）；`presence`：`local-presence`（slide）vs `collab-yjs`（collab）vs 无（viewer）；`layout.measurer`：三预设均 `render-dom` 的 `canvas`（服务端 `node-font` 属 M-09）；`UiRenderer`：`react`（slide / collab）vs 无（viewer 用框架无关壳）。
-- **`apps/web` 接入文件**：`application/host/create-editor-host.ts`（唯一 `createHost`）、`pages/editor/EditorPage.tsx`（`<EditorHost>`）、`pages/viewer/ViewerPage.tsx`（`preset.mount`）、`pages/render/RenderPage.tsx`（`render.attach`，无 UI 包）。`apps/server` 接入本模块的唯一方式是 headless Chromium 加载 `/render`（M-09 `browser-pool.ts` → `render-page-protocol.ts`）。
-- **进程间契约（全部经 `@cordexjs/protocol`）**：
+> 2026-09-25 起改为摘要 + 链接（rulings §4.19）：REST 客户端策略与进程间调用以 [50/02 §7](../50-frontend/02-app-shell-routing-and-session.md) 与 [60/15](../60-backend/15-rest-api-catalog.md) 为准；`/render` 页契约（查询参数、注入载荷、ready 判据、错误码）以 [50/12 §11](../50-frontend/12-viewer-embedding-and-render-page.md) 为准；嵌入形态以 50/12 §9–§10 为准。
 
-| 场景 | protocol schema | 本模块使用文件 | 对端（模块） |
-|---|---|---|---|
-| 会话与登录回环 | `rest/auth.ts`（`LoginResponse{authorizationUrl}`、`MeResponse`、`RefreshResponse`、协同 `TicketResponse`）、`errors/*` | `infrastructure/api/auth.api.ts`、`auth/session-client.ts` | M-08 `auth.controller.ts` |
-| 文档目录 / 权限 / 分享链接 | `rest/documents.ts`（`DocumentSummary`、`DocumentDetail{ role, capabilities, documentType }`、`CreateDocumentRequest`、`PermissionGrant`、`ShareLink`） | `documents.api.ts`、用例 | M-08 `documents`/`permissions`/`share-links` |
-| 快照 / 版本 | `rest/snapshots.ts`（`SnapshotIndex`、`RestoreRequest`；`latest` 直接返回字节，不经 `PresignedGet`，rulings §4.18 BE-12）、`snapshot/envelope.ts` | `snapshots.api.ts`、`open-document.usecase.ts`、`versions.usecase.ts` | M-09 `snapshots` |
-| 导入 / 导出任务 | `rest/import-export.ts`（`CreateImportUploadRequest/Response`（`uploadId` + 预签名 PUT）、`CreateImportRequest{ uploadId }`、`CreateExportRequest`、`TaskStatus{ state: TaskState }`；2026-09-25 两步导入，rulings §4.18 BE-10） | `import-export.api.ts`、`import-pptx.usecase.ts`、`export-document.usecase.ts` | M-12 `import-export`/`jobs` |
-| 缩略图 | `rest/documents.ts` 缩略图 URL 字段（M-12 REST：`GET /documents/:id/thumbnails/:page`，ETag） | `documents.api.ts`、`DocumentCard.tsx` | M-12 `thumbnails` |
-| 协同 WS | `ws/{handshake,frames}.ts`、`permissions/*`（由 `collab-*` 包在 preset 内使用，`apps/web` 不直接触碰） | `preset-slide-collab/src/plugins/collab.entries.ts`（透传 endpoint / getToken） | M-09 `server-collab` |
-| headless 渲染页 | **已进 protocol**（2026-09-18 起，C-27）：`@cordexjs/protocol/src/render/page.ts`（M-02）定义 `RenderPageQuerySchema`/`RenderPageSignal`/`RenderStateResponse`；本模块 `pages/render/render-page-protocol.ts` 与 M-09 均改为 import，不再各自镜像；注入载荷 `RenderStateResponse` = `snapshot/envelope.ts` 或 `yjs-update` 字节 + 媒体 / 字体资源字节（2026-09-24 起经 `window.__cordex.inject` 注入，不再 `GET /internal/render/:token/state`，rulings §4.15 Q8；2026-09-25 local 与 remote 两种模式都注入，M-12 `render-state.controller.ts` 删除，§4.18 BE-04） | `render-page.usecase.ts`、`render-injection.ts` | M-09 `thumbnail-renderer.ts`（local：`page.evaluate`；remote：sidecar RPC） |
-
-- **`/render` 页与 M-09 / M-12 的契约（本模块承诺）**：① URL `GET /render?renderId=<id>&documentType=slide&mode=thumbnail|print&slides=<id,id>&deviceScaleFactor=1|2|3&fontProfile=<id>&layoutAlgoVersion=<n>`（`renderId` 仅作日志关联，`RenderStateToken` 已取消，rulings §4.18 BE-04）；② 页面加载后在页面常量 `RENDER_INJECT_TIMEOUT_MS`（默认 60 s，与 ADR-0026 每页 10 s 渲染超时分开计）内等待编排方经 `window.__cordex.inject({ state, resources })` 注入状态与资源（local 模式由 Playwright `page.evaluate`、remote 模式由 sidecar 调用；页面**不做任何外呼**，超时 → `render.state_expired`；rulings §4.15 Q8）、以 `lazy.charts/locales=false` 装配后打开、渲染，满足 ready 判据——所请求页全部 `render/page-mounted` ∧ 这些页字体全部结算（`layout/fonts-ready` 或 `render/font-fallback`）∧ 此后出现一次 `pendingDirty === 0` 的 `render/frame`（FE-09，与架构 07 §10 同一条）——后调用 `window.__cordex.ready({ pageIds, layoutAlgoVersion, fontProfile })`，由 `render-page.spec.ts` 断言；任何失败调用 `window.__cordex.error({ code, traceId })`（错误码来自 protocol `errors/codes.ts`，如 `render.bad_query`、`render.state_expired`、`unit.open_failed`）；③ 舞台为 `#stage`，每页一个 `[data-cordex-page="<slideId>"]` 容器，尺寸 = 幻灯片尺寸 × `deviceScaleFactor`，M-09 按此选择器截图 / 打印；④ 页面不外呼字体（字体由 M-09 的 `fontProfile` 预装于 Chromium），不加载 UI 四包与 collab；⑤ `documentType` 只透传给 `resolveDocumentType`（BC-24 参数化，M-12 §8）。
+- **仅浏览器**：四个交付物均 `iso:'dom'`；depcruise R16 禁止 iso / node 包 import 它们。服务端的等价装配是 M-09 `preset-server`，与本模块无包依赖，只共享上游插件。
+- **同一 Definition 的不同 Provider（由 preset 选择）**：`DocumentStore`：`store-memory`（本地文件单人编辑 / viewer）vs `store-yjs`（collab；M2 起服务端文档一律经此，rulings §4.19 D-M2-CONTENT）；`presence`：`local-presence`（slide）vs `collab-yjs`（collab）vs 无（viewer）。
+- **`apps/web` 接入文件**：`application/host/create-editor-host.ts`（唯一 `createHost`）、`pages/editor/EditorPage.tsx`（`<EditorHost>`）、`pages/viewer/ViewerPage.tsx`（`preset.mount`）、`pages/render/RenderPage.tsx`（`render.attach`，无 UI 包）。
+- **进程间契约（全部经 `@cordexjs/protocol`，文件登记见 40/02 §4.3）**：`rest/auth.ts`、`rest/documents.ts`（含媒体段，文档作用域 `/documents/:id/media/*`，INC-21）、`rest/snapshots.ts`（`latest` 直接回字节，BE-12 / INC-14）、`rest/import-export.ts`（两步导入、`GET /jobs/:id`）、缩略图 `GET /documents/:id/thumbnails/:slideId?size=640|1280`（封面 `__cover`，SG-10）、协同 WS `ws/*` 与 `collab/*`（由 collab 预设内的包使用，`apps/web` 不直接触碰）、`render/page.ts`。
+- **`/render` 页（本模块承诺的落点）**：`pages/render/RenderPage.tsx` + `application/render/render-page.usecase.ts` + `infrastructure/render-injection.ts`；`RenderPageQuery.mode ∈ thumbnail | print | image`（2026-09-25 增 `image`），注入 `state` 只收 `snapshot-json`（50/12 §11.3），local 与 remote 两种模式都由编排方注入、页面零外呼（BE-04），ready 判据见 50/12 §11.5（FE-09）。
 
 **图 7-1 进程边界**
 
@@ -997,21 +862,20 @@ subgraph browser["浏览器 apps/web"]
 end
 subgraph node["Node 服务端"]
   m08["M-08 身份文档与存储"]
-  m09["M-09 协同网关"]
+  m09["M-09 协同网关与快照"]
   m12["M-12 作业评论与运维"]
 end
 subgraph chromium["headless Chromium 进程"]
   renderPage["/render 页"]
 end
 webApp -- "rest/auth、rest/documents 经 @cordexjs/protocol" --> m08
-webApp -- "rest/snapshots、ws/frames 经 @cordexjs/protocol" --> m09
-webApp -- "rest/import-export 经 @cordexjs/protocol" --> m12
-m09 -- "编排打开" --> renderPage
-renderPage -- "RenderPageQuerySchema 经 @cordexjs/protocol/render/page" --> m09
+webApp -- "rest/snapshots、ws 与 collab 帧 经 @cordexjs/protocol" --> m09
+webApp -- "rest/import-export、GET /jobs/:id 经 @cordexjs/protocol" --> m12
+m09 -- "编排打开 注入 snapshot-json" --> renderPage
+renderPage -- "window.__cordex.ready 经 @cordexjs/protocol/render/page" --> m09
 ```
 
-图怎么读：`apps/web` 与三个服务端模块之间全部经 `@cordexjs/protocol` 定义的 schema 通信；`/render` 页是 M-09 从 Node 侧编排出的另一个浏览器进程，本模块只提供页面代码，不直接与之建立协议外的连接。
-
+图怎么读：`apps/web` 与三个服务端模块之间全部经 `@cordexjs/protocol` 定义的 schema 通信（M2 起服务端文档的打开走 M-09 快照与 WS，新建与导入走 M-12 服务端导入，rulings §4.19 D-M2-CONTENT）；`/render` 页是 M-09 从 Node 侧编排出的另一个浏览器进程，只接受注入。
 ## 8. doc / sheet 扩展缝
 
 **三个 preset：vertical（`bundle=slide`）——`preset-doc`/`preset-sheet` 的样板**（00 §6.2 L8 行、G-3 追加建议）。复制时逐文件对应：
@@ -1037,7 +901,7 @@ renderPage -- "RenderPageQuerySchema 经 @cordexjs/protocol/render/page" --> m09
 1. ⚠ `src/domain/document-type.ts`：`DOCUMENT_TYPES: Record<string, DocumentTypeParam>`，`DocumentTypeParam{ id; label: I18nKey; icon: IconName; presetKeys: { edit: 'slide'; collab: 'slide-collab'; view: 'slide-viewer' }; newCards: TemplateCard[]; routeSegment?: string }`。新增 doc/sheet = 增加两条记录（文案 / 图标 / 模板卡）。未知类型走 `fallback`（通用图标、无新建卡），打开由 SDK 以 ``format.no_document_type`（常量 `FORMAT_NO_DOCUMENT_TYPE`）` 失败并渲染失败态（12 §4.3 运行时层）。
 2. ⚠ `src/application/host/create-editor-host.ts`：`switch (resolveDocumentType(documentType).presetKeys[params.preset])` 选择工厂——新增 doc = 增加三个 `case` 与三个 import（`@cordexjs/preset-doc*`），是 `apps/web` 内**唯一**会出现新包名的地方。
 
-**必须零改动的 `apps/web` 文件**：`app/**`（路由按 `/documents/:id` 通用，不出现 `slide` 字面量；`lint no-doc-type-literals-app` 覆盖 `apps/web/src/{app,pages,application,infrastructure}/**`，例外仅 `domain/document-type.ts` 与 `create-editor-host.ts`）、`pages/**`（页面读 `DocumentTypeParam` 显示图标 / 文案）、`application/**`（除 `create-editor-host.ts`）、`infrastructure/**`、`domain/**`（除 `document-type.ts`）、`styles/**`。`/render` 页对 `documentType` 只透传（M-12 §8 的 `RenderRoute` 参数化落点在服务端，本页零改动）。开始页「新建」段的卡片来自 `DOCUMENT_TYPES[*].newCards` 拼接，多文档类型时按类型分组显示（AS-01 布局不变）。
+**必须零改动的 `apps/web` 文件**：`app/**`（路由按 `/documents/:id` 通用，不出现 `slide` 字面量；lint `cordex/no-doc-type-literals` 扩展范围（TD-086）覆盖 `apps/web/src/**`，例外仅 `domain/document-type.ts` 与 `application/host/create-editor-host.ts`，与 50/02 §1 一致；2026-09-25 由自造名 `no-doc-type-literals-app` 改为既有规则子范围，rulings §4.18 GV-15、F63）、`pages/**`（页面读 `DocumentTypeParam` 显示图标 / 文案）、`application/**`（除 `create-editor-host.ts`）、`infrastructure/**`、`domain/**`（除 `document-type.ts`）、`styles/**`。`/render` 页对 `documentType` 只透传（M-12 §8 的 `RenderRoute` 参数化落点在服务端，本页零改动）。开始页「新建」段的卡片来自 `DOCUMENT_TYPES[*].newCards` 拼接，多文档类型时按类型分组显示（AS-01 布局不变）。
 
 ## 9. 测试布局
 
@@ -1061,6 +925,7 @@ packages/preset-slide-collab/src/__tests__/
 packages/preset-slide-viewer/src/__tests__/
 ├── lifecycle.test.ts
 ├── readonly.test.ts             # ADR-0015：slide.insertShape → COMMAND_NOT_FOUND；override 装入 editing → PERMISSION_DENIED；contributions(core.command) 无 slide.*
+├── conformance-read-only-policy.test.ts # runPermissionPolicyConformance(readOnlyPolicy)：默认拒绝、异常即拒绝、能力位全集（2026-09-25 新增，决策 T-KITS；scan-manifest 规则 (e)）
 ├── no-editing-graph.test.ts     # 读取构建 manifest：viewer chunk 图不含 @cordexjs/model-slide/editing、ui-*、slide-ui、collab-*、react
 ├── pluggable.test.ts            # exclude 矩阵（read-only 为 required → 抛 PRESET_REQUIRED_ENTRY）
 ├── order-independence.test.ts
@@ -1097,7 +962,7 @@ apps/web/e2e/
 | 无领域定义 | ESLint `no-restricted-syntax`（`apps/**` override）+ depcruise `cordex-apps-only-assemble`（原称扫描器 `no-domain-defs-in-apps`，rulings §4.18 GV-15，TD-093）：`apps/**` 不含 `defineCommand(`、`defineMutation(`、`defineOperation(`、`defineContributionPoint(`、`ctx.contribute(`、`declare module '@cordexjs/kernel'` | `apps/web`、`apps/server` | 00 §9；05 §12 |
 | 唯一组合根 | ESLint `no-restricted-syntax`（`apps/**` override，原称扫描器 `single-create-host-callsite`，GV-15，TD-093）：`createHost(` 与 `/createSlide\w*Preset\(/` 在 `apps/**` 只允许出现于 `apps/web/src/application/host/create-editor-host.ts` | `apps/web` | 00 §5.2、02 §3.1 |
 | 禁止 SDK 内部包 | eslint `no-restricted-imports`（apps 配置）：`@cordexjs/model-*`、`@cordexjs/ooxml-*`、`@cordexjs/engine-*`、`@cordexjs/render-dom`、`@cordexjs/slide-*`、`@cordexjs/collab-*`、`@cordexjs/store-*`、`yjs`、`cordis`、`@cordisjs/*` | `apps/web` | 09-type-discipline 03-boundaries §3.3 |
-| 文档类型盲 | lint `no-doc-type-literals-app`（新增建议，复用 12 §4.1 规则实现）：`'slide'`/`'doc'`/`'sheet'` 字面量仅允许于 `domain/document-type.ts`、`create-editor-host.ts`、`app/templates.ts` | `apps/web` | 12 §4.1、§8 |
+| 文档类型盲 | lint `cordex/no-doc-type-literals` 扩展范围（TD-086，30/09-type-discipline/02 §4.12）：扫描 `apps/web/src/**`，`'slide'`/`'doc'`/`'sheet'` 字面量仅允许于 `domain/document-type.ts` 与 `application/host/create-editor-host.ts`（内置模板清单挂 `DOCUMENT_TYPES[*].newCards`，`app/templates.ts` 已删，不另设例外文件；与 50/02 §1 一致，2026-09-25 由 `no-doc-type-literals-app` 改名，GV-15） | `apps/web` | 12 §4.1、§8；50/02 §1 |
 | 顺序无关 | 生命周期套件 `preset-order-independence`（三包 `order-independence.test.ts` 必须存在并调用 `defineLifecycleSuite`；由 `scan-effects` 规则 (3) 检查，原称 `preset-has-order-test`，GV-15，TD-095） | 三 preset | 00 §9 BC-16；03 §6/§11 |
 | 可插拔矩阵 | `pluggable.test.ts` 对清单每个非 `required` 条目 exclude（`scan-effects` 规则 (3) 校验测试以清单常量为数据源，原称 `preset-pluggable-matrix`，GV-15） | 三 preset | ADR-0010 决策 3；charter §5.4 |
 | 查看器只读（第一道） | depcruise `cordex-viewer-no-editing`（原称扫描器 `no-editing-in-viewer`，GV-15，TD-094）+ `no-editing-graph.test.ts`：`preset-slide-viewer` 的依赖图与构建依赖图（Rollup `manifest.json`）不含 `@cordexjs/model-slide/editing`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui`、`@cordexjs/collab-*`、`react`、`react-dom`；源码层 depcruise `viewer-forbidden-imports` 同列表 | `preset-slide-viewer` | ADR-0015 第 4 条 |
@@ -1155,9 +1020,9 @@ pnpm lint --filter apps-web                                                     
 pnpm --filter apps-web e2e -- home-to-editor viewer                              # 开始页 → 夹具 → EditorHost → 返回；查看器翻页 / 缩放
 ```
 
-**M2**（编辑器 + `preset-slide-collab` 装配）：`preset-slide` 接入 `model-slide/editing`、`slide-ui`、`shell-glue`（七条目 + `Mod+E`）、惰性图表 / 语言包；`preset-slide-collab` 包完整落地（`derive.ts`、`collab.entries.ts`、`switch-from-slide.test.ts`、`mock-collab-server`），以 M-05 `collab-core/testing` 假对端通过 `lifecycle/pluggable/derive`（真实网关联调在 M3）；`apps/web`：登录 / 会话（M-08 M1 auth，外置 OIDC，注册入口随 `auth.selfSignup`，rulings §4.15 Q6）、文档列表（**最近 / 固定经服务端同步，IndexedDB 仅离线缓存**，rulings §4.12 U-04；卡片封面 M2 用包内 `thumbnail.jpeg` 且 `thumbnailProvisional=true`，rulings §4.15 Q8）、客户端安全基线（CSP nonce、Trusted Types report-only、`externalResources` 配置，rulings §4.15 Q2/Q7）、导入入库、导出对话框、设置页、保真报告页、插件管理器页、放映路由、`host-event-bridge` 全表、`host-registry`；体积门禁三档上线；e2e `login`/`documents-crud`/`editor-intents`/`a11y`。验收：`pnpm --filter @cordexjs/preset-slide-collab test`、`pnpm scan bundle-budget --preset slide --preset slide-collab`、`pnpm --filter apps-web test e2e`。
+**M2**（编辑器 + 协同预设接真实后端；rulings §4.19 D-M2-CONTENT：协同网关、Room、update 持久化与快照、服务端导入提前到 M2，M2 起服务端文档内容以协同快照为唯一事实源，不设 pptx 内容版本端点）：`preset-slide` 接入 `model-slide/editing`、`slide-ui`、`shell-glue`（七条目 + `Mod+E`）、惰性图表 / 语言包，`leaveGuard` 选项（本地文件单人编辑）；`preset-slide-collab` 完整落地（`derive.ts`、`collab.entries.ts`、`switch-from-slide.test.ts`、`mock-collab-server`）并**接真实 `server-collab`**（票据、`snapshots/latest` bootstrap、两级 ack、「未保存到服务器」提示，M-05/M-09 M2 切片；原「真实网关联调在 M3」作废）；`apps/web`：登录 / 会话（外置 OIDC，`GET /auth/oidc/login?mode=`、可变开关读 `GET /auth/config`）、文档列表（最近 / 固定服务端同步，U-04；读缓存 `query-cache.ts`）、**打开 = 协同快照**（`open-document.usecase.ts` 一律 `preset:'collab'`、`source.kind:'state'`）、**新建空白 / 内置模板与导入 .pptx = 服务端两步导入**（`create-document.usecase.ts`、`import-pptx.usecase.ts` + `direct-upload.ts`，轮询 `GET /jobs/:id`）、卡片封面取导入处理器写的 embedded `__cover`（空白文档用占位，`thumbnailProvisional=true`，Q8）、离开保护与登出清理只看协同在途与离线队列、媒体上传默认实现（`infrastructure/media/`）、客户端安全基线（CSP nonce、Trusted Types report-only + `trusted-types.ts`、`externalResources`，Q2/Q7）、导出对话框（pptx 客户端）、设置页、保真报告页、插件管理器页、放映路由（`?page=`）、分享链接落地（`share-landing.ts`）、`host-event-bridge` 全表、`host-registry`；体积门禁三档上线（含 `apps/web/bundle-budget.json` 路由 chunk）；e2e `login`/`documents-crud`/`import-to-editor`/`editor-intents`/`a11y`。验收：`pnpm --filter @cordexjs/preset-slide-collab test`、`pnpm scan bundle-budget --preset slide --preset slide-collab`、`pnpm --filter apps-web test e2e`。
 
-**M3**：collab 预设接真实 `server-collab`（协同 ticket、`collab/auth-failed` → 刷新）、分享 / 版本页（只按人分享，rulings §4.15 Q6）、`/render` 页（随 M-12 缩略图 M3 前半段，state 与资源由零出站 renderer sidecar 注入，`render-page.spec.ts` 像素 oracle，rulings §4.15 Q8）、Trusted Types 由 report-only 转强制（Q2）、模板库页、`collab-offline-idb` 可选项、形态 E `EmbedPage`（P2）。**M4+**：`preset-doc`/`preset-sheet` 按 §8 复制。
+**M3**（多人协同体验层）：在场 UI 与 `collab/auth-failed` 等多人场景、评论（`comments` 条目随 `preset-slide-collab` 装载，`@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG；`pluggable:m3` 白名单含 `+comments`）、分享 / 版本页（只按人分享，Q6）、`/render` 页（随 M-12 缩略图 M3 前半段，注入 `snapshot-json`，`render-page.spec.ts` 像素 oracle，Q8）、服务端 PDF / PNG 导出、Trusted Types 由 report-only 转强制（Q2）、模板库页、形态 E `EmbedPage`（P2）。**M4**：`collab-offline-idb` 可选项（PRD CO-06 P2）。**M4+**：`preset-doc`/`preset-sheet` 按 §8 复制。
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -1227,6 +1092,16 @@ pnpm --filter apps-web e2e -- home-to-editor viewer                             
 | GV-15 | `preset-glue-thin`/`no-domain-defs-in-apps`/`single-create-host-callsite`/`no-editing-in-viewer`/`preset-has-order-test`/`preset-pluggable-matrix`/`viewer-readonly-test-present`/`bundle-budget`/`events-declared` 改为 08 §11/§11.1 的正式机制 | §1.1、§2.4、§2.5、§3.3、§3.4、§3.5、§5.3、§10、§11 |
 | UX-02 | 过期不整页跳转：有 pending 时发 `app/session-changed{expired}` 交横幅；新窗口重新登录（`PopupCallbackPage`、`reauth-in-window.usecase`）、比对 `principal.id` | §1.2、§2.3、§2.5、§2.6、§3a、§4.4/§5.4、§9 |
 | UX-19 | viewer 进 `/documents/:id` 编辑器 `mode='view'`；`/documents/:id/view` 只留给 M1 查看器与嵌入 | §2.5、§2.6、§3a、§5.4、§9、§12 G-3 |
+
+### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| §4.19 事实源分工 + referencePlan | §2.1–§2.6、§3.4 预算分解、§3a 路由表、§7 | 改为摘要 + 链接 50/02、03、12、15、13；原图 2-2 至 2-4 移交 50/02、50/12；§3.1–§3.3 装配清单与 §3.5 接入点表保留为包级事实源 |
+| §4.19 D-M2-CONTENT | §2.1、§2.2、§2.6、§7、§11、§4.4/§5.4 用例行 | M2 应用壳的打开 = 协同快照（`preset:'collab'`、`source.kind:'state'`），新建空白 / 内置模板与导入 = 服务端两步导入 + `GET /jobs/:id`；`bytes`/`empty` 只留本地文件与 M1 查看器；列表封面取 embedded `__cover`；collab 预设 M2 接真实网关；删 `RuntimeConfig.features.collab` 与「collab 特性开启」分支 |
+| §4.19 D-COMMENTS-PKG、决策 INC-39 | §3.1、§3.1 超集段、§4.2、§5.2、§11 | `preset-slide-collab` 清单 M3 加 `comments` 条目（`@cordexjs/comments`）；`pluggable:m3` 白名单 `{ −store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments }` |
+| GV-15、F63（F64） | §8、§10 | `no-doc-type-literals-app` 改为 lint `cordex/no-doc-type-literals` 扩展范围（TD-086），例外只有 `domain/document-type.ts` 与 `application/host/create-editor-host.ts`；删 `app/templates.ts`（模板清单并入 `DOCUMENT_TYPES[*].newCards`） |
+| 50 线回写表（50/02 §13.3、50/03 §13.3、50/04 §13、50/05 §14.2、50/12 §12.3、50/13 §13、50/14 §13、50/16 §11.3） | §2.2、§3.5、§4.3、§4.4、§5.4 | `CreateEditorHostParams.preset` 改 `'edit' \| 'collab' \| 'view'`；`SlidePresetOptions.leaveGuard`；`RuntimeConfig` 字段增删；`RenderPageQuery.mode` 增 `image`、注入只收 `snapshot-json`；`Preferences.a11y.readingOrder`；viewer 命名空间；登记 `infrastructure/api/{direct-upload,query-cache}.ts`、`infrastructure/media/media-uploader.ts`、`infrastructure/security/trusted-types.ts`、`application/sharing/share-landing.ts`、`public/fonts/font-profile.json`、`bundle-budget.json`（路由 chunk）；登录端点 `GET /auth/oidc/login?mode=`、导入轮询 `GET /jobs/:id`、放映参数 `?page=` |
 
 ## 13. 未决问题
 

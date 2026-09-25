@@ -1,5 +1,5 @@
 # 03 保真往返与语料库
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
 
 本文是保真往返与语料库的测试侧唯一事实源：语料分三层放在哪里、清单长什么样、样本怎么进来和退役、零编辑与编辑后往返怎么判、导出确定性与打开管线怎么验、错误码语料、基线包、快照迁移语料、PowerPoint 互操作证据，以及这些检查在哪个 CI 步骤、何时跑。
 
@@ -38,8 +38,8 @@
 1. **tier 字段是三层与目录的唯一映射**。T1 条目带 `path`（仓库内相对路径），T2 / T3 条目不带 `path`、只带 `sha256`。同一个文件不得以两个 tier 出现。
 2. **入 git 的条件**（三条同时满足才能是 T1）：单文件 ≤ 2 MB；许可为 `own`、`cc0` 或 `public-domain`；不含需要脱敏的内容。构造样本若确需大体积（例如 200 MB 媒体），归 T3。
 3. **废止的落点**：`fixtures/pptx/wild/` 并入 T2 登记（文件迁到语料存储）；30/11 §12 的 `test/corpus/decks/` 不再使用。T1 的子目录分工：`minimal/` 放「每个矩阵行一个」的最小样本，`features/` 放专项样本，文件名前缀区分子集：`inherit-*`（继承专项）、`preserve-*`（保留专项）、`strict-*`（Strict 一致性类）、`errors-*`（错误码语料中可入 git 的部分）、`objects-*`（表格、图表、SmartArt、OLE 等特殊对象）。
-4. **语料存储**：测试基础设施专用桶（与产品部署的 `data` / `snapshots` 两个桶无关），按 sha256 内容寻址，T2 / T3 样本、视觉基线产物（04 §2）与互操作证据截图（§12）共用；键布局、取回脚本 `test/corpus/fetch.ts` 与缓存键以 [11 §10](./11-test-data-fixtures-and-determinism.md#10-大文件t-corpus) 为唯一登记处，本文不另起键名。不使用 Git LFS（配额与 fork 体验差，30/11 §14 T1）。
-5. **拉取的执行规则**：每次读取都重算 sha256，不符即失败；CI 经 OIDC 取只读凭据，写入只由维护者脚本持独立凭据执行；缺凭据或缺对象时步骤**失败，不跳过**；来自 fork 的 PR 由维护者批准后运行。
+4. **语料存储**：测试基础设施专用桶（与产品部署的 `data` / `snapshots` 两个桶无关），按 sha256 内容寻址，T2 / T3 样本、视觉基线产物（04 §2）与互操作证据截图（§12）共用；键布局、访问变量、取回脚本 `test/corpus/scripts/fetch-corpus.ts` 与缓存键以 [11 §10](./11-test-data-fixtures-and-determinism.md#10-大文件t-corpus) 为唯一登记处，本文不另起键名。不使用 Git LFS（配额与 fork 体验差，30/11 §14 T1）。
+5. **拉取的执行规则**：每次读取都重算 sha256，不符即失败；CI 以 secrets 注入只读凭据（`CORDEX_CORPUS_ACCESS_KEY_ID` / `CORDEX_CORPUS_SECRET_ACCESS_KEY`，端点与桶名为普通变量 `CORDEX_CORPUS_S3_ENDPOINT` / `CORDEX_CORPUS_BUCKET`，rulings §4.20 TX-16），写入只由维护者以同名本地变量持写凭据执行；缺任一变量、缺凭据或缺对象时步骤**失败，不跳过**；来自 fork 的 PR 由维护者批准后运行（[12 §3](./12-ci-gates-mapping.md)）。
 
 **图 1-1 语料分层与用途**
 

@@ -1,5 +1,5 @@
 # 01 测试策略总览与分层职责
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：charter v0.2、rulings §4.15–§4.19、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：charter v0.2、rulings §4.15–§4.20、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
 
 本文是测试侧的总纲：测试分几层、每层用什么工具、在什么环境跑、谁来写、何时跑、落在 13 个 CI job 的哪个步骤；测试文件叫什么、放在哪里（T-NAMING 在本文定稿，其余 70 文件与 50 / 60 的「机械验证」小节都按本文引用）；覆盖率、门禁分级与所有权。
 
@@ -250,7 +250,7 @@ test/
 | `traceability/` | 判定器脚本 + Vitest（`doc-sync.test.ts`） | 判定器在 `test/requirement-matrix`；`doc-sync.test.ts` 在 `test/unit` | PR |
 | `corpus/`、`evidence/` | 数据与脚本，不含用例 | manifest 校验是 `test/fidelity-roundtrip` 的前置；evidence 由 `test/requirement-matrix` 读取 | — |
 
-**与 40 各模块 §9 的对账**（40 §9 只保留包内测试文件清单；场景与断言以 70 为准，由总编排回写；M-01（`tooling/ci`、T-PERF-GATE）、M-05（`test/collab-sim/`）与 M-13（`test/preset-blind/`）三行已在 2026-09-25 §4.19 轮回写完成）：
+**与 40 各模块 §9 的对账**（40 §9 只保留包内测试文件清单；场景与断言以 70 为准，由总编排回写；M-01（`tooling/ci`、T-PERF-GATE）、M-05（`test/collab-sim/`）与 M-13（`test/preset-blind/`）三行已在 2026-09-25 §4.19 轮回写完成；M-02 的 `Clock` / `Random` 端口登记、M-04 的 T2 / T3 语料改为只登记 manifest、M-12 的 `src/shared/clock.ts`，以及各模块 §9 的覆盖率与性能预算改指本文 §8 与 [09](./09-performance-and-capacity.md)，随 2026-09-26 rulings §4.20 TX-10 同轮回写）：
 
 | 模块 | 40 §9 现状 | 与本文的差异 | 处理 |
 |---|---|---|---|
@@ -284,7 +284,7 @@ test/
 ## 7. 类型测试
 
 - **工具**：`vitest --typecheck` 与 `expectTypeOf` / `assertType`，不引入 tsd 或独立 expect-type（[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)）。
-- **文件**：`src/**/__tests__/*.type-test.ts`，与同名行为测试分开；每个 Definition（含贡献点与 Manifest）至少一个类型测试文件（09 §6）。
+- **文件**：`src/**/__tests__/*.type-test.ts`，与同名行为测试分开；每个 Definition（含贡献点与 Manifest）至少一个类型测试文件（09 §6）。机械核对：扫描器 `scan-manifest` 规则 (e3)（09-06 §6，TD-111，rulings §4.20 TX-09）——Definition 集合 = 全部包的 `cordex.implements` 值 ∪ 各包 `defineContributionPoint()` 导出 ∪ kernel Manifest，定义包的 `__tests__/**/*.type-test.ts` 中至少一个文件以标识符引用它（import 或类型位置），缺失即报 `rule:'e3'` 与 Definition 名；负向夹具两例（定义包缺类型测试、某贡献点未被任何类型测试引用）。
 - **负向断言**：`// @ts-expect-error: <为什么这里应当编译失败>`，说明必须非空。ESLint `@typescript-eslint/ban-ts-comment` 在全仓要求 `cordex-allow(…)` 或 `TS-<issue>` 格式（09-02 §3），对 `*.type-test.ts` 覆盖为 `descriptionFormat: '^: .+'`（只查非空，09 §6）：负向类型测试是预期行为，不是逃逸，不走豁免格式。
 - **与 `typecheck` job 的区别**：`typecheck` 检查全部生产代码能否编译；`test-typecheck` 主动断言类型契约（尤其「非法用法必须编译失败」）。两者都保留（ADR-0048 后果）。
 
@@ -379,7 +379,7 @@ stateDiagram-v2
 
 | 交付方 | 必须交付的测试 | 执行点 | 机械核对 |
 |---|---|---|---|
-| 每个 Definition 所在包 | `run<Definition>Conformance` kit，内含故意写错的 Provider 负向用例；≥ 1 个 `*.type-test.ts` | `test/contract`、`test-typecheck` | kit 总表（[02 §3](./02-contract-suites-and-pluggability.md)） |
+| 每个 Definition 所在包 | `run<Definition>Conformance` kit，内含故意写错的 Provider 负向用例；≥ 1 个引用该 Definition 的 `*.type-test.ts` | `test/contract`、`test-typecheck` | kit 总表（[02 §3](./02-contract-suites-and-pluggability.md)）；类型测试由 `scan-manifest` 规则 (e3) 核对（TD-111） |
 | 每个 Provider 包 | `conformance*.test.ts` 调用对应 kit；需要容器的服务端 Provider 在 `apps/server/test/integration/conformance/*.int-spec.ts` 调用（[02 §1](./02-contract-suites-and-pluggability.md)） | `test/contract`；容器版在 `test/server-integration` | `scan-manifest` 规则 (e) |
 | 每个含 `plugin.ts` 的包 | `lifecycle.test.ts`；含 effect 的另断言卸载后 `assertNoLiveEffects` | `test/lifecycle` | `scan-effects` 规则 (1)(2) |
 | 每个 preset 包 | `order-independence`、`pluggable`（以 `*_ENTRIES` 为数据源）；viewer 另有 `readonly` | `test/unit` | `scan-effects` 规则 (3) |
@@ -423,6 +423,8 @@ stateDiagram-v2
 | 每个 iso 包都在冒烟清单中，且 Node 与浏览器两侧都加载成功 | 扫描器 `scan-isomorphic`；`iso-smoke` job |
 | 每个插件包有生命周期测试，每个 Provider 调用对应 kit | 扫描器 `scan-effects` 规则 (2)；扫描器 `scan-manifest` 规则 (e) |
 | `*.type-test.ts` 中的 `@ts-expect-error` 带非空说明 | `lint`（`ban-ts-comment` 覆盖配置） |
+| 每个 Definition（`cordex.implements` 值、贡献点、kernel Manifest）至少被一个 `*.type-test.ts` 以标识符引用 | 扫描器 `scan-manifest` 规则 (e3)（TD-111） |
+| 生产与测试代码不直接调用 `Date.now`、`Math.random`、无参 `new Date()`，测试另不调用 `performance.now`（`test/perf/**` 豁免） | `lint`（TD-110，[11 §1](./11-test-data-fixtures-and-determinism.md)） |
 | 生产代码不 import 任何 `./testing` 子路径 | `depcruise`（`no-testing-in-prod`） |
 | 改动行与分支覆盖达标、包级总覆盖率不下降 | `coverage-patch` |
 | gated 条目降级必须带未过期的 `allow` | 读取该配置的步骤（`e2e/oracle-gated`、`perf/*`、`test/fidelity-roundtrip` 等） |

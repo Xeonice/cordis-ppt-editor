@@ -1,6 +1,6 @@
 # 02 契约套件目录、生命周期与可插拔证据
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）
 
 本文是「契约套件（conformance kit）、插件生命周期套件、可插拔证据」三件事在测试侧的唯一事实源：定义 kit 的统一接口、每个 Definition 的 kit 与用例 id、运行矩阵、必须实例化的 Provider 与所在 CI 步骤。被测契约本身的语义不在这里：iso 契约签名在 [30/04](../30-architecture/04-document-model.md)、[30/05](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md) 与 [40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)，服务端运行侧行为在 [60/05](../60-backend/05-modules-collab-and-snapshots.md) 与 [60/16](../60-backend/16-ws-protocol-server-view.md)，客户端运行侧行为在 [50/04](../50-frontend/04-document-commands-and-undo.md) 与 [50/07](../50-frontend/07-collaboration-client.md)。协同模拟、fuzz 与性质测试见 [05](./05-collab-simulation-and-property-tests.md)；kit 实现文件仍登记在 40 各包的 `testing/`。
 
@@ -365,6 +365,7 @@ flowchart LR
 | `admission/per-user-quota` | 名额按用户计：同一用户多标签占 1、owner 不占编辑者名额、commenter 计查看者 | rulings §4.15 Q5 |
 | `admission/concurrent-21st-editor` | 20 编辑者满员时两实例并发接入第 21 个编辑者：恰一个被判超员，不超额 | 决策 C-11（authority：ADR-0022，不依赖 HEXPIRE；`room:{docId}:members` + Lua 原子判定） |
 | `admission/capacity-readonly-join`、`admission/room-full-4503` | 超编辑者名额以 `auth.ok{role:'viewer', reason:'capacity'}` 只读加入；再超回 `auth.denied{collab.room_full}` 并关闭 4503 | 30/06 §18.5、INC-03/04/05 |
+| `admission/per-user-connection-cap-4429` | 握手期每用户单实例并发上限：同一用户在同一实例上已持有 `limits.ws.maxConnectionsPerUser`（默认 32，kit 以缩小的值驱动、不写死）个已认证连接时，下一个连接在票据验签通过后收到 `auth.denied{code:'collab.rate_limited'}` 并以 4429 关闭；该用户已有连接、同实例其他用户、另一实例上的同一用户都不受影响；关闭其中一个后可再加入（计数随连接关闭扣除，被拒的连接不计入）；与帧速率超限的 4429（`gate/rate-limit-4429`，无 `auth.denied`）区分 | rulings §4.20 BE-01+TX-03；60/16 §1、§10、§12 |
 | `admission/over-ceiling-readonly-join` | 部署调低天花板后，超出新天花板的文档以 `auth.ok{role:'viewer', reason:'over_ceiling'}` 只读打开；`reason` 与名额满的 `'capacity'` 区分，同一连接只出现其一 | 30/06 §6.3；60/05 §4.1 |
 | `lock/room-locked-signal` | 文档进入锁定窗口（覆盖导入、迁移；`reason ∈ import \| migration`）时本 Room 全部会话收到 `CONTROL.room{locked:{reason, until}}`，不借用 `CONTROL.permission{reason:'changed'}`；锁定期间写入帧按 L2 拒绝；解锁后收到不含 `locked` 的 `room` 帧，写入恢复 | 30/06 §6.3；60/16 §8；rulings §4.19 N1 |
 | `epoch/stale-auth-epoch-denied` | 客户端 `auth{epoch}` 小于当前纪元 → `auth.denied{collab.epoch_changed}` 并以 4428 关闭；无本地状态的客户端省略 `epoch` 照常加入；当前纪元与 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 一致 | 30/06 §6.3、§6.5；决策 INC-06 |
@@ -382,7 +383,7 @@ flowchart LR
 
 `AuthorizationSource` 不设独立 kit：`link/*` 三个用例同时是它的契约证据。房间准入的 Lua 原子性只有真实 Valkey 能证明，内存版执行同一用例验证语义、真实版验证并发。
 
-**里程碑**（以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 的 M2 / M3 边界为准，rulings §4.19 D-M2-CONTENT）：§5.1 的 `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`、`runBlobStoreConformance` 与本节 kit 随协同后端在 M2 入库即运行并阻断；`runSpillStoreConformance` 随单实例两级溢写同在 M2（PRD 05 §0.3「Postgres 故障」行）。kit 不可裁剪（§1 规则 4），用例全集随实现增长，由 kit 的 `cases` 常量登记——M2（单实例协同后端）：`durability/crash-replay`、`durability/pg-down-db-ack-withheld`、`gate/*`、`ack/*`、`degraded/*`（单实例溢写、降级期广播与 `persist` 信号）、`lock/*`、`session/*`、`epoch/*`（schema 迁移与换纪元）、`admission/evict-idle-rooms-first`、`admission/over-ceiling-readonly-join`（按权重准入）；M3（多人协同体验层与多实例）：`fanout/two-instance-dedup`、`replay/*`（跨实例认领）、`admission/per-user-quota`、`admission/concurrent-21st-editor`、`admission/capacity-readonly-join`、`admission/room-full-4503`（名额按用户计与满员只读）、`link/*`、`purge/*`、`elements/*`、`restore/*`。M2 允许 `FanoutBus` / `LeaseLock` 以内存 Provider 跑单实例 Room（[40/09 §11](../40-modules/09-server-collab-gateway-and-headless-host.md)），真实 Valkey 版的这两个 kit 仍在 M2 实例化（压缩租约在单实例也要用）。
+**里程碑**（以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 的 M2 / M3 边界为准，rulings §4.19 D-M2-CONTENT）：§5.1 的 `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`、`runBlobStoreConformance` 与本节 kit 随协同后端在 M2 入库即运行并阻断；`runSpillStoreConformance` 随单实例两级溢写同在 M2（PRD 05 §0.3「Postgres 故障」行）。kit 不可裁剪（§1 规则 4），用例全集随实现增长，由 kit 的 `cases` 常量登记——M2（单实例协同后端）：`durability/crash-replay`、`durability/pg-down-db-ack-withheld`、`gate/*`、`ack/*`、`degraded/*`（单实例溢写、降级期广播与 `persist` 信号）、`lock/*`、`session/*`、`epoch/*`（schema 迁移与换纪元）、`admission/evict-idle-rooms-first`、`admission/over-ceiling-readonly-join`（按权重准入）、`admission/per-user-connection-cap-4429`（握手期连接约束随 WS 网关，rulings §4.20 BE-01+TX-03）；M3（多人协同体验层与多实例）：`fanout/two-instance-dedup`、`replay/*`（跨实例认领）、`admission/per-user-quota`、`admission/concurrent-21st-editor`、`admission/capacity-readonly-join`、`admission/room-full-4503`（名额按用户计与满员只读）、`link/*`、`purge/*`、`elements/*`、`restore/*`。M2 允许 `FanoutBus` / `LeaseLock` 以内存 Provider 跑单实例 Room（[40/09 §11](../40-modules/09-server-collab-gateway-and-headless-host.md)），真实 Valkey 版的这两个 kit 仍在 M2 实例化（压缩租约在单实例也要用）。
 
 **图 5-1 服务端协同契约套件与 Provider**
 
@@ -562,6 +563,19 @@ stateDiagram-v2
 怎么读：方框是被测插件的 Fiber 状态，箭头上写对应的套件步骤；每条箭头都是一次断言。`Pending` 不是失败态，`Rejected` 必须在任何服务或贡献登记之前发生；多实例步骤把整张图在两个隔离域里并行走一遍。
 依据：30/11 §4；30/09-06 §4 `scan-effects`；cordis 指南「测试卸载 / 重载，不只测试启动」（primer MUST #7）。
 
+### 9.1 UnitScope 默认 Provider 登记表（`units` 契约用例）
+
+被测契约：`units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，落在 model-core `unit/units.service.ts`（rulings §4.20 FE-01；语义以 [40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1 与 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) §6.2 为准）。model-core 在 ready 时只登记 `history`、`selection`；`store`、`render`、`presence`、`collab-yjs`、`comments` 由 preset 的 `scope:'unit'` 条目在 mount 时登记；`Config.defaultStoreProvider` 已删除。登记表只有 model-core 一个实现，不是 Definition / Provider 对，因此不设 kit；用例仍按 `<分节>/<用例名>` 登记以便追溯，文件 `model-core/src/unit/__tests__/units-registry.test.ts`，按 [01 §4](./01-strategy-and-layers.md) 的文件名前缀规则归 `test/unit`（`test/contract` 只收 `conformance*` 的 kit 调用）。
+
+| 用例 id | 断言要点 |
+|---|---|
+| `units/duplicate-provides-rejected` | 同一 `provides` 第二次登记被拒：`listUnitProviders()` 仍只有先登记者，记一条诊断（`RecordingErrorSink` 可见），不抛异常；后来者拿到的 `Disposer` 调用后不影响先登记者 |
+| `units/affects-new-units-only` | 登记后新打开的 Unit 挂上该条目提供的服务；登记前已打开的 Unit 不变（服务表与 effect 表与登记前深等）；撤销登记同样只影响之后打开的 Unit |
+| `units/dispose-no-residue` | preset dispose 后其登记的全部条目从 `listUnitProviders()` 消失，`assertNoLiveEffects` 为空；再次装配同一 preset 可重新登记，不因残留被判重复 |
+| `units/core-registers-history-selection-only` | 只装 model-core 的最小宿主（`createTestHost()`）ready 后，`listUnitProviders()` 的 `provides` 集合恰为 `{history, selection}` |
+
+model-core 不 import 秩更高的包由 depcruise 秩规则兜底，不另写用例。里程碑：M1 前定稿，随 `units.service.ts` 入库即 gated；追溯标签 `@ruling 4.20/FE-01`（[13 §6.4](./13-requirements-traceability.md)）。
+
 ---
 
 ## 10. 可插拔证据
@@ -677,6 +691,8 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | D-COMMENTS-PKG | §10 `pluggable:m3` 白名单 | rulings §4.19（用户裁决）；40/11 §1.2 |
 | INC-09 | §5.2 `degraded/room-persist-signal` | rulings §4.19（用户裁决） |
 | D-M2-CONTENT | §10 `manifest-diff.test.ts` 自 M2 起运行 | rulings §4.19（用户裁决） |
+| BE-01+TX-03（先扣后退加上限） | §5.2 `admission/per-user-connection-cap-4429` | rulings §4.20（用户裁决） |
+| FE-01（UnitScope 默认 Provider 登记 API） | §9.1 `units/*` | rulings §4.20（默认值，用户确认） |
 
 ---
 
@@ -711,6 +727,7 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | 每个用例后无残留 | kit 内部 `assertNoLiveEffects`；`scan-effects` 规则 (1)(2) 核对生命周期测试存在 |
 | 撤销五用例名全仓一致 | 代码侧唯一名单是 `runDocumentStoreConformance` 的 `cases` 常量；文档侧照抄 40/02 §2.5 用例名表，由评审核对，不另设检查 |
 | preset 可插拔测试存在且以清单常量为数据源 | `scan-effects` 规则 (3) |
+| UnitScope 默认 Provider 登记表：重复登记被拒、只影响新 Unit、dispose 无残留（§9.1） | `test/unit`（`model-core/src/unit/__tests__/units-registry.test.ts`） |
 | 文档类型盲静态层 | `depcruise`、`lint` job 与各自负向夹具 |
 | 冻结层 | `scanners/horizontal-freeze`（M5） |
 | 需求追溯标签 | `scan-requirement-tags` 产出矩阵，P0 完整性由 `test/requirement-matrix` 判定（[13](./13-requirements-traceability.md)） |

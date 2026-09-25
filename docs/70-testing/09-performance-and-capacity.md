@@ -1,5 +1,5 @@
 # 09 性能与容量测试
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[30/08](../30-architecture/08-backend-nestjs.md) §12 / §16.5、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[30/08](../30-architecture/08-backend-nestjs.md) §12 / §16.5、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
 
 本文是性能与容量测试的测试侧唯一事实源：数字从哪里来、`test/perf/budgets.json` 长什么样、有哪些场景、怎么测、噪声怎么控、门禁怎么判、体积预算的唯一阻断点、预算怎么校准。
 
@@ -231,7 +231,7 @@ RM-B：同一组场景在 nightly 以 RM-B 标签重跑，gate 乘以 `budgetMul
 | `room-bootstrap` | 加载 8 MB 状态的 Room | Room bootstrap p95（target） | 对应 span | `perf-server` | M2 |
 | `persist-lag` | 持续 update 负载 | update 接收 → `ack{tier:'db'}` p99（NF-01 §1.7）；持久化延迟 p95（target） | 指标 `cordex_collab_persist_latency_seconds` + 客户端收到 db ack 的时间 | `perf-server` | M2 |
 | `compaction-10k` | 10,000 个 update 后触发压缩 | 快照压缩时长（NF-01 §1.7）；压缩后 update 日志与快照大小之比（NF-10） | 压缩 span；压缩后查询日志与快照字节数 | `perf-server` | M2 |
-| `ws-capacity` | 单实例逐步加连接到 NF-01 §1.7 并发 WS 值 | 连接数达到 gate 时 CPU 低于 gate | 容器 CPU 采样 + `/metrics` | `perf-server` | M3 |
+| `ws-capacity` | 单实例逐步加连接到 NF-01 §1.7 并发 WS 值。负载驱动在单台压测机（同一源 IP）上按「先扣后退」爬升（rulings §4.20 BE-01+TX-03）：每个连接都持有效票据，验签通过即退还 IP 令牌，同时处于「已升级、未认证」状态的连接不超过 IP 桶容量，因此不放宽 `limits.ws.connectPerIpPerMin`；连接按 `limits.ws.maxConnectionsPerUser`（默认 32）分摊到足够多的测试用户（2,000 连接至少 63 人），票据经 ticket 档（每用户 120 / min）取得。爬升全程无 429 与 4429 即为前提成立，否则场景判失败 | 连接数达到 gate 时 CPU 低于 gate | 容器 CPU 采样 + `/metrics` | `perf-server` | M3 |
 | `cross-instance` | 两个 collab 实例，编辑者分处两侧 | 跨实例传播（NF-01 §1.7） | 服务端时间戳差：实例 A 接收 update → 实例 B 向本地客户端发出（同机同钟，不含客户端链路） | `perf-server` | M3 |
 | `import-d50`、`import-d200`、`import-50mb` | 两步导入作业端到端 | NF-01 §1.7 对应行（50 MB 项只有 target） | 作业 span（入队到完成） | `perf-server` | M2 |
 | `export-pptx-server-d50`、`export-pptx-server-d200`、`export-pdf-d50`、`export-png-all-d200` | 服务端导出作业端到端 | NF-01 §1.7 对应行；PDF 自 M3 后半段；PNG 全量 D200 取 PRD SV-02 | 作业 span（入队到完成；PNG 为 `job.render-export`） | `perf-server` | M3 |
@@ -241,6 +241,7 @@ RM-B：同一组场景在 nightly 以 RM-B 标签重跑，gate 乘以 `budgetMul
 | `spill-replay` | 负载中断开 PG N 秒后恢复 | 回放耗时 p95（target 见 60/01 §12）；断开期间房间内广播 p95 仍满足 NF-01 §1.7（降级期照常广播，rulings §4.18 CO-08；功能正确性在 07）；溢写房间数取 `cordex_collab_spill_rooms` | 回放 span；广播双端时间戳 | `perf-server` | M2（单实例 PG 故障溢写，PRD 05 §0.3「Postgres 故障」行） |
 | `rest-read` | REST 只读端点混合负载 | REST p95（target） | HTTP span | `perf-server` | M2 |
 | `scale-out-3x` | 3 个 collab 实例各承载单实例负载 | 跨实例传播仍达 gate；各实例指标与单实例的对比、NF-10 全系统容量（按线性外推）只记录报告，不另设阈值 | 同上 | `perf-server`（nightly） | M3 |
+| `host-footprint` | ADR-0037 决策 5「最低主机规格须实测」的测量场景（rulings §4.20 BE-07+TX-05）：compose 部署在自托管 runner 上承载 RM-S 负载（`server-update` + `persist-lag` + 导入 + 缩略图与导出作业并行），分 core（默认 profile）与 core+idp（加 `idp` profile 的 Casdoor）两档各跑一遍 | 各容器的峰值内存与 CPU（`docker stats` 采样）及合计；只出报告、不设 gate，不进 `budgets.json` | `docker stats` 采样 1 s 一次，取峰值；产物 `test/perf/results/host-footprint.json`（每档每容器一行，含提交、runner 标签、负载参数） | `perf-server`（nightly，自托管 runner） | M3（renderer 与 worker 落地、`ops:compose` 全绿后起运行；M3 出口前产出供回填的那一份） |
 
 `perf-collab` 的全部场景与 §7 满员房间经 toxiproxy 在客户端与网关之间注入单向 20 ms 时延（RTT 40 ms，落在 PRD 04 NF-01 §1.6「同区域 RTT ≤ 50 ms」口径内）；本机回环时延近零，不注入会让协同预算失去意义。`perf-server` 中以服务端 span 计量的指标不经客户端链路，不注入。
 
@@ -268,7 +269,7 @@ RM-B：同一组场景在 nightly 以 RM-B 标签重跑，gate 乘以 `budgetMul
 | §7.2 A1 | S18（`cordex_collab_room_weight_bytes`） | `server.collab.roomWeightD200Bytes` |
 | `scale-out-3x` | S19 | `server.capacity.*` |
 
-S20（SLO）与 S21（溢写阈值配置）不进 budgets.json。
+S20（SLO）与 S21（溢写阈值配置）不进 budgets.json。`host-footprint` 不对应 60/01 §12 的任何行，同样不进 budgets.json：它的结果只供后端设计线按「峰值合计 × 1.3」回填 [60/17](../60-backend/17-deployment-and-config.md) §11 的最低主机规格（M3 出口前，rulings §4.20 推迟项 BE-07+TX-05），回填由后端设计线执行，架构线把 ADR-0037 决策 5 的表改为只留口径并链接 60/17 §11。
 
 ---
 
@@ -362,7 +363,7 @@ runner 变更（含 M2 起 `perf-collab` 迁到自托管 runner）按 [11](./11-
 |---|---|---|---|---|
 | PR | `perf-client` 的 D50 关键指标：`open-d50` 首页可见、`type-latency`（M2 起）、`export-pptx-d50`（M2 起）；M2 起另加 `server-update` 与 `persist-lag`（RM-S，自托管 runner）；M3 起另加 `collab-roundtrip-2clients` | 失败 | 与 main 基线比较，只写 PR 注释（job 通过 = 报告） | 报告 |
 | 合入 main | 全部 `envelope` 场景（RM-A 与 RM-S） | 失败 | 相对滚动中位数（同标签最近 10 次 main 结果）回归超过 10% → 失败并自动建 issue | 报告 |
-| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；M4 起加 `template-fill-100` | 失败 | 同 main | 报告 |
+| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；M3 起加 `host-footprint`（只报告）；M4 起加 `template-fill-100` | 失败 | 同 main | 报告 |
 
 - `memory-open-close-20` 的堆增长比例是 gate（NF-01 §1.3），取代 30/11 §10 旧写的 10%。
 - NF-09「每 PR 跑 D50 关键指标，超预算 5% 失败」按更严口径执行为「超 gate 即失败」；5% 容差只保留在体积预算（§11）。
@@ -433,6 +434,8 @@ flowchart TD
 | 协同延迟、初始同步、重连、权限生效 | `collab:latency`（M3 验收 3）、NF-01 §1.6 | `perf/perf-collab` | 机械 |
 | 服务端导入时长；快照引导初始同步、持久化滞后、压缩；单实例溢写回放 | `server:import`（M2 验收 14）、`collab:persist`（M2 验收 15）、`collab:degraded`（M2 验收 17）、NF-01 §1.6 / §1.7 | `perf/perf-server`、`perf/perf-collab` | 机械 |
 | 服务端导出、缩略图、PDF、并发 WS、跨实例 | `server:jobs`、`server:thumbnails`、`server:pdf`、`server:scale`（M3 验收 6 / 6a / 6b / 8）、NF-01 §1.7 | `perf/perf-server` | 机械 |
+| `ws-capacity` 在默认 `limits.ws.connectPerIpPerMin` 下爬升到 gate 且全程无 429 / 4429（先扣后退与每用户上限的容量侧证据） | rulings §4.20 BE-01+TX-03 | `perf/perf-server`（nightly） | 机械 |
+| `host-footprint.json` 两档（core、core+idp）齐全，供 60/17 §11 回填 | ADR-0037 决策 5；rulings §4.20 BE-07+TX-05 | `perf/perf-server`（nightly，只报告） | 机械产出，回填人工 |
 | 满员房间扇出与按权重准入 | rulings §4.15 Q5；决策 C-11；ADR-0035 | `perf/perf-collab`（nightly） | 机械 |
 | DX-20K 可用性与超天花板拒绝 | rulings §4.15 Q5；UX-13 | `perf/perf-client`、`perf/perf-server` | 机械 |
 | 体积预算 | `size:budget`（M2 验收 5）、`viewer:preset`（M1 验收 9 的体积部分）、EM-07 | `scanners/scan-bundle-budget` | 机械 |
@@ -444,12 +447,14 @@ flowchart TD
 
 **rulings §4.19 已定稿**：D-TEST-INFRA——§9 的 runner 安排（M1 GitHub larger runner、自托管专用 runner M2 前落地并承载 gated 协同与 RM-S 服务端压测、RM-B 以 CPU 4× 节流近似、RM-S 以容器限额模拟）；D-M2-CONTENT——§5、§6 中协同网关、持久化、快照与服务端导入相关场景自 M2 起；`template-fill-100` 按 rulings §4.12 U-13 定为 M4（与 60/01 S15 一致）。
 
+**rulings §4.20 已定稿**（2026-09-26）：BE-01+TX-03——`ws-capacity` 按「先扣后退」在默认限额下从单台压测机爬升，不再需要为压测放宽 `limits.ws.connectPerIpPerMin`，连接按每用户上限分摊到多名测试用户（§6）；BE-07+TX-05——`host-footprint` 场景登记在 §6，只出报告，数值由后端设计线在 M3 出口前按「峰值合计 × 1.3」回填 60/17 §11，溢写阈值仍由 §12 的 `spill-calibration` 校准、无需新动作。
+
 **回写清单（由总编排执行）**：
 
 - 30/11 §0 门禁表「性能：PR 上仅告警」与门禁流 ①、② 改为引用本文 §10（PR 超 gate 即失败，相对回归只报告）；§9 的场景、预算两档与门禁规则改为「摘要 + 链接本文」；§9「k6 或自写压测」改为自写负载驱动（决策 T-IDP）；§10 内存增长「> 10%」改为 5%（决策 T-PERF-GATE）。
 - 09-06 §14 / §15 与 40/01 中 `tooling/policy/budgets.json` 的 `<package>:bundle-size-bytes` 键：体积预算事实源改为各 preset 的 `config/bundle-budget.json`（决策 T-BUNDLE）。
 - 40/11 §10「基线超 5% 失败、超 0–5% 警告」改为「超 0–5% 报告」；40/10 §9 `perf.spec.ts` 与 40/11 §9 `bundle-budget.test.ts` 标注为信息性断言。
-- 40/06 §9、40/09 §9、40/12 §9 的「性能预算见架构 11 / 08 §12」改为引用本文与 50/13、60/01。
+- 40/06 §9、40/09 §9、40/12 §9 的「性能预算见架构 11 / 08 §12」改为引用本文与 50/13、60/01。（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项同轮回写：40/03、40/07、40/13、40/01、40/06 的覆盖率与性能预算改指 [01 §8](./01-strategy-and-layers.md) 与本文，40/06 另指 50/13；40/09、40/12 的 30/08 §12 改指 60/01 §12 与本文）
 - PRD 04 NF-09「超预算 5% 失败」旁注「PR 上按超 gate 即失败执行（70/09 §10）」，由产品线确认措辞。
 - 30/07 §14.6 末句「`test/perf/budgets.json` 以本表为源」与 30/11 §17「预算来源单一化」（target 取 07 §14.6 / 06 §18.5 / 08 §16.5）：target 事实源改为 50/13 §12 与 60/01 §12，结构与一致性检查链接本文 §2。
 - 50/13 §12 `client.mem.dx20k` 行「只监测」：补「M1 回填后作为『内存不越界』可用性断言」（本文 §5、§2.2 C5；PRD NF-01 §1.3「不越界即通过」）。**已完成**：50/13 §12 该行已写「不越界即通过」；同表新增的 `client.collab.firstPaint.*`、`client.a11y.*`、`client.mem.a11yTree.d200` 与 mark `cordex:a11y:tree-ready` 已收入 §3、§6 场景（C2 反向检查）。

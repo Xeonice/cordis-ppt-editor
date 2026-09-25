@@ -1,6 +1,6 @@
 # 13 需求 → 测试可追溯矩阵
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：rulings §4.20（含来源所指 `_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical`、`plan.deferred`）、rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
 
 本文是需求追溯的唯一事实源：测试上的三类追溯标签怎么写、需求与检查名清单从哪里生成、矩阵怎么产出和判定、PRD 检查名目录、NFR / 裁决 / ADR 到测试的映射、人工与半机械项、维护流程。标签的格式与存在性检查、矩阵产出由扫描器 `scan-requirement-tags`（09-06 §12）执行；完整性判定在 `test/requirement-matrix` 步骤（[12](./12-ci-gates-mapping.md)）；扫描器本身不判定完整性（09-06 §12 的职责边界）。
 
@@ -26,6 +26,7 @@
 
 - **为什么要前缀**：rulings §4.18 的条目编号（`CO-08`、`BE-02`、`UX-03`…）与 PRD 需求编号同形，`CO-08` 单独出现时无法判断指 PRD「冲突语义」还是裁决「故障期广播」。`PRD:` 与 `<节>/` 前缀使两者不会混淆。
 - **`4.19`**：§4.19 的条目集合 = 该节表格第一列的 5 项用户裁决（D-M2-CONTENT、INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA）+ 表末单独一行的补完阶段用户裁决 `N1-IMPORT-OVERWRITE-RESTORE-LOCK`（2026-09-25 追加）+ 按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（共 81 条，含上述 5 项，其余 76 项为 INC-*、SESSION、C-*、T-* 等；组合 id 拆开，省略前缀的段继承前一段前缀，如 `INC-03/04/05` → `INC-03`、`INC-04`、`INC-05`，`C-20/G-13/G-14` → `C-20`、`G-13`、`G-14`）。两部分取并集，都由生成脚本写入 `rulings.json`（§2），`@ruling 4.19/<id>` 与其它节一样做存在性检查：`@ruling 4.19/SESSION`、`@ruling 4.19/T-CI` 等标签只有在读取 evidence 后才能通过，不另设「只查格式」的过渡口径。
+- **`4.20`**（2026-09-26 追加）：§4.20 的条目集合 = 该节表格第一列 15 项（3 项用户决策 + 12 项默认值）+ 按 §4.20 来源所指读取 `00-charter/_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical[].id`（25 条）与 `plan.deferred[].id`（5 条）。组合 id 按 `+` 拆开（`BE-01+TX-03` → `BE-01`、`TX-03`）；`·` 之后的后缀先去掉再拆（`BE-07+TX-05·登记` → `BE-07`、`TX-05`，`FE-09·正文` → `FE-09`）；拆出的重复 id 合并。例：`@ruling 4.20/BE-01`、`@ruling 4.20/TX-22`、`@ruling 4.20/FE-04`。
 - **旧写法作废**：30/11 §17 的文件顶部 `// @req CO-08` 与 09-06 §12 规则 (a) 的正则 `^[A-Z]{2,3}-\d{2,3}$` 按本节改写（回写见 §11）；旧写法由规则 (a) 报错并提示新写法。
 
 ### 1.2 写在哪里
@@ -148,7 +149,7 @@ erDiagram
 | `10-prd/03-features/*.md` | `### <ID> <标题>` 及其后的「- 优先级：Px \| 目标里程碑：My …」行；多里程碑写法（如「M3（会话内队列）/ M4（…）」）取第一个为主里程碑，全部记入 `milestones[]`；有无「验收标准」段记为 `acceptance` | `tooling/policy/requirements.json` 的 `requirements[]`：`{ id, domain, title, priority, milestone, milestones[], acceptance, source }` |
 | `10-prd/04-non-functional-requirements.md` | `## NF-xx` 标题；优先级记为 `NF`，里程碑取该节各表「里程碑」列的并集 | 同上（`priority: 'NF'`，完整性按 §4 的义务判定，不走 R1） |
 | `10-prd/05-milestones-and-scope.md` | 各里程碑「验收标准」编号条目**开头**（首个冒号之前）以反引号包裹的 `域:名`，可多个以 `+` 相连（如 M3 验收 10 的三项）；条目正文中其它反引号内容（如 `dsp:drawing`、`doc-type:new`）不算；无名条目记为 `<里程碑>#<序号>`（如 `M1#7`）；「可插拔证据」段「CI 检查」后的 `pluggable:mN`；「发布前检查」等非验收列表不解析 | 同一文件的 `checks[]`：`{ id, milestone, text }` |
-| `00-charter/rulings-2026-09-14.md` | 各节表格第一列的条目 id 与所在节号；§4.18「规格空白默认值」各列表项开头加粗的 id（如 **CO-10**）；§4.18「机械修正」按正文所指读取 `00-charter/_evidence/contradiction-plan-2026-09-25.json` 的 `plan.mechanical[].id`（如 `UX-13`、`CO-11`）；§4.19 表格第一列 5 项与表末 `N1-IMPORT-OVERWRITE-RESTORE-LOCK` 行，另按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（与 §4.18 机械修正读取 evidence 同一先例）；组合 id 一律拆开 | `tooling/policy/rulings.json` |
+| `00-charter/rulings-2026-09-14.md` | 各节表格第一列的条目 id 与所在节号；§4.18「规格空白默认值」各列表项开头加粗的 id（如 **CO-10**）；§4.18「机械修正」按正文所指读取 `00-charter/_evidence/contradiction-plan-2026-09-25.json` 的 `plan.mechanical[].id`（如 `UX-13`、`CO-11`）；§4.19 表格第一列 5 项与表末 `N1-IMPORT-OVERWRITE-RESTORE-LOCK` 行，另按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（与 §4.18 机械修正读取 evidence 同一先例）；§4.20 表格第一列 15 项，另读取 `00-charter/_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical[].id` 与 `plan.deferred[].id`（拆法见 §1.1）；组合 id 一律拆开 | `tooling/policy/rulings.json` |
 | `30-architecture/adr/*.md` | 「决策」节的编号条目与 ADR 状态 | `tooling/policy/adrs.json` |
 
 - **M0 验收 3「字段齐全」**：同一脚本对每条 P0 需求检查 id 唯一、优先级、目标里程碑、验收标准四项齐全，缺一即列出并失败。
@@ -166,7 +167,7 @@ erDiagram
 | 检查 | 断言摘要 | 落点 | 步骤 | 形态 |
 |---|---|---|---|---|
 | `M0#1` | 三条线 README 的待决事项都有决策人、对章程的异议都有裁决记录 | `test/evidence/M0/docs-review.md` | — | 人工 |
-| `M0#2` | `docs/` 中未定义术语数 = 0 | 术语扫描脚本（`docs/_tools`，评审时运行） | 文档工具，不属 13 个 job | 机械 |
+| `M0#2` | 术语表登记的旧名在正文中残留 0 处（PRD 05 验收 2 按 rulings §4.20 TX-02 改写）：`docs/_tools/terms.json` 登记已裁定更名的内部标识符（首批 `FakeClock` / `FakeServerClock` → `FixedClock`、`FixedMetricsMeasurer` → `FixedWidthMeasurer`、`*.test-d.ts` → `*.type-test.ts`、`render/error` → `render/element-failed`、`collab/permission-changed` → `permission/changed`、`ui.statusbar` → `ui.statusBar`、`@oce` / `oce-` → `@cordexjs` / `cordex`），跳过 rulings、`_evidence/` 与 `adr/`，放行状态头行、同行含正名或更名标注的行与各条的 `allowIn` 文件 | `docs/_tools/check-terms.py`（只用标准库、只读，有残留退出码 1；改文档后与评审时运行） | 文档工具，不属 13 个 job | 机械 |
 | `M0#3` | 每条 P0 需求字段齐全 | `gen-requirements --check` | `test/requirement-matrix` | 机械 |
 | `M0#4` | 规范 ↔ 执行矩阵 CI 校验通过；各门禁在空骨架上跑通且负向夹具失败 | `scan-policy`；13 个 job | `policy-check` 与全部 job | 机械 |
 | `M0#5` | ADR-0001 声明合并 spike 有结论 | `test/evidence/M0/adr-0001-spike.md` | — | 人工 |
@@ -320,8 +321,9 @@ flowchart TB
 | `comments:roundtrip` | 评论导出为现代评论部件，PowerPoint 365 可见且作者与时间正确（抽样 20） | 结构断言 [03 §9](./03-fidelity-roundtrip-and-corpus.md)；抽样证据 | `test/fidelity-roundtrip`；证据 `test/evidence/M3/comments-roundtrip.md` | 半机械 |
 | `collab:softgate` | 主体已随网关提前为 M2 `collab:gate`；M3 在多实例与多客户端下重跑，并补 commenter 触及评论以外路径、修改他人评论两条修复规则的黄金用例 | [05 §8](./05-collab-simulation-and-property-tests.md) `inject/unauthorized-path`、`inject/foreign-author` 的 commenter 变体；审计集成 | `test/collab-sim`、`test/unit`、`test/server-integration` | 机械 |
 | `collab:rejected-rollback` | 降权后被拒的 pending → 导出后重载，状态一致、未同步更改可导出 | [05 §9](./05-collab-simulation-and-property-tests.md)；`apps/web/e2e/collab/**` | `test/collab-sim`、`e2e/full-compose` | 机械 |
-| `master:edit` | 母版与版式编辑脚本语料、引用页 ≤ 500 ms 更新、删除被引用版式规则、ML-03 冲突表 | 编辑脚本语料；性能；oracle；[05 §6](./05-collab-simulation-and-property-tests.md) | `test/fidelity-roundtrip`、`perf/perf-client`、`e2e/oracle-gated`、`test/collab-sim` | 机械 |
-| `theme:edit`（P1） | 主题重算 ≤ 300 ms、显式颜色像素不变、`theme*.xml` 重生成与字节保留 | 编辑脚本语料；性能；oracle | `test/fidelity-roundtrip`、`perf/perf-client`、`e2e/oracle-gated` | 机械 |
+| `master:edit` | 母版与版式编辑脚本语料、引用页 ≤ 500 ms 更新、删除被引用版式与母版规则（确认后可撤销、删除母版按目标母版同 `type` 选版式，rulings §4.20 FE-05、FE-23）、ML-03 冲突表 | 编辑脚本语料；性能；oracle；[05 §6、§7.1](./05-collab-simulation-and-property-tests.md)；[06 §5](./06-frontend-component-and-e2e.md) 第 25 行 | `test/fidelity-roundtrip`、`perf/perf-client`、`e2e/oracle-gated`、`test/collab-sim`、`test/unit`、`e2e/full-compose` | 机械 |
+| `theme:edit`（P1） | 主题重算 ≤ 300 ms、显式颜色像素不变、`theme*.xml` 重生成与字节保留；应用主题直接执行并给可撤销 Toast（rulings §4.20 FE-07） | 编辑脚本语料；性能；oracle；[06 §5](./06-frontend-component-and-e2e.md) 第 25 行 | `test/fidelity-roundtrip`、`perf/perf-client`、`e2e/oracle-gated`、`e2e/full-compose` | 机械 |
+| `history:restore-revert` | 版本恢复可撤销（U-07，ADR-0038 version-restore-undo）：撤销只回退恢复事务改写且其后未被写过的键（按恢复事务的 struct 范围判定，不按值相等）、恢复时删除的元素以原 id 复活、全部被跳过则整步不提交、墓碑 TTL 已过的元素不复活；「谁能撤销」「可撤销时效」随 ADR 定稿补断言 | [05 §7.2](./05-collab-simulation-and-property-tests.md) `rs/restore-revert-*`（占位）；路由、能力位与审计的集成用例随 ADR 定稿登记在 [07 §9](./07-backend-integration-and-api-e2e.md) | `test/collab-sim`、`test/server-integration` | 机械 |
 | `security:rls` | 绕过应用层直连 PG 越权被 RLS 拒绝；OIDC 登录、`selfSignup` 默认关、分享链接要求登录各有 e2e | SEC-DA-01 / 02、SEC-AU-02、SEC-AZ-09 | `e2e/smoke`、`scanners/check-rls-coverage`、`test/server-integration` | 机械 |
 | `collab:undo` | 同键跳过、整步不连撤、墓碑与恢复、TTL 与永久删除不等 TTL、彻底删除元素后整步跳过；两个 store 同一套件 | `runDocumentStoreConformance` 中性撤销分节（[02 §4](./02-contract-suites-and-pluggability.md)）；[05 §7](./05-collab-simulation-and-property-tests.md)；[07 §10](./07-backend-integration-and-api-e2e.md) | `test/contract`、`test/collab-sim`、`test/server-integration` | 机械 |
 | `pluggable:m3` | 两个 preset 的 Manifest 差异恰为白名单 `{−store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`；M2 编辑 e2e 在 store-yjs 下重跑；移除 collab 仍能启动 | [02 §10](./02-contract-suites-and-pluggability.md)（白名单按 rulings §4.19 D-COMMENTS-PKG 定稿；`manifest-diff.test.ts` 自 M2 起运行、M2 期间不含 `+comments`） | `test/unit`、`e2e/full-compose` | 机械 |
@@ -336,6 +338,7 @@ flowchart TB
     k12["collab:softgate"]
     k13["collab:rejected-rollback"]
     k5["offline:queue"]
+    k18["history:restore-revert，随 ADR-0038"]
   end
   subgraph gContract["test/contract"]
     k17["collab:undo"]
@@ -403,6 +406,8 @@ flowchart TB
 怎么读：同图 13-5；`ops:*` 三项与 `server:durability` 的 nightly 档都在合入后才运行，M3 出口评审读取 main 与 nightly 的结果。
 
 依据：PRD 05 M3 验收与可插拔证据；rulings §4.15 Q10、§4.18 GV-16。
+
+**rulings §4.20 对检查名的影响**：TX-01+BE-10 在 PRD 05 的 M3 验收加检查名 `history:restore-revert`（上表末行，图 13-5 `test/collab-sim` 组），它的用例随 ADR-0038 定稿入库，ADR 未定稿则 M3 的版本恢复不开工，该检查名随之不进入 M3 出口；`check-names.json` 与 PRD 05 同一 PR 更新（§9 第 2 条）。BE-07+TX-05 的 `host-footprint`（[09 §6](./09-performance-and-capacity.md)）不是 PRD 检查名、只出报告；PRD 05 M3 验收 10（`ops:compose`）目前不引用它，若日后把最低主机规格写进该验收，在 `ops:compose` 行登记这份产物。
 
 ### 3.5 M4
 
@@ -573,6 +578,34 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | `4.19/D-COMMENTS-PKG` | `pluggable:m3` 白名单 `{−store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`；`@cordexjs/comments` 文档类型盲 | `manifest-diff.test.ts`（[02 §10](./02-contract-suites-and-pluggability.md)）；水平层依赖规则 | `test/unit`、`depcruise` | M3（`manifest-diff.test.ts` M2 起运行，不含 `+comments`） |
 | `4.19/D-TEST-INFRA` | `perf/perf-client` 的 runner 标签为 `perf-larger`（M1 起），`perf/perf-collab` 与 `perf/perf-server` 为 `perf-selfhosted`（M2 起）；视觉基线条目带维护机 profile（`win365`，M2 起另有 `mac365`）与评审签字 | `test/conventions` 读取 `tooling/ci/steps.json` 的 runner 标签；`test/oracle` 基线清单校验 `signedOffBy` 与 profile（[04 §2](./04-visual-oracle.md)） | `test/unit`、`e2e/oracle-gated` | M1 / M2 |
 
+### 6.4 §4.20（遗留小项收口：3 项决策、12 项默认值、25 项机械修正）
+
+标签写 `@ruling 4.20/<id>`；id 集合按 §1.1 生成（表格第一列 15 项 + evidence 的 `plan.mechanical[].id`、`plan.deferred[].id`，组合 id 拆开）。只列有测试要求的条目；纯文档口径的条目（如 FE-10、FE-13、FE-14、FE-17、TX-11、TX-23、BE-11、TX-12）不列。
+
+| 标签 | 测试要求 | 测试 | 步骤 | 到期 |
+|---|---|---|---|---|
+| `4.20/BE-01`、`4.20/TX-03` | WS 升级先扣后退：验签通过即退还，4401、票据文档不符的 4403、4408、4427 与升级后未认证即断开的不退；每用户单实例并发上限（默认 32）超出 → `auth.denied{collab.rate_limited}` + 4429；同一出口 IP 30 人 1012 后 ≤ 5 s 重连完；`ws-capacity` 在默认限额下爬升无 429 | SEC-RL-03 (a)–(e)；[02 §5.2](./02-contract-suites-and-pluggability.md) `admission/per-user-connection-cap-4429`；[07 §9](./07-backend-integration-and-api-e2e.md) W4；[09 §6](./09-performance-and-capacity.md) `ws-capacity` | `test/contract`、`test/server-integration`、`perf/perf-server` | M2（升级限流与每用户上限）/ M3（两实例集体重连、`ws-capacity`） |
+| `4.20/BE-04` | 限流与审计的客户端 IP 统一取 `clientIp()`：伪造 `X-Forwarded-For` 首跳不改变限流主体与 `ip_hash`（REST、WS 升级各一例；web 容器 `terminate` 与 `upstream` 两种模式） | SEC-RL-01、SEC-RL-03 (f)；[08 §4](./08-deployment-and-environment-e2e.md) G12 | `test/server-integration`、`e2e/full-compose` | M2 / M3（web 容器随 08 §11 在 M3 出口） |
+| `4.20/BE-05`、`4.20/TX-22` | 擦除与停用响应附 `soleOwnerDocCount`；`cordex-ops documents:reassign-owner` 写 owner 授权、`perm_version` 加 1、审计 `admin.owner_reassigned`、在线会话 ≤ 1 s 重算；新 owner 可撤链接、授权、永久删除；非法目标无写入 | [07 §7.4](./07-backend-integration-and-api-e2e.md) O1–O5；SEC-DA-07 | `test/server-integration` | M3 |
+| `4.20/BE-03`、`4.20/TX-14` | 迁移目录与 DDL 围栏逐字一致（DB-13） | `scanners/check-migrations-sync`（[12 §7](./12-ci-gates-mapping.md)） | `scanners` | M1（首批迁移入库的 PR） |
+| `4.20/BE-07`、`4.20/TX-05` | 主机规格测量场景产出 core 与 core+idp 两档 `host-footprint.json` | [09 §6](./09-performance-and-capacity.md) `host-footprint` | `perf/perf-server`（nightly，报告） | M3 出口前 |
+| `4.20/TX-01`、`4.20/BE-10` | 版本恢复可撤销（ADR-0038 定稿后）：只回退恢复事务改写且其后未被写过的键（按 struct 范围判定）、恢复时删除的元素以原 id 复活、整步跳过不提交、墓碑 TTL 已过不复活 | [05 §7.2](./05-collab-simulation-and-property-tests.md) `rs/restore-revert-*`（占位）；检查名 `history:restore-revert`（§3.4） | `test/collab-sim`、`test/server-integration` | M3（ADR-0038 于 M2 出口评审前定稿） |
+| `4.20/FE-01` | UnitScope 默认 Provider 登记表：重复登记被拒并记诊断、只影响之后打开的 Unit、dispose 后无残留；model-core 只登记 history、selection | [02 §9.1](./02-contract-suites-and-pluggability.md) `units/*` | `test/unit` | M1 |
+| `4.20/FE-02` | 放映中远端更新始终实时应用、无暂停开关 | [06 §5](./06-frontend-component-and-e2e.md) 第 12 行 | `e2e/full-compose` | M3 |
+| `4.20/FE-03` | `defaultLayoutOf` 三级回退、跳过墓碑与 `exclude`，slide-ui 调用同一导出符号；`deleteLayout(reassignTo)` 与 I-ML2 修复一致；软门禁的悬空版式按 I-ML2 链修复 | [05 §7.1](./05-collab-simulation-and-property-tests.md) `ml/default-layout-of-chain`、§10 删除版式性质、§8 `inject/dangling-layout` | `test/unit`、`test/collab-sim` | M2（软门禁）/ M3 |
+| `4.20/FE-04` | 版式成墓碑后的并发引用：墓碑期读时容错、撤销即恢复、硬删时同事务修复且只写一次、导出引用存活版式 | [05 §6](./05-collab-simulation-and-property-tests.md) `sc-20` 变体 a / b | `test/collab-sim` | M3 |
+| `4.20/FE-05` | 删除被引用版式 / 母版确认后可撤销：一个事务、撤销栈加 1、一步恢复引用与原 id；协同下他人后写的页按 Q3 跳过并提示；对话框无「操作不可撤销」、Toast 带「撤销」 | [05 §7.1](./05-collab-simulation-and-property-tests.md) `ml/delete-layout-undo-one-step`、`ml/delete-master-undo-one-step`、`undo/delete-layout-revert-skips-later-writes`；[06 §5](./06-frontend-component-and-e2e.md) 第 25 行 | `test/unit`、`test/collab-sim`、`e2e/full-compose` | M3 |
+| `4.20/FE-06` | `enablement` 为假或 `can.*` 未授予时控件 `aria-disabled`、不隐藏、给原因；`can.` 前缀保留与 `enablement` 子句校验 | [06 §2.2](./06-frontend-component-and-e2e.md)「禁用而不隐藏」；`scan-contributions` 规则 (e) 三条负向夹具（TD-089） | `test/unit`、`scanners` | M2 |
+| `4.20/FE-07` | 应用主题直接执行，Toast 含影响页数 N，撤销后主题与 12 个色槽复原 | [06 §5](./06-frontend-component-and-e2e.md) 第 25 行 | `e2e/full-compose` | M3 |
+| `4.20/FE-16` | 嵌入挂载前后宿主 `html`、`body` 计算样式不变，`:root` 无新增自定义属性 | [06 §11](./06-frontend-component-and-e2e.md)「嵌入样式隔离」 | `e2e/full-compose` | M2 |
+| `4.20/FE-18`、`4.20/TX-06` | TT `default` 策略只逐字放行登记的两段 Radix 常量、其余拒绝；sonner、Radix、react-resizable-panels 触发后 TT 与 `style-src` 违规为 0，计算样式与基线一致 | SEC-CL-02；[06 §10.1](./06-frontend-component-and-e2e.md) | `e2e/smoke`（csp-strict）、`test/unit` | M2（报告）/ M3（强制） |
+| `4.20/FE-23` | 删除母版的 `reassignTo` 是目标母版：同 `type` 保持、无同 `type` 落首个、单事务；UI 默认取按 `order` 首个剩余母版 | [05 §7.1](./05-collab-simulation-and-property-tests.md) `ml/delete-master-*`、§10 性质；[06 §5](./06-frontend-component-and-e2e.md) 第 25 行 | `test/unit`、`e2e/full-compose` | M3 |
+| `4.20/TX-02`、`4.20/TX-04` | 术语旧名残留 0 处；文档链接锚点与带目录前缀的章节引用全部可解析、不做相近改指 | `docs/_tools/check-terms.py`、`docs/_tools/check-links.py` | 文档工具 | M0 |
+| `4.20/TX-08` | 生产与测试代码禁 `Date.now`、`Math.random`、无参 `new Date()`，测试另禁 `performance.now` | TD-110 负向夹具四例（[11 §12](./11-test-data-fixtures-and-determinism.md)） | `lint` | M0 |
+| `4.20/TX-09` | 每个 Definition 至少一个 `*.type-test.ts` 以标识符引用它 | `scan-manifest` 规则 (e3)（TD-111）负向夹具两例 | `scanners` | M0 |
+| `4.20/TX-13` | typescript、yjs、y-protocols 版本钉 | SEC-SC-05（TD-079 负向夹具三例） | `scanners/lockfile-guard` | M1 |
+| `4.20/TX-16` | 语料桶四个变量缺失即失败、不跳过 | [11 §10](./11-test-data-fixtures-and-determinism.md)；[12 §3](./12-ci-gates-mapping.md) | `test/fidelity-roundtrip`、`e2e/oracle-gated` | M1 |
+
 ---
 
 ## 7. ADR 映射
@@ -614,12 +647,13 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | 0033 离线持久化（M4） | 离线 kit 用 IDB 替身；断网刷新后同步；collab-yjs 不用 indexedDB | `test/contract`、`e2e/full-compose`、`scanners/scan-isomorphic` |
 | 0034 服务端校验与修复 | 硬门禁拒绝用例；修复黄金用例；5% 非法注入；软门禁 p95 ≤ 5 ms；审计 | `test/unit`、`test/collab-sim`、`perf/perf-server`、`test/server-integration` |
 | 0035 水平扩展 | 两实例扇出与崩溃；Valkey 断开 30 s；滚动发布演练；准入与内存预算；天花板 | `test/server-integration`、`e2e/full-compose`、`perf/*` |
-| 0037 部署拓扑 | 启动断言与装配矩阵；镜像策略；断网；renderer 安全；反代预签名；SBOM；M4 多架构 | `test/server-integration`、`scanners/check-image-policy`、`e2e/full-airgap`、`e2e/smoke`、`e2e/full-compose` |
+| 0037 部署拓扑 | 启动断言与装配矩阵；镜像策略；断网；renderer 安全；反代预签名；SBOM；M4 多架构；决策 5 最低主机规格的实测（`host-footprint`，只报告，rulings §4.20 BE-07+TX-05） | `test/server-integration`、`scanners/check-image-policy`、`e2e/full-airgap`、`e2e/smoke`、`e2e/full-compose`、`perf/perf-server` |
+| 0038 版本恢复的撤销（提议；M2 出口评审前定稿，rulings §4.20 TX-01+BE-10） | 撤销只回退恢复事务改写且其后未被写过的键（按 struct 范围判定）；恢复时删除的元素以原 id 复活；整步跳过不提交；墓碑 TTL 已过不复活；「谁能撤销」「可撤销时效」定稿时补 | `test/collab-sim`、`test/server-integration`（[05 §7.2](./05-collab-simulation-and-property-tests.md)；定稿后 `@adr 0038/*` 标签生效） |
 | 0040 / 0041 类型预算与断言策略 | 逃逸计数与预算只减不增 | `scanners/scan-type-escapes`、`lint` |
 | 0042 / 0043 无 enum、Result 与异常 | lint 与编译选项 | `lint`、`typecheck` |
 | 0044 ESLint 与 Biome 分工 | 配置无重叠规则 | `policy-check` |
 | 0045 isolatedDeclarations | 编译器强制 | `typecheck` |
-| 0046 原生 TS 编译器评估 | 决策为「不采用」，无正向断言；CI 编译器版本固化 | `policy-check`（工具版本断言，待类型治理线补矩阵行） |
+| 0046 原生 TS 编译器评估 | 决策为「不采用」，无正向断言；CI 编译器版本固化：catalog 中 `typescript` 为 5.9.x 或 6.x（TD-079，rulings §4.20 TX-13） | `scanners/lockfile-guard`（SEC-SC-05） |
 | 0047 品牌类型 | 禁 `as` / `!` 间接闭合；类型测试 | `lint`、`test-typecheck` |
 | 0048 类型测试工具 | `test-typecheck` 在每个 PR 运行；负例带说明 | `test-typecheck`、`lint` |
 
@@ -674,6 +708,8 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 
 ## 11. 已定裁决与回写
 
+rulings §4.20（2026-09-26）已定稿：§1.1 与 §2 加入 `4.20` 的 id 生成口径，§6.4 登记有测试要求的条目，§3.1 `M0#2` 改为 `check-terms.py`，§3.4 新增 `history:restore-revert`（随 ADR-0038），§7 登记 ADR-0038 与 ADR-0037 决策 5 的实测场景。
+
 rulings §4.19 已裁定 INC-09、D-M2-CONTENT、C-06、D-COMMENTS-PKG、D-TEST-INFRA，§6.3 对应行已定稿；PRD 05 已按 D-M2-CONTENT 修订（新增 M2 验收 14–17，§0.3 为 M2 / M3 边界），§3.3 / §3.4 已同步，`check-names.json` 随实现入库时按本文生成。
 
 回写清单（由总编排执行，本组不改其它文档）：
@@ -682,7 +718,7 @@ rulings §4.19 已裁定 INC-09、D-M2-CONTENT、C-06、D-COMMENTS-PKG、D-TEST-
 2. [30/11 §17](../30-architecture/11-testing-strategy.md)「需求追溯」一条改为链接本文，旧写法 `// @req CO-08`、`test.meta({ req })` 作废。（2026-09-25 §4.19 轮已完成）
 3. [40/01 §5.7–§5.8](../40-modules/01-tooling-and-governance.md)：登记工具脚本 `tooling/scripts/gen-requirements.ts`；`tooling/policy/{requirements,rulings,adrs}.json` 改为生成物（`requirements.json` 不再「可选」）；`milestones.json` 增 `status` 字段（`scan-deprecations` 使用的完成日期保留，二者相容）。（2026-09-25 §4.19 轮已完成）
 4. ~~rulings：总编排登记 §4.19~~（已完成：§4.19 表格 5 项 + 末句指向 evidence 的 `leftoverDecisions`，生成口径见 §1.1、§2）。
-5. PRD 05：建议为未命名的验收条目（M0 验收 1–5、M1 验收 7、M1 验收 8）补检查名；补名前以 `M0#1`、`M1#7` 等作键。
-6. `docs/_tools`：M0 验收 2 的术语扫描脚本尚不存在，由总编排实现；本文 §3.1 已按「文档工具、评审时运行」登记。
+5. ~~PRD 05：建议为未命名的验收条目（M0 验收 1–5、M1 验收 7、M1 验收 8）补检查名；补名前以 `M0#1`、`M1#7` 等作键。~~ 不采纳（rulings §4.20 TX-23）：以 `<里程碑>#<序号>`（如 `M0#1`、`M1#7`）为正式检查名，PRD 05 不补名。
+6. ~~`docs/_tools`：M0 验收 2 的术语扫描脚本尚不存在，由总编排实现~~（rulings §4.20 TX-02 已定：`docs/_tools/check-terms.py` + `terms.json`，验收 2 改为「术语表登记的旧名在正文中残留 0 处」，§3.1 已改指；首轮清零与 TX-10 把正文旧名统一为 `FixedClock` 的替换合并执行）。
 7. ~~[01 §5](./01-strategy-and-layers.md) 根 `test/` 目录树补 `traceability/`~~（2026-09-25 §4.19 轮已完成）。
 8. ~~[01 §8](./01-strategy-and-layers.md) 证据文件头字段补 `req`、`ruling`、`adr`、`reason`、`approver`~~（2026-09-25 §4.19 轮已完成）。

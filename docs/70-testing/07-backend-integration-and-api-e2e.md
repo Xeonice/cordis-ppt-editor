@@ -1,5 +1,5 @@
 # 07 后端集成测试与 API / WS e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[30/08](../30-architecture/08-backend-nestjs.md) §5–§7 / §9 / §12 / §16、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[30/08](../30-architecture/08-backend-nestjs.md) §5–§7 / §9 / §12 / §16、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
 
 本文是服务端集成测试与 API / WS e2e 的唯一事实源：容器 harness、数据库隔离、迁移测试、文档级 RLS 绕过测试、身份与会话、权限与分享、文档媒体与存储、协同服务集成、墓碑与擦除、作业、评论 / Webhook / 审计 / 遥测、路由鉴权覆盖与契约快照——每一类写 harness、用例族、矩阵的生成方式与运行时机。
 
@@ -243,6 +243,20 @@ sequenceDiagram
 - **最后一个 owner / 平台管理员**：两个 owner 并发把对方降为 editor，重复 20 轮，每轮结束文档至少保留一个 owner、失败方得 409 `permission.last_owner`；平台管理员的并发降级与停用同理（409 `server.users.last_admin`）。
 - **传播**：`permVersion` 递增与权限写入在同一事务（`bumpPermVersion(tx)` 是唯一写入点，决策 MECH-C 之 C-28），提交后 `PUBLISH perm:doc:{docId}`；在线会话 ≤ 1 s 收到 `permission` 帧（ADR-0029）。事务回滚时不发布。
 
+### 7.4 唯一 owner 空窗与运维转移（M3）
+
+被测设计：rulings §4.20 BE-05+TX-22「加运维转移命令」。命令语义以 [60/17](../60-backend/17-deployment-and-config.md) §9 为准，`ReassignOwnerUseCase` 与擦除、停用响应中的 `soleOwnerDocCount` 以 [60/03](../60-backend/03-modules-identity-and-access.md) 与 [60/15](../60-backend/15-rest-api-catalog.md) §3.2 为准，入口文件 `apps/server/src/ops/cli.ts` 以 [40/12](../40-modules/12-server-jobs-comments-and-ops.md) §4.13 为准，审计 action 以 60/07 §9 为准。文件 `apps/server/test/integration/ops/reassign-owner.int-spec.ts`：命令以子进程执行、连接 §2 的容器 harness，不经 HTTP / WS 入口，按 [01](./01-strategy-and-layers.md) §4 属集成层。
+
+| # | 用例 | 断言 |
+|---|---|---|
+| O1 | 空窗提示 | 用户 u 是文档 D1、D2 的唯一 owner、D3 的 owner 之一：平台管理员擦除 u → 响应 `soleOwnerDocCount = 2`，审计 `user.erased` 的 details 带同一计数；另一例停用 u（`PATCH /users/:id`）→ 响应与审计同样带 `soleOwnerDocCount = 2`；u 不是任何文档的唯一 owner 时计数为 0 |
+| O2 | 运维转移 | 子进程执行 `cordex-ops documents:reassign-owner --doc D1 --to v`（v 为 `active` 用户）→ 退出码 0；同一事务写入 v 的 owner 授权并把 D1 的 `perm_version` 恰好加 1，u 的授权行与 `documents.owner_id` 保持原值（60/03 §4.2）；同一命令重复执行幂等（退出码 0、不再递增、不再审计）；审计 `admin.owner_reassigned` 一行（details 含文档 id、原 owner 与新 owner 的 id）；命令以系统上下文调用 PermissionsModule 导出的用例，运行期间 api 端口无请求记录 |
+| O3 | 在线会话重算 | O2 执行时 D1 上有在线会话（含只凭 u 创建的分享链接加入的会话）：每个会话自事务提交起 ≤ 1 s 收到 `CONTROL.permission`（真实 Valkey 发布订阅、真实时钟），角色按库重算，会话不断连 |
+| O4 | 新 owner 可管 | v 以自己的会话撤销 u 创建的分享链接 → 只凭该链接的在线会话 ≤ 1 s 降权（与 SEC-AZ-07 同一断言）；授予第三人 editor；永久删除 D1（进入 `purging`）——三项都成功 |
+| O5 | 负向 | `--to` 为不存在、已擦除或已停用的用户 → 退出码 67（EX_NOUSER），且无任何行变化、无审计；`--doc` 不存在 → 退出码 66（EX_NOINPUT）、处于 `purging` → 退出码 65（EX_DATAERR），均无写入（码值以 60/17 §9 为准） |
+
+M4 管理面板复用同一用例，届时只加 REST 入口的鉴权用例（§7.1 矩阵自动覆盖），本节断言不变。依据：rulings §4.20 BE-05+TX-22；PRD SV-11、SV-14。
+
 ---
 
 ## 8. 文档、媒体与存储
@@ -279,7 +293,7 @@ sequenceDiagram
 | W1 | 两实例扇出 | 连在实例 A 的客户端编辑 → 连在实例 B 的客户端收到；每实例只持久化自己客户端的 update，库中无重复行；两实例同时触发压缩只执行一次（租约） | PR；M3 | ADR-0035 |
 | W2 | 崩溃重放 | 单实例：进程崩溃重启后客户端重连、状态一致（M2）；两实例：实例 B 崩溃 → 其客户端重连到 A 后状态一致（M3）；`ack` 前被杀：客户端重发的 update 被幂等应用；`ack(db)` 后被杀：重启后状态包含该 update | PR；M2 / M3 | ADR-0025 |
 | W3 | `kill -9` 混沌 | 驱动持续发送 update，按固定种子在随机时刻 `SIGKILL` 实例并重启；结束后每个收到过 `ack{tier:'db'}` 的 update 都在 PG 中（按 seq 与状态向量核对），零丢失 | PR 5 轮；nightly 与里程碑出口 50 轮；M2 | PRD `server:durability`；NF-03 |
-| W4 | 优雅停机 | `SIGTERM` → `/readyz` 立即 503 → 客户端收到 1012 → flush → 30 s 内退出（`FixedClock` 不适用，用真实计时并留余量）；重启后零 update 丢失；PG 不可达时先把内存档写入一级溢写再退出（单实例溢写随 M2；跨实例重连随 M3） | PR；M2 / M3 | 30/08 §12；rulings §4.18 CO-16 |
+| W4 | 优雅停机 | `SIGTERM` → `/readyz` 立即 503 → 客户端收到 1012 → flush → 30 s 内退出（`FixedClock` 不适用，用真实计时并留余量）；重启后零 update 丢失；PG 不可达时先把内存档写入一级溢写再退出（单实例溢写随 M2；跨实例重连随 M3）；**同一出口 IP 集体重连**（M3，两实例）：30 个不同用户的已认证连接全部来自同一源地址、都连在实例 A 上，对 A 发 `SIGTERM` → 各客户端收到 1012 后首轮立即重连（每人换新票据）→ 自 1012 起 ≤ 5 s 内 30 个连接全部在实例 B 上收到 `auth.ok`（真实计时）；被 IP 令牌桶拒绝的升级只表现为 1006 并按常规退避重试，约分 3 波完成，没有连接落入分钟级退避；测试保持 `limits.ws.connectPerIpPerMin` 默认值，证明「先扣后退」下已认证连接不占 IP 额度 | PR；M2 / M3 | 30/08 §12；rulings §4.18 CO-16、§4.20 BE-01+TX-03；PRD SV-05 |
 | W5a | PG 写失败，溢写前重试窗口内（M2） | 单实例：经 Toxiproxy 切断 PG 后，入站 update 不回 `ack{tier:'db'}`，发起方 pending 保留；≤ 1 s 内全部会话收到 `CONTROL.room{persist:'degraded'}`；恢复后客户端补发（或经 step2）得到 db ack，`document_updates` 无重复行、seq 连续，随后推 `persist:'ok'`；受众分级在客户端（[06](./06-frontend-component-and-e2e.md) §5 第 22 行） | PR；M2 | PRD 05 M2 验收 17；rulings §4.19 INC-09 |
 | W5 | PG 断开期照常广播（溢写档） | 见图 7-4；`CONTROL.room{persist}` 推给该 Room 的全部会话（其余协作者的状态胶囊见 [06](./06-frontend-component-and-e2e.md) §5 第 12 行） | PR；M2（单实例）/ M3（跨实例扇出） | rulings §4.18 CO-08；S-3a；§4.19 INC-09；PRD 05 M2 验收 17、M3 验收 7 |
 | W6 | 两级溢写与认领回放 | 以缩小的阈值驱动一级溢写 → 超过后分块写入二级（data 桶 `spill/{docId}/…`）；回放后 `pendingStructs` 为空；两实例同时在线各自只回放本实例的行、无重复；实例心跳过期后，下一个加载该文档的实例持 `lock:spill:{docId}` 认领其遗留行并回放 | PR；M2（单实例两级溢写与回放）/ M3（两实例各自回放与遗留行认领） | CO-16；决策 SPILL、KEYS |
@@ -388,7 +402,7 @@ stateDiagram-v2
 
 ### 10.3 用户擦除
 
-`POST /users/:id/erasure`（平台管理员，M3 P1）后：`users.status='erased'`、`display_name='deleted-user'`、`email`、`avatar_url` 与 `last_seen_at` 为空（CHECK `ck_users_erased_scrubbed` 保证）；指向该用户的外键与其名下文档不动、不进入永久删除编排；该用户全部 `user_identities` 行被删；全部会话键被删、在线 WS 以 4401 关闭；`audit_log` 行不变且哈希链校验通过；其评论作者显示为 deleted-user，正文按 `retention.erasure.commentBody`（默认 `keep`）保留，`redact` 为 M4；审计 `user.erased`；同一 IdP 身份再次登录 JIT 建出新用户、旧账号不复活。非平台管理员调用 → 403 `server.auth.forbidden`；擦除最后一名平台管理员 → 409 `server.users.last_admin`。依据：决策 C-24、INC-22；PRD SV-11；60/14 §9。
+`POST /users/:id/erasure`（平台管理员，M3 P1）后：`users.status='erased'`、`display_name='deleted-user'`、`email`、`avatar_url` 与 `last_seen_at` 为空（CHECK `ck_users_erased_scrubbed` 保证）；指向该用户的外键与其名下文档不动、不进入永久删除编排；该用户全部 `user_identities` 行被删；全部会话键被删、在线 WS 以 4401 关闭；`audit_log` 行不变且哈希链校验通过；其评论作者显示为 deleted-user，正文按 `retention.erasure.commentBody`（默认 `keep`）保留，`redact` 为 M4；审计 `user.erased`；同一 IdP 身份再次登录 JIT 建出新用户、旧账号不复活。非平台管理员调用 → 403 `server.auth.forbidden`；擦除最后一名平台管理员 → 409 `server.users.last_admin`；被擦除者名下有唯一 owner 的文档时响应与审计附 `soleOwnerDocCount`，这些文档的转移见 §7.4。依据：决策 C-24、INC-22；PRD SV-11；60/14 §9；rulings §4.20 BE-05+TX-22。
 
 ---
 
@@ -411,7 +425,7 @@ stateDiagram-v2
 | J4 | 错误码语料 | [03](./03-fidelity-roundtrip-and-corpus.md) §8 的每类样本经服务端导入：处理器阶段的拒绝（`format.encrypted`、`format.macro_rejected`、超天花板的 `format.quota_exceeded`、`format.limit_exceeded`、`format.pptx.invalid_package`）不走 HTTP，作业 `failed` 且 `GET /jobs/:id` 的 `error.code` 为规定码、不建文档（60/15 §3.9）；只有 `POST /imports/uploads` 申报超 `scale.maxFileBytes` 时同步返回 413 `format.quota_exceeded{dimension:'fileSize'}`（M2） | rulings §4.16 Q15、§4.18 UX-13；键名以 60/17 为准 |
 | J5 | 导出确定性（M3，服务端导出） | `pptx-roundtrip.int-spec.ts`：经 `preset-server` 插件清单驱动 `server-headless`，与 Node 导出 sha256 相等（[03](./03-fidelity-roundtrip-and-corpus.md) §6 X4） | PRD SV-02；rulings §4.18 FE-01 |
 | J6 | 下载 URL（M3） | `GET /exports/:jobId` 每次返回新签发、1 h 有效的 URL；作业未成功 → 409 `server.export.not_ready`；`FixedClock` 推进 `retention.exportHours` 后运行 `exports-cleanup` 删除对象，再取 → 410 `server.export.expired` | 决策 SG-08、MECH-INC 之 INC-40；60/06 §12.2 |
-| J7 | 覆盖导入的作业侧（M2） | 带 `docId` 受理：文档已 `locked` → 409 `server.documents.locked`；开工时文档被迁移锁定 → 本次尝试 retryable、退避后重试成功；`purging` 或 `trashed` → 作业 `failed`（`server.documents.not_found`）且不写快照；成功时 `result` 含 `{docId, snapshotId, epoch}`，审计依次为 `document.locked{reason:'import'}`、`import.completed`、`document.unlocked`；FakeClock 下杀掉持锁 worker，`trash-expiry` 在 `locked_until` 之后释放锁；导入前最近的检查点快照行仍在（M3 起可在版本列表中预览与恢复，恢复为模型级 diff、不受纪元限制） | rulings §4.19 N1；60/06 §6.5 |
+| J7 | 覆盖导入的作业侧（M2） | 带 `docId` 受理：文档已 `locked` → 409 `server.documents.locked`；开工时文档被迁移锁定 → 本次尝试 retryable、退避后重试成功；`purging` 或 `trashed` → 作业 `failed`（`server.documents.not_found`）且不写快照；成功时 `result` 含 `{docId, snapshotId, epoch}`，审计依次为 `document.locked{reason:'import'}`、`import.completed`、`document.unlocked`；`FixedClock` 下杀掉持锁 worker，`trash-expiry` 在 `locked_until` 之后释放锁；导入前最近的检查点快照行仍在（M3 起可在版本列表中预览与恢复，恢复为模型级 diff、不受纪元限制） | rulings §4.19 N1；60/06 §6.5 |
 
 ### 11.3 缩略图管线
 
@@ -480,7 +494,7 @@ stateDiagram-v2
 | `/readyz` | 经 Toxiproxy 断开 PG、断开 Valkey、令 data 或 snapshots 桶不可达、迁移未应用、draining 五种情况各返回 503 且带原因；`/healthz` 保持 200 | 60/18 §6；PRD 05 M3 验收 10 |
 | 内部端点 | 公网端口上 `/internal/*` → 404；内部端口 9464 上 `/internal/*` 无运维令牌或令牌错误 → 401，未配置令牌文件时同样 401（fail-closed，60/15 §5）；`/metrics` 只在内部端口 | 决策 INC-26；rulings §4.18 BE-11 |
 | 指标名 | 场景跑完后 `/metrics` 暴露的每个指标名都在 60/18 §4 统一名表中且符合 `cordex_<subsystem>_<name>_<unit>` | 决策 METRICS |
-| 限流与请求体上限 | 60/15 §8 每个限流档（default、upload、job、ticket、search、telemetry、public、csp）以 `FixedClock` 固定令牌桶时刻后超限 → 429 `server.http.rate_limited` 且带 `Retry-After`；每条上限超 1 字节 → 413 `server.http.payload_too_large`（表由 60/15 §8 生成，不手写） | 60/15 §10 R7 |
+| 限流与请求体上限 | 60/15 §8 每个限流档（default、upload、job、ticket、search、telemetry、public、csp）以 `FixedClock` 固定令牌桶时刻后超限 → 429 `server.http.rate_limited` 且带 `Retry-After`；每条上限超 1 字节 → 413 `server.http.payload_too_large`（表由 60/15 §8 生成，不手写，各档数值按 rulings §4.20 BE-02 定稿）；按 IP 计的档（public、csp）的主体恒为 `clientIp()`，伪造 `X-Forwarded-For` 首跳不换桶（SEC-RL-01，rulings §4.20 BE-04） | 60/15 §10 R7 |
 
 经反向代理访问内部端口不可达、内部端口不对 edge 网络暴露，在真实 web 容器与 compose 网络中断言（[08](./08-deployment-and-environment-e2e.md) §4）。
 
@@ -516,7 +530,7 @@ stateDiagram-v2
 
 | 内容 | 步骤 | 触发段 | 阻断 |
 |---|---|---|---|
-| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、容量验收与名额、在场、评论、分享与权限细化、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换）；MG2、MG4 自基线冻结起 |
+| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、容量验收与名额、同一出口 IP 集体重连（W4）、在场、评论、分享与权限细化、唯一 owner 运维转移（§7.4）、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换）；MG2、MG4 自基线冻结起 |
 | `security-rls`（§5）；`csrf-origin`（§6 A11 / A12 的冒烟副本） | `e2e/smoke` | 每个 PR | `security-rls` M3 起阻断、此前报告（GV-16），不重试（决策 T-CI；12 §11）；`csrf-origin` 激活时间以 12 §4 为准 |
 | W3 `kill -9` 50 轮、W5 / W6 的长窗口变体 | `test/server-integration`，`CORDEX_SUITE=nightly` | nightly（M2 起）、M2 与 M3 出口 | nightly 失败自动建 issue 并阻断下一次发布打标签（T-CI） |
 
@@ -545,6 +559,7 @@ stateDiagram-v2
 | 项 | 状态 | 处理 |
 |---|---|---|
 | RLS 测试矩阵的机器副本文件名与落点（本文暂写 `apps/server/test/fixtures/rls-matrix.json`，与本文 §1 的 `fixtures/` 约定一致；[10](./10-security-testing.md) SEC-DA-01 写作 `apps/server/test/support/rls-matrix.json`） | 待 [60/08](../60-backend/08-db-conventions-roles-rls-migrations.md) §6.8 确认 | 60/08 定名后本文 §5.2 与 10 SEC-DA-01 同步 |
+| rulings §4.20 BE-01+TX-03、BE-04、BE-05+TX-22、TX-10 | 已定（2026-09-26） | §9 W4 加同一出口 IP 集体重连 ≤ 5 s；§12.4 限流行注明 `clientIp()`（升级限流与每用户上限的逐条断言在 [10](./10-security-testing.md) SEC-RL-03、[02 §5.2](./02-contract-suites-and-pluggability.md) `admission/per-user-connection-cap-4429`）；新增 §7.4 唯一 owner 运维转移 O1–O5、§10.3 注明 `soleOwnerDocCount`；§11.2 J7 的「FakeClock」统一为 `FixedClock` |
 | N1（恢复不锁、覆盖导入换纪元） | 已定（rulings §4.19 表末行，用户裁决） | §9 W14 删去恢复锁定、W16 断言恢复不加锁、新增 W17；§11.2 J1 改写、新增 J7 |
 | INC-09、C-06、D-M2-CONTENT、UPLOAD-QUARANTINE | 已定（rulings §4.19；UPLOAD-QUARANTINE 由总编排按 BE-10 细化定稿） | §9 W5 断言服务端 `persist` 信号、受众在 [06](./06-frontend-component-and-e2e.md) §5；§11.4 `snapshots-retention` 按 C-06；§8 D10 改为快照 bootstrap、§9 与 §11.2 导入提前到 M2；§11.2 J1 直传落点为 `uploads/tmp/{uploadId}` |
 | 回写 40/08 §9、40/09 §9、40/12 §9（由总编排执行） | 待回写 | `document-rls.e2e-spec.ts` → `smoke/security-rls.e2e-spec.ts`；`render-zero-egress.e2e-spec.ts` → `smoke/renderer-egress.e2e-spec.ts`；接真实 PG / Valkey 的 `*.processor.spec.ts` 与 `audit.repository.append-only.spec.ts` → `apps/server/test/integration/**/*.int-spec.ts`；各 §9 的场景与断言改为引用本文对应小节 |

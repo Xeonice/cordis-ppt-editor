@@ -1,5 +1,5 @@
 # 11 测试数据、夹具与确定性工具
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19（INC-09、C-06、D-M2-CONTENT）、[01](./01-strategy-and-layers.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md) §1 / §11、[30/02](../30-architecture/02-layering-and-packages.md) §4.0.2、40/02–13 各 §9、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[60/14](../60-backend/14-valkey-object-storage-and-retention.md)、ADR-0009 / 0016 / 0023、60/02 / 05 / 06 / 13（到期规则与审计分区）、[03](./03-fidelity-roundtrip-and-corpus.md) / [04](./04-visual-oracle.md) / [05](./05-collab-simulation-and-property-tests.md) / [06](./06-frontend-component-and-e2e.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20（TX-08、TX-10、TX-16）、rulings §4.19（INC-09、C-06、D-M2-CONTENT）、[01](./01-strategy-and-layers.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md) §1 / §11、[30/02](../30-architecture/02-layering-and-packages.md) §4.0.2、40/02–13 各 §9、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[60/14](../60-backend/14-valkey-object-storage-and-retention.md)、ADR-0009 / 0016 / 0023、60/02 / 05 / 06 / 13（到期规则与审计分区）、[03](./03-fidelity-roundtrip-and-corpus.md) / [04](./04-visual-oracle.md) / [05](./05-collab-simulation-and-property-tests.md) / [06](./06-frontend-component-and-e2e.md)
 
 本文定义测试用的数据与工具从哪来、归谁、怎么保持可复现：确定性工具（时钟、随机数、调度、度量、传输替身）的所属包与用法，假时钟的统一规则，文档与模型夹具，语料与快照样本的落点，服务端种子构建器，IdP 夹具，字体 profile，大文件存储，以及这些东西的变更流程。
 
@@ -9,7 +9,7 @@
 
 ## 1. 原则
 
-1. **时间、随机数、id 一律可注入**。生产代码经 `Clock` 与 `Random` 端口取得时间与随机数，测试注入 `FixedClock` 与 `SeededRandom`；直接调用 `Date.now()`、`Math.random()` 只允许出现在默认系统实现（`SystemClock`、`SystemRandom`）里。`@cordexjs/shared` 的 `newNodeId()`（UUIDv7）与 `order.ts` 的随机后缀同样接受注入，否则协同模拟的失败无法按种子重放。依据：决策 T-DETERMINISM（30/11 §1 确定性原则）。
+1. **时间、随机数、id 一律可注入**。生产代码经 `Clock` 与 `Random` 端口取得时间与随机数，测试注入 `FixedClock` 与 `SeededRandom`；直接调用 `Date.now()`、`Math.random()` 只允许出现在默认系统实现（`SystemClock`、`SystemRandom`）里。`@cordexjs/shared` 的 `newNodeId()`（UUIDv7）与 `order.ts` 的随机后缀同样接受注入，否则协同模拟的失败无法按种子重放。机械约束是 lint 规则 TD-110（rulings §4.20 TX-08，`tooling/eslint-config/rules/determinism.ts` 的第二个 override）：生产源码 `packages/*/src/**`、`apps/*/src/**` 禁 `Date.now`、`Math.random` 与无参 `new Date()`（`packages/shared/src/{clock,random}.ts` 与 `apps/server/src/shared/clock.ts` 除外）；测试代码（各包 `__tests__/**`、`apps/server/test/**`、`apps/web/e2e/**`、根 `test/**`，`test/perf/**` 豁免）另禁 `performance.now`；`crypto.getRandomValues`、`randomUUID` 与 `node:crypto` 不禁；其余例外只能走带 issue 的 `cordex-allow`（§12）。依据：决策 T-DETERMINISM（30/11 §1 确定性原则）。
 2. **每个夹具有唯一所有者**（§9 表）。复用方只 import 或按 sha256 引用，不复制。
 3. **`./testing` 子路径只供测试**：生产代码不得 import 任何 `./testing`（depcruise `no-testing-in-prod`）；`testing/` 内可 import vitest 类型，但不得 import 测试运行器实现（30/02 §4.0.2）。
 4. **种子与断言分离**（服务端）：种子可经特权连接写入；被测代码与断言只经非属主数据库角色（`cordex_app`、`cordex_system`），否则会掩盖 RLS 与 `SET LOCAL` 问题。依据：决策 T-DB-ISOLATION。
@@ -46,7 +46,7 @@
 | `CLOCK` 注入令牌、`SystemClock` | `Clock` | apps/server | `src/shared/clock.ts`（新增） | Nest provider；测试以 `FixedClock` 覆盖 | 全部服务端模块（§3） |
 | `page.clock` | — | Playwright 内建 | — | 浏览器侧假时钟 | apps/web e2e |
 
-说明：计划草稿把 `createCommandHarness` 与 `permission-fakes` 归在 kernel/testing，40/02 §5 的文件表把它们放在 model-core/testing，以 40/02 为准。服务端不另建 `FakeServerClock` 类，与客户端共用 `FixedClock`；60 各文档与本线其它文件写的「FakeClock」即 `FixedClock`（回写见 README §8）。
+说明：计划草稿把 `createCommandHarness` 与 `permission-fakes` 归在 kernel/testing，40/02 §5 的文件表把它们放在 model-core/testing，以 40/02 为准。服务端不另建 `FakeServerClock` 类，与客户端共用 `FixedClock`；60 各文档与本线其它文件原写的「FakeClock」已于 2026-09-26 统一为 `FixedClock`（rulings §4.20 TX-10 第 ③ 项），旧名登记在 `docs/_tools/terms.json`，由 `check-terms.py` 防止回流（TX-02）。
 
 最小签名（本线对 `@cordexjs/shared` 的要求；文件与导出由 40/02 登记）：
 
@@ -352,6 +352,7 @@ flowchart LR
 
 - **分界**：单个文件 ≤ 2 MB 且许可允许入库的 pptx 样本放 `fixtures/pptx/{minimal,features}`（即 T1）；其余一律不入 git——T2 / T3 语料、oracle 基线 PNG、语料专用字体按 sha256 存对象存储。
 - **存储**：语料存储（CI 专用 S3 兼容桶，与产品部署的 `data` / `snapshots` 两个桶无关），键布局以 [03 §1](./03-fidelity-roundtrip-and-corpus.md) 为准：样本 `corpus/<sha256>`、视觉基线 `oracle/<sha256>`；语料专用字体按同一口径放 `fonts/<sha256>`（本文登记）；CI 持只读凭据，维护者持写凭据；`test/corpus/manifest.json`、`test/oracle/baselines.json`、字体锁只存 sha256 与元数据。
+- **访问配置**（rulings §4.20 TX-16，沿 60/17 的 `CORDEX_` 前缀惯例与 [12 §3](./12-ci-gates-mapping.md) 的 `CORDEX_SUITE` 先例）：普通变量 `CORDEX_CORPUS_S3_ENDPOINT`（语料桶的 S3 兼容端点）与 `CORDEX_CORPUS_BUCKET`（桶名）；CI secrets `CORDEX_CORPUS_ACCESS_KEY_ID` 与 `CORDEX_CORPUS_SECRET_ACCESS_KEY`，CI 中只配只读凭据，维护者在本地以同名变量放写凭据；其余 S3 参数（区域、路径风格、重试）取 SDK 默认值，不另设变量。`fetch-corpus.ts` 与 oracle 基线拉取在任一变量缺失时报错退出（指明缺哪个变量），不静默跳过、不回落到只跑 T1；来自 fork 的 PR 按 [12 §3](./12-ci-gates-mapping.md) 的批准规则取得这些 secrets。
 - **取回与缓存**：`test/corpus/scripts/fetch-corpus.ts`（03 §1）按清单取回到本地缓存目录，下载后重算 sha256，不一致即失败；CI 缓存键 = 三份清单内容的哈希。PR 只取所需子集（gated 样本与 PR 抽样），nightly 取全量。
 - **不用 Git LFS**：LFS 的配额与 fork 体验差（30/11 §14 T1）；仓库不出现 `filter=lfs`。
 - **许可与脱敏**：入库前的授权与脱敏流程归 [03 §3](./03-fidelity-roundtrip-and-corpus.md)。
@@ -390,4 +391,5 @@ flowchart LR
 | 用例拿不到 `cordex_migrator` 连接；`SET LOCAL` 上下文不泄漏到连接池的下一次借出 | 同目录 `db-helpers.int-spec.ts` |
 | 每个测试文件结束时 Valkey 中没有前缀之外的键 | 服务端集成 harness 的文件级收尾检查 |
 | 服务端到期判定都经 `CLOCK`：只推进 `FixedClock` 就能触发票据、会话、链接、墓碑的到期 | §3 注入点表对应的 [07](./07-backend-integration-and-api-e2e.md) 用例 |
-| 测试代码不直接调用 `Math.random`、`Date.now`、无参 `new Date()` | 建议：把 lint 确定性规则（TD-097，现只作用于 `ooxml-*`）的作用域扩展到 `**/__tests__/**` 与 `test/**`（`test/perf/**` 豁免）；待类型治理线采纳（[README §7](./README.md#7-对章程与上游文档的异议与建议)） |
+| 生产代码与测试代码不直接调用 `Math.random`、`Date.now`、无参 `new Date()`（`SystemClock` / `SystemRandom` 所在文件放行）；测试代码另不调用 `performance.now`（`test/perf/**` 豁免） | `lint`：TD-110（已采纳，rulings §4.20 TX-08；09-08 §12c 登记，负向夹具四例：测试文件调 `Date.now`、apps/web 组件调 `Math.random`、`SystemClock` 文件放行、生产代码 `performance.now` 放行）；`ooxml-*` 的 TD-097 预算恒为 0 不变 |
+| 语料桶四个变量缺失时 `fetch-corpus.ts` 与 oracle 基线拉取报错退出、不跳过 | `test/fidelity-roundtrip`、`e2e/oracle-gated` 的前置（§10） |

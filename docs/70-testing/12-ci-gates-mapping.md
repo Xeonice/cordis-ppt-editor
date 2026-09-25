@@ -1,6 +1,6 @@
 # 12 CI 门禁映射
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
 
 本文是 CI 步骤的唯一事实源：13 个 job 各含哪些测试步骤、步骤名、三个触发段各跑什么、PR 冒烟子集、必需检查、每个步骤从哪个里程碑起运行与阻断、时长预算与分片、缓存、产物、失败与 flaky 策略，以及每个步骤的本地复现命令。步骤名在本文定稿，与总计划的工作名一致；其它文档（50 / 60 / 70 的「机械验证」小节）写步骤时一律用本文的 `job/步骤` 写法。
 
@@ -68,9 +68,10 @@ interface CiStep {
 | `api-surface` | `api-surface` | api-extractor diff、publint、attw、changeset 存在性 | 同上 | gated | 09-04 |
 | `api-surface` | `api-surface/docs-coverage` | 公开 API、贡献点、错误码的文档覆盖率 100%，文档示例代码全部编译（M4） | 同上 | gated | PRD 05 M4 验收 1 |
 | `api-surface` | `api-surface/scaffold-e2e` | 脚手架模板各生成一次，以打包后的公开包执行 install / test / build（M4） | main · nightly；PR 改动 `packages/create-plugin/**` 时追加 | gated | PRD 05 M4 验收 4 |
-| `scanners` | `scanners/lockfile-guard` | 治理检查脚本全量模式（TD-079；含 yjs 精确版本断言） | PR · main · nightly | gated | 40/01 §5.7 |
+| `scanners` | `scanners/lockfile-guard` | 治理检查脚本全量模式（TD-079；含 yjs、y-protocols 精确版本与 typescript 5.9/6.x 断言，rulings §4.20 TX-13；负向夹具见 [10](./10-security-testing.md) SEC-SC-05） | PR · main · nightly | gated | 40/01 §5.7 |
 | `scanners` | `scanners/scan-<名>` | 09-06 的 13 个扫描器（`scan-policy` 在 `policy-check`）；`scan-bundle-budget` 排在构建之后 | 同上 | gated | 09-06 |
 | `scanners` | `scanners/check-workspace-protocol`、`scanners/check-rls-coverage`、`scanners/check-image-policy` | 治理检查脚本（TD-080、TD-083、TD-084） | 同上 | gated | 40/01 §5.7 |
+| `scanners` | `scanners/check-migrations-sync` | 迁移目录 `apps/server/src/db/migrations/` 与 60-backend DDL 文档的 SQL 围栏逐字一致（DB-13）：文件集合等于围栏编号集合、文件名等于围栏首行加 `.sql`、内容逐字节相等，失败报「文件 + 编号 + 首个差异行」；调用 `docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only`（不起容器） | 同上 | gated（首次运行即阻断，§7） | 60/08 §11 第 6 条、§13 DB-13；rulings §4.20 BE-03+TX-14 |
 | `scanners` | `scanners/license-allowlist`、`scanners/vuln-audit` | 依赖许可白名单与禁用清单（TD-050）；高危漏洞阻断 | 同上 | gated | [10 §13](./10-security-testing.md) |
 | `scanners` | `scanners/scan-manifest --check` | `manifest.ts` 重新生成无 diff（ADR-0003） | 同上 | gated | 09-06 §6 |
 | `scanners` | `scanners/schema-lock` | body schema 哈希锁（ADR-0009） | 同上 | gated | [03 §11](./03-fidelity-roundtrip-and-corpus.md) |
@@ -86,7 +87,7 @@ interface CiStep {
 | `e2e` | `e2e/full-airgap` | egress-deny 网络中的端到端旅程（`ops:airgap`） | main · nightly | M3 起 gated | [08 §5](./08-deployment-and-environment-e2e.md) |
 | `perf` | `perf/perf-client` | PR：D50 关键指标（首屏、键入延迟、导出）对 PRD 绝对 gate；main · nightly：全部客户端场景 + 相对回归 | PR · main · nightly | gated（PR 上相对回归为报告） | [09](./09-performance-and-capacity.md) |
 | `perf` | `perf/perf-collab` | 协同延迟、presence、初始同步、满员房间扇出、准入 | main · nightly | gated | 同上 |
-| `perf` | `perf/perf-server` | 导入导出、缩略图与 PDF、压缩、2,000 WS、持久化滞后、模板填充 | main · nightly | gated | 同上 |
+| `perf` | `perf/perf-server` | 导入导出、缩略图与 PDF、压缩、2,000 WS、持久化滞后、模板填充；nightly 另跑 `host-footprint`（M3 起，只报告，产物 `host-footprint.json`） | main · nightly | gated（`host-footprint` 为报告） | 同上 |
 
 **`test` 各步骤的收集范围**（两两不相交，并集覆盖全部 Vitest 用例；由 `test/conventions/test-layout.test.ts` 核对，[01 §13](./01-strategy-and-layers.md)）：`test/contract` 收 `**/__tests__/conformance*.test.ts` 与 `test/plugin-compat/**`；`test/lifecycle` 收 `**/__tests__/lifecycle.test.ts`；`test/server-integration` 收 `apps/server/test/integration/**`、`apps/server/test/e2e/**`（`smoke/` 除外）；`test/fidelity-roundtrip` 收 `test/roundtrip/**`，`test/snapshot-migration-corpus` 收 `test/snapshot-migration/**`，`test/collab-sim` 与 `test/preset-blind` 收根 `test/` 下同名目录；`test/iso-smoke/**` 归 `iso-smoke` job；其余 `*.test.ts(x)` 与 `*.browser.test.ts(x)`（含 preset 的 `order-independence`、`pluggable`、`readonly`、`manifest-diff`）归 `test/unit`。与 [01 §4–§5](./01-strategy-and-layers.md) 的前缀规则与套件表一致。
 
@@ -150,6 +151,7 @@ flowchart TB
 - **不新增 job 名**：nightly 只改变步骤内的规模与范围，由 `run-step.ts` 读取 `CORDEX_SUITE` 决定；13 个 job 名与 PR 段完全相同。
 - **发布打标签的前置**：`release.yml` 在打标签前查询目标提交最近一次 main 段与 nightly 的结论，任一为红即拒绝。
 - **来自 fork 的 PR**：需要只读凭据的步骤（按 sha256 拉取语料与 oracle 基线）在维护者批准后运行；未批准时这些步骤保持 pending、不以「跳过」形式通过。
+- **语料桶变量**（rulings §4.20 TX-16，定义见 [11 §10](./11-test-data-fixtures-and-determinism.md)）：`test/fidelity-roundtrip`（T2 / T3 取回，nightly 全量）、`e2e/oracle-gated`（基线与语料字体拉取）与引用 `perf.refDoc` 样本的 `perf/*` 场景需要 `CORDEX_CORPUS_S3_ENDPOINT`、`CORDEX_CORPUS_BUCKET` 两个普通变量与 `CORDEX_CORPUS_ACCESS_KEY_ID`、`CORDEX_CORPUS_SECRET_ACCESS_KEY` 两个 CI secrets（只读凭据）；`steps.json` 为这些步骤登记 `secrets` 需求，缺任一变量时步骤失败（`fetch-corpus.ts` 报错退出），不以跳过通过。
 - **main 段的「gated」**：合入后才运行的步骤无法阻断已经发生的合并，其 gated 含义是「失败即阻断发布打标签与里程碑出口」；为缩短发现时间，改动部署相关路径的 PR 会提前跑 `e2e/full-compose`。
 
 **图 12-2 三个触发段与各自的步骤集合**
@@ -217,6 +219,7 @@ flowchart LR
 | OPC fuzz 放大档、服务端导入 fuzz | `test/unit`、`test/server-integration`（nightly） | 连续 10 次无误报（01 §10） |
 | 当前处于 active 的里程碑中缺测试的 P0、以及 P1 缺口；新测试文件无需求标签 | `test/requirement-matrix` | 里程碑进入出口评审时（[13 §1](./13-requirements-traceability.md)） |
 | LibreOffice 互操作 | `test/fidelity-roundtrip`（nightly） | 不转（NF-08 只要求不崩溃并记录差异） |
+| `host-footprint` 主机规格测量（[09 §6](./09-performance-and-capacity.md)） | `perf/perf-server`（nightly，M3 起） | 不转（只出 `host-footprint.json` 供 60/17 §11 回填，rulings §4.20 BE-07+TX-05） |
 
 ---
 
@@ -226,14 +229,14 @@ flowchart LR
 
 | 步骤 | 承载的 PRD 检查名（全部或部分断言） |
 |---|---|
-| `test/unit` | `degrade:isolate`、`M1#8`、`viewer:preset`（`readonly.test.ts`）、`pluggable:m1`、`history:property`、`collab:gate` 与 `collab:softgate`（修复规则黄金用例）、`collab:degraded`（客户端判据）、`pluggable:m3`（`manifest-diff.test.ts`、`pluggable.test.ts`）、`manifest:ci`、`version:policy` |
+| `test/unit` | `degrade:isolate`、`M1#8`、`viewer:preset`（`readonly.test.ts`）、`pluggable:m1`、`history:property`、`collab:gate` 与 `collab:softgate`（修复规则黄金用例）、`collab:degraded`（客户端判据）、`pluggable:m3`（`manifest-diff.test.ts`、`pluggable.test.ts`）、`manifest:ci`、`version:policy`、`master:edit`（删除被引用版式与母版的命令层用例、`defaultLayoutOf`，[05 §7.1](./05-collab-simulation-and-property-tests.md)） |
 | `test/contract` | `embed:framework-free`、`collab:gate`（`runCollabServerConformance` 门禁与会话分节）、`perm:fail-closed`、`offline:queue`、`collab:undo`、`ctk:self` |
 | `test/lifecycle` | 无 PRD 检查名（承载 NF-01 §1.3 卸载后 effects 为空、NF-03 插件失败隔离，见 [13 §4](./13-requirements-traceability.md)） |
 | `test/fidelity-roundtrip` | `fidelity:roundtrip`、`errors:codes`、`fidelity:objects`、`fidelity:edit-roundtrip`、`layout:apply`、`master:edit`、`theme:edit`、`comments:roundtrip`（结构部分）、`roundtrip:docx-xlsx` |
-| `test/collab-sim` | `collab:persist`（同一用户多客户端互见）、`collab:gate`、`collab:converge`、`collab:soft-conflict`、`offline:queue`、`collab:softgate`、`collab:rejected-rollback`、`collab:undo`、`master:edit`（ML-03 冲突表） |
+| `test/collab-sim` | `collab:persist`（同一用户多客户端互见）、`collab:gate`、`collab:converge`、`collab:soft-conflict`、`offline:queue`、`collab:softgate`、`collab:rejected-rollback`、`collab:undo`、`master:edit`（ML-03 冲突表、删除被引用版式的协同撤销）、`history:restore-revert`（随 ADR-0038） |
 | `test/snapshot-migration-corpus` | ADR-0009 的迁移证据（无 PRD 检查名） |
 | `test/preset-blind` | `boot:empty`、`coexist` |
-| `test/server-integration` | `server:import`、`collab:persist`、`collab:gate`、`collab:degraded`（单实例溢写、`persist` 信号与回放补确认）、`perm:fail-closed`、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:durability`、`collab:softgate`（审计）、`collab:undo`（墓碑清扫与元素彻底删除）、`security:rls`（登录与分享链接用例） |
+| `test/server-integration` | `server:import`、`collab:persist`、`collab:gate`、`collab:degraded`（单实例溢写、`persist` 信号与回放补确认）、`perm:fail-closed`、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:durability`、`collab:softgate`（审计）、`collab:undo`（墓碑清扫与元素彻底删除）、`security:rls`（登录与分享链接用例）、`history:restore-revert`（撤销恢复的路由、能力位与审计，随 ADR-0038 定稿登记） |
 | `test/requirement-matrix` | `M0#3`、`e2e:editing`（每条 P0 / P1 ED 需求有 Playwright 用例）、NF-09「需求可追溯」 |
 | `lint` | `csp:strict`（文档内容注入规则，TD-081） |
 | `depcruise` | `viewer:preset`（查看器不含编辑链）、`pluggable:m2`（公开入口）、`embed:framework-free`、`depcruise:blind` |
@@ -250,13 +253,13 @@ flowchart LR
 | `e2e/smoke` | `csp:strict`、`security:rls`、`server:thumbnails`（零出站）、`offline:queue`（双浏览器重连） |
 | `e2e/oracle-gated` | `fidelity:visual`、`M1#7`、`fidelity:objects`、`master:view`、`layout:apply`、`server:thumbnails`（服务端与客户端像素一致）、`server:pdf`、`master:edit`、`theme:edit` |
 | `e2e/a11y` | `a11y:axe` |
-| `e2e/full-compose` | `e2e:editing`（M2 起经网关，`collab:persist` 的应用路径）、`server:import`（导入过渡页）、`collab:degraded`（发起方横幅与其余会话状态胶囊）、`M1#8`、`embed:multi`、`master:view`、`layout:apply`、`shell:home`、`shell:account-menu`、`pluggable:m2`、`pluggable:m3`、`collab:rejected-rollback`、`ops:compose`、`ops:image-licenses` |
+| `e2e/full-compose` | `e2e:editing`（M2 起经网关，`collab:persist` 的应用路径）、`server:import`（导入过渡页）、`collab:degraded`（发起方横幅与其余会话状态胶囊）、`M1#8`、`embed:multi`、`master:view`、`layout:apply`、`shell:home`、`shell:account-menu`、`pluggable:m2`、`pluggable:m3`、`collab:rejected-rollback`、`ops:compose`、`ops:image-licenses`、`master:edit` 与 `theme:edit`（删除被引用版式 / 母版的对话框与撤销 Toast、应用主题直接执行，[06 §5](./06-frontend-component-and-e2e.md) 第 25 行） |
 | `e2e/full-airgap` | `ops:airgap` |
 | `perf/perf-client` | `perf:open`、`perf:interact`、`master:view`、`shell:home`、`master:edit`、`theme:edit` |
 | `perf/perf-collab` | `collab:persist`（初始同步）、`collab:latency`、`perm:fail-closed`（撤销 ≤ 2 s）、`offline:queue`（重连 ≤ 3 s）、`server:scale` |
 | `perf/perf-server` | `server:import`、`collab:persist`（持久化滞后、压缩）、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:scale` |
 | 人工 / 半机械（`test/evidence/`） | `M0#1`、`M0#5`、`fidelity:interop`、`comments:roundtrip`（PowerPoint 抽样）、`security:pentest`、`pilot:external` |
-| 文档工具（`docs/_tools`，不属 13 个 job） | `M0#2` |
+| 文档工具（`docs/_tools`，不属 13 个 job） | `M0#2`（`check-terms.py` + `terms.json`：术语表登记的旧名在正文中残留 0 处，rulings §4.20 TX-02） |
 
 ---
 
@@ -278,6 +281,7 @@ flowchart LR
 | `perf/perf-client` | M1（打开场景） | M1 | M2 交互、导出、母版视图、开始页 |
 | `scanners/check-image-policy` | 首个 Dockerfile（M2） | 同时 | M3 renderer 三项静态规则 |
 | `scanners/check-rls-coverage` | 首个带 `doc_id` 的迁移（M2） | 同时 | 每张新表 |
+| `scanners/check-migrations-sync` | M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 定 0001、0002 为 M1）；比对实现（`ddl-check.sh --migrations / --write-migrations / --sync-only`）在同一 PR 落地，`tooling/ci/steps.json` 与 40/01 §5.7 同 PR 登记 | 同时（不起容器，直接 gated；挂 `scanners` 而不是 `test/server-integration` 的前置，因为后者 M2 才激活） | 每个新迁移文件；DB-13 自该 PR 起改为「已实现」（rulings §4.20 BE-03+TX-14） |
 | `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图 |
 | `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 材质层表、rulings §4.12 U-08） |
 | `scanners/shadcn-diff` | M2（报告） | M2 稳定后 | — |
@@ -286,7 +290,7 @@ flowchart LR
 | `e2e/smoke` 的 security-rls | 首个 RLS 迁移（M2，报告） | M3（GV-16） | 每张新 RLS 表自动进入矩阵 |
 | `e2e/smoke` 的 renderer-egress | renderer 入库（M3 前半段，报告） | M3（GV-16） | — |
 | `e2e/full-airgap` | M3 前半段（报告） | M3 出口 | M4 离线包导入 |
-| `perf/perf-collab`、`perf/perf-server` | M2（快照 bootstrap、持久化滞后、压缩、服务端导入、单实例溢写回放；优雅停机先报告；RM-S 在 M2 前落地的自托管专用 runner 上） | M2 | M3 多人延迟、在场、权限变更、离线重连、容量与多实例、优雅停机、服务端导出与缩略图；M4 模板填充、多架构像素一致 |
+| `perf/perf-collab`、`perf/perf-server` | M2（快照 bootstrap、持久化滞后、压缩、服务端导入、单实例溢写回放；优雅停机先报告；RM-S 在 M2 前落地的自托管专用 runner 上） | M2 | M3 多人延迟、在场、权限变更、离线重连、容量与多实例、优雅停机、服务端导出与缩略图、`host-footprint`（nightly 报告，renderer 与 worker 落地且 `ops:compose` 全绿后）；M4 模板填充、多架构像素一致 |
 | `test/contract` 的 CTK（`test/plugin-compat/**`）、`api-surface/docs-coverage`、`api-surface/scaffold-e2e` | M4 | M4 | — |
 | `scanners/horizontal-freeze` | M5 | M5（标记 `doc-type:new` 的 PR 必需） | — |
 
@@ -435,6 +439,7 @@ flowchart LR
 | `iso-smoke` | `pnpm iso-smoke` | 先构建（`pnpm build`） | `pnpm iso-smoke -- --package <包名>` |
 | `depcruise` / `api-surface` / `policy-check` | `pnpm depcruise` / `pnpm api:check` / `pnpm policy:check` | `api-surface` 需先构建 | — |
 | `scanners/<脚本名>` | `pnpm scan <脚本名>`（如 `pnpm scan scan-manifest --check`） | `scan-bundle-budget` 需先构建 | 各脚本的 JSON 报告即定位信息 |
+| `scanners/check-migrations-sync` | `bash docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only` | 无（不起容器） | 输出的「文件 + 编号 + 首个差异行」；从围栏重新生成用 `--write-migrations <dir>` |
 | `xsd-validate` | `pnpm xsd:validate` | — | `… -- --script <编辑脚本 id>` |
 | `coverage-patch` | `pnpm coverage:patch -- --base origin/main` | 先跑产生 lcov 的测试步骤 | — |
 | `e2e/smoke` | `pnpm --filter ./apps/web e2e -- --grep @smoke` 与 `pnpm --filter ./apps/server test:e2e:smoke` | Docker（M2 起）；Playwright 浏览器 | `… e2e -- <spec> --trace on`；打开产物中的 trace |
@@ -464,7 +469,9 @@ flowchart LR
 
 **rulings §4.19 已定稿**：D-TEST-INFRA——见 §8（runner 标签 `perf-larger` / `perf-selfhosted`，自托管专用 runner M2 前落地）；D-M2-CONTENT——§7 激活表中协同网关、持久化、快照、服务端导入相关步骤由「M3 前置技术切片」改为 M2 激活；二者都不影响步骤名。
 
-**新增步骤名（总计划工作名之外，请总编排知悉）**：`scanners/lockfile-guard`、`scanners/license-allowlist`、`scanners/vuln-audit`（许可、漏洞与 lockfile 三个安全门禁此前没有步骤名）；`api-surface/docs-coverage`、`api-surface/scaffold-e2e`（PRD 05 M4 验收 1、4 此前没有执行点）。其余步骤名与总计划的工作名完全一致。
+**rulings §4.20 已定稿**（2026-09-26）：BE-03+TX-14——新增步骤 `scanners/check-migrations-sync`，登记在 §2 与 §7（M1 首批迁移入库的同一 PR 激活并直接 gated；DB-13 的比对实现属该 PR，推迟项「BE-03+TX-14·实现」）；TX-13——`scanners/lockfile-guard` 加 y-protocols 精确版本与 typescript 5.9/6.x 断言（不新增 TD 行）；TX-16——语料桶四个变量与需要它们的步骤登记在 §3；BE-07+TX-05——`perf/perf-server` 的 nightly 加 `host-footprint` 报告；TX-01+BE-10、TX-02——§6 索引加 `history:restore-revert`、`M0#2` 改指 `check-terms.py`。均不新增 job 名。
+
+**新增步骤名（总计划工作名之外，请总编排知悉）**：`scanners/lockfile-guard`、`scanners/license-allowlist`、`scanners/vuln-audit`（许可、漏洞与 lockfile 三个安全门禁此前没有步骤名）；`api-surface/docs-coverage`、`api-surface/scaffold-e2e`（PRD 05 M4 验收 1、4 此前没有执行点）；`scanners/check-migrations-sync`（rulings §4.20 BE-03+TX-14）。其余步骤名与总计划的工作名完全一致。
 
 回写清单（由总编排执行，本组不改其它文档）：
 

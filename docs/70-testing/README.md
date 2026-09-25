@@ -1,5 +1,5 @@
 # 70 测试设计线：定位、边界与导航
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：charter v0.2、rulings §4.11–§4.19、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：charter v0.2、rulings §4.11–§4.20、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
 
 ## 1. 定位
 
@@ -204,6 +204,22 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | D-TEST-INFRA | 见上 T2 / T3 |
 | N1-IMPORT-OVERWRITE-RESTORE-LOCK（恢复不锁、覆盖导入换纪元，补完阶段用户裁决） | 锁定断言只剩覆盖导入与迁移（[02 §5.2](./02-contract-suites-and-pluggability.md) `lock/room-locked-signal`、[07 §9](./07-backend-integration-and-api-e2e.md) W14）；恢复不加锁（02 `restore/no-lock`、07 W16、[06 §5](./06-frontend-component-and-e2e.md) 第 15 行）；覆盖导入换纪元（02 `epoch/external-epoch-control-closes-4428`、`put/import-bumps-epoch`，07 W17 与 §11.2 J7，[05 §9](./05-collab-simulation-and-property-tests.md) `rs/import-overwrite`，06 §5 第 21 行）；追溯标签 `@ruling 4.19/N1-IMPORT-OVERWRITE-RESTORE-LOCK`（[13 §6.3](./13-requirements-traceability.md)） |
 
+**rulings §4.20 已裁定、影响本线用例的项**（2026-09-26，3 项决策与 12 项默认值由用户逐条确认、25 项机械修正按权威执行；FE-08 用户已确认 playground 样张并回写，本线在 [06](06-frontend-component-and-e2e.md) §2.2 登记尾部区断言）：
+
+| 条目 | 本线的落实 |
+|---|---|
+| BE-01+TX-03（WS 升级先扣后退加每用户上限） | [10](./10-security-testing.md) SEC-RL-03 (a)–(f)：验签通过即退还、4401 / 4408 / 4427 等不退、第 33 个连接 `auth.denied{collab.rate_limited}` + 4429；[02 §5.2](./02-contract-suites-and-pluggability.md) `admission/per-user-connection-cap-4429`；[07 §9](./07-backend-integration-and-api-e2e.md) W4 同一出口 IP 30 人 1012 后 ≤ 5 s 重连完；[09 §6](./09-performance-and-capacity.md) `ws-capacity` 在默认限额下按先扣后退爬升、不再放宽 |
+| BE-04（客户端 IP 统一 `clientIp()`） | SEC-RL-01（REST）与 SEC-RL-03 (f)（WS 升级）伪造 `X-Forwarded-For` 首跳不换限流主体与 `ip_hash`；[08 §4](./08-deployment-and-environment-e2e.md) G12 覆盖 web 容器 `terminate` 与 `upstream` 两种模式（60/17 DEP-03） |
+| BE-05+TX-22（唯一 owner 空窗的运维转移命令） | [07 §7.4](./07-backend-integration-and-api-e2e.md) O1–O5（`soleOwnerDocCount`、`cordex-ops documents:reassign-owner`、`admin.owner_reassigned`、≤ 1 s 重算、新 owner 可撤链接）；SEC-DA-07 注明计数 |
+| TX-01+BE-10（ADR-0038 version-restore-undo） | [05 §7.2](./05-collab-simulation-and-property-tests.md) `rs/restore-revert-*` 三类场景占位（随 ADR 定稿补全）；PRD 05 M3 检查名 `history:restore-revert` 登记在 [13 §3.4](./13-requirements-traceability.md) 与 [12 §6](./12-ci-gates-mapping.md) |
+| FE-01（UnitScope 默认 Provider 登记 API） | [02 §9.1](./02-contract-suites-and-pluggability.md) `units/*`：重复登记被拒、只影响新 Unit、dispose 后无残留 |
+| FE-03、FE-04、FE-05、FE-23（默认版式、墓碑期并发引用、删除可撤销、删除母版的目标版式） | [05 §6](./05-collab-simulation-and-property-tests.md) `sc-20` 改为墓碑期读时容错与硬删时修复两个变体；§7.1 `ml/*` 与 `undo/delete-layout-revert-skips-later-writes`；§8 `inject/dangling-layout` 按 I-ML2 链；§10 删除版式与母版的性质；[06 §5](./06-frontend-component-and-e2e.md) 第 25 行的对话框与撤销 Toast |
+| FE-02、FE-06、FE-07、FE-16、FE-18+TX-06 | [06](./06-frontend-component-and-e2e.md)：放映始终实时应用远端更新（§5 第 12 行）、`enablement` 与 `can.*` 禁用不隐藏（§2.2）、应用主题直接执行加可撤销 Toast（§5 第 25 行）、嵌入样式隔离（§11）、Trusted Types `default` 策略与第三方样式零违规（§10.1，安全目录侧 SEC-CL-02） |
+| BE-03+TX-14（迁移 SQL 逐字一致，DB-13） | [12 §2、§7](./12-ci-gates-mapping.md) 登记 `scanners/check-migrations-sync`：M1 首批迁移入库的 PR 激活并直接 gated，不起容器 |
+| BE-07+TX-05（最低主机规格实测） | [09 §6](./09-performance-and-capacity.md) 登记 `host-footprint`（nightly、自托管 runner、core 与 core+idp 两档、只报告），数值由后端设计线 M3 出口前回填 60/17 §11 |
+| TX-02、TX-04（术语与链接检查） | [13 §3.1](./13-requirements-traceability.md) `M0#2` 改为 `check-terms.py`；§10 的链接执行点改为 `check-links.py` |
+| TX-08、TX-09、TX-10、TX-13、TX-16、TX-23 | §7 第 9、10 条已采纳（TD-110、TD-111）；§8 的 Clock / Random、`FixedClock` 统一、语料与覆盖率改指各行已回写；SEC-SC-05 与 [12 §2](./12-ci-gates-mapping.md) `lockfile-guard` 加 typescript、y-protocols 版本钉；[11 §10](./11-test-data-fixtures-and-determinism.md) 与 [12 §3](./12-ci-gates-mapping.md) 登记语料桶四个变量；[13 §11](./13-requirements-traceability.md) 第 5 条不采纳、以 `<里程碑>#<序号>` 为正式检查名 |
+
 ---
 
 ## 7. 对章程与上游文档的异议与建议
@@ -220,8 +236,8 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 6 | 30/11 §17 | `// @req CO-08` 与 rulings §4.18 的 CO- / BE- 编号同形，无法区分来源 | 按 T-REQ 用 `@req PRD:` / `@ruling` / `@adr` 三类标签 |
 | 7 | 09-07 §2.3 | 留给运行时线的问题：单测是否进 `pre-push` | 答复：不进，本地用 `pnpm test:changed`（[01 §9](./01-strategy-and-layers.md#9-本地与-ci-分工)） |
 | 8 | 40/_template §9 | 示意顶层 `tests/{unit,contract,integration,fixtures}/`，与 30/02 §4.0 的同位约定矛盾（40/02 §12 G-12 已指出） | 模板 §9 改为「包内测试文件清单；场景与断言见 70」 |
-| 9 | 09-type-discipline（类型治理线） | lint 确定性规则 TD-097 只作用于 `ooxml-*`，测试代码里的 `Math.random` / `Date.now` 无机械约束 | 建议把作用域扩展到 `**/__tests__/**` 与 `test/**`（`test/perf/**` 豁免）；属既有 lint 规则的作用域调整，不新增扫描器（[11 §12](./11-test-data-fixtures-and-determinism.md#12-机械验证)） |
-| 10 | 09-type-discipline §6 | 「每个 Definition 至少一个 `*.type-test.ts`」没有机械核对 | 建议作为 `scan-manifest` 规则 (e) 的子检查（与「Provider 调用 kit」同一次遍历），不新增扫描器 |
+| 9 | 09-type-discipline（类型治理线） | lint 确定性规则 TD-097 只作用于 `ooxml-*`，测试代码里的 `Math.random` / `Date.now` 无机械约束 | 建议把作用域扩展到 `**/__tests__/**` 与 `test/**`（`test/perf/**` 豁免）；属既有 lint 规则的作用域调整，不新增扫描器（[11 §12](./11-test-data-fixtures-and-determinism.md#12-机械验证)）→ 已采纳，TD-110（TX-08）：作用域扩到全部生产与测试代码，测试另禁 `performance.now`（rulings §4.20） |
+| 10 | 09-type-discipline §6 | 「每个 Definition 至少一个 `*.type-test.ts`」没有机械核对 | 建议作为 `scan-manifest` 规则 (e) 的子检查（与「Provider 调用 kit」同一次遍历），不新增扫描器 → 已采纳，TD-111（TX-09）：`scan-manifest` 规则 (e3)（rulings §4.20；[01 §7](./01-strategy-and-layers.md)） |
 | 11 | 60/05（可测性要求） | 房间名额 Lua 脚本若读 Valkey `TIME`，60 s 过期与 15 s 刷新无法确定性测试 | 已由 [60/05 §4.2](../60-backend/05-modules-collab-and-snapshots.md) 采纳（`ARGV` 传入 `nowMs`），无需回写；测试做法见 [11 §3](./11-test-data-fixtures-and-determinism.md#3-假时钟统一规则) |
 | 12 | 30/02 §4；40/06 | 同一替身分别叫 `FixedMetricsMeasurer` 与 `FixedWidthMeasurer` | 统一为 `FixedWidthMeasurer` |
 | 13 | 计划 T-DETERMINISM 的归属写法 | 把 `createCommandHarness`、`permission-fakes` 归在 kernel/testing | 40/02 §5 的文件表放在 model-core/testing，以 40/02 为准（[11 §2](./11-test-data-fixtures-and-determinism.md#2-确定性工具目录)） |
@@ -258,7 +274,7 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 40/01 §5.9 | CI job 矩阵的步骤清单改为链接 12 |
 | 40/_template §9 | 改为「文件清单；场景与断言见 70」 |
 | PRD 04 NF-01、NF-09 | 保留 gate 数值；测量与判定链接 09 |
-| 40 各模块 §9 | 「覆盖率与性能预算引用 11（30-architecture）」改为引用 [01 §8](./01-strategy-and-layers.md#8-覆盖率与证据归档t-coverage-evidence) 与 [09](./09-performance-and-capacity.md) |
+| 40 各模块 §9 | 「覆盖率与性能预算引用 11（30-architecture）」改为引用 [01 §8](./01-strategy-and-layers.md#8-覆盖率与证据归档t-coverage-evidence) 与 [09](./09-performance-and-capacity.md)（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项回写：40/01、40/03、40/06、40/07、40/13 改指本线，40/06 另指 50/13；40/09、40/12 的 30/08 §12 改指 60/01 §12 与 09） |
 | docs/README.md、30-architecture/README.md、40-modules/README.md、`_tools/gen-docs-site.py` | 登记三条新线并写三线总边界表（本 README §2 引用它） |
 
 **本线新增的回写项**（来自 01 §4 废止表与 11 的登记）：
@@ -266,15 +282,15 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 被改文档 | 改法 |
 |---|---|
 | 40/02 §9 | `augment.test-d.ts` → `augment.type-test.ts`；根 `test/preset-blind.test.ts` → `test/preset-blind/preset-blind.test.ts` |
-| 40/02 §4 / §5（shared） | 登记 `Clock`、`Random` 端口与 `testing/{clock,random}.ts`；`newNodeId()` 与 `order.ts` 随机后缀接受 `Clock` + `Random` 注入 |
-| 40/04 §9 | `fixtures/pptx/wild/` → T2，只登记在 `test/corpus/manifest.json` |
+| 40/02 §4 / §5（shared） | 登记 `Clock`、`Random` 端口与 `testing/{clock,random}.ts`；`newNodeId()` 与 `order.ts` 随机后缀接受 `Clock` + `Random` 注入（2026-09-26 随 rulings §4.20 TX-10 第 ① 项回写，是 TD-110 的前置） |
+| 40/04 §9 | `fixtures/pptx/wild/` → T2，只登记在 `test/corpus/manifest.json`（2026-09-26 随 TX-10 第 ④ 项回写：T2 / T3 语料存对象存储，只在 `test/fidelity-roundtrip` 运行） |
 | 40/08 §9 | `document-rls.e2e-spec.ts` → `apps/server/test/e2e/smoke/security-rls.e2e-spec.ts`；模块内 `*.spec.ts`（如 `document-purge.processor.spec.ts`）→ `*.test.ts`（内存替身），接容器的 Provider 契约调用 → `apps/server/test/integration/conformance/*.int-spec.ts`（[02 §1](./02-contract-suites-and-pluggability.md)） |
 | 40/09 §9 | `render-zero-egress.e2e-spec.ts` → `smoke/renderer-egress.e2e-spec.ts`；「headless 同构冒烟打开全部语料」改归保真往返的服务端路径；模块内 `*.spec.ts` → `*.test.ts`，其中接 testcontainers 的 `pg-update-store`、`redis-fanout.bus`、`redis-lease-lock` 等 → `apps/server/test/integration/conformance/*.int-spec.ts` |
 | 40/10 §9 | ui-react `__tests__/e2e/` 的三个 Playwright spec 迁出包：`styleguide.a11y.spec.ts` → `apps/web/e2e/a11y/`，`editor.visual.spec.ts`、`perf.spec.ts` → `apps/web/e2e/ui/`（[06 §3](./06-frontend-component-and-e2e.md)）；`perf.spec.ts` 的体积断言标信息性 |
-| 40/12 §4 / §9 | 模块内 `*.spec.ts` → `*.test.ts`；接真实 PG / Valkey 的处理器与审计测试 → `apps/server/test/integration/**/*.int-spec.ts`；登记 `src/shared/clock.ts`（`CLOCK`） |
+| 40/12 §4 / §9 | 模块内 `*.spec.ts` → `*.test.ts`；接真实 PG / Valkey 的处理器与审计测试 → `apps/server/test/integration/**/*.int-spec.ts`；登记 `src/shared/clock.ts`（`CLOCK`；2026-09-26 随 TX-10 第 ② 项回写） |
 | 40/13 §9 | `test/preset-coexist.test.ts` → `test/preset-blind/preset-coexist.test.ts` |
 | 30/02 §4 | `FixedMetricsMeasurer` → `FixedWidthMeasurer` |
-| 60/02、60/04、60/06 等写作「FakeClock」处 | 统一为 `FixedClock`（`@cordexjs/shared/testing`，服务端不另建类，[11 §2](./11-test-data-fixtures-and-determinism.md#2-确定性工具目录)） |
+| 60/02、60/04、60/06 等写作「FakeClock」处 | 统一为 `FixedClock`（`@cordexjs/shared/testing`，服务端不另建类，[11 §2](./11-test-data-fixtures-and-determinism.md#2-确定性工具目录)）（2026-09-26 随 TX-10 第 ③ 项回写正文 14 处，含本线 07 §11.2 J7；旧名登记进 `docs/_tools/terms.json`，TX-02） |
 | 70/04 §3 字体锁条目 | 增加 `source`、`inProduct` 两个字段（[11 §8](./11-test-data-fixtures-and-determinism.md#8-字体-profile) 的一致性检查依赖它们；本线内部对齐） |
 
 ---
@@ -286,6 +302,7 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 2026-09-25 | v0.1 | 新建测试设计线（用户要求前端、后端、测试三份设计分开）：从 30/11、09-07、40 各 §9 收拢测试内容；本 README 与 01、11 由 te-overview 组写作，02–10、12、13 由并行组写作 |
 | 2026-09-25 | v0.1（§4.19） | 落实 rulings §4.19 五项裁决：协同后端相关步骤与用例由「M3 前置技术切片」改为 M2 激活并删去 pptx 内容版本用例；INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA 定稿并删去全部「待确认（总编排）」；13 的 `rulings.json` 生成口径加入 evidence `leftoverDecisions`；另按分诊修正 WS 断言（over_ceiling、room.locked、version.restored、X-Cordex-Epoch、L2 计数起点、auth.refresh 重新绑定）与命名、确定性、步骤表等杂项 |
 | 2026-09-25 | v0.1（§4.19 N1） | 落实 rulings §4.19 表末 N1「恢复不锁、覆盖导入换纪元」：02、05、06、07、13 删去恢复锁定的断言，新增覆盖导入换纪元与恢复不加锁的用例及追溯行 |
+| 2026-09-26 | v0.1（§4.20） | 落实 rulings §4.20 遗留小项收口（§6 末表）：WS 升级先扣后退与每用户上限（10、02、07、09）、客户端 IP（10、08）、唯一 owner 运维转移（07、10）、ADR-0038 `rs/restore-revert-*` 占位与 `history:restore-revert` 追溯（05、12、13）、UnitScope 登记表用例（02）、默认版式 / 墓碑期引用 / 删除可撤销 / 删除母版目标（05、06）、Trusted Types `default` 策略与第三方样式零违规（06、10）、`enablement` 与嵌入样式隔离（06）、`check-migrations-sync` 激活（12）、`host-footprint` 场景（09、12）、TD-110 / TD-111 采纳与 FakeClock 统一（01、07、11、README）、语料桶变量（11、12）、`check-terms` / `check-links` 执行点（13、README）；13 增加 `4.20` 标签口径与 §6.4 |
 
 ---
 
@@ -296,4 +313,5 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 本线全部 Mermaid 图通过校验（引号口径、规模、解析），0 invalid | `docs/_tools/mermaid-check.cjs` |
 | 文中「扫描器 + 名字」都能在 09-06 或 09-08 §11 查到 | `docs/_tools/check-scanner-names.py` |
 | 其它文档引用的 `job/步骤` 名都在 12 §2 定稿表内 | 评审；总编排回写时可在 `docs/_tools` 增加同类检查（不属本线工具） |
-| 本线文件之间与指向 50 / 60 的相对链接目标存在 | `docs/_tools/gen-docs-site.py` 生成结束时报告失配链接数，要求为 0 |
+| 本线文件之间与指向其它线的相对链接：目标文件存在、`#` 锚点按 GitHub 规则精确匹配（不做相近改指）；带目录前缀的章节引用（如「60/16 §1」「50-frontend/14 §4.1」）在目标文件中有该编号的标题 | `docs/_tools/check-links.py`（rulings §4.20 TX-04；只读、失配报「文件:行 → 目标」并退出码 1，改文档后必跑）；`gen-docs-site.py` 报告中的相近改指数不算通过 |
+| 术语表登记的旧名（如 `FakeClock`、`*.test-d.ts`）在本线正文中残留 0 处（本 README、01 的废止与更名对照表按 `allowIn` 放行） | `docs/_tools/check-terms.py` + `terms.json`（rulings §4.20 TX-02） |

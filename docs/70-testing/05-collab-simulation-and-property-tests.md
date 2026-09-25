@@ -1,6 +1,6 @@
 # 05 协同模拟、fuzz 与性质测试
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[30/11 §8](../30-architecture/11-testing-strategy.md)、[30/05 §6](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md)、[40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)、[40/05](../40-modules/05-collaboration-client.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、ADR-0020 / 0032 / 0033 / 0034、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3、§4.17 D4 / D5、§4.18 CO-03~CO-10、UX-02 / UX-03、§4.19 D-M2-CONTENT / INC-09 / D-TEST-INFRA
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30/11 §8](../30-architecture/11-testing-strategy.md)、[30/05 §6](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md)、[40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)、[40/05](../40-modules/05-collaboration-client.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、ADR-0020 / 0032 / 0033 / 0034、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3、§4.17 D4 / D5、§4.18 CO-03~CO-10、UX-02 / UX-03、§4.19 D-M2-CONTENT / INC-09 / D-TEST-INFRA、§4.20 FE-03 / FE-04 / FE-05 / FE-23 / TX-01+BE-10、[30/04 §12.3](../30-architecture/04-document-model.md) I-ML2
 
 本文是协同收敛、协同撤销、软门禁修复、重连与离线在测试侧的唯一事实源：模拟器组件、断言、规模档、失败种子流程、确定性场景与脚本的用例 id、性质测试目录，以及它们所在的 CI 步骤。被测语义不在这里：撤销契约见 [40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md) 与 [30/05 §6](../30-architecture/05-command-and-history.md)，软冲突表见 [30/06 §8](../30-architecture/06-collaboration.md) 与 PRD [CO-08](../10-prd/03-features/03-collaboration.md)，客户端会话与信号分流见 [50/07](../50-frontend/07-collaboration-client.md)，撤销的 UI 表达见 [50/04](../50-frontend/04-document-commands-and-undo.md)，服务端房间、溢写、墓碑见 [60/05](../60-backend/05-modules-collab-and-snapshots.md)，门禁与 ack 发出规则见 [60/16](../60-backend/16-ws-protocol-server-view.md)。契约套件（`runDocumentStoreConformance` 等）的接口与用例 id 见 [02](./02-contract-suites-and-pluggability.md)。
 
@@ -34,7 +34,7 @@
 | 里程碑 | 本文内容 |
 |---|---|
 | M2 | `test/collab-sim` 转阻断：`pr-fixed`、`pr-random`、`softgate`、`nightly` 档与 `repros.test.ts`，服务端实例数固定为 1（2–5 个客户端代表同一用户的多标签页与多设备，经同一 Room 与持久化路径，PRD 05 M2 验收 15）；断言 1–4；`sc-*` 中不依赖评论与降权的场景、`undo/*` 中除墓碑 TTL 硬删除、彻底删除元素、永久删除文档三个场景以外的全部场景；§8 软门禁全部注入类（`unauthorized-path`、`foreign-author` 用 commenter / viewer 身份的变体除外，PRD `collab:gate`）；`softgate` 档的 PG 故障叠加（单实例溢写）；§9 基础重连与会话脚本（`rs/reconnect-now`、`rs/1012-immediate`、`rs/step2-single-fifo-entry`、`rs/flush-db-only` 的 db 与 spill 分支、`rs/fifo-and-consecutive-spill`、`rs/refresh-401-expired`、`rs/reauth-reconnect`、`rs/auth-refresh-rebinds`、`rs/room-locked`、`rs/bootstrap-epoch`、`rs/epoch-4428`、`rs/over-ceiling-readonly`、`rs/close-code-behaviors`）与 `rs/unsaved-indicator` 三个分支及两类受众（PRD `collab:degraded`） |
-| M3 | 断言 5 `perm/rejected-not-leaked` 与 `sc-15`（降权）；`undo/ttl-hard-delete-whole-step`、`undo/element-purge-whole-step`、`undo/document-purge-no-ttl-wait`（随 M3 验收 17 `collab:undo`；墓碑 TTL 清扫作业本身在 M2 交付，CO-07 与永久删除随 M3）；`sc-18`（评论）；op-generator 评论类权重由 0 恢复到 §2.3 表值；`inject/unauthorized-path`、`inject/foreign-author` 的 commenter / viewer 变体；`pr-random` 与 `nightly` 档的两实例轮次（含跨实例溢写认领）；§9 的多人脚本（`rs/downgrade-*`、`rs/version-restored-notice`）；离线体验脚本（`rs/offline-*`、`rs/online-false`、`rs/server-recovery-36s`，PRD `offline:queue`；`rs/refresh-restores-offline` 随 M4 `collab-offline-idb`）；§12 跨进程变体（两实例与 PG 暂停）；`converge` 档（20 客户端、两实例，PRD `collab:converge`） |
+| M3 | 断言 5 `perm/rejected-not-leaked` 与 `sc-15`（降权）；`undo/ttl-hard-delete-whole-step`、`undo/element-purge-whole-step`、`undo/document-purge-no-ttl-wait`（随 M3 验收 17 `collab:undo`；墓碑 TTL 清扫作业本身在 M2 交付，CO-07 与永久删除随 M3）；`sc-18`（评论）；op-generator 评论类权重由 0 恢复到 §2.3 表值；`inject/unauthorized-path`、`inject/foreign-author` 的 commenter / viewer 变体；`pr-random` 与 `nightly` 档的两实例轮次（含跨实例溢写认领）；§9 的多人脚本（`rs/downgrade-*`、`rs/version-restored-notice`）；离线体验脚本（`rs/offline-*`、`rs/online-false`、`rs/server-recovery-36s`，PRD `offline:queue`；`rs/refresh-restores-offline` 随 M4 `collab-offline-idb`）；§12 跨进程变体（两实例与 PG 暂停）；`converge` 档（20 客户端、两实例，PRD `collab:converge`）；§7.1 母版与版式删除的 `ml/*` 与协同撤销用例（随删除命令入库即运行，最迟 M3 `master:edit`）；§7.2 版本恢复的撤销 `rs/restore-revert-*`（PRD `history:restore-revert`；随 ADR-0038 定稿补全，ADR 未定稿则 M3 版本恢复不开工，rulings §4.20 TX-01+BE-10） |
 
 ---
 
@@ -231,7 +231,7 @@ flowchart LR
 | `sc-17` | A 取消组合，B 同时移动组 | CO-08 | 取消组合胜，组变换烤进子元素、视觉位置不变；B 对已删组的写入落空 | 无提示 |
 | `sc-18` | A 解决评论线程，B 同时回复 | CO-08 | 回复保留，线程为已解决 | 绑定 [50/08 §5](../50-frontend/08-comments-and-version-history.md) 评论面板的派生状态：所有端该线程为已解决，且因最新回复晚于解决时刻派生出「已解决线程有新回复」内联提示；不发事件、不出 Toast，因此不用「事件恰一次」判据，改断言各端派生状态相同 |
 | `sc-19` | A、B 同时插入图片 | CO-08 | 媒体按 sha256 内容寻址，导出部件名不冲突 | 无提示 |
-| `sc-20` | A 删除版式 L，B 同时把页 P 改为 L | ML-03 | P 的 `layoutId` 悬空 → 修复为该母版默认版式 | B 端恰一次 `collab/repair{rule:'dangling-layout'}` 与 `collab/soft-conflict{type:'delete-vs-reference'}`，Toast 文案按 [50/11 §10](../50-frontend/11-masters-layouts-and-themes.md)；A 端无提示 |
+| `sc-20` | A 删除版式 L，B 同时把页 P 改为 L | ML-03；rulings §4.20 FE-04 | 两端收敛：L 为墓碑，墓碑期内 P 的 `layoutId` 仍为 L（读时容错，不写修复），渲染与导出按 `defaultLayoutOf`（30/04 §12.3 I-ML2 链）取替代版式，此时导出的 pptx 中 P 引用存活版式；变体 a：A 随后撤销删除 → L 以原 id 复活、P 显示 L，全程无修复写入；变体 b：虚拟时钟推进过墓碑 TTL、tombstone-sweeper 硬删 L → 同一事务把 P 的 `layoutId` 改为 `defaultLayoutOf` 的结果，修复只写一次（再跑一次清扫不再写） | 墓碑期 B 端恰一次 `collab/soft-conflict{type:'delete-vs-reference'}`（Toast 文案按 [50/11 §10](../50-frontend/11-masters-layouts-and-themes.md)），A 端无提示，不发 `collab/repair`；变体 b 硬删修复时各在线端恰一次 `collab/repair{rule:'dangling-layout'}`（规则名以 30/04 §12.3 为准，不用 `layout-missing`） |
 | `sc-21` | A 改版式占位符文本样式，B 在页上显式覆盖同一属性 | ML-03 | 页显式覆盖优先，其余页跟随 A | 无提示 |
 | `sc-22` | A 删除版式占位符，B 同时编辑该占位符文本 | ML-03 | B 的形状脱离为普通形状，文本保留 | 绑定 [50/11 §10](../50-frontend/11-masters-layouts-and-themes.md) 冲突表「A 删除版式上的占位符」行的占位符删除信号：B 端恰一次（Toast「占位符已被 A 删除，你的文本已保留为普通形状」），A 端不出现；事件名以 [50/07](../50-frontend/07-collaboration-client.md) 信号分流表的登记为准 |
 | `sc-23` | A、B 同时重命名同一版式 | ML-03 | 键级后写者胜 | `prop-lww` |
@@ -298,6 +298,34 @@ stateDiagram-v2
 怎么读：状态是撤销包装层处理一步撤销时的阶段，转移上写判定条件；两条「跳过」边只要命中其一即跳过该键，图中先后不代表实现顺序。整步跳过既可能来自逐键汇总，也可能在取步时就因目标已被硬删除而直接得出；无论哪条路径都停在「完成」，不连撤更早一步。复活只发生在撤销**本端**的删除，他人删除的目标永远走跳过边。
 依据：30/05 §6；40/02 §2.5 中性撤销语义第 2–4 条；rulings §4.15 Q3、§4.17 D4 / D5、§4.18 CO-07。
 
+### 7.1 母版与版式删除：撤销与目标选取
+
+rulings §4.20 FE-05 裁定删除被引用的版式或母版「确认后可撤销」（保留确认对话框，执行后入撤销栈、Toast 带「撤销」；`CommandDef.undoable` 不改为谓词），FE-23 定下删除母版时各页改用的版式，FE-03 把默认版式选取统一为 30/04 §12.3 I-ML2 链的单一纯函数 `defaultLayoutOf(body, {masterId, type?, exclude?})`（model-slide `domain/invariants/reassign.ts` 导出）。单机命令层用例经 `createCommandHarness`（model-core/testing）在 store-memory 与 store-yjs 上各跑一次；这些用例不调用 kit，按 [01 §4](./01-strategy-and-layers.md) 的文件名前缀规则归 `test/unit`。对话框文案与 Toast 的界面表达在 [06 §5](./06-frontend-component-and-e2e.md) 第 25 行。
+
+| 用例 id | 场景 | 断言 | 落点 |
+|---|---|---|---|
+| `ml/delete-layout-undo-one-step` | 删除被 3 页引用的版式 L：`slide.deleteLayout{layoutId, reassignTo}`，再 `core.undo` | 删除是一个事务、撤销栈深度 +1；一次撤销后 3 页的 `layoutId` 回到 L、L 以原 id 复活（清除墓碑），占位符重匹配结果回到删除前；`core.redo` 对称 | `model-slide/src/__tests__/master-layout-delete.test.ts`（`test/unit`） |
+| `ml/delete-layouts-batch-single-tx` | 多选删除 `slide.deleteLayout{layoutIds:[L1, L2], reassignTo}` | 一个事务；一次撤销两者都以原 id 复活、引用页全部回退 | 同上 |
+| `ml/delete-master-reassign-same-type` | 删除被引用的母版 M1：`slide.deleteMaster{masterId: M1, reassignTo: M2}`，M2 下有与原版式同 `type` 的版式 | 每个受影响页取 `defaultLayoutOf(body, {masterId: M2, type: 原版式的 type})`，页的版式 `type` 保持不变；重指引用页与删除母版及其版式在同一事务 | 同上 |
+| `ml/delete-master-fallback-first` | 同上，但 M2 下没有同 `type` 的版式；另一例不传 `reassignTo` | 该页落到 M2 按 `order` 的首个版式；不传 `reassignTo` 时目标母版取按 `order` 排序的首个剩余母版 | 同上 |
+| `ml/delete-master-undo-one-step` | 上两例之后 `core.undo` | 一步恢复：M1 与其版式以原 id 复活、各页引用回退；撤销栈深度与删除前相同 | 同上 |
+| `ml/default-layout-of-chain` | 对 `defaultLayoutOf` 构造三级回退与墓碑 | 原母版下同 `type` 首个 → 该母版首个 → 首个母版的首个；跳过墓碑与 `exclude`；删除母版首个版式时得到的 `reassignTo` 不等于被删版式；slide-ui 的编辑目标逻辑调用的是 model-slide 导出的同一符号（不另写本地实现） | `model-slide/src/domain/invariants/__tests__/reassign.test.ts`；`slide-ui/src/__tests__/edit-target.test.ts`（`test/unit`） |
+| `undo/delete-layout-revert-skips-later-writes` | A 删除被引用的版式 L（P1、P2 被重指到默认版式），B 随后把 P2 改用版式 K；A 撤销 | P1 回到 L、L 以原 id 复活；P2 的 `layoutId` 保持 K（该键在本步之后被他人写过，按 rulings §4.15 Q3 跳过）；A 端恰一次 `store/undo-skipped{wholeStep:false}` 与跳过提示 | `test/collab-sim/scenarios/undo-master-layout.test.ts`（`test/collab-sim`） |
+
+`deleteLayout(reassignTo)` 的结果与 I-ML2 修复一致由 §10 的性质测试断言；墓碑期并发引用的收敛由 §6 `sc-20` 断言。追溯标签 `@ruling 4.20/FE-03`、`4.20/FE-05`、`4.20/FE-23`（[13 §6.4](./13-requirements-traceability.md)）。
+
+### 7.2 版本恢复的撤销 `rs/restore-revert-*`（占位，随 ADR-0038）
+
+U-07「版本恢复可撤销」由 ADR-0038 version-restore-undo 立项（提议；M-02 主笔，M-05、M-09 会签，rulings §4.20 TX-01+BE-10），M2 期间起草、M2 出口评审前定稿；ADR 未定稿则 M3 的版本恢复不开工，本组用例也不入库。基线：在持有 Room 的实例内单事务执行、不加锁、不断连，走命令管线（不用 `revertTo`）；判断「他人后写」看当前值是否仍出自恢复事务的 struct 范围，不比较值是否相等；恢复时删掉的元素以原 id 复活。本节先登记用例 id 与断言骨架，场景在 `test/collab-sim/scenarios/restore-revert.test.ts`（真实客户端 + 内存服务端，服务端 Room 执行恢复与撤销事务，`test/collab-sim`），服务端路由、能力位与审计的集成用例在 ADR 定稿后登记进 [07 §9](./07-backend-integration-and-api-e2e.md)。
+
+| 用例 id | 场景 | 断言骨架 |
+|---|---|---|
+| `rs/restore-revert-skip-later-writes` | A 把文档恢复到版本 V（恢复事务改写 k1、k2、k3，并删除元素 E）；B 随后写 k2——含一个「B 写回与恢复值相同的值」的变体；持 `history.restore` 者撤销此次恢复 | k1、k3 回到恢复前的值、E 以原 id 复活；k2 保持 B 的值并计入跳过数；「写回相同值」的变体中 k2 同样被跳过（按 struct 范围判定，不按值相等）；撤销是一个事务、期间无 `room{locked}`、会话不断连；各会话恰一次 `CONTROL.event{name:'version.restore-reverted'}`，审计 `snapshot.restore_reverted` 一行 |
+| `rs/restore-revert-whole-step` | 恢复之后，恢复事务改写的每个键都被他人写过 | 不提交任何事务，返回 `wholeStep:true`；不回退更早的恢复或编辑 |
+| `rs/restore-revert-tombstone-expired` | 恢复时删除的元素 E 已过墓碑 TTL 被硬删（另一变体：经「彻底删除元素」）后撤销恢复 | E 跳过、不复活，计入跳过数；其余键照常回退 |
+
+「谁能撤销恢复」（建议任一持 `history.restore` 者）与「可撤销时效」（建议只限最近一次恢复、其后无新恢复且仍在 update 保留 7 天内）两处在 ADR-0038 定稿时交互拍板，届时补主体与时效两类断言（含越权 403 与超时效拒绝）。PRD 05 M3 检查名 `history:restore-revert` 的登记见 [13 §3.4](./13-requirements-traceability.md)；追溯标签 `@ruling 4.20/TX-01`、`4.20/BE-10` 与 `@adr 0038/<决策号>`（ADR 定稿后生效）。
+
 ---
 
 ## 8. 软门禁变体
@@ -308,7 +336,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `inject/cycle` | 两个形状 `parentId` 互指 | 环上 id 字典序最大者 `parentId=null`；客户端轻量修复结果相同 | `gate/cycle` |
 | `inject/dangling-parent` | `parentId` 指向不存在的形状 | `parentId=null` | `gate/dangling-parent` |
-| `inject/dangling-layout` | `layoutId` 指向不存在的版式 | 置为该母版首个版式；无母版则为文档首个版式 | `gate/dangling-layout` |
+| `inject/dangling-layout` | `layoutId` 指向不存在的版式（不是墓碑，见 `inject/tombstone-ref`） | 按 30/04 §12.3 I-ML2 链改为 `defaultLayoutOf` 的结果：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式（rulings §4.20 FE-03） | `gate/dangling-layout` |
 | `inject/bad-order` | `order` 写入非法字串 | 重新生成为集合末尾键 | `gate/bad-order` |
 | `inject/meta-tamper` | 改 `meta.schemaVersion` 或 `epoch` | 写回服务端已知值 | `gate/meta-restore` |
 | `inject/id-mismatch` | 实体键与内部 `id` 不一致 | 内部 `id` 写回键值 | `gate/id-rewrite` |
@@ -444,6 +472,7 @@ sequenceDiagram
 | 分数索引：`between` 的字典序性质与最短性；随机插入后键长 p99 ≤ 32 | `shared/src/__tests__/order.test.ts` | 10 万次插入 | 100 万次插入 | ADR-0032 |
 | `when` 子句往返：`parse → print → parse` 不变 | `ui-core/src/__tests__/when-clause.test.ts` | 1,000 例 | 50,000 例 | 40/10 §9 |
 | `planLayoutChange`：带显式 `transform` 的占位符换版式后位置不变；`materialize` 后文本渲染快照不变 | `model-slide/src/__tests__/mutations-property.test.ts` | 200 例 | 5,000 例 | rulings §4.18 CO-18 |
+| 随机文档上 `slide.deleteLayout{layoutId, reassignTo: defaultLayoutOf(…)}` 的结果与「直接硬删该版式再跑 I-ML2 修复」逐页 `layoutId` 相同；随机 `deleteMaster{reassignTo}` 后每页版式 `type` 在目标母版有同 `type` 时保持不变 | `model-slide/src/__tests__/master-layout-property.test.ts` | 200 例 | 5,000 例 | rulings §4.20 FE-03、FE-23；30/04 §12.3 I-ML2 |
 | OPC 往返：`parse(serialize(parse(x)))` 与 `parse(x)` 规范化后相等 | `ooxml-core/src/__tests__/opc-roundtrip.test.ts` | T1 语料 + 500 例 | 20,000 例 | 40/04 §9.1 |
 | XML 解析器往返 | `ooxml-core/src/__tests__/xml-parser-roundtrip.property.test.ts` | 1,000 例 | 50,000 例 | 40/04 §9.1 |
 | 撤销从不覆盖其他 clientId 在该步之后写入的键；软删除前后 id 不变、撤销删除后子树与并发编辑一致 | `collab-yjs/src/__tests__/soft-conflict-fuzz.test.ts`（`fixture` 文档类型，随机分区与乱序交换 update） | 200 例 | 10,000 例 | 40/05 §2.3 |
@@ -488,6 +517,9 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | INC-09 | §9 `rs/unsaved-indicator`、图 9-2 | rulings §4.19（用户裁决） |
 | D-TEST-INFRA | §14 `converge` 档运行机器 | rulings §4.19（用户裁决） |
 | D-M2-CONTENT | §1 里程碑表：`test/collab-sim` 自 M2 起阻断 | rulings §4.19（用户裁决） |
+| FE-04（墓碑期读时容错、硬删时同事务修复） | §6 `sc-20` 变体 a / b | rulings §4.20 机械修正（依 rulings §4.15 Q3、30/06 §8） |
+| FE-03、FE-05、FE-23 | §7.1 `ml/*`、`undo/delete-layout-revert-skips-later-writes`；§8 `inject/dangling-layout`；§10 删除版式与母版的性质 | rulings §4.20（FE-05 为用户裁决，FE-23 为默认值，FE-03 为机械修正） |
+| TX-01+BE-10（ADR-0038 version-restore-undo） | §7.2 `rs/restore-revert-*` 占位 | rulings §4.20（默认值，用户确认） |
 
 ---
 
@@ -516,10 +548,11 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | 固定种子集与随机轮全部通过、覆盖门槛达标 | `test/collab-sim`（`sim.test.ts` + `op-coverage.json`） |
 | 全部 repro 回放通过、repro 格式与当前命令 schema 一致 | `test/collab-sim`（`repros.test.ts`） |
 | `sc-01`~`sc-24` 与 `undo/*` 在 20 种投递顺序下结果与提示一致 | `test/collab-sim`（`scenarios/*.test.ts`） |
+| §7.1 `ml/*` 单机命令层用例（store-memory 与 store-yjs 各一次）；§7.2 `rs/restore-revert-*`（ADR-0038 定稿后入库） | `test/unit`；`test/collab-sim` |
 | 20 客户端 × 1,000 × 100 种子收敛且导出通过 XSD | `test/collab-sim` 的 `converge` 档（nightly 与发布前） |
 | `rs/*` 脚本与传输 kit `session/*` 用例 | `test/unit`（collab-yjs、collab-transport-ws）；`test/contract` |
 | 性质测试全部通过、反例进入 `examples` | `test/unit` |
 | 跨进程变体 | `test/collab-sim`（`cross-process.test.ts`，仅 nightly） |
 | 每个测试文件带 `@req PRD:CO-02` / `@ruling 4.18/CO-10` / `@adr 0034/…` 等追溯标签 | `scan-requirement-tags` 产出矩阵，P0 完整性由 `test/requirement-matrix` 判定（依据：决策 T-REQ；见 [13](./13-requirements-traceability.md)） |
 
-PRD 检查名与本文的对应（`test/collab-sim` 自 M2 起阻断，下列检查名的出口里程碑以 PRD 05 为准）：M2 `history:property` → §10；M3 `collab:converge` → §4 `converge` 档；`collab:soft-conflict` → §6；`offline:queue` → §9（`rs/offline-*`、`rs/server-recovery-36s`、`rs/offline-5mib-chunked`；断网 5 分钟编辑 500 步 ≤ 3 s 合并的计时部分属性能，见 [09](./09-performance-and-capacity.md)）；`collab:softgate` → §8；`collab:rejected-rollback` → `sc-15` 与 `rs/downgrade-rejected-export`；`collab:undo` → §7 与 [02 §4](./02-contract-suites-and-pluggability.md)。全量映射在 [12](./12-ci-gates-mapping.md) 与 [13](./13-requirements-traceability.md)。
+PRD 检查名与本文的对应（`test/collab-sim` 自 M2 起阻断，下列检查名的出口里程碑以 PRD 05 为准）：M2 `history:property` → §10；M3 `collab:converge` → §4 `converge` 档；`collab:soft-conflict` → §6；`offline:queue` → §9（`rs/offline-*`、`rs/server-recovery-36s`、`rs/offline-5mib-chunked`；断网 5 分钟编辑 500 步 ≤ 3 s 合并的计时部分属性能，见 [09](./09-performance-and-capacity.md)）；`collab:softgate` → §8；`collab:rejected-rollback` → `sc-15` 与 `rs/downgrade-rejected-export`；`collab:undo` → §7 与 [02 §4](./02-contract-suites-and-pluggability.md)；`master:edit` 的「删除被引用版式规则」→ §7.1；`history:restore-revert` → §7.2（随 ADR-0038）。全量映射在 [12](./12-ci-gates-mapping.md) 与 [13](./13-requirements-traceability.md)。

@@ -1,5 +1,5 @@
 # 08 部署拓扑与环境 e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[30/08](../30-architecture/08-backend-nestjs.md) §10 / §10.1、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-04、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[30/08](../30-architecture/08-backend-nestjs.md) §10 / §10.1、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
 
 本文是部署与环境层测试的唯一事实源：进程角色装配、compose 洁净栈冒烟、web 容器与反代子域、断网环境、镜像门禁的运行时部分、IdP 兼容矩阵、发布演练、备份恢复演练与 M4 的离线包 / 多架构 / Helm 冒烟——每一类写环境怎么搭、断言什么、何时跑。
 
@@ -171,6 +171,7 @@ sequenceDiagram
 | G9 | 路径分流：`/api/*` → api、快照与元素彻底删除 → collab、`/collab/*`（WS 升级）→ collab；WS 读超时不小于 3600 s（读取容器内生效配置断言，不做一小时等待） | 30/08 §10.1；BE-03 |
 | G10 | 证书 SAN 覆盖三个名字 | 30/08 §10.1 |
 | G11 | `storage:init` 之后读回：data 桶未开版本化、无生命周期规则；snapshots 桶已开版本化且只有一条非当前版本过期规则；两桶 CORS 符合 60/14 §5；再执行一次 `storage:init` 幂等 | 60/14 §5、OB-03 |
+| G12 | 客户端 IP 不可伪造（与 [10](./10-security-testing.md) SEC-RL-01 / RL-03 (f) 同一断言的部署层版本）：浏览器侧与测试客户端经 web 容器发请求时带伪造的 `X-Forwarded-For` 首跳（每次换值），应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加；`@Public` 端点的限流主体、WS 升级扣的 IP 桶与审计 `ip_hash` 都不随伪造值变化。**upstream 模式**另起一次：`CORDEX_WEB_TLS_MODE=upstream`，前置一个测试 LB 容器（网段登记在 `CORDEX_WEB_TRUSTED_LB_CIDRS`），web 容器只信任该网段一跳（realip），同一组断言成立，且 `$remote_addr`、`X-Forwarded-For` 与 Casdoor 看到的来源地址三者一致；`CORDEX_WEB_TRUSTED_LB_CIDRS` 为空时 web 容器拒绝启动（非零退出） | rulings §4.20 BE-04；60/17 §3.1、DEP-03 |
 
 ---
 
@@ -368,7 +369,7 @@ flowchart TB
 |---|---|
 | 五个合法角色装配与 `roles.ts` 逐项一致；60/01 §6 A1–A12 每条至少一个负向用例并以规定退出码（78 / 70）失败；`role-matrix.snapshot.json` 与 `roles.ts` 一致 | `test/server-integration`（`apps/server/test/integration/boot/role-assembly.int-spec.ts`） |
 | compose 从 `up --wait` 到全部容器健康检查通过 ≤ 3 min；主链路通过；缺鉴权配置的 production 以退出码 78 启动失败；告警规则单测通过 | `e2e/full-compose` |
-| web 容器 G1–G11（含 `/internal/*`、`/metrics`、`/healthz`、`/readyz` 经反代 404，`storage:init` 读回） | `e2e/full-compose` |
+| web 容器 G1–G12（含 `/internal/*`、`/metrics`、`/healthz`、`/readyz` 经反代 404，`storage:init` 读回，`terminate` 与 `upstream` 两种模式下伪造 `X-Forwarded-For` 首跳不改变限流主体与 `ip_hash`） | `e2e/full-compose` |
 | 断网运行期间出站记录、非白名单 DNS 查询、镜像拉取、浏览器越界请求全部为 0 | `e2e/full-airgap` |
 | 运行中镜像全部有以 digest 命名的 SBOM，主组件许可在白名单内；renderer 与 worker 版本一致；三个镜像字体 sha256 一致 | `e2e/full-compose`；静态侧 `scanners/check-image-policy` |
 | 每个 IdP 跑同一最小清单；CI 中不存在真实 IdP 密钥 | `e2e/smoke`、nightly；`test/conventions` 检查 CI 配置未引用 Entra / 飞书凭据 |
@@ -382,6 +383,7 @@ flowchart TB
 | 项 | 状态 | 处理 |
 |---|---|---|
 | compose 部署文件与恢复脚本的落点 | 以 [60/17](../60-backend/17-deployment-and-config.md) §2、§10 为准 | 本文只引用；`test/deploy/compose/*.yml` 叠加其上 |
+| 客户端 IP 与 `X-Forwarded-For`（rulings §4.20 BE-04） | 已定：HTTP 与 WS 升级共用 `clientIp()`（`http.trustProxy` 跳数自右向左取），web 容器覆盖写入 `X-Forwarded-For`，`upstream` 模式以 realip 只信任 `CORDEX_WEB_TRUSTED_LB_CIDRS` 一跳 | §4 G12（60/17 DEP-03 的 upstream 断言在此执行）；应用层同一断言见 [10](./10-security-testing.md) SEC-RL-01 / RL-03 |
 | 运行时的「角色装配报告」 | 本文用 `AppModule.forRole(role)` 在测试进程内读取装配结果，不依赖额外端点 | 若 60/01 §6 另定启动日志格式，RA1 可改为读取该日志，断言不变 |
 | `DOCKER-USER` 链需要 runner 具备 root 与 iptables | 托管 Linux runner 满足；自托管 runner 需同样条件 | 已由 [12](./12-ci-gates-mapping.md) §8 登记为 `e2e/full-airgap` 的 runner 前提；性能 runner 按 rulings §4.19 D-TEST-INFRA 定稿（M1 GitHub larger runner，自托管专用 runner M2 前落地，见 [09](./09-performance-and-capacity.md) §9） |
 | 断网用例落点 | [10](./10-security-testing.md) SEC-EG-03 写作 `test/deploy/airgap/**`，本文 §1 目录为 `test/deploy/specs/airgap.spec.ts` + `compose/compose.airgap.yml` | `test/deploy/` 布局以本文为准，请 10 同步 |

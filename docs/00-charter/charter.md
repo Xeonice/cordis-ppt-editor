@@ -1,6 +1,6 @@
 # 项目章程（Charter）—— 基于 cordis 的可插拔办公文档 SDK 与在线协同编辑器
 
-> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-19（D10 术语、§5.2 补应用栏 ⋯/头像；14 §1 C-01…C-30 模块设计线跨模块收敛回写：§5.2 依赖上限四行 + `@cordexjs/design` 行、§5.5 事件域并集，裁决见 rulings §4.11）；2026-09-22：§5.2 `package.json#cordex` 扩展为八键；2026-09-24（rulings §4.15，§10 Q1–Q10 用户裁决回写正文）：§2.3 新增「单组织、不做多租户/自营 SaaS」与动画结束态按场景；§4.1 RenderTarget 术语；§4.2 补「身份来源」；§5.2 slide-render 依赖上限加 ooxml-core（C-28 修订）、server-headless/apps/server 去租户与 renderer 角色；§5.3 规则 4 为 apps/web 放行 react/react-dom/react-router/tailwindcss/@tailwindcss/*；§5.4 服务端/UI/渲染行；§6.1 D9 改 pnpm 11 双锁 + Node 26、D10「可换」改写为可验证范围、D13 镜像口径与 D16 解释；§6.2 已定行标为已接受并删「缩略图/放映可走 canvas」；§7 M1–M4 受影响描述；2026-09-24（rulings §4.16）：§7 补不定周期说明（Q13）、M4 可插拔证据改为内部非核心成员（Q11）；2026-09-24（复核修正，rulings §4.17）：Ticket 术语补 60 s 单次、CRDT 行与 §10 Q3 补 D4（被他人删除即跳过、不看 TTL）、目录树补 playground 并标 prototype/mockups 已退役
+> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-19（D10 术语、§5.2 补应用栏 ⋯/头像；14 §1 C-01…C-30 模块设计线跨模块收敛回写：§5.2 依赖上限四行 + `@cordexjs/design` 行、§5.5 事件域并集，裁决见 rulings §4.11）；2026-09-22：§5.2 `package.json#cordex` 扩展为八键；2026-09-24（rulings §4.15，§10 Q1–Q10 用户裁决回写正文）：§2.3 新增「单组织、不做多租户/自营 SaaS」与动画结束态按场景；§4.1 RenderTarget 术语；§4.2 补「身份来源」；§5.2 slide-render 依赖上限加 ooxml-core（C-28 修订）、server-headless/apps/server 去租户与 renderer 角色；§5.3 规则 4 为 apps/web 放行 react/react-dom/react-router/tailwindcss/@tailwindcss/*；§5.4 服务端/UI/渲染行；§6.1 D9 改 pnpm 11 双锁 + Node 26、D10「可换」改写为可验证范围、D13 镜像口径与 D16 解释；§6.2 已定行标为已接受并删「缩略图/放映可走 canvas」；§7 M1–M4 受影响描述；2026-09-24（rulings §4.16）：§7 补不定周期说明（Q13）、M4 可插拔证据改为内部非核心成员（Q11）；2026-09-24（复核修正，rulings §4.17）：Ticket 术语补 60 s 单次、CRDT 行与 §10 Q3 补 D4（被他人删除即跳过、不看 TTL）、目录树补 playground 并标 prototype/mockups 已退役；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）：§5.1 铁律 1 与 §5.3 规则 3 改为「非组合根的水平层包」、图 5-1/5-10 同步（FE-01）；§5.2 server-headless 改为文档类型盲、apps/server 由 `src/cordis-host/**` 装配束包（FE-01），「依赖上限」列定 L0 隐式口径并按实际用法补边、apps/web 上限对齐 R9（FE-02/FE-05），图 5-4 至 5-8 同步、原图 5-8 拆为 5-8a/5-8b；`package.json#cordex` 八键补 `implements`、`bundle` 对组合根 preset 选填、`rank` 不入包元数据（FE-21/FE-01）；slide-render 行注明图表只读渲染器为惰性子路径 `./chart`（FE-08）；§5.3 规则 7 改为「只走 `publicEntry` 登记的子路径」（FE-04）、规则 8 含带 bundle 的 preset；§4.1 `Origin` 补 `system(maintenance)` 与分批装载的 `system(import)`（CO-07/CO-12）；kernel 行 `Service` 为值导出（顺带对齐 §4.14 K-1）；§8 文档树补齐、「30 个限界上下文」（GV-09/GV-10）；§9.2 第 4 条改为 Mermaid 优先（GV-04）；§6.2 插件清单行澄清 `manifest.ts` 为入库生成物（GV-17）；§10 Q5「超包络」改「超系统天花板」（UX-13）
 > 读者：产品 / 设计 / 架构 / 类型治理各条线的 agent 与人类评审者。
 > 本文是所有下游文档（PRD、设计稿、架构文档）的**共同输入**。下游文档不得与本文冲突；若有异议，写入各自 README 的「对章程的异议/建议」段落，由总编排裁决后回写本文。
 > v0.2 变更：吸收五条线的异议与建议（裁决明细见 [rulings-2026-09-14.md](./rulings-2026-09-14.md)）：垂直束改为「层带」并给出机械化秩表（§5.1/§5.3）；新增 `preset-slide-viewer`、`collab-offline-idb`、`slide-render-chart` 三包（§5.2）；`package.json#cordex` 字段规范（§5.2）；依赖规则第 8 条「束间隔离」（§5.3）；服务名/贡献点 id 定稿与第三方前缀规则（§5.5）；D7/D8/D9/D11/D12 补充与 D14–D16 新增（§6.1）；里程碑 M2/M3 微调（§7）；术语表扩充（§4）；待用户决策扩至 Q20（§10）。v0.2 与 v0.1 兼容（只增不改语义），下游标注「依赖：charter v0.1」的文档无需重写。
@@ -96,7 +96,7 @@
 | 变更 | `Mutation` | **唯一**修改 Store 的操作；可序列化、确定性、可权限校验、可审计；只能在事务内产生，外部不可直接执行；逆操作由 Store 推导（不手写） |
 | 操作 | `Operation` | 视图状态变化（选区、缩放、当前页）；不持久化，可作为 presence 广播 |
 | 事务 | `Transaction` | 一组 Mutation 的原子应用单元，也是撤销/重做粒度；携带 `Origin` |
-| 来源 | `Origin` | 事务来源：`local(clientId)` / `remote` / `system(import|migration)` / `repair` / `replay`；撤销只作用于 `local` |
+| 来源 | `Origin` | 事务来源：`local(clientId, via?)` / `remote` / `system(reason)` / `replay`，`reason` ∈ `load`、`import`、`migration`、`repair`、`restore`、`maintenance`（取值集合以架构 04 §2 与 40-modules/02 `store/origin.ts` 为准，2026-09-25 对齐）；撤销只作用于 `local`。`system(import)` 也用于大文件打开时首批之后的分批追加（不入撤销栈、`DirtyTracker` 忽略，rulings §4.18 CO-12）；`system(maintenance)` 为服务端单写者的维护事务（墓碑 TTL 硬删除、经审计的「彻底删除元素」、键长治理，CO-07） |
 | 变更集 | `ChangeSet` | 一次事务触及的 `StoreOp[]` + 派生脏路径集合，供渲染与编解码做脏追踪 |
 | 快照 | `Snapshot` | 模型的持久化形态（JSON，带 `schemaVersion`）；与运行时模型有**显式编解码边界**；只含 `BlobRef`，不含二进制 |
 | 快照包 | `SnapshotBundle` | `Snapshot` + 内容寻址 Blob 集合 |
@@ -118,6 +118,62 @@
 | 层带 | band | 垂直束包的层位标签：`V-model`/`V-codec`/`V-render`/`V-ui`，各有可依赖的水平层上限（§5.1） |
 | 夹具文档类型 | `fixture` | `model-core/testing` 提供的测试专用 `DocumentType`，用于验证文档类型盲 |
 
+**图 4-1 命令到存储、渲染与导出的术语链**
+
+```mermaid
+flowchart TB
+  cmd["Command 命令：用户意图，返回 Result"]
+  tx["Transaction 事务：原子应用单元与撤销粒度，携带 Origin，撤销只作用于 local"]
+  mut["Mutation 变更：唯一修改 Store 的操作，只能在事务内产生"]
+  op["StoreOp 存储原语：set、delete、insert、remove、text"]
+  store["DocumentStore 存储：transact、observe、undo、redo，逆操作由 Provider 推导"]
+  prov["Provider：store-memory、store-yjs"]
+  cs["ChangeSet 变更集：本次事务的 StoreOp 与派生脏路径集合"]
+  dirty["DirtyTracker 脏追踪器：模型路径前缀与 Part 名映射"]
+  scene["SceneProvider 场景提供者：把 ChangeSet 映射为脏节点"]
+  opn["Operation 操作：视图状态，不持久化"]
+  pres["Presence 在场信息：非持久状态"]
+  cmd -->|"在一个事务内执行"| tx
+  tx -->|"包含若干"| mut
+  mut -->|"lowering 降级：文档类型贡献的纯函数"| op
+  op -->|"Store 只理解原语"| store
+  prov -.->|"实现"| store
+  store -->|"每次事务产出"| cs
+  cs -->|"编解码脏追踪"| dirty
+  cs -->|"渲染脏追踪"| scene
+  opn -->|"可作为广播"| pres
+```
+
+怎么读：实线为术语之间的产生或使用关系，虚线为 Provider 实现 Definition；从 Command 到 ChangeSet 的主链是唯一的模型修改路径，`Operation` 与之并列、不进入事务与 Store。
+依据：本节 §4.1 术语定义；§6.1 D4、D5。
+
+**图 4-2 持久化形态术语关系**
+
+```mermaid
+flowchart LR
+  ext["外部格式文件，如 pptx"]
+  codec["FormatCodec 编解码器：按 MIME 注册到 core.format"]
+  model["Model 运行时模型：经 DocumentStore 读写"]
+  snap["Snapshot 快照：JSON，带 schemaVersion，只含 BlobRef"]
+  bundle["SnapshotBundle 快照包：Snapshot 加内容寻址 Blob 集合"]
+  ref["BlobRef：hash、size、contentType"]
+  blob["BlobStore 中的不可变字节"]
+  hook["ResourceHook 资源钩子：插件自有数据进入 Snapshot 的唯一途径"]
+  derived["Derived 派生字段：由 Persisted 剔除"]
+  ext <-->|"导入与导出"| codec
+  codec <-->|"外部格式与模型互转"| model
+  model <-->|"显式编解码边界"| snap
+  snap -->|"组成"| bundle
+  bundle -->|"包含"| blob
+  snap -->|"只以引用出现"| ref
+  ref -->|"指向"| blob
+  hook -->|"挂入"| snap
+  derived -.->|"不得进入"| snap
+```
+
+怎么读：双向箭头是可逆的编解码边界，单向实线为组成或引用关系，虚线表示被类型系统禁止的流向；二进制从不直接进入 Snapshot，只经 `BlobRef` 引用。
+依据：本节 §4.1；§6.1 D6。
+
 ### 4.2 协同与服务端术语
 
 | 术语 | 定义 |
@@ -132,6 +188,26 @@
 | FracKey | fractional index 字符串，用于有序集合的并发插入/移动 |
 | Version | 一次命名或自动快照，构成版本历史 |
 | Soft Conflict（软冲突） | CRDT 收敛后语义上仍需提示用户的并发情形（如「你正在编辑的页被他人删除」） |
+
+**图 4-3 协同与服务端术语关系**
+
+```mermaid
+flowchart LR
+  ticket["Ticket：短时签名凭据，携带角色与权限版本"]
+  session["Session：一个客户端与一个 Room 的连接生命周期"]
+  room["Room：一份文档的协同会话集合与其 Y.Doc 副本，即服务端 Unit"]
+  upd["Update 与 StateVector：Yjs 二进制增量与已知时钟向量"]
+  comp["Compaction：用一个快照替换其前的 update 序列"]
+  repair["Repair：服务端软门禁发出的补偿事务，origin 为 repair"]
+  ticket -->|"用于 WS 握手，建立"| session
+  session -->|"加入"| room
+  session <-->|"交换"| upd
+  room -->|"对 update 序列执行"| comp
+  repair -->|"应用到"| room
+```
+
+怎么读：箭头为术语之间的使用或作用关系，从握手凭据到会话、房间，再到房间内的增量、压缩与修复；身份来源、版本、软冲突等其余术语不涉及这条链，未画入。
+依据：本节 §4.2。
 
 ### 4.3 产品与质量术语
 
@@ -148,48 +224,85 @@
 
 ### 5.1 分层 × 文档类型 网格（核心图）与秩表
 
-```
-                     水平层（文档类型盲，可被任一垂直束复用）
- 层号  层名          包（@cordexjs/*）                                              同构类     秩
- ───── ───────────── ─────────────────────────────────────────────────────────── ───────── ──
- L0    基础          shared · kernel · protocol · i18n                            iso        0
- L1    文档内核      model-core · store-memory · store-yjs                        iso       10
- L3    格式基础      ooxml-core                                                   iso       30
- L4    协同          collab-core · collab-yjs · collab-transport-ws               iso       40
-                     collab-offline-idb                                           dom       40
- L5    引擎          engine-layout · engine-render                                iso       50
-                     render-dom                                                   dom       50
- LS    服务端        server-collab · server-storage · server-headless             node      58
- L7    UI 基座       design · ui-core · ui-react                                  dom       70
- L8    组装          preset-slide · preset-slide-collab · preset-slide-viewer     dom       80
-                     preset-doc · preset-sheet（M5，rulings §4.12 U-01）          dom       80
-                     apps/web (dom) · apps/server (node)
+本节原为一张 ASCII 网格，2026-09-25 拆为三张图（水平层、垂直束、层带上限）与下方的铁律列表，内容不变；全局秩序列见 §5.3 图 5-9。
 
-                     垂直束（每束横跨四个层带；束与束之间互不依赖）
-                 ┌───────────────┬───────────────┬───────────────┐
- 层带     上限   │  slide (M1-)  │  doc (M5)     │  sheet (M5)   │  同构类   秩
- V-model  ≤L1   │ model-slide   │ model-doc     │ model-sheet   │  iso     15
- V-codec  ≤L3   │ ooxml-pptx    │ ooxml-docx    │ ooxml-xlsx    │  iso     35
- V-render ≤L5   │ slide-render  │ doc-render    │ sheet-render  │  dom     55
-                │ slide-render-chart (M3 起，可选) │              │  dom     55
- V-ui     ≤L7   │ slide-ui      │ doc-ui        │ sheet-ui      │  dom     75
-                 └───────────────┴───────────────┴───────────────┘
+**图 5-1 水平层与秩（文档类型盲，可被任一垂直束复用）**
 
- 铁律 1（文档类型盲）：水平层的任何包 **不得** import 任何垂直束的包。
- 铁律 2（束间隔离）：不同 bundle 的垂直束包互不 import（如 model-slide ✗→ model-doc）。
- 铁律 3（只向下）：rank(import 目标) ≤ rank(自身)；垂直束同束内按层带向下（V-ui → V-render → V-codec → V-model）。
- 铁律 4（同构类）：node 不得 import dom；iso 只能 import iso；dom 可 import iso/dom。
- 说明：LS 秩 58 允许 server-* 依赖 L5 的 iso 包（engine-layout、engine-render 契约）；render-dom 由铁律 4 拦截。
+```mermaid
+flowchart TB
+  L8["L8 组装 · 秩 80 · 全部为组合根 · dom：preset-slide、preset-slide-collab、preset-slide-viewer；preset-doc、preset-sheet 为 M5，rulings §4.12 U-01；apps/web 为 dom，apps/server 为 node"]
+  L7["L7 UI 基座 · 秩 70 · dom：design、ui-core、ui-react"]
+  LS["LS 服务端 · 秩 58 · node：server-collab、server-storage、server-headless"]
+  L5["L5 引擎 · 秩 50 · iso：engine-layout、engine-render；dom：render-dom"]
+  L4["L4 协同 · 秩 40 · iso：collab-core、collab-yjs、collab-transport-ws；dom：collab-offline-idb"]
+  L3["L3 格式基础 · 秩 30 · iso：ooxml-core"]
+  L1["L1 文档内核 · 秩 10 · iso：model-core、store-memory、store-yjs"]
+  L0["L0 基础 · 秩 0 · iso：shared、kernel、protocol、i18n"]
+  L8 --> L7 --> LS --> L5 --> L4 --> L3 --> L1 --> L0
 ```
+
+怎么读：自上而下按秩递减排列，包名均省略 `@cordexjs/` 前缀；箭头只表示「只向下」的允许方向，不代表相邻层之间一定有实际依赖；能否依赖还要同时满足铁律 4 的同构类约束（例如 L7 的 dom 包不能依赖 LS 的 node 包）。L8 的包全部是组合根（`cordex.compositionRoot: true`），不受铁律 1 约束；L0 至 L7 与 LS 都是非组合根的水平层包，铁律 1 对它们无条件生效。
+依据：本节铁律 1；rulings §4.18 FE-01。
+
+**图 5-2 垂直束 × 层带网格（每束横跨四个层带；束与束之间互不依赖）**
+
+```mermaid
+flowchart TB
+  subgraph sheet["sheet 束 · M5"]
+    direction TB
+    xui["V-ui：sheet-ui"] --> xrender["V-render：sheet-render"] --> xcodec["V-codec：ooxml-xlsx"] --> xmodel["V-model：model-sheet"]
+  end
+  subgraph doc["doc 束 · M5"]
+    direction TB
+    dui["V-ui：doc-ui"] --> drender["V-render：doc-render"] --> dcodec["V-codec：ooxml-docx"] --> dmodel["V-model：model-doc"]
+  end
+  subgraph slide["slide 束 · M1 起"]
+    direction TB
+    sui["V-ui：slide-ui"] --> srender["V-render：slide-render"] --> scodec["V-codec：ooxml-pptx"] --> smodel["V-model：model-slide"]
+    schart["V-render：slide-render-chart · M3 起，可选"] --> srender
+  end
+```
+
+怎么读：每个子图是一个垂直束，束内箭头是铁律 3 规定的同束向下方向（V-ui → V-render → V-codec → V-model），`slide-render-chart` 指向 `slide-render` 取自 §5.2 的依赖上限；三个子图之间没有任何箭头，对应铁律 2 束间隔离。
+
+**图 5-3 层带的上限、同构类与秩**
+
+```mermaid
+flowchart LR
+  vm["V-model · 秩 15 · iso"]
+  vc["V-codec · 秩 35 · iso"]
+  vr["V-render · 秩 55 · dom"]
+  vu["V-ui · 秩 75 · dom"]
+  h1["L1 文档内核 · 秩 10"]
+  h3["L3 格式基础 · 秩 30"]
+  h5["L5 引擎 · 秩 50"]
+  h7["L7 UI 基座 · 秩 70"]
+  vm -->|"上限 ≤L1"| h1
+  vc -->|"上限 ≤L3"| h3
+  vr -->|"上限 ≤L5"| h5
+  vu -->|"上限 ≤L7"| h7
+```
+
+怎么读：每个层带可依赖的水平层最高到箭头所指的一层（含），层带的秩恰好落在该层与更高一层之间，因此「上限」与「秩只向下」两种表述等价。
+
+铁律（原网格下方文字；铁律 1 于 2026-09-25 按 rulings §4.18 FE-01 修订，其余原样保留）：
+
+- 铁律 1（文档类型盲）：水平层中**非组合根**的任何包 **不得** import 任何垂直束的包。组合根（`cordex.compositionRoot: true`，仅 `preset-*`、`apps/web`、`apps/server`）豁免本条，但仍各受约束：`preset-*` 以其 `cordex.bundle` 受铁律 2 约束（如 `preset-doc` 不得 import slide 束）；`apps/web` 受 R9 白名单约束，只 import preset、不直接 import 束包；`apps/server` 只在 `src/cordis-host/**`（`preset-server.ts`）装配束包。`server-headless` 等 LS 包没有豁免，文档类型盲，所需的文档类型插件由 `apps/server` 以插件清单传入（2026-09-25，rulings §4.18 FE-01）。
+- 铁律 2（束间隔离）：不同 bundle 的垂直束包互不 import（如 model-slide ✗→ model-doc）。
+- 铁律 3（只向下）：rank(import 目标) ≤ rank(自身)；垂直束同束内按层带向下（V-ui → V-render → V-codec → V-model）。
+- 铁律 4（同构类）：node 不得 import dom；iso 只能 import iso；dom 可 import iso/dom。
+- 说明：LS 秩 58 允许 server-* 依赖 L5 的 iso 包（engine-layout、engine-render 契约）；render-dom 由铁律 4 拦截。
 
 ### 5.2 包清单（v0.2；npm scope 已裁决，见 §10 Q1）
 
 > 架构-结构条线在 `02-layering-and-packages.md` 中把每个包细化到**目录级**；此处只定边界与职责，不得更名（除非经章程修订）。
+>
+> **「依赖上限」列口径**（2026-09-25，rulings §4.18 FE-02）：L0 的 `kernel`、`shared`、`protocol` 对**非 L0 包隐式允许**，本列可以不写（已写出的保留，与隐式等价）；`design`（R18）与 `shared`（R11）保持零依赖，不适用隐式规则；L0 包之间（含 `i18n`）仍逐条显式，例如 `kernel` 只依赖 `shared`，不因隐式规则获得 `protocol`。各包 `package.json` 的内部依赖须 ⊆ 本列 ∪ 隐式 L0；tsconfig `references` 等于 `package.json` 内部依赖。本列导出为机器可读的 `tooling/policy/dependency-limits.json`，由现有的 `sync-references` 与 `scan-manifest` 校验（配负向夹具）。本列是上限，不等于实际 import；实际依赖以 `40-modules` 各模块文档为准，但不得超出本列。
 
 | 包 | 层/层带 | 同构 | 职责边界 | 依赖上限 |
 |---|---|---|---|---|
 | `@cordexjs/shared` | L0 | iso | 纯工具、品牌类型（`Emu`、`Pt`、`UnitId`、`SlideId`、`NodeId`…）、`Result` 类型、断言；**零依赖 cordis**；零领域知识 | — |
-| `@cordexjs/kernel` | L0 | iso | 唯一 import `cordis`；re-export `Context/Service/Plugin` 类型；`createHost`；`defineContributionPoint`/`ctx.contribute`/`ctx.contributions`；Manifest 类型与校验；`errors`/`telemetry` 服务与 logger 适配；`createIsolatedScope`（文档无关）；Disposable 与诊断工具 | shared |
+| `@cordexjs/kernel` | L0 | iso | 唯一 import `cordis`；re-export `Context`/`Plugin` 等类型与 `Service`（值导出，插件写 `class X extends Service`，rulings §4.14 K-1）；`createHost`；`defineContributionPoint`/`ctx.contribute`/`ctx.contributions`；Manifest 类型与校验；`errors`/`telemetry` 服务与 logger 适配；`createIsolatedScope`（文档无关）；Disposable 与诊断工具 | shared |
 | `@cordexjs/protocol` | L0 | iso | 前后端共享契约：REST DTO、WS 消息、错误码、权限能力位；全部为 Standard Schema（zod 4）定义并导出推导类型；禁止 `enum` | shared |
 | `@cordexjs/i18n` | L0 | iso | 从 zh-CN 源文件反推**编译期 key 类型**；`ctx.i18n` 服务；`i18n.bundle` 贡献点 | kernel |
 | `@cordexjs/model-core` | L1 | iso | `Unit`/`UnitScope`/`units` 服务、`DocumentType` 贡献点、`DocumentStore` Definition 与 `StoreOp`、Command/Mutation/Operation + `commands` 服务（单一执行入口）、`history`、`Transaction`/`Origin`/`ChangeSet`、`Snapshot`/`SnapshotBundle` 编解码 + `schemaVersion` + `core.migration`、`ResourceHook`（`core.resource`）、`permissions`（fail-closed，`core.permissionPolicy`）、`core.format` 贡献点、通用 `Selection<A>` 类型、`drawing/`（DrawingML 共享绘图词汇的运行时类型与 schema，无 XML、无文档类型知识）、`testing/`（`fixture` 文档类型、conformance 套件） | kernel, shared, protocol |
@@ -197,7 +310,7 @@
 | `@cordexjs/store-yjs` | L1 | iso | `DocumentStore` Provider：Y.Doc 映射、`UndoManager`（按 origin）、update 编码；公共 API 不暴露 `Y.*` 类型 | model-core |
 | `@cordexjs/model-slide` | V-model | iso | Presentation/Master/Layout/Slide/Shape 树/TextBody/Theme 模型；幻灯片 Mutation 及其 `lower()`；样式继承链解析（纯函数）；`OpaqueXml`/`extensions` 槽；`validateChangeSet`/修复规则（服务端与客户端共用）；`testing/` | model-core |
 | `@cordexjs/ooxml-core` | L3 | iso | OPC（zip/`[Content_Types]`/rels）、命名空间感知 XML（自研最小保真 DOM）、Strict↔Transitional 归一化、DrawingML 编解码（类型来自 model-core/drawing）、`DirtyTracker` 与不透明保留引擎、`testing/`（`diffPackage` 与规范化器） | shared, model-core |
-| `@cordexjs/ooxml-pptx` | V-codec | iso | PresentationML ↔ model-slide 的 `FormatCodec`；占位符与继承；媒体部件 | ooxml-core, model-slide |
+| `@cordexjs/ooxml-pptx` | V-codec | iso | PresentationML ↔ model-slide 的 `FormatCodec`；占位符与继承；媒体部件 | ooxml-core, model-slide, model-core（媒体部件经 `BlobStore`；2026-09-25 按实际用法补，FE-02） |
 | `@cordexjs/collab-core` | L4 | iso | Definition：`collab` 服务契约（session/room 状态机、awareness 模型、权限检查点、`OfflineStore` 接口）、`collabTransport` Definition | model-core, protocol |
 | `@cordexjs/collab-yjs` | L4 | iso | Provider：y-protocols 同步 + awareness，依赖 store-yjs 的 Y.Doc | collab-core, store-yjs |
 | `@cordexjs/collab-transport-ws` | L4 | iso | `collabTransport` Provider：WebSocket 传输、重连退避、Ticket 握手 | collab-core |
@@ -205,27 +318,221 @@
 | `@cordexjs/engine-layout` | L5 | iso | `TextMeasurer` Definition（`layout.measurer`）、断行、字体回退、预设几何（OOXML prstGeom → path）、单位换算 | shared, kernel |
 | `@cordexjs/engine-render` | L5 | iso | 渲染契约与管线：`Scene`、`render.scene`/`render.target`/`render.element`/`render.overlay` 贡献点、视口/缩放、脏区与虚拟化、命中测试契约；**对幻灯片无知** | kernel, engine-layout |
 | `@cordexjs/render-dom` | L5 | dom | `RenderTarget` Provider：HTML/SVG 输出、图层、覆盖层宿主、IME 文本输入宿主、浏览器 canvas `TextMeasurer` Provider | engine-render, engine-layout |
-| `@cordexjs/slide-render` | V-render | dom | 幻灯片 `SceneProvider` 与元素渲染器（sp/pic/grpSp/cxnSp/graphicFrame: table/ole；图表 M1–M2 只读解析 `c:chart` 部件渲染；SmartArt 渲染 `dsp:drawing`；解析器位于 ooxml-core）、母版/版式/页合成、缩略图 | model-slide, ooxml-core, engine-render, engine-layout, render-dom |
-| `@cordexjs/slide-render-chart` | V-render | dom | M3 起从 slide-render 拆出的可选图表渲染/编辑插件，隔离图表库体积 | slide-render |
+| `@cordexjs/slide-render` | V-render | dom | 幻灯片 `SceneProvider` 与元素渲染器（sp/pic/grpSp/cxnSp/graphicFrame: table/ole；图表 M1–M2 只读解析 `c:chart` 部件渲染；SmartArt 渲染 `dsp:drawing`；解析器位于 ooxml-core）、母版/版式/页合成、缩略图。图表只读渲染器 M1–M2 是本包的惰性子路径 `@cordexjs/slide-render/chart`（遇到图表元素才加载），主包只含图表占位渲染器，渲染器未加载时发 `render/element-degraded{reason:'chart-unavailable'}`（rulings §4.18 FE-08） | model-slide, ooxml-core, engine-render, engine-layout, render-dom |
+| `@cordexjs/slide-render-chart` | V-render | dom | M3 起从 slide-render 拆出的可选图表渲染/编辑插件，隔离图表库体积 | slide-render, engine-render, model-slide, ooxml-core；model-core 仅类型或注入（2026-09-25 按实际用法补，FE-02） |
 | `@cordexjs/design` | L7 | dom | 设计 token（颜色/间距/字号/圆角/阴影/z-index/动效/密度；shadcn 变量 + Cordex 扩展变量（`--glass-*`、`--layer-*`、`--duration-*`、`--ease-*`、`--control-h-*`、`--text-2xs` 等裸名）；`--cordex-*` 已作废（2026-09-18））；**零依赖 SDK** | — |
 | `@cordexjs/ui-core` | L7 | dom | 框架无关的壳：`ui.*` 贡献点、输入管线 → 命令、视图模型；无 React；只允许 import `@cordexjs/design` 的 `css/tokens.css` 与 type-only token 名 | kernel, model-core, design(仅 token), i18n, shared |
 | `@cordexjs/ui-react` | L7 | dom | React 19 绑定：把 ui-core 贡献渲染成组件；`<EditorHost>` | ui-core, design |
 | `@cordexjs/slide-ui` | V-ui | dom | 幻灯片专属 UI 贡献：插入/格式 ribbon 页签、缩略图侧栏、属性面板、放映模式 | slide-render, ui-react, ui-core, design, model-slide |
-| `@cordexjs/preset-slide` | L8 | dom | 单人 pptx 打开/编辑/导出的插件束 + 默认配置 | 上述 |
-| `@cordexjs/preset-slide-collab` | L8 | dom | preset-slide + 协同（store-yjs 替换 store-memory，加 collab-*） | 上述 |
-| `@cordexjs/preset-slide-viewer` | L8 | dom | 只读查看器：无编辑 UI、无 collab；体积预算见 PRD OF-14 | 上述 |
-| `@cordexjs/preset-doc` | L8 | dom | doc 单人预设，M5（rulings §4.12 U-01） | 同 preset-slide 口径 |
-| `@cordexjs/preset-sheet` | L8 | dom | sheet 单人预设，M5（rulings §4.12 U-01） | 同 preset-slide 口径 |
-| `@cordexjs/server-collab` | LS | node | cordis 插件（提供 `collabServer`）：房间、awareness 广播、update 持久化与 Compaction、软门禁修复、跨实例 pub/sub；与 Nest 解耦 | collab-core, store-yjs, protocol |
+| `@cordexjs/preset-slide` | L8 | dom | 单人 pptx 打开/编辑/导出的插件束 + 默认配置；组合根，`cordex.bundle` 标 `slide` | 上述 |
+| `@cordexjs/preset-slide-collab` | L8 | dom | preset-slide + 协同（store-yjs 替换 store-memory，加 collab-*）；组合根，`cordex.bundle` 标 `slide` | 上述 |
+| `@cordexjs/preset-slide-viewer` | L8 | dom | 只读查看器：无编辑 UI、无 collab；体积预算见 PRD OF-14；组合根，`cordex.bundle` 标 `slide` | 上述 |
+| `@cordexjs/preset-doc` | L8 | dom | doc 单人预设，M5（rulings §4.12 U-01）；组合根，`cordex.bundle` 标 `doc` | 同 preset-slide 口径（只含 doc 束，规则 8） |
+| `@cordexjs/preset-sheet` | L8 | dom | sheet 单人预设，M5（rulings §4.12 U-01）；组合根，`cordex.bundle` 标 `sheet` | 同 preset-slide 口径（只含 sheet 束，规则 8） |
+| `@cordexjs/server-collab` | LS | node | cordis 插件（提供 `collabServer`）：房间、awareness 广播、update 持久化与 Compaction、软门禁修复、跨实例 pub/sub；与 Nest 解耦 | collab-core, store-yjs, model-core, protocol（model-core 为 2026-09-25 按实际用法补，FE-02） |
 | `@cordexjs/server-storage` | LS | node | `BlobStore` Definition 与 Provider（S3 兼容/本地）；唯一允许 import S3 SDK 的 server 包 | shared |
-| `@cordexjs/server-headless` | LS | node | Node 中的 cordis 宿主（`createHost`）：加载 iso 插件做导入/导出/校验/迁移；Node 字体 `TextMeasurer` Provider；缩略图/PDF 的 headless Chromium 适配（在独立零出站 renderer sidecar 中运行，ADR-0026） | kernel, model-*, ooxml-*, engine-layout |
-| `apps/web` | L8 | dom | Vite + React 应用壳：登录（OIDC 授权码 + PKCE；注册入口仅在部署开关 `auth.selfSignup` 开启时出现）、**开始页（新建/模板/最近/指南入口，PRD AS-01）**、文档列表、账户菜单（设置/快捷键/帮助/退出）、编辑器应用栏「⋯」更多菜单与账户头像（rulings §4.10 Q14/Q20，2026-09-18）、分享/权限入口、版本入口、编辑器路由、`/render` headless 渲染页；仅组装 preset | preset-* |
-| `apps/server` | L8 | node | NestJS 11：Auth（只认 OIDC，M4 加集成方签名 JWT/API Key）、Users、Documents（含分享与文档权限；单组织，无租户）、Storage、CollabGateway、ImportExport、Snapshots、Thumbnails、Comments、Audit、Health 模块；同一镜像按 `CORDEX_ROLE`（all/api/collab/worker/renderer）运行；pg / Redis 协议（默认 Valkey）/ S3 兼容（默认 SeaweedFS）等 IO 适配器以 cordis 插件形式放在对应模块目录 | server-*, protocol |
+| `@cordexjs/server-headless` | LS | node | Node 中的 cordis 宿主（`createHeadlessHost({ plugins })`，内部调用 `createHost`）：挂载调用方给定的 iso 插件清单（由 `apps/server` 的 `preset-server.ts` 选定；`worker_threads` 按清单中的模块路径加载）做导入/导出/校验/迁移，按 `documentType` 经 `formats`/`documentTypes` 服务取编解码器；**文档类型盲**，不 import 任何垂直束包（2026-09-25，rulings §4.18 FE-01）；Node 字体 `TextMeasurer` Provider；缩略图/PDF 的 headless Chromium 适配（在独立零出站 renderer sidecar 中运行，ADR-0026） | kernel, protocol, model-core, store-*, ooxml-core, engine-layout, engine-render（iso 契约）（FE-01 改写，原「model-*, ooxml-*」作废） |
+| `apps/web` | L8 | dom | Vite + React 应用壳：登录（OIDC 授权码 + PKCE 由服务端 auth 模块换码，浏览器只跳转与回环、不持有 verifier 与 IdP 令牌，rulings §4.18 BE-09；注册入口仅在部署开关 `auth.selfSignup` 开启时出现）、**开始页（新建/模板/最近/指南入口，PRD AS-01）**、文档列表、账户菜单（设置/快捷键/帮助/退出）、编辑器应用栏「⋯」更多菜单与账户头像（rulings §4.10 Q14/Q20，2026-09-18）、分享/权限入口、版本入口、编辑器路由、`/render` headless 渲染页（渲染状态由编排方经 `window.__cordex.inject` 注入，页面不发起拉取，rulings §4.18 BE-04）；组合根，只做组装、不含领域定义（R9），不直接 import 束包 | preset-*、protocol、design、ui-react（`EditorHost`、壳组件、`./ui`、`./styles.css`）、i18n、shared、kernel（值导入仅限 `application/host/**`，其余只许 `import type`）；第三方库放行见 §5.3 规则 4（2026-09-25 对齐 R9，FE-05） |
+| `apps/server` | L8 | node | NestJS 11：Auth（只认 OIDC，M4 加集成方签名 JWT/API Key）、Users、Documents（单组织，无租户）、Permissions（文档权限；分享链接令牌解析也归此，rulings §4.18 BE-02）、ShareLinks（分享链接的创建、撤销、列表与守卫）、Storage、CollabGateway、ImportExport、Snapshots、Thumbnails、Comments、Audit、Health 模块；同一镜像按 `CORDEX_ROLE`（all/api/collab/worker/renderer）运行，模块 × 角色装配矩阵见 `40-modules/12` §7.1（BE-13）；pg / Redis 协议（默认 Valkey）/ S3 兼容（默认 SeaweedFS）等 IO 适配器以 cordis 插件形式放在对应模块目录；组合根，垂直束包只在 `src/cordis-host/**`（`preset-server.ts`）装配 | server-*, protocol；`src/cordis-host/**` 另可 import 装配所需的 iso 包（kernel、model-*、store-*、ooxml-*、engine-layout、engine-render），并把插件清单传给 server-headless（2026-09-25，FE-01/FE-02） |
 | `tooling/*` | — | node | eslint-config、tsconfig、depcruise 规则、api-extractor 配置、扫描脚本、policy 矩阵校验器、changeset 配置 | — |
 
 > 2026-09-18（14 §1 C-28）：`engine-layout`、`ui-core`、`slide-ui`、`slide-render` 四行「依赖上限」按 `40-modules` 实际用法修订；这些依赖在秩表（§5.1）与铁律 1/2/4（§5.3）下全部合规，此前只是本列写得比实现更紧，现按实现对齐。
 >
 > 2026-09-24（rulings §4.15 Q7，修订 C-28）：`slide-render` 依赖上限加入 `ooxml-core`（V-render 秩 55 > L3 秩 30，铁律全部合规），用于 D16 图表只读解析与 SmartArt `dsp:drawing` 解析；`parseChartSpace` 归属统一为 `ooxml-core`。
+>
+> 2026-09-25（rulings §4.18 FE-01/FE-02/FE-05，沿 C-28 先例）：`ooxml-pptx` 加 `model-core`；`slide-render-chart` 加 `engine-render`、`model-slide`、`ooxml-core`（`model-core` 仅类型或注入）；`server-collab` 加 `model-core`；`server-headless` 改为文档类型盲的新上限（含 `store-*`、`engine-render`，去掉 `model-*`/`ooxml-*` 通配）；`apps/server` 注明 `src/cordis-host/**` 的装配面；`apps/web` 按 R9「不含领域定义」判据改写。这些边在秩表与铁律下全部合规，此前只是本列写得比实现更紧；`ooxml-core`→`kernel`、`model-slide`→`shared`、协同与渲染包→`protocol` 等 L0 边按上方口径隐式允许，不再逐行补写。
+
+下面六张图把上表「依赖上限」一列画成包依赖图，按层分组；包名省略 `@cordexjs/` 前缀。箭头 = 允许依赖（上限），不等于实际 import，实际依赖以 `40-modules` 各模块文档为准；指向 `kernel`、`shared`、`protocol` 的隐式 L0 边只在上表写出时画出，未画不等于禁止。
+
+**图 5-4 依赖上限：L0 基础、L1 文档内核与 V-model**
+
+```mermaid
+flowchart TB
+  i18n["i18n · L0"]
+  kernel["kernel · L0 · 唯一 import cordis"]
+  protocol["protocol · L0"]
+  shared["shared · L0 · 零依赖"]
+  modelcore["model-core · L1"]
+  storemem["store-memory · L1"]
+  storeyjs["store-yjs · L1"]
+  modelslide["model-slide · V-model"]
+  i18n --> kernel
+  kernel --> shared
+  protocol --> shared
+  modelcore --> kernel
+  modelcore --> shared
+  modelcore --> protocol
+  storemem --> modelcore
+  storeyjs --> modelcore
+  modelslide --> modelcore
+```
+
+怎么读：箭头从依赖方指向被依赖方；两个 `DocumentStore` Provider 与幻灯片模型都只依赖 `model-core`，彼此之间没有箭头（三角色规则 6）。
+
+**图 5-5 依赖上限：L3 格式基础、V-codec 与 L4 协同**
+
+```mermaid
+flowchart TB
+  ooxmlpptx["ooxml-pptx · V-codec"]
+  ooxmlcore["ooxml-core · L3"]
+  collabyjs["collab-yjs · L4"]
+  collabws["collab-transport-ws · L4"]
+  collabidb["collab-offline-idb · L4 · dom"]
+  collabcore["collab-core · L4 · Definition"]
+  modelslide["model-slide · V-model"]
+  storeyjs["store-yjs · L1"]
+  modelcore["model-core · L1"]
+  protocol["protocol · L0"]
+  shared["shared · L0"]
+  ooxmlpptx --> ooxmlcore
+  ooxmlpptx --> modelslide
+  ooxmlpptx --> modelcore
+  ooxmlcore --> shared
+  ooxmlcore --> modelcore
+  collabyjs --> collabcore
+  collabyjs --> storeyjs
+  collabws --> collabcore
+  collabidb --> collabcore
+  collabcore --> modelcore
+  collabcore --> protocol
+```
+
+怎么读：箭头从依赖方指向被依赖方；三个协同 Provider（yjs 同步、WS 传输、IndexedDB 离线）都指向 `collab-core` 的契约，其中只有 `collab-yjs` 另外依赖 `store-yjs` 的 Y.Doc；`ooxml-pptx → model-core` 是 2026-09-25 按实际用法补的边（媒体部件经 `BlobStore`）；协同包到 `protocol` 的边属隐式 L0，未画出。
+依据：§5.2 包清单「依赖上限」列与表后注；rulings §4.18 FE-02。
+
+**图 5-6 依赖上限：L5 引擎与 V-render**
+
+```mermaid
+flowchart TB
+  chart["slide-render-chart · V-render · M3 起"]
+  sliderender["slide-render · V-render"]
+  renderdom["render-dom · L5 · dom"]
+  enginerender["engine-render · L5"]
+  enginelayout["engine-layout · L5"]
+  modelslide["model-slide · V-model"]
+  ooxmlcore["ooxml-core · L3"]
+  modelcore["model-core · L1"]
+  kernel["kernel · L0"]
+  shared["shared · L0"]
+  chart --> sliderender
+  chart --> enginerender
+  chart --> modelslide
+  chart --> ooxmlcore
+  chart -.->|"仅类型或注入"| modelcore
+  sliderender --> modelslide
+  sliderender --> ooxmlcore
+  sliderender --> enginerender
+  sliderender --> enginelayout
+  sliderender --> renderdom
+  renderdom --> enginerender
+  renderdom --> enginelayout
+  enginerender --> kernel
+  enginerender --> enginelayout
+  enginelayout --> shared
+  enginelayout --> kernel
+```
+
+怎么读：箭头从依赖方指向被依赖方；`engine-render` 与 `engine-layout` 不依赖任何幻灯片包（文档类型盲），幻灯片知识全部在 `slide-render` 一侧；`slide-render → ooxml-core` 为 2026-09-24 按 C-28 修订放行的边；`slide-render-chart` 的四条新边为 2026-09-25 按实际用法补的上限，虚线表示对 `model-core` 只允许类型引用或由调用方注入（FE-02）。M1–M2 的图表只读渲染器是 `slide-render` 内的惰性子路径 `./chart`，不是本图的独立节点（FE-08）。
+
+**图 5-7 依赖上限：L7 UI 基座与 V-ui**
+
+```mermaid
+flowchart TB
+  slideui["slide-ui · V-ui"]
+  uireact["ui-react · L7 · React 19 绑定"]
+  uicore["ui-core · L7 · 框架无关"]
+  design["design · L7 · 零依赖 SDK"]
+  sliderender["slide-render · V-render"]
+  modelslide["model-slide · V-model"]
+  i18n["i18n · L0"]
+  modelcore["model-core · L1"]
+  kernel["kernel · L0"]
+  shared["shared · L0"]
+  slideui --> sliderender
+  slideui --> uireact
+  slideui --> uicore
+  slideui --> design
+  slideui --> modelslide
+  uireact --> uicore
+  uireact --> design
+  uicore --> kernel
+  uicore --> modelcore
+  uicore --> i18n
+  uicore --> shared
+  uicore -.->|"仅 token"| design
+```
+
+怎么读：实线箭头从依赖方指向被依赖方；虚线表示 `ui-core` 对 `design` 只允许 `css/tokens.css` 与 type-only token 名（§5.3 规则 6 特例）；`design` 没有出边。
+
+**图 5-8a 依赖上限：LS 服务端与后端组合根 apps/server**
+
+```mermaid
+flowchart TB
+  appsserver["apps/server · L8 · node · 组合根"]
+  cordishost["apps/server 的 src/cordis-host/**：preset-server.ts 选定插件清单"]
+  isopkgs["装配所需的 iso 包：kernel、model-*、store-*、ooxml-*、engine-layout、engine-render"]
+  servercollab["server-collab · LS"]
+  serverstorage["server-storage · LS"]
+  serverheadless["server-headless · LS · 文档类型盲"]
+  collabcore["collab-core · L4"]
+  storeyjs["store-yjs · L1"]
+  stores["store-* 包 · L1"]
+  modelcore["model-core · L1"]
+  ooxmlcore["ooxml-core · L3"]
+  enginelayout["engine-layout · L5"]
+  enginerender["engine-render · L5 · iso 契约"]
+  protocol["protocol · L0"]
+  shared["shared · L0"]
+  appsserver --> servercollab
+  appsserver --> serverstorage
+  appsserver --> serverheadless
+  appsserver --> protocol
+  appsserver -.->|"装配面只在此目录"| cordishost
+  cordishost --> isopkgs
+  cordishost -->|"传入插件清单"| serverheadless
+  servercollab --> collabcore
+  servercollab --> storeyjs
+  servercollab --> modelcore
+  servercollab --> protocol
+  serverstorage --> shared
+  serverheadless --> modelcore
+  serverheadless --> stores
+  serverheadless --> ooxmlcore
+  serverheadless --> enginelayout
+  serverheadless --> enginerender
+```
+
+怎么读：实线从依赖方指向被依赖方；虚线表示 `cordis-host/**` 是 `apps/server` 内唯一可 import 束包与装配用 iso 包的目录（组合根豁免铁律 1）。`server-headless` 不再指向 `model-*`/`ooxml-*` 通配，而是只依赖契约层，由 `preset-server.ts` 传入的插件清单决定挂哪个文档类型；`server-collab → model-core` 为 2026-09-25 按实际用法补的边；`kernel`、`protocol` 对 LS 包隐式允许，未全画。
+依据：§5.1 铁律 1；§5.2 表与表后注；rulings §4.18 FE-01、FE-02。
+
+**图 5-8b 依赖上限：前端组合根 apps/web 与 preset**
+
+```mermaid
+flowchart TB
+  appsweb["apps/web · L8 · dom · 组合根"]
+  presets["preset-slide、preset-slide-collab、preset-slide-viewer · bundle slide；preset-doc、preset-sheet · M5"]
+  bundles["所组装的水平层插件包：model-core、store-*、collab-*、engine-*、render-dom、ui-core 等"]
+  slidebundle["垂直束包，如 model-slide、ooxml-pptx、slide-render、slide-ui"]
+  uireact["ui-react · L7：EditorHost、壳组件、./ui、./styles.css"]
+  design["design · L7"]
+  i18n["i18n · L0"]
+  shared["shared · L0"]
+  protocol["protocol · L0"]
+  kernel["kernel · L0"]
+  appsweb --> presets
+  appsweb --> protocol
+  appsweb --> design
+  appsweb --> uireact
+  appsweb --> i18n
+  appsweb --> shared
+  appsweb -.->|"值导入仅限 application/host/**，其余 import type"| kernel
+  appsweb --x|"禁止：R9，不直接 import 束包"| slidebundle
+  presets -->|"上述"| bundles
+  presets -->|"上述，只限同 bundle 的束，规则 8"| slidebundle
+```
+
+怎么读：实线从依赖方指向被依赖方，虚线是带条件的允许，带叉的边为禁止；`apps/web` 按 R9「不含领域定义」判据可引用 preset、呈现层与 L0 包，但不能绕过 preset 直接 import 垂直束包；各 preset 的上限在上表写作「上述」，即其组装的插件束，组合根豁免铁律 1，但 `preset-doc` 等只能组装同 `bundle` 的束包（规则 8）。
+依据：§5.2 `apps/web` 行；§5.3 规则 3、规则 4、规则 8；rulings §4.15 Q2、§4.18 FE-01、FE-05。
 
 **`package.json#cordex` 字段（规范）**：
 
@@ -233,28 +540,153 @@
 "cordex": {
   "layer": "L1",              // L0|L1|L3|L4|L5|L7|L8|LS|V-model|V-codec|V-render|V-ui
   "iso": "iso",               // iso|dom|node
-  "bundle": "slide",          // slide|doc|sheet；当且仅当 layer 以 V- 开头时必填，否则省略或 null
+  "bundle": "slide",          // slide|doc|sheet；layer 以 V- 开头时必填；compositionRoot 为 true 的 preset 选填
+                              // （preset-slide* 标 slide、preset-doc 标 doc、preset-sheet 标 sheet，填了即受规则 8 约束）；
+                              // 其余包省略或 null（rulings §4.18 FE-01）
   "role": "provider",         // library|plugin|definition|provider|bundle|app|tooling（人类可读七值）
                               // depcruise 读取时按固定表折叠为四值：definition→definition、provider→provider、
                               // library|plugin|bundle|app|tooling→consumer；例外：同时是某 Definition 的 Provider
                               // 的包（如 kernel 自身）折叠为 provider；tooling/* 等不参与秩体系的包用 n/a
-  "compositionRoot": false,   // 布尔；仅 preset-*、apps/web、apps/server 可为 true
-  "publicEntry": ["."],       // 字符串数组；须与 package.json#exports 的 key 集合逐一相等
+  "implements": ["store"],    // 字符串数组：本包实现的 Definition 服务名；role 为 provider 时必填，其余省略；规则 6（R7）读取
+  "compositionRoot": false,   // 布尔；仅 preset-*、apps/web、apps/server 可为 true，且这些包必须显式写 true
+                              // （规则 3 的组合根豁免与三角色豁免都读这个键）
+  "publicEntry": ["."],       // 字符串数组；须与 package.json#exports 的 key 集合逐一相等（规则 7 读取）
   "stability": "beta"         // 可选：stable|beta|experimental，缺省 stable（供 api-extractor 与 Changesets 分组）
 }
 ```
-八键（2026-09-22 由四键扩展，见 `40-modules/01-tooling-and-governance.md` §2.2、`40-modules/14-cross-module-review.md` §1 C-11、`40-modules/16-plugin-catalog.md` §8 G-15）。schema 位于 `tooling/policy/schema/cordex-package-metadata.schema.json`；depcruise 与扫描器以此为唯一元数据来源。`tooling/*` 自身包不填该字段。
+八键：`layer`、`iso`、`bundle`、`role`、`implements`、`compositionRoot`、`publicEntry`、`stability`（2026-09-22 由四键扩展，见 `40-modules/01-tooling-and-governance.md` §2.2、`40-modules/14-cross-module-review.md` §1 C-11、`40-modules/16-plugin-catalog.md` §8 G-15；第八键定为 `implements`，2026-09-25 rulings §4.18 FE-21）。秩（rank）由 `layer` 查 §5.1 秩表得出，**不**写进 `package.json`；schema 拒绝 `rank` 等未知键。schema 位于 `tooling/policy/schema/cordex-package-metadata.schema.json`；depcruise 与扫描器以此为唯一元数据来源。`tooling/*` 自身包不填该字段。
 
 ### 5.3 依赖规则（由 dependency-cruiser + eslint `no-restricted-imports`/`no-restricted-globals` 强制）
 
 1. **无环**：包级与文件级均不允许循环依赖。
 2. **只向下**：`rank(to) ≤ rank(from)`，秩表见 §5.1（L0=0、L1=10、V-model=15、L3=30、V-codec=35、L4=40、L5=50、V-render=55、LS=58、L7=70、V-ui=75、L8=80）。
-3. **文档类型盲**：水平层包不得 import 垂直束包。
+3. **文档类型盲**：非组合根的水平层包不得 import 垂直束包；判据只读包元数据：from 侧排除 `cordex.compositionRoot: true` 的包（`preset-*`、`apps/web`、`apps/server`），to 侧为 `layer` 以 `V-` 开头的包。组合根的其余约束见铁律 1（2026-09-25，rulings §4.18 FE-01）。
 4. **第三方库单点引入**：`cordis` 仅 `kernel`；`yjs`/`y-protocols` 仅 `store-yjs`/`collab-yjs`/`server-collab`；`lib0` 仅 `collab-yjs`/`server-collab`；`y-indexeddb` 仅 `collab-offline-idb`；`react`、`radix-ui`、`class-variance-authority`、`lucide-react`、`tailwindcss` 仅 `ui-react` 与 `*-ui`（shadcn 复制件所在）；**例外：`apps/web`（Vite + React 应用壳）放行 `react`、`react-dom`、`react-router`、`tailwindcss`、`@tailwindcss/*`**（rulings §4.15 Q2）；`react-router` 仅限 `apps/web`；`@nestjs/*` 仅 `apps/server`；`pg`/Redis 协议客户端（`ioredis` 等，默认对接 Valkey）/S3 SDK 仅 `apps/server` 的适配器目录与 `server-storage`。Yjs 14（`@y/y`、`@y/protocols`）与 `lib0` v1 预留与 `yjs`/`lib0` 相同的放行范围（M3 前升级 spike 用）。
 5. **同构隔离**：`iso` 包 tsconfig 不含 `dom` lib、禁止 `node:*`；`node` 不得 import `dom`；CI 以 `node --import` 冒烟每个 iso 包（Univer 教训 A20）。
 6. **三角色**：Provider 之间互不 import；Consumer 只 import Definition。特例：`ui-core` 对 `@cordexjs/design` 只允许 `css/tokens.css` 与 type-only 引用。
-7. **无深引用**：跨包只能走 `exports` 显式子路径 `.` 与 `./testing`；`./testing` 只能被测试代码与其他包的 `testing/` 引用；禁止 `@cordexjs/x/src/*`；禁止 `"./*"`/`"./lib/*"` 通配 exports（Univer 缺陷 D2）。
-8. **束间隔离**：`cordex.bundle` 不同的包互不 import。
+7. **无深引用**：跨包只能走目标包 `exports` 显式登记的子路径（即其 `cordex.publicEntry`，每个子路径都有 api-extractor 基线）；除 `.` 与 `./testing` 外，已裁定的子路径逐个登记，如 `@cordexjs/kernel/preset`（C-07）、`@cordexjs/shared/order`（A-9）、`@cordexjs/ui-react/ui`（R17）、`@cordexjs/slide-render/chart`（M1–M2）；`./testing` 只能被测试代码与其他包的 `testing/` 引用；禁止 `@cordexjs/x/src/*`、`@cordexjs/x/lib/*` 深引用；禁止 `"./*"`/`"./lib/*"` 通配 exports（Univer 缺陷 D2）；R17、R18 等是在本规则之上对个别子路径的专项限制（2026-09-25，rulings §4.18 FE-04）。
+8. **束间隔离**：`cordex.bundle` 不同的包互不 import；带 `bundle` 的 preset 同样受约束（如 `preset-doc` 不得 import slide 束）。
+
+**图 5-9 规则 2：全局秩序列（水平层与层带合并）**
+
+```mermaid
+flowchart LR
+  r80["L8 · 80"] --> r75["V-ui · 75"] --> r70["L7 · 70"] --> r58["LS · 58"] --> r55["V-render · 55"] --> r50["L5 · 50"]
+  r50 --> r40["L4 · 40"] --> r35["V-codec · 35"] --> r30["L3 · 30"] --> r15["V-model · 15"] --> r10["L1 · 10"] --> r0["L0 · 0"]
+```
+
+怎么读：从左到右秩递减，箭头方向即允许的 import 方向 `rank(to) ≤ rank(from)`；同秩（同一层内）互相依赖不被秩规则禁止，但仍受规则 1 无环与规则 5 同构约束。
+
+**图 5-10 规则 3 与规则 8：文档类型盲与束间隔离**
+
+```mermaid
+flowchart LR
+  subgraph horizontal["非组合根的水平层包"]
+    hpkg["L0 至 L7 与 LS 的任一包，含 server-headless"]
+  end
+  subgraph roots["组合根：compositionRoot 为 true"]
+    pslide["preset-slide* · bundle slide"]
+    pdoc["preset-doc · bundle doc"]
+    appsweb["apps/web · 无 bundle"]
+    appsserver["apps/server · 无 bundle"]
+  end
+  subgraph slidebundle["slide 束"]
+    sv["V-ui、V-render、V-codec、V-model 各包"]
+  end
+  subgraph docbundle["doc 束"]
+    dv["model-doc 等 doc 束各包"]
+  end
+  sv -->|"允许，秩不增"| hpkg
+  hpkg --x|"禁止：规则 3 文档类型盲"| sv
+  sv --x|"禁止：规则 8 束间隔离，如 model-slide 不得 import model-doc"| dv
+  pslide -->|"允许：组合根豁免规则 3"| sv
+  pdoc --x|"禁止：规则 8，bundle 不同"| sv
+  pdoc -->|"允许：同 bundle"| dv
+  appsweb -->|"允许"| pslide
+  appsweb --x|"禁止：R9 白名单，不直接 import 束包"| sv
+  appsserver -->|"允许：仅 src/cordis-host/** 装配"| sv
+```
+
+怎么读：带叉的边是 depcruise 必须拦截的方向。对非组合根的水平层包，垂直束依赖水平层是唯一合法的跨组方向，且仍要满足图 5-9 的秩与图 5-3 的层带上限；组合根豁免规则 3，但 preset 以自身 `bundle` 受规则 8 约束，`apps/web` 受 R9 白名单约束只能经 preset 装配，`apps/server` 只在 `cordis-host/**` 装配束包；组合根之间与组合根到水平层的允许边未画出。
+依据：§5.1 铁律 1、铁律 2；本节规则 3、规则 8；rulings §4.18 FE-01。
+
+**图 5-11 规则 5：同构类 import 方向**
+
+```mermaid
+flowchart TB
+  domc["dom：仅浏览器"]
+  nodec["node：仅 Node"]
+  isoc["iso：浏览器加 Node，无 dom lib、无 node 内建"]
+  domc -->|"可 import"| isoc
+  nodec -->|"可 import"| isoc
+  nodec --x|"不得 import"| domc
+  isoc --x|"只能 import iso"| domc
+  isoc --x|"只能 import iso"| nodec
+```
+
+怎么读：实线为允许、带叉为禁止；同类之间的依赖（dom 可 import dom，iso 只能 import iso）不画成自环；`iso` 包由 tsconfig 去掉 `dom` lib 并禁止 `node:*` 在编译期保证，CI 另以 `node --import` 冒烟每个 iso 包。
+
+**图 5-12 规则 6：三角色**
+
+```mermaid
+flowchart LR
+  consumer["Consumer 使用方"]
+  definition["Definition 契约"]
+  provA["Provider A"]
+  provB["Provider B"]
+  uicore["ui-core"]
+  design["design"]
+  consumer -->|"只 import"| definition
+  provA -->|"实现"| definition
+  provB -->|"实现"| definition
+  consumer --x|"不得 import"| provA
+  provA --x|"Provider 之间互不 import"| provB
+  uicore -.->|"特例：仅 css/tokens.css 与 type-only 引用"| design
+```
+
+怎么读：实线为允许、带叉为禁止、虚线为规则 6 写明的唯一特例；替换 Provider 时 Consumer 无需改动，这是 §5.4「每一级可插拔」的依赖层基础。
+
+**图 5-13 规则 4：第三方库单点引入**
+
+```mermaid
+flowchart LR
+  subgraph libs["第三方库"]
+    cordis["cordis"]
+    yjs["yjs、y-protocols；Yjs 14 的 @y/y、@y/protocols 预留同范围"]
+    lib0["lib0；lib0 v1 预留同范围"]
+    yidb["y-indexeddb"]
+    uilibs["react、radix-ui、class-variance-authority、lucide-react、tailwindcss"]
+    weblibs["react、react-dom、react-router、tailwindcss、@tailwindcss/*"]
+    nest["@nestjs/*"]
+    io["pg、Redis 协议客户端如 ioredis、S3 SDK"]
+  end
+  subgraph pkgs["唯一允许引入的包"]
+    kernel["kernel"]
+    storeyjs["store-yjs"]
+    collabyjs["collab-yjs"]
+    servercollab["server-collab"]
+    collabidb["collab-offline-idb"]
+    uipkgs["ui-react 与 *-ui"]
+    appsweb["apps/web · 例外放行"]
+    appsserver["apps/server"]
+    adapters["apps/server 的适配器目录"]
+    serverstorage["server-storage"]
+  end
+  cordis --> kernel
+  yjs --> storeyjs
+  yjs --> collabyjs
+  yjs --> servercollab
+  lib0 --> collabyjs
+  lib0 --> servercollab
+  yidb --> collabidb
+  uilibs --> uipkgs
+  weblibs --> appsweb
+  nest --> appsserver
+  io --> adapters
+  io --> serverstorage
+```
+
+怎么读：左侧每个库只允许被箭头所指的包 import，任何其它包引入即 lint 失败；`react-router` 只允许出现在 `apps/web`；`server-storage` 是唯一允许 import S3 SDK 的 server 包（§5.2）。
 
 ### 5.4 每一级的「可插拔」如何体现（R2 验收口径）
 
@@ -317,7 +749,7 @@ ADR 索引与状态以 `docs/30-architecture/adr/README.md` 为准（结构 0001
 | 协同传输与协议 | WebSocket + y-protocols 帧；Ticket 握手；权限变更 ≤ 2 s 生效；Postgres 故障溢写期两级 ack（S-3a） | 0023、0029 |
 | 声明合并策略 | kernel 桥接 `Events`/`Context`，插件只 `declare module '@cordexjs/kernel'`；需 spike | 0001 |
 | 版本策略 | L0–L1 lockstep；垂直束与 Provider 独立 semver；peer 加载期校验失配即 FAILED | 0002 |
-| 插件清单 | 静态分析生成并入库，CI 无 diff，运行时比对 | 0003 |
+| 插件清单 | `manifest.ts` 由静态分析生成并入库，CI 重新生成无 diff；`cordex-manifest.json` 构建时由其序列化、随包发布、不入库；运行时比对（rulings §4.18 GV-17 澄清） | 0003 |
 | 包管理与工具链 | **已接受**（§10 Q9）：见 D9 | 0004 |
 | 类型预算 | `any`/`as`/`!`/`@ts-*` 计数预算只减不增 | 0040 |
 | Strict 一致性类写回 | **已裁决**（§10 Q14 = 方案 C）：保持原一致性类，脏部件反向映射写回 Strict，干净部件 verbatim；整包转 Transitional 仅作反向映射失败时的异常兜底 | 0008 |
@@ -328,10 +760,15 @@ ADR 索引与状态以 `docs/30-architecture/adr/README.md` 为准（结构 0001
 
 > 周期：**不定周期**——按范围与验收推进，每个里程碑开工前再估（rulings §4.16 Q13）。
 
+**图 7-1 里程碑骨架 M0–M5**
+
+```mermaid
+flowchart LR
+  m0["M0 蓝图 · 本阶段"] --> m1["M1 打开与保真 · viewer+round-trip"] --> m2["M2 单人编辑 · 命令/撤销/导出"]
+  m2 --> m3["M3 协同 · Yjs+Nest"] --> m4["M4 插件 SDK 公开 · manifest/文档/示例"] --> m5["M5 多文档类型孵化 · model-doc/sheet 骨架"]
 ```
- M0 蓝图 ──► M1 打开与保真 ──► M2 单人编辑 ──► M3 协同 ──► M4 插件 SDK 公开 ──► M5 多文档类型孵化
- (本阶段)    viewer+round-trip   命令/撤销/导出     Yjs+Nest      manifest/文档/示例    model-doc/sheet 骨架
-```
+
+怎么读：箭头为里程碑的先后顺序，每个节点「·」后是该里程碑的主交付；周期不定，按下表的验收与可插拔证据逐个推进。
 
 | 里程碑 | 一句话验收 | 必含的「可插拔」证据 |
 |---|---|---|
@@ -353,7 +790,8 @@ docs/
 │   ├── charter.md                    本文
 │   ├── reference-univer-lessons.md   Univer 继承/规避清单 → 我们的机制 → 落实位置
 │   ├── cordis-primer.md              cordis 4 API 摘要 + 本项目用法铁律
-│   └── rulings-2026-09-14.md         对各条线异议/建议的逐条裁决记录（采纳/否决/待用户）
+│   ├── rulings-2026-09-14.md         对各条线异议/建议的逐条裁决记录（采纳/否决/待用户）；§4.15 起为用户裁决
+│   └── _evidence/                    裁决调研证据包（Q1–Q10 决策包、复核报告、矛盾分诊与执行清单），只作出处，不是正文
 ├── 10-prd/                           产品条线
 │   ├── README.md                     PRD 总览、范围声明、待决事项、对章程的异议、术语补充
 │   ├── 01-background-and-goals.md    背景、问题陈述、目标与非目标、成功指标
@@ -364,10 +802,15 @@ docs/
 │   │   ├── 03-collaboration.md       实时协同/presence/评论/权限/离线/版本历史/软冲突表
 │   │   ├── 04-plugin-sdk.md          面向插件开发者的产品需求（manifest、示例、文档、兼容）
 │   │   ├── 05-embedding-and-integration.md  SDK 嵌入、鉴权对接、存储对接、事件回调
-│   │   └── 06-server-and-ops.md      服务端能力、运维、审计、配额
+│   │   ├── 06-server-and-ops.md      服务端能力、运维、审计、配额
+│   │   ├── 07-masters-layouts-and-themes.md 母版、版式与主题
+│   │   └── 08-app-shell.md           应用壳：开始页、最近、模板、指南、账户
 │   ├── 04-non-functional-requirements.md 性能预算、保真指标、可用性、安全、可访问性、i18n、浏览器矩阵
 │   ├── 05-milestones-and-scope.md    M0–M5 的范围、验收、依赖与风险
-│   └── 06-metrics-and-analytics.md   北极星指标、埋点需求（对应 telemetry 服务）
+│   ├── 06-metrics-and-analytics.md   北极星指标、埋点需求（对应 telemetry 服务）
+│   ├── 07-design-coverage-and-gaps.md 需求 ↔ 设计 ↔ 原型覆盖矩阵与缺口清单（G-xx）
+│   ├── 08-prd-design-alignment-2026-09-17.md PRD 与设计稿一致性核对（历史记录）
+│   └── 09-prd-design-alignment-2026-09-18.md PRD 与设计稿一致性复核（历史记录）
 ├── 20-design/                        设计条线
 │   ├── README.md                     设计原则、范围、待决事项、对章程的异议
 │   ├── 01-information-architecture.md 编辑器 IA：区域划分、层级、导航模型、三种模式
@@ -377,8 +820,14 @@ docs/
 │   ├── 05-collaboration-ux.md        presence、远端光标/选区、软冲突可视化、评论、版本历史、离线态
 │   ├── 06-extensibility-ux.md        插件如何贡献 UI：ui.* 槽位规范与视觉约束
 │   ├── 07-accessibility-and-i18n.md  键盘导航、屏幕阅读器、IME、RTL、文案规范
+│   ├── 08-prototype-audit-and-v2-plan.md 原型现状自审与 v2 规划（历史记录）
+│   ├── 09-design-specification.md    设计规范：shadcn Rhea + Liquid Glass 材质层
+│   ├── 10-modernization-audit.md     现代化审计：对照 iOS Liquid Glass 的逐屏挑刺
+│   ├── 11-modern-glass-redesign-proposal.md 现代化改造提案（路线 B 已实施）
+│   ├── 12-editor-routes-review.md    编辑器族路由视觉评审（宿主外壳逐屏截图）
 │   ├── playground/                   设计 playground（设计终稿与视觉基准，已发布 artifact）
-│   └── prototype/index.html          旧低保真原型（**已退役**，以 playground 为准；mockups/ 同，rulings §4.17 D6）
+│   ├── mockups/                      历史静态稿（**已退役**，已被 playground 取代，rulings §4.17 D6）
+│   └── prototype/index.html          旧低保真原型（**已退役**，以 playground 为准，rulings §4.17 D6）
 ├── 30-architecture/                  架构条线（结构 / 运行时 / 类型治理三条子线）
 │   ├── README.md                     架构总览入口、原则、文档索引、待决事项、ADR 索引
 │   ├── 01-overview.md                C4 L1/L2、原则、端到端数据流
@@ -394,12 +843,18 @@ docs/
 │   ├── 11-testing-strategy.md        单测/契约测试/同构冒烟/视觉 oracle/协同模拟/插件兼容套件
 │   ├── 12-extension-to-doc-and-sheet.md 文档类型盲验证方案、model-doc/sheet 骨架
 │   └── adr/                          ADR-0001…（结构 0001-0019、运行时 0020-0039、类型治理 0040-0049）+ README 索引
-└── 40-modules/                       模块设计线（2026-09-18 新增）：DDD 限界上下文 × cordis 插件，粒度到文件
-    ├── 00-module-map.md              模块切分总图：29 个限界上下文、上下文映射、前后端切分、doc/sheet 扩展、13 个模块分 3 批
-    ├── _template.md                  模块文档模板（14 节：边界 / 领域模型 / 插件定义 / 目录树 / 逐文件职责 / API / 前后端 / 扩展缝 / 测试 / 约束 / 里程碑 / 差异 / 未决）
-    ├── 01…13-*.md                    13 份模块设计文档（工具链、内核与文档内核、幻灯片模型、编解码、协同、布局渲染、幻灯片渲染、服务端 ×3、UI、预设与应用壳、doc/sheet 扩展骨架）
-    ├── 14-cross-module-review.md     跨模块评审：冲突、命名、依赖、归属、追加建议与未决汇总
-    └── README.md                     索引与依赖图
+├── 40-modules/                       模块设计线（2026-09-18 新增）：DDD 限界上下文 × cordis 插件，粒度到文件
+│   ├── 00-module-map.md              模块切分总图：30 个限界上下文、上下文映射、前后端切分、doc/sheet 扩展、13 个模块分 3 批
+│   ├── _template.md                  模块文档模板（14 节：边界 / 领域模型 / 插件定义 / 目录树 / 逐文件职责 / API / 前后端 / 扩展缝 / 测试 / 约束 / 里程碑 / 差异 / 未决）
+│   ├── 01…13-*.md                    13 份模块设计文档（工具链、内核与文档内核、幻灯片模型、编解码、协同、布局渲染、幻灯片渲染、服务端 ×3、UI、预设与应用壳、doc/sheet 扩展骨架）
+│   ├── 14-cross-module-review.md     跨模块评审：冲突、命名、依赖、归属、追加建议与未决汇总（历史稿，被裁决覆盖处行内标注）
+│   ├── 15-server-architecture-review.md 服务端模块拆分评审（历史稿，S-1…S-5 已裁决）
+│   ├── 16-plugin-catalog.md          插件总账与可插拔矩阵：运行时插件单元、Definition、贡献点、preset 装配对比
+│   ├── 17-plugin-authoring-patterns.md 插件书写模式手册：插件形态骨架、横切规范、反模式与机械验证
+│   ├── 18-atlas-system-and-frontend.md 架构图集（一）：系统与前端，以图为主、不新增决定
+│   ├── 19-atlas-backend-and-data.md  架构图集（二）：后端、数据与部署，以图为主、不新增决定
+│   └── README.md                     索引与依赖图
+└── _tools/                           文档线工具：模块文档结构校验、Mermaid 校验（绘图规范见其 README）、扫描器名校验、文档站生成与界面截图、换机器迁移手册
 ```
 
 ---
@@ -422,7 +877,7 @@ docs/
 1. **语言**：中文正文，英文标识符/包名/文件名；文件名 kebab-case，带两位序号。
 2. **状态头**：每个 md 的首行或标题后第一行为引用块：`> 状态：草稿 | 负责：<条线> | 更新：2026-09-14 | 依赖：charter v0.x`。
 3. **目录级细化**：凡涉及代码结构，给出目录树，**每个目录/文件一行说明其内容与职责**；不写实现代码，接口/类型可给「签名级草案」并标注「草案」。
-4. **图**：优先 ASCII（终端可读）；复杂状态机/时序可附 mermaid。
+4. **图**：图用 Mermaid 11，且须通过 `docs/_tools/mermaid-check.cjs`（0 invalid）；界面 ASCII 线框（`20-design/03-screens/`）、目录树与代码结构仍用文本代码块。引号口径、转义、单图 ≤40 行 ≤25 节点、加粗图名 +「怎么读」+「依据」等具体画法见 `docs/_tools/README.md`「绘图规范」（2026-09-25 由「优先 ASCII」改写，rulings §4.18 GV-04）。
 5. **术语**：只用 §4 词表；新术语在本条线 README 的「术语补充」中定义，经裁决后回写 §4。
 6. **决策纪律**：与章程冲突不得擅改，写入 README「对章程的异议/建议」；未决事项写入 README「待决事项」并标注需要谁决策。
 7. **可验收**：需求写验收标准（Given/When/Then 或可度量指标）；架构写「如何被机械验证」；设计写「状态与边界情况」。
@@ -439,7 +894,7 @@ docs/
 | Q2 | UI 框架 | **已裁决**：React 19（收口 D10，「可换」改写为可验证范围；rulings §4.15） | ui-react / *-ui 包 |
 | Q3 | CRDT | **已裁决**：Yjs 13.6.x；撤销=跳过他人后写并提示、整步被跳过即停、删除改软删除墓碑+TTL、被他人删除即跳过不看 TTL（rulings §4.15、§4.17 D4） | store-yjs / collab-yjs / server-collab |
 | Q4 | 渲染介质 | **已裁决**：DOM/SVG 单实现，canvas 仅作栅格化/测量/预留 RenderTarget（rulings §4.15） | render-dom / slide-render |
-| Q5 | 规模目标 | **已裁决**：五数字为保证包络 + 文档总元素 20,000 天花板、按权重准入；超包络拒绝导入；名额按用户计；部署配置完全可调（rulings §4.15） | 性能预算与存储设计 |
+| Q5 | 规模目标 | **已裁决**：五数字为保证包络 + 文档总元素 20,000 天花板、按权重准入；超出系统天花板（页数 / 单页元素 / 总元素）或文件超过 200 MB 的导入直接拒绝（rulings 原文「超包络」即超天花板，见 ADR-0035 复核修正，rulings §4.18 UX-13）；名额按用户计；部署配置完全可调（rulings §4.15） | 性能预算与存储设计 |
 | Q6 | 鉴权/租户 | **已裁决**：**单组织、去租户**；外置 OIDC（可选内置 Casdoor），集成方 JWT/API Key 降 M4；自助注册部署级开关默认关；文档级 RLS；组管理推迟（rulings §4.15） | apps/server Auth 模块 |
 | Q7 | 保真范围 | **已裁决**：范围不变 + 补齐落点 + M2 EMF/WMF 栅格化；外链资源自动加载（部署可收紧）；受限字体仅只读渲染（rulings §4.15） | PRD 03-features |
 | Q8 | 服务端缩略图 | **已裁决**：M3 前半段 headless Chromium 零出站 sidecar；M2 用包内 thumbnail.jpeg；PDF M3 后半段（rulings §4.15） | server-headless |

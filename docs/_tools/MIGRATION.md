@@ -1,4 +1,4 @@
-> 状态：操作手册 v0.1 | 负责：总编排 | 更新：2026-09-23；2026-09-24（rulings §4.15 Q9：Node 26 基线、pnpm 11 安装方式、根目录命令一律 pnpm）
+> 状态：操作手册 v0.1 | 负责：总编排 | 更新：2026-09-23；2026-09-24（rulings §4.15 Q9：Node 26 基线、pnpm 11 安装方式、根目录命令一律 pnpm）；2026-09-25（文档工具：评审站生成器换为文档站 gen-docs-site.py）
 
 # 换机器：把这个项目搬到另一台开发机
 
@@ -11,7 +11,7 @@
 | git | `git --version` | 系统自带或 `brew install git` |
 | Node 26（项目基线，章程 D9） | `node --version` 应为 `v26.x` | 推荐 `fnm install 26`（fnm 读取仓库根 `.node-version`）；或 `brew install node@26`。注意 Node 25 起官方构建与 brew 安装的 Node 26 **都不带 corepack** |
 | pnpm 11（章程 D9 双锁） | `pnpm --version` 应与根 `package.json#packageManager` 一致 | `npm i -g pnpm@11.27.1`（在仓库目录之外执行），或 pnpm 官方安装脚本；corepack 只是可选渠道，不依赖它 |
-| Python 3 | `python3 --version` | 系统自带；评审站生成器另需 `markdown` 包 |
+| Python 3 | `python3 --version` | 系统自带；文档站生成器另需 `markdown` 包 |
 | gh（可选） | `gh --version` | `brew install gh`，用于 `gh auth login` 配 GitHub 凭据 |
 
 macOS 上经 SSH 执行命令时 Homebrew 不在 PATH 里，脚本开头加 `export PATH="/opt/homebrew/bin:$PATH"`。
@@ -112,12 +112,12 @@ pnpm dlx playwright install chrome                  # 供文档工具与截图�
 python3 -m venv ~/.venv/cordex && ~/.venv/cordex/bin/pip install markdown
 python3 docs/_tools/validate-module.py docs/40-modules/0*.md docs/40-modules/1*.md
 node docs/_tools/mermaid-check.cjs docs/40-modules/*.md
-~/.venv/cordex/bin/python docs/_tools/gen-review-site.py /tmp/review-site
+~/.venv/cordex/bin/python docs/_tools/gen-docs-site.py /tmp/cordex-site [--screens <截图目录>]   # 截图步骤见 README
 ```
 
 ## 5. 不用迁的
 
-- **claude.ai artifact**（评审站、设计 playground）是账号级的，新机器登录同一账号即可访问与更新。
+- **claude.ai artifact**（文档站、设计 playground）是账号级的，新机器登录同一账号即可访问与更新。
 - **git worktree 布局**（主仓 `~/orca/projects/`、工作树 `~/orca/workspaces/`）不必复制，新机器直接 clone 单个仓库即可。
 
 ## 6. 落地检查

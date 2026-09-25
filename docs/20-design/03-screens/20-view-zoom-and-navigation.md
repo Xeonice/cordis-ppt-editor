@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.9 Q9 / §4.10 Q12 · Q19；`10-prd/07-design-coverage-and-gaps.md`；`03-screens/02` §2.4、`26`；playground `ViewTab.tsx` / `Ribbon.tsx` / `SlideCanvas.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.9 Q9 / §4.10 Q12 · Q19；`10-prd/07-design-coverage-and-gaps.md`；`03-screens/02` §2.4、`26`；playground `ViewTab.tsx` / `Ribbon.tsx` / `SlideCanvas.tsx`
 
 # 03-20 视图、缩放与导航——"视图"页签
 
@@ -89,10 +89,36 @@
 | 状态 | 表现 |
 |---|---|
 | 默认（桌面 ≥ 1024，编辑模式，有 `doc.write`） | 常规可用按钮，点击进入母版视图 |
-| 评审模式 / 无 `doc.write` | 按钮禁用，tooltip「评审模式下不可用」；页签行右侧视图分段不渲染；`Mod+Alt+M` 无效（rulings §4.10 Q12） |
+| 评审模式 | 「视图」页签**不存在**（Ribbon 由评审工具条取代，01-information-architecture §5.1），本按钮不适用；`Mod+Alt+M` 无效；命令面板「母版视图」项禁用并注明"评审模式下不可用"（rulings §4.10 Q12、§4.18 UX-11） |
+| 编辑模式但已降权（无 `doc.write`，`readonly-degraded`，Ribbon 仍在） | 按钮禁用，tooltip「需要编辑权限」；页签行右侧视图分段不渲染；`Mod+Alt+M` 无效 |
 | 紧凑断点 640–1024 | 按钮禁用，tooltip「需要 ≥ 1024 宽度」；视图分段不渲染；快捷键无效；已在母版视图中时缩窄窗口不强制退出（Q12；不提供窄屏简化版） |
 | 放映模式 | "视图"页签本身不存在（Ribbon 隐藏，见 01-information-architecture.md §5.1），此按钮不适用 |
 | 聚焦 | `:focus-visible` 环，同其余 ribbon 按钮 |
+
+**「母版视图」入口可用性判定**
+
+```mermaid
+flowchart TB
+  q0{"放映或评审模式？"}
+  nA["「视图」页签本身不存在，不适用：放映隐藏 Ribbon，评审以评审工具条取代；Mod+Alt+M 无效，评审模式下命令面板项禁用并注明原因"]
+  q1{"有 doc.write？"}
+  rev["已降权，Ribbon 仍在：按钮禁用，tooltip「需要编辑权限」；页签行视图分段不渲染；Mod+Alt+M 无效"]
+  q2{"视口 ≥ 1024？"}
+  q3{"视口 ≥ 640？"}
+  cmp["紧凑断点 640–1024：按钮禁用，tooltip「需要 ≥ 1024 宽度」；分段不渲染；快捷键无效"]
+  nar["仅查看断点：Ribbon 收为查看态工具条，「视图」页签不存在"]
+  ok["常规可用按钮：点击进入母版视图，默认选中当前页所属版式；与页签行分段、Mod+Alt+M 等价"]
+  q0 -->|"是"| nA
+  q0 -->|"否"| q1
+  q1 -->|"否，编辑模式但已降权"| rev
+  q1 -->|"是"| q2
+  q2 -->|"是"| ok
+  q2 -->|"否"| q3
+  q3 -->|"是"| cmp
+  q3 -->|"否"| nar
+```
+
+怎么读：自上而下依次判定模式、写权限与视口宽度，只有全部满足才落到「常规可用」；评审模式与放映一样没有 Ribbon，所以第一步就判为「不适用」，而不是判到一个不存在的按钮上。这些限制只针对「进入」：已在母版视图中时缩窄窗口不强制退出、被降权原地只读，手动切到评审则退出母版视图（rulings §4.10 Q12、§4.18 UX-11 / UX-20，03-screens/26 §6）。
 
 对应基准：playground `#/editor`（`ViewTab.tsx`「窗口」组按钮为次入口；`Ribbon.tsx` `ViewModeSwitch` 页签行右侧分段为主入口）。[`mockups/02-editor-main.html`](../mockups/02-editor-main.html) 中缩略图侧栏顶部的分段控件为历史静态稿（2026-09-16 作废）；Ribbon"视图"页签按钮入口示意见本文件线框，与分段主入口等价，不重复出稿。
 

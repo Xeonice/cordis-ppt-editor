@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
 > **2026-09-18 修订说明**：按 rulings §4.10 与 playground 回写——§1 应用壳补开始页 `#/home`（PRD AS-01…06）；§2.1 / §2.2 / §4 应用栏「返回首页」、「⋯」更多菜单与账户头像（Q14 / Q20）；§2.4 / §5a 母版视图改为"同一个编辑器"（母版页签置首、五组、其余页签照常、母版缩略图窗格、Ribbon 分段主入口、`Mod+Alt+M`、检查器仅禁评论、评审 / 窄屏不提供入口，Q12）；§8.1 查看器补可选缩略图条与备注抽屉（Q18）；§9 路由表与 `registry.ts` 19 条对齐（删除已退役原型的 `text-editing` / `pages`）。
 
 # 01 信息架构（Information Architecture）
@@ -9,14 +9,28 @@
 
 ## 1. 应用壳与编辑器的关系
 
+**应用壳与编辑器两层 IA（站点地图）**
+
+```mermaid
+flowchart TB
+  web["apps/web · 章程 §5.2 · L8 · dom"]
+  subgraph shell["应用壳 Shell · 文档之外"]
+    home["开始页 #/home · 见 03-screens/29 · PRD AS-01…06 · 09 T-07"]
+    homeItems["新建：空白 / 主题模板 / 导入 .pptx · 最近 · 指南与帮助 · 账户菜单"]
+    docs["文档列表 #/documents · 见 03-screens/01"]
+    docsItems["全量列表 · 筛选 · 搜索 · 导入"]
+    route["路由 · 鉴权态 · 导入过渡态 #/import · 见 03-screens/13"]
+  end
+  subgraph editorHost["编辑器 Editor Host · 文档之内"]
+    host["preset-slide 或 preset-slide-collab 装配的运行时 UI · 见 03-screens/02"]
+  end
+  web --> shell
+  web --> editorHost
+  home --- homeItems
+  docs --- docsItems
 ```
-apps/web（章程 §5.2，L8，dom）
-├── 应用壳 Shell
-│   ├── 开始页 `#/home`        新建（空白 / 主题模板 / 导入 .pptx）、最近、指南与帮助、账户菜单 ——— 见 03-screens/29（PRD AS-01…06，09 T-07）
-│   ├── 文档列表 `#/documents` 全量列表、筛选、搜索、导入 ——— 见 03-screens/01
-│   └── 路由、鉴权态、导入过渡态 `#/import` ——— 见 03-screens/13
-└── 编辑器 Editor Host       preset-slide(-collab) 装配的运行时 UI ——— 见 03-screens/02
-```
+
+怎么读：箭头表示 apps/web 由两层组成；分组框内是该层包含的页面或状态，细线把页面连到它承载的内容。页面之间怎么跳转见 §4「导航层级与快捷通道」图。
 
 应用壳与编辑器是两个独立的 IA 层：应用壳是"文档之外"的空间（开始页、列表、分享入口、账户），编辑器是"文档之内"的空间（一个 Unit 打开后的完整工作区）。打开应用先到**开始页**（不是文档列表或空白编辑器，PRD AS-01）；编辑器应用栏的「返回首页」落回 `#/home`（03-screens/29）。两者共享同一套顶部全局栏结构，但内容不同（见 §2.1）。账户菜单（`UserMenu`：开始页侧栏底部用户行 / 文档列表与编辑器顶栏头像触发）承载"设置（`Mod+,`）/ 键盘快捷键（`Mod+/`）/ 帮助中心 / 退出登录"，其中**设置只有这一个入口**（侧栏与顶栏不再单独放设置按钮，PRD AS-06）；快捷键面板另有 Ribbon 页签行右侧「?」与 `Mod+/` 两个等价入口（rulings §4.10）。
 
@@ -28,10 +42,10 @@ apps/web（章程 §5.2，L8，dom）
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 顶部全局栏 App Bar                                                        │  L: --cordex-z-chrome
+│ 顶部全局栏 App Bar                                                        │  L: --layer-chrome
 │ [← 返回首页] 文档标题[可编辑]  已保存✓  [协作者头像簇] [分享] [模式:编辑▾] [⋯] [账户头像] │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ Ribbon 区（页签 × 分组 × 按钮，ui.ribbon 贡献）                            │  --cordex-z-chrome
+│ Ribbon 区（页签 × 分组 × 按钮，ui.ribbon 贡献）                            │  --layer-chrome
 │ [开始][插入][设计][切换][视图][插件A][插件B▸更多]         [普通｜母版] [☾] [?] │
 │ ┌分组:剪贴板┐┌分组:字体┐┌分组:段落┐┌分组:绘图┐ ...              [▾折叠]   │
 ├──────────┬──────────────────────────────────────────────┬───────────────┤
@@ -101,26 +115,26 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 
 **入口与退出**：主入口是 Ribbon 页签行右侧常驻的「普通｜母版」视图模式分段（`ViewModeSwitch`，rulings Q8；原缩略图侧栏顶部方案与状态栏切换器均作废）；次入口为「视图」页签「窗口」组「母版视图」按钮（03-screens/20）、快捷键 `Mod+Alt+M`（显示 ⌘⌥M，rulings Q9；原 `Mod+Shift+M` 作废，登记于 03-screens/24）与命令面板。退出四种方式等价：母版页签「关闭母版视图」大按钮 / 分段切回「普通」/ 无选区时 `Esc` / 再按 `Mod+Alt+M`；回到进入前的页、缩放与滚动位置，检查器 Tab 沿用进入前的选择（客户端会话记忆，不写入文档）。
 
-**可用性（rulings Q12）**：评审模式、放映模式、无 `doc.write`、视口 < 1024 时不提供入口——分段不显示、视图页签按钮禁用并 tooltip 说明原因、快捷键无效；查看器 preset 无此概念。已在母版视图中时缩窄窗口或被切到评审模式不强制退出（只读表现见 03-screens/26 §6）。区域职责表（§2.2）"顶部全局栏""Ribbon 区""缩略图侧栏"三行已按视图模式补充说明。
+**可用性（rulings Q12；§4.18 UX-11 / UX-20）**：评审模式、放映模式、无 `doc.write`、视口 < 1024 时不提供入口——分段不显示、快捷键无效；评审与放映模式没有 Ribbon，「视图」页签**不存在**（命令面板「母版视图」项禁用并注明原因）；编辑模式但已被降权（`readonly-degraded`，Ribbon 仍在）时视图页签按钮禁用、tooltip「需要编辑权限」；窄屏时按钮禁用、tooltip「需要 ≥ 1024 宽度」；查看器 preset 无此概念。已在母版视图中时：缩窄窗口不强制退出；**手动切到评审即退出母版视图**，回到进入前的页、缩放与滚动位置；**被降权原地只读**（只读表现见 03-screens/26 §6）。区域职责表（§2.2）"顶部全局栏""Ribbon 区""缩略图侧栏"三行已按视图模式补充说明。
 
 ---
 
 ## 3. 层级（z-index 与视觉层）
 
-区域到 z-index token（定义见 04-design-system.md §2.11）的映射：
+区域到层级变量（定义见 04-design-system.md §2.11）的映射。层级变量由 `@cordexjs/design` 以 Cordex 扩展裸名 `--layer-*` 发布（原记号 `--cordex-z-*` 已作废，rulings C-22；旧名→现名对照见 04 §9；playground `index.css` 尚未落地，标「待实现」）：
 
-| 区域/元素 | token |
+| 区域/元素 | 变量 |
 |---|---|
-| 画布内容 | `--cordex-z-canvas` |
-| 远端光标/选区/评论锚点/选中手柄 | `--cordex-z-canvas-overlay` |
-| Ribbon / 缩略图侧栏 / 检查器坞 / 状态栏 | `--cordex-z-chrome` |
-| 下拉菜单、插入 flyout 画廊 | `--cordex-z-dropdown` |
-| 颜色选择器、@提及建议 | `--cordex-z-popover` |
-| 离线/冲突横幅（吸顶时） | `--cordex-z-sticky` |
-| 通知 Toast | `--cordex-z-toast` |
-| 对话框遮罩/本体 | `--cordex-z-modal-backdrop` / `--cordex-z-modal` |
-| 命令面板 | `--cordex-z-command-palette` |
-| 工具提示 | `--cordex-z-tooltip` |
+| 画布内容 | `--layer-canvas` |
+| 远端光标/选区/评论锚点/选中手柄 | `--layer-canvas-overlay` |
+| Ribbon / 缩略图侧栏 / 检查器坞 / 状态栏 | `--layer-chrome` |
+| 下拉菜单、插入 flyout 画廊 | `--layer-dropdown` |
+| 颜色选择器、@提及建议 | `--layer-popover` |
+| 离线/冲突横幅（吸顶时） | `--layer-sticky` |
+| 通知 Toast | `--layer-toast` |
+| 对话框遮罩/本体 | `--layer-modal-backdrop` / `--layer-modal` |
+| 命令面板 | `--layer-command-palette` |
+| 工具提示 | `--layer-tooltip` |
 
 ---
 
@@ -138,6 +152,26 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 
 导航层级遵循"开始页 / 文档列表（应用壳）→ 幻灯片（缩略图）→ 对象（选中）→ 属性（检查器坞）"的递进关系；命令面板与深链接是跳过中间层级的"快捷通道"，不替代递进导航。
 
+**导航层级与快捷通道**
+
+```mermaid
+flowchart LR
+  shellNav["开始页 / 文档列表 · 应用壳"]
+  slide["幻灯片 · 缩略图侧栏"]
+  obj["对象 · 画布选中"]
+  prop["属性 · 检查器坞"]
+  palette["命令面板 Mod+Shift+P"]
+  deep["深链接 /d/{documentId}?page=&comment="]
+  shellNav -->|"新建 / 最近 / 点击文档卡片，路由携带文档 id"| slide
+  slide -->|"在画布上选中对象"| obj
+  obj -->|"检查器坞显示所选对象的属性"| prop
+  slide -->|"编辑器应用栏「返回首页」回到 #/home"| shellNav
+  palette -.->|"命令级导航，含跳转到第 N 页"| slide
+  deep -.->|"打开后直接定位到页与评论线程"| slide
+```
+
+怎么读：实线是递进导航与「返回首页」；虚线是跳过中间层级的两条快捷通道。切页 / 切模式时 URL 同步更新，浏览器返回时恢复上一页、滚动位置与筛选状态。
+
 ---
 
 ## 5. 三种模式
@@ -149,18 +183,44 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 | 顶部全局栏 | 完整（含"分享""⋯"与账户头像） | 完整，"编辑"入口按权限显示 | 隐藏，鼠标/触控移动时短暂浮现精简控制条 |
 | Ribbon | 完整多页签 | 替换为单行"评审工具条"：仅评论、高亮、跳转相关命令 | 无 |
 | 缩略图侧栏 | 完整，支持增删排序 | 仅浏览，禁用拖拽排序与增删 | 无（放映控制条含页码跳转） |
-| 画布 | 可编辑：选中框、拖拽手柄、文本插入符 | 只读：不出现选中手柄/文本插入符，仅评论锚点可点击 | 只读、全屏、按文档原有切换/动画效果播放（章程 §2.3：放映需播放已导入的动画/切换，即使编辑模式不能编辑它们） |
+| 画布 | 可编辑：选中框、拖拽手柄、文本插入符 | 只读：不出现选中手柄/文本插入符，仅评论锚点可点击 | 只读、全屏；M1–M3 渲染每页结束态（放映为主序列可见性终态，M2 P1），不播放动画与切换，播放为 M4+ P2（章程 §2.3、rulings §4.3 设计-1；原"按原有切换/动画效果播放"作废） |
 | 检查器坞 | 完整 | 默认显示"评论"面板；"属性"面板只读展示 | 无 |
 | 备注区 | 可折叠展开、可编辑 | 可折叠展开、只读 | 隐藏 |
 | 状态栏 | 完整 | 完整（隐藏"字数统计"等编辑态专属项） | 无（放映控制条自带页码指示） |
 | 画布覆盖层 | 远端光标/选区/评论锚点/选中手柄 | 远端光标/选区/评论锚点 | 仅"跟随状态"图标（见 05-collaboration-ux），不显示协作者光标/选区，保持演示画面干净 |
 
+**查看者变体（`mode='view'`，rulings §4.18 UX-19）**：只有查看权限（`viewer`，仅 `doc.read`）的用户打开 `/documents/:id` 时，进入的是**同一个协同编辑器**，呈现为评审模式列的只读变体，而不是 §8 的查看器壳：
+
+- 评审工具条去掉「评论」「高亮」等创建类按钮，只保留「上一处评论 / 下一处评论」等跳转命令；检查器坞同评审模式列，但「评论」面板只读（可阅读线程，无回复、无标记已解决、无输入框），且不出现「历史」Tab（查看者没有 `history.read`）。
+- 顶部全局栏的模式下拉只列「只读浏览」与「放映」；应用栏徽标与状态栏显示「只读浏览中」。
+- 进入协同房间：实时看到他人的修改与在场，别人也能看到他在场；计入 50 个查看者名额（rulings §4.15 Q5「查看者在房间内只上报视图」）。
+- `/documents/:id/view`（`preset-slide-viewer`）只留给 M1 查看器与嵌入场景，不作为查看者角色的入口。
+- 与评审模式（`commenter`，或编辑者主动切换）的区别只在创建类命令与历史入口；文档列表卡片徽标分别标「仅查看」与「可评论」（03-screens/01）。
+
 ### 5.2 模式切换
 
-- 入口：顶部全局栏"模式"下拉（编辑 / 评审 / 放映），权限不足时"编辑"选项禁用并提示所需权限。
+- 入口：顶部全局栏"模式"下拉（编辑 / 评审 / 放映），权限不足时"编辑"选项禁用并提示所需权限；查看者的下拉只列「只读浏览」与「放映」（§5.1 查看者变体）。
 - 编辑 ⇄ 评审：同一路由内切换，不重新加载文档；评审模式不是独立权限角色的强制视图——拥有编辑权限的用户也可以主动切到评审模式做只读检视。
 - 放映：新的全屏呈现态，可从当前页或第一页开始（快捷键提示见 07）；退出放映回到进入前的模式。
 - 三态之间没有"未保存更改丢失"的顾虑：模式切换不影响文档状态，所有变更仍经由命令/Mutation 落盘，符合单一事实源原则（章程 D5）。
+
+**三种模式切换**
+
+```mermaid
+stateDiagram-v2
+  state "编辑模式 Edit" as edit
+  state "评审模式 Review · 只读" as review
+  state "放映模式 Present · 全屏" as present
+  edit --> review : 模式下拉切到评审，同一路由不重新加载
+  review --> edit : 模式下拉切到编辑，权限不足时该选项禁用
+  edit --> present : 进入放映，从当前页或第一页开始
+  review --> present : 进入放映
+  present --> edit : 退出放映，进入前为编辑
+  present --> review : 退出放映，进入前为评审
+```
+
+怎么读：进入评审、编辑、放映的箭头由顶部全局栏「模式」下拉触发；放映模式隐藏全局栏，两条退出箭头都回到进入前的模式。模式切换不改文档状态，所以任何一条箭头都不会丢失未保存更改。
+依据：本文 §5.1、§5.2
 
 ---
 
@@ -171,7 +231,8 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 | 模式 × 视图模式 | 普通视图 | 母版视图 |
 |---|---|---|
 | 编辑模式（有 `doc.write`，视口 ≥ 1024） | 默认态（§2 区域网格） | 可进入，可编辑母版 / 版式 / 占位符（M2 内占位符可选中不可编辑，M3 起可编辑，03-screens/26 §4） |
-| 评审模式 / 无 `doc.write` | 默认态（§5.1 只读列） | **不提供入口**（分段不显示、视图页签按钮禁用 + tooltip、快捷键无效）；已在母版视图中被切到评审时不强制退出，编辑类控件禁用（03-screens/26 §6） |
+| 评审模式 | 默认态（§5.1 只读列） | **不提供入口**：Ribbon 由评审工具条取代，「视图」页签不存在，分段不显示、快捷键无效、命令面板「母版视图」禁用并注明"评审模式下不可用"；已在母版视图中**手动切到评审即退出母版视图**，回到进入前的页、缩放与滚动位置（rulings §4.18 UX-20） |
+| 编辑模式但无 `doc.write`（已降权，`readonly-degraded`） | 默认态（Ribbon 仍在，编辑类禁用） | **不提供入口**：分段不显示、视图页签按钮禁用 + tooltip「需要编辑权限」、快捷键无效；已在母版视图中被降权时**原地只读**，编辑类控件禁用，四种退出方式照常（03-screens/26 §6） |
 | 窄屏 < 1024 | §6 紧凑 / 仅查看形态 | **不提供入口**；已在母版视图中缩窄不强制退出 |
 | 放映模式 | 唯一形态 | 不适用——放映模式没有"母版视图"概念，母版内容只通过页面渲染间接体现 |
 
@@ -180,6 +241,22 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 - **主入口**：Ribbon 页签行右侧常驻的「普通｜母版」分段（`ViewModeSwitch`，rulings §4.8 Q8）；母版视图下同位置显示「母版」档。
 - **次入口**：「视图」页签「窗口」组「母版视图」按钮（03-screens/20，此前为 P2 灰显占位，现为 M2 P0 可用项）；快捷键 `Mod+Alt+M`（显示 ⌘⌥M，rulings §4.9 Q9；原 `Mod+Shift+M` 作废，登记于 03-screens/24）；命令面板「母版视图」。
 - **退出**：母版页签最右「关闭」组「关闭母版视图」大按钮 / 分段切回「普通」/ 无选区时 `Esc` / 再按 `Mod+Alt+M`，四者等价；返回进入前的页、缩放与滚动位置，检查器 Tab 沿用进入前的选择（客户端会话记忆，不写入文档）。
+
+**视图模式：普通 / 母版（叠加在编辑模式之上）**
+
+```mermaid
+stateDiagram-v2
+  state "编辑模式 · 有 doc.write" as edit {
+    state "普通视图 · 默认" as normal
+    state "母版视图 · 同一个编辑器" as master
+    [*] --> normal
+    normal --> master : 分段切到母版、视图页签按钮、Mod+Alt+M 或命令面板，且视口 ≥ 1024
+    master --> normal : 关闭母版视图、分段切回普通、无选区 Esc 或再按 Mod+Alt+M
+  }
+  note right of edit : 评审、放映、无 doc.write、视口小于 1024 均不提供进入入口；已在母版视图中时缩窄窗口不强制退出，被降权原地只读，手动切到评审即退出母版视图并回到进入前的位置
+```
+
+怎么读：外框是编辑模式，视图模式只在框内切换，协同连接、撤销历史与 UnitScope 都不重建；进入有四个等价入口、退出有四种等价方式，退出后回到进入前的页、缩放与滚动位置。
 
 母版视图不改变 01 §1 描述的"应用壳/编辑器"两层 IA 结构，也不是 §8 描述的 `preset-slide-viewer` 那种更小的组装——它始终是编辑器实例内的一个视图切换，协同连接、撤销历史、`UnitScope` 均不重建。完整规格见 03-screens/26。
 
@@ -234,7 +311,28 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 
 ### 8.2 与三种模式（§5）的关系
 
-查看器壳大致对应编辑器的"评审模式"在视觉呈现上的一个更极简子集，但两者不是同一回事：评审模式是**同一个编辑器实例**在权限/UI 层面的降级呈现（仍加载了完整的 ui-core/检查器坞等基础设施，只是隐藏/禁用了编辑相关部分，评论/版本历史等仍可用）；查看器壳是**另一个更小的 preset 组装**，从根本上不加载这些基础设施。两者的边界情况处理（如导入失败、部分解析失败）复用 03-screens/02 与 03-screens/10 已定义的状态语义，不重复设计一套新的错误态。
+查看者角色（`viewer`）打开协同文档走编辑器的查看者变体（§5.1），**不走**本查看器壳；`/documents/:id/view` 只留给 M1 查看器与嵌入场景（rulings §4.18 UX-19）。查看器壳大致对应编辑器的"评审模式"在视觉呈现上的一个更极简子集，但两者不是同一回事：评审模式是**同一个编辑器实例**在权限/UI 层面的降级呈现（仍加载了完整的 ui-core/检查器坞等基础设施，只是隐藏/禁用了编辑相关部分，评论/版本历史等仍可用）；查看器壳是**另一个更小的 preset 组装**，从根本上不加载这些基础设施。两者的边界情况处理（如导入失败、部分解析失败）复用 03-screens/02 与 03-screens/10 已定义的状态语义，不重复设计一套新的错误态。
+
+**编辑器组装与查看器组装（平级的两种 preset）**
+
+```mermaid
+flowchart TB
+  subgraph editorAsm["preset-slide 或 preset-slide-collab · 编辑器主界面"]
+    fullUi["桌面与紧凑宽度：完整编辑体验"]
+    narrowUi["窄屏与平板：降级为查看 + 评论"]
+    reviewUi["评审模式：同一编辑器实例的权限/UI 降级，仍加载 ui-core 与检查器坞"]
+  end
+  subgraph viewerAsm["preset-slide-viewer · 查看器壳 · L8 dom · ≤ 350KB gzip"]
+    vHas["只含：翻页 · 缩放 10–400% · 适应窗口 · 全屏/放映 · ⓘ 保真提示"]
+    vOpt["可选：缩略图条 · 备注抽屉，默认关、宿主开启、按需加载"]
+    vNot["无 ui.ribbon / ui.panel 渲染宿主，插件贡献这些槽位也不呈现"]
+  end
+  design["@cordexjs/design：token + 最小必要原子组件"]
+  vHas --- vOpt
+  viewerAsm -->|"只复用，不依赖 ui-react / slide-ui 完整依赖树"| design
+```
+
+怎么读：两个分组框是平级的两种组装，不是同一编辑器的两个模式；编辑器框内前两行是 §8.3 三层结构的前两层，第三行是 §8.2 的评审模式，三者都是同一编辑器实例；查看器框是集成方主动选择的只读嵌入形态（§8.3 第三层）。
 
 ### 8.3 与 Q20（移动端范围与 a11y 目标）的关系
 
@@ -268,5 +366,50 @@ PRD `03-features/02-editing.md` ED-29 明确的键盘焦点顺序（"ribbon → 
 | `#/viewer` | §8 `preset-slide-viewer` | 25 |
 | `#/settings` | 浮层：设置抽屉 + 快捷键面板 | 23、24 |
 | `#/offline` | 横幅：会话六态、权限降级、门禁反馈 | 12 |
+
+**playground 路由树（registry.ts 19 条 + 目录页）**
+
+```mermaid
+flowchart LR
+  hub["#/ 目录页 Hub · 元信息，不在登记表内"]
+  sg["#/styleguide · 组件与材质状态基准 · 09 §2"]
+  subgraph shellR["应用壳 · §1"]
+    direction TB
+    rHome["#/home · 开始页 · 29"]
+    rDocs["#/documents · 文档列表 · 01"]
+    rImport["#/import · 应用壳到编辑器过渡态 · 13"]
+  end
+  subgraph editorR["编辑器 #/editor 族 · §2"]
+    direction TB
+    rEditor["#/editor · 编辑模式区域网格 · 02 03 05 14 17 19 20 21"]
+    rMasters["#/editor/masters · 母版视图 · 26"]
+    rLayouts["#/editor/layouts · 版式选择与重置 · 27"]
+    rDesign["#/editor/design · 设计页签与主题 · 28"]
+    rInsert["#/editor/insert · 插入页签 · 04 15 18"]
+    rText["#/editor/text · 正在编辑文本态 · 16"]
+    rComments["#/editor/comments · 检查器坞评论 Tab · 06"]
+    rHistory["#/editor/history · 检查器坞历史 Tab · 07"]
+    rShare["#/editor/share · ui.dialog 浮层 · 08"]
+    rPlugins["#/editor/plugins · 插件 Tab 与插件管理器 · 09"]
+  end
+  subgraph modeR["模式、浮层与横幅"]
+    direction TB
+    rExport["#/export · ui.dialog 浮层 · 22"]
+    rPresent["#/present · 放映模式 · 11"]
+    rViewer["#/viewer · preset-slide-viewer · 25"]
+    rSettings["#/settings · 设置抽屉 + 快捷键面板 · 23 24"]
+    rOffline["#/offline · 会话六态、权限降级、门禁反馈 · 12"]
+  end
+  hub --> sg
+  hub --> shellR
+  hub --> editorR
+  hub --> modeR
+  rHome ~~~ rDocs ~~~ rImport
+  rEditor ~~~ rMasters ~~~ rLayouts ~~~ rDesign ~~~ rInsert
+  rText ~~~ rComments ~~~ rHistory ~~~ rShare ~~~ rPlugins
+  rExport ~~~ rPresent ~~~ rViewer ~~~ rSettings ~~~ rOffline
+```
+
+怎么读：目录页只是演示用的元信息入口；三个分组按本文区域 / 模式归类，节点末尾的数字是对应的 03-screens 界面文件编号。这些路由只为逐状态审阅而拆分，不是产品真实信息架构。
 
 深链接格式（§4 已定的 `/d/{documentId}?page=&comment=`）是产品运行时的真实路由约定，与本节的 playground 演示路由是两套独立机制：前者面向集成方与最终用户，后者仅面向本设计稿的评审者，两者不应混淆或互相替代。

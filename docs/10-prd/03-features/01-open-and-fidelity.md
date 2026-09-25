@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16、§4.18
 
 # 功能域 01：打开 / 渲染 / 保真 / 导出
 
@@ -57,6 +57,32 @@
 | `webextensions/`、`ppt/tags/`、`ppt/slideUpdateInfo/` | P (P0) | | | | |
 
 > 备注 A（rulings §4.15 Q7，同时结案 PD-18）：`mc:AlternateContent` 内的对象（公式、墨迹、3D、缩放定位、chartex 等）**建模变换**——模型为其保存一个 transform 字段与只读渲染提示（选中的分支、Fallback 图片 rId→`BlobRef`），导出时同步回写各分支的 `xfrm`。**删除 M1 P0**（按 OF-13），**整体移动/缩放 M2 P1**；对象内部不可编辑，进入时给出提示；内部编辑为 M4+ P2。对不透明内容的修改只限 ADR-0008 决策 9 的白名单（时序引用清理、分支 `xfrm` 同步、孤儿嵌入部件清理），每条配往返测试。
+
+**图 2-1 `mc:AlternateContent` 的分支选择与编辑口径**
+
+```mermaid
+flowchart TB
+  ac["mc:AlternateContent 内的对象"]
+  q1{"有受支持的 mc:Choice"}
+  choice["渲染首个受支持的 mc:Choice"]
+  q2{"是 cx: chartex"}
+  fb["渲染 mc:Fallback"]
+  cx["不选 Fallback，渲染诊断占位并上报，见 §2.6"]
+  keep["原分支全部保留；模型只存 transform 与只读渲染提示"]
+  edit["删除 M1 P0；整体移动/缩放 M2 P1，导出时同步各分支 xfrm；内部不可编辑"]
+  ac --> q1
+  q1 -->|"是"| choice
+  q1 -->|"否"| q2
+  q2 -->|"否"| fb
+  q2 -->|"是"| cx
+  choice --> keep
+  fb --> keep
+  cx --> keep
+  keep --> edit
+```
+
+怎么读：上半部分是渲染时选哪一个分支，下半部分是无论选哪个分支都成立的保留与编辑口径；对不透明内容的改动只限上文 ADR-0008 决策 9 的白名单。
+依据：§2.1 `mc:AlternateContent` 行与备注 A；§2.6 chartex 行。
 
 ### 2.2 演示文稿级
 
@@ -202,6 +228,38 @@
   - Given Strict 命名空间文件，Then 打开成功，`unit.meta.conformance = "strict"`。
   - 全部错误码为点式 `<domain>.<snake_case_name>`（架构 10 §1.1），通过声明合并登记到 `ErrorCodes` 并有 i18n 文案；错误码列表由 CI 与文档同步（架构 10）。
 
+**图 3-1 文件识别的拒绝出口与接受口径**
+
+```mermaid
+flowchart LR
+  input["待打开的文件"]
+  subgraph reject["拒绝：返回类型化错误码"]
+    ppt["format.unsupported_binary：.ppt 二进制，只读文件头，≤ 100 ms"]
+    enc["format.encrypted：加密包，提示先去除密码"]
+    macro["format.macro_rejected：.pptm、macroEnabled 主内容类型或含 vbaProject.bin"]
+    bad["format.pptx.invalid_package：非 zip、缺内容类型部件或 ppt/presentation.xml，附 details.part"]
+    limit["format.limit_exceeded：超出 ZIP 安全限制，见 OF-24"]
+    quota["format.quota_exceeded：超出文档规模天花板，由服务端导入执行，见 SV-08"]
+  end
+  subgraph accept["接受并打开"]
+    pptx["pptx：主线格式"]
+    variant["ppsx / potx：按 pptx 打开，unit.meta.contentType 记录原类型，导出保持"]
+    strict["Strict 命名空间：unit.meta.conformance 为 strict"]
+  end
+  input --> ppt
+  input --> enc
+  input --> macro
+  input --> bad
+  input --> limit
+  input --> quota
+  input --> pptx
+  input --> variant
+  input --> strict
+```
+
+怎么读：左侧一个输入，分流到右侧两组出口；每个节点写明错误码或接受后的记录方式。图中不表示检查的先后顺序，顺序由编解码实现决定。
+依据：本条 OF-02；§2.1 包与文件级矩阵；OF-24。
+
 ### OF-03 渐进加载与懒解析
 
 - 优先级：P0 | 目标里程碑：M1 | 依赖能力：`FormatCodec` 懒解析能力、`engine-render` 视口/虚拟化、`RenderTarget`
@@ -211,6 +269,24 @@
   - Given 用户跳转到未解析的页，Then 该页优先解析并在 ≤ 300 ms 内可见（p75）。
   - Given 媒体（图片/视频）不在视口，Then 不解码其字节（懒媒体）；进入视口前 1.5 个视口高度预取。
   - 解析顺序：`presentation.xml` → 母版/版式/主题 → 首页与相邻页 → 缩略图队列 → 其余页（后台，可被用户导航抢占）。
+  - 装载方式（rulings §4.18 CO-12，架构 07 §14.2）：解析在 Worker 中进行，**先完成规模计数**（超出系统天花板时整体拒绝，不会装到一半才失败，SV-08），再分批回传；首批装载后即触发 `unit/opened`（可渲染、可编辑）；其余批次在后台追加，**不进入撤销栈、不标记为脏**（打开后零编辑导出无脏部件，OF-18）；全部到齐触发 `unit/loaded`。
+  - Given 尚未 `unit/loaded`，When 执行全选、查找替换、导出、跨页重排等全文类命令，Then 等待装载完成或禁用并说明原因，不对半装载的文档执行。
+  - 协同模式不走此路径：初始状态由服务端快照引导（CO-01）。
+
+**图 3-2 渐进加载的解析顺序**
+
+```mermaid
+flowchart LR
+  p1["presentation.xml"] --> p2["母版 / 版式 / 主题"] --> p3["首页与相邻页"] --> p4["缩略图队列"] --> p5["其余页：后台解析"]
+  count["规模计数：超天花板整体拒绝"] --> p1
+  p3 -.->|"首批装载后"| opened["unit/opened：可渲染、可编辑"]
+  p5 -.->|"全部到齐"| loaded["unit/loaded：全文类命令解禁"]
+  nav["用户跳转到未解析的页"] -.->|"抢占：该页优先解析，≤ 300 ms 可见，p75"| p5
+  media["视口外的媒体：不解码"] -.->|"进入视口前 1.5 个视口高度"| decode["预取"]
+```
+
+怎么读：实线链为解析顺序，链首的规模计数先于任何回传完成；两条到事件节点的虚线说明首批装载即可编辑、全部到齐才解禁全文类命令；从「用户跳转」出发的虚线是插队规则——该页优先解析；「视口外的媒体」一组是与解析顺序独立的懒媒体规则。
+依据：本条 OF-03；时限见 NF-01；rulings §4.18 CO-12。
 
 ### OF-04 样式继承链解析
 
@@ -219,6 +295,22 @@
 - 验收标准：
   - Given 语料库 T1 中「继承专项」子集（≥ 40 个文件，覆盖：占位符 `type`/`idx` 匹配、`lstStyle` 各级、`p:style` 四类引用、`clrMapOvr`、主题字体 `+mj/+mn` 与 `ea/cs` 脚本选择、`bgRef`），Then 解析结果与 oracle 属性表逐项一致率 100%（属性表由 python-pptx 或 PowerPoint COM 导出，架构 11 定义）。
   - Given 任一属性未在链上任何层定义，Then 使用 ECMA-376 规定的默认值（如字号 18pt、`algn=l`），不得使用「看起来合理」的值。
+
+**图 3-3 样式继承链**
+
+```mermaid
+flowchart LR
+  el["Element 元素：显式覆盖"]
+  ph["Placeholder 占位符：按 type / idx 匹配"]
+  layout["Layout 版式"]
+  master["Master 母版：titleStyle、bodyStyle、otherStyle"]
+  theme["Theme 主题：配色、主题字体 +mj / +mn、格式方案"]
+  def["ECMA-376 默认值：如字号 18pt、algn=l"]
+  el -->|"未定义"| ph -->|"未定义"| layout -->|"未定义"| master -->|"未定义"| theme -->|"整条链都未定义"| def
+```
+
+怎么读：解析一个属性时从左往右查找，边上的「未定义」表示本层没有给出该属性才继续向右；编辑器只写最左侧的显式覆盖，不把继承值烤进元素（见 `02-editing.md` §3）。
+依据：本条 OF-04；§2.2「母版 / 版式继承链」行；§2.7 段落属性行。
 
 ### OF-05 文本渲染保真与字体
 
@@ -229,6 +321,28 @@
   - Given 字体不可用，Then 按回退链（文档内嵌字体 → 集成方提供字体 → 同度量替代表 → 系统默认）选择，并上报 `render/font-fallback`（含缺失字体名，不含文本内容）。
   - Given CJK 文本，Then 禁则（行首禁止标点、行尾禁止开括号）与全角标点处理与 PowerPoint 一致（专项语料 ≥ 20 个）。
   - `Intl.Segmenter` 不可用时退化为按字符断行，且不崩溃。
+
+**图 3-4 字体回退链**
+
+```mermaid
+flowchart LR
+  req["文本请求的字体"]
+  q{"该字体可用"}
+  use["直接使用"]
+  f1["文档内嵌字体"]
+  f2["集成方提供字体，OF-25"]
+  f3["同度量替代表"]
+  f4["系统默认"]
+  ev["上报 render/font-fallback：含缺失字体名，不含文本内容"]
+  req --> q
+  q -->|"是"| use
+  q -->|"否"| f1
+  f1 -->|"无"| f2 -->|"无"| f3 -->|"无"| f4
+  q -.->|"发生回退时"| ev
+```
+
+怎么读：实线为回退顺序，每一级「无」才进入下一级；虚线表示只要发生回退就上报一次事件，缺失字体同时列入保真诊断面板。
+依据：本条 OF-05；OF-25。
 
 ### OF-06 形状与几何
 
@@ -247,6 +361,62 @@
   - 媒体：编辑态显示海报帧；放映态可播放浏览器支持的编解码。
   - 外链资源（外链图片 `r:link`、外链音视频、链接 OLE）：外部关系全部原样保留，仅 `http(s)` 可激活；默认 `externalResources = auto` 自动加载（媒体 `preload="none"`）；部署配置为 `confirm` 时显示占位并在用户确认来源域名后加载，为 `never` 时一律占位；CSP 的 `img-src`/`media-src` 随配置收紧（EM-14）。服务端与 headless 渲染永不加载外链。
   - 所有 blob URL 归属 `Unit`，关闭后 100% 释放（测试断言 `URL.revokeObjectURL` 调用数等于创建数）。
+
+**图 3-5 外链图片与外链音视频的加载策略**
+
+```mermaid
+flowchart TB
+  rel["外部关系：外链图片 r:link、外链音视频"]
+  keep["外部关系全部原样保留"]
+  q{"目标协议"}
+  inert["不可激活"]
+  cfg{"部署配置 externalResources"}
+  auto["auto，默认：自动加载，媒体 preload 为 none"]
+  confirm["confirm：先占位，用户确认来源域名后加载"]
+  never["never：一律占位"]
+  csp["CSP 的 img-src / media-src 随配置收紧，EM-14"]
+  server["服务端与 headless 渲染：永不加载，渲染为占位"]
+  rel --> keep
+  rel --> q
+  q -->|"非 http 或 https"| inert
+  q -->|"http 或 https"| cfg
+  cfg --> auto
+  cfg --> confirm
+  cfg --> never
+  cfg -.-> csp
+  rel -.->|"在服务端渲染时"| server
+```
+
+怎么读：实线为客户端上的判定路径，虚线为随之生效的约束与服务端的固定口径；加载失败时同样显示占位。链接 OLE 的口径见 §2.6（仅预览图、链接目标不加载），本图不含。
+依据：本条 OF-07；§2.5 外部链接媒体与外链图片两行；rulings §4.15 Q7。
+
+**图 3-6 EMF / WMF 在各里程碑的渲染路径**
+
+```mermaid
+flowchart LR
+  emf["EMF / WMF 图片，含 OLE 的 EMF 预览"]
+  subgraph m1["M1"]
+    q{"包内有位图或 PDF 预览"}
+    pre["显示预览"]
+    ph["占位框，上报 render/element-degraded：kind pic、reason emf-no-preview"]
+  end
+  subgraph m2["M2 P1"]
+    rast["按需加载 Worker 栅格化 chunk，emf-converter"]
+    over["超出 OF-24 上限：回到占位并上报"]
+  end
+  subgraph m4["M4+"]
+    vec["矢量渲染"]
+  end
+  emf --> q
+  q -->|"有"| pre
+  q -->|"无"| ph
+  m1 -->|"升级为"| rast
+  rast -->|"超限"| over
+  m2 -->|"升级为"| vec
+```
+
+怎么读：每个子图是一个里程碑的能力，子图之间的箭头表示下一里程碑取代上一里程碑的做法；栅格化 chunk 不计入查看器 350 KB 基线，headless 用同一份代码。
+依据：本条 OF-07；§2.5 EMF / WMF 行。
 
 ### OF-08 表格
 
@@ -298,6 +468,26 @@
   - 降级/失败元素在编辑器中可选中、可移动、可删除，但内部不可编辑。
   - 「保真诊断面板」（M2，P1）列出当前文档所有降级项及原因。
 
+**图 3-7 渲染失败的两级隔离**
+
+```mermaid
+flowchart TB
+  elem["一页中某元素渲染抛错"]
+  plugin["某 ElementRenderer 插件整体加载失败，进入 FAILED"]
+  ph1["该元素显示占位框；同页其余元素与其它页正常；上报 render/element-failed"]
+  ph2["该 kind 的元素全部占位；其余功能可用"]
+  sel["占位元素可选中、可移动、可删除，内部不可编辑"]
+  panel["保真诊断面板列出全部降级项与原因，M2 P1"]
+  elem --> ph1
+  plugin --> ph2
+  ph1 --> sel
+  ph2 --> sel
+  sel --> panel
+```
+
+怎么读：两个起点是两种失败粒度（单元素、整个渲染器插件），随后汇合为同一套占位与诊断口径；任何一级都不会拖垮同页其它元素或编辑器本身（规避 Univer A11）。
+依据：本条 OF-13；PS-11。
+
 ### OF-14 只读查看模式
 
 - 优先级：P0 | 目标里程碑：M1 | 依赖能力：`Preset`（`preset-slide` 的 viewer 子集）、`permissions`
@@ -327,6 +517,22 @@
 - 验收标准：`.fntdata` 解混淆并以 `FontFace` 注入 `Unit` 作用域；关闭 `Unit` 后卸载；超出上限（单字体 ≤ 20 MB，总计 ≤ 60 MB，处理时长 ≤ 3 s；全仓以本条为内嵌字体上限的唯一口径）时跳过并上报 `render/font-fallback`。
 - 许可位（OS/2 `fsType`，rulings §4.15 Q7，fail-closed）：「受限（Restricted）」与「仅预览/打印」字体**只用于只读渲染**（查看、放映、缩略图、PDF，含服务端）；编辑态中用到它的文本改用回退字体并上报 `render/font-fallback{reason:"font-license"}`，文档仍可编辑（协同时不因一个字体把所有人锁成只读；代价是编辑态与查看态字形可能不一致，诊断面板列出）；导出时内嵌字体部件原样保留，不新增内嵌。
 
+**图 3-8 受限内嵌字体的使用范围**
+
+```mermaid
+flowchart LR
+  font["内嵌字体，OS/2 fsType 为受限或仅预览/打印"]
+  ro["只读渲染：查看、放映、缩略图、PDF，含服务端"]
+  editing["编辑态：该文本改用回退字体，上报 render/font-fallback，reason 为 font-license；文档仍可编辑"]
+  exp["导出：内嵌字体部件原样保留，不新增内嵌"]
+  font -->|"可用于"| ro
+  font -->|"不用于"| editing
+  font --> exp
+```
+
+怎么读：一种字体按使用场景分成三条去向；判定按许可位 fail-closed，编辑态与查看态字形可能不一致，差异列入保真诊断面板。
+依据：本条 OF-17 许可位；rulings §4.15 Q7。
+
 ### OF-18 不透明保留与导出 pptx
 
 - 优先级：P0 | 目标里程碑：M1（零编辑往返）/ M2（编辑后导出） | 依赖能力：`ooxml-core` 脏部件追踪、元素级 `extensions` 槽、`FormatCodec` 导出、`Snapshot` 编解码边界
@@ -339,6 +545,34 @@
   - **互操作**：导出文件在 PowerPoint 365（Windows/macOS，当前通道）打开无修复提示：语料库 100%；LibreOffice Impress 24.x 可打开不崩溃（best-effort，记录差异）。
   - **Strict 输入**（章程 §10 Q14 已裁决：方案 C，2026-09-19，rulings §4.12 U-02）：方案 C「保持原一致性类」——脏部件反向映射写回 Strict，未触碰部件字节相同；**M1 即支持 Strict 完整写回**（反向映射表 + 字节级验证）；方案 B「整包转 Transitional」仅作反向映射失败时的异常兜底，并在导出报告中说明。无论方案：零编辑往返字节相同、PowerPoint 365 打开无修复。
   - 导出在 Worker 中执行，不阻塞 UI（D50 ≤ 3 s，D200 ≤ 12 s）。
+
+**图 3-9 导出时每个部件的去向**
+
+```mermaid
+flowchart TB
+  part["源包中的一个部件"]
+  kind{"部件类别"}
+  clean["未触碰：字节相同，原样写出"]
+  dirty["脏部件：重生成；XSD 有效；规范化 diff 只落在被编辑子树；未知属性、子元素与 extLst 按 schema 顺序带回"]
+  derived["派生部件：只允许白名单内变化，见 §4.1"]
+  removed["被删页的部件：独占的 rels 目标随之移除，共享目标保留"]
+  strictq{"源包为 Strict 一致性类"}
+  tw["按 Transitional 写出"]
+  sw["方案 C：反向映射写回 Strict"]
+  fb["方案 B：反向映射失败时整包转 Transitional 兜底，导出报告说明"]
+  part --> kind
+  kind -->|"未触碰"| clean
+  kind -->|"被编辑"| dirty
+  kind -->|"派生"| derived
+  kind -->|"所属页被删"| removed
+  dirty --> strictq
+  strictq -->|"否"| tw
+  strictq -->|"是"| sw
+  sw -->|"失败"| fb
+```
+
+怎么读：先按部件类别分流，脏部件再按源包一致性类决定写回方式；零编辑往返时所有部件都走「未触碰」，因此整包字节相同（zip 元数据除外）。
+依据：本条 OF-18；§4.1 部件级 diff；章程 D7、§6.2 Strict 一致性类写回。
 
 ### OF-19 导出为图片 / PDF / SVG（客户端）
 

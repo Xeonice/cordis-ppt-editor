@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.8 Q6（Geist）/ §4.9 Q10 / §4.10 Q17；`10-prd/07-design-coverage-and-gaps.md` G-75；PRD `07-masters` ML-04；03-screens/26；09 v3.0 §3（主题卡 84×60、变体 44×28）；playground `DesignTab.tsx` / `ThemeEditorPanel.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.8 Q6（Geist）/ §4.9 Q10 / §4.10 Q17；`10-prd/07-design-coverage-and-gaps.md` G-75；PRD `07-masters` ML-04；03-screens/26；09 v3.0 §3（主题卡 84×60、变体 44×28）；playground `DesignTab.tsx` / `ThemeEditorPanel.tsx`
 
 # 03-28 设计页签：主题、变体、主题色与字体编辑
 
@@ -7,6 +7,25 @@
 新增界面。对应产品线 `10-prd/03-features/07-masters-layouts-and-themes.md` **ML-04 主题**（M3 P1）。本文件覆盖 Ribbon"设计"页签（此前 02-editor-main.md 线框中只列出页签名，未展开内容）与其驱动的主题编辑面板；与 03-screens/26 的关系：主题（`theme1.xml`：配色/字体/效果矩阵）是母版的**上游**——同一文档可有多个母版，但典型场景下同一母版关联一个主题，编辑主题会影响该母版下全部版式与页面，因此"编辑主题…"在母版视图 Ribbon 的"主题"分组中也提供入口（见 03-screens/26 §2 线框），两处入口指向同一面板。
 
 对应高保真设计稿：`mockups/28-design-tab-and-themes.html`（历史静态稿，尺寸与分组以 playground `#/editor/design` 为准）。**2026-09-18 修订**：按 rulings §4.10 Q17 删除「设置为默认主题」「另存为新主题」及其状态；线框补插件页签与页签行右侧控件；尺寸改为 84×60 / 44×28；字体口径改 Geist 优先。
+
+**主题的上游位置与两个编辑入口**
+
+```mermaid
+flowchart TB
+  e1["普通视图 Ribbon「设计」页签 · 「自定义」组 颜色▾ / 字体▾"]
+  e2["母版视图「母版」页签「主题」组 ·「编辑主题…」"]
+  panel["同一个主题编辑面板 · 颜色 / 字体两个 Tab，编辑即实时预览 · 取消 / 应用"]
+  thm["主题 theme1.xml：配色 12 槽位 / 字体 / 效果矩阵"]
+  mas["该主题关联的母版"]
+  lay["母版下全部版式"]
+  pg["引用这些版式的页面"]
+  e1 -->|"预览当前页"| panel
+  e2 -->|"预览当前母版"| panel
+  panel -->|"应用：一个事务"| thm
+  thm -->|"影响"| mas --> lay --> pg
+```
+
+怎么读：两个入口打开同一个面板，只是预览对象不同；从「主题」往下是主题向下游的影响链，一次「应用」影响该主题下所有母版、版式与页面，但已断开主题色引用的显式覆盖值保持不变。
 
 ---
 

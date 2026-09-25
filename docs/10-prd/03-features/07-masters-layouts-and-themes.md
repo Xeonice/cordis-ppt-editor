@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品（2026-09-17 由总编排按设计稿同步；2026-09-18 按用户裁决 Q11–Q20 回写） | 更新：2026-09-18 | 依赖：charter v0.2；设计 03-screens/26 v16、27、28；rulings §4.8 Q8 / §4.9 / §4.10
+> 状态：草稿 | 负责：产品（2026-09-17 由总编排按设计稿同步；2026-09-18 按用户裁决 Q11–Q20 回写） | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；设计 03-screens/26 v16、27、28；rulings §4.8 Q8 / §4.9 / §4.10
 
 # 功能域 07：母版、版式与主题
 
@@ -23,12 +23,31 @@
 
 ## 1. 概念与关系（沿用架构 04 的实体命名）
 
+**图 1-1 母版、版式与主题的实体关系**
+
+```mermaid
+flowchart LR
+  pres["Presentation"]
+  slide["Slide：layoutId、order"]
+  layout["SlideLayout：masterId、order"]
+  master["SlideMaster：themeId、order、textStyles"]
+  theme["Theme：colorScheme、fontScheme、formatScheme"]
+  sshapes["shapes：containerId = SlideId"]
+  lshapes["shapes：containerId = LayoutId"]
+  mshapes["shapes：containerId = MasterId"]
+  other["notesMaster / handoutMaster：M1–M3 不透明保留，OF 矩阵 §2.2；M4 起见 ML-05"]
+  pres --> slide
+  slide -->|"layoutId"| layout
+  layout -->|"masterId"| master
+  master -->|"themeId"| theme
+  slide --- sshapes
+  layout --- lshapes
+  master --- mshapes
+  sshapes -.->|"占位符形状 PlaceholderRef：type、index，按 type、index 向上匹配"| lshapes
+  lshapes -.->|"按 type、index 向上匹配"| mshapes
 ```
- Presentation ──► Slide{layoutId, order} ──► SlideLayout{masterId, order} ──► SlideMaster{themeId, order, textStyles} ──► Theme{colorScheme, fontScheme, formatScheme}
-                    │ shapes(containerId=SlideId)     │ shapes(containerId=LayoutId)       │ shapes(containerId=MasterId)
-                    └─ 占位符形状 PlaceholderRef{type, index} ── 按 (type, index) 向上匹配 ──┘
- notesMaster / handoutMaster：M1–M3 不透明保留（OF 矩阵 §2.2），M4 起见 ML-05
-```
+
+怎么读：带箭头的实线是引用链（字段名写在边上），无箭头的实线把每一层挂上它自己的形状集合；虚线是占位符按 (type, index) 逐层向上匹配的继承关系；备注母版与讲义母版单独成节点，本域 M1–M3 不涉及。本图由原 ASCII 概念图转换，内容不变。
 
 | 占位符类型（`PlaceholderRef.type`） | 用户可见名称 | 备注 |
 |---|---|---|
@@ -53,11 +72,33 @@
   - Given 选中母版节点，Then 画布显示母版内容（背景、母版形状、母版占位符与母版文本样式占位符）；Given 选中版式节点，Then 显示版式合成（母版层按 `showMasterSp` 叠加，可切换「显示母版形状」）；占位符以虚线框 + 类型标签 + 提示文本呈现。
   - Given 母版视图，Then **与普通视图共用同一编辑器**：页缩略图、页级评论图钉、他人页级光标不显示（对象不是页），检查器「评论」页签禁用并提示「母版与版式不支持评论」，属性 / 历史 / 插件页签照常；继承自母版的占位符以虚线 + 「母版 · 〈类型〉」徽标标出；M2（ML-03 交付前）占位符可选中（属性面板显示类型、索引、继承说明）但不可编辑，拖动手柄显示锁形并 tooltip「版式编辑将在协同版本提供」——这是里程碑限制而非权限态：不存在评审模式下的只读母版视图（无 `doc.write` 时不提供入口，见下文 Q12 条）。
   - Given 点击母版页签最右「关闭」组的「关闭母版视图」大按钮、把视图分段切回「普通」、按 Esc（无选区时）或再次按快捷键，Then 回到进入前的页、缩放与滚动位置，选区清空；进入/退出不产生历史项，`view/mode-changed{mode:"master"}` 事件触发。
-  - Given 评审模式、放映模式、无 `doc.write` 或视口 < 1024（2026-09-18 Q12），Then **不提供入口**：Ribbon 视图分段不显示，「视图」页签「母版视图」按钮禁用并 tooltip 说明原因（「母版视图仅在编辑模式且窗口宽度 ≥ 1024 时可用」），`Mod+Alt+M` 无效，命令面板中该命令显示不可用原因；已在母版视图中时缩窄窗口**不强制退出**（窗格与检查器沿用普通视图的紧凑规则，NF-07 / 设计 IA §6）；查看器 preset 无此入口。
+  - Given 评审模式、放映模式、无 `doc.write` 或视口 < 1024（2026-09-18 Q12），Then **不提供入口**：Ribbon 视图分段不显示，`Mod+Alt+M` 无效，命令面板中该命令显示不可用原因；评审与放映模式没有 Ribbon，「视图」页签不存在；编辑模式但已降权（`readonly-degraded`，Ribbon 仍在）时「视图」页签「母版视图」按钮禁用、tooltip「需要编辑权限」，窄屏时按钮禁用、tooltip「需要 ≥ 1024 宽度」（与设计 03-screens/20 状态矩阵一致，rulings §4.18 UX-11）；已在母版视图中时缩窄窗口**不强制退出**（窗格与检查器沿用普通视图的紧凑规则，NF-07 / 设计 IA §6）；查看器 preset 无此入口。
   - Given 进入母版视图时母版 / 版式数据尚未就绪（Store 同步中，2026-09-18 Q16），Then 缩略图窗格显示骨架行、画布显示骨架屏、范围条与母版页签控件禁用，就绪后就地替换（不闪回普通视图）；Given 加载失败，Then 主体替换为「母版信息加载失败 [重试]」，视图分段保留可切回「普通」；重试成功后恢复到失败前的选中项。
   - Given 应用栏「改动将影响 N 页」徽标（2026-09-18 Q16），Then N = 当前范围对象的引用页数（版式 = 使用该版式的页数；母版 = 其全部版式引用页数之和），随窗格选中项与范围切换即时更新；与状态栏「未保存改动 · 影响 N 页」**并存**（徽标常驻提示影响范围，状态栏文案仅在有未提交改动时出现），两处数字一致。
   - 性能：进入母版视图 ≤ 300 ms（D50，p75）；窗格内切换节点 ≤ 100 ms（已缓存）；多母版文档（≥ 3 个母版、≥ 30 个版式）窗格虚拟化（母版分组折叠为 P2）。
 - 边界：文档只有一个母版时窗格仍显示母版缩略图（不隐藏层级，保证心智一致）；母版/版式名称为空时显示「未命名版式 n」；版式引用数实时随页的 `layoutId` 变化更新。
+
+**图 2-1 普通视图与母版视图的切换**
+
+```mermaid
+stateDiagram-v2
+  state "普通视图" as normal
+  state "母版视图" as masterview {
+    state "加载中：窗格骨架行、画布骨架屏，范围条与母版页签禁用" as loading
+    state "就绪：母版缩略图窗格、范围条、母版页签" as ready
+    state "加载失败：母版信息加载失败 重试" as failed
+    [*] --> loading
+    loading --> ready: 数据就绪，就地替换
+    loading --> failed: 加载失败
+    failed --> ready: 重试成功，恢复失败前的选中项
+  }
+  [*] --> normal
+  normal --> masterview: 视图分段「母版」、视图页签「母版视图」或 Mod+Alt+M，仅编辑模式且视口 ≥ 1024
+  masterview --> normal: 关闭母版视图、分段切回「普通」、Esc 无选区时或再按 Mod+Alt+M
+```
+
+怎么读：外层是两种视图状态，内层是进入母版视图后的数据加载状态；返回普通视图时回到进入前的页、缩放与滚动位置并清空选区。进入与退出都是 `Operation`，不产生历史项，触发 `view/mode-changed`；评审、放映、无 `doc.write` 或视口 < 1024 时没有进入入口，已在母版视图中缩窄窗口不强制退出。
+依据：本条 ML-01；§0 第 5、6 条；rulings §4.10 Q12、Q16。
 
 ### ML-02 版式应用与重置
 
@@ -72,6 +113,29 @@
   - Given 「基于版式新建」（ED-11 的「新建 ▾」），Then 新页包含该版式全部占位符的空实例（显示提示文本、不导出提示文本），插入到当前页之后并选中；默认版式 = 当前页版式（首页之后默认「标题和内容」，见 `07-design-coverage-and-gaps.md` §4 D14）。
   - 导出：更换版式后页部件的 rels 指向新版式部件；脱离占位符的形状不再带 `p:ph`；PowerPoint 365 打开无修复且占位符位置一致（语料抽检 ≥ 30 个「页 × 目标版式」组合，规则表 100% 一致）。
   - 协同：`layoutId` 后写者胜（CO-08 已列），提示 `prop-lww`。
+
+**图 2-2 更换版式时的占位符重匹配**
+
+```mermaid
+flowchart TB
+  shape["页上一个带 PlaceholderRef 的形状"]
+  r1{"新版式有同 type 且同 index 的占位符"}
+  r2{"有同 type、任意 index 且未被占用的占位符，按 index 升序"}
+  r3{"有兼容类型：ctrTitle 与 title、subTitle 与 body、obj 与 body、pic/chart/tbl/dgm/media 到 obj"}
+  match["匹配：未被显式覆盖的几何与文本属性跟随新版式，显式覆盖保留"]
+  detach["脱离占位符：移除 placeholder 引用，保持当前几何与已解析的显式属性，成为普通形状"]
+  toast["toast「N 个元素无法匹配新版式的占位符，已保留为普通形状 撤销」"]
+  shape --> r1
+  r1 -->|"是"| match
+  r1 -->|"否"| r2
+  r2 -->|"是"| match
+  r2 -->|"否"| r3
+  r3 -->|"是"| match
+  r3 -->|"否"| detach --> toast
+```
+
+怎么读：对页上每个占位符形状按规则 (1)→(4) 依次尝试，命中即停；一页的全部结果在一个 `Transaction` 内完成，撤销一步回到原版式（跨母版时也回到原母版）。
+依据：本条 ML-02 占位符重匹配规则；rulings §4.10 Q13。
 
 ### ML-03 母版与版式编辑
 
@@ -98,6 +162,26 @@
   - 权限：需要 `doc.write`，无独立能力位；集成方可通过 `core.permissionPolicy`（P2）把母版编辑收紧为 `owner` 专有。
   - 导出：母版 / 版式部件作为脏部件重生成，`sldMasterIdLst`/`sldLayoutIdLst` 按 `order`；未触碰的母版 / 版式部件字节相同；PowerPoint 365 母版视图与我们一致（抽样 ≥ 20 个编辑脚本，SSIM ≥ 0.90）。
 - 边界：占位符类型修改只允许同族（文本族：title/ctrTitle/body/subTitle/obj；内容族：pic/chart/tbl/dgm/media 与 obj 互转；页脚族：dt/ftr/sldNum 互转），跨族需删除后新建；母版文本样式修改不改变页上已显式覆盖的文字。
+
+**图 2-3 删除版式的判定**
+
+```mermaid
+flowchart TB
+  del["删除一个或多个版式：Delete、右键「删除 N 个版式」"]
+  q{"被选版式是否仍被页面引用"}
+  confirm["确认对话框：汇总版式数与受影响页数，说明删除后改用默认版式、不可撤销"]
+  cancel["取消：不做任何改动"]
+  apply["一个事务：受影响页改用同一母版的默认版式，占位符按 ML-02 规则重新匹配；不可撤销"]
+  now["立即删除，给可撤销 toast"]
+  del --> q
+  q -->|"是，引用数 ≥ 1"| confirm
+  confirm -->|"删除"| apply
+  confirm -->|"取消"| cancel
+  q -->|"否，全部未被引用"| now
+```
+
+怎么读：自上而下是一次删除，对应上文验收标准「版式管理」中的删除条款；默认版式的选取函数与 ADR-0034「layoutId 不存在」修复规则共用（当前为该母版首个版式），这是 D9「可逆用 toast、不可逆用确认」的一个实例。
+依据：本条 ML-03 版式管理；§1 术语「默认版式」；rulings §4.10 Q11、Q16。
 
 ### ML-04 主题
 

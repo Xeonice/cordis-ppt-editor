@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
 
 # 功能域 05：嵌入与集成（面向集成方）
 
@@ -17,16 +17,51 @@
 
 ## 1. 嵌入形态一览
 
+**图 1-1 六种嵌入形态：包、适用场景与里程碑**
+
+```mermaid
+flowchart LR
+  sdk["集成方选择嵌入形态"]
+  subgraph m4["M4+，P2"]
+    F["F. Web Component 包装 · 包：@cordexjs/ui-webc，未来 · 适用：无框架、跨团队"]
+  end
+  subgraph m3["M3，P2"]
+    E["E. iframe 嵌入 apps/web · 包：apps/web 部署 · 适用：最快 PoC、强隔离"]
+  end
+  subgraph m2["M2"]
+    A["A. React 组件 EditorHost · 包：@cordexjs/ui-react + preset-* · 适用：React ^19 宿主，React 18 走 B/E"]
+    B["B. 框架无关挂载函数 · 包：@cordexjs/ui-core + render-dom · 适用：Vue/Angular/Svelte/原生 · 宿主自绘 UI，不带 React"]
+  end
+  subgraph m1["M1"]
+    C["C. 只读查看器 · 包：preset-slide-viewer · 适用：文档预览、评论查看"]
+    D["D. Headless 浏览器/Node · 包：kernel + model-* + ooxml-* · 适用：批处理、校验、模板填充 · Node 端为 M3 server-headless"]
+  end
+  sdk --> C
+  sdk --> D
+  sdk --> A
+  sdk --> B
+  sdk --> E
+  sdk --> F
 ```
- 形态                      包                          适用                      里程碑
- ───────────────────────── ─────────────────────────── ───────────────────────── ──────
- A. React 组件 <EditorHost>  @cordexjs/ui-react + preset-*    React ^19 宿主（React 18 走 B/E）M2
- B. 框架无关挂载函数         @cordexjs/ui-core + render-dom    Vue/Angular/Svelte/原生     M2（宿主自绘 UI，不带 React）
- C. 只读查看器               preset-slide-viewer          文档预览、评论查看          M1
- D. Headless（浏览器/Node）   kernel + model-* + ooxml-*   批处理、校验、模板填充      M1（Node：M3 server-headless）
- E. iframe 嵌入 apps/web      apps/web 部署              最快 PoC、强隔离            M3（P2）
- F. Web Component 包装        @cordexjs/ui-webc（未来）        无框架、跨团队              M4+（P2）
+
+怎么读：每个子图是形态首次可用的里程碑，节点内依次写形态、所用的包与适用场景；本图由原「嵌入形态一览」表转换，内容不变。
+
+**图 1-2 形态 B：框架无关宿主的装配**
+
+```mermaid
+flowchart LR
+  host["框架无关宿主：Vue、Angular、Svelte 或原生"]
+  vanilla["UiRenderer vanilla：宿主自绘 UI，示例 examples/embed-vanilla"]
+  uicore["ui-core：只消费贡献点的声明式部分"]
+  renderdom["render-dom：画布"]
+  excl["装配排除 ui-react 与 slide-ui：FRAMEWORK_FREE_EXCLUDES"]
+  nobundle["产物中不含 react 与 radix 模块：bundle 断言"]
+  host --> vanilla --> uicore
+  host --> renderdom
+  excl -.-> nobundle
 ```
+
+怎么读：实线为宿主实际装配的部分，虚线为装配排除带来的可验收结果；验收还包括 `ui-core` 与各 `*-ui` 的 domain/application 层不 import React（depcruise 规则）以及 UI 渲染契约测试通过。
 
 - 形态 B（rulings §4.15 Q2）：宿主自绘 UI，只消费 `ui-core` 贡献点的声明式部分；装配时排除 `ui-react` 与 `slide-ui`（`FRAMEWORK_FREE_EXCLUDES`），因此不带入 React/Radix。M2 只交付 React 绑定（章程 D10）；B 的验收是「`ui-core` 与各 `*-ui` 的 domain/application 层不 import React（depcruise 规则）+ `examples/embed-vanilla` 实现 `UiRenderer('vanilla')` 并通过 UI 渲染契约测试 + 产物中不含 react/radix 模块（bundle 断言）」。
 
@@ -55,6 +90,25 @@
   - `Snapshot` 可作为「热保存」格式（比 pptx 导出快 ≥ 5 倍），带 `schemaVersion`，旧快照打开时自动迁移并上报 `unit/migrated`。
   - 打开进度、dirty 状态、保存结果均有事件（EM-05）。
 
+**图 2-1 两种保存策略**
+
+```mermaid
+flowchart TB
+  dirty["Unit 变为 dirty"]
+  q{"集成方选择的保存策略"}
+  trig["触发：Mod+S、自动保存或集成方主动调用"]
+  cb["SDK 调用 onSave，交出 pptx 字节或 Snapshot"]
+  store["集成方写入自己的存储"]
+  collab["服务端快照负责持久化，集成方不处理字节，CO-01"]
+  saved["unit/saved，dirty 复位"]
+  dirty --> q
+  q -->|"回调式"| trig --> cb --> store --> saved
+  q -->|"协同式"| collab
+```
+
+怎么读：自上而下是一次保存的路径；回调式下 `Snapshot` 可作为比 pptx 导出快 ≥ 5 倍的「热保存」格式，旧快照打开时自动迁移并上报 `unit/migrated`。
+依据：本条 EM-02；ED-23。
+
 ### EM-03 鉴权与身份对接
 
 - 优先级：P0 | 目标里程碑：M3（OIDC；单人模式 M2 仅需身份信息）/ M4（集成方签名 JWT、API Key） | 依赖能力：`protocol` 鉴权握手、`permissions`、`collab-transport-ws`
@@ -67,6 +121,35 @@
   - 注册策略为部署级开关 `auth.selfSignup`（默认关：管理员在 IdP 建号；文档分享邀请只对已存在账号生效，rulings §4.17 D1）；分享链接始终要求登录（CO-15）。
   - 单人模式（无服务端）：集成方直接传入能力位；SDK 客户端管线据此 fail-closed。
   - 鉴权失败错误码：`server.auth.invalid_token`、`server.auth.expired`、`server.auth.forbidden`（HTTP 401/401/403，WS 4401/4401/4403；架构 10 §11.2），均触发 `error/raised` 且不泄露内部细节。
+
+**图 2-2 身份与权限的来源，按里程碑**
+
+```mermaid
+flowchart LR
+  subgraph m4["M4 新增"]
+    jwt["集成方签名 JWT，≤ 1 h，JWKS 验签；claims：sub、doc、caps，无租户声明"]
+    apikey["API Key"]
+    shadow["首次出现的主体 JIT 建影子用户"]
+    perm4["权限来源可配置为读 JWT claims 或回调集成方权限服务，缓存 ≤ 60 s"]
+  end
+  subgraph m3["M1–M3 服务端"]
+    idp["任意 OIDC IdP，compose 可选内置 Casdoor"]
+    auth["apps/server Auth：只认 OIDC，不持有密码；用户以 issuer 与 sub 标识，首次登录 JIT 建号"]
+    ticket["getToken 回调返回一方 Ticket：60 s、单次"]
+    perm["权限来源：服务端文档权限，撤销 ≤ 2 s 推送"]
+  end
+  subgraph single["单人模式，无服务端"]
+    caps["集成方直接传入能力位，客户端管线 fail-closed"]
+  end
+  idp --> auth --> ticket
+  auth --> perm
+  jwt --> shadow
+  apikey --> shadow
+  jwt --> perm4
+```
+
+怎么读：三个子图分别是单人模式、M1–M3 服务端与 M4 新增的来源；箭头为身份到凭据、身份到权限的推导方向。注册策略为部署级开关 `auth.selfSignup`（默认关），分享链接始终要求登录。
+依据：本条 EM-03；SV-06；rulings §4.15 Q6。
 
 ### EM-04 存储对接
 
@@ -86,7 +169,7 @@
 
 | 域 | 事件 | 载荷要点 | 里程碑 |
 |---|---|---|---|
-| unit | `unit/opened`、`unit/open-progress`、`unit/open-failed`、`unit/closed`、`unit/dirty-changed`、`unit/saved`、`unit/migrated` | unitId、阶段/百分比、错误码、schemaVersion | M1/M2 |
+| unit | `unit/opened`、`unit/loaded`、`unit/open-progress`、`unit/open-failed`、`unit/closed`、`unit/dirty-changed`、`unit/saved`、`unit/migrated` | unitId、阶段/百分比、错误码、schemaVersion；`unit/opened` 在首批装载后触发、`unit/loaded` 在全部页到齐后触发（OF-03，rulings §4.18 CO-12） | M1/M2 |
 | command | `command/executed`、`command/rejected`、`command/failed`、`command/audited` | 命令 id、耗时、拒绝原因（权限/校验）、审计摘要 | M2 |
 | store | `store/transaction`（公开订阅 ≥ 50 ms 合并）、`store/loaded` | 事务 id、`origin{kind, via?}`（`local(via: undo/redo)` / `remote` / `system(load/import/migration/repair/restore)` / `replay`）、影响元素数 | M2 |
 | history | `history/changed` | canUndo / canRedo / depth | M2 |
@@ -139,6 +222,28 @@
   - 包为 ESM、`sideEffects: false`（除必要样式入口）、显式 `exports`（无 `./*` 通配，Univer A27）、`publint`/`attw` 通过；支持 Vite、webpack 5、Rspack、Next.js（客户端组件）。
   - CI 体积门禁：任一组合超预算 5% 失败；报告每个 PR 的体积变化。
 
+**图 2-3 初始加载与惰性块**
+
+```mermaid
+flowchart LR
+  subgraph initial["初始加载，gzip"]
+    viewer["查看器 preset-slide-viewer ≤ 350 KB"]
+    editor["编辑器 preset-slide + ui-react + slide-ui ≤ 900 KB，不含 React 本体"]
+    collab["协同增量 ≤ 200 KB"]
+  end
+  subgraph lazy["惰性块：首屏不加载"]
+    chart["图表渲染器 ≤ 400 KB，首次遇到图表时加载"]
+    lang["每个语言包 ≤ 30 KB"]
+    ui["放映模式、母版视图、版本历史 UI"]
+    pdf["导出 PDF"]
+    er["每个非默认 ElementRenderer 插件"]
+  end
+  initial -.->|"需要时再加载"| lazy
+```
+
+怎么读：「初始加载」组是三个组合的首屏预算（初始预算，M2 校准），「惰性块」组是各自独立、首屏不加载的块，虚线表示需要时再加载；单个示例插件预算 ≤ 50 KB。
+依据：本条 EM-07；NF-01 §1.5。
+
 ### EM-08 UI 裁剪与扩展
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`ui.*` 贡献点、`ctx.intercept`（子树级配置）、`permissions`
@@ -167,6 +272,28 @@
   - `protocol` 生成 OpenAPI 3.1 与 TS 客户端；WS 消息 schema 有文档；错误码统一。
   - 单组织（rulings §4.15 T-0）：一次部署 = 一个组织，接口与数据模型中没有租户概念；数据访问兜底 = 文档权限检查（章程 D12）+ **文档级 Postgres RLS**（Q6）。将来若做 SaaS 另立项。
   - 反向代理/WS 粘性与跨实例 pub/sub 要求写入部署指南（SV-09）。
+
+**图 2-4 服务端的两种集成方式**
+
+```mermaid
+flowchart LR
+  integ["集成方后端"]
+  subgraph waya["方式 a：部署参考服务"]
+    appsserver["apps/server，自托管 docker-compose 洁净栈"]
+  end
+  subgraph wayb["方式 b：自有 Nest 应用"]
+    ownnest["集成方 Nest 应用，自带 Auth"]
+    mods["import server-* 模块：Collab Gateway、ImportExport、Snapshots、Thumbnails、Audit"]
+  end
+  protocol["protocol：zod schema 生成 OpenAPI 3.1 与 TS 客户端，WS 消息 schema，统一错误码"]
+  integ -->|"REST / WS"| appsserver
+  integ --> ownnest --> mods
+  appsserver -.-> protocol
+  mods -.-> protocol
+```
+
+怎么读：两条路径二选一，虚线表示两种方式共用同一份 `protocol` 契约；无论哪种方式都是单组织，数据访问兜底为文档权限检查加文档级 Postgres RLS。
+依据：本条 EM-10；SV-09。
 
 ### EM-11 国际化对接
 

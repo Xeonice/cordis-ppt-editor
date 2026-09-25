@@ -1,4 +1,4 @@
-> 状态：草稿 v3.1 | 负责：设计（总编排起草） | 更新：2026-09-18 | 依赖：charter v0.2（D10 修订）、04-design-system v0.5、10 审计、11 提案、rulings §4.8–§4.10（Q9–Q20）
+> 状态：草稿 v3.1 | 负责：设计（总编排起草） | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2（D10 修订）、04-design-system v0.5、10 审计、11 提案、rulings §4.8–§4.10（Q9–Q20）
 
 # 09 设计规范（Design Specification）—— shadcn Rhea + Liquid Glass 材质层
 
@@ -128,7 +128,7 @@
 | 模板 | 结构 |
 |---|---|
 | T-01 编辑器壳 | 根 `bg-canvas p-2 gap-2 flex-col`：悬浮工具卡 / `ResizablePanelGroup`（侧栏卡 240px · 画布区 · 检查器卡 300px，**像素而非百分比**，版本历史 560px；手柄 `w-2` 静止透明、悬停 `bg-foreground/10`）/ 备注卡 / 状态胶囊；只读/评审态 Ribbon 位置用 `ReadonlyRibbonNotice` 40px 细条或评审工具条，不留空卡。**应用栏右侧顺序（Q14，`AppBar.tsx`）**：在场头像堆叠 · 竖分隔 · 「分享」`Button variant="outline" size="sm"` · 模式下拉 `Select size="sm" w-32`（编辑 / 评审模式；二者由路由作为 `children` 传入）· 「⋯」更多 `DropdownMenu`（`MoreMenu`，Q20：导出…（`Mod+E`）/ 保真报告 / 版本历史 / 插件管理器 / 分隔 / 重命名 / 创建副本；「开发者」仅开发模式显示，playground 不展示）· 账户头像 `UserMenu variant="avatar"`（编辑器族全部路由共用，`showAccount` 默认开）；侧栏收起时应用栏再补 `PanelLeft` / `PanelRight` 打开按钮（见断点）。**Ribbon「切换」页签（Q15，`TransitionTab`）**：M1–M3 只读展示——「切换效果 · 只读」组 `ToggleGroup disabled` 显示当前页保留的效果名，「计时 · 只读」组显示时长与换片方式（`readOnly disabled`），说明组「已保留原文件的切换效果，M1–M3 暂不可编辑」；不提供「应用到全部」「自动换片」等可编辑控件。**断点（Q19，`useBreakpoint()`：`BREAKPOINT_DESKTOP=1024` / `BREAKPOINT_COMPACT=640`，以 01 §6 表为准；原 768 与旧 `useIsMobile` 口径作废）**：≥ 1024 完整三栏；**紧凑态（640–1024）**缩略图栏收为 `glass-strong w-11`（44px）图标条、点击 `PanelLeft` 展开为 `Sheet side="left" w-72`，检查器默认收起、由应用栏右端 `PanelRight` 打开 `Sheet side="right" w-80`（不挤压画布），Ribbon 低优先级按钮进「更多」溢出（playground 未做）；**仅查看态（< 640）**顶部 `role="status"` `glass h-9 rounded-2xl` 提示条「仅查看：窄屏下不提供完整编辑 UI」，两侧栏都只走 `Sheet`（缩略图栏由应用栏 `PanelLeft` 打开），Ribbon 收为 48px 查看态工具条（翻页 / 缩放 / 评论 / 更多；playground 仍渲染完整 Ribbon，待做） |
-| T-02 母版视图 | **同一个编辑器，不是专用模式**（对齐 PowerPoint 幻灯片母版视图）：同壳；应用栏 `Badge`（母版视图）+「改动将影响 N 页」徽标；Ribbon 在最左插入"母版"页签（强调色），开始/插入/切换/视图/插件页签照常可用，仅隐藏"设计"页签（主题/背景控件在母版页签「主题」组，Q10）；页签行右侧视图模式分段处于"母版"档；母版页签最右为独立的"关闭"组（`RibbonGroup` + `RibbonBigButton`，`CircleX` 线性图标 `text-destructive` + "关闭母版视图"，对应 PowerPoint 的 Close 组），不与主题组混排；检查器四个页签中**仅"评论"禁用**（`disabledTabs={["comments"]}`，`aria-disabled` + tooltip "母版与版式不支持评论"），属性/历史/插件照常；左栏为**母版缩略图窗格**（母版大缩略图 + 缩进 16px、左侧连接线的版式缩略图，同款卡片，非文字树）；画布上方范围 / 提示条 `glass mx-2 mt-2 h-9 rounded-2xl px-4 text-xs`（不换行；原 `rounded-full` 作废）。**入口与可用范围（Q9 / Q12）**：仅编辑模式（有 `doc.write`）且视口 ≥ 1024 提供入口——页签行分段、视图页签「窗口」组「母版视图」按钮、快捷键 `Mod+Alt+M`；评审 / 放映 / 窄屏下分段不显示、视图页签按钮禁用并 tooltip 说明原因（`masterEntry` = `enabled` / `review` / `narrow`，文案「评审模式下不可用」/「需要 ≥ 1024 宽度」）、快捷键无效；已在母版视图中时缩窄窗口不强制退出。**退出四种方式**：母版页签「关闭」组 / 页签行分段切回「普通」/ `Esc` / 再按 `Mod+Alt+M`；退出后回到进入前的页与检查器页签（会话记忆，不写入文档；playground 已实现「关闭」组与分段两种，`Esc` / 再按快捷键退出与 `Mod+Alt+M` 入口按键尚未绑定，待补） |
+| T-02 母版视图 | **同一个编辑器，不是专用模式**（对齐 PowerPoint 幻灯片母版视图）：同壳；应用栏 `Badge`（母版视图）+「改动将影响 N 页」徽标；Ribbon 在最左插入"母版"页签（强调色），开始/插入/切换/视图/插件页签照常可用，仅隐藏"设计"页签（主题/背景控件在母版页签「主题」组，Q10）；页签行右侧视图模式分段处于"母版"档；母版页签最右为独立的"关闭"组（`RibbonGroup` + `RibbonBigButton`，`CircleX` 线性图标 `text-destructive` + "关闭母版视图"，对应 PowerPoint 的 Close 组），不与主题组混排；检查器四个页签中**仅"评论"禁用**（`disabledTabs={["comments"]}`，`aria-disabled` + tooltip "母版与版式不支持评论"），属性/历史/插件照常；左栏为**母版缩略图窗格**（母版大缩略图 + 缩进 16px、左侧连接线的版式缩略图，同款卡片，非文字树）；画布上方范围 / 提示条 `glass mx-2 mt-2 h-9 rounded-2xl px-4 text-xs`（不换行；原 `rounded-full` 作废）。**入口与可用范围（Q9 / Q12）**：仅编辑模式（有 `doc.write`）且视口 ≥ 1024 提供入口——页签行分段、视图页签「窗口」组「母版视图」按钮、快捷键 `Mod+Alt+M`；评审 / 放映 / 窄屏下分段不显示、快捷键无效；评审与放映没有 Ribbon，「视图」页签不存在；编辑模式已降权或窄屏时视图页签按钮禁用并 tooltip 说明原因（playground `masterEntry` = `enabled` / `degraded` / `narrow`，文案「需要编辑权限」/「需要 ≥ 1024 宽度」）；已在母版视图中时缩窄窗口不强制退出、被降权原地只读，手动切到评审即退出母版视图（rulings §4.18 UX-11 / UX-20）。**退出四种方式**：母版页签「关闭」组 / 页签行分段切回「普通」/ `Esc` / 再按 `Mod+Alt+M`；退出后回到进入前的页与检查器页签（会话记忆，不写入文档；playground 已实现「关闭」组与分段两种，`Esc` / 再按快捷键退出与 `Mod+Alt+M` 入口按键尚未绑定，待补） |
 | T-03 文档列表 | 一张 `glass-strong rounded-2xl px-4 py-2.5 sm:px-6` 顶卡（`flex-wrap`：`Brand` + `InputGroup` 搜索 + 筛选 `Tabs`（全部 / 我拥有 / 共享给我 / 最近，胶囊分段；原 `ToggleGroup` 作废）+ 右侧 导入 .pptx / 新建 + 主题切换 + `UserMenu` 头像）+ `Card` 网格按断点列 `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4`（原 `auto-fill minmax(240px)` 作废）；卡内缩略图用 `MiniSlide` 线框示意，底部 标题 / 所有者 · 时间 / 「仅查看」徽标 / 协作者 `AvatarGroup` / 「更多」菜单 |
 | T-04 只读查看器 | 顶部 `glass-strong rounded-2xl mx-2 mt-2 h-11 px-3` 工具卡（翻页、页码输入 + 总页数、缩放 − / 百分比 / +、全屏、搜索、导入摘要 `Popover`；宿主开启备注时追加「备注」切换按钮）+ 画布 `zoom="fit"`（`hideZoomBar`）。**可选缩略图条与备注抽屉（Q18，按 PRD OF-14）**：`preset-slide-viewer` 初始化参数 `thumbnails` / `notes`，默认全关，关时对应 UI 不渲染、代码按需加载、不计入 350 KB 基线——缩略图条为底部横向 `glass-strong mx-2 mb-2 h-20 rounded-2xl px-3` 条（`role="listbox"`，同款 `MiniSlide` 卡，当前页 `ring-2 ring-primary`）；备注抽屉为非模态 `Sheet side="right" w-80`（标题「备注 · 第 N 页」，无备注时「本页没有备注」） |
 | T-05 放映 | `bg-stage`；控制条 `bg-stage-chrome/80 backdrop-blur-lg rounded-full`，按翻页 / 视图 / 退出分组；顶部信息条同款小胶囊 |
@@ -146,19 +146,51 @@
 5. **与产品代码的关系**：playground 的 `components/ui` 与 `components/editor` 是 `@cordexjs/ui-react` 的种子；`@cordexjs/design` 交付 `index.css` 中的主题变量 + 材质 token + `@utility`；`ui-react/styles` 承载 data-slot 规则；`ui-core` 的贡献点渲染为这些组合组件。
 6. **与 03-screens 的关系**：界面文档保留线框、状态与交互说明；头部"设计基准"行指向本规范与 playground 路由，不再重复尺寸。
 
+**playground 到产品包的落点**
+
+```mermaid
+flowchart LR
+  subgraph pgd["playground · 唯一设计基准"]
+    ui["src/components/ui · shadcn 复制件，不改"]
+    ed["src/components/editor · 组合组件"]
+    css["src/index.css · 主题变量 + 材质 token + @utility + data-slot 规则"]
+  end
+  design["@cordexjs/design"]
+  uireact["@cordexjs/ui-react"]
+  styles["ui-react/styles"]
+  uicore["@cordexjs/ui-core · 框架无关的 ui.* 贡献点"]
+  ui -->|"作为种子"| uireact
+  ed -->|"作为种子"| uireact
+  css -->|"主题变量 + 材质 token + @utility"| design
+  css -->|"data-slot 规则"| styles
+  uireact -.->|"把 ui-core 的贡献点渲染为这些组合组件"| uicore
+```
+
+怎么读：左侧分组是今天可执行的 playground 代码，实线说明它们各自落到哪个产品包；虚线是依赖方向——ui-react 依赖 ui-core 并渲染其贡献点，ui-core 不依赖 React（章程 §5.2）。这是本节第 5 条的图示，不引入新的包或依赖。
+
 ---
 
 ## 6. 材质与层次（v3.0 新增）
 
 ### 6.1 四层层次模型
 
+**四层层次模型**
+
+```mermaid
+flowchart TB
+  float["浮层 · glass-strong：菜单 / 弹出 / 对话框 / 命令面板 / 工具提示"]
+  subgraph ctl["控件层"]
+    ctlStrong["glass-strong：悬浮工具卡 · 侧栏卡 · 检查器卡 · 状态胶囊 · 横幅"]
+    ctlGlass["glass：画布缩放胶囊 · 画布上的浮动面板，查找、迷你工具条"]
+  end
+  content["内容层 · 不透明：幻灯片纸面 · 缩略图内容 · 母版画布 · 放映舞台内容"]
+  bg["背景层 · bg-canvas + canvas-glow：柔和渐变 + 低饱和光斑，供玻璃透出"]
+  float -->|"叠在上方"| ctl
+  ctl -->|"叠在上方"| content
+  content -->|"叠在上方"| bg
 ```
-┌ 浮层   glass-strong：菜单 / 弹出 / 对话框 / 命令面板 / 工具提示 ─────┐
-│ 控件层 glass-strong：悬浮工具卡 · 侧栏卡 · 检查器卡 · 状态胶囊 · 横幅   │
-│         glass       ：画布缩放胶囊 · 画布上的浮动面板（查找、迷你工具条）│
-│ 内容层 不透明：幻灯片纸面 · 缩略图内容 · 母版画布 · 放映舞台内容        │
-└ 背景层 bg-canvas + canvas-glow：柔和渐变 + 低饱和光斑，供玻璃透出 ────┘
-```
+
+怎么读：自上而下是从最上层到最底层，箭头表示「叠在下一层之上」；只有浮层与控件层使用玻璃材质，内容层永远不透明。
 
 规则：控件层之上再出现浮层时，浮层用 strong 且控件层不额外加模糊；同屏玻璃元素 ≤ 4；内容层永远不透明（HIG：玻璃属于导航/控件层）。
 

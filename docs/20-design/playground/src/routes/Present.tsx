@@ -32,6 +32,7 @@ export function Present() {
   const total = slides.length
   const current = slides[index - 1] ?? slides[0]!
   const presenter = collaboratorById("wang")
+  const blank = demoState === "black" || demoState === "white"
 
   const scheduleHide = useCallback(() => {
     setShowChrome(true)
@@ -44,17 +45,28 @@ export function Present() {
     return () => window.clearTimeout(hideTimer.current)
   }, [scheduleHide])
 
+  // rulings §4.18 UX-07：B / W 为切换键；黑屏或白屏时按同一键、点击画面或任一翻页键都先恢复当前页（不翻页）；Esc 直接退出
   useEffect(() => {
+    const pageKeys = ["ArrowRight", " ", "PageDown", "ArrowLeft", "PageUp", "Home", "End"]
     function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { navigate("/editor"); return }
+      if (demoState === "loading") return
+      const k = e.key.toLowerCase()
+      if (k === "b" || k === "w") {
+        const target: DemoState = k === "b" ? "black" : "white"
+        setDemoState(demoState === target ? "default" : target)
+        return
+      }
+      if (!pageKeys.includes(e.key)) return
+      if (blank) { e.preventDefault(); setDemoState("default"); return }
       if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") setIndex((i) => Math.min(total, i + 1))
       else if (e.key === "ArrowLeft" || e.key === "PageUp") setIndex((i) => Math.max(1, i - 1))
       else if (e.key === "Home") setIndex(1)
       else if (e.key === "End") setIndex(total)
-      else if (e.key === "Escape") navigate("/editor")
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [total, navigate])
+  }, [total, navigate, demoState, blank])
 
   return (
     <div className="flex h-dvh flex-col">
@@ -62,6 +74,7 @@ export function Present() {
       <div
         className="relative flex flex-1 items-center justify-center overflow-hidden bg-stage"
         onMouseMove={scheduleHide}
+        onClick={() => { if (blank) setDemoState("default") }}
         role="application"
         aria-label="放映舞台"
       >
@@ -91,8 +104,8 @@ export function Present() {
           </div>
         )}
 
-        {demoState !== "loading" && (showChrome || demoState === "black" || demoState === "white") && (
-          <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stage-chrome/80 px-2 py-1.5 shadow-lg backdrop-blur-lg">
+        {demoState !== "loading" && showChrome && (
+          <div onClick={(e) => e.stopPropagation()} className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-stage-chrome/80 px-2 py-1.5 shadow-lg backdrop-blur-lg">
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -118,18 +131,18 @@ export function Present() {
             <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button type="button" aria-label="黑屏" onClick={() => setDemoState(demoState === "black" ? "default" : "black")} className="flex size-9 items-center justify-center rounded-full text-stage-foreground hover:bg-white/10">
+                  <button type="button" aria-label="黑屏" aria-pressed={demoState === "black"} onClick={() => setDemoState(demoState === "black" ? "default" : "black")} className="flex size-9 items-center justify-center rounded-full text-stage-foreground hover:bg-white/10 aria-pressed:bg-white/15">
                     <Square className="size-4 fill-current" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>黑屏（B）</TooltipContent>
+                <TooltipContent>{demoState === "black" ? "恢复当前页（B）" : "黑屏（B）"}</TooltipContent>
               </Tooltip>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" aria-label="更多" className="flex size-9 items-center justify-center rounded-full text-stage-foreground hover:bg-white/10"><MoreHorizontal /></button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" side="top">
-                  <DropdownMenuItem onSelect={() => setDemoState("white")}>白屏</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setDemoState(demoState === "white" ? "default" : "white")}>{demoState === "white" ? "恢复当前页（W）" : "白屏（W）"}</DropdownMenuItem>
                   <DropdownMenuItem>跳至页码…</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

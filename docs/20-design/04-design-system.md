@@ -1,10 +1,10 @@
-> 状态：草稿 v0.5 | 负责：设计 | 更新：2026-09-19；2026-09-24（rulings §4.15 收口：§3 与 §6 K7 行的「命名空间属性待定」按 C-21 结案表述） | 依赖：charter v0.2（D10 修订）、09-design-specification v3.1、rulings §4.8–§4.10；可执行取值源 `playground/src/index.css`
+> 状态：草稿 v0.5 | 负责：设计 | 更新：2026-09-19；2026-09-24（rulings §4.15 收口：§3 与 §6 K7 行的「命名空间属性待定」按 C-21 结案表述）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2（D10 修订）、09-design-specification v3.1、rulings §4.8–§4.10；可执行取值源 `playground/src/index.css`
 >
 > v0.5 修订（2026-09-18）：§2.2 / §2.3 色板按 `index.css` 现值回写并括注 shadcn 变量（与 §9 一致）；§2.6 对比度按现值重算；§2.8 字体改 `'Geist Variable'` 优先；§2.13 Ribbon 高度改 页签行 36 + 内容区 91（旧值 88 / 64 作废）；§2.14 图标改 Lucide 线性（删 Phosphor / SVG sprite）；§3 补 playground 主题选择器约定（`.dark` class + 宿主 `data-theme` 兼容）；§5 断点表与信息架构 §6 逐格对齐；§7 历史表述加"原"标注、"母版树"改"母版缩略图窗格"；§9 追加 v0.5 条目。
 
 # 04 设计系统（Design System）
 
-本文档定义 `@cordexjs/design`（L7，零依赖，见架构 §5.2）导出的 token 体系与原子组件清单，以及 `@cordexjs/ui-core`/`@cordexjs/ui-react` 之上组合而成的复合组件清单。所有 token 以 CSS 自定义属性（`--cordex-*`）发布，这是 `@cordexjs/design` 对外的**唯一契约**（K7：零依赖，token 覆盖非颜色维度）。前端工程师应能直接以本节的表格作为 `@cordexjs/design` 的实现基线。
+本文档定义 `@cordexjs/design`（L7，零依赖，见架构 §5.2）导出的 token 体系与原子组件清单，以及 `@cordexjs/ui-core`/`@cordexjs/ui-react` 之上组合而成的复合组件清单。所有 token 以 CSS 自定义属性发布：**shadcn 主题变量**（`--background`、`--foreground`、`--primary`、`--ring`、`--border`、`--input` 等）+ **Cordex 扩展裸名变量**（`--glass-*`、`--layer-*`、`--duration-*`、`--ease-*`、`--control-h-*`、`--text-2xs`、`--success/--warning/--info`、`--canvas`、`--presence-*` 等），这是 `@cordexjs/design` 对外的**唯一契约**（K7：零依赖，token 覆盖非颜色维度；章程 §5.2、rulings C-22）。本文各表中的 `--cordex-*` 名**仅作取值来源与对比度核算记录**，该前缀已于 2026-09-18 作废，实现与插件都不得使用；旧名→现名见 §9 对照表，可执行取值以 `playground/src/index.css` 为准。前端工程师以本节表格的**取值**与 §9 的**现名**作为 `@cordexjs/design` 的实现基线。
 
 ---
 
@@ -12,9 +12,25 @@
 
 1. **token 化优先**：任何在两个以上组件中出现的视觉数值（颜色、间距、圆角、阴影、层级、时长）必须来自 token，禁止组件内魔法数字。
 2. **零依赖**：`@cordexjs/design` 不依赖 React/cordis/任何框架；仅导出 CSS（token + 原子组件类名/极少量无框架 Web Component 或纯 CSS 类）与类型化的 token 常量（供 JS 侧读取，如图表插件取色）。架构 02 §4.18 的依赖规则机械保证这一点：`ui-core` 对 `@cordexjs/design` 只允许 `.css` 与 type-only import（depcruise 规则 `ui-core-no-react` 的姊妹规则），任何运行时 JS 依赖都会被 CI 拦截。
-3. **语义先于数值**：组件永远引用语义 token（如 `--cordex-color-text-primary`），不得直接引用调色板原语（如 `--cordex-palette-gray-900`）。调色板原语只在 token 定义文件内部使用。
+3. **语义先于数值**：组件永远引用语义变量（如 `--foreground`、`--muted-foreground`，原记号 `--cordex-color-text-primary` 等已作废），不得直接引用调色板原语（原记号如 `--cordex-palette-gray-900`）。调色板原语只在 token 定义文件内部使用。
 4. **暗色不是反色**：暗色主题的语义 token 单独指定数值，不是对亮色简单取反或降低透明度。
 5. **不牺牲对比度换取美观**：所有语义配对必须满足 §2.6 的对比度基线，与 07-accessibility-and-i18n.md 一致。
+
+**设计系统相关包的依赖方向**
+
+```mermaid
+flowchart TB
+  design["@cordexjs/design · L7 零依赖：token CSS 变量 + 原子组件 CSS 类名 / 可选零依赖 Web Component + 类型化 token 常量"]
+  uicore["@cordexjs/ui-core：组合组件的交互契约 · ThemeService 把 tokens.css 作为单一样式表注入，去重键 data-cordex-tokens"]
+  uireact["@cordexjs/ui-react：组合组件的 React 渲染"]
+  lucide["lucide-react 图标 · 只允许在 ui-react 与 *-ui 中按名导入"]
+  uicore -->|"只允许 .css 与 type-only import，运行时 JS 依赖被 CI 拦截"| design
+  uireact -->|"渲染 ui-core 定义的契约"| uicore
+  uireact -->|"读取 token 与原子组件样式"| design
+  uireact --> lucide
+```
+
+怎么读：箭头从依赖方指向被依赖方；design 位于最底层且不依赖任何框架，ui-core 对它只能引用 CSS 与类型，这条边由架构 02 §4.18 的 depcruise 规则机械保证；ui-react 对 design 的依赖取自章程 §5.2 依赖上限。
 
 ---
 
@@ -224,7 +240,7 @@
 
 ### 2.11 z-index 尺度
 
-统一层级 token，禁止组件自行硬编码数字（呼应类型治理对"魔法数字"的一般性约束）：
+统一层级 token，禁止组件自行硬编码数字（呼应类型治理对"魔法数字"的一般性约束）。下表刻度即现行值，名称按 §9 对照表改为 `--layer-*`（如 `--layer-canvas-overlay`），`--cordex-z-*` 仅作记录：
 
 ```
 0    --cordex-z-canvas            画布内容本身
@@ -254,7 +270,7 @@
 | `--cordex-motion-ease-accelerate` | `cubic-bezier(.3,0,1,1)` | 退出（收起/淡出） |
 | `--cordex-motion-ease-spring` | `cubic-bezier(.34,1.56,.64,1)` | 少量强调动效（新协作者头像出现），克制使用 |
 
-`prefers-reduced-motion: reduce` 时，所有 duration token 由 `@cordexjs/design` 在根节点统一降为 `1ms`（而非组件各自判断），细则见 07-accessibility-and-i18n.md §5。
+现名为 `--duration-*` / `--ease-*`（后缀不变，§9 对照表）。`prefers-reduced-motion: reduce` 时，所有 duration token 由 `@cordexjs/design` 在根节点统一降为 `1ms`（而非组件各自判断），细则见 07-accessibility-and-i18n.md §5。
 
 ### 2.13 密度模式（Density）
 
@@ -300,6 +316,39 @@
 - 组件不得读取 `prefers-color-scheme` 或 `[data-cordex-theme]` 做逻辑分支；只读语义 token，主题切换对组件透明。
 - **多 host 去重**：`ThemeService`（`ui-core/services/theme.service.ts`）负责把 `tokens.css` 作为单一 `<style>` 注入宿主页面，注入前检查去重键 `data-cordex-tokens`（已存在则跳过），保证同一宿主页面内多个 `@cordexjs/design` 消费方（如宿主自身 UI + 内嵌的编辑器）不会重复注入同一份 token 表。密度同理建议使用 `data-cordex-density` 属性（与 `data-cordex-theme` 同一命名空间；架构尚未在已读文档中给出显式字段名，此处为设计侧按一致性给出的推荐，见本目录 README 待决事项）。
 - **高对比主题**：`@cordexjs/design/tokens/themes/high-contrast.ts` 已作为第三套主题文件存在（架构 02 §4.17），对应 PRD NF-05 的 `forced-colors` 支持（P1，见 07-accessibility-and-i18n.md）。**时机已裁决（2026-09-19，rulings §4.12 U-08）**：M1–M2 只加 `@media (forced-colors: active)` 系统色兜底，不产第三套取值；正式第三套 token 延后到 M3 P1。本文档 §2 目前只给出亮/暗两套具体数值，高对比主题的数值由无障碍验收标准倒推，暂不在此重复定义，详细 token 值列入本目录 README 待决事项。
+
+**主题解析顺序：playground 现行约定**
+
+```mermaid
+flowchart TB
+  p1{"页面内显式选择？localStorage 键 cordex-theme"}
+  p2{"宿主显式标记？html 元素 data-theme，MutationObserver 跟随"}
+  p3["跟随 prefers-color-scheme"]
+  pOut["src/lib/theme.ts 在 html 元素上切换 .dark class 并同步 colorScheme"]
+  p1 -->|"有"| pOut
+  p1 -->|"无"| p2
+  p2 -->|"有"| pOut
+  p2 -->|"无"| p3 --> pOut
+```
+
+怎么读：菱形自上而下即优先级，这是今天 playground 已实现的解析顺序；`initTheme()` 启动时应用一次，多个 `ThemeToggle` 共享同一 store。
+
+**主题解析顺序：产品运行时规划**
+
+```mermaid
+flowchart TB
+  q1{"显式属性 data-cordex-theme？tokens.css，尚未实现"}
+  q2{"prefers-color-scheme: dark？"}
+  qDark["暗色 token"]
+  qLight[":root 默认亮色 token"]
+  q1 -->|"dark"| qDark
+  q1 -->|"light"| qLight
+  q1 -->|"未设置"| q2
+  q2 -->|"是"| qDark
+  q2 -->|"否"| qLight
+```
+
+怎么读：显式属性优先于系统媒体查询，再回落到 `:root` 默认亮色；按 rulings §4.11 C-21，`.dark`、`data-cordex-theme` 与宿主 `data-theme` 三种选择器长期等价，组件只读语义 token、不感知走的是哪一条。
 
 **（历史）本设计文档早期原型（`prototype/index.html`）的例外**：该原型是独立的低保真演示文件，不是 `@cordexjs/design` 的实际产出，遵循原始任务对 artifact 型页面的通用约束（使用通用的 `data-theme` 属性，见 `prototype/index.html` 自身注释）。两者选择器不同是刻意的，不代表产品 token 命名的不一致——阅读本文档 §2 的 token *取值* 时可直接套用到原型，但主题切换的属性名以本节为准（产品）或原型自身注释为准（演示文件）。
 
@@ -445,3 +494,24 @@ python3 search.py "collaborative presentation editor productivity tool professio
   - 断点（§5）：与 01 §6 表逐格对齐（紧凑态：缩略图栏图标条 + 检查器按需浮层 + Ribbon「更多」；仅查看态：两侧栏抽屉 + 48px 查看态工具条）；Q19 统一 1024 / 640，09 T-01 与 playground 的 768 作废。
   - 措辞：§7 "母版树"改"母版缩略图窗格"（rulings §4.10 口径）。
 - **2026-09-18 晚补（用户裁决 Q21）**：亮色 `--border-control` 由 `#A3ABB9` 提高为 `#757F8F`（白底 4.05:1 / 画布 3.58:1 / 字段填充 3.14:1），§2.2 / §2.6 同步；playground `index.css` 已改并发布。
+- **旧名→现名对照（2026-09-25，rulings §4.18 UX-12；依据 C-22 与 `40-modules/10` G-10）**：§2 各表保留的 `--cordex-*` 名只作取值记录；实现、插件 `ui.theme` 覆盖（06 §2.11）与其他设计文档一律用现名。「已落地」= `playground/src/index.css` 已声明；「待实现」= 由 `@cordexjs/design` 的 `css/tokens.css` 发布、playground 尚未落地。
+
+| 旧名（已作废） | 现名 | 状态 |
+|---|---|---|
+| `--cordex-color-bg-canvas` | `--canvas`（叠 `--canvas-glow`） | 已落地 |
+| `--cordex-color-bg-surface` / `-bg-surface-raised` | `--background` / `--card`、`--popover` | 已落地 |
+| `--cordex-color-bg-inset` / `-bg-field` / `-bg-secondary` / `-bg-hover` | `--muted` / `--input` / `--secondary` / `--accent` | 已落地 |
+| `--cordex-color-border-subtle` / `-border-control` / `-border-focus` | `--border` / `--border-control` / `--ring` | 已落地 |
+| `--cordex-color-text-primary` / `-text-tertiary` | `--foreground` / `--muted-foreground` | 已落地 |
+| `--cordex-color-accent-default` | `--primary`（前景 `--primary-foreground`） | 已落地 |
+| `--cordex-color-success-*` / `-warning-*` / `-info-*` | `--success` / `--warning` / `--info`（各含 `-foreground`、`-muted`） | 已落地 |
+| `--cordex-color-danger-*` | `--destructive` | 已落地 |
+| `--cordex-color-focus-ring` | `--ring` | 已落地 |
+| `--cordex-color-presence-1…12` | `--presence-1…12` | 已落地 |
+| `--cordex-font-size-2xs` | `--text-2xs` | 已落地 |
+| `--cordex-radius-*` / `--cordex-shadow-*` | `--radius`（派生 `--radius-sm…4xl`）/ `--glass-shadow` | 已落地 |
+| `--cordex-z-*`（§2.11） | `--layer-*`，后缀不变（如 `--layer-canvas-overlay`、`--layer-modal`），刻度 0 / 10 / 20 / 100 / 110 / 120 / 300 / 400 / 410 / 500 / 600 不变 | 待实现 |
+| `--cordex-motion-duration-*` / `--cordex-motion-ease-*`（§2.12） | `--duration-*` / `--ease-*`，后缀不变（如 `--duration-base`、`--ease-decelerate`） | 待实现 |
+| `--cordex-control-height-sm/md/lg`、`--cordex-row-height`（§2.13） | `--control-h-sm/md/lg`、`--row-h` | 待实现 |
+| `--cordex-space-*`、其余 `--cordex-font-size-*` / `-line-height-*` | 不再单列变量，用 Tailwind 4pt 间距阶与字阶 | — |
+| `--cordex-color-text-secondary`、`-border-default`、`-border-strong`、`-accent-hover` / `-active` / `-subtle`、`-text-link` | shadcn 层无同名变量，按 §2.2 各行括注以透明度或 `--primary` 近似 | — |

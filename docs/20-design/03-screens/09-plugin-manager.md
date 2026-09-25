@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-15 | 依赖：charter v0.1
+> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-25（补图） | 依赖：charter v0.1
 
 # 03-09 插件管理器
 
@@ -151,3 +151,41 @@
 ```
 
 - 版本不兼容（`plugin.incompatible`）与依赖缺失、运行时抛错视觉上均归入"启动失败"分组，但摘要文案与操作按钮不同（不提供"重试"，因为重试不会改变版本关系）。
+
+**插件在管理器中的状态迁移**
+
+```mermaid
+stateDiagram-v2
+  state "已禁用" as disabled
+  state "启用确认 · 内嵌卡片列出将新增的贡献点，同源可信、非沙箱" as confirm
+  state "加载" as loading
+  state "已启用" as enabled
+  state "等待依赖 PENDING · 「等待服务 X 可用」，不是错误，不提供重试" as pending
+  state "启动失败 FAILED · 运行时错误或缺少依赖服务：重试 / 查看详情 / 禁用" as failed
+  state "重试中 · spinner，其余按钮临时禁用" as retrying
+  state "启动失败 · 版本不兼容 plugin.incompatible：查看兼容说明 / 禁用，不提供重试" as incompatible
+  state "禁用确认 · 「N 个插件依赖它，禁用后它们也将不可用」" as depConfirm
+  disabled --> confirm : 首次启用第三方插件
+  confirm --> loading : 确认启用
+  confirm --> disabled : 取消
+  disabled --> loading : 启用，非首次
+  loading --> enabled : 启动成功
+  loading --> pending : 依赖服务尚未就绪
+  loading --> failed : 运行时错误或缺少依赖服务
+  loading --> incompatible : peerDependency 校验失败
+  pending --> enabled : 依赖满足，自动启用并 toast
+  enabled --> failed : 运行中 Fiber 进入 FAILED
+  failed --> retrying : 重试
+  retrying --> enabled : 重试成功，移入「已启用」并 toast
+  retrying --> failed : 重试失败，错误摘要可能更新
+  failed --> disabled : 禁用
+  incompatible --> disabled : 禁用
+  enabled --> depConfirm : 禁用一个被其他已启用插件依赖的插件
+  depConfirm --> disabled : 仍要禁用
+  depConfirm --> enabled : 取消
+  enabled --> disabled : 禁用无依赖者的插件
+  note right of enabled : 内置插件如幻灯片核心显示「不可禁用」，不提供开关
+  note left of disabled : 所依赖的插件已被禁用时，启用会提示「需要先启用 X」并提供「一并启用」
+```
+
+怎么读：每个状态对应管理器里的一个分组或中间态——已启用、已禁用、等待依赖、启动失败（含版本不兼容）；空分组的标题隐藏。启用 / 禁用均本地即时生效，不需要「保存」。

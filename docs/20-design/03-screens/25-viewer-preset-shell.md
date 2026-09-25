@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.10 Q18；PRD `01-open-and-fidelity.md` OF-14；`10-prd/07-design-coverage-and-gaps.md`；09 v3.0 T-04；playground `Viewer.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.10 Q18；PRD `01-open-and-fidelity.md` OF-14；`10-prd/07-design-coverage-and-gaps.md`；09 v3.0 T-04；playground `Viewer.tsx`
 
 # 03-25 只读查看器 preset 壳
 
@@ -23,6 +23,29 @@
 ```
 
 工具条（`glass-strong rounded-2xl mx-2 mt-2`，高 44，09 T-04）自左至右：上一页/下一页、页码（可点击输入跳转）/总页数、缩放（10–400%，−/+ 与百分比胶囊）、全屏/放映、搜索（M2）、`ⓘ` 保真摘要；宿主开启备注时追加「备注」按钮（见下）。**不含**：Ribbon、检查器坞、评论、版本历史、插件管理器、协同——这些贡献点槽位在查看器壳中没有渲染宿主（01-IA §8.1 已定）。**可选**（默认关，由宿主选项开启，rulings §4.10 Q18 / PRD OF-14）：底部缩略图条（`thumbnails: true`）与备注抽屉（`notes: true`），见下方「可选缩略图条」「备注抽屉」两节；两者均按需加载，不计入 350 KB gzip 基线。
+
+**宿主选项与按需加载**
+
+```mermaid
+flowchart TB
+  init["preset-slide-viewer 初始化"]
+  base["基线工具条：翻页 · 页码输入 · 缩放 10–400% · 全屏/放映 · 搜索 M2 · ⓘ 保真摘要 · 计入 ≤ 350 KB gzip 基线"]
+  tOpt{"宿主选项 thumbnails: true？"}
+  tOn["动态加载缩略图条独立 chunk：画布下方横向条，视口附近页懒渲染，≥ 50 页虚拟化；只有 1 页时不显示"]
+  tOff["完全不渲染、不留占位"]
+  nOpt{"宿主选项 notes: true？"}
+  nOn["工具条末尾追加「备注」按钮，动态加载抽屉组件：桌面右侧非模态 Sheet，窄屏底部 Drawer"]
+  nOff["不渲染按钮、不留占位"]
+  init --> base
+  init --> tOpt
+  tOpt -->|"是"| tOn
+  tOpt -->|"否，默认"| tOff
+  init --> nOpt
+  nOpt -->|"是"| nOn
+  nOpt -->|"否，默认"| nOff
+```
+
+怎么读：两个菱形是互相独立的宿主开关，默认都关；只有开启时才加载对应模块，因此两者都不计入 350 KB 基线。查看器壳在任何配置下都没有 Ribbon、检查器坞、评论、版本历史、插件管理器与协同。
 
 ---
 

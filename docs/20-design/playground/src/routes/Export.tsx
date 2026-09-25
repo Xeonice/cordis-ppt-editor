@@ -1,7 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { CircleCheck, Info, TriangleAlert } from "lucide-react"
-import { toast } from "sonner"
+import { CircleCheck, Info, RotateCw, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
@@ -15,15 +14,21 @@ import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, slides } from "@/lib/mock-data"
 
-type DemoState = "default" | "progress" | "done" | "error" | "unsynced"
+type DemoState = "default" | "progress" | "done" | "error" | "unsynced" | "unsynced-server" | "unsynced-offline" | "waiting"
 
 const stateOptions = [
   { value: "default", label: "默认" },
   { value: "progress", label: "生成中" },
   { value: "done", label: "完成" },
   { value: "error", label: "失败" },
-  { value: "unsynced", label: "存在未同步更改" },
+  { value: "unsynced", label: "未同步更改 · 客户端格式" },
+  { value: "unsynced-server", label: "未同步更改 · 服务端格式（PDF）" },
+  { value: "unsynced-offline", label: "未同步更改 · 离线（等待同步禁用）" },
+  { value: "waiting", label: "等待同步中（归零自动导出）" },
 ]
+
+/** rulings §4.18 UX-05：演示用的待同步项数 */
+const UNSYNCED_COUNT = 3
 
 export function Export() {
   const navigate = useNavigate()
@@ -33,7 +38,28 @@ export function Export() {
   const [scope, setScope] = useState("all")
   const [customPages, setCustomPages] = useState("1,3,5-8")
   const [pageError, setPageError] = useState(false)
+  const [pending, setPending] = useState(UNSYNCED_COUNT)
   const currentSlide = slides[0]!
+  // PDF（M3 后半段）与 M3 起的批量 PNG 为服务端格式：只含已同步内容，须先同步，不提供「仍要导出」
+  const serverFormat = demoState === "unsynced-server" || format === "pdf"
+  const offline = demoState === "unsynced-offline"
+
+  // 「等待同步」：对话框停在等待态实时显示剩余项数，归零自动进入生成中
+  useEffect(() => {
+    if (demoState !== "waiting") return
+    if (pending <= 0) {
+      setDemoState("progress")
+      const t = window.setTimeout(() => setDemoState("done"), 1200)
+      return () => window.clearTimeout(t)
+    }
+    const t = window.setTimeout(() => setPending((n) => n - 1), 900)
+    return () => window.clearTimeout(t)
+  }, [demoState, pending])
+
+  function waitForSync() {
+    setPending(UNSYNCED_COUNT)
+    setDemoState("waiting")
+  }
 
   function handleExport() {
     if (scope === "custom" && !/^[\d,\-\s]+$/.test(customPages)) { setPageError(true); return }
@@ -78,11 +104,27 @@ export function Export() {
               <p className="text-sm text-muted-foreground">服务端处理超时，请重试</p>
               <DialogFooter className="pt-2"><Button variant="outline" onClick={() => navigate("/editor")}>取消</Button><Button onClick={() => setDemoState("progress")}>重试</Button></DialogFooter>
             </div>
-          ) : demoState === "unsynced" ? (
+          ) : demoState === "waiting" ? (
+            <div className="flex flex-col gap-2 py-2" role="status" aria-live="polite">
+              <p className="flex items-center gap-1.5 text-sm font-medium"><RotateCw className="size-4 animate-spin" /> 正在同步 {pending} 项…</p>
+              <p className="text-sm text-muted-foreground">同步完成后将自动开始导出</p>
+              <DialogFooter className="pt-2"><Button variant="outline" onClick={() => setDemoState("default")}>取消</Button></DialogFooter>
+            </div>
+          ) : demoState === "unsynced" || demoState === "unsynced-server" || demoState === "unsynced-offline" ? (
             <div className="flex flex-col gap-2 py-2">
-              <p className="flex items-center gap-1.5 text-sm font-medium text-warning-foreground"><TriangleAlert className="size-4" /> 存在 3 项未同步的更改</p>
-              <p className="text-sm text-muted-foreground">导出将包含本地最新内容，但可能与其他协作者看到的版本存在差异</p>
-              <DialogFooter className="pt-2"><Button variant="outline" onClick={() => toast("等待同步完成后重试")}>等待同步</Button><Button onClick={() => setDemoState("progress")}>仍要导出</Button></DialogFooter>
+              <p className="flex items-center gap-1.5 text-sm font-medium text-warning-foreground">
+                <TriangleAlert className="size-4" /> {serverFormat ? `需先同步 ${UNSYNCED_COUNT} 项更改` : `存在 ${UNSYNCED_COUNT} 项未同步的更改`}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {serverFormat ? "PDF 由服务端生成，只包含已同步到服务器的内容" : "导出将包含本地最新内容，但可能与其他协作者看到的版本存在差异"}
+              </p>
+              {offline && <p className="text-xs text-muted-foreground">当前离线，恢复连接后才能同步</p>}
+              <DialogFooter className="pt-2">
+                {serverFormat
+                  ? <Button variant="outline" onClick={() => setDemoState("default")}>取消</Button>
+                  : <Button variant="outline" onClick={() => setDemoState("progress")}>仍要导出</Button>}
+                <Button disabled={offline} onClick={waitForSync}>等待同步</Button>
+              </DialogFooter>
             </div>
           ) : (
             <>

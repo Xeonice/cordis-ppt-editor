@@ -24,7 +24,7 @@ const stateOptions = [
   { value: "empty", label: "空（新文档）" },
   { value: "loading", label: "加载中" },
   { value: "error", label: "加载失败" },
-  { value: "readonly", label: "只能查看，不能恢复" },
+  { value: "readonly", label: "编辑者：只能查看，不能恢复 / 命名" },
   { value: "offline", label: "离线" },
 ]
 
@@ -47,6 +47,7 @@ export function EditorHistory() {
   }, [])
 
   const selected = versionHistory.find((v) => v.id === selectedId) ?? versionHistory[0]!
+  // rulings U-09 / §4.18 UX-17：编辑者有 history.read，恢复（history.restore）与命名（doc.manage）只属于所有者
   const canRestore = demoState !== "readonly"
 
   return (
@@ -150,6 +151,7 @@ function HistoryBody({
     <div className="flex h-full">
       <ScrollArea className="w-44 shrink-0 border-r border-foreground/5">
         <div className="flex flex-col gap-3 p-2">
+          {canRestore && <RecentlyDeleted />}
           {grouped.map((g) => (
             <div key={g.day}>
               <p className="mb-1 px-1 text-[11px] font-medium text-muted-foreground">{g.day}</p>
@@ -211,10 +213,60 @@ function HistoryBody({
                 </AlertDialog>
               </span>
             </TooltipTrigger>
-            {!canRestore && <TooltipContent className="flex items-center gap-1"><Lock className="size-3" /> 需要编辑权限</TooltipContent>}
+            {!canRestore && <TooltipContent className="flex items-center gap-1"><Lock className="size-3" /> 需要所有者权限</TooltipContent>}
           </Tooltip>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * rulings §4.18 CO-07：「彻底删除元素」只对墓碑态元素开放、只能由所有者发起，入口是历史面板的「最近删除」分组（03-screens/07）。
+ * 只清当前文档状态；历史版本仍含该内容，要连历史清除须永久删除文档。
+ */
+function RecentlyDeleted() {
+  const [items, setItems] = useState([
+    { id: "d1", label: "矩形 3", page: 2, by: "王小明", left: "22 小时后自动清除" },
+    { id: "d2", label: "图片 1", page: 5, by: "我", left: "9 小时后自动清除" },
+  ])
+  const [open, setOpen] = useState(true)
+  if (items.length === 0) return null
+  return (
+    <div>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="mb-1 flex w-full items-center justify-between px-1 text-[11px] font-medium text-muted-foreground">
+        <span>最近删除（{items.length}）</span><span aria-hidden="true">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1">
+          {items.map((it) => (
+            <div key={it.id} className="rounded-md border border-foreground/5 px-1.5 py-1 text-xs">
+              <p className="truncate">{it.label} · 第 {it.page} 页</p>
+              <p className="truncate text-[11px] text-muted-foreground">{it.by} · {it.left}</p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="xs" className="mt-0.5 h-6 px-1.5 text-destructive">彻底删除</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>彻底删除"{it.label}"？</AlertDialogTitle>
+                    <AlertDialogDescription>删除后无法恢复。历史版本仍含该内容，要连历史清除请永久删除文档。</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>取消</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => { setItems((xs) => xs.filter((x) => x.id !== it.id)); toast("已彻底删除 1 个元素") }}
+                    >
+                      彻底删除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

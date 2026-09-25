@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q7：EMF 栅格化与外链图片边界） | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q7：EMF 栅格化与外链图片边界）；2026-09-25（补图） | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
 
 # 03-18 图片操作（上传/裁剪/替代文本）
 
@@ -64,6 +64,21 @@
 - 进入后显示 8 个裁剪手柄 + 图片外区域 50% 半透明遮罩；拖动手柄调整裁剪范围，拖动图片本体在裁剪框内平移可见区域。
 - 属性面板同步显示上/下/左/右裁剪数值的等价输入（键盘用户可直接输入数值，WCAG 2.5.7 键盘等价）。
 - `Enter` 确认裁剪、`Esc` 取消并恢复裁剪前状态；裁剪不修改源图片字节，仅记录裁剪矩形（`a:srcRect`）。
+
+**裁剪模式状态**
+
+```mermaid
+stateDiagram-v2
+  state "图片选中 · 属性面板「图片」与「替代文本」分区，迷你工具条提供裁剪 / 替换 / 替代文本" as selected
+  state "裁剪模式 · 8 个裁剪手柄 + 图片外 50% 遮罩；Ribbon 与检查器其余分区临时禁用" as cropping
+  selected --> cropping : 进入裁剪
+  cropping --> cropping : 拖动手柄调整范围，或拖动图片本体平移可见区，属性面板同步上下左右数值
+  cropping --> selected : Enter 确认，只记录 srcRect 裁剪矩形，不改源图片字节
+  cropping --> selected : Esc 取消，恢复裁剪前状态
+  note right of selected : EMF/WMF 图片不可裁剪，外链图片未加载时裁剪禁用，均为按钮禁用 + tooltip 说明
+```
+
+怎么读：裁剪是一个临时模式，只有 Enter 与 Esc 两个出口；数值输入是拖动手柄的键盘等价路径，两者产生相同的裁剪结果。
 
 ### 大图压缩提示
 

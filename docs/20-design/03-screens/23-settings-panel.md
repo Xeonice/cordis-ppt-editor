@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.10（D13 入口口径）；`10-prd/07-design-coverage-and-gaps.md` D13；PRD `08-app-shell` AS-06；09 v3.0 T-06、§2 `UserMenu`；playground `Settings.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.10（D13 入口口径）；`10-prd/07-design-coverage-and-gaps.md` D13；PRD `08-app-shell` AS-06；09 v3.0 T-06、§2 `UserMenu`；playground `Settings.tsx`
 
 # 03-23 设置（主题/密度/语言/单位）
 
@@ -50,6 +50,32 @@
 各控件读取当前本地偏好（首次使用为出厂默认：主题跟随系统、密度舒适、语言随浏览器/账户语言、单位随语言默认——zh-CN → cm，en-US → in，见产品默认答案 D1）。
 
 控件形态（09 T-06，playground `Settings.tsx`）：主题（系统 / 亮 / 暗，Lucide `Monitor` / `Sun` / `Moon` 图标）与密度（舒适 / 紧凑）均为 `ToggleGroup type="single" size="sm" variant="outline"` 分段，**不用下拉**；语言、度量单位、自动保存间隔、粘贴默认为 `Select`（`SelectTrigger size="sm"`）；通知项为 `Checkbox`。分组为 iOS 式内嵌列表：12px 半粗淡色标题置于组外，组内容 `.cordex-group p-3`，组间靠留白不靠分割线；抽屉内容区 `.cordex-well m-3 p-3`。「关于」段：版本号、「复制诊断信息」、「已加载插件：5 个 → 管理」（跳转 03-screens/09）。
+
+**设置项的取值与修改**
+
+```mermaid
+flowchart TB
+  item["抽屉中的某一设置项"]
+  lock{"被集成方配置锁定？"}
+  ro["只读展示 + 说明「由宿主应用设置」，不提供切换控件；多项锁定时各自独立说明"]
+  pref{"本地已有个人偏好？"}
+  usePref["读取本地偏好"]
+  def["出厂默认：主题跟随系统、密度舒适、语言随浏览器/账户语言、单位随语言，zh-CN → cm，en-US → in"]
+  ctl["可交互控件：分段 / Select / Checkbox"]
+  save["修改即生效并存为本地偏好，不同步给协作者；关闭抽屉 = 保存并返回打开它的页面"]
+  lang["切换语言：下拉短暂禁用 + spinner，≤ 200 ms 刷新文案，无需刷新页面"]
+  langFail["语言包加载失败：toast「语言包加载失败，已保留当前语言」，下拉恢复到切换前的值"]
+  item --> lock
+  lock -->|"是"| ro
+  lock -->|"否"| pref
+  pref -->|"是"| usePref --> ctl
+  pref -->|"否，首次使用"| def --> ctl
+  ctl -->|"修改"| save
+  ctl -->|"切换语言"| lang
+  lang -.->|"失败"| langFail
+```
+
+怎么读：先判定是否被集成方锁定，再决定取本地偏好还是出厂默认；所有设置都是个人本地偏好，关闭即保存。
 
 ### 集成方锁定态
 

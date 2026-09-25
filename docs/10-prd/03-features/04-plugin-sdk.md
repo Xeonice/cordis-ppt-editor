@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.15、§4.16
 
 # 功能域 04：插件 SDK（面向插件开发者）
 
@@ -18,11 +18,15 @@
 
 ## 1. 插件开发者的旅程（M4 验收基线）
 
+**图 1-1 插件开发者的旅程**
+
+```mermaid
+flowchart LR
+  s1["发现 · 文档站"] --> s2["脚手架 · create-*"] --> s3["开发 · 类型化API"] --> s4["本地调试 · 宿主+HMR"]
+  s4 --> s5["测试 CTK · 兼容矩阵"] --> s6["发布 · npm+清单"] --> s7["集成方启用 · preset 配置"] --> s8["升级 · 版本协商"]
 ```
- 发现 ──► 脚手架 ──► 开发 ──► 本地调试 ──► 测试（CTK）──► 发布 ──► 集成方启用 ──► 升级
-  │         │          │          │             │            │          │             │
-  文档站    create-*   类型化API   宿主+HMR     兼容矩阵      npm+清单   preset 配置   版本协商
-```
+
+怎么读：箭头为旅程先后，每个节点「·」后是该阶段依托的产品能力；M4 验收要求试点者仅凭文档站走完全程。
 
 - **M4 机械化验收**：内部非核心成员（未参与内核开发的同事或全新 AI agent 会话，rulings §4.16 Q11）仅凭公开文档站与示例，在 ≤ 2 人日内完成「新增一种元素渲染 + 一个 ribbon 按钮 + 一个属性面板分组」的插件，CTK 全部通过，过程中不向核心团队提问超过 3 次（提问记录为文档缺陷）。
 
@@ -87,6 +91,35 @@
 | `OfflineStore` | collab-core | collab-offline-idb（M4，P2） | 自定义持久化 | M4 |
 | `blobStore` | server-storage | S3 兼容（compose 默认 SeaweedFS）/ 本地 | 任意 S3 兼容服务、集成方自定义（示例 `plugin-s3-storage`） | M3 |
 | `layout.measurer`（同时是贡献点） | engine-layout | render-dom canvas 度量 | server-headless 字体度量 | M1 |
+
+**图 2-1 两种扩展方式：贡献点与 Provider 座**
+
+```mermaid
+flowchart LR
+  subgraph cp["贡献点：一族可并存的条目"]
+    plugA["插件 A"]
+    plugB["插件 B"]
+    point["贡献点，如 ui.ribbon、render.element"]
+    readers["消费方读 ctx.contributions，变化时发出 contribution/changed"]
+  end
+  subgraph slot["Provider 座：同一服务一次一个实现"]
+    def["Definition，如 collabTransport"]
+    prov1["默认 Provider，如 collab-transport-ws"]
+    prov2["替换 Provider，如 plugin-webrtc-transport"]
+    suite["必须通过 run＜Definition＞Conformance"]
+    consumer["Consumer 只依赖 Definition"]
+  end
+  plugA -->|"ctx.contribute，由 effect 拥有"| point
+  plugB -->|"ctx.contribute，由 effect 拥有"| point
+  point --> readers
+  prov1 -->|"实现"| def
+  prov2 -.->|"替换"| prov1
+  prov2 --> suite
+  consumer --> def
+```
+
+怎么读：「贡献点」子图是「加东西」——多个插件向同一个贡献点添加条目，插件卸载即撤销；「Provider 座」子图是「换东西」——同一服务只保留一个实现，替换者须通过契约套件，Consumer 不感知替换。协同传输与 Blob 存储属于 Provider 座，不是贡献点。
+依据：本条 PS-02；章程 §5.5。
 
   - 稳定级语义：`Stable` = 破坏性变更需主版本且提前 ≥ 1 个次版本弃用；`Beta` = 次版本可破坏但有迁移说明；`Experimental` = 不承诺。包级稳定级字段 `package.json#cordex.stability`（章程 §5.2）出现在文档与 api-extractor 报告中（继承 Univer K10 反面：A21）。
   - 每个贡献点有：schema（Standard Schema，用于加载期校验）、TS 类型、文档页、≥ 1 个示例、CTK 用例。
@@ -162,6 +195,27 @@
   - 兼容窗口：每个次版本的贡献点 `Stable` API 至少向后兼容 2 个次版本；主版本升级提供迁移指南与 codemod（P1）。
   - `Snapshot` `schemaVersion` 变化对插件透明（迁移由 `migrations` 负责）；插件的 `ResourceHook` 数据自带版本号与迁移函数（PS-01 schema）。
 
+**图 2-2 插件加载时的出口**
+
+```mermaid
+flowchart LR
+  load["宿主加载一个插件"]
+  incompatible["hostApi 范围不满足：FAILED，事件 plugin/incompatible，错误码 plugin.incompatible 含 required 与 actual"]
+  wrongenv["dom 插件在 Node 宿主中：拒绝加载，plugin.wrong_environment，PS-14"]
+  invalid["Config 校验失败：ValidationError 列出字段路径，不部分激活，PS-10"]
+  pending["injects 的服务缺失：PENDING，不是错误；服务恢复后自动 ACTIVE"]
+  active["ACTIVE：Manifest 与运行时贡献一致"]
+  load --> incompatible
+  load --> wrongenv
+  load --> invalid
+  load --> pending
+  load --> active
+  pending -.->|"服务恢复"| active
+```
+
+怎么读：一个加载动作的五种结局，每个节点写明对外可见的状态、事件或错误码；图中不表示检查先后。开发者面板与「扩展」面板据此展示原因（PS-09、PS-11）。
+依据：PS-06 第 1、3、7 项；本条 PS-07；PS-10；PS-14。
+
 ### PS-08 发布流程
 
 - 优先级：P1 | 目标里程碑：M4 | 依赖能力：Changesets、npm provenance
@@ -191,6 +245,26 @@
   - 插件激活抛错 → 该 Fiber `FAILED`，兄弟插件不受影响；编辑器「扩展」面板显示失败插件、错误码与「重试」；`plugin/failed` 事件。
   - 渲染器插件运行期抛错 → 元素级占位（OF-13），插件不整体失败。
   - 命令执行抛错 → 事务回滚（不留半状态），`command/failed` 事件，用户提示。
+
+**图 2-3 三种失败与各自的隔离边界**
+
+```mermaid
+flowchart TB
+  a["插件激活时 apply 抛错"]
+  b["渲染器插件运行期抛错"]
+  c["命令执行抛错"]
+  a1["该 Fiber 进入 FAILED；兄弟插件不受影响"]
+  a2["「扩展」面板显示失败插件、错误码与「重试」；事件 plugin/failed"]
+  b1["元素级占位，插件不整体失败，OF-13"]
+  c1["事务回滚，不留半状态"]
+  c2["事件 command/failed，用户提示"]
+  a --> a1 --> a2
+  b --> b1
+  c --> c1 --> c2
+```
+
+怎么读：三列分别是插件级、元素级与事务级失败，每列只影响自己所在的边界，编辑器其余部分继续可用（规避 Univer A11）。
+依据：本条 PS-11；OF-13。
 
 ### PS-12 插件国际化
 

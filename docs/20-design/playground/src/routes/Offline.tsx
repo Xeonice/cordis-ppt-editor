@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Ban, CheckCircle2, Info, Lock, LogIn, RotateCw, ShieldAlert, X, Zap,
@@ -6,6 +6,7 @@ import {
 import { toast } from "sonner"
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { AppBar, DesignBar, EditorShell, Inspector, SlideCanvas, SlideContent, StatusBar, StatusText, ThumbnailRail } from "@/components/editor"
 import { EditorRibbon } from "@/components/editor/Ribbon"
@@ -17,8 +18,8 @@ const roomLimits = { editors: 20, viewers: 50 }
 const elementQuota = { soft: 15000, hard: 20000 }
 
 type BannerKey =
-  | "none" | "offline" | "reconnecting" | "syncing" | "restored" | "auth-expired" | "access-revoked"
-  | "readonly-degraded" | "seats-full" | "quarantined" | "quota-soft" | "viewers-full"
+  | "none" | "offline" | "reconnecting" | "syncing" | "restored" | "auth-expired" | "auth-mismatch" | "access-revoked"
+  | "readonly-degraded" | "seats-full" | "quarantined" | "quota-soft" | "viewers-full" | "server-unsaved"
 
 const stateOptions: { value: BannerKey; label: string }[] = [
   { value: "none", label: "无横幅（正常）" },
@@ -26,22 +27,48 @@ const stateOptions: { value: BannerKey; label: string }[] = [
   { value: "reconnecting", label: "重连中" },
   { value: "syncing", label: "同步中" },
   { value: "restored", label: "已恢复（自动消失）" },
-  { value: "auth-expired", label: "登录已过期" },
+  { value: "auth-expired", label: "登录已过期（新窗口重新登录）" },
+  { value: "auth-mismatch", label: "重新登录的账号不同（只读）" },
   { value: "access-revoked", label: "访问权限已变更" },
   { value: "readonly-degraded", label: "权限降级 · 未保存改动" },
   { value: "seats-full", label: "编辑者名额已满" },
   { value: "quarantined", label: "隔离态（不可关闭）" },
   { value: "quota-soft", label: "配额：元素总数接近上限（软警告）" },
   { value: "viewers-full", label: "配额：查看者名额已满（阻断）" },
+  { value: "server-unsaved", label: "服务端存储降级：未保存到服务器（无横幅）" },
 ]
 
 export function Offline() {
   const navigate = useNavigate()
   const [banner, setBanner] = useState<BannerKey>("offline")
   const [dismissed, setDismissed] = useState(false)
+  const [loginPending, setLoginPending] = useState(false)
   const [ribbonTab, setRibbonTab] = useState<RibbonTabValue>("home")
+  const timers = useRef<number[]>([])
   const currentSlide = slides[0]!
-  const readOnly = banner === "readonly-degraded" || banner === "seats-full"
+  const readOnly = banner === "readonly-degraded" || banner === "seats-full" || banner === "auth-mismatch"
+
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), [])
+
+  function after(ms: number, fn: () => void) {
+    timers.current.push(window.setTimeout(fn, ms))
+  }
+
+  /** rulings §4.18 UX-02：「重新登录」在弹窗 / 新标签完成 OIDC，原页不跳转、队列保留；同一用户回来后 重连中 → 同步中 → 已恢复 */
+  function relogin() {
+    setLoginPending(true)
+    toast("已在新窗口打开登录页，完成后本页自动恢复同步")
+    after(1600, () => { setLoginPending(false); setBanner("reconnecting") })
+    after(2600, () => setBanner("syncing"))
+    after(4200, () => setBanner("restored"))
+  }
+
+  /** rulings §4.18 CO-03：离线期间可「立即重连」 */
+  function reconnectNow() {
+    setBanner("reconnecting")
+    after(1500, () => setBanner("syncing"))
+    after(3000, () => setBanner("restored"))
+  }
 
   if (banner === "viewers-full") {
     return (
@@ -68,7 +95,7 @@ export function Offline() {
         title="离线与降级"
         spec="03-screens/12"
         state={banner}
-        onStateChange={(v) => { setBanner(v as BannerKey); setDismissed(false) }}
+        onStateChange={(v) => { timers.current.forEach((t) => window.clearTimeout(t)); timers.current = []; setLoginPending(false); setBanner(v as BannerKey); setDismissed(false) }}
         stateOptions={stateOptions}
         extra={
           <div className="flex flex-wrap gap-1.5">
@@ -78,10 +105,12 @@ export function Offline() {
         }
       />
       <EditorShell
-        appBar={<AppBar onBack={() => navigate("/editor")} backLabel="返回编辑器" title={documentTitle} collaborators={collaborators.filter((c) => !c.isSelf)} status={readOnly ? undefined : { kind: "sync", state: banner === "syncing" ? "syncing" : banner === "reconnecting" ? "reconnecting" : banner === "offline" ? "offline" : "synced" }} />}
+        appBar={<AppBar onBack={() => navigate("/editor")} backLabel="返回编辑器" title={documentTitle} collaborators={collaborators.filter((c) => !c.isSelf)} status={readOnly || banner === "server-unsaved" ? undefined : { kind: "sync", state: banner === "syncing" ? "syncing" : banner === "reconnecting" ? "reconnecting" : banner === "offline" ? "offline" : "synced" }} />}
         ribbon={
           <div className="flex flex-col">
-            {!dismissed && banner !== "none" && banner !== "quota-soft" && <BannerContent banner={banner} onDismiss={() => setDismissed(true)} onAction={(msg) => toast(msg)} roomLimits={roomLimits} />}
+            {!dismissed && banner !== "none" && banner !== "quota-soft" && banner !== "server-unsaved" && (
+              <BannerContent banner={banner} onDismiss={() => setDismissed(true)} onAction={(msg) => toast(msg)} roomLimits={roomLimits} loginPending={loginPending} onRelogin={relogin} onReconnectNow={reconnectNow} />
+            )}
             <EditorRibbon value={ribbonTab} onValueChange={setRibbonTab} currentMasterId={currentSlide.masterId} currentLayoutId={currentSlide.layoutId} />
           </div>
         }
@@ -92,7 +121,7 @@ export function Offline() {
             value="properties"
             onValueChange={() => {}}
             readOnly={readOnly}
-            readOnlyReason={banner === "seats-full" ? "编辑者名额已满，你已以查看身份加入" : "权限已变更为可评审"}
+            readOnlyReason={banner === "seats-full" ? "编辑者名额已满，你已以只读身份加入，仍可评论" : banner === "auth-mismatch" ? "登录账号与原会话不同，已按只读处理" : "权限已变更为可评审"}
             tabs={[{ value: "properties", label: "属性", content: null }]}
           />
         }
@@ -103,7 +132,15 @@ export function Offline() {
               banner === "quota-soft" ? `元素数量已接近上限（${elementQuota.soft.toLocaleString()} / ${elementQuota.hard.toLocaleString()}）` : undefined,
               readOnly && "只读",
             ].filter(Boolean) as string[]}
-            right={[<StatusText key="s" status={{ kind: "sync", state: banner === "offline" ? "offline" : "synced" }} variant="dot" />]}
+            right={[
+              banner === "server-unsaved" ? (
+                <span key="s" className="inline-flex items-center gap-1.5 text-xs text-warning-foreground" title="服务器存储暂时不可用，更改已暂存，恢复后自动保存">
+                  <span className="size-1.5 shrink-0 rounded-full bg-warning" aria-hidden="true" />未保存到服务器
+                </span>
+              ) : (
+                <StatusText key="s" status={{ kind: "sync", state: banner === "offline" ? "offline" : "synced" }} variant="dot" />
+              ),
+            ]}
           />
         }
       />
@@ -112,7 +149,17 @@ export function Offline() {
 }
 
 /** 六态+ 横幅统一走 Alert：浮在 EditorShell 的 glass-strong 工具卡内，mx-2 mt-2 留白+圆角，不贴边平铺。 */
-function BannerContent({ banner, onDismiss, onAction, roomLimits }: { banner: BannerKey; onDismiss: () => void; onAction: (msg: string) => void; roomLimits: { editors: number; viewers: number } }) {
+function BannerContent({
+  banner, onDismiss, onAction, roomLimits, loginPending, onRelogin, onReconnectNow,
+}: {
+  banner: BannerKey
+  onDismiss: () => void
+  onAction: (msg: string) => void
+  roomLimits: { editors: number; viewers: number }
+  loginPending: boolean
+  onRelogin: () => void
+  onReconnectNow: () => void
+}) {
   const base = "m-2 shrink-0"
   switch (banner) {
     case "offline":
@@ -120,7 +167,10 @@ function BannerContent({ banner, onDismiss, onAction, roomLimits }: { banner: Ba
         <Alert role="status" aria-live="polite" className={`${base} border-warning/40 bg-warning-muted text-warning-foreground`}>
           <Zap />
           <AlertTitle>离线</AlertTitle>
-          <AlertDescription className="text-warning-foreground/80">更改已保存在本地，将在重新连接后同步</AlertDescription>
+          <AlertDescription className="text-warning-foreground/80">更改已保存在本地，将在重新连接后同步；每 30 秒自动重试</AlertDescription>
+          <AlertAction>
+            <Button size="xs" variant="outline" className="border-warning-foreground/40 text-warning-foreground" onClick={onReconnectNow}><RotateCw /> 立即重连</Button>
+          </AlertAction>
         </Alert>
       )
     case "reconnecting":
@@ -152,8 +202,25 @@ function BannerContent({ banner, onDismiss, onAction, roomLimits }: { banner: Ba
         <Alert role="alert" aria-live="assertive" className={`${base} border-warning/40 bg-warning-muted text-warning-foreground`}>
           <Zap />
           <AlertTitle>登录已过期，本地更改尚未同步</AlertTitle>
+          <AlertDescription className="text-warning-foreground/80">
+            {loginPending ? "请在新窗口中完成登录，本页不会跳转，更改不会丢失" : "在新窗口中登录，本页不跳转、更改保留。"}
+            {!loginPending && <button type="button" className="ml-1 underline underline-offset-2" onClick={onRelogin}>弹窗被拦截？在新标签页中登录</button>}
+          </AlertDescription>
           <AlertAction>
-            <Button size="xs" variant="outline" className="border-warning-foreground/40 text-warning-foreground" onClick={() => onAction("正在跳转到登录…")}><LogIn /> 重新登录</Button>
+            <Button size="xs" variant="outline" className="border-warning-foreground/40 text-warning-foreground" disabled={loginPending} onClick={onRelogin}>
+              {loginPending ? <Spinner /> : <LogIn />} 重新登录
+            </Button>
+          </AlertAction>
+        </Alert>
+      )
+    case "auth-mismatch":
+      return (
+        <Alert role="alert" aria-live="assertive" className={`${base} border-destructive/40 bg-destructive/10 text-destructive`}>
+          <Lock />
+          <AlertTitle>重新登录的账号与原会话不同，3 项本地更改未提交</AlertTitle>
+          <AlertDescription className="text-destructive/80">为防止以他人身份提交更改，已按只读处理；可导出为本地副本</AlertDescription>
+          <AlertAction>
+            <Button size="xs" variant="outline" className="border-destructive/40 text-destructive" onClick={() => onAction("已导出为本地副本")}>导出为本地副本</Button>
           </AlertAction>
         </Alert>
       )
@@ -182,7 +249,7 @@ function BannerContent({ banner, onDismiss, onAction, roomLimits }: { banner: Ba
       return (
         <Alert role="alert" aria-live="assertive" className={`${base} border-destructive/40 bg-destructive/10 text-destructive`}>
           <Lock />
-          <AlertTitle>编辑者名额已满，你已以查看身份加入（≤ {roomLimits.editors} 编辑者）</AlertTitle>
+          <AlertTitle>编辑者名额已满（≤ {roomLimits.editors} 编辑者），你已以只读身份加入，仍可评论</AlertTitle>
         </Alert>
       )
     case "quarantined":

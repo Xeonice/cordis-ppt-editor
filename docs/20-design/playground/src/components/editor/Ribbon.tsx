@@ -115,7 +115,7 @@ export interface EditorRibbonProps {
   restrictedFontName?: string
   /**
    * Q12：母版视图入口状态。缺省 `"enabled"`，此时 EditorRibbon 会按视口自动判定（< 1024 → `"narrow"`）；
-   * 评审 / 只读态由路由传 `"review"`。非 `"enabled"` 时页签行右侧的视图分段不渲染，「视图」页签的「母版视图」按钮禁用并说明原因。
+   * 编辑模式已降权（readonly-degraded）由路由传 `"degraded"`（评审模式不渲染 Ribbon）。非 `"enabled"` 时页签行右侧的视图分段不渲染，「视图」页签的「母版视图」按钮禁用并说明原因。
    */
   masterEntry?: MasterEntryState
 }
@@ -163,7 +163,8 @@ function buildEditorTabs(p: EditorRibbonProps, masterEntry: MasterEntryState) {
 /**
  * 普通视图的完整 Ribbon：开始/插入/设计/切换/视图 + 插件页签。
  * 每个路由只需传入当前上下文（母版/版式、缩放、主题等）与少量回调即可获得完整可用的 Ribbon。
- * Q12：`masterEntry` 缺省时按视口自动判定窄屏；传 `"review"` 表示评审态（优先于视口判定）。
+ * Q12：`masterEntry` 缺省时按视口自动判定窄屏；传 `"degraded"` 表示编辑模式已降权（优先于视口判定）。
+ * 评审模式整条 Ribbon 由评审工具条取代，不渲染本组件（rulings §4.18 UX-11）。
  */
 export function EditorRibbon({
   value,
@@ -175,7 +176,7 @@ export function EditorRibbon({
 }) {
   const wide = useWideViewport()
   const masterEntry: MasterEntryState =
-    props.masterEntry === "review" ? "review" : props.masterEntry === "narrow" || !wide ? "narrow" : "enabled"
+    props.masterEntry === "degraded" ? "degraded" : props.masterEntry === "narrow" || !wide ? "narrow" : "enabled"
   return (
     <RibbonRoot
       value={value}

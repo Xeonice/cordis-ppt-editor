@@ -47,6 +47,11 @@ export function EditorMain() {
   const [lockAspect, setLockAspect] = useState(false)
 
   const canEdit = role === "owner" || role === "editor"
+  // rulings §4.18 UX-19：查看者（仅 doc.read）进同一协同编辑器的只读变体 mode='view'——无评论/高亮等创建类按钮，可阅读评论
+  const isViewer = role === "viewer"
+  const canComment = !isViewer
+  // rulings U-09 / §4.18 UX-17：history.read 只下放到编辑者，评审者与查看者没有「历史」入口
+  const canReadHistory = canEdit
   const readOnly = demoState === "review" || !canEdit
   // Mod+Alt+M 进入母版视图（rulings Q12：评审 / 无权限 / < 1024 宽度下无效）；macOS 下 Alt 改变 e.key，故用 e.code
   useEffect(() => {
@@ -60,12 +65,18 @@ export function EditorMain() {
     return () => window.removeEventListener("keydown", onKey)
   }, [readOnly, navigate])
   const currentSlide = slides.find((s) => s.id === currentSlideId) ?? slides[0]!
+  // 评审模式与查看者变体的检查器默认显示「评论」（01-IA §5.1）
+  useEffect(() => {
+    if (!canEdit) setInspectorTab("comments")
+  }, [canEdit])
 
+  // 01-IA §5.2：模式下拉 = 编辑 / 评审 / 放映；查看者只列「只读浏览」与「放映」（UX-19）
+  const presentOption = { value: "present", label: "放映" }
   const modeOptions = canEdit
-    ? [{ value: "edit", label: "编辑" }, { value: "review", label: "评审模式" }]
+    ? [{ value: "edit", label: "编辑" }, { value: "review", label: "评审模式" }, presentOption]
     : role === "commenter"
-      ? [{ value: "review", label: "评审模式" }]
-      : [{ value: "view", label: "只读浏览中" }]
+      ? [{ value: "review", label: "评审模式" }, presentOption]
+      : [{ value: "view", label: "只读浏览" }, presentOption]
   const modeValue = !canEdit ? modeOptions[0]!.value : demoState === "review" ? "review" : "edit"
 
   const otherCollaborators = useMemo(() => collaborators.filter((c) => !c.isSelf), [])
@@ -73,6 +84,7 @@ export function EditorMain() {
   const li = collaboratorById("li")
 
   function handleModeChange(v: string) {
+    if (v === "present") { navigate("/present"); return }
     if (!canEdit) return
     setDemoState(v === "review" ? "review" : "default")
   }
@@ -82,7 +94,7 @@ export function EditorMain() {
       onBack={() => navigate("/home")}
       title={demoState === "loading" ? `正在打开 ${documentTitle} …` : documentTitle}
       onRename={demoState === "loading" || demoState === "error" ? undefined : () => toast("重命名文档")}
-      badges={readOnly && <Badge variant="outline" className="border-info/40 bg-info-muted text-info-foreground">{canEdit ? "评审模式" : "只读浏览中"}</Badge>}
+      badges={readOnly && <Badge variant="outline" className="border-info/40 bg-info-muted text-info-foreground">{isViewer ? "只读浏览中" : "评审模式"}</Badge>}
       undo={!readOnly && demoState !== "loading" && demoState !== "error" ? { label: "撤销：移动形状 (⌘Z)", onClick: () => toast("已撤销") } : undefined}
       redo={!readOnly && demoState !== "loading" && demoState !== "error" ? { label: "重做", disabled: true } : undefined}
       status={demoState === "loading" || demoState === "error" ? undefined : { kind: "sync", state: "synced" }}
@@ -92,7 +104,7 @@ export function EditorMain() {
       {demoState !== "loading" && demoState !== "error" && (
         <>
           <Button variant="outline" size="sm" onClick={() => navigate("/editor/share")}>分享</Button>
-          <Select value={modeValue} onValueChange={handleModeChange} disabled={!canEdit && modeOptions.length === 1}>
+          <Select value={modeValue} onValueChange={handleModeChange}>
             <SelectTrigger size="sm" className="w-32" aria-label="编辑模式"><SelectValue /></SelectTrigger>
             <SelectContent>{modeOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
           </Select>
@@ -174,11 +186,16 @@ export function EditorMain() {
         ribbon={
           readOnly ? (
             <div className="flex h-12 shrink-0 items-center gap-1 border-t border-foreground/5 px-3">
-              <Button variant="outline" size="sm" onClick={() => { setInspectorTab("comments"); toast("已打开评论") }}><MessageSquare /> 评论</Button>
-              <Button variant="outline" size="sm"><Highlighter /> 高亮</Button>
-              <div className="mx-1 h-5 w-px bg-border" />
-              <Button variant="ghost" size="sm">◂ 上一处评论</Button>
-              <Button variant="ghost" size="sm">下一处评论 ▸</Button>
+              {canComment && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => { setInspectorTab("comments"); toast("已打开评论") }}><MessageSquare /> 评论</Button>
+                  <Button variant="outline" size="sm"><Highlighter /> 高亮</Button>
+                  <div className="mx-1 h-5 w-px bg-border" />
+                </>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>◂ 上一处评论</Button>
+              <Button variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>下一处评论 ▸</Button>
+              {isViewer && <span className="ml-2 text-xs text-muted-foreground">只读浏览 · 可阅读评论，实时查看修改</span>}
             </div>
           ) : (
             <EditorRibbon
@@ -215,24 +232,30 @@ export function EditorMain() {
         }
         canvas={
           <SlideCanvas zoom={zoom} onZoomChange={setZoom} onEffectiveZoomChange={setEffectiveZoom}>
-            <CanvasScene state={demoState} />
+            {/* 只读（评审 / 查看者变体）画布不出现选中手柄与插入符，01-IA §5.1 */}
+            <CanvasScene state={readOnly ? "review" : demoState} />
           </SlideCanvas>
         }
         inspector={
           <Inspector
-            value={demoState === "review" && inspectorTab !== "history" ? "comments" : inspectorTab}
+            value={
+              demoState === "review"
+                ? canReadHistory && inspectorTab === "history" ? "history" : "comments"
+                : !canReadHistory && inspectorTab === "history" ? "comments" : inspectorTab
+            }
             onValueChange={setInspectorTab}
             readOnly={readOnly && demoState !== "review"}
+            readOnlyReason={isViewer ? "只读 · 仅有查看权限" : undefined}
             tabs={
               demoState === "review"
                 ? [
-                    { value: "comments", label: "评论", badge: 1, content: <ReviewCommentsPanel /> },
-                    { value: "history", label: "历史", content: <HistoryPreviewPanel /> },
+                    { value: "comments", label: "评论", badge: 1, content: <ReviewCommentsPanel readOnly={!canComment} /> },
+                    ...(canReadHistory ? [{ value: "history" as const, label: "历史", content: <HistoryPreviewPanel /> }] : []),
                   ]
                 : [
                     { value: "properties", label: "属性", content: <PropertiesPanel state={demoState} lockAspect={lockAspect} onLockAspectChange={setLockAspect} /> },
-                    { value: "comments", label: "评论", content: <ReviewCommentsPanel /> },
-                    { value: "history", label: "历史", content: <HistoryPreviewPanel /> },
+                    { value: "comments", label: "评论", content: <ReviewCommentsPanel readOnly={!canComment} /> },
+                    ...(canReadHistory ? [{ value: "history" as const, label: "历史", content: <HistoryPreviewPanel /> }] : []),
                     { value: "plugins", label: "插件", content: <PluginsPreviewPanel /> },
                   ]
             }
@@ -243,7 +266,7 @@ export function EditorMain() {
           <StatusBar
             left={[
               `第 ${currentSlide.index}/${slides.length} 页`,
-              demoState === "multi" ? "已选中 3 个对象" : demoState === "text" ? "正在编辑文本" : readOnly ? "只读浏览中" : "已选中 1 个对象",
+              demoState === "multi" ? "已选中 3 个对象" : demoState === "text" ? "正在编辑文本" : isViewer ? "只读浏览中" : readOnly ? "评审模式 · 只读" : "已选中 1 个对象",
             ]}
             right={[
               <StatusText key="sync" status={{ kind: "sync", state: "synced" }} variant="dot" />,
@@ -410,18 +433,22 @@ function PropertiesPanel({
   )
 }
 
-function ReviewCommentsPanel() {
+/** readOnly：查看者变体只可阅读线程（无回复 / 标记已解决），rulings §4.18 UX-19 */
+function ReviewCommentsPanel({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="rounded-md border p-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-xs font-medium"><span className="size-1.5 rounded-full bg-warning" />第 3 页 · "标题文本"</div>
         <p className="text-xs text-muted-foreground">王小明 · 2 小时前</p>
         <p className="mt-1 text-xs">这里的数据需要核对，和财务口径对一下。</p>
-        <div className="mt-2 flex gap-2">
-          <Button size="xs" variant="outline">回复</Button>
-          <Button size="xs" variant="ghost">标记已解决</Button>
-        </div>
+        {!readOnly && (
+          <div className="mt-2 flex gap-2">
+            <Button size="xs" variant="outline">回复</Button>
+            <Button size="xs" variant="ghost">标记已解决</Button>
+          </div>
+        )}
       </div>
+      {readOnly && <p className="text-xs text-muted-foreground">你只有查看权限，可阅读评论，不能回复或发表评论。</p>}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
 
 # 功能域 06：服务端能力与运维
 
@@ -18,20 +18,40 @@
 
 ## 1. 能力总览
 
+**图 1-1 服务端能力总览**
+
+```mermaid
+flowchart TB
+  fe["集成方/前端"]
+  subgraph server["apps/server：NestJS 11"]
+    auth["Auth"]
+    docs["Documents"]
+    gw["Collab Gateway"]
+    ie["ImportExport"]
+    snaps["Snapshots"]
+    thumbs["Thumbnails"]
+    audit["Audit"]
+  end
+  oidc["OIDC：外置 IdP / 可选 Casdoor"]
+  pg["Postgres 18"]
+  sc["server-collab"]
+  sh["server-headless：cordis 宿主，iso 插件"]
+  renderer["renderer sidecar：headless Chromium，零出站"]
+  valkey["Valkey，Redis 协议：pub/sub、presence、S-3 一级溢写"]
+  storage["server-storage，S3 兼容：默认 SeaweedFS / 本地"]
+  fe --> server
+  auth --> oidc
+  docs -->|"元数据 + RLS"| pg
+  gw -->|"房间/广播/update 持久化"| sc
+  ie --> sh
+  snaps -->|"update 追加/快照压缩"| sc
+  thumbs --> renderer
+  audit -->|"审计表"| pg
+  sc --> valkey
+  sh --> storage
 ```
-                    ┌──────────────────────────── apps/server (NestJS 11) ────────────────────────────┐
-  集成方/前端 ────► │ Auth │ Documents │ Collab Gateway │ ImportExport │ Snapshots │ Thumbnails │ Audit │
-                    └──┬────────┬────────────┬──────────────┬────────────┬────────────┬──────────┬────┘
-                       │        │            │              │            │            │          │
-                     OIDC    Postgres 18 server-collab   server-headless  server-collab  renderer      Postgres
-                   (外置 IdP  (元数据+   (房间/广播/    (cordis 宿主:    (update 追加/  sidecar       (审计表)
-                   /可选     RLS)       update 持久化)  iso 插件)       快照压缩)     (headless
-                   Casdoor)                                                            Chromium,零出站)
-                                              │              │
-                                  Valkey（Redis 协议）   server-storage（S3 兼容：默认 SeaweedFS / 本地）
-                                  (pub/sub, presence,
-                                   S-3 一级溢写)
-```
+
+怎么读：子图内是 Nest 模块（传输壳），箭头指向该模块依托的业务包或外部组件，边上写用途；`server-collab` 同时承接协同网关与快照两类职责。本图由原 ASCII 总览转换，内容不变。
 
 ---
 
@@ -42,12 +62,64 @@
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`server-headless`（cordis 宿主加载 `ooxml-pptx` 等 `iso` 插件）、`server-storage`、`FormatCodec`、`Snapshot`
 - 用户故事：作为集成方后端工程师，我希望上传一个 pptx 后服务端生成协同所需的初始 `Snapshot` 与资源清单，客户端打开时直接加入房间而不必各自解析原文件。
 - 验收标准：
-  - 上传：预签名直传到 blob 存储（≥ 10 MB 分片），随后调用「导入」API；也支持小文件（≤ 10 MB）直接 multipart。
-  - 导入为异步作业：返回 `jobId`；状态 `queued → running → succeeded | failed`；进度阶段与客户端 OF-01 一致；D50 ≤ 5 s（p95）、D200 ≤ 20 s（p95）；并发导入队列可配置（默认 4/实例）。
+  - 上传：预签名直传到 blob 存储（≥ 10 MB 分片），随后调用「导入」API；也支持小文件（≤ 10 MB）直接 multipart。浏览器经反向代理的存储子域（`s3.<域名>`）直达对象存储，预签名 URL 按对外端点生成，对象存储本身不开宿主端口（rulings §4.18 BE-01，见 SV-09）。
+  - 导入为异步作业：返回 `jobId`；状态 `queued → running → succeeded | failed | cancelled`（用户在上传或解析阶段取消即取消作业，清理导入原件与已生成产物，不留文档；rulings §4.18 UX-14）；进度阶段与客户端 OF-01 一致，参考应用复用客户端打开的 `#/import` 过渡页展示（设计 13）；D50 ≤ 5 s（p95）、D200 ≤ 20 s（p95）；并发导入队列可配置（默认 4/实例）。
   - 输出：初始 `Snapshot`（`schemaVersion` 当前值）、资源清单（媒体部件 → `BlobRef`）、不透明保留的部件原字节（以 `BlobRef` 内容寻址保存，构成 `SnapshotBundle`，即「基线包」，随文档生命周期保留、不受原件保留期限制）、诊断报告（降级项、缺失字体、限制命中）；上传的原始文件（导入原件）另存 30 天（章程 Q17）。
   - 输入限制与客户端一致（OF-24）；文档规模超出系统天花板（页数 / 单页元素 / 文档总元素，SV-08）时**直接拒绝导入**，返回 `format.quota_exceeded{dimension, limit, actual}` 并指明超出哪一项，不做只读降级打开（rulings §4.15 Q5）。上限取自部署配置。
   - 失败：类型化错误码（与客户端同一张表）；保留失败样本（可配置、脱敏路径）用于排障。
   - 病毒扫描钩子（P2）：导入前调用集成方扫描回调，拒绝即失败。
+
+**图 2-1 服务端导入：上传、作业与产物**
+
+```mermaid
+flowchart TB
+  up1["预签名直传到 blob 存储，≥ 10 MB 分片"]
+  up2["小文件 ≤ 10 MB：也可直接 multipart"]
+  api["调用导入 API，返回 jobId"]
+  job["异步作业：server-headless 加载 ooxml-pptx 等 iso 插件"]
+  limit{"超出输入限制或文档规模天花板"}
+  fail["failed：类型化错误码，天花板超限为 format.quota_exceeded，指明维度，不做只读降级"]
+  snap["初始 Snapshot，当前 schemaVersion"]
+  assets["资源清单：媒体部件到 BlobRef"]
+  base["基线包：不透明保留部件原字节，随文档生命周期保留"]
+  diag["诊断报告：降级项、缺失字体、限制命中"]
+  orig["导入原件另存 30 天"]
+  up1 --> api
+  up2 --> api
+  api --> job --> limit
+  limit -->|"是"| fail
+  limit -->|"否，succeeded"| snap
+  limit -->|"否，succeeded"| assets
+  limit -->|"否，succeeded"| base
+  limit -->|"否，succeeded"| diag
+  job -.->|"上传的原始文件"| orig
+```
+
+怎么读：自上而下是一次导入，上传有两种方式，都先上传再调用导入 API；成功时四类产物同时生成，基线包即以 `BlobRef` 内容寻址保存的不透明保留部件原字节（正文称其构成 `SnapshotBundle`），客户端打开时直接加入房间而不必各自解析原文件。
+依据：本条 SV-01；OF-24；SV-08。
+
+**图 2-2 导入与导出作业的状态**
+
+```mermaid
+stateDiagram-v2
+  state "queued" as queued
+  state "running" as running
+  state "succeeded" as succeeded
+  state "failed" as failed
+  state "cancelled" as cancelled
+  [*] --> queued: 提交作业，返回 jobId
+  queued --> running: 并发导入队列可配置，默认 4/实例
+  queued --> cancelled: 用户取消
+  running --> succeeded
+  running --> failed: 类型化错误码
+  running --> cancelled: 用户取消，清理原件与产物
+  succeeded --> [*]
+  failed --> [*]
+  cancelled --> [*]
+```
+
+怎么读：方框为作业对外可见的状态；进度阶段与客户端 OF-01 一致；取消后不留文档、原件与产物。导出作业（SV-02）沿用同一状态机，成功结果为预签名下载 URL，默认 1 h 有效。
+依据：本条 SV-01；SV-02；rulings §4.18 UX-14。
 
 ### SV-02 文档导出（服务端）
 
@@ -66,12 +138,36 @@
 - 用户故事：作为管理员，我希望任何时刻服务器宕机都不会丢失用户已同步的编辑，并且历史版本可追溯。
 - 验收标准：
   - 每条被服务端接受的 CRDT update 在返回 ack 前持久化（追加表/日志）；RPO ≤ 1 s（已 ack 的 update 不丢）。Postgres 故障溢写期采用**两级 ack**（rulings §4.15 S-3a，见 SV-05）：只有 `ack{seq, tier:'db'}` 才表示已落库并允许客户端清除 pending。
-  - 软删除墓碑（rulings §4.15 Q3）：服务端作为单写者，在墓碑 TTL（默认 24 h，部署可配）到期后执行硬删除（普通事务，origin=`system`）；文档擦除（SV-11）与经审计的「立即彻底删除」不等 TTL。
+  - 软删除墓碑（rulings §4.15 Q3）：服务端作为单写者，在墓碑 TTL（默认 24 h，部署可配）到期后执行硬删除（普通事务，origin=`system`）；文档擦除与「永久删除文档」（SV-11）不等 TTL；元素级「彻底删除元素」（CO-08，仅 owner、只对墓碑态）由服务端单写者以同一硬删路径立即执行并写审计 `document.element_purged`，只清当前文档状态，历史快照与 update 表按保留期存在（rulings §4.18 CO-07）。
   - 压缩（Compaction）：按策略（章程 Q17 默认，部署配置可调：每 500 个 update 或 10 分钟）把 update 折叠为新的快照并保留 update 尾巴用于重连；压缩 10,000 update ≤ 2 s。
   - 版本（CO-07）与保留（章程 Q17 已裁决，rulings §4.16：默认值不变，**全部进入部署配置可调**）：自动版本 = 压缩点的快照 + 元数据（贡献者集合、时间），保留 30 天；命名版本 = 用户触发的快照，永久；update 追加表保留 7 天（压缩后）；导入原件保留 30 天；元素墓碑 TTL 24 h；以上均为部署配置默认值；过期清理为后台作业。不透明保留所需的部件 Blob 随文档生命周期保留，不在此列。
   - 新客户端加入：下发最新快照 + 尾巴 update；D50 初始同步 ≤ 2 s、D200 ≤ 5 s（p75）。
   - 迁移：服务端启动时对旧 `schemaVersion` 的快照惰性迁移（读取时），并可运行「全量迁移」作业；迁移失败的文档标记并告警，不影响其它文档。
   - 一致性：多实例场景下同一文档的 update 顺序由 CRDT 保证，持久化只需「至少一次」；重复 update 幂等。
+
+**图 2-3 快照、update 与保留期**
+
+```mermaid
+flowchart LR
+  upd["被接受的 CRDT update"]
+  log["update 追加表：ack 前持久化，压缩后保留 7 天"]
+  comp["Compaction：每 500 个 update 或 10 分钟"]
+  snap["新快照，保留 update 尾巴用于重连"]
+  auto["自动版本：压缩点快照 + 贡献者集合与时间，保留 30 天"]
+  join["新客户端加入：最新快照 + 尾巴 update"]
+  subgraph keep["其它保留对象"]
+    named["命名版本：用户触发的快照，永久"]
+    tomb["元素墓碑：TTL 24 h 后由服务端单写者硬删除"]
+    orig["导入原件：保留 30 天"]
+    base["不透明保留所需的部件 Blob：随文档生命周期保留"]
+  end
+  upd --> log --> comp --> snap
+  snap --> auto
+  snap --> join
+```
+
+怎么读：实线为数据从 update 到快照的流动，「其它保留对象」子图列出不在这条路径上的保留对象；图中所有期限都是部署配置默认值、全部可调，过期清理为后台作业。
+依据：本条 SV-03；CO-07；章程 Q17，rulings §4.16。
 
 ### SV-04 缩略图服务
 
@@ -84,6 +180,35 @@
   - 并发与隔离：在独立 renderer sidecar 中执行（安全要求见 SV-09）；每个任务新建 BrowserContext，定期回收浏览器；单页超时 10 s，失败重试 1 次后返回占位图并上报。并发口径与 ADR-0026 一致。
   - 不再有「客户端上传缩略图」路径（rulings §4.15 Q8）；客户端侧栏缩略图见 OF-15。
 
+**图 2-4 文档卡片封面：M2 过渡与 M3 权威缩略图**
+
+```mermaid
+flowchart TB
+  subgraph m2["M2 过渡封面"]
+    emb{"包内有 docProps/thumbnail.jpeg"}
+    head["只做 JPEG 头校验，不解码；原字节以 image/jpeg、nosniff、CSP sandbox 头下发，source 为 embedded"]
+    ph["占位"]
+  end
+  subgraph m3["M3 前半段权威缩略图"]
+    first["导入完成：首页高优先生成，≤ 10 s"]
+    rest["其余页按需惰性生成，D200 全量 ≤ 90 s"]
+    sidecar["独立 renderer sidecar：与客户端同一份渲染代码，每任务新建 BrowserContext"]
+    out["卡片 640 px WebP；分享与版本预览按需 1280 px"]
+    inval["按页内容哈希失效：Compaction 后只把哈希变化的页入队"]
+    timeout["单页超时 10 s，重试 1 次后返回占位图并上报"]
+  end
+  emb -->|"有"| head
+  emb -->|"无"| ph
+  first --> sidecar
+  rest --> sidecar
+  sidecar --> out
+  sidecar -.->|"失败"| timeout
+  inval -.-> rest
+```
+
+怎么读：两个子图是两个阶段的做法，M3 取代 M2 成为权威来源；render-export 队列的优先级为首页缩略图 > PDF > 批量缩略图（SV-02）。外链资源一律占位且不计入页内容哈希。
+依据：本条 SV-04；SV-02；rulings §4.15 Q8。
+
 ### SV-05 协同网关
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`server-collab`（房间、awareness 广播、跨实例 pub/sub）、`protocol`（WS 帧、握手）、Valkey（Redis 协议兼容）
@@ -95,17 +220,117 @@
   - 消息限制：单消息 ≤ 1 MB；速率 ≤ 200 msg/s/连接；awareness 广播节流 ≥ 50 ms；超限限流并记录。
   - 多实例：同一文档的连接可落在不同实例，通过 Valkey（Redis 协议）pub/sub 转发 update 与 awareness；跨实例传播 ≤ 50 ms（同机房）。
   - 房间准入（rulings §4.15 Q5）：按文档**实测权重**准入（Y 结构数或堆估算，乘以 ADR-0035 的副本数），不再用固定 MB/房间；实测基线 D200 ≈ 85 MB、D50 ≈ 17.8 MB（墓碑计入）。满员房间由服务端合并 awareness tick，查看者只上报视图。
-  - 容量（collab 单实例 2 vCPU / 4 GB，RM-S）：≥ 2,000 并发 WS；活跃房间数按文档规模分档、按文档实测权重准入（见上条；各档房间数 M1 实测后回填，只收紧；原「RSS > 75% 时新房间转其它实例」口径作废，rulings §4.15 Q5）；p95 广播延迟 ≤ 100 ms、CPU < 70%。
+  - 容量（collab 单实例 2 vCPU / 4 GB，RM-S）：≥ 2,000 并发 WS；活跃房间数按文档规模分档、按文档实测权重准入（见上条；各档房间数 M1 实测后回填，只收紧；原「RSS > 75% 时新房间转其它实例」的**判定方式**作废，rulings §4.15 Q5；75% 作为权重预算比例保留——实例内存预算 = 容器内存上限（cgroup 限额，无限额取物理内存）× `room.memoryAdmissionPct`（默认 75，部署可调），rulings §4.18 BE-29）；p95 广播延迟 ≤ 100 ms、CPU < 70%。
   - 优雅停机：收到 SIGTERM 后停止接受新连接、通知客户端重连（`collab/reconnect{reason:"server-shutdown"}`）、flush 持久化、≤ 30 s 退出；客户端在 ≤ 5 s 内重连到其它实例。
   - Postgres 持续故障韧性（rulings §4.13 S-3，§4.15 S-3a 细化）：已在线房间**不拒绝新编辑**——超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储（BlobStore）；两级阈值与回放耗时预算见架构 08 §12、NF-01 §1.7、NF-03。
+  - 降级期照常广播（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入任一降级档（内存退避重试、Valkey、对象存储）后**立即**在本实例广播并跨实例扇出，不等持久化，协作者互相可见；「先落库后广播」只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他客户端重连时经 step2 回填；界面显示「未保存到服务器」；降级广播次数计入指标 `cordex_collab_broadcast_before_persist_total`（SV-10）。
   - **两级 ack**（S-3a）：溢写成功回 `ack{tier:'spill'}`，客户端**保留 pending**；落库成功回 `ack{seq, tier:'db'}` 才清除 pending。正式 `seq` 在回放时由 Postgres 分配；溢写行按 `(instanceId, localCounter)` 排序回放；回放 bootstrap 之后断言无 `pendingStructs`。即使溢写数据丢失，客户端也能在重连 step2 凭 update 幂等性自动补齐，NF-03「已 ack 零丢失」以 `tier:'db'` 为口径。
+
+**图 2-5 房间生命周期**
+
+```mermaid
+stateDiagram-v2
+  state "活跃：内存中持有房间状态" as active
+  state "等待销毁：保留内存状态以应对快速重连" as draining
+  state "已销毁" as closed
+  [*] --> active: 首个连接到达，创建房间
+  active --> draining: 最后一个连接离开
+  draining --> active: 60 s 内有连接重新加入
+  draining --> closed: 延迟 60 s 到期
+  closed --> [*]
+```
+
+怎么读：方框为房间在网关中的状态，箭头上写触发条件；房间状态可经管理 API 查询。
+依据：本条 SV-05 房间生命周期。
+
+**图 2-6 握手时的准入判定**
+
+```mermaid
+flowchart TB
+  hs["WS 握手"]
+  tok{"令牌校验，EM-03"}
+  denied["鉴权失败，关闭连接"]
+  caps["加载文档能力位"]
+  roleq{"用户角色可编辑"}
+  cap{"编辑者名额，默认 20，按用户计；owner 不占名额，满员也不降级"}
+  viewq{"查看者名额，默认 50，含 commenter"}
+  editor["以编辑者加入"]
+  viewer["以只读加入"]
+  full["collab.room_full，关闭码 4503"]
+  proto{"协议版本兼容"}
+  mismatch["collab/auth-failed，code 为 collab.protocol_mismatch，关闭码 4427"]
+  hs --> tok
+  tok -->|"失败"| denied
+  tok -->|"通过"| caps --> roleq
+  roleq -->|"是"| cap
+  roleq -->|"否"| viewq
+  cap -->|"未满"| editor
+  cap -->|"已满"| viewq
+  viewq -->|"未满"| viewer
+  viewq -->|"已满"| full
+  editor --> proto
+  viewer --> proto
+  proto -->|"不兼容"| mismatch
+```
+
+怎么读：按本条列举的顺序（令牌、能力位、容量、协议版本）自上而下绘制，实现中的检查先后以架构 06/08 为准；出口写明对外错误码与关闭码。房间另按文档实测权重准入，满员房间由服务端合并 awareness tick，查看者只上报视图。
+依据：本条 SV-05 握手、房间准入；CO-01 名额规则；SV-08 配额表。
+
+**图 2-7 Postgres 故障期的两级 ack**
+
+```mermaid
+sequenceDiagram
+  participant client as 客户端
+  participant gw as 服务端协同网关
+  participant pg as Postgres
+  participant spill as 溢写层 Valkey，超第二阈值再落对象存储
+  participant peers as 其他协作者
+  client->>gw: update
+  alt Postgres 正常
+    gw->>pg: 持久化
+    gw-->>client: ack，带 seq，tier 为 db
+    gw->>peers: 广播
+    client->>client: 清除 pending
+  else Postgres 持续故障，不拒绝新编辑
+    gw->>peers: 通过门禁即照常广播并跨实例扇出，不等持久化
+    gw->>spill: 超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储
+    gw-->>client: ack，tier 为 spill
+    client->>client: 保留 pending，界面显示未保存到服务器
+    Note over gw,pg: Postgres 恢复后，溢写行按 instanceId 与 localCounter 排序回放，正式 seq 由 Postgres 分配
+    gw->>pg: 回放
+    gw-->>client: ack，带 seq，tier 为 db
+    client->>client: 清除 pending
+  end
+  Note over client,gw: 回放 bootstrap 后断言无 pendingStructs；溢写数据若丢失，客户端在重连 step2 凭 update 幂等性补齐
+```
+
+怎么读：纵向为时间；只有 `tier` 为 `db` 的 ack 才允许客户端清除 pending，NF-03「已 ack 零丢失」以此为口径。PG 正常时先落库后广播；故障期不等持久化照常广播，协作不中断。两级阈值与回放耗时预算见架构 08 §12。
+依据：本条 SV-05 韧性、降级期广播与两级 ack；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08。
+
+**图 2-8 滚动升级时的优雅停机**
+
+```mermaid
+sequenceDiagram
+  participant inst as 网关实例 A
+  participant client as 客户端
+  participant other as 其它网关实例
+  Note over inst: 收到 SIGTERM
+  inst->>inst: 停止接受新连接
+  inst-->>client: collab/reconnect，reason 为 server-shutdown
+  inst->>inst: flush 持久化
+  inst->>inst: ≤ 30 s 内退出
+  client->>other: ≤ 5 s 内重连
+```
+
+怎么读：纵向为时间；同一文档的连接可以落在不同实例，跨实例经 Valkey pub/sub 转发，因此客户端换实例后会话照常继续；协议版本向后兼容一个次版本（SV-09）。
+依据：本条 SV-05 优雅停机与多实例；SV-09 零停机发布。
 
 ### SV-06 鉴权与权限
 
 - 优先级：P0 | 目标里程碑：M3（OIDC、按人分享）/ M4（集成方签名 JWT、API Key） | 依赖能力：`apps/server` Auth 模块、`protocol` 权限模型（能力位，无 `enum`，规避 Univer A3）
 - 验收标准（rulings §4.15 T-0 / Q6）：
   - 单组织：一次部署 = 一个组织；资源、API、权限中**没有租户**（无 `tenantId`、无租户解析、无租户角色、无跨租户访问语义）；部署级配置（配额、保留策略、字体目录、存储桶）即全局配置。将来若做 SaaS 另立项。
-  - 身份：服务端 M1–M3 **只认 OIDC**（授权码 + PKCE，用于 `apps/web`；JWKS 轮换支持），不持有密码与凭据；可接任意 OIDC IdP，docker-compose 可选内置 **Casdoor**（国内 IM 登录经 Casdoor 代理）；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
+  - 身份：服务端 M1–M3 **只认 OIDC**（授权码 + PKCE，用于 `apps/web`，**由服务端 auth 模块完成换码**并以 httpOnly cookie 建立会话，浏览器只负责跳转、不持有 PKCE verifier 与 IdP 令牌，rulings §4.18 BE-09；JWKS 轮换支持），不持有密码与凭据；可接任意 OIDC IdP，docker-compose 可选内置 **Casdoor**（国内 IM 登录经 Casdoor 代理）；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
   - 注册策略：部署级开关 `auth.selfSignup`，**默认关**——由管理员在 IdP（如 Casdoor）建号；开启后在 IdP 自助注册、首次登录 JIT 建号。分享链接始终要求登录（S-1，不支持匿名）。
   - 文档分享邀请**只对已存在账号生效**（rulings §4.17 D1）：邀请即直接授予权限；服务端不保存「待接受邀请」（无 `pending_invitations` 表），没有账号的邮箱返回错误并提示联系管理员（`auth.selfSignup` 开时提示对方先注册），文案见设计 08。
   - 文档权限：角色 → 能力位（CO §1）；权限主体为**用户**与**分享链接**（M3 只按人分享）；管理 API：授予/撤销/列出；分享链接（P1，参考应用）：可设角色与过期。
@@ -114,6 +339,30 @@
   - fail-closed：未知能力位、缺 claim、过期令牌一律拒绝；权限检查覆盖 REST 与 WS 两处（架构 05/08）。
   - CI 分层认证：PR 跑 Casdoor 容器 + oidc-provider mock；nightly 跑 Keycloak / Entra ID / 飞书等外部 IdP 兼容。
   - **M4**：集成方签名 JWT（嵌入场景）与 API Key（scoped、可轮换，用于集成方后端调用导入/导出/管理 API）；首次出现的主体 JIT 建影子用户。
+
+**图 2-9 账号从哪来、分享邀请给谁**
+
+```mermaid
+flowchart TB
+  signup{"部署级开关 auth.selfSignup"}
+  admin["默认关：管理员在 IdP，如 Casdoor，建号"]
+  self["开启：用户在 IdP 自助注册"]
+  login["首次 OIDC 登录：以 issuer 与 sub 标识，JIT 建号，服务端不持有密码"]
+  invite["owner 按人分享，输入邮箱"]
+  exists{"该邮箱已有账号"}
+  grant["直接授予权限，不存在待接受邀请"]
+  noacct["返回错误，提示联系管理员；selfSignup 开时提示对方先注册"]
+  link["分享链接：始终要求登录，登录后凭链接获得链接角色，外部访问写审计"]
+  signup --> admin --> login
+  signup --> self --> login
+  invite --> exists
+  exists -->|"是"| grant
+  exists -->|"否"| noacct
+  login -.-> link
+```
+
+怎么读：上半是账号的两种来源，下半是按人分享时的判定；单组织部署中没有租户与组，按组授予随组管理（U-11）推迟。
+依据：本条 SV-06；CO-15；rulings §4.15 Q6、§4.17 D1。
 
 ### SV-07 审计
 
@@ -131,7 +380,7 @@
 - 两层口径（rulings §4.15 Q5）：
   - **性能保证包络**：D200（200 页 × 平均 30 ≈ 6,000 元素）、DX-1000 单页 1,000 元素、20 编辑者 + 50 查看者、200 MB。NF-01 性能门禁只在包络内成立，只收紧不放宽。
   - **系统天花板**：200 页（软警告 150）/ 单页 1,000 元素 / **文档总元素 20,000**（软警告 15,000，软删除墓碑计入）；服务端房间按文档实测权重准入（SV-05）。
-  - **超包络导入直接拒绝**（`format.quota_exceeded{dimension, limit, actual}`），不做只读降级打开。
+  - **超出系统天花板（页数 / 单页元素 / 总元素）或文件超过 200 MB 的导入直接拒绝**（`format.quota_exceeded{dimension, limit, actual}`），不做只读降级打开；包络外、天花板内的文档可以导入，只是不承诺性能（rulings §4.18 UX-13，依据 ADR-0035 复核修正）。
   - 所有规模数字**由部署配置完全可调**（无租户层）；调到包络之外时启动告警并在 `/readyz` 中标记，性能承诺不再成立。
   - 数字按对标定稿（暂无客户数据），M1 中期以 T3 语料实测后只收紧。
 - 验收标准（默认值，部署级可调；PD-17）。`dimension` 取值照抄架构 10 §3「配额三码并列与 `dimension` 取值表」（rulings §4.17 D2）：导入 `format.quota_exceeded` 与编辑期 `document.quota_exceeded` 用 `slides` / `elementsPerSlide` / `elementsTotal`（导入另有 `fileSize`），存储 `storage.quota_exceeded` 用 `bytes` / `documents`：
@@ -156,11 +405,34 @@
 
   - 所有配额有读取点（规避 Univer A26，`scan-config-usage` 覆盖）与测试；配额用量可查询（管理 API 与管理面板）。错误码以架构 10 为准。
 
+**图 2-10 规模两层口径与配额三码**
+
+```mermaid
+flowchart LR
+  size["文档规模"]
+  env["性能保证包络内：D200、DX-1000、20 编辑者 + 50 查看者、200 MB；NF-01 门禁成立"]
+  ceil["包络外、天花板内：200 页、单页 1,000、总元素 20,000，软警告 150 页与 15,000 元素；可用，不承诺性能"]
+  over["天花板外"]
+  imp["导入：format.quota_exceeded，dimension 为 fileSize、slides、elementsPerSlide、elementsTotal"]
+  edit["编辑期：document.quota_exceeded，409，命令守卫拒绝、不关连接；dimension 为 slides、elementsPerSlide、elementsTotal"]
+  sto["存储：storage.quota_exceeded，dimension 为 bytes、documents"]
+  size --> env
+  size --> ceil
+  size --> over
+  over -->|"导入时"| imp
+  over -->|"编辑中新增时"| edit
+  stq["存储用量超出部署设置：部署总存储、单用户存储、每用户文档数"] --> sto
+```
+
+怎么读：文档规模分三档，天花板外按发生场景映射到导入与编辑期两个错误码，存储用量另成一路，三码并列；导入超限直接拒绝，不做只读降级打开。所有数字都是部署配置默认值，调到包络之外时启动告警并在 `/readyz` 标记。
+依据：本条 SV-08；rulings §4.15 Q5、§4.17 D2。
+
 ### SV-09 部署与运维
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`apps/server` 配置 schema、健康探针、迁移脚本、ADR-0022
 - 验收标准：
   - 部署形态（rulings §4.15 Q10，自托管洁净栈）：docker-compose 一条命令启动；M1–M5 只面向集成方/自有部署，不自营 SaaS。组件：同一应用镜像按 `CORDEX_ROLE`（`all`/`api`/`collab`/`worker`/`renderer`）运行 + **Postgres 18** + **Valkey**（Redis 协议兼容）+ **SeaweedFS**（S3 兼容，替换 MinIO：上游归档、镜像下架、AGPL）+ 独立 **renderer** sidecar + 可选 **Casdoor**（IdP profile；未启用时接外部 OIDC IdP）。compose 全家桶的主机规格另立（ADR-0037），与 RM-S（collab 单实例口径）分开。M3 的实例已无状态（除内存房间缓存）。
+  - 对外入口（rulings §4.18 BE-01）：浏览器需要直达 IdP 登录页与对象存储预签名 URL，反向代理按子域转发——`idp.<域名>` → Casdoor，`s3.<域名>` → SeaweedFS S3 网关（保持 Host 头）；两者仍只在内部网络、不开宿主端口，TLS 证书相应多两个域名。OIDC issuer 用对外 URL；预签名 URL 用配置 `storage.s3.publicEndpoint` 生成，服务端自身读写走内网端点；存储桶配 CORS（允许应用源 PUT/GET、暴露 ETag），参考应用 CSP 相应放行存储源；Casdoor 管理后台建议在反代上按来源 IP 限制。
   - renderer sidecar 安全要求（rulings §4.15 Q8，作为 NF-04/SV-12 M3 出口的自动化安全测试）：非 root；`chromiumSandbox=true` 并加载 seccomp；**零出站**——state、`/render` 静态包、字体都经注入/内置提供，只接受 worker 的鉴权内部 RPC 入站，不暴露无鉴权的 Playwright run-server；不挂任何凭据；每任务新建 BrowserContext、定期回收；用 `--shm-size` 而非 `--ipc=host`；自建镜像，每周跟随 Chrome 稳定版重建，与 worker 锁步发布。自带 Nest 的集成方（EM-10 b）保留本地 launch 模式。
   - 镜像许可（章程 D13 对镜像按主组件许可白名单解释）：默认 compose 不含 AGPL 组件；Grafana/Loki 等 AGPL 组件只作为显式开启的可选 profile。
   - **M3 出口**：断网（air-gapped）compose e2e 通过；所有镜像以 digest 钉死；随发布提供 SBOM；镜像许可门禁通过。
@@ -173,11 +445,43 @@
   - 日志：结构化 JSON，含 `requestId`/`documentId`/`userId`（可脱敏）；级别可调；不记录文档内容。
   - 运维手册：容量规划（每 1,000 并发编辑者所需实例）、常见故障（Valkey 断连、renderer/Chromium 僵尸进程、磁盘满）、升级步骤。
 
+**图 2-11 自托管 compose 洁净栈的组成**
+
+```mermaid
+flowchart LR
+  subgraph app["同一应用镜像"]
+    roles["按 CORDEX_ROLE 运行：all / api / collab / worker / renderer"]
+  end
+  pg["Postgres 18"]
+  valkey["Valkey：Redis 协议兼容"]
+  sw["SeaweedFS：S3 兼容，snapshots/ 版本化必须开启"]
+  renderer["renderer sidecar：非 root、Chromium 沙箱 + seccomp、零出站、不挂凭据"]
+  idp["可选 Casdoor：IdP profile；未启用时接外部 OIDC IdP"]
+  obs["观测默认：OTel Collector + Jaeger + Prometheus"]
+  agpl["可选 profile：Grafana / Loki，AGPL，需显式开启"]
+  proxy["反向代理：主域转应用，idp 子域转 Casdoor，s3 子域转 SeaweedFS S3 网关，保持 Host 头"]
+  browser["浏览器"]
+  browser --> proxy
+  proxy --> app
+  proxy -->|"预签名直传与直读"| sw
+  proxy -->|"OIDC 登录页"| idp
+  app -->|"/readyz 检查可达"| pg
+  app -->|"/readyz 检查可达"| valkey
+  app -->|"/readyz 检查可达"| sw
+  app -->|"worker 发起鉴权内部 RPC，renderer 只接受这一种入站"| renderer
+  app --> idp
+  app -.-> obs
+  obs -.-> agpl
+```
+
+怎么读：实线为调用或依赖，虚线为观测链路与可选的 AGPL profile；默认 compose 不含 AGPL 镜像。浏览器只经反向代理进入，Casdoor 与 SeaweedFS 不开宿主端口，由反代按子域转发。M3 出口为断网 compose e2e、镜像 digest 钉死、SBOM 与镜像许可门禁；离线包、多架构与 Helm 为 M4 P1。
+依据：本条 SV-09；SV-10 观测栈；rulings §4.15 Q8、Q10，§4.18 BE-01。
+
 ### SV-10 监控与告警
 
 - 优先级：P0 | 目标里程碑：M3 | 依赖能力：`telemetry` 服务（服务端 Provider：Prometheus/OTel）、`logger`
 - 验收标准：
-  - 指标（Prometheus 命名草案）：`cordex_ws_connections`、`cordex_rooms_active`、`cordex_update_apply_seconds`（直方图）、`cordex_broadcast_latency_seconds`、`cordex_import_duration_seconds`、`cordex_export_duration_seconds`、`cordex_thumbnail_duration_seconds`、`cordex_job_queue_depth`、`cordex_persist_lag_seconds`、`cordex_auth_failures_total`、`cordex_rate_limited_total`、`cordex_collab_soft_conflicts_total{type}`、`cordex_collab_updates_rejected_total{reason}`、`cordex_collab_repairs_total{rule}`、`cordex_permission_denied_total{action}`、`cordex_plugin_failures_total`、进程/DB/Valkey 标准指标（命名与架构 10 §11.3 一致）。
+  - 指标（Prometheus 命名草案）：`cordex_ws_connections`、`cordex_rooms_active`、`cordex_update_apply_seconds`（直方图）、`cordex_broadcast_latency_seconds`、`cordex_import_duration_seconds`、`cordex_export_duration_seconds`、`cordex_thumbnail_duration_seconds`、`cordex_job_queue_depth`、`cordex_persist_lag_seconds`、`cordex_auth_failures_total`、`cordex_rate_limited_total`、`cordex_collab_soft_conflicts_total{type}`、`cordex_collab_updates_rejected_total{reason}`、`cordex_collab_repairs_total{rule}`、`cordex_collab_broadcast_before_persist_total`（PG 降级期未落库即广播的次数，rulings §4.18 CO-08）、`cordex_permission_denied_total{action}`、`cordex_plugin_failures_total`、进程/DB/Valkey 标准指标（命名与架构 10 §11.3 一致）。
   - SLO（初始）：协同服务可用性 99.9%/月；广播延迟 p95 ≤ 100 ms；导入成功率 ≥ 99.5%；导出成功率 ≥ 99.5%；持久化滞后 p99 ≤ 1 s。
   - 告警（默认规则随 compose 提供）：就绪探针失败 > 1 min；p95 广播延迟 > 300 ms 持续 5 min；队列深度 > 100 持续 5 min；鉴权失败突增（> 10× 基线）；磁盘 > 85%；Chromium 池耗尽。
   - 观测栈（Q10）：compose 默认 OTel Collector + Jaeger + Prometheus，默认告警规则随 compose 提供；仪表盘模板（Grafana JSON：总览、协同、作业、安全）随可选 Grafana/Loki profile 提供（AGPL，需显式开启）。
@@ -186,8 +490,42 @@
 ### SV-11 数据保留、删除与合规
 
 - 优先级：P1 | 目标里程碑：M3 | 依赖能力：Documents 模块、后台作业
-- 验收标准：文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图（含 M2 包内过渡封面）、blob、索引全部清除，审计保留）；文档擦除立即硬删除，**不等**元素墓碑 TTL（CO-08）；用户数据擦除 API（GDPR：用 `deleted-user` 替换主体标识，评论正文按部署策略保留/删除）；数据驻留：存储与数据库位置由部署决定，SDK 无隐式跨区调用；导出部署全部数据（P2）。保留期（软删除宽限、自动快照 30 天、update 7 天、导入原件 30 天、墓碑 TTL 24 h）均为部署配置默认值，全部可调（章程 Q17，rulings §4.16）。
-  - 级联清单（编排式，rulings §4.13 S-2）：`documents` 宽限期满后发起 `schedule-purge`；`permissions`、`media`、`thumbnails`、`comments`、`document_updates`/`document_snapshots`（server-collab）各自执行 purge 用例清理自己的表，谁的表谁写；失败可重试、可审计；GDPR 擦除复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。
+- 验收标准：文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图（含 M2 包内过渡封面）、blob、索引全部清除，审计保留）；文档擦除与**永久删除文档**（回收站中永久删除，或跳过 30 天宽限直接永久删除）立即硬删除，**不等**元素墓碑 TTL（CO-08）；术语：文档级称「永久删除文档」，元素级称「彻底删除元素」（CO-08，rulings §4.18 CO-07）；永久删除时该文档的在线会话被踢出、之后拒绝加入（rulings §4.18 BE-15）；用户数据擦除 API（GDPR：用 `deleted-user` 替换主体标识，评论正文按部署策略保留/删除）；数据驻留：存储与数据库位置由部署决定，SDK 无隐式跨区调用；导出部署全部数据（P2）。保留期（软删除宽限、自动快照 30 天、update 7 天、导入原件 30 天、墓碑 TTL 24 h）均为部署配置默认值，全部可调（章程 Q17，rulings §4.16）。
+  - 级联清单（编排式，rulings §4.13 S-2，§4.18 BE-15 细化）：`documents` 宽限期满（或永久删除 / 擦除时立即）发起 `schedule-purge`，以单个持久作业编排；`permissions`、`share-links`、`media`、`thumbnails`、`comments`、最近 / 固定记录（`user-marks`，rulings §4.18 BE-31）、`document_updates`/`document_snapshots`（server-collab）各自执行 purge 用例清理自己的表，谁的表谁写；最后删除对象存储中该文档的全部对象版本；失败整作业重试、结果一致，可审计；GDPR 擦除复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。
+
+**图 2-12 文档删除的级联清理**
+
+```mermaid
+flowchart TB
+  soft["文档软删除：默认 30 天内可恢复"]
+  erase["文档擦除或永久删除文档：立即硬删除，不等元素墓碑 TTL"]
+  gdpr["GDPR 用户数据擦除"]
+  purge["documents 发起 schedule-purge：单个持久作业，先踢出在线会话"]
+  perms["permissions"]
+  links["share-links"]
+  media["media"]
+  thumbs["thumbnails，含 M2 包内过渡封面"]
+  comments["comments"]
+  marks["user-marks：最近与固定记录"]
+  collab["document_updates / document_snapshots，server-collab"]
+  final["删除该文档全部对象版本与 documents 行"]
+  audit["审计记录保留"]
+  soft -->|"宽限期满"| purge
+  erase -->|"立即"| purge
+  gdpr -.->|"复用同一编排，清除改为以 deleted-user 替换主体标识"| purge
+  purge --> perms
+  purge --> links
+  purge --> media
+  purge --> thumbs
+  purge --> comments
+  purge --> marks
+  purge --> collab
+  purge -->|"各参与者完成后"| final
+  purge -.-> audit
+```
+
+怎么读：上方三个入口汇入同一个编排，编排向各模块发起 purge，各模块只清理自己的表（谁的表谁写），全部完成后才删除对象版本与文档行；失败整作业重试、结果一致，可审计；审计记录不在清理范围内。
+依据：本条 SV-11；rulings §4.13 S-2，§4.18 BE-15、BE-31、CO-07。
 
 ### SV-12 服务端安全
 
@@ -214,6 +552,31 @@
   - 事件 schema 版本化；订阅明文签名密钥仅在创建响应出现一次，落库只存 hash。
   - 出站 SSRF 防护（rulings §4.13 S-4）：默认严格拒绝私网（RFC1918）/回环/链路本地（含云元数据端点 `169.254.169.254`）目标；订阅创建/更新与每次实际投递前均解析主机名并校验，投递前锁定解析出的 IP 再建连以防 DNS 重绑定；提供部署级配置项放宽为显式白名单（面向自托管内网场景）。
   - **M4 展望**：文档事件（创建/更新/删除/导出完成/权限）以同一 Webhook 机制推送，扩大事件覆盖面；重试退避 ≤ 24 h。
+
+**图 2-13 Webhook 投递与 SSRF 防护**
+
+```mermaid
+flowchart TB
+  ev["评论事件：comment/added、comment/mentioned、comment/resolved"]
+  sub["匹配订阅：目标 URL、事件过滤、状态"]
+  ssrf{"解析主机名：是否私网、回环、链路本地或云元数据端点"}
+  block["拒绝，除非部署配置了显式白名单"]
+  pin["锁定解析出的 IP 再建连，防 DNS 重绑定"]
+  send["HMAC 签名投递"]
+  ok["成功，写投递日志"]
+  retry["失败：指数退避重试"]
+  dlq["超限：转死信队列，不再自动重试"]
+  ev --> sub --> ssrf
+  ssrf -->|"是"| block
+  ssrf -->|"否"| pin --> send
+  send -->|"成功"| ok
+  send -->|"失败"| retry
+  retry -->|"未超限，投递前重新校验"| ssrf
+  retry -->|"超限"| dlq
+```
+
+怎么读：自上而下是一次投递；同样的主机名校验也在订阅创建与更新时执行，每次实际投递前再做一次。订阅的签名密钥明文只在创建响应中出现一次，落库只存 hash。
+依据：本条 SV-15；rulings §4.13 S-4。
 
 ---
 

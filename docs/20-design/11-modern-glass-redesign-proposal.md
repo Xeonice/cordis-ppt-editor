@@ -1,4 +1,4 @@
-> 状态：已裁决并实施（rulings §4.8，2026-09-16） | 负责：总编排（设计线） | 更新：2026-09-16 | 依赖：`10-modernization-audit.md`（审计）、`09-design-specification.md` v2.0、ADR-0017、charter D10
+> 状态：已裁决并实施（rulings §4.8，2026-09-16） | 负责：总编排（设计线） | 更新：2026-09-16；2026-09-25（补图） | 依赖：`10-modernization-audit.md`（审计）、`09-design-specification.md` v2.0、ADR-0017、charter D10
 
 # 11 现代化改造提案：以 iOS 27 Liquid Glass 为参照的设计语言升级
 
@@ -82,13 +82,23 @@
 
 ### 4.1 层次模型（四层）
 
+**提案中的四层层次模型**
+
+```mermaid
+flowchart TB
+  float["浮层 · glass-strong：菜单 / 弹出 / 对话框 / 命令面板 / 工具提示"]
+  subgraph ctl["控件层"]
+    ctlStrong["glass-strong：悬浮工具卡，应用栏 + Ribbon / 侧栏卡 / 检查器卡"]
+    ctlGlass["glass：状态胶囊 / 画布上的浮动面板，查找、迷你工具条"]
+  end
+  content["内容层 · 不透明：幻灯片纸面、缩略图内容、母版画布"]
+  bg["背景层 · ambient canvas：柔和渐变 + 低饱和光斑，供玻璃透出"]
+  float -->|"叠在上方"| ctl
+  ctl -->|"叠在上方"| content
+  content -->|"叠在上方"| bg
 ```
-┌ 浮层  glass-strong：菜单 / 弹出 / 对话框 / 命令面板 / 工具提示 ┐
-│ 控件层 glass-strong：悬浮工具卡（应用栏+Ribbon）/ 侧栏卡 / 检查器卡  │
-│         glass       ：状态胶囊 / 画布上的浮动面板（查找、迷你工具条）│
-│ 内容层 不透明：幻灯片纸面、缩略图内容、母版画布                      │
-└ 背景层 ambient canvas：柔和渐变 + 低饱和光斑，供玻璃透出 ───────────┘
-```
+
+怎么读：自上而下是从最上层到最底层，箭头表示「叠在下一层之上」。这是提案稿，定稿版见 09-design-specification §6.1（状态胶囊改为 glass-strong，并补入横幅与画布缩放胶囊）。
 
 规则：玻璃不叠玻璃（浮层落在控件层之上时，浮层用 strong，控件层不再加模糊）；同一视口玻璃面板 ≤ 4 块。
 
@@ -140,6 +150,23 @@
 | 3 路由核对 | 17 条路由逐条截图核对（截断、分区线残留、对比度）；`/documents` `/present` `/viewer` `/settings` 等非壳页面同步 | 38 张截图 | 1–2 天 |
 | 3.5 落点策略 | 组件级改动优先用 `index.css` 的 `data-slot` 规则表达（升级时 `shadcn add -o` 不会覆盖）；只有 Rhea 没有提供的形态（如 Tabs 胶囊 variant、Overlay 材质）才直接改 `src/components/ui/*`，并在文件头注释标记 `// Cordex override`，由扫描脚本列出覆盖清单 | 覆盖清单 | 随阶段 1–2 |
 | 4 文档 | 09 → v3.0（材质/层次/几何章节）、04 §8 更新、ADR-0017 追加"风格 Rhea + 材质层"、03-screens 设计基准行、README v5 变更 | 文档 | 0.5 天 |
+
+**路线 B 实施阶段**
+
+```mermaid
+flowchart TB
+  p0["0 · 用户决策 §8"]
+  p1["1 基础 · 1 天：components.json 改 radix-rhea，shadcn add -o 重生成 45 组件；index.css 材质 token + @utility + data-slot 浮层规则 + 字体栈 + --radius"]
+  p2["2 壳布局 · 1–2 天：EditorShell / AppBar / Ribbon / ThumbnailRail / Inspector / StatusBar 改为悬浮卡 + 背景层，去分区线"]
+  p3["3 路由核对 · 1–2 天：17 条路由逐条截图核对，产出 38 张截图"]
+  p35["3.5 落点策略：组件级改动优先写 data-slot 规则，Rhea 未提供的形态才改 components/ui 并标 Cordex override"]
+  p4["4 文档 · 0.5 天：09 升 v3.0、04 §8、ADR-0017、03-screens 设计基准行、README v5"]
+  p0 --> p1 --> p2 --> p3 --> p4
+  p35 -.->|"随阶段 1–2"| p1
+  p35 -.->|"随阶段 1–2"| p2
+```
+
+怎么读：实线是阶段先后，虚线表示 3.5 不是独立阶段，而是贯穿阶段 1–2 的落点约束。
 
 ## 6. 风险与对策
 

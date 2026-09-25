@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-17；2026-09-24（rulings §4.15：Q8 最近列表缩略图来源；T-0 账户行去掉"套餐"） | 依赖：charter v0.2；01-information-architecture.md §1；09 v3.0
+> 状态：草稿 | 负责：设计 | 更新：2026-09-17；2026-09-24（rulings §4.15：Q8 最近列表缩略图来源；T-0 账户行去掉"套餐"）；2026-09-25（补图） | 依赖：charter v0.2；01-information-architecture.md §1；09 v3.0
 
 # 03-29 应用首页（开始页）
 
@@ -16,6 +16,35 @@
 | 首页"新建 · 空白 / 主题模板" | `#/editor` |
 | 首页"导入 .pptx" | `#/import` |
 | 首页"指南"卡 | 快捷键 → `#/settings`；母版与版式 → `#/editor/masters`；协同编辑 → `#/editor/comments`；快速入门 / 帮助中心 → 外部帮助（占位） |
+
+**开始页的导航去向**
+
+```mermaid
+flowchart LR
+  app["打开应用 / 登录后"]
+  back["编辑器应用栏「返回」"]
+  home["开始页 #/home"]
+  docs["#/documents · 全量列表与筛选"]
+  editor["#/editor"]
+  imp["#/import"]
+  guide{"「指南」卡"}
+  gKey["#/settings · 快捷键"]
+  gMaster["#/editor/masters · 母版与版式"]
+  gCollab["#/editor/comments · 协同编辑"]
+  gExt["外部帮助 · 快速入门 / 帮助中心，占位"]
+  app --> home
+  back --> home
+  home -->|"左栏 我的文档 / 与我共享 / 最近"| docs
+  home -->|"新建 · 空白 / 主题模板，或点击最近文档"| editor
+  home -->|"导入 .pptx"| imp
+  home --> guide
+  guide --> gKey
+  guide --> gMaster
+  guide --> gCollab
+  guide --> gExt
+```
+
+怎么读：左侧两条箭头说明谁会落到开始页，右侧是从开始页出发的全部去向；主导航里的「新建 / 指南」只做页内锚点滚动，不跳路由。离线时新建、模板、导入卡禁用，最近文档仍可打开。
 
 ## 2. 布局（T-07）
 

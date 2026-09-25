@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.9 Q9 / §4.10（D12 三入口）；`10-prd/07-design-coverage-and-gaps.md` D12；PRD `08-app-shell` AS-06；09 v3.0 §2 `UserMenu`、§3；playground `Ribbon.tsx` / `Settings.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.9 Q9 / §4.10（D12 三入口）；`10-prd/07-design-coverage-and-gaps.md` D12；PRD `08-app-shell` AS-06；09 v3.0 §2 `UserMenu`、§3；playground `Ribbon.tsx` / `Settings.tsx`
 
 # 03-24 快捷键速查面板
 
@@ -78,6 +78,28 @@
 - 入口共三个（D12，rulings §4.10；「唯一入口」的说法只对「设置」成立）：Ribbon 页签行右侧「?」图标按钮（Lucide `CircleHelp`，tooltip「帮助与快捷键（⌘/）」，与视图模式分段、主题切换同一行，见 02-editor-main.md §2.4 线框；不在状态栏）、账户菜单（头像 `UserMenu`）「键盘快捷键」、全局快捷键 `Mod+/`。抽屉为 `Sheet`（玻璃，`rounded-l-3xl`），关闭 = 返回打开它的页面（同 03-screens/23）。面板本身不可通过快捷键编辑（只读速查，不提供"自定义快捷键"入口，重映射为集成方级别能力，不面向最终用户）。
 - 面板与命令面板（`Mod+Shift+P`）是两个不同入口：命令面板用于"搜索并执行"，本面板用于"查阅有什么快捷键"，两者可同时存在但不合并为一个组件。
 - 抽屉打开时不遮挡画布，允许用户对照面板内容在画布上实际操作验证。
+
+**快捷键面板的入口与数据来源**
+
+```mermaid
+flowchart LR
+  e1["Ribbon 页签行右侧「?」· CircleHelp，tooltip「帮助与快捷键」"]
+  e2["账户菜单「键盘快捷键」"]
+  e3["全局快捷键 Mod+/"]
+  reg["ui.shortcut 注册结果 · 内置 + 插件贡献"]
+  chk["加载期冲突检测 ShortcutsService.conflicts · 06-extensibility-ux §2.4"]
+  panel["快捷键速查抽屉 · 只读，按作用域分组，插件分组在末尾并带归属；冲突条目下追加说明 + 查看插件管理器"]
+  back["关闭 = 返回打开它的页面"]
+  palette["命令面板 Mod+Shift+P · 搜索并执行，另一个组件"]
+  e1 --> panel
+  e2 --> panel
+  e3 --> panel
+  reg --> chk --> panel
+  panel --> back
+  reg -.->|"命令面板条目也附加显示快捷键 · 06 §2.4"| palette
+```
+
+怎么读：左侧三个入口等价，都打开同一个只读抽屉；抽屉内容来自 `ui.shortcut` 注册结果，冲突在加载期检出并原样展示，不隐藏。命令面板条目也会附加显示同一份快捷键，但它用于搜索并执行，与本面板职责不同、不合并。
 
 ## 边界情况
 

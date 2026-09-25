@@ -30,7 +30,7 @@ const stateOptions = [
   { value: "layout", label: "编辑版式（默认）" },
   { value: "master", label: "编辑母版" },
   { value: "placeholder", label: "占位符属性 · 覆盖态" },
-  { value: "readonly", label: "只读（评审/无权限）" },
+  { value: "readonly", label: "只读（已降权）" },
   { value: "loading", label: "加载骨架" },
   { value: "error", label: "母版加载失败" },
 ]
@@ -82,9 +82,11 @@ export function EditorMasters() {
       badges={<Badge variant="outline" className="border-info/40 bg-info-muted text-info-foreground">母版视图</Badge>}
       collaborators={collaborators.filter((c) => !c.isSelf)}
     >
-      <Badge variant="outline" className="gap-1 border-info/40 bg-info-muted px-2 text-info-foreground">
-        <Info className="size-3" /> 改动将影响 {impactedPages} 个使用{multi ? "所选版式" : "此版式"}的页面
-      </Badge>
+      {!readOnly && (
+        <Badge variant="outline" className="gap-1 border-info/40 bg-info-muted px-2 text-info-foreground">
+          <Info className="size-3" /> 改动将影响 {impactedPages} 个使用{multi ? "所选版式" : "此版式"}的页面
+        </Badge>
+      )}
     </AppBar>
   )
 
@@ -110,7 +112,19 @@ export function EditorMasters() {
 
   return (
     <div className="flex h-dvh flex-col bg-canvas">
-      <DesignBar title="母版视图" spec="03-screens/26" state={demoState} onStateChange={(v) => setDemoState(v as DemoState)} stateOptions={stateOptions} role={role} onRoleChange={setRole} />
+      <DesignBar
+        title="母版视图"
+        spec="03-screens/26"
+        state={demoState}
+        onStateChange={(v) => setDemoState(v as DemoState)}
+        stateOptions={stateOptions}
+        role={role}
+        onRoleChange={setRole}
+        extra={
+          // rulings §4.18 UX-20：手动切到评审即退出母版视图，回到进入前的页、缩放与滚动位置；被降权则原地只读（「只读」状态）
+          <Button variant="ghost" size="xs" onClick={() => { toast("已切到评审模式，已退出母版视图"); navigate("/editor") }}>演示：切到评审（退出母版视图）</Button>
+        }
+      />
       <EditorShell
         appBar={appBar}
         ribbon={
@@ -184,7 +198,7 @@ export function EditorMasters() {
             value="properties"
             onValueChange={() => {}}
             readOnly={readOnly}
-            readOnlyReason="只读 · 评审模式下不可编辑"
+            readOnlyReason="只读 · 需要编辑权限"
             disabledTabs={["comments"]}
             disabledReason="母版与版式不支持评论（与 PowerPoint 母版视图一致）"
             tabs={[

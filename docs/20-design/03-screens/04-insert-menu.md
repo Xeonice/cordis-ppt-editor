@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.1
 > **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--cordex-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
 
 # 03-04 插入菜单
@@ -70,6 +70,22 @@ flyout 默认关闭；点击或键盘 `Enter/Space` 触发展开，展开时首�
 │  [重试]  [移除]        │
 └─────────────────────┘
 ```
+
+**图片/媒体插入的占位框状态**
+
+```mermaid
+stateDiagram-v2
+  state "占位框 + 确定态 ProgressBar · 画布对应位置" as uploading
+  state "真实图片 · 原地替换占位框" as done
+  state "错误态占位 · 图片上传失败，文件过大或格式不支持 + 重试 / 移除" as failed
+  [*] --> uploading : 选择本地文件
+  uploading --> done : 上传完成
+  uploading --> failed : 上传失败
+  failed --> uploading : 重试
+  failed --> [*] : 移除
+```
+
+怎么读：占位框先于上传完成出现在画布上，成功与失败都在原位置切换，不移动也不弹窗；协同模式下的上传取消等扩展见 03-screens/18。
 
 ### 只读（评审模式）
 

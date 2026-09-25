@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
 > **实现口径（2026-09-18）**：组件、token 与图标以 `09-design-specification.md` v3.1、`04-design-system.md` v0.5 与 `playground/` 为准；本文中的 `--cordex-*` 变量、Phosphor 图标、`i-*` sprite 类名与 `btn-*` 类名为原设计系统 v0.3 记号，已作废，仅保留交互与状态定义。
 
 # 03-17 选择、多选、对齐、分布、吸附、网格与参考线
@@ -50,6 +50,29 @@
 - 框选：空白处按下拖动显示半透明框选矩形；松手后默认"完全包含"的元素被选中，按住 `Alt` 为"相交即选"。
 - 加/减选：`Shift`+点击切换单个元素的选中状态；多选统一显示虚线包围盒 + 8 个缩放手柄（不显示旋转/调整手柄，多选不支持整体旋转/调整几何为 M2 范围外）。
 - 组合进入/退出：双击组合内子元素进入组合编辑态（组合外围显示浅色边框提示"组合编辑中"），`Esc` 逐级退出。
+- **`Esc` 逐级链**（与 PowerPoint 一致，rulings §4.18 UX-06）：文本编辑 → 选中子元素 → 选中整个组合（退出组合编辑态）→ 取消选择 →（仅在母版视图中且已无选区时）退出母版视图。每按一次只退一级；IME 组合输入中的 `Esc` 先交还输入法（07-accessibility-and-i18n §4）。
+
+**画布选择状态**
+
+```mermaid
+stateDiagram-v2
+  state "未选中 · 检查器显示幻灯片级属性" as none
+  state "选中 · 单个或多个对象，含选中整个组合" as selected
+  state "组合编辑中 · 选中子元素，组合外围浅色边框" as childSel
+  state "文本编辑 · 插入符、迷你工具条" as editing
+  none --> selected : 单击、框选或 Tab
+  selected --> none : Esc 或点击空白处
+  selected --> childSel : 双击组合内子元素
+  childSel --> selected : Esc，落在选中整个组合
+  selected --> editing : 双击文本对象或按 Enter
+  childSel --> editing : 双击子元素中的文本
+  editing --> selected : Esc，顶层文本对象回到选中
+  editing --> childSel : Esc，组合内子元素回到选中子元素
+  note right of none : 仅在母版视图中且已无选区时，再按 Esc 退出母版视图，03-screens/26
+```
+
+怎么读：每条 Esc 箭头只退一级，所以从组合内文本编辑退到"未选中"要按三次 Esc；母版视图的退出只挂在"未选中"之后，不会被正在编辑的文本或选区误触发。
+依据：PRD ED-01 / 02-editing；rulings §4.18 UX-06
 - 锁定元素（`spLocks`）：选中后对应手柄显示为锁形图标且拖动无效，`tooltip`"该形状已锁定移动"；仍可通过属性面板查看只读属性。
 - 元素重叠命中：点击命中 z 序最高且命中其填充/描边/文本的元素；`fill="none"` 的形状内部点击穿透，仅描边与文本可命中。
 - 键盘：`Tab`/`Shift+Tab` 按 z 序循环选中并滚入视口；`Mod+A` 全选当前页。
@@ -74,6 +97,23 @@
 - 选择连接符工具并悬停形状时，显示该形状的连接点（小圆点，`cxnLst`）；拖动连接符端点靠近连接点时高亮并吸附。
 - 连接成功后属性面板显示"已连接到：矩形 3"；移动被连接的形状时，直线连接符端点自动跟随（肘形/曲线的路径重算为 M3 范围）。
 - 断开连接：将端点拖离已连接的形状即可，无需额外确认。
+
+**连接符端点吸附状态**
+
+```mermaid
+stateDiagram-v2
+  state "连接符工具 · 悬停形状时显示其连接点，cxnLst 小圆点" as hover
+  state "拖动端点 · 靠近连接点时高亮并吸附" as dragging
+  state "已连接 · 属性面板显示「已连接到 矩形 3」" as connected
+  state "已断开" as detached
+  [*] --> hover : 选择连接符工具
+  hover --> dragging : 拖动连接符端点
+  dragging --> connected : 吸附到连接点
+  connected --> connected : 移动被连接的形状，直线连接符端点自动跟随，肘形/曲线路径重算为 M3
+  connected --> detached : 把端点拖离已连接的形状，无需确认
+```
+
+怎么读：连接关系只由端点吸附与拖离两个动作建立和解除；高亮连接点与参考线同在 render.overlay 层，用颜色区分。
 
 ---
 

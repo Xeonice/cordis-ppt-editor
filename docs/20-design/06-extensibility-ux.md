@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
 > **2026-09-18 修订说明**：§2.1 图标家族改为 Lucide 线性（随 shadcn Rhea，原 Phosphor 家族作废；`@cordexjs/design/icons` 仍可作为包装层）；§2.10a 按"母版视图是同一个编辑器"改写（只在页签集合最左插入「母版」并隐藏「设计」，其余页签照常；检查器仅禁用评论；`viewMode` 条件由贡献自行声明、未声明者两种视图都生效；`selectionKind` 不收窄）。
 
 # 06 扩展性 UX（插件如何贡献 UI）
@@ -37,6 +37,34 @@ interface UiContributionBase {
 
 `conflict` 策略（架构 03 §3.2）：全部 `ui.*` 贡献点为 `conflict: 'replace'`——同一 `id` 的后来贡献覆盖先前贡献，专门用于**主题覆盖**与**移动端/窄屏变体覆盖**（见 §2.10、§5）；与之相对，`core.*` 贡献点（如 `core.command`）为 `conflict: 'error'`——命令的"身份"必须唯一，但命令的"呈现"允许被覆盖。这一区分是本节槽位规范的基础：设计侧据此明确"什么可以被插件/主题覆盖，什么不能"。
 
+**UI 贡献点的共享形状与派生**
+
+```mermaid
+classDiagram
+  class UiContributionBase {
+    +string id
+    +string slot
+    +number order
+    +WhenClause when
+    +string commandId
+    +ComponentRef component
+  }
+  UiContributionBase <|-- RibbonTabContribution
+  UiContributionBase <|-- RibbonGroupContribution
+  UiContributionBase <|-- RibbonControlContribution
+  UiContributionBase <|-- PanelContribution
+  UiContributionBase <|-- ContextMenuItemContribution
+  UiContributionBase <|-- ShortcutContribution
+  UiContributionBase <|-- ToolbarContribution
+  UiContributionBase <|-- StatusBarContribution
+  UiContributionBase <|-- CanvasOverlayContribution
+  UiContributionBase <|-- ThemeContribution
+  RibbonControlContribution --> RibbonGroupContribution : slot 指向所属分组 id
+  RibbonGroupContribution --> RibbonTabContribution : slot 指向所属页签 id
+```
+
+怎么读：空心三角箭头表示「在共享形状上扩展字段」，各子类型新增的字段见下文各小节的签名草案；实线箭头是 Ribbon 三级结构靠 `slot` 字段表达的归属。全部 `ui.*` 贡献点 `conflict: 'replace'`，与 `core.command` 的 `conflict: 'error'` 相对。
+
 ### 2.1 `ui.ribbon` —— 页签 / 分组 / 按钮
 
 三级结构：Tab（页签）→ Group（分组）→ Control（按钮/下拉/颜色选择器等），三者共用 `ui.ribbon` 这一个贡献点（架构注释："ui.ribbon（tab/group/item）"），通过 `slot` 字段表达层级归属：
@@ -66,13 +94,13 @@ interface RibbonControlContribution extends UiContributionBase {
 |---|---|
 | 图标尺寸与家族 | large 20×20；small 16×16；单色 SVG（**Lucide 线性家族**，描边 2、圆角端点，随 shadcn Rhea 统一，09 S-05；2026-09-15 起原 Phosphor 家族作废），继承 `currentColor`，不得内嵌固定色值；**禁止 emoji/Unicode 符号充当图标**；`@cordexjs/design/icons` 仍可作为包装层（按名引用 / sprite 构建脚本），但家族只能是 Lucide，不混用第二套；插件图标必须遵循同一规范（设计 04 §2.14），缺失或不合规时回退默认拼图图标（Lucide `Puzzle`） |
 | 可读名称 | 仅图标按钮必须提供 `label` 作为 `aria-label`（`showLabel:false` 只隐藏视觉文字，不省略可读名称）；tooltip 在 hover 与 `:focus-visible` 下均出现 |
-| 命中区 | 按钮命中区 ≥ 24×24；触控/窄屏 ≥ 44×44（由 `--cordex-control-height-*` 与断点重映射保证，插件不得自定义尺寸） |
+| 命中区 | 按钮命中区 ≥ 24×24；触控/窄屏 ≥ 44×44（由 `--control-h-*` 与断点重映射保证，插件不得自定义尺寸；原记号 `--cordex-control-height-*` 已作废） |
 | 标签长度 | large 按钮 ≤ 8 个中文字符（或 16 个英文字符），超出省略号 + 完整文本进 tooltip；**注意**：伪本地化测试允许英文等语言比中文基准长至 1.5 倍（PRD NF-06），标签容器不得假设固定字符宽度，必须做省略号截断而非裁切 |
 | 分组数量 | 单个页签可见分组 ≤ 6，第 7 个及以后自动收入"更多"溢出分组（不是隐藏，是可发现的收纳） |
 | 分组内按钮 | `extensible: false` 的分组，第三方不得插入；第三方新增能力必须新建分组，新分组默认排在该页签末尾（`order` 未指定时取该页签当前最大 order + 10） |
 | 禁用态 | 40% 不透明度 + `cursor: not-allowed`，不隐藏（隐藏会让用户以为功能消失，见 §3 例外情况）；用户仍尝试操作时需说明原因（权限不足/选区类型不支持），呼应 ED-30 对命令面板的同一要求 |
 | 加载态 | 图标替换为 `Spinner`（`@cordexjs/design` 原子组件），标签不变，控件禁用 |
-| 密度联动 | 控件高度取 `--cordex-ribbon-height`（见设计 04 §2.13），不得自定义；紧凑密度下仍须满足 WCAG 2.5.8 的 24×24 CSS px 最小命中区（PRD NF-05），设计 04 的 IconButton 规格已满足此下限 |
+| 密度联动 | 控件高度按设计 04 §2.13 的 Ribbon 高度规格与 `--control-h-*`（原记号 `--cordex-ribbon-height` 已作废），不得自定义；紧凑密度下仍须满足 WCAG 2.5.8 的 24×24 CSS px 最小命中区（PRD NF-05），设计 04 的 IconButton 规格已满足此下限 |
 
 排序：同级按 `order` 升序，`order` 相同按插件声明顺序，仍相同按 `id` 字典序。约定内置贡献 `order < 100`，第三方建议 `order ≥ 100`，避免抢占默认视觉顺位（约定非强制校验，属于插件开发礼仪，写入插件开发文档）。稳定性：Stable @M4（PRD PS-02），M2 起可用。
 
@@ -140,6 +168,48 @@ interface ShortcutContribution extends UiContributionBase {
 
 **设计决策（延续前版）**：不存在独立的"命令面板项"贡献点。命令面板（`Mod+Shift+P` 呼出，ED-30）是对全部满足条件的 `ui.command` 贡献做模糊搜索排序后的只读视图。执行当前不可用的命令时必须提示原因（权限不足 / 选区类型不支持），不能静默无响应（ED-30 验收标准）。这避免了"同一个命令要在两处分别注册元数据"的重复劳动，也是命令三分法哲学在 UI 层的自然延伸。
 
+**命令的两层模型**
+
+```mermaid
+flowchart TB
+  subgraph entries["UI 呈现入口 · 自身不带行为"]
+    direction LR
+    rb["ui.ribbon 按钮"]
+    cm["ui.contextMenu 菜单项"]
+    sc["ui.shortcut 快捷键"]
+    sbar["ui.statusBar 可点击项"]
+    tbar["ui.toolbar 工具条项"]
+  end
+  pal["命令面板 Mod+Shift+P · 对全部满足条件的 ui.command 模糊搜索排序的只读视图"]
+  uiCmd["ui.command · ui-core：呈现元数据 title / icon / when · key commandId · conflict replace"]
+  coreCmd["core.command · model-core：命令本体，能力位、参数 schema、执行逻辑绑定 · key id · conflict error"]
+  svc["commands 服务 · 架构 05"]
+  pal --> uiCmd
+  uiCmd -->|"commandId，不能凭空创造未注册的命令"| coreCmd
+  entries -->|"commandId"| coreCmd
+  coreCmd --> svc
+```
+
+怎么读：所有入口只持有 `commandId`，行为只存在于 `core.command`；`ui.command` 只补命令面板 / 菜单所需的呈现元数据，可被覆盖但不能新增命令。
+
+**命令入口的可用性门控**
+
+```mermaid
+flowchart TB
+  entry["任一命令入口：ribbon 按钮 / 右键菜单项 / 快捷键 / 命令面板条目"]
+  g1{"贡献自身的 when 满足？如仅形状选区可见"}
+  g2{"core.command 能力位检查通过？如是否有编辑权限"}
+  ok["显示为可用"]
+  no["不可用：执行时必须提示原因，权限不足或选区类型不支持，不能静默无响应"]
+  entry --> g1
+  g1 -->|"是"| g2
+  g1 -->|"否"| no
+  g2 -->|"是"| ok
+  g2 -->|"否"| no
+```
+
+怎么读：两个菱形是两层独立但都会生效的门控，必须同时满足才显示为可用（ED-30）。
+
 命令面板条目视觉：图标 16×16 + 标题 + 右侧分类标签（弱化色）+ 快捷键提示；第三方命令标题下方附一行 12px 弱化文字"来自 <插件名>"。稳定性：`core.command` Stable @M4（M2 起可用）；`ui.command` Beta @M4（M2 起可用，呈现层字段仍可能变化）。
 
 ### 2.6 `ui.toolbar` —— 浮动 / 上下文工具栏
@@ -177,12 +247,12 @@ interface StatusBarContribution extends UiContributionBase {
 
 ```ts
 interface CanvasOverlayContribution extends UiContributionBase {
-  slot: 'below-selection' | 'above-selection'  // 映射设计 04 的 --cordex-z-canvas-overlay 内部子层级
+  slot: 'below-selection' | 'above-selection'  // 映射设计 04 的 --layer-canvas-overlay 内部子层级
   hitTestable?: boolean            // 是否参与画布命中测试；默认 false（纯展示层，如远端光标）
 }
 ```
 
-用途示例（含内置能力，均通过此贡献点实现，"自食其粮"）：远端光标与选区、评论锚点标记、选中手柄、插件自定义的画布标注（如批注工具、测量参考线）。视觉约束：覆盖层元素不得拦截未声明 `hitTestable: true` 的指针事件（默认 `pointer-events: none`，避免插件覆盖层意外遮挡画布交互）；颜色使用 `--cordex-color-presence-*` 或语义 token，不得引入覆盖层专属调色板。性能预算：同屏 ≥ 20 个远端选区仍需保持 ≥ 55 fps（PRD CO-03），密度过高时允许降级简化非活跃协作者的视觉权重（具体阈值与实现策略由架构 07 决定）。
+用途示例（含内置能力，均通过此贡献点实现，"自食其粮"）：远端光标与选区、评论锚点标记、选中手柄、插件自定义的画布标注（如批注工具、测量参考线）。视觉约束：覆盖层元素不得拦截未声明 `hitTestable: true` 的指针事件（默认 `pointer-events: none`，避免插件覆盖层意外遮挡画布交互）；颜色使用 `--presence-*` 或语义变量，不得引入覆盖层专属调色板。性能预算：同屏 ≥ 20 个远端选区仍需保持 ≥ 55 fps（PRD CO-03），密度过高时允许降级简化非活跃协作者的视觉权重（具体阈值与实现策略由架构 07 决定）。
 
 ### 2.9 `ui.dialog` / `ui.notification`
 
@@ -199,31 +269,50 @@ interface CanvasOverlayContribution extends UiContributionBase {
 
 架构 03 确认存在一个反应式的 `ContextKeys` 服务（`unitType`、`selectionKind`、`canUndo`、`canRedo`、`isCollab`、`isReadOnly`、`platform` 等键），全部 `ui.*` 贡献点的 `when` 字段都是针对这些键求值的声明式表达式（如 `unitType == 'slide' && selectionKind == 'shapes'`），而不是插件在渲染期做命令式判断。这回应了 §1 总原则第 3 条与 lessons A15（不能靠时序/命令式判断掩盖依赖关系）。窄屏/移动端变体正是通过 `when` 引用 `platform` 键实现（见 §5），不需要额外的贡献点类型。
 
+**when 求值与同 id 覆盖**
+
+```mermaid
+flowchart LR
+  keys["ContextKeys 反应式服务：unitType · selectionKind · canUndo · canRedo · isCollab · isReadOnly · platform · viewMode"]
+  when{"贡献的 when 声明式表达式，如 unitType == 'slide' && selectionKind == 'shapes'"}
+  show["呈现 / 可用"]
+  hide["不呈现或收起，不是插件在渲染期命令式判断"]
+  over["同一 id 用更具体的 when 重新贡献，conflict replace 覆盖默认呈现：窄屏用 platform，母版视图用 viewMode"]
+  noVm["未声明 viewMode 的贡献在普通与母版两种视图下都生效"]
+  keys --> when
+  when -->|"真"| show
+  when -->|"假"| hide
+  over -.->|"替换默认贡献"| when
+  noVm -.-> show
+```
+
+怎么读：所有 `ui.*` 贡献的显隐都由 ContextKeys 对 `when` 求值决定；虚线表示变体机制——不新增贡献点类型，而是用同一 id、更具体的条件覆盖默认呈现（§2.10a、§5）。
+
 ### 2.11 `ui.theme` —— 主题/token 覆盖集
 
-章程 v0.2 §5.5 确认的贡献点，与产品 PS-02（"设计 token 覆盖集"，Beta @M4）一致。这是插件（或宿主/集成方）向 `@cordexjs/design` 的 token 体系贡献一整套覆盖值的机制——例如一个"品牌主题"插件可以把 `--cordex-color-accent-*` 换成集成方的品牌色，而不需要 fork 整个 `@cordexjs/design` 包。
+章程 v0.2 §5.5 确认的贡献点，与产品 PS-02（"设计 token 覆盖集"，Beta @M4）一致。这是插件（或宿主/集成方）向 `@cordexjs/design` 的 token 体系贡献一整套覆盖值的机制——例如一个"品牌主题"插件可以把 `--primary` / `--primary-foreground` 换成集成方的品牌色，而不需要 fork 整个 `@cordexjs/design` 包。覆盖集是插件的对外契约，变量名一律用 shadcn 变量 + Cordex 扩展裸名变量（设计 04 开头与 §9 对照表，rulings C-22 / §4.18 UX-12）；`--cordex-*` 前缀已作废，出现即被拒绝。
 
 ```ts
 // 草案：字段名对齐 §2 的共享形状
 interface ThemeContribution extends UiContributionBase {
   slot: string                     // 主题名，作为 `data-cordex-theme` 的可选取值之一（内置只有 'light'/'dark'）
   isDark?: boolean                  // 该主题应按暗色语义处理（影响初始对比度校验、阴影→边框降级等派生规则，见设计 04 §2.10/§3）
-  tokens: Partial<Record<CordexColorToken, string>>   // 覆盖值，键必须是设计 04 §2.2/§2.3 定义过的语义 token 名
+  tokens: Partial<Record<ThemeVarName, string>>   // 覆盖值，键必须落在下方白名单内（现名，见设计 04 §9 对照表）
 }
 ```
 
-**允许覆盖的 token 范围**（设计 04 §2.2–§2.5 的语义颜色 token）：`--cordex-color-accent-*`、`--cordex-color-success/warning/danger/info-*`、`--cordex-color-bg-*`、`--cordex-color-border-*`、`--cordex-color-text-*`。这些是"品牌/氛围"相关的语义色，覆盖它们不会破坏布局或可用性判断逻辑。
+**允许覆盖的变量（白名单，设计 04 §2.2–§2.5 的语义颜色）**：`--primary` / `--primary-foreground`；`--background` / `--foreground`、`--card` / `--card-foreground`、`--popover` / `--popover-foreground`；`--secondary`、`--muted`、`--accent`（各含 `-foreground`）；`--destructive`；`--success` / `--warning` / `--info`（各含 `-foreground`、`-muted`）；`--border`、`--input`、`--border-control`；`--canvas`。这些是"品牌/氛围"相关的语义色，覆盖它们不会破坏布局或可用性判断逻辑；白名单之外的变量一律不可覆盖。
 
 **禁止覆盖的 token 范围**（结构性 token，覆盖会破坏跨组件一致性或无障碍保证）：
 
 | 类别 | 原因 |
 |---|---|
-| `--cordex-space-*`（间距） | 覆盖会导致所有组件的内外边距同时错位，布局体系依赖其数值稳定 |
-| `--cordex-radius-*` / `--cordex-shadow-*` | 可作为"整体替换一套预设"处理（如内置的 high-contrast 主题），但不对插件单独开放逐个覆盖，避免视觉体系割裂 |
-| `--cordex-z-*`（层级） | 覆盖会破坏浮层堆叠顺序这一系统级契约（见设计 04 §2.11），绝对禁止 |
-| `--cordex-motion-*`（动效） | 覆盖会与 `prefers-reduced-motion` 的统一降级机制（07-accessibility-and-i18n.md §5）冲突，绝对禁止 |
-| `--cordex-color-presence-*`（协作者在场色） | 覆盖会破坏"协作者颜色全局唯一辨识"的假设（05-collaboration-ux.md §2），绝对禁止 |
-| `--cordex-color-focus-ring` | 覆盖需要重新过对比度门禁（WCAG 2.4.11），不对插件开放，仅内置主题可改 |
+| 间距（Tailwind 4pt 阶，不设变量）与 `--control-h-*` / `--row-h`（密度） | 覆盖会导致所有组件的内外边距或控件高度同时错位，布局体系依赖其数值稳定 |
+| `--radius`（及派生 `--radius-*`）/ `--glass-*`（含 `--glass-shadow`） | 可作为"整体替换一套预设"处理（如内置的 high-contrast 主题），但不对插件单独开放逐个覆盖，避免视觉体系割裂 |
+| `--layer-*`（层级） | 覆盖会破坏浮层堆叠顺序这一系统级契约（见设计 04 §2.11），绝对禁止 |
+| `--duration-*` / `--ease-*`（动效） | 覆盖会与 `prefers-reduced-motion` 的统一降级机制（07-accessibility-and-i18n.md §5）冲突，绝对禁止 |
+| `--presence-*`（协作者在场色） | 覆盖会破坏"协作者颜色全局唯一辨识"的假设（05-collaboration-ux.md §2），绝对禁止 |
+| `--ring`（焦点环） | 覆盖需要重新过对比度门禁（WCAG 2.4.11），不对插件开放，仅内置主题可改 |
 
 **校验要求**：任何 `ui.theme` 贡献的颜色覆盖都必须通过设计 04 §2.6 的对比度基线（架构 02 §4.17 `@cordexjs/design/__tests__` 已包含 token 快照与对比度校验），加载期未通过校验的主题贡献应被拒绝并诊断（呼应 §3 的失败可见原则），而不是静默应用一个不合规的主题。
 
@@ -251,7 +340,7 @@ when: "viewMode == 'normal'"      // 仅普通视图下出现（只对"页"有�
 | 页签内部分分组失败 | 该页签仍渲染，仅缺失的分组不显示 |
 | 已打开的面板所属插件失败 | 面板内容区替换为错误态卡片（图标 + "该面板不可用" + 错误摘要 + 重试/禁用插件 入口） |
 | 未打开的面板所属插件失败 | 检查器坞 Tab 条目自动隐藏 |
-| 状态栏项所属插件失败 | 该项以 `--cordex-motion-duration-fast` 淡出移除，不保留空位 |
+| 状态栏项所属插件失败 | 该项以 `--duration-fast` 淡出移除，不保留空位 |
 | 画布覆盖层所属插件失败 | 该覆盖层内容停止渲染，不影响其他覆盖层与画布本体 |
 | 任意数量插件失败 | 全局状态栏"插件"图标切换为 warning 语义色 + 失败数角标；点击进入插件管理器并预筛选"启动失败" |
 

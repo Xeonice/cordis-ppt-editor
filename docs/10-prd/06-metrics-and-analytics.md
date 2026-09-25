@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17） | 依赖：charter v0.2；rulings §4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18
 
 # 06 指标与埋点
 
@@ -23,6 +23,21 @@
 - 为什么：它同时要求「打得开」「能编辑」「不崩」「不丢」，是 SDK 价值链的完整闭环；比 DAU 更能反映产品是否真的被用来干活。
 - 里程碑：M2 起可计算（单人）；M3 起含协同会话。
 - 配套（查看器场景）：周成功查看会话数（WSVS）= `unit/opened` 成功 + 停留 ≥ 10 s + 无 fatal。
+
+**图 1-1 一个会话如何计入 WSES**
+
+```mermaid
+flowchart LR
+  s1["unit/opened 成功"] --> s2["≥ 1 个 store/transaction，来源为本地"] --> s3["会话内无 error/raised，severity 为 fatal"]
+  s3 --> s4{"会话结束前"}
+  s4 -->|"单人"| s5["有 unit/saved"]
+  s4 -->|"协同"| s6["collab/synced 且待同步为 0"]
+  s5 --> wses["计入当周 WSES"]
+  s6 --> wses
+```
+
+怎么读：从左到右四个条件必须全部满足，最后一项按单人或协同二选一；任一环节缺失，该会话不计入。
+依据：本节 §1.1。
 
 ### 1.2 一级指标（MT-01 … MT-08）
 
@@ -87,7 +102,8 @@
 |---|---|---|---|---|---|
 | `session/started` | 宿主创建 | `entry`（集成入口形态 A–F） | P0 | M1 | 会话计数 |
 | `session/ended` | 宿主销毁 / 页面隐藏 ≥ 30 s | `durationMs`, `transactions`, `fatal` | P0 | M1 | WSES、MT-04 |
-| `unit/opened` | 打开成功 | `durationMs`, `source`（buffer/url/stream/snapshot）, `conformance`, `contentType`, `pagesParsed`, `lazy` | P0 | M1 | MT-01、MT-03 |
+| `unit/opened` | 打开成功（首批装载后即触发，OF-03） | `durationMs`, `source`（buffer/url/stream/snapshot）, `conformance`, `contentType`, `pagesParsed`, `lazy` | P0 | M1 | MT-01、MT-03 |
+| `unit/loaded` | 全部页装载到齐（rulings §4.18 CO-12） | `durationMs`（自打开起）, `pages` | P0 | M1 | NF-01「后台全部解析完成」 |
 | `unit/open-progress` | 阶段变化（仅采样 10%） | `stage`, `percent`, `elapsedMs` | P0 | M1 | 打开漏斗 |
 | `unit/open-failed` | 打开失败 | `code`, `stage`, `durationMs` | P0 | M1 | MT-01、MT-23 |
 | `unit/closed` | 关闭 | `durationMs`, `dirtyAtClose` | P0 | M1 | |
@@ -153,24 +169,39 @@
 
 ### 4.1 打开漏斗（M1）
 
+**图 4-1 打开漏斗**
+
+```mermaid
+flowchart LR
+  f1["session/started · 100%"] --> f2["unit/open-progress：unzip · ≥ 99.9%"] --> f3["parse-presentation · ≥ 99.8%"]
+  f3 --> f4["parse-slide · ≥ 99.7%"] --> f5["render/first-paint · ≥ 99.5%，MT-01"] --> f6["停留 ≥ 10 s · 观察"]
 ```
- session/started ──► unit/open-progress(unzip) ──► (parse-presentation) ──► (parse-slide) ──► render/first-paint ──► 停留 ≥ 10 s
-      100%                 ≥ 99.9%                      ≥ 99.8%                 ≥ 99.7%              ≥ 99.5%（MT-01）        观察
-```
+
+怎么读：箭头为会话依次到达的漏斗阶段，节点「·」后为该阶段的目标到达率（相对 `session/started`）；中间三段是 `unit/open-progress` 的阶段值。本图由原 ASCII 漏斗转换，内容不变。
 
 ### 4.2 编辑漏斗（M2）
 
+**图 4-2 编辑漏斗**
+
+```mermaid
+flowchart LR
+  e1["unit/opened：editor · 100%"] --> e2["selection/changed · 观察"] --> e3["command/executed：首个 · MT-05"]
+  e3 --> e4["store/transaction ≥ 5 · 深度编辑率"] --> e5["unit/saved · WSES"]
 ```
- unit/opened(editor) ──► selection/changed ──► command/executed(首个) ──► store/transaction ≥ 5 ──► unit/saved
-       100%                  观察                  MT-05                      深度编辑率                  WSES
-```
+
+怎么读：箭头为编辑会话依次到达的阶段，节点「·」后为该阶段对应的指标或口径。本图由原 ASCII 漏斗转换，内容不变。
 
 ### 4.3 协同漏斗（M3）
 
+**图 4-3 协同漏斗**
+
+```mermaid
+flowchart LR
+  c1["collab/state-changed：connecting · 100%"] --> c2["synced · ≥ 99%"] --> c3["首个远端事务可见 · 观察"]
+  c3 --> c4["会话内无 offline · MT-06"] --> c5["待同步=0 结束 · WSES"]
 ```
- collab/state-changed(connecting) ──► synced ──► 首个远端事务可见 ──► 会话内无 offline ──► 待同步=0 结束
-            100%                       ≥ 99%           观察                  MT-06                 WSES
-```
+
+怎么读：箭头为协同会话依次到达的阶段，节点「·」后为目标到达率或对应指标。本图由原 ASCII 漏斗转换，内容不变。
 
 ### 4.4 仪表盘（参考应用与内部）
 
@@ -196,3 +227,21 @@
 | 与 telemetry.sink 契约 | 事件对象 + 公共属性 → Provider；提供 OTel 示例（PS-04） | M2 |
 | 指标计算文档 | 每个 MT 指标的 SQL/查询定义随参考应用发布 | M3 |
 | 事件量预算 | 每会话·小时 ≤ 500 事件（采样后）；超出告警 | M2 |
+
+**图 5-1 遥测事件从产生到出口**
+
+```mermaid
+flowchart LR
+  rt["运行时事件：cordis Events，域/动作 命名"]
+  tel["telemetry 服务：镜像运行时事件并追加度量属性，如 perf/frame 派生自 render/frame"]
+  common["附公共属性：sessionId、unitId 哈希、userId 哈希、sdk.version、env.*、doc.* 等"]
+  sample["采样：render/frame、collab/latency 等高频事件默认 1%；错误与生命周期事件不采样"]
+  batch["批量：本地缓冲 ≤ 5 s 或 ≤ 50 事件；页面隐藏时 sendBeacon"]
+  sink["telemetry.sink Provider：出厂 no-op；OTel 示例；集成方自定义"]
+  scan["开发期：扫描器拒绝未在 schema 注册表声明的事件；CI 属性名黑名单初筛隐私"]
+  rt --> tel --> common --> sample --> batch --> sink
+  scan -.-> tel
+```
+
+怎么读：实线为一条遥测事件在客户端的处理链，虚线表示在开发期对事件登记与隐私的机械约束；全链不携带文档内容，审计事件不走这条链（SV-07）。
+依据：本文 §0、§3.1、§5；EM-13。

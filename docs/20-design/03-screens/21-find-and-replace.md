@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-15 | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-15；2026-09-25（补图） | 依赖：charter v0.2；`10-prd/07-design-coverage-and-gaps.md`
 
 # 03-21 查找与替换
 
@@ -47,6 +47,27 @@
                                     │ 🔍 [预算.....]    0 / 0   │
                                     │ 未找到匹配内容              │
 ```
+
+**查找面板状态**
+
+```mermaid
+stateDiagram-v2
+  state "关闭" as closed
+  state "查找 · 聚焦查找输入，输入即时过滤，命中计数如「3 / 27」" as find
+  state "查找 + 替换 · 展开替换区：替换当前命中 / 全部替换" as replace
+  state "无结果 · 「0 / 0」+「未找到匹配内容」" as none
+  closed --> find : Mod+F 或命令面板「查找」
+  closed --> replace : Mod+H 或命令面板「替换」
+  find --> replace : 展开「替换」
+  find --> none : 没有匹配
+  none --> find : 修改关键词后有命中
+  find --> closed : Esc，保留当前画布选区
+  replace --> closed : Esc
+  replace --> replace : 全部替换为一个事务，toast「已替换 N 处」+ 撤销
+  note right of find : 翻页不重置查找状态；查看器 preset 复用同一面板但不提供替换区
+```
+
+怎么读：Mod+F 与 Mod+H 是同一面板的两个开口，区别只是替换区是否展开；「全部替换」在 M2 始终作用于全文档，且一次只占一个撤销步。
 
 ### 查看器 preset 复用
 

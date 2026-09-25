@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18 | 依赖：charter v0.2；rulings §4.10 Q13；`10-prd/07-design-coverage-and-gaps.md`；PRD `07-masters` ML-02；playground `LayoutGallery.tsx` / `Layouts.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.10 Q13；`10-prd/07-design-coverage-and-gaps.md`；PRD `07-masters` ML-02；playground `LayoutGallery.tsx` / `Layouts.tsx`
 
 # 03-14 幻灯片管理与版式选择器
 
@@ -56,6 +56,31 @@
 
 - 通过属性面板"幻灯片属性"或缩略图右键"更换版式…"打开同一份版式库 flyout，当前版式高亮；选择后占位符按 `type`/`idx` 重新匹配（规则见 PRD ML-02），无法匹配的内容保留原位置、脱离为普通形状，并 toast「N 个元素无法匹配新版式的占位符，已保留为普通形状 [撤销]」（rulings §4.10 Q13，与 03-screens/27 §4、playground 三处统一）。
 - "重置页"：占位符属性恢复到版式定义（可撤销），不影响用户新增的非占位符对象。
+
+**新建与更换版式（共用同一个版式库 flyout）**
+
+```mermaid
+flowchart TB
+  newBtn["直接点「新建」，或缩略图栏有选中项时按 Enter"]
+  newSame["与当前页相同版式的新页插入当前页之后并自动选中；首页之后默认建议「标题和内容」"]
+  newMenu["点击「新建 ▾」"]
+  change["属性面板「幻灯片属性」或缩略图右键「更换版式…」"]
+  flyout["版式库 flyout：当前母版全部版式缩略图 + 名称；方向键导航、Enter 确认、Esc 取消；多母版时按母版分组 · 03-screens/27"]
+  pickNew["插入所选版式的新页"]
+  rematch["占位符按 type/idx 重新匹配 · PRD ML-02"]
+  unmatched{"有无法匹配的内容？"}
+  keep["保留原位置、脱离为普通形状 + toast「N 个元素无法匹配新版式的占位符，已保留为普通形状」带「撤销」· rulings §4.10 Q13"]
+  doneC["更换完成，不静默丢弃内容"]
+  newBtn --> newSame
+  newMenu -->|"默认高亮「与当前页相同」"| flyout
+  change -->|"当前版式高亮"| flyout
+  flyout -->|"新建入口"| pickNew
+  flyout -->|"更换入口"| rematch --> unmatched
+  unmatched -->|"是"| keep
+  unmatched -->|"否"| doneC
+```
+
+怎么读：两个入口打开的是同一个组件，只有默认高亮项和选择后的动作不同；更换版式的不匹配处理与 03-screens/26 删除被引用版式后的自动改用规则相同，区别只是这里的 toast 可撤销。
 
 ### 删除（含多选）
 

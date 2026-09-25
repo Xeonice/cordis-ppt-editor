@@ -12,12 +12,13 @@ const zoomPresets = ["适应窗口", "适应宽度", "50%", "75%", "100%", "150%
 
 /**
  * Q12（裁决 2026-09-18 §4.10）：母版视图入口仅在编辑态（有 doc.write）且视口 ≥ 1024 时提供。
- * `enabled` 正常；`review` 评审/只读态；`narrow` 视口 < 1024。后两者下入口按钮禁用并用 tooltip 说明原因。
+ * `enabled` 正常；`degraded` 编辑模式但已降权（readonly-degraded，Ribbon 仍在）；`narrow` 视口 < 1024。
+ * 后两者下入口按钮禁用并用 tooltip 说明原因。评审模式没有 Ribbon、「视图」页签不存在，不走这里（rulings §4.18 UX-11）。
  */
-export type MasterEntryState = "enabled" | "review" | "narrow"
+export type MasterEntryState = "enabled" | "degraded" | "narrow"
 
 const masterEntryReason: Record<Exclude<MasterEntryState, "enabled">, string> = {
-  review: "评审模式下不可用",
+  degraded: "需要编辑权限",
   narrow: "需要 ≥ 1024 宽度",
 }
 

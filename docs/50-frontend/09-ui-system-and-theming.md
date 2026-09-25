@@ -1,5 +1,5 @@
 # 09 UI 组件体系与主题
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG、§4.20 FE-06 / FE-11 / FE-12 / FE-16 / FE-18
 
 本文是**浏览器 UI 体系的运行侧设计**唯一事实源：四个 UI 包怎样分工、设计 token 怎样变成 CSS 与组件外观、主题 / 密度 / 材质怎样解析并写到根元素、shadcn 复制件怎样管理、`ui.*` 贡献与上下文键怎样驱动视图模型、输入怎样变成命令、`UiRenderer` 怎样挂载、样式怎样注入与隔离。
 
@@ -63,7 +63,7 @@ flowchart TB
 
 ## 2. token 与 CSS 产物
 
-**事实基线**是 playground `src/index.css`（ADR-0017 决策 6）；`design` 的 TS token 对象是生成源，`build-theme` 从它生成入库的四份 CSS，`build-theme --check` 逐字节比对（只允许注释与顺序差异），不一致即失败。
+**事实基线**是 playground `src/index.css`（ADR-0017 决策 6）；`design` 的 TS token 对象是生成源，`build-theme` 从它生成入库的五份 CSS，`build-theme --check` 逐字节比对（只允许注释与顺序差异），不一致即失败。
 
 | token 族 | 变量名（裸名，`--cordex-*` 作废，C-22） | 来源 | 谁读 |
 |---|---|---|---|
@@ -77,14 +77,15 @@ flowchart TB
 | 动效 | `--duration-instant` 80 · `fast` 120 · `base` 180 · `slow` 240 · `slower` 320；`--ease-standard / decelerate / accelerate / spring`；`prefers-reduced-motion` 时全部 1 ms | 设计 04 §2.12 | 过渡与动画 |
 | 密度 | `--control-h-sm/md/lg`（28 / 32 / 40 ↔ 紧凑 24 / 28 / 32）、`--row-h`（36 ↔ 28） | 设计 04 §2.13 | 控件高度簇；只重映射高度，不产生组件变体 |
 
-**四份 CSS 产物**：
+**五份 CSS 产物**（`theme.scoped.css` 为 2026-09-26 登记，rulings §4.20 FE-12）：
 
 | 文件 | 内容 | 消费方 |
 |---|---|---|
 | `css/tokens.css` | 变量表：亮色默认 → `prefers-color-scheme` 兜底 → 三选择器暗色（§3）；`@theme inline` 注册颜色、圆角、`--text-2xs`、字族 | 经 `theme.css` |
 | `css/slots.css` | `@utility glass` / `glass-strong`、14 个浮层 `[data-slot]` 玻璃化、遮罩与 tooltip 胶囊、控件 `[data-slot]` 规则、两块退化、`body` 宿主防线（必须位于文件末尾） | 经 `theme.css` |
-| `css/theme.css` | `@import './tokens.css'` + `'./slots.css'` | `ui-react` 的样式入口（唯一 import 的 design 产物）；`injectCss` 注入源（§10） |
+| `css/theme.css` | `@import './tokens.css'` + `'./slots.css'` | `ui-react` 标准样式入口 `styles.css` 唯一 import 的 design 产物（§10「静态 · 应用」） |
 | `css/tailwind-theme.css` | 只含 `@theme inline` 注册片段 | `*-ui` 的无 preflight 样式入口 |
+| `css/theme.scoped.css` | 作用域变体：与 `theme.css` 同一 token 与 slot 规则，全部限定在 `[data-cordex-root]` 下，不写 `:root`、不触碰宿主 `body`（宿主防线改写到根） | `ui-react` 嵌入入口 `src/styles/embed.css`（产物 `./styles.embed.css`，§10「静态 · 嵌入」）；`injectCss:true` 的运行时注入源（§10；文件级见 40/10 §4.1、§4.2） |
 
 - **组件不读裸色值**（设计 09 S-03）：组件只用语义 token 对应的工具类；画布内的文档内容（位置、尺寸、字号、颜色）是数据，允许内联样式（S-04）。
 - **变量名即公共契约**：变量**名**自 M1 发布起视为 `stable`（`theme-vars-contract.test.ts` 依赖它们）；取值可随设计线微调（patch）。新增扩展变量须先在 `tokens.css` 声明，`ui-react`、`*-ui`、`apps/*` 里出现未声明的扩展变量或 `--cordex-*` 即失败（§12 V2）。
@@ -216,7 +217,7 @@ flowchart TB
 
 - **来源与风格**：shadcn CLI `pnpm dlx shadcn@4.21.0 add -o -y` 生成，风格 `radix-rhea`（`components.json` 入库）；不手拷、不用 `npx`（仓库根 `devEngines onFail:error`，rulings §4.15 Q9）。
 - **全仓一份**：复制件只存在于 `ui-react` 的 `src/ui/components/ui/`（44 个），经子路径 `@cordexjs/ui-react/ui` 供 `*-ui` 与 `apps/*` 使用（R17）；其余任何位置出现同名复制件即失败。`drawer`（vaul）不迁移，窄屏底部面板改用 `sheet` 的 `side="bottom"`（rulings §4.15 Q2）。
-- **视觉定制走 CSS**：组件级视觉写 `design` 的 `[data-slot]` 规则，不改复制件结构。确需改源码时文件头标 `// Cordex override: <原因>`，并登记在 `shadcn-copy.test.ts` 的允许清单里；当前清单：`sonner.tsx`（去掉上游对 `next-themes` 的依赖、改读 ui-core `theme` 服务）、`scroll-area.tsx` 与 `select.tsx`（透传 CSP nonce，[14 §3](14-client-security.md)）。
+- **视觉定制走 CSS**：组件级视觉写 `design` 的 `[data-slot]` 规则，不改复制件结构。确需改源码时文件头标 `// Cordex override: <原因>`，并登记在 `shadcn-copy.test.ts` 的允许清单里；当前清单：`sonner.tsx`（去掉上游对 `next-themes` 的依赖、改读 ui-core `theme` 服务）、`scroll-area.tsx` 与 `select.tsx`（透传 CSP nonce，[14 §3](14-client-security.md)；其 Viewport 的固定样式文本由 Trusted Types `default` 策略精确放行，[14 §4](14-client-security.md)）。sonner 的 Toast 样式不走运行时注入：ui-react 静态引入 `sonner/dist/styles.css` 并入自身样式产物（§10 三种投放路径都覆盖），import 时的 `__insertCSS` 经 pnpm patch 删去（rulings §4.20 FE-18）。
 - **升级流程**：`scanners/shadcn-diff` 步骤报告复制件与上游的差异（M2 稳定后转为阻断，rulings §4.18 GV-14）；升级 PR 依次执行：钉住新 CLI 版本 → `diff` 审阅 → 重新 `add` → 重新应用登记在册的 override → `shadcn-copy.test.ts`、axe 与视觉基线全部通过 → 合并。
 - **第三方依赖单点**：react、radix-ui、tailwindcss、lucide-react、cva、clsx、tailwind-merge、cmdk、sonner、react-resizable-panels、Geist 等只允许 `ui-react` 与 `V-ui` 包引入（R5 `third-party-single-entry`，ADR-0017 清单），且 catalog 精确锁版本。
 
@@ -224,11 +225,11 @@ flowchart TB
 
 ### 6.1 十个 `ui.*` 贡献点
 
-项类型、键与 `conflict` 以 [30/03 §3.6](../30-architecture/03-kernel-and-plugin-model.md) 为准（全部 `replace`）；本表写前端的使用语义。公共骨架 `ContributionBase = { id; slot; order; when?; enablement?; owner? }`：
+项类型、键与 `conflict` 以 [30/03 §3.6](../30-architecture/03-kernel-and-plugin-model.md) 为准（全部 `replace`）；本表写前端的使用语义。公共骨架 `ContributionBase = { id; slot; order; when?; enablement?; owner? }`（`enablement?` 已登记，rulings §4.20 FE-06）：
 
 - `when` 只管**可见性**：为假时该项不渲染（例如母版页签 `when: viewMode == 'master'`、查看者变体里的创建类按钮）。
-- `enablement`（审稿补入，语法同 `when`）只管**可用性**：为假时该项留在原位、`aria-disabled`，原因取 `explainWhen(enablement, keys)`（§6.2），例如全文命令控件的 `enablement: unitLoaded`、「视图」页签「母版视图」按钮的 `enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'`（[11](11-masters-layouts-and-themes.md) §3）。
-- 条目最终可用 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`can.<action>`，§6.3）∧ `enablement` 为真；三者任一为假都只禁用、不隐藏（[10](10-editor-shell-and-interaction.md) §4「只读是禁用而不是隐藏」）。原来把禁用条件写进 `when` 的条目（如 40/10 §2.6 的 `when: unitLoaded`）改写为 `enablement`（§13）。
+- `enablement`（语法同 `when`）只管**可用性**：为假时该项留在原位、`aria-disabled`，原因取 `explainWhen(enablement, keys)`（§6.2，对应 PRD ED-30「命令不可用时必须说明原因」），例如全文命令控件的 `enablement: unitLoaded`、「视图」页签「母版视图」按钮的 `enablement: editorMode == 'edit' && !isReadOnly && breakpoint == 'desktop'`（[11](11-masters-layouts-and-themes.md) §3）。`ui.shortcut` 与 `ui.command` 的项同样带可选 `enablement`（下表）。
+- 条目最终可用 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`can.<capability>`，§6.3）∧ `enablement` 为真；三者任一为假都只禁用、不隐藏（[10](10-editor-shell-and-interaction.md) §4「只读是禁用而不是隐藏」）。原来把禁用条件写进 `when` 的条目（40/10 §2.6 全文命令的 `when: unitLoaded`、插入页签图表的 `when: hasChartEditor`）已改写为 `enablement`（rulings §4.20 FE-11）。
 
 | 贡献点 | 项要点 | 典型 slot | 语义 |
 |---|---|---|---|
@@ -268,7 +269,7 @@ flowchart TB
 | `canUndo` / `canRedo` | 布尔 | `history/changed` | 全部 |
 | `isCollab` | 布尔 | `presence` 服务是否存在（`ctx.get('presence', false)`） | 全部 |
 | `isReadOnly` | 布尔（无 `doc.write` 即真，≡ `!can.doc.write`） | `permission/changed` | 全部 |
-| `can.<action>`（审稿补入） | 布尔族：`<action>` 取 protocol `permissions/actions.ts` 的能力位全集，即 `can.doc.read`、`can.doc.comment`、`can.doc.write`、`can.doc.export`、`can.doc.manage`、`can.history.read`、`can.history.restore` | 打开时的权限快照与之后的 `permission/changed`（按能力位逐个写，不随编辑器模式变化） | 全部；`can.` 为 ui-core 保留前缀，垂直束与第三方不得登记同名前缀 |
+| `can.<capability>`（标准键族，rulings §4.20 FE-06） | 布尔族：`<capability>` 取 protocol `permissions/actions.ts` 的能力位全集（`Capability`），即 `can.doc.read`、`can.doc.comment`、`can.doc.write`、`can.doc.export`、`can.doc.manage`、`can.history.read`、`can.history.restore`；能力位增删时键族随之变化，不另维护清单 | 打开时的权限快照与之后的 `permission/changed`（按能力位逐个写，不随编辑器模式变化） | 全部；`can.` 为 ui-core 保留前缀，ui-core 以外的包（垂直束与第三方）经 `registerPrefixedKey` 登记 `can.` 前缀即违规（`scan-contributions` 规则 (e)） |
 | `platform` | `desktop` / `mobile`（`pointer: coarse` 视为 mobile） | `matchMedia` | 全部 |
 | `breakpoint` | `desktop`（≥ 1024）/ `compact`（640–1024）/ `narrow`（< 640） | 视口宽度（`detectBreakpoint`，rulings §4.10 Q19） | 全部 |
 | `density` | `comfortable` / `compact` | `theme` 服务 | 全部 |
@@ -283,9 +284,11 @@ flowchart TB
 | `slide.hasComments` | 布尔：`comments` 服务已装载（M3 随 `preset-slide-collab`，`ctx.get('comments', false)`；与文档里有没有评论无关） | slide-ui 在 `comments` 服务出现 / 消失时写入 | 同上；检查器「评论」页签、评审工具条、插入页签「评论」按钮与缩略图角标用它（[10](10-editor-shell-and-interaction.md) §3.2、§4、§5，[08](08-comments-and-version-history.md) §2） |
 | `<vendor>:<名>` | 由第三方定义 | 第三方插件经 `registerPrefixedKey` 登记 | 登记方与其依赖方 |
 
-- `editorMode` 是本文为「查看者变体去掉创建类按钮」「评审工具条替换 Ribbon」新增的标准键：没有它，这两条只能写成壳内的 `if` 分支，违反「界面变化全部由上下文键经 `when` 驱动」。40/10 §2.1 已登记，30/03 §3.6 待登记（§13）。
-- `can.<action>` 是审稿补入的标准键族：[10](10-editor-shell-and-interaction.md) §4 的「控件可用性 = 命令已注册 ∧ 能力位已授予」与 §5「历史」页签的出现条件（`can.history.read`）都需要它；`isReadOnly` 保留为 `!can.doc.write` 的简写。登记到 30/03 §3.6 与 40/10 §2.1 属回写项（§13）。
-- `hasChartEditor` 按 30/03 §3.6 统一为带前缀的 `slide.hasChartEditor`（40/10 §2.1、§3 已改名；§2.6 插入页签的 `when: hasChartEditor` 仍待改，§13）。
+- **本表是上下文键全集的唯一清单**（rulings §4.20 FE-06）：30/03 §3.6 的键清单改为引用本节，40/10 §2.1 `ContextKeyValues` 按本表登记；新增标准键先改本表再回写两处。
+- `editorMode` 是本文为「查看者变体去掉创建类按钮」「评审工具条替换 Ribbon」新增的标准键：没有它，这两条只能写成壳内的 `if` 分支，违反「界面变化全部由上下文键经 `when` 驱动」。40/10 §2.1 与 30/03 §3.6 均已登记（`unitLoaded` 同）。
+- `can.<capability>` 标准键族：[10](10-editor-shell-and-interaction.md) §4 的「控件可用性 = 命令已注册 ∧ 能力位已授予」与 §5「历史」页签的出现条件（`can.history.read`）都需要它；`isReadOnly` 保留为 `!can.doc.write` 的简写。已登记到 30/03 §3.6 与 40/10 §2.1、§6（rulings §4.20 FE-06）。
+- **机械核对**（`scan-contributions` 规则 (e)，TD-089）：检查范围是 `when` 与 `enablement` 两种子句中的键；`can.<x>` 的 `<x>` 必须是 protocol 定义的能力位；ui-core 以外的包调用 `registerPrefixedKey('can.…')` 即违规（§12 V8）。
+- `hasChartEditor` 按 30/03 §3.6 统一为带前缀的 `slide.hasChartEditor`（40/10 §2.1、§3 已改名；§2.6 插入页签图表按钮随 rulings §4.20 FE-11 改为 `enablement: slide.hasChartEditor`）。
 
 ## 7. 视图模型与一帧一次重过滤
 
@@ -489,15 +492,15 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 | V5 | 六种主题组合（亮、暗、`.dark`、`data-cordex-theme`、宿主 `data-theme`、`prefers-color-scheme`）解析结果一致；覆盖值含 `url(` 等被拒 | `design/__tests__/theme-selectors.test.ts`、`ui-core/__tests__/theme.service.test.ts` | `test/unit` |
 | V6 | 复制件集合 = 桶文件导出 = `components.json` 记录；风格 `radix-rhea`；全仓单一副本；override 全部登记 | `ui-react/__tests__/shadcn-copy.test.ts`（TD-091）；上游差异报告 | `test/unit`；`scanners/shadcn-diff` |
 | V7 | `ui-core` 与 `*-ui` 的 `domain` / `application` 层不 import React 系依赖 | depcruise R14、`cordex-ui-bundle-core-framework-free`；`ui-core/__tests__/no-framework.test.ts` | `depcruise`；`test/unit` |
-| V8 | `when` 与 `enablement` 只引用已登记的键 | `scan-contributions` 规则 (e) | `scanners/scan-contributions` |
+| V8 | `when` 与 `enablement` 只引用已登记的键；`can.<x>` 的 `<x>` 属 protocol 能力位；ui-core 以外的包不得登记 `can.` 前缀。三条负向夹具都必须报违规：`enablement` 引用未登记的键、拼错的 `can.doc.writ`、第三方登记 `can.` 前缀（rulings §4.20 FE-06） | `scan-contributions` 规则 (e)（TD-089） | `scanners/scan-contributions` |
 | V9 | `react` 与 `vanilla` 两个实现通过 `runUiRendererConformance` | `ui-react/__tests__/conformance-ui-renderer.test.ts`（原名 `ui-renderer.conformance.test.ts`，按 [70/01](../70-testing/01-strategy-and-layers.md) §4 的 `conformance*` 前缀规则改名，否则不被 `test/contract` 收集；[70/02](../70-testing/02-contract-suites-and-pluggability.md) kit 表第 12 行）、`examples/embed-vanilla` 的同名用例 | `test/contract` |
-| V10 | 同一帧多次键变更只发一次 `ui/context-key-changed`；多 Unit 分桶；`permission/changed` 逐个更新 `can.<action>` 与 `isReadOnly`，不改 `editorMode` | `ui-core/__tests__/context-keys.service.test.ts` | `test/unit` |
+| V10 | 同一帧多次键变更只发一次 `ui/context-key-changed`；多 Unit 分桶；`permission/changed` 逐个更新 `can.<capability>` 与 `isReadOnly`，不改 `editorMode` | `ui-core/__tests__/context-keys.service.test.ts` | `test/unit` |
 | V11 | 默认键位表无冲突；编辑态白名单与组合输入放行；`Mod+Alt+M` 三入口等价 | `ui-core/__tests__/shortcuts.service.test.ts`、`slide-ui/__tests__/shortcuts.test.ts` | `test/unit` |
 | V12 | 同屏 `backdrop-filter` ≤ 4；编译 CSS 同时含标准与 `-webkit-` 两个声明；`data-interacting` 期间面板不透明；退化态面板为不透明 `--card` | `ui/perf.spec.ts`、`ui/editor.visual.spec.ts`（70/06 §11） | `e2e/full-compose` |
-| V13 | 嵌入挂载前后宿主 `<html>`、`<body>` 与宿主示例元素的计算样式逐项相同；`:root` 上没有新增自定义属性 | 嵌入样式隔离用例（新增，登记到 70/06） | `e2e/full-compose` |
+| V13 | 嵌入挂载前后宿主 `<html>`、`<body>` 与宿主示例元素的计算样式逐项相同；`:root` 上没有新增自定义属性 | 嵌入样式隔离用例（[70/06](../70-testing/06-frontend-component-and-e2e.md) §11，rulings §4.20 FE-16） | `e2e/full-compose` |
 | V14 | `/styleguide` 全部组件状态 axe 零严重与重大违规；tooltip 在 `:focus-visible` 时立即出现 | `apps/web/e2e/a11y/styleguide.a11y.spec.ts`（由 40/10 §9 的 `ui-react/__tests__/e2e/` 迁入，[70/06](../70-testing/06-frontend-component-and-e2e.md) §3.1） | `e2e/a11y` |
 | V15 | ui-core 发布的事件全部在 `ui.contribution.ts` 声明，事件域在白名单内 | lint `cordex/events-must-be-declared` | `lint` |
-| V16 | `explainWhen` 对真子句返回 `null`、对假子句返回首个为假的原子条件的原因键；`when` 为假的条目不出现、`enablement` 为假或能力位未授予的条目置灰带原因；命令面板选中不可用条目不执行 | `ui-core/__tests__/when-clause.test.ts`、`ui-core/__tests__/bar-and-menu-models.test.ts` | `test/unit` |
+| V16 | `explainWhen` 对真子句返回 `null`、对假子句返回首个为假的原子条件的原因键；`when` 为假的条目不出现、`enablement` 为假或能力位未授予的条目仍然渲染、带 `aria-disabled` 与原因；命令面板选中不可用条目不执行 | `ui-core/__tests__/when-clause.test.ts`、`ui-core/__tests__/bar-and-menu-models.test.ts` | `test/unit` |
 
 ### 12.2 里程碑
 
@@ -515,13 +518,14 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 | 项 | 状态 | 去向 |
 |---|---|---|
 | PRD EM-06「所有类名带前缀」与 shadcn 复制件（Tailwind 工具类不加前缀）的关系 | 已定：按「自有类名与 data 属性带 `cordex-` 前缀 + 嵌入样式作用域不外溢」（§10），PRD 已回写（2026-09-25） | PRD 03-features/05 EM-06 |
-| 新增标准上下文键 `editorMode`（§6.3） | 40/10 §2.1 已登记（2026-09-25）；30/03 §3.6 待登记 | [30/03 §3.6](../30-architecture/03-kernel-and-plugin-model.md) |
-| 新增标准键族 `can.<action>`（§6.3，审稿补入；[10](10-editor-shell-and-interaction.md) §4、§5 引用） | 待登记 | 30/03 §3.6；[40/10 §2.1、§6](../40-modules/10-ui-shell-and-slide-ui.md) |
+| 新增标准上下文键 `editorMode`（§6.3） | 已关闭（rulings §4.20 FE-06）：40/10 §2.1 已登记（2026-09-25）；30/03 §3.6 键清单改为引用本文 §6.3，并补 `editorMode`、`unitLoaded`、`can.*` | [30/03 §3.6](../30-architecture/03-kernel-and-plugin-model.md) |
+| 新增标准键族 `can.<capability>`（§6.3；[10](10-editor-shell-and-interaction.md) §4、§5 引用） | 已关闭（rulings §4.20 FE-06）：取 protocol 能力位全集，`can.` 为 ui-core 保留前缀；30/03 §3.6、40/10 §2.1 与 §6 已登记 | 30/03 §3.6；[40/10 §2.1、§6](../40-modules/10-ui-shell-and-slide-ui.md) |
 | 前缀键 `slide.placeholderSelected`、`slide.hasComments`（§6.3） | 已登记（40/10 §2.1、§3 slide-ui Manifest 与 `slide-ui.contribution.ts`） | — |
-| 纯函数 `explainWhen(clause, keys)`（§6.2） | 待登记 | 40/10 §2.3 纯函数表、§4.2 `when-clause.ts` 注释 |
-| `hasChartEditor` 改为 `slide.hasChartEditor` | 部分回写：40/10 §2.1、§3 已改；§2.6 插入页签仍写 `when: hasChartEditor`，应为 `enablement: slide.hasChartEditor`（[10](10-editor-shell-and-interaction.md) §4） | 40/10 §2.6 |
-| `ThemeService` 增 `setTokens(partial)` 与 `registerStyleSheet(id, cssText)`；`ui-react` 增导出 `./styles.embed.css`、`design` 增作用域变体产物 | 部分回写：40/10 §2.1 已登记；目录树、`package.json` 导出与 API 面未改 | 40/10 §4.1、§4.3、§6；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) 组合根参数说明 |
-| `review` / `view` 的评审工具条条目用 `ui.toolbar{slot:'reviewBar'}` 承载 | 回写 | 40/10 §2.1、§3（slide-ui 与评论插件的贡献清单） |
-| 嵌入样式隔离用例（§12 V13） | 待登记 | [70/06](../70-testing/06-frontend-component-and-e2e.md) §11 |
-| `ContributionBase` 增可选 `enablement`（§6.1，审稿补入：`when` 只管可见性、`enablement` 管可用性），`ui.shortcut` / `ui.command` 同样带该字段；40/10 §2.6 里用 `when` 表达禁用的条目（全文命令的 `when: unitLoaded`、视图页签「母版视图」按钮）改为 `enablement` | 待登记 | 30/03 §3.6 项类型说明；40/10 §2.5–§2.6、§6；`scan-contributions` 规则 (e) 的检查范围（09-06） |
+| 纯函数 `explainWhen(clause, keys)`（§6.2） | 已关闭（rulings §4.20 FE-12）：40/10 §2.3 纯函数表与 `when-clause.ts` 注释已登记 | 40/10 §2.3 纯函数表、§4.2 `when-clause.ts` 注释 |
+| `hasChartEditor` 改为 `slide.hasChartEditor` | 已关闭（rulings §4.20 FE-11）：40/10 §2.1、§3 已改；§2.6 插入页签图表改为 `enablement: slide.hasChartEditor`（[10](10-editor-shell-and-interaction.md) §4） | 40/10 §2.6 |
+| `ThemeService` 增 `setTokens(partial)` 与 `registerStyleSheet(id, cssText)`；`ui-react` 增导出 `./styles.embed.css`、`design` 增作用域变体产物 | 已关闭（rulings §4.20 FE-12）：40/10 §4.1、§4.3、§6 登记 `setTokens`、`registerStyleSheet`、`./styles.embed.css` 与 `design` 的作用域变体产物 | 40/10 §4.1、§4.3、§6；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) 组合根参数说明 |
+| `review` / `view` 的评审工具条条目用 `ui.toolbar{slot:'reviewBar'}` 承载 | 已关闭（rulings §4.20 FE-12）：40/10 §3 slide-ui 贡献清单登记评论、高亮、上一处、下一处四个条目（`when` 见 [10](10-editor-shell-and-interaction.md) §3.2），并写明条目为空时显示 `ReadonlyRibbonNotice` | 40/10 §3 |
+| 嵌入样式隔离用例（§12 V13） | 已关闭（rulings §4.20 FE-16）：70/06 §11 登记（挂载前后宿主 `html`、`body` 计算样式逐项相同，`:root` 无新增自定义属性，步骤 `e2e/full-compose`） | [70/06](../70-testing/06-frontend-component-and-e2e.md) §11 |
+| `ContributionBase` 增可选 `enablement`（§6.1：`when` 只管可见性、`enablement` 管可用性），`ui.shortcut` / `ui.command` 同样带该字段；40/10 §2.6 里用 `when` 表达禁用的条目（全文命令的 `when: unitLoaded`、视图页签「母版视图」按钮）改为 `enablement` | 已关闭（rulings §4.20 FE-06、FE-11）：30/03 §3.6 项类型加 `enablement?`；40/10 §2.5、§2.6、§6 同步；`scan-contributions` 规则 (e) 扩到 `enablement` 子句并校验 `can.<x>`（TD-089 同步，§12 V8） | 30/03 §3.6；40/10 §2.5–§2.6、§6；09-06 §3 规则 (e)、08 TD-089 |
+| Trusted Types 与 shadcn 复制件、sonner 的运行时样式（§5） | 已定（rulings §4.20 FE-18）：Radix Viewport 固定样式由 `default` 策略精确放行；sonner 静态样式 + pnpm patch 删运行时注入；react-resizable-panels 用 `adoptedStyleSheets`，无需处理（[14](14-client-security.md) §3、§4） | [14](14-client-security.md) §3–§4 |
 | `UiRenderer` 契约用例改名 `conformance-ui-renderer.test.ts`（§12 V9） | 已回写（40/10 §9、70/02 kit 表第 12 行） | — |

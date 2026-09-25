@@ -1,5 +1,5 @@
 # 06 文本编辑与 IME
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[ADR-0028 文本编辑宿主](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0027 文本度量](../30-architecture/adr/0027-text-measurement-strategy.md)、[30/07](../30-architecture/07-rendering.md) §6 / §9、[30/06](../30-architecture/06-collaboration.md) §1.4 / §7.2 / §8、[40/06](../40-modules/06-layout-and-render-engine.md) §2.5 / §2.6 / §13、[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.2 / §2.6、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-10 / ED-18 / ED-24、PRD [NF-01](../10-prd/04-non-functional-requirements.md) §1.2 / NF-05、PRD 05 R-M2-1、设计 [07](../20-design/07-accessibility-and-i18n.md) §1.3 / §4、设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.18 UX-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[ADR-0028 文本编辑宿主](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0027 文本度量](../30-architecture/adr/0027-text-measurement-strategy.md)、[30/07](../30-architecture/07-rendering.md) §6 / §9、[30/06](../30-architecture/06-collaboration.md) §1.4 / §7.2 / §8、[40/06](../40-modules/06-layout-and-render-engine.md) §2.5 / §2.6 / §13、[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.2 / §2.6、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-10 / ED-18 / ED-24、PRD [NF-01](../10-prd/04-non-functional-requirements.md) §1.2 / NF-05、PRD 05 R-M2-1、设计 [07](../20-design/07-accessibility-and-i18n.md) §1.3 / §4、设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.18 UX-06
 
 本文是画布内文本编辑的唯一事实源：从按键、输入法到一次事务提交与重绘的全部行为语义。渲染管线、字体与度量见 [05](./05-rendering-and-thumbnails.md)；命令与撤销语义本体见 [04](./04-document-commands-and-undo.md)；通用输入管线与快捷键表见 [09](./09-ui-system-and-theming.md) §8；Esc 逐级链的画布部分与选择模型见 [10](./10-editor-shell-and-interaction.md) §7；协同会话与 presence 数据见 [07](./07-collaboration-client.md)。
 
@@ -126,7 +126,7 @@ flowchart TB
 
 ## 4. 意图链
 
-render-dom 只把浏览器事件归约为**中性**的 `TextEditIntent`（不含任何 Mutation 或命令知识，文档类型盲），经 `RenderService.attach(targetId, container, callbacks)` 注入的 `callbacks.onEditIntent` 交给 slide-ui；回调名以 M-06 契约为准（40/06 §13 Q-2），40/10 与 40/18 中的 `onTextEditIntent` 写法待回写。
+render-dom 只把浏览器事件归约为**中性**的 `TextEditIntent`（不含任何 Mutation 或命令知识，文档类型盲），经 `RenderService.attach(targetId, container, callbacks)` 注入的 `callbacks.onEditIntent` 交给 slide-ui；回调名以 M-06 契约为准（40/06 §13 Q-2），40/10 与 40/18 原有的 `onTextEditIntent` 写法已统一改为 `onEditIntent`（§12）。
 
 ```ts
 // render-dom 产出，slide-ui 消费（形状草案；类型落点 40/06 §2.5 TextInputHost 旁）
@@ -374,14 +374,14 @@ flowchart TB
 | M3 | 协同文本（远端光标、「正在编辑」提示、组合中并发）；备注可编辑；母版视图文本编辑（ML-03）；表格末格 Tab 新增行 |
 | M4 / M5 | RTL 编辑与 HarfBuzz shaping（ADR-0027 路线） |
 
-| 待回写项 | 去向 |
-|---|---|
-| 回调名统一为 `callbacks.onEditIntent`（40/10 §2.2、40/18 图 6-5 写作 `onTextEditIntent`） | 40/10、40/18 |
-| `TextEditIntent` 形状（§4）登记在 TextInputHost 旁 | 40/06 §2.5 |
-| `slide.insertText` 目标寻址扩展（单元格、备注）与分段 / 软换行表达 | 40/03 §2.6 |
-| `slide/autofit-changed` 事件与 `slide.applyAutofit` 薄命令（§7） | 40/07 §2.4、40/03 §2.6 |
-| 备注编辑里程碑 | 已关闭：定为 M3（PRD ED-18 改为 M3，与 40/03 一致） |
-| 设计 03-16「点击画布空白处返回选中态」改为「退出并取消选择」（§2） | 设计 03-16 |
+| 待回写项 | 去向 | 状态 |
+|---|---|---|
+| 回调名统一为 `callbacks.onEditIntent`（40/10 §2.2、40/18 图 6-5 原写作 `onTextEditIntent`） | 40/10、40/18 | 已回写（40/10 §2.2 `render.attach` 回调行、40/18 图 6-5） |
+| `TextEditIntent` 形状（§4）登记在 TextInputHost 旁 | 40/06 §2.5 | 已回写（40/06 §2.5 `TextInputHost` 段指向本文 §4；40/10 §2.2 同注） |
+| `slide.insertText` 目标寻址扩展（单元格、备注）与分段 / 软换行表达 | 40/03 §2.6 | 已回写（40/03 §2.6 `slide.insertText` 行，`TextTarget` 与 `TextDelta`） |
+| `slide/autofit-changed` 事件与 `slide.applyAutofit` 薄命令（§7） | 40/07 §2.4、40/03 §2.6 | 已回写（40/07 §2.4 事件行、40/03 §2.6；40/03 §12 回写记录 F69） |
+| 备注编辑里程碑 | PRD ED-18、40/03 | 已关闭：定为 M3（PRD ED-18 改为 M3，与 40/03 一致） |
+| 设计 03-16「点击画布空白处返回选中态」改为「退出并取消选择」（§2） | 设计 03-16 | 已回写（设计 03-16 文本编辑态说明与状态图） |
 
 ## 13. 机械验证
 

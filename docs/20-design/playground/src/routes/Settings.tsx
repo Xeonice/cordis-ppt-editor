@@ -133,6 +133,12 @@ export function Settings() {
                 <label className="flex items-center gap-2 text-sm"><Checkbox defaultChecked /> 评论 @ 我时提示</label>
                 <label className="flex items-center gap-2 text-sm"><Checkbox defaultChecked /> 导入完成后高亮详情</label>
               </SettingsSection>
+              {/* 03-screens/23「隐私与诊断」（rulings §4.20 FE-15，决策 TELEMETRY-DEFAULT；行为以 50-frontend/10 §10.3 为准）：
+                  错误报告默认开、使用统计默认关；部署未启用 telemetry.otlp 时不显示后一项 */}
+              <SettingsSection title="隐私与诊断">
+                <label className="flex items-center gap-2 text-sm"><Checkbox defaultChecked /> 发送错误报告</label>
+                <label className="flex items-center gap-2 text-sm"><Checkbox /> 发送使用统计</label>
+              </SettingsSection>
               <SettingsSection title="关于">
                 <p className="text-xs text-muted-foreground">版本 0.1.0-m2</p>
                 <Button variant="outline" size="sm" className="w-fit" onClick={() => { navigator.clipboard?.writeText("cordex-diag-0.1.0-m2"); toast("已复制诊断信息") }}>复制诊断信息</Button>

@@ -1,6 +1,6 @@
 # 01 前端总览与运行时全景
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.19；[30/01](../30-architecture/01-overview.md)、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.20；[30/01](../30-architecture/01-overview.md)、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
 
 本文是前端设计线的入口全景：只给浏览器侧的执行上下文、包分布、铁律、对象关系、端到端主干、可观察状态、对外接触面、里程碑与机械验证总表，**每一处细节都链接到 [02](02-app-shell-routing-and-session.md)–[16](16-i18n-and-accessibility.md)**，不在此重复。服务端只画「接触面」（路径、子域、请求头、帧名），Nest 模块与进程角色见 [60/01](../60-backend/01-service-overview-and-roles.md)。包名一律省略 `@cordexjs/` 前缀。
 
@@ -279,11 +279,11 @@ M2 起单人编辑也经这条链路持久化（第 1、2、6 条的断线退避
 | Unit 装载态 | `loadState`：partial → loaded；上下文键 `unitLoaded` | model-core | [04](04-document-commands-and-undo.md) §2 | `unit/opened`、`unit/loaded`、进度条 |
 | 保存态与撤销跳过提示条 | 脏 / 已保存 / 保存中；UndoSkip 提示条出现与关闭 | apps/web、slide-ui | [04](04-document-commands-and-undo.md) §6、§8 | 状态胶囊、提示条、`store/undo-skipped` |
 | `SyncState` 与会话 UI 六态 | 对外 `disconnected / connecting / syncing / synced / offline / error`；界面 `connecting / syncing / synced / reconnecting / offline / readonly-degraded` | collab-core `domain/session-state.ts` | [07](07-collaboration-client.md) §3 | `collab/*` 事件、状态胶囊与横幅 |
-| `ContextKeyValues` | 十一个标准键 + `breakpoint`、`textEditing`、`focusRegion`、`unitLoaded` + 束前缀键 | ui-core `domain/context-keys.ts` | [09](09-ui-system-and-theming.md) §6 | `when` 子句、诊断面板 |
+| `ContextKeyValues` | 标准键（`unitType`、`viewMode`、`editorMode`、`editTargetKind`、`selectionKind`、`selectionCount`、`canUndo` / `canRedo`、`isCollab`、`isReadOnly`、`platform`、`breakpoint`、`density`、`textEditing`、`focusRegion`、`unitLoaded`）+ 保留键族 `can.<capability>` + 束前缀键；全集以 09 §6.3 为唯一清单（rulings §4.20 FE-06） | ui-core `domain/context-keys.ts` | [09](09-ui-system-and-theming.md) §6.3 | `when` 与 `enablement` 子句、诊断面板 |
 | `ThemeState` | `{mode, resolved, density, hostMark?}` | ui-core `domain/theme-state.ts` | [09](09-ui-system-and-theming.md) §3 | 根元素 `.dark`、`data-cordex-theme`、`data-cordex-density` |
 | `EditorLayoutState` | 侧栏、检查器、历史面板宽度与开合；断点 | ui-react `EditorShell` | [10](10-editor-shell-and-interaction.md) §2 | 布局记忆（按 unitType） |
 | `PresetReport` | 条目 ACTIVE / PENDING / FAILED / LAZY / EXCLUDED | kernel/preset | [03](03-preset-assembly-and-plugins.md) §2 | 插件管理器页、`plugin/*` 事件 |
-| `MasterViewState` | `{targetId, editScope, impact, multiSelect, entry, sessionMemory}` | slide-ui `domain/edit-target.ts` | [11](11-masters-layouts-and-themes.md) §4 | 范围条、「影响 N 页」徽标、状态栏 |
+| `MasterViewState` | `{paneSelection, editScope, target, impact, multiSelect, entry, status, sessionMemory?}` | slide-ui `domain/edit-target.ts` | [11](11-masters-layouts-and-themes.md) §4 | 范围条、「影响 N 页」徽标、状态栏 |
 | `RenderPageState` | `booting → awaitingInject → opening → painting → ready`，或 `failed{code}` | apps/web `domain/render-page-state.ts` | [12](12-viewer-embedding-and-render-page.md) §11 | `window.__cordex.ready` / `error` |
 
 ## 7. 对外接触面

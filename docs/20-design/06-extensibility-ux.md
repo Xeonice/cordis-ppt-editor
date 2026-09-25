@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20：FE-15 `selectionKind` 不另增 placeholder，改指前缀键 `slide.placeholderSelected`） | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
 > **2026-09-18 修订说明**：§2.1 图标家族改为 Lucide 线性（随 shadcn Rhea，原 Phosphor 家族作废；`@cordexjs/design/icons` 仍可作为包装层）；§2.10a 按"母版视图是同一个编辑器"改写（只在页签集合最左插入「母版」并隐藏「设计」，其余页签照常；检查器仅禁用评论；`viewMode` 条件由贡献自行声明、未声明者两种视图都生效；`selectionKind` 不收窄）。
 
 # 06 扩展性 UX（插件如何贡献 UI）
@@ -328,7 +328,7 @@ when: "viewMode == 'normal'"      // 仅普通视图下出现（只对"页"有�
 
 - 宿主内置的差异（「母版」页签插入、「设计」页签隐藏、检查器「评论」Tab 禁用、缩略图窗格内容切换）通过这一 `when` 机制 + `conflict:'replace'` 语义实现，不新增贡献点类型（呼应 §5 已有的"同一 id、不同 `when` 条件下差异化呈现"原则，本节只是把该原则应用到 `platform` 键之外的第二个维度）。内置「设计」页签声明 `when: "viewMode == 'normal'"`，内置「母版」页签声明 `when: "viewMode == 'master'"`（`order` 最小，置首），其余内置页签与检查器 Tab 不声明。
 - **`viewMode` 条件由贡献自行声明**：插件若想为母版视图贡献专属 UI（如统一给某类占位符打企业规范水印），只需在既有的 `ui.ribbon`/`ui.panel` 贡献上追加 `when: "viewMode == 'master'"`；若某贡献只对"页"有意义（依赖页级评论、页级切换效果等），应显式声明 `when: "viewMode == 'normal'"`。**未声明 `viewMode` 条件的贡献在两种视图下都生效**（母版视图是同一个编辑器，插件的字体 / 形状 / 图片类命令在母版与版式上同样成立；不再把"仅普通视图"作为隐含默认）。
-- **`selectionKind` 不收窄**：母版 / 版式画布上可以插入并选中形状、图片、文本框等普通元素（与 PowerPoint 一致），因此 `selectionKind` 在母版视图下的取值范围与普通视图相同（`'shapes' | 'text' | 'image' | … | 'none'`），另增 `'placeholder'` 供需要区分占位符的贡献精确判断；插件不得假设母版视图下只有占位符可选。
+- **`selectionKind` 不收窄**：母版 / 版式画布上可以插入并选中形状、图片、文本框等普通元素（与 PowerPoint 一致），因此 `selectionKind` 在母版视图下的取值范围与普通视图相同（`'shapes' | 'text' | 'image' | … | 'none'`），不另增取值；需要区分占位符的贡献用 slide-ui 登记的前缀上下文键 `slide.placeholderSelected` 精确判断（`50-frontend/09` §6.3 键清单，rulings §4.20 FE-15）；插件不得假设母版视图下只有占位符可选。
 
 ---
 

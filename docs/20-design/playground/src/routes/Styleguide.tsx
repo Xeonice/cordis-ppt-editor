@@ -358,7 +358,7 @@ export function Styleguide() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>删除版式"两栏内容"？</AlertDialogTitle>
-                  <AlertDialogDescription>该版式正被 2 页引用，删除后这些页面将改用"标题和内容"。此操作不可撤销。</AlertDialogDescription>
+                  <AlertDialogDescription>该版式正被 2 页引用，删除后这些页面将改用"标题和内容"。</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>取消</AlertDialogCancel>

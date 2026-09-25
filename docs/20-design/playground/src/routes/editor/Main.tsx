@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { Blocks, Highlighter, MessageSquare, Puzzle, Sparkles, TriangleAlert, Users } from "lucide-react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { Blocks, ChevronLeft, ChevronRight, Highlighter, Lock, MessageSquarePlus, Puzzle, Sparkles, TriangleAlert, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,8 @@ import { Slider } from "@/components/ui/slider"
 import {
   AppBar, CanvasElementBox, ColorPickerPopover, CommentPin, DesignBar, EditorRibbon, Inspector,
   MixedValueField, NotesBar, NumberField, PresenceStack, PropertyRow, PropertyRowPair, RemoteCursor,
-  RemoteSelectionBox, SelectionBox, SlideCanvas, StatusBar, StatusText, ThumbnailRail,
+  RemoteSelectionBox, ReviewToolbar, ReviewToolbarSeparator, RibbonTrailing, SelectionBox, SlideCanvas, StatusBar,
+  StatusText, ThumbnailRail,
 } from "@/components/editor"
 import type { ZoomValue } from "@/components/editor/SlideCanvas"
 import { EditorShell } from "@/components/editor/EditorShell"
@@ -21,22 +22,33 @@ import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import type { InspectorTabValue } from "@/components/editor/Inspector"
 import { collaboratorById, collaborators, documentTitle, slides } from "@/lib/mock-data"
 
-type DemoState = "default" | "text" | "multi" | "review" | "loading" | "error"
+type DemoState = "default" | "text" | "multi" | "review" | "review-empty" | "loading" | "error"
 type DemoRole = "owner" | "editor" | "commenter" | "viewer"
 
 const stateOptions = [
   { value: "default", label: "默认 · 选中形状" },
   { value: "text", label: "文本编辑态" },
   { value: "multi", label: "多选" },
-  { value: "review", label: "只读评审模式" },
+  { value: "review", label: "评审 · 有条目" },
+  // FE-08：M2 未装 comments 包时 slide.hasComments 为假，评审工具条条目全部不可见（50/10 §3.2），这是 M2 的常态
+  { value: "review-empty", label: "评审 · 无条目（M2）" },
   { value: "loading", label: "加载骨架" },
   { value: "error", label: "打开失败" },
 ]
+const roleValues: DemoRole[] = ["owner", "editor", "commenter", "viewer"]
 
 export function EditorMain() {
   const navigate = useNavigate()
-  const [demoState, setDemoState] = useState<DemoState>("default")
-  const [role, setRole] = useState<DemoRole>("owner")
+  // 样张直达：`#/editor?state=review-empty&role=viewer`（只取首帧初值，之后由演示控制条切换）
+  const [searchParams] = useSearchParams()
+  const [demoState, setDemoState] = useState<DemoState>(() => {
+    const s = searchParams.get("state")
+    return stateOptions.some((o) => o.value === s) ? (s as DemoState) : "default"
+  })
+  const [role, setRole] = useState<DemoRole>(() => {
+    const r = searchParams.get("role") as DemoRole | null
+    return r && roleValues.includes(r) ? r : "owner"
+  })
   const [ribbonTab, setRibbonTab] = useState<RibbonTabValue>("home")
   const [inspectorTab, setInspectorTab] = useState<InspectorTabValue>("properties")
   const [zoom, setZoom] = useState<ZoomValue>("fit")
@@ -52,7 +64,10 @@ export function EditorMain() {
   const canComment = !isViewer
   // rulings U-09 / §4.18 UX-17：history.read 只下放到编辑者，评审者与查看者没有「历史」入口
   const canReadHistory = canEdit
-  const readOnly = demoState === "review" || !canEdit
+  const inReview = demoState === "review" || demoState === "review-empty"
+  const readOnly = inReview || !canEdit
+  // M2 未装 comments 包：slide.hasComments 为假——评审工具条无条目、画布无评论钉、检查器无「评论」页签、缩略图无评论计数
+  const noComments = demoState === "review-empty"
   // Mod+Alt+M 进入母版视图（rulings Q12：评审 / 无权限 / < 1024 宽度下无效）；macOS 下 Alt 改变 e.key，故用 e.code
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,6 +84,10 @@ export function EditorMain() {
   useEffect(() => {
     if (!canEdit) setInspectorTab("comments")
   }, [canEdit])
+  // FE-15：编辑者切到评审（有条目）时检查器也默认打开「评论」；「属性」页签只读可切换（01-IA §5.1、50/10 §3.2）
+  useEffect(() => {
+    if (demoState === "review") setInspectorTab("comments")
+  }, [demoState])
 
   // 01-IA §5.2：模式下拉 = 编辑 / 评审 / 放映；查看者只列「只读浏览」与「放映」（UX-19）
   const presentOption = { value: "present", label: "放映" }
@@ -77,7 +96,7 @@ export function EditorMain() {
     : role === "commenter"
       ? [{ value: "review", label: "评审模式" }, presentOption]
       : [{ value: "view", label: "只读浏览" }, presentOption]
-  const modeValue = !canEdit ? modeOptions[0]!.value : demoState === "review" ? "review" : "edit"
+  const modeValue = !canEdit ? modeOptions[0]!.value : inReview ? "review" : "edit"
 
   const otherCollaborators = useMemo(() => collaborators.filter((c) => !c.isSelf), [])
   const wang = collaboratorById("wang")
@@ -86,8 +105,45 @@ export function EditorMain() {
   function handleModeChange(v: string) {
     if (v === "present") { navigate("/present"); return }
     if (!canEdit) return
-    setDemoState(v === "review" ? "review" : "default")
+    setDemoState(v === "review" ? (inReview ? demoState : "review") : "default")
   }
+
+  const railSlides = useMemo(() => (noComments ? slides.map((s) => ({ ...s, commentCount: 0 })) : slides), [noComments])
+
+  // FE-08：评审 / 只读浏览的 Ribbon 区域位。条目由 slide-ui 以 ui.toolbar{slot:'reviewBar'} 贡献（50/10 §3.2）：
+  // 创建类（评论、高亮）when: editorMode == 'review' && slide.hasComments；跳转类 when: slide.hasComments。
+  // 右端「主题 · ?」由外壳直接渲染（RibbonTrailing，与编辑模式页签行右侧同组件）；「普通 | 母版」不渲染（Q12）。
+  const reviewBar = (
+    <ReviewToolbar
+      emptyNotice={isViewer ? "只读浏览中" : "评审模式 · 只读"}
+      trailing={<RibbonTrailing onOpenShortcuts={() => navigate("/settings?panel=shortcuts")} />}
+    >
+      {!noComments && canComment && (
+        <Button key="comment" variant="outline" size="sm" onClick={() => { setInspectorTab("comments"); toast("已打开评论") }}>
+          <MessageSquarePlus data-icon="inline-start" /> 评论
+        </Button>
+      )}
+      {!noComments && canComment && (
+        <Button key="highlight" variant="outline" size="sm" onClick={() => toast("在画布上拖选要高亮的区域")}>
+          <Highlighter data-icon="inline-start" /> 高亮
+        </Button>
+      )}
+      {!noComments && canComment && <ReviewToolbarSeparator key="sep" />}
+      {!noComments && (
+        <Button key="prev" variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>
+          <ChevronLeft data-icon="inline-start" /> 上一处评论
+        </Button>
+      )}
+      {!noComments && (
+        <Button key="next" variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>
+          下一处评论 <ChevronRight data-icon="inline-end" />
+        </Button>
+      )}
+      {!noComments && isViewer && (
+        <span key="hint" className="ml-2 truncate text-xs text-muted-foreground">只读浏览 · 可阅读评论，实时查看修改</span>
+      )}
+    </ReviewToolbar>
+  )
 
   const appBar = (
     <AppBar
@@ -184,20 +240,7 @@ export function EditorMain() {
       <EditorShell
         appBar={appBar}
         ribbon={
-          readOnly ? (
-            <div className="flex h-12 shrink-0 items-center gap-1 border-t border-foreground/5 px-3">
-              {canComment && (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => { setInspectorTab("comments"); toast("已打开评论") }}><MessageSquare /> 评论</Button>
-                  <Button variant="outline" size="sm"><Highlighter /> 高亮</Button>
-                  <div className="mx-1 h-5 w-px bg-border" />
-                </>
-              )}
-              <Button variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>◂ 上一处评论</Button>
-              <Button variant="ghost" size="sm" onClick={() => setInspectorTab("comments")}>下一处评论 ▸</Button>
-              {isViewer && <span className="ml-2 text-xs text-muted-foreground">只读浏览 · 可阅读评论，实时查看修改</span>}
-            </div>
-          ) : (
+          readOnly ? reviewBar : (
             <EditorRibbon
               value={ribbonTab}
               onValueChange={setRibbonTab}
@@ -220,7 +263,7 @@ export function EditorMain() {
         thumbnailRail={
           <ThumbnailRail
             mode={railMode}
-            slides={slides}
+            slides={railSlides}
             currentSlideId={currentSlideId}
             onSelectSlide={setCurrentSlideId}
             onReorder={readOnly ? undefined : (from, to) => toast(`已将第 ${slides.find((s) => s.id === from)?.index} 页移动到第 ${slides.find((s) => s.id === to)?.index} 页附近`)}
@@ -239,16 +282,24 @@ export function EditorMain() {
         inspector={
           <Inspector
             value={
-              demoState === "review"
-                ? canReadHistory && inspectorTab === "history" ? "history" : "comments"
-                : !canReadHistory && inspectorTab === "history" ? "comments" : inspectorTab
+              noComments
+                ? canReadHistory && inspectorTab === "history" ? "history" : "properties"
+                : demoState === "review"
+                  ? inspectorTab === "properties" || (canReadHistory && inspectorTab === "history") ? inspectorTab : "comments"
+                  : !canReadHistory && inspectorTab === "history" ? "comments" : inspectorTab
             }
             onValueChange={setInspectorTab}
-            readOnly={readOnly && demoState !== "review"}
+            readOnly={readOnly && !inReview}
             readOnlyReason={isViewer ? "只读 · 仅有查看权限" : undefined}
             tabs={
-              demoState === "review"
+              noComments
                 ? [
+                    { value: "properties", label: "属性", content: <ReadOnlyProperties reason={isViewer ? "只读 · 仅有查看权限" : undefined}><PropertiesPanel state="default" lockAspect={lockAspect} onLockAspectChange={setLockAspect} /></ReadOnlyProperties> },
+                    ...(canReadHistory ? [{ value: "history" as const, label: "历史", content: <HistoryPreviewPanel /> }] : []),
+                  ]
+                : demoState === "review"
+                ? [
+                    { value: "properties", label: "属性", content: <ReadOnlyProperties reason={isViewer ? "只读 · 仅有查看权限" : undefined}><PropertiesPanel state="default" lockAspect={lockAspect} onLockAspectChange={setLockAspect} /></ReadOnlyProperties> },
                     { value: "comments", label: "评论", badge: 1, content: <ReviewCommentsPanel readOnly={!canComment} /> },
                     ...(canReadHistory ? [{ value: "history" as const, label: "历史", content: <HistoryPreviewPanel /> }] : []),
                   ]
@@ -312,7 +363,7 @@ export function EditorMain() {
             <p>核心产品线收入贡献占比 61%，新产品线增速最快</p>
             <p>建议下一季度加大新产品线的市场投入</p>
           </CanvasElementBox>
-          <CommentPin x={640} y={210} number={1} onClick={() => toast("定位到评论 #1")} />
+          {!noComments && <CommentPin x={640} y={210} number={1} onClick={() => toast("定位到评论 #1")} />}
         </>
       )
     }
@@ -335,6 +386,18 @@ function EditingToolbar({ x, y }: { x: number; y: number }) {
       <span className="px-1 text-[11px] text-muted-foreground">18</span>
       <Sparkles className="size-3.5 text-muted-foreground" aria-hidden="true" />
     </div>
+  )
+}
+
+/** 评审模式的「属性」页签：只读展示（01-IA §5.1、50/10 §3.2，rulings §4.20 FE-15）。fieldset disabled 让内部输入与按钮一并不可交互。 */
+function ReadOnlyProperties({ children, reason = "只读 · 评审模式下不可编辑" }: { children: ReactNode; reason?: string }) {
+  return (
+    <fieldset disabled aria-label="属性（只读）" className="m-0 min-w-0 border-0 p-0">
+      <p className="mx-3 mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Lock className="size-3" aria-hidden="true" /> {reason}
+      </p>
+      <div className="opacity-60">{children}</div>
+    </fieldset>
   )
 }
 

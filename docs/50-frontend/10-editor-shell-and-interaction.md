@@ -1,5 +1,5 @@
 # 10 编辑器外壳与画布交互
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-11、ED-12、ED-16、ED-18、ED-21、ED-22、ED-27、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-11、ED-12、ED-16、ED-18、ED-21、ED-22、ED-27、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15
 
 本文是**编辑器外壳与画布交互的行为语义**唯一事实源：`<EditorHost>` 由哪些区域组成、布局状态怎样记忆并随断点变化、模式 × 角色 × 断点下界面怎样变化，以及 Ribbon、检查器、缩略图栏、画布选择与拖拽、缩放导航、放映舞台、命令面板与设置抽屉的交互规则和反馈分层。尺寸、材质与线框以 [设计 09](../20-design/09-design-specification.md) §3–§4、03-screens 与 playground `#/editor` 为准；本文写状态机与规则。
 
@@ -29,7 +29,7 @@
 | 区域 | 组件（ui-react） | 内容来源（贡献槽位） | 常驻 / 可隐藏 | `data-cordex-region` |
 |---|---|---|---|---|
 | 悬浮工具卡 · 应用栏（48） | `AppBar`、`MoreMenu`、`UserMenu`、`PresenceStack` | 固定项；`ui.toolbar{slot:'appBar.badges'}`；`ui.contextMenu{slot:'appBar.more'}` 与 `slot:'userMenu'`；宿主插槽 `slots['appBar.left' \| 'appBar.right']` | 编辑、评审、只读浏览常驻；放映隐藏 | 无（在 F6 循环之外，[16](16-i18n-and-accessibility.md) §6.1） |
-| 悬浮工具卡 · Ribbon（页签行 36 + 内容区 91） | `RibbonHost`、`ViewModeSwitch`、`ThemeToggle`、「?」 | `ui.ribbon{slot:'ribbon'}`；评审与只读浏览时换为 `ui.toolbar{slot:'reviewBar'}` | 编辑模式常驻；放映无 | `ribbon` |
+| 悬浮工具卡 · Ribbon 区域位（编辑：页签行 36 + 内容区 91；评审与只读浏览：评审工具条 40） | `RibbonHost`、`ReviewToolbar`、`ReadonlyRibbonNotice`；右端尾部区 `RibbonTrailing`（`ViewModeSwitch`、`ThemeToggle`、「?」） | `ui.ribbon{slot:'ribbon'}`；评审与只读浏览时换为 `ui.toolbar{slot:'reviewBar'}`；尾部区由外壳直接渲染，不走贡献（rulings §4.20 FE-08） | 编辑、评审、只读浏览常驻（后两者为评审工具条或只读细条）；放映无 | `ribbon` |
 | 侧栏卡（240） | `PanelHost` | `ui.panel{slot:'rail'}`：普通视图为 slide-ui `ThumbnailRail`，母版视图为 `MasterThumbnails` | 可折叠为图标条；紧凑与窄屏为 Sheet | `rail` |
 | 画布区 | `CanvasHost`、`ZoomBar`、`ToolbarHost` | 渲染目标（render-dom）、覆盖层（`render.overlay`）、`ui.panel{slot:'canvas.top'}`（范围条）、`ui.toolbar{slot:'toolbar.*'}`（迷你工具条） | 常驻 | `canvas` |
 | 检查器卡（300） | `InspectorDock` | `ui.panel{slot:'inspector'}` 分区与 `slot:'inspector.tab'` 页签；`slot:'floating'` 次级浮动面板不受互斥约束 | 可收起；紧凑与窄屏为 Sheet | `inspector` |
@@ -45,7 +45,12 @@
 - 账户头像 `UserMenu`（28 px，无在场环，PRD AS-06）：姓名与邮箱、设置（`Mod+,`，**唯一入口**，§10.3）、键盘快捷键（`Mod+/`）、帮助中心、退出登录（`onSignOut` → apps/web 登出流程，[02](02-app-shell-routing-and-session.md) §10.2；嵌入场景无回调时提示「由宿主应用管理登录」）。
 - 母版视图追加 `appBar.badges`：「母版视图」与「改动将影响 N 页」两个徽标（[11](11-masters-layouts-and-themes.md) §4）。侧栏或检查器收起时应用栏补 `PanelLeft` / `PanelRight` 打开按钮。
 
-**Ribbon 页签行右侧**自左至右：`ViewModeSwitch`「普通 | 母版」（仅在母版入口可用时渲染，不可用时不留空位，[11](11-masters-layouts-and-themes.md) §3）· `ThemeToggle`（界面亮 / 暗，个人偏好，[09](09-ui-system-and-theming.md) §3）· 「?」（`CircleHelp`，打开快捷键面板，§10.2）。
+**Ribbon 区域位的尾部区**（`RibbonTrailing`，rulings §4.20 FE-08）自左至右：`ViewModeSwitch`「普通 | 母版」（只在编辑模式且母版入口可用时渲染，不可用时不留空位，[11](11-masters-layouts-and-themes.md) §3）· `ThemeToggle`（界面亮 / 暗，个人偏好，[09](09-ui-system-and-theming.md) §3）· 「?」（`CircleHelp`，tooltip「帮助与快捷键（⌘/）」，打开快捷键面板，§10.2）。
+
+- **位置随区域位的形态走**：编辑模式在页签行右侧；评审与只读浏览在评审工具条右端；评审工具条没有条目时（M2 未装 `comments` 包时的常态，§3.2）在 `ReadonlyRibbonNotice` 细条右端；没有页签时的「无可用页签」细条（§4）同样带尾部区。
+- **同一组件、同一容器**：三处都是 `RibbonTrailing` 放在 `RibbonTrailingSlot` 里（右内边距 8、控件间距 4），编辑 ⇄ 评审切换时「主题 · ?」不横向跳动；细条左侧的锁图标与评审工具条首个按钮的图标对齐，有无条目切换时左侧也不跳。
+- **由外壳直接渲染**：尾部区属于 ui-react 外壳，不是 `ui.toolbar{slot:'reviewBar'}` 的条目，第三方既不能向其中贡献，也不能移除；「?」在三种形态下行为相同。
+- **评审与只读浏览不显示「普通 | 母版」**：分段不渲染、不留空位（rulings §4.10 Q12 不变），尾部区只剩「主题 · ?」。
 
 **图 10-1 EditorHost 区域网格与贡献槽位**
 
@@ -55,8 +60,8 @@ flowchart TB
   subgraph toolCard["悬浮工具卡"]
     appBar["AppBar 左侧：返回、文档名、撤销重做、保存态"]
     appRight["AppBar 右侧：在场 · 分享 · 模式下拉 · ⋯ · 账户"]
-    ribbon["Ribbon：slot ribbon，或评审工具条 reviewBar"]
-    tabRight["页签行右侧：视图分段 · 主题 · ?"]
+    ribbon["Ribbon 区域位：slot ribbon，或评审工具条 reviewBar，无条目时只读细条"]
+    trailing["尾部区 RibbonTrailing：视图分段仅编辑模式 · 主题 · ?"]
   end
   subgraph body["主体三栏"]
     rail["侧栏卡：slot rail"]
@@ -75,10 +80,11 @@ flowchart TB
   host -.-> overlays
   appRight -->|"appBar.more"| more
   appBar -->|"appBar.badges"| badges
+  ribbon -->|"右端，外壳直接渲染"| trailing
 ```
 
-怎么读：实线是 `EditorShell` 的常驻区域，分组框对应设计 09 T-01 的两张卡片与主体三栏；节点里写的是该区域接收的贡献槽位；虚线是按需出现的浮层宿主。壳只提供槽位与布局，内容全部来自贡献，因此换文档类型或移除 slide-ui 不需要改壳。
-依据：40/10 §2.1、§5.3；设计 01 §2.1–§2.2；设计 09 §3、T-01；rulings §4.10 Q14、Q20。
+怎么读：实线是 `EditorShell` 的常驻区域，分组框对应设计 09 T-01 的两张卡片与主体三栏；节点里写的是该区域接收的贡献槽位；虚线是按需出现的浮层宿主。壳只提供槽位与布局，内容来自贡献，因此换文档类型或移除 slide-ui 不需要改壳；唯一的例外是 Ribbon 区域位右端的尾部区，它由外壳直接渲染，页签行、评审工具条与只读细条三种形态共用（FE-08）。
+依据：40/10 §2.1、§5.3；设计 01 §2.1–§2.2；设计 09 §3、T-01；rulings §4.10 Q14、Q20，§4.20 FE-08。
 
 ## 2. 布局状态与断点三形态
 
@@ -152,7 +158,7 @@ flowchart TB
 
 设计 01 §5 把放映与编辑、评审并列为「三种模式」；实现上放映是路由加 `viewMode='presenter'`，`EditorHost` 以 `mode='view'`、`layout.chrome:'none'` 呈现舞台（[02](02-app-shell-routing-and-session.md) §2.2），不是第四个 `editorMode`。
 
-**会话内权限变化不改 `editorMode`**（依据：rulings §4.18 UX-20；与 [07](07-collaboration-client.md) §8.1 的「当前手势结束后画布转只读、状态胶囊锁形」一致）：被降权时仍停在编辑模式、进入 `readonly-degraded`——Ribbon 保留，写控件禁用并提示「需要编辑权限」；被提升时不自动切模式，只按新角色更新模式下拉的可选项（例如评审者升为编辑者时「编辑」项解禁、查看者升为评审者时出现「评审」），升到可编辑时 Toast「你现在可以编辑此文档」。角色映射只在打开与重新打开时使用；[02](02-app-shell-routing-and-session.md) §6「`permission/changed` 后按新角色重算 `mode`」与此冲突，登记回写（§12.3）。
+**会话内权限变化不改 `editorMode`**（依据：rulings §4.18 UX-20；与 [07](07-collaboration-client.md) §8.1 的「当前手势结束后画布转只读、状态胶囊锁形」一致）：被降权时仍停在编辑模式、进入 `readonly-degraded`——Ribbon 保留，写控件禁用并提示「需要编辑权限」；被提升时不自动切模式，只按新角色更新模式下拉的可选项（例如评审者升为编辑者时「编辑」项解禁、查看者升为评审者时出现「评审」），升到可编辑时 Toast「你现在可以编辑此文档」。角色映射只在打开与重新打开时使用（[02](02-app-shell-routing-and-session.md) §6 已同此口径，rulings §4.20 FE-10）。
 
 ### 3.2 界面差异总矩阵
 
@@ -160,11 +166,11 @@ flowchart TB
 |---|---|---|---|---|
 | 应用栏 | 完整，含撤销 / 重做 | 无撤销 / 重做；徽标「评审模式」 | 同评审；徽标「只读浏览中」 | 隐藏 |
 | 模式下拉 | 编辑 · 评审 · 放映 | 评审 · 放映；「编辑」按权限可选或禁用并提示所需权限 | 只读浏览 · 放映 | — |
-| Ribbon 位 | 完整多页签；降权时写控件禁用 | 评审工具条：评论 · 高亮 · 上一处评论 · 下一处评论 | 评审工具条去掉评论、高亮，只留跳转 | 无 |
-| 页签行右侧 | 视图分段（条件见 [11](11-masters-layouts-and-themes.md) §3）· 主题 · ? | 主题 · ? | 同评审 | — |
+| Ribbon 位 | 完整多页签；降权时写控件禁用 | 评审工具条：评论 · 高亮 · 上一处评论 · 下一处评论；没有条目时为细条「评审模式 · 只读」 | 评审工具条去掉评论、高亮，只留跳转；没有条目时为细条「只读浏览中」 | 无 |
+| 尾部区（Ribbon 位右端，§1） | 页签行右侧：视图分段（条件见 [11](11-masters-layouts-and-themes.md) §3）· 主题 · ? | 评审工具条右端，没有条目时在细条右端：主题 · ?；不显示视图分段（Q12） | 同评审 | — |
 | 缩略图栏 | 增删、拖拽排序 | 仅浏览与跳转 | 同评审 | 无 |
 | 画布 | 选中框、手柄、插入符、迷你工具条 | 只读：无手柄与插入符；评论钉可点；点文本时检查器切到「评论」并提示「当前为只读，去评论？」 | 只读；评论钉可点、线程只读 | 全屏只读 |
-| 检查器 | 属性（默认）· 评论 · 历史 · 插件 | 默认「评论」；属性只读；「历史」按 `can.history.read` 出现 | 评论只读（无撰写、回复、解决）；无「历史」 | 无 |
+| 检查器 | 属性（默认）· 评论 · 历史 · 插件 | 默认「评论」；「属性」只读，顶部注「只读 · 评审模式下不可编辑」；「历史」按 `can.history.read` 出现；未装 `comments` 包（M2）时没有「评论」页签，默认「属性」 | 「属性」只读，顶部注「只读 · 仅有查看权限」；评论只读（无撰写、回复、解决）；无「历史」 | 无 |
 | 备注 | 可编辑（PRD ED-18，M3 起；M1–M2 只读） | 只读 | 只读 | 隐藏 |
 | 状态胶囊 | 完整 | 隐藏字数统计等编辑专属项 | 同评审 | 无（控制条自带页码） |
 | 覆盖层 | 远端光标、远端选区、评论钉、手柄 | 远端光标、远端选区、评论钉 | 同评审 | 只有跟随提示条（M3） |
@@ -173,7 +179,8 @@ flowchart TB
 - 每一列在紧凑与仅查看形态下再按 §2.2 收纳。
 - 名额按角色而不是编辑器模式计（[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4.2，rulings §4.15 Q5）：切换模式不会释放或重占名额。
 - 评审工具条条目由 slide-ui 以 `ui.toolbar{slot:'reviewBar'}` 贡献：创建类按钮（评论、高亮）带 `when: editorMode == 'review' && slide.hasComments`，跳转类只要求 `slide.hasComments`，所以只读浏览变体不需要另写一套条目（评论数据与命令在 `comments` 包，slide 专属入口由 slide-ui 贡献，rulings §4.19 D-COMMENTS-PKG）。
-- 评审工具条没有任何可见条目时（M2 未装 `comments` 包，`slide.hasComments` 为假），该区域位显示 `ReadonlyRibbonNotice` 细条（40 px）：评审模式为「评审模式 · 只读」，只读浏览为「只读浏览中」，不留空卡（设计 09 T-01）。
+- 评审工具条没有任何可见条目时（M2 未装 `comments` 包，`slide.hasComments` 为假），该区域位显示 `ReadonlyRibbonNotice` 细条（40 px）：评审模式为「评审模式 · 只读」，只读浏览为「只读浏览中」，不留空卡（设计 09 T-01）；细条右端仍是尾部区「主题 · ?」。
+- 评审工具条右端与细条右端的「主题 · ?」是外壳的尾部区（§1），不是 `reviewBar` 条目：条目的 `when` 全部为假时它照常显示；工具条与细条同为 40 px 行高，条目与尾部控件同为 28 px、同一基线（rulings §4.20 FE-08，用户已确认 playground 样张）。
 
 ### 3.3 模式切换
 
@@ -227,11 +234,11 @@ stateDiagram-v2
 
 内置页签之间的相对次序由 slide-ui `ribbonSpec()` 决定，只要求都 `< 1000`。
 
-- **只读是禁用而不是隐藏**：控件的可见性只看 `when`；可用性 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`isReadOnly`、`can.<action>`，[09](09-ui-system-and-theming.md) §6.3）∧ 条目的 `enablement` 为真（[09](09-ui-system-and-theming.md) §6.1）。不可用的控件留在原位、`aria-disabled`，tooltip 说明原因（「需要编辑权限」「当前版本暂未开放」「需要 ≥ 1024 宽度」等，原因由 `explainWhen` 或权限门给出，[09](09-ui-system-and-theming.md) §6.2）。`ReadonlyRibbonNotice`（40 px 细条）只在 Ribbon 区域位没有任何可显示内容时出现：没有页签（例如 slide-ui 缺席：「无可用页签」），或评审工具条没有条目（§3.2）。
+- **只读是禁用而不是隐藏**：控件的可见性只看 `when`；可用性 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`isReadOnly`、`can.<capability>`，[09](09-ui-system-and-theming.md) §6.3）∧ 条目的 `enablement` 为真（[09](09-ui-system-and-theming.md) §6.1；契约与键族已登记，rulings §4.20 FE-06）。不可用的控件留在原位、`aria-disabled`，tooltip 说明原因（「需要编辑权限」「当前版本暂未开放」「需要 ≥ 1024 宽度」等，原因由 `explainWhen` 或权限门给出，[09](09-ui-system-and-theming.md) §6.2）。`ReadonlyRibbonNotice`（40 px 细条）只在 Ribbon 区域位没有任何可显示内容时出现：没有页签（例如 slide-ui 缺席：「无可用页签」），或评审工具条没有条目（§3.2）；细条右端仍带尾部区「主题 · ?」（§1，rulings §4.20 FE-08）。
 - **切换页签是视图态**：Operation `ui.toggleRibbonTab`，不入历史、不广播；当前页签在会话内记忆；进入母版视图时选中「母版」，退出时恢复进入前的页签（[11](11-masters-layouts-and-themes.md) §2）；页签的键盘模型见 [16](16-i18n-and-accessibility.md) §6.2。
 - **溢出**：页签总宽超出时整体收入页签级「更多 ▾」，Ribbon 高度不变（设计 01 §7）；紧凑形态的组内溢出见 §2.2。
 - **渐进打开期间**：全选、查找替换等全文命令的控件带 `enablement: unitLoaded`（不是 `when`，否则控件会消失），未到齐时禁用并提示「正在载入其余页面…」（rulings §4.18 CO-12，[04](04-document-commands-and-undo.md) §2）。
-- **评审工具条**不是 Ribbon 的一个页签，而是占同一区域位的 `ui.toolbar{slot:'reviewBar'}` 条目（F6 位置不变，[16](16-i18n-and-accessibility.md) §6.1），条目见 §3.2。
+- **评审工具条**不是 Ribbon 的一个页签，而是占同一区域位的 `ui.toolbar{slot:'reviewBar'}` 条目（F6 位置不变，[16](16-i18n-and-accessibility.md) §6.1），条目见 §3.2；右端是与页签行右侧同一个尾部区（§1）。
 
 ## 5. 检查器坞
 
@@ -240,7 +247,7 @@ stateDiagram-v2
 | 页签 | 贡献方 | 出现与可用条件 |
 |---|---|---|
 | 属性 | slide-ui 分区（`slot:'inspector'`） | 恒有；只读时字段转为只读展示 |
-| 评论 | slide-ui（评论数据与命令在 `comments` 包，页签由 slide-ui 贡献，rulings §4.19 D-COMMENTS-PKG） | `when: slide.hasComments`（M3 起随 preset-slide-collab 装入）；`enablement: viewMode != 'master'`，母版视图禁用，原因「母版与版式不支持评论」（设计 03-26 §1；[08](08-comments-and-version-history.md) §5 图中的「母版视图中不可评论」按此统一）；面板行为见 08 §5 |
+| 评论 | slide-ui（评论数据与命令在 `comments` 包，页签由 slide-ui 贡献，rulings §4.19 D-COMMENTS-PKG） | `when: slide.hasComments`（M3 起随 preset-slide-collab 装入）；`enablement: viewMode != 'master'`，母版视图禁用，原因「母版与版式不支持评论」（设计 03-26 §1；[08](08-comments-and-version-history.md) §5 图已统一为同一 i18n 文案，rulings §4.20 FE-14）；面板行为见 08 §5 |
 | 历史 | `preset-slide#shell-glue`（激活即发 `shell.intent{target:'version-history'}`，[03](03-preset-assembly-and-plugins.md) §8） | `when: can.history.read`；评论者与查看者不出现（rulings §4.18 UX-17，[08](08-comments-and-version-history.md) §9） |
 | 插件 | ui-react 壳级 | 存在第三方分区或面板时出现 |
 
@@ -262,7 +269,7 @@ stateDiagram-v2
 - **多个值**：多选时不一致的字段显示「多个值」（`MixedValueField`，Ribbon 字体 / 字号控件同样式，rulings §4.18 UX-10）；在该字段输入新值即对全部选中对象生效，一次命令、一个撤销步。
 - **单位换算归属**（40/10 §13 Q-10 推荐值）：内部单位 EMU；显示单位取 `Preferences` 的度量单位（zh-CN 默认 cm，en-US 默认 in，可选 cm / in / pt / px），字号恒为 pt；换算与带后缀输入（如 `2.5cm`）的解析在 slide-ui 分区内完成，ui-react `NumberField` 只接收 `{value, unit, onCommit}`，不认识 EMU。
 - **输入与校验**：非法值（负宽度、超范围字号）使字段进入 `aria-invalid` 并显示 `FieldError`，失焦前不提交；数值字段支持按住标签左右拖动微调与 `↑`/`↓`（`Shift` 加速），拖动微调松手时一次命令。
-- **只读**：字段转为只读展示（无描边、不可聚焦），面板顶部一行说明原因（「只读 · 评审模式下不可编辑」或「需要编辑权限」）；色块等触发型控件不弹出选择器，只以 tooltip 说明原因。
+- **只读**：字段转为只读展示（无描边、不可聚焦），面板顶部一行说明原因（评审「只读 · 评审模式下不可编辑」、只读浏览「只读 · 仅有查看权限」、编辑模式降权「需要编辑权限」）；色块等触发型控件不弹出选择器，只以 tooltip 说明原因。
 - **插件分区**排在内置分区之后，以分隔线与归属图标区分；渲染抛错只替换该分区（[09](09-ui-system-and-theming.md) §9）。
 - **远端改写正在编辑的字段**：字段级「应用远端值 / 保留我的输入」内联提示优先于其它反馈（[07](07-collaboration-client.md) §12）。
 - 分区折叠态存入 `sectionsCollapsed`（§2.1），不同步给协作者。
@@ -408,7 +415,7 @@ sequenceDiagram
 
 - 渲染每页结束态，不播放动画与切换（章程 §2.3；主序列可见性终态 M2 P1，rulings §4.15 Q7，[05](05-rendering-and-thumbnails.md) §12）；超链接与动作、音视频可点击。
 - 单页渲染失败只把该页换成「此页内容暂时无法显示」，可继续翻页。
-- 远端协同更新照常应用（经脏区重绘）；当前页被远端删除时跳到其后一页（没有则前一页），不加提示；放映中不显示远端光标、软冲突提示与保真提示，这些在退出放映后按常规出现。PRD ED-21 的「远端更新可关闭」需要渲染层提供暂停刷新接口，待定（§12.3）。
+- 远端协同更新照常应用（经脏区重绘）；当前页被远端删除时跳到其后一页（没有则前一页），不加提示；放映中不显示远端光标、软冲突提示与保真提示，这些在退出放映后按常规出现。M2–M3 放映始终实时应用远端更新，不提供关闭开关、不新增渲染暂停接口；主讲人要屏蔽他人改动时先「创建副本」再放映，随演讲者视图（M4+ P2）再议（rulings §4.20 FE-02，PRD ED-21 删去「（可关闭）」）。
 - **观众跟随主讲人**属于 M3 多人协同体验层（rulings §4.19 D-M2-CONTENT）：提示条「正在跟随 {姓名}」，观众手动翻页即退出跟随并浮现「返回同步」；与主讲人失联时显示最后同步的页（设计 03-11；在场数据见 [07](07-collaboration-client.md) §11）。
 
 **图 10-6 放映舞台状态机（含黑屏 / 白屏子态）**
@@ -446,7 +453,7 @@ stateDiagram-v2
 
 ### 10.2 快捷键面板
 
-- **三个等价入口**（rulings §4.10）：Ribbon 页签行右侧「?」、账户菜单「键盘快捷键」、`Mod+/`；`Sheet side="right"`，关闭即返回打开它的页面，不遮挡画布，可以对照面板在画布上操作。
+- **三个等价入口**（rulings §4.10）：Ribbon 区域位尾部区的「?」（编辑模式在页签行右侧，评审与只读浏览在评审工具条或只读细条右端，§1）、账户菜单「键盘快捷键」、`Mod+/`；`Sheet side="right"`，关闭即返回打开它的页面，不遮挡画布，可以对照面板在画布上操作。
 - **数据**：`shortcuts.table(keys)`（`ui.shortcut` 注册结果，含插件）；按作用域分组：全局 · 画布 · 文本编辑 · 缩略图栏 · 视图 · 放映，插件分组在末尾并带归属；搜索即时过滤，空分组隐藏；和弦按平台显示（⌘ ⌥ ⇧ 或 Ctrl Alt Shift）。
 - **冲突**：加载期 `ui/shortcut-conflict` 检出的条目下追加「与〈插件〉冲突」与「查看插件管理器」，不隐藏冲突。
 - **只读速查**：不提供自定义快捷键入口（重映射是集成方能力，PRD ED-16）；与命令面板职责不同，不合并。
@@ -467,7 +474,7 @@ stateDiagram-v2
 | 关于 | 版本、复制诊断信息、已加载插件 N 个 → 管理 | 开发构建或 `features.developerMenu` 时追加「打开开发者面板」（[15](15-events-errors-and-telemetry.md) §10） |
 
 - **集成方锁定**：被锁定的项只读展示并附「由宿主应用设置」，多项锁定时各自说明。
-- 设计 03-23 线框尚无「隐私与诊断」组，登记回写（§12.3）。
+- 设计 03-23 线框与控件说明已补「隐私与诊断」组，playground `Settings.tsx` 同步（rulings §4.20 FE-15）。
 
 ## 11. 反馈分层
 
@@ -532,12 +539,12 @@ flowchart TB
 |---|---|---|---|
 | V1 | `mode='view'` 时无任何创建类控件，模式下拉只有「只读浏览」与放映；`update({mode})` 不重建 React root；会话内降权不改 `editorMode` | `ui-react/__tests__/editor-host.test.tsx` | `test/unit` |
 | V2 | 1280 / 800 / 480 三断点对应三形态；< 640 显示仅查看提示；拖拽宽度 clamp；断点切换关闭 Sheet 并保留宽度记忆 | `ui-react/__tests__/editor-shell.breakpoints.test.tsx` | `test/unit` |
-| V3 | 内置页签 `order < 1000`、第三方 `≥ 1000` 且带归属；只读或 `enablement` 为假时控件 `aria-disabled` 而非消失；切换页签控件全部禁用；页签溢出不换行；评审工具条无条目时显示 `ReadonlyRibbonNotice` | `ui-react/__tests__/ribbon-host.test.tsx`、`slide-ui/__tests__/ribbon-spec.test.ts` | `test/unit` |
+| V3 | 内置页签 `order < 1000`、第三方 `≥ 1000` 且带归属；只读或 `enablement` 为假时控件 `aria-disabled` 而非消失；切换页签控件全部禁用；页签溢出不换行；评审工具条无条目时显示 `ReadonlyRibbonNotice`；edit、review、view 三种模式下（含工具条无条目）主题切换与「?」恰好各一个、都在 `[data-slot=ribbon-trailing]` 内，review 与 view 下无视图分段（rulings §4.20 FE-08） | `ui-react/__tests__/ribbon-host.test.tsx`、`slide-ui/__tests__/ribbon-spec.test.ts`；`enablement` 与 `can.*` 的禁用断言见 [70/06](../70-testing/06-frontend-component-and-e2e.md) §2.2「禁用而不隐藏」（rulings §4.20 FE-06） | `test/unit` |
 | V4 | 检查器只在点评论钉与 `?comment=` 时自动切页签；无 `history.read` 时无「历史」页签；母版视图「评论」禁用带原因；`mixed` 只显示交集分区 | `ui-react/__tests__/inspector-dock.test.tsx`、`slide-ui/__tests__/inspector-spec.test.ts` | `test/unit` |
 | V5 | 拖拽 N 帧只产生一次 `slide.moveShapes`；拖动中 Esc 不产生命令；首次点击选组、双击进组 | `slide-ui/__tests__/canvas-interaction.test.ts` | `test/unit` |
 | V6 | Esc 逐级：组合内文本编辑按三次 Esc 才到未选中；母版视图中无选区再按一次退出母版视图 | `ui-core/__tests__/shortcuts.service.test.ts` | `test/unit` |
 | V7 | 缩略图虚拟化；一次拖放一次 `slide.reorderSlides`；`Mod+Shift+↑/↓` 等价；`unitLoaded` 前重排禁用 | `slide-ui/__tests__/thumbnails.test.tsx` | `test/unit` |
-| V8 | 黑屏 / 白屏时同键、点击或翻页键只恢复不翻页，`Esc` 直接退出；`fullscreenchange` 离开全屏即退出；`requestFullscreen()` 的目标是注入的常驻容器而不是舞台元素；隐藏页被跳过；`slide/show-changed` 进入、退出各一次 | `slide-ui/__tests__/present.test.ts` | `test/unit` |
+| V8 | 黑屏 / 白屏时同键、点击或翻页键只恢复不翻页，`Esc` 直接退出；`fullscreenchange` 离开全屏即退出；`requestFullscreen()` 的目标是注入的常驻容器而不是舞台元素；隐藏页被跳过；`slide/show-changed` 进入、退出各一次；放映期间他人的编辑实时出现、无暂停远端更新的开关（rulings §4.20 FE-02） | `slide-ui/__tests__/present.test.ts`；远端更新一条见 [70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 12 行（双浏览器协同） | `test/unit`；`e2e/full-compose` |
 | V9 | 每条 P0 / P1 的 ED 需求至少有一个带 `@req PRD:ED-xx` 的用例（含 ED-16、ED-21、ED-22） | `apps/web/e2e/editing/ed-*.spec.ts`（[70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 2 行） | `test/requirement-matrix`；`e2e/full-compose`（核心路径在 `e2e/smoke` 条目 #3） |
 | V10 | 翻页时 `?page=` 以 `replaceState` 更新，每次实际变化恰一次；深链定位到页与线程 | `shell/deep-link.spec.ts` | `e2e/full-compose` |
 | V11 | 设置抽屉只有账户菜单一个入口；快捷键面板三个入口可达；`telemetry.otlp` 为假时无「发送使用统计」 | `shell/account-menu.spec.ts` | `e2e/full-compose` |
@@ -559,15 +566,16 @@ flowchart TB
 
 | 项 | 状态 | 去向 |
 |---|---|---|
-| 会话内权限变化不改 `editorMode`（§3.1，依据 rulings §4.18 UX-20） | 回写 | [02](02-app-shell-routing-and-session.md) §6「角色 → `EditorHost.mode`」段 |
+| 会话内权限变化不改 `editorMode`（§3.1，依据 rulings §4.18 UX-20） | 已关闭（rulings §4.20 FE-10）：[02](02-app-shell-routing-and-session.md) §6 改为「角色映射只在打开与重新打开时使用，会话内 `permission/changed` 不改 mode」，状态图自环同步 | [02](02-app-shell-routing-and-session.md) §6 |
 | INC-09 已由 rulings §4.19 裁定：发起方横幅、其余协作者状态胶囊弱提示（§11 规则 2） | 已回写（设计 03-12「服务器保存延迟」节与使用准则） | 设计 03-12「使用准则」PG 降级行（[07](07-collaboration-client.md) §6.1 与 §17 已定稿） |
-| 上下文键 `can.<action>`、`slide.hasComments` | 审稿已补入 [09](09-ui-system-and-theming.md) §6.3；`slide.hasComments` 已登记（40/10 §2.1、§3），`can.<action>` 待登记 | 30/03 §3.6；40/10 §2.1 |
-| 条目可用性子句 `enablement`（§4「渐进打开期间」、§7.1 `Mod+A`；[09](09-ui-system-and-theming.md) §6.1） | 待登记 | 30/03 §3.6；40/10 §2.6（查找替换、全选的 `when: unitLoaded` 改为 `enablement`） |
-| `EditorLayoutOptions.remember`；`EditorLayoutState` 增 `notesHeight`、`sectionsCollapsed` | 部分回写：40/10 §2.1 已登记；§2.5 `UiReactConfig.layout` 尚无 `remember` | 40/10 §2.5 |
+| 上下文键 `can.<capability>`、`slide.hasComments` | 已关闭（rulings §4.20 FE-06）：键清单以 [09](09-ui-system-and-theming.md) §6.3 为源，30/03 §3.6 引用之并补 `editorMode`、`unitLoaded`、`can.*`；40/10 §2.1 补 `can.*`；`slide.hasComments` 已登记（40/10 §2.1、§3） | 30/03 §3.6；40/10 §2.1 |
+| 条目可用性子句 `enablement`（§4「渐进打开期间」、§7.1 `Mod+A`；[09](09-ui-system-and-theming.md) §6.1） | 已关闭（rulings §4.20 FE-06、FE-11）：`ContributionBase`、`ui.shortcut`、`ui.command` 带可选 `enablement`；40/10 §2.6 全文命令与「母版视图」按钮改用 `enablement` | 30/03 §3.6；40/10 §2.5、§2.6、§6 |
+| `EditorLayoutOptions.remember`；`EditorLayoutState` 增 `notesHeight`、`sectionsCollapsed` | 已关闭（rulings §4.20 FE-12）：40/10 §2.1 已登记，§2.5 `EditorLayoutOptions` 补 `remember`（默认 true）与 `notesHeight` | 40/10 §2.5 |
 | `Mod`+拖动复制的命令 id | 已登记：`slide.duplicateShapes{shapeIds, dx, dy}`★（40/10 §2.6、40/03 §2.6） | — |
-| 评审工具条为空时显示 `ReadonlyRibbonNotice`（§3.2，审稿补入，依据设计 09 T-01） | 本文定 | playground 评审态仍无该分支（M2 实现） |
-| 放映全屏目标为跨路由常驻容器（§9.1，审稿补入） | 本文定 | 40/10 §5.4 `present.ts` 职责说明 |
+| 评审工具条为空时显示 `ReadonlyRibbonNotice`（§3.2，审稿补入，依据设计 09 T-01） | 已关闭（rulings §4.20 FE-12）：40/10 §3 slide-ui 贡献清单登记 `ui.toolbar{slot:'reviewBar'}` 条目（评论、高亮、上一处、下一处）与条目为空时的 `ReadonlyRibbonNotice` | 40/10 §3 |
+| 放映全屏目标为跨路由常驻容器（§9.1，审稿补入） | 已关闭（rulings §4.20 FE-12）：40/10 `present.ts` 职责注明常驻容器（apps/web 用应用根，嵌入用 `[data-cordex-root]`），在用户手势的同步回调里调用 `requestFullscreen` | 40/10 §5.4 `present.ts` 职责说明 |
 | 智能参考线（`guides.ts`）、放映黑白屏在 40/10 §11 排在 M3；本文按 PRD ED-09、ED-21 取 M2（备注编辑按 PRD ED-18 为 M3，与 40/10 一致） | 已回写（40/10 §11 M2 段） | 40/10 §11 |
-| 放映中「远端更新可关闭」（PRD ED-21）需要渲染层的暂停刷新接口 | 待定 | [05](05-rendering-and-thumbnails.md) §12、40/06 |
-| 设置抽屉「隐私与诊断」组 | 回写 | 设计 03-23 |
-| 命令面板列出不可用命令并附原因（`explainWhen`） | 审稿已补入 [09](09-ui-system-and-theming.md) §6.2、§7，待登记 | 40/10 §2.3 纯函数表 |
+| 放映中「远端更新可关闭」（PRD ED-21） | 已关闭（rulings §4.20 FE-02）：M2–M3 放映始终实时应用远端更新，不新增渲染暂停接口；PRD ED-21 删去「（可关闭）」；屏蔽他人改动用「创建副本」后放映，随演讲者视图（M4+ P2）再议（§9.3） | PRD 02-editing ED-21 |
+| 评审与只读浏览下「主题 · ?」的位置 | 已关闭（rulings §4.20 FE-08，用户 2026-09-26 确认 playground 亮 / 暗 × 有 / 无条目样张）：尾部区随区域位走——页签行右侧、评审工具条右端、无条目时 `ReadonlyRibbonNotice` 右端，同组件同容器、外壳直接渲染；已回写 §1（表、尾部区段、图 10-1）、§3.2、§4、§5「只读」文案、§10.2、§12.1 V3 | 40/10 §3、§3a、§4.3、§5.3、§9；设计 01 §2.2；设计 03-02「评审模式」 |
+| 设置抽屉「隐私与诊断」组 | 已关闭（rulings §4.20 FE-15）：设计 03-23 线框与控件说明补该组（错误报告默认开、使用统计默认关，`telemetry.otlp` 为假时隐藏后一项），playground `Settings.tsx` 同步 | 设计 03-23 |
+| 命令面板列出不可用命令并附原因（`explainWhen`） | 已关闭（rulings §4.20 FE-12）：40/10 §2.3 纯函数表登记 `explainWhen(clause, keys): ReasonKey \| null`（ui-core `domain/when-clause.ts`） | 40/10 §2.3 纯函数表 |

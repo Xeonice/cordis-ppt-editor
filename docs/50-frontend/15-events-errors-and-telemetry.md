@@ -1,6 +1,6 @@
 # 15 客户端事件、错误与遥测
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02；60-backend/18
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
 
 本文是浏览器侧事件、错误与遥测的唯一事实源：三类事件的边界、前端发布者与订阅者、宿主事件桥、浏览器中的错误模型与错误边界、客户端错误上报管线、OTel Web、产品事件的前端发布方、同意与默认、诊断。命名规则、日志字段与脱敏规则、错误码格式与 HTTP / WS 映射、公开事件定稿表留在 [30/10](../30-architecture/10-observability-and-errors.md)（§1–§3、§11.1）；`/telemetry/*` 控制器、限流、Collector 路由、服务端 span 与指标统一名表归 [60/18](../60-backend/18-observability-and-ops-endpoints.md)；产品事件清单的权威是 [PRD 06](../10-prd/06-metrics-and-analytics.md) §3.2，本文只登记前端发布方。
 
@@ -84,8 +84,8 @@ flowchart LR
 | export | `export/started`、`export/completed`、`export/failed` | model-core · `format/formats.service.ts` | 导出对话框进度与重试 | M2 |
 | collab | `collab/state-changed`、`collab/synced`、`collab/soft-conflict`、`collab/auth-failed`、`collab/reconnect`、`collab/update-rejected`、`collab/repair`（`collab/backpressure` 按 30/10 §11.1 降为客户端指标 `cordex_collab_outbound_queued`，`collab/latency` 为遥测专用事件，二者都不是 cordis 事件、不提请章程 §5.5，§7.2、§8） | collab-yjs · `session-driver.ts`、`sync/yjs-sync-engine.ts`、`permission/permission-gate.ts`；collab-transport-ws · `handshake.ts`（经 SessionDriver 转发） | 协同状态胶囊与横幅（[50/07](./07-collaboration-client.md)）；`collab/auth-failed{code:'collab.unauthenticated'}` 与换票 401 一样进入「登录已过期」流程，不走重连（50/07 §8、50/02 §5） | M2（`collab/soft-conflict` 随多人协同体验层 M3；rulings §4.19 D-M2-CONTENT） |
 | presence | `presence/joined`、`presence/left`、`presence/changed` | collab-yjs · `awareness/presence.service.ts` | 在场头像、远端光标覆盖层、在场播报（50/16 §8） | M3 |
-| permission | `permission/changed`、`permission/denied` | model-core · `permission/permissions.service.ts`（唯一发布者） | ui-core `isReadOnly`；应用壳 `EditorHost mode` 重算 | M2 / M3 |
-| comment | `comment/added`、`comment/replied`、`comment/resolved`、`comment/reopened`、`comment/deleted`、`comment/mentioned` | `comments` 包（iso，文档类型盲；rulings §4.19 D-COMMENTS-PKG） | 评论面板、画布评论钉、通知偏好（[50/08](./08-comments-and-version-history.md)） | M3 |
+| permission | `permission/changed`、`permission/denied` | model-core · `permission/permissions.service.ts`（唯一发布者） | ui-core `isReadOnly` 与 `can.<capability>`；应用壳更新角色与模式下拉的可选项，不改 `EditorHost mode`（[50/10](./10-editor-shell-and-interaction.md) §3.1，rulings §4.20 FE-10） | M2 / M3 |
+| comment | `comment/added`、`comment/replied`、`comment/resolved`、`comment/reopened`、`comment/deleted`、`comment/mentioned`；载荷 `{threadId, replyId?, authorId, mentioned?, anchorSummary, origin:'local'\|'remote', body?}` | `comments` 包（iso，文档类型盲；rulings §4.19 D-COMMENTS-PKG） | 评论面板、画布评论钉、通知偏好（[50/08](./08-comments-and-version-history.md) §8） | M3 |
 | plugin | `plugin/loaded`、`plugin/failed`、`plugin/incompatible` | kernel · `failure-isolation.ts`、`manifest/verify.ts` | 插件管理器页；ui-react 贡献错误边界文案 | M2 |
 | error | `error/raised` | kernel · `services/errors.service.ts` | 应用壳 `AppErrorBoundary`（`severity:'fatal'`）；遥测镜像 | M1 |
 | i18n | `i18n/locale-changed` | i18n · `services/i18n.service.ts` | ui-react 重渲染；ui-core 标题缓存 | M2 |
@@ -95,6 +95,8 @@ flowchart LR
 | contribution | `contribution/changed` | kernel · `contribution/set.ts` | ui-react 贡献渲染器刷新与诊断 | M1 |
 
 `comment/*` 的发布方为 iso 包 `@cordexjs/comments`（ResourceHook `comments.threads`，文档类型盲），slide 专属锚点、检查器评论页签与画布评论钉由 slide-ui 贡献。依据：rulings §4.19 D-COMMENTS-PKG；INC-39（命名空间 `comments.*`，rulings §4.18 FE-01）。
+
+`comment/*` 的**正文默认脱敏**（rulings §4.20 FE-16，登记同步 30/10 §11.1）：载荷省略 `body`、只给正文长度；集成方显式开启 `comments` 包选项 `comments.events.includeBody` 才带正文；跨 origin 的 postMessage 另按 §3 ③ 规则默认不转发正文。`origin` 区分本地与远端变更，建议集成方只对 `origin:'local'` 发通知（每条评论只在作者端触发一次，50/08 §8）。
 
 `view/page-changed` 与 `view/zoom-changed` 的发布方依据：VIEW-EVENTS（Viewport 归 engine-render，30/07 §2.3；40/11 §12 G-9 结案）。
 

@@ -1,5 +1,5 @@
 # 08 评论与版本历史（客户端）
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04、CO-07、§3；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md) 决策修订 v0.2；[30/04](../30-architecture/04-document-model.md) §2.7；[30/06](../30-architecture/06-collaboration.md) §18.5；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §1.3、§2.6、§4.4；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.6、§3a；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.6；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-07/U-14、§4.18 BE-03/UX-17/UX-19/CO-07、§4.19 D-COMMENTS-PKG/C-06/N1；[设计 02](../20-design/02-user-flows.md) F7/F8、[设计 03-06](../20-design/03-screens/06-comments-panel.md)、[设计 03-07](../20-design/03-screens/07-version-history.md)、[设计 05](../20-design/05-collaboration-ux.md) §5；[PRD 05](../10-prd/03-features/05-embedding-and-integration.md) EM-05
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04、CO-07、§3；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md) 决策修订 v0.2；[30/04](../30-architecture/04-document-model.md) §2.7；[30/06](../30-architecture/06-collaboration.md) §18.5；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §1.3、§2.6、§4.4；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.6、§3a；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.6；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-07/U-14、§4.18 BE-03/UX-17/UX-19/CO-07、§4.19 D-COMMENTS-PKG/C-06/N1、§4.20 TX-01+BE-10/FE-09/FE-14/FE-16；[ADR-0038](../30-architecture/adr/0038-version-restore-undo.md)（提议）；[设计 02](../20-design/02-user-flows.md) F7/F8、[设计 03-06](../20-design/03-screens/06-comments-panel.md)、[设计 03-07](../20-design/03-screens/07-version-history.md)、[设计 05](../20-design/05-collaboration-ux.md) §5；[PRD 05](../10-prd/03-features/05-embedding-and-integration.md) EM-05
 
 本文是**评论客户端插件与版本历史 UI** 的唯一事实源：包归属、客户端评论数据与命令、评论 UI 与锚点状态、导入导出、实时与跨文档、版本历史页与恢复流程、离线与降级。
 
@@ -14,7 +14,7 @@
 | 路由 `/documents/:id/history` 与深链 `?comment=` | [02 §2](02-app-shell-routing-and-session.md) |
 | 「最近删除」与「彻底删除元素」 | [04 §7.1](04-document-commands-and-undo.md) |
 | 协同会话、被拒回滚 | [07](07-collaboration-client.md) |
-| 版本恢复的撤销语义（U-07 `version-restore-undo`） | M-02 × M-05 × M-09 联合 ADR（未定稿），本文只占位（§10） |
+| 版本恢复的撤销语义（U-07 `version-restore-undo`） | [ADR-0038](../30-architecture/adr/0038-version-restore-undo.md)（提议；M-02 主笔，M-05、M-09 会签；M2 出口评审前定稿，rulings §4.20 TX-01+BE-10），本文只写前端落点（§10） |
 
 包名一律省略 `@cordexjs/` 前缀。
 
@@ -114,7 +114,7 @@ flowchart LR
 flowchart TB
   enter["打开评论页签或画布评论入口"]
   master{"viewMode 为 master？"}
-  masterOff["页签禁用，原因：母版视图中不可评论；画布钉隐藏"]
+  masterOff["页签禁用，原因：母版与版式不支持评论；画布钉隐藏"]
   role{"当前角色"}
   full["owner 与 editor：创建、回复、编辑与删除自己的、解决任何线程；owner 可删任何评论与整条线程"]
   commenter["commenter，评审模式：创建、回复、编辑与删除自己的、只解决自己创建的线程"]
@@ -230,7 +230,7 @@ sequenceDiagram
 2. 确认后先 `Session.flush()`，让本端 pending 先落库、被恢复前的自动版本覆盖；`offline` / `reconnecting` 时按钮禁用，tooltip「恢复连接后才能恢复版本」。
 3. `POST /documents/:id/snapshots/:snapshotId/restore`（`history.restore`）。该路由只在 collab 角色装配（rulings §4.18 BE-03）：服务端在接到请求的 collab 实例上打开或复用 Room 执行 `core.restoreVersion`（单事务，origin `system('restore')`；若最新检查点之后还有已落库的更新，先落一个 `auto` 快照保留恢复前状态，60/05 §10），写一个 `kind='restore'` 快照，在线客户端不断连，多副本经扇出收敛（[60/05](../60-backend/05-modules-collab-and-snapshots.md)）。
 4. 恢复事务像任何远端 update 一样经 CRDT 到达所有在线客户端（含发起方），画布随之更新；发起方 Toast「已恢复到『X』」，列表出现「恢复自『X』」。
-5. **撤销语义**：恢复事务是 `system` origin，不进入任何人的撤销栈；之后任何人撤销自己更早的步骤，都按中性撤销语义跳过被恢复改写的键（[04 §6](04-document-commands-and-undo.md)）。「撤销恢复」有待 U-07 `version-restore-undo` 联合 ADR（M-02 × M-05 × M-09，rulings §4.12 U-07，基线为 rulings §4.15 Q3：不覆盖他人在恢复之后的写入、整步跳过即停、不采用 `revertTo` 式整体回滚）：M3 前 UI 不提供「撤销恢复」，确认卡片与成功 Toast 预留动作位，接口形状待该 ADR。
+5. **撤销语义**：恢复事务是 `system` origin，不进入任何人的撤销栈；之后任何人撤销自己更早的步骤，都按中性撤销语义跳过被恢复改写的键（[04 §6](04-document-commands-and-undo.md)）。「撤销此次恢复」由 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 定义（提议；M-02 主笔，M-05、M-09 会签；M2 出口评审前定稿，未定稿则 M3 的版本恢复 CO-07 不开工，rulings §4.12 U-07、§4.20 TX-01+BE-10）。ADR 起草基线：在持有 Room 的实例内以单事务执行、不加锁、不断连，走命令管线（不用 `revertTo`）；只处理恢复事务改写过的键，「他人后写」看当前值是否仍出自恢复事务的 struct 范围（不比较值是否相等），被写过的键跳过并计入提示，全部被跳过时不提交（整步跳过即停，rulings §4.15 Q3）；恢复时删掉的元素以原 id 复活，墓碑 TTL 已过的跳过。前端落点：版本面板上最近一次恢复的条目提供「撤销此次恢复」入口，内嵌二次确认，完成后 Toast 提示跳过的键数；确认卡片与成功 Toast 预留该动作位。「谁能撤销」（建议任一持 `history.restore` 者）与「可撤销时效」两处待 ADR 定稿时交互拍板，入口的出现条件随之确定；接口形状以 ADR 为准。
 6. **其他协作者**：画布随 CRDT 更新；同时订阅 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`（30/06 §6.3 登记，服务端在恢复提交后经扇出发送，[60/05](../60-backend/05-modules-collab-and-snapshots.md) §10），收到即显示 Toast「〈by〉已将文档恢复到『name』」（无名称时显示该版本时间，设计 F8）；发起方收到本人发起的同名事件不重复提示。
 7. **失败**：`server.snapshots.not_found`（404）→ 刷新列表；`server.documents.locked`（409，文档正在覆盖导入或迁移；恢复本身不加锁）→ Toast「文档正忙，请稍后再试」；服务端保存处于降级期（Room `persist ≠ ok`，60/05 §10 第 1 步）→ 503 `server.snapshots.persist_degraded`（可重试），Toast「服务器暂时无法保存，请稍后再试」；403 → 刷新权限；网络错误 → 可重试（服务端以单事务执行，重复请求会再创建一个恢复版本，不会损坏文档）。`room.persist='degraded'` 时「恢复此版本」与「命名当前版本」预先禁用（§11）。
 8. **不加锁**（rulings §4.19 N1，已裁定）：恢复是持有 Room 的 collab 进程内的单个事务，不锁定文档、不推 `room{locked}`、不断连；协作者在恢复期间照常编辑，其并发更新与恢复事务按 CRDT 合并，不会被 L2 拒绝，因此不触发 [07 §8.2](07-collaboration-client.md) 的「导出后重载」。ADR-0029 决策 5 的锁定窗口已收窄为覆盖导入与迁移。原写法「恢复是否加锁待用户裁决，本文建议不加锁」作废。
@@ -257,11 +257,11 @@ sequenceDiagram
   B->>B: 画布随之更新，撤销栈不变
   R-->>B: CONTROL.event version.restored，snapshotId、name、by
   B->>B: Toast 某人已将文档恢复到 Y
-  Note over U,B: 撤销恢复待 U-07 联合 ADR，M3 前不提供入口
+  Note over U,B: 撤销此次恢复按 ADR-0038，M2 出口前定稿，入口随 M3 版本面板
 ```
 
 怎么读：恢复在服务端 Room 内以一个 `system('restore')` 事务完成，所有在线客户端（含发起方）都像接收普通远端更新一样看到结果；发起前的 `flush` 保证本端未落库的编辑先进入历史。
-依据：PRD CO-07；设计 02 F8、设计 03-07；40/02 §2.6 `core.restoreVersion`；60/15 §3.8；rulings §4.12 U-07、§4.18 BE-03。
+依据：PRD CO-07；设计 02 F8、设计 03-07；40/02 §2.6 `core.restoreVersion`；60/15 §3.8；rulings §4.12 U-07、§4.18 BE-03、§4.20 TX-01+BE-10；ADR-0038（提议）。
 
 ## 11. 离线与降级
 
@@ -292,10 +292,11 @@ sequenceDiagram
 | V10 | 恢复：在线客户端不断连、内容一致、生成 `kind='restore'` 快照；恢复前 `flush` 使本端 pending 已落库；恢复进行中协作者不进入只读、不收到 `room{locked}`（rulings §4.19 N1） | 70/07 §9；双浏览器恢复用例 | test/server-integration、e2e/full-compose |
 | V11 | `comment/*` 事件载荷默认不含正文；`origin` 字段正确区分本地与远端 | `comments` 事件单测 | test/unit |
 | V12 | 事件先声明后使用（`comment/*`） | lint `cordex/events-must-be-declared` | lint |
+| V13 | 撤销此次恢复（ADR-0038 定稿后）：他人在恢复后改过的键被跳过并提示、全部被跳过时不提交、墓碑 TTL 已过的元素跳过；恢复时删掉的元素以原 id 复活 | 70/05 `rs/restore-revert-*` 场景；PRD 05 M3 检查名 `history:restore-revert` | test/collab-sim、e2e/full-compose |
 
 ## 13. 里程碑、未决与待登记
 
-**里程碑**：本文全部为 M3。其中 PRD P1 项（「导入为可编辑线程」、重新锚定）可在 M3 后半段交付；版本对比为 P2（未排期）；「撤销恢复」待 U-07 联合 ADR。
+**里程碑**：本文全部为 M3。其中 PRD P1 项（「导入为可编辑线程」、重新锚定）可在 M3 后半段交付；版本对比为 P2（未排期）；「撤销此次恢复」按 ADR-0038 随 M3 交付（PRD 05 M3 验收检查名 `history:restore-revert`，70/13 §3.4 登记）。
 
 | 项 | 状态 | 去向 |
 |---|---|---|
@@ -306,7 +307,8 @@ sequenceDiagram
 | 恢复在 `persist ≠ ok` 时的 503 错误码名 | 已关闭（审稿）：`server.snapshots.persist_degraded`（503，`retryable`），60/15 §3.8 恢复与命名两条路由已列、60/05 §14 已登记；§10 第 7 步按此码提示 | [60/15 §3.8](../60-backend/15-rest-api-catalog.md) |
 | 名额已满只读加入的降级角色 | 已关闭：viewer（不能评论），设计 03-12 删「仍可评论」 | 同 [07 §17](07-collaboration-client.md) |
 | 评论 Y 路径 | 已关闭：统一写 `resources['comments.threads']`（内含 threads、replies 两张表），ADR-0031、60/07 与 60/16 L4 放行前缀同步 | [60/07](../60-backend/07-modules-comments-webhooks-audit.md)、[60/16](../60-backend/16-ws-protocol-server-view.md) §4 |
-| `comment/*` 事件正文默认脱敏与 `comments.events.includeBody` 选项名；`origin` 字段 | 待登记 | [15](15-events-errors-and-telemetry.md)、30/10 §11.1 |
-| `comments.anchorResolver` 贡献点、`comments` UnitScope 服务、`comments.reanchor` / `comments.importThreads` 命令 id | 待登记（`comments` 包的模块文档） | 40-modules（40/00 登记该包） |
+| `comment/*` 事件正文默认脱敏与 `comments.events.includeBody` 选项名；`origin` 字段 | 已登记（rulings §4.20 FE-16）：[15](15-events-errors-and-telemetry.md) §2 事件表；30/10 §11.1 同轮回写 | [15](15-events-errors-and-telemetry.md) §2、30/10 §11.1 |
+| `comments.anchorResolver` 贡献点、`comments` UnitScope 服务、`comments.reanchor` / `comments.importThreads` 命令 id | 落点已定（rulings §4.20 FE-09，40/00 Q-M8 确认）：[40/20](../40-modules/20-comments-client.md)（占位，行为以本文为准，不并入 M-12 或 M-05）；正文（目录树、文件职责、契约套件、slide-ui 的 resolver 接口）M3 开工前补齐 | [40/20](../40-modules/20-comments-client.md) |
+| U-07 撤销此次恢复 | 已立项（rulings §4.20 TX-01+BE-10）：[ADR-0038](../30-architecture/adr/0038-version-restore-undo.md)（提议），M2 出口评审前定稿；「谁能撤销」「可撤销时效」待定稿时交互拍板；本文 §10 第 5 步为前端落点 | ADR-0038；70/05 `rs/restore-revert-*`；70/13 §3.4 |
 | 30/04 §2.7 示例命名空间 `slide-comments.threads` 与 40/10 `CommentPins` 的读取键改为 `comments.threads`（INC-39） | 已定；30/04 §2.7 与 40/10 §4.4、§5.4 已回写（2026-09-25） | 总编排 |
 

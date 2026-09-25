@@ -21,7 +21,7 @@ import { RibbonBigButton, RibbonGroup, RibbonTextButton } from "./primitives"
 
 /**
  * Q11 / Q16-e：「删除版式」的目标——当前选中的一个或多个版式及其被页面引用的总数。
- * 引用数 > 0 → AlertDialog 确认（不可撤销）；= 0 → 直接删除 + 可撤销 toast。
+ * 引用数 > 0 → AlertDialog 确认，确认后入撤销栈并给带 [撤销] 的 toast（rulings §4.20 FE-05，Q11 修订）；= 0 → 直接删除 + 可撤销 toast。
  */
 export interface LayoutDeleteTarget {
   /** 待删除的版式数量（缩略图窗格 Shift/⌘ 多选时 > 1） */
@@ -93,7 +93,8 @@ export function MasterTab({
     if (!deleteTarget) return
     setDeleteOpen(false)
     onDeleteLayouts?.()
-    toast(`已删除${deleteLabel}`, { description: `${deleteTarget.refCount} 个页面已改用「与当前页相同」的默认版式` })
+    // FE-05：确认 + 可撤销双层——执行后入撤销栈，toast 带 [撤销]（5 s），一步恢复各页引用与原 id 的版式
+    toast(`已删除${deleteLabel}，${deleteTarget.refCount} 页已改用默认版式`, { action: { label: "撤销", onClick: () => toast.success("已撤销") } })
   }
 
   function insertPlaceholder(p: (typeof placeholderTypes)[number]) {
@@ -213,13 +214,13 @@ export function MasterTab({
         </DialogContent>
       </Dialog>
 
-      {/* Q11：删除仍被页面引用的版式 —— D9 不可逆操作走确认；按钮顺序 [删除][取消] 与裁决一致 */}
+      {/* Q11（§4.20 FE-05 修订）：删除仍被页面引用的版式 —— 影响批量页面，先确认、确认后仍可撤销；按钮顺序 [删除][取消] 与裁决一致 */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogTitle>删除{deleteLabel}？</AlertDialogTitle>
             <AlertDialogDescription>
-              {multi ? `所选 ${deleteTarget?.count} 个版式` : "该版式"}仍被 {deleteTarget?.refCount} 个页面使用，删除后这些页面将改用「与当前页相同」的默认版式，操作不可撤销
+              {multi ? `所选 ${deleteTarget?.count} 个版式` : "该版式"}仍被 {deleteTarget?.refCount} 个页面使用，删除后这些页面将改用「与当前页相同」的默认版式
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

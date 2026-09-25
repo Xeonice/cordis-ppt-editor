@@ -11,7 +11,7 @@ import {
 import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, slides } from "@/lib/mock-data"
-import { ReadonlyRibbonNotice } from "@/components/editor/Ribbon"
+import { ReadonlyRibbonNotice, RibbonTrailing } from "@/components/editor/Ribbon"
 
 type DemoState = "placeholder" | "editing" | "bullets" | "autofit" | "readonly" | "restricted-font"
 
@@ -45,7 +45,7 @@ export function EditorText() {
         appBar={<AppBar title={documentTitle} collaborators={collaborators.filter((c) => !c.isSelf)} status={{ kind: "sync", state: "synced" }} />}
         ribbon={
           readOnly ? (
-            <ReadonlyRibbonNotice>评审模式下不可编辑文本</ReadonlyRibbonNotice>
+            <ReadonlyRibbonNotice trailing={<RibbonTrailing />}>评审模式下不可编辑文本</ReadonlyRibbonNotice>
           ) : (
             <EditorRibbon
               value={ribbonTab}

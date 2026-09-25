@@ -1,5 +1,5 @@
 # 07 协同客户端
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1） | 依赖：[30/06](../30-architecture/06-collaboration.md) §5–§12、§18；[40/05](../40-modules/05-collaboration-client.md)；[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)、[ADR-0024](../30-architecture/adr/0024-presence-and-awareness.md)、[ADR-0033](../30-architecture/adr/0033-offline-persistence.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5/S-3a、§4.18 UX-02/UX-03/CO-03/CO-08/CO-09/CO-10/BE-02、§4.19 D-M2-CONTENT/INC-09/N1；[PRD 03](../10-prd/03-features/03-collaboration.md)；[设计 05](../20-design/05-collaboration-ux.md)、[设计 03-12](../20-design/03-screens/12-offline-conflict-banner.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30/06](../30-architecture/06-collaboration.md) §5–§12、§18；[40/05](../40-modules/05-collaboration-client.md)；[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)、[ADR-0024](../30-architecture/adr/0024-presence-and-awareness.md)、[ADR-0033](../30-architecture/adr/0033-offline-persistence.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5/S-3a、§4.18 UX-02/UX-03/CO-03/CO-08/CO-09/CO-10/BE-02、§4.19 D-M2-CONTENT/INC-09/N1、§4.20 BE-01+TX-03/BE-09+TX-15/TX-08/FE-17；[PRD 03](../10-prd/03-features/03-collaboration.md)；[设计 05](../20-design/05-collaboration-ux.md)、[设计 03-12](../20-design/03-screens/12-offline-conflict-banner.md)
 
 本文是**浏览器侧协同运行时的唯一事实源**：客户端 Session 状态机（自 [30/06 §5.1](../30-architecture/06-collaboration.md) 迁入，30/06 原处只保留定位句与链接）、连接建立、重连与离线、出站合并与两级 ack、离线队列、权限与令牌、关闭码处理、awareness 与在场 UI、软冲突信号分流、前端计时器。
 
@@ -102,7 +102,7 @@ stateDiagram-v2
   authenticating --> syncing: auth.ok
   authenticating --> denied: auth.denied 为 unauthenticated 或 forbidden
   authenticating --> closed: auth.denied 为 doc_not_found、doc_purging、schema_too_new、protocol_mismatch、epoch_changed
-  authenticating --> backoff: 认证 5 s 超时，或 auth.denied 为 room_full
+  authenticating --> backoff: 认证 5 s 超时，或 auth.denied 为 room_full 或 rate_limited
   syncing --> live: 服务端 step2 已应用且本端 step2 获 db ack，role 为 editor 及以上
   syncing --> readonly: commenter 同上；viewer 只需服务端 step2 已应用
   syncing --> backoff: 传输关闭
@@ -192,7 +192,7 @@ stateDiagram-v2
 | 规则 | 口径 | 落点 |
 |---|---|---|
 | 退避 | `delay(n) = min(maxMs, baseMs × 2^n) × (1 ± jitter)`，默认 1 s → 2 s → 4 s … 上限 30 s、抖动 ±20%；`rand` 显式注入，测试用 FixedClock 与 SeededRandom | `collab-core/domain/backoff.ts` `nextDelay` |
-| 1012 首轮立即 | 服务重启或实例驱逐（1012）后第一次重连不等待，之后按正常退避；客户端应在 ≤ 5 s 内连到其他实例（PRD SV-05） | `collab-transport-ws/reconnect.ts` |
+| 1012 首轮立即 | 服务重启或实例驱逐（1012）后第一次重连不等待，之后按正常退避；客户端应在 ≤ 5 s 内连到其他实例（PRD SV-05）。同一办公出口的多人集体重连不会被 IP 限流卡成分钟级：WS 升级的按 IP 额度「先扣后退」，票据验签通过即退还，桶实际只约束未认证的升级（[60/16](../60-backend/16-ws-protocol-server-view.md) §1，rulings §4.20 BE-01+TX-03），同一出口数十人约分 3 波、≤ 5 s 重连完，更大的出口由部署调高 `limits.ws.connectPerIpPerMin`。升级被 429 拒绝时浏览器只看到 1006，按常规退避处理 | `collab-transport-ws/reconnect.ts` |
 | 进入 offline（时间判据） | 自进入重连起**累计** `offlineAfterMs`（30 s）仍未连上即 `offline`；`navigator.onLine=false` 立即 `offline`（UI 去抖 2 s）；令牌刷新的网络失败与重连共用同一计时，不另设计时器 | rulings §4.18 UX-03 |
 | offline 不停止重试 | 每 `offlineRetryMs`（30 s，±20%）自动重连一次；`navigator.onLine=false` 期间暂停；`online` 事件或「立即重连」（`Session.reconnectNow()`）立即进入 `connecting`；服务端恢复后 offline 会话 ≤ 36 s 自动回连 | rulings §4.18 CO-03 |
 | 心跳 | 每 `heartbeatMs`（15 s）发 `CONTROL.ping{t}`，连续 2 次未收到 `pong` 判连接已死，本地关闭并按传输关闭处理（浏览器不可见 WS 协议层 ping） | `collab-transport-ws/heartbeat.ts` |
@@ -416,12 +416,12 @@ sequenceDiagram
 | 4426 | schema 过新，客户端需升级 | → `closed` | 不重连；有 pending 先提供导出（M4 前刷新即丢） | 「发现新版本」横幅 + 刷新（[02 §12](02-app-shell-routing-and-session.md)） |
 | 4427 | 协议版本不兼容（`collab.protocol_mismatch`） | → `closed` | 同 4426 | 同 4426 |
 | 4428 | 文档换纪元（`collab.epoch_changed`：运维换纪元，或覆盖既有文档的导入提交，rulings §4.19 N1） | → `closed` | 丢弃本地 Y 状态；pending 按 §8.2 `epoch-changed` 移入 rejected；编辑器页重开 Unit 重新 bootstrap；UndoSkip 记录与撤销栈清空；评论文本范围锚点重算（[08 §6](08-comments-and-version-history.md)） | 本会话此前收到过 `room.locked.reason='import'`：「文档已替换为导入的文件」；否则「文档已由管理员重建」。有未提交更改时追加「N 项更改未提交」+ 导出，无则 3 s 后自动消失 |
-| 4429 | 速率限制 | → `backoff` | 退避重连，本会话出站自限速率减半（§5） | 同 1006 |
+| 4429 | 速率限制：运行期出站超速，或握手期同一用户在本实例上的连接数超过 `limits.ws.maxConnectionsPerUser`（默认 32，先收到 `auth.denied{collab.rate_limited}`，rulings §4.20 BE-01+TX-03） | → `backoff` | 退避重连；运行期超速时本会话出站自限速率减半（§5），握手期超限只退避、不改自限速率 | 同 1006 |
 | 4503 | 房间不可用 / 满 / draining | → `backoff` | 退避重连；若握手时收到 `auth.denied{collab.room_full}`（查看者名额也满）则后台继续按退避重试 | 名额满时显示阻断态「文档当前查看人数已达上限，请稍后再试」，其余同 1006 |
 
 - 「可重连的关闭码」（§3.1 图中的说法）= 1001、1006、1011、1012、4400（未满 3 次）、4401（换票未遇 401 时）、4408、4413（首次）、4429、4503。
 - 心跳判死由客户端本地关闭，按 1006 处理。
-- 握手期 `auth.denied.code → 关闭码`：`collab.unauthenticated → 4401`、`collab.forbidden → 4403`、`collab.doc_not_found / collab.doc_purging → 4404`、`collab.schema_too_new → 4426`、`collab.protocol_mismatch → 4427`、`collab.epoch_changed → 4428`、`collab.room_full → 4503`；文案取 i18n `errors.<code>.{title, action}`（[15 §4](15-events-errors-and-telemetry.md)）。
+- 握手期 `auth.denied.code → 关闭码`：`collab.unauthenticated → 4401`、`collab.forbidden → 4403`、`collab.doc_not_found / collab.doc_purging → 4404`、`collab.schema_too_new → 4426`、`collab.protocol_mismatch → 4427`、`collab.epoch_changed → 4428`、`collab.rate_limited → 4429`、`collab.room_full → 4503`；文案取 i18n `errors.<code>.{title, action}`（[15 §4](15-events-errors-and-telemetry.md)）。
 
 ## 10. Awareness
 
@@ -575,7 +575,7 @@ flowchart LR
 | 软冲突窗口 | 60 s | `conflictWindowMs`（collab-yjs，新增） | 本端多久内写过的键被覆盖才提示 | 30/06 §8 #2、PRD CO-08 |
 | 画布活跃窗口 | 5 s | 常量（render-dom `remote-presence`） | 9–20 组时谁保持完整呈现 | 设计 05 §1a |
 
-「新增」配置键由 [40/05](../40-modules/05-collaboration-client.md) §3 的 `collab-yjs` Config 登记；全部计时器经可注入时钟（FixedClock，[70/11](../70-testing/11-test-data-fixtures-and-determinism.md)）实现，不直接读 `Date.now` / `setTimeout`。
+「新增」配置键由 [40/05](../40-modules/05-collaboration-client.md) §3 的 `collab-yjs` Config 登记；全部计时器经可注入时钟（FixedClock，[70/11](../70-testing/11-test-data-fixtures-and-determinism.md)）实现，不直接读 `Date.now` / `setTimeout`；机械约束为 TD-110 及其 `collab-*` 子项（§15 V15）。
 
 ## 14. 诊断与遥测
 
@@ -593,7 +593,7 @@ flowchart LR
 |---|---|---|---|
 | V1 | §3.1 每条边都有表驱动用例；表外迁移被 reducer 拒绝；`projectSyncState` 与 `deriveCollabUiState` 与 §3.2 表逐行一致 | `collab-core/__tests__/session-fsm.test.ts`；`ui-core` 派生函数单测 | test/unit |
 | V2 | 退避序列在 SeededRandom 下确定；29.9 s 未离线、30 s 离线；服务端恢复后 offline 会话 ≤ 36 s 回连；`onLine=false` 期间不发起连接；1012 首轮不等待 | `runCollabTransportConformance`（FixedClock） | test/contract |
-| V3 | 关闭码全表（含 1011、4427、4428）的内部迁移与 §9 一致；`auth.denied.code → 关闭码` 映射一致 | `runCollabTransportConformance`；`collab-transport-ws` 的 `heartbeat-and-close-codes.test`（全表覆盖，INC-06） | test/contract、test/unit |
+| V3 | 关闭码全表（含 1011、4427、4428 与握手期 4429）的内部迁移与 §9 一致；`auth.denied.code → 关闭码` 映射一致（含 `collab.rate_limited → 4429`，握手期超限不改自限速率） | `runCollabTransportConformance`；`collab-transport-ws` 的 `heartbeat-and-close-codes.test`（全表覆盖，INC-06） | test/contract、test/unit |
 | V4 | `tier:'spill'` 不清 pending；`tier:'db'` 弹 FIFO 队首并 `ackUpTo`；连续 spill 后 db 仍按序对应；step2 恰一个在途条目、空差量也获 db ack；收到写入帧 `error` 后 FIFO 冻结，其后到达的 db ack 不再 `ackUpTo`，未确认 pending 全部进入被拒集合；viewer 不发 SYNC update、commenter 可发 | `collab-yjs/__tests__/batcher.test.ts`；`runOfflineStoreConformance` | test/unit、test/contract |
 | V5 | 任意合并与拆分下出站帧 payload ≤ `maxUpdateBytes`（性质测试）；离线 5 MiB 更改重连后无 4413、step2 后 pending 一次清空、服务端不重复落库 | fast-check 性质；70/05 §9 重连脚本 | test/unit、test/collab-sim |
 | V6 | 突发键入下客户端自限后不触发 4429 | 70/05 §9 | test/collab-sim |
@@ -605,7 +605,7 @@ flowchart LR
 | V12 | 同一登录用户重新登录后 pending 经 step2 提交；另一用户登录后 pending 进入 rejected 且会话只读 | 70/06 §5「重新登录弹窗」 | e2e/full-compose |
 | V13 | 20 客户端 × 1,000 随机命令、随机分区后全部端状态一致 | `collab:converge`（70/05 §4） | test/collab-sim（nightly 放大） |
 | V14 | `collab-offline-idb` 刷新后恢复、配额超限返回 `err`、两个标签页只有一个持有离线库（M4） | `runOfflineStoreConformance`；多标签页用例 | test/contract、e2e/full-compose |
-| V15 | 协同包内计时只经注入时钟：`collab-*` 的 ESLint `no-restricted-globals` 禁 `setTimeout` / `Date.now` 直接调用（既有规则的配置，不新增扫描器） | lint | lint 步骤（70/12） |
+| V15 | 协同包内计时只经注入时钟：`Date.now`、`Math.random` 与无参 `new Date()` 由确定性 lint TD-110 覆盖（`tooling/eslint-config/rules/determinism.ts` 第二个 override，范围为全部生产源码与测试代码，`SystemClock` / `SystemRandom` 的实现文件除外，rulings §4.20 TX-08）；`collab-*` 另在 restricted-globals 配置里禁 `setTimeout` / `setInterval`（改经 `Clock` 的定时器），作为 TD-110 的子项登记，不新增扫描器 | lint（09-type-discipline/02 §3、08 §12c TD-110） | lint 步骤（70/12） |
 | V16 | 覆盖导入：收到 `room{locked:{reason:'import'}}` 后停止发送、`readonlyReason='locked'`；随后 4428 → 重开 Unit、本地纪元更新为新 `X-Cordex-Epoch`，未获 db 确认项以 `epoch-changed` 进入 rejected 且可导出，横幅为「文档已替换为导入的文件」；版本恢复期间协作者不进入 `readonly`、不断连（rulings §4.19 N1） | `session-scripts.test.ts`（70/05 §9 `rs/import-overwrite`）；70/06 §5 第 21 行 | test/unit、e2e/full-compose |
 
 ## 16. 里程碑
@@ -629,10 +629,10 @@ flowchart LR
 | 文档锁定的会话信号 | 已关闭：`CONTROL.room` 可选字段 `locked:{reason, until}`，不借 `permission{reason:'changed'}`（30/06 §6.3、[60/16](../60-backend/16-ws-protocol-server-view.md) §8） | §8.1、§8.2 |
 | 覆盖导入与版本恢复是否锁定文档 | 已关闭：rulings §4.19 N1——恢复不加锁、在线不断连；覆盖导入锁定后以 4428 换纪元收尾，客户端重新 bootstrap，未获 db 确认项移入 rejected 可导出 | §8.1、§8.2、§9；[08 §10](08-comments-and-version-history.md) |
 | `CONTROL.auth` 的本地纪元与最高 `schemaVersion` | 已关闭：`auth` 可选 `epoch` 与 `maxSchemaVersion`；纪元随 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 下发 | §2 |
-| 写入帧 `error` 与 db ack 的相对顺序不保证，本文 §6 以「冻结 FIFO、宁多勿少」兜底；若 60/16 能保证「每个写入帧恰好一帧 ack 或 error、且同序」，可改为逐帧对应 | 暂缓（实现期优化，现有兜底已正确） | [60/16](../60-backend/16-ws-protocol-server-view.md) §5 |
+| 写入帧 `error` 与 db ack 的相对顺序不保证，本文 §6 以「冻结 FIFO、宁多勿少」兜底 | 已关闭（rulings §4.20 BE-09+TX-15，分诊 #24 结案）：冻结 FIFO、宁多勿少为最终口径——被拒后会话本就导出后重载，多算的更新导出时幂等合并，逐帧对应无用户可见收益；60/16 不新增顺序保证 | §6；[60/16](../60-backend/16-ws-protocol-server-view.md) §5 第 7 条 |
 | 30/06 §8 #1「并发移动同一形状」 | 已关闭：30/06 §8 改为 `prop-lww` 提示 +「恢复我的值」，与本文 §12 一致 | §12 |
 | `collab-yjs` 新配置键 `unsavedWarnAfterMs`、`rejectSettleMs`、`leaveFlushTimeoutMs`、`conflictWindowMs`；`SessionStats` 新字段 `inFlight`、`roomPersist`、`readonlyReason`（取值含 `over_ceiling`、`locked`）；内存版 `OfflineStore` 挂根作用域（§7）；`RejectedEntry.reason` 取值集合（§8.2）；客户端指标 `cordex_collab_outbound_queued` | 已登记（40/05 §2.2、§2.4、§2.5、§3；指标另登记于 30/10 §3.3） | [40/05](../40-modules/05-collaboration-client.md) §2.2、§2.5、§3 |
 | 错误码 `collab.payload_too_large`（映射 4413） | 已关闭：随 INC-10 批次登记进 30/10 §1.1 | §5、§9 |
-| `deriveCollabUiState` 纯函数文件 | 待登记 | [40/10](../40-modules/10-ui-shell-and-slide-ui.md) ui-core `domain/` |
+| `deriveCollabUiState` 纯函数文件 | 已回写（40/10 §2.1、§4 ui-core `domain/` 目录树与 §5 文件表） | [40/10](../40-modules/10-ui-shell-and-slide-ui.md) ui-core `domain/` |
 | 30/06 §5.1 原图改为定位句 + 链接本文 §3.1 | 已定，由 30/06 回写 | §3.1 |
 

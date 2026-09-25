@@ -1,5 +1,5 @@
 # 03 预设装配与前端插件模型
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[02 应用壳](02-app-shell-routing-and-session.md)、[30/03 内核与插件模型](../30-architecture/03-kernel-and-plugin-model.md) §3、§5–§10、[ADR-0005](../30-architecture/adr/0005-unit-scope-via-isolate.md)、[ADR-0006](../30-architecture/adr/0006-contribution-point-as-sole-registry.md)、[ADR-0010](../30-architecture/adr/0010-preset-vs-loader-composition.md)、[ADR-0015](../30-architecture/adr/0015-single-execution-entry-and-non-executable-mutations.md)、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3、§6、§8、[40/16](../40-modules/16-plugin-catalog.md) §4–§5、[40/17](../40-modules/17-plugin-authoring-patterns.md) §2.5、[设计 06 可扩展性](../20-design/06-extensibility-ux.md)、PRD PS-02/PS-07/PS-09/PS-11、EM-01/EM-08
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[02 应用壳](02-app-shell-routing-and-session.md)、[30/03 内核与插件模型](../30-architecture/03-kernel-and-plugin-model.md) §3、§5–§10、[ADR-0005](../30-architecture/adr/0005-unit-scope-via-isolate.md)、[ADR-0006](../30-architecture/adr/0006-contribution-point-as-sole-registry.md)、[ADR-0010](../30-architecture/adr/0010-preset-vs-loader-composition.md)、[ADR-0015](../30-architecture/adr/0015-single-execution-entry-and-non-executable-mutations.md)、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3、§6、§8、[40/16](../40-modules/16-plugin-catalog.md) §4–§5、[40/17](../40-modules/17-plugin-authoring-patterns.md) §2.5、[设计 06 可扩展性](../20-design/06-extensibility-ux.md)、PRD PS-02/PS-07/PS-09/PS-11、EM-01/EM-08、[rulings](../00-charter/rulings-2026-09-14.md) §4.20 FE-01
 
 本文是浏览器侧「插件如何被组装成可运行产品」的唯一事实源：三档 preset 的定位与派生、装配运行时的行为、条目缺席的用户可见结果、惰性边界、组合根 `create-editor-host`、root ctx 与 UnitScope 的服务分布、前端贡献点与冲突策略、壳意图、第三方 UI 插件合同、插件管理器数据流、评论插件的装配位置、doc / sheet 参数化点。
 
@@ -54,7 +54,7 @@ flowchart LR
 | 选项校验 | `createXxxPreset(options)` 先以 `strictObject` schema `parse`；**在任何挂载之前**失败（EM-01「启动前抛出，不部分激活」） | 抛 `PRESET_INVALID_OPTIONS`，含字段路径 |
 | 清单校验 `validateEntries` | 同一 preset 内 `id` 唯一；`required` 条目（viewer 的 `read-only`）不可被 `exclude` | 重复 id → `PRESET_DUPLICATE_ENTRY`（抛）；排除必需条目 → `PRESET_REQUIRED_ENTRY`（抛） |
 | 裁剪 `applyTrim` | `exclude` 移除；`override` 替换 `plugin`；`configure` 与条目默认配置合并：**对象逐键深合并，数组与标量整体替换，`undefined` 忽略**（本文定，补 40/17 §7 G-8 的规格空白） | `override` / `configure` 的键不在清单 → `PRESET_UNKNOWN_ENTRY` 诊断，不抛 |
-| 挂载 `mount` | `apply` 内对裁剪结果**无序**遍历（`Set` 语义）逐项 `ctx.plugin(entry.plugin, entry.config)`，**不 await 单项**；`scope:'unit'` 的条目不挂根，而是登记为 UnitScope 默认 Provider（§6.2）；惰性条目只登记触发器（§4） | 单项 `apply` 抛错 → 该 Fiber `FAILED`，兄弟不受影响（30/03 §8） |
+| 挂载 `mount` | `apply` 内对裁剪结果**无序**遍历（`Set` 语义）逐项 `ctx.plugin(entry.plugin, entry.config)`，**不 await 单项**；`scope:'unit'` 的条目不挂根，而是经 `units.registerUnitProvider` 登记为 UnitScope 默认 Provider（§6.2）；惰性条目只登记触发器（§4） | 单项 `apply` 抛错 → 该 Fiber `FAILED`，兄弟不受影响（30/03 §8） |
 | 报告 `report()` | 全部 `ctx.plugin` 调用后 `Promise.allSettled`，再等一个微任务队列排空，生成 `PresetReport` 快照；之后的状态变化只经 `plugin/loaded`、`plugin/failed`、`plugin/incompatible` 事件推送 | — |
 | 销毁 | `dispose` = 逆序 `fiber.dispose()`，effect 全部清空（`assertNoLiveEffects`） | — |
 
@@ -250,21 +250,25 @@ flowchart TB
 
 依据：[30/03](../30-architecture/03-kernel-and-plugin-model.md) §5.1–§5.4；ADR-0005；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.1 `PresetEntry.scope`。
 
-### 6.2 UnitScope 默认 Provider 登记（前端所需的接口形状）
+### 6.2 UnitScope 默认 Provider 登记
 
-登记 API 的落点仍归 M-02（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §13 Q-2，开放项）。前端对它的要求如下，M-02 定稿时须满足：
+登记 API 已定（rulings §4.20 FE-01，M1 前定稿；40/11 §13 Q-2 结案）：model-core 的 `units` 服务（`unit/units.service.ts`，API 面登记在 [40/02](../40-modules/02-kernel-protocol-and-document-core.md) §6）新增两个方法。
 
 ```ts
-// 草案：由 model-core 的 units 服务暴露；preset 的 mount 对每个 scope:'unit' 条目调用一次
-interface UnitProviderRegistry {
-  register(entry: { id: PluginId; plugin: Plugin; config?: unknown; provides: readonly string[] }): () => void // 返回撤销函数，由 preset 的 effect 持有
-  list(): readonly { id: PluginId; provides: readonly string[] }[]                                           // 供插件管理器与诊断
+// model-core units 服务；preset 的 mount 对每个 scope:'unit' 条目调用一次 registerUnitProvider
+interface UnitsService {
+  // …open / close 等既有方法见 40/02
+  registerUnitProvider(entry: { id: PluginId; plugin: Plugin; config?: unknown; provides: readonly string[] }): Disposer // 由 preset 的 effect 持有
+  listUnitProviders(): readonly { id: PluginId; provides: readonly string[] }[]                                          // 供插件管理器与诊断
 }
 ```
 
-- 同一 `provides` 服务名只能有一个登记（后者被拒并诊断，不抛）；`exclude` 的条目不登记，打开的 Unit 中对应服务缺席，依赖方 `PENDING`。
-- 登记在 `units.open` 之前或之后都可：之后打开的 Unit 使用当时的登记表；已打开的 Unit 不受后续登记变化影响（需重开才生效）。
-- preset `dispose` 时撤销全部登记；已打开的 Unit 随 host 一并销毁。
+- **登记分工**：model-core 在 ready 时只登记自己的 `history`、`selection` 默认 Provider；`store`、`render`、`presence`、`collab-yjs`、`comments` 由 preset 中 `scope:'unit'` 的条目在 mount 时登记。model-core 不 import 任何水平层 Provider（章程 §5.3 只向下，既有 depcruise 秩规则兜底）；`units.open` 按登记表挂载。
+- **唯一性**：同一 `provides` 服务名只允许登记一次，后来者被拒并记诊断、不抛；`exclude` 的条目不登记，打开的 Unit 中对应服务缺席，依赖方 `PENDING`。
+- **生效时点**：登记在 `units.open` 之前或之后都可，登记表的变化只影响之后打开的 Unit；已打开的 Unit 不受后续登记或撤销影响（需重开才生效）。
+- **撤销**：preset `dispose` 时撤销全部登记；已打开的 Unit 随 host 一并销毁。
+- **不再有 `Config.defaultStoreProvider`**：store 由唯一的 `provides:['store']` 登记决定，`deriveCollabEntries` 把 `store-memory` 替换为 `store-yjs`（§1）即完成切换。
+- **条目形状**：`PresetEntry` 带 `scope: 'host' | 'unit'` 与 `provides?: readonly string[]`，30/03 §9 与 40/11 §2.1 同形；`comments` 包按 Unit 的评论服务也走 `scope:'unit'` 登记（§11），不经文档类型的 `unitPlugins`。
 
 ## 7. 前端贡献点清单与冲突策略
 
@@ -397,6 +401,7 @@ flowchart TB
 | manifest 与源码、清单一致 | `manifest-gen` | `scanners/scan-manifest --check` |
 | 组件式贡献抛错只替换该项，`plugin/failed` 不冒泡；组件式贡献过 `axeCheck` | ui-react `ContributionRenderer` 测试与插件模板用例 | `test/unit`、`e2e/a11y` |
 | `pluggable:m3`：两份 manifest 差异恰为 §11 白名单；M2 编辑 e2e 在 `store-yjs` 下重跑通过；移除 `collab-*` 后仍能启动 | [70/02](../70-testing/02-contract-suites-and-pluggability.md) §10 | `test/contract`、`e2e/smoke` |
+| UnitScope 默认 Provider 登记：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项，已打开的 Unit 不变；preset `dispose` 后 `assertNoLiveEffects` 为空；model-core 不 import 秩更高的包（rulings §4.20 FE-01） | model-core `unit/__tests__/units-registry.test.ts`（[70/02](../70-testing/02-contract-suites-and-pluggability.md) §9.1，不调用 kit）；depcruise 秩规则 | `test/unit`、`depcruise` |
 | 三档体积基线 | `config/bundle-budget.json` | `scanners/scan-bundle-budget`（唯一阻断点，[13](13-performance-and-bundling.md) §6） |
 
 ### 13.2 里程碑
@@ -415,7 +420,7 @@ flowchart TB
 | 项 | 状态 | 处理 |
 |---|---|---|
 | D-COMMENTS-PKG | 已裁定（rulings §4.19） | §11 定稿；PRD 05 `pluggable:m3` 白名单改为 §11 写法、章程 §5.2 登记 `comments` 包（由总编排回写） |
-| UnitScope 默认 Provider 登记 API（40/11 Q-2） | 开放（M-02） | §6.2 给出前端所需形状，M-02 定稿时对齐 |
+| UnitScope 默认 Provider 登记 API（40/11 Q-2） | 已定（rulings §4.20 FE-01）：`units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，M1 前定稿 | §6.2 定稿；40/02 §2.1、§6，40/11 Q-2，30/03 §5.1 伪代码与 §9 `PresetEntry`，40/14 N-2、40/17 G-9 由各线同轮回写 |
 | `configure` 合并算法（40/17 §7 G-8） | 本文定 | §2：对象深合并、数组与标量替换、`undefined` 忽略；回写 40/17 §7 与 kernel `preset/validate.ts` 说明 |
-| 回写 40/11（由总编排执行） | 待回写 | §1.1–§1.2、§2.1–§2.4、§6 嵌入表与 §7 改为「摘要 + 链接本文 / [02](02-app-shell-routing-and-session.md) / [12](12-viewer-embedding-and-render-page.md)」；§2.2 `CreateEditorHostParams.preset` 由 `'slide' \| 'slide-collab' \| 'slide-viewer'` 改为 `'edit' \| 'collab' \| 'view'`（与 §8 `presetKeys[params.preset]` 一致，§5），§3.5 ViewerPage / RenderPage 的 `preset:'slide-viewer'` 同步改 `'view'`；§3.1 增 `comments` 行（M3）；§4.4 增 `infrastructure/media/` 目录 |
-| 回写 40/16 §5 | 待回写 | preset 装配对比表加注「行为语义以 50/03 为准」 |
+| 回写 40/11（由总编排执行） | 已回写（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §12「2026-09-25 回写」） | §1.1–§1.2、§2.1–§2.4、§6 嵌入表与 §7 改为「摘要 + 链接本文 / [02](02-app-shell-routing-and-session.md) / [12](12-viewer-embedding-and-render-page.md)」；§2.2 `CreateEditorHostParams.preset` 由 `'slide' \| 'slide-collab' \| 'slide-viewer'` 改为 `'edit' \| 'collab' \| 'view'`（与 §8 `presetKeys[params.preset]` 一致，§5），§3.5 ViewerPage / RenderPage 的 `preset:'slide-viewer'` 同步改 `'view'`；§3.1 增 `comments` 行（M3）；§4.4 增 `infrastructure/media/` 目录 |
+| 回写 40/16 §5 | 已回写（[40/16](../40-modules/16-plugin-catalog.md) §5 首段注记） | preset 装配对比表加注「行为语义以 50/03 为准」 |

@@ -1,5 +1,5 @@
 # 02 应用壳、路由与会话
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、§4.20 FE-10/BE-02、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06
 
 本文是 `apps/web` 应用壳在浏览器一侧的唯一事实源：路由表、运行时配置、会话状态机与浏览器侧 OIDC 回环、新窗口重新登录、编辑器页状态与 host 保活、REST 客户端统一策略、用例清单、壳页面状态、浏览器存储键空间与清理矩阵、分享链接落地、版本漂移。
 
@@ -266,7 +266,7 @@ sequenceDiagram
 | `failed` | `code, stage` | 详情 403/404、`PRESET_INVALID_OPTIONS`、`unit/open-failed` | 按错误码的失败页（文案 `errors.<code>`），「重试」「返回首页」 |
 | `closing` | — | 离开编辑器族且闲置到期 | 无；先 flush 再 `dispose()` |
 
-**角色 → `EditorHost.mode`**：`owner` / `editor` → `edit`；`commenter` → `review`；`viewer` → `view`（查看者进 `/documents/:id` 协同编辑器只读变体，计入查看者名额，rulings §4.18 UX-19；界面差异见 [10](10-editor-shell-and-interaction.md) §3）。`permission/changed` 到达后按新角色重算 `mode`，不重建 host。
+**角色 → `EditorHost.mode`**：`owner` / `editor` → `edit`；`commenter` → `review`；`viewer` → `view`（查看者进 `/documents/:id` 协同编辑器只读变体，计入查看者名额，rulings §4.18 UX-19；界面差异见 [10](10-editor-shell-and-interaction.md) §3）。角色映射只在打开与重新打开时使用；会话内 `permission/changed` 不改 `mode`：降权进入 `readonly-degraded`，升权只更新模式下拉的可选项（[10](10-editor-shell-and-interaction.md) §3.1，rulings §4.18 UX-20、§4.20 FE-10），都不重建 host。
 
 **preset 选择**：用例只选文档类型无关的 preset 键 `edit` / `collab` / `view`，由 `DOCUMENT_TYPES[documentType].presetKeys` 映射到具体工厂（[03](03-preset-assembly-and-plugins.md) §5、§12），因此本页不出现文档类型字面量。本地文档（`local:*`）→ `edit`；服务端文档自 M2 起一律 → `collab`：内容以协同快照为唯一事实源，打开 = `GET snapshots/latest` + collab-ticket + WS（`source:'state'`，不走 Worker 字节路径，rulings §4.19 D-M2-CONTENT、§4.18 CO-12）；M3 起查看者同样走协同 preset，只读由权限决定；`/documents/:id/view` 与 `/render` → `view`。
 
@@ -282,7 +282,7 @@ stateDiagram-v2
   opening --> ready: unit/opened
   opening --> failed: unit/open-failed
   opening --> closing: 用户取消打开
-  ready --> ready: permission/changed 重算 mode，unit/loaded 置 loaded
+  ready --> ready: permission/changed 更新角色与可选模式，unit/loaded 置 loaded
   failed --> creatingHost: 重试
   ready --> closing: 离开编辑器族且闲置 60 s
   closing --> [*]: flush 后 dispose
@@ -403,7 +403,7 @@ sequenceDiagram
 ### 9.5 数据获取与在线状态
 
 - **不引入数据请求库**（依据：APP-DATA）：用例层 + 轻量内存缓存 `infrastructure/api/query-cache.ts`，键 = 用例名 + 规范化参数；读时先返回缓存（stale-while-revalidate），挂载与窗口重获焦点时后台刷新（同键 30 s 内不重复刷新）；重命名 / 移到回收站 / 固定为乐观更新，失败回滚并 toast；写操作成功后使相关键失效；缓存只在内存，登出随整页重载清空。
-- **`OnlineState`**：`navigator.onLine === false` 立即 `offline`；业务请求出现网络错误时进入「疑似离线」，以 `GET /auth/config`（公开、轻量）每 30 s（±20%）探测一次，成功即 `online`；编辑器页以协同 `SyncState` 为准（[07](07-collaboration-client.md) §3），不重复探测。
+- **`OnlineState`**：`navigator.onLine === false` 立即 `offline`；业务请求出现网络错误时进入「疑似离线」，以 `GET /auth/config`（公开、轻量）每 30 s（±20%）探测一次，成功即 `online`（该端点属 public 限流档，按来源 IP 300/min、突发 100，百人共用办公出口的登录高峰与离线探测不会撞 429，[60/15](../60-backend/15-rest-api-catalog.md) §8，rulings §4.20 BE-02）；编辑器页以协同 `SyncState` 为准（[07](07-collaboration-client.md) §3），不重复探测。
 
 ## 10. 浏览器存储键空间与清理
 
@@ -559,5 +559,5 @@ sequenceDiagram
 | 分享链接失效原因的位置 | 已关闭 | 以 `details.reason` 为准（[60/02](../60-backend/02-auth-chain.md) §7.4、[60/15](../60-backend/15-rest-api-catalog.md) §1） |
 | 302 到存储源的 `+Link` 端点 | 已关闭 | 媒体读取改为返回 JSON `{url}`（[60/15](../60-backend/15-rest-api-catalog.md) §3.6），前端对预签名 URL 发不带凭据与自定义头的请求（§7、[05](05-rendering-and-thumbnails.md) §8.1）；内容版本端点已随 rulings §4.19 D-M2-CONTENT 取消 |
 | `cordex/no-doc-type-literals` 扫描 `apps/web` | 已关闭 | TD-086 扩展范围已登记（[30/09-type-discipline/02](../30-architecture/09-type-discipline/02-lint-rules.md) §4.12），执行点 `lint` job |
-| 回写 40/11（由总编排执行） | 待回写 | §2.2 `RuntimeConfig` 删 `auth.selfSignup` / `signupUrl` / `csp.styleNonce`，增 `publicUrl`、`storagePublicOrigin`、`appVersion`；§2.5 / §2.6 / §3a 登录端点改 `GET /auth/oidc/login?mode=`；导入轮询改 `GET /jobs/:id`；放映参数 `?slide=` 改 `?page=`；`/documents/:id/view` 行删 `shareToken`；§4.4 增 `infrastructure/api/direct-upload.ts`、`infrastructure/api/query-cache.ts`、`infrastructure/media/`（媒体上传默认实现）与 `share-landing.ts`；§10「文档类型盲」行删 `app/templates.ts` 例外；§2.2 `features` 删 `collab`、增 `embed.allowedHostOrigins` 与 `diagnostics.e2eTrace`（§3）；§1–§2、§7 改为「摘要 + 链接本文」 |
-| 回写设计 01 §4 | 待回写 | 深链 `/d/{id}` 改 `/documents/:id?page=&comment=`（INC-35） |
+| 回写 40/11（由总编排执行） | 已回写（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.2、§2.5、§3a、§4.4；其 §12「2026-09-25 回写」） | §2.2 `RuntimeConfig` 删 `auth.selfSignup` / `signupUrl` / `csp.styleNonce`，增 `publicUrl`、`storagePublicOrigin`、`appVersion`；§2.5 / §2.6 / §3a 登录端点改 `GET /auth/oidc/login?mode=`；导入轮询改 `GET /jobs/:id`；放映参数 `?slide=` 改 `?page=`；`/documents/:id/view` 行删 `shareToken`；§4.4 增 `infrastructure/api/direct-upload.ts`、`infrastructure/api/query-cache.ts`、`infrastructure/media/`（媒体上传默认实现）与 `share-landing.ts`；§10「文档类型盲」行删 `app/templates.ts` 例外；§2.2 `features` 删 `collab`、增 `embed.allowedHostOrigins` 与 `diagnostics.e2eTrace`（§3）；§1–§2、§7 改为「摘要 + 链接本文」 |
+| 回写设计 01 §4 | 已回写（设计 01 §4 深链行） | 深链 `/d/{id}` 改 `/documents/:id?page=&comment=`（INC-35） |

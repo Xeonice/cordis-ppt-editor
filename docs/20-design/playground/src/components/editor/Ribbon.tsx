@@ -65,26 +65,28 @@ function ViewModeSwitch({ value, onEnterMasterView, onExitMasterView }: { value:
   )
 }
 
-function RibbonTrailing({
-  viewMode,
-  masterEntry,
-  onEnterMasterView,
-  onExitMasterView,
+/**
+ * 外壳尾部区（rulings §4.20 FE-08）：[视图分段] · 主题 · 「?」。编辑模式在页签行右侧；评审与只读浏览在评审工具条右端，
+ * 工具条没有条目时在 `ReadonlyRibbonNotice` 细条右端——三处是同一个组件、同一个容器（`RibbonTrailingSlot`）。
+ * 由外壳直接渲染，不走 `ui.toolbar` 贡献。`viewSwitch` 只在编辑模式且母版入口可用时传入（Q12）；
+ * 评审 / 只读浏览不传，「普通 | 母版」分段不渲染、也不留空位。
+ * 「?」缺省回调时打开设置页的快捷键面板（快捷键面板三入口之一，`Mod+/`）。
+ */
+export function RibbonTrailing({
+  viewSwitch,
   onOpenShortcuts,
 }: {
-  viewMode: EditorViewMode
-  masterEntry: MasterEntryState
-  onEnterMasterView?: () => void
-  onExitMasterView?: () => void
+  viewSwitch?: { value: EditorViewMode; onEnterMasterView?: () => void; onExitMasterView?: () => void }
   onOpenShortcuts?: () => void
 }) {
+  const navigate = useNavigate()
   return (
     <>
-      {masterEntry === "enabled" && <ViewModeSwitch value={viewMode} onEnterMasterView={onEnterMasterView} onExitMasterView={onExitMasterView} />}
+      {viewSwitch && <ViewModeSwitch {...viewSwitch} />}
       <ThemeToggle />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="帮助与快捷键" onClick={onOpenShortcuts}>
+          <Button variant="ghost" size="icon-sm" aria-label="帮助与快捷键" onClick={onOpenShortcuts ?? (() => navigate("/settings?panel=shortcuts"))}>
             <CircleHelp />
           </Button>
         </TooltipTrigger>
@@ -164,7 +166,8 @@ function buildEditorTabs(p: EditorRibbonProps, masterEntry: MasterEntryState) {
  * 普通视图的完整 Ribbon：开始/插入/设计/切换/视图 + 插件页签。
  * 每个路由只需传入当前上下文（母版/版式、缩放、主题等）与少量回调即可获得完整可用的 Ribbon。
  * Q12：`masterEntry` 缺省时按视口自动判定窄屏；传 `"degraded"` 表示编辑模式已降权（优先于视口判定）。
- * 评审模式整条 Ribbon 由评审工具条取代，不渲染本组件（rulings §4.18 UX-11）。
+ * 评审模式整条 Ribbon 由评审工具条取代，不渲染本组件（rulings §4.18 UX-11）；尾部区「主题 · ?」随之移到
+ * `ReviewToolbar` 右端，仍是同一个 `RibbonTrailing`（FE-08）。
  */
 export function EditorRibbon({
   value,
@@ -181,7 +184,12 @@ export function EditorRibbon({
     <RibbonRoot
       value={value}
       onValueChange={(v) => onValueChange(v as RibbonTabValue)}
-      trailing={<RibbonTrailing viewMode="normal" masterEntry={masterEntry} onEnterMasterView={props.onEnterMasterView} onOpenShortcuts={props.onOpenShortcuts} />}
+      trailing={
+        <RibbonTrailing
+          viewSwitch={masterEntry === "enabled" ? { value: "normal", onEnterMasterView: props.onEnterMasterView } : undefined}
+          onOpenShortcuts={props.onOpenShortcuts}
+        />
+      }
       tabs={buildEditorTabs(props, masterEntry)}
     />
   )
@@ -216,7 +224,7 @@ export function MasterRibbon({
     <RibbonRoot
       value={value}
       onValueChange={(v) => onValueChange(v as MasterRibbonTabValue)}
-      trailing={<RibbonTrailing viewMode="master" masterEntry="enabled" onExitMasterView={onClose} onOpenShortcuts={props.onOpenShortcuts} />}
+      trailing={<RibbonTrailing viewSwitch={{ value: "master", onExitMasterView: onClose }} onOpenShortcuts={props.onOpenShortcuts} />}
       tabs={[
         {
           value: "master",

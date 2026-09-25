@@ -7,7 +7,7 @@ import {
 import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, slides } from "@/lib/mock-data"
-import { ReadonlyRibbonNotice } from "@/components/editor/Ribbon"
+import { ReadonlyRibbonNotice, RibbonTrailing } from "@/components/editor/Ribbon"
 
 type DemoState = "default" | "uploading" | "handles" | "readonly"
 
@@ -32,7 +32,7 @@ export function EditorInsert() {
         appBar={<AppBar title={documentTitle} collaborators={collaborators.filter((c) => !c.isSelf)} status={{ kind: "sync", state: "synced" }} />}
         ribbon={
           readOnly ? (
-            <ReadonlyRibbonNotice>评审模式下"插入"页签不出现</ReadonlyRibbonNotice>
+            <ReadonlyRibbonNotice trailing={<RibbonTrailing />}>评审模式下"插入"页签不出现</ReadonlyRibbonNotice>
           ) : (
             <EditorRibbon
               value={ribbonTab}

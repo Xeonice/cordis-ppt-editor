@@ -1,5 +1,5 @@
 # 05 渲染、布局与缩略图
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[30/07 渲染](../30-architecture/07-rendering.md)、[40/06 布局与渲染引擎](../40-modules/06-layout-and-render-engine.md)、[40/07 幻灯片渲染](../40-modules/07-slide-rendering.md)、[30/04 文档模型](../30-architecture/04-document-model.md) §6 / §12.4、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q4 / Q5 / Q7 / Q8、§4.18 CO-01 / CO-02 / CO-19 / FE-08 / FE-09
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[30/07 渲染](../30-architecture/07-rendering.md)、[40/06 布局与渲染引擎](../40-modules/06-layout-and-render-engine.md)、[40/07 幻灯片渲染](../40-modules/07-slide-rendering.md)、[30/04 文档模型](../30-architecture/04-document-model.md) §6 / §12.4、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q4 / Q5 / Q7 / Q8、§4.18 CO-01 / CO-02 / CO-19 / FE-08 / FE-09、§4.20 BE-02 / FE-16 / FE-24
 
 本文是浏览器侧渲染运行时的唯一事实源：一帧怎么画、画到哪、字体与媒体从哪来、画不出来时怎么表达、缩略图用哪条路、屏幕阅读器读什么。`SceneProvider` / `RenderTarget` / `ElementRenderer` / `OverlayRenderer` / `TextMeasurer` 的签名本体留在 [30/07](../30-architecture/07-rendering.md) §2.1 与 [40/06](../40-modules/06-layout-and-render-engine.md) §2.5，包与文件落点留在 40/06、40/07 的 §4–§5，本文只写这些契约在浏览器里怎么被使用、按什么参数运行。
 
@@ -186,6 +186,7 @@ sequenceDiagram
 
 - **不可见页只记脏**：未挂载页的脏记录累积为 `full`，下次挂载时整页重建；后台追加的 `system('import')` 批次只对已挂载页产生绘制（依据：rulings §4.18 CO-12）。
 - **单属性变更**的 target：恰 1 次 `update`、≤ 5 ms；版式变更页级重合成 ≤ 30 ms（30 元素）——数值归 [13](./13-performance-and-bundling.md) §3。
+- **主题预览覆盖**（rulings §4.20 FE-24；UI 流程见 [11](./11-masters-layouts-and-themes.md) §9）：`ViewDescriptor.themePreview?: { masterId; colors?; fonts? }` 由 slide-ui 经 `render.setView` 写入，是视图参数而不是文档数据——不入 Store、不产生事务、不广播（不进 awareness），只作用于携带它的视图（编辑画布），缩略图与其他协作者不受影响。slide-render 合成时对 `masterId` 所用主题的色槽与字体优先取覆盖值，受影响页经 `dependentsOf` 按 `full` 标脏；`LayerTemplateCache` 的键在预览期间附带覆盖内容的哈希，不覆写正式条目。取消或关闭面板时以 `themePreview: undefined` 清空并再次按 `full` 标脏；「应用」后清空覆盖，由随之而来的主题事务按常规路径重绘。全文重算 ≤ 300 ms（[13](./13-performance-and-bundling.md) §3）。
 
 ## 4. 视口与虚拟化
 
@@ -391,7 +392,7 @@ preset 选项 `media.upload(file) → Promise<{ assetId, sha256 }>`；集成方�
 
 1. **临时占位**：用户选定文件后，覆盖层立即在插入位置显示临时占位（id 形如 `tmp:<uuid>`，只在覆盖层、**不入 Store**），同时用 SubtleCrypto 计算 sha256。
 2. **插入即生效**：哈希完成后执行一次 `slide.insertPicture{ containerId, box, blob }`（一个可撤销事务：`media.add` + `shape.insert`，40/03 §2.6），`MediaId` 为新稳定 id、`BlobRef.hash` 为本地 sha256；临时占位被真实形状替换。`BlobRef` 内容寻址，上传完成后无需改写模型。
-3. **后台上传**：`presign{ sha256, byteSize, mime }`（≥ 10 MB 返回分片 URL）→ PUT 预签名 URL（`credentials:'omit'`；客户端不构造、不提交对象键，[14](./14-client-security.md) §9）→ `commit{ uploadId, sha256, byteSize, parts? }`；服务端流式重算 sha256 并把媒体关联到本文档后，其他端即可取到。队列一次只跑一个上传，避免撞上 upload 限流档（[60/15](../60-backend/15-rest-api-catalog.md) §8）。
+3. **后台上传**：`presign{ sha256, byteSize, mime }`（≥ 10 MB 返回分片 URL）→ PUT 预签名 URL（`credentials:'omit'`；客户端不构造、不提交对象键，[14](./14-client-security.md) §9）→ `commit{ uploadId, sha256, byteSize, parts? }`；服务端流式重算 sha256 并把媒体关联到本文档后，其他端即可取到。队列一次只跑一个上传；撞上 upload 限流档（presign 与 commit 共用，默认 60/min、突发 20，[60/15](../60-backend/15-rest-api-catalog.md) §8）时 429 按 `Retry-After` 等待（第 4 步）。串行并不减少每分钟的调用次数，不作为限流手段（rulings §4.20 BE-02）。
 4. **失败**：每步按 1 s、2 s、4 s 重试 3 次（429 按 `Retry-After` 等待，不计入次数）；仍失败标 `failed`，形状上显示「上传失败 · 重试」徽标（覆盖层），不回滚插入；页面关闭前若仍有未完成上传，离开保护提示（[04](./04-document-commands-and-undo.md) §8）。集成方回调返回的 `sha256` 必须等于本地哈希，否则按失败处理；`assetId` 只记录在上传队列里供诊断，不进模型。
 5. 大小与配额：上限来自 presign 响应的 `maxBytes`；配额错误码 `storage.quota_exceeded` 的文案归 [15](./15-events-errors-and-telemetry.md)，限制与清洗规则归 [14](./14-client-security.md) §7。
 
@@ -645,11 +646,12 @@ flowchart TB
 
 | 项 | 性质 | 建议去向 |
 |---|---|---|
-| `SceneNode.a11y` 通用扩展与未挂载页的描述派生（§11） | 契约增补 | 30/07 §2.1、40/06 §2.1、40/07 §2.1 回写 |
-| `render/element-degraded` 新增通用原因 `media-decode-failed`、`media-unavailable`；`render/font-fallback` 增 `reason` 字段与取值（§7.2、§9） | 载荷增补 | 40/06 §2.4、30/10 §11.1 回写 |
-| `RenderService.noteInteraction(kind)`（§2，[15](./15-events-errors-and-telemetry.md) 待回写第 4 条）；render-dom 配置 `fonts.{firstPaintWaitMs, loadTimeoutMs}`（§7.3）；engine-layout 只读查询 `fontsSettled(pageIds)`（§7.3 第 6 条，[12](./12-viewer-embedding-and-render-page.md) §11.5 读取） | 契约与配置增补 | 40/06 §2.4 / §3 render-dom Config |
+| `SceneNode.a11y` 通用扩展与未挂载页的描述派生（§11） | 已回写：40/06 §2.1（其 §12「2026-09-25 回写」）、40/07 §2.1 与 `domain/scene/a11y-descriptor.ts`；30/07 §2.1 随 rulings §4.20 FE-16 回写 | 30/07 §2.1、40/06 §2.1、40/07 §2.1 |
+| `render/element-degraded` 新增通用原因 `media-decode-failed`、`media-unavailable`；`render/font-fallback` 增 `reason` 字段与取值（§7.2、§9） | 已回写：40/06 §2.4；30/10 §11.1 随 rulings §4.20 FE-16 回写 | 40/06 §2.4、30/10 §11.1 |
+| `RenderService.noteInteraction(kind)`（§2，[15](./15-events-errors-and-telemetry.md) 待回写第 4 条）；render-dom 配置 `fonts.{firstPaintWaitMs, loadTimeoutMs}`（§7.3）；engine-layout 只读查询 `fontsSettled(pageIds)`（§7.3 第 6 条，[12](./12-viewer-embedding-and-render-page.md) §11.5 读取） | 已回写：40/06 §2.4、§3 render-dom Config 与 `layout.service.ts` | 40/06 §2.4 / §3 render-dom Config |
+| `ViewDescriptor.themePreview?: {masterId; colors?; fonts?}`（§3，[11](./11-masters-layouts-and-themes.md) §9） | 已定（rulings §4.20 FE-24），本文 §3 登记行为 | 已回写（2026-09-26）：40/07 §2.1「主题预览」段登记为 slide-render 识别的扩展键，engine-render 的 `ViewDescriptor` 靠索引签名承载 |
 | `server-png` 与封面的取数回调（§10.2，apps/web 默认实现经 `http.ts`） | 已登记：preset 选项 `thumbnails.fetchImage`（40/11 §2.2） | 40/07 缩略图配置、40/11 preset 选项 |
-| 覆盖层命中结果的 `kind` 与内容命中 `HitResult.region` 的合并形状（§5.1） | 契约增补 | 40/06 §2.2 |
+| 覆盖层命中结果的 `kind` 与内容命中 `HitResult.region` 的合并形状（§5.1） | 已回写：40/06 §2.2 合并为判别联合 | 40/06 §2.2 |
 | 模板层只含非占位符形状（§1）与 `occluded` 规则 | 已关闭：30/07 §4.1、40/07 §2.1 改为 PowerPoint 行为（普通页上母版与版式的占位符一律不绘制，只绘制其非占位符形状，受 `showMasterSp` 控制），与本文 §1 一致 | 30/07 §4.1、40/07 §2.1 |
 | `layoutAlgorithmVersion` 统一为 `layoutAlgoVersion`（§6） | 已关闭（30/07 §5.1 同步） | 30/07 §5.1 |
 | 30/06 §9.1 第 4 条媒体端点 | 已关闭：改为文档作用域 `/documents/:id/media/:sha256`（INC-21） | 30/06 §9.1 |
@@ -677,6 +679,7 @@ flowchart TB
 | `view/page-changed`、`view/zoom-changed` 只由 Viewport 发出，页变更恰一次 | engine-render `viewport` 单测 | test/unit |
 | 可访问树覆盖全部已装载页，与视觉层挂载数无关 | e2e a11y 用例 | e2e/a11y（70/06 §7） |
 | 缩略图：去抖、`maxMounted`、Provider 切换、`raster` 被配置 schema 拒绝、provisional 回退 | slide-render `thumbnails.test.ts` | test/unit |
+| 主题预览覆盖：`themePreview` 生效时合成取覆盖值，期间 Store 无事务、无 awareness 变化；清空后回到文档主题且模板缓存正式条目未被覆写（rulings §4.20 FE-24） | slide-render `__tests__/master-view.test.ts`（40/07 §9） | test/unit |
 | 视觉保真（客户端 render-dom 截图对 PowerPoint 基线；与 renderer 输出互差 ≤ 0.5%） | 语料与基线 | e2e/oracle-gated（[70/04](../70-testing/04-visual-oracle.md)） |
 | 性能（首帧、帧率、键入、缩略图更新、DX-1000） | perf 场景 | perf/perf-client（[70/09](../70-testing/09-performance-and-capacity.md)） |
 | `/render` 页零外呼、ready 判据 | `render-page.spec.ts` | 见 [12](./12-viewer-embedding-and-render-page.md) §12 |

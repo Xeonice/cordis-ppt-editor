@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.10（D13 入口口径）；`10-prd/07-design-coverage-and-gaps.md` D13；PRD `08-app-shell` AS-06；09 v3.0 T-06、§2 `UserMenu`；playground `Settings.tsx`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-26（§4.20：FE-15 线框与控件说明补「隐私与诊断」组） | 依赖：charter v0.2；rulings §4.10（D13 入口口径）；`10-prd/07-design-coverage-and-gaps.md` D13；PRD `08-app-shell` AS-06；09 v3.0 T-06、§2 `UserMenu`；playground `Settings.tsx`；rulings §4.20 FE-15；`50-frontend/10` §10.3
 
 # 03-23 设置（主题/密度/语言/单位）
 
@@ -34,6 +34,10 @@
                                           │ ☑ 评论 @ 我时提示        │
                                           │ ☑ 导入完成后高亮详情      │
                                           ├───────────────────────┤
+                                          │ 隐私与诊断              │
+                                          │ ☑ 发送错误报告           │
+                                          │ ☐ 发送使用统计           │
+                                          ├───────────────────────┤
                                           │ 关于                    │
                                           │ 版本 0.1.0-m2           │
                                           │ [复制诊断信息]           │
@@ -49,7 +53,7 @@
 
 各控件读取当前本地偏好（首次使用为出厂默认：主题跟随系统、密度舒适、语言随浏览器/账户语言、单位随语言默认——zh-CN → cm，en-US → in，见产品默认答案 D1）。
 
-控件形态（09 T-06，playground `Settings.tsx`）：主题（系统 / 亮 / 暗，Lucide `Monitor` / `Sun` / `Moon` 图标）与密度（舒适 / 紧凑）均为 `ToggleGroup type="single" size="sm" variant="outline"` 分段，**不用下拉**；语言、度量单位、自动保存间隔、粘贴默认为 `Select`（`SelectTrigger size="sm"`）；通知项为 `Checkbox`。分组为 iOS 式内嵌列表：12px 半粗淡色标题置于组外，组内容 `.cordex-group p-3`，组间靠留白不靠分割线；抽屉内容区 `.cordex-well m-3 p-3`。「关于」段：版本号、「复制诊断信息」、「已加载插件：5 个 → 管理」（跳转 03-screens/09）。
+控件形态（09 T-06，playground `Settings.tsx`）：主题（系统 / 亮 / 暗，Lucide `Monitor` / `Sun` / `Moon` 图标）与密度（舒适 / 紧凑）均为 `ToggleGroup type="single" size="sm" variant="outline"` 分段，**不用下拉**；语言、度量单位、自动保存间隔、粘贴默认为 `Select`（`SelectTrigger size="sm"`）；通知项为 `Checkbox`。「隐私与诊断」组（rulings §4.20 FE-15，决策 TELEMETRY-DEFAULT）两项也是 `Checkbox`：「发送错误报告」默认开，「发送使用统计」默认关；部署未启用 `telemetry.otlp` 时不显示「发送使用统计」，关闭任一项即清空对应的待发送队列（行为以 `50-frontend/10` §10.3 为准）。分组为 iOS 式内嵌列表：12px 半粗淡色标题置于组外，组内容 `.cordex-group p-3`，组间靠留白不靠分割线；抽屉内容区 `.cordex-well m-3 p-3`。「关于」段：版本号、「复制诊断信息」、「已加载插件：5 个 → 管理」（跳转 03-screens/09）。
 
 **设置项的取值与修改**
 

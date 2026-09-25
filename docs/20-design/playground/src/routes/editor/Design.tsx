@@ -10,7 +10,7 @@ import {
 import { EditorRibbon } from "@/components/editor/Ribbon"
 import type { RibbonTabValue } from "@/components/editor/Ribbon"
 import { collaborators, documentTitle, slides, themePresets } from "@/lib/mock-data"
-import { ReadonlyRibbonNotice } from "@/components/editor/Ribbon"
+import { ReadonlyRibbonNotice, RibbonTrailing } from "@/components/editor/Ribbon"
 
 /**
  * 03-screens/28 设计页签与主题。裁决 2026-09-18 §4.10 Q17：去掉了默认主题设置与另存主题两个入口。
@@ -46,7 +46,7 @@ export function EditorDesign() {
         }
         ribbon={
           readOnly ? (
-            <ReadonlyRibbonNotice>评审模式下"设计"页签的自定义控件不可交互</ReadonlyRibbonNotice>
+            <ReadonlyRibbonNotice trailing={<RibbonTrailing />}>评审模式下"设计"页签的自定义控件不可交互</ReadonlyRibbonNotice>
           ) : (
             <EditorRibbon
               value={ribbonTab}

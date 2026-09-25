@@ -1,6 +1,6 @@
 # 14 客户端安全
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02、§4.20 FE-18；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17
 
 本文是浏览器侧安全设计的唯一事实源：信任模型、CSP 策略正文（逐指令）、nonce 消费链、Trusted Types、文档内容进入 DOM 的规则、外链资源、输入限制、会话与请求的浏览器侧规则、上传、本地数据、嵌入与跨源、前端代码规则。服务端鉴权链（OIDC、会话、CSRF 校验、票据、分享链接解析、RLS）以 [60/02](../60-backend/02-auth-chain.md) 为准；web 容器如何每响应生成 nonce、下发 CSP 头与缓存头以 [60/17](../60-backend/17-deployment-and-config.md) 为准，其中 CSP 策略正文只引用本文 §2。测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §10 与 [70/10](../70-testing/10-security-testing.md) 为准。
 
@@ -103,10 +103,10 @@ flowchart LR
 | `form-action` | `'self'` | 登录是顶层 GET 导航（INC-18），不提交跨源表单 | M2 |
 | `frame-ancestors` | `{frameAncestors}` | 默认 `'none'`；只有 `/embed/*` 的响应取允许嵌入的宿主源列表：部署键 `web.embed.allowedHostOrigins`（60/17 §5，环境变量 `CORDEX_WEB_EMBED_ALLOWED_ORIGINS`，默认空即 `'none'`），同一份值进 RuntimeConfig `embed.allowedHostOrigins`（50/02 §3）作 §11 的 postMessage 允许列表（50/12 §9） | M2 / 形态 E M3 |
 | `require-trusted-types-for` | `'script'` | M2 在 Report-Only 头，M3 进入强制头（§4） | M2 → M3 |
-| `trusted-types` | `cordex-default` | 只允许本文 §4 的策略名；不创建名为 `default` 的策略 | M2 → M3 |
+| `trusted-types` | `cordex-default default` | 只允许本文 §4.1 的两个策略名：`cordex-default`（Worker 脚本 URL）与 `default`（只对登记的两段 Radix 固定样式文本精确放行 `createHTML`）；不加 `'allow-duplicates'`。TT-CSP-REPORT 修订（rulings §4.20 FE-18）：原「不创建名为 `default` 的策略」作废 | M2 → M3 |
 | `report-to` / `report-uri` | `cordex-csp` / `/api/v1/telemetry/csp` | `report-to` 配 `Reporting-Endpoints`；`report-uri` 兼容不支持 Reporting API 的浏览器 | M2 |
 
-依据：TT-CSP-REPORT（rulings §4.15 Q2 + §4.18 BE-30）；FONTS（ADR-0027 + PRD OF-25 + 零外呼）；CSP-NONCE（rulings §4.15 Q2 + §4.18 BE-11）；BE-01（存储经 `s3.<域名>` 反代子域）；INC-18（登录为 GET 302）。
+依据：TT-CSP-REPORT（rulings §4.15 Q2 + §4.18 BE-30，§4.20 FE-18 修订 `trusted-types` 取值）；FONTS（ADR-0027 + PRD OF-25 + 零外呼）；CSP-NONCE（rulings §4.15 Q2 + §4.18 BE-11）；BE-01（存储经 `s3.<域名>` 反代子域）；INC-18（登录为 GET 302）。
 
 ### 2.2 策略模板
 
@@ -130,7 +130,7 @@ Content-Security-Policy:
 
 Content-Security-Policy-Report-Only:          # 仅 M2；M3 起两条 TT 指令并入上方强制头、删除本头
   require-trusted-types-for 'script';
-  trusted-types cordex-default;
+  trusted-types cordex-default default;
   report-to cordex-csp;
   report-uri /api/v1/telemetry/csp
 
@@ -171,7 +171,7 @@ Reporting-Endpoints: cordex-csp="https://{publicHost}/api/v1/telemetry/csp"
 
 | 形态 | 宿主 CSP 至少放行 | 样式注入 | Trusted Types |
 |---|---|---|---|
-| A React 组件 | `script-src` 覆盖宿主 bundle；`worker-src` 覆盖 SDK Worker chunk 所在源；`img-src`/`media-src` 含 `blob:`；`connect-src` 含集成方 API 与 WS 端点（协同时再加存储源） | 推荐 `injectCss:false` 并静态引入 `@cordexjs/ui-react/styles.css`；若 `injectCss:true`，须传 `theme.cssNonce`，SDK 把同一值交给全部运行时样式注入点（§3） | 若宿主强制 TT，须把 `cordex-default` 或宿主自己的策略经 `createHost({ scriptUrlPolicy })` 交给 SDK（§4.2） |
+| A React 组件 | `script-src` 覆盖宿主 bundle；`worker-src` 覆盖 SDK Worker chunk 所在源；`img-src`/`media-src` 含 `blob:`；`connect-src` 含集成方 API 与 WS 端点（协同时再加存储源） | 推荐 `injectCss:false` 并静态引入 `@cordexjs/ui-react/styles.css`；若 `injectCss:true`，须传 `theme.cssNonce`，SDK 把同一值交给全部运行时样式注入点（§3） | 若宿主强制 TT，须把 `cordex-default` 或宿主自己的策略经 `createHost({ scriptUrlPolicy })` 交给 SDK（§4.2）；Radix ScrollArea / Select 的固定样式需经名为 `default` 的策略放行：SDK 不自建策略，宿主须在自己的 `default` 策略中按 ui-react 导出的固定样式常量表精确放行 `createHTML`（已有 `default` 时并入其白名单），并在 `trusted-types` 中允许 `default`（§4.1） |
 | B 框架无关 | 同 A，但不含 React / Radix 的运行时样式 | `UiRenderer('vanilla')` 只用静态 CSS | 同 A |
 | C 只读查看器 | 同 A 去掉 `connect-src` 的 WS | 查看器壳只用静态 CSS | 同 A |
 | D 浏览器 headless | `worker-src`、`connect-src`（若取 URL） | 无 UI | 同 A |
@@ -206,16 +206,16 @@ Reporting-Endpoints: cordex-csp="https://{publicHost}/api/v1/telemetry/csp"
 2. **读取**：浏览器会对 `nonce` 属性做隐藏（`getAttribute('nonce')` 返回空串），因此 `apps/web` 的 `main.tsx` 从 `<meta name="cordex-nonce">` 读取。nonce **不进入 RuntimeConfig**：RuntimeConfig 是容器启动时渲染的静态部署项（RUNTIME-CONFIG），nonce 是每响应值。
 3. **交给 SDK**：`create-editor-host.ts` 把 nonce 作为 `theme.cssNonce` 传入 preset 选项；SDK 内**只认这一个入口**（形态 A 的宿主同样只传这一项）。
 4. **自有注入点**：ui-core `theme-style-injector.ts` 创建唯一的 `<style data-cordex-tokens nonce>`，内容只用 `textContent` 写入，按 document 去重。
-5. **第三方运行时样式**：ui-react 挂载时把同一 nonce 交给下列注入点。清单登记在 ui-react（建议文件 `src/infrastructure/csp/runtime-style-sinks.ts`），每次升级依赖时按实际版本复核：
+5. **第三方运行时样式**：ui-react 挂载时把同一 nonce 交给下列注入点。清单登记在 ui-react（`src/infrastructure/csp/runtime-style-sinks.ts`），每次升级依赖时按实际版本复核；下表各依赖的处理已按 playground 锁定版本的源码实测定稿（rulings §4.20 FE-18，不等 M2 报告）：
 
-| 注入点 | 所在依赖 | nonce 传递方式 | 不支持 nonce 时 |
+| 注入点 | 所在依赖（实测版本） | nonce 传递方式 | 不支持 nonce 或触及 Trusted Types 时 |
 |---|---|---|---|
 | 滚动锁定样式（Dialog、Popover、Select 等） | `react-remove-scroll` → `react-style-singleton` | 在首次渲染前调用 `get-nonce` 的 `setNonce(nonce)`；`get-nonce` 须与 `react-style-singleton` 解析到同一实例（R5 单点引入 + 单一版本） | — |
-| 隐藏滚动条的固定样式 | Radix ScrollArea / Select 的 Viewport | shadcn 复制件 `scroll-area.tsx`、`select.tsx` 以 `// Cordex override` 透传 `nonce` 属性 | — |
-| Toast 样式 | `sonner` | 若所用版本支持 nonce 则透传 | 构建期把样式抽成静态 CSS 并入 `styles.css`，运行时注入被拦只产生报告、外观不变 |
-| 拖拽期间的全局光标样式 | `react-resizable-panels` | 同上 | 同上 |
+| 隐藏滚动条的固定样式 | Radix ScrollArea 1.2.18 / Select 2.3.7 的 Viewport（`<style dangerouslySetInnerHTML nonce>` 写一段固定常量） | shadcn 复制件 `scroll-area.tsx`、`select.tsx` 以 `// Cordex override` 透传 `nonce` 属性 | CSP 不受影响；React 写 innerHTML 是 TT sink，由 `default` 策略按常量表精确白名单放行（§4.1、§4.4） |
+| Toast 样式 | `sonner` 2.0.8（模块加载时即以不带 nonce 的 `<style>` 注入，`__insertCSS`） | 不支持 nonce | 静态引入 `sonner/dist/styles.css` 并入 ui-react 样式产物；以 pnpm patch 删去 import 时的 `__insertCSS` 调用（`pnpm-workspace.yaml` 登记 `patchedDependencies`），运行时零注入、零违规 |
+| 拖拽期间的全局光标样式 | `react-resizable-panels` 4.12.4 | 不需要：只用 `adoptedStyleSheets` / CSSOM（`replaceSync`、`insertRule`），不创建 `<style>`、不写 innerHTML，不经 `style-src` 的元素校验 | 无需处理 |
 
-6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 违规数为 0；任何遗漏的注入点都会在这里暴露。
+6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 与 Trusted Types 违规数都为 0，且 Toast 与 ScrollArea 的计算样式与基线一致；任何遗漏的注入点、失效的 patch 或过期的常量表都会在这里暴露。没有「运行时注入被拦只产生报告、外观不变」这类退路：`style-src` 自 M2 起强制，零违规是门禁。
 
 **图 2 nonce 从 web 容器响应到样式注入**
 
@@ -244,23 +244,34 @@ sequenceDiagram
 
 ## 4. Trusted Types
 
-依据：TT-CSP-REPORT（rulings §4.15 Q2：M2 report-only → M3 强制；§4.18 BE-30：浏览器遥测端点归 ClientTelemetryModule）。
+依据：TT-CSP-REPORT（rulings §4.15 Q2：M2 report-only → M3 强制；§4.18 BE-30：浏览器遥测端点归 ClientTelemetryModule；§4.20 FE-18：增 `default` 策略，记为 TT-CSP-REPORT 修订）。
 
-### 4.1 策略 `cordex-default`
+### 4.1 两个策略：`cordex-default` 与 `default`
 
-策略由 `apps/web` 在任何 Worker 创建之前建立（建议落点 `apps/web/src/infrastructure/security/trusted-types.ts`，由 `main.tsx` 调用；文件登记待回写 40/11 §4.4）。浏览器不支持 TT 时不创建，调用方直接使用 URL。
+两个策略都由 `apps/web` 在任何 Worker 创建、任何组件挂载之前建立（`apps/web/src/infrastructure/security/trusted-types.ts`，由 `main.tsx` 调用；已登记 40/11 §4.4，`default` 策略的职责随 rulings §4.20 FE-18 补登）。浏览器不支持 TT 时都不创建，调用方直接使用 URL 与字符串。
+
+**`cordex-default`**（Worker 脚本 URL，经 `toScriptUrl` 显式使用，§4.2）：
 
 | 工厂 | 是否提供 | 规则 |
 |---|---|---|
 | `createScriptURL` | 提供 | 以页面 origin 解析输入；仅当 origin 同源、路径以 `/assets/` 开头、以 `.js` 结尾、无 query 与 fragment 时原样返回 `href`；其余一律返回 `null`（得到空 URL，Worker 构造失败），并经 `ctx.logger('security:tt')` 记 `warn`；`blob:`、`data:` 永不放行 |
-| `createHTML` | 不提供 | 强制后任何 HTML sink 调用都抛错 |
+| `createHTML` | 不提供 | — |
 | `createScript` | 不提供 | 不允许字符串求值 |
 
-不创建名为 `default` 的策略：未经策略的赋值应当失败，而不是被兜底放行。
+**`default`**（浏览器对未经策略的原始字符串赋值自动调用；只为 Radix 的两段固定样式存在，§4.4）：
+
+| 工厂 | 是否提供 | 规则 |
+|---|---|---|
+| `createHTML` | 提供 | 输入与常量表中登记的文本**逐字符精确比对**（不裁剪、不规范化、不做前缀或包含匹配），命中则原样返回；其余一律返回 `null`，强制后该赋值照常抛错并生成报告，经 `ctx.logger('security:tt')` 记 `warn` |
+| `createScriptURL` | 不提供 | 未经 `cordex-default` 的脚本 URL 仍失败 |
+| `createScript` | 不提供 | 不允许字符串求值 |
+
+- **常量表**：ui-react `src/infrastructure/csp/trusted-style-constants.ts`（与 `runtime-style-sinks.ts` 同目录），只收 Radix ScrollArea 1.2.18 与 Select 2.3.7 Viewport 的两段固定样式文本，每条注明来源包、版本与源码位置；ui-react 公开导出这张表供组合根与形态 A 宿主使用。升级任一 Radix 包时同一 PR 更新常量表，并过 §13 的 csp-strict 与负向用例。
+- **严格程度不变**：常量表之外的一切 HTML 赋值仍然失败，不被兜底放行；原决策「不创建名为 `default` 的策略」的目的（未经策略的赋值必须失败）由「只放行两段常量、其余返回 `null`」保持。TT-CSP-REPORT 修订（rulings §4.20 FE-18，2026-09-26）：`trusted-types` 取值由 `cordex-default` 改为 `cordex-default default`（§2.1）。
 
 ### 4.2 SDK 如何取得策略
 
-SDK 各包不自建策略（策略名由组合根决定）。`createHost` 增加可选项 `scriptUrlPolicy`（`HostOptions`，登记待回写 40/02），kernel 只保存该策略并提供 `toScriptUrl(ctx, url)`：有策略时返回 `policy.createScriptURL(url.href)`，无策略时返回 `url.href`。kernel 是 iso 包，这个函数只接收结构化的策略对象，不引用 `Worker`、`trustedTypes` 等浏览器全局（章程 §5.3 规则 5）；`new Worker(…)` 只写在 dom 包的 Worker 创建点（导入解析、pptx 导出、EMF / WMF 栅格化）。lint `no-restricted-syntax` 要求 `new Worker(` / `new SharedWorker(` 的第一个实参必须是 `toScriptUrl(…)` 调用（既有 lint 规则的一行配置，不新增扫描器）。形态 A 的宿主若强制 TT，把自己的策略传入同一选项即可。
+SDK 各包不自建策略（策略名由组合根决定）。`createHost` 增加可选项 `scriptUrlPolicy`（`HostOptions`，已登记 40/02），kernel 只保存该策略并提供 `toScriptUrl(ctx, url)`：有策略时返回 `policy.createScriptURL(url.href)`，无策略时返回 `url.href`。kernel 是 iso 包，这个函数只接收结构化的策略对象，不引用 `Worker`、`trustedTypes` 等浏览器全局（章程 §5.3 规则 5）；`new Worker(…)` 只写在 dom 包的 Worker 创建点（导入解析、pptx 导出、EMF / WMF 栅格化）。lint `no-restricted-syntax` 要求 `new Worker(` / `new SharedWorker(` 的第一个实参必须是 `toScriptUrl(…)` 调用（既有 lint 规则的一行配置，不新增扫描器）。形态 A 的宿主若强制 TT，把自己的策略传入同一选项即可。
 
 ### 4.3 sink 清单
 
@@ -268,24 +279,22 @@ SDK 各包不自建策略（策略名由组合根决定）。`createHost` 增加
 |---|---|---|
 | `new Worker` / `new SharedWorker`（TrustedScriptURL） | 导入解析、pptx 导出、EMF 栅格化 | 首参经 `toScriptUrl` + `cordex-default` |
 | `HTMLScriptElement.src` / `.text`（TrustedScriptURL / TrustedScript） | 不使用；惰性 chunk 走 `import()` | — |
-| `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser.parseFromString`、`document.write`、`Range.createContextualFragment`、`iframe.srcdoc`（TrustedHTML） | 不使用：TD-081 lint（渲染包与 `*-ui`）+ ui-core / ui-react / slide-ui 禁 `dangerouslySetInnerHTML`（40/10 §10）；ui-core 剪贴板清洗同样不得使用 `DOMParser`（§5） | 无 `createHTML`，强制后调用即抛错 |
+| `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser.parseFromString`、`document.write`、`Range.createContextualFragment`、`iframe.srcdoc`（TrustedHTML） | 自有代码不使用：TD-081 lint（渲染包与 `*-ui`）+ ui-core / ui-react / slide-ui 禁 `dangerouslySetInnerHTML`（40/10 §10）；ui-core 剪贴板清洗同样不得使用 `DOMParser`（§5）。第三方唯一用法：Radix ScrollArea / Select Viewport 的固定 `<style>`（§4.4） | `cordex-default` 无 `createHTML`；`default` 只放行常量表里的两段文本，其余强制后抛错 |
 | `eval`、`new Function`、字符串形式的 `setTimeout`（TrustedScript） | 不使用：CSP 无 `unsafe-eval` + ESLint 核心规则 `no-eval` / `no-implied-eval` / `no-new-func` | 无 `createScript` |
 | `javascript:` URL 导航 | 超链接协议白名单已拒绝（§5） | 强制后浏览器再拦一次 |
 
-### 4.4 开放问题：Radix 的固定样式注入
+### 4.4 Radix 的固定样式注入（已定）
 
-Radix ScrollArea 与 Select 的 Viewport 以 `dangerouslySetInnerHTML` 向 `<style>` 写一段固定的滚动条样式；TT 强制后且没有 `createHTML` 时会抛错。M2 report-only 期间预计出现此类报告。处理路径（M2 出口按报告实证选择，结论回写本节）：
+Radix ScrollArea 1.2.18 与 Select 2.3.7 的 Viewport 以 `<style dangerouslySetInnerHTML nonce>` 写一段固定常量（分别见两包 `dist/index.mjs` 第 136、735 行，playground 锁定版本实测）：nonce 已由复制件透传，CSP `style-src` 不受影响；但 React 写 innerHTML 属于 TT sink，M3 强制后必抛。rulings §4.20 FE-18 现在就定为**方案乙**，不等 M2 报告：名为 `default` 的策略只对常量表里的这两段文本精确放行（§4.1）。原方案甲（复制件改原生滚动）只能解决 ScrollArea，Select 没有简单绕法，不采用。
 
-| 方案 | 做法 | 代价 |
-|---|---|---|
-| 甲（推荐先试） | 复制件 `scroll-area.tsx` 改为原生滚动 + 静态 CSS 滚动条样式，不再使用 Radix ScrollArea；Select 同理评估是否能绕开 Viewport 的内置样式 | 两个复制件以 `// Cordex override` 改写；不改变 TT 决策 |
-| 乙 | 另建名为 `default` 的策略，`createHTML` 只接受登记在常量表里的固定样式文本（精确比对），其余返回 `null` | 需修改 TT-CSP-REPORT 的 `trusted-types` 取值，须总编排确认 |
+- 保留 Radix 组件与自定义滚动条外观；其余 HTML sink 的严格程度不变。
+- 升级任一 Radix 包时，常量不再匹配只会表现为 TT 报告（M2）或抛错（M3），不会被静默放行；由 §13 V2 的 csp-strict（TT 与 `style-src` 违规为 0、ScrollArea 计算样式与基线一致）在合入前拦下。
 
 ### 4.5 违规处理与里程碑
 
 - **上报**：浏览器按 `report-to` / `report-uri` 把 CSP 与 TT 报告发往 `POST /api/v1/telemetry/csp`（`@Public`，因 Reporting API 不保证携带 cookie；严格令牌桶、16 KiB 上限、只记录指令名与被拦主机名，60/18 §9）。生产环境前端**不**再用 `securitypolicyviolation` 事件重复上报；开发环境把该事件写进 `ctx.logger('security:csp')`。
-- **M2**：CSP 其余指令强制，TT 在 Report-Only 头；e2e 套件在测试夹具里监听 `securitypolicyviolation` 并统计 TT 报告。
-- **M3 切换条件**：e2e 全部路由 × 面板 × 状态下 TT 报告数为 0，§4.4 已结论；然后把两条 TT 指令并入强制头。
+- **M2**：CSP 其余指令强制，TT 在 Report-Only 头；e2e 套件在测试夹具里监听 `securitypolicyviolation` 并统计 TT 报告。M2 只报告期只用来验证 TT 报告为 0，不再承担选方案的职责（§4.4 已定）。
+- **M3 切换条件**：e2e 全部路由 × 面板 × 状态下 TT 报告数为 0；然后把两条 TT 指令并入强制头。
 - **M3 之后**：任何新增 sink 调用在开发期就会抛错；线上报告进入 60/18 的计数与告警。
 
 **图 3 Trusted Types 里程碑与违规处理**
@@ -293,9 +302,12 @@ Radix ScrollArea 与 Select 的 Viewport 以 `dangerouslySetInnerHTML` 向 `<sty
 ```mermaid
 flowchart LR
   code["代码调用 sink"]
-  policy{"经 cordex-default 策略？"}
-  ok["createScriptURL 放行同源 /assets/ Worker"]
+  typed{"传入的是经 toScriptUrl 取得的 Trusted 值？"}
+  cd{"cordex-default：同源 /assets/ 下的 .js？"}
+  ok["Worker 正常创建"]
   none["返回 null：构造失败并记 warn"]
+  dflt{"原始字符串交给 default：createHTML 且文本在常量表内？"}
+  okd["放行 Radix 固定样式"]
   subgraph m2["M2：Report-Only"]
     rep2["浏览器生成报告，调用照常执行"]
   end
@@ -304,12 +316,15 @@ flowchart LR
     boundary["错误边界捕获，errors.report"]
   end
   endpoint["POST /api/v1/telemetry/csp：只记指令与被拦主机"]
-  gate{"e2e 套件 TT 报告为 0 且 4.4 已结论？"}
-  code --> policy
-  policy -->|"是，URL 合规"| ok
-  policy -->|"是，URL 不合规"| none
-  policy -->|"否，未经策略"| rep2
-  policy -->|"否，未经策略"| rep3
+  gate{"e2e 套件 TT 报告为 0？"}
+  code --> typed
+  typed -->|"是"| cd
+  cd -->|"是"| ok
+  cd -->|"否"| none
+  typed -->|"否"| dflt
+  dflt -->|"是"| okd
+  dflt -->|"否，返回 null"| rep2
+  dflt -->|"否，返回 null"| rep3
   rep3 --> boundary
   rep2 --> endpoint
   rep3 --> endpoint
@@ -317,8 +332,8 @@ flowchart LR
   gate -->|"是"| m3
 ```
 
-怎么读：未经策略的 sink 调用在 M2 只产生报告、照常执行，在 M3 直接抛错并被错误边界接住；两条路径的报告都进同一个端点。M2 → M3 的切换只看 e2e 报告数与 §4.4 的结论。
-依据：TT-CSP-REPORT；rulings §4.15 Q2；60/18 §9。
+怎么读：Worker URL 走 `cordex-default` 的显式路径；其余原始字符串一律先交给 `default`，只有常量表里的两段 Radix 样式能通过。`default` 返回 `null` 的调用在 M2 只产生报告、照常执行，在 M3 直接抛错并被错误边界接住；两条路径的报告都进同一个端点。M2 → M3 的切换只看 e2e 报告数。
+依据：TT-CSP-REPORT（rulings §4.20 FE-18 修订）；rulings §4.15 Q2；60/18 §9。
 
 ## 5. 文档内容安全
 
@@ -522,6 +537,7 @@ flowchart TB
 | 外部 URL 只经 `openExternal` 打开 | lint `no-restricted-properties` 配置行（§5） | ui-core、ui-react、`*-ui`、apps/web |
 | 无 `console.*`、无裸 `Error` | `no-console`、`no-restricted-syntax`（50/15 §11） | 全仓 |
 | 第三方单点引入 | 章程 §5.3 规则（`cordis`、`yjs`、`react`、`radix-ui` 等）；`get-nonce` 随 ui-react 单点引入（§3） | 全仓 |
+| 第三方包补丁 | 只经 `pnpm patch`，登记在 `pnpm-workspace.yaml` 的 `patchedDependencies`，补丁文件入库随评审；当前只有 `sonner`（删 import 时的运行时样式注入，§3，rulings §4.20 FE-18）；升级被补丁的包时同一 PR 重做补丁并过 §13 V2 | 全仓 |
 | 不从 CDN 加载任何资源 | CSP `'self'` + 网络白名单 e2e；字体同源自托管 `/fonts/` | apps/web 与 SDK |
 | 生产 source map 不对外提供 | Vite `build.sourcemap: 'hidden'`；`.map` 作为 CI 产物上传供服务端反解（60/18），web 容器不提供 | apps/web |
 | 依赖许可证白名单（D13）、高危漏洞阻断、lockfile 与 `workspace:` 协议、npm provenance、SBOM（P1） | `scanners` job 的既有步骤（TD-050、TD-079、TD-080；执行见 70/10 §13 SEC-SC-01…07） | 全仓 |
@@ -533,9 +549,9 @@ flowchart TB
 | # | 断言 | 执行（70 文件 · CI 步骤） |
 |---|---|---|
 | V1 | 渲染包与 `*-ui` 中不出现 `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser`、`document.write`（TD-081 负向夹具：`el.innerHTML = svgText`、`new DOMParser()`） | 09-type-discipline/08 TD-081 · `lint` |
-| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体）、`/documents/:id/view`、`/styleguide` 的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数为 0 | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
+| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体）、`/documents/:id/view`、`/styleguide` 的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数与 Trusted Types 报告数都为 0；Toast（sonner）与 ScrollArea 的计算样式与基线一致（rulings §4.20 FE-18） | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
 | V3 | nonce 每个 HTML 响应不同；CSP 头中的 nonce 与页面 `<meta name="cordex-nonce">` 同值；`index.html` 为 `no-store` | 70/10 SEC-CL-01、[70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 · `e2e/full-compose` |
-| V4 | TT：M2 期间 e2e 套件统计到的 TT 报告数为 0（§4.5 切换条件）；M3 起强制头存在，且 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null` | 70/10 SEC-CL-02 · 全部浏览器 e2e 步骤；策略函数单测 · `test/unit` |
+| V4 | TT：M2 期间 e2e 套件统计到的 TT 报告数为 0（§4.5 切换条件）；M3 起强制头存在，且 `cordex-default` 的 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null`；`default` 的 `createHTML` 对两段登记常量原样放行，对常量表外的文本（含登记文本改动一个字符）返回 `null`（负向用例，rulings §4.20 FE-18） | 70/10 SEC-CL-02、70/06 §10.1（未登记文本、登记常量多一个空格两个负向例；sonner、Radix、react-resizable-panels 零违规且计算样式与基线 `apps/web/e2e/security/fixtures/third-party-styles.json` 一致）· 全部浏览器 e2e 步骤；策略函数单测 ui-react `src/infrastructure/csp/__tests__/trusted-style-constants.test.ts` · `test/unit` |
 | V5 | `externalResources`：`auto` 下外链 `<image>` 带 `referrerpolicy="no-referrer"`；`confirm` 下确认前外链请求数为 0；`never` 下外链请求数为 0 且 CSP 不含 `https:`；`confirm` / `never` 下头像不发请求 | 70/10 SEC-CT-05 · `e2e/full-compose`（`never` 档另进 `e2e/smoke`） |
 | V6 | 网络白名单：编辑器与查看器 e2e 的全部请求只指向同源、`wsBase`、存储源与 `/fonts/`；`/render` 两种注入模式下请求数为 0 | 70/10 SEC-CL-03 · 全部浏览器 e2e 步骤；`/render` 零请求 · `e2e/smoke` |
 | V7 | CSRF：`http.ts` 对每个非安全方法附 `X-Cordex-Request: 1`（单测遍历方法表）；跨源 POST 与缺头 POST 返回 403 | `test/unit`；70/10 SEC-XS-01 · `test/server-integration`、`e2e/smoke`（70/06 §10.3） |
@@ -556,4 +572,4 @@ flowchart TB
 | M3 | TT 强制（§4.5 条件满足后）；分享令牌落地（V9）；形态 E 同站嵌入与 postMessage 规则（§11）；OWASP ASVS L2 自评与第三方渗透测试作为出口（NF-04） |
 | M4 | 离线库启用前复核 §10；形态 E 跨站嵌入随 `cordex:token`；插件信任模型文档 |
 
-**待回写（由总编排执行）**：40/11 §4.4 登记 `infrastructure/security/trusted-types.ts`；40/02 登记 `HostOptions.scriptUrlPolicy` 与 kernel `toScriptUrl`；40/10 登记 `runtime-style-sinks.ts` 与 `openExternal`；09-type-discipline/02 把 TD-081 作用范围扩展到 `ui-core` 与 `apps/web`，并登记 `new Worker(`、`window.open` 两条配置行；30/10 §5 与 PRD 06 §5 中「sendBeacon 兜底」改为「`fetch` keepalive 兜底」（理由见 §8 CSRF 行）。（50/04 §9 不经 `DOMParser` 的清洗、50/05 §8.1 / §10.2 媒体与缩略图经 `http.ts` 取 Blob 两项已在本线落实。）
+**回写状态（由总编排执行）**：已回写——40/11 §4.4 `infrastructure/security/trusted-types.ts`；40/02 `HostOptions.scriptUrlPolicy` 与 kernel `toScriptUrl`；40/10 `runtime-style-sinks.ts` 与 `openExternal`；09-type-discipline/02 TD-081 作用范围扩到 `ui-core` 与 `apps/web`；30/10 §5 与 PRD 06 §5 改为「`fetch` keepalive 兜底」；09-type-discipline/02 §3 登记 `new Worker(`、`window.open` 两条配置行（2026-09-26）。rulings §4.20 FE-18 新增项也已回写（2026-09-26）——40/10 登记 ui-react `src/infrastructure/csp/trusted-style-constants.ts` 及其公开导出与单测；40/11 §4.4 `trusted-types.ts` 职责补 `default` 策略；`pnpm-workspace.yaml` 的 `patchedDependencies`（sonner）在 40/01 登记；70/06 §10.1 与 70/10 SEC-CL-02 补 V2、V4 的新断言。（50/04 §9 不经 `DOMParser` 的清洗、50/05 §8.1 / §10.2 媒体与缩略图经 `http.ts` 取 Blob 两项已在本线落实。）

@@ -1,4 +1,4 @@
-import type { ComponentProps, ComponentType, ReactNode } from "react"
+import { Children, type ComponentProps, type ComponentType, type ReactNode } from "react"
 import { ChevronDown, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -142,7 +142,7 @@ export function RibbonRoot({
             </TabsTrigger>
           ))}
         </TabsList>
-        {trailing && <div className="ml-auto flex shrink-0 items-center gap-1 px-2">{trailing}</div>}
+        {trailing && <RibbonTrailingSlot>{trailing}</RibbonTrailingSlot>}
       </div>
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value} className="m-0 flex h-[91px] items-stretch gap-1.5 overflow-x-auto px-2 py-1">
@@ -153,12 +153,56 @@ export function RibbonRoot({
   )
 }
 
-/** 只读/评审态下代替 Ribbon 的细条：与 `#/editor` 评审工具条同高（40px），不再用整块空玻璃卡占位（评审 12 §2 #1）。 */
-export function ReadonlyRibbonNotice({ children }: { children: ReactNode }) {
+/**
+ * 外壳尾部区的容器：页签行右侧、评审工具条右端、`ReadonlyRibbonNotice` 右端共用（rulings §4.20 FE-08）。
+ * 同一容器保证三处的右内边距（8px）与控件间距（4px）一致，切换编辑 ⇄ 评审时「主题 · ?」不横向跳动。
+ */
+export function RibbonTrailingSlot({ children }: { children: ReactNode }) {
+  return <div data-slot="ribbon-trailing" className="ml-auto flex shrink-0 items-center gap-1 px-2">{children}</div>
+}
+
+/**
+ * 只读/评审态下代替 Ribbon 的细条：与评审工具条同高（40px），不再用整块空玻璃卡占位（评审 12 §2 #1）。
+ * `trailing`：外壳尾部区（主题 · ?，FE-08）；评审工具条没有条目时落在本细条右端。
+ * 左内边距 17：锁图标与评审工具条首个按钮的图标同一竖线（工具条左内距 8 + 按钮描边 1 + 按钮内距 8），两种状态切换时左侧不跳。
+ */
+export function ReadonlyRibbonNotice({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2 border-t border-foreground/5 px-3 text-xs text-muted-foreground">
-      <Lock className="size-3.5" aria-hidden="true" />
-      <span>{children}</span>
+    <div className={cn("box-content flex h-10 shrink-0 items-center gap-2 border-t border-foreground/5 pl-[17px] text-xs text-muted-foreground", !trailing && "pr-4")}>
+      <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 truncate">{children}</span>
+      {trailing && <RibbonTrailingSlot>{trailing}</RibbonTrailingSlot>}
     </div>
   )
+}
+
+/**
+ * 评审 / 只读浏览时占 Ribbon 区域位的评审工具条（50/10 §3.2）：左侧是 `ui.toolbar{slot:'reviewBar'}` 贡献的条目，
+ * 右端是外壳直接渲染的尾部区（与编辑模式页签行右侧同组件，不走贡献）。
+ * 条目全部不可见时（M2 未装 comments 包，`slide.hasComments` 为假）退化为 `ReadonlyRibbonNotice`，尾部区随之落在细条右端。
+ * 行高 40（`box-content`：发丝线在 40 之外，与页签行「36 + 发丝线」同一算法，控件落在整像素上），条目统一 28px 控件（`size="sm"`），与尾部区同一基线；
+ * 左内边距 8 与右侧尾部区对称，也与编辑模式 Ribbon 内容区的 `px-2` 对齐。
+ */
+export function ReviewToolbar({
+  children,
+  emptyNotice,
+  trailing,
+}: {
+  children?: ReactNode
+  /** 没有条目时细条上的文案：评审「评审模式 · 只读」，只读浏览「只读浏览中」 */
+  emptyNotice: ReactNode
+  trailing?: ReactNode
+}) {
+  if (Children.toArray(children).length === 0) return <ReadonlyRibbonNotice trailing={trailing}>{emptyNotice}</ReadonlyRibbonNotice>
+  return (
+    <div role="group" aria-label="评审工具条" className="box-content flex h-10 shrink-0 items-center gap-1 border-t border-foreground/5 pl-2">
+      {children}
+      {trailing && <RibbonTrailingSlot>{trailing}</RibbonTrailingSlot>}
+    </div>
+  )
+}
+
+/** 评审工具条内的分组竖线：16px 高、与 28px 控件垂直居中 */
+export function ReviewToolbarSeparator() {
+  return <span className="mx-1 h-4 w-px shrink-0 bg-foreground/10" aria-hidden="true" />
 }

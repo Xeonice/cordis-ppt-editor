@@ -1,6 +1,6 @@
 # 01 前端架构
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——前端数字卡、每个包里的 cordis 插件、三个前端 preset 的装配清单与差异图，数字引用 `docs/_tools/plugin-counts.json`） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
 
 本文是 Cordex 的**前端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构（跨端），本文与 [60/01](../60-backend/01-service-overview-and-roles.md) 就地升格为前端架构与后端架构，阅读路径固定为 **30/01 → 本文 → 60/01**。本文只给浏览器侧的执行上下文、技术栈与复用组件（§1a）、包分布、铁律、对象关系、渲染架构（§4a）、端到端主干、编辑器能力地图（§5a）、可追加元素族（§5b）、可观察状态、对外接触面、里程碑落点与机械验证总表；**细节一律链接到专题 [02](02-app-shell-routing-and-session.md)–[16](16-i18n-and-accessibility.md)、复用清单 [17](17-reuse-and-dependency-catalog.md)、能力总表 [18](18-editor-capabilities.md) 与元素目录 [19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)**，不在此重复。节号沿用升格前的编号，新节以 §1a、§4a、§5a、§5b 插入，既有「50/01 §x」引用不失配。服务端只画「接触面」（路径、子域、请求头、帧名），Nest 模块、进程角色与 Hocuspocus 挂点见 60/01。包名一律省略 `@cordexjs/` 前缀。
 
@@ -155,6 +155,87 @@ flowchart TB
 **已否决**：MUI、AntD、Chakra、Mantine、Radix Themes；vaul、next-themes；contenteditable 主路径；immer；数据请求库与 Service Worker；xmldom、DOMParser；Loro、Automerge；saxes 作运行时依赖；y-websocket。原先否决的 Hocuspocus 已由 rulings §4.21 H:q-ws-gateway（用户知情选择）改为采用，客户端用官方 provider（H:q-hp-provider）。
 
 依据：rulings §4.21（q-license-tiers、q-chart-route、q-frackey、q-xml-lexer、X:q-xml-package、H:q-hp-provider）；R-d-10 至 R-d-35、R-d-61 至 R-d-78；H-d-24、H-d-25；[17](17-reuse-and-dependency-catalog.md)。
+
+## 1b. 包与插件规划（前端）
+
+2026-10-01 新增。全局数字（31 个 npm 包、78 个运行时插件单元、48 个 cordis 可插拔单元）见 [30/01 §2a](../30-architecture/01-overview.md#2a-包与插件规划)；本节只看浏览器侧与两端共用的部分。数字取自 [`docs/_tools/plugin-counts.json`](../_tools/plugin-counts.json)，逐行明细以 [40/16 §2](../40-modules/16-plugin-catalog.md#2-插件总账主表一行一个插件单元) 为准（本节行号即 40/16 §2 行号）。
+
+**前端数字卡**：前端涉及的 npm 包共 28 个（iso 17 + dom 11；另有 3 个 node 包只在服务端）加 `apps/web`；它们承载的运行时单元共 38 个——cordis 可插拔 33 个（两端共用 10、仅浏览器 23）、纯库 5 个（`shared`、`protocol`、`xml`、`ooxml-core`、`design`）。浏览器侧有 3 个 preset，各装 17 / 17 / 20 个条目。
+
+### 1b.1 每个包里的 cordis 插件
+
+| 包 | 层带 · 同构 | cordis 插件单元（40/16 §2 行号） | 形态 | viewer | slide | collab |
+|---|---|---|---|---|---|---|
+| kernel | L0 · iso | `kernel`（2） | host | 宿主自带 | 宿主自带 | 宿主自带 |
+| i18n | L0 · iso | `i18n`（4） | plugin | ● | ● | ● |
+| shared、protocol、xml | L0 · iso | 无（1、3、10，纯库） | library | — | — | — |
+| model-core | L1 · iso | `model-core`（5） | definition | ● | ● | ● |
+| store-memory | L1 · iso | `store-memory`（6） | provider | ● | ● | ○ |
+| store-yjs | L1 · iso | `store-yjs`（7） | provider | ○ | ○ | ▲ |
+| model-slide | V-model · iso | 主插件（8）、`/editing`（9） | plugin ×2 | 8● · 9○ | ●● | ●● |
+| ooxml-core | L3 · iso | 无（11，纯库） | library | — | — | — |
+| ooxml-pptx | V-codec · iso | `@cordexjs/ooxml-pptx`（12） | plugin | ● | ● | ● |
+| collab-core | L4 · iso | `localPresencePlugin`（13） | provider | ○ | ● | ○ |
+| collab-yjs、collab-transport-ws | L4 · iso | `collab-yjs`（14）、`collab-transport-ws`（15） | provider ×2 | ○ | ○ | ● |
+| collab-offline-idb | L4 · dom | `collab-offline-idb`（16） | provider | ○ | ○ | ◐ |
+| comments | L4 · iso | `comments`（17） | plugin | ○ | ○ | ●（M3 起） |
+| engine-layout、engine-render | L5 · iso | `engine-layout`（18）、`engine-render`（19） | definition ×2 | ● | ● | ● |
+| render-dom | L5 · dom | `render-dom`（20） | provider | ● | ● | ● |
+| slide-render | V-render · dom | `slide-render`（21） | plugin | ● | ● | ● |
+| slide-render-chart | V-render · dom | `slide-render-chart`（22，M1–M2 为 `slide-render/chart` 子路径） | plugin | ◐ | ◐ | ◐ |
+| design | L7 · dom | 无（23，纯库） | library | — | — | — |
+| ui-core | L7 · dom | `ui-core`（24） | definition | ○ | ● | ● |
+| ui-react | L7 · dom | `ui-react`（25） | provider | ○ | ● | ● |
+| slide-ui | V-ui · dom | `slide-ui`（26） | plugin | ○ | ● | ● |
+| preset-slide | L8 · dom | `shell-glue`（27）、bundle（35） | plugin + bundle | ○ | ● | ● |
+| preset-slide-viewer | L8 · dom | `read-only`（28）、`viewer-shell`（29）、`design-css`（30）、`viewer-thumbnails`/`viewer-notes`/`viewer-search`（32–34）、bundle（37） | plugin ×6 + bundle | 3● + 3◐ | ○ | ○ |
+| preset-slide-collab | L8 · dom | bundle（36） | bundle | — | — | — |
+| 三个 preset 的语言包 | L8 · iso/dom | locale-packs（31，同 id 在三者间替换） | plugin | ◐ | ◐ | ◐ |
+| apps/web（应用） | L8 · dom | `create-editor-host.ts`（38） | host | 调用三者之一 | 调用三者之一 | 调用三者之一 |
+
+图例：● 常驻装载 · ◐ 惰性装载 · ▲ 替换默认 · ○ 不装 · — 不是被装配的条目（纯库或 bundle 自身）。bundle 行不计入条目数，它就是「选哪一套」的单位。
+
+### 1b.2 三个前端 preset 各装哪些插件
+
+| preset | 常驻 | 惰性 | 合计条目 | 常驻清单 | 惰性清单 |
+|---|---|---|---|---|---|
+| `preset-slide-viewer` | 12 | 5 | **17** | 共装 9 个（`i18n`、`model-core`、`store-memory`、`model-slide`、`ooxml-pptx`、`engine-layout`、`engine-render`、`render-dom`、`slide-render`）+ 查看器专属 `read-only`、`viewer-shell`、`design-css` | `slide-render-chart`、语言包、`viewer-thumbnails`、`viewer-notes`、`viewer-search` |
+| `preset-slide` | 15 | 2 | **17** | 共装 9 个 + `model-slide/editing`、`localPresencePlugin`、`ui-core`、`ui-react`、`slide-ui`、`shell-glue` | `slide-render-chart`、语言包 |
+| `preset-slide-collab` | 17 | 3 | **20** | `preset-slide` 的 15 个中 `store-yjs` 替换 `store-memory`、去掉 `localPresencePlugin`，再加 `collab-yjs`、`collab-transport-ws`、`comments`（M3 起） | `slide-render-chart`、语言包、`collab-offline-idb`（M4 P2 前默认关） |
+
+「共装 9 个」是三者都常驻的部分；`kernel` 是宿主自带、不算条目。派生关系是 `SLIDE_ENTRIES = VIEWER_ENTRIES − 查看器专属 6 项 + 编辑 6 项`、`COLLAB_ENTRIES = deriveCollabEntries(SLIDE_ENTRIES)`（[03](03-preset-assembly-and-plugins.md)、40/11 §3.1）。
+
+**图 1b-1 三个前端 preset 的装配差异**
+
+```mermaid
+flowchart LR
+  viewer["preset-slide-viewer：常驻 12 惰性 5，共 17"]
+  slide["preset-slide：常驻 15 惰性 2，共 17"]
+  collab["preset-slide-collab：常驻 17 惰性 3，共 20"]
+  common["三者共装 9：i18n、model-core、model-slide、ooxml-pptx、engine-layout、engine-render、render-dom、slide-render、store-memory 或 store-yjs"]
+  lazyAll["三者惰性 2：slide-render-chart、语言包"]
+  viewOnly["查看器专属：read-only、viewer-shell、design-css；惰性 viewer-thumbnails、viewer-notes、viewer-search"]
+  editPack["编辑 5：model-slide/editing、ui-core、ui-react、slide-ui、shell-glue"]
+  single["单人兜底：localPresencePlugin"]
+  collabPack["协同：collab-yjs、collab-transport-ws、comments（M3）；惰性 collab-offline-idb"]
+  viewer --> common
+  slide --> common
+  collab --> common
+  viewer -.->|"惰性"| lazyAll
+  slide -.->|"惰性"| lazyAll
+  collab -.->|"惰性"| lazyAll
+  viewer --> viewOnly
+  slide --> editPack
+  collab --> editPack
+  slide --> single
+  collab --> collabPack
+```
+
+怎么读：左边三个 preset，右边按「谁装」归并的插件组；实线常驻、虚线惰性。三者共装一组（collab 里 `store-yjs` 替换 `store-memory`），差异在右侧三组：查看器专属、编辑五件、单人兜底与协同三件。把每个 preset 连到的组的条目数相加，就是左侧的合计。
+依据：40/16 §5 装配对比与 §2「所属 preset」列；40/11 §3.1；`plugin-counts.json` 的 `presets`。
+
+**这些数怎么保持一致**：改 40/11 §3.1 装配清单时，同步改 40/16 §2「所属 preset」列，然后运行 `python3 docs/_tools/check-plugin-counts.py`；数字变化时用 `--emit` 重新生成 `plugin-counts.json`，再改本节与 30/01 §2a 的文字（[_tools/README](../_tools/README.md)）。
+
 
 ## 2. 包在浏览器中的层带分布
 

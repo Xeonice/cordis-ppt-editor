@@ -1,6 +1,6 @@
 # 01 总架构：系统上下文、容器、统一原则、技术栈与端到端数据流
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-M2-CONTENT 打开路径改为 M1 本地字节 / M2 起协同快照 + 票据 + WS（§4.1）、协同后端提前到 M2（§4.3）；INC-02 `permission` 帧名；§4.1–§4.4、§5 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-26（§4.21：升格为全仓唯一总架构；§3 并入原 08 §0 五条为统一原则表 P1–P14；新增 §2.3 前后端分工、§3a 技术栈与复用总表及许可分级；§4 协同改 Hocuspocus 4、导出关系部件写回口径、补协同总览时序与导入导出总览；§5 只留一张对象图；§6 改阅读路径；新增 §7 M1–M4 里程碑边界唯一表）；2026-09-26（§4.21 整合：§7 协同行 M2 补七个自有扩展、写入器与三档溢写、连接污染，M3 补反代一致性哈希与跨实例 PermissionSync）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19；P12 补 drizzle-orm、bullmq、ws、extension-redis；装配图 collab 标签与 60/01 分工） | 依赖：charter v0.1；rulings §4.15–§4.21；[PRD 05](../10-prd/05-milestones-and-scope.md) §0.3
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-M2-CONTENT 打开路径改为 M1 本地字节 / M2 起协同快照 + 票据 + WS（§4.1）、协同后端提前到 M2（§4.3）；INC-02 `permission` 帧名；§4.1–§4.4、§5 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-26（§4.21：升格为全仓唯一总架构；§3 并入原 08 §0 五条为统一原则表 P1–P14；新增 §2.3 前后端分工、§3a 技术栈与复用总表及许可分级；§4 协同改 Hocuspocus 4、导出关系部件写回口径、补协同总览时序与导入导出总览；§5 只留一张对象图；§6 改阅读路径；新增 §7 M1–M4 里程碑边界唯一表）；2026-09-26（§4.21 整合：§7 协同行 M2 补七个自有扩展、写入器与三档溢写、连接污染，M3 补反代一致性哈希与跨实例 PermissionSync）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19；P12 补 drizzle-orm、bullmq、ws、extension-redis；装配图 collab 标签与 60/01 分工）；2026-10-01（包与插件规划显化：新增 §2a 包与插件规划——全局数字卡、npm 包 / cordis 插件 / Nest 模块三者关系、按层带分布、各 preset 装配数、按里程碑装入数，数字引用 `docs/_tools/plugin-counts.json`） | 依赖：charter v0.1；rulings §4.15–§4.21；[PRD 05](../10-prd/05-milestones-and-scope.md) §0.3
 
 **本文定位**：本文是全仓**唯一一份总架构**，只讲跨端的东西——系统边界、容器、前后端分工、统一原则、技术栈与复用的总口径、四条端到端数据流与里程碑边界。浏览器侧的架构在 [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md)，服务端的架构在 [60/01 后端架构](../60-backend/01-service-overview-and-roles.md)，三篇合称「架构三件套」，阅读顺序固定为 30/01 → 50/01 → 60/01（rulings §4.21 q-arch-reorg 方案 B）。原 08「后端一页总览」已撤销：五条跨端原则并入本文 §3，两张后端总图与服务端里程碑迁往 60/01。
 
@@ -36,6 +36,7 @@ flowchart LR
 |---|---|
 | 系统上下文与容器（C4 L1/L2） | §1、§2 |
 | 前后端分工（哪些代码只在浏览器、只在服务端、两端共用） | §2.3 |
+| 包与插件规划总览（数字引自 `plugin-counts.json`，逐行明细在 40/16） | §2a |
 | 统一原则表（P1–P14，映射前端铁律 F1–F14 与后端落点） | §3 |
 | 技术栈与复用总表（跨端层级）、许可分级口径 | §3a |
 | 四条端到端跨端数据流（打开、编辑、协同、导入导出） | §4 |
@@ -241,6 +242,171 @@ flowchart LR
 | 导入导出 | Worker 内导入与导出（M1 起） | 服务端导入作业（M2）、导出与 PDF（M3） | `ooxml-pptx.encode` 纯函数，两端字节一致 | §4.4 |
 | 渲染 | DOM/SVG 单实现、可见缩略图 | renderer 内跑同一份浏览器渲染代码（M3） | `engine-layout` 断行与几何、`engine-render` 契约 | [07](./07-rendering.md) |
 | 权限 | 命令管线第三检查点（UX） | REST 守卫链 + WS 票据与每帧角色（fail-closed） | `protocol` 能力位矩阵 | §3 P11 |
+
+---
+
+## 2a. 包与插件规划
+
+本节回答三个问题：一共有多少个包、多少个插件、每个 preset 装多少。数字一律取自 [`docs/_tools/plugin-counts.json`](../_tools/plugin-counts.json)，它由 `check-plugin-counts.py` 从 [40/16 插件总账](../40-modules/16-plugin-catalog.md) §2–§5.1 与章程 §5.2 机械重算；逐行明细以 40/16 为准，本节只给全局视图（2026-10-01 新增）。
+
+### 2a.1 全局数字卡
+
+| 维度 | 数 | 构成 | 明细 |
+|---|---|---|---|
+| npm 包（M1–M4） | **31** | 另有 M5 包 2 个（`preset-doc`/`preset-sheet`）、应用 2 个（`apps/web`、`apps/server`）、构建期 `tooling/*` | 章程 §5.2；[40/16 §2.1](../40-modules/16-plugin-catalog.md#21-包与插件单元的对应npm-包--cordis-插件--nest-模块) |
+| 运行时插件单元 | **78** | cordis 可插拔 48 + 纯库 5 + Nest 模块 25 | [40/16 §0.1](../40-modules/16-plugin-catalog.md#01-数字速览表) |
+| cordis 可插拔单元 | **48** | host 4、definition 4、provider 20、plugin 17、bundle 3 | 40/16 §2 主表「形态」列 |
+| Nest 模块 | **25** | 基础 5 + 业务 20 | [60/01 §3](../60-backend/01-service-overview-and-roles.md#3-nest-模块清单) |
+| Definition（可替换契约） | **25** | 模型存储 3、渲染度量 5、协同 3、UI 1、内核治理 5、服务端专属 8 | [40/16 §3](../40-modules/16-plugin-catalog.md#3-definition--provider-可插拔矩阵章程-54-的完整版) |
+| 贡献点 | **27** | model-core 7、ui-core 10、engine-render 4、kernel 2、engine-layout 1、i18n 1、model-slide 1、comments 1 | [40/16 §4](../40-modules/16-plugin-catalog.md#4-贡献点总账) |
+| preset | **4** | 浏览器侧 3 个（均为 npm 包：viewer 17、slide 17、collab 20 个条目）+ 服务端装配脚本 `preset-server`（11 个条目） | 本节 2a.4 |
+
+「插件单元」是能被 cordis 装进 Fiber 树、或被 Nest 按角色装配的最小单位；「包」是发布与依赖治理的单位。两者不是一一对应，下一小节说明。
+
+### 2a.2 npm 包、cordis 插件与 Nest 模块的关系
+
+**图 2a-1 包、插件单元与 preset 的关系**
+
+```mermaid
+classDiagram
+  class NpmPackage {
+    31 个 M1–M4 包
+    layer / iso / role
+  }
+  class CordisUnit {
+    48 个
+    host / definition / provider / plugin / bundle
+  }
+  class LibraryPackage {
+    5 个纯库
+    只被静态 import
+  }
+  class NestModule {
+    25 个
+    按 CORDEX_ROLE 装配
+  }
+  class Preset {
+    4 个
+    装配条目清单
+  }
+  class AppServer {
+    apps/server
+  }
+  NpmPackage "1" o-- "0..7" CordisUnit : 包含
+  LibraryPackage --|> NpmPackage
+  AppServer "1" o-- "12" CordisUnit : 包含
+  AppServer "1" o-- "25" NestModule : 包含
+  Preset "1" --> "*" CordisUnit : 装配
+```
+
+怎么读：空心菱形表示「包含」，基数写在两端；一个 npm 包含 cordis 单元 0 到 7 个（纯库包含 0 个，`preset-slide-viewer` 最多，含 bundle 与 6 个胶水或惰性插件），`apps/server` 不是 npm 包，却含 12 个服务端 cordis 单元与全部 25 个 Nest 模块；preset 只装配 cordis 单元，从不装 Nest 模块。
+依据：40/16 §1 分类口径与 §2.1 逐包对应；60/01 §3。
+
+三条规则：
+
+- **一个包可含多个插件单元**：`model-slide` 有主插件与 `/editing` 子插件两个（查看器不装后者）；`preset-slide` 有 `shell-glue` 与 bundle 两个；`preset-slide-viewer` 有 7 个。
+- **有的包不是插件**：`shared`、`protocol`、`xml`、`ooxml-core`、`design` 五个纯库没有 `plugin.ts`，不进 Fiber 树，不能被 preset 排除，只被别的包 `import`。
+- **Nest 模块不是 cordis 插件**：它们走 Nest 自己的 DI，按 `CORDEX_ROLE` 整模块启停（[60/01 §5](../60-backend/01-service-overview-and-roles.md#5-模块--角色--部件装配矩阵)）；服务端的 cordis 单元只在 `CordisHostModule` 托管的那一个 Context 里（`preset-server`）。
+
+### 2a.3 按层带的包与插件分布
+
+| 层带（章程 §5.1） | 包数 | 包 | cordis 单元 | 纯库 | 运行位置 |
+|---|---|---|---|---|---|
+| L0 基础 | 5 | shared、kernel、protocol、i18n、xml | 2 | 3 | 两端 |
+| L1 文档内核 | 3 | model-core、store-memory、store-yjs | 3 | 0 | 两端 |
+| L3 格式基础 | 1 | ooxml-core | 0 | 1 | 两端 |
+| L4 协同与评论 | 5 | collab-core、collab-yjs、collab-transport-ws、collab-offline-idb、comments | 5 | 0 | 浏览器 |
+| L5 引擎 | 3 | engine-layout、engine-render、render-dom | 3 | 0 | 两端（render-dom 仅浏览器） |
+| L7 UI 基座 | 3 | design、ui-core、ui-react | 2 | 1 | 浏览器 |
+| 垂直束 slide（V-*） | 5 | model-slide、ooxml-pptx、slide-render、slide-render-chart、slide-ui | 6 | 0 | 两端（渲染与 UI 仅浏览器） |
+| L8 预设 | 3 | preset-slide、preset-slide-collab、preset-slide-viewer | 11 | 0 | 浏览器 |
+| LS 服务端 | 3 | server-collab、server-storage、server-headless | 3 | 0 | 服务端 |
+| 应用 | 2（非 npm） | apps/web、apps/server | 1 + 12 | 0 | 各自一端；apps/server 另含 25 个 Nest 模块 |
+| **合计** | **31 + 2 应用** | — | **48** | **5** | 两端 14、浏览器 24、服务端 40 个单元 |
+
+L8 预设的 11 个单元是 3 个 bundle、`shell-glue`、查看器的 `read-only`/`viewer-shell`/`design-css` 与 3 个惰性子功能，以及三者共用 id 的语言包条目；垂直束的 6 个单元里 `model-slide` 占 2 个。
+
+**图 2a-2 层带、包数与 cordis 单元数**
+
+```mermaid
+flowchart TB
+  subgraph browser["浏览器"]
+    l8["L8 预设：3 包，11 单元"]
+    web["apps/web：host 1"]
+    l7["L7 UI 基座：3 包，2 单元 + 纯库 design"]
+    l4["L4 协同与评论：5 包，5 单元"]
+  end
+  subgraph shared["两端共用 iso"]
+    vslide["垂直束 slide：5 包，6 单元"]
+    l5["L5 引擎：3 包，3 单元"]
+    l3["L3 ooxml-core：纯库"]
+    l1["L1 文档内核：3 包，3 单元"]
+    l0["L0 基础：5 包，2 单元 + 3 纯库"]
+  end
+  subgraph server["服务端"]
+    ls["LS：3 包，3 单元"]
+    srv["apps/server：12 单元 + 25 个 Nest 模块"]
+  end
+  web --> l8
+  l8 --> l7
+  l8 --> vslide
+  l8 --> l4
+  l7 --> l1
+  l4 --> l1
+  vslide --> l5
+  vslide --> l3
+  l5 --> l0
+  l3 --> l0
+  l1 --> l0
+  srv --> ls
+  srv --> vslide
+  ls --> l1
+```
+
+怎么读：从上往下是依赖方向（上层依赖下层），节点写「包数，cordis 单元数」；左侧子图只在浏览器装载，中间子图两端各装一份（其中 `render-dom`、`slide-render`、`slide-ui` 等 dom 包只在浏览器），右侧子图只在服务端；`apps/server` 经 `preset-server` 装配垂直束的 iso 部分（模型与编解码）。
+依据：章程 §5.1 秩表与 §5.2；40/16 §2 主表「层/秩」「运行位置」列。
+
+### 2a.4 各 preset 装配的插件数
+
+| preset | 形态 | 常驻 | 惰性或部分 | 合计条目 | 说明 |
+|---|---|---|---|---|---|
+| `preset-slide-viewer` | npm 包 | 12 | 5 | **17** | 只读查看器，无编辑 UI、无协同；`read-only` 策略不可排除 |
+| `preset-slide` | npm 包 | 15 | 2 | **17** | 单人编辑：viewer 基线减查看器专属，加编辑四包与胶水 |
+| `preset-slide-collab` | npm 包 | 17 | 3 | **20** | 协同：`store-yjs` 替换 `store-memory`，加协同客户端，M3 起加 `comments` |
+| `preset-server` | `apps/server` 内装配脚本 | 9 | 2 | **11** | 按单元展开为 21（3 个 kernel 适配器合 1 条、8 个 IO 适配器作为 `server-collab` 配置注入）；按角色 api 8、collab 9、worker 10、renderer 0 |
+
+浏览器三者条目的逐条对比见 [50/01 §1b](../50-frontend/01-overview-and-runtime-map.md)，服务端按角色的差异见 [60/01 §1b](../60-backend/01-service-overview-and-roles.md)。
+
+### 2a.5 按里程碑逐步装入
+
+「首装」取 40/16 §2 主表同名列：cordis 单元按 [40/11](../40-modules/11-preset-assembly-and-app-shell.md) §11 各 preset 装入的时点，服务端 cordis 单元随 M2 协同后端交付（rulings §4.19 D-M2-CONTENT），Nest 模块按 60/01 §3「首次交付」列。里程碑边界本身以 §7 为准。
+
+| 里程碑 | 新装 cordis 单元 | 新装纯库 | 新装 Nest 模块 | 新装合计 | 累计单元 | 累计 cordis |
+|---|---|---|---|---|---|---|
+| M1 打开与保真 | 23 | 5 | 0 | 28 | 28 | 23 |
+| M2 单人编辑 + 协同后端 | 22 | 0 | 21 | 43 | 71 | 45 |
+| M3 多人协同体验层 | 2 | 0 | 4 | 6 | 77 | 47 |
+| M4 插件 SDK 公开 | 1 | 0 | 0 | 1 | 78 | 48 |
+
+**图 2a-3 各里程碑装入的单元**
+
+```mermaid
+stateDiagram-v2
+  state "M1：28 个单元（cordis 23，纯库 5）" as m1
+  state "M2：新增 43，累计 71" as m2
+  state "M3：新增 6，累计 77" as m3
+  state "M4：新增 1，累计 78" as m4
+  [*] --> m1
+  m1 --> m2 : 编辑四包、协同客户端、collab 预设、15 个服务端 cordis 单元、21 个 Nest 模块
+  m2 --> m3 : comments、slide-render-chart 独立包、ShareLinks、Comments、Webhooks、Metrics 模块
+  m3 --> m4 : collab-offline-idb
+  m4 --> [*]
+```
+
+怎么读：每个状态是一个里程碑结束时已装入的单元数，迁移标签列出该里程碑新装的单元。M1 是查看器与单人预设的只读切片（kernel、模型、编解码、引擎、渲染、UI 基座外壳、查看器胶水与 5 个纯库），没有服务端；M2 一次装入编辑能力、协同客户端与全部服务端 cordis 单元；M3 与 M4 只做增量。
+依据：40/16 §2「首装」列与 §0.1；40/11 §11；60/01 §3；rulings §4.19 D-M2-CONTENT。
+
+M2 新装的 cordis 单元共 22 个：`store-yjs`、`model-slide/editing`、`collab-yjs`、`collab-transport-ws`、`slide-ui`、`shell-glue`、`preset-slide-collab`，加服务端 15 个（`server-storage`、`server-collab`、`server-headless`、8 个协同 IO 适配器、3 个 kernel Node 适配器、`CordisHostService` 宿主）。
 
 ---
 

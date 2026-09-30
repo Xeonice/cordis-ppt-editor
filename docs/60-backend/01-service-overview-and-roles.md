@@ -1,5 +1,5 @@
 # 01 后端架构
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一）；2026-10-01（§4.23 插件管理：§3 新增第 25 个 Nest 模块 PluginsModule（归 M-08），§5 装配矩阵加一行） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一）；2026-10-01（§4.23 插件管理：§3 新增第 25 个 Nest 模块 PluginsModule（归 M-08），§5 装配矩阵加一行）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——后端数字卡、15 个服务端 cordis 单元、`preset-server` 的 11 个条目、25 个 Nest 模块分组、按 `CORDEX_ROLE` 的装配差异，数字引用 `docs/_tools/plugin-counts.json`） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12
 
 > 读者：实现 `apps/server`、`@cordexjs/server-collab`、`@cordexjs/server-storage`、`@cordexjs/server-headless` 的工程师；运维；评审后端架构的人。
 > 定位：Cordex 的**后端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构，[50/01](../50-frontend/01-overview-and-runtime-map.md) 是前端架构，本文是后端架构，阅读路径固定为 **30/01 → 50/01 → 本文**。节号沿用升格前的编号，新节以 §0（架构一页，承接原 30/08（已撤销）第 0 节的两图与要点）与 §1a（技术栈与复用组件摘要）插入，既有「60/01 §x」引用不失配。本文是以下内容的**唯一事实源**：后端架构一页与协同接入的 Hocuspocus 挂点（§0）、Nest 模块清单、`CORDEX_ROLE` 语义、「模块 × 角色 × 部件」装配矩阵（迁自 40-modules/12 §7.1；rulings §4.18 BE-13 的内容不变，落点迁到本文的依据是 rulings §4.19「三线各为该侧唯一事实源、重复段落改为引用」）、启动断言、反代路径到角色的分流、Nest 模块 imports 总图、cordis 宿主生命周期映射、进程启动与优雅关闭、服务端预算总览、服务端交付落点（§3）。
@@ -393,6 +393,115 @@ flowchart TB
 | UUIDv7 | `@cordexjs/shared` | L0 零依赖，时钟与随机可注入（ADR-0014） |
 
 依据：rulings §4.21；R-d-36 至 R-d-60（其中 R-d-47 的 nestjs-core instrumentation 改为暂不可用，R-d-60 的 require(esm) 口径随 ESM 构建失效，R-d-38 中 FanoutBus 的帧扇出改为 M3 由 extension-redis 承担，FanoutBus 只剩控制频道）；H-d-22～H-d-25；[19](19-reuse-and-dependency-catalog.md)。
+
+---
+
+## 1b. 包与插件规划（后端）
+
+2026-10-01 新增。全局数字见 [30/01 §2a](../30-architecture/01-overview.md#2a-包与插件规划)，前端部分见 [50/01 §1b](../50-frontend/01-overview-and-runtime-map.md#1b-包与插件规划前端)；本节只看服务端。数字取自 [`docs/_tools/plugin-counts.json`](../_tools/plugin-counts.json)，逐行明细以 [40/16 §2](../40-modules/16-plugin-catalog.md#2-插件总账主表一行一个插件单元) 为准（本节行号即 40/16 §2 行号）。
+
+**后端数字卡**：服务端只有 3 个 node 包（`server-collab`、`server-storage`、`server-headless`）加应用 `apps/server`；服务端运行时单元共 40 个 = cordis 单元 15 + Nest 模块 25。cordis 单元全部装在 `CordisHostModule` 持有的唯一宿主里，由装配脚本 `preset-server` 装配：11 个条目，按单元展开为 21 个（其中 7 个是与浏览器同一份源码的 iso 插件：`model-core`、`store-memory`、`store-yjs`、`model-slide`、`ooxml-pptx`、`engine-layout`、`engine-render`）。
+
+### 1b.1 服务端的 cordis 单元（15 个）
+
+| 行 | 单元 | 所在 | 形态 | 实现的 Definition 或提供的服务 | 激活角色 | 首装 |
+|---|---|---|---|---|---|---|
+| 39 | `server-storage` | `@cordexjs/server-storage` | provider | `BlobStore`（`blobStore`） | api / collab / worker | M2 |
+| 40 | `server-collab` | `@cordexjs/server-collab` | plugin | 提供 `collabServer`（Hocuspocus 实例与自有扩展） | collab | M2 |
+| 41 | `server-headless` | `@cordexjs/server-headless` | host + provider | headless 宿主工厂、`node-font` 度量 | worker | M2 |
+| 42–49 | `RedisFanoutBus`、`RedisLeaseLock`、`PgUpdateStore`、`PgSnapshotStore`、`AuthzSource`、`RedisMembershipRegistry`、`RedisSpillStore`、`BlobSpillStore` | `apps/server` `modules/collab/infrastructure` | provider ×8 | `FanoutBus`、`LeaseLock`、`UpdateStore`、`SnapshotStore`、`AuthorizationSource`、`MembershipRegistry`、`SpillStore` 一二级（[05](05-modules-collab-and-snapshots.md) §2.2） | 作为 `server-collab` 的注入件随它激活 | M2 |
+| 50–52 | `PinoLoggerAdapter`、`OtelTelemetryAdapter`、`ErrorsReporterAdapter` | `apps/server` `cordis-host/adapters` | provider ×3 | kernel 的 logger、`telemetry.sink`、`errors.sink` | api / collab / worker | M2 |
+| 53 | `CordisHostService` + `preset-server.ts` | `apps/server` `cordis-host` | host | 进程单例根 Context（§9） | api / collab / worker（renderer 不装） | M2 |
+
+不计入的服务端装配件：M3 的 `HardenedRedis`（extension-redis 加固子类）、`WsConnectionAdapter`、`server-collab` 的可选注入 `pluginSetSource`——它们不经 `ctx.plugin()` 挂载，也不是登记的 Definition（40/16 §0 重算说明）。
+
+### 1b.2 `preset-server` 装配的插件
+
+| 条目 | 状态 | 激活角色 | 40/16 §2 行 |
+|---|---|---|---|
+| kernel 基础服务的 3 个 Node 适配器（合 1 条） | ● | api / collab / worker | 50–52 |
+| `model-core` | ● | api / collab / worker | 5 |
+| `store-yjs` | ● | api / collab / worker | 7 |
+| `store-memory` | ◐ 只供 headless 校验与迁移 | worker | 6 |
+| `model-slide`（只读） | ● | api / collab / worker | 8 |
+| `model-slide/editing` | 未注明（40/16 §8 G-1） | — | 9 |
+| `ooxml-core` + `ooxml-pptx` | ● | api / collab / worker | 11、12 |
+| `engine-layout` | ● | api / collab / worker | 18 |
+| `engine-render`（只用 iso 契约层） | ◐ | api / collab / worker | 19 |
+| `server-storage` | ● | api / collab / worker | 39 |
+| `server-collab`（含 8 个 IO 适配器注入） | ● | collab | 40（42–49） |
+| `server-headless` | ● | worker | 41 |
+
+合计 9 常驻 + 2 部分装载 = **11** 个条目；插件清单只有一份，角色差异只在 `collabServer` 与 headless 宿主工厂两处开关（§9）。
+
+### 1b.3 Nest 模块（25 个）
+
+基础 5（`ConfigModule`、`ObservabilityModule`、`DbModule`、`RedisModule`、`CordisHostModule`）；身份与访问 5（`AuthModule`、`UsersModule`、`PermissionsModule`、`ShareLinksModule`、`PluginsModule`）；文档与存储 3（`DocumentsModule`、`StorageModule`、`MediaModule`）；协同与快照 2（`CollabModule`、`SnapshotsModule`）；作业 3（`JobsModule`、`ImportExportModule`、`ThumbnailsModule`）；评论与集成 3（`CommentsModule`、`WebhooksModule`、`AuditModule`）；运维 4（`HealthModule`、`MetricsModule`、`InternalModule`、`ClientTelemetryModule`）。逐模块的 BC、文件级与首次交付见 §3；首次交付 M2 的 21 个、M3 的 4 个（`ShareLinksModule`、`CommentsModule`、`WebhooksModule`、`MetricsModule`）。Nest 模块不是 cordis 插件：它们走 Nest 的 DI，按角色整模块装配（§5），只经 `CordisHostService` 读取宿主服务。
+
+### 1b.4 按 `CORDEX_ROLE` 的装配差异
+
+| 角色 | `preset-server` 激活的条目 | cordis 侧差异 | Nest 侧差异（§4、§5） |
+|---|---|---|---|
+| `all` | 11（9 + 2） | 全部激活 | 三个角色装配之并 |
+| `api` | 8（7 + 1） | 不激活 `collabServer`，不取 headless 宿主工厂，从不打开 Unit | 不装 `SnapshotsModule`、`AdminController`，不注册处理器与周期作业 |
+| `collab` | 9（8 + 1） | 唯一激活 `collabServer` 与 8 个 IO 适配器的角色 | 装 `CollabModule`、`SnapshotsModule`，另装 Permissions、ShareLinks 供链接角色重算 |
+| `worker` | 10（8 + 2） | 唯一取用 headless 宿主工厂（含 `store-memory` 校验与迁移） | 全部 BullMQ 处理器与周期作业；HTTP 只有探针 |
+| `renderer` | 0 | 不装 `CordisHostModule` | 不装 DB、Valkey、S3、Metrics、Audit；只有渲染 RPC 与健康探针 |
+
+**图 1b-1 服务端单元：一个宿主、十一个条目、二十五个 Nest 模块**
+
+```mermaid
+flowchart TB
+  app["apps/server：运行时单元 40"]
+  nest["Nest 模块 25：基础 5 + 业务 20"]
+  hostMod["CordisHostModule：基础模块之一"]
+  host["CordisHostService：唯一 cordis 宿主"]
+  preset["preset-server：11 个条目，展开 21 个单元"]
+  iso["与浏览器同源的 iso 插件 7：model-core、store-memory、store-yjs、model-slide、ooxml-pptx、engine-layout、engine-render"]
+  adapters["kernel Node 适配器 3"]
+  storage["server-storage：BlobStore"]
+  collabSrv["server-collab：collabServer"]
+  io["协同 IO 适配器 8：Pg、Redis、Authz、Membership、Spill"]
+  headless["server-headless：worker 宿主与 node-font"]
+  app --> nest
+  nest --> hostMod
+  hostMod --> host
+  host --> preset
+  preset --> iso
+  preset --> adapters
+  preset --> storage
+  preset --> collabSrv
+  collabSrv -->|"配置注入"| io
+  preset --> headless
+```
+
+怎么读：从上往下是「谁持有谁」：`apps/server` 里 25 个 Nest 模块中只有 `CordisHostModule` 持有 cordis 宿主，宿主由 `preset-server` 装配 11 个条目；8 个协同 IO 适配器不单列条目，而是作为 `server-collab` 的配置注入。节点上的数合起来：iso 7 + 适配器 3 + storage 1 + collab 1 + IO 8 + headless 1 = 21 个单元；其中 14 个加上宿主 `CordisHostService` 本身，就是 1b.1 表的 15 个服务端 cordis 单元，另外 7 个是与浏览器共用的 iso 插件。
+依据：40/16 §2 行 39–78、§5.1；§3、§9。
+
+**图 1b-2 各角色激活的 preset-server 条目**
+
+```mermaid
+flowchart LR
+  common["共用 7 常驻 + 1 部分：kernel 适配器、model-core、store-yjs、model-slide、ooxml、engine-layout、server-storage；engine-render 契约层"]
+  collabOnly["server-collab 与 8 个 IO 适配器"]
+  workerOnly["server-headless；store-memory 部分装载"]
+  api["api：8 条"]
+  collab["collab：9 条"]
+  worker["worker：10 条"]
+  all["all：11 条"]
+  renderer["renderer：0 条，不装 CordisHostModule"]
+  api --> common
+  collab --> common
+  worker --> common
+  all --> common
+  collab --> collabOnly
+  all --> collabOnly
+  worker --> workerOnly
+  all --> workerOnly
+```
+
+怎么读：左侧五个角色连向它激活的条目组；`common` 是所有装 `CordisHostModule` 的角色都激活的部分，差异只在 `server-collab`（collab、all）与 `server-headless`（worker、all）两组，`renderer` 不连任何组。
+依据：40/16 §5.1「激活角色」列；§4、§9。
 
 ---
 

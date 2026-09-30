@@ -1165,8 +1165,38 @@ class Pages(Site):
         return ('<section class="triad" aria-label="架构三件套"><p class="sec-note">架构三件套：按「总架构 → 前端架构 → 后端架构」'
                 '的固定顺序读，再进各线细节（rulings §4.21）。</p><div class="sec-grid">%s</div></section>' % "".join(cards))
 
+    def triad_numbers(self, cur):
+        """「包与插件规划」数字卡：读 _tools/plugin-counts.json（check-plugin-counts.py --emit 生成）；缺文件或格式不对时返回空串。"""
+        path = os.path.join(DOCS, "_tools", "plugin-counts.json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            pk, un, pr = data["packages"], data["units"], data["presets"]
+            tiles = [
+                (pk["npm"], " 个", "npm 包（M1–M4；另 M5 %d 个、应用 %d 个）" % (pk["npmWithM5"] - pk["npm"], len(pk["apps"]))),
+                (un["total"], " 个", "运行时插件单元（cordis %d + 纯库 %d + Nest %d）" % (un["cordis"], un["library"], un["nest"])),
+                (un["cordis"], " 个", "cordis 可插拔单元（host %d · definition %d · provider %d · plugin %d · bundle %d）"
+                 % tuple(un["byForm"][k] for k in ("host", "definition", "provider", "plugin", "bundle"))),
+                (data["definitions"], " 个", "Definition（可替换契约）"),
+                (data["contributionPoints"], " 个", "贡献点"),
+                (data["presetCount"], " 个", "preset：viewer %d · slide %d · collab %d · server %d 个条目"
+                 % (pr["preset-slide-viewer"]["total"], pr["preset-slide"]["total"], pr["preset-slide-collab"]["total"],
+                    pr["preset-server"]["entries"]["total"])),
+            ]
+        except (OSError, ValueError, KeyError, TypeError):
+            return ""
+        d = self.by_repo_rel.get(DOCS_REL + "/40-modules/16-plugin-catalog.md")
+        href = esc(relurl(d["out"], cur)) if d else ""
+        cells = []
+        for n, unit, k in tiles:
+            inner = '<span class="stat-n">%d<small>%s</small></span><span class="stat-k">%s</span>' % (n, esc(unit), esc(k))
+            cells.append('<a class="stat-tile" href="%s">%s</a>' % (href, inner) if href else '<div class="stat-tile">%s</div>' % inner)
+        return ('<section class="doc-index"><h2 id="numbers">包与插件规划<span class="h-note">数字取自 _tools/plugin-counts.json，'
+                '逐行明细见 40/16 插件总账</span></h2><div class="stat-row">%s</div></section>' % "".join(cells))
+
     def build_triad(self):
         cur = TRIAD_PAGE
+        numbers = self.triad_numbers(cur)
         tiles = []
         for sec in ("frontend", "backend"):
             for label, lo, hi in VGROUPS[sec]:
@@ -1181,15 +1211,16 @@ class Pages(Site):
         main = ('<article class="doc doc-wide"><header class="doc-head"><nav class="crumbs" aria-label="位置"><a href="%s">总架构</a>'
                 '</nav><h1 class="doc-title">架构三件套</h1><p class="lede">全仓的架构分三份：总架构（跨端，唯一一份）、前端架构、'
                 '后端架构。前端架构与后端架构就地放在各自设计线的 01 篇，节号不动；三份读完，再按下方分组进入各线细节。</p></header>'
-                '%s<section class="doc-index"><h2 id="next">读完三件套之后<span class="h-note">前端与后端各分组</span></h2>'
+                '%s%s<section class="doc-index"><h2 id="next">读完三件套之后<span class="h-note">前端与后端各分组</span></h2>'
                 '<div class="stat-row">%s</div></section>%s%s</article>'
-                % (esc(relurl(cur, cur)), self.triad_cards(cur), "".join(tiles),
+                % (esc(relurl(cur, cur)), numbers, self.triad_cards(cur), "".join(tiles),
                    self.section_cards("arch", cur) if arch else "", self.pager("arch", cur)))
         self.write_page(cur, "arch", "架构三件套", main,
-                        self.toc_html([{"id": "next", "name": "读完三件套之后", "children": []}]
+                        self.toc_html(([{"id": "numbers", "name": "包与插件规划", "children": []}] if numbers else [])
+                                      + [{"id": "next", "name": "读完三件套之后", "children": []}]
                                       + ([{"id": "section-docs", "name": "本分区全部文档", "children": []}] if arch else [])))
         self.search.append({"u": cur, "t": "架构三件套", "s": SEC["arch"][1], "g": "",
-                            "h": [["读完三件套之后", "next"]],
+                            "h": ([["包与插件规划", "numbers"]] if numbers else []) + [["读完三件套之后", "next"]],
                             "x": "总架构 30/01 → 前端架构 50/01 → 后端架构 60/01；前端分组：前端架构、专题设计、复用与能力、元素目录；"
                                  "后端分组：后端架构、专题与 DDL、复用清单（rulings §4.21）。"})
 

@@ -1,6 +1,6 @@
 # 02 契约套件目录、生命周期与可插拔证据
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：runCollabServerConformance 直接跑 Hocuspocus 实例，去重扇出改状态向量收敛，加钩子异常与 Valkey 宕机不杀进程、连接污染；runCollabTransportConformance 加 provider 事件时序分节）；2026-09-26（§4.21 复核：FanoutBus 变异体改为控制频道语义 `ctl/close-delivered-once`）；2026-10-01（§4.23 插件管理：新增 §10.1 作用域判定表驱动断言、策略算出 `exclude`、内容插件足迹维护与比对契约用例；§12 CTK 增 `ctk/scope`） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）/ §4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 与证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、TS-02、d-19、d-22、d-30，核实 vB、vC、vE）
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：runCollabServerConformance 直接跑 Hocuspocus 实例，去重扇出改状态向量收敛，加钩子异常与 Valkey 宕机不杀进程、连接污染；runCollabTransportConformance 加 provider 事件时序分节）；2026-09-26（§4.21 复核：FanoutBus 变异体改为控制频道语义 `ctl/close-delivered-once`）；2026-10-01（§4.23 插件管理：新增 §10.1 作用域判定表驱动断言、策略算出 `exclude`、内容插件足迹维护与比对契约用例；§12 CTK 增 `ctk/scope`）；2026-10-01（40/16 重算：§3 全表补第 25 行 `MembershipRegistry`（有意不设 kit），作用域表驱动断言的数据源由 46 个改为 48 个 cordis 单元） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）/ §4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 与证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、TS-02、d-19、d-22、d-30，核实 vB、vC、vE）
 
 本文是「契约套件（conformance kit）、插件生命周期套件、可插拔证据」三件事在测试侧的唯一事实源：定义 kit 的统一接口、每个 Definition 的 kit 与用例 id、运行矩阵、必须实例化的 Provider 与所在 CI 步骤。被测契约本身的语义不在这里：iso 契约签名在 [30/04](../30-architecture/04-document-model.md)、[30/05](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md) 与 [40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)，服务端运行侧行为在 [60/05](../60-backend/05-modules-collab-and-snapshots.md) 与 [60/16](../60-backend/16-ws-protocol-server-view.md)，客户端运行侧行为在 [50/04](../50-frontend/04-document-commands-and-undo.md) 与 [50/07](../50-frontend/07-collaboration-client.md)。协同模拟、fuzz 与性质测试见 [05](./05-collab-simulation-and-property-tests.md)；kit 实现文件仍登记在 40 各包的 `testing/`。
 
@@ -198,9 +198,9 @@ sequenceDiagram
 
 ---
 
-## 3. 全表：24 个 Definition 与 `collabServer`
+## 3. 全表：25 个 Definition 与 `collabServer`
 
-Definition 清单以 [40/16 §3](../40-modules/16-plugin-catalog.md) 的 24 个为准，另加服务契约 `collabServer`。「状态」列：**已有**＝40 已登记、本文补用例 id；**新增**＝本文按决策新增；**有意不设**＝不设 kit，写明替代验证。缺口裁定依据：决策 T-KITS（authority：40/06 §2.5 + 用户偏好「安全宁可提前」，权限契约需要机械证据）。
+Definition 清单以 [40/16 §3](../40-modules/16-plugin-catalog.md) 的 25 个为准（2026-10-01 40/16 重算时并入第 25 个 `MembershipRegistry`），另加服务契约 `collabServer`。「状态」列：**已有**＝40 已登记、本文补用例 id；**新增**＝本文按决策新增；**有意不设**＝不设 kit，写明替代验证。缺口裁定依据：决策 T-KITS（authority：40/06 §2.5 + 用户偏好「安全宁可提前」，权限契约需要机械证据）。
 
 | # | Definition（定义包） | kit | 覆盖要点 | 必须实例化的 Provider（调用文件） | 状态 | CI 步骤 |
 |---|---|---|---|---|---|---|
@@ -228,6 +228,7 @@ Definition 清单以 [40/16 §3](../40-modules/16-plugin-catalog.md) 的 24 个�
 | 22 | `UpdateStore`（server-collab） | `runUpdateStoreConformance` | 见 §5 | `MemoryUpdateStore`；`PgUpdateStore`（int-spec） | 已有 | 同上 |
 | 23 | `SnapshotStore`（server-collab） | `runSnapshotStoreConformance` | 见 §5 | `MemorySnapshotStore`；`PgSnapshotStore`（int-spec） | 已有 | 同上 |
 | 24 | `AuthorizationSource`（server-collab） | 不设 | 替代：`runCollabServerConformance` 的 `link/*` 三个用例（BE-02） | — | 有意不设 | 同上 |
+| 25 | `MembershipRegistry`（server-collab，决策 C-11） | 不设 | 替代：`runCollabServerConformance` 覆盖名额准入的原子性（40/09 §2.5、60/05 §2.2；2026-10-01 按 40/16 §3 第 25 行补登） | `RedisMembershipRegistry`（经 `collab-server.int-spec.ts`） | 有意不设 | 同上 |
 | + | `collabServer`（server-collab 服务契约） | `runCollabServerConformance` | 见 §5.2 | `createServerCluster(n)`（§4.21 起为 n 个真 Hocuspocus 实例 + 内存适配器 + 内存 pub/sub 替身驱动的 extension-redis，客户端以内存 `WebSocketLike` 调 `handleConnection`，server-collab 自测）；真实适配器集群（`apps/server/test/integration/conformance/collab-server.int-spec.ts`：嵌入 Fastify 的 upgrade、真实 PG、Valkey 容器上的 extension-redis、SeaweedFS） | 已有，补用例 | 同上 |
 
 合计：16 个 `run<Definition>Conformance` kit 加 1 个命名例外（`runSlideModelConformance`，M5 再加 doc / sheet 两个），7 个 Definition 以替代验证覆盖（#6–#9、#15、#19、#24）。服务端 PG 适配器的契约实例以非属主角色 `cordex_system` 连接并设置 `app.system_job`，每个测试文件使用从模板库克隆的独立数据库，不用事务回滚式隔离（依据：决策 T-DB-ISOLATION，authority：RLS 依赖会话变量与非属主角色，ADR-0022 修订）；角色与 GUC 的定义见 [60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)。
@@ -662,7 +663,7 @@ flowchart TB
 
 | 用例 id | 断言 | 测试落点 | CI 步骤 | 起始 |
 |---|---|---|---|---|
-| `scope/table-driven@<unitId>` | 以 [40/16](../40-modules/16-plugin-catalog.md) §2 主表的 46 个 cordis 插件单元为数据源（「作用域」列），每个单元的 `cordex-manifest.json` 含 `scope`，且等于按 PRD 09 §2.2 规则从 `contributes` 与 `implements` 推出的最低作用域；主表新增单元未填作用域即失败 | `test/plugin-scope/scope-table.test.ts`（数据源由 40/16 §2 导出为 `tooling/policy/plugin-scope.json`，与 40/16 同一 PR 修改） | `test/unit` | M2 |
+| `scope/table-driven@<unitId>` | 以 [40/16](../40-modules/16-plugin-catalog.md) §2 主表的 48 个 cordis 插件单元为数据源（「作用域」列），每个单元的 `cordex-manifest.json` 含 `scope`，且等于按 PRD 09 §2.2 规则从 `contributes` 与 `implements` 推出的最低作用域；主表新增单元未填作用域即失败 | `test/plugin-scope/scope-table.test.ts`（数据源由 40/16 §2 导出为 `tooling/policy/plugin-scope.json`，与 40/16 同一 PR 修改） | `test/unit` | M2 |
 | `scope/declared-looser-fails` | 负向夹具：声明 `scope:'ui'` 却贡献 `slide.shapeKind`、`core.mutation`、带写能力位的 `core.command`、任一 Provider 座、`telemetry.sink` 各一例 → 清单生成失败，错误列出越界的贡献点 id | 同上（夹具在 `test/plugin-scope/negative/`） | `test/unit` | M2 |
 | `scope/unknown-point-is-content` | 只贡献一个第三方自定义贡献点的插件被推为 `content`；只贡献 `ui.*`、`i18n.bundle`、`render.overlay` 与只读命令的推为 `ui`；作者把 `ui` 声明为 `content` 被接受（只能更严） | 同上 | `test/unit` | M2 |
 | `exclude/from-plugin-set` | `compute-exclude` 纯函数：输入 preset 条目表与 `GET /users/me/plugins` 形状的生效集合（内容级集合、强制界面级、本人开启的 `optional`），输出的 `exclude` = preset 条目 − 三者并集；`required` 条目永不进 `exclude`；内容级条目的个人选择被忽略 | `apps/web/src/domain/plugins/compute-exclude.test.ts`（纯函数 `domain/plugins/compute-exclude.ts`，[50/03](../50-frontend/03-preset-assembly-and-plugins.md)） | `test/unit` | M2 |

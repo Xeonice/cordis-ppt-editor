@@ -1,5 +1,5 @@
 # 19 可追加元素目录：总览与通用设计
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建。元素族总表 6 族 35 类、插入命令通用流程与工具态、默认落点与尺寸、通用设计 18 条、新增命令与 Mutation 汇总、元素渲染器登记表（承接原 30/07 渲染器表）、非目标清单）；2026-09-26（§4.21 整合：§1.2 艺术字行补 M2 P2 渐变字与描边字、墨迹与缩放定位补 M2 P1 整体变换、3D 元素名改 am3d:model3d；§5.2 setHeaderFooter 的 date 形状、flipShapes 加 reroute、insertFreeform 改收拟合几何、resetPicture 改 pixelSize）；2026-09-26（§4.21 复核：pic.setBlipFill 载荷补 external、effects；setBorders 形状；音视频入口写法） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §1a / §5a / §5b，[30/01 总架构](../30-architecture/01-overview.md) §3a / §7；[PRD 02](../10-prd/03-features/02-editing.md) ED-05…ED-10、ED-15、ED-19、ED-20、ED-26、ED-28；[PRD 01](../10-prd/03-features/01-open-and-fidelity.md) 第 2.4–2.7 节支持矩阵；[PRD 07](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-02、ML-03；设计 03-screens [04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/04](../30-architecture/04-document-model.md) §3、§4、§6、§12；[30/05](../30-architecture/05-command-and-history.md) §8、§14；[30/06](../30-architecture/06-collaboration.md) §1.5、§8；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[50/05](05-rendering-and-thumbnails.md) §8、§9；[50/10](10-editor-shell-and-interaction.md) §4、§5、§7；[50/16](16-i18n-and-accessibility.md) §6.3、§9；[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)；rulings §4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts）
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建。元素族总表 6 族 35 类、插入命令通用流程与工具态、默认落点与尺寸、通用设计 18 条、新增命令与 Mutation 汇总、元素渲染器登记表（承接原 30/07 渲染器表）、非目标清单）；2026-09-26（§4.21 整合：§1.2 艺术字行补 M2 P2 渐变字与描边字、墨迹与缩放定位补 M2 P1 整体变换、3D 元素名改 am3d:model3d；§5.2 setHeaderFooter 的 date 形状、flipShapes 加 reroute、insertFreeform 改收拟合几何、resetPicture 改 pixelSize）；2026-09-26（§4.21 复核：pic.setBlipFill 载荷补 external、effects；setBorders 形状；音视频入口写法）；2026-09-30（§4.22 设计待决收口：§2.1 与 §3.1 表格、图表、图片从插入页签插入时先填空内容占位符，多图拖入只填指针下的占位符；§3.2 表格行高 0.41 in、网格悬停 8 行 × 10 列与对话框上限待性能评估；§4.11 迷你工具条画在屏幕坐标浮层、`placeholder-empty` 三组；§8.1 第 7、9 条改为推迟）；2026-09-30（§4.22 整合：§3.1「空内容占位符填入」一行图表改为取占位符框、表格宽取框宽高随行数，与 50/24 §2.3、§3.3 对齐；Q1 行注明插入页签与命令面板插入表格、图表、图片走 `slide.fillPlaceholder`）；2026-09-30（§4.22 复核修正：§2.1 第 5 步与 §3.2 图表行改为插入后展开检查器「数据」分区；§3.1 Q1 行的图标、音视频括注改为与原规则一致） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §1a / §5a / §5b，[30/01 总架构](../30-architecture/01-overview.md) §3a / §7；[PRD 02](../10-prd/03-features/02-editing.md) ED-05…ED-10、ED-15、ED-19、ED-20、ED-26、ED-28；[PRD 01](../10-prd/03-features/01-open-and-fidelity.md) 第 2.4–2.7 节支持矩阵；[PRD 07](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-02、ML-03；设计 03-screens [04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/04](../30-architecture/04-document-model.md) §3、§4、§6、§12；[30/05](../30-architecture/05-command-and-history.md) §8、§14；[30/06](../30-architecture/06-collaboration.md) §1.5、§8；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[50/05](05-rendering-and-thumbnails.md) §8、§9；[50/10](10-editor-shell-and-interaction.md) §4、§5、§7；[50/16](16-i18n-and-accessibility.md) §6.3、§9；[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)；rulings §4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts）
 
 本文回答用户的三问里的第三问——**编辑器里能追加什么东西、每样东西有什么用、每样东西怎么设计**——的总览部分：全部 35 类元素按 6 个族登记一张总表，写清所有元素共用的设计（插入流程、默认落点、模型基类、z 序、继承、默认样式、替代文本、不透明保留、媒体通道、渲染降级、检查器、协同、规模与安全、导出 id、可访问性），汇总本轮新增的命令与 Mutation，并接收原 30/07 的元素渲染器表。**每个元素的逐项设计**（固定 14 栏）写在六篇族文档里，本文只给入口与共用口径。
 
@@ -193,10 +193,10 @@ flowchart LR
 所有插入（工具插入、菜单插入、拖入、粘贴、空占位符填入、插件插入）都走同一条链，差别只在第 ② 步的意图来源与第 ④ 步调用哪条命令：
 
 1. **选工具**：`activeTool` 是 ui 本地状态（`slide-ui` 的交互状态机，50/10 §7），**不入历史、不广播**；形状库、线条、文本框、表格网格、图片选择器都只是设置 `activeTool` 与参数（`preset`、`rows × cols`、文件句柄）。
-2. **画布意图**（PointerIntent）：单击，或按下后拖出超过 4 px 屏幕阈值；拖出时 Shift 锁比例（线条约束到 0°/45°/90°）、Alt 以中心为基点；吸附与参考线照常生效（50/10 §7.2）。键盘在工具按钮上按 Enter、菜单项与命令面板直接执行时没有指针意图，落点取视口中心（§3.1）。
+2. **画布意图**（PointerIntent）：单击，或按下后拖出超过 4 px 屏幕阈值；拖出时 Shift 锁比例（线条约束到 0°/45°/90°）、Alt 以中心为基点；吸附与参考线照常生效（50/10 §7.2）。键盘在工具按钮上按 Enter、菜单项与命令面板直接执行时没有指针意图，落点取视口中心；表格、图表、图片例外，页上有空内容占位符时先填入它（§3.1，rulings §4.22）。
 3. **算 box 与参数**：屏幕坐标经视口逆变换换成 EMU（模型唯一单位，30/04 §8）；线条类算起止点 `from`/`to`，由命令换成 `xfrm` + `flipH`/`flipV`。
 4. **执行命令**：`commands.execute(unitId, 'slide.insertX', params)`。管线依次做 schema 解析 → `doc.write` 权限 → **规模守卫**（新增元素后超单页 1,000、全文 20,000 含墓碑、200 页时返回 `document.quota_exceeded{dimension, limit, actual}`，**不开事务**，30/05 §8）→ 一个事务内按需 `media.add`、再 `shape.insert`（`order` 取同容器最上层之上、`parentId = null`）。
-5. **选中并进子编辑态**：命令成功后 UI 执行 Operation `slide.setSelection` 选中新元素，并按类型进入子编辑态（文本框 → 文本编辑；表格 → 首个单元格；图表 → 打开数据面板，Operation `slide.chart.openDataEditor`；动作按钮 → 弹「操作设置」）；Operation 不在插入事务里，不入历史。
+5. **选中并进子编辑态**：命令成功后 UI 执行 Operation `slide.setSelection` 选中新元素，并按类型进入子编辑态（文本框 → 文本编辑；表格 → 首个单元格；图表 → 展开检查器「数据」分区、焦点在首个数值格，Operation `slide.chart.openDataEditor`（不带 `expanded`，不进 440 的展开面板，[24](24-elements-tables-and-charts.md) §3.3）；动作按钮 → 弹「操作设置」）；Operation 不在插入事务里，不入历史。
 6. **播报与反馈**：aria-live 播报「已插入〈类型〉」（§4.15）；媒体上传失败、超限等走 50/04 §4 的错误码矩阵与 toast。
 
 **一次插入 = 一个撤销步**。三种合并例外写在 §2.5。
@@ -209,7 +209,7 @@ flowchart TB
   intent{"② 意图来源"}
   singleTap["单击：左上角落在点击处，类型默认尺寸"]
   drag["拖出超过 4 px：用拖出矩形，Shift 锁比例，Alt 中心"]
-  center["菜单、Enter、命令面板：视口中心，重复插入错位 0.2 in"]
+  center["菜单、Enter、命令面板：视口中心，重复插入错位 0.2 in；表格、图表、图片先填空内容占位符"]
   box["③ 算 box：屏幕坐标 → EMU；线条算 from 与 to"]
   exec["④ commands.execute：schema → doc.write → 规模守卫"]
   quota["超限：document.quota_exceeded，不开事务"]
@@ -346,9 +346,10 @@ sequenceDiagram
 | 单击插入 | 默认尺寸框的**左上角**落在点击处 | 与 PowerPoint 一致；超出页面允许（设计 03-04 边界），只保证插入瞬间在视口内可见 |
 | 拖出插入 | 用拖出矩形（Shift 锁比例，Alt 以按下点为中心） | 拖出矩形小于类型最小尺寸时按单击处理 |
 | 菜单、工具按钮上 Enter、命令面板、插件命令 | 默认尺寸框**居中于当前视口**；视口中心不在页面内时居中于页面 | 键盘可达（WCAG 2.5.7，§4.15） |
+| 从插入页签插入表格、图表、图片（菜单、网格、对话框、命令面板） | 页上有空内容占位符（`obj` 或同类 `tbl` / `chart` / `pic`）时填入阅读序第一个，已选中的空占位符优先；没有才按上一行 | 插入页签与命令面板插入表格、图表、图片，一律走 `slide.fillPlaceholder`、保留 `p:ph`，与 PowerPoint 一致（rulings §4.22 Q1）；图标、音视频不在此列，沿用原规则：居中于视口（上一行），选中了空内容占位符时填入它（50/10 §7.4 原口径，rulings §4.22 Q1 细化 (b)） |
 | 同一视口内重复插入 | 在上一次落点基础上向右下**错位 0.2 in**（182 880 EMU） | 与 `slide.duplicateShapes` 的原位偏移同值（PRD ED-08） |
-| 拖入文件、粘贴 | 拖放点或视口中心；多个文件依次错位 0.2 in | 粘贴不经 DOM、上限 25 MB（PRD ED-17，50/04 §9） |
-| 空内容占位符填入 | 占位符框 | 图片按占位符框裁剪到填满（算 `srcRect`）；表格、图表用占位符框宽，高度按内容 |
+| 拖入文件、粘贴 | 拖放点或视口中心；多个文件依次错位 0.2 in；多张图片拖到空内容占位符上时，指针下的占位符填第一张，其余在放下点普通插入、依次错位，不自动填同页其它占位符 | 粘贴不经 DOM、上限 25 MB（PRD ED-17，50/04 §9）；拖入规则见 [21](./21-elements-structure.md) §3 ③ |
+| 空内容占位符填入 | 占位符框 | 图片按占位符框裁剪到填满（算 `srcRect`；`obj` 占位符是否同样裁剪填满推迟，见 [21](./21-elements-structure.md) §8 S-4）；表格宽取占位符框宽、高度随行数（[24](./24-elements-tables-and-charts.md) §2.3）；图表取占位符框（宽高都取，同 PowerPoint，[24](./24-elements-tables-and-charts.md) §3.3） |
 
 所有尺寸内部都是 EMU；检查器按用户偏好显示 cm / in / pt / px（PRD ED-05）。代码里禁止裸写 `914400` 这类字面量，统一用 `shared` 的单位常量（lint `no-magic-emu`，30/04 §8）。
 
@@ -366,8 +367,8 @@ sequenceDiagram
 | 图标（M3 P2） | 1 in × 1 in | 颜色取主题 `tx1` | `nonVisual.description` 默认写图标名 |
 | 视频（P2） | 原始宽高等比，最长边不超过页面 60% | 海报帧 | 主接受 mp4（H.264/AAC） |
 | 音频（P2） | 0.5 in 图标 | 内置喇叭图标 | 放映时点图标播放 |
-| 表格 | 宽取正文占位符宽（没有则页宽 80%）；行高约 0.4 in（与 PRD ED-10 同；PowerPoint 新表格实际写 `a:tr@h=370840`，按语料取此值）；水平居中 | 表格样式 `{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}`（中度样式 2 - 强调 1）+ `firstRow`、`bandRow` | 网格选择器上限 10 × 8（PRD ED-10） |
-| 图表（M3） | 正文占位符框（没有则 60% × 60% 居中） | 主题强调色序列；示例数据 4 类别 × 3 系列 | 插入后自动打开数据面板 |
+| 表格 | 有空内容占位符时取占位符框宽（§3.1）；否则宽取正文占位符宽（没有则页宽 80%）、水平居中；行高 0.41 in（`a:tr@h=370840`，与 PRD ED-10 同，PowerPoint 新表格的值） | 表格样式 `{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}`（中度样式 2 - 强调 1）+ `firstRow`、`bandRow` | 网格悬停范围 8 行 × 10 列；「插入表格…」对话框上限待性能评估，评估定值前暂按 75 × 75 占位（PRD ED-10；评估见 50/24 §2.14 第 1 条，提前到 M2 表格插入开工前，rulings §4.22） |
+| 图表（M3） | 有空内容占位符时取其框（§3.1）；否则正文占位符框（没有则 60% × 60% 居中） | 主题强调色序列；示例数据 4 类别 × 3 系列 | 插入后自动展开检查器「数据」分区，焦点在首个数值格（[24](24-elements-tables-and-charts.md) §3.3） |
 | 动作按钮 | 同预设形状 | 同预设形状 | 每种按钮有默认动作（§4.7、50/22） |
 | 第三方元素 | 由插件的 `ShapeKindDef.createDefault(box)` 决定 | 插件决定 | 内核不给默认 |
 
@@ -556,7 +557,7 @@ flowchart TB
 ### 4.11 检查器与迷你工具条
 
 - 检查器分区按 `selectionKind × editTargetKind` 决定（50/10 §5）；本轮 `selectionKind` 补 `table`、`chart`、`media`、`placeholder-empty` 四种（R-d-72）。
-- 迷你工具条按 `toolbar.<selectionKind>` 贡献；每个控件都有对应命令 id，`ribbon-spec.test` 断言「控件的命令 id 已注册」，未注册即永久禁用而不是静默无效。
+- 迷你工具条按 `toolbar.<selectionKind>` 贡献；每个控件都有对应命令 id，`ribbon-spec.test` 断言「控件的命令 id 已注册」，未注册即永久禁用而不是静默无效。迷你工具条、空内容占位符图标条与画布浮签都画在屏幕坐标的画布浮层上，按屏幕尺寸绘制（字号 12px），不随画布缩放变小；选中框与手柄仍由选择覆盖层按页面坐标画（50/10 §7.3、§7.5，rulings §4.22）。
 - 多选且类型混杂时只显示各类型分区的**交集**；同一字段值不一致时显示「多个值」，改动对全部选中元素生效，一个事务。
 
 现有取值以 50/10 §5 为准（`none`、`shapes`/`text`、`picture`、`table-cell`、`group`、`connector`、`degraded`、`mixed`），本轮新增四种：
@@ -572,7 +573,7 @@ flowchart TB
 | `table`（新增） | 位置与大小、表格样式与标志（M3）、替代文本 | 选中整个表格 |
 | `chart`（新增） | 位置与大小、图表类型、标题与图例、数据标签、编辑数据（M3）、替代文本 | 图表 |
 | `media`（新增） | 位置与大小、海报（换海报 M2 P1）、播放属性只读展示、替代文本 | 视频、音频 |
-| `placeholder-empty`（新增） | 位置与大小、占位符类型与提示文字、继承状态、插入内容图标 | 空内容占位符 |
+| `placeholder-empty`（新增） | 占位符（类型、索引、来自版式）、位置与大小（逐字段「继承自版式」或「已覆盖 · 重置」）、插入到占位符（与画布图标条同一组动作与禁用原因）；只读与评审不出「插入到占位符」 | 空内容占位符 |
 
 ### 4.12 协同通用
 
@@ -835,9 +836,9 @@ flowchart TB
 | 4 | 是否按 EXIF 方向规范化图片 | 不改源字节（PRD ED-07 边界）；显示按浏览器默认方向处理，PowerPoint 表现以语料核对 | 50/23 |
 | 5 | 视频文件大小上限 | 跟随 presign `maxBytes`；产品默认值待 PRD 线定 | 50/23、60-backend 媒体模块 |
 | 6 | 插入到用户文档里的图标是否需要附 ISC 版权声明 | 待法务确认；未确认前图标功能保持 M3 P2 | 50/23、50/17 |
-| 7 | 74 种内置表格样式数据来源与许可 | 自备数据，不复制 LibreOffice（MPL）数据；M3 前定 | 50/24 |
+| 7 | 74 种内置表格样式数据来源与许可 | 自备数据，不复制 LibreOffice（MPL）数据；推迟（触发条件：M3 表格样式开工前，须过 ADR-0049 T-05 分级，唯一登记点 50/24 §2.14 第 2 条，见 rulings §4.22） | 50/24 |
 | 8 | 连接符目标被他人删除后的显示 | 保留引用、画成自由端点；目标硬删后导出去掉失效引用并诊断 | 50/22 |
-| 9 | `datetime1..13` 与 zh-CN / ja-JP 日期格式的映射 | 以语料核对后定表 | 50/20、50/21 |
+| 9 | `datetime1..13` 与 zh-CN / ja-JP 日期格式的映射 | 推迟（触发条件：M2 P2 开工 `slide.insertField` / `slide.setHeaderFooter` 前，70 线交付三语 PowerPoint 另存语料，见 rulings §4.22）；在此之前用设计样张的 13 种格式表，默认 `datetime1` | 50/20、50/21 |
 | 10 | 背景「应用到全部」是否清除各页已有覆盖 | 按 PRD ED-20 写母版级；各页覆盖保留并提示 | 50/21 |
 | 11 | 第三方元素是否开放 `toXml?` 直接写原生 OOXML | 不开放；只走回退位图 + `extLst` 数据 | 50/22、30/04 §3.3 |
 | 12 | 任意多边形绘制放 M2 P2 还是与墨迹一起推到 M4+ | 维持 M2 P2 | 50/22 |

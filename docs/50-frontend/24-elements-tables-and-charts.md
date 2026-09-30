@@ -1,5 +1,5 @@
 # 24 元素族：表格与图表
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，表格插入网格与归一化模型、单元格选区状态机、图表 d3 + 自研布局只读渲染与五类编辑、其它图表与 chartex 只读）；2026-09-26（§4.21 整合：§2 单元格导航按 06 §9.2（M2 末格 Tab 不加行并播报、不提供格内制表符）；§4 chartex 写明 UnknownShape{renderHint:'placeholder', source:'chartex'} 并沿用 25 §2.2 / §2.5；§2.14 样式来源列 ADR-0049 T-05）；2026-09-26（§4.21 复核：过时的「待回写」改为已回写，§6 只留两项未完成；setBorders 与 chart.setType 参数对齐 40/03） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；rulings §4.21 q-table-depth / q-chart-route / q-frackey、R-d-29 / R-d-34 / R-d-35 / R-d-61 / R-d-63 / R-d-69 / R-d-72 / R-d-74；PRD [03/02 编辑](../10-prd/03-features/02-editing.md) ED-10 / ED-15 / ED-15a、PRD [03/01 打开与保真](../10-prd/03-features/01-open-and-fidelity.md) OF-08 / OF-09 / §2.6、PRD [07 设计覆盖](../10-prd/07-design-coverage-and-gaps.md) G-32 / G-62 / G-63；设计 [03-screens/04 插入菜单](../20-design/03-screens/04-insert-menu.md)、[03-screens/03 属性面板](../20-design/03-screens/03-properties-panel.md)、[03-screens/05 右键菜单](../20-design/03-screens/05-context-menu.md)、[03-screens/13 降级态](../20-design/03-screens/13-import-progress-and-degraded-states.md)；[30/04](../30-architecture/04-document-model.md) §3.2 / §3.6 / §3.8 / §3.9 / §4.1、[30/05](../30-architecture/05-command-and-history.md) §1 / §14、[30/06](../30-architecture/06-collaboration.md) §1.3.3 / §1.5；[40/03](../40-modules/03-slide-domain-model.md) §2.6、[40/07](../40-modules/07-slide-rendering.md) §2.2 / §2.7；[05](./05-rendering-and-thumbnails.md) §9 / §11、[06](./06-text-editing-and-ime.md) §9、[10](./10-editor-shell-and-interaction.md) §5 / §7、[13](./13-performance-and-bundling.md) §6；[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0032](../30-architecture/adr/0032-ordered-collections-fractional-index.md)、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)；[19 元素总览](./19-insertable-elements-overview.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，表格插入网格与归一化模型、单元格选区状态机、图表 d3 + 自研布局只读渲染与五类编辑、其它图表与 chartex 只读）；2026-09-26（§4.21 整合：§2 单元格导航按 06 §9.2（M2 末格 Tab 不加行并播报、不提供格内制表符）；§4 chartex 写明 UnknownShape{renderHint:'placeholder', source:'chartex'} 并沿用 25 §2.2 / §2.5；§2.14 样式来源列 ADR-0049 T-05）；2026-09-26（§4.21 复核：过时的「待回写」改为已回写，§6 只留两项未完成；setBorders 与 chart.setType 参数对齐 40/03）；2026-09-30（§4.21 剩余缺口样张回写：表格界面设计稿 03-30（G-32 / G-62）、图表界面设计稿 03-31（G-63）已按 playground `#/editor/table`、`#/editor/chart` 样张新建，§1.1、§2.1、§2.3、§2.6、§2.7、§3.1、§3.3、§3.6、§3.7 的设计出处与 §6 待回写表同步；只改出处与状态，不改设计口径）；2026-09-30（§4.21 剩余缺口样张回写 · 整合：§2.7 边框选择器改为设计 03-30 的 10 个预设、垂直锚点注明缺省顶端；§2.8 `setBorders` 的 `preset` 给出 10 值枚举（以 03-30 §13 第 16 条用户确认为准）；§3.7 与 §6 迷你工具条槽位按 [10](./10-editor-shell-and-interaction.md) §5 更正为 `toolbar.chart`；§2.14 第 8 条、§3.14 第 5 条登记设计 03-30 §13、03-31「待决与取舍」中待裁定后回写本文的项）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§2.14 第 8 条补登记普通格拆分的命令缺口（03-30 §13 第 23 条）与 M2 选区工具条（第 8 条），插入落点注明表格与图表已合并为 03-30 §13 第 5 条；不改设计口径）；2026-09-30（§4.22 设计待决收口：插入页签的表格与图表填入空内容占位符（Q1），占位符表格图标弹出同一网格弹层（Q2），网格悬停 8 行 × 10 列、对话框上限待性能评估（Q3）；§2.6 右键菜单、M2 选区文本条与远端单元格选区定稿；§2.8 10 值 `preset` 与只拆合并格定稿；§3.6 数据面板两入口、网格右键与截断、粘贴扩展、严格数字解析；§3.8 确认条；§3.9 类别 / 系列删除提示；§3.10 空值缺口与原工作簿提示条；§2.14、§3.14 已收口项改为定稿说明，推迟项注明触发条件）；2026-09-30（§4.22 整合：§2.3 行高统一写「0.41 in（`a:tr@h=370840`）」，§2.3、§3.3 落点补「已选中的空占位符优先」；§2.7 垂直锚点指向设计 03-30 §6.4；§3.3、§3.7 注明三处共用 `ChartTypeMenu` 及「更改类型 ▾」首行；§3.14 第 3 条写明两处提示条共用状态）；2026-09-30（§4.22 复核修正：图 3-1 补 `slide.fillPlaceholder` 分支，插入后改为 `openDataEditor`（不带 `expanded`）展开检查器「数据」分区，与 §3.3 正文一致） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；rulings §4.21 q-table-depth / q-chart-route / q-frackey、R-d-29 / R-d-34 / R-d-35 / R-d-61 / R-d-63 / R-d-69 / R-d-72 / R-d-74；PRD [03/02 编辑](../10-prd/03-features/02-editing.md) ED-10 / ED-15 / ED-15a、PRD [03/01 打开与保真](../10-prd/03-features/01-open-and-fidelity.md) OF-08 / OF-09 / §2.6、PRD [07 设计覆盖](../10-prd/07-design-coverage-and-gaps.md) G-32 / G-62 / G-63；设计 [03-screens/04 插入菜单](../20-design/03-screens/04-insert-menu.md)、[03-screens/03 属性面板](../20-design/03-screens/03-properties-panel.md)、[03-screens/05 右键菜单](../20-design/03-screens/05-context-menu.md)、[03-screens/13 降级态](../20-design/03-screens/13-import-progress-and-degraded-states.md)、[03-screens/30 表格编辑](../20-design/03-screens/30-table-editing.md)、[03-screens/31 图表编辑](../20-design/03-screens/31-chart-editing.md)；[30/04](../30-architecture/04-document-model.md) §3.2 / §3.6 / §3.8 / §3.9 / §4.1、[30/05](../30-architecture/05-command-and-history.md) §1 / §14、[30/06](../30-architecture/06-collaboration.md) §1.3.3 / §1.5；[40/03](../40-modules/03-slide-domain-model.md) §2.6、[40/07](../40-modules/07-slide-rendering.md) §2.2 / §2.7；[05](./05-rendering-and-thumbnails.md) §9 / §11、[06](./06-text-editing-and-ime.md) §9、[10](./10-editor-shell-and-interaction.md) §5 / §7、[13](./13-performance-and-bundling.md) §6；[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0032](../30-architecture/adr/0032-ordered-collections-fractional-index.md)、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)；[19 元素总览](./19-insertable-elements-overview.md)
 
 本文是「表格与图表」元素族（数据类）的设计事实源：每个元素追加什么、有什么作用、怎么插入、模型长什么样、怎么画、怎么交互、检查器与命令、协同与导出、无障碍、复用与里程碑。元素共用的设计（元素基类、插入命令通用流程、默认落点与尺寸、渲染降级、检查器通用规则、协同通用规则、导出 id）在 [19 元素总览](./19-insertable-elements-overview.md)，本文不复写；模型字段的事实源是 [30/04](../30-architecture/04-document-model.md) 与 [40/03](../40-modules/03-slide-domain-model.md)，渲染包与文件落点是 [40/07](../40-modules/07-slide-rendering.md)，图表路线的决策与否决理由在 [ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)，表格归一化与插入命令族在 [ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)，视觉门禁在 [70/04](../70-testing/04-visual-oracle.md)。本文与它们冲突时以它们为准，并回写本文。
 
@@ -21,11 +21,11 @@
 
 | 元素 | 作用（为什么要追加它） | OOXML | 插入入口 | M1 | M2 | M3 | 节 |
 |---|---|---|---|---|---|---|---|
-| 表格 | 结构化对比、参数表、日程与清单；改格文字、合并标题格、套统一样式 | `p:graphicFrame` + `a:tbl`，样式在 `ppt/tableStyles.xml` | 插入 › 表格 ▾：8 × 8 悬停网格 +「插入表格…」（上限 10 × 8）；表格 / 内容占位符图标 | V（OF-08 gated） | E~：插入 + 单元格文字（P1） | E：结构与样式（P1） | §2 |
+| 表格 | 结构化对比、参数表、日程与清单；改格文字、合并标题格、套统一样式 | `p:graphicFrame` + `a:tbl`，样式在 `ppt/tableStyles.xml` | 插入 › 表格 ▾：网格悬停范围 8 行 × 10 列 +「插入表格…」（对话框上限待性能评估，暂按 75 × 75）；表格 / 内容占位符图标弹出同一网格弹层 | V（OF-08 gated） | E~：插入 + 单元格文字（P1） | E：结构与样式（P1） | §2 |
 | 图表（五类） | 用数据讲结论：趋势、构成、对比、相关；改数据、换类型、调标题图例，导出后 PowerPoint「编辑数据」仍可用 | `p:graphicFrame` + `c:chart` → `chartN.xml` + 内嵌 `.xlsx` | 插入 › 图表 ▾（M3，`slide.hasChartEditor`）；图表 / 内容占位符图标（M3） | V（OF-09 gated，d3 + 自研布局） | V + 整体移动缩放删除 | E：bar / line / pie / area / scatter（P1） | §3 |
 | 其它图表与 chartex | 含这些图表的文件能打开、能看、内容不丢 | `c:bubbleChart` 等；`mc:AlternateContent` → `cx:chart` | 不提供插入 | V / V~ / P | 整体移动缩放删除 | 同 M2 | §4 |
 
-可编辑度记号沿用 PRD 03/01：E 可编辑、E~ 部分可编辑、V 查看、V~ 近似查看、P 仅保留。里程碑以 PRD 与 rulings §4.21 为准：表格 M2 可插入并编辑单元格文字、结构与样式 M3（q-table-depth）；图表插入与编辑都在 M3，设计 04「M1/M2 可插入静态图表」已删除（R-d-74）。
+可编辑度记号沿用 PRD 03/01：E 可编辑、E~ 部分可编辑、V 查看、V~ 近似查看、P 仅保留。里程碑以 PRD 与 rulings §4.21 为准：表格 M2 可插入并编辑单元格文字、结构与样式 M3（q-table-depth）；图表插入与编辑都在 M3，设计 04「M1/M2 可插入静态图表」已删除（R-d-74）。界面设计稿（2026-09-30 按样张回写）：表格见 [设计 03-30](../20-design/03-screens/30-table-editing.md)（G-32 / G-62，playground `#/editor/table`），图表见 [设计 03-31](../20-design/03-screens/31-chart-editing.md)（G-63，playground `#/editor/chart`），入口与禁用原因见设计 04。
 
 **十四栏的位置**：§2、§3 每节固定 14 个小节，编号 x.1–x.14 依次为 ① 作用、② OOXML 来源、③ 插入入口与默认、④ 模型、⑤ 渲染、⑥ 交互、⑦ 检查器、⑧ 命令、⑨ 协同、⑩ 导入导出与保真、⑪ 无障碍、⑫ 复用、⑬ 里程碑、⑭ 待决；§4 只读元素用一张 14 行的定义表。
 
@@ -123,7 +123,7 @@ classDiagram
 
 ### 2.1 作用
 
-把数据按行列对齐：竞品对比、参数与价格档位、项目排期、会议议程与清单。用户要做的事依次是：插入一个 m × n 的表格 → 在格里打字、在格间跳转 → 合并标题格、增删行列、拖宽列 → 套一个统一的样式（标题行、镶边行）。表格是文本框与形状之后最高频的追加元素（PRD ED-10，P1）；M1 就要能正确显示导入的表格（OF-08，P0）。
+把数据按行列对齐：竞品对比、参数与价格档位、项目排期、会议议程与清单。用户要做的事依次是：插入一个 m × n 的表格 → 在格里打字、在格间跳转 → 合并标题格、增删行列、拖宽列 → 套一个统一的样式（标题行、镶边行）。表格是文本框与形状之后最高频的追加元素（PRD ED-10，P1）；M1 就要能正确显示导入的表格（OF-08，P0）。界面设计稿见 [设计 03-30 表格编辑](../20-design/03-screens/30-table-editing.md)（2026-09-30 样张回写：M2 插入与单元格文本 G-32、M3 结构与样式 G-62）。
 
 ### 2.2 OOXML 来源
 
@@ -136,11 +136,12 @@ classDiagram
 
 ### 2.3 插入入口与默认
 
-- **入口**：插入页签「表格」组 › 表格 ▾（分组以设计 04 与 playground 为准，R-d-61）：8 × 8 悬停网格（设计 04 与 playground）+「插入表格…」对话框输入行数与列数，上限 10 × 8（PRD ED-10）；空表格占位符或内容占位符图标条中的表格图标（`slide.fillPlaceholder`，[21 结构类](./21-elements-structure.md)）；命令面板「插入表格」。
-- **方式**：点击插入，不做拖出绘制；网格内方向键移动高亮、Enter 确认、Esc 关闭；触屏改为先点开数字输入（设计 04 边界情况）。
-- **默认尺寸与位置**：宽取当前页版式正文占位符宽（版式没有正文占位符时取页宽 80%），列等宽；行高 370840 EMU（约 0.41 in，PowerPoint 新建表格的行高）；水平居中，垂直落在视口中心，重复插入错位 0.2 in（通用落点规则见 [19](./19-insertable-elements-overview.md)）。填入占位符时框取占位符框并保留 `p:ph`。
+- **入口**：插入页签「表格」组 › 表格 ▾（分组以设计 04 与 playground 为准，R-d-61；插入后的默认表格与首格光标见设计 03-30）：网格弹层（`TableGridPicker`）悬停范围 8 行 × 10 列，读数「R 行 × C 列 表格」；弹层底部「插入表格…」先关网格、再开对话框输入行数与列数，取消或 Esc 后焦点回到「表格 ▾」（占位符入口回到表格图标）。对话框上限待性能评估：评估前按 75 × 75 占位（参照 PowerPoint 同名对话框），提示行写「行数、列数各 1–75 · 上限待性能评估（暂按 75 × 75）」，超限时提示行转为错误、「确定」`aria-disabled` 并在 tooltip 重复原因（rulings §4.22 Q3，§2.14 第 1 条）。空表格占位符或内容占位符图标条中的表格图标弹出**同一个**网格弹层（含「插入表格…」，rulings §4.22 Q2），结果走 `slide.fillPlaceholder`（[21 结构类](./21-elements-structure.md)）；命令面板「插入表格」。
+- **方式**：点击插入，不做拖出绘制；网格为 `role="grid"`、单一 Tab 停靠（roving tabindex），方向键移动高亮角、Home / End 到行首行尾、Enter 或空格插入、Esc 关闭；触屏改为先点开数字输入（设计 04 边界情况）。
+- **落点**（rulings §4.22 Q1）：页上有空内容占位符（`obj` 或同类 `tbl`）时，从插入页签、命令面板插入的表格一律填入阅读序第一个空内容占位符（已选中的空占位符优先），走 `slide.fillPlaceholder`、保留 `p:ph`，宽取占位符框宽、高随行数（与 [19](./19-insertable-elements-overview.md) 默认落点表一致）；不想放进占位符时拖出即可。页上没有空内容占位符时按下一条的默认尺寸与位置。
+- **默认尺寸与位置**：宽取当前页版式正文占位符宽（版式没有正文占位符时取页宽 80%），列等宽；行高 0.41 in（`a:tr@h=370840`，PowerPoint 新建表格的行高，与 PRD ED-10、[19](./19-insertable-elements-overview.md) §3.2、[21](./21-elements-structure.md) §3 ③ 一致）；水平居中，垂直落在视口中心，重复插入错位 0.2 in（通用落点规则见 [19](./19-insertable-elements-overview.md)）。
 - **默认样式**：`a:tableStyleId = {5C22544A-7EE6-4342-B048-85BDC9FD1C3A}`（中度样式 2 - 强调 1）+ `firstRow`、`bandRow` 两个标志；颜色由样式引用主题 accent1 与 lt1 / dk1 派生，换主题自动跟随；单元格不写显式填充与边框（只写引用，与 R-d-63 同一原则）。
-- **插入后**：选中表格并把插入符放进首格（直接进入单元格文本编辑），`aria-live` 播报「已插入 3 行 4 列表格」；一次插入一个撤销步。
+- **插入后**：选中表格并把插入符放进首格（直接进入单元格文本编辑），检查器取 `table-cell`（「已选：单元格 · 第 1 行第 1 列」，默认展开文本分区，§2.7）；`aria-live` 播报「已插入 3 行 4 列表格」，toast「已插入 R 行 × C 列表格」（说明「M2 可编辑单元格文字；行列增删、合并与样式在 M3」）；一次插入一个撤销步。
 - **启用条件**：插入页签恒显；M2 起可用（q-table-depth）；只读、评审、降权时按 [10](./10-editor-shell-and-interaction.md) §4 禁用并给原因。
 
 **图 2-1 插入表格时序**
@@ -153,8 +154,8 @@ sequenceDiagram
   participant store as Store
   participant render as table.renderer
   participant ui as slide-ui 画布交互
-  user->>picker: 悬停到 3 × 4 并单击，或在对话框输入行列
-  picker->>cmds: slide.insertTable{containerId, rows, cols}
+  user->>picker: 悬停到 3 行 × 4 列并单击，或在对话框输入行列
+  picker->>cmds: slide.insertTable{containerId, rows, cols}；有空内容占位符时改发 slide.fillPlaceholder
   cmds->>cmds: schema 解析、doc.write、规模守卫按提交后计数
   alt 超出单页或全文元素上限
     cmds-->>ui: err document.quota_exceeded，不开事务
@@ -167,8 +168,8 @@ sequenceDiagram
   end
 ```
 
-怎么读：网格与对话框只负责收集行列数，真正的写入是一次 `slide.insertTable`；列键、行键与全部空格在同一个事务里写入，所以撤销一步即移除整张表；选中与进首格编辑是随后的 Operation，不进历史。
-依据：40/03 §2.6 `slide.insertTable`；50/19 插入命令通用流程；ED-10。
+怎么读：网格与对话框只负责收集行列数，真正的写入是一次 `slide.insertTable`（页上有空内容占位符时换成 `slide.fillPlaceholder`，同一事务里先给空占位写墓碑再插表格）；列键、行键与全部空格在同一个事务里写入，所以撤销一步即移除整张表（填入时回到空占位符）；选中与进首格编辑是随后的 Operation，不进历史。
+依据：40/03 §2.6 `slide.insertTable`、`slide.fillPlaceholder`；50/19 插入命令通用流程；ED-10；rulings §4.22 Q1。
 
 ### 2.4 模型
 
@@ -232,10 +233,11 @@ flowchart LR
 
 - **选中整表**：单击表格任意位置选中整表（外框），可拖动移动；graphicFrame 不可旋转、不可翻转。M2 只显示选中框与移动；M3 起出现 8 个缩放手柄，整体缩放按比例改列宽行高（PRD ED-10 M3「整体缩放时按比例」）。
 - **单元格文本编辑**（M2）：双击单元格或选中整表后按 Enter 进入首格；共用隐藏 textarea 宿主，目标为 `{shapeId, cell:{rowId, colId}}`（[06](./06-text-editing-and-ime.md) §9）；格内格式同 ED-03。
-- **单元格选区**（M2）：拖选跨格、或文本编辑中 Shift+方向键越过格边界，形成矩形选区（填充高亮 + 表格外框选中，G-32）；M2 在选区上可批量设字符格式、按 Delete 清空文字；M3 起可合并、设填充与边框。
-- **行列操作**（M3）：悬停行首或列顶边缘显示「+」插入标记；点击行首 / 列顶选中整行 / 整列；拖行列分隔线调高宽（`DragIntent` 预览，松手一次命令）；右键菜单：在上方 / 下方插入行、在左侧 / 右侧插入列、删除行 / 列 / 表格、合并单元格、拆分单元格（设计 05；M2 这些项灰显并提示「表格结构编辑将在后续版本提供」）。
-- **迷你工具条**：`toolbar.table-cell`（M3：插入行列、合并、拆分、填充、边框）；M2 文本编辑时沿用 `textEditing` 条。
-- **协同呈现**：远端协作者的单元格选区以其颜色描边显示（awareness `selection.kind = 'tableCells'`，30/06；M3，[07](./07-collaboration-client.md)）。
+- **单元格选区**（M2）：拖选跨格、或文本编辑中 Shift+方向键越过格边界，形成矩形选区（填充高亮 + 表格外框选中，G-32，设计 03-30）；M2 在选区上可批量设字符格式、按 Delete 清空文字；M3 起可合并、设填充与边框。
+- **行列操作**（M3）：悬停行首或列顶边缘显示「+」插入标记；点击行首或列顶外沿选中整行 / 整列，视觉同单元格选区；拖行列分隔线调高宽（`DragIntent` 预览，松手一次命令）。M2 不出现悬停「+」与分隔线手柄（rulings §4.22）。
+- **右键菜单**（单元格变体，设计 05、03-30 §5.3，平铺不用子菜单）：剪切、复制、粘贴、删除文本 ┊ 「插入」小标题（带 M3）下四项插行插列 ┊ 合并单元格、拆分单元格… ┊ 删除行、删除列、删除表格（危险色）。M2 时「插入」小标题换成菜单内常驻说明行「表格结构编辑将在后续版本提供」，插行插列、合并拆分、删除行列这些结构项 `aria-disabled`、键盘可达，以 `aria-describedby` 指向说明行；**删除表格在 M2 可用**（`slide.deleteShapes`，与键盘表一致）。拆分只对合并过的格可用，普通格上禁用并给原因「只有合并过的单元格可以拆分」（§2.8）。无编辑权限时除「复制」外全部禁用，原因「需要编辑权限」（权限先于里程碑判定）。
+- **迷你工具条**：M2 的单元格文本编辑与单元格选区出文本条（字体、字号、加粗、倾斜），条尾加禁用入口「表格结构 M3」（tooltip「表格结构编辑将在后续版本提供」）；M3 起换 `toolbar.table-cell`（插入行列、合并、拆分、填充、边框），与 [10](./10-editor-shell-and-interaction.md) §5 同一口径（rulings §4.22）。
+- **协同呈现**：远端协作者的单元格选区按单元格矩形画，沿用[设计规范](../20-design/09-design-specification.md)「画布覆盖层」的远端选区样式（1.5 px presence 色虚线 + 12% 填充 + 姓名胶囊）（awareness `selection.kind = 'tableCells'`，30/06；M3，[07](./07-collaboration-client.md)）。
 
 **图 2-3 表格选中与单元格选区状态机**
 
@@ -261,7 +263,7 @@ stateDiagram-v2
 ```
 
 怎么读：Esc 每次只退一级（与 10 §7.1 的画布 Esc 逐级同一口径），从单元格编辑或选区退到整表选中，再退到未选中；跨格导航停留在文本编辑态内，只改文本目标；整行整列选中与末格 Tab 加行是 M3 才出现的状态与迁移；M2 的末格 Tab 不产生事务，光标留在末格并以 live region 播报「已是最后一个单元格」（[06](./06-text-editing-and-ime.md) §9.2）。
-依据：PRD ED-10、G-32、G-62；50/10 §7.1；设计 05。
+依据：PRD ED-10、G-32、G-62；50/10 §7.1；设计 05、03-30。
 
 **键盘对照**（M2 起生效，标 M3 的除外）：
 
@@ -279,18 +281,18 @@ stateDiagram-v2
 
 ### 2.7 检查器
 
-`selectionKind` 新增 `table`（整表）并沿用 `table-cell`（单元格或选区），属 R-d-72 的补齐（新增（§4.21），矩阵登记在 [10](./10-editor-shell-and-interaction.md) §5）。M3 之前不可用的字段留在原位、灰显并注明「M3 提供」。
+`selectionKind` 新增 `table`（整表）并沿用 `table-cell`（单元格或选区），属 R-d-72 的补齐（新增（§4.21），矩阵登记在 [10](./10-editor-shell-and-interaction.md) §5）。M3 之前不可用的字段留在原位，`aria-disabled` 但可聚焦，tooltip「M3 提供」、可访问名称加后缀「（M3 提供）」；样式库在 M2 保留当前样式的选中环、其余缩略图降到 60%，点击无效。无编辑权限时同样锁定，原因「需要编辑权限」。插入后与单元格编辑中取 `table-cell`（§2.3）。检查器表格分区、边框选择器与样式库的界面见设计 03-30；样张的缩略图配色为近似，逐部件保真推迟（DF-01，触发条件：74 种样式数据定稿（§2.14 第 2 条）后、M3 表格样式开工前，见 rulings §4.22）。
 
 | 分区 | `table` | `table-cell` | 里程碑 |
 |---|---|---|---|
 | 位置与大小（无旋转、无翻转） | 是 | — | M2（尺寸输入 M3，改尺寸即按比例缩放） |
 | 表格：样式库（74 个内置样式缩略图）、6 个标志复选（标题行 / 汇总行 / 镶边行 / 第一列 / 最后一列 / 镶边列） | 是 | 只读显示所在表 | M3 |
 | 文本：字体、字号、颜色、对齐、段落 | 作用于全部格 | 作用于所选格 | M2 |
-| 单元格：填充；边框选择器（单条 / 全部 / 内部 / 外部 / 无，加线型、粗细、颜色）；内边距；垂直锚点；文字方向 | — | 是 | M3 |
+| 单元格：填充；边框选择器（10 个预设，枚举见 §2.8，加线型、粗细、颜色；设计 03-30 §6.4）；内边距；垂直锚点（缺省顶端：`a:tcPr@anchor` 缺省为 `t`，检查器显示真实值，设计 03-30 §6.4）；文字方向（横排 / 所有文字旋转 90° / 所有文字旋转 270° / 堆积） | — | 是 | M3 |
 | 行高与列宽数值 | — | 是（选区所在行列） | M3 |
 | 替代文本（标题、描述） | 是 | — | M2（`slide.setAltText`，[19](./19-insertable-elements-overview.md)） |
 
-**样式库**（M3）：按「文档中的样式 → 浅色 → 中等 → 深色」分组列出，文档 `tableStyles.xml` 里的自定义样式排在最前；缩略图由 `table.renderer` 以当前主题画一张 5 × 5 示意表（离屏 SVG，slide-ui 按「样式 id + 6 个标志」记忆当前主题下的结果，条数以样式数为上限，主题版本变化时整体丢弃重画），所以缩略图与画布效果一致；点击即 `slide.table.setStyle`，一次撤销步；6 个标志复选改的是同一张表的 `properties`，缩略图随之刷新。悬停实时预览为 P2（届时走视图态，不写模型）。
+**样式库**（M3）：收起时只列一行常用缩略图，「显示全部 74 种」原位展开，按「文档中 → 浅色 21 → 中等 28 → 深色 11 → 其它 14」分组、组头带计数（其它 = 主题样式 1 / 2 - 强调 1–6 与两个无样式），末尾「收起」；文档 `tableStyles.xml` 里的自定义样式排在最前（设计 03-30 §6.3）；缩略图由 `table.renderer` 以当前主题画一张 5 × 5 示意表（离屏 SVG，slide-ui 按「样式 id + 6 个标志」记忆当前主题下的结果，条数以样式数为上限，主题版本变化时整体丢弃重画），所以缩略图与画布效果一致；点击即 `slide.table.setStyle`，一次撤销步；6 个标志复选改的是同一张表的 `properties`，缩略图随之刷新。悬停实时预览为 P2（届时走视图态，不写模型）。
 
 ### 2.8 命令
 
@@ -301,14 +303,15 @@ stateDiagram-v2
 | 命令 id | 参数（前端调用口径） | 产出的 Mutation | 里程碑 | 状态 |
 |---|---|---|---|---|
 | `slide.insertTable` | `{containerId, box, rows, cols, styleId?}`；`box` 由 slide-ui 按 §2.3 算好传入 | `shape.insert`（graphicFrame:table，含全部列、行、格） | M2 | 已有；`styleId?` 新增（§4.21） |
+| `slide.fillPlaceholder`（表格） | `{shapeId, content: {kind:'table', rows, cols}}`；页上有空内容占位符时插入页签、命令面板与占位符图标都走它（§2.3，rulings §4.22 Q1）；事务语义见 [21](./21-elements-structure.md) §3 与 ADR-0018 决策 10 | `shape.remove`（空占位写墓碑）+ `shape.insert`（同 `PlaceholderRef`、同 `order`） | M2 | 已有（§4.21） |
 | `slide.insertText` / `deleteText` / 字符与段落格式族 | `target: {shapeId, cell: {rowId, colId}}` | `text.applyDelta`、`run.setProperties`、`paragraph.setProperties` | M2 | 已有；`cell` 改 id 寻址 |
 | `slide.table.clearCells` | `{shapeId, cells: CellKey[]}`：多格选区按 Delete | `text.applyDelta`（逐格清空） | M2 | 新增（§4.21），已回写（2026-09-26 整合，已登记 40/03 §2.6、30/05 §14） |
 | `slide.table.insertRow` / `insertColumn` | `{shapeId, ref: RowId 或 ColId, side, count?}`；命令算 `order = between(邻居)`、生成新 id，新格继承相邻格的 `properties`；插在合并区内部时同事务扩大锚格跨度 | `slide.table.insertRow` / `insertColumn`（+ `merge`） | M3 | 已有；参数改 id |
 | `slide.table.removeRow` / `removeColumn` | `{shapeId, rowIds}` / `{shapeId, colIds}`；与之相交的合并区先拆分或收缩（同事务）；删光全部行或列即删表 | `slide.table.removeRow` / `removeColumn`（或 `shape.remove`） | M3 | 已有；参数改 id |
 | `slide.table.mergeCells` | `{shapeId, from: CellKey, to: CellKey}`；被合并格文字按 PowerPoint 规则并入锚格 | `text.applyDelta` + `slide.table.merge` | M3 | 已有 |
-| `slide.table.splitCell` | `{shapeId, cell: CellKey}`：拆回合并前的格 | `slide.table.split` | M3 | 已有 |
+| `slide.table.splitCell` | `{shapeId, cell: CellKey}`：只拆回合并前的格；普通格上「拆分单元格…」禁用，原因「只有合并过的单元格可以拆分」，不做拆分对话框（rulings §4.22）。普通格按行列数拆分推迟（DF-04，触发条件：M3 之后出现明确用户需求时再议，届时扩 `rows?` / `cols?` 并同步 40/03 §2.6、30/05 §14、ADR-0018 决策 6，见 rulings §4.22） | `slide.table.split` | M3 | 已有 |
 | `slide.table.setCellProperties` | `{shapeId, cells, patch}`：填充、边距、锚点、文字方向 | `slide.table.setCellProperties` | M3 | 已有 |
-| `slide.table.setBorders` | `{shapeId, cells, borders: {preset, line}}`（形状以 40/03 §2.6 为准）；`preset` 取单条 / 全部 / 内部 / 外部 / 无，命令展开为各格六向边框 | `slide.table.setCellProperties` | M3 | 新增（§4.21） |
+| `slide.table.setBorders` | `{shapeId, cells, borders: {preset, line}}`（形状以 40/03 §2.6 为准）；`preset` 取 `none / all / outer / inner / innerH / innerV / top / bottom / left / right`（设计 03-30 §6.4 的 10 个预设，2026-09-30 由按类的「单条 / 全部 / 内部 / 外部 / 无」细化，同日定稿，rulings §4.22），命令展开为各格六向边框 | `slide.table.setCellProperties` | M3 | 新增（§4.21） |
 | `slide.table.setStyle` | `{shapeId, styleId?, flags?}` | `slide.table.setTableProperties` | M3 | 新增（§4.21） |
 | `slide.table.resizeColumn` / `resizeRow` | `{shapeId, colId, width}` / `{shapeId, rowId, height}`；拖内部分隔线的语义见 §2.14 第 4 条 | `slide.table.setSizes`（改表宽时加 `shape.setTransform`） | M3 | 新增（§4.21） |
 | `slide.resizeShapes`（作用于表格） | 通用参数 | `shape.setTransform` + `slide.table.setSizes`（列宽行高按比例） | M3 | 已有；表格分支新增 |
@@ -335,7 +338,7 @@ Yjs 编码的事实源是 30/06 §1.3.3：`graphic.table` 下 `columns`、`rows`
 | A、B 同时改同一格文字 | `Y.XmlFragment` 字符级合并（同形状文本） |
 | A、B 在同一间隙各插一行 | 两行都在，按 `(order, id)` 全序排列，各端一致（ADR-0032） |
 | A 插行、B 插列 | 新行 × 新列的交叉格两端都没写 → 违反 I-TBL1：读时补空格，服务端修复事务物化（图 2-4） |
-| A 删行、B 改该行某格文字 | 行是墓碑、格仍在：B 的修改保留但不可见；A 撤销删行后连同 B 的修改一起回来 |
+| A 删行、B 改该行某格文字 | 行是墓碑、格仍在：B 的修改保留但不可见；A 撤销删行后连同 B 的修改一起回来。B 端退出单元格编辑、回到整表选中，toast「该行已被 A 删除」（说明「恢复即可找回你在该行的修改」，按钮「恢复该行」，恢复后「已恢复该行」；列同理），走 `soft-conflict{delete-vs-edit}` 的行列粒度（[07](./07-collaboration-client.md) §12，设计 03-30 §7） |
 | A 合并 r1c1–r2c2、B 同时在合并区内部插列 | B 的命令看不到 A 的合并，合并后由 I-TBL2 按 30/04 §3.8 修复（越界收缩、孤立标记清除）；扩张还是收缩的口径见 §2.14 第 7 条 |
 | A、B 同时合并两个重叠区域 | I-TBL2：按锚格（行序、列序、id）先者保留，后者拆开；修复事务不进任何人的撤销栈 |
 | A、B 同时拖同一列宽 | 叶子 LWW |
@@ -398,7 +401,7 @@ flowchart TB
 
 - 画布可访问树：`SceneNode.a11y.role = 'table'`，name 依次取替代文字 → 首行文字摘要 → 「表格 3」（[05](./05-rendering-and-thumbnails.md) §11）；建议可访问镜像在该项内再输出一个视觉隐藏的 `<table>`（`firstRow` 开时首行用 `th scope="col"`），让读屏按行列朗读（新增（§4.21），已回写（2026-09-26 整合，见 [05](./05-rendering-and-thumbnails.md) §11））。
 - 单元格间键盘移动（Tab、方向键）时播报「第 2 行第 3 列：<文字摘要>」，合并格加「合并 2 列」；单元格选区播报范围「B2 到 C4，共 6 格」。
-- 网格选择器 `role="grid"`，方向键移动、播报「3 × 4 表格」；「插入表格…」对话框全键盘可用。
+- 网格选择器 `role="grid"`、单一 Tab 停靠，方向键移动、读数以 `aria-live` 播报「3 行 × 4 列 表格」；「插入表格…」对话框全键盘可用（Enter 提交），出错时提示行 `role="alert"`、字段 `aria-invalid`，「确定」`aria-disabled` 并在 tooltip 重复原因。
 - 每个拖动都有数值等价（WCAG 2.5.7）：行高列宽在检查器输入；插入与删除行列有右键菜单与命令面板入口。
 - 选区高亮不只靠颜色：选区外加 2 px 描边，高对比度模式可辨。
 
@@ -413,25 +416,26 @@ flowchart TB
 | 里程碑 | 范围 |
 |---|---|
 | M1（P0） | 导入即归一化（推荐，§2.4）；`table.renderer` 渲染合并、条件边框、显式清除边框、对角线边框（OF-08 gated）；`tableStyles.xml` 只读解析 |
-| M2（P1） | 插入（网格、对话框、占位符图标）；单元格文字与跨格导航；多格选区的字符格式与清空；默认样式 `{5C22544A…}` 的内置数据 |
+| M2（P1） | 插入（网格、对话框、占位符图标；页上有空内容占位符时填入）；单元格文字与跨格导航；多格选区的字符格式与清空；默认样式 `{5C22544A…}` 的内置数据 |
 | M3（P1） | 行列插删、合并拆分、行高列宽拖动与整体缩放、填充与边框选择器、边距与锚点、样式库 74 种与 6 个标志、末格 Tab 加行、远端单元格选区呈现 |
 | P2 | 对角线边框编辑、单元格内图片（ED-10 边界） |
 
 ### 2.14 待决
 
-1. **超过 10 × 8 的表格**：PRD ED-10 把插入上限定为 10 × 8（网格 8 × 8，对话框补足 9–10 列）；更大的表格只能插入后逐行逐列增加（M3）。是否放宽对话框上限，随 M3 性能包络一并评估。
-2. **74 种内置样式的数据来源与许可**：rulings §4.21 推迟项，列为 [ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md) T-05 待核，M3 表格样式开工前定，来源须过 ADR-0049 分级；负责：本文（前端设计线）。
+1. **「插入表格…」对话框上限**（rulings §4.22 Q3 已裁「放宽行数」）：网格悬停范围 8 行 × 10 列；对话框上限待性能评估（暂按 75 × 75 占位），评估提前到 M2 表格插入开工前。对话框行数不再限 8，列数一并评估，行列上限随本条的大表渲染与协同基准定（参照 PowerPoint 75 × 75），定值前提示行写「上限待性能评估」（§2.3）。推迟（DF-10，触发条件：M2 表格插入开工前完成性能评估，原定 M3 性能包络，见 rulings §4.22）；定值后回写 PRD ED-10、本文 §2.3 与对话框校验；负责：本文（前端设计线）+ 70 线性能基准。
+2. **74 种内置样式的数据来源与许可**（唯一登记点）：列为 [ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md) T-05 待核，来源须过 ADR-0049 分级；负责：本文（前端设计线）。推迟（DF-02，触发条件：M3 表格样式开工前，见 rulings §4.22）。样式库缩略图的逐部件保真随本条之后重画（§2.7）。
 3. **`tableStyles.xml` 建模还是只读派生**：推荐不建模——只读解析供渲染，导出时按 ADR-0008 决策 9 新增白名单项追加内置样式定义。
-4. **列宽拖动语义**：内部分隔线「相邻两列此消彼长、表宽不变」还是「只改左列、表宽随之变」，以维护机 PowerPoint 对照定稿。
+4. **列宽拖动语义**：内部分隔线「相邻两列此消彼长、表宽不变」还是「只改左列、表宽随之变」，以维护机 PowerPoint 对照定稿；样张暂按此消彼长，对照不符时改拖动角标与设计 03-30 §5.2。推迟（DF-03，触发条件：M3 表格结构开工前、维护机 PowerPoint 对照完成，见 rulings §4.22）；负责：本文（前端设计线）+ 70 线维护机。
 5. **行列增删后的规模**：M3 行列插入不设单独上限，只受单页元素与性能包络约束（单元格不计入形状数）；是否需要单表格格数上限，M3 性能基准后定。
 6. **归一化模型落地时点**：推荐 M1 导入即归一化（§2.4）；若 M1 先用数组，M3 前须补 schemaVersion 迁移。
 7. **并发插入落在合并区内部时的修复口径**：30/04 §3.8 的 I-TBL2 以「跨度按当前顺序计数」修复，会让合并区在位置上收缩到新行列、把原被覆盖的末行（列）拆出来；本文建议修复改为「从锚格起按当前顺序扩张到原被覆盖格为止」，与本机插入时的行为（§2.4）一致。待 30/04 §3.8 与 ADR-0018 定稿。
+8. **设计 03-30 的待裁定项**（2026-09-30 登记，同日按 rulings §4.22 全部收口，不再待决）：(a) 插入落点定为填入阅读序第一个空内容占位符（Q1），见 §2.3；(b) 插入后首格有光标时检查器取 `table-cell`，见 §2.3、§2.7；(c) `setBorders` 的 10 值 `preset` 定稿，见 §2.8；(d) 普通格「拆分单元格…」禁用并给原因，见 §2.6、§2.8，按行列数拆分推迟（DF-04，触发条件：M3 之后出现明确用户需求时再议，见 rulings §4.22）；(e) M2 单元格选区出文本条加「表格结构 M3」禁用入口，M3 起换 `toolbar.table-cell`，见 §2.6。
 
 ## 3. 图表（可编辑五类：bar / line / pie / area / scatter）
 
 ### 3.1 作用
 
-用数据讲结论：柱形与条形做对比，折线与面积看趋势，饼图看构成，散点看相关。用户要能改数值、类别名与系列名，增删类别与系列，在五类之间换类型，调标题、图例与数据标签；导出后在 PowerPoint 里「编辑数据」仍能打开内嵌工作簿（ED-15、PD-06）。M1 起必须把导入的图表按部件数据正确画出来（OF-09，P0）。
+用数据讲结论：柱形与条形做对比，折线与面积看趋势，饼图看构成，散点看相关。用户要能改数值、类别名与系列名，增删类别与系列，在五类之间换类型，调标题、图例与数据标签；导出后在 PowerPoint 里「编辑数据」仍能打开内嵌工作簿（ED-15、PD-06）。M1 起必须把导入的图表按部件数据正确画出来（OF-09，P0）。界面设计稿见 [设计 03-31 图表编辑](../20-design/03-screens/31-chart-editing.md)（2026-09-30 样张回写，G-63）。
 
 ### 3.2 OOXML 来源
 
@@ -450,11 +454,11 @@ flowchart TB
 
 ### 3.3 插入入口与默认
 
-- **入口**（PRD ED-15a，M3 P1）：插入页签「图表」组 › 图表 ▾（R-d-61）：柱形图（簇状 / 堆积 / 百分比堆积）、条形图（同三种）、折线图（折线 / 带数据标记 / 堆积）、饼图、面积图（面积 / 堆积 / 百分比堆积）、散点图（仅标记 / 带平滑线和标记）；空图表占位符与内容占位符图标条中的图表图标（`slide.fillPlaceholder`，M3，[21 结构类](./21-elements-structure.md)）；命令面板「插入图表」。
-- **启用条件**：`enablement: slide.hasChartEditor`——M3 装载 `slide-render-chart` 后为真；未装载时控件留在原位禁用，tooltip「图表编辑组件未装载」（[10](./10-editor-shell-and-interaction.md) §4）。设计 04「M1/M2 插入的图表以静态样式呈现」一句删除，图表插入定 M3（R-d-74）。
+- **入口**（PRD ED-15a，M3 P1）：插入页签「图表」组 › 图表 ▾（R-d-61）：柱形图（簇状 / 堆积 / 百分比堆积）、条形图（同三种）、折线图（折线 / 带数据标记 / 堆积）、饼图、面积图（面积 / 堆积 / 百分比堆积）、散点图（仅标记 / 带平滑线和标记）；空图表占位符与内容占位符图标条中的图表图标（`slide.fillPlaceholder`，M3，[21 结构类](./21-elements-structure.md)）；命令面板「插入图表」。插入页签、占位符图标与迷你工具条「更改类型 ▾」三处是**同一个**六项菜单（`ChartTypeMenu`：柱形、条形、折线、饼、面积、散点）加子类型 flyout，首行说明分别为「[M3] 五类 · 插入后打开数据面板」「[M3] 五类 · 填入占位符后打开数据面板」「[M3] 更改类型 · 数据与标题保留」；flyout 与插入后示例图表的界面见设计 03-31。
+- **启用条件**：`enablement: slide.hasChartEditor`——M3 装载 `slide-render-chart` 后为真；未装载时控件留在原位禁用，tooltip 文案见设计 03-31「禁用原因」，M2 与组件未装载共用一条（设计稿是文案权威；[10](./10-editor-shell-and-interaction.md) §4）。设计 04「M1/M2 插入的图表以静态样式呈现」一句删除，图表插入定 M3（R-d-74）。
 - **方式**：点击菜单项即插入，不做拖出绘制。
-- **默认框**：当前页版式正文占位符框（没有时取页面 60% × 60% 居中）；填入占位符时取占位符框并保留 `p:ph`。
-- **默认样式**：系列颜色写主题引用 `schemeClr accent1…accent6`（超过 6 个系列按 lumMod 派生），不烤 RGB；字体取主题次要字体；标题显示「图表标题」（i18n）、图例在底部、无数据标签。
+- **默认框**（rulings §4.22 Q1）：页上有空内容占位符（`obj` 或同类 `chart`）时，从插入页签、命令面板插入的图表填入阅读序第一个空内容占位符（已选中的空占位符优先），走 `slide.fillPlaceholder`、取占位符框并保留 `p:ph`；没有时取当前页版式正文占位符框（再没有时取页面 60% × 60% 居中）。
+- **默认样式**：系列颜色写主题引用 `schemeClr accent1…accent6`（第 7 个系列起按 accent 亮度以 `lumMod` / `lumOff` 派生），不烤 RGB；字体取主题次要字体；标题显示「图表标题」（i18n）、图例在底部、无数据标签；空值按缺口画（`dispBlanksAs = gap`，同 PowerPoint 新建图表，rulings §4.22）。
 - **示例数据**（i18n 文案键 `chart.sample.category`「类别 {n}」、`chart.sample.series`「系列 {n}」；数值取 PowerPoint 默认示例，维护机核对一次）：
 
 | 类型 | 类别 / 点 | 系列与数值 |
@@ -463,7 +467,7 @@ flowchart TB
 | 饼 | 类别 1–4 | 系列 1：8.2、3.2、1.4、1.2 |
 | 散点 | 点 1–3 | X：0.7、1.8、2.6；Y（系列 1）：2.7、3.2、0.8 |
 
-- **插入后**：选中图表并打开数据面板（`slide.chart.openDataEditor`），焦点落在首个数值格，`aria-live` 播报「已插入簇状柱形图」；插入是一个撤销步，打开面板不入历史。
+- **插入后**：选中图表并展开检查器「数据」分区（`slide.chart.openDataEditor`，不进展开面板，§3.6），焦点落在首个数值格，`aria-live` 播报「已插入簇状柱形图」；插入是一个撤销步，打开数据分区不入历史。
 
 **图 3-1 插入图表时序**
 
@@ -474,19 +478,19 @@ sequenceDiagram
   participant cmds as commands.execute
   participant store as Store
   participant chart as slide-render-chart
-  participant panel as slide-ui 数据面板
+  participant panel as slide-ui 检查器数据分区
   user->>menu: 选择 柱形图 · 簇状
-  menu->>cmds: slide.insertChart{containerId, chartType:'bar', variant}
+  menu->>cmds: slide.insertChart{containerId, chartType:'bar', variant}；有空内容占位符时改发 slide.fillPlaceholder
   cmds->>cmds: 生成示例数据：4 个 CatId、3 个 SerId 与各自 FracKey
   cmds->>store: 一个事务 shape.insert：graphicFrame:chart，只有 Chart.data，没有 partRef
   store-->>chart: 标脏新形状，按 Chart.data 与主题默认样式绘制
   cmds-->>menu: ok(ShapeId)
-  menu->>panel: slide.setSelection 选中图表，slide.chart.openDataEditor 打开面板
+  menu->>panel: slide.setSelection 选中图表，slide.chart.openDataEditor（不带 expanded）展开检查器「数据」分区
   panel->>user: 焦点落在首个数值格，播报 已插入簇状柱形图
   Note over store,chart: 图表部件、rels 与内嵌 xlsx 只在导出时生成，见图 3-5
 ```
 
-怎么读：插入只写模型，不生成任何 OOXML 部件——新图表在导出前只有 `Chart.data`；渲染器同一帧按主题默认样式画出示例数据；打开数据面板是随后的 Operation，所以撤销插入一步就能回到插入前。
+怎么读：插入只写模型，不生成任何 OOXML 部件——新图表在导出前只有 `Chart.data`（页上有空内容占位符时换成 `slide.fillPlaceholder`，同一事务里先给空占位写墓碑再插图表，已选中的空占位符优先）；渲染器同一帧按主题默认样式画出示例数据；`slide.chart.openDataEditor`（不带 `expanded`）展开检查器「数据」分区、焦点在首个数值格，不进 440 的展开面板，它是随后的 Operation，所以撤销插入一步就能回到插入前（填入时回到空占位符）。
 依据：rulings §4.21 q-chart-route；R-d-74；PRD ED-15；ADR-0036。
 
 ### 3.4 模型
@@ -551,10 +555,13 @@ flowchart TB
 ### 3.6 交互
 
 - **整体**：单击选中（外框 8 个缩放手柄，不旋转、不翻转，graphicFrame 规则）；拖动移动、缩放、删除、复制粘贴是通用变换，M2 起对所有图表可用（包括只读类型）。
-- **打开数据面板**（M3）：双击图表或迷你工具条「编辑数据」→ 检查器「图表」分区内嵌紧凑网格；点「展开」进入右侧抽屉的大网格（G-63）。
-- **数据网格**：行 = 类别，列 = 系列（散点为 X 列 + 各系列 Y 列）；首列类别名、首行系列名可编辑；末行、末列的「+」新增类别或系列；行列右键删除、上移 / 下移（只改 `order`）；从 Excel 或表格复制的 TSV 块整块粘贴为一次命令；留空 = `null`（按 `c:dispBlanksAs` 画缺口）；无法解析的数值 `aria-invalid`、不提交。
+- **打开数据面板**（M3，G-63，设计 03-31；rulings §4.22 定稿）：两个入口分开。迷你工具条「编辑数据」直开**展开面板**——检查器坞由 300 加宽到 440、整栏换成数据面板（画布缩到约 69%，不另开一栏、不盖住图表；组件为 40/10 的 `ui/chart/ChartDataDrawer.tsx`，职责已按此改写，文件名沿用），面板头有「收起到检查器」（回到检查器并展开「数据」分区）与「关闭」；双击图表（或选中后 Enter）只展开检查器的「数据」分区（紧凑网格），焦点落在首个数值格，分区内「展开」进展开面板。窄屏（640–1024）数据面板用底部 Sheet（[18](./18-editor-capabilities.md) CHT-03），样张推迟（DF-07，触发条件：紧凑断点编辑态统一出样张时，与设计 03-16、03-30 一起，见 rulings §4.22）。
+- **数据网格**：行 = 类别，列 = 系列（散点为 X 列 + 各系列 Y 列）；首列类别名、首行系列名可编辑；末行、末列的「+」新增类别或系列；从 Excel 或表格复制的 TSV 块整块粘贴为一次命令，粘贴块超出现有行列时自动新增类别与系列、与粘贴合为同一条命令一步撤销，超过规模上限整块拒绝并 toast（`setData` 可在同一命令里建类别与系列，同 PowerPoint 数据表）；留空 = `null`（按 `c:dispBlanksAs` 画缺口）；无法解析的数值 `aria-invalid`、不提交；格值未改动时失焦不提交。
+- **行列右键菜单**（M3）：右键类别名或系列名表头（或 Shift+F10 / ContextMenu 键），首行是对象名；行菜单为上移、下移、删除类别（散点为删除点），列菜单为左移、右移、删除系列（移动只改 `order`）；到边或只剩一个时 `aria-disabled`，tooltip「已是第一个 / 最后一个类别（系列）」「图表至少保留一个类别（系列）」，评审或查看角色为「需要编辑权限」；删除后 toast 带撤销。
+- **紧凑网格与饼图**：检查器紧凑网格最多显示 8 类别 × 4 系列，超出时截断并在说明行写「共 N 类别 × M 系列 · 此处显示前 8 × 4」，截断方向不出「+」；非紧凑网格可横向滚动。类型为饼图时网格仍列出全部系列，第二列起降到 50% 不透明度，表头 tooltip 与说明行写「饼图只画第一个系列；其余系列保留在数据里，切回其它类型后重新画出」。
+- **数字解析**：按文档语言解析与显示——文档语言先取图表部件的 `c:lang`，没有时取演示文稿默认语言；numfmt 严格解析，千分位分组不合规（如 en 下「1,5」）判非法、不提交，不静默读成 15；网格说明行可显示当前小数分隔符（rulings §4.22）。
 - **键盘**：方向键移动焦点格；Enter 或 F2 开始编辑，Enter 提交并下移，Tab 提交并右移，Esc 放弃；Mod+C / Mod+V 复制粘贴选区；选区状态机复用表格的 `table-selection`（R-d-34）。
-- **只读类型**：非五类、缓存不全或组合图表双击时提示「此类型仅支持查看」，检查器只显示位置与大小、替代文本与保真详情入口。
+- **只读类型**：非五类、缓存不全或组合图表选中时检查器显示「此类型仅支持查看」，只列位置与大小、替代文本与保真详情入口；双击弹 toast「此类型仅支持查看：<类型名>」（说明「不在可编辑的五类里；可以移动、缩放和复制，数据与格式保持原样导出。」，按钮「查看保真详情」），同一对象 10 秒内不重复，通知区 `aria-live="polite"`（设计 03-31）。
 - **图表内子元素**（单独选中系列、数据点、标题、图例并设格式）为 P2，M3 不做；标题文字在检查器改。
 
 **图 3-3 图表选中与数据编辑状态机**
@@ -563,23 +570,25 @@ flowchart TB
 stateDiagram-v2
   state "未选中" as none
   state "图表选中：外框，只缩放不旋转" as sel
-  state "只读提示：非五类或缓存不全" as readonly
-  state "数据面板打开：检查器图表分区或抽屉" as panel
+  state "只读提示：toast，非五类或缓存不全" as readonly
+  state "数据面板：检查器数据分区，可展开为 440 宽面板" as panel
   state "数据格编辑中：输入未提交" as cell
   none --> sel : 单击图表
   sel --> none : Esc 或点击空白
-  sel --> panel : 双击，或迷你工具条 编辑数据
+  sel --> panel : 双击或 Enter 展开数据分区，迷你工具条 编辑数据 直开展开面板
   sel --> readonly : 双击不可编辑的图表
-  readonly --> sel : 关闭提示
+  readonly --> sel : toast 消失，10 秒内同一对象不重复
   panel --> cell : 在格内输入，或 Enter、F2
   cell --> panel : Enter 或 Tab 提交，一次命令
   cell --> panel : Esc 放弃输入
   panel --> panel : 粘贴 TSV、增删或移动行列，各一次命令
+  panel --> panel : 选中另一个可编辑图表，面板换数据
+  panel --> none : 选中非图表或点空白
   panel --> sel : Esc 或关闭面板
 ```
 
-怎么读：只有从「数据格编辑中」回到「数据面板打开」的提交迁移和面板上的粘贴、增删行列会产生命令，每次一个撤销步；其余迁移都是视图态。只读图表在双击时停在提示态，不进入面板。
-依据：PRD ED-15、G-63；R-d-34。
+怎么读：只有从「数据格编辑中」回到「数据面板」的提交迁移和面板上的粘贴、增删行列会产生命令，每次一个撤销步；其余迁移都是视图态。两个入口落到同一个状态，差别只在形态：双击（或 Enter）只展开检查器「数据」分区，迷你工具条「编辑数据」直开 440 宽的展开面板，二者之间用「展开」「收起到检查器」切换，也是视图态。面板开着时选中另一个可编辑图表，面板留着换成新图表的数据；选中非图表或点空白则面板收起。只读图表在双击时只弹 toast，不进入面板。
+依据：PRD ED-15、G-63；R-d-34；设计 03-31；rulings §4.22。
 
 **图 3-4 数据格提交到重绘**
 
@@ -592,7 +601,7 @@ sequenceDiagram
   participant chart as slide-render-chart
   participant peer as 协作者
   grid->>sec: onCommit(serId, catId, 文本)
-  sec->>sec: numfmt 按文档语言解析为数值或 null，非法则 aria-invalid 不提交
+  sec->>sec: numfmt 严格解析为数值或 null，语言先取 c:lang 再取演示文稿默认，非法则 aria-invalid 不提交
   sec->>cmds: slide.chart.setData{shapeId, patch}
   cmds->>store: 一个事务 chart.setData：只写改动的 values 键
   store-->>chart: ChangeSet 标脏该图表
@@ -601,20 +610,20 @@ sequenceDiagram
   Note over cmds,store: 一次提交一个撤销步；粘贴整块也只是一次命令
 ```
 
-怎么读：网格组件只报告「哪一格输入了什么文本」，解析与校验在 slide-ui 完成，写模型只有一条命令；图表渲染器与协作者都只看到一次最小的键级写入，所以并发编辑不同格互不覆盖。
+怎么读：网格组件只报告「哪一格输入了什么文本」，解析与校验在 slide-ui 完成（千分位分组不合规的输入判非法，不静默改读），写模型只有一条命令；图表渲染器与协作者都只看到一次最小的键级写入，所以并发编辑不同格互不覆盖。
 依据：PRD ED-15（≤ 100 ms 重绘）；R-d-34、R-d-35；30/06 §1.5。
 
 ### 3.7 检查器
 
-`selectionKind` 新增 `chart`（新增（§4.21），R-d-72，矩阵登记在 [10](./10-editor-shell-and-interaction.md) §5）。迷你工具条 `toolbar.chart-selected`：编辑数据、更改类型（M3）。
+`selectionKind` 新增 `chart`（新增（§4.21），R-d-72，矩阵登记在 [10](./10-editor-shell-and-interaction.md) §5）。迷你工具条 `toolbar.chart`（按 [10](./10-editor-shell-and-interaction.md) §5 的 `toolbar.<selectionKind>` 命名，2026-09-30 更正，原写 `toolbar.chart-selected`）：编辑数据（直开展开面板，§3.6）、更改类型 ▾（M3；与插入菜单同一个 `ChartTypeMenu`——六项菜单与子类型 flyout，首行说明「[M3] 更改类型 · 数据与标题保留」，高亮当前子类型，§3.3）。评审、查看角色不出迷你工具条与缩放手柄。检查器图表分区、类型切换与只读类型提示的界面见设计 03-31。
 
 | 分区 | 内容 | 里程碑 |
 |---|---|---|
-| 图表 | 类型切换（五类 + 子类型缩略图）；标题（显示开关 + 文本）；图例（显示开关 + 位置：下 / 上 / 左 / 右 / 右上）；数据标签（值；饼图可加百分比与类别名）；「编辑数据…」 | M3（P1） |
-| 数据（紧凑网格） | 前 8 行 × 4 列 +「展开」进抽屉 | M3（P1） |
+| 图表 | 类型切换（五类 + 子类型缩略图）；标题（显示开关 + 文本）；图例（显示开关 + 位置：下 / 上 / 左 / 右 / 右上）；数据标签（值；饼图可加百分比与类别名，类别名占一行，值与百分比同行、以「, 」分隔） | M3（P1） |
+| 数据（紧凑网格） | 前 8 类别 × 4 系列，超出截断并注明（§3.6）；数据分区「展开」进展开面板 | M3（P1） |
 | 位置与大小 | x、y、宽、高（无旋转） | M2 |
 | 替代文本 | 标题、描述；缺失时 `missingAlt` 提示 | M2（`slide.setAltText`，[19](./19-insertable-elements-overview.md)） |
-| 坐标轴与格式 | 轴范围、数字格式、趋势线、误差线 | P2（灰显注明） |
+| 坐标轴与格式 | 轴范围、数字格式、趋势线、误差线 | P2：分区标题行 `aria-disabled`，tooltip 文案见设计 03-31「禁用原因」：「坐标轴范围、数字格式、趋势线与误差线排在后续版本（P2）；导入文件里已有的设置原样保留。」 |
 
 只读类型：只显示位置与大小、替代文本、「此类型仅支持查看」与保真详情入口（设计 03-screens/13 的降级口径）。
 
@@ -641,11 +650,11 @@ sequenceDiagram
 | 切换 | 保留 | 去掉（导出时丢弃并在保真详情记一条） |
 |---|---|---|
 | 柱 / 条 / 折线 / 面积之间 | 全部系列、类别、坐标轴、标题、图例 | 源类型专有子元素（`c:invertIfNegative`、`c:marker`、`c:smooth` 等不适用者） |
-| 任意 → 饼 | 第一个系列用于绘制，其余系列留在 `Chart.data` | 坐标轴、趋势线、误差线 |
+| 任意 → 饼 | 第一个系列用于绘制，其余系列留在 `Chart.data`；数据网格仍列出全部系列、第二列起灰显（§3.6） | 坐标轴、趋势线、误差线 |
 | 饼 → 其它 | 全部系列 | `c:explosion`、`c:firstSliceAng`；坐标轴按默认新建 |
 | 任意 ↔ 散点 | 系列名与 Y 值；类别标签能解析为数值时转为 X 值，否则 X 取 1…n | 类别轴改为数值轴 |
 
-切换前若会丢东西，检查器先提示「切换为饼图将移除坐标轴与趋势线」，确认后执行（可撤销）。
+切换前若会丢东西（导入的图表带坐标轴格式、趋势线等），先出确认条「切换为〈子类型名〉将移除坐标轴与趋势线」，按钮左「取消」、右「切换」（主色），出现时焦点在「切换」，确认后执行（可撤销，toast 带「撤销」）。确认条有两种形态（设计 03-31）：检查器里是类型区下方的内联确认条，Esc 取消；「更改类型 ▾」下拉里放在菜单底部，按钮是菜单项，Esc 直接关掉整个菜单，等同取消。
 
 ### 3.9 协同
 
@@ -657,6 +666,7 @@ Yjs 编码的事实源是 30/06 §1.3.3：`graphic.chart` 下 `partRef` 为部�
 | A、B 改同一格 | 叶子 LWW |
 | A、B 同时新增类别或系列 | 都保留，按 `(order, id)` 排序 |
 | A 删类别、B 改该类别的值 | 类别是墓碑、值仍在；A 撤销后 B 的值一起回来 |
+| A 删类别（系列）时 B 正在编辑其中的格 | B 端先退出格编辑，toast「该类别（系列）已被 A 删除」（说明「恢复即可找回你的修改」，按钮「恢复该类别（系列）」），与表格行列同一组件；走 `soft-conflict{delete-vs-edit}`，`paths` 指向带墓碑的 `CatId` / `SerId`（§3.4），恢复经 `core.history.restoreElement` 清墓碑、原 id 复活并带回 B 的修改（[07](./07-collaboration-client.md) §12，rulings §4.22） |
 | A 切换为饼、B 新增系列 | 类型 LWW 为饼；新系列留在数据里，饼只画第一个系列，切回柱形后出现 |
 | A 改标题、B 改图例位置 | 不同键，都保留 |
 
@@ -665,8 +675,8 @@ Yjs 编码的事实源是 30/06 §1.3.3：`graphic.chart` 下 `partRef` 为部�
 - **可编辑度**：M1–M2 V（OF-09：矩阵 §2.6 的类型全部可渲染，数值与类别 100% 来自缓存，单图表页 SSIM ≥ 0.80、数据墨迹 IoU ≥ 0.85）；M3 五类 E，其余 V（§4）。
 - **零编辑**：图表部件、`chartN.xml.rels`、内嵌 `.xlsx` 原字节写回；`[Content_Types].xml` 与 `.rels` 在关系与内容类型集合都没变时写回原字节（X:q-content-types）。
 - **导入的图表被编辑**：在该部件的保真树上改写建模子树（`c:ser` 的 `c:tx` / `c:cat` / `c:val` 及其缓存与 `c:f`、图表组元素与 variant、`c:title`、`c:legend`、`c:dLbls`），未建模子树原样保留（ADR-0008 决策 2）；数据变了才重生成内嵌工作簿。
-- **新插入的图表**：按模板生成 `chartN.xml`（系列颜色为 `schemeClr`、`c:externalData@r:id` + `c:autoUpdate val="0"`）、`chartN.xml.rels` 与内嵌 `.xlsx`，页关系新增一条，`[Content_Types].xml` 登记图表部件与 xlsx 扩展名；部件编号取包内最大值 + 1。
-- **内嵌工作簿**：自研最小 SpreadsheetML 写出器（`ooxml-pptx` `export/chart-workbook.ts`，经 `ooxml-core` OPC、`@cordexjs/xml` 序列化与 fflate；R-d-35）：`Sheet1` 的 A 列为类别、第 1 行为系列名、数据区为数值，`styles.xml` 写数字格式；`c:f` 改写为 `Sheet1!$B$1`、`Sheet1!$A$2:$A$5` 这类规范区域。原工作簿里数据区之外的内容（其它工作表、公式）在数据被编辑后不保留（PD-06 默认策略），数据面板首次提交前提示一次。
+- **新插入的图表**：按模板生成 `chartN.xml`（系列颜色为 `schemeClr`、`c:dispBlanksAs val="gap"`（空值画缺口，同 PowerPoint 新建图表）、`c:externalData@r:id` + `c:autoUpdate val="0"`）、`chartN.xml.rels` 与内嵌 `.xlsx`，页关系新增一条，`[Content_Types].xml` 登记图表部件与 xlsx 扩展名；部件编号取包内最大值 + 1。
+- **内嵌工作簿**：自研最小 SpreadsheetML 写出器（`ooxml-pptx` `export/chart-workbook.ts`，经 `ooxml-core` OPC、`@cordexjs/xml` 序列化与 fflate；R-d-35）：`Sheet1` 的 A 列为类别、第 1 行为系列名、数据区为数值，`styles.xml` 写数字格式；`c:f` 改写为 `Sheet1!$B$1`、`Sheet1!$A$2:$A$5` 这类规范区域。原工作簿里数据区之外的内容（其它工作表、公式）在数据被编辑后不保留（PD-06 默认策略），数据面板首次提交前提示一次：导入且带内嵌工作簿的图表打开数据编辑时，展开面板顶部与检查器「数据」分区顶部都出现提示条（`info-muted` 底加信息图标，文案「原工作簿里数据区之外的内容（其它工作表、公式）在编辑数据后不保留。」，按钮「知道了」），两处共用一个状态，首次提交或点「知道了」后都不再出（设计 03-31）。
 - **验收**：导出后 PowerPoint 显示新数据，且「编辑数据」可打开内嵌工作簿（ED-15）；维护机上按 70/04 §8.1 的图表编辑往返用例核对。
 
 **图 3-5 导出：图表部件、关系与内嵌工作簿**
@@ -720,8 +730,9 @@ flowchart TB
 
 1. **是否生成 `chartStyle` / `colors` 部件**：新插入的图表不生成时，PowerPoint 按默认样式显示且可编辑；推荐 M3 先不生成，维护机对照外观差异后再定。
 2. **环形图（`c:doughnutChart`）是否作为饼图变体可编辑**：推荐 M3 只读，语料里占比高再并入 pie 的 `variant.holeSize`。
-3. **原工作簿含公式或多工作表时的提示文案与是否允许「只改缓存、保留原工作簿」**：推荐按 PD-06 默认重生成并提示一次，保留原工作簿的方案留 P2。
+3. **原工作簿含公式或多工作表时是否允许「只改缓存、保留原工作簿」**：推荐按 PD-06 默认重生成并提示一次，保留原工作簿的方案留 P2。提示的文案与形态已定（2026-09-30 样张）：展开面板顶部与检查器「数据」分区顶部各有一条提示条，按钮「知道了」；两处共用一个状态，首次提交或点「知道了」后两处都不再出（§3.10）。
 4. **示例数据数值**：取 PowerPoint 默认示例，维护机核对一次（§3.3）。
+5. **设计 03-31「待决与取舍」中的项**（2026-09-30 登记，同日按 rulings §4.22 全部收口，已定）：(a) 数据面板展开形态定为检查器坞由 300 加宽到 440、整栏换成数据面板，见 §3.6；(b) 入口拆开——迷你工具条「编辑数据」直开展开面板，双击只展开检查器「数据」分区，见 §3.6 与图 3-3；(c) 图例位置含「右上」，样张已补，见 §3.7；(d) 页上有空内容占位符时填入阅读序第一个并保留 `p:ph`（Q1），见 §3.3；(e) 饼图时网格仍列出全部系列、第二列起灰显，见 §3.6。迷你工具条槽位名已于同日按 [10](./10-editor-shell-and-interaction.md) §5 统一为 `toolbar.chart`（§3.7）。样张的 `DemoChart` 只是渲染示意，真实外观按 70/04 §8.1 图表语料校准，饼图小扇区标签外移与引导线由渲染器按 §3.5 实现，二者推迟（DF-05、DF-06，触发条件：`slide-render-chart` 实现后并用图表语料校准时，见 rulings §4.22）。
 
 ## 4. 其它图表类型与 chartex（只读）
 
@@ -782,7 +793,7 @@ flowchart TB
 
 ## 6. 待回写
 
-由对应文档的负责组执行，本文不直接改。2026-09-26 整合后核对：除前两行外均已完成。
+由对应文档的负责组执行，本文不直接改。2026-09-26 整合后核对：除前两行外均已完成；2026-09-30 补登设计 30、31 一行（已完成），同日 rulings §4.22 收口后补登 PRD ED-10 对话框上限一行（随 §2.14 第 1 条推迟）。
 
 | 目标 | 内容 | 状态 |
 |---|---|---|
@@ -791,7 +802,9 @@ flowchart TB
 | 30/04 §3.6、§3.9、§4.1 | 新增矩形选区锚点 `tableCells`；`ChartData.variant` 补 `marker`、`smooth`、`scatterStyle`；`tableStyles.xml` 只读解析改为 M1 起 | 已完成 |
 | 40/03 §2.6、30/05 §14 | 登记命令 `slide.table.clearCells` 与 Operation `slide.chart.openDataEditor` | 已完成 |
 | 30/06 §1.3.3 | 键名与 30/04 §3.8、30/05 §14 的路径对齐（表级与格级 `properties`、`hMerge` / `vMerge`、`_deleted` 墓碑） | 已完成 |
-| [10](./10-editor-shell-and-interaction.md) §5 | `selectionKind` 增 `table`、`chart`；迷你工具条 `toolbar.table-cell`、`toolbar.chart-selected` | 已完成 |
+| [10](./10-editor-shell-and-interaction.md) §5 | `selectionKind` 增 `table`、`chart`；迷你工具条 `toolbar.table-cell`、`toolbar.chart`（2026-09-30 更正槽位名，原写 `toolbar.chart-selected`） | 已完成 |
 | [05](./05-rendering-and-thumbnails.md) §11 | 表格与图表的可访问镜像内嵌视觉隐藏 `<table>` | 已完成 |
 | ADR-0008 决策 9 | 白名单新增「导出时向 `tableStyles.xml` 追加所用内置样式的定义」 | 已完成 |
 | 设计 03-screens/04 | 删除「M1/M2 插入的图表以当前静态样式呈现」一句 | 已完成 |
+| 设计 03-screens/30、31 | 表格编辑（G-32 / G-62）与图表编辑（G-63）界面设计稿，按 playground `#/editor/table`、`#/editor/chart` 样张新建 | 已完成（2026-09-30；待决项同日按 rulings §4.22 收口，§2.14 第 8 条、§3.14 第 5 条） |
+| PRD 02 ED-10、本文 §2.3、`InsertTableDialog` 校验 | 「插入表格…」对话框行列上限的定值（评估前按 75 × 75 占位） | 未完成，推迟（DF-10，触发条件：M2 表格插入开工前完成性能评估，§2.14 第 1 条，见 rulings §4.22） |

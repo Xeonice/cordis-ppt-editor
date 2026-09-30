@@ -1,6 +1,6 @@
 # 16 国际化与可访问性
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 整合：§1 登记 slide.ui.opaque 命名空间（不透明对象的双击提示与类型名）；§6.3 键盘等价补插入工具、调整手柄、线条端点、连接符连接四行，曲线绘制登记为 2.5.7 例外） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 整合：§1 登记 slide.ui.opaque 命名空间（不透明对象的双击提示与类型名）；§6.3 键盘等价补插入工具、调整手柄、线条端点、连接符连接四行，曲线绘制登记为 2.5.7 例外）；2026-09-30（§4.22：§6.2 登记空内容占位符图标条（WAI-ARIA Toolbar 模式）与 `TableGridPicker`（`role="grid"` + roving tabindex）两行）；2026-09-30（§4.22 复核修正：§6.2 空内容占位符图标条的 toolbar 名称更正为「插入内容到占位符」） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
 
 本文是浏览器侧国际化与可访问性行为的唯一事实源：i18n 服务与命名空间、语言包加载与切换、无 host 页面的 i18n、伪本地化与 RTL、a11y 目标分阶段、键盘模型、焦点管理、ARIA 语义与 live region、画布可访问树、视觉适配。交互外观与视觉 token 以 [设计 07](../20-design/07-accessibility-and-i18n.md)、[设计 04](../20-design/04-design-system.md)、[设计 09](../20-design/09-design-specification.md) 与 playground 为准；验收阈值以 PRD NF-05 / NF-06 为准；测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §7–§8 为准。
 
@@ -181,6 +181,8 @@ flowchart LR
 | 备注 | `region`（「备注」） | F6 | 标准文本区域 | 离开编辑，回到区域级焦点 |
 | 状态栏 | `contentinfo`，内含 `status` | F6 | Tab | — |
 | 对话框、菜单、命令面板 | `dialog` / `alertdialog`、`menu`、`dialog` + `combobox` + `listbox` | 触发元素或快捷键 | 见 §7 | 关闭并归还焦点 |
+| 空内容占位符图标条（画布覆盖层，[21](./21-elements-structure.md) §3 ⑥，2026-09-30 §4.22 登记） | `toolbar`（「插入内容到占位符」，与设计 03-16 一致） | 画布内 Tab 选中空内容占位符后再按 Tab；整条只占一个 Tab 停靠点，首次落在第一个图标、之后回到上次停留的图标（roving tabindex） | `←` / `→` 在图标间移动并循环，`Home` / `End` 到首尾；禁用项可聚焦并以 tooltip 说明原因；`Enter` / `Space` 触发；`Tab` 离开整条选中下一个对象；折叠为「插入 ▾」时 `Enter` / `Space` / `↓` 打开菜单，菜单内方向键移动（设计 03-16「键盘聚焦顺序」） | 焦点回到占位符（仍选中），再按按画布 Esc 链退出 |
+| 表格网格选择器 `TableGridPicker`（插入 › 表格 ▾ 与占位符表格图标共用，[24](./24-elements-tables-and-charts.md) §2.3，2026-09-30 §4.22 登记） | `grid`，单一 Tab 停靠点（roving tabindex） | 弹层打开时不抢焦点；Tab 进入网格落在当前高亮角（未悬停时第 1 行第 1 列） | 方向键移动高亮角（悬停范围 8 行 × 10 列），`Home` / `End` 到行首行尾；`Enter` / `Space` 插入；读数「R 行 × C 列 表格」经 `aria-live` 播报，每格读屏名「R 行 C 列」（设计 03-30 §2.1） | 关闭弹层，焦点回到「表格 ▾」或占位符的表格图标 |
 
 ### 6.3 拖拽的键盘等价（WCAG 2.5.7）
 

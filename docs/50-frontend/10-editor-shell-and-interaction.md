@@ -1,5 +1,5 @@
 # 10 编辑器外壳与画布交互
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入页签分组统一、超链接改 M2 P1、表格 M2 可插入；selectionKind 补四类；新增插入工具态与元素手柄；快捷键逐条对齐 ED-16）；2026-09-26（§4.21 整合：§5 文本分区补链接、自动调整与渐变描边字，degraded 分区扩为对象说明、替代文本与后续动作，迷你工具条补 table-cell、chart 与 degraded 口径，内容占位符补「重置为占位符框」；§7.1 组合编辑的键盘等价；§7.4 插入工具态视觉按设计样张、浮层不退出文本编辑） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[50/19](19-insertable-elements-overview.md)、[50/22](22-elements-shapes-and-lines.md)；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)、[04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-10、ED-11、ED-12、ED-16、ED-18、ED-19、ED-21、ED-22、ED-27、ED-28、ED-29、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15、§4.21（R-d-61、R-d-62、R-d-67、R-d-72、q-table-depth、q-media-insert、q-extra-inserts）
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入页签分组统一、超链接改 M2 P1、表格 M2 可插入；selectionKind 补四类；新增插入工具态与元素手柄；快捷键逐条对齐 ED-16）；2026-09-26（§4.21 整合：§5 文本分区补链接、自动调整与渐变描边字，degraded 分区扩为对象说明、替代文本与后续动作，迷你工具条补 table-cell、chart 与 degraded 口径，内容占位符补「重置为占位符框」；§7.1 组合编辑的键盘等价；§7.4 插入工具态视觉按设计样张、浮层不退出文本编辑）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§5 的 `table` / `table-cell` 两行按 50/24 §2.7 与设计 03-30 §6 重写（边框、行高列宽归 `table-cell`）；§7.5 表格的 8 个缩放手柄改为 M3 起，M2 只有选中框与移动）；2026-09-30（§4.22 设计待决收口：§4 表格网格悬停范围 8 行 × 10 列、对话框上限待性能评估，公式按钮样式定稿；§5 `placeholder-empty` 改为占位符 / 位置与大小 / 插入到占位符三组，M2 单元格选区出文本条；§7.3 迷你工具条画在屏幕坐标浮层；§7.4 表格、图表、图片先填空内容占位符）；2026-09-30（§4.22 复核修正：§5「只读」补表格、图表分区锁定形态例外（FE-06）；§7.4 图表插入后改为展开检查器「数据」分区；§12.1 新增 V21 插入落点 Q1 用例） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[50/19](19-insertable-elements-overview.md)、[50/22](22-elements-shapes-and-lines.md)；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)、[04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-10、ED-11、ED-12、ED-16、ED-18、ED-19、ED-21、ED-22、ED-27、ED-28、ED-29、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15、§4.21（R-d-61、R-d-62、R-d-67、R-d-72、q-table-depth、q-media-insert、q-extra-inserts）
 
 本文是**编辑器外壳与画布交互的行为语义**唯一事实源：`<EditorHost>` 由哪些区域组成、布局状态怎样记忆并随断点变化、模式 × 角色 × 断点下界面怎样变化，以及 Ribbon、检查器、缩略图栏、画布选择与拖拽、缩放导航、放映舞台、命令面板与设置抽屉的交互规则和反馈分层。尺寸、材质与线框以 [设计 09](../20-design/09-design-specification.md) §3–§4、03-screens 与 playground `#/editor` 为准；本文写状态机与规则。
 
@@ -239,15 +239,15 @@ stateDiagram-v2
 
 | 组（自左至右） | 控件 | 里程碑与可用性 | 元素设计 |
 |---|---|---|---|
-| 文本 | 文本框（竖排 P2）· 页眉和页脚… · 幻灯片编号 · 日期和时间 · 符号… · 公式 | 文本框 M2 P0；页眉页脚、编号、日期 M2 P2；符号 M3 P2（q-extra-inserts）；公式灰显「暂不支持」（M4+，q-equation） | [50/20](20-elements-text.md)、[50/21](21-elements-structure.md)、[50/25](25-elements-readonly-and-opaque.md) |
+| 文本 | 文本框（竖排 P2）· 页眉和页脚… · 幻灯片编号 · 日期和时间 · 符号… · 公式 | 文本框 M2 P0；页眉页脚、编号、日期 M2 P2；符号 M3 P2（q-extra-inserts）；公式留在原位禁用、挂 M4+ 标记（q-equation；tooltip 见 [50/25](25-elements-readonly-and-opaque.md) §4） | [50/20](20-elements-text.md)、[50/21](21-elements-structure.md)、[50/25](25-elements-readonly-and-opaque.md) |
 | 形状 | 形状 ▾（10 类、首批 72 项的 flyout，与 开始 › 绘图 › 形状 ▾ 是同一组件）· 图标…（2026-09-30 样张确认从图像组移入） | 形状 M2 P0；曲线类绘制 P2；图标 M3 P2（q-extra-inserts） | [50/22](22-elements-shapes-and-lines.md) |
 | 图像 | 图片 ▾（此设备… / 来自 URL… / 屏幕截图 / 相册，URL 可被集成方禁用）· 视频 · 音频 | 图片 M2 P0；屏幕截图与相册 M4+ P2（菜单内禁用并标 M4+）；视频与音频 P2（q-media-insert，插入时不写 `p:timing`） | [50/23](23-elements-media.md) |
-| 表格 | 表格 ▾（8 × 8 悬停网格 + 「插入表格…」输入行列，上限 10 × 8） | M2 插入并编辑单元格文字；行列插删、合并拆分、样式 M3（q-table-depth） | [50/24](24-elements-tables-and-charts.md) |
+| 表格 | 表格 ▾（悬停网格，悬停范围 8 行 × 10 列 +「插入表格…」对话框输入行列；对话框上限待性能评估，评估定值前暂按 75 × 75 占位，rulings §4.22） | M2 插入并编辑单元格文字；行列插删、合并拆分、样式 M3（q-table-depth） | [50/24](24-elements-tables-and-charts.md) |
 | 图表 | 图表 ▾（柱形 / 条形、折线、饼、面积、散点） | M3 P1，`enablement: slide.hasChartEditor`；设计 03-04 的「M1/M2 可插入静态图表」作废（R-d-74） | [50/24](24-elements-tables-and-charts.md) |
 | 链接与批注 | 超链接…（`Mod+K`）· 批注 | 超链接 M2 P1；批注 M3（`when: slide.hasComments`） | [50/20](20-elements-text.md)、[08](08-comments-and-version-history.md) §5 |
 | 插件 | 第三方贡献的分组（`order ≥ 1000`、带归属徽标） | 由插件决定 | [50/22](22-elements-shapes-and-lines.md)、[03](03-preset-assembly-and-plugins.md) §9 |
 
-- **里程碑可见性**：本里程碑范围内的 P2 条目留在原位、禁用，tooltip「当前版本暂未开放」（「禁用而不隐藏」，下文）；排在 M4+ 的条目同样禁用而不隐藏并标「M4+」（2026-09-30 样张确认：屏幕截图、相册在图片 ▾ 菜单内禁用显示；艺术字同口径）；公式按 50/25 灰显「暂不支持」。SmartArt、OLE、3D 模型、墨迹、缩放定位、录屏不提供插入入口（非目标，R-d-75）。
+- **里程碑可见性**：本里程碑范围内的 P2 条目留在原位、禁用，tooltip「当前版本暂未开放」（「禁用而不隐藏」，下文）；排在 M4+ 的条目同样禁用而不隐藏并标「M4+」（2026-09-30 样张确认：屏幕截图、相册在图片 ▾ 菜单内禁用显示；艺术字同口径）；公式同样禁用而不隐藏并标「M4+」，tooltip 文案见 [50/25](25-elements-readonly-and-opaque.md) §4（2026-09-30 §4.22 样张定稿）。SmartArt、OLE、3D 模型、墨迹、缩放定位、录屏不提供插入入口（非目标，R-d-75）。
 - **新建幻灯片不在插入页签**：设计 03-04 与 playground 均无此组，入口为 开始 › 幻灯片 › 新建、`Mod+M` 与缩略图栏（§6）。
 - 插入页签的每个控件都进入同一个插入工具态或打开对应选择器，行为见 §7.4。
 
@@ -276,22 +276,22 @@ stateDiagram-v2
 | `none` | 幻灯片级：版式、背景、切换效果（只读）、隐藏此页、备注字数 |
 | `shapes` / `text` | 位置与大小（含翻转）· 填充 · 边框 · 阴影 / 效果 · 文本 · 对齐与分布 · 形状（更改形状、调整值，[22](22-elements-shapes-and-lines.md) §2）· 操作（动作按钮默认展开，[22](22-elements-shapes-and-lines.md) §6）· 替代文本；进入文本编辑时自动展开「文本」。「文本」分区另有「链接」行（超链接的查看、编辑与移除）、自动调整三选一（不自动调整 / 溢出时缩排文字 / 根据文字调整形状大小）与渐变字、描边字（P2），见 [20](20-elements-text.md)（2026-09-26 整合） |
 | `picture` | 设计 03-18 的图片分区（替换、裁剪、透明度、替代文本）；裁剪模式见 §7.5 |
-| `table`（§4.21 新增） | 整个表格被选中、未进入单元格：位置与大小 · 表格（M2 只读显示行列数与表格样式名；M3 起表格样式、标志、边框、行高列宽，q-table-depth）· 替代文本（[24](24-elements-tables-and-charts.md)） |
-| `table-cell` | 文本 + 单元格填充 / 边框（M3），M3 前非文本字段灰显并注明里程碑 |
+| `table`（§4.21 新增） | 整个表格被选中、未进入单元格：位置与大小（M2；宽高输入 M3，改尺寸即按比例缩放行列）· 表格样式与 6 个标志（M2 只读：缩略图可见、当前样式高亮、不可点；M3 可改，q-table-depth）· 文本（全部单元格）· 替代文本（标题、描述）（[24](24-elements-tables-and-charts.md) §2.7；设计 [03-30](../20-design/03-screens/30-table-editing.md) §6） |
+| `table-cell` | 格内编辑或多格选区：单元格（填充、边框、内边距、垂直对齐、文字方向，M3）· 文本（所选单元格，M2）· 行高与列宽（M3）；表格样式收起、只读显示所在表；M3 项在 M2 留在原位禁用（`aria-disabled`、可聚焦，tooltip「M3 提供」）；无编辑权限时同样锁定，原因「需要编辑权限」（[24](24-elements-tables-and-charts.md) §2.7；设计 03-30 §6） |
 | `chart`（§4.21 新增） | 位置与大小 · 图表（M1–M2 只读：类型与系列数，注「数据编辑 M3 提供」；M3 起数据、类型、标题、图例、数据标签）· 替代文本（[24](24-elements-tables-and-charts.md)） |
 | `media`（§4.21 新增） | 视频与音频：位置与大小 · 媒体（替换海报帧 M2 P1、编辑态临时播放）· 替代文本（[23](23-elements-media.md)） |
-| `placeholder-empty`（§4.21 新增） | 页上空的内容族占位符：占位符（类型、继承自版式、重置）· 快速插入（与画布图标条同一组按钮：图片 M2 P1、表格按 q-table-depth、图表 M3、视频 P2）· 位置与大小（[21](21-elements-structure.md)） |
+| `placeholder-empty`（§4.21 新增） | 页上空的内容族占位符：占位符（类型、索引、来自版式，只读）· 位置与大小（逐字段显示「继承自版式」或「已覆盖 · 重置」，重置只清该字段）· 插入到占位符（与画布图标条同一组按钮与禁用原因：图片 M2 P1、表格按 q-table-depth、图表 M3、视频 P2）；只读与评审模式不出「插入到占位符」组，画布也不画图标条（[21](21-elements-structure.md) §3；设计 03-16，rulings §4.22） |
 | `group` | 位置与大小 +「取消组合」+ 子元素计数 |
 | `connector` | 线条与连接符（`p:cxnSp`）：线条（含首尾箭头）· 连接符（「已连接到：矩形 3（连接点 2）」、断开、「连接到…」选择器、类型切换，[22](22-elements-shapes-and-lines.md) §4）· 位置与大小（线条的 x / y / 宽 / 高与翻转即端点的数值等价）· 替代文本 |
 | `degraded` | 位置与大小 · 对象说明（类型名与降级原因）· 替代文本（graphicFrame 系如 SmartArt、OLE 可编辑，AlternateContent 系如公式、墨迹、3D、缩放定位只读）· 后续动作（如 SmartArt「转换为形状」，M4+ 灰显）+「查看保真详情」（2026-09-26 整合，[25](25-elements-readonly-and-opaque.md) §2.5） |
 | `mixed` | 交集分区：位置与大小、排列、透明度 |
 | 母版视图（`editTargetKind` 为 `layout` / `master`） | 另加占位符、文本样式与容器属性分区，见 [11](11-masters-layouts-and-themes.md) §6 |
 
-- **四个新增取值**（R-d-72）：`table`、`chart`、`media`、`placeholder-empty` 由 slide-ui `deriveSelectionKind` 给出，取值全集登记在 [09](09-ui-system-and-theming.md) §6.3；`placeholder-empty` 只指页上**空的**内容族占位符（尚无文字与内容、画布显示内容图标条），有内容的占位符仍按承载的内容类型走对应分区——与 [11](11-masters-layouts-and-themes.md) §2 不采纳泛化 `placeholder` 取值的口径一致，占位符身份另由前缀键 `slide.placeholderSelected` 表达。迷你工具条槽位随之有 `toolbar.table`、`toolbar.table-cell`（M3：插入行列、合并、拆分、填充、边框）与 `toolbar.chart`（M3：编辑数据、更改类型），命名一律 `toolbar.<selectionKind>`；`toolbar.degraded` 只放「查看保真详情」（2026-09-26 整合，50/24、50/25）。承载内容的内容族占位符（图片、表格、图表、媒体填入后）在对应分区另有一行「重置为占位符框」：删除内容并补回空占位，一步撤销（[21](21-elements-structure.md) §3，ADR-0018 决策 10）。
+- **四个新增取值**（R-d-72）：`table`、`chart`、`media`、`placeholder-empty` 由 slide-ui `deriveSelectionKind` 给出，取值全集登记在 [09](09-ui-system-and-theming.md) §6.3；`placeholder-empty` 只指页上**空的**内容族占位符（尚无文字与内容、画布显示内容图标条），有内容的占位符仍按承载的内容类型走对应分区——与 [11](11-masters-layouts-and-themes.md) §2 不采纳泛化 `placeholder` 取值的口径一致，占位符身份另由前缀键 `slide.placeholderSelected` 表达。迷你工具条槽位随之有 `toolbar.table`、`toolbar.table-cell`（M3：插入行列、合并、拆分、填充、边框）与 `toolbar.chart`（M3：编辑数据、更改类型）；M2 的单元格选区出文本条（字体、字号、B、I），条尾是禁用入口「表格结构 M3」（tooltip「表格结构编辑将在后续版本提供」），M3 起换成 `toolbar.table-cell`（设计 03-30 §4，rulings §4.22）；命名一律 `toolbar.<selectionKind>`；`toolbar.degraded` 只放「查看保真详情」（2026-09-26 整合，50/24、50/25）。承载内容的内容族占位符（图片、表格、图表、媒体填入后）在对应分区另有一行「重置为占位符框」：删除内容并补回空占位，一步撤销（[21](21-elements-structure.md) §3，ADR-0018 决策 10）。
 - **多个值**：多选时不一致的字段显示「多个值」（`MixedValueField`，Ribbon 字体 / 字号控件同样式，rulings §4.18 UX-10）；在该字段输入新值即对全部选中对象生效，一次命令、一个撤销步。
 - **单位换算归属**（40/10 §13 Q-10 推荐值）：内部单位 EMU；显示单位取 `Preferences` 的度量单位（zh-CN 默认 cm，en-US 默认 in，可选 cm / in / pt / px），字号恒为 pt；换算与带后缀输入（如 `2.5cm`）的解析在 slide-ui 分区内完成，ui-react `NumberField` 只接收 `{value, unit, onCommit}`，不认识 EMU。
 - **输入与校验**：非法值（负宽度、超范围字号）使字段进入 `aria-invalid` 并显示 `FieldError`，失焦前不提交；数值字段支持按住标签左右拖动微调与 `↑`/`↓`（`Shift` 加速），拖动微调松手时一次命令。
-- **只读**：字段转为只读展示（无描边、不可聚焦），面板顶部一行说明原因（评审「只读 · 评审模式下不可编辑」、只读浏览「只读 · 仅有查看权限」、编辑模式降权「需要编辑权限」）；色块等触发型控件不弹出选择器，只以 tooltip 说明原因。
+- **只读**：字段转为只读展示（无描边、不可聚焦），面板顶部一行说明原因（评审「只读 · 评审模式下不可编辑」、只读浏览「只读 · 仅有查看权限」、编辑模式降权「需要编辑权限」）；色块等触发型控件不弹出选择器，只以 tooltip 说明原因。**例外**：`table`、`table-cell`、`chart` 分区按 [24](24-elements-tables-and-charts.md) §2.7 的锁定形态处理——控件留在原位、`aria-disabled`、仍可聚焦，tooltip「需要编辑权限」（rulings §4.20 FE-06「禁用而不隐藏」；设计 03-30 §9、03-31），与上表 `table-cell` 行一致。
 - **插件分区**排在内置分区之后，以分隔线与归属图标区分；渲染抛错只替换该分区（[09](09-ui-system-and-theming.md) §9）。
 - **远端改写正在编辑的字段**：字段级「应用远端值 / 保留我的输入」内联提示优先于其它反馈（[07](07-collaboration-client.md) §12）。
 - 分区折叠态存入 `sectionsCollapsed`（§2.1），不同步给协作者。
@@ -394,21 +394,21 @@ sequenceDiagram
 - **微移**：方向键 1 px、`Shift`+方向键 10 px（屏幕像素，按当前缩放换算为 EMU）；每次按键一个 `slide.moveShapes`（微移不合并撤销步，合并规则见 [04](04-document-commands-and-undo.md) §5）。
 - **对齐与分布**：`slide.alignShapes` / `distributeShapes`，一个事务；参照「所选对象 / 页面」，单选时自动为页面（PRD ED-09）；Ribbon、右键与命令面板都可执行，不要求先框选再点按钮的固定顺序。
 - **网格与参考线**：网格显示、吸附到网格、智能参考线三个开关是个人偏好（`ui.setPreference`，不入历史、不同步，设计 03-20）；网格默认间距 0.2 in；标尺与可拖出的自定义参考线为 P2，菜单项灰显占位。
-- **迷你工具条**（`ToolbarHost`，`ui.toolbar{slot:'toolbar.text-editing' \| 'toolbar.<selectionKind>'}`）：锚在选区包围盒上方，避开被选对象与视口边缘；评审、只读浏览与放映不出现；文本编辑态的条目见 [06](06-text-editing-and-ime.md) §2（P1）。
+- **迷你工具条**（`ToolbarHost`，`ui.toolbar{slot:'toolbar.text-editing' \| 'toolbar.<selectionKind>'}`）：锚在选区包围盒上方，避开被选对象与视口边缘；画在屏幕坐标的画布浮层上（`glass-float`，字号 12px），按屏幕尺寸绘制、不随画布缩放变小；空内容占位符图标条与画布浮签（键盘提示条、拖动角标、一次性内联提示、拖入说明）同在这一层（设计 09，rulings §4.22）；评审、只读浏览与放映不出现；文本编辑态的条目见 [06](06-text-editing-and-ime.md) §2（P1）。
 - **画布右键**（`ui.contextMenu{slot:'canvas'}`）：按 `selectionKind` 过滤，危险项置末；触控长按 500 ms 等价右键。
 - **评审模式点击文本**：画布不进入编辑态；对能评论的角色，检查器切到「评论」并提示「当前为只读，去评论？」（设计 02 F2）。
 - **母版视图**：命中只作用于目标容器的形状，继承描边与占位符规则见 [11](11-masters-layouts-and-themes.md) §6；放映舞台不走本节交互（§9）。
 
 ### 7.4 插入工具态
 
-「插入工具态」是从选中一个插入工具到新元素落在画布上的这段交互（R-d-62）。它覆盖需要在画布上落点的工具：文本框、形状库全部条目（形状、线条、连接符、曲线类、动作按钮）以及声明需要落点的插件元素；图片、图标、表格、图表、音视频不经工具态，直接按默认落点插入（视口中心或所选空占位符，[19](19-insertable-elements-overview.md)），插入后同样选中。
+「插入工具态」是从选中一个插入工具到新元素落在画布上的这段交互（R-d-62）。它覆盖需要在画布上落点的工具：文本框、形状库全部条目（形状、线条、连接符、曲线类、动作按钮）以及声明需要落点的插件元素；图片、图标、表格、图表、音视频不经工具态，直接按默认落点插入，插入后同样选中：表格、图表、图片先看页上有无空内容占位符（`obj` 或同类 `tbl` / `chart` / `pic`），有就填入阅读序第一个（已选中的空占位符优先），走 `slide.fillPlaceholder`、保留 `p:ph`；没有才按默认落点与尺寸插入（rulings §4.22；[19](19-insertable-elements-overview.md) §3.1–§3.2）；图标与音视频仍按原规则（视口中心或所选空占位符）。
 
 - **进入**：点 Ribbon 按钮或形状库条目。`activeTool` 是 slide-ui 的本地 UI 状态，不是 Operation：不入历史、不广播、不进 awareness。工具按钮显示按下态（`aria-pressed="true"`），画布光标变为十字，画布顶部出现 glass 提示条「单击插入 1 in × 1 in，或拖出大小 · Shift 锁定比例 · Alt 从中心 · Esc 取消」（2026-09-30 样张确认文案），状态栏显示「插入工具：〈名称〉」（视觉口径以设计 03-15 的样张为准，2026-09-26 整合）。
 - **单击**：按下后位移 ≤ 4 px（`UiCoreConfig.input.dragThresholdPx`，与 §7.2 同一阈值）即松手，按该工具的默认尺寸插入，左上角落在点击处（线条为起点在点击处的 1 in 水平线）。
 - **拖出**：位移超过 4 px 进入拖出预览，覆盖层画出虚线框（线条为线段）、形状的幽灵预览与「宽 W 高 H」尺寸角标；`Shift` 锁比例（线条约束到 45° 倍数）、`Alt` 以按下点为中心（线条无此项）；拖出期间智能参考线与吸附照常（§7.2），线条与连接符的端点靠近形状时显示连接点（§7.5）；松手时执行恰好一个插入命令。
 - **键盘**：焦点在工具按钮或形状库条目上按 `Enter` 直接插到视口中心，默认尺寸；连续插入同一工具时依次错位 0.2 in；不需要指针，满足 WCAG 2.5.7 对「放置」的等价要求。
 - **取消**：`Esc`、再次点击同一工具按钮、切换 Ribbon 页签、在缩略图栏或检查器按下指针、切换当前页，都退出工具态且不产生命令；拖出预览中按 `Esc` 撤掉预览。
-- **插入之后**：命令成功后执行 `slide.setSelection` 选中新元素，按类型进入子编辑态——文本框进入文本编辑（[06](06-text-editing-and-ime.md) §2），表格进入第一个单元格的文字编辑、图表（M3）打开数据面板（细节以 [24](24-elements-tables-and-charts.md) 为准），动作按钮插入后立即弹出「操作设置」（[22](22-elements-shapes-and-lines.md) §6.2），其余只选中（形状自动进入文本编辑为 P1，默认关）；工具随即退出（一次一个，锁定连续绘制 P2）；live region 播报「已插入〈名称〉」（[16](16-i18n-and-accessibility.md) §8）。空文本框在退出编辑时自动删除，并与插入合为同一撤销步（R-d-65，[20](20-elements-text.md)）。
+- **插入之后**：命令成功后执行 `slide.setSelection` 选中新元素，按类型进入子编辑态——文本框进入文本编辑（[06](06-text-editing-and-ime.md) §2），表格进入第一个单元格的文字编辑、图表（M3）展开检查器「数据」分区、焦点在首个数值格（不进 440 的展开面板，细节以 [24](24-elements-tables-and-charts.md) §3.3 为准），动作按钮插入后立即弹出「操作设置」（[22](22-elements-shapes-and-lines.md) §6.2），其余只选中（形状自动进入文本编辑为 P1，默认关）；工具随即退出（一次一个，锁定连续绘制 P2）；live region 播报「已插入〈名称〉」（[16](16-i18n-and-accessibility.md) §8）。空文本框在退出编辑时自动删除，并与插入合为同一撤销步（R-d-65，[20](20-elements-text.md)）。
 - **浮层与文本编辑**（2026-09-26 整合，[20](20-elements-text.md) §6）：符号面板、日期和时间格式选择器这类 UI 浮层在文本编辑态打开时，焦点进入浮层不退出文本编辑，关闭后焦点与光标回到原位置。
 - **失败**：命令被规模守卫拒绝（`document.quota_exceeded`）或权限不足时按 §11 分流给 Toast，工具退出，不留预览；只读、评审、降权与仅查看断点下插入工具禁用而不隐藏（§4）。
 - **协同**：工具态期间当前页被远端删除，工具退出并按 [07](07-collaboration-client.md) §12 的软冲突提示；插入的新元素是 shapes 表的新键，与他人的并发插入不冲突。
@@ -447,7 +447,7 @@ stateDiagram-v2
 
 | 手柄 | 谁显示 | 拖动 → 命令（松手时一次） | 数值或键盘等价（WCAG 2.5.7） | 里程碑 |
 |---|---|---|---|---|
-| 8 个缩放手柄 | 形状、图片、组合、表格、图表、媒体；多选的统一包围盒 | `slide.resizeShapes`；`Shift` 锁比例、`Alt` 中心 | 检查器「位置与大小」；`Shift+Alt+方向键`（P1） | M2 P0 |
+| 8 个缩放手柄 | 形状、图片、组合、表格（M3 起；M2 只有选中框与移动，[24](24-elements-tables-and-charts.md) §2.6）、图表、媒体；多选的统一包围盒 | `slide.resizeShapes`；`Shift` 锁比例、`Alt` 中心 | 检查器「位置与大小」；`Shift+Alt+方向键`（P1） | M2 P0 |
 | 旋转手柄 | 同上，线条与连接符除外，`graphicFrame` 不可旋转 | `slide.rotateShapes`；`Shift` 15° 步进 | 检查器「旋转」 | M2 P0 |
 | 调整手柄（黄色菱形） | 带 `avLst` 的预设形状，每个调整值一个；M3 起肘形连接符中段一个 | `slide.setAdjustValues{shapeId, adjust}`（新增，§4.21） | 检查器「形状」分区的调整值，与手柄同批 | M2 P1 |
 | 端点手柄 | 线条与连接符两端；已连接实心、未连接空心 | 落在连接点 → `slide.connectEnds`，否则 `slide.setLineEnds`（均为新增，§4.21）；`Shift` 45° | 「位置与大小」与翻转；连接符的「连接到…」选择器 | M2 P0（连接 P1） |
@@ -713,6 +713,7 @@ flowchart TB
 | V18 | 插入页签七组的次序与设计 03-04 一致，无「新建幻灯片」组；超链接 M2 可用；图表按 `slide.hasChartEditor` 禁用而不隐藏；本里程碑内 P2 条目与 M4+ 条目均禁用并标注里程碑 | `slide-ui/__tests__/ribbon-spec.test.ts` | `test/unit` |
 | V19 | `selectionKind` 新增 `table`、`chart`、`media`、`placeholder-empty` 各自出现 §5 所列分区；有内容的占位符不得派生为 `placeholder-empty` | `slide-ui/__tests__/selection-kind.test.ts`、`inspector-spec.test.ts` | `test/unit` |
 | V20 | 默认快捷键与 §10.4 逐条一致：ED-16 每一行都有登记条目，和弦与作用域相符；冲突行（`Mod+E`）在裁决前由 `ui/shortcut-conflict` 报出而不静默 | `slide-ui/__tests__/shortcuts.test.ts` | `test/unit` |
+| V21 | 插入落点（§7.4，rulings §4.22 Q1）：插入页签、命令面板插入表格、图表、图片时，页上有空内容占位符（`obj` 或同类 `tbl` / `chart` / `pic`）→ 发 `slide.fillPlaceholder`、保留 `p:ph`，已选中的空占位符优先于阅读序第一个；没有空占位符才按默认落点发 `slide.insertTable` / `insertChart` / `insertPicture`；图标、音视频不按阅读序自动填入，只在选中了空内容占位符时填入它（§7.4 原口径，与 [19](19-insertable-elements-overview.md) §3.2 一致）；一次插入一个撤销步，撤销后占位符恢复为空 | `slide-ui/__tests__/insert-tool.test.ts`；`editing/insert-tools.spec.ts`（[70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 26 行） | `test/unit`；`e2e/full-compose` |
 
 ### 12.2 里程碑
 

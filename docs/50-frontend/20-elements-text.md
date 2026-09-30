@@ -1,5 +1,5 @@
 # 20 元素族：文本类
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，文本框、文本字段、超链接、艺术字与文字效果、符号与特殊字符五个元素的逐项设计）；2026-09-26（§4.21 整合：超链接 show 分支补 lastViewed 与 end（对齐 30/04 §3.7）；符号表与断行表生成脚本名登记 gen-symbol-table.ts、gen-linebreak-table.ts）；2026-09-26（§4.21 复核：自动调整模式改指 setAutofitMode，删去「待登记」） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素总览与通用设计](./19-insertable-elements-overview.md)、[06 文本编辑与 IME](./06-text-editing-and-ime.md) §6 / §7 / §9、[10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §4 / §5 / §7、[05 渲染](./05-rendering-and-thumbnails.md) §7 / §11、[16 i18n 与 a11y](./16-i18n-and-accessibility.md) §8 / §9、[30/04 文档模型](../30-architecture/04-document-model.md) §3.2 / §4.2 / §4.3 / §6.1、[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1、[30/06 协同](../30-architecture/06-collaboration.md) §1.4 / §1.5 / §8、[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.2 / §2.6、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0008 不透明保留](../30-architecture/adr/0008-opaque-preservation.md) 决策 5、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0028](../30-architecture/adr/0028-text-editing-host.md)、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-05 / ED-19 / ED-24、PRD [01-open-and-fidelity](../10-prd/03-features/01-open-and-fidelity.md) §2.2 / §2.4 / §2.7、设计 03-screens [04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.21
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，文本框、文本字段、超链接、艺术字与文字效果、符号与特殊字符五个元素的逐项设计）；2026-09-26（§4.21 整合：超链接 show 分支补 lastViewed 与 end（对齐 30/04 §3.7）；符号表与断行表生成脚本名登记 gen-symbol-table.ts、gen-linebreak-table.ts）；2026-09-26（§4.21 复核：自动调整模式改指 setAutofitMode，删去「待登记」）；2026-09-30（§4.21 剩余缺口样张回写：§3 日期字段的插入入口补设计出处 03-16「日期和时间格式选择器」（G-81），⑭ 注明样张格式映射同样待语料核对；§9 插入页签「文本」组一行核对后改为已回写；只改出处与状态，不改设计口径）；2026-09-30（§4.21 剩余缺口样张回写 · 整合：§8 登记 T-8 选择器默认格式、T-9 对话框应用时刷新日期的作用范围两项待属主裁定，来源设计 03-16「待决 / 取舍」第 4、6 条）；2026-09-30（§4.22 设计待决收口：T-8 默认格式定为 `datetime1`、T-9 定为只改说明文字且对话框只刷新页脚 `dt` 占位符，图 3-1 虚线注明范围；§3 选择器与对话框共用 13 种格式表；T-4 格式映射改为推迟） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素总览与通用设计](./19-insertable-elements-overview.md)、[06 文本编辑与 IME](./06-text-editing-and-ime.md) §6 / §7 / §9、[10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §4 / §5 / §7、[05 渲染](./05-rendering-and-thumbnails.md) §7 / §11、[16 i18n 与 a11y](./16-i18n-and-accessibility.md) §8 / §9、[30/04 文档模型](../30-architecture/04-document-model.md) §3.2 / §4.2 / §4.3 / §6.1、[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1、[30/06 协同](../30-architecture/06-collaboration.md) §1.4 / §1.5 / §8、[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.2 / §2.6、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0008 不透明保留](../30-architecture/adr/0008-opaque-preservation.md) 决策 5、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0028](../30-architecture/adr/0028-text-editing-host.md)、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-05 / ED-19 / ED-24、PRD [01-open-and-fidelity](../10-prd/03-features/01-open-and-fidelity.md) §2.2 / §2.4 / §2.7、设计 03-screens [04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.21
 
 本文回答文本类元素的三个问题：**要追加什么**、**追加它有什么用**、**每个元素怎么设计**。文本类共五个元素：文本框、文本字段（页码 / 日期时间）、超链接、艺术字与文字效果、符号与特殊字符。每个元素一节，节内固定 14 栏（§1.2 定义栏目含义）。
 
@@ -238,9 +238,9 @@ sequenceDiagram
 |---|---|
 | ① 作用 | 在任意文本框、占位符或页脚里放**会自动变化**的内容：页码（重排、增删页后自动更新）、日期（按格式显示）。典型场景：页脚「第 7 页」、封面日期、目录页标注页码。与「页眉和页脚」的关系：对话框批量往页脚族占位符里放字段（[21](./21-elements-structure.md) §4），本节是在光标处插一个字段。 |
 | ② OOXML | `a:p` 内 `a:fld@id`（GUID）`@type`（`slidenum`；`datetime`、`datetime1`…`datetime13`；模板里常见 `datetimeFigureOut`）+ 可选 `a:rPr` / `a:pPr` + `a:t`（缓存的显示值）。 |
-| ③ 插入入口与默认 | **文本编辑态**：插入 › 文本 › 幻灯片编号 → 在光标处直接插 `slidenum` 字段；插入 › 文本 › 日期和时间 → 小型选择器（按当前 run 的 `lang` 预览可用格式，勾选「自动更新」插 `datetimeN` 字段，不勾选插入普通文本），与 PowerPoint 的「日期和时间」对话框同构。**不在文本编辑态**：这两个按钮都打开「页眉和页脚」对话框（[21](./21-elements-structure.md) §4）。默认格式：日期取当前语言的第一种格式；字段的字体字号不写显式值，随所在段落继承。 |
+| ③ 插入入口与默认 | **文本编辑态**：插入 › 文本 › 幻灯片编号 → 在光标处直接插 `slidenum` 字段；插入 › 文本 › 日期和时间 → 小型选择器（按当前 run 的 `lang` 预览可用格式，勾选「自动更新」插 `datetimeN` 字段，勾选说明为「插入为日期字段：这里显示插入当天的日期，在 PowerPoint 中打开时自动更新」，不勾选插入普通文本），与 PowerPoint 的「日期和时间」对话框同构；界面见设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)「日期和时间格式选择器」（G-81，2026-09-30 样张回写，playground `#/editor/text` 的「日期和时间 · 格式选择器」「已插入日期字段」）。**不在文本编辑态**：这两个按钮都打开「页眉和页脚」对话框（[21](./21-elements-structure.md) §4）。默认格式：日期取当前语言的第一种格式 `datetime1`（设计样张已按此定稿，§8 T-8）；格式列表与「页眉和页脚」对话框共用同一张 13 种 `datetimeN` 表；字段的字体字号不写显式值，随所在段落继承。 |
 | ④ 模型 | `Inline.Field{ type, id, text }`（30/04 §3.2 已建模），`text` 是缓存的显示值；Y 侧 `insertEmbed({ fld: { type, id, text } })`（30/06 §1.4）。求值所需的 `Presentation.firstSlideNum`（`p:presentation@firstSlideNum`，缺省 1）只读建模（新增（§4.21））。 |
-| ⑤ 渲染 | `slidenum` 在排版时求值：页码 = 该页在 `slidesInOrder` 中的位置 + `firstSlideNum`，隐藏页照常计数；日期字段显示存储文本，渲染不读系统时钟（缩略图、视觉基线与两端渲染因此确定，PRD OF §2.2；[06](./06-text-editing-and-ime.md) §9.3）；母版视图里的页码占位符显示存储文本（通常是 `‹#›`）。编辑态字段加浅灰底（覆盖层，不进 Scene、不导出）。页序变化只重排含 `slidenum` 字段的形状（[06](./06-text-editing-and-ime.md) 图 9-2）。 |
+| ⑤ 渲染 | `slidenum` 在排版时求值：页码 = 该页在 `slidesInOrder` 中的位置 + `firstSlideNum`，隐藏页照常计数；日期字段显示存储文本，渲染不读系统时钟（缩略图、视觉基线与两端渲染因此确定，PRD OF §2.2；[06](./06-text-editing-and-ime.md) §9.3）；正文里的日期字段在 Cordex 内不刷新，PowerPoint 打开时自行更新（§8 T-9）；母版视图里的页码占位符显示存储文本（通常是 `‹#›`）。编辑态字段加浅灰底（覆盖层，不进 Scene、不导出）。页序变化只重排含 `slidenum` 字段的形状（[06](./06-text-editing-and-ime.md) 图 9-2）。 |
 | ⑥ 交互 | 字段是不可拆的一格：光标整格跳过，Backspace / Delete 整个删除，拖选整格覆盖（[06](./06-text-editing-and-ime.md) §6）；双击字段选中整个字段；改日期格式的下拉 P2。 |
 | ⑦ 检查器 | 无独立分区；字段随「文本」分区的字符与段落格式；选中日期字段时出现「日期格式」下拉（P2）。 |
 | ⑧ 命令 | **Command**：`slide.insertField{ target: TextTarget, paragraph, offset, field:{ type } }`（新增（§4.21），ADR-0018；日期格式就编码在 `type` 的 `datetime1`…`datetime13` 里，不另设参数）→ Mutation `text.applyDelta`（在 `offset` 处插入一个 `fld` embed）。`id` 由命令经注入的随机源生成 v4 GUID（写出为 OOXML 的 `{…}` 大写形式），`text` 由命令当场算好：`slidenum` 取当前页码，日期用注入的时钟与 run 的 `lang` 经 `Intl.DateTimeFormat` 格式化；`lower()` 只搬运这些值，保持纯且确定。一个事务、一个撤销步，不与键入合并。「不勾选自动更新」的日期走 `slide.insertText`。 |
@@ -249,7 +249,7 @@ sequenceDiagram
 | ⑪ 无障碍 | 可访问树与编辑态镜像都读字段的显示值（「7」而不是字段代码）；插入后播报「已插入幻灯片编号」/「已插入日期」。 |
 | ⑫ 复用 | 日期格式化用原生 `Intl.DateTimeFormat`；GUID 用原生 `crypto.randomUUID` 形态（经注入随机源）；无第三方库。`datetime1`…`datetime13` 到各语言格式的映射表自建（它是 PowerPoint 的约定，没有现成库）。 |
 | ⑬ 里程碑 | M1 查看（V P0）；M2 P2 插入与编辑（E~）。 |
-| ⑭ 待决 | `datetime1`…`datetime13` 与 zh-CN / ja-JP 等语言的格式映射需语料核对；编辑态页码不写回缓存、只在导出脏部件时写（已按此设计，待 70 线往返用例确认 PowerPoint 无修复提示）。 |
+| ⑭ 待决 | `datetime1`…`datetime13` 与 zh-CN / ja-JP 等语言的格式映射推迟（触发条件：M2 P2 开工 `slide.insertField` / `slide.setHeaderFooter` 前，70 线交付三语 PowerPoint 另存语料，见 rulings §4.22；设计样张的中英日格式为自建，届时一并核对，§8 T-4）；编辑态页码不写回缓存、只在导出脏部件时写（已按此设计，待 70 线往返用例确认 PowerPoint 无修复提示）。 |
 
 ### 3.2 字段从插入到导出
 
@@ -268,10 +268,10 @@ flowchart TB
   exp -- "是" --> recompute{"slidenum？"}
   recompute -- "是" --> writeNum["a:t 写当前页码，纯函数"]
   recompute -- "否" --> writeStored["a:t 写存储文本"]
-  hf["「页眉和页脚」对话框应用"] -. "刷新日期存储文本" .-> model
+  hf["「页眉和页脚」对话框应用"] -. "只改写页脚 dt 占位符的日期" .-> model
 ```
 
-怎么读：一个字段的显示值只在三处产生——插入时由命令算一次、渲染时（仅页码）求值、导出脏部件时（仅页码）重写；日期字段只有插入与对话框应用两个时机会刷新，其余时刻都显示存储文本，这是为了渲染与导出的确定性。
+怎么读：一个字段的显示值只在三处产生——插入时由命令算一次、渲染时（仅页码）求值、导出脏部件时（仅页码）重写；日期字段只有插入与对话框应用两个时机会刷新，其余时刻都显示存储文本，这是为了渲染与导出的确定性。虚线只作用于页脚族 `dt` 占位符里的日期（`slide.setHeaderFooter`，[21](./21-elements-structure.md) §4 ⑧）；正文里用选择器插入的日期字段在 Cordex 内不刷新，PowerPoint 打开时自行更新（§8 T-9）。
 依据：PRD OF §2.2、§2.7；ADR-0026；[06](./06-text-editing-and-ime.md) §9.3。
 
 ## 4. 超链接（文本 / 形状）
@@ -464,10 +464,12 @@ stateDiagram-v2
 | T-1 | 「符号…」放「文本」组还是像 PowerPoint 单列「符号」组 | 放「文本」组（d-61 的七组不变）；公式 M4+ 立项时再评估单列 | 设计线（设计 04、playground） |
 | T-2 | 不建模 `txDef` 时新建文本框默认样式与 PowerPoint 不一致 | 按 d-63：M2 只读建模 `Theme.objectDefaults` | 已定，随 ADR-0018 落地 |
 | T-3 | 文本框默认字号来源 | 取 `defaultTextStyle` 的 `other` 段，待语料核对 | 70 线语料 |
-| T-4 | `datetime1`…`datetime13` 与各语言格式的映射 | 自建映射表，按 zh-CN、ja-JP、en-US 语料核对 | 70 线语料 |
+| T-4 | `datetime1`…`datetime13` 与各语言格式的映射 | 推迟（触发条件：M2 P2 开工 `slide.insertField` / `slide.setHeaderFooter` 前，70 线交付 zh-CN、en-US、ja-JP 三语 PowerPoint 另存语料，见 rulings §4.22）；届时回写本文 §3、[21](./21-elements-structure.md) §4 ⑭ 与样张格式表，en-US 的 `datetime4`、`datetime6` 若与 PowerPoint 原样一致就照搬 | 70 线语料，本文属主核对 |
 | T-5 | 变形文字的编辑态显示 | M4+ 立项时定 | 前端设计线 |
 | T-6 | 艺术字预设写显式 `rPr` | 采纳（用户所选样式，不是继承值） | 已定 |
 | T-7 | 符号字体（`a:sym`）字符的插入 | 定为非目标，只插 Unicode | PRD 02 回写 |
+| T-8 | 「日期和时间」格式选择器的默认格式 | 已定（2026-09-30，rulings §4.22）：取当前语言的第一种 `datetime1`，与 §3 ③ 一致；设计 03-16 样张与「页眉和页脚」对话框已改为同一张 13 种格式表、默认第一种 | 已定 |
+| T-9 | 「页眉和页脚」对话框应用时刷新日期的作用范围 | 已定（2026-09-30，rulings §4.22）：只改说明文字，不扩展命令。`slide.setHeaderFooter` 只改写页脚族 `dt` 占位符（[21](./21-elements-structure.md) §4 ⑧），图 3-1 虚线已注明；正文里的日期字段在 Cordex 内不刷新，PowerPoint 打开时自行更新；选择器勾选说明改为「插入为日期字段：这里显示插入当天的日期，在 PowerPoint 中打开时自动更新」（设计 03-16） | 已定 |
 
 ## 9. 待回写
 
@@ -475,7 +477,7 @@ stateDiagram-v2
 |---|---|---|
 | `Sp.isTextBox` 补列；`Theme.objectDefaults` 只读建模；`Presentation.firstSlideNum` 只读建模；`RunProperties.outline`、`BodyProperties.textWarp`（M4+） | 40/03 §2.2 与 `sp.ts` 行、30/04 §3.2 / §4.2、ADR-0018 | 待回写（§4.21） |
 | 本轮登记：`slide.insertShape` 的 `preset` / `textBox` 参数、`slide.insertField`、`slide.setHyperlink`、Mutation `slide.shape.setNonVisual`（均已列入 50/19 与 ADR-0018）；本文另提的 `slide.setBodyProperties`（文本框属性，TXT-08）与 `slide.setAutofitMode`（自动调整模式，TXT-09）已登记；`slide.setTextFill`、`slide.setTextOutline`（P2）与 `slide.applyWordArtStyle`、`slide.setTextWarp`（M4+）为远期建议，届时登记 | 40/03 §2.6、30/05 新增命令登记、ADR-0018 | 已回写（2026-09-26 整合；P2 / M4+ 远期建议除外） |
-| 「插入」页签「文本」组新增：页眉和页脚…、日期和时间、幻灯片编号、符号…（M3）、艺术字 ▾（M4+）；「链接与批注」组超链接改 M2 P1（去掉「P2 禁用」） | 40/10 §2.6、[10](./10-editor-shell-and-interaction.md) §4、设计 04 与 playground `InsertTab` | 待回写（§4.21） |
+| 「插入」页签「文本」组新增：页眉和页脚…、日期和时间、幻灯片编号、符号…（M3）、艺术字 ▾（M4+）；「链接与批注」组超链接改 M2 P1（去掉「P2 禁用」） | 40/10 §2.6、[10](./10-editor-shell-and-interaction.md) §4、设计 04 与 playground `InsertTab` | 已回写：40/10 §2.6 与 [10](./10-editor-shell-and-interaction.md) §4（2026-09-26 整合）、设计 04 与 playground `InsertTab`（2026-09-30 样张确认）；艺术字 ▾ 属 M4+，届时再加 |
 | 检查器「文本」分区加「链接」行、自动调整三选一、渐变与轮廓（P2） | [10](./10-editor-shell-and-interaction.md) §5 | 待回写（§4.21） |
 | 可访问树 `A11yDescriptor` 扩 `links` 字段（链接子项与目标描述） | [05](./05-rendering-and-thumbnails.md) §11、[16](./16-i18n-and-accessibility.md) §9 | 待回写（§4.21） |
 | 符号表码位清单、中文别名、UCD 名称抽取脚本 | 设计线出稿；脚本 `gen-symbol-table.ts` 已登记于 40/01 §5.7（2026-09-26 整合） | 码位清单待出稿 |

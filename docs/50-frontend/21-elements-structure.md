@@ -1,5 +1,5 @@
 # 21 元素族：结构类
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，文字占位符、内容族占位符与快速插入图标条、页眉页脚与「页眉和页脚」对话框、幻灯片 / 版式 / 母版背景、组合五个元素的逐项设计）；2026-09-26（§4.21 复核：依赖行补 50/01 上游链接） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素总览与通用设计](./19-insertable-elements-overview.md)、[20 文本类元素](./20-elements-text.md) §1.2 / §3、[06 文本编辑与 IME](./06-text-editing-and-ime.md) §2 / §9、[10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §5 / §7、[11 母版、版式与主题](./11-masters-layouts-and-themes.md) §6 / §7、[05 渲染](./05-rendering-and-thumbnails.md) §11、[30/04 文档模型](../30-architecture/04-document-model.md) §3.1a / §3.2 / §4.2 / §6.1 / §12.2 / §12.3、[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1 / §13、[30/06 协同](../30-architecture/06-collaboration.md) §1.5 / §8、[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.1 / §2.6、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0014 稳定 id](../30-architecture/adr/0014-stable-ids.md)、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-08 / ED-11 / ED-20、PRD [07-masters](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-01…ML-03、PRD [01-open-and-fidelity](../10-prd/03-features/01-open-and-fidelity.md) §2.2 / §2.3 / §2.6、设计 03-screens [05](../20-design/03-screens/05-context-menu.md)、[14](../20-design/03-screens/14-slide-management-and-layouts.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[26](../20-design/03-screens/26-master-view-and-editing.md)、[27](../20-design/03-screens/27-layout-picker-and-reset.md)、rulings §4.21
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，文字占位符、内容族占位符与快速插入图标条、页眉页脚与「页眉和页脚」对话框、幻灯片 / 版式 / 母版背景、组合五个元素的逐项设计）；2026-09-26（§4.21 复核：依赖行补 50/01 上游链接）；2026-09-30（§4.21 剩余缺口样张回写：§3 内容族占位符的插入入口补设计出处 03-16「空内容占位符图标条」（G-80），⑭ 登记样张图标条随画布缩放与 ⑤ 的差异；§9「页眉和页脚」对话框设计稿一行改为已回写；只改出处与状态，不改设计口径）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§4.2 对话框的设计出处改指 03-15「页眉和页脚对话框」（G-81））；2026-09-30（§4.22 设计待决收口：§3 图标条按屏幕尺寸绘制并可折叠、单一 Tab 停靠点，表格图标弹网格弹层、图表用六项菜单，多图拖入只填指针下的占位符，检查器三组改名「插入到占位符」；⑭ 的样张差异删除，`obj` 放图片的裁剪口径改为推迟；§4 日期格式与对话框共用 13 种格式表，映射改为推迟；§9 `placeholder-empty` 一行已回写）；2026-09-30（§4.22 整合：§3 ③ 图表图标弹 `ChartTypeMenu` 并写明首行与按下态，⑥ 补折叠「插入 ▾」胶囊与菜单规格）；2026-09-30（§4.22 复核修正：§3 ⑪ 图标条与按钮读屏名按设计 03-16 更正为「插入内容到占位符」「插入表格到占位符」等） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素总览与通用设计](./19-insertable-elements-overview.md)、[20 文本类元素](./20-elements-text.md) §1.2 / §3、[06 文本编辑与 IME](./06-text-editing-and-ime.md) §2 / §9、[10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §5 / §7、[11 母版、版式与主题](./11-masters-layouts-and-themes.md) §6 / §7、[05 渲染](./05-rendering-and-thumbnails.md) §11、[30/04 文档模型](../30-architecture/04-document-model.md) §3.1a / §3.2 / §4.2 / §6.1 / §12.2 / §12.3、[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1 / §13、[30/06 协同](../30-architecture/06-collaboration.md) §1.5 / §8、[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.1 / §2.6、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0014 稳定 id](../30-architecture/adr/0014-stable-ids.md)、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-08 / ED-11 / ED-20、PRD [07-masters](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-01…ML-03、PRD [01-open-and-fidelity](../10-prd/03-features/01-open-and-fidelity.md) §2.2 / §2.3 / §2.6、设计 03-screens [05](../20-design/03-screens/05-context-menu.md)、[14](../20-design/03-screens/14-slide-management-and-layouts.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[16](../20-design/03-screens/16-text-editing-and-formatting.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[26](../20-design/03-screens/26-master-view-and-editing.md)、[27](../20-design/03-screens/27-layout-picker-and-reset.md)、rulings §4.21
 
 本文回答结构类元素的三个问题：**要追加什么**、**追加它有什么用**、**每个元素怎么设计**。结构类是撑起「一页幻灯片」骨架的五个元素：文字占位符、内容族占位符（含快速插入图标条）、页眉页脚、幻灯片 / 版式 / 母版背景、组合。它们的共同点是**大多不从「插入」页签单独插入**——占位符随新建页与换版式生成，背景挂在页上，组合由已有元素编成；因此本族的重点在继承、重匹配与折算规则。
 
@@ -158,18 +158,18 @@ stateDiagram-v2
 |---|---|
 | ① 作用 | 版式预留的内容槽：在「标题和内容」「两栏内容」「图片与标题」这类版式的空占位符里点一个图标，就能把图片、表格、图表、视频直接放到版式规定的位置与大小；换版式时内容跟着占位符走，删掉内容后空槽还在。这是 PowerPoint 用户最常用的放图放表方式之一。 |
 | ② OOXML | **空态**：`p:sp` + `p:ph@type=pic\|chart\|tbl\|dgm\|media\|clipArt\|obj`（`obj` 的空态可打字也可放内容）。**填入后**：`p:pic`（图片、视频）或 `p:graphicFrame`（表格、图表）自带**同一个** `p:ph`（`type`、`idx` 保留），框位通常不写（继承占位符框）。 |
-| ③ 插入入口与默认 | 空内容占位符中央显示**快速插入图标条**，按占位符类型过滤：`obj` 显示全部可用项，`pic` 只显示图片，`tbl` 只显示表格，`chart` 只显示图表（M3 起出现），`media` 只显示视频（P2）；`dgm`（SmartArt）与 `clipArt` 不显示图标，只显示提示文字（SmartArt 插入是非目标）。点图标 → 对应选择器（图片：文件选择；表格：行列网格或输入行列，与插入页签同一组件；图表：类型画廊；视频：文件选择）→ 填入。把图片文件拖到空占位符上时占位符高亮，松手即填入。**默认**：图片按占位符框裁剪到填满（算 `srcRect`，居中裁剪，ADR-0018）；表格宽取占位符框宽、行高 0.4 in、高度按内容；图表取占位符框。 |
+| ③ 插入入口与默认 | 空内容占位符中央显示**快速插入图标条**，按占位符类型过滤：`obj` 显示全部可用项，`pic` 只显示图片，`tbl` 只显示表格，`chart` 只显示图表（M3 起可用，之前禁用并给原因），`media` 只显示视频（P2）；未到里程碑的图标留在原位、`aria-disabled` 并挂里程碑标记；`dgm`（SmartArt）与 `clipArt` 不显示图标，只显示提示文字（SmartArt 插入是非目标）。点图标 → 对应选择器（图片：文件选择；表格：图标旁弹出与插入页签同一网格弹层，悬停范围 8 行 × 10 列，含「插入表格…」对话框，rulings §4.22；图表：弹出与插入页签同一个 `ChartTypeMenu`（六项菜单与子类型 flyout），首行说明「[M3] 五类 · 填入占位符后打开数据面板」，设计 03-31；视频：文件选择）→ 填入；选择器或菜单开着时对应图标显示按下态（`aria-expanded="true"`）；图标条折叠时选择器与菜单锚在「插入 ▾」按钮上。把图片文件拖到空占位符上时占位符高亮，松手即填入；多张图片一起拖入时，指针下的占位符填第一张（`slide.fillPlaceholder`），其余在放下点普通插入、依次错位 0.2 in（[50/19](./19-insertable-elements-overview.md) §3.1），不自动填同页其它占位符。从插入页签插入图片、表格、图表时，页上有空内容占位符就填入阅读序第一个（已选中的空占位符优先，[50/19](./19-insertable-elements-overview.md) §3.1，rulings §4.22）。界面见设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)「空内容占位符图标条」（G-80，2026-09-30 样张回写，playground `#/editor/text` 的「空内容占位符 · 图标条」「图标条 · 键盘焦点与禁用原因」「图标条 · 窄占位符折叠」「占位符 · 表格网格」「图片拖入空占位符」）。**默认**：图片按占位符框裁剪到填满（算 `srcRect`，居中裁剪，ADR-0018；`obj` 占位符是否同样裁剪见 ⑭）；表格宽取占位符框宽、行高 0.41 in、高度按内容；图表取占位符框。 |
 | ④ 模型 | 空态：`Sp` + `PlaceholderRef`。填入后：`Pic` / `GraphicFrame` 的 `nonVisual.placeholder` 保留原 ref（同 `type`、同 `index`）并沿用空 `Sp` 的 `order`；图片的 `BlipFill.sourceRect` 由命令算出，裁剪填满时不写 `transform`（继承占位符框，换版式随之移动）。媒体字节只进 BlobStore，模型里是 `MediaId`（50/19 媒体通道）。 |
-| ⑤ 渲染 | 空态：提示文字 + 图标条 + 虚线框，全部画在覆盖层（不进 Scene、不导出、不进缩略图与放映）；图标条按屏幕尺寸绘制，不随缩放变小，占位符在屏幕上太窄放不下时折叠为单个「插入 ▾」按钮。填入后由各自的渲染器画（图片、表格、图表惰性渲染器，50/19 渲染器登记表）。 |
-| ⑥ 交互 | 图标可 `Tab` 聚焦、`Enter` 触发，触控命中区 ≥ 44 px；图片占位符里的图片双击进入裁剪（[23](./23-elements-media.md)）；填入表格后选中表格并进入首格编辑；**删除填入的内容**后空占位符恢复（同一事务补建空 `Sp`），提示文字与图标条重新出现；空内容占位符本身也可以被选中并删除（不补回）。 |
-| ⑦ 检查器 | 空态 `selectionKind: placeholder-empty`（d-72）：占位符信息（类型、索引、来自版式）+「插入…」按钮组（与图标条同一组动作）。填入后按内容类型显示图片 / 表格 / 图表分区，另加一行「重置为占位符框」（清 `transform` 覆盖）。 |
+| ⑤ 渲染 | 空态：提示文字 + 图标条 + 虚线框，全部画在覆盖层（不进 Scene、不导出、不进缩略图与放映）；图标条画在屏幕坐标的画布浮层上（与迷你工具条同层，[10](./10-editor-shell-and-interaction.md) §7.3），按屏幕尺寸绘制，不随缩放变小（多图标时按钮 76 px、单图标 84 px）；整条加四周各 8 px 留白在占位符的屏幕框里放不下时，折叠为单个「插入 ▾」按钮，菜单里是同一组条目、里程碑标记与禁用原因。填入后由各自的渲染器画（图片、表格、图表惰性渲染器，50/19 渲染器登记表）。 |
+| ⑥ 交互 | 图标条是一个工具条（WAI-ARIA Toolbar 模式）：整条只占一个 `Tab` 停靠点，`←` / `→` 在图标间移动并循环，`Home` / `End` 到首尾，`Enter` 触发；禁用图标可聚焦并以 tooltip 说明原因；`Esc` 回到占位符（设计 03-16「键盘聚焦顺序」）。折叠形态是单个「插入 ▾」胶囊按钮（高 44），菜单宽 208、首行「插入到占位符」，条目、里程碑标记与禁用原因同展开态；禁用项保留 `aria-disabled`、仍可聚焦，原因 tooltip 在右侧展开；菜单内用方向键移动（设计 03-16「图标条规格」）；触控命中区 ≥ 44 px；图片占位符里的图片双击进入裁剪（[23](./23-elements-media.md)）；填入表格后选中表格并进入首格编辑；**删除填入的内容**后空占位符恢复（同一事务补建空 `Sp`），提示文字与图标条重新出现；空内容占位符本身也可以被选中并删除（不补回）。 |
+| ⑦ 检查器 | 空态 `selectionKind: placeholder-empty`（d-72）三组：「占位符」（类型、索引、来自版式，只读）、「位置与大小」（逐字段显示「继承自版式」或「已覆盖 · 重置」，重置只清该字段）、「插入到占位符」按钮组（与图标条同一组动作，过滤、禁用与原因同源）；只读与评审模式不出「插入到占位符」组（[10](./10-editor-shell-and-interaction.md) §5，设计 03-16）。填入后按内容类型显示图片 / 表格 / 图表分区，另加一行「重置为占位符框」（清 `transform` 覆盖）。 |
 | ⑧ 命令 | **Command**：`slide.fillPlaceholder{ shapeId, content: { kind:'picture', blob } \| { kind:'table', rows, cols } \| { kind:'chart', chartType } \| { kind:'media', blob } }`（新增（§4.21），ADR-0018）→ 一个事务：`shape.remove`（空 `Sp` 写墓碑）+ 按需 `media.add` + `shape.insert`（同 ref、同 `order`）；一步撤销回到空占位符。删除带内容族 ref 的 `Pic` / `GraphicFrame` 时，`slide.deleteShapes` 在同一事务里补建一个空 `Sp`（新 id、同 ref 与 `order`，新增规则（§4.21））。「重置为占位符框」→ `slide.resetPlaceholderFields{ shapeId, fields:['transform'] }`。**Operation**：选择器开合（ui 本地）、`slide.setSelection`（选中新元素，表格进首格编辑）。图片先在本地算 sha256 即执行命令，上传在后台进行，他端上传完成前显示加载占位（50/19 媒体通道）。 |
 | ⑨ 协同 | **先后到达**：执行时发现空 `Sp` 已是墓碑（他人已填入并已同步）→ 命令改为普通插入（不带 ref，放在占位符框的位置）并 toast「该占位符已被〈姓名〉填入，已作为普通元素插入」。**真并发**（双方都在对方同步前执行）→ 合并后同页出现两个同 `(type, idx)` 的内容族形状：读时容错，两个都画；建议新增软不变量 **I-PH1**「同一页同一 `(type, idx)` 的存活内容族占位符至多一个」，修复按 `(order, id)` 保留最小者的 ref，其余把 `resolvePlaceholderBox` 的框写成显式 `transform` 并去掉 ref（与 `materialize` 同），发 `collab/repair{ rule:'duplicate-placeholder-fill' }`，由服务端软门禁写一次（ADR-0034）。A 删除填入的表格（补回空 `Sp`）与 B 同时编辑该表格 → B 的编辑落在墓碑上，按 30/06 §8 第 2 行提示与恢复。 |
 | ⑩ 导入导出与保真 | E。带 `p:ph` 的 `p:pic` / `p:graphicFrame` 往返；换版式按 PRD ML-02 的兼容规则匹配（`pic` / `chart` / `tbl` / `dgm` / `media` 可匹配到 `obj`，50/19 占位符继承链一节）。 |
-| ⑪ 无障碍 | 图标条按钮带 `aria-label`（「插入表格」「插入图片」「插入图表」「插入视频」）；空占位符不作为内容进可访问树，但编辑态可 `Tab` 到其图标条；填入后按内容元素的 `role`（`image` / `table` / `chart` / `media`），图片缺替代文本时提示 `missingAlt`。 |
-| ⑫ 复用 | 无第三方。图标用界面图标库 lucide-react（ADR-0017 已登记）；选择器全部复用各元素族现成的组件（文件选择、表格网格、图表画廊）。 |
+| ⑪ 无障碍 | 图标条 `role=toolbar`（读屏名「插入内容到占位符」），按钮读屏名为「插入表格到占位符」「插入图片到占位符」「插入图表到占位符」「插入视频到占位符」，tooltip 为「插入表格」等（设计 03-16，文案权威），禁用项在名称后加「（M3 提供）」一类说明；空占位符不作为内容进可访问树，但编辑态可 `Tab` 到其图标条；填入后按内容元素的 `role`（`image` / `table` / `chart` / `media`），图片缺替代文本时提示 `missingAlt`。 |
+| ⑫ 复用 | 无第三方。图标用界面图标库 lucide-react（ADR-0017 已登记）；选择器全部复用各元素族现成的组件（文件选择、表格网格弹层、图表类型菜单）。 |
 | ⑬ 里程碑 | M1 查看；M2 P1 图片（d-69）；表格随 q-table-depth 在 M2（插入与单元格文字）；图表 M3（随图表插入）；视频 P2（q-media-insert）；母版侧插入内容族占位符 M3（ML-03）。 |
-| ⑭ 待决 | I-PH1 与并发填入互斥规则需 collab-sim 场景验证；`obj` 占位符里放图片是「裁剪填满」还是像 PowerPoint 那样「等比放入、不裁剪」（两类占位符行为可能不同，需语料核对；定为等比放入时改为写显式 `transform`）；删除内容后恢复空占位符已按 ADR-0018 采纳。 |
+| ⑭ 待决 | I-PH1 与并发填入互斥规则需 collab-sim 场景验证；`obj` 占位符里放图片是「裁剪填满」还是像 PowerPoint 那样「等比放入、不裁剪」推迟（触发条件：M2 P1 图片填入开工前，维护机实测 `p:pic` 的 `xfrm` 与 `srcRect`，见 rulings §4.22 与 §8 S-4）；删除内容后恢复空占位符已按 ADR-0018 采纳。 |
 
 ### 3.2 填入、删除恢复与并发
 
@@ -230,7 +230,7 @@ stateDiagram-v2
 |---|---|
 | ① 作用 | 一次给全部或部分页加上日期、页脚文字（公司名、保密标识）与页码，标题页可不显示；企业模板几乎都预置了页脚族占位符，用户只需勾选。与文本字段的关系：对话框往页脚族占位符里放字段（页码、自动日期）或纯文本，字段本身的规则见 [20](./20-elements-text.md) §3。 |
 | ② OOXML | 页上：`p:sp` + `p:ph@type=dt\|ftr\|sldNum`（`hdr` 只出现在备注与讲义母版）+ `p:txBody`（`a:fld type="datetimeN"` / `"slidenum"`，或纯文本）；母版：`p:hf@dt@ftr@sldNum@hdr`（四个布尔，缺省均为真）；版式与母版上的同类占位符定义位置与样式。 |
-| ③ 插入入口与默认 | 插入 › 文本 › 页眉和页脚…；「日期和时间」「幻灯片编号」两个按钮在非文本编辑态也打开此对话框（文本编辑态改为直接插字段，[20](./20-elements-text.md) §3）；母版视图「母版版式」组的「页脚」复选（M3，[11](./11-masters-layouts-and-themes.md) §6）。对话框控件见 §4.2；打开时按当前页已有的页脚族占位符回填勾选状态。默认：日期取「自动更新」、当前语言的第一种格式；框位与样式全部继承版式的同类占位符，页上不写 `xfrm`。 |
+| ③ 插入入口与默认 | 插入 › 文本 › 页眉和页脚…；「日期和时间」「幻灯片编号」两个按钮在非文本编辑态也打开此对话框（文本编辑态改为直接插字段，[20](./20-elements-text.md) §3）；母版视图「母版版式」组的「页脚」复选（M3，[11](./11-masters-layouts-and-themes.md) §6）。对话框控件见 §4.2；打开时按当前页已有的页脚族占位符回填勾选状态。默认：日期取「自动更新」、当前语言的第一种格式 `datetime1`（与文本编辑态的日期和时间选择器同一张 13 种格式表，[20](./20-elements-text.md) §3 ③）；框位与样式全部继承版式的同类占位符，页上不写 `xfrm`。 |
 | ④ 模型 | 页上 `Sp` + `PlaceholderRef{ type:'dt'\|'ftr'\|'sldNum', index }`（`index` 取版式上同类占位符的 `idx`）；日期是 `Inline.Field{ type:'datetime1'…'datetime13' }`（自动）或普通 `Run`（固定）；页码是 `Field{ type:'slidenum' }`；母版上的开关是 `SlideMaster.headerFooter`（`p:hf`，30/04 §4.2 已建模，此前未被任何命令使用）。 |
 | ⑤ 渲染 | 框继承版式占位符；页码实时求值、日期显示存储文本（[06](./06-text-editing-and-ime.md) §9.3）；「标题幻灯片中不显示」的判定依据是页所用版式的 `type == 'title'`。 |
 | ⑥ 交互 | 对话框全键盘（§4.2）；[应用] 作用于当前页或缩略图中的多选页，[全部应用] 作用于全部页；应用后 toast「已更新 N 页 [撤销]」；若有 K 页的版式缺少对应占位符，toast 追加「K 页的版式没有页脚占位符，未添加」。页上的页脚族占位符可以像普通占位符一样直接编辑（下次「全部应用」会覆盖其文字）。 |
@@ -239,17 +239,17 @@ stateDiagram-v2
 | ⑨ 协同 | **页脚族占位符用确定性 id**：新建时 id = `deriveNodeId('hf', slideId, type)`（由三元组经 SHA-256 截取生成的 v8 UUID，仍是合法 `NodeId` 品牌）；页上已有同类存活占位符（例如导入的，id 为 UUIDv7）则复用它、不新建；该确定性 id 的实体是墓碑时，改为清除墓碑复活。于是两人并发「全部应用」落到同一个键上，`Y.Map` 键值按 LWW 只留一个实体（另一个整体丢弃），不会出现两个页脚（图 4-2）。**已知限制**：两人同时把**已存在**的同一页脚改成不同文字，按 Yjs 文本合并可能拼接成两段；本端观察到 60 s 内有自己写过的页脚被远端改写时，按软冲突提示（[07](./07-collaboration-client.md) §12）。页码字段不存计算值，各端按页序求值后一致。 |
 | ⑩ 导入导出与保真 | E~（M2 P2，PRD OF §2.2）。字段缓存 `a:t`：脏部件写当前计算值（页码）或存储文本（日期），干净部件原样；`p:hf` 往返；确定性 `NodeId` 只是模型 id，与 OOXML 的 `cNvPr@id` 无关（导出照常按部件分配）。 |
 | ⑪ 无障碍 | 页码与日期按显示值作为普通文本进可访问树；对话框用 shadcn `Dialog`，复选框与单选组都有标签、分组有 `fieldset` 语义，焦点初始在第一个复选框；应用后 live region 播报 toast 文案。 |
-| ⑫ 复用 | 对话框用 shadcn `Dialog` / `Checkbox` / `RadioGroup` / `Select`，表单用 react-hook-form + `standardSchemaResolver`（复用命令参数的 zod schema，d-18）；日期格式用原生 `Intl.DateTimeFormat`。无第三方业务库；`deriveNodeId` 用浏览器与 Node 都有的 Web Crypto 摘要实现，不引 UUID 库（ADR-0014 的 L0 零依赖口径）。 |
+| ⑫ 复用 | 对话框用 shadcn `Dialog` / `Checkbox` / `RadioGroup` / `Select`，表单用 react-hook-form + `standardSchemaResolver`（复用命令参数的 zod schema，d-18）；日期格式用原生 `Intl.DateTimeFormat`，格式列表取 [20](./20-elements-text.md) §3 的 `datetimeN` 格式表。无第三方业务库；`deriveNodeId` 用浏览器与 Node 都有的 Web Crypto 摘要实现，不引 UUID 库（ADR-0014 的 L0 零依赖口径）。 |
 | ⑬ 里程碑 | M1 查看；M2 P2 对话框与 `slide.setHeaderFooter`（d-70）；母版视图的页脚复选 M3。 |
-| ⑭ 待决 | 确定性 id 与 ADR-0014「`newNodeId()` 为 UUIDv7」的口径关系：建议 ADR-0014 增补「派生 id」一类（合法 `NodeId`、全局唯一、由稳定输入确定），需其属主确认；版式缺少页脚族占位符时是否在页上补建（建议不补建，与 PowerPoint 一致，待语料核对）；`datetime1`…`datetime13` 的语言映射同 [20](./20-elements-text.md) §8 T-4。 |
+| ⑭ 待决 | 确定性 id 与 ADR-0014「`newNodeId()` 为 UUIDv7」的口径关系：建议 ADR-0014 增补「派生 id」一类（合法 `NodeId`、全局唯一、由稳定输入确定），需其属主确认；版式缺少页脚族占位符时是否在页上补建（建议不补建，与 PowerPoint 一致，待语料核对）；`datetime1`…`datetime13` 的语言映射推迟（触发条件：M2 P2 开工 `slide.insertField` / `slide.setHeaderFooter` 前，70 线交付三语 PowerPoint 另存语料，见 rulings §4.22；同 [20](./20-elements-text.md) §8 T-4）。 |
 
 ### 4.2 对话框
 
-设计稿尚无此对话框（PRD 07-design-coverage 待登记新的 G 项）；控件与行为如下，外观按设计 09 的对话框规格。
+界面见设计 [03-15](../20-design/03-screens/15-insert-menu-and-shape-library.md)「页眉和页脚对话框」（G-81，2026-09-30 样张确认回写）；控件与行为如下，外观以该设计稿为准。
 
 | 控件 | 形态 | 行为 |
 |---|---|---|
-| 日期和时间 | 复选框；其下单选「自动更新」（格式下拉 + 语言下拉）/「固定」（文本框） | 未勾选时下属控件禁用；格式下拉按所选语言实时预览 |
+| 日期和时间 | 复选框；其下单选「自动更新」（格式列表 + 语言下拉，语言名「中文（中国）/ 英语（美国）/ 日语」）/「固定」（文本框） | 未勾选时下属控件禁用；格式列表列出所选语言的 13 种 `datetimeN`（与文本编辑态选择器同表），默认第一种 `datetime1`，按所选语言实时预览；存储的是格式代码而不是列表序号 |
 | 幻灯片编号 | 复选框 | — |
 | 页脚 | 复选框 + 文本框 | 文本框 ≤ 200 字，未勾选时禁用 |
 | 标题幻灯片中不显示 | 复选框 | 对版式 `type == 'title'` 的页，三项都按未勾选处理 |
@@ -461,7 +461,7 @@ sequenceDiagram
 | S-1 | 内容族同类占位符的上限数值 | 以模型约束为准，40/03 未决问题收口时定 | 40/03 属主 |
 | S-2 | `placeholderFamily` 与 PRD ML-03 三族不一致 | 按 d-73 以 PRD 为准改写 30/04 §12.2 | 30/04 属主 |
 | S-3 | 并发填入同一内容占位符 | 命令前置 + 软不变量 I-PH1（服务端修复一次） | ADR-0018、ADR-0034 属主；70 线 collab-sim |
-| S-4 | `obj` 占位符放图片：裁剪填满还是等比放入 | 语料核对后定；等比放入时写显式 `transform` | 70 线语料 |
+| S-4 | `obj` 占位符放图片：裁剪填满还是等比放入 | 推迟（触发条件：M2 P1 图片填入（`slide.fillPlaceholder` 图片）开工前，维护机实测 `p:pic` 的 `xfrm` 与 `srcRect`，见 rulings §4.22）；设计样张不变（`pic` 占位符两种结论都裁剪）；结论为等比放入时写显式 `transform`，并改 ADR-0018 决策 10、本文 §3 ③④⑭ 与 [50/19](./19-insertable-elements-overview.md) §3.1 | 70 线实测，本文属主定稿 |
 | S-5 | 页脚族占位符的确定性 id 与 ADR-0014 口径 | ADR-0014 增补「派生 id」一类 | ADR-0014 属主 |
 | S-6 | 版式缺页脚族占位符时是否补建 | 不补建，与 PowerPoint 一致，待语料核对 | 70 线语料 |
 | S-7 | 「应用到全部」是否默认清除页覆盖 | 默认保留，toast 给「也清除它们」 | 语料核对后由前端设计线定 |
@@ -476,9 +476,9 @@ sequenceDiagram
 | `slide.fillPlaceholder` 的「空 `Sp` 已是墓碑则改为普通插入」前置与软不变量 I-PH1 | ADR-0018、40/03 §2.1 不变量表、ADR-0034 修复规则 | 待回写（§4.21） |
 | `slide.setHeaderFooter` 的展开规则（图 4-1）、`date` 参数形态、确定性 id `deriveNodeId('hf', slideId, type)` | ADR-0018、40/03 §2.6、ADR-0014 | 待回写（§4.21） |
 | `slide.setSlideProperties{ slideIds, showMasterShapes }` 与配套 Mutation；「应用到全部」在 M2 需可用的 `slide.setMasterBackground` 入口 | 40/03 §2.6、ADR-0018 | 待回写（§4.21） |
-| 检查器 `selectionKind: placeholder-empty`（d-72）与内容占位符「重置为占位符框」行 | [10](./10-editor-shell-and-interaction.md) §5 | 待回写（§4.21） |
+| 检查器 `selectionKind: placeholder-empty`（d-72）与内容占位符「重置为占位符框」行 | [10](./10-editor-shell-and-interaction.md) §5 | 已回写（2026-09-30，§4.22：三组为占位符 / 位置与大小 / 插入到占位符，与设计 03-16 同名） |
 | 选中组合后 `Enter` 进入组合编辑；组合编辑态 `Tab` 循环子元素 | [10](./10-editor-shell-and-interaction.md) §7、[16](./16-i18n-and-accessibility.md) §6 | 待回写（§4.21） |
-| 「页眉和页脚」对话框设计稿（新 G 项）；插入页签「文本」组加「页眉和页脚…」 | PRD 07-design-coverage、设计 04 与 playground | 待回写（§4.21） |
+| 「页眉和页脚」对话框设计稿（新 G 项）；插入页签「文本」组加「页眉和页脚…」 | PRD 07-design-coverage、设计 04 与 playground | 已回写（2026-09-30：G-81，对话框见设计 03-15，入口见设计 03-04；文本编辑态的日期和时间格式选择器见设计 03-16） |
 | 能力总表行：INS-14、INS-17、ARR-02、ML-09 指向本文 | [50/18](./18-editor-capabilities.md) | 待回写（§4.21） |
 
 ## 10. 机械验证

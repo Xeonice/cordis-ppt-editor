@@ -1,5 +1,5 @@
 # 09 UI 组件体系与主题
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5a 复用件登记与颜色、渐变组件契约；cn 维持 clsx + tailwind-merge 并以 codemod 收口；react-colorful 改静态 CSS）；2026-09-26（§4.21 整合：§5a.1 登记 ui-react 通用 DataGrid；§6.1 toolbar 槽位补 table、table-cell、chart；§6.3 selectionKind 补四值；§8 文本编辑态白名单补段落对齐、字号与 Mod+K，导出键待 Mod+E 冲突裁决） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG、§4.20 FE-06 / FE-11 / FE-12 / FE-16 / FE-18、§4.21（R-d-12…R-d-19）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；[PRD 02](../10-prd/03-features/02-editing.md) ED-03、ED-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5a 复用件登记与颜色、渐变组件契约；cn 维持 clsx + tailwind-merge 并以 codemod 收口；react-colorful 改静态 CSS）；2026-09-26（§4.21 整合：§5a.1 登记 ui-react 通用 DataGrid；§6.1 toolbar 槽位补 table、table-cell、chart；§6.3 selectionKind 补四值；§8 文本编辑态白名单补段落对齐、字号与 Mod+K，导出键待 Mod+E 冲突裁决）；2026-09-30（§4.22：材质由两档改为三档，新增浮层档 `--glass-bg-float` / `glass-float`，迷你工具条与画布浮签改用浮层档；§2、§4、V3 同步） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG、§4.20 FE-06 / FE-11 / FE-12 / FE-16 / FE-18、§4.21（R-d-12…R-d-19）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；[PRD 02](../10-prd/03-features/02-editing.md) ED-03、ED-06
 
 本文是**浏览器 UI 体系的运行侧设计**唯一事实源：四个 UI 包怎样分工、设计 token 怎样变成 CSS 与组件外观、主题 / 密度 / 材质怎样解析并写到根元素、shadcn 复制件怎样管理、`ui.*` 贡献与上下文键怎样驱动视图模型、输入怎样变成命令、`UiRenderer` 怎样挂载、样式怎样注入与隔离。
 
@@ -71,7 +71,7 @@ flowchart TB
 | shadcn 语义色 | `--background`、`--foreground`、`--card`、`--popover`、`--primary`、`--secondary`、`--muted`、`--accent`、`--destructive`、`--border`、`--input`、`--ring`、`--chart-1..5`、`--sidebar-*` | 设计 09 §1.1、04 §2.2 / §2.3 / §9 | 全部组件（经 Tailwind 颜色工具类） |
 | 控件描边 | `--border-control`（亮 `#757F8F`，白底 ≥ 3:1，Q21） | rulings §4.10 Q21 | 输入框、开关、复选框描边 |
 | Cordex 扩展色 | `--success` / `--warning` / `--info`（各带 `-foreground`、`-muted`）、`--canvas`、`--canvas-glow`、`--doc-paper`、`--doc-ink`、`--stage`、`--stage-chrome`、`--stage-foreground`、`--presence-1..12` | 设计 09 §1.2、04 §2.2a / §2.4 | 状态徽标、画布背景、纸面、放映舞台、协作者色 |
-| 材质 | `--glass-bg`、`--glass-bg-strong`、`--glass-border-color`、`--glass-blur`、`--glass-shadow` | 设计 09 §6.2 | `@utility glass` / `glass-strong` 与浮层 `[data-slot]` 规则（§4） |
+| 材质 | `--glass-bg`、`--glass-bg-strong`、`--glass-bg-float`、`--glass-border-color`、`--glass-blur`、`--glass-shadow` | 设计 09 §6.2 | `@utility glass` / `glass-strong` / `glass-float` 与浮层 `[data-slot]` 规则（§4） |
 | 字阶与字族 | `--font-sans`（Geist Variable → 系统 → PingFang / 微软雅黑）、`--font-heading`、`--font-mono`、`--text-2xs`（11 px / 16 px） | 设计 09 §1.3 | 全部 UI 文字；画布内文字不受影响（EM-06） |
 | 圆角 | `--radius`（0.5 rem）与派生刻度 `sm…4xl` | 设计 09 §1.4 | 「越浮越圆」的层级圆角 |
 | 层级 | `--layer-canvas` 0 · `canvas-overlay` 10 · `chrome` 20 · `dropdown` 100 · `popover` 110 · `sticky` 120 · `toast` 300 · `modal-backdrop` 400 · `modal` 410 · `command-palette` 500 · `tooltip` 600 | 设计 01 §3、40/10 §12 G-10 | 全部浮层；集成方可在编辑器根上整体平移（EM-06） |
@@ -83,7 +83,7 @@ flowchart TB
 | 文件 | 内容 | 消费方 |
 |---|---|---|
 | `css/tokens.css` | 变量表：亮色默认 → `prefers-color-scheme` 兜底 → 三选择器暗色（§3）；`@theme inline` 注册颜色、圆角、`--text-2xs`、字族 | 经 `theme.css` |
-| `css/slots.css` | `@utility glass` / `glass-strong`、14 个浮层 `[data-slot]` 玻璃化、遮罩与 tooltip 胶囊、控件 `[data-slot]` 规则、两块退化、`body` 宿主防线（必须位于文件末尾） | 经 `theme.css` |
+| `css/slots.css` | `@utility glass` / `glass-strong` / `glass-float`、14 个浮层 `[data-slot]` 玻璃化（取 `--glass-bg-float`）、遮罩与 tooltip 胶囊、控件 `[data-slot]` 规则、两块退化、`body` 宿主防线（必须位于文件末尾） | 经 `theme.css` |
 | `css/theme.css` | `@import './tokens.css'` + `'./slots.css'` | `ui-react` 标准样式入口 `styles.css` 唯一 import 的 design 产物（§10「静态 · 应用」） |
 | `css/tailwind-theme.css` | 只含 `@theme inline` 注册片段 | `*-ui` 的无 preflight 样式入口 |
 | `css/theme.scoped.css` | 作用域变体：与 `theme.css` 同一 token 与 slot 规则，全部限定在 `[data-cordex-root]` 下，不写 `:root`、不触碰宿主 `body`（宿主防线改写到根） | `ui-react` 嵌入入口 `src/styles/embed.css`（产物 `./styles.embed.css`，§10「静态 · 嵌入」）；`injectCss:true` 的运行时注入源（§10；文件级见 40/10 §4.1、§4.2） |
@@ -202,12 +202,12 @@ flowchart TB
 
 | 规则 | 内容 |
 |---|---|
-| 两档玻璃 | `glass`（亮 72% / 暗 62% 不透明度）与 `glass-strong`（84% / 78%），共用 `--glass-blur: blur(24px) saturate(150%)` 与 `--glass-shadow`（内高光 + rim + 投影） |
-| 分层用法 | 浮层（菜单、弹层、对话框、命令面板、tooltip）用 strong；控件层的工具卡、侧栏卡、检查器卡、状态胶囊、横幅用 strong；画布上的缩放胶囊、迷你工具条、查找条用 `glass`，只放图标与短标签 |
-| 玻璃不叠玻璃 | 控件层之上出现浮层时，浮层用 strong 且控件层不再额外模糊；strong 面板不得叠在纸面之上（对比会下降） |
+| 三档玻璃（2026-09-30 §4.22，原为两档） | `glass`（亮 72% / 暗 62% 不透明度）、`glass-strong`（84% / 78%）与浮层档 `glass-float`（84% / 96%），共用 `--glass-blur: blur(24px) saturate(150%)` 与 `--glass-shadow`（内高光 + rim + 投影）；浮层档暗色取 96%，是因为浮层会叠在白色纸面上，78% 时说明文字只有 2.5:1，96% 时为 4.6:1（设计 09 §6.5；暗色 96% 与 92% 的取舍待用户确认，rulings §4.22 SR-2） |
+| 分层用法 | 浮层（菜单、弹层、对话框、Select、命令面板）以及画布屏幕坐标覆盖层上的迷你工具条与画布浮签（`CanvasFloat`，12px）用 `glass-float`；tooltip 为深色胶囊；控件层的工具卡、侧栏卡、检查器卡、状态胶囊、横幅用 strong；画布上的缩放胶囊、查找条用 `glass`，只放图标与短标签（2026-09-30 §4.22：迷你工具条由 `glass` 改为 `glass-float`） |
+| 玻璃不叠玻璃 | 控件层之上出现浮层时，浮层用 `glass-float` 且控件层不再额外模糊；strong 面板不得叠在纸面之上（对比会下降），会叠在纸面上的浮层一律用 `glass-float` |
 | 同屏上限 | 同屏 `backdrop-filter` 元素 ≤ 4（壳 3 块 + 1 个浮层）；画布区不加玻璃（NF-01 §1.5） |
 | 浮层自动玻璃化 | 由 `FLOATING_SLOTS` 清单（14 个 `data-slot`：`popover-content`、`dropdown-menu-content`、`dropdown-menu-sub-content`、`context-menu-content`、`context-menu-sub-content`、`select-content`、`dialog-content`、`alert-dialog-content`、`sheet-content`、`drawer-content`、`menubar-content`、`menubar-sub-content`、`hover-card-content`、`command`）命中，组件源码不写材质类；遮罩 `*-overlay` 为 `bg-black/20` + `blur(4px)`；`tooltip-content` 为深色玻璃胶囊 |
-| 两种退化 | `prefers-reduced-transparency: reduce` 与 `@supports not (backdrop-filter: blur(1px))` 两块**内容相同**，都覆盖 `.glass`、`.glass-strong` 与全部浮层 slot：背景改不透明 `var(--card)`、描边 `var(--border)`、阴影换普通阴影、`backdrop-filter: none`；tooltip 保持不透明深色；遮罩加深为 `rgb(0 0 0 / .40)`。两块由同一函数 `degradationBlocks(slots)` 从同一清单生成 |
+| 两种退化 | `prefers-reduced-transparency: reduce` 与 `@supports not (backdrop-filter: blur(1px))` 两块**内容相同**，都覆盖 `.glass`、`.glass-strong`、`.glass-float` 与全部浮层 slot：背景改不透明 `var(--card)`、描边 `var(--border)`、阴影换普通阴影、`backdrop-filter: none`；tooltip 保持不透明深色；遮罩加深为 `rgb(0 0 0 / .40)`。两块由同一函数 `degradationBlocks(slots)` 从同一清单生成 |
 | 前缀顺序 | `-webkit-backdrop-filter` 必须写在 `backdrop-filter` 之前（Lightning CSS 对同一属性去重只留最后一条，写反会丢掉标准属性，Chrome 下「半透明但不模糊」）；编译产物必须同时含两者 |
 | 交互期间不透明 | `data-interacting` 存在时玻璃面板临时切为不透明、`backdrop-filter: none`，结束后恢复（M2） |
 | 重绘隔离 | 玻璃面板 `contain: paint`（M2） |
@@ -628,7 +628,7 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 |---|---|---|---|
 | V1 | 入库 `css/*.css` 与 token 源生成结果逐字节一致 | `design/__tests__/build-theme-check.test.ts` | `test/unit` |
 | V2 | `ui-react`、`*-ui`、`apps/*` 出现的每个扩展变量都在 `tokens.css` 声明；出现 `--cordex-*` 即失败；`body` 防线位于 `slots.css` 末尾 | `design/__tests__/theme-vars-contract.test.ts`（TD-092） | `test/unit` |
-| V3 | 全部前景 / 背景配对达 WCAG AA：含 `glass-strong` 上的正文、`--border-control` ≥ 3:1、`presence-1..12` 在画布上亮暗 ≥ 3:1 | `design/__tests__/contrast.test.ts` | `test/unit` |
+| V3 | 全部前景 / 背景配对达 WCAG AA：含 `glass-strong` 上的正文、`glass-float` 叠在白色纸面上的说明文字与主色、`--border-control` ≥ 3:1、`presence-1..12` 在画布上亮暗 ≥ 3:1 | `design/__tests__/contrast.test.ts` | `test/unit` |
 | V4 | 玻璃化清单 = 两块退化清单；`-webkit-backdrop-filter` 先于 `backdrop-filter` | `design/__tests__/slots-degradation.test.ts` | `test/unit` |
 | V5 | 六种主题组合（亮、暗、`.dark`、`data-cordex-theme`、宿主 `data-theme`、`prefers-color-scheme`）解析结果一致；覆盖值含 `url(` 等被拒 | `design/__tests__/theme-selectors.test.ts`、`ui-core/__tests__/theme.service.test.ts` | `test/unit` |
 | V6 | 复制件集合 = 桶文件导出 = `components.json` 记录；风格 `radix-rhea`；全仓单一副本；override 全部登记 | `ui-react/__tests__/shadcn-copy.test.ts`（TD-091）；上游差异报告 | `test/unit`；`scanners/shadcn-diff` |

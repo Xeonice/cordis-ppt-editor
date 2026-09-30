@@ -1,7 +1,7 @@
 // 用法：node capture-screens.cjs <dist 服务 URL> <输出目录> [--only=08,13]
 // 为文档站「设计集中展示」实拍 playground（先 npm run build，再用静态服务器在 <URL> 提供 docs/20-design/playground/dist/）：
-// 每个路由拍默认态 + 至多 3 个代表态（15 插入界面为 §4.21 样张放宽，见 SCREENS 注释）；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
-// 输出 <输出目录>/*.jpg 与 manifest.json（29 个 03-screens 文档全部登记；无专属路由的 states 为 []，用 seeAlso 指向相关界面）。
+// 每个路由拍默认态 + 至多 3 个代表态（15 / 16 / 30 / 31 为 §4.21 样张放宽，见 SCREENS 注释）；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
+// 输出 <输出目录>/*.jpg 与 manifest.json（31 个 03-screens 文档全部登记；无专属路由的 states 为 []，用 seeAlso 指向相关界面）。
 // 切换演示态：点击 DesignBar 的演示状态下拉 [data-slot=select-trigger]，再点对应文字的 [data-slot=select-item]；
 // 暗色：页面脚本运行前把 localStorage["cordex-theme"] 设为 dark/light（src/lib/theme.ts 中显式选择优先级最高），并同步 colorScheme。
 const fs = require("fs"); const path = require("path"); const { execSync } = require("child_process");
@@ -42,8 +42,12 @@ const SCREENS = [
     [["default", "默认 · 插入页签"], ["shapes", "形状库 · 72 项"], ["insert-tool", "插入工具态 · 拖出"], ["action-settings", "动作按钮 · 操作设置"],
      ["header-footer", "页眉和页脚对话框"], ["icons", "图标面板"], ["symbols", "符号面板 · 编辑文本"], ["media-p2", "禁用原因 · 视频 P2"],
      ["handles", "变换手柄（缩放/旋转）"]]),
+  // 16：另含 rulings §4.21 样张 G-80 空内容占位符图标条（屏幕坐标覆盖层、窄占位符折叠为「插入 ▾」、表格图标弹出网格 Q2）、G-81 文本编辑态「日期和时间」格式选择器
   S("16", "16-text-editing-and-formatting.md", "文本编辑态与格式化", "编辑器·画布", "/editor/text",
-    [["editing", "编辑中 · 迷你工具条"], ["restricted-font", "受限字体三处提示"], ["bullets", "项目符号 · 多级缩进"]]),
+    [["editing", "编辑中 · 迷你工具条"], ["restricted-font", "受限字体三处提示"], ["bullets", "项目符号 · 多级缩进"],
+     ["placeholder-icons", "空内容占位符 · 图标条"], ["placeholder-focus", "图标条 · 键盘焦点与禁用原因"], ["placeholder-collapsed", "图标条 · 窄占位符折叠"],
+     ["placeholder-table-grid", "占位符 · 表格网格"], ["placeholder-drop", "图片拖入空占位符"],
+     ["datetime", "日期和时间 · 格式选择器"], ["datetime-field", "已插入日期字段"]]),
   S("17", "17-selection-alignment-and-snapping.md", "选择、多选、对齐、分布、吸附、网格与参考线", "编辑器·画布", null, [], ["02"]),
   S("18", "18-image-editing.md", "图片操作（上传/裁剪/替代文本）", "编辑器·画布", null, [], ["15", "02"]),
   S("19", "19-undo-redo-clipboard-and-save-state.md", "撤销重做、剪贴板反馈、保存态与离开保护", "编辑器·画布", "/editor",
@@ -61,6 +65,21 @@ const SCREENS = [
   S("28", "28-design-tab-and-themes.md", "设计页签：主题、变体、主题色与字体编辑", "母版与主题", "/editor/design",
     [["browse", "浏览已应用主题（默认）"], ["color", "自定义颜色编辑中"]]),
   S("29", "29-home-start-page.md", "应用首页（开始页）", "应用壳", "/home", [["default", "默认（有最近文档）"], ["first-run", "首次使用（无文档，突出指南）"]]),
+  // 30 / 31：rulings §4.21 样张（G-32 / G-62 表格编辑；G-63 插入图表与图表数据编辑），设计稿已于 2026-09-30 回写到 03-screens/30、31；
+  // 2026-09-30 收口（SF-14）：30 增插入表格对话框（含超限）、占位符表格网格、M2 单元格选区、样式库全部 74 种；31 增占位符图表、数据网格右键、紧凑网格超限、
+  // 原工作簿提示、更改类型下拉与两种确认，m2-disabled 标签改为「M2 · 图表 ▾ 禁用 · 选中导入图表」
+  S("30", "30-table-editing.md", "表格编辑", "编辑器·画布", "/editor/table",
+    [["inserted", "插入后 · 默认表格与首格光标"], ["grid", "插入网格 · 3 × 4"], ["cell-nav", "单元格编辑 · Tab 导航"], ["range", "单元格选区 · 多选"],
+     ["hover-insert", "悬停插入手柄（M3）"], ["resize", "拖分隔线调列宽（M3）"], ["context-menu", "右键菜单 · 行列与合并（M3）"], ["m2-menu", "M2 · 结构编辑灰显"],
+     ["merged", "合并单元格后（M3）"], ["borders", "边框选择器（M3）"], ["styles", "表格样式库 · 6 个标志（M3）"], ["remote-delete", "他人删除了正在编辑的行"],
+     ["placeholder-grid", "占位符 · 表格网格"], ["table-dialog", "插入表格对话框"], ["table-dialog-error", "插入表格对话框 · 超出上限"],
+     ["m2-range", "M2 · 单元格选区"], ["styles-all", "样式库 · 全部 74 种（M3）"]]),
+  S("31", "31-chart-editing.md", "图表编辑", "编辑器·画布", "/editor/chart",
+    [["inserted", "插入后 · 示例图表与数据面板"], ["menu", "图表 ▾ · 五类与子类型"], ["placeholder-chart", "占位符图标条 › 图表（M3）"],
+     ["drawer", "数据网格 · 展开抽屉"], ["grid-menu", "数据网格 · 行列右键菜单"], ["compact-overflow", "紧凑网格 · 超过 8 × 4"],
+     ["workbook-notice", "数据面板 · 原工作簿提示"], ["type-switch", "更改图表类型"], ["type-menu", "更改类型 ▾ · 下拉"],
+     ["type-confirm", "更改类型 · 会移除导入内容"], ["type-confirm-menu", "更改类型 ▾ · 下拉内确认"], ["options", "标题 / 图例 / 数据标签"],
+     ["pie", "饼图 · 百分比标签"], ["readonly-type", "此类型仅支持查看"], ["m2-disabled", "M2 · 图表 ▾ 禁用 · 选中导入图表"]]),
 ]
 // 非 03-screens 的补充界面（样式指南：09-design-specification §2），生成器可选用
 const EXTRAS = [{ ...S("styleguide", "", "样式指南（组件状态矩阵）", "设计系统", "/styleguide", [["default", "默认", { noBar: true }]]), doc: "09-design-specification.md" }]

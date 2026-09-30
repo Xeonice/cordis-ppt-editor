@@ -1,6 +1,6 @@
 # ADR-0018 可追加元素的模型补全与插入命令族（含表格归一化）
 
-> 状态：草稿 | 负责：架构-结构（主笔 M-03；会签 M-04、M-07、M-10） | 更新：2026-09-26（§4.21：新建。插入命令通用流程与守卫、新增命令与 Mutation、`ShapeKindDef.capabilities` 扩展、`objectDefaults` 只读建模、表格归一化与 I-TBL1/I-TBL2、装饰性标记、连接符跟随与空组规则）；2026-09-26（§4.21 整合：决策 5 定 BlipFill.effects 只读建模与外链来源二选一；决策 6 I-TBL2 并发插入改扩张修复、登记内置表格样式数据来源口径；决策 10 补 fillPlaceholder 并发与 I-PH1、页脚族确定性 id、setSlideProperties 与 setBodyProperties） | 依赖：charter v0.2 D4、D7、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/Q7、§4.17 D2、§4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts、q-frackey、X:q-content-types）；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（elementDesign、R-d-61…R-d-78）
+> 状态：草稿 | 负责：架构-结构（主笔 M-03；会签 M-04、M-07、M-10） | 更新：2026-09-26（§4.21：新建。插入命令通用流程与守卫、新增命令与 Mutation、`ShapeKindDef.capabilities` 扩展、`objectDefaults` 只读建模、表格归一化与 I-TBL1/I-TBL2、装饰性标记、连接符跟随与空组规则）；2026-09-26（§4.21 整合：决策 5 定 BlipFill.effects 只读建模与外链来源二选一；决策 6 I-TBL2 并发插入改扩张修复、登记内置表格样式数据来源口径；决策 10 补 fillPlaceholder 并发与 I-PH1、页脚族确定性 id、setSlideProperties 与 setBodyProperties）；2026-09-30（§4.22 设计待决收口：决策 6 注明 `splitCell` 只拆合并格、按行列数拆分推迟；决策 10 注明插入页签也填入空内容占位符、`obj` 占位符放图片的方式推迟）；2026-09-30（§4.22 复核修正：决策 10 的 Q1 落点补「已选中的空占位符优先」） | 依赖：charter v0.2 D4、D7、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/Q7、§4.17 D2、§4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts、q-frackey、X:q-content-types）；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（elementDesign、R-d-61…R-d-78）
 
 ## 状态
 
@@ -132,7 +132,7 @@ interface TableCell {
 
 - **寻址**：行、列、格都按 id 寻址，顺序由 `order: FracKey` 承载（键格式随 q-frackey 改写的 ADR-0032）；Mutation 载荷无下标。选区锚点 `tableCell` 与文本目标 `TextTarget.cell` 改为 `{ rowId, colId }`（30/04 §3.6）。
 - **删除**：删行、删列写 `_deleted` 墓碑（与 30/04 §3.1a 同口径），该行或列上的格随之不可见（包含关系）；撤销以原 id 复活；硬删由墓碑清扫一并处理。
-- **合并**：锚格记 `gridSpan`/`rowSpan`，被覆盖格记 `hMerge`/`vMerge`；拆分清除这些标记。
+- **合并**：锚格记 `gridSpan`/`rowSpan`，被覆盖格记 `hMerge`/`vMerge`；拆分清除这些标记。`splitCell` 只拆回合并前的格，普通格上禁用并给原因（设计 03-30 §5.3）；普通格按行列数拆分推迟（DF-04，触发条件：M3 之后出现明确用户需求时再议，届时扩 `slide.table.splitCell{rows?, cols?}` 与对应 Mutation，I-TBL2 的修复面随之变大，见 rulings §4.22）。
 - **不变量**：**I-TBL1** 每个存活行在每个存活列上都有格（缺格由 `repair` 补空格，键确定、内容确定，两端独立修复也收敛）；**I-TBL2** 跨度合法（锚格跨度不越过存活行列的末尾、被覆盖格的标记与锚格一致、合并区不重叠；越界的跨度收缩；并发插入的行列落在他人合并区内部时，从锚格起按当前顺序扩张跨度到原被覆盖的最后一行或列、新格补写被合并标记，与本机在合并区内插入时的行为一致（2026-09-26 整合，50/24 §2.14 第 7 条）；扩张后仍重叠或无锚格可归属的孤立标记才清除）。两者都是 30/04 §12.3 同类的纯函数 `check`/`repair`，服务端软门禁以 `system('repair')` 执行，客户端读时容错（缺格按空格画）。
 - **导出**：按 `(order, id)` 排序存活的行与列，重建 `a:tblGrid/a:gridCol@w`、`a:tr@h`、`a:tc` 及其 `gridSpan`/`rowSpan`/`hMerge`/`vMerge` 属性；导入反之（为每个 `a:tr`、`a:gridCol` 生成 id 与等距键）。
 - **内置表格样式数据**（2026-09-26 整合，40-modules/04 Q-10；rulings §4.21 推迟项、ADR-0049 T-05）：74 种内置样式的数据自备（按 ECMA-376 与 PowerPoint 对照整理），不复制 LibreOffice 的 MPL-2.0 样式数据（B 档只允许不修改的依赖，不允许复制源码或数据文件）；数据形状与 ooxml-core 的 `TableStyleEntry`（即 `TableStyleReadModel` 中的单个样式）一致，供 slide-render 渲染与 `ooxml-pptx` `export/table-styles.ts` 在 M3 按 ADR-0008 决策 9 (d) 追加定义；来源与许可在 M3 表格样式开工前定稿并登记进 `license-allowlist.json#dataFiles`。
@@ -210,7 +210,7 @@ sequenceDiagram
 
 ### 10. 内容占位符的填入与删除恢复
 
-- `slide.fillPlaceholder{ shapeId, content }`：一个事务内给空占位 `Sp` 写墓碑、按需 `media.add`、插入带**同一** `PlaceholderRef`（同 `type`、`index`）与同一 `order` 的 `Pic` 或 `GraphicFrame`；图片按占位符框裁剪到填满（算 `srcRect`）。
+- `slide.fillPlaceholder{ shapeId, content }`：一个事务内给空占位 `Sp` 写墓碑、按需 `media.add`、插入带**同一** `PlaceholderRef`（同 `type`、`index`）与同一 `order` 的 `Pic` 或 `GraphicFrame`；图片按占位符框裁剪到填满（算 `srcRect`）。`obj` 占位符放图片是裁剪填满还是等比放入推迟（DF-09，触发条件：M2 P1 图片填入开工前，维护机实测 `p:pic` 的 `xfrm` 与 `srcRect`；结论为等比时改本条，`pic` 占位符两种结论都裁剪，见 rulings §4.22）。调用方除占位符图标条外，还有插入页签与命令面板：插入表格、图表、图片时页上有空内容占位符，就填入阅读序第一个（已选中的空占位符优先，rulings §4.22 Q1）。
 - 删除带内容族 `PlaceholderRef` 的图片、表格、图表、媒体时，`slide.deleteShapes` 同一事务补回一个空占位 `Sp`（新 id、同 `PlaceholderRef` 与 `order`），与 PowerPoint 一致；撤销一步回到删除前。
 - 占位符族划分与匹配以 PRD ML-02、ML-03 为准（30/04 §12.2 改写后的 `placeholderFamily`、`canChangePlaceholderType` 与 `compatiblePlaceholderTypes`）。
 - **并发填入**（2026-09-26 整合，50/21 §3）：`fillPlaceholder` 的前置检查——目标空占位 `Sp` 已是墓碑（他人已填入）时改为普通插入并 toast；两人同时填入同一占位符时两者都保留，由软不变量 **I-PH1**（同页同 `(type, idx)` 的存活内容族占位符至多一个；修复保留 `(order, id)` 最小者，其余 `materialize` 为普通元素）经服务端软门禁修复一次（ADR-0034）。

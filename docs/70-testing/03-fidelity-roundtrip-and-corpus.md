@@ -1,5 +1,5 @@
 # 03 保真往返与语料库
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5.3 可追加元素往返语料；`[Content_Types].xml` 与 `.rels` 统一为「结构不变原样写回」（§4.2、§5.2 E7）；E9 白名单补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm`；§8 XML 限额改引 `XmlLimits`、补畸形 XML 两类；§9 表格样式、图表、墨迹、嵌入字体行）；2026-09-26（§4.21 整合：§1 规则 6 登记维护机生成的 oracle 样本（图表矩阵、arrow-ends、形状库 69 项）；§5.3 补五个命名往返用例）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5） | 依赖：rulings §4.21 X:q-content-types / q-table-depth / q-chart-route / q-extra-inserts、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5.3 可追加元素往返语料；`[Content_Types].xml` 与 `.rels` 统一为「结构不变原样写回」（§4.2、§5.2 E7）；E9 白名单补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm`；§8 XML 限额改引 `XmlLimits`、补畸形 XML 两类；§9 表格样式、图表、墨迹、嵌入字体行）；2026-09-26（§4.21 整合：§1 规则 6 登记维护机生成的 oracle 样本（图表矩阵、arrow-ends、形状库 69 项）；§5.3 补五个命名往返用例）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5）；2026-09-30（§4.22 设计待决收口：新增 §12.1，登记三项 PowerPoint 对照与语料——DF-08 三语日期字段、DF-09 `obj` 占位符填图、DF-03 表格列分隔线拖动；§1 规则 6、§5.3、§13、§15、§16 同步） | 依赖：rulings §4.22 DF-03 / DF-08 / DF-09、rulings §4.21 X:q-content-types / q-table-depth / q-chart-route / q-extra-inserts、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
 
 本文是保真往返与语料库的测试侧唯一事实源：语料分三层放在哪里、清单长什么样、样本怎么进来和退役、零编辑与编辑后往返怎么判、导出确定性与打开管线怎么验、错误码语料、基线包、快照迁移语料、PowerPoint 互操作证据，以及这些检查在哪个 CI 步骤、何时跑。
 
@@ -40,7 +40,7 @@
 3. **废止的落点**：`fixtures/pptx/wild/` 并入 T2 登记（文件迁到语料存储）；30/11 §12 的 `test/corpus/decks/` 不再使用。T1 的子目录分工：`minimal/` 放「每个矩阵行一个」的最小样本，`features/` 放专项样本，文件名前缀区分子集：`inherit-*`（继承专项）、`preserve-*`（保留专项）、`strict-*`（Strict 一致性类）、`errors-*`（错误码语料中可入 git 的部分）、`objects-*`（表格、图表、SmartArt、OLE 等特殊对象）。
 4. **语料存储**：测试基础设施专用桶（与产品部署的 `data` / `snapshots` 两个桶无关），按 sha256 内容寻址，T2 / T3 样本、视觉基线产物（04 §2）与互操作证据截图（§12）共用；键布局、访问变量、取回脚本 `test/corpus/scripts/fetch-corpus.ts` 与缓存键以 [11 §10](./11-test-data-fixtures-and-determinism.md#10-大文件t-corpus) 为唯一登记处，本文不另起键名。不使用 Git LFS（配额与 fork 体验差，30/11 §14 T1）。
 5. **拉取的执行规则**：每次读取都重算 sha256，不符即失败；CI 以 secrets 注入只读凭据（`CORDEX_CORPUS_ACCESS_KEY_ID` / `CORDEX_CORPUS_SECRET_ACCESS_KEY`，端点与桶名为普通变量 `CORDEX_CORPUS_S3_ENDPOINT` / `CORDEX_CORPUS_BUCKET`，rulings §4.20 TX-16），写入只由维护者以同名本地变量持写凭据执行；缺任一变量、缺凭据或缺对象时步骤**失败，不跳过**；来自 fork 的 PR 由维护者批准后运行（[12 §3](./12-ci-gates-mapping.md)）。
-6. **维护机生成的 oracle 样本**（2026-09-26 整合登记，[04](./04-visual-oracle.md) §8.1、§8.2）：图表语料矩阵各行的样本（维护机脚本 `test/oracle/baseline/make-chart-corpus.ps1` 经 COM 生成）、箭头尺寸样本 `arrow-ends.pptx` 与形状库 69 项默认插入样本，都登记为 `source: 'producer-export'`、`producer: 'powerpoint-win'`，并在 `generator.script` 记下生成脚本；图表样本带 `oracle.categories` 含 `'chart'`，另两类带 `'geometry'`。tier 按规则 2 判定（能入 git 的放 `fixtures/pptx/features/`，否则登记为 T2）。它们依赖 PowerPoint，不进 `gen_cases.py --check` 的可重现检查，改版时由维护机重跑脚本并更新 sha256。
+6. **维护机生成的 oracle 样本**（2026-09-26 整合登记，[04](./04-visual-oracle.md) §8.1、§8.2）：图表语料矩阵各行的样本（维护机脚本 `test/oracle/baseline/make-chart-corpus.ps1` 经 COM 生成）、箭头尺寸样本 `arrow-ends.pptx` 与形状库 69 项默认插入样本，都登记为 `source: 'producer-export'`、`producer: 'powerpoint-win'`，并在 `generator.script` 记下生成脚本；图表样本带 `oracle.categories` 含 `'chart'`，另两类带 `'geometry'`。tier 按规则 2 判定（能入 git 的放 `fixtures/pptx/features/`，否则登记为 T2）。它们依赖 PowerPoint，不进 `gen_cases.py --check` 的可重现检查，改版时由维护机重跑脚本并更新 sha256。rulings §4.22 推迟项要的三组 PowerPoint 对照样本（DF-08、DF-09、DF-03）同样按本条登记，清单与触发条件见 §12.1。
 
 **图 1-1 语料分层与用途**
 
@@ -410,7 +410,7 @@ export default defineElementScript({
 | 组合 | M2 | 嵌套组的 `chOff`/`chExt` 往返；组属性 `extLst` 写回 |
 | 连接符 | M2（肘形与曲线重算 M3） | `stCxn`/`endCxn` 引用的 `cNvPr@id` 存在且一致（E6）；删除被连接的形状后导出去掉失效引用并上报诊断；再导入连接关系不变 |
 | 图片、SVG | M2（SVG 的 PNG 回退 M2 P1） | 新媒体部件按 `image<N>.<ext>` 命名（E10）；`[Content_Types].xml` 只在首次出现该扩展名时新增 `Default`；只有该页的 `.rels` 结构变化（E7）；SVG 写 `asvg:svgBlip` 并带回退图片 |
-| 页眉页脚与文本字段（页码、日期） | M2（P2） | `a:fld` 的 `id` 与 `type` 原样；脏部件的缓存 `a:t` 写当前计算值，干净部件原样；`p:hf` 往返；再导入仍是字段而非纯文本 |
+| 页眉页脚与文本字段（页码、日期） | M2（P2） | `a:fld` 的 `id` 与 `type` 原样；脏部件的缓存 `a:t` 写当前计算值，干净部件原样；`p:hf` 往返；再导入仍是字段而非纯文本；日期字段缓存值的期望格式取 §12.1 DF-08 的三语语料 |
 | 超链接 | M2（P1） | 新增 `TargetMode="External"` 关系；只有 `http(s)` 可激活；页 `.rels` 重生成后原有条目保持原相对顺序 |
 | 表格 | 插入与单元格文字 M2；结构与样式 M3 | 插入写 `a:tbl`、`tableStyleId` 与 `firstRow`/`bandRow`；M3 套用包内没有的内置样式时 `tableStyles.xml` 只在末尾追加该样式定义（E9），已有条目字节不动、不重复追加；合并格的 `gridSpan`/`rowSpan`/`hMerge`/`vMerge` 往返；再导入样式 id 与格内容不变 |
 | 图表（柱形、折线、饼、面积、散点） | M3 | 新增 `chartN.xml`、其 `.rels`、`embeddings/*.xlsx` 与内容类型；`c:numCache`/`c:strCache` 与 `Chart.data` 逐点一致；`c:externalData` 指向新 xlsx；xlsx 用 `ooxml-core` 打开后单元格值与缓存一致；改数据后只有该图表部件与 xlsx 变化；N3 另验 PowerPoint「编辑数据」可打开 |
@@ -592,6 +592,35 @@ PRD 05 M1 验收 3（`fidelity:interop`）、PRD 01 §4.4、NF-08。PowerPoint �
 
 **证据归档**（决策 T-COVERAGE-EVIDENCE）：每次执行写 `test/evidence/<里程碑>/fidelity-interop.md`（结论、日期、执行人、PowerPoint 版本与 build、样本数、失败项与复核结论、产物链接）；截图等大文件按 sha256 存入同一对象存储（[11 §10](./11-test-data-fixtures-and-determinism.md#10-大文件t-corpus)），证据文件列出其 sha256；需求追溯矩阵中标 `manual` 并单独统计（[13](./13-requirements-traceability.md)）。执行频率：每周一次，另在每个里程碑出口前全量一次。
 
+### 12.1 PowerPoint 行为对照与待交付语料（rulings §4.22）
+
+rulings §4.22 有三项推迟项要等维护机上的 PowerPoint 结果才能定稿。它们不是周期检查，按各自的触发条件交付一次，上游改版时重跑。样本按 §1 规则 6 登记（`source: 'producer-export'`、`producer: 'powerpoint-win'`，脚本记在 `generator.script`；手工操作的记 `manual:<编号>`）；抽取结果由 `test/corpus/scripts/pptref-extract.ts` 按编号输出 JSON；结论写 `test/evidence/<里程碑>/pptref-<编号>.md`（里程碑取交付时所在的里程碑，格式同 §12 的证据归档），交前端设计线核对、定稿并回写。
+
+| 编号 | 交付物 | 做法与判读 | 触发条件 | 结论去向 |
+|---|---|---|---|---|
+| DF-08 | `datetime1`…`datetime13` 三语语料 | 维护机脚本 `test/oracle/baseline/make-datetime-corpus.ps1` 按 zh-CN、en-US、ja-JP 三种语言（文本的语言标记与「日期和时间」对话框的语言一致），各插入 13 种日期字段（勾「自动更新」），用 PowerPoint 另存。插入时刻要能区分月与日、12 与 24 小时制，取样张同一时刻 2026-09-30 14:32:05，脚本记下实际时刻。抽取每个 `a:fld@type` 与其缓存 `a:t`，得到 3 × 13 的「格式代码 → 显示值」表 `test/corpus/expected/datetime-formats.json`；M2 P2 起，产品侧格式表的单测以它为期望值 | M2 P2 开工 `slide.insertField`、`slide.setHeaderFooter` 之前 | 前端设计线（[50/20](../50-frontend/20-elements-text.md) §8 T-4）核对，回写设计 03-16 与 `datetime-formats.ts`；en-US 的 `datetime4`、`datetime6` 与 PowerPoint 原样一致就照搬 |
+| DF-09 | `obj` 占位符填入图片后的 `p:pic` | 维护机脚本 `test/oracle/baseline/make-placeholder-picture.ps1` 分别在 `obj` 占位符（「标题和内容」版式）与 `pic` 占位符（「图片与标题」版式）上，用占位符图标插入三种长宽比的图片（比框宽、比框高、与框同比），然后另存。抽取 `p:pic` 的 `p:spPr/a:xfrm`（有无、取值）与 `a:blipFill/a:srcRect`。没有显式 `xfrm`（或等于占位符框）且 `srcRect` 在一个方向非零，判为「裁剪填满」；有显式 `xfrm`、一边等于框另一边更小，且 `srcRect` 缺省或全零，判为「等比放入」。定稿后，§5.3 里图片填入占位符的元素脚本以这批样本为 `elementXml` 的对照 | M2 P1 图片填入（`slide.fillPlaceholder` 图片）开工前 | 前端设计线（[50/21](../50-frontend/21-elements-structure.md) §8 S-4）定稿；结论为等比放入时改 ADR-0018 决策 10、50/21 §3 与 [50/19](../50-frontend/19-insertable-elements-overview.md) §3.1；`pic` 占位符两种结论都裁剪，样张不改 |
+| DF-03 | 表格内部列分隔线的拖动语义 | 3 列等宽表格样本，维护者在 PowerPoint 里手工拖第 1、2 列之间的分隔线向右约 0.5 in（COM 只能直接设列宽，模拟不了拖动），另存并录屏。抽取 `a:gridCol@w` 与 `p:graphicFrame/p:xfrm/a:ext@cx`：左列变宽、右列等量变窄、表宽不变，判为「此消彼长」；只有左列变宽、表宽随之变大，判为「只改左列」 | M3 表格结构开工前 | 前端设计线（[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.14 第 4 条）定稿；样张暂按此消彼长，结果不符时改列宽拖动角标与设计 03-30 §5.2 |
+
+**图 12-1 PowerPoint 对照项的交付与回写**
+
+```mermaid
+flowchart LR
+  trig["触发条件：DF-08 在 M2 P2 字段命令前，DF-09 在 M2 P1 图片填入前，DF-03 在 M3 表格结构前"]
+  pp["维护机 PowerPoint：脚本或手工操作后另存"]
+  reg["登记 manifest：producer-export、powerpoint-win、generator.script"]
+  ext["pptref-extract.ts：抽取字段缓存、xfrm 与 srcRect、gridCol 与表宽"]
+  ev["证据：test/evidence 下的 pptref 结论"]
+  fe["前端设计线核对与定稿"]
+  wb["回写：设计 03-16、03-30，50/20、50/21、50/24，ADR-0018"]
+  exp["期望值：datetime-formats.json 与 §5.3 elementXml 对照"]
+  trig --> pp --> reg --> ext --> ev --> fe --> wb
+  ext --> exp
+```
+
+怎么读：三项都走同一条路：到触发条件时在维护机上产出 PowerPoint 另存的样本，按 §1 规则 6 登记，再抽取判读所需的字段写成证据，交前端设计线定稿并回写各自的文档；DF-08 与 DF-09 的抽取结果同时成为后续自动测试的期望值。
+依据：rulings §4.22 DF-03、DF-08、DF-09；50/20 §8 T-4、50/21 §8 S-4、50/24 §2.14 第 4 条。
+
 ---
 
 ## 13. 运行时机与产物
@@ -612,6 +641,7 @@ PRD 05 M1 验收 3（`fidelity:interop`）、PRD 01 §4.4、NF-08。PowerPoint �
 | 基线包（§10，M2 起；B5 M3） | 每次 | 每次 | `test/server-integration` |
 | LibreOffice 互操作（I6） | — | 每次（崩溃或超时即失败，差异只报告） | `test/fidelity-roundtrip`（nightly 套件） |
 | PowerPoint 互操作（I1–I5、I8、I9） | — | — | 维护机，每周与里程碑出口前 |
+| PowerPoint 对照（§12.1 DF-08、DF-09、DF-03） | — | — | 维护机，按各项触发条件交付一次，上游改版时重跑 |
 
 - **PR 时长**：NF-09 规定每 PR 的语料回归 ≤ 10 min。先在步骤内按 `sha256` 取模分片并行；分片后仍超时，T1 部分改为抽样：全部 gated 样本 ∪ 特性标签与本 PR 改动包相关的样本（映射表 `test/corpus/package-features.json`，改动 `ooxml-*` 时视为全部相关）∪ 轮换切片（`hash(id) mod 7 == PR 编号 mod 7`）。抽样规则确定、可复现。
 - **重试**：本文全部门禁步骤不重试、不隔离（决策 T-CI）。nightly 失败自动建 issue 并阻断下一次发布打标签，不阻断合并；步骤与触发段的总表见 [12](./12-ci-gates-mapping.md)。
@@ -647,6 +677,7 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | 历史快照样本全部迁移并校验；schema 变更必有迁移与样本 | ADR-0009 | `test/snapshot-migration-corpus`；`scanners/schema-lock` | 机械 |
 | PowerPoint 打开无修复、另存再开稳定、评论部件可见（I8）；可追加元素 N3 | `fidelity:interop`（M1 验收 3）、`comments:roundtrip`（M3 验收 11）、NF-08 | 维护机脚本 + 人工复核，证据归档 | 半机械 |
 | LibreOffice 打开不崩溃（差异只报告） | NF-08 | `test/fidelity-roundtrip`（nightly） | 机械 |
+| §4.22 推迟项的 PowerPoint 对照在触发条件前交付，样本登记、抽取 JSON 与证据齐全（§12.1） | rulings §4.22 DF-03、DF-08、DF-09 | 维护机脚本或手工操作 + `pptref-extract.ts`，证据归档 | 半机械 |
 | docx / xlsx 零编辑往返 | `roundtrip:docx-xlsx`（M5 验收 5） | `test/fidelity-roundtrip` | 机械 |
 
 ---
@@ -668,6 +699,14 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | q-table-depth、q-chart-route、q-extra-inserts、q-media-insert 与元素范围 | 可追加元素往返语料 N1–N4 与逐类断言；表格 M2 插入与单元格文字、M3 结构与样式；图表 M3；图标与符号 M3 P2；音视频插入 P2 且不写 `p:timing`；不提供插入的元素不进语料 | §5.3 |
 | X:q-xml-lexer（XML 限额单一来源、DOCTYPE 一律拒绝） | XML 限额样本从 `XmlLimits` 读取；DOCTYPE 类样本一律以 `xml.doctype` 拒绝；非必需部件畸形 XML 降级不拒绝 | §8 |
 | ADR-0008 决策 9 白名单新增项 | E9 补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm` | §5.2、§9 |
+
+**rulings §4.22 推迟项（测试线负责出语料或对照）**
+
+| 编号 | 本文写法 | 位置 |
+|---|---|---|
+| DF-08 | 三语 PowerPoint 另存的 `datetime1`…`datetime13` 语料与「格式代码 → 显示值」表；触发条件：M2 P2 开工 `slide.insertField`、`slide.setHeaderFooter` 之前 | §12.1、§5.3 |
+| DF-09 | 维护机实测 `obj` 与 `pic` 占位符填入图片后 `p:pic` 的 `xfrm` 与 `srcRect`；触发条件：M2 P1 图片填入开工前 | §12.1 |
+| DF-03 | 表格内部列分隔线拖动语义与 PowerPoint 对照；触发条件：M3 表格结构开工前 | §12.1 |
 
 **本文已定、依据已接受口径的取舍**
 

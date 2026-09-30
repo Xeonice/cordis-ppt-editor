@@ -1,5 +1,5 @@
 # 09 性能与容量测试
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：负载驱动与时序图的 CONTROL.auth 改为 Auth 帧）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4（原 30/08 §12 / §16.5）、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：负载驱动与时序图的 CONTROL.auth 改为 Auth 帧）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-30（§4.22 设计待决收口：新增 §3.1 大表插入基准（DF-10），为「插入表格…」对话框行列上限定值，暂按 75 × 75 占位；§10 nightly、§13、§14 同步） | 依赖：rulings §4.22 Q3-table-row-limit / DF-10、[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.3 / §2.14、rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4（原 30/08 §12 / §16.5）、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
 
 本文是性能与容量测试的测试侧唯一事实源：数字从哪里来、`test/perf/budgets.json` 长什么样、有哪些场景、怎么测、噪声怎么控、门禁怎么判、体积预算的唯一阻断点、预算怎么校准。
 
@@ -184,6 +184,60 @@ classDiagram
 
 RM-B：同一组场景在 nightly 以 RM-B 标签重跑，gate 乘以 `budgetMultiplier`（NF-01 §0.1「预算 × 2 仍须满足」）。`memory-open-close-20` 与 [06 §11](./06-frontend-component-and-e2e.md) 的 e2e 资源断言用同一实现；判定 NF-01 §1.3 的门禁以本文场景为准。
 
+### 3.1 大表插入基准（DF-10）
+
+依据：rulings §4.22 Q3-table-row-limit、DF-10；[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.14 第 1 条、§2.3。
+
+「插入表格…」对话框的行列上限目前暂按 75 × 75 占位（参照 PowerPoint 同名对话框），网格弹层仍是 8 行 × 10 列的悬停范围。本基准测大表的渲染与协同表现，为对话框上限定值提供依据。**触发条件**：M2 表格插入开工前完成（原定随 M3 性能包络评估，rulings §4.22 DF-10 提前）。本文只定测量与判读，不写上限数字；定值由前端设计线据结果回写 PRD 02 ED-10、50/24 §2.3 与 §2.14、`InsertTableDialog` 的校验，并替换「暂按 75 × 75」。
+
+- **规格档**（行 × 列）：8 × 10（网格悬停范围，作基准线）、25 × 25、50 × 50、75 × 75，另测只放宽行的 75 × 10 与只放宽列的 10 × 75，用来判断行、列要不要分开定上限。以 PowerPoint 对话框的 75 × 75 为上界（Q3 的参照），不测更大的档。
+- **表格形态**：与插入命令产物一致，即默认样式 `{5C22544A…}` 加 `firstRow`、`bandRow`，行高 0.41 in（50/24 §2.3）。空表直接由插入命令产生；满表（每格 2–4 字短文本）由生成器按同规格构造（03 §3，`source: 'generated'`），模拟填完内容后的编辑负载。
+- **运行**：视口与测量口径同 §3；客户端场景在 RM-A 与 RM-B 上跑，协同场景在自托管专用 runner 上跑，并按 §6 注入时延（§9）。评估期各场景登记为 `tier: 'envelope'`、全部指标 `monitorOnly`（§2.2 C5 的显式只监测），`milestone: 'M2'`，随 nightly 运行，不进 PR 与 main 段。
+
+| 场景 | 操作 | 对照指标（沿用现有键，数值见上游） | 测量 | 步骤 |
+|---|---|---|---|---|
+| `table-insert-<R>x<C>` | 空白页经 `commands.execute('slide.insertTable', {rows, cols})`（与对话框同一条命令）插入，到表格首帧；随后撤销一次 | 命令执行 `client.cmd.single`；首帧脚本 `client.render.frameScript`；主线程最长任务 `client.main.longTask`；撤销 `client.undo`；堆增量只记录 | 页内 mark 包住 `commands.execute` 到其后首个 `render/frame`；longtask 观察器；CDP 堆 | `perf-client` |
+| `table-edit-<R>x<C>` | 打开同规格满表页：末格连续键入 50 字符，拖动整表 5 s | 键入延迟 `client.input.typing`；拖动 `client.interact.fps` 与 `client.interact.frameP95` | Event Timing；CDP Tracing 帧事件 | `perf-client` |
+| `table-collab-<R>x<C>` | 两个浏览器同一房间：A 插入该规格的表格，随后在格内连续键入 | 插入事务的 update 字节数；A 提交 → B 可见 `client.collab.propagation`；B 端表格首帧；Y.Doc 堆增量与房间权重（`cordex_collab_room_weight_bytes`）只记录 | 两页同钟时间戳；`page.on('websocket')` 统计出站帧字节；`/metrics` | `perf-collab` |
+
+**判读**：
+
+1. **硬约束**：插入事务产生的单条 update 不得超过 `limits.maxUpdateBytes`（默认值与可调范围见 [60/17](../60-backend/17-deployment-and-config.md) §5.8，超限时服务端以 4413 关闭连接）。超过即该档出局；要不要把插入拆成多条事务属 50/24 的设计变更，不在本基准内决定。
+2. **性能**：对照指标按 §10 的 gate 判，RM-B 乘 `budgetMultiplier`；超 target 只报告。
+3. **上限候选**：同时满足 1、2 的最大档；75 × 10 与 10 × 75 两档的结果分别给出行、列方向的候选。
+4. **产物**：结果写 `test/perf/results/table-insert-limit.json`（每档每场景一行，含提交、runner 标签与判定）；结论写 `test/evidence/M2/perf-table-insert-limit.md`（各档结果、上限候选、依据的结果文件），交前端设计线定值。
+5. **定值之后**：上限那一档改名为 `table-insert-max`、`table-edit-max`、`table-collab-max`，留作回归场景（nightly，M2 起对照 gate），其余档退役。以后要上调上限，须重跑本基准。
+
+**图 3-1 大表插入基准与上限定值**
+
+```mermaid
+flowchart LR
+  trig["触发：M2 表格插入开工前，DF-10"]
+  tiers["规格档：8 × 10、25 × 25、50 × 50、75 × 75，另测 75 × 10 与 10 × 75"]
+  cli["perf-client：插入与首帧、撤销、键入、拖动，RM-A 与 RM-B"]
+  col["perf-collab：插入事务 update 字节数、A 到 B 可见、Y 堆与房间权重"]
+  hard{"update 不超过 limits.maxUpdateBytes？"}
+  gate{"对照指标都在 gate 内？RM-B 按 gate 乘 2"}
+  drop["该档出局"]
+  pick["上限候选：全部通过的最大档，行列分开给"]
+  out["结果文件与 test/evidence/M2 结论"]
+  wb["前端设计线定值：回写 PRD 02 ED-10、50/24 §2.3 与 §2.14、InsertTableDialog 校验"]
+  keep["上限档留作回归场景，nightly"]
+  trig --> tiers
+  tiers --> cli
+  tiers --> col
+  col --> hard
+  hard -- "否" --> drop
+  hard -- "是" --> gate
+  cli --> gate
+  gate -- "否" --> drop
+  gate -- "是" --> pick
+  pick --> out --> wb --> keep
+```
+
+怎么读：每个规格档同时跑客户端与协同两组场景；协同组先过 update 单帧上限这道硬约束，再与客户端组一起对照 gate；全部通过的最大档就是上限候选，结论交前端设计线定值并回写，上限那一档随后留作 nightly 回归。
+依据：rulings §4.22 Q3-table-row-limit、DF-10；50/24 §2.14 第 1 条；60/17 §5.8 `limits.maxUpdateBytes`。
+
 ---
 
 ## 4. 打开管线断言
@@ -363,7 +417,7 @@ runner 变更（含 M2 起 `perf-collab` 迁到自托管 runner）按 [11](./11-
 |---|---|---|---|---|
 | PR | `perf-client` 的 D50 关键指标：`open-d50` 首页可见、`type-latency`（M2 起）、`export-pptx-d50`（M2 起）；M2 起另加 `server-update` 与 `persist-lag`（RM-S，自托管 runner）；M3 起另加 `collab-roundtrip-2clients` | 失败 | 与 main 基线比较，只写 PR 注释（job 通过 = 报告） | 报告 |
 | 合入 main | 全部 `envelope` 场景（RM-A 与 RM-S） | 失败 | 相对滚动中位数（同标签最近 10 次 main 结果）回归超过 10% → 失败并自动建 issue | 报告 |
-| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；M3 起加 `host-footprint`（只报告）；M4 起加 `template-fill-100` | 失败 | 同 main | 报告 |
+| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；§3.1 大表插入基准（评估期只报告，定值后只留上限档回归）；M3 起加 `host-footprint`（只报告）；M4 起加 `template-fill-100` | 失败 | 同 main | 报告 |
 
 - `memory-open-close-20` 的堆增长比例是 gate（NF-01 §1.3），取代 30/11 §10 旧写的 10%。
 - NF-09「每 PR 跑 D50 关键指标，超预算 5% 失败」按更严口径执行为「超 gate 即失败」；5% 容差只保留在体积预算（§11）。
@@ -436,6 +490,7 @@ flowchart TD
 | 服务端导出、缩略图、PDF、并发 WS、跨实例 | `server:jobs`、`server:thumbnails`、`server:pdf`、`server:scale`（M3 验收 6 / 6a / 6b / 8）、NF-01 §1.7 | `perf/perf-server` | 机械 |
 | `ws-capacity` 在默认 `limits.ws.connectPerIpPerMin` 下爬升到 gate 且全程无 429 / 4429（先扣后退与每用户上限的容量侧证据） | rulings §4.20 BE-01+TX-03 | `perf/perf-server`（nightly） | 机械 |
 | `host-footprint.json` 两档（core、core+idp）齐全，供 60/17 §11 回填 | ADR-0037 决策 5；rulings §4.20 BE-07+TX-05 | `perf/perf-server`（nightly，只报告） | 机械产出，回填人工 |
+| 大表插入基准各档齐全，每档给出 update 单帧判定与 gate 对照，上限候选归档（§3.1） | rulings §4.22 DF-10；50/24 §2.14 第 1 条 | `perf/perf-client`、`perf/perf-collab`（nightly，评估期只报告） | 机械产出，定值人工 |
 | 满员房间扇出与按权重准入 | rulings §4.15 Q5；决策 C-11；ADR-0035 | `perf/perf-collab`（nightly） | 机械 |
 | DX-20K 可用性与超天花板拒绝 | rulings §4.15 Q5；UX-13 | `perf/perf-client`、`perf/perf-server` | 机械 |
 | 体积预算 | `size:budget`（M2 验收 5）、`viewer:preset`（M1 验收 9 的体积部分）、EM-07 | `scanners/scan-bundle-budget` | 机械 |
@@ -448,6 +503,8 @@ flowchart TD
 **rulings §4.19 已定稿**：D-TEST-INFRA——§9 的 runner 安排（M1 GitHub larger runner、自托管专用 runner M2 前落地并承载 gated 协同与 RM-S 服务端压测、RM-B 以 CPU 4× 节流近似、RM-S 以容器限额模拟）；D-M2-CONTENT——§5、§6 中协同网关、持久化、快照与服务端导入相关场景自 M2 起；`template-fill-100` 按 rulings §4.12 U-13 定为 M4（与 60/01 S15 一致）。
 
 **rulings §4.20 已定稿**（2026-09-26）：BE-01+TX-03——`ws-capacity` 按「先扣后退」在默认限额下从单台压测机爬升，不再需要为压测放宽 `limits.ws.connectPerIpPerMin`，连接按每用户上限分摊到多名测试用户（§6）；BE-07+TX-05——`host-footprint` 场景登记在 §6，只出报告，数值由后端设计线在 M3 出口前按「峰值合计 × 1.3」回填 60/17 §11，溢写阈值仍由 §12 的 `spill-calibration` 校准、无需新动作。
+
+**rulings §4.22 已定稿**（2026-09-30）：Q3-table-row-limit 与 DF-10——「插入表格…」对话框行列上限的性能评估由 M3 性能包络提前到 M2 表格插入开工前，大表渲染与协同基准登记在 §3.1（50/24 §2.14 第 1 条）。本文只出结果与上限候选；定值与回写（PRD 02 ED-10、50/24 §2.3 与 §2.14、`InsertTableDialog` 校验，替换「暂按 75 × 75」）由前端设计线执行。
 
 **回写清单（由总编排执行）**：
 

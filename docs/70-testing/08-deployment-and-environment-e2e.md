@@ -1,5 +1,5 @@
 # 08 部署拓扑与环境 e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§3 新增 C7（CFG-05 配置交叉校验与镜像入口）、C8（ops-cron 只跑 audit-rotate）；§8 新增 R5（DEP-07 按文档哈希亲和））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.20 BE-04、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[60/17](../60-backend/17-deployment-and-config.md) §2 / §3 / §8（原 30/08 §10 / §10.1）、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§3 新增 C7（CFG-05 配置交叉校验与镜像入口）、C8（ops-cron 只跑 audit-rotate）；§8 新增 R5（DEP-07 按文档哈希亲和））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§2 新增 RA13（声明文件与签名开关的启动断言）；§3 新增 C9（挂载目录、签名与审核校验、被拒插件不进任何会话、`/readyz` 的 `pluginsRejected`）；§4 新增 G13（web 容器 `/plugins/{sha256}/` 同源静态路径与 CSP）；图 8-5） | 依赖：rulings §4.20 BE-04、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[60/17](../60-backend/17-deployment-and-config.md) §2 / §3 / §8（原 30/08 §10 / §10.1）、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
 
 本文是部署与环境层测试的唯一事实源：进程角色装配、compose 洁净栈冒烟、web 容器与反代子域、断网环境、镜像门禁的运行时部分、IdP 兼容矩阵、发布演练、备份恢复演练与 M4 的离线包 / 多架构 / Helm 冒烟——每一类写环境怎么搭、断言什么、何时跑。
 
@@ -62,6 +62,7 @@ test/deploy/
 | RA10 | `all` 的并集 | `all` 的装配 = api ∪ collab ∪ worker |
 | RA11 | 生产鉴权配置 | production 下既无外部 issuer 又未启用 `idp` profile 对应的配置 → 退出码 78（A3；compose 层的同一断言见 §3 C3） |
 | RA12 | 其余启动断言各一条负向用例 | 以 60/01 §6 为清单逐条：未登记或已废止的 `CORDEX_*` 变量（如 `CORDEX_AUTH_MODE`）、机密文件权限宽于 0400 → 78（A1，60/17 §6）；内部端口等于对外端口或 production 下内部监听为通配地址 → 78（A10）；DB 池以 `cordex_migrator` 登录或 `rolbypassrls = true` → 78（A11）；api 进程配置了 `db.system.passwordFile` → 78（60/08 DB-09）；关键插件停在 `PENDING` → 70（A12）；production 下 snapshots 桶未开版本化或 data 桶开过版本化 → 拒绝启动（60/04 DOC-15）。清单比对：60/01 §6 每个断言编号至少被一个负向用例引用，否则本文件失败（60/01 V1） |
+| RA13 | 插件声明文件与签名开关（2026-10-01，§4.23，60/17 §5.16） | 全部五个角色都装配 `PluginsModule` 并在启动时按同一份声明文件完成部署时校验（renderer 只读声明文件与挂载目录、不连库）；`plugins.catalogFile` 已配置但文件不存在、不是合法 JSON、`schemaVersion` 未知或违反 schema（缺 `id`、`initial.state` 取值非法、`source` 为绝对路径）→ 各自退出码 78，`cordex-server --dry-run` 对同样四例同样以 78 失败且不连接任何外部依赖；`NODE_ENV=production` 且 `plugins.allowUnsigned=true` → 78；`plugins.trustedKeysFile` 不可解析 → 78；未配置 `plugins.catalogFile` → 正常启动、只含镜像内置插件（PM-04）；**单个**插件校验失败不影响启动（该插件被拒，C9） |
 
 **图 8-1 角色与模块装配断言**
 
@@ -122,6 +123,8 @@ flowchart LR
 | C7 | 配置交叉校验与镜像入口（60/17 §12 CFG-05，2026-09-26 整合登记） | 另起若干次：`collab.hocuspocus.timeoutMs` 小于 `limits.idleTimeoutMs`、`limits.ws.step2MaxBytes` 小于 `limits.maxUpdateBytes`、`limits.ws.idleCheckIntervalMs` 不小于 `limits.idleTimeoutMs`、出现旧键 `limits.xml.maxTextNodeBytes`，各自使应用容器以退出码 78 退出且日志指明键名（旧键提示新键 `limits.xml.maxTextLength`）；`docker inspect cordex-server` 的入口含 `--import ./dist/observability/otel.js` |
 | C8 | `ops-cron` 常驻服务（60/17 §2、§9，2026-09-26 整合登记） | `ops-cron` 以 `cordex-ops cron` 常驻、无监听端口、只读根文件系统；内置时刻表只含 `audit-rotate` 一项：以测试钩子把时钟推到 03:00 后恰执行一次 `audit-rotate`（未来 3 个月审计分区存在），上一次未结束时不重入；收到 SIGTERM 等当前任务结束后以退出码 0 退出 |
 
+| C9 | 插件部署时校验 `plugins:trust`（2026-10-01，§4.23，M4；镜像内置部分 M3） | `compose.test.yml` 把 `test/deploy/compose/plugins/` 以只读方式挂到 `plugins.mountDir`，并挂入声明文件与受信公钥文件。挂载目录放六个插件包：① 签名有效（公钥在受信文件中）；② 无签名但声明文件有审核记录并钉住 SHA-256；③ 无签名且无审核记录；④ 声明的 `sha256` 与包不符；⑤ `hostApi` 不覆盖当前宿主；⑥ 声明 `scope:'ui'` 却贡献 `slide.shapeKind`。断言：①② 为 `enabled` 或按 `initial` 为 `disabled`；③ `rejected_unsigned`、④ `invalid`（原因 `digest_mismatch`）、⑤ `incompatible`、⑥ `invalid`（原因 `scope_downgrade`）；`GET /admin/plugins` 与 `cordex-ops plugins:check`（只读，60/17）输出的状态与原因码逐项一致；每个被拒插件恰一条 `plugin.rejected`（主体 `system`），`docker compose restart` 后不重复写；被拒插件在任何会话都不出现：`GET /users/me/plugins` 不含、浏览器侧对其 `/plugins/{sha256}/` 入口的请求数为 0、服务端 headless 导出不装配；③ 的初始状态写为 `forced` 时容器内 `/readyz` 仍为 200 且 `details.pluginsRejected` 列出 `{id, version, reason}`，指标 `cordex_plugins_rejected{reason="unsigned"}` 为 1，告警规则 `CordexPluginsRejected` 在 `promtool` 单测中触发；界面上不存在任何上传或安装插件的入口（遍历 `/admin/plugins` 与编辑器可点击元素的 testid 与可访问名，无「上传」「安装」「从 URL 添加」） |
+
 C2 通过后，同一个栈继续作为 [06](./06-frontend-component-and-e2e.md) §12 浏览器全量用例的被测环境。
 
 **图 8-2 compose 冒烟全流程**
@@ -174,6 +177,34 @@ sequenceDiagram
 | G10 | 证书 SAN 覆盖三个名字 | 60-backend/17 §3.1 |
 | G11 | `storage:init` 之后读回：data 桶未开版本化、无生命周期规则；snapshots 桶已开版本化且只有一条非当前版本过期规则；两桶 CORS 符合 60/14 §5；再执行一次 `storage:init` 幂等 | 60/14 §5、OB-03 |
 | G12 | 客户端 IP 不可伪造（与 [10](./10-security-testing.md) SEC-RL-01 / RL-03 (f) 同一断言的部署层版本）：浏览器侧与测试客户端经 web 容器发请求时带伪造的 `X-Forwarded-For` 首跳（每次换值），应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加；`@Public` 端点的限流主体、WS 升级扣的 IP 桶与审计 `ip_hash` 都不随伪造值变化。**upstream 模式**另起一次：`CORDEX_WEB_TLS_MODE=upstream`，前置一个测试 LB 容器（网段登记在 `CORDEX_WEB_TRUSTED_LB_CIDRS`），web 容器只信任该网段一跳（realip），同一组断言成立，且 `$remote_addr`、`X-Forwarded-For` 与 Casdoor 看到的来源地址三者一致；`CORDEX_WEB_TRUSTED_LB_CIDRS` 为空时 web 容器拒绝启动（非零退出） | rulings §4.20 BE-04；60/17 §3.1、DEP-03 |
+| G13 | 插件静态路径（2026-10-01，§4.23，M4）：C9 中通过校验的插件浏览器产物经 `https://app.<测试域>/plugins/{sha256}/…` 同源提供，带 `public, max-age=31536000, immutable`、正确的 `Content-Type`、不带 CSP 头；未通过校验或未声明的 `{sha256}` → 404；`/plugins/../`、编码后的 `%2e%2e`、指向挂载目录外的符号链接 → 404 且不泄露目录列表；页面 CSP 仍为 `script-src 'self' 'nonce-…'`，加载插件后 csp-recorder 违规为 0（不因插件放宽 CSP） | 60/17 §3.1、§5.16；[50/14](../50-frontend/14-client-security.md) §2；PRD PM-04 |
+
+**图 8-5 插件从声明文件到会话的部署层断言**
+
+```mermaid
+flowchart TB
+  decl["声明文件与挂载目录，只读挂载"]
+  boot{"启动时解析声明文件"}
+  exit78["格式错误：退出码 78，--dry-run 同样失败"]
+  each{"逐个插件部署时校验"}
+  ok["通过：enabled 或 disabled"]
+  rej["被拒：rejected_unsigned、incompatible、invalid"]
+  audit["plugin.rejected，system 主体，重启不重复"]
+  ready["/readyz 仍 200，details.pluginsRejected"]
+  web["web 容器 /plugins/{sha256}/ 同源提供"]
+  none["任何会话都不装配，入口请求数为 0"]
+  decl --> boot
+  boot -->|"不合法"| exit78
+  boot -->|"合法"| each
+  each --> ok --> web
+  each --> rej
+  rej --> audit
+  rej --> ready
+  rej --> none
+```
+
+怎么读：自上而下是一次部署启动；声明文件整体不合法是部署错误、直接拒绝启动（RA13），单个插件不合法只拒绝该插件、部署照常就绪（C9）；通过校验的浏览器产物才会出现在 web 容器的同源静态路径上（G13）。
+依据：PRD 09 PM-04、PM-05 与图 3-1；60/17 §5.16、§6；PRD 05 M4 验收 7。
 
 ---
 
@@ -363,6 +394,7 @@ flowchart TB
 | §7 Keycloak、§8 R2、§9（每周） | 同名步骤，`CORDEX_SUITE=nightly` | nightly | 失败建 issue 并阻断下一次发布打标签 |
 | §7 Entra / 飞书、§9（发布候选） | 人工 / 半机械 | 发布候选 | 证据齐全方可发布 |
 | §10 | nightly | M4 起 | 同 nightly |
+| §2 RA13、§3 C9、§4 G13（§4.23） | RA13 随 §2 在 `test/server-integration`；C9、G13 随 `e2e/full-compose` | 同所在小节 | RA13 的声明文件格式与生产开关自 M3（镜像内置插件的声明文件）起阻断；C9 的镜像内置部分（manifest 与 `hostApi` 校验、`/readyz`）M3，挂载目录、签名与审核、G13 自 M4 起阻断（PRD 05 M4 验收 7 `plugins:trust`） |
 
 ---
 
@@ -372,6 +404,7 @@ flowchart TB
 |---|---|
 | 五个合法角色装配与 `roles.ts` 逐项一致；60/01 §6 A1–A12 每条至少一个负向用例并以规定退出码（78 / 70）失败；`role-matrix.snapshot.json` 与 `roles.ts` 一致 | `test/server-integration`（`apps/server/test/integration/boot/role-assembly.int-spec.ts`） |
 | compose 从 `up --wait` 到全部容器健康检查通过 ≤ 3 min；主链路通过；缺鉴权配置的 production 以退出码 78 启动失败；告警规则单测通过 | `e2e/full-compose` |
+| 插件声明文件格式错误与生产环境允许未签名均以退出码 78 失败（RA13）；六类插件包的部署级状态与原因码、`plugins:check` 输出、`plugin.rejected` 与 `/readyz` 的 `pluginsRejected` 一致（C9）；`/plugins/{sha256}/` 只提供通过校验的产物且 CSP 不放宽（G13） | `test/server-integration`；`e2e/full-compose` |
 | web 容器 G1–G12（含 `/internal/*`、`/metrics`、`/healthz`、`/readyz` 经反代 404，`storage:init` 读回，`terminate` 与 `upstream` 两种模式下伪造 `X-Forwarded-For` 首跳不改变限流主体与 `ip_hash`） | `e2e/full-compose` |
 | 断网运行期间出站记录、非白名单 DNS 查询、镜像拉取、浏览器越界请求全部为 0 | `e2e/full-airgap` |
 | 运行中镜像全部有以 digest 命名的 SBOM，主组件许可在白名单内；renderer 与 worker 版本一致；三个镜像字体 sha256 一致 | `e2e/full-compose`；静态侧 `scanners/check-image-policy` |
@@ -391,4 +424,5 @@ flowchart TB
 | `DOCKER-USER` 链需要 runner 具备 root 与 iptables | 托管 Linux runner 满足；自托管 runner 需同样条件 | 已由 [12](./12-ci-gates-mapping.md) §8 登记为 `e2e/full-airgap` 的 runner 前提；性能 runner 按 rulings §4.19 D-TEST-INFRA 定稿（M1 GitHub larger runner，自托管专用 runner M2 前落地，见 [09](./09-performance-and-capacity.md) §9） |
 | 断网用例落点 | [10](./10-security-testing.md) SEC-EG-03 写作 `test/deploy/airgap/**`，本文 §1 目录为 `test/deploy/specs/airgap.spec.ts` + `compose/compose.airgap.yml` | `test/deploy/` 布局以本文为准，请 10 同步 |
 | CSP 模式口径 | [60/17](../60-backend/17-deployment-and-config.md) §3.2 写「M2 整份 CSP 为 report-only、M3 enforce」，[50/14](../50-frontend/14-client-security.md) §2.2 / §4.5 写「M2 其余指令强制、仅 TT 在 Report-Only」 | 本文 §4 G7 按 50/14（CSP 正文唯一源）断言；请 60/17 §3.2 对齐 |
+| 插件部署层用例（rulings §4.23；O-1…O-4 于 2026-10-01 确认按推荐） | 已定 | RA13、C9、G13 与图 8-5；配置键、声明文件格式与原因码以 [60/17](../60-backend/17-deployment-and-config.md) §5.16 为准，ops 命令 `cordex-ops plugins:check` 以 60/17 为准；插件夹具包放 `test/deploy/compose/plugins/`，签名用测试密钥对在运行时生成、不入库私钥 |
 | 回写 40/12 §9 与 30/11 §10 | 待回写（由总编排执行） | 40/12 §9 的 `role-assembly.e2e-spec.ts` 改名为 `apps/server/test/integration/boot/role-assembly.int-spec.ts`，断言清单改为引用本文 §2；30/11 §10 的 M3 出口段改为摘要并链接本文 |

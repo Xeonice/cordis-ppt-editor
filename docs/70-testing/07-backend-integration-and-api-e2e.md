@@ -1,5 +1,5 @@
 # 07 后端集成测试与 API / WS e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：漂移检查直查 pg_catalog；Webhook 签名改 Standard Webhooks；WS 升级入口改为嵌入 Fastify 同端口、先扣后退；协同集成改跑 Hocuspocus，加 Valkey 宕机与重启、存储失败不丢）；2026-09-26（§4.21 整合：§9 W19 登记 hp-redis-extension.int-spec.ts（M3））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.21 q-db-access / q-webhook-sig / q-ws-gateway / H:q-hp-persist-ack / H:q-hp-fanout、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、d-01、d-11、d-16、d-19、d-21、d-22，核实 exp1、exp2、vE）、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §1–§7、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–13（原 30/08 §5–§7 / §9 / §12 / §16）、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：漂移检查直查 pg_catalog；Webhook 签名改 Standard Webhooks；WS 升级入口改为嵌入 Fastify 同端口、先扣后退；协同集成改跑 Hocuspocus，加 Valkey 宕机与重启、存储失败不丢）；2026-09-26（§4.21 整合：§9 W19 登记 hp-redis-extension.int-spec.ts（M3））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§4 MG5 / MG7 表集合改 19 张（加 `plugin_policies`、`user_plugin_prefs`，迁移 0012 / 0013，两表在 RLS 例外清单）；新增 §7.5 插件策略 REST、If-Match、审计与个人选择 PL1–PL9；§9 新增 W21 / W22 插件集指纹握手与在线通知；图 7-7） | 依赖：rulings §4.21 q-db-access / q-webhook-sig / q-ws-gateway / H:q-hp-persist-ack / H:q-hp-fanout、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、d-01、d-11、d-16、d-19、d-21、d-22，核实 exp1、exp2、vE）、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §1–§7、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–13（原 30/08 §5–§7 / §9 / §12 / §16）、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
 
 本文是服务端集成测试与 API / WS e2e 的唯一事实源：容器 harness、数据库隔离、迁移测试、文档级 RLS 绕过测试、身份与会话、权限与分享、文档媒体与存储、协同服务集成、墓碑与擦除、作业、评论 / Webhook / 审计 / 遥测、路由鉴权覆盖与契约快照——每一类写 harness、用例族、矩阵的生成方式与运行时机。
 
@@ -122,9 +122,9 @@ flowchart TB
 | MG2 | 上一版本库增量 | 基线冻结（首个对外发布、M3 出口，60/08 §10.4）后启用：取上一个发布标签的迁移目录（`git show <tag>:…`）建库 → 写入 [11](./11-test-data-fixtures-and-determinism.md) §6 的标准种子 → 执行本分支新增迁移 → schema 快照与 MG1 相同，种子数据可经 `cordex_app` 读回（ADR-0022「空库与上一版本库都可执行」）。冻结前基线段 0001–0099 允许改写、M1–M2 内部环境不承诺库内升级，本例不适用（激活时间登记在 [12](./12-ci-gates-mapping.md) §7，不以跳过代替） |
 | MG3 | 编号与只追加 | 任何时候：编号唯一、四位、文件名与 `-- migrate:` 首行一致；冻结前新文件落在 60/08 §9 分给该域的号段内。冻结后：相对 merge-base，已存在的迁移文件内容哈希不变（台账校验和一致，60/08 §10.2），新文件编号 ≥ 0100 且按时间取下一个空号、不插号（60/08 §10.4） |
 | MG4 | 回滚一步 = 应用回滚 | 不提供 down 迁移（60/08 §10.2）；在 MG2 得到的新 schema 上启动上一发布标签的应用构建，跑其登录、列表、打开、协同持久化冒烟全部通过（60/08 §10.3「回滚一步 = 应用回滚、数据库不回滚」；与 [08](./08-deployment-and-environment-e2e.md) §8 R3 同一激活时间）；另断言本分支新增迁移只含 expand 类语句（无 `DROP COLUMN`、`RENAME`、收紧约束，收缩须晚一个版本） |
-| MG5 | 负向断言 | 业务表集合恰为 60/08 §1 的 17 张 + 台账 `cordex_schema_migrations`；`information_schema.columns` 中没有名为 `tenant_id` / `tenant` / `tid` 的列（rulings §4.15 T-0）；没有 `tenants`、`groups`、`pending_invitations`（§4.17 D1）、`api_keys` 表；`documents` 没有 `folder_id` 列（决策 DDL-COLS）；M1–M3 没有 `collab_sessions` 表（§4.18 BE-31）；`users` 没有 `email_hash` 列（决策 C-01） |
-| MG6 | GRANT 与 RLS 快照 | 读取 `information_schema.role_table_grants` 与 `column_privileges`、`pg_class.relrowsecurity` / `relforcerowsecurity`、`pg_proc` 的 `prosecdef` / `proconfig` / ACL、`pg_database.datacl`，规范化为 `apps/server/test/fixtures/grants.snapshot.json` 并与 60/08 §4.2 矩阵比对；另逐条断言：只有 `cordex_migrator` 带 `BYPASSRLS`；`cordex_app` 与 `cordex_system` 无任何 DDL 权限；`documents` 的 M-09 列只对 `cordex_system` 有 UPDATE（列级授予）；`audit_log` 对二者只有 `INSERT` 与 `SELECT`；分区子表对应用角色无任何权限；`PUBLIC` 无任何表、函数与库连接权限；每个 `SECURITY DEFINER` 函数的 `search_path` 为 `pg_catalog, pg_temp` 且 `PUBLIC` 无 `EXECUTE`（决策 DB-ROLES；60/08 DB-06） |
-| MG7 | 与 drizzle schema 一致（§4.21 改写） | 漂移检查 DB-03：空库执行全部迁移后**直查 `pg_catalog`**——普通表取 relkind `r`，分区表只取 relkind `p` 的父表（`document_updates`、`audit_log`），`relispartition` 为真的叶子分区与台账表排除——得到的表、列（名称与顺序）、类型（`format_type`）、可空性与默认值表达式，与手写 drizzle `schema/*.ts` 经 `getTableConfig()` 导出的清单逐列相等，表集合恰为 60/08 §1 的 17 张；负向夹具：镜像删掉 `document_updates` 或 `audit_log` 的一列即失败。不用 drizzle-kit 内省（它只选 relkind r / v / m，整张丢掉分区父表），原「drizzle schema 生成的表与库一致」口径作废（60/08 §10.1，rulings §4.21 q-db-access） |
+| MG5 | 负向断言 | 业务表集合恰为 60/08 §1 的 19 张（2026-10-01 按 rulings §4.23 加 `plugin_policies`、`user_plugin_prefs`，迁移 0012 / 0013）+ 台账 `cordex_schema_migrations`；两张插件表在 `policy/rls-exceptions.json` 中且未启用 RLS、无 `doc_id` 列；`information_schema.columns` 中没有名为 `tenant_id` / `tenant` / `tid` 的列（rulings §4.15 T-0）；没有 `tenants`、`groups`、`pending_invitations`（§4.17 D1）、`api_keys` 表；`documents` 没有 `folder_id` 列（决策 DDL-COLS）；M1–M3 没有 `collab_sessions` 表（§4.18 BE-31）；`users` 没有 `email_hash` 列（决策 C-01） |
+| MG6 | GRANT 与 RLS 快照 | 读取 `information_schema.role_table_grants` 与 `column_privileges`、`pg_class.relrowsecurity` / `relforcerowsecurity`、`pg_proc` 的 `prosecdef` / `proconfig` / ACL、`pg_database.datacl`，规范化为 `apps/server/test/fixtures/grants.snapshot.json` 并与 60/08 §4.2 矩阵比对；另逐条断言：只有 `cordex_migrator` 带 `BYPASSRLS`；`cordex_app` 与 `cordex_system` 无任何 DDL 权限；`documents` 的 M-09 列只对 `cordex_system` 有 UPDATE（列级授予）；`audit_log` 对二者只有 `INSERT` 与 `SELECT`；`plugin_policies` 对 `cordex_app` 为 S I D 加按列 U（`state, default_on, config, revision, batch_id, updated_by, updated_at`）、对 `cordex_system` 只有 S，`user_plugin_prefs` 对 `cordex_app` 为 S I D 加按列 U（`enabled, updated_at`）、对 `cordex_system` 无任何权限（§4.23）；分区子表对应用角色无任何权限；`PUBLIC` 无任何表、函数与库连接权限；每个 `SECURITY DEFINER` 函数的 `search_path` 为 `pg_catalog, pg_temp` 且 `PUBLIC` 无 `EXECUTE`（决策 DB-ROLES；60/08 DB-06） |
+| MG7 | 与 drizzle schema 一致（§4.21 改写） | 漂移检查 DB-03：空库执行全部迁移后**直查 `pg_catalog`**——普通表取 relkind `r`，分区表只取 relkind `p` 的父表（`document_updates`、`audit_log`），`relispartition` 为真的叶子分区与台账表排除——得到的表、列（名称与顺序）、类型（`format_type`）、可空性与默认值表达式，与手写 drizzle `schema/*.ts` 经 `getTableConfig()` 导出的清单逐列相等，表集合恰为 60/08 §1 的 19 张；负向夹具：镜像删掉 `document_updates` 或 `audit_log` 的一列即失败。不用 drizzle-kit 内省（它只选 relkind r / v / m，整张丢掉分区父表），原「drizzle schema 生成的表与库一致」口径作废（60/08 §10.1，rulings §4.21 q-db-access） |
 | MG8 | 快照预迁移 | `server-headless` 的 migrate 任务对 [03](./03-fidelity-roundtrip-and-corpus.md) §11 的历史快照样本批量执行，结果通过 `validateSnapshot` |
 
 文档里的 DDL 围栏由 `docs/_tools/ddl-check` 在 PG 18 容器中按编号执行（60/08 §11，总编排实现），与本节的代码迁移测试互补：前者保证文档可执行，后者保证代码迁移与快照一致。
@@ -257,6 +257,45 @@ sequenceDiagram
 
 M4 管理面板复用同一用例，届时只加 REST 入口的鉴权用例（§7.1 矩阵自动覆盖），本节断言不变。依据：rulings §4.20 BE-05+TX-22；PRD SV-11、SV-14。
 
+### 7.5 插件策略与个人选择（2026-10-01，rulings §4.23）
+
+被测设计：[60/03](../60-backend/03-modules-identity-and-access.md) §12 `PluginsModule`（其机械验证 M-PL-01…05 的集成侧由本节承担）、[60/15](../60-backend/15-rest-api-catalog.md) §3.15 plugins、[60/09](../60-backend/09-ddl-identity-and-access.md) §14 的 `plugin_policies` 与 `user_plugin_prefs`（迁移 0012、0013，D-09…D-12）、[60/07](../60-backend/07-modules-comments-webhooks-audit.md) §9.5 三个审计 action；需求 [PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-01、PM-03、PM-07–PM-10、PM-14。文件 `apps/server/test/e2e/plugins/*.e2e-spec.ts`，步骤 `test/server-integration`。声明文件夹具：内置第一方插件若干 + 一个测试用内容级插件 `test:content-p` + 一个界面级插件 `test:ui-q`（`initial.state='optional'`、`defaultOn=true`）+ 两个互斥插件（争用同一 Provider 座），由 harness 挂载为 `plugins.catalogFile`。检查名 M3 `plugins:admin`（[13 §3.4](./13-requirements-traceability.md)）。
+
+| # | 用例 | 断言 | 起始 |
+|---|---|---|---|
+| PL1 | 只读生效集合 | `GET /users/me/plugins`（`Session`）→ `fingerprint:{catalog, policy}` 各为 43 字符 base64url；`plugins[]` 每项有 `id, version, scope, source, state, enabled`，`optional` 项另有 `defaultOn`；未登录 → 401；无声明文件时只含镜像内置插件、结果与 M2 preset 默认组成一致 | M2 |
+| PL2 | 管理员读 | 平台管理员 `GET /admin/plugins` → 全部已声明插件（含被拒的三类）与八种部署级状态之一、策略、近 24 h 客户端失败会话数，响应 `ETag` 等于当前 `policy` 摘要；`GET /admin/plugins/:pluginId` 含依赖、被谁依赖、贡献计数、能力声明、信任来源、最近 5 次策略变更（与 `audit_log` 查询一致）；不存在的 `pluginId` → 404 `server.plugins.not_found`；`member` 调任一 `/admin/plugins*` → 403 `server.auth.forbidden`，库与审计无变化（§7.1 矩阵同时覆盖） | M3 |
+| PL3 | 批量保存与审计 | `PATCH /admin/plugins` 带 `If-Match`（当前 `policy`）一次改三项 → 200、返回新清单与新 `ETag`；`plugin_policies` 三行在同一事务写入、共享同一 `batch_id`、`revision` 各加 1、`updated_by` 为管理员；同事务写三条 `plugin.policy_changed`（主体 user，details 含 `pluginId, version, scope, from{state,defaultOn}, to{state,defaultOn}, batchId`）；此后 `GET /users/me/plugins` 的 `policy` 变化、`catalog` 不变 | M3 |
+| PL4 | If-Match | 缺 `If-Match` → 400 `server.plugins.validation_failed`、不写库（60/15 §3.15）；`If-Match` 过期（另一管理员先保存）→ 412 `server.plugins.revision_conflict`，库与审计无变化 | M3 |
+| PL5 | 非法策略整批回滚 | 同一批中一项合法、一项非法：内容级设 `optional`、锁定项（内核必需、契约必需、`lockPolicy`）、被拒项各一例 → 422 `server.plugins.policy_invalid`；两个互斥插件同时启用 → 409 `server.plugins.conflict`；均整批不生效（合法项也不写）、无审计 | M3 |
+| PL6 | 个人选择 | 管理员把 `test:ui-q` 设为 `optional` 后，用户 u `PUT /users/me/plugins/test:ui-q {enabled:false}` → 200，`user_plugin_prefs` 一行；再次 `GET /users/me/plugins` 该项 `enabled=false`；`DELETE` 同路径 → 回到管理员默认值、行删除；对内容级或 `forced` 项 `PUT` → 409 `server.plugins.not_optional`；个人选择**不写审计**（`audit_log` 行数不变）；u 的请求不能读写 v 的选择（路径中无用户 id，响应只含本人行，SEC-AZ-16）；用户擦除时 `user_plugin_prefs` 行不删除（60/09 §14） | M3 |
+| PL7 | 管理员覆盖个人选择 | u 已关闭 `test:ui-q` 后管理员改为 `forced` → u 的生效集合中该项 `enabled=true` 且不可 `PUT`（409），`user_plugin_prefs` 行保留；改回 `optional` → u 的 `enabled=false` 恢复 | M3 |
+| PL8 | 插件配置（M4） | `PUT /admin/plugins/:pluginId/config` 通过 Config schema → 200，写 `plugin.config_changed`，details 只含字段路径 `paths[]`、不含任何值（在审计行中搜索配置值为 0 命中）；schema 校验失败 → 422 `server.plugins.config_invalid` 且逐字段报错、不写库；机密字段只写不读，`GET` 回显为 `***` | M4 |
+| PL9 | 保存后在线通知 | PL3 提交后 api 向 Valkey 频道 `plugins:ctl`（带 `valkey.keyPrefix`）恰发布一条 `{type:'policy_changed', policy}`；频道名匹配 [60/14](../60-backend/14-valkey-object-storage-and-retention.md) §3.2 登记模板（§11.5）；发布失败只记计数 `cordex_plugin_policy_notify_total{result="error"}`、保存照常成功（在线会话由 §9 W22 的轮询兜底） | M3 |
+
+**图 7-7 插件策略保存与在线通知的集成断言**
+
+```mermaid
+sequenceDiagram
+  participant adm as 管理员客户端
+  participant api as api 角色
+  participant pg as PostgreSQL
+  participant vk as Valkey
+  participant col as collab 角色
+  participant ws as 已打开的会话
+  adm->>api: PATCH /admin/plugins，If-Match 为旧 policy
+  api->>pg: 同一事务写 plugin_policies 与三条 plugin.policy_changed
+  pg-->>api: 提交
+  api-->>adm: 200，新 ETag
+  api->>vk: PUBLISH plugins:ctl，policy_changed
+  vk-->>col: 订阅收到
+  col->>ws: Stateless plugins，reason policy_changed
+  Note over col,ws: 发布丢失时 collab 每 60 s 轮询 plugin_policies 兜底
+```
+
+怎么读：纵线是参与方，自上而下是 PL3、PL9 与 §9 W22 的断言顺序；审计与策略同一事务，发布在提交之后且失败不影响保存，最后一跳由 W22 断言 ≤ 60 s 到达。
+依据：PRD 09 PM-08、PM-14 与图 3-2；rulings §4.23 O-1、O-2、O-4（已确认）；60/15 §3.15、60/07 §9.5。
+
 ---
 
 ## 8. 文档、媒体与存储
@@ -311,6 +350,8 @@ M4 管理面板复用同一用例，届时只加 REST 入口的鉴权用例（§
 | W18 | 升级入口：嵌入 Fastify 同端口、先扣后退（§4.21） | HTTP API 与 `/collab/v1/rooms/:documentId` 的 WS 在同一端口（Hocuspocus 类经 Fastify 底层 server 的 `upgrade` 事件接入，不用 Nest `WsAdapter`，也不用 Hocuspocus 的 `Server` 类——它自建 http.Server、无法共端口）；`upgrade` 处理在 `listen` 之前挂好；升级前依次校验 documentId 为 UUID（400）→ Origin 白名单（缺 Origin 也拒，403）→ IP 令牌桶**先扣** 1 次（429）→ 实例连接数上限（503），任一失败只回 HTTP 状态、不升级；Auth 帧里的票据验签通过即**退还**该次 IP 额度（之后因满员、文档不可用被拒也已退还），票据无效或重放、5 s 内未认证、协议不符、升级后未认证就断开的不退还；请求头里的 cookie 一律不参与鉴权；以 `FixedClock` 固定令牌桶时刻逐条断言桶余量（键模板以 60/14 为准；与 [10](./10-security-testing.md) SEC-RL-03 的逐条断言互补） | PR；M2 | rulings §4.21 q-ws-gateway；§4.20 BE-01+TX-03；证据 TX-01、d-01、d-16；核实 exp1 |
 | W19 | Valkey 宕机与重启（§4.21，核实 vE） | 文件 `apps/server/test/integration/collab/hp-redis-extension.int-spec.ts`（M3，`HardenedRedis` 加固子类的集成用例，2026-09-26 整合登记）。两实例 + extension-redis：经 Toxiproxy 切断 Valkey 30 s 后恢复，另一变体 `docker restart` Valkey。断言：两个 collab 进程都不退出（extension-redis 保留离线队列并限 `maxRetriesPerRequest`；继承 Redis 类覆写 `beforeBroadcastStateless` 与 `onStoreDocument` 加 catch；进程级 `unhandledRejection` 只记录与计数）；宕机期间实例内编辑照常互见、跨实例同步中断、`/readyz` 503；恢复后任意一次变更即把两实例补齐、状态向量相等；宕机期间新加载的文档在恢复后能正常加载（不得设 `enableOfflineQueue:false`，否则所有文档加载永久失败）；redlock 连不上不被误报为「另一实例在存储」；所有已获 db ack 的 update 都在 PG | PR；M3 | 证据 d-19、d-22、K16-A；ADR-0035 决策 8 |
 | W20 | 存储失败不丢（§4.21，exp2 反例） | 单实例：经 Toxiproxy 切断 PG → 客户端编辑（得 spill ack 或暂无 ack）→ 另一客户端无修改地连入再断开、原客户端也断开（房间无连接）→ 文档**不卸载**（有内存档或未回放的溢写时 `beforeUnloadDocument` 抛错钉住，证据 d-11）→ PG 恢复、回放、补发 db ack 后才卸载 → 新客户端打开看到全部编辑。反例对照：夹具改用 Hocuspocus 原生 `onStoreDocument` 持久化时同一剧本丢数据（新客户端看到 `{}`），本用例以此证明不用 `onStoreDocument` 持久化（证据 d-12） | PR；M2 | rulings §4.21 H:q-hp-persist-ack；核实 exp2 |
+| W21 | 插件集指纹：`catalog` 不符（§4.23） | 以旧声明文件启动 → 客户端取得 `pluginSet`；harness 替换声明文件中 `test:content-p` 的版本并重启 collab（重新部署）→ 客户端带旧 `pluginSet` 重连：Auth 阶段以原始 `ws.close(4426)` 关闭、reason `collab.plugins_outdated`（provider 侧收到原码而非 1000），不回放任何排队帧、不落库；带新 `catalog` 的新会话正常加入；只改 `policy` 不触发 4426 | PR；M3 | PRD PM-08、PM-13；60/16 §12 第 4 项；rulings §4.23 O-1 |
+| W22 | 插件集指纹：`policy` 不符与在线通知（§4.23） | 带旧 `policy`、新 `catalog` 加入 → 照常准入，`connected` 后立即收到 Stateless `{type:'plugins', reason:'policy_changed', policy}`；已在线会话：管理员保存后经 `plugins:ctl` ≤ 1 s 收到同一消息（两个 collab 实例上的连接都收到，M3 两实例）；以 Toxiproxy 丢弃该次 PUBLISH → 由 `plugins.policyPollSeconds`（测试设为 5 s，并以默认 60 s 做一次长窗口变体）轮询兜底，≤ 轮询周期 + 1 s 收到；`policy` 一致的连接不收到；消息不中断编辑（此后 update 照常获 db ack） | PR；M3（长窗口变体 nightly） | PRD PM-08；60/16 §3、§12；rulings §4.23 O-1 |
 
 **图 7-4 PG 断开期照常广播**
 
@@ -543,6 +584,7 @@ stateDiagram-v2
 - **只追加**：以 `cordex_app` 与 `cordex_system` 对 `audit_log` 执行 `UPDATE`、`DELETE`、`TRUNCATE` → 权限拒绝（`audit.repository.append-only` 用例迁入本层，[01](./01-strategy-and-layers.md) §4）。
 - **哈希链**：并发 50 个写入事务 → 链校验通过（`pg_advisory_xact_lock` 串行化）；以 `cordex_migrator` 篡改一行 → CLI 与 `/internal/admin/audit/verify` 都在该行报错。
 - **轮换**：ops 命令 `audit-rotate`（`cordex_migrator` 凭据）DETACH 并 DROP 最老的整月分区、预建未来 3 个月分区 → 校验从最早保留分区之前的 `audit.sealed` 行续验通过（决策 C-20/G-13/G-14）。
+- **插件 action**（§4.23）：`plugin.policy_changed`、`plugin.config_changed` 由 §7.5 PL3、PL8 产生；`plugin.rejected` 由 [08](./08-deployment-and-environment-e2e.md) §3 C9 的被拒插件启动产生（主体 `system`，同一部署版本内重启不重复写），action 覆盖统计把 08 的该用例并入本步骤的汇总。
 - **action 覆盖**：`test/server-integration` 全部文件运行期间收集写入的 action 名；60/07 §9 登记表中的每个 action 至少被一个用例产生，登记表之外的 action 名出现即失败（执行见 §16）。
 
 ### 12.4 遥测、探针与内部端点
@@ -591,7 +633,7 @@ stateDiagram-v2
 
 | 内容 | 步骤 | 触发段 | 阻断 |
 |---|---|---|---|
-| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、extension-redis 两实例扇出（W1）与 Valkey 宕机与重启（W19）、容量验收与名额、同一出口 IP 集体重连（W4）、在场、评论、分享与权限细化、唯一 owner 运维转移（§7.4）、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换）；MG2、MG4 自基线冻结起 |
+| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§7.5 PL1、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、extension-redis 两实例扇出（W1）与 Valkey 宕机与重启（W19）、容量验收与名额、同一出口 IP 集体重连（W4）、在场、评论、分享与权限细化、唯一 owner 运维转移（§7.4）、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换、插件策略与个人选择 §7.5 PL2–PL7 与 PL9、插件集指纹 W21–W22）；M4：§7.5 PL8；MG2、MG4 自基线冻结起 |
 | `security-rls`（§5）；`csrf-origin`（§6 A11 / A12 的冒烟副本） | `e2e/smoke` | 每个 PR | `security-rls` M3 起阻断、此前报告（GV-16），不重试（决策 T-CI；12 §11）；`csrf-origin` 激活时间以 12 §4 为准 |
 | W3 `kill -9` 50 轮、W5 / W6 的长窗口变体 | `test/server-integration`，`CORDEX_SUITE=nightly` | nightly（M2 起）、M2 与 M3 出口 | nightly 失败自动建 issue 并阻断下一次发布打标签（T-CI） |
 
@@ -627,4 +669,5 @@ stateDiagram-v2
 | INC-09、C-06、D-M2-CONTENT、UPLOAD-QUARANTINE | 已定（rulings §4.19；UPLOAD-QUARANTINE 由总编排按 BE-10 细化定稿） | §9 W5 断言服务端 `persist` 信号、受众在 [06](./06-frontend-component-and-e2e.md) §5；§11.4 `snapshots-retention` 按 C-06；§8 D10 改为快照 bootstrap、§9 与 §11.2 导入提前到 M2；§11.2 J1 直传落点为 `uploads/tmp/{uploadId}` |
 | 回写 40/08 §9、40/09 §9、40/12 §9（由总编排执行） | 待回写 | `document-rls.e2e-spec.ts` → `smoke/security-rls.e2e-spec.ts`；`render-zero-egress.e2e-spec.ts` → `smoke/renderer-egress.e2e-spec.ts`；接真实 PG / Valkey 的 `*.processor.spec.ts` 与 `audit.repository.append-only.spec.ts` → `apps/server/test/integration/**/*.int-spec.ts`；各 §9 的场景与断言改为引用本文对应小节 |
 | 回写 30/11 §10 与 §12 的服务端部分 | 待回写 | 改为摘要并链接本文 |
+| rulings §4.23 插件管理（O-1…O-4 于 2026-10-01 确认按推荐） | 已定 | §4 MG5 / MG7 表集合 19 张、MG6 两表 GRANT；§7.5 PL1–PL9；§9 W21、W22；§12.3 插件 action；端点、错误码、表与迁移号以 60/15 §3.15、60/09（0012、0013）、60/07 §9.5 为准，本文随其定稿同步 |
 | rulings §4.21 q-db-access、q-webhook-sig、q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout | 已定（2026-09-26） | §4 MG7 改为直查 `pg_catalog`（含 relkind `p` 分区父表，60/08 §10.1 DB-03）；§12.2 H1、H2 改为 Standard Webhooks（60/07 §5.2）；§9 集群改为嵌入 Fastify 的 Hocuspocus，W1 按文档哈希与 extension-redis 改写，W4 写明自写 `drainAll` 顺序，W8、W9、W13 按 ADR-0039 改写，新增 W18 升级入口同端口与先扣后退、W19 Valkey 宕机与重启、W20 存储失败不丢（exp2 反例），图 7-5、图 7-6 |

@@ -1,6 +1,6 @@
 # 13 需求 → 测试可追溯矩阵
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：新增能力 id 追溯——`@cap` 标签、`capabilities.json`、R11 与 §5a 能力 id → 测试用例表）；2026-09-26（§4.21 整合：§3.3 / §3.4 登记 PRD 05 M2 验收 18、M3 验收 19 为既有检查子集（ED-15a、ED-31–ED-35；图表编辑往返判定）；§6 CO-10 行改 step2 单设 16 MiB；§7 0023 行改 provider v3/v4 互连，新增 0039 行；关闭码测试名改 close-policy.test）；2026-09-26（§4.21 复核：能力数改 165，补 INS-20 行） | 依赖：[50/18](../50-frontend/18-editor-capabilities.md) §1.3、§2–§26（rulings §4.21）、rulings §4.20（含来源所指 `_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical`、`plan.deferred`）、rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：新增能力 id 追溯——`@cap` 标签、`capabilities.json`、R11 与 §5a 能力 id → 测试用例表）；2026-09-26（§4.21 整合：§3.3 / §3.4 登记 PRD 05 M2 验收 18、M3 验收 19 为既有检查子集（ED-15a、ED-31–ED-35；图表编辑往返判定）；§6 CO-10 行改 step2 单设 16 MiB；§7 0023 行改 provider v3/v4 互连，新增 0039 行；关闭码测试名改 close-policy.test）；2026-09-26（§4.21 复核：能力数改 165，补 INS-20 行）；2026-10-01（§4.23 插件管理：`@req` 前缀加 `PM`、§1.1 登记 `4.23` 的 id 生成口径；§3 新增 `plugins:diagnose`（M2）、`plugins:admin` 与 `plugins:consistency`（M3）、`plugins:trust`（M4）；§5 加 PM 域；新增 §6.5 §4.23 裁决映射与 PM-01…PM-16 → 测试表；`@cap` 前缀加 `PLG`、§5a 加 PLG-01…PLG-07 行，计数改 26 域 172 项） | 依赖：[50/18](../50-frontend/18-editor-capabilities.md) §1.3、§2–§26（rulings §4.21）、rulings §4.20（含来源所指 `_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical`、`plan.deferred`）、rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
 
 本文是需求追溯的唯一事实源：测试上的三类追溯标签怎么写、需求与检查名清单从哪里生成、矩阵怎么产出和判定、PRD 检查名目录、NFR / 裁决 / ADR 到测试的映射、人工与半机械项、维护流程。标签的格式与存在性检查、矩阵产出由扫描器 `scan-requirement-tags`（09-06 §12）执行；完整性判定在 `test/requirement-matrix` 步骤（[12](./12-ci-gates-mapping.md)）；扫描器本身不判定完整性（09-06 §12 的职责边界）。
 
@@ -20,14 +20,15 @@
 
 | 标签 | 语法（正则） | 例 | 指向 | 存在性校验来源 |
 |---|---|---|---|---|
-| `@req` | `PRD:(OF\|ED\|CO\|PS\|EM\|SV\|ML\|AS\|NF)-\d{2}` | `@req PRD:SV-05` | PRD 需求 id（PRD 03 八个功能域 + PRD 04 的 NF；PRD 06 的 MT 指标不是需求，不作标签） | `tooling/policy/requirements.json` |
+| `@req` | `PRD:(OF\|ED\|CO\|PS\|EM\|SV\|ML\|AS\|PM\|NF)-\d{2}` | `@req PRD:SV-05` | PRD 需求 id（PRD 03 九个功能域（2026-10-01 加 PM，rulings §4.23） + PRD 04 的 NF；PRD 06 的 MT 指标不是需求，不作标签） | `tooling/policy/requirements.json` |
 | `@ruling` | `4\.\d{1,2}/[A-Z][A-Z0-9]*(-[0-9A-Za-z]+)*` | `@ruling 4.18/CO-08`、`@ruling 4.15/Q3`、`@ruling 4.17/D4`、`@ruling 4.19/SESSION` | rulings 各节的条目 id（表格第一列；§4.18 另含「规格空白默认值」列表与「机械修正」清单的 id，§2）；组合 id（如 `INC-03/04/05`、`C-20/G-13/G-14`）拆成单个 id 各写一次 | `tooling/policy/rulings.json` |
 | `@adr` | `\d{4}/\d{1,2}` | `@adr 0029/3`、`@adr 0025/8` | ADR「决策」节的条目序号（决策只有一段时记为 1） | `tooling/policy/adrs.json` |
-| `@cap`（2026-09-26 追加） | `(SEL\|ALN\|ARR\|INS\|TXT\|FMT\|PIC\|MED\|TBL\|CHT\|ML\|SLD\|VIEW\|FND\|CLP\|UND\|CMT\|SHW\|EXP\|COL\|OFF\|KEY\|UI\|A11Y\|I18N\|DOC)-\d{2}` | `@cap SEL-10`、`@cap INS-13` | 编辑器能力 id（[50/18](../50-frontend/18-editor-capabilities.md) 各域能力表首列，25 域 164 项） | `tooling/policy/capabilities.json` |
+| `@cap`（2026-09-26 追加） | `(SEL\|ALN\|ARR\|INS\|TXT\|FMT\|PIC\|MED\|TBL\|CHT\|ML\|SLD\|VIEW\|FND\|CLP\|UND\|CMT\|SHW\|EXP\|COL\|OFF\|KEY\|UI\|A11Y\|I18N\|DOC\|PLG)-\d{2}` | `@cap SEL-10`、`@cap INS-13`、`@cap PLG-02` | 编辑器能力 id（[50/18](../50-frontend/18-editor-capabilities.md) 各域能力表首列，26 域 172 项；2026-10-01 加插件管理域 `PLG`，§26a） | `tooling/policy/capabilities.json` |
 
 - **为什么要前缀**：rulings §4.18 的条目编号（`CO-08`、`BE-02`、`UX-03`…）与 PRD 需求编号同形，`CO-08` 单独出现时无法判断指 PRD「冲突语义」还是裁决「故障期广播」。`PRD:` 与 `<节>/` 前缀使两者不会混淆。
 - **`4.19`**：§4.19 的条目集合 = 该节表格第一列的 5 项用户裁决（D-M2-CONTENT、INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA）+ 表末单独一行的补完阶段用户裁决 `N1-IMPORT-OVERWRITE-RESTORE-LOCK`（2026-09-25 追加）+ 按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（共 81 条，含上述 5 项，其余 76 项为 INC-*、SESSION、C-*、T-* 等；组合 id 拆开，省略前缀的段继承前一段前缀，如 `INC-03/04/05` → `INC-03`、`INC-04`、`INC-05`，`C-20/G-13/G-14` → `C-20`、`G-13`、`G-14`）。两部分取并集，都由生成脚本写入 `rulings.json`（§2），`@ruling 4.19/<id>` 与其它节一样做存在性检查：`@ruling 4.19/SESSION`、`@ruling 4.19/T-CI` 等标签只有在读取 evidence 后才能通过，不另设「只查格式」的过渡口径。
 - **`4.20`**（2026-09-26 追加）：§4.20 的条目集合 = 该节表格第一列 15 项（3 项用户决策 + 12 项默认值）+ 按 §4.20 来源所指读取 `00-charter/_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical[].id`（25 条）与 `plan.deferred[].id`（5 条）。组合 id 按 `+` 拆开（`BE-01+TX-03` → `BE-01`、`TX-03`）；`·` 之后的后缀先去掉再拆（`BE-07+TX-05·登记` → `BE-07`、`TX-05`，`FE-09·正文` → `FE-09`）；拆出的重复 id 合并。例：`@ruling 4.20/BE-01`、`@ruling 4.20/TX-22`、`@ruling 4.20/FE-04`。
+- **`4.23`**（2026-10-01 追加）：§4.23 的条目集合 = 裁决表的三题（第一列为纯数字，生成脚本记为 `Q1`、`Q2`、`Q3`）+ 开放问题表 `O-1`…`O-4`（2026-10-01 用户确认按推荐）。§4.23「本节新增编号」中的 PM-01…PM-16 是 PRD 需求 id，走 `@req PRD:PM-xx`，G-84…G-87 是设计缺口、无测试要求，均不进 `rulings.json`。例：`@ruling 4.23/Q3`、`@ruling 4.23/O-1`。
 - **`@cap`**（2026-09-26 追加，rulings §4.21）：能力 id 比 PRD 需求 id 细一级（例如 PRD ED-05 下分出 SEL-10 调整手柄、SEL-11 翻转、INS-03 形状库），用来回答「编辑器的每一项能力有没有测试」。它不替代 `@req`：同一个测试通常同时带 `@req PRD:ED-05` 与 `@cap SEL-11`，P0 / P1 的门禁仍由 `@req` 经 R1、R5 执行，`@cap` 只进 R11 报告。能力 id 前缀没有冒号前缀，因为它们与 PRD（`PRD:`）和裁决（`4.xx/`）的编号都不同形。
 - **旧写法作废**：30/11 §17 的文件顶部 `// @req CO-08` 与 09-06 §12 规则 (a) 的正则 `^[A-Z]{2,3}-\d{2,3}$` 按本节改写（回写见 §11）；旧写法由规则 (a) 报错并提示新写法。
 
@@ -254,6 +255,7 @@ flowchart TB
 | `collab:persist` | 快照引导打开与初始同步；落库后才回 db ack、持久化滞后；≥ 500 update 触发压缩、压缩 10k update 时长；kill -9 零丢失 50 次；关闭重开哈希一致；同一用户两标签页互见；编辑 e2e 走网关路径 | [07 §8](./07-backend-integration-and-api-e2e.md) D10、§9 W2–W4；[02 §5](./02-contract-suites-and-pluggability.md) `durability/*`、`ack/*`；[05](./05-collab-simulation-and-property-tests.md) M2 档；[09 §6](./09-performance-and-capacity.md) `collab-bootstrap-*`、`persist-lag`、`compaction-10k`；[06 §5](./06-frontend-component-and-e2e.md) 第 2、22 行 | `test/server-integration`、`test/contract`、`test/collab-sim`、`perf/perf-collab`、`perf/perf-server`、`e2e/full-compose` | 机械 |
 | `collab:gate` | Ticket 握手与六种失败码；硬门禁拒绝即不广播不落库；5% 非法 update 最终全部合法；修复规则黄金用例；修复与拒绝入审计；媒体只经资源通道 | [02 §5.2](./02-contract-suites-and-pluggability.md) `gate/*`、`session/*`；[05 §8](./05-collab-simulation-and-property-tests.md)；[07 §6](./07-backend-integration-and-api-e2e.md) A10、§9 W8、W11 | `test/contract`、`test/collab-sim`、`test/unit`、`test/server-integration` | 机械 |
 | `collab:degraded` | 单实例 PG 写失败下不拒新编辑，超阈值依次溢写 Valkey → 对象存储、溢写期只回 spill ack 且 pending 保留；恢复后回放补 db ack、seq 连续且不重复落库；降级期两客户端仍互见；`persist` 信号 ≤ 1 s；发起方横幅与其余会话状态胶囊按三分支判据出现、恢复后消失；有未确认更改时离开保护 | [02 §5.2](./02-contract-suites-and-pluggability.md) `durability/pg-down-db-ack-withheld`、`degraded/*`；[07 §9](./07-backend-integration-and-api-e2e.md) W5a、W5、W6（单实例）；[05 §9](./05-collab-simulation-and-property-tests.md) `rs/unsaved-indicator`；[06 §5](./06-frontend-component-and-e2e.md) 第 22 行 | `test/server-integration`、`test/contract`、`test/unit`、`e2e/full-compose` | 机械 |
+| `plugins:diagnose`（§4.23） | 个人插件面板三分组与空分组隐藏；激活抛错的插件显示错误码、版本、traceId 与复制诊断信息，本会话重试成功后移入运行中，等待依赖与版本不兼容无重试；带 `plugin-qr-shape` 足迹的文档在未装配该插件时占位、横幅写明 `id` 与所需版本、导出原数据字节不变；第一方 manifest 的 `scope` 与判定表一致 | [06 §5](./06-frontend-component-and-e2e.md) 第 28、29 行、§2.2 插件三行；[02 §10.1](./02-contract-suites-and-pluggability.md) `scope/*`、`footprint/*`；[07 §7.5](./07-backend-integration-and-api-e2e.md) PL1 | `e2e/full-compose`、`test/unit`、`test/fidelity-roundtrip`、`test/server-integration` | 机械 |
 
 **图 13-4 M2 出口与检查名**
 
@@ -333,6 +335,8 @@ flowchart TB
 | `security:rls` | 绕过应用层直连 PG 越权被 RLS 拒绝；OIDC 登录、`selfSignup` 默认关、分享链接要求登录各有 e2e | SEC-DA-01 / 02、SEC-AU-02、SEC-AZ-09 | `e2e/smoke`、`scanners/check-rls-coverage`、`test/server-integration` | 机械 |
 | `collab:undo` | 同键跳过、整步不连撤、墓碑与恢复、TTL 与永久删除不等 TTL、彻底删除元素后整步跳过；两个 store 同一套件 | `runDocumentStoreConformance` 中性撤销分节（[02 §4](./02-contract-suites-and-pluggability.md)）；[05 §7](./05-collab-simulation-and-property-tests.md)；[07 §10](./07-backend-integration-and-api-e2e.md) | `test/contract`、`test/collab-sim`、`test/server-integration` | 机械 |
 | `pluggable:m3` | 两个 preset 的 Manifest 差异恰为白名单 `{−store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`；M2 编辑 e2e 在 store-yjs 下重跑；移除 collab 仍能启动 | [02 §10](./02-contract-suites-and-pluggability.md)（白名单按 rulings §4.19 D-COMMENTS-PKG 定稿；`manifest-diff.test.ts` 自 M2 起运行、M2 期间不含 `+comments`） | `test/unit`、`e2e/full-compose` | 机械 |
+| `plugins:admin`（§4.23，P1） | `member` 调策略写接口 403；内容级只有两态、必需项锁定；禁用被依赖者出确认卡且依赖方等待依赖；互斥不能同时启用；保存后新会话按新策略装配、在线会话 ≤ 60 s 出现重新加载横幅且不中断编辑；每次保存写 `plugin.policy_changed`；个人启停即时生效、刷新后保持、不写审计 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL2–PL7、PL9，§9 W22；[06 §5](./06-frontend-component-and-e2e.md) 第 28、30 行；SEC-AZ-16 | `test/server-integration`、`e2e/full-compose`、`e2e/a11y` | 机械 |
+| `plugins:consistency`（§4.23，P0） | A、B 同 Room 启用内容插件 P 后 B 未重新加载见占位、不改动 P 元素数据、两端模型哈希一致；界面级插件写命令被拒并记 `plugin/scope-violation`；服务端与客户端导出用同一内容级集合；内容插件版本变化后旧会话 4426 `collab.plugins_outdated`、先 flush 再刷新、刷新前写入被拒 | [06 §5](./06-frontend-component-and-e2e.md) 第 31 行；[07 §9](./07-backend-integration-and-api-e2e.md) W21、W22；[02 §10.1](./02-contract-suites-and-pluggability.md) `scope/ui-write-command-denied`；SEC-AZ-17；服务端导出一致沿用 `server:jobs` 的规范化比对 | `e2e/full-compose`、`test/server-integration`、`test/unit` | 机械 |
 
 **rulings §4.21 插入图表与表格结构**（2026-09-26 整合登记）：PRD 05 M3 验收 19 同样是 `e2e:editing`（M3 子集）与 `fidelity:edit-roundtrip` 的子集，不新增检查名。其中图表编辑往返（ED-15 / ED-15a）的判定为：编辑后导出由维护机打开无修复、「编辑数据」可打开内嵌工作簿（半机械，归 `fidelity:interop`，[03 §5.3](./03-fidelity-roundtrip-and-corpus.md)）；导出 PNG 按 `chart` 类别达标（[04 §8.1](./04-visual-oracle.md)，`e2e/oracle-gated`）。
 
@@ -427,6 +431,7 @@ flowchart TB
 | `scaffold:e2e` | 脚手架 8 个模板各生成一次，install / test / build 通过 ≤ 5 min | `packages/create-plugin` 的模板冒烟 | `api-surface/scaffold-e2e` | 机械 |
 | `pilot:external` | 内部非核心成员仅凭公开文档完成插件 ≤ 2 人日、CTK 通过、提问 ≤ 3 次 | `test/evidence/M4/pilot-external.md` | — | 半机械 |
 | `version:policy` | 弃用 API 带移除版本；到期扫描器失败用例 | 扫描器 `scan-deprecations` 的负向夹具 | `scanners/scan-deprecations`、`test/unit` | 机械 |
+| `plugins:trust`（§4.23，P0） | 声明文件格式错误退出码 78（`--dry-run` 同）；无签名且无审核记录的插件被拒、不进任何会话；摘要不符、`hostApi` 不覆盖、作用域声明低于推出结果各被拒并在管理员界面显示原因；强制启用插件被拒时 `/readyz` 附 `pluginsRejected`；生产拒绝允许未签名；界面无上传或安装入口 | [08](./08-deployment-and-environment-e2e.md) §2 RA13、§3 C9、§4 G13；SEC-SC-09、SEC-SC-10 | `test/server-integration`、`e2e/full-compose` | 机械 |
 
 ### 3.6 M5
 
@@ -480,12 +485,13 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | PS 插件 SDK | `packages/kernel` 同位测试、各包 `lifecycle.test.ts`、`test/plugin-compat/`、`examples/**` | `test/lifecycle`、`test/contract`、`test-typecheck`、`api-surface` | [02](./02-contract-suites-and-pluggability.md) |
 | EM 嵌入集成 | `packages/preset-*/src/__tests__/`、`examples/embed-*`、`apps/web/e2e/embed/**` | `test/lifecycle`、`test/unit`、`e2e/full-compose`、`scanners/scan-bundle-budget` | [02 §10](./02-contract-suites-and-pluggability.md)、[06](./06-frontend-component-and-e2e.md) |
 | SV 服务端运维 | `apps/server/src/**/__tests__/`、`apps/server/test/{integration,e2e}/**`、`test/deploy/` | `test/server-integration`、`e2e/smoke`、`e2e/full-compose`、`e2e/full-airgap`、`perf/perf-server` | [07](./07-backend-integration-and-api-e2e.md)、[08](./08-deployment-and-environment-e2e.md)、[10](./10-security-testing.md) |
+| PM 插件管理（2026-10-01，§4.23） | `apps/web/src/{domain,application}/plugins/` 与 `__tests__/pages/` 的插件页面测试、`apps/web/e2e/{plugins,admin}/**`、`packages/kernel` 的足迹与越权测试、`test/plugin-scope/`、`apps/server/test/e2e/plugins/**`、`test/deploy/compose/plugins/` | `test/unit`、`test/server-integration`、`e2e/full-compose`、`e2e/a11y`、`test/fidelity-roundtrip` | [02 §10.1](./02-contract-suites-and-pluggability.md)、[06 §5](./06-frontend-component-and-e2e.md) 第 28–31 行、[07 §7.5](./07-backend-integration-and-api-e2e.md)、[08](./08-deployment-and-environment-e2e.md) RA13 / C9 / G13、本文 §6.5 |
 
 ---
 
 ## 5a. 能力 id 追溯（2026-09-26 追加，rulings §4.21）
 
-[50/18](../50-frontend/18-editor-capabilities.md) 把编辑器拆成 25 个域、165 项能力（§1.3 统计；2026-09-26 复核从 INS-16 拆出 INS-20），每项有能力 id（`SEL-`、`INS-`、`TXT-`…）。本节回答「每项能力由哪些测试覆盖」：测试在 JSDoc 里写 `@cap <能力 id>`（§1.1），扫描器把它并入追溯矩阵，判定器按 R11 逐域报告缺口。下表是人工正本，列出每项能力**应当**落在哪些测试文件与步骤；带「新增」的测试文件由本轮能力补齐引入，文件登记随 40-modules 各篇的测试布局（§9）回写。区间写法 `SEL-01–04` 表示 SEL-01、SEL-02、SEL-03、SEL-04，`doc-sync.test.ts` 展开后与 50/18 的能力 id 集合比对（§10）。
+[50/18](../50-frontend/18-editor-capabilities.md) 把编辑器拆成 26 个域、172 项能力（§1.3 统计；2026-09-26 复核从 INS-16 拆出 INS-20；2026-10-01 按 rulings §4.23 新增插件管理域 PLG-01…PLG-07），每项有能力 id（`SEL-`、`INS-`、`TXT-`…）。本节回答「每项能力由哪些测试覆盖」：测试在 JSDoc 里写 `@cap <能力 id>`（§1.1），扫描器把它并入追溯矩阵，判定器按 R11 逐域报告缺口。下表是人工正本，列出每项能力**应当**落在哪些测试文件与步骤；带「新增」的测试文件由本轮能力补齐引入，文件登记随 40-modules 各篇的测试布局（§9）回写。区间写法 `SEL-01–04` 表示 SEL-01、SEL-02、SEL-03、SEL-04，`doc-sync.test.ts` 展开后与 50/18 的能力 id 集合比对（§10）。
 
 **图 13-7 能力 id 进入追溯矩阵**
 
@@ -565,6 +571,7 @@ flowchart LR
 | A11Y-01 | slide-render `a11y-descriptor` 单测（装饰性不进树） | `a11y/**` | `test/unit`、`e2e/a11y` | M1 / M2 |
 | I18N-01、I18N-02 | i18n 缺 key 回退单测；`scan-contributions` 规则 (f) | `i18n/pseudo-*.spec.ts`、`i18n/nohost-handoff.spec.ts`（[06 §8](./06-frontend-component-and-e2e.md)） | `test/unit`、`e2e/full-compose`、`perf/perf-client`（`locale-switch`） | M1 / M2 |
 | DOC-01、DOC-02 | ooxml-pptx `import-admission.test.ts`、`import-envelope.test.ts` | `open/open-render.spec.ts`、`shell/home.spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`e2e/full-compose` | M1 / M2 |
+| PLG-01…PLG-07（2026-10-01，§4.23） | `apps/web/src/__tests__/pages/{PluginManagerPage,AdminPluginsPage,footprint-banner}.test.tsx`、`domain/plugins/compute-exclude.test.ts`、`application/plugins/toggle.usecase.test.ts`；kernel `plugin-footprint.test.ts`（PLG-03） | `plugins/personal-panel.spec.ts`（PLG-01、PLG-02）、`plugins/missing-plugin.spec.ts`（PLG-03）、`admin/plugins.spec.ts`（PLG-04、PLG-05、PLG-06；PLG-07 为 M4 追加）（[06 §5](./06-frontend-component-and-e2e.md) 第 28–30 行） | `test/unit`、`e2e/full-compose`、`e2e/a11y` | M2（PLG-01、PLG-03）/ M3（PLG-02、PLG-04–PLG-06）/ M4（PLG-07） |
 
 - **与 §3、§5 的关系**：`e2e:editing` 的「每条 P0 / P1 ED 需求至少一个用例」不变（R5，文件名 `ed-<编号>-*.spec.ts`）；本表把同一批 spec 细分到能力，新测试在 `@req` 之外加写 `@cap`。表中 `editing/insert-tools.spec.ts`、`element-handles.spec.ts`、`insert-upload.spec.ts` 见 [06 §5](./06-frontend-component-and-e2e.md) 第 26 行。
 - **缺口口径**：50/18 中覆盖度为「后置」「非目标」「待决」的能力不计入 R11；「补齐」的能力在其主里程碑进入 `exit-review` 前必须补上表中的测试，否则出现在报告的「能力缺口」分域表里。
@@ -702,6 +709,69 @@ flowchart LR
 | `4.20/TX-13` | typescript、yjs、y-protocols 版本钉 | SEC-SC-05（TD-079 负向夹具三例） | `scanners/lockfile-guard` | M1 |
 | `4.20/TX-16` | 语料桶四个变量缺失即失败、不跳过 | [11 §10](./11-test-data-fixtures-and-determinism.md)；[12 §3](./12-ci-gates-mapping.md) | `test/fidelity-roundtrip`、`e2e/oracle-gated` | M1 |
 
+### 6.5 §4.23（插件管理：3 题用户裁决与 O-1…O-4，2026-10-01）
+
+标签写 `@ruling 4.23/<id>`，id 集合按 §1.1「`4.23`」一条生成。O-1…O-4 已于 2026-10-01 由用户确认按推荐，测试要求按推荐答案写。
+
+| 标签 | 测试要求 | 测试 | 步骤 | 到期 |
+|---|---|---|---|---|
+| `4.23/Q1` | 两级管理：只有 `platformRole='admin'` 能改策略；普通用户只能在 `optional` 范围内个人启停 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL2、PL6；SEC-AZ-16；[06 §5](./06-frontend-component-and-e2e.md) 第 30 行 | `test/server-integration`、`e2e/full-compose` | M3 |
+| `4.23/Q2` | 只认部署预置：插件只经声明文件加入；无签名且无审核记录被拒；界面无上传、安装入口 | [08](./08-deployment-and-environment-e2e.md) RA13、C9、G13；SEC-SC-09、SEC-SC-10 | `test/server-integration`、`e2e/full-compose` | M4（镜像内置部分 M3） |
+| `4.23/Q3` | 内容级按部署统一、界面级个人启停；缺插件照常打开、降级并提示 | [02 §10.1](./02-contract-suites-and-pluggability.md) `scope/*`、`footprint/*`；[06 §5](./06-frontend-component-and-e2e.md) 第 29、31 行；SEC-AZ-17 | `test/unit`、`e2e/full-compose` | M2（作用域与足迹）/ M3（一致性） |
+| `4.23/O-1` | 管理员变更新会话生效，已开会话 ≤ 60 s 横幅「重新加载」且先 flush；内容插件版本变化走 4426 `collab.plugins_outdated`；个人启停即时热切换 | [07 §9](./07-backend-integration-and-api-e2e.md) W21、W22；[06 §5](./06-frontend-component-and-e2e.md) 第 28、30、31 行 | `test/server-integration`、`e2e/full-compose` | M3 |
+| `4.23/O-2` | 个人选择服务端按账号保存：换浏览器上下文登录后保持；管理员改 `forced` 后记录保留、改回恢复 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL6、PL7；[06 §5](./06-frontend-component-and-e2e.md) 第 28 行 | `test/server-integration`、`e2e/full-compose` | M3 |
+| `4.23/O-3` | 文档记录内容插件足迹（`id`、最低版本、负责的元素类型），同事务维护、只增不减；导出 pptx 保留、导入读回 | [02 §10.1](./02-contract-suites-and-pluggability.md) `footprint/first-write-same-tx`、`footprint/monotonic`、`footprint/pptx-roundtrip` | `test/unit`、`test/fidelity-roundtrip` | M2 |
+| `4.23/O-4` | 管理员插件页 M3 能看能改，审计与生效时机同时交付 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL3；[06 §5](./06-frontend-component-and-e2e.md) 第 30 行；检查名 `plugins:admin` | `test/server-integration`、`e2e/full-compose` | M3 |
+
+**PM 需求 → 测试**（`@req PRD:PM-xx` 的人工正本；逐条结果以生成的报告为准，R1 / R5 照常对 P0 / P1 判定）：
+
+| 需求 | 优先级与里程碑 | 测试 |
+|---|---|---|
+| PM-01 角色与权限 | P0；M2 / M3 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL2、PL6；SEC-AZ-16；[06 §5](./06-frontend-component-and-e2e.md) 第 30 行（普通用户直访回开始页） |
+| PM-02 作用域声明与校验 | P0；M2 / M4 | [02 §10.1](./02-contract-suites-and-pluggability.md) `scope/*`、§12 `ctk/scope`；[08](./08-deployment-and-environment-e2e.md) C9 ⑥ |
+| PM-03 管控三态 | P1；M3 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL3、PL5、PL7；[06 §2.2](./06-frontend-component-and-e2e.md) 管理员三态控件 |
+| PM-04 部署预置与声明文件 | P1 / P0；M3 / M4 | [08](./08-deployment-and-environment-e2e.md) RA13、C9、G13；SEC-SC-10 |
+| PM-05 签名、审核与部署时校验 | P0；M4 | [08](./08-deployment-and-environment-e2e.md) C9；SEC-SC-09 |
+| PM-06 管理员界面：清单与状态 | P1；M3 | [06 §5](./06-frontend-component-and-e2e.md) 第 30 行；[07 §7.5](./07-backend-integration-and-api-e2e.md) PL2 |
+| PM-07 依赖、冲突与变更影响提示 | P1；M3 | [06 §5](./06-frontend-component-and-e2e.md) 第 30 行；[07 §7.5](./07-backend-integration-and-api-e2e.md) PL5 |
+| PM-08 生效时机 | P1；M3 | [07 §9](./07-backend-integration-and-api-e2e.md) W21、W22，§7.5 PL9；[06 §5](./06-frontend-component-and-e2e.md) 第 28、30 行 |
+| PM-09 插件配置 | P1；M4 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL8 |
+| PM-10 个人插件面板 | P0 / P1；M2 / M3 | [06 §2.2](./06-frontend-component-and-e2e.md) 个人插件面板、§5 第 28 行；[07 §7.5](./07-backend-integration-and-api-e2e.md) PL1、PL6 |
+| PM-11 快捷键冲突入口 | P1；M2 / M3 | [06 §5](./06-frontend-component-and-e2e.md) 第 28 行（冲突跳转、为我关闭） |
+| PM-12 缺插件降级与提示 | P1；M2 / M3 | [02 §10.1](./02-contract-suites-and-pluggability.md) `footprint/compare-reasons`、`footprint/unknown-preserved`；[06 §2.2](./06-frontend-component-and-e2e.md) 缺插件横幅、§5 第 29 行 |
+| PM-13 协同一致性规则 | P0；M3 | [06 §5](./06-frontend-component-and-e2e.md) 第 31 行；[07 §9](./07-backend-integration-and-api-e2e.md) W21；SEC-AZ-17 |
+| PM-14 审计 | P1；M3 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL3、PL6（不写审计）、PL8，§12.3 插件 action；[08](./08-deployment-and-environment-e2e.md) C9（`plugin.rejected`） |
+| PM-15 可观测 | P1；M2 / M3 | [07 §7.5](./07-backend-integration-and-api-e2e.md) PL2（失败会话数）、PL9（通知计数）、§12.4 指标名；[08](./08-deployment-and-environment-e2e.md) C9（`cordex_plugins_rejected` 与告警） |
+| PM-16 无障碍 | P0；M2 / M3 | [06 §7](./06-frontend-component-and-e2e.md) §7.2 `/admin/plugins` 与插件面板、§7.3「插件管理」、§7.7 |
+
+**图 13-8 PM 需求、检查名与测试文件的对应**
+
+```mermaid
+flowchart LR
+  diag["M2 plugins:diagnose：PM-02、PM-10、PM-12"]
+  admin["M3 plugins:admin：PM-01、PM-03、PM-06–PM-08、PM-14"]
+  cons["M3 plugins:consistency：PM-13"]
+  trust["M4 plugins:trust：PM-04、PM-05"]
+  t02["02 §10.1 作用域与足迹契约"]
+  t06["06 §5 第 28–31 行 e2e 与 §7 a11y"]
+  t07["07 §7.5 PL1–PL9 与 §9 W21–W22"]
+  t08["08 RA13、C9、G13"]
+  t10["10 SEC-AZ-16、17 与 SEC-SC-09、10"]
+  diag --> t02
+  diag --> t06
+  admin --> t07
+  admin --> t06
+  cons --> t06
+  cons --> t07
+  cons --> t02
+  trust --> t08
+  trust --> t10
+  admin --> t10
+```
+
+怎么读：左列是 PRD 05 的四个插件检查名与其覆盖的 PM 需求，右列是承载它们的测试小节；一条检查可以落到多个文件，同一文件也服务多条检查。PM-09 与 PM-15、PM-16 不单列检查名，分别由 `plugins:trust` 的 M4 批次、`plugins:admin` 与 `a11y:axe` 承担。
+依据：PRD 05 M2 验收 19、M3 验收 20 与 21、M4 验收 7；PRD 09 §4；rulings §4.23。
+
 ---
 
 ## 7. ADR 映射
@@ -806,6 +876,8 @@ flowchart LR
 ---
 
 ## 11. 已定裁决与回写
+
+rulings §4.23（2026-10-01，O-1…O-4 已由用户确认按推荐）：PRD 新增功能域 09 插件管理（PM-01…PM-16），`@req` 正则加 `PM`（§1.1），`gen-requirements` 的输入仍为 `10-prd/03-features/*.md` 故自动纳入；PRD 05 新增四个检查名登记在 §3.3–§3.5，`check-names.json` 同步；§6.5 登记 `4.23/Q1–Q3`、`4.23/O-1…O-4` 与 PM → 测试表。待回写：[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md) `scan-requirement-tags` 规则 (a) 的前缀集合加 `PM`；[50/18](../50-frontend/18-editor-capabilities.md) §26a 新增插件管理域 PLG-01…PLG-07（26 域 172 项），本文 §1.1 `@cap` 前缀集合加 `PLG`、§5a 加 PLG 行已同步；09-06 §12 规则 (a) 的 `@cap` 前缀集合同样加 `PLG`。
 
 rulings §4.21（2026-09-26）：[50/18](../50-frontend/18-editor-capabilities.md) 新建编辑器能力实现总表（25 域、164 项能力 id）。本文随之追加第四类标签 `@cap`（§1.1）、清单 `capabilities.json` 的生成口径（§2）、报告规则 R11（§1.3）与 §5a 能力 id → 测试用例表；`@cap` 只进报告，不改变 R1–R10 的门禁。
 

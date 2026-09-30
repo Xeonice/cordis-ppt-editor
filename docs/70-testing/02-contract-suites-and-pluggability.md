@@ -1,6 +1,6 @@
 # 02 契约套件目录、生命周期与可插拔证据
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：runCollabServerConformance 直接跑 Hocuspocus 实例，去重扇出改状态向量收敛，加钩子异常与 Valkey 宕机不杀进程、连接污染；runCollabTransportConformance 加 provider 事件时序分节）；2026-09-26（§4.21 复核：FanoutBus 变异体改为控制频道语义 `ctl/close-delivered-once`） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）/ §4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 与证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、TS-02、d-19、d-22、d-30，核实 vB、vC、vE）
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：runCollabServerConformance 直接跑 Hocuspocus 实例，去重扇出改状态向量收敛，加钩子异常与 Valkey 宕机不杀进程、连接污染；runCollabTransportConformance 加 provider 事件时序分节）；2026-09-26（§4.21 复核：FanoutBus 变异体改为控制频道语义 `ctl/close-delivered-once`）；2026-10-01（§4.23 插件管理：新增 §10.1 作用域判定表驱动断言、策略算出 `exclude`、内容插件足迹维护与比对契约用例；§12 CTK 增 `ctk/scope`） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）/ §4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 与证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、TS-02、d-19、d-22、d-30，核实 vB、vC、vE）
 
 本文是「契约套件（conformance kit）、插件生命周期套件、可插拔证据」三件事在测试侧的唯一事实源：定义 kit 的统一接口、每个 Definition 的 kit 与用例 id、运行矩阵、必须实例化的 Provider 与所在 CI 步骤。被测契约本身的语义不在这里：iso 契约签名在 [30/04](../30-architecture/04-document-model.md)、[30/05](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md) 与 [40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)，服务端运行侧行为在 [60/05](../60-backend/05-modules-collab-and-snapshots.md) 与 [60/16](../60-backend/16-ws-protocol-server-view.md)，客户端运行侧行为在 [50/04](../50-frontend/04-document-commands-and-undo.md) 与 [50/07](../50-frontend/07-collaboration-client.md)。协同模拟、fuzz 与性质测试见 [05](./05-collab-simulation-and-property-tests.md)；kit 实现文件仍登记在 40 各包的 `testing/`。
 
@@ -656,6 +656,47 @@ flowchart TB
 怎么读：实线自上而下是按里程碑累积的可插拔证据，每一级都不替代上一级、而是在它之上加一种证明；虚线表示「第二个 Provider 过同一 kit」从 M1 起持续有效，是「可替换」而不只是「可移除」的证据。
 依据：PRD 05 图 0-3 与 M1–M5「可插拔证据」；章程 §7；ADR-0010、ADR-0016。
 
+### 10.1 插件作用域与内容插件足迹（2026-10-01，rulings §4.23）
+
+被测口径：[PRD 09](../10-prd/03-features/09-plugin-manager.md) §2.2 作用域判定规则、PM-02、PM-12、PM-13；足迹的模型形态以 ADR-0050（内容插件足迹，提议）与 [30/04](../30-architecture/04-document-model.md) 的 `core.pluginFootprint` 资源为准。本节是契约层用例，界面表达在 [06 §5](./06-frontend-component-and-e2e.md) 第 28–30 行，服务端策略与指纹在 [07](./07-backend-integration-and-api-e2e.md) §7.5、§9 W21–W22。检查名：M2 `plugins:diagnose`（作用域表驱动与足迹提示）、M3 `plugins:consistency`（越权写被拒），[13 §3](./13-requirements-traceability.md)。
+
+| 用例 id | 断言 | 测试落点 | CI 步骤 | 起始 |
+|---|---|---|---|---|
+| `scope/table-driven@<unitId>` | 以 [40/16](../40-modules/16-plugin-catalog.md) §2 主表的 46 个 cordis 插件单元为数据源（「作用域」列），每个单元的 `cordex-manifest.json` 含 `scope`，且等于按 PRD 09 §2.2 规则从 `contributes` 与 `implements` 推出的最低作用域；主表新增单元未填作用域即失败 | `test/plugin-scope/scope-table.test.ts`（数据源由 40/16 §2 导出为 `tooling/policy/plugin-scope.json`，与 40/16 同一 PR 修改） | `test/unit` | M2 |
+| `scope/declared-looser-fails` | 负向夹具：声明 `scope:'ui'` 却贡献 `slide.shapeKind`、`core.mutation`、带写能力位的 `core.command`、任一 Provider 座、`telemetry.sink` 各一例 → 清单生成失败，错误列出越界的贡献点 id | 同上（夹具在 `test/plugin-scope/negative/`） | `test/unit` | M2 |
+| `scope/unknown-point-is-content` | 只贡献一个第三方自定义贡献点的插件被推为 `content`；只贡献 `ui.*`、`i18n.bundle`、`render.overlay` 与只读命令的推为 `ui`；作者把 `ui` 声明为 `content` 被接受（只能更严） | 同上 | `test/unit` | M2 |
+| `exclude/from-plugin-set` | `compute-exclude` 纯函数：输入 preset 条目表与 `GET /users/me/plugins` 形状的生效集合（内容级集合、强制界面级、本人开启的 `optional`），输出的 `exclude` = preset 条目 − 三者并集；`required` 条目永不进 `exclude`；内容级条目的个人选择被忽略 | `apps/web/src/domain/plugins/compute-exclude.test.ts`（纯函数 `domain/plugins/compute-exclude.ts`，[50/03](../50-frontend/03-preset-assembly-and-plugins.md)） | `test/unit` | M2 |
+| `footprint/first-write-same-tx` | 内容级插件第一次写入自己的元素 kind 或资源命名空间的事务提交后，`resources['core.pluginFootprint']` 含该插件 `id`、`minVersion` 与对应 `kinds` / `namespaces`；足迹更新与写入在**同一事务**（`TransactionRecord` 只有一条，撤销栈只加 1） | `packages/kernel/src/__tests__/plugin-footprint.test.ts`（以 `fixture` 文档类型与测试用内容插件驱动，文档类型盲） | `test/unit` | M2 |
+| `footprint/monotonic` | 撤销该写入后元素消失而足迹条目保留；重做不产生重复条目；较新版本插件再次写入把 `minVersion` 提高、从不降低；删除全部相关元素后足迹不自动删除 | 同上 | `test/unit` | M2 |
+| `footprint/ui-not-recorded` | 界面级插件的任何动作都不产生足迹条目；足迹命名空间对 `store-memory` 与 `store-yjs` 两种 Store 行为相同（两个 Provider 各跑一遍） | 同上 | `test/unit` | M2 |
+| `footprint/compare-reasons` | `comparePluginFootprint(footprint, sessionSet, catalogStates)` 对四种情况逐一返回正确 `reason`：管理员已停用 `disabled`、未声明或被拒 `absent`、版本低于 `minVersion` `outdated`、已启用但本会话 `FAILED` 或 `PENDING` `failed`；已装配且版本满足时不出现在结果中；`affectedSlideIds` 与夹具一致 | 同上 | `test/unit` | M2（`disabled` 与 `absent` 区分 M3） |
+| `footprint/unknown-preserved` | 缺少足迹中插件的会话打开文档：该插件的元素与资源命名空间原样保留，任意编辑其它内容后导出，那部分数据字节不变，足迹不被改写 | `packages/preset-slide/src/__tests__/missing-plugin.test.ts` | `test/unit` | M2 |
+| `footprint/pptx-roundtrip` | 导出时足迹写进 `p:presentation/p:extLst/p:ext`（`uri="urn:cordex:plugin-footprint:1"`），导入读回同一资源、条目逐项相等；零编辑往返该扩展字节不变；删掉该扩展的外部文件仍能打开并退化为只报「未知内容」 | `packages/ooxml-pptx/src/__tests__/plugin-footprint-ext.test.ts`；往返语料见 [03](./03-fidelity-roundtrip-and-corpus.md) | `test/fidelity-roundtrip` | M2 |
+| `scope/ui-write-command-denied` | 运行期界面级插件经命令管线执行写命令 → 按未授权拒绝（`PERMISSION_DENIED`），Store 无事务，发出诊断事件 `plugin/scope-violation {pluginId, commandId}`；同一插件的只读命令照常执行 | `packages/kernel/src/__tests__/scope-violation.test.ts` | `test/unit` | M3 |
+
+**图 10-2 内容插件足迹的维护与比对**
+
+```mermaid
+flowchart LR
+  write["内容级插件写入元素 kind 或资源命名空间"]
+  pipe["kernel 命令管线：提交前查本事务写入的归属"]
+  fp["同一事务更新 core.pluginFootprint：只增不减"]
+  ui["界面级插件：不产生足迹"]
+  open["打开文档：读取足迹"]
+  cmp["comparePluginFootprint 对比本会话生效集合"]
+  ok["已装配且版本满足：不列出"]
+  miss["disabled、absent、outdated、failed 四种原因"]
+  keep["降级占位，原数据保留，导出字节不变"]
+  write --> pipe --> fp
+  ui -. "无写入" .-> pipe
+  fp --> open --> cmp
+  cmp --> ok
+  cmp --> miss --> keep
+```
+
+怎么读：左半是写入侧，足迹与内容写入同一事务落下、撤销不回退；右半是打开侧，比对结果只列出缺失或不满足的插件，四种原因对应 06 §5 第 29 行横幅的四种文案。
+依据：PRD 09 PM-02、PM-12、PM-13；rulings §4.23 O-3（已确认）；ADR-0050（提议）。
+
 ---
 
 ## 11. 文档类型盲四层
@@ -678,7 +719,7 @@ flowchart TB
 
 ## 12. 插件兼容套件 CTK（M4）
 
-PRD PS-06 定义「CTK 8 项检查 + 负向样例」，本节定测试口径与落点；CTK 命令行（草案 `cordex ctk run <pkg>`）的包归属由 M4 插件 SDK 设计定。CTK 复用已有机制，不另写一套断言：
+PRD PS-06 定义「CTK 8 项检查 + 负向样例」，本节定测试口径与落点；CTK 命令行（草案 `cordex ctk run <pkg>`）的包归属由 M4 插件 SDK 设计定。CTK 复用已有机制，不另写一套断言（2026-10-01 按 PRD 09 PM-02 追加第 9 项 `ctk/scope`，rulings §4.23）：
 
 | 用例 id | 检查（PS-06） | 复用的机制 | 负向样例（`test/plugin-compat/negative/`） |
 |---|---|---|---|
@@ -690,6 +731,7 @@ PRD PS-06 定义「CTK 8 项检查 + 负向样例」，本节定测试口径与�
 | `ctk/failure-isolation` | 注入抛错版本，宿主其余功能可用 | kernel `failure-isolation` 测试夹具 | `throw-in-apply`（`apply` 抛错） |
 | `ctk/version-negotiation` | `hostApi` 范围外的宿主拒绝加载，发 `plugin/incompatible`、错误码 `plugin.incompatible` | ADR-0002 版本协商 | `host-api-future`（声明未来主版本） |
 | `ctk/contribution-schema` | 每个贡献条目通过对应贡献点 schema；React 组件型 `ui.*` 贡献在 axe 夹具下零违规 | `defineContributionPoint` schema；ui-react `testing` 的 `axeCheck`（rulings §4.15 Q2） | `bad-ribbon-item`（缺 `id` 的 `ui.ribbon` 条目） |
+| `ctk/scope`（2026-10-01 追加，PM-02） | `cordex-manifest.json` 含 `scope`，且不低于按 PRD 09 §2.2 推出的最低作用域；声明为 `ui` 的插件运行期执行写命令被拒并发 `plugin/scope-violation` | §10.1 `scope/*` 的同一推出函数与 `scope/ui-write-command-denied` 的夹具 | `ui-scope-writes`（声明 `ui` 却贡献 `slide.shapeKind`） |
 
 - **宿主版本矩阵**：当前次版本 + 前两个次版本（ADR-0002），单插件全矩阵 ≤ 3 min；报告为 JSON 与 Markdown 徽章。
 - **`ctk:self`**（PRD M4 验收 2）：`test/plugin-compat/self.test.ts` 读取官方插件与 `examples/*` 清单逐个运行 CTK，全部通过；同文件断言每个负向样例恰在其对应检查上失败（A17）。
@@ -729,6 +771,7 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | q-ws-gateway、H:q-hp-persist-ack、H:q-hp-provider（Hocuspocus 4 与官方 provider） | §3 #10、#20、`collabServer` 行；§5.2 集群形态、`gate/no-ack-after-drop`、`gate/broadcast-stateless-4400`、`session/preauth-frames-queued`、`hooks/exception-no-process-exit`、`session/auth-refresh-rebinds`；§6.1 `provider/*` 与图 6-1 | rulings §4.21（q-ws-gateway 为用户选择的非推荐项，其余为推荐项）；ADR-0039 |
 | H:q-hp-fanout（extension-redis + 文档哈希） | §5.2 `fanout/two-instance-sv-converge`、`fanout/doc-hash-single-holder`、`redis/valkey-down-no-process-exit` | rulings §4.21（推荐项） |
 | H:q-hp-step2-cap | §5.2 `gate/step2-over-16mib-4413` | rulings §4.21（推荐项） |
+| §4.23 第 3 题（内容级按部署统一、界面级个人启停）、O-3（内容插件足迹） | §10.1 `scope/*`、`exclude/from-plugin-set`、`footprint/*`；§12 `ctk/scope` | rulings §4.23（用户裁决；O-3 于 2026-10-01 确认按推荐） |
 
 ---
 
@@ -746,6 +789,7 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 
 8. [PRD 05](../10-prd/05-milestones-and-scope.md) M3「可插拔证据」的白名单改为 §10 定稿集合（rulings §4.19 D-COMMENTS-PKG 明示），并注明 `manifest-diff.test.ts` 自 M2 起运行。
 9. （§4.21）[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md) 与 [60/05](../60-backend/05-modules-collab-and-snapshots.md)：`server-collab/testing` 的 `createServerCluster(n)` 改为 n 个 Hocuspocus 实例 + 内存 pub/sub 替身驱动的 extension-redis；`FanoutBus` 的职责收窄为自有控制频道；`runCollabServerConformance` 的 `cases` 常量按 §5.2 更新。[40/05](../40-modules/05-collaboration-client.md) 的 `collab-transport-ws/testing` 登记 `createScriptedServer`、`__tests__` 改名 `close-policy.test.ts`（已同轮完成）。
+10. （§4.23）[40/16](../40-modules/16-plugin-catalog.md) §2「作用域」列导出为 `tooling/policy/plugin-scope.json`（§10.1 `scope/table-driven` 的数据源，生成脚本落点随 40/01 登记）；PRD PS-06「CTK 8 项检查」改为 9 项（加 `ctk/scope`）；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) 与 [40/11](../40-modules/11-preset-assembly-and-app-shell.md) §9 登记 §10.1 的测试文件。
 
 未决：
 

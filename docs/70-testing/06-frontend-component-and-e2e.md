@@ -1,5 +1,5 @@
 # 06 前端组件测试、浏览器 e2e 与可访问性
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入交互 e2e——插入工具态、元素手柄、键盘等价、上传占位与失败重试）；2026-09-26（§4.21 整合：§2.2 补文本输入宿主一致、单击插入文本框不输入即退出、单元格导航、图片裁剪三路径等价；§5 第 2 行登记 ED-15a / ED-31–ED-35 与 @cap；新增第 27 行（符号面板、超链接激活白名单、编辑态临时播放）；§10.1 补 50/14 V2、V15 断言组）；2026-09-30（§4.22 设计待决收口：§5 第 26 行补插入落点 e2e（50/10 §12.1 V21，Q1）——插入页签插入表格、图表、图片先填空内容占位符，已选中的优先，图标与音视频不自动填入；§14 同步） | 依赖：rulings §4.22 Q1-insert-placement、rulings §4.21（R-d-62、R-d-66、R-d-72）、[50/10](../50-frontend/10-editor-shell-and-interaction.md) §7.4、§7.5、§10.4、§12.1 V21、[50/22](../50-frontend/22-elements-shapes-and-lines.md)、[50/05](../50-frontend/05-rendering-and-thumbnails.md) §8.3、设计 03-04 / 03-15 / 03-17、rulings §4.20 FE-02 / FE-05 / FE-06 / FE-07 / FE-16 / FE-18+TX-06 / FE-23、rulings §4.19 D-M2-CONTENT / INC-09、[01](./01-strategy-and-layers.md)、[30/11](../30-architecture/11-testing-strategy.md) §1 / §10 / §17、[40/10 §9](../40-modules/10-ui-shell-and-slide-ui.md)、[40/11 §9](../40-modules/11-preset-assembly-and-app-shell.md)、[40/06 §9.3](../40-modules/06-layout-and-render-engine.md)、[40/07 §9](../40-modules/07-slide-rendering.md)、PRD 04 NF-01 / NF-04–NF-07、PRD 05 M2 验收 1 / 6–9 / 11–13 与 M3 验收 5 / 13、[设计 07](../20-design/07-accessibility-and-i18n.md) §1 / §4 / §9、ADR-0017 / 0026 / 0028 / 0033、rulings §4.15 Q2、§4.16 Q20、§4.18 BE-01 / BE-04 / FE-09 / UX-02 / UX-11 / UX-19 / UX-20
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入交互 e2e——插入工具态、元素手柄、键盘等价、上传占位与失败重试）；2026-09-26（§4.21 整合：§2.2 补文本输入宿主一致、单击插入文本框不输入即退出、单元格导航、图片裁剪三路径等价；§5 第 2 行登记 ED-15a / ED-31–ED-35 与 @cap；新增第 27 行（符号面板、超链接激活白名单、编辑态临时播放）；§10.1 补 50/14 V2、V15 断言组）；2026-09-30（§4.22 设计待决收口：§5 第 26 行补插入落点 e2e（50/10 §12.1 V21，Q1）——插入页签插入表格、图表、图片先填空内容占位符，已选中的优先，图标与音视频不自动填入；§14 同步）；2026-10-01（§4.23 插件管理：§2.2 个人插件面板、管理员三态控件与缺插件横幅组件断言；§5 第 16 行改由策略停用，新增第 28–31 行（个人插件面板、缺插件横幅、管理员插件页与「插件设置已更新」横幅、协同一致性）；§7 a11y 矩阵加 `/admin/plugins` 与插件面板、键盘与读屏；图 6-5） | 依赖：rulings §4.22 Q1-insert-placement、rulings §4.21（R-d-62、R-d-66、R-d-72）、[50/10](../50-frontend/10-editor-shell-and-interaction.md) §7.4、§7.5、§10.4、§12.1 V21、[50/22](../50-frontend/22-elements-shapes-and-lines.md)、[50/05](../50-frontend/05-rendering-and-thumbnails.md) §8.3、设计 03-04 / 03-15 / 03-17、rulings §4.20 FE-02 / FE-05 / FE-06 / FE-07 / FE-16 / FE-18+TX-06 / FE-23、rulings §4.19 D-M2-CONTENT / INC-09、[01](./01-strategy-and-layers.md)、[30/11](../30-architecture/11-testing-strategy.md) §1 / §10 / §17、[40/10 §9](../40-modules/10-ui-shell-and-slide-ui.md)、[40/11 §9](../40-modules/11-preset-assembly-and-app-shell.md)、[40/06 §9.3](../40-modules/06-layout-and-render-engine.md)、[40/07 §9](../40-modules/07-slide-rendering.md)、PRD 04 NF-01 / NF-04–NF-07、PRD 05 M2 验收 1 / 6–9 / 11–13 与 M3 验收 5 / 13、[设计 07](../20-design/07-accessibility-and-i18n.md) §1 / §4 / §9、ADR-0017 / 0026 / 0028 / 0033、rulings §4.15 Q2、§4.16 Q20、§4.18 BE-01 / BE-04 / FE-09 / UX-02 / UX-11 / UX-19 / UX-20
 
 本文是浏览器侧测试的唯一事实源：组件与单测层的约定、Playwright 工程（目录、projects、页面对象、登录复用、产物）、e2e 的两种编排模式、浏览器用例族、`/render` 页的测法、可访问性的唯一执行口径、国际化与 IME 的自动化、前端安全 e2e、资源断言，以及前端用例在 PR 冒烟子集与全量段之间的划分。
 
@@ -64,6 +64,9 @@
 | 单击插入的文本框不输入即退出：Store 无该形状、撤销栈长度不变（2026-09-26 整合） | `slide-ui/__tests__/insert-tool.test.ts` | [50/20](../50-frontend/20-elements-text.md) §2 |
 | 表格单元格导航（2026-09-26 整合）：Tab / Shift+Tab 按行主序跳过被合并覆盖的格；M2 末格 Tab 不产生事务、光标留在末格并经 live region 播报「已是最后一个单元格」；方向键在首末行或首末字符处越界到相邻格；文本目标为 `{shapeId, cell:{rowId, colId}}` | `slide-ui/__tests__/text-editing.test.ts` | 50/06 §9.2；[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.6 |
 | 图片裁剪三路径等价（2026-09-26 整合，50/23 §2.3）：拖裁剪手柄、检查器数值输入、「填充 / 适合」三条路径得到相同 `sourceRect` 时，写出的 `slide.crop` 参数与撤销结果相同；每条路径确认时恰一次 `slide.crop`、一个撤销步 | `slide-ui/__tests__/crop.test.ts` | [50/23](../50-frontend/23-elements-media.md) §2.3 |
+| 个人插件面板（2026-10-01，§4.23）：按 `GET /users/me/plugins` 夹具（msw）分三组「本部署统一启用 / 我的界面插件 / 本文档缺少的插件」，空分组连标题一起隐藏；内容级与强制启用项无开关、徽标「由管理员统一」；`optional` 项为 `role="switch"`，可访问名含「个人设置，只影响你」；没有任何 `optional` 项时显示「可选插件由管理员设置」；只读访问者无任何会写文档的动作；`FAILED` 行有「重试」，`incompatible` 与 `pending_dependency` 无「重试」；M2 构建下开关不渲染 | `apps/web/src/__tests__/pages/PluginManagerPage.test.tsx`（`pages/plugins/PluginManagerPage.tsx`） | PRD PM-10、PM-16；[50/03](../50-frontend/03-preset-assembly-and-plugins.md) §10 |
+| 管理员三态控件（§4.23）：内容级插件只有「强制启用 / 禁用」两个 `radio`，「允许用户选择」不渲染为可选项并带 tooltip；内核必需与契约必需项、声明文件 `lockPolicy` 项为 `aria-disabled` 的锁定态、可聚焦并读出锁定原因；被拒三类（`rejected_unsigned`、`incompatible`、`invalid`）无控件、无重试；保存时组装的 `PATCH /admin/plugins` 请求体只含变更项并带 `If-Match`，412 时提示「设置已被他人修改」并重新拉取 | `apps/web/src/__tests__/pages/AdminPluginsPage.test.tsx`（`pages/admin/AdminPluginsPage.tsx`、`PluginChangeConfirm.tsx`） | PM-03、PM-06、PM-16 |
+| 缺插件横幅（§4.23）：`comparePluginFootprint` 结果的四种 `reason`（`disabled`、`absent`、`outdated`、`failed`）各渲染对应文案（插件名或 `id`、所需版本与当前版本）；`role="status"`、不抢焦点；同一文档同一会话只出现一次；管理员多一个「去管理 › 插件」；查看器 preset 只渲染一行说明、无面板入口 | `apps/web/src/__tests__/pages/footprint-banner.test.tsx`（`pages/editor/footprint-banner.tsx`、`application/plugins/footprint-check.usecase.ts`） | PM-12、PM-16 |
 | 每个 `user:true` 错误码渲染时取到 `errors.<code>.title` 与 `.action`，不显示原始码名 | `apps/web/src/__tests__/infrastructure/error-copy.test.ts`（msw 逐码返回 problem+json） | 决策 ERR-COPY |
 
 **图 6-1 前端测试层次与工具**
@@ -269,7 +272,7 @@ sequenceDiagram
 | 13 | 离线恢复（`collab/offline.spec.ts`） | 断网编辑 → 恢复后另一浏览器看到全部更改；M3 内存队列：有 pending 时刷新触发 `beforeunload` 提示；被降权后「未同步更改」可导出（`collab:rejected-rollback` 的界面部分）；M4：断网编辑 → reload → 上线 → 另一浏览器看到（离线库）；同一用户第二个标签页提示「另一个标签页正在保存离线更改」 | C | M3 / M4 | — | ADR-0033「如何被机械验证」；PRD 05 M3 验收 5 / 13；决策 OFFLINE-TABS |
 | 14 | 评论（`comments/*.spec.ts`） | commenter 可建线程与回复、不可编辑或删除他人的，只能解决自己创建的线程，editor 可解决任何线程；删除锚点形状 → 线程进「已分离」；删除方撤销或「恢复元素」→ 线程回原锚点；@提及候选在 IME 组合未结束前不刷新过滤；四个筛选；另一浏览器 ≤ 1 s 看到更新（`CONTROL.event` 触发）；查看者只读；深链 `?comment=` 定位线程 | C | M3 | — | ADR-0031；[50/08](../50-frontend/08-comments-and-version-history.md) §5–§8 |
 | 15 | 版本历史（`history/*.spec.ts`） | 无 `history.read` 时 `/documents/:id/history` 无入口且直达返回无权页；命名版本需 `doc.manage`；恢复只对有 `history.restore` 的角色可用，恢复后协作者不断连且实时看到结果，恢复进行中协作者画布不转只读、不出现「文档正忙」（恢复不加锁，rulings §4.19 N1）；预览不影响当前会话与 awareness，离开历史页后预览 Unit 已 dispose（`diagnostics.dump()` 的 effects 为空）；版本说明与贡献者显示 | C | M3 | — | [50/08](../50-frontend/08-comments-and-version-history.md) §9–§10；能力位以 protocol `permissions/actions.ts` 为准 |
-| 16 | 插件启停（`plugins/plugin-toggle.spec.ts`、`plugins/plugin-qr-shape.spec.ts`） | `examples/plugin-qr-shape`：插入二维码元素、渲染、导出（图片回退 + `extLst`）、撤销；在插件管理器停用后 Ribbon 按钮消失、带该插件 owner 标记的 DOM 节点数为 0 | S | M2 | #4 ✓（启停与无残留 DOM） | PRD 05 M2 可插拔证据 `pluggable:m2` |
+| 16 | 插件启停（`plugins/plugin-toggle.spec.ts`、`plugins/plugin-qr-shape.spec.ts`） | `examples/plugin-qr-shape`：插入二维码元素、渲染、导出（图片回退 + `extLst`）、撤销；该插件是内容级（贡献 `slide.shapeKind`），停用只能经部署策略（rulings §4.23，个人面板不提供开关）：以策略夹具（`GET /users/me/plugins` 不含该插件，S 模式由 `TestEnv` 注入）重新打开后 Ribbon 按钮消失、带该插件 owner 标记的 DOM 节点数为 0 | S | M2 | #4 ✓（启停与无残留 DOM） | PRD 05 M2 可插拔证据 `pluggable:m2`；PRD PM-03 |
 | 17 | `embed:multi`（`embed/multi.spec.ts`） | 同页 4 个编辑器实例；快捷键按焦点分派到对应实例；逐个销毁后无残留 DOM、`diagnostics.dump()` 的 effects 为空 | S | M2 | — | PRD 05 M2 验收 7 |
 | 18 | `embed:framework-free`（`embed/vanilla.spec.ts`） | `examples/embed-vanilla` 以 `UiRenderer('vanilla')` 渲染 Ribbon 并完成一次编辑与撤销；该页加载的 chunk 不属于构建 manifest 中含 react / radix 的 chunk 集合 | S | M2 | — | PRD 05 M2 验收 13；rulings §4.15 Q2 |
 | 19 | 深链与路由（`shell/deep-link.spec.ts`） | `/documents/:id?page=<slideId>&comment=<threadId>` 打开到该页与该线程；放映深链同名参数 `page`；`/d/<id>` 为不存在页 | S / C | M2 / M3 | — | 决策 INC-35 |
@@ -281,6 +284,33 @@ sequenceDiagram
 | 25 | 删除被引用的版式与母版、应用主题（`editing/master-layout-delete.spec.ts`、`editing/theme-apply.spec.ts`） | 删除被引用的版式：`AlertDialog` 显示引用页数、初始焦点在「取消」、文案不含「操作不可撤销」；确认后出现带「撤销」的 Toast，点「撤销」或 `Mod+Z` 一步恢复各页版式与被删版式（同一 id）；删除被引用的母版：对话框文案为「N 个页面将改用剩余母版中对应的版式」、不出现母版选择器，确认后各页版式 `type` 在目标母版有同类版式时不变，Toast 撤销同样一步恢复；应用主题（主题卡、变体色块、主题面板「应用」）不弹确认框、直接执行并出 Toast「已应用主题『X』，影响 N 页 [撤销]」（N 为该母版引用页数），撤销后主题与 12 个色槽恢复原值。命令层与协同层的确定性断言在 [05 §7.1](./05-collab-simulation-and-property-tests.md) | S / C | M3 | — | rulings §4.20 FE-05、FE-23、FE-07；[50/11](../50-frontend/11-masters-layouts-and-themes.md) §9–§10；PRD 07 ML-03 / ML-04 |
 | 26 | 插入交互（`editing/insert-tools.spec.ts`、`editing/element-handles.spec.ts`、`editing/insert-upload.spec.ts`；§4.21） | **插入工具态**（[50/10](../50-frontend/10-editor-shell-and-interaction.md) §7.4）：插入页签七组次序与设计 03-04 一致；点形状库条目后画布光标为十字、按钮 `aria-pressed`；单击插入 1 in × 1 in、左上角在点击处；拖出按矩形，`Shift` 锁 1:1、`Alt` 中心；线条拖出 `Shift` 约束到 45° 倍数；`Esc` 取消、网络记录与撤销栈均无新增；插入后新元素被选中，文本框进入编辑、动作按钮弹出「操作设置」，`Mod+Z` 一次撤回插入。**插入落点**（50/10 §7.4、§12.1 V21，rulings §4.22 Q1）：在有两个空内容占位符的夹具页（「两栏内容」版式）上，从插入页签插入表格（网格与「插入表格…」对话框两条路径）、图片、图表（M3），新元素占据阅读序第一个空占位符的框；经 §3.5 诊断接口断言该次事务是 `slide.fillPlaceholder`、新元素保留原占位符的 `type` 与 `idx`，被填占位符的图标条消失；先选中第二个空占位符再插入，填入的是被选中的那个；页上没有空内容占位符时，按默认落点居中于视口；图标（M3 P2）与音视频（P2）不按阅读序自动填入，页上只有未选中的空占位符时仍居中于视口、占位符保持为空（沿用 §7.4 原规则）；每次插入都能 `Mod+Z` 一次撤回，占位符恢复为空并重新出现图标条。**元素手柄**（§7.5）：拖黄色调整手柄改圆角矩形圆角，一次撤销还原；拖线条端点改方向；端点拖到矩形连接点出现高亮并连接，再移动矩形时直线连接符跟随（M2）、肘形连接符重算路径（M3）；端点拖离即断开；图片裁剪模式拖裁剪手柄改变取景，`Esc` 退出不回滚。**键盘等价**（WCAG 2.5.7）：只用键盘在形状库条目上按 `Enter` 插入到视口中心，再经检查器「位置与大小」「形状」调整值与连接符「连接到…」完成与拖动相同的结果；曲线绘制工具作为登记例外只断言替代路径存在。**上传占位与失败重试**（[50/05](../50-frontend/05-rendering-and-thumbnails.md) §8.3、设计 03-04）：选择图片后画布先出现临时占位、插入不等上传；拦截 `PUT` 预签名 URL 返回 500 → 按 1 s、2 s、4 s 重试三次后形状显示「上传失败 · 重试」徽标且插入不回滚；点「重试」且放行后徽标消失；「移除」即删除该图片、可撤销；超过 `maxBytes` 或类型不在白名单的文件在插入前被拒并出 Toast；协同模式下另一浏览器在 commit 前显示加载占位、commit 后显示图片 | S / C | M2（肘形重算、图表填入 M3；图标与音视频的落点断言随各自条目启用） | — | PRD ED-05、ED-07、ED-10、ED-28、ED-29；R-d-62、R-d-66；rulings §4.22 Q1；50/10 §12.1 V21；[50/22](../50-frontend/22-elements-shapes-and-lines.md) §8 |
 | 27 | 元素插入补充（`editing/symbol-panel.spec.ts`、`editing/hyperlink-activate.spec.ts`、`editing/media-playback.spec.ts`；2026-09-26 整合） | **符号面板**（[50/20](../50-frontend/20-elements-text.md) §6）：方向键、`Home` / `End`、`PageUp` / `PageDown` 移动，`Enter` 插入且面板保持打开、可连续插入，`Esc` 关闭并把焦点还给文本宿主、原选区不变；**超链接激活白名单**（50/20 §4、PRD ED-19）：编辑态 `Mod`+点击只打开 `http(s)`（新标签页，`noopener,noreferrer`）与页内跳转，`mailto:` / `tel:` 不激活、小卡显示目标与「复制」，`javascript:` 等协议在写入时即被拒；放映态按同一白名单激活；**编辑态临时播放**（[50/23](../50-frontend/23-elements-media.md) §7.2）：播放、暂停、拖进度都不写 Store（网络记录无 update、撤销栈不变），离开选中或切页即停止 | S | M2（符号面板 M3 P2、临时播放 P1，随各自条目启用） | — | 50/20 §4、§6；50/23 §7.2 |
+| 28 | 个人插件面板 `plugins:diagnose`（`plugins/personal-panel.spec.ts`；2026-10-01，§4.23） | 四个入口（应用栏「⋯ › 插件管理器」、状态栏插件图标、快捷键面板冲突条目「查看插件管理器」、缺插件横幅「查看详情」）打开同一面板；状态栏图标在有失败时带角标并预筛选「启动失败」；以 `TestEnv` 注入激活时抛错的测试插件 → 面板「启动失败」行显示错误码、版本、traceId，「复制诊断信息」写入剪贴板，「重试」成功后该行移入运行中（本会话 `fiber.restart()`，网络记录无任何策略写请求）；等待依赖与版本不兼容行无「重试」。**M3 个人启停**：管理员把某界面级插件设为 `optional` 后，普通用户在「我的界面插件」关闭它 → 当前会话即时卸载（其 Ribbon 与状态栏贡献消失、owner 标记节点数为 0，无需刷新）、网络记录恰一次 `PUT /users/me/plugins/:pluginId`；刷新与换一个浏览器上下文登录同一账号后仍为关闭（服务端按账号保存）；再打开即时装配；管理员改为 `forced` 后该开关变为只读、插件重新出现，改回 `optional` 后恢复用户原选择；快捷键冲突一方为 `optional` 时面板高亮行提供「为我关闭」 | S / C | M2（只读、诊断、重试、冲突跳转）/ M3（个人启停、为我关闭） | — | PRD PM-08、PM-10、PM-11；PRD 05 M2 验收 19、M3 验收 20；rulings §4.23 O-1、O-2 |
+| 29 | 缺插件降级与横幅（`plugins/missing-plugin.spec.ts`；§4.23） | 以带 `plugin-qr-shape` 足迹的夹具文档打开，四种情况各一例：管理员已停用 → 横幅「本文档用到了『二维码形状』，管理员已停用该插件：N 处内容以占位显示，内容已保留」；本部署未声明 → 横幅写插件 `id` 与「≥ 所需版本」；版本过旧 → 「需要 ≥ x，当前 y」；已启用但本会话启动失败 → 「插件『X』未能启动」并链到个人插件面板。四种情况下元素以占位显示、可选中、移动、删除但不可进入内部编辑；编辑其它元素后导出，占位元素原数据与足迹字节不变（按 [03](./03-fidelity-roundtrip-and-corpus.md) §4.2 规范化比对）；横幅每文档每会话一次；「查看详情」打开「本文档缺少的插件」分组并列出受影响的页；管理员打开时多一个「去管理 › 插件」；查看器 `/documents/:id/view` 只显示占位与一行说明 | S / C | M2（未安装、版本过旧、启动失败）/ M3（区分管理员已停用） | — | PRD PM-12；PRD 05 M2 验收 19；OF-13；rulings §4.23 O-3 |
+| 30 | 管理员插件页 `plugins:admin`（`admin/plugins.spec.ts`；§4.23） | 管理员经账户菜单「管理」进入 `/admin/plugins`；普通用户直访 → 回开始页并 toast「需要管理员权限」；列表每行图标、名称、`id`、版本、来源、作用域徽标、必需性、三态控件、部署级状态、近 24 h 失败会话数；按状态分组筛选与名称 / `id` 搜索；内容级只有两态、必需项锁定；禁用被依赖者 → 确认卡列出将进入等待依赖的插件；启用缺依赖者 → 「一并启用」；互斥两项不能同时启用、保存按钮禁用并说明冲突对象；第三方首次启用 → 确认卡列出贡献与能力声明并写明「同源可信、无运行时沙箱」（M4）；一次保存多项变更合并为一张确认卡，失败时不部分生效；详情「最近 5 次策略变更」与审计一致。**生效时机**（O-1）：另一浏览器中已打开文档的会话 ≤ 60 s 出现非阻断横幅「管理员更新了插件设置，重新加载后生效」，编辑不中断；点「重新加载」先把未确认更改 flush（网络记录中 pending 归零后才导航）再刷新，刷新后按新策略装配；保存后新打开的会话直接按新策略装配 | C | M3（第三方确认卡 M4） | — | PRD PM-01、PM-03、PM-06–PM-08；PRD 05 M3 验收 20；rulings §4.23 裁决 1、O-1、O-4 |
+| 31 | 协同一致性 `plugins:consistency`（`collab/plugins-consistency.spec.ts`；§4.23） | A、B 同一 Room：管理员启用内容插件 P → A 重新加载后插入 P 的元素 → B（未重新加载）见占位、B 的编辑不改动该元素数据；B 重新加载后正常显示；两端经 §3.5 诊断接口取模型哈希一致；界面级测试插件经命令执行写操作 → 被拒、Store 无事务、诊断事件 `plugin/scope-violation`；重新部署使内容插件版本变化（harness 替换声明文件并重启应用）→ 旧会话重连收到 4426（`collab.plugins_outdated`）→ 走版本漂移横幅，先 flush 再刷新，刷新前本地新写入不被服务端接受 | C | M3 | — | PRD PM-13；PRD 05 M3 验收 21；rulings §4.23 裁决 3、O-1 |
+
+**图 6-5 插件管理的 e2e 覆盖（第 28–31 行）**
+
+```mermaid
+sequenceDiagram
+  participant adm as 管理员浏览器
+  participant a as 用户 A 浏览器
+  participant b as 用户 B 浏览器
+  participant srv as 应用与协同服务
+  adm->>srv: PATCH /admin/plugins 启用内容插件 P
+  srv-->>a: Stateless plugins，policy_changed
+  srv-->>b: Stateless plugins，policy_changed
+  a->>a: 横幅，点重新加载：先 flush 再刷新
+  a->>srv: 新会话按新策略装配，插入 P 的元素
+  srv-->>b: update 广播
+  b->>b: 未重新加载：P 的元素显示占位，数据不动
+  b->>srv: 重新加载，握手 pluginSet 一致
+  a->>a: 诊断接口取模型哈希
+  b->>b: 诊断接口取模型哈希，与 A 相等
+```
+
+怎么读：纵线是三个浏览器与服务端，自上而下是第 30、31 行的执行顺序；管理员保存只触发横幅，不强制任何会话刷新，过渡期由 B 的占位与数据保留兜底，最后以两端模型哈希相等收尾。
+依据：PRD 09 PM-08、PM-13 与图 3-2；rulings §4.23 O-1（已确认）。
 
 撤销与协同语义的**确定性**覆盖不在浏览器里做：撤销五用例与 `history-commands` 分节在 [02](./02-contract-suites-and-pluggability.md) §4，软冲突 12 场景与离线计时在 [05](./05-collab-simulation-and-property-tests.md) §6 / §9；本节第 12–13 行只验证这些语义在真实界面上的表达（提示条、按钮、横幅）。
 
@@ -367,7 +397,8 @@ sequenceDiagram
 |---|---|
 | `/home` | 已登录默认、加载骨架、最近为空、离线 |
 | `/documents` | 列表、空列表、筛选中、回收站 |
-| `/documents/:id`（编辑） | 每个 Ribbon 页签；每个检查器页签；每个对话框（导出、分享、插入图片、快捷键面板、命令面板）；设置抽屉；右键菜单；母版视图；放映；评论面板；只读降级横幅；登录已过期横幅 |
+| `/documents/:id`（编辑） | 每个 Ribbon 页签；每个检查器页签；每个对话框（导出、分享、插入图片、快捷键面板、命令面板）；设置抽屉；右键菜单；母版视图；放映；评论面板；只读降级横幅；登录已过期横幅；个人插件面板（三分组展开、失败详情展开）；缺插件横幅；「插件设置已更新」横幅（2026-10-01，§4.23） |
+| `/admin/plugins`（2026-10-01，§4.23，M3） | 列表、按状态筛选、详情展开、确认卡（禁用被依赖者、多项合并）、加载骨架、整区错误态、「允许未签名」警示条（非生产） |
 | `/documents/:id`（查看者变体、评审模式） | 默认、评论面板、模式下拉展开 |
 | `/documents/:id/history` | 列表、预览、恢复确认 |
 | `/documents/:id/view` | 默认、缩略图开、备注开、失败态、< 640 折叠 |
@@ -388,6 +419,7 @@ sequenceDiagram
 | 画布 | `Tab` 按 z 序循环选中对象；方向键 1 px、`Shift+方向键` 10 px 微调；`Enter` 进入文本编辑；`Esc` 逐级：文本编辑 → 选中子元素 → 选中组合 → 取消选择 →（母版视图中且无选区）退出母版视图 |
 | 属性面板与备注 | `Tab` 顺序遍历字段；分区标题 `Enter` / `Space` 折叠；备注中 `Esc` 回到区域级焦点 |
 | 拖拽的键盘等价（WCAG 2.5.7） | [设计 07](../20-design/07-accessibility-and-i18n.md) §1.2a 表逐行一例：移动、缩放、裁剪、表格行高列宽、缩略图重排、文件导入的非拖拽路径；2026-09-26 补（§4.21）：插入工具在按钮或形状库条目上 `Enter` 插到视口中心、调整手柄的数值输入、线条端点经「位置与大小」与翻转、连接符的「连接到…」选择器；曲线绘制工具是登记的例外，只断言「从预设形状开始」的替代路径可达（[50/22](../50-frontend/22-elements-shapes-and-lines.md) §5） |
+| 插件管理（2026-10-01，§4.23，PM-16） | 管理员页：三态为 `radiogroup`，方向键在三项间移动、锁定项可聚焦并读出锁定原因；只用键盘完成一次「禁用被依赖者 → 确认卡 → 保存」（确认卡打开时焦点落在首个操作、`Esc` 取消、关闭后焦点回到触发控件）；个人面板：`Tab` 到开关、`Space` 切换，「重试」「为我关闭」可达；保存成功、重试成功、依赖恢复经 `aria-live="polite"` 播报 |
 | 无键盘陷阱（2.1.2） | `keyboard-walker` 从每个区域起按 `Tab` 200 次：焦点必须离开该区域并到达至少一个其它 landmark；每个浮层（菜单、对话框、Popover、命令面板）按 `Esc` 关闭且焦点回到打开它的元素，触发元素已被移除时回落到其所在区域；路由切换后焦点落在页面主标题（50/16 V8） |
 
 依据：PRD NF-05「每个页面 / 面板有键盘 e2e」与 ED-29；[设计 07](../20-design/07-accessibility-and-i18n.md) §1；rulings §4.18 UX-06。
@@ -424,6 +456,7 @@ sequenceDiagram
 | 编辑文本 | 进入与退出编辑时朗读状态变化 |
 | 协作者加入 | `aria-live` 朗读「X 加入」 |
 | 评论 | 朗读线程锚点与回复数 |
+| 插件管理（§4.23） | 个人面板开关读出「个人设置，只影响你」与开关状态；管理员页锁定项读出锁定原因；缺插件横幅以 `role=status` 朗读、不打断当前朗读 |
 
 矩阵中标 `manual` 并单独统计（[13](./13-requirements-traceability.md) §8）。
 
@@ -592,4 +625,5 @@ sequenceDiagram
 | 50 线机械验证的步骤标注与 12 §4 不一致 | [50/02](../50-frontend/02-app-shell-routing-and-session.md) §13 把重新登录、登出清理、版本漂移、浏览器侧 CSRF 标为 `e2e/smoke`，[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §12 把 `/render` 页标为 `e2e/smoke`；[12](./12-ci-gates-mapping.md) §4 定稿未含这些条目 | 本文按 12 §4 写（这些用例进全量段；`/render` 零请求冒烟由 `renderer-egress` 承担）；请总编排在 50/02、50/12 的步骤列回写，或由 12 §4 增补条目 |
 | 插入交互 e2e（§4.21：插入工具态、元素手柄、键盘等价、上传占位与失败重试） | 已定（rulings §4.21 R-d-62、R-d-66、R-d-72；50/10 §7.4、§7.5） | §2.2 两行、§5 第 26 行、§7.3「拖拽的键盘等价」行；单元级用例登记在 [40/10 §9](../40-modules/10-ui-shell-and-slide-ui.md)（`insert-tool`、`handles`、`crop-mode`、`shape-gallery`） |
 | 插入落点：表格、图表、图片先填空内容占位符（rulings §4.22 Q1） | 已定（2026-09-30；已选中的空占位符优先，图标与音视频沿用原规则） | §5 第 26 行「插入落点」；单元级为 50/10 §12.1 V21 的 `slide-ui/__tests__/insert-tool.test.ts` |
+| 插件管理 e2e 与 a11y（rulings §4.23；O-1…O-4 于 2026-10-01 确认按推荐） | 已定 | §2.2 三行、§5 第 16 行改写与第 28–31 行、§7.2 `/admin/plugins` 行、§7.3「插件管理」行、§7.7；路由与守卫以 [50/02](../50-frontend/02-app-shell-routing-and-session.md) §2 为准，组件文件落点以 [40/11](../40-modules/11-preset-assembly-and-app-shell.md) 回写为准；界面外观待设计 03-09（重写）与 03-32（新建）样张定稿后按其更新选择器与文案 |
 | 回写 40/10 §9、40/11 §9、30/11 §10（由总编排执行） | 待回写 | 40/10：`ui-react/src/__tests__/e2e/` 三个 spec 迁到 `apps/web/e2e/{a11y,ui}/`；40/11：`apps/web/e2e/` 清单改为引用本文 §5，`a11y.spec.ts` 并入 `a11y/` 矩阵；30/11 §10 改为摘要并链接本文 |

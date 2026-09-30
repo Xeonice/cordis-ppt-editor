@@ -1,6 +1,6 @@
 # 15 客户端事件、错误与遥测
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：traceparent 的载体由 CONTROL.auth 改为 Auth 帧 token JSON（§6.2、图、V13、里程碑行））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：traceparent 的载体由 CONTROL.auth 改为 Auth 帧 token JSON（§6.2、图、V13、里程碑行））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§2 plugin 行增 `plugin/policy-changed`、`plugin/user-toggled`、`plugin/missing-in-document` 与诊断事件 `plugin/scope-violation`；§6 错误上报附插件集指纹；§8 镜像表与 §11 V14、里程碑同步） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
 
 本文是浏览器侧事件、错误与遥测的唯一事实源：三类事件的边界、前端发布者与订阅者、宿主事件桥、浏览器中的错误模型与错误边界、客户端错误上报管线、OTel Web、产品事件的前端发布方、同意与默认、诊断。命名规则、日志字段与脱敏规则、错误码格式与 HTTP / WS 映射、公开事件定稿表留在 [30/10](../30-architecture/10-observability-and-errors.md)（§1–§3、§11.1）；`/telemetry/*` 控制器、限流、Collector 路由、服务端 span 与指标统一名表归 [60/18](../60-backend/18-observability-and-ops-endpoints.md)；产品事件清单的权威是 [PRD 06](../10-prd/06-metrics-and-analytics.md) §3.2，本文只登记前端发布方。
 
@@ -86,7 +86,9 @@ flowchart LR
 | presence | `presence/joined`、`presence/left`、`presence/changed` | collab-yjs · `awareness/presence.service.ts` | 在场头像、远端光标覆盖层、在场播报（50/16 §8） | M3 |
 | permission | `permission/changed`、`permission/denied` | model-core · `permission/permissions.service.ts`（唯一发布者） | ui-core `isReadOnly` 与 `can.<capability>`；应用壳更新角色与模式下拉的可选项，不改 `EditorHost mode`（[50/10](./10-editor-shell-and-interaction.md) §3.1，rulings §4.20 FE-10） | M2 / M3 |
 | comment | `comment/added`、`comment/replied`、`comment/resolved`、`comment/reopened`、`comment/deleted`、`comment/mentioned`；载荷 `{threadId, replyId?, authorId, mentioned?, anchorSummary, origin:'local'\|'remote', body?}` | `comments` 包（iso，文档类型盲；rulings §4.19 D-COMMENTS-PKG） | 评论面板、画布评论钉、通知偏好（[50/08](./08-comments-and-version-history.md) §8） | M3 |
-| plugin | `plugin/loaded`、`plugin/failed`、`plugin/incompatible` | kernel · `failure-isolation.ts`、`manifest/verify.ts` | 插件管理器页；ui-react 贡献错误边界文案 | M2 |
+| plugin | `plugin/loaded`、`plugin/failed`、`plugin/incompatible` | kernel · `failure-isolation.ts`、`manifest/verify.ts` | 个人插件面板（原插件管理器页，[03](./03-preset-assembly-and-plugins.md) §10）；ui-react 贡献错误边界文案 | M2 |
+| plugin（2026-10-01，rulings §4.23） | `plugin/missing-in-document{pluginId, reason, count}`（`reason` ∈ `disabled` \| `absent` \| `outdated` \| `failed`；每文档每会话每插件一次，横幅出现时发）；`plugin/scope-violation{pluginId, commandId}`（诊断事件：界面级插件执行写命令被命令管线按未授权拒绝，PRD PM-13 第 3 条） | kernel · `plugin-footprint.ts`（比对，[04](./04-document-commands-and-undo.md) §1.1）、`command/pipeline.ts`（作用域检查） | 缺插件横幅与个人插件面板「本文档缺少的插件」分组；`plugin/scope-violation` 进开发者面板与诊断转储（命令本身按未授权返回 `Result` 错误，不另设错误码） | M2（`missing-in-document`）/ M3（`scope-violation`；`reason:'disabled'` 自 M3 起区分） |
+| plugin（2026-10-01，rulings §4.23） | `plugin/user-toggled{pluginId, enabled}`（个人启停可选界面级插件成功后）；`plugin/policy-changed{count, pluginIds[]}`（管理员保存插件策略成功后） | `apps/web` · `application/plugins/toggle.usecase.ts`、`application/plugins/save-policies.usecase.ts`，经 `host.events.emit` 在已挂载的 host 上发出；管理员页无 host 时只走遥测（§8 遥测专用） | 个人插件面板刷新分组；遥测 | M3 |
 | error | `error/raised` | kernel · `services/errors.service.ts` | 应用壳 `AppErrorBoundary`（`severity:'fatal'`）；遥测镜像 | M1 |
 | i18n | `i18n/locale-changed` | i18n · `services/i18n.service.ts` | ui-react 重渲染；ui-core 标题缓存 | M2 |
 | ui | `ui/context-key-changed`、`ui/panel-opened`、`ui/panel-closed`、`ui/shortcut-conflict`、`ui/theme-changed` | ui-core · `context-keys.service.ts`、`panel-operations.ts`、`shortcuts.service.ts`、`theme.service.ts` | ui-react；集成方宿主同步主题 | M2 |
@@ -273,7 +275,7 @@ flowchart TB
 | 429 | 按 `Retry-After` 退避，保留队列 |
 | 5xx 或网络错误 | 指数退避重试，至多 3 次后丢弃 |
 
-5. **载荷**：`ClientErrorReport`（protocol `rest/telemetry.ts`；字段为 `code`、脱敏后的 `message`、`fingerprint`、源映射前的 `stack`、`appVersion`、`pluginManifestHash`、`unitId?`、`sessionId?`、`traceId?`、`breadcrumbs`、`env{ ua, viewport, memory? }`），字段定义以 protocol 文件为准，本文不复写。
+5. **载荷**：`ClientErrorReport`（protocol `rest/telemetry.ts`；字段为 `code`、脱敏后的 `message`、`fingerprint`、源映射前的 `stack`、`appVersion`、`pluginManifestHash`、`pluginSet?`（本会话插件集指纹 `{ catalog, policy }`，[03](./03-preset-assembly-and-plugins.md) §5.1；2026-10-01 §4.23，PRD PM-15：插件 `FAILED` 与 `plugin/incompatible` 的上报另带插件 `id`、版本、错误码，服务端据此聚合近 24 h 失败会话数）、`unitId?`、`sessionId?`、`traceId?`、`breadcrumbs`、`env{ ua, viewport, memory? }`），字段定义以 protocol 文件为准，本文不复写。
 6. **URL 脱敏**：载荷与 breadcrumbs 中出现的任何 URL 只保留 origin 与路径模板（`/documents/:id`），去掉 query 与 fragment（分享令牌在 fragment 里，50/14 §8）；`X-Cordex-Share-Token` 永不出现。
 7. **源映射**：生产构建产出 hidden source map，由 CI 上传供服务端反解（60/18），浏览器不加载 `.map`。
 
@@ -401,7 +403,7 @@ sequenceDiagram
 | export | `export/started`、`export/completed`、`export/failed` | 不采样 | M2 |
 | collab / presence | `collab/state-changed`、`collab/synced`、`collab/soft-conflict`、`collab/reconnect`、`collab/auth-failed`、`collab/update-rejected`、`collab/repair`；`presence/joined`、`presence/left` | 不采样 | M2（`collab/soft-conflict`、`presence/*` M3） |
 | comment / permission | `comment/added`、`comment/replied`、`comment/resolved`、`comment/reopened`、`comment/deleted`；`permission/changed`、`permission/denied` | 不采样；评论不含正文 | M3 |
-| plugin / error / ui | `plugin/loaded`、`plugin/failed`、`plugin/incompatible`；`error/raised`；`ui/theme-changed` | 不采样 | M1 / M2 |
+| plugin / error / ui | `plugin/loaded`、`plugin/failed`、`plugin/incompatible`；`plugin/missing-in-document`、`plugin/user-toggled`、`plugin/scope-violation`（2026-10-01，§4.23）；`error/raised`；`ui/theme-changed` | 不采样 | M1 / M2（`plugin/user-toggled`、`plugin/scope-violation` M3） |
 
 **遥测专用**（没有对应的 A 类事件，由发布方直接 `telemetry.event`）：
 
@@ -420,6 +422,7 @@ sequenceDiagram
 | `comment/orphaned` | `comments` 包 | 不采样 | M3 |
 | `history/version-created`、`history/version-restored`、`history/version-previewed` | 版本历史 UI（50/08） | 不采样 | M3 |
 | `plugin/pending` | kernel 诊断（PENDING 超过 5 s） | 不采样 | M2 |
+| `plugin/policy-changed{count, pluginIds[]}` | `apps/web` 管理员插件页（保存成功；页面无 host，直接经应用壳的 `telemetry` 出口）；编辑器内有 host 时同时作为 A 类事件发出（§2） | 不采样 | M3 |
 | `ui/panel-toggled`、`ui/ribbon-tab-changed`、`ui/shortcut-used` | ui-core | 不采样 | M2 |
 | `i18n/missing-key` | i18n 服务（每个 key 每会话一次） | 不采样 | M2 |
 | `unit/save-failed` | model-core `units.service.ts` | 不采样 | M2 |
@@ -483,14 +486,15 @@ sequenceDiagram
 | V11 | 默认值：apps/web 登录后产生错误时只有 `/api/v1/telemetry/errors` 请求；产品遥测关闭时对 `/api/v1/telemetry/otlp` 的请求数为 0；登录前不发任何上报请求 | 70/10 SEC-CL-06、70/06 §10.3 · `e2e/full-compose` |
 | V12 | 错误边界隔离：注入抛错插件、抛错贡献项、抛错元素渲染器后，其余功能可用，UI 按设计 06 §3 降级 | 70/06 §2 · `test/unit`、`e2e/full-compose` |
 | V13 | trace 贯穿：一次「打开 → 加入房间 → 编辑」中，HTTP 头与 Auth 帧 token 的 `traceparent` 属于同一 trace；错误报告带该 trace id | 70/07 · `test/server-integration` |
+| V14 | 插件管理事件（2026-10-01，§4.23）：`plugin/missing-in-document` 每文档每会话每插件只发一次且 `reason` 与横幅一致；界面级插件执行带写能力位的命令被拒并发 `plugin/scope-violation`、文档无变更；个人启停发 `plugin/user-toggled`；错误上报带 `pluginSet` | kernel `plugin-footprint.test.ts`、`command/pipeline.test.ts`；70/06 缺插件与个人面板 e2e · `test/unit`、`e2e/full-compose` |
 
 **里程碑**
 
 | 里程碑 | 交付 |
 |---|---|
 | M1 | kernel `errors` / `telemetry` / `logger` 三服务与 no-op sink；A 类事件 unit / render / layout / plugin / error 域；错误码目录生成；元素级与 Fiber 级错误边界；V1–V8 阻断 |
-| M2 | apps/web：宿主事件桥与节流、`AppErrorBoundary` 与页面边界、贡献项逐项边界；错误码文案与 V5；客户端错误上报管线对接 `POST /telemetry/errors`（该端点 M2，60/15 §3.14）；`traceparent` 生成与 HTTP 传播；CSP 报告端点对接（50/14 §4.5）；开发者面板与 `diagnostics.dump()`、e2e 诊断开关 `diagnostics.e2eTrace`（§10）；协同会话域事件（§2 collab 行）、`collab/latency` 遥测与 `cordex_collab_outbound_queued` 指标，Auth 帧 token 携带 `traceparent`（服务端文档自 M2 起经协同网关持久化，rulings §4.19 D-M2-CONTENT）；产品事件登记表覆盖 PRD 06 的 M1–M2 行；V9–V13 阻断 |
-| M3 | `POST /telemetry/otlp` 上线（60/15 §3.14）后开放可选的浏览器 span 导出与产品事件出口；多人协同体验层的事件与遥测（`collab/soft-conflict`、`presence/*`）；评论、权限域事件与遥测 |
+| M2 | apps/web：宿主事件桥与节流、`AppErrorBoundary` 与页面边界、贡献项逐项边界；错误码文案与 V5；客户端错误上报管线对接 `POST /telemetry/errors`（该端点 M2，60/15 §3.14）；`traceparent` 生成与 HTTP 传播；CSP 报告端点对接（50/14 §4.5）；开发者面板与 `diagnostics.dump()`、e2e 诊断开关 `diagnostics.e2eTrace`（§10）；协同会话域事件（§2 collab 行）、`collab/latency` 遥测与 `cordex_collab_outbound_queued` 指标，Auth 帧 token 携带 `traceparent`（服务端文档自 M2 起经协同网关持久化，rulings §4.19 D-M2-CONTENT）；产品事件登记表覆盖 PRD 06 的 M1–M2 行；`plugin/missing-in-document` 与错误上报的 `pluginSet` 字段（§4.23）；V9–V13 阻断 |
+| M3 | `POST /telemetry/otlp` 上线（60/15 §3.14）后开放可选的浏览器 span 导出与产品事件出口；多人协同体验层的事件与遥测（`collab/soft-conflict`、`presence/*`）；评论、权限域事件与遥测；`plugin/user-toggled`、`plugin/policy-changed`、`plugin/scope-violation`（§4.23，V14） |
 | M4 | 插件事件与遥测的第三方前缀规则进入插件模板；形态 E 跨站场景的事件转发随 `cordex:token` |
 
 **待回写（由总编排执行）**

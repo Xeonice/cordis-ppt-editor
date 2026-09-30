@@ -1,8 +1,8 @@
 # 03 模块设计：身份与访问（Auth、Users、Permissions、ShareLinks）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[02](02-auth-chain.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §1–§3、§6、§7、§10；[01](01-service-overview-and-roles.md) §3、[02](02-auth-chain.md)（原 30/08 §1、§9.1）；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)；[30/10](../30-architecture/10-observability-and-errors.md) §1.1、§1.4、§11.2；PRD [SV-06、SV-11](../10-prd/03-features/06-server-and-ops.md)、[CO §1、CO-05、CO-15](../10-prd/03-features/03-collaboration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-09、§4.15 T-0/Q6、§4.17 D1、§4.18 BE-02/BE-05/BE-06/BE-07/BE-08/BE-15
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §12 PluginsModule（卡片、用例、声明文件校验与指纹、错误码、机械验证），§6–§8 同步） | 依赖：[02](02-auth-chain.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §1–§3、§6、§7、§10；[01](01-service-overview-and-roles.md) §3、[02](02-auth-chain.md)（原 30/08 §1、§9.1）；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)；[30/10](../30-architecture/10-observability-and-errors.md) §1.1、§1.4、§11.2；PRD [SV-06、SV-11](../10-prd/03-features/06-server-and-ops.md)、[CO §1、CO-05、CO-15](../10-prd/03-features/03-collaboration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-09、§4.15 T-0/Q6、§4.17 D1、§4.18 BE-02/BE-05/BE-06/BE-07/BE-08/BE-15
 
 > 读者：实现 `apps/server/src/modules/{auth,users,permissions,share-links}` 的工程师；评审模块边界的人。
-> 定位：四个身份与访问 Nest 模块运行时设计的唯一事实源，并**首次定义 03–07 共用的「模块设计卡」模板**（§1）。鉴权机制本身（OIDC、会话、CSRF、票据、分享令牌、RLS 上下文）以 [02](02-auth-chain.md) 为准，本文只写用例、事务边界、依赖与所属数据。
+> 定位：四个身份与访问 Nest 模块（另有 §12 PluginsModule，2026-10-01）运行时设计的唯一事实源，并**首次定义 03–07 共用的「模块设计卡」模板**（§1）。鉴权机制本身（OIDC、会话、CSRF、票据、分享令牌、RLS 上下文）以 [02](02-auth-chain.md) 为准，本文只写用例、事务边界、依赖与所属数据。
 > 不在本文：路由逐条（方法、DTO、成功码、限流档）见 [15](15-rest-api-catalog.md) §3.1–§3.5、§3.7；DDL 见 [09](09-ddl-identity-and-access.md)；键模板见 [14](14-valkey-object-storage-and-retention.md)；审计 action 全量登记见 [07](07-modules-comments-webhooks-audit.md)；「模块 × 角色 × 部件」矩阵见 [01 §5](01-service-overview-and-roles.md)；目录树与文件职责见 [40/08](../40-modules/08-server-identity-documents-and-storage.md) §4、§5。
 
 ---
@@ -272,6 +272,7 @@ sequenceDiagram
 | UsersModule | 无 | `ProvisionOnFirstLoginUseCase`、`SessionStore`、`TouchLastSeenUseCase` → Auth；`UserDirectory` → Auth、Permissions、Comments |
 | PermissionsModule | Users | `DocumentRoleGuard`、`RlsContext` → 全部文档作用域模块；`RoleResolverService`、`ResolveShareLinkUseCase` → Auth、Collab、ShareLinks；`GrantInitialOwnerInTx` → Documents；`PermVersionBumper`、`PermChangePublisher` → ShareLinks；`PermVersionReader` → Auth；`ReassignOwnerUseCase` → `cordex-ops` 入口（文件级见 40/12 §4.13） |
 | ShareLinksModule | Permissions | `ShareLinkGuard` → AppModule |
+| PluginsModule（§12，2026-10-01） | Audit | `PluginCatalog`、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase` → Collab、Jobs、headless 宿主、Ops；`PlatformAdminGuard` 直接 `@UseGuards` |
 
 无环理由（depcruise `no-circular` 覆盖 `apps/server/src/modules/**`）：
 
@@ -363,6 +364,8 @@ classDiagram
 | `user_identities` | Users | `ProvisionOnFirstLogin`、`EraseUser`（删除） | `ProvisionOnFirstLogin` | [09 §3](09-ddl-identity-and-access.md) |
 | `permissions` | Permissions | `GrantPermission`、`RevokePermission`、`GrantInitialOwnerInTx`、`ReassignOwner`（`cordex_system`）、参与者 `permissions` | `RoleResolverService`、`ListPermissions`、`cordex_doc_role`；DocumentsModule 列表查询以 SQL join 只读（04） | [09 §4](09-ddl-identity-and-access.md) |
 | `document_perm_versions` | Permissions | 只有 `bumpPermVersion`（经 Grant / Revoke / `PermVersionBumper`）与 `GrantInitialOwnerInTx`（插入 0）、参与者 `permissions`（C-28） | `PermVersionReader`、collab `TicketVerifier`（回源） | [09 §5](09-ddl-identity-and-access.md) |
+| `plugin_policies`（2026-10-01） | Plugins | `UpdatePluginPolicies`、`UpdatePluginConfig`（M4） | `GetPluginCatalog`、`GetEffectivePluginSet`；collab 轮询与 headless（`cordex_system`，只读） | [09 §14.1](09-ddl-identity-and-access.md) |
+| `user_plugin_prefs`（2026-10-01） | Plugins | `SetUserPluginPreference`、`ResetUserPluginPreference` | `GetEffectivePluginSet`（本人） | [09 §14.2](09-ddl-identity-and-access.md) |
 | `share_links` | ShareLinks | `CreateShareLink`、`RevokeShareLink`、参与者 `share-links` | `ResolveShareLinkUseCase`（只经 SECURITY DEFINER 函数）、`ListShareLinks`、`cordex_doc_role` | [09 §6](09-ddl-identity-and-access.md) |
 
 | Valkey 键模板（名字登记在 14） | 类型 / TTL | 写方 | 读方 | 值形状定义 |
@@ -399,8 +402,10 @@ action 命名 `<resource>.<snake_action>`，全量登记与 details 字段以 [0
 | `permission.denied` | Permissions | `DocumentRoleGuard` 403 | 缓冲通路，合并计数 |
 | `share_link.created` / `share_link.revoked` | ShareLinks | 创建 / 撤销 | 不记令牌 |
 | `share_link.accessed` | ShareLinks | `ShareLinkGuard` 每次叠加成功 | 缓冲通路 1 s 合并计数，不采样；带 `directRole`（02 §7.5） |
+| `plugin.policy_changed` / `plugin.config_changed` | Plugins（§12） | 管理员保存三态 / 配置（每项一条） | 同批共享 `batchId`；配置只记字段路径（07 §9.5） |
+| `plugin.rejected` | Plugins（§12） | api 启动时每个被拒插件一条 | `actor_type='system'`；同一 `catalog` 摘要不重复写 |
 
-跨进程事件只有一个：Valkey 频道 `perm:doc:{docId}`，载荷 `{docId, permVersion}`，发布者 PermissionsModule（提交后），订阅者 collab `AuthzSource`（02 §11）。四个模块都不是 cordis 插件，不发 cordis 事件；客户端事件 `permission/changed` 由客户端在收到 `CONTROL.permission` 后自行发出（50/07）。
+跨进程事件有两个：Valkey 频道 `perm:doc:{docId}`，载荷 `{docId, permVersion}`，发布者 PermissionsModule（提交后），订阅者 collab `AuthzSource`（02 §11）；频道 `plugins:ctl`，载荷 `{type:'policy_changed', policy}`，发布者 PluginsModule（提交后），订阅者 collab 网关（§12，2026-10-01）。四个模块都不是 cordis 插件，不发 cordis 事件；客户端事件 `permission/changed` 由客户端在收到 `CONTROL.permission` 后自行发出（50/07）。
 
 ---
 
@@ -468,3 +473,96 @@ WS 握手的 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_fou
 | M-12 | `ROLE_CAPABILITIES` 与 09 §8 policy 矩阵一致：`runPermissionPolicyConformance`（默认拒绝、异常即拒绝、能力位全集含 `history.read` / `history.restore`，决策 T-KITS）+ RLS 矩阵用例 | `test/contract`（[70/02](../70-testing/02-contract-suites-and-pluggability.md)）+ `e2e/smoke` 的 security-rls |
 | M-13 | 唯一 owner 空窗（rulings §4.20 BE-05+TX-22）：停用或擦除唯一 owner 时响应与审计的 `soleOwnerDocCount` 等于该用户是唯一可用 owner 的文档数（另有 active owner 的不计，其余 owner 均已停用的计入）；执行 `documents:reassign-owner` 后 `perm_version` 恰好 +1、在线会话 ≤ 1 s 重算、新 owner 能撤销原 owner 建的分享链接、原 owner 授权与 `owner_id` 不变、审计 `admin.owner_reassigned`；目标非 active 或文档 `purging` 时命令失败且不写库；重复执行幂等 | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 
+
+---
+
+## 12. PluginsModule（2026-10-01，rulings §4.23）
+
+依据：rulings §4.23 三题裁决与 O-1…O-4 定稿（2026-10-01）；PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) PM-01、PM-03…PM-05、PM-08、PM-10、PM-13…PM-15。本模块归身份与访问组（平台管理员能力与用户个人偏好都以 `Principal` 为主体），文件级落点见 [40/08](../40-modules/08-server-identity-documents-and-storage.md) 与 [40/12](../40-modules/12-server-jobs-comments-and-ops.md) §4.13。
+
+### 12.1 卡片
+
+| 栏目 | 内容 |
+|---|---|
+| 职责 | 读取并校验部署声明文件（`PluginCatalog`，启动时一次）；管理员三态策略与插件配置（`plugin_policies` 唯一写方）；用户个人启停（`user_plugin_prefs` 唯一写方）；合成「本人生效插件集」与插件集指纹 `{catalog, policy}`；策略变更的跨进程通知（`plugins:ctl`）；被拒插件的启动审计与 `/readyz` 细节 |
+| 非职责 | 不安装、不卸载、不下载插件（只认部署预置，rulings §4.23 第 2 题）；不在服务端运行界面级插件；不判定文档角色；握手时的指纹比对与在线会话推送在 collab 网关（[05](05-modules-collab-and-snapshots.md)、[16](16-ws-protocol-server-view.md) §12），本模块只提供 `PluginSetFingerprinter`；浏览器侧产物由 web 容器静态提供（[17](17-deployment-and-config.md) §3.1） |
+| 路由 | [15 §3.15](15-rest-api-catalog.md) 全部 7 条（管理员 4 条、本人 3 条） |
+| 仓储与所属表 | `PluginPolicyRepository`（`listAll(tx)`、`upsertBatch(tx, changes, batchId, actor)`、`resetToDeclared(tx, pluginId)`、`setConfig(tx, pluginId, config, actor)`、`maxRevisionStamp(ctx)`）；`UserPluginPrefsRepository`（`listByUser(tx, userId)`、`upsert(tx, userId, pluginId, enabled)`、`reset(tx, userId, pluginId)`）；表 `plugin_policies`、`user_plugin_prefs`（[09 §14](09-ddl-identity-and-access.md)）。Valkey：频道 `plugins:ctl`（[14](14-valkey-object-storage-and-retention.md) §3），无自有键 |
+| imports | `AuditModule`（`RecordAuditEventUseCase`、审计查询只读面，供详情页「最近 5 次策略变更」）；不 import Users（主体取自 `Principal`） |
+| exports | `PluginCatalog`、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase` → CollabModule（握手比对）、JobsModule / headless 宿主（内容级集合）、Ops（`/readyz`、`plugins:check`） |
+| 事件与审计 | `plugin.policy_changed`、`plugin.config_changed`（请求事务内显式写）、`plugin.rejected`（启动时 system 主体）；details 以 [07 §9.5](07-modules-comments-webhooks-audit.md) 为准；跨进程频道 `plugins:ctl`（提交后发布） |
+| 错误码 | `server.plugins.not_found`、`policy_invalid`、`revision_conflict`、`conflict`、`not_optional`、`config_invalid`（§12.4） |
+| 角色装配 | api：REST + 全部用例；collab：`PluginCatalog`、`PluginSetFingerprinter` 与策略轮询（`cordex_system` 只读 `plugin_policies`）；worker / renderer：`PluginCatalog` 与内容级集合（headless 导入导出、缩略图、PDF 与客户端同一集合，PM-13）；全部角色启动时各自校验声明文件，结果确定一致 |
+| purge 参与者 | 无（不持有文档作用域数据） |
+| Clock 注入点 | 审计 `occurred_at`；`plugins.policyPollSeconds` 轮询；近 24 h 客户端失败计数窗口 |
+| 机械验证 | §12.5 |
+
+### 12.2 用例
+
+| 用例 | 入口 | 前置检查 | 事务边界 | 副作用与审计 |
+|---|---|---|---|---|
+| `LoadPluginCatalog`（启动） | 进程启动（全部角色），`cordex-ops plugins:check` | 声明文件存在（已配置时）、可解析、通过 schema；否则退出码 78（[17 §6](17-deployment-and-config.md)）；逐项做 PM-05 部署时校验 | 无 DB | 单项不通过只拒绝该项，原因码见 §12.3；结果进程内持有，`/readyz` 附 `pluginsRejected` |
+| `RecordRejectedPluginsUseCase` | api 启动后一次 | 有被拒项；同一 `catalog` 摘要下已写过的不重复写 | 单事务：查审计去重 + 插入 | 每个被拒项一条 `plugin.rejected`（主体 system） |
+| `GetPluginCatalogUseCase` | `GET /admin/plugins`、`GET /admin/plugins/:pluginId` | `PlatformAdminGuard` | 只读：`plugin_policies` 全表 + 审计查询（详情） | 响应 `ETag` = 当前 `policy` 摘要；失败计数取 `cordex_plugin_client_failures_total` 的 24 h 聚合（经 telemetry 模块只读面） |
+| `UpdatePluginPoliciesUseCase` | `PATCH /admin/plugins` | `PlatformAdminGuard`；`If-Match` 必填；每项：插件存在且通过校验、未被 `lockPolicy` 锁定、非内核必需 / 契约必需；内容级不得设 `optional`；互斥 Provider 座或 `slide.shapeKind` 不同时启用 | 单事务：`pg_advisory_xact_lock` → 重算 `policy` 摘要比对 `If-Match`（不等 412）→ 逐项 upsert / 恢复默认 → 每项一条审计 | 提交后发布 `plugins:ctl {type:'policy_changed', policy}`；返回新清单与新 `ETag` |
+| `UpdatePluginConfigUseCase`（M4） | `PUT /admin/plugins/:pluginId/config` | 同上；配置通过插件 Config schema（Standard Schema）；机密字段不接受（只能「使用部署文件中的值」） | 单事务：写 `config` + 审计 | `plugin.config_changed`（只记字段路径）；提交后发布 `plugins:ctl` |
+| `GetEffectivePluginSetUseCase` | `GET /users/me/plugins`；collab 握手与 headless 宿主调用其内容级部分 | `Session` | 只读：`plugin_policies` + 本人 `user_plugin_prefs`（M3 起） | 返回 `fingerprint`、插件列表（`id`、`version`、`scope`、`source`、`entry?`、`state`、`enabled`、`defaultOn?`）；M2 只返回镜像内置的 preset 默认组成 |
+| `SetUserPluginPreferenceUseCase` | `PUT /users/me/plugins/:pluginId` | `Session`；该插件当前为 `optional`（否则 409 `server.plugins.not_optional`） | 单事务：upsert 本人一行 | 不写审计（PM-14），不改指纹；客户端即时热切换并发 `plugin/user-toggled` |
+| `ResetUserPluginPreferenceUseCase` | `DELETE /users/me/plugins/:pluginId` | `Session` | 单事务：删除本人一行 | 同上 |
+
+### 12.3 声明文件、部署时校验与指纹
+
+- **来源只有两种**：镜像内置（`builtin`，随镜像 digest 与 SBOM 受信）与挂载目录（`plugins.mountDir` 下的相对路径，M4）。声明文件格式 `cordex-plugins.json`（`schemaVersion: 1`）与配置键见 [17 §5.16](17-deployment-and-config.md)。
+- **部署时校验**（PM-05，逐项，任一不通过即被拒）：原因码 `unsigned`（无有效 Ed25519 分离签名且无审核记录）、`digest_mismatch`、`manifest_invalid`、`host_incompatible`（`hostApi` 不覆盖当前宿主）、`isomorphism_mismatch`（`dom` 插件交给 Node 等）、`prefix_invalid`（第三方前缀，PS-02）、`scope_downgrade`（声明低于推出的作用域，或声明文件把 `content` 降为 `ui`）、`config_invalid`、`duplicate_id`、`provider_conflict`。挂载目录的相对路径先规范化，越出 `plugins.mountDir` 按 `manifest_invalid` 拒绝。签名用 `node:crypto` 的 Ed25519 验证「包 SHA-256」的分离签名，不引入新依赖（[19](19-reuse-and-dependency-catalog.md)）。
+- **部署级状态**：`declared` → 被拒三类（`rejected_unsigned`、`incompatible`、`invalid`）或 `disabled` / `pending_dependency` / `enabled`；`enabled` 的插件在服务端加载失败或客户端失败会话数超阈值时显示为 `failed`（不改策略）。
+- **指纹**：`catalog` = 通过校验的内容级插件 `id@version@sha256` 排序后 sha256（base64url）；`policy` = 全部插件的「声明初始状态叠加 `plugin_policies`」与配置摘要排序后 sha256。`catalog` 只随重新部署变化，`policy` 随管理员保存变化；二者由 `PluginSetFingerprinter` 在各角色独立算出，结果一致。
+
+**图 12-1 管理员保存一批变更**
+
+```mermaid
+sequenceDiagram
+  participant adm as 管理员浏览器
+  participant api as api：UpdatePluginPoliciesUseCase
+  participant db as PG：plugin_policies 与 audit_log
+  participant vk as Valkey 频道 plugins:ctl
+  participant col as collab 实例
+  participant old as 已打开的会话
+  adm->>api: PATCH /admin/plugins，If-Match 为旧 policy 摘要
+  api->>db: 咨询锁，重算摘要并比对
+  alt 摘要不符
+    api-->>adm: 412 server.plugins.revision_conflict
+  else 摘要一致
+    api->>db: 逐项 upsert，每项写 plugin.policy_changed
+    api-->>adm: 200 新清单，ETag 为新 policy 摘要
+    api->>vk: 提交后发布 policy_changed
+    vk-->>col: 订阅收到新摘要
+    col-->>old: Stateless plugins，reason policy_changed
+  end
+  col->>db: 兜底：每 60 s 只读轮询重算摘要
+```
+
+怎么读：纵线是参与方，自上而下是时间。保存是一个事务，咨询锁让两名管理员的并发保存串行，后到者因摘要已变而得到 412；频道消息是尽力而为，collab 的 60 s 轮询保证在线会话最迟 60 s 收到「插件设置已更新」。个人启停不走这条路径：它只写本人一行，不发布、不写审计。
+依据：本节 §12.2；[09 §14.3](09-ddl-identity-and-access.md)；[16 §12](16-ws-protocol-server-view.md)；rulings §4.23 O-1。
+
+### 12.4 错误码
+
+| 码 | HTTP | 触发条件 |
+|---|---|---|
+| `server.plugins.not_found` | 404 | 插件 id 不在本部署声明文件或镜像内置清单中 |
+| `server.plugins.policy_invalid` | 422 | 内容级设 `optional`；锁定项（`lockPolicy`、内核必需、契约必需）被改；被拒插件被启用；`optional` 缺 `defaultOn` |
+| `server.plugins.revision_conflict` | 412 | `If-Match` 与当前 `policy` 摘要不符（缺 `If-Match` 按入参校验失败 400 `server.plugins.validation_failed`） |
+| `server.plugins.conflict` | 409 | 同批变更后两个插件争用同一 Provider 座或注册同一 `slide.shapeKind`；`details.with` 列出冲突对象 |
+| `server.plugins.not_optional` | 409 | 本人启停的插件当前不是 `optional` |
+| `server.plugins.config_invalid` | 422 | 配置未通过插件 Config schema，或提交了机密字段；`details.fields[]` 逐字段 |
+
+登记：以上六个码由本轮新增，须进 30/10 §1.1、`protocol errors/codes.ts` 与 `http-map.ts`（与 §9 的其余码同一登记流程）。
+
+### 12.5 机械验证
+
+| # | 断言 | 执行 |
+|---|---|---|
+| M-PL-01 | `platformRole='member'` 调 `/admin/plugins*` 全部 403 `server.auth.forbidden`，策略与审计不变 | `test/server-integration` |
+| M-PL-02 | 内容级插件设 `optional` → 422；锁定项被改 → 422；两名管理员同 `If-Match` 并发保存 → 一个 200、一个 412 | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
+| M-PL-03 | 每项策略变更恰好一条 `plugin.policy_changed`，同批共享 `batchId`；个人启停不产生审计行 | `test/server-integration` |
+| M-PL-04 | 声明文件不可解析 → 退出码 78（含 `--dry-run`）；单项未签名 → 仅该项被拒、部署照常启动、`/readyz` 带 `pluginsRejected`、`plugin.rejected` 同一 `catalog` 下只写一次 | `e2e/full-compose`（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
+| M-PL-05 | api、collab、worker 对同一声明文件与策略算出相同的 `{catalog, policy}` | `test/unit`（表驱动）+ `test/server-integration` |

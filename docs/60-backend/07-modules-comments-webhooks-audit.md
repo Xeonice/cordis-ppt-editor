@@ -1,5 +1,5 @@
 # 07 模块设计：评论镜像、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Webhook 签名改为 Standard Webhooks，SSRF 判段用 ipaddr.js、出站用 undici，JCS 用 canonicalize）；2026-09-26（§4.21 整合：审计来源与模块依赖的 CollabGateway 改为 CollabUpgradeHandler 与 onAuthenticate 等钩子；comments.changed 改经 collabServer.broadcastEvent（document.broadcastStateless），不再经 FanoutBus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT、§4.21 q-webhook-sig；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[01](01-service-overview-and-roles.md) §3（原 30/08 §16.6 已迁入本文 §1）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Webhook 签名改为 Standard Webhooks，SSRF 判段用 ipaddr.js、出站用 undici，JCS 用 canonicalize）；2026-09-26（§4.21 整合：审计来源与模块依赖的 CollabGateway 改为 CollabUpgradeHandler 与 onAuthenticate 等钩子；comments.changed 改经 collabServer.broadcastEvent（document.broadcastStateless），不再经 FanoutBus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§9.5 登记 plugin.policy_changed、plugin.config_changed、plugin.rejected 三个审计 action） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT、§4.21 q-webhook-sig；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[01](01-service-overview-and-roles.md) §3（原 30/08 §16.6 已迁入本文 §1）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
 
 
 ## 0. 本文定位
@@ -562,6 +562,18 @@ flowchart LR
 | `plugin.failed` | system | 事件 `plugin/failed`（服务端宿主） | 二 | ✓ | `plugin, code` | M2 |
 
 `admin.*` 的主体类型为 `ops`（运维令牌访问内部端点或 `cordex-ops` 命令，INC-26）；M4 管理面板经会话发起时为 `user`。新增 action 必须先登记本表并在 `audit-actions.ts` 给出 details schema，否则 `RecordAuditEventUseCase` 在开发期拒绝写入（名称集合的机械核对见 §11）。
+
+### 9.5 插件管理（2026-10-01，rulings §4.23）
+
+触发方是 PluginsModule（[03](03-modules-identity-and-access.md) §12）；需求 PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) PM-14。个人启停界面级插件**不写审计**（个人偏好，只进产品事件 `plugin/user-toggled`）；上表的 `plugin.failed` 是服务端宿主的运行时失败，与本节的部署级拒绝不同。
+
+| action | 类别 | 触发点 | 通路 | 合并 | details | 里程碑 |
+|---|---|---|---|---|---|---|
+| `plugin.policy_changed` | admin | `PATCH /admin/plugins`，每项变更一条（与策略写入同事务） | 一 | — | `pluginId, version, scope, from: {state, defaultOn}, to: {state, defaultOn}, batchId`（恢复部署默认时 `to` 为声明文件的 initial，另带 `reset: true`） | M3 |
+| `plugin.config_changed` | admin | `PUT /admin/plugins/:pluginId/config` | 一 | — | `pluginId, version, paths`（只含变更的字段路径，不含值，防止泄漏密钥） | M4 |
+| `plugin.rejected` | system | api 启动时，部署时校验拒绝的每个插件一条；同一 `catalog` 摘要下不重复写 | 一 | — | `pluginId, version, reason: unsigned\|digest_mismatch\|manifest_invalid\|host_incompatible\|isomorphism_mismatch\|prefix_invalid\|scope_downgrade\|config_invalid\|duplicate_id\|provider_conflict, catalog` | M3（镜像内置的 manifest 与 hostApi 校验）/ M4（签名与审核） |
+
+`plugin.policy_changed`、`plugin.config_changed` 的主体类型为 `user`（平台管理员经会话）；`plugin.rejected` 为 `system`。管理员插件详情的「最近 5 次策略变更」直接读本表的 `plugin.policy_changed`（`GET /audit` 同一查询能力，SV-07）。
 
 ## 10. 所属表、模块装配、错误码与配置
 

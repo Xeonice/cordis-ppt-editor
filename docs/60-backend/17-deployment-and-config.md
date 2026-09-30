@@ -1,5 +1,5 @@
 # 17 部署拓扑与配置 schema
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：collab 反代改为按 documentId 一致性哈希；新增 `collab.hocuspocus.*` 与 `limits.ws.*` 五个键，`firstFrameTimeoutMs` 语义改为认证期限；XML 限额改引用 ADR-0019；镜像版本锁表；OTel 预加载入口；cron 子命令）；2026-09-26（§4.21 整合：§5.7 collab.persist.flushMs / batchMax 改为空闲即刷的上限；§12 CFG-05 写明失败条件；§5.14 废止键补环境变量名；§3.2 登记 M4 RTL 的 shaping 开关与 wasm-unsafe-eval 下发预留）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[01](./01-service-overview-and-roles.md) §0、§4（原 30/08 §10）、[40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18 / §4.21](../00-charter/rulings-2026-09-14.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、[19](./19-reuse-and-dependency-catalog.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：collab 反代改为按 documentId 一致性哈希；新增 `collab.hocuspocus.*` 与 `limits.ws.*` 五个键，`firstFrameTimeoutMs` 语义改为认证期限；XML 限额改引用 ADR-0019；镜像版本锁表；OTel 预加载入口；cron 子命令）；2026-09-26（§4.21 整合：§5.7 collab.persist.flushMs / batchMax 改为空闲即刷的上限；§12 CFG-05 写明失败条件；§5.14 废止键补环境变量名；§3.2 登记 M4 RTL 的 shaping 开关与 wasm-unsafe-eval 下发预留）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §5.16 插件配置键与声明文件格式、web 容器 /plugins/{sha256}/ 静态路径与变量、ops 命令 plugins:check、CFG-06） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[01](./01-service-overview-and-roles.md) §0、§4（原 30/08 §10）、[40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18 / §4.21](../00-charter/rulings-2026-09-14.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、[19](./19-reuse-and-dependency-catalog.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)
 
 > 读者：运维、写 `apps/server/src/config/**`、Dockerfile 与 compose 的工程师。
 > 本文是**配置 schema 全字段表**（§5）的唯一源，也是 compose、web 容器、镜像、迁移作业与备份的部署事实源。进程角色的模块装配矩阵在 [01](./01-service-overview-and-roles.md)；CSP 策略正文在 [50/14](../50-frontend/14-client-security.md)，本文只负责「每响应生成 nonce 并下发」；RuntimeConfig 的字段在 [50/02](../50-frontend/02-app-shell-routing-and-session.md)，本文只负责「启动时渲染进 index.html」。
@@ -149,6 +149,7 @@ services:
 | `<host>/api/*` | api | 请求体上限 11 MiB（≤ 10 MB multipart 直传）；透传 `Origin`、`X-Cordex-Request`、`X-Cordex-Share-Token` |
 | `<host>/collab/*` | collab | WS 升级；`proxy_read_timeout` 与 `proxy_send_timeout` 3600 s；**按路径中的 `documentId` 一致性哈希选实例**：偏好亲和、不是会话粘性，实例增减只迁移一部分文档，正确性不依赖它（rulings §4.21 H:q-hp-fanout，ADR-0035 决策 7 由可选改为默认；原：无粘性） |
 | `<host>/assets/*`、`<host>/fonts/*` | 静态文件 | `Cache-Control: public, max-age=31536000, immutable`（文件名带内容哈希，字体路径带 fontProfile 版本） |
+| `<host>/plugins/{sha256}/*`（M4，2026-10-01，rulings §4.23） | 静态文件：挂载目录中第三方插件的浏览器侧产物 | 容器启动时按插件声明文件（`CORDEX_WEB_PLUGINS_CATALOG_FILE`）为每个挂载目录条目渲染一条 `alias`，`{sha256}` 取条目的包摘要，映射到 `CORDEX_WEB_PLUGINS_DIR` 下该条目 `source` 目录的浏览器产物；内容寻址，`Cache-Control: public, max-age=31536000, immutable`；`nosniff`；同源，CSP `script-src 'self'` 不放宽（[50/14](../50-frontend/14-client-security.md) §2）；声明文件里没有的路径 404。是否装配由应用决定：浏览器只 `import()` `GET /users/me/plugins` 返回的 `entry`（被拒或禁用的插件不出现在那里），web 容器不做签名校验 |
 | `<host>/` 其余路径 | `index.html`（SPA 回落） | 每响应生成 nonce；`Cache-Control: no-store` |
 | `idp.<域名>` | casdoor:8000 | 保持 Host，`X-Forwarded-Proto https`；管理后台路径（随 Casdoor 版本维护的清单文件）只允许 `CORDEX_WEB_IDP_ADMIN_ALLOW` 中的来源 IP |
 | `s3.<域名>` | seaweedfs:8333 | 保持 Host（SigV4 把 Host 算进签名）；`proxy_request_buffering off`；单请求上限 32 MiB（≥ 10 MB 的上传走分片）；访问日志只记路径不记 query（query 里有预签名签名）；响应一律加 `Content-Security-Policy: sandbox` 与 `nosniff`（预签名 GET 返回的是用户上传内容，不得在该源执行，[04 §11](./04-modules-documents-storage-media.md)） |
@@ -271,6 +272,7 @@ server {
 | `CORDEX_WEB_RUNTIME_CONFIG_FILE` | 空 | 可选的只读 JSON 文件，提供 `brand`、`features`、`help` 等结构化字段，与上面各变量合并后整体按 50/02 的 `RuntimeConfigSchema` 校验，失败即容器拒绝启动 |
 | `CORDEX_WEB_CSP_MODE` | M2 `report-only`，M3 起 `enforce` | 只作用于 Trusted Types 两条指令（§3.2） |
 | `CORDEX_WEB_EMBED_ALLOWED_ORIGINS` | 空 | 允许以 iframe 嵌入 `/embed/*` 的宿主源列表（逗号分隔的 `https://` 源）；空 → `/embed/*` 的 `frame-ancestors 'none'`。同一份值渲染进 CSP 与 RuntimeConfig `embed.allowedHostOrigins`（前端据此做 postMessage 来源白名单，[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §9、[50/14](../50-frontend/14-client-security.md) §2），两处不会不一致 |
+| `CORDEX_WEB_PLUGINS_CATALOG_FILE` / `CORDEX_WEB_PLUGINS_DIR`（M4，2026-10-01） | 空 / `/opt/cordex/plugins` | 与应用容器同一份插件声明文件与只读挂载目录（§5.16）；据此渲染 `/plugins/{sha256}/` 的静态路径（§3.1）；声明文件空 = 不提供该路径 |
 | `CORDEX_WEB_ENV` | `production` | `production` 或 `test`；只有 e2e 预览服务器与 [70/08](../70-testing/08-deployment-and-environment-e2e.md) 的 `compose.test.yml` 设为 `test`，供下一行的启动校验判定 |
 | `CORDEX_WEB_DIAGNOSTICS_E2E_TRACE` | `false` | RuntimeConfig `diagnostics.e2eTrace`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3、[50/15](../50-frontend/15-events-errors-and-telemetry.md) §10）；为 `true` 且 `CORDEX_WEB_ENV` 不是 `test` 时容器拒绝启动（生产部署配置拒绝其为真，§5.15） |
 | `CORDEX_WEB_TLS_MODE` | `terminate` | `terminate` 或 `upstream` |
@@ -646,6 +648,70 @@ flowchart LR
 | `web.embed.allowedHostOrigins` | `https://` 源数组 | 空 | 空 = `/embed/*` 的 `frame-ancestors 'none'`（默认禁止任何站点嵌入）；非空时同一份值写进 `/embed/*` 的 CSP `frame-ancestors`（[50/14](../50-frontend/14-client-security.md) §2）与 RuntimeConfig `embed.allowedHostOrigins`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3，postMessage 来源白名单，[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §9） | `CORDEX_WEB_EMBED_ALLOWED_ORIGINS` | CSP、RuntimeConfig |
 | `web.diagnostics.e2eTrace` | 布尔 | `false` | 生产部署配置拒绝其为真：值为 `true` 而 `CORDEX_WEB_ENV` ≠ `test` 时容器拒绝启动（与 `CORDEX_WEB_AUTH_MODE` 只接受 `oidc` 同类约束）；只在 e2e 预览服务器与测试 compose 栈开启 | `CORDEX_WEB_DIAGNOSTICS_E2E_TRACE` | RuntimeConfig `diagnostics.e2eTrace` |
 
+### 5.16 插件（2026-10-01，rulings §4.23）
+
+插件只经两条路进入部署：**镜像内置**（随 `cordex-web` 与 `cordex-server` 构建的第一方插件，随镜像 digest 与 SBOM 受信，§4）与**挂载目录**（部署方把审核过或签名过的第三方插件包放进只读挂载目录，M4）；二者都由一份**插件声明文件**列出（PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) PM-04、PM-05）。界面与 REST 都不提供上传、URL 安装或下载（[15 §3.15](./15-rest-api-catalog.md)）。
+
+| 路径 | 类型 | 默认 | 范围 / 校验 | 生产必填 | 环境变量 | 机密 |
+|---|---|---|---|---|---|---|
+| `plugins.catalogFile` | 文件路径 | 空 | 空 = 只有镜像内置插件、取 preset 默认组成（与 M2 行为相同）；已配置时文件须存在、可解析、通过下文 schema，否则退出码 78；容器重启才重新读取，不热加载 | — | `CORDEX_PLUGINS_CATALOG_FILE` | 否 |
+| `plugins.mountDir` | 目录路径 | `/opt/cordex/plugins` | 只读挂载；声明文件中挂载条目的 `source` 是相对它的路径，规范化后越出本目录的条目被拒（`manifest_invalid`） | — | `CORDEX_PLUGINS_MOUNT_DIR` | 否 |
+| `plugins.trustedKeysFile` | 文件路径 | 空 | 受信 Ed25519 公钥列表（JSON：`[{keyId, publicKey, note?}]`，`publicKey` 为 32 字节原始公钥的 base64）；为空时挂载目录插件只能靠审核记录通过 | — | `CORDEX_PLUGINS_TRUSTED_KEYS_FILE` | 否（公钥） |
+| `plugins.allowUnsigned` | 布尔 | `false` | 非生产部署可显式允许未签名、无审核记录的挂载插件；`NODE_ENV=production` 时为 `true` 即退出码 78（与 §5.15 `web.diagnostics.e2eTrace` 同类约束）；为 `true` 时管理员界面整页警示条 | — | `CORDEX_PLUGINS_ALLOW_UNSIGNED` | 否 |
+| `plugins.policyPollSeconds` | 整数 | 60 | 10–300；collab 读 `plugin_policies` 重算 `policy` 摘要的兜底周期（`plugins:ctl` 丢消息时，在线会话最迟在该周期内收到「插件设置已更新」，[16 §12](./16-ws-protocol-server-view.md)） | — | `CORDEX_PLUGINS_POLICY_POLL_SECONDS` | 否 |
+
+**声明文件格式**（`cordex-plugins.json`，`schemaVersion: 1`；schema 在 `@cordexjs/protocol` 的 `plugins/catalog.ts`，与 `cordex-ops plugins:check` 共用）：
+
+```json
+{
+  "schemaVersion": 1,
+  "plugins": [
+    { "id": "@cordexjs/slide-render-chart", "version": "1.4.0", "source": "builtin",
+      "initial": { "state": "forced" } },
+    { "id": "acme:status-clock", "version": "2.1.0", "source": "acme-status-clock-2.1.0",
+      "sha256": "9f2c…（64 位十六进制）", "signature": "acme-status-clock-2.1.0.sig",
+      "initial": { "state": "optional", "defaultOn": false } },
+    { "id": "acme:qr-shape", "version": "1.2.0", "source": "acme-qr-shape-1.2.0",
+      "sha256": "41ab…", "review": { "by": "安全组 张三", "date": "2026-11-02", "link": "https://intra.example/review/118" },
+      "initial": { "state": "disabled" }, "lockPolicy": false,
+      "config": { "defaultSize": 96 } }
+  ]
+}
+```
+
+- 每项必填 `id`、`version`（精确版本，同一插件一次部署只有一个版本）、`source`（`builtin` 或挂载目录内相对路径）、`initial.state`（`forced` \| `optional` \| `disabled`；`optional` 必带 `defaultOn`）；挂载条目另须 `sha256`（包摘要）与 `signature`（相对路径，Ed25519 分离签名，签的是包的 SHA-256）或 `review`（审核人、日期、依据链接）二者之一。可选 `lockPolicy`（管理员界面只读）、`scope`（只能写 `content`，把界面级升为内容级；写 `ui` 而清单推出为 `content` 时该项被拒 `scope_downgrade`）、`config`（初始配置，须过插件 Config schema；机密字段不得写在这里，只能经 `*File` 机密文件）。
+- 未写 `initial` 的镜像内置条目：第一方可选插件默认 `forced`（保持 preset 默认组成），第三方默认 `disabled`。镜像内置插件未出现在声明文件里时按其 preset 默认条目处理。
+- **格式错误即拒绝启动**（退出码 78，`--dry-run` 同样覆盖）；**单项校验失败只拒绝该项**，部署照常启动：校验项与原因码见 [03 §12.3](./03-modules-identity-and-access.md)，被拒项写审计 `plugin.rejected`（[07 §9.5](./07-modules-comments-webhooks-audit.md)），`/readyz` 附 `pluginsRejected: [{id, version, reason}]`（不置为未就绪，[18](./18-observability-and-ops-endpoints.md) §6），强制启用的插件被拒时启动日志 `warn`。
+- 应用容器（全部角色）与 web 容器读同一份文件：前者做校验与装配，后者只据此渲染 `/plugins/{sha256}/` 静态路径（§3.1、§3.6）。签名校验用 `node:crypto` 的 Ed25519，不引入新依赖（[19](./19-reuse-and-dependency-catalog.md)）。
+
+**图 5-16 插件声明文件的启动校验**
+
+```mermaid
+flowchart TD
+  read["读取 plugins.catalogFile"]
+  empty{"已配置"}
+  builtinOnly["只有镜像内置：preset 默认组成"]
+  parse{"可解析且通过 schema"}
+  exit78["退出码 78"]
+  prod{"production 且 allowUnsigned 为 true"}
+  each["逐项部署时校验：摘要、签名或审核、清单、hostApi、同构类、前缀、作用域、配置、重复与 Provider 座"]
+  ok["通过：进入可用清单，按策略装配"]
+  rej["被拒：写 plugin.rejected，readyz 附 pluginsRejected"]
+  start["继续启动，计算插件集指纹"]
+  read --> empty
+  empty -->|"否"| builtinOnly --> start
+  empty -->|"是"| parse
+  parse -->|"否"| exit78
+  parse -->|"是"| prod
+  prod -->|"是"| exit78
+  prod -->|"否"| each
+  each --> ok --> start
+  each --> rej --> start
+```
+
+怎么读：文件级问题（不可解析、违反 schema、生产环境允许未签名）让整个进程以 78 退出；逐项问题只把那一项挡在可用清单之外，部署照常启动。镜像内置插件同样走逐项校验（M3 只做清单与 hostApi，M4 起挂载条目加签名或审核）。
+依据：本节；[03 §12.3](./03-modules-identity-and-access.md)；rulings §4.23 第 2 题；PRD PM-04、PM-05。
+
 ## 6. 环境变量命名、机密来源与启动校验
 
 **命名规则**（机械映射，§12 CFG-01 核对唯一性）：`CORDEX_` + 路径各段转大写蛇形、以 `_` 连接（`collab.room.maxEditors` → `CORDEX_COLLAB_ROOM_MAX_EDITORS`）；数组用逗号分隔；布尔只认 `true` / `false`。`NODE_ENV` 是唯一不带前缀的变量。
@@ -783,6 +849,7 @@ flowchart LR
 | `webhooks:replay` | 把 `dead-lettered` 或 `failed` 投递重置为 `pending` 并入队，审计 `webhook.delivery_replayed`（[07](./07-modules-comments-webhooks-audit.md) §5.4） | `cordex_system` + Valkey | 手动 | 手动 |
 | `thumbnails:rebuild` | 按文档或全部重建缩略图（字体包升级后），审计 `admin.thumbnails_rebuilt`（[06](./06-modules-jobs-import-export-thumbnails.md) §11.1） | `cordex_system` + Valkey | 手动 | 手动 |
 | `documents:reassign-owner --doc <id> --to <userId>`（M3） | 唯一 owner 被停用或擦除后给文档指定新 owner：以系统上下文调用 PermissionsModule 导出的 `ReassignOwnerUseCase` 写目标用户的 owner 授权、`perm_version` 加 1（提交后广播，在线会话随之重算），审计 `admin.owner_reassigned`（[03](./03-modules-identity-and-access.md) §4.2、[07](./07-modules-comments-webhooks-audit.md) §9.4）；新 owner 随即可撤销链接、授权或永久删除文档。停用与擦除的响应附「唯一 owner 文档数」提醒管理员执行本命令（[15](./15-rest-api-catalog.md) §3.2）；文档 id 取自协作者手里的文档链接。M4 管理面板直接复用同一用例（rulings §4.20 BE-05+TX-22） | `cordex_system` + Valkey | 手动 | 手动 |
+| `plugins:check`（命名草案，2026-10-01） | 只读：按插件声明文件与镜像内置清单跑一遍部署时校验（§5.16、[03 §12.3](./03-modules-identity-and-access.md)），逐项打印部署级状态与被拒原因码，与管理员界面「管理 › 插件」一致；声明文件不可解析时退出码 78，有被拒项时退出码 0 但输出非空 `rejected` | 无（不连库） | `migrate` 之前（与 `config:check` 同一步） | Job 首步 |
 | `config:check` | 等同 `--dry-run` | — | `migrate` 之前 | Job 首步 |
 
 - 退出码沿用 sysexits 约定（[01 §6](./01-service-overview-and-roles.md)）：成功 0；配置错误 78。`documents:reassign-owner` 的失败另分三种，均不写任何行、不写审计：`--to` 用户不存在或状态不是 `active`（已停用、已擦除）→ **67**（EX_NOUSER）；`--doc` 文档不存在 → **66**（EX_NOINPUT）；文档处于 `purging` → **65**（EX_DATAERR）。参数缺失或格式不符 → **64**（EX_USAGE）。断言见 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §7.4 O5（2026-09-26，rulings §4.20 BE-05+TX-22）。
@@ -838,4 +905,5 @@ flowchart LR
 | DEP-05 | 滚动重启期间双浏览器编辑不丢（ack 全部到达）；collab 下线 ≤ 30 s | `e2e/full-compose`（发布演练，70/08 §8） |
 | DEP-06 | 备份恢复演练达到 RPO ≤ 1 min、RTO ≤ 15 min，恢复后导出 sha256 与备份前一致 | 70/08 §9（M3，人工证据归档） |
 | DEP-07（2026-09-26） | web 容器的 collab upstream 为 `hash $cordex_doc_id consistent`；M3 两副本下同一 `documentId` 的 WS 升级与快照 REST 落到同一实例，停掉该实例后客户端重连到另一实例并继续编辑（亲和不是正确性前提） | `e2e/full-compose`（发布演练，70/08） |
+| CFG-06（2026-10-01） | `plugins.*` 按 §5.16 校验：声明文件不可解析或违反 schema、`NODE_ENV=production` 且 `plugins.allowUnsigned=true` → 退出码 78（`--dry-run` 同样）；单项未签名只拒绝该项、`/readyz` 附 `pluginsRejected`；挂载条目 `source` 含 `..` 越出 `plugins.mountDir` 被拒；web 容器只为声明文件中的挂载条目提供 `/plugins/{sha256}/`，其余路径 404 | `test/unit` 配置快照；`e2e/full-compose`（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | CFG-05（2026-09-26） | `collab.hocuspocus.*` 与新增的 `limits.ws.*` 按 §5.7、§5.8 校验，下列任一成立即退出码 78（即要求 `timeoutMs` 不小于 `idleTimeoutMs`、`step2MaxBytes` 不小于 `maxUpdateBytes`、`idleCheckIntervalMs` 小于 `idleTimeoutMs`）：`collab.hocuspocus.timeoutMs` 小于 `limits.idleTimeoutMs`、`limits.ws.step2MaxBytes` 小于 `limits.maxUpdateBytes`、`limits.ws.idleCheckIntervalMs` 不小于 `limits.idleTimeoutMs`；旧键 `limits.xml.maxTextNodeBytes` 出现即拒绝启动并提示 `limits.xml.maxTextLength`；镜像入口含 `--import ./dist/observability/otel.js` | `test/unit` 配置 schema 快照；`check-image-policy` |

@@ -1,8 +1,8 @@
 # 09 DDL：身份与权限
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §14 plugin_policies（0012）、user_plugin_prefs（0013），两表列入 RLS 例外） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
 
 > 读者：写 `apps/server/src/db/migrations/` 与 `db/schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 的工程师；DBA；安全评审。
-> 定位：身份与权限域五张表、四个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
+> 定位：身份与权限域五张表（另有 §14 插件策略两张表，2026-10-01）、四个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
 > 不在本文：命名、外键、角色、GUC 与 policy 写法的通则见 [08](08-db-conventions-roles-rls-migrations.md)；表级与列级 GRANT 由 08 的 0095 统一落地（本文 §8.4 只给本域规格）；Valkey 会话键与保留期总表见 [14](14-valkey-object-storage-and-retention.md)；用例与事务边界见 [03](03-modules-identity-and-access.md)。
 
 ---
@@ -13,11 +13,13 @@
 |---|---|---|---|---|---|
 | `users` | UsersModule | `UserRepository` | 0010 | 例外（身份目录，无 `doc_id`） | M2 |
 | `user_identities` | UsersModule | `UserRepository` | 0011 | 例外（同上） | M2 |
+| `plugin_policies`（§14.1，2026-10-01） | PluginsModule | `PluginPolicyRepository` | 0012 | 例外（部署级管理表，无 `doc_id`） | M3 |
+| `user_plugin_prefs`（§14.2，2026-10-01） | PluginsModule | `UserPluginPrefsRepository` | 0013 | 例外（用户级偏好，无 `doc_id`） | M3 |
 | `permissions` | PermissionsModule | `PermissionRepository` | 0030 | ENABLE + FORCE（0090） | M2 建表与 owner 行；M3 授权 REST |
 | `document_perm_versions` | PermissionsModule | `PermissionRepository.bumpPermVersion`（唯一写入点） | 0031 | ENABLE + FORCE（0090） | M2 建表并随协同票据携带（rulings §4.19 D-M2-CONTENT 把网关提前到 M2）；M3 起随授权 REST 递增与广播 |
 | `share_links` | ShareLinksModule（写）/ PermissionsModule（只读解析） | `ShareLinkRepository` / `ShareLinkReader` | 0032 | ENABLE + FORCE（0090） | M3 |
 
-本文占用的迁移号（全线唯一分配）：0010–0019（本文用 0010、0011）、0030–0039（本文用 0030–0035）、0090。执行顺序与依赖：0001、0002（08）→ **0010 → 0011** → 0020（10）→ **0030 → 0031 → 0032 → 0033 → 0034 → 0035** → 0040–0073（11–13）→ **0090** → 0091–0094 → 0095、0096（08）。
+本文占用的迁移号（全线唯一分配）：0010–0019（本文用 0010–0013）、0030–0039（本文用 0030–0035）、0090。执行顺序与依赖：0001、0002（08）→ **0010 → 0011 → 0012 → 0013** → 0020（10）→ **0030 → 0031 → 0032 → 0033 → 0034 → 0035** → 0040–0073（11–13）→ **0090** → 0091–0094 → 0095、0096（08）。
 
 **实测**：本文全部 `-- migrate:` 围栏已在 `postgres:18-alpine` 中配合 08 的 0001、0002 与 10 的 0020 按编号顺序执行通过；§8.5 的行为矩阵与 §10 的 `-- example` 逐条实测（2026-09-25；0035 与其行为断言、§10 ⑦ 于 2026-09-26 随 ddl-check 执行通过，断言做过变异验证）；正式校验由 `docs/_tools/ddl-check` 执行。
 
@@ -793,7 +795,7 @@ erDiagram
 
 | # | 断言 | 执行 |
 |---|---|---|
-| D-01 | 本文 `-- migrate:` 围栏（0010、0011、0030–0035、0090）与 08、10–13 的围栏按编号在 PG 18 空库顺序执行通过；本文 `-- example` 围栏可解析 | `docs/_tools/ddl-check`（08 §11） |
+| D-01 | 本文 `-- migrate:` 围栏（0010–0013、0030–0035、0090）与 08、10–13 的围栏按编号在 PG 18 空库顺序执行通过；本文 `-- example` 围栏可解析 | `docs/_tools/ddl-check`（08 §11） |
 | D-02 | `permissions`、`document_perm_versions`、`share_links` 为 ENABLE + FORCE，各有 `TO cordex_app` 与 `TO cordex_system` policy；`users`、`user_identities` 在例外清单且未开 RLS；policy 文本不含 `current_setting('app.` 与对 `permissions` / `share_links` 的子查询 | 治理检查 `check-rls-coverage`（`scanners/check-rls-coverage`）+ 08 的 0096 自检 |
 | D-03 | 四个 SECURITY DEFINER 函数：属主 `cordex_migrator`、`search_path=pg_catalog, pg_temp`、PUBLIC 无 EXECUTE（§8.5 I-14） | 08 的 0096 自检 |
 | D-04 | §8.5 行为矩阵 I-01–I-12、I-15 全部符合 | `e2e/smoke` 的 security-rls（M3 起阻断）+ `test/server-integration` |
@@ -802,3 +804,173 @@ erDiagram
 | D-07 | drizzle `schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 与迁移后的库无漂移；无 `password` 类列、无 `tenant_id` | `test/server-integration`（08 DB-03） |
 | D-08 | 按人搜索的两条查询在 1 万用户规模下走 `ix_users_display_name` / `ix_users_email`（EXPLAIN 无顺序扫描） | `test/server-integration` |
 
+
+---
+
+## 14. 插件策略与个人选择（0012、0013，rulings §4.23）
+
+依据：rulings §4.23 裁决 1、3 与 O-1、O-2 定稿（2026-10-01）；PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) PM-03、PM-08、PM-10、PM-14；用例与模块归属见 [03](03-modules-identity-and-access.md) §9；REST 见 [15](15-rest-api-catalog.md) §3.15。
+
+两张表都是**部署级 / 用户级**数据，没有 `doc_id`，按 [08 §6.4](08-db-conventions-roles-rls-migrations.md) 的口径列入 RLS 例外清单，替代防线是「只经 PluginsModule 用例访问」：`plugin_policies` 的写入口只有 `PlatformAdminGuard` 之后的 `UpdatePluginPoliciesUseCase` / `UpdatePluginConfigUseCase`；`user_plugin_prefs` 的每条语句都以会话主体的 `user_id` 为条件，REST 路径里没有用户 id（`/users/me/plugins`），无法越权改他人。
+
+- **插件从哪里来不在库里**：可用清单来自部署声明文件与镜像内置（[17](17-deployment-and-config.md) §5.16），部署时校验结果在每个进程启动时由 `PluginCatalog` 重新算出并持有在内存（声明文件不变则结果确定）；被拒插件只经审计 `plugin.rejected` 留痕（[07](07-modules-comments-webhooks-audit.md) §9.5）。库里只存**管理员的决定**与**用户的个人选择**。
+- **无行 = 取声明文件的初始状态**：`plugin_policies` 只在管理员第一次保存某插件时插入；管理员「恢复部署默认」即删除该行。
+- `plugin_id` 不设外键：它引用的是声明文件里的条目，不是库内实体；声明文件移除某插件后，其策略行与个人选择行保留（重新加入时恢复），`GET /admin/plugins` 不再列出。
+
+### 14.1 plugin_policies（0012）
+
+```sql
+-- migrate: 0012_plugin_policies
+CREATE TABLE plugin_policies (
+  plugin_id  text        NOT NULL,
+  state      text        NOT NULL,
+  default_on boolean     NULL,
+  config     jsonb       NULL,
+  revision   bigint      NOT NULL DEFAULT 1,
+  batch_id   uuid        NOT NULL,
+  updated_by uuid        NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT pk_plugin_policies PRIMARY KEY (plugin_id),
+  CONSTRAINT fk_plugin_policies_updated_by FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE RESTRICT,
+  CONSTRAINT ck_plugin_policies_plugin_id CHECK (char_length(plugin_id) BETWEEN 1 AND 214 AND plugin_id !~ '\s'),
+  CONSTRAINT ck_plugin_policies_state CHECK (state IN ('forced', 'optional', 'disabled')),
+  CONSTRAINT ck_plugin_policies_default_on CHECK ((state = 'optional') = (default_on IS NOT NULL)),
+  CONSTRAINT ck_plugin_policies_config CHECK (config IS NULL OR jsonb_typeof(config) = 'object'),
+  CONSTRAINT ck_plugin_policies_revision CHECK (revision >= 1)
+);
+
+COMMENT ON TABLE plugin_policies IS
+  '部署管理员对每个插件的三态策略与非机密配置覆盖（60/09 §14.1，rulings §4.23）。写方 PluginsModule（仅平台管理员，cordex_app）；无行时取声明文件 initial；无 doc_id，RLS 例外（60/08 §6.4）；永久保留。';
+COMMENT ON COLUMN plugin_policies.plugin_id IS '插件 id，与声明文件条目及 cordex-manifest.json 的 id 一致；不设外键（引用的是声明文件条目）';
+COMMENT ON COLUMN plugin_policies.state IS 'forced | optional | disabled；内容级插件不得为 optional（应用层按声明文件与清单的 scope 校验，422 server.plugins.policy_invalid）';
+COMMENT ON COLUMN plugin_policies.default_on IS '仅 state=optional 时非空：用户未做个人选择时是否开启；其余状态为 NULL';
+COMMENT ON COLUMN plugin_policies.config IS '非机密配置覆盖（M4，PM-09），须通过插件 Config schema；机密字段只经部署文件提供，从不入库；未覆盖时为 NULL';
+COMMENT ON COLUMN plugin_policies.revision IS '本行每次改写加 1；与 policy 摘要一起支撑 PATCH /admin/plugins 的 If-Match';
+COMMENT ON COLUMN plugin_policies.batch_id IS '最近一次写入所属的保存批次（UUIDv7），与同批 plugin.policy_changed 审计行的 details.batchId 相同';
+```
+
+| 项 | 内容 |
+|---|---|
+| 用途 | 管理员三态（强制启用 / 允许用户选择 / 禁用）、可选插件的默认值、插件配置覆盖；`policy` 摘要（插件集指纹第二段，[16](16-ws-protocol-server-view.md) §12）由声明文件初始状态叠加本表算出 |
+| 所属模块与仓储 | PluginsModule / `PluginPolicyRepository`（`plugins/infrastructure/plugin-policy.repository.ts`） |
+| 读写方 | 写：`UpdatePluginPoliciesUseCase`、`UpdatePluginConfigUseCase`（`cordex_app`，经 `PlatformAdminGuard`）。读：`GetPluginCatalogUseCase`、`GetEffectivePluginSetUseCase`（api，`cordex_app`）；collab 的指纹轮询与 worker / renderer 的 headless 内容级集合（`cordex_system`，只读） |
+| RLS | 例外：部署级管理表，无 `doc_id`；只授 `cordex_system` SELECT |
+| 保留与清理 | 永久保留；「恢复部署默认」删除该行（`cordex_app` DELETE） |
+| 里程碑 | M3（随管理员「能看能改」，rulings §4.23 O-4）；`config` 列 M4 起写入 |
+
+### 14.2 user_plugin_prefs（0013）
+
+```sql
+-- migrate: 0013_user_plugin_prefs
+CREATE TABLE user_plugin_prefs (
+  user_id    uuid        NOT NULL,
+  plugin_id  text        NOT NULL,
+  enabled    boolean     NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT pk_user_plugin_prefs PRIMARY KEY (user_id, plugin_id),
+  CONSTRAINT fk_user_plugin_prefs_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE RESTRICT,
+  CONSTRAINT ck_user_plugin_prefs_plugin_id CHECK (char_length(plugin_id) BETWEEN 1 AND 214 AND plugin_id !~ '\s')
+);
+
+COMMENT ON TABLE user_plugin_prefs IS
+  '用户对「允许用户选择」的界面级插件的个人启停（60/09 §14.2，rulings §4.23 O-2：服务端按账号保存，跨设备一致）。写方 PluginsModule（本人，cordex_app）；只含插件 id 与开关、不含个人数据，擦除时保留（users 行原地脱敏，UsersModule 保持叶子）；无 doc_id，RLS 例外（60/08 §6.4）。';
+COMMENT ON COLUMN user_plugin_prefs.plugin_id IS '插件 id；管理员把该插件改为 forced / disabled 时本行保留但不生效，改回 optional 时恢复（PM-03）';
+COMMENT ON COLUMN user_plugin_prefs.enabled IS '本人的选择；无行时取 plugin_policies.default_on（或声明文件 initial.defaultOn）';
+```
+
+| 项 | 内容 |
+|---|---|
+| 用途 | 个人插件面板「我的界面插件」的开关（PM-10）；只影响本人会话的界面，不进文档、不改插件集指纹、不写审计（PM-14） |
+| 所属模块与仓储 | PluginsModule / `UserPluginPrefsRepository` |
+| 读写方 | 写：`SetUserPluginPreferenceUseCase`（upsert）、`ResetUserPluginPreferenceUseCase`（删除）（均 `cordex_app`）。读：`GetEffectivePluginSetUseCase`（本人） |
+| RLS | 例外：用户级偏好，无 `doc_id`；`cordex_system` 无任何权限 |
+| 保留与清理 | 随用户保留；擦除时不删（只含插件 id 与开关，不是个人数据；擦除不回调其他模块，[01](01-service-overview-and-roles.md) 规则 I2）；非 active 用户的行不再被读取；声明文件移除插件后行保留（重新加入时恢复） |
+| 里程碑 | M3（M2 的 `/users/me/plugins` 只读，不读本表） |
+
+### 14.3 本域 GRANT 规格与关键语句
+
+GRANT 由 [08](08-db-conventions-roles-rls-migrations.md) 的 0095 落地（08 §4.2 矩阵同步两行）：
+
+```sql
+-- example
+-- 插件两表的 GRANT 规格（由 08 的 0095 落地）
+GRANT SELECT, INSERT, DELETE ON plugin_policies TO cordex_app;
+GRANT UPDATE (state, default_on, config, revision, batch_id, updated_by, updated_at) ON plugin_policies TO cordex_app;
+GRANT SELECT ON plugin_policies TO cordex_system;
+GRANT SELECT, INSERT, DELETE ON user_plugin_prefs TO cordex_app;
+GRANT UPDATE (enabled, updated_at) ON user_plugin_prefs TO cordex_app;
+```
+
+保存一批管理员变更（`UpdatePluginPoliciesUseCase`，一个事务）：先取事务级咨询锁串行化全部保存，再按当前库内状态重算 `policy` 摘要并与 `If-Match` 比较，不等即 412 `server.plugins.revision_conflict`；逐项 upsert 并写审计，提交后发布 `plugins:ctl`（[14](14-valkey-object-storage-and-retention.md) §3）。
+
+```sql
+-- example
+SELECT pg_advisory_xact_lock(hashtext('cordex.plugin_policies'));
+INSERT INTO plugin_policies (plugin_id, state, default_on, batch_id, updated_by)
+  VALUES ($1, $2, $3, $4, $5)
+  ON CONFLICT (plugin_id) DO UPDATE
+    SET state = EXCLUDED.state, default_on = EXCLUDED.default_on,
+        revision = plugin_policies.revision + 1, batch_id = EXCLUDED.batch_id,
+        updated_by = EXCLUDED.updated_by, updated_at = now();
+```
+
+```sql
+-- example
+-- 个人启停（本人）：upsert；「恢复管理员默认」即删除
+INSERT INTO user_plugin_prefs (user_id, plugin_id, enabled) VALUES ($1, $2, $3)
+  ON CONFLICT (user_id, plugin_id) DO UPDATE SET enabled = EXCLUDED.enabled, updated_at = now();
+DELETE FROM user_plugin_prefs WHERE user_id = $1 AND plugin_id = $2;
+```
+
+```sql
+-- example
+-- 约束断言（ddl-check 在回滚事务里真实执行）：optional 必须带 default_on，其余状态不得带
+DO $$
+DECLARE u uuid := '01900000-0000-7000-8000-00000000a001';
+BEGIN
+  INSERT INTO users (id, display_name, platform_role) VALUES (u, 'plugin-admin', 'admin');
+  INSERT INTO plugin_policies (plugin_id, state, default_on, batch_id, updated_by)
+    VALUES ('acme:status-clock', 'optional', true, '01900000-0000-7000-8000-00000000b001', u);
+  BEGIN
+    INSERT INTO plugin_policies (plugin_id, state, default_on, batch_id, updated_by)
+      VALUES ('acme:qr-shape', 'forced', false, '01900000-0000-7000-8000-00000000b001', u);
+    RAISE EXCEPTION '0012 失败：forced 带 default_on 未被拒绝';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO plugin_policies (plugin_id, state, batch_id, updated_by)
+      VALUES ('acme:ruler', 'optional', '01900000-0000-7000-8000-00000000b001', u);
+    RAISE EXCEPTION '0012 失败：optional 缺 default_on 未被拒绝';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO user_plugin_prefs (user_id, plugin_id, enabled) VALUES (u, 'acme:status-clock', false);
+  IF (SELECT count(*) FROM user_plugin_prefs WHERE user_id = u) <> 1 THEN
+    RAISE EXCEPTION '0013 失败：个人选择未写入';
+  END IF;
+END $$;
+```
+
+**图 14-1 插件两表与身份域**
+
+```mermaid
+erDiagram
+  users ||--o{ plugin_policies : "updated_by"
+  users ||--o{ user_plugin_prefs : "user_id"
+  plugin_policies { text plugin_id PK "声明文件条目 id，无外键" text state "forced、optional、disabled" boolean default_on "仅 optional 非空" jsonb config "M4，非机密" bigint revision "每次改写加 1" uuid batch_id "同批审计" }
+  user_plugin_prefs { uuid user_id PK,FK text plugin_id PK "无外键" boolean enabled "本人选择" }
+  users { uuid id PK text platform_role "admin 才能写策略" }
+```
+
+怎么读：两张表只通过外键挂在 `users` 上，彼此之间与声明文件之间都没有外键——`plugin_id` 是声明文件里的名字。一次会话实际装配的集合 = 声明文件（通过校验）× `plugin_policies`（无行取 initial）× 本人的 `user_plugin_prefs`（只对 optional 生效），由 `GetEffectivePluginSetUseCase` 在应用层合成。
+依据：本节 §14.1、§14.2；[03](03-modules-identity-and-access.md) §9；rulings §4.23。
+
+### 14.4 本节机械验证
+
+| # | 断言 | 执行 |
+|---|---|---|
+| D-09 | 0012、0013 随全部围栏按编号执行通过；§14.3 约束断言通过；两表在 08 §6.4 例外清单且未开 RLS | `docs/_tools/ddl-check`（08 §11）+ 0096 自检 |
+| D-10 | 列级 GRANT：`cordex_app` 改 `plugin_policies.plugin_id`、`created_at` 与 `user_plugin_prefs.user_id` 得 `permission denied`；`cordex_system` 写 `plugin_policies` 或读 `user_plugin_prefs` 得 `permission denied` | `test/server-integration`（08 DB-06） |
+| D-11 | 两名管理员以同一 `If-Match` 并发保存：一个 200、一个 412，审计只有成功一方的行 | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
+| D-12 | drizzle `schema/plugin_policies.ts`、`schema/user_plugin_prefs.ts` 与迁移后的库无漂移 | `test/server-integration`（08 DB-03） |

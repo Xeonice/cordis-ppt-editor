@@ -1,5 +1,5 @@
 # 07 协同客户端
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：同步层改用官方 @hocuspocus/provider 4.7.0，自有调度器、FIFO 垫片、两级 ack 与 OfflineStore 保留；step2 单设 16 MiB；删应用层心跳）；2026-09-26（§4.21 整合：§9 1012 补 reason contaminated 的重建口径；§10 awareness 的 editing{shapeId} 登记为 P2 字段（COL-03）；§17 三项待对齐关闭：404 带 X-Cordex-Epoch 与文档名解析、只读会话空差量不回 ack、RTT 用 rtt.ping / rtt.pong）；2026-09-26（§4.21 复核：4205 触发条件按适配层 preAuthMax* 改写）；2026-09-30（§4.21 剩余缺口样张回写：§12 分流表补表格行 / 列粒度的 delete-vs-edit 一行，来源设计 [03-30](../20-design/03-screens/30-table-editing.md) §7；分流图的恢复按钮同步）；2026-09-30（§4.22 设计待决收口：§12 表格行列变体的按钮与说明文案按样张定稿，补图表类别 / 系列粒度的 delete-vs-edit 一行，分流图同步） | 依赖：[30/06](../30-architecture/06-collaboration.md) §5–§12、§18；[40/05](../40-modules/05-collaboration-client.md)；[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)（部分被 ADR-0039 取代）、[ADR-0024](../30-architecture/adr/0024-presence-and-awareness.md)、[ADR-0033](../30-architecture/adr/0033-offline-persistence.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5/S-3a、§4.18 UX-02/UX-03/CO-03/CO-08/CO-09/CO-10/BE-02、§4.19 D-M2-CONTENT/INC-09/N1、§4.20 BE-01+TX-03/BE-09+TX-15/TX-08/FE-17、§4.21 q-ws-gateway/H:q-hp-persist-ack/H:q-hp-provider/H:q-hp-step2-cap；Hocuspocus 采用证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（defaults d-02~d-09、d-24~d-30，核实 vA–vG）；[PRD 03](../10-prd/03-features/03-collaboration.md)；[设计 05](../20-design/05-collaboration-ux.md)、[设计 03-12](../20-design/03-screens/12-offline-conflict-banner.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：同步层改用官方 @hocuspocus/provider 4.7.0，自有调度器、FIFO 垫片、两级 ack 与 OfflineStore 保留；step2 单设 16 MiB；删应用层心跳）；2026-09-26（§4.21 整合：§9 1012 补 reason contaminated 的重建口径；§10 awareness 的 editing{shapeId} 登记为 P2 字段（COL-03）；§17 三项待对齐关闭：404 带 X-Cordex-Epoch 与文档名解析、只读会话空差量不回 ack、RTT 用 rtt.ping / rtt.pong）；2026-09-26（§4.21 复核：4205 触发条件按适配层 preAuthMax* 改写）；2026-09-30（§4.21 剩余缺口样张回写：§12 分流表补表格行 / 列粒度的 delete-vs-edit 一行，来源设计 [03-30](../20-design/03-screens/30-table-editing.md) §7；分流图的恢复按钮同步）；2026-09-30（§4.22 设计待决收口：§12 表格行列变体的按钮与说明文案按样张定稿，补图表类别 / 系列粒度的 delete-vs-edit 一行，分流图同步）；2026-10-01（§4.23 插件管理：§2 Auth token 增 `pluginSet`；§9 4426 增 reason `collab.plugins_outdated`，新增 Stateless `plugins` 控制消息与「插件设置已更新」横幅；§15 V19、§16 M3 同步） | 依赖：[30/06](../30-architecture/06-collaboration.md) §5–§12、§18；[40/05](../40-modules/05-collaboration-client.md)；[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)（部分被 ADR-0039 取代）、[ADR-0024](../30-architecture/adr/0024-presence-and-awareness.md)、[ADR-0033](../30-architecture/adr/0033-offline-persistence.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5/S-3a、§4.18 UX-02/UX-03/CO-03/CO-08/CO-09/CO-10/BE-02、§4.19 D-M2-CONTENT/INC-09/N1、§4.20 BE-01+TX-03/BE-09+TX-15/TX-08/FE-17、§4.21 q-ws-gateway/H:q-hp-persist-ack/H:q-hp-provider/H:q-hp-step2-cap；Hocuspocus 采用证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（defaults d-02~d-09、d-24~d-30，核实 vA–vG）；[PRD 03](../10-prd/03-features/03-collaboration.md)；[设计 05](../20-design/05-collaboration-ux.md)、[设计 03-12](../20-design/03-screens/12-offline-conflict-banner.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-08、PM-13；rulings §4.23 O-1
 
 本文是**浏览器侧协同运行时的唯一事实源**：客户端 Session 状态机（自 [30/06 §5.1](../30-architecture/06-collaboration.md) 迁入，30/06 原处只保留定位句与链接）、连接建立、重连与离线、出站合并与两级 ack、离线队列、权限与令牌、关闭码处理、awareness 与在场 UI、软冲突信号分流、前端计时器。
 
@@ -80,7 +80,7 @@ flowchart LR
    - `collab-transport-ws` 构造 `HocuspocusProviderWebsocket({ url: 'wss://<host>/collab/v1/rooms/:documentId', autoConnect: false, maxAttempts: 1, WebSocketPolyfill: 计量垫片, messageReconnectTimeout: 30000, onClose: 关闭码策略 })`，URL 只带 documentId，不带任何凭据；
    - `collab-yjs` 构造 `HocuspocusProvider({ websocketProvider, name: '{documentId}:{epoch}', document, awareness, token, flushDelay: 50, onStateless })`：`document` 与 `awareness` 是 store-yjs 已构造的同一对实例（经 `yjsBackend.docHandle()` 解包，awareness 不得设为 `null`，否则失去 15 s 续期带来的保活，§4）；文档名带纪元（ADR-0039：新纪元天然是新文档，旧纪元的服务端文档自然排空），`epoch` 取第 1 步的 `X-Cordex-Epoch`；随后 `yjsBackend.registerRemoteOrigin(provider)`；
    - 两个实例都在 SessionDriver 的 `ctx.effect` 里创建，Unit 关闭时依次 `destroy()`，清掉 provider 内部的 `connectionChecker` 等定时器（证据 CL-10）。
-3. **连接**：reducer 发出 `connect` 效果，重连调度器调 `websocketProvider.connect()`（首连不等待）。WS 打开后 provider 调 `token` 函数取票并发 Auth 帧。`token` 是 async 函数，每次 WS 打开与每次 `sendToken()` 都现换一张新票（§8.3）：`POST /documents/:id/collab-ticket`（附 `X-Cordex-Request: 1`；sessionStorage 有 `cordex.share.{docId}` 时附 `X-Cordex-Share-Token`，票据因此带 `lnk` claim，[02 §11](02-app-shell-routing-and-session.md)），票据 60 s、单次有效、只在内存；函数返回 Auth 字段的 JSON 字符串 `{ticket, protocolVersion:1, clientId, capabilities, appVersion, epoch?, maxSchemaVersion, traceparent?}`——`epoch` 为本地 Y 状态所属纪元（无本地状态时省略），`maxSchemaVersion` 为客户端支持的最高文档 `schemaVersion`，二者供服务端判定 4428 / 4426（[30/06 §6.3](../30-architecture/06-collaboration.md)、[60/16](../60-backend/16-ws-protocol-server-view.md) §2）。
+3. **连接**：reducer 发出 `connect` 效果，重连调度器调 `websocketProvider.connect()`（首连不等待）。WS 打开后 provider 调 `token` 函数取票并发 Auth 帧。`token` 是 async 函数，每次 WS 打开与每次 `sendToken()` 都现换一张新票（§8.3）：`POST /documents/:id/collab-ticket`（附 `X-Cordex-Request: 1`；sessionStorage 有 `cordex.share.{docId}` 时附 `X-Cordex-Share-Token`，票据因此带 `lnk` claim，[02 §11](02-app-shell-routing-and-session.md)），票据 60 s、单次有效、只在内存；函数返回 Auth 字段的 JSON 字符串 `{ticket, protocolVersion:1, clientId, capabilities, appVersion, epoch?, maxSchemaVersion, pluginSet?, traceparent?}`——`epoch` 为本地 Y 状态所属纪元（无本地状态时省略），`maxSchemaVersion` 为客户端支持的最高文档 `schemaVersion`，二者供服务端判定 4428 / 4426（[30/06 §6.3](../30-architecture/06-collaboration.md)、[60/16](../60-backend/16-ws-protocol-server-view.md) §2）；`pluginSet` 为本会话插件集指纹 `{ catalog, policy }`（2026-10-01，rulings §4.23；取自 `GET /users/me/plugins`，[03](03-preset-assembly-and-plugins.md) §5.1），供服务端按 [60/16](../60-backend/16-ws-protocol-server-view.md) §12 判定：`catalog` 不符 → 4426 `collab.plugins_outdated`，`policy` 不符 → 照常准入并下发 Stateless `plugins`（§9）。嵌入宿主未取插件集时省略该字段，服务端不做插件集判定。
 4. **认证前的帧**：provider 发完 Auth 立即发 step1 与 awareness，取票期间的编辑也可能先于 Auth 上线（核实 vA-A1）。这些帧由服务端**排队、不应用**，认证通过后按序回放；原「首帧必须是 auth、认证前的同步帧即 4401」随 §4.21 删除（ADR-0039 部分取代 ADR-0023；用户可见行为不变）。客户端自 WS 打开起 5 s 内须收到 `Authenticated` 或认证失败，否则主动断开进入 `backoff`（服务端适配层同为 5 s，超时以 4408 关闭）。
 5. **认证结果**：provider 的 `authenticated` 事件即进入 `syncing`；其 scope 为 `readonly` 时 PermissionGate 先按只读处理，等 `auth.ok` 给出确切角色。`auth.ok{sessionId, role, serverSeq, schemaVersion, limits{maxUpdateBytes, msgRateHz, msgBurst}, serverTime, reason?}` 由服务端以 Stateless 载荷下发，它与 step1 / step2 的先后**不保证**（实测 `auth.ok` 在前，证据 d-06）：收到时把 `role` 经 `applyRemoteDecisions` 生效，再以 `limits` 覆盖本地兜底值（§5）。`reason` 表示以只读加入的原因：`'capacity'` 为编辑者名额已满，`'over_ceiling'` 为文档元素数已超部署天花板（部署调低天花板后只读打开，[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4.1、[60/16](../60-backend/16-ws-protocol-server-view.md) §3）；文案按原因分流，见 §8.1。认证失败：服务端先发 `PermissionDenied`（reason 为 `{code}` JSON，provider 报 `authenticationFailed`），再以原始 `ws.close(映射码)` 关闭（§9）。
 6. **双向差量**：本端 step1（本地状态向量）→ 服务端**先发自己的 step1、再回 step2**（核实 TX-07 更正了原来的先后）→ 本端应用服务端 step2，并由 provider 对服务端 step1 自动回 step2（覆盖全部 pending；垫片观测到它上线时记一个在途条目，§6）。服务端 step2 已应用且本端 step2 已获 db ack → `live`，emit `collab/synced`。只读会话（viewer，含名额降级）同样收到服务端 step1，provider 照样回 step2（本端无 pending，差量为空），这一帧不建在途条目；服务端 step2 应用后即进入 `readonly` 并 emit `collab/synced`；commenter 是可写会话，按前一句处理。此后的新编辑按常规在途处理，不阻止进入 `live`（这是对 30/06「pending 为 0」写法的精确化：连续键入不会让会话永远停在 `syncing`）。provider 的 `synced` 与 `unsyncedChanges` 只表示「服务端已应用到内存」，不用来判断已保存（§6）。
@@ -593,7 +593,7 @@ sequenceDiagram
 | 4408 | 超时（§4.21 扩为通用码）：5 s 认证期限、服务端 45 s 无入站帧、provider 第三次无入站超时合成的 4408 `'forced'` | → `backoff` | 退避重连 | 同 1006 |
 | 4409 | 被隔离（10 分钟内 ≥ 5 次修复） | → `quarantined` | 停止重连；pending 保留在内存供导出 | 阻断横幅「你的会话已被暂停协同，请刷新页面重新加入」 |
 | 4413 | 帧过大：update 帧超 `maxUpdateBytes`，或重连 step2 超 16 MiB | → `backoff`（step2 超限时不再发起重连，由编辑器页按 §8.2 重开 Unit） | update 帧：视为客户端缺陷或限额不一致，重连后以新 `limits` 发送，同一 `localSeq` 再次触发 → §8.2 `payload-too-large`；step2：不重试（重新生成的 step2 同样超限），直接 §8.2 `payload-too-large` | update 帧第二次起、step2 第一次即「有更改过大无法同步」+ 导出 |
-| 4426 | schema 过新，客户端需升级 | → `closed` | 不重连；有 pending 先提供导出（M4 前刷新即丢） | 「发现新版本」横幅 + 刷新（[02 §12](02-app-shell-routing-and-session.md)） |
+| 4426 | schema 过新，客户端需升级（`collab.schema_too_new`）；或内容级插件集已随重新部署变化（`collab.plugins_outdated`，2026-10-01，§4.23） | → `closed` | 不重连；有 pending 先提供导出（M4 前刷新即丢）；两种 reason 行为相同 | 「发现新版本」横幅 + 刷新（[02 §12](02-app-shell-routing-and-session.md)） |
 | 4427 | 协议版本不兼容（`collab.protocol_mismatch`） | → `closed` | 同 4426 | 同 4426 |
 | 4428 | 文档换纪元（`collab.epoch_changed`：运维换纪元，或覆盖既有文档的导入提交，rulings §4.19 N1） | → `closed` | 丢弃本地 Y 状态；pending 按 §8.2 `epoch-changed` 移入 rejected；编辑器页重开 Unit 重新 bootstrap；UndoSkip 记录与撤销栈清空；评论文本范围锚点重算（[08 §6](08-comments-and-version-history.md)） | 本会话此前收到过 `room.locked.reason='import'`：「文档已替换为导入的文件」；否则「文档已由管理员重建」。有未提交更改时追加「N 项更改未提交」+ 导出，无则 3 s 后自动消失 |
 | 4429 | 速率限制：运行期出站超速，或握手期同一用户在本实例上的连接数超过 `limits.ws.maxConnectionsPerUser`（默认 32，先收到 `PermissionDenied{collab.rate_limited}`，rulings §4.20 BE-01+TX-03） | → `backoff` | 退避重连；运行期超速时本会话 provider 的 `flushDelay` 加倍（§5），握手期超限只退避、不改 `flushDelay` | 同 1006 |
@@ -601,7 +601,40 @@ sequenceDiagram
 
 - 「可重连的关闭码」（§3.1 图中的说法）= 1001、1006、1011、1012、4205、4400（未满 3 次）、4401（换票未遇 401 时）、4408、4413（update 帧首次）、4429、4503，另加文档级 CLOSE。
 - 30 s 无入站帧由 provider 本地断开（§4），按可重连处理。
-- 握手期拒绝码 → 关闭码（`PermissionDenied` 的 reason JSON 中的 `code`，原 `auth.denied.code`）：`collab.unauthenticated → 4401`、`collab.forbidden → 4403`、`collab.doc_not_found / collab.doc_purging → 4404`、`collab.schema_too_new → 4426`、`collab.protocol_mismatch → 4427`、`collab.epoch_changed → 4428`、`collab.rate_limited → 4429`、`collab.room_full → 4503`；文案取 i18n `errors.<code>.{title, action}`（[15 §4](15-events-errors-and-telemetry.md)）。
+- 握手期拒绝码 → 关闭码（`PermissionDenied` 的 reason JSON 中的 `code`，原 `auth.denied.code`）：`collab.unauthenticated → 4401`、`collab.forbidden → 4403`、`collab.doc_not_found / collab.doc_purging → 4404`、`collab.schema_too_new / collab.plugins_outdated → 4426`、`collab.protocol_mismatch → 4427`、`collab.epoch_changed → 4428`、`collab.rate_limited → 4429`、`collab.room_full → 4503`；文案取 i18n `errors.<code>.{title, action}`（[15 §4](15-events-errors-and-telemetry.md)）。
+
+**插件设置已更新（Stateless `plugins`，2026-10-01，rulings §4.23 O-1；PRD PM-08）**：服务端在两种情况下向本连接发 `{type:'plugins', reason:'policy_changed', policy}`——握手时本会话 `pluginSet.policy` 与部署当前值不符（`connected` 后立即发）；在线期间管理员保存了插件策略（api 经 Valkey 频道 `plugins:ctl` 通知各 collab 实例，另有每 `plugins.policyPollSeconds`（默认 60）一次的轮询兜底，≤ 60 s 送达，[60/16](../60-backend/16-ws-protocol-server-view.md) §3、§12）。客户端处理：
+
+- 不改内部状态、不断连、不改 `SyncState`，编辑照常；`onStateless` 把消息交给 `pages/editor` 的横幅控制器。
+- 横幅「管理员更新了插件设置，重新加载后生效」[重新加载]，可关闭；同一 `policy` 值每会话只出现一次，收到不同的新值时再出现。优先级低于连接、权限与文档状态横幅（§3.3 的「其他」档）。
+- 点「重新加载」：`Session.flush()`（最长 10 s）→ 有未同步项按 [02 §12](02-app-shell-routing-and-session.md) 提示导出 → `location.reload()`，新会话按新策略装配。
+- 本端 `catalog` 已过期时服务端直接以 4426 关闭，不会先发 `plugins`；两者同时出现时只按 4426 处理。
+- 未知 `reason` 的 `plugins` 消息丢弃并计数（与未知 `type` 同一口径）。
+
+**图 9a 管理员保存后在线会话的提示**
+
+```mermaid
+sequenceDiagram
+  participant adm as 管理员插件页
+  participant api as 应用服务 api
+  participant vk as Valkey plugins ctl
+  participant col as 协同网关实例
+  participant cy as collab-yjs Session
+  participant pg as 编辑器页横幅
+  adm->>api: PATCH /admin/plugins，If-Match
+  api-->>adm: 200，新的 policy 摘要
+  api->>vk: PUBLISH policy_changed
+  vk-->>col: 订阅收到，或 60 s 轮询发现
+  col->>cy: Stateless plugins，reason policy_changed
+  cy->>pg: 交给横幅控制器，会话照常 live
+  pg->>pg: 显示插件设置已更新横幅
+  pg->>cy: 用户点重新加载：flush 最长 10 s
+  cy-->>pg: flush 完成或列出未同步项
+  pg->>pg: location.reload，按新插件集装配
+```
+
+怎么读：纵线是参与方，自上而下是时间。管理员保存只改服务端策略；协同网关把变化转成一条控制消息，客户端只显示横幅，连接与编辑都不受影响；是否重新加载由用户决定，重新加载前先 flush。
+依据：本节；[60/16](../60-backend/16-ws-protocol-server-view.md) §3、§12；PRD PM-08；rulings §4.23 O-1。
 
 ## 10. Awareness
 
@@ -794,13 +827,14 @@ flowchart LR
 | V16 | 覆盖导入：收到 `room{locked:{reason:'import'}}` 后停止发送、`readonlyReason='locked'`；随后 4428 → 重开 Unit、本地纪元更新为新 `X-Cordex-Epoch`，未获 db 确认项以 `epoch-changed` 进入 rejected 且可导出，横幅为「文档已替换为导入的文件」；版本恢复期间协作者不进入 `readonly`、不断连（rulings §4.19 N1） | `session-scripts.test.ts`（70/05 §9 `rs/import-overwrite`）；70/06 §5 第 21 行 | test/unit、e2e/full-compose |
 | V17 | provider 时序契约（§4.21）：`open` → `authenticated` → `synced` 的事件顺序；`auth.ok` 先于或晚于 step2 到达都进入同一状态；LocalBatcher 的 `onUpdate` 监听先于 provider、`outgoingMessage` 同步发生在垫片 `send` 之前，FIFO 与上线帧一一对应；构造配置 `onClose` 能阻止内部重连（事后 `.on('close')` 不能）；`authenticationFailed` 后立即断开、不再发出无 Auth 的 step1；`leave()` 顺序为 flush → 等 db ack → `destroy()`；升级 provider 版本必须重跑 | `runCollabTransportConformance` 的 `provider/*` 分节（[70/02 §6.1](../70-testing/02-contract-suites-and-pluggability.md)）；`collab-yjs` 的 `session-scripts.test.ts`（进程内 Hocuspocus 脚本服务端 + 内存 WebSocketLike + fake timers，[70/05 §9](../70-testing/05-collab-simulation-and-property-tests.md)） | test/contract、test/unit |
 | V18 | provider 以自身为 origin 应用的远端 update 在 store-yjs 中记为 `remote`、不入撤销栈，撤销跳过他人后写照常生效；回显给发送者的本端 update 幂等、不产生变更事件；`provider.awareness` 与 `yjsBackend.awareness()` 为同一实例且非 `null` | `collab-yjs` 的 `provider-session.test.ts`；`store-yjs` 契约套件协同分节 | test/unit、test/contract |
+| V19 | 插件集指纹（2026-10-01，§4.23）：Auth token 含 `pluginSet`；4426 `collab.plugins_outdated` 与 `collab.schema_too_new` 客户端行为一致；Stateless `plugins` 不改 `SyncState`、不断连，同一 `policy` 值只出一次横幅，点重新加载先 flush；未知 `reason` 丢弃并计数 | `collab-transport-ws` 的 `close-policy.test.ts`；`collab-yjs` 的 `session-scripts.test.ts`（`rs/plugins-policy-changed`）；e2e 管理员保存后在线会话横幅（[70/06](../70-testing/06-frontend-component-and-e2e.md)） | test/unit、e2e/full-compose |
 
 ## 16. 里程碑
 
 | 里程碑 | 交付 |
 |---|---|
 | M2 | **服务端文档的协同持久化**（rulings §4.19 D-M2-CONTENT，覆盖 INC-37 的 M2 / M3 分界；原「M3 前置技术切片」改为 M2 交付并作 M2 验收，[40/05 §11](../40-modules/05-collaboration-client.md)）：§1 provider 两个类的装配（`@hocuspocus/provider` 4.7.0 精确钉版本，rulings §4.21）；§2 连接建立与 HTTP bootstrap、`token` 函数；§3 内部 FSM（输入为 provider 事件）与 UI 状态（`offline` 态及其横幅随 M3）；§4 自有调度器的断线退避重连（上限 30 s 持续重试，UI 为「正在恢复连接…」）、1012 首轮立即、30 s 无入站判死、重连不重做 bootstrap、刷新保护；§5 `localSeq` 与帧对应（计量垫片）、单帧上限与背压指标；§6 两级 ack、在途 FIFO、step2 单设 16 MiB、`flush` / `leave` 与「未保存到服务器」分级提示（§6.1）；§8.1 中的文档锁定与超天花板只读打开；§8.2 被拒回滚与导出本地副本（单帧超限、超元素天花板、锁定、换纪元、身份变更）；§8.3 票据、重新绑定与重新登录；§9 关闭码全表；§10 awareness 的本端上报、节流与清洗（服务端中继随网关就位，同一用户多标签页互见）；§14 诊断面板协同页。PRD 05 §0.3 为本分工的依据。 |
-| M3 | **多人协同体验层**：§4 离线体验（`offline` 判据与离线横幅、30 s 周期重连与「立即重连」、`navigator.onLine=false` 暂停、长离线提示；PRD CO-06 与 `offline:queue` 验收）；§8.1 权限变更、撤销访问与名额降级（随分享与角色细化生效）；§10 远端在场的多人呈现与 §11 在场 UI（头像簇、远端光标密度、跟随模式 P1）；§12 软冲突信号与提示；评论相关的 `CONTROL.event`（[08](08-comments-and-version-history.md)）。 |
+| M3 | **多人协同体验层**：§4 离线体验（`offline` 判据与离线横幅、30 s 周期重连与「立即重连」、`navigator.onLine=false` 暂停、长离线提示；PRD CO-06 与 `offline:queue` 验收）；§8.1 权限变更、撤销访问与名额降级（随分享与角色细化生效）；§10 远端在场的多人呈现与 §11 在场 UI（头像簇、远端光标密度、跟随模式 P1）；§12 软冲突信号与提示；评论相关的 `CONTROL.event`（[08](08-comments-and-version-history.md)）；Auth token `pluginSet`、4426 `collab.plugins_outdated` 与 Stateless `plugins` 横幅（§2、§9，rulings §4.23 PM-13）。 |
 | M4 | `collab-offline-idb` 跨刷新持久化（PRD CO-06 P2）与多标签页互斥（OFFLINE-TABS）；集成方 JWT 经 `getToken` 续期（ADR-0029）。大规模只读广播（PRD CO-14）为 M4+，不在本文范围。 |
 | M5 | doc / sheet 复用四包零改动（[40/05 §8](../40-modules/05-collaboration-client.md)），只在装配层引用同一批服务名。 |
 

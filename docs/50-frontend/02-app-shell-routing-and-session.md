@@ -1,5 +1,5 @@
 # 02 应用壳、路由与会话
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：续期后的换票改写为 provider.sendToken() 发 Auth 帧（onTokenSync））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、§4.20 FE-10/BE-02、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：续期后的换票改写为 provider.sendToken() 发 Auth 帧（onTokenSync））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：路由表加 `/admin/plugins` 与 `RequirePlatformAdmin` 守卫、`/documents/:id/plugins` 改为个人插件面板；§8 增三个插件用例；§12 插件集指纹并入版本漂移，新增「插件设置已更新」横幅） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、§4.20 FE-10/BE-02、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06、[PRD 09 插件管理](../10-prd/03-features/09-plugin-manager.md) PM-01、PM-06、PM-08、PM-10；rulings §4.23
 
 本文是 `apps/web` 应用壳在浏览器一侧的唯一事实源：路由表、运行时配置、会话状态机与浏览器侧 OIDC 回环、新窗口重新登录、编辑器页状态与 host 保活、REST 客户端统一策略、用例清单、壳页面状态、浏览器存储键空间与清理矩阵、分享链接落地、版本漂移。
 
@@ -35,7 +35,8 @@
 | `/documents/:id/history` | `history/VersionHistoryPage`（抽屉页） | Bare | RequireSession + CapabilityGuard(`history.read`) | 版本（行为见 [08](08-comments-and-version-history.md)） | §3.8 | M3 |
 | `/documents/:id/export` | `export/ExportDialog`（对话框路由） | 继承父路由 | RequireSession + CapabilityGuard(`doc.export`) | 导出 | §3.9 | M2（pptx）/ M3（PDF、PNG） |
 | `/documents/:id/fidelity` | `fidelity/FidelityReportPage`（抽屉页） | Bare | RequireSession | 保真报告（读 `unit/opened` 诊断，无 REST） | 无 | M2 |
-| `/documents/:id/plugins` | `plugins/PluginManagerPage`（抽屉页） | Bare | RequireSession | 插件管理器（数据流见 [03](03-preset-assembly-and-plugins.md) §10） | 无 | M2 |
+| `/documents/:id/plugins` | `plugins/PluginManagerPage`（抽屉页；2026-10-01 起即个人插件面板，PRD PM-10） | Bare | RequireSession | 个人插件面板：本会话插件状态、失败重试、可选界面级插件个人启停、本文档缺少的插件（数据流见 [03](03-preset-assembly-and-plugins.md) §10） | §3.15（`/users/me/plugins`） | M2 只读与重试 / M3 个人启停 |
+| `/admin/plugins` | `admin/AdminPluginsPage`（2026-10-01，§4.23） | Shell | RequireSession + RequirePlatformAdmin | 管理员插件管理：清单、部署级状态、三态设置、依赖与互斥确认、配置（M4）（PRD PM-06、PM-07、PM-09） | §3.15（`/admin/plugins*`） | M3（查看与修改，O-4）/ M4 配置 |
 | `/documents/:id/view` | `viewer/ViewerPage` | Bare | RequireSession | **只留给 M1 查看器与嵌入**（[12](12-viewer-embedding-and-render-page.md) §1） | §3.3 | M1 |
 | `/embed/:id?mode=view\|edit` | `embed/EmbedPage` | Bare | RequireSession（嵌入规则见 [12](12-viewer-embedding-and-render-page.md) §9） | 形态 E | 同编辑器 | M3 P2 |
 | `/settings` | `settings/SettingsPage` | 叠在来路之上 | RequireSession | 设置 | §3.2（资料，M3） | M2 |
@@ -61,6 +62,7 @@
 | `RenderLayout` | 布局 | 无 chrome、固定视口、只有 `#stage`；不加载 UI 样式与应用 i18n（[12](12-viewer-embedding-and-render-page.md) §11） |
 | `RequireSession` | 守卫 | `Session.state` 为 `authenticated` 放行；`unknown` 时渲染骨架并等待探测；`anonymous` 跳 `/login?next=<当前路径与查询>`；`expired` 见 §4.3（编辑器页有未同步更改时不跳转） |
 | `CapabilityGuard(cap)` | 守卫 | 读已打开文档的 `DocumentDetail.capabilities`（或 host 内权限服务的当前决策）；缺能力位时不渲染子路由，回到父路由并 toast「需要 … 权限」；能力位名以 protocol `permissions/actions.ts` 为准（含 `history.read` / `history.restore`） |
+| `RequirePlatformAdmin`（2026-10-01，§4.23） | 守卫 | 读 `Session.principal.platformRole`：`'admin'` 放行；否则不渲染子路由，回到 `/home` 并 toast「需要管理员权限」（PRD PM-01）。只是体验层：服务端 `PlatformAdminGuard` 对 `/admin/plugins*` 另行 403（[60/15](../60-backend/15-rest-api-catalog.md) §3.15）。平台角色被降级后，会话复核（≤ 5 s，[60/02](../60-backend/02-auth-chain.md) §4.2）使下一次 `/auth/me` 返回 `member`，守卫随之生效；管理页上的保存请求此时得 403 并同样回到 `/home` |
 | `RenderQuery` | 守卫 | 只校验 `RenderPageQuery` 形状；失败调用 `window.__cordex.error` 并停止（[12](12-viewer-embedding-and-render-page.md) §11） |
 
 ### 2.2 编辑器族路由与 `HostRegistry`
@@ -332,6 +334,9 @@ stateDiagram-v2
 | 设置 | 账户菜单「设置」、`Mod+,` | M3 起资料 §3.2 | `Preferences` 写 `cordex.prefs` → `app/preferences-changed` → host 同步 locale / theme / density | M2 |
 | 放映 | 模式下拉「放映」、`F5` | 无 | `/documents/:id/present`，复用 host | M2 |
 | 媒体上传（编辑器内插图） | preset `options.media.upload` 回调 | §3.6 | `apps/web` 默认实现的行为见 [05](05-rendering-and-thumbnails.md) §8（依据：MEDIA-CLIENT） | M2 |
+| 取本会话插件集（2026-10-01，§4.23） | `create-editor-host` 装配前（[03](03-preset-assembly-and-plugins.md) §5.1） | §3.15 `GET /users/me/plugins` | 得到 `fingerprint` 与插件列表，算出 `exclude`；失败重试一次后按镜像内置默认组成打开并提示 | M2（只读）/ M3 |
+| 个人启停界面级插件 | 个人插件面板开关 | §3.15 `PUT` / `DELETE /users/me/plugins/:pluginId` | 成功后当前 host 热挂载或卸载（[03](03-preset-assembly-and-plugins.md) §5.1）；409 `server.plugins.not_optional` → 开关回弹并 toast「该插件由管理员统一设置」 | M3 |
+| 管理员保存插件策略 | 管理员插件页「保存」（确认卡之后） | §3.15 `GET` / `PATCH /admin/plugins`（带 `If-Match`）；M4 `PUT /admin/plugins/:pluginId/config` | 整批成功后重新载入清单并提示「将在新打开的会话中生效」；412 → 「设置已被他人更新」并重新载入；422 / 409 在确认卡内逐项报错 | M3 / M4 |
 | headless 渲染 | renderer 打开 `/render` | 无 | [12](12-viewer-embedding-and-render-page.md) §11 | M3 |
 
 **服务端文档的内容**（依据：rulings §4.19 D-M2-CONTENT，覆盖 INC-37 的 M2 / M3 分界）：M2 起以协同快照为唯一事实源，没有 pptx 内容版本端点，也没有「保存」用例——持久化由协同网关与服务端快照负责，编辑器只显示会话状态（[04](04-document-commands-and-undo.md) §8.3、[07](07-collaboration-client.md) §3）。新建、导入、创建副本都先在服务端生成 import 快照，再按「打开文档」进入编辑器。`source:{kind:'bytes' | 'empty'}` 只用于本地文档（`local:*`）与 M1 查看器；本地文档的保存语义见 [04](04-document-commands-and-undo.md) §8.1。
@@ -421,7 +426,7 @@ sequenceDiagram
 | `cordex-collab/{userId}/{documentId}` | IndexedDB（`collab-offline-idb`，M4 P2 前默认关） | 离线更新队列与状态 | 用户 × 文档 | 30 天 TTL | 删除本人全部库（有未同步项先提示导出） | 删除原用户全部库（同左） | [07](07-collaboration-client.md) §7 |
 | `cordex-auth`、`cordex-offline` | BroadcastChannel | `refreshed` / `reauth-done` / `logged-out` 消息（不带令牌与身份）；离线库在无 Web Locks 时的持库协商 | 同源 | 不持久 | — | — | 本文 §4–§5；[07](07-collaboration-client.md) §7 |
 | `cordex-auth-refresh`、`cordex-offline:{userId}:{documentId}` | Web Locks | 续期互斥；离线库独占（依据：OFFLINE-TABS） | 同源 | 持锁期间 | 释放 | 释放 | 本文 §4.2；[07](07-collaboration-client.md) §7 |
-| 内存：查询缓存、媒体 blob URL、协同票据 | 内存 | — | 页面 | 页面生命周期 | 整页重载清空 | 整页重载清空 | §9.5；[05](05-rendering-and-thumbnails.md) §8 |
+| 内存：查询缓存（含本会话插件集，§8）、媒体 blob URL、协同票据 | 内存 | — | 页面 | 页面生命周期 | 整页重载清空 | 整页重载清空 | §9.5；[05](05-rendering-and-thumbnails.md) §8 |
 | `cordex_session`、`cordex_refresh` | httpOnly cookie | 会话（浏览器不可读） | — | 15 min / 7 天 | 服务端清除 | 服务端覆盖 | [60/02](../60-backend/02-auth-chain.md) §4 |
 
 「检测到换人」的三个来源：新窗口重新登录回来是另一用户（§5）、`GET /auth/me` 返回的 id 与 `cordex.lastPrincipal` 不同（例如在别处登出后换号登录）、其它标签页广播 `logged-out` 后本页重新登录为另一用户。
@@ -508,10 +513,47 @@ sequenceDiagram
 依据：VERSION-DRIFT-SW（authority：ADR-0033 否决 Service Worker 增量持久化 + PRD CO-06）。
 
 - **缓存口径**：`index.html` 为 `Cache-Control: no-store`，`/assets/*` 带内容哈希且 `immutable` 一年（由 web 容器下发，[60/17](../60-backend/17-deployment-and-config.md)）。
-- **检测**：① 惰性 chunk 加载失败（动态 `import()` 拒绝）→ 1 s 后重试一次，仍失败即判定漂移；② 协同关闭码 4426（客户端需升级）或 4427（协议不兼容）（[30/06](../30-architecture/06-collaboration.md) §6.5，行为见 [07](07-collaboration-client.md) §9）。
+- **检测**：① 惰性 chunk 加载失败（动态 `import()` 拒绝）→ 1 s 后重试一次，仍失败即判定漂移（挂载目录第三方插件的 `entry` 加载失败不在此列，[03](03-preset-assembly-and-plugins.md) §9 第 7 条）；② 协同关闭码 4426（客户端需升级，reason 为 `collab.schema_too_new` 或 2026-10-01 新增的 `collab.plugins_outdated`）或 4427（协议不兼容）（[30/06](../30-architecture/06-collaboration.md) §6.5，行为见 [07](07-collaboration-client.md) §9）。
 - **表现**：横幅「发现新版本，刷新后继续」。点击刷新时：协同会话有在途更改先 `Session.flush()`（最长 10 s）；离线或仍有未同步项则提示「有 N 项更改尚未同步，刷新将丢失」并提供导出本地副本（会话内队列刷新即丢失，PRD CO-06）；随后 `location.reload()`。
 - 编辑器内的惰性件（图表渲染器、语言包）加载失败不导致崩溃：元素保持占位，同时出现上述横幅（[03](03-preset-assembly-and-plugins.md) §4）。
 - **M1–M4 不引入 Service Worker**（登记为决定）。
+**插件集指纹**（2026-10-01，rulings §4.23 O-1；PRD PM-08、PM-13）：本会话插件集的 `fingerprint = { catalog, policy }`（[03](03-preset-assembly-and-plugins.md) §5.1）随协同握手上送（[07](07-collaboration-client.md) §2），服务端按两段分别判定，前端据此给出两种不同的提示：
+
+| 不一致的段 | 含义 | 服务端 | 前端表现 |
+|---|---|---|---|
+| `catalog` | 重新部署后内容级插件的 `id@version@sha256` 集合变了 | 4426，reason `collab.plugins_outdated`，刷新前不接受该会话的新写入 | 归入本节版本漂移：横幅「发现新版本，刷新后继续」，先 `Session.flush()` 再刷新；与 chunk 漂移同一流程，不另设文案 |
+| `policy` | 管理员改了三态、默认值或配置 | 照常准入，`connected` 后发 Stateless `{type:'plugins', reason:'policy_changed', policy}`；在线期间管理员保存后 ≤ 60 s 内同样收到 | 非阻断横幅「管理员更新了插件设置，重新加载后生效」[重新加载]；可关闭，同一 `policy` 值每会话只出现一次；点「重新加载」同样先 `Session.flush()`（最长 10 s）再 `location.reload()`，未同步项的处理同上 |
+
+- 两类横幅同时满足时只显示版本漂移横幅（它已要求刷新）。
+- 单人（`store-memory`）会话没有握手，只在下次打开编辑器时按新插件集装配。
+
+**图 9 版本漂移与插件设置更新的判定**
+
+```mermaid
+flowchart TB
+  chunk["惰性 chunk 加载失败，重试一次仍失败"]
+  close4426["协同关闭 4426：schema_too_new 或 plugins_outdated"]
+  close4427["协同关闭 4427：协议不兼容"]
+  ctl["Stateless plugins：policy_changed"]
+  drift["版本漂移横幅：发现新版本，刷新后继续"]
+  pluginBanner["插件设置更新横幅：重新加载后生效，可关闭"]
+  both{"两类同时出现？"}
+  flush["Session.flush 最长 10 s，未同步项提示导出本地副本"]
+  reload["location.reload，按新版本与新插件集装配"]
+  chunk --> drift
+  close4426 --> drift
+  close4427 --> drift
+  ctl --> both
+  both -->|"是"| drift
+  both -->|"否"| pluginBanner
+  drift --> flush
+  pluginBanner -->|"点重新加载"| flush
+  flush --> reload
+```
+
+怎么读：左上三种信号都是「代码或内容级插件版本已变」，一律进版本漂移横幅，编辑必须在刷新后继续；右上的控制消息只表示管理员改了策略，横幅可以关闭、编辑照常。两条路径在刷新前都先 flush。
+依据：本节；[07](07-collaboration-client.md) §9；PRD PM-08；rulings §4.23 O-1。
+
 
 ## 13. 机械验证与里程碑
 
@@ -535,6 +577,8 @@ sequenceDiagram
 | 跨源 `POST` 与缺 `X-Cordex-Request` 的 `POST` 被 403 | e2e CSRF（与 [70/10](../70-testing/10-security-testing.md) §6 同一用例） | `e2e/smoke` |
 | 登出后本人 IndexedDB 分区、离线库与全部 `cordex.share.*` 为空；其它标签页同步跳登录；离线登出后恢复联网，第一条请求是补发的 `POST /auth/logout`，之后 `/auth/me` 为 401；登出响应带 `endSessionUrl` 时整页跳往该地址，否则到 `/login` | e2e 登出清理 | `e2e/full-compose` |
 | 惰性 chunk 404 → 横幅「发现新版本」，不崩溃 | e2e 版本漂移（拦截 chunk 请求） | `e2e/full-compose` |
+| `/admin/plugins`：`member` 回 `/home` 并 toast；`admin` 可见；降级为 `member` 后 ≤ 5 s 失去访问（2026-10-01，§4.23） | `app/guards.test.ts`；e2e 管理员插件页（[70/06](../70-testing/06-frontend-component-and-e2e.md)） | `test/unit`、`e2e/full-compose` |
+| 握手 `catalog` 不符 → 4426 `collab.plugins_outdated` → 版本漂移横幅；`policy` 不符 → 「插件设置已更新」横幅、编辑不中断，点重新加载先 flush | e2e 插件设置更新（管理员保存后在线会话 ≤ 60 s 出横幅） | `e2e/full-compose` |
 | 服务端文档以 `snapshots/latest` + 票据 + WS 打开（不请求任何 pptx 字节端点）；新建空白 / 模板与导入都经两步导入与 `GET /jobs/:id` 后进入编辑器；创建副本轮询作业后导航新文档 | e2e 打开与新建（协同模式 harness，[70/06](../70-testing/06-frontend-component-and-e2e.md) §4.3） | `e2e/full-compose` |
 | 开始页可交互 ≤ 1.0 s p75 | `performance.mark`（[13](13-performance-and-bundling.md) §2） | `perf/perf-client` |
 | 开始页、列表、设置、登录页 axe 零严重违规 | e2e a11y | `e2e/a11y` |
@@ -545,7 +589,7 @@ sequenceDiagram
 |---|---|
 | M1 | 路由骨架、`/home`（本地夹具）、`/documents/local:*` 以 `bytes` 打开、`/documents/:id/view`、`/import`（本地打开）；`auth.mode:'none'` 仅 dev；`RuntimeConfig` schema 与配置错误页；R9 / 唯一组合根门禁上线 |
 | M2 | OIDC 登录回环、被动续期与跨标签互斥、新窗口重新登录、登出清理矩阵与 RP-initiated logout；`/documents` 列表与最近 / 固定服务端同步（U-04）；**服务端文档以协同快照打开（`collab` preset）、新建空白 / 内置模板与导入经服务端两步导入与 `GET /jobs/:id`、创建副本、列表 embedded 封面、媒体上传默认实现**（rulings §4.19 D-M2-CONTENT）；设置、保真报告、插件管理器、放映、pptx 导出；REST 客户端全部规则（含 CSRF 头）；版本漂移横幅 |
-| M3 | 查看者只读变体（UX-19）、分享链接落地、版本历史、PDF / PNG 导出、永久删除文档、模板库页（端点登记后）、`/render`（[12](12-viewer-embedding-and-render-page.md)）、`/embed/:id`（P2） |
+| M3 | 查看者只读变体（UX-19）、分享链接落地、版本历史、PDF / PNG 导出、永久删除文档、模板库页（端点登记后）、`/render`（[12](12-viewer-embedding-and-render-page.md)）、`/embed/:id`（P2）；`/admin/plugins` 与 `RequirePlatformAdmin`、个人启停、插件集指纹与「插件设置已更新」横幅（§4.23） |
 | M4 | `auth.mode:'token'`；离线库启用（P2）与多标签页独占 |
 
 ### 13.3 未决与回写

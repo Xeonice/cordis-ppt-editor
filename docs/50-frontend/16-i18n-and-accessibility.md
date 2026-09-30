@@ -1,6 +1,6 @@
 # 16 国际化与可访问性
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 整合：§1 登记 slide.ui.opaque 命名空间（不透明对象的双击提示与类型名）；§6.3 键盘等价补插入工具、调整手柄、线条端点、连接符连接四行，曲线绘制登记为 2.5.7 例外）；2026-09-30（§4.22：§6.2 登记空内容占位符图标条（WAI-ARIA Toolbar 模式）与 `TableGridPicker`（`role="grid"` + roving tabindex）两行）；2026-09-30（§4.22 复核修正：§6.2 空内容占位符图标条的 toolbar 名称更正为「插入内容到占位符」） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 整合：§1 登记 slide.ui.opaque 命名空间（不透明对象的双击提示与类型名）；§6.3 键盘等价补插入工具、调整手柄、线条端点、连接符连接四行，曲线绘制登记为 2.5.7 例外）；2026-09-30（§4.22：§6.2 登记空内容占位符图标条（WAI-ARIA Toolbar 模式）与 `TableGridPicker`（`role="grid"` + roving tabindex）两行）；2026-09-30（§4.22 复核修正：§6.2 空内容占位符图标条的 toolbar 名称更正为「插入内容到占位符」）；2026-10-01（§4.23 插件管理：§8 增个人插件面板、管理员插件页、三态控件、缺插件横幅的语义行与 §8.1 键盘与播报（PRD PM-16）；§11 V15、里程碑同步）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
 
 本文是浏览器侧国际化与可访问性行为的唯一事实源：i18n 服务与命名空间、语言包加载与切换、无 host 页面的 i18n、伪本地化与 RTL、a11y 目标分阶段、键盘模型、焦点管理、ARIA 语义与 live region、画布可访问树、视觉适配。交互外观与视觉 token 以 [设计 07](../20-design/07-accessibility-and-i18n.md)、[设计 04](../20-design/04-design-system.md)、[设计 09](../20-design/09-design-specification.md) 与 playground 为准；验收阈值以 PRD NF-05 / NF-06 为准；测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §7–§8 为准。
 
@@ -266,8 +266,20 @@ stateDiagram-v2
 | 命令面板 | `dialog` + `combobox` + `listbox`；结果数量变化 polite 播报 |
 | 对话框 | `dialog` / `alertdialog`，`aria-labelledby` 与 `aria-describedby` 指向标题与说明 |
 | 分隔条 | `separator` + `aria-orientation`、`aria-valuenow` / `min` / `max` |
+| 个人插件面板、管理员插件清单（2026-10-01，§4.23） | 分组标题为标题元素（`h2` / `h3`）；清单为 `table`（管理员页，列头 `th scope="col"`）或 `list`（个人面板）；每行可展开详情为 disclosure（`aria-expanded`、`aria-controls`） |
+| 三态控件（管理员页） | `radiogroup`，`aria-label` 为「<插件名> 的部署策略」，三个 `radio`：强制启用 / 允许用户选择 / 禁用；内容级插件的「允许用户选择」为 `aria-disabled="true"` 且可聚焦，`aria-describedby` 指向「会影响文档内容或渲染的插件按部署统一」；锁定项（必需、`lockPolicy`、被拒）整组 `aria-disabled` 并读出锁定原因 |
+| 个人启停开关 | `switch`（`aria-checked`），可访问名称「<插件名>」，描述「个人设置，只影响你」 |
+| 缺插件横幅、插件设置已更新横幅 | `role="status"`，不抢焦点（不属于 §8 横幅行的「需要立即注意」） |
 
 **播报通道**：ui-react 在 `NotificationHost` 旁挂一个 `LiveAnnouncer`（一个 polite、一个 assertive 区域），组件经 `useAnnounce(message, politeness)` 播报。polite 队列每秒至多播报一句（同类合并），assertive 只用于错误与权限变化。播报文案一律取自 i18n 键；除元素名称与替代文字外不播报文档内容。
+
+### 8.1 插件管理界面的键盘与播报（2026-10-01，rulings §4.23；PRD PM-16）
+
+- **键盘可完成全部操作**（PM-03、PM-07、PM-10）：清单行之间 `Tab` 进入行内首个控件；三态 `radiogroup` 内方向键切换并立即选中（WAI-ARIA radio 模式），`aria-disabled` 的选项方向键可停留、`Space` 无效果并播报原因；开关 `Space` 切换；`Enter` 展开 / 收起详情。管理员页的「保存」在有未保存变更时可用，`Mod+S` 不劫持（浏览器与编辑器已占用），只经按钮。
+- **确认卡**（依赖冲突、启用第三方、禁用可选·降级插件）为 `alertdialog`：打开时焦点落在首个操作（「取消」），`Esc` 等同取消，关闭后焦点回到触发它的「保存」按钮（§7 规则）。
+- **播报**：重试成功、依赖恢复、保存成功、个人开关切换结果经 `useAnnounce(…, 'polite')`；保存失败（412、422、409）与「需要管理员权限」经 assertive。缺插件横幅每文档每会话只出现一次，出现时 polite 播报一次横幅标题。
+- **状态不只靠颜色**：失败、被拒、锁定、等待依赖各有图标与文字（设计承接 03-09 重写稿、03-32 新稿，2026-10-01 样张已确认）。
+- **验收**：管理员页、个人插件面板、确认卡与两类横幅纳入 §11.2 V6 的 axe 矩阵与 V7 的键盘矩阵（V15）。
 
 ## 9. 画布可访问树
 
@@ -397,6 +409,7 @@ flowchart TB
 | V12 | 可访问树：每页列表项数 = 非装饰元素数；视觉层 `aria-hidden`；虚拟化卸载某页后该页列表项仍在；选区变化时 `aria-activedescendant` 指向对应项；阅读顺序切换后顺序改变 | render-dom `a11y-mirror` 单测 · `test/unit`；70/06 §7.6 · `e2e/a11y` |
 | V13 | live region：保存、同步、在场、软冲突、权限变化各有播报；polite 队列每秒至多一句 | 70/06 §7.6 · `e2e/a11y` |
 | V14 | IME：组合期间全局快捷键与命令面板 `Enter` 不触发；Esc 先交给输入法 | 70/06 §9.1 · `test/unit`（browser mode `ime-composition.test.ts`）、`e2e/full-compose`（`ime/*.spec.ts`） |
+| V15 | 插件管理界面（2026-10-01，§4.23）：个人插件面板（M2 只读）、管理员插件页与确认卡（M3）axe 零严重 / 重大违规；键盘完成三态设置、个人启停、依赖确认与取消；锁定选项可聚焦并读出原因；缺插件横幅 `role=status` 不抢焦点 | 70/06 §7 · `e2e/a11y` |
 
 ### 11.3 里程碑
 
@@ -404,7 +417,7 @@ flowchart TB
 |---|---|
 | M1 | `@cordexjs/i18n` 服务、`i18n.bundle`、编译期 key 类型、zh-CN 源语言；查看器的 `viewer` 命名空间；`forced-colors` 系统色兜底；V1–V2 阻断 |
 | M2 | en-US 首批语言与惰性语言包；`createI18n` 与无 host 页面；伪本地化；键盘模型（§6）、焦点管理（§7）、语义与 live region（§8）、画布可访问树（§9，P1）、视觉适配（§10 除高对比 token）；NVDA + Chrome、VoiceOver + Safari 人工矩阵；V3–V14 阻断（V11 的 `forced-colors` 部分只报告） |
-| M3 | 高对比第三套 token 与 `forced-colors` 门禁（U-08）；JAWS + Edge；apps/web 的 3.2.6 / 3.3.7 / 3.3.8；移动端查看与评论的触控目标；RTL 物理方向类名 lint 报告 |
+| M3 | 高对比第三套 token 与 `forced-colors` 门禁（U-08）；JAWS + Edge；管理员插件页与个人启停的键盘与播报（§8.1，V15 的 M3 部分）；apps/web 的 3.2.6 / 3.3.7 / 3.3.8；移动端查看与评论的触控目标；RTL 物理方向类名 lint 报告 |
 | M4 | UI RTL 镜像与内容 bidi（P2）；插件文案随宿主切换（PS-12）；VPAT / ACR（P2）；RTL lint 阻断 |
 
 **待回写（由总编排执行）**：40/02 §4.4 登记 `createI18n` 与 `@cordexjs/i18n` 自带的 protocol 错误码文案；40/11 登记 `viewer` 命名空间（preset-slide-viewer）与 `Preferences.a11y.readingOrder`；40/10 登记 ui-react `LiveAnnouncer` / `useAnnounce` 与 F6 备用键 `Ctrl+F6`；09-type-discipline/02 登记 RTL 物理方向类名 lint 规则（M3 报告、M4 阻断）；设计 07 §1.1 补充「浏览器截获 F6 时用 `Ctrl+F6`」与「视觉层 `aria-hidden`、语义由可访问树承载」两点；50/13 登记可访问树构建的时间与内存预算（§9.3，每片 ≤ 2 ms）；70/06 §7.3 的 F6 用例补 `Ctrl+F6` 备用键。

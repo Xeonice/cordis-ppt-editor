@@ -1,8 +1,8 @@
 # 15 REST API 目录
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20）；2026-09-26（§4.21：REST 基础件定稿——Nest 12 + Fastify 5、cookie、helmet、multipart、zod-openapi；Webhook 签名头改为 Standard Webhooks；限流维持自研令牌桶）；2026-09-26（§4.21 整合：§3.8 snapshots/latest 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：快照恢复改为复制文档先落库再应用、多副本由 extension-redis 收敛、控制事件走控制频道） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；60-backend/02、04 §7、16 §2（原 30/08 §9、§11、§16.4）；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20）；2026-09-26（§4.21：REST 基础件定稿——Nest 12 + Fastify 5、cookie、helmet、multipart、zod-openapi；Webhook 签名头改为 Standard Webhooks；限流维持自研令牌桶）；2026-09-26（§4.21 整合：§3.8 snapshots/latest 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：快照恢复改为复制文档先落库再应用、多副本由 extension-redis 收敛、控制事件走控制频道）；2026-10-01（§4.23 插件管理：新增 §3.15 plugins 七条路由（管理员四条、本人三条），资源树与反代映射同步） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；60-backend/02、04 §7、16 §2（原 30/08 §9、§11、§16.4）；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
 
 > 读者：实现 `apps/server` 控制器与 `@cordexjs/protocol` `rest/*` 的工程师；前端（[50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 的用例层只引用本表，不复写守卫与错误码）；测试（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 由本表生成「角色 × 能力位 × 路由」矩阵）。
-> 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry）链接本文。
+> 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry、§3.15 plugins）链接本文。
 > 不在本文：字段级 DTO（在 protocol `rest/*.ts`，文件登记见 [40-modules/02](../40-modules/02-kernel-protocol-and-document-core.md)）；WS 帧（[30-architecture/06 §6](../30-architecture/06-collaboration.md) 与 [16](16-ws-protocol-server-view.md)）；`/render` 页注入协议（[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)）；renderer RPC 字段（[06](06-modules-jobs-import-export-thumbnails.md)）；错误码格式与权威映射表（[30-architecture/10 §1](../30-architecture/10-observability-and-errors.md)）。
 
 ---
@@ -135,10 +135,11 @@ flowchart LR
   root --> webhooks["/webhooks：订阅与投递日志，仅平台管理员"]
   root --> audit["/audit：查询与导出，仅平台管理员"]
   root --> telemetry["/telemetry：errors、otlp、csp"]
+  root --> pluginsR["/admin/plugins 与 /users/me/plugins：插件策略与个人启停"]
 ```
 
 怎么读：从左到右是 URL 的层级，叶子节点文字是该资源下的操作；标「仅 collab」的三处由反代转给 collab 角色（§6），其余都在 api；评论与 @我 只读，评论唯一写入口是 CRDT 经服务端镜像观察器（ADR-0031）。
-依据：本节 §3.1–§3.14；rulings §4.18 BE-03、CO-07，§4.19 D-M2-CONTENT（不设 pptx 内容版本端点）；决策 SG-03、SG-08。
+依据：本节 §3.1–§3.15；rulings §4.18 BE-03、CO-07，§4.19 D-M2-CONTENT（不设 pptx 内容版本端点）；决策 SG-03、SG-08。
 
 ### 3.1 auth
 
@@ -302,6 +303,20 @@ flowchart LR
 | POST | `/telemetry/otlp` | `Session` | — | OTLP/HTTP traces（≤ 512 KiB）：`application/x-protobuf`，或只含 `resourceSpans` 的 `application/json`；只转发到 Collector 的 `/v1/traces`（细则见 [18](18-observability-and-ops-endpoints.md) §9.1） | 200（透传 OTLP 响应） | `server.http.unsupported_media_type`（415，不是上述两种媒体类型，或 JSON 含 traces 以外的信号）；Collector 不可用 503 | — | telemetryOtlp | M3 |
 | POST | `/telemetry/csp` | `Public` | — | `application/reports+json` 或 `application/csp-report`（≤ 16 KiB）→ 只记录违反的指令名与被拦主机名，丢弃其余字段（决策 TT-CSP-REPORT） | 204 | 仅限流与体积码 | — | csp | M2（report-only）/ M3（强制） |
 
+### 3.15 plugins（2026-10-01，rulings §4.23）
+
+`PluginsModule` · `rest/plugins.ts` · 角色 api。用例与事务边界见 [03 §12](03-modules-identity-and-access.md)；表见 [09 §14](09-ddl-identity-and-access.md)；需求 PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md)。插件只经部署声明文件与镜像内置进入部署（[17 §5.16](17-deployment-and-config.md)），本组路由**没有**上传、安装、卸载或下载插件的端点。管理员路由的 `ETag` / `If-Match` 取插件集指纹的 `policy` 段（[16 §12](16-ws-protocol-server-view.md)）；个人启停不写审计、不改指纹（PM-14）。
+
+| 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
+|---|---|---|---|---|---|---|---|---|---|
+| GET | `/admin/plugins` | `Admin` | — | → `{ plugins: AdminPluginRow[], rejected: RejectedPlugin[], fingerprint: {catalog, policy}, allowUnsigned }`；每行 `id`、`version`、`source`（`builtin` \| `mount`）、`vendor?`、`scope`、`necessity`、`state`（三态）、`defaultOn?`、`deployState`（八种之一）、`locked?`（`lockPolicy` / `kernel` / `contract`）、`failedSessions24h`、`lastErrorCode?`；响应头 `ETag: "<policy>"` | 200 | 仅隐含码 | — | default | M3 |
+| GET | `/admin/plugins/:pluginId` | `Admin` | — | → `AdminPluginDetail`：宿主兼容范围、`injects` 与提供者、被谁依赖、按贡献点分组的贡献计数、能力声明（仅展示）、信任来源（内置 / 签名公钥指纹 / 审核记录）、最近 5 次策略变更（审计查询）、配置 schema 与当前非机密值（M4） | 200 | `server.plugins.not_found`（404） | — | default | M3 |
+| PATCH | `/admin/plugins` | `Admin`；`If-Match` 必填 | — | `{ changes: [{ pluginId, state, defaultOn? } \| { pluginId, reset: true }] }`（≤ 100 项）→ 同 `GET /admin/plugins`；整批一个事务，失败不部分生效 | 200 | `server.plugins.revision_conflict`（412）、`server.plugins.policy_invalid`（422）、`server.plugins.conflict`（409）、`server.plugins.not_found`（404） | `plugin.policy_changed`（每项一条，同批 `batchId`） | default | M3 |
+| PUT | `/admin/plugins/:pluginId/config` | `Admin`；`If-Match` 必填 | — | `{ config: object }`（非机密字段；机密字段只能「使用部署文件中的值」）→ `AdminPluginDetail` | 200 | `server.plugins.config_invalid`（422）、`server.plugins.revision_conflict`（412）、`server.plugins.not_found`（404） | `plugin.config_changed`（只记字段路径） | default | M4 |
+| GET | `/users/me/plugins` | `Session` | — | → `{ fingerprint: {catalog, policy}, plugins: [{ id, version, scope, source, entry?, state, enabled, defaultOn? }] }`；`entry` 只对挂载目录插件给出（同源 `/plugins/{sha256}/…`，M4）；只含本部署当前会装配或可由本人开启的插件，被拒与已禁用的不列出 | 200 | 仅隐含码 | — | default | M2（只读，镜像内置组成）/ M3（含策略与个人选择） |
+| PUT | `/users/me/plugins/:pluginId` | `Session` | — | `{ enabled: boolean }` → 同 `GET /users/me/plugins` 的该插件一行 | 200 | `server.plugins.not_optional`（409）、`server.plugins.not_found`（404） | — | default | M3 |
+| DELETE | `/users/me/plugins/:pluginId` | `Session` | — | 删除本人的选择，回到管理员默认值 | 204 | `server.plugins.not_found`（404） | — | default | M3 |
+
 ---
 
 ## 4. `@Public` 白名单快照
@@ -346,7 +361,7 @@ flowchart LR
 
 | 本文小节 | 反代规则 | 角色 | Nest 模块 |
 |---|---|---|---|
-| §3.1–§3.6、§3.9–§3.14（§3.11 的 comments/import 除外），以及 §3.7 的 collab-ticket | `/api/*` | api | Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry |
+| §3.1–§3.6、§3.9–§3.15（§3.11 的 comments/import 除外），以及 §3.7 的 collab-ticket | `/api/*` | api | Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry、Plugins |
 | §3.7 的 elements/purge、§3.8、§3.11 的 comments/import | 同一条规则 `^/api/v1/documents/[^/]+/(snapshots\|elements/purge\|comments/import)`（优先于 `/api/*`，[17](17-deployment-and-config.md) §3 的 location 正则） | collab | Collab（`CollabHttpModule`）、Snapshots（`SnapshotsHttpModule`）、Comments（`CommentsImportHttpModule`，P1） |
 | §5 主端口两条 | 不经反代 | 各角色 | Health |
 | §5 内部端口 | 不转发 | 见 §5 | Metrics、Internal、Audit（audit/verify）、renderer 入口 |
@@ -366,7 +381,7 @@ flowchart LR
   api["api 角色"]
   collab["collab 角色"]
   anyRole["api、collab、worker 各进程"]
-  mApi["Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry"]
+  mApi["Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry、Plugins"]
   mSnap["SnapshotsModule"]
   mCollab["CollabModule：WS 网关与 ElementPurgeController；CommentsImportController，P1"]
   mOps["HealthModule、MetricsModule、InternalModule、AuditModule 的 audit/verify"]
@@ -429,6 +444,9 @@ flowchart LR
 | `server.webhooks.egress_blocked` | 422 | 目标地址解析到私网、回环、链路本地或云元数据地址，且不在部署白名单 | INC-10 |
 | `server.webhooks.invalid_url` / `server.webhooks.invalid_event_filter` | 422 | URL 不合法、含 userinfo、生产环境非 https；事件过滤为空或含未知事件（07 §10） | INC-10（`server.webhooks` 域） |
 | `server.audit.range_too_large` / `server.audit.export_too_large` / `server.audit.verify_busy` | 400 / 422 / 409 | 查询区间超 366 天；导出超 1,000,000 行；已有链校验在执行（07 §10） | INC-10（`server.audit` 域） |
+| `server.plugins.not_found` / `server.plugins.not_optional` | 404 / 409 | 插件 id 不在本部署；本人启停的插件当前不是 `optional`（[03](03-modules-identity-and-access.md) §12.4） | §4.23（2026-10-01 新域 `server.plugins`，待登记进 30/10 §1.1 与 http-map） |
+| `server.plugins.policy_invalid` / `server.plugins.config_invalid` | 422 | 内容级设 `optional`、改锁定项、启用被拒插件；配置未过 schema 或含机密字段 | 同上 |
+| `server.plugins.revision_conflict` / `server.plugins.conflict` | 412 / 409 | `If-Match` 与当前 `policy` 摘要不符；同批变更后争用同一 Provider 座或 `slide.shapeKind` | 同上 |
 | `storage.quota_exceeded` | 413（字节）/ 429（文档数） | 按 owner 汇总的存储字节或每用户文档数超限（D2、决策 G-09） | 已登记 |
 | `storage.integrity_mismatch` | 422 | commit 时重算的 sha256 或字节数与声明不符 | INC-10（`storage` 域原有，本轮补 HTTP 映射） |
 | `storage.upload_not_found` | 404 | 媒体提交时 `uploadId` 不存在或已过期 | INC-10（同上） |

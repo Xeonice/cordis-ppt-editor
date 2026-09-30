@@ -1,5 +1,5 @@
 # 18 可观测性与运维端点
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 下的栈定稿与 OTel 预加载；span 与协同指标改挂 Hocuspocus 钩子；Webhook 脱敏头改为 `webhook-signature`）；2026-09-26（§4.21 整合：§3 HTTP 服务端行写明 Nest 12 下的 span 口径（路由 span + 手工 span，node --import 预加载））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[01](01-service-overview-and-roles.md) §12（原 30/08 §12）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08、§4.21 q-nest-major；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 下的栈定稿与 OTel 预加载；span 与协同指标改挂 Hocuspocus 钩子；Webhook 脱敏头改为 `webhook-signature`）；2026-09-26（§4.21 整合：§3 HTTP 服务端行写明 Nest 12 下的 span 口径（路由 span + 手工 span，node --import 预加载））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增指标 cordex_plugins_rejected 等三项、告警 CordexPluginsRejected 与 CordexForcedPluginFailed、/readyz 的 plugins 检查与 flags.pluginsRejected） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[01](01-service-overview-and-roles.md) §12（原 30/08 §12）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08、§4.21 q-nest-major；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
 
 
 ## 0. 本文定位
@@ -313,6 +313,9 @@ sequenceDiagram
 | `cordex_health_ready` | gauge | `role` | api、collab、worker | alert `CordexNotReady`；SLO 可用性 | — |
 | `cordex_health_check_status` | gauge | `check` | api、collab、worker | dashboard 总览 | — |
 | `cordex_config_scale_envelope_exceeded` | gauge | — | api、collab、worker | dashboard 总览（超出包络标记，SV-08） | — |
+| `cordex_plugins_rejected`（2026-10-01） | gauge | `reason`（[03 §12.3](03-modules-identity-and-access.md) 的十个原因码） | api、collab、worker | alert `CordexPluginsRejected`；管理员界面顶部红条旁证（PRD PM-05） | — |
+| `cordex_plugin_client_failures_total`（2026-10-01） | counter | `plugin`，`code` | api（由 `/telemetry/errors` 中带插件 `id` 的上报累加，`plugin` 取值只限声明文件与镜像内置清单中的 id） | 管理员清单「近 24 h 失败会话数」（PM-15）；dashboard 前端质量 | — |
+| `cordex_plugin_policy_notify_total`（2026-10-01） | counter | `result: published\|publish_failed\|pushed\|poll_detected` | api（发布）、collab（推送与轮询发现） | dashboard 总览；`plugins:ctl` 丢消息时轮询兜底的旁证（[16 §12](16-ws-protocol-server-view.md)） | — |
 | `cordex_build_info` | gauge | `version`，`role` | api、collab、worker | dashboard 总览；版本漂移排查 | — |
 | `cordex_db_pool_connections` | gauge | `pool: app\|system`，`state: idle\|used\|waiting` | api、collab、worker | alert `CordexDbPoolExhausted` | — |
 | `cordex_client_errors_total` | counter | `severity` | api | dashboard 前端质量 | — |
@@ -384,6 +387,8 @@ sequenceDiagram
 | `CordexAuditDropped` | `sum(increase(cordex_audit_buffer_dropped_total[5m])) > 0` | — | critical | SV-07 审计不可丢 |
 | `CordexAuditChainBroken` | `sum(increase(cordex_audit_chain_verify_failures_total[1h])) > 0` | — | critical | SV-07 哈希链 |
 | `CordexAuditSealStale` | `time() - max(cordex_audit_seal_last_success_timestamp_seconds) > 93600` | — | warning | 26 h 未封存 |
+| `CordexPluginsRejected`（2026-10-01） | `sum(cordex_plugins_rejected) > 0` | 5 m | warning | PRD PM-05、PM-15：部署时校验拒绝了插件（未签名、版本不兼容、校验失败），由部署方处理 |
+| `CordexForcedPluginFailed`（2026-10-01） | `max(cordex_fiber_state{state="FAILED", forced="true"}) > 0` | 2 m | critical | PRD PM-15：强制启用的插件在服务端宿主 `FAILED`（`forced` 标签由 PluginsModule 按策略补在服务端宿主的 `cordex_fiber_state` 上） |
 | `CordexAuditPartitionsLow` | `min(cordex_audit_partitions_ahead) < 2` | — | warning | ops `audit-rotate` 未按时运行；表上无默认分区，缺月份写入会失败（[08](08-db-conventions-roles-rls-migrations.md) §3） |
 
 ### 5.3 文件落点
@@ -396,7 +401,7 @@ sequenceDiagram
 两个端点挂在对外 HTTP 端口、不加 `/api/v1` 前缀、标 `@Public()`（BE-06、BE-11）；web 容器不把它们转发到公网（反代只转 `/api/*` 与 `/collab/*`，其余是静态文件），只由编排器在 backend 网络直连。
 
 - **`/healthz`（存活）**：不检查任何依赖，事件循环能应答即 200 `{status:'ok'}`；编排器超时 5 s 视为挂死并重启。
-- **`/readyz`（就绪）**：并发执行本角色的检查项，单项超时 1 s，结果缓存 2 s（避免探针风暴打到依赖），整体目标 ≤ 200 ms。响应体只含 `{status: 'starting'|'ok'|'degraded'|'down', role, failing: [检查名], flags: {draining, scaleEnvelopeExceeded}}`，不含主机名、地址与错误详情。
+- **`/readyz`（就绪）**：并发执行本角色的检查项，单项超时 1 s，结果缓存 2 s（避免探针风暴打到依赖），整体目标 ≤ 200 ms。响应体只含 `{status: 'starting'|'ok'|'degraded'|'down', role, failing: [检查名], flags: {draining, scaleEnvelopeExceeded, pluginsRejected}}`，不含主机名、地址与错误详情；`pluginsRejected`（2026-10-01，rulings §4.23）为 `[{id, version, reason}]`，只列部署时校验被拒的插件（原因码见 [03 §12.3](03-modules-identity-and-access.md)），为空时省略。
 - **启动期**：Nest `onApplicationBootstrap` 完成（cordis 宿主 `fiber.await`、角色装配断言通过、迁移版本检查通过）之前返回 503 `starting`。
 - **关闭期**：收到 SIGTERM 立即进入 draining，`/readyz` 返回 503，负载均衡停止分配新连接，进程在 30 s 预算内优雅关闭（[01](01-service-overview-and-roles.md) §10）。
 
@@ -413,6 +418,7 @@ sequenceDiagram
 | `draining` | RoomManager 未进入 draining | — | ✓ | — | 503 |
 | `renderer` | remote 模式下经 render 网络探 renderer `/healthz` | — | — | ✓ | `degraded`（导入导出仍可用，缩略图与 PDF 排队） |
 | `scale` | 规模配置超出性能保证包络（SV-08） | ✓ | ✓ | ✓ | 仍 200，`flags.scaleEnvelopeExceeded = true` |
+| `plugins`（2026-10-01） | 插件声明文件在启动时逐项校验的结果（[17 §5.16](17-deployment-and-config.md)）；文件级错误在启动前已以 78 退出，走不到这里 | ✓ | ✓ | ✓ | 有被拒项仍 200（不置为未就绪），`flags.pluginsRejected` 列出；强制启用的插件被拒另记启动 `warn` |
 
 collab 在 PG 或对象存储故障时报 `degraded` 而不是 503，是为了配合 CO-08「降级期照常广播」：已建立的会话继续协作，断线重连的客户端仍能被路由回持有房间的实例；确实需要 PG 的新加入由握手流程单独拒绝（可重试关闭码，[16](16-ws-protocol-server-view.md) §10）。renderer 角色只装 `HealthModule.forRole('renderer')`：`/healthz` 与 `/readyz` 都只看 Chromium 池是否已启动且有空闲槽，不 import 任何含凭据的模块（BE-14）。
 

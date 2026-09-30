@@ -1,5 +1,5 @@
 # 04 客户端文档模型、命令与撤销
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-01（§4.23 插件管理：新增 §1.1 内容插件足迹 `core.pluginFootprint` 的写入（同事务并入、只增不减）、打开时比对与降级提示；§11 V13–V14、§12、§13 同步） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)；rulings §4.23 O-3
 
 本文是**浏览器中文档模型、命令与撤销的运行侧行为**的唯一事实源：Unit 在浏览器中的生命周期、渐进打开的 UI 行为、命令入口与结果分流、历史策略、协同撤销语义的 UI 表达（不简化）、墓碑在客户端的可见性与「彻底删除元素」入口、保存与离开保护、剪贴板管线、规模守卫的编辑期 UI。
 
@@ -61,6 +61,63 @@ stateDiagram-v2
 
 怎么读：方框里的前半句是契约状态（`Unit.state` / `loadState`，[40/02 §2.1](../40-modules/02-kernel-protocol-and-document-core.md)），后半句是浏览器中的可见含义；只有本地字节的渐进打开会经过 `opened`，其余三种 source 直接到 `loaded`。协同中的 4428 与被拒回滚都是「关闭再重开」，得到新的 Unit 与 Session。
 依据：40/02 §2.1 UnitScope 状态机；30/01 §4.1；rulings §4.18 CO-12。
+
+### 1.1 内容插件足迹（2026-10-01，rulings §4.23 O-3；ADR-0050）
+
+依据：[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)（状态「提议」，模型形态以其为准）。
+
+文档自己记下「用到了哪些内容级插件」，打开时据此判断缺什么。足迹是一个普通的 ResourceHook 命名空间 `core.pluginFootprint`（文档类型盲），形态 `{ version: 1, data: { entries: { [pluginId]: { minVersion, kinds: string[], namespaces: string[] } } } }`；不含插件代码，随 Snapshot / Y 状态往返，与上一条「未注册命名空间原样保留」同一口径——即使某会话缺少该插件，足迹与该插件写下的数据都不被改写、不被删除。
+
+**写入**（kernel 命令管线，浏览器与服务端 headless 同一实现）：
+
+- 事务提交前，管线检查本事务写入的元素 `kind` 与资源命名空间；属于某个内容级插件、而足迹里还没有该插件或记录的 `minVersion` 低于本会话装配的版本时，把足迹更新**并入同一事务**——协作者收到的是一个包含足迹更新的原子变更，不会出现「有数据、无足迹」的中间态。
+- **只增不减**：撤销不回退足迹（足迹写入不单独占撤销栈，也不因撤销被移除）；删除该插件的全部元素也不清掉足迹条目。多记一条的代价只是打开时多一次比对。
+- 界面级插件不进足迹（它们不产生文档写入，PM-13 第 3 条）；内置的 `model-slide` 等内核必需条目也写足迹，但在任何部署中都是强制启用，比对恒为正常。
+- 只读会话（查看者、评审者）不产生写入，因此也不写足迹。
+
+**比对**：`comparePluginFootprint(footprint, sessionSet, catalogStates)`（纯函数，kernel 导出）在 `unit/opened` 后算一次、在本会话插件装配结果（`PresetReport`）稳定后再算一次，输出 `[{ pluginId, minVersion, reason, affectedSlideIds[] }]`：
+
+| `reason` | 判定 | 横幅文案（一次性、非阻断、`role=status`） |
+|---|---|---|
+| — | 已装配且版本 ≥ `minVersion` | 不提示，正常渲染与编辑 |
+| `disabled` | 部署级策略为禁用 | 「本文档用到了『X』，管理员已停用该插件：N 处内容以占位显示，内容已保留」[查看详情] |
+| `absent` | 本部署未声明或被拒 | 「本文档用到了本部署没有的插件 `acme:qr-shape`（≥ 1.2）」 |
+| `outdated` | 本部署版本低于 `minVersion` | 「版本过旧：需要 ≥ 1.2，当前 1.0」 |
+| `failed` | 已启用但本会话启动失败或等待依赖 | 「插件『X』未能启动」，链到个人插件面板（按 PS-11） |
+
+- 缺席插件负责的元素按 OF-13 占位显示（带插件名），可选中、移动、删除，内部不可编辑；导出 pptx 时原数据与足迹一起保留（足迹写入 `p:presentation/p:extLst`，形态见 ADR-0050）。
+- M2 只区分「缺哪个插件、哪个版本」（`absent` / `outdated` / `failed`，停用也按 `absent` 提示）；M3 起靠本会话插件集里的部署级状态区分 `disabled` 与 `absent`。
+- 每个文档每会话只出现一次横幅；「查看详情」打开个人插件面板的「本文档缺少的插件」分组（[03](03-preset-assembly-and-plugins.md) §10），并发一次 `plugin/missing-in-document`（[15](15-events-errors-and-telemetry.md) §2）。管理员多一个「去管理 › 插件」；查看器 preset 只显示占位与一行说明。
+- 协同过渡期（管理员刚启用某内容插件、本端尚未重新加载）：对方写入的新元素与足迹条目按上面同一规则占位、保留，本端的编辑不改动其数据（PM-13 第 4 条）。
+
+**图 1a 足迹的写入与比对**
+
+```mermaid
+flowchart TB
+  cmd["命令管线：事务即将提交"]
+  owned{"本事务写入的 kind 或命名空间属于某内容级插件？"}
+  need{"足迹缺该插件，或 minVersion 低于本会话版本？"}
+  merge["足迹更新并入同一事务，只增不减"]
+  commit["提交：数据与足迹原子到达协作者"]
+  open["打开文档：unit/opened 与装配稳定后各比对一次"]
+  cmp["comparePluginFootprint"]
+  ok["已装配且版本满足：正常"]
+  degrade["disabled、absent、outdated、failed：OF-13 占位，数据原样保留"]
+  banner["一次性横幅与个人插件面板「本文档缺少的插件」"]
+  cmd --> owned
+  owned -->|"否"| commit
+  owned -->|"是"| need
+  need -->|"否"| commit
+  need -->|"是"| merge
+  merge --> commit
+  open --> cmp
+  cmp --> ok
+  cmp --> degrade
+  degrade --> banner
+```
+
+怎么读：上半是写入侧，只有内容级插件的数据才可能触发足迹更新，且与数据在同一事务里提交；下半是读取侧，比对结果只有「正常」和四种降级原因，降级一律保留数据、只换显示方式。
+依据：ADR-0050；PRD PM-12、PM-13；本文 §1「未注册的 ResourceHook 命名空间」。
 
 ## 2. 渐进打开
 
@@ -450,14 +507,16 @@ flowchart TB
 | V10 | 粘贴：优先级顺序、外部 HTML 只以纯文本进入模型（无脚本执行、无外链请求、管线内无 `DOMParser` 调用）、25 MB 拒绝、内部剪贴板回退 | `ui-core` 剪贴板管线单测；编辑 e2e（每条 P0 / P1 ED 至少一个用例） | test/unit、e2e/smoke |
 | V11 | 单人保存：保存期间的编辑不被误标已保存；失败保留脏状态；dirty 时 `beforeunload` 生效 | apps/web 保存用例 | test/unit、e2e/smoke |
 | V12 | 彻底删除元素只对墓碑态、只 owner 可用；之后删除方撤销整步跳过 | 70/07 §10；70/05 §7 | test/server-integration、test/collab-sim |
+| V13 | 足迹：内容级插件首次写入元素时足迹与数据在同一事务内出现；撤销该写入后足迹不回退；界面级插件与只读会话不写足迹；`store-memory` 与 `store-yjs` 同结果（2026-10-01，§4.23） | `runDocumentStoreConformance` 足迹分节（[70/02](../70-testing/02-contract-suites-and-pluggability.md)）；kernel `plugin-footprint.test.ts` | test/contract、test/unit |
+| V14 | 比对：`disabled` / `absent` / `outdated` / `failed` 四种原因各出一次横幅且文案正确；缺席插件的元素占位、可删除、内部不可编辑；零编辑导出后足迹与原数据字节不丢 | `comparePluginFootprint` 表驱动单测；缺插件打开 e2e（[70/06](../70-testing/06-frontend-component-and-e2e.md)） | test/unit、e2e/full-compose |
 
 ## 12. 里程碑
 
 | 里程碑 | 交付 |
 |---|---|
 | M1 | 查看器：`bytes` 打开与 Worker 渐进打开、`unit/loaded`、打开失败错误态；`historyLimit 0` |
-| M2 | 编辑：命令入口与结果分流、历史策略、撤销 / 重做 UI、剪贴板（同文档与纯文本 / 图片 / HTML 取纯文本）、规模守卫 UI、墓碑读路径过滤与选区收敛；本地文档的单人保存与离开保护（§8.1）；apps/web 服务端文档经协同快照持久化（§8.2，rulings §4.19 D-M2-CONTENT），协同离开保护与导出「等待同步」（§8.3） |
-| M3 | 多人协同体验层：协同撤销语义的 UI 表达（撤销跳过提示条）、恢复记录与两个恢复命令、「最近删除」与「彻底删除元素」、跨文档粘贴（P1） |
+| M2 | 编辑：命令入口与结果分流、历史策略、撤销 / 重做 UI、剪贴板（同文档与纯文本 / 图片 / HTML 取纯文本）、规模守卫 UI、墓碑读路径过滤与选区收敛；本地文档的单人保存与离开保护（§8.1）；apps/web 服务端文档经协同快照持久化（§8.2，rulings §4.19 D-M2-CONTENT），协同离开保护与导出「等待同步」（§8.3）；内容插件足迹写入与打开时比对、缺插件横幅（§1.1，PRD PM-12 M2） |
+| M3 | 多人协同体验层：协同撤销语义的 UI 表达（撤销跳过提示条）、恢复记录与两个恢复命令、「最近删除」与「彻底删除元素」、跨文档粘贴（P1）；足迹比对区分管理员停用与未安装（§1.1） |
 | M4 | 离线持久化后的离开保护文案改写（[07 §7](07-collaboration-client.md)） |
 
 ## 13. 未决、待登记与已关闭项
@@ -465,6 +524,7 @@ flowchart TB
 | 项 | 状态 | 去向 |
 |---|---|---|
 | D-M2-CONTENT：服务端文档的内容持久化 | 已裁定（rulings §4.19）：M2 起以协同快照为唯一事实源，pptx 内容版本方案取消 | §8.2 |
+| 内容插件足迹的形态与导出位置（rulings §4.23 O-3） | 已确认（2026-10-01）：记在文档里、导出 pptx 保留；具体形态由 [ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)（提议）定 | §1.1；ADR-0050 转「已接受」后按其定稿回写命名空间与字段 |
 | 未找到 Unit 的错误码值 | 已关闭：统一为 `command.unit_not_found`（30/05 §3.1，40/02 §2.6 同步改名） | §4 |
 | 页数软警告 150 的注入键 | 已关闭：40/03 `Config.limits` 登记 `softWarnSlides: 150`，由部署键 `scale.softWarnPages` 注入 | §10 |
 | 键入合并窗口 | 已关闭：PRD ED-14 改为 500 ms，与 30/05 §6、store-yjs `captureTimeout` 一致 | §5 |

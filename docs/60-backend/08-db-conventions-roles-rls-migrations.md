@@ -1,5 +1,5 @@
 # 08 数据库总约定：命名、角色、RLS 框架与迁移顺序
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：B1 结案，手写 drizzle 镜像 + 漂移检查直查 pg_catalog；compose 不带 PgBouncer、迁移直连）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/01](../30-architecture/01-overview.md) §2.2（原 30/08 §5）、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：B1 结案，手写 drizzle 镜像 + 漂移检查直查 pg_catalog；compose 不带 PgBouncer、迁移直连）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：表清单 17 → 19（plugin_policies、user_plugin_prefs），GRANT 0095、RLS 例外清单与 0096、写方总表、ER 与号段同步） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/01](../30-architecture/01-overview.md) §2.2（原 30/08 §5）、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
 
 > 读者：写 `apps/server/src/db/**`、迁移脚本与仓储的工程师；DBA 与运维。
 > 本文是 PostgreSQL 18 的「总约定」：命名与类型、外键与分区、数据库角色与 GRANT、连接池、文档级 RLS 的框架（GUC、辅助函数、policy 写法、例外清单、测试矩阵）、表写方所有权、迁移编号与纪律。**各表的建表语句与 policy 本体**在 [09](./09-ddl-identity-and-access.md)–[13](./13-ddl-comments-webhooks-audit.md)；Valkey 键、对象键与保留总表在 [14](./14-valkey-object-storage-and-retention.md)；配置键在 [17](./17-deployment-and-config.md)。
@@ -33,7 +33,7 @@
 | 外键索引 | 被引用方会被硬删除的外键列（指向 `documents`、`document_snapshots`、`comments`、`media_blobs`、`webhook_subscriptions`、`job_runs` 的外键，含 `documents.latest_snapshot_id`、`document_snapshots.restored_from`、`comments.parent_id` 这类 SET NULL 或自引用列）必须是某个索引的前导列：删行时每行一次的 RESTRICT 检查或 SET NULL 改写要走索引，否则批量裁剪与永久删除退化为逐行全表扫描；可空列用 `WHERE col IS NOT NULL` 部分索引。指向 `users` 的外键不强制建索引（`users` 不硬删） | §2 |
 | 触发器 | 业务表不用触发器；RI 之外的不变量放应用层并有测试 | 不过度设计 |
 
-**表清单（17 张业务表 + 1 张台账）**：`users`、`user_identities`、`documents`、`document_user_marks`、`document_updates`、`document_snapshots`、`media_blobs`、`document_media`、`permissions`、`document_perm_versions`、`share_links`、`comments`、`thumbnails`、`job_runs`、`audit_log`、`webhook_subscriptions`、`webhook_deliveries`，以及迁移台账 `cordex_schema_migrations`（本文 0001）。不建：`tenants`、`groups`、`group_members`、`pending_invitations`、`collab_sessions`、`api_keys`（M4）；`documents` 不含 `folder_id`（决策 DDL-COLS）。
+**表清单（19 张业务表 + 1 张台账）**：`users`、`user_identities`、`plugin_policies`、`user_plugin_prefs`（2026-10-01，rulings §4.23，[09 §14](./09-ddl-identity-and-access.md)）、`documents`、`document_user_marks`、`document_updates`、`document_snapshots`、`media_blobs`、`document_media`、`permissions`、`document_perm_versions`、`share_links`、`comments`、`thumbnails`、`job_runs`、`audit_log`、`webhook_subscriptions`、`webhook_deliveries`，以及迁移台账 `cordex_schema_migrations`（本文 0001）。不建：`tenants`、`groups`、`group_members`、`pending_invitations`、`collab_sessions`、`api_keys`（M4）；`documents` 不含 `folder_id`（决策 DDL-COLS）。
 
 ## 2. 外键策略
 
@@ -76,7 +76,7 @@
 
 三者都 `NOINHERIT`、互不授予成员关系（`cordex_app` 不能 `SET ROLE cordex_system`）。角色由 0001 建立（可重复执行、每次重申属性），口令不写进迁移，由 bootstrap 从 `*_FILE` 机密设置（[17 §6](./17-deployment-and-config.md)）。
 
-### 4.2 GRANT 矩阵（0095，覆盖全部 17 张表 + 台账）
+### 4.2 GRANT 矩阵（0095，覆盖全部 19 张表 + 台账）
 
 S = SELECT，I = INSERT，U = UPDATE，D = DELETE；「I(列)」「U(列)」表示按列授予，此时不再授表级同名权限（表级会覆盖列级限制）。任何应用角色都没有 TRUNCATE、REFERENCES、TRIGGER，也没有任何表的 DDL 权限。列清单的规格出自各域 DDL 文件（[09 §8.4](./09-ddl-identity-and-access.md)、[10 §9](./10-ddl-documents-marks-media.md)、[11 §7.4](./11-ddl-collab-updates-and-snapshots.md)、[12 §5](./12-ddl-jobs-and-thumbnails.md)、[13 §6.3](./13-ddl-comments-webhooks-audit.md)），本表与 0095 是汇总；GRANT 快照（§13 DB-06）核对三者一致。
 
@@ -84,6 +84,8 @@ S = SELECT，I = INSERT，U = UPDATE，D = DELETE；「I(列)」「U(列)」表�
 |---|---|---|---|
 | `users` | S I，U(`email, display_name, avatar_url, platform_role, status, last_seen_at, updated_at`) | S | JIT 建号、资料、平台管理员改状态 / 角色、擦除脱敏都在请求事务；不硬删；`id`、`created_at` 不可改 |
 | `user_identities` | S I D，U(`email_at_login, last_login_at, updated_at`) | — | 擦除时删除全部身份行；系统作业不需要 |
+| `plugin_policies`（2026-10-01） | S I D，U(`state, default_on, config, revision, batch_id, updated_by, updated_at`) | S | 只有平台管理员经 PluginsModule 写；「恢复部署默认」删行；collab 指纹轮询与 worker / renderer 的 headless 内容级集合只读（[09 §14.1](./09-ddl-identity-and-access.md)） |
+| `user_plugin_prefs`（2026-10-01） | S I D，U(`enabled, updated_at`) | — | 本人个人启停与恢复默认都在请求事务；擦除不删（不含个人数据）；系统作业不需要（[09 §14.2](./09-ddl-identity-and-access.md)） |
 | `documents` | S，I(`id, title, doc_type, owner_id`)，U(`title, status, deleted_at, updated_at`) | S D，I(同左 4 列)，U(`status, locked_until, lock_reason, updated_at` 与 M-09 八列 `head_seq, epoch, latest_snapshot_id, schema_version, element_count, slide_count, size_bytes, content_updated_at`) | 列级授予把 C-03 落到数据库：`cordex_app` 插入或改写任何 M-09 列都 `permission denied`。`owner_id` 只在建档时写入：M1–M3 无转移所有者（[04 §1](./04-modules-documents-storage-media.md)），若应用角色可改，editor 能在库内把自己写成 `owner_id` 并借 SELECT policy 的 owner 分支在被撤销后仍可见。锁定与解锁（`locked_until`）、回收站到期置 `purging`、导入建档、`finalize-purge` 删行在系统侧 |
 | `document_user_marks` | S I D，U(`last_opened_at, pinned_at`) | S D | 最近 / 固定只在请求事务里写；参与者 user-marks 删除 |
 | `document_updates` | S | S I D | 只有系统作业写（持久化、回放、裁剪、参与者 collab）；只追加，无 U |
@@ -133,7 +135,7 @@ flowchart LR
   rApp["cordex_app：NOBYPASSRLS，每事务设 app.user_id"]
   rSys["cordex_system：NOBYPASSRLS，每事务设 app.system_job"]
   rMig["cordex_migrator：BYPASSRLS，全部对象的属主"]
-  tUser["用户可写表：documents 的 M-08 列、permissions、share_links、marks、媒体、job_runs"]
+  tUser["用户可写表：documents 的 M-08 列、permissions、share_links、marks、媒体、job_runs、插件两表"]
   tSys["只有系统作业可写：document_updates、document_snapshots、comments、thumbnails、documents 的 M-09 列"]
   tAudit["audit_log：只有 SELECT 与 INSERT"]
   tDdl["DDL、分区预建与 DROP"]
@@ -272,7 +274,7 @@ COMMIT;
 
 **ENABLE + FORCE RLS（11 张）**：`documents`、`document_user_marks`、`document_media`（10 的 0091）；`permissions`、`document_perm_versions`、`share_links`（09 的 0090）；`document_updates`、`document_snapshots`（11 的 0092）；`job_runs`、`thumbnails`（12 的 0093）；`comments`（13 的 0094）。`job_runs` 的 app 读条件是 `created_by = cordex_current_user()` 或对 `doc_id` 有授权（决策 C-21，安全宁可提前）。
 
-**例外（7 张，不开 RLS）**——本表就是 `policy/rls-exceptions.json` 的内容，0096 自检用同一份清单：
+**例外（9 张，不开 RLS）**——本表就是 `policy/rls-exceptions.json` 的内容，0096 自检用同一份清单：
 
 | 表 | 理由 | 替代防线 |
 |---|---|---|
@@ -281,6 +283,8 @@ COMMIT;
 | `media_blobs` | 部署级内容寻址去重，一个对象可被多个文档引用，无 `doc_id` | 读取必须经 `document_media` 关联 + `doc.read`，否则 404（决策 INC-21） |
 | `audit_log` | 只追加；行在文档删除后保留，不能按文档授权判定 | 只授 SELECT / INSERT；读取只经 PlatformAdminGuard |
 | `webhook_subscriptions`、`webhook_deliveries` | 平台管理员表，无 `doc_id` | 只经 PlatformAdminGuard |
+| `plugin_policies`（2026-10-01） | 部署级插件策略，无 `doc_id` | 写只经 PlatformAdminGuard 之后的 PluginsModule 用例；`cordex_system` 只读 |
+| `user_plugin_prefs`（2026-10-01） | 用户级偏好，无 `doc_id` | 只经 PluginsModule 用例，每条语句以会话主体 `user_id` 为条件，REST 路径不含用户 id |
 | `cordex_schema_migrations` | 迁移台账 | 应用角色只读 |
 
 ```json
@@ -293,6 +297,8 @@ COMMIT;
     { "table": "audit_log", "reason": "只追加；行在文档删除后保留；仅平台管理员读" },
     { "table": "webhook_subscriptions", "reason": "平台管理员表" },
     { "table": "webhook_deliveries", "reason": "平台管理员表" },
+    { "table": "plugin_policies", "reason": "部署级插件策略；写只经 PlatformAdminGuard" },
+    { "table": "user_plugin_prefs", "reason": "用户级偏好；只经 PluginsModule 按本人 user_id 访问" },
     { "table": "cordex_schema_migrations", "reason": "迁移台账，应用只读" }
   ]
 }
@@ -382,6 +388,8 @@ flowchart TD
 |---|---|---|---|---|---|---|
 | `users` | Users（M-08） | `UserRepository` | 首登 JIT、资料、平台管理员改状态 / 角色、擦除脱敏（app） | Auth、Permissions、按人搜索；评论镜像（system） | [09](./09-ddl-identity-and-access.md) | 0010 |
 | `user_identities` | Users | `UserRepository` | 首登 JIT、`linkIdentity`、擦除删除（app） | Auth 回调 | 09 | 0011 |
+| `plugin_policies` | Plugins（M-08，2026-10-01） | `PluginPolicyRepository` | 管理员保存三态与配置、恢复部署默认（app，PlatformAdminGuard） | 管理员清单、本人生效插件集（app）；collab 指纹轮询、headless 内容级集合（system） | 09 | 0012 |
+| `user_plugin_prefs` | Plugins（M-08，2026-10-01） | `UserPluginPrefsRepository` | 本人个人启停、恢复默认（app）；擦除不删 | 本人生效插件集（app） | 09 | 0013 |
 | `documents` | Documents（M-08）；M-09 列归 Collab | `DocumentRepository`（入参 Omit 全部 M-09 列）；M-09 列由 `PgUpdateStore` / `PgSnapshotStore` 等写 | M-08：建档写 `id、title、doc_type、owner_id`，此后 `title、status、deleted_at、updated_at`（app）；锁定与解锁（`status、locked_until`）、回收站到期置 `purging`（system）；`owner_id` 建档后不改（M1–M3 无转移所有者；运维命令 `documents:reassign-owner` 只写授权行、不改本列）。M-09：`head_seq、epoch、latest_snapshot_id、schema_version、element_count、slide_count、size_bytes、content_updated_at`（system，快照 / 压缩时节流写）；导入建档、`finalize-purge` 删行（system） | 全体（列表经授权过滤） | [10](./10-ddl-documents-marks-media.md) | 0020、0041 |
 | `document_user_marks` | Documents | `UserMarksRepository` | 最近 / 固定（app）；参与者 user-marks（system） | 开始页、列表 | 10 | 0021 |
 | `document_updates` | Collab（M-09） | `PgUpdateStore` | 持久化、溢写回放、`updates-prune`、参与者 collab（system） | 装载、压缩（system） | [11](./11-ddl-collab-updates-and-snapshots.md) | 0042 |
@@ -436,6 +444,7 @@ flowchart LR
   mComments --> tComments
   mAudit --> tAudit
   mHooks --> tHooks
+  mPlugins["Plugins，M-08"] --> tPlugins["plugin_policies、user_plugin_prefs"]
   mPerm -. "只读，经 SECURITY DEFINER 函数" .-> tLinks
   mCollab -. "加入房间读 status 与 element_count" .-> tDocs
   mCollab -. "AuthzSource 重算角色" .-> tPerm
@@ -447,7 +456,7 @@ flowchart LR
 
 ## 8. 跨域 ER 总览
 
-**图 8-1 17 张表的外键总览**
+**图 8-1 19 张表的外键总览**
 
 ```mermaid
 erDiagram
@@ -478,6 +487,8 @@ erDiagram
   job_runs |o--o{ job_runs : "attempt_of，SET NULL"
   webhook_subscriptions ||--o{ webhook_deliveries : "subscription_id"
   users ||--o{ webhook_subscriptions : "created_by"
+  users ||--o{ plugin_policies : "updated_by"
+  users ||--o{ user_plugin_prefs : "user_id"
   audit_log { text action "无外键，行在文档删除后保留" }
 ```
 
@@ -491,7 +502,7 @@ erDiagram
 | 号段 | 所属文件 | 计划内编号与内容 | 依赖 |
 |---|---|---|---|
 | 0001–0009 | 08（本文） | 0001 角色、库与 schema 权限、台账（管理员执行；不装扩展）；0002 RLS 基础函数；0003–0009 保留 | — |
-| 0010–0019 | [09](./09-ddl-identity-and-access.md) | 0010 `users`；0011 `user_identities` | 0001 |
+| 0010–0019 | [09](./09-ddl-identity-and-access.md) | 0010 `users`；0011 `user_identities`；0012 `plugin_policies`、0013 `user_plugin_prefs`（2026-10-01，rulings §4.23，M3 起使用） | 0001；0012、0013 另需 0010 |
 | 0020–0029 | [10](./10-ddl-documents-marks-media.md) | 0020 `documents`（暂不含 `latest_snapshot_id` 外键）；0021 `document_user_marks` | 0010 |
 | 0030–0039 | 09 | 0030 `permissions`；0031 `document_perm_versions`；0032 `share_links`；0033 两个分享链接函数；0034 `cordex_doc_role`；0035 `cordex_sole_owner_doc_count`（SECURITY DEFINER，§4.3） | 0020、0002 |
 | 0040–0049 | [11](./11-ddl-collab-updates-and-snapshots.md) | 0040 `document_snapshots`；0041 补 `documents.latest_snapshot_id` 外键（SET NULL）；0042 `document_updates`（16 分区） | 0020 |
@@ -512,7 +523,7 @@ erDiagram
 ```mermaid
 flowchart LR
   m0001["0001 角色、库权限、台账，管理员执行"] --> m0002["0002 RLS 基础函数"]
-  m0001 --> m0010["0010–0011 users、user_identities"]
+  m0001 --> m0010["0010–0013 users、user_identities、插件两表"]
   m0010 --> m0020["0020–0021 documents、document_user_marks"]
   m0020 --> m0030["0030–0032 permissions、perm_versions、share_links"]
   m0030 --> m0033["0033–0035 四个 SECURITY DEFINER 函数"]
@@ -543,7 +554,7 @@ flowchart LR
 - **迁移 SQL 文件须与文档逐字一致**：迁移内容的唯一事实源是本线 08–13 的 `-- migrate:` 围栏（本文的 0001、0002、0095、0096 在内），一个围栏对应一个文件。文件名取围栏首行 `-- migrate: NNNN_<name>` 中的 `NNNN_<name>`，再加 `.sql`。文件内容等于围栏正文（含首行，末尾一个换行），也就是 ddl-check 提取物的字节；台账 `checksum` 取这份内容的 sha256，因此文档、仓库文件与台账三者同源。改迁移时先改文档围栏，再同步文件，不反向。机械校验由 ddl-check 的迁移目录比对执行（§11 第 6 条、§13 DB-13）：首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated（rulings §4.20 BE-03+TX-14）。
 - 文件级落点（2026-09-25 审稿登记）：`db/migrations/`、`db/schema/`、连接池与系统事务入口 `db/client.ts`、执行器 `db/migrator.ts` 都登记在 [40/12 §4.13、§5.13](../40-modules/12-server-jobs-comments-and-ops.md)（M-12「应用骨架与基础设施」），原先所指的 30/08 篇 §2 目录树已删；M-12 只承载这些文件，表结构与迁移内容仍以本线为准。
 - **B1 已结案**（rulings §4.21 q-db-access，ADR-0022 修订 2026-09-26）：`drizzle-orm` 0.45.x + **手写** `apps/server/src/db/schema/*.ts`，每张业务表一个文件（17 个，文件级见 40/12 §4.13），只作仓储用的类型镜像；`drizzle-kit generate` 可用来起草普通表的 SQL，但生成物不直接入库，按本线编号改写后提交。**不用 `drizzle-kit pull`**：它的内省只选 relkind `r`/`v`/`m`，`document_updates` 与 `audit_log` 的分区父表整张丢失、叶子分区被当普通表。Drizzle 1.0（RC）的破坏性变更在 M2 前评估；依赖版本见 [19](./19-reuse-and-dependency-catalog.md) §5。
-- **漂移检查（DB-03）直查 `pg_catalog`**：空库执行全部迁移后，用下面的查询取实际结构（普通表取 relkind `r`，分区表只取 relkind `p` 的父表，`relispartition` 为真的叶子分区排除，台账表排除），再与 `schema/*.ts` 经 `getTableConfig()` 导出的列清单逐列比对：列名与顺序、类型（`format_type` 对 drizzle 列的 `getSQLType()`）、可空性、默认值表达式；表集合必须恰好相等，多一张、少一张、多一列都算漂移，不一致即失败（[70/07 §4](../70-testing/07-backend-integration-and-api-e2e.md)，`test/server-integration`）。原口径「用 drizzle 的内省结果比对」作废——它同样丢分区父表。修正方向永远是先改本线围栏与迁移文件，再改镜像。2026-09-26 在 ddl-check 产物库（PG 18.6）上实查，本查询按表聚合恰好返回 17 张业务表，其中 `audit_log`、`document_updates` 以 relkind `p` 出现。
+- **漂移检查（DB-03）直查 `pg_catalog`**：空库执行全部迁移后，用下面的查询取实际结构（普通表取 relkind `r`，分区表只取 relkind `p` 的父表，`relispartition` 为真的叶子分区排除，台账表排除），再与 `schema/*.ts` 经 `getTableConfig()` 导出的列清单逐列比对：列名与顺序、类型（`format_type` 对 drizzle 列的 `getSQLType()`）、可空性、默认值表达式；表集合必须恰好相等，多一张、少一张、多一列都算漂移，不一致即失败（[70/07 §4](../70-testing/07-backend-integration-and-api-e2e.md)，`test/server-integration`）。原口径「用 drizzle 的内省结果比对」作废——它同样丢分区父表。修正方向永远是先改本线围栏与迁移文件，再改镜像。2026-09-26 在 ddl-check 产物库（PG 18.6）上实查，本查询按表聚合恰好返回 17 张业务表（2026-10-01 加入 0012、0013 后应为 19 张），其中 `audit_log`、`document_updates` 以 relkind `p` 出现。
 
 ```sql
 -- example
@@ -634,7 +645,7 @@ flowchart LR
 1. 扫描 `docs/60-backend/*.md` 的 SQL 围栏；检查编号唯一、落在所属文件的号段内（§9 表）、名称格式合法。
 2. 起一个与 compose 相同 digest 的 `postgres:18` 容器（或以 `CORDEX_DDL_CONTAINER` 复用已在运行的容器），建空库 `cordex`；**0001 以超级用户执行，其余一律 `SET ROLE cordex_migrator` 后执行**，每个迁移一个事务，成功后写台账；再执行一次 0001 验证可重复执行。
 3. `-- example` 围栏每段一个回滚事务：带 `$N` 参数的 DML 用 `PREPARE` 做解析与语义分析（列名、类型、函数签名都会被检查），`DROP` 与不能放进事务块的语句（`… CONCURRENTLY`）只做语法解析，其余语句真实执行——因此 §13 的 RLS 断言脚本在 ddl-check 里会真正跑一遍。
-4. 0096 的自检随迁移运行（RLS 覆盖、例外清单、分区权限、审计只追加、函数加固、角色属性）；ddl-check 另外核对（期望集合直接从本文 §1、§4.3、§6.4 的原文解析，不在脚本里另抄一份）：业务表集合 = §1 的 17 张 + 台账，§1「不建」的表一张都不出现；带 `doc_id` 的表（§6.4 例外除外）都 ENABLE + FORCE 且各有 `cordex_app` 与 `cordex_system` 的 policy；`pg_policy` 中无 `current_setting` 字面量、policy 名符合 `p_{表}_{app|system}_{操作|all}`（§6.2 机械修正、§1 命名）；SECURITY DEFINER 函数集合 = §4.3 清单；§1「外键索引」列出的外键列都是某个索引的前导列；业务表无 DEFAULT 分区、无触发器（§1、§3）。
+4. 0096 的自检随迁移运行（RLS 覆盖、例外清单、分区权限、审计只追加、函数加固、角色属性）；ddl-check 另外核对（期望集合直接从本文 §1、§4.3、§6.4 的原文解析，不在脚本里另抄一份）：业务表集合 = §1 的 19 张 + 台账，§1「不建」的表一张都不出现；带 `doc_id` 的表（§6.4 例外除外）都 ENABLE + FORCE 且各有 `cordex_app` 与 `cordex_system` 的 policy；`pg_policy` 中无 `current_setting` 字面量、policy 名符合 `p_{表}_{app|system}_{操作|all}`（§6.2 机械修正、§1 命名）；SECURITY DEFINER 函数集合 = §4.3 清单；§1「外键索引」列出的外键列都是某个索引的前导列；业务表无 DEFAULT 分区、无触发器（§1、§3）。
 5. 失败时输出「文件:行号 + 编号 + PG 错误」；成功时导出 `pg_dump --schema-only` 作为产物，供 GRANT 快照与 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) 的迁移测试复用。
 6. **迁移目录比对（首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated；2026-09-25 审稿登记，rulings §4.20 BE-03+TX-14 定挂点）**：`apps/server/src/db/migrations/` 建立后，ddl-check 在第 1 步之后增加一步比对，实现「迁移 SQL 文件须与文档逐字一致」（§10.1）。比对三项，任一不满足即失败：目录中的 `NNNN_<name>.sql` 文件集合等于围栏编号集合，多一个、少一个都算；文件名等于围栏首行的 `NNNN_<name>` 加 `.sql`；文件内容与第 1 步的提取物逐字节相同（sha256 与 manifest 一致）。失败时输出「文件 + 编号 + 首个差异行」。实现时点：M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 §11 定 0001、0002 在 M1 入库），同一 PR 给 ddl-check 加 `--migrations <dir>`（比对）、`--write-migrations <dir>`（从围栏生成文件）与 `--sync-only`（只抽取与比对、不起容器）三个参数，并接入 `scanners/check-migrations-sync`（不起容器、直接 gated，登记在 [70/12](../70-testing/12-ci-gates-mapping.md) §7 激活表）；挂在 scanners 而不是 `test/server-integration` 的前置，因为后者 M2 才激活。M0 仓库没有该目录，此前由评审人工核对。
 
@@ -832,6 +843,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE         ON webhook_subscriptions    TO cord
 GRANT SELECT, UPDATE                         ON webhook_subscriptions    TO cordex_system;
 GRANT SELECT, DELETE                         ON webhook_deliveries       TO cordex_app;
 GRANT SELECT, INSERT, UPDATE, DELETE         ON webhook_deliveries       TO cordex_system;
+-- 插件策略与个人选择（09 §14.3，2026-10-01）：平台管理员经 PluginsModule 写策略；system 只读策略、不碰个人选择
+GRANT SELECT, INSERT, DELETE                 ON plugin_policies          TO cordex_app;
+GRANT UPDATE (state, default_on, config, revision, batch_id, updated_by, updated_at)
+                                             ON plugin_policies          TO cordex_app;
+GRANT SELECT                                 ON plugin_policies          TO cordex_system;
+GRANT SELECT, INSERT, DELETE                 ON user_plugin_prefs        TO cordex_app;
+GRANT UPDATE (enabled, updated_at)           ON user_plugin_prefs        TO cordex_app;
 -- 迁移台账：只读（/readyz）
 GRANT SELECT                                 ON cordex_schema_migrations TO cordex_app, cordex_system;
 -- 序列（serial 列若存在；identity 列插入不需要序列权限）
@@ -867,7 +885,8 @@ DO $$
 DECLARE
   -- 与 policy/rls-exceptions.json 同一份清单（60/08 §6.4）
   exceptions CONSTANT text[] := ARRAY['users', 'user_identities', 'media_blobs', 'audit_log',
-                                      'webhook_subscriptions', 'webhook_deliveries', 'cordex_schema_migrations'];
+                                      'webhook_subscriptions', 'webhook_deliveries', 'plugin_policies',
+                                      'user_plugin_prefs', 'cordex_schema_migrations'];
   app_oid oid := (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'cordex_app');
   sys_oid oid := (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'cordex_system');
   problems text[] := ARRAY[]::text[];

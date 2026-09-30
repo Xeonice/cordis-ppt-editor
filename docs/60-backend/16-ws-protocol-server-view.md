@@ -1,5 +1,5 @@
 # 16 WS 协议（服务端视角）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 自挂 upgrade、适配层计时与帧预过滤、一 WS 一文档；§2 改 Hocuspocus 帧；§3 CONTROL 改 Stateless 与 Auth / `onTokenSync`，删 ping 行，重画图 16-2；§4 门禁挂点与连接污染规则；§5 ack 挂点与 step2 16 MiB；§6 服务端先发 step1、只读会话也收 step1；§7 `beforeHandleAwareness` 与出站合并；§8 PermissionSync；§10 关闭码由原始 `ws.close` 发出、加 4205；§11 extension-redis；§13 step2 上限与 Hocuspocus 配置；§15 机械验证）；2026-09-26（§4.21 整合：§2 补文档名 {documentId}:{epoch} 解析规则；§3 登记可选 rtt.ping / rtt.pong；§5、§6 写明只读会话的空差量 step2 不回 ack；§15 测试名改 close-policy.test）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 自挂 upgrade、适配层计时与帧预过滤、一 WS 一文档；§2 改 Hocuspocus 帧；§3 CONTROL 改 Stateless 与 Auth / `onTokenSync`，删 ping 行，重画图 16-2；§4 门禁挂点与连接污染规则；§5 ack 挂点与 step2 16 MiB；§6 服务端先发 step1、只读会话也收 step1；§7 `beforeHandleAwareness` 与出站合并；§8 PermissionSync；§10 关闭码由原始 `ws.close` 发出、加 4205；§11 extension-redis；§13 step2 上限与 Hocuspocus 配置；§15 机械验证）；2026-09-26（§4.21 整合：§2 补文档名 {documentId}:{epoch} 解析规则；§3 登记可选 rtt.ping / rtt.pong；§5、§6 写明只读会话的空差量 step2 不回 ack；§15 测试名改 close-policy.test）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：Auth token 新增 pluginSet 指纹；§12 第 4 项握手判定与在线通知；Stateless 新增 plugins；4426 增 collab.plugins_outdated） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG、§4.21
 
 本文是 WS 协同通道在服务端的唯一事实源：升级与握手的检查顺序、每类 CONTROL 帧的服务端处理、入站门禁 L1–L4、ack 的发出规则、同步与 awareness 的处理、权限重算、关闭码的触发条件、跨实例扇出语义与限额数值。帧、CONTROL 成员与关闭码的**定义**在 30-architecture/06 §6 与 `@cordexjs/protocol`，本文不重述字段表；房间、持久化、溢写与准入的机制在 [05](05-modules-collab-and-snapshots.md)；客户端行为在 [50/07](../50-frontend/07-collaboration-client.md)。
 
@@ -75,7 +75,7 @@ sequenceDiagram
 - **CONTROL**：判别联合（判别键统一为 `type`，含 `ack = {type:'ack', tier:'spill'} | {type:'ack', tier:'db', seq}`）在 protocol `ws/frames.ts`，作为 **Stateless 载荷**（UTF-8 JSON）收发；Auth token 的 JSON schema 在 `ws/handshake.ts`；成员集合以 30-architecture/06 §6.3 为准（决策 INC-02、INC-03/04/05）。
 - Sync 与 Awareness 的载荷对 protocol 是不透明字节，由 Hocuspocus（y-protocols）解码；server-collab 在 `beforeSync` 拿到 update 字节做 L3。
 
-Auth token 中服务端据以判定版本的两个字段（登记于 30-architecture/06 §6.3）：`epoch`——客户端本地文档纪元，客户端从 `GET snapshots/latest` 的响应头 `X-Cordex-Epoch` 得到它（[15](15-rest-api-catalog.md) §3.8），同时构成 provider 的文档名；`maxSchemaVersion`——客户端支持的最高文档 `schemaVersion`。服务端据此在 `onAuthenticate` 判定 `collab.epoch_changed` 与 `collab.schema_too_new`（§12）。
+Auth token 中服务端据以判定版本的两个字段（登记于 30-architecture/06 §6.3）：`epoch`——客户端本地文档纪元，客户端从 `GET snapshots/latest` 的响应头 `X-Cordex-Epoch` 得到它（[15](15-rest-api-catalog.md) §3.8），同时构成 provider 的文档名；`maxSchemaVersion`——客户端支持的最高文档 `schemaVersion`。服务端据此在 `onAuthenticate` 判定 `collab.epoch_changed` 与 `collab.schema_too_new`（§12）。2026-10-01（rulings §4.23）新增第三个字段 `pluginSet: {catalog, policy}`——插件集指纹，客户端取自 `GET /users/me/plugins`（[15](15-rest-api-catalog.md) §3.15），据以判定 `collab.plugins_outdated` 与「插件设置已更新」（§12 第 4 项）；M3 起必填，M2 客户端不带时按「一致」处理。
 
 **文档名解析**（2026-09-26 整合确认，回应 [50/07](../50-frontend/07-collaboration-client.md) §17）：provider 的文档名固定为 `{documentId}:{epoch}`。服务端按**最后一个** `:` 切成两段：前段必须是小写连字符 UUID 且等于 URL 路径里的 `documentId`，后段必须是十进制非负整数（无前导零、≤ 2^53−1）；任一段不合法，或出现多余的 `:`，帧预过滤以 4400 关闭（§1 第①条）。格式合法后，纪元部分与 `documents.epoch` 的比较在 `onAuthenticate` 做，不符为 4428（§12）。新文档还没有快照时，`snapshots/latest` 的 404 同样带 `X-Cordex-Epoch`（[15](15-rest-api-catalog.md) §3.8），客户端用它组文档名。
 
@@ -94,6 +94,7 @@ Auth token 中服务端据以判定版本的两个字段（登记于 30-architec
 | `room` | S→C | 加入后在 `connected` 立即发一次，之后仅在变化时发，只对本实例连接 `sendStateless`（不用 `broadcastStateless`，以免经 extension-redis 串到他实例）：`clients`（名额登记的去重用户数，≤ 15 s 刷新）、`draining?`（实例进入停机或驱逐前）、`persist?: 'ok' \| 'degraded'`（PG 写失败 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`；[05](05-modules-collab-and-snapshots.md) §6.1，rulings §4.19 INC-09）、`locked?: {reason, until}`（文档处于系统锁定时带，解锁后推一次不带 `locked` 的 `room`，§8） |
 | `event` | S→C | 两个事件（决策 SG-03，帧定义登记在 30-architecture/06 §6.3）：`{name:'comments.changed', payload:{threadIds[]}}`，由执行评论镜像落库的实例产生；`{name:'version.restored', payload:{snapshotId, name?, by}}`，由执行恢复的实例在恢复提交后产生（[05](05-modules-collab-and-snapshots.md) §10）。二者都以 `document.broadcastStateless` 发出一次，M3 起经 extension-redis 送达其他实例的会话（§11） |
 | `rtt.ping` / `rtt.pong`（可选，2026-09-26 整合登记） | C→S / S→C | RTT 探测，不参与判死：客户端只在诊断面板打开或 `collab/latency` 遥测采样命中时发 `{type:'rtt.ping', t}`（`t` 为客户端单调时钟毫秒数，间隔 ≥ 5 s），服务端在 `onStateless` 里立即以 `connection.sendStateless` 回 `{type:'rtt.pong', t}`，原样回显 `t`、不带服务端时间，客户端用本机时钟计算往返。计入 L1 令牌桶，不计入 L2；只读会话同样应答 |
+| `plugins`（2026-10-01，rulings §4.23） | S→C | `{type:'plugins', reason:'policy_changed', policy}`：握手时 `pluginSet.policy` 不符在 `connected` 里紧随 `auth.ok` 发一次；在线期间由 `plugins:ctl` 订阅或 60 s 轮询发现新 `policy` 后对不符的本实例连接发一次（`sendStateless`，不用 `broadcastStateless`）；只提示、不改读写状态（§12 第 4 项）。只读会话同样收到 |
 | 未知 `type` | C→S | `onStateless` 里丢弃并计数，不关闭（ADR-0023 补充 v0.2）；JSON 或 zod 解析失败 → `ws.close(4400)`。`onStateless` 不被 await，必须自包 try/catch（抛错会成为未处理的 rejection 杀进程） |
 
 **删除的行**（2026-09-26，ADR-0039 决策 3）：`ping` / `pong`（原：「收到 `ping{t}` 即回 `pong{t}`；客户端每 15 s 一次，服务端 45 s 未收到任何帧即断开（客户端看到 1006）」）。服务端空闲判死改由帧预过滤逐帧计时、45 s 无入站帧以 4408 关闭（§1）；客户端靠 awareness 每 15 s 的续期帧保活，并以 provider 的 `messageReconnectTimeout`（30 s）判断服务端失联；RTT 诊断改用上表可选的 `rtt.ping` / `rtt.pong`（2026-09-26 整合登记，不参与判死）。
@@ -270,7 +271,7 @@ sequenceDiagram
 | 4408 | `collab.auth_timeout` / `collab.idle_timeout`（后者新增（§4.21）） | 升级后 5 s 内未完成认证；45 s 内无任何入站帧（适配层每 5 s 检查；Hocuspocus 的 `timeout` 只作兜底） |
 | 4409 | `collab.quarantined` | 同一会话 10 min 内触发软门禁修复 ≥ 5 次 |
 | 4413 | `collab.payload_too_large` | update 帧载荷 > `maxUpdateBytes`（1 MiB），或 step2 载荷 > `step2MaxBytes`（16 MiB）；ws 帧超 `maxPayload` 时 ws 库以 1009 断开（等价处理） |
-| 4426 | `collab.schema_too_new` | 文档 schema 高于客户端声明的支持上限（加入时；或迁移后在线客户端落后） |
+| 4426 | `collab.schema_too_new` / `collab.plugins_outdated`（后者 2026-10-01 新增，rulings §4.23） | 文档 schema 高于客户端声明的支持上限（加入时；或迁移后在线客户端落后）；Auth token 的 `pluginSet.catalog` 与本部署当前内容级插件集不符（加入时，§12 第 4 项；客户端行为与 schema 过新相同：先 flush 再提示刷新） |
 | 4427 | `collab.protocol_mismatch` | Auth token 的 `protocolVersion` 不在服务端支持窗口 |
 | 4428 | `collab.epoch_changed` | 客户端声明的本地纪元（与文档名 `{docId}:{epoch}`）与文档纪元不符（加入时）；收到 `epoch` 控制消息（运维 `forceEpoch`，或覆盖导入提交，rulings §4.19 N1）；取号纪元栅栏生效 |
 | 4429 | `collab.rate_limited` | 令牌桶耗尽或每分钟字节超限；握手期该用户在本实例的已认证连接数已达 `limits.ws.maxConnectionsPerUser`（先回 `PermissionDenied{collab.rate_limited}`，§1） |
@@ -329,7 +330,36 @@ sequenceDiagram
 2. **文档纪元**：客户端声明的本地纪元存在且 ≠ `documents.epoch`，或文档名 `{docId}:{epoch}` 的纪元部分与之不符 → `collab.epoch_changed` / 4428（客户端丢弃本地 Y 状态、重新 bootstrap，pending 移入 `rejected` 并可导出）。
 3. **文档 schema**：`documents.schema_version` > 客户端声明的支持上限 → `collab.schema_too_new` / 4426（客户端需升级，提示刷新）。
 
-`appVersion` 只记日志与指标，不参与判定。4426、4427、4428 客户端行为不同，因此分码（决策 INC-06）。第 2、3 项依赖的 Auth token 字段见 §2。
+4. **插件集指纹**（2026-10-01，rulings §4.23 O-1 定稿；PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) PM-08、PM-13）：`pluginSet.catalog` ≠ 本部署当前 `catalog`（内容级插件的 `id@version@sha256` 摘要，只随重新部署变化）→ `collab.plugins_outdated` / 4426（走版本漂移流程：先 flush 再刷新，刷新前不接受该会话的新写入，避免两个版本的迁移与 schema 在同一文档交错）。`pluginSet.policy` ≠ 当前 `policy` → **照常准入**，`connected` 里紧随 `auth.ok` 以 `connection.sendStateless` 发 `{type:'plugins', reason:'policy_changed', policy}`，客户端显示「管理员更新了插件设置，重新加载后生效」。两段摘要由 PluginsModule 的 `PluginSetFingerprinter` 在本进程算出（[03](03-modules-identity-and-access.md) §12.3）。
+
+**在线会话的插件设置通知**：每个 collab 实例订阅 `plugins:ctl`（[14](14-valkey-object-storage-and-retention.md) §3.2），收到新 `policy` 后对本实例上握手 `policy` 与之不符的连接逐个 `sendStateless({type:'plugins', reason:'policy_changed', policy})`（只推一次，记在连接上）；频道丢消息时由每 `plugins.policyPollSeconds`（默认 60 s）一次的只读轮询（`cordex_system` 读 `plugin_policies`，[09 §14](09-ddl-identity-and-access.md)）兜底，因此在线会话最迟 60 s 内收到。`plugins` 控制消息只提示、不改连接的读写状态，也不断连；过渡期同一 Room 内新旧两种内容级集合共存，缺插件一方对未知 kind / 命名空间只做结构校验并原样保留（软门禁不因本端缺插件而拒绝对方的合法写入，PM-13 第 4 条）。
+
+`appVersion` 只记日志与指标，不参与判定。4426、4427、4428 客户端行为不同，因此分码（决策 INC-06）；第 4 项的 `catalog` 不符复用 4426，因为客户端行为与「schema 过新」相同（刷新以装配新版本）。第 2、3、4 项依赖的 Auth token 字段见 §2。
+
+**图 12-1 插件集指纹的握手判定**
+
+```mermaid
+flowchart TB
+  auth["onAuthenticate：前 3 项通过"]
+  cat{"pluginSet.catalog 与本部署一致"}
+  close["ws.close 4426，collab.plugins_outdated"]
+  drift["客户端：先 flush，再刷新，按新版本装配"]
+  admit["照常准入：角色与名额判定"]
+  pol{"pluginSet.policy 与当前一致"}
+  quiet["正常会话"]
+  notice["connected：Stateless plugins，reason policy_changed"]
+  banner["客户端横幅：插件设置已更新，重新加载后生效"]
+  ctl["plugins:ctl 或 60 s 轮询发现新 policy"]
+  auth --> cat
+  cat -->|"否"| close --> drift
+  cat -->|"是"| admit --> pol
+  pol -->|"是"| quiet
+  pol -->|"否"| notice --> banner
+  ctl -->|"对 policy 不符的在线连接"| notice
+```
+
+怎么读：先比 `catalog`（重新部署才会变），不符就按版本漂移关闭；再比 `policy`（管理员保存就会变），不符只提示、不拒绝。右下是在线会话的通知入口：频道消息或轮询发现新 `policy` 后，走同一条「Stateless plugins → 横幅」路径。
+依据：本节第 4 项；[03 §12](03-modules-identity-and-access.md)；rulings §4.23 O-1；PRD PM-08、PM-13。
 
 ## 13. 速率与限制数值
 

@@ -1,8 +1,8 @@
 # 18 编辑器能力实现总表
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，编辑器 164 项能力按 25 域给出实现落点、命令 id 与补齐方案，文末收口 6 类口径冲突）；2026-09-26（§4.21 整合：能力行补元素设计落点（50/20、50/21、50/24）；INS-16 改指 PRD 02 §5 非目标；TXT-16、TBL-01 单元格寻址统一为 {rowId, colId}；PIC、MED、INS-11/12、ARR-05 覆盖度改为已写清并指向 50/23；文件路径对齐 40/10；§28 crop 参数名统一为 fit；§31 标注已回写与待用户裁决项）；2026-09-26（§4.21 复核：7 行覆盖度原值恢复并重算 §1.3（165 项）；INS-16 拆出 INS-20；INS-04/05、PIC-02/04/06、TBL-01/03/04、图 18-15 与 §28 按契约对齐）；2026-09-30（§4.21 剩余缺口样张回写：INS-09、INS-10、INS-14、INS-17、TXT-14、TXT-16、TBL-01–TBL-05、CHT-03、CHT-04、UI-03 的设计出处补 03-16 / 03-30 / 03-31，「设计缺口 G-32 / G-62 / G-63」改为对应设计稿；只改出处，不改实现口径与覆盖度）；2026-09-30（§4.21 剩余缺口样张回写 · 整合：§10 TBL-02 右键菜单改为平铺加 M3 小标题、TBL-04 边框预设改为设计 03-30 的 10 个（5 × 2）并给出 `preset` 枚举、TBL-02 / TBL-05 的上下文页签登记为待决；§11 CHT-03 撤销粒度与 50/24 §3.6 统一为一次提交一步，CHT-04 槽位名按 50/10 §5 改为 `toolbar.chart`）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：图 18-8 把图标移入形状组、「怎么读」改为 P2 与 M4+ 条目均禁用显示；图 18-14 照录 50/24 §2.6 图 2-3；TBL-02 普通格拆分改为待设计 03-30 §13 第 23 条）；2026-09-30（§4.22 设计待决收口：图 18-8 与插入页签说明补公式（M4+ 禁用）；INS-01 / INS-06 / INS-09 / INS-10 落点改为填入空内容占位符（Q1），INS-09 网格悬停 8 行 × 10 列、对话框上限待性能评估（Q3），INS-17 表格图标弹出同一网格弹层（Q2）；TBL-02 / TBL-05 不设上下文页签、普通格拆分禁用、M2 删除表格可用；TBL-03 列宽拖动与 TBL-05 样式数据、CHT-03 窄屏样张注明推迟触发条件；TBL-04 边框预设定稿；CHT-03 数据面板两入口定稿；CHT-04 只读类型提示与确认条；§31 未决第 5 条改为推迟）；2026-09-30（§4.22 整合：INS-09 实现落点补 `InsertTableDialog`、行高写法统一为「0.41 in（`a:tr@h=370840`）」；CHT-03 补 `ChartDataDrawer`，CHT-04 注明共用 `ChartTypeMenu`）；2026-09-30（§4.22 复核修正：INS-06、INS-01、INS-09、INS-10 的 Q1 落点补「已选中的空占位符优先」） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §1a / §5a / §5b，[30/01 总架构](../30-architecture/01-overview.md) §3a / §7；[PRD 02](../10-prd/03-features/02-editing.md) ED-01–ED-35（含 ED-15a）；[PRD 01](../10-prd/03-features/01-open-and-fidelity.md) §2.2–§2.7、OF-07 / OF-09 / OF-16 / OF-19；[PRD 07](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-01–ML-05；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-03 / CO-06 / CO-09；设计 [03-04](../20-design/03-screens/04-insert-menu.md)、[03-15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、[03-17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[03-18](../20-design/03-screens/18-image-editing.md)、[03-30](../20-design/03-screens/30-table-editing.md)、[03-31](../20-design/03-screens/31-chart-editing.md)；[40/03](../40-modules/03-slide-domain-model.md) §2.6、§4、§5；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.6、§3、§4.2–§4.4；[40/06](../40-modules/06-layout-and-render-engine.md) §4.1–§4.3；[40/07](../40-modules/07-slide-rendering.md) §4.1–§4.2；[40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §4.2；[50/04](04-document-commands-and-undo.md) §5、§9；[50/05](05-rendering-and-thumbnails.md) §5、§8、§9；[50/06](06-text-editing-and-ime.md) §2、§9；[50/10](10-editor-shell-and-interaction.md) §4、§5、§7；[50/11](11-masters-layouts-and-themes.md) §6–§9；[50/16](16-i18n-and-accessibility.md) §1–§6；rulings §4.21（23 题裁决）；`_evidence/reuse-arch-elements-plan-2026-09-26.json` 的 `capabilities`、`elementDesign`、`frontendReuse`
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建，编辑器 164 项能力按 25 域给出实现落点、命令 id 与补齐方案，文末收口 6 类口径冲突）；2026-09-26（§4.21 整合：能力行补元素设计落点（50/20、50/21、50/24）；INS-16 改指 PRD 02 §5 非目标；TXT-16、TBL-01 单元格寻址统一为 {rowId, colId}；PIC、MED、INS-11/12、ARR-05 覆盖度改为已写清并指向 50/23；文件路径对齐 40/10；§28 crop 参数名统一为 fit；§31 标注已回写与待用户裁决项）；2026-09-26（§4.21 复核：7 行覆盖度原值恢复并重算 §1.3（165 项）；INS-16 拆出 INS-20；INS-04/05、PIC-02/04/06、TBL-01/03/04、图 18-15 与 §28 按契约对齐）；2026-09-30（§4.21 剩余缺口样张回写：INS-09、INS-10、INS-14、INS-17、TXT-14、TXT-16、TBL-01–TBL-05、CHT-03、CHT-04、UI-03 的设计出处补 03-16 / 03-30 / 03-31，「设计缺口 G-32 / G-62 / G-63」改为对应设计稿；只改出处，不改实现口径与覆盖度）；2026-09-30（§4.21 剩余缺口样张回写 · 整合：§10 TBL-02 右键菜单改为平铺加 M3 小标题、TBL-04 边框预设改为设计 03-30 的 10 个（5 × 2）并给出 `preset` 枚举、TBL-02 / TBL-05 的上下文页签登记为待决；§11 CHT-03 撤销粒度与 50/24 §3.6 统一为一次提交一步，CHT-04 槽位名按 50/10 §5 改为 `toolbar.chart`）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：图 18-8 把图标移入形状组、「怎么读」改为 P2 与 M4+ 条目均禁用显示；图 18-14 照录 50/24 §2.6 图 2-3；TBL-02 普通格拆分改为待设计 03-30 §13 第 23 条）；2026-09-30（§4.22 设计待决收口：图 18-8 与插入页签说明补公式（M4+ 禁用）；INS-01 / INS-06 / INS-09 / INS-10 落点改为填入空内容占位符（Q1），INS-09 网格悬停 8 行 × 10 列、对话框上限待性能评估（Q3），INS-17 表格图标弹出同一网格弹层（Q2）；TBL-02 / TBL-05 不设上下文页签、普通格拆分禁用、M2 删除表格可用；TBL-03 列宽拖动与 TBL-05 样式数据、CHT-03 窄屏样张注明推迟触发条件；TBL-04 边框预设定稿；CHT-03 数据面板两入口定稿；CHT-04 只读类型提示与确认条；§31 未决第 5 条改为推迟）；2026-09-30（§4.22 整合：INS-09 实现落点补 `InsertTableDialog`、行高写法统一为「0.41 in（`a:tr@h=370840`）」；CHT-03 补 `ChartDataDrawer`，CHT-04 注明共用 `ChartTypeMenu`）；2026-09-30（§4.22 复核修正：INS-06、INS-01、INS-09、INS-10 的 Q1 落点补「已选中的空占位符优先」）；2026-10-01（§4.23 插件管理：新增 §26a 插件管理域 PLG-01…PLG-07，§0、§1.3、§29、§30 计数同步为 26 域 172 项；设计出处暂写 03-09 / 03-32「待样张确认」）；2026-10-01（§4.23 插件管理样张回写：PLG-01…PLG-07 的设计出处改为已回写的 03-09 个人插件面板、03-32 管理员插件管理与 03-02「插件横幅」的具体小节，去掉「待样张确认」；只改出处，不改实现口径与覆盖度） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §1a / §5a / §5b，[30/01 总架构](../30-architecture/01-overview.md) §3a / §7；[PRD 02](../10-prd/03-features/02-editing.md) ED-01–ED-35（含 ED-15a）；[PRD 01](../10-prd/03-features/01-open-and-fidelity.md) §2.2–§2.7、OF-07 / OF-09 / OF-16 / OF-19；[PRD 07](../10-prd/03-features/07-masters-layouts-and-themes.md) ML-01–ML-05；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-03 / CO-06 / CO-09；设计 [03-04](../20-design/03-screens/04-insert-menu.md)、[03-15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、[03-17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[03-18](../20-design/03-screens/18-image-editing.md)、[03-30](../20-design/03-screens/30-table-editing.md)、[03-31](../20-design/03-screens/31-chart-editing.md)；[40/03](../40-modules/03-slide-domain-model.md) §2.6、§4、§5；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.6、§3、§4.2–§4.4；[40/06](../40-modules/06-layout-and-render-engine.md) §4.1–§4.3；[40/07](../40-modules/07-slide-rendering.md) §4.1–§4.2；[40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §4.2；[50/04](04-document-commands-and-undo.md) §5、§9；[50/05](05-rendering-and-thumbnails.md) §5、§8、§9；[50/06](06-text-editing-and-ime.md) §2、§9；[50/10](10-editor-shell-and-interaction.md) §4、§5、§7；[50/11](11-masters-layouts-and-themes.md) §6–§9；[50/16](16-i18n-and-accessibility.md) §1–§6；rulings §4.21（23 题裁决）；`_evidence/reuse-arch-elements-plan-2026-09-26.json` 的 `capabilities`、`elementDesign`、`frontendReuse`
 
-本文回答一个问题：**编辑器的每一项能力，前端打算怎样实现**。全部能力按 25 个域逐项列出：能力 id → PRD 与设计出处 → 实现落点（包与文件，引 40-modules 各篇 §4 目录树与 §5 文件职责表）→ 命令 id → 交互要点 → 复用库还是自研 → 里程碑 → 本轮后的覆盖度。原来只写了一行（partial）或完全没写（missing）的能力，本文逐条给出补齐方案与落点，这是本文的主要价值。
+本文回答一个问题：**编辑器的每一项能力，前端打算怎样实现**。全部能力按 26 个域逐项列出（2026-10-01 起含插件管理 PLG，§26a）：能力 id → PRD 与设计出处 → 实现落点（包与文件，引 40-modules 各篇 §4 目录树与 §5 文件职责表）→ 命令 id → 交互要点 → 复用库还是自研 → 里程碑 → 本轮后的覆盖度。原来只写了一行（partial）或完全没写（missing）的能力，本文逐条给出补齐方案与落点，这是本文的主要价值。
 
 本文是「能力 → 实现」的索引与补齐方案的事实源，不是元素设计本身。每种可追加元素（文本框、形状、图片、表格、图表……）追加它有什么作用、每个元素怎样设计，写在元素目录：[50/19 总览与通用设计](19-insertable-elements-overview.md)，以及 [50/20 文本类](20-elements-text.md)、[50/21 结构类](21-elements-structure.md)、[50/22 形状与线条](22-elements-shapes-and-lines.md)、[50/23 媒体类](23-elements-media.md)、[50/24 表格与图表](24-elements-tables-and-charts.md)、[50/25 只读与不透明类](25-elements-readonly-and-opaque.md)。
 
@@ -19,7 +19,7 @@
 
 ## 0. 读法与图例
 
-**能力 id**：`<域前缀>-<两位序号>`，前缀见 §1.3 表。162 项沿用本轮能力盘点（证据 R `capabilities.items`）的编号，§25 另有国际化 2 项（`I18N-01`、`I18N-02`）为本文新增（§4.21）；2026-09-26 复核把公式与艺术字变形从 INS-16 拆出为 `INS-20`（新增 id，原值仍记 missing），共 165 项。id 一经发布不复用；拆分或合并只追加新 id。
+**能力 id**：`<域前缀>-<两位序号>`，前缀见 §1.3 表。162 项沿用本轮能力盘点（证据 R `capabilities.items`）的编号，§25 另有国际化 2 项（`I18N-01`、`I18N-02`）为本文新增（§4.21）；2026-09-26 复核把公式与艺术字变形从 INS-16 拆出为 `INS-20`（新增 id，原值仍记 missing），共 165 项。2026-10-01 按 rulings §4.23 新增插件管理域 PLG-01…PLG-07（§26a，本文新增，不在盘点基线内），合计 172 项。id 一经发布不复用；拆分或合并只追加新 id。
 
 **表格各列**
 
@@ -147,14 +147,15 @@ flowchart TB
 | 检查器与上下文 | UI | §24 | 5 | 1 / 4 / 0 | 1 / 4 / 0 / 0 / 0 |
 | 可访问性与国际化 | A11Y、I18N | §25 | 3 | 1 / 0 / 0，另新增 2 | 3 / 0 / 0 / 0 / 0 |
 | 文档与文件 | DOC | §26 | 2 | 2 / 0 / 0 | 2 / 0 / 0 / 0 / 0 |
-| **合计** | 25 域 | | **165** | **62 / 53 / 48，另新增 2** | **71 / 63 / 28 / 1 / 2** |
+| 插件管理（2026-10-01，§4.23） | PLG | §26a | 7 | 0 / 0 / 0，另新增 7 | 7 / 0 / 0 / 0 / 0 |
+| **合计** | 26 域 | | **172** | **62 / 53 / 48，另新增 9** | **78 / 63 / 28 / 1 / 2** |
 
 **图 18-3a 本轮前后的覆盖度迁移**
 
 ```mermaid
 flowchart LR
-  full["原 full：62"] --> done["已写清：71"]
-  added["本文新增 I18N：2"] --> done
+  full["原 full：62"] --> done["已写清：78"]
+  added["本文新增 I18N 2 项、PLG 7 项：9"] --> done
   partial["原 partial：53"] --> done
   partial --> fill["补齐：63"]
   partial --> later["后置：28"]
@@ -165,9 +166,9 @@ flowchart LR
   missing --> tbd["待决：2"]
 ```
 
-怎么读：原 full 的 62 项与新增的 2 项都记已写清；原 partial 的 53 项里 5 项（ARR-05、PIC-03、PIC-10、MED-02、MED-03）在整合阶段已由族文档写清、47 项补齐、1 项（竖排编辑）按 P2 后置；原 missing 的 48 项（含 2026-09-26 复核从 INS-16 拆出的 INS-20）里 2 项（PIC-02、PIC-04）已写清、16 项补齐、27 项后置、1 项写明非目标（INS-16）、2 项仍待裁决（VIEW-04、EXP-05）。「补齐」的 63 项就是本文补齐方案的全部对象；统计以本文 §2–§26 能力表逐行计数为准（脚本生成）。
+怎么读：原 full 的 62 项与新增的 9 项（I18N 2 项、2026-10-01 插件管理 PLG 7 项）都记已写清；原 partial 的 53 项里 5 项（ARR-05、PIC-03、PIC-10、MED-02、MED-03）在整合阶段已由族文档写清、47 项补齐、1 项（竖排编辑）按 P2 后置；原 missing 的 48 项（含 2026-09-26 复核从 INS-16 拆出的 INS-20）里 2 项（PIC-02、PIC-04）已写清、16 项补齐、27 项后置、1 项写明非目标（INS-16）、2 项仍待裁决（VIEW-04、EXP-05）。「补齐」的 63 项就是本文补齐方案的全部对象；统计以本文 §2–§26 能力表逐行计数为准（脚本生成）。
 
-依据：本文 §2–§26 能力表逐行统计。
+依据：本文 §2–§26a 能力表逐行统计。
 
 ### 1.4 复用组件与维持自研的理由
 
@@ -1391,6 +1392,43 @@ flowchart LR
 | DOC-01 | 打开 / 渐进打开 / 错误态 | OF-01 / 02 / 03；设计 03-13；规格 50/04 §1–§2 | ooxml-pptx `import/import.worker.ts`、`import/lazy.ts`；apps/web `open-document.usecase.ts` | — | 首页先可见；五类错误文案 | — | M1 | full→已写清 |
 | DOC-02 | 新建空白 / 从模板 | OF-22、AS-01；设计 03-29；规格 50/02 §8 | apps/web `application/documents/create-document.usecase.ts` | — | 走两步服务端导入 | — | M2 | full→已写清 |
 
+## 26a. 插件管理（PLG，2026-10-01，rulings §4.23）
+
+插件从部署来、由管理员按三态管理、用户只在「允许用户选择」的界面级插件里个人启停（[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-01…PM-16）。前端数据流与装配见 [03](03-preset-assembly-and-plugins.md) §5.1、§10，路由与漂移见 [02](02-app-shell-routing-and-session.md) §2、§12，足迹比对见 [04](04-document-commands-and-undo.md) §1.1，横幅与握手见 [07](07-collaboration-client.md) §2、§9，键盘与播报见 [16](16-i18n-and-accessibility.md) §8.1。设计承接：个人插件面板为设计 [03-09](../20-design/03-screens/09-plugin-manager.md) 重写稿，管理员插件页为设计 [03-32](../20-design/03-screens/32-admin-plugin-management.md) 新稿，2026-10-01 样张经用户确认已回写（缺口 G-84…G-87，PRD 07）。
+
+**图 18-31a 插件管理的两处入口与一次会话**
+
+```mermaid
+flowchart LR
+  admin["管理员：管理 › 插件，三态与确认卡"]
+  policy["部署策略"]
+  me["本会话插件集与指纹"]
+  host["create-editor-host 装配"]
+  panel["个人插件面板：状态、重试、个人启停"]
+  doc["打开文档：足迹比对"]
+  banner["缺插件横幅、插件设置已更新横幅"]
+  admin --> policy
+  policy --> me
+  me --> host
+  host --> panel
+  host --> doc
+  doc --> banner
+  policy -.-> banner
+```
+
+怎么读：管理员只改部署策略，编辑器每次打开时据此取插件集并装配；个人插件面板看的是本会话实际装配的结果；打开文档时再与文档自带的足迹比对，缺什么用横幅说明。虚线表示管理员保存后在线会话只收到横幅。
+依据：PRD PM-03、PM-08、PM-10、PM-12；rulings §4.23。
+
+| id | 能力 | 出处 | 实现落点 | 命令 id | 交互要点 | 复用 / 自研 | 里程碑 | 覆盖度 |
+|---|---|---|---|---|---|---|---|---|
+| PLG-01 | 个人插件面板：本会话状态、失败详情、复制诊断、本会话重试 | PS-11、PM-10；设计 03-09 §2–§4；规格 50/03 §10 | apps/web `pages/plugins/PluginManagerPage.tsx`；ui-react 面板组件（新增，§4.23，SDK 交付物 D22） | —（重试为 `fiber.restart()`） | 三分组；失败项带错误码与 traceId；版本不兼容与等待依赖不提供重试 | — | M2 P0 | 新增→已写清 |
+| PLG-02 | 个人启停可选界面级插件（即时热切换，随账号保存） | PM-10、PM-08、O-1、O-2；设计 03-09 §5；规格 50/03 §5.1 | apps/web `application/plugins/plugin-set.ts`、`application/plugins/toggle.usecase.ts`、`domain/plugins/compute-exclude.ts` | —（本地 + REST `PUT /users/me/plugins/:pluginId`） | 开关 `switch`「个人设置，只影响你」；失败回弹；不刷新页面 | — | M3 | 新增→已写清 |
+| PLG-03 | 打开文档缺插件：降级占位与一次性横幅 | PM-12、OF-13；设计 03-09 §6.2、§6.3，03-02「插件横幅」；规格 50/04 §1.1 | kernel `plugin-footprint.ts`（ADR-0050）；apps/web `pages/editor/footprint-banner.tsx` | — | 四种原因文案；「查看详情」打开面板「本文档缺少的插件」 | — | M2 P1 | 新增→已写清 |
+| PLG-04 | 管理员插件清单：八种部署级状态、三态控件与锁定、详情 | PM-03、PM-06、PM-01；设计 03-32 §1–§5、§8–§10；规格 50/03 §10、50/02 §2 | apps/web `pages/admin/AdminPluginsPage.tsx`；`RequirePlatformAdmin` 守卫 | —（REST `GET` / `PATCH /admin/plugins`） | 内容级无「允许用户选择」；锁定项可聚焦读原因；被拒项无开关 | — | M3 | 新增→已写清 |
+| PLG-05 | 依赖、互斥与变更确认卡、生效时机提示 | PM-07、PM-06；设计 03-32 §5.3–§7；规格 50/03 §10 | apps/web `pages/admin/PluginChangeConfirm.tsx`（新增，§4.23） | — | 禁用被依赖者、启用缺依赖者、首次启用第三方的贡献清单；整批保存、失败不部分生效 | — | M3 | 新增→已写清 |
+| PLG-06 | 「插件设置已更新」横幅与重新加载 | PM-08、O-1；设计 03-09 §6.1，03-02「插件横幅」；规格 50/07 §9、50/02 §12 | collab-yjs `onStateless`；apps/web `pages/editor` 横幅控制器 | — | 非阻断、可关闭；重新加载前先 flush | — | M3 | 新增→已写清 |
+| PLG-07 | 管理员插件配置表单（由 Config schema 生成，机密只写不读） | PM-09、PS-10；设计 03-32 §9（M3 禁用占位，M4 可编辑）；规格 50/03 §10 | apps/web `pages/admin/PluginConfigForm.tsx`（新增，§4.23） | —（REST `PUT /admin/plugins/:pluginId/config`） | 逐字段报错；新会话生效 | — | M4 | 新增→已写清 |
+
 ## 27. 口径冲突清单与本轮处置
 
 能力盘点中发现的文档之间互相矛盾的口径，本轮全部给出处置；前 6 行是本文要求收口的六类，其后是连带发现的同类问题。「回写」列是需要改的文件，由各自负责组在本轮执行（§31）。
@@ -1472,37 +1510,37 @@ flowchart TB
 
 按能力表「里程碑」列的主里程碑归组（一项跨两个里程碑时取先到的那个；「M2」未分级的并入 M2 P0）。里程碑边界以 [30/01](../30-architecture/01-overview.md) 的总表为准，验收条目由 PRD 05 按本表同步（§31）。
 
-**图 18-33 165 项能力的里程碑分布**
+**图 18-33 172 项能力的里程碑分布**
 
 ```mermaid
 flowchart LR
-  m1["M1：10 项，查看与只读渲染"] --> m2a["M2 P0：67 项，编辑主干"]
-  m2a --> m2b["M2 P1：35 项，表格插入、裁剪、超链接、调整手柄、查找替换、放映"]
+  m1["M1：10 项，查看与只读渲染"] --> m2a["M2 P0：68 项，编辑主干"]
+  m2a --> m2b["M2 P1：36 项，表格插入、裁剪、超链接、调整手柄、查找替换、放映"]
   m2b --> m2c["M2 P2：19 项，选择窗格、格式刷、页眉页脚等"]
-  m2a --> m3["M3：25 项，表格结构与样式、图表、母版编辑、节、协同"]
-  m3 --> m4["M4+：6 项，RTL、演讲者视图、离线持久化、公式与艺术字变形等"]
+  m2a --> m3["M3：29 项，表格结构与样式、图表、母版编辑、节、协同、插件管理"]
+  m3 --> m4["M4+：7 项，RTL、演讲者视图、离线持久化、公式与艺术字变形等"]
   other["非目标与待决：3 项，INS-16、VIEW-04、EXP-05"]
 ```
 
 怎么读：M2 P0 是「能像 PowerPoint 一样改一份文档」的最小集合；表格插入与单元格文字随 M2 P1（§4.21），表格结构、图表插入与编辑在 M3；P2 项在 M2 期间占位禁用，不阻塞出口。
 
-依据：本文 §2–§26 能力表；§4.21 q-table-depth、q-chart-route、q-media-insert、q-extra-inserts。
+依据：本文 §2–§26a 能力表；§4.21 q-table-depth、q-chart-route、q-media-insert、q-extra-inserts。
 
 | 里程碑 | 数量 | 能力 id |
 |---|---|---|
 | M1 | 10 | PIC-08、PIC-10、MED-01、MED-04、CHT-01、CHT-02、CHT-05（渲染部分）、A11Y-01、I18N-01、DOC-01 |
-| M2 P0（含未分级） | 67 | SEL-01–04、SEL-07–09、SEL-11–16；ALN-01、ALN-03；ARR-01–03；INS-01–04、INS-06、INS-18、INS-19；TXT-01–08；FMT-01、FMT-02、FMT-05、FMT-11；PIC-01、PIC-02、PIC-04、PIC-09；ML-01–03；SLD-01–03、SLD-08；VIEW-01–03；CLP-01、CLP-02；UND-01、UND-02；EXP-01、EXP-02；COL-01；OFF-01；KEY-01–03；UI-01、UI-02、UI-05；I18N-02；DOC-02 |
-| M2 P1 | 35 | SEL-05、SEL-10；ALN-02；ARR-04、ARR-05；INS-07、INS-08、INS-09、INS-13、INS-17；TXT-09、TXT-10、TXT-16；FMT-03、FMT-06、FMT-07、FMT-10；PIC-03、PIC-06、PIC-07；MED-02、MED-03；TBL-01；ML-09；SLD-04；FND-01、FND-02、FND-04；SHW-01–04；EXP-03；UI-03、UI-04 |
+| M2 P0（含未分级） | 68 | SEL-01–04、SEL-07–09、SEL-11–16；ALN-01、ALN-03；ARR-01–03；INS-01–04、INS-06、INS-18、INS-19；TXT-01–08；FMT-01、FMT-02、FMT-05、FMT-11；PIC-01、PIC-02、PIC-04、PIC-09；ML-01–03；SLD-01–03、SLD-08；VIEW-01–03；CLP-01、CLP-02；UND-01、UND-02；EXP-01、EXP-02；COL-01；OFF-01；KEY-01–03；UI-01、UI-02、UI-05；I18N-02；DOC-02；PLG-01 |
+| M2 P1 | 36 | SEL-05、SEL-10；ALN-02；ARR-04、ARR-05；INS-07、INS-08、INS-09、INS-13、INS-17；TXT-09、TXT-10、TXT-16；FMT-03、FMT-06、FMT-07、FMT-10；PIC-03、PIC-06、PIC-07；MED-02、MED-03；TBL-01；ML-09；SLD-04；FND-01、FND-02、FND-04；SHW-01–04；EXP-03；UI-03、UI-04；PLG-03 |
 | M2 P2 与 P2 | 19 | SEL-06；ALN-04；INS-05、INS-11、INS-14；TXT-11、TXT-13–15、TXT-18；FMT-04、FMT-08、FMT-09；PIC-05；TBL-06；SLD-07；FND-03；CLP-04；EXP-06 |
-| M3 | 25 | INS-10、INS-12、INS-15；TXT-17；TBL-02–05；CHT-03、CHT-04；ML-04–08；SLD-05、SLD-06；CLP-03；UND-03；CMT-01；SHW-05；EXP-04；COL-02、COL-03；OFF-02 |
-| M4+ | 6 | INS-20；TXT-12；ML-10；VIEW-05；SHW-06；OFF-03 |
+| M3 | 29 | INS-10、INS-12、INS-15；TXT-17；TBL-02–05；CHT-03、CHT-04；ML-04–08；SLD-05、SLD-06；CLP-03；UND-03；CMT-01；SHW-05；EXP-04；COL-02、COL-03；OFF-02；PLG-02、PLG-04–06 |
+| M4+ | 7 | INS-20；TXT-12；ML-10；VIEW-05；SHW-06；OFF-03；PLG-07 |
 | 非目标与待决 | 3 | INS-16（非目标：SmartArt、OLE、3D、墨迹、缩放定位、录屏的插入；公式与艺术字变形已拆到 INS-20）；VIEW-04、EXP-05（待决） |
 
 ## 30. 机械验证
 
 | 断言 | 执行点 |
 |---|---|
-| 本文每个能力 id 唯一、前缀属于 §1.3 的 25 域、每行 9 列、覆盖度取值合法；§1.3 统计与各域表逐行计数一致 | 文档阶段：评审时人工核对（本文由脚本统计生成 §1.3 与 §29）；实现阶段：`test/traceability/doc-sync.test.ts` 扩展解析本文表格（[70/13](../70-testing/13-requirements-traceability.md)） |
+| 本文每个能力 id 唯一、前缀属于 §1.3 的 26 域、每行 9 列、覆盖度取值合法；§1.3 统计与各域表逐行计数一致 | 文档阶段：评审时人工核对（本文由脚本统计生成 §1.3 与 §29）；实现阶段：`test/traceability/doc-sync.test.ts` 扩展解析本文表格（[70/13](../70-testing/13-requirements-traceability.md)） |
 | 能力 id → 测试用例的追溯：每个 M2 / M3 能力至少一个带 `@cap` 标签的测试 | [70/13](../70-testing/13-requirements-traceability.md) 的能力 id 追溯表与判定规则 |
 | 表中每个命令 id 已注册（控件不会因命令缺失而永久禁用） | slide-ui `ribbon-spec.test.ts`（`commandId ∈ 已注册命令`，40/10 §9） |
 | 新增命令都是既有 Mutation 的薄命令、逆操作由 Store 推导 | model-slide 性质测试 `mutations-property.test.ts`（40/03 §9） |

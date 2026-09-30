@@ -1,5 +1,5 @@
 # 01 后端架构
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一）；2026-10-01（§4.23 插件管理：§3 新增第 25 个 Nest 模块 PluginsModule（归 M-08），§5 装配矩阵加一行） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12
 
 > 读者：实现 `apps/server`、`@cordexjs/server-collab`、`@cordexjs/server-storage`、`@cordexjs/server-headless` 的工程师；运维；评审后端架构的人。
 > 定位：Cordex 的**后端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构，[50/01](../50-frontend/01-overview-and-runtime-map.md) 是前端架构，本文是后端架构，阅读路径固定为 **30/01 → 50/01 → 本文**。节号沿用升格前的编号，新节以 §0（架构一页，承接原 30/08（已撤销）第 0 节的两图与要点）与 §1a（技术栈与复用组件摘要）插入，既有「60/01 §x」引用不失配。本文是以下内容的**唯一事实源**：后端架构一页与协同接入的 Hocuspocus 挂点（§0）、Nest 模块清单、`CORDEX_ROLE` 语义、「模块 × 角色 × 部件」装配矩阵（迁自 40-modules/12 §7.1；rulings §4.18 BE-13 的内容不变，落点迁到本文的依据是 rulings §4.19「三线各为该侧唯一事实源、重复段落改为引用」）、启动断言、反代路径到角色的分流、Nest 模块 imports 总图、cordis 宿主生命周期映射、进程启动与优雅关闭、服务端预算总览、服务端交付落点（§3）。
@@ -412,7 +412,7 @@ flowchart TB
 
 ## 3. Nest 模块清单
 
-共 24 个 Nest 模块：基础模块 5 个（全部 `global`）+ 业务模块 19 个（其中 `AuditModule` 也是 `global`）。BC 编号见 [40-modules/00-module-map](../40-modules/00-module-map.md) §3；「文件级」列是目录树与逐文件职责所在，「运行时设计」列是本线的事实源。
+共 25 个 Nest 模块：基础模块 5 个（全部 `global`）+ 业务模块 20 个（其中 `AuditModule` 也是 `global`；2026-10-01 按 rulings §4.23 新增第 25 个 `PluginsModule`）。BC 编号见 [40-modules/00-module-map](../40-modules/00-module-map.md) §3；「文件级」列是目录树与逐文件职责所在，「运行时设计」列是本线的事实源。
 
 | # | 模块 | 分组 | BC | 文件级（40-modules） | 运行时设计 | 首次交付 |
 |---|---|---|---|---|---|---|
@@ -440,8 +440,9 @@ flowchart TB
 | 22 | `MetricsModule` | 运维 | BC-26 | 12 §4.7 | [18](18-observability-and-ops-endpoints.md) | M3 |
 | 23 | `InternalModule` | 运维 | BC-26 | 12 §4.8 | [18](18-observability-and-ops-endpoints.md)、[05](05-modules-collab-and-snapshots.md) | M2（管理动作 compact / migrate / epoch 随压缩、schema 迁移与换纪元，PRD 05 §0.3；诊断端点同期） |
 | 24 | `ClientTelemetryModule` | 运维 | BC-26 | 12 §4.12 | [18](18-observability-and-ops-endpoints.md) | M2 |
+| 25 | `PluginsModule`（2026-10-01） | 身份与访问 | BC-18（归 M-08） | 08（PluginsModule 节）；表与迁移见 12 §4.13 | [03](03-modules-identity-and-access.md) §12、[17](17-deployment-and-config.md) §5.16 | M2（声明文件读取与内置清单、`GET /users/me/plugins` 只读）/ M3（管理员三态、个人启停、指纹握手、审计）/ M4（挂载目录、签名与审核、插件配置） |
 
-根模块 `AppModule`（`forRole(role)`）与进程入口 `main.ts` 不计入上表 24 个模块，文件级见 40-modules/12 §4.13。「文件级」列原把 `DbModule` 指向原架构 08 篇（已于 rulings §4.21 撤销）第 2 节的目录树、把 `RedisModule` 指向 12 §4.9（`common/`，其中没有该模块），该树删除后（rulings §4.19）统一改指 12 §4.13（2026-09-25 审稿）。
+根模块 `AppModule`（`forRole(role)`）与进程入口 `main.ts` 不计入上表 25 个模块，文件级见 40-modules/12 §4.13。「文件级」列原把 `DbModule` 指向原架构 08 篇（已于 rulings §4.21 撤销）第 2 节的目录树、把 `RedisModule` 指向 12 §4.9（`common/`，其中没有该模块），该树删除后（rulings §4.19）统一改指 12 §4.13（2026-09-25 审稿）。
 
 机密（Webhook KEK、审计盐、运维令牌）不单独成模块：由 `ConfigModule` 导出的 secrets provider（`config/secrets.ts`，文件与环境变量名见 [17](17-deployment-and-config.md) §6）提供，[07](07-modules-comments-webhooks-audit.md) §10.2 的 `WebhooksModule` 与 `AuditModule` 经 global 的 `ConfigModule` 注入。
 
@@ -499,6 +500,7 @@ flowchart TB
 | `CommentsModule` | rest（只读；`/documents/:id/comments/import` 除外，P1）；observer（`CommentMirrorObserver`）；参与者 | rest（只读） | observer（BE-03）+ rest（`/documents/:id/comments/import`，Room 内事务，P1） | 参与者 | — | `comments` |
 | `WebhooksModule` | rest（订阅管理）；producer（`DeliverWebhookEventUseCase`）；processor（`webhook-delivery`） | rest + producer | producer（评论镜像触发） | processor | — | — |
 | `AuditModule`（global） | rest；observer（订阅器 + 拦截器）；cron（`audit-seal` 每日）；内部端点（`AuditVerifyController`，`/internal/admin/audit/verify`，[07](07-modules-comments-webhooks-audit.md) §10.2） | rest + observer | observer | observer + cron + audit/verify | — | — |
+| `PluginsModule`（M-08，2026-10-01） | rest（`/admin/plugins*`、`/users/me/plugins*`）；providers（`PluginCatalog` 启动校验、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`）；collab 另有 `plugins:ctl` 订阅与 60 s 策略轮询 | rest + providers | providers + 订阅（握手指纹判定与 Stateless `plugins`，[16](16-ws-protocol-server-view.md) §12） | providers（headless 内容级集合） | — | — |
 | `HealthModule` | rest（`/healthz`、`/readyz`） | ✓ | ✓ | ✓ | `forRole('renderer')`：只 `/healthz` + Chromium 池就绪，无凭据（BE-14） | — |
 | `MetricsModule` | rest（`/metrics`，内部端口 9464） | ✓ | ✓ | ✓ | —（渲染指标由 worker 侧 `remote-renderer.client` 记录，BE-14） | — |
 | `InternalModule` | 内部端口实例（[18](18-observability-and-ops-endpoints.md) §7）；rest：`DiagnosticsController`；`AdminController`（compact / migrate / epoch） | Diagnostics | Diagnostics + Admin（BE-03） | Diagnostics | — | — |
@@ -683,6 +685,7 @@ flowchart LR
   collab["CollabModule.forRole"]
   snapshots["SnapshotsModule：仅 collab"]
   cordisHost["CordisHostModule：global"]
+  plugins["PluginsModule：插件策略、个人选择与指纹，2026-10-01"]
   appModule -- "SessionGuard、CsrfGuard" --> auth
   appModule -- "ShareLinkGuard" --> shareLinks
   auth -- "JIT 建号、SessionStore" --> users
@@ -696,6 +699,7 @@ flowchart LR
   media --> storage & documents & permissions
   storage -- "读 ctx.blobStore" --> cordisHost
   collab -- "TicketVerifier 取验签面" --> auth
+  collab -- "握手比对插件集指纹" --> plugins
   collab -- "AuthzSource 角色与链接复核" --> permissions
   collab -- "DocumentStateGuard、DocumentReader" --> documents
   collab -- "SyncDocumentMediaRefs" --> media

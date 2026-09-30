@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：新增 Nest 模块 `PluginsModule` / `PluginsHttpModule`（§3、§4.11、§5.11）：声明文件与部署时校验、策略与个人选择仓储（表 `plugin_policies`、`user_plugin_prefs`）、插件集指纹、管理员与个人 REST） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
 
 # 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体）
 
@@ -394,6 +394,7 @@ Nest 模块不是 cordis Fiber（module-map §5.3），本节取代模板原 §3
 | `ShareLinksModule` | `PermissionsModule` | `ShareLinkGuard`（第二个 `APP_GUARD`，BE-05） | 60/03 §5 |
 | `StorageModule` | `ConfigModule` | `BlobStoreAccessor`、`GetPresignedPutUseCase`（仅内部，BE-10） | 60/04 §6 |
 | `MediaModule` | `StorageModule`、`DocumentsModule` | `SyncDocumentMediaRefsUseCase`、`PruneDetachedMediaLinksUseCase`（供 M-09 写快照时同事务调用，决策 C-25） | 60/04 §7 |
+| `PluginsModule`（2026-10-01，rulings §4.23） | 只有 `AuditModule`（M-12；配置、Valkey 与 DB 经全局基础设施提供者取得）；`PluginsHttpModule` 另 import `AuthModule`（只取 `PlatformAdminGuard`） | `PluginCatalog`（启动时读声明文件并做部署时校验，全部角色加载）、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`（供 M-09 collab 只读重算 `policy` 摘要）；`PluginsHttpModule` 的两个控制器只在 api 角色注册 | 60/03 §12；60/15 §3.15 |
 
 **图 3-1 Nest 模块 imports 依赖**
 
@@ -674,6 +675,45 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 
 2026-09-24 整个删除（rulings §4.15 Q6：组管理 U-11 推迟，M3 只按人分享）。原 13 个文件（`Group`/`GroupMember` 聚合、5 个用例、`group.repository`、`groups.controller`、错误码与 2 个单测）无替代；将来恢复组管理时另立项，届时 `permissions.principal_type` 扩展位启用 `'group'`。
 
+### 4.11 `apps/server/src/modules/plugins/`（2026-10-01，rulings §4.23）
+
+插件管理的服务端模块：声明文件的读取与部署时校验、部署级策略三态、个人选择、插件集指纹、管理员与个人 REST（PRD 09 PM-03…PM-09、PM-13、PM-14）。表与迁移见 60-backend/09 §14（`0012_plugin_policies`、`0013_user_plugin_prefs`），drizzle 镜像 `db/schema/plugin_policies.ts`、`db/schema/user_plugin_prefs.ts` 与 `keys.ts` 的 `plugins:` 前缀归 40/12 §4.13；collab 侧的指纹判定与 `plugins:ctl` 订阅归 40/09。
+
+```text
+plugins/
+├── plugins.module.ts                     PluginsModule：providers 与 exports，全部角色加载（api、collab、worker、renderer）
+├── plugins-http.module.ts                PluginsHttpModule：只含两个控制器，只由 api 角色根模块 import
+├── domain/
+│   ├── catalog-entry.ts                  CatalogEntry、DeployState（八态字面量联合）、RejectReason（十个原因码）
+│   ├── policy.ts                         PluginPolicy 三态 forced/optional/disabled；validatePolicyChanges()（内容级不得 optional、锁定与必需项、被拒项、互斥 Provider 座与 shapeKind）
+│   ├── effective-set.ts                  computeEffectivePluginSet()：内容级集合 + 强制界面级 + 本人所选（纯函数）
+│   ├── fingerprint.ts                    computeCatalogDigest()、computePolicyDigest()：两段 base64url(sha256)
+│   └── errors.ts                         server.plugins.* 错误码
+├── application/
+│   ├── get-plugin-catalog.usecase.ts     GET /admin/plugins、/admin/plugins/:pluginId（含近 24 h 客户端失败数、最近 5 次审计）
+│   ├── update-plugin-policies.usecase.ts PATCH /admin/plugins：If-Match、整批一个事务、每项一条 plugin.policy_changed、提交后发布 plugins:ctl
+│   ├── update-plugin-config.usecase.ts   PUT /admin/plugins/:pluginId/config（M4）：Config schema 校验、plugin.config_changed 只记字段路径
+│   ├── get-effective-plugin-set.usecase.ts GET /users/me/plugins：本人生效插件集与指纹
+│   ├── set-user-plugin-preference.usecase.ts PUT /users/me/plugins/:pluginId：只接受 optional 的界面级插件，不写审计
+│   ├── reset-user-plugin-preference.usecase.ts DELETE /users/me/plugins/:pluginId：回到管理员默认值
+│   └── record-rejected-plugins.usecase.ts 启动时：system 主体写 plugin.rejected，按 catalog 摘要去重
+├── infrastructure/
+│   ├── plugin-catalog.ts                 PluginCatalog：读 plugins.catalogFile 与镜像内置清单，逐项部署时校验，结果进程内持有
+│   ├── catalog-file.schema.ts            读 cordex-plugins.json（schema 本体在 protocol plugins/catalog.ts）与挂载目录路径约束
+│   ├── signature-verifier.ts             Ed25519 分离签名校验（node:crypto）、受信公钥文件 plugins.trustedKeysFile
+│   ├── plugin-policy.repository.ts       PluginPolicyRepository：plugin_policies
+│   ├── user-plugin-prefs.repository.ts   UserPluginPrefsRepository：user_plugin_prefs
+│   └── policy-notifier.ts                提交后 PUBLISH plugins:ctl（键名经 keys.ts 生成）
+├── interface/
+│   ├── admin-plugins.controller.ts       /admin/plugins*（PlatformAdminGuard）
+│   └── my-plugins.controller.ts          /users/me/plugins*（Session）
+└── __tests__/
+    ├── plugin-catalog.test.ts
+    ├── policy.test.ts
+    ├── fingerprint.test.ts
+    └── update-plugin-policies.usecase.test.ts
+```
+
 ## 5. 文件职责表
 
 ### 5.1 `auth/`
@@ -851,6 +891,65 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 ### 5.10 （已删除）`groups/`
 
 2026-09-24 整个删除，13 行随之移除（rulings §4.15 Q6：组管理 U-11 推迟），见 §4.10。
+
+### 5.11 `plugins/`（2026-10-01，rulings §4.23）
+
+| 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
+|---|---|---|---|---|
+| `plugins.module.ts` | 模块装配 | `PluginsModule` | `AuditModule`（唯一 import） | exports `PluginCatalog`、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`；全部角色加载（60-backend/01 §5） |
+| `plugins-http.module.ts` | HTTP 装配 | `PluginsHttpModule` | `PluginsModule`、`AuthModule`（`PlatformAdminGuard`） | 只在 api 角色 |
+| `domain/catalog-entry.ts` | 清单条目与部署级状态 | `CatalogEntry`、`DeployState`、`RejectReason` | protocol `rest/plugins.ts` | 八态与十个原因码为字面量联合（非 enum） |
+| `domain/policy.ts` | 策略三态与变更校验 | `PluginPolicy`、`validatePolicyChanges` | `./catalog-entry` | 内容级设 optional、锁定或必需项、被拒项 → `server.plugins.policy_invalid`；互斥 → `server.plugins.conflict` |
+| `domain/effective-set.ts` | 生效插件集 | `computeEffectivePluginSet` | `./policy` | 纯函数；个人选择只作用于 optional 的界面级插件，forced / disabled 时保留记录但不生效（PM-03） |
+| `domain/fingerprint.ts` | 插件集指纹 | `computeCatalogDigest`、`computePolicyDigest` | `node:crypto` | `catalog` 只随重新部署变化，`policy` 随管理员保存变化；各为 43 字符 base64url |
+| `domain/errors.ts` | 错误码 | `PluginsError` | 无 | `server.plugins.not_found`/`policy_invalid`/`revision_conflict`/`conflict`/`config_invalid`/`not_optional` |
+| `application/get-plugin-catalog.usecase.ts` | 管理员查看 | `GetPluginCatalogUseCase` | `../infrastructure/*`、`AuditModule` 查询 | 响应 `ETag` = `policy` 摘要 |
+| `application/update-plugin-policies.usecase.ts` | 管理员保存三态 | `UpdatePluginPoliciesUseCase` | `../domain/policy`、`../infrastructure/plugin-policy.repository`、`../infrastructure/policy-notifier`、`RecordAuditEventUseCase` | `If-Match` 不符 412 `server.plugins.revision_conflict`；整批一个事务，失败不部分生效（PM-07）；审计与策略同事务 |
+| `application/update-plugin-config.usecase.ts` | 插件配置（M4） | `UpdatePluginConfigUseCase` | `../domain/policy`、`../infrastructure/plugin-policy.repository`、`../infrastructure/policy-notifier`、`RecordAuditEventUseCase` | 机密字段只接受「使用部署文件中的值」；审计只记字段路径（PM-09） |
+| `application/get-effective-plugin-set.usecase.ts` | 本人生效插件集 | `GetEffectivePluginSetUseCase` | `../domain/effective-set`、`../domain/fingerprint` | M2 只返回镜像内置集合（无个人选择），M3 起含个人选择 |
+| `application/set-user-plugin-preference.usecase.ts` | 个人启停 | `SetUserPluginPreferenceUseCase` | `../infrastructure/user-plugin-prefs.repository` | 非 optional 界面级 → 409 `server.plugins.not_optional`；不写审计（PM-14） |
+| `application/reset-user-plugin-preference.usecase.ts` | 回到默认 | `ResetUserPluginPreferenceUseCase` | `../infrastructure/user-plugin-prefs.repository` | 删除本人该行 |
+| `application/record-rejected-plugins.usecase.ts` | 记录被拒插件 | `RecordRejectedPluginsUseCase` | `RecordAuditEventUseCase` | 启动时由 api 角色执行一次；同一 `catalog` 摘要不重复写 |
+| `infrastructure/plugin-catalog.ts` | 声明文件与部署时校验 | `PluginCatalog` | `./catalog-file.schema`、`./signature-verifier`、kernel `manifest/scope.ts`、`manifest/version.ts` | 声明文件不可解析或违反 schema → 退出码 78（60-backend/17 §6）；单个插件校验失败只拒绝该插件；结果供 `/readyz` 的 `pluginsRejected` |
+| `infrastructure/catalog-file.schema.ts` | 声明文件读取 | `readCatalogFile` | protocol `plugins/catalog.ts`（`CatalogFileSchema`，与 `cordex-ops plugins:check` 共用） | 本文件只做读取与路径约束：`source` 为挂载目录内相对路径时拒绝 `..` 与绝对路径；schema 本体在 protocol |
+| `infrastructure/signature-verifier.ts` | 签名校验 | `verifyPluginSignature` | `node:crypto` | Ed25519 签包的 SHA-256；公钥来自 `plugins.trustedKeysFile`；无新依赖 |
+| `infrastructure/plugin-policy.repository.ts` | `plugin_policies` 表 | `PluginPolicyRepository` | `drizzle-orm` | app 连接池写；collab 以 system 连接池只读 |
+| `infrastructure/user-plugin-prefs.repository.ts` | `user_plugin_prefs` 表 | `UserPluginPrefsRepository` | `drizzle-orm` | 用户擦除时不删（只含插件 id 与开关，不是个人数据；`UsersModule` 保持叶子，不反向依赖本模块） |
+| `infrastructure/policy-notifier.ts` | 在线通知 | `PolicyNotifier` | `RedisModule`、`keys.ts` | 提交后 PUBLISH `plugins:ctl`，尽力而为；collab 另有 60 s 轮询兜底 |
+| `interface/admin-plugins.controller.ts` | 管理员 REST | `AdminPluginsController` | protocol `rest/plugins.ts` | `GET /admin/plugins`、`GET /admin/plugins/:pluginId`、`PATCH /admin/plugins`、`PUT /admin/plugins/:pluginId/config`（M4） |
+| `interface/my-plugins.controller.ts` | 个人 REST | `MyPluginsController` | protocol `rest/plugins.ts` | `GET /users/me/plugins`、`PUT` 与 `DELETE /users/me/plugins/:pluginId` |
+| `__tests__/plugin-catalog.test.ts` | 单测 | — | — | 十个被拒原因码逐项可达；声明文件格式错误退出码 78 |
+| `__tests__/policy.test.ts` | 单测 | — | — | 作用域 × 三态 × 必需性表驱动 |
+| `__tests__/fingerprint.test.ts` | 单测 | — | — | 顺序无关、策略变化只改 `policy` 段 |
+| `__tests__/update-plugin-policies.usecase.test.ts` | 单测 | — | — | If-Match、整批回滚、审计同事务 |
+
+**图 5-1 PluginsModule 在各角色中的用法**
+
+```mermaid
+flowchart LR
+  file["声明文件 plugins.catalogFile 与镜像内置清单"]
+  catalog["PluginCatalog：启动时部署校验"]
+  api["api：两个控制器与用例"]
+  collab["collab：指纹判定与 plugins:ctl 订阅"]
+  worker["worker 与 renderer：headless 内容级集合"]
+  pol["plugin_policies"]
+  prefs["user_plugin_prefs"]
+  audit["audit_log：plugin.*"]
+  ch["Valkey 频道 plugins:ctl"]
+  file --> catalog
+  catalog --> api
+  catalog --> collab
+  catalog --> worker
+  api --> pol
+  api --> prefs
+  api --> audit
+  api --> ch
+  ch --> collab
+  pol -. "只读重算 policy 摘要" .-> collab
+```
+
+怎么读：四种角色都在启动时读同一份声明文件并得出同一份校验结果；只有 api 写两张表与审计，并在提交后发布控制频道；collab 靠频道即时得知、靠只读查表兜底，worker 与 renderer 只取内容级集合做 headless 导入导出。
+依据：PRD 09 PM-04、PM-05、PM-08、PM-13；60-backend/01 §5；60-backend/03 §12。
 
 ## 6. 对外 API 面
 
@@ -1109,6 +1208,12 @@ pnpm --filter apps-server test:e2e -- auth documents media route-auth-coverage
 |---|---|---|
 | BE-05+TX-22（唯一 owner 空窗） | §4.3/§5.3 `update-profile.usecase.ts`、新增 `erase-user.usecase.ts`、`user.repository.ts`；§4.5/§5.5 新增 `reassign-owner.usecase.ts`、`permissions.module.ts` 导出 | 停用与擦除的响应、审计附 `soleOwnerDocCount`（经 SECURITY DEFINER 函数计数，UsersModule 仍是叶子）；`ReassignOwnerUseCase` 供 `cordex-ops documents:reassign-owner`（40/12 §4.13），M4 管理面板复用；`EraseUserUseCase` 原无文件级落点，按 60/03 §3.3 一并登记 |
 | BE-11+TX-12 ⑤ | §5.4 `documents.module.ts` | 依赖列改为 `PermissionsModule`、`JobsModule`、`StorageModule` |
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 裁决 1–3、O-1、O-2、O-4（2026-10-01 已确认）；PRD 09 PM-01…PM-09、PM-13、PM-14 | §3 表、新增 §4.11、§5.11 | 新增 `PluginsModule` / `PluginsHttpModule`（26 个文件，§4 与 §5 各增 26）：声明文件与部署时校验、Ed25519 签名（`node:crypto`，无新依赖）、策略三态与个人选择仓储、插件集指纹、管理员与个人 REST、被拒插件审计；表与迁移在 60-backend/09 §14，模块卡在 60-backend/03 §12 |
 
 ## 13. 未决问题
 

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：登记 z.config jitless 调用点（apps/web main.tsx 与三个 dom preset 的 config/options）；§3.4 登记 50/13 §6 七个新惰性 chunk 的构建入口与 bundle-budget 条目；collab-transport-ws 配置 heartbeatMs 改为 messageReconnectTimeoutMs） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：登记 z.config jitless 调用点（apps/web main.tsx 与三个 dom preset 的 config/options）；§3.4 登记 50/13 §6 七个新惰性 chunk 的构建入口与 bundle-budget 条目；collab-transport-ws 配置 heartbeatMs 改为 messageReconnectTimeoutMs）；2026-10-01（§4.23 插件管理：apps/web 增 10 个文件——`/admin/plugins` 路由与 `RequirePlatformAdmin` 守卫、`pages/editor/footprint-banner.tsx`、`application/plugins/` 三个文件、`domain/plugins/` 两个纯函数文件、M4 `application/host/load-mounted-plugins.ts`、`plugins.api.ts`；`PluginManagerPage`（`/documents/:id/plugins`）改为个人插件面板）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
 
 # 11 预设装配与应用壳（限界上下文 BC-16 预设装配、BC-17 应用壳）
 
@@ -429,7 +429,7 @@ packages/preset-slide-viewer/src/
 - `shell/` 不 import `react`，只 import `@cordexjs/design`（type-only + CSS）与 kernel 类型，运行时经 `ctx.get('render'|'thumbnails'|'units')` 取服务（原 `assembly/` 同规则现随其一并迁至 `@cordexjs/kernel/src/preset/`，C-07）。
 - 查看器壳的「最小必要原子组件」（设计 25：Button、Progress/Spinner）以 `styles/viewer.css` 的 `[data-slot="button"]` 等类实现，不复用 ui-react 的 React 复制件（§13 Q-4）。
 
-### 4.4 `apps/web`（根 10 文件 + `src/` 89 文件）
+### 4.4 `apps/web`（根 10 文件 + `src/` 89 文件；2026-10-01 插件管理增 10 个，rulings §4.23）
 
 **图 4-1 apps/web 分层依赖**
 
@@ -505,6 +505,7 @@ apps/web/
     │   │   └── RenderLayout.tsx     # /render：无 chrome、固定视口、禁字体外呼、<div id="stage">
     │   └── guards/
     │       ├── RequireSession.tsx   # session.state !== 'authenticated' → /login?next=；expired：编辑器页有 pending 时不跳转（交横幅「重新登录」，§4.18 UX-02），否则跳 /login?next=
+    │       ├── RequirePlatformAdmin.tsx # 2026-10-01（§4.23）：/admin/* 守卫，Principal.platformRole !== 'admin' → 回 /home 并 toast「需要管理员权限」（PRD 09 PM-01）
     │       └── RenderQuery.tsx      # /render：无会话，仅校验 RenderPageQuery 形状（renderId 只作日志关联，§4.18 BE-04）；失败 → window.__cordex.error('render.bad_query')
     ├── pages/                       # = interface：路由级容器，不持有业务状态
     │   ├── home/
@@ -520,14 +521,16 @@ apps/web/
     │   ├── import/ImportPage.tsx    # 拖放 / 文件选择 → 本地打开或入库任务；进度阶段、失败态全集、降级占位（设计 13）
     │   ├── editor/
     │   │   ├── EditorPage.tsx       # useLoader(open-document) → createEditorHost → <EditorHost …/>；EditorPageState 渲染；卸载 dispose（HostRegistry 保活例外）
-    │   │   └── editor-intents.ts    # onIntent(intent) 分发表（§3.5）
+    │   │   ├── editor-intents.ts    # onIntent(intent) 分发表（§3.5）
+    │   │   └── footprint-banner.tsx # 2026-10-01（§4.23）：缺插件横幅与「插件设置已更新」横幅的挂载点（ui-react MissingPluginsBanner）；每文档每会话一次
     │   ├── viewer/ViewerPage.tsx    # preset-slide-viewer：createEditorHost({preset:'view'}) → preset.mount(container)（只留给 M1 查看器与嵌入）
     │   ├── present/PresentPage.tsx  # 复用 HostRegistry host；view.setMode('presenter')；?page= 同步（2026-09-25 由 ?slide= 改名）；退出 → 回编辑器
     │   ├── share/ShareDialog.tsx    # 对话框路由（设计 08）：按人邀请（只对已存在账号生效，无账号提示联系管理员，rulings §4.17 D1）/ 角色 / 链接权限（链接始终需登录）/ 即时反馈；M3 只按人分享，无组主体（U-11 推迟，rulings §4.15 Q6）
     │   ├── history/VersionHistoryPage.tsx  # 抽屉页（设计 07）：自动 / 命名版本、对比、恢复（AlertDialog 确认）
     │   ├── export/ExportDialog.tsx  # 对话框路由（设计 22）：格式 / 范围 / 进度 / 失败重试
     │   ├── fidelity/FidelityReportPage.tsx  # 抽屉页（设计 10）：ImportResult 诊断分组
-    │   ├── plugins/PluginManagerPage.tsx    # 抽屉页（设计 09 / PS-11）：PresetReport 条目、PENDING / 失败恢复、贡献清单
+    │   ├── plugins/PluginManagerPage.tsx    # 抽屉页 = 个人插件面板（2026-10-01 改，PRD 09 PM-10 / PS-11，设计 03-09 已重写）：渲染 ui-react PersonalPluginPanel；PresetReport + 生效插件集 + 足迹缺口三源合并
+    │   ├── admin/AdminPluginsPage.tsx       # 2026-10-01（§4.23）：/admin/plugins「管理 › 插件」（PRD 09 PM-06、PM-07；设计 03-32 已回写）：AdminPluginTable + 确认卡；If-Match 保存
     │   ├── settings/SettingsPage.tsx        # ui-react SettingsDrawer 独立态；关闭 = 保存并返回来路（无来路 → /home）
     │   ├── templates/TemplatesPage.tsx      # M3：分类 / 搜索 / 预览 / 集成方模板源
     │   ├── auth/
@@ -547,7 +550,8 @@ apps/web/
     │   │   ├── create-editor-host.ts    # ★ 仓库中唯一调用 createHost / createSlide*Preset 的应用代码；switch(preset, documentType)
     │   │   ├── sinks.ts             # errors.sink / telemetry.sink 选择（console / otel-web / noop）→ HostOptions.loggerSink + configure['kernel']
     │   │   ├── host-event-bridge.ts # §2.4 转发表：ctx.on → AppEvents / callbacks.onEvent / postMessage；≥ 50 ms 合并
-    │   │   └── host-registry.ts     # documentId → { host, unitId, refCount }；编辑器族路由间切换不重建 host；离开族或 idle 60 s dispose
+    │   │   ├── host-registry.ts     # documentId → { host, unitId, refCount }；编辑器族路由间切换不重建 host；离开族或 idle 60 s dispose
+    │   │   └── load-mounted-plugins.ts # M4（§4.23）：按生效插件集的 entry（同源 /plugins/{sha256}/…）动态 import()；CSP script-src 'self' 不放宽；无任何「加载插件」界面
     │   ├── documents/
     │   │   ├── open-document.usecase.ts     # GET /documents/:id → GET …/snapshots/latest 直接取字节（ETag/304，BE-12）+ POST collab-ticket → CreateEditorHostParams{preset:'collab', source:{kind:'state'}}（M2 起服务端文档一律协同快照打开，rulings §4.19 D-M2-CONTENT）；viewer 角色 mode='view'（UX-19）
     │   │   ├── create-document.usecase.ts   # 空白 / 内置模板（DOCUMENT_TYPES[*].newCards）：取模板字节 → 服务端两步导入 → GET /jobs/:id → 以 import 快照打开（M2，D-M2-CONTENT；无 pptx 内容版本端点）
@@ -560,6 +564,10 @@ apps/web/
     │   │   ├── share-document.usecase.ts    # permissions / share-links（M3）
     │   │   └── share-landing.ts             # 分享链接落地：片段令牌读入 sessionStorage cordex.share.{docId} 后清地址栏片段（50/02 §11，2026-09-25 登记）
     │   ├── versions/versions.usecase.ts        # 列表 / 命名 / 恢复
+    │   ├── plugins/                            # 2026-10-01（§4.23，PRD 09）
+    │   │   ├── plugin-set.ts                   # GET /users/me/plugins（打开文档前取，指纹入 Auth token 与错误上报）；PUT/DELETE 个人选择后经 EditorHostHandle 对界面级条目 Fiber 启动或 dispose（热切换）；emit plugin/user-toggled
+    │   │   ├── admin-plugins.usecase.ts        # 管理员清单、详情、批量保存（If-Match、412 刷新重试）；emit plugin/policy-changed
+    │   │   └── footprint-check.usecase.ts      # 会话装配后调 model-core comparePluginFootprint；驱动缺插件横幅（每文档每会话一次）与面板分组；emit plugin/missing-in-document
     │   ├── settings/preferences.usecase.ts     # 读写 Preferences；广播 app/preferences-changed；同步到 host（i18n/theme/ui.setPreference）
     │   ├── auth/
     │   │   ├── session.usecase.ts           # probe（GET /auth/me）/ login / refresh / logout；Session 状态机；刷新 401 → expired，有 pending 时不自动跳 /login（§4.18 UX-02）
@@ -573,6 +581,7 @@ apps/web/
     │   │   ├── auth.api.ts          # /auth/oidc/login、/auth/me、/auth/token/refresh、/auth/logout、协同 ticket（rest/auth.ts）
     │   │   ├── documents.api.ts     # /documents*、permissions、share-links、thumbnails（rest/documents.ts）
     │   │   ├── snapshots.api.ts     # /documents/:id/snapshots*（rest/snapshots.ts）；latest 直接取字节，无预签名中转（§4.18 BE-12）
+    │   │   ├── plugins.api.ts       # 2026-10-01（§4.23）：/users/me/plugins*、/admin/plugins*（rest/plugins.ts）
     │   │   └── import-export.api.ts # /imports/uploads、/imports、/imports/:jobId/cancel（UX-14）、/jobs/:id（唯一状态查询，SG-08）、/documents/:id/export、/exports/:jobId（rest/import-export.ts；2026-09-25 由 tasks.api.ts 改名，BE-12/BE-10）
     │   ├── render-injection.ts      # 等待并校验 window.__cordex.inject({state,resources})（RenderStateResponse schema）；超时为页面常量 RENDER_INJECT_TIMEOUT_MS；页面零外呼（仅 /render 页使用，替代原 api/render-state.api.ts，rulings §4.15 Q8、§4.18 BE-04）
     │   ├── media/
@@ -601,6 +610,9 @@ apps/web/
     │   ├── online-state.ts          # OnlineState
     │   ├── preferences.ts           # PreferencesSchema + 默认
     │   ├── host-options.ts          # paramsToPresetOptions（纯映射）
+    │   ├── plugins/                 # 2026-10-01（§4.23）
+    │   │   ├── compute-exclude.ts   # exclude = preset 条目 − (内容级集合 ∪ 强制界面级 ∪ 本人开启的 optional)（纯函数，create-editor-host 调用）
+    │   │   └── plugin-set.ts        # EffectivePluginSetVM、PluginSetFingerprint 比较、面板三分组与横幅文案
     │   └── app-events.ts            # typed EventTarget：app/* 事件（§2.4）
     ├── styles/
     │   ├── index.css                # @import "@cordexjs/ui-react/styles.css"（preflight + 主题变量）+ @source 指向 src；应用页面工具类
@@ -714,6 +726,7 @@ apps/web/
 | `src/app/layouts/BareLayout.tsx` | 全幅布局 | `BareLayout` | `react-router` | — |
 | `src/app/layouts/RenderLayout.tsx` | 渲染页布局 | `RenderLayout` | — | 禁字体外呼、固定视口 `#stage` |
 | `src/app/guards/RequireSession.tsx` | 会话守卫 | `RequireSession` | `../../application/auth/session.usecase`、`../../domain/routes` | `expired`：编辑器页有 pending 时不跳转、交横幅（UX-02），否则跳 `/login?next=` |
+| `src/app/guards/RequirePlatformAdmin.tsx`（2026-10-01，rulings §4.23） | 管理员路由守卫 | `RequirePlatformAdmin` | `../../application/auth/session.usecase`、`../../domain/routes` | 非管理员回 `/home` + toast「需要管理员权限」；降为 member 后在会话复核周期内失去访问（PRD 09 PM-01） |
 | `src/app/guards/RenderQuery.tsx` | 渲染页查询守卫（2026-09-25 由 `RenderToken.tsx` 改名，BE-04） | `RenderQuery` | `../../pages/render/render-page-protocol` | 非会话；只校验 `RenderPageQuery` 形状 |
 | `src/pages/home/HomePage.tsx` | 开始页容器 | `HomePage` | `./NewSection`/`RecentSection`/`GuideSection`/`OfflineBanner`、`@cordexjs/ui-react/ui` | 主区 ≤ 1024，三段锚点 |
 | `src/pages/home/NewSection.tsx` | 新建段 | `NewSection` | `../../application/documents/create-document.usecase`、`../../domain/document-type`（`DOCUMENT_TYPES[*].newCards`） | 离线禁用 + tooltip；多文档类型时按类型分组 |
@@ -732,7 +745,9 @@ apps/web/
 | `src/pages/history/VersionHistoryPage.tsx` | 版本历史 | `VersionHistoryPage` | `../../application/versions/versions.usecase` | 设计 07 |
 | `src/pages/export/ExportDialog.tsx` | 导出对话框 | `ExportDialog` | `../../application/import-export/export-document.usecase` | 设计 22 |
 | `src/pages/fidelity/FidelityReportPage.tsx` | 保真报告 | `FidelityReportPage` | `../../application/host/host-registry`（读 `unit/opened` 载荷缓存） | 设计 10 |
-| `src/pages/plugins/PluginManagerPage.tsx` | 插件管理器 | `PluginManagerPage` | `../../application/host/host-registry`（`PresetReport`） | 设计 09；PS-11 |
+| `src/pages/plugins/PluginManagerPage.tsx` | 个人插件面板（2026-10-01 由「插件管理器」改为 PRD 09 PM-10 的面板） | `PluginManagerPage` | `../../application/host/host-registry`（`PresetReport`）、`../../application/plugins/*`、`@cordexjs/ui-react`（`PersonalPluginPanel`） | 设计 03-09（重写，待样张）；PS-11；M2 只读 + 诊断 + 重试，M3 起个人开关 |
+| `src/pages/editor/footprint-banner.tsx`（2026-10-01，rulings §4.23） | 缺插件与设置更新横幅 | `FootprintBanner` | `../../application/plugins/footprint-check.usecase`、`@cordexjs/ui-react`（`MissingPluginsBanner`、`PluginSettingsUpdatedBanner`） | 「查看详情」打开 `/documents/:id/plugins` 的「本文档缺少的插件」分组；「重新加载」先 flush 再刷新（50/02 §12） |
+| `src/pages/admin/AdminPluginsPage.tsx`（2026-10-01，rulings §4.23） | 管理员插件管理页 | `AdminPluginsPage` | `../../application/plugins/admin-plugins.usecase`、`@cordexjs/ui-react`（`AdminPluginTable`、`PluginChangeConfirmCard`） | 路由 `/admin/plugins`（50/02 §2）；M3 能看能改（O-4 已确认）；设计 03-32（新建，待样张） |
 | `src/pages/settings/SettingsPage.tsx` | 设置页 | `SettingsPage` | `@cordexjs/ui-react`（`SettingsDrawer` 独立态）、`../../application/settings/preferences.usecase` | 关闭 = 保存并返回 |
 | `src/pages/templates/TemplatesPage.tsx` | 模板库（M3） | `TemplatesPage` | `../../domain/document-type`（`newCards`）、`infrastructure/api/documents.api`（模板端点待 60/15 登记，50/02 §13.3） | AS-03 |
 | `src/pages/auth/LoginPage.tsx` | 登录页 | `LoginPage` | `../../application/auth/session.usecase` | 外置 OIDC；注册入口随 `auth.selfSignup`（默认关）；`auth.mode:'none'` 仅 dev 构建直进（rulings §4.15 Q6） |
@@ -752,6 +767,7 @@ apps/web/
 | `src/application/host/create-editor-host.ts` | ★ 唯一 `createHost`/`createSlide*Preset` 调用点 | `createEditorHost(params): Promise<EditorHostHandle>`、`CreateEditorHostParamsSchema`、`EditorHostHandle{ host; unitId; report; preset; dispose() }` | `@cordexjs/kernel`、`@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer`、`./sinks`、`./host-event-bridge`、`../../domain/host-options`、`../../domain/document-type` | `switch(params.preset)` × `resolveDocumentType(documentType).presetKey`（§8 参数化点 ②） |
 | `src/application/host/sinks.ts` | sink 选择 | `selectSinks(cfg): { loggerSink; configure }` | `../../infrastructure/telemetry/console-sink`、`@cordexjs/kernel`（类型） | 经 `HostOptions`，非 `contribute` |
 | `src/application/host/host-event-bridge.ts` | 事件桥 | `attachHostEventBridge(handle, sinks: { app; onEvent?; postMessage? }): () => void` | `@cordexjs/kernel`（`ctx.on` 类型）、`../../domain/app-events` | §2.4 表；≥ 50 ms 合并 |
+| `src/application/host/load-mounted-plugins.ts`（M4，rulings §4.23） | 挂载目录插件加载 | `loadMountedPlugins(entries)` | `@cordexjs/kernel`、`../../infrastructure/security/trusted-types` | 只加载生效插件集给出的同源 `entry`（`/plugins/{sha256}/…`，60-backend/17 §3）；经 `toScriptUrl`；失败按 Fiber 失败隔离 |
 | `src/application/host/host-registry.ts` | host 保活登记 | `HostRegistry`（`get/acquire/release`）、`useHostRegistry` | `./create-editor-host` | 编辑器族路由间复用；idle 60 s dispose |
 | `src/application/documents/open-document.usecase.ts` | 打开文档 | `openDocument(id, deps): Promise<Result<CreateEditorHostParams, ErrorEnvelope>>` | `../ports`、`../../domain/*` | 服务端文档一律 `preset:'collab'`、`source.kind:'state'`：`GET snapshots/latest` 直接取字节（BE-12）+ 票据 + WS（任何角色，含 viewer 以 `mode='view'`，UX-19）；2026-09-25 删「collab 特性开启」分支——M2 起内容以协同快照为唯一事实源（rulings §4.19 D-M2-CONTENT） |
 | `src/application/documents/create-document.usecase.ts` | 新建 | `createDocument({ documentType, title, templateId? })` | `../ports`、`../../domain/document-type`（`newCards`） | 取模板字节 → 服务端两步导入 → `GET /jobs/:id` → 以 `import` 快照打开（M2，D-M2-CONTENT；无 pptx 内容版本端点） |
@@ -761,6 +777,9 @@ apps/web/
 | `src/application/import-export/export-document.usecase.ts` | 导出 / 回调式保存 | `exportPptx(handle)`、`exportServer(id, format)`、`saveIfDirty(handle)` | `../ports`、`@cordexjs/kernel`（`commands` 类型） | `core.export`（M-02 内置命令） |
 | `src/application/sharing/share-document.usecase.ts` | 分享 | `loadSharing`、`grant`、`revoke`、`createShareLink`、`deleteShareLink` | `../ports` | — |
 | `src/application/sharing/share-landing.ts` | 分享链接落地（2026-09-25 登记） | `landShareToken(location)` | `../ports`（Storage） | 片段令牌读入 sessionStorage `cordex.share.{docId}` 后清地址栏片段；`share-landing.test.ts`（50/02 §11、§13.1） |
+| `src/application/plugins/plugin-set.ts`（2026-10-01，rulings §4.23） | 生效插件集与个人启停 | `loadEffectivePluginSet`、`setPersonalPlugin`、`resetPersonalPlugin` | `../ports`、`../host/host-registry`（`EditorHostHandle`）、`../../domain/plugins/plugin-set` | 打开文档前取；指纹写入协同 Auth token（50/07）与错误上报（50/15）；启停经 `EditorHostHandle` 对界面级条目 Fiber 启动或 dispose，无残留（PS-06 第 2 项）；不写审计 |
+| `src/application/plugins/admin-plugins.usecase.ts` | 管理员插件用例 | `listAdminPlugins`、`getAdminPlugin`、`savePluginPolicies` | `../ports` | 412 时重新拉取并提示「设置已被他人修改」 |
+| `src/application/plugins/footprint-check.usecase.ts` | 足迹比对 | `checkPluginFootprint(host, unitId, effectiveSet)` | `../ports`、`@cordexjs/model-core`（`comparePluginFootprint`，类型与纯函数） | 打开时与装配完成后各算一次；只在 `affectedSlideIds` 非空时出横幅（ADR-0050） |
 | `src/application/versions/versions.usecase.ts` | 版本 | `listVersions`、`nameVersion`、`restoreVersion` | `../ports` | 恢复后 `HostRegistry.release` + 重开 |
 | `src/application/settings/preferences.usecase.ts` | 偏好 | `readPreferences`、`updatePreferences(patch)`、`syncPreferencesToHost(handle, prefs)` | `../ports`、`../../domain/preferences`、`../../domain/app-events` | 同步：`i18n.setLocale`、`theme.set/setDensity`、`ui.setPreference` |
 | `src/application/auth/session.usecase.ts` | 会话 | `probeSession`、`beginLogin(next)`、`refreshSession`、`logout`、`SessionStore` | `../ports`、`../../domain/session` | 状态机唯一写入者；刷新 401 → `expired`、网络错误才 `network`；有 pending 时不自动跳转（UX-02） |
@@ -772,6 +791,7 @@ apps/web/
 | `src/infrastructure/api/auth.api.ts` | 鉴权 REST | `AuthApi` | `./http`、`@cordexjs/protocol`（`rest/auth` DTO；protocol 未登记 `./rest` 子路径，经根入口 import，FE-04） | 协同 ticket 路径以 M-08 为准 |
 | `src/infrastructure/api/documents.api.ts` | 文档 REST | `DocumentsApi` | `./http`、`@cordexjs/protocol`（`rest/documents`） | 含 permissions / share-links / thumbnails |
 | `src/infrastructure/api/snapshots.api.ts` | 快照 REST | `SnapshotsApi` | `./http`、`@cordexjs/protocol`（`rest/snapshots`） | `GET …/latest` 直接取字节（ETag/304；2026-09-25 删「预签名 → 字节 fetch」，rulings §4.18 BE-12） |
+| `src/infrastructure/api/plugins.api.ts`（2026-10-01，rulings §4.23） | 插件 REST | `PluginsApi` | `./http`、`@cordexjs/protocol`（`rest/plugins`） | `/users/me/plugins*`、`/admin/plugins*`（60-backend/15 §3.15）；`PATCH` 带 `If-Match` |
 | `src/infrastructure/api/import-export.api.ts` | 导入导出 REST（2026-09-25 由 `tasks.api.ts` 改名，BE-12） | `ImportExportApi` | `./http`、`@cordexjs/protocol`（`rest/import-export`） | `/imports/uploads`、`/imports`、`/imports/:jobId/cancel`、`/jobs/:id`（唯一状态查询，SG-08；删 `/imports/:jobId`）（`#/import` 过渡页「取消」：上传中中止 PUT、解析中取消作业，作业转 `cancelled`，rulings §4.18 UX-14）、`/documents/:id/export`、`/exports/:jobId`；`TaskState` 轮询（退避） |
 | `src/infrastructure/render-injection.ts` | 渲染态注入接收（2026-09-24 替代 `api/render-state.api.ts`，rulings §4.15 Q8） | `awaitRenderInjection(renderId)`（超时取页面常量 `RENDER_INJECT_TIMEOUT_MS`，默认 60 s，rulings §4.18 BE-04） | `../pages/render/render-page-protocol` | 仅 `/render` chunk；不 import `./api/http`（零外呼，lint 断言） |
 | `src/infrastructure/media/media-uploader.ts` | 媒体上传默认实现（2026-09-25 登记） | `createMediaUploader(api)` | `../api/*` | `POST /documents/:id/media/presign` → `direct-upload` → `.../media/commit`（文档作用域，INC-21）；供 preset 的媒体插入使用 |
@@ -794,6 +814,8 @@ apps/web/
 | `src/domain/online-state.ts` | 在线态 | `OnlineState` | 无 | — |
 | `src/domain/preferences.ts` | 偏好 schema | `PreferencesSchema`、`DEFAULT_PREFERENCES` | `@cordexjs/protocol/schema` | 设计 23 字段 |
 | `src/domain/host-options.ts` | 参数 → 选项映射 | `paramsToPresetOptions` | `@cordexjs/preset-slide*`（类型） | 不调用工厂 |
+| `src/domain/plugins/compute-exclude.ts`（2026-10-01，rulings §4.23） | 按策略计算 preset 裁剪 | `computeExclude(presetEntries, effectiveSet)` | `@cordexjs/protocol`（`rest/plugins` 类型）、`../host-options` | 纯函数；由 `create-editor-host.ts` 调用（50/03 §2、§5） |
+| `src/domain/plugins/plugin-set.ts`（2026-10-01，rulings §4.23） | 插件集视图模型 | `EffectivePluginSetVM`、`sameFingerprint`、`groupForPanel`、`missingPluginMessage` | `@cordexjs/protocol`（`rest/plugins` 类型） | 纯函数；横幅文案按 `disabled`/`absent`/`outdated`/`failed` 区分（PRD 09 PM-12） |
 | `src/domain/app-events.ts` | 应用事件 | `AppEvents`（typed EventTarget）、`AppEventMap` | 无 | `app/*` 非 cordis |
 | `src/styles/index.css` | 应用样式入口 | — | `@cordexjs/ui-react/styles.css` | `@source` 指向 `src/` |
 | `src/styles/brand.css` | 品牌覆盖变量 | — | — | 默认空 |
@@ -1124,6 +1146,14 @@ pnpm --filter apps-web e2e -- home-to-editor viewer                             
 | 依据 | 改动位置 | 摘要 |
 |---|---|---|
 | FE-01（UnitScope 默认 Provider 登记 API） | §1.2 预设条目、§3.1 `model-core`/`store-memory`/`comments` 行、§4.2 `derive.ts`、§13 Q-2 结案 | `scope:'unit'` 条目在 mount 时经 `units.registerUnitProvider` 登记；删 `model-core.defaultStoreProvider`；comments 按 Unit 的服务改为 `scope:'unit'` 登记，不再经 `unitPlugins` |
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 裁决 1–3、O-1、O-2、O-4（2026-10-01 已确认）；PRD 09 PM-01、PM-06…PM-08、PM-10、PM-12 | §4.4、§5.4 a/b | 新增 `/admin/plugins` 路由页与 `RequirePlatformAdmin` 守卫；`pages/editor/footprint-banner.tsx`；`application/plugins/` 三个文件（`plugin-set.ts` 生效插件集与个人启停热切换、管理员清单与保存、足迹比对）；`domain/plugins/compute-exclude.ts`（`exclude` = preset 条目 − 生效集合）与 `domain/plugins/plugin-set.ts`；M4 `application/host/load-mounted-plugins.ts`（同源动态 `import()`，无加载界面）；`infrastructure/api/plugins.api.ts`；`PluginManagerPage`（`/documents/:id/plugins`）改为个人插件面板。§4 与 §5 各增 10 |
+
+**口径对照**：apps/web 没有 `features/` 层；插件管理的前端文件按现有 DDD 目录登记（与 50-frontend 线同一组路径）：`application/plugins/plugin-set.ts`、`domain/plugins/compute-exclude.ts`、`pages/admin/AdminPluginsPage.tsx`、`pages/editor/footprint-banner.tsx`，守卫 `RequirePlatformAdmin`，个人插件面板路由 `/documents/:id/plugins`；`kernel` 值导入仍只在 `application/host/`。
 
 ## 13. 未决问题
 

@@ -1,6 +1,6 @@
 # 03 内核与插件模型：kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset 与版本协商
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG））；2026-09-26（§4.20）（FE-06：§3.6 `ContributionBase.enablement`、`ui.shortcut`/`ui.command` 带 `enablement`，上下文键补 `editorMode`、`unitLoaded`、`can.*` 并改指 50-frontend/09 §6.3；FE-01：§5.1 伪代码改为按登记表挂载、新增 §5.1a `units.registerUnitProvider`/`listUnitProviders`、§9 `PresetEntry` 补 `scope` 与 `provides`；§11 补两行机械验证）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG））；2026-09-26（§4.20）（FE-06：§3.6 `ContributionBase.enablement`、`ui.shortcut`/`ui.command` 带 `enablement`，上下文键补 `editorMode`、`unitLoaded`、`can.*` 并改指 50-frontend/09 §6.3；FE-01：§5.1 伪代码改为按登记表挂载、新增 §5.1a `units.registerUnitProvider`/`listUnitProviders`、§9 `PresetEntry` 补 `scope` 与 `provides`；§11 补两行机械验证）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§4.1 Manifest 增 `scope` 字段；新增 §4.3 作用域判定、界面级写命令拒绝与内容插件足迹维护） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
 > 事实来源：`cordis@4.0.0-rc.10` 生成式 API 文档（Context / Fiber / Events / Registry / Service）与 `cordis-primer.md`。凡标注「草案」的签名允许在实现期微调，但**语义**（谁拥有生命周期、失败如何隔离、何时 PENDING）不得改变。
 
 ---
@@ -339,6 +339,7 @@ interface Manifest {
   documentTypes: string[]         // 本包贡献或专属的文档类型（垂直束填 bundle；水平层为空数组）
   permissions: string[]           // 本包命令/Mutation 声明使用的能力位集合（静态收集 CommandDef.permission 字面量；PRD PS-01）
   i18n: string[]                  // 本包贡献的 i18n 命名空间
+  scope: 'content' | 'ui'         // 作用域（2026-10-01，rulings §4.23；PRD PS-01、PM-02）：生成器按 contributes / implements 推出最低作用域，作者只能声明得更严；见 §4.3
   generatedAt: string; generator: string   // 溯源
 }
 ```
@@ -373,6 +374,40 @@ flowchart TB
 - 不能识别（动态字符串、循环内计算的 key）：生成器记 `count: 'dynamic'` 并在 `--check` 下要求源码用 `/* cordex-manifest: dynamic */` 注释显式承认；否则失败。宁可拒绝，不可猜。
 - 运行时比对：`provides` 与 `injects` 必须完全一致；`contributes` 的 point 集合必须一致，keys 允许运行时多于静态（dynamic）但不得少于静态；`events.listens` 允许运行时多于静态（条件监听）。
 
+
+### 4.3 作用域、界面级写命令拒绝与内容插件足迹（2026-10-01，rulings §4.23）
+
+插件按作用域分两类（术语见章程 §4）：**内容级插件**（`scope:'content'`）会改变文档内容、渲染结果、导入导出或部署的基础行为，按部署统一启停；**界面级插件**（`scope:'ui'`）只改变本人看到的界面，管理员允许时可个人启停（PRD 09 PM-03、PM-10）。内核对作用域有三处落点：
+
+1. **判定（构建期与部署时）**：清单生成器按 PRD 09 §2.2 的规则从 `contributes` 与 `implements` 推出最低作用域——贡献 `core.documentType`、`core.format`、`core.mutation`、`core.migration`、`core.resource`、`core.permissionPolicy`、`render.scene` / `render.target` / `render.element`、`layout.measurer`、`slide.shapeKind`，带写能力位（`doc.write` 或 `doc.comment`）的 `core.command`，实现任一 Provider 座，或贡献 `errors.sink` / `telemetry.sink`，即为内容级；只贡献 `ui.*`、`i18n.bundle`、`render.overlay` 与只读 `core.command` 才可能是界面级；未知贡献点默认内容级。作者声明的 `scope` 低于推出结果时 `manifest-gen --check` 失败，部署时校验同样拒绝（原因码 `scope_downgrade`）。各贡献点的归类见 40-modules/16 §4。
+2. **运行期拒绝**：命令管线（`core.command` 的单一执行入口，ADR-0015）在执行前查命令所属插件的 `scope`；界面级插件的命令尝试产生文档写入（Mutation 或资源写）时按未授权拒绝，与权限拒绝同路径（fail-closed，ADR-0012），并发诊断事件 `plugin/scope-violation {pluginId, commandId}`。因此个人启停界面级插件不会让协作者看到不同的文档内容（PM-13 第 3 条）。
+3. **足迹维护**：命令管线在事务提交前把本事务写入的元素 kind 与资源命名空间映射到负责的内容级插件，必要时把 `resources['core.pluginFootprint']` 的更新并入同一事务，只增不减（[ADR-0050](./adr/0050-content-plugin-footprint.md)；命名空间见 04 §2.7）。
+
+**图 4-2 命令执行时的作用域检查与足迹更新**
+
+```mermaid
+flowchart TB
+  cmd["命令进入单一执行入口"]
+  perm{"权限检查通过"}
+  scope{"命令所属插件为界面级，且会写文档"}
+  deny["拒绝：未授权，发 plugin/scope-violation"]
+  run["执行，得到事务的 StoreOp"]
+  own{"写入的 kind 或命名空间属于内容级插件，且足迹缺条目或版本更高"}
+  fp["足迹更新并入同一事务"]
+  commit["提交事务"]
+  cmd --> perm
+  perm -->|"否"| deny
+  perm -->|"是"| scope
+  scope -->|"是"| deny
+  scope -->|"否"| run
+  run --> own
+  own -->|"是"| fp
+  own -->|"否"| commit
+  fp --> commit
+```
+
+怎么读：作用域检查紧跟在权限检查之后，二者走同一个拒绝出口；通过后才执行命令。足迹更新发生在提交前、与内容同一事务，所以协同的另一端要么同时看到内容与足迹，要么都看不到。
+依据：rulings §4.23 裁决 3；PRD 09 PM-02、PM-13；ADR-0012、ADR-0015、ADR-0050。
 ---
 
 ## 5. UnitScope：每个打开的文档一个作用域

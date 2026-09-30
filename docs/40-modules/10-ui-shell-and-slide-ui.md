@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-10） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）、2026-09-26（§4.20 FE-08）、2026-09-26（§4.21：插入页签分组与命令绑定按设计 03-04 统一、超链接改 M2 P1、表格 M2 可插入；快捷键逐条登记；cn 改 codemod；颜色面板用 react-colorful；形状库数据文件、插入工具态、元素手柄、图标与符号面板）；2026-09-26（§4.21 整合：登记 ui-react 4 个与 slide-ui 17 个新文件及依赖（GradientEditor、DataGrid、useSchemaForm、表格选区、查找替换、图表数据网格与抽屉、表格样式库等）；§3 增右键菜单与命令对照表；插入页签图表菜单与 M2 禁用、公式灰显；§6 颜色与渐变类型；§9 测试扩充；裁剪控制器统一为 crop.ts）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：BorderPicker 的边框预设改为设计 03-30 的 10 个；MiniToolbar 槽位名改为 `toolbar.chart` / `toolbar.table-cell`（前端 50/10 §5 命名））、2026-09-30（§4.22 设计待决收口：材质改三档，新增浮层档 `glass-float`；迷你工具条与画布浮签画在屏幕坐标浮层；`TableGridPicker` 悬停 8 行 × 10 列、新增 `InsertTableDialog`（上限待性能评估，暂按 75 × 75）；新增共用 `ChartTypeMenu`；图表数据面板为检查器加宽到 440；空占位符图标条单一停靠点、可折叠、表格图标弹网格；边框预设删「待用户确认」；公式按钮与 M4+ 条目禁用而不隐藏）；2026-09-30（§4.22 复核修正：§2.6 插入页签绑定行把「图标…」移到形状组（2026-09-30 样张确认），落点补「已选中的空占位符优先」，图表插入后改为展开检查器「数据」分区；§9 `insert-tool.test.ts` 补 Q1 落点断言（50/10 V21）） | 依赖：00-module-map.md M-10 / BC-13…BC-15（BC-16/17 为下游）、charter v0.2 §5.2（design / ui-core / ui-react / slide-ui 四行）§5.4 UI 行 §5.5、30-architecture 02 §4.17–4.20、03 §3.6、05 §13.3、ADR-0017（含 2026-09-16 Rhea + 材质层修订段与 2026-09-18 术语修订）、rulings §4.6–§4.10（Q9–Q21）、20-design 09 v3.1 / 04 v0.5 / 03-screens 02·03·04·15·20·24·26、50-frontend 10 §4–§7、§10.4 与 22、rulings §4.21（R-d-12、R-d-13、R-d-61、R-d-62、R-d-66、R-d-67、R-d-72、q-table-depth、q-extra-inserts）、playground `src/index.css` 与 `src/components/**`；上游模块文档 M-02 §2.4/§2.6/§3/§6、M-03 §2.6/§6、M-06 §2.5、M-07 §2.5/§2.6/§3/§6
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-10） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）、2026-09-26（§4.20 FE-08）、2026-09-26（§4.21：插入页签分组与命令绑定按设计 03-04 统一、超链接改 M2 P1、表格 M2 可插入；快捷键逐条登记；cn 改 codemod；颜色面板用 react-colorful；形状库数据文件、插入工具态、元素手柄、图标与符号面板）；2026-09-26（§4.21 整合：登记 ui-react 4 个与 slide-ui 17 个新文件及依赖（GradientEditor、DataGrid、useSchemaForm、表格选区、查找替换、图表数据网格与抽屉、表格样式库等）；§3 增右键菜单与命令对照表；插入页签图表菜单与 M2 禁用、公式灰显；§6 颜色与渐变类型；§9 测试扩充；裁剪控制器统一为 crop.ts）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：BorderPicker 的边框预设改为设计 03-30 的 10 个；MiniToolbar 槽位名改为 `toolbar.chart` / `toolbar.table-cell`（前端 50/10 §5 命名））、2026-09-30（§4.22 设计待决收口：材质改三档，新增浮层档 `glass-float`；迷你工具条与画布浮签画在屏幕坐标浮层；`TableGridPicker` 悬停 8 行 × 10 列、新增 `InsertTableDialog`（上限待性能评估，暂按 75 × 75）；新增共用 `ChartTypeMenu`；图表数据面板为检查器加宽到 440；空占位符图标条单一停靠点、可折叠、表格图标弹网格；边框预设删「待用户确认」；公式按钮与 M4+ 条目禁用而不隐藏）；2026-09-30（§4.22 复核修正：§2.6 插入页签绑定行把「图标…」移到形状组（2026-09-30 样张确认），落点补「已选中的空占位符优先」，图表插入后改为展开检查器「数据」分区；§9 `insert-tool.test.ts` 补 Q1 落点断言（50/10 V21））；2026-10-01（§4.23 插件管理：ui-react 增 `ui/plugins/` 六个组件（个人插件面板、管理员插件表、三态单选组、变更确认卡、插件详情、缺插件横幅），作为 SDK 交付物（D22），数据由调用方注入） | 依赖：00-module-map.md M-10 / BC-13…BC-15（BC-16/17 为下游）、charter v0.2 §5.2（design / ui-core / ui-react / slide-ui 四行）§5.4 UI 行 §5.5、30-architecture 02 §4.17–4.20、03 §3.6、05 §13.3、ADR-0017（含 2026-09-16 Rhea + 材质层修订段与 2026-09-18 术语修订）、rulings §4.6–§4.10（Q9–Q21）、20-design 09 v3.1 / 04 v0.5 / 03-screens 02·03·04·15·20·24·26、50-frontend 10 §4–§7、§10.4 与 22、rulings §4.21（R-d-12、R-d-13、R-d-61、R-d-62、R-d-66、R-d-67、R-d-72、q-table-depth、q-extra-inserts）、playground `src/index.css` 与 `src/components/**`；上游模块文档 M-02 §2.4/§2.6/§3/§6、M-03 §2.6/§6、M-06 §2.5、M-07 §2.5/§2.6/§3/§6
 
 # 10 UI 基座与幻灯片 UI（限界上下文 BC-13 设计系统 · BC-14 UI 基座 · BC-15 幻灯片 UI）
 
@@ -524,7 +524,7 @@ packages/ui-core/
 └── src/__tests__/                   # §9
 ```
 
-### 4.3 `@cordexjs/ui-react`（53 文件 + 44 个 shadcn 复制件；2026-09-26 整合增 4 个：`GradientEditor.tsx`、`DataGrid.tsx`、`form/use-schema-form.ts`、`styles/vendor/react-colorful.css`）
+### 4.3 `@cordexjs/ui-react`（53 文件 + 44 个 shadcn 复制件；2026-09-26 整合增 4 个：`GradientEditor.tsx`、`DataGrid.tsx`、`form/use-schema-form.ts`、`styles/vendor/react-colorful.css`；2026-10-01 增 6 个 `ui/plugins/*`，rulings §4.23）
 
 ```text
 packages/ui-react/
@@ -583,6 +583,13 @@ packages/ui-react/
 │   │   │   ├── ColorPickerPopover.tsx # ColorSwatch + Popover：最近使用 / 主题色板（调用方传入）/ 标准色 / Hex 输入 + react-colorful 自定义色面板（静态 CSS，R-d-13）；aria-label 含当前值
 │   │   │   ├── GradientEditor.tsx   # 渐变编辑器：2–10 个 stop 条拖动与增删、线性角度、预设；色值经 ColorPickerPopover，输出 LinearGradient（50/09 §5a.5；2026-09-26 整合登记）
 │   │   │   └── DataGrid.tsx         # 通用数据网格：@tanstack/react-table 9 headless + shadcn Table 复制件（react-table 单点引入 ui-react），slide-ui 图表数据分区与抽屉使用（ADR-0036 决策 6；2026-09-26 整合登记）
+│   │   ├── plugins/             # 插件管理界面组件（2026-10-01，rulings §4.23，PRD 09；SDK 交付物 D22：只收视图模型与回调，不取数、不调 REST）
+│   │   │   ├── PersonalPluginPanel.tsx  # 个人插件面板（PM-10）：三分组「本部署统一启用 / 我的界面插件 / 本文档缺少的插件」、本会话状态、重试、「为我关闭」、诊断复制
+│   │   │   ├── AdminPluginTable.tsx     # 管理员插件清单（PM-06）：DataGrid 行 + 状态分组筛选 + 搜索；骨架行与整区错误态
+│   │   │   ├── PluginPolicyRadioGroup.tsx # 三态单选组 forced / optional / disabled（PM-03、PM-16）：内容级禁用 optional 并给 tooltip；锁定项 aria-disabled 可聚焦读出原因
+│   │   │   ├── PluginChangeConfirmCard.tsx # 变更确认卡（PM-06、PM-07）：合并列出本批变更、依赖与缺席后果、首次启用第三方的贡献与能力声明、生效时机文案
+│   │   │   ├── PluginDetail.tsx         # 插件详情（PM-06、PM-10 共用）：兼容范围、依赖、贡献计数、能力声明、信任来源、最近变更
+│   │   │   └── MissingPluginsBanner.tsx # 缺插件与插件设置更新横幅（PM-08、PM-12）：role=status、不抢焦点，原因文案 disabled / absent / outdated / failed 与「重新加载」
 │   │   ├── form/
 │   │   │   └── use-schema-form.ts   # useSchemaForm(schema)：react-hook-form + standardSchemaResolver，直接复用 protocol 的 zod schema（R-d-18；2026-09-26 整合登记）
 │   │   └── bridge/
@@ -848,6 +855,12 @@ packages/slide-ui/
 | `src/ui/shell/ColorPickerPopover.tsx` | 颜色选择器 | `ColorPickerPopover`、`ColorSwatch` | ui/*（popover、field、input-group、separator、tooltip）、react-colorful（patched）、colord | 色板由调用方传入（`ThemeSwatch[]`）；自定义色面板用 react-colorful（静态 CSS、无运行时 `<style>` 注入，R-d-13），Hex / RGB / HSL 输入与换算用 colord；拖动中只更新本地预览，只在提交时回调 `onCommit(ColorChoice)`（一次提交一条命令，50/09 §5a.4）；取色器 EyeDropper P2 |
 | `src/ui/shell/GradientEditor.tsx` | 渐变编辑器（2026-09-26 整合登记） | `GradientEditor` | ui/*（slider、popover、button）、`ColorPickerPopover` | 2–10 个 stop、线性角度、预设；输出 `LinearGradient`，只在提交时回调（50/09 §5a.5；FMT-03） |
 | `src/ui/shell/DataGrid.tsx` | 通用数据网格（2026-09-26 整合登记） | `DataGrid` | `@tanstack/react-table`（9，单点引入 ui-react）、ui/*（table 复制件） | headless 表格 + shadcn Table；单元格编辑、TSV 粘贴、键盘导航由调用方接入选区状态机；无幻灯片语义（ADR-0036 决策 6、50/09） |
+| `src/ui/plugins/PersonalPluginPanel.tsx`（2026-10-01，rulings §4.23） | 个人插件面板 | `PersonalPluginPanel` | `ui/*`（Sheet、Switch、Collapsible、Badge）、`./PluginDetail`、`../shell/LiveAnnouncer` | PRD 09 PM-10、PM-11：M2 只读 + 诊断 + 本会话重试，M3 起「我的界面插件」开关；开关读出「个人设置，只影响你」；数据与回调由 apps/web `features/plugins/` 注入（40/11） |
+| `src/ui/plugins/AdminPluginTable.tsx` | 管理员插件清单 | `AdminPluginTable` | `../shell/DataGrid`、`./PluginPolicyRadioGroup`、`./PluginDetail` | PRD 09 PM-06：列与状态分组、被拒类合并为「未通过部署校验」、空分组隐藏；表格语义（PM-16） |
+| `src/ui/plugins/PluginPolicyRadioGroup.tsx` | 三态单选组 | `PluginPolicyRadioGroup` | `ui/radio-group`、`ui/tooltip` | `radiogroup`；内容级只有两态可选；必需项与 `lockPolicy` 显示锁形图标并以 `aria-disabled` 保持可聚焦（PM-03、PM-16） |
+| `src/ui/plugins/PluginChangeConfirmCard.tsx` | 变更确认卡 | `PluginChangeConfirmCard` | `ui/alert-dialog` | 模态：打开焦点落在首个操作、Esc 取消、关闭回到触发控件；文案按作用域写生效时机（PM-07、PM-08、PM-16） |
+| `src/ui/plugins/PluginDetail.tsx` | 插件详情 | `PluginDetail` | `ui/*` | 管理员页与个人面板共用；能力声明注明「仅展示，不做运行时限制」（PS-13） |
+| `src/ui/plugins/MissingPluginsBanner.tsx` | 缺插件与设置更新横幅 | `MissingPluginsBanner`、`PluginSettingsUpdatedBanner` | `ui/alert`、`ui/button` | `role=status`；每文档每会话一次由调用方控制；「重新加载」回调由调用方先 flush 再刷新（PM-08、PM-12） |
 | `src/ui/form/use-schema-form.ts` | 表单钩子（2026-09-26 整合登记） | `useSchemaForm(schema, opts)` | react-hook-form、`@hookform/resolvers`（standardSchemaResolver） | 直接复用 protocol 的 zod schema，不重写校验（R-d-18）；slide-ui 对话框与 apps/web 表单共用 |
 | `src/ui/bridge/ContributionRenderer.tsx` | 贡献项渲染 + 错误边界 | `ContributionRenderer`、`ContributionBoundary` | `../components/ui`、`../../infrastructure/icon-registry`、hooks | A11 |
 | `src/ui/bridge/ThemeBridge.tsx` | 主题属性桥 | `ThemeBridge` | `useTheme` | 多 host 作用域 |
@@ -1316,6 +1329,12 @@ packages/slide-ui/src/__tests__/
 | 整合阶段（2026-09-26）：50-frontend/18 §24.2、§28，50/09 §5a，50/24 §2–§3，50/21 §3–§4，50/17 R-d-16…R-d-19，PRD 05 M2 验收 18 | §2.6 插入页签图表菜单、§3 新增右键菜单对照表、§4.3/§5.3（ui-react 4 个新文件与依赖）、§4.4/§5.4（slide-ui 17 个新文件与依赖）、§6 颜色与渐变类型、§9 新增与扩充的测试 | ui-react：`GradientEditor`、通用 `DataGrid`（react-table 单点）、`useSchemaForm`、react-colorful 静态样式；slide-ui：表格选区与格式刷、查找替换、选择窗格、图表数据网格与抽屉、表格样式库、检查器图表分区与箭头 / 边框选择器、占位符图标条、页眉页脚对话框、四个预设数据文件、拖放适配；裁剪控制器统一为 `application/crop.ts`（与 50/18、50/23 一致） |
 
 计数：§4 目录树与 §5 文件表同步各增 13 个文件（slide-ui 55 → 68，非复制件 169 → 182）；整合阶段再增 21 个（ui-react 4 个、slide-ui 17 个，非复制件 182 → 203）。新增命令 id（★）的登记去向为 40/03 §2.6 与 ADR-0018。
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 裁决 1、3；PRD 09 PM-03、PM-06、PM-07、PM-10、PM-12、PM-16；D22 | §4.3、§5.3 | ui-react 增 `ui/plugins/` 六个组件：个人插件面板、管理员插件表、三态单选组、变更确认卡、插件详情、缺插件与设置更新横幅；只收视图模型与回调，取数与 REST 在 apps/web（40/11 `features/plugins/`）；§4 与 §5 各增 6。InspectorDock 的 `plugins` 页签与应用栏「⋯ › 插件管理器」入口指向个人插件面板；视觉以设计 03-09（重写）与 03-32（新建）样张确认后回写 |
 
 ## 13. 未决问题
 

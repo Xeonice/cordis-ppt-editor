@@ -1,6 +1,6 @@
 # 项目章程（Charter）—— 基于 cordis 的可插拔办公文档 SDK 与在线协同编辑器
 
-> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-19（D10 术语、§5.2 补应用栏 ⋯/头像；14 §1 C-01…C-30 模块设计线跨模块收敛回写：§5.2 依赖上限四行 + `@cordexjs/design` 行、§5.5 事件域并集，裁决见 rulings §4.11）；2026-09-22：§5.2 `package.json#cordex` 扩展为八键；2026-09-24（rulings §4.15，§10 Q1–Q10 用户裁决回写正文）：§2.3 新增「单组织、不做多租户/自营 SaaS」与动画结束态按场景；§4.1 RenderTarget 术语；§4.2 补「身份来源」；§5.2 slide-render 依赖上限加 ooxml-core（C-28 修订）、server-headless/apps/server 去租户与 renderer 角色；§5.3 规则 4 为 apps/web 放行 react/react-dom/react-router/tailwindcss/@tailwindcss/*；§5.4 服务端/UI/渲染行；§6.1 D9 改 pnpm 11 双锁 + Node 26、D10「可换」改写为可验证范围、D13 镜像口径与 D16 解释；§6.2 已定行标为已接受并删「缩略图/放映可走 canvas」；§7 M1–M4 受影响描述；2026-09-24（rulings §4.16）：§7 补不定周期说明（Q13）、M4 可插拔证据改为内部非核心成员（Q11）；2026-09-24（复核修正，rulings §4.17）：Ticket 术语补 60 s 单次、CRDT 行与 §10 Q3 补 D4（被他人删除即跳过、不看 TTL）、目录树补 playground 并标 prototype/mockups 已退役；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）：§5.1 铁律 1 与 §5.3 规则 3 改为「非组合根的水平层包」、图 5-1/5-10 同步（FE-01）；§5.2 server-headless 改为文档类型盲、apps/server 由 `src/cordis-host/**` 装配束包（FE-01），「依赖上限」列定 L0 隐式口径并按实际用法补边、apps/web 上限对齐 R9（FE-02/FE-05），图 5-4 至 5-8 同步、原图 5-8 拆为 5-8a/5-8b；`package.json#cordex` 八键补 `implements`、`bundle` 对组合根 preset 选填、`rank` 不入包元数据（FE-21/FE-01）；slide-render 行注明图表只读渲染器为惰性子路径 `./chart`（FE-08）；§5.3 规则 7 改为「只走 `publicEntry` 登记的子路径」（FE-04）、规则 8 含带 bundle 的 preset；§4.1 `Origin` 补 `system(maintenance)` 与分批装载的 `system(import)`（CO-07/CO-12）；kernel 行 `Service` 为值导出（顺带对齐 §4.14 K-1）；§8 文档树补齐、「30 个限界上下文」（GV-09/GV-10）；§9.2 第 4 条改为 Mermaid 优先（GV-04）；§6.2 插件清单行澄清 `manifest.ts` 为入库生成物（GV-17）；§10 Q5「超包络」改「超系统天花板」（UX-13）；2026-09-25（§4.19）：§7 M2 纳入协同后端（网关、Room、update 持久化与快照、服务端导入）、M3 改为多人协同体验层（D-M2-CONTENT）；§5.1/§5.2 登记 `@cordexjs/comments`（D-COMMENTS-PKG）；§5.2 `apps/server` 装配矩阵改指 `60-backend/01` §5；§5.5 补文档类型级套件命名；§8 文档树与 §9.1 分工补 50/60/70 三条设计线；2026-09-25（设计线拆分：§8 文档树中 30-architecture/07、08、10、11 的说明改为摘要 + 链接口径，`_tools/` 补 DDL 校验；§5.2 `apps/server` 行矩阵引用与 §8、§9.1 的 50/60/70 登记沿用 §4.19 回写）；2026-09-26（§4.20：§8 `_tools/` 补 check-links 与 check-terms；§9.2 第 5 条补更名登记 terms.json、新增第 10 条链接与章节引用（TX-02、TX-04））；2026-09-26（§4.21：§2.3 补插入非目标；§3 R4 与 §6.1 D8 改 Nest 12（纯 ESM），D13 改为许可分级见 ADR-0049；§4.4 新增「架构三件套」「可追加元素」「元素族」「可编辑度」术语；§5.1、§5.2 新增 L0 包 `@cordexjs/xml`，ooxml-core 上限改为 shared, xml, model-core，collab-yjs、collab-transport-ws、server-collab 三行按 Hocuspocus 4 改写，collab-offline-idb 改自写 idb 适配；§5.3 规则 4 放行 `@hocuspocus/*` 并新增第三方单点登记表、zod 口径放宽；§6.2 登记 ADR-0018/0019/0036/0039/0049；§7 表格、图表与元素插入的里程碑；§8 文档树（30/07 渲染跨端契约、30/08 撤销、50/17–25、60/19、新 ADR）；§9.1 架构-运行时行去 08）；2026-09-26（§4.21 整合：§5.1 注明秩表落地唯一源为 30/02 §1；§5.3 单点登记表补 Hocuspocus 测试期例外、extension-redis 路径与服务端路径级放行、apps/server 的 xml 白名单项；§2.3、§6.2、§10 Q4 的 canvas 用途补媒体与图标预处理；numfmt 放行 slide-ui 图表数据分区）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：§5.3 fflate 单点只在 ooxml-core；§7 M4 行的元素扩展改为 M4+ 候选、不计入 M4 验收）；2026-09-30（§4.21 剩余缺口样张回写：§8 文档树 `20-design/03-screens/` 范围说明同步为 01–31，新增 30 表格编辑、31 图表编辑）
+> 状态：v0.2 草稿（M0 蓝图阶段） | 负责：总编排（Orchestrator） | 更新：2026-09-19（D10 术语、§5.2 补应用栏 ⋯/头像；14 §1 C-01…C-30 模块设计线跨模块收敛回写：§5.2 依赖上限四行 + `@cordexjs/design` 行、§5.5 事件域并集，裁决见 rulings §4.11）；2026-09-22：§5.2 `package.json#cordex` 扩展为八键；2026-09-24（rulings §4.15，§10 Q1–Q10 用户裁决回写正文）：§2.3 新增「单组织、不做多租户/自营 SaaS」与动画结束态按场景；§4.1 RenderTarget 术语；§4.2 补「身份来源」；§5.2 slide-render 依赖上限加 ooxml-core（C-28 修订）、server-headless/apps/server 去租户与 renderer 角色；§5.3 规则 4 为 apps/web 放行 react/react-dom/react-router/tailwindcss/@tailwindcss/*；§5.4 服务端/UI/渲染行；§6.1 D9 改 pnpm 11 双锁 + Node 26、D10「可换」改写为可验证范围、D13 镜像口径与 D16 解释；§6.2 已定行标为已接受并删「缩略图/放映可走 canvas」；§7 M1–M4 受影响描述；2026-09-24（rulings §4.16）：§7 补不定周期说明（Q13）、M4 可插拔证据改为内部非核心成员（Q11）；2026-09-24（复核修正，rulings §4.17）：Ticket 术语补 60 s 单次、CRDT 行与 §10 Q3 补 D4（被他人删除即跳过、不看 TTL）、目录树补 playground 并标 prototype/mockups 已退役；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）：§5.1 铁律 1 与 §5.3 规则 3 改为「非组合根的水平层包」、图 5-1/5-10 同步（FE-01）；§5.2 server-headless 改为文档类型盲、apps/server 由 `src/cordis-host/**` 装配束包（FE-01），「依赖上限」列定 L0 隐式口径并按实际用法补边、apps/web 上限对齐 R9（FE-02/FE-05），图 5-4 至 5-8 同步、原图 5-8 拆为 5-8a/5-8b；`package.json#cordex` 八键补 `implements`、`bundle` 对组合根 preset 选填、`rank` 不入包元数据（FE-21/FE-01）；slide-render 行注明图表只读渲染器为惰性子路径 `./chart`（FE-08）；§5.3 规则 7 改为「只走 `publicEntry` 登记的子路径」（FE-04）、规则 8 含带 bundle 的 preset；§4.1 `Origin` 补 `system(maintenance)` 与分批装载的 `system(import)`（CO-07/CO-12）；kernel 行 `Service` 为值导出（顺带对齐 §4.14 K-1）；§8 文档树补齐、「30 个限界上下文」（GV-09/GV-10）；§9.2 第 4 条改为 Mermaid 优先（GV-04）；§6.2 插件清单行澄清 `manifest.ts` 为入库生成物（GV-17）；§10 Q5「超包络」改「超系统天花板」（UX-13）；2026-09-25（§4.19）：§7 M2 纳入协同后端（网关、Room、update 持久化与快照、服务端导入）、M3 改为多人协同体验层（D-M2-CONTENT）；§5.1/§5.2 登记 `@cordexjs/comments`（D-COMMENTS-PKG）；§5.2 `apps/server` 装配矩阵改指 `60-backend/01` §5；§5.5 补文档类型级套件命名；§8 文档树与 §9.1 分工补 50/60/70 三条设计线；2026-09-25（设计线拆分：§8 文档树中 30-architecture/07、08、10、11 的说明改为摘要 + 链接口径，`_tools/` 补 DDL 校验；§5.2 `apps/server` 行矩阵引用与 §8、§9.1 的 50/60/70 登记沿用 §4.19 回写）；2026-09-26（§4.20：§8 `_tools/` 补 check-links 与 check-terms；§9.2 第 5 条补更名登记 terms.json、新增第 10 条链接与章节引用（TX-02、TX-04））；2026-09-26（§4.21：§2.3 补插入非目标；§3 R4 与 §6.1 D8 改 Nest 12（纯 ESM），D13 改为许可分级见 ADR-0049；§4.4 新增「架构三件套」「可追加元素」「元素族」「可编辑度」术语；§5.1、§5.2 新增 L0 包 `@cordexjs/xml`，ooxml-core 上限改为 shared, xml, model-core，collab-yjs、collab-transport-ws、server-collab 三行按 Hocuspocus 4 改写，collab-offline-idb 改自写 idb 适配；§5.3 规则 4 放行 `@hocuspocus/*` 并新增第三方单点登记表、zod 口径放宽；§6.2 登记 ADR-0018/0019/0036/0039/0049；§7 表格、图表与元素插入的里程碑；§8 文档树（30/07 渲染跨端契约、30/08 撤销、50/17–25、60/19、新 ADR）；§9.1 架构-运行时行去 08）；2026-09-26（§4.21 整合：§5.1 注明秩表落地唯一源为 30/02 §1；§5.3 单点登记表补 Hocuspocus 测试期例外、extension-redis 路径与服务端路径级放行、apps/server 的 xml 白名单项；§2.3、§6.2、§10 Q4 的 canvas 用途补媒体与图标预处理；numfmt 放行 slide-ui 图表数据分区）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：§5.3 fflate 单点只在 ooxml-core；§7 M4 行的元素扩展改为 M4+ 候选、不计入 M4 验收）；2026-09-30（§4.21 剩余缺口样张回写：§8 文档树 `20-design/03-screens/` 范围说明同步为 01–31，新增 30 表格编辑、31 图表编辑）；2026-10-01（§4.23 插件管理：§4.5 登记「内容级插件 / 界面级插件」「插件声明文件」「插件集指纹」「内容插件足迹」四个术语）；2026-10-01（§4.23 插件管理样张回写：§8 文档树 `20-design/03-screens/` 范围改为 01–32，09 重写为个人插件面板、新增 32 管理员插件管理）
 > 读者：产品 / 设计 / 架构 / 类型治理各条线的 agent 与人类评审者。
 > 本文是所有下游文档（PRD、设计稿、架构文档）的**共同输入**。下游文档不得与本文冲突；若有异议，写入各自 README 的「对章程的异议/建议」段落，由总编排裁决后回写本文。
 > v0.2 变更：吸收五条线的异议与建议（裁决明细见 [rulings-2026-09-14.md](./rulings-2026-09-14.md)）：垂直束改为「层带」并给出机械化秩表（§5.1/§5.3）；新增 `preset-slide-viewer`、`collab-offline-idb`、`slide-render-chart` 三包（§5.2）；`package.json#cordex` 字段规范（§5.2）；依赖规则第 8 条「束间隔离」（§5.3）；服务名/贡献点 id 定稿与第三方前缀规则（§5.5）；D7/D8/D9/D11/D12 补充与 D14–D16 新增（§6.1）；里程碑 M2/M3 微调（§7）；术语表扩充（§4）；待用户决策扩至 Q20（§10）。v0.2 与 v0.1 兼容（只增不改语义），下游标注「依赖：charter v0.1」的文档无需重写。
@@ -251,6 +251,42 @@ flowchart LR
 
 怎么读：上排是架构三件套的固定阅读顺序；前端架构往下展开为能力总表、元素总览与六个元素族分篇，每个可追加元素再标注其可编辑度；复用清单由总架构的技术栈总表汇总、前后端架构各链一份详表。
 依据：rulings §4.21 q-arch-reorg、R-d-01；本节术语定义。
+
+### 4.5 插件管理术语（2026-10-01，rulings §4.23）
+
+| 术语 | 定义 |
+|---|---|
+| 内容级插件 / 界面级插件 | 插件的**作用域**，写在 `cordex-manifest.json` 的 `scope` 字段（`content` \| `ui`）。内容级插件会改变文档内容、渲染结果、导入导出结果或部署的基础行为（存储、协同传输、遥测出口），只能由部署管理员按部署统一启停（强制启用 / 禁用两态）；界面级插件只改变本人看到的界面（`ui.*`、`i18n.bundle`、`render.overlay`、不带写能力位的命令），管理员设为「允许用户选择」后由用户个人启停。作用域由清单生成器按贡献与实现机械推出，作者只能声明得更严；拿不准即内容级（PRD 09 §2.2） |
+| 插件声明文件 | 部署方随部署版本管理的一份只读挂载文件（配置键 `plugins.catalogFile`，格式 `cordex-plugins.json`），列出本部署的插件：`id`、精确版本、来源（镜像内置或挂载目录）、包摘要、签名或审核记录、初始状态与可选锁定。插件**只能**经声明文件与镜像内置进入部署，界面不提供上传、URL 安装或市场（60/17 §5.16） |
+| 插件集指纹 | 一次部署当前插件组成的两段摘要 `{ catalog, policy }`：`catalog` 覆盖通过校验的内容级插件的 `id@版本@摘要`，只随重新部署变化；`policy` 覆盖全部插件的管理员策略与配置摘要，随管理员保存变化。随会话下发、随协同握手（Auth token `pluginSet`）上送：`catalog` 不符按版本漂移处理（4426 `collab.plugins_outdated`），`policy` 不符只提示「插件设置已更新」、重新加载后生效（60/16 §12） |
+| 内容插件足迹 | 文档里记录的「用到了哪些内容级插件」：插件 `id`、所需最低版本、它负责的元素类型与资源命名空间；由内核在内容插件首次写入时并入同一事务、只增不减，存于资源命名空间 `core.pluginFootprint`，导出 pptx 时保留。打开文档时据此判断缺哪个插件、为什么缺（已停用 / 未安装或被拒 / 版本过旧 / 启动失败），降级显示而不丢数据（ADR-0050，提议） |
+
+**图 4-5 插件从部署到文档的四个术语**
+
+```mermaid
+flowchart LR
+  decl["插件声明文件：部署方列出插件"]
+  check["部署时校验：摘要、签名或审核、hostApi、作用域"]
+  scope{"作用域"}
+  content["内容级插件：管理员按部署统一"]
+  uiLevel["界面级插件：可允许个人启停"]
+  fp["插件集指纹：catalog 与 policy 两段"]
+  session["会话装配与协同握手"]
+  foot["内容插件足迹：写进文档"]
+  open["打开文档：比对足迹，缺则降级提示"]
+  decl --> check --> scope
+  scope -->|"content"| content
+  scope -->|"ui"| uiLevel
+  content --> fp
+  uiLevel --> session
+  fp --> session
+  content -->|"首次写入"| foot
+  foot --> open
+  session --> open
+```
+
+怎么读：左起插件只能经声明文件进入部署并通过校验；作用域决定谁来启停——内容级进入指纹、在协同握手时比对，界面级只影响本人会话；内容级插件写入文档时留下足迹，别人打开时用足迹判断缺了什么。
+依据：rulings §4.23 裁决与 O-1…O-4 定稿；PRD [09-plugin-manager](../10-prd/03-features/09-plugin-manager.md) §2、PM-04、PM-12、PM-13。
 
 ---
 
@@ -935,7 +971,7 @@ docs/
 │   ├── README.md                     设计原则、范围、待决事项、对章程的异议
 │   ├── 01-information-architecture.md 编辑器 IA：区域划分、层级、导航模型、三种模式
 │   ├── 02-user-flows.md              打开/编辑/协同/冲突/离线/导出/插件启用等关键流程
-│   ├── 03-screens/                   每个页面/面板一文件，01–31（ASCII 线框 + 状态 + 交互说明；30 表格编辑、31 图表编辑 2026-09-30 新增）
+│   ├── 03-screens/                   每个页面/面板一文件，01–32（ASCII 线框 + 状态 + 交互说明；30 表格编辑、31 图表编辑 2026-09-30 新增；09 于 2026-10-01 重写为个人插件面板，32 管理员插件管理同日新增）
 │   ├── 04-design-system.md           token 体系（对应 @cordexjs/design）、组件清单、主题/暗色、密度
 │   ├── 05-collaboration-ux.md        presence、远端光标/选区、软冲突可视化、评论、版本历史、离线态
 │   ├── 06-extensibility-ux.md        插件如何贡献 UI：ui.* 槽位规范与视觉约束

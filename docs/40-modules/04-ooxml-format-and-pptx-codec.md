@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 层迁出为独立包 `@cordexjs/xml`（§4.3、§5.3）；`[Content_Types].xml` 与 `.rels` 结构不变即原样写回；`.fntdata` 改为 EOT + MTX；`tableStyles.xml` 追加写入、图表部件与内嵌工作簿写出器；裸 `p:contentPart`；`writeZip` 公开入口；XML 加固、合规、差分三类测试）；2026-09-26（§4.21 整合：§1.1 登记新增字段的导入导出映射与确定性键；tableStyles.xml 只读解析改为 M1（PRD OF-08）；import/shape-tree 的 renderHint 取值对齐 40/03 并填 source；import/table 导入即归一化；EncodeInputs 增 connectorGeometry；诊断 connector_target_missing 与副本 id 重映射落点；mce.ts 增两项只读提取；内嵌字体适配器只在导入 Worker 动态加载；opc/zip.ts 禁 fflate 异步入口）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5；fflate 单点去掉 server-storage） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；60-backend/06 §7（原 30/08 §16.2）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21 X:q-xml-lexer / X:q-xml-package / X:q-content-types）；[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)（MPL-2.0 限未修改依赖）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 层迁出为独立包 `@cordexjs/xml`（§4.3、§5.3）；`[Content_Types].xml` 与 `.rels` 结构不变即原样写回；`.fntdata` 改为 EOT + MTX；`tableStyles.xml` 追加写入、图表部件与内嵌工作簿写出器；裸 `p:contentPart`；`writeZip` 公开入口；XML 加固、合规、差分三类测试）；2026-09-26（§4.21 整合：§1.1 登记新增字段的导入导出映射与确定性键；tableStyles.xml 只读解析改为 M1（PRD OF-08）；import/shape-tree 的 renderHint 取值对齐 40/03 并填 source；import/table 导入即归一化；EncodeInputs 增 connectorGeometry；诊断 connector_target_missing 与副本 id 重映射落点；mce.ts 增两项只读提取；内嵌字体适配器只在导入 Worker 动态加载；opc/zip.ts 禁 fflate 异步入口）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5；fflate 单点去掉 server-storage）；2026-10-01（§4.23 插件管理：ooxml-pptx 增 `import/plugin-footprint.ts`、`export/plugin-footprint.ts`，内容插件足迹经 `p:presentation/p:extLst` 往返，ADR-0050） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；60-backend/06 §7（原 30/08 §16.2）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21 X:q-xml-lexer / X:q-xml-package / X:q-content-types）；[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)（MPL-2.0 限未修改依赖）
 
 # 04 OOXML 格式与 PPTX 编解码（限界上下文 BC-07 OOXML 格式基础设施、BC-08 PPTX 编解码）
 
@@ -743,6 +743,7 @@ packages/ooxml-pptx/
 │   │   │   ├── media.ts               媒体部件 → BlobRef（sha256 去重）→ MediaRef
 │   │   │   ├── notes-text.ts          备注部件只读文本提取（PRD OF-11；部件本身仍不透明保留）
 │   │   │   ├── embedded-fonts.ts      M2：p:embeddedFontLst → 字体条目 + usage（edit / render-only，按 fsType）；超限跳过并诊断
+│   │   │   ├── plugin-footprint.ts    p:presentation/p:extLst/p:ext[@uri=urn:cordex:plugin-footprint:1] → resources['core.pluginFootprint']（2026-10-01，ADR-0050）
 │   │   │   ├── comments.ts            M3：现代评论部件 → resources['comments.threads']（ResourceHook 由 @cordexjs/comments 声明，2026-09-25 由 slide-comments.threads 改名，决策 INC-39）；M1–M2 仅不透明保留
 │   │   │   ├── ids.ts                 cNvPr/@id + a16:creationId → NodeId 分配（调用 domain/ids）
 │   │   │   ├── lazy.ts                Worker 内解析顺序与抢占：全量轻量计数 → 主题/母版/版式 → 首页 → 其余页按 order 每批 batchSize 页；prioritize 抢占（§4.18 CO-12/CO-11）
@@ -751,6 +752,7 @@ packages/ooxml-pptx/
 │   │   ├── export/
 │   │   │   ├── writer.ts              encode(snapshot, baselinePackage, dirty, { thumbnailJpeg? }) → OpcPackage（纯函数，§2.3、60-backend/06 §7）
 │   │   │   ├── presentation.ts        Presentation → XML
+│   │   │   ├── plugin-footprint.ts    resources['core.pluginFootprint'] → p:presentation/p:extLst 中 Cordex 自有 p:ext（2026-10-01，ADR-0050）
 │   │   │   ├── master.ts              SlideMaster → XML（reinsert OpaqueXml）
 │   │   │   ├── layout.ts              SlideLayout → XML
 │   │   │   ├── slide.ts               Slide → XML
@@ -979,6 +981,7 @@ packages/xml/
 | `domain/import-envelope.ts` | 导入规模上限（系统天花板）判定 | `ImportEnvelope`、`checkImportEnvelope`（名称沿用，语义是系统天花板而非性能保证包络，rulings §4.18 UX-13） | `ooxml-core` errors | 纯函数；超天花板拒绝导入 `format.quota_exceeded{dimension}`（§4.15 Q5；`fileSize`/`slides`/`elementsPerSlide`/`elementsTotal`，与 30-architecture/10 §1.4 一致）；上限来自部署配置 |
 | `application/import-pipeline.ts` | 导入编排 | `importPptx`、`importPptxProgressive` | `domain/**`、`infrastructure/import/**`、`ooxml-core` | 对应 `FormatCodec.import` 与可选的 `importProgressive`（M-02 §2.2 `ProgressiveImport`；在 Worker 内运行，经 `batch-protocol.ts` 回传首批与后续批次，rulings §4.18 CO-12）；宏包拒绝与天花板检测点见 §2.6 |
 | `application/export-pipeline.ts` | 导出编排 | `exportPptx` | `domain/**`、`infrastructure/export/**` | 对应 `FormatCodec.export`；解析 BlobRef 后调用纯 `encode()` |
+| `infrastructure/import/plugin-footprint.ts`（2026-10-01，rulings §4.23） | 内容插件足迹读回 | `readPluginFootprintExt` | `ooxml-core`、`model-core`（`PluginFootprint` 类型） | 只识别 `uri="urn:cordex:plugin-footprint:1"` 的 `p:ext`，解析为 `resources['core.pluginFootprint']`；缺失或格式不符时不报错（退化为「未知内容」提示，ADR-0050）；其余 `extLst` 仍按 ADR-0008 原样保留 |
 | `infrastructure/import/presentation.ts` | 演示文稿部件解析 | `parsePresentation` | `ooxml-core`、`model-slide` | `sldSz`/`defaultTextStyle`/`kinsoku`；2026-09-26 起只读 `@firstSlideNum` → `Presentation.firstSlideNum`，`p14:sectionLst` → `Presentation.sections` + 各页 `sectionId`（30/04 §3.7） |
 | `infrastructure/import/master.ts` | 母版解析 | `parseMaster` | `ooxml-core`、`model-slide` | |
 | `infrastructure/import/layout.ts` | 版式解析 | `parseLayout` | `ooxml-core`、`model-slide` | |
@@ -1000,6 +1003,7 @@ packages/xml/
 | `infrastructure/import/batch-protocol.ts` | 分批协议 | `ImportWorkerMessage`、`ImportHostMessage`（判别联合） | — | 新增（§4.18 CO-12/CO-11）：主线程 → Worker：`start{bytes, config}`、`prioritize{slideId}`、`cancel`；Worker → 主线程：`batch{seq, body, first}`、`done{diagnostics}`、`error{code, details}`；`first:true` 的批次含主题/母版/版式与首页，之后每批按 order 递增 |
 | `infrastructure/export/writer.ts` | 纯导出核心 | `encode`、`EncodeInputs` | `ooxml-core`、`preserve/*`、`model-slide`（类型，`PresentationBody` 为输入，§4.18 FE-19） | 纯函数（60-backend/06 §7）；`thumbnailJpeg?: BlobRef` 显式输入（§4.15 Q8）；`connectorGeometry?` 显式输入（2026-09-26，ADR-0018 决策 8）：已连接连接符按它写几何，缺项时写模型里的变换 |
 | `infrastructure/export/presentation.ts` | 演示文稿生成 | `writePresentation` | `ooxml-core`、`model-slide`（类型） | |
+| `infrastructure/export/plugin-footprint.ts`（2026-10-01，rulings §4.23） | 内容插件足迹写出 | `writePluginFootprintExt` | `ooxml-core`、`model-core`（`PluginFootprint` 类型） | 在 `p:presentation/p:extLst` 追加或替换 `uri="urn:cordex:plugin-footprint:1"` 的 `p:ext`（`cx:pluginFootprint`，每插件一个子元素，属性 `id`、`minVersion`）；足迹为空时不写；足迹与导入时相同则该 `p:ext` 原字节写回，零编辑往返 `ppt/presentation.xml` 字节不变（ADR-0050 决策 4） |
 | `infrastructure/export/master.ts` | 母版生成 | `writeMaster` | `ooxml-core`、`model-slide`（类型） | reinsert OpaqueXml |
 | `infrastructure/export/layout.ts` | 版式生成 | `writeLayout` | `ooxml-core`、`model-slide`（类型） | |
 | `infrastructure/export/slide.ts` | 页生成 | `writeSlide` | `ooxml-core`、`model-slide`（类型；纯函数 `defaultLayoutOf`） | 页 `layoutId` 指向墓碑或不存在的版式时，经 `defaultLayoutOf` 取存活替代版式写 slide→slideLayout 关系，导出的 pptx 中该页引用存活版式（墓碑期读时容错，rulings §4.20 FE-04；不改 Store） |
@@ -1398,6 +1402,12 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 - 40/08 与 60/04：SVG 消毒改用 `@cordexjs/xml` 的严格解析（拒 DOCTYPE）与序列化，不再自写解析器。
 - 40/01：depcruise 规则（`@cordexjs/xml` 零依赖、oracle 只在 `__tests__/**`、`ooxml-core` 内只有 `xml-part.ts` 可 import `@cordexjs/xml`）与 lint（`xml/src/**` 禁 OOXML URI 字面量与 `throw`）登记。
 - 00-module-map：M-04 行承载包加 `@cordexjs/xml`；40/13 的冻结层清单加 `@cordexjs/xml`。
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 O-3（2026-10-01 已确认）、ADR-0050、PRD 09 PM-12 | §4.2、§5.2 | ooxml-pptx 增 `import/plugin-footprint.ts` 与 `export/plugin-footprint.ts`：内容插件足迹经 `p:presentation/p:extLst`（`uri="urn:cordex:plugin-footprint:1"`）导出与读回；零编辑往返字节不变；外部软件丢弃该扩展时退化为只报「未知内容」。§4 与 §5 各增 2（175 = 175） |
 
 ## 13. 未决问题
 

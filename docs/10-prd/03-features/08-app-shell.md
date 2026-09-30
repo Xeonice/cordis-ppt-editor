@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品（2026-09-17 由总编排按设计稿补写；2026-09-18 按裁决修订 AS-06 措辞） | 更新：2026-09-19；2026-09-24（rulings §4.15：AS-02 M2 封面改为包内过渡封面（Q8）；AS-06 登录/登出走 OIDC（Q6））；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（§4.19） | 依赖：charter v0.2 §5.2 `apps/web`；rulings §4.15；设计 03-screens/29、01；09 v3.0 T-07；rulings §4.10（Q14、快捷键面板入口）
+> 状态：草稿 | 负责：产品（2026-09-17 由总编排按设计稿补写；2026-09-18 按裁决修订 AS-06 措辞） | 更新：2026-09-19；2026-09-24（rulings §4.15：AS-02 M2 封面改为包内过渡封面（Q8）；AS-06 登录/登出走 OIDC（Q6））；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（§4.19）；2026-10-01（§4.23 插件管理样张回写：AS-06 账户菜单为平台管理员增加「管理」项（M3 直接进 `/admin/plugins`「管理 › 插件」，普通成员不显示），补一条验收；§2 接口表补设计 03-32） | 依赖：charter v0.2 §5.2 `apps/web`；rulings §4.15；设计 03-screens/29、01；09 v3.0 T-07；rulings §4.10（Q14、快捷键面板入口）
 
 # 功能域 08：应用壳（开始页、最近、模板、指南、账户）
 
@@ -94,9 +94,10 @@ flowchart LR
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：集成方用户信息与登出回调（EM-17 / G-66）；设置（G-30）；快捷键面板（G-21）
 - 验收标准：
-  - Given 开始页侧栏底部用户行（头像 + 姓名 + 邮箱 + ⌃⌄；单组织自托管无套餐概念）或文档列表 / 编辑器应用栏头像（编辑器族全部路由共用 `UserMenu`，应用栏右侧顺序：在场头像 · 分享 · 模式下拉 · ⋯ · 账户头像，2026-09-18 Q14），When 点击，Then 弹出菜单：姓名与邮箱、设置（`Mod+,`）、键盘快捷键（`Mod+/`）、帮助中心、退出登录；设置的**唯一**入口为账户菜单（D13；侧栏、顶栏不再单独放设置按钮）；快捷键面板另有 Ribbon 页签行右侧「?」与 `Mod+/`（D12）。
+  - Given 开始页侧栏底部用户行（头像 + 姓名 + 邮箱 + ⌃⌄；单组织自托管无套餐概念）或文档列表 / 编辑器应用栏头像（编辑器族全部路由共用 `UserMenu`，应用栏右侧顺序：在场头像 · 分享 · 模式下拉 · ⋯ · 账户头像，2026-09-18 Q14），When 点击，Then 弹出菜单：姓名与邮箱、设置（`Mod+,`）、键盘快捷键（`Mod+/`）、（仅平台管理员）管理、帮助中心、退出登录；设置的**唯一**入口为账户菜单（D13；侧栏、顶栏不再单独放设置按钮）；快捷键面板另有 Ribbon 页签行右侧「?」与 `Mod+/`（D12）。
   - Given 退出登录，Then 参考应用 `apps/web` 走 OIDC 登出（RP-initiated logout，rulings §4.15 Q6）：`POST /auth/logout` 返回 200 `{endSessionUrl?}`，有 `endSessionUrl` 时整页跳往 IdP 结束会话、否则回到 `/login`（`60-backend/15` §3.1、`50-frontend/02` §13）；嵌入场景调用集成方回调，未配置时提示「由宿主应用管理登录」。
   - Given 头像，Then 主色淡底首字母，无在场环（在场环仅用于协作者头像组，CO）。
+  - Given `platformRole='admin'`（2026-10-01，rulings §4.23；[09-plugin-manager](09-plugin-manager.md) PM-01、PM-06），Then 菜单在「键盘快捷键」与「帮助中心」之间多一项「管理」（盾牌图标，右侧弱化小字「插件」），点击进 `/admin/plugins`「管理 › 插件」（M3 管理面板只有这一页，不经中转页）；Given `platformRole='member'`，Then 不显示该项、不占位；普通成员直接访问 `/admin/plugins` 时回到开始页并 toast「需要管理员权限」（设计 [03-32](../../20-design/03-screens/32-admin-plugin-management.md) §1）。
 
 ## 2. 与其它域的接口
 
@@ -106,5 +107,5 @@ flowchart LR
 | 设置抽屉、快捷键面板 | `07-design-coverage-and-gaps.md` G-30 / G-21；D12 / D13 |
 | 主题模板 | `07-masters-layouts-and-themes.md` ML-04 |
 | 登录 / 令牌过期 | G-66（EM-17 M3 P1） |
-| 设计承接 | `20-design/03-screens/29-home-start-page.md`；09 v3.0 T-07、§2 `Brand` / `UserMenu`；playground `#/home` |
+| 设计承接 | `20-design/03-screens/29-home-start-page.md`；09 v3.0 T-07、§2 `Brand` / `UserMenu`；playground `#/home`；账户菜单「管理」入口见 `20-design/03-screens/32-admin-plugin-management.md` §1（playground `#/admin/plugins`） |
 | 里程碑 | `05-milestones-and-scope.md` M2 P0：AS-01、AS-06；M2 P1：AS-02、AS-04；M3 P1：AS-03；M3 P2：AS-05 |

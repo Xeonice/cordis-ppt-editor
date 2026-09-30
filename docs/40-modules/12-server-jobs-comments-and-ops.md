@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 与 ESM 入口、OTel 经 `node --import` 预加载；main.ts 不再注册 WsAdapter、删 `@nestjs/platform-ws`，collab 改挂 upgrade；`prom-client` 改为 OTel exporter-prometheus；限流维持自研令牌桶；`cordex-ops cron` 子命令；Webhook 签名改 Standard Webhooks）；2026-09-26（§4.21 整合：main.ts 写明 CollabUpgradeHandler 挂 upgrade 与进程级 unhandledRejection 兜底；server-app-thin 白名单加 @cordexjs/xml 与 @cordexjs/ooxml-core/zip；render-export.processor 多页 PNG 经 writeZip 打包；client-ip 引用改 collab-upgrade.handler.ts）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；60-backend/01、06、07、12、13、15 §8、16 §13（原 30/08 §1/§7/§10/§12/§16.1–16.6 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2、§5 已删，§9.3 改指 60/15 §8 与 60/16 §13，rulings §4.20 BE-11+TX-12）；30-architecture/10-observability-and-errors.md 全篇；60-backend/01 §3/§5/§10、60-backend/08 §5/§6.5/§9–§11/§13、60-backend/14 §2、60-backend/18 §1/§3/§4（§4.13 应用骨架与基础设施）；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 与 ESM 入口、OTel 经 `node --import` 预加载；main.ts 不再注册 WsAdapter、删 `@nestjs/platform-ws`，collab 改挂 upgrade；`prom-client` 改为 OTel exporter-prometheus；限流维持自研令牌桶；`cordex-ops cron` 子命令；Webhook 签名改 Standard Webhooks）；2026-09-26（§4.21 整合：main.ts 写明 CollabUpgradeHandler 挂 upgrade 与进程级 unhandledRejection 兜底；server-app-thin 白名单加 @cordexjs/xml 与 @cordexjs/ooxml-core/zip；render-export.processor 多页 PNG 经 writeZip 打包；client-ip 引用改 collab-upgrade.handler.ts）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：§4.13 / §5.13 增 drizzle 镜像 `plugin_policies.ts`、`user_plugin_prefs.ts`，迁移 0012 / 0013（基线 34 个文件），`keys.ts` 增 `plugins:` 前缀，`cordex-ops plugins:check` 落点；`/readyz` 附 `pluginsRejected`；`modules/plugins/` 文件树见 40/08 §4.11） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；60-backend/01、06、07、12、13、15 §8、16 §13（原 30/08 §1/§7/§10/§12/§16.1–16.6 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2、§5 已删，§9.3 改指 60/15 §8 与 60/16 §13，rulings §4.20 BE-11+TX-12）；30-architecture/10-observability-and-errors.md 全篇；60-backend/01 §3/§5/§10、60-backend/08 §5/§6.5/§9–§11/§13、60-backend/14 §2、60-backend/18 §1/§3/§4（§4.13 应用骨架与基础设施）；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
 
 # 12 服务端作业、评论与运维（限界上下文 BC-23 导入导出与作业编排、BC-24 缩略图、BC-25 评论、BC-26 审计与健康运维、BC-30 出站集成〔Webhook〕）
 
@@ -707,6 +707,7 @@ apps/server/test/integration/
   | `thumbnails:rebuild` | `ThumbnailsModule`（§4.3） |
   | `documents:reassign-owner --doc <id> --to <userId>`（M3） | M-08 `PermissionsModule` 导出的 `ReassignOwnerUseCase`（系统上下文写 owner 授权、`perm_version` 加 1、审计 `admin.owner_reassigned`；40/08 §4.5、60/03 §4.2；rulings §4.20 BE-05+TX-22） |
   | `config:check` | `config/`（§4.10，等同 `--dry-run`） |
+  | `plugins:check`（命名草案，2026-10-01，rulings §4.23） | M-08 `PluginsModule` 导出的 `PluginCatalog`（40/08 §4.11）：只读，按声明文件跑一遍部署时校验，输出与管理员界面一致；声明文件 schema 取 protocol `plugins/catalog.ts`；`--dry-run` 同样覆盖声明文件（60/17 §5.16） |
 
   入口文件须在 M2 的 `migrate` 一次性服务落地前就位。
 
@@ -725,7 +726,7 @@ apps/server/src/
 │   └── metrics.ts                    # 服务端指标登记表 cordex_<subsystem>_<name>_<unit>，每项带 consumer（60/18 §4）
 ├── redis/
 │   ├── redis.module.ts               # RedisModule（global）：Valkey 客户端（ioredis）与 BullMQ 连接工厂；renderer 不装（60/01 §4）
-│   └── keys.ts                       # apps/server 侧 Valkey 键模板 perm:/ticket:/oidc:/session:/user:/upload:/rl:（60/14 §2–§3；另一处是 server-collab 的 redis-keys.ts）
+│   └── keys.ts                       # apps/server 侧 Valkey 键模板 perm:/ticket:/oidc:/session:/user:/upload:/rl:/plugins:（plugins: 2026-10-01 增，频道 plugins:ctl，60/14 §3.2；另一处是 server-collab 的 redis-keys.ts）
 └── db/
     ├── db.module.ts                  # DbModule（global）：按 CORDEX_ROLE 提供 app / system 两个池（api 无 system 池、renderer 不装，60/08 §5）；池首次连接时做启动断言 A11
     ├── client.ts                     # pg Pool 与 drizzle 实例、连接参数、事务基元与系统事务入口 withSystem；请求路径的 withRls 在 M-08 permissions/infrastructure/rls-context.ts
@@ -744,13 +745,15 @@ apps/server/src/
     │   ├── permissions.ts
     │   ├── document_perm_versions.ts
     │   ├── share_links.ts
+    │   ├── plugin_policies.ts        # 2026-10-01（§4.23）：DDL 60/09 §14（0012）
+    │   ├── user_plugin_prefs.ts      # 2026-10-01（§4.23）：DDL 60/09 §14（0013）
     │   ├── comments.ts
     │   ├── thumbnails.ts
     │   ├── job_runs.ts
     │   ├── audit_log.ts
     │   ├── webhook_subscriptions.ts
     │   └── webhook_deliveries.ts
-    └── migrations/                   # 手写迁移 SQL；基线段当前 32 个文件（0001–0096，含 §4.20 BE-05 新增的 0035），编号与名称以 60/08–13 的围栏为准
+    └── migrations/                   # 手写迁移 SQL；基线段当前 34 个文件（0001–0096，含 §4.20 BE-05 新增的 0035 与 §4.23 新增的 0012、0013），编号与名称以 60/08–13 的围栏为准
         └── NNNN_<name>.sql           # 每个 -- migrate: 围栏一个文件，文件名取围栏首行，内容逐字一致；基线冻结后只从 0100 起追加（60/08 §10.4）
 ```
 
@@ -873,7 +876,7 @@ apps/server/src/
 | `infrastructure/redis.probe.ts` | Redis 探针 | `RedisProbe` | `ioredis` | `PING` |
 | `infrastructure/blob-store.probe.ts` | 存储探针 | `BlobStoreProbe` | `ctx.blobStore` | `head()` |
 | `infrastructure/chromium-pool.probe.ts` | Chromium 池就绪探针（新增，BE-14） | `ChromiumPoolProbe` | M-09 `server-headless` 的池状态读取面（容器内，无凭据） | renderer 变体唯一探针 |
-| `interface/health.controller.ts` | 探针端点 | `HealthController` | 无 protocol 依赖（纯运维端点）；M-08 `@Public()` | `/healthz`、`/readyz`：标 `@Public()` 越过全局 `SessionGuard`，在 `setGlobalPrefix` 的排除清单内（rulings §4.18 BE-06/BE-11） |
+| `interface/health.controller.ts` | 探针端点 | `HealthController` | 无 protocol 依赖（纯运维端点）；M-08 `@Public()` | `/healthz`、`/readyz`：标 `@Public()` 越过全局 `SessionGuard`，在 `setGlobalPrefix` 的排除清单内（rulings §4.18 BE-06/BE-11）；2026-10-01 起 `/readyz` 的 `details.pluginsRejected: [{id, version, reason}]` 取自 M-08 `PluginCatalog`，有被拒插件时不置为未就绪（60/18、rulings §4.23） |
 | `__tests__/evaluate-readiness.usecase.test.ts` | 单测 | — | — | 任一探针失败 → 503 |
 
 ### 5.7 `metrics/`
@@ -962,7 +965,7 @@ apps/server/src/
 | `observability/spans.ts` | 服务端 span 名登记表 | `ServerSpans`（声明合并） | 无 | 名称 `server.<子系统>.<操作>` 以 60/18 §3 为准 |
 | `observability/metrics.ts` | 服务端指标登记表 | `ServerMetrics`（声明合并） | 无 | 名称与 consumer 以 60/18 §4 为准；`scan-observability-identifiers` 核对「调用点 ⊆ 登记表」与「登记项至少一个调用点」 |
 | `redis/redis.module.ts` | Valkey 客户端基础模块 | `RedisModule`、`REDIS_CLIENT`、`bullmqConnection` | `ioredis` 6.0.x、`bullmq-otel`、`../config` | global；renderer 不装（A4b）；`ioredis`、`bullmq` 的放行位置见 60/01 §11；M3 起 collab 的 `hp-redis.extension.ts` 以 `createClient: () => REDIS_CLIENT.duplicate()` 取 6.0.x 客户端，extension-redis 自带的 5.6.x 只加载不建连（60-backend/19 §3.2） |
-| `redis/keys.ts` | `apps/server` 侧 Valkey 键模板 | `redisKeys`（`perm`、`ticket`、`oidc`、`session`、`user`、`upload`、`rl`） | 无 | 模板集合以 60/14 §3 为准；其它文件不得拼接这些前缀（60/14 VK-01） |
+| `redis/keys.ts` | `apps/server` 侧 Valkey 键模板 | `redisKeys`（`perm`、`ticket`、`oidc`、`session`、`user`、`upload`、`rl`、`plugins`（2026-10-01，频道 `plugins:ctl`，rulings §4.23）） | 无 | 模板集合以 60/14 §3 为准；其它文件不得拼接这些前缀（60/14 VK-01） |
 | `db/db.module.ts` | PG 基础模块 | `DbModule`、`DB_APP`、`DB_SYSTEM`（注入 token） | Nest、`./client`、`../config` | global；按角色建池（60/08 §5：api 只有 app 池，配置了 system 口令即拒绝启动）；A11：池的登录角色不是 `cordex_migrator` 且 `rolbypassrls = false` |
 | `db/client.ts` | 连接池、事务基元与系统事务入口 | `createPools`、`withTransaction`、`withSystem` | `pg`、`drizzle-orm`、`./schema`、`./system-jobs`；M-08 的 `SystemContext` 品牌类型 | 连接参数（`application_name`、`statement_timeout`、`lock_timeout`、`idle_in_transaction_session_timeout`、`poolMax`）以 60/08 §5 为准；GUC 一律 `set_config(…, true)`，仓储只拿事务句柄（60/08 §6.1）；`withRls` 在 M-08 `permissions/infrastructure/rls-context.ts` |
 | `db/system-jobs.ts` | 系统作业名 | `SystemJobName` | 无 | 取值 `{scope}.{name}` 以 60/08 §6.5 为准（该处「落点由 40 登记」即本文件） |
@@ -979,6 +982,8 @@ apps/server/src/
 | `db/schema/permissions.ts` | `permissions` 类型镜像 | `permissions` | `drizzle-orm/pg-core` | DDL 60/09（0030）；写方 Permissions（M-08） |
 | `db/schema/document_perm_versions.ts` | `document_perm_versions` 类型镜像 | `documentPermVersions` | `drizzle-orm/pg-core` | DDL 60/09（0031）；唯一写入点 `PermissionRepository.bumpPermVersion(tx)`（M-08） |
 | `db/schema/share_links.ts` | `share_links` 类型镜像 | `shareLinks` | `drizzle-orm/pg-core` | DDL 60/09（0032）；写方 ShareLinks（M-08），只读解析经 0033 的 SECURITY DEFINER 函数 |
+| `db/schema/plugin_policies.ts`（2026-10-01，rulings §4.23） | `plugin_policies` 类型镜像 | `pluginPolicies` | `drizzle-orm/pg-core` | DDL 60/09 §14（0012）；写方 Plugins（M-08，app）；collab 以 system 池只读 |
+| `db/schema/user_plugin_prefs.ts`（2026-10-01，rulings §4.23） | `user_plugin_prefs` 类型镜像 | `userPluginPrefs` | `drizzle-orm/pg-core` | DDL 60/09 §14（0013）；写方 Plugins（M-08，app）；擦除用户时不删 |
 | `db/schema/comments.ts` | `comments` 类型镜像 | `comments` | `drizzle-orm/pg-core` | DDL 60/13（0070）；写方 Comments（本模块） |
 | `db/schema/thumbnails.ts` | `thumbnails` 类型镜像 | `thumbnails` | `drizzle-orm/pg-core` | DDL 60/12（0061）；写方 Thumbnails（本模块） |
 | `db/schema/job_runs.ts` | `job_runs` 类型镜像 | `jobRuns` | `drizzle-orm/pg-core` | DDL 60/12（0060、0062）；写方 Jobs（本模块） |
@@ -1267,6 +1272,14 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 | C-10 | `cordis-host/adapters/*` 引用非新增，物理归属 M-09 | §0（已是既有实现）、§12 G-23 结案 |
 | C-24 | 审计 `action` 点式串口径，与 M-08 一致 | §1.3（新增确认段）、§2.4（已是既有实现，补充确认） |
 | C-15 | 能力位词汇统一为 `Capability` | 本文件未直接引用 `Capability`/`CapabilityBit`/`PermissionAction`（权限判定委托 M-08 `DocumentRoleGuard`/`RoleResolverService`），无需改动 |
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23；PRD 09 PM-03、PM-04、PM-05、PM-10；60-backend/09 §14、14 §3.2、17 §5.16 | §4.13、§5.13 | drizzle 镜像 `db/schema/plugin_policies.ts`、`user_plugin_prefs.ts`（沿用「每张业务表一个文件」，不合并为 `plugins.ts`）；迁移 `0012_plugin_policies`、`0013_user_plugin_prefs`（基线 32 → 34 个文件）；`redis/keys.ts` 增 `plugins:` 前缀（频道 `plugins:ctl`）；`cordex-ops plugins:check` 落到 M-08 `PluginCatalog`；§4 与 §5 各增 2 |
+| PRD 09 PM-05；60-backend/18 | §5.6 `health.controller.ts` | `/readyz` 附 `pluginsRejected`，不影响就绪判定 |
+| 60-backend/03 §12 | —（只登记） | `apps/server/src/modules/plugins/` 的文件树与职责归 M-08，唯一源是 40/08 §4.11、§5.11；本模块不重复列出 |
 
 ## 13. 未决问题
 

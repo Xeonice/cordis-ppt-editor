@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图） | 依赖：charter v0.2；rulings §4.15、§4.16
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-10-01（§4.23 插件管理：PS-01 清单新增 `scope` 字段（内容级 / 界面级）并链 [09](09-plugin-manager.md)；PS-11「扩展」面板即 PM-10 个人插件面板；PS-10、PS-13 的界面落点改指 09）；2026-10-01（§4.23 插件管理：PS-06 CTK 增第 9 项作用域检查） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.23
 
 # 功能域 04：插件 SDK（面向插件开发者）
 
@@ -40,7 +40,8 @@ flowchart LR
 - 用户故事：作为插件开发者，我希望按一个固定的包结构写插件，工具自动生成清单，让集成方在不运行的情况下知道我的插件提供什么。
 - 验收标准：
   - 包结构遵循 primer §5.3（`plugin.ts`/`manifest.ts`/`*.contribution.ts`/`services/`/`contracts/`/`__tests__/`）；脚手架生成即符合。
-  - `cordex-manifest.json` 由源码静态生成，字段至少：`id`、`version`、`displayName`、`description`、`provides`（服务名）、`injects`（硬依赖服务）、`optional`（可选服务）、`contributes`（按贡献点 id 列出条目摘要）、`events`（声明的事件）、`isomorphism`（`iso`/`dom`/`node`）、`hostApi`（兼容的 kernel 版本范围）、`documentTypes`（适用的文档类型 id，空 = 通用）、`permissions`（声明用途的能力列表，仅展示，PS-13）、`i18n`（提供的语言）。
+  - `cordex-manifest.json` 由源码静态生成，字段至少：`id`、`version`、`displayName`、`description`、`provides`（服务名）、`injects`（硬依赖服务）、`optional`（可选服务）、`contributes`（按贡献点 id 列出条目摘要）、`events`（声明的事件）、`isomorphism`（`iso`/`dom`/`node`）、`hostApi`（兼容的 kernel 版本范围）、`documentTypes`（适用的文档类型 id，空 = 通用）、`permissions`（声明用途的能力列表，仅展示，PS-13）、`i18n`（提供的语言）、`scope`（`content` 内容级 \| `ui` 界面级，2026-10-01 新增，rulings §4.23）。
+  - `scope` 由作者声明、生成器按贡献与实现推出最低作用域并校验：贡献文档内容、渲染、格式、Mutation、资源、迁移、写命令或实现 Provider 座的一律为内容级，按部署统一启停；只贡献 `ui.*`、`i18n.bundle`、`render.overlay` 与只读命令的才可声明为界面级，允许用户个人启停。声明低于推出结果即生成失败。判定规则与管理口径见 [09-plugin-manager.md](09-plugin-manager.md) §2.2、PM-02。
   - CI 校验清单与运行时一致（加载后实际贡献 == 清单声明），不一致即失败。
   - 集成方能用 CLI（`cordex manifest inspect <pkg>`，命名草案）打印清单摘要。
 
@@ -182,6 +183,7 @@ flowchart LR
     6. 失败隔离：注入抛错版本，宿主其余功能可用。
     7. 版本协商：`hostApi` 范围外的宿主拒绝加载并给出事件 `plugin/incompatible` 与错误码 `plugin.incompatible`。
     8. 贡献 schema：每个贡献条目通过对应贡献点 schema。
+    9. 作用域（2026-10-01，rulings §4.23；PRD [09-plugin-manager](09-plugin-manager.md) PM-02）：`cordex-manifest.json` 的 `scope` 不低于按贡献与实现推出的最低作用域；界面级插件执行带写能力位的命令被命令管线拒绝并记 `plugin/scope-violation`。
   - CTK 本身有负向测试（故意违规的插件样例必须失败；规避 Univer A17）。
   - 运行时间：单插件全矩阵 ≤ 3 min。
 
@@ -236,13 +238,13 @@ flowchart LR
 ### PS-10 插件配置
 
 - 优先级：P1 | 目标里程碑：M4 | 依赖能力：`Plugin.Config`（Standard Schema）、`ctx.intercept`
-- 验收标准：Config 在激活前校验，失败不部分激活（primer MUST #4）；集成方以 preset 配置传入；Config schema 带 `description` 时可自动生成设置 UI（P2）；每个 Config 字段必须有读取点（扫描器，规避 Univer A26）。
+- 验收标准：Config 在激活前校验，失败不部分激活（primer MUST #4）；集成方以 preset 配置传入；Config schema 带 `description` 时可自动生成设置 UI（P2；参考应用中由管理员在「管理 › 插件」配置，部署级一份，见 [09](09-plugin-manager.md) PM-09）；每个 Config 字段必须有读取点（扫描器，规避 Univer A26）。
 
 ### PS-11 失败隔离与用户可见性
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`kernel` 捕获 `apply` 异常 → `FAILED` + `errors` 上报
 - 验收标准：
-  - 插件激活抛错 → 该 Fiber `FAILED`，兄弟插件不受影响；编辑器「扩展」面板显示失败插件、错误码与「重试」；`plugin/failed` 事件。
+  - 插件激活抛错 → 该 Fiber `FAILED`，兄弟插件不受影响；编辑器「扩展」面板显示失败插件、错误码与「重试」；`plugin/failed` 事件。「扩展」面板即个人插件面板（[09-plugin-manager.md](09-plugin-manager.md) PM-10）：谁能重试、谁能关闭、失败时找谁，以及打开文档缺插件时的降级提示（PM-12），均以 09 为准。
   - 渲染器插件运行期抛错 → 元素级占位（OF-13），插件不整体失败。
   - 命令执行抛错 → 事务回滚（不留半状态），`command/failed` 事件，用户提示。
 
@@ -274,7 +276,7 @@ flowchart TB
 ### PS-13 能力声明（仅展示）
 
 - 优先级：P2 | 目标里程碑：M4 | 依赖能力：Manifest
-- 验收标准：Manifest `permissions` 列出插件用途（`network:<host>`、`storage:local`、`clipboard`、`export`）；集成方文档与「扩展」面板展示；**不**做运行时强制（章程 §2.3 无沙箱），文档明确说明。
+- 验收标准：Manifest `permissions` 列出插件用途（`network:<host>`、`storage:local`、`clipboard`、`export`）；集成方文档、「扩展」面板与管理员插件详情（[09](09-plugin-manager.md) PM-06）展示；**不**做运行时强制（章程 §2.3 无沙箱），文档明确说明。
 
 ### PS-14 服务端 / headless 插件
 

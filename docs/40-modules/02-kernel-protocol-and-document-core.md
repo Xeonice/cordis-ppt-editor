@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：protocol 删 `collab/frame.ts` 信封编解码，`ws/frames.ts` 只留 CONTROL 联合作 Stateless 载荷与 ack，`ws/handshake.ts` 改为 Auth token JSON schema，关闭码加 4205；store-yjs 的 `yjsBackend` 增 `docHandle()` 与 `registerRemoteOrigin()`、可接管外部 Y.Doc）；2026-09-26（§4.21 整合：§2.3 between 与 §4.1/§5.1 order.ts 按 ADR-0032 修订写 rocicorp 键格式与 vendored 登记路径，§9 order.test 补上游向量；§7 登记浏览器 z.config jitless 调用点）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：protocol 删 `collab/frame.ts` 信封编解码，`ws/frames.ts` 只留 CONTROL 联合作 Stateless 载荷与 ack，`ws/handshake.ts` 改为 Auth token JSON schema，关闭码加 4205；store-yjs 的 `yjsBackend` 增 `docHandle()` 与 `registerRemoteOrigin()`、可接管外部 Y.Doc）；2026-09-26（§4.21 整合：§2.3 between 与 §4.1/§5.1 order.ts 按 ADR-0032 修订写 rocicorp 键格式与 vendored 登记路径，§9 order.test 补上游向量；§7 登记浏览器 z.config jitless 调用点）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：kernel 增 `manifest/scope.ts`（`scope` 字段与最低作用域推导）；model-core 增 `plugin-footprint/` 四文件（足迹资源、同事务维护、比对、界面级写命令拒绝，ADR-0050）；protocol 增 `rest/plugins.ts`、`plugins/catalog.ts`，`errors/codes.ts` 登记 `server.plugins.*`，`ws/handshake.ts` 增 `pluginSet` 与 `collab.plugins_outdated`，`ws/frames.ts` 增 `plugins`；§8 冻结文件数 206 → 213） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
 
 # 02 内核、协议与文档内核（限界上下文 BC-01 内核与插件运行时、BC-02 共享基础设施、BC-03 协议与发布语言、BC-04 国际化、BC-05 文档内核）
 
@@ -726,7 +726,8 @@ packages/kernel/src/
 │   ├── types.ts                Manifest 接口、ContributionEntry
 │   ├── schema.ts                Manifest 的 Standard Schema
 │   ├── verify.ts                verifyManifestAgainstRuntime(fiber, manifest)
-│   └── version.ts               satisfies(range, version) 最小 semver 子集
+│   ├── version.ts               satisfies(range, version) 最小 semver 子集
+│   └── scope.ts                 （2026-10-01，§4.23）PluginScope='content'|'ui'；CONTENT_SCOPE_POINTS 表；inferMinimumScope(manifest)；assertScopeNotDowngraded()
 ├── scope.ts                    createIsolatedScope(ctx, spec)（文档无关；model-core 用它构造 UnitScope，裁决 C-4）
 ├── preset/                     （新增，14 §1 C-07）装配运行时，源自 M-11 §4 assembly/，收编进 kernel 避免 L8 同秩定向依赖链
 │   ├── entry.ts                 PresetEntry/LazyPresetEntry 类型；UnitProviderRegistrar 结构类型（scope:'unit' 条目登记用，§4.20 FE-01）
@@ -778,10 +779,11 @@ packages/protocol/src/
 │   ├── auth.ts                  login/refresh/me DTO
 │   ├── audit.ts                 AuditRecord DTO
 │   ├── webhooks.ts              （新增，rulings §4.12 U-14）Webhook 订阅注册/更新/删除、投递日志查询 DTO（M-12 §2.1/§4.11/§7.2 落地）
+│   ├── plugins.ts               （2026-10-01，§4.23）插件管理 REST DTO（60/15 §3.15 七条路由）：EffectivePluginSet、PluginSetFingerprint{catalog,policy}、AdminPluginCatalog、PluginPolicyPatch、UserPluginPreference；部署级八态与被拒原因码字面量联合
 │   ├── telemetry.ts             （新增，rulings §4.18 BE-30）浏览器错误上报 ClientErrorReport DTO（POST /telemetry/errors，≤ 64 KiB）；OTLP 代理走标准 protobuf，不另建 schema（M-12 §4.12/§7.2 落地）
 │   └── index.ts                 re-export
 ├── ws/
-│   ├── handshake.ts             Auth token 的 JSON schema（ticket、protocolVersion、clientId、capabilities、appVersion、epoch?、maxSchemaVersion、traceparent?）与 PermissionDenied 的 reason `{code}`（§4.21 改写，原握手帧 DTO）
+│   ├── handshake.ts             Auth token 的 JSON schema（ticket、protocolVersion、clientId、capabilities、appVersion、epoch?、maxSchemaVersion、pluginSet?、traceparent?）与 PermissionDenied 的 reason `{code}`（§4.21 改写，原握手帧 DTO）
 │   ├── frames.ts                CONTROL 判别联合（判别键 type），作 Hocuspocus Stateless 载荷：ack 带 tier（§4.15 S-3a）、room 含可选 persist:'ok'|'degraded'（§4.19 INC-09）；§4.21 删帧级类型与 auth/auth.denied/auth.refresh/ping/pong 成员；成员以 30/06 §6.3 为准
 │   └── index.ts                 re-export
 ├── collab/                      （2026-09-25 登记，决策 INC-01；经根入口导出，不加 ./collab 子路径，不建 collab/control.ts；§4.21 删 frame.ts）
@@ -796,6 +798,8 @@ packages/protocol/src/
 ├── render/
 │   ├── sidecar.ts               （新增，rulings §4.15 Q8；§4.18 FE-04 补登）worker ↔ renderer sidecar 的鉴权内部 RPC 契约（state/资源/字体注入、ready 信号、WebP/PDF 结果），与 60-backend/06 §10 的 RPC 契约一致，供 M-09 `remote-renderer.client.ts` 与 renderer 入口共同 import
 │   └── page.ts                  （新增，14 §1 C-27；§4.18 BE-04：token→renderId、RenderStateResponse 为注入载荷）RenderPageQuerySchema/RenderPageSignal/RenderStateResponse：Node 进程 ↔ headless Chromium 渲染页的跨进程契约，供 M-09（server-headless）与 M-11（apps/web /render 页）共同 import
+├── plugins/
+│   └── catalog.ts               （2026-10-01，§4.23）插件声明文件 cordex-plugins.json（schemaVersion 1）的 zod schema，apps/server PluginsModule 与 cordex-ops plugins:check 共用
 ├── blob.ts                      BlobRef{hash,size,contentType}（与 model-core 共用同一定义源）
 └── testing/
     ├── index.ts                 DTO 工厂（确定性 seed）
@@ -931,6 +935,11 @@ packages/model-core/src/
 │   ├── resource-hook.ts                  ResourceHook<T>
 │   ├── resource.point.ts                 'core.resource'，key=namespace
 │   └── resources.service.ts              ResourcesService：collect/apply（逐 hook 容错，K6）
+├── plugin-footprint/                     （2026-10-01，rulings §4.23，ADR-0050）
+│   ├── footprint.ts                      PluginFootprint 类型；resources['core.pluginFootprint'] 的 ResourceHook（version 1，文档类型盲）
+│   ├── footprint-tracker.ts              命令管线提交前阶段：本事务写入的 kind / 命名空间 → 负责的内容级插件，缺条目或版本更高时把足迹 StoreOp 并入同一事务；只增不减
+│   ├── compare.ts                        comparePluginFootprint(footprint, sessionSet, catalogStates) → PluginFootprintGap[]（disabled/absent/outdated/failed）
+│   └── scope-guard.ts                    内置 prepend 监听：界面级插件的命令产生文档写入时按未授权拒绝，emit plugin/scope-violation
 ├── permission/
 │   ├── permission.ts                     PermissionRequest、PermissionPolicy
 │   ├── permission.point.ts               'core.permissionPolicy'，key=policy.id
@@ -1087,6 +1096,7 @@ packages/store-yjs/src/
 | `manifest/schema.ts` | Manifest 运行时校验 | `ManifestSchema` | zod（第三方，直接引入） | 校验 `cordex-manifest.json`；`zod` 按章程 §5.3 规则 4 同时白名单于 `protocol`/`kernel`——两包各自独立 import，kernel **不**依赖 protocol（charter §5.2 依赖上限均只列 `shared`） |
 | `manifest/verify.ts` | 声明-运行时一致性 | `verifyManifestAgainstRuntime()`、`MismatchReport` | cordis（类型） | 不一致→`strictManifest` 时 FAILED，否则诊断 |
 | `manifest/version.ts` | 版本范围比较 | `satisfies()` | 无 | 只支持 `^`/`~`/`>=`/精确/`\|\|`（ADR-0002），不拉入 `semver` |
+| `manifest/scope.ts`（2026-10-01，rulings §4.23） | 插件作用域 | `PluginScope`、`CONTENT_SCOPE_POINTS`、`inferMinimumScope()`、`assertScopeNotDowngraded()` | `./types` | 按 PRD 09 §2.2 与 40/16 §4「作用域归类」列从 `contributes` / `implements` 推出最低作用域；未知贡献点按内容级；清单生成器、部署时校验（60-backend PluginsModule）与 CTK 共用同一实现 |
 | `scope.ts` | 隔离作用域工具 | `createIsolatedScope()` | cordis | 文档无关；被 model-core 调用构造 UnitScope（裁决 C-4） |
 | `preset/entry.ts` | 装配条目类型 | `PresetEntry`（含 `scope`、`provides?`）、`LazyPresetEntry`、`UnitProviderRegistrar` | shared（类型） | 新增（14 §1 C-07）；源自 M-11 §4 `assembly/entry.ts`；`UnitProviderRegistrar` 只含 `registerUnitProvider(entry): () => void`，使 kernel 不 import model-core 即可登记（rulings §4.20 FE-01） |
 | `preset/lazy.ts` | 惰性条目包装 | `lazy()` | `./entry` | 新增；供重型可选特性拆包复用（00 §6.2） |
@@ -1116,7 +1126,7 @@ packages/store-yjs/src/
 | `schema.ts` | zod 使用约定 | `Infer<T>`、`strictObject` 默认导出 | zod | `zod` 集中于 protocol/kernel（R5） |
 | `ids.ts` | 品牌 id schema | `DocumentId`/`UserId`/`RoomId`/`SessionId`/`TaskId` | zod、shared | `z.string().brand`；rulings §4.15 T-0 单组织完全去租户，删除 `TenantId`；Q6 组管理（U-11）推迟，删除 `GroupId` |
 | `version.ts` | 协议版本与兼容矩阵 | `PROTOCOL_VERSION`、兼容判定函数 | 无 | 客户端↔服务端握手用（06/08） |
-| `errors/codes.ts` | 错误码字面量与 HTTP 映射 | 错误码联合、`ERROR_HTTP_STATUS` | 无 | 禁止 `enum`（lint `no-enum-in-protocol`）；码名、域清单与 HTTP 映射的唯一源是 30/10 §1.1 与 http-map，本文件是其代码落点。含 `quota_exceeded`（rulings §4.15 Q5，超系统天花板导入即拒、性能包络只告警，UX-13；HTTP 413，`details` 带维度与上限值）。**2026-09-25 按决策 INC-10/SG-04（F36）登记**：新域 `server.{auth,users,documents,media,jobs,share_links,snapshots,import,export,thumbnails,comments,webhooks,audit,http}`、`plugin`、`shell`；新码含 `server.snapshots.persist_degraded`、`server.auth.{csrf_rejected,origin_rejected,account_disabled,idp_unavailable,unavailable}`、`server.users.{not_found,last_admin}`、`server.share_links.not_found`、`server.documents.element_not_tombstoned`、`server.import.job_terminal`、`server.media.unsupported_type`、`server.webhooks.egress_blocked`、`permission.{principal_not_found,principal_unsupported,last_owner}`、`storage.{integrity_mismatch,upload_not_found}`、`collab.{payload_too_large,bootstrap_failed,lock_lost,auth_timeout,quarantined,validation_failed}`、`server.jobs.*`、`server.import.*`、`server.export.{not_ready,expired}`、`server.thumbnails.*`、12 个 `headless.*`、`render.{bad_payload,version_mismatch,state_expired}`、`command.unit_not_found`；`format.unsupported_binary` 补 HTTP 映射；废 `share_link.*`、`user.*`、`collab.server.room_full`（统一 `collab.room_full`），WS 握手 `collab.unauthenticated` 映射 4401 |
+| `errors/codes.ts` | 错误码字面量与 HTTP 映射 | 错误码联合、`ERROR_HTTP_STATUS` | 无 | 禁止 `enum`（lint `no-enum-in-protocol`）；码名、域清单与 HTTP 映射的唯一源是 30/10 §1.1 与 http-map，本文件是其代码落点。含 `quota_exceeded`（rulings §4.15 Q5，超系统天花板导入即拒、性能包络只告警，UX-13；HTTP 413，`details` 带维度与上限值）。**2026-09-25 按决策 INC-10/SG-04（F36）登记**：新域 `server.{auth,users,documents,media,jobs,share_links,snapshots,import,export,thumbnails,comments,webhooks,audit,http}`、`plugin`、`shell`；新码含 `server.snapshots.persist_degraded`、`server.auth.{csrf_rejected,origin_rejected,account_disabled,idp_unavailable,unavailable}`、`server.users.{not_found,last_admin}`、`server.share_links.not_found`、`server.documents.element_not_tombstoned`、`server.import.job_terminal`、`server.media.unsupported_type`、`server.webhooks.egress_blocked`、`permission.{principal_not_found,principal_unsupported,last_owner}`、`storage.{integrity_mismatch,upload_not_found}`、`collab.{payload_too_large,bootstrap_failed,lock_lost,auth_timeout,quarantined,validation_failed}`、`server.jobs.*`、`server.import.*`、`server.export.{not_ready,expired}`、`server.thumbnails.*`、12 个 `headless.*`、`render.{bad_payload,version_mismatch,state_expired}`、`command.unit_not_found`；`format.unsupported_binary` 补 HTTP 映射；废 `share_link.*`、`user.*`、`collab.server.room_full`（统一 `collab.room_full`），WS 握手 `collab.unauthenticated` 映射 4401；2026-10-01 登记新域 `server.plugins.*`（`not_found`、`policy_invalid`、`revision_conflict`、`conflict`、`not_optional`、`config_invalid`）及其 HTTP 映射（404 / 422 / 412 / 409 / 409 / 422，以 60-backend/15 §3.15 为准），rulings §4.23 |
 | `errors/envelope.ts` | 错误信封 | `ErrorEnvelope` | zod | REST/WS 统一错误形状 |
 | `permissions/actions.ts` | 权限能力位词汇 | `Capability`、`PermissionAction`（别名） | zod | Q-T8：AND 语义、非空数组；ui-core 标准上下文键族 `can.<capability>` 的 `<capability>` 全集取自此处（rulings §4.20 FE-06，40/10 §2.1） |
 | `permissions/roles.ts` | 角色→能力位映射类型 | `RoleName`、`ROLE_CAPABILITIES` | `./actions` | 组合细节见 PRD CO 域（新增文件，§12 G-5） |
@@ -1128,10 +1138,12 @@ packages/store-yjs/src/
 | `rest/auth.ts` | 鉴权 REST DTO | login/refresh/me schema | zod | rulings §4.15 Q6：服务端只做 OIDC RP、不持有密码，`login` 为 OIDC 跳转/回调 DTO；集成方 JWT 与 API Key DTO 降为 M4 |
 | `rest/audit.ts` | 审计 REST DTO | `AuditRecord` | zod、`../ids` | M-12 读取 |
 | `rest/webhooks.ts`（新增，rulings §4.12 U-14） | Webhook REST DTO | 注册/更新/删除订阅、投递日志查询 schema | zod、`../ids` | M-12 §2.1/§4.11/§7.2 落地，M3 |
+| `plugins/catalog.ts`（2026-10-01，rulings §4.23） | 插件声明文件 schema | `CatalogFileSchema`、`CatalogEntrySchema` | zod | `cordex-plugins.json`：`schemaVersion: 1`，`plugins[]` 每项 `id`、`version`、`source`（`builtin` \| 挂载目录内相对路径）、`sha256`、`signature?`、`review?{by,date,link}`、`initial{state, defaultOn?}`、`lockPolicy?`、`scope?`（只能为 `content`）、`config?`；apps/server `PluginsModule` 与 `cordex-ops plugins:check` 共用（60-backend/17 §5.16） |
+| `rest/plugins.ts`（2026-10-01，rulings §4.23） | 插件管理 REST DTO | `EffectivePluginSetSchema`、`PluginSetFingerprintSchema`、`AdminPluginCatalogSchema`、`PluginPolicyPatchSchema`、`UserPluginPreferenceSchema` | zod | `GET /users/me/plugins`、`PUT/DELETE /users/me/plugins/:pluginId`、`GET/PATCH /admin/plugins*` 的载荷（七条路由，以 60-backend/15 §3.15 为准）；三态 `forced`/`optional`/`disabled`、部署级八态与被拒原因码为字面量联合（非 enum）；指纹两段各为 43 字符 base64url |
 | `rest/telemetry.ts`（新增，rulings §4.18 BE-30） | 浏览器遥测 REST DTO | `ClientErrorReport` schema | zod | `POST /telemetry/errors` 载荷，与架构 10 前端错误事件同形状、请求体 ≤ 64 KiB；`POST /telemetry/otlp` 走标准 OTLP/HTTP protobuf（≤ 512 KiB，只转发 traces），不另建 schema；两端点需登录、令牌桶限流，由 M-12 `ClientTelemetryController` 承接（api 角色），路径相对 `apiBase` |
 | `rest/index.ts` | 子目录聚合 | re-export | 无 | — |
-| `ws/handshake.ts` | Auth token 与拒绝 reason（§4.21 改写） | `AuthTokenSchema`、`AuthDeniedReasonSchema` | zod、`../permissions/decision` | `AuthTokenSchema` 即 Auth 帧 token 的 JSON：`{ticket, protocolVersion, clientId, capabilities, appVersion, epoch?, maxSchemaVersion, traceparent?}`（客户端 `token` 函数生成，服务端 `onAuthenticate` 与 `onTokenSync` 解析，Auth 帧 ≤ 8 KiB 由适配层限）；`AuthDeniedReasonSchema` 即 `PermissionDenied` 的 reason `{code}`，code 字面量联合含 `'collab.rate_limited'`（握手期每用户单实例连接数超限，随后以 4429 关闭，rulings §4.20 BE-01+TX-03），集合以 30/06 §6.3 为准；原 `auth`/`auth.denied` 专用帧随 ADR-0039 取消 |
-| `ws/frames.ts` | CONTROL 判别联合（Stateless 载荷） | `ControlSchema`：`auth.ok`、`permission`、`ack`、`error`、`repair`、`room`、`event`，另有诊断用可选 `ping`（§4.21） | zod、`./handshake` | §4.21 起只留 CONTROL 联合：作 Hocuspocus Stateless（类型 5）的 UTF-8 JSON 载荷，由服务端 `connection.sendStateless` 下发、客户端 provider `onStateless` 接收；`sync`/`awareness` 帧级类型删除（帧层由 Hocuspocus 编解码）；`auth`/`auth.denied`/`auth.refresh` 改为 Auth 帧、`PermissionDenied` 与 `sendToken`→`onTokenSync`（见 `ws/handshake.ts`），应用层 `ping`/`pong` 心跳删除；成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a，§4.21 H:q-hp-persist-ack 保留），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；M-05/M-09 各自实现，服务端处理见 60/16；本包仍不 import y-protocols |
+| `ws/handshake.ts` | Auth token 与拒绝 reason（§4.21 改写） | `AuthTokenSchema`、`AuthDeniedReasonSchema` | zod、`../permissions/decision` | `AuthTokenSchema` 即 Auth 帧 token 的 JSON：`{ticket, protocolVersion, clientId, capabilities, appVersion, epoch?, maxSchemaVersion, pluginSet?, traceparent?}`（`pluginSet` = 插件集指纹 `{catalog, policy}`，2026-10-01，rulings §4.23）（客户端 `token` 函数生成，服务端 `onAuthenticate` 与 `onTokenSync` 解析，Auth 帧 ≤ 8 KiB 由适配层限）；`AuthDeniedReasonSchema` 即 `PermissionDenied` 的 reason `{code}`，code 字面量联合含 `'collab.rate_limited'`（握手期每用户单实例连接数超限，随后以 4429 关闭，rulings §4.20 BE-01+TX-03）与 `'collab.plugins_outdated'`（`pluginSet.catalog` 与部署不符，随后以 4426 关闭，rulings §4.23），集合以 30/06 §6.3 为准；原 `auth`/`auth.denied` 专用帧随 ADR-0039 取消 |
+| `ws/frames.ts` | CONTROL 判别联合（Stateless 载荷） | `ControlSchema`：`auth.ok`、`permission`、`ack`、`error`、`repair`、`room`、`event`、`plugins`（2026-10-01，`{reason:'policy_changed', policy}`，rulings §4.23），另有诊断用可选 `ping`（§4.21） | zod、`./handshake` | §4.21 起只留 CONTROL 联合：作 Hocuspocus Stateless（类型 5）的 UTF-8 JSON 载荷，由服务端 `connection.sendStateless` 下发、客户端 provider `onStateless` 接收；`sync`/`awareness` 帧级类型删除（帧层由 Hocuspocus 编解码）；`auth`/`auth.denied`/`auth.refresh` 改为 Auth 帧、`PermissionDenied` 与 `sendToken`→`onTokenSync`（见 `ws/handshake.ts`），应用层 `ping`/`pong` 心跳删除；成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a，§4.21 H:q-hp-persist-ack 保留），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；M-05/M-09 各自实现，服务端处理见 60/16；本包仍不 import y-protocols |
 | `ws/index.ts` | 子目录聚合 | re-export | 无 | — |
 | `collab/close-codes.ts` | 关闭码常量 | `CLOSE_CODES`（常量对象） | 无 | 含 1011、4427、4428（决策 INC-06）；4429 的触发条件增「握手期每用户单实例连接数超限」（rulings §4.20 BE-01+TX-03）；§4.21 加 4205（Hocuspocus 认证前队列或待认证文档数超限）、4408 扩为超时通用码（认证期限与空闲），仍是唯一源——`@hocuspocus/common` 的关闭码常量不直接使用（ADR-0039）；客户端行为见 50/07 §9，触发条件见 60/16 §10 |
 | `collab/awareness.ts` | awareness 状态 schema | `AwarenessStateSchema` | zod | ≤ 2 KiB（ADR-0024）；M-05 `domain/awareness-state.ts` 对齐 |
@@ -1254,6 +1266,10 @@ packages/store-yjs/src/
 | `resource/resource-hook.ts` | 资源钩子契约 | `ResourceHook<T>` | 无 | 命名空间模板字面量约束 |
 | `resource/resource.point.ts` | 贡献点定义 | `ResourcePoint` | `../../contribution` | key=`namespace` |
 | `resource/resources.service.ts` | 资源服务 | `ResourcesService` | `./resource-hook` | 逐 hook 容错（K6） |
+| `plugin-footprint/footprint.ts`（2026-10-01，rulings §4.23） | 内容插件足迹资源 | `PluginFootprint`、`pluginFootprintHook` | `../resource/resource-hook` | 命名空间 `core.pluginFootprint`，`data.entries[pluginId] = {minVersion, kinds[], namespaces[]}`；界面级插件不进足迹（ADR-0050 决策 1） |
+| `plugin-footprint/footprint-tracker.ts` | 足迹同事务维护 | `trackFootprint(tx, ownership)` | `../store/transaction`、`kernel/manifest/scope` | 管线提交前阶段；足迹 StoreOp 与内容同一 `TransactionRecord`，生成撤销逆操作时跳过（只增不减）；缺插件会话不改写该插件条目（ADR-0050 决策 2） |
+| `plugin-footprint/compare.ts` | 足迹比对 | `comparePluginFootprint()`、`PluginFootprintGap` | `./footprint` | 纯函数；`reason` ∈ `disabled`/`absent`/`outdated`/`failed`；`affectedSlideIds` 为空不触发横幅；供 apps/web 缺插件横幅与个人插件面板（PRD 09 PM-12） |
+| `plugin-footprint/scope-guard.ts` | 界面级写命令拒绝 | `scopeGuard` 内置监听 | `../command/pipeline`、`kernel/manifest/scope` | 紧随 `permission-gate.ts` 之后；命令所属插件 `scope:'ui'` 且产生 Mutation 或资源写 → `PERMISSION_DENIED`，emit `plugin/scope-violation {pluginId, commandId}`（PRD 09 PM-13 第 3 条） |
 
 **`permission/`**
 
@@ -1487,7 +1503,7 @@ BC-05（model-core）是 12 号文档「共享（水平层拥有、零改动）�
 
 4. **Snapshot 编解码的 body 分片扩展点**（12 §3.3）：`SnapshotBundle` 允许 `body` 引用外部 blob 分片 `{ $ref: BlobRef }`；`decodeSnapshot` 在 M1 即支持 `$ref` 解析，slide 不使用，为 M5 的 `model-sheet`（巨大 `cells` 表）预留。落点：`snapshot/codec.ts`（`decodeSnapshot` 的 `$ref` 分支）、`snapshot/snapshot.ts`（`Snapshot.body` 类型允许分片标记）。M0/M1 milestone 要求：即使不实现分片读取的性能优化，`$ref` 分支必须存在且有单测，否则 M5 引入分片会改动本应「零改动」的水平层文件。
 
-**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 206 个文件都在冻结范围内（2026-09-26 shared 增 4 个，rulings §4.20 TX-10；同日 protocol 删 `collab/frame.ts` 减 1 个，rulings §4.21）；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
+**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 213 个文件都在冻结范围内（2026-10-01 §4.23 增 7 个：kernel `manifest/scope.ts`、protocol `rest/plugins.ts` 与 `plugins/catalog.ts`、model-core `plugin-footprint/` 四文件）（2026-09-26 shared 增 4 个，rulings §4.20 TX-10；同日 protocol 删 `collab/frame.ts` 减 1 个，rulings §4.21）；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
 
 ## 9. 测试布局
 
@@ -1688,6 +1704,41 @@ M2 起 `yjsBackend` 需被 `collab-yjs`（M-05）实际注入验证，`protocol`
 | H:q-hp-provider、证据 CL-01、CL-02、VR-03、d-26 | §1.3 表、§3 store-yjs 生命周期、§4.7、§5.7、「两个 Provider 的差异」表 | `yjsBackend` 增 `docHandle()`（不透明 `YDocHandle`）与 `registerRemoteOrigin()`；`yjs-store.ts` 增「接管外部 Y.Doc」（`adopt`，服务端用）；均不新增文件 |
 
 需要其他文件配合：30/06 §2.3 的 `yjsBackend` 接口表按本节两个新方法与 `adopt` 参数回写（名称以本文为准）；[50/07](../50-frontend/07-collaboration-client.md) §1、§2（已同轮改写）；40/09 与 60/05 的 Unit 接管挂点（`afterLoadDocument`）引用 §5.7。
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 裁决 3、PRD 09 PM-02、PM-13 | §4.2、§5.2 | kernel 增 `manifest/scope.ts`：`scope` 字段、`CONTENT_SCOPE_POINTS`、最低作用域推导与「只能更严」断言，供清单生成器、部署时校验与 CTK 共用 |
+| rulings §4.23 O-3（2026-10-01 已确认）、ADR-0050、PRD 09 PM-12 | §4.5、§5.5 | model-core 增 `plugin-footprint/` 四文件：足迹资源 `core.pluginFootprint`、同事务维护（只增不减）、`comparePluginFootprint`、界面级写命令拒绝（`plugin/scope-violation`） |
+| PRD 09 PM-08、PM-13；60-backend/15 §3.15、60-backend/16 §12 | §4.3、§5.3 | protocol 增 `rest/plugins.ts` 与 `plugins/catalog.ts`（声明文件 schema）；`errors/codes.ts` 登记 `server.plugins.*` 六个码；`ws/handshake.ts` 的 Auth token 增 `pluginSet`、拒绝 code 增 `collab.plugins_outdated`（→ 4426）；`ws/frames.ts` 增 Stateless `plugins`；§8 冻结文件数 206 → 213 |
+
+**图 12-1 本轮新增文件与调用方**
+
+```mermaid
+flowchart LR
+  scope["kernel manifest/scope.ts"]
+  gen["tooling manifest-gen 与 CTK"]
+  deploy["apps/server PluginsModule 部署时校验"]
+  guard["model-core plugin-footprint/scope-guard.ts"]
+  tracker["model-core plugin-footprint/footprint-tracker.ts"]
+  cmp["model-core plugin-footprint/compare.ts"]
+  web["apps/web 缺插件横幅与个人插件面板"]
+  rest["protocol rest/plugins.ts"]
+  hs["protocol ws/handshake.ts 的 pluginSet"]
+  gw["server-collab 握手判定"]
+  scope --> gen
+  scope --> deploy
+  scope --> guard
+  scope --> tracker
+  cmp --> web
+  rest --> web
+  rest --> deploy
+  hs --> gw
+```
+
+怎么读：左列是本模块新增或改动的文件，右列是调用它们的其它模块；`scope.ts` 是作用域判定的唯一实现，构建期、部署时与运行期三处共用，不各写一份规则。
+依据：本节表；ADR-0050；PRD 09 §2.2。
 
 ## 13. 未决问题
 

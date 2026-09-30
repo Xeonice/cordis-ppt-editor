@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§2.5–§2.6 入口改为钩子、仓储契约不变；§3.1 server-collab = Hocuspocus 包装 + 七个自有扩展；§4.1 collab 目录加 `collab-upgrade.handler.ts`、`frame-prefilter.ts`、`session-sweeper.ts`、`hp-redis.extension.ts`，`ticket-verifier.ts` 移入 infrastructure；§4.4 以 `interface/hp/*.extension.ts` 取代 `frame-router`、`broadcast`、`awareness-relay` 与 room-manager 的文档表；§5.1、§5.4 职责表；§9 测试布局；§11 M2 切片；node-font 用 opentype.js 2.0）；2026-09-26（§4.21 整合：hp-redis.extension 写明 createClient 注入与类型适配点；tombstone-sweeper 覆盖 graphic 下的墓碑；testing 登记 runCollabServerConformance 新用例 id；telemetry 挂点指向 60/18；room.extension 接管参数对齐 40/02 §5.7；FanoutBus 契约集成只覆盖控制频道）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明） | 依赖：ADR-0039；00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；60-backend/01 §3/§9/§10、05、06 §8–§10、11、16（原 30/08 §1/§4/§8/§9/§11/§16.1–16.5 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2、§3.1、§3.3、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§2.5–§2.6 入口改为钩子、仓储契约不变；§3.1 server-collab = Hocuspocus 包装 + 七个自有扩展；§4.1 collab 目录加 `collab-upgrade.handler.ts`、`frame-prefilter.ts`、`session-sweeper.ts`、`hp-redis.extension.ts`，`ticket-verifier.ts` 移入 infrastructure；§4.4 以 `interface/hp/*.extension.ts` 取代 `frame-router`、`broadcast`、`awareness-relay` 与 room-manager 的文档表；§5.1、§5.4 职责表；§9 测试布局；§11 M2 切片；node-font 用 opentype.js 2.0）；2026-09-26（§4.21 整合：hp-redis.extension 写明 createClient 注入与类型适配点；tombstone-sweeper 覆盖 graphic 下的墓碑；testing 登记 runCollabServerConformance 新用例 id；telemetry 挂点指向 60/18；room.extension 接管参数对齐 40/02 §5.7；FanoutBus 契约集成只覆盖控制频道）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：server-collab 可选注入 `pluginSetSource`；`auth.extension.ts` 握手第五步比对插件集指纹（`catalog` 不符 4426 `collab.plugins_outdated`，`policy` 不符准入后发 Stateless `plugins`）；新增 `interface/hp/plugin-set-notifier.ts` 与 apps/server `infrastructure/plugin-set.source.ts`（`plugins:ctl` 订阅 + 60 s 轮询兜底）） | 依赖：ADR-0039；00-module-map.md M-09 行/§4.1/§4.2/§5.1/§5.3/§7/§9；40-modules/02-kernel-protocol-and-document-core.md §2.5/§2.6/§6/§7/§13；40-modules/04-ooxml-format-and-pptx-codec.md §2.5/§2.6/§7；40-modules/06-layout-and-render-engine.md §2.5/§7；40-modules/08-server-identity-documents-and-storage.md §2.1/§2.5/§7/§12 G-9/G-11/§13；60-backend/01 §3/§9/§10、05、06 §8–§10、11、16（原 30/08 §1/§4/§8/§9/§11/§16.1–16.5 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2、§3.1、§3.3、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/06-collaboration.md §5/§6/§8/§9/§10/§11/§18；30-architecture/07-rendering.md §10；30-architecture/02-layering-and-packages.md §4.22/§4.24；ADR-0022/0023/0025/0026/0034/0035；PRD 10-prd/03-features/03-collaboration.md CO-07/CO-08；PRD 10-prd/03-features/06-server-and-ops.md SV-03/SV-04/SV-05/SV-13；charter §5.1/§5.2/§6.1 D8
 
 # 09 服务端协同网关与 Headless 宿主（限界上下文 BC-21 协同网关与持久化、BC-22 快照与版本、BC-27 Headless 渲染与批处理宿主）
 
@@ -435,14 +435,14 @@ sequenceDiagram
 |---|---|
 | 插件名 / `name` | `'server-collab'` |
 | `inject`（必需） | `['units','updateStore','snapshotStore','fanoutBus','leaseLock','authzSource','telemetry','spillStore','membershipRegistry']`（`spillStore` 2026-09-21 新增，rulings §4.13 S-3；`membershipRegistry` 2026-09-25 登记，名额跨实例原子判定，60/05 §2.1、§4.2） |
-| `inject`（可选） | `['collabScaleOut']`（2026-09-26 新增，M3：apps/server 组装的 `HardenedRedis`，即 `@hocuspocus/extension-redis` 的加固子类，作为额外扩展交给 Hocuspocus；M2 单实例不注入） |
+| `inject`（可选） | `['collabScaleOut', 'pluginSetSource']`（`collabScaleOut` 2026-09-26 新增，M3：apps/server 组装的 `HardenedRedis`，即 `@hocuspocus/extension-redis` 的加固子类，作为额外扩展交给 Hocuspocus；M2 单实例不注入。`pluginSetSource` 2026-10-01 新增（rulings §4.23，M3）：`current(): {catalog, policy}` 与 `onPolicyChanged(cb)`，由 apps/server `plugin-set.source.ts` 实现；未注入时不判定插件集指纹） |
 | `provide` | `['collabServer']` |
 | 贡献点：提供 / 消费 | 均无（能力经服务名暴露，不占用贡献点机制） |
 | 事件：发布 | `collab-server/room-opened`、`collab-server/room-closed`、`collab-server/update-rejected`、`collab-server/repair` |
 | 事件：订阅 | 无 cordis 事件（Redis `perm:doc:{id}` 经注入的 `authzSource.onPermissionChanged` 回调交给 `permission-sync.extension.ts`，`room:{docId}:ctl` 经 `fanoutBus.subscribeControl` 交给 `control-plane.extension.ts`，都不是 cordis Events） |
 | 配置 schema | `{ room:{drainGraceMs,maxEditors,maxViewers,memoryAdmissionPct,weight:{maxElementsPerDoc,softWarnElements}}, limits:{maxFrameBytes,step2MaxBytes,msgRateHz,msgBurst,updateBytesPerMin,awarenessMinIntervalMs,awarenessMaxBytes,awarenessTickThreshold,awarenessTickMs,structsPerUpdate}, hocuspocus:{timeout,maxUnauthenticatedQueueSize,maxUnauthenticatedQueueMessages,maxPendingDocuments,flushDelay,debounce,maxDebounce}, persistence:{flushMs,flushMaxUpdates,persistBeforeBroadcast}, compaction:{maxPendingUpdates,maxPendingBytes,maxAgeMs,retainUpdatesAfterSnapshotMs}, softGate:{mode,schemaMode}, repair:{quarantineThreshold,windowMs}, spill:{tier1MaxBytesPerDoc,tier2ChunkBytes}, tombstone:{ttlHours} }`（zod，默认值见 §11、60-backend/17 §5.7–§5.11；`spill` 段 2026-09-21 新增，S-3；2026-09-24 `room.maxActiveRooms` 改为 `room.weight` 按文档实测权重准入、新增 `tombstone` 段，rulings §4.15 Q3/Q5；全部数值部署配置可调；2026-09-26 增 `hocuspocus` 段与 `limits.step2MaxBytes`、`awarenessTick*`，取值见 [60/16 §13](../60-backend/16-ws-protocol-server-view.md)） |
 | 生命周期 | `ready`：建 Hocuspocus 实例并向宿主暴露 `collabServer`；`dispose`：`drainAll('shutdown')`（自写顺序：room draining → flush 并补 ack → 原始 `ws.close(1012)` → 等卸载）→ 自调 `hooks('onDestroy')`（Hocuspocus 类没有 `destroy()`，嵌入模式下 `onDestroy` 不会自动触发）→ 释放全部 Room 的 effect；本包**不**在单一 `UnitScope` 内运行——它自行管理"每 Room 一个 Unit"的多份隔离域，不经宿主一次性 `isolate()` |
-| Manifest 片段 | `{ "id":"@cordexjs/server-collab", "provides":["collabServer"], "injects":["units","updateStore","snapshotStore","fanoutBus","leaseLock","authzSource","telemetry","spillStore","membershipRegistry"], "optionalInjects":["collabScaleOut"], "points":[], "unitScoped": false }` |
+| Manifest 片段 | `{ "id":"@cordexjs/server-collab", "provides":["collabServer"], "injects":["units","updateStore","snapshotStore","fanoutBus","leaseLock","authzSource","telemetry","spillStore","membershipRegistry"], "optionalInjects":["collabScaleOut","pluginSetSource"], "points":[], "unitScoped": false }` |
 
 ### 3.2 `@cordexjs/server-headless`（host + provider）
 
@@ -579,6 +579,7 @@ apps/server/src/modules/collab/
 │   ├── pg-snapshot-store.ts                # SnapshotStore Provider（新增 purgeAll，S-2）
 │   ├── authz-source.ts                     # AuthorizationSource Provider；verifyTicket 委托 ticket-verifier.ts（2026-09-26）
 │   ├── ticket-verifier.ts                  # JWT 验签（M-08 票据验签面）+ jti 防重放（Redis SETNX）+ permVersion 比对 + purging 拒绝 + 记录 lnk；2026-09-26 自 interface/ 移入（由 onAuthenticate 经 verifyTicket 调用）
+│   ├── plugin-set.source.ts                # PluginSetSource Provider（2026-10-01，§4.23）：取 PluginsModule 的 PluginSetFingerprinter；订阅 Valkey 频道 plugins:ctl，另每 plugins.policyPollSeconds（60 s）以 system 连接池只读 plugin_policies 重算 policy 摘要
 │   ├── redis-membership-registry.ts        # MembershipRegistry Provider：ioredis + Lua（defineCommand 注册），room:{docId}:members、instance:{id}:alive（2026-09-25 登记，60/05 §2.2）
 │   ├── hp-redis.extension.ts               # 新增（2026-09-26，M3）：HardenedRedis，继承 @hocuspocus/extension-redis 的 Redis 类，覆写 beforeBroadcastStateless 与 onStoreDocument 加 catch，createClient 注入 ioredis 6.0.x
 │   └── spill/                              # 新增，rulings §4.13 S-3
@@ -705,7 +706,8 @@ packages/server-collab/
 │   │   │   └── connection.ts               # ServerConnection 契约：原始关闭、暂停入站、验签回调、URL 文档与 ipHash（2026-09-26 收缩）
 │   │   └── hp/
 │   │       ├── hocuspocus-factory.ts       # new Hocuspocus(配置 + 七个扩展 + 可选 collabScaleOut)；不用 Server 类
-│   │       ├── auth.extension.ts           # onAuthenticate 握手全序与准入；connected 发 auth.ok 与 room；onTokenSync；onDisconnect 释放
+│   │       ├── auth.extension.ts           # onAuthenticate 握手全序与准入（含插件集指纹，2026-10-01）；connected 发 auth.ok 与 room（policy 不符时再发 plugins）；onTokenSync；onDisconnect 释放
+│   │       ├── plugin-set-notifier.ts      # 2026-10-01（§4.23）：pluginSetSource.onPolicyChanged → 向本实例 policy 不符的连接 sendStateless plugins；不是 Hocuspocus 扩展
 │   │       ├── gate-persist.extension.ts   # beforeSync：L2/L3、连接污染、缺口检查、await 写入器；afterHandleMessage：L4 与 ack；onChange：修复送写入器
 │   │       ├── room.extension.ts           # onLoadDocument 加载、迁移、认领、清扫、flush；afterLoadDocument 接管 Document；onStoreDocument 压缩节拍；beforeUnloadDocument draining 与钉住
 │   │       ├── awareness.extension.ts      # beforeHandleAwareness：zod、2 KiB、clientID 与 user.id 盖章、只读剥离，只就地删改
@@ -796,6 +798,7 @@ packages/server-headless/
 | `infrastructure/pg-snapshot-store.ts` | `SnapshotStore` Provider | `PgSnapshotStore` | Drizzle、`ctx.blobStore` | §3.4；新增 `purgeAll` 方法（S-2） |
 | `infrastructure/authz-source.ts` | `AuthorizationSource` Provider | `AuthzSource` | M-08 `RoleResolverService`、M-08 `ResolveShareLinkUseCase`、`ioredis`、`./ticket-verifier.ts` | §3.4；取 `max(直接授权, lnk 对应链接仍有效时的角色)` 并返回 `linkExpiresAt`（rulings §4.18 BE-02）；2026-09-26 增 `verifyTicket`（委托 `ticket-verifier.ts`，`onAuthenticate` 调用） |
 | `infrastructure/ticket-verifier.ts` | 票据校验（2026-09-26 自 `interface/` 移入） | `TicketVerifier` | M-08 `AuthModule` 导出的票据验签面（`JwtService`，JWKS 公钥）、Drizzle（只读 `documents.status`，BE-15）、`ioredis`（SETNX） | ADR-0029；`purging` 文档拒绝（BE-15）；记录 `lnk`（BE-02）；imports 已补（BE-07）；经 `AuthzSource.verifyTicket` 由 server-collab 的 `onAuthenticate` 调用 |
+| `infrastructure/plugin-set.source.ts`（2026-10-01，rulings §4.23） | `PluginSetSource` Provider | `PgPluginSetSource` | M-08 `PluginsModule`（`PluginSetFingerprinter`、`PluginPolicyRepository`）、`ioredis`（订阅 `plugins:ctl`，键名经 `keys.ts`） | `current()` 返回部署当前 `{catalog, policy}`；频道消息即时回调，轮询每 `plugins.policyPollSeconds`（默认 60 s）兜底，保证在线会话 ≤ 60 s 收到横幅（PRD 09 PM-08，O-1 已确认） |
 | `infrastructure/redis-membership-registry.ts` | `MembershipRegistry` Provider（2026-09-25 登记） | `RedisMembershipRegistry` | `ioredis`（Lua 原子判定，`defineCommand` 注册，rulings §4.21 R-d-38） | 60/05 §2.2、§4.2；键 `room:{docId}:members`、`instance:{instanceId}:alive`（决策 C-11） |
 | `infrastructure/hp-redis.extension.ts` | 跨实例同步扩展（新增，2026-09-26，M3） | `HardenedRedis` | `@hocuspocus/extension-redis`（精确 4.7.0）、`ioredis` 6.0.x（`createClient` 注入） | 继承 `Redis` 类，覆写 `beforeBroadcastStateless`、`onStoreDocument` 加 catch，保留离线队列并限 `maxRetriesPerRequest`；`prefix` 取 `hpPrefix()`（60/14 §3.1）；按 60-backend/19 §3.2 以 `createClient: () => REDIS_CLIENT.duplicate()` 注入 apps/server 的 ioredis 6.0.x 客户端，与 extension-redis 自带 `ioredis ~5.6.1` 类型的适配转换只在这一处（ADR-0049 EX-02，M3 集成时核实）；ADR-0039 决策 7、9 |
 | `infrastructure/spill/redis-spill.store.ts` | `SpillStore` 一级 Provider（新增，S-3） | `RedisSpillStore` | `ioredis` | §3.4；`writeTier1` |
@@ -892,12 +895,13 @@ packages/server-headless/
 | `infrastructure/telemetry.ts` | 遥测常量 | span/metric 名常量 | kernel `telemetry`（类型） | 本包无 pg/redis；2026-09-26 起协同扩展的 span 挂点按 60-backend/18 §3.1（`server.collab.session` 在 `onAuthenticate` 开启、`onDisconnect` 结束等），指标采集挂点按 60-backend/18 §4.4 |
 | `interface/contracts/connection.ts` | `ServerConnection` 契约 | `ServerConnection` | 无 | §2.5；2026-09-26 收缩为原始关闭、暂停入站、验签回调、URL 文档与 `ipHash`（帧收发交给 Hocuspocus 的 `WebSocketLike`） |
 | `interface/hp/hocuspocus-factory.ts` | 建 Hocuspocus 实例（新增，2026-09-26） | `createHocuspocus` | `@hocuspocus/server`、`../../config`、同目录各扩展 | 不用 `Server` 类；`timeout` 45000、认证前队列默认上限、`maxPendingDocuments` 1、`flushDelay` 0；可选挂 `collabScaleOut`（ADR-0039「Hocuspocus 配置」） |
-| `interface/hp/auth.extension.ts` | 握手与准入（新增，2026-09-26） | `AuthExtension` | `AuthorizationSource`、`MembershipRegistry`（注入）、`../../domain/gate/admission-policy`、`@cordexjs/protocol`（`ws/handshake`） | `onAuthenticate` 握手全序（协议版本 → 验票 → 每用户上限 → 纪元 → schema → 角色 → 准入与名额）；`connected` 发 Stateless `auth.ok` 与 `room`；`onTokenSync` 续票；`onDisconnect` 释放；判定不放 `onConnect` |
+| `interface/hp/auth.extension.ts` | 握手与准入（新增，2026-09-26） | `AuthExtension` | `AuthorizationSource`、`MembershipRegistry`（注入）、`../../domain/gate/admission-policy`、`@cordexjs/protocol`（`ws/handshake`） | `onAuthenticate` 握手全序（协议版本 → 验票 → 每用户上限 → 纪元 → schema → 插件集指纹 → 角色 → 准入与名额；指纹一步 2026-10-01 新增：`pluginSet.catalog` 与 `pluginSetSource.current().catalog` 不符 → `PermissionDenied{collab.plugins_outdated}` 后 `ws.close(4426)`，60/16 §12）；`connected` 发 Stateless `auth.ok` 与 `room`，`policy` 不符时再发 `plugins`；`onTokenSync` 续票；`onDisconnect` 释放；判定不放 `onConnect` |
 | `interface/hp/gate-persist.extension.ts` | 门禁与先落库（新增，2026-09-26） | `GatePersistExtension` | `../../domain/gate/{hard-gate,soft-gate,repair-planner}`、`../../application/persistence/{update-writer,server-transaction}` | `beforeSync`：L2/L3、连接污染、`parseUpdateMeta` 缺口检查、await 写入器；`afterHandleMessage`：L4 与 Stateless ack/repair；`onChange`：修复 update 送写入器（必须吞错） |
 | `interface/hp/room.extension.ts` | 房间生命周期（新增，2026-09-26） | `RoomExtension` | `../../application/persistence/{bootstrap-loader,compactor,migration-runner,replay-spilled.usecase,tombstone-sweeper}`、store-yjs（接管外部 Y.Doc） | `onLoadDocument` 加载、迁移、认领溢写、清扫、`document.flush()`；`afterLoadDocument` 接管 Document（store-yjs 打开参数 `adopt?: YDocHandle`，40-modules/02 §5.7）；`onStoreDocument` 只作压缩节拍、永不抛错；`beforeUnloadDocument` draining 60 s 与内存档钉住 |
 | `interface/hp/awareness.extension.ts` | awareness 校验（新增，2026-09-26，取代 `application/awareness/awareness-relay.ts`） | `AwarenessExtension` | `@cordexjs/protocol`（`collab/awareness.ts`）、`@cordexjs/collab-core`（awareness 契约，FE-15） | `beforeHandleAwareness`：zod、2 KiB、clientID 与 `user.id` 盖章、只读剥离；只就地删改、从不抛错；中继与全量推送由 Hocuspocus 原生（60/16 §7） |
 | `interface/hp/awareness-coalescer.ts` | 满员出站合并（新增，2026-09-26，rulings §4.21 H:Q5） | `wrapAwarenessSend` | `@hocuspocus/server`（`Connection` 类型）、`y-protocols`（识别 awareness 帧） | 房间在线 ≥ 20 时包装 `Connection.send`，只合并 awareness 帧 100 ms；依赖 Hocuspocus 内部实现，精确钉版本 + 契约测试 |
 | `interface/hp/control.extension.ts` | CONTROL 入站（新增，2026-09-26） | `ControlExtension` | `@cordexjs/protocol`（`ws/frames`） | `onStateless`：白名单与 zod，失败 `ws.close(4400)`、未知 type 丢弃计数；必须吞错 |
+| `interface/hp/plugin-set-notifier.ts`（2026-10-01，rulings §4.23） | 插件设置更新推送 | `PluginSetNotifier` | `PluginSetSource`（注入，可选）、`@cordexjs/protocol`（`ws/frames`） | 收到 `policy` 变化后，对本实例 Auth token `pluginSet.policy` 与新值不符的连接 `sendStateless({type:'plugins', reason:'policy_changed', policy})`，只发一次并记下已通知的 policy；不断连、不改 `readOnly`；未注入 `pluginSetSource` 时不装配 |
 | `interface/hp/permission-sync.extension.ts` | 权限实时降级（新增，2026-09-26） | `PermissionSync` | `AuthorizationSource`（注入，`onPermissionChanged`、`resolveRole`） | 逐连接重算、改 `connection.readOnly`、Stateless `permission`；`none` → 4403；污染连接升权 → 1012；`linkExpiresAt` 定时器；Valkey 恢复后全量重算（60/16 §8） |
 | `interface/hp/control-plane.extension.ts` | 控制频道（新增，2026-09-26） | `ControlPlane` | `FanoutBus`（注入，`subscribeControl`） | `room:{docId}:ctl`：`close{purge}` / `close{trashed}` → 4404，`epoch` → 4428（60/05 §3.3） |
 | `interface/hp/safe-hooks.ts` | 钩子异常包装（新增，2026-09-26） | `safeHook`、`swallow` | kernel `telemetry`、`errors`（类型） | 被 await 的钩子异常记 traceId 后 `ws.close(1011)`；不被 await 的钩子吞错计数（ADR-0039 决策 9） |
@@ -1228,6 +1232,36 @@ apps/server/
 | TX-01+BE-10（U-07 联合 ADR 立项） | §13 Q-9（及「Q-9 预留」行） | 改为随 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 结案：M2 出口评审前定稿，未定稿则 M3 版本恢复不开工 |
 | BE-01+TX-03（WS 升级限流） | §4.1 `collab.gateway.ts`、§5.1 同名行（→ 2026-09-26 起为 `collab-upgrade.handler.ts`，rulings §4.21） | 先扣后退：升级前扣、票据验签通过即退；每用户单实例并发上限 32，超出 `auth.denied{collab.rate_limited}` + 4429；数值以 60/16 为准 |
 | TX-10 ⑤ | §9 末段 | 覆盖率与性能预算改指 60/01 §12 与 70/09 |
+
+### 2026-10-01 回写（rulings §4.23 插件管理）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.23 O-1（2026-10-01 已确认）；PRD 09 PM-08、PM-13；30/06 §6.3、§6.5；60-backend/16 §12 | §3.1 inject 可选、Manifest 片段；§4.1、§4.4；§5.1、§5.4 | server-collab 可选注入 `pluginSetSource`；`auth.extension.ts` 握手第五步比对插件集指纹：`catalog` 不符 4426 `collab.plugins_outdated`（版本漂移流程），`policy` 不符照常准入并在 `connected` 后发 Stateless `plugins`；新增 `interface/hp/plugin-set-notifier.ts`（在线会话推送）与 apps/server `infrastructure/plugin-set.source.ts`（`plugins:ctl` 订阅 + 60 s 轮询兜底）；§4 与 §5 各增 2 |
+
+**图 12-1 插件集指纹在协同网关里的判定**
+
+```mermaid
+sequenceDiagram
+  participant c as 客户端会话
+  participant auth as auth.extension
+  participant src as PluginSetSource
+  participant ntf as PluginSetNotifier
+  c->>auth: Auth token 带 pluginSet
+  auth->>src: current 取部署指纹
+  alt catalog 不符
+    auth-->>c: PermissionDenied plugins_outdated 后关闭 4426
+  else policy 不符
+    auth-->>c: auth.ok 与 room，再发 Stateless plugins
+  else 一致
+    auth-->>c: auth.ok 与 room
+  end
+  src->>ntf: 频道 plugins:ctl 或 60 s 轮询发现 policy 变化
+  ntf-->>c: Stateless plugins，policy_changed
+```
+
+怎么读：纵线是网关内的参与者，自上而下是时间。握手时只有 `catalog`（插件版本随重新部署变化）会拒绝连接；`policy`（管理员保存）只触发提示；在线期间的变化由通知器按连接逐个推送，不断连。
+依据：本节表；PRD 09 PM-08；30/06 §6.3、§6.5。
 
 ## 13. 未决问题
 

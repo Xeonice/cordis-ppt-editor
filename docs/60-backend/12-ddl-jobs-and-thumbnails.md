@@ -1,6 +1,6 @@
 # 12 DDL：作业与缩略图
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[30-architecture/08](../30-architecture/08-backend-nestjs.md) §7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[06](06-modules-jobs-import-export-thumbnails.md) §1（原 30/08 §7）；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
 
 ## 1. 域说明
 
@@ -301,7 +301,7 @@ COMMENT ON COLUMN thumbnails.width IS '像素宽；server 行固定 640';
 约束说明：
 
 - `ck_thumbnails_embedded_only_cover`：embedded 只能出现在 `__cover` 行；`__cover` 行本身可以是 `embedded`（M2 过渡）或 `server`（M3 首页图，与首页行指向同一对象键）。
-- `ck_thumbnails_storage_key_prefix` 把「所有缩略图对象都在该文档前缀下」变成可机械检查的事实，永久删除的 finalize-purge 按 `docs/{docId}/` 删除全部版本时不会漏（对象键布局见 [14 §6](14-valkey-object-storage-and-retention.md)，C-32 以 30/08 §6 的完整键为准）。
+- `ck_thumbnails_storage_key_prefix` 把「所有缩略图对象都在该文档前缀下」变成可机械检查的事实，永久删除的 finalize-purge 按 `docs/{docId}/` 删除全部版本时不会漏（对象键布局见 [14 §6](14-valkey-object-storage-and-retention.md)，C-32 以原 30/08 篇 §6 的完整键为准，该键现登记在 14 §6）。
 - `ck_thumbnails_dims`：像素上限与 OF-24 位图预览上限一致（16,777,216 px），embedded 封面的头校验在写入前已按同一上限拒绝（[06 §11.2](06-modules-jobs-import-export-thumbnails.md)）。
 - 响应的 `Content-Type` 由 `source` 推出（embedded → `image/jpeg`，server → `image/webp`），不单设列。
 
@@ -491,13 +491,13 @@ erDiagram
 
 怎么读：实线是声明的外键，虚线是只作查询用的逻辑引用；两端符号是基数（`||` 恰一、`|o` 零或一、`o{` 零或多）。`job_runs` 故意不挂到 `documents` 上，作业记录比文档活得久；`thumbnails` 随文档存在，由永久删除参与者先删行、再由 finalize-purge 删文档行，RESTRICT 保证漏删会报错而不是静默级联。
 
-依据：决策 FK-POLICY、DDL-COLS、C-13、C-21；本文 §2–§4（完整字段；原 30/08 §5 草案已删，rulings §4.19）；40-modules/19 图 5-4、5-5（本图为迁入后的唯一版本）。
+依据：决策 FK-POLICY、DDL-COLS、C-13、C-21；本文 §2–§4（完整字段；原 30/08 篇 §5 草案已删，rulings §4.19）；40-modules/19 图 5-4、5-5（本图为迁入后的唯一版本）。
 
 ## 8. 未决与对旧稿的修正
 
 | 项 | 内容 | 状态 |
 |---|---|---|
-| 与 30/08 §5 的差异 | `job_runs` 增 `created_by`（C-22）、`traceparent`、`updated_at`，全部约束命名化；`thumbnails` 的 `source` 保留 `client`（BE-26）、增 `updated_at` 与前缀、尺寸约束，`created_at` 不再作失效依据 | 本文为准，30/08 §5 改为链接（已回写） |
+| 与原 30/08 篇 §5 的差异 | `job_runs` 增 `created_by`（C-22）、`traceparent`、`updated_at`，全部约束命名化；`thumbnails` 的 `source` 保留 `client`（BE-26）、增 `updated_at` 与前缀、尺寸约束，`created_at` 不再作失效依据 | 本文为准，原 30/08 篇 §5 改为链接（已回写；该篇 §4.21 撤销） |
 | `attempt_of` 的删除策略 | `ON DELETE SET NULL`（§2） | 已在 08 §2 登记 |
 | 系统放行表达式 | 改用 08 §6.2 的 `cordex_system_job() IS NOT NULL`，app policy 用 `cordex_role_at_least`、命名加 `p_` 前缀（§5） | 已与 08 对齐 |
 | `job_runs` 的 app UPDATE 列级授予 | `UPDATE (status, finished_at, updated_at)` | 已与 08 §4.2 / 0095 对齐 |

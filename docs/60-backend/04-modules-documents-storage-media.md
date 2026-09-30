@@ -1,5 +1,5 @@
 # 04 模块设计：文档、存储与媒体（含永久删除编排）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1；[30/08](../30-architecture/08-backend-nestjs.md)；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：媒体检测件定稿——file-type、image-size 与 SVG/EMF/WMF 自写签名；SVG 消毒维持自研白名单，解析与重序列化改用 `@cordexjs/xml`）；2026-09-26（§4.21 整合：§7.2 补与浏览器侧的两处约定：SVG 消毒器共享落点登记 A-14、定案前本机拒绝；视频上限以 presign maxBytes 为准并可预检）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01](01-service-overview-and-roles.md) §3（原 30/08）；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)
 
 本文是 `DocumentsModule`、`StorageModule`、`MediaModule` 三个 Nest 模块运行时设计的唯一事实源，也是「永久删除文档」编排（rulings §4.18 BE-15）的**唯一源**：[05](05-modules-collab-and-snapshots.md)、[06](06-modules-jobs-import-export-thumbnails.md)、[07](07-modules-comments-webhooks-audit.md)、[03](03-modules-identity-and-access.md) 中的 purge 参与者只写自己那一步并链接本文 §4。
 
@@ -397,7 +397,7 @@ export interface BucketHandle {
 
 **做**：文档作用域的媒体上传（预签名 → 直传 `uploads/tmp/` → 提交校验 → 复制到内容寻址键）、读取授权、部署级按 sha256 去重、媒体引用维护（`document_media.detached_at`、`media_blobs.unreferenced_since`）与 `media-gc` 的处理函数、导入入库的系统用例、参与者 `media`。
 
-**不做**：不解析媒体在文档里的位置（那是文档类型插件与 CRDT 内容的事）；不解码不可信图片（尺寸只读文件头，栅格化只在 renderer 沙箱，[30/08](../30-architecture/08-backend-nestjs.md) §9.2）；不做缩略图（[06](06-modules-jobs-import-export-thumbnails.md) §11）。
+**不做**：不解析媒体在文档里的位置（那是文档类型插件与 CRDT 内容的事）；不解码不可信图片（尺寸只读文件头，栅格化只在 renderer 沙箱，[06](06-modules-jobs-import-export-thumbnails.md) §9.2）；不做缩略图（[06](06-modules-jobs-import-export-thumbnails.md) §11）。
 
 端点全部挂在 `/documents/:id` 之下（决策 INC-21）：`POST …/media/presign`、`POST …/media/commit`（`doc.write` + `write`）与 `GET …/media/:sha256`（`doc.read` + `content`）；守卫与 DTO 见 [15](15-rest-api-catalog.md) §3.6。无文档作用域的旧端点 `/media/*` 全部删除。只有预签名一条上传通道，不提供直传 Nest 的 multipart 变体（只保留一条校验路径）。
 
@@ -432,7 +432,7 @@ sequenceDiagram
 
 怎么读：字节只在浏览器与对象存储之间流动，Nest 只签 URL 并在提交时复核；先落临时键再由服务端复制到内容寻址键，未提交或校验失败的对象留在 `uploads/tmp/` 由周期作业清理（决策 G-16）。`opt` 段只在该 sha256 第一次出现时执行。
 
-依据：决策 INC-21、G-16、MEDIA-CLIENT；rulings §4.18 BE-01；[30/08](../30-architecture/08-backend-nestjs.md) §9.2、§16.4。
+依据：决策 INC-21、G-16、MEDIA-CLIENT；rulings §4.18 BE-01；原 30/08 篇 §9.2、§16.4（现 [06](06-modules-jobs-import-export-thumbnails.md) §6.3 与本文 §7）。
 
 提交校验顺序（任一步失败即终止，tmp 对象不复制）：
 
@@ -442,12 +442,60 @@ sequenceDiagram
 | 2 | 记录中的 `userId`、`docId` 与当前请求一致（与导入的两步上传同一口径，rulings §4.18 BE-10） | 403 `permission.denied` |
 | 3 | 带分片 etag 时 `completeMultipart`；`HEAD` 大小 = 申报 `byteSize` ≤ `limits.media.maxBytes`（默认 100 MiB，[17](17-deployment-and-config.md) §5.8；不超过 PRD SV-08 的单文件 200 MB 包络） | 超上限 413 `server.media.payload_too_large`；与申报不符 422 `storage.integrity_mismatch` |
 | 4 | 流式重算 sha256 = 申报值（小写十六进制，与浏览器 WebCrypto 结果一致） | 422 `storage.integrity_mismatch` |
-| 5 | 前 4 KiB 嗅探 MIME，以嗅探为准、不信申报；须在白名单：`image/png`、`image/jpeg`、`image/gif`、`image/webp`、`image/bmp`、`image/tiff`、`image/svg+xml`、`image/x-emf`、`image/x-wmf`、`video/mp4`、`video/webm`、`audio/mpeg`、`audio/mp4`、`audio/wav`（常量在 protocol `rest/media.ts`，不做成部署配置） | 415 `server.media.unsupported_type` |
-| 6 | SVG：≤ 2 MiB；元素与属性白名单消毒——去掉 `script`、`foreignObject`、全部 `on*` 事件属性、DTD 与实体、`style` 中的 `url()` 与 `@import`，`href` / `xlink:href` 只保留 `#片段` 与 `data:image/(png\|jpeg\|gif\|webp)`；消毒改变了字节时以消毒后字节的 sha256 作为规范 sha256 | 413 / 415 |
-| 7 | 尺寸只读文件头（PNG IHDR、JPEG SOF、GIF、WebP、BMP、SVG `viewBox` / `width` / `height`），不解码像素；像素总数 ≤ 16,777,216（OF-24） | 413 `server.media.payload_too_large{dimension:'pixels'}` |
+| 5 | 前 4 KiB 嗅探 MIME，以嗅探为准、不信申报；须在白名单：`image/png`、`image/jpeg`、`image/gif`、`image/webp`、`image/bmp`、`image/tiff`、`image/svg+xml`、`image/x-emf`、`image/x-wmf`、`video/mp4`、`video/webm`、`audio/mpeg`、`audio/mp4`、`audio/wav`（常量在 protocol `rest/media.ts`，不做成部署配置）。嗅探件见 §7.2.1：位图与音视频用 `file-type`，SVG、EMF、WMF 用自写签名 | 415 `server.media.unsupported_type` |
+| 6 | SVG：≤ 2 MiB；先以 `@cordexjs/xml` 严格解析（DOCTYPE 一律拒绝、只认 5 个预定义实体与字符引用、限额按 ADR-0019 的 XmlLimits），再做元素与属性白名单消毒——去掉 `script`、`foreignObject`、全部 `on*` 事件属性、`style` 中的 `url()` 与 `@import`，`href` / `xlink:href` 只保留 `#片段` 与 `data:image/(png\|jpeg\|gif\|webp)`——最后用 `@cordexjs/xml` 的序列化器重写字节；消毒改变了字节时以消毒后字节的 sha256 作为规范 sha256 | 413 / 415 |
+| 7 | 尺寸只读文件头，不解码像素：PNG、JPEG、GIF、WebP、BMP、TIFF 与 SVG（`viewBox` / `width` / `height`，只对第 6 步消毒后的字节取）用 `image-size`，EMF、WMF 用自写头解析取边界框；像素总数 ≤ 16,777,216（OF-24） | 413 `server.media.payload_too_large{dimension:'pixels'}` |
 | 8 | 存储配额 `bytes`（§9，按文档 owner 汇总，决策 G-09） | 413 `storage.quota_exceeded{dimension:'bytes'}` |
 
+与浏览器侧的两处约定（2026-09-26 整合，回应 [50/23](../50-frontend/23-elements-media.md) §13 Q-1、Q-6）：
+
+- **SVG 消毒与规范 sha256**：第 6 步可能改写字节并返回新的规范 sha256，而 [50/05](../50-frontend/05-rendering-and-thumbnails.md) §8.3 要求返回值等于本地哈希。确认方向：白名单消毒器抽成浏览器与服务端共用的一份 iso 代码（依赖 `@cordexjs/xml`），浏览器在算哈希前先消毒，两边即一致；共享落点尚未定，登记为 [30/README](../30-architecture/README.md) §4 A-14。定案前本模块的 `svg-sanitizer.ts` 仍留在 `apps/server` 媒体模块，浏览器对含不安全构造的 SVG 在本机拒绝插入。
+- **视频与音频上限**：以 presign 响应里的 `maxBytes` 为准（第 3 步，默认 100 MiB）。presign 只看申报值、代价很低，前端可在落元素之前先 presign 做预检，超上限直接得到 413；提交时的第 3 步仍是权威检查。
+
 提交事务（SQL 见 [10](10-ddl-documents-marks-media.md) §11）：先取 `pg_advisory_xact_lock` 以 sha256 为键——与 `media-gc` 用同一把锁，保证「行存在 ⇒ 对象存在」；`INSERT … ON CONFLICT (sha256) DO UPDATE SET unreferenced_since = NULL`；只有新插入的行才写对象（`Content-Type` = 嗅探结果、`Cache-Control: private, max-age=31536000, immutable`）；`document_media` 以 `ON CONFLICT (doc_id, media_id) DO UPDATE SET detached_at = NULL` 写入——同一文档重新插入一张早已移除的图时，必须清掉旧的 `detached_at`，否则保留期作业会删掉这条仍在用的关联。审计 `media.uploaded` 的 details 记 `deduplicated`（[07](07-modules-comments-webhooks-audit.md) §9.2），但响应不回显：去重命中不能成为「部署内是否已有某文件」的探针。
+
+#### 7.2.1 媒体检测件（2026-09-26）
+
+依据：rulings §4.21 关键口径「后端复用默认」与 X:q-xml-package；R-d-45、R-d-46。版本、许可与否决过的替代见 [19](19-reuse-and-dependency-catalog.md) §8、§15.4。
+
+| 检测件 | 用什么 | 覆盖 | 不覆盖、由谁补 |
+|---|---|---|---|
+| MIME 嗅探 | `file-type` 22（纯 ESM） | PNG、JPEG、GIF、WebP、BMP、TIFF；mp4、webm、mpeg 音频、mp4 音频、wav（m4a 归一为 `audio/mp4`） | 不识别 SVG、EMF、WMF → `asset-inspector.ts` 自写签名 |
+| 自写签名 | `asset-inspector.ts` | EMF：首条记录为 `EMR_HEADER` 且偏移 40 处为签名 ` EMF`（`0x464D4520`）；WMF：Placeable 头魔数 `0x9AC6CDD7`，或标准头（类型 1 或 2、头长 9 字）；SVG：去掉 BOM 与前导空白后以 `<?xml` 或 `<svg` 开头，并由第 6 步的严格解析确认根元素是 SVG 命名空间的 `svg` | — |
+| 尺寸 | `image-size` 2 | 同 MIME 嗅探的位图与 SVG | EMF、WMF → 自写头解析；SVG 尺寸靠正则取值，所以只对消毒后的字节调用 |
+| SVG 消毒 | 自研白名单（`svg-sanitizer.ts`）+ `@cordexjs/xml` | 严格解析、DOCTYPE 拒绝、XmlLimits 限额、重序列化 | 不用 DOMPurify + jsdom：在持凭据的 api 进程里引完整 DOM 引擎，且 HTML 序列化会把 U+00A0 写成 `&nbsp;`，独立 SVG 按 XML 解析即失败（[19](19-reuse-and-dependency-catalog.md) §15.4） |
+
+apps/server 的媒体模块依赖 `@cordexjs/xml` 是 `server-app-thin` 白名单里唯一的格式包例外（modules 仍不得 import `ooxml-*`、`model-*` 与 `yjs`）；服务端仍不引任何图像编解码库（rulings §4.15 Q8）。
+
+**图 7-2 提交校验中的媒体检测件**
+
+```mermaid
+flowchart TB
+  bytes["tmp 对象字节，前 4 KiB"]
+  ft{"file-type 能识别"}
+  sig{"自写签名：SVG、EMF 或 WMF"}
+  reject["415 unsupported_type"]
+  svg["SVG：@cordexjs/xml 严格解析，拒 DOCTYPE"]
+  wl["元素与属性白名单，重序列化"]
+  emf["EMF 或 WMF：自写头解析取边界框"]
+  size["image-size 只读文件头"]
+  px{"像素总数不超上限"}
+  ok["进入配额检查"]
+  big["413 pixels"]
+  bytes --> ft
+  ft -- "是，位图或音视频" --> size
+  ft -- "否" --> sig
+  sig -- "都不是" --> reject
+  sig -- "SVG" --> svg
+  svg -- "解析失败或含 DOCTYPE" --> reject
+  svg --> wl --> size
+  sig -- "EMF 或 WMF" --> emf --> px
+  size --> px
+  px -- "是" --> ok
+  px -- "否" --> big
+```
+
+怎么读：自上而下是第 5–7 步的检测顺序；位图与音视频走 `file-type` 与 `image-size` 两个成熟库，只有它们不认识的三种矢量格式走自写签名；SVG 必须先经严格解析与白名单重写，`image-size` 只看重写后的字节。音视频没有像素维度，直接通过像素检查。
 
 - 预检（presign 时）只看申报值，便宜地提前拒绝；提交时的检查才是权威。配额是软上限：并发提交可能使用量略超上限（至多「单文件上限 × 并发提交数」）。
 - 跨文档复制粘贴图片：目标文档须用已持有的字节重新走一次上传提交；服务端从不因 CRDT 里出现了某个 sha256 就为文档补建关联（§7.4）。前端默认上传器（`media.upload` 回调）的行为见 [50/05](../50-frontend/05-rendering-and-thumbnails.md) §8.3。
@@ -599,7 +647,7 @@ renderer 角色不装本文任何模块（renderer 进程内无 DB / Valkey / S3
 | DOC-08 | 同一张图：从未关联的文档路径读取为 404 `server.media.not_found`；无权用户只凭哈希读取失败 | 70/07、[70/10](../70-testing/10-security-testing.md) |
 | DOC-09 | viewer 与只凭分享链接的 viewer 读取媒体得到 200 `{url, expiresAt}`（`Cache-Control: no-store`），以不带自定义头的请求访问 `url` 可取回原字节；响应不是 3xx | 70/07 |
 | DOC-10 | M-08 仓储不写 M-09 列：① `DocumentMetaPatch` 传 `headSeq` 编译失败（`*.type-test.ts`）；② 记录 `DocumentRepository` 发出的 SQL 不含 M-09 列名；③ `cordex_app` 执行 `UPDATE documents SET head_seq = …` 报权限错误 | `test-typecheck`；`test/server-integration` |
-| DOC-11 | 提交校验：sha256 不符 422；申报 `image/png` 实为 HTML 得 415；含 `script` / `onload` / 外链 `href` 的 SVG 消毒后不含这些构造且返回新 sha256；像素超限 413；响应不含去重命中信息 | 70/07、70/10 |
+| DOC-11 | 提交校验：sha256 不符 422；申报 `image/png` 实为 HTML 得 415；含 `script` / `onload` / 外链 `href` 的 SVG 消毒后不含这些构造且返回新 sha256；含 DOCTYPE 或外部实体的 SVG 得 415 且金丝雀请求数为 0；EMF、WMF 按自写签名识别并取到尺寸；像素超限 413；响应不含去重命中信息 | 70/07、70/10 |
 | DOC-12 | `media-gc` 选中某行后、删对象前发起同 sha256 的提交，结束后「行存在 ⇒ 对象存在」恒成立 | 70/07 |
 | DOC-13 | FixedClock 下走完引用链：彻底删除元素 → 快照写入置 `detached_at` → 保留作业推进后删关联 → `unreferenced_since` 置位 → 30 天后 blob 与对象删除；被命名快照引用的图不被删除 | 70/07 |
 | DOC-14 | `runBlobStoreConformance` 在 S3（SeaweedFS）与 local 两个 Provider 上通过 | [70/02](../70-testing/02-contract-suites-and-pluggability.md)，`test/contract` |

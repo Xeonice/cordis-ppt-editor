@@ -1,5 +1,5 @@
 # 10 DDL：文档、用户记账与媒体
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025
 
 本文是 `documents`、`document_user_marks`、`media_blobs`、`document_media` 四张表、一个存储用量函数与本域 RLS policy 的唯一事实源。命名、主键、时间列、外键默认策略、数据库角色、GUC 与迁移纪律见 [08](08-db-conventions-roles-rls-migrations.md)；这些表背后的用例、事务边界与永久删除编排见 [04](04-modules-documents-storage-media.md)。
 
@@ -124,7 +124,7 @@ erDiagram
 
 怎么读：`media_blobs` 在整个部署内按 sha256 去重、不带 `doc_id`；文档对媒体的一切访问都经过 `document_media`（受 RLS），这张关联表同时是读取授权的依据与回收的引用计数。两个时间列 `detached_at`、`unreferenced_since` 驱动 30 天无引用回收（§6）。
 
-依据：决策 INC-21、C-25；ADR-0022（原 30/08 §5 的媒体草案已删，本文为唯一源，rulings §4.19）。
+依据：决策 INC-21、C-25；ADR-0022（原 30/08 篇 §5 的媒体草案已删，本文为唯一源，rulings §4.19）。
 
 ## 2. documents（0020）
 

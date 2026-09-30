@@ -1,5 +1,5 @@
 # 13 DDL：评论、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
 
 
 ## 1. 域说明
@@ -55,7 +55,7 @@ flowchart LR
 
 ## 2. comments（0070）
 
-评论镜像读模型：事实源是快照内 ResourceHook `comments.threads`（Y.Doc 路径 `resources['comments.threads']`，内含 threads、replies 两张实体表；客户端插件为 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG），本表只由镜像观察器与 purge 参与者写（ADR-0031 v0.2、30/08 §16.6）。
+评论镜像读模型：事实源是快照内 ResourceHook `comments.threads`（Y.Doc 路径 `resources['comments.threads']`，内含 threads、replies 两张实体表；客户端插件为 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG），本表只由镜像观察器与 purge 参与者写（ADR-0031 v0.2、60-backend/07 §1）。
 
 ```sql
 -- migrate: 0070_comments

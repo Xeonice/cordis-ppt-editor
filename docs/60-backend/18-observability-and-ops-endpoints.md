@@ -1,5 +1,5 @@
 # 18 可观测性与运维端点
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[30/08](../30-architecture/08-backend-nestjs.md) §12；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 下的栈定稿与 OTel 预加载；span 与协同指标改挂 Hocuspocus 钩子；Webhook 脱敏头改为 `webhook-signature`）；2026-09-26（§4.21 整合：§3 HTTP 服务端行写明 Nest 12 下的 span 口径（路由 span + 手工 span，node --import 预加载））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[30/10 观测性与错误](../30-architecture/10-observability-and-errors.md)；[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)；[01](01-service-overview-and-roles.md) §12（原 30/08 §12）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-10；[rulings](../00-charter/rulings-2026-09-14.md) §4.18 BE-14/BE-30/CO-08、§4.21 q-nest-major；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01 服务总览](01-service-overview-and-roles.md)；[07 评论、Webhook 与审计](07-modules-comments-webhooks-audit.md)
 
 
 ## 0. 本文定位
@@ -18,8 +18,9 @@
 
 | 组件 | 作用 | 默认 profile |
 |---|---|---|
-| OpenTelemetry Node SDK | traces 与 metrics 的唯一 SDK；`main.ts` 第一行 `import './observability/otel'` 在 Nest 之前启动，自动仪表化 http、fastify、pg、ioredis、ws | 默认 |
-| pino（经 kernel `logger` 适配器） | JSON 行写 stdout，由 Collector 的 filelog 接收 | 默认 |
+| OpenTelemetry Node SDK | traces 与 metrics 的唯一 SDK；经容器入口 `node --import ./dist/observability/otel.js` 在入口模块之前预加载（Nest 12 纯 ESM，§1.1；原：`main.ts` 第一行 `import './observability/otel'`）；按需仪表化 http、undici、pg、ioredis、pino、runtime-node，Fastify 路由 span 用 `@fastify/otel`，ws 与 Hocuspocus 钩子用手工 span（原：「自动仪表化 http、fastify、pg、ioredis、ws」） | 默认 |
+| pino + nestjs-pino（经 kernel `logger` 适配器） | JSON 行写 stdout，由 Collector 的 filelog 接收；关掉 Fastify 自带的请求日志 | 默认 |
+| OTel Prometheus 导出器 | `@opentelemetry/exporter-prometheus`，`preventServerStart`，处理函数挂在内部端口 9464（§7）；不用 `prom-client` | 默认 |
 | OTel Collector | 接收 traces（Node 进程走 OTLP/gRPC 4317，`telemetry.otlpEndpoint` 默认 `http://otel-collector:4317`）、浏览器 traces（独立的 browser 接收器，OTLP/HTTP，§9.2）、日志；尾采样；spanmetrics connector 把浏览器产品事件 span 转成 Prometheus 指标（§9.3）；转发 | 默认 |
 | Jaeger | traces 后端 | 默认 |
 | Prometheus | 抓取各进程内部端口 9464 的 `/metrics`、Collector 的 spanmetrics 端点与 node-exporter；加载默认告警规则（§5） | 默认 |
@@ -66,6 +67,44 @@ flowchart LR
 
 依据：ADR-0030 决策 1–3、7；rulings §4.18 BE-14、BE-30；30/10 §5 流图。
 
+### 1.1 Nest 12 下的栈定稿（2026-09-26）
+
+依据：rulings §4.21 q-nest-major（用户选择 M1 直接上 Nest 12）；ADR-0030 修订 2026-09-26；R-d-47、R-d-48。依赖的版本、许可与替代见 [19](19-reuse-and-dependency-catalog.md) §10。
+
+- **启动**：Nest 12 是纯 ESM，`apps/server` 构建改为 ESM（[09-type-discipline/01](../30-architecture/09-type-discipline/01-tsconfig-baseline.md) §6）。ESM 的静态 import 在入口模块求值前全部解析完，「`main.ts` 第一行 import otel」保证不了仪表化先加载，所以镜像入口改为 `tini -- node --import ./dist/observability/otel.js dist/main.js`（[17](17-deployment-and-config.md) §4）。`otel.ts` 先用 `node:module` 的 `register()` 注册 `@opentelemetry/instrumentation/hook.mjs`，再启动 `NodeSDK`；renderer 走同一入口，但 `otel.ts` 按 `CORDEX_ROLE` 不启动 SDK。
+- **按需仪表化**：`instrumentation-http`、`-undici`（Webhook 出站与 OTLP 代理）、`-pg`、`-ioredis`、`-pino`（日志注入 `trace_id` / `span_id`）、`-runtime-node`（事件循环、GC、内存）；Fastify 路由 span 用 `@fastify/otel`（`instrumentation-fastify` 已弃用）；BullMQ 作业 span 用 `bullmq-otel`。不装 `auto-instrumentations-node` 全家桶。
+- **Nest 层 span 暂缺**：`instrumentation-nestjs-core` 0.68 只支持 `<12`，Nest 12 下暂不启用；控制器、守卫一级的耗时由 `@fastify/otel` 的路由 span 覆盖，需要时在用例入口加手工 span（名称仍按 §3 登记）。上游支持 12 后在同一 PR 启用并删掉重复的手工 span。
+- **ws 与 Hocuspocus**：`ws` 没有维护中的 OTel 仪表化，Hocuspocus 的 extension-logger 只打日志，**都不用**；协同 span 由 server-collab 的 Hocuspocus 扩展在钩子里手工开（§3.1），协同指标的采集挂点见 §4.4。
+- **版本并存**：sdk-node 与各仪表化锁 0.222.x；`@fastify/otel` 0.21 依赖 `@opentelemetry/instrumentation` `^0.221.0`，两版并存、不做 overrides。
+
+**图 1-2 进程内的遥测组件与挂点**
+
+```mermaid
+flowchart LR
+  entry["容器入口：node --import otel.js main.js"]
+  subgraph sdk["observability/otel.js"]
+    hook["ESM 加载钩子"]
+    nodesdk["NodeSDK 0.222"]
+    inst["按需仪表化：http、undici、pg、ioredis、pino、runtime-node"]
+  end
+  subgraph app["main.js：Nest 12 + Fastify 5"]
+    fotel["@fastify/otel：路由 span"]
+    manual["手工 span：Hocuspocus 钩子与关键用例"]
+    bq["bullmq-otel：作业 span"]
+  end
+  otlp["OTLP/gRPC 导出 → Collector"]
+  prom["exporter-prometheus → 内部端口 9464 /metrics"]
+  entry --> hook --> nodesdk --> inst
+  entry --> fotel
+  nodesdk --> otlp
+  nodesdk --> prom
+  fotel --> otlp
+  manual --> otlp
+  bq --> otlp
+```
+
+怎么读：左边是预加载阶段，钩子与 SDK 在应用模块加载前就绪，仪表化才能给随后 import 的 `pg`、`ioredis` 等打补丁；右边是应用内的三类 span 来源；traces 经 OTLP 推给 Collector，metrics 由 exporter-prometheus 在内部端口供 Prometheus 拉取。renderer 不启动 SDK，图中不画。
+
 ## 2. 日志字段规范（服务端）
 
 命名、级别与脱敏的规则本体见 [30/10](../30-architecture/10-observability-and-errors.md) §2.1–§2.3，本节只定服务端的字段集合、logger 名与额外的脱敏清单。
@@ -90,10 +129,10 @@ flowchart LR
 
 ### 2.2 服务端额外脱敏
 
-- **请求 / 响应头**一律替换为 `[redacted]`：`Cookie`、`Set-Cookie`、`Authorization`、`X-Cordex-Share-Token`（分享令牌，[02](02-auth-chain.md) §7）、`X-Cordex-Ops-Token`（运维令牌，§8）、`X-Cordex-Render-Signature`（renderer RPC，[06](06-modules-jobs-import-export-thumbnails.md) §10）、`X-Cordex-Signature`（出站 Webhook）。
+- **请求 / 响应头**一律替换为 `[redacted]`：`Cookie`、`Set-Cookie`、`Authorization`、`X-Cordex-Share-Token`（分享令牌，[02](02-auth-chain.md) §7）、`X-Cordex-Ops-Token`（运维令牌，§8）、`X-Cordex-Render-Signature`（renderer RPC，[06](06-modules-jobs-import-export-thumbnails.md) §10）、`webhook-signature`（出站 Webhook，Standard Webhooks；原 `X-Cordex-Signature` 已废止，[07](07-modules-comments-webhooks-audit.md) §5.2）。`webhook-id`、`webhook-timestamp` 不是凭据，照常记录。
 - **URL 查询参数**：`code`、`state`（OIDC 回调）、`token`、`next` 的值替换为 `[redacted]`；访问日志只记 `http.route`。
 - **请求体与 WS 帧**从不记录；WS 只记帧类型与字节数。
-- **自动仪表化**：pg 关闭参数上报（`enhancedDatabaseReporting: false`）；ioredis 的 `db.statement` 只保留命令名（键名里有 `session:{sid}`、`ticket:jti:{jti}` 等凭据性标识）。
+- **仪表化**：pg 关闭参数上报（`enhancedDatabaseReporting: false`）；ioredis 的 `db.statement` 只保留命令名（键名里有 `session:{sid}`、`ticket:jti:{jti}` 等凭据性标识）。
 - 脱敏路径集中配置在 pino 适配器（文件归属见 [40/09](../40-modules/09-server-collab-gateway-and-headless-host.md) `cordis-host/adapters/pino-logger.adapter.ts`），清单以本节为准。
 
 ### 2.3 logger 名与级别
@@ -106,12 +145,12 @@ span 名采用 `server.<子系统>.<操作>`（小写，操作用 snake_case）�
 
 | span | 关键属性 | 所在角色 | 说明 |
 |---|---|---|---|
-| HTTP 服务端（自动） | `http.route`、`http.response.status_code` | api、collab | fastify / http 仪表化；不含查询串 |
+| HTTP 服务端（自动） | `http.route`、`http.response.status_code` | api、collab | `@fastify/otel` 路由 span 与 http 仪表化；不含查询串；Nest 12 下无 nestjs-core 控制器 span（`instrumentation-nestjs-core` 0.68 只支持 `<12`），控制器与守卫一级由本行路由 span 覆盖，需要时在用例入口加手工 span；OTel 由 `node --import` 预加载（§1.1） |
 | pg、ioredis 客户端（自动） | 命令名、`db.operation` | 除 renderer | 不含参数与键名 |
-| `server.collab.session` | `doc_id`、`role`、`via_link` | collab | WS 会话父 span，以 `CONTROL.auth` 携带的 `traceparent` 为父（30/06 §6.3） |
-| `server.room.load` | `doc_id`、`snapshot_bytes`、`updates` | collab | 预算：bootstrap ≤ 500 ms p95 @ 8 MB |
-| `server.collab.update` | `bytes`、`gate_result` | collab | 不逐帧建 span，按 1% 独立抽样 |
-| `server.collab.persist` | `entries`、`bytes`、`tier` | collab | 每个持久化批次一个 |
+| `server.collab.session` | `doc_id`、`role`、`via_link` | collab | WS 会话父 span，在 `onAuthenticate` 开启，以 Auth token（JSON）里携带的 `traceparent` 为父，`onDisconnect` 结束（§3.1；原：以 `CONTROL.auth` 的 `traceparent` 为父） |
+| `server.room.load` | `doc_id`、`snapshot_bytes`、`updates` | collab | 包住 `onLoadDocument`（快照 + 日志、迁移、认领溢写、墓碑清扫）；预算：bootstrap ≤ 500 ms p95 @ 8 MB |
+| `server.collab.update` | `bytes`、`gate_result` | collab | 包住 `beforeSync` → `afterHandleMessage`（L2/L3 门禁、落库、应用与广播、L4 与 ack）；不逐帧建 span，按 1% 独立抽样 |
+| `server.collab.persist` | `entries`、`bytes`、`tier` | collab | 每个写入器组提交批次一个（`beforeSync` 内 await） |
 | `server.collab.replay_spilled` | `entries`、`bytes` | collab | 溢写回放；预算 ≤ 10 s p95 |
 | `server.snapshot.compact` | `pending`、`bytes` | collab、worker | — |
 | `server.tombstone.sweep` | `doc_id`、`purged` | collab | tombstone-sweeper 单写者 |
@@ -132,13 +171,50 @@ span 名采用 `server.<子系统>.<操作>`（小写，操作用 snake_case）�
 - 不追踪：`/healthz`、`/readyz`、`/metrics`、`/internal/*`。
 - span 属性不得包含文档内容、令牌、完整 URL 与查询串（与 §2.2 同一清单）。
 
+### 3.1 Hocuspocus 钩子上的 span 挂点（2026-09-26）
+
+依据：rulings §4.21 q-ws-gateway（协同改用 Hocuspocus 4）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 决策 4；H 证据 docPlan（60/18 §3）。协同 span 全部由 server-collab 的 Hocuspocus 扩展在钩子里手工开启，不用 extension-logger；钩子自包 try/catch，span 在 `finally` 里结束，异常时记 `error` 状态并照常 `ws.close(1011)`。
+
+| span | 开启 | 结束 | 父 span |
+|---|---|---|---|
+| `server.collab.session` | `onAuthenticate` 进入时 | `onDisconnect` | Auth token（JSON）里携带的 `traceparent`；没有则为根 span |
+| `server.room.load` | `onLoadDocument` 进入时（只在文档尚未加载时触发，并发加载共享同一次） | `onLoadDocument` 返回（含末尾 `document.flush()`） | 触发加载的那个会话的 `server.collab.session` |
+| `server.collab.update` | `beforeSync` 进入时（按 `telemetry.tracesUpdateSampleRatio` 抽样） | `afterHandleMessage` 发出 ack 之后 | 所属会话的 `server.collab.session` |
+| `server.collab.persist` | 写入器组提交开始（`beforeSync` 内 await） | 落库或溢写返回 `seq` | 被抽中时为 `server.collab.update`，否则为独立根 span |
+
+**图 3-1 协同帧处理的 span 挂点**
+
+```mermaid
+sequenceDiagram
+  participant C as 客户端 provider
+  participant A as 适配层 upgrade 与帧预过滤
+  participant H as Hocuspocus 连接队列
+  participant X as server-collab 扩展
+  participant P as 写入器与 PG
+  C->>A: WS 升级，Auth 帧的 token 带 traceparent
+  A->>H: handleConnection 并转发帧
+  H->>X: onAuthenticate，开 server.collab.session
+  X->>X: onLoadDocument，包 server.room.load
+  C->>A: update 帧
+  A->>H: L1 大小与令牌桶通过后转发
+  H->>X: beforeSync，开 server.collab.update（抽样）
+  X->>P: 写入器组提交，server.collab.persist
+  P-->>X: 返回 seq 或溢写档位
+  X-->>H: 放行应用与本地广播
+  H->>X: afterHandleMessage，L4 与 ack 后结束 update span
+  C--xA: 断开
+  H->>X: onDisconnect，结束 server.collab.session
+```
+
+怎么读：纵线是参与方，自上而下是一个会话从认证、加载到一次写入再到断开；span 的开启与结束都落在 Hocuspocus 钩子里，适配层只负责把 `traceparent` 随 Auth 帧带进来。`server.room.load` 只在文档首次加载时出现，之后加入的会话不再有这一段。
+
 ## 4. 服务端指标统一名表（全后端唯一源）
 
-依据：决策 METRICS（authority：ADR-0035（已接受）> 30 正文 > PRD）——统一为 `cordex_<subsystem>_<name>_<unit>`，协同类一律 `cordex_collab_*`；PRD SV-10、30/10 §3.3、30/08 §12 的旧名只作别名列，Prometheus 只暴露统一名。其它文件（[01](01-service-overview-and-roles.md) §12 预算、[05](05-modules-collab-and-snapshots.md)、[06](06-modules-jobs-import-export-thumbnails.md)、[07](07-modules-comments-webhooks-audit.md)、`test/perf/budgets.json`）只引用本表的名字。
+依据：决策 METRICS（authority：ADR-0035（已接受）> 30 正文 > PRD）——统一为 `cordex_<subsystem>_<name>_<unit>`，协同类一律 `cordex_collab_*`；PRD SV-10、30/10 §3.3、原 30/08 篇 §12 的旧名只作别名列，Prometheus 只暴露统一名。其它文件（[01](01-service-overview-and-roles.md) §12 预算、[05](05-modules-collab-and-snapshots.md)、[06](06-modules-jobs-import-export-thumbnails.md)、[07](07-modules-comments-webhooks-audit.md)、`test/perf/budgets.json`）只引用本表的名字。
 
 ### 4.1 命名、单位与标签规则
 
-- **单位后缀**：时长 `_seconds`（Prometheus 基本单位，OTel 单位 `s`），大小 `_bytes`，计数器 `_total`，时间戳 `_timestamp_seconds`，无量纲 gauge 不加后缀。30/10 与 30/08 中服务端指标的 `_ms` 写法改为 `_seconds`，旧名进别名列；浏览器指标（如 `cordex_render_frame_ms`）不在服务端 `/metrics`，归 [50/15](../50-frontend/15-events-errors-and-telemetry.md)。
+- **单位后缀**：时长 `_seconds`（Prometheus 基本单位，OTel 单位 `s`），大小 `_bytes`，计数器 `_total`，时间戳 `_timestamp_seconds`，无量纲 gauge 不加后缀。30/10 与原 30/08 篇中服务端指标的 `_ms` 写法改为 `_seconds`，旧名进别名列；浏览器指标（如 `cordex_render_frame_ms`）不在服务端 `/metrics`，归 [50/15](../50-frontend/15-events-errors-and-telemetry.md)。
 - **子系统**：`http`、`auth`、`permission`、`collab`、`snapshot`、`jobs`、`render`、`thumbnails`、`comments`、`webhooks`、`audit`、`db`、`health`、`config`、`client`（浏览器上报在服务端的计数）、`build`；kernel 两端共用的 `cordex_errors_total`、`cordex_commands_total` 等沿用 30/10 §3.3 / §11.3 原名。
 - **标签**：值集合封闭（下表列出）；禁止 `doc_id`、`user_id`、`session_id`、`jti`、URL 等高基数或标识性标签；`instance` 由 Prometheus 抓取目标附加，代码不写；路由类标签用模板。
 - **登记与消费者**：名称在 `apps/server/src/observability/metrics.ts` 声明合并登记，每项带 `consumer`（`alert:<规则名>` / `dashboard:<面板>` / `test:<套件>`）；扫描器 `scan-observability-identifiers` 核对「调用点 ⊆ 登记表」与「登记项至少一个调用点」（ADR-0030 决策 5）。
@@ -158,14 +234,14 @@ span 名采用 `server.<子系统>.<操作>`（小写，操作用 snake_case）�
 | `cordex_auth_origin_rejected_total` | counter | `channel: ws` | collab | dashboard 安全；test 70/10 §6 | — |
 | `cordex_permission_denied_total` | counter | `action`，`channel: rest\|ws\|command` | api、collab | dashboard 安全 | 同名（PRD、30/10 §11.3） |
 
-**协同与快照**
+**协同与快照**（Hocuspocus 下的采集挂点见 §4.4）
 
 | 名称 | 类型 | 标签 | 发布角色 | 消费者 | 别名 |
 |---|---|---|---|---|---|
 | `cordex_collab_connections` | gauge | — | collab | dashboard 协同；容量 | `cordex_ws_connections` |
 | `cordex_collab_rooms_active` | gauge | — | collab | dashboard 协同；ADR-0035 与 `room:{docId}:members` 聚合一致校验 | `cordex_rooms_active`（PRD） |
 | `cordex_collab_clients` | gauge | `role: editor\|viewer` | collab | dashboard 容量 | 同名 |
-| `cordex_collab_room_weight_bytes` | gauge | — | collab | dashboard 容量；alert 准入压力 | 同名（30/08） |
+| `cordex_collab_room_weight_bytes` | gauge | — | collab | dashboard 容量；alert 准入压力 | 同名（原 30/08 篇） |
 | `cordex_collab_admission_denied_total` | counter | `reason: room_full\|memory\|purging` | collab | dashboard 容量；test perf-collab | — |
 | `cordex_collab_room_evictions_total` | counter | `reason: idle_reclaim\|memory` | collab | dashboard 容量 | — |
 | `cordex_collab_update_apply_duration_seconds` | histogram | — | collab | SLO 面板；预算 ≤ 20 ms p95 | `cordex_update_apply_seconds`（PRD） |
@@ -251,6 +327,26 @@ span 名采用 `server.<子系统>.<操作>`（小写，操作用 snake_case）�
 ### 4.3 不在服务端暴露的 PRD 指标
 
 `cordex_collab_soft_conflicts_total{type}` 与 `cordex_store_undo_skipped_total{whole_step}` 由浏览器产生（`collab/soft-conflict`、`store/undo-skipped` 是客户端事件），而浏览器 OTLP 代理只转发 traces（BE-30），服务端 `/metrics` 不含这两项；它们的采集与呈现归 [50/15](../50-frontend/15-events-errors-and-telemetry.md)。PRD SV-10 把它们列在服务端指标清单里，由总编排按本节回写。
+
+### 4.4 协同指标的采集挂点（2026-09-26）
+
+依据：rulings §4.21 q-ws-gateway；ADR-0039 决策 4、9；H 证据 docPlan（60/18 §4.2）。协同改用 Hocuspocus 后，§4.2「协同与快照」各指标的名字、类型与标签不变，只是采集点改到下列位置；gauge 一律用 OTel 的 observable 回调在抓取时读取，不在热路径上打点。
+
+| 指标 | 采集挂点 |
+|---|---|
+| `cordex_collab_connections` | `hp.getConnectionsCount()`（一 WS 一文档，连接数即 WS 数） |
+| `cordex_collab_rooms_active` | `hp.documents.size`（含 draining 期间被钉住的文档；与 `room:{docId}:members` 聚合一致的校验不变） |
+| `cordex_collab_clients` | 适配层按会话角色的进程内计数（Hocuspocus 不区分角色） |
+| `cordex_collab_admission_denied_total`、`cordex_collab_close_codes_total`、`cordex_auth_origin_rejected_total`、`cordex_http_rate_limited_total{bucket="ws-connect"}` | 适配层：升级前检查与原始 `ws.close(码)` 是业务关闭的唯一出口，钩子产生的文档级 CLOSE 不计 |
+| `cordex_collab_update_bytes` | `direction="in"` 在适配层帧预过滤；`direction="out"` 在包装后的 `Connection.send` |
+| `cordex_collab_update_apply_duration_seconds`、`cordex_collab_updates_rejected_total`、`cordex_collab_gate_reports_total` | `beforeSync`（L2/L3 门禁） |
+| `cordex_collab_repairs_total` | `afterHandleMessage`（L4 修复） |
+| `cordex_collab_persist_latency_seconds`、`cordex_collab_broadcast_before_persist_total`、`cordex_collab_spill_rooms`、`cordex_collab_spill_bytes_total`、`cordex_collab_rooms_persist_degraded`、`cordex_collab_spill_replay_duration_seconds` | 写入器（组提交、溢写与回放） |
+| `cordex_collab_broadcast_latency_seconds` | `scope="local"`：从帧到达适配层到包装后的 `Connection.send` 发出；`scope="cross_instance"`：M3 的 `hp-redis.extension` 接收端 |
+| `cordex_collab_awareness_dropped_total` | `beforeHandleAwareness`（就地删改时计数，从不抛错） |
+| `cordex_collab_room_evictions_total` | `beforeUnloadDocument` 与 `drainAll` 路径 |
+| `cordex_collab_permission_propagation_seconds` | PermissionSync 扩展（收到 `perm:doc` 到连接 `readOnly` 生效） |
+| `cordex_collab_room_weight_bytes` | `onAuthenticate` 内的权重准入计算 |
 
 ## 5. SLO 与默认告警规则
 
@@ -409,7 +505,7 @@ flowchart LR
 
 怎么读：左侧 edge 流量只能经 web 容器到达对外端口；内部端口只在 backend 网络可达，`/metrics` 不要求令牌，诊断与管理端点必须先过运维令牌判定；虚线表示反代明确不转发的路径，无箭头的连线表示端点隶属于内部端口实例。
 
-依据：决策 INC-26；rulings §4.18 BE-03、BE-11、BE-14；30/08 §10.1 反代分流。
+依据：决策 INC-26；rulings §4.18 BE-03、BE-11、BE-14；60-backend/17 §3.1 反代分流（原 30/08 篇 §10.1）。
 
 ## 9. ClientTelemetryModule：浏览器上报端点
 
@@ -491,6 +587,7 @@ sequenceDiagram
 | `/metrics` 输出的 `cordex_*` 名称集合与 §4.2 快照一致，别名列里的旧名不出现 | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §12，`test/server-integration` |
 | 告警规则与仪表盘只引用登记过的指标名；规则单测通过 | `promtool test rules`（`e2e/full-compose`，[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | 依赖逐项故障注入：api / worker 的 PG、Valkey、任一桶失败 → `/readyz` 503；collab 的 PG 或桶失败 → 200 `degraded`，Valkey 失败 → 503；draining → 503；`audit_log` 未来月分区为 0 → 200 `degraded` | 70/07 §12 |
+| OTel 预加载（2026-09-26）：api、collab、worker 经 `node --import` 启动后产出 `@fastify/otel` 路由 span 与 pg、ioredis span；协同会话产出 §3.1 的 `server.collab.session` 且父为 Auth token 里的 `traceparent`；依赖树里没有 `prom-client` 与 `instrumentation-fastify` | 70/07 §12；ESM 启动冒烟见 [19](19-reuse-and-dependency-catalog.md) §18 RC-06 |
 | renderer 角色进程无 `/metrics`、无 OTLP 出站；worker 记录了 `cordex_render_*` | 70/07 §12；[70/10](../70-testing/10-security-testing.md) §9（`renderer-egress`，`e2e/smoke`） |
 | `/telemetry/errors` 与 `/telemetry/otlp` 未登录 401、超限 413、超令牌桶 429、缺 `X-Cordex-Request` 403；OTLP 的 metrics / logs 载荷被拒；`/telemetry/csp` 未登录可用且丢弃样本字段 | 70/07 §12 |
 | 产品事件：带 `cordex.product_event` 标记的 span 在 Prometheus 出现为 `cordex_product_events_total` 且不出现在 Jaeger；白名单外属性不成为指标标签 | `e2e/full-compose`（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |

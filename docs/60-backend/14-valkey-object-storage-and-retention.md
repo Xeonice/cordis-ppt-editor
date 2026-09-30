@@ -1,5 +1,5 @@
 # 14 Valkey 键空间、对象存储布局与数据保留
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0025](../30-architecture/adr/0025-update-persistence-and-compaction.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[30/08 §6–§8](../30-architecture/08-backend-nestjs.md)、[rulings §4.13 S-2 / §4.16 Q17 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[17](./17-deployment-and-config.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：§3.1 登记 extension-redis 的频道 `hp:{docId}:{epoch}`、`hp#reply:{instanceId}` 与 redlock 锁键，`collab:doc:{docId}` 作废；§2 键名生成约束覆盖扩展前缀；§4 准入脚本改用 ioredis `defineCommand`）；2026-09-26（§4.21 复核：extension-redis 例外出处改指 ADR-0049 与 60/19 §14） | 依赖：[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0025](../30-architecture/adr/0025-update-persistence-and-compaction.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[30/01 §2.2](../30-architecture/01-overview.md)（原 30/08 §6–§8）、[rulings §4.13 S-2 / §4.16 Q17 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[17](./17-deployment-and-config.md)
 
 > 读者：写 Valkey 适配器、对象存储适配器、周期作业与永久删除编排的工程师；运维。
 > 本文是三张登记表的唯一源：**Valkey 键与频道**（§3）、**对象键布局**（§6）、**数据保留总表**（§8）。其它文件（[02](./02-auth-chain.md) 的会话与票据、[05](./05-modules-collab-and-snapshots.md) 的房间与溢写、[06](./06-modules-jobs-import-export-thumbnails.md) 的上传与队列）只引用这里的模板，不自造名字；保留期的配置键与 [17 §5](./17-deployment-and-config.md) 逐项一致。
@@ -30,7 +30,7 @@ Valkey 只做**易失协调**：扇出、权限变更通知、在线名额、租
 
 | 键族 | 丢失后果 | 恢复 |
 |---|---|---|
-| 扇出与控制频道 | 跨实例延迟；控制消息可能丢 | 客户端重连 step1 / step2 补齐；`purging` 由加入时查库兜底，epoch 由连接时比对兜底，停用与擦除由 5 s 会话复核关闭 WS（[02](./02-auth-chain.md) §9.5） |
+| 扇出与控制频道（含 M3 extension-redis 的 `hp:*` 频道） | 跨实例延迟；控制消息可能丢 | extension-redis 在 Valkey 恢复后任意一次变更即以状态向量补齐，客户端重连 step1 / step2 也能补齐；`purging` 由加入时查库兜底，epoch 由连接时比对兜底，停用与擦除由 5 s 会话复核关闭 WS（[02](./02-auth-chain.md) §9.5） |
 | `perm:ver:*` | 票据比对缺缓存 | 回源 PG |
 | `room:*:members` | 名额计数清零 | 各实例在一个心跳（15 s）内重新登记；期间名额可能短暂超发 |
 | 租约锁与 fencing 计数 | 锁提前释放、令牌从 1 重来 | 持锁者提交前核对锁值；AOF 把窗口压到 ≤ 1 s |
@@ -45,8 +45,8 @@ Valkey 只做**易失协调**：扇出、权限变更通知、在线名额、租
 
 - 全部键**与频道**都带前缀 `valkey.keyPrefix`（默认 `cordex:`）；BullMQ 的 `prefix` 取 `{keyPrefix}bull`。下文模板省略前缀。
 - 段分隔用 `:`；占位符 `{docId}`、`{userId}` 等为小写 uuid 文本；`{instanceId}` 是 collab 实例启动时生成的随机 id（见 05）。
-- 键名只能由两个文件生成：`@cordexjs/server-collab` 的 `redis-keys.ts`（`collab:`、`room:`、`lock:`、`spill:`、`instance:` 前缀）与 `apps/server` 的 `keys.ts`（`perm:`、`ticket:`、`oidc:`、`session:`、`user:`、`upload:`、`rl:`）；文件路径登记在 40/09 与 40/12。其它代码不得拼接键名（§12）。
-- 作废的写法：`room:{id}:clients`（改 `room:{docId}:members`）、`room:ctl:{doc}`（改 `room:{docId}:ctl`）、`collab:migrate:{doc}`（改 `lock:migrate:{docId}`）、`import:upload:{uploadId}`（改 `upload:{uploadId}`）、`RenderStateToken`（BE-04 取消）、任何按租户分段的键（T-0）。依据：决策 KEYS（40-modules/09 `redis-keys.ts` 为代码唯一落点；schema-inventory C-12、G-01~G-03、G-11 的建议）。
+- 键名只能由两个文件生成：`@cordexjs/server-collab` 的 `redis-keys.ts`（`room:`、`lock:`、`spill:`、`instance:` 前缀，以及 extension-redis 的前缀 `hp`）与 `apps/server` 的 `keys.ts`（`perm:`、`ticket:`、`oidc:`、`session:`、`user:`、`upload:`、`rl:`）；文件路径登记在 40/09 与 40/12。其它代码不得拼接键名（§12）。**第三方扩展的键**（2026-09-26，rulings §4.21）：`@hocuspocus/extension-redis`（M3）按自己的规则由 `prefix` 派生频道与锁键，我们不能改它的拼接方式，因此只允许经 `redis-keys.ts` 导出的 `hpPrefix()`（= `{valkey.keyPrefix}hp`）配置它的 `prefix`，派生出的三个模板登记在 §3.1；装配代码不得另写前缀字面量。
+- 作废的写法：`collab:doc:{docId}` 与分片写法 `collab:{shard}:doc:{docId}`（2026-09-26 起帧扇出由 extension-redis 承担，改 `hp:{docId}:{epoch}`，§3.1）、`room:{id}:clients`（改 `room:{docId}:members`）、`room:ctl:{doc}`（改 `room:{docId}:ctl`）、`collab:migrate:{doc}`（改 `lock:migrate:{docId}`）、`import:upload:{uploadId}`（改 `upload:{uploadId}`）、`RenderStateToken`（BE-04 取消）、任何按租户分段的键（T-0）。依据：决策 KEYS（40-modules/09 `redis-keys.ts` 为代码唯一落点；schema-inventory C-12、G-01~G-03、G-11 的建议）。
 
 ## 3. 键与频道清单（唯一登记表）
 
@@ -56,7 +56,9 @@ Valkey 只做**易失协调**：扇出、权限变更通知、在线名额、租
 
 | 模板 | 类型 | TTL | 写方 | 读方 | 所属模块 |
 |---|---|---|---|---|---|
-| `collab:doc:{docId}` | pub/sub 频道 | — | collab 的 `RedisFanoutBus`（通过门禁的 SYNC / AWARENESS / CONTROL 帧） | 同文档的其它 collab 实例（按 `instanceId` 去重） | Collab |
+| `hp:{docId}:{epoch}`（M3，2026-09-26） | pub/sub 频道（extension-redis 的文档频道；文档名即 `{docId}:{epoch}`） | — | 持有该文档的每个 collab 实例的 extension-redis：本地变更后发布状态向量（同一事件循环合并一次）、awareness 更新、服务端 `broadcastStateless` 事件；消息体前缀带发布方 `instanceId` | 同文档的其它 collab 实例（自己发布的消息按 `instanceId` 忽略） | Collab |
+| `hp#reply:{instanceId}`（M3） | pub/sub 频道（每实例一个回复频道；用 `#` 与文档频道分隔，不会与名为 `reply:…` 的文档频道冲突） | — | 对端实例回送差量（SyncReply step2）与反向请求 | 该实例自己 | Collab |
+| `hp:{docId}:{epoch}:lock`（M3） | string（redlock，`SET NX PX`） | `PX lockTimeout`（1000 ms），取不到即跳过、不重试 | extension-redis 的 `onStoreDocument` 存储锁 | 同左 | Collab |
 | `room:{docId}:members` | hash：field = `instanceId`，value = JSON `{owners:[userId], editors:[userId], viewers:[userId], ts}`（`owners` 只计在线人数、不占名额） | 整键 `PEXPIRE 120 s`，每次写入刷新；字段 `ts` 超过 60 s 视为失效 | collab `RedisMembershipRegistry`（准入脚本；离开与每 15 s 心跳按文档串行 `HSET` 本实例字段） | 准入脚本、`CONTROL.room` 在线人数聚合 | Collab |
 | `room:{docId}:ctl` | pub/sub 频道 | — | worker 的 document-purge（`close`，`reason:'purge'`）、api 的 `TrashDocumentUseCase`（`close`，`reason:'trashed'`，提交后尽力而为）、collab 的 `forceEpoch`（`epoch`，`reason:'admin'`）、worker 的导入处理器（覆盖导入提交后发 `epoch`，`reason:'import'`，rulings §4.19 N1，[06](./06-modules-jobs-import-export-thumbnails.md) §6.5；不新增 worker → collab 通道） | 全部 collab 实例 | Collab |
 | `lock:{purpose}:{docId}` | string，值 `{instanceId}:{fencingToken}` | `PX 30 s`，持有者每 10 s 续租 | `LeaseLock`（collab；`purpose` ∈ `compact`、`migrate`、`tombstone`、`spill`、`epoch`） | 同左 | Collab |
@@ -65,8 +67,10 @@ Valkey 只做**易失协调**：扇出、权限变更通知、在线名额、租
 | `spill:{docId}:instances` | set of `instanceId` | 无；清空即 `DEL` | `RedisSpillStore` | 加载 Room 时的遗留溢写认领 | Collab |
 | `instance:{instanceId}:alive` | string | `PX 60 s`，每 15 s 刷新 | 每个 collab 实例 | 认领判定（实例是否已过期） | Collab |
 
-两个频道的载荷（server-collab 内部类型，不进 `@cordexjs/protocol`）：
-- `collab:doc:{docId}`：`{instanceId, frame}`，`frame` 为原样的二进制信封。单节点吞吐不够时，按 ADR-0035 以 `hash(docId)` 把频道分片到集群分片发布订阅；M1–M3 不启用，模板不变。
+自有频道的载荷（server-collab 内部类型，不进 `@cordexjs/protocol`）与 extension-redis 频道的取舍：
+- **extension-redis 取代 `collab:doc:{docId}`**（2026-09-26，rulings §4.21 H:Q2，ADR-0035 决策 2 修订）：原设计由自研 `RedisFanoutBus` 把通过门禁的帧原样发布到 `collab:doc:{docId}`（`{instanceId, frame}`）；改用 Hocuspocus 后帧扇出由 extension-redis 承担——它发布的是状态向量、对端回差量（3 跳，回包含全量删除集，O(文档)），可自愈、也转发 awareness 与服务端 Stateless 事件，Valkey 8.1 实测跨实例 2.6–7.1 ms。取舍：它每次变更让每个对端付 O(文档) 成本，所以反代按 `documentId` 一致性哈希是默认配置（ADR-0035 决策 7），常态只有一个实例订阅某文档频道；代价是带入 ioredis 5.6.x 与 package.json 标 UNLICENSED 的 redlock（例外登记见 ADR-0049 EX-01、EX-02 与 [60/19 §14](19-reuse-and-dependency-catalog.md#14-传递依赖许可与例外登记)）。`collab:doc:{docId}` 与其分片写法作废；`RedisFanoutBus` 只保留控制频道 `room:{docId}:ctl`。
+- **extension-redis 不承载控制面**：它的 `BroadcastStateless` 只到对端实例的客户端、不触发对端服务端钩子，因此权限（`perm:doc:{docId}`）、关闭与换纪元（`room:{docId}:ctl`）、名额（`room:{docId}:members`）、租约（`lock:*`）、溢写（`spill:*`）全部照旧，与 extension-redis 的 `hp` 前缀互不重叠。extension-redis 的 redlock 只服务它自己的存储锁（本项目不用 `onStoreDocument` 持久化，该锁只让压缩节拍在他实例持锁时落空），不复用为 `LeaseLock`（它不带 fencing）。
+- **客户端**：extension-redis 以 `createClient` 注入 apps/server 的 ioredis 6.0.x 客户端（每实例一对 pub / sub 连接），不自建连接（ADR-0039 版本与许可）。
 - `room:{docId}:ctl`：`{op:'close'|'epoch', docId, reason, epoch?, fromInstanceId}`；`epoch` 触发 4428（[16](./16-ws-protocol-server-view.md)）。不设按用户踢人的操作：停用、擦除、登出按 [02](./02-auth-chain.md) §9.5 的会话复核在 ≤ 5 s 内以 4401 关闭 WS（决策 SESSION 的实现细化，效果不变），不需要按房间点名。
 
 ### 3.2 鉴权、上传、限流与作业类（`keys.ts`）
@@ -94,7 +98,7 @@ flowchart LR
   purge["worker 的 document-purge 与覆盖导入、api 的移到回收站"]
   perms["Permissions：授权变更与链接撤销"]
   docLock["Documents：锁定、解锁与到期释放"]
-  kFan["collab:doc:{docId}：扇出频道"]
+  kFan["hp:{docId}:{epoch} 与 hp#reply：extension-redis，M3"]
   kPermCh["perm:doc:{docId}：权限变更频道"]
   kPermVer["perm:ver:{docId}：permVersion 缓存"]
   kMembers["room:{docId}:members：在线名额"]
@@ -102,8 +106,8 @@ flowchart LR
   kLock["lock:{purpose}:{docId} 与 fencing 计数"]
   kSpill["spill:{docId}:{instanceId} 与实例登记"]
   kAlive["instance:{instanceId}:alive"]
-  instA -- "PUBLISH 帧，带 instanceId" --> kFan
-  kFan -- "订阅后应用或转发" --> instB
+  instA -- "发布状态向量，带 instanceId" --> kFan
+  kFan -- "差量互补，origin=redis 不落库" --> instB
   perms -- "提交后 SET" --> kPermVer
   perms -- "提交后 PUBLISH" --> kPermCh
   kPermCh -- "AuthzSource 重算" --> instB
@@ -121,8 +125,8 @@ flowchart LR
   instB -. "判定实例是否过期" .-> kAlive
 ```
 
-怎么读：左右两个 collab 实例对称，图中每类边只画一侧；实线是写或发布，虚线是读。所有键都在 Valkey 里、都带 `valkey.keyPrefix`；PG 才是一致性来源，这些键丢了都能按 §1 的路径恢复。
-依据：决策 KEYS、C-11；ADR-0035 决策 2–5、9；rulings §4.18 CO-16。
+怎么读：左右两个 collab 实例对称，图中每类边只画一侧；实线是写或发布，虚线是读。所有键都在 Valkey 里、都带 `valkey.keyPrefix`；PG 才是一致性来源，这些键丢了都能按 §1 的路径恢复。2026-09-26 起扇出频道是 M3 的 extension-redis（原「collab:doc:{docId}」作废），控制、权限、名额、租约、溢写的键不变。
+依据：决策 KEYS、C-11；ADR-0035 决策 2–5、9；ADR-0039 决策 7；rulings §4.18 CO-16、§4.21。
 
 **图 3-2 鉴权、上传、限流与作业类键与使用方**
 
@@ -166,7 +170,7 @@ flowchart LR
 - **值的形状**：`room:{docId}:members` 的每个字段是一个 collab 实例，值为 `{owners:[userId…], editors:[userId…], viewers:[userId…], ts}`（`ts` 为毫秒时间戳）。owner 登记在 `owners`，只计入在线人数、不占编辑者名额；commenter 登记在 `viewers`；`CONTROL.room` 的在线人数 = 三个列表跨实例去重后的用户数。
 - **原子性**：准入与登记由**同一个 Lua 脚本**（`admit.lua`）完成，只访问一个键：`KEYS[1] = room:{docId}:members`。脚本文本、ARGV 顺序与判定分支以 [05 §4.2](./05-modules-collab-and-snapshots.md) 为准；本节只约束：剔除 `ts` 超过 60 s 的字段、跨实例按 `userId` 去重计数、判定与改写本实例字段在同一次调用内完成、满员时返回拒绝由调用方回 4503。
 - **离开与心跳**：本实例对自己字段的其余写入（最后一个连接断开时移除该用户、每 15 s 刷新 `ts` 并 `PEXPIRE` 整键 120 s）经 `RedisMembershipRegistry` 内按文档串行的队列以普通 `HSET` 覆盖，不需要脚本；实例崩溃时，其字段在 60 s 后被下一次准入脚本剔除。
-- 脚本经 `SCRIPT LOAD` + `EVALSHA` 调用，脚本文本随 `redis-keys.ts` 同目录登记；上限参数取配置 `collab.room.maxEditors` / `collab.room.maxViewers`（[17 §5](./17-deployment-and-config.md)）。
+- 脚本经 ioredis 的 `defineCommand` 注册为自定义命令（内部走 `EVALSHA`，脚本缓存丢失时自动回退 `EVAL`；2026-09-26，rulings §4.21 R-d-38；原「`SCRIPT LOAD` + `EVALSHA` 调用」由客户端库代劳），脚本文本随 `redis-keys.ts` 同目录登记；上限参数取配置 `collab.room.maxEditors` / `collab.room.maxViewers`（[17 §5](./17-deployment-and-config.md)）。
 
 ## 5. 对象存储桶规划
 

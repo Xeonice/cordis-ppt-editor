@@ -1,5 +1,5 @@
 # 15 REST API 目录
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；30-architecture/08 §9、§11、§16.4；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20）；2026-09-26（§4.21：REST 基础件定稿——Nest 12 + Fastify 5、cookie、helmet、multipart、zod-openapi；Webhook 签名头改为 Standard Webhooks；限流维持自研令牌桶）；2026-09-26（§4.21 整合：§3.8 snapshots/latest 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：快照恢复改为复制文档先落库再应用、多副本由 extension-redis 收敛、控制事件走控制频道） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；60-backend/02、04 §7、16 §2（原 30/08 §9、§11、§16.4）；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
 
 > 读者：实现 `apps/server` 控制器与 `@cordexjs/protocol` `rest/*` 的工程师；前端（[50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 的用例层只引用本表，不复写守卫与错误码）；测试（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 由本表生成「角色 × 能力位 × 路由」矩阵）。
 > 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry）链接本文。
@@ -12,8 +12,8 @@
 | 项 | 约定 |
 |---|---|
 | 基址 | `RuntimeConfig.apiBase = https://<host>/api/v1`（Nest `setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] })`）；§3 的路径一律**相对 apiBase**；`/healthz`、`/readyz` 无前缀；`/metrics` 与 `/internal/*` 在内部端口 9464（§5）；WS 是 `/collab/v1/rooms/:documentId`（[16](16-ws-protocol-server-view.md)）（rulings §4.18 BE-11） |
-| DTO 来源 | 请求与响应 schema 一律来自 `@cordexjs/protocol`：`rest/{auth, users, documents, share-links, media, snapshots, import-export, thumbnails, comments, webhooks, audit, telemetry, problem}.ts`；`documents.ts` 含权限段、pin、recent、purge、duplicate、collab-ticket 与 elements/purge 段；`import-export.ts` 含 uploads、cancel、exports 与 jobs 状态；错误码联合在 `errors/codes.ts`，HTTP / WS 映射在 `errors/http-map.ts`（依据：决策 INC-11/INC-13，30-architecture/08、10 正文 > 40）。控制器 `@Body()` 类型只能是 `z.infer<typeof X>` 且 `X` 来自 protocol；出参也经 schema 解析，防止泄漏字段 |
-| OpenAPI | 由 protocol 的 zod schema 生成 OpenAPI 3.1 文档，作为构建产物入库做差异检查（§10 R3）；OpenAPI 只是派生物，不是事实源 |
+| DTO 来源 | 请求与响应 schema 一律来自 `@cordexjs/protocol`：`rest/{auth, users, documents, share-links, media, snapshots, import-export, thumbnails, comments, webhooks, audit, telemetry, problem}.ts`；`documents.ts` 含权限段、pin、recent、purge、duplicate、collab-ticket 与 elements/purge 段；`import-export.ts` 含 uploads、cancel、exports 与 jobs 状态；错误码联合在 `errors/codes.ts`，HTTP / WS 映射在 `errors/http-map.ts`（依据：决策 INC-11/INC-13，30-architecture/10 与本线正文 > 40）。控制器 `@Body()` 类型只能是 `z.infer<typeof X>` 且 `X` 来自 protocol；出参也经 schema 解析，防止泄漏字段 |
+| OpenAPI | 由 protocol 的 zod schema 经 `zod-openapi` 6 在 protocol 构建脚本里生成 OpenAPI 3.1 文档（devDependency，不进运行时；不用 `@nestjs/swagger` 与 `nestjs-zod`，后者 peer 只到 Nest 11，2026-09-26 定，R-d-54），作为构建产物入库做差异检查（§10 R3）；OpenAPI 只是派生物，不是事实源 |
 | 错误 | RFC 9457 `application/problem+json`：`type`、`title`、`status`、`detail`、`instance`、`code`、`traceId`、`retryable`；`details` 只对 `user:true` 的码回传；分享链接失效时 `permission.denied`（`user:true`）在 `details.reason` 携带 `'share_link.expired' \| 'share_link.revoked'`，不设问题体顶层扩展字段（依据：决策 INC-20，ADR-0029；决策 INC-11/INC-13「ErrorEnvelope 只含 `details?`」，30/10 §1.4，[02](02-auth-chain.md) §7.4）。前端的 `ErrorEnvelope`（`code`、`detail`、`traceId`、`retryable`、`details?`）是它的客户端视图 |
 | 分页 | 游标分页：`?cursor=<不透明串>&limit=<1..100，默认 50>` → `{ items, nextCursor }`，`nextCursor` 为 `null` 表示末页；游标编码排序键与 id，不返回总数 |
 | 标识与时间 | id 为 UUIDv7 字符串（应用层生成）；时间为 RFC 3339 UTC；哈希为小写十六进制 |
@@ -23,6 +23,51 @@
 | CSRF | cookie 会话下，所有非安全方法（POST / PUT / PATCH / DELETE）且非 `@Public` 的路由，要求 ① `Origin` 命中 `security.allowedOrigins`（缺 `Origin` 时 `Sec-Fetch-Site` 必须为 `same-origin`）② 请求头 `X-Cordex-Request: 1`；否则 403 `server.auth.csrf_rejected`。M4 的 Bearer 请求豁免。前端对全部非安全方法请求自动附加该头（GET / HEAD 不带，免得无谓触发跨源预检，决策 INC-24、[02](02-auth-chain.md) §5）；页面卸载时的上报用 `fetch(…, { keepalive: true })` 而不是 `sendBeacon`（后者不能带自定义头）（依据：决策 INC-24 + PRD SV-12；机制见 [02](02-auth-chain.md)） |
 | 分享令牌 | 只经请求头 `X-Cordex-Share-Token` 传递，服务端不读取 query 中的同名参数；日志与 trace 对该头脱敏（依据：决策 INC-25，ADR-0029 否决 URL 令牌） |
 | 限流 | 每条路由属于一个限流档（§8）；超限 429 `server.http.rate_limited`，带 `Retry-After` |
+
+### 1.1 REST 基础件（2026-09-26）
+
+依据：rulings §4.21 q-nest-major、q-db-access（B2 结案）；R-d-43、R-d-52、R-d-54。版本、许可与否决过的替代以 [19](19-reuse-and-dependency-catalog.md) §2 为准，本节只写每个基础件在请求链路上的职责。
+
+| 基础件 | 选定 | 在 REST 上的职责 |
+|---|---|---|
+| 传输壳与 HTTP 适配器 | Nest 12（`@nestjs/core`、`@nestjs/platform-fastify` 12.1.x）+ Fastify 5（ADR-0022 B2 结案） | 路由、依赖注入、全局守卫链；Nest 12 为纯 ESM，`apps/server` 按 ESM 构建 |
+| 会话 cookie | `@fastify/cookie` 11.1，不启用 cookie 签名 | 读写 `__Host-` 会话与 refresh cookie（[02](02-auth-chain.md) §4.1）；完整性由 JWT 签名承担 |
+| 安全响应头 | `@fastify/helmet` 13.1，最小配置 | 全部响应 `X-Content-Type-Options: nosniff` 等（§1「缓存」行）；图片与字节端点单独覆盖；CSP 不在这里设（web 容器下发，[17](17-deployment-and-config.md) §3） |
+| multipart | `@fastify/multipart` 10.1 | 只用于 `POST /imports` 的 ≤ 10 MB 单步直传（§3.9、§8），全程流式；其余上传一律预签名直传对象存储 |
+| DTO 校验与问题体 | zod 4（protocol schema）+ 自研 `ZodValidationPipe` 与 `CordexExceptionFilter` | 400 与 RFC 9457 问题体（§1「错误」行） |
+| 限流 | 自研 Valkey Lua 令牌桶（`RateLimitGuard`） | §8 各档；不用 `rate-limiter-flexible`（只有固定窗口，违背 rulings §4.20 BE-02 的令牌桶定稿，[19](19-reuse-and-dependency-catalog.md) §15.2） |
+| 来源 IP | `proxy-addr`（`clientIp()`） | 限流主体与审计 `ip_hash`（§8 末段） |
+
+**图 1-1 一个 REST 请求经过的基础件**
+
+```mermaid
+flowchart LR
+  req["经 web 反代的请求"]
+  subgraph fastify["Fastify 5 层"]
+    body["路由级 bodyLimit 与 multipart"]
+    cookie["@fastify/cookie 解析"]
+  end
+  subgraph nest["Nest 12 全局链"]
+    rl["RateLimitGuard：Valkey 令牌桶"]
+    sess["SessionGuard"]
+    csrf["CsrfGuard：Origin 与 X-Cordex-Request"]
+    link["ShareLinkGuard"]
+  end
+  pipe["ZodValidationPipe：protocol schema"]
+  ctl["控制器与用例"]
+  err["CordexExceptionFilter：problem+json"]
+  helmet["@fastify/helmet：响应头"]
+  req --> body --> cookie --> rl --> sess --> csrf --> link --> pipe --> ctl --> helmet
+  rl -. "429" .-> err
+  sess -. "401" .-> err
+  csrf -. "403" .-> err
+  pipe -. "400" .-> err
+  err --> helmet
+```
+
+怎么读：实线是一次成功请求依次经过的层，左边的 Fastify 插件先于 Nest 守卫执行，体积超限在进入 Nest 之前就被 413 拒绝；虚线是各层的拒绝出口，统一由异常过滤器写成问题体，最后都经 helmet 加响应头。控制器级守卫（`DocumentRoleGuard`、`PlatformAdminGuard`）在链尾，未画出。
+
+依据：§1、§2、§8；[02](02-auth-chain.md) §6；rulings §4.21。
 
 ---
 
@@ -181,12 +226,12 @@ flowchart LR
 
 ### 3.8 snapshots
 
-`SnapshotsModule` · `rest/snapshots.ts` · **角色 collab**（反代把 `/api/v1/documents/:id/snapshots*` 转给 collab；api 进程装配即启动失败，BE-03）。恢复在本实例打开 Room 执行、多副本经 FanoutBus 收敛，在线客户端不断连；机制见 [05](05-modules-collab-and-snapshots.md)。
+`SnapshotsModule` · `rest/snapshots.ts` · **角色 collab**（反代把 `/api/v1/documents/:id/snapshots*` 转给 collab；api 进程装配即启动失败，BE-03）。恢复在本实例打开 Room、在复制文档上先落库再应用（rulings §4.21 H:q-hp-server-tx），多副本由 extension-redis 收敛（M3），关闭或换纪元等控制事件经 FanoutBus 控制频道 `room:{docId}:ctl`，在线客户端不断连；机制见 [60/05 §10](05-modules-collab-and-snapshots.md#10-snapshotsmodule) 与 [60/05 §5](05-modules-collab-and-snapshots.md#5-持久化与跨实例扇出)。
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
 | GET | `/documents/:id/snapshots?kind=&cursor=&limit=` | `DocRole(history.read)` | `content` | → `Page<SnapshotMeta>`（`kind ∈ import \| auto \| named \| migration \| restore \| epoch`、`name`、`description`、`contributors[]`、`seqUpto`、`createdAt`） | 200 | 仅隐含码 | — | default | M3 |
-| GET | `/documents/:id/snapshots/latest` | `+Link` → `DocRole(doc.read)` | `content` | → 快照字节（Y V2 update，zstd，`application/octet-stream`）；> 1 MiB 的从 `snapshots` 桶流式代理，不返回预签名 URL（决策 MECH-INC 中 INC-14）；请求 `Accept-Encoding` 不含 zstd 时服务端解压后按 gzip 返回（[05](05-modules-collab-and-snapshots.md) §10）；`ETag = snapshotId`，`Cache-Control: private, max-age=0, must-revalidate`；响应头 `X-Cordex-Epoch` = `documents.epoch`，客户端在 WS `auth.epoch` 声明（[16](16-ws-protocol-server-view.md) §2） | 200 / 304 | `server.snapshots.not_found`（404，尚无快照，客户端从空文档开始） | `document.opened`（合并计数） | default | M2 |
+| GET | `/documents/:id/snapshots/latest` | `+Link` → `DocRole(doc.read)` | `content` | → 快照字节（Y V2 update，zstd，`application/octet-stream`）；> 1 MiB 的从 `snapshots` 桶流式代理，不返回预签名 URL（决策 MECH-INC 中 INC-14）；请求 `Accept-Encoding` 不含 zstd 时服务端解压后按 gzip 返回（[05](05-modules-collab-and-snapshots.md) §10）；`ETag = snapshotId`，`Cache-Control: private, max-age=0, must-revalidate`；响应头 `X-Cordex-Epoch` = `documents.epoch`，客户端在 Auth 帧 token 的 `epoch` 声明并据此组 provider 文档名 `{documentId}:{epoch}`（[16](16-ws-protocol-server-view.md) §2） | 200 / 304 | `server.snapshots.not_found`（404，尚无快照，客户端从空文档开始；404 同样带 `X-Cordex-Epoch`，2026-09-26 整合） | `document.opened`（合并计数） | default | M2 |
 | GET | `/documents/:id/snapshots/:snapshotId` | `DocRole(history.read)` | `content` | → 该版本字节（编码与 latest 相同，供预览）；版本内容不可变，`Cache-Control: private, max-age=31536000, immutable` | 200 / 304 | `server.snapshots.not_found`（404） | — | default | M3 |
 | POST | `/documents/:id/snapshots` | `DocRole(doc.manage)` | `write` | `{ name, description? }` → `SnapshotMeta`（`kind='named'`，永久保留）：把当前状态命名为一个版本（决策 MECH-INC 中 INC-15） | 201 | `server.snapshots.named_limit_reached`（409，超过每文档命名版本上限 `quota.namedSnapshotsPerDoc`；非配额码）、`server.snapshots.persist_degraded`（503，Room 处于 PG 降级期，可重试，[05](05-modules-collab-and-snapshots.md) §10） | `snapshot.created` | default | M3 |
 | POST | `/documents/:id/snapshots/:snapshotId/restore` | `DocRole(history.restore)`（即仅 owner） | `write` | → `SnapshotMeta`（新写入的 `kind='restore'` 快照）：执行 `core.restoreVersion`，单事务、origin `system('restore')`；提交后经扇出向在线会话发 `CONTROL.event{name:'version.restored'}`（[16](16-ws-protocol-server-view.md) §3） | 200 | `server.snapshots.not_found`（404）、`server.documents.locked`（409）、`server.snapshots.persist_degraded`（503，同上） | `snapshot.restored` | default | M3 |
@@ -228,7 +273,7 @@ flowchart LR
 
 ### 3.12 webhooks
 
-`WebhooksModule` · `rest/webhooks.ts` · 角色 api · 只有平台管理员。对外事件 `comment.added`、`comment.mentioned`、`comment.resolved`，载荷 schema 带版本；签名头 `X-Cordex-Signature: t=<时间戳>, v1=<HMAC-SHA256>`；签名密钥以部署 KEK 做 AES-256-GCM 加密存储（`signing_secret_enc` + `secret_version`），明文只在创建与轮换响应中出现一次（决策 C-16/INC-30、INC-31/INC-29）。出站地址在创建、更新与每次投递前都过 SSRF 守卫（rulings §4.13 S-4），细节见 [07](07-modules-comments-webhooks-audit.md)。
+`WebhooksModule` · `rest/webhooks.ts` · 角色 api · 只有平台管理员。对外事件 `comment.added`、`comment.mentioned`、`comment.resolved`，载荷 schema 带版本；签名按 **Standard Webhooks**：`webhook-id`（投递行 id）、`webhook-timestamp`、`webhook-signature: v1,<base64(HMAC-SHA256)>`，多个签名空格分隔、轮换宽限期双签（2026-09-26，rulings §4.21 q-webhook-sig；原 `X-Cordex-Signature` 已废止，细节见 [07](07-modules-comments-webhooks-audit.md) §5.2）；密钥对外编码为 `whsec_<base64>`；签名密钥以部署 KEK 做 AES-256-GCM 加密存储（`signing_secret_enc` + `secret_version`），明文只在创建与轮换响应中出现一次（决策 C-16/INC-30、INC-31/INC-29）。出站地址在创建、更新与每次投递前都过 SSRF 守卫（rulings §4.13 S-4），细节见 [07](07-modules-comments-webhooks-audit.md)。
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -400,11 +445,11 @@ flowchart LR
 
 ## 8. 限流与请求体上限
 
-**限流档**（Valkey 令牌桶，键 `rl:{bucket}:{subject}`，键模板见 [14](14-valkey-object-storage-and-retention.md)；数值为默认值，配置键 `limits.rate.<档>.{perMin, burst}` 见 [17](17-deployment-and-config.md)，只收紧）。各档数值与默认请求体上限已经评审定稿（rulings §4.20 BE-02）：upload、public 两档上调，其余维持；不加档位、不加配置键。
+**限流档**（自研 Valkey Lua 令牌桶，键 `rl:{bucket}:{subject}`，键模板见 [14](14-valkey-object-storage-and-retention.md)；限流语义维持令牌桶，不换成固定窗口的现成库，理由见 [19](19-reuse-and-dependency-catalog.md) §15.2；数值为默认值，配置键 `limits.rate.<档>.{perMin, burst}` 见 [17](17-deployment-and-config.md)，只收紧）。各档数值与默认请求体上限已经评审定稿（rulings §4.20 BE-02）：upload、public 两档上调，其余维持；不加档位、不加配置键。
 
 | 档 | 主体 | 默认速率 / 突发 | 适用 |
 |---|---|---|---|
-| default | 用户 | 600 次 / min，突发 100 | 未另注明的全部 `Session` 路由（数值原出自 30/08 §9.3，现以本表为准） |
+| default | 用户 | 600 次 / min，突发 100 | 未另注明的全部 `Session` 路由（数值出处原为 30/08 篇 §9.3，现以本表为准） |
 | upload | 用户 | 60 次 / min，突发 20 | media presign / commit、`/imports/uploads`（每张图 presign + commit 两次调用，连插 20 张图约 20 s 传完；原 10 / 5 下要约 3.5 min，BE-02） |
 | job | 用户 | 60 次 / min，突发 10 | `POST /imports`、取消导入、创建副本、导出、永久删除文档、用户擦除、审计导出 |
 | ticket | 用户 | 120 次 / min，突发 30 | `POST /documents/:id/collab-ticket`（重连风暴时单独限流，ADR-0023；每次连接一张单次票据，外加被动续期） |
@@ -419,7 +464,7 @@ flowchart LR
 | 路由 | 上限 |
 |---|---|
 | 默认（JSON） | 256 KiB |
-| `POST /imports` 的 `multipart/form-data` 直传 | 10 MB（更大的文件必须走两步预签名上传） |
+| `POST /imports` 的 `multipart/form-data` 直传 | 10 MB（更大的文件必须走两步预签名上传；由 `@fastify/multipart` 流式解析） |
 | `POST /telemetry/errors` | 64 KiB（≤ 20 条） |
 | `POST /telemetry/otlp` | 512 KiB |
 | `POST /telemetry/csp` | 16 KiB |
@@ -440,9 +485,9 @@ WS 升级限流（每 IP 10 次 / min，先扣后退：升级前扣、票据验�
 | OIDC 登录是 `GET /auth/oidc/login?next=&mode=redirect\|popup` → 302，不设 JSON 变体；弹窗重新登录直接打开同一 URL | §3.1 | INC-18：浏览器顶层导航语义 + 不过度设计；60 为后端事实源，覆盖 40-modules/08、11 的 POST 写法 |
 | 媒体三条端点收进 `/documents/:id` 作用域；读取要求 `doc.read` + `document_media` 关联，否则 404；上传落 `uploads/tmp/{uploadId}`，commit 后服务端复制到 `media/` 键 | §3.6 | INC-21：rulings D12 fail-closed + 安全宁可提前 |
 | 新增 `POST /documents/:id/purge`（永久删除文档）与 `POST /users/:id/erasure`（平台管理员，M3 P1） | §3.3、§3.2 | INC-22：PRD SV-11 + rulings §4.18 BE-15、CO-07 |
-| 评论 REST：列表、详情、导入为可编辑线程、跨文档 @我；REST 只读 | §3.11 | SG-03：ADR-0031 v0.2 + 30-architecture/08 §16.6 + rulings §4.12 U-14 |
+| 评论 REST：列表、详情、导入为可编辑线程、跨文档 @我；REST 只读 | §3.11 | SG-03：ADR-0031 v0.2 + 60-backend/07 §1（原 30/08 篇 §16.6）+ rulings §4.12 U-14 |
 | `PATCH /documents/:id` 只收 `title`；固定改为 `PUT / DELETE /documents/:id/pin`；新增 `DELETE /documents/:id/recent`；撤销授权与分享链接的目标 id 放进路径 | §3.3–§3.5 | SG-06/SG-07：避免守卫按字段分支，fail-closed 更易验证 |
-| `GET /jobs/:id` 为唯一状态查询；`GET /exports/:jobId` 只给下载地址；删除 `GET /imports/:jobId` | §3.9 | SG-08：不过度设计 + 30-architecture/08 §7 `job_runs` 统一 |
+| `GET /jobs/:id` 为唯一状态查询；`GET /exports/:jobId` 只给下载地址；删除 `GET /imports/:jobId` | §3.9 | SG-08：不过度设计 + 60-backend/06 §2（原 30/08 篇 §7）`job_runs` 统一 |
 | 缩略图 `GET /documents/:id/thumbnails/:slideId?size=640\|1280`，1280 变体只存对象，封面用 `'__cover'` | §3.10 | SG-10 + MECH-INC（INC-16）：ADR-0026 |
 | 不设 pptx 内容版本端点：M2 起内容以协同快照为唯一事实源，协同网关、快照 REST、服务端导入随 M2 交付 | §3.3、§3.7–§3.9 | rulings §4.19 D-M2-CONTENT |
 | 新增 `POST /documents/:id/duplicate`（`doc.export`），作业化执行，复用 `import` 队列 | §3.3 | rulings §4.10 Q20 + §4.19 D-M2-CONTENT |

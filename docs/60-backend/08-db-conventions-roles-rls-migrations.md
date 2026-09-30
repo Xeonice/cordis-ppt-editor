@@ -1,5 +1,5 @@
 # 08 数据库总约定：命名、角色、RLS 框架与迁移顺序
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/08](../30-architecture/08-backend-nestjs.md)、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：B1 结案，手写 drizzle 镜像 + 漂移检查直查 pg_catalog；compose 不带 PgBouncer、迁移直连）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/01](../30-architecture/01-overview.md) §2.2（原 30/08 §5）、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
 
 > 读者：写 `apps/server/src/db/**`、迁移脚本与仓储的工程师；DBA 与运维。
 > 本文是 PostgreSQL 18 的「总约定」：命名与类型、外键与分区、数据库角色与 GRANT、连接池、文档级 RLS 的框架（GUC、辅助函数、policy 写法、例外清单、测试矩阵）、表写方所有权、迁移编号与纪律。**各表的建表语句与 policy 本体**在 [09](./09-ddl-identity-and-access.md)–[13](./13-ddl-comments-webhooks-audit.md)；Valkey 键、对象键与保留总表在 [14](./14-valkey-object-storage-and-retention.md)；配置键在 [17](./17-deployment-and-config.md)。
@@ -27,7 +27,7 @@
 | 半结构化 | `jsonb`；只放不参与约束与连接的字段；需要查询的字段提成列 | 同上 |
 | 二进制 | `bytea`；大块二进制列（`document_updates.update`、`document_snapshots.state_inline`）`SET STORAGE EXTERNAL`，避免对已压缩内容再压缩；超过 1 MiB 的快照放对象存储 | ADR-0022、ADR-0025 |
 | 哈希 | 摘要一律存原始字节 `bytea` 并加 `CHECK (octet_length(col) = 32)`（sha256），不存 hex 文本 | 同上 |
-| 软删除 | 需要回收站的实体用 `deleted_at timestamptz NULL`；其余表硬删 | 本表（原 30/08 §5 草案口径，该草案 2026-09-25 删除后以本文为唯一源，rulings §4.19） |
+| 软删除 | 需要回收站的实体用 `deleted_at timestamptz NULL`；其余表硬删 | 本表（原 30/08 篇 §5 草案口径，该草案 2026-09-25 删除后以本文为唯一源，rulings §4.19） |
 | 空值与默认值 | 能 `NOT NULL` 就 `NOT NULL`；计数列 `NOT NULL DEFAULT 0`；可空列必须在列注释里写明「何时为空」 | G-19 |
 | 注释 | 每张表 `COMMENT ON TABLE` 写「用途、写方、保留」；写方不唯一的列 `COMMENT ON COLUMN` 写写方（`documents` 的 M-08 / M-09 列，C-03） | 决策 C-03 |
 | 外键索引 | 被引用方会被硬删除的外键列（指向 `documents`、`document_snapshots`、`comments`、`media_blobs`、`webhook_subscriptions`、`job_runs` 的外键，含 `documents.latest_snapshot_id`、`document_snapshots.restored_from`、`comments.parent_id` 这类 SET NULL 或自引用列）必须是某个索引的前导列：删行时每行一次的 RESTRICT 检查或 SET NULL 改写要走索引，否则批量裁剪与永久删除退化为逐行全表扫描；可空列用 `WHERE col IS NOT NULL` 部分索引。指向 `users` 的外键不强制建索引（`users` 不硬删） | §2 |
@@ -168,7 +168,7 @@ flowchart LR
 - `application_name = cordex-{role}-{app|system}`；系统作业事务内再 `SET LOCAL application_name = 'cordex-{role}-system/{作业名}'`，便于在 `pg_stat_activity` 里定位。
 - 超时：app 池 `statement_timeout 30 s`、`lock_timeout 5 s`；system 池 `statement_timeout 120 s`、`lock_timeout 10 s`（批量裁剪分批执行，单批 ≤ 10,000 行）；两者 `idle_in_transaction_session_timeout 60 s`。0001 把同样的值设为角色默认值兜底。
 - 池大小：`db.app.poolMax`、`db.system.poolMax`（默认各 20）；拆分部署时按 [17 §8](./17-deployment-and-config.md) 调整，所有副本之和 < PG `max_connections` − 10（留给迁移与运维）。
-- RLS 上下文只用事务级设置（`set_config(…, true)`，等价 `SET LOCAL`），不留会话状态，因此与 PgBouncer 事务池模式兼容。
+- RLS 上下文只用事务级设置（`set_config(…, true)`，等价 `SET LOCAL`），不留会话状态，因此应用连接与 PgBouncer 事务池模式兼容。compose 默认栈**不带 PgBouncer**；部署方自加时只有应用连接池可以经它，迁移与 `ops-cron` 一律直连 PG（§10.2，ADR-0022 修订 2026-09-26）。
 
 ## 6. 文档级 RLS 框架
 
@@ -541,9 +541,31 @@ flowchart LR
 
 - 迁移是 `apps/server/src/db/migrations/NNNN_<name>.sql` 手写 SQL；分区、RLS、函数、GRANT 只能手写。
 - **迁移 SQL 文件须与文档逐字一致**：迁移内容的唯一事实源是本线 08–13 的 `-- migrate:` 围栏（本文的 0001、0002、0095、0096 在内），一个围栏对应一个文件。文件名取围栏首行 `-- migrate: NNNN_<name>` 中的 `NNNN_<name>`，再加 `.sql`。文件内容等于围栏正文（含首行，末尾一个换行），也就是 ddl-check 提取物的字节；台账 `checksum` 取这份内容的 sha256，因此文档、仓库文件与台账三者同源。改迁移时先改文档围栏，再同步文件，不反向。机械校验由 ddl-check 的迁移目录比对执行（§11 第 6 条、§13 DB-13）：首批迁移文件入库的同一 PR 实现，由 scanners 步骤 gated（rulings §4.20 BE-03+TX-14）。
-- 文件级落点（2026-09-25 审稿登记）：`db/migrations/`、`db/schema/`、连接池与系统事务入口 `db/client.ts`、执行器 `db/migrator.ts` 都登记在 [40/12 §4.13、§5.13](../40-modules/12-server-jobs-comments-and-ops.md)（M-12「应用骨架与基础设施」），原先所指的 30/08 §2 目录树已删；M-12 只承载这些文件，表结构与迁移内容仍以本线为准。
-- `apps/server/src/db/schema/*.ts`（drizzle）只是仓储用的类型镜像；`drizzle-kit generate` 可用来起草普通表的 SQL，但生成物不直接入库，按本线编号改写后提交。
-- 漂移检查：空库执行全部迁移后，用 drizzle 的内省结果与 `schema/*.ts` 比对列名、类型、可空性与默认值，不一致即失败（[70/07 §4](../70-testing/07-backend-integration-and-api-e2e.md)，`test/server-integration`）。
+- 文件级落点（2026-09-25 审稿登记）：`db/migrations/`、`db/schema/`、连接池与系统事务入口 `db/client.ts`、执行器 `db/migrator.ts` 都登记在 [40/12 §4.13、§5.13](../40-modules/12-server-jobs-comments-and-ops.md)（M-12「应用骨架与基础设施」），原先所指的 30/08 篇 §2 目录树已删；M-12 只承载这些文件，表结构与迁移内容仍以本线为准。
+- **B1 已结案**（rulings §4.21 q-db-access，ADR-0022 修订 2026-09-26）：`drizzle-orm` 0.45.x + **手写** `apps/server/src/db/schema/*.ts`，每张业务表一个文件（17 个，文件级见 40/12 §4.13），只作仓储用的类型镜像；`drizzle-kit generate` 可用来起草普通表的 SQL，但生成物不直接入库，按本线编号改写后提交。**不用 `drizzle-kit pull`**：它的内省只选 relkind `r`/`v`/`m`，`document_updates` 与 `audit_log` 的分区父表整张丢失、叶子分区被当普通表。Drizzle 1.0（RC）的破坏性变更在 M2 前评估；依赖版本见 [19](./19-reuse-and-dependency-catalog.md) §5。
+- **漂移检查（DB-03）直查 `pg_catalog`**：空库执行全部迁移后，用下面的查询取实际结构（普通表取 relkind `r`，分区表只取 relkind `p` 的父表，`relispartition` 为真的叶子分区排除，台账表排除），再与 `schema/*.ts` 经 `getTableConfig()` 导出的列清单逐列比对：列名与顺序、类型（`format_type` 对 drizzle 列的 `getSQLType()`）、可空性、默认值表达式；表集合必须恰好相等，多一张、少一张、多一列都算漂移，不一致即失败（[70/07 §4](../70-testing/07-backend-integration-and-api-e2e.md)，`test/server-integration`）。原口径「用 drizzle 的内省结果比对」作废——它同样丢分区父表。修正方向永远是先改本线围栏与迁移文件，再改镜像。2026-09-26 在 ddl-check 产物库（PG 18.6）上实查，本查询按表聚合恰好返回 17 张业务表，其中 `audit_log`、`document_updates` 以 relkind `p` 出现。
+
+```sql
+-- example
+-- 漂移检查（DB-03）的内省查询：分区表只取父表（relkind 'p'），叶子分区与台账表排除；结果与 db/schema/*.ts 逐列比对
+SELECT c.relname                                        AS table_name,
+       a.attnum                                         AS ordinal,
+       a.attname                                        AS column_name,
+       pg_catalog.format_type(a.atttypid, a.atttypmod)  AS data_type,
+       a.attnotnull                                     AS not_null,
+       pg_catalog.pg_get_expr(d.adbin, d.adrelid)       AS column_default,
+       a.attidentity                                    AS identity_kind,
+       a.attgenerated                                   AS generated_kind
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+  LEFT JOIN pg_catalog.pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+ WHERE n.nspname = 'public'
+   AND c.relkind IN ('r', 'p')
+   AND NOT c.relispartition
+   AND c.relname <> 'cordex_schema_migrations'
+ ORDER BY c.relname, a.attnum;
+```
 
 ### 10.2 执行器 `cordex-ops db:migrate`
 
@@ -553,6 +575,31 @@ flowchart LR
 - 0001 需要管理员权限，由 `cordex-ops db:bootstrap`（托管库由 DBA 执行）或 compose 的 postgres 初始化钩子执行并登记（[17 §9](./17-deployment-and-config.md)）；`db:migrate` 发现台账缺 0001 时报错并提示先 bootstrap，不自行提权。
 - 不提供 down 迁移（见 10.3 的「回滚一步」）。第一个失败即停止，事务回滚，进程退出码非 0，部署流水线不再滚动新版本。
 - 需要 `CREATE INDEX CONCURRENTLY` 或 `DETACH … CONCURRENTLY` 的迁移单独成文件，并在第二行标 `-- migrate-opts: no-transaction`（只用于基线冻结之后）。
+- **连接方式**（2026-09-26，rulings §4.21 q-db-access）：执行器持的是会话级 `pg_advisory_lock`，经 PgBouncer 事务池时锁会随连接归还而失效，并发执行防护随之落空，所以 `db:bootstrap`、`db:migrate`、`db:status` 与 `ops-cron` 的 `audit-rotate` 一律直连 PG；compose 默认栈不带 PgBouncer。迁移完成后的 schema 漂移检查见 §10.1（DB-03）。
+
+**图 10-1 应用连接与迁移连接的路径**
+
+```mermaid
+flowchart LR
+  subgraph apps["应用进程：api、collab、worker"]
+    pools["app 池与 system 池：只用事务级 set_config"]
+  end
+  subgraph ops["运维入口"]
+    mig["cordex-ops db:migrate：会话级 pg_advisory_lock"]
+    cron["ops-cron：audit-rotate"]
+  end
+  bouncer["PgBouncer 事务池：部署方可选，compose 不带"]
+  pg[("PostgreSQL 18")]
+  pools -- "compose 默认直连" --> pg
+  pools -. "可选" .-> bouncer
+  bouncer -.-> pg
+  mig -- "必须直连" --> pg
+  cron -- "必须直连" --> pg
+```
+
+怎么读：实线是 compose 默认的连接路径，虚线是部署方可选的 PgBouncer 路径，只对应用连接池开放；运维入口持有会话级锁或 DDL 权限，任何部署形态下都直连 PG。
+
+依据：rulings §4.21 关键口径「DB 访问层」；R-d-40；ADR-0022 修订 2026-09-26；§5。
 
 ### 10.3 expand / contract 与兼容窗口
 
@@ -905,7 +952,7 @@ END $$;
 |---|---|---|
 | DB-01 | 本线全部 `-- migrate:` 围栏按编号在 PG 18 空库执行通过，编号唯一且在所属号段内；`-- example` 可解析；0001 可重复执行 | `docs/_tools/ddl-check.sh`（§11） |
 | DB-02 | `apps/server` 迁移目录空库全量执行与「上一版本库 + 增量」都通过（与本线围栏逐字一致见 DB-13） | `test/server-integration`（70/07 §4） |
-| DB-03 | drizzle `schema/*.ts` 与迁移后的库无漂移 | `test/server-integration` |
+| DB-03 | 手写 drizzle `schema/*.ts` 与迁移后的库无漂移：直查 `pg_catalog`（普通表 relkind `r`、分区表只取 relkind `p` 父表、排除叶子分区与台账表），表集合相等且逐列一致（§10.1）；负向夹具：镜像删掉 `document_updates` 或 `audit_log` 的一列即失败 | `test/server-integration` |
 | DB-04 | 带 `doc_id` 的表都 ENABLE + FORCE RLS 且有 app 与 system policy；例外集合 = §6.4；policy 文本不含 `current_setting('app.` | 治理检查 `check-rls-coverage`（`scanners/check-rls-coverage`），末条为其子规则 |
 | DB-05 | 0096 自检通过（随迁移执行，失败即迁移失败） | ddl-check 与 `test/server-integration` |
 | DB-06 | GRANT 快照：`information_schema` 的表级与列级权限 = §4.2 矩阵生成的快照；分区子表对应用角色无权限；PUBLIC 无任何表与函数权限 | `test/server-integration` |

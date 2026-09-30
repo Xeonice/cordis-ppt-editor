@@ -1,5 +1,5 @@
 # 11 DDL：协同更新与版本快照
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：`document_updates.update` 存 Yjs V1 字节（0042 表注释同步改）、`client_id` 取 Auth token 的 `clientId`、`session_id` 取连接会话号；§5 调用点改 Hocuspocus `beforeSync`、组提交「空闲即刷、上限 100 ms / 50 条」、取号 0 行先 `ws.close` 再抛错）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025、ADR-0039；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06、§4.21
 
 本文是 `document_snapshots`、`document_updates` 两张表的唯一事实源：建表语句、约束、索引、RLS、读写方、保留与清理都以本文为准。写入这两张表的只有 M-09（CollabModule 的 `PgUpdateStore`、`PgSnapshotStore`），运行机制（批量写、压缩、溢写回放、恢复、墓碑清扫）见 [05](05-modules-collab-and-snapshots.md)。
 
@@ -51,7 +51,7 @@ erDiagram
 
 怎么读：连线两端是基数（`||` 恰一，`o|` 零或一，`o{` 零或多），连线文字是外键列与删除动作。`documents` 与 `document_snapshots` 互相引用：快照经 `doc_id` 从属于文档（RESTRICT），文档经 `latest_snapshot_id` 指回「当前检查点」（复合外键保证只能指本文档的快照，快照被保留作业删除时指针置空）。`contributors` 实际类型是 `uuid[]`，图中写作 `uuid_array`。
 
-依据：[08](08-db-conventions-roles-rls-migrations.md) §1–§3（约定、外键、分区；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 1–5；决策 FK-POLICY、DDL-COLS、C-07、C-30。
+依据：[08](08-db-conventions-roles-rls-migrations.md) §1–§3（约定、外键、分区；原 30/08 篇 §5 草案已删，rulings §4.19）；ADR-0025 决策 1–5；决策 FK-POLICY、DDL-COLS、C-07、C-30。
 
 ## 2. document_snapshots（0040）
 
@@ -233,7 +233,7 @@ CREATE INDEX ix_document_updates_doc_created
   ON document_updates (doc_id, created_at);
 
 COMMENT ON TABLE document_updates IS
-  'CRDT update 追加日志（Yjs V2）；HASH(doc_id) 16 分区；唯一写方 M-09（PgUpdateStore）';
+  'CRDT update 追加日志（Yjs V1，协同帧原样字节）；HASH(doc_id) 16 分区；唯一写方 M-09（PgUpdateStore）';
 COMMENT ON COLUMN document_updates.seq IS
   '与 documents.head_seq 在同一事务内分配；严格单调，不复用';
 COMMENT ON COLUMN document_updates.user_id IS
@@ -243,17 +243,18 @@ COMMENT ON COLUMN document_updates.user_id IS
 设计说明：
 
 - **分区**：`HASH(doc_id)` 16 个分区 `document_updates_p00…p15`（ADR-0022、[08](08-db-conventions-roles-rls-migrations.md) §3）。一篇文档的全部行落在同一分区，`loadSince`、裁剪、贡献者统计都只扫一个分区；分区不单独授权，应用只能经父表访问，父表的 RLS 因此对所有行生效。
-- **`update` 列 `STORAGE EXTERNAL`**：Yjs V2 update 已是紧凑编码，再做 TOAST 压缩只费 CPU；子分区继承父表的 storage 设置（PG 18.6 实测 16 个分区均为 `e`）。列名 `update` 在 PostgreSQL 中是非保留关键字，无需加引号。
+- **`update` 列存 Yjs V1 字节**（2026-09-26，rulings §4.21，ADR-0039 决策 3、证据 d-10）：协同线上改用 Hocuspocus 协议后只有 Yjs V1 update 编码，写入器把客户端帧的 update 字节原样入库（不做 V1↔V2 转码），bootstrap 时以 `Y.applyUpdate` 应用；快照仍是 `encodeStateAsUpdateV2` + zstd（§2），两者在同一 Y.Doc 上按序应用即可。（原：「Yjs V2 update」，作废；本列与表注释同步改，迁移编号不变。）
+- **`update` 列 `STORAGE EXTERNAL`**：Yjs update 已是紧凑编码，再做 TOAST 压缩只费 CPU；子分区继承父表的 storage 设置（PG 18.6 实测 16 个分区均为 `e`）。列名 `update` 在 PostgreSQL 中是非保留关键字，无需加引号。
 - **主键即顺序**：`(doc_id, seq)` 同时支撑 `loadSince`（`seq > $n ORDER BY seq`）与按区间统计贡献者；`ix_document_updates_doc_created` 只服务 7 天裁剪。`seq` 由 `documents.head_seq` 在同一事务内分配（§5），不用序列：序列跨文档共享且回滚会留洞，而 at-least-once 的 ack 语义要求「提交即有 seq、seq 即落库」。
 - **行来源**：本实例客户端发来的 update（含重连 step2 的非空差量）、服务端事务（软门禁修复、恢复、迁移、墓碑硬删除）的 update、PG 恢复后回放的溢写行。跨实例扇入的 update 只应用不落库（ADR-0035 决策 3），所以同一内容至多由一个实例写一行；客户端重发导致的重复行对 Yjs 幂等无害。
 - `byte_size = octet_length(update)` 由 CHECK 保证一致（对 EXTERNAL 值取长度不需要解 TOAST）；不设 1 MiB 上限——客户端帧的上限在网关 L1（[16](16-ws-protocol-server-view.md) §4），服务端事务（如大文档恢复）产生的 update 可以更大。
-- `client_id` 为 Yjs clientID（uint32）；`session_id` 为网关会话 id，服务端事务为 NULL。
+- `client_id` 为 Yjs clientID（uint32），取 Auth token 里客户端声明的 `clientId`（`beforeHandleAwareness` 用同一个值做身份绑定）；`session_id` 为该连接的会话号（`auth.ok.sessionId`），服务端事务的 `client_id` 取服务端 Unit（即 Hocuspocus Document）自己的 Yjs clientID，`session_id` 为 NULL。（2026-09-26 明确来源：原「网关会话 id」的网关已改为 Hocuspocus 连接，[16](16-ws-protocol-server-view.md) §3。）
 
 | 项 | 内容 |
 |---|---|
 | 用途 | CRDT update 追加日志：已 ack(db) 的持久性载体、bootstrap 的增量部分、7 天窗口内的按时间点恢复 |
 | 所属模块与仓储 | CollabModule：`PgUpdateStore` 实现 server-collab `UpdateStore`（`append` / `loadSince` / `contributors` / `pruneBefore` / `purgeAll`，[05](05-modules-collab-and-snapshots.md) §2） |
-| 写方 | collab 角色 `update-writer`（批量 100 ms / 50 条）、`replay-spilled`（回放时由 PG 分配 seq）；删：`compactor` 压缩后裁剪、`updates-prune` 周期作业（worker）、永久删除参与者 `collab`（worker） |
+| 写方 | collab 角色 `update-writer`（挂 Hocuspocus `beforeSync`，组提交空闲即刷、上限 100 ms / 50 条）、`replay-spilled`（回放时由 PG 分配 seq）；删：`compactor` 压缩后裁剪、`updates-prune` 周期作业（worker）、永久删除参与者 `collab`（worker） |
 | 读方 | `bootstrap-loader`、`compactor`（压缩前补齐与贡献者统计）、M-12 导出与缩略图读取当前状态（经 M-09 的状态读取用例，worker 系统池） |
 | RLS | ENABLE + FORCE；`cordex_app` 只读、最低角色 editor（请求路径目前不读原始 update，§7.1）；`cordex_system` 一条 FOR ALL policy，作业名非空即放行（§7） |
 | 保留与清理 | 只删 `seq ≤ 检查点指针所指快照.seq_upto` 且早于 `retention.updatesDays`（默认 7）的行；永久删除时整文档清空（§8） |
@@ -261,7 +262,7 @@ COMMENT ON COLUMN document_updates.user_id IS
 
 ## 5. 批量持久化事务
 
-一次批量写把 ≤ 50 个（或 100 ms 内到达的）update 帧落成一个事务：先在 `documents` 行上原子地取一段 seq，再多行插入，提交后按帧到达顺序逐帧回 `ack{seq, tier:'db'}`（ack 规则见 [16](16-ws-protocol-server-view.md) §5）。取号语句同时是三道栅栏：`status <> 'purging'`（永久删除开始后无 update 落库，rulings §4.18 BE-15）、`epoch = 房间纪元`（换纪元后旧纪元的 update 无法落库，[05](05-modules-collab-and-snapshots.md) §9）、行锁串行化同一文档的并发写入（多实例同时写同一文档时 seq 仍严格单调）。
+一次组提交把 ≤ 50 个 update 帧落成一个事务：先在 `documents` 行上原子地取一段 seq，再多行插入，提交后按帧到达顺序逐帧回 `ack{seq, tier:'db'}`（ack 规则见 [16](16-ws-protocol-server-view.md) §5）。**调用点**（2026-09-26，rulings §4.21 H:Q1，ADR-0039 决策 5）：写入器由 server-collab 的 `GatePersistExtension` 在 Hocuspocus 的 `beforeSync` 里 await（该钩子被 await、早于应用与广播），提交返回后 Hocuspocus 才应用并广播，ack 在 `afterHandleMessage` 以 Stateless 发出。每个连接的帧串行 await，组提交因此是「**空闲即刷、上限 100 ms 或 50 条**」：写入器空闲时来一帧就立即开事务，事务在途期间到达的帧（来自同一文档的其他连接）并进下一批，上限 100 ms 或 50 条（原：「≤ 50 个（或 100 ms 内到达的）」固定窗口，会把单连接限到约 10 帧/s，作废）。取号语句同时是三道栅栏：`status <> 'purging'`（永久删除开始后无 update 落库，rulings §4.18 BE-15）、`epoch = 房间纪元`（换纪元后旧纪元的 update 无法落库，[05](05-modules-collab-and-snapshots.md) §9）、行锁串行化同一文档的并发写入（多实例同时写同一文档时 seq 仍严格单调）。
 
 ```sql
 -- example
@@ -285,7 +286,7 @@ RETURNING seq;
 COMMIT;
 ```
 
-- 返回 0 行表示栅栏生效：写入方随即读一次 `documents.status, epoch`，`purging` → 关闭房间（4404 `collab.doc_purging`），纪元变了 → 关闭房间（4428 `collab.epoch_changed`），两种情况都不回 db ack。
+- 返回 0 行表示栅栏生效：写入方随即读一次 `documents.status, epoch`，`purging` → 关闭房间（4404 `collab.doc_purging`），纪元变了 → 关闭房间（4428 `collab.epoch_changed`），两种情况都不回 db ack。2026-09-26 起的顺序：先对该文档的连接调原始 `ws.close(4404 或 4428)`，**再**在 `beforeSync` 里抛错阻止 Hocuspocus 应用这批帧（抛错会清空该连接已排队的帧，正合意；钩子抛错本身只产生客户端看到 1000 的文档级关闭，所以码必须先由原始关闭发出）。
 - 取号只改 `head_seq`，不改 `updated_at`；`documents` 不得给 `head_seq` 建索引，以保证每 100 ms 一次的取号走 HOT 更新（对 [10](10-ddl-documents-marks-media.md) 的约束）。`content_updated_at`、`element_count` 等 M-09 列在压缩时节流写入（决策 C-03）。
 - 该语句已在 PG 18.6 以 `PREPARE` 校验并实测：同一事务内取号 + 插入原子完成，纪元不符时插入 0 行。
 
@@ -293,32 +294,32 @@ COMMIT;
 
 ```mermaid
 sequenceDiagram
-  participant C as 同一连接的客户端
-  participant W as update-writer
+  participant C as 客户端连接
+  participant W as update-writer，beforeSync 里被 await
   participant PG as Postgres
-  participant B as 广播与跨实例扇出
-  C->>W: update 帧 f1、f2、f3，已过门禁 L1 到 L4
-  W->>W: 攒批，100 ms 或 50 条先到者
+  participant B as Hocuspocus 应用、广播与跨实例扇出
+  C->>W: update 帧 f1、f2、f3，已过门禁 L1 到 L3
+  W->>W: 组提交，空闲即刷，上限 100 ms 或 50 条
   W->>PG: BEGIN，set_config app.system_job = collab.persist
   W->>PG: UPDATE documents 取号，栅栏 epoch 与 purging
   alt 取到 base
     W->>PG: INSERT document_updates，seq = base + 序号
     W->>PG: COMMIT
     PG-->>W: 提交成功，返回 seq
-    W-->>C: 按到达顺序逐帧 ack，tier db 与各自 seq
-    W->>B: persistBeforeBroadcast，落库后广播
+    W->>B: beforeSync 返回，落库后才应用与广播
+    B-->>C: afterHandleMessage 按到达顺序逐帧 Stateless ack，tier db 与各自 seq
   else 返回 0 行
     W->>PG: ROLLBACK，读 status 与 epoch
-    W-->>C: 关闭 4404 或 4428，不回 db ack
+    W-->>C: 先原始 ws.close 4404 或 4428，再在 beforeSync 抛错，不回 db ack
   else PG 写失败
     W->>B: 进入降级期，立即广播，不等持久化
     Note over W: 按 05 §6 进入内存重试、一级或二级溢写
   end
 ```
 
-怎么读：纵线是参与方，自上而下是时间。三条分支对应取号的三种结果；只有第一条分支会回 `tier db` 的 ack，且在 COMMIT 返回之后发出。降级分支的溢写与回放在 [05](05-modules-collab-and-snapshots.md) §6。
+怎么读：纵线是参与方，自上而下是时间。三条分支对应取号的三种结果；只有第一条分支会回 `tier db` 的 ack，且在 COMMIT 返回之后发出（2026-09-26 起写入器在 Hocuspocus 的 `beforeSync` 里被 await，ack 在 `afterHandleMessage` 发出，ADR-0039）。降级分支的溢写与回放在 [05](05-modules-collab-and-snapshots.md) §6。
 
-依据：本文 §5（写路径的唯一源；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 1、8；rulings §4.18 CO-08、CO-10、BE-15。
+依据：本文 §5（写路径的唯一源；原 30/08 篇 §5 草案已删，rulings §4.19）；ADR-0025 决策 1、8；rulings §4.18 CO-08、CO-10、BE-15。
 
 ## 6. 恢复查询
 
@@ -371,7 +372,7 @@ flowchart TB
 
 怎么读：菱形是判定，方框是动作；自上而下是一次状态重建。左支是新建空文档，右支按快照是内联还是对象存储分两路，汇合后都要叠加检查点之后的 updates。唯一的失败出口是大快照对象缺失，此时宁可让加入失败也不回退到更旧的状态。
 
-依据：本文 §6（状态重建的唯一源；原 30/08 §5 草案已删，rulings §4.19）；ADR-0025 决策 2、4；决策 C-08/OBJ、C-30。
+依据：本文 §6（状态重建的唯一源；原 30/08 篇 §5 草案已删，rulings §4.19）；ADR-0025 决策 2、4；决策 C-08/OBJ、C-30。
 
 ## 7. RLS（0092）
 
@@ -422,7 +423,7 @@ CREATE POLICY p_document_updates_system_all ON document_updates
 |---|---|---|---|
 | `collab.gateway` | 网关票据校验与加入检查（collab） | `documents` | 读 status、epoch、schema_version、element_count |
 | `collab.bootstrap` | `bootstrap-loader`（collab） | 两表 | 读（e2、e3） |
-| `collab.persist` | `update-writer`（collab；修复、恢复、墓碑、迁移事务同走此路径） | `documents`、`document_updates` | 取号、插入（e1） |
+| `collab.persist` | `update-writer`（collab，挂 Hocuspocus `beforeSync`；修复、恢复、墓碑、迁移事务同走此路径，2026-09-26 作业名不变） | `documents`、`document_updates` | 取号、插入（e1） |
 | `collab.spill-replay` | `replay-spilled`（collab） | 同上 | 回放插入 |
 | `collab.compact` | `compactor`（collab） | 两表、`documents`；同事务经 MediaModule 用例触碰 `document_media` | 读区间、写 `auto`、移动指针（e8）、裁剪（e5）、写 M-09 列 |
 | `collab.snapshot` | 命名、恢复、迁移、换纪元（collab） | `document_snapshots`、`documents` | 写 `named` / `restore` / `migration` / `epoch`，移动指针 |

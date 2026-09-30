@@ -1,6 +1,6 @@
 # 06 模块设计：作业、导入导出、缩略图与 renderer sidecar
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30-architecture/08](../30-architecture/08-backend-nestjs.md) §7、§9.2、§16.2、§16.3；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 限额改为引用 ADR-0019 的 XmlLimits 表、DOCTYPE 一律拒绝；多页 PNG 打包用 ooxml-core `writeZip`；renderer RPC 的 multipart 用 `@fastify/busboy`）；2026-09-26（§4.21 整合：§6.2 unzip 与 parse-* 阶段的 format.limit_exceeded 注明 limit 取 zip.* 或 xml.*）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[30/01](../30-architecture/01-overview.md) §4.4（原 30/08 §7、§9.2、§16.2、§16.3 已迁入本文）；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-lexer、X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)
 
 ## 0. 定位与边界
 
@@ -38,13 +38,13 @@ BullMQ 跑在 Valkey 上，队列键前缀 `bull`，外层再套全局前缀 `va
 | `webhook-delivery` | `DeliverWebhookEventUseCase`（collab）；reconciliation 重投（worker） | `WebhookDeliveryProcessor`（worker） | 4 | 15 s | 最多 8 次，指数 30 s 起；可重试分类见 [07 §5](07-modules-comments-webhooks-audit.md) | jobId = `webhook_deliveries.id`；逻辑去重 (subscriptionId, event, payloadHash) | FIFO | 否（状态在 `webhook_deliveries`） | `dead-lettered` + 告警 | M3 |
 | `document-purge` | `SchedulePurgeUseCase`（api：永久删除、用户擦除；worker：trash-expiry），与 `documents.status` 同事务写行 | `DocumentPurgeProcessor`（worker，三步编排见 [04 §4](04-modules-documents-storage-media.md)） | 2；同文档串行 | 30 min | 10 次，指数 60 s 起、单次延迟上限 1 h，失败整作业重试 | `document-purge:{docId}` | FIFO | 是 | 用尽 → `failed` + P1 告警，人工 `jobs:replay` | M3 |
 
-- `document-purge` 是**独立队列**，不是 `maintenance` 上的作业名（依据：决策 MECH-C 之 C-05，authority：30/08 §7 高于 40-modules/08）。
-- 不设 `compaction` 队列：压缩只在持有 Room 的 collab 实例内执行，补齐步骤依赖本实例 Room（[05 §7](05-modules-collab-and-snapshots.md)）；30/08 §7 的可选委托路径作废（用户偏好「不要过度设计」）。队列因此共七条。
+- `document-purge` 是**独立队列**，不是 `maintenance` 上的作业名（依据：决策 MECH-C 之 C-05，authority：原 30/08 篇 §7 高于 40-modules/08）。
+- 不设 `compaction` 队列：压缩只在持有 Room 的 collab 实例内执行，补齐步骤依赖本实例 Room（[05 §7](05-modules-collab-and-snapshots.md)）；原 30/08 篇 §7 的可选委托路径作废（用户偏好「不要过度设计」）。队列因此共七条。
 - SV-13 的 `fill-template` / `validate` / `migrate` / `convert` 四类作业并入 `ImportExportModule`，队列名与 REST 到 M4 一起定，本版不预留（rulings §4.12 U-13）。
 - BullMQ 完成集合只保留 1 h 或 1,000 条（取先到者），失败集合保留 7 天；Valkey 按 `noeviction` 部署（[14 §1](14-valkey-object-storage-and-retention.md)），这两条上限防止队列元数据无界增长。
 - 墓碑 TTL 硬删除**不在队列体系内**：由 server-collab `tombstone-sweeper` 持 `lock:tombstone:{docId}` 单写者执行（[05 §8](05-modules-collab-and-snapshots.md)），是周期作业统一走 Job Scheduler 的唯一例外；审计分区轮换走 ops 命令 `audit-rotate`（[07 §8](07-modules-comments-webhooks-audit.md)）。
 
-依据：30/08 §7 队列表（本表为其迁入后的唯一版本）；rulings §4.18 BE-15、BE-18、BE-19、BE-28（并发 4/实例）；ADR-0026 决策 2、v0.2 补充（优先级 首页缩略图 > PDF > 批量缩略图）。
+依据：原 30/08 篇 §7 队列表（本表为其迁入后的唯一版本）；rulings §4.18 BE-15、BE-18、BE-19、BE-28（并发 4/实例）；ADR-0026 决策 2、v0.2 补充（优先级 首页缩略图 > PDF > 批量缩略图）。
 
 **图 1-1 文档类作业：生产者 → 队列 → 处理器**
 
@@ -89,7 +89,7 @@ flowchart LR
 
 怎么读：左到右是「谁产生作业 → 进哪条队列 → 哪个处理器 → 委托给谁」。实线进入 `job_runs` 的四类作业对用户可见、先写行再入队；缩略图作业不写 `job_runs`，靠 jobId 去重与表内哈希判新鲜。虚线是导入成功后触发的首页缩略图。
 
-依据：本文 §1 队列总表；30/08 §7 队列拓扑图；40-modules/19 图 7-1。
+依据：本文 §1 队列总表；原 30/08 篇 §7 队列拓扑图；40-modules/19 图 7-1。
 
 **图 1-2 维护、协同与集成类作业**
 
@@ -178,7 +178,7 @@ stateDiagram-v2
 
 ### 2.3 幂等键
 
-**JOB-IDEM（已定稿，rulings §4.18 BE-10 / BE-18 的细化，意图不变）**——导入键由 30/08 §7 的 `import:user:{userId}:{sha256}` 改为下表写法。原写法以「用户 + 文件内容」成键，成功行会永久占住这个键：用户删除并永久删除文档后，再导入同一文件只会拿回指向已删除文档的旧作业；「导入到既有文档」在文档被编辑后重导同一原件，也会静默返回旧作业。下表把目标文档与其受理时的 `head_seq` 并入键，语义（BE-18：命中活动行返回既有行、命中终态行新建并写 `attempt_of`）不变。
+**JOB-IDEM（已定稿，rulings §4.18 BE-10 / BE-18 的细化，意图不变）**——导入键由原 30/08 篇 §7 的 `import:user:{userId}:{sha256}` 改为下表写法。原写法以「用户 + 文件内容」成键，成功行会永久占住这个键：用户删除并永久删除文档后，再导入同一文件只会拿回指向已删除文档的旧作业；「导入到既有文档」在文档被编辑后重导同一原件，也会静默返回旧作业。下表把目标文档与其受理时的 `head_seq` 并入键，语义（BE-18：命中活动行返回既有行、命中终态行新建并写 `attempt_of`）不变。
 
 | kind | 幂等键 | 说明 |
 |---|---|---|
@@ -202,7 +202,7 @@ stateDiagram-v2
 
 ### 2.4 `GET /jobs/:id`（唯一状态查询）
 
-- 导入、导出、render-export、document-purge 共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 30/08 §7）。
+- 导入、导出、render-export、document-purge 共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 原 30/08 篇 §7）。
 - 可见性由 RLS 决定：`created_by` 为当前用户，或对 `doc_id` 有任一文档角色（含有效分享链接角色）；看不见一律 404 `server.jobs.not_found`，不区分「不存在」与「无权」。
 - 响应为 protocol `rest/import-export.ts` 的 `JobStatus`，字段名以 [15 §3.9](15-rest-api-catalog.md) 为准（文件登记见 40-modules/02，决策 INC-11/INC-13）；本文只规定取值来源：`kind`、`status` 取同名列，`progress` 取 `result.stage`（§6.3），`error{code, detail}` 取 `error_code` 与 `result.errorDetails`，`fidelityReport` 与 `result`（导入 `{docId}`；导出 `{ready, expiresAt, expired}`；purge 为 [04 §4.5](04-modules-documents-storage-media.md) 的观测字段）取自 `result`。`payload`（含对象键）与 `idempotency_key` 从不返回。
 - `Cache-Control: no-store`；客户端轮询间隔 1 s 起、指数增长到 5 s，M2–M3 不提供推送。
@@ -288,8 +288,8 @@ stateDiagram-v2
 2. **预分配**：`jobId`、新建时的 `docId`（均为 UUIDv7）与 128 bit 随机 `uploadId`；写 Valkey `upload:{uploadId}`（模板与 TTL 1 h 见 [14 §3](14-valkey-object-storage-and-retention.md)），值为 `{userId, jobId, docId, targetExists, sha256, byteSize, fileName, multipartUploadId?}`。
 3. **签名**：按 `storage.s3.publicEndpoint` 生成指向 `uploads/tmp/{uploadId}` 的预签名 PUT，签入 `Content-Length = byteSize`；≥ 10 MB 用 S3 分片，一次签发全部分片 URL。导入上传的签名有效期等于 `uploadId` 寿命 1 h（rulings §4.18 BE-10，照顾 200 MB 慢速链路），其余 PUT 按 `storage.s3.presign.putTtlSec`（默认 600 s，[14 §5](14-valkey-object-storage-and-retention.md)）。
 4. **直传**：浏览器经反代子域 `s3.<域名>` 直传，字节不经 Nest。
-5. **受理**：`POST /imports {uploadId, parts?}`。读 `upload:{uploadId}`：不存在、已过期或 `userId` 不符一律 403 `server.import.upload_forbidden`（不区分三者，防枚举）；`job_runs.id = jobId` 已存在 → 重放，直接返回该行；分片时由服务端 `CompleteMultipartUpload`（桶 CORS 暴露 `ETag`，30/08 §6）；`HEAD` 隔离区对象，缺失或大小不符 → 409 `server.import.source_missing`；`CopyObject` 到 `docs/{docId}/imports/{jobId}/source.pptx`（可重复执行）→ 按 §2.3 建行 → 提交后入队并删除隔离区对象（删除失败由 `uploads-tmp-cleanup` 兜底）；返回 202 `{jobId, docId}`（重放 200，[15 §3.9](15-rest-api-catalog.md)）；写审计 `import.created`。这个次序让任一步之后崩溃都可由客户端重放续上：建行前崩溃时隔离区对象仍在，重放重新复制；建行后崩溃时按 `jobId` 返回既有行。
-6. **小文件单步**：≤ 10 MB 可直接 `POST /imports`（multipart），api 在内部走同一条路径（分配 id → 写隔离区 → 复制 → 建行），受上传限流约束（30/08 §16.4）。
+5. **受理**：`POST /imports {uploadId, parts?}`。读 `upload:{uploadId}`：不存在、已过期或 `userId` 不符一律 403 `server.import.upload_forbidden`（不区分三者，防枚举）；`job_runs.id = jobId` 已存在 → 重放，直接返回该行；分片时由服务端 `CompleteMultipartUpload`（桶 CORS 暴露 `ETag`，[14](14-valkey-object-storage-and-retention.md) §5）；`HEAD` 隔离区对象，缺失或大小不符 → 409 `server.import.source_missing`；`CopyObject` 到 `docs/{docId}/imports/{jobId}/source.pptx`（可重复执行）→ 按 §2.3 建行 → 提交后入队并删除隔离区对象（删除失败由 `uploads-tmp-cleanup` 兜底）；返回 202 `{jobId, docId}`（重放 200，[15 §3.9](15-rest-api-catalog.md)）；写审计 `import.created`。这个次序让任一步之后崩溃都可由客户端重放续上：建行前崩溃时隔离区对象仍在，重放重新复制；建行后崩溃时按 `jobId` 返回既有行。
+6. **小文件单步**：≤ 10 MB 可直接 `POST /imports`（multipart），api 在内部走同一条路径（分配 id → 写隔离区 → 复制 → 建行），受上传限流约束（[15](15-rest-api-catalog.md) §8）。
 
 `upload:{uploadId}` 在受理后**不删除**：它只能兑换出预分配的那一个作业，重放总是拿回同一行，因此不需要 `GETDEL`（40-modules/12 §2.5 的「用后即焚」由「绑定唯一 jobId」实现）；这让网络重试的 `POST /imports` 天然幂等。
 
@@ -329,7 +329,7 @@ sequenceDiagram
 
 怎么读：时间自上而下；前五步是申请与直传，`alt` 是受理时的三种结局。客户端从头到尾只持有 `uploadId`，对象键全部由服务端决定；原件最终落在 `docs/{docId}/imports/{jobId}/source.pptx`。
 
-依据：rulings §4.18 BE-10、BE-18；本文 §2.3、§6.1；30/08 §7 导入时序图；40-modules/19 图 6-9。
+依据：rulings §4.18 BE-10、BE-18；本文 §2.3、§6.1；原 30/08 篇 §7 导入时序图；40-modules/19 图 6-9。
 
 ### 6.2 取消的阶段边界
 
@@ -346,15 +346,15 @@ sequenceDiagram
 | 阶段（`stage`） | 在哪执行 | 做什么 | 拒绝码 |
 |---|---|---|---|
 | `fetch` | worker 主线程 | 从 data 桶读原件，计算 sha256 与申报值比对 | `server.import.checksum_mismatch` |
-| `unzip` | `worker_threads` | 魔数与容器判定 → 加密 → 文件大小 → zip 限额 → 宏；顺序以 [40-modules/04 §2.6](../40-modules/04-ooxml-format-and-pptx-codec.md) 为准 | `format.unsupported_binary`、`format.encrypted`、`format.pptx.invalid_package`、`format.quota_exceeded{fileSize}`、`format.limit_exceeded`、`format.macro_rejected` |
-| `parse-presentation` | 同上 | 读 `p:sldIdLst`，页数超天花板即停，不解压任何页 | `format.quota_exceeded{slides}` |
-| `parse-slide` | 同上 | 先做只计数不物化的元素扫描，超单页或总元素天花板即停；再解码为 Snapshot | `format.quota_exceeded{elementsPerSlide \| elementsTotal}`、`format.pptx.*` |
-| `decode-media` | 同上 | 媒体按嗅探定 MIME、SVG 消毒、算 sha256，产出 `mediaRefs`；不可识别的媒体不入媒体库，作为不透明部件留在基线里并记入保真报告 | — |
+| `unzip` | `worker_threads` | 魔数与容器判定 → 加密 → 文件大小 → zip 限额 → 宏；顺序以 [40-modules/04 §2.6](../40-modules/04-ooxml-format-and-pptx-codec.md) 为准 | `format.unsupported_binary`、`format.encrypted`、`format.pptx.invalid_package`、`format.quota_exceeded{fileSize}`、`format.limit_exceeded{limit, actual}`（`limit` 取 `zip.*`）、`format.macro_rejected` |
+| `parse-presentation` | 同上 | 读 `p:sldIdLst`，页数超天花板即停，不解压任何页 | `format.quota_exceeded{slides}`、`format.limit_exceeded{limit, actual}`（`limit` 取 `xml.*`，DOCTYPE 为 `xml.doctype`） |
+| `parse-slide` | 同上 | 先做只计数不物化的元素扫描，超单页或总元素天花板即停；再解码为 Snapshot | `format.quota_exceeded{elementsPerSlide \| elementsTotal}`、`format.limit_exceeded{limit, actual}`（`limit` 取 `xml.*`）、`format.pptx.*` |
+| `decode-media` | 同上 | 媒体按嗅探定 MIME、SVG 消毒（与 MediaModule 同一套规则：`@cordexjs/xml` 严格解析、DOCTYPE 拒绝、白名单重写，[04](04-modules-documents-storage-media.md) §7.2）、算 sha256，产出 `mediaRefs`；不可识别的媒体不入媒体库，作为不透明部件留在基线里并记入保真报告 | — |
 | `persist` | worker 主线程 | §6.4 的写入次序 | — |
 
 阶段名 `unzip` / `parse-presentation` / `parse-slide` / `decode-media` 与客户端 OF-01 的 `unit/open-progress` 同名（PRD SV-01「进度阶段与客户端 OF-01 一致」）；`stage` 完整取值为 `queued`、`fetch`、`unzip`、`parse-presentation`、`parse-slide`、`decode-media`、`persist`、`done`。设计 13 的「服务端解析」用不确定态进度，前端只用 `stage` 做文案与排障，不换算百分比。
 
-**输入限额**（迁自 30/08 §9.2 与 §16.5；OF-24 口径：部署可收紧、放宽不超过 2×；客户端 Worker 使用同一张表，常量在 `ooxml-core` 的 `ZipLimits`，键名见 [17 §5](17-deployment-and-config.md) 的 `limits.*` 与 `scale.*`）：
+**输入限额**（迁自原 30/08 篇 §9.2 与 §16.5；OF-24 口径：部署可收紧、放宽不超过 2×；客户端 Worker 使用同一张表，zip 常量在 `ooxml-core` 的 `ZipLimits`，XML 常量在 `@cordexjs/xml` 的 `XmlLimits`——**XML 限额只在 [ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 的 XmlLimits 表定义一次，本表不重述数值**（2026-09-26，rulings §4.21 X:q-xml-lexer）；键名见 [17 §5](17-deployment-and-config.md) 的 `limits.*` 与 `scale.*`）：
 
 | 限制 | 默认值 | 超限码 |
 |---|---|---|
@@ -363,7 +363,7 @@ sequenceDiagram
 | zip 条目数 / 单条目解压 / 总解压 | ≤ 4,000 / ≤ 64 MiB / ≤ 512 MiB，且压缩比 ≤ 100:1 | `format.limit_exceeded{limit, actual}` |
 | 媒体总量 / 嵌入字体 | ≤ 256 MiB / 单个 ≤ 20 MB、总计 ≤ 60 MB | 同上 |
 | 图表点数 / 位图预览 | ≤ 10,000 点每序列 / ≤ 16,777,216 px | 同上 |
-| XML | 禁 DTD 与外部实体；深度 ≤ 256；属性 ≤ 1,024 每元素；文本节点 ≤ 16 MiB | 同上 |
+| XML | 遇 DOCTYPE **一律拒绝**（不再区分「禁 DTD」与「禁外部实体」，只认 5 个预定义实体与字符引用）；深度、单元素属性数、文本长度、属性值长度在词法层计数，各项上限、计量与 `limit` 键以 ADR-0019 决策 6 的 XmlLimits 表为准 | `format.limit_exceeded{limit, actual}`（`limit` 取 `xml.*`，DOCTYPE 为 `xml.doctype`）；畸形 XML 按 [30/10](../30-architecture/10-observability-and-errors.md) §1.4 的 `format.malformed_xml` 口径处理（必需部件归并为 `format.pptx.invalid_package`，其余部件降级为不透明并记诊断） |
 | 规模天花板 | 页 ≤ 200；单页元素 ≤ 1,000；总元素 ≤ 20,000（墓碑计入） | `format.quota_exceeded{slides \| elementsPerSlide \| elementsTotal}` |
 | 解析时间 / 解析内存 | ≤ 60 s / 线程堆 ≤ 2,048 MiB（M2 自托管 runner 压测校准，只收紧；rulings §4.19 D-TEST-INFRA） | `headless.task_timeout` / `headless.task_oom` |
 | 宏包、加密包 | 一律拒绝，不保留宏部件 | `format.macro_rejected` / `format.encrypted`（均 415） |
@@ -413,7 +413,7 @@ sequenceDiagram
 
 怎么读：时间自上而下；`alt` 的上支是拒绝——全部发生在解码任何页之前或解码中途，不创建文档、不做只读降级；下支是成功，业务写入集中在一个事务里，所以「半个文档」不会出现。服务端对封面只做头校验，栅格化只在 renderer 沙箱内发生。
 
-依据：30/08 §7 导入作业时序；40-modules/04 §2.6 天花板检测点；ADR-0026 决策 4、9；rulings §4.15 Q5、§4.16 Q15；决策 C-07、DDL-COLS。
+依据：原 30/08 篇 §7 导入作业时序；40-modules/04 §2.6 天花板检测点；ADR-0026 决策 4、9；rulings §4.15 Q5、§4.16 Q15；决策 C-07、DDL-COLS。
 
 ### 6.5 导入到既有文档（覆盖导入 = 换纪元）
 
@@ -486,7 +486,7 @@ sequenceDiagram
 
 - `format ∈ pdf | png | jpeg` 时，`CreateExportJobUseCase` 交给 `ThumbnailsModule` 导出的 `RenderExportProducerService`：写 `job_runs(kind = 'render-export')` 后入 `render-export` 队列，与缩略图共用 renderer 池、分队列，池优先级 P1（首页缩略图 > PDF > 批量缩略图，ADR-0026 v0.2 补充）。
 - **PDF**（M3 后半段）：renderer 打开 `/render?mode=print`，`page.pdf({ width: slideW, height: slideH, printBackground: true, preferCSSPageSize: true })`；全部或选定页；页面尺寸即幻灯片尺寸；字体由 Chromium 子集嵌入；动画按「静态全部可见」（PRD SV-02）。
-- **PNG / JPEG**（M3）：按页，宽度 1280 / 1920 / 3840；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）。
+- **PNG / JPEG**（M3）：按页，宽度 1280 / 1920 / 3840；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）；打包用 `ooxml-core` 经 `publicEntry` 登记导出的 `writeZip`（底层 fflate，2026-09-26 定，R-d-51），不另扩 fflate 的单点。
 - 来源固定为受理时已落库的状态（`q{headSeq}` 或指定快照）。客户端尚有未获 db 确认的本地更改时，前端按 UX-05 提示「需先同步 N 项更改」、不提供「仍要导出」（行为归 [50-frontend](../50-frontend/README.md)）；服务端不接收客户端状态。
 
 ### 7.3 下载
@@ -536,7 +536,7 @@ SV-13 的 `fill-template`（模板填充）、`validate`、`migrate`、`convert`
 
 ### 9.2 信任区
 
-- **零出站**：只挂 `render` 网络（`internal: true`，只有 worker 或 all 与 renderer 两类成员，无 DNS 出口）；K8s 用 NetworkPolicy 只允许 worker 入站、禁止一切出站（ADR-0037 决策 3）。外链图片与字体服务端永不加载（30/08 §9.2）。
+- **零出站**：只挂 `render` 网络（`internal: true`，只有 worker 或 all 与 renderer 两类成员，无 DNS 出口）；K8s 用 NetworkPolicy 只允许 worker 入站、禁止一切出站（ADR-0037 决策 3）。外链图片与字体服务端永不加载（原 30/08 篇 §9.2）。
 - **进程与沙箱**：非 root；`chromiumSandbox: true` 并加载 seccomp 配置；用 `--shm-size`，不用 `--ipc=host`；不暴露 Playwright run-server。
 - **任务隔离**：每个请求新建 `BrowserContext`，结束即关闭；浏览器进程每处理 50 个请求或运行满 30 min 回收（常量）；崩溃自愈重建。
 - **页面加载**：`/render` 静态包内置在镜像中；Chromium 导航到固定内部源 `https://render.invalid/render?renderId=…`（`.invalid` 保留域名永不解析），全部请求经 `context.route` 从镜像文件应答，清单外的请求一律 abort 并计入诊断的 `blockedRequests`；响应头（含 `connect-src 'none'` 的 CSP）按 [50-frontend/14](../50-frontend/14-client-security.md) 的 `/render` 策略下发。
@@ -592,7 +592,7 @@ flowchart LR
 
 - HTTP/1.1，`POST /render`，只监听 `render` 网络接口（端口为 renderer 的 `http.port`，默认 3000，17 §5）；worker 以 `headless.endpoint` 访问，连接复用 keep-alive。
 - 不用 TLS：renderer 若持有 TLS 私钥即持有凭据，违背「无凭据」；机密性由隔离网络保证，完整性与来源由 §10.2 的签名保证。
-- 请求体 `multipart/form-data`：`manifest`（JSON，schema `RenderRequestManifest`）+ `state`（二进制）+ 每个资源一个二进制部件（字段名为资源 id）；上限 400 MiB（常量 = 媒体 256 MiB + 嵌入字体 60 MB + state 余量），超出 413 `headless.request_too_large`。
+- 请求体 `multipart/form-data`：`manifest`（JSON，schema `RenderRequestManifest`）+ `state`（二进制）+ 每个资源一个二进制部件（字段名为资源 id）；上限 400 MiB（常量 = 媒体 256 MiB + 嵌入字体 60 MB + state 余量），超出 413 `headless.request_too_large`。renderer 与 worker 两侧都用 `@fastify/busboy` 3.2 流式解析 multipart（边收边算 body 哈希，不整体缓冲；2026-09-26 定，R-d-52，[19](19-reuse-and-dependency-catalog.md) §2）。
 
 ### 10.2 鉴权：`X-Cordex-Render-Signature`
 
@@ -777,7 +777,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | `headless.render_timeout` | —（页级） | 单页超 10 s | 页级重试 1 次 |
 | `headless.response_invalid` | — | 回传字节头、尺寸或体积不合格 | retryable（计数告警） |
 
-`format.pptx.invalid_package` 的 HTTP 取值以 30/10 §1.4 为准。40-modules/09 列出的 `headless.zip_limit_exceeded` 与 `headless.decode_failed` 不再使用：zip 限额统一为 `format.limit_exceeded`（30/08 §16.5），包解码失败为 `format.pptx.*`（30 正文 > 40）。
+`format.pptx.invalid_package` 的 HTTP 取值以 30/10 §1.4 为准。40-modules/09 列出的 `headless.zip_limit_exceeded` 与 `headless.decode_failed` 不再使用：zip 限额统一为 `format.limit_exceeded`（原 30/08 篇 §16.5，现本文 §6.3），包解码失败为 `format.pptx.*`（30 正文 > 40）。
 
 ### 12.3 审计 action
 
@@ -804,7 +804,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 
 | 项 | 内容 | 状态 |
 |---|---|---|
-| JOB-IDEM | 导入幂等键改为 `import:{docId}:{sha256}:{baseSeq}`（§2.3），替代 30/08 §7 的 `import:user:{userId}:{sha256}` | 已定稿（rulings §4.18 BE-10 / BE-18 的细化） |
+| JOB-IDEM | 导入幂等键改为 `import:{docId}:{sha256}:{baseSeq}`（§2.3），替代原 30/08 篇 §7 的 `import:user:{userId}:{sha256}` | 已定稿（rulings §4.18 BE-10 / BE-18 的细化） |
 | UPLOAD-QUARANTINE | 导入直传落点改为 `uploads/tmp/{uploadId}`，受理时复制到原件键（§6.1）；`upload:{uploadId}` 不 `GETDEL` | 已定稿（BE-10 的细化，与 README §8 同步登记） |
 | D-M2-CONTENT | 协同后端与服务端导入提前到 M2，无 pptx 内容版本；包内封面由 M2 导入处理器写入（§6.4、§11.2） | 已裁定（rulings §4.19） |
 | C-06 | `retention.autoSnapshotDailyDays` 默认 365，0 = 永久；事件快照按 auto 口径，每文档最新 `import` 快照保留（§4） | 已裁定（rulings §4.19） |
@@ -821,7 +821,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 指标（p95） | 值（以 01 §12 为准） | `budgets.json` 键 | 测量点 |
 |---|---|---|---|
 | 导入 D50 / D200 | ≤ 5 s / ≤ 20 s | `server.jobs.importD50P95Ms`、`server.jobs.importD200P95Ms`（01 S10） | `POST /imports` 受理 → 作业 `succeeded`（`job.import` span） |
-| 导入 50 MB pptx | ≤ 30 s（30/08 §12） | `server.jobs.import50MbP95Ms`（01 S10） | 同上 |
+| 导入 50 MB pptx | ≤ 30 s（60/01 §12） | `server.jobs.import50MbP95Ms`（01 S10） | 同上 |
 | 导出 pptx D50 / D200 | ≤ 3 s / ≤ 12 s | `server.jobs.exportPptxD50P95Ms`、`server.jobs.exportPptxD200P95Ms`（01 S11） | `job.export` span |
 | PDF D50 | ≤ 10 s | `server.jobs.exportPdfD50P95Ms`（01 S12） | `job.render-export` span |
 | PNG 全量 D200 | ≤ 90 s（PRD SV-02） | `server.jobs.exportPngD200Ms`（01 S22） | 同上 |

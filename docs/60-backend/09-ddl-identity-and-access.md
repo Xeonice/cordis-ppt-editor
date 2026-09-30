@@ -1,5 +1,5 @@
 # 09 DDL：身份与权限
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
 
 > 读者：写 `apps/server/src/db/migrations/` 与 `db/schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 的工程师；DBA；安全评审。
 > 定位：身份与权限域五张表、四个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
@@ -25,9 +25,9 @@
 
 | 决策 id | 在本文的落点 | authority |
 |---|---|---|
-| C-01 | `users.email text NULL`，小写、非唯一，删 `email_hash`；`lower(email)` 索引只作精确匹配 | 30/08:540 明示以 40/08 §2.1 为准 |
+| C-01 | `users.email text NULL`，小写、非唯一，删 `email_hash`；`lower(email)` 索引只作精确匹配 | 原 30/08 篇（旧版第 540 行）明示以 40/08 §2.1 为准 |
 | C-24 | `users.status` 增 `erased`，原地脱敏由 CHECK 保证；不硬删 | PRD SV-11 + SV-07 |
-| C-23 | `share_links.token_hash bytea NOT NULL UNIQUE`（32 字节）；`expires_at` 可空 | 30/08 函数签名 + 40/08 契约 |
+| C-23 | `share_links.token_hash bytea NOT NULL UNIQUE`（32 字节）；`expires_at` 可空 | 原 30/08 篇函数签名 + 40/08 契约 |
 | C-28 | `document_perm_versions` 只由 `bumpPermVersion(tx)` 写 | 谁的表谁写 + 同事务 |
 | C-35 / MECH-C | 只保留两个分享链接函数，票据不落库 | 票据是 60 s JWT |
 | RLS-GUC、DB-ROLES | `cordex_doc_role` 取 max(直接授权, 有效链接)；函数属主 `cordex_migrator`、固定 `search_path` | rulings §4.18 BE-02 + ADR-0022 修订 |

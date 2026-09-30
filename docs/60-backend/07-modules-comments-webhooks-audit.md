@@ -1,5 +1,5 @@
 # 07 模块设计：评论镜像、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[30/08](../30-architecture/08-backend-nestjs.md) §16.6；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Webhook 签名改为 Standard Webhooks，SSRF 判段用 ipaddr.js、出站用 undici，JCS 用 canonicalize）；2026-09-26（§4.21 整合：审计来源与模块依赖的 CollabGateway 改为 CollabUpgradeHandler 与 onAuthenticate 等钩子；comments.changed 改经 collabServer.broadcastEvent（document.broadcastStateless），不再经 FanoutBus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT、§4.21 q-webhook-sig；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[01](01-service-overview-and-roles.md) §3（原 30/08 §16.6 已迁入本文 §1）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
 
 
 ## 0. 本文定位
@@ -49,7 +49,7 @@
   1. 先 upsert 线程行、再 upsert 回复行（`INSERT … ON CONFLICT (id) DO UPDATE … RETURNING (xmax = 0)` 区分新增与更新），不在 CRDT 中的已知实体置 `deleted_at`；
   2. 据新旧行差异派生领域事件：回复新增 → `comment.added`；回复的 `mentions` 新增了用户 → `comment.mentioned`；线程 `resolved_at` 由空变非空 → `comment.resolved`，反向 → 只审计 `comment.reopened`；
   3. 同一事务内写审计行（§9 的 `comment.*`）与 Webhook 投递 outbox 行（§5.1）；
-  4. 提交后把 `webhook_deliveries` 新行入 `webhook-delivery` 队列，并经 `collabServer.broadcastControl` 向该房间发 `CONTROL.event{name:'comments.changed', payload:{threadIds}}`（SG-03；帧格式与发送规则见 [16](16-ws-protocol-server-view.md) §3）。这一帧的含义是「PG 镜像已与 CRDT 一致」，在线客户端据此刷新依赖 REST 的视图（如同文档内的「@我」过滤）。
+  4. 提交后把 `webhook_deliveries` 新行入 `webhook-delivery` 队列，并经 `collabServer.broadcastEvent`（即 `document.broadcastStateless`，M3 起经 extension-redis 送达其他实例的会话；不再经 `FanoutBus`，[05](05-modules-collab-and-snapshots.md) §13）向该房间发 `CONTROL.event{name:'comments.changed', payload:{threadIds}}`（SG-03；帧格式与发送规则见 [16](16-ws-protocol-server-view.md) §3）。这一帧的含义是「PG 镜像已与 CRDT 一致」，在线客户端据此刷新依赖 REST 的视图（如同文档内的「@我」过滤）。
 - **并发**：两个实例各自的客户端同时改同一文档的评论时，两边各镜像自己处理的变更，upsert 取的都是冲刷时刻的当前状态；若先提交的一方读到的是扇出尚未到达前的旧状态，镜像会短暂落后，下一次变更或下述全量对账收敛。
 - **全量对账**：Room 进入 `active` 后，若 `resources['comments.threads']` 非空（含创建副本时随快照复制来的评论，[04](04-modules-documents-storage-media.md) §3.3），观察器对该文档做一次全量对账（逐实体 upsert、把镜像中多出的行置 `deleted_at`），作为镜像漂移与漏事件的兜底；对账产生的差异只写镜像与审计 `comment.mirror_repaired`，**不**补发 Webhook，避免历史事件重放给集成方。
 - **延迟目标**：变更进入 Room 到镜像提交 p95 ≤ 1 s（落库 p95 ≈ 150 ms，[05](05-modules-collab-and-snapshots.md) §5，加去抖 ≤ 500 ms；ADR-0031「如何被机械验证」），PG 降级期内 `onPersisted` 不触发，镜像随回放补齐；指标 `cordex_comments_mirror_lag_seconds`（[18](18-observability-and-ops-endpoints.md) §4）。
@@ -73,13 +73,13 @@ sequenceDiagram
   O->>DB: 单事务 upsert 行、写审计、写投递 pending 行
   DB-->>O: 提交
   O->>Q: 按投递行入队
-  O->>R: broadcastControl event comments.changed
-  R->>C: CONTROL.event threadIds
+  O->>R: broadcastEvent comments.changed
+  R->>C: Stateless event threadIds，经 broadcastStateless
 ```
 
 怎么读：从上到下是一次评论写入；软门禁在广播前完成还原，观察器在该批 update 落库后才被回调，去抖后读取的是还原后的当前状态；镜像行、审计行与投递行在同一事务提交，入队和在线通知都发生在提交之后，所以集成方与在线客户端看到的永远是已落库的镜像。
 
-依据：ADR-0031 v0.2 决策 1、2、4；ADR-0034 补充 v0.2；30/08 §16.6；决策 SG-03、INC-39、DDL-COLS；rulings §4.18 BE-03。
+依据：ADR-0031 v0.2 决策 1、2、4；ADR-0034 补充 v0.2；原 30/08 篇 §16.6；决策 SG-03、INC-39、DDL-COLS；rulings §4.18 BE-03。
 
 ### 1.4 锚点：anchor_key 与 anchor_state
 
@@ -156,9 +156,9 @@ CO-04 / SV-08 的上限（正文 ≤ 5,000 字符、每文档 ≤ 5,000 线程�
 
 PRD SV-15 原写「落库只存 hash」，但 HMAC 签名必须持有密钥本体，故改为加密存储（决策 C-16/INC-30，依据 PRD SV-15 + HMAC 的必要条件）：
 
-- **生成**：32 字节 CSPRNG，对外编码为 `whsec_<base64url>`。
+- **生成**：32 字节 CSPRNG，对外编码为 `whsec_<base64>`（标准 base64，Standard Webhooks 各语言校验库按此解码；2026-09-26 由 base64url 改，rulings §4.21 q-webhook-sig）。
 - **加密**：列 `signing_secret_enc bytea` = AES-256-GCM 信封：`格式版本 1 B ‖ KEK 编号 1 B ‖ nonce 12 B ‖ 密文 32 B ‖ tag 16 B`；AAD = `subscription_id ‖ secret_version`，把密文绑定到行与版本，防止把 A 订阅的密文拷到 B 订阅。KEK 从 `CORDEX_SECRETS_KEK_FILE`（32 字节）读取，只在 api 与 worker 进程加载；collab 只写投递行、不需要解密。
-- **轮换**：`PATCH {rotateSecret:true}` 生成新密钥，旧密文移入 `previous_secret_enc` 并设 `previous_secret_expires_at = now() + 24 h`，`secret_version + 1`；宽限期内每次投递同时带新旧两个签名（§5.2），集成方切换后旧密钥自然过期；投递处理器只在 `previous_secret_expires_at > now()` 时使用旧密钥，过期的旧密文由下一次 PATCH 顺带清空（处理器对订阅表只读）。
+- **轮换**：`PATCH {rotateSecret:true}` 生成新密钥，旧密文移入 `previous_secret_enc` 并设 `previous_secret_expires_at = now() + 24 h`，`secret_version + 1`；宽限期内每次投递的 `webhook-signature` 同时带新旧两个签名（§5.2），集成方切换后旧密钥自然过期；投递处理器只在 `previous_secret_expires_at > now()` 时使用旧密钥，过期的旧密文由下一次 PATCH 顺带清空（处理器对订阅表只读）。
 - **KEK 轮换**：信封里的 KEK 编号为此预留；重新加密全部行的 ops 命令属 M4 P1，M3 只保证单 KEK。
 - **泄漏面**：密钥明文与 KEK 不进日志、trace、审计与投递记录；审计只记 `secret_version`。
 
@@ -184,15 +184,58 @@ PRD SV-15 原写「落库只存 hash」，但 HMAC 签名必须持有密钥本�
 
 ### 5.2 请求与签名
 
+签名采用 **Standard Webhooks** 规范（rulings §4.21 q-webhook-sig，用户裁决）：集成方可以直接用各语言现成的 Standard Webhooks 校验库验签，多个签名以空格分隔，天然支持密钥轮换。实现只用 `node:crypto`，不引 `standardwebhooks` 包（它依赖 Unlicense 的 `fast-sha256`，见 [19](./19-reuse-and-dependency-catalog.md) §15.2）。旧头 `X-Cordex-Signature`（`t=…, v1=<hex>`）与 `X-Cordex-Delivery` 废止，分别由 `webhook-signature` 与 `webhook-id` 取代。
+
 | 头 | 值 |
 |---|---|
 | `Content-Type` | `application/json`（请求体 = `payload` 的规范化字节，其 SHA-256 等于 `payload_hash`） |
-| `X-Cordex-Event` | 事件名，如 `comment.added` |
-| `X-Cordex-Delivery` | 投递行 id（重试不变，集成方据此去重） |
-| `X-Cordex-Signature` | `t=<unix 秒>, v1=<hex(HMAC-SHA256(secret, t + "." + body))>`；轮换宽限期内追加第二个 `v1=`（旧密钥） |
+| `webhook-id` | 投递行 id（重试不变，集成方据此去重；原 `X-Cordex-Delivery`） |
+| `webhook-timestamp` | 本次尝试的 unix 秒（每次尝试重新取值并重新签名） |
+| `webhook-signature` | `v1,<base64(HMAC-SHA256(key, webhook-id + "." + webhook-timestamp + "." + body))>`，`key` 为 `whsec_` 之后部分的 base64 解码；轮换宽限期内空格分隔追加旧密钥的第二个 `v1,…`，新密钥在前 |
+| `X-Cordex-Event` | 事件名，如 `comment.added`（便于集成方路由；规范之外的附加头，不参与签名） |
 | `User-Agent` | `Cordex-Webhooks/<appVersion>` |
 
-建议集成方拒绝 `t` 与本地时间相差 > 5 min 的请求。连接超时 5 s、总超时 10 s；**不跟随重定向**；响应体最多读 64 KiB 后丢弃；不走进程级 HTTP 代理（连接固定到守卫锁定的 IP，§6）。
+建议集成方按规范拒绝 `webhook-timestamp` 与本地时间相差 > 5 min 的请求（各语言校验库的默认容差）。连接超时 5 s、总超时 10 s；**不跟随重定向**；响应体最多读 64 KiB 后丢弃；不走进程级 HTTP 代理（连接固定到守卫锁定的 IP，§6）。
+
+签名函数（`webhooks/infrastructure/webhook-signer.ts`，示意；`verifySignature` 只供测试与示例接收端使用）：
+
+```ts
+import { createHmac } from 'node:crypto';
+
+/** Standard Webhooks v1：secrets 为当前密钥在前、宽限期内的旧密钥在后 */
+export function signPayload(webhookId: string, timestampSec: number, body: string,
+                            secrets: readonly string[]): string {
+  const content = `${webhookId}.${timestampSec}.${body}`;
+  return secrets
+    .map((secret) => {
+      const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64');
+      return `v1,${createHmac('sha256', key).update(content).digest('base64')}`;
+    })
+    .join(' ');
+}
+```
+
+**图 2 Standard Webhooks 签名与验签**
+
+```mermaid
+sequenceDiagram
+  participant W as worker WebhookDeliveryProcessor
+  participant K as 密钥信封 AES-256-GCM
+  participant G as EgressGuard 与 undici
+  participant R as 集成方接收端
+  W->>K: 解密当前密钥，宽限期内另解旧密钥
+  K-->>W: whsec_ 密钥一或两个
+  W->>W: 取 webhook-timestamp，拼 id、时间戳与 body
+  W->>W: 逐个密钥 HMAC-SHA256，得 v1 签名并空格拼接
+  W->>G: 守卫判定并锁定 IP
+  G->>R: POST，带 webhook-id、webhook-timestamp、webhook-signature
+  R->>R: 标准校验库：时间戳容差 5 min，任一 v1 签名匹配即通过
+  R-->>W: 2xx 记 succeeded，其余按 §5.3 分类
+```
+
+怎么读：纵线是参与方，自上而下是一次尝试。每次尝试都重新取时间戳并重新签名，`webhook-id` 在重试之间不变；轮换宽限期内同一头里有两个签名，接收端只要任一匹配就通过，所以集成方可以先换新密钥、再等旧密钥过期。
+
+依据：rulings §4.21 q-webhook-sig；§4.3 密钥信封；§6 出站守卫；PRD SV-15。
 
 ### 5.3 结果分类、退避与状态
 
@@ -206,7 +249,7 @@ PRD SV-15 原写「落库只存 hash」，但 HMAC 签名必须持有密钥本�
 
 退避：第 n 次失败后等待 `min(30 s × 2^(n-1), 6 h)`，±20% 抖动；429 带 `Retry-After` 时取二者较大值（不超过 6 h）。8 次尝试之间有 7 次等待，累计约 1 h 4 min（30 s + 60 s + … + 1,920 s，不计抖动）；`Retry-After` 可能拉长等待，因此另设总窗口：距该行 `created_at` 超过 24 h 仍未成功即转 `dead-lettered`，满足 SV-15「重试退避 ≤ 24 h」。BullMQ 作业配置 `attempts: 8` 与自定义退避，不可重试错误抛 `UnrecoverableError` 让队列停止重试；行状态以处理器写入为准，BullMQ 作业只是执行载体。`last_error` 记错误类别与截断的响应摘要（≤ 1 KiB，不存响应正文全文）。状态值按 rulings §4.18 BE-19 原文写作 `dead-lettered`，与 protocol 字面量、表上 CHECK 一致。
 
-**图 2 WebhookDelivery 投递状态**
+**图 3 WebhookDelivery 投递状态**
 
 ```mermaid
 stateDiagram-v2
@@ -243,14 +286,14 @@ stateDiagram-v2
 
 1. **解析 URL**（WHATWG URL）：协议只允许 `https`（非生产环境另允许 `http`）；拒绝 userinfo；主机为 IP 字面量时直接进入第 3 步。
 2. **DNS 解析**：同时解析 A 与 AAAA，取全部地址；解析失败按可重试处理（投递时）或 422（保存时）。
-3. **逐个地址判定**（纯函数 `isBlockedEgressAddress`，只看地址段）：**任一**地址命中阻断段即整体拒绝，防止多条解析记录里夹带内网地址。阻断段：
+3. **逐个地址判定**（纯函数 `isBlockedEgressAddress`，只看地址段；地址解析与 CIDR 匹配用 `ipaddr.js` 2.5，阻断段仍以下表为唯一事实源，库自带的 `range()` 分类只作参考，2026-09-26 定，R-d-53）：**任一**地址命中阻断段即整体拒绝，防止多条解析记录里夹带内网地址。阻断段：
    - IPv4：`0.0.0.0/8`、`10.0.0.0/8`、`100.64.0.0/10`、`127.0.0.0/8`、`169.254.0.0/16`（含云元数据 `169.254.169.254`）、`172.16.0.0/12`、`192.0.0.0/24`、`192.0.2.0/24`、`192.168.0.0/16`、`198.18.0.0/15`、`198.51.100.0/24`、`203.0.113.0/24`、`224.0.0.0/4`、`240.0.0.0/4`；
    - IPv6：`::/128`、`::1/128`、`fc00::/7`（含 `fd00:ec2::254`）、`fe80::/10`、`ff00::/8`、`2001:db8::/32`；`::ffff:0:0/96` 与 `64:ff9b::/96` 取内嵌 IPv4 按上表再判一次。
 4. **白名单**：配置 `webhooks.egressAllowlist`（CIDR 或精确主机名，默认空 = 严格）命中时放行第 3 步的判定，但不放宽第 1 步的协议与 userinfo 规则。
-5. **锁定连接**：以 HTTP Agent 的 `lookup` 钩子把连接固定到第 3 步通过的第一个地址；TLS 的 SNI 与证书校验、`Host` 头仍用原主机名，防 DNS 重绑定。
+5. **锁定连接**：出站统一用 `undici` 8 的 `Agent({ connect: { lookup } })`，`lookup` 钩子把连接固定到第 3 步通过的第一个地址（从 `undici` 包 import，不用 Node 内置 `fetch` 的全局 dispatcher）；TLS 的 SNI 与证书校验、`Host` 头仍用原主机名，防 DNS 重绑定。
 6. **拒绝出口**：保存时 422 `server.webhooks.egress_blocked`；投递时记 `failed`（`last_error = 'egress_blocked'`）且不发出任何请求；两处都计 `cordex_webhooks_egress_blocked_total{stage}`。
 
-**图 3 Webhook 出站守卫**
+**图 4 Webhook 出站守卫**
 
 ```mermaid
 flowchart TB
@@ -304,7 +347,7 @@ flowchart TB
 |---|---|
 | cordis 事件：`command/audited`（服务端以 `principal='system'` 执行的命令）、`permission/denied`、`plugin/failed`、`unit/migrated`、`collab-server/update-rejected`、`collab-server/repair`（含 report-only 检出） | `AuditEventSubscriber` 经共享宿主 `ctx.on` 订阅（事件载荷以 [05](05-modules-collab-and-snapshots.md) §14 为准） |
 | 持久化挂点 `collabServer.onPersisted`（批量落库后，[05](05-modules-collab-and-snapshots.md) §13） | `AuditEventSubscriber` 在 collab 注册同一挂点，按文档生成 `document.edited`（不新增 cordis 事件） |
-| WS 网关：加入、离开、票据拒绝、Origin 拒绝 | `CollabGateway` 直接调用 `RecordAuditEventUseCase.buffer(entry)` |
+| WS 接入：加入、离开、票据拒绝、Origin 拒绝 | Origin 拒绝由 `CollabUpgradeHandler`（升级前检查）、票据拒绝由 `onAuthenticate`、加入与离开由 `connected` / `onDisconnect` 钩子直接调用 `RecordAuditEventUseCase.buffer(entry)` |
 | HTTP 失败路径：401 / 403 / 429、CSRF 拒绝、登录失败 | 全局异常过滤器与守卫调用 `buffer(entry)` |
 
 - **缓冲**：每进程一个 `AuditBuffer`，每 200 ms 或满 100 条冲刷一次，冲刷在独立事务里按 §8.2 的协议批量写入（同一把锁内逐行串链）。
@@ -333,7 +376,7 @@ flowchart TB
 
 ### 8.1 链的定义
 
-- `hash = SHA-256(P ‖ UTF-8(JCS(entry)))`：`P` 为 `prev_hash`，创世行（全表第一行）`prev_hash` 为空、`P` 取 32 个零字节；`JCS` 为 RFC 8785 JSON 规范化。
+- `hash = SHA-256(P ‖ UTF-8(JCS(entry)))`：`P` 为 `prev_hash`，创世行（全表第一行）`prev_hash` 为空、`P` 取 32 个零字节；`JCS` 为 RFC 8785 JSON 规范化，由 `canonicalize` 5.1（Apache-2.0，作者为 RFC 8785 合著者，2026-09-26 定，R-d-55）实现，链的其余部分（串行化、封存、校验）维持自研（[19](./19-reuse-and-dependency-catalog.md) §15.2）。
 - `entry` 固定为 `{v:1, createdAt, category, action, result, actorType, actorId, targetType, targetId, docId, sessionId, requestId, traceId, ipHash, uaHash, clientVersion, details}`：`createdAt` 为 UTC 毫秒 ISO 串，`ipHash / uaHash` 为小写十六进制，缺省值一律写 `null`。`id` **不参与**哈希——链序由 `prev_hash` 首尾相接固定，`id` 只用于排序与游标，允许空洞。
 - `chainHash` 是 `audit/domain/audit-chain.ts` 的纯函数，写入、封存与校验三处共用；`details` 只含可无损往返 jsonb 的值（字符串、布尔、安全整数、数组、对象），保证读回后规范化结果与写入时逐字节相同。
 
@@ -348,7 +391,7 @@ flowchart TB
 
 锁只覆盖「读链尾 → 插入 → 提交」这一小段；通路一把它放在业务事务的最后一步，通路二的批量冲刷一次事务写多行，锁竞争与审计吞吐（SV-07：每文档 ≤ 50 事务 / s 无背压）由合并与批量共同保证。SQL 示例见 [13](13-ddl-comments-webhooks-audit.md) §7.1。
 
-**图 4 事务内审计写入时序**
+**图 5 事务内审计写入时序**
 
 ```mermaid
 sequenceDiagram
@@ -396,7 +439,7 @@ sequenceDiagram
 - **逐行校验**：按 `id` 升序每批 10,000 行，检查 `prev_hash = 上一行.hash` 与 `hash = chainHash(prev_hash, entry)`；遇到封存行另核对 `details.lastHash` 等于 `lastId` 行的 `hash`。
 - **输出**：`{anchor, rows, firstId, lastId, breaks:[{id, kind:'prev_mismatch'|'hash_mismatch'|'seal_mismatch'}]}`；写审计 `audit.verified`，有断链时另写 `audit.chain_broken` 并计数。
 
-**图 5 审计写入、哈希链、封存与轮换**
+**图 6 审计写入、哈希链、封存与轮换**
 
 ```mermaid
 flowchart LR
@@ -535,9 +578,9 @@ flowchart LR
 
 | 模块 | imports | providers（关键） | controllers | exports |
 |---|---|---|---|---|
-| `CommentsModule` | `CordisHostModule`（`onPersisted` 挂点、`broadcastControl`）、`UsersModule`（显示名）、`PermissionsModule`（`DocumentRoleGuard`、`RlsContext`）、`WebhooksModule` | `CommentsRepository`、`ListThreadsUseCase`、`GetThreadUseCase`、`ListMyMentionsUseCase`、`ImportAsEditableThreadUseCase`、`MirrorCommentChangeUseCase`、`CommentMirrorObserver`（只在 collab 注册）、`PurgeDocumentCommentsUseCase`（`@PurgeParticipant('comments')`） | `CommentsController`（api，`CommentsHttpModule`）；`CommentsImportController`（collab，`CommentsImportHttpModule`，P1） | 无 |
+| `CommentsModule` | `CordisHostModule`（`onPersisted` 挂点、`collabServer.broadcastEvent`）、`UsersModule`（显示名）、`PermissionsModule`（`DocumentRoleGuard`、`RlsContext`）、`WebhooksModule` | `CommentsRepository`、`ListThreadsUseCase`、`GetThreadUseCase`、`ListMyMentionsUseCase`、`ImportAsEditableThreadUseCase`、`MirrorCommentChangeUseCase`、`CommentMirrorObserver`（只在 collab 注册）、`PurgeDocumentCommentsUseCase`（`@PurgeParticipant('comments')`） | `CommentsController`（api，`CommentsHttpModule`）；`CommentsImportController`（collab，`CommentsImportHttpModule`，P1） | 无 |
 | `WebhooksModule` | `ConfigModule`（含其导出的 secrets provider：KEK）、`RedisModule`（BullMQ） | `WebhookRepository`、`ManageWebhookSubscriptionUseCase`、`DeliverWebhookEventUseCase`、`ListWebhookDeliveriesUseCase`、`EgressGuard`、`WebhookSigner`、`WebhookDeliveryProcessor`（只在 worker 注册） | `WebhooksController`（api） | `DeliverWebhookEventUseCase`（供 Comments）、`WebhookRepository`（供 Jobs 的 `reconciliation` 只读） |
-| `AuditModule`（global） | `ConfigModule`、`CordisHostModule`（事件订阅） | `AuditRepository`、`RecordAuditEventUseCase`、`AuditBuffer`、`AuditEventSubscriber`、`QueryAuditLogUseCase`、`VerifyChainUseCase`、`SealJob`（只在 worker 注册）、`AuditVerifyController`（内部端口，只在 worker） | `AuditController`（api） | `RecordAuditEventUseCase`（供 `common/interceptors/audit.interceptor.ts`、`CollabGateway`、异常过滤器） |
+| `AuditModule`（global） | `ConfigModule`、`CordisHostModule`（事件订阅） | `AuditRepository`、`RecordAuditEventUseCase`、`AuditBuffer`、`AuditEventSubscriber`、`QueryAuditLogUseCase`、`VerifyChainUseCase`、`SealJob`（只在 worker 注册）、`AuditVerifyController`（内部端口，只在 worker） | `AuditController`（api） | `RecordAuditEventUseCase`（供 `common/interceptors/audit.interceptor.ts`、`CollabUpgradeHandler` 与 `onAuthenticate` 等协同钩子、异常过滤器） |
 
 `DocumentRoleGuard` 由 `PermissionsModule` 导出（`CommentsModule` 因此 import 它），`PlatformAdminGuard` 无 DI 依赖、以装饰器直接使用；`SessionGuard` 为全局守卫，本组模块不为鉴权 import `AuthModule`（BE-06）。机密（KEK、审计盐）由 `ConfigModule` 导出的 secrets provider（`config/secrets.ts`）提供，不另设 `SecretsModule`（[01](01-service-overview-and-roles.md) §3）；控制器与 providers 分在 `XxxHttpModule` 与 `XxxModule`（01 §5 结构规则）。
 
@@ -579,7 +622,7 @@ flowchart LR
 | commenter 越权改他人回复被软门禁还原后，镜像与 Webhook 都没有出现越权值 | 70/07 §12 |
 | 多实例同一变更只产生一行投递（`uq_webhook_deliveries_event`） | 70/07 §12 |
 | 跨文档「@我」只返回直接授权可读且 `active` 的文档；无授权用户经 RLS 读不到任何 `comments` 行 | 70/07 §5（`security-rls`，`e2e/smoke`） |
-| Webhook 请求带 `X-Cordex-Signature`，用创建响应中的密钥验签通过；轮换宽限期内新旧密钥都能验签；库中无密钥明文 | [70/10](../70-testing/10-security-testing.md) §10 |
+| Webhook 请求带 `webhook-id`、`webhook-timestamp`、`webhook-signature`，用任一语言的 Standard Webhooks 校验库以创建响应中的密钥验签通过；重试间 `webhook-id` 不变；轮换宽限期内 `webhook-signature` 含两个 `v1,` 签名、新旧密钥各自可验；库中无密钥明文 | [70/10](../70-testing/10-security-testing.md) §10 |
 | 5xx 与超时重试、`attempt` 递增、8 次后 `dead-lettered`；非 408 / 429 的 4xx 直接 `failed`；3xx 不跟随 | 70/07 §12 |
 | 解析到私网、回环、链路本地、元数据地址（含多记录夹带与 IPv4 映射 IPv6）一律拒绝且不发请求；白名单只放行地址段 | 70/10 §10 |
 | `cordex_app` 与 `cordex_system` 对 `audit_log` 的 UPDATE / DELETE / TRUNCATE 被拒，直连分区子表被拒 | 70/07 §4（GRANT 快照）、70/10 §8；0096 自检 ②③ |

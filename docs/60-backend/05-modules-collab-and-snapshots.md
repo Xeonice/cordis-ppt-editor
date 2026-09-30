@@ -1,21 +1,22 @@
 # 05 模块设计：协同与快照（含 server-collab 契约）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 装配与 `collab.hocuspocus.*`；§2.1 `attach` 改为包装 `handleConnection`、8 个 Definition 保留（`FanoutBus` 只剩控制频道、`AuthorizationSource` 增 `verifyTicket`）；§3 生命周期映射到钩子、§3.3 `{docId}:{epoch}` 文档名、§3.4 `session-sweeper`；§4 准入挂 `onAuthenticate`、Lua 用 `defineCommand`；§5 写入器挂 `beforeSync`、服务端事务按 H:Q4；§6 溢写钉住文档；§7 压缩节拍借 `onStoreDocument`、zstd codec 适配器；§8 未加载时 `openDirectConnection`；§9.2 换纪元；§14 指标挂点；§15）；2026-09-26（§4.21 整合：§10 GetLatestSnapshotQuery 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首「批量持久化」改为逐帧落库（组提交）） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）、§4.21
 
 本文是服务端协同的唯一事实源：CollabModule 与 SnapshotsModule 的职责与装配、`@cordexjs/server-collab` 的契约、Room 在服务端的运行机制（准入、持久化、降级溢写、压缩、墓碑、迁移与换纪元）、快照 REST 的用例、永久删除参与者。帧与 CONTROL 的定义只在 30-architecture/06 §6 与 protocol 文件；服务端对帧的处理、门禁与关闭码见 [16](16-ws-protocol-server-view.md)；表结构见 [11](11-ddl-collab-updates-and-snapshots.md)；Valkey 键与对象键模板只引用 [14](14-valkey-object-storage-and-retention.md)；路由、守卫、错误码与审计名以 [15](15-rest-api-catalog.md) §3.7、§3.8 为准。包与文件级规划留在 40-modules/09。
 
-**里程碑**（rulings §4.19 D-M2-CONTENT：协同后端提前到 M2，M2 起文档内容以协同快照为唯一事实源；逐项口径见 [01](01-service-overview-and-roles.md) §3）：M2 = 网关与门禁、Room 生命周期与准入、批量持久化与两级 ack、PG 降级溢写与回放（含 `room.persist`）、压缩与 `auto` 快照、墓碑 TTL 清扫、schema 迁移与换纪元、`GET snapshots/latest`、导入写 `import` 快照、永久删除参与者的 Pg 存储部分；M3 = 命名版本、版本列表与恢复（§10）、元素彻底删除（§8）、评论镜像挂点（§13）、在场的多人体验（awareness 中继本身随网关在 M2）。40-modules/09 的「M2 切片」即 M2 交付。
+**里程碑**（rulings §4.19 D-M2-CONTENT：协同后端提前到 M2，M2 起文档内容以协同快照为唯一事实源；逐项口径见 [01](01-service-overview-and-roles.md) §3）：M2 = 网关与门禁、Room 生命周期与准入、逐帧落库（组提交）与两级 ack、PG 降级溢写与回放（含 `room.persist`）、压缩与 `auto` 快照、墓碑 TTL 清扫、schema 迁移与换纪元、`GET snapshots/latest`、导入写 `import` 快照、永久删除参与者的 Pg 存储部分；M3 = 命名版本、版本列表与恢复（§10）、元素彻底删除（§8）、评论镜像挂点（§13）、在场的多人体验（awareness 中继本身随网关在 M2）。40-modules/09 的「M2 切片」即 M2 交付。
 
 ## 1. CollabModule
 
-职责：把 `@cordexjs/server-collab`（文档类型盲的函数库 + cordis 插件，提供 `collabServer`）接到 Nest 与 IO 上。网关 `CollabGateway` 只做连接适配：WS 升级时的 Origin 白名单、按 IP 的升级令牌桶（先扣后退：升级前扣、票据验签通过退还）与实例连接上限、首帧 5 s 计时、票据校验（`TicketVerifier`）、每用户单实例并发上限（[16](16-ws-protocol-server-view.md) §1），校验通过后把连接交给 `collabServer.attach()`；房间、门禁、持久化全部在 server-collab 内。
+职责：把 `@cordexjs/server-collab`（文档类型盲的函数库 + cordis 插件，提供 `collabServer`）接到 Nest 与 IO 上。**2026-09-26 起**（rulings §4.21，[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)）server-collab 内部持有一个 Hocuspocus 4.7.0 实例，房间、门禁、持久化、awareness 与控制面都是挂在它钩子上的自有扩展；apps/server 只做连接适配：`CollabUpgradeHandler` 在 `app.getHttpServer()` 的 `upgrade` 事件上自挂（不用 Nest `WsAdapter`，也不用 Hocuspocus 的 `Server` 类），执行 Origin 白名单、按 IP 的升级令牌桶（先扣后退：升级前扣、票据验签通过退还）与实例连接上限，升级后把 socket 交给 `collabServer.handleConnection()`（包装 Hocuspocus 的 `handleConnection`）；帧预过滤在帧进 Hocuspocus 之前执行 L1、一 WS 一文档、5 s 认证期限、空闲计时与续票暂停（[16](16-ws-protocol-server-view.md) §1）。票据校验（`TicketVerifier`）与每用户单实例并发上限在 `onAuthenticate` 里执行，前者经 `AuthorizationSource.verifyTicket` 注入。（原：「网关 `CollabGateway` 只做连接适配……首帧 5 s 计时、票据校验……校验通过后把连接交给 `collabServer.attach()`」，作废。）
 
 **装配**（`CollabModule.forRole(role)`，矩阵唯一版本见 [01](01-service-overview-and-roles.md) §5）：
 
 | 部件 | collab | worker | api / renderer |
 |---|---|---|---|
-| `CollabGateway`（`/collab/v1/rooms/:documentId`）、`TicketVerifier` | 装 | — | — |
+| `CollabUpgradeHandler`（自挂 upgrade，`/collab/v1/rooms/:documentId`）、帧预过滤、`TicketVerifier`、`SessionSweeper`（2026-09-26） | 装 | — | — |
 | `ElementPurgeController`（`POST /documents/:id/elements/purge`，在 `CollabHttpModule`，M3） | 装 | — | — |
-| server-collab 插件激活 `collabServer`；`tombstone-sweeper`、`compactor`、`replay-spilled` | 装 | — | — |
+| server-collab 插件激活 `collabServer`（内含 Hocuspocus 实例与七个自有扩展，ADR-0039 表 39-3）；`tombstone-sweeper`、`compactor`、`replay-spilled` | 装 | — | — |
+| `HardenedRedis`（`@hocuspocus/extension-redis` 的加固子类，装配时注入 Hocuspocus；M3，M2 单实例不装） | 装 | — | — |
 | 八个 IO 适配器（§2.2） | 全部 | 只有 `PgUpdateStore`、`PgSnapshotStore` | — |
 | `PurgeCollabDataUseCase`（`@PurgeParticipant('collab')`，§12） | — | 装 | — |
 | `PruneUpdatesUseCase`、`SnapshotsRetentionUseCase`（maintenance 周期作业的处理体，[11](11-ddl-collab-updates-and-snapshots.md) §8） | — | 装 | — |
@@ -33,7 +34,8 @@
 | `collab.room.maxEditors` / `maxViewers` | 20 / 50 | 名额，按用户计（§4） |
 | `collab.room.memoryAdmissionPct` / `weightBytesPerElement` / `weightBudgetBytes?` | 75 / 14336 / 未设 | 实例权重准入（§4） |
 | `collab.membership.heartbeatMs` / `staleMs` | 15000 / 60000 | 名额登记刷新与过期（决策 C-11） |
-| `collab.persist.flushMs` / `batchMax` / `persistBeforeBroadcast` / `retryWindowMs` | 100 / 50 / true / 800 | 批量写与 PG 抖动重试窗口（§5、§6） |
+| `collab.persist.flushMs` / `batchMax` / `persistBeforeBroadcast` / `retryWindowMs` | 100 / 50 / true / 800 | 组提交上限与 PG 抖动重试窗口（§5、§6）；2026-09-26 起组提交为「空闲即刷」，`flushMs` / `batchMax` 只是上限 |
+| `collab.hocuspocus.timeoutMs` / `maxUnauthenticatedQueueBytes` / `maxUnauthenticatedQueueMessages` / `flushDelayMs`（新增（§4.21），键名与校验以 [17](17-deployment-and-config.md) §5.7 为准） | 45000 / 5 MiB / 1000 / 0 | Hocuspocus 实例配置中部署可调的部分；`maxPendingDocuments` 1、`debounce` / `maxDebounce` 2000 / 10000 与 M3 extension-redis 的 `prefix`、`lockTimeout`、`disconnectDelay`、`awaitInitialSyncTimeout` 是代码常量；与 `limits.ws.*` 的对应见 [16](16-ws-protocol-server-view.md) §13 |
 | `collab.persist.probeIntervalMs` | 1000 | 降级期 PG 探活 |
 | `collab.compaction.maxPendingUpdates` / `maxPendingBytes` / `maxAgeMs` / `maxLogToSnapshotRatio` | 500 / 5 MiB / 600000 / 10 | 压缩触发（§7） |
 | `quota.namedSnapshotsPerDoc` | 200 | 命名版本上限（rulings §4.19 C-06） |
@@ -47,13 +49,17 @@
 
 ### 2.1 签名
 
-签名以本节为准（文件落点 `packages/server-collab/src/domain/contracts/*.ts` 与 `interface/contracts/connection.ts`，见 40-modules/09 §4.4）。全部 IO 经 Definition 注入，包本身不依赖 `pg`、`ioredis`、`@aws-sdk`。
+签名以本节为准（文件落点 `packages/server-collab/src/domain/contracts/*.ts` 与 `interface/contracts/connection.ts`，见 40-modules/09 §4.4）。全部 IO 经 Definition 注入，包本身不依赖 `pg`、`ioredis`、`@aws-sdk`；2026-09-26 起包内依赖 `@hocuspocus/server` 4.7.0（章程 §5.3 规则 4 的放行范围，ADR-0039 d-25），`attach` 改为包装 Hocuspocus 的 `handleConnection`，八个 Definition（`CollabServer` 与下列七个 IO 契约）保留。
 
 ```ts
 interface CollabServer {
-  attach(conn: ServerConnection, claims: CollabPrincipal): Promise<Result<RoomSession, JoinDenied>>
-  drainAll(reason: 'shutdown'): Promise<void>
+  // 2026-09-26：包装 hp.handleConnection（Hocuspocus.ts:217-269）；调用方把 ws 的 message 先经帧预过滤再交 handleMessage，close 交 handleClose
+  handleConnection(ws: WebSocketLike, request: Request, conn: ServerConnection): { handleMessage(bytes: Uint8Array): void; handleClose(e: { code: number; reason: string }): void }
+  drainAll(reason: 'shutdown'): Promise<void>                                          // 自写停机顺序，§3 与 16 §11
   getRoomStats(docId: RoomId): RoomStats | undefined
+  listSessions(): Iterable<{ sessionId: string; sid: string; userId: UserId }>       // 供 session-sweeper 每 5 s 批量复核（§3.4）
+  closeSession(sessionId: string, code: 4401): void
+  broadcastEvent(docId: RoomId, event: RoomEvent): void                              // CONTROL.event：document.broadcastStateless，M3 经 extension-redis 到其他实例（§10、§13）
   closeRoom(docId: RoomId, reason: 'purge' | 'trashed'): Promise<void>            // purge 不再持久化；trashed 先 flush
   compactNow(docId: RoomId): Promise<void>
   migrateNow(docId: RoomId): Promise<void>
@@ -84,14 +90,13 @@ interface SpillStore {                                   // SpillRow = { instanc
   listInstances(docId: RoomId): Promise<string[]>
   clear(docId: RoomId, instanceId: string): Promise<void>
 }
-interface FanoutBus {
-  publish(docId: RoomId, msg: { instanceId: string; frame: Uint8Array }): Promise<void>
-  subscribe(docId: RoomId, handler: (msg: FanoutMessage) => void): Disposable
+interface FanoutBus {                                    // 2026-09-26：只承载控制频道 room:{docId}:ctl；帧扇出由 M3 extension-redis 承担（原 publish / subscribe 作废）
   publishControl(docId: RoomId, msg: RoomControl): Promise<void>
   subscribeControl(docId: RoomId, handler: (msg: RoomControl) => void): Disposable
 }
 interface LeaseLock { acquire(purpose: 'compact' | 'migrate' | 'tombstone' | 'spill' | 'epoch', docId: RoomId, ttlMs: number): Promise<Lease | null> }
 interface AuthorizationSource {
+  verifyTicket(token: AuthToken, docId: RoomId): Promise<Result<CollabPrincipal, 'unauthenticated' | 'forbidden'>>   // 2026-09-26：onAuthenticate 调用，由 apps/server 的 TicketVerifier 实现
   resolveRole(docId: RoomId, p: CollabPrincipal): Promise<{ role: Role | 'none'; linkExpiresAt?: number; locked: boolean }>
   onPermissionChanged(docId: RoomId, cb: (permVersion: number) => void): Disposable
 }
@@ -103,10 +108,19 @@ interface MembershipRegistry {
   isInstanceAlive(instanceId: string): Promise<boolean>
 }
 type RoomControl = { op: 'close' | 'epoch'; docId: RoomId; reason: string; epoch?: number; fromInstanceId: string }
+interface ServerConnection {                             // 2026-09-26：适配层为每条 WS 提供，经 handleConnection 的第三个参数进入 Hocuspocus 的 context
+  readonly id: string
+  readonly urlDocId: RoomId
+  readonly remote: { ipHash: string; ua?: string }
+  close(code: number, reason: string): void              // 原始 ws.close：业务关闭码只能这样发出，客户端才能拿到原码
+  pauseInbound(): () => void                             // 暂停转发入站帧、返回恢复函数（auth.refresh 的原子性）
+  onTicketVerified(): void                               // 验签通过：退还 IP 升级令牌
+}
 ```
 
-- `ServerConnection` 契约不变（`id`、`remote{ip, ua}`、`send(frame)`、`close(code, reason)`、`onFrame`、`onClose`），由 `WsConnectionAdapter` 把 `ws.WebSocket` 适配过来。`Lease` 为 `{ token: bigint; renew(); release(); stillHeld(): Promise<boolean> }`，`token` 取自 `lock:fence:{purpose}:{docId}` 的单调计数。
+- `ServerConnection` 契约（2026-09-26 改）：帧收发改由 Hocuspocus 直接操作 `WebSocketLike`（`send`、`close`、`readyState`，types.ts:55-59），本契约只剩适配层独有的能力（原始关闭、暂停入站、验签回调、URL 文档与 `ipHash`），仍由 `WsConnectionAdapter` 实现。（原：「`id`、`remote{ip, ua}`、`send(frame)`、`close(code, reason)`、`onFrame`、`onClose`」，作废。）`Lease` 为 `{ token: bigint; renew(); release(); stillHeld(): Promise<boolean> }`，`token` 取自 `lock:fence:{purpose}:{docId}` 的单调计数。
 - `UpdateStore.append` 与 `SnapshotStore.put` 把 [11](11-ddl-collab-updates-and-snapshots.md) §5 的取号栅栏暴露为返回值：`purging` 与 `epoch_changed` 是正常结果、不是异常，调用方据此关闭房间（4404 / 4428）。
+- `SpillRow.update` 与 `UpdateRow.update` 都是 Yjs **V1** 字节（Hocuspocus 协议只有 V1，[11](11-ddl-collab-updates-and-snapshots.md) §4）；快照仍是 `encodeStateAsUpdateV2` + zstd。
 - `RoomControl` 只有 `close` 与 `epoch` 两种操作，载荷与键模板登记在 [14](14-valkey-object-storage-and-retention.md) §3；不设按用户踢人的操作——停用、擦除、登出对 WS 的作用统一由每 5 s 的批量会话复核以 4401 实现（[02](02-auth-chain.md) §9.5）。`SpillStore` 不提供整文档清除：永久删除时的溢写键由 finalize-purge 清（§12）。
 - `MembershipRegistry` 是 40-modules/09 七个适配器之外新增的第八个 Definition：名额的跨实例原子判定（决策 C-11）与实例心跳 `instance:{instanceId}:alive` 需要一个独立的 Valkey 适配器，不宜塞进扇出或租约。
 
@@ -115,22 +129,24 @@ type RoomControl = { op: 'close' | 'epoch'; docId: RoomId; reason: string; epoch
 | 适配器 | 实现 | 依赖 | 用到的键或表 | 契约套件（运行方式见 [70/02](../70-testing/02-contract-suites-and-pluggability.md)） |
 |---|---|---|---|---|
 | `PgUpdateStore` | `UpdateStore` | Drizzle，`cordex_system` 池 | `document_updates`、`documents` | `runUpdateStoreConformance` |
-| `PgSnapshotStore` | `SnapshotStore` | Drizzle、`BlobStore`（`snapshots` 桶） | `document_snapshots`、`documents` | `runSnapshotStoreConformance` |
+| `PgSnapshotStore` | `SnapshotStore` | Drizzle、`BlobStore`（`snapshots` 桶）、快照 codec 适配器（zstd，§7） | `document_snapshots`、`documents` | `runSnapshotStoreConformance` |
 | `RedisSpillStore` | `SpillStore` 一级 | ioredis | `spill:{docId}:{instanceId}`、`spill:{docId}:instances` | `runSpillStoreConformance` |
 | `BlobSpillStore` | `SpillStore` 二级 | `BlobStore`（`data` 桶） | `spill/{docId}/{instanceId}/{from}-{to}.bin` | 同上 |
-| `RedisFanoutBus` | `FanoutBus` | ioredis（订阅与命令连接分离） | 频道 `collab:doc:{docId}`、`room:{docId}:ctl` | `runFanoutBusConformance` |
+| `RedisFanoutBus` | `FanoutBus`（2026-09-26 起只剩控制频道） | ioredis（订阅与命令连接分离） | 频道 `room:{docId}:ctl`（原 `collab:doc:{docId}` 作废） | `runFanoutBusConformance` |
 | `RedisLeaseLock` | `LeaseLock` | ioredis（`SET NX PX` + fencing） | `lock:{purpose}:{docId}`、`lock:fence:{purpose}:{docId}` | `runLeaseLockConformance` |
-| `AuthzSource` | `AuthorizationSource` | M-08 `RoleResolverService`、`ResolveShareLinkUseCase`；ioredis 订阅 | 频道 `perm:doc:{docId}`、`perm:ver:{docId}` | 由 `runCollabServerConformance` 覆盖 |
-| `RedisMembershipRegistry` | `MembershipRegistry` | ioredis + Lua | `room:{docId}:members`、`instance:{instanceId}:alive` | 由 `runCollabServerConformance` 覆盖（准入原子性） |
+| `AuthzSource` | `AuthorizationSource` | M-08 `RoleResolverService`、`ResolveShareLinkUseCase`；`TicketVerifier`（`verifyTicket`，2026-09-26）；ioredis 订阅 | 频道 `perm:doc:{docId}`、`perm:ver:{docId}`、`ticket:jti:{jti}` | 由 `runCollabServerConformance` 覆盖 |
+| `RedisMembershipRegistry` | `MembershipRegistry` | ioredis + Lua（`defineCommand` 注册，rulings §4.21 R-d-38） | `room:{docId}:members`、`instance:{instanceId}:alive` | 由 `runCollabServerConformance` 覆盖（准入原子性） |
 
-两个溢写适配器合组实现同一个 `SpillStore`（一级方法走 Valkey、二级方法走对象存储），装配层注入组合实例。键模板一律带全局前缀 `valkey.keyPrefix`（默认 `cordex:`），模板只由 `collab/domain/redis-keys.ts` 生成。
+两个溢写适配器合组实现同一个 `SpillStore`（一级方法走 Valkey、二级方法走对象存储），装配层注入组合实例。键模板一律带全局前缀 `valkey.keyPrefix`（默认 `cordex:`），模板只由 `collab/domain/redis-keys.ts` 生成。Valkey 客户端统一为 apps/server 显式声明的 ioredis 6.0.x（rulings §4.21 R-d-40）。
+
+**不属于 Definition 的装配件**（2026-09-26）：`WsConnectionAdapter`（实现 `ServerConnection`）；M3 的 `HardenedRedis`——继承 `@hocuspocus/extension-redis` 4.7.0 的 `Redis` 类，覆写 `beforeBroadcastStateless` 与 `onStoreDocument` 加 catch、保留离线队列并限 `maxRetriesPerRequest`，以 `createClient` 注入 ioredis 6.0.x 客户端（它自带的 ioredis ~5.6.1 只被加载、不建连接），`prefix` 取 `{valkey.keyPrefix}hp`，`identifier` 取 `instanceId`；装配时作为额外扩展交给 server-collab 的 Hocuspocus 实例（ADR-0039 决策 7、9）。
 
 **图 5-1 server-collab 契约与 IO 适配器**
 
 ```mermaid
 flowchart LR
   subgraph pkg["@cordexjs/server-collab，文档类型盲"]
-    cs["CollabServer 即 room-manager"]
+    cs["CollabServer：room-manager 包装 Hocuspocus 与七个扩展"]
     us["UpdateStore"]
     ss["SnapshotStore"]
     sp["SpillStore"]
@@ -144,11 +160,12 @@ flowchart LR
     pgu["PgUpdateStore"]
     pgs["PgSnapshotStore"]
     rsp["RedisSpillStore 与 BlobSpillStore"]
-    rfb["RedisFanoutBus"]
+    rfb["RedisFanoutBus：只剩控制频道"]
     rll["RedisLeaseLock"]
-    azs["AuthzSource"]
-    rmr["RedisMembershipRegistry"]
-    wsa["WsConnectionAdapter"]
+    azs["AuthzSource：含 TicketVerifier"]
+    rmr["RedisMembershipRegistry：Lua defineCommand"]
+    wsa["WsConnectionAdapter：原始 ws.close、暂停、退还令牌"]
+    hr["HardenedRedis：extension-redis 加固子类，M3"]
   end
   cs --> us
   cs --> ss
@@ -166,70 +183,71 @@ flowchart LR
   azs -.->|"实现"| az
   rmr -.->|"实现"| mr
   wsa -.->|"实现"| sc
+  hr -.->|"装配时注入 Hocuspocus"| cs
 ```
 
-怎么读：左框是包内契约，实线表示 `CollabServer` 依赖（注入）这些 Definition；右框是 Nest 模块目录下的 Node 适配器，虚线「实现」表示它提供左侧契约。包内不出现任何驱动，驱动只在右框（R5 `third-party-single-entry`）。
+怎么读：左框是包内契约，实线表示 `CollabServer` 依赖（注入）这些 Definition；右框是 Nest 模块目录下的 Node 适配器，虚线「实现」表示它提供左侧契约，最下一条虚线是 M3 注入的 extension-redis 加固子类（不是 Definition 的实现，而是交给 Hocuspocus 的额外扩展）。包内不出现任何驱动，驱动只在右框（R5 `third-party-single-entry`）；包内唯一新增的第三方是 `@hocuspocus/server`（2026-09-26，ADR-0039）。
 
-依据：40-modules/09 §2.5、§3.4、§4.4；30-architecture/08 §14 S7；决策 C-11、KEYS。
+依据：40-modules/09 §2.5、§3.4、§4.4；[README](README.md) §6.3 S7（原 30/08 篇 §14）；决策 C-11、KEYS。
 
 ## 3. Room 生命周期
 
-状态机以 30-architecture/06 §5.2 的七态图为唯一照抄源（`loading`、`active`、`draining`、`evicting`、`persisting`、`closed`、`failed`，rulings §4.18 CO-13），本文不另画；下表写每个状态在服务端的机制。
+状态机以 30-architecture/06 §5.2 的七态图为唯一照抄源（`loading`、`active`、`draining`、`evicting`、`persisting`、`closed`、`failed`，rulings §4.18 CO-13），本文不另画；下表写每个状态在服务端的机制。**2026-09-26 起**（ADR-0039 表 39-2，证据 K12-A）Room 的 Y.Doc 就是 Hocuspocus Document（文档名 `{docId}:{epoch}`），Hocuspocus 自己只有「加载中、已加载、卸载中」，七态作为派生状态由 `RoomExtension` 驱动、进指标。
 
-| 状态 | 进入条件 | 服务端机制 | 离开 |
+| 状态 | 进入条件 | 服务端机制（Hocuspocus 挂点） | 离开 |
 |---|---|---|---|
-| `loading` | 准入通过且本实例没有该文档的 Room（§4） | bootstrap（[11](11-ddl-collab-updates-and-snapshots.md) §6）→ 必要时迁移（§9）→ 认领已下线实例的遗留溢写（§6.4）→ 顺带执行一次墓碑清扫（§8）；span `server.room.load`，8 MB 状态 p95 ≤ 500 ms | 成功 → `active`；出错 → `failed` |
-| `active` | bootstrap 完成 | 会话进出、门禁、批量持久化（§5）、压缩（§7）、awareness 中继；持久化子状态 `persist ∈ ok / degraded`、`spillTier ∈ none / valkey / blob`、`replaying`，均不离开 `active`（CO-15） | 最后一人离开 → `draining`；停机或驱逐 → `evicting` |
-| `draining` | 最后一个会话离开 | 宽限 `drainGraceMs`（60 s）内保持内存与持久化；准入不足或内存压力时按 LRU 提前结束，不发 1012（CO-14） | 有人加入 → `active`；到期或提前结束 → `persisting` |
-| `evicting` | SIGTERM；或回收空闲房间后仍超预算 | 向会话发 1012（客户端首轮不退避，≤ 5 s 连到其他实例） | → `persisting` |
-| `persisting` | 宽限到期、驱逐或停机 | flush 批量写；需要时压缩；PG 不可达则把内存档强制写入一级溢写，不在此久等（CO-16） | → `closed` |
-| `closed` / `failed` | — | 释放 Unit 与订阅、`MembershipRegistry.leave`；`failed` 时加入请求收 4503（`collab.bootstrap_failed`），客户端退避重试 | 结束 |
+| `loading` | 准入通过且本实例没有该文档（§4，`onAuthenticate` 里判定） | `onLoadDocument`：bootstrap（[11](11-ddl-collab-updates-and-snapshots.md) §6）→ 必要时迁移（§9，先落库）→ 认领已下线实例的遗留溢写（§6.4）→ 顺带执行一次墓碑清扫（§8）→ 末尾 `document.flush()`；`afterLoadDocument` 让服务端 Unit 经 store-yjs 接管 Document。并发加入共享同一个加载 Promise；span `server.room.load`，8 MB 状态 p95 ≤ 500 ms | 成功 → `active`；出错 → `failed` |
+| `active` | bootstrap 完成 | 会话进出、门禁与先落库（`beforeSync`）、ack 与 L4（`afterHandleMessage`）、压缩（§7）、awareness（`beforeHandleAwareness`）；持久化子状态 `persist ∈ ok / degraded`、`spillTier ∈ none / valkey / blob`、`replaying`，均不离开 `active`（CO-15） | 最后一人离开 → `draining`；停机或驱逐 → `evicting` |
+| `draining` | 最后一个连接离开（`onDisconnect` 之后 Hocuspocus 准备卸载） | `beforeUnloadDocument` 抛错取消卸载，宽限 `drainGraceMs`（60 s）内保持内存与持久化；到期、或准入不足与内存压力时按 LRU 提前结束，主动 `hp.unloadDocument`，不发 1012（CO-14） | 有人加入 → `active`；到期或提前结束 → `persisting` |
+| `evicting` | SIGTERM；或回收空闲房间后仍超预算 | 向该文档的连接以原始 `ws.close(1012)` 关闭（客户端首轮不退避，≤ 5 s 连到其他实例）；`hp.closeConnections()` 只发文档级 CLOSE、客户端只见 1000，不能代替 | → `persisting` |
+| `persisting` | 宽限到期、驱逐或停机 | 写入器 flush；需要时压缩；PG 不可达则把内存档强制写入一级溢写，不在此久等（CO-16）；有内存档时 `beforeUnloadDocument` 继续抛错钉住文档（§6.2） | → `closed` |
+| `closed` / `failed` | — | `afterUnloadDocument` 之后释放 Unit 与订阅、`MembershipRegistry.leave`；`failed` = `onLoadDocument` 抛错：已收到 `Authenticated` 的加入者各自再收 `PermissionDenied`，适配层以 4503（`collab.bootstrap_failed`）关闭并撤销名额，客户端退避重试 | 结束 |
+
+**停机**（证据 d-21）：Hocuspocus 类没有 `destroy()`，嵌入模式下 `onDestroy` 也不触发；`drainAll` 自写顺序为 `/readyz` 503 → 停止接受 upgrade → 各连接 Stateless `room{draining}` → 写入器 flush 并补发 ack（PG 不可达则写一级溢写）→ 原始 `ws.close(1012)` → 等文档卸载 → 自调 `hooks('onDestroy')`（M3 让 extension-redis 断开订阅）。
 
 ### 3.1 加入房间
 
-票据校验（验签、`jti`、`sid`、`permVersion`，[16](16-ws-protocol-server-view.md) §1、§3）通过后，网关先退还 IP 升级令牌并判每用户单实例并发上限（超限 `auth.denied{collab.rate_limited}` + 4429，16 §1），再调 `attach`；`attach` 按以下顺序执行，任一步拒绝都先回 `auth.denied{code}` 再按码关闭：
+2026-09-26 起加入房间的全部判定都在 server-collab 的 `AuthExtension.onAuthenticate` 里串行执行（不放 `onConnect`，它先于 `onAuthenticate` 触发）：协议版本（[16](16-ws-protocol-server-view.md) §12）→ `AuthorizationSource.verifyTicket`（验签、`jti`、`sid`、`permVersion`，16 §1）→ 验签通过即经 `ServerConnection.onTicketVerified` 退还 IP 升级令牌 → 每用户单实例并发上限（超限 `collab.rate_limited` + 4429）→ 下列步骤。任一步拒绝都抛出 `{reason:{code}}`，Hocuspocus 回 `PermissionDenied(reason)`，随后以原始 `ws.close` 按码关闭（原：「网关……再调 `attach`；`attach` 按以下顺序执行」，作废）：
 
-1. 读 `documents` 行（系统作业名 `collab.gateway`，[08](08-db-conventions-roles-rls-migrations.md) §6.5）：不存在或 `trashed` → `collab.doc_not_found`（4404）；`purging` → `collab.doc_purging`（4404，rulings §4.18 BE-15）；`locked`（覆盖导入或迁移窗口）→ 角色封顶为 `viewer`（L2 拒写，ADR-0029 决策 5，2026-09-25 按 rulings §4.19 N1 收窄，版本恢复不加锁）；客户端声明的纪元与 `documents.epoch` 不符 → `collab.epoch_changed`（4428）；文档 `schema_version` 高于客户端支持 → `collab.schema_too_new`（4426）。
+1. 读 `documents` 行（系统作业名 `collab.gateway`，[08](08-db-conventions-roles-rls-migrations.md) §6.5）；文档名 `{docId}:{epoch}` 的 `docId` 部分须等于 URL 文档（帧预过滤已查）：不存在或 `trashed` → `collab.doc_not_found`（4404）；`purging` → `collab.doc_purging`（4404，rulings §4.18 BE-15）；`locked`（覆盖导入或迁移窗口）→ 角色封顶为 `viewer`（L2 拒写，ADR-0029 决策 5，2026-09-25 按 rulings §4.19 N1 收窄，版本恢复不加锁）；客户端声明的纪元（Auth token 的 `epoch` 与文档名的纪元部分）与 `documents.epoch` 不符 → `collab.epoch_changed`（4428）；文档 `schema_version` 高于客户端支持 → `collab.schema_too_new`（4426）。
 2. `AuthorizationSource.resolveRole`：取 max(直接授权, 票据 `lnk` 对应链接此刻的有效角色)，`none` → `collab.forbidden`（4403）；记录 `linkExpiresAt`（rulings §4.18 BE-02）。
-3. 本实例没有该 Room 时做**实例权重准入**（§4.1），不足先按 LRU 结束 `draining` 房间再重判，仍不足 → `collab.room_full`（4503，客户端重连到其他实例）。
-4. **名额准入**：`MembershipRegistry.admit`（§4.2 Lua），编辑者满 → 以 `viewer` 只读加入并带 `reason:'capacity'`；查看者也满 → `collab.room_full`（4503）。名额先于 `loading` 登记，bootstrap 失败时撤销登记。
-5. 本实例没有该 Room → 进入 `loading`（§3 表）；已有 Room 直接挂会话。
-6. 回 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4），随后发 `room{clients, persist, locked?}`；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。
+3. 本实例没有该文档（不在 `hp.documents`，此时尚未加载）时做**实例权重准入**（§4.1），不足先对 `draining` 文档调 `hp.unloadDocument` 再重判，仍不足 → `collab.room_full`（4503，客户端重连到其他实例）。
+4. **名额准入**：`MembershipRegistry.admit`（§4.2 Lua），编辑者满 → 以 `viewer` 只读加入并带 `reason:'capacity'`；查看者也满 → `collab.room_full`（4503）。名额先于 `loading` 登记，bootstrap 失败时在 `onLoadDocument` 的 catch 里撤销登记（加载失败不触发 `onDisconnect`）。可写性写入 `connectionConfig.readOnly`（建连时拷贝到 `connection.readOnly`）。
+5. `onAuthenticate` 返回后 Hocuspocus 回 `Authenticated(scope)`；本实例没有该文档 → `onLoadDocument` 进入 `loading`（§3 表）；已有文档直接挂连接。
+6. `connected` 钩子以 `connection.sendStateless` 发 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4），随后发 `room{clients, persist, locked?}`；登记连接（供 `session-sweeper`、`PermissionSync`、停机使用）；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。`connected` 整体 try/catch，失败 `ws.close(1011)`。认证前排队的帧此后才回放。
 
 **图 5-2 加入房间**
 
 ```mermaid
 sequenceDiagram
-  participant G as CollabGateway
-  participant RM as RoomManager
+  participant A as AuthExtension onAuthenticate
   participant PG as Postgres
   participant AZ as AuthzSource
   participant MR as MembershipRegistry
-  participant BL as bootstrap-loader
-  G->>RM: attach，票据已验签、jti 与 sid 已校验
-  RM->>PG: 读 documents 的 status、epoch、schema_version、element_count
-  RM->>AZ: resolveRole，max 直接授权与有效链接角色
+  participant R as RoomExtension onLoadDocument
+  A->>AZ: verifyTicket，验签、jti、sid、permVersion；通过即退还 IP 令牌
+  A->>PG: 读 documents 的 status、epoch、schema_version、element_count
+  A->>AZ: resolveRole，max 直接授权与有效链接角色
   alt 不存在、trashed、purging、纪元或 schema 不符、无权
-    RM-->>G: auth.denied，4404、4428、4426 或 4403
+    A-->>A: 抛 reason code，PermissionDenied 后 ws.close 4404、4428、4426 或 4403
   end
-  opt 本实例尚无该 Room
-    RM->>RM: 实例权重准入，不足先按 LRU 结束 draining 房间再重判
+  opt 本实例尚无该文档
+    A->>A: 实例权重准入，不足先 unloadDocument 结束 draining 文档再重判
   end
-  RM->>MR: admit，Lua 按用户跨实例去重计数
+  A->>MR: admit，Lua 按用户跨实例去重计数
   alt 编辑者满
-    MR-->>RM: capacity，以 viewer 只读加入
+    MR-->>A: capacity，readOnly 加入
   else 查看者也满或实例预算不足
-    RM-->>G: auth.denied collab.room_full，4503
+    A-->>A: PermissionDenied collab.room_full，4503
   end
-  opt 本实例尚无该 Room
-    RM->>BL: loading：检查点加增量，必要时迁移
-    BL->>BL: 持 lock:spill:docId 认领已下线实例的遗留溢写并回放
-    BL->>BL: 顺带执行一次墓碑清扫
+  opt 本实例尚无该文档
+    A->>R: Authenticated 之后加载：检查点加增量，必要时迁移
+    R->>R: 持 lock:spill:docId 认领遗留溢写，墓碑清扫，document.flush
   end
-  RM-->>G: auth.ok 与 room，clients 与 persist
+  A-->>A: connected：Stateless auth.ok 与 room，clients 与 persist
 ```
 
-怎么读：纵线是服务端内部参与方，客户端在 `G` 左侧未画；自上而下是时间。两个 `alt` 只画拒绝或降级分支，未命中时继续往下；两个 `opt` 只在本实例还没有该文档的 Room 时执行，所以已有 Room 的加入只判名额、不做权重准入与 bootstrap（rulings §4.18 CO-17）。
+怎么读：纵线是服务端内部参与方，客户端与 Hocuspocus 本身未画；自上而下是时间。两个 `alt` 只画拒绝或降级分支，未命中时继续往下；两个 `opt` 只在本实例还没有该文档时执行，所以已有 Room 的加入只判名额、不做权重准入与 bootstrap（rulings §4.18 CO-17）。2026-09-26 按 ADR-0039 重画：全部判定在 `onAuthenticate`，加载在 `onLoadDocument`，`auth.ok` 在 `connected`（原图「CollabGateway → RoomManager.attach」作废）。
 
 依据：30-architecture/06 §5.2、§6.3、§14；ADR-0029 决策 5；rulings §4.18 BE-02、BE-15、CO-14、CO-16、CO-17。
 
@@ -247,23 +265,25 @@ sequenceDiagram
 
 ### 3.3 控制频道
 
-每个持有 Room 的实例订阅 `room:{docId}:ctl`（[14](14-valkey-object-storage-and-retention.md) §3），载荷 `RoomControl`（§2.1），按 `op` 与 `reason` 处理：
+每个持有 Room 的实例订阅 `room:{docId}:ctl`（[14](14-valkey-object-storage-and-retention.md) §3），载荷 `RoomControl`（§2.1），由 server-collab 的 `ControlPlane` 扩展经 `FanoutBus.subscribeControl` 处理（2026-09-26；extension-redis 的 Stateless 转发只到对端客户端、不触发对端服务端钩子，承载不了控制面），按 `op` 与 `reason` 处理；关闭一律用原始 `ws.close`：
 
 | `op` | 发布方 | 收到后的动作 |
 |---|---|---|
 | `close`，`reason:'purge'` | worker 上的 document-purge 处理器第一步（[04](04-modules-documents-storage-media.md) §4） | 以 4404（`collab.doc_purging`）关闭本实例该文档的全部会话，丢弃 Room，不再持久化 |
 | `close`，`reason:'trashed'` | M-08 移入回收站后（尽力而为） | 以 4404（`collab.doc_not_found`）关闭会话，先 flush 再关闭 Room（回收站可恢复） |
-| `epoch` | `forceEpoch` 执行实例（`reason:'admin'`）；worker 上的导入处理器在覆盖导入提交后（`reason:'import'`，§9.2、[06](06-modules-jobs-import-export-thumbnails.md) §6.5，rulings §4.19 N1） | 以 4428（`collab.epoch_changed`）关闭会话，丢弃旧纪元 Room，不持久化；`reason` 只进日志与 `room-closed` 事件 |
+| `epoch` | `forceEpoch` 执行实例（`reason:'admin'`）；worker 上的导入处理器在覆盖导入提交后（`reason:'import'`，§9.2、[06](06-modules-jobs-import-export-thumbnails.md) §6.5，rulings §4.19 N1） | 以 4428（`collab.epoch_changed`）关闭旧纪元文档 `{docId}:{E}` 的会话，丢弃该文档、不持久化；新纪元是另一个文档名 `{docId}:{E+1}`，重连的会话自然加载新文档（证据 K8-B）；`reason` 只进日志与 `room-closed` 事件 |
 
 频道是尽力而为的通知，正确性不依赖它：永久删除与换纪元（含覆盖导入）都有数据库栅栏兜底（[11](11-ddl-collab-updates-and-snapshots.md) §5 的取号语句在 `purging` 或纪元变化后插入 0 行，写入方据此自行关房）。控制频道只有 `close` 与 `epoch`：会话吊销由每 5 s 一次的批量复核实现（§3.4），文档锁定与解锁经权限频道 `perm:doc:{docId}` 的 `lockChanged` 通知，由 `AuthzSource` 重读 `documents.status` 后推 `room{locked}`（[16](16-ws-protocol-server-view.md) §8）。
 
 ### 3.4 会话有效期
 
-会话寿命绑定票据 `sid` 指向的登录会话、每 5 s 批量复核、`auth.refresh` 只重新绑定不延长，唯一源是 [02](02-auth-chain.md) §9.5（决策 INC-27、SESSION）；本模块只负责执行：复核失败时以 4401 关闭本实例上的对应会话。停用、擦除、登出对 WS 的作用都经这条复核在 ≤ 5 s 内生效，不按房间点名踢人（决策 SESSION 的实现细化，效果不变）。
+会话寿命绑定票据 `sid` 指向的登录会话、每 5 s 批量复核、`auth.refresh` 只重新绑定不延长，唯一源是 [02](02-auth-chain.md) §9.5（决策 INC-27、SESSION）；本模块只负责执行：复核失败时以 4401 关闭本实例上的对应会话。**执行者**（2026-09-26，证据 TX-10）：apps/server 的 `SessionSweeper`（40-modules/09 §4.1 `application/session-sweeper.ts`）每 `auth.session.revocationCacheMs`（5 s）取 `collabServer.listSessions()`（`connected` 时登记的连接），经 M-08 `SessionValidator` 批量查 `session:{sid}` 与 `users.status`，失效的调 `collabServer.closeSession(sessionId, 4401)`（原始 `ws.close`）。`auth.refresh` 在 `onTokenSync` 里处理，适配层在转发该 Auth 帧后暂停后续帧直到钩子完成（[16](16-ws-protocol-server-view.md) §3）；链接到期定时器挂在连接的 context 上，`onDisconnect` 时清理。停用、擦除、登出对 WS 的作用都经这条复核在 ≤ 5 s 内生效，不按房间点名踢人（决策 SESSION 的实现细化，效果不变）。
 
 ## 4. 容量与准入
 
 ### 4.1 实例权重准入
+
+准入在 `onAuthenticate` 里、文档尚未加载时判定（2026-09-26，证据 AD-05）：Hocuspocus 没有内存上限与驱逐策略，只能靠这里挡住。
 
 - 房间权重 = `documents.element_count`（墓碑计入）× `weightBytesPerElement`（14336 B，实测约 13.8 KB 堆/元素；D200 ≈ 85 MB，天花板 20,000 元素 ≈ 276 MB），准入时直接取库列，不需预加载（CO-17）。
 - 实例内存预算 = 容器内存上限（cgroup 限额，`process.constrainedMemory()`，无限额取物理内存）× `memoryAdmissionPct`（75）；`weightBudgetBytes` 若设置则作绝对覆盖（rulings §4.18 BE-29）。准入条件：已开房间权重之和 + 进行中的准入预留 + 新房间权重 ≤ 预算。同一文档在 N 个实例上各占一份（ADR-0035）。
@@ -275,7 +295,8 @@ sequenceDiagram
 名额按用户计：同一用户多标签页、多设备只占一个名额；`owner` 不占编辑者名额、满员时也不降级；`commenter` 计入查看者名额但角色仍是 commenter（可写评论）；`editor` 在编辑者满时降为只读查看者（rulings §4.15 Q5）。跨实例的计数与登记由一个 Lua 脚本在 `room:{docId}:members` 上原子完成（决策 C-11；不用 `HEXPIRE`，因为 ADR-0022 只要求 Redis ≥ 7.2 协议）。
 
 - 键：`room:{docId}:members` 为 hash，field = `instanceId`，value = `{"owners":[…],"editors":[…],"viewers":[…],"ts":<ms>}`（比决策 C-11 原文多一个 `owners` 列表，只用于在线人数，不参与名额；[14](14-valkey-object-storage-and-retention.md) §3、§4 已按本节登记，脚本文本与 ARGV 顺序以本节为准）。
-- 本实例对自己 field 的全部写入（准入、离开、心跳）经 `RedisMembershipRegistry` 内按文档串行的队列发出，所以离开与心跳用普通 `HSET` 覆盖自己的 field 即可，只有准入需要脚本。
+- 本实例对自己 field 的全部写入（准入、离开、心跳）经 `RedisMembershipRegistry` 内按文档串行的队列发出，所以离开与心跳用普通 `HSET` 覆盖自己的 field 即可，只有准入需要脚本。准入在 `onAuthenticate` 调用，离开在 `onDisconnect` 调用（失败路径对称：加载失败不触发 `onDisconnect`，由 `onLoadDocument` 的 catch 撤销）。
+- 脚本经 ioredis 的 `defineCommand` 注册为自定义命令（内部走 `EVALSHA`，Valkey 重启丢脚本缓存时自动回退 `EVAL`；rulings §4.21 R-d-38），不手写 `SCRIPT LOAD` 与重试。
 - 心跳：每 15 s 刷新本实例全部 field 的 `ts` 并 `PEXPIRE` 整个 hash 120 s，同时 `SET instance:{instanceId}:alive 1 PX 60000`；脚本剔除 `ts` 超过 60 s 的 field（崩溃实例的名额最多占 60 s）。
 - `room{clients}` 的权威人数 = 三个列表的去重用户数，随心跳（≤ 15 s）刷新；实时的头像与光标来自 awareness，不等这个数。
 
@@ -332,21 +353,45 @@ Valkey 内置的 cjson 把空列表编码成 `{}`（对象）而不是 `[]`（Va
 
 ## 5. 持久化与跨实例扇出
 
-- **批量写**：`update-writer` 把通过门禁（[16](16-ws-protocol-server-view.md) §4）的 update 按「100 ms 或 50 条先到者」攒批，一个事务取号并插入（[11](11-ddl-collab-updates-and-snapshots.md) §5），提交后逐帧回 `ack{seq, tier:'db'}`；ack 的完整规则（含 step2 空差量）见 [16](16-ws-protocol-server-view.md) §5。软门禁产生的修复事务、墓碑硬删除、恢复与迁移事务都走同一个写入器，`user_id` 为发起者或 NULL。
+- **挂点与组提交**（2026-09-26，rulings §4.21 H:Q1，ADR-0039 决策 5）：`GatePersistExtension` 在 Hocuspocus 的 `beforeSync`（被 await、早于应用与广播）里过 L2/L3（[16](16-ws-protocol-server-view.md) §4）后 **await `update-writer`**，写入器取号并插入（[11](11-ddl-collab-updates-and-snapshots.md) §5）或进入降级档后才返回，Hocuspocus 随后应用并广播；ack 在 `afterHandleMessage` 经 Stateless 逐帧发出，完整规则（含 step2 空差量与 16 MiB 上限）见 [16](16-ws-protocol-server-view.md) §5。每个连接的帧在 Hocuspocus 里串行 await，写入器因此改为**「空闲即刷、上限 100 ms 或 50 条」**的组提交（不同连接的帧仍可并进同一事务），不再固定等 100 ms 窗口（原：「按『100 ms 或 50 条先到者』攒批」）。取号返回 0 行时先以原始 `ws.close` 关闭（4404 / 4428）再在 `beforeSync` 抛错。`document_updates.update` 存客户端帧的 Yjs V1 字节。
+- **不用 `onStoreDocument` 持久化**：它是整文档 debounce 覆盖写，存储失败不重试、之后一次空断开即丢（证据 exp2）；本模块只把它当压缩检查节拍（§7），不用 extension-database / s3 / sqlite。
+- **服务端事务的顺序**（rulings §4.21 H:Q4「低频先落库，修复先广播」）：Hocuspocus 对 Room 上的事务在 `setImmediate` 里广播，做不到「先经写入器再广播」。因此版本恢复（§10）、彻底删除元素与墓碑 TTL 清扫（§8）这类低频事务**先在复制文档（由当前 Room 状态复制出的临时 Unit）上执行 → 经写入器落库（`user_id` 为发起者或 NULL）→ 再把同一 update 应用到 Room 并广播**（O(文档)，换来审计与 `onPersisted` 归属准确）；迁移在 `onLoadDocument` 里本就先落库；软门禁修复（p95 ≤ 5 ms）仍先在 Room 上执行并广播，由 `onChange` 把非连接来源、非 `redis` 来源的 update 同步送入写入器、不回 ack——广播后、提交前崩溃时内容靠客户端重连 step2 补回，只影响修复事务的归属。所有事务都走同一个写入器。
 - **先落库后广播**：`persistBeforeBroadcast = true` 只约束 PG 可用时的顺序（持久化滞后 p99 ≤ 1 s、正常 p95 ≈ 150 ms）；PG 写失败即进入降级期，见 §6。
-- **只持久化本实例客户端的 update**：跨实例扇入的 update 只应用、只转发，不落库（ADR-0035 决策 3）；因此同一内容至多一个实例写一行。
+- **只持久化本实例客户端的 update**：跨实例扇入的 update 只应用、只转发，不落库（ADR-0035 决策 3）；因此同一内容至多一个实例写一行。M3 起跨实例同步由 extension-redis 承担，送来的更新 `origin=redis`、不经 `beforeSync`、跳过存储钩子，天然不落库；`onChange` 按来源过滤。
 - **单写者任务**经 `LeaseLock` 选举：`compact`、`migrate`、`tombstone`、`spill`（认领遗留溢写）、`epoch` 五种用途，键 `lock:{purpose}:{docId}`，默认租期 30 s、每 10 s 续租；租约丢失只记录 `collab.lock_lost`，下一轮再试。压缩与墓碑清扫即使被两个实例各执行一次也只多一行快照或一个空事务，不破坏正确性；迁移与换纪元另有数据库唯一索引与取号栅栏兜底。
+
+**图 5-3a 服务端自发事务的两种顺序（rulings §4.21 H:Q4）**
+
+```mermaid
+flowchart LR
+  subgraph low["低频：恢复、彻底删除元素、墓碑清扫"]
+    copy["复制当前 Room 状态到临时 Unit"] --> exec["在临时 Unit 上执行事务，得到 update"]
+    exec --> w1["写入器落库，user_id 为发起者或 NULL"]
+    w1 --> apply["把同一 update 应用到 Room"]
+    apply --> b1["Hocuspocus 广播，M3 跨实例"]
+  end
+  subgraph fast["高频：软门禁修复，p95 ≤ 5 ms"]
+    repair["afterHandleMessage 在 Room 上执行修复事务"] --> b2["Hocuspocus 在 setImmediate 广播"]
+    repair --> oc["onChange：非连接、非 redis 来源的 update"]
+    oc --> w2["写入器落库，不回 ack"]
+  end
+  mig["迁移：onLoadDocument 内先落库，此时无连接"] -.-> w1
+```
+
+怎么读：左框是先落库后广播的低频路径，代价是复制一次文档状态（O(文档)），换来审计与 `onPersisted` 的归属准确；右框是修复路径，受 5 ms 预算约束只能先广播、由 `onChange` 同步送写入器，广播后、提交前崩溃时由客户端重连 step2 补回内容，只影响修复事务的归属。虚线表示迁移在加载期天然先落库。
+
+依据：rulings §4.21 H:Q4；ADR-0025 决策 1 修订 2026-09-26；ADR-0039 决策 5；证据 PS-03 与 ver 修正。
 
 **图 5-3 跨实例扇出、本实例持久化与单写者租约**
 
 ```mermaid
 flowchart LR
   ca["实例 A 的客户端"] -- "SYNC update" --> ra["实例 A 的 Room 副本"]
-  ra -- "门禁通过后写入" --> writer["A 的 update-writer：只写本实例客户端的 update"]
+  ra -- "beforeSync 门禁通过后 await" --> writer["A 的 update-writer：只写本实例客户端的 update"]
   writer -- "取号与插入同事务" --> pg[("Postgres document_updates")]
-  writer -- "提交后逐帧 ack db" --> ca
-  ra -- "PUBLISH collab:doc:docId，带 instanceId" --> vk[("Valkey")]
-  vk -- "订阅，丢弃自己的 instanceId" --> rb["实例 B 的 Room 副本"]
+  writer -- "afterHandleMessage 逐帧 Stateless ack db" --> ca
+  ra -- "M3 extension-redis：hp:docId:epoch 发状态向量" --> vk[("Valkey")]
+  vk -- "差量经 hp#reply 频道，origin=redis" --> rb["实例 B 的 Room 副本，迁移窗口才存在"]
   rb -- "只应用、不落库，转发给本实例会话" --> cb["实例 B 的客户端"]
   ra -. "争用 lock:compact 等五种租约" .-> lease["单写者：压缩、迁移、墓碑、认领溢写、换纪元"]
   rb -. "争用同一把租约" .-> lease
@@ -354,9 +399,9 @@ flowchart LR
   ctl -.-> rb
 ```
 
-怎么读：实线是一次编辑从 A 的客户端到库与到 B 的客户端的路径；B 对 A 的扇出对称，图中省略。虚线是协调关系：两副本争用同一把租约，只有持锁者执行单写者任务；控制频道向所有副本广播关闭与换纪元。
+怎么读：实线是一次编辑从 A 的客户端到库与到 B 的客户端的路径；B 对 A 的扇出对称，图中省略。2026-09-26 起跨实例同步是 M3 的 extension-redis（状态向量互补），且反代按 `documentId` 哈希使常态只有一个实例持有文档，图中 B 副本只在扩缩容迁移窗口出现（原「PUBLISH collab:doc:docId，按 instanceId 去重」作废）。虚线是协调关系：两副本争用同一把租约，只有持锁者执行单写者任务；控制频道向所有副本广播关闭与换纪元。
 
-依据：ADR-0035 决策 2–5；30-architecture/08 §8；决策 KEYS、C-12（锁键统一）。
+依据：ADR-0035 决策 2–5；原 30/08 篇 §8；决策 KEYS、C-12（锁键统一）。
 
 ## 6. PG 故障降级
 
@@ -367,7 +412,7 @@ flowchart LR
 依据：rulings §4.19 INC-09（服务端显式信号 + 分级受众，已定稿）。
 
 - 触发：任一批量写因连接错误、超时或 PG 只读而失败，或降级探活（`probeIntervalMs` 1 s，只在本实例有活跃 Room 时运行）失败。实例级标记 `pgDegraded = true`。
-- 服务端显式信号：`CONTROL.room` 增可选字段 `persist: 'ok' | 'degraded'`（帧定义在 30-architecture/06 §6.3，不新增帧类型）。房间的 `persist` = `degraded` 当且仅当 `pgDegraded` ∨ `spillTier ≠ none` ∨ `replaying` ∨ 房间内有未落库的内存档；只在变化时推送：PG 写失败后 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`。加入时的第一帧 `room` 带当前值。
+- 服务端显式信号：`CONTROL.room` 增可选字段 `persist: 'ok' | 'degraded'`（帧定义在 30-architecture/06 §6.3，不新增帧类型）。房间的 `persist` = `degraded` 当且仅当 `pgDegraded` ∨ `spillTier ≠ none` ∨ `replaying` ∨ 房间内有未落库的内存档；只在变化时推送：PG 写失败后 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`。加入时的第一帧 `room`（在 `connected` 发出）带当前值。`room` 只对本实例连接 `connection.sendStateless`，**不用** `document.broadcastStateless`——后者在 M3 会经 extension-redis 串到他实例，而他实例有自己的 PG 判断（证据 SP-01）。
 - 受众分级在客户端（[50/07](../50-frontend/07-collaboration-client.md)）：判据 = `room.persist === 'degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（collab-yjs 配置，默认 15000）；有本地未获 db 确认项的发起方显示横幅「未保存到服务器 N 项」，其余协作者在状态胶囊显示弱提示「服务器保存延迟」。服务端只负责按上条规则推 `persist`，不按会话区分受众。
 - 每个实例独立判断自己的 PG 连接并推给自己的会话；因为各实例共用同一个 PG，没有本地写入的实例也会在一个探活周期内进入降级，因此只看到他人修改的协作者同样收到信号。
 - 指标 `cordex_collab_broadcast_before_persist_total{tier}` 计降级广播次数，名称以 [18](18-observability-and-ops-endpoints.md) 为准。
@@ -383,15 +428,17 @@ flowchart LR
 - 溢写行不分配 seq，临时键 `(instanceId, localCounter)`，行内带写入时的 `epoch`（S-3a；纪元在回放时用作栅栏）。三个阈值是 M2 前落地的自托管专用 runner 上压测校准前的初值，只收紧（决策 SPILL；rulings §4.19 D-TEST-INFRA）。
 - 三档都失败（PG、Valkey、对象存储同时不可用）：update 留在内存、照常广播、不回任何 ack；持久性由发起方的 pending 兜底。内存超预算时走普通的内存压力回收（§4.1，`evicting` 发 1012），客户端带着未获 db 确认的 pending 重连到其他实例，NF-03「已 ack(db) 零丢失」不受影响。
 - 降级期间软门禁照常在服务端 Unit 上执行，修复事务与普通 update 一起进入溢写（ADR-0034 修订 2026-09-24 第 2 条）；回放时不重跑软门禁。
+- **进入任一档即返回**（2026-09-26）：PG 降级期写入器在 update 进入 `none` / `valkey` / `blob` 任一档后就让 `beforeSync` 返回，Hocuspocus 随即应用并广播（CO-08）；`spill` ack 在 `afterHandleMessage` 发出。
+- **钉住文档**（2026-09-26，证据 K3-A、SP-03）：Hocuspocus 在最后一个连接离开且无存储挂起时就会卸载文档，内存档（`none` 档，或三档都失败时留在内存的更新）会随之丢失。因此只要该文档还有未落库的内存档，`beforeUnloadDocument` 就抛错取消卸载（文档留在内存、Room 仍计权重）；回放或落库完成后主动调 `hp.unloadDocument`。
 
 ### 6.3 回放
 
-PG 探活成功 → 对每个有溢写的 Room 置 `replaying = true`（仍是 `active`）→ `readAllOrdered(docId, 本实例 instanceId)` 按 `localCounter` 升序 → 按批经同一取号语句落库（正式 seq 此时由 PG 分配；行内纪元与当前纪元不符的行丢弃并计数，其发起者已被 4428 关闭）→ 每批提交后给原会话补发 `ack{seq, tier:'db'}`，原会话已断开则丢弃（客户端重连 step2 兜底，CO-10）→ 回放期间新到的 update 排在回放队列之后落库，保持同一连接上 db ack 的顺序（CO-15）→ 断言服务端 Y.Doc 无 `pendingStructs` → `clear(docId, instanceId)` → `replaying = false` → 推 `persist:'ok'`。预算：PG 恢复到回放完成 p95 ≤ 10 s（D50 级溢写窗口），span `server.collab.replay_spilled`（名表见 [18](18-observability-and-ops-endpoints.md)）。
+PG 探活成功 → 对每个有溢写的 Room 置 `replaying = true`（仍是 `active`）→ `readAllOrdered(docId, 本实例 instanceId)` 按 `localCounter` 升序 → 按批经同一取号语句落库（正式 seq 此时由 PG 分配；行内纪元与当前纪元不符的行丢弃并计数，其发起者已被 4428 关闭）→ 每批提交后经连接登记表找到仍在线的原连接、以 `connection.sendStateless` 补发 `ack{seq, tier:'db'}`，原会话已断开则丢弃（客户端重连 step2 兜底，CO-10）→ 回放期间新到的 update 排在回放队列之后落库，保持同一连接上 db ack 的顺序（CO-15）→ 断言服务端 Y.Doc 无 `pendingStructs`（直接读 Hocuspocus Document 的 `store.pendingStructs`）→ `clear(docId, instanceId)` → `replaying = false` → 推 `persist:'ok'`。预算：PG 恢复到回放完成 p95 ≤ 10 s（D50 级溢写窗口），span `server.collab.replay_spilled`（名表见 [18](18-observability-and-ops-endpoints.md)）。
 
 ### 6.4 遗留行认领与关闭时的兜底
 
-- 认领：Room bootstrap 之后读 `spill:{docId}:instances`，对 `instance:{id}:alive` 已过期的每个实例，持 `lock:spill:{docId}` 读出其行、应用到 Room（这些内容可能从未落库）并按 §6.3 落库，然后清除；存活实例的行一律不碰（CO-16）。
-- 关闭兜底：`persisting` 或 SIGTERM 时 PG 不可达，把内存档强制写入一级溢写（Valkey 也不可达则写二级）再进入 `closed`，不在 30 s 停机预算里久等（ADR-0035 决策 9）。
+- 认领：Room bootstrap 之后（`onLoadDocument` 末尾、`document.flush()` 之前）读 `spill:{docId}:instances`，对 `instance:{id}:alive` 已过期的每个实例，持 `lock:spill:{docId}` 读出其行、应用到 Room（这些内容可能从未落库）并按 §6.3 落库，然后清除；存活实例的行一律不碰（CO-16）。
+- 关闭兜底：`persisting` 或 SIGTERM 时 PG 不可达，把内存档强制写入一级溢写（Valkey 也不可达则写二级）再进入 `closed`，不在 30 s 停机预算里久等（ADR-0035 决策 9）；停机顺序见 §3 末（`drainAll`）。
 
 **图 5-4 PG 故障降级期的广播、信号、溢写与回放**
 
@@ -425,10 +472,14 @@ flowchart TB
 
 压缩只在持有 Room 的 collab 实例内执行（下面第 1 步的补齐依赖本实例 Room），不设 `compaction` 委托队列（[06](06-modules-jobs-import-export-thumbnails.md) §1；用户偏好「不要过度设计」）。
 
+**判定节拍**（2026-09-26，证据 PS-05）：借 Hocuspocus `onStoreDocument` 的 debounce（默认 2 s，`maxDebounce` 10 s）作为「有新变更」的节拍，`RoomExtension` 在该钩子里**只判阈值、永不抛错**（抛错只会打日志、文档留在内存）；另有 10 min 定时兜底。跨实例来的更新（`origin=redis`）不触发该钩子，由下面第 1 步「先从 PG 补齐」兜住。M3 装 extension-redis 后，它的 `onStoreDocument`（priority 1000）会先取 redlock 存储锁，拿不到就跳过后续钩子——这只让本轮节拍落空，压缩的互斥仍由自有 `lock:compact:{docId}` 保证；加固子类为该钩子加了 catch（ADR-0039 决策 9）。
+
+**zstd codec**（rulings §4.21 R-d-39）：快照压缩用 Node 26 内置 `zlib` 的 zstd，外包一个 codec 适配器（`PgSnapshotStore` 的依赖，便于换实现；Node 26 的 zlib zstd 仍标 Experimental，适配器同时是隔离点）；浏览器侧解压走 `DecompressionStream('zstd')` 可用性检测，不支持时服务端按 `Content-Encoding` 协商回退 gzip（ADR-0025 后果）。
+
 **步骤**（持 `lock:compact:{docId}`，作业名 `collab.compact`）：
 
 1. **补齐**：从 PG 读 `(上一快照.seq_upto, head]` 的全部 update 并应用到本实例 Room（幂等），`seq_upto` 取本次读到的最大 seq。这一步是多副本下的正确性前提：别的实例刚落库、还没经扇出到达本实例的 update，如果不先补齐就把 `head_seq` 写成 `seq_upto`，随后的裁剪会删掉快照里没有的内容。本实例尚未落库的内存档或溢写内容会被一并编码进快照，这对 CRDT 无害（它们回放时 seq 必然大于 `seq_upto`）。
-2. `encodeStateAsUpdateV2` + zstd；≤ 1 MiB 内联，否则先写 `snapshots` 桶 `docs/{docId}/snapshots/{snapshotId}.yup2.zst`。写对象前复查 `documents.status`，`purging` 即放弃本轮（永久删除进行中，[04](04-modules-documents-storage-media.md) §4.3 第 4 条；竞态中写出的对象由 finalize-purge 第二遍列举清除）。
+2. `encodeStateAsUpdateV2` + zstd（直接读 Hocuspocus Document，即 Room 的 Y.Doc）；≤ 1 MiB 内联，否则先写 `snapshots` 桶 `docs/{docId}/snapshots/{snapshotId}.yup2.zst`。写对象前复查 `documents.status`，`purging` 即放弃本轮（永久删除进行中，[04](04-modules-documents-storage-media.md) §4.3 第 4 条；竞态中写出的对象由 finalize-purge 第二遍列举清除）。
 3. 单事务：插入 `kind='auto'` 行（`contributors` 取 [11](11-ddl-collab-updates-and-snapshots.md) §8 的 e6）→ 更新 `documents` 的 M-09 列（`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at`，决策 C-03），`latest_snapshot_id` 按 11 §3 的 e8「只前进」条件移动 → 调用 MediaModule 的 `SyncDocumentMediaRefsUseCase`，按新快照的媒体引用集合（文档类型提供的 `BlobRef` 枚举，文档类型盲）维护 `document_media.detached_at`（决策 C-25；用例与 SQL 见 [04](04-modules-documents-storage-media.md) §7.4、[10](10-ddl-documents-marks-media.md)）。写行前校验租约 `stillHeld()`，失效则只记录不提交。写 `named`、`import`、`migration`、`restore`、`epoch` 快照的事务同样调用该用例（04 §7.4「写任何快照」）。
 4. 提交后就地裁剪：删 `seq ≤ 检查点指针所指快照.seq_upto` 且早于 `retention.updatesDays` 的行（11 §8 的 e5）。
 5. 提交后入队 `thumbnails` 作业 `invalidate {docId, snapshotId}`（jobId `thumbinv-{docId}-{snapshotId}`，[06](06-modules-jobs-import-export-thumbnails.md) §1、§11.1；collab 的 producer 部件，[01](01-service-overview-and-roles.md) §5）；这一步随服务端缩略图在 M3 前半段启用，M2 只有导入写入的包内封面、不入队。
@@ -460,8 +511,8 @@ flowchart TB
 
 元素删除在 CRDT 内是写 `_deleted = {at, by}` 墓碑（id 稳定，删除方撤销或「恢复元素」可复活，他人撤销不复活，rulings §4.15 Q3、§4.17 D4）。硬删除只有一条执行路径：本模块的 `tombstone-sweeper` + 租约单写者，不经 BullMQ（rulings §4.18 BE-19；原 30/08 的 `tombstone-purge` 队列作废）。
 
-- **TTL 清扫**：每 `tombstone.sweepIntervalMs`（10 min）对本实例每个 `active` Room 尝试取 `lock:tombstone:{docId}`；取到后经文档类型提供的墓碑枚举（文档类型盲）找出 `_deleted.at + tombstone.ttlHours < now` 的实体，在一个 `origin = system('maintenance')` 事务里先修复指向它们的引用（ADR-0034 修订：引用墓碑不算违规，目标被硬删除后才修复）、再硬删除；该事务走普通的写入器落库与广播，`user_id` 为 NULL。未再打开的文档在下次 `loading` 时顺带清扫一次。
-- **元素彻底删除**（rulings §4.18 CO-07）：`POST /documents/:id/elements/purge{ids}`（`DocRole(doc.manage)` 即仅 owner，`ids` ≤ 1,000，[15](15-rest-api-catalog.md) §3.7）→ `PurgeElementsUseCase` → `collabServer.purgeElements`：Room 未加载先加载 → 等待取得 `lock:tombstone:{docId}`（≤ 5 s，否则 503 可重试）→ 校验每个 id 都是墓碑态，任一不是则整批拒绝 `server.documents.element_not_tombstoned`（409，`details.ids`）→ 复用清扫的同一个硬删除事务立即执行 → 审计 `document.element_purged{docId, ids, actorId}`。只清当前状态：历史快照与 updates 按保留期存在，图片原件按引用 GC（决策 C-25）。删除方此后撤销该步按整步跳过（`wholeStep:true`），与 TTL 到期同一路径。
+- **TTL 清扫**：每 `tombstone.sweepIntervalMs`（10 min）对本实例每个 `active` Room 尝试取 `lock:tombstone:{docId}`；取到后经文档类型提供的墓碑枚举（文档类型盲）找出 `_deleted.at + tombstone.ttlHours < now` 的实体，在一个 `origin = system('maintenance')` 事务里先修复指向它们的引用（ADR-0034 修订：引用墓碑不算违规，目标被硬删除后才修复）、再硬删除；按 rulings §4.21 H:Q4 **先在复制文档（临时 Unit）上执行 → 经写入器落库（`user_id` 为 NULL）→ 再把同一 update 应用到 Room 并广播**（§5）。未再打开的文档在下次 `loading`（`onLoadDocument`）时顺带清扫一次。
+- **元素彻底删除**（rulings §4.18 CO-07）：`POST /documents/:id/elements/purge{ids}`（`DocRole(doc.manage)` 即仅 owner，`ids` ≤ 1,000，[15](15-rest-api-catalog.md) §3.7）→ `PurgeElementsUseCase` → `collabServer.purgeElements`：文档未加载时用 `hp.openDirectConnection` 打开（DirectConnection 的事务 origin 为 local，断开时立即存储并卸载，存储钩子只是压缩节拍、无副作用；证据 PS-06）→ 等待取得 `lock:tombstone:{docId}`（≤ 5 s，否则 503 可重试）→ 校验每个 id 都是墓碑态，任一不是则整批拒绝 `server.documents.element_not_tombstoned`（409，`details.ids`）→ 复用清扫的同一个硬删除事务立即执行（同样先在复制文档上执行并落库，再应用广播）→ 审计 `document.element_purged{docId, ids, actorId}`。只清当前状态：历史快照与 updates 按保留期存在，图片原件按引用 GC（决策 C-25）。删除方此后撤销该步按整步跳过（`wholeStep:true`），与 TTL 到期同一路径。
 - 客户端直接硬删实体（绕过墓碑）由软门禁计数并审计 `collab.hard_delete_bypass`，不修复；经上述 REST 的硬删不算旁路（ADR-0034 修订 2026-09-24）。文档级「永久删除文档」不走本节，见 §12。
 
 **图 5-6 墓碑 TTL 硬删除与 owner 发起的元素彻底删除**
@@ -480,8 +531,9 @@ sequenceDiagram
     L-->>S: 他实例是单写者，本轮跳过
   else 取得租约
     S->>R: 找出 _deleted.at 加 ttlHours 早于现在的实体
-    S->>R: 单事务 origin system maintenance，先修引用再硬删
-    R->>W: 普通落库与广播
+    S->>R: 在复制文档上执行单事务 origin system maintenance，先修引用再硬删
+    R->>W: 先落库
+    W-->>R: 提交后把同一 update 应用到 Room 并广播
   end
   O->>S: purgeElements，ids，已过 DocRole doc.manage
   S->>L: 等待 tombstone 租约，至多 5 s
@@ -489,13 +541,13 @@ sequenceDiagram
   alt 有非墓碑 id
     S-->>O: 409 server.documents.element_not_tombstoned，整批拒绝
   else 全是墓碑
-    S->>R: 复用同一硬删除事务，立即执行
-    R->>W: 落库与广播
+    S->>R: 复用同一硬删除事务，立即执行；文档未加载时 openDirectConnection
+    R->>W: 先落库，再应用到 Room 并广播
     S-->>O: 200 purged，审计 document.element_purged
   end
 ```
 
-怎么读：上半段是 TTL 到期的周期清扫，下半段是 owner 的立即删除；两者共用同一把租约与同一个硬删除事务，所以同一文档任何时刻只有一个硬删除执行者。硬删除产生的 update 与普通编辑一样落库、广播、扇出到其他副本。
+怎么读：上半段是 TTL 到期的周期清扫，下半段是 owner 的立即删除；两者共用同一把租约与同一个硬删除事务，所以同一文档任何时刻只有一个硬删除执行者。硬删除产生的 update 先落库、再应用到 Room 并广播、扇出到其他副本（2026-09-26 按 rulings §4.21 H:Q4 改为先落库后广播）。
 
 依据：rulings §4.15 Q3、§4.18 BE-19、CO-07；ADR-0025 决策 9；ADR-0034 修订 2026-09-24。
 
@@ -503,18 +555,18 @@ sequenceDiagram
 
 ### 9.1 schema 迁移
 
-`loading` 读到 `meta.schemaVersion` 低于当前时，持 `lock:migrate:{docId}`（决策 MECH-INC 中 INC-42 的键名）在 Room 的 Unit 上执行 `migrations.run`（`origin = system('migration')`），迁移事务走普通写入器落库，随后写 `kind='migration'` 快照并更新 `documents.schema_version`（`uq_document_snapshots_migration` 保证同一 schema 版本只落一次）。未取得租约说明另一实例正在迁移：本次加载按 1 s 间隔重试读取，至多 30 s，超时进入 `failed`（4503）。在线会话中客户端支持的 schema 低于迁移后版本的，以 4426（`collab.schema_too_new`）关闭，提示刷新。
+`loading`（`onLoadDocument`）读到 `meta.schemaVersion` 低于当前时，持 `lock:migrate:{docId}`（决策 MECH-INC 中 INC-42 的键名）在 Room 的 Unit 上执行 `migrations.run`（`origin = system('migration')`），迁移事务先经写入器落库（加载期的更新不触发 Hocuspocus 的 `onChange`，迁移产生的 update 由迁移执行器直接送写入器；此时还没有连接看到文档，先落库天然成立），随后写 `kind='migration'` 快照并更新 `documents.schema_version`（`uq_document_snapshots_migration` 保证同一 schema 版本只落一次）。未取得租约说明另一实例正在迁移：本次加载按 1 s 间隔重试读取，至多 30 s，超时进入 `failed`（4503）。在线会话中客户端支持的 schema 低于迁移后版本的，以 4426（`collab.schema_too_new`）关闭，提示刷新。
 
 ### 9.2 换纪元（epoch）
 
-纪元递增 = 旧的 Y 结构历史整体作废、换一份新的 Y.Doc（结构数超 5M 时的治理手段，30-architecture/06 §9.4；M2 起随网关提供监控与手动触发，不自动换纪元）。它与 `permVersion` 递增（只重算权限、不断连）语义分离、互不联动（rulings §4.11 C-17）。
+纪元递增 = 旧的 Y 结构历史整体作废、换一份新的 Y.Doc（结构数超 5M 时的治理手段，30-architecture/06 §9.4；M2 起随网关提供监控与手动触发，不自动换纪元）。**文档名随纪元**（2026-09-26，rulings §4.21，证据 K8-B）：Hocuspocus 的文档名为 `{docId}:{epoch}`（URL 仍是 `docId`，Auth token 带 `epoch`），新纪元天然是一个新文档，旧纪元文档在会话被 4428 关闭后自然排空、卸载，不存在「同名文档卸载与新加入竞态」；extension-redis 的频道随文档名隔离；压缩、墓碑清扫与溢写都按 `(docId, epoch)` 键。它与 `permVersion` 递增（只重算权限、不断连）语义分离、互不联动（rulings §4.11 C-17）。
 
 `POST /internal/admin/documents/:id/epoch`（内部端口 9464、运维令牌、只在 collab 装配，决策 INC-26；控制器归 InternalModule，[18](18-observability-and-ops-endpoints.md)）→ `collabServer.forceEpoch`：
 
 1. 持 `lock:epoch:{docId}`；要求本实例 `persist = ok` 且该文档无溢写，否则 409 可重试（旧纪元的溢写行回放时会被纪元栅栏丢弃，不能带着溢写换纪元）。
 2. 打开（或复用）Room，flush，读 `head_seq = H`、`epoch = E`；`exportSnapshot` 后导入全新 Y.Doc，`meta.epoch = E + 1`。
 3. 单事务：插入 `kind='epoch'` 快照（`seq_upto = H`、`epoch = E + 1`）→ `UPDATE documents SET epoch = E + 1, latest_snapshot_id = … WHERE id = $1 AND epoch = E AND head_seq = H`；更新 0 行说明第 2 步之后又有 update 落库，回滚并从第 2 步重试（≤ 3 次）。
-4. 提交后 `PUBLISH room:{docId}:ctl {op:'epoch', reason:'admin', epoch: E + 1}`；各实例以 4428（`collab.epoch_changed`）关闭会话、丢弃旧纪元 Room；本实例从新快照重新加载。客户端按 4428 丢弃本地 Y 状态、重新 bootstrap，pending 移入 `rejected` 并提供导出（决策 INC-06）。
+4. 提交后 `PUBLISH room:{docId}:ctl {op:'epoch', reason:'admin', epoch: E + 1}`；各实例的 `ControlPlane` 以 4428（`collab.epoch_changed`）关闭旧纪元文档 `{docId}:{E}` 的会话、丢弃该文档（不持久化）；客户端重连时以新文档名 `{docId}:{E+1}` 加入，由 `onLoadDocument` 从新快照加载。客户端按 4428 丢弃本地 Y 状态、重新 bootstrap，pending 移入 `rejected` 并提供导出（决策 INC-06）。
 5. 审计 `admin.epoch_forced`（登记见 [07](07-modules-comments-webhooks-audit.md)）。
 
 正确性不依赖控制频道：旧纪元副本即使没收到通知，其下一次取号也会因 `epoch = E` 不再成立而插入 0 行，写入方据此自行以 4428 关房（[11](11-ddl-collab-updates-and-snapshots.md) §5）；溢写回放按行内纪元过滤。加入时客户端须声明本地纪元，不符即拒（§3.1，协议字段见 [16](16-ws-protocol-server-view.md) §12）。
@@ -564,7 +616,7 @@ sequenceDiagram
 | 用例 | 能力位 | 机制 | 里程碑 |
 |---|---|---|---|
 | `ListSnapshotsQuery` | `history.read`（owner、editor，rulings §4.12 U-09） | 键集分页 `(seq_upto, id)` 降序，可按 `kind` 过滤；返回 `SnapshotMeta`，不含 `state_key`、`baseline_key` 等内部字段 | M3 |
-| `GetLatestSnapshotQuery` | `doc.read`（含链接角色） | 取 `latest_snapshot_id` 所指行的字节（zstd 压缩的 Y V2 update，原样返回，响应形态见 [15](15-rest-api-catalog.md) §3.8）：内联直接返回，否则从 `snapshots` 桶流式代理（不给预签名 URL，决策 MECH-INC 中 INC-14）；`ETag = snapshotId`，响应头 `X-Cordex-Epoch` 带 `documents.epoch`，客户端据此在 `auth.epoch` 声明本地纪元（[16](16-ws-protocol-server-view.md) §2）；尚无检查点 → 404 `server.snapshots.not_found`，客户端从空文档开始、经 WS 同步（§3.2） | M2 |
+| `GetLatestSnapshotQuery` | `doc.read`（含链接角色） | 取 `latest_snapshot_id` 所指行的字节（zstd 压缩的 Y V2 update，原样返回，响应形态见 [15](15-rest-api-catalog.md) §3.8）：内联直接返回，否则从 `snapshots` 桶流式代理（不给预签名 URL，决策 MECH-INC 中 INC-14）；`ETag = snapshotId`，响应头 `X-Cordex-Epoch` 带 `documents.epoch`，客户端据此在 `auth.epoch` 声明本地纪元（[16](16-ws-protocol-server-view.md) §2）；尚无检查点 → 404 `server.snapshots.not_found`（同样带 `X-Cordex-Epoch`，供客户端组 provider 文档名，2026-09-26 整合），客户端从空文档开始、经 WS 同步（§3.2） | M2 |
 | `GetSnapshotQuery` | `history.read` | 同上，按 id；快照内容不可变，可用长缓存；旧 schema 版本由客户端 `migrations` 透明迁移后预览（D6） | M3 |
 | `CreateNamedSnapshotUseCase` | `doc.manage` | Room 未开则先开（计入权重准入）；要求 `persist = ok`；flush 后按 §7 第 1–2 步补齐并编码，`put(kind='named', name, description)`，`contributors` 取上一快照之后的区间；不移动 `latest_snapshot_id`；上限每文档 200（`quota.namedSnapshotsPerDoc`，rulings §4.19 C-06，[11](11-ddl-collab-updates-and-snapshots.md) §2），超出 409 `server.snapshots.named_limit_reached`（非配额码：`*.quota_exceeded` 只用于 rulings §4.17 D2 三码，决策 MECH-INC 之 INC-12）；审计 `snapshot.created` | M3 |
 | `RestoreSnapshotUseCase` | `history.restore`（仅 owner） | 见下；恢复本身不加锁（rulings §4.19 N1）；文档因覆盖导入或迁移处于 `locked` 时，路由按 `write` 访问类先被 `DocumentStateGuard` 以 409 `server.documents.locked` 拒绝（[04](04-modules-documents-storage-media.md) 表 2-2） | M3 |
@@ -572,12 +624,12 @@ sequenceDiagram
 
 **恢复**（ADR-0025 决策 6：不回滚日志，恢复是一次新事务）：在接到请求的实例打开 Room 执行，其他副本经扇出收敛，在线客户端不断连。**恢复不加锁**（rulings §4.19 N1）：它是持有 Room 的 collab 进程内的单个事务，不调用 `LockDocumentUseCase`、不推 `room{locked}`，协作者在恢复期间照常编辑，其并发写入与恢复事务按 CRDT 合并（整体语义见 §11）；原写法「恢复属 ADR-0029 决策 5 的锁定窗口」作废。
 
-1. 打开或复用 Room；要求 `persist = ok`，否则 503 可重试（码名以 [15](15-rest-api-catalog.md) 为准）。
+1. 打开或复用 Room（文档未加载时用 `hp.openDirectConnection`）；要求 `persist = ok`，否则 503 可重试（码名以 [15](15-rest-api-catalog.md) 为准）。
 2. 数据安全兜底：若 `head_seq > 最新检查点.seq_upto`，先按 §7 落一个 `auto` 快照，让「恢复前」的状态出现在版本时间轴上（这不是撤销方案，见 §11）。
 3. 读目标快照，载入隔离的临时 Unit，必要时先迁移到当前 schema，得到 `targetBody`。
-4. `commands.execute(roomUnit, 'core.restoreVersion', { targetBody }, { principal: system })`：命令内部经文档类型的模型级 diff 生成一个事务（`origin = system('restore')`），应用到 Room 后由写入器落库（`user_id` = 执行恢复的用户）、广播、扇出。
+4. `commands.execute(copyUnit, 'core.restoreVersion', { targetBody }, { principal: system })`：命令内部经文档类型的模型级 diff 生成一个事务（`origin = system('restore')`）。按 rulings §4.21 H:Q4，该事务**先在由当前 Room 状态复制出的临时 Unit 上执行 → 经写入器落库（`user_id` = 执行恢复的用户）→ 再把同一 update 应用到 Room 并广播、扇出**（O(文档)，恢复是低频操作；原「应用到 Room 后由写入器落库」作废——Hocuspocus 对 Room 上的事务会立即广播，做不到先落库）。恢复与并发编辑按 CRDT 合并。
 5. 提交后写 `kind='restore'` 快照（`restored_from` = 目标、`created_by` 与 `contributors` = 执行者）并移动检查点指针；审计 `snapshot.restored`；返回新快照的 `SnapshotMeta`。
-6. 经 `FanoutBus` 向所有副本的在线会话发 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`（`snapshotId` 为新 `restore` 快照，`name` 为目标快照的命名，`by` 为执行者），客户端据此在版本面板与状态胶囊提示「已恢复到『X』」（[16](16-ws-protocol-server-view.md) §3；帧定义登记在 30-architecture/06 §6.3）。
+6. 以 `document.broadcastStateless` 向本实例在线会话发 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`（M3 起经 extension-redis 送达其他实例的会话；原「经 `FanoutBus`」作废）（`snapshotId` 为新 `restore` 快照，`name` 为目标快照的命名，`by` 为执行者），客户端据此在版本面板与状态胶囊提示「已恢复到『X』」（[16](16-ws-protocol-server-view.md) §3；帧定义登记在 30-architecture/06 §6.3）。
 
 **图 5-8 快照恢复**
 
@@ -597,15 +649,16 @@ sequenceDiagram
   end
   X->>T: 载入目标快照，必要时迁移到当前 schema
   T-->>X: targetBody
-  X->>X: core.restoreVersion，模型级 diff 生成单事务，origin system restore
-  X->>W: 与普通编辑同一写入器落库
-  W->>F: 广播与跨实例扇出，客户端不断连
+  X->>T: 复制当前 Room 状态，core.restoreVersion 生成单事务，origin system restore
+  T->>W: 先经写入器落库
+  W-->>X: 提交后把同一 update 应用到 Room
+  X->>F: 广播与跨实例扇出，客户端不断连
   X->>W: 写 restore 快照，restored_from 为目标，移动检查点指针
-  X-->>F: CONTROL.event version.restored，经扇出到所有副本
+  X-->>F: Stateless event version.restored，broadcastStateless
   X-->>U: 200 SnapshotMeta，审计 snapshot.restored
 ```
 
-怎么读：纵线是参与方，自上而下是时间。恢复不重写历史、不加锁、不断开任何连接：它和普通编辑一样是一次落库并广播的事务，只是由服务端以系统身份发起；`opt` 段是恢复前的数据安全快照。
+怎么读：纵线是参与方，自上而下是时间。恢复不重写历史、不加锁、不断开任何连接：它和普通编辑一样是一次落库并广播的事务，只是由服务端以系统身份发起，并且按 rulings §4.21 H:Q4 先在临时 Unit 上执行并落库、再应用到 Room 广播；`opt` 段是恢复前的数据安全快照。
 
 依据：ADR-0025 决策 6；40-modules/09 §4.4 `snapshot.service.ts`；rulings §4.18 BE-03、§4.19 N1。
 
@@ -626,8 +679,8 @@ PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M
 
 ## 13. 挂点
 
-- `collabServer.onPersisted(listener)`：每个批量事务提交后回调 `PersistedBatch = {docId, updates: [{seq, userId}], changeSets}`（`userId` 取该行 `document_updates.user_id`，服务端事务为 `null`；[07](07-modules-comments-webhooks-audit.md) 的 `comment.deleted`、`document.edited` 据此记审计主体），**只在执行落库的那个实例触发**（与「只持久化本实例客户端的 update」同一规则），因此订阅方对每个 update 恰好处理一次。服务端事务（修复、恢复、墓碑、迁移）由执行实例落库，同样只触发一次。
-- `CommentMirrorObserver` 只在 collab 注册（rulings §4.18 BE-03），经 `onPersisted` 观察 `resources['comments.threads']` 路径（ResourceHook `comments.threads`，内含 threads、replies 两张实体表；客户端插件为 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG；决策 INC-39），upsert 评论镜像、抽取提及、生产 Webhook 投递，并发出 `CONTROL.event{name:'comments.changed', payload:{threadIds}}`——该帧经 `FanoutBus` 扇出到所有副本的在线会话（[16](16-ws-protocol-server-view.md) §3）。镜像、提及与 Webhook 的全部设计在 [07](07-modules-comments-webhooks-audit.md)。
+- `collabServer.onPersisted(listener)`：每个批量事务提交后回调 `PersistedBatch = {docId, updates: [{seq, userId}], changeSets}`（`userId` 取该行 `document_updates.user_id`，服务端事务为 `null`；[07](07-modules-comments-webhooks-audit.md) 的 `comment.deleted`、`document.edited` 据此记审计主体），**只在执行落库的那个实例触发**（与「只持久化本实例客户端的 update」同一规则），因此订阅方对每个 update 恰好处理一次。服务端事务（修复、恢复、墓碑、迁移）由执行实例落库，同样只触发一次。2026-09-26 起不变：它由写入器的提交回调触发，与 Hocuspocus 的钩子无关（不借 `onChange` 或 `onStoreDocument`）。
+- `CommentMirrorObserver` 只在 collab 注册（rulings §4.18 BE-03），经 `onPersisted` 观察 `resources['comments.threads']` 路径（ResourceHook `comments.threads`，内含 threads、replies 两张实体表；客户端插件为 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG；决策 INC-39），upsert 评论镜像、抽取提及、生产 Webhook 投递，并发出 `CONTROL.event{name:'comments.changed', payload:{threadIds}}`——该帧以 `document.broadcastStateless` 发给本实例在线会话，M3 起经 extension-redis 送达其他副本的会话（[16](16-ws-protocol-server-view.md) §3、§11；原「经 `FanoutBus` 扇出」作废）。镜像、提及与 Webhook 的全部设计在 [07](07-modules-comments-webhooks-audit.md)。
 - 审计：门禁拒绝与修复经 `collab-server/update-rejected`、`collab-server/repair` 事件由 AuditModule 订阅；元素彻底删除与快照写动作用 `@Audited`（[07](07-modules-comments-webhooks-audit.md)）。
 
 ## 14. 事件、错误码与指标
@@ -659,14 +712,28 @@ PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M
 
 **指标与 span**：统一名表的唯一源是 [18](18-observability-and-ops-endpoints.md)（`cordex_<subsystem>_<name>_<unit>`，决策 METRICS）；本模块产出房间数与权重（`rooms_active`、`room_weight_bytes`）、在线用户与名额拒绝、持久化滞后、降级广播次数、溢写档位与二级字节、回放耗时、压缩次数、修复与拒绝计数、墓碑硬删除计数；span 为 `server.room.load`、`server.collab.update`、`server.snapshot.compact`、`server.collab.replay_spilled`。
 
+**采集挂点**（2026-09-26，证据 OB-01、OB-02；名称仍以 18 为准，不用 extension-logger）：
+
+| 数据 | 挂点 |
+|---|---|
+| 连接数、活跃房间数、七态分布 | `hp.getConnectionsCount()`、`hp.documents.size`、`RoomExtension` 维护的派生状态 |
+| 升级拒绝（400 / 403 / 429 / 503）、关闭码、帧字节、L1 拒绝 | apps/server 的 upgrade 处理与帧预过滤 |
+| L2 / L3 拒绝、连接污染次数、修复次数 | `GatePersistExtension`（`beforeSync`、`afterHandleMessage`） |
+| 持久化滞后、降级广播、溢写档位与字节、回放 | 写入器与溢写协调器 |
+| awareness 丢弃 | `beforeHandleAwareness` |
+| span `server.collab.session` | `onAuthenticate` 开启，以 Auth token 里的 `traceparent` 为父 |
+| span `server.room.load` | 包住 `onLoadDocument` |
+| span `server.collab.update` | 从 `beforeSync` 到 `afterHandleMessage` |
+
 ## 15. 机械验证
 
 本节只列断言；套件、层级、夹具与 CI 步骤见 [70/02](../70-testing/02-contract-suites-and-pluggability.md)（契约套件，`test/contract`）、[70/07](../70-testing/07-backend-integration-and-api-e2e.md)（集成，`test/server-integration`）、[70/05](../70-testing/05-collab-simulation-and-property-tests.md)（`test/collab-sim`）、[70/09](../70-testing/09-performance-and-capacity.md)（`perf/perf-collab`、`perf/perf-server`）。
 
 | 断言 | 落点 |
 |---|---|
-| `runCollabServerConformance`（`createServerCluster(n)` 内存实现）：两实例按 `instanceId` 去重扇出；崩溃后客户端重发幂等；step2 空差量也恰好回一帧 `tier:'db'` 且 `seq = head`（CO-10）；PG 断开时两客户端互见编辑、≤ 1 s 收到 `room.persist = degraded`、恢复后收到 `ok` 且 seq 连续无重复（CO-08、INC-09）；准入先回收 `draining` 房间再驱逐（CO-14）；链接会话三场景：他人改权限不踢、撤销 ≤ 1 s 降权、到期主动降权（BE-02）；`purging` 拒绝加入且在线编辑中永久删除后无 update 落库（BE-15）；换纪元后旧会话收 4428、旧纪元 update 插入 0 行 | `test/contract` |
-| 七套 Definition 套件（Update / Snapshot / Spill / FanoutBus / LeaseLock + CollabServer，另 BlobStore）由各 Provider 的 `__tests__` 实例化，`scan-manifest` 规则 (e) 核对 | `test/contract`、`scanners/scan-manifest --check` |
+| `runCollabServerConformance`（2026-09-26：`createServerCluster(n)` = n 个 Hocuspocus 实例 + extension-redis 或内存 pub/sub 替身，网络换内存 `WebSocketLike`）：两实例状态向量收敛（原「按 `instanceId` 去重扇出」作废）；钩子注入异常与 Valkey 宕机都不杀进程；L2 拒绝一帧后同一连接后续写入帧不落库、不回 ack（vB 回归）；崩溃后客户端重发幂等；step2 空差量也恰好回一帧 `tier:'db'` 且 `seq = head`（CO-10）；PG 断开时两客户端互见编辑、≤ 1 s 收到 `room.persist = degraded`、恢复后收到 `ok` 且 seq 连续无重复（CO-08、INC-09）；准入先回收 `draining` 房间再驱逐（CO-14）；链接会话三场景：他人改权限不踢、撤销 ≤ 1 s 降权、到期主动降权（BE-02）；`purging` 拒绝加入且在线编辑中永久删除后无 update 落库（BE-15）；换纪元后旧会话收 4428、旧纪元 update 插入 0 行 | `test/contract` |
+| 七套 Definition 套件（Update / Snapshot / Spill / FanoutBus / LeaseLock + CollabServer，另 BlobStore）由各 Provider 的 `__tests__` 实例化，`scan-manifest` 规则 (e) 核对；`runFanoutBusConformance` 2026-09-26 起只覆盖控制频道 | `test/contract`、`scanners/scan-manifest --check` |
+| Hocuspocus 挂点（2026-09-26）：`beforeSync` 注入 300 ms 延迟时对端在落库后才看到更新；`onStoreDocument` 失败不影响已 ack 内容（反例 exp2）；有内存档时文档不被卸载、回放后卸载；`onLoadDocument` 末尾 `flush()` 后首个连接不多收整文档 update；恢复事务的 update 行先于广播落库且 `user_id` 为执行者；换纪元后旧纪元文档名的会话收 4428、新文档名从新快照加载 | `test/contract`、`test/server-integration` |
 | 准入 Lua 原子性：真实 Valkey 上 25 个编辑者并发加入同一文档（分布在 2 个实例），恰好 20 个得到 `editors`、5 个 `capacity`；同一用户两标签页只占 1 名额；owner 不占名额；崩溃实例 60 s 后名额释放 | `test/server-integration` |
 | 多副本压缩不丢内容：实例 B 落库后立即由实例 A 压缩，裁剪后从库重建的状态与两副本一致（§7 第 1 步） | `test/server-integration` |
 | 两级溢写：一级 → 二级切换阈值、spill ack 不清 pending、回放由 PG 分配 seq、回放后无 `pendingStructs`；两实例各自只回放本实例行无重复；实例下线后由新加载的 Room 持 `lock:spill` 认领；SIGTERM 且 PG 不可达时 30 s 内写一级溢写后退出（CO-16） | `test/server-integration`（故障注入） |

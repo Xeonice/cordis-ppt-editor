@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Slider } from "@/components/ui/slider"
 import {
-  AppBar, CanvasElementBox, ColorPickerPopover, CommentPin, DesignBar, EditorRibbon, Inspector,
+  AppBar, CanvasElementBox, ColorPickerPopover, CommentPin, DesignBar, EditorRibbon, Inspector, MiniToolbar,
   MixedValueField, NotesBar, NumberField, PresenceStack, PropertyRow, PropertyRowPair, RemoteCursor,
   RemoteSelectionBox, ReviewToolbar, ReviewToolbarSeparator, RibbonTrailing, SelectionBox, SlideCanvas, StatusBar,
   StatusText, ThumbnailRail,
@@ -351,7 +351,8 @@ export function EditorMain() {
             <span className="ml-0.5 inline-block h-5 w-px animate-pulse bg-primary" aria-hidden="true" />
           </CanvasElementBox>
           <CanvasElementBox box={{ x: 120, y: 272, w: 700, h: 36 }} className="flex items-center text-base text-doc-ink/80">重点客户续约率达 95%</CanvasElementBox>
-          <EditingToolbar x={470} y={222} />
+          {/* 锚在正在编辑的第二行右上方：首行文字只到约 x 390，工具条（屏幕尺寸）不盖住它 */}
+          <EditingToolbar x={560} y={222} />
         </>
       )
     }
@@ -379,13 +380,14 @@ export function EditorMain() {
   }
 }
 
+/** 文本编辑迷你工具条：与 03-16 同一个 MiniToolbar（屏幕坐标覆盖层，字号 12 px，不随画布缩放） */
 function EditingToolbar({ x, y }: { x: number; y: number }) {
   return (
-    <div className="glass-strong absolute z-20 flex -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center gap-1 rounded-xl p-1" style={{ left: x, top: y }}>
-      <span className="px-1.5 text-[11px] text-muted-foreground">微软雅黑</span>
-      <span className="px-1 text-[11px] text-muted-foreground">18</span>
-      <Sparkles className="size-3.5 text-muted-foreground" aria-hidden="true" />
-    </div>
+    <MiniToolbar x={x} y={y}>
+      <span className="px-1.5 text-xs text-foreground/80">微软雅黑</span>
+      <span className="px-1 text-xs text-muted-foreground tabular-nums">18</span>
+      <span className="flex size-6 items-center justify-center" aria-hidden="true"><Sparkles className="size-3.5 text-muted-foreground" /></span>
+    </MiniToolbar>
   )
 }
 

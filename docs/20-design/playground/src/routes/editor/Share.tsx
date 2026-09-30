@@ -225,7 +225,13 @@ export function EditorShare() {
                 <p className="mb-2 text-sm font-medium">通过链接分享</p>
                 <div className="flex items-center gap-2">
                   <Link2 className="size-4 shrink-0 text-muted-foreground" />
-                  <Input readOnly value="https://cordex.example.com/d/8f2a91c" className="flex-1 font-mono text-xs" aria-label="分享链接" />
+                  <Input
+                    readOnly
+                    value="https://cordex.example.com/d/8f2a91c"
+                    // md:text-xs：覆盖 shadcn Input 基础类里的 md:text-sm，链接字段在桌面宽度下同为 12px（09 §3「字段 h-7 text-xs」；高度保持 h-8，与右侧「复制链接」按钮对齐）
+                    className="flex-1 font-mono text-xs md:text-xs"
+                    aria-label="分享链接"
+                  />
                   <Button
                     variant="outline"
                     disabled={demoState === "offline"}

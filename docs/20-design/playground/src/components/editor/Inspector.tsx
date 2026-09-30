@@ -140,7 +140,8 @@ export function NumberField({
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         inputMode="decimal"
-        className={cn("h-7 pr-6 text-xs tabular-nums", className)}
+        // md:text-xs：覆盖 shadcn Input 基础类里的 md:text-sm，检查器字段在桌面宽度下同为 12px（09 §3 属性行「字段 h-7 text-xs」）
+        className={cn("h-7 pr-6 text-xs md:text-xs tabular-nums", className)}
         {...props}
       />
       {suffix && <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs text-muted-foreground">{suffix}</span>}
@@ -149,7 +150,7 @@ export function NumberField({
 }
 
 export function MixedValueField({ placeholder = "多个值" }: { placeholder?: string }) {
-  return <Input value="" placeholder={placeholder} readOnly className="h-7 text-xs text-muted-foreground italic" />
+  return <Input value="" placeholder={placeholder} readOnly className="h-7 text-xs md:text-xs text-muted-foreground italic" />
 }
 
 export function InspectorEmptyHint({ children }: { children: ReactNode }) {

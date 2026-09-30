@@ -12,7 +12,7 @@ import { findShape, ShapeThumb, type ShapePreset } from "@/components/editor/rib
 import { collaborators, documentTitle, slides } from "@/lib/mock-data"
 
 /**
- * 03-screens/04、15 插入页签与形状库（rulings §4.21 样张，设计文档待用户确认后回写）。
+ * 03-screens/04、15 插入页签与形状库（rulings §4.21 样张；设计文档已回写：03-04、03-15，2026-09-30）。
  * 演示状态：插入页签七组 · 形状库 72 项 · 插入工具态 · 动作按钮操作设置 · 页眉和页脚 · 图标 · 符号 · P2 禁用原因，
  * 以及原有的上传中 / 变换手柄 / 只读。弹层由演示状态受控打开；在弹层里的操作只覆盖本次演示，切换演示状态即复位。
  */

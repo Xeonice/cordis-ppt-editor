@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15：D7 结案；T-0 / Q3 / Q5 / Q6 / Q7 / Q8 回写 02、04、05、07、03-screens/01、06、08、10、11、12、13、18、19、22、29）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15：D7 结案；T-0 / Q3 / Q5 / Q6 / Q7 / Q8 回写 02、04、05、07、03-screens/01、06、08、10、11、12、13、18、19、22、29）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-30（§4.21 剩余缺口样张回写：界面文档由 29 份增至 31 份——新增 `03-screens/30-table-editing.md` 表格编辑（G-32 / G-62）与 `31-chart-editing.md` 图表编辑（G-63），`16` 补空内容占位符图标条（G-80）与日期和时间格式选择器（G-81）；§2.1 计数、§3 阅读指引与推荐阅读顺序图、§8 v2 遗留缺口注记同步；playground 登记 22 条路由） | 依赖：charter v0.1（已核对 v0.2）、PRD（`10-prd/`，含 `03-features/07-masters-layouts-and-themes.md`、`08-app-shell.md`）、架构 03/README（`30-architecture/`）、rulings §4.7–§4.10
 > 章程已升至 v0.2（向后兼容、只增不改语义，见 `00-charter/charter.md` 顶部变更说明）；本文档集已核对 v0.2 新增内容（`preset-slide-viewer`、Q20、§5.5 贡献点 id 定稿等）并按其更新，状态头按章程原文约定继续标注「charter v0.1」，无需重写。
 
 # 设计条线总览
@@ -25,7 +25,7 @@
 ### 2.1 覆盖范围
 
 - 编辑器信息架构、三种模式（编辑/评审/放映）、关键用户流程（打开/编辑/协同/软冲突/离线/导出/评论/版本历史/插件生命周期）。
-- 29 份界面文档（`03-screens/01`–`29`，2026-09-17 新增 `29-home-start-page.md` 应用首页 / 开始页）的线框、全部状态与边界情况；组件规格以 09 v3.1 与 `playground/` 为准。
+- 31 份界面文档（`03-screens/01`–`31`，2026-09-17 新增 `29-home-start-page.md` 应用首页 / 开始页；2026-09-30 按 rulings §4.21 样张新增 `30-table-editing.md` 表格编辑、`31-chart-editing.md` 图表编辑）的线框、全部状态与边界情况；组件规格以 09 v3.1 与 `playground/` 为准。
 - 设计 token 体系与组件清单，覆盖亮/暗主题与两档密度（04-design-system.md）。
 - 协同 UX 的完整规格：presence、远端光标/选区、跟随模式、软冲突可视化（覆盖 PRD CO-08 全部 11 种场景）、会话状态指示、评论锚定与脱离锚点态、版本历史、权限变化反馈（05-collaboration-ux.md）。
 - 插件 UI 贡献的槽位规范：与架构 03 §3.6 贡献点总表、产品 PS-02 贡献点目录逐一对应（06-extensibility-ux.md）。
@@ -36,7 +36,7 @@
 
 ### 2.2 明确不覆盖（超出本轮范围）
 
-- 高保真视觉设计（色彩/字体的品牌化打磨）——**2026-09-15 起解除**：先由 `mockups/`（已退役）过渡，现由 `playground/`（shadcn Rhea + Liquid Glass 材质层，`registry.ts` 19 条路由全部 ready）承担全部界面的视觉终稿；界面文档保留线框、状态与交互说明。
+- 高保真视觉设计（色彩/字体的品牌化打磨）——**2026-09-15 起解除**：先由 `mockups/`（已退役）过渡，现由 `playground/`（shadcn Rhea + Liquid Glass 材质层，`registry.ts` 22 条路由全部 ready，2026-09-30 计）承担全部界面的视觉终稿；界面文档保留线框、状态与交互说明。
 - 移动端原生 App；编辑类触控手势的完整规格（NF-07：触控编辑为 M4+/P2，本轮只做查看/评论的触控适配）。
 - 插件市场/发现型 UI（区别于本轮已设计的"已安装插件管理"，03-screens/09）。
 - 大规模只读广播（"1 人讲、200 人看"，PRD CO-14，P2/M4+）的专属 UI。
@@ -53,7 +53,7 @@
 2. `04-design-system.md` —— token 体系是后续一切界面规格的词汇表。
 3. `06-extensibility-ux.md` —— 理解插件如何贡献 UI，这是"每一级可插拔"在设计层面的落实，与架构 03 §3.6 互为镜像。
 4. `02-user-flows.md` —— 关键流程，建立"事情是怎么发生的"的时间线视角。
-5. `03-screens/*.md` —— 逐个界面的线框、状态、边界情况，前端可直接对照开工。**2026-09-15 新增 13–25**（`13-import-progress-and-degraded-states.md`、`14-slide-management-and-layouts.md`、`15-insert-menu-and-shape-library.md`、`16-text-editing-and-formatting.md`、`17-selection-alignment-and-snapping.md`、`18-image-editing.md`、`19-undo-redo-clipboard-and-save-state.md`、`20-view-zoom-and-navigation.md`、`21-find-and-replace.md`、`22-export-dialog.md`、`23-settings-panel.md`、`24-keyboard-shortcuts-panel.md`、`25-viewer-preset-shell.md`），覆盖 `10-prd/07-design-coverage-and-gaps.md` 的 M1/M2 P0 缺口；原有 `03`（属性面板）、`05`（上下文菜单）、`06`（评论面板）、`09`（插件管理器）、`12`（离线/冲突横幅）在文末各追加一节"补充（G-xx）"，不改动原有正文。**2026-09-15 同轮再新增 26–28**（`26-master-view-and-editing.md`、`27-layout-picker-and-reset.md`、`28-design-tab-and-themes.md`，对应产品线并行撰写中的 `10-prd/03-features/07-masters-layouts-and-themes.md` ML-01–04），三份均含"设计规格"与"应用的 UX 规则"小节；原有 `02`、`03`、`14`、`20` 同样各追加一节"补充/更新"指向母版视图的衔接点，`01-information-architecture.md` 新增"§5a 视图模式：普通/母版"，`02-user-flows.md` 新增"F10 母版视图与版式/主题管理"与对应的 `F-P16`，`06-extensibility-ux.md` 新增"§2.10a 母版视图下的贡献点"。**2026-09-17 新增 29**（`29-home-start-page.md`，应用首页 / 开始页，对应 PRD `08-app-shell.md` AS-01…06、09 T-07、playground `#/home`）；界面文档共 **29 份**。**2026-09-18**：`26` / `01` / `02` / `06` 按 rulings §4.10 回写（母版视图 = 同一个编辑器、母版缩略图窗格、`Mod+Alt+M`、Q11–Q13 / Q16 / Q18 / Q20）。
+5. `03-screens/*.md` —— 逐个界面的线框、状态、边界情况，前端可直接对照开工。**2026-09-15 新增 13–25**（`13-import-progress-and-degraded-states.md`、`14-slide-management-and-layouts.md`、`15-insert-menu-and-shape-library.md`、`16-text-editing-and-formatting.md`、`17-selection-alignment-and-snapping.md`、`18-image-editing.md`、`19-undo-redo-clipboard-and-save-state.md`、`20-view-zoom-and-navigation.md`、`21-find-and-replace.md`、`22-export-dialog.md`、`23-settings-panel.md`、`24-keyboard-shortcuts-panel.md`、`25-viewer-preset-shell.md`），覆盖 `10-prd/07-design-coverage-and-gaps.md` 的 M1/M2 P0 缺口；原有 `03`（属性面板）、`05`（上下文菜单）、`06`（评论面板）、`09`（插件管理器）、`12`（离线/冲突横幅）在文末各追加一节"补充（G-xx）"，不改动原有正文。**2026-09-15 同轮再新增 26–28**（`26-master-view-and-editing.md`、`27-layout-picker-and-reset.md`、`28-design-tab-and-themes.md`，对应产品线并行撰写中的 `10-prd/03-features/07-masters-layouts-and-themes.md` ML-01–04），三份均含"设计规格"与"应用的 UX 规则"小节；原有 `02`、`03`、`14`、`20` 同样各追加一节"补充/更新"指向母版视图的衔接点，`01-information-architecture.md` 新增"§5a 视图模式：普通/母版"，`02-user-flows.md` 新增"F10 母版视图与版式/主题管理"与对应的 `F-P16`，`06-extensibility-ux.md` 新增"§2.10a 母版视图下的贡献点"。**2026-09-17 新增 29**（`29-home-start-page.md`，应用首页 / 开始页，对应 PRD `08-app-shell.md` AS-01…06、09 T-07、playground `#/home`）；界面文档共 **29 份**。**2026-09-18**：`26` / `01` / `02` / `06` 按 rulings §4.10 回写（母版视图 = 同一个编辑器、母版缩略图窗格、`Mod+Alt+M`、Q11–Q13 / Q16 / Q18 / Q20）。**2026-09-30 新增 30–31**（rulings §4.21 剩余缺口样张回写）：[`30-table-editing.md`](03-screens/30-table-editing.md) 表格编辑（G-32 插入与单元格文本 M2、G-62 结构与样式 M3，playground `#/editor/table`）、[`31-chart-editing.md`](03-screens/31-chart-editing.md) 图表编辑（G-63 插入图表与数据编辑 M3，playground `#/editor/chart`）；[`16`](03-screens/16-text-editing-and-formatting.md) 补空内容占位符图标条（G-80）与文本编辑态的日期和时间格式选择器（G-81）；界面文档共 **31 份**。
 6. `playground/` —— **2026-09-15 起唯一设计基准**：shadcn/ui + Tailwind 实现的真实组件页面（`npm install && npm run build`，或直接看已发布的 artifact）；`mockups/*.html` 与 `prototype/index.html` 均已退役，仅作历史静态稿。
 7. `05-collaboration-ux.md` —— 协同相关的横切规格（presence、软冲突、会话状态）。
 8. `07-accessibility-and-i18n.md` —— 横切的无障碍与国际化规则。
@@ -68,7 +68,7 @@ flowchart TB
   r2["2 · 04 设计系统：后续一切界面规格的 token 词汇表"]
   r3["3 · 06 扩展性 UX：插件如何贡献 UI，与架构 03 §3.6 互为镜像"]
   r4["4 · 02 用户流程：事情是怎么发生的时间线"]
-  r5["5 · 03-screens 01–29：逐界面线框、状态、边界情况"]
+  r5["5 · 03-screens 01–31：逐界面线框、状态、边界情况"]
   r6["6 · playground：唯一设计基准"]
   r7["7 · 05 协同 UX：presence、软冲突、会话状态"]
   r8["8 · 07 无障碍与国际化"]
@@ -177,7 +177,7 @@ flowchart TB
 - **界面文档**：新增 13 份（`03-screens/13`–`25`，覆盖 M1/M2 P0 缺口 G-01/02/03/04/05/06/10–27/30/31）；既有 `03`、`05`、`06`、`09`、`12` 各追加一节"补充（G-xx）"（不改动原文）；`02-user-flows.md` 新增"F-P 原型 v2 流程映射"小节，`01-information-architecture.md` 新增"§9 原型 v2 路由表"。
 - **原型 v2**：`prototype/index.html` 由 v1 的 1,020 行单屏演示重写为 1,537 行、**15 个 hash 路由**（14 个产品/流程路由 + 1 个元信息导航目录，见 08 文档 §4.2 路由表）+ 共享外壳 + 每路由状态切换器（原型控制条"状态"下拉，泛化自 v1 的"连接状态"选择器模式）；新增"视口宽度"（1024/400px 模拟，无需真实缩放窗口）与"角色预设"（owner/editor/commenter/viewer）两个原型控制条开关（07 §3 要求）；新增"软冲突演示"开关，覆盖 CO-08 场景 B/C/D 三种 P0 高频场景为可点击（其余场景按总编排裁决 08 §6 Q1 作静态帧处理，未逐一实现）。硬性约束（图标 sprite 复用、无 emoji、token 化、命中区、可见标签、可撤销 toast、dialog/tab/menu 语义、reduced-motion、无 alert/confirm/下载）已用脚本复核：标签配对/JS 语法/id 唯一性通过，裸 hex 与 <11px 字号已清零。
 - **15 条流程（07 §3 F-P01–15）覆盖程度**：F-P07 导出、F-P08 评论、F-P11 版本历史、F-P13 放映、F-P14 系统面板为完整可点击闭环；F-P01 打开（含保真报告真实入口）、F-P02 幻灯片管理、F-P03 插入与撤销重做、F-P09 协同软冲突（3 场景）、F-P10 离线重连降权、F-P12 分享权限、F-P15 查看器壳为可点击但简化（如页面拖拽重排以点击/右键菜单替代真实拖拽）；F-P04 查找替换、F-P05 图片裁剪、F-P06 多选框选与参考线为按钮触发的提示/单帧演示，未做完整交互序列。
-- **仍未覆盖/简化的缺口（供下一轮跟进）**：表格结构编辑（G-32/62）与图表数据编辑（G-63）未建独立界面文件与路由，仅在 PRD 缺口清单中登记；协作者规模折叠规则（05 §1a，C-01/C-02）与画布框选/智能参考线（G-17）在原型中为单一静态状态，未随"视口宽度/角色预设"之外的维度联动；登录鉴权页（G-66）、开发者面板（G-44/67）、回收站（G-64）、演讲者视图（D3，按产品默认答案本轮不做）未纳入本轮路由。
+- **仍未覆盖/简化的缺口（供下一轮跟进）**：表格结构编辑（G-32/62）与图表数据编辑（G-63）未建独立界面文件与路由，仅在 PRD 缺口清单中登记（→ 2026-09-30 已补：`03-screens/30`、`31` 与 playground `#/editor/table`、`#/editor/chart`）；协作者规模折叠规则（05 §1a，C-01/C-02）与画布框选/智能参考线（G-17）在原型中为单一静态状态，未随"视口宽度/角色预设"之外的维度联动；登录鉴权页（G-66）、开发者面板（G-44/67）、回收站（G-64）、演讲者视图（D3，按产品默认答案本轮不做）未纳入本轮路由。
 
 ### v3 变更（2026-09-15，ui-ux-pro-max skill 驱动的高保真设计稿 + 母版）
 

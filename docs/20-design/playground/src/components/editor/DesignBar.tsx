@@ -68,7 +68,7 @@ export function DesignBar({
         {extra}
         {stateOptions && stateOptions.length > 0 && (
           <Select value={state} onValueChange={onStateChange}>
-            <SelectTrigger size="sm" className="w-44" aria-label="演示状态">
+            <SelectTrigger size="sm" className="w-auto min-w-44 max-w-64" aria-label="演示状态">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

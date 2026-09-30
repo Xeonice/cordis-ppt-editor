@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -8,36 +8,27 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-
-/** 样张固定日期，保证截图稳定；产品取当前时间 */
-const SAMPLE_DATE = new Date(2026, 8, 26, 15, 5)
-const langs = [{ v: "zh-CN", l: "简体中文" }, { v: "en-US", l: "English (US)" }, { v: "ja-JP", l: "日本語" }]
-const formats: Intl.DateTimeFormatOptions[] = [
-  { dateStyle: "short" },
-  { year: "numeric", month: "long", day: "numeric" },
-  { dateStyle: "full" },
-  { month: "long", day: "numeric" },
-  { dateStyle: "medium", timeStyle: "short" },
-  { timeStyle: "short" },
-]
+import { DATETIME_LANGS, DEFAULT_DATETIME_LANG, datetimeFormatsFor, findDatetimeFormat } from "./datetime-formats"
 
 /**
  * 插入 › 文本 › 页眉和页脚…（rulings §4.21 R-d-70：M2 P2，命令 slide.setHeaderFooter；母版侧复选 M3）。
- * 日期和时间（自动：格式 + 语言，映射 datetime1..13；固定：文本）· 幻灯片编号 · 页脚文字 · 标题幻灯片中不显示；
+ * 日期和时间（自动：格式 + 语言，列所选语言的 13 种 datetimeN，与文本编辑态「日期和时间」选择器共用 datetime-formats 一张表，
+ * 存格式编码而非下标，默认第一种；固定：文本）· 幻灯片编号 · 页脚文字 · 标题幻灯片中不显示；
  * 右侧预览标出三个页脚族占位符的位置（启用 = 实线主色、关闭 = 虚线）；「应用」只作用于所选页，「全部应用」作用于全部页，
  * 一个事务、一个撤销步。页脚族占位符按确定性 id 生成（R-d-70）。
  */
 export function HeaderFooterDialog({ open, onOpenChange, selectedCount = 1, totalCount = 12 }: { open: boolean; onOpenChange: (v: boolean) => void; selectedCount?: number; totalCount?: number }) {
   const [dateOn, setDateOn] = useState(true)
   const [mode, setMode] = useState("auto")
-  const [fmt, setFmt] = useState("1")
-  const [lang, setLang] = useState("zh-CN")
-  const [fixed, setFixed] = useState("2026/9/26")
+  const [lang, setLang] = useState(DEFAULT_DATETIME_LANG)
+  const [code, setCode] = useState(() => datetimeFormatsFor(DEFAULT_DATETIME_LANG)[0]!.code)
+  const [fixed, setFixed] = useState(() => datetimeFormatsFor(DEFAULT_DATETIME_LANG)[0]!.text)
   const [numOn, setNumOn] = useState(true)
   const [footOn, setFootOn] = useState(true)
   const [foot, setFoot] = useState("2026年Q2业绩汇报 · 内部资料")
   const [hideTitle, setHideTitle] = useState(true)
-  const samples = useMemo(() => formats.map((f) => new Intl.DateTimeFormat(lang, f).format(SAMPLE_DATE)), [lang])
+  const formats = datetimeFormatsFor(lang)
+  const current = findDatetimeFormat(lang, code)
   const apply = (all: boolean) => {
     onOpenChange(false)
     toast(`已更新${all ? `全部 ${totalCount} 页` : `所选 ${selectedCount} 页`}的页眉和页脚`, { action: { label: "撤销", onClick: () => toast.success("已撤销") } })
@@ -58,13 +49,13 @@ export function HeaderFooterDialog({ open, onOpenChange, selectedCount = 1, tota
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="auto" id="hf-auto" />
                 <Label htmlFor="hf-auto" className="w-16 shrink-0 font-normal">自动更新</Label>
-                <Select value={fmt} onValueChange={setFmt} disabled={!dateOn || mode !== "auto"}>
+                <Select value={current.code} onValueChange={setCode} disabled={!dateOn || mode !== "auto"}>
                   <SelectTrigger className="min-w-0 flex-1" aria-label="日期格式"><SelectValue /></SelectTrigger>
-                  <SelectContent>{samples.map((s, i) => <SelectItem key={i} value={String(i)}>{s}</SelectItem>)}</SelectContent>
+                  <SelectContent>{formats.map((f) => <SelectItem key={f.code} value={f.code}>{f.text}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={lang} onValueChange={setLang} disabled={!dateOn || mode !== "auto"}>
-                  <SelectTrigger className="w-28 shrink-0" aria-label="日期语言"><SelectValue /></SelectTrigger>
-                  <SelectContent>{langs.map((x) => <SelectItem key={x.v} value={x.v}>{x.l}</SelectItem>)}</SelectContent>
+                  <SelectTrigger className="w-32 shrink-0" aria-label="日期语言"><SelectValue /></SelectTrigger>
+                  <SelectContent>{DATETIME_LANGS.map((x) => <SelectItem key={x.v} value={x.v}>{x.l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="flex items-center gap-2">
@@ -95,7 +86,7 @@ export function HeaderFooterDialog({ open, onOpenChange, selectedCount = 1, tota
               <PreviewSlot on={numOn} className="right-[5%] w-[12%]" />
             </div>
             <p className="text-2xs leading-4 text-muted-foreground">
-              {[dateOn && (mode === "auto" ? samples[Number(fmt)] : fixed), footOn && foot, numOn && "4"].filter(Boolean).join(" · ") || "不显示页脚"}
+              {[dateOn && (mode === "auto" ? current.text : fixed), footOn && foot, numOn && "4"].filter(Boolean).join(" · ") || "不显示页脚"}
             </p>
           </figure>
         </div>

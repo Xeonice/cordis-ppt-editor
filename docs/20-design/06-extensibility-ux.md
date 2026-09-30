@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20：FE-15 `selectionKind` 不另增 placeholder，改指前缀键 `slide.placeholderSelected`） | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20：FE-15 `selectionKind` 不另增 placeholder，改指前缀键 `slide.placeholderSelected`）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§2.6 图表迷你工具条的槽位示例改为 `toolbar.chart`，与 03-03、03-31 一致） | 依赖：charter v0.1（已核对 v0.2，D10 shadcn Rhea + Lucide）；09 v3.0 S-05 / T-02；PRD ML-01；rulings §4.7 / §4.8 / §4.10
 > **2026-09-18 修订说明**：§2.1 图标家族改为 Lucide 线性（随 shadcn Rhea，原 Phosphor 家族作废；`@cordexjs/design/icons` 仍可作为包装层）；§2.10a 按"母版视图是同一个编辑器"改写（只在页签集合最左插入「母版」并隐藏「设计」，其余页签照常；检查器仅禁用评论；`viewMode` 条件由贡献自行声明、未声明者两种视图都生效；`selectionKind` 不收窄）。
 
 # 06 扩展性 UX（插件如何贡献 UI）
@@ -218,7 +218,7 @@ flowchart TB
 
 ```ts
 interface ToolbarContribution extends UiContributionBase {
-  slot: string                     // 上下文锚点，如 'text-editing' | 'image-selected' | 'chart-selected'
+  slot: string                     // 上下文锚点，如 'text-editing' | 'image-selected' | 'toolbar.chart'（原 'chart-selected'，按前端 50/10 §5 的 toolbar.<selectionKind> 命名）
   commandId: string
 }
 ```

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20 FE-08） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20 FE-08）；2026-09-30（§4.21 剩余缺口样张回写：§9 路由表与路由树补 `#/editor/table`（03-screens/30 表格编辑）、`#/editor/chart`（03-screens/31 图表编辑），并补登此前漏列的 `#/editor/fidelity`（03-screens/10），与 `registry.ts` 22 条对齐；`#/editor/text` 行补空内容占位符图标条与日期和时间格式选择器） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
 > **2026-09-18 修订说明**：按 rulings §4.10 与 playground 回写——§1 应用壳补开始页 `#/home`（PRD AS-01…06）；§2.1 / §2.2 / §4 应用栏「返回首页」、「⋯」更多菜单与账户头像（Q14 / Q20）；§2.4 / §5a 母版视图改为"同一个编辑器"（母版页签置首、五组、其余页签照常、母版缩略图窗格、Ribbon 分段主入口、`Mod+Alt+M`、检查器仅禁评论、评审 / 窄屏不提供入口，Q12）；§8.1 查看器补可选缩略图条与备注抽屉（Q18）；§9 路由表与 `registry.ts` 19 条对齐（删除已退役原型的 `text-editing` / `pages`）。
 
 # 01 信息架构（Information Architecture）
@@ -340,7 +340,7 @@ flowchart TB
 
 ---
 
-## 9. playground 路由表（2026-09-18 与 `playground/src/routes/registry.ts` 对齐，登记 19 条）
+## 9. playground 路由表（2026-09-18 与 `playground/src/routes/registry.ts` 对齐，登记 19 条；2026-09-30 补表格、图表两条并补登此前漏列的 `#/editor/fidelity`，共 22 条）
 
 `playground/`（Vite + React + shadcn Rhea）是唯一设计基准（09 §5），hash 路由用于逐界面审阅本文件定义的区域/模式在不同界面下的具体状态；路由本身**不是**产品真实信息架构的一部分（产品中检查器坞的评论/历史/插件仍是同一编辑器实例内的 Tab，见 §2.3），只是为便于逐状态审阅而做的拆分。此前 `prototype/index.html` v2 的路由表（含 `#/editor/text-editing`、`#/editor/pages`）已随原型退役作废。路由与本文件区域、`03-screens/*` 界面文件的对应关系：
 
@@ -356,18 +356,21 @@ flowchart TB
 | `#/editor/layouts` | 版式选择与重置（浮层：按母版分组的版式画廊） | 27 |
 | `#/editor/design` | §2.2 Ribbon 区"设计"页签与主题 | 28 |
 | `#/editor/insert` | §2.2 Ribbon 区"插入"页签 | 04、15、18 |
-| `#/editor/text` | §2.2 画布视口"正在编辑文本"态 | 16 |
+| `#/editor/text` | §2.2 画布视口"正在编辑文本"态（含空内容占位符图标条、日期和时间格式选择器） | 16 |
+| `#/editor/table` | §2.2 画布视口 · 表格选中与单元格编辑（检查器表格分区、右键菜单表格变体） | 30 |
+| `#/editor/chart` | §2.2 画布视口 · 图表选中与数据编辑（检查器图表分区与数据网格） | 31 |
 | `#/editor/comments` | §2.3 检查器坞"评论"Tab | 06 |
 | `#/editor/history` | §2.3 检查器坞"历史"Tab | 07 |
 | `#/editor/share` | 浮层：`ui.dialog` | 08 |
 | `#/editor/plugins` | §2.3 检查器坞"插件"Tab / 插件管理器 | 09 |
+| `#/editor/fidelity` | 浮层：`ui.dialog`（导入保真报告） | 10 |
 | `#/export` | 浮层：`ui.dialog` | 22 |
 | `#/present` | §5 放映模式 | 11 |
 | `#/viewer` | §8 `preset-slide-viewer` | 25 |
 | `#/settings` | 浮层：设置抽屉 + 快捷键面板 | 23、24 |
 | `#/offline` | 横幅：会话六态、权限降级、门禁反馈 | 12 |
 
-**playground 路由树（registry.ts 19 条 + 目录页）**
+**playground 路由树（registry.ts 22 条 + 目录页）**
 
 ```mermaid
 flowchart LR
@@ -387,10 +390,12 @@ flowchart LR
     rDesign["#/editor/design · 设计页签与主题 · 28"]
     rInsert["#/editor/insert · 插入页签 · 04 15 18"]
     rText["#/editor/text · 正在编辑文本态 · 16"]
+    rTable["#/editor/table · 表格编辑 · 30"]
+    rChart["#/editor/chart · 图表编辑 · 31"]
     rComments["#/editor/comments · 检查器坞评论 Tab · 06"]
     rHistory["#/editor/history · 检查器坞历史 Tab · 07"]
     rShare["#/editor/share · ui.dialog 浮层 · 08"]
-    rPlugins["#/editor/plugins · 插件 Tab 与插件管理器 · 09"]
+    rPlugins["#/editor/plugins · 插件 Tab 与插件管理器 · 09"] ~~~ rFidelity["#/editor/fidelity · 导入保真报告 · 10"]
   end
   subgraph modeR["模式、浮层与横幅"]
     direction TB
@@ -406,7 +411,7 @@ flowchart LR
   hub --> modeR
   rHome ~~~ rDocs ~~~ rImport
   rEditor ~~~ rMasters ~~~ rLayouts ~~~ rDesign ~~~ rInsert
-  rText ~~~ rComments ~~~ rHistory ~~~ rShare ~~~ rPlugins
+  rText ~~~ rTable ~~~ rChart ~~~ rComments ~~~ rHistory ~~~ rShare ~~~ rPlugins
   rExport ~~~ rPresent ~~~ rViewer ~~~ rSettings ~~~ rOffline
 ```
 

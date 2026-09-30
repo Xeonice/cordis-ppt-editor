@@ -1,4 +1,4 @@
-> 状态：草稿 v3.1 | 负责：设计（总编排起草） | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.2（D10 修订）、04-design-system v0.5、10 审计、11 提案、rulings §4.8–§4.10（Q9–Q20）
+> 状态：草稿 v3.1 | 负责：设计（总编排起草） | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-30（§4.22：§6.2 材质 token 由两档改为三档，新增浮层档 `--glass-bg-float` / `glass-float`（亮 84%、暗 96%）；§3「画布覆盖层」迷你工具条改 `glass-float`、画在屏幕坐标覆盖层，补 `CanvasFloat` 画布浮签 12px；§6.1 层次图、§6.3 应用方式同步；§6.5 补浮层档核算并注明 SR-2 待用户确认） | 依赖：charter v0.2（D10 修订）、04-design-system v0.5、10 审计、11 提案、rulings §4.8–§4.10（Q9–Q20）
 
 # 09 设计规范（Design Specification）—— shadcn Rhea + Liquid Glass 材质层
 
@@ -53,7 +53,7 @@
 | `--doc-paper` / `--doc-ink` | `bg-doc-paper`、`text-doc-ink` | 幻灯片纸面与默认文字（不随主题） |
 | `--stage` / `--stage-chrome` / `--stage-foreground` | `bg-stage` | 放映舞台与控制条（不随主题） |
 | `--presence-1…12` | `ring-presence-2`、`border-presence-5` | 仅头像环、远端光标与选区 |
-| `--glass-bg` / `--glass-bg-strong` / `--glass-border-color` / `--glass-blur` / `--glass-shadow` | `glass`、`glass-strong`（`@utility`） | **材质层**，取值与退化见 §6 |
+| `--glass-bg` / `--glass-bg-strong` / `--glass-bg-float` / `--glass-border-color` / `--glass-blur` / `--glass-shadow` | `glass`、`glass-strong`、`glass-float`（`@utility`；浮层档 2026-09-30 §4.22 新增） | **材质层**，取值与退化见 §6 |
 
 ### 1.3 字体与字阶
 
@@ -116,7 +116,7 @@
 | 悬浮工具卡 | `AppBar` + `Ribbon` 合成一张 `glass-strong rounded-2xl`；应用栏与页签之间发丝线；Ribbon 页签为胶囊分段，页签行右侧常驻 **视图模式分段（普通/母版，`ViewModeSwitch`；仅编辑模式且视口 ≥ 1024 渲染，Q12）** + 主题切换 + 帮助「?」（`CircleHelp`，快捷键面板三入口之一，`Mod+/`）；组用 `rounded-xl bg-foreground/[.03]` 柔和底 + 组标题 `text-[11px] leading-none text-muted-foreground/70`（= `text-2xs`，11px），组间 `gap-1.5`（6px）无竖线。**高度节奏（2026-09-17）**：页签行 36px（`h-9`），页签内容区固定 91px（`h-[91px] py-1`），组 `self-stretch` 等高 83px；组内小控件统一 28px（`h-7` / `size="sm"` / `icon-sm`），堆叠列行距 4px，大按钮 = 两行 = 60px（`h-[60px]`），下拉与分段同为 28px；复选框堆叠为 3×20px 或 2×28px；主题卡 84×60、变体色块 44×28；禁止 24px（`h-6`）与 32px 混排。**排布**：每组 = 左侧大按钮 + 右侧一列两行小控件（开始页签范式），不行列混排；图标一律 Lucide 线性（不用彩色方块/红圈等异质图示，红色只出现在 `text-destructive` 的线性图标或菜单项上） | 应用栏 48 + 页签行 36 + 内容区 91（组 83）；小控件 28 / 大按钮 56×60（`w-14 h-[60px]`）；原"组 60"作废 |
 | 侧栏卡 / 检查器卡 | `ResizablePanel` 内 `glass-strong rounded-2xl overflow-hidden`；缩略图栏直接从分节/缩略图列表开始（模式切换已移至 Ribbon）；母版视图下同一窗格显示母版大缩略图 + 缩进的版式缩略图；检查器 `Tabs` 胶囊 + `ScrollArea` + `Accordion`（`inspector-groups`） | 宽 240 / 300（`EditorShell` 默认 `thumbnailRailWidth=240` / `inspectorWidth=300`，像素；可拖 160–420 / 240–720；版本历史 560；原 168 / 280 作废）；根节点无底色（材质来自卡） |
 | 画布区 | 透明视口，`bg-canvas` 光斑透出；纸面 `bg-doc-paper text-doc-ink rounded shadow-md`（4px 圆角；chrome 内唯一允许阴影的对象，`SlideCanvas.tsx:76`；原 `rounded-md shadow-2xl` 作废）；默认 `zoom="fit"`（`ZoomValue = number \| "fit" \| "fit-width"`），缩放条为底部居中 `glass rounded-full` 胶囊（`mx-auto mb-2 px-3 py-1.5`：− / 滑块 / + / 百分比 / 模式下拉） | 视口 `p-6`（`overflow-auto`），fit 留 16px 余量 |
-| 画布覆盖层 | 选中框 `border-[1.5px] border-primary` + 8 个 10px 圆形手柄（`size-2.5 rounded-full border-[1.5px] border-primary bg-doc-paper shadow-sm`）+ 可选旋转手柄，标签 `bg-primary text-2xs` 胶囊；远端选区 `border-[1.5px] border-dashed border-presence-N` + `outline-doc-paper` 外描边 + 12% 填充；远端光标 SVG + 胶囊标签；评论钉 24 `bg-warning-foreground` + 白描边 + `shadow-sm`（规范值；playground `CommentPin` 现为 `bg-warning shadow-md`，白字 11px 仅 4.0:1，不达 04 §2.5，待改回）；迷你工具条 `glass-strong rounded-xl p-1 gap-0.5`（`MiniToolbar`，原 `rounded-full` 作废）；继承占位符 `border border-dashed border-muted-foreground/50` + 「母版 · 名称」小徽标 | 浮动标签共用一套语言 |
+| 画布覆盖层 | 选中框 `border-[1.5px] border-primary` + 8 个 10px 圆形手柄（`size-2.5 rounded-full border-[1.5px] border-primary bg-doc-paper shadow-sm`）+ 可选旋转手柄，标签 `bg-primary text-2xs` 胶囊；远端选区 `border-[1.5px] border-dashed border-presence-N` + `outline-doc-paper` 外描边 + 12% 填充；远端光标 SVG + 胶囊标签；评论钉 24 `bg-warning-foreground` + 白描边 + `shadow-sm`（规范值；playground `CommentPin` 现为 `bg-warning shadow-md`，白字 11px 仅 4.0:1，不达 04 §2.5，待改回）；迷你工具条 `glass-float rounded-xl p-1 gap-0.5`（`MiniToolbar`；画在不随缩放的屏幕坐标覆盖层 `data-slot="canvas-overlay"`，入参仍是幻灯片坐标，按屏幕尺寸 12px 绘制、不随缩放变小；原 `rounded-full` 与 `glass-strong` 作废，rulings §4.22）；画布浮签（键盘提示条、拖动角标、受限字体的一次性内联提示、拖入说明）用 `CanvasFloat`（`glass-float`，同一覆盖层，文字 12px，不随缩放变小）；继承占位符 `border border-dashed border-muted-foreground/50` + 「母版 · 名称」小徽标 | 浮动标签共用一套语言 |
 | 状态胶囊 | `StatusBar` = `mx-2 mb-2 h-8 rounded-full glass-strong`；状态用 `Badge` 语义色胶囊；备注栏 `NotesBar` = `mx-2 mb-2 rounded-2xl glass-strong` | 高 32 |
 | 反馈分层 | `Alert`（连接/权限，玻璃横幅）> `sonner` > `FieldError` > 状态胶囊 | 同一事件只用一层 |
 | 空 / 加载 / 错误 | `Empty` / `Skeleton` shimmer（仅加载）/ `Alert variant="destructive"` + 重试 | 高度与真实内容一致 |
@@ -178,10 +178,10 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  float["浮层 · glass-strong：菜单 / 弹出 / 对话框 / 命令面板 / 工具提示"]
+  float["浮层 · glass-float：菜单 / 弹出 / 对话框 / Select / 命令面板 / 画布覆盖层上的迷你工具条与浮签；工具提示为深色胶囊"]
   subgraph ctl["控件层"]
     ctlStrong["glass-strong：悬浮工具卡 · 侧栏卡 · 检查器卡 · 状态胶囊 · 横幅"]
-    ctlGlass["glass：画布缩放胶囊 · 画布上的浮动面板，查找、迷你工具条"]
+    ctlGlass["glass：画布缩放胶囊 · 画布上的浮动面板，查找"]
   end
   content["内容层 · 不透明：幻灯片纸面 · 缩略图内容 · 母版画布 · 放映舞台内容"]
   bg["背景层 · bg-canvas + canvas-glow：柔和渐变 + 低饱和光斑，供玻璃透出"]
@@ -192,7 +192,7 @@ flowchart TB
 
 怎么读：自上而下是从最上层到最底层，箭头表示「叠在下一层之上」；只有浮层与控件层使用玻璃材质，内容层永远不透明。
 
-规则：控件层之上再出现浮层时，浮层用 strong 且控件层不额外加模糊；同屏玻璃元素 ≤ 4；内容层永远不透明（HIG：玻璃属于导航/控件层）。
+规则：控件层之上再出现浮层时，浮层用 `glass-float`（2026-09-30 §4.22 起，原为 strong）且控件层不额外加模糊；同屏玻璃元素 ≤ 4；内容层永远不透明（HIG：玻璃属于导航/控件层）。
 
 ### 6.2 材质 token（可执行定义：`playground/src/index.css`）
 
@@ -200,18 +200,21 @@ flowchart TB
 |---|---|---|
 | `--glass-bg` | `rgba(255,255,255,.72)` | `rgba(28,34,52,.62)` |
 | `--glass-bg-strong` | `rgba(255,255,255,.84)` | `rgba(28,34,52,.78)` |
+| `--glass-bg-float`（浮层档，2026-09-30 §4.22 新增） | `rgba(255,255,255,.84)`（同 strong） | `rgba(28,34,52,.96)` |
 | `--glass-border-color` | `rgba(255,255,255,.55)` | `rgba(255,255,255,.10)` |
 | `--glass-blur` | `blur(24px) saturate(150%)` | 同（暗色可降至 140%） |
 | `--glass-shadow` | 内高光 `inset 0 1px 0 rgba(255,255,255,.7)` + rim `0 0 0 1px rgba(15,20,40,.08)` + `0 8px 32px rgba(20,25,50,.10), 0 1px 2px rgba(20,25,50,.06)` | 内高光 `inset 0 1px 0 rgba(255,255,255,.08)` + rim `0 0 0 1px rgba(0,0,0,.35)`（iOS 27 暗色边缘）+ `0 12px 40px rgba(0,0,0,.45)` |
 | `--canvas` / `--canvas-glow` | `#EEF1F8`；光斑 = `radial-gradient(760px 520px at 16% 10%, rgba(74,84,225,.13), transparent 60%)` + `radial-gradient(680px 480px at 88% 84%, rgba(14,138,122,.10), transparent 60%)` + 底层 `linear-gradient(165deg, #EEF1F8 0%, #E9ECF5 46%, #EEF3F3 100%)`（`index.css` L205–208；原"靛蓝 6% / 青 5%"作废） | `#101523`；光斑 = `radial-gradient(760px 520px at 16% 8%, rgba(111,121,238,.18), transparent 60%)` + `radial-gradient(680px 480px at 88% 86%, rgba(59,198,130,.11), transparent 60%)` + `linear-gradient(165deg, #101523 0%, #0B0F19 100%)`（L220–223） |
 
+**三档材质**（2026-09-30 §4.22，原为两档）：`glass`（控件层上的轻量浮动件）、`glass-strong`（侧栏、检查器、Ribbon 卡、状态胶囊等常驻面板，只压在画布背景上）、`glass-float`（浮层档：弹层、菜单、对话框、Select、Command，以及画布覆盖层上的迷你工具条与浮签）。浮层档单列的原因：浮层会叠在白色幻灯片纸面上，暗色 78% 时透出约 22% 白，面板底变成 #4E5361，说明文字只有 2.5:1；取 96% 后纸面上的底为 #252B3C，说明文字 4.6:1、主色 4.9:1（§6.5）；叠在深色画布与面板上时与 78% 几乎无差别，模糊与边缘高光不变。
+
 取值原则：桌面编辑器文字密集，采用 iOS 27"降低默认透明度"的方向（ui-ux-pro-max glassmorphism 条目的 15–30% 白只适用于鲜艳背景的营销页，**不采纳**）。
 
 ### 6.3 应用方式
 
-- 工具类：`glass`、`glass-strong`（Tailwind 4 `@utility`）。**声明顺序硬规则**：`-webkit-backdrop-filter` 必须写在 `backdrop-filter` 之前——Tailwind 4/Lightning CSS 对同一属性的前缀/标准声明去重时只保留最后一条，写反会把标准属性丢掉，Chrome 不认 `-webkit-` 前缀，结果是"半透明但不模糊"（2026-09-16 实测：编译产物只剩 `-webkit-backdrop-filter`，`getComputedStyle().backdropFilter === 'none'`）。CI 门禁：编译后的 CSS 必须同时含 `backdrop-filter:var(--glass-blur)` 与 `-webkit-` 版本。
-- 浮层自动化：`[data-slot="popover-content" | "dropdown-menu-content" | "dropdown-menu-sub-content" | "context-menu-content" | "context-menu-sub-content" | "select-content" | "dialog-content" | "alert-dialog-content" | "sheet-content" | "drawer-content" | "menubar-content" | "menubar-sub-content" | "hover-card-content" | "command"]` → strong 材质；遮罩 `[data-slot="*-overlay"]` → `bg-black/20 + blur(4px)`；`[data-slot="tooltip-content"]` → 深色玻璃胶囊。
-- 退化（硬规则）：`@media (prefers-reduced-transparency: reduce)` 与 `@supports not (backdrop-filter: blur(1px))` **两种退化都必须同时覆盖** `.glass` / `.glass-strong` **与全部浮层 data-slot**（上一条清单，两处清单须保持一致），退化为不透明 `var(--card)` + `border-color: var(--border)`，并把 `box-shadow` 由 `--glass-shadow`（含内高光与 rim）换为普通阴影 `0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12)`、`backdrop-filter: none`；`tooltip-content` 保持不透明深色 `#141622`；遮罩失去模糊后加深为 `rgb(0 0 0 / .40)`。两块内容相同、分别对应两个触发条件（已实现：`index.css` "§6.3 退化规则"两块，2026-09-18）。`prefers-contrast: more` 时描边改 `var(--border-strong)`（待实现）。
+- 工具类：`glass`、`glass-strong`、`glass-float`（Tailwind 4 `@utility`；`glass-float` 2026-09-30 §4.22 新增）。**声明顺序硬规则**：`-webkit-backdrop-filter` 必须写在 `backdrop-filter` 之前——Tailwind 4/Lightning CSS 对同一属性的前缀/标准声明去重时只保留最后一条，写反会把标准属性丢掉，Chrome 不认 `-webkit-` 前缀，结果是"半透明但不模糊"（2026-09-16 实测：编译产物只剩 `-webkit-backdrop-filter`，`getComputedStyle().backdropFilter === 'none'`）。CI 门禁：编译后的 CSS 必须同时含 `backdrop-filter:var(--glass-blur)` 与 `-webkit-` 版本。
+- 浮层自动化：`[data-slot="popover-content" | "dropdown-menu-content" | "dropdown-menu-sub-content" | "context-menu-content" | "context-menu-sub-content" | "select-content" | "dialog-content" | "alert-dialog-content" | "sheet-content" | "drawer-content" | "menubar-content" | "menubar-sub-content" | "hover-card-content" | "command"]` → 浮层档材质 `--glass-bg-float`（2026-09-30 §4.22 起，原为 strong）；遮罩 `[data-slot="*-overlay"]` → `bg-black/20 + blur(4px)`；`[data-slot="tooltip-content"]` → 深色玻璃胶囊。
+- 退化（硬规则）：`@media (prefers-reduced-transparency: reduce)` 与 `@supports not (backdrop-filter: blur(1px))` **两种退化都必须同时覆盖** `.glass` / `.glass-strong` / `.glass-float` **与全部浮层 data-slot**（上一条清单，两处清单须保持一致），退化为不透明 `var(--card)` + `border-color: var(--border)`，并把 `box-shadow` 由 `--glass-shadow`（含内高光与 rim）换为普通阴影 `0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(0 0 0 / .12)`、`backdrop-filter: none`；`tooltip-content` 保持不透明深色 `#141622`；遮罩失去模糊后加深为 `rgb(0 0 0 / .40)`。两块内容相同、分别对应两个触发条件（已实现：`index.css` "§6.3 退化规则"两块，2026-09-18）。`prefers-contrast: more` 时描边改 `var(--border-strong)`（待实现）。
 
 ### 6.4 性能规则
 
@@ -227,5 +230,9 @@ flowchart TB
 | `--muted-foreground` on `glass-strong` | ≈ 4.9:1 ✓ | ≈ 5.4:1 ✓（暗色 muted 由 #7C8697 提亮为 #8A94A6，原值 ≈ 4.45:1 不达标） |
 | `--muted-foreground` on `glass`（72%/62%） | ≈ 4.8:1 ✓（仅允许承载非正文：缩放数字、胶囊标签） | 不允许承载 muted 正文 |
 | `--primary` 文字 on `glass-strong` | ≈ 5.3:1 ✓ | ≈ 6.0:1 ✓ |
+| `--muted-foreground` on `glass-float`，叠在白色纸面上（2026-09-30 §4.22） | ≈ 5.4:1 ✓ | ≈ 4.6:1 ✓（96%；若按 78% 仅 ≈ 2.5:1） |
+| `--primary` 文字 on `glass-float`，叠在白色纸面上 | ≈ 5.5:1 ✓ | ≈ 4.9:1 ✓（96%） |
 
-背后内容比背景层更深（如暗色纸面）时对比会下降，因此 strong 面板不得叠在纸面之上；画布上的浮动面板（`glass`）只放图标与短标签。
+背后内容比背景层更深（如暗色纸面）时对比会下降，因此 strong 面板不得叠在纸面之上；会叠在纸面上的浮层（弹层、菜单、画布覆盖层上的迷你工具条与浮签）一律用 `glass-float`；画布上的浮动面板（`glass`）只放图标与短标签。
+
+**待用户确认（rulings §4.22 SR-2）**：暗色 `glass-float` 的不透明度。样张现为 96%，叠在白纸面上基本不透，只剩模糊与边缘高光；另一选择是降到 92%，更通透，但说明文字降到 ≈ 4.07:1，达不到 AA（4.5:1）。裁决前按 96% 执行。

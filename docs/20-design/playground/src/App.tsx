@@ -15,6 +15,8 @@ const Documents = lazy(() => import("./routes/Documents").then((m) => ({ default
 const Import = lazy(() => import("./routes/Import").then((m) => ({ default: m.Import })))
 const EditorInsert = lazy(() => import("./routes/editor/Insert").then((m) => ({ default: m.EditorInsert })))
 const EditorText = lazy(() => import("./routes/editor/TextEditing").then((m) => ({ default: m.EditorText })))
+const EditorTable = lazy(() => import("./routes/editor/TableEditing").then((m) => ({ default: m.EditorTable })))
+const EditorChart = lazy(() => import("./routes/editor/ChartEditing").then((m) => ({ default: m.EditorChart })))
 const EditorComments = lazy(() => import("./routes/editor/Comments").then((m) => ({ default: m.EditorComments })))
 const EditorHistory = lazy(() => import("./routes/editor/History").then((m) => ({ default: m.EditorHistory })))
 const EditorShare = lazy(() => import("./routes/editor/Share").then((m) => ({ default: m.EditorShare })))
@@ -43,6 +45,8 @@ export function App() {
         <Route path="/import" element={<Import />} />
         <Route path="/editor/insert" element={<EditorInsert />} />
         <Route path="/editor/text" element={<EditorText />} />
+        <Route path="/editor/table" element={<EditorTable />} />
+        <Route path="/editor/chart" element={<EditorChart />} />
         <Route path="/editor/comments" element={<EditorComments />} />
         <Route path="/editor/history" element={<EditorHistory />} />
         <Route path="/editor/share" element={<EditorShare />} />

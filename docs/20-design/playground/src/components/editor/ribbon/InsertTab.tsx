@@ -1,31 +1,37 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import {
-  AudioLines, Blocks, Calendar, Camera, ChartArea, ChartBar, ChartColumn, ChartLine, ChartPie, ChartScatter, GalleryHorizontalEnd, Hash,
-  ImagePlus, Link2, MessageSquarePlus, Omega, PanelBottom, Shapes, Sticker, Table, Type, Upload, Video, Workflow,
+  AudioLines, Blocks, Calendar, Camera, ChartColumn, GalleryHorizontalEnd, Hash,
+  ImagePlus, Link2, MessageSquarePlus, Omega, PanelBottom, Shapes, Sigma, Sticker, Table, Type, Upload, Video, Workflow,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { ChartKind, ChartSubtype } from "../elements/chart-model"
+import { ChartTypeMenu } from "../elements/ChartTypeMenu"
 import { ActionSettingsDialog } from "./insert/ActionSettingsDialog"
+import { DateTimePicker, type DateTimeChoice } from "./insert/DateTimePicker"
 import { ignoreDesignBar } from "./insert/demo"
 import { HeaderFooterDialog } from "./insert/HeaderFooterDialog"
 import { IconPickerDialog } from "./insert/IconPickerDialog"
+import { InsertTableDialog } from "./insert/InsertTableDialog"
 import { ShapeGallery } from "./insert/ShapeGallery"
 import { findShape, type ShapePreset } from "./insert/shapes"
 import { SymbolPanel } from "./insert/SymbolPanel"
+import { TableGridPicker } from "./insert/TableGridPicker"
 import { MilestoneTag, RibbonBigButton, RibbonDisabledTextButton, RibbonGroup, RibbonTextButton } from "./primitives"
 
 /** 插入页签里可被演示态受控打开的面板 */
-export type InsertPanel = "shapes" | "icons" | "symbols" | "header-footer" | "action-settings" | "link"
+export type InsertPanel =
+  | "shapes" | "icons" | "symbols" | "header-footer" | "action-settings" | "link" | "datetime" | "table" | "table-dialog" | "chart"
 
 export interface InsertTabProps {
   onAddComment?: () => void
@@ -42,18 +48,40 @@ export interface InsertTabProps {
   actionShapeId?: string
   /** 演示：强制展开「视频」禁用原因提示 */
   showMediaReason?: boolean
+  /** 文本编辑态「日期和时间」选择器的插入回调（G-81）；缺省 toast */
+  onInsertDate?: (c: DateTimeChoice) => void
+  /** 表格网格的初始悬停（演示态直接画出「3 × 4 表格」） */
+  tableHover?: { r: number; c: number }
+  /** 表格网格或「插入表格…」对话框确定后的回调（同一条插入命令）；缺省 toast */
+  onPickTable?: (rows: number, cols: number) => void
+  /** 「插入表格…」对话框（panel="table-dialog"）打开时的初值；演示态可传超限值画出报错帧 */
+  tableDialogDefaults?: { rows: string | number; cols: string | number }
+  /** 图表 ▾ 菜单中展开子类型 flyout 的一类（演示态受控） */
+  chartFlyout?: ChartKind | null
+  /** 选中图表子类型回调；缺省 toast */
+  onPickChart?: (s: ChartSubtype) => void
+  /** M2 或图表编辑组件未装载时「图表 ▾」禁用的原因（D21 / 50/24 §3.3）；给出即禁用 */
+  chartDisabledReason?: string
+  /** 演示：强制展开图表禁用原因 */
+  showChartReason?: boolean
 }
 
 const MEDIA_REASON = "视频、音频插入排在后续版本（P2）。文稿里已有的音视频照常查看、放映、移动和缩放。"
+const FORMULA_REASON = "暂不支持插入公式（M4+）。文稿里已有的公式照常查看、放映、移动和缩放。"
+const SCREENSHOT_REASON = "插入屏幕截图排在后续版本（M4+）。现在可以先用系统截图，再从「此设备…」上传。"
+const ALBUM_REASON = "相册（多张图片每图一页）排在后续版本（M4+）。现在可以从「此设备…」逐张插入图片。"
+const TABLE_M2_NOTE = "M2 可编辑单元格文字；行列增删、合并与样式在 M3"
 
 /**
  * Ribbon「插入」页签（03-screens/04、15；rulings §4.21 R-d-61 分组唯一化）：
  * 文本 / 形状 / 图像 / 表格 / 图表 / 链接与批注 / 插件，七组固定顺序，插件组排在内置组之后并带归属标识。
+ * 文本组末列是禁用的「公式」（M4+，50/10 §4：M4+ 条目同样禁用而不隐藏）；表格 ▾ 弹 8 行 × 10 列网格，「插入表格…」关掉网格再开对话框；
+ * 图表 ▾ 与迷你工具条「更改类型 ▾」、占位符图表图标共用 ChartTypeMenu。
  * 节奏：大按钮 56×60、小控件 28、组内一列两行；里程碑标记用 MilestoneTag（图表 M3、视频 / 音频 P2），
  * P2 项禁用而不隐藏并用 tooltip 给原因。非目标（SmartArt、OLE、3D、墨迹、缩放定位、录屏）不出现入口（R-d-75）。
  */
 export function InsertTab(props: InsertTabProps) {
-  const { onAddComment, textEditing = false, activeTool, onPickShape, showMediaReason } = props
+  const { onAddComment, textEditing = false, activeTool, onPickShape, showMediaReason, chartDisabledReason, showChartReason } = props
   const [innerPanel, setInnerPanel] = useState<InsertPanel | null>(null)
   const [pickedAction, setPickedAction] = useState<ShapePreset | undefined>(undefined)
   const panel = props.panel !== undefined ? props.panel : innerPanel
@@ -61,6 +89,14 @@ export function InsertTab(props: InsertTabProps) {
   const openIf = (p: InsertPanel) => (v: boolean) => setPanel(v ? p : null)
   const [linkType, setLinkType] = useState("url")
   const actionShape = pickedAction ?? findShape(props.actionShapeId ?? "actionButtonForwardNext")
+  /** 「插入表格…」对话框关闭后焦点回到「表格 ▾」 */
+  const tableButtonRef = useRef<HTMLButtonElement>(null)
+
+  function pickTable(r: number, c: number) {
+    setPanel(null)
+    if (props.onPickTable) props.onPickTable(r, c)
+    else toast(`已插入 ${r} 行 × ${c} 列表格`, { description: TABLE_M2_NOTE })
+  }
 
   function pickShape(shape: ShapePreset) {
     setPanel(null)
@@ -94,18 +130,40 @@ export function InsertTab(props: InsertTabProps) {
         </div>
         {/* 日期和时间 / 幻灯片编号（50/20 §3、50/21 §4；ED-31 M2 P2）：文本编辑态直接插字段，否则打开页眉和页脚面板 */}
         <div className="flex flex-col gap-1">
-          <RibbonTextButton
-            icon={Calendar}
-            label="日期和时间"
-            hint={textEditing ? "在光标处插入日期字段" : "未在编辑文字：打开页眉和页脚，设置页脚里的日期"}
-            onClick={() => (textEditing ? toast("已插入日期字段（自动更新）") : setPanel("header-footer"))}
-          />
+          {textEditing ? (
+            <Popover open={panel === "datetime"} onOpenChange={openIf("datetime")}>
+              <PopoverTrigger asChild>
+                <RibbonTextButton icon={Calendar} label="日期和时间" withCaret aria-pressed={panel === "datetime"} className={panel === "datetime" ? "bg-accent" : undefined} />
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[332px] gap-0 p-3" onInteractOutside={ignoreDesignBar} onOpenAutoFocus={(e) => e.preventDefault()}>
+                <DateTimePicker
+                  onCancel={() => setPanel(null)}
+                  onInsert={(c) => {
+                    setPanel(null)
+                    if (props.onInsertDate) props.onInsertDate(c)
+                    else toast(c.autoUpdate ? `已插入日期字段「${c.text}」` : `已插入文本「${c.text}」`, { action: { label: "撤销", onClick: () => toast.success("已撤销") } })
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <RibbonTextButton
+              icon={Calendar}
+              label="日期和时间"
+              hint="未在编辑文字：打开页眉和页脚，设置页脚里的日期"
+              onClick={() => setPanel("header-footer")}
+            />
+          )}
           <RibbonTextButton
             icon={Hash}
             label="幻灯片编号"
             hint={textEditing ? "在光标处插入页码字段" : "未在编辑文字：打开页眉和页脚，勾选幻灯片编号"}
             onClick={() => (textEditing ? toast("已插入幻灯片编号字段") : setPanel("header-footer"))}
           />
+        </div>
+        {/* 公式（M4+，q-equation）：禁用而不隐藏，占一列两行的上一行，与左侧两列顶端对齐 */}
+        <div className="flex h-[60px] flex-col gap-1">
+          <RibbonDisabledTextButton icon={Sigma} label="公式" tag={<MilestoneTag>M4+</MilestoneTag>} reason={FORMULA_REASON} />
         </div>
       </RibbonGroup>
 
@@ -137,8 +195,18 @@ export function InsertTab(props: InsertTabProps) {
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => toast("来自 URL：下载后内嵌，不保留外链")}><Link2 /> 来自 URL…</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Camera /> 屏幕截图 <MilestoneTag className="ml-auto">M4+</MilestoneTag></DropdownMenuItem>
-            <DropdownMenuItem disabled><GalleryHorizontalEnd /> 相册 <MilestoneTag className="ml-auto">M4+</MilestoneTag></DropdownMenuItem>
+            {/* 禁用而不隐藏（FE-06）：aria-disabled，仍可聚焦、方向键可达，tooltip 给原因；同占位符「插入 ▾」与表格右键菜单的写法 */}
+            {([[Camera, "屏幕截图", SCREENSHOT_REASON], [GalleryHorizontalEnd, "相册", ALBUM_REASON]] as const).map(([Icon, label, reason]) => (
+              <Tooltip key={label}>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem aria-disabled="true" aria-label={`${label}（M4+）`} onSelect={(e) => e.preventDefault()} className="cursor-not-allowed">
+                    <span className="flex items-center gap-2 opacity-50"><Icon className="size-4" />{label}</span>
+                    <MilestoneTag className="ml-auto">M4+</MilestoneTag>
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-60 text-pretty">{reason}</TooltipContent>
+              </Tooltip>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="flex flex-col gap-1">
@@ -148,40 +216,46 @@ export function InsertTab(props: InsertTabProps) {
       </RibbonGroup>
 
       <RibbonGroup label="表格">
-        <Popover>
+        <Popover open={panel === "table"} onOpenChange={openIf("table")}>
           <PopoverTrigger asChild>
-            <RibbonBigButton icon={Table} label="表格" withCaret />
+            <RibbonBigButton ref={tableButtonRef} icon={Table} label="表格" withCaret pressed={panel === "table"} />
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto">
-            <TableGridPicker onPick={(r, c) => toast(`已插入 ${r} × ${c} 表格`, { description: "M2 可编辑单元格文字；行列增删、合并与样式在 M3" })} />
+          <PopoverContent align="start" className="w-auto" onInteractOutside={ignoreDesignBar} onOpenAutoFocus={(e) => e.preventDefault()}>
+            <TableGridPicker initialHover={props.tableHover} onPick={pickTable} onOpenDialog={() => setPanel("table-dialog")} />
           </PopoverContent>
         </Popover>
       </RibbonGroup>
 
       <RibbonGroup label="图表">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <RibbonBigButton icon={ChartColumn} label="图表" withCaret badge={<MilestoneTag>M3</MilestoneTag>} aria-label="图表（M3）" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
-            <DropdownMenuLabel className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
-              <MilestoneTag>M3</MilestoneTag> 插入后自动打开数据面板
-            </DropdownMenuLabel>
-            {[
-              { icon: ChartColumn, l: "柱形图", sub: "簇状 · 堆积 · 百分比" },
-              { icon: ChartBar, l: "条形图", sub: "簇状 · 堆积 · 百分比" },
-              { icon: ChartLine, l: "折线图", sub: "折线 · 堆积" },
-              { icon: ChartPie, l: "饼图", sub: "" },
-              { icon: ChartArea, l: "面积图", sub: "面积 · 堆积 · 百分比" },
-              { icon: ChartScatter, l: "散点图", sub: "" },
-            ].map((c) => (
-              <DropdownMenuItem key={c.l} onSelect={() => toast(`已插入${c.l}（示例数据 4 类别 × 3 系列）`)}>
-                <c.icon /> {c.l}
-                {c.sub && <span className="ml-auto text-xs text-muted-foreground">{c.sub}</span>}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {chartDisabledReason ? (
+          <Tooltip open={showChartReason || undefined}>
+            <TooltipTrigger asChild>
+              <RibbonBigButton
+                icon={ChartColumn}
+                label="图表"
+                withCaret
+                badge={<MilestoneTag>M3</MilestoneTag>}
+                aria-label="图表（M3）"
+                aria-disabled="true"
+                onClick={(e) => e.preventDefault()}
+                className="cursor-not-allowed hover:bg-transparent [&>span:not(:last-child)]:opacity-50"
+              />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start" className="max-w-64 text-pretty">{chartDisabledReason}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <ChartTypeMenu
+            open={panel === "chart"}
+            onOpenChange={openIf("chart")}
+            flyout={props.chartFlyout ?? null}
+            onPick={(st) => {
+              setPanel(null)
+              if (props.onPickChart) props.onPickChart(st)
+              else toast(`已插入${st.name}（示例数据 4 类别 × 3 系列）`)
+            }}
+            trigger={<RibbonBigButton icon={ChartColumn} label="图表" withCaret badge={<MilestoneTag>M3</MilestoneTag>} aria-label="图表（M3）" pressed={panel === "chart"} />}
+          />
+        )}
       </RibbonGroup>
 
       <RibbonGroup label="链接与批注">
@@ -196,6 +270,13 @@ export function InsertTab(props: InsertTabProps) {
       </RibbonGroup>
 
       <HeaderFooterDialog open={panel === "header-footer"} onOpenChange={openIf("header-footer")} />
+      <InsertTableDialog
+        open={panel === "table-dialog"}
+        onOpenChange={openIf("table-dialog")}
+        defaults={props.tableDialogDefaults}
+        onConfirm={pickTable}
+        returnFocusRef={tableButtonRef}
+      />
       <IconPickerDialog open={panel === "icons"} onOpenChange={openIf("icons")} />
       <ActionSettingsDialog open={panel === "action-settings"} onOpenChange={openIf("action-settings")} shape={actionShape} />
       <LinkDialog open={panel === "link"} onOpenChange={openIf("link")} linkType={linkType} onLinkTypeChange={setLinkType} />
@@ -240,38 +321,5 @@ function LinkDialog({ open, onOpenChange, linkType, onLinkTypeChange }: { open: 
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-/** 表格网格选择器：8 × 8 悬停网格（PRD ED-10 上限 10 × 8，超出用「插入表格…」输入）；键盘见 03-screens/04 */
-function TableGridPicker({ onPick }: { onPick: (rows: number, cols: number) => void }) {
-  const [hover, setHover] = useState({ r: 0, c: 0 })
-  const rows = 8
-  const cols = 8
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium text-muted-foreground">插入表格</p>
-      <div className="grid grid-cols-8 gap-1" onMouseLeave={() => setHover({ r: 0, c: 0 })}>
-        {Array.from({ length: rows * cols }).map((_, i) => {
-          const r = Math.floor(i / cols) + 1
-          const c = (i % cols) + 1
-          const active = r <= hover.r && c <= hover.c
-          return (
-            <button
-              key={i}
-              type="button"
-              aria-label={`${r} 行 ${c} 列`}
-              className={active ? "size-4 rounded-[2px] border border-primary bg-primary/70" : "size-4 rounded-[2px] border border-border bg-muted"}
-              onMouseEnter={() => setHover({ r, c })}
-              onClick={() => onPick(r, c)}
-            />
-          )
-        })}
-      </div>
-      <p className="text-center text-xs text-muted-foreground tabular-nums">{hover.r > 0 ? `${hover.r} × ${hover.c} 表格` : "移入选择表格尺寸"}</p>
-      <Button variant="ghost" size="sm" className="h-7 justify-start px-2 text-xs font-normal" onClick={() => toast("插入表格：输入行列数（上限 10 × 8）")}>
-        <Table className="size-3.5" /> 插入表格…
-      </Button>
-    </div>
   )
 }

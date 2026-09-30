@@ -195,6 +195,8 @@
 :root {
   --glass-bg: rgba(255, 255, 255, .72);
   --glass-bg-strong: rgba(255, 255, 255, .84);
+  /* 浮层档（弹层、菜单、对话框、画布覆盖层上的迷你工具条与浮签）：亮色同 strong；暗色见 .dark */
+  --glass-bg-float: rgba(255, 255, 255, .84);
   --glass-border-color: rgba(255, 255, 255, .55);
   --glass-blur: blur(24px) saturate(150%);
   --glass-shadow:
@@ -212,6 +214,10 @@
   /* iOS 27 暗色边缘：rim 用更黑而非更白，避免暗色玻璃在浅色内容上"发灰" */
   --glass-bg: rgba(28, 34, 52, .62);
   --glass-bg-strong: rgba(28, 34, 52, .78);
+  /* 暗色浮层会叠在白色幻灯片纸面上：78% 时透出约 22% 白，面板底变成 #4E5361，说明文字 #8A94A6 只有 2.5:1、主色 2.7:1。
+     浮层单独取 96%（纸面上 #252B3C：说明文字 4.6:1、主色 4.9:1）；叠在深色画布与面板上时与 78% 几乎无差别，模糊与边缘高光不变。
+     侧栏、检查器、Ribbon 卡等常驻面板只压在深色画布上，仍用 --glass-bg-strong（2026-09-30 截图自审，SF-14） */
+  --glass-bg-float: rgba(28, 34, 52, .96);
   --glass-border-color: rgba(255, 255, 255, .10);
   --glass-shadow:
     0 0 0 1px rgba(0, 0, 0, .35),
@@ -239,6 +245,15 @@
   backdrop-filter: var(--glass-blur);
 }
 
+/* 浮层档：画布覆盖层上的迷你工具条、浮签（与下方弹层 data-slot 规则同一底色） */
+@utility glass-float {
+  background: var(--glass-bg-float);
+  border: 1px solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
 /* 退化规则（§6.3）见下方"弹层玻璃化"之后的两个块：必须排在浮层 data-slot 规则之后才能同优先级靠顺序胜出 */
 
 /* 环境背景：给 --canvas 叠一层柔和径向光斑，让浮在上面的玻璃面板有东西可透。
@@ -250,7 +265,7 @@
 
 /* ============================================================
    弹层玻璃化：popover / dropdown / context-menu / select / dialog /
-   sheet / command 统一用 glass-strong（文字密度高，取高不透明度档）。
+   sheet / command 统一用浮层档 --glass-bg-float（亮色同 glass-strong；暗色 96%，见 .dark 注释）。
    规则写在这里而不改 src/components/ui/*：Tailwind v4 的 @import "tailwindcss"
    把 bg-popover / ring-1 / shadow-lg 等都放进 utilities 层，本文件里未包在
    @layer 内的规则属于"未分层"样式，按层叠层级规范恒优先于任何已分层样式，
@@ -270,7 +285,7 @@
 [data-slot="menubar-sub-content"],
 [data-slot="hover-card-content"],
 [data-slot="command"] {
-  background: var(--glass-bg-strong);
+  background: var(--glass-bg-float);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border-color);
@@ -319,7 +334,7 @@
    两块内容相同，分别对应两个触发条件。
    ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-strong,
+  .glass, .glass-strong, .glass-float,
   [data-slot="popover-content"],
   [data-slot="dropdown-menu-content"],
   [data-slot="dropdown-menu-sub-content"],
@@ -358,7 +373,7 @@
   }
 }
 @supports not (backdrop-filter: blur(1px)) {
-  .glass, .glass-strong,
+  .glass, .glass-strong, .glass-float,
   [data-slot="popover-content"],
   [data-slot="dropdown-menu-content"],
   [data-slot="dropdown-menu-sub-content"],

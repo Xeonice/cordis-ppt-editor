@@ -141,14 +141,23 @@ export function Styleguide() {
           </Row>
           <Row label="材质">
             <div className="w-full rounded-2xl bg-canvas p-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="glass rounded-2xl p-4">
                   <p className="text-sm font-medium">glass · 72% / 62%</p>
                   <p className="text-xs text-muted-foreground">画布上的浮动面板、状态胶囊；装饰性弱内容层</p>
                 </div>
                 <div className="glass-strong rounded-2xl p-4">
                   <p className="text-sm font-medium">glass-strong · 84% / 78%</p>
-                  <p className="text-xs text-muted-foreground">工具卡、侧栏、检查器、弹层；文字密集，取高不透明档</p>
+                  <p className="text-xs text-muted-foreground">工具卡、侧栏、检查器等常驻面板；文字密集，取高不透明档</p>
+                </div>
+                {/* 浮层档：暗色下弹层会叠在白色纸面上，78% 时说明文字只有 2.5:1，故单列一档 */}
+                {/* 右半边垫一条白纸面，示意浮层压在幻灯片上的情形 */}
+                <div className="relative overflow-hidden rounded-2xl">
+                  <div className="absolute inset-y-0 right-0 w-1/2 bg-doc-paper" aria-hidden="true" />
+                  <div className="glass-float relative h-full rounded-2xl p-4">
+                    <p className="text-sm font-medium">glass-float · 84% / 96%</p>
+                    <p className="text-xs text-muted-foreground">弹层、菜单、对话框、画布迷你工具条与浮签；暗色叠在白纸面上仍 ≥ 4.5:1</p>
+                  </div>
                 </div>
               </div>
             </div>

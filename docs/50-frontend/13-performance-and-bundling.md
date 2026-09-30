@@ -1,5 +1,5 @@
 # 13 性能预算与分包
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：§6 chunk 地图补登新依赖——形状库 sprite、插入图标、图表底层 d3 与数据网格、htmlparser2、内嵌字体解压、harfbuzz wasm、MathJax、离线库；编辑器基线与协同增量估算更新；新增图 6-2；§4 的 update 大小与键入合并两行随 Hocuspocus 帧与 provider 合并改写）；2026-09-26（§4.21 整合：§6 查看器基线计入 @cordexjs/xml；形状库缩略图改为 path 数据模块（与 40/10、50/22 一致）；harfbuzz 区分 shaping 与 subset wasm；新增 opentype.js 惰性行；§8 主线程解析经 drive 分片）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA、§4.21（q-chart-route、q-extra-inserts、q-license-tiers、H:q-hp-provider）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)
 
 本文是前端性能 **target** 与分解、chunk 地图与惰性边界的唯一事实源。**gate**（门禁值）只来自 PRD NF-01 与 EM-07，本文表格里出现的 gate 数字只是引用，冲突时以 PRD 为准；怎么测、怎么判、在哪个 CI 步骤跑归 [70/09](../70-testing/09-performance-and-capacity.md)；服务端 target 归 [60/01](../60-backend/01-service-overview-and-roles.md) 的预算总览；体积扫描器的实现归 40/01。
 
@@ -70,7 +70,7 @@ flowchart LR
 ```
 
 怎么读：从左到右是一次本地打开的时间线；上面一条是首屏主干，每个节点后的数字是该里程碑的 gate；`unit/opened` 之后分出两条并行支线——首屏继续渲染，其余批次在后台追加。
-依据：30/07 §14.2；PRD NF-01 §1.1；rulings §4.18 CO-02 / CO-12。
+依据：50-frontend/04 §2；30/01 §4.1；PRD NF-01 §1.1；rulings §4.18 CO-02 / CO-12。
 
 **首屏分解 target**（RM-A p75；初始值，M1 实测后只收紧）
 
@@ -163,8 +163,8 @@ gate 列只是 PRD 的引用（NF-01 §1.2 / §1.4、PRD 07 ML-01 / ML-03 / ML-0
 | 重连重同步（≤ 5,000 待同步 update） | ≤ 3 s | = | 断网模拟 |
 | 权限变更生效 | ≤ 2 s | p95 ≤ 1 s | 审计时间戳 vs 客户端事件 |
 | 20 个远端选区覆盖层 | ≥ 55 fps | 覆盖层不进脏区（[05](./05-rendering-and-thumbnails.md) §5.2） | trace |
-| 单个 update 大小 | ≤ 1 MB | 以 `auth.ok.limits.maxUpdateBytes`（默认 1 MiB，不含 1 字节 FrameType）为准，收到 `auth.ok` 前用客户端兜底配置（依据：INC-07）；超限按命令分批或走导入 | 单测 |
-| 键入 update 大小（合并后） | — | ≤ 200 B（p50），collab-yjs 50 ms 本地合并 | 单测统计 |
+| 单个 update 大小 | ≤ 1 MB | 以 `auth.ok.limits.maxUpdateBytes`（默认 1 MiB，按 Hocuspocus 帧内的 update 字节计，ADR-0039；原「不含 1 字节 FrameType」随 1 字节信封作废）为准，收到 `auth.ok` 前用客户端兜底配置（依据：INC-07）；超限按命令分批或走导入；长离线重连的 step2 单设 16 MiB 上限，超限收到 4413 后导出重载（rulings §4.21 H:q-hp-step2-cap） | 单测 |
+| 键入 update 大小（合并后） | — | ≤ 200 B（p50），由 @hocuspocus/provider 的 `flushDelay=50` 合并（H-d-28，原 collab-yjs 自有 50 ms 合并作废） | 单测统计 |
 
 ## 5. 内存预算
 
@@ -193,23 +193,31 @@ gzip，初始加载，不含字体与 peer 依赖（React 本体）。gate 来�
 
 | chunk | 内容 | 上限（gzip） | 估算 | 计入 | 触发条件 | 里程碑 |
 |---|---|---|---|---|---|---|
-| 查看器基线 | `preset-slide-viewer`：kernel、protocol + i18n 服务、model、ooxml、layout、render、slide-render、design 主题 CSS、查看器壳 | ≤ 350 KB | 345 KB | 基线 | 首屏 | M1 |
-| 编辑器基线 | `preset-slide` + ui-core + ui-react（含 shadcn 复制件）+ slide-ui + `model-slide/editing` chunk + 图标子集 | ≤ 900 KB | ≈ 774 KB | 基线 | 首屏（`editing` 为独立 chunk 但随编辑器加载，不惰性） | M2 |
-| 协同增量 | store-yjs + yjs、collab 三包、lib0 / y-protocols、在场 UI 与评论（`comments` 包及 slide-ui 的评论贡献，M3 装入，rulings §4.19 D-COMMENTS-PKG） | ≤ 200 KB | ≈ 150 KB | 叠加在编辑器之上 | 打开服务端文档（M2 起一律协同快照，rulings §4.19 D-M2-CONTENT） | M2（在场 UI 与 `comments` 部分 M3） |
+| 查看器基线 | `preset-slide-viewer`：kernel、protocol + i18n 服务、model、`@cordexjs/xml`（2026-09-26 新增，原型 gzip 约 4.4 KB，完整版体积待 M1 spike 回填；它取代的是 ooxml-core 内原有的解析器，不另增一份）、ooxml、layout、render、slide-render、design 主题 CSS、查看器壳 | ≤ 350 KB | 345 KB | 基线 | 首屏 | M1 |
+| 编辑器基线 | `preset-slide` + ui-core + ui-react（含 shadcn 复制件）+ slide-ui + `model-slide/editing` chunk + 图标子集 | ≤ 900 KB | ≈ 774 KB；§4.21 新增 react-colorful、colord、@tanstack/react-virtual、pragmatic-drag-and-drop、react-hook-form 与 use-sync-external-store 约 31–36 KB 后 ≈ 810 KB（M2 实测回填） | 基线 | 首屏（`editing` 为独立 chunk 但随编辑器加载，不惰性） | M2 |
+| 协同增量 | store-yjs + yjs、collab 三包、lib0 / y-protocols、@hocuspocus/provider、在场 UI 与评论（`comments` 包及 slide-ui 的评论贡献，M3 装入，rulings §4.19 D-COMMENTS-PKG） | ≤ 200 KB | ≈ 150 KB；@hocuspocus/provider 4.7.0 连同 common 与 @lifeomic/attempt 约 10 KB（gzip -9 实测，未最小化），自研传输代码相应减少（M2 实测回填） | 叠加在编辑器之上 | 打开服务端文档（M2 起一律协同快照，rulings §4.19 D-M2-CONTENT） | M2（在场 UI 与 `comments` 部分 M3） |
 | 导入 Worker | ooxml-core + ooxml-pptx 导入管线 | 计入所属 preset 基线（40/11 §3.4 的 ooxml 行） | — | 基线 | 本地字节打开时创建；协同打开不加载 | M1 |
 | 当前语言包 | `options.locale` 对应的语言包 | ≤ 30 KB | — | 单独校验，不计基线 | 与首屏并行加载 | M1 |
-| 图表渲染器 | M1–M2 `@cordexjs/slide-render/chart`，M3 起 `slide-render-chart` | ≤ 400 KB | — | 惰性 | 首个 `render/element-degraded{reason:'chart-unavailable'}`；`charts.enabled: false` 时永不加载 | M1 |
+| 图表渲染器 | M1–M2 `@cordexjs/slide-render/chart`，M3 起 `slide-render-chart`：d3-scale、d3-shape、d3-array（约 30 KB）+ 自研 OOXML 布局 + numfmt；M3 另含数据网格（@tanstack/react-table 9 + shadcn Table）与内嵌 xlsx 写出器（ADR-0036） | ≤ 400 KB | — | 惰性 | 首个 `render/element-degraded{reason:'chart-unavailable'}`；`charts.enabled: false` 时永不加载 | M1 |
 | 其他语言包 | 每个 | ≤ 30 KB | — | 惰性 | `i18n/locale-changed` | M1 |
 | 查看器可选件 | 缩略图条 / 备注抽屉 / 搜索 | ≤ 20 / 10 / 15 KB | — | 惰性 | 对应选项为 true 时 `manual` 激活 | M1 / M2 |
 | 放映 UI | slide-ui 放映舞台与控制条 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'presenter'}`、F5、`/documents/:id/present` | M2 |
 | 母版视图 UI | slide-ui 母版窗格、范围条、版式画廊 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'master'}`、Mod+Alt+M | M2 |
 | 版本历史 UI | 历史页签与 `/documents/:id/history` | ≤ 60 KB | — | 惰性 | 打开历史页签或路由（需 `history.read`） | M3 |
-| EMF / WMF 栅格化 Worker | emf-converter 封装 | M2 spike 后回填，只收紧 | — | 惰性，不计 350 KB 基线 | 首次遇到 EMF / WMF | M2 |
+| EMF / WMF 栅格化 Worker | emf-converter 4.0.x 封装（4.0.0 的 dist 未最小化 gzip -9 约 205 KB，2026-09-26 实测） | M2 spike 按最小化产物回填，只收紧 | — | 惰性，不计 350 KB 基线 | 首次遇到 EMF / WMF | M2 |
 | pptx 导出 Worker | ooxml-pptx 导出路径 | 目标从基线移出（40/11 G-14，可省约 25 KB） | ≈ 25 KB | 惰性（目标） | 执行导出 | M2 |
 | apps/web 路由 chunk | 每个页面 `React.lazy` 一个 chunk | 首屏路由 chunk ≤ 250 KB（不含 preset） | — | 单独校验 | 路由切换 | M2 |
 | `/render` 页 | 查看器 preset + 渲染页，惰性全部关闭 | 不设 gate，只报告 | — | — | renderer 内加载 | M3 |
 | OTel Web | apps/web 的 OTel Web SDK 与 OTLP 导出器（[15](./15-events-errors-and-telemetry.md) §7） | 不设 gate，只报告 | 约 40–60 KB | 惰性，不计基线 | 产品遥测生效（RuntimeConfig `telemetry.otlp` ∧ 用户开关，15 §9）时加载；否则永不加载 | M3（随 `/telemetry/otlp`） |
 | 开发者面板 `cordex.devtools` | ui-react 承载的诊断面板各页（15 §10） | 不设 gate，只报告 | — | 惰性，不计基线 | 开发者菜单可见（DEV 或 `features.developerMenu`）且打开面板 | M2 |
+| 形状库缩略图 path 数据 | 构建期由 `tooling/scripts/gen-shape-gallery-thumbs.ts` 调 engine-layout `presetGeometryPath` 生成的 slide-ui `domain/shape-gallery-thumbs.ts`（首批 72 项 10 类，R-d-66；2026-09-26 整合时由原「SVG sprite」方案改为与 40/10、50/22 一致的 path 数据模块） | 不设 gate，只报告 | M2 实测回填 | 惰性 chunk，不计基线 | 首次打开形状库 flyout | M2 |
+| 插入图标库 | lucide-static 1.48.0 的 SVG 字符串按分类分块（包解包 51 MB，只取图标数据） | 不设 gate，只报告；每块上限 M3 实测后定 | — | 惰性，不计基线 | 打开「图标」面板或切换分类 | M3（P2） |
+| 剪贴板 HTML 解析 | htmlparser2 12（含 entities 解码表） | 不设 gate，只报告 | 约 25 KB | 惰性，不计基线 | 粘贴项只有 `text/html`、没有 `text/plain` 时（[14](14-client-security.md) §5） | M2 |
+| 内嵌字体解压 | mtx-decompressor 1.6.0（EOT 容器里的 MicroType Express 解压） | 不设 gate，只报告 | dist 未最小化 gzip -9 约 14 KB | 惰性；**不得进查看器基线**（基线估算 345 KB，余量约 5 KB） | 包内出现 `p:embeddedFontLst`，在导入 Worker 内动态 import | M2（OF-17） |
+| 复杂文种 shaping | harfbuzzjs 1.6.2 的 shaping wasm（`harfbuzz.wasm`）+ bidi-js 1.1.0；`harfbuzz-subset.wasm`（651 KB）只在 tooling 做字体子集，不进浏览器 | 不设 gate，只报告 | wasm 434 KB（未压缩）；bidi-js 解包 171 KB | 惰性，不计基线；需要 CSP `'wasm-unsafe-eval'`（[14](14-client-security.md) §2.7） | 启用 RTL / 复杂文种 Provider 且文档含相应文种 | M4 / M5 |
+| 艺术字字形轮廓 | opentype.js 2.0.0（取字形轮廓做艺术字变形，2026-09-26 整合登记，[50/20](20-elements-text.md) §5） | 不设 gate，只报告 | — | 惰性，不计基线 | 首个需要可编辑渲染的艺术字变形 | M4+ |
+| 公式渲染 | MathJax 4 SVG 输出与 OMML ↔ MathML 转换 | 不设 gate，只报告 | 按需约 1 MB 以上 | 惰性，不计基线 | 首个需要可编辑渲染的公式；M1–M3 公式走 `mc:Fallback` 图片，不加载 | M4+ |
+| 离线持久化 | collab-offline-idb（idb 8.0.3 约 1.2 KB gzip + 自写适配） | 不设 gate，只报告 | — | 惰性，叠加在协同增量之上 | `offline.enabled` 为真 | M4 |
 
 **图 6-1 chunk 地图：基线与惰性**
 
@@ -250,6 +258,38 @@ flowchart TB
 怎么读：上框是首屏必加载的三档基线（实线表示 viewer ← slide ← collab 的派生叠加关系），下框每个惰性 chunk 用虚线指向它挂靠的基线，线上文字是触发条件；惰性 chunk 不计入所挂基线的门禁，各自按上限单独校验。
 依据：PRD NF-01 §1.5、EM-07；40/11 §3.1 / §3.4；rulings §4.18 FE-06 / FE-08。
 
+**图 6-2 §4.21 新依赖落到哪一档 chunk**
+
+```mermaid
+flowchart LR
+  subgraph editorBase["编辑器基线 ≤ 900 KB"]
+    uiNew["react-colorful、colord、react-hook-form、use-sync-external-store"]
+    railNew["@tanstack/react-virtual、pragmatic-drag-and-drop"]
+  end
+  subgraph collabInc["协同增量 ≤ 200 KB"]
+    hp["@hocuspocus/provider，约 10 KB"]
+  end
+  subgraph chartLazy["图表渲染器 ≤ 400 KB，惰性"]
+    d3["d3-scale、d3-shape、d3-array，约 30 KB"]
+    grid["@tanstack/react-table 与 xlsx 写出器，M3"]
+  end
+  subgraph otherLazy["其余惰性 chunk：只报告"]
+    sprite["形状库缩略图 path 数据，M2"]
+    icons["插入图标分块，M3"]
+    html2["htmlparser2，约 25 KB"]
+    mtx["mtx-decompressor，约 14 KB"]
+    hb["harfbuzz wasm 434 KB，M4 与 M5"]
+    mj["MathJax，约 1 MB 以上，M4+"]
+    idb["collab-offline-idb，M4"]
+  end
+  viewerBase["查看器基线 ≤ 350 KB：本轮不增加任何依赖"]
+  mtx -. "不得进入" .-> viewerBase
+  d3 -. "chart-unavailable 触发" .-> viewerBase
+```
+
+怎么读：左上两块是会进首屏的新依赖（编辑器基线估算 ≈ 810 KB、协同增量加约 10 KB），其余新依赖全部惰性；查看器基线本轮一项不加——内嵌字体解压虽然属于 ooxml-core，也必须在导入 Worker 内动态加载，否则就会越过 350 KB。
+依据：[17](17-reuse-and-dependency-catalog.md) §2–§13；ADR-0036；rulings §4.21 q-chart-route、q-extra-inserts、q-license-tiers。
+
 **门禁机制**（依据：T-BUNDLE）
 
 - 事实源：各 preset 的 `src/config/bundle-budget.json`（`{ preset, gzipKb, chunks, lazy, tolerancePct: 5 }`，schema 与 `computeBudget` 见 40/11 §2.2–§2.3）；apps/web 的路由 chunk 预算同形态，文件落点待 40/11 登记。
@@ -263,7 +303,7 @@ flowchart TB
 2. **基线内按包分组**：基线 chunk 按包分组（kernel / shared / protocol、model、ooxml、render、ui），提高跨版本发布的缓存命中；分组规则只写在 `apps/web/vite.config.ts`（Vite 8）。
 3. **惰性模块不得被基线静态 import**：`lazy.test.ts` 断言无图表文档的图表 chunk import 计数为 0；`scan-bundle-budget` 读 chunk 图，惰性模块出现在基线 chunk 即失败。
 4. **`sideEffects` 与 `exports`**：包 `package.json#sideEffects: false`（CSS 文件除外）；惰性入口以 `exports` 子路径声明（`./chart`、`./editing`、`./entries`）；`./testing` 由 depcruise `no-testing-in-prod` 挡在生产图之外。
-5. **预加载**：首屏路由 chunk 用 `modulepreload`；编辑器在 `unit/loaded` 后的空闲时间 `prefetch` 放映与母版视图 chunk（查看器不预取）；图表、语言包、EMF Worker、导出 Worker 不预取，触发即加载。
+5. **预加载**：首屏路由 chunk 用 `modulepreload`；编辑器在 `unit/loaded` 后的空闲时间 `prefetch` 放映与母版视图 chunk（查看器不预取）；图表、语言包、EMF Worker、导出 Worker，以及 §4.21 新增的形状库缩略图 path 数据、插入图标、剪贴板 HTML 解析、内嵌字体解压、复杂文种 shaping、公式渲染与离线持久化都不预取，触发即加载。
 6. **Worker 入口**：一律 `new Worker(new URL('./x.worker.ts', import.meta.url), { type: 'module' })`，产物在同源 `/assets/` 下，受 Trusted Types `createScriptURL` 策略与 `worker-src 'self'` 约束，不使用 `blob:` Worker（策略正文见 [14](./14-client-security.md) §2–§4）。
 7. **版本漂移**：带哈希的资源 `immutable`，`index.html` 为 `no-store`；惰性 chunk 加载失败或收到关闭码 4426 / 4427 → 横幅「发现新版本」，协同中先 flush 再刷新；M1–M4 不引入 Service Worker（依据：VERSION-DRIFT-SW，事实源 [02](./02-app-shell-routing-and-session.md) §12；横幅见 [10](./10-editor-shell-and-interaction.md) §11，协同 flush 见 [07](./07-collaboration-client.md)）。
 
@@ -271,7 +311,7 @@ flowchart TB
 
 | Worker | 入口 | 何时创建 | 输入 → 输出 | 生命周期 | 无 Worker 环境 |
 |---|---|---|---|---|---|
-| 导入解析 | ooxml-pptx `infrastructure/import/import.worker.ts` | `units.open` 本地字节 | 转移的 `ArrayBuffer` → 批次（结构化克隆，媒体字节按需 Transferable）；消息 `start / batch / prioritize / cancel / done / error` | 全部批次到齐或取消后终止 | 同一代码在主线程分片执行，每片 ≤ 50 ms 让出，行为等价只是更慢 |
+| 导入解析 | ooxml-pptx `infrastructure/import/import.worker.ts` | `units.open` 本地字节 | 转移的 `ArrayBuffer` → 批次（结构化克隆，媒体字节按需 Transferable）；消息 `start / batch / prioritize / cancel / done / error` | 全部批次到齐或取消后终止 | 同一代码在主线程分片执行，每片 ≤ 50 ms 让出（XML 解析经 `@cordexjs/xml` 的 `drive` 按 64 KiB 分片、注入 kernel 调度器的 `shouldYield`，ADR-0019 决策 2），行为等价只是更慢 |
 | pptx 导出 | 待 40/04 登记（建议 ooxml-pptx `infrastructure/export/export.worker.ts`） | 执行导出 | `store.exportSnapshot()` 的结构化克隆 + 基线包字节 → pptx `Blob` | 导出完成后终止，基线包字节只在此期间常驻 | 主线程分片 |
 | EMF / WMF 栅格化 | slide-render `infrastructure/media/emf-rasterizer.worker.ts` | 首次遇到 EMF / WMF | 图元字节 → 位图 | 空闲 60 s 回收；超时终止任务 | 保持占位，不在主线程栅格化 |
 
@@ -304,7 +344,7 @@ sequenceDiagram
 ```
 
 怎么读：纵向是时间；上半段是一次渐进打开（包络计数在首批回传之前完成，超天花板整体拒绝），`loop` 是后台追加，`prioritize` 是主线程发给 Worker 的抢占消息；下半段是导出——Worker 只拿快照副本，主线程继续编辑不受影响。
-依据：30/07 §14.2；rulings §4.18 CO-11 / CO-12；PRD NF-01 §1.4「导出期间 UI 可编辑」。
+依据：50-frontend/04 §2；rulings §4.18 CO-11 / CO-12；PRD NF-01 §1.4「导出期间 UI 可编辑」。
 
 ## 9. 渲染侧手段
 
@@ -404,9 +444,9 @@ flowchart TB
 | 里程碑 | 本文交付 |
 |---|---|
 | M1 | 查看器基线 ≤ 350 KB 门禁；打开场景（D50 / D200 / DX-1000 / DX-MEDIA）、主线程长任务、查看器内存进入 perf 门禁；mark 规范落地；DX-1000 spike（M1 中期）；`test/perf/budgets.json` 建立并与 §12 做一致性检查；DX-20K 堆回填 |
-| M2 | 编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 门禁（三档体积门禁上线；服务端文档自 M2 起实际加载协同增量）；交互、键入、IME、母版视图、材质帧时间、可访问树进入门禁或报告；**服务端文档的打开预算按快照 bootstrap 路径**（`client.collab.firstPaint.*`、`client.collab.sync.*`）与协同客户端预算中的本地回显进入 perf-collab 门禁，A → B 可见、重连重同步自 M2 起报告、M3 门禁（PRD 04 NF-01 §1.6；rulings §4.19 D-M2-CONTENT）；自托管专用 runner 在 M2 前落地（rulings §4.19 D-TEST-INFRA）；EMF Worker chunk 预算回填；位图 spike 结论；导出 Worker 惰性化；开发者面板惰性 chunk |
-| M3 | 多人协同体验层的预算：presence 传播、权限变更生效、20 个远端覆盖层；版本历史 UI chunk；批量 PNG 转 `server-png`；图表拆包 `slide-render-chart`；OTel Web 惰性 chunk（随 `/telemetry/otlp`） |
-| M4 | 各预算按实测收紧一轮；RM-B 近似口径复核 |
+| M2 | 编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 门禁（三档体积门禁上线；服务端文档自 M2 起实际加载协同增量）；交互、键入、IME、母版视图、材质帧时间、可访问树进入门禁或报告；**服务端文档的打开预算按快照 bootstrap 路径**（`client.collab.firstPaint.*`、`client.collab.sync.*`）与协同客户端预算中的本地回显进入 perf-collab 门禁，A → B 可见、重连重同步自 M2 起报告、M3 门禁（PRD 04 NF-01 §1.6；rulings §4.19 D-M2-CONTENT）；自托管专用 runner 在 M2 前落地（rulings §4.19 D-TEST-INFRA）；EMF Worker chunk 预算回填；§4.21 新依赖进入编辑器基线后的实测回填、形状库 sprite 与剪贴板 HTML 解析、内嵌字体解压三个惰性 chunk 首次报告；位图 spike 结论；导出 Worker 惰性化；开发者面板惰性 chunk |
+| M3 | 多人协同体验层的预算：presence 传播、权限变更生效、20 个远端覆盖层；版本历史 UI chunk；批量 PNG 转 `server-png`；图表拆包 `slide-render-chart`（含数据网格与 xlsx 写出器）；插入图标分块上限定值；OTel Web 惰性 chunk（随 `/telemetry/otlp`） |
+| M4 | 各预算按实测收紧一轮；RM-B 近似口径复核；离线持久化 chunk；复杂文种 shaping 与公式渲染（M4+）的 chunk 首次报告 |
 
 | 待回写项 | 去向 |
 |---|---|
@@ -418,6 +458,7 @@ flowchart TB
 | apps/web 路由 chunk 预算文件 | 40/11 §10 |
 | OTel Web 与 `cordex.devtools` 两个惰性 chunk 的构建入口与预算文件条目（§6） | 40/11——已登记（§5 apps/web `bundle-budget.json` 行） |
 | 可访问树的 mark `cordex:a11y:tree-ready` 与 §12 三个 `client.a11y.*` 键 | [70/09](../70-testing/09-performance-and-capacity.md) §2 budgets.json 汇编 |
+| §6 新增的七个惰性 chunk（形状库缩略图 path 数据、插入图标、剪贴板 HTML 解析、内嵌字体解压、复杂文种 shaping、公式渲染、离线持久化）的构建入口与 `bundle-budget.json` 条目（rulings §4.21） | 40/11；内嵌字体解压的动态 import 点归 [40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) |
 
 ## 14. 机械验证
 

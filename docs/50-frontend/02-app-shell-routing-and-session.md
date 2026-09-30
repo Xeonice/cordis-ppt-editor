@@ -1,5 +1,5 @@
 # 02 应用壳、路由与会话
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、§4.20 FE-10/BE-02、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：续期后的换票改写为 provider.sendToken() 发 Auth 帧（onTokenSync））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[03 预设装配](03-preset-assembly-and-plugins.md)、[60/02 鉴权链路](../60-backend/02-auth-chain.md)、[60/15 REST API 目录](../60-backend/15-rest-api-catalog.md)、[40/11 预设装配与应用壳](../40-modules/11-preset-assembly-and-app-shell.md)、[30/02 §3.1](../30-architecture/02-layering-and-packages.md)、[30/06 §18.3](../30-architecture/06-collaboration.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-04/U-16、§4.15 Q6、§4.18 UX-02/UX-03/UX-19/BE-01/BE-10/BE-11、§4.19 D-M2-CONTENT、§4.20 FE-10/BE-02、[PRD 08 应用壳](../10-prd/03-features/08-app-shell.md) AS-01…AS-06
 
 本文是 `apps/web` 应用壳在浏览器一侧的唯一事实源：路由表、运行时配置、会话状态机与浏览器侧 OIDC 回环、新窗口重新登录、编辑器页状态与 host 保活、REST 客户端统一策略、用例清单、壳页面状态、浏览器存储键空间与清理矩阵、分享链接落地、版本漂移。
 
@@ -160,7 +160,7 @@ stateDiagram-v2
 
 - **只做被动续期**：任一业务请求返回 401（码为 `server.auth.expired` / `server.auth.invalid_token` / `server.auth.unauthenticated`）→ 调用 `POST /auth/token/refresh`（[60/15](../60-backend/15-rest-api-catalog.md) §3.1）续期一次 → 成功后**重放原请求一次**（SessionGuard 在执行前拒绝，重放不会造成重复副作用）→ 续期仍 401 即 `expired`。不设定时的主动续期：浏览器不知道也不需要会话到期时刻；协同 WS 会话的寿命由票据 `sid` 指向的登录会话承担，不随 15 min 的会话 JWT 到期（[60/02](../60-backend/02-auth-chain.md) §9.5）。
 - **单飞与跨标签互斥**：续期在 `navigator.locks.request('cordex-auth-refresh')` 内执行；拿到锁后先 `GET /auth/me`：它返回 200 说明另一标签页已完成续期（cookie 已更新），直接成功、不再调用续期端点，避免轮换刷新令牌被并发使用而误判过期。完成后在 `BroadcastChannel('cordex-auth')` 广播 `{ type:'refreshed' }`。不支持 Web Locks 时退化为页面内单飞 + 失败后探测 `/auth/me` 一次。
-- **续期成功之后**：本页有协同会话时，协同客户端随即换一张新票据并发 `CONTROL.auth.refresh{ticket}`，只重新绑定会话（重算角色与链接），不延长期限（[07](07-collaboration-client.md) §8.3）。
+- **续期成功之后**：本页有协同会话时，协同客户端随即换一张新票据，经 `provider.sendToken()` 发出已认证后的 Auth 帧（token JSON 里带新 `ticket`，服务端 `onTokenSync` 处理），只重新绑定会话（重算角色与链接），不延长期限（[07](07-collaboration-client.md) §8.3）。
 - **`classifyAuthError(env)`**：401 → `expired`（`unknown` 态时为 `anonymous`）；403 → `forbidden`（分享令牌失效另见 §11）；网络错误、超时、502/503/504 → `network`（不改变登录态）；403 `server.auth.csrf_rejected` / `server.auth.origin_rejected` 视为部署或客户端缺陷，上报 `error/raised` 并显示通用错误，不跳登录。
 
 ### 4.3 过期时的页面处置
@@ -364,7 +364,7 @@ sequenceDiagram
   end
 ```
 
-怎么读：自上而下是时间顺序；客户端从不提交对象键，只凭服务端签发的 `uploadId` 关联原件（rulings §4.18 BE-10）；状态查询只用 `GET /jobs/:id`（依据：SG-08，authority：用户偏好「不要过度设计」+ 30/08 §7 `job_runs` 统一），不再使用 `GET /imports/:jobId`。轮询间隔：前 10 s 每 1 s，之后每 2 s，页面不可见时每 5 s；「重试」即重新走一遍完整导入（设计 13）。
+怎么读：自上而下是时间顺序；客户端从不提交对象键，只凭服务端签发的 `uploadId` 关联原件（rulings §4.18 BE-10）；状态查询只用 `GET /jobs/:id`（依据：SG-08，authority：用户偏好「不要过度设计」+ 60-backend/06 §2.4 `job_runs` 统一），不再使用 `GET /imports/:jobId`。轮询间隔：前 10 s 每 1 s，之后每 2 s，页面不可见时每 5 s；「重试」即重新走一遍完整导入（设计 13）。
 
 依据：rulings §4.18 BE-10、UX-14；SG-08；[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §6。
 

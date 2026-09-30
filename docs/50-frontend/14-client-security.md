@@ -1,6 +1,6 @@
 # 14 客户端安全
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02、§4.20 FE-18；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：§3 注入点表补 react-colorful、pragmatic-drag-and-drop、react-virtual 并把 react-resizable-panels 升到 4.13.3；新增 §2.7 WebAssembly 例外（M4+）；§4.3 补 zod `jitless` 与 fflate 异步入口；§5 写明从 URL 插入图片的取数路径（默认不经服务端代抓）；§7 XML 限额改为引用 ADR-0019 的 `XmlLimits` 表）；2026-09-26（§4.21 整合：§11.2 登记 display-capture（M4+ 屏幕截图）；§7 登记主线程只读解析经 drive 分片的例外；§13 待回写清单标为已回写）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02、§4.20 FE-18；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033、ADR-0019（`XmlLimits`）、ADR-0049；rulings §4.21（R-d-11、R-d-13、R-d-17、R-d-28，q-license-tiers）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17
 
 本文是浏览器侧安全设计的唯一事实源：信任模型、CSP 策略正文（逐指令）、nonce 消费链、Trusted Types、文档内容进入 DOM 的规则、外链资源、输入限制、会话与请求的浏览器侧规则、上传、本地数据、嵌入与跨源、前端代码规则。服务端鉴权链（OIDC、会话、CSRF 校验、票据、分享链接解析、RLS）以 [60/02](../60-backend/02-auth-chain.md) 为准；web 容器如何每响应生成 nonce、下发 CSP 头与缓存头以 [60/17](../60-backend/17-deployment-and-config.md) 为准，其中 CSP 策略正文只引用本文 §2。测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §10 与 [70/10](../70-testing/10-security-testing.md) 为准。
 
@@ -90,7 +90,7 @@ flowchart LR
 | 指令 | 取值 | 理由 | 里程碑 |
 |---|---|---|---|
 | `default-src` | `'self'` | 未单列的资源类型一律同源 | M2 |
-| `script-src` | `'self' 'nonce-{nonce}'` | 入口与惰性 chunk 同源；页面没有可执行的内联脚本：RuntimeConfig 是不执行的 JSON 数据块 `<script type="application/json" id="cordex-runtime-config">`，不需要 nonce（60/17 §3.3）；入口 `<script type="module">` 带 nonce 只为与模板一致；不放 `'unsafe-inline'`、`'unsafe-eval'`、`'strict-dynamic'` | M2 |
+| `script-src` | `'self' 'nonce-{nonce}'` | 入口与惰性 chunk 同源；页面没有可执行的内联脚本：RuntimeConfig 是不执行的 JSON 数据块 `<script type="application/json" id="cordex-runtime-config">`，不需要 nonce（60/17 §3.3）；入口 `<script type="module">` 带 nonce 只为与模板一致；不放 `'unsafe-inline'`、`'unsafe-eval'`、`'strict-dynamic'`；唯一的追加项是 M4+ 启用复杂文种 shaping 时的 `'wasm-unsafe-eval'`（§2.7） | M2 |
 | `style-src` | `'self' 'nonce-{nonce}'` | 静态 `styles.css` 同源；运行时 `<style>` 只允许带 nonce 的注入点（§3）；React 经 CSSOM 写 `element.style` 不受限，但禁止 `setAttribute('style', …)` | M2 |
 | `img-src` | `'self' blob: data: {externalSrc}` | `blob:` 为文档页内媒体与缩略图的 blob URL（二者都经 `http.ts` / `fetch` 取回 Blob，50/05 §8.1、§10.2；文档页内元素不直接引用存储源或 API 端点，§9）；列表页封面直接引用同源端点，由 `'self'` 覆盖；`data:` 为 toImage 内联与小图标 | M2 |
 | `media-src` | `'self' blob: {externalSrc}` | 同上，音视频 | M2 |
@@ -198,24 +198,44 @@ Reporting-Endpoints: cordex-csp="https://{publicHost}/api/v1/telemetry/csp"
 | `Permissions-Policy` | 不得禁用 `clipboard-read`、`clipboard-write`、`fullscreen`（剪贴板与放映）；形态 E 由父页面 `allow` 再授予（§11.2） | NF-07 可选能力 |
 | `Cache-Control`（`index.html`） | `no-store`：nonce 每响应不同；版本漂移见 50/02 §12 | CSP-NONCE |
 
+### 2.7 WebAssembly 例外（M4+）
+
+依据：rulings §4.21（R-d-28）；ADR-0027；[17](17-reuse-and-dependency-catalog.md) §5。
+
+M4 / M5 的 RTL 与复杂文种 shaping 用 harfbuzzjs（wasm，shaping 部分 434 KB 未压缩）。浏览器编译 WebAssembly 需要 `script-src` 带 `'wasm-unsafe-eval'`；它只放行 wasm 编译，不放行 `eval` 与 `new Function`，后两者仍因缺 `'unsafe-eval'` 被拦。这是 §2.1「无 `'unsafe-eval'`」之外唯一的追加项：
+
+| 项 | 规则 |
+|---|---|
+| 何时下发 | 只有部署启用了复杂文种 shaping Provider 时，web 容器才在 `script-src` 追加 `'wasm-unsafe-eval'`；未启用的部署（默认）策略与 §2.2 完全相同 |
+| 开关 | 与 Provider 的启用共用同一个部署配置（键名随 M4 RTL 立项登记于 [60/17](../60-backend/17-deployment-and-config.md)，本文不预先命名）；前端按 RuntimeConfig 里的同一值决定是否加载 harfbuzz 测量器，二者不一致时不加载并出诊断 |
+| wasm 来源 | wasm 与 JS 胶水同源放在 `/assets/`（带哈希、`immutable`），经 `fetch` + `WebAssembly.instantiateStreaming` 加载，`connect-src 'self'` 已覆盖；不从 CDN 取，不用 `data:` 或 `blob:` 形式的 wasm |
+| 所在位置 | render-dom `harfbuzz-measurer.ts`，与现有 canvas 度量同处主线程，惰性加载（[13](13-performance-and-bundling.md) §6） |
+| `/render` 变体 | 与 apps/web 同一开关：renderer 要用同样的 shaping 才能与客户端像素一致，开关打开时 §2.3 变体同样追加 |
+| 形态 A–D | 集成方要启用 shaping，宿主 CSP 须自行放行 `'wasm-unsafe-eval'`（写进 EM-18 集成检查清单）；未放行时 SDK 回落到默认度量 Provider 并出诊断 |
+| 仍然禁止 | `'unsafe-eval'`；除 harfbuzzjs 外任何运行时 wasm（emf-converter 4.x 不含 wasm，本轮核实） |
+| 门禁 | csp-strict 在「启用 shaping」变体下断言策略含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'`、`script-src` 违规为 0；默认变体下策略不含 `'wasm-unsafe-eval'`（§13 V15） |
+
 ## 3. nonce 链
 
-依据：CSP-NONCE（rulings §4.15 Q2 + §4.18 BE-11 + 30/08 §10.1）；40/11 §12 G-11（`theme.cssNonce` 透传）。
+依据：CSP-NONCE（rulings §4.15 Q2 + §4.18 BE-11 + 60-backend/17 §3.2）；40/11 §12 G-11（`theme.cssNonce` 透传）。
 
 1. **生成**（实现方式以 60/17 §3 为准，本文只写要求）：web 容器对每个 `index.html` 响应生成一个新的 ≥ 128 bit 随机 nonce，写入入口 `<script type="module">` 的 `nonce` 属性（无害，保持一致）与 `<meta name="cordex-nonce" content="…">`，同时写进 CSP 响应头；`index.html` 为 `no-store`。
 2. **读取**：浏览器会对 `nonce` 属性做隐藏（`getAttribute('nonce')` 返回空串），因此 `apps/web` 的 `main.tsx` 从 `<meta name="cordex-nonce">` 读取。nonce **不进入 RuntimeConfig**：RuntimeConfig 是容器启动时渲染的静态部署项（RUNTIME-CONFIG），nonce 是每响应值。
 3. **交给 SDK**：`create-editor-host.ts` 把 nonce 作为 `theme.cssNonce` 传入 preset 选项；SDK 内**只认这一个入口**（形态 A 的宿主同样只传这一项）。
 4. **自有注入点**：ui-core `theme-style-injector.ts` 创建唯一的 `<style data-cordex-tokens nonce>`，内容只用 `textContent` 写入，按 document 去重。
-5. **第三方运行时样式**：ui-react 挂载时把同一 nonce 交给下列注入点。清单登记在 ui-react（`src/infrastructure/csp/runtime-style-sinks.ts`），每次升级依赖时按实际版本复核；下表各依赖的处理已按 playground 锁定版本的源码实测定稿（rulings §4.20 FE-18，不等 M2 报告）：
+5. **第三方运行时样式**：ui-react 挂载时把同一 nonce 交给下列注入点。清单登记在 ui-react（`src/infrastructure/csp/runtime-style-sinks.ts`），每次升级依赖时按实际版本复核；下表各依赖的处理已按 playground 锁定版本的源码实测定稿（rulings §4.20 FE-18，不等 M2 报告），§4.21 新增与升级的依赖按 npm 发布包源码扫描核实（扫描口径见 [17](17-reuse-and-dependency-catalog.md) §0.1）：
 
 | 注入点 | 所在依赖（实测版本） | nonce 传递方式 | 不支持 nonce 或触及 Trusted Types 时 |
 |---|---|---|---|
 | 滚动锁定样式（Dialog、Popover、Select 等） | `react-remove-scroll` → `react-style-singleton` | 在首次渲染前调用 `get-nonce` 的 `setNonce(nonce)`；`get-nonce` 须与 `react-style-singleton` 解析到同一实例（R5 单点引入 + 单一版本） | — |
 | 隐藏滚动条的固定样式 | Radix ScrollArea 1.2.18 / Select 2.3.7 的 Viewport（`<style dangerouslySetInnerHTML nonce>` 写一段固定常量） | shadcn 复制件 `scroll-area.tsx`、`select.tsx` 以 `// Cordex override` 透传 `nonce` 属性 | CSP 不受影响；React 写 innerHTML 是 TT sink，由 `default` 策略按常量表精确白名单放行（§4.1、§4.4） |
 | Toast 样式 | `sonner` 2.0.8（模块加载时即以不带 nonce 的 `<style>` 注入，`__insertCSS`） | 不支持 nonce | 静态引入 `sonner/dist/styles.css` 并入 ui-react 样式产物；以 pnpm patch 删去 import 时的 `__insertCSS` 调用（`pnpm-workspace.yaml` 登记 `patchedDependencies`），运行时零注入、零违规 |
-| 拖拽期间的全局光标样式 | `react-resizable-panels` 4.12.4 | 不需要：只用 `adoptedStyleSheets` / CSSOM（`replaceSync`、`insertRule`），不创建 `<style>`、不写 innerHTML，不经 `style-src` 的元素校验 | 无需处理 |
+| 拖拽期间的全局光标样式 | `react-resizable-panels` 4.13.3（由 4.12.4 升级，rulings §4.21 R-d-11） | 不需要：只用 `adoptedStyleSheets` / CSSOM（`replaceSync`、`insertRule`），不创建 `<style>`、不写 innerHTML，不经 `style-src` 的元素校验（4.13.3 复核结论不变） | 无需处理 |
+| 颜色选择器的色盘样式 | `react-colorful` 5.8.1（挂载时 `createElement("style")` 并写 `innerHTML`，不带 nonce；样式文本内嵌在 JS 里） | 不支持 nonce | 以 pnpm patch 删去注入（与 sonner 并列登记在 `patchedDependencies`），原样式文本抽到 ui-react `src/styles/vendor/react-colorful.css` 静态引入（[09](09-ui-system-and-theming.md) §5a.3，R-d-13）；运行时零注入、零违规 |
+| 缩略图栏与选择窗格的虚拟列表 | `@tanstack/react-virtual` 3.14.13 | 不需要：只经 React `style` 属性写 CSSOM | 无需处理 |
+| 拖拽重排与外部文件拖入 | `@atlaskit/pragmatic-drag-and-drop` 4.0.0（只用核心包） | 不需要：发布包无运行时样式注入 | 无需处理；不引 `*-react-drop-indicator` 等附加包（其样式方案未核实，引入前须按本表复核） |
 
-6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 与 Trusted Types 违规数都为 0，且 Toast 与 ScrollArea 的计算样式与基线一致；任何遗漏的注入点、失效的 patch 或过期的常量表都会在这里暴露。没有「运行时注入被拦只产生报告、外观不变」这类退路：`style-src` 自 M2 起强制，零违规是门禁。
+6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 与 Trusted Types 违规数都为 0，且 Toast、ScrollArea 与颜色选择器色盘的计算样式与基线一致；任何遗漏的注入点、失效的 patch 或过期的常量表都会在这里暴露。没有「运行时注入被拦只产生报告、外观不变」这类退路：`style-src` 自 M2 起强制，零违规是门禁。
 
 **图 2 nonce 从 web 容器响应到样式注入**
 
@@ -277,10 +297,10 @@ SDK 各包不自建策略（策略名由组合根决定）。`createHost` 增加
 
 | sink 类别（TT 类型） | 本项目用法 | 处理 |
 |---|---|---|
-| `new Worker` / `new SharedWorker`（TrustedScriptURL） | 导入解析、pptx 导出、EMF 栅格化 | 首参经 `toScriptUrl` + `cordex-default` |
+| `new Worker` / `new SharedWorker`（TrustedScriptURL） | 导入解析、pptx 导出、EMF 栅格化；第三方：fflate 的异步入口（`zip()`、`unzip()`、`inflate()`、`deflate()` 等）会用 `URL.createObjectURL` 起内联 `blob:` Worker（rulings §4.21 核实） | 首参经 `toScriptUrl` + `cordex-default`；fflate 只用同步与流式 API（`unzipSync`、`zipSync`、`Unzip`、`Zip` 类），由 ooxml-core `opc/zip.ts` 上的 `no-restricted-imports` 配置行禁止导入异步入口 |
 | `HTMLScriptElement.src` / `.text`（TrustedScriptURL / TrustedScript） | 不使用；惰性 chunk 走 `import()` | — |
-| `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser.parseFromString`、`document.write`、`Range.createContextualFragment`、`iframe.srcdoc`（TrustedHTML） | 自有代码不使用：TD-081 lint（渲染包与 `*-ui`）+ ui-core / ui-react / slide-ui 禁 `dangerouslySetInnerHTML`（40/10 §10）；ui-core 剪贴板清洗同样不得使用 `DOMParser`（§5）。第三方唯一用法：Radix ScrollArea / Select Viewport 的固定 `<style>`（§4.4） | `cordex-default` 无 `createHTML`；`default` 只放行常量表里的两段文本，其余强制后抛错 |
-| `eval`、`new Function`、字符串形式的 `setTimeout`（TrustedScript） | 不使用：CSP 无 `unsafe-eval` + ESLint 核心规则 `no-eval` / `no-implied-eval` / `no-new-func` | 无 `createScript` |
+| `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser.parseFromString`、`document.write`、`Range.createContextualFragment`、`iframe.srcdoc`（TrustedHTML） | 自有代码不使用：TD-081 lint（渲染包与 `*-ui`）+ ui-core / ui-react / slide-ui 禁 `dangerouslySetInnerHTML`（40/10 §10）；ui-core 剪贴板清洗同样不得使用 `DOMParser`（§5）。第三方唯一用法：Radix ScrollArea / Select Viewport 的固定 `<style>`（§4.4）；react-colorful 原有的 `innerHTML` 样式注入已经 patch 删除（§3）；lib0 的 `dom`、`component` 子模块含 `DOMParser` 与 `innerHTML`，自有代码不得 import（yjs 经 `lib0/logging` 带入 `lib0/dom` 时只创建 `DOMParser` 实例、不调用解析，不触发 TT） | `cordex-default` 无 `createHTML`；`default` 只放行常量表里的两段文本，其余强制后抛错 |
+| `eval`、`new Function`、字符串形式的 `setTimeout`（TrustedScript） | 不使用：CSP 无 `unsafe-eval` + ESLint 核心规则 `no-eval` / `no-implied-eval` / `no-new-func`。第三方：zod 4 默认以 `new Function` 探测能否 JIT，严格 CSP 下即使异常被捕获也会产生 `script-src` 违规报告（zod `v4/core/util.js:218-220`，rulings §4.21 核实） | 无 `createScript`；浏览器侧组合根（apps/web `main.tsx` 与 SDK 的 dom 组合根）在任何 schema 解析之前调用 `z.config({ jitless: true })`，服务端保留 JIT；csp-strict 的 `script-src` 零违规覆盖（§13 V15） |
 | `javascript:` URL 导航 | 超链接协议白名单已拒绝（§5） | 强制后浏览器再拦一次 |
 
 ### 4.4 Radix 的固定样式注入（已定）
@@ -352,7 +372,7 @@ flowchart LR
 | 元素名称、替代文字、评论正文、作者名 | `textContent` / React 文本子节点 | Markdown 或 HTML 渲染 |
 | 超链接 | **写入**（命令层）：协议白名单 `http`、`https`、`mailto`、`tel` 与页内跳转 `ppaction://hlinksldjump`（ED-19）。**激活**：只有 `http(s)` 外部目标经 `openExternal(url)` 以 `noopener,noreferrer` 打开，页内跳转在编辑器内导航；需用户手势（编辑态 Ctrl/Cmd+点击、放映态点击），悬停先显示目标。`mailto:`、`tel:` 按 ADR-0008 决策 5 与 30/04「仅 `http(s)` 可激活」只显示、可复制，不激活 | `javascript:`、`data:`、`vbscript:`、`file:` 等：命令层拒绝写入；导入带来的非 `http(s)` 关系一律只显示、不激活，关系原样保留 |
 | 粘贴 | 优先级：自定义 MIME（模型片段 JSON，经 schema 校验、重生成 id、≤ 25 MB）→ 图片（按魔数判定类型，走插入图片同一路径）→ HTML（M2 取同一剪贴板项的 `text/plain`；没有时用不经 DOM 的文本提取器剥离标签得到纯文本；P2 富格式同样用不经 DOM 的白名单片段解析器转为 Mutation）→ 纯文本。管线行为见 [50/04](./04-document-commands-and-undo.md) §9 | 把剪贴板 HTML 插入 DOM；交给 `DOMParser.parseFromString`（它是 TrustedHTML sink，M3 强制 TT 后在没有 `createHTML` 的策略下会抛错） |
-| 从 URL 插入图片（集成方可禁用） | 建立外链图片关系，按 `externalResources` 加载（§6）；浏览器不 `fetch` 取字节 | 跨源 `fetch`（`connect-src` 本就拦截） |
+| 从 URL 插入图片（集成方可禁用） | **默认不经服务端代抓，下载后内嵌**（取数路径见图 6）：只接受 `https:` 地址；浏览器以 `<img crossorigin="anonymous" referrerpolicy="no-referrer">` 按图像上下文加载（`auto` / `confirm` 档下 `img-src` 已含 `https:`，§2.2），加载成功后经 `createImageBitmap` + canvas 转码为 `Blob`（格式与质量沿用 render-dom `media/image-preprocess.ts` 的规则），再走与本地文件相同的插入路径（魔数判定、25 MB 上限、预处理、上传）；对方不给 CORS 许可（画布被污染）时提示「该网站不允许直接下载图片，请先保存到本地再插入」，不回退为外链关系；`never` 档下入口置灰并说明原因 | 跨源 `fetch` 取字节（要把 `connect-src` 放宽到 `https:`，任何注入脚本都能借此把数据发往任意主机）；插入外链关系（[50/23](23-elements-media.md) 非目标）；服务端代抓（未另行裁决前不提供） |
 
 **图 4 文档内容进入 DOM 的允许路径与禁止路径**
 
@@ -434,6 +454,37 @@ flowchart TB
 怎么读：同一个部署配置分两路生效——渲染层决定是否发请求，CSP 决定浏览器是否允许；`never` 下两层都拦，`confirm` 下门控只在渲染层。服务端与 `/render` 页不受此配置影响，始终不加载。
 依据：rulings §4.15 Q7；PRD 05 EM-14；本文 §2.2、§2.3。
 
+**图 6 从 URL 插入图片的取数路径**
+
+```mermaid
+flowchart TB
+  start["用户：插入图片，选「从 URL」并粘贴地址"]
+  mode{"externalResources 档位？"}
+  off["never：入口置灰，原因「部署禁止加载外部资源」"]
+  scheme{"地址是 https？"}
+  badScheme["拒绝：只接受 https 地址"]
+  load["img 元素加载：crossorigin anonymous，referrerpolicy no-referrer，受 img-src 约束"]
+  cors{"对方给了 CORS 许可？"}
+  tainted["提示：该网站不允许直接下载图片，请先保存到本地再插入"]
+  encode["createImageBitmap 加 canvas 转码为 Blob，规则同图片预处理"]
+  same["与本地文件同一路径：魔数判定、25 MB 上限、预处理、sha256、上传"]
+  cmd["slide.insertPicture，一个事务"]
+  noProxy["全程不 fetch 跨源字节，服务端不代抓"]
+  start --> mode
+  mode -- "never" --> off
+  mode -- "auto 或 confirm" --> scheme
+  scheme -- "否" --> badScheme
+  scheme -- "是" --> load
+  load --> cors
+  cors -- "否，画布被污染" --> tainted
+  cors -- "是" --> encode
+  encode --> same --> cmd
+  load -.-> noProxy
+```
+
+怎么读：取数只走图像上下文，所以 `connect-src` 不必放宽，也不需要服务端代抓；代价是必须由对方站点给 CORS 许可才能转码，失败时直接提示用户先保存到本地，不退回为外链关系（外链插入是 [50/23](23-elements-media.md) 的非目标）。转码会丢失 SVG 的矢量与 GIF 的动画，需要原样保留时同样请先保存到本地再插入。
+依据：本文 §2.2、§5、§6；rulings §4.21（R 证据 elementDesign「URL 插图片默认不经服务端代抓」）；ADR-0021（canvas 的「媒体与图标预处理」用途）。
+
 ## 7. 输入限制
 
 依据：PRD 01 OF-24（默认限额，集成方可收紧、不可放宽超过 2 倍）；rulings §4.15 Q5 / §4.18 CO-12（先完成包络计数再分批装载）；rulings §4.16 Q15（加密与宏包拒绝）；PRD 02 ED-17。
@@ -443,14 +494,14 @@ flowchart TB
 | 本地 pptx 文件大小 | 读取字节之前（主线程，只看 `File.size`） | 200 MB（`fileSize`） | `format.quota_exceeded{dimension:'fileSize'}`，不读取 |
 | 加密包、宏包 | Worker 内魔数 / 容器判定，先于 OPC 解析 | — | `format.encrypted`、`format.macro_rejected`（文案见 50/15 §4） |
 | zip 条目数 / 单条目解压 / 总解压 / 媒体总量 | Worker 内 OPC 解析 | 4,000 / 64 MiB / 512 MiB / 256 MiB | `format.limit_exceeded{limit, actual}` |
-| XML 嵌套深度、实体扩展 | Worker 内 XML 解析 | 256；实体扩展禁用 | 同上 |
+| XML 结构限额（嵌套深度、属性数、文本长度、属性值长度等）与 DOCTYPE | Worker 内 XML 词法层计数（`@cordexjs/xml` 的 `scan` 与 `parseDocument`） | 键、默认值与可调范围只在 [ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6 的 `XmlLimits` 表定义，本文不重述数值；DOCTYPE 一律拒绝，不可配置 | `format.limit_exceeded{limit, actual}`（DOCTYPE 为 `limit: 'xml.doctype'`） |
 | 图表点数、位图预览像素 | Worker 内 | 每序列 10,000；16,777,216 像素 | 同上或占位 |
 | 文档规模天花板（页 / 单页元素 / 总元素） | Worker 先做包络计数，超限整体拒绝，不装到一半才失败 | 200 / 1,000 / 20,000 | `format.quota_exceeded{dimension}` |
 | EMF / WMF 栅格化 | Worker，可中止 | 记录数、输出像素、耗时（M2 spike 定值后回填 OF-24） | 回到占位 |
 | 插入图片 | 主线程：先按魔数判定类型（png / jpg / gif / svg / webp / bmp），不信任文件扩展名与 MIME | 单张 ≤ 25 MB | 拒绝并 toast；SVG 只按图像上下文处理（§5） |
 | 粘贴 | 剪贴板管线 | ≤ 25 MB；自定义 MIME 经 schema 校验 | 拒绝并 toast |
 
-解析一律在 Worker 中进行，主线程从不解压 zip；Worker 超时由调用方 `terminate()`，错误以 `Result` 回到 `unit/open-failed{code, stage}`。协同帧的单帧上限与客户端兜底值见 [50/07](./07-collaboration-client.md)（INC-07）。表单字段（标题、名称）在客户端复用 protocol 的同一 schema 做即时提示，服务端仍会再次校验。
+解析一律在 Worker 中进行，主线程从不解压 zip；唯一例外（2026-09-26 整合，ADR-0019 决策 2）：slide-render 在主线程只读解析图表部件、`dsp:drawing` 与 `tableStyles.xml` 时，经 `@cordexjs/xml` 的 `drive` 按 64 KiB 分片并注入 kernel 调度器的 `shouldYield`，限额与 DOCTYPE 拒绝和 Worker 内同一口径，出错只降级该元素；Worker 超时由调用方 `terminate()`，错误以 `Result` 回到 `unit/open-failed{code, stage}`。协同帧的单帧上限与客户端兜底值见 [50/07](./07-collaboration-client.md)（INC-07）。表单字段（标题、名称）在客户端复用 protocol 的同一 schema 做即时提示，服务端仍会再次校验。
 
 ## 8. 会话与请求
 
@@ -519,6 +570,7 @@ flowchart TB
 | `allow-downloads` | 推荐 | 导出对话框提示「请在独立窗口中打开后导出」 |
 | `allow-top-navigation*`、`allow-forms` | 不需要，不应授予 | — |
 | `allow="fullscreen; clipboard-read; clipboard-write"` | 推荐 | 无剪贴板 API 时用编辑器内部剪贴板（NF-07 可选能力）；无全屏时放映在页面内铺满 |
+| `allow="display-capture"`（M4+，2026-09-26 整合登记） | 只在启用「屏幕截图」（PRD ED-34，M4+ P2）时需要 | 缺失时「屏幕截图」入口禁用并说明原因；不影响其它插入（[50/23](23-elements-media.md)） |
 
 ### 11.3 形态 E 的站点约束
 
@@ -537,10 +589,10 @@ flowchart TB
 | 外部 URL 只经 `openExternal` 打开 | lint `no-restricted-properties` 配置行（§5） | ui-core、ui-react、`*-ui`、apps/web |
 | 无 `console.*`、无裸 `Error` | `no-console`、`no-restricted-syntax`（50/15 §11） | 全仓 |
 | 第三方单点引入 | 章程 §5.3 规则（`cordis`、`yjs`、`react`、`radix-ui` 等）；`get-nonce` 随 ui-react 单点引入（§3） | 全仓 |
-| 第三方包补丁 | 只经 `pnpm patch`，登记在 `pnpm-workspace.yaml` 的 `patchedDependencies`，补丁文件入库随评审；当前只有 `sonner`（删 import 时的运行时样式注入，§3，rulings §4.20 FE-18）；升级被补丁的包时同一 PR 重做补丁并过 §13 V2 | 全仓 |
+| 第三方包补丁 | 只经 `pnpm patch`，登记在 `pnpm-workspace.yaml` 的 `patchedDependencies`，补丁文件入库随评审；当前有 `sonner`（删 import 时的运行时样式注入，§3，rulings §4.20 FE-18）与 `react-colorful`（删挂载时的 `innerHTML` 样式注入，§3，rulings §4.21 R-d-13）；MPL-2.0 许可的包不得打补丁（ADR-0049）；升级被补丁的包时同一 PR 重做补丁并过 §13 V2 | 全仓 |
 | 不从 CDN 加载任何资源 | CSP `'self'` + 网络白名单 e2e；字体同源自托管 `/fonts/` | apps/web 与 SDK |
 | 生产 source map 不对外提供 | Vite `build.sourcemap: 'hidden'`；`.map` 作为 CI 产物上传供服务端反解（60/18），web 容器不提供 | apps/web |
-| 依赖许可证白名单（D13）、高危漏洞阻断、lockfile 与 `workspace:` 协议、npm provenance、SBOM（P1） | `scanners` job 的既有步骤（TD-050、TD-079、TD-080；执行见 70/10 §13 SEC-SC-01…07） | 全仓 |
+| 依赖许可按 ADR-0049 分级（D13 口径，rulings §4.21）、高危漏洞阻断、lockfile 与 `workspace:` 协议、npm provenance、SBOM（P1） | `scanners` job 的既有步骤（TD-050、TD-079、TD-080；执行见 70/10 §13 SEC-SC-01…07） | 全仓（含 devDependency 与传递依赖） |
 
 ## 13. 机械验证与里程碑
 
@@ -549,9 +601,9 @@ flowchart TB
 | # | 断言 | 执行（70 文件 · CI 步骤） |
 |---|---|---|
 | V1 | 渲染包与 `*-ui` 中不出现 `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser`、`document.write`（TD-081 负向夹具：`el.innerHTML = svgText`、`new DOMParser()`） | 09-type-discipline/08 TD-081 · `lint` |
-| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体）、`/documents/:id/view`、`/styleguide` 的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数与 Trusted Types 报告数都为 0；Toast（sonner）与 ScrollArea 的计算样式与基线一致（rulings §4.20 FE-18） | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
+| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体）、`/documents/:id/view`、`/styleguide` 的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数与 Trusted Types 报告数都为 0；Toast（sonner）与 ScrollArea 的计算样式与基线一致（rulings §4.20 FE-18）；§4.21 新依赖同样覆盖：颜色选择器与渐变编辑器打开时色盘计算样式与基线一致，缩略图栏滚动与拖拽重排、表单对话框、首次粘贴 HTML（htmlparser2 惰性 chunk）、插入图标面板（预览只经 `<img>`）全程零违规 | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
 | V3 | nonce 每个 HTML 响应不同；CSP 头中的 nonce 与页面 `<meta name="cordex-nonce">` 同值；`index.html` 为 `no-store` | 70/10 SEC-CL-01、[70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 · `e2e/full-compose` |
-| V4 | TT：M2 期间 e2e 套件统计到的 TT 报告数为 0（§4.5 切换条件）；M3 起强制头存在，且 `cordex-default` 的 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null`；`default` 的 `createHTML` 对两段登记常量原样放行，对常量表外的文本（含登记文本改动一个字符）返回 `null`（负向用例，rulings §4.20 FE-18） | 70/10 SEC-CL-02、70/06 §10.1（未登记文本、登记常量多一个空格两个负向例；sonner、Radix、react-resizable-panels 零违规且计算样式与基线 `apps/web/e2e/security/fixtures/third-party-styles.json` 一致）· 全部浏览器 e2e 步骤；策略函数单测 ui-react `src/infrastructure/csp/__tests__/trusted-style-constants.test.ts` · `test/unit` |
+| V4 | TT：M2 期间 e2e 套件统计到的 TT 报告数为 0（§4.5 切换条件）；M3 起强制头存在，且 `cordex-default` 的 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null`；`default` 的 `createHTML` 对两段登记常量原样放行，对常量表外的文本（含登记文本改动一个字符）返回 `null`（负向用例，rulings §4.20 FE-18） | 70/10 SEC-CL-02、70/06 §10.1（未登记文本、登记常量多一个空格两个负向例；sonner、Radix、react-resizable-panels、react-colorful 零违规且计算样式与基线 `apps/web/e2e/security/fixtures/third-party-styles.json` 一致）· 全部浏览器 e2e 步骤；策略函数单测 ui-react `src/infrastructure/csp/__tests__/trusted-style-constants.test.ts` · `test/unit` |
 | V5 | `externalResources`：`auto` 下外链 `<image>` 带 `referrerpolicy="no-referrer"`；`confirm` 下确认前外链请求数为 0；`never` 下外链请求数为 0 且 CSP 不含 `https:`；`confirm` / `never` 下头像不发请求 | 70/10 SEC-CT-05 · `e2e/full-compose`（`never` 档另进 `e2e/smoke`） |
 | V6 | 网络白名单：编辑器与查看器 e2e 的全部请求只指向同源、`wsBase`、存储源与 `/fonts/`；`/render` 两种注入模式下请求数为 0 | 70/10 SEC-CL-03 · 全部浏览器 e2e 步骤；`/render` 零请求 · `e2e/smoke` |
 | V7 | CSRF：`http.ts` 对每个非安全方法附 `X-Cordex-Request: 1`（单测遍历方法表）；跨源 POST 与缺头 POST 返回 403 | `test/unit`；70/10 SEC-XS-01 · `test/server-integration`、`e2e/smoke`（70/06 §10.3） |
@@ -561,7 +613,8 @@ flowchart TB
 | V11 | 超链接协议：命令层对白名单外协议返回拒绝；渲染与点击只激活 `http(s)` 目标，导入带来的其它协议关系（含 `mailto:`、`javascript:`、`data:`）只显示、不激活 | 70/10 SEC-CT-03 · `test/unit`（性质测试）、`test/fidelity-roundtrip` |
 | V12 | 登出清理：登出后 IndexedDB 中不存在该用户的库与条目，sessionStorage 无 `cordex.share.*`；有未同步更改时先出现导出提示 | 70/10 SEC-CL-07、70/06 §5 第 9 行 · `e2e/smoke` |
 | V13 | postMessage：非白名单 origin 或非父窗口来源的消息被丢弃；发送时 `targetOrigin` 从不为 `'*'` | 70/10 SEC-CL-07 · `test/unit`、`e2e/full-compose` |
-| V14 | 供应链：许可证白名单、高危漏洞、lockfile-guard、`workspace:` 协议 | 70/10 SEC-SC-01…05 · `scanners`（`license-allowlist`、`vuln-audit`、`lockfile-guard`、`check-workspace-protocol`） |
+| V14 | 供应链：许可按 ADR-0049 分级（含 devDependency 与传递依赖）、高危漏洞、lockfile-guard、`workspace:` 协议 | 70/10 SEC-SC-01…05 · `scanners`（`license-allowlist`、`vuln-audit`、`lockfile-guard`、`check-workspace-protocol`） |
+| V15 | 字符串求值与 wasm：zod 首次解析不产生 `script-src` 违规（`jitless` 已在组合根设置）；ooxml-core 不导入 fflate 的异步入口；默认部署的策略不含 `'wasm-unsafe-eval'`，启用复杂文种 shaping 的变体含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'`（§2.7、§4.3，rulings §4.21） | csp-strict（70/06 §10.1）· `e2e/smoke`；fflate 入口 · `lint`；策略模板单测 · `test/unit` |
 
 **里程碑**
 
@@ -570,6 +623,8 @@ flowchart TB
 | M1 | 查看器：文档内容安全规则（§5）与输入限制（§7）全部生效；TD-081 lint 阻断；外链资源三档在查看器生效；供应链门禁 |
 | M2 | apps/web：§2.2 CSP 强制（script / style / img / media / font / connect / worker 等）、nonce 链（§3）、TT Report-Only 与上报端点对接；CSRF 请求头、`nextAfterLogin`、上传规则；V1–V11 阻断 |
 | M3 | TT 强制（§4.5 条件满足后）；分享令牌落地（V9）；形态 E 同站嵌入与 postMessage 规则（§11）；OWASP ASVS L2 自评与第三方渗透测试作为出口（NF-04） |
-| M4 | 离线库启用前复核 §10；形态 E 跨站嵌入随 `cordex:token`；插件信任模型文档 |
+| M4 | 离线库启用前复核 §10；形态 E 跨站嵌入随 `cordex:token`；插件信任模型文档；启用复杂文种 shaping 时按 §2.7 下发 `'wasm-unsafe-eval'` 并过 V15 |
 
 **回写状态（由总编排执行）**：已回写——40/11 §4.4 `infrastructure/security/trusted-types.ts`；40/02 `HostOptions.scriptUrlPolicy` 与 kernel `toScriptUrl`；40/10 `runtime-style-sinks.ts` 与 `openExternal`；09-type-discipline/02 TD-081 作用范围扩到 `ui-core` 与 `apps/web`；30/10 §5 与 PRD 06 §5 改为「`fetch` keepalive 兜底」；09-type-discipline/02 §3 登记 `new Worker(`、`window.open` 两条配置行（2026-09-26）。rulings §4.20 FE-18 新增项也已回写（2026-09-26）——40/10 登记 ui-react `src/infrastructure/csp/trusted-style-constants.ts` 及其公开导出与单测；40/11 §4.4 `trusted-types.ts` 职责补 `default` 策略；`pnpm-workspace.yaml` 的 `patchedDependencies`（sonner）在 40/01 登记；70/06 §10.1 与 70/10 SEC-CL-02 补 V2、V4 的新断言。（50/04 §9 不经 `DOMParser` 的清洗、50/05 §8.1 / §10.2 媒体与缩略图经 `http.ts` 取 Blob 两项已在本线落实。）
+
+**§4.21 待回写（由总编排执行；2026-09-26 整合阶段已全部回写到所列文件）**：40/10 登记 ui-react `src/styles/vendor/react-colorful.css`（§3）；40/01 `pnpm-workspace.yaml#patchedDependencies` 增 react-colorful；40/04 在 `opc/zip.ts` 登记禁止 fflate 异步入口的 lint 配置行；40/02 与 40/11 登记 `z.config({ jitless: true })` 的调用点（§4.3）；60/17 在 M4 RTL 立项时登记 shaping 开关与 `'wasm-unsafe-eval'` 的下发（§2.7）；70/06 §10.1 与 70/10 SEC-CL-01 补 V2、V15 的新断言；[50/23](23-elements-media.md) 的 URL 插图片按图 6 的取数路径与失败提示对齐。

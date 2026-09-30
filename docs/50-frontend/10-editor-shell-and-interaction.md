@@ -1,5 +1,5 @@
 # 10 编辑器外壳与画布交互
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-11、ED-12、ED-16、ED-18、ED-21、ED-22、ED-27、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入页签分组统一、超链接改 M2 P1、表格 M2 可插入；selectionKind 补四类；新增插入工具态与元素手柄；快捷键逐条对齐 ED-16）；2026-09-26（§4.21 整合：§5 文本分区补链接、自动调整与渐变描边字，degraded 分区扩为对象说明、替代文本与后续动作，迷你工具条补 table-cell、chart 与 degraded 口径，内容占位符补「重置为占位符框」；§7.1 组合编辑的键盘等价；§7.4 插入工具态视觉按设计样张、浮层不退出文本编辑） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[50/19](19-insertable-elements-overview.md)、[50/22](22-elements-shapes-and-lines.md)；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)、[04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-10、ED-11、ED-12、ED-16、ED-18、ED-19、ED-21、ED-22、ED-27、ED-28、ED-29、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15、§4.21（R-d-61、R-d-62、R-d-67、R-d-72、q-table-depth、q-media-insert、q-extra-inserts）
 
 本文是**编辑器外壳与画布交互的行为语义**唯一事实源：`<EditorHost>` 由哪些区域组成、布局状态怎样记忆并随断点变化、模式 × 角色 × 断点下界面怎样变化，以及 Ribbon、检查器、缩略图栏、画布选择与拖拽、缩放导航、放映舞台、命令面板与设置抽屉的交互规则和反馈分层。尺寸、材质与线框以 [设计 09](../20-design/09-design-specification.md) §3–§4、03-screens 与 playground `#/editor` 为准；本文写状态机与规则。
 
@@ -19,6 +19,7 @@
 | F6 循环、焦点管理、live region、拖拽的键盘等价 | [16](16-i18n-and-accessibility.md) §6–§8 |
 | 错误码 → 文案与建议动作、错误属性 → 呈现层级 | [15](15-events-errors-and-telemetry.md) §4 |
 | 交互预算数值 | [13](13-performance-and-bundling.md) §3 |
+| 可追加元素的逐项设计（作用、OOXML、模型、渲染、交互、命令、协同、保真） | [19](19-insertable-elements-overview.md) 总览与通用设计；[20](20-elements-text.md)–[25](25-elements-readonly-and-opaque.md) 各元素族 |
 
 包名一律省略 `@cordexjs/` 前缀。
 
@@ -226,13 +227,29 @@ stateDiagram-v2
 |---|---|---|
 | 母版 | `order:-100` 置首、强调色；`when: viewMode == 'master'` | 五组，「关闭」独立最右（[11](11-masters-layouts-and-themes.md) §2） |
 | 开始 | 恒显 | 剪贴板 · 幻灯片 · 字体 · 段落 · 绘图 · 编辑；打开文档时默认选中 |
-| 插入 | 恒显 | 链接、媒体 P2 禁用；图表 `enablement: slide.hasChartEditor`（未装 `slide-render-chart` 时禁用，40/10 §2.6「存在时启用」）；评论 `when: slide.hasComments`（未装 `comments` 包时不出现，与评审工具条同一口径，§3.2） |
+| 插入 | 恒显 | 七组：文本 · 形状 · 图像 · 表格 · 图表 · 链接与批注 · 插件，以设计 03-04 与 playground `InsertTab.tsx` 为准（R-d-61，分组表见下）；超链接 M2 P1 可用（PRD ED-19，R-d-67）；表格 M2 可插入并编辑单元格文字，结构与样式 M3（q-table-depth）；图表 `enablement: slide.hasChartEditor`（M3 装载 `slide-render-chart` 后可用，未装载时禁用并给原因）；音频与视频 P2 禁用（q-media-insert）；批注 `when: slide.hasComments`（未装 `comments` 包时不出现，与评审工具条同一口径，§3.2） |
 | 设计 | `when: viewMode != 'master'` | 主题相关行为见 [11](11-masters-layouts-and-themes.md) §9 |
 | 切换 | 恒显，**只读展示**（rulings §4.10 Q15） | 控件全部 `disabled`，显示当前页保留的效果名与时长，说明「已保留原文件的切换效果，M1–M3 暂不可编辑」；不提供「应用到全部」「自动换片」；无命令 |
 | 视图 | 恒显 | 显示（网格、参考线、智能参考线）· 缩放 · 窗口（缩略图侧栏、备注、母版视图） |
 | 第三方 | `order ≥ 1000`、必带 `owner` | 排在全部内置页签之后，页签带归属徽标（[03](03-preset-assembly-and-plugins.md) §9） |
 
 内置页签之间的相对次序由 slide-ui `ribbonSpec()` 决定，只要求都 `< 1000`。
+
+**插入页签的分组**（R-d-61；控件到命令 id 的绑定见 40/10 §2.6；各元素的逐项设计见 [50/19](19-insertable-elements-overview.md) 与各元素族文档）：
+
+| 组（自左至右） | 控件 | 里程碑与可用性 | 元素设计 |
+|---|---|---|---|
+| 文本 | 文本框（竖排 P2）· 页眉和页脚… · 幻灯片编号 · 日期和时间 · 符号… · 公式 | 文本框 M2 P0；页眉页脚、编号、日期 M2 P2；符号 M3 P2（q-extra-inserts）；公式灰显「暂不支持」（M4+，q-equation） | [50/20](20-elements-text.md)、[50/21](21-elements-structure.md)、[50/25](25-elements-readonly-and-opaque.md) |
+| 形状 | 形状 ▾（10 类、首批 72 项的 flyout，与 开始 › 绘图 › 形状 ▾ 是同一组件）· 图标…（2026-09-30 样张确认从图像组移入） | 形状 M2 P0；曲线类绘制 P2；图标 M3 P2（q-extra-inserts） | [50/22](22-elements-shapes-and-lines.md) |
+| 图像 | 图片 ▾（此设备… / 来自 URL… / 屏幕截图 / 相册，URL 可被集成方禁用）· 视频 · 音频 | 图片 M2 P0；屏幕截图与相册 M4+ P2（菜单内禁用并标 M4+）；视频与音频 P2（q-media-insert，插入时不写 `p:timing`） | [50/23](23-elements-media.md) |
+| 表格 | 表格 ▾（8 × 8 悬停网格 + 「插入表格…」输入行列，上限 10 × 8） | M2 插入并编辑单元格文字；行列插删、合并拆分、样式 M3（q-table-depth） | [50/24](24-elements-tables-and-charts.md) |
+| 图表 | 图表 ▾（柱形 / 条形、折线、饼、面积、散点） | M3 P1，`enablement: slide.hasChartEditor`；设计 03-04 的「M1/M2 可插入静态图表」作废（R-d-74） | [50/24](24-elements-tables-and-charts.md) |
+| 链接与批注 | 超链接…（`Mod+K`）· 批注 | 超链接 M2 P1；批注 M3（`when: slide.hasComments`） | [50/20](20-elements-text.md)、[08](08-comments-and-version-history.md) §5 |
+| 插件 | 第三方贡献的分组（`order ≥ 1000`、带归属徽标） | 由插件决定 | [50/22](22-elements-shapes-and-lines.md)、[03](03-preset-assembly-and-plugins.md) §9 |
+
+- **里程碑可见性**：本里程碑范围内的 P2 条目留在原位、禁用，tooltip「当前版本暂未开放」（「禁用而不隐藏」，下文）；排在 M4+ 的条目同样禁用而不隐藏并标「M4+」（2026-09-30 样张确认：屏幕截图、相册在图片 ▾ 菜单内禁用显示；艺术字同口径）；公式按 50/25 灰显「暂不支持」。SmartArt、OLE、3D 模型、墨迹、缩放定位、录屏不提供插入入口（非目标，R-d-75）。
+- **新建幻灯片不在插入页签**：设计 03-04 与 playground 均无此组，入口为 开始 › 幻灯片 › 新建、`Mod+M` 与缩略图栏（§6）。
+- 插入页签的每个控件都进入同一个插入工具态或打开对应选择器，行为见 §7.4。
 
 - **只读是禁用而不是隐藏**：控件的可见性只看 `when`；可用性 = 目标命令已注册（`commands.has`）∧ 命令声明的能力位已授予（`isReadOnly`、`can.<capability>`，[09](09-ui-system-and-theming.md) §6.3）∧ 条目的 `enablement` 为真（[09](09-ui-system-and-theming.md) §6.1；契约与键族已登记，rulings §4.20 FE-06）。不可用的控件留在原位、`aria-disabled`，tooltip 说明原因（「需要编辑权限」「当前版本暂未开放」「需要 ≥ 1024 宽度」等，原因由 `explainWhen` 或权限门给出，[09](09-ui-system-and-theming.md) §6.2）。`ReadonlyRibbonNotice`（40 px 细条）只在 Ribbon 区域位没有任何可显示内容时出现：没有页签（例如 slide-ui 缺席：「无可用页签」），或评审工具条没有条目（§3.2）；细条右端仍带尾部区「主题 · ?」（§1，rulings §4.20 FE-08）。
 - **切换页签是视图态**：Operation `ui.toggleRibbonTab`，不入历史、不广播；当前页签在会话内记忆；进入母版视图时选中「母版」，退出时恢复进入前的页签（[11](11-masters-layouts-and-themes.md) §2）；页签的键盘模型见 [16](16-i18n-and-accessibility.md) §6.2。
@@ -257,15 +274,20 @@ stateDiagram-v2
 | `selectionKind` | 分区 |
 |---|---|
 | `none` | 幻灯片级：版式、背景、切换效果（只读）、隐藏此页、备注字数 |
-| `shapes` / `text` | 位置与大小 · 填充 · 边框 · 阴影 / 效果 · 文本 · 对齐与分布；进入文本编辑时自动展开「文本」 |
-| `picture` | 设计 03-18 的图片分区（替换、裁剪、透明度、替代文本） |
+| `shapes` / `text` | 位置与大小（含翻转）· 填充 · 边框 · 阴影 / 效果 · 文本 · 对齐与分布 · 形状（更改形状、调整值，[22](22-elements-shapes-and-lines.md) §2）· 操作（动作按钮默认展开，[22](22-elements-shapes-and-lines.md) §6）· 替代文本；进入文本编辑时自动展开「文本」。「文本」分区另有「链接」行（超链接的查看、编辑与移除）、自动调整三选一（不自动调整 / 溢出时缩排文字 / 根据文字调整形状大小）与渐变字、描边字（P2），见 [20](20-elements-text.md)（2026-09-26 整合） |
+| `picture` | 设计 03-18 的图片分区（替换、裁剪、透明度、替代文本）；裁剪模式见 §7.5 |
+| `table`（§4.21 新增） | 整个表格被选中、未进入单元格：位置与大小 · 表格（M2 只读显示行列数与表格样式名；M3 起表格样式、标志、边框、行高列宽，q-table-depth）· 替代文本（[24](24-elements-tables-and-charts.md)） |
 | `table-cell` | 文本 + 单元格填充 / 边框（M3），M3 前非文本字段灰显并注明里程碑 |
+| `chart`（§4.21 新增） | 位置与大小 · 图表（M1–M2 只读：类型与系列数，注「数据编辑 M3 提供」；M3 起数据、类型、标题、图例、数据标签）· 替代文本（[24](24-elements-tables-and-charts.md)） |
+| `media`（§4.21 新增） | 视频与音频：位置与大小 · 媒体（替换海报帧 M2 P1、编辑态临时播放）· 替代文本（[23](23-elements-media.md)） |
+| `placeholder-empty`（§4.21 新增） | 页上空的内容族占位符：占位符（类型、继承自版式、重置）· 快速插入（与画布图标条同一组按钮：图片 M2 P1、表格按 q-table-depth、图表 M3、视频 P2）· 位置与大小（[21](21-elements-structure.md)） |
 | `group` | 位置与大小 +「取消组合」+ 子元素计数 |
-| `connector` | 线条 + 端点连接状态「已连接到：…」 |
-| `degraded` | 仅位置与大小 + 降级原因 +「查看保真详情」 |
+| `connector` | 线条与连接符（`p:cxnSp`）：线条（含首尾箭头）· 连接符（「已连接到：矩形 3（连接点 2）」、断开、「连接到…」选择器、类型切换，[22](22-elements-shapes-and-lines.md) §4）· 位置与大小（线条的 x / y / 宽 / 高与翻转即端点的数值等价）· 替代文本 |
+| `degraded` | 位置与大小 · 对象说明（类型名与降级原因）· 替代文本（graphicFrame 系如 SmartArt、OLE 可编辑，AlternateContent 系如公式、墨迹、3D、缩放定位只读）· 后续动作（如 SmartArt「转换为形状」，M4+ 灰显）+「查看保真详情」（2026-09-26 整合，[25](25-elements-readonly-and-opaque.md) §2.5） |
 | `mixed` | 交集分区：位置与大小、排列、透明度 |
 | 母版视图（`editTargetKind` 为 `layout` / `master`） | 另加占位符、文本样式与容器属性分区，见 [11](11-masters-layouts-and-themes.md) §6 |
 
+- **四个新增取值**（R-d-72）：`table`、`chart`、`media`、`placeholder-empty` 由 slide-ui `deriveSelectionKind` 给出，取值全集登记在 [09](09-ui-system-and-theming.md) §6.3；`placeholder-empty` 只指页上**空的**内容族占位符（尚无文字与内容、画布显示内容图标条），有内容的占位符仍按承载的内容类型走对应分区——与 [11](11-masters-layouts-and-themes.md) §2 不采纳泛化 `placeholder` 取值的口径一致，占位符身份另由前缀键 `slide.placeholderSelected` 表达。迷你工具条槽位随之有 `toolbar.table`、`toolbar.table-cell`（M3：插入行列、合并、拆分、填充、边框）与 `toolbar.chart`（M3：编辑数据、更改类型），命名一律 `toolbar.<selectionKind>`；`toolbar.degraded` 只放「查看保真详情」（2026-09-26 整合，50/24、50/25）。承载内容的内容族占位符（图片、表格、图表、媒体填入后）在对应分区另有一行「重置为占位符框」：删除内容并补回空占位，一步撤销（[21](21-elements-structure.md) §3，ADR-0018 决策 10）。
 - **多个值**：多选时不一致的字段显示「多个值」（`MixedValueField`，Ribbon 字体 / 字号控件同样式，rulings §4.18 UX-10）；在该字段输入新值即对全部选中对象生效，一次命令、一个撤销步。
 - **单位换算归属**（40/10 §13 Q-10 推荐值）：内部单位 EMU；显示单位取 `Preferences` 的度量单位（zh-CN 默认 cm，en-US 默认 in，可选 cm / in / pt / px），字号恒为 pt；换算与带后缀输入（如 `2.5cm`）的解析在 slide-ui 分区内完成，ui-react `NumberField` 只接收 `{value, unit, onCommit}`，不认识 EMU。
 - **输入与校验**：非法值（负宽度、超范围字号）使字段进入 `aria-invalid` 并显示 `FieldError`，失焦前不提交；数值字段支持按住标签左右拖动微调与 `↑`/`↓`（`Shift` 加速），拖动微调松手时一次命令。
@@ -293,7 +315,7 @@ stateDiagram-v2
 ### 7.1 选择模型
 
 - **命中**：指针经 `render/hit-test` 的 bail 链（覆盖层手柄 > 评论钉 > 远端光标标签，无人接管再做内容命中，[05](05-rendering-and-thumbnails.md) §5.1）；内容命中取 z 序最高、且命中其填充 / 描边 / 文本的元素，`fill="none"` 的形状内部穿透（PRD ED-01）。
-- **组合**：首次点击组合内元素选中整个组合；双击进入组合编辑态并选中该子元素（组合外围浅色边框提示「组合编辑中」）；在子元素上再双击文本进入文本编辑。
+- **组合**：首次点击组合内元素选中整个组合；双击进入组合编辑态并选中该子元素（组合外围浅色边框提示「组合编辑中」）；在子元素上再双击文本进入文本编辑。键盘等价（2026-09-26 整合，[21](21-elements-structure.md)）：选中组合后按 `Enter` 进入组合编辑并选中 z 序最低的子元素；组合编辑态下 `Tab` / `Shift+Tab` 只在该组合的子元素间循环，`Esc` 退回选中整个组合。
 - **加选与框选**：`Shift`+点击切换单个元素；空白处拖出框选，默认「完全包含」，按住 `Alt` 为「相交即选」；多选显示统一虚线包围盒与 8 个缩放手柄，不提供整体旋转。
 - **键盘**：`Tab` / `Shift+Tab` 按 z 序循环选中并滚入视口；`Mod+A` 全选当前页（`enablement: unitLoaded`，未到齐时和弦仍被消费并提示等待，不落到浏览器的全选页面文字）；`Enter` 对文本对象进入文本编辑（[06](06-text-editing-and-ime.md) §2）。
 - **锁定**（`spLocks`）：可选中，对应手柄显示锁形、拖动无效，tooltip「该形状已锁定移动」。
@@ -334,7 +356,7 @@ stateDiagram-v2
 - 松手 → 一次 `slide.moveShapes` / `resizeShapes` / `rotateShapes`，一个事务、一个撤销步（PRD ED-05；「一次拖拽一个命令」，[04](04-document-commands-and-undo.md) §5）；多个元素一起拖动时一个命令携带全部 id；`Esc` 取消当前拖动，不产生命令。
 - 修饰键：`Shift` 缩放时锁比例、旋转按 15° 步进；`Alt` 缩放时以中心为锚（ED-05），拖动与缩放时同时临时关闭吸附（ED-09），状态胶囊短暂显示「吸附已临时关闭」；`Mod`+拖动复制，松手时以一次 `slide.duplicateShapes{shapeIds, dx, dy}` 收口（一个事务、一个撤销步，新 id；40/10 §2.6 与 40/03 §2.6 已登记）。
 - 拖动中被拖对象被远端删除：撤掉预览、不发命令，按软冲突分流提示（[07](07-collaboration-client.md) §12）。
-- 连接符端点拖到形状连接点时高亮并吸附（M2 直线跟随，M3 肘形与曲线重算，PRD ED-28），同样一次拖拽一个命令。
+- 连接符端点拖到形状连接点时高亮并吸附（M2 直线跟随，M3 肘形与曲线重算，PRD ED-28），同样一次拖拽一个命令；移动、缩放、旋转带连接的形状时，受影响连接符的新几何由本层经 `layout` 服务求出、作为 `reroute` 随同一条命令写回（30/05 §14.5，[22](22-elements-shapes-and-lines.md) §4.3）；调整、端点、连接点与裁剪手柄的命中与命令见 §7.5。
 - 拖拽与缩放动画期间迷你工具条隐藏；帧率 ≥ 55 fps（[13](13-performance-and-bundling.md) §3）。
 
 **图 10-5 拖拽移动：指针意图 → 连续帧 → 一次命令**
@@ -376,6 +398,96 @@ sequenceDiagram
 - **画布右键**（`ui.contextMenu{slot:'canvas'}`）：按 `selectionKind` 过滤，危险项置末；触控长按 500 ms 等价右键。
 - **评审模式点击文本**：画布不进入编辑态；对能评论的角色，检查器切到「评论」并提示「当前为只读，去评论？」（设计 02 F2）。
 - **母版视图**：命中只作用于目标容器的形状，继承描边与占位符规则见 [11](11-masters-layouts-and-themes.md) §6；放映舞台不走本节交互（§9）。
+
+### 7.4 插入工具态
+
+「插入工具态」是从选中一个插入工具到新元素落在画布上的这段交互（R-d-62）。它覆盖需要在画布上落点的工具：文本框、形状库全部条目（形状、线条、连接符、曲线类、动作按钮）以及声明需要落点的插件元素；图片、图标、表格、图表、音视频不经工具态，直接按默认落点插入（视口中心或所选空占位符，[19](19-insertable-elements-overview.md)），插入后同样选中。
+
+- **进入**：点 Ribbon 按钮或形状库条目。`activeTool` 是 slide-ui 的本地 UI 状态，不是 Operation：不入历史、不广播、不进 awareness。工具按钮显示按下态（`aria-pressed="true"`），画布光标变为十字，画布顶部出现 glass 提示条「单击插入 1 in × 1 in，或拖出大小 · Shift 锁定比例 · Alt 从中心 · Esc 取消」（2026-09-30 样张确认文案），状态栏显示「插入工具：〈名称〉」（视觉口径以设计 03-15 的样张为准，2026-09-26 整合）。
+- **单击**：按下后位移 ≤ 4 px（`UiCoreConfig.input.dragThresholdPx`，与 §7.2 同一阈值）即松手，按该工具的默认尺寸插入，左上角落在点击处（线条为起点在点击处的 1 in 水平线）。
+- **拖出**：位移超过 4 px 进入拖出预览，覆盖层画出虚线框（线条为线段）、形状的幽灵预览与「宽 W 高 H」尺寸角标；`Shift` 锁比例（线条约束到 45° 倍数）、`Alt` 以按下点为中心（线条无此项）；拖出期间智能参考线与吸附照常（§7.2），线条与连接符的端点靠近形状时显示连接点（§7.5）；松手时执行恰好一个插入命令。
+- **键盘**：焦点在工具按钮或形状库条目上按 `Enter` 直接插到视口中心，默认尺寸；连续插入同一工具时依次错位 0.2 in；不需要指针，满足 WCAG 2.5.7 对「放置」的等价要求。
+- **取消**：`Esc`、再次点击同一工具按钮、切换 Ribbon 页签、在缩略图栏或检查器按下指针、切换当前页，都退出工具态且不产生命令；拖出预览中按 `Esc` 撤掉预览。
+- **插入之后**：命令成功后执行 `slide.setSelection` 选中新元素，按类型进入子编辑态——文本框进入文本编辑（[06](06-text-editing-and-ime.md) §2），表格进入第一个单元格的文字编辑、图表（M3）打开数据面板（细节以 [24](24-elements-tables-and-charts.md) 为准），动作按钮插入后立即弹出「操作设置」（[22](22-elements-shapes-and-lines.md) §6.2），其余只选中（形状自动进入文本编辑为 P1，默认关）；工具随即退出（一次一个，锁定连续绘制 P2）；live region 播报「已插入〈名称〉」（[16](16-i18n-and-accessibility.md) §8）。空文本框在退出编辑时自动删除，并与插入合为同一撤销步（R-d-65，[20](20-elements-text.md)）。
+- **浮层与文本编辑**（2026-09-26 整合，[20](20-elements-text.md) §6）：符号面板、日期和时间格式选择器这类 UI 浮层在文本编辑态打开时，焦点进入浮层不退出文本编辑，关闭后焦点与光标回到原位置。
+- **失败**：命令被规模守卫拒绝（`document.quota_exceeded`）或权限不足时按 §11 分流给 Toast，工具退出，不留预览；只读、评审、降权与仅查看断点下插入工具禁用而不隐藏（§4）。
+- **协同**：工具态期间当前页被远端删除，工具退出并按 [07](07-collaboration-client.md) §12 的软冲突提示；插入的新元素是 shapes 表的新键，与他人的并发插入不冲突。
+
+**图 10-8 插入工具态状态机**
+
+```mermaid
+stateDiagram-v2
+  state "空闲：普通选择工具" as idle
+  state "工具就绪：十字光标，按钮按下态" as ready
+  state "已按下：等待越过 4 px" as pressed
+  state "拖出预览：覆盖层画框或线段" as preview
+  state "执行插入命令：一个事务" as commit
+  state "选中新元素并进入子编辑态" as selected
+  [*] --> idle
+  idle --> ready : 点插入按钮或形状库条目
+  idle --> commit : 在工具按钮或条目上按 Enter，视口中心
+  ready --> pressed : 在画布上按下
+  pressed --> commit : 位移不超过 4 px 即松手，默认尺寸
+  pressed --> preview : 位移超过 4 px
+  preview --> preview : 移动，Shift 锁比例，Alt 中心，吸附
+  preview --> commit : 松手，按拖出矩形或起止点
+  ready --> idle : Esc、再点工具、切换页签或切页
+  preview --> ready : Esc，撤掉预览
+  commit --> selected : 命令成功
+  commit --> idle : 被规模守卫或权限拒绝，Toast
+  selected --> idle : 工具退出
+```
+
+怎么读：只有「执行插入命令」写 Store，其余都是本地 UI 状态；单击与拖出的分界就是 §7.2 的 4 px 阈值；键盘从空闲直达执行，不经过指针状态；曲线类绘制工具（P2）在「工具就绪」之后另有自己的多点状态机，见 [22](22-elements-shapes-and-lines.md) §5.1。
+依据：R-d-62；设计 03-15「插入交互：单击 vs 拖出」；PRD ED-05、ED-29。
+
+### 7.5 元素手柄
+
+选中框与手柄由 render-dom 选择覆盖层绘制（[05](05-rendering-and-thumbnails.md) §5.2，40/06 §4.3 `selection-overlay.ts`），命中结果为 `HitResult{kind:'handle'}`（40/06 §2.2）；slide-ui `application/handles.ts` 把手柄拖动变成命令，仍是一次拖拽一个命令、拖动中只画预览。
+
+| 手柄 | 谁显示 | 拖动 → 命令（松手时一次） | 数值或键盘等价（WCAG 2.5.7） | 里程碑 |
+|---|---|---|---|---|
+| 8 个缩放手柄 | 形状、图片、组合、表格、图表、媒体；多选的统一包围盒 | `slide.resizeShapes`；`Shift` 锁比例、`Alt` 中心 | 检查器「位置与大小」；`Shift+Alt+方向键`（P1） | M2 P0 |
+| 旋转手柄 | 同上，线条与连接符除外，`graphicFrame` 不可旋转 | `slide.rotateShapes`；`Shift` 15° 步进 | 检查器「旋转」 | M2 P0 |
+| 调整手柄（黄色菱形） | 带 `avLst` 的预设形状，每个调整值一个；M3 起肘形连接符中段一个 | `slide.setAdjustValues{shapeId, adjust}`（新增，§4.21） | 检查器「形状」分区的调整值，与手柄同批 | M2 P1 |
+| 端点手柄 | 线条与连接符两端；已连接实心、未连接空心 | 落在连接点 → `slide.connectEnds`，否则 `slide.setLineEnds`（均为新增，§4.21）；`Shift` 45° | 「位置与大小」与翻转；连接符的「连接到…」选择器 | M2 P0（连接 P1） |
+| 连接点标记 | 拖线条或连接符端点、或连接符工具悬停时，目标形状上显示 | 本身不可拖，只作吸附目标（≤ 8 px） | 「连接到…」选择器列出目标与连接点序号 | M2 P1 |
+| 裁剪手柄 | 图片裁剪模式：裁剪框四角与四边的黑色短条，框外原图变暗 | `slide.crop{shapeId, rect}` 写 `srcRect`；拖动框内图片改变取景 | 检查器裁剪数值（ED-29） | M2 P1 |
+
+- **命中优先级**（同一位置多个手柄重叠时）：端点 > 调整 > 旋转 > 缩放 > 形状本体；连接点标记只在端点拖动中参与命中。缩到很小的对象手柄命中区仍 ≥ 24 px（设计 03-15），触控 ≥ 44 px（M4+）。
+- **锁定**：`spLocks` 各锁位对应的手柄隐藏或显示锁形并 tooltip 说明（§7.1），多选中只要有一个对象锁定该操作，对应手柄即对整体禁用。
+- **多选**：只显示统一包围盒与 8 个缩放手柄；调整、端点、裁剪手柄只在单选时出现；类型混杂的多选禁用端点与连接操作。
+- **裁剪模式**：双击图片或迷你工具条「裁剪」进入，`Esc`、`Enter` 或点击画布空白退出；裁剪模式中每次松手一次 `slide.crop`，退出时不另发命令、不回滚已提交的裁剪，撤销逐步回退；EMF / WMF 图片不可裁剪（PRD ED-07 边界）；裁剪为形状 P2。完整设计见 [23](23-elements-media.md)。
+
+**图 10-9 手柄拖动到命令的分派**
+
+```mermaid
+flowchart TB
+  hit["pointerdown：覆盖层命中 HitResult kind handle"]
+  which{"手柄种类"}
+  resize["缩放：slide.resizeShapes"]
+  rotate["旋转：slide.rotateShapes"]
+  adjust["调整：slide.setAdjustValues"]
+  endpoint{"端点松手位置"}
+  connect["落在连接点：slide.connectEnds"]
+  lineEnds["空白处：slide.setLineEnds，同时断开"]
+  crop["裁剪：slide.crop 写 srcRect"]
+  preview["拖动中：只画覆盖层预览，不写 Store"]
+  cancel["Esc 或对象被远端删除：撤掉预览，零命令"]
+  hit --> preview
+  preview --> which
+  preview --> cancel
+  which -->|"缩放"| resize
+  which -->|"旋转"| rotate
+  which -->|"调整"| adjust
+  which -->|"端点"| endpoint
+  which -->|"裁剪"| crop
+  endpoint -->|"连接点 8 px 内"| connect
+  endpoint -->|"其它"| lineEnds
+```
+
+怎么读：所有手柄共用「预览 → 松手一次命令」的骨架，只有松手时分派到的命令不同；端点是唯一需要再看松手位置的手柄；取消路径对所有手柄一致。
+依据：PRD ED-05、ED-07、ED-28、ED-29；R-d-29；[22](22-elements-shapes-and-lines.md) §1.5。
 
 ## 8. 缩放、平移与导航
 
@@ -476,6 +588,50 @@ stateDiagram-v2
 - **集成方锁定**：被锁定的项只读展示并附「由宿主应用设置」，多项锁定时各自说明。
 - 设计 03-23 线框与控件说明已补「隐私与诊断」组，playground `Settings.tsx` 同步（rulings §4.20 FE-15）。
 
+### 10.4 默认快捷键表（逐条对齐 PRD ED-16）
+
+本表是编辑器默认和弦的唯一清单：前 23 行与 PRD ED-16 表逐条对应（次序相同），其后是 ED-16 之外、由其它需求引入的和弦。和弦按 `KeyboardEvent.code` 匹配（`Mod` 在 macOS 为 ⌘，其余为 Ctrl），作用域与文本编辑态的放行规则见 [09](09-ui-system-and-theming.md) §8；slide-ui 的条目由 `shortcut-table.ts` 声明（40/10 §4.4），面板分组与冲突展示见 §10.2。
+
+| # | 功能（ED-16） | 和弦 | 作用域 | 目标命令或行为 | 注册方 |
+|---|---|---|---|---|---|
+| 1 | 撤销 / 重做 | `Mod+Z` / `Mod+Shift+Z`、`Mod+Y` | 全局，文本编辑态放行 | `core.undo` / `core.redo` | ui-react |
+| 2 | 复制 / 剪切 / 粘贴 | `Mod+C` / `Mod+X` / `Mod+V` | 画布、文本编辑 | 剪贴板管线处理浏览器 `copy` / `cut` / `paste` 事件，不登记 `ui.shortcut`；剪切 = 序列化 + `slide.deleteShapes`，粘贴 = `slide.pasteShapes`（[04](04-document-commands-and-undo.md) §9） | ui-core 剪贴板管线 |
+| 3 | 复制对象 | `Mod+D` | 画布 | `slide.duplicateShapes{shapeIds, dx, dy}`，偏移 0.2 in；新副本成为选区，所以连按时逐次等距错位（PRD ED-08） | slide-ui |
+| 4 | 全选 | `Mod+A` | 画布（文本编辑态由文本宿主处理为全选框内文字） | `slide.setSelection` 当前页全部对象，`enablement: unitLoaded` | slide-ui |
+| 5 | 组合 / 取消组合 | `Mod+G` / `Mod+Shift+G` | 画布 | `slide.group` / `slide.ungroup` | slide-ui |
+| 6 | 删除 | `Delete` / `Backspace` | 画布；缩略图栏 | `slide.deleteShapes`；缩略图栏为 `slide.deleteSlides`（只剩 1 页时禁用） | slide-ui |
+| 7 | 粗 / 斜 / 下划线 | `Mod+B` / `Mod+I` / `Mod+U` | 文本编辑；画布（选中含文字的对象时作用于其全部文字） | `slide.toggleBold` / `toggleItalic` / `toggleUnderline` | slide-ui |
+| 8 | 字号增 / 减 | `Mod+Shift+>` / `Mod+Shift+<`（`code` 为 `Shift+Period` / `Shift+Comma`） | 同上 | `slide.setFontSize`，取字号阶梯的上 / 下一档 | slide-ui |
+| 9 | 左 / 中 / 右 / 两端对齐 | `Mod+L` / `Mod+E` / `Mod+R` / `Mod+J` | 同上 | `slide.setAlignment` | slide-ui；`Mod+E` 与「导出」冲突，待裁（§12.3） |
+| 10 | 微移 / 大幅微移 | 方向键 / `Shift+方向键` | 画布 | `slide.moveShapes`，1 px / 10 px 屏幕像素按缩放换算为 EMU（§7.3） | slide-ui |
+| 11 | 新建幻灯片 | `Mod+M` | 全局（文本编辑态不生效） | `slide.addSlide{layoutId}`，版式同当前页 | slide-ui |
+| 12 | 上移一层 / 下移一层 | `Mod+]` / `Mod+[` | 画布 | `slide.bringForward` / `slide.sendBackward` | slide-ui |
+| 13 | 置顶 / 置底 | `Mod+Shift+]` / `Mod+Shift+[` | 画布 | `slide.bringToFront` / `slide.sendToBack`（新增（§4.21），`shape.setOrder` 的薄命令） | slide-ui |
+| 14 | 查找 / 替换 | `Mod+F` / `Mod+H` | 全局，文本编辑态放行 | 打开查找面板，`enablement: unitLoaded` | slide-ui |
+| 15 | 放映（从头 / 当前页） | `F5` / `Shift+F5` | 全局 | §9.1 | slide-ui |
+| 16 | 缩放适应 / 100% | `Mod+0` / `Mod+1` | 全局 | `slide.setZoom('fit' \| 1)` | slide-ui |
+| 17 | 保存 | `Mod+S` | 全局 | 单人模式触发回调式保存（[04](04-document-commands-and-undo.md) §8.1）；协同模式保存态以同步状态呈现（PRD ED-23），按键只消费、不下载 | 见 [04](04-document-commands-and-undo.md) §8.1 |
+| 18 | 命令面板 | `Mod+Shift+P`（冲突平台追加 `F1`） | 全局 | `ui.openDialog('command-palette')`（§10.1） | ui-react |
+| 19 | 进入 / 退出文本编辑 | `Enter` / `Esc` | 画布 / 文本编辑 | 进入文本编辑（[06](06-text-editing-and-ime.md) §2）；`Esc` 逐级（§7.1） | slide-ui（`Enter`）；ui-core 键盘管线（`Esc` 链） |
+| 20 | 退出组合编辑 | `Esc` | 画布 | `Esc` 逐级（§7.1） | ui-core 键盘管线 |
+| 21 | 母版视图（进入 / 退出） | `Mod+Alt+M` | 视图（评审、放映、窄屏无效） | `view.setMode{mode:'master'}` ⇄ `'normal'`（[11](11-masters-layouts-and-themes.md) §3） | slide-ui |
+| 22 | 设置 | `Mod+,` | 全局 | `ui.openDialog('settings-drawer')`（§10.3） | ui-react |
+| 23 | 快捷键面板 | `Mod+/` | 全局 | `ui.openDialog('shortcuts-panel')`（§10.2） | ui-react |
+| 24 | 超链接（ED-19） | `Mod+K` | 文本编辑；画布（选中形状） | 打开超链接对话框 → `slide.setHyperlink`（新增（§4.21），[20](20-elements-text.md)） | slide-ui |
+| 25 | 导出（D27） | `Mod+E` | 全局 | `shell.intent{target:'export'}`（[03](03-preset-assembly-and-plugins.md) §8） | shell-glue；与第 9 行冲突，待裁 |
+| 26 | 键盘缩放（ED-29，P1） | `Shift+Alt+方向键` | 画布 | `slide.resizeShapes` | slide-ui |
+| 27 | 重排页（ED-29） | `Mod+Shift+↑` / `↓` | 缩略图栏 | `slide.reorderSlides`（§6） | slide-ui |
+| 28 | 缩放步进（ED-22） | `Mod+=` / `Mod+-` | 全局 | `slide.setZoom` 步进（§8） | slide-ui |
+| 29 | 翻页（ED-22） | `PageUp` / `PageDown` / `Home` / `End` | 画布（非文本编辑） | `slide.setCurrentSlide`（§8） | slide-ui |
+| 30 | 对象循环（ED-01） | `Tab` / `Shift+Tab` | 画布 | 按阅读顺序 `slide.setSelection`（[16](16-i18n-and-accessibility.md) §9.2） | slide-ui |
+| 31 | 区域循环（ED-29） | `F6` / `Shift+F6`（备用 `Ctrl+F6` / `Ctrl+Shift+F6`） | 全局 | 焦点区域循环（[16](16-i18n-and-accessibility.md) §6.1） | ui-core 键盘管线 |
+| 32 | 新建同版式页（ED-11） | `Enter` | 缩略图栏 | `slide.addSlide{layoutId}`（§6） | slide-ui |
+| 33 | 放映控制（ED-21） | `→` `Space` `PageDown` / `←` `PageUp` / `Home` `End` / `B` `W` / `Esc` | 放映 | §9.2 | slide-ui（`present.ts`） |
+
+- **计数**：slide-ui 登记 63 个和弦（放映作用域 10 个），ui-react 登记 `Mod+Shift+P`、`Mod+/`、`Mod+,` 与撤销重做三条，shell-glue 登记 `Mod+E`；`Esc` 逐级链与 `F6` 循环在 ui-core 键盘管线内处理，不作为贡献条目；数字 + `Enter` 跳页由画布与放映的输入缓冲处理，不登记和弦。
+- **插入工具没有默认和弦**（与 PowerPoint 相同）；键盘用户在工具按钮或形状库条目上按 `Enter` 插到视口中心（§7.4）。
+- **与现状的差异**（§12.3）：40/10 旧表 26 条以省略号结尾，现按本表逐条登记；[09](09-ui-system-and-theming.md) §8 文本编辑态放行白名单缺 `Mod+L` / `Mod+E` / `Mod+R` / `Mod+J`、`Mod+Shift+>` / `<` 与 `Mod+K`，ED-16 的段落对齐与字号键在文本编辑态必须生效，需补入「字符格式」类；`Mod+E` 同时被 ED-16（居中对齐）与 D27（导出）占用。
+
 ## 11. 反馈分层
 
 四层自上而下由强到弱（设计 09 §3「反馈分层」）；**同一事件只用一层**。
@@ -552,14 +708,19 @@ flowchart TB
 | V13 | 发起方出现「未保存到服务器 N 项」横幅、另一方只见状态胶囊弱提示，PG 恢复后二者消失；同一时刻至多一条横幅 | M2：`collab/single-user-persist.spec.ts`（同一用户两个标签页，[70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 22 行）；M3：`collab/collab-two-browsers.spec.ts`（两个用户，同表第 12 行） | `e2e/full-compose` |
 | V14 | 缩放与平移 ≥ 55 fps、命中 p95 ≤ 2 ms、吸附 p95 ≤ 4 ms（300 元素页） | [70/09](../70-testing/09-performance-and-capacity.md) 客户端场景 | `perf/perf-client` |
 | V15 | 同屏 `backdrop-filter` ≤ 4；分栏拖拽与缩放期间 `data-interacting` 生效 | `ui/perf.spec.ts`（[70/06](../70-testing/06-frontend-component-and-e2e.md) §11） | `e2e/full-compose` |
+| V16 | 插入工具态（§7.4）：位移 ≤ 4 px 为单击、按默认尺寸且左上角在点击处；拖出按矩形，`Shift` / `Alt` 生效；`Esc` 与切换页签零命令；工具按钮上 `Enter` 插到视口中心、连续插入错位 0.2 in；插入后选中并进入对应子编辑态，一次插入一个撤销步 | `slide-ui/__tests__/insert-tool.test.ts`；`editing/insert-tools.spec.ts`（[70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 26 行） | `test/unit`；`e2e/full-compose` |
+| V17 | 元素手柄（§7.5）：调整、端点、裁剪手柄拖动 N 帧只发一次对应命令；端点落在连接点发 `slide.connectEnds`、否则 `slide.setLineEnds`；命中优先级端点 > 调整 > 旋转 > 缩放；锁定时手柄隐藏或显示锁形；每种手柄都有数值或键盘等价 | `slide-ui/__tests__/handles.test.ts`；`editing/element-handles.spec.ts` | `test/unit`；`e2e/full-compose` |
+| V18 | 插入页签七组的次序与设计 03-04 一致，无「新建幻灯片」组；超链接 M2 可用；图表按 `slide.hasChartEditor` 禁用而不隐藏；本里程碑内 P2 条目与 M4+ 条目均禁用并标注里程碑 | `slide-ui/__tests__/ribbon-spec.test.ts` | `test/unit` |
+| V19 | `selectionKind` 新增 `table`、`chart`、`media`、`placeholder-empty` 各自出现 §5 所列分区；有内容的占位符不得派生为 `placeholder-empty` | `slide-ui/__tests__/selection-kind.test.ts`、`inspector-spec.test.ts` | `test/unit` |
+| V20 | 默认快捷键与 §10.4 逐条一致：ED-16 每一行都有登记条目，和弦与作用域相符；冲突行（`Mod+E`）在裁决前由 `ui/shortcut-conflict` 报出而不静默 | `slide-ui/__tests__/shortcuts.test.ts` | `test/unit` |
 
 ### 12.2 里程碑
 
 | 里程碑 | 交付 |
 |---|---|
 | M1 | `<EditorHost>` 挂载与三栏壳；开始页签；检查器「位置与大小」可编辑；指针与键盘管线；点选与一次拖拽一次命令；基础缩放（40/10 §11 的 M1 切片） |
-| M2 | 全部内置页签（切换页签只读）；评审模式与模式下拉；缩略图栏拖拽与键盘等价、隐藏页、节标题；紧凑与仅查看断点；智能参考线、吸附、对齐分布（PRD ED-09）；迷你工具条；缩放导航与视图事件；放映舞台含黑屏 / 白屏（PRD ED-21）；命令面板、快捷键面板、设置抽屉；反馈分层与「未保存到服务器」分级提示（协同后端提前到 M2，rulings §4.19 D-M2-CONTENT） |
-| M3 | 只读浏览变体（UX-19）；多人协同体验层：在场头像、缩略图协作者标记、放映跟随（rulings §4.19）；检查器「评论」页签与评论钉（`comments` 包，rulings §4.19 D-COMMENTS-PKG）；「历史」页签；备注编辑（PRD ED-18）；表格与图片分区及其工具条 |
+| M2 | 全部内置页签（切换页签只读）；评审模式与模式下拉；缩略图栏拖拽与键盘等价、隐藏页、节标题；紧凑与仅查看断点；智能参考线、吸附、对齐分布（PRD ED-09）；迷你工具条；插入页签七组、插入工具态与形状库 72 项（§4、§7.4）、元素手柄（缩放 / 旋转 / 端点 P0，调整 / 连接点 / 裁剪 P1，§7.5）、超链接（P1）、表格插入与单元格文字、`selectionKind` 四个新增取值的分区（§5）、默认快捷键逐条登记（§10.4）；缩放导航与视图事件；放映舞台含黑屏 / 白屏（PRD ED-21）；命令面板、快捷键面板、设置抽屉；反馈分层与「未保存到服务器」分级提示（协同后端提前到 M2，rulings §4.19 D-M2-CONTENT） |
+| M3 | 只读浏览变体（UX-19）；多人协同体验层：在场头像、缩略图协作者标记、放映跟随（rulings §4.19）；检查器「评论」页签与评论钉（`comments` 包，rulings §4.19 D-COMMENTS-PKG）；「历史」页签；备注编辑（PRD ED-18）；表格结构与样式分区、图表插入与 `chart` 分区及其工具条（§4.21）；肘形与曲线连接符重算（ED-28 M3）；图标与符号插入（P2） |
 | M4+ | 触控编辑（ED-27）；演讲者视图（ED-21 P2）；切换效果的编辑与播放 |
 
 ### 12.3 待确认与回写
@@ -579,3 +740,9 @@ flowchart TB
 | 评审与只读浏览下「主题 · ?」的位置 | 已关闭（rulings §4.20 FE-08，用户 2026-09-26 确认 playground 亮 / 暗 × 有 / 无条目样张）：尾部区随区域位走——页签行右侧、评审工具条右端、无条目时 `ReadonlyRibbonNotice` 右端，同组件同容器、外壳直接渲染；已回写 §1（表、尾部区段、图 10-1）、§3.2、§4、§5「只读」文案、§10.2、§12.1 V3 | 40/10 §3、§3a、§4.3、§5.3、§9；设计 01 §2.2；设计 03-02「评审模式」 |
 | 设置抽屉「隐私与诊断」组 | 已关闭（rulings §4.20 FE-15）：设计 03-23 线框与控件说明补该组（错误报告默认开、使用统计默认关，`telemetry.otlp` 为假时隐藏后一项），playground `Settings.tsx` 同步 | 设计 03-23 |
 | 命令面板列出不可用命令并附原因（`explainWhen`） | 已关闭（rulings §4.20 FE-12）：40/10 §2.3 纯函数表登记 `explainWhen(clause, keys): ReasonKey \| null`（ui-core `domain/when-clause.ts`） | 40/10 §2.3 纯函数表 |
+| `Mod+E` 双重占用：PRD ED-16 为居中对齐，D27 与 [03](03-preset-assembly-and-plugins.md) §8、[09](09-ui-system-and-theming.md) §8 为「导出…」（§10.4 第 9、25 行） | 待裁（§4.21 回写发现）。推荐：保留 ED-16 的 `Mod+E` 居中对齐（PowerPoint 习惯），「导出…」改为 `Mod+Shift+E`；裁决前两条都登记，由 `ui/shortcut-conflict` 报出 | PRD 02 ED-16、PRD 07 D27、[03](03-preset-assembly-and-plugins.md) §8、[09](09-ui-system-and-theming.md) §8、40/11 `shell-glue` |
+| 文本编辑态放行白名单缺 ED-16 的段落对齐、字号增减与 `Mod+K` | 待回写（§4.21）：「字符格式」类补 `Mod+L` / `Mod+E` / `Mod+R` / `Mod+J`、`Mod+Shift+>` / `<`、`Mod+K` | [09](09-ui-system-and-theming.md) §8 |
+| `selectionKind` 新增 `table`、`chart`、`media`、`placeholder-empty`（R-d-72） | 本文 §5 已写；取值全集待回写 | [09](09-ui-system-and-theming.md) §6.3；40/10 §2.3、§4.4 已同步 |
+| 置顶 / 置底命令 `slide.bringToFront` / `slide.sendToBack`（ED-16 `Mod+Shift+]` / `[` 原无目标命令） | 新增（§4.21），`shape.setOrder` 的薄命令 | 40/03 §2.6、ADR-0018 |
+| 拖拽的键盘等价补调整手柄、端点、连接、插入工具（`Enter` 插到视口中心）与曲线绘制例外 | 待回写（§4.21） | [16](16-i18n-and-accessibility.md) §6.3、设计 07 §1.2a |
+| 插入页签分组以设计 03-04 与 playground 为准（R-d-61）；超链接改 M2 P1（R-d-67）；图表插入定 M3（R-d-74） | 已回写 §4；40/10 §2.6 同步 | 设计 03-04「交互说明」图表一条作废 |

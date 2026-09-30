@@ -1,19 +1,21 @@
-# 50 前端设计线：定位、边界与导航
+# 50 前端架构与设计：定位、边界与导航
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：§8.1 补 N1 行，§8.3 删去已裁决的「覆盖导入与版本恢复是否锁定」开放行；2026-09-26（§4.20）：§8.2 TT 行按 FE-18 修订，§8.3 两行结案，新增 §8.4 | 依赖：[docs/README.md](../README.md)、[charter v0.2](../00-charter/charter.md) §5、§7–§9、[rulings](../00-charter/rulings-2026-09-14.md) §4.11–§4.20、[30-architecture/README.md](../30-architecture/README.md)、[40-modules/README.md](../40-modules/README.md)、[40/18 图集](../40-modules/18-atlas-system-and-frontend.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：§8.1 补 N1 行，§8.3 删去已裁决的「覆盖导入与版本恢复是否锁定」开放行；2026-09-26（§4.20）：§8.2 TT 行按 FE-18 修订，§8.3 两行结案，新增 §8.4；2026-09-26（§4.21：定位改为「前端架构与设计」，01 升格为前端架构，新增 17 复用清单、18 能力总表、19–25 元素目录，§5 与 §8.1–§8.4 标为历史，新增 §8.5）；2026-09-26（§4.21 整合：§4 文件索引把 20–25 拆成逐篇行，登记 20、21、22 的入口与一句话定位）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[docs/README.md](../README.md)、[charter v0.2](../00-charter/charter.md) §5、§7–§9、[rulings](../00-charter/rulings-2026-09-14.md) §4.11–§4.21、[30-architecture/README.md](../30-architecture/README.md)、[30/01 总架构](../30-architecture/01-overview.md)、[40-modules/README.md](../40-modules/README.md)、[40/18 图集](../40-modules/18-atlas-system-and-frontend.md)
 
-本目录是 Cordex **浏览器内一切运行时设计的唯一事实源**。它回答「浏览器里的代码怎样工作」：页面与会话怎样流转、preset 怎样装配、命令与撤销在界面上怎样表现、画布怎样渲染与输入、协同客户端怎样连接与恢复、界面体系怎样组织、查看器与 `/render` 页怎样只读工作，以及性能、安全、事件、国际化与可访问性怎样落地。三线（50 前端 / 60 后端 / 70 测试）的总边界表见 [docs/README.md](../README.md)（由总编排维护），本文不复制全表。
+本目录是 Cordex 的**前端架构与设计**，也是**浏览器内一切运行时设计的唯一事实源**。架构分三份（rulings §4.21 q-arch-reorg 方案 B）：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构，[01](01-overview-and-runtime-map.md) 是前端架构，[60/01](../60-backend/01-service-overview-and-roles.md) 是后端架构，阅读路径固定为 **30/01 → 50/01 → 60/01**。本目录内：**01 = 前端架构**；**02–16 = 专题设计**；**17 = 前端复用组件清单**；**18 = 编辑器能力实现总表**；**19–25 = 可追加元素目录**（19 总览与通用设计，20–25 按元素族分篇）。它回答「浏览器里的代码怎样工作」：页面与会话怎样流转、preset 怎样装配、命令与撤销在界面上怎样表现、画布怎样渲染与输入、协同客户端怎样连接与恢复、界面体系怎样组织、查看器与 `/render` 页怎样只读工作、复用了哪些成熟组件、编辑器每项能力怎样实现、能追加哪些元素以及每个元素怎样设计，以及性能、安全、事件、国际化与可访问性怎样落地。三线（50 前端 / 60 后端 / 70 测试）的总边界表见 [docs/README.md](../README.md)（由总编排维护），本文不复制全表。
 
 ## 1. 定位
 
-**本线负责的范围**：应用壳（apps/web 的路由、会话、页面状态、浏览器存储）、preset 装配与前端插件模型、客户端文档模型的浏览器用法与命令 / 撤销的界面表达、渲染与缩略图、文本编辑与 IME、协同客户端、评论与版本历史的客户端部分、UI 组件体系与主题、编辑器外壳与画布交互、母版 / 版式 / 主题、查看器与嵌入形态、`/render` 页的前端部分、前端性能预算与分包、客户端安全、客户端事件 / 错误 / 遥测、国际化与可访问性。
+**本线负责的范围**：前端架构（执行上下文、技术栈与复用组件、层带分布、铁律、渲染架构、端到端主干、能力地图、元素族一览）、应用壳（apps/web 的路由、会话、页面状态、浏览器存储）、preset 装配与前端插件模型、客户端文档模型的浏览器用法与命令 / 撤销的界面表达、渲染与缩略图、文本编辑与 IME、协同客户端、评论与版本历史的客户端部分、UI 组件体系与主题、编辑器外壳与画布交互、母版 / 版式 / 主题、查看器与嵌入形态、`/render` 页的前端部分、前端性能预算与分包、客户端安全、客户端事件 / 错误 / 遥测、国际化与可访问性，以及前端复用组件清单、编辑器能力实现总表与可追加元素的逐项设计（rulings §4.21 用户诉求 1、3）。
 
 **本线不负责的范围**：
 
 | 内容 | 归属 | 本线怎样使用 |
 |---|---|---|
-| iso 契约本体（DocumentStore、StoreOp、中性撤销、SceneProvider、TextMeasurer、RenderTarget、OfflineStore 的签名） | [30-architecture](../30-architecture/README.md) 04 / 05 / 07 / 06 §18.6 与 [40/02](../40-modules/02-kernel-protocol-and-document-core.md) | 只写浏览器侧的用法与行为约束 |
-| WS 帧、CONTROL、ack、关闭码的定义 | [30/06 §6](../30-architecture/06-collaboration.md) | 07 只写客户端对它们的处理 |
+| 总架构（C4、跨端统一原则、跨端技术栈总表、M1–M4 里程碑边界表） | [30/01](../30-architecture/01-overview.md) | 01 只写前端架构，里程碑只做前端交付落点 |
+| iso 契约本体（DocumentStore、StoreOp、中性撤销、SceneProvider、TextMeasurer、RenderTarget、OfflineStore 的签名） | [30-architecture](../30-architecture/README.md) 04 / 05 / 07（渲染跨端契约）/ 06 §18.6 与 [40/02](../40-modules/02-kernel-protocol-and-document-core.md) | 只写浏览器侧的用法与行为约束 |
+| WS 帧、CONTROL、ack、关闭码的定义（ADR-0039 起为 Hocuspocus 帧 + Stateless 载荷） | [30/06 §6](../30-architecture/06-collaboration.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) | 07 只写客户端对它们的处理 |
+| 依赖准入与许可分级；模型补全与插入命令族；XML 词法与保真树；图表路线 | [ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md) | 17–25 引用决策、写浏览器侧设计 |
 | renderer sidecar 进程、RPC、池与编排；Nest 模块；数据表、Valkey 键、对象键 | [60-backend](../60-backend/README.md)（06、03–07、08–14） | 只画服务端「接触面」 |
 | 测试层级、套件目录、CI 步骤、阈值判定 | [70-testing](../70-testing/README.md) | 每份文档末「机械验证」只写断言并注明 70 的套件或步骤名 |
 | 包与文件级落点（目录树、逐文件职责、测试文件清单） | [40-modules](../40-modules/README.md) | 本线写设计，40 写「放在哪个文件」 |
@@ -21,7 +23,7 @@
 
 ## 2. 口径链与分界
 
-权威顺序（前者覆盖后者）：**rulings**（§4.11–§4.19，后节覆盖前节）> **charter** > **已接受 ADR** > **30-architecture 正文**（跨端原则、协议语义、iso 契约）> **50 / 60 / 70**（各管一侧，互不覆盖）> **40-modules**（包 / 文件级）> **PRD / 设计既定口径**。
+权威顺序（前者覆盖后者）：**rulings**（§4.11–§4.21，后节覆盖前节）> **charter** > **已接受 ADR** > **30-architecture 正文**（总架构、跨端原则、协议语义、iso 契约）> **50 / 60 / 70**（各管一侧，互不覆盖）> **40-modules**（包 / 文件级）> **PRD / 设计既定口径**。
 
 两条分界线：
 
@@ -35,8 +37,8 @@ flowchart LR
   charter["00 章程与裁决 · rulings 优先"]
   prd["10 PRD · 验收阈值与检查名"]
   design["20 设计与 playground · 交互外观与视觉"]
-  arch["30 架构 · 跨端原则 iso 契约 协议 ADR"]
-  fe["50 前端设计线 · 浏览器运行时唯一事实源"]
+  arch["30 总架构 · 跨端原则 iso 契约 协议 ADR"]
+  fe["50 前端架构与设计 · 浏览器运行时唯一事实源"]
   be["60 后端设计线 · REST 会话 下发 数据"]
   te["70 测试设计线 · 套件与 CI 步骤"]
   mod["40 模块 · 包与文件级落点"]
@@ -52,7 +54,7 @@ flowchart LR
 ```
 
 怎么读：带「定口径」的边表示上游为本线定下不可推翻的约束；50 与 60 之间是无向边，表示两线互相引用对方的定义（例如本线引用 60 的请求头名与 REST 路由，60 引用本线的 CSP 模板正文与 `/render` ready 判据），但谁也不改写对方；40 只承接本线设计的文件落点；70 对两线的设计做测试。
-依据：rulings §4.19（三条设计线各为该侧唯一事实源，30 保留跨端原则与 ADR，40 保留包 / 文件级规划）；docs/README.md 三线总边界表。
+依据：rulings §4.19（三条设计线各为该侧唯一事实源，30 保留跨端原则与 ADR，40 保留包 / 文件级规划）、§4.21（30 只留总架构，50/01、60/01 就地升格为前端架构与后端架构）；docs/README.md 三线总边界表。
 
 ## 3. 本线拥有 / 本线引用
 
@@ -60,6 +62,7 @@ flowchart LR
 
 | 主题 | 事实源 |
 |---|---|
+| **前端架构**：五类执行上下文、技术栈与复用组件摘要、层带分布、前端铁律、运行时对象关系、渲染架构（render-dom、slide-render、ElementRenderer 注册与降级，承接原 30/07 §3–§4）、四条端到端主干、编辑器能力地图、可追加元素族一览、可观察状态、对外接触面、前端里程碑交付落点 | [01](01-overview-and-runtime-map.md) |
 | 路由表（含深链 `/documents/:id?page=&comment=`）、布局与守卫、RuntimeConfig 形状、浏览器会话状态机、重新登录弹窗与 BroadcastChannel、401 / 网络错误分流、分享链接落地、浏览器存储键空间与登出清理矩阵、版本漂移处理 | [02](02-app-shell-routing-and-session.md) |
 | preset 派生链、装配运行时语义、条目缺席的用户可见结果、惰性边界、root ctx 与 UnitScope 服务分布、前端贡献点、第三方 UI 插件前端合同、评论插件装配位置（`comments` 包，rulings §4.19 D-COMMENTS-PKG） | [03](03-preset-assembly-and-plugins.md) |
 | 浏览器中的 Unit 生命周期与渐进打开的 UI 行为、命令结果到界面的分流、撤销跳过提示条与「恢复我的值」「恢复元素」、墓碑可见性、保存与脏状态、剪贴板管线、规模守卫 UI | [04](04-document-commands-and-undo.md) |
@@ -75,13 +78,18 @@ flowchart LR
 | **CSP 模板正文（逐指令，60/17 引用）**、nonce 消费链、Trusted Types 策略与 sink 清单、externalResources 联动、文档内容进入 DOM 的规则、客户端会话与上传安全、本地数据清理 | [14](14-client-security.md) |
 | 事件三类与前端发布者 / 订阅者、宿主事件桥语义、错误码 → 用户文案与建议动作（i18n `errors.*`）、错误边界拓扑、客户端错误上报与 OTel Web 管线、遥测同意与默认值 | [15](15-events-errors-and-telemetry.md) |
 | i18n 架构与命名空间、无 host 页面 i18n、a11y 目标与分阶段、键盘与焦点模型、live region、画布可访问树、视觉适配退化 | [16](16-i18n-and-accessibility.md) |
+| 前端复用组件全表（能力 → 库 → 版本 → 许可 → 包装位置 → 替代与否决理由 → CSP / TT 影响 → 体积）、维持自研清单与理由、已否决清单 | [17](17-reuse-and-dependency-catalog.md) |
+| 编辑器能力实现总表（按域逐项：出处、落点、命令 id、复用或自研、里程碑、覆盖度与补齐方案） | [18](18-editor-capabilities.md) |
+| 可追加元素：族总表、插入命令通用流程与工具态、默认落点与尺寸、通用设计、新增命令与 Mutation 汇总、元素渲染器表（承接原 30/07 §4.2）、非目标 | [19](19-insertable-elements-overview.md) |
+| 各元素族的逐元素设计：文本类、结构类、形状与线条、媒体类、表格与图表、只读与不透明类 | [20](20-elements-text.md)、[21](21-elements-structure.md)、[22](22-elements-shapes-and-lines.md)、[23](23-elements-media.md)、[24](24-elements-tables-and-charts.md)、[25](25-elements-readonly-and-opaque.md) |
 
 **本线引用**（定义在别处，本线只引用文件与小节，不复制字段表）：
 
 | 主题 | 定义处 | 本线使用处 |
 |---|---|---|
 | iso 契约本体：DocumentStore / StoreOp / 中性撤销 / SceneProvider / TextMeasurer / RenderTarget / OfflineStore 签名；插件模型与贡献点总表 | [30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6、[30/04](../30-architecture/04-document-model.md)、[30/05](../30-architecture/05-command-and-history.md)、[30/07](../30-architecture/07-rendering.md)、[30/06](../30-architecture/06-collaboration.md) §18.6、[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.5 | 03、04、05、07 |
-| WS 帧类型、CONTROL 表、ack 语义、关闭码表 | [30/06](../30-architecture/06-collaboration.md) §6（按 INC-02~07、INC-09 补齐后） | 07 |
+| WS 帧类型、CONTROL 表、ack 语义、关闭码表 | [30/06](../30-architecture/06-collaboration.md) §6（按 INC-02~07、INC-09 补齐后，2026-09-26 按 [ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 改为 Hocuspocus 帧 + Stateless 载荷） | 01、07 |
+| 总架构、跨端统一原则、跨端技术栈总表、M1–M4 里程碑边界表 | [30/01](../30-architecture/01-overview.md) | 01 |
 | 错误码格式、域清单与 HTTP / WS 映射；事件命名规则与公开事件定稿；日志与脱敏规则 | [30/10](../30-architecture/10-observability-and-errors.md) §1、§2–§3、§11.1 | 04、15 |
 | REST 路由总表、DTO 文件、守卫与能力位、错误码、限流档（固定小节 §3.1 auth … §3.14 telemetry） | [60/15](../60-backend/15-rest-api-catalog.md) | 02、05、07、08 |
 | 会话 cookie、OIDC RP、CSRF 校验、请求头 `X-Cordex-Request` 与 `X-Cordex-Share-Token`、collab ticket、WS Origin 白名单、链接角色重算 | [60/02](../60-backend/02-auth-chain.md) | 02、07、14 |
@@ -102,7 +110,7 @@ flowchart LR
 
 | 文件 | 一句话职责 | 主要上游 | 主要里程碑 |
 |---|---|---|---|
-| [01 前端总览与运行时全景](01-overview-and-runtime-map.md) | 五类浏览器执行上下文、层带分布、前端铁律、运行时对象关系、四条端到端主干、可观察状态清单、对外接触面、里程碑汇总与机械验证总表 | charter §5/§7、30/01、30/02、40/18 | M1–M5 汇总 |
+| [01 前端架构](01-overview-and-runtime-map.md) | 前端架构（rulings §4.21 就地升格，文件名不变）：五类浏览器执行上下文、技术栈与复用组件摘要（§1a）、层带分布与运行时分层、前端铁律、运行时对象关系、渲染架构（§4a）、四条端到端主干（协同客户端用 `@hocuspocus/provider`）、编辑器能力地图（§5a）、可追加元素族一览（§5b）、可观察状态清单、对外接触面、前端交付落点与机械验证总表 | charter §5/§7、30/01、30/02、30/07、40/18 | M1–M5 汇总 |
 | [02 应用壳、路由与会话](02-app-shell-routing-and-session.md) | apps/web 职责与禁区、路由表唯一源、RuntimeConfig、会话状态机与 OIDC 回环、重新登录、EditorPageState 与 HostRegistry、REST 客户端策略、用例清单、浏览器存储与清理、分享链接落地、版本漂移 | 40/11、ADR-0029、60/02、60/15 | M1 骨架、M2 登录、列表、快照打开与服务端导入、M3 分享与版本 |
 | [03 预设装配与前端插件模型](03-preset-assembly-and-plugins.md) | 三档 preset 派生链、装配运行时、条目缺席语义、惰性边界、组合根时序、服务分布、前端贡献点、壳意图、第三方 UI 合同、评论插件装配、doc/sheet 参数化点 | 30/03、ADR-0005/0006/0010/0015、40/11、40/16 | M1–M4 |
 | [04 客户端文档模型、命令与撤销](04-document-commands-and-undo.md) | Unit 生命周期与渐进打开、命令入口与结果分流、历史策略、协同撤销的界面表达（不简化）、墓碑与彻底删除入口、保存与脏状态、剪贴板、规模守卫 UI | 30/04、30/05、ADR-0007/0013/0020、40/02 | M1 打开、M2 命令与撤销、M3 协同撤销 |
@@ -118,12 +126,22 @@ flowchart LR
 | [14 客户端安全](14-client-security.md) | 信任模型、CSP 模板、nonce 链、Trusted Types、文档内容安全、外链资源、输入限制、会话与请求、上传、本地数据、嵌入与跨源、供应链 | PRD EM-14/NF-04、40/11 §10、60/02、60/17 | M2 基线、M3 Trusted Types 强制 |
 | [15 客户端事件、错误与遥测](15-events-errors-and-telemetry.md) | 事件三类、发布者 / 订阅者总表、宿主事件桥、错误模型与文案、错误边界、错误上报、OTel Web、产品事件、同意与默认、诊断 | 30/10、PRD 06、60/18 | M1–M3 |
 | [16 国际化与可访问性](16-i18n-and-accessibility.md) | i18n 架构、语言包、无 host 页面 i18n、伪本地化与 RTL、a11y 目标、键盘与焦点、语义与 live region、画布可访问树、视觉适配、屏幕阅读器矩阵 | 20-design/07、PRD NF-05–NF-07 | M2 键盘与朗读、M3 forced-colors、M4 RTL |
+| [17 前端复用组件清单](17-reuse-and-dependency-catalog.md) | 前端复用组件全表：能力、库、版本、许可、包装位置、替代与否决理由、CSP / TT 影响、体积；维持自研清单与理由；已否决清单 | ADR-0017、ADR-0049、证据 R `frontendReuse` | M1–M5 |
+| [18 编辑器能力实现总表](18-editor-capabilities.md) | 编辑器能力按域逐项：出处、实现落点、命令 id、复用或自研、里程碑、覆盖度与补齐方案；文末口径冲突清单 | PRD 02、PRD 07、证据 R `capabilities` | M1–M4 |
+| [19 可追加元素目录·总览与通用设计](19-insertable-elements-overview.md) | 6 族 35 类元素总表、插入命令通用流程与工具态、默认落点与尺寸、通用设计、新增命令与 Mutation 汇总、元素渲染器表、非目标 | ADR-0018、30/04、30/05、证据 R `elementDesign` | M2–M4+ |
+| [20](20-elements-text.md)–[25](25-elements-readonly-and-opaque.md) 元素族分篇 | 每个元素固定 14 栏：作用、OOXML、插入入口与默认、模型、渲染、交互、检查器、命令、协同、导入导出、可访问性、复用、里程碑、待决；分篇见下六行 | 19、ADR-0018、ADR-0036、ADR-0008 | M2–M4+ |
+| [20 元素族：文本类](20-elements-text.md) | 文本框、文本字段（页码 / 日期时间）、超链接、艺术字与文字效果、符号与特殊字符五个元素的逐项设计；框内键入与 IME 归 06 | 19、06、ADR-0018 | M2–M4+ |
+| [21 元素族：结构类](21-elements-structure.md) | 撑起页面骨架的文字占位符、内容族占位符（含快速插入图标条）、页眉页脚、背景、组合；重点是继承、重匹配与折算规则 | 19、11、ADR-0018 | M1–M3 |
+| [22 元素族：形状与线条](22-elements-shapes-and-lines.md) | 预设形状、线条与箭头、连接符、任意多边形与曲线、动作按钮、第三方扩展元素的逐项设计；形状库数据与手柄行为 | 19、10 §7.4–§7.5、ADR-0018 | M2–M4+ |
+| [23 元素族：媒体类](23-elements-media.md) | 图片、SVG、图标、EMF / WMF、图片填充、视频、音频、外链媒体、屏幕截图与相册九种元素的逐项设计 | 19、05 §8、14 | M1–M4+ |
+| [24 元素族：表格与图表](24-elements-tables-and-charts.md) | 表格（归一化模型、单元格选区）、图表五类（d3 + 自研布局）、其它图表与 chartex（只读）的逐项设计 | 19、ADR-0036、30/04 | M1–M3 |
+| [25 元素族：只读与不透明类](25-elements-readonly-and-opaque.md) | SmartArt、OLE、公式、3D、墨迹、缩放定位等看得见、能摆放、原样写回的对象 | 19、ADR-0008 | M1–M4+ |
 
 **图 R-2 50 目录阅读路线**
 
 ```mermaid
 flowchart LR
-  n01["01 总览与运行时全景"]
+  n01["01 前端架构"]
   subgraph shellGrp["壳与装配"]
     n02["02 应用壳 路由 会话"]
     n03["03 预设装配与插件模型"]
@@ -147,15 +165,27 @@ flowchart LR
     n15["15 事件 错误 遥测"]
     n16["16 国际化与可访问性"]
   end
+  subgraph catGrp["清单与目录"]
+    n17["17 复用组件清单"]
+    n18["18 能力实现总表"]
+    n19["19 元素总览与通用设计"]
+    n2x["20 至 25 六篇元素族"]
+  end
+  arch["30/01 总架构"]
+  arch --> n01
   n01 --> shellGrp
   shellGrp --> docGrp
   docGrp --> uiGrp
   uiGrp --> crossGrp
+  n01 -.-> catGrp
+  n19 --> n2x
 ```
 
-怎么读：箭头是建议阅读顺序，先读 01 建立全景，再读壳与装配（02、03 可并行），然后按「文档、渲染、协同」「界面与形态」「横切」三组推进；组内文件可按需跳读。按角色的捷径：做应用壳读 01 → 02 → 03 → 14；做编辑器读 01 → 03 → 04 → 05 → 06 → 09 → 10；做协同读 01 → 04 → 07 → 08；做嵌入读 01 → 03 → 12 → 14 → 15。
+怎么读：实线是建议阅读顺序——先读 30/01 总架构，再读本线 01 前端架构，然后读壳与装配（02、03 可并行），再按「文档、渲染、协同」「界面与形态」「横切」三组推进；虚线表示「清单与目录」一组可随时从 01 的 §1a、§5a、§5b 跳入，19 读完再按元素族读 20–25。组内文件可按需跳读。按角色的捷径：做应用壳读 01 → 02 → 03 → 14；做编辑器读 01 → 03 → 04 → 05 → 06 → 09 → 10 → 18；做插入元素读 01 §5b → 19 → 20–25 → 10；做协同读 01 → 04 → 07 → 08；做嵌入读 01 → 03 → 12 → 14 → 15；选依赖读 01 §1a → 17。后端架构接着读 [60/01](../60-backend/01-service-overview-and-roles.md)。
 
-## 5. 回写清单（由总编排执行）
+## 5. 回写清单（历史存档）
+
+> 2026-09-26（rulings §4.21）：本节是 2026-09-25 建线时的回写计划，已由总编排执行，保留为历史存档，不再增补。§4.21 轮的迁移另按「接收方从原文拷贝改写、删除方只删原文并留一行桩链接」执行：原 30/07 §3–§4（render-dom、slide-render 页合成、元素渲染器注册与降级）→ [01](01-overview-and-runtime-map.md) §4a；原 30/07 §4.2 元素渲染器表 → [19](19-insertable-elements-overview.md)；原 30/06 §4.1 客户端装配 → [07](07-collaboration-client.md) §1；M1–M4 里程碑边界表只留 [30/01](../30-architecture/01-overview.md) 一份，01 §8 改为前端交付落点。其余引用重映射由 Remap 阶段统一执行。
 
 下表只列计划 referencePlan 中与本线有关的条目，格式为「原处 → 本线文件」；本线写作组不改动原处文档，改写由总编排在全部写作组完成后统一执行。
 
@@ -215,7 +245,7 @@ flowchart LR
 | 会话 UI 六态 | — | 协同状态在界面上的六个取值：connecting / syncing / synced / reconnecting / offline / readonly-degraded；由内部 11 态与对外 `SyncState` 投影得到 | 07 §3 |
 | 渐进打开 | `unit/opened`、`unit/loaded` | 本地打开 pptx 时 Worker 先完成包络计数，首批装载后发 `unit/opened`（可渲染、可编辑），后续批次以 `system('import')` 追加（不入撤销、不标脏），到齐发 `unit/loaded`；协同模式不走此路径（rulings §4.18 CO-12） | 04 §2 |
 | 两级 ack | `tier:'spill'`、`tier:'db'` | 服务端对 update 的两级确认：溢写成功回 spill，落库回带 seq 的 db；只有 db 清除客户端 pending（rulings §4.15 S-3a） | 07 §6（帧定义 30/06 §6） |
-| 在途 FIFO | — | 客户端按发送顺序记录的在途条目队列（每项对应一个发出的 update 帧、一个 step2 拆出的块或一次 step2，记其覆盖的最大 localSeq；rulings §4.18 CO-10）；收到 db ack 弹队首并 `ackUpTo`，spill ack 不弹 | 07 §6 |
+| 在途 FIFO | — | 客户端按发送顺序记录的在途条目队列（每项对应一个发出的 update 帧或一次 step2，记其覆盖的最大 localSeq；帧与 localSeq 的对应由 provider 的 `outgoingMessage` 事件与计量垫片按内容映射；step2 不再切块、单设 16 MiB 上限，rulings §4.21 H:q-hp-step2-cap 改写 §4.18 CO-10）；收到 Stateless db ack 弹队首并 `ackUpTo`，spill ack 不弹 | 07 §6 |
 | 撤销跳过记录 | `UndoSkip` | history 保留的最近 20 条跳过记录 `{skipId, entityId, path, myValue, wholeStep, reason}`，reason ∈ remote-overwrite / hard-deleted；epoch 变更时清空；是「恢复我的值」「恢复元素」命令的输入 | 04 §6 |
 | 墓碑与「恢复元素」 | `core.history.restoreElement` | 删除为软删除墓碑（TTL 默认 24 h）、id 稳定；「恢复元素」以同 id 复活仍处墓碑态且未硬删除的元素，否则禁用并提示「该内容已被彻底删除」（rulings §4.18 CO-07 术语） | 04 §6–§7 |
 | 上下文键 | `ContextKeyValues` | ui-core 中由事件或 Operation 驱动的反应式键值，是 `when` 子句的唯一输入（含 `breakpoint`、`textEditing`、`focusRegion`、`unitLoaded` 与束前缀键） | 09 §6 |
@@ -224,6 +254,8 @@ flowchart LR
 | 分享片段令牌 | `#share={token}` | 分享 URL 的片段部分携带的令牌；片段不进入请求、Referer 与访问日志，前端读取后存 sessionStorage 并从地址栏去掉，只经请求头 `X-Cordex-Share-Token` 发送 | 02 §11、14 §8 |
 
 ## 8. 裁决落点与开放项汇总
+
+> 2026-09-26（rulings §4.21）：§8.1–§8.4 是 §4.19、§4.20 两轮的裁决落点记录，已全部落实，保留为历史存档；本轮落点见 §8.5。
 
 ### 8.1 rulings §4.19 用户裁决（前端落点）
 
@@ -252,7 +284,7 @@ flowchart LR
 | RUNTIME-CONFIG | RuntimeConfig 只放静态部署项并由 web 容器渲染进 index.html；可变开关只从 `GET /auth/config` 读 | 40/11 与 40/08 单一化 | 02 §3 |
 | APP-DATA | 不引入数据请求库；用例层 + 轻量内存缓存（列表 stale-while-revalidate、乐观更新失败回滚），缩略图走 HTTP ETag | 不过度设计 | 02 §9 |
 | VERSION-DRIFT-SW | index.html no-store、hash 资源 immutable；chunk 加载失败或 4426 / 4427 → 横幅「发现新版本」，协同中先 flush 再刷新；M1–M4 不引入 Service Worker | ADR-0033 + PRD CO-06 | 02 §12 |
-| MEDIA-CLIENT、INC-21 | 不建浏览器 BlobStore Provider：preset 选项 `media.upload` 回调（apps/web 默认 presign → 直传 → commit，≥10 MB 分片，失败重试 3 次）；拉取 `GET /documents/:id/media/:sha256` 经 `http.ts`（带分享令牌头）取 `{url}`（1 h 预签名，不再 302），再以 `credentials:'omit'`、无自定义头请求该 URL 得 Blob | 30/08 + C-30 + D12 fail-closed；INC-25 | 03 §5、05 §8 |
+| MEDIA-CLIENT、INC-21 | 不建浏览器 BlobStore Provider：preset 选项 `media.upload` 回调（apps/web 默认 presign → 直传 → commit，≥10 MB 分片，失败重试 3 次）；拉取 `GET /documents/:id/media/:sha256` 经 `http.ts`（带分享令牌头）取 `{url}`（1 h 预签名，不再 302），再以 `credentials:'omit'`、无自定义头请求该 URL 得 Blob | 60-backend/04 §7 + C-30 + D12 fail-closed；INC-25 | 03 §5、05 §8 |
 | SG-10 | 缩略图 `GET /documents/:id/thumbnails/:slideId?size=640 或 1280`，封面 `__cover` | ADR-0026 | 05 §10 |
 | FONTS | 浏览器与 renderer 共用 fontProfile，同源 `/fonts/` 按需加载，CSP `font-src 'self' blob:`，不访问第三方字体源 | ADR-0027 + PRD OF-25 | 05 §7、14 §2 |
 | A11Y-TREE | render-dom 提供 a11y-mirror 宿主（不随虚拟化裁剪）；slide-render 提供替代文本与阅读顺序；slide-ui 只做阅读顺序切换与缺失 alt 提示 | 30/07 §6.1 + 设计 07 §3 | 05 §11、16 §9 |
@@ -307,6 +339,23 @@ flowchart LR
 | FE-23 | `slide.deleteMaster{masterId, reassignTo?: MasterId}`：目标母版默认按 `order` 的首个剩余母版，逐页取同 `type` 版式 | 11 §1、§8、§11 |
 | FE-24 | `resetPlaceholderFields`、`deleteLayout` 批量形式、`applyLayout` 计数、`lstStyle`、`ViewDescriptor.themePreview` 登记 | 11 §9、§11；05 §3、§14.2、§15 |
 
+### 8.5 rulings §4.21 用户裁决（前端落点）
+
+以下各项由 rulings §4.21 裁定（2026-09-26，用户交互确认 23 题），本线按裁决写入；逐题口径以 rulings §4.21 为准。
+
+| 决策 id | 裁决要点（前端相关） | 本线落点 |
+|---|---|---|
+| q-arch-reorg | 方案 B：30 只留总架构，50/01、60/01 就地升格为前端架构、后端架构，现有节号不动、新节插入；30/07 缩为渲染跨端契约，§3–§4 迁 01 §4a、§4.2 迁 19；里程碑边界表只留 30/01 | README、01（§1a、§4a、§5a、§5b、§8） |
+| q-license-tiers | 许可分级：宽松类放行，OFL 限字体、CC0 限数据与内置源码、MPL-2.0 限未修改依赖；ADR-0049 | 01 §1a、17、14 |
+| q-table-depth | 表格 M2 可插入并改单元格文字，结构与样式 M3；M3 前改为 Record + FracKey 归一化模型（ADR-0018） | 01 §5b、§8；18；24 |
+| q-chart-route | 图表底层用 d3-scale / d3-shape / d3-array，按 OOXML 语义自研布局；M1 只读，M3 插入与五类编辑（ADR-0036） | 01 §1a、§4a、§5b；05；13；24 |
+| q-xml-lexer、X:q-xml-package | XML 词法与保真树自研，抽为独立 L0 包 `xml`（零运行时依赖）；ADR-0019 | 01 §1a、§2；04 |
+| q-frackey | 内置 rocicorp 分数索引算法源码（CC0，注明出处），改写 ADR-0032 决策 2 的键格式 | 01 §1a；17 |
+| q-media-insert、q-extra-inserts、q-smartart、q-equation | 音视频插入 P2 且不写 `p:timing`；图标与符号 M3 P2，截图与相册 M4+ P2，录屏不做；SmartArt M4+ 先「转换为形状」；公式 M4+ 自研 OMML↔MathML + MathJax 4 | 01 §5b、§8；19；23；25 |
+| q-ws-gateway、H:q-hp-provider | 协同改用 Hocuspocus 4（ADR-0039）；客户端用官方 `@hocuspocus/provider`，加自有调度器与 FIFO 胶水 | 01 §2、§3 F5、§5.2、§5.3、§7；07 |
+| H:q-hp-persist-ack、H:q-hp-step2-cap | 逐帧落库 + 两级 ack 经 Stateless `ack{tier, seq}` 下发；step2 单设 16 MiB，超限 4413 后导出重载 | 01 §5.3；07 |
+| q-nest-major、q-db-access、q-webhook-sig | 后端专属（Nest 12、drizzle、Standard Webhooks），本线无落点 | —（见 [60-backend/README](../60-backend/README.md) §8.5） |
+
 ## 9. 状态与变更记录
 
 | 日期 | 版本 | 变更 |
@@ -314,6 +363,7 @@ flowchart LR
 | 2026-09-25 | v0.1 | 新建前端设计线：本 README 与 01–16 由前端设计线分组写作；内容收拢自 30-architecture 06 / 07 / 10 的浏览器侧章节、40-modules 05 / 06 / 07 / 10 / 11 的 §2 与行为说明、20-design 交互规格与 rulings §4.11–§4.18；前端相关遗留项按 §8 结论写入；§5 回写清单待总编排执行 |
 | 2026-09-25 | v0.1 | 按 rulings §4.19 定稿：删去全部「待确认（总编排）」中已裁定的五项（§8.1）；D-M2-CONTENT 删 pptx 内容版本方案，M2 服务端文档改为协同快照打开、服务端导入新建与导入，各文里程碑表同步（M2 = 协同网关、Room、update 持久化与快照、服务端导入；M3 = 多人协同体验层）；INC-27 改为「重新绑定、不延长」；媒体读取改为取 `{url}` 后直取预签名 URL |
 | 2026-09-26 | v0.1 | 按 rulings §4.20 落实遗留小项（§8.4）：删被引用版式与母版改为确认后可撤销、删除母版改指目标母版同 `type` 版式、默认版式统一为 I-ML2 链（11）；`enablement` 与 `can.<capability>` 登记口径、09 §6.3 为上下文键唯一清单（09、10、01）；Trusted Types 增 `default` 策略与 sonner 补丁、TT-CSP-REPORT 修订（14）；UnitScope 登记 API 定名（03）；放映始终实时（10）；U-07 改指 ADR-0038（08）；WS 升级先扣后退与握手期 4429（07）；各文待回写表状态更新 |
+| 2026-09-26 | v0.1（§4.21） | 按 rulings §4.21 升格：定位改为「前端架构与设计」；01 标题改为「前端架构」并插 §1a 技术栈与复用、§4a 渲染架构（承接原 30/07 §3–§4）、§5a 能力地图、§5b 元素族一览，协同客户端改为 `@hocuspocus/provider`，§8 里程碑边界改引 30/01；新增 17 复用组件清单、18 能力实现总表、19–25 可追加元素目录；§5 回写清单与 §8.1–§8.4 标为历史，新增 §8.5 |
 
 本线文件状态统一为 v0.1；某份文件进入评审或定稿时在其状态行与本表同步记录。与章程冲突的意见不擅改章程，写入本节下方「对章程的异议 / 建议」（当前无）。
 

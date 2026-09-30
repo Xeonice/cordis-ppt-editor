@@ -1,6 +1,6 @@
 # 16 国际化与可访问性
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 整合：§1 登记 slide.ui.opaque 命名空间（不透明对象的双击提示与类型名）；§6.3 键盘等价补插入工具、调整手柄、线条端点、连接符连接四行，曲线绘制登记为 2.5.7 例外） | 依赖：设计 07 §1–§9；PRD 04 NF-05/NF-06/NF-07；PRD 02 ED-16/ED-29；PRD 05 EM-11；PRD 04-plugin-sdk PS-12；40-modules/10 §2.1、§11；40-modules/11 §13 Q-9；40-modules/02 §4.4；30-architecture/02 §4.4、30-architecture/07 §6.1；设计 04 §2.6/§3、设计 09 §6.3/§6.5；rulings §4.4、§4.12 U-08、§4.16 Q20
 
 本文是浏览器侧国际化与可访问性行为的唯一事实源：i18n 服务与命名空间、语言包加载与切换、无 host 页面的 i18n、伪本地化与 RTL、a11y 目标分阶段、键盘模型、焦点管理、ARIA 语义与 live region、画布可访问树、视觉适配。交互外观与视觉 token 以 [设计 07](../20-design/07-accessibility-and-i18n.md)、[设计 04](../20-design/04-design-system.md)、[设计 09](../20-design/09-design-specification.md) 与 playground 为准；验收阈值以 PRD NF-05 / NF-06 为准；测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §7–§8 为准。
 
@@ -30,6 +30,7 @@
 |---|---|---|---|
 | `ui` | ui-core 声明键，ui-react 贡献语言包 | 壳与通用控件；文档类型盲的 `ui.viewMode.<mode>` | M2 |
 | `slide.ui` | slide-ui | Ribbon、检查器、缩略图栏、母版视图、放映 | M2 |
+| `slide.ui.opaque`（2026-09-26 整合登记，[25](./25-elements-readonly-and-opaque.md) §2.2、§2.5） | slide-ui | 只读与不透明对象族的双击提示、占位说明与对象类型名：OLE 按 `progId` 查表（未收录显示原文），AlternateContent 系按 `UnknownShape.source` 查表；文案草稿见 50/25 | M1 查看 / M2 |
 | `viewer`（建议名） | preset-slide-viewer 查看器壳 | 查看器工具条、保真摘要、加载与失败态 | M1 |
 | `app` | apps/web：有 host 时经 preset `shell-glue` 贡献 `app:*`；无 host 页面经 `createI18n`（§3） | 开始页、文档列表、登录、设置、错误页 | M2 |
 | `errors.<domain>` | 声明该域错误码的包；protocol 登记的码（`server.*`、`transport.*`、协同线上码）由 `@cordexjs/i18n` 自带 | 错误标题与建议动作（50/15 §4.2） | M1 / M2 |
@@ -185,6 +186,8 @@ flowchart LR
 
 任一拖拽交互缺少等价路径即视为 ED-29 未通过（设计 07 §1.2a）：
 
+**例外**（2026-09-26 整合登记）：曲线类绘制工具（曲线、任意多边形、自由曲线，P2）本质是路径描绘，按 WCAG 2.5.7「拖动对功能必不可少」登记为例外，替代路径是「从预设形状开始」再用调整值与数值输入修改（[22](./22-elements-shapes-and-lines.md) §5）；设计 07 §1.2a 的例外表同步此行。
+
 | 拖拽交互 | 等价路径 | 里程碑 |
 |---|---|---|
 | 移动对象 | 方向键 1 px、`Shift+方向键` 10 px | M2 |
@@ -193,6 +196,10 @@ flowchart LR
 | 缩略图拖拽排序 | `Mod+Shift+↑` / `↓`，移动后播报新位置（§8） | M2 |
 | 拖放文件插入 | 「插入」菜单的文件选择对话框（独立完整路径） | M2 |
 | 分栏拖拽（侧栏、检查器宽度） | 分隔条可聚焦（`role="separator"` + `aria-valuenow`），方向键调整 | M2 |
+| 插入工具（2026-09-26 整合，[10](./10-editor-shell-and-interaction.md) §7.4） | 焦点在工具按钮或形状库条目上按 `Enter`，按默认尺寸插到视口中心，连续插入依次错位 | M2 |
+| 调整手柄（黄色菱形） | 检查器「形状」分区的调整值输入，与手柄同批上线（[22](./22-elements-shapes-and-lines.md) §2） | M2 P1 |
+| 线条端点 | 检查器「位置与大小」的四个数值加翻转（线条的 x / y / 宽 / 高即端点的数值等价） | M2 |
+| 连接符连接 | 检查器「连接到…」选择器（目标形状与连接点编号） | M2 P1 |
 
 ### 6.4 快捷键与 IME 冲突规避
 

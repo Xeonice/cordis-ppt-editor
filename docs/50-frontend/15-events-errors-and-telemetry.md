@@ -1,6 +1,6 @@
 # 15 客户端事件、错误与遥测
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：traceparent 的载体由 CONTROL.auth 改为 Auth 帧 token JSON（§6.2、图、V13、里程碑行））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
 
 本文是浏览器侧事件、错误与遥测的唯一事实源：三类事件的边界、前端发布者与订阅者、宿主事件桥、浏览器中的错误模型与错误边界、客户端错误上报管线、OTel Web、产品事件的前端发布方、同意与默认、诊断。命名规则、日志字段与脱敏规则、错误码格式与 HTTP / WS 映射、公开事件定稿表留在 [30/10](../30-architecture/10-observability-and-errors.md)（§1–§3、§11.1）；`/telemetry/*` 控制器、限流、Collector 路由、服务端 span 与指标统一名表归 [60/18](../60-backend/18-observability-and-ops-endpoints.md)；产品事件清单的权威是 [PRD 06](../10-prd/06-metrics-and-analytics.md) §3.2，本文只登记前端发布方。
 
@@ -157,7 +157,7 @@ flowchart LR
 
 - **`CordexError`**（30/10 §1.2）：`code`、`details`、`severity`（`fatal` / `error` / `warning`）、`retryable`、`user`（能否向用户展示）、`cause`、`fingerprint`、`context{ unitId?, traceId? }`。子类只有校验、聚合、不变量三种，分类靠 `code` 与属性而不是 `instanceof`。
 - **`Result` 与 `throw` 的边界**以 30/10 §1.3 为准：纯函数与 iso 库返回 `Result`；浏览器 API 与网络失败返回 `Promise<Result>`；只有插件 `apply`、命令执行、Worker 消息处理这类边界把 `Result` 转成异常。
-- **REST 错误**：服务端返回 problem+json，`infrastructure/api/http.ts` 解析为 `ErrorEnvelope`（`code`、`detail`、`traceId`、`retryable`、`details?`）。码联合在 protocol `errors/codes.ts`，HTTP / WS 映射在 `errors/http-map.ts`，信封在 `rest/problem.ts`。依据：INC-11/INC-13（30/08、30/10 正文 > 40）。
+- **REST 错误**：服务端返回 problem+json，`infrastructure/api/http.ts` 解析为 `ErrorEnvelope`（`code`、`detail`、`traceId`、`retryable`、`details?`）。码联合在 protocol `errors/codes.ts`，HTTP / WS 映射在 `errors/http-map.ts`，信封在 `rest/problem.ts`。依据：INC-11/INC-13（60-backend/15 §1、30/10 正文 > 40）。
 - **网络不可达与超时**映射为 protocol 已登记的 `transport` 域码（码名由 M-02 `errors/codes.ts` 登记，`apps/**` 不新造码：`apps/**` 不得声明合并 `ErrorCodes`，40/11 §10）。
 - **WS 关闭码**的定义在 30/06 §6.5，客户端据此的行为在 50/07。
 
@@ -309,13 +309,13 @@ sequenceDiagram
 
 ## 7. OTel Web
 
-依据：ADR-0030 决策 1、5、6（浏览器 `sdk-trace-web` 经 OTLP/HTTP 代理；登记制；traces 头采样 10%）；rulings §4.18 BE-30（otlp 代理 ≤ 512 KiB 且只转发 traces）；30/10 §3.2 传播规则；INC-03/04/05（`traceparent` 是 `CONTROL.auth` 的可选字段）。
+依据：ADR-0030 决策 1、5、6（浏览器 `sdk-trace-web` 经 OTLP/HTTP 代理；登记制；traces 头采样 10%）；rulings §4.18 BE-30（otlp 代理 ≤ 512 KiB 且只转发 traces）；30/10 §3.2 传播规则；INC-03/04/05（`traceparent` 是 Auth 帧 token JSON 的可选字段）。
 
 - **只在 apps/web 装配**：SDK 包只依赖 kernel 的 no-op 契约；OTel Web SDK（约 40–60 KB gzip）是 `apps/web` 的惰性 chunk，只有 §9 的开关允许导出浏览器 span 时才加载（chunk 登记见 [50/13](./13-performance-and-bundling.md)）。
 - **`traceparent` 始终生成**：即使不导出浏览器 span，`apps/web` 也为每个用户操作（打开文档、导出、保存等）生成 W3C `traceparent`（生成器极小，不需要 OTel SDK），用于把错误报告与服务端 trace 串起来。它不含任何身份或内容，数据只进部署方自己的服务端。
 - **传播**：
   - HTTP：发往同源 `apiBase` 的请求带 `traceparent` 头；发往存储源的预签名请求**不带**（避免改变签名与触发跨源预检）。
-  - WS：`CONTROL.auth` 的可选字段 `traceparent` 建立会话父 span；update 帧不携带、不逐帧建 span（服务端用指标 + 1% 抽样 span，30/10 §3.2）。
+  - WS：Auth 帧 token JSON 的可选字段 `traceparent` 建立会话父 span；update 帧不携带、不逐帧建 span（服务端用指标 + 1% 抽样 span，30/10 §3.2）。
   - 错误报告：`ClientErrorReport.traceId` 取当前操作的 trace id。
 - **采样**：头采样比例 10%（ADR-0030 决策 6，与服务端 `telemetry.traces.sampleRatio` 默认值一致，60/18 §3），`traceparent` 的 sampled 位按此决定；浏览器侧不另设部署项。
 - **导出**：`BatchSpanProcessor` → `POST /api/v1/telemetry/otlp`，单次导出体积控制在 512 KiB 以内，带 `X-Cordex-Request: 1`；401 时停止导出直到会话恢复；413 / 429 按 §6 同样规则处理。浏览器只导出 traces，不导出 metrics 与 logs（代理只转发 traces）。
@@ -335,7 +335,7 @@ sequenceDiagram
   W->>W: 生成 traceparent，sampled 位按头采样决定
   W->>A: GET 文档详情与最新快照，请求头带 traceparent
   A->>A: 自动仪表化的 HTTP span 以其为父
-  W->>G: CONTROL.auth 携带 traceparent
+  W->>G: Auth 帧，token JSON 携带 traceparent
   G->>G: 建立会话父 span，update 帧不逐帧建 span
   opt 浏览器 span 导出已开启
     W->>O: POST /api/v1/telemetry/otlp，只含 traces
@@ -482,14 +482,14 @@ sequenceDiagram
 | V10 | 脱敏：上报载荷与 breadcrumbs 不含文档内容字段、邮箱明文、分享令牌、query 与 fragment | `test/unit`；70/10 SEC-CL-04 · `e2e/full-compose` |
 | V11 | 默认值：apps/web 登录后产生错误时只有 `/api/v1/telemetry/errors` 请求；产品遥测关闭时对 `/api/v1/telemetry/otlp` 的请求数为 0；登录前不发任何上报请求 | 70/10 SEC-CL-06、70/06 §10.3 · `e2e/full-compose` |
 | V12 | 错误边界隔离：注入抛错插件、抛错贡献项、抛错元素渲染器后，其余功能可用，UI 按设计 06 §3 降级 | 70/06 §2 · `test/unit`、`e2e/full-compose` |
-| V13 | trace 贯穿：一次「打开 → 加入房间 → 编辑」中，HTTP 头与 `CONTROL.auth` 的 `traceparent` 属于同一 trace；错误报告带该 trace id | 70/07 · `test/server-integration` |
+| V13 | trace 贯穿：一次「打开 → 加入房间 → 编辑」中，HTTP 头与 Auth 帧 token 的 `traceparent` 属于同一 trace；错误报告带该 trace id | 70/07 · `test/server-integration` |
 
 **里程碑**
 
 | 里程碑 | 交付 |
 |---|---|
 | M1 | kernel `errors` / `telemetry` / `logger` 三服务与 no-op sink；A 类事件 unit / render / layout / plugin / error 域；错误码目录生成；元素级与 Fiber 级错误边界；V1–V8 阻断 |
-| M2 | apps/web：宿主事件桥与节流、`AppErrorBoundary` 与页面边界、贡献项逐项边界；错误码文案与 V5；客户端错误上报管线对接 `POST /telemetry/errors`（该端点 M2，60/15 §3.14）；`traceparent` 生成与 HTTP 传播；CSP 报告端点对接（50/14 §4.5）；开发者面板与 `diagnostics.dump()`、e2e 诊断开关 `diagnostics.e2eTrace`（§10）；协同会话域事件（§2 collab 行）、`collab/latency` 遥测与 `cordex_collab_outbound_queued` 指标，`CONTROL.auth` 携带 `traceparent`（服务端文档自 M2 起经协同网关持久化，rulings §4.19 D-M2-CONTENT）；产品事件登记表覆盖 PRD 06 的 M1–M2 行；V9–V13 阻断 |
+| M2 | apps/web：宿主事件桥与节流、`AppErrorBoundary` 与页面边界、贡献项逐项边界；错误码文案与 V5；客户端错误上报管线对接 `POST /telemetry/errors`（该端点 M2，60/15 §3.14）；`traceparent` 生成与 HTTP 传播；CSP 报告端点对接（50/14 §4.5）；开发者面板与 `diagnostics.dump()`、e2e 诊断开关 `diagnostics.e2eTrace`（§10）；协同会话域事件（§2 collab 行）、`collab/latency` 遥测与 `cordex_collab_outbound_queued` 指标，Auth 帧 token 携带 `traceparent`（服务端文档自 M2 起经协同网关持久化，rulings §4.19 D-M2-CONTENT）；产品事件登记表覆盖 PRD 06 的 M1–M2 行；V9–V13 阻断 |
 | M3 | `POST /telemetry/otlp` 上线（60/15 §3.14）后开放可选的浏览器 span 导出与产品事件出口；多人协同体验层的事件与遥测（`collab/soft-conflict`、`presence/*`）；评论、权限域事件与遥测 |
 | M4 | 插件事件与遥测的第三方前缀规则进入插件模板；形态 E 跨站场景的事件转发随 `cordex:token` |
 

@@ -1,5 +1,5 @@
 # 09 UI 组件体系与主题
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG、§4.20 FE-06 / FE-11 / FE-12 / FE-16 / FE-18
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5a 复用件登记与颜色、渐变组件契约；cn 维持 clsx + tailwind-merge 并以 codemod 收口；react-colorful 改静态 CSS）；2026-09-26（§4.21 整合：§5a.1 登记 ui-react 通用 DataGrid；§6.1 toolbar 槽位补 table、table-cell、chart；§6.3 selectionKind 补四值；§8 文本编辑态白名单补段落对齐、字号与 Mod+K，导出键待 Mod+E 冲突裁决） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §0–§3a、§5、§10、§11、§13；[30/02](../30-architecture/02-layering-and-packages.md) §4.17–§4.20；[30/03](../30-architecture/03-kernel-and-plugin-model.md) §3.6；[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)；[设计 04](../20-design/04-design-system.md) §2、§3、§5、§9；[设计 09](../20-design/09-design-specification.md) §0–§2、§5、§6；[设计 06](../20-design/06-extensibility-ux.md) §2；[PRD NF-01](../10-prd/04-non-functional-requirements.md) §1.5；[PRD EM-06](../10-prd/03-features/05-embedding-and-integration.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.7、§4.8、§4.10 Q19 / Q21、§4.11 C-21 / C-22、§4.12 U-08、§4.15 Q2、§4.19 D-COMMENTS-PKG、§4.20 FE-06 / FE-11 / FE-12 / FE-16 / FE-18、§4.21（R-d-12…R-d-19）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；[PRD 02](../10-prd/03-features/02-editing.md) ED-03、ED-06
 
 本文是**浏览器 UI 体系的运行侧设计**唯一事实源：四个 UI 包怎样分工、设计 token 怎样变成 CSS 与组件外观、主题 / 密度 / 材质怎样解析并写到根元素、shadcn 复制件怎样管理、`ui.*` 贡献与上下文键怎样驱动视图模型、输入怎样变成命令、`UiRenderer` 怎样挂载、样式怎样注入与隔离。
 
@@ -14,6 +14,7 @@
 | 母版视图的状态与流程 | [11](11-masters-layouts-and-themes.md) |
 | token 取值、材质观感、组件视觉规格 | [设计 04](../20-design/04-design-system.md)、[设计 09](../20-design/09-design-specification.md) 与 playground `src/index.css` |
 | CSP nonce 链、第三方运行时样式的 nonce 传递、Trusted Types | [14](14-client-security.md) §3–§4 |
+| 第三方依赖的版本、许可、单点位置、替代与否决理由、CSP/TT 影响与体积去向 | [17](17-reuse-and-dependency-catalog.md) |
 | 材质的性能口径（帧时间、`contain: paint`） | [13](13-performance-and-bundling.md) §10 |
 | 键盘区域、F6 循环、焦点管理、live region | [16](16-i18n-and-accessibility.md) §6–§8 |
 | 组件测试、axe、视觉基线的执行方式 | [70/06](../70-testing/06-frontend-component-and-e2e.md) |
@@ -219,7 +220,147 @@ flowchart TB
 - **全仓一份**：复制件只存在于 `ui-react` 的 `src/ui/components/ui/`（44 个），经子路径 `@cordexjs/ui-react/ui` 供 `*-ui` 与 `apps/*` 使用（R17）；其余任何位置出现同名复制件即失败。`drawer`（vaul）不迁移，窄屏底部面板改用 `sheet` 的 `side="bottom"`（rulings §4.15 Q2）。
 - **视觉定制走 CSS**：组件级视觉写 `design` 的 `[data-slot]` 规则，不改复制件结构。确需改源码时文件头标 `// Cordex override: <原因>`，并登记在 `shadcn-copy.test.ts` 的允许清单里；当前清单：`sonner.tsx`（去掉上游对 `next-themes` 的依赖、改读 ui-core `theme` 服务）、`scroll-area.tsx` 与 `select.tsx`（透传 CSP nonce，[14 §3](14-client-security.md)；其 Viewport 的固定样式文本由 Trusted Types `default` 策略精确放行，[14 §4](14-client-security.md)）。sonner 的 Toast 样式不走运行时注入：ui-react 静态引入 `sonner/dist/styles.css` 并入自身样式产物（§10 三种投放路径都覆盖），import 时的 `__insertCSS` 经 pnpm patch 删去（rulings §4.20 FE-18）。
 - **升级流程**：`scanners/shadcn-diff` 步骤报告复制件与上游的差异（M2 稳定后转为阻断，rulings §4.18 GV-14）；升级 PR 依次执行：钉住新 CLI 版本 → `diff` 审阅 → 重新 `add` → 重新应用登记在册的 override → `shadcn-copy.test.ts`、axe 与视觉基线全部通过 → 合并。
-- **第三方依赖单点**：react、radix-ui、tailwindcss、lucide-react、cva、clsx、tailwind-merge、cmdk、sonner、react-resizable-panels、Geist 等只允许 `ui-react` 与 `V-ui` 包引入（R5 `third-party-single-entry`，ADR-0017 清单），且 catalog 精确锁版本。
+- **第三方依赖单点**：react、radix-ui、tailwindcss、lucide-react、cva、clsx、tailwind-merge、cmdk、sonner、react-resizable-panels、Geist，以及 §4.21 新增的 react-colorful、colord、react-hook-form（含 @hookform/resolvers）、use-sync-external-store、@tanstack/react-virtual、@atlaskit/pragmatic-drag-and-drop 只允许 `ui-react` 与 `V-ui` 包引入（R5 `third-party-single-entry`，ADR-0017 清单），且 catalog 精确锁版本；各自的包装位置见 §5a 与 [17](17-reuse-and-dependency-catalog.md) §14。
+
+## 5a. 复用件登记与组件契约
+
+本节是 UI 层（`ui-react` 与 `slide-ui`）使用的第三方复用件的运行侧登记：每个复用件包在哪里、自有代码经什么接口使用它、CSP 上怎么处理。版本、许可、替代与否决理由的总表在 [17](17-reuse-and-dependency-catalog.md)，本节不重复。依据：rulings §4.21（R-d-12…R-d-19）。
+
+### 5a.1 复用件登记
+
+| 复用件 | 版本（锁） | 包装位置 | 自有代码的使用方式 | CSP / TT |
+|---|---|---|---|---|
+| react-colorful | 5.8.1 | ui-react `ui/shell/ColorPickerPopover.tsx`、`ui/shell/GradientEditor.tsx` | 只用 `RgbaColorPicker` 这类受控组件画色盘与透明度条；颜色值一律转成 §5a.4 的 `ColorChoice` 再交给调用方 | pnpm patch 删运行时注入，样式静态化（§5a.3） |
+| colord | 2.10.0 | ui-react（上述两个组件与 `inspector-fields` 的颜色输入） | 解析与格式化 Hex、RGB、HSL 文本；不做 OOXML 颜色变换（那是 model-slide `resolve-color.ts`） | 无 |
+| react-hook-form + @hookform/resolvers | 7.88.0 / 5.9.1 | ui-react 表单钩子 `ui/form/use-schema-form.ts`（新增） | `useSchemaForm(schema)` 包一层 `standardSchemaResolver`，直接使用 protocol 的 zod schema；字段用 shadcn `Field` 呈现错误 | 无 |
+| use-sync-external-store | 1.7.0 | ui-react `hooks/*` | `with-selector` 做视图模型的选择器订阅（§7「一帧一次」） | 无 |
+| @tanstack/react-virtual | 3.14.13 | slide-ui 缩略图栏与选择窗格 | 只虚拟化列表项的挂载；每项高度由测量回填，节标题作为可变高度项 | 只写 React `style`（CSSOM） |
+| @tanstack/react-table + shadcn Table | 9.2.4 | ui-react 通用 `DataGrid`（`ui/shell/DataGrid.tsx`，2026-09-26 整合登记；react-table 单点引入 ui-react） | headless 表格逻辑 + shadcn Table 复制件呈现；无幻灯片语义，slide-ui 图表数据分区与抽屉使用（ADR-0036 决策 6、[24](24-elements-tables-and-charts.md) §3.6） | 无运行时样式注入 |
+| @atlaskit/pragmatic-drag-and-drop | 4.0.0 | slide-ui `infrastructure/dnd` | 把原生拖放事件翻译成 ui-core 拖放管线的 `DragIntent{kind: file-import / reorder}`（§8）；让位动画自写 FLIP；只用核心包 | 无运行时样式注入 |
+| react-resizable-panels | 4.13.3 | ui-react `EditorShell` | 三栏分栏；拖动期间写 `data-interacting`（§4） | CSSOM，见 [14](14-client-security.md) §3 |
+
+### 5a.2 `cn()` 口径
+
+- `cn()` 维持 **clsx + tailwind-merge**，定义在 ui-react `lib/utils.ts`，三个包在 catalog 精确锁版本（ADR-0017 决策 2）。shadcn 官方的 `cn` 包（0.4.0，2026-09-01 起 22 天发了 14 版）暂不采用，到 1.0 再评估（R-d-12）。
+- shadcn CLI 4.21 生成的复制件会写 `import { cn } from "cn"`；playground 现有 43 个复制件都是这样，`lib/utils.ts` 也只是 `export { cn } from "cn"`。M2 迁移（§11）与之后每次 `pnpm dlx shadcn@4.21.0 add` 之后，生成脚本跑一次 codemod，把这句改写为从 ui-react 内部的 `lib/utils` 导入；codemod 属于升级流程的固定步骤（§5「升级流程」），不算手改复制件，不需要 `// Cordex override`。
+- `shadcn-copy.test.ts` 断言：复制件中不出现 `from "cn"`，`package.json` 不依赖 `cn`（§12 V17）。
+
+### 5a.3 react-colorful 的静态样式
+
+react-colorful 5.8.1 没有独立的 CSS 文件：样式文本内嵌在 JS 里，组件挂载时 `createElement("style")` 并写 `innerHTML` 注入到文档头（或 shadow root）。`innerHTML` 是 TrustedHTML sink，M3 强制 Trusted Types 后会抛错；它也不带 nonce，M2 起违反 `style-src`。处理与 sonner 相同（rulings §4.20 FE-18 的做法，R-d-13）：
+
+1. **pnpm patch**：删掉注入函数的调用，登记在 `pnpm-workspace.yaml#patchedDependencies`（与 sonner 并列，40/01 §5.1）。
+2. **静态样式**：把原样式文本原样抽到 ui-react `src/styles/vendor/react-colorful.css`，由 `styles.css` 与 `styles.embed.css`（嵌入变体限定在 `[data-cordex-root]` 下）引入；三种投放路径（§10）都覆盖，Shadow DOM 模式经 `adoptedStyleSheets` 采用。
+3. **一致性**：单测从 patch 前的 npm 包里取出内嵌样式文本，与 `react-colorful.css` 比对（允许作用域前缀差异），升级 react-colorful 时同一 PR 重做 patch 与样式文件（§12 V18）。
+4. **门禁**：csp-strict e2e 打开颜色选择器与渐变编辑器，断言 `style-src` 与 TT 违规为 0、色盘计算样式与基线一致（[14](14-client-security.md) §13 V2）。
+
+### 5a.4 `ColorPickerPopover` 组件契约
+
+需求来源是 PRD 02 ED-03（文字颜色、高亮）与 ED-06（填充、线条）：主题色 10 列 × 6 行（基色加 5 个明暗变体）、标准色、最近使用、自定义 Hex / RGB / HSL、透明度，取色器 P2。组件在 ui-react（通用，不含幻灯片语义），主题色板由调用方传入（slide-ui 从 `slides.resolved` 取，40/10 §4）。
+
+```ts
+// ui-react ui/shell/ColorPickerPopover.tsx（契约草案；类型最终登记在 40/10 §6）
+type ColorChoice =
+  | { kind: 'scheme'; slot: SchemeSlot; variant: 0 | 1 | 2 | 3 | 4 | 5 } // 主题色：列 = 槽位，行 = 变体（0 为基色）
+  | { kind: 'srgb'; hex: string }                                      // 标准色、最近使用、自定义、取色器
+  | { kind: 'none' }                                                    // 仅在 allowNone 时出现（「无填充」「无线条」）
+  | { kind: 'auto' };                                                   // 仅在 allowAuto 时出现（文字「自动」）
+
+interface ColorPickerPopoverProps {
+  value: ColorChoice | 'mixed';                  // 多选且取值不一时为 mixed，色块显示斜线
+  alpha?: number;                                 // 0–100；缺省时不显示透明度条
+  themeSwatches: readonly ThemeSwatch[];          // 10 列：{ slot, name, hex, variants: 5 个已解析的 hex }
+  recent: readonly string[];                      // 最近使用的 hex，调用方持有
+  allowNone?: boolean;
+  allowAuto?: boolean;
+  onCommit(next: ColorChoice, alpha?: number): void; // 点选、松手、回车各一次
+  onDismiss?(): void;
+}
+```
+
+- **写回语义**：选主题色得到 `scheme` 值，调用方把它写成 `schemeClr`（变体映射为 `lumMod` / `lumOff`，映射函数与 `resolve-color.ts` 同在 model-slide），这样改主题色时引用它的元素会跟着变（PRD 07 ML-04）；标准色、最近使用、自定义与取色器得到 `srgb` 值，写成 `srgbClr`。组件自己不做 OOXML 颜色变换。
+- **每列 5 个变体的取值**按 PowerPoint 的规则由基色亮度决定（深色基色给「浅」变体，浅色基色给「深」变体），由 model-slide 的纯函数计算后经 `themeSwatches.variants` 传入；组件只显示结果，不内置表格。
+- **一次命令**：拖动色盘或透明度条期间只更新面板内的预览色块，松手、回车或点选色块时才调用 `onCommit`；调用方据此发一条命令（如 `slide.setFill`），得到一个撤销步。`Esc` 关闭面板，不提交。
+- **自定义输入**：Hex、RGB、HSL 三种文本经 colord 解析；解析失败时字段显示错误、不提交。
+- **取色器（P2）**：只在 `'EyeDropper' in window` 时显示按钮，取到的颜色作为 `srgb` 提交；不支持的浏览器不显示入口，不做降级模拟。
+- **最近使用**：由调用方维护与持久化（长度与存储键登记归 [02](02-app-shell-routing-and-session.md) §10）；组件只在提交 `srgb` 值时回调，不自己写存储。
+- **可访问性**：色块网格是一组单选按钮，方向键移动、`Enter` 或空格选择，`aria-label` 写「槽位名 + 变体名 + 当前值」；react-colorful 的色盘与透明度条自带 `role="slider"`、`tabIndex=0` 与方向键调节，`aria-valuetext` 改为本地化的颜色描述；弹层焦点管理沿用 Radix Popover（[16](16-i18n-and-accessibility.md) §7）。
+
+**图 9-7 颜色选择器的组成与数据流**
+
+```mermaid
+flowchart LR
+  caller["调用方：slide-ui 检查器填充分区、文本分区、主题编辑面板"]
+  swatches["themeSwatches：10 列主题色与各 5 个变体，来自 slides.resolved"]
+  popover["ColorPickerPopover：ui-react，只组合 Popover 与原子组件"]
+  grid["主题色网格与标准色、最近使用"]
+  custom["自定义面板：react-colorful 色盘与透明度条"]
+  text["Hex、RGB、HSL 输入：colord 解析"]
+  eye["取色器 P2：EyeDropper"]
+  commit["onCommit：ColorChoice 与 alpha"]
+  cmd["调用方发一条命令，如 slide.setFill"]
+  caller --> swatches --> popover
+  popover --> grid
+  popover --> custom
+  popover --> text
+  popover --> eye
+  grid --> commit
+  custom -- "松手或回车" --> commit
+  text -- "解析成功且回车" --> commit
+  eye --> commit
+  commit --> cmd
+```
+
+怎么读：主题色板由调用方从已解析的主题取来传入，组件内四个入口最后都汇成同一个 `onCommit`；拖动色盘时不经过 `onCommit`，所以不会产生一串撤销步。组件只认 `ColorChoice`，写成 `schemeClr` 还是 `srgbClr` 由调用方决定。
+依据：PRD 02 ED-03、ED-06；40/10 §4；R-d-13、R-d-14。
+
+### 5a.5 `GradientEditor` 组件契约
+
+需求来源是 PRD 02 ED-06：线性渐变 2–10 个色标、角度，预设 P1。组件放在 ui-react（新增，40/10 待登记），由 slide-ui 的填充分区使用；它是 Radix Slider 多滑块与 `ColorPickerPopover` 的组合，不引渐变选择器库（R-d-15）。
+
+```ts
+// ui-react ui/shell/GradientEditor.tsx（契约草案）
+interface GradientStop { pos: number; color: ColorChoice; alpha?: number } // pos：0–100 000，与 a:gs@pos 同单位
+interface LinearGradient { kind: 'linear'; angle: number; stops: readonly GradientStop[] } // angle：度，写回时换成 a:lin@ang
+
+interface GradientEditorProps {
+  value: LinearGradient;
+  themeSwatches: readonly ThemeSwatch[];
+  recent: readonly string[];
+  onCommit(next: LinearGradient): void;
+}
+```
+
+- **色标**：色标轨道是一个多滑块 Slider，每个滑块是一个色标；点轨道空白处加色标（颜色取两侧插值），选中色标按 `Delete` 删除，数量保持在 2–10；拖过相邻色标时按位置重排。选中色标的颜色用 `ColorPickerPopover` 编辑，同样只在提交时回调。
+- **角度**：数值框（0–359.9 度）与 8 个方向快捷按钮；写回 `a:lin@ang` 时换算为 1/60000 度。
+- **一次命令**：拖动色标或角度期间只更新组件内的预览条，松手或回车才 `onCommit`；调用方发一条 `slide.setFill`，写 `a:gradFill`（`a:gsLst` 与 `a:lin`）。
+- **导入的径向与路径渐变**：M2 只保证线性渐变完整可编辑；其它类型的可编辑范围待定（§13），在定之前组件只显示色标预览，类型切换置灰并说明原因。
+- **可访问性**：每个色标滑块的 `aria-label` 写「色标 N，位置 X%，颜色名」；方向键移动 1%，`Shift` + 方向键移动 10%。
+
+**图 9-8 渐变编辑的一次提交**
+
+```mermaid
+sequenceDiagram
+  participant user as 用户
+  participant ge as GradientEditor
+  participant cp as ColorPickerPopover
+  participant fill as slide-ui 填充分区
+  participant cmds as commands.execute
+  user->>ge: 拖动第 2 个色标
+  ge->>ge: 只更新预览条，不回调
+  user->>ge: 松开
+  ge->>fill: onCommit，新的 stops
+  fill->>cmds: slide.setFill，gradFill
+  user->>ge: 双击色标
+  ge->>cp: 打开，value 为该色标颜色
+  user->>cp: 选主题色强调 2 的第 3 个变体
+  cp->>ge: onCommit，scheme 值
+  ge->>fill: onCommit，替换该色标颜色
+  fill->>cmds: slide.setFill，第二个撤销步
+```
+
+怎么读：拖动与选色各自只在结束时产生一次提交，因此一次拖动或一次选色各对应一个撤销步；`GradientEditor` 与 `ColorPickerPopover` 都不直接发命令，命令由持有选区语义的 slide-ui 发出。
+依据：PRD 02 ED-06；R-d-15；[10](10-editor-shell-and-interaction.md) §7（拖动期间只预览、松手发一条命令）。
 
 ## 6. ui-core 契约：贡献点、槽位、`when` 与上下文键
 
@@ -234,7 +375,7 @@ flowchart TB
 | 贡献点 | 项要点 | 典型 slot | 语义 |
 |---|---|---|---|
 | `ui.ribbon` | `kind: 'tab' \| 'group' \| 'control'`；control 的 `control` 取 `big` / `small` / `toggle` / `select` / `checkbox` / `custom`，带 `commandId` 与 `params` 或 `component` | `ribbon` | 页签 = `kind:'tab'`，不另设 `ui.ribbonTab`（C-05）；空组、空页签自动隐藏 |
-| `ui.toolbar` | 条目列表 | `toolbar.text-editing`、`toolbar.<selectionKind>`、`appBar.badges`、`reviewBar` | 迷你工具条、应用栏徽标、评审工具条（[10 §3](10-editor-shell-and-interaction.md)） |
+| `ui.toolbar` | 条目列表 | `toolbar.text-editing`、`toolbar.<selectionKind>`（2026-09-26 起含 M3 的 `toolbar.table`、`toolbar.table-cell`、`toolbar.chart`）、`appBar.badges`、`reviewBar` | 迷你工具条、应用栏徽标、评审工具条（[10 §3](10-editor-shell-and-interaction.md)） |
 | `ui.panel` | `component`、`defaultOpen`、`disabled?` + `reason?` | `rail`、`inspector`、`inspector.tab`、`notes`、`canvas.top`、`floating` | 检查器分区 = `slot:'inspector'`（C-05）；`floating` 不受检查器互斥规则约束 |
 | `ui.contextMenu` | 分组条目，危险项置末 | `canvas`、`thumbnail`、`masterThumbnail`、`layoutThumbnail`、`appBar.more`、`userMenu` | 右键菜单与「⋯」菜单 |
 | `ui.statusBar` | 左 / 右两列条目 | `statusBar.left`、`statusBar.right` | 状态胶囊内容 |
@@ -264,7 +405,7 @@ flowchart TB
 | `viewMode` | ∈ `DocumentType.viewModes`（slide：`normal` / `master` / `presenter`） | `view/mode-changed`（由 `view.setMode` 发出） | 全部 |
 | `editorMode`（本文新增） | `edit` / `review` / `view` | `EditorHost` 的 `mode` 与 `UiRendererHandle.update({mode})`：打开或重开 Unit 时按角色映射（[02 §6](02-app-shell-routing-and-session.md)），会话内只随用户经模式下拉切换；会话内 `permission/changed` **不改**它（降权进入 `readonly-degraded`，[10 §3.1](10-editor-shell-and-interaction.md)，rulings §4.18 UX-20） | 全部 |
 | `editTargetKind` | `slide` / `layout` / `master`（垂直束可扩） | `slide.selectMasterOrLayout` 经 slide-ui 桥接 | 全部 |
-| `selectionKind` | 字符串，由垂直束桥接器给出（slide：`none`、`slide`、`shapes`、`text`、`picture`、`table-cell`、`group`、`connector`、`degraded`、`mixed`、`layout`、`master`、`layouts-multi`） | `selection/changed` → `deriveSelectionKind` | 全部 |
+| `selectionKind` | 字符串，由垂直束桥接器给出（slide：`none`、`slide`、`shapes`、`text`、`picture`、`table`、`table-cell`、`chart`、`media`、`placeholder-empty`、`group`、`connector`、`degraded`、`mixed`、`layout`、`master`、`layouts-multi`；`table`、`chart`、`media`、`placeholder-empty` 为 2026-09-26 补登，R-d-72，定义见 [10 §5](10-editor-shell-and-interaction.md)） | `selection/changed` → `deriveSelectionKind` | 全部 |
 | `selectionCount` | 数字 | `selection/changed` | 全部 |
 | `canUndo` / `canRedo` | 布尔 | `history/changed` | 全部 |
 | `isCollab` | 布尔 | `presence` 服务是否存在（`ctx.get('presence', false)`） | 全部 |
@@ -378,8 +519,8 @@ sequenceDiagram
 | 类别 | 和弦 | 编辑态行为 |
 |---|---|---|
 | 撤销 / 重做 | `Mod+Z`、`Mod+Shift+Z`、`Mod+Y` | 放行，绑定 `core.undo` / `core.redo`（与 `beforeinput` 的 `historyUndo` / `historyRedo` 去重，同一次按键只执行一次） |
-| 字符格式 | `Mod+B`、`Mod+I`、`Mod+U` | 放行，作用于文本选区（折叠光标时作用于后续输入） |
-| 查找替换与壳级面板 | `Mod+F`、`Mod+H`、`Mod+Shift+P`、`Mod+/`、`Mod+,`、`Mod+E` | 放行，焦点移出前保存光标位置，面板关闭后恢复 |
+| 字符与段落格式 | `Mod+B`、`Mod+I`、`Mod+U`；2026-09-26 补段落对齐 `Mod+L` / `Mod+E` / `Mod+R` / `Mod+J`、字号 `Mod+Shift+>` / `Mod+Shift+<`、超链接 `Mod+K`（PRD ED-16 与 50/18 KEY-01，50/10 §10.4） | 放行，作用于文本选区或光标所在段落（折叠光标时字符格式作用于后续输入）；`Mod+K` 打开超链接对话框，焦点回还后恢复光标 |
+| 查找替换与壳级面板 | `Mod+F`、`Mod+H`、`Mod+Shift+P`、`Mod+/`、`Mod+,`；导出（`Mod+E` 或 `Mod+Shift+E`，待 Mod+E 冲突裁决，rulings §4.21 待裁项） | 放行，焦点移出前保存光标位置，面板关闭后恢复；Mod+E 冲突裁决前，文本编辑态的 `Mod+E` 按「居中对齐」处理（ED-16），导出键在裁决后同步本行 |
 | 视图切换 | `Mod+Alt+M`、`F5`、`Shift+F5` | 先提交并退出文本编辑，再执行 |
 | 由文本宿主处理 | 方向键、`Home` / `End`、`PageUp` / `PageDown`、`Delete`、`Backspace`、`Tab`、`Enter`、`Mod+A` | 不交给快捷键表：`Mod+A` 在编辑态是「全选框内文字」而非「全选本页对象」（[06 §6](06-text-editing-and-ime.md)） |
 | 其余 | 例如 `Mod+D`、`Mod+G`、`Mod+M`、对象对齐 | 编辑态不生效，不提示 |
@@ -501,6 +642,9 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 | V14 | `/styleguide` 全部组件状态 axe 零严重与重大违规；tooltip 在 `:focus-visible` 时立即出现 | `apps/web/e2e/a11y/styleguide.a11y.spec.ts`（由 40/10 §9 的 `ui-react/__tests__/e2e/` 迁入，[70/06](../70-testing/06-frontend-component-and-e2e.md) §3.1） | `e2e/a11y` |
 | V15 | ui-core 发布的事件全部在 `ui.contribution.ts` 声明，事件域在白名单内 | lint `cordex/events-must-be-declared` | `lint` |
 | V16 | `explainWhen` 对真子句返回 `null`、对假子句返回首个为假的原子条件的原因键；`when` 为假的条目不出现、`enablement` 为假或能力位未授予的条目仍然渲染、带 `aria-disabled` 与原因；命令面板选中不可用条目不执行 | `ui-core/__tests__/when-clause.test.ts`、`ui-core/__tests__/bar-and-menu-models.test.ts` | `test/unit` |
+| V17 | 复制件中不出现 `from "cn"`；ui-react 的 `package.json` 不依赖 `cn`；`cn()` 由 `lib/utils.ts` 以 clsx + tailwind-merge 实现（§5a.2，rulings §4.21 R-d-12） | `ui-react/__tests__/shadcn-copy.test.ts`（TD-091） | `test/unit` |
+| V18 | react-colorful 的 patch 已登记在 `patchedDependencies`；`src/styles/vendor/react-colorful.css` 与 patch 前 npm 包内嵌的样式文本一致（允许作用域前缀差异）；颜色选择器与渐变编辑器在 csp-strict 下 `style-src` 与 TT 违规为 0（§5a.3） | `ui-react/__tests__/vendor-styles.test.ts`；csp-strict（[14](14-client-security.md) §13 V2） | `test/unit`；`e2e/smoke` |
+| V19 | `ColorPickerPopover` 与 `GradientEditor` 拖动期间不回调 `onCommit`，松手、回车或点选各回调一次；`Esc` 不提交；Hex、RGB、HSL 解析失败不提交（§5a.4、§5a.5） | `ui-react/__tests__/color-picker.test.tsx`、`ui-react/__tests__/gradient-editor.test.tsx` | `test/unit` |
 
 ### 12.2 里程碑
 
@@ -509,7 +653,7 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 | M0 | 四包骨架；`design` 从 playground 反推生成 CSS 并 `--check` 通过；三个插件在测试宿主下 ready 无 PENDING |
 | M1 | `<EditorHost>` 挂载、开始页签、检查器「位置与大小」可编辑；上下文键、`when`、键盘与指针管线；对比度门禁 |
 | M1–M2 | `forced-colors` 系统色兜底（U-08） |
-| M2 | playground 迁移（§11）；材质完整规则（`data-interacting`、`contain: paint`）；三种样式投放路径与嵌入隔离；`ui.theme` 覆盖集（Beta）与 `setTokens`；紧凑密度取值；IME、剪贴板、拖放管线；命令面板、快捷键面板；`shadcn-diff` 转阻断；CSP nonce 透传 |
+| M2 | playground 迁移（§11），迁移时跑 `cn` codemod（§5a.2）；react-colorful 的 patch 与静态样式（§5a.3）；`ColorPickerPopover` 与 `GradientEditor`（线性渐变）契约落地（§5a.4、§5a.5）；材质完整规则（`data-interacting`、`contain: paint`）；三种样式投放路径与嵌入隔离；`ui.theme` 覆盖集（Beta）与 `setTokens`；紧凑密度取值；IME、剪贴板、拖放管线；命令面板、快捷键面板；`shadcn-diff` 转阻断；CSP nonce 透传 |
 | M3 | 高对比第三套 token（P1）；Trusted Types 强制（[14 §4](14-client-security.md)） |
 | P1 | Shadow DOM 模式；图标集作为 token 引用（EM-06） |
 
@@ -529,3 +673,8 @@ M2 启动前 playground（`docs/20-design/playground/`）是 UI 的唯一可执�
 | `ContributionBase` 增可选 `enablement`（§6.1：`when` 只管可见性、`enablement` 管可用性），`ui.shortcut` / `ui.command` 同样带该字段；40/10 §2.6 里用 `when` 表达禁用的条目（全文命令的 `when: unitLoaded`、视图页签「母版视图」按钮）改为 `enablement` | 已关闭（rulings §4.20 FE-06、FE-11）：30/03 §3.6 项类型加 `enablement?`；40/10 §2.5、§2.6、§6 同步；`scan-contributions` 规则 (e) 扩到 `enablement` 子句并校验 `can.<x>`（TD-089 同步，§12 V8） | 30/03 §3.6；40/10 §2.5–§2.6、§6；09-06 §3 规则 (e)、08 TD-089 |
 | Trusted Types 与 shadcn 复制件、sonner 的运行时样式（§5） | 已定（rulings §4.20 FE-18）：Radix Viewport 固定样式由 `default` 策略精确放行；sonner 静态样式 + pnpm patch 删运行时注入；react-resizable-panels 用 `adoptedStyleSheets`，无需处理（[14](14-client-security.md) §3、§4） | [14](14-client-security.md) §3–§4 |
 | `UiRenderer` 契约用例改名 `conformance-ui-renderer.test.ts`（§12 V9） | 已回写（40/10 §9、70/02 kit 表第 12 行） | — |
+| `ui-react` 新增 `ui/shell/GradientEditor.tsx`、`ui/form/use-schema-form.ts`、`src/styles/vendor/react-colorful.css` 与三个测试文件（§5a、§12 V17–V19） | 回写（rulings §4.21） | [40/10](../40-modules/10-ui-shell-and-slide-ui.md) §4.3、§5.3 |
+| `ColorChoice`、`ThemeSwatch`、`GradientStop`、`LinearGradient` 类型与主题色变体计算纯函数（model-slide，与 `resolve-color.ts` 同处） | 回写（rulings §4.21） | 40/10 §6；[40/03](../40-modules/03-slide-domain-model.md) |
+| `pnpm-workspace.yaml#patchedDependencies` 增 react-colorful | 回写（rulings §4.21） | [40/01](../40-modules/01-tooling-and-governance.md) §5.1 |
+| 导入的径向与路径渐变的可编辑范围（§5a.5） | 待定（R 证据风险项） | [50/22](22-elements-shapes-and-lines.md)、40/10 |
+| 颜色选择器「最近使用」的长度与存储键 | 待登记 | [02](02-app-shell-routing-and-session.md) §10 |

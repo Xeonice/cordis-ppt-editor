@@ -1,6 +1,8 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；30-architecture/08-backend-nestjs.md §1/§7/§10/§12/§16.1–16.6；60-backend/01、06、07、12、13、15 §8、16 §13（原 30/08 §2、§5 已删，§9.3 改指 60/15 §8 与 60/16 §13，rulings §4.20 BE-11+TX-12）；30-architecture/10-observability-and-errors.md 全篇；60-backend/01 §3/§5/§10、60-backend/08 §5/§6.5/§9–§11/§13、60-backend/14 §2、60-backend/18 §1/§3/§4（§4.13 应用骨架与基础设施）；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Nest 12 与 ESM 入口、OTel 经 `node --import` 预加载；main.ts 不再注册 WsAdapter、删 `@nestjs/platform-ws`，collab 改挂 upgrade；`prom-client` 改为 OTel exporter-prometheus；限流维持自研令牌桶；`cordex-ops cron` 子命令；Webhook 签名改 Standard Webhooks）；2026-09-26（§4.21 整合：main.ts 写明 CollabUpgradeHandler 挂 upgrade 与进程级 unhandledRejection 兜底；server-app-thin 白名单加 @cordexjs/xml 与 @cordexjs/ooxml-core/zip；render-export.processor 多页 PNG 经 writeZip 打包；client-ip 引用改 collab-upgrade.handler.ts）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明） | 依赖：00-module-map.md M-12 行/§1/§3 BC-18…27/§4.2/§5.3/§6.1/§7/§9；40-modules/08-server-identity-documents-and-storage.md §2.4/§2.5/§3/§7/§12 G-11；40-modules/09-server-collab-gateway-and-headless-host.md §2.1/§2.5/§3/§4/§6/§7/§12 G-19–22；40-modules/02-kernel-protocol-and-document-core.md §4.3/§5.3；40-modules/04-ooxml-format-and-pptx-codec.md §2.6；60-backend/01、06、07、12、13、15 §8、16 §13（原 30/08 §1/§7/§10/§12/§16.1–16.6 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2、§5 已删，§9.3 改指 60/15 §8 与 60/16 §13，rulings §4.20 BE-11+TX-12）；30-architecture/10-observability-and-errors.md 全篇；60-backend/01 §3/§5/§10、60-backend/08 §5/§6.5/§9–§11/§13、60-backend/14 §2、60-backend/18 §1/§3/§4（§4.13 应用骨架与基础设施）；PRD 10-prd/03-features/06-server-and-ops.md SV-01/02/04/07/08/09/10/13；PRD 10-prd/03-features/03-collaboration.md CO-04；ADR-0026/0030/0031
 
 # 12 服务端作业、评论与运维（限界上下文 BC-23 导入导出与作业编排、BC-24 缩略图、BC-25 评论、BC-26 审计与健康运维、BC-30 出站集成〔Webhook〕）
+
+**→ 2026-09-26 rulings §4.21**：原 `30-architecture/08-backend-nestjs.md` 已撤销并删除；本文所称「架构 08」「架构 08 §x」「原 30/08」均指该篇当时的文本，现行落点按 [60-backend/README](../60-backend/README.md) §6.1 的映射查找。
 
 ## 0. 一页总览
 
@@ -8,7 +10,7 @@
 |---|---|
 | 职责一句话 | 导入/导出作业编排与 BullMQ 基础设施（BC-23）；缩略图/PDF 渲染作业（BC-24）；评论镜像读模型与通知扇出（BC-25）；审计只追加记录、健康探针、指标与内部运维端点（BC-26）；`apps/server` 的应用骨架与基础设施（进程入口、根模块、OTel 启动、Valkey 客户端、PG 连接池、drizzle 类型镜像与迁移 SQL 文件，§4.13）——实际格式转换/CRDT/渲染全部委托 M-09，本模块只做编排、校验、审计与限流 |
 | 覆盖的上下文 | BC-23 导入导出与作业编排、BC-24 缩略图、BC-25 评论、BC-26 审计与健康运维、BC-30 出站集成（Webhook，2026-09-21 新增登记，此前寄生于 BC-25，rulings §4.13 S-5） |
-| 承载包 / 目录 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`（`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为 2026-09-25 新增，承接浏览器遥测上报，rulings §4.18 BE-30）、`apps/server/src/common/*`、`apps/server/src/config/*`、应用骨架与基础设施 `apps/server/src/{main.ts,app.module.ts}` 与 `apps/server/src/{observability,redis,db}/**`（含 `db/migrations/*.sql`；2026-09-25 审稿登记，原在已删除的 30-architecture/08 §2 目录树里、40-modules 无文件级归属，见 §4.13）（均 L8 · node · app，秩 80）；`apps/server/src/cordis-host/adapters/*` **只引用、新增 0 个文件**（物理归属 M-09，2026-09-18 跨模块评审 C-10 结案，见 §12 G-23） |
+| 承载包 / 目录 | `apps/server/src/modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`（`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为 2026-09-25 新增，承接浏览器遥测上报，rulings §4.18 BE-30）、`apps/server/src/common/*`、`apps/server/src/config/*`、应用骨架与基础设施 `apps/server/src/{main.ts,app.module.ts}` 与 `apps/server/src/{observability,redis,db}/**`（含 `db/migrations/*.sql`；2026-09-25 审稿登记，原在已删除的 30/08 篇 §2 目录树里、40-modules 无文件级归属，见 §4.13）（均 L8 · node · app，秩 80）；`apps/server/src/cordis-host/adapters/*` **只引用、新增 0 个文件**（物理归属 M-09，2026-09-18 跨模块评审 C-10 结案，见 §12 G-23） |
 | cordis 形态 | library（10 个 Nest 模块 + `common/`/`config/` + 基础模块 `ObservabilityModule`/`DbModule`/`RedisModule` 与根模块 `AppModule`（§4.13）全部纯 Nest DI，非 cordis Fiber，module-map §4.2 第 5 条；`webhooks` 为新增，rulings §4.12 U-14；`telemetry` 为新增，rulings §4.18 BE-30） |
 | 运行位置 | 服务端 |
 | 上游（依赖） | M-08（`DocumentRepository`、`DocumentRoleGuard`/`RoleResolverService`、全局 `SessionGuard`（AppModule `APP_GUARD`，rulings §4.18 BE-06）、`GetPresignedPutUseCase`（两步导入，BE-10）、`@PurgeParticipant`（BE-15）、`ctx.blobStore` 读取面）、M-09（`server-headless.{importDocument,exportDocument,validateSnapshotTask,migrateTask,diffSnapshots,HeadlessJobContext}`（2026-09-25 由 `importPptx`/`exportPptx` 改名，FE-01）、`ThumbnailRenderer`、`collabServer`/`Room.broadcastControl`、`CordisHostService.diagnostics()`） |
@@ -64,7 +66,7 @@ m09 -- "CordisHostService.diagnostics" --> opsMod
 - 不做：不决定表结构、约束、RLS policy 与迁移内容（唯一事实源 60/08–13，本模块只承载文件，迁移文件与文档围栏逐字一致）；不决定表写方（60/08 §7，各表仓储在所属模块的 `infrastructure/`）；不做鉴权/权限策略本身（M-08）；不做协同门禁/CRDT 修复（M-09）；不物理定义 `cordis-host/adapters/{pino-logger,otel-telemetry,errors-reporter}`（已由 M-09 完整定义并物理归属该模块，见 §12 G-23）。
 
 **BC-30 出站集成（Webhook）**（2026-09-21 新增登记，此前寄生于 BC-25，rulings §4.13 S-5）
-- 做：Webhook 订阅管理（注册/更新/删除/查询，平台管理员——部署级 admin，`PlatformAdminGuard` 由 M-08 导出；2026-09-24 rulings §4.15 T-0 去租户）；事件投递（HMAC 签名 + 指数退避重试 + 死信队列）；投递前出站地址校验（拒绝私网/回环/链路本地/云元数据端点，防 DNS 重绑定，rulings §4.13 S-4）；投递日志查询。
+- 做：Webhook 订阅管理（注册/更新/删除/查询，平台管理员——部署级 admin，`PlatformAdminGuard` 由 M-08 导出；2026-09-24 rulings §4.15 T-0 去租户）；事件投递（Standard Webhooks 签名（HMAC-SHA256，2026-09-26）+ 指数退避重试 + 死信队列）；投递前出站地址校验（拒绝私网/回环/链路本地/云元数据端点，防 DNS 重绑定，rulings §4.13 S-4）；投递日志查询。
 - 不做：不产生事件本身（事件源是 `comments` 的镜像变更，未来 M4 扩大到文档事件）；不做入站 Webhook 接收（本上下文只出站）；不做通用消息总线（只服务"事件→HTTP 回调"这一种投递形态）。
 
 ### 1.2 通用语言
@@ -203,7 +205,7 @@ auditInterceptor -- "controller/usecase 成功后" --> auditLog
 **消费的外部契约（本模块不定义，只调用）**：`HeadlessJobContext`/`importDocument`/`exportDocument`（2026-09-25 由 `importPptx`/`exportPptx` 改名，rulings §4.18 FE-01）/`validateSnapshotTask`/`migrateTask`/`diffSnapshots`（`@cordexjs/server-headless`，M-09 §6）；`GetPresignedPutUseCase`、`@PurgeParticipant`（M-08，BE-10/BE-15）；`ThumbnailRenderer.render()`/`.renderPdf()`（M-09 §2.5 适配器接口，**经 `HeadlessHost.thumbnails` 只读字段取得，2026-09-18 结案，C-09，§12 G-26/§13 Q-1**）；`ServerBlobStore`（`@cordexjs/server-storage`，M-08 §2.5）；`CollabServer`/`Room.broadcastControl`（`@cordexjs/server-collab`，M-09 §2.5）；`DocumentRepository`/`RoleResolverService`（M-08 §2.5/§3）。
 
 > 注（S-4/§3.8 回执，rulings §4.13）：`EgressGuard`（`webhooks/infrastructure/egress-guard.ts`）不是仓储，是投递前置校验契约——`assertAllowed(targetUrl):Promise<{ip:string}>` 解析主机名、经 `isBlockedEgressAddress`（§2.3）拒绝阻断地址、返回锁定的目标 IP 供后续连接固定使用（防 DNS 重绑定）；只用 Node 内置 `dns`/`net`，不引入外部服务依赖。
-> 注（§3.9 回执，rulings §4.13）：`comments` 表原按 `anchor->>'slideId'` 具名字段建索引，改为对派生列 `anchor_key`（应用层计算：`comment-mirror` 写入时调 `deriveAnchorKey`，非 PG 生成列，2026-09-25 更正，rulings §4.18 BE-25；§2.1/§2.3）建索引 `(doc_id, anchor_key)`，文档类型无关；索引 DDL 归属架构 08 §5。
+> 注（§3.9 回执，rulings §4.13）：`comments` 表原按 `anchor->>'slideId'` 具名字段建索引，改为对派生列 `anchor_key`（应用层计算：`comment-mirror` 写入时调 `deriveAnchorKey`，非 PG 生成列，2026-09-25 更正，rulings §4.18 BE-25；§2.1/§2.3）建索引 `(doc_id, anchor_key)`，文档类型无关；索引 DDL 归属 60-backend/13。
 > 注（rulings §4.18 BE-10）：`ImportUploadStore`（`import-export/infrastructure/import-upload.store.ts`）不是仓储，是 Valkey 一次性凭证存储——`issue(upload)`、`consume(uploadId, userId)`（绑定 `userId`、TTL 1 h）；2026-09-25 起 `upload:{uploadId}` **不再 `GETDEL`**：受理时改写其 `jobId` 并保留 TTL，使同一 `uploadId` 的重放拿回同一作业（决策 UPLOAD-QUARANTINE、JOB-IDEM，60/06 §2.3、§6.1）。
 
 ### 2.6 应用服务与命令
@@ -427,7 +429,7 @@ apps/server/src/modules/jobs/
 ├── application/                      # 跨域复用的应用服务
 │   └── get-job.usecase.ts            # 通用作业状态查询（供 import-export/thumbnails 复用）
 ├── infrastructure/                   # BullMQ 与持久化
-│   ├── queues.ts                     # 队列名常量 + 默认并发/优先级/重试/退避（import/export/thumbnails/render-export/compaction/maintenance/webhook-delivery/document-purge；webhook-delivery 并发 4、指数退避、最多 8 次；maintenance 挂全部 Job Scheduler 周期作业：reconciliation 每 1 min、audit-seal 每日、media GC 等；document-purge 是独立队列、由 schedule-purge 入队而非周期作业（与架构 08 §7 一致），rulings §4.18 BE-19/BE-15）
+│   ├── queues.ts                     # 队列名常量 + 默认并发/优先级/重试/退避（import/export/thumbnails/render-export/compaction/maintenance/webhook-delivery/document-purge；webhook-delivery 并发 4、指数退避、最多 8 次；maintenance 挂全部 Job Scheduler 周期作业：reconciliation 每 1 min、audit-seal 每日、media GC 等；document-purge 是独立队列、由 schedule-purge 入队而非周期作业（与 60-backend/06 §1 一致），rulings §4.18 BE-19/BE-15）
 │   ├── base.processor.ts             # BullMQ 处理器基类：traceparent 恢复、错误分类 retryable/terminal、死信
 │   ├── job-runs.repository.ts        # job_runs 表 Drizzle 仓储（generic CRUD）；findByIdempotencyKey 排除 failed 与 cancelled 行（§4.18 BE-18/UX-14）
 │   └── reconciliation.job.ts         # 新增（§3.5 回执）：对账扫描孤儿 job_runs/webhook_deliveries 行，重新入队并告警；Job Scheduler 每 1 min，只由 worker 注册（BE-19）
@@ -561,7 +563,7 @@ apps/server/src/modules/health/
 ├── interface/
 │   └── health.controller.ts          # GET /healthz（进程存活）、GET /readyz（就绪前不接流量）；两者标 @Public()、不加 /api/v1 前缀（rulings §4.18 BE-06/BE-11）
 └── __tests__/
-    └── evaluate-readiness.usecase.test.ts  # 任一探针失败 → 503；Redis 不可用单独断言（08-backend-nestjs §8）
+    └── evaluate-readiness.usecase.test.ts  # 任一探针失败 → 503；Redis 不可用单独断言（60-backend/18 §6）
 ```
 
 ### 4.7 `apps/server/src/modules/metrics/`
@@ -570,7 +572,7 @@ apps/server/src/modules/health/
 apps/server/src/modules/metrics/
 ├── metrics.module.ts
 ├── infrastructure/
-│   └── prometheus-registry.provider.ts   # kernel telemetry OTel Provider → Prometheus 文本格式桥接
+│   └── prometheus-registry.provider.ts   # OTel exporter-prometheus（preventServerStart）提供者：MeterProvider → /metrics 处理函数（2026-09-26 取代 prom-client 桥接）
 ├── interface/
 │   └── prometheus.controller.ts      # GET /metrics（独立内部端口 9464，架构 10 §3.3 指标清单）
 └── __tests__/
@@ -607,7 +609,7 @@ apps/server/src/common/
 ├── guards-shared/
 │   └── rate-limit.guard.ts           # @RateLimit() 解释器（策略型 Guard 归属 M-08 owning 模块，本文件是唯一"纯机制"限流 Guard，08 §3 已裁定）
 ├── rate-limit/
-│   ├── redis-token-bucket.ts         # 令牌桶算法：纯函数 consumeTokenBucket + Redis 状态读写
+│   ├── redis-token-bucket.ts         # 令牌桶算法：纯函数 consumeTokenBucket + Redis 状态读写（维持自研 Valkey Lua 令牌桶，不用 rate-limiter-flexible）
 │   └── client-ip.ts                  # clientIp(req)：HTTP 与 WS 升级共用的来源 IP 取法，按 http.trustProxy 跳数自右向左取（proxy-addr，与 Fastify request.ip 同算法），不读 X-Forwarded-For 首跳；限流主体与审计 ip_hash 的唯一来源（2026-09-26 登记，§4.20 BE-04）
 ├── logging/
 │   └── log-fields.ts                 # cordex.* 字段规范装配（架构 10 §2.2，脱敏交给 kernel logger/redact.ts）
@@ -621,7 +623,7 @@ apps/server/src/common/
 ```text
 apps/server/src/config/
 ├── config.module.ts                  # 解析一次，注入 typed AppConfig；解析失败 → 进程退出码 78；支持 --dry-run
-├── config.schema.ts                  # zod Standard Schema：role/http/db/redis/storage/auth/collab/limits/headless/telemetry（字段全表以 60/17 §5–§6 为准；原 08-backend-nestjs §2 草图已删）；新增 webhookEgressAllowlist 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式）；storage.s3.publicEndpoint（预签名专用，§4.18 BE-01）；http.globalPrefix='api/v1' 与排除清单（BE-11）
+├── config.schema.ts                  # zod Standard Schema：role/http/db/redis/storage/auth/collab/limits/headless/telemetry（字段全表以 60/17 §5–§6 为准；原 30/08 篇 §2 草图已删）；新增 webhookEgressAllowlist 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式）；storage.s3.publicEndpoint（预签名专用，§4.18 BE-01）；http.globalPrefix='api/v1' 与排除清单（BE-11）
 ├── roles.ts                          # CORDEX_ROLE=all|api|collab|worker|renderer → 「模块 × 角色 × 部件」矩阵的代码形态（矩阵唯一源 60/01 §5）的代码形态（roles.ts→AppModule.forRole + 启动断言逐项核对；all/renderer 2026-09-24 补，rulings §4.15 Q10；矩阵 §4.18 BE-13）
 ├── env-overrides.ts                  # 按 NODE_ENV/CORDEX_ROLE 的覆盖合并规则（硬规则"按环境的覆盖"）
 └── secrets.ts                        # 机密来源适配（环境变量 | 挂载文件 | 外部 secret manager）+ 启动前存在性校验
@@ -640,13 +642,13 @@ webhooks/
 │   └── errors.ts                         webhook.* 错误码
 ├── application/
 │   ├── manage-webhook-subscription.usecase.ts  RegisterWebhookUseCase + UpdateWebhookUseCase + DeleteWebhookUseCase（三合一，同文件）
-│   ├── deliver-webhook-event.usecase.ts  HMAC 签名 + 指数退避重试编排（唯一投递入口，供 comments 模块调用）
+│   ├── deliver-webhook-event.usecase.ts  Standard Webhooks 签名 + 指数退避重试编排（唯一投递入口，供 comments 模块调用）
 │   └── list-webhook-deliveries.usecase.ts 投递日志查询
 ├── infrastructure/
 │   ├── webhook.repository.ts             Drizzle：webhook_subscriptions + webhook_deliveries
-│   ├── webhook-signer.ts                 HMAC-SHA256 签名纯函数
+│   ├── webhook-signer.ts                 Standard Webhooks v1 签名纯函数：node:crypto HMAC-SHA256 → v1,base64，多签名空格分隔
 │   ├── webhook-delivery.processor.ts     BullMQ webhook-delivery 队列处理器（并发 4）：指数退避最多 8 次 + 用尽转 dead-lettered，不可重试错误标 failed；只在 worker 注册（§4.18 BE-19）
-│   └── egress-guard.ts                   新增（S-4/§3.8 回执）：解析目标→拒绝私网/回环/链路本地/云元数据端点→防 DNS 重绑定（解析后锁定 IP 再连接）
+│   └── egress-guard.ts                   新增（S-4/§3.8 回执）：解析目标→拒绝私网/回环/链路本地/云元数据端点→防 DNS 重绑定（解析后锁定 IP 再连接）；判段用 ipaddr.js，连接用 undici Agent
 ├── interface/
 │   └── webhooks.controller.ts            POST/GET/PATCH/DELETE /webhooks、GET /webhooks/:id/deliveries
 └── __tests__/
@@ -688,10 +690,10 @@ apps/server/test/integration/
 
 ### 4.13 `apps/server/src/`：应用骨架与基础设施（2026-09-25 审稿登记）
 
-这些文件原在 30-architecture/08 §2 的 `apps/server` 目录树里；该树随 rulings §4.19 三线拆分删除后，进程入口、根模块与 `observability/`、`redis/`、`db/` 在 40-modules 没有文件级归属。按本模块既有惯例（与业务上下文无关的装配与运维件——`common/`、`config/`、`health/`、`metrics/`、`internal/`——归 M-12）统一登记于此。运行侧事实源：启动顺序与优雅关闭见 [60/01 §10](../60-backend/01-service-overview-and-roles.md)，按角色装配见 60/01 §4–§5，连接池与 RLS 框架见 [60/08 §5–§6](../60-backend/08-db-conventions-roles-rls-migrations.md)，迁移编号、纪律与 ddl-check 见 60/08 §9–§11，Valkey 键见 [60/14 §2–§3](../60-backend/14-valkey-object-storage-and-retention.md)，span 与指标名见 [60/18 §3–§4](../60-backend/18-observability-and-ops-endpoints.md)。
+这些文件原在 30/08 篇 §2 的 `apps/server` 目录树里；该树随 rulings §4.19 三线拆分删除后，进程入口、根模块与 `observability/`、`redis/`、`db/` 在 40-modules 没有文件级归属。按本模块既有惯例（与业务上下文无关的装配与运维件——`common/`、`config/`、`health/`、`metrics/`、`internal/`——归 M-12）统一登记于此。运行侧事实源：启动顺序与优雅关闭见 [60/01 §10](../60-backend/01-service-overview-and-roles.md)，按角色装配见 60/01 §4–§5，连接池与 RLS 框架见 [60/08 §5–§6](../60-backend/08-db-conventions-roles-rls-migrations.md)，迁移编号、纪律与 ddl-check 见 60/08 §9–§11，Valkey 键见 [60/14 §2–§3](../60-backend/14-valkey-object-storage-and-retention.md)，span 与指标名见 [60/18 §3–§4](../60-backend/18-observability-and-ops-endpoints.md)。
 
 - **迁移 SQL 的内容以 60/08–13 的 `-- migrate:` 围栏为唯一事实源**。本模块只承载文件：一个围栏对应一个文件，文件名取围栏首行的 `NNNN_<name>` 再加 `.sql`，内容与围栏逐字一致。改迁移时先改文档围栏，再同步文件，不反向（60/08 §10.1、§11 第 6 条）。
-- `db/schema/*.ts` 是 drizzle 类型镜像，不是迁移的事实源；各表的仓储仍放在表所属模块的 `infrastructure/`（写方见 60/08 §7），本目录不含任何仓储。
+- `db/schema/*.ts` 是**手写**的 drizzle 类型镜像（B1 于 2026-09-26 结案：`drizzle-orm` 0.45.x，不用 `drizzle-kit pull`；漂移检查直查 `pg_catalog`，60/08 §10.1、ADR-0022 修订），不是迁移的事实源；各表的仓储仍放在表所属模块的 `infrastructure/`（写方见 60/08 §7），本目录不含任何仓储。
 - `cordex-ops` 第二入口（命令语义以 60/17 §9 为准）：入口文件 `ops/cli.ts` 与 `main.ts` 同级、共用 `config/` 解析；每个子命令只调用所属模块**公开导出**的用例，不在入口里直接写表（depcruise：`ops/**` 只能 import 各模块的公开导出，§10）。子命令 → 所属模块用例对照（2026-09-26 登记，rulings §4.20 BE-06，§13 Q-10 结案）：
 
   | 子命令 | 落点 |
@@ -699,6 +701,7 @@ apps/server/test/integration/
   | `db:bootstrap`、`db:migrate`、`db:status` | `db/migrator.ts`（本节） |
   | `storage:init` | M-08 `StorageModule` 导出的初始化用例（40/08 §4.7） |
   | `audit-rotate`、`audit-verify` | `AuditModule`（分区维护与 `verify-chain.usecase.ts`，§4.5） |
+  | `cron`（2026-09-26 补登，R-d-42） | `ops/cli.ts` 内的常驻调度循环（`croner` 10），只调度 `AuditModule` 的 `audit-rotate` 用例；`ops-cron` 容器的命令（60/17 §9） |
   | `jobs:replay` | `JobsModule`（§4.1） |
   | `webhooks:replay` | `WebhooksModule`（§4.11） |
   | `thumbnails:rebuild` | `ThumbnailsModule`（§4.3） |
@@ -709,14 +712,14 @@ apps/server/test/integration/
 
 ```text
 apps/server/src/
-├── main.ts                           # 进程入口：先 import './observability/otel' → 解析配置并做启动断言 A1–A4a（失败退出 78）→ NestFactory(Fastify, AppModule.forRole(role)) → setGlobalPrefix('api/v1'，排除 healthz/readyz) → collab/all 注册 WsAdapter → 全局 filter/pipe/interceptor → enableShutdownHooks、listen；步骤与 SIGTERM 时序以 60/01 §10 为准
+├── main.ts                           # 进程入口（ESM；OTel 由容器入口 node --import ./dist/observability/otel.js 预加载，本文件不 import otel）：解析配置并做启动断言 A1–A4a（失败退出 78）→ NestFactory(Fastify, AppModule.forRole(role)) → 注册 @fastify/cookie、@fastify/helmet、@fastify/multipart → setGlobalPrefix('api/v1'，排除 healthz/readyz) → collab/all 在 listen 之前由 M-09 的 CollabUpgradeHandler（modules/collab/interface/collab-upgrade.handler.ts）在 app.getHttpServer() 的 upgrade 事件上自挂 ws（noServer）交给 Hocuspocus，不注册 WsAdapter → 全局 filter/pipe/interceptor → 注册进程级 unhandledRejection 兜底（只记日志与计数、不退出，ADR-0039 决策 9）→ enableShutdownHooks、listen；步骤与 SIGTERM 时序以 60/01 §10 为准
 ├── app.module.ts                     # AppModule.forRole(role)：按 config/roles.ts（60/01 §5 矩阵的代码形态）import 各 XxxModule 与矩阵 rest 格非空的 XxxHttpModule；以 APP_GUARD 按序注册 RateLimitGuard → SessionGuard → CsrfGuard → ShareLinkGuard（顺序以 60/02 为准）
 ├── ops/
-│   └── cli.ts                        # cordex-ops 第二入口（2026-09-26 登记，§4.20 BE-06）：解析子命令序列、共用 config/ 解析，按序执行、首个失败即退出；子命令 → 所属模块用例见上表（命令语义 60/17 §9）
+│   └── cli.ts                        # cordex-ops 第二入口（2026-09-26 登记，§4.20 BE-06）：commander 解析子命令序列、共用 config/ 解析，按序执行、首个失败即退出；cron 子命令以 croner 常驻调度 audit-rotate；子命令 → 所属模块用例见上表（命令语义 60/17 §9）
 ├── shared/
 │   └── clock.ts                      # CLOCK 注入令牌 + SystemClock 提供者，实现 @cordexjs/shared 的 Clock；服务端唯一允许读 Date.now 的文件（TD-110 豁免），测试以 FixedClock 覆盖（2026-09-26 登记，§4.20 TX-10，70/11 §2）
 ├── observability/
-│   ├── otel.ts                       # OTel Node SDK 启动（traces、metrics；自动仪表化 http/fastify/pg/ioredis/ws）；renderer 关闭 OTLP 导出（60/18 §1）
+│   ├── otel.ts                       # node --import 预加载的 ESM 入口：注册 @opentelemetry/instrumentation/hook.mjs 后启动 NodeSDK（traces、metrics）；按需仪表化 http/undici/pg/ioredis/pino/runtime-node，Fastify 用 @fastify/otel；ws 与 Hocuspocus 为手工 span；renderer 不启动 SDK（60/18 §1.1）
 │   ├── observability.module.ts       # ObservabilityModule（global）：Nest 侧的日志与遥测提供者；api/collab/worker 装配（60/01 §5 表后注）
 │   ├── spans.ts                      # 服务端 span 名登记表 server.<子系统>.<操作>，声明合并（60/18 §3）
 │   └── metrics.ts                    # 服务端指标登记表 cordex_<subsystem>_<name>_<unit>，每项带 consumer（60/18 §4）
@@ -763,7 +766,7 @@ apps/server/src/
 | `domain/idempotency-key.ts` | 幂等键值对象 + 构造函数 | `IdempotencyKey`、`buildIdempotencyKey` 族（`importKey`/`duplicateKey`/`exportKey`/`renderExportKey`/`purgeKey`） | `@cordexjs/shared`（Brand） | 键格式按决策 JOB-IDEM（60/06 §2.3）；2026-09-25 删 `buildNewDocImportKey` 与 `import:user:{userId}:{sha256}` |
 | `domain/errors.ts` | `server.jobs.*` 错误码 | `JobsError` | 无 | queue_unavailable/not_found |
 | `application/get-job.usecase.ts` | 通用作业查询 | `GetJobUseCase` | `../infrastructure/job-runs.repository` | 跨模块导出 |
-| `infrastructure/queues.ts` | 队列名与默认配置常量 | `QUEUE_NAMES`、`QUEUE_DEFAULTS`、`MAINTENANCE_SCHEDULES` | `bullmq` | 并发/优先级/重试/退避表；新增 `webhook-delivery`（并发 4、指数退避、最多 8 次）；`maintenance` 队列的 Job Scheduler 周期作业表（reconciliation 每 1 min、audit-seal 每日、media GC）；新增独立队列 `document-purge`（schedule-purge 入队、同文档串行，不是周期作业，不并入 `maintenance`）（rulings §4.18 BE-19/BE-15；与架构 08 §7 队列表一致） |
+| `infrastructure/queues.ts` | 队列名与默认配置常量 | `QUEUE_NAMES`、`QUEUE_DEFAULTS`、`MAINTENANCE_SCHEDULES` | `bullmq` | 并发/优先级/重试/退避表；新增 `webhook-delivery`（并发 4、指数退避、最多 8 次）；`maintenance` 队列的 Job Scheduler 周期作业表（reconciliation 每 1 min、audit-seal 每日、media GC）；新增独立队列 `document-purge`（schedule-purge 入队、同文档串行，不是周期作业，不并入 `maintenance`）（rulings §4.18 BE-19/BE-15；与 60-backend/06 §1 队列表一致） |
 | `infrastructure/base.processor.ts` | 处理器基类 | `BaseProcessor` | `bullmq`、`@cordexjs/kernel`（telemetry 类型） | traceparent 恢复 |
 | `infrastructure/job-runs.repository.ts` | `job_runs` 表仓储（含 `idempotency_key`、`attempt_of` 列，BE-18） | `JobRunsRepository` | `drizzle-orm` | 按文档读写须经权限服务（扫描器 `doc-access-via-permission`，M-01 第 14 个扫描器，rulings §4.17 D3；2026-09-24 取代 tenant_id 强制，rulings §4.15 T-0） |
 | `infrastructure/reconciliation.job.ts`（新增，§3.5 回执） | 对账扫描孤儿 `job_runs`/`webhook_deliveries` 行（含 `document-purge` 作业） | `ReconciliationJob` | `../infrastructure/job-runs.repository`；跨模块消费 `webhooks` 仓储（`JobsModule` imports `WebhooksModule`，见 §3） | BullMQ Job Scheduler 每 1 min，只由 worker 启动时注册（rulings §4.18 BE-19），见 §2.6 |
@@ -808,7 +811,7 @@ apps/server/src/
 | `application/render-export-producer.service.ts` | 跨模块生产者 | `RenderExportProducerService` | `../../jobs/infrastructure/queues` | 供 import-export 注入 |
 | `application/purge-document-thumbnails.usecase.ts`（新增，S-2/§3.3 回执） | 文档硬删除级联：清理该文档全部缩略图行 | `PurgeDocumentThumbnailsUseCase` | `../infrastructure/thumbnails.repository` | `@PurgeParticipant('thumbnails')`，由 M-08 document-purge 作业调用（rulings §4.18 BE-15），幂等；覆盖 `embedded`/`server` 两种来源（Q8；`client` 为 DB 保留位、领域层不产生，BE-26） |
 | `infrastructure/thumbnails.processor.ts` | 缩略图 BullMQ 处理器 | `ThumbnailsProcessor` | `@cordexjs/server-headless` | 铁律 4 |
-| `infrastructure/render-export.processor.ts` | PDF/PNG/JPEG 处理器 | `RenderExportProcessor` | `@cordexjs/server-headless` | 共享 Chromium 池 |
+| `infrastructure/render-export.processor.ts` | PDF/PNG/JPEG 处理器 | `RenderExportProcessor` | `@cordexjs/server-headless`、`@cordexjs/ooxml-core/zip`（仅 `writeZip`，2026-09-26） | 共享 Chromium 池；多页 PNG/JPEG 以 `writeZip`（store 模式、条目按页序命名、不解码图片）打包为 zip，不另扩 fflate 单点（R-d-51，60-backend/06 §7.2） |
 | `infrastructure/thumbnails.repository.ts` | `thumbnails` 表仓储 | `ThumbnailsRepository` | `drizzle-orm` | — |
 | `infrastructure/headless-renderer.accessor.ts` | 经 `HeadlessHost.thumbnails` 取 `ThumbnailRenderer` 实例 | `HeadlessRendererAccessor` | `CordisHostService` | §12 G-26 结案（C-09） |
 | `interface/thumbnails.controller.ts` | 缩略图 REST | `ThumbnailsController` | protocol（新增建议） | `ETag = contentHash` + `private, no-cache`（不标 immutable，ADR-0026 修订 2026-09-25） |
@@ -878,7 +881,7 @@ apps/server/src/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `metrics.module.ts` | 模块装配 | `MetricsModule` | Nest | 独立端口监听 |
-| `infrastructure/prometheus-registry.provider.ts` | OTel→Prometheus 桥接 | `PrometheusRegistryProvider` | `@cordexjs/kernel`（telemetry 类型）、`prom-client` | 10 §3.3 指标清单 |
+| `infrastructure/prometheus-registry.provider.ts` | OTel→Prometheus 导出 | `PrometheusRegistryProvider` | `@cordexjs/kernel`（telemetry 类型）、`@opentelemetry/exporter-prometheus`（2026-09-26 取代 `prom-client`，后者已 deprecated，R-d-48） | `preventServerStart: true`，处理函数挂到内部端口 9464 的 Fastify 实例；指标名以 60/18 §4 为准 |
 | `interface/prometheus.controller.ts` | 指标端点 | `PrometheusController` | 无 protocol 依赖 | `GET /metrics`（内部端口 9464） |
 | `__tests__/prometheus.controller.test.ts` | 单测 | — | — | 指标名均在登记表 |
 
@@ -902,8 +905,8 @@ apps/server/src/
 | `interceptors/audit.interceptor.ts` | `@Audited()` 解释器 | `AuditInterceptor` | `AuditModule.RecordAuditEventUseCase` | handler 成功后写 |
 | `pipes/zod.pipe.ts` | DTO 校验管道 | `ZodValidationPipe` | `@cordexjs/protocol` | protocol-only DTO |
 | `guards-shared/rate-limit.guard.ts` | `@RateLimit()` 解释器 | `RateLimitGuard` | `../rate-limit/redis-token-bucket`、`../rate-limit/client-ip` | 08 §3 已裁定归属；无会话时主体取 `clientIp()`（rulings §4.20 BE-04，60/02） |
-| `rate-limit/redis-token-bucket.ts` | 令牌桶算法 | `consumeTokenBucket` | `ioredis` | 纯函数 + Redis 状态 |
-| `rate-limit/client-ip.ts` | 客户端来源 IP 取法（2026-09-26 登记，rulings §4.20 BE-04） | `clientIp(req)` | `proxy-addr`、`../../config`（`http.trustProxy`） | HTTP 与 WS 升级（M-09 `collab.gateway.ts`）共用；按可信跳数自右向左取、默认 1，伪造 `X-Forwarded-For` 首跳不改变限流主体与审计 `ip_hash`；口径以 60/15 §8、60/01 §10 为准 |
+| `rate-limit/redis-token-bucket.ts` | 令牌桶算法 | `consumeTokenBucket` | `ioredis`（Lua 以 `defineCommand` 注册） | 纯函数 + Redis 状态；维持自研 Valkey Lua 令牌桶，HTTP 与 WS 升级共用、升级前先扣验签后退；不用 `rate-limiter-flexible`（只有固定窗口，违背 rulings §4.20 BE-01/BE-02，60-backend/19 §15.2） |
+| `rate-limit/client-ip.ts` | 客户端来源 IP 取法（2026-09-26 登记，rulings §4.20 BE-04） | `clientIp(req)` | `proxy-addr`、`../../config`（`http.trustProxy`） | HTTP 与 WS 升级（M-09 `collab-upgrade.handler.ts`，原名 `collab.gateway.ts`）共用；按可信跳数自右向左取、默认 1，伪造 `X-Forwarded-For` 首跳不改变限流主体与审计 `ip_hash`；口径以 60/15 §8、60/01 §10 为准 |
 | `logging/log-fields.ts` | 日志字段规范 | `buildLogFields` | 架构 10 §2.2 | 脱敏在 kernel `redact.ts` |
 | `decorators/audited.decorator.ts` | 审计标注 | `Audited` | 无 | 供各模块 controller 使用 |
 | `decorators/rate-limit.decorator.ts` | 限流标注 | `RateLimit` | 无 | 供各模块 controller 使用 |
@@ -913,7 +916,7 @@ apps/server/src/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `config.module.ts` | 配置解析装配 | `ConfigModule` | `./config.schema` | 失败退出码 78 |
-| `config.schema.ts` | 环境变量 Standard Schema | `AppConfigSchema`、`AppConfig` | `zod` | 字段全表以 60/17 §5–§6 为准（原 08-backend-nestjs §2 草图已删，2026-09-25 审稿改指）；新增 `webhookEgressAllowlist` 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式） |
+| `config.schema.ts` | 环境变量 Standard Schema | `AppConfigSchema`、`AppConfig` | `zod` | 字段全表以 60/17 §5–§6 为准（原 30/08 篇 §2 草图已删，2026-09-25 审稿改指）；新增 `webhookEgressAllowlist` 部署级放宽白名单项（S-4/§3.8 回执，默认空＝严格模式） |
 | `roles.ts` | 角色 → 模块装配表（60/01 §5 矩阵的代码形态，rulings §4.18 BE-13；2026-09-25 矩阵迁入 60/01） | `ROLE_MODULES`、`assertRoleAssembly` | `../modules/**`（类型） | `CORDEX_ROLE=all\|api\|collab\|worker\|renderer`（同一镜像按角色运行；`all` 为单容器全装配，`renderer` 为独立零出站 sidecar，只装 M-09 renderer 入口、不装任何含凭据的模块；2026-09-24 rulings §4.15 Q10） |
 | `env-overrides.ts` | 按环境覆盖合并 | `applyEnvOverrides` | `./config.schema` | NODE_ENV/CORDEX_ROLE |
 | `secrets.ts` | 机密来源适配 | `resolveSecret` | 无（不 import 具体 secret manager SDK，留 Provider 缝） | 启动前存在性校验 |
@@ -927,12 +930,12 @@ apps/server/src/
 | `domain/webhook-delivery.ts` | 实体 | `WebhookDelivery` | 无 | §2.1，死信状态机 |
 | `domain/errors.ts` | `webhook.*` 错误码 | `WebhookError` | 无 | not_found/invalid_url/disabled |
 | `application/manage-webhook-subscription.usecase.ts` | 注册/更新/删除订阅 | `RegisterWebhookUseCase`、`UpdateWebhookUseCase`、`DeleteWebhookUseCase` | `../infrastructure/webhook.repository` | 三合一，同文件 |
-| `application/deliver-webhook-event.usecase.ts` | 投递编排 | `DeliverWebhookEventUseCase` | `../infrastructure/*` | HMAC 签名 + 指数重试，供 `CommentsModule` 调用 |
+| `application/deliver-webhook-event.usecase.ts` | 投递编排 | `DeliverWebhookEventUseCase` | `../infrastructure/*` | Standard Webhooks 签名 + 指数重试，供 `CommentsModule` 调用 |
 | `application/list-webhook-deliveries.usecase.ts` | 投递日志查询 | `ListWebhookDeliveriesUseCase` | `../infrastructure/webhook.repository` | — |
 | `infrastructure/webhook.repository.ts` | `webhook_subscriptions`+`webhook_deliveries` 表 | `WebhookRepository` | `drizzle-orm` | §2.5 |
-| `infrastructure/webhook-signer.ts` | HMAC 签名 | `signPayload`、`verifySignature` | `node:crypto` | HMAC-SHA256 |
+| `infrastructure/webhook-signer.ts` | Standard Webhooks v1 签名（2026-09-26，rulings §4.21 q-webhook-sig） | `signPayload`、`verifySignature` | `node:crypto` | `webhook-signature: v1,<base64(HMAC-SHA256(key, id.timestamp.body))>`，轮换宽限期新旧两签名空格分隔；不引 `standardwebhooks` 包；头与示意代码见 60-backend/07 §5.2 |
 | `infrastructure/webhook-delivery.processor.ts` | BullMQ 投递处理器 | `WebhookDeliveryProcessor` | `../application/deliver-webhook-event.usecase` | `webhook-delivery` 队列（并发 4）；指数退避最多 8 次 → `dead-lettered`；不可重试 → `failed`；只在 worker 注册（rulings §4.18 BE-19） |
-| `infrastructure/egress-guard.ts`（新增，S-4/§3.8 回执） | 出站 SSRF 校验：解析→拒绝私网/回环/链路本地/云元数据端点→锁定 IP 防 DNS 重绑定 | `EgressGuard`、`isBlockedEgressAddress`（§2.3） | `node:dns`、`node:net`、`../../config`（白名单配置） | 订阅创建/更新与每次投递前均调用，投递前为关键防线 |
+| `infrastructure/egress-guard.ts`（新增，S-4/§3.8 回执） | 出站 SSRF 校验：解析→拒绝私网/回环/链路本地/云元数据端点→锁定 IP 防 DNS 重绑定 | `EgressGuard`、`isBlockedEgressAddress`（§2.3） | `node:dns`、`ipaddr.js`（判段）、`undici`（`Agent` 的 `connect.lookup` 锁 IP）、`../../config`（白名单配置） | 订阅创建/更新与每次投递前均调用，投递前为关键防线 |
 | `interface/webhooks.controller.ts` | REST 端点 | `WebhooksController` | protocol `rest/webhooks.ts`（新增，§7.2） | — |
 | `__tests__/manage-webhook-subscription.usecase.test.ts` | 单测 | — | — | 覆盖 URL 校验 |
 | `apps/server/test/integration/jobs/webhook-delivery.processor.int-spec.ts` | 集成（自 `__tests__/webhook-delivery.processor.spec.ts` 迁出） | — | testcontainers PG / Valkey | 指数退避与死信转移（M3） |
@@ -942,7 +945,7 @@ apps/server/src/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `telemetry.module.ts` | 模块装配 | `ClientTelemetryModule` | Nest、`ConfigModule`、`RedisModule` | 只装在 api 角色（§7.1） |
-| `infrastructure/otlp-proxy.service.ts` | OTLP traces 代理 | `OtlpProxyService` | `node:http`/`undici`（出站仅到 OTel Collector） | 只转发 traces；拒绝 metrics/logs |
+| `infrastructure/otlp-proxy.service.ts` | OTLP traces 代理 | `OtlpProxyService` | `undici`（统一出站客户端，R-d-53；出站仅到 OTel Collector） | 只转发 traces；拒绝 metrics/logs |
 | `interface/client-telemetry.controller.ts` | 浏览器遥测 REST | `ClientTelemetryController` | protocol `rest/telemetry.ts`（M-02 §4.3/§5.3 已登记 `ClientErrorReport`）、`common/decorators/rate-limit.decorator` | `POST /telemetry/errors`（≤ 64 KiB）、`POST /telemetry/otlp`（≤ 512 KiB）；需登录、令牌桶 |
 | `__tests__/client-telemetry.controller.test.ts` | 单测 | — | — | 未登录 401、超限 413、限流 429、非 traces 400 |
 
@@ -950,21 +953,21 @@ apps/server/src/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `main.ts` | 进程入口与启动顺序 | 无（进程入口） | `./observability/otel`（必须是首个 import）、`./config/*`、`./app.module`、`@nestjs/core`、`@nestjs/platform-fastify`、`@nestjs/platform-ws` | 步骤与 SIGTERM 时序以 60/01 §10 为准；A1–A4a 失败退出 78；`--dry-run` 完成配置校验后打印脱敏配置并退出（60/17） |
-| `ops/cli.ts` | `cordex-ops` 第二入口（2026-09-26 登记，rulings §4.20 BE-06） | 无（进程入口） | `./config/*`、`./db/migrator`；各模块 `*.module.ts` 的公开导出（`StorageModule`、`AuditModule`、`JobsModule`、`WebhooksModule`、`ThumbnailsModule`、`PermissionsModule`） | 子命令对照见 §4.13；只调用模块公开用例、不直接写表（depcruise `ops/**` 规则，§10）；`documents:reassign-owner`（M3，BE-05）以系统上下文调用 `ReassignOwnerUseCase`；命令语义与身份以 60/17 §9 为准 |
+| `main.ts` | 进程入口与启动顺序 | 无（进程入口） | `./config/*`、`./app.module`、`@nestjs/core`、`@nestjs/platform-fastify`、`@fastify/cookie`、`@fastify/helmet`、`@fastify/multipart`（2026-09-26：删 `@nestjs/platform-ws` 与「首个 import `./observability/otel`」） | Nest 12 纯 ESM；OTel 由容器入口 `node --import ./dist/observability/otel.js dist/main.js` 预加载（60-backend/17 §4）；collab/all 不注册 `WsAdapter`，WS 升级由 M-09 的 `CollabUpgradeHandler`（`modules/collab/interface/collab-upgrade.handler.ts`，40/09 §4.1，60-backend/16 §1）在 `app.getHttpServer()` 的 `upgrade` 事件上自挂（listen 之前，ADR-0039 决策 1）；注册进程级 `unhandledRejection` 兜底，只记录日志与计数、不退出（ADR-0039 决策 9）；步骤与 SIGTERM 时序以 60/01 §10 为准；A1–A4a 失败退出 78；`--dry-run` 完成配置校验后打印脱敏配置并退出（60/17） |
+| `ops/cli.ts` | `cordex-ops` 第二入口（2026-09-26 登记，rulings §4.20 BE-06） | 无（进程入口） | `commander`、`croner`（`cron` 子命令，2026-09-26 补登）、`./config/*`、`./db/migrator`；各模块 `*.module.ts` 的公开导出（`StorageModule`、`AuditModule`、`JobsModule`、`WebhooksModule`、`ThumbnailsModule`、`PermissionsModule`） | 子命令对照见 §4.13；只调用模块公开用例、不直接写表（depcruise `ops/**` 规则，§10）；`documents:reassign-owner`（M3，BE-05）以系统上下文调用 `ReassignOwnerUseCase`；命令语义与身份以 60/17 §9 为准 |
 | `shared/clock.ts` | 服务端时钟端口（2026-09-26 登记，rulings §4.20 TX-10） | `CLOCK`（注入令牌）、`SystemClock` | `@cordexjs/shared`（`Clock` 接口） | 实现 `@cordexjs/shared` 的 `Clock`；服务端生产代码中唯一允许 `Date.now()` 的文件（TD-110 豁免）；测试以 `FixedClock` 覆盖，不另建 `FakeServerClock`（70/11 §2–§3） |
 | `app.module.ts` | 根模块与全局守卫链 | `AppModule`（`forRole(role)`） | `./config/roles`、`./modules/**/*.module`、`./observability/observability.module`、`./redis/redis.module`、`./db/db.module`；M-08 的守卫类（经 `APP_GUARD` 注册） | 只 import 矩阵 rest 格非空的 Http 模块（60/01 §5 结构规则、A9）；守卫顺序以 60/02 为准 |
-| `observability/otel.ts` | OTel Node SDK 启动 | 无（副作用模块） | `@opentelemetry/sdk-node` 与自动仪表化包 | 必须先于一切有副作用的 import；renderer 关闭 OTLP 导出（60/18 §1） |
-| `observability/observability.module.ts` | 可观测性基础模块 | `ObservabilityModule` | Nest、`./otel` | global；api/collab/worker 装配（60/01 §5 表后注）；kernel 的 pino / OTel 适配器在 M-09 `cordis-host/adapters/`，本模块不重复定义（§3、G-23） |
+| `observability/otel.ts` | OTel Node SDK 启动 | 无（副作用模块） | `node:module`（`register`）、`@opentelemetry/sdk-node` 与按需仪表化包（http、undici、pg、ioredis、pino、runtime-node）、`@fastify/otel` | 作为 `node --import` 的预加载入口，先注册 ESM 加载钩子再启动 SDK（Nest 12 纯 ESM，ADR-0030 修订）；`instrumentation-nestjs-core` 在 Nest 12 下暂不启用；renderer 不启动 SDK（60/18 §1.1） |
+| `observability/observability.module.ts` | 可观测性基础模块 | `ObservabilityModule` | Nest、`nestjs-pino`（不 import `./otel`，它已由 `--import` 预加载） | global；api/collab/worker 装配（60/01 §5 表后注）；kernel 的 pino / OTel 适配器在 M-09 `cordis-host/adapters/`，本模块不重复定义（§3、G-23） |
 | `observability/spans.ts` | 服务端 span 名登记表 | `ServerSpans`（声明合并） | 无 | 名称 `server.<子系统>.<操作>` 以 60/18 §3 为准 |
 | `observability/metrics.ts` | 服务端指标登记表 | `ServerMetrics`（声明合并） | 无 | 名称与 consumer 以 60/18 §4 为准；`scan-observability-identifiers` 核对「调用点 ⊆ 登记表」与「登记项至少一个调用点」 |
-| `redis/redis.module.ts` | Valkey 客户端基础模块 | `RedisModule`、`REDIS_CLIENT`、`bullmqConnection` | `ioredis`、`../config` | global；renderer 不装（A4b）；`ioredis`、`bullmq` 的放行位置见 60/01 §11 |
+| `redis/redis.module.ts` | Valkey 客户端基础模块 | `RedisModule`、`REDIS_CLIENT`、`bullmqConnection` | `ioredis` 6.0.x、`bullmq-otel`、`../config` | global；renderer 不装（A4b）；`ioredis`、`bullmq` 的放行位置见 60/01 §11；M3 起 collab 的 `hp-redis.extension.ts` 以 `createClient: () => REDIS_CLIENT.duplicate()` 取 6.0.x 客户端，extension-redis 自带的 5.6.x 只加载不建连（60-backend/19 §3.2） |
 | `redis/keys.ts` | `apps/server` 侧 Valkey 键模板 | `redisKeys`（`perm`、`ticket`、`oidc`、`session`、`user`、`upload`、`rl`） | 无 | 模板集合以 60/14 §3 为准；其它文件不得拼接这些前缀（60/14 VK-01） |
 | `db/db.module.ts` | PG 基础模块 | `DbModule`、`DB_APP`、`DB_SYSTEM`（注入 token） | Nest、`./client`、`../config` | global；按角色建池（60/08 §5：api 只有 app 池，配置了 system 口令即拒绝启动）；A11：池的登录角色不是 `cordex_migrator` 且 `rolbypassrls = false` |
 | `db/client.ts` | 连接池、事务基元与系统事务入口 | `createPools`、`withTransaction`、`withSystem` | `pg`、`drizzle-orm`、`./schema`、`./system-jobs`；M-08 的 `SystemContext` 品牌类型 | 连接参数（`application_name`、`statement_timeout`、`lock_timeout`、`idle_in_transaction_session_timeout`、`poolMax`）以 60/08 §5 为准；GUC 一律 `set_config(…, true)`，仓储只拿事务句柄（60/08 §6.1）；`withRls` 在 M-08 `permissions/infrastructure/rls-context.ts` |
 | `db/system-jobs.ts` | 系统作业名 | `SystemJobName` | 无 | 取值 `{scope}.{name}` 以 60/08 §6.5 为准（该处「落点由 40 登记」即本文件） |
 | `db/migrator.ts` | 迁移执行器 | `bootstrap`、`migrate`、`status`、`checkApplied` | `pg`、`node:crypto`；随镜像打包的 `./migrations/*.sql` | 以 `cordex_migrator` 登录、`pg_advisory_lock`、每个文件一个事务、台账记 sha256、校验和变化拒绝执行、首个失败即停、无 down 迁移（60/08 §10.2）；`checkApplied` 供 `health` 的 `PgProbe` 判定 `migrations_pending` / `migration_checksum_mismatch`（60/08 §10.5） |
-| `db/schema/index.ts` | 类型镜像汇总导出 | 全部表对象 | `./*` | 供 `client.ts` 与漂移检查（70/07 §4 MG7） |
+| `db/schema/index.ts` | 类型镜像汇总导出 | 全部表对象 | `./*` | 供 `client.ts` 与漂移检查（70/07 §4 MG7）：漂移检查直查 `pg_catalog`（含 relkind `p` 的分区父表），与本文件导出的表对象逐列比对（60/08 §10.1，2026-09-26 取代「drizzle 内省比对」） |
 | `db/schema/users.ts` | `users` 类型镜像 | `users` | `drizzle-orm/pg-core` | DDL 60/09（0010）；写方 Users（M-08） |
 | `db/schema/user_identities.ts` | `user_identities` 类型镜像 | `userIdentities` | `drizzle-orm/pg-core` | DDL 60/09（0011）；写方 Users（M-08） |
 | `db/schema/documents.ts` | `documents` 类型镜像 | `documents` | `drizzle-orm/pg-core` | DDL 60/10（0020）与 60/11（0041 外键）；M-08 列写方 Documents，M-09 列写方 Collab（C-03） |
@@ -1084,7 +1087,7 @@ apps/server/test/                              端到端（跨模块）：Nest T
 ├── e2e/import-export-roundtrip.e2e-spec.ts     申请上传 → 直传 → 导入作业 → 快照 → 导出 → 字节级一致（SV-02）；提交他人 uploadId 或对象键返回 403（§4.18 BE-10）
 ├── e2e/thumbnails-pipeline.e2e-spec.ts         M2：导入完成 → embedded 封面（头校验）可见；M3：首页缩略图 ≤ 10 s → D200 全量 ≤ 90 s → 页内容哈希变更只重渲该页
 ├── e2e/comments-mirror.e2e-spec.ts             客户端经协同 WS 写评论 → 服务端镜像 ≤ 1 s 收敛 → REST 查询一致
-├── e2e/webhooks-delivery.e2e-spec.ts           新增（rulings §4.12 U-14）：注册订阅 → 评论事件触发投递 → HMAC 签名验证 → 重试与死信
+├── e2e/webhooks-delivery.e2e-spec.ts           新增（rulings §4.12 U-14）：注册订阅 → 评论事件触发投递 → 用 Standard Webhooks 校验库验签（webhook-id、webhook-timestamp、webhook-signature，2026-09-26）→ 重试与死信
 ├── e2e/audit-and-health.e2e-spec.ts            关键动作产生审计行并只追加、哈希链可校验（新增，U-15）；探针依赖故障注入 → 503
 ├── integration/ops/reassign-owner.int-spec.ts  子进程执行 `cordex-ops documents:reassign-owner`：擦除或停用唯一 owner 的响应与审计带 `soleOwnerDocCount`；转移后新 owner 可撤销原链接、`perm_version` 恰好 +1、在线会话 ≤ 1 s 重算、原 `owner_id` 不变；目标非 `active` 或文档不存在、`purging` 时按 60/17 §9 退出码失败且无写入（M3，用例 O1–O5 以 70/07 §7.4 为准；2026-09-26 登记，rulings §4.20 BE-05+TX-22）
 ├── integration/boot/role-assembly.int-spec.ts  逐角色启动：api 不装快照与 AdminController、renderer 进程内无 DB/Valkey/S3 客户端、周期作业只在 worker 注册（§4.18 BE-03/BE-13/BE-14/BE-19；2026-09-25 由 e2e 改为集成测试，T-NAMING）
@@ -1101,14 +1104,14 @@ apps/server/test/                              端到端（跨模块）：Nest T
 | 迁移与类型镜像（2026-09-25 审稿补，§4.13） | 空库全量、编号与只追加、drizzle 漂移、GRANT 与 RLS 快照等 MG1–MG8，用例与断言以 70/07 §4 为准；迁移文件与文档围栏逐字一致不在此处，由 `scanners/check-migrations-sync` 步骤 gated，比对实现随首批迁移文件入库的同一 PR 落地（60/08 §11 第 6 条，rulings §4.20 BE-03+TX-14） | `apps/server/test/integration/migrations/*.int-spec.ts`（被测：`db/migrations/*.sql`、`db/schema/*.ts`、`db/migrator.ts`） |
 | e2e | 见上表主链路与 2026-09-25 新增的角色装配、浏览器遥测两条 | `apps/server/test/e2e/*` |
 
-覆盖率与性能预算以 [60/01 §12](../60-backend/01-service-overview-and-roles.md)（服务端预算总览：导入 D50 ≤ 5 s / D200 ≤ 20 s p95、导出 pptx ≤ 3/12 s、缩略图 ≤ 400 ms/页 p95 等）与 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引已删的 30/08 §12 改指）；本模块特有预算：评论镜像收敛 ≤ 1 s（ADR-0031）、审计写入吞吐 ≤ 50 事务/s/文档无背压（SV-07）、`/readyz` 判定 ≤ 200 ms（新增建议，未见于既有文档，§12 G-28）。
+覆盖率与性能预算以 [60/01 §12](../60-backend/01-service-overview-and-roles.md)（服务端预算总览：导入 D50 ≤ 5 s / D200 ≤ 20 s p95、导出 pptx ≤ 3/12 s、缩略图 ≤ 400 ms/页 p95 等）与 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引已删的 30/08 篇 §12 改指）；本模块特有预算：评论镜像收敛 ≤ 1 s（ADR-0031）、审计写入吞吐 ≤ 50 事务/s/文档无背压（SV-07）、`/readyz` 判定 ≤ 200 ms（新增建议，未见于既有文档，§12 G-28）。
 
 ## 10. 机械约束
 
 | 约束 | 规则 / 字段 | 引用 |
 |---|---|---|
 | `package.json#cordex`（`apps/server` 整体） | `{layer:'L8',iso:'node',role:'app',compositionRoot:true}`（本模块与 M-08/M-09 共享同一 `apps/server` 包；`compositionRoot` 2026-09-25 补，rulings §4.18 FE-21/FE-01） | charter §5.2；02 §3.2 |
-| `server-app-thin` | `apps/server/src/modules/**` 不得 `import 'yjs'`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`（本模块处理器只经 `CordisHostService`/`HeadlessJobContext` 间接调用，铁律 4） | module-map §9；02 §3.2（与 M-08 §10 同一处理） |
+| `server-app-thin` | `apps/server/src/modules/**` 不得 `import 'yjs'`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`（本模块处理器只经 `CordisHostService`/`HeadlessJobContext` 间接调用，铁律 4）；白名单两项（2026-09-26，与 30/02 §3 同步）：`@cordexjs/xml` 只许 M-08 媒体模块的 `svg-sanitizer.ts`（X:q-xml-package），`@cordexjs/ooxml-core/zip` 只许本模块 `render-export.processor.ts` 的多页 PNG 打包（R-d-51）；`apps/server` 依赖上限相应含 `xml`（章程 §5.2） | module-map §9；02 §3.2（与 M-08 §10 同一处理） |
 | protocol-only DTO | controller `@Body()`/`@Query()` 类型只能是 `z.infer<typeof X>`，`X` 来自 `@cordexjs/protocol` | module-map §4.2 第 1 条 |
 | append-only | `audit_log` 表的数据库角色无 `UPDATE`/`DELETE` 权限（迁移脚本层面授权，非仅应用层约定） | SV-07；硬规则 |
 | Provider 必跑契约套件（`scan-manifest` 规则 (e)，原称 `provider-runs-conformance`，rulings §4.18 GV-15） | 不适用——本模块全部仓储为普通 Nest DI，无 cordis Definition/Provider（§2.5 已述） | 对比 M-08 §2.5/M-09 §2.5 |
@@ -1119,11 +1122,12 @@ apps/server/test/                              端到端（跨模块）：Nest T
 | 迁移文件与文档逐字一致（2026-09-25 审稿登记） | `db/migrations/` 的文件集合 = 60/08–13 的 `-- migrate:` 围栏编号集合，文件名 = 围栏首行 + `.sql`，内容逐字节相同；不一致即失败 | 60/08 §11 第 6 条、§13 DB-13：首批迁移文件入库的同一 PR 实现（M1 第一个含 `0001_*.sql` 的 PR 给 `docs/_tools/ddl-check.sh` 增 `--migrations <dir>`、`--write-migrations <dir>`、`--sync-only`），由 `scanners/check-migrations-sync` 步骤 gated（不起容器；70/12 §7 激活表；`tooling/ci/steps.json` 与 40/01 §5.7 同 PR 登记）；挂 scanners 而不是 `test/server-integration` 的前置，因后者 M2 才激活（rulings §4.20 BE-03+TX-14） |
 | `cordex-ops` 入口只经模块公开导出（2026-09-26 登记，rulings §4.20 BE-06） | depcruise：`apps/server/src/ops/**` 只能 import 各模块 `*.module.ts` 的公开导出与 `config/`、`db/migrator.ts`，不得 import `modules/*/infrastructure/**` 或直接写表 | §4.13；60/17 §9 |
 | 驱动放行（2026-09-25 审稿登记） | `pg`、`drizzle-orm` 只在 `db/**` 与 `modules/*/infrastructure/**`；`ioredis`、`bullmq` 只在 `redis/**`、`modules/*/infrastructure/**`、`common/rate-limit/**` | 60/01 §11；`depcruise` |
+| 不装 Nest WS 包（2026-09-26，rulings §4.21 q-ws-gateway） | `apps/server/package.json` 不含 `@nestjs/platform-ws`、`@nestjs/websockets`，源码不出现 `WsAdapter`；`/metrics` 不依赖 `prom-client` | `depcruise`、依赖扫描；60-backend/19 §18 |
 | 09-type-discipline 章节 | 03-boundaries §3.3（L8 · node · app，与 M-08/M-09 共享秩 80） | module-map §9 BC-23…26 行 |
 
 ## 11. 里程碑与实施顺序
 
-**M0 骨架**：10 个 `*.module.ts`（含 `webhooks.module.ts`，rulings §4.12 U-14；实现推迟到 M3，见下；`telemetry.module.ts`，§4.18 BE-30） + 各 `domain/` 聚合/值对象类型（无实现）+ `common/`/`config/` 全部文件（异常过滤器/审计拦截器骨架可先 no-op）；`AppModule.forRole()` 按 60/01 §5 矩阵完成本模块 10 个模块的注册；§4.13 的应用骨架与基础设施（`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/` 的连接池、系统事务入口与迁移执行器骨架；原在已删除的 30-architecture/08 §2 目录树里，2026-09-25 审稿登记）由本模块提供，迁移 SQL 与 `db/schema/*.ts` 按 60/08 §9 的首次交付口径入库（0001、0002 为 M1，全部基线段随 M2 建立）；`jobs/infrastructure/queues.ts` 定义全部队列名但处理器为空实现；`config/config.schema.ts` 能让进程以 `--dry-run` 校验通过。
+**M0 骨架**：10 个 `*.module.ts`（含 `webhooks.module.ts`，rulings §4.12 U-14；实现推迟到 M3，见下；`telemetry.module.ts`，§4.18 BE-30） + 各 `domain/` 聚合/值对象类型（无实现）+ `common/`/`config/` 全部文件（异常过滤器/审计拦截器骨架可先 no-op）；`AppModule.forRole()` 按 60/01 §5 矩阵完成本模块 10 个模块的注册；§4.13 的应用骨架与基础设施（`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/` 的连接池、系统事务入口与迁移执行器骨架；原在已删除的 30/08 篇 §2 目录树里，2026-09-25 审稿登记）由本模块提供，迁移 SQL 与 `db/schema/*.ts` 按 60/08 §9 的首次交付口径入库（0001、0002 为 M1，全部基线段随 M2 建立）；`jobs/infrastructure/queues.ts` 定义全部队列名但处理器为空实现；`config/config.schema.ts` 能让进程以 `--dry-run` 校验通过。
 
 **M1**：`jobs`（`BaseProcessor`/`JobRunsRepository`/`GetJobUseCase` 完整）；`health`/`metrics`（探针与指标端点打通，依赖 M-08/M-09 骨架服务）；`audit`（`AuditInterceptor`+`RecordAuditEventUseCase`+`AuditEventSubscriber` 打通，覆盖 M-08 usecase 的 `@Audited()` 标注点）；`common/`/`config/` 完整（含限流/异常过滤器真实实现）。
 
@@ -1152,23 +1156,39 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 | G-23 | module-map §3 BC-26 行 vs 09 §4.3 | module-map 把 `cordis-host/adapters/{pino-logger,otel-telemetry,errors-reporter}.adapter.ts` 同时列入 BC-26（本模块）承载包，但 09 §4.3 已明确裁定三文件"物理归属"M-09；本文档遵照任务书指示只引用不重复定义，§3/§4 记录本模块在该目录新增 0 个文件 | **已结案（2026-09-18，跨模块评审 C-10）**：`cordis-host/adapters/*` 物理归属 M-09，本模块的引用（非新增）性质确认无误；00-module-map §7 M-12 行"覆盖的包与目录"由总编排回写加注"（引用，非新增，物理归属 M-09）" |
 | G-24 | `@cordexjs/protocol` 目录树（M-02 §4.3/§5.3）、10-observability-and-errors §1.1 domain 清单 | `rest/` 缺 `thumbnails.ts`/`comments.ts`/`webhooks.ts`（`webhooks.ts` 为 rulings §4.12 U-14 新增）；`errors/codes.ts` 的 domain 清单未列 `server.thumbnails`/`server.comments`/`server.audit`/`server.import`/`server.export`/`server.webhook`（`server.jobs` 已列） | 建议 M-12 实现期在 `@cordexjs/protocol` 内直接新增 `rest/{thumbnails,comments,webhooks}.ts` 三文件并向 `ErrorCodes` 追加六个 domain 的声明合并（沿用 M-08 §12 G-7 处理方式：先在包内新增，事后知会 M-02/架构 10 文档维护者回补目录清单）；`rest/webhooks.ts` 一项已由总编排回写 `40-modules/02` §4/§5（新增建议→已采纳） |
 | G-25 | module-map §3 BC-26 行 vs 09 §2.4/§3.1 | module-map 把本模块订阅的事件写作 `collab/repair`；M-09 §2.4/§3.1 实际发布的事件名是 `collab-server/repair`（与 `collab-server/room-opened` 等三个事件同前缀） | **已结案（2026-09-18，跨模块评审 C-08）**：`collab-server/repair`/`collab-server/update-rejected` 为准（`collab-server` 域已提请收编进 charter §5.5/03 §3.6 保留域名单）；本文档 §2.4/§7.3 已按此订阅；module-map §3 BC-26 行由总编排回填修正 |
-| G-26 | 09 §2.5（`ThumbnailRenderer` 定义为"M-12 的 BullMQ 处理器是唯一调用方"）vs 09 §6（对外 API 面表未列 `ThumbnailRenderer`）；08-backend-nestjs §2 写作 `server-headless.renderThumbnails` | `@cordexjs/server-headless` 的公开导出（`createHeadlessHost`/`importPptx`/`exportPptx`/`validateSnapshotTask`/`migrateTask`/`diffSnapshots`/`HeadlessJobContext`）不含任何获取 `ThumbnailRenderer` 实例的方式，且 08 号文档符号名 `renderThumbnails` 与 09 号文档定义的 `ThumbnailRenderer.render()`/`.renderPdf()` 方法形态不一致 | **已结案（2026-09-18，跨模块评审 C-09）**：`HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`，M-09 §6 已补齐该导出；`renderThumbnails` 符号名作废；本文档 §5.3 `headless-renderer.accessor.ts` 已按此实现，§13 Q-1 同步结案 |
+| G-26 | 09 §2.5（`ThumbnailRenderer` 定义为"M-12 的 BullMQ 处理器是唯一调用方"）vs 09 §6（对外 API 面表未列 `ThumbnailRenderer`）；原 30/08 篇 §2 写作 `server-headless.renderThumbnails` | `@cordexjs/server-headless` 的公开导出（`createHeadlessHost`/`importPptx`/`exportPptx`/`validateSnapshotTask`/`migrateTask`/`diffSnapshots`/`HeadlessJobContext`）不含任何获取 `ThumbnailRenderer` 实例的方式，且 08 号文档符号名 `renderThumbnails` 与 09 号文档定义的 `ThumbnailRenderer.render()`/`.renderPdf()` 方法形态不一致 | **已结案（2026-09-18，跨模块评审 C-09）**：`HeadlessHost` 增只读字段 `thumbnails: ThumbnailRenderer`，M-09 §6 已补齐该导出；`renderThumbnails` 符号名作废；本文档 §5.3 `headless-renderer.accessor.ts` 已按此实现，§13 Q-1 同步结案 |
 | G-27（回应 module-map §10 Q-M4） | module-map §6.1（BC-25 暂定 `parametrized`） | module-map §6.1 把 BC-25 标为 `parametrized`（理由：评论锚点形状随文档类型变化），并在 §10 Q-M4 明确留待"总编排/12 号文档作者正式确认" | 本文档裁定改判为 `generic`：锚点形状的可变性通过把 `comments/domain/anchor.ts` 的 `Anchor` schema 设计为开放判别联合来吸收（§8），本模块仓储/controller/观察者代码本身对锚点字段语义零感知、零分支，doc/sheet 扩展时零改动；建议 module-map §6.1/§10 采纳本文档结论并将 Q-M4 标记已解决 |
-| G-28（新增建议） | 08-backend-nestjs §12 预算表 | 该表未给 `/readyz` 判定延迟预算 | 本文档 §9 新增"`/readyz` 判定 ≤ 200 ms"预算，建议补入 08 号文档 §12，登记于 §13 Q-8 |
-| G-29 | 08-backend-nestjs §7（"并发 2/进程"）vs §16.5（"导入/导出并发默认 4/实例（§7 表中的 2 作废）"） | 同一文档内两处并发数字冲突，§16.5 显式声明覆盖 §7 | 本文档 §11/§5 一律采纳 §16.5 的 4；建议 08 号文档下次修订直接删除 §7 表格旧数字而非仅在 §16.5 声明作废，避免继续被引用。**→ 2026-09-25 已执行**：08 §7 队列表与队列图改为「并发 4/实例（部署可调）」，§16.5 的「§7 表中的 2 作废」括注删除（rulings §4.18 BE-28） |
-| G-30（新增建议） | 08-backend-nestjs §16.3（"`pdf.processor`（与 `thumbnails.processor` 同池）"）未指派 Nest 模块归属 | PDF/PNG/JPEG 导出与缩略图共享 headless Chromium 池，但两号文档均未明确该 processor 物理归属哪个 Nest 目录 | 本文档裁定归属 `thumbnails` 模块（持有 Chromium/`ThumbnailRenderer` 访问权），经 `RenderExportProducerService` 供 `import-export` 模块的 `ExportsController` 跨模块调用（§3/§7.1）；建议采纳，登记于 §13 Q-4。**队列名（2026-09-24 复核 M14）**：PDF/PNG/JPEG 统一走 `render-export` 队列（与 ADR-0026 一致），架构 08 的 `pdf` 队列名/`pdf.processor` 作废 |
+| G-28（新增建议） | 原 30/08 篇 §12 预算表（现 60/01 §12） | 该表未给 `/readyz` 判定延迟预算 | 本文档 §9 新增"`/readyz` 判定 ≤ 200 ms"预算，建议补入 08 号文档 §12，登记于 §13 Q-8 |
+| G-29 | 原 30/08 篇 §7（"并发 2/进程"）vs §16.5（"导入/导出并发默认 4/实例（§7 表中的 2 作废）"） | 同一文档内两处并发数字冲突，§16.5 显式声明覆盖 §7 | 本文档 §11/§5 一律采纳 §16.5 的 4；建议 08 号文档下次修订直接删除 §7 表格旧数字而非仅在 §16.5 声明作废，避免继续被引用。**→ 2026-09-25 已执行**：08 §7 队列表与队列图改为「并发 4/实例（部署可调）」，§16.5 的「§7 表中的 2 作废」括注删除（rulings §4.18 BE-28） |
+| G-30（新增建议） | 原 30/08 篇 §16.3（"`pdf.processor`（与 `thumbnails.processor` 同池）"）未指派 Nest 模块归属 | PDF/PNG/JPEG 导出与缩略图共享 headless Chromium 池，但两号文档均未明确该 processor 物理归属哪个 Nest 目录 | 本文档裁定归属 `thumbnails` 模块（持有 Chromium/`ThumbnailRenderer` 访问权），经 `RenderExportProducerService` 供 `import-export` 模块的 `ExportsController` 跨模块调用（§3/§7.1）；建议采纳，登记于 §13 Q-4。**队列名（2026-09-24 复核 M14）**：PDF/PNG/JPEG 统一走 `render-export` 队列（与 ADR-0026 一致），架构 08 的 `pdf` 队列名/`pdf.processor` 作废 |
 | G-31（新增建议） | PRD `06-server-and-ops.md` SV-13（`fill-template`/`convert`/`validate`/`migrate` 四种作业类型） | SV-13 依赖能力写"`server-headless`、`commands`（模板填充命令）"；`convert`/`validate`/`migrate` 可直接映射到 M-09 已导出的 `exportPptx`/`validateSnapshotTask`/`migrateTask`，但 `fill-template` 没有对应的既有任务导出，且哪个 Nest 模块承载该 REST 面未定 | **已结案（2026-09-19，rulings §4.12 U-13）**：四种作业类型均并入 `import-export` 模块，不新设 `modules/automation/`；`fill-template` 经既有 `HeadlessJobContext` + M-02 `commands.execute()` 编排，不需 M-09 新增任务导出；具体 usecase/队列/REST 细节留待 M4 一并设计（§2.6 已加占位行） |
-| G-32（U-14 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-14 | CO-04"评论事件交给集成方"客户端回调 vs 服务端 Webhook 二选一未定（Q-6） | **已落地（2026-09-19）**：两者 M3 都做——新增 `webhooks` Nest 模块（BC-25 关联，独立于 `comments`）——聚合 `WebhookSubscription`/`WebhookDelivery`（§2.1）、注册/更新/删除订阅+投递+投递日志查询用例（§2.6）、目录树与文件表 §4.11/§5.11（13 个文件）、protocol `rest/webhooks.ts`（§7.2）；`comments/application/mirror-comment-change.usecase.ts` 接入投递；新增跨文档「@我」REST `list-my-mentions.usecase.ts`；M3 交付切片见 §11；架构 `08-backend-nestjs.md` §5 补 `webhook_subscriptions`/`webhook_deliveries` 两表；PRD `06-server-and-ops.md` SV-15 提前到 M3、`03-collaboration.md` CO-04、`05-milestones-and-scope.md` M3 同步 |
-| G-33（U-15 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-15 | `audit_log` 哈希链（SV-07"不可篡改…P1：哈希链"）是否 M3 实现未定（Q-9） | **已落地（2026-09-19）**：M3 即实现——`AuditEntry` 新增 `prevHash`/`hash`（§2.1）、纯函数 `chainHash`（§2.3）、用例链式写入/校验工具/每日封存作业（§2.6）、新增文件 `audit-chain.ts`/`verify-chain.usecase.ts`/`seal.job.ts`（§4.5/§5.5）；M3 交付切片见 §11；架构 `08-backend-nestjs.md` §5 `audit_log` 补 `prev_hash`/`hash` 字段；PRD `06-server-and-ops.md` SV-07 P1 哈希链提前到 M3 |
+| G-32（U-14 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-14 | CO-04"评论事件交给集成方"客户端回调 vs 服务端 Webhook 二选一未定（Q-6） | **已落地（2026-09-19）**：两者 M3 都做——新增 `webhooks` Nest 模块（BC-25 关联，独立于 `comments`）——聚合 `WebhookSubscription`/`WebhookDelivery`（§2.1）、注册/更新/删除订阅+投递+投递日志查询用例（§2.6）、目录树与文件表 §4.11/§5.11（13 个文件）、protocol `rest/webhooks.ts`（§7.2）；`comments/application/mirror-comment-change.usecase.ts` 接入投递；新增跨文档「@我」REST `list-my-mentions.usecase.ts`；M3 交付切片见 §11；原架构 08 篇 §5 补 `webhook_subscriptions`/`webhook_deliveries` 两表；PRD `06-server-and-ops.md` SV-15 提前到 M3、`03-collaboration.md` CO-04、`05-milestones-and-scope.md` M3 同步 |
+| G-33（U-15 落地） | `40-modules/14` §6.1；用户裁决 rulings §4.12 U-15 | `audit_log` 哈希链（SV-07"不可篡改…P1：哈希链"）是否 M3 实现未定（Q-9） | **已落地（2026-09-19）**：M3 即实现——`AuditEntry` 新增 `prevHash`/`hash`（§2.1）、纯函数 `chainHash`（§2.3）、用例链式写入/校验工具/每日封存作业（§2.6）、新增文件 `audit-chain.ts`/`verify-chain.usecase.ts`/`seal.job.ts`（§4.5/§5.5）；M3 交付切片见 §11；原架构 08 篇 §5 `audit_log` 补 `prev_hash`/`hash` 字段；PRD `06-server-and-ops.md` SV-07 P1 哈希链提前到 M3 |
 | G-34（S-5 落地） | `40-modules/00-module-map.md` §3/§4.1/§6.1/§7；评审 `15-server-architecture-review.md` §3.10 | `webhooks` 此前未登记独立限界上下文编号，寄生于 BC-25 | **已落地（2026-09-21）**：module-map 新增 `### BC-30 出站集成（Webhook）`，§4.1 关系表补 BC-25→BC-30、BC-30→外部集成方两行，§6.1 通用性分类补 `generic`，§7 M-12 行"覆盖上下文"改为 BC-23/24/25/26/30；本文档 §0/§1.1/§1.3 同步补充（`40-modules/00-module-map.md`；本文档 §0/§1.1/§1.3）。**结案依据**：用户裁决 rulings §4.13 S-5 |
 | G-35（S-4 落地） | 评审 `15-server-architecture-review.md` §3.8 | Webhook 出站请求缺 SSRF 防护 | **已落地（2026-09-21）**：新增 `webhooks/infrastructure/egress-guard.ts`（订阅创建/更新尽力校验、每次投递前关键防线校验，解析后锁定 IP 防 DNS 重绑定）；`config/config.schema.ts` 新增 `webhookEgressAllowlist` 部署级放宽白名单项（自托管场景）；§2.1/§2.3/§2.5/§2.6/§4.11/§5.11 已同步。**结案依据**：用户裁决 rulings §4.13 S-4 |
 | G-36（S-2 落地，M-12 部分） | 评审 `15-server-architecture-review.md` §3.3 | SV-11 硬删除级联在 M-12 无归属用例 | **已落地（2026-09-21）**：`thumbnails`/`comments` 各自新增 `purge-document-{thumbnails,comments}.usecase.ts`，响应 `documents`（M-08）编排触发的宽限期满调度，清理各自表；`permissions`/`media` 归 M-08，`document_updates`/`document_snapshots` 归 M-09，不在本模块范围；§2.6/§4.3/§4.4/§5.3/§5.4/§7.3 已同步。**结案依据**：用户裁决 rulings §4.13 S-2 |
 | G-37（§3.5 落地） | 评审 `15-server-architecture-review.md` §3.5 | 作业入队与 Webhook 投递缺少 Outbox 保证 | **已落地（2026-09-21）**：`jobs` 模块新增 `infrastructure/reconciliation.job.ts` 定期扫描孤儿 `job_runs`/`webhook_deliveries` 行（已写库未入队或入队后消失）重新入队并告警；判定逻辑拆出纯函数 `isOrphanedQueueRow`（§2.3）；§2.6/§4.1/§5.1 已同步；跨模块消费 `webhooks` 表需要 `WebhooksModule` 补一个仓储/查询导出面，本文档 §3 尚未补（追加建议，非本轮范围）。**结案依据**：rulings §4.13"同时确认"段（评审 §3 其余问题按 §4.4 执行）；§3 导出面已补（`WebhooksModule` 导出 `WebhookRepository`、`JobsModule` 增 imports，2026-09-21 总编排） |
 | G-38（§3.9 落地） | 评审 `15-server-architecture-review.md` §3.9 现状 A | `comments` 的 `anchor->>'slideId'` 具名索引与 `generic` 判定字面矛盾 | **已落地（2026-09-21）**：新增生成列 `anchor_key`（`domain/anchor.ts` 的 `deriveAnchorKey` 纯函数按判别式提取，不依赖具体字段名）替代具名字段索引；DDL 归属架构 08 §5（由另一路回写员落地）；§2.1/§2.3/§2.5/§4.4/§5.4/§8 已同步。**结案依据**：rulings §4.13"同时确认"段。**→ 2026-09-25**：`anchor_key` 是应用层派生列（`comment-mirror` 写入时计算），不是 PG 生成列（rulings §4.18 BE-25） |
 
-| G-39（T-0 落地） | rulings §4.15 T-0；原 `job_runs`/`audit_log`/`webhook_subscriptions` 的 `tenant_id`、「租户管理员」措辞 | 单组织完全去租户 | **已落地（2026-09-24）**：`JobRun`/`AuditEntry`/`WebhookSubscription` 去 `tenantId`（§2.1），`WebhookRepository`/`DeliverWebhookEventUseCase` 去租户参数（§2.5/§6），审计查询/哈希链校验/Webhook 管理/管理动作改由平台管理员（部署级 admin，M-08 `PlatformAdminGuard`）执行（§1.1/§2.6/§4/§5），`RetentionPolicy` 改部署配置；`job-runs.repository.ts` 的约束改为扫描器 `doc-access-via-permission`（M-01 配合改名）；架构 `08-backend-nestjs.md` §5 相关表需删 `tenant_id` 列 |
+| G-39（T-0 落地） | rulings §4.15 T-0；原 `job_runs`/`audit_log`/`webhook_subscriptions` 的 `tenant_id`、「租户管理员」措辞 | 单组织完全去租户 | **已落地（2026-09-24）**：`JobRun`/`AuditEntry`/`WebhookSubscription` 去 `tenantId`（§2.1），`WebhookRepository`/`DeliverWebhookEventUseCase` 去租户参数（§2.5/§6），审计查询/哈希链校验/Webhook 管理/管理动作改由平台管理员（部署级 admin，M-08 `PlatformAdminGuard`）执行（§1.1/§2.6/§4/§5），`RetentionPolicy` 改部署配置；`job-runs.repository.ts` 的约束改为扫描器 `doc-access-via-permission`（M-01 配合改名）；原架构 08 篇 §5 相关表需删 `tenant_id` 列 |
 | G-40（Q8 落地） | rulings §4.15 Q8；ADR-0026；原 §11 M2 切片正文与验收命令矛盾 | M2 服务端无 headless 渲染，却验收「首页缩略图 ≤ 10 s」；缩略图失效只按 `snapshotSeq` 会导致未改页重渲 | **已落地（2026-09-24）**：`Thumbnail.source`（embedded/server；`client` 已取消，复核 L11；→ 2026-09-25：领域层不产生 `client`，DB 约束按 ADR-0026 决策 4 保留该位，rulings §4.18 BE-26）、`ThumbnailKey.contentHash`（按页内容哈希失效）、新增 `domain/embedded-cover.ts`（只头校验不解码、不用 sharp），M2 用包内封面过渡，M3 前半段 headless（≤ 10 s / D200 ≤ 90 s），M3 后半段 PDF；`render-export` 队列优先级与配额；S-2 purge 覆盖 embedded（§2.1/§2.2/§2.3/§2.6/§4.3/§5.3/§9/§11）。M-11 `DocumentCardVM.thumbnailUrl` 的 provisional 标记、M-07 `server-png` Provider 识别 provisional 需配合 |
 | G-41（Q10 落地） | rulings §4.15 Q10、Q9 | 进程角色只有 api/collab/worker，无单容器 `all` 与独立 `renderer`；测试栈仍写 MinIO/Redis | **已落地（2026-09-24）**：`roles.ts` 补 `all`/`renderer`（§4.10/§5.10/§7.1/图 7-1）；testcontainers 改 Postgres 18/Valkey/SeaweedFS（§9）；镜像基线 Node 26、M3 出口断网 compose e2e/digest/SBOM/许可门禁（§11）；启动期角色一致性断言（09 §12 G-25）需同步覆盖新角色 |
+
+### 2026-09-26 回写（rulings §4.21 复用组件、Nest 12 与 Hocuspocus 连带修改）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| H docPlan（40/12 §4、§5）；rulings §4.21 q-ws-gateway | §4.13 `main.ts`、§5.13 `main.ts` 行、§10「不装 Nest WS 包」 | collab/all 不再注册 `WsAdapter`，删 `@nestjs/platform-ws` 依赖；WS 升级由 M-09 协同接入层在 `app.getHttpServer()` 的 `upgrade` 事件上自挂 ws（noServer）交给 Hocuspocus，listen 之前挂好 |
+| q-nest-major（Nest 12） | §4.13 `main.ts`、`observability/otel.ts`；§5.13 对应行与 `observability.module.ts` | Nest 12 纯 ESM；OTel 改由容器入口 `node --import ./dist/observability/otel.js` 预加载，`main.ts` 不再首个 import otel；按需仪表化 + `@fastify/otel`，`instrumentation-nestjs-core` 暂不启用（ADR-0030 修订） |
+| R-d-48（`/metrics`） | §4.7、§5.7 `prometheus-registry.provider.ts` | `prom-client` 改为 `@opentelemetry/exporter-prometheus`（`preventServerStart`），以 60/18 为准；文件名不变 |
+| R-d-44（限流） | §4.9、§5.9 `redis-token-bucket.ts` | 维持自研 Valkey Lua 令牌桶，写明不用 `rate-limiter-flexible` 的理由 |
+| R-d-42（cron） | §4.13 子命令表、`ops/cli.ts` | 补登 `cordex-ops cron`（`croner` 常驻调度 `audit-rotate`）；参数解析用 `commander` |
+| q-webhook-sig | §4.11、§5.11 `webhook-signer.ts`、`deliver-webhook-event.usecase.ts`；§9 `webhooks-delivery.e2e-spec.ts` | 签名改为 Standard Webhooks（`webhook-id`、`webhook-timestamp`、`webhook-signature: v1,<base64>`），`node:crypto` 实现，不引 `standardwebhooks` 包 |
+| R-d-53（出站） | §4.11、§5.11 `egress-guard.ts`；§5.12 `otlp-proxy.service.ts` | 判段用 `ipaddr.js`，出站统一 `undici` |
+| q-db-access（B1 结案） | §4.13 `db/schema/*.ts` 说明、§5.13 `db/schema/index.ts` 行 | 手写 drizzle 镜像（0.45.x），漂移检查直查 `pg_catalog`（60/08 §10.1） |
+| 单版本例外 | §5.13 `redis/redis.module.ts` | M3 起 extension-redis 经 `createClient` 注入 6.0.x 客户端；它自带的 ioredis 5.6.x 只加载不建连（60-backend/19 §3.2） |
+
+本轮 §4 目录树与 §5 逐文件表都没有增删文件，只改注释与依赖列，validate-module 的「§4 文件数 = §5 行数」不变。
 
 ### 2026-09-26 回写（rulings §4.20 遗留小项收口）
 
@@ -1184,10 +1204,10 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 
 | 依据 | 改动位置 | 摘要 |
 |---|---|---|
-| rulings §4.19（30-architecture/08 §2 目录树删除，目录树唯一源改为 40-modules §4）；60/01 §3 基础模块清单 | §0、§1.1、§3、§4.13、§5.13、§11 | `main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像 17 个、迁移 SQL）在 40-modules 没有文件级登记，按本模块既有惯例归入新增的「应用骨架与基础设施」小节；§4 与 §5 各增 31 项，差值不变 |
+| rulings §4.19（原 30/08 篇 §2 目录树删除，目录树唯一源改为 40-modules §4）；60/01 §3 基础模块清单 | §0、§1.1、§3、§4.13、§5.13、§11 | `main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像 17 个、迁移 SQL）在 40-modules 没有文件级登记，按本模块既有惯例归入新增的「应用骨架与基础设施」小节；§4 与 §5 各增 31 项，差值不变 |
 | 60/08 §6.5「`SystemJobName` 落点由 40 登记」、§10.1–§10.5 | §4.6/§5.6 `pg.probe.ts`、§4.13/§5.13 `db/system-jobs.ts`、`db/migrator.ts` | 登记 `SystemJobName` 落点；`/readyz` 的迁移判据经 `migrator.checkApplied` 进入 `PgProbe` |
 | 60/08 §11 第 6 条、§13 DB-13（待实现） | §9、§10、§5.13 | 迁移文件与文档围栏逐字一致：内容以 60/08–13 为唯一事实源，由 `docs/_tools/ddl-check.sh` 在实现期扩展为对比 `db/migrations/` |
-| rulings §4.19（历史引用改指：30-architecture/08 §2 草图已删） | §4.10/§5.10 `config.schema.ts`、§11 | 「08-backend-nestjs §2 骨架的权威落点」改指 60/17 §5–§6；M0 根装配改指 §4.13 |
+| rulings §4.19（历史引用改指：原 30/08 篇 §2 草图已删） | §4.10/§5.10 `config.schema.ts`、§11 | 「原 30/08 篇 §2 骨架的权威落点」改指 60/17 §5–§6；M0 根装配改指 §4.13 |
 | — | §13 Q-10 | `cordex-ops` 入口与其余子命令的落点待登记 |
 
 ### 2026-09-25 回写（rulings §4.19 三条设计线拆分与遗留取舍）
@@ -1255,10 +1275,10 @@ curl -f http://localhost:$PORT/healthz && curl -f http://localhost:$PORT/readyz
 | Q-1 | ~~`ThumbnailRenderer` 的 `@cordexjs/server-headless` 对外导出形态未定~~（G-26）**（结案，2026-09-18）** | `HeadlessHost` 增加只读字段 `thumbnails: ThumbnailRenderer`。**结案依据**：跨模块评审 C-09 采纳本行推荐默认值 | M-09 `server-headless/interface/host/create-server-host.ts`；本模块 `headless-renderer.accessor.ts` |
 | Q-2 | ~~`collab-server/repair` 与 module-map BC-26 行 `collab/repair` 命名不一致~~（G-25）**（结案，2026-09-18）** | 以 M-09 §2.4 实际发布名 `collab-server/repair` 为准，module-map 回填。**结案依据**：跨模块评审 C-08 采纳本行推荐默认值 | module-map §3 BC-26 行；本模块 `audit-event.subscriber.ts` |
 | Q-3 | ~~SV-13 四种作业类型的 Nest 模块归属（G-31）~~ **（结案，2026-09-19）** | **四者均并入 `import-export`**（细节 M4 一起定），不新设 `modules/automation/`。**结案依据**：用户裁决 rulings §4.12 U-13 | `import-export/` 目录树（§2.6 占位行，M4） |
-| Q-4 | PDF/PNG/JPEG 导出物理归属 `thumbnails` 模块是本文档设计判断（G-30），是否需总编排/08 号文档正式采纳 | 采纳（复用 Chromium 池成本最低） | 08-backend-nestjs §1/§2；本文档 §3/§7 |
+| Q-4 | PDF/PNG/JPEG 导出物理归属 `thumbnails` 模块是本文档设计判断（G-30），是否需总编排/08 号文档正式采纳 | 采纳（复用 Chromium 池成本最低） | 60/01 §3；本文档 §3/§7 |
 | Q-5 | `comments/domain/anchor.ts` 的判别联合精确形状（页/元素/文本范围三种现状 + 未来 doc/sheet 分支）由谁在 M3 定稿 | 本模块与 M-09/客户端 `comments` 插件联合定稿，落 `@cordexjs/protocol` `rest/comments.ts`（G-24） | `comments/domain/anchor.ts`；`@cordexjs/protocol` |
 | Q-6 | ~~CO-04"评论事件通过事件回调交给集成方"的精确机制——客户端 EM-05 回调 vs 服务端 SV-15 Webhook，M3 范围如何取舍（§2.4/§2.6）~~ **（结案，2026-09-19）** | **两者 M3 都做**：客户端 EM-05 回调（不在本模块范围）+ 服务端 SV-15 Webhook（注册/签名/重试/死信，新增 `webhooks` 模块）+ 服务端跨文档「@我」REST。**结案依据**：用户裁决 rulings §4.12 U-14，落地见 §2.1/§2.4/§2.6/§4.11/§5.11/§11/§12 G-32 | `comments/application/mirror-comment-change.usecase.ts`；`webhooks/` 全模块 |
-| Q-7 | 导入/导出并发默认值 2 vs 4 的最终口径（G-29） | 采纳 08-backend-nestjs §16.5 的 4/实例 | `jobs/infrastructure/queues.ts` |
-| Q-8 | `/readyz` 判定延迟预算 200 ms（G-28）是否需正式写入 08-backend-nestjs §12 | 是 | 08-backend-nestjs.md §12 |
+| Q-7 | 导入/导出并发默认值 2 vs 4 的最终口径（G-29） | 采纳 4/实例（原 30/08 篇 §16.5，现 60-backend/06 §1） | `jobs/infrastructure/queues.ts` |
+| Q-8 | `/readyz` 判定延迟预算 200 ms（G-28）是否需正式写入原 30/08 篇 §12（现 60/01 §12） | 是 | 60/01 §12 |
 | Q-9 | ~~`audit_log` 哈希链（SV-07"不可篡改…P1：哈希链"）是否在 M3 范围内实现~~ **（结案，2026-09-19）** | **M3 即实现**：`prevHash`/`hash` 链式校验 + `chainHash` 纯函数 + 校验工具 + 每日封存作业；与数据库角色权限隔离并行生效。**结案依据**：用户裁决 rulings §4.12 U-15，落地见 §2.1/§2.3/§2.6/§4.5/§5.5/§11/§12 G-33 | `audit/domain/audit-entry.ts`；`audit/domain/audit-chain.ts`；`audit.repository.ts` |
 | Q-10（新增，2026-09-25 审稿；**结案，2026-09-26，rulings §4.20 BE-06**：按本行推荐登记于 §4.13 子命令对照表、§5.13 `ops/cli.ts` 行与 §10 depcruise 行，另加 `config:check` → `config/`、`documents:reassign-owner` → M-08 `PermissionsModule`（BE-05）） | ~~`cordex-ops` 第二入口（60/17 §9：`db:bootstrap`、`db:migrate`、`db:status`、`storage:init`、`audit-rotate`、`audit-verify`、`jobs:replay`、`webhooks:replay`、`thumbnails:rebuild`、`config:check`）的入口文件与各子命令实现落点未登记；§4.13 只登记了 `db:*` 三个子命令的实现 `db/migrator.ts`~~ | 入口放在本模块应用骨架下（`apps/server/src/ops/cli.ts`，与 `main.ts` 同级、共用 `config/` 解析），每个子命令只调用表或能力所属模块导出的用例（`storage:init` → M-08 `StorageModule`，`audit-*` → `AuditModule`，`jobs:replay` → `JobsModule`，`webhooks:replay` → `WebhooksModule`，`thumbnails:rebuild` → `ThumbnailsModule`），不在入口里直接写表；随 M2 的 `migrate` 一次性服务落地前补进 §4.13 / §5.13 | §4.13、§5.13；60/17 §9；M-08 `storage/` |

@@ -1,8 +1,8 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22）） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22））；2026-09-26（§4.21：SV-05 协同网关改由 Hocuspocus 4 实现后的行为级核对，用户可见行为不变；多实例改为 extension-redis 加文档哈希偏好亲和；重连差量单设 16 MiB；SV-15 Webhook 签名改为 Standard Webhooks）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：正文与图 1-1 的 `apps/server` 改为 NestJS 12（纯 ESM，Fastify 5），q-nest-major） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、q-webhook-sig、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-step2-cap）
 
 # 功能域 06：服务端能力与运维
 
-> 需求编号前缀 `SV-`。服务端 = `apps/server`（NestJS 11 传输壳）+ `server-collab`/`server-storage`/`server-headless`（业务逻辑，章程 D8、R4）。本文定义服务端对外提供的产品能力（导入导出、快照、缩略图、审计、配额）与运维/管理员的需求；模块划分、存储结构、部署拓扑由架构 08 与 ADR-0022/0023 决定。
+> 需求编号前缀 `SV-`。服务端 = `apps/server`（NestJS 12 传输壳：纯 ESM，Fastify 5；rulings §4.21 q-nest-major）+ `server-collab`/`server-storage`/`server-headless`（业务逻辑，章程 D8、R4）。本文定义服务端对外提供的产品能力（导入导出、快照、缩略图、审计、配额）与运维/管理员的需求；模块划分、存储结构、部署拓扑由后端架构 60/01 与 60-backend 各篇、ADR-0022/0023 决定。
 
 ---
 
@@ -23,7 +23,7 @@
 ```mermaid
 flowchart TB
   fe["集成方/前端"]
-  subgraph server["apps/server：NestJS 11"]
+  subgraph server["apps/server：NestJS 12（纯 ESM，Fastify 5）"]
     auth["Auth"]
     docs["Documents"]
     gw["Collab Gateway"]
@@ -212,22 +212,34 @@ flowchart TB
 
 ### SV-05 协同网关
 
-- 优先级：P0 | 目标里程碑：M2（单实例：握手、Room 生命周期与按权重准入、门禁、两级 ack、Postgres 故障溢写与降级期广播、`room.persist` 信号、awareness 中继、消息限额，rulings §4.19 D-M2-CONTENT）/ M3（多实例扇出与跨实例传播、容量验收、名额按用户计与满员只读、优雅停机跨实例重连、溢写行认领回放） | 依赖能力：`server-collab`（房间、awareness 广播、跨实例 pub/sub）、`protocol`（WS 帧、握手）、Valkey（Redis 协议兼容）
+- 优先级：P0 | 目标里程碑：M2（单实例：握手、Room 生命周期与按权重准入、门禁、两级 ack、Postgres 故障溢写与降级期广播、`room.persist` 信号、awareness 中继、消息限额，rulings §4.19 D-M2-CONTENT）/ M3（多实例扇出与跨实例传播、容量验收、名额按用户计与满员只读、优雅停机跨实例重连、溢写行认领回放） | 依赖能力：`server-collab`（§4.21 起为嵌入 Nest 的 Hocuspocus 4 加自有扩展：房间、门禁与先落库、awareness 中继、控制面，[ADR-0039](../../30-architecture/adr/0039-collab-server-hocuspocus.md)）、`protocol`（CONTROL 载荷、认证字段）、Valkey（Redis 协议兼容；M3 起承载 `@hocuspocus/extension-redis` 的跨实例同步）
 - 验收标准：
   - 房间生命周期：首个连接创建、最后一个连接离开后延迟 60 s 销毁（期间保留内存状态以应对快速重连）；房间状态可查询（管理 API）。
   - 握手：令牌校验（EM-03）、文档能力位加载、容量检查（20 编辑者 + 50 查看者，名额按用户计、owner 不占编辑者名额、commenter 计查看者，CO-01；超限只读加入，再超 → `collab.room_full`，关闭码 4503）、协议版本协商（不兼容 → `collab/auth-failed{code: collab.protocol_mismatch}`，关闭码 4427）。
   - 门禁：硬门禁（应用前）与软门禁（应用后，ADR-0034：`softGate.mode = repair`、`schemaMode = report-only`）的行为与用户可见结果见 CO-12。
   - 权限即时性：权限变更事件（来自 Documents 模块；M4 起也可来自集成方回调）在 ≤ 2 s 内推送到房间内该用户的所有连接，降级为只读或断开。
-  - 消息限制：单消息 ≤ 1 MB；速率 ≤ 200 msg/s/连接；awareness 广播节流 ≥ 50 ms；超限限流并记录。
+  - 消息限制：单消息 ≤ 1 MB（重连时的一次差量同步单设 ≤ 16 MiB，超限提示导出本地副本，rulings §4.21 H:q-hp-step2-cap）；速率 ≤ 200 msg/s/连接；awareness 广播节流 ≥ 50 ms；超限限流并记录。
   - 连接限制（rulings §4.20 BE-01+TX-03）：WS 升级按来源 IP 限流，**先扣后退**——Origin 校验通过后、升级前扣 1 次额度，票据验签通过即退还（之后因满员、文档不可用等准入规则被拒也已退还），票据无效或重放、5 s 内未发认证、协议不符、升级后未认证就断开的不退；所以该额度实际只约束未通过认证的升级，同一办公出口 IP 后的多人集体重连不被它拖慢。另设每用户单实例并发连接上限（默认 32，部署可调），超出时拒绝认证（`collab.rate_limited`，关闭码 4429），客户端按常规退避重连。数值与配置键以 `60-backend/16` §1、§13 为准。
-  - 多实例：同一文档的连接可落在不同实例，通过 Valkey（Redis 协议）pub/sub 转发 update 与 awareness；跨实例传播 ≤ 50 ms（同机房）。
+  - 多实例：同一文档的连接可落在不同实例；反代按 documentId 一致性哈希**偏好**把同一文档的连接送到同一实例（按文档哈希的偏好亲和，不是会话粘性，扩缩容时部分文档迁移），跨实例状态经 Valkey（Redis 协议）由 `@hocuspocus/extension-redis` 同步 update 与 awareness（rulings §4.21 H:q-hp-fanout）；跨实例传播 ≤ 50 ms（同机房）。Valkey 故障时各实例内协同照常、服务进程不退出，跨实例同步暂停，恢复后自动补齐（NF-03）。
   - 房间准入（rulings §4.15 Q5）：按文档**实测权重**准入（Y 结构数或堆估算，乘以 ADR-0035 的副本数），不再用固定 MB/房间；实测基线 D200 ≈ 85 MB、D50 ≈ 17.8 MB（墓碑计入）。满员房间由服务端合并 awareness tick，查看者只上报视图。
   - 容量（collab 单实例 2 vCPU / 4 GB，RM-S）：≥ 2,000 并发 WS；活跃房间数按文档规模分档、按文档实测权重准入（见上条；各档房间数 M1 实测后回填，只收紧；原「RSS > 75% 时新房间转其它实例」的**判定方式**作废，rulings §4.15 Q5；75% 作为权重预算比例保留——实例内存预算 = 容器内存上限（cgroup 限额，无限额取物理内存）× `room.memoryAdmissionPct`（默认 75，部署可调），rulings §4.18 BE-29）；p95 广播延迟 ≤ 100 ms、CPU < 70%。
   - 优雅停机：收到 SIGTERM 后停止接受新连接、通知客户端重连（`collab/reconnect{reason:"server-shutdown"}`）、flush 持久化、≤ 30 s 退出；客户端在 ≤ 5 s 内重连到其它实例（同一出口 IP 后数十人同时被驱逐时约分 3 波在 5 s 内重连完；更大的出口由部署调高 `limits.ws.connectPerIpPerMin`，rulings §4.20 BE-01+TX-03）。
-  - Postgres 持续故障韧性（rulings §4.13 S-3，§4.15 S-3a 细化）：已在线房间**不拒绝新编辑**——超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储（BlobStore）；两级阈值与回放耗时预算见架构 08 §12、NF-01 §1.7、NF-03。
+  - Postgres 持续故障韧性（rulings §4.13 S-3，§4.15 S-3a 细化）：已在线房间**不拒绝新编辑**——超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储（BlobStore）；两级阈值与回放耗时预算见 60/01 §12、NF-01 §1.7、NF-03。
   - 降级期照常广播（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入任一降级档（内存退避重试、Valkey、对象存储）后**立即**在本实例广播并跨实例扇出，不等持久化，协作者互相可见；「先落库后广播」只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他客户端重连时经 step2 回填；降级广播次数计入指标 `cordex_collab_broadcast_before_persist_total`（SV-10）。
   - 「未保存到服务器」的判定与受众（rulings §4.19 INC-09）：服务端经 `CONTROL.room` 的可选字段 `persist: 'ok' | 'degraded'` 显式通知（PG 写失败 ≤ 1 s 内推 `degraded`，回放完成且无溢写后推 `ok`），不新增帧类型；客户端判据 = `room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（`collab-yjs` 配置，默认 15000）；有本地未获 db 确认项的**发起方**显示横幅「未保存到服务器 N 项」，**其余协作者**只在状态胶囊显示弱提示「服务器保存延迟」。该信号与分级提示随协同网关自 M2 起生效（`05-milestones-and-scope.md` M2 验收 17）。
   - **两级 ack**（S-3a）：溢写成功回 `ack{tier:'spill'}`，客户端**保留 pending**；落库成功回 `ack{seq, tier:'db'}` 才清除 pending。正式 `seq` 在回放时由 Postgres 分配；溢写行按 `(instanceId, localCounter)` 排序回放；回放 bootstrap 之后断言无 `pendingStructs`。即使溢写数据丢失，客户端也能在重连 step2 凭 update 幂等性自动补齐，NF-03「已 ack 零丢失」以 `tier:'db'` 为口径。
+
+- **行为级核对（rulings §4.21，协同网关改用 Hocuspocus 4 实现）**：本条验收的用户可见行为不变，下表逐项核对实现变化；只有「单消息 ≤ 1 MB」对重连差量同步单设 16 MiB 上限，超过时的用户可见结果是导出本地副本（PRD 03 CO-06）。
+
+| 验收项 | §4.21 起的实现 | 用户可见行为 |
+|---|---|---|
+| 房间生命周期（60 s 延迟销毁） | Hocuspocus 的文档卸载加自有 draining 宽限：`beforeUnloadDocument` 抛错取消卸载，60 s 后主动卸载；有未落库内容时继续钉住 | 不变 |
+| 握手与容量检查 | 票据改放认证消息，`onAuthenticate` 钩子内按原顺序完成验签、能力位、名额与权重准入；认证前的同步消息排队、不应用 | 不变（PRD 03 CO-12 图 2-7） |
+| 门禁 | L1 在接入适配层，L2 / L3 在应用前的钩子里并先落库，L4 应用后修复；拒绝后该连接的写入不再保存直到重载 | 不变（CO-12 导出后重载） |
+| 权限即时性 | 自有权限同步扩展：订阅权限变更，逐会话重算，≤ 1 s 推送 | 不变 |
+| 两级 ack 与 PG 故障 | 逐帧落库取 `seq` 后经 Stateless 回 `ack{tier}`；溢写三档保留；不用 Hocuspocus 的整文档快照存储 | 不变（NF-03） |
+| 多实例 | extension-redis + 按文档哈希的偏好亲和，替代原自研 pub/sub 扇出 | 不变（跨实例传播 ≤ 50 ms） |
+| 优雅停机 | 自写停机顺序：readyz 503 → 停接入 → 通知 draining → flush 并补 ack → 关闭码 1012 | 不变 |
 
 **图 2-5 房间生命周期**
 
@@ -310,7 +322,7 @@ sequenceDiagram
   Note over client,gw: 回放 bootstrap 后断言无 pendingStructs；溢写数据若丢失，客户端在重连 step2 凭 update 幂等性补齐
 ```
 
-怎么读：纵向为时间；只有 `tier` 为 `db` 的 ack 才允许客户端清除 pending，NF-03「已 ack 零丢失」以此为口径。PG 正常时先落库后广播；故障期不等持久化照常广播，协作不中断。两级阈值与回放耗时预算见架构 08 §12。
+怎么读：纵向为时间；只有 `tier` 为 `db` 的 ack 才允许客户端清除 pending，NF-03「已 ack 零丢失」以此为口径。PG 正常时先落库后广播；故障期不等持久化照常广播，协作不中断。两级阈值与回放耗时预算见 60/01 §12。
 依据：本条 SV-05 韧性、降级期广播与两级 ack；rulings §4.13 S-3、§4.15 S-3a、§4.18 CO-08、§4.19 INC-09。
 
 **图 2-8 滚动升级时的优雅停机**
@@ -328,7 +340,7 @@ sequenceDiagram
   client->>other: ≤ 5 s 内重连
 ```
 
-怎么读：纵向为时间；同一文档的连接可以落在不同实例，跨实例经 Valkey pub/sub 转发，因此客户端换实例后会话照常继续；协议版本向后兼容一个次版本（SV-09）。
+怎么读：纵向为时间；同一文档的连接常态落在按文档哈希选中的实例，被驱逐后可以落到其他实例，跨实例状态经 Valkey 同步（§4.21 起由 extension-redis 承担），因此客户端换实例后会话照常继续；协议版本向后兼容一个次版本（SV-09）。
 依据：本条 SV-05 优雅停机与多实例；SV-09 零停机发布。
 
 ### SV-06 鉴权与权限
@@ -561,7 +573,7 @@ flowchart TB
 - 用户故事：作为无常驻前端的集成方后端，我希望通过 Webhook 而非事件回调接收评论等协同事件，以便离线处理通知与审批流程。
 - 验收标准：
   - **M3 范围**（与客户端 EM-05 事件回调并行，两者都做，CO-04）：评论事件（`comment/added`、`comment/mentioned`、`comment/resolved`）以签名 Webhook 推送；管理 API：注册/更新/删除订阅（目标 URL、事件过滤、状态）；投递采用 HMAC 签名 + 指数退避重试 + 死信队列（超限转死信，不再自动重试）；投递日志可查询；服务端另提供跨文档「@我」REST（无需 `docId`）。
-  - 事件 schema 版本化；订阅签名密钥明文仅在创建响应出现一次，落库以部署 KEK（`CORDEX_SECRETS_KEK_FILE`）经 AES-256-GCM 加密存储并带密钥版本，轮换期新旧双密钥并存；签名头 `X-Cordex-Signature: t=<时间戳>, v1=<HMAC-SHA256>`（HMAC 须持有密钥本体，只存 hash 无法签名；设计线遗留口径 C-16/INC-30）。
+  - 事件 schema 版本化；订阅签名密钥明文仅在创建响应出现一次，落库以部署 KEK（`CORDEX_SECRETS_KEK_FILE`）经 AES-256-GCM 加密存储并带密钥版本，轮换期新旧双密钥并存；签名采用 **Standard Webhooks** 规范（rulings §4.21 q-webhook-sig）：请求头 `webhook-id`（投递 id，重试不变，集成方据此去重）、`webhook-timestamp`（unix 秒）、`webhook-signature: v1,<base64(HMAC-SHA256)>`，轮换宽限期内同一头以空格分隔携带新旧两个签名，集成方可直接用各语言现成的 Standard Webhooks 校验库验签（原 `X-Cordex-Signature: t=…, v1=<hex>` 自定义头废止，由 `webhook-signature` 取代；HMAC 须持有密钥本体，只存 hash 无法签名，设计线遗留口径 C-16/INC-30；细节以 `60-backend/07` §5.2 为准）。
   - 出站 SSRF 防护（rulings §4.13 S-4）：默认严格拒绝私网（RFC1918）/回环/链路本地（含云元数据端点 `169.254.169.254`）目标；订阅创建/更新与每次实际投递前均解析主机名并校验，投递前锁定解析出的 IP 再建连以防 DNS 重绑定；提供部署级配置项放宽为显式白名单（面向自托管内网场景）。
   - **M4 展望**：文档事件（创建/更新/删除/导出完成/权限）以同一 Webhook 机制推送，扩大事件覆盖面；重试退避 ≤ 24 h。
 
@@ -574,7 +586,7 @@ flowchart TB
   ssrf{"解析主机名：是否私网、回环、链路本地或云元数据端点"}
   block["拒绝，除非部署配置了显式白名单"]
   pin["锁定解析出的 IP 再建连，防 DNS 重绑定"]
-  send["HMAC 签名投递"]
+  send["按 Standard Webhooks 签名投递：webhook-id、webhook-timestamp、webhook-signature"]
   ok["成功，写投递日志"]
   retry["失败：指数退避重试"]
   dlq["超限：转死信队列，不再自动重试"]

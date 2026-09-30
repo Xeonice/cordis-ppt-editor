@@ -1,6 +1,6 @@
 # 05 命令与历史：命令三分法、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：评论 Mutation 示例改 `comments.thread.add`（D-COMMENTS-PKG）；§6–§9 UI 表达加 50-frontend/04 链接）；2026-09-26（§4.20）（FE-05：§2 `CommandDef.undoable` 保持静态布尔、带 `reassignTo` 的删除确认后可撤销（Q11 修订），§12、§13.2 图与行同步；FE-23：`deleteMaster.reassignTo?: MasterId` 逐页按原版式 `type` 选取；FE-24：`resetPlaceholderFields`、`deleteLayout` 批量、`applyLayout` 计数、`updatePlaceholder.lstStyle`；FE-04：§13.4 冲突 (1) 改为墓碑期读时容错、硬删时修复；TX-01+BE-10：§6 U-07 链接 ADR-0038） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-24（rulings §4.15 Q3：§6 与 §13.4 协同撤销语义统一为「同键被他人后写 → 跳过并提示；整步被跳过 → 停下不连撤；删除 = 软删除墓碑 + TTL」，写入 DocumentStore 中性契约；Q5 `maxElementsPerDoc` 命令守卫）；2026-09-24（复核修正，rulings §4.17：D4 撤销永不复活他人删除的元素；D5/M2 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 并单独统计；M3 撤销契约用例名照抄 M-02 §2.5；D2 编辑期超限 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：评论 Mutation 示例改 `comments.thread.add`（D-COMMENTS-PKG）；§6–§9 UI 表达加 50-frontend/04 链接）；2026-09-26（§4.20）（FE-05：§2 `CommandDef.undoable` 保持静态布尔、带 `reassignTo` 的删除确认后可撤销（Q11 修订），§12、§13.2 图与行同步；FE-23：`deleteMaster.reassignTo?: MasterId` 逐页按原版式 `type` 选取；FE-24：`resetPlaceholderFields`、`deleteLayout` 批量、`applyLayout` 计数、`updatePlaceholder.lstStyle`；FE-04：§13.4 冲突 (1) 改为墓碑期读时容错、硬删时修复；TX-01+BE-10：§6 U-07 链接 ADR-0038）；2026-09-26（§4.21：新增 §14 可追加元素的插入命令约束与新增 Mutation（插入守卫与事务组成、插入后选中、三种撤销合并、9 个新 Mutation、33 个新命令与 1 个新 Operation、表格 Mutation 按 id 改写、连接符 `reroute` 同事务写回）；§4.1 联合补新 Mutation；§8 表补插入行）；2026-09-26（§4.21 整合：§14.4 登记 50/18 §28 第二批薄命令 20 行与参数扩展）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：setBorders 参数形状） | 依赖：charter v0.1
 > 继承 Univer K1（命令三分法，「最正确的一项」），规避其缺陷 #3（手写逆操作）与 `return false` 2,244 次的失败静默。签名为「草案」。
 
 ---
@@ -187,6 +187,9 @@ type SlideMutation =
   | { type: 'slide.text.applyDelta'; unitId; shapeId; paragraph?: number; delta: TextDelta }
   | { type: 'slide.slide.insert'; unitId; slide: Slide /* 含 order */; shapes: readonly Shape[] }
   | { type: 'slide.slide.setOrder'; unitId; slideId; order: FracKey }
+  | { type: 'slide.shape.setNonVisual'; unitId; shapeId; patch: Partial<NonVisualProps> }          // 2026-09-26 §4.21 起新增 9 个，见 §14.2
+  | { type: 'slide.pic.setBlipFill'; unitId; shapeId; patch: Partial<BlipFill> }
+  | { type: 'slide.cxnSp.setConnections'; unitId; shapeId; start?: ConnectionRef | null; end?: ConnectionRef | null }
   | …
 // 载荷中**没有** index/toIndex（06 I4、ADR-0032）：命令层用 `between(prev?.order, next?.order)`（`@cordexjs/shared/order`）把「插到 X 之后」变成具体 order 键；lower() 因而保持纯且确定。
 ```
@@ -292,6 +295,7 @@ UI 表达（提示条、「恢复我的值」「恢复元素」两个恢复命�
 | 命令调用命令 | 允许：`ctx.commands.execute(...)` 在 handler 内调用会开启**新事务**（嵌套事务被 Store 拒绝 `STORE_NESTED_TRANSACTION`）；因此复合命令应当直接 `tx.mutate`，而不是递归执行子命令（lint 提示 `no-nested-execute-in-handler`，warning 级→M2 起 error） |
 | 导入/迁移写入 | `origin = system(...)`，`undoable: false`，不经命令管线（唯一例外，且只在 `units.open` 内部，含渐进打开首批之后的 `system('import')` 追加批次，04 §2.2；`cordex/store-transact-in-commands-only` 的允许列表） |
 | 跨 Unit 命令 | 不支持（每个命令绑定一个 unitId 或 null）；复制粘贴分两条命令（剪贴板管线见 [50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §9） |
+| 插入一个元素（2026-09-26，rulings §4.21，§14） | 一个 Command、一个事务：按需 `media.add` + `shape.insert`；插入后选中是事务外的 Operation；上传字节不在事务内；三种合并例外见 §14.1 |
 | 新增元素触及规模上限（rulings §4.15 Q5） | 命令守卫在 ③ 之后、④ 之前检查 `maxElementsPerDoc`（默认 20,000，软警告 15,000，墓碑计入）与单页 1,000、页数 200：超限 → `command/rejected{ reason: 'validation' }` + `document.quota_exceeded{ dimension, limit, actual }`（编辑期上限码，409、不关连接，`dimension` 取值见 10 §1.4，rulings §4.17 D2），不开事务；数字来自部署配置（04 §5.5） |
 
 ---
@@ -330,7 +334,7 @@ UI 表达（提示条、「恢复我的值」「恢复元素」两个恢复命�
 ## 11. 对运行时线（B）的契约要求
 
 - 06：`store-yjs` 的 `transact` 必须把 `origin` 传给 `Y.Doc.transact`；`UndoManager` 只跟踪本地 origin；远端 update 应用后必须 emit `store/transaction`（origin=remote）以驱动渲染脏区；服务端网关拒绝的 update 如何回滚本地（06 决定，接口：`collab` 发 `collab/rejected(unitId, reason)` → `history` 可选回退）。
-- 08：服务端 `import-export`、`migrate` 任务经 `server-headless` 调用命令管线（`principal = system`），权限策略为服务端策略；审计记录落库。
+- 60-backend/06：服务端 `import-export`、`migrate` 任务经 `server-headless` 调用命令管线（`principal = system`），权限策略为服务端策略；审计记录落库。
 - 10：`command/audited`、`command/failed`、`permission/denied` 的落地（日志字段、遥测指标名）。
 - 11：`command-harness` 与 `runDocumentStoreConformance` 的运行矩阵。
 
@@ -422,3 +426,178 @@ flowchart TB
 - 冲突面（06 需覆盖）：(1) **删除 vs 引用**：A 删版式（写墓碑）、B 同时应用该版式 → 合并后 `slide.layoutId` 指向墓碑 → **墓碑期读时容错、硬删时修复**（2026-09-26，rulings §4.20 FE-04）：墓碑 TTL 内不改写引用，读路径（SceneProvider、导出编码器、slide-ui）经 `defaultLayoutOf` 取替代版式渲染，并发 `collab/soft-conflict{ type: 'delete-vs-reference' }`；A 撤销删除 = 清除墓碑，B 的引用重新有效；墓碑到期硬删时，硬删作业在同一事务内按 I-ML2 写修复（04 §12.3，`collab/repair{ rule: 'dangling-layout' }`，只写一次）。原「合并后即由 I-ML2 修复」作废；(2) **重置 vs 移动**：A `clearOverrides(transform)` 与 B `setTransform` 并发 → 同键 LWW，后写者胜；先写者撤销时该键已被他人后写 → **跳过并提示**（§6 第 1 条，可选「恢复我的值」新事务），后写者撤销则正常回退自己的写入；若先写者的撤销单元只含这一键 → 整步被跳过、停下不连撤（§6 第 2 条）；(3) **主题槽位**：`colorScheme.*` 逐槽位 LWW；(4) **版式复制 vs 母版删除**：新版式 `masterId` 指向被删母版 → I-ML3 修复。
 - 母版视图是**视图态**（Operation），不锁内容；可选软锁（PRD PD-19，awareness 级）由 06 定。
 - 事务边界：`applyLayout` 一页一事务；`deleteLayout(reassignTo)`（含 `layoutIds` 批量）、`deleteMaster(reassignTo)`、`applyTheme` 各为一个原子事务（重指/换主题 + 删除不可分），均入撤销栈、一步撤销（rulings §4.20 FE-05）。
+
+---
+
+## 14. 可追加元素：插入命令约束与新增 Mutation（2026-09-26，rulings §4.21；决策见 ADR-0018，前端总览见 50-frontend/19）
+
+### 14.1 插入命令的通用约束
+
+1. **守卫顺序**：schema 解析 → `doc.write` 权限 → 规模守卫（§8 末行，按提交后计数，墓碑计入）→ 事务。三道守卫都在事务之前，失败不产生撤销记录。所有会新增元素的路径（工具插入、粘贴、`fillPlaceholder`、`setHeaderFooter` 全部应用、相册、插件插入）都经此守卫。
+2. **事务组成**：一个事务内按需 `slide.media.add`（只登记 `BlobRef`，字节已在 BlobStore）→ `slide.shape.insert`。`order = between(同级最后一个, undefined)`、`parentId = null`；`ooxml.creationId`（GUID）、元素名（「类型 + 序号」本地化）、表格行列 id 与键、字段 id 都在**命令**里生成并放进载荷，`lower()` 不生成随机值（§4.2）。
+3. **插入后选中**：命令成功后由 UI 执行 Operation `slide.setSelection`，不在插入事务里、不入历史；子编辑态（文本、单元格、数据面板、操作设置）是视图态。
+4. **一次插入一个撤销步**，合并例外只有三种：单击插入的文本框未输入即退出 → `slide.deleteShapes` 与插入合并（历史策略层按同一 `label` 与相邻性合并，结果是撤销栈无变化）；动作按钮 `insertShape{ …, action }` 先写默认动作，「操作设置」确认后的 `setAction` 与之经 `history.beginGroup` 合为一步（§8）；`fillPlaceholder` 的删空占位与插入新元素同一事务。
+5. **上传不阻塞**：媒体上传（presign → PUT → commit）在事务之后后台进行；失败不回滚插入，只标记元素并允许重试或替换。
+6. **外部内容与链接**：外部粘贴不经 DOM、上限 25 MB；超链接只写 `http`/`https`/`mailto`/`tel`，拒 `javascript:`/`data:`（PRD ED-17、ED-19）。
+7. **命令不做异步重编码**：压缩、图标、重新着色、SVG 回退、海报帧等要生成新字节的处理在交互层完成，命令参数只收已写入 BlobStore 的 `BlobRef`，事务内不等待 I/O。
+
+**插入事务的三种形态**
+
+```mermaid
+flowchart LR
+  subgraph plain["普通插入"]
+    p1["shape.insert：Sp、CxnSp、GraphicFrame 或第三方 kind"]
+  end
+  subgraph media["媒体插入"]
+    m1["media.add：位图或 SVG，SVG 另加 PNG 回退"]
+    m2["shape.insert：Pic，blipFill 引用上一步的 MediaId"]
+    m1 --> m2
+  end
+  subgraph fill["空内容占位符填入"]
+    f1["shape.remove：空占位 Sp 写墓碑"]
+    f2["按需 media.add"]
+    f3["shape.insert：同一 PlaceholderRef 与 order"]
+    f1 --> f2 --> f3
+  end
+  sel["事务之后：Operation slide.setSelection"]
+  plain --> sel
+  media --> sel
+  fill --> sel
+```
+
+怎么读：三个子图各是一个原子事务，一次撤销整体回退；箭头表示事务内 Mutation 的先后，事务之后的选中是独立的 Operation，不进撤销栈。
+
+### 14.2 新增 Mutation（9 个）
+
+| type | 载荷（草案） | `lower` 要点 | 里程碑 |
+|---|---|---|---|
+| `slide.shape.setNonVisual` | `{ shapeId; patch: Partial<Pick<NonVisualProps, 'name' \| 'hidden' \| 'description' \| 'title' \| 'decorative' \| 'hyperlink' \| 'locks'>> }` | 逐字段 `set/delete(['shapes', id, 'nonVisual', field])`；`hyperlink` 整值 JSON LWW；拒绝写 `placeholder`（占位符引用只经 `shape.setPlaceholder`） | M2 |
+| `slide.pic.setBlipFill` | `{ shapeId; patch: Partial<BlipFill> }` | 逐字段 `set/delete(['shapes', id, 'blipFill', field])`；引用的 `MediaId` 必须已在 `media` 表（同事务先 `media.add`）；SVG 图片的 `mediaId` 与 `svgMediaId` 必须成对替换 | M2 |
+| `slide.cxnSp.setConnections` | `{ shapeId; start?: ConnectionRef \| null; end?: ConnectionRef \| null }`，`ConnectionRef = { shapeId; index }` | `set/delete(['shapes', id, 'startConnection' \| 'endConnection'])`，整值 LWW；目标不得是墓碑（新引用不指向墓碑，04 §3.1a） | M2 |
+| `slide.shape.patchKindData` | `{ shapeId; patch: JsonObject }` | 按该 `kind` 在 `slide.shapeKind` 登记的 schema 校验合并结果，逐顶层键 `set(['shapes', id, 'data', key])` | M2 |
+| `slide.slide.setProperties` | `{ slideId; patch: { showMasterShapes?: boolean } }` | 逐字段 `set/delete(['slides', id, field])`；`delete` 即恢复继承版式（04 §3.7） | M2 |
+| `slide.table.setTableProperties` | `{ shapeId; patch: Partial<TableProperties> }` | 逐字段 `set(['shapes', id, 'graphic', 'table', 'properties', field])` | M3 |
+| `slide.table.setSizes` | `{ shapeId; columns?: { colId; width }[]; rows?: { rowId; height }[] }` | 逐项 `set([..., 'columns', colId, 'width'])`、`set([..., 'rows', rowId, 'height'])`；按 id，无下标 | M3 |
+| `slide.chart.setData` | `{ shapeId; patch: { categories?: Record<CatId, CategoryPatch \| null>; series?: Record<SerId, SeriesPatch \| null>; values?: { serId; catId; value: number \| null }[] } }` | 逐键写 `['shapes', id, 'graphic', 'chart', 'data', …]`；`null` 写墓碑 `_deleted`；数值按 `(serId, catId)` 单键 LWW | M3 |
+| `slide.chart.setOptions` | `{ shapeId; patch: Partial<Pick<ChartData, 'type' \| 'variant' \| 'title' \| 'legend' \| 'dataLabels' \| 'numFmt'>> }` | 逐字段 `set`；`type` 只允许五类（U-06） | M3 |
+
+### 14.3 表格 Mutation 按 id 改写（归一化，04 §3.8）
+
+既有 7 个 `slide.table.*` Mutation 的 type 不变，载荷改为按 id 寻址，全部 M3 起由结构命令使用（M2 只用 `shape.insert` 建表与 `text.applyDelta` 改单元格文字）：
+
+| type | 载荷（草案） | `lower` 要点 |
+|---|---|---|
+| `slide.table.insertRow` / `insertColumn` | `{ shapeId; rowId; order: FracKey; height; cells: Record<ColId, TableCell> }` / `{ shapeId; colId; order; width; cells: Record<RowId, TableCell> }` | 写新行（列）记录与它在**当前**存活列（行）上的格；并发插入的交叉格由 I-TBL1 补齐 |
+| `slide.table.removeRow` / `removeColumn` | `{ shapeId; rowIds }` / `{ shapeId; colIds }` | 写 `_deleted` 墓碑；格不单独删除（包含关系）；与之相交的合并区由命令先拆分或收缩（同事务） |
+| `slide.table.setCellProperties` | `{ shapeId; cells: CellKey[]; patch: Partial<TableCellProperties> }` | 逐格逐字段 `set`；边框命令也走这里 |
+| `slide.table.merge` / `split` | `{ shapeId; anchor: CellKey; gridSpan; rowSpan }` / `{ shapeId; anchor: CellKey }` | 锚格写跨度、被覆盖格写 `hMerge`/`vMerge`；拆分清除；被覆盖格的文字按 PowerPoint 规则并入锚格（同事务 `text.applyDelta`） |
+
+### 14.4 新增 Command（33 个）、Operation（1 个）与参数扩展
+
+`permission` 一律 `['doc.write']`；除注明外均为一个事务、一个撤销步；新增元素的命令都经规模守卫。命令 id 与文件落点登记在 40-modules/03 §2.6，前端入口与里程碑见 50-frontend/19 §5。
+
+| id | 语义与事务 | Mutation | 需求 / 里程碑 |
+|---|---|---|---|
+| `slide.insertField` | 在文本目标插入字段（页码、日期时间），字段 id 由命令生成 GUID | `text.applyDelta`（embed） | OF 支持矩阵 E~ / M2 P2 |
+| `slide.setHyperlink` | 文本选区写 `RunProperties.hyperlink`，形状写 `nonVisual.hyperlink`；`null` 移除 | `run.setProperties` / `shape.setNonVisual` | ED-19 / M2 P1 |
+| `slide.fillPlaceholder` | 删空占位 + 按需 `media.add` + 插入同 `PlaceholderRef`、同 `order` 的新元素；图片算 `srcRect` 填满 | `shape.remove` + `media.add` + `shape.insert` | ML-03 / 图片 M2 P1、表格 M2、图表 M3、媒体 P2 |
+| `slide.setSlideProperties` | `{ slideIds; showMasterShapes }`：页级「隐藏背景图形」（50-frontend/21 提出） | `slide.setProperties` | ED-20 / M2 P1 |
+| `slide.setHeaderFooter` | 逐页插入或移除页脚族占位符并写文本；`'all'` 时逐页处理，受规模守卫；母版 `p:hf` 走 `master.setProperties`（M3） | `shape.insert`/`remove` + `text.applyDelta` | OF 支持矩阵 E~ / M2 P2 |
+| `slide.setAdjustValues` | 写预设几何的 `adj` | `shape.setProperties` | ED-05 / M2 P1 |
+| `slide.changeShape` | 换预设几何，保留 `adj` 中同名项 | `shape.setProperties` | ED-05 / M2 P1 |
+| `slide.flipShapes` | 水平或垂直翻转（多选以选区包围盒为轴） | `shape.setTransform` | ED-05 / M2 P0 |
+| `slide.setLineEnds` | 箭头首尾类型与尺寸 | `shape.setProperties`（`line.headEnd`/`tailEnd`） | ED-06 / M2 P0 |
+| `slide.connectEnds` | 连接或断开端点，并按 `reroute` 写回几何（§14.5） | `cxnSp.setConnections` + `shape.setTransform` | ED-28 / M2 P1 |
+| `slide.changeConnectorType` | 直线、肘形、曲线互换 | `shape.setProperties` | ED-28 / M2 P1 |
+| `slide.insertFreeform` | 点列简化与贝塞尔拟合后写 `custGeom` | `shape.insert` | ED-05 边界 / P2 |
+| `slide.setAction` | 动作按钮的单击（悬停 P2）动作；插入动作按钮时与 `insertShape` 同事务 | `shape.setNonVisual` | ED-05 / M2 P1 |
+| `slide.setPictureTransparency` | 写 `alpha` | `pic.setBlipFill` | ED-07 / M2 P0 |
+| `slide.resetPicture` | 清除裁剪与透明度；`size: true` 时恢复原始尺寸 | `pic.setBlipFill` + `shape.setTransform` | ED-07 / M2 P0 |
+| `slide.compressPicture` | `{ items: { shapeId; blob }[]; maxEdge }`：显式压缩，重编码在交互层完成，新字节生成新 `MediaId`（唯一改变图片字节的路径） | `media.add` + `pic.setBlipFill` | ED-07 / M2 P1 |
+| `slide.setPictureFill` | 形状或背景的图片填充 | `media.add` + `shape.setProperties` | ED-06、ED-20 / M2 P2 |
+| `slide.setAltText` | 替代文本、标题、装饰性 | `shape.setNonVisual` | ED-26 / M2 P1 |
+| `slide.insertMedia` | 插入视频或音频，不写 `p:timing`（q-media-insert） | `media.add`（媒体与海报）+ `shape.insert` | OF 支持矩阵 / P2 |
+| `slide.replacePoster` | 换视频海报或音频图标 | `media.add` + `pic.setBlipFill` | M2 P1 |
+| `slide.insertIcons` | `{ containerId; items: { blob; fallbackBlob; name }[] }`：批量插入图标（SVG + PNG 回退），逐个错位 | `media.add` + `shape.insert` | ED-32 / M3 P2 |
+| `slide.recolorSvg` | `{ items: { shapeId; blob; fallbackBlob }[]; color }`：改 SVG 图标颜色，新字节与新回退由交互层生成 | `media.add` + `pic.setBlipFill` | ED-32 / M3 P2 |
+| `slide.table.clearCells` | `{ shapeId; cells: CellKey[] }`：多格选区按 Delete 清空文字（50-frontend/24 提出） | `text.applyDelta`（逐格） | ED-10 / M2 |
+| `slide.table.setStyle` | 套用内置样式与六个标志 | `table.setTableProperties` | ED-10 / M3 |
+| `slide.table.resizeColumn` / `resizeRow` | 拖动列宽、行高；整体缩放时按比例 | `table.setSizes` | ED-10 / M3 |
+| `slide.table.setBorders` | `{ shapeId; cells; borders: { preset; line } }`：单条、全部、内、外、无边框（40/03 §2.6） | `table.setCellProperties` | ED-10 / M3 |
+| `slide.insertChart` | 插入五类之一，示例数据 4 类别 × 3 系列；`enablement: slide.hasChartEditor` | `shape.insert` | ED-15 / M3 P1 |
+| `slide.chart.setData` | 数据网格编辑 | `chart.setData` | ED-15 / M3 P1 |
+| `slide.chart.setType` / `setTitle` / `setLegend` / `setDataLabels` | 五类之间切换、标题、图例、数据标签 | `chart.setOptions` | ED-15 / M3 P1 |
+
+Operation（新增）：`slide.chart.openDataEditor{ shapeId; expanded? }`——打开图表数据面板，插入图表后由 UI 自动执行，不入历史（ED-15 / M3，50-frontend/24 提出）。
+
+参数扩展：`slide.insertShape{ containerId, kind, box, preset?, textBox?: { wrap }, from?, to?, action? }`（`from`/`to` 可为页坐标点或 `ConnectionRef`，落在连接点的一端直接写进新实体的端点引用；`action` 为动作按钮的默认动作）；`slide.insertPicture{ …, fallbackBlob? }`；`slide.replacePicture{ …, fallbackBlob?, pixelSize }`、`slide.crop{ …, fit?: 'fill' | 'fit', pixelSize? }`（50-frontend/23 提出）；`slide.insertTable{ …, styleId? }`；`slide.setSlideBackground{ …, blob? }`（同事务 `media.add`）；`slide.moveShapes`/`resizeShapes`/`rotateShapes{ …, reroute?: ConnectorPatch[] }`。`slide.deleteShapes` 增两条同事务规则：删除带内容族 `PlaceholderRef` 的元素时补回空占位符；删除组内最后一个存活子元素时给组写墓碑（I-GRP1，ADR-0018 决策 9、10）。`slide.replacePicture`/`crop` 改用 `pic.setBlipFill`。
+
+**第二批：能力补齐的薄命令**（2026-09-26 整合登记，出自 [50-frontend/18](../50-frontend/18-editor-capabilities.md) §28；全部是既有 Mutation 的薄命令，逆操作由 Store 推导；`permission` 与事务口径同上表；命令 id 与文件落点同步登记在 40-modules/03 §2.6）：
+
+| id | 语义要点 | Mutation | 能力 / 里程碑 |
+|---|---|---|---|
+| `slide.setLocks` | `{ shapeIds; locks: Partial<ShapeLocks> }` | `shape.setNonVisual` | SEL-05、SEL-15 / M2 P0（等比）、P2（锁定界面） |
+| `slide.setShapesHidden` | `{ shapeIds; hidden }`（选择窗格显隐） | `shape.setNonVisual` | SEL-06 / M2 P2 |
+| `slide.reorderShapes` | `{ shapeId; after }`（选择窗格拖动排序） | `shape.setOrder` | SEL-06 / M2 P2 |
+| `slide.renameShape` | `{ shapeId; name }` | `shape.setNonVisual` | ARR-04 / M2 P1 |
+| `slide.bringToFront` / `sendToBack` | `{ shapeIds }`（`Mod+Shift+]` / `[` 的目标命令） | `shape.setOrder` | ARR-01 / M2 P0 |
+| `slide.setGuides` | `{ guides }`（04 §3.7 `Presentation.guides`） | 随参考线建模定 | ALN-04 / M2 P2 |
+| `slide.setBaseline` / `setCaps` | `{ shapeId; range; baseline \| cap }` | `run.setProperties` | TXT-05 / M2 P0 |
+| `slide.setParagraphSpacing` / `setIndent` | `{ shapeId; paragraphs; … }` | `paragraph.setProperties` | TXT-06 / M2 P0 |
+| `slide.setBodyProperties` | `{ shapeIds; patch }`：锚点、内边距、自动换行、竖排、分栏（ADR-0018 决策 10） | `textBody.setBodyProperties` | TXT-08、TXT-11、TXT-15 / M2 P0 |
+| `slide.setAutofitMode` | `{ shapeIds; mode }` | `textBody.setBodyProperties` | TXT-09 / M2 P1 |
+| `slide.setCharSpacing` | `{ shapeId; range; spc }` | `run.setProperties` | TXT-13 / M2 P2 |
+| `slide.applyFormat` | 格式刷落刷 | `run.setProperties`、`shape.setProperties` | TXT-18 / M2 P2 |
+| `slide.setShapeStyle` | `{ shapeIds; style: ShapeStyleRef }`，同事务清显式覆盖（快速样式） | `shape.setStyle` | FMT-07 / M2 P1 |
+| `slide.setObjectDefaults` | 设为默认形状 | 主题写入，M3 后定 | FMT-09 / P2 |
+| `slide.setPictureAdjust` | 亮度、对比度、灰度、重新着色（写 04 §3.7 `BlipFill.effects`） | `pic.setBlipFill` | PIC-05 / M2 P2 |
+| `slide.addSection` / `renameSection` / `removeSection` / `moveSection` | 节（04 §3.7 `Presentation.sections`、`Slide.sectionId`）；`moveSection` 一个事务改节与页的 `order` | 节 Mutation，随 04 §3.7 建模 | SLD-05 / M3 |
+| `slide.pasteSlides` | `{ after; slides; mode: 'useDestinationTheme' \| 'keepSource' }`，受规模守卫与 200 页上限 | `slide.slide.insert`、`layout.insert`、`master.insert`、`media.add`、`shape.insert` | SLD-06 / M3 P1 |
+| `slide.setSlideSize` | `{ width; height; scale }` | 演示文稿属性，P2 时定 | SLD-07 / M2 P2 |
+| `slide.replaceAll` | `{ matches; replacement }`（查找的纯函数见 40-modules/03） | `text.applyDelta` × N | FND-02 / M2 P1 |
+| `slide.setDocumentProperties` | 标题、主题、作者、关键词 | 演示文稿属性，P2 时定 | EXP-06 / M2 P2 |
+
+第二批的参数扩展：`alignShapes` / `distributeShapes{ …, relativeTo: 'auto' | 'selection' | 'page' }`（ALN-02）；`setFontFamily{ …, script: 'latin' | 'ea' | 'cs' }`（TXT-04）；`setAlignment` 增取值 `dist`（TXT-06）；`setBullet{ …, preset?, startAt?, color?, size? }`（TXT-07）；PIC-06 的「填充 / 适应」即上文已登记的 `crop{ …, fit?: 'fill' | 'fit' }`（50-frontend/18 §28 原写作 `mode`，统一为 `fit`）；`insertPicture{ …, fallbackBlob? }`（INS-07，见上文参数扩展）。
+
+### 14.5 连接符跟随：`reroute` 同事务写回
+
+连接点与路由是 engine-layout 的纯函数，`model-slide` 与编码器都不 import 它（秩规则）。交互层计算、命令写值，与 `slide.applyAutofit` 同一模式：
+
+**移动形状时连接符的写回**
+
+```mermaid
+sequenceDiagram
+  participant ui as slide-ui 交互层
+  participant geo as engine-layout 连接点与路由
+  participant cmds as commands 服务
+  participant store as DocumentStore
+  participant enc as 导出调用方与编码器
+  ui->>geo: 松手时按新位置求受影响连接符几何
+  geo-->>ui: ConnectorPatch 列表 xfrm 与 M3 起的 adj
+  ui->>cmds: slide.moveShapes 携带 reroute
+  cmds->>store: 同一事务 setTransform 形状与连接符
+  store-->>cmds: 一个撤销步
+  Note over ui,store: 未传 reroute 时只移形状 连接符显示仍按派生几何
+  enc->>geo: 导出前对全部已连接连接符求派生几何
+  enc->>enc: encode 以 connectorGeometry 显式输入写出 不读 layout
+```
+
+怎么读：上半段是编辑时的内联写回，形状与连接符一个事务、一次撤销；下半段是导出时的派生重算，由导出调用方算好再作为显式输入交给编码器，保证同一 Snapshot 导出同一字节（04 §5.3）。并发下两人分别移动连接符的两个目标，存储的 `xfrm` 按 LWW 可能陈旧，但显示与导出都以派生几何为准。
+
+### 14.6 协同与撤销要点
+
+- 新元素是顶层 `shapes` 表的新键，插入之间不冲突；表格行列、图表类别系列按 id 各自 LWW，交叉格缺失由 I-TBL1 修复（04 §3.8）。
+- 两人同时填入同一个空内容占位符：两次填入都给同一个空占位写墓碑（幂等），各自插入的新元素都保留、带同一 `PlaceholderRef`；PowerPoint 同样容忍同页重复的占位符引用，不自动修复，由用户删除其一；场景由 70-testing/05 覆盖。
+- 撤销遵循 §6：插入的撤销 = 给新元素写墓碑；他人已在新元素上后写的键跳过并提示；`fillPlaceholder` 撤销时若空占位已被他人复活或改写，同键跳过。
+- 插入后选中是 Operation，协同下经 presence 广播，不影响他人的撤销栈。
+
+### 14.7 机械验证
+
+| 规则 | 机制 |
+|---|---|
+| 插入超限不开事务 | `command-harness`：单页 999/1,000/1,001、全文 19,999/20,000/20,001（含墓碑）边界，断言无事务、撤销栈不变 |
+| 一次插入一个撤销步与三种合并 | 命令层集成测试（40-modules/03 §9 命令层集成行） |
+| `lower()` 不生成随机值 | `lower` 确定性快照测试：同一 Mutation 两次 `lower` 结果深等；`creationId`、字段 id、行列 id 只出现在载荷里 |
+| 新 Mutation 命名与无下标 | `scan-command-capabilities` 规则 (c)；lint `cordex/no-index-in-mutation` |
+| 表格 I-TBL1/I-TBL2 与图表类别系列的并发收敛 | property + `test/collab-sim`：随机并发插删后两端状态一致、`repair` 幂等 |
+| 连接符 `reroute` 与导出派生几何 | 移动目标后撤销一次同时回退形状与连接符；同一 Snapshot 浏览器与 Node 导出 SHA-256 相同 |

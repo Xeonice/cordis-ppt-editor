@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 SYNC 写入门槛改 ≥ commenter、令牌刷新按 INC-27 只重新绑定，见文末「修订（2026-09-25，rulings §4.19）」）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：决策 5 锁定窗口收窄为导入与迁移，见文末「修订（2026-09-25，rulings §4.19 N1）」） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17、§4.18、§4.19 N1
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D1/D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 SYNC 写入门槛改 ≥ commenter、令牌刷新按 INC-27 只重新绑定，见文末「修订（2026-09-25，rulings §4.19）」）；2026-09-25（§4.19）；2026-09-25（§4.19 N1：决策 5 锁定窗口收窄为导入与迁移，见文末「修订（2026-09-25，rulings §4.19 N1）」）；2026-09-26（§4.21：协同改用 Hocuspocus——决策 2 票据放 Auth 帧、认证前有界排队 + 适配层 5 s 期限；决策 3 L2 映射 `connection.readOnly` 加连接污染规则；决策 4 落在 PermissionSync 扩展；`auth.refresh` = `sendToken` → `onTokenSync`；图 1、图 2 改帧名，见文末「修订（2026-09-26，rulings §4.21）」）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-1、§4.15 T-0/Q6、§4.17、§4.18、§4.19 N1、§4.21；ADR-0039
 
 # ADR-0029 协同网关鉴权与授权：短票据握手 + 每帧角色检查 + 权限版本传播
 
@@ -13,9 +13,9 @@ D12：fail-closed，检查点在命令管线与服务端网关两处。WS 无法
 ## 决策
 
 1. **票据**：`POST /documents/:id/collab-ticket`（路径相对 `apiBase` = `/api/v1`，rulings §4.18 BE-11）由 REST 会话鉴权后签发 JWT（ES256，60 s，`jti` 单次），claims：`sub, doc, role, perm_ver, sid?, lnk?`（2026-09-24 删去 `tid`——T-0 去租户）。`sid` 为**登录会话 id**（与 `Principal`/`Session` 的 `sessionId` 同义，按 JWT/OIDC 惯例）；`lnk` 为可选的**分享链接 id**——换票请求携带有效分享令牌时写入，供 WS 侧重算链接角色（见下方「2026-09-25 修订」；2026-09-25 修订，rulings §4.18 BE-02；原：claims 只有 `sub, doc, role, perm_ver, sid?` 且 `sid` 未定义含义，作废）。网关验签 + `jti` 防重放（Redis SETNX 60 s）+ `perm_ver` 对比 Redis 最新值（不一致以库为准）。
-2. **握手**：连接后首帧必须为 `CONTROL.auth`（5 s 超时 → 4408）；成功前任何 SYNC/AWARENESS 帧 → 4401。
-3. **每帧检查**：`SYNC update/step2` 帧要求 `session.role ≥ commenter`，commenter 的写入范围由服务端软门禁路径级规则限定在 `resources['comments.threads']`、作者只能改自己的实体（ADR-0034）；`AWARENESS` 允许 `viewer+`；CONTROL 只允许白名单类型。违规 → `error{collab.forbidden}`，累计 3 次 → 4403；在途帧不计数——服务端发出降权 `CONTROL.permission` 或 `CONTROL.room{locked}` 之前已到达、以及发出后 2 s 内到达的写入帧都视为在途，只回 `error{collab.forbidden}`；此后到达的越权写入才计数（60-backend/16 §4）。（2026-09-25 修订，rulings §4.19，见文末同名修订节；原：「`SYNC update/step2` 帧要求 `session.role ≥ editor`」，作废——评论的事实源在 CRDT，按原写法协同模式下 commenter 无法评论。）
-4. **权限变更即时生效**：PermissionsService 写库后 `perm_ver++` 并 `PUBLISH perm:doc:{id}`；各实例对相关 Session 重算 role → `CONTROL.permission` 或关闭 4403；预算 ≤ 1 s p95。
+2. **握手**（2026-09-26 修订，rulings §4.21，ADR-0039 决策 3）：票据放在 Hocuspocus **Auth 帧的 token**（JSON：`ticket`、`protocolVersion`、`clientId`、`capabilities`、`appVersion`、`epoch?`、`maxSchemaVersion`、`traceparent?`，适配层限 ≤ 8 KiB）；鉴权在 `onAuthenticate` 执行，失败回 `PermissionDenied(reason)` 后以原始 `ws.close(映射码)` 关闭。认证前到达的 Sync / Awareness 帧由 Hocuspocus **有界排队、不应用**（默认上限 5 MiB / 1000 条，超限 4205；认证后、加载期间的帧仍进同一队列，因此不收紧），认证通过并加载完成后回放；严格的认证前限额与 **5 s 认证期限在网关适配层**、只计到 `Authenticated` 发出为止，超时 4408。已认证后再到的 Auth 帧即续票（`onTokenSync`，见补充 v0.2「令牌刷新」）。（原：「连接后首帧必须为 `CONTROL.auth`（5 s 超时 → 4408）；成功前任何 SYNC/AWARENESS 帧 → 4401」——官方 provider 发完 Auth 立即发 step1 与 awareness，取票期间的编辑还会先于 Auth 上线（vA-A1），按原文会误杀，作废。）
+3. **每帧检查**：`SYNC update/step2` 帧要求 `session.role ≥ commenter`，commenter 的写入范围由服务端软门禁路径级规则限定在 `resources['comments.threads']`、作者只能改自己的实体（ADR-0034）；`AWARENESS` 允许 `viewer+`；CONTROL 只允许白名单类型。违规 → `error{collab.forbidden}`，累计 3 次 → 4403；在途帧不计数——服务端发出降权 `CONTROL.permission` 或 `CONTROL.room{locked}` 之前已到达、以及发出后 2 s 内到达的写入帧都视为在途，只回 `error{collab.forbidden}`；此后到达的越权写入才计数（60-backend/16 §4）。（2026-09-25 修订，rulings §4.19，见文末同名修订节；原：「`SYNC update/step2` 帧要求 `session.role ≥ editor`」，作废——评论的事实源在 CRDT，按原写法协同模式下 commenter 无法评论。）**挂点与拒绝语义**（2026-09-26 修订，rulings §4.21，ADR-0039 决策 4、6）：可写性映射到 Hocuspocus 的 `connection.readOnly`（加入时经 `connectionConfig.readOnly` 设定，运行中直接改字段、下一帧生效）；L2 在 `beforeSync` 判定并发 Stateless `error{collab.forbidden}`（计数规则不变）。被拒帧之后同一客户端的更新可能因缺前驱不可见，因此采用**连接污染规则**：一条连接一旦丢弃过写入帧，之后的写入帧一律不落库、不回 ack，直到重连，其间不允许把 `readOnly` 恢复为 `false`；权限升级或解锁时若该连接丢过帧，先发 `permission` 再以 1012（reason `contaminated`）关闭，客户端按被拒回滚重建。只读连接仍能发 awareness，由 `beforeHandleAwareness` 剥离（ADR-0024）。（原：「违规 → `error{collab.forbidden}`」后连接照常收写，作废——vB 实测会产生「已 ack 但不可见」的数据。）
+4. **权限变更即时生效**：PermissionsService 写库后 `perm_ver++` 并 `PUBLISH perm:doc:{id}`；各实例对相关 Session 重算 role → `CONTROL.permission` 或关闭 4403；预算 ≤ 1 s p95。**落点**（2026-09-26，rulings §4.21，ADR-0039）：server-collab 的 `PermissionSync` 扩展订阅（经 `AuthorizationSource.onPermissionChanged`），对本实例该文档的连接逐个重算，改 `connection.readOnly` 并发 Stateless `permission`；`none` 发 `revoked` 后 `ws.close(4403)`，awareness 移除由 Hocuspocus 原生广播；Valkey 恢复后对本实例全部会话全量重算。Hocuspocus 没有跨实例控制面、也没有权限通知消息，extension-redis 不承载这条链路。
 5. **文档锁定**（`documents.status='locked'`）：网关拒写（同降权），用于**覆盖导入与迁移**窗口；版本恢复不加锁，覆盖导入以换纪元收尾（在线会话 4428 后重新 bootstrap）而不是解锁（2026-09-25 修订（rulings §4.19 N1），见文末同名修订节；原：「用于导入/恢复/迁移窗口」，作废——恢复是持有 Room 的 collab 进程内单事务，加锁只会让协作者的并发编辑被 L2 拒绝并触发「导出后重载」，且覆盖导入若经恢复用例实现会与锁自冲突）。**擦除中**（`documents.status='purging'`，S-2 文档擦除或「永久删除文档」）：网关**拒绝加入**，已打开的 Room 经 `forceEpoch` 踢出会话并关闭后才清 `document_updates`/快照，防止清理后在线 Room 把新 update 写回（2026-09-25，rulings §4.18 BE-15）。
 6. **观看链接（share link）**：REST 换票据时把 link 角色折叠进 `role`，并在票据中带上 `lnk`（链接 id）；WS 不直接接受 link token，会话内的链接角色按 `lnk` 重算与到期降权（2026-09-25 修订，rulings §4.18 BE-02，见文末同名修订节）。**匿名访问路径与登录前置条件的完整定义见下方"2026-09-21 修订"一节**（rulings §4.13 S-1）。
 7. **API Key**：**降为 M4**（rulings §4.15 Q6），M1–M3 服务端不接受 API Key；M4 引入时仍不允许直接走 WS，须先经 REST 换票据（原 B7 待决随之结案）。
@@ -31,19 +31,19 @@ sequenceDiagram
   client->>rest: POST /api/v1/documents/:id/collab-ticket，携带 OIDC 登录会话
   Note over rest: 依次执行 SessionGuard 解析 Principal → ShareLinkGuard 带分享令牌时叠加链接角色 → DocumentRoleGuard 要求 ≥ viewer
   rest-->>client: 票据 JWT ES256，60 s，jti 单次，claims sub、doc、role、perm_ver、sid 可选、lnk 可选，无 tid
-  client->>gw: WS 连接，首帧 CONTROL.auth
-  Note over gw: 5 s 内未收到 auth 关闭 4408，auth 成功前收到 SYNC 或 AWARENESS 关闭 4401
-  gw->>gw: 验签
+  client->>gw: WS 升级，随后 Auth 帧，token 含 ticket
+  Note over gw: 认证前的 Sync 与 Awareness 有界排队、不应用；适配层 5 s 内未认证关闭 4408
+  gw->>gw: onAuthenticate：验签
   gw->>valkey: SETNX jti，60 s，防重放
   gw->>valkey: 读取最新 perm_ver，与票据不一致时以库为准
-  gw-->>client: auth 成功
+  gw-->>client: Authenticated，随后 Stateless auth.ok
   loop 每个入站帧
-    client->>gw: SYNC update 或 step2 需 role ≥ commenter，AWARENESS 需 viewer 及以上，CONTROL 只允许白名单类型
-    gw-->>client: 违规回 error collab.forbidden，累计 3 次关闭 4403
+    client->>gw: Sync 写入需 role ≥ commenter，beforeSync 判定；Awareness 各角色可发但只读会话被剥离；Stateless 只允许白名单类型
+    gw-->>client: 违规回 Stateless error collab.forbidden，连接进入污染态，累计 3 次关闭 4403
   end
 ```
 
-怎么读：纵线是参与方，自上而下是时间顺序。三个守卫的先后是固定的：链接角色必须在 `DocumentRoleGuard` 判定前进入 `Principal`，否则只凭链接、没有直接授权的用户会先被 403（2026-09-25 修订，rulings §4.18 BE-05；原 Note「SessionGuard 解析 Principal，DocumentRoleGuard 要求 ≥ viewer，可选叠加 ShareLinkGuard」未定先后，作废）。WS 网关不接受分享链接令牌，链接角色在 REST 换票据时就已折叠进 `role`，票据另带 `lnk` 供会话内重算；M1–M3 票据只由 OIDC 会话换取，集成方签名 JWT 与 API Key 降为 M4。
+怎么读：纵线是参与方，自上而下是时间顺序（2026-09-26 按 ADR-0039 改帧名：Auth 帧、`Authenticated`、Stateless；原图「首帧 CONTROL.auth」「auth 成功前收到 SYNC 或 AWARENESS 关闭 4401」作废）。三个守卫的先后是固定的：链接角色必须在 `DocumentRoleGuard` 判定前进入 `Principal`，否则只凭链接、没有直接授权的用户会先被 403（2026-09-25 修订，rulings §4.18 BE-05；原 Note「SessionGuard 解析 Principal，DocumentRoleGuard 要求 ≥ viewer，可选叠加 ShareLinkGuard」未定先后，作废）。WS 网关不接受分享链接令牌，链接角色在 REST 换票据时就已折叠进 `role`，票据另带 `lnk` 供会话内重算；M1–M3 票据只由 OIDC 会话换取，集成方签名 JWT 与 API Key 降为 M4。
 
 **图 2 权限变更的即时传播**
 
@@ -59,15 +59,16 @@ sequenceDiagram
   valkey-->>inst: 订阅者收到
   inst->>inst: 对相关 Session 重算 role，取直接授权与 lnk 对应有效链接角色的较高者
   alt 推送新角色
-    inst-->>client: CONTROL.permission
+    inst->>inst: PermissionSync 改 connection.readOnly，下一帧生效
+    inst-->>client: Stateless permission
   else 关闭连接
-    inst-->>client: 关闭 4403
+    inst-->>client: Stateless permission none，原始 ws.close 4403
   end
   Note over permSvc,client: 预算 ≤ 1 s p95，门禁 ≤ 2 s
   Note over inst,client: 会话记录 linkExpiresAt，链接到期时主动重算并降权，不等下一次推送
 ```
 
-怎么读：自上而下是一次权限写入扩散到所有实例的顺序。网关不必每帧查库，而是靠这条推送链更新会话内缓存的 `role`；`perm_ver` 在 PG 与 Redis 协议层双写，以 PG 为准。链接撤销同样经 `perm_ver` 加 1 与 `perm:doc:{id}` 推送生效；重算时取「直接授权」与「票据 `lnk` 对应链接此刻的有效角色」两者的较高者，所以他人改动权限不会把只凭链接加入的会话误降为 none（2026-09-25 修订，rulings §4.18 BE-02；原：重算只看票据主体的直接授权，作废）。
+怎么读：自上而下是一次权限写入扩散到所有实例的顺序（2026-09-26：各实例上由 server-collab 的 `PermissionSync` 扩展执行，权限帧走 Stateless，ADR-0039）。网关不必每帧查库，而是靠这条推送链更新会话内缓存的 `role`；`perm_ver` 在 PG 与 Redis 协议层双写，以 PG 为准。链接撤销同样经 `perm_ver` 加 1 与 `perm:doc:{id}` 推送生效；重算时取「直接授权」与「票据 `lnk` 对应链接此刻的有效角色」两者的较高者，所以他人改动权限不会把只凭链接加入的会话误降为 none（2026-09-25 修订，rulings §4.18 BE-02；原：重算只看票据主体的直接授权，作废）。
 
 依据：本文决策 4、「后果」与补充（v0.2）；门禁 ≤ 2 s 见 ADR-0023 补充（v0.2）。
 
@@ -91,7 +92,7 @@ sequenceDiagram
 
 - **凭据两种形态**：(a) 一方票据（60 s、`jti` 单次），用于 `apps/web` 与 OIDC 登录用户——**M1–M3 唯一形态**；(b) **集成方签名 JWT**（≤ 1 h，JWKS 验签；claims 草案 `sub`、`doc`、`caps[]`（能力位）、`exp`；2026-09-24 删去 `tenant`）直接放入 `CONTROL.auth`，无需先换票据——**2026-09-24 起降为 M4**，届时按 `sub` JIT 建影子用户（`documents.owner_id`、`comments.author_id` 需外键），ticket-verifier 增加该分支（14 §5.10 G-19）。
 - **权限来源可替换**（随 (b) 降为 M4；M1–M3 权限来源只有服务端 `permissions` 表）：默认读 JWT claims（`caps[]` → Role/能力位）；可配置为回调集成方权限服务（缓存 ≤ 60 s）；撤销通过 `perm:doc:{id}` 推送 ≤ 2 s 生效（不等缓存过期）。
-- **令牌刷新**（2026-09-25 修订，决策 INC-27，见文末「修订（2026-09-25，rulings §4.19）」）：浏览器登录会话每次被动续期成功之后，客户端换新 collab ticket 并以 `CONTROL.auth.refresh{ ticket }` 发送（不断连）；服务端验签 + `jti` 单次 + `sub` / `doc` / `sid` 与当前会话一致后**只重新绑定**会话并重算 role，**不延长**会话寿命——M1–M3 一方票据的 WS 会话寿命 = 票据 `sid` 指向的登录会话，登录会话被吊销时以 4401 关闭；M4 集成方签名 JWT 复用同一帧，届时才以新 JWT 的 `exp` 续期。（原：「`getToken()` 在到期前 60 s 刷新并以 `auth.refresh{ token }` 续期，服务端更新 session 的过期时间」，作废。）刷新失败**按原因分流**（2026-09-25 修订，rulings §4.18 UX-02/UX-03）：**网络错误** → `reconnecting`，与重连共用同一个 30 s 离线计时（自进入重连起累计 30 s 仍未连上 → `offline`，ADR-0023 决策 5），不另设计时器；**鉴权失败（401，`server.auth.expired`）** → 直接进入「登录已过期」，不经过「重连中 → 离线」。「登录已过期」时由横幅在**弹窗或新标签**完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页，原页重获焦点时也探测 `/auth/me`；弹窗被拦截退化为新标签链接），原页不跳转、待同步队列保留；登录回来的用户 id 与原会话一致时取新票据，按 06 §5.1 已有的 `denied → connecting` 边重连 → 同步中 → 已恢复；**不一致时不重放队列**，按只读处理并提供导出本地副本（防止以他人身份提交更改）；该横幅处理前不可关闭。（原：「刷新失败 → `reconnecting` → 30 s → `offline`」，不分原因，作废。）
+- **令牌刷新**（2026-09-25 修订，决策 INC-27，见文末「修订（2026-09-25，rulings §4.19）」）：浏览器登录会话每次被动续期成功之后，客户端换新 collab ticket 并以 `CONTROL.auth.refresh{ ticket }` 发送（不断连）；**2026-09-26 起该帧改为客户端 `provider.sendToken()`（token 函数现换票）发出的 Auth 帧、服务端 `onTokenSync` 处理**（rulings §4.21，ADR-0039 决策 3）：`onTokenSync` 不被 Hocuspocus await，网关适配层在转发该 Auth 帧后**暂停后续帧**、等钩子完成再放行，否则紧跟其后的 update 会按旧角色处理（vC）；重算的角色直接写 `connection.readOnly`（`onTokenSync` 的返回值不会更新 `connection.context`，会话态放 context 里的可变对象直接改）；失败由钩子以原始 `ws.close(4401)` 关闭（原生行为只是文档级关闭、客户端见 1000）；服务端验签 + `jti` 单次 + `sub` / `doc` / `sid` 与当前会话一致后**只重新绑定**会话并重算 role，**不延长**会话寿命——M1–M3 一方票据的 WS 会话寿命 = 票据 `sid` 指向的登录会话，登录会话被吊销时以 4401 关闭；M4 集成方签名 JWT 复用同一帧，届时才以新 JWT 的 `exp` 续期。（原：「`getToken()` 在到期前 60 s 刷新并以 `auth.refresh{ token }` 续期，服务端更新 session 的过期时间」，作废。）刷新失败**按原因分流**（2026-09-25 修订，rulings §4.18 UX-02/UX-03）：**网络错误** → `reconnecting`，与重连共用同一个 30 s 离线计时（自进入重连起累计 30 s 仍未连上 → `offline`，ADR-0023 决策 5），不另设计时器；**鉴权失败（401，`server.auth.expired`）** → 直接进入「登录已过期」，不经过「重连中 → 离线」。「登录已过期」时由横幅在**弹窗或新标签**完成 OIDC（服务端照常设 httpOnly cookie，回调页经 BroadcastChannel 通知原页，原页重获焦点时也探测 `/auth/me`；弹窗被拦截退化为新标签链接），原页不跳转、待同步队列保留；登录回来的用户 id 与原会话一致时取新票据，按 06 §5.1 已有的 `denied → connecting` 边重连 → 同步中 → 已恢复；**不一致时不重放队列**，按只读处理并提供导出本地副本（防止以他人身份提交更改）；该横幅处理前不可关闭。（原：「刷新失败 → `reconnecting` → 30 s → `offline`」，不分原因，作废。）
 - **单人模式**：无服务端时集成方直接传入能力位，客户端命令管线 fail-closed（CO-05）。
 - **错误码映射**：PRD `auth/invalid-token`、`auth/expired`、`auth/forbidden` → `server.auth.invalid_token`、`server.auth.expired`、`server.auth.forbidden`（HTTP 401/401/403；WS 4401/4401/4403），均触发 `collab/auth-failed` 事件且不泄露内部细节（10 §11.2）。
 - **构造消息绕过客户端**（CO-05）：服务端拒绝该 update 并在累计 3 次后断开（4403），审计 `collab.update_rejected`。
@@ -141,7 +142,7 @@ sequenceDiagram
 > 依据：rulings §4.19 D-COMMENTS-PKG（评论事实源为 ResourceHook `comments.threads`，经 `comments.*` 命令写 CRDT）+ PRD PD-04（用户裁决）+ ADR-0034 补充 v0.2（路径级规则）；设计线遗留口径 INC-27（rulings §4.19 登记，needsUser=false）。决策 3 与「令牌刷新」已就地改写，本节只做索引。
 
 1. **决策 3 写入门槛**：`SYNC update/step2` 的角色门槛由 ≥ editor 改为 **≥ commenter**。commenter 的写入范围由服务端软门禁路径级规则限定在 `resources['comments.threads']`，作者只能改自己的实体，越界写入以补偿事务还原并计数、达阈值 4409（ADR-0034 修订 2026-09-25）；viewer 的任何写入仍在 L2 拒绝（`error{collab.forbidden}`，3 次 4403；降权或锁定时已在途的帧不计入这 3 次）。服务端细则见 60-backend/16 §4、60-backend/02 §9。
-2. **令牌刷新（INC-27）**：一方票据的 `auth.refresh{ticket}` 只重新绑定会话、重算角色，不延长寿命（寿命由 `sid` 指向的登录会话承担，吊销即 4401）；触发点是浏览器会话每次被动续期成功之后，不再按「到期前 60 s」计时；M4 集成方 JWT 才以新 `exp` 续期。帧定义见 06 §6.3。
+2. **令牌刷新（INC-27）**：一方票据的 `auth.refresh{ticket}` 只重新绑定会话、重算角色，不延长寿命（寿命由 `sid` 指向的登录会话承担，吊销即 4401）；触发点是浏览器会话每次被动续期成功之后，不再按「到期前 60 s」计时；M4 集成方 JWT 才以新 `exp` 续期。帧定义见 06 §6.3。（2026-09-26 补：`auth.refresh` = `provider.sendToken()` → `onTokenSync`，适配层暂停后续帧直到钩子完成，rulings §4.21。）
 3. **分享令牌传递**（决策 INC-25 的对齐）：API 只接受请求头 `X-Cordex-Share-Token`，不接受 query；上文 2026-09-21 修订节「Header 或 Query」按此收窄。
 4. **文档锁定的会话信号**：决策 5 的锁定窗口经 `CONTROL.room{ locked:{reason, until} }` 通知在线会话（解锁推送不带 `locked` 的 `room`），不借 `permission{reason:'changed'}`——角色并未改变（06 §6.3）。
 
@@ -154,8 +155,20 @@ sequenceDiagram
 3. **覆盖导入 = 换纪元**：导入期间文档 `locked`，会话按决策 5 转只读；worker 上的导入处理器写 `epoch + 1` 的 `import` 快照、在同一事务推进 `documents.epoch` 并解锁，随后经既有控制频道 `room:{docId}:ctl` 发 `epoch`，在线会话以 4428 断开后重新 bootstrap，未获 db 确认的本地更改移入 `rejected` 并可导出（决策 INC-06 的 4428 流程）；不新增 worker → collab 的触发通道，旧纪元副本漏收通知时由取号的纪元栅栏兜底（60-backend/06 §6.5、60-backend/05 §9.2）。
 4. **与 `permVersion` 的关系不变**：锁定与解锁经 `perm:doc:{id}` 的 `lockChanged` 通知、不递增 `perm_ver`；纪元递增与 `perm_ver` 仍互不联动（决策 4、rulings §4.11 C-17）。
 
+## 修订（2026-09-26，rulings §4.21）：协同服务端改用 Hocuspocus 4
+
+> 依据：rulings §4.21 q-ws-gateway（用户裁决，知情的非推荐项）与 H:Q1–Q6；ADR-0039。决策 2–4、补充 v0.2「令牌刷新」、§4.19 修订第 2 条与图 1、图 2 已就地改写，本节只做索引。
+
+1. **决策 2 握手**：票据放 Auth 帧 token（JSON）；认证前帧有界排队、不应用；5 s 认证期限与严格限额在网关适配层；删「首帧必须 auth」「认证前 SYNC 即 4401」「认证后再收 auth 即 4400」；鉴权判定只放 `onAuthenticate`、不放 `onConnect`。
+2. **决策 3 每帧检查**：L2 映射 `connection.readOnly`、在 `beforeSync` 判定并发 Stateless `error`；新增连接污染规则（丢过写入帧的连接之后不落库、不回 ack，直到重连）。
+3. **决策 4 权限推送**：落在 `PermissionSync` 扩展；Valkey 恢复后全量重算。
+4. **令牌刷新**：`auth.refresh` = `provider.sendToken()` → `onTokenSync`；适配层暂停后续帧；失败 `ws.close(4401)`。
+5. **链接到期定时器**：挂在连接的 `context`（会话记录 `linkId`、`linkExpiresAt`），`onDisconnect` 时清理（60-backend/02 §9.6）。
+6. **不用 extension-throttle**：IP 桶在升级处理先扣、`onAuthenticate` 验签通过即退还（rulings §4.20 BE-01+TX-03 不变）。
+
 ## 如何被机械验证
 
+- （2026-09-26，rulings §4.21）Hocuspocus 挂点：provider 在取票期间先于 Auth 上线的 update 不被应用、认证后回放；认证后加载 1.5 s 期间持续编辑不触发 4205；`auth.refresh` 之后紧跟的 update 按新角色处理（适配层暂停生效）；viewer 被拒一帧后，同一连接此后的写入帧都不落库、不回 ack，重连后状态与服务端一致；鉴权失败时客户端收到的是原始关闭码（4401、4403、4428），不是 1000。
 - conformance/e2e：过期票据 4401；重放票据 4401；viewer 发 update → error 且连接保持；3 次后 4403；commenter 写 `resources['comments.threads']` 自己的实体 → 落库并广播，写其他路径或他人实体 → 补偿事务还原（2026-09-25，§4.19）；`auth.refresh` 成功后会话到期时间不变、`sid` 被吊销 → 4401（INC-27）；降权 → ≤ 1 s 收到 permission 帧且后续 update 被拒；锁定文档拒写且在线会话收到 `room.locked`（2026-09-25 修订（rulings §4.19 N1）：`reason` 只取 `import` / `migration`；恢复进行中任何会话都收不到 `room.locked` 且写入照常获 db ack；覆盖导入成功后锁定中的会话以 4428 关闭、重连后纪元加一）。
 - 单测：`jti` 单次；`perm_ver` 不一致时以库为准（模拟旧票据）。
 - 安全扫描：WS URL/日志中不出现票据以外的凭据（日志脱敏测试）。
@@ -173,4 +186,4 @@ sequenceDiagram
 
 ## 关联
 
-章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6、§4.18 BE-01/BE-02/BE-05/BE-06/BE-11/UX-02/GV-15、§4.19 N1（锁定窗口收窄；机制见 60-backend/04 §2、05 §9.2 / §10、06 §6.5）；ADR-0022（RLS 设计、`SECURITY DEFINER` 查找函数）/0037（Casdoor profile、反代子域、角色装配）；ADR-0023/0035；架构 06 §10、08 §1、§9.1；60-backend/02（鉴权链）、§9.1（分享链接需登录 + 外部访问审计，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。
+章程 D12、Q6；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6、§4.18 BE-01/BE-02/BE-05/BE-06/BE-11/UX-02/GV-15、§4.19 N1（锁定窗口收窄；机制见 60-backend/04 §2、05 §9.2 / §10、06 §6.5）；ADR-0022（RLS 设计、`SECURITY DEFINER` 查找函数）/0037（Casdoor profile、反代子域、角色装配）；ADR-0023/0035/0039（Hocuspocus 挂点，rulings §4.21）；架构 06 §10；60-backend/01 §3；60-backend/02（鉴权链；分享链接需登录 + 外部访问审计见其 §7.5，2026-09-21 补充）；`00-charter/rulings-2026-09-14.md` §4.13 S-1；`40-modules/15-server-architecture-review.md` §3.2；`40-modules/08-server-identity-documents-and-storage.md`。

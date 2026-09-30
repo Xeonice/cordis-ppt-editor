@@ -1,6 +1,6 @@
 # ADR-0013 Mutation 降级与 `StoreOp` 原语集（5 种；有序实体用 fractional index）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M3：契约用例名以 40-modules/02 §2.5 为准）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.21 整合：决策与图中无身份值列表的示例去掉 columnWidths（表格已按 ADR-0018 归一化）） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3、§4.17、§4.18
 
 ## 状态
 
@@ -16,7 +16,7 @@ D4 要求 Mutation 是唯一改 Store 的途径且逆操作由 Store 推导；�
    ```
    set(path, value) · delete(path) · insert(path, index, items) · remove(path, index, count) · text(path, delta)
    ```
-   - `insert/remove` **只用于无身份的值列表**（`columnWidths: Emu[]`、渐变 stops、tab stops、`paragraphs[]` 若不走 Y.Text）；
+   - `insert/remove` **只用于无身份的值列表**（渐变 stops、tab stops、`paragraphs[]` 若不走 Y.Text；2026-09-26 起表格已按 ADR-0018 归一化为按 id 的 `columns`/`rows`/`cells` 记录表，原示例 `columnWidths: Emu[]` 删去）；
    - **有身份的集合**（页、母版、版式、形状、媒体、节、评论…）= 实体表 `Record<id, entity>` + 实体属性 `order: FracKey`；「移动」= `set([...,'order'], key)`；**不存在 `move` 原语**（ADR-0032）。
    - `text` 的 delta 与 Y.Text 同形（insert/retain/delete + attributes）。
 2. **Mutation 载荷禁止数组下标与相对位置**：意图「插到 X 之后」在**命令层**转为具体键：`const order = between(prev?.order, next?.order)`（`@cordexjs/shared/order`，含 2 字符随机后缀）→ Mutation 携带最终 `order`。这样 `lower()` 保持**纯且确定**（同一 Mutation 任何时候降级结果相同），随机性与 id 生成一样只发生在命令层。
@@ -50,7 +50,7 @@ flowchart TD
   target -- "有身份的集合：页、母版、版式、形状、媒体、节、评论…" --> entityTable["实体表 Record，按 id 键定位，实体属性 order: FracKey"]
   entityTable -- "移动" --> opSetOrder["set 该实体的 order 键，不存在 move 原语"]
   entityTable -- "删除" --> opDeleteEntity["lower 产出 set entities/id/_deleted 为 at 与 by，逆操作 = delete entities/id/_deleted，原 id 不变；实体键 delete 只留给硬删除"]
-  target -- "无身份的值列表：columnWidths、渐变 stops、tab stops…" --> opInsRem["insert、remove 按下标，逆操作 insert ↔ remove，需被删项"]
+  target -- "无身份的值列表：渐变 stops、tab stops…" --> opInsRem["insert、remove 按下标，逆操作 insert ↔ remove，需被删项"]
   target -- "富文本" --> opText["text：delta 与 Y.Text 同形，逆操作 = invert（delta, oldText）"]
   target -- "属性" --> opSet["set、属性级 delete：逆操作 set ↔ set 或 delete，不涉及墓碑"]
 ```

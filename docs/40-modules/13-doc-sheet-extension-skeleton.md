@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2）；2026-09-26（§4.20） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§8.2 冻结总账加 @cordexjs/xml，并注明 docx w:t 与 xlsx 大表流式计数复用同一词法器） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -820,6 +820,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 | BC | 模块文档 | 冻结文件数 | 冻结范围来源 |
 |---|---|---|---|
 | BC-01…05、07（`shared`/`kernel`/`protocol`/`i18n`/`model-core`+2 store/`ooxml-core`） | M-02 §8、M-04 §8 | 203（M-02 七包）+ 43（`ooxml-core`） | 02 §8"必须零改动的文件清单"；04 §8 |
+| BC-07 的格式盲 XML 层（`@cordexjs/xml`，L0 · iso · 零依赖；2026-09-26 新增，rulings §4.21 X:q-xml-package、ADR-0019） | M-04 §8 | 全部 `src/**`（文件数以 40/04 §4.3 为准） | 04 §4.3、§8；docx 的 `w:t` 与 `xml:space` 保留、xlsx 大表（`sheetData`）的流式计数与限额都复用同一词法器（`scan` 与 `parseDocument` 两个入口，按时间片让出），不为 doc / sheet 另写解析器 |
 | BC-09（`collab-core`/`collab-yjs`/`collab-transport-ws`/`collab-offline-idb`） | M-05 §8 | 86 | 05 §8"doc/sheet 复用时零改动的文件清单" |
 | BC-10/11（`engine-layout`/`engine-render`/`render-dom`） | M-06 §8 | 0（**零文件变化**，纯契约消费） | 06 §8"三包内零文件变化" |
 | BC-13/14（`design`/`ui-core`/`ui-react`） | M-10 §8 | 全部（含 44 个 shadcn 复制件；2026-09-24 `drawer`/vaul 不迁移，45→44，rulings §4.15 Q2） | 10 §8"generic（零改动）" |

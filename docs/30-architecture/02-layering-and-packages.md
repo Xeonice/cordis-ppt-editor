@@ -1,7 +1,7 @@
-# 02 分层与包：仓库目录树、逐包结构、package.json 策略、依赖规则
+# 02 分层与包：秩表、仓库根目录、package.json 策略、第三方单点与依赖规则
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18（补 §4.0.1 `cordex.role` 七值↔四值折叠表、§4 开头 DDD 目录旁注，14 §1 C-11）；2026-09-24（rulings §4.15：Q9 pnpm 11 双锁 + Node 26、删 `.npmrc` 非鉴权设置、lockfile-guard；Q1 包模板 publishConfig/private、内部依赖 `workspace:` 协议、release 走 OIDC trusted publishing；Q10 compose 组件 Valkey/SeaweedFS/renderer/可选 Casdoor；T-0 去租户；Q2 `*-ui` domain/application 框架无关规则）；2026-09-24（rulings §4.16 Q15：`ooxml-pptx` codec 与夹具的 `.pptm` 改为拒绝导入口径）；2026-09-24（复核修正，rulings §4.17：L5 包模板补 `license: "Apache-2.0"`；M17 R14a 改名 `cordex-ui-bundle-core-framework-free`；M15 §2 docker-compose 行 profile 划分按 ADR-0037）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG 登记 iso 包 `@cordexjs/comments`（§1、§4.12c、§4.21）与 `comments.threads` 命名空间（§4.10）；D-M2-CONTENT 参考应用 M2 起用 `preset-slide-collab`、快照直接回字节（§3.2、§4.21）；§3.1、§3.2、§4.17–§4.24 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§3.1 `apps/web` 与 §3.2 `apps/server` 的 `src/` 子树压缩为包级定位 + 链接 40-modules/08、09、11、12 §4 与 50-frontend/02–03、60-backend/01、17；`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`（70-testing 回写））；2026-09-26（§4.20）（FE-01：§4.5 model-core `Config` 删 `defaultStoreProvider`，`units.service.ts` 增 `registerUnitProvider`/`listUnitProviders`，`unit-plugin.ts` 改为按登记表挂载；FE-06：§4 ui-core `model/` 公共骨架加 `enablement?`、`context-keys.ts` 标准键补 `editorMode`、`unitLoaded`、`can.*`；FE-05/FE-03：slide-ui `MasterThumbnails` 删除被引用版式改为确认后可撤销、默认版式取 `defaultLayoutOf`） | 依赖：charter v0.1
-> 本文是 M0 后半段「创建仓库骨架」的直接输入。包名/层号/同构类以章程 §5.2 为准，不得更名；本文只细化到目录与文件。接口只给「签名级草案」（标注「草案」），不写实现。
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18（补 §4.0.1 `cordex.role` 七值↔四值折叠表、§4 开头 DDD 目录旁注，14 §1 C-11）；2026-09-24（rulings §4.15：Q9 pnpm 11 双锁 + Node 26、删 `.npmrc` 非鉴权设置、lockfile-guard；Q1 包模板 publishConfig/private、内部依赖 `workspace:` 协议、release 走 OIDC trusted publishing；Q10 compose 组件 Valkey/SeaweedFS/renderer/可选 Casdoor；T-0 去租户；Q2 `*-ui` domain/application 框架无关规则）；2026-09-24（rulings §4.16 Q15：`ooxml-pptx` codec 与夹具的 `.pptm` 改为拒绝导入口径）；2026-09-24（复核修正，rulings §4.17：L5 包模板补 `license: "Apache-2.0"`；M17 R14a 改名 `cordex-ui-bundle-core-framework-free`；M15 §2 docker-compose 行 profile 划分按 ADR-0037）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG 登记 iso 包 `@cordexjs/comments`（§1、§4.12c、§4.21）与 `comments.threads` 命名空间（§4.10）；D-M2-CONTENT 参考应用 M2 起用 `preset-slide-collab`、快照直接回字节（§3.2、§4.21）；§3.1、§3.2、§4.17–§4.24 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§3.1 `apps/web` 与 §3.2 `apps/server` 的 `src/` 子树压缩为包级定位 + 链接 40-modules/08、09、11、12 §4 与 50-frontend/02–03、60-backend/01、17；`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`（70-testing 回写））；2026-09-26（§4.20）（FE-01：§4.5 model-core `Config` 删 `defaultStoreProvider`，`units.service.ts` 增 `registerUnitProvider`/`listUnitProviders`，`unit-plugin.ts` 改为按登记表挂载；FE-06：§4 ui-core `model/` 公共骨架加 `enablement?`、`context-keys.ts` 标准键补 `editorMode`、`unitLoaded`、`can.*`；FE-05/FE-03：slide-ui `MasterThumbnails` 删除被引用版式改为确认后可撤销、默认版式取 `defaultLayoutOf`）；2026-09-26（§4.21：去目录树——§3–§4 逐包目录树删除，各包标题留一行桩指 40-modules 对应 §4，§4.19 UI 依赖清单迁 50/17；§1 秩表加 L0 `@cordexjs/xml` 并定为全仓唯一源；§4.0.1 单点表补 §4.21 新依赖、zod 单点放宽、fflate 多页 zip 经 ooxml-core `writeZip`；§4.9 ooxml-core 依赖上限改为 shared, xml, model-core、关系部件写回改为「结构不变写回原字节」；§7 R5 / R9 / R11 同步）；2026-09-26（§4.21 整合：§4.0.1 单点表补 mtx-decompressor、rbush、use-sync-external-store、simplify-js、fit-curve、浏览器 OTel 与一方包白名单；server-app-thin 与 R9 白名单加 @cordexjs/ooxml-core/zip；§4.1b 改指 40/04 §4.3；§4.0.1 单点表注明 depcruise R5 由章程 §5.3 登记表生成；numfmt 放行 slide-ui 图表数据分区）；2026-09-26（§4.21 复核：fflate 单点只在 ooxml-core） | 依赖：charter v0.1
+> 本文是 M0 后半段「创建仓库骨架」的直接输入。包名/层号/同构类以章程 §5.2 为准，不得更名。§4.21 起本文只保留跨端的分层规则（§1 秩表是全仓唯一源）、仓库根目录、`package.json` 策略、第三方单点表与依赖规则；逐包目录树与逐文件职责以 40-modules 各篇 §4 为唯一源，本文各包标题保留一行桩供既有引用命中。
 
 ---
 
@@ -19,7 +19,7 @@ flowchart TB
     l4["L4 协同：collab-core、comments；Provider：collab-yjs、collab-transport-ws、collab-offline-idb — iso/dom — Definition / Provider"]
     l3["L3 格式基础：ooxml-core — iso — 库"]
     l1["L1 文档内核：model-core；Provider：store-memory 或 store-yjs — iso — Definition / Provider"]
-    l0["L0 基础：shared、kernel、protocol、i18n — iso — 库 / 插件"]
+    l0["L0 基础：shared、xml、kernel、protocol、i18n — iso — 库 / 插件"]
     ls["LS 服务端：server-collab、server-storage、server-headless — node — 库 / Provider"]
   end
   l8 ~~~ l7 ~~~ l5 ~~~ l4 ~~~ l3 ~~~ l1 ~~~ l0
@@ -57,7 +57,7 @@ flowchart TB
 
 怎么读：每个子图是一个层带，标题给出「允许依赖的水平层 — 同构类」；每束（slide / doc / sheet）横跨这四个层带，在每个层带中各有一个主包（slide 束在 V-render 另有 M3 起拆出的可选包 slide-render-chart），束与束之间互不依赖（§7 R4）。
 
-「层带」是本文对章程「L2/L3/L6 垂直束视为各自层号」的机械化解读（README C-1；**总编排已裁决采纳，章程 v0.2 起不再使用 L2/L6 作层号**）。机械化形式是一张**秩表**（类型治理线 depcruise 用数值比较，语义与本文 §7 R2 的允许矩阵等价）：
+「层带」是本文对章程「L2/L3/L6 垂直束视为各自层号」的机械化解读（README C-1；**总编排已裁决采纳，章程 v0.2 起不再使用 L2/L6 作层号**）。机械化形式是一张**秩表**（类型治理线 depcruise 用数值比较，语义与本文 §7 R2 的允许矩阵等价）。**本节秩表是全仓唯一源**（rulings §4.21 R-d-06）：[50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md) §2、40-modules/18 §3 与章程 §5.1 只引用本表，不再各自重画数值。§4.21 起 L0 新增 `@cordexjs/xml`（秩 0 · iso · library），与 `shared` 一样零运行时依赖（R11）：
 
 ```
  layer     L0   L1   V-model   L3   V-codec   L4   L5   V-render   LS   L7   V-ui   L8
@@ -68,6 +68,7 @@ flowchart TB
  例：V-model(15)→L1(10) ✓  V-model→L3(30) ✗  V-codec(35)→V-model(15) ✓  V-render(55)→L5(50) ✓
      LS(58)→engine-layout/engine-render(L5, iso) ✓  LS→render-dom(L5, dom) ✗（同构类拦截）  LS→L7 ✗
      LS(server-headless)→model-slide ✗（LS 不是组合根，R3 拦截；slide 束由 apps/server 装配）
+     L3(ooxml-core)→L0(xml) ✓  L0(xml)→L0(shared) ✗（R11：xml 与 shared 零依赖）  apps/server 媒体模块→xml ✓（R9 白名单）
      L8 组合根（compositionRoot:true）→任意 ✓，但 preset 带 bundle 后仍受束间隔离（preset-doc→slide 束 ✗），
      apps/web 仍受 R9 白名单（apps/web→model-slide ✗）
 ```
@@ -154,49 +155,21 @@ flowchart TB
 
 ## 3. `apps/`
 
-`apps/*` 只做组装与传输壳（章程 R2、P1），两者都是组合根（`cordex.compositionRoot: true`，R3 豁免、R9 约束）。**机械验证**（以 40-modules/11 §10 为准统一，2026-09-25 rulings §4.18 FE-05）：depcruise 规则 `cordex-apps-only-assemble`（09-03 §3.7，TD-093）——apps/web 只可 import `@cordexjs/preset-*`、`@cordexjs/protocol`、`@cordexjs/design`、`@cordexjs/ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、`@cordexjs/i18n`、`@cordexjs/shared`、`@cordexjs/kernel`（**值导入仅限 `src/application/host/**`**，其余只许 `import type`），另放行 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`；apps/server 的 `src/modules/**` 只可 import `@cordexjs/server-*`、`@cordexjs/protocol`、`@cordexjs/kernel`（类型），`src/cordis-host/**` 另可 import 装配所需的 iso 插件包（FE-01/FE-02）；lint `no-restricted-syntax`（09-02 §3 `rules/assembly.ts`，原称扫描器 `no-domain-defs-in-apps`/`single-create-host-callsite`）——apps/** 内不得出现 `defineCommand`/`defineMutation`/`defineOperation`/`defineContributionPoint`/`ctx.contribute(`，`createHost(`、`createSlide*Preset(` 只在 `create-editor-host.ts` 出现。
+`apps/*` 只做组装与传输壳（章程 R2、P1），两者都是组合根（`cordex.compositionRoot: true`，R3 豁免、R9 约束）。**机械验证**（以 40-modules/11 §10 为准统一，2026-09-25 rulings §4.18 FE-05）：depcruise 规则 `cordex-apps-only-assemble`（09-03 §3.7，TD-093）——apps/web 只可 import `@cordexjs/preset-*`、`@cordexjs/protocol`、`@cordexjs/design`、`@cordexjs/ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、`@cordexjs/i18n`、`@cordexjs/shared`、`@cordexjs/kernel`（**值导入仅限 `src/application/host/**`**，其余只许 `import type`），另放行 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`；apps/server 的 `src/modules/**` 只可 import `@cordexjs/server-*`、`@cordexjs/protocol`、`@cordexjs/kernel`（类型）以及 `@cordexjs/xml`（仅媒体模块的 SVG 消毒，rulings §4.21 X:q-xml-package），`src/cordis-host/**` 另可 import 装配所需的 iso 插件包（FE-01/FE-02）；depcruise `server-app-thin`——`apps/server/src/modules/**` 不得 import `yjs`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`，业务逻辑只经 `@cordexjs/server-*` 触达；白名单两项：`@cordexjs/xml`（仅媒体模块的 SVG 消毒）与 `@cordexjs/ooxml-core/zip` 子路径（仅导出模块的多页 PNG 打包，只含 `writeZip`，不带出 OPC 与 XML，rulings §4.21 R-d-51、40-modules/04 §6.1）；lint `no-restricted-syntax`（09-02 §3 `rules/assembly.ts`，原称扫描器 `no-domain-defs-in-apps`/`single-create-host-callsite`）——apps/** 内不得出现 `defineCommand`/`defineMutation`/`defineOperation`/`defineContributionPoint`/`ctx.contribute(`，`createHost(`、`createSlide*Preset(` 只在 `create-editor-host.ts` 出现。
 
 ### 3.1 `apps/web`（L8，dom）
 
-```
-apps/web/
-├── package.json                 private；`cordex: { layer:'L8', iso:'dom', role:'app', compositionRoot:true }`；deps: @cordexjs/preset-slide-viewer, @cordexjs/preset-slide, @cordexjs/preset-slide-collab, @cordexjs/ui-react, @cordexjs/design, @cordexjs/protocol, @cordexjs/kernel（值导入仅 host 目录）, @cordexjs/shared, @cordexjs/i18n, react, react-dom, react-router（8.x，包名 react-router）
-├── vite.config.ts               React 插件；resolve 走 workspace 的 lib/（不 alias 到 src，避免 dev/prod 分叉）；chunk 按垂直束拆分
-├── tsconfig.json                extends tooling/tsconfig/dom.json；references 到依赖包
-├── index.html                   单页入口
-├── public/                      静态资源（favicon、示例 pptx 链接）
-├── src/                         文件级目录以 40-modules/11 §4.4、§5.4 为唯一源：`app/`（路由与布局；路由表唯一源 50-frontend/02 §2）、`pages/`、`application/host/`（组合根：`create-editor-host.ts` 是 apps/web 唯一「知道插件存在」的地方，`@cordexjs/kernel` 值导入仅限此目录，rulings §4.18 FE-05；装配行为见 50-frontend/03 §5）、`application/**/*.usecase.ts`、`domain/`（`Session`、`EditorPageState` 等视图模型，50-frontend/02 §4、§6）、`infrastructure/`（REST 客户端全部经 protocol schema `parse`，50-frontend/02 §7）、`styles/`（`@import "@cordexjs/ui-react/styles.css"` + 应用页 Tailwind 工具类）
-├── e2e/                         Playwright（projects 与用例落点以 70-testing/06 §3 为准）
-└── README.md
-```
-
-本节只保留包级定位；路由、会话、RuntimeConfig 与组合根行为的唯一源是 [50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md)（应用壳、路由与会话）与 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md)（preset 装配与组合根），物理文件以 40-modules/11 为准。
+> 目录树已删（§4.21）：文件级目录见 40-modules/11 §4.4；路由、会话、RuntimeConfig 与组合根行为见 [50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 与 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md)；本包 `cordex: { layer:'L8', iso:'dom', role:'app', compositionRoot:true }`，import 白名单见本节开头与 §7 R9。
 
 ### 3.2 `apps/server`（L8，node）
 
-```
-apps/server/
-├── package.json                 private；`cordex: { layer:'L8', iso:'node', role:'app', compositionRoot:true }`；deps: @nestjs/*（唯一允许 import @nestjs 的包，§5.3 规则 4）、@cordexjs/server-collab、@cordexjs/server-storage、@cordexjs/server-headless、@cordexjs/protocol、装配所需 iso 插件包（仅 `src/cordis-host/**` 可 import，FE-01/FE-02）、pg/drizzle、ioredis（Valkey，Redis ≥7.2 协议兼容）、ws
-├── nest-cli.json / tsconfig.json / tsconfig.build.json
-├── src/                         文件级目录以 40-modules/08、09、12 §4 为唯一源；Nest 模块清单（24 个）、`CORDEX_ROLE` 五值与「模块 × 角色 × 部件」装配矩阵、宿主生命周期以 60-backend/01 §3–§9 为唯一源
-│   ├── main.ts                  bootstrap：配置 schema 校验（60-backend/17 §5–§6，启动前失败，primer MUST #4；production 下拒绝无鉴权启动）→ Nest app → WS adapter
-│   ├── modules/                 Nest 业务模块（身份与访问、文档与存储、协同与快照、作业、评论与集成、运维六组）；只可 import `@cordexjs/server-*`、`@cordexjs/protocol`、`@cordexjs/kernel`（类型），业务逻辑不在此（`server-app-thin`）
-│   ├── cordis-host/
-│   │   └── preset-server.ts     唯一装配入口：选定 iso 插件清单（model-core、store-*、model-slide、ooxml-core/ooxml-pptx、engine-layout、engine-render 等），传给 server-headless 的 createHeadlessHost({ plugins })；worker_threads 按清单模块路径加载（2026-09-25 rulings §4.18 FE-01；R3 组合根豁免只覆盖本目录）
-│   └── infra/、common/           DB（表与迁移以 60-backend/08–13 的 DDL 为唯一源，drizzle 只作类型镜像）、Valkey、对象存储绑定；错误信封过滤器、fail-closed 守卫链、审计拦截器（60-backend/02 §6、60-backend/07 §7）
-├── test/                        集成与 e2e（落点以 70-testing/07 §2 为准）
-├── Dockerfile                   单镜像、基础镜像 node:26-slim、**不含 Chromium**；按 `CORDEX_ROLE`（all/api/collab/worker/renderer）运行（renderer 角色另有含 chromium-headless-shell 的镜像变体）
-├── docker-compose.yml           自托管洁净栈（rulings §4.15 Q10，ADR-0037）：默认（不带 profile）= app（`CORDEX_ROLE=all`，可拆 api/collab/worker）+ web + postgres:18 + Valkey + SeaweedFS + renderer（M3 起；零出站、非 root、无凭据）+ OTel Collector + Jaeger + Prometheus（默认告警规则）；`idp` profile = Casdoor（可选，可换任意 OIDC IdP）；`observability-agpl` profile = Grafana + Loki（+ Tempo），显式开启；`dev` profile = oidc-provider mock；镜像按 digest 钉死（profile 划分以 ADR-0037 决策 2 为准，08 §10.1）
-└── README.md
-```
-
-模块细节与部署拓扑的唯一源是 60-backend（[60-backend/17](../60-backend/17-deployment-and-config.md) 部署与配置；08 只保留跨端原则），模块清单、角色矩阵与宿主生命周期的唯一源是 [60-backend/01](../60-backend/01-service-overview-and-roles.md)；本文只固定目录与「业务逻辑不在 apps/server」的边界（机械验证：depcruise `server-app-thin`——`apps/server/src/modules/**` 不得 import `yjs`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`，只能经 `@cordexjs/server-*`）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/08、09、12 各篇 §4（进程入口、根模块与基础设施见 40-modules/12 §4.13）；Nest 模块清单、`CORDEX_ROLE` 与装配矩阵、宿主生命周期见 [60/01 后端架构](../60-backend/01-service-overview-and-roles.md)，部署与镜像见 [60-backend/17](../60-backend/17-deployment-and-config.md)；本包 `cordex: { layer:'L8', iso:'node', role:'app', compositionRoot:true }`，NestJS 12 纯 ESM 构建，`server-app-thin` 与 import 白名单见本节开头。
 
 ---
 
 ## 4. `packages/`
 
-> 目录级骨架为历史草图，物理目录以 `40-modules/<NN>` §4 为准（DDD 五目录：`domain/ application/ infrastructure/ interface|ui/ testing/`），2026-09-18（14 §1 C-11 关联裁定；详见 `40-modules/00-module-map.md`）。
+> §4.21 起逐包目录树删除（R-d-06）：物理目录与逐文件职责只以 `40-modules/<NN>` §4 为准（DDD 五目录：`domain/ application/ infrastructure/ interface|ui/ testing/`，2026-09-18 14 §1 C-11 关联裁定；详见 `40-modules/00-module-map.md`）；下面各包标题保留，正文只留一行桩指向对应 40-modules 篇与该包的跨端约束。§4.0 包模板与字段策略、§4.0.2 `./testing` 约定仍是所有包的共同规则。
 
 ### 4.0 包模板（所有包相同的骨架）
 
@@ -282,7 +255,7 @@ packages/<name>/
 |---|---|
 | `exports` 显式子路径 = `cordex.publicEntry`（`.` 必有，`./testing` 按需，其余逐个登记，另含 `package.json`、`cordex-manifest.json` 元数据入口）；每个代码子路径须有 api-extractor 基线；无 `./*` 通配（2026-09-25 rulings §4.18 FE-04） | `publint`、`@arethetypeswrong/cli`、`scan-manifest` 规则 (c)（09-06 §6，exports key = publicEntry）、depcruise R8（09-03 §3.6）；原称扫描器 `exports-explicit` |
 | `sideEffects: false`（design 例外列 css） | 扫描器：`src/index.ts` 无顶层调用表达式；bundler 验证 |
-| 第三方单点：`cordis` 仅 kernel；`yjs`/`y-protocols` 仅 store-yjs/collab-yjs/server-collab；`y-indexeddb`（或自写 IDB 适配）仅 collab-offline-idb；`react`、`radix-ui`、`class-variance-authority`、`clsx`、`tailwind-merge`、`lucide-react`、`tailwindcss`/`@tailwindcss/*`、`tw-animate-css`、`cmdk`、`sonner`、`react-resizable-panels`、`@fontsource-variable/geist` 仅 ui-react 与 `*-ui`（shadcn 复制件所在，章程 §5.3 规则 4、ADR-0017；`vaul` 已停止维护，drawer 不迁移）；例外：apps/web 可直接依赖 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`（rulings §4.15 Q2，`react-router` 仅限 apps/web）；`cn` 所用 `clsx`/`tailwind-merge` 精确锁版本；`@nestjs/*` 仅 apps/server；`fflate` 仅 ooxml-core/server-storage；`zod` 仅 protocol/kernel（Standard Schema 实现选择集中）；图表绘制库（Apache-2.0/MIT）仅 slide-render/chart → slide-render-chart | depcruise `third-party-single-entry`（09-03）；`syncpack` 单版本 |
+| **第三方单点**（depcruise R5 与 ESLint `restricted-imports` 由章程 §5.3「第三方单点登记表」生成（ADR-0049 决策 3 ①），本表与之同步维护、内容一致；新增依赖须在同一 PR 四处同步：章程 §5.3 单点表、`license-allowlist`、catalog 精确锁、50/13 体积预算，许可按 ADR-0049 分级准入，R-d-10）。**内核与模型**：`cordis` 仅 kernel；`zod` 仅 protocol、kernel 与各包的 `config` / `schema` 文件（`**/config/**`、`**/schema/**`、`*.schema.ts`；§4.21 由「仅 protocol/kernel」放宽，R-d-56）；`yjs`/`y-protocols`/`lib0` 仅 store-yjs/collab-yjs/server-collab；`fflate` 仅 ooxml-core（server-storage 不引 zip，原「/server-storage」删去，与 30/01、60/19 §9 一致；多页 PNG 打包复用 ooxml-core 导出的 `writeZip`，登记进其 `publicEntry`，不扩 fflate 单点，R-d-51）；XML 运行时只用 `@cordexjs/xml`（零依赖），`saxes`、`libxml2-wasm` 只作 `@cordexjs/xml` 的 devDependency 差分 oracle；`mtx-decompressor` 仅 ooxml-core 的 `infrastructure/fonts/`（内嵌字体 MTX 解压，惰性 import，MPL-2.0 未修改依赖，ADR-0049）；分数索引是 shared/order 内置的 rocicorp 源码（CC0，注明出处），不是 npm 依赖。**协同**：`@hocuspocus/server` 仅 server-collab；`@hocuspocus/provider` 仅 collab-yjs 与 collab-transport-ws；`@hocuspocus/extension-redis` 与 `ioredis` 仅 apps/server（extension-redis 于 M3 组装，运行时经其 `createClient` / `redis` 配置注入 apps/server 的 ioredis 6.0.x 实例；其自带的传递依赖 ioredis ~5.6.1 作单版本例外登记在 60/19）；`idb`（M4 自写 IDB 适配）仅 collab-offline-idb。**渲染**：`d3-scale`/`d3-shape`/`d3-array`、`numfmt` 仅 slide-render-chart（M1–M2 为 slide-render 的 `./chart` 子路径），`numfmt` 另放行 slide-ui 的图表数据分区（M3，解析数据网格输入）；`emf-converter` 仅 slide-render 的 EMF Worker；`harfbuzzjs`/`bidi-js`（M4 / M5）仅 render-dom 惰性度量器与 engine-layout；`comlink` 仅各 Worker 入口的 infrastructure 目录；`rbush`（M2 命中测试 bench p95 超 2 ms 才引）仅 engine-render。**UI**：`react`、`radix-ui`、`class-variance-authority`、`clsx`、`tailwind-merge`、`lucide-react`、`tailwindcss`/`@tailwindcss/*`、`tw-animate-css`、`cmdk`、`sonner`、`react-resizable-panels`、`@fontsource-variable/geist`，以及 §4.21 新增的 `react-colorful`、`colord`、`@tanstack/react-virtual`、`@atlaskit/pragmatic-drag-and-drop`、`react-hook-form`、`@tanstack/react-table`（M3 图表数据网格）、`lucide-static`（M3 插入图标）、`use-sync-external-store` 仅 ui-react 与 `*-ui`；`simplify-js`、`fit-curve`（P2 任意多边形与自由曲线绘制，惰性 chunk）仅 slide-ui（shadcn 复制件所在，章程 §5.3 规则 4、ADR-0017；`vaul` 已停止维护，drawer 不迁移）；`htmlparser2` 仅 ui-core 剪贴板管线（惰性加载）；例外：apps/web 可直接依赖 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`（rulings §4.15 Q2，`react-router` 仅限 apps/web）以及 `react-hook-form`、`p-queue`（上传队列）、`@opentelemetry/sdk-trace-web` 与 `@opentelemetry/exporter-trace-otlp-http`（成对锁版本）、`@sentry/browser`（可选 sink）；`cn` 所用 `clsx`/`tailwind-merge` 精确锁版本。**服务端**：`@nestjs/*` 仅 apps/server；`fastify`、`pg`/`drizzle-orm`、`ioredis`/`bullmq`、`@aws-sdk/*`、`playwright-core` 的放行目录以 60-backend/01 §11 为准；`opentype.js` 仅 server-headless（node-font）与 tooling；一方包的 `server-app-thin` 例外：`@cordexjs/xml` 在 apps/server 只允许媒体模块的 `svg-sanitizer.ts`，`@cordexjs/ooxml-core/zip` 只允许导出模块的多页 PNG 打包（d-51）。逐包全表见 50/17、60/19 | depcruise `third-party-single-entry`（09-03）；`syncpack` 单版本；license-allowlist 扫描 |
 | 内部依赖只用 `workspace:` 协议：peer 写 `workspace:^`，其余（dependencies/devDependencies）写 `workspace:*`；禁止对内部包写 semver 范围（pnpm 11 会让 semver 范围走 registry，构成依赖混淆面，rulings §4.15 Q1） | `syncpack` 规则（09-03 §4）+ 09-08 矩阵 TD 行（附负向测试） |
 | 可发布包带 `publishConfig.access: "public"`；私有包 `private: true`；包名匹配项目 scope | `create-package` 模板 + `scan-manifest` 规则 (g)（09-06 §6，TD-080） |
 | `@cordexjs/*` 需要单实例者为 `peerDependencies`；`shared` 为 dependency | `scan-manifest` 规则 (h)（09-06 §6，TD-100；原称扫描器 `peer-policy`）读取 `cordex.role`：plugin/provider/definition 的 `@cordexjs/kernel`、`@cordexjs/model-core` 等必须在 peer |
@@ -300,997 +273,123 @@ packages/<name>/
 
 ### 4.1 `@cordexjs/shared` — L0 · iso · library
 
-职责：纯工具、品牌类型、`Result`、断言；**零依赖**（不依赖 cordis、zod）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.1；零依赖（R11）；`order.ts` 内置 rocicorp fractional-indexing 算法源码（CC0，注明出处），键格式为整数头 + 随机后缀（ADR-0032 决策 2 修订）。
 
-```
-packages/shared/src/
-├── index.ts
-├── brand.ts               Brand<T, Tag> 工具类型；brand()/unbrand()；`declare const tag: unique symbol` 模式
-├── ids.ts                 UnitId、NodeId、DocumentId 等品牌 id（模板字面量前缀可选）；newNodeId()（UUIDv7，ADR-0014）；isNodeId()
-├── units/
-│   ├── emu.ts             Emu/Pt/Px/Inch/Cm/Mm 品牌数值；常量 EMU_PER_INCH=914400、EMU_PER_PT=12700；emu()/pt()/toPx(emu, dpi)
-│   ├── angle.ts           Angle60k（1/60000 度）、Percent1000（千分比）、Percent100k（10 万分比，DrawingML）；转换与归一
-│   └── index.ts
-├── result.ts              Result<T,E> = Ok<T> | Err<E>；ok()/err()/isOk()/map()/andThen()/unwrapOr()/collect()；错误传播基元（禁止用 boolean 表示失败）
-├── assert.ts              invariant(cond, msg)/assertNever(x)/unreachable()；生产保留（抛 AssertionFailure，由 errors 服务归类）
-├── json.ts                JsonValue/JsonObject/JsonArray；isJsonValue()；stableStringify()（键排序，用于哈希与快照 diff）
-├── path.ts                Path = readonly PathSegment[]；PathSegment = string | number | { id: string }；pathEquals/startsWith/append/toString
-├── order.ts               FracKey 品牌与 between(a?, b?)（base-62、最短键 + 2 字符随机后缀）、compareOrder((order, id))、rekey(keys)（ADR-0032 的纯函数实现；供命令层生成键、Store/渲染排序使用）
-├── collections.ts         不可变友好的 Map/Set 工具、groupBy、sortBy、binarySearchBy、dedupe；无模块级可变状态
-├── hash.ts                sha256(bytes)（WebCrypto subtle，同构）；fnv1a32(string)（快速非加密）
-├── text.ts                grapheme 切分（Intl.Segmenter 封装 + 降级）、Unicode 空白/标点判定基元（供 layout 与 model-doc）
-├── disposable.ts          Disposable = () => void | Promise<void>；composeDisposers()、once()（非 cordis 场景使用；插件内一律用 ctx.effect）
-├── deep-freeze.ts         deepFreeze()（开发期，store-memory 不变性校验）
-├── typed-events.ts        极简类型化 emitter（仅供不在 cordis 生命周期内的纯库使用，如 opc 读取进度）
-├── testing/
-│   └── index.ts           fast-check arbitraries：ids、units、JsonValue、Path
-└── __tests__/
-```
+### 4.1b `@cordexjs/xml` — L0 · iso · library（§4.21 新增）
 
-为什么不像 Univer：Univer 的 `core` 里工具与领域模型混杂（A1）；这里 `shared` 明确「无领域知识、无框架」，以 depcruise `shared-has-no-deps`（`shared` 的 dependencies 必须为空）机械保证。
+> 新增（§4.21，X:q-xml-package）：XML 词法器、保真树、序列化、`XmlLimits` 与合规 / 差分测试都在本包；`scan`（不建树，负责计数与限额）与 `parseDocument`（建整树）两个入口，都支持 write/end 与按时间片让出；零运行时依赖（不依赖任何包，`shared` 也不依赖；R11）；saxes 6.0.0 与 libxml2-wasm 只作 devDependency 差分 oracle；使用方为 ooxml-core 与 apps/server 媒体模块（SVG 消毒）；决策见 [ADR-0019](adr/0019-xml-lexer-and-fidelity-tree.md)，文件级目录见 [40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §4.3（文件职责 §5.3）。
 
 ### 4.2 `@cordexjs/kernel` — L0 · iso · plugin（内核）
 
-职责：唯一 import `cordis`；re-export 类型；`createHost`；ContributionPoint；Manifest；`errors`/`telemetry`；`createIsolatedScope`；诊断。详见 03。
-
-```
-packages/kernel/src/
-├── index.ts                 re-export：type { Context, Service, Plugin, Fiber, Events, Inject }、FiberState、CordisError、ValidationError；createHost；defineContributionPoint；Manifest 类型；errors/telemetry 契约；createIsolatedScope；diagnostics
-├── augment.ts               export interface Events {} / Context {} / I18nKeys {}（本项目的可增强接口）；declare module 'cordis' { interface Events extends CordexEvents {} interface Context extends CordexContext {} }（ADR-0001）
-├── host.ts                  createHost(options: HostOptions): CordexHost —— new Context()、挂载 kernel 插件（本包 plugin.ts）、版本协商、失败隔离；CordexHost = { ctx, dispose(), kernelVersion, diagnostics }
-├── host-options.ts          HostOptions 的 Standard Schema：{ kernelVersion?: string, strictManifest?: boolean, defaultSinks?: boolean（默认 true：kernel 自身贡献控制台 errors.sink 与 no-op telemetry.sink）, loggerSink?, clock? }
-├── plugin.ts                kernel 插件：provide ['contributions','errors','telemetry']；apply 内挂载三个服务与失败隔离监听；使内核服务本身可被同名 Provider 替换（§5.4）
-├── manifest.ts              生成物
-├── kernel.contribution.ts   declare module '@cordexjs/kernel'：Context.contributions/errors/telemetry；Events（公开，按 10 §11）'plugin/loaded'、'plugin/failed'、'plugin/incompatible'、'error/raised'、'contribution/changed'；内部诊断事件 'kernel/manifest-mismatch'；贡献点定义 ErrorSinkPoint('errors.sink')、TelemetrySinkPoint('telemetry.sink')（ADR-0011）
-├── contribution/
-│   ├── point.ts             defineContributionPoint<S extends StandardSchemaV1>(options: { id: PointId; schema: S; key: (item: InferOutput<S>) => string; conflict?: 'error' | 'replace'; describe?: (item: InferOutput<S>) => string }): ContributionPoint<InferOutput<S>>（唯一类型参数绑定 schema，签名以 03 §3.2 / 09-09 §1.1 为准，rulings K-2）；PointId = `${Lowercase}.${string}`
-│   ├── service.ts           ContributionService extends Service（name 'contributions'）：[Service.invoke](point) → ReadonlyContributionSet；contribute(point, item) → disposer（effect 拥有）；diagnostics()
-│   ├── set.ts               ReadonlyContributionSet<T>：get(key)/has/values()/keys()/size/observe(listener) → disposer；变更通知合并到微任务；重复键按 conflict 拒绝后者并记 duplicate 诊断、不抛异常（03 §3.3）
-│   ├── mixin.ts             ctx.mixin('contributions', ['contribute'])（**全仓唯一** mixin 调用点，A12；lint no-mixin-outside-kernel）
-│   └── diagnostics.ts       ContributionDiagnostic：{ pointId, key?, reason: 'schema' | 'duplicate' | 'unknown-point', issues, fiberName }
-├── manifest/
-│   ├── types.ts             Manifest 接口（id/version/iso/kernel/provides/injects/optional/contributes/points/events/config）与 ContributionEntry
-│   ├── schema.ts            Manifest 的 Standard Schema（运行时校验 cordex-manifest.json）
-│   ├── verify.ts            verifyManifestAgainstRuntime(fiber, manifest) → MismatchReport；strictManifest 时使 Fiber FAILED，否则 errors.report + emit 'kernel/manifest-mismatch'
-│   └── version.ts           satisfies(range, version) 最小 semver 实现（避免引入 semver 依赖到 iso 包）；kernel peer 校验（ADR-0002）
-├── scope.ts                 createIsolatedScope(ctx, spec: { services: readonly string[]; meta?: Record<PropertyKey, unknown> }) → Context：依次 extend(meta) 与 isolate(name)；文档无关（model-core 用它建 UnitScope）
-├── services/
-│   ├── errors.service.ts    ErrorsService（'errors'）：defineErrors(pkg, table)、create(code, data)、report(err, ctx?)、wrap(unknown)、isOceError；report 扇出到 contributions(errors.sink)，sink 抛错被吞并计数；CordexError { code, data, cause, fiber }
-│   ├── telemetry.service.ts TelemetryService（'telemetry'）：defineTelemetryEvents(pkg, table)（遥测事件注册表，PRD 06 §5）、counter/gauge/histogram/span/event；扇出到 contributions(telemetry.sink)；采样在服务内完成
-│   ├── sinks/console-error-sink.ts / noop-telemetry-sink.ts   默认 sink（kernel 插件在 defaultSinks !== false 时贡献；no-console lint 的白名单文件；ADR-0011）
-│   └── logger.ts            对 cordis 内建 ctx.logger 的结构化包装：字段化、级别、脱敏钩子；不新增服务名
-├── failure-isolation.ts     监听 Fiber 状态迁移（rc.10：internal/status）→ FAILED 时 errors.report + emit 'plugin/failed'({ pluginId, version, code, phase })；ACTIVE 时 'plugin/loaded'；版本协商失败 'plugin/incompatible'；断言兄弟 Fiber 状态不变（A11）
-├── errors.ts                kernel 错误码（`defineErrors('kernel', …)`；运行时字符串为点式 `kernel.plugin_failed` 等，10 §1.1 / rulings §4.3；源码以大写标识符引用）：PLUGIN_FAILED、VERSION_MISMATCH、CONTRIBUTION_REJECTED、MANIFEST_MISMATCH、DUPLICATE_KEY、UNKNOWN_POINT
-├── diagnostics/
-│   ├── fiber-tree.ts        dumpFiberTree(ctx) → FiberNode[]：name/state/uid/effects(label 树)/children
-│   └── assert.ts            assertNoLiveEffects(fiber)、assertSingleProvider(ctx, name)、assertState(fiber, state)
-├── testing/
-│   ├── index.ts
-│   ├── create-test-host.ts  createTestHost(opts?)：记录型 errors/telemetry sink；mountAndAwait(plugin, config)、expectPending(fiber)、expectFailed(fiber, code)
-│   ├── lifecycle-suite.ts   defineLifecycleSuite({ plugin, config, provides?, injects? })：初始挂载 / 缺依赖 PENDING / 依赖后到激活 / 卸载后 getEffects 为空 / 重复挂载 N 次无重复注册 / Provider 替换重跑（primer MUST #7）
-│   └── fakes.ts             RecordingErrors、RecordingTelemetry
-└── __tests__/
-```
-
-为什么不像 Univer：Univer 没有清单、没有统一注册、没有失败隔离（A8/A9/A11）；这里内核只做四件事（贡献点、清单、基础服务、作用域工具），**没有任何文档知识**。机械验证：depcruise `only-kernel-imports-cordis`；lint `no-mixin-outside-kernel`；kernel 自身 `__tests__` 包含「注入抛错插件，其它插件仍 ACTIVE」。
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.2；唯一 import `cordis` 的包（R12），签名级契约见 [03](./03-kernel-and-plugin-model.md)。
 
 ### 4.3 `@cordexjs/protocol` — L0 · iso · library
 
-职责：前后端共享契约，全部 zod（Standard Schema）定义并导出推导类型；**禁止 `enum`**（A3）。
-
-```
-packages/protocol/src/
-├── index.ts
-├── schema.ts               z 实例导出约定、Infer<T>、strictObject 默认（拒绝未知键，除显式 passthrough）
-├── ids.ts                  DocumentId/UserId/RoomId/SessionId/TaskId 品牌 schema（z.string().brand；无 TenantId：单组织部署，rulings §4.15 T-0）
-├── version.ts              PROTOCOL_VERSION、兼容矩阵（客户端 ↔ 服务端）
-├── errors/
-│   ├── codes.ts            错误码字面量联合（`auth/*`、`document/*`、`collab/*`、`task/*`、`protocol/*`）→ HTTP 状态映射表
-│   └── envelope.ts         ErrorEnvelope { code, message, details?, traceId }
-├── permissions/
-│   ├── actions.ts          Capability 字面量联合：doc.read/doc.comment/doc.write/doc.export/doc.manage/history.read/history.restore（2026-09-18 按 40-modules M-02/G-5 统一；开放：垂直束经模板字面量 `${string}.${string}` 扩展）
-│   ├── principal.ts        Principal { userId, roles, sessionId }（无租户维度，T-0）
-│   └── decision.ts         PermissionDecision = { allow: true } | { allow: false; reason }
-├── rest/
-│   ├── documents.ts        列表/详情/创建/重命名/删除/权限设置 DTO
-│   ├── snapshots.ts        快照包索引、blob 预签名 URL（GET/PUT）
-│   ├── import-export.ts    任务创建/查询；TaskState 字面量联合 queued/running/succeeded/failed/cancelled（cancelled 为导入取消，rulings §4.18 UX-14）
-│   ├── auth.ts             login/refresh/me
-│   ├── audit.ts            AuditRecord { id, principal, unitId?, commandId?, mutationTypes[], at, result }
-│   └── index.ts
-├── ws/
-│   ├── handshake.ts        握手帧：{ token, documentId, clientVersion, protocolVersion }；服务端应答 { roomId, permissions, serverVersion }
-│   ├── frames.ts           帧判别联合：sync(payload bytes) / awareness(bytes) / permission-changed(decisions) / error(envelope) / ping|pong
-│   └── index.ts
-├── snapshot/
-│   └── envelope.ts         SnapshotEnvelope { documentType, schemaVersion, bodyRef: BlobRef, blobs: BlobRef[], createdAt, byVersion }
-├── blob.ts                 BlobRef { hash: sha256-hex, size, contentType }（与 model-core 共用同一定义；model-core re-export）
-├── testing/index.ts        DTO 工厂（faker 风格，确定性 seed）
-└── __tests__/              schema 快照测试（JSON Schema 输出入库，作为跨语言契约基线）
-```
-
-机械验证：lint `no-enum-in-protocol`；`zod-to-json-schema` 输出入库并 diff（契约变更可见）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.3；全部 zod（Standard Schema）定义、禁止 `enum`（A3）；§4.21 起 CONTROL 判别联合作为 Hocuspocus Stateless 载荷使用（ADR-0039）。
 
 ### 4.4 `@cordexjs/i18n` — L0 · iso · plugin
 
-```
-packages/i18n/src/
-├── index.ts
-├── plugin.ts               provide ['i18n']；Config { locale: string; fallback: 'zh-CN' }
-├── manifest.ts
-├── i18n.contribution.ts    Context.i18n；Events 'i18n/locale-changed'(locale)；贡献点 i18n.bundle 定义（key = `${namespace}:${locale}`）；interface I18nKeys {}（垂直束增强）
-├── services/i18n.service.ts I18nService：t<K extends keyof I18nKeys>(key, params)、locale、setLocale()（Operation 域）；从 contributions(i18n.bundle) 合并；缺 key 走 fallback 并 telemetry
-├── keys.ts                 从 locales/zh-CN.json 推导的 key 类型（`as const` JSON 导入 + 递归键路径类型）；缺 key 编译失败（K8）
-├── format.ts               ICU MessageFormat 子集（plural/select）+ Intl 数字/日期
-├── locales/
-│   ├── zh-CN.json          源语言（key 权威）
-│   └── en-US.json          翻译；CI 校验 key 集合 == 源
-├── testing/index.ts        fixedLocale() 测试 Provider
-└── __tests__/
-```
-
-机械验证：`scan-contributions` 规则 (f)（所有 locale 的 key 集合等于 zh-CN；原称脚本 `i18n-keys-sync`，TD-089，rulings §4.18 GV-15）；类型测试 `t('不存在的key')` 必须报错。
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.4；语言包键集合一致性由 `scan-contributions` 规则 (f) 校验。
 
 ### 4.5 `@cordexjs/model-core` — L1 · iso · definition（文档内核）
 
-职责：Unit/UnitScope、DocumentType 贡献点、DocumentStore 定义、Command/Mutation/Operation + `commands` 服务、`history`、`Transaction`、Snapshot 编解码 + `schemaVersion` + `migrations`、ResourceHook、`permissions`（fail-closed）、`formats` 贡献点、通用 `Selection`。签名级草案见 04/05。
-
-```
-packages/model-core/src/
-├── index.ts
-├── plugin.ts                     provide ['units','documentTypes','commands','formats','resources','migrations','permissions']；inject ['contributions','errors','telemetry']；Config { historyLimit: number; coalesceMs: number }（原 `defaultStoreProvider` 删除：store 由 Unit 默认 Provider 登记表中唯一的 `provides:['store']` 决定，03 §5.1a，2026-09-26 rulings §4.20 FE-01）
-├── manifest.ts
-├── model-core.contribution.ts    declare module '@cordexjs/kernel'：服务表、事件表（按 10 §11 定稿：unit/opened|open-progress|open-failed|closed|dirty-changed|saved|migrated、command/execute(waterfall，内部拦截点)|executed|rejected|failed|audited、store/transaction|loaded、history/changed、selection/changed、permission/changed|denied、export/started|completed|failed）；导出贡献点：DocumentTypePoint('core.documentType')、CommandPoint('core.command')、MutationPoint('core.mutation')、FormatPoint('core.format')、ResourcePoint('core.resource')、MigrationPoint('core.migration')、PermissionPolicyPoint('core.permissionPolicy')
-├── unit/
-│   ├── unit.ts                   Unit { id: UnitId; documentType: string; meta: { title?, source? }; state: 'opening'|'ready'|'closing'|'failed' }
-│   ├── unit-descriptor.ts        OpenUnitDescriptor { documentType; source: { kind:'snapshot'; bundle } | { kind:'bytes'; mime?; name?; bytes } | { kind:'state'; encoding:'yjs-update' | 'snapshot-json'; bytes; blobs? }（服务端/离线恢复直接加载存储状态，B 线 08）| { kind:'empty' }; principal?: Principal }（原 `storeProvider?: string` 删除：store 由 UnitScope 默认 Provider 登记表中唯一的 `provides:['store']` 条目决定，40-modules/02 §5.5，2026-09-26 rulings §4.20 FE-01）
-│   ├── unit-scope.ts             UnitScope { unit; ctx: Context; fiber: Fiber; dispose(): Promise<void> }；ISOLATED_SERVICES = ['store','history','selection','render','presence'] as const；实际隔离集 = ISOLATED_SERVICES ∪ documentType.unitServices ∪ 所选 store Provider 的全部 provide 名（如 store-yjs 的 'yjsBackend'）；unit 元数据 symbol 键
-│   ├── unit-plugin.ts            unitPlugin(ctx, { descriptor, documentType })：在 Fiber 内 createIsolatedScope → 按 Unit 默认 Provider 登记表（打开时刻的快照）挂载 `provides:['store']` 条目 → store.load(snapshot) → 按登记表挂载其余条目（history/selection/render/presence/collab-yjs/comments…）→ 挂载 documentType.unitPlugins → emit unit/opened；不 import 任何水平层 Provider（03 §5.1a）（ADR-0005）
-│   └── units.service.ts          UnitsService（'units'）：open(descriptor) → Promise<Result<UnitScope, UnitError>>；close(unitId)；get(unitId)；list()；observe()；`registerUnitProvider(entry: { id; plugin; config?; provides }): Disposer`（同一 `provides` 只允许登记一次，后来者被拒并记诊断、不抛；只影响之后打开的 Unit）与 `listUnitProviders()`；model-core 在 ready 时只登记 history、selection，其余由 preset 的 `scope:'unit'` 条目在 mount 时登记（03 §5.1a，rulings §4.20 FE-01）
-├── document-type/
-│   ├── document-type.ts          DocumentType<S> { id; displayName; schemaVersion: number; bodySchema: StandardSchemaV1<unknown, S>; shape: BodyShapeHints（entityTables/atomicLists/richTexts 路径前缀，供 store-yjs 选 Y 类型、store 校验原语适用范围）; createEmpty(): S; unitPlugins: readonly Plugin[]; unitServices: readonly string[]; selectionKinds: readonly string[]; viewModes: readonly string[]（`view.setMode` 的合法取值）; invariants: readonly Invariant<S>[]（check/repair 纯函数，服务端修复 ADR-0034）; validateChangeSet(view, changeSet): Result<void, Violation[]>; diff?(a, b): Mutation[]（M3 版本恢复）}（04 §2.1）
-│   ├── document-type.point.ts    defineContributionPoint({ id:'core.documentType', key: d => d.id, conflict:'error' })
-│   └── document-types.service.ts DocumentTypesService（'documentTypes'）：get(id)/list()/observe()；resolveByMime(mime) 经 formats
-├── store/
-│   ├── store.ts                  DocumentStore<S> Definition（草案见 04 §2.2）：state()/get(path)/transact(fn, opts)/observe(listener)/undo(origin)/redo(origin)/canUndo/canRedo/toSnapshotBody()/load(body)/dirty(): ChangeSet|null/schemaVersion
-│   ├── ops.ts                    StoreOp 判别联合（set/delete/insert/remove/text 五种；无 move——有身份实体的顺序是 `order: FracKey` 属性，ADR-0013/0032）；TextDelta（Quill 风格 insert/retain/delete + attributes）；isStoreOp() schema
-│   ├── transaction.ts            Transaction { origin; label; meta; mutate(m: Mutation): Result<void, MutationError>; readonly ops: readonly StoreOp[] }；TransactionRecord { id, origin, label, mutations: Mutation[], ops: RecordedOp[]（StoreOp + 可选 anchor{ after?, before? }，供审计/版本 diff 可读）, inverse: StoreOp[], at, undoable }
-│   ├── change-set.ts             ChangeSet { transactionId; origin; ops: StoreOp[] | null（远端 CRDT 应用后可能为 null/近似）; derived: boolean; touched: Path[]（权威字段，前缀去重）}；mergeChangeSets()
-│   ├── origin.ts                 Origin：local(clientId, via?: 'undo' | 'redo') / remote / system(reason: load | import | migration | repair | restore | maintenance) / replay；isLocal()（与 06 §2.2 对齐）
-│   └── store-provider.ts         StoreProviderPlugin 约定：函数插件，provide ['store']，Config { initialBody, schemaVersion }；由 unit-plugin 在隔离 ctx 下挂载
-├── command/
-│   ├── command.ts                CommandDef<P, R>（草案见 05 §2）；OperationDef<P>（handler 无 tx）；defineCommand()/defineOperation() 仅为类型辅助（不注册）
-│   ├── command.point.ts          'core.command'，key = def.id，conflict 'error'
-│   ├── mutation.ts               MutationDef<M>：{ type; documentType; schema; lower(m, view): StoreOp[]; permission?(m): Capability; describe(m): string }；Mutation 基形 { type: string; unitId: UnitId }
-│   ├── mutation.point.ts         'core.mutation'，key = def.type
-│   ├── commands.service.ts       CommandsService（'commands'）：execute<P,R>(unitId: UnitId | null, id, params, opts?) → Promise<Result<R, CommandError>>；has(id)；describe(id)；observeExecutions()
-│   ├── pipeline.ts               阶段实现：resolve → validate → waterfall 'command/execute' → transact → history → events → audit；阶段计时 telemetry（05 §3）
-│   ├── permission-gate.ts        内置 prepend 监听（fail-closed）：命令级 + Mutation 级（在 tx.mutate 内二次调用）
-│   ├── audit.ts                  内置监听（最外层）：构造 AuditRecord（protocol）→ emit 'command/audited'
-│   └── errors.ts                 COMMAND_NOT_FOUND / INVALID_PARAMS / PERMISSION_DENIED / UNIT_NOT_FOUND / HANDLER_FAILED / MUTATION_REJECTED / STORE_UNAVAILABLE
-├── history/
-│   ├── history.ts                History Definition（UnitScope）：undo()/redo()/canUndo/canRedo/entries()/beginGroup(label)/endGroup()/clear()；事件 history/changed
-│   ├── history.service.ts        HistoryService（'history'）默认 Provider：策略层（按 origin 只撤本地、合并窗口、容量、分组），委托 store.undo/redo
-│   └── coalesce.ts               合并规则（同 label、同 origin、间隔 < coalesceMs）
-├── snapshot/
-│   ├── snapshot.ts               Snapshot<S> { documentType; schemaVersion; unitId; body: Persisted<S>; resources: Record<ResourceNamespace, { version: number; data: JsonValue }>; blobs: BlobRef[] }；SnapshotBundle { snapshot; blobs: BlobStore }
-│   ├── codec.ts                  encodeSnapshot(unitScope) / decodeSnapshot(bundle, documentType) → Result；校验 body schema 与 resources schema
-│   ├── derived.ts                Derived<T> 品牌；Persisted<T> 映射类型（递归剔除 Derived 字段）；类型测试辅助 expectPersistedEquals<T, U>()
-│   ├── blob-store.ts             BlobStore Definition：get(ref)/put(bytes, contentType) → ref/has(ref)；MemoryBlobStore 默认 Provider（IndexedDB/S3 Provider 在别处）
-│   └── validate.ts               validateSnapshot(snapshot, documentType, resourceHooks) → Diagnostics
-├── migration/
-│   ├── migration.ts              Migration<S1, S2> { documentType; from: number; to: number; migrate(body: S1): S2; migrateResources?(r): r }
-│   ├── migration.point.ts        'core.migration'，key = `${documentType}:${from}->${to}`
-│   └── migrations.service.ts     MigrationsService（'migrations'）：plan(documentType, from, to) → Result<Migration[]>；run(snapshot) → Result<Snapshot>；缺链 → MIGRATION_PATH_MISSING
-├── resource/
-│   ├── resource-hook.ts          ResourceHook<T> { namespace: `${PluginId}.${string}`; version: number; schema; toJson(unitScope): T | undefined; fromJson(unitScope, data: T): void }
-│   ├── resource.point.ts         'core.resource'，key = namespace
-│   └── resources.service.ts      ResourcesService（'resources'）：collect(unitScope) / apply(unitScope, resources)；逐 hook 容错（一个失败记录诊断，不阻断其它，K6）
-├── permission/
-│   ├── permission.ts             PermissionRequest { principal; unitId?: UnitId; action: Capability; resource?: { kind; id } }；PermissionPolicy { id; decide(req): PermissionDecision | undefined }
-│   ├── permission.point.ts       'core.permissionPolicy'，key = policy.id
-│   └── permissions.service.ts    PermissionsService（'permissions'）：check(req) → PermissionDecision（无策略给出 allow → deny；任一 deny → deny）；setPrincipal(unitId, principal)；applyRemoteDecisions(unitId, decisions)（网关下发）；事件 permission/denied
-├── format/
-│   ├── format-codec.ts           FormatCodec { id; documentType; mimeTypes; extensions; canImport; canExport; import(bytes, opts, blobs): Promise<Result<ImportResult>>; export(unitScope, opts): Promise<Result<Uint8Array>> }；ImportResult { snapshot; diagnostics }
-│   ├── format.point.ts           'core.format'，key = codec.id；按 mime 二级索引
-│   └── formats.service.ts        FormatsService（'formats'）：detect(bytes | filename) → codec?；import()/export()；事件 export/started|completed|failed（10 §11；导入完成即 unit/opened，无独立事件）
-├── selection/
-│   ├── selection.ts              Selection<A = unknown> { kind: string; unitId; anchors: readonly A[]; primary?: number }；selectionEquals()、serialize（presence 用）
-│   └── selection.service.ts      SelectionService（'selection'，UnitScope）默认 Provider：get()/set(sel)/observe()；事件 selection/changed；不入历史
-├── drawing/                      DrawingML 共享绘图词汇的**运行时类型 + zod schema**（三种文档类型共用；无 XML 知识、无文档类型字面量；决策见 §4.9）
-│   ├── color.ts                  Color { spec: srgb|scheme|system|preset|hsl|scrgb; modifiers: ColorModifier[] }；SchemeColorName；ColorMapKey
-│   ├── fill.ts                   Fill = noFill | solid | gradient | blip | pattern | groupFill
-│   ├── line.ts                   Line { width: Emu; cap; compound; alignment; fill; dash; join; headEnd; tailEnd }
-│   ├── effect.ts                 EffectList（outerShadow/innerShadow/glow/reflection/softEdge/blur）+ OpaqueXml 余量
-│   ├── geometry.ts               Geometry = preset(preset, adjustments) | custom(paths, adjustments, guides, connectionSites, textRect)；GeometryPath 命令集
-│   ├── transform.ts              Transform { offset; extent; rotation: Angle60k; flipH; flipV }；GroupTransform
-│   ├── font.ts                   FontRef { typeface | '+mj-lt' | '+mn-lt' | '+mj-ea' | '+mn-ea' | '+mj-cs' | '+mn-cs'; panose?; pitchFamily?; charset? }
-│   ├── text.ts                   TextBody / BodyProperties / Paragraph / ParagraphProperties / Inline(Run|LineBreak|Field) / RunProperties / ListStyle / Bullet / Spacing / TabStop
-│   ├── hyperlink.ts              Hyperlink { target: { kind:'external'; url } | { kind:'internal'; ref: string（文档类型自解释）} | { kind:'action'; action }; tooltip? }
-│   ├── opaque.ts                 OpaqueXml { xml; anchor: { after?: QName; ordinal }; namespaces }；OpaqueSlot；OpaquePartRef { partName; contentType; blob: BlobRef; rels?: BlobRef }
-│   ├── schema/                   以上每个类型的 zod schema
-│   └── index.ts
-├── events.ts                     事件名常量对象（与 contribution 声明一致）
-├── errors.ts                     model-core 错误码
-├── testing/
-│   ├── index.ts
-│   ├── fixture-document-type.ts  'fixture' 文档类型：body = { nodes: Record<NodeId, { kind; props; parentId; order: FracKey }>; texts: Record<NodeId, RichText> }；shape hints（nodes 为 entityTables、texts 为 richTexts）；含 3 个 Mutation、2 个 Command、1 个 JSON FormatCodec、1 个 ResourceHook、1 个 Migration（v1→v2）、2 个 Invariant（无父子环、order 合法）（ADR-0016）
-│   ├── document-store-conformance.ts   runDocumentStoreConformance(createStore: (body) => DocumentStore)：事务原子性、observe 时序、undo/redo 语义（含 origin 过滤）、快照往返等价、并发事务拒绝、text delta 语义
-│   ├── command-harness.ts        createCommandHarness(host, unitScope)：执行命令并断言 ops/事件/审计/权限调用
-│   └── permission-fakes.ts       allowAllPolicy、denyAllPolicy、recordingPolicy
-└── __tests__/
-```
-
-为什么不像 Univer：Univer `core` 内含 3.4 万行 sheets/docs 模型且 `unitId + subUnitId` 寻址是 workbook 形状（A1/A2）。这里 `model-core` 没有任何寻址假设（`Path` 与 `Selection<A>` 参数化），没有任何文档类型字面量。机械验证：lint `no-doc-type-literals`（水平层源码不得出现 `'slide'|'sheet'|'doc'` 等字面量，允许列表在 09-02）；depcruise 水平层禁 import 垂直束；`__tests__` 只使用 `fixture` 文档类型。
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.5；签名级草案见 [04](./04-document-model.md) 与 [05](./05-command-and-history.md)；DrawingML 运行时类型在 `src/drawing/`（归属决策见 §4.9）。
 
 ### 4.6 `@cordexjs/store-memory` — L1 · iso · provider（implements `store`）
 
-```
-packages/store-memory/src/
-├── index.ts
-├── plugin.ts                provide ['store']；Config { initialBody; schemaVersion; historyLimit: 200; freezeInDev: true }（在 UnitScope 隔离 ctx 下挂载）
-├── manifest.ts
-├── store-memory.contribution.ts
-├── memory-store.ts          MemoryStore<S> implements DocumentStore<S>：不可变树 + 结构共享；transact 内串行应用 ops；失败回滚到事务前引用
-├── apply-op.ts              applyOp(state, op) → { next; inverse: StoreOp }：五种原语各自的应用与逆推导（set→set/delete、insert→remove、remove→insert、text→delta 逆）
-├── produce.ts               最小 path-based 不可变更新（无第三方 immer；≤200 行）；{id} 选择器在数组中按 id 字段查找
-├── text-delta.ts            富文本 delta 应用/求逆/组合（与 Y.Text delta 兼容的形状）
-├── history-stack.ts         事务记录栈（含 origin）、undo/redo 指针、容量淘汰（淘汰策略必须被测试调用，A29）
-├── observe.ts               观察者分发：事务提交后同步一次、传 ChangeSet
-├── testing/index.ts         createMemoryStore(body)
-└── __tests__/               含 runDocumentStoreConformance 实例化；property test：apply(inverse(apply(s, op))) ≡ s
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.6；须实例化 `runDocumentStoreConformance`（§4.0.2）。
 
 ### 4.7 `@cordexjs/store-yjs` — L1 · iso · provider（implements `store`；唯一 import `yjs` 的模型侧包）
 
-```
-packages/store-yjs/src/
-├── index.ts
-├── plugin.ts                provide ['store','yjsBackend']（两者都在 UnitScope 隔离域内）；Config { clientId?; gc: boolean; undoCaptureTimeout: 500 }（与 05 §6 `coalesceMs` 统一为 500）
-├── manifest.ts
-├── store-yjs.contribution.ts
-├── yjs-store.ts             YjsStore<S> implements DocumentStore<S>：持有 Y.Doc；transact → doc.transact(fn, origin)；observe → observeDeep 事件 → ChangeSet
-├── mapping/
-│   ├── path-resolver.ts     Path → Y.Map/Y.Array/Y.Text 定位；{id} 选择器按元素 id 字段查找（归一化实体表时通常为 Y.Map 键）
-│   ├── apply-op.ts          StoreOp → Y 操作（set/delete → Y.Map；insert/remove → Y.Array（仅无身份值列表）；text → Y.Text.applyDelta）；实体 `order` 是普通 Y.Map 键写入（ADR-0032）
-│   ├── to-json.ts           Y 树 → 不可变 JSON 视图（增量缓存，按 Y 事件失效）
-│   └── from-json.ts         load(body) → 构建 Y 树
-├── undo.ts                  Y.UndoManager 封装：trackedOrigins = { localOrigin }；captureTimeout；与 history 服务对接 canUndo/canRedo
-├── yjs-backend.service.ts   YjsBackend 服务（'yjsBackend'，UnitScope）：给 collab-yjs 的受控访问面（encodeStateAsUpdate/applyUpdate/onUpdate/stateVector/stats；不外泄 Y.* 类型到公共 API，06 §2.3）。取代旧稿 symbol 键 `doc-access`（B 线建议二选一，选服务：依赖在 manifest 可见、store-memory 下 collab-yjs 自然 PENDING）
-├── testing/index.ts         createYjsStore(body)、twoDocsInSync() 测试助手
-└── __tests__/               含 runDocumentStoreConformance 实例化；双文档收敛测试（06）
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/02 §4.7；§4.21 起支持「接管外部 Y.Doc」，服务端 Room 由它接管 Hocuspocus 的 Document，客户端把 provider 登记为 remote origin（H-d-26）。
 
 ### 4.8 `@cordexjs/model-slide` — V-model · iso · plugin（垂直束 slide）
 
-职责：幻灯片对象模型、命令与变更、样式继承纯函数、`slides` 服务、`slide.shapeKind` 贡献点、`extensions` 不透明槽。模型字段草案见 04 §3。
-
-```
-packages/model-slide/src/
-├── index.ts
-├── plugin.ts                    主入口插件（`@cordexjs/model-slide`）：inject ['contributions','documentTypes']；apply：contribute core.documentType(slideDocumentType)、core.migration(全部)、slide.shapeKind(内建)；**不含**命令与变更（查看器可只加载它）
-├── editing.ts                   编辑子插件（子路径 `@cordexjs/model-slide/editing`，独立 chunk）：inject ['commands']；apply：contribute core.mutation(全部)、core.command(全部)；preset-slide/collab 加载，preset-slide-viewer 不加载（ADR-0015 只读双保险之一）
-├── manifest.ts
-├── slide.contribution.ts        declare module '@cordexjs/kernel'：Context.slides（UnitScope）；Events 'slide/slide-added'|'slide/slide-removed'|'slide/shape-added'|'slide/shape-removed'|'slide/shape-changed'；I18nKeys 'slide.*'；导出 ShapeKindPoint('slide.shapeKind')
-├── document-type.ts             slideDocumentType: DocumentType<PresentationBody> { id:'slide'; schemaVersion: 1; bodySchema; shape; createEmpty; unitPlugins:[slidesServicePlugin]; unitServices:['slides']; selectionKinds:['slides','shapes','text','tableCells']; viewModes:['normal','master','presenter']; invariants; validateChangeSet; diff }
-├── ids.ts                       SlideId/MasterId/LayoutId/ThemeId/ShapeId/MediaId/NotesId 品牌（基于 NodeId）；OoxmlIds { cNvPrId?: number; creationId?: string }
-├── model/
-│   ├── body.ts                  PresentationBody（归一化实体表，A-9）：{ presentation; masters: Record<MasterId, SlideMaster>; layouts; slides: Record<SlideId, Slide>; themes; shapes: Record<ShapeId, Shape>; media: Record<MediaId, MediaRef>; opaqueParts: Record<PartName, OpaquePartRef> }
-│   ├── presentation.ts          Presentation { slideSize: { cx: Emu; cy: Emu }; notesSize?; defaultTextStyle?: ListStyle; sections?: Record<SectionId, Section & { order: FracKey }>; properties: DocumentProperties; conformance: 'transitional'|'strict'; extensions: OpaqueSlot }（页序/母版序不在此：见各实体的 order）
-│   ├── master.ts                SlideMaster { id; order: FracKey; name?; commonSlide: CommonSlideData; colorMap: ColorMap; textStyles: { title; body; other }: ListStyle; themeId: ThemeId; headerFooter?: HeaderFooter; preserve: boolean; timing?: OpaqueXml; transition?: OpaqueXml; ooxml: { sldMasterId? }; extensions }（ML-01/03，04 §12）
-│   ├── layout.ts                SlideLayout { id; order: FracKey; masterId; type: LayoutType; name?; matchingName?; commonSlide; colorMapOverride?; showMasterShapes: boolean; preserve: boolean; userDrawn: boolean; ooxml: { sldLayoutId? }; extensions }
-│   ├── slide.ts                 Slide { id; order: FracKey; layoutId; commonSlide; colorMapOverride?; showMasterShapes; hidden; notesId?: NotesId; transition?: OpaqueXml; timing?: OpaqueXml; ooxml: { sldId? }; extensions }
-│   ├── common-slide-data.ts     CommonSlideData { name?; background?: Background; controls?: OpaqueXml; customData?: OpaqueXml; extensions }（形状不在此：shapes 表按 containerId 反查，按 (order, id) 排序）
-│   ├── shape/
-│   │   ├── shape.ts             Shape = Sp | Pic | GrpSp | CxnSp | GraphicFrame | UnknownShape（判别字段 kind）；ShapeBase { id; kind; containerId: SlideId | LayoutId | MasterId; parentId: ShapeId | null; order: FracKey; nonVisual: NonVisualProps; ooxml: OoxmlIds; extensions }
-│   │   ├── non-visual.ts        NonVisualProps { name; hidden; description?; title?; hyperlink?: Hyperlink; placeholder?: PlaceholderRef; locks?: ShapeLocks }
-│   │   ├── sp.ts                Sp { kind:'sp'; properties: ShapeProperties; style?: ShapeStyle; textBody?: TextBody; useBackgroundFill: boolean }
-│   │   ├── pic.ts               Pic { kind:'pic'; blipFill: BlipFill(mediaId, sourceRect?, stretch|tile); properties; style?; media?: MediaLink（视频/音频） }
-│   │   ├── grp-sp.ts            GrpSp { kind:'grpSp'; groupProperties: { transform: GroupTransform（含 childOffset/childExtent）} }（子形状 = parentId 指向本组者，按 (order, id) 排序；无 childIds 数组）
-│   │   ├── cxn-sp.ts            CxnSp { kind:'cxnSp'; properties; style?; startConnection?: { shapeId; index }; endConnection? }
-│   │   ├── graphic-frame.ts     GraphicFrame { kind:'graphicFrame'; transform: Transform; graphic: Table | Chart | Ole | Diagram | UnknownGraphic }
-│   │   ├── table.ts             Table { kind:'table'; columnWidths: Emu[]; rows: TableRow[]; properties: TableProperties(styleId, firstRow, bandRow…) }；TableRow { height; cells: TableCell[] }；TableCell { textBody; properties; gridSpan; rowSpan; hMerge; vMerge }
-│   │   ├── chart.ts             Chart { kind:'chart'; partRef: OpaquePartRef; embeddedWorkbook?: OpaquePartRef }（M1–M2 部件不透明写回；M1 查看由渲染器经 ooxml-core/chartml 只读解析 partRef，不依赖位图预览；M3 起 data 字段，ED-15 / A-11）
-│   │   ├── ole.ts               Ole { kind:'ole'; progId; embedRef: OpaquePartRef; preview?: MediaId }
-│   │   ├── diagram.ts           Diagram（SmartArt）{ kind:'diagram'; parts: OpaquePartRef[]; fallbackShapeIds?: ShapeId[]（dsp drawing 的可渲染回退）}
-│   │   ├── unknown.ts           UnknownShape { kind:'unknown'; xml: OpaqueXml }（mc:AlternateContent 等）
-│   │   └── placeholder.ts       PlaceholderRef { type: PlaceholderType; index?: number; orientation?; size?; hasCustomPrompt }
-│   ├── text/
-│   │   ├── text-body.ts         TextBody { bodyProperties: BodyProperties; listStyle?: ListStyle; paragraphs: Paragraph[] }
-│   │   ├── body-properties.ts   BodyProperties { anchor; anchorCenter; wrap; insets: {l,t,r,b: Emu}; autofit: none|normal(fontScale, lnSpcReduction)|shape; vertical: TextVertical; columns?; rotation?; upright }
-│   │   ├── paragraph.ts         Paragraph { properties: ParagraphProperties; runs: Inline[]; endProperties?: RunProperties }；Inline = Run | LineBreak | Field
-│   │   ├── paragraph-properties.ts ParagraphProperties { level: 0..8; alignment; indent: Emu; marginLeft/Right: Emu; spaceBefore/After: Spacing; lineSpacing: Spacing; bullet: Bullet; tabs?: TabStop[]; defaultRunProperties?; rtl?; latinLineBreak?; hangingPunct? }
-│   │   ├── run.ts               Run { kind:'run'; text: string; properties?: RunProperties }；LineBreak { kind:'br'; properties? }；Field { kind:'field'; type: string; id: string; text; properties? }
-│   │   ├── run-properties.ts    RunProperties { size?: HundredthPt; bold?; italic?; underline?: UnderlineStyle; strike?; caps?; baseline?: Percent1000; spacing?; kerning?; fill?: Fill; highlight?: Color; latin?/eastAsian?/complexScript?/symbol?: FontRef; hyperlink?: Hyperlink; language?; altLanguage?; effects?: OpaqueXml }
-│   │   ├── list-style.ts        ListStyle { levels: Partial<Record<0..8, ParagraphProperties>>; default?: ParagraphProperties }
-│   │   └── bullet.ts            Bullet = none | inherit | char(char, font?, color?, size?) | autoNumber(scheme, startAt) | picture(mediaId)
-│   ├── drawing/                 DrawingML 词汇：**re-export `@cordexjs/model-core/drawing`**（Color/Fill/Line/EffectList/Geometry/Transform/FontRef/TextBody…，见 §4.5 与 §4.9 决策）+ 幻灯片特有扩展：
-│   │   ├── index.ts             re-export
-│   │   ├── shape-properties.ts  ShapeProperties { transform?: Transform; geometry?: Geometry; fill?: Fill; line?: Line; effects?: EffectList; scene3d?: OpaqueXml; shape3d?: OpaqueXml; blackWhiteMode? }
-│   │   ├── shape-style.ts       ShapeStyle { lineRef; fillRef; effectRef; fontRef }（各含 idx 与 color）
-│   │   ├── background.ts        Background = { kind:'properties'; fill; effects?; shadeToTitle } | { kind:'reference'; idx; color }
-│   │   └── slide-hyperlink.ts   把 model-core Hyperlink.target.internal 的 ref 解释为 `slide:<SlideId>` | `first|last|next|previous`
-│   ├── theme.ts                 Theme { id; name; colorScheme: Record<SchemeColorName, Color>; fontScheme: { major: FontSet; minor: FontSet }; formatScheme: { fills: Fill[]; lines: Line[]; effects: EffectList[]; backgroundFills: Fill[] }; extensions }；ColorMap = Record<ColorMapKey, SchemeColorName>
-│   ├── media.ts                 MediaRef { id: MediaId; blob: BlobRef; contentType; originalPartName? }
-│   ├── properties.ts            DocumentProperties { core: { title; creator; modified… }（建模）; app: OpaquePartRef; custom?: OpaquePartRef }
-│   ├── extensions.ts            OpaqueSlot = OpaqueXml[]；OpaqueXml { xml: string; anchor: { after?: QName; ordinal: number }; namespaces: Record<prefix, uri> }；OpaquePartRef { partName; contentType; blob: BlobRef; rels?: BlobRef }
-│   ├── derived.ts               标注 Derived<T> 的字段集合（例如 Shape.bounds?: Derived<Rect>），集中列出便于审计
-│   └── schema/                  每个实体的 zod schema（bodySchema 的组成）；schema-lock 哈希入库（ADR-0009）
-├── style/
-│   ├── placeholder-match.ts     placeholderFamily / matchPlaceholder / planLayoutChange / planReset（ML-02 版式应用与重置的纯函数，04 §12.2）
-│   ├── effective.ts             masterTextStyleKind / inheritedParagraphProperties / resolvePlaceholderBox / effectiveBackground / effectiveColorMap / dependentsOf（母版继承与反向索引，04 §12.2）
-│   ├── inheritance-chain.ts     buildChain(body, shapeId, paragraphIndex, runIndex) → StyleChain（run→paragraph→textBody.listStyle→shape→layout placeholder→master placeholder→master textStyles→presentation defaultTextStyle→theme）
-│   ├── resolve-run.ts           resolveRunProperties(chain): ResolvedRunProperties（纯函数；所有字段非 optional）
-│   ├── resolve-paragraph.ts     resolveParagraphProperties(chain)
-│   ├── resolve-shape.ts         resolveShapeVisual(body, shapeId): { fill; line; effects }（style refs → theme formatScheme）
-│   ├── resolve-color.ts         resolveColor(color, ctx: { theme; colorMap; overrides }) → Rgba（scheme→clrMap→theme→修饰符）
-│   └── cache.ts                 createStyleCache(): memo 按 (shapeId, revision)；invalidate(changeSet)（04 §6）
-├── query/
-│   ├── selectors.ts             getSlide/getShape/getPlaceholderOnLayout/getMasterOf/slidesInOrder/shapesOf(containerId)/childrenOf(groupId)…（对 body 的纯读取；有序结果按 (order, id) 排序，带派生排序缓存）
-│   └── traverse.ts              walkShapes(body, rootIds, visitor)（深度优先、z 序）；pathOfShape()
-├── mutations/
-│   ├── index.ts                 allSlideMutations: MutationDef[]
-│   ├── slide.ts                 slide.insert / slide.remove / slide.setOrder / slide.setLayout / slide.setHidden / slide.setBackground（载荷携带 order: FracKey，无下标）
-│   ├── shape.ts                 shape.insert / shape.remove / shape.setOrder(z 序与进出组：order + parentId) / shape.setTransform / shape.setProperties / shape.setStyle / shape.group / shape.ungroup
-│   ├── text.ts                  text.applyDelta / paragraph.setProperties / run.setProperties / textBody.setBodyProperties
-│   ├── table.ts                 table.insertRow / removeRow / insertColumn / removeColumn / setCellProperties / merge / split
-│   ├── media.ts                 media.add（BlobRef 注册）
-│   ├── layout.ts                slide.layout.insert / remove / setName / setOrder / setProperties / setBackground；slide.slide.setLayout（携带 PlaceholderRemap）；slide.shape.clearOverrides / setPlaceholder（ML-02/03，05 §13.1）
-│   ├── master.ts                slide.master.insert / remove / setOrder / setTheme / setProperties / setBackground / setTextStyle（ML-03）
-│   ├── theme.ts                 slide.theme.insert / remove / setColors / setFonts（ML-04）
-│   └── lower.ts                 降级工具：bodyPath.slides(id).shapes…，把语义变更转为 StoreOp（ADR-0013）
-├── commands/
-│   ├── index.ts                 allSlideCommands
-│   ├── slide-commands.ts        slide.addSlide / deleteSlides / duplicateSlide / reorderSlides / changeLayout
-│   ├── shape-commands.ts        slide.insertShape / deleteShapes / moveShapes / resizeShapes / rotateShapes / setFill / setLine / bringForward / sendBackward / group / ungroup
-│   ├── text-commands.ts         slide.insertText / deleteText / toggleBold / setFontSize / setAlignment / setBullet
-│   ├── picture-commands.ts      slide.insertPicture（含 blob 注册）/ replacePicture / crop
-│   ├── table-commands.ts        slide.insertTable / …
-│   ├── layout-commands.ts       slide.applyLayout / resetSlide / insertLayout / duplicateLayout / deleteLayout(reassignTo, fail-closed LAYOUT_IN_USE) / renameLayout / reorderLayouts / addPlaceholder / removePlaceholder / updatePlaceholder（ML-02/03，05 §13.2）
-│   ├── master-commands.ts       slide.setMasterBackground / setLayoutBackground / setMasterTextStyle / insertMaster / duplicateMaster / deleteMaster（ML-03）
-│   ├── theme-commands.ts        slide.setThemeColors / setThemeFonts / applyTheme（ML-04）
-│   └── operations.ts            slide.setCurrentSlide / slide.setSelection / slide.setZoom / slide.selectMasterOrLayout（母版视图编辑目标）（Operation；`view.setMode` 为 ui-core 的水平层 Operation）
-├── selection.ts                 SlideSelectionAnchor = { kind:'slide'; slideId } | { kind:'shape'; slideId; shapeId } | { kind:'text'; shapeId; start; end } | { kind:'tableCell'; shapeId; row; col }
-├── services/
-│   └── slides.service.ts        SlidesService（'slides'，UnitScope）：body()/slide(id)/shape(id)/order()/resolvedRun(...)/resolvedShape(...)/styleCache；只读 + 便捷命令封装（内部仍走 commands.execute）
-├── shape-kind/
-│   ├── shape-kind.point.ts      ShapeKindPoint（'slide.shapeKind'）：{ kind; schema; createDefault(box): Shape; capabilities: { text; resize; rotate; group }; describe }
-│   └── builtin.ts               sp/pic/grpSp/cxnSp/graphicFrame:table|chart|ole|diagram/unknown 的内建贡献
-├── migrations/
-│   └── index.ts                 slide 的 Migration 列表（M1 为空数组但注册表存在，A23）
-├── invariants/
-│   ├── index.ts                 slideDocumentType.invariants：无父子环、parentId/containerId/layoutId/masterId/themeId 存在、order 为合法 FracKey 且同级 (order, id) 全序、占位符引用有效、媒体 BlobRef 被引用；含 04 §12.3 的 I-ML2…I-ML8（悬空版式/母版/主题的重指与级联修复）；每条 { id; check; repair? } 纯函数（服务端软门禁与修复，ADR-0034）
-│   └── validate-change-set.ts   validateChangeSet(view, changeSet)：按 touched 前缀选取相关 invariants 求值（默认实现来自 model-core，此处只配置映射）
-├── diff.ts                      diffBodies(a, b): SlideMutation[]（版本恢复 = 以 restore origin 的一个事务写回；实体表逐键比对 + 文本 delta 计算；版本恢复的服务端用例与界面均为 M3，PRD 05 §0.3）
-├── create-empty.ts              createEmptyPresentation(): PresentationBody（默认主题、1 母版、若干版式、1 空白页）
-├── testing/
-│   ├── index.ts
-│   ├── builders.ts              presentation().slide().shape('sp', {...}).text('…').build()
-│   └── fixtures.ts              典型 body：单页文本、母版继承、分组、表格
-└── __tests__/                   含 property test：所有 Mutation 的 lower 结果经 store-memory 应用后 body 仍满足 bodySchema
-```
-
-为什么不像 Univer：Univer slides 为 alpha 且模型即快照（A6）；这里模型有显式 `Derived<T>` 边界、`extensions` 不透明槽、归一化实体表（利于 CRDT 与路径寻址），并且**样式解析是纯函数**（可缓存、可测试、可在 Node 复用）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/03 §4；对象模型见 [04](./04-document-model.md)，可追加元素的模型补全、插入命令族与表格归一化见 ADR-0018。
 
 ### 4.9 `@cordexjs/ooxml-core` — L3 · iso · library
 
-职责：OPC、命名空间感知 XML、Strict↔Transitional 归一化、DrawingML 共享编解码、脏部件追踪与不透明保留引擎。**不依赖 model-core**（纯库，供任意 OOXML 格式复用）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/04 §4.1。以下三条是跨端的包级约束，保留在此：
 
-```
-packages/ooxml-core/src/
-├── index.ts
-├── opc/
-│   ├── package.ts            OpcPackage：open(bytes, limits) → { parts: PartTable; contentTypes; rootRels }；write(table) → bytes；[Content_Types].xml 与 *.rels **始终**由表生成
-│   ├── part.ts               Part { name: PartName; contentType; bytes(): Promise<Uint8Array>（懒解压）; rels: Relationship[]; hash?: sha256 }
-│   ├── part-table.ts         PartTable：按名/按内容类型/按关系类型索引；add/replace/remove；dirty 标记
-│   ├── content-types.ts      Default/Override 解析与生成；扩展名 ↔ 内容类型表
-│   ├── relationships.ts      .rels 解析/生成；Target 规范化（内部相对路径 / External）；rId 分配
-│   ├── zip.ts                fflate 同构封装；ZipLimits { maxEntries; maxEntryBytes; maxTotalBytes; maxMediaBytes }（借鉴 pptx-renderer RECOMMENDED_ZIP_LIMITS）；超限 → 诊断错误而非崩溃；**写入确定性**（B 线 SV-02）：条目按部件名排序、固定 mtime（1980-01-01）、固定压缩级别/方法、无平台属性位 → 同输入两端产物字节相同
-│   └── part-name.ts          PartName 品牌（以 / 开头、规范化大小写与 ../）
-├── xml/
-│   ├── parser.ts             同构命名空间感知解析（待决 A-2：默认自研）；保留前缀、属性顺序、空白文本、注释、PI；输出 XmlDocument
-│   ├── node.ts               XmlElement/XmlText/XmlCData/XmlComment/XmlPI；QName { ns; local }；SafeXmlNode 空安全遍历（child().attr() 链式，缺失返回空节点，借鉴 pptx-renderer）
-│   ├── serializer.ts         确定性序列化：声明头、前缀映射、属性顺序保持、UTF-8；空元素 `<a/>` 风格与源一致
-│   ├── namespaces.ts         OOXML 命名空间常量（a/p/r/mc/a14/a16/p14/c/dgm…）；Strict↔Transitional URI 映射表
-│   ├── normalize.ts          normalizeToTransitional(doc) → { doc; wasStrict }；toStrict(doc)（可选，A-3）
-│   ├── mce.ts                mc:AlternateContent：Choice(Requires) 判定支持集 → 选可渲染分支；整体保留为 OpaqueXml
-│   └── c14n.ts               canonicalize(doc) 供测试比较（属性排序、空白规范）；不用于导出
-├── drawingml/
-│   ├── color.ts              a:srgbClr/schemeClr/sysClr/prstClr/hslClr/scrgbClr + 修饰符 ↔ Color 结构（与 model-slide drawing/color 同形：定义放在 ooxml-core 的 `drawingml/types.ts`，model-slide re-export —— 见 §4.9 注）
-│   ├── types.ts              DrawingML 共享类型（Color/Fill/Line/Effect/Geometry/Transform/Font/TextBody…）—— **model-slide 与未来 model-doc/sheet 共用**；不含任何 PresentationML 概念
-│   ├── fill.ts / line.ts / effect.ts / geometry.ts / transform.ts / font.ts
-│   ├── text.ts               a:bodyPr/a:lstStyle/a:p/a:pPr/a:r/a:rPr/a:br/a:fld ↔ TextBody 结构
-│   └── index.ts
-├── chartml/                  ChartML（`c:` 命名空间）**只读**解析（M1 图表查看路径，PRD OF-09；不写回、不进模型）
-│   ├── types.ts              ChartReadModel：图表类型（bar/col/line/area/pie/doughnut/radar/scatter/bubble/stock/combo）、系列（名称、类别、值：来自 numCache/strCache）、轴、图例、标题、数据标签、样式引用；标注为只读视图类型
-│   ├── parser.ts             parseChartSpace(xml) → Result<ChartReadModel, Diagnostic[]>：只读 `c:chartSpace`；缺缓存 → 诊断（不读内嵌工作簿）
-│   ├── cache.ts              numCache/strCache 提取与 ptCount 上限（借鉴 pptx-renderer：≤ 10,000 点）
-│   └── index.ts
-├── preserve/
-│   ├── opaque.ts             captureUnknown(element, knownChildren) → OpaqueXml[]（含锚点）；reinsert(parent, opaques, order) 按 schema 顺序表插回；被触碰元素自身的 extensions 同样经此回写（元素级保留，PRD CS-06）
-│   ├── schema-order.ts       主要 CT_* 复杂类型的子元素顺序（生成物：从 ECMA-376 XSD 编译，仅覆盖已建模类型）
-│   ├── dirty-tracker.ts      DirtyTracker：registerPart(partName, pathPrefixes[])；markDirty(paths) → 受影响部件；isDirty(partName)；clear()
-│   └── verbatim.ts           原字节保留：Part 读入时计算 sha256 → BlobRef；导出时干净部件按 ref 取回
-├── units.ts                  ST_Coordinate/ST_Angle/ST_Percentage（"50%" 与 50000 两种词法）/ST_TextFontSize ↔ 品牌数值
-├── diagnostics.ts            ImportDiagnostic { severity: 'info'|'warning'|'error'; partName; path: string（XPath 风格）; code; message; data? }；DiagnosticsCollector
-├── errors.ts                 ooxml-core 错误码：ZIP_LIMIT_EXCEEDED / MALFORMED_XML / MISSING_PART / BROKEN_RELATIONSHIP / UNSUPPORTED_CONFORMANCE
-├── testing/
-│   ├── index.ts
-│   ├── xml-fixtures.ts       最小 XML 片段构造器
-│   └── package-builder.ts    构造最小合法 OPC 包（测试用）
-└── __tests__/                含往返 property：parse(serialize(parse(x))) ≡c14n parse(x)
-```
-
-**DrawingML 类型归属（决策）**：DrawingML（`a:` 命名空间）是 PresentationML / WordprocessingML / SpreadsheetML 三者共用的绘图词汇，它**不是文档类型知识**，但也不是零领域的工具。因此：
-
-- `Color / Fill / Line / EffectList / Geometry / Transform / FontRef / TextBody…` 的**运行时类型与 zod schema** 放在 `@cordexjs/model-core/src/drawing/`（L1，iso；无 XML 知识，无 slide/doc/sheet 字面量）；`model-slide` 的 `model/drawing/*` 只做 re-export 与幻灯片特有扩展（如 `Background`、`Hyperlink.target.slide`）。
-- `ooxml-core/drawingml/*` 只做 **XML ↔ 上述类型的编解码**，因此 `ooxml-core` 依赖 `model-core`（L3 → L1，向下合法）。
-- 依赖方向检查：`model-slide → model-core`（V-model → ≤L1 ✔）；`ooxml-pptx → ooxml-core, model-slide`（V-codec ✔）；`model-slide` **不** import `ooxml-core`。
-- 放弃的方案：(a) 类型放 `ooxml-core`——会迫使 `model-slide`（V-model）向上依赖 L3；(b) 类型放 `shared`——违反 `shared` 零领域知识的约束。
-
-这需要把章程 §5.2 中 `ooxml-core` 的依赖上限由「shared」改为「shared, model-core」，已登记为 README C-10。`no-doc-type-literals` lint 同样覆盖 `model-core/src/drawing/`，保证其中不出现文档类型字面量。
+- **依赖上限**：`shared, xml, model-core`（§4.21 由「shared, model-core」扩为三项，X:q-xml-package）；运行时不引任何第三方 XML 库，词法、保真树与序列化来自 `@cordexjs/xml`（§4.1b）；本包只保留 OOXML 专属层：OPC、命名空间（Strict↔Transitional 48 对）、normalize、mce、c14n（测试用）。
+- **`[Content_Types].xml` 与 `*.rels` 写回**：关系集合与内容类型集合都没变时写回原字节，变了才由 PartTable 重生成；序列化器只需 c14n 等价，不必逐字节复现（rulings §4.21 X:q-content-types；ADR-0008 决策 5 修订，与 04 的保真口径一致）。
+- **DrawingML 类型归属**（C-10 决策）：`Color / Fill / Line / EffectList / Geometry / Transform / FontRef / TextBody…` 的运行时类型与 zod schema 放在 `model-core/src/drawing/`（L1，iso；无 XML 知识、无文档类型字面量）；`ooxml-core/drawingml/*` 只做 XML ↔ 上述类型的编解码，因此依赖 `model-core`（L3 → L1，向下合法）；`model-slide` 不 import `ooxml-core`。放弃的方案：类型放 `ooxml-core`（迫使 V-model 向上依赖 L3）、放 `shared`（违反零领域知识）。
 
 ### 4.10 `@cordexjs/ooxml-pptx` — V-codec · iso · plugin（FormatCodec Provider）
 
-```
-packages/ooxml-pptx/src/
-├── index.ts
-├── plugin.ts                  contribute core.format(pptxCodec)；Config { lazySlides: true; zipLimits; strictWriteBack: 'transitional' }
-├── manifest.ts
-├── ooxml-pptx.contribution.ts
-├── codec.ts                   pptxCodec: FormatCodec { id:'ooxml-pptx'; documentType:'slide'; mimeTypes:[presentationml.presentation, .slideshow, .template, macroEnabled.*（仅识别，import 恒返回 format.macro_rejected，rulings §4.16 Q15）]; extensions:['.pptx','.ppsx','.potx','.pptm'（同上，仅识别）] }
-├── import/
-│   ├── reader.ts              importPptx(bytes, blobs, opts) → Result<ImportResult>：OPC 打开 → 定位 presentation 部件 → 遍历 rels 图 → 分类 → 解析 → 组装 PresentationBody + opaqueParts + media → Snapshot
-│   ├── classify.ts            按内容类型/关系类型分类：modeled（presentation/master/layout/slide/theme）| opaque-part（notes/handout/comments/tableStyles/presProps/viewProps/customXml/vba/charts/embeddings…）| media
-│   ├── presentation.ts / master.ts / layout.ts / slide.ts / theme.ts   各部件 XML → 模型实体（调用 ooxml-core/drawingml）；未知子元素 → captureUnknown → extensions
-│   ├── shape-tree.ts          p:spTree → shapes 表（containerId = 本部件实体；顶层 parentId = null；order 按文档顺序生成等距 FracKey；按 kind 分派；mc:AlternateContent → unknown）
-│   ├── placeholder.ts         p:ph 解析与 layout/master 占位符索引
-│   ├── table.ts / chart.ts / ole.ts / diagram.ts   graphicFrame 内容
-│   ├── media.ts               媒体部件 → BlobRef（sha256 去重）→ MediaRef
-│   ├── notes-text.ts          备注部件的**只读**文本提取（供备注面板 M1 显示，PRD OF-11）；部件本身仍不透明保留
-│   ├── comments.ts            M3：现代评论部件（modernComment_*.xml / commentAuthors）→ resources['comments.threads']（ResourceHook 由 `@cordexjs/comments` 定义，§4.12c；存储见 ADR-0031；决策 INC-39）；M1–M2 仅不透明保留
-│   ├── ids.ts                 cNvPr/@id + a16:creationId → NodeId 分配；构建 OoxmlIdMap（ADR-0014）
-│   └── lazy.ts                懒解析：先建 slide 索引（部件名、顺序、layout 关系），slide 内容按需解析（渲染/搜索/导出时物化）（借鉴 pptx-renderer）
-├── export/
-│   ├── writer.ts              exportPptx(unitScope, opts) → bytes：读取 body + DirtyTracker → 干净部件 verbatim / 脏部件重生成 / 新部件生成 → PartTable → OPC 写出；**不读时钟、不读 layout**（docProps 时间戳来自 DocumentProperties.core.modified 模型字段；R2 秩表禁止 V-codec import engine-layout）→ 浏览器与服务端产物字节一致（SV-02）
-│   ├── presentation.ts / master.ts / layout.ts / slide.ts / theme.ts   模型 → XML（reinsert OpaqueXml）
-│   ├── shape-tree.ts
-│   ├── ids.ts                 NodeId → cNvPr/@id 回写（复用原 id；新节点分配未占用 uint；重复修复）；creationId 回写
-│   ├── rels.ts                关系重建（新增 slide/media 的 rId）；notesSlide 等 opaque 部件的 rels 原样保留
-│   ├── timing-refs.ts         删除形状后清理不透明 p:timing 子树中的悬空 spid 引用（或整段失效 p:par）（PRD OF-12；对不透明内容唯一允许的修改）
-│   ├── comments.ts            M3：resources['comments.threads'] → 现代评论部件（可关：PD-04）；M1–M2 评论部件 verbatim
-│   ├── chart-workbook.ts      M3 P1：从可编辑 Chart.data 生成最小内嵌 .xlsx（PD-06；不可行时移除内嵌并诊断 CHART_WORKBOOK_DROPPED，由 B 线定降级）
-│   ├── conformance-writer.ts  §4.4 三案实现：C（Transitional→Strict 反向映射写回，依赖 ooxml-core/xml/normalize.toStrict 与 OpaqueXml.namespaces 原始 URI）→ XSD 校验 → 失败回退 B（整包 Transitional）并诊断 STRICT_FALLBACK_TRANSITIONAL
-│   └── content-types.ts       新增媒体扩展名注册
-├── mapping/
-│   └── part-map.ts            registerPartPrefixes(dirtyTracker, body)：slides.<id>.* → /ppt/slides/slideN.xml 等（供 DirtyTracker）
-├── conformance.ts             检测 Strict（命名空间）并记录到 Presentation.conformance；导出策略选择（04 §4.4 三案，README A-3 待决：推荐 C 目标 + B 回退）
-├── errors.ts / diagnostics.ts 代码：UNSUPPORTED_PART / PLACEHOLDER_UNRESOLVED / ID_COLLISION_REPAIRED / STRICT_NORMALIZED / STRICT_FALLBACK_TRANSITIONAL / TIMING_REF_REMOVED / CHART_CACHE_MISSING
-├── testing/
-│   ├── index.ts
-│   └── roundtrip.ts           roundTrip(bytes) → { partDiff: PartDiff[]; canonicalDiff }（M1 验收工具：逐部件字节比较；排除容器元数据，A-12）
-└── __tests__/                 fixtures/pptx 语料：minimal（全部 verbatim）、features（脏一个部件后其它 verbatim）、wild
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/04 §4.2；导出确定性（不读时钟、不读 layout、zip 写入确定性）见 [30/01 总架构](./01-overview.md) §4.4 与 60-backend/06 §7。
 
 ### 4.11 `@cordexjs/collab-core` — L4 · iso · definition
 
-契约包；运行时细节由 06 负责。
-
-```
-packages/collab-core/src/
-├── index.ts
-├── collab.contribution.ts       Context.collab（root）、Context.presence（UnitScope）、Context.collabTransport、Context.offlineStore；Events（10 §11 定稿）collab/state-changed|synced|soft-conflict|auth-failed|reconnect|update-rejected|repair、presence/joined|left|changed
-├── contracts/
-│   ├── collab.service.ts        abstract CollabService extends Service（'collab'）：join(unitScope, room: RoomDescriptor) → Promise<Result<Session>>；leave(unitId)；status(unitId)
-│   ├── session.ts               Session { state: SyncState; observe(); dispose() }；SyncState = disconnected|connecting|syncing|synced|offline|error
-│   ├── room.ts                  RoomDescriptor { documentId; token; endpoint }
-│   ├── transport.ts             Transport Definition：connect(handshake) / send(frame) / onFrame(cb) / close()；Backoff 策略接口
-│   ├── awareness.ts             AwarenessState { user; selection: SerializedSelection; page?; color; lastActive }
-│   ├── offline-queue.ts         OfflineQueue 接口（enqueue/flush/size）
-│   └── permission-checkpoint.ts onPermissionChanged(unitId, decisions) → permissions.applyRemoteDecisions（与 model-core 对接）
-├── presence/
-│   ├── presence.service.ts      PresenceService Definition（UnitScope）：self()/peers()/setLocal(partial)/observe()
-│   └── local-presence.ts        单人默认 Provider（无 peers）；preset-slide 使用
-├── sync-state.ts                状态机 reducer（纯函数）
-├── errors.ts
-├── testing/index.ts             FakeTransport（可脚本化断线/延迟）、FakeCollab
-└── __tests__/
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/05 §4.1；契约签名见 [06](./06-collaboration.md)。
 
 ### 4.12 `@cordexjs/collab-yjs` / `@cordexjs/collab-transport-ws` — L4 · iso · provider
 
-```
-packages/collab-yjs/src/
-├── index.ts / plugin.ts（provide ['collab','presence']；inject ['store','yjsBackend','collabTransport','permissions','telemetry']；可选 ctx.get('offlineStore')——与 06 §3 一致）/ manifest.ts / collab-yjs.contribution.ts
-├── yjs-collab.service.ts        YjsCollabService extends CollabService：y-protocols sync（step1/step2/update）与 awareness 编解码；把帧交给 Transport
-├── awareness-bridge.ts          y-protocols awareness ↔ PresenceService（Selection 序列化）
-├── offline-queue.ts             基于 Y.Doc 本地 update 缓冲的离线队列实现
-├── testing/index.ts
-└── __tests__/                   双客户端 + FakeTransport 收敛测试
-
-packages/collab-transport-ws/src/
-├── index.ts / plugin.ts（provide ['collabTransport']——Transport 的服务名，06 定稿）/ manifest.ts / contribution.ts
-├── ws-transport.ts              WebSocket 连接、握手帧、重连退避（jitter）、心跳
-├── backoff.ts
-├── testing/index.ts             内存 ws 对（服务端替身）
-└── __tests__/
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/05 §4.2、§4.3；§4.21 起 `@hocuspocus/provider` 4.7.0 只在这两个包内（collab-yjs 用 HocuspocusProvider，collab-transport-ws 用 HocuspocusProviderWebsocket、计量垫片与调度器），两级 ack、在途 FIFO、被拒回滚与 OfflineStore 仍自有（ADR-0039，H-d-25）。
 
 ### 4.12b `@cordexjs/collab-offline-idb` — L4 · dom · provider（implements `offlineStore`；总编排接受的 B 线新增包）
 
-职责：`OfflineStore` Provider——把本地未确认的 CRDT update 与文档快照持久化到 IndexedDB，实现跨刷新的离线编辑（PRD PD-05 M4 P2；M3 会话内队列由 collab-yjs 的内存实现承担）。**唯一**允许 import `y-indexeddb`（或自写 IDB 适配）的包。契约（`OfflineStore` Definition）在 `collab-core/contracts/offline-queue.ts` 由 06 给出签名。
-
-```
-packages/collab-offline-idb/src/
-├── index.ts
-├── plugin.ts                    provide ['offlineStore']（UnitScope 内挂载，随 Unit 打开建库、关闭释放）；Config { dbNamePrefix; maxPendingBytes; ttlDays }
-├── manifest.ts
-├── collab-offline-idb.contribution.ts
-├── idb-offline-store.ts         IdbOfflineStore implements OfflineStore：persistUpdate/loadPending/ack/clear；配额与 TTL 淘汰（淘汰策略有测试，A29）
-├── adapter/                     y-indexeddb 封装或自写 IDB 事务适配（单点引入）
-├── testing/index.ts             fake-indexeddb 环境助手
-└── __tests__/                   刷新后恢复、配额淘汰、Unit 关闭后无残留连接（defineLifecycleSuite）
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/05 §4.4；跨刷新离线持久化（M4 P2）用 idb 8 自写适配（R-d-26）。
 
 ### 4.12c `@cordexjs/comments` — L4 · iso · plugin（横向能力、文档类型盲；rulings §4.19 D-COMMENTS-PKG）
 
-职责：评论的客户端事实源与命令面，**不认识任何文档类型**。`threads` / `replies` 两张实体表以 ResourceHook `comments.threads` 存入 Snapshot 的 `resources`（04 §2.7：`resources['comments.threads'] = { version, data }`；命名空间按决策 INC-39 取 `comments.*`，服务端镜像按同一前缀识别，同样文档类型盲）；`comments.thread.*` / `comments.reply.*` Mutation 与 `comments.*` 命令（能力位 `doc.comment`，作者规则在命令层与服务端软门禁两处执行，06 §11）；`comment/*` 事件；UnitScope 服务 `comments`（只读查询：筛选、单线程、每页未解决数、已脱离锚点）；贡献点 `comments.anchorResolver`（按 `documentType` 键，由文档类型提供锚点解析）。slide 专属部分——锚点解析器（页 / 元素 / 文本范围）、检查器评论页签、画布评论钉的气泡、缩略图角标——由 `slide-ui` 贡献（§4.20）。M3 装入 `preset-slide-collab`（§4.21）；单人 preset 与查看器不装，未装时评论数据按 ResourceHook 缺席规则原样保留（04 §2.7）。
-
-```
-packages/comments/src/
-├── index.ts / plugin.ts（provide ['comments']（UnitScope）；contribute core.resource、core.mutation、core.command；定义贡献点 comments.anchorResolver）/ manifest.ts
-├── comments.contribution.ts     Context.comments；Events comment/*；贡献点 comments.anchorResolver
-├── domain/                      Thread / Reply 实体 schema（zod）、作者规则、锚点抽象 CommentAnchor（opaque，由 resolver 解释）
-├── application/                 comments.* 命令与 Mutation；查询服务
-├── testing/index.ts             FakeAnchorResolver（fixture 文档类型）
-└── __tests__/                   文档类型盲测试（只用 fixture 文档类型，不 import 任何 V-* 包）；作者规则；缺席保留
-```
-
-`cordex`：`{ layer: 'L4', iso: 'iso', role: 'plugin' }`（无 `bundle`，受 R3 约束：不得 import 任何 V-* 垂直束包）。依赖上限：`model-core`、`protocol`、`kernel`、`shared`（L0 隐式允许，rulings §4.18 FE-02）；**不**依赖 `collab-*`（评论在 `store-memory` 下同样可用，协同只负责同步 Y 状态）。层号与依赖上限的正式登记在章程 §5.2（D-COMMENTS-PKG 要求结构线登记；两处不一致时以章程为准）。浏览器行为见 [50-frontend/08](../50-frontend/08-comments-and-version-history.md)，服务端镜像见 [60-backend/07](../60-backend/07-modules-comments-webhooks-audit.md)。
+> 目录树已删（§4.21）：包级规划见 [40-modules/20](../40-modules/20-comments-client.md)（M3 前补齐）；`cordex: { layer:'L4', iso:'iso', role:'plugin' }`，依赖上限 `model-core`、`protocol`、`kernel`、`shared`，不依赖 `collab-*`；ResourceHook `comments.threads`，浏览器行为见 [50-frontend/08](../50-frontend/08-comments-and-version-history.md)，服务端镜像见 [60-backend/07](../60-backend/07-modules-comments-webhooks-audit.md)。
 
 ### 4.13 `@cordexjs/engine-layout` — L5 · iso · plugin（含 `TextMeasurer` Definition）
 
-```
-packages/engine-layout/src/
-├── index.ts
-├── plugin.ts                  provide ['layout']；inject ['contributions']；Config { dpi: 96; fallbackFonts: string[] }
-├── manifest.ts
-├── layout.contribution.ts     Context.layout；贡献点 layout.measurer（TextMeasurer Provider，key = id）；Events layout/measurer-changed
-├── text/
-│   ├── measurer.ts            TextMeasurer Definition { id; measure(text, font: ResolvedFont) → { width: Px; ascent; descent }; supports(font) }；ResolvedFont { family; size: Pt; bold; italic }
-│   ├── line-breaker.ts        UAX#14 子集 + CJK 规则；使用 shared/text 的 grapheme
-│   ├── paragraph-layout.ts    layoutParagraph(paragraph: LayoutParagraphInput, width, measurer) → Line[]（Line { fragments: Fragment[]; ascent; descent; width }）；输入是**布局用的中性结构**（不是 model-slide 类型）
-│   ├── body-layout.ts         layoutTextBody(input: LayoutBodyInput, box, measurer) → LayoutResult（锚点、插图、autofit 缩放、竖排、多列）
-│   └── font-fallback.ts       主题字体占位（+mj-lt 等）→ 具体字体 → 主机可用性（measurer.supports）→ 通用族
-├── geometry/
-│   ├── preset-geometry.ts     presetPath(preset, adjustments, box) → GeometryPath[]（187 种 prstGeom）
-│   ├── preset-table/          生成物：从 presetShapeDefinitions.xml 编译出的公式表（tooling/scripts/compile-preset-geometry）
-│   ├── custom-geometry.ts     customPath(geometry, box)
-│   ├── formula.ts             OOXML 几何公式求值器（+- */ ?: abs at2 cat2 cos max min mod pin sat2 sin sqrt tan val）
-│   └── path.ts                GeometryPath { commands: (moveTo|lineTo|arcTo|quadTo|cubicTo|close)[]; fill; stroke; extrusionOk } → toSvgPath()
-├── units.ts                   Emu ↔ Px（dpi）、Pt ↔ Px
-├── services/layout.service.ts LayoutService（'layout'）：measurer()（当前 Provider，可切换）、layoutTextBody（带内容哈希缓存，淘汰策略有测试）、geometryPath
-├── errors.ts
-├── testing/index.ts           FixedWidthMeasurer（每字符固定宽度，确定性快照）
-└── __tests__/
-```
-
-`LayoutBodyInput` 是引擎的中性输入类型（字符串、字号、字体、缩进等），由 `slide-render` 从 `ResolvedRunProperties` 转换；引擎不 import `model-slide`（A4）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/06 §4.1；度量与断行契约见 [07 渲染跨端契约](./07-rendering.md) §5，断行机会表由 tooling 从 UCD 生成（R-d-27）。
 
 ### 4.14 `@cordexjs/engine-render` — L5 · iso · definition（渲染契约与管线）
 
-```
-packages/engine-render/src/
-├── index.ts
-├── plugin.ts                     provide ['render']（UnitScope 内挂载）；inject ['layout','contributions']
-├── manifest.ts
-├── render.contribution.ts        Context.render；贡献点 render.target（RenderTarget Provider，key = id）、render.element（ElementRenderer，key = `${targetId}:${kind}`）、render.scene（SceneProvider，key = documentType）、render.overlay（覆盖层贡献，key = id）；Events（按 10 §11 定稿）render/first-paint(unitId, stats)、render/frame(unitId, stats)（进程内消费，公开订阅 ≥ 50 ms 合并；遥测事件 perf/frame 由其派生；render/painted 弃用）、render/element-failed(unitId, nodeId, kind, code)、render/element-degraded(unitId, nodeId, kind, reason)、render/font-fallback(unitId, requested, fallback, scope)
-├── scene/
-│   ├── scene.ts                  Scene { id; size: { w; h: Emu }; nodes: SceneNode[]; background?: SceneNode }；SceneNode { id: NodeId; kind: string; bbox: Rect(Emu); transform?: Transform; zIndex: number; children?: SceneNode[]; data: unknown（渲染器按 kind 解释）; revision: number }
-│   ├── scene-provider.ts         SceneProvider Definition { documentType; build(unitScope, view: ViewDescriptor) → Scene; diff(changeSet, prev: Scene) → DirtySet }；ViewDescriptor { mode: 'edit' | 'master' | 'thumbnail' | 'present'; page?: NodeId; target?: NodeId（mode 'master' 时为版式/母版 id）; [k: string]: unknown（文档类型自定义字段，12 §2）}（ML-01 母版视图，04 §12.4）
-│   └── dirty.ts                  DirtySet { nodeIds: Set<NodeId>; full: boolean; changed?: Map<NodeId, PathKey[]> }（changed 为可选的属性级精度，供渐进式局部更新；B 线 07 要求）；必须被 paint 消费（RecordingTarget 断言，A28）
-├── target/
-│   ├── render-target.ts          RenderTarget Definition { id; mount(container: unknown) → TargetHandle; paint(scene, dirty) ; hitTest(point) → HitResult | null; toImage?(scene, opts) → Promise<Blob | Uint8Array>; dispose() }
-│   ├── element-renderer.ts       ElementRenderer<TData> { targetId; kind; render(node: SceneNode & { data: TData }, ctx: RenderContext) → ElementHandle; update(handle, node); dispose(handle) }；RenderContext { layout; resolveMedia(blobRef); onError }
-│   └── overlay.ts                OverlayLayer 契约：selection box / handles / remote cursors 的绘制接口（由 target 实现，由 UI 驱动）
-├── viewport/
-│   ├── viewport.ts               Viewport { zoom; pan; page }；emuToPx/pxToEmu；fit 模式
-│   └── virtualization.ts         可见页窗口（缩略图列表/连续滚动）
-├── hit-test/hit-test.ts          HitResult { nodeId; region: 'body'|'handle'|'text'; local: Point }；bail 链：overlay → target
-├── services/render.service.ts    RenderService（'render'，UnitScope）：attach(targetId, container) / detach / setView / invalidate(dirty) / requestPaint()（rAF 合并；Node 下微任务）/ hitTest / snapshotImage
-├── scheduler.ts                  帧调度抽象（browser: requestAnimationFrame；node: setImmediate）—— 以 Definition 形式注入，保持 iso
-├── errors.ts
-├── testing/index.ts              RecordingTarget（记录 paint/dirty）、fakeScene()
-└── __tests__/
-```
-
-为什么不像 Univer：Univer `engine-render` 66% 是三产品组件，`IRange` 进入通用契约（A1/A5）。这里契约只认 `kind: string` + 几何盒；元素渲染器是**查表**而非拦截链（A30）。机械验证：depcruise `engine-render` 禁 import 任何 `model-*`；api-extractor 基线中 `Scene*` 类型不得出现文档类型字段。
+> 目录树已删（§4.21）：文件级目录见 40-modules/06 §4.2；贡献点与帧管线契约见 [07 渲染跨端契约](./07-rendering.md) §2。
 
 ### 4.15 `@cordexjs/render-dom` — L5 · dom · provider（implements `render.target:'dom'`、`layout.measurer:'canvas'`）
 
-```
-packages/render-dom/src/
-├── index.ts
-├── plugin.ts                  contribute render.target(domTarget)、layout.measurer(canvasMeasurer)；Config { svgPrecision: 2 }
-├── manifest.ts
-├── render-dom.contribution.ts
-├── dom-target.ts              DomRenderTarget：容器管理、图层（background/content/overlay/ime）、CSS transform 缩放、ResizeObserver（effect 拥有）
-├── layers/
-│   ├── content-layer.ts       每页一个 <svg viewBox=EMU>；节点 <g data-cordex-node=id>；paint server（defs：渐变/图案/裁剪）
-│   ├── overlay-layer.ts       选择框、手柄、参考线、远端光标（HTML 绝对定位 + SVG）
-│   └── ime-host.ts            隐藏 contenteditable 宿主：compositionstart/update/end → 输入事件对象（交给 ui-core 输入管线）
-├── paint/
-│   ├── painter.ts             paint(scene, dirty)：按 dirty 集增量更新；查表 contributions(render.element) by `dom:${kind}`；逐节点 try/catch → 占位渲染 + render/element-failed（A11、PRD OF-13）
-│   └── reconcile.ts           键控 diff（z 序变化只移动节点）
-├── measurer/canvas-measurer.ts OffscreenCanvas/Canvas 2D measureText；字体可用性检测（document.fonts）
-├── hit-test.ts                elementFromPoint → data-cordex-node；几何回退（旋转盒）
-├── export/to-image.ts         SVG 序列化 → Image → Canvas → PNG/JPEG（客户端缩略图，M1/M2）
-├── styles/layers.css          仅结构定位样式；不依赖 @cordexjs/design
-├── errors.ts
-├── testing/index.ts           mountInHappyDom()
-└── __tests__/                 happy-dom 单测 + browser mode（真实 measureText）
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/06 §4.3；职责与内部结构见 [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md)（§4a 节）；不依赖 `@cordexjs/design`（秩表 R2 保证）。
 
 ### 4.16 `@cordexjs/slide-render` — V-render · dom · plugin
 
-```
-packages/slide-render/src/
-├── index.ts
-├── plugin.ts                  contribute render.scene(slideSceneProvider)、render.element × { dom } × { sp, pic, grpSp, cxnSp, graphicFrame:table, graphicFrame:chart, graphicFrame:ole, graphicFrame:diagram, unknown, background }
-├── manifest.ts
-├── slide-render.contribution.ts
-├── scene/
-│   ├── slide-scene-provider.ts build(unitScope, view)：读取 slides 服务 → 母版/版式/页三层合成 → SceneNode 树（data = 渲染所需的已解析样式 + 布局输入）
-│   ├── compose.ts              合成规则：showMasterShapes、占位符 type/idx 匹配、背景来源（slide→layout→master）；mode 'master'：渲染目标版式/母版并叠加继承来源、占位符提示框（ML-01，04 §12.4）
-│   ├── to-layout-input.ts      ResolvedRunProperties/Paragraph → engine-layout 的 LayoutBodyInput
-│   └── dirty-mapping.ts        ChangeSet.touched → 受影响 SceneNode（shape 路径 → 节点；layout/master 变化 → 使用它的页全量）
-├── elements/
-│   ├── sp.ts                   几何 path（layout.geometryPath）+ fill/line/effect → <g><path/><text…/></g>
-│   ├── text-body.ts            LayoutResult → SVG <text>/<tspan>（行、片段、bullet、下划线/删除线）
-│   ├── pic.ts                  <image> + 裁剪 + 几何裁剪；媒体 blob URL 生命周期由 effect 拥有
-│   ├── grp-sp.ts               子坐标系变换
-│   ├── cxn-sp.ts
-│   ├── table.ts                单元格网格、合并、样式（tableStyles 部件 M2 起解析）
-│   ├── chart/                  图表渲染子插件（子路径 `@cordexjs/slide-render/chart`，登记于 slide-render 的 `publicEntry`（FE-04）；独立惰性 chunk ≤ 400 KB，PRD EM-07；M1–M2 的只读图表渲染器**只在此子路径**，主包不内置；M3 起拆为 `@cordexjs/slide-render-chart`，见 §4.16b）
-│   │   ├── plugin.ts           contribute render.element 'dom:graphicFrame:chart'；缺席时主包的 chart-placeholder 占位（可插拔证据，OF-09）
-│   │   ├── read-model.ts       Chart.partRef → BlobStore 取 XML → ooxml-core/chartml.parseChartSpace → ChartReadModel（只读，按 partRef.hash 缓存）
-│   │   ├── svg-chart.ts        ChartReadModel → SVG（自研或 Apache-2.0/MIT 图表库单点引入）；plot-bound/data-ink 诊断供视觉 oracle（借鉴 pptx-renderer）
-│   │   └── placeholder.ts      子路径已加载但 chartml 解析失败时的占位框 + 诊断
-│   ├── chart-placeholder.ts    主包内的默认占位渲染器（render.element 'dom:graphicFrame:chart'，conflict 'replace' 由 chart 子插件覆盖）：渲染器未加载时绘占位并发 render/element-degraded{reason:'chart-unavailable'}，preset 以此为 activateWhen 惰性加载 `./chart` 子路径（40-modules/11 §3.1；40-modules/07 同口径，文件落位以 07 §4.1 为准：主包占位 `infrastructure/elements/chart-placeholder.renderer.ts`，子路径入口 `src/chart.ts` + `infrastructure/chart/chart-preview.renderer.ts`；2026-09-25 rulings §4.18 FE-08）
-│   ├── ole.ts / diagram.ts     预览图或回退形状
-│   ├── unknown.ts              虚线占位 + 诊断（错误隔离的落点）
-│   ├── background.ts
-│   └── paint/fill.ts / line.ts / effect.ts   DrawingML → SVG paint server（linearGradient/radialGradient/pattern/filter）
-├── thumbnail.ts               缩略图（view.mode='thumbnail' 的 Scene + target.toImage）
-├── errors.ts
-├── testing/index.ts           renderSlideToSvgString()（快照测试）
-└── __tests__/                 视觉 oracle 夹具接入（11）；局部重绘断言（RecordingTarget）
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/07 §4.1；页合成见 [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md)（§4a 节），逐元素渲染器见 [50/19](../50-frontend/19-insertable-elements-overview.md)。
 
 ### 4.16b `@cordexjs/slide-render-chart` — V-render · dom · plugin（**M3 起**从 slide-render 拆出；总编排接受）
 
-职责：可选、可替换的图表渲染插件；M1–M2 以 `@cordexjs/slide-render/chart` 子路径存在（同一代码、同一惰性边界），M3 拆包时 preset 条目只改 import 路径。骨架（M3）：
-
-```
-packages/slide-render-chart/src/
-├── index.ts / plugin.ts（contribute render.element 'dom:graphicFrame:chart'，覆盖 slide-render 的占位渲染器）/ manifest.ts / contribution.ts
-├── read-model.ts                M1–M2 的 read-model.ts 迁入；M3 起优先读 model-slide 的可编辑 Chart.data，无则回退 partRef 只读解析
-├── renderers/                   按图表类型拆分（bar/line/pie/…），可被第三方 render.element 覆盖
-├── interaction/                 M3：点选系列/数据点（→ 属性面板编辑，ED-15）
-├── testing/index.ts
-└── __tests__/                   与 PowerPoint oracle 的 SSIM/IoU 用例（OF-09 口径）
-```
-
-`cordex`：`{ layer: 'V-render', bundle: 'slide', iso: 'dom', role: 'plugin' }`；图表绘制第三方库（Apache-2.0/MIT）的单点引入位置随拆包迁移。
+> 目录树已删（§4.21）：文件级目录见 40-modules/07 §4.2；`cordex: { layer:'V-render', bundle:'slide', iso:'dom', role:'plugin' }`；绘图底层为 d3-scale / d3-shape / d3-array（ISC）加自研 OOXML 布局，数字格式用 numfmt（ADR-0036），单点见 §4.0.1。
 
 ### 4.17 `@cordexjs/design` — L7 · dom · library（对 SDK 零依赖；只交付主题变量 CSS，ADR-0017）
 
-> §4.17–§4.21b（design / ui-core / ui-react / slide-ui / preset-*）在本文只保留层号、依赖与包职责；运行时行为的唯一源：UI 体系与主题 → [50-frontend/09](../50-frontend/09-ui-system-and-theming.md)，preset 装配与插件清单 → [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md)，查看器、嵌入与 `/render` 页 → [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)（rulings §4.19）。
-
-职责（章程 D10 修订、rulings §4.7）：设计 token 的**唯一事实源**与生成的主题变量 CSS。不再包含原子组件与图标：组件由 shadcn/ui 复制件（`ui-react/src/components/ui/`）承担，图标用 Lucide。`design` 与 `ui-react`/`*-ui` 之间的唯一契约 = CSS 变量名（shadcn 变量 + Cordex 扩展裸名变量）。运行时零依赖、零 JS 副作用（K7）。注：本节目录树中的 `--cordex-*` 变量名是旧草图，该前缀已按 rulings C-22 作废，现行变量名以 40-modules/10 与 `design/css/tokens.css` 为准；契约由测试断言 `theme-vars-contract.test.ts` 守护（09-08 TD-092，2026-09-25 rulings §4.18 GV-15）。
-
-```
-packages/design/
-├── package.json               exports：`.`（仅类型）、`./theme.css`、`./tailwind-theme.css`；`sideEffects: ["*.css"]`；`dependencies: {}`（R18 `design-css-only`）
-├── theme.css                  生成物（入库便于 diff 评审）：`:root{…}`（light）、`[data-cordex-theme="dark"], .dark{…}`、`[data-cordex-theme="high-contrast"]{…}`、`[data-cordex-density="compact"]{…}`；变量名 = shadcn 约定（--background/--foreground/--card/--popover/--primary/--secondary/--muted/--accent/--destructive/--border/--input/--ring/--chart-1..5/--sidebar-*/--radius）+ Cordex 扩展 `--cordex-*`；ui-react/*-ui/apps 唯一 import 的 design 产物
-├── tailwind-theme.css         生成物：Tailwind 4 `@theme inline { --color-background: var(--background); … --color-cordex-canvas: var(--cordex-canvas-bg); --radius-lg: var(--radius); … }` 注册片段，使工具类指向主题变量；由 ui-react/*-ui 的样式入口 `@import`
-├── src/
-│   ├── index.ts               仅导出类型与常量：ThemeVarName（shadcn 变量 | `--cordex-*` 字面量联合）、ThemeName（light|dark|high-contrast）、DensityName（comfortable|compact）；无运行时逻辑
-│   ├── tokens/
-│   │   ├── color.ts           语义色：shadcn 12+ 变量的三主题取值 + Cordex 扩展（画布背景、参考线、选区框/手柄、协作者 8 色、状态色、降级占位）
-│   │   ├── typography.ts      UI 字体栈（Geist Variable → 系统栈回退；画布内容字体不在此）、字号/行高梯度、密度对应的 UI 字号（最小 11px，rulings §4.6）
-│   │   ├── spacing.ts / radius.ts / shadow.ts   间距梯度、圆角（`--radius` + 派生）、阴影层级
-│   │   ├── z-index.ts         `--cordex-z-*`：画布 < 覆盖层 < 面板 < 浮层（popover/menu）< 对话框 < 通知；集成方可整体平移（EM-06）
-│   │   ├── motion.ts          时长/曲线；`prefers-reduced-motion` 下的取值
-│   │   ├── density.ts         `comfortable`/`compact` 的控件高度、行高、内边距（属性 `data-cordex-density`，rulings §4.3）
-│   │   └── index.ts           TokenSet 类型与三主题对象
-│   └── scripts/build-theme.ts 生成器：tokens → theme.css + tailwind-theme.css；`--check` 模式校验入库产物与 tokens 一致
-├── testing/index.ts           解析 theme.css 变量表的测试助手
-└── __tests__/                 token 快照；WCAG AA 对比度（三主题全部前景/背景配对）；`build-theme --check`
-```
-
-为什么不像 Univer：Univer 的 `design` 包正确地做到了对 SDK 零依赖（K7），但 token 只覆盖颜色；这里 token 覆盖颜色、间距、字号、圆角、阴影、层级、动效、密度，并且**组件不在 design 里**——组件是 ui-react 的 shadcn 复制件，design 因此可被未来的非 React 绑定复用。
+> 目录树已删（§4.21）：文件级目录见 40-modules/10 §4.1；只交付主题变量 CSS、对 SDK 零依赖（R18），UI 体系与主题见 [50-frontend/09](../50-frontend/09-ui-system-and-theming.md)。
 
 ### 4.18 `@cordexjs/ui-core` — L7 · dom · plugin（框架无关的 UI 基座）
 
-```
-packages/ui-core/src/
-├── index.ts
-├── plugin.ts                  provide ['ui','shortcuts','theme']；inject ['commands','contributions','i18n','units']
-├── manifest.ts
-├── ui.contribution.ts         贡献点：ui.ribbon（tab/group/item）、ui.toolbar、ui.panel、ui.contextMenu、ui.shortcut、ui.command（呈现元数据）、ui.statusBar、ui.dialog、ui.notification、ui.theme（token 覆盖集，Beta）；id 一律 camelCase；Context.ui/shortcuts/theme；Events ui/panel-opened|closed、ui/context-key-changed
-├── model/                     每个贡献点的类型 + schema：公共骨架 ContributionBase { id; slot; order; when?: WhenClause; enablement?: WhenClause; owner? } + commandId?、component?: ComponentRef（泛型占位，由绑定层具体化）；`when` 管可见性、`enablement` 管可用性（为假时禁用不隐藏并给原因，2026-09-26 rulings §4.20 FE-06，03 §3.6）
-├── when-clause.ts             `when` / `enablement` 表达式（`unitType == 'slide' && selectionKind == 'shapes'`）解析与求值；`explainWhen` 给出不可用原因；上下文键反应式
-├── context-keys.ts            ContextKeys 服务内部：set/get/observe；标准键 unitType、viewMode（受 documentType.viewModes 约束）、editTargetKind、selectionKind、selectionCount、canUndo、canRedo、isCollab、isReadOnly、platform、density、editorMode、unitLoaded 与键族 `can.<capability>`（`can.` 为 ui-core 保留前缀，取 protocol 能力位全集；全集以 50-frontend/09 §6.3 为准，2026-09-26 FE-06）（03 §3.6；`scan-contributions` 规则 (e)，原称扫描器 when-keys-declared，rulings §4.18 GV-15）
-├── operations.ts              水平层 Operation：view.setMode（{ unitId; mode }，mode ∈ documentType.viewModes；更新 viewMode 键、render.setView、emit view/mode-changed；文档类型盲）、ui.openPanel / closePanel / toggleRibbonTab（05 §13.3）
-├── input/
-│   ├── keyboard.ts            键位规范化（平台、chord）、匹配 → shortcuts
-│   ├── pointer.ts             指针手势 → 命令/操作（拖动阈值、双击）；只产生**意图**对象
-│   ├── clipboard.ts           复制/粘贴 MIME 协商（内部 JSON、image、text/html）
-│   └── drag.ts                拖放（文件导入、缩略图排序）
-├── services/
-│   ├── ui.service.ts          UiService（'ui'）：contributions(slot, ctxKeys) 过滤排序；openPanel/closePanel/openDialog/notify（Operation 域，不入历史）
-│   ├── shortcuts.service.ts   ShortcutsService（'shortcuts'）：bind(chord, commandId, when)、resolve(event)、conflicts() 诊断
-│   └── theme.service.ts       ThemeService（'theme'）：set(theme, density)、observe()；把 theme/density 暴露为状态并写根元素属性 `data-cordex-theme` / `data-cordex-density`（ui-react 的 ThemeBridge 读取；多 host 各自作用域）；注入 `@cordexjs/design/theme.css`（单一 <style>，按 host 去重）；读取 `ui.theme` 贡献的 token 覆盖集；**不** import React/Radix/Tailwind（R14）
-├── errors.ts
-├── testing/index.ts           fakeContextKeys()、dispatchKey()
-└── __tests__/
-```
-
-为什么不像 Univer：Univer 移动端整包复刻（A7）；这里移动端只是一组 `ui.*` 贡献 + `when` 子句（`platform == 'mobile'`）。机械验证：depcruise `ui-core-no-react`（禁 import react）；`ui-core` 对 `@cordexjs/design` 只允许 `.css` 与 type-only import（README C-6）。
+> 目录树已删（§4.21）：文件级目录见 40-modules/10 §4.2；框架无关（R14），`ui.*` 贡献点见 [03](./03-kernel-and-plugin-model.md)，UI 契约见 [50-frontend/09](../50-frontend/09-ui-system-and-theming.md)。
 
 ### 4.19 `@cordexjs/ui-react` — L7 · dom · provider（React 19 绑定；shadcn/ui 复制模式，ADR-0017）
 
-职责：把 ui-core 的贡献渲染为 React 组件；持有全部 UI 组件依赖（shadcn 复制件 + Radix + Tailwind 4 + Lucide + Geist）。种子 = `docs/20-design/playground/`（Vite 8 + React 19 + TS strict，`components.json` style `radix-rhea`——2026-09-16 起，原 `radix-nova`，ADR-0017 修订）：M2 启动时其 `src/components/ui/*`、`lib/utils.ts`、`hooks/use-mobile.ts`、`index.css` 迁入本包，随后 playground 改为依赖 workspace 的 `@cordexjs/ui-react`，保证**全仓只有一份复制件**（测试断言 `packages/ui-react/src/__tests__/shadcn-copy.test.ts`，09-08 TD-091；原称扫描器 `single-shadcn-copy`，rulings §4.18 GV-15 归并）。
-
-```
-packages/ui-react/
-├── components.json              shadcn CLI 配置（入库）：style `radix-rhea`、rsc false、tsx、tailwind.css `src/styles/index.css`、baseColor neutral、cssVariables true、iconLibrary lucide、aliases `@/components` `@/components/ui` `@/lib` `@/hooks`；`pnpm dlx shadcn@4.21.0 add|diff` 以此运行（仓库根禁用 npx，Q9）
-├── package.json                 exports：`.`（EditorHost、hooks、components/editor 组合、UiRenderer 插件）、`./ui`（shadcn 复制件桶文件；仅供 `*-ui` 与 `apps/*`，R17）、`./styles.css`（构建产物）、`./testing`；peer：react、react-dom；dependencies：radix-ui、class-variance-authority、clsx、tailwind-merge、lucide-react、tw-animate-css、cmdk、sonner、react-resizable-panels、@fontsource-variable/geist（全部为本包与 `*-ui` 的单点引入，R5）；devDependencies：tailwindcss、@tailwindcss/cli（库构建 → lib/styles.css）、@tailwindcss/vite（浏览器模式测试/styleguide）
-└── src/
-    ├── index.ts                 re-export：EditorHost、hooks、editor 组合、UiRendererPlugin
-    ├── plugin.ts                provide ['uiRenderer']（ui-core 的 UiRenderer Definition 的 React Provider）；inject ['ui','shortcuts','theme','commands','i18n']
-    ├── manifest.ts
-    ├── ui-react.contribution.ts declare module '@cordexjs/kernel'：ComponentRef 在 React 绑定下 = React.ComponentType<SlotProps>（A14：全泛型，无 any）
-    ├── lib/utils.ts             `cn()`（clsx + tailwind-merge）—— shadcn 约定，复制件依赖
-    ├── hooks/
-    │   ├── use-mobile.ts        shadcn 复制件依赖
-    │   └── use-service.ts / use-contributions.ts / use-command.ts / use-selection.ts / use-unit.ts / use-context-key.ts   订阅 Provider/贡献/上下文键变化（避免陈旧引用）
-    ├── styles/
-    │   ├── index.css            样式入口：`@import "tailwindcss";`（含 preflight，**全仓仅此一处**）`@import "tw-animate-css"; @import "@cordexjs/design/theme.css"; @import "@cordexjs/design/tailwind-theme.css";` + `@source "../"`；`@tailwindcss/cli` 构建为 lib/styles.css，apps 引 `@cordexjs/ui-react/styles.css`
-    │   └── canvas-isolation.css `.cordex-canvas-host` 的隔离规则（画布内容层由 render-dom 的 layers.css 显式设定 svg/img/video 的 display/尺寸，不依赖 preflight；视觉 oracle 回归保证一致）
-    ├── components/
-    │   ├── ui/                  **shadcn/ui 复制件（radix-rhea）**：不手改结构，升级走 `pnpm dlx shadcn@4.21.0 diff` → add/合并；`index.ts` 桶文件 = `./ui` 子路径
-    │   │   └── （迁入 44 个组件族；playground 的 drawer.tsx 与其依赖 vaul 已停止维护，不迁移——需要抽屉时用 sheet；sonner.tsx 标注 Cordex override，改读 ThemeBridge、去掉 next-themes）accordion · alert · alert-dialog · avatar · badge · breadcrumb · button · button-group · card · checkbox · collapsible · command · context-menu · dialog · dropdown-menu · empty · field · hover-card · input · input-group · item · kbd · label · menubar · popover · progress · radio-group · resizable · scroll-area · select · separator · sheet · sidebar · skeleton · slider · sonner · spinner · switch · table · tabs · textarea · toggle · toggle-group · tooltip
-    │   └── editor/              Cordex 特有组合（只组合 `ui/*`，不重写原子；章程 D10）
-    │       ├── EditorHost.tsx   <EditorHost host unitId layout?>：HostContext.Provider + 默认布局（Ribbon / ThumbnailRail|rail 槽位 / SlideCanvas / Inspector / StatusBar / NotesBar；resizable 面板）
-    │       ├── HostContext.ts   React Context 携带 cordis ctx（只读）
-    │       ├── Ribbon/          三级 tab → group → control（`ui.ribbon` 贡献驱动，编码由 03 §3.6 在 M0 收尾定稿）；tabs + menubar + toggle-group + tooltip + dropdown-menu；`when` 过滤（viewMode 等）
-    │       ├── ThumbnailRail/   缩略图栏：虚拟列表 + scroll-area + context-menu；拖拽排序 → slide.reorderSlides；节分组（M2）
-    │       ├── （rail 槽位宿主）  母版视图时 `ThumbnailRail` 位置改挂 `rail` 槽位；母版缩略图窗格组件 `MasterThumbnails` 归 **slide-ui**（母版/版式是 slide 概念，14 §4.1 O-7；见 §4.20），ui-react 只提供槽位宿主与原语
-    │       ├── SlideCanvas/     画布宿主：把 render.target 'dom' 容器挂进 React 树，生命周期与 UnitScope 对齐；覆盖层槽位（`render.overlay`）
-    │       ├── Inspector/       属性检查器骨架：tabs + field + input-group + slider + select + toggle；分组由 `ui.panel` 贡献填充，按 selectionKind/editTargetKind 切换
-    │       ├── StatusBar/       `ui.statusBar` 贡献：缩放 slider、页码、协同状态、保存状态
-    │       ├── NotesBar/        备注栏（可折叠；M1 只读，M3 编辑）
-    │       ├── DesignBar/       设计页签/主题面板容器（ML-04；`ui.theme` 贡献 + `theme` 服务）
-    │       ├── CommandPalette/  cmdk（`ui.command` 贡献 + `shortcuts`）
-    │       ├── Dialogs/ Notifications/   dialog/alert-dialog/sheet 与 sonner；由 `ui.dialog`/`ui.notification` 贡献驱动；焦点管理与 live region（设计 07）
-    │       └── presence/        协作者头像堆叠（avatar + tooltip；折叠规则见设计 05）、远端光标标签、跟随模式指示
-    ├── bridge/contribution-renderer.tsx   贡献项 → 元素；每个贡献一个 React 错误边界（A11）
-    ├── theme/ThemeBridge.tsx    读取 `theme` 服务，把 theme/density 写为根元素属性 `data-cordex-theme` / `data-cordex-density`（不使用 next-themes；多 host 各自作用域）
-    ├── testing/index.ts         renderWithHost()；styleguide 路由（组件状态基准，Playwright + axe）
-    └── __tests__/
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/10 §4.3；UI 组件依赖清单（shadcn 复制件、Radix、Tailwind、Lucide、Geist 与 §4.21 新增的颜色、虚拟列表、拖拽、表单组件）迁往 [50/17 前端复用组件清单](../50-frontend/17-reuse-and-dependency-catalog.md)，单点口径见 §4.0.1（ADR-0017）。
 
 ### 4.20 `@cordexjs/slide-ui` — V-ui · dom · plugin
 
-```
-packages/slide-ui/src/
-├── index.ts
-├── plugin.ts                   contribute ui.ribbon（插入/格式/排列/放映页签）、ui.panel（thumbnails、properties、notes）、ui.contextMenu、ui.shortcut（默认键位表）、ui.command（slide.* 命令的 title/icon/when）、i18n.bundle（slide, zh-CN/en-US）
-├── manifest.ts
-├── slide-ui.contribution.ts    I18nKeys 'slide.ui.*'
-├── ribbon/insert-tab.tsx / format-tab.tsx / arrange-tab.tsx / present-tab.tsx / master-tab.tsx（`when: viewMode == 'master'`：插入占位符/版式、母版背景、主题颜色/字体、关闭母版视图；ML-01/03/04）
-├── master-view/
-│   ├── MasterThumbnails.tsx           母版缩略图窗格（母版大缩略图 + 缩进版式缩略图；拖拽排序 → slide.reorderLayouts、重命名、删除：被引用时确认对话框，确认后以同母版默认版式（`defaultLayoutOf`，04 §12.3）作为 reassignTo 在同一事务内删除，执行后入撤销栈并给带 [撤销] 的 Toast〔rulings §4.10 Q11，§4.20 FE-05 修订：确认后可撤销〕）；选择 → slide.selectMasterOrLayout
-│   ├── PlaceholderPalette.tsx         占位符类型面板（→ slide.addPlaceholder）
-│   └── ThemePanel.tsx                 主题颜色/字体方案编辑（→ slide.setThemeColors / setThemeFonts / applyTheme；ML-04）
-├── panels/
-│   ├── thumbnails/ThumbnailPanel.tsx  虚拟列表；拖拽排序 → slide.reorderSlides；缩略图来自 slide-render.thumbnail
-│   ├── properties/PropertiesPanel.tsx 按 selectionKind 切换 inspector（shape/text/table/slide）
-│   └── notes/NotesPanel.tsx           M2：只读展示 notes（opaque）；M3 编辑
-├── canvas/
-│   ├── selection-interaction.ts       指针意图 → 选择/移动/缩放/旋转命令；手柄绘制走 OverlayLayer
-│   ├── text-editing.ts                进入/退出文本编辑态；IME 宿主事件 → text.applyDelta 命令
-│   └── guides.ts                      智能参考线（派生数据，不入 Store）
-├── presenter/PresenterMode.tsx        放映（全屏、翻页）；动画/切换 M1–M3 不播放
-├── comments/                          M3：slide 锚点解析器（贡献 comments.anchorResolver{documentType:'slide'}：页 / 元素 / 文本范围）、检查器「评论」页签、
-│                                      画布评论钉气泡、缩略图角标（评论数据与命令在 @cordexjs/comments，§4.12c；D-COMMENTS-PKG）
-├── shortcuts.ts                       默认键位表
-├── styles/index.css             `@import "tailwindcss/theme" layer(theme); @import "tailwindcss/utilities" layer(utilities); @import "@cordexjs/design/tailwind-theme.css";`（**无 preflight**，preflight 只在 ui-react）+ `@source "../"`；`@tailwindcss/cli` 构建为 lib/styles.css；原子组件一律 `import … from '@cordexjs/ui-react/ui'`（shadcn 复制件；R17）
-├── locales/zh-CN.json / en-US.json
-├── testing/index.ts
-└── __tests__/
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/10 §4.4；编辑器外壳与交互见 [50-frontend/10](../50-frontend/10-editor-shell-and-interaction.md)，插入入口与各元素设计见 [50/19](../50-frontend/19-insertable-elements-overview.md) 与其后按元素族分篇的 50/20–25。
 
 ### 4.21 `@cordexjs/preset-slide` — L8 · dom · bundle（组合根）
 
-> 文件布局、条目清单与默认值以 `40-modules/11` §3.1/§4.1 为准（11 G-2）；2026-09-25 rulings §4.18 FE-06/FE-07 把本节对齐到 11：删 `design(css)` 条目、补惰性图表渲染器与语言包、文件名改为 `preset.ts`/`config/options.ts`/`plugins/*.entries.ts`。
-
-```
-packages/preset-slide/src/
-├── index.ts                createSlidePreset(options?: SlidePresetOptions): Preset；导出 SlidePresetOptions、ShellIntent、HEADLESS_EXCLUDES、FRAMEWORK_FREE_EXCLUDES
-├── preset.ts               工厂 + 函数插件：校验 options → applyTrim(SLIDE_ENTRIES) → apply 内**无序** ctx.plugin 各条目（依赖由 inject 反应式解决；装配运行时来自 `@cordexjs/kernel/preset`，C-07）；每个条目用稳定 id 记录以便 fiber.update 局部重配置；report()
-├── manifest.ts             生成物：聚合清单（子插件 manifest 引用列表 + shell-glue 的 contributes）
-├── entries.ts              子路径 `./entries`（登记于 publicEntry，FE-04）：只导出 SLIDE_ENTRIES 与 editorConfigure，供 preset-slide-collab 派生
-├── config/options.ts       SlidePresetOptions（zod strictObject）：{ locale; theme; storeProvider: 'memory'（固定）; renderTarget: 'dom'; permissions: 'allowAll' | PermissionPolicy[]; lazy: { charts: true; locales: true }; exclude?: PluginId[]; override?: Record<PluginId, Plugin>; configure? }
-├── plugins/index.ts        SLIDE_ENTRIES = VIEWER_ENTRIES（经 `@cordexjs/preset-slide-viewer/entries`）− { read-only, design-css, viewer-shell, viewer-thumbnails/notes/search } + 下列编辑条目 + shell-glue；语言包条目以同一 id **替换** viewer 的语言包条目而非追加（避免 PRESET_DUPLICATE_ENTRY）
-├── plugins/*.entries.ts    slide.entries：model-slide/editing；ui.entries：ui-core、ui-react、slide-ui（主题 CSS 由 ui-core.injectCss 承担）；presence.entries：collab-core local-presence。继承自 viewer：model-core、store-memory、model-slide、ooxml-pptx、engine-layout、engine-render、render-dom、slide-render、i18n；惰性：slide-render-chart（M1–M2 为 `slide-render/chart` 子路径，activateWhen render/element-degraded∧chart-unavailable）、语言包（切换 locale）
-├── testing/index.ts        mountSlidePreset(host, opts)
-└── __tests__/              pluggable.test.ts（「移除任一 Provider 仍可启动」矩阵：以 SLIDE_ENTRIES 为数据源逐个 exclude 非 required 条目，host 启动成功且 errors 无致命项；章程 §5.4、M1 验收）；order-independence.test.ts；superset.test.ts
-```
-
-`cordex`：`{ layer: 'L8', bundle: 'slide', iso: 'dom', role: 'bundle', compositionRoot: true, publicEntry: ['.', './entries', './testing', …] }`——组合根，R3 豁免；带 `bundle` 故受 R4 束间隔离约束（FE-01/FE-21）。`package.json` 的 `dependencies` 写 `@cordexjs/preset-slide-viewer: workspace:*`（`./entries` 派生链 viewer ← slide ← collab 由 R1/R2 约束，不另设规则，FE-06）；子插件包按 11 §10 写 peer。
-
-`@cordexjs/preset-slide-collab`：同结构（11 §4.2）；`plugins/derive.ts` 以 `deriveCollabEntries(SLIDE_ENTRIES)` 派生——`store-yjs` 替换 `store-memory`、删 `local-presence`，追加 `collab-yjs`、`collab-transport-ws`、M3 起 `comments`（§4.12c，D-COMMENTS-PKG；M4 P2 可选 `collab-offline-idb`），`presence` Provider 由 collab-yjs 提供；`config/options.ts` 增加 `{ collab: { endpoint; documentId; getToken; user; offline } }`（`pluggable:m3`：从 preset-slide 切到 collab 只改 preset，Manifest 差异恰为白名单 `{−store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`，70-testing/02）；M2 起参考应用 `apps/web` 打开服务端文档即用本 preset（不含 `comments`），SDK 嵌入仍可用 preset-slide（rulings §4.19 D-M2-CONTENT，PRD 05 §0.3）；`dependencies` 写 `@cordexjs/preset-slide: workspace:*`；`cordex` 同 preset-slide。
+> 目录树已删（§4.21）：文件级目录见 40-modules/11 §4.1、§4.2（后者为 preset-slide-collab）；条目清单、派生链与「移除 Provider 仍可启动」矩阵见 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md)；`cordex: { layer:'L8', bundle:'slide', iso:'dom', role:'bundle', compositionRoot:true }`。
 
 ### 4.21b `@cordexjs/preset-slide-viewer` — L8 · dom · bundle（只读查看器；总编排纳入章程包清单，PRD OF-14 / EM-07 ≤ 350 KB）
 
-职责：仅含「打开 + 渲染」的 preset：无编辑 UI、无编辑命令、无 collab、无 React。用于 M1 查看器、文档预览与嵌入形态 C。只读由两道机械保证（ADR-0015）：不加载 `@cordexjs/model-slide/editing`（编辑命令与变更不存在 → `COMMAND_NOT_FOUND`；depcruise `cordex-viewer-no-editing`，09-03 §3.7）+ `read-only` 权限策略（即使被 override 加载也 `PERMISSION_DENIED`）。
-
-```
-packages/preset-slide-viewer/src/
-├── index.ts                createSlideViewerPreset(options?): Preset & { mount(container): ViewerHandle }
-├── preset.ts               校验 → applyTrim(VIEWER_ENTRIES) → 无序挂载；required 条目校验；PresetReport
-├── manifest.ts             生成物：entries/lazy/forbids/budgetKb
-├── entries.ts              子路径 `./entries`（publicEntry）：VIEWER_ENTRIES 与 viewerConfigure，供 preset-slide 派生
-├── config/options.ts       ViewerPresetOptions（zod）：{ locale; theme; fit: 'contain'|'width'; zoom; thumbnails: false; notes: false; search: false; allowExport: false; lazy: { charts: true; locales: true }; exclude?; override?; configure? }（可选条与抽屉默认关，Q18；导出默认关，U-03）
-├── plugins/*.entries.ts    条目：model-core、store-memory、model-slide（主入口，不含 editing）、ooxml-pptx、engine-layout、engine-render、render-dom、slide-render、i18n、design-css、read-only（required，不可 exclude）、viewer-shell；惰性：slide-render/chart（遇图表元素）、语言包（切换 locale）、viewer-thumbnails/notes/search（选项为 true 时 manual 加载）；**不**加载 collab-core local presence（11 G-13）
-├── policies/read-only.*    core.permissionPolicy：仅 allow doc.read（+ doc.export，当 allowExport，默认关）；其余 deny
-├── shell/                  极简框架无关查看器壳（≤ 15 KB，不依赖 ui-core/ui-react；PRD OF-14 的翻页/缩放/适应窗口/缩略图导航/备注查看/超链接点击）
-│   ├── viewer-shell.ts     mount(container) → 页导航条、缩放控件、键盘（←/→/Home/End/+/-）、超链接点击 → view/page-changed
-│   ├── thumbnail-strip.ts  惰性 viewer-thumbnails：使用 slide-render.thumbnail + 虚拟化（仅视口内 + 上下 10 项）
-│   └── notes-pane.ts       惰性 viewer-notes：显示 ooxml-pptx/import/notes-text.ts 提取的备注文本（只读）
-├── styles/viewer.css       使用 @cordexjs/design token 变量
-├── testing/index.ts        mountViewerPreset()
-└── __tests__/              readonly.test.ts（ADR-0015）；bundle-budget（≤ 350 KB gzip，不含惰性块）；无编辑命令断言：contributions(core.command) 中不存在 documentType='slide' 的 command 类条目
-```
-
-`cordex`：`{ layer: 'L8', bundle: 'slide', iso: 'dom', role: 'bundle', compositionRoot: true, publicEntry: ['.', './entries', './testing', …] }`。`apps/web` 的 `/documents/:id/view` 路由（M1 查看器与嵌入）使用它；查看者角色打开文档走协同编辑器 `mode='view'`，不走本 preset（rulings §4.18 UX-19）。`preset-slide` 以「viewer 全部条目为基础、经 `./entries` 加减」定义，保证两者不漂移：`preset-slide/__tests__/superset.test.ts` 断言 preset-slide ⊇ preset-slide-viewer − { read-only, design-css, viewer-shell, viewer-thumbnails/notes/search }（与 11 §1.2 同口径）。
-
-**preset 组装关系**
-
-```mermaid
-flowchart LR
-  web["apps/web"]
-  viewer["preset-slide-viewer：只读查看器"]
-  slide["preset-slide"]
-  collab["preset-slide-collab"]
-  common["共同条目：model-core、model-slide 主入口、ooxml-pptx、engine-layout、engine-render、render-dom、slide-render、i18n"]
-  storeMem["store-memory"]
-  viewerOnly["viewer 专有：read-only 权限策略、design css、viewer-shell；缩略图 / 备注 / 搜索为惰性且默认关"]
-  lazy["惰性条目，三者共有：slide-render/chart、语言包"]
-  editing["编辑条目：model-slide/editing、ui-core、ui-react、slide-ui、shell-glue"]
-  presence["collab-core local presence"]
-  collabAdd["collab 追加：store-yjs 替换 store-memory、collab-yjs、collab-transport-ws、M3 起 comments、M4 P2 可选 collab-offline-idb；presence 由 collab-yjs 提供"]
-  web -- "/documents/:id/view" --> viewer
-  web -- "EditorPage：createSlidePreset" --> slide
-  web -- "或 createSlideCollabPreset" --> collab
-  viewer -. "./entries 派生" .-> slide
-  slide -. "deriveCollabEntries" .-> collab
-  viewer --> common
-  viewer --> storeMem
-  viewer --> viewerOnly
-  slide --> common
-  slide --> storeMem
-  slide --> editing
-  slide --> presence
-  collab --> common
-  collab --> editing
-  collab --> collabAdd
-  common -. "遇图表元素 / 切换 locale 时加载" .-> lazy
-```
-
-怎么读：从 `apps/web` 出发的三条边表示按路由或组装选用哪个 preset；preset 之间的虚线是 `./entries` 派生链（viewer ← slide ← collab，package.json 依赖同向）；从 preset 出发的实线表示其清单包含该组条目；惰性条目挂在共同条目上，三个 preset 都有。local presence 只在 preset-slide 中，collab 中由 collab-yjs 取代；design css 只在 viewer 中（编辑器由 ui-core 注入主题 CSS）。
-
-依据：本节 §4.21、§4.21b 与 §3.1 `application/host/create-editor-host.ts`；40-modules/11 §3.1、§4、§10。
+> 目录树已删（§4.21）：文件级目录见 40-modules/11 §4.3；只读两道保证（不加载 `model-slide/editing` + read-only 权限策略，ADR-0015）与查看器壳见 [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)。
 
 ### 4.22 `@cordexjs/server-collab` — LS · node · library（与 Nest 解耦）
 
-> 本文只保留包级定位；契约与运行细节的唯一源是 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md)（server-collab 契约、Room、持久化与快照），物理目录以 40-modules/09 §4 为准。随协同后端自 M2 起交付（单实例），多实例扇出与容量属 M3（rulings §4.19 D-M2-CONTENT，PRD 05 §0.3）。
-
-```
-packages/server-collab/src/
-├── index.ts
-├── room/room.ts / room-manager.ts      房间生命周期、成员、权限快照
-├── protocol/frames.ts                  帧编解码（protocol.ws）+ y-protocols 服务端步骤
-├── persistence/update-log.ts           CRDT update 追加写（接口）+ 周期压缩为快照（策略）
-├── awareness/broadcast.ts              awareness 广播；pub/sub 抽象（接口；默认实现走 Valkey）
-├── permission/checkpoint.ts            join/update 时的权限检查（fail-closed）；权限变更推送
-├── testing/index.ts
-└── __tests__/                          多实例一致性模拟（08/06）
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/09 §4.4；§4.21 起包内持有 `@hocuspocus/server` 4.7.0 的 Hocuspocus 实例，房间、门禁、持久化做成 Hocuspocus 扩展，IO 仍经 Definition 注入、不依赖 pg / ioredis / @aws-sdk；契约见 [60-backend/05](../60-backend/05-modules-collab-and-snapshots.md)，决策见 ADR-0039。
 
 ### 4.23 `@cordexjs/server-storage` — LS · node · provider（BlobStore）
 
-> 契约与对象键布局的唯一源是 [60-backend/04](../60-backend/04-modules-documents-storage-media.md) 与 [60-backend/14](../60-backend/14-valkey-object-storage-and-retention.md)（两个桶：`snapshots` 开版本化、`data` 不开，决策 C-08/OBJ；下方「保留 `snapshots/` 版本化」按桶级语义理解）。
-
-```
-packages/server-storage/src/
-├── index.ts
-├── blob-store.ts             BlobStore Definition 的服务端形态（与 model-core.BlobStore 同接口 + 预签名 URL）
-├── providers/s3.ts（S3 兼容：默认 SeaweedFS、客户自有 S3；需保留 `snapshots/` 版本化）/ local-fs.ts（仅 dev）
-├── content-addressing.ts     sha256 命名、去重
-├── testing/index.ts          MemoryBlobStore（与 model-core 一致）
-└── __tests__/
-```
+> 目录树已删（§4.21）：文件级目录见 40-modules/08 §4.9；契约与对象键布局见 [60-backend/04](../60-backend/04-modules-documents-storage-media.md) 与 [60-backend/14](../60-backend/14-valkey-object-storage-and-retention.md)。
 
 ### 4.24 `@cordexjs/server-headless` — LS · node · plugin/host
 
-> 契约与作业编排的唯一源是 [60-backend/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)；服务端导入（`tasks/import.ts`）随协同后端自 M2 起交付，服务端导出与缩略图为 M3（rulings §4.19 D-M2-CONTENT）。
-
-```
-packages/server-headless/src/
-├── index.ts
-├── host.ts                   createHeadlessHost({ plugins, ... })：createHost + 挂载**调用方给定**的 iso 插件集（清单由 apps/server 的 `cordis-host/preset-server.ts` 选定，如 model-core、store-memory、model-slide、ooxml-pptx、engine-layout）+ node 度量器；本包不 import 任何垂直束包（`cordex.bundle` 为空、非组合根，R3 生效；2026-09-25 rulings §4.18 FE-01）；无 UI、无 dom
-├── loader.ts                 可选：@cordisjs/plugin-loader 驱动（ADR-0010，默认关闭）
-├── measurer/font-measurer.ts Node 字体度量（opentype 解析；字体目录配置）—— layout.measurer Provider 'node-font'
-├── tasks/
-│   ├── import.ts             bytes → SnapshotBundle（写 blob）；经 `formats` 服务按 documentType 取 codec，文档类型无关命名（原计划 M5 才改名的 import-pptx 提前）
-│   ├── export.ts             SnapshotBundle/Y.Doc 状态 → bytes；同上经 `formats`/`documentTypes` 分发
-│   ├── validate.ts           打开 + 快照校验 + 诊断
-│   ├── migrate.ts            批量迁移快照
-│   └── thumbnail.ts          M3：两种模式——`remote`（默认：鉴权内部 RPC 调独立 renderer sidecar，state/资源/字体经注入、零出站）与 `local`（自带 Nest 的集成方，EM-10 b）；同一份 render-dom 代码
-├── worker.ts                 worker_threads 任务运行器（超时/内存限额；每任务新 host）；接收插件清单的**模块路径**并在 worker 内加载后传给 createHeadlessHost
-├── testing/index.ts
-└── __tests__/                以 fixture 文档类型测试 host/任务装配（水平层测试不 import model-slide）；「iso 插件在 Node 下打开 fixtures 全部语料」的强化冒烟由 apps/server 集成测试承担（只有组合根能同时 import server-* 与 model-slide）
-```
-
-**服务端包组装关系**
-
-```mermaid
-flowchart LR
-  subgraph app["apps/server：L8 node，传输壳"]
-    gatewayMod["modules/collab-gateway：握手帧校验、房间接入"]
-    snapMod["modules/snapshots：压缩任务触发"]
-    importMod["modules/import-export：异步任务 API"]
-    thumbMod["modules/thumbnails：M3 缩略图"]
-    otherMod["modules/auth、documents、audit、health"]
-    hostProv["infra/cordis-host.provider：每进程一个 host"]
-    presetServer["cordis-host/preset-server.ts：选定 iso 插件清单，组合根"]
-    infraDb["infra/db：drizzle，documents、permissions、crdt_updates、snapshots、audit"]
-    infraRedis["infra/redis：Valkey 客户端"]
-    infraStorage["infra/storage：绑定 server-storage Provider"]
-  end
-  subgraph lsPkgs["LS 服务端包：node"]
-    srvCollab["server-collab：房间、帧编解码、update 追加写与压缩策略、awareness 广播、权限检查点"]
-    srvStorage["server-storage：BlobStore 服务端形态，S3 兼容，local-fs 仅 dev"]
-    srvHeadless["server-headless：createHeadlessHost、tasks、worker_threads 每任务新 host"]
-  end
-  isoSet["iso 插件集：model-core、store-memory、model-slide、ooxml-pptx、engine-layout + node-font 度量器"]
-  renderer["renderer sidecar：同一份 render-dom 代码，零出站"]
-  pg["Postgres"]
-  valkey["Valkey"]
-  blob["对象存储：SeaweedFS 或客户自有 S3"]
-  gatewayMod -- "把帧交给" --> srvCollab
-  snapMod -- "压缩策略在" --> srvCollab
-  importMod -- "任务执行" --> srvHeadless
-  thumbMod -- "server-headless 适配" --> srvHeadless
-  hostProv --> srvHeadless
-  presetServer -- "createHeadlessHost plugins 参数" --> srvHeadless
-  presetServer -- "import，组合根" --> isoSet
-  infraStorage --> srvStorage
-  srvHeadless -- "挂载" --> isoSet
-  srvHeadless -- "thumbnail remote 模式：鉴权内部 RPC" --> renderer
-  srvCollab -. "pub/sub 抽象经注入，默认实现走 Valkey" .-> infraRedis
-  infraDb --> pg
-  infraRedis --> valkey
-  srvStorage --> blob
-```
-
-怎么读：箭头表示调用或装配方向；Nest 模块只经 `@cordexjs/server-*` 触达业务逻辑（depcruise `server-app-thin` 禁止 `modules/**` 直接 import `yjs`/`model-*`/`ooxml-*`），iso 插件集由 apps/server 的 `cordis-host/preset-server.ts`（组合根）选定、server-headless 挂载——server-headless 自身文档类型盲，不 import model-slide/ooxml-pptx（FE-01；PRD 05 M5「server-* diff = 0」）；虚线表示 server-collab 只持有 pub/sub 抽象，默认实现由 `apps/server` 的 Valkey 适配器经注入提供——server-collab 自身不 import Redis 协议客户端（章程 §5.3 规则 4：该类客户端仅限 `apps/server` 适配器目录与 `server-storage`）。
-
-依据：本节 §3.2、§4.22–§4.24。
+> 目录树已删（§4.21）：文件级目录见 40-modules/09 §4.5；文档类型盲（插件清单由 apps/server 的 `cordis-host/preset-server.ts` 提供，FE-01），node-font 度量用 opentype.js 2.0；契约与作业编排见 [60-backend/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)。
 
 ---
 
@@ -1345,13 +444,13 @@ fixtures/
 | R2 | `layer-rank` | 包（读 `cordex.layer`） | 包 | **秩表比较**（总编排裁决，§1）：`rank(to) ≤ rank(from)`，其中 L0=0、L1=10、V-model=15、L3=30、V-codec=35、L4=40、L5=50、V-render=55、LS=58、L7=70、V-ui=75、L8=80。与本文旧「允许矩阵」语义等价：V-model → ≤L1；V-codec → ≤L3 + 同束 V-model；V-render → ≤L5 + 同束 ≤V-codec；V-ui → ≤L7 + 同束 ≤V-render；LS → ≤L5（且经 R16 只达 iso 包：engine-layout/engine-render 可、render-dom 不可）；L8 → 任意；apps 见 R9 |
 | R3 | `doc-type-blind` | 无 `cordex.bundle` 且 `cordex.compositionRoot !== true` 的包 | `cordex.layer` 以 `V-` 开头的包（垂直束；与章程 §5.3 规则 3 同一判据，带 `bundle` 的 preset 不作 to 侧） | 禁止（非组合根的水平层不得 import 垂直束；秩表允许但本规则否决，如 L3→V-model、LS server-headless→model-slide）。**组合根豁免**（2026-09-25 rulings §4.18 FE-01）：`compositionRoot: true` 的 preset-*、apps/web、apps/server 按元数据显式豁免；豁免不越过 R4（preset 带 bundle，preset-doc→slide 束仍被拦）与 R9（apps/web 不得直接 import 束包）。夹具：apps/web→preset、preset-slide→model-slide 通过；engine-render→model-slide 拒绝；preset-doc→model-slide 被 R4 拒绝；apps/web→model-slide 被 R9 拒绝 |
 | R4 | `bundle-isolation` | `cordex.bundle == X` | `cordex.bundle == Y ≠ X` | 禁止（束与束互不依赖） |
-| R5 | `third-party-single-entry` | 任意 | `cordis`/`yjs`/`y-protocols`/`y-indexeddb`/`react`/`radix-ui`/`class-variance-authority`/`clsx`/`tailwind-merge`/`lucide-react`/`tailwindcss`/`@tailwindcss/*`/`tw-animate-css`/`cmdk`/`sonner`/`react-resizable-panels`/`@fontsource-variable/geist`/`react-router`/`@nestjs/*`/`fflate`/`zod` | 仅允许清单内的包 import（§4.0.1 表；UI 组件依赖仅 ui-react 与 `*-ui`，ADR-0017；apps/web 对 react/react-dom/react-router/tailwindcss/@tailwindcss/* 的放行见 §4.0.1 表，rulings §4.15 Q2） |
+| R5 | `third-party-single-entry` | 任意 | §4.0.1 单点表登记的全部第三方包（§4.21 起含 `@hocuspocus/*`、`d3-*`、`numfmt`、`emf-converter`、`comlink`、`htmlparser2`、`react-colorful`、`colord`、`@tanstack/*`、`@atlaskit/pragmatic-drag-and-drop`、`react-hook-form`、`lucide-static`、`idb`、`opentype.js` 等；`y-indexeddb` 不再使用） | 仅允许单点表中为该包登记的位置 import（UI 组件依赖仅 ui-react 与 `*-ui`，ADR-0017；apps/web 的放行见 §4.0.1 表，rulings §4.15 Q2）；`zod` 按 §4.0.1 的放宽口径判定：protocol、kernel 与各包 `config` / `schema` 文件可 import（R-d-56），其余位置仍拒绝 |
 | R6 | `iso-no-dom-no-node` | `cordex.iso == 'iso'` | `node:*`、`dom` 全局 | 禁止（配合 tsconfig lib 与 `no-restricted-globals`） |
 | R7 | `three-roles` | `cordex.role == 'provider'` | 另一 `provider`（同 `implements`） | 禁止 Provider 互相 import；`consumer` 只可 import `definition`（读 `implements` 与 `provide`） |
 | R8 | `no-deep-import` | 任意 | `@cordexjs/x/<subpath>` 且 `./<subpath>` 不在目标包 `cordex.publicEntry` 中（含 `src/*`、`lib/*` 深引用与 `./*` 通配） | 禁止；跨包只能走目标包 `exports` 显式登记的子路径（= `publicEntry`，每个代码子路径须有 api-extractor 基线），`./testing` 仅限测试（R10）；判定查询目标包元数据而非固定正则（2026-09-25 rulings §4.18 FE-04；已登记子路径：kernel `./preset`、shared `./order`、model-slide `./editing`、protocol `./permissions` 与 `./render/page` 等、ui-react `./ui` 与 `./styles.css`、design 四个 css 文件、preset-slide(-viewer) `./entries`、slide-render `./chart`（M1–M2））；R17/R18 保留为子路径专项限制 |
-| R9 | `apps-only-assemble` | `apps/web` / `apps/server` | 见 §3 | 判据是**不含领域定义**（rulings §4.15 Q2，14 M-11/R-14）：apps/** 不得 `defineCommand`/`defineMutation`/`defineOperation`/`defineContributionPoint`/`ctx.contribute(`，`createHost(`/`createSlide*Preset(` 只在 `create-editor-host.ts`（lint `no-restricted-syntax`，09-02 §3；原称扫描器 `no-domain-defs-in-apps`/`single-create-host-callsite`）；apps/web 可 import preset-*、protocol、design、`@cordexjs/ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、i18n、shared、kernel（值导入仅 `src/application/host/**`，其余只许 `import type`），以及 §5.3 规则 4 为其放行的 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`（`react-router` 仅限 apps/web）；apps/server 的 `src/modules/**` 只 import server-*/protocol/kernel（类型），`src/cordis-host/**` 另可 import 装配所需的 iso 插件包（以 11 §10 为准统一，2026-09-25 rulings §4.18 FE-05/FE-01；depcruise `cordex-apps-only-assemble`，09-03 §3.7，TD-093） |
+| R9 | `apps-only-assemble` | `apps/web` / `apps/server` | 见 §3 | 判据是**不含领域定义**（rulings §4.15 Q2，14 M-11/R-14）：apps/** 不得 `defineCommand`/`defineMutation`/`defineOperation`/`defineContributionPoint`/`ctx.contribute(`，`createHost(`/`createSlide*Preset(` 只在 `create-editor-host.ts`（lint `no-restricted-syntax`，09-02 §3；原称扫描器 `no-domain-defs-in-apps`/`single-create-host-callsite`）；apps/web 可 import preset-*、protocol、design、`@cordexjs/ui-react`（`EditorHost`、壳组件、`./ui`、`./styles.css`）、i18n、shared、kernel（值导入仅 `src/application/host/**`，其余只许 `import type`），以及 §5.3 规则 4 为其放行的 `react`/`react-dom`/`react-router`/`tailwindcss`/`@tailwindcss/*`（`react-router` 仅限 apps/web）；apps/server 的 `src/modules/**` 只 import server-*/protocol/kernel（类型）、`@cordexjs/xml`（仅媒体模块的 SVG 消毒，§4.21）与 `@cordexjs/ooxml-core/zip`（仅多页 PNG 打包，R-d-51），`src/cordis-host/**` 另可 import 装配所需的 iso 插件包（以 11 §10 为准统一，2026-09-25 rulings §4.18 FE-05/FE-01；depcruise `cordex-apps-only-assemble`，09-03 §3.7，TD-093） |
 | R10 | `no-testing-in-prod` | `src/**`（非 `testing/`、非 `__tests__/`） | `@cordexjs/*/testing` | 禁止 |
-| R11 | `shared-has-no-deps` | `@cordexjs/shared` | 任意外部/内部包 | 禁止 |
+| R11 | `shared-has-no-deps` | `@cordexjs/shared`、`@cordexjs/xml`（§4.21 起 from 集合扩为两包，规则名不变） | 任意外部/内部包（devDependency 的差分 oracle 除外：`@cordexjs/xml` 的 `saxes`、`libxml2-wasm` 只在测试中出现） | 禁止 |
 | R12 | `only-kernel-imports-cordis` | 非 kernel | `cordis`、`@cordisjs/*` | 禁止（server-headless 的 loader 例外：`@cordisjs/plugin-loader` 允许，ADR-0010） |
 | R13 | `no-orphans` / `not-in-pkg` | 任意 | 任意 | 无孤儿文件；import 的包必须在自身 package.json 依赖中（K9） |
 | R14a | `cordex-ui-bundle-core-framework-free`（全仓唯一名，原名 `ui-bundle-core-no-framework` 作废，2026-09-24 复核 M17；文件 `tooling/depcruise/rules/ui-bundle-core-framework-free.ts`，40-modules/01 第 9 条规则，TD-082） | `*-ui/src/{domain,application}/**` | `react`、`react-dom`、`radix-ui`、`@cordexjs/ui-react` | 禁止（rulings §4.15 Q2：「框架可换」的可验证范围 = ui-core 与各 `*-ui` 的 domain/application 框架无关；换框架需重写 ui-react、各 `*-ui` 的 `ui/` 层与第三方 custom 组件）；附负向测试 |
@@ -1376,7 +475,9 @@ flowchart TB
   engineRender["水平层 · engine-render：L5"]
   ooxmlCoreH["水平层 · ooxml-core：L3"]
   modelCore["水平层 · model-core：L1"]
+  xmlPkg["水平层 · xml：L0，零依赖"]
   ooxmlCoreH -- "DrawingML 类型，C-10" --> modelCore
+  ooxmlCoreH -- "词法、保真树与序列化，§4.21" --> xmlPkg
   modelSlide -- "drawing re-export、贡献点" --> modelCore
   codecPptx --> ooxmlCoreH
   codecPptx --> modelSlide
@@ -1392,7 +493,7 @@ flowchart TB
   slideUi -- "slide-render.thumbnail" --> slideRender
 ```
 
-怎么读：节点前缀区分 slide 束与水平层；箭头从依赖方指向被依赖方（import 方向），全部满足秩表「只向下」；`model-slide` 不 import `ooxml-core`（§4.9 决策），因此两者之间没有箭头。
+怎么读：节点前缀区分 slide 束与水平层；箭头从依赖方指向被依赖方（import 方向），全部满足秩表「只向下」；`model-slide` 不 import `ooxml-core`（§4.9 决策），因此两者之间没有箭头；`xml` 是 L0 的零依赖包，只有入边没有出边。
 
 依据：本节 §4.8–§4.10、§4.13、§4.16、§4.16b、§4.20；rulings §4.15 Q7（放行 slide-render → ooxml-core）；rulings §4.18 FE-02（章程上限列补 slide-render-chart → engine-render、model-slide、ooxml-core）。
 
@@ -1455,11 +556,11 @@ flowchart LR
 
 1. 根文件 + `tooling/tsconfig`、`tooling/eslint-config`、`tooling/depcruise`、`lefthook.yml`、`ci.yml`（先有门禁，再有代码，章程 M0 验收）。
 2. `tooling/scripts/create-package` 生成全部包骨架（仅 `index.ts`/`plugin.ts` 占位/`manifest.ts` 生成/`__tests__/lifecycle.test.ts`），使 `pnpm check` 全绿。
-3. 写 `shared` → `kernel`（03）→ `protocol` → `model-core`（04/05）→ `store-memory` → `model-slide` → `ooxml-core` → `ooxml-pptx`（M1 路径）。
+3. 写 `shared` 与 `xml`（两者零依赖，可并行；`xml` 先接 W3C XML Conformance 的 not-wf / wf 与 Namespaces 子集）→ `kernel`（03）→ `protocol` → `model-core`（04/05）→ `store-memory` → `model-slide` → `ooxml-core` → `ooxml-pptx`（M1 路径）。
 4. `engine-layout` → `engine-render` → `render-dom` → `slide-render`（含 `chart/` 惰性块）→ `preset-slide-viewer`（M1 查看器，OF-14）→ `apps/web` 最小壳；M2 起 `model-slide/editing` → `ui-core` → `ui-react` → `slide-ui` → `preset-slide`。
 
 ---
 
 ## 9. 本文对章程的追加建议（汇总到 README §5）
 
-- **C-10**：`@cordexjs/ooxml-core` 依赖上限由「shared」改为「shared, model-core」，理由见 §4.9 注（DrawingML 运行时类型放在 `model-core/src/drawing/`，避免 `model-slide` 向上依赖 L3）。相应地 `model-core` 新增目录 `src/drawing/`（Color/Fill/Line/Effect/Geometry/Transform/Font/TextBody 词汇的运行时类型与 schema；无 XML、无文档类型知识；文件与 §4.8 `model/drawing/` 同名，§4.8 中 `model/drawing/*` 改为 re-export + slide 特有扩展）。
+- **C-10**：`@cordexjs/ooxml-core` 依赖上限由「shared」改为「shared, model-core」（§4.21 再扩为「shared, xml, model-core」，XML 词法与保真树抽为 L0 零依赖包 `@cordexjs/xml`，X:q-xml-package），理由见 §4.9 注（DrawingML 运行时类型放在 `model-core/src/drawing/`，避免 `model-slide` 向上依赖 L3）。相应地 `model-core` 新增目录 `src/drawing/`（Color/Fill/Line/Effect/Geometry/Transform/Font/TextBody 词汇的运行时类型与 schema；无 XML、无文档类型知识；文件与 §4.8 `model/drawing/` 同名，§4.8 中 `model/drawing/*` 改为 re-export + slide 特有扩展）。

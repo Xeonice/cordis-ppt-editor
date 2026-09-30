@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：ack 帧定稿并写明去掉 count/localCounter 的理由；`store/undo-skipped` 载荷与 D5 埋点口径；§2.5 撤销协同契约用例名表为唯一事实源；D4 不复活他人删除）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：protocol 删 `collab/frame.ts` 信封编解码，`ws/frames.ts` 只留 CONTROL 联合作 Stateless 载荷与 ack，`ws/handshake.ts` 改为 Auth token JSON schema，关闭码加 4205；store-yjs 的 `yjsBackend` 增 `docHandle()` 与 `registerRemoteOrigin()`、可接管外部 Y.Doc）；2026-09-26（§4.21 整合：§2.3 between 与 §4.1/§5.1 order.ts 按 ADR-0032 修订写 rocicorp 键格式与 vendored 登记路径，§9 order.test 补上游向量；§7 登记浏览器 z.config jitless 调用点）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：00-module-map.md M-02、charter §4 全部术语/§5.2 对应包行/§5.5、30-architecture 01/03/04（§1、§2、§7–§9）/05/02（§4.0–4.7）、rulings-2026-09-14 §4.1、cordis-primer.md、ADR-0001…0005/0007/0009/0012…0015
 
 # 02 内核、协议与文档内核（限界上下文 BC-01 内核与插件运行时、BC-02 共享基础设施、BC-03 协议与发布语言、BC-04 国际化、BC-05 文档内核）
 
@@ -102,8 +102,8 @@ flowchart LR
 | BC-01 内核 | BC-05（`Unit`/`UnitScope` 的隔离机制） | Customer–Supplier | `kernel/src/scope.ts`（`createIsolatedScope`）→ `model-core/src/unit/unit-plugin.ts` | `createIsolatedScope(ctx, { services, meta })` |
 | BC-03 协议 | BC-05（`Capability`/`BlobRef`/`SnapshotEnvelope` 词汇复用） | Published Language | `model-core/src/permission/permission.ts` 引用 `protocol` 的 `Capability`；`model-core/src/snapshot/blob-store.ts` 的 `BlobRef` 与 `protocol/src/blob.ts` 同一定义（model-core re-export） | `Capability`、`BlobRef` |
 | BC-05 文档内核 | 模块外 BC-06…BC-29（几乎全部） | Customer–Supplier（下游 Conformist） | `model-core/src/{unit,store,command,snapshot}/*.ts` | `DocumentType<S>`、`DocumentStore`、`CommandDef`/`MutationDef`、`ResourceHook` |
-| BC-05（store-yjs 的 `yjsBackend`） | 模块外 BC-09 协同（客户端） | Customer–Supplier | `store-yjs/src/yjs-backend.service.ts` | `YjsBackend`（`encodeStateAsUpdate`/`applyUpdate`/`onUpdate`/`stateVector`） |
-| BC-03 协议 | 模块外 BC-09 ↔ BC-21、BC-17 ↔ BC-19 | Published Language | `protocol/src/{collab,rest}/*.ts`（`collab/*` 由 M-05/M-09 落地，本模块只定义 REST/WS 帧与错误码/能力位基座） | SYNC/AWARENESS/CONTROL 信封；Document/Permission/Snapshot DTO |
+| BC-05（store-yjs 的 `yjsBackend`） | 模块外 BC-09 协同（客户端） | Customer–Supplier | `store-yjs/src/yjs-backend.service.ts` | `YjsBackend`（`encodeStateAsUpdate`/`applyUpdate`/`onUpdate`/`stateVector`；§4.21 增 `docHandle()` 与 `registerRemoteOrigin()`，供 `collab-yjs` 把同一 `Y.Doc` 交给 `@hocuspocus/provider`，ADR-0039） |
+| BC-03 协议 | 模块外 BC-09 ↔ BC-21、BC-17 ↔ BC-19 | Published Language | `protocol/src/{collab,ws,rest}/*.ts`（`collab/*` 由 M-05/M-09 落地，本模块只定义 REST DTO、CONTROL 载荷、Auth token 与错误码/能力位基座） | CONTROL 判别联合（Stateless 载荷）、Auth token schema、关闭码（§4.21 起线上帧为 Hocuspocus 格式，帧层不由本包编解码，ADR-0039）；Document/Permission/Snapshot DTO |
 
 关于「防腐层」在本模块内部**不**出现独立 ACL 文件：BC-01→BC-05 是纯粹的 Open Host Service（贡献点/服务契约，无需翻译）；BC-02→ 全体是 Shared Kernel（零翻译，直接复用类型）；BC-03 是发布语言本身，不需要再包一层 ACL。真正的 ACL（`ooxml-pptx`）出现在模块外的 BC-08，与本模块无关。
 
@@ -136,8 +136,8 @@ bc01 -- "CS createIsolatedScope" --> bc05
 bc03 -- "PL Capability BlobRef" --> bc05
 bc05 -- "CS 下游 Conformist DocumentType DocumentStore CommandDef MutationDef ResourceHook" --> down
 storeYjs -- "CS YjsBackend 受控服务面" --> bc09
-bc03 -- "PL SYNC AWARENESS CONTROL 信封" --> bc09
-bc03 -- "PL SYNC AWARENESS CONTROL 信封" --> bc21
+bc03 -- "PL CONTROL 载荷 Auth token 关闭码" --> bc09
+bc03 -- "PL CONTROL 载荷 Auth token 关闭码" --> bc21
 bc03 -- "PL Document Permission Snapshot DTO" --> bc17
 bc03 -- "PL Document Permission Snapshot DTO" --> bc19
 ```
@@ -200,7 +200,7 @@ stateDiagram-v2
 
 **UnitScope 默认 Provider 登记表（rulings §4.20 FE-01，40/11 Q-2 结案）**：`units` 服务（`model-core/src/unit/units.service.ts`）提供 `units.registerUnitProvider(entry: UnitProviderEntry): Disposer` 与 `units.listUnitProviders(): readonly { id: PluginId; provides: readonly string[] }[]`，`UnitProviderEntry = { id: PluginId; plugin: Plugin; config?: unknown; provides: readonly string[] }`（形状即 [50/03](../50-frontend/03-preset-assembly-and-plugins.md) §6.2，`Disposer = () => void`）。登记分工：model-core 在 ready 时只自登记 `history`、`selection` 两个默认 Provider；`store`（store-memory 或 store-yjs）、`render`、`presence`、`collab-yjs`、`comments` 由 preset 的 `scope:'unit'` 条目在 mount 时登记（kernel `mountEntries()` 对这类条目不在根挂载，改调本 API，见 §2.3）。规则：① 同一 `provides` 服务名只允许登记一次，后来者被拒并记诊断（经 `errors`/`telemetry`）、不抛异常；② 登记表的变化只影响之后打开的 Unit，已打开的 Unit 不变（需重开才生效）；③ preset dispose 时经返回的 `Disposer` 撤销全部登记，撤销后 `listUnitProviders()` 无残留。model-core 不 import 任何秩更高的水平层 Provider 包（章程 §5.3 只向下，既有 depcruise 秩规则兜底）；原 `Config.defaultStoreProvider` 字符串删除，store 由唯一的 `provides:['store']` 登记决定（collab 预设的 store-memory → store-yjs 替换在 40/11 `derive.ts` 完成）。登记表用例（`model-core/src/unit/__tests__/units-registry.test.ts`，归 `test/unit`：登记表只有 model-core 一个实现、不调用 kit，按 70/01 §4 文件名前缀规则不进 `test/contract`；用例 id 见 70/02 §9.1，见 §9）：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项、已打开的 Unit 不变；dispose 后 `assertNoLiveEffects` 为空。M1 前定稿。
 
-**渐进打开：首批装载、后台追加（rulings §4.18 CO-12/CO-11，按架构 07 §14.2）**：`source.kind==='bytes'` 且所选 `FormatCodec` 实现了可选的 `importProgressive()`（§2.2）时走此路径，否则仍一次装载。① codec 在 Worker 内跑导入管线，**先完成全部页的规模计数**——超系统天花板整体拒绝（`format.quota_exceeded`），不会装到一半才失败；② 首批（主题/母版/版式 + 首页所在批次）以 `SnapshotBundle` 回传，经第 ③ 步迁移校验后按 ④–⑥ 装载并发 `unit/opened`；③ 后续批次以 `origin: system('import')` 的事务追加进 Store（见 §2.5「import 追加语义」：只新增、不入撤销栈、DirtyTracker 忽略该来源，零编辑导出零脏部件）；④ 全部批次到齐后 `loadState='loaded'` 并 `emit('unit/loaded')`；⑤ 用户跳转到未解析的实体时，`units.prioritize(unitId, entityId)` 调 `ProgressiveImport.prioritize(entityId)`，Worker 完成当前页后先解析该实体所在批次，已解析未装载的批次提到装载队首。Worker 入口与分批协议由 codec 所在模块登记（slide 为 M-04 `ooxml-pptx`）。协同模式不走此路径（Y 状态由 HTTP 快照 bootstrap，`source.kind==='state'`）。
+**渐进打开：首批装载、后台追加（rulings §4.18 CO-12/CO-11，按 50-frontend/04 §2）**：`source.kind==='bytes'` 且所选 `FormatCodec` 实现了可选的 `importProgressive()`（§2.2）时走此路径，否则仍一次装载。① codec 在 Worker 内跑导入管线，**先完成全部页的规模计数**——超系统天花板整体拒绝（`format.quota_exceeded`），不会装到一半才失败；② 首批（主题/母版/版式 + 首页所在批次）以 `SnapshotBundle` 回传，经第 ③ 步迁移校验后按 ④–⑥ 装载并发 `unit/opened`；③ 后续批次以 `origin: system('import')` 的事务追加进 Store（见 §2.5「import 追加语义」：只新增、不入撤销栈、DirtyTracker 忽略该来源，零编辑导出零脏部件）；④ 全部批次到齐后 `loadState='loaded'` 并 `emit('unit/loaded')`；⑤ 用户跳转到未解析的实体时，`units.prioritize(unitId, entityId)` 调 `ProgressiveImport.prioritize(entityId)`，Worker 完成当前页后先解析该实体所在批次，已解析未装载的批次提到装载队首。Worker 入口与分批协议由 codec 所在模块登记（slide 为 M-04 `ooxml-pptx`）。协同模式不走此路径（Y 状态由 HTTP 快照 bootstrap，`source.kind==='state'`）。
 
 「技术性登记表，非业务聚合」：kernel 的 Fiber 树、`ContributionPoint` 注册表、`ErrorTable`/遥测事件注册表不是本文档意义上的聚合——它们是插件运行时自身的诊断/注册结构（module-map BC-01 行原文表述）；在 §2.5「仓储 / 存储契约」中作为「贡献点表」的实现载体出现，不在本节重复建模。
 
@@ -237,7 +237,7 @@ stateDiagram-v2
 
 | 签名（草案） | 所在文件 | 两端共用 | 备注 |
 |---|---|---|---|
-| `between(a?: FracKey, b?: FracKey, random?: Random): FracKey` | `shared/src/order.ts` | 是 | 含 2 字符随机后缀（取自注入的 `Random`，缺省 `SystemRandom`；rulings §4.20 TX-10），**只能在命令层调用**，不得出现在 `lower()` 内（ADR-0013） |
+| `between(a?: FracKey, b?: FracKey, random?: Random): FracKey` | `shared/src/order.ts` | 是 | 2026-09-26 按 ADR-0032 修订改写（rulings §4.21 q-frackey）：内置 rocicorp fractional-indexing 4.0.0 算法源码（CC0-1.0，文件头注明仓库、版本、提交与 CC0 声明，不作 npm 依赖）；键 = 整数头 + base-62 小数，按码元序比较，小数末位非 `'0'`；`between` = `generateKeyBetween(a, b)` + 2 位随机后缀（取自注入的 `Random`，缺省 `SystemRandom`，rulings §4.20 TX-10；第 2 位不取 `'0'`），上界以中间键为前缀时回退为 `generateKeyBetween(m, b)`；导入与 `rekey` 用 `generateNKeysBetween` 的确定性键、不加后缀。**只能在命令层调用**，不得出现在 `lower()` 内（ADR-0013） |
 | `compareOrder(a: [FracKey,string], b: [FracKey,string]): number` | `shared/src/order.ts` | 是 | 排序键 `(order, id)` |
 | `rekey(keys: readonly FracKey[]): readonly FracKey[]` | `shared/src/order.ts` | 是 | 键长治理（origin=`system('maintenance')`） |
 | `sha256(bytes: Uint8Array): Promise<Sha256Hex>` | `shared/src/hash.ts` | 是 | WebCrypto `subtle`，同构 |
@@ -374,7 +374,7 @@ partial -. "针对被跳过的键" .-> restore
 | 撤销冲突判定（§4.15 Q3） | `history-stack.ts` 维护「键 → 最后写入 origin」表；`remote`/他人 `local` 事务更新该表；撤销时据此跳过 | `undo.ts` 包装 `Y.UndoManager`：弹栈前按同一键表判定冲突，部分冲突时以过滤后的 inverse 作为一次 `local(clientId,'undo')` 事务应用并丢弃原栈项，整步冲突时出栈即停；Yjs 锁 **13.6.x 精确版本**（ADR-0020） |
 | 顺序实体 | `order: FracKey` 作为普通对象键写入 | `order: FracKey` 作为普通 `Y.Map` 键写入（ADR-0032，无需 CRDT 专用顺序类型） |
 | 富文本 | `text-delta.ts`：delta 应用/求逆/组合 | `Y.Text.applyDelta`（原生支持相同 delta 形状） |
-| 额外服务 | 无 | `yjsBackend`（`provide: ['store','yjsBackend']`，both 在 UnitScope 隔离域内）——`collab-yjs` 的**唯一**受控访问面，公共 API 不暴露 `Y.*` 类型（api-extractor 正则守护，§6/§10） |
+| 额外服务 | 无 | `yjsBackend`（`provide: ['store','yjsBackend']`，both 在 UnitScope 隔离域内）——`collab-yjs` 的**唯一**受控访问面，公共 API 不暴露 `Y.*` 类型（api-extractor 正则守护，§6/§10）；§4.21 起经 `docHandle()` 以不透明句柄交出同一 `Y.Doc` 供 provider 使用、经 `registerRemoteOrigin()` 把 provider 登记为远端来源；服务端可接管 Hocuspocus 的外部 `Y.Doc`（§5.7） |
 | 适用场景 | 单人查看器/草稿（`preset-slide`/`preset-slide-viewer` 默认） | 协同文档（`preset-slide-collab`、`server-collab`） |
 | 依赖上限 | `model-core` | `model-core`（**唯一**允许 `import 'yjs'` 的模型侧包，章程 §5.3 规则 4） |
 
@@ -608,7 +608,7 @@ sequenceDiagram
 | 事件：发布 | `store/transaction`、`store/loaded` |
 | 事件：订阅 | 无 |
 | 配置 schema | `Config{ clientId?: string; gc: true; undo: { captureTimeout: 500; excludedNamespaces: []; remoteConflict: 'skip' }; maxDocBytes: 64 MiB }`（与 30-architecture/06 §2.4 统一：原扁平字段 `undoCaptureTimeout` 并入 `undo.captureTimeout`，500ms 与 05 §6 `coalesceMs` 一致；`remoteConflict` 为中性字段，rulings §4.15 Q3） |
-| 生命周期 | ready = `Y.Doc` 构造完成且从 `body` 重建 Y 树成功；dispose = `Y.Doc.destroy()`、`UndoManager` 清理（经 `ctx.effect` 拥有）；**UnitScope 内**；PENDING：几乎不会（无硬依赖，但 `collab-yjs` 若 `inject:['yjsBackend']` 会在 `store-memory` 场景下自然 PENDING——这是本包制造给下游的可诊断信号，ADR-0005 第 3 条） |
+| 生命周期 | ready = `Y.Doc` 构造完成且从 `body` 重建 Y 树成功（§4.21：服务端以「接管外部 Y.Doc」打开时，改为接管 Hocuspocus 已加载的 `Document`，不新建、不重建）；dispose = `Y.Doc.destroy()`、`UndoManager` 清理（经 `ctx.effect` 拥有；接管模式下不 `destroy()` 外部文档，只解除观察与撤销管理）；**UnitScope 内**；PENDING：几乎不会（无硬依赖，但 `collab-yjs` 若 `inject:['yjsBackend']` 会在 `store-memory` 场景下自然 PENDING——这是本包制造给下游的可诊断信号，ADR-0005 第 3 条） |
 | Manifest 片段 | `{ "id": "@cordexjs/store-yjs", "provides": ["store","yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }` |
 
 **图 3-1 贡献点与服务流向**
@@ -691,7 +691,7 @@ packages/shared/src/
 ├── assert.ts                   invariant/assertNever/unreachable
 ├── json.ts                     JsonValue/JsonObject/JsonArray、isJsonValue、stableStringify
 ├── path.ts                     Path/PathSegment、pathEquals/startsWith/append/toString
-├── order.ts                    FracKey、between()/compareOrder()/rekey()（ADR-0032 纯函数实现；随机后缀取自注入的 Random）
+├── order.ts                    FracKey、between()/compareOrder()/rekey()（ADR-0032 纯函数实现；2026-09-26 起内置 rocicorp fractional-indexing 4.0.0 算法源码，CC0，登记为 license-allowlist.json#vendored；随机后缀取自注入的 Random）
 ├── collections.ts              groupBy/sortBy/binarySearchBy/dedupe（无模块级可变状态）
 ├── hash.ts                     sha256()（WebCrypto subtle）、fnv1a32()
 ├── text.ts                     grapheme 切分（Intl.Segmenter 封装+降级）
@@ -781,12 +781,11 @@ packages/protocol/src/
 │   ├── telemetry.ts             （新增，rulings §4.18 BE-30）浏览器错误上报 ClientErrorReport DTO（POST /telemetry/errors，≤ 64 KiB）；OTLP 代理走标准 protobuf，不另建 schema（M-12 §4.12/§7.2 落地）
 │   └── index.ts                 re-export
 ├── ws/
-│   ├── handshake.ts             握手帧与应答 DTO
-│   ├── frames.ts                帧与 CONTROL 判别联合（判别键 type）：ack 带 tier（§4.15 S-3a）、room 含可选 persist:'ok'|'degraded'（§4.19 INC-09）；成员以 30/06 §6.3 为准
+│   ├── handshake.ts             Auth token 的 JSON schema（ticket、protocolVersion、clientId、capabilities、appVersion、epoch?、maxSchemaVersion、traceparent?）与 PermissionDenied 的 reason `{code}`（§4.21 改写，原握手帧 DTO）
+│   ├── frames.ts                CONTROL 判别联合（判别键 type），作 Hocuspocus Stateless 载荷：ack 带 tier（§4.15 S-3a）、room 含可选 persist:'ok'|'degraded'（§4.19 INC-09）；§4.21 删帧级类型与 auth/auth.denied/auth.refresh/ping/pong 成员；成员以 30/06 §6.3 为准
 │   └── index.ts                 re-export
-├── collab/                      （2026-09-25 登记，决策 INC-01；经根入口导出，不加 ./collab 子路径，不建 collab/control.ts）
-│   ├── frame.ts                 二进制信封 encode/decode 帮助函数
-│   ├── close-codes.ts           关闭码常量对象（含 1011、4427、4428，决策 INC-06；非 enum）
+├── collab/                      （2026-09-25 登记，决策 INC-01；经根入口导出，不加 ./collab 子路径，不建 collab/control.ts；§4.21 删 frame.ts）
+│   ├── close-codes.ts           关闭码常量对象（含 1011、4427、4428，决策 INC-06；§4.21 加 4205、4408 扩为超时通用码；非 enum）
 │   ├── awareness.ts             AwarenessState zod（≤ 2 KiB，ADR-0024）
 │   ├── ticket.ts                CollabTicketClaims（线上 claim perm_ver，TS 字段 permVersion；可选 sid、lnk）
 │   └── ticket-claims.type-test.ts  CollabTicketClaims 键集合为封闭集合、无 tenant 类键（70/10 SEC-DA-04）
@@ -795,7 +794,7 @@ packages/protocol/src/
 ├── snapshot/
 │   └── envelope.ts              SnapshotEnvelope{documentType,schemaVersion,bodyRef,blobs,createdAt,byVersion}
 ├── render/
-│   ├── sidecar.ts               （新增，rulings §4.15 Q8；§4.18 FE-04 补登）worker ↔ renderer sidecar 的鉴权内部 RPC 契约（state/资源/字体注入、ready 信号、WebP/PDF 结果），与架构 08 §11 契约表一致，供 M-09 `remote-renderer.client.ts` 与 renderer 入口共同 import
+│   ├── sidecar.ts               （新增，rulings §4.15 Q8；§4.18 FE-04 补登）worker ↔ renderer sidecar 的鉴权内部 RPC 契约（state/资源/字体注入、ready 信号、WebP/PDF 结果），与 60-backend/06 §10 的 RPC 契约一致，供 M-09 `remote-renderer.client.ts` 与 renderer 入口共同 import
 │   └── page.ts                  （新增，14 §1 C-27；§4.18 BE-04：token→renderId、RenderStateResponse 为注入载荷）RenderPageQuerySchema/RenderPageSignal/RenderStateResponse：Node 进程 ↔ headless Chromium 渲染页的跨进程契约，供 M-09（server-headless）与 M-11（apps/web /render 页）共同 import
 ├── blob.ts                      BlobRef{hash,size,contentType}（与 model-core 共用同一定义源）
 └── testing/
@@ -1024,14 +1023,14 @@ packages/store-yjs/src/
 ├── plugin.ts                   provide=['store','yjsBackend']；Config{clientId?;gc;undo{captureTimeout:500;excludedNamespaces;remoteConflict:'skip'};maxDocBytes}
 ├── manifest.ts                 生成物
 ├── store-yjs.contribution.ts   Context.yjsBackend 声明（唯一新增 Context 成员；`store` 类型仍由 model-core 声明）
-├── yjs-store.ts                YjsStore<S> implements DocumentStore<S>；持有 Y.Doc（包内私有，不导出）
+├── yjs-store.ts                YjsStore<S> implements DocumentStore<S>；持有 Y.Doc（包内私有，不导出）；§4.21 可接管外部 Y.Doc（adopt，服务端 Unit 接管 Hocuspocus Document）
 ├── mapping/
 │   ├── path-resolver.ts        Path → Y.Map/Y.Array/Y.Text 定位
 │   ├── apply-op.ts             StoreOp → Y 操作映射
 │   ├── to-json.ts              Y 树 → 不可变 JSON 视图（增量缓存）
 │   └── from-json.ts            load(body) → 构建 Y 树
 ├── undo.ts                     Y.UndoManager 封装：trackedOrigins={localOrigin}；跳过他人后写、整步跳过即停（§4.15 Q3）
-├── yjs-backend.service.ts      YjsBackend 服务：encodeStateAsUpdate/applyUpdate/onUpdate/stateVector/stats（抽象类型，不外泄 Y.*）
+├── yjs-backend.service.ts      YjsBackend 服务：encodeStateAsUpdate/applyUpdate/onUpdate/stateVector/stats；§4.21 增 docHandle()（不透明 YDocHandle）与 registerRemoteOrigin(origin)（抽象类型，不外泄 Y.*）
 └── testing/
     └── index.ts                createYjsStore(body)、twoDocsInSync()
 ```
@@ -1056,7 +1055,7 @@ packages/store-yjs/src/
 | `assert.ts` | 断言与不可达分支 | `invariant()`、`assertNever()`、`unreachable()` | 无 | 生产保留；抛 `AssertionFailure`，由 `errors` 服务归类 |
 | `json.ts` | JSON 值与稳定序列化 | `JsonValue`/`JsonObject`/`JsonArray`、`isJsonValue()`、`stableStringify()` | 无 | 键排序，供哈希与快照 diff |
 | `path.ts` | 路径寻址基元 | `Path`、`PathSegment`、`pathEquals`/`startsWith`/`append`/`toString` | 无 | Store/Mutation 寻址的唯一表示 |
-| `order.ts` | 有序集合并发安全键 | `FracKey`、`between()`、`compareOrder()`、`rekey()` | 无 | ADR-0032 纯函数实现；随机后缀只在此处产生，取自注入的 `Random`（缺省 `SystemRandom`，rulings §4.20 TX-10） |
+| `order.ts` | 有序集合并发安全键 | `FracKey`、`between()`、`compareOrder()`、`rekey()` | 无 | ADR-0032 纯函数实现；2026-09-26 起内置 rocicorp fractional-indexing 4.0.0 算法源码（ADR-0032 修订）：文件头写 `SPDX-License-Identifier: CC0-1.0`、上游地址 `https://github.com/rocicorp/fractional-indexing`、版本与提交号，本文件路径 `packages/shared/src/order.ts` 即 `license-allowlist.json#vendored` 的登记项（ADR-0049 决策 1、2）；键格式为整数头 + 随机后缀、小数末位非 `'0'`，`between` 与确定性键规则见 §2.3；随机后缀只在此处产生，取自注入的 `Random`（缺省 `SystemRandom`，rulings §4.20 TX-10）；`@cordexjs/shared` 仍零运行时依赖 |
 | `collections.ts` | 不可变友好集合工具 | `groupBy`/`sortBy`/`binarySearchBy`/`dedupe` | 无 | 无模块级可变状态（lint 校验） |
 | `hash.ts` | 哈希 | `sha256()`、`fnv1a32()` | 无 | `sha256` 用 WebCrypto，同构 |
 | `text.ts` | 文本切分基元 | grapheme 切分函数、Unicode 空白/标点判定 | 无 | 供 `engine-layout`/`model-doc`（M-06/M5） |
@@ -1131,17 +1130,16 @@ packages/store-yjs/src/
 | `rest/webhooks.ts`（新增，rulings §4.12 U-14） | Webhook REST DTO | 注册/更新/删除订阅、投递日志查询 schema | zod、`../ids` | M-12 §2.1/§4.11/§7.2 落地，M3 |
 | `rest/telemetry.ts`（新增，rulings §4.18 BE-30） | 浏览器遥测 REST DTO | `ClientErrorReport` schema | zod | `POST /telemetry/errors` 载荷，与架构 10 前端错误事件同形状、请求体 ≤ 64 KiB；`POST /telemetry/otlp` 走标准 OTLP/HTTP protobuf（≤ 512 KiB，只转发 traces），不另建 schema；两端点需登录、令牌桶限流，由 M-12 `ClientTelemetryController` 承接（api 角色），路径相对 `apiBase` |
 | `rest/index.ts` | 子目录聚合 | re-export | 无 | — |
-| `ws/handshake.ts` | WS 握手帧 | 请求/应答 schema | zod、`../permissions/decision` | `roomId`/`permissions`/`serverVersion`；应答 `auth.denied` 的 code 字面量联合含 `'collab.rate_limited'`（握手期每用户单实例连接数超限，随后以 4429 关闭；与 `frames.ts` 同一联合，集合以 30/06 §6.3 为准，rulings §4.20 BE-01+TX-03） |
-| `ws/frames.ts` | WS 帧与 CONTROL 判别联合 | `sync`/`awareness`/`control`（`auth`、`auth.ok`、`auth.denied`、`auth.refresh`、`permission`、`ack`、`error`、`repair`、`room`、`event`、`ping`/`pong`） | zod、`./handshake` | 成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；`auth.denied` 的 code 集合含 `collab.rate_limited`（握手期每用户单实例连接数超限，随后以 4429 关闭；集合以 30/06 §6.3 与 60/16 §3 为准，rulings §4.20 BE-01+TX-03）；M-05/M-09 各自实现，服务端处理见 60/16 |
+| `ws/handshake.ts` | Auth token 与拒绝 reason（§4.21 改写） | `AuthTokenSchema`、`AuthDeniedReasonSchema` | zod、`../permissions/decision` | `AuthTokenSchema` 即 Auth 帧 token 的 JSON：`{ticket, protocolVersion, clientId, capabilities, appVersion, epoch?, maxSchemaVersion, traceparent?}`（客户端 `token` 函数生成，服务端 `onAuthenticate` 与 `onTokenSync` 解析，Auth 帧 ≤ 8 KiB 由适配层限）；`AuthDeniedReasonSchema` 即 `PermissionDenied` 的 reason `{code}`，code 字面量联合含 `'collab.rate_limited'`（握手期每用户单实例连接数超限，随后以 4429 关闭，rulings §4.20 BE-01+TX-03），集合以 30/06 §6.3 为准；原 `auth`/`auth.denied` 专用帧随 ADR-0039 取消 |
+| `ws/frames.ts` | CONTROL 判别联合（Stateless 载荷） | `ControlSchema`：`auth.ok`、`permission`、`ack`、`error`、`repair`、`room`、`event`，另有诊断用可选 `ping`（§4.21） | zod、`./handshake` | §4.21 起只留 CONTROL 联合：作 Hocuspocus Stateless（类型 5）的 UTF-8 JSON 载荷，由服务端 `connection.sendStateless` 下发、客户端 provider `onStateless` 接收；`sync`/`awareness` 帧级类型删除（帧层由 Hocuspocus 编解码）；`auth`/`auth.denied`/`auth.refresh` 改为 Auth 帧、`PermissionDenied` 与 `sendToken`→`onTokenSync`（见 `ws/handshake.ts`），应用层 `ping`/`pong` 心跳删除；成员与字段以 30/06 §6.3 为准（决策 INC-02~07 补齐后）；判别键统一为 `type`（INC-03/04/05，2026-09-25 更正原 `kind`）；两级 ack `{type:'ack', tier:'spill'} \| {type:'ack', tier:'db', seq}`（rulings §4.15 S-3a，§4.21 H:q-hp-persist-ack 保留），`spill` 不清 pending；`room` 增可选 `persist:'ok'\|'degraded'`（rulings §4.19 INC-09，缺席即 `ok`）；M-05/M-09 各自实现，服务端处理见 60/16；本包仍不 import y-protocols |
 | `ws/index.ts` | 子目录聚合 | re-export | 无 | — |
-| `collab/frame.ts` | 二进制信封帮助函数 | `encodeFrame`、`decodeFrame` | `../ws/frames` | 2026-09-25 登记（决策 INC-01）；经根入口 `.` 导出 |
-| `collab/close-codes.ts` | 关闭码常量 | `CLOSE_CODES`（常量对象） | 无 | 含 1011、4427、4428（决策 INC-06）；4429 的触发条件增「握手期每用户单实例连接数超限」（rulings §4.20 BE-01+TX-03）；客户端行为见 50/07 §9，触发条件见 60/16 §10 |
+| `collab/close-codes.ts` | 关闭码常量 | `CLOSE_CODES`（常量对象） | 无 | 含 1011、4427、4428（决策 INC-06）；4429 的触发条件增「握手期每用户单实例连接数超限」（rulings §4.20 BE-01+TX-03）；§4.21 加 4205（Hocuspocus 认证前队列或待认证文档数超限）、4408 扩为超时通用码（认证期限与空闲），仍是唯一源——`@hocuspocus/common` 的关闭码常量不直接使用（ADR-0039）；客户端行为见 50/07 §9，触发条件见 60/16 §10 |
 | `collab/awareness.ts` | awareness 状态 schema | `AwarenessStateSchema` | zod | ≤ 2 KiB（ADR-0024）；M-05 `domain/awareness-state.ts` 对齐 |
 | `collab/ticket.ts` | 协同票据 claims | `CollabTicketClaims` | zod、`../ids` | 线上 claim `perm_ver`、TS 字段 `permVersion`（决策 MECH-INC 之 INC-28）；可选 `sid`、`lnk`（rulings §4.18 BE-02）；签发在 M-08 |
 | `collab/ticket-claims.type-test.ts` | 类型测试 | — | `./ticket` | `CollabTicketClaims` 键集合为 60/02 §8 封闭集合，无 tenant 类键（70/10 SEC-DA-04；后缀 `*.type-test.ts`，决策 T-NAMING） |
 | `embed/messages.ts` | 嵌入消息 schema（M3 P2） | 形态 E 的 postMessage 消息判别联合 | zod | 决策 MECH-INC 之 INC-36；M3 的 `/embed` 只接受会话登录，`cordex:token` 标 M4；语义见 50/12 §9 |
 | `snapshot/envelope.ts` | 快照跨进程信封 | `SnapshotEnvelope` | zod、`./blob` | `schemaVersion` 必填（ADR-0009） |
-| `render/sidecar.ts` | worker ↔ renderer sidecar 内部 RPC 契约 | 注入请求（state/资源/字体）、ready 信号与 WebP/PDF 结果的 schema | zod、`./page` | 新增（rulings §4.15 Q8；§4.18 FE-04 补登 `./render/sidecar` 子路径）：与架构 08 §11 契约表一致，M-09 `remote-renderer.client.ts` 与 renderer 入口共同 import |
+| `render/sidecar.ts` | worker ↔ renderer sidecar 内部 RPC 契约 | 注入请求（state/资源/字体）、ready 信号与 WebP/PDF 结果的 schema | zod、`./page` | 新增（rulings §4.15 Q8；§4.18 FE-04 补登 `./render/sidecar` 子路径）：与 60-backend/06 §10 的 RPC 契约一致，M-09 `remote-renderer.client.ts` 与 renderer 入口共同 import |
 | `render/page.ts` | headless 渲染页跨进程契约 | `RenderPageQuerySchema`、`RenderPageSignal`、`RenderStateResponse` | zod | 新增（14 §1 C-27）：module-map §4.2 第 1 条「`@cordexjs/protocol` 是唯一跨进程契约来源」同样覆盖 Node↔headless Chromium 边界；此前 `server-headless`（M-09）与 `apps/web /render`（M-11）各自类型镜像，本文件为单一事实源，两端均改为 import。rulings §4.18 BE-04：拉取端点已取消，local 与 remote 两种模式都由编排方调用 `window.__cordex.inject` 注入——`RenderPageQuerySchema.token` 改为 `renderId`（只作日志关联），`RenderStateResponse` 保留为注入载荷类型；`RenderPageSignal` 的 ready 注释引用 FE-09 判据：所请求页全部 `render/page-mounted` ∧ 这些页的字体请求全部结算（`fonts-ready` 或 `font-fallback`）∧ 此后出现一次待绘脏区为空的 `render/frame`（`/render` 装配 viewer 时惰性加载全部关闭） |
 | `blob.ts` | Blob 引用 | `BlobRef` | zod | 与 `model-core/src/snapshot/blob-store.ts` 同一定义源，model-core re-export |
 | `testing/index.ts` | DTO 工厂 | 确定性 seed 的构造函数 | 无 | `./testing` |
@@ -1372,17 +1370,17 @@ packages/store-yjs/src/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `index.ts` | 公共 API 面 | `YjsStore`、`YjsBackend` 类型（禁止 `Y.*` 泄漏，§6/§10） | model-core、yjs（仅本包） | 唯一 import `yjs` 的模型侧包（章程规则 4） |
+| `index.ts` | 公共 API 面 | `YjsStore`、`YjsBackend`、`YDocHandle`（不透明品牌类型，§4.21）类型（禁止 `Y.*` 泄漏，§6/§10） | model-core、yjs（仅本包） | 唯一 import `yjs` 的模型侧包（章程规则 4） |
 | `plugin.ts` | 函数插件 | `name`/`inject`/`provide`/`Config`/`apply` | model-core、yjs | `provide=['store','yjsBackend']` |
 | `manifest.ts` | Manifest 生成物 | `manifest` | 无 | `implements:['store']` |
 | `store-yjs.contribution.ts` | Context 增强 | `Context.yjsBackend` 声明 | model-core（类型） | 唯一新增 Context 成员（`store` 由 model-core 声明） |
-| `yjs-store.ts` | Store 实现 | `YjsStore<S> implements DocumentStore<S>` | model-core、yjs（包内私有） | 持有 `Y.Doc`，不导出 |
+| `yjs-store.ts` | Store 实现 | `YjsStore<S> implements DocumentStore<S>` | model-core、yjs（包内私有） | 持有 `Y.Doc`，不导出；§4.21 增「接管外部 Y.Doc」：打开参数 `adopt?: YDocHandle` 时不新建文档、直接在传入的文档上建立映射、观察与撤销管理（服务端 server-collab 在 Hocuspocus 的 `afterLoadDocument` 让 Unit 接管 `Document`，ADR-0039；`gc:true` 与 Hocuspocus 默认一致，ADR-0025 决策 7）；客户端不用此参数 |
 | `mapping/path-resolver.ts` | 路径定位 | `resolvePath()` | yjs（包内私有） | `{id}` 选择器按实体 id 查找 |
 | `mapping/apply-op.ts` | 原语→Y 操作 | `applyOpToY()` | model-core（`StoreOp`）、yjs（包内私有） | `order` 为普通 `Y.Map` 键写入 |
 | `mapping/to-json.ts` | Y 树→JSON 视图 | `toJson()` | yjs（包内私有） | 增量缓存，按 Y 事件失效 |
 | `mapping/from-json.ts` | JSON→Y 树 | `fromJson()` | yjs（包内私有） | `load(body)` 使用 |
 | `undo.ts` | 撤销封装 | `createUndoManager()` | yjs（包内私有） | `trackedOrigins={localOrigin}`；包装层实现 `undo.remoteConflict:'skip'`：跳过他人后写的键、整步跳过即停并 emit `store/undo-skipped`（§4.15 Q3）；Yjs 13.6.x 精确版本 |
-| `yjs-backend.service.ts` | 受控访问面 | `YjsBackendService` | model-core、yjs（包内私有） | `collab-yjs` 的唯一注入点；公共类型不暴露 `Y.*` |
+| `yjs-backend.service.ts` | 受控访问面 | `YjsBackendService` | model-core、yjs（包内私有） | `collab-yjs` 的唯一注入点；公共类型不暴露 `Y.*`。§4.21 增两项（证据 CL-01、CL-02、d-26）：`docHandle(): YDocHandle` 返回本 Unit 的 `Y.Doc` 与 `Awareness` 的不透明句柄，只供 `collab-yjs/infrastructure/provider/provider-session.ts` 解包后交给 `@hocuspocus/provider`（同一实例，不复制）；`registerRemoteOrigin(origin: unknown): Disposer` 登记一个远端来源——Yjs 事务 origin 与之相同者一律映射为 `Origin` 的 `remote`，更新「键 → 最后写入 origin」表、不进 `UndoManager`（`trackedOrigins` 仍只有 `localOrigin`），客户端登记 provider 实例（provider 以自身为 origin 应用远端 update），漏登记会把他人修改卷进撤销栈（50/07 §15 V18） |
 | `testing/index.ts` | 测试构造器 | `createYjsStore(body)`、`twoDocsInSync()` | `../yjs-store` | `./testing` |
 
 ## 6. 对外 API 面
@@ -1443,7 +1441,9 @@ interface DocumentStore<S = unknown> {
 
 `apps/server` 侧的接入点是 `apps/server/src/cordis-host/cordis-host.service.ts`（module-map §4.2 第 5 条）：Nest 模块只调用其 `openUnit`/`closeUnit`/`diagnostics()`，不直接 import 本模块任何包（`server-app-thin` 规则）；真正持有 `createHost()` 与七个包实例的是 `server-collab`/`server-headless` 两个 cordis 宿主（M-09）。
 
-**协议 schema 目录组织**（`@cordexjs/protocol/src/`，全部 zod 4，见 §4.3/§5.3）：`errors/`（错误码字面量 + HTTP 状态映射）、`permissions/`（能力位、角色映射、主体、决策）、`rest/`（按资源分文件：`documents`/`snapshots`/`import-export`/`auth`/`audit`/`webhooks`/`telemetry`；`webhooks` 新增，rulings §4.12 U-14；`telemetry` 新增，rulings §4.18 BE-30；原 `groups` 随 rulings §4.15 Q6 组管理推迟而删除）、`ws/`（`handshake` 握手 + `frames` 判别联合）、`snapshot/`（跨进程信封）、`blob.ts`（顶层，因 model-core 与 protocol 共用）。REST controller 的 `@Body()`、WS 帧编解码、错误码枚举全部只能引用 `z.infer<typeof X>`（module-map §4.2 第 1 条铁律），任何一方不得私自定义跨进程 DTO。
+**zod 在浏览器的 jitless 模式**（2026-09-26，rulings §4.21；50-frontend/14 §13 V15）：zod 4.6.5 首次解析时会以 `new Function` 探测能否 JIT（`v4/core/util.js:218-220`），严格 CSP 下即使被捕获也会产生违规报告，所以浏览器侧在任何 schema 解析之前调用 `z.config({ jitless: true })`。调用点在组合根而不在 protocol 包内：apps/web 的 `main.tsx` 与 SDK 的 dom 组合根（落点见 40-modules/11）；服务端（`apps/server`、`server-*`）保留 JIT。protocol 只导出 schema，不在模块顶层解析任何数据，因此不依赖调用时机以外的约定。
+
+**协议 schema 目录组织**（`@cordexjs/protocol/src/`，全部 zod 4，见 §4.3/§5.3）：`errors/`（错误码字面量 + HTTP 状态映射）、`permissions/`（能力位、角色映射、主体、决策）、`rest/`（按资源分文件：`documents`/`snapshots`/`import-export`/`auth`/`audit`/`webhooks`/`telemetry`；`webhooks` 新增，rulings §4.12 U-14；`telemetry` 新增，rulings §4.18 BE-30；原 `groups` 随 rulings §4.15 Q6 组管理推迟而删除）、`ws/`（`handshake` = Auth token 的 JSON schema 与拒绝 reason + `frames` = CONTROL 判别联合，作 Hocuspocus Stateless 载荷；§4.21 起线上帧层由 `@hocuspocus/provider` 与 `@hocuspocus/server` 各自编解码，本包不 import y-protocols，ADR-0039）、`snapshot/`（跨进程信封）、`blob.ts`（顶层，因 model-core 与 protocol 共用）。REST controller 的 `@Body()`、Stateless 载荷与 Auth token 的解析、错误码枚举全部只能引用 `z.infer<typeof X>`（module-map §4.2 第 1 条铁律），任何一方不得私自定义跨进程 DTO。
 
 **图 7-1 两端 Provider 选择**
 
@@ -1487,7 +1487,7 @@ BC-05（model-core）是 12 号文档「共享（水平层拥有、零改动）�
 
 4. **Snapshot 编解码的 body 分片扩展点**（12 §3.3）：`SnapshotBundle` 允许 `body` 引用外部 blob 分片 `{ $ref: BlobRef }`；`decodeSnapshot` 在 M1 即支持 `$ref` 解析，slide 不使用，为 M5 的 `model-sheet`（巨大 `cells` 表）预留。落点：`snapshot/codec.ts`（`decodeSnapshot` 的 `$ref` 分支）、`snapshot/snapshot.ts`（`Snapshot.body` 类型允许分片标记）。M0/M1 milestone 要求：即使不实现分片读取的性能优化，`$ref` 分支必须存在且有单测，否则 M5 引入分片会改动本应「零改动」的水平层文件。
 
-**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 207 个文件都在冻结范围内（2026-09-26 shared 增 4 个，rulings §4.20 TX-10）；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
+**必须零改动的文件清单**：按 12 §4.4/module-map §6.4「冻结层」机制，本模块全部七个包的 `src/**`（含 `testing/**`，不含 `__tests__/`）在 M5 `model-doc`/`model-sheet` PR 中要求 `horizontal-freeze.lock` **无 diff**——即 §4/§5 列出的全部 206 个文件都在冻结范围内（2026-09-26 shared 增 4 个，rulings §4.20 TX-10；同日 protocol 删 `collab/frame.ts` 减 1 个，rulings §4.21）；确需改动（例如上述分片扩展点从「存在分支」变为「性能优化」）须附 ADR 并显式更新锁文件。`testing/fixtures/{fixture,fixture-grid}/**`（本文档新增）恰恰是这份「零改动」承诺的**证明机制**：M5 时用它们（而非真正的 `model-slide`）驱动运行时验证（ADR-0016 第 3 条），不需要现在就有 `model-doc`/`model-sheet`。
 
 ## 9. 测试布局
 
@@ -1503,7 +1503,7 @@ packages/<pkg>/src/__tests__/
 
 | 包 | `__tests__` 文件 | 覆盖源文件 | 类型 |
 |---|---|---|---|
-| shared | `order.test.ts` | `order.ts` | unit + property（fast-check） |
+| shared | `order.test.ts` | `order.ts` | unit + property（fast-check）；2026-09-26 补 rocicorp 上游测试向量、「连续追加 1 万次键长 ≤ 6」与随机插入键长 p99 ≤ 32（ADR-0032 修订） |
 | kernel | `augment.type-test.ts` | `augment.ts` | 类型测试（ADR-0001 spike S1/S7/S8；后缀由 `*.test-d.ts` 改为 `*.type-test.ts`，决策 T-NAMING，2026-09-25） |
 | kernel | `kit-options.type-test.ts` | `testing/conformance/kit.ts` | 类型测试：`KitOptions` 无 `skip`/`only`/`exclude`/`cases` 键（70/02 §15） |
 | protocol | `collab/ticket-claims.type-test.ts` | `collab/ticket.ts` | 类型测试：票据 claims 封闭集合（70/10 SEC-DA-04） |
@@ -1679,6 +1679,15 @@ M2 起 `yjsBackend` 需被 `collab-yjs`（M-05）实际注入验证，`protocol`
 | TX-01+BE-10（U-07 联合 ADR 立项） | §13 Q-2、Q-3 | 改为随 [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md) 结案（M2 出口评审前定稿，未定稿则 M3 版本恢复不开工） |
 | BE-01+TX-03（WS 升级限流先扣后退 + 每用户上限） | §5.3 `ws/frames.ts`、`collab/close-codes.ts` | `auth.denied` code 集合含 `collab.rate_limited`（→ 4429）；4429 增握手期触发条件 |
 | FE-06（`can.*` 键族） | §5.3 `permissions/actions.ts` | `can.<capability>` 的能力位全集取自本文件 |
+
+### 2026-09-26 回写（rulings §4.21 协同改用 Hocuspocus 4）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| q-ws-gateway（用户选 Hocuspocus 4）、ADR-0039、证据 TX-08、TX-02、d-03、d-20 | §1.3 表与图、§7 协议段、§4.3、§5.3、§8 冻结文件数（207 → 206） | 删 `collab/frame.ts`（1 字节 FrameType 信封编解码，§4 与 §5 各减一行）；`ws/frames.ts` 只留 CONTROL 判别联合（Stateless 载荷，含两级 ack），删帧级 `sync`/`awareness` 类型与 `auth`/`auth.denied`/`auth.refresh`/`ping`/`pong` 成员；`ws/handshake.ts` 改为 Auth token 的 JSON schema 与 `PermissionDenied` reason；`collab/close-codes.ts` 加 4205、4408 扩为超时通用码；protocol 仍不 import y-protocols |
+| H:q-hp-provider、证据 CL-01、CL-02、VR-03、d-26 | §1.3 表、§3 store-yjs 生命周期、§4.7、§5.7、「两个 Provider 的差异」表 | `yjsBackend` 增 `docHandle()`（不透明 `YDocHandle`）与 `registerRemoteOrigin()`；`yjs-store.ts` 增「接管外部 Y.Doc」（`adopt`，服务端用）；均不新增文件 |
+
+需要其他文件配合：30/06 §2.3 的 `yjsBackend` 接口表按本节两个新方法与 `adopt` 参数回写（名称以本文为准）；[50/07](../50-frontend/07-collaboration-client.md) §1、§2（已同轮改写）；40/09 与 60/05 的 Unit 接管挂点（`afterLoadDocument`）引用 §5.7。
 
 ## 13. 未决问题
 

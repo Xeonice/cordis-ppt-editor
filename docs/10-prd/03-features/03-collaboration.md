@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户；Q6 OIDC 与组管理推迟，M3 只按人分享；Q3 撤销语义——他人后写跳过并提示、整步跳过即停、软删除墓碑 + TTL 24 h，CO-08「恢复我的值」、CO-09 重写；Q5 名额按用户计）；2026-09-24（rulings §4.16 Q17：CO-07 版本策略标已裁决、部署配置可调；Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：TX-01+BE-10 CO-07 恢复的撤销改指 ADR-0038 并写明基线与检查名） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户；Q6 OIDC 与组管理推迟，M3 只按人分享；Q3 撤销语义——他人后写跳过并提示、整步跳过即停、软删除墓碑 + TTL 24 h，CO-08「恢复我的值」、CO-09 重写；Q5 名额按用户计）；2026-09-24（rulings §4.16 Q17：CO-07 版本策略标已裁决、部署配置可调；Q16 排他锁标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：TX-01+BE-10 CO-07 恢复的撤销改指 ADR-0038 并写明基线与检查名）；2026-09-26（§4.21：协同改用 Hocuspocus 4 后的行为级核对——CO-12 握手改为「认证前排队、不应用」、图 2-7 同步改；CO-06 长离线差量改为一次送达、单设 16 MiB；用户可见行为除超 16 MiB 的极端情形外不变） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-step2-cap）
 
 # 功能域 03：协同
 
@@ -179,7 +179,7 @@ sequenceDiagram
   - 重连：指数退避（1 s → 2 s → 4 s → … 上限 30 s，抖动 ±20%）；重连后先鉴权再同步；≤ 5,000 条待同步 update 的重同步 ≤ 3 s。
   - 离线判据（rulings §4.18 UX-03）：自进入重连起**累计 30 s** 仍未连上即转 `offline`；浏览器报告离线（`navigator.onLine=false`）时立即转 `offline`（去抖 2 s）。
   - 离线后自动回到在线（rulings §4.18 CO-03）：进入 `offline` 后不停止重试，每 30 s（±20% 抖动）自动重连一次，浏览器报告离线期间暂停；收到浏览器 online 事件或用户点「立即重连」时立即重连。服务端恢复后，`offline` 会话 ≤ 36 s 内自动回连；断网期间不发起连接。
-  - 离线积累的更改超过单帧上限（1 MiB）时，重连后分块同步：全部送达、不因超限被断连、不重复落库（rulings §4.18 CO-10）。
+  - 离线积累的更改在重连后以一次差量同步送达（rulings §4.21 H:q-hp-step2-cap，改写 §4.18 CO-10 的「超过单帧 1 MiB 先分块」）：累计不超过 16 MiB 时全部送达、不因超过普通单帧 1 MiB 被断连、不重复落库（离线 5 MiB 的验收场景照常通过）；超过 16 MiB 属极少见的长时间大批量离线编辑，提示「有更改过大无法同步」并提供导出为本地副本（与 CO-05 的导出同一路径），不自动重试。
   - 重连时若权限已变化，按 CO-05 处理（访问被撤销、降为无任何角色时不提供本地副本导出）；若文档已被删除，提示并允许导出本地副本。
   - 会话内队列在页面刷新后丢失（M3 默认，明确提示「刷新将丢失未同步更改」；「重新登录」在新窗口完成、不刷新原页，队列保留，见 CO-05）；跨刷新持久化（IndexedDB，按 `Unit` 隔离，加密可选）为 M4 P2（PD-05；由 `collab-offline-idb` 作为 `OfflineStore` Provider 提供，章程 §5.2、ADR-0033）。
   - 离线超过 24 h 的队列重连时提示「较长时间离线，合并后请检查」并列出受影响页（P1）。
@@ -357,15 +357,15 @@ flowchart LR
 - 优先级：P0 | 目标里程碑：M2（随协同网关提前，rulings §4.19 D-M2-CONTENT；`commenter` 相关修复规则随评论在 M3 补黄金用例） | 依赖能力：`protocol`（WS 握手/消息 schema）、`server-collab`（硬门禁 + 软门禁，ADR-0034）、`blobStore`（资源上传通道）、`permissions`
 - 用户故事：作为管理员，我希望任何客户端（包括有 bug 或恶意的）都不能把非法结构或越权修改留在共享文档里，同时正常用户不会因此丢失工作或看到分叉。
 - 验收标准：
-  - 握手：OIDC 登录会话换取的一方 Ticket（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4），ADR-0029）→ 服务端校验签名、文档能力位、协议版本；失败以 `collab/auth-failed{code}` 关闭，`code ∈ collab.unauthenticated | collab.forbidden | collab.doc_not_found | collab.schema_too_new | collab.protocol_mismatch | collab.room_full`（WS 关闭码见架构 10 §1.4，协议不匹配 4427）。
-  - **硬门禁（应用前，服务端）**：信封/schema/大小/速率（单帧 ≤ 1 MiB；每连接 ≤ 200 帧/s，突发 500）、角色与能力位（`doc.write`、锁定窗口）、update 可解析性与结构数上限；任一失败 → 不广播、不落库，返回类型化错误或关闭连接；未知消息类型丢弃并计数。
+  - 握手：OIDC 登录会话换取的一方 Ticket（Ticket 60 s 单次；集成方签名 JWT ≤ 1 h（M4），ADR-0029）→ 服务端校验签名、文档能力位、协议版本；Ticket 只放在连接建立后的认证消息里，不进 URL 或请求头。认证通过前客户端已发出的同步消息由服务端**排队、不应用**，认证通过后按序处理；5 s 内未完成认证即断开（rulings §4.21，协同服务端改用 Hocuspocus 4，[ADR-0039](../../30-architecture/adr/0039-collab-server-hocuspocus.md)：官方客户端发完认证消息即发同步消息、不等结果，原「首条消息必须是认证、认证前的同步消息即拒绝」相应改写；用户可见行为不变——未认证的内容从不生效、不被他人看到）。失败以 `collab/auth-failed{code}` 关闭，`code ∈ collab.unauthenticated | collab.forbidden | collab.doc_not_found | collab.schema_too_new | collab.protocol_mismatch | collab.room_full`（WS 关闭码见架构 10 §1.4，协议不匹配 4427）。
+  - **硬门禁（应用前，服务端）**：帧格式/schema/大小/速率（单帧 ≤ 1 MiB，重连时的一次差量同步单设 ≤ 16 MiB；每连接 ≤ 200 帧/s，突发 500）、角色与能力位（`doc.write`、锁定窗口）、update 可解析性与结构数上限；任一失败 → 不广播、不落库，返回类型化错误或关闭连接；未知消息类型丢弃并计数。
   - **软门禁（应用后，服务端；章程 D12「数据完整性边界」，ADR-0034）**：
     - `softGate.mode = repair`（默认，随协同后端自 M2 生效）：只修复**不变量**违规——父子环、悬空 `parentId`/`layoutId`、非法 `order` 键、`schemaVersion`/`epoch` 被改、实体 id 与键不一致、`commenter` 触及评论以外路径、修改他人评论（owner 除外）。修复由确定性纯函数生成补偿事务（origin=`repair`），服务端应用并广播，同时通知来源会话（`collab/repair{reason, paths}`）。
     - `softGate.schemaMode = report-only`（默认，自 M2 起）：zod 类型校验只计数/告警，不修复（避免 schema 演进期误修复）。
     - 修复**不改变用户内容语义**：不改文本、不改样式值、不移动用户放置的元素（环修复仅把节点放回页根）；不透明保留内容只校验为字串，不受修复影响。
     - 同一会话 10 分钟内触发 ≥ 5 次修复 → 隔离（关闭码 4409）并审计。预算：软门禁 p95 ≤ 5 ms/update（只校验变更路径）。
   - **用户可见行为**：
-    - 被硬门禁**拒绝**（仅发生在降权或锁定窗口）：客户端执行「导出后重载」（架构 06 §18.4）——把未被 ack 的本地更改与事务摘要写入本地「未同步更改」区（可导出为 JSON / 本地 pptx 副本），丢弃本地 CRDT 副本并从服务端快照重新引导，撤销栈清空；横幅「你的 N 项更改未被保存（权限已变更）」+ 导出按钮（与 CO-05 一致）；事件 `collab/update-rejected`。
+    - 被硬门禁**拒绝**（发生在降权、锁定窗口或合并后超出元素上限时）：同一连接此后的写入也不再保存、不再确认，直到客户端重新载入（服务端连接污染规则，rulings §4.21；避免出现「已确认但他人不可见」的更改）；客户端执行「导出后重载」（架构 06 §18.4）——把未被 ack 的本地更改与事务摘要写入本地「未同步更改」区（可导出为 JSON / 本地 pptx 副本），丢弃本地 CRDT 副本并从服务端快照重新引导，撤销栈清空；横幅「你的 N 项更改未被保存（权限已变更）」+ 导出按钮（与 CO-05 一致）；事件 `collab/update-rejected`。
     - 被软门禁**修复**：用户看到自己的操作被「纠正」（低频），非阻断提示「已自动修正 1 处结构问题」；事件 `collab/repair`；撤销栈不清空。
   - 大二进制（图片/媒体）不走 CRDT，走资源上传通道（集成方 `uploadAsset` 或预签名 PUT，≥ 10 MB 分片，SV-01/EM-04）；CRDT 内只存 `BlobRef`；上传中/失败元素显示占位并可重试。
   - 审计与指标：硬门禁拒绝（`collab.update_rejected`）与软门禁修复（`collab.repaired`）进入审计（SV-07）与指标（`cordex_collab_updates_rejected_total{reason}`、`cordex_collab_repairs_total{rule}`）；所有协同操作的 `Transaction` 摘要进入审计（命令 id、影响元素数，不含内容）。
@@ -378,27 +378,29 @@ sequenceDiagram
   participant client as 客户端
   participant server as 服务端
   Note over client: 已通过 OIDC 登录的会话
+  client->>server: WS 连接，地址只含文档 id
   client->>server: 用登录会话换取一方 Ticket
   server-->>client: Ticket，60 s 有效、单次使用
-  client->>server: WS 握手，携带 Ticket
-  server->>server: 校验签名、文档能力位、协议版本
+  client->>server: 认证消息，携带 Ticket
+  client->>server: 同步消息，认证前服务端排队、不应用
+  server->>server: 校验签名、文档能力位、协议版本，5 s 期限
   alt 通过
-    server-->>client: 进入初始同步
+    server-->>client: 认证通过，回放排队消息，进入初始同步
   else 失败
     server-->>client: 以 collab/auth-failed 关闭，附 code
   end
   Note over client,server: code 为 unauthenticated、forbidden、doc_not_found、schema_too_new、protocol_mismatch 关闭码 4427、room_full 之一，均在 collab 域
 ```
 
-怎么读：纵向为时间；M1–M3 只有这一种握手凭据，集成方签名 JWT（≤ 1 h）为 M4 的另一形态，见 ADR-0029。
-依据：本条 CO-12 握手条款；EM-03。
+怎么读：纵向为时间；换取 Ticket 发生在连接建立之后（客户端每次连接都现换一张），Ticket 只出现在认证消息里；认证结果出来之前客户端可能已发出同步消息，服务端先排队、不应用，认证失败则连同排队消息一并丢弃，所以用户可见行为与「认证前一律拒绝」相同（rulings §4.21）。M1–M3 只有这一种握手凭据，集成方签名 JWT（≤ 1 h）为 M4 的另一形态，见 ADR-0029。
+依据：本条 CO-12 握手条款；EM-03；rulings §4.21 q-ws-gateway（ADR-0039）。
 
 **图 2-8 服务端对 update 的两道门禁**
 
 ```mermaid
 flowchart TB
   up["客户端发来的 update"]
-  hard{"硬门禁，应用前：信封、schema、大小、速率、角色与能力位、可解析性、结构数上限"}
+  hard{"硬门禁，应用前：帧格式、schema、大小、速率、角色与能力位、可解析性、结构数上限"}
   rej["不广播、不落库；返回类型化错误或关闭连接；审计 collab.update_rejected"]
   reload["客户端「导出后重载」：未 ack 更改进入「未同步更改」可导出，从服务端快照重新引导，撤销栈清空"]
   apply["应用到房间"]

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：Q5 两层口径、DX-20K、按权重准入与 RM-S 口径；Q9 Node 26；S-3a 两级 ack；Q8 缩略图 M2/M3 口径；Q7 EMF chunk；Q2/Q4/Q7 客户端安全基线；Q10 Valkey、镜像供应链；T-0/Q6 去租户、文档级 RLS）；2026-09-24（rulings §4.16 Q20：a11y 分阶段口径与移动端范围标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：Q5 两层口径、DX-20K、按权重准入与 RM-S 口径；Q9 Node 26；S-3a 两级 ack；Q8 缩略图 M2/M3 口径；Q7 EMF chunk；Q2/Q4/Q7 客户端安全基线；Q10 Valkey、镜像供应链；T-0/Q6 去租户、文档级 RLS）；2026-09-24（rulings §4.16 Q20：a11y 分阶段口径与移动端范围标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.21：协同改用 Hocuspocus 4——§1.5 注明 provider 体积，§1.6、§1.7 注脚补跨实例传播机制与更新回显，NF-03「已 ack」定义随持久化与确认裁决写明；预算数值不变）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)
 
 # 04 非功能需求
 
@@ -136,7 +136,7 @@ flowchart LR
 | 导出全部 PNG @1280（M2 客户端，只作报告） | ≤ 15 s | ≤ 60 s |
 | 导出期间 UI 可编辑 | 是 | 是 |
 
-口径（2026-09-25 按前端设计线 `50-frontend/05` §10.3 与 `13` §3 回写，架构 07 §14.6）：PNG 需要 DOM 布局与 SVG 序列化，只能在主线程按页分片完成（每片 ≤ 50 ms 让出主线程），不进 Worker；M2 位图 spike（把用到的字体子集内联进序列化 SVG）结论前，单页 PNG 预算只对「单页、无 Web 字体依赖」场景门禁；「导出全部 PNG」自 M3 起由服务端 `server-png` 承担（SV-02），客户端批量导出不再门禁。
+口径（2026-09-25 按前端设计线 `50-frontend/05` §10.3 与 `13` §3 回写，50-frontend/13 §1、§12）：PNG 需要 DOM 布局与 SVG 序列化，只能在主线程按页分片完成（每片 ≤ 50 ms 让出主线程），不进 Worker；M2 位图 spike（把用到的字体子集内联进序列化 SVG）结论前，单页 PNG 预算只对「单页、无 Web 字体依赖」场景门禁；「导出全部 PNG」自 M3 起由服务端 `server-png` 承担（SV-02），客户端批量导出不再门禁。
 
 ### 1.5 体积（gzip，初始加载，不含字体与 peer 依赖）
 
@@ -144,7 +144,7 @@ flowchart LR
 |---|---|
 | 查看器 preset | ≤ 350 KB |
 | 编辑器 preset（含 ui-react + slide-ui，不含 React 本体） | ≤ 900 KB |
-| 协同增量 | ≤ 200 KB |
+| 协同增量 | ≤ 200 KB（§4.21 起含官方 `@hocuspocus/provider` 4.7.0，连同 `@hocuspocus/common` 与 `@lifeomic/attempt` 约 10 KB gzip；`yjs`、`y-protocols`、`lib0` 为既有依赖，不重复计） |
 | 图表渲染器（惰性） | ≤ 400 KB |
 | 语言包（每个，惰性） | ≤ 30 KB |
 | EMF/WMF 栅格化 chunk（惰性 Worker，M2，OF 矩阵 §2.5） | 不计入查看器 350 KB 基线；预算由 M2 spike 定后回填，此后只收紧 |
@@ -162,9 +162,34 @@ flowchart LR
 | 重连重同步（≤ 5,000 待同步 update） | ≤ 3 s |
 | 权限变更生效 | ≤ 2 s |
 | 20 远端选区覆盖层 | ≥ 55 fps |
-| 单 update 大小 | ≤ 1 MB（超限拆分/走资源通道） |
+| 单 update 大小 | ≤ 1 MB（超限拆分/走资源通道）；重连 step2 单设 ≤ 16 MiB（§4.21，超限导出后重载） |
 
 协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT）：本地回显、初始同步、单 update 大小三行自 M2 起门禁（单人经网关）；其余多人口径（A→B、presence、重连重同步、权限变更、远端选区）为 M3。
+
+注脚（rulings §4.21，协同服务端改用 Hocuspocus 4，ADR-0039；数值不变，只写明机制与计量口径）：
+
+- **更新回显**：服务端把每个 update 广播给房间内全部连接，**包括发送者本人**（Hocuspocus 不按来源过滤，合并批次中混有他人更新时也无法可靠过滤，已接受）；回显在本端幂等应用、不产生变更，但发送者的下行字节约等于其上行字节，大帧时下行翻倍。客户端下行带宽与移动端流量按「他人更新 + 本端回显」计量，A → B 时延不受影响。
+- **合并窗口**：客户端 provider 以 50 ms 固定窗口合并 update 与 awareness，已含在「A 提交 → B 可见」与「presence 传播」预算内（窗口是固定批次，持续键入也不会被推迟超过 50 ms）。
+- **重连重同步**：离线差量由 provider 以一个 step2 送达（≤ 16 MiB），不再先切块；「≤ 5,000 待同步 update ≤ 3 s」的计时口径不变。
+
+**图 1-1 一次编辑从 A 到 B 经过的预算段（§4.21）**
+
+```mermaid
+flowchart LR
+  a["A 本地回显 ≤ 16 ms"]
+  batch["A 端 provider 合并窗口 ≤ 50 ms"]
+  gate["服务端门禁与先落库取 seq：持久化滞后 p99 ≤ 1 s"]
+  bcast["房间内广播 p95 ≤ 100 ms，含回显给 A"]
+  redis["跨实例同步 ≤ 50 ms：extension-redis，只在兜底路径"]
+  b["B 可见：p50 ≤ 150 ms，p95 ≤ 400 ms"]
+  ack["A 收到 ack tier db，清 pending"]
+  a --> batch --> gate --> bcast --> b
+  bcast -. "同一文档分在两个实例时" .-> redis -.-> b
+  gate --> ack
+```
+
+怎么读：实线是常态路径（按文档哈希亲和，同一文档只在一个实例）；虚线是跨实例兜底。PG 可用时广播发生在落库之后，所以 A → B 的时延包含一次 PG 提交；PG 故障降级期改为通过门禁即广播（NF-03），不受这一段约束。各段数值即上表与 §1.7 表，未新增预算。
+依据：本节 §1.6、§1.7；rulings §4.15 S-3a、§4.21 H:q-hp-persist-ack、H:q-hp-fanout；ADR-0039。
 
 ### 1.7 服务端（RM-S，单实例）
 
@@ -179,12 +204,12 @@ flowchart LR
 | 快照压缩（10,000 update） | ≤ 2 s |
 | 并发 WS | ≥ 2,000，CPU < 70% |
 | 活跃房间（按文档规模分档，rulings §4.15 Q5） | 按文档实测权重准入（实测基线 D50 ≈ 17.8 MB、D200 ≈ 85 MB/房间，乘以副本数）；各档房间数在 M1 实测后回填，只收紧 |
-| 广播延迟（房间内） | p95 ≤ 100 ms |
-| 跨实例传播 | ≤ 50 ms |
-| 持久化滞后（update 接收 → `ack{tier:'db'}`） | p99 ≤ 1 s |
+| 广播延迟（房间内） | p95 ≤ 100 ms（注脚：§4.21 起满员房间的 awareness 合并只包装出站发送、只合并 awareness 帧，不拖慢文档更新） |
+| 跨实例传播 | ≤ 50 ms（注脚：§4.21 起经 `@hocuspocus/extension-redis`，每次变更一轮状态向量往返，Valkey 8.1 实测 2.6–7.1 ms；反代按 documentId 一致性哈希偏好亲和，常态同一文档只由一个实例持有，跨实例传播只在扩缩容迁移与兜底路径出现） |
+| 持久化滞后（update 接收 → `ack{tier:'db'}`） | p99 ≤ 1 s（注脚：§4.21 起在 `beforeSync` 钩子内先落库取 `seq`、再放行应用与广播，PG 提交时延因此同时限制单连接帧率与「A 提交 → B 可见」，二者按同一基准验证） |
 | 优雅停机 | ≤ 30 s |
 | 模板填充 + 导出 100 × D50（4 worker） | ≤ 60 s |
-| Postgres 故障溢写两级阈值与恢复后回放（rulings §4.13 S-3） | 见架构 08 §12（超阈值依次溢写 Valkey→对象存储，不拒绝新编辑；溢写期回 `ack{tier:'spill'}`、落库后回 `ack{seq, tier:'db'}`（S-3a）；恢复后回放 `document_updates`，正式 `seq` 由 Postgres 分配，耗时预算同处） |
+| Postgres 故障溢写两级阈值与恢复后回放（rulings §4.13 S-3） | 见 60/01 §12（超阈值依次溢写 Valkey→对象存储，不拒绝新编辑；溢写期回 `ack{tier:'spill'}`、落库后回 `ack{seq, tier:'db'}`（S-3a）；恢复后回放 `document_updates`，正式 `seq` 由 Postgres 分配，耗时预算同处） |
 
 里程碑（rulings §4.19 D-M2-CONTENT）：导入、快照压缩、持久化滞后、过渡封面与 Postgres 故障溢写（单实例）自 M2 起门禁（`all` 角色）；导出、缩略图、PDF、并发 WS、活跃房间、广播与跨实例传播、优雅停机、模板填充与多实例溢写认领为 M3。
 
@@ -228,13 +253,13 @@ flowchart LR
 |---|---|---|
 | 客户端崩溃自由会话率（无 `fatal`） | ≥ 99.5% | M2 |
 | 插件失败不影响其它功能 | 100%（CTK） | M2 |
-| 已 ack 的协同 update 丢失 | 0（RPO ≤ 1 s；「已 ack」指 `ack{seq, tier:'db'}`，`tier:'spill'` 时客户端保留 pending，rulings §4.15 S-3a） | M2（单实例，随协同后端提前，rulings §4.19 D-M2-CONTENT）/ M3（多实例） |
+| 已 ack 的协同 update 丢失 | 0（RPO ≤ 1 s；「已 ack」指服务端落库取 `seq` 之后经 Stateless 下发的 `ack{seq, tier:'db'}`，`tier:'spill'` 时客户端保留 pending，rulings §4.15 S-3a；§4.21 H:q-hp-persist-ack 保留逐帧落库 + 两级 ack：Hocuspocus 原生的 `SyncStatus` 与 provider 的 `unsyncedChanges` / `synced` 只表示「已应用到服务端内存」，**不算** ack；丢过写入帧的连接之后不再落库也不回 ack（连接污染规则），因此不存在「已 ack 但不可见」的更新） | M2（单实例，随协同后端提前，rulings §4.19 D-M2-CONTENT）/ M3（多实例） |
 | 协同服务月可用性 | ≥ 99.9% | M3 |
 | 灾难恢复 | RPO ≤ 1 min（含 DB）、RTO ≤ 15 min | M3 |
 | 客户端崩溃后重开 | 最近已同步状态可用；单人模式最多丢失一次自动保存间隔（30 s）的编辑 | M2/M3 |
 | 导出失败可重试且不损坏源 | 100% | M2 |
 | 并发上限行为 | 超限只读/拒绝并提示，不崩溃 | M3 |
-| Postgres 持续故障期间编辑连续性（rulings §4.13 S-3；单实例自 M2 起，rulings §4.19 D-M2-CONTENT） | 不拒绝新编辑：两级阈值溢写 Valkey→对象存储，两级 ack（S-3a），恢复后回放并断言无 `pendingStructs`；降级期 update 通过门禁即照常广播、协作者互见，发起方横幅「未保存到服务器 N 项」、其余协作者状态胶囊「服务器保存延迟」（rulings §4.19 INC-09），「已 ack(db) 零丢失」不受影响（rulings §4.18 CO-08，SV-05）；集成测试：PG 断开时两客户端互见编辑、恢复后 seq 连续不丢；阈值与回放耗时预算见架构 08 §12 | M2（单实例）/ M3（多实例认领回放） |
+| Postgres 持续故障期间编辑连续性（rulings §4.13 S-3；单实例自 M2 起，rulings §4.19 D-M2-CONTENT） | 不拒绝新编辑：两级阈值溢写 Valkey→对象存储，两级 ack（S-3a），恢复后回放并断言无 `pendingStructs`；降级期 update 通过门禁即照常广播、协作者互见，发起方横幅「未保存到服务器 N 项」、其余协作者状态胶囊「服务器保存延迟」（rulings §4.19 INC-09），「已 ack(db) 零丢失」不受影响（rulings §4.18 CO-08，SV-05）；集成测试：PG 断开时两客户端互见编辑、恢复后 seq 连续不丢；阈值与回放耗时预算见 60/01 §12 | M2（单实例）/ M3（多实例认领回放） |
 
 ---
 

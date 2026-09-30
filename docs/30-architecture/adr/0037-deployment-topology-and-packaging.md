@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 反代 collab 路由清单、worker 接入 edge 供 Webhook 出站、`audit-rotate` 以 ops-cron 运行；M2 部署口径，见文末修订）；2026-09-26（§4.20）（BE-11+TX-12：关联中已删的「架构 08 §2」改指 08 §0/§10 与 60-backend/17；决策 5 主机规格数值按推迟项 BE-07+TX-05 待 M3 出口前实测回填，本轮不改） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24（rulings §4.16 Q19：renderer 字体包与自有授权字体目录挂载）；2026-09-24 复核修正（rulings §4.17；复核报告 M13：本 ADR 为 renderer 配置键事实源）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 3 反代 collab 路由清单、worker 接入 edge 供 Webhook 出站、`audit-rotate` 以 ops-cron 运行；M2 部署口径，见文末修订）；2026-09-26（§4.20）（BE-11+TX-12：关联中已删的「架构 08 §2」改指 08 §0/§10 与 60-backend/17；决策 5 主机规格数值按推迟项 BE-07+TX-05 待 M3 出口前实测回填，本轮不改）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q8/Q9/Q10、§4.16 Q19
 
 # ADR-0037 部署拓扑与交付件：同镜像按角色运行 + 自托管 compose 洁净栈
 
@@ -11,7 +11,7 @@
 ## 背景
 
 - **交付形态**：M1–M5 只做集成方/自有部署的 docker-compose，**不自营 SaaS**；一次部署 = 一个组织（T-0，单组织完全去租户）。PRD SV-09 要求「docker-compose 一条命令启动」，US-O-01「一条命令把整套服务在测试环境跑起来」。
-- **此前口径分裂**：Chromium 的位置有三种说法（PRD SV-09 sidecar、08 §2 worker 变体、ADR-0026 进程内）；08 §10.1 的 compose 清单仍是 `postgres:16 · redis:7 · minio`；D13 的机械执行点 TD-050 只扫 npm 依赖，镜像不在任何门禁里；PRD 全文没有离线安装包或 arm64 的需求。
+- **此前口径分裂**：Chromium 的位置有三种说法（PRD SV-09 sidecar、原架构 08 篇 §2 worker 变体、ADR-0026 进程内）；原架构 08 篇 §10.1 的 compose 清单仍是 `postgres:16 · redis:7 · minio`；D13 的机械执行点 TD-050 只扫 npm 依赖，镜像不在任何门禁里；PRD 全文没有离线安装包或 arm64 的需求。
 - **许可现实**（2026-09 实测）：MinIO 上游归档、Docker Hub 镜像下架、自行构建有 AGPL 分发义务；`redis:7` 未钉版本会落到 7.4.x（RSAL/SSPL），8.x 含 AGPL；Grafana/Tempo/Loki 为 AGPL-3.0，Jaeger/Prometheus/OTel Collector/Alertmanager 为 Apache-2.0；任何 Linux 基础镜像都带 GPL/LGPL 系统包，不能对整镜像逐包套用 D13。
 - **renderer 安全现实**：Playwright 官方镜像仅供测试开发、默认 root 且沙箱关闭、压缩后约 956 MB、run-server 无鉴权，且存在已知 CVE 窗口（ADR-0026）。
 
@@ -52,7 +52,7 @@
 
 3. **网络拓扑与出站策略**：
    - **三个 compose 网络**：`edge`（对外，只有静态前端/反向代理与 api、collab 入口）、`backend`（应用 ↔ Postgres / Valkey / SeaweedFS / Casdoor / 观测组件，`internal: true`；反向代理也接入本网络，但只用于下一条的两个子域转发）、`render`（**只有** worker（或 `all`）与 renderer，`internal: true`）。
-   - **反代路由**（2026-09-25 修订，rulings §4.18 BE-11/BE-03；collab 路由清单另见文末「修订 2026-09-25（§4.19）」第 1 条）：按路径前缀分流——`/api` → api 角色（REST 统一挂 `/api/v1` 全局前缀，Nest `setGlobalPrefix`，排除 `/healthz`、`/readyz`；`/metrics` 走独立内部端口）；其中 `/api/v1/documents/:id/snapshots*` 与 `/api/v1/documents/:id/elements/purge` → **collab 角色**（快照 REST 只在 collab 装配，决策 1；「彻底删除元素」REST 由 M-09 `element-purge.controller.ts` 承载，rulings §4.18 CO-07，与 40-modules/12 §7.1、架构 08 §10.1 一致）；`/collab` → collab 角色（WS 维持 `/collab/v1/rooms/:id`）；其余 → 静态文件（`apps/web`，SPA path 路由）。`all` 模式三者同进程，行为不变，拆分部署只多上述快照与彻底删除元素两条路由。（原：只写「edge 有 api、collab 入口」，未定前缀与快照归属，作废。）
+   - **反代路由**（2026-09-25 修订，rulings §4.18 BE-11/BE-03；collab 路由清单另见文末「修订 2026-09-25（§4.19）」第 1 条）：按路径前缀分流——`/api` → api 角色（REST 统一挂 `/api/v1` 全局前缀，Nest `setGlobalPrefix`，排除 `/healthz`、`/readyz`；`/metrics` 走独立内部端口）；其中 `/api/v1/documents/:id/snapshots*` 与 `/api/v1/documents/:id/elements/purge` → **collab 角色**（快照 REST 只在 collab 装配，决策 1；「彻底删除元素」REST 由 M-09 `element-purge.controller.ts` 承载，rulings §4.18 CO-07，与 40-modules/12 §7.1、60-backend/17 §3.1 一致）；`/collab` → collab 角色（WS 维持 `/collab/v1/rooms/:id`）；其余 → 静态文件（`apps/web`，SPA path 路由）。`all` 模式三者同进程，行为不变，拆分部署只多上述快照与彻底删除元素两条路由。（原：只写「edge 有 api、collab 入口」，未定前缀与快照归属，作废。）
    - **对外入口：IdP 与对象存储子域**（2026-09-25 修订，rulings §4.18 BE-01：OIDC 授权码流程要求浏览器直达 IdP 登录页，预签名直传/直读要求浏览器直达 S3 端点，原拓扑两者都在 `internal` 的 backend 网络而没有对外路径）：反向代理按子域把 `idp.<域名>` 转发到 Casdoor（OIDC 端点与登录页）、把 `s3.<域名>` 转发到 SeaweedFS S3 网关（只接预签名请求），**保持 Host 头不变**（S3 SigV4 把 Host 算进签名）；Casdoor 与 SeaweedFS 仍只在 backend 网络、**不开宿主端口**。配套：TLS 证书多 `idp.*`、`s3.*` 两个域名；SeaweedFS 桶配 CORS（AllowedOrigins = 应用源，允许 PUT/GET，ExposeHeaders 含 `ETag`，供分片上传收尾）；预签名一律按新配置 `storage.s3.publicEndpoint`（`https://s3.<域名>`）生成，服务端自身读写走内网 endpoint；`apps/web` 的 CSP（`connect-src`、`img-src`）与「网络请求只含同源」e2e 断言加入存储源；Casdoor 管理后台建议在反代上按来源 IP 限制访问。使用客户自有 S3 或外部 IdP 时，`publicEndpoint` 与 issuer 直接填对方的对外地址，本条两条子域规则可省略。
    - **renderer 零出站**（ADR-0026 决策 1/6，Q8 口径严于 Q10 复核）：renderer 只挂 `render` 网络，**只接受 worker 的鉴权内部 RPC 入站**，不暴露无鉴权的 Playwright run-server WS；快照 state、`/render` 静态包（内置在镜像中）、字体都经注入/内置提供，不走网络（字体包 = 内置 Noto（含 CJK）+ Liberation + Carlito/Caladea（均开源，不内置商业字体），**部署方可挂载自有授权字体目录**（只读卷，配置 `fonts.extraDirs`，rulings §4.16 Q19）；挂载目录属本地卷，不破坏零出站）；**不持有** DB/S3/IdP 凭据；非 root、`chromiumSandbox: true` + seccomp、`--shm-size` 而非 `--ipc=host`。自带 Nest 的集成方（EM-10 b）保留本地 launch 模式。
    - **renderer 配置键（本 ADR 为事实源，2026-09-24 复核修正 M13）**：`headless.mode: 'local' | 'remote'`——`remote`（compose 默认）经鉴权内部 RPC 调用独立 renderer sidecar，此时必填 `headless.endpoint`（renderer 的内部 RPC 地址，只在 `render` 网络内可达）；`local`（EM-10 b）在 worker 进程内启动 Chromium，无需 `headless.endpoint`。其余文档（架构 07/08、40-modules/09/12）一律照抄此两键，不另起 `renderer.*` 等别名。配套命名：sidecar RPC 契约文件 `render/sidecar.ts`（`@cordexjs/protocol`），worker 侧客户端 `remote-renderer.client.ts`（40-modules/09）。
@@ -84,7 +84,7 @@
 7. **M4 P1 交付件**（不进 M3 出口）：
    - **离线安装包**：镜像 tar + 字体包 + SBOM + 校验和，可在无 registry 的内网导入；
    - **多架构镜像**：amd64 / arm64，含跨架构像素一致性验证（服务端缩略图与客户端对比 ≤ 0.5%）；
-   - **Helm chart**：按角色拆 Deployment（api / collab / worker / renderer），附 kind 冒烟测试；collab 的 PDB、优雅停机与长连接超时沿用 08 §10.2 与 ADR-0035。
+   - **Helm chart**：按角色拆 Deployment（api / collab / worker / renderer），附 kind 冒烟测试；collab 的 PDB、优雅停机与长连接超时沿用 60-backend/17 §8 与 ADR-0035。
 
 **图 1 compose 三网络拓扑与出站策略**
 
@@ -154,7 +154,7 @@ flowchart LR
 - Casdoor 生态与 Back-Channel Logout 等企业特性弱于 Keycloak；需要这些特性的集成方接自有 IdP。
 - 浏览器要直达 IdP 与对象存储（决策 3「对外入口」）：默认栈多 `idp.*`、`s3.*` 两个域名的 DNS 与 TLS 证书，SeaweedFS 桶须配 CORS，应用 CSP 多一个存储源（rulings §4.18 BE-01）。
 - 主机规格在 M3 实测前只有口径没有数字（本 ADR 决策 5 的表待填）。
-- 08 §10.1/§10.2、PRD SV-09/SV-10、40-modules/01/09/12 需要按本 ADR 同步（见「关联」）。
+- 60-backend/17 §2、§8（原架构 08 篇 §10.1/§10.2）、PRD SV-09/SV-10、40-modules/01/09/12 需要按本 ADR 同步（见「关联」）。
 
 ## 如何被机械验证
 
@@ -167,4 +167,4 @@ flowchart LR
 
 ## 关联
 
-章程 D8、D9、D13（镜像口径）、§2.3（单组织、不自营 SaaS）、§5.4 服务端行；`00-charter/rulings-2026-09-14.md` §4.13 S-2/S-4、§4.15 T-0/Q6/Q7/Q8/Q9/Q10；ADR-0022（存储组件）、0026（renderer sidecar）、0029（IdP 与鉴权）、0030（观测组件）、0035（collab 横向扩展与内存口径）；架构 08 §0/§10；60-backend/17（Dockerfile、compose、K8s；原「架构 08 §2」目录树已删，2026-09-26 rulings §4.20 BE-11+TX-12）、11-testing；40-modules/01（门禁）、09（headless local/remote 模式、renderer RPC 契约进 `@cordexjs/protocol`）、12（`roles.ts` 五值；§7.1 模块 × 角色 × 部件装配矩阵）；`00-charter/rulings-2026-09-14.md` §4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/GV-14/GV-16（2026-09-25 修订）；PRD 04-nfr（RM-S、NF-04）、06 SV-04/SV-09/SV-10/SV-12、05 里程碑 M3 验收与 M4 范围。
+章程 D8、D9、D13（镜像口径）、§2.3（单组织、不自营 SaaS）、§5.4 服务端行；`00-charter/rulings-2026-09-14.md` §4.13 S-2/S-4、§4.15 T-0/Q6/Q7/Q8/Q9/Q10；ADR-0022（存储组件）、0026（renderer sidecar）、0029（IdP 与鉴权）、0030（观测组件）、0035（collab 横向扩展与内存口径）；60-backend/01 §0；60-backend/17（Dockerfile、compose、K8s；原架构 08 篇 §0/§2/§10 已按 rulings §4.20 BE-11+TX-12、§4.21 删除或撤销）、11-testing；40-modules/01（门禁）、09（headless local/remote 模式、renderer RPC 契约进 `@cordexjs/protocol`）、12（`roles.ts` 五值；§7.1 模块 × 角色 × 部件装配矩阵）；`00-charter/rulings-2026-09-14.md` §4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/GV-14/GV-16（2026-09-25 修订）；PRD 04-nfr（RM-S、NF-04）、06 SV-04/SV-09/SV-10/SV-12、05 里程碑 M3 验收与 M4 范围。

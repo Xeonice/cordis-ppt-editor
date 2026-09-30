@@ -1,6 +1,6 @@
 # ADR-0009 Snapshot `schemaVersion` 与迁移注册表
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-14
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 GV-14
 
 ## 状态
 
@@ -14,7 +14,7 @@
 
 1. **版本粒度**：每个 `documentType` 一个整数 `schemaVersion`（body）；每个 `ResourceHook` 命名空间一个独立整数 `version`。不存在全局版本。
 2. **迁移形态**：`Migration { documentType, from, to = from + 1, migrate(body), migrateResources? }`，经 `core.migration` 贡献；`migrations.plan` 求链、`run` 顺序执行并在每步后校验中间 schema（若注册了历史 schema）。缺链 → `MIGRATION_PATH_MISSING`，打开失败且可见。
-3. **何时迁移**：`units.open` 在 `store.load` 之前；服务端 `server-headless.tasks.migrate` 可批量预迁移存量快照（08）。运行时模型永远是当前版本。
+3. **何时迁移**：`units.open` 在 `store.load` 之前；服务端 `server-headless.tasks.migrate` 可批量预迁移存量快照（60-backend/06 §8）。运行时模型永远是当前版本。
 4. **schema-lock**：`fixtures/snapshots/<type>/schema-lock.json` 记录当前 `bodySchema` 的 JSON Schema 规范化哈希与 `schemaVersion`；CI 发现哈希变化而版本未增 → 失败；版本增加而无对应 `Migration` 贡献 → 失败；版本增加而 `fixtures/snapshots/<type>/v<N-1>/` 无样本 → 失败。
 5. **样本语料**：每个历史版本至少一个快照样本入库；CI 把全部历史样本迁移到当前版本并通过 `validateSnapshot`。
 6. **向后兼容读、不向前写**：新客户端可读旧快照（迁移）；旧客户端遇到更高版本 → `SNAPSHOT_TOO_NEW` 拒绝打开（不做降级迁移）。协同房间要求所有客户端 `schemaVersion` 一致（06：握手帧携带，服务端拒绝低版本客户端）。

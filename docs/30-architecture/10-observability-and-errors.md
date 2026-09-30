@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1））；2026-09-25（§4.19 登记的 INC-10 / SG-04、INC-08、INC-24、INC-25、INC-33、TELEMETRY-DEFAULT：§1.1 新域与码一次登记（§1.1a）、§1.4 http-map 补表（含 `format.unsupported_binary`）、§2.3 脱敏头、§3.4 产品事件以 PRD 06 为权威、§5 `fetch` keepalive、§11.1 `render/frame` 与 `perf/frame` 字段；各节加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§2.4 Sink、§3.2 span 清单、§3.3 指标清单、§4 诊断、§5 客户端错误上报改为跨端规则摘要 + 链接 50-frontend/15 与 60-backend/18；§1、§2.1–§2.3、§3.1、§3.4、§11 保留）；2026-09-26（§4.20）（FE-16：§11.1 `comment/*` 载荷、正文默认脱敏与 `comments.events.includeBody`、`origin` 字段，`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`，`render/font-fallback.reason`；BE-01+TX-03：§11.2 `collab/auth-failed` code 集合增 `collab.rate_limited`） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1））；2026-09-25（§4.19 登记的 INC-10 / SG-04、INC-08、INC-24、INC-25、INC-33、TELEMETRY-DEFAULT：§1.1 新域与码一次登记（§1.1a）、§1.4 http-map 补表（含 `format.unsupported_binary`）、§2.3 脱敏头、§3.4 产品事件以 PRD 06 为权威、§5 `fetch` keepalive、§11.1 `render/frame` 与 `perf/frame` 字段；各节加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§2.4 Sink、§3.2 span 清单、§3.3 指标清单、§4 诊断、§5 客户端错误上报改为跨端规则摘要 + 链接 50-frontend/15 与 60-backend/18；§1、§2.1–§2.3、§3.1、§3.4、§11 保留）；2026-09-26（§4.20）（FE-16：§11.1 `comment/*` 载荷、正文默认脱敏与 `comments.events.includeBody`、`origin` 字段，`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`，`render/font-fallback.reason`；BE-01+TX-03：§11.2 `collab/auth-failed` code 集合增 `collab.rate_limited`）；2026-09-26（§4.21：§1.4 登记 `format.malformed_xml` 与 `format.limit_exceeded` 的 HTTP 映射和 `details`，XML 限额键与 DOCTYPE 拒绝引 ADR-0019）；2026-09-26（§4.21 整合：§1.1a 登记 collab.pre_auth_overflow（4205）、collab.idle_timeout（4408）与诊断 format.pptx.connector_target_missing，§1.4 补映射；§3.2 traceparent 载体改为 Auth 帧 token）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：charter v0.1；[ADR-0019](./adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21）
 
 # 10 观测性与错误（Observability & Errors）：错误码体系、结构化日志、telemetry、诊断、客户端上报
 
@@ -149,6 +149,8 @@ flowchart LR
 | `permission` | `principal_not_found` / `principal_unsupported` / `last_owner` | 404 / 400 / 409 | 授权目标不存在或非 active；`principalType ≠ 'user'`；撤销或降级最后一个 owner（60/03 §9） |
 | `storage` | `integrity_mismatch` / `upload_not_found` | 422 / 404 | commit 时 sha256 或字节数不符；`uploadId` 不存在或过期（60/04 §6–§7） |
 | `collab` | `doc_purging` / `protocol_mismatch` / `epoch_changed` / `bootstrap_failed` / `auth_timeout` / `quarantined` / `payload_too_large` / `validation_failed` / `lock_lost` | 4404 / 4427 / 4428 / 4503 / 4408 / 4409 / 4413 / 4400 / 仅日志与计数 | WS 握手与门禁（06 §6.3、§6.5；60/16 §10）；`lock_lost` = 单写者租约在写入前失效，不对外 |
+| `collab`（2026-09-26 新增（§4.21），ADR-0039 H-d-19…H-d-22） | `pre_auth_overflow` / `idle_timeout` | 4205 / 4408 | 认证前队列（帧数或字节）或待认证文档数超限；45 s 无入站帧由适配层判死。4408 扩为超时通用码，与 `auth_timeout` 共用（06 §6.5；60/16 §10） |
+| `format.pptx`（2026-09-26 新增（§4.21），诊断，不抛错） | `connector_target_missing` | 导入导出诊断（warning），不对外映射 | 导出时连接符的 `stCxn` / `endCxn` 目标已被硬删，去掉失效引用；导入时引用了不存在的 `cNvPr@id`，保留为自由端点（ADR-0018 决策 8；50-frontend/22 称 `connector-target-missing`；登记于 `ooxml-pptx` errors，40-modules/04） |
 | `headless` | `task_timeout` / `task_oom` / `worker_crashed` / `bad_request` / `rpc_unauthorized` / `request_too_large` / `version_mismatch` / `renderer_busy` / `inject_timeout` / `browser_crashed` / `render_timeout` / `response_invalid` | 作业结果或内部 RPC 400 / 401 / 413 / 409 / 503 / 504 / 500（60/06 §10.4） | worker 解析线程与 renderer RPC（60/06 §12.2）；`headless.zip_limit_exceeded`、`headless.decode_failed` 不再使用（改为 `format.limit_exceeded`、`format.pptx.*`） |
 | `render` | `bad_query` / `bad_payload` / `version_mismatch` / `state_expired` | `/render` 页 `window.__cordex.error` | 查询非法；注入载荷校验失败；`appVersion` 与页面不一致；60 s 未注入（50-frontend/12 §11） |
 | `plugin` | `incompatible` / `wrong_environment` | 插件 `FAILED` + 事件 `plugin/incompatible` | `hostApi` 范围不满足（`details{required, actual}`，PRD 04 PS-07）；dom 插件被 Node 宿主加载（PS-14） |
@@ -240,6 +242,8 @@ flowchart TB
 | `format.quota_exceeded`（导入超规模天花板，直接拒绝导入，rulings §4.15 Q5） | 413 | — | `details: { dimension, limit, actual }` |
 | `format.encrypted`（加密包：`EncryptionInfo` CFB 容器，M1–M4 拒绝导入并提示先去除密码，rulings §4.16 Q15；登记于 `ooxml-core` errors，检测点在导入校验的魔数/容器判定阶段、先于 `format.pptx.invalid_package`，见 40-modules/04） | 415 | — | `details: { container: 'cfb' }`；取 415 理由同 `format.macro_rejected`：加密包不是 OOXML zip 媒体类型；**不得**回落为 `format.pptx.invalid_package`；用户文案「文件已加密，请先去除密码后再导入」 |
 | `format.macro_rejected`（`.pptm` / macroEnabled 主内容类型 / 含 `vbaProject.bin` 的宏包直接拒绝导入，rulings §4.16 Q15；登记于 `ooxml-core` errors，检测见 40-modules/04 §2.6） | 415 | — | `details: { reason: 'extension' \| 'content_type' \| 'vba_part' }`；取 415 而非 422：拒绝依据是**文件类型本身**（宏启用的媒体类型不受理），而非内容语义校验失败——与 `format.unsupported_binary` 同类；用户文案「请另存为 .pptx 后再导入」 |
+| `format.limit_exceeded`（导入输入安全上限：zip 与 XML 两类；2026-09-26 §4.21 补登 HTTP 映射，原只在 §11.2 出现；登记于 `ooxml-core` errors，XML 部分由 `@cordexjs/xml` 以同值字面量返回） | 413 | — | `details: { limit, actual, max }`，XML 另带 `partName`、`line`、`column`、`offset`；`limit` 取 `zip.<ZipLimits 字段>`（40-modules/04 §2.2）或 `xml.maxDepth` / `xml.maxAttributesPerElement` / `xml.maxTextLength` / `xml.maxAttributeValueLength` / `xml.doctype`——XML 键、默认值与计量只在 [ADR-0019](./adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6 的 `XmlLimits` 表定义；**DOCTYPE 一律拒绝**，视为上限为 0 的限额（`limit:'xml.doctype', actual:1, max:0`），不可配置；导入期任一部件超限即拒绝整个导入，渲染期只读解析超限只降级该元素 |
+| `format.malformed_xml`（XML 不良构、命名空间错误、未定义实体、非法字符引用、编码错误、截断；2026-09-26 §4.21 登记，40-modules/04 §5.1 早已定义但此前未进目录） | 422 | — | `details: { reason, line, column, offset, partName? }`，`reason` ∈ `syntax` \| `namespace` \| `undefined_entity` \| `invalid_char_ref` \| `encoding` \| `truncated` \| `internal`；**导入路径上不直接作为拒绝码**：必需部件（`[Content_Types].xml`、`_rels/.rels`、`ppt/presentation.xml` 及其 `.rels`）畸形归并为 `format.pptx.invalid_package{part}`，其余已建模部件降级为不透明并以本码记 `error` 级诊断（ADR-0008 决策 8、ADR-0019 决策 8）；`reason:'internal'` 属程序员错误，由 `ooxml-core` 升级为 `kernel.invariant_violation`；同属 422 的语义校验类，用户文案「文件内容已损坏」 |
 | `document.quota_exceeded`（**编辑期**上限码：编辑中新增页/元素触及天花板，命令守卫拒绝，rulings §4.17 D2；M-03 的 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED` 常量映射到本码） | 409 | —（命令守卫拒绝、**不关连接**；4429 专属速率限制） | `details: { dimension, limit, actual }` |
 | `storage.quota_exceeded`（部署级存储/每用户文档数配额） | 413（上传）/ 429 | — | `details: { dimension, limit, actual }` |
 | `format.unsupported_binary`（旧二进制 `.ppt` 等非 OOXML 容器，直接拒绝导入） | 415 | — | 与 `format.macro_rejected`、`format.encrypted` 同类：拒绝依据是文件类型本身（2026-09-25 补登 HTTP 映射，60-backend/15 §7） |
@@ -255,6 +259,7 @@ flowchart TB
 | `server.media.unsupported_type` / `server.http.unsupported_media_type` | 415 | — | — |
 | `server.http.rate_limited` / `server.http.payload_too_large` | 429 / 413 | — | REST 上 `*.rate_limited`、`*.payload_too_large` 的具体码（60-backend/15 §8）；WS 侧为 `collab.rate_limited`（4429）与 `collab.payload_too_large`（4413） |
 | `collab.doc_purging` / `collab.protocol_mismatch` / `collab.epoch_changed` / `collab.bootstrap_failed` / `collab.auth_timeout` / `collab.quarantined` | — | 4404 / 4427 / 4428 / 4503 / 4408 / 4409 | 客户端行为见 06 §6.5 |
+| `collab.pre_auth_overflow` / `collab.idle_timeout`（2026-09-26 新增（§4.21）） | — | 4205 / 4408 | 4205 客户端退避后重连并上报；4408 与 `collab.auth_timeout` 共用（超时通用码）；客户端行为见 06 §6.5 |
 | `kernel.invariant_violation` 及未知 | 500 | 1011 | `/errors/internal`（不泄漏 details） |
 
 **配额三码并列与 `dimension` 取值表**（rulings §4.17 D2；各处——PRD 06、设计 13、40-modules/03/04/08/12——照抄本表，不另起名）：
@@ -275,6 +280,22 @@ flowchart LR
 ```
 
 怎么读：三行互不相交，按错误发生的阶段选码；三码的 `details` 都是 `{ dimension, limit, actual }`，编辑期码不占用 WS 关闭码（4429 专属速率限制）。
+
+**XML 两码的出口**（2026-09-26 §4.21，唯一口径 [ADR-0019](./adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6、8）
+
+```mermaid
+flowchart LR
+  parse["@cordexjs/xml 解析某个部件：XmlResult err"] --> code{"错误码"}
+  code -- "format.limit_exceeded，含 xml.doctype" --> phase{"解析发生在哪个阶段"}
+  phase -- "导入期" --> reject413["拒绝整个导入：413，details limit、actual、max"]
+  phase -- "渲染期只读解析" --> degrade["只降级该元素：render/element-degraded"]
+  code -- "format.malformed_xml，其它 reason" --> part{"必需部件？"}
+  part -- "是" --> invalid["format.pptx.invalid_package：details.part"]
+  part -- "否" --> opaque["部件降级为不透明，error 级诊断，文件照常打开"]
+  code -- "format.malformed_xml，reason internal" --> inv["kernel.invariant_violation：500"]
+```
+
+怎么读：两个码都由同一个词法层产生；限额类按发生阶段决定是拒绝导入还是只降级元素，畸形类按部件是否必需决定是拒绝导入还是降级为不透明，只有 `internal` 走程序员错误通道。`format.malformed_xml` 的 422 只在调用方直接暴露解析结果时使用（例如脱离导入管线的校验接口），导入路径上以上图的归并结果为准。
 
 `problem+json` 字段：`type/title/status/detail/instance/code/traceId/retryable`；`details` 只有 `user:true` 的错误才回传。
 
@@ -352,7 +373,7 @@ interface TelemetryService {
 
 span 清单按运行位置分属两条设计线（2026-09-25 设计线拆分，原清单表迁出）：浏览器与 iso 包的 span（`unit.open`、`format.import` / `format.export`、`command.execute`、`store.transaction`、`render.frame`、`render.page_compose`、`layout.text_body`、`collab.bootstrap`、`collab.sync_roundtrip`）以 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §7.1 为唯一源；服务端 span（`server.<子系统>.<操作>`、`job.<kind>`、`render.rpc`、`thumbnail.render`，以及 HTTP / DB / Valkey 自动仪表化）与采样规则以 [60-backend/18](../60-backend/18-observability-and-ops-endpoints.md) §3 为唯一源。两端共同约束：名称经 `SpanName` 声明合并登记（§3.1），由扫描器 `scan-observability-identifiers` 核对登记与调用点；span 属性不携带文档内容、令牌、完整 URL 与查询串（§2.3）。
 
-传播：HTTP `traceparent` 头；WS 的 CONTROL.auth 携带 `traceparent` 建立会话父 span，每个 update 帧不建 span（用指标 + 1% 抽样 span）；BullMQ job 数据带 `traceparent`。
+传播：HTTP `traceparent` 头；WS 的 Hocuspocus Auth 帧（token JSON 的可选字段 `traceparent`，2026-09-26 起取代首帧 CONTROL 的写法，ADR-0039 决策 3）建立会话父 span，每个 update 帧不建 span（用指标 + 1% 抽样 span）；BullMQ job 数据带 `traceparent`。
 
 **trace 上下文传播**
 
@@ -365,7 +386,7 @@ sequenceDiagram
   participant W as job processor
   B->>API: HTTP 请求，携带 traceparent 头
   API->>API: 自动仪表化的 HTTP span 以其为父
-  B->>G: WS CONTROL.auth，携带 traceparent
+  B->>G: WS Auth 帧，token 携带 traceparent
   G->>G: 建立会话父 span
   B->>G: 后续 update 帧
   G->>G: 不逐帧建 span，改用指标 + 1% 抽样 span
@@ -374,8 +395,8 @@ sequenceDiagram
   W->>W: 从 job 数据恢复 traceparent 建子 span
 ```
 
-怎么读：三种跨进程边界各有一个 traceparent 载体——HTTP 头、WS 首帧 CONTROL.auth、job 数据；自指箭头是接收方据此建立或续接 span 的动作，update 帧本身不携带 traceparent。
-依据：本文 §3.2；08 §7 处理器基类。
+怎么读：三种跨进程边界各有一个 traceparent 载体——HTTP 头、WS 的 Auth 帧（token JSON）、job 数据；自指箭头是接收方据此建立或续接 span 的动作，update 帧本身不携带 traceparent。
+依据：本文 §3.2；60-backend/06 §5 处理器基类。
 
 ### 3.3 Metric 清单（Prometheus 命名；单位在名内）
 
@@ -508,7 +529,7 @@ packages/kernel/src/
 
 | 域 | 事件（定稿） | 分发 | 载荷要点 | 发出者 | 取代（PRD / A 线 / 本线草稿） |
 |---|---|---|---|---|---|
-| unit | `unit/opened` `unit/loaded` `unit/open-progress` `unit/open-failed` `unit/closed` `unit/dirty-changed` `unit/saved` `unit/migrated` | emit | unitId、阶段/百分比、code、schemaVersion；`unit/opened` 在首批装载后发（可渲染、可编辑），`unit/loaded` 在全部批次到齐后发（全文类命令据此解禁，rulings §4.18 CO-12，07 §14.2） | model-core | – |
+| unit | `unit/opened` `unit/loaded` `unit/open-progress` `unit/open-failed` `unit/closed` `unit/dirty-changed` `unit/saved` `unit/migrated` | emit | unitId、阶段/百分比、code、schemaVersion；`unit/opened` 在首批装载后发（可渲染、可编辑），`unit/loaded` 在全部批次到齐后发（全文类命令据此解禁，rulings §4.18 CO-12，50-frontend/04 §2） | model-core | – |
 | command | `command/executed` `command/rejected` `command/failed` `command/audited` | emit | id、durationMs、reason、审计摘要 | 命令管线（05） | – |
 | store | `store/transaction`（公开订阅 ≥ 50 ms 合并）、`store/loaded` | emit | transactionId、`origin{ kind, via? }`、touched 数、影响元素数 | store Provider | 本线 `store/history-changed` → `history/changed` |
 | history | `history/changed` | emit | canUndo / canRedo / depth | history | – |
@@ -534,7 +555,7 @@ packages/kernel/src/
 |---|---|---|
 | `auth/invalid-token` `auth/expired` `auth/forbidden` | `server.auth.invalid_token` `server.auth.expired` `server.auth.forbidden` | 401 / 401 / 403；4401 / 4401 / 4403。令牌刷新失败按原因分流（rulings §4.18 UX-02，06 §18.3）：401（`server.auth.expired`）直接进入「登录已过期」、不经 reconnecting/offline；只有网络错误才走 `collab/reconnect{reason:'auth-refresh'}` 并共用 30 s 离线计时 |
 | `collab/auth-failed` | 事件 `collab/auth-failed`，载荷 code ∈ `collab.unauthenticated \| collab.forbidden \| collab.doc_not_found \| collab.doc_purging \| collab.schema_too_new \| collab.protocol_mismatch \| collab.epoch_changed \| collab.room_full \| collab.rate_limited` | 见 06 §6.5（`protocol_mismatch` = 4427，`epoch_changed` = 4428，`doc_purging` = 4404，`rate_limited` = 4429：握手期每用户单实例连接数超限，rulings §4.20 BE-01+TX-03） |
-| `format/limit-exceeded{limit, actual}` | `format.limit_exceeded` | 413 |
+| `format/limit-exceeded{limit, actual}` | `format.limit_exceeded`（`details` 另含 `max`；`limit` 键见 §1.4 与 ADR-0019 决策 6，§4.21） | 413 |
 | `collab/soft-conflict{type}` | 事件（非错误）；指标 `cordex_collab_soft_conflicts_total{type}`；`type` **不含** `undo-skipped`——撤销跳过走 `store/undo-skipped` 单独统计（rulings §4.17 D5） | – |
 | `collab/reconnect{reason:"server-shutdown"}` | 事件 `collab/reconnect`，reason ∈ `server-shutdown \| network \| auth-refresh \| capacity` | – |
 

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：断行表改由 tooling 从 UCD 生成；engine-layout 新增 2×3 仿射矩阵与连接符路由；连接点与手柄命中种类补全）；2026-09-26（§4.21 整合：canvas 改四个角色；§2.3 增文档类型盲的 rerouteConnectors；§2.5 登记 edit-context 第三实现与备注栏宿主；render-dom 增 image-preprocess.ts、grid-overlay.ts、media-playback-overlay.ts、edit-context.ts 四个文件）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3、rulings §4.21（R-d-27、R-d-29、R-d-78）、50-frontend/22、50-frontend/10 §7.5
 
 # 06 布局与渲染引擎（限界上下文 BC-10 布局与度量引擎、BC-11 渲染管线与目标）
 
@@ -55,7 +55,7 @@ flowchart LR
 - `engine-render`：`Scene`/`SceneNode` 契约与四个贡献点（`render.scene`/`render.target`/`render.element`/`render.overlay`）的类型化注册与查表；帧调度（`DirtySet` 合并、时间切片、可见性优先级、8 ms 脚本预算）；两处缓存（`StyleCache`、`MediaCache`）与其淘汰测试；`Viewport` 与虚拟化（可见页窗口、fit 计算）；命中测试契约（`HitTestIndex` + `bail` 链）；逐元素错误隔离（try/catch → 占位符 + `render/element-failed`，不影响同页其他元素）。
 - `render-dom`：`RenderTarget`（`id:'dom'`）Provider——HTML/SVG 输出、图元 API（path/rect/image/text/group/clipPath/gradient/pattern）、覆盖层（选中框+手柄、远端光标、参考线、评论钉）；`TextMeasurer`（`id:'canvas'`）Provider；文本编辑宿主（隐藏 `textarea` + IME 组合 + 自绘光标/选区 + a11y 镜像，ADR-0028）；字体加载（`FontFaceLoader`）；媒体 `blob:` URL 生命周期；SVG→PNG/JPEG 导出（`toImage`，**主线程**栅格化：游离 DOM → SVG 序列化 → `Image` → `Canvas`，供位图缩略图与图片导出；可见缩略图不走本路径，由 M-07 的 `dom-scaled` 直接挂载缩小 SVG）。
 
-**渲染介质口径（rulings §4.15 Q4，ADR-0021 已接受）**：**DOM/SVG 单实现**——编辑、查看、放映、服务端缩略图与 PDF 共用同一套 SVG 渲染（服务端经 headless Chromium 加载同一份 `render-dom`，§7）。canvas 只承担三个角色：①`toImage` 的栅格化画板（主线程，不做 Worker 版本）；②`measureText` 度量器（`layout.measurer('canvas')`）；③`RenderTarget` 的预留座位 `id:'canvas'`（无生产 Provider，M3 末用最小 canvas Provider 验证 `render.target` 契约，见 §2.5/§11）。**不存在**「缩略图/放映走 canvas」的路径；DX-1000 性能不达标时先做合成层优化，仍不达标才考虑仅查看/放映启用 canvas（届时另立 ADR，不在本模块当前范围）。`toImage` 取不到页面 Web 字体（SVG-as-image 隔离，CJK 尤甚）列为 **M2 位图 spike**，结论出来前位图封面与批量 PNG 自 M3 起走 `server-png`（M-07/M-12 编排，Q8 联动）。
+**渲染介质口径（rulings §4.15 Q4，ADR-0021 已接受）**：**DOM/SVG 单实现**——编辑、查看、放映、服务端缩略图与 PDF 共用同一套 SVG 渲染（服务端经 headless Chromium 加载同一份 `render-dom`，§7）。canvas 只承担四个角色：①`toImage` 的栅格化画板（主线程，不做 Worker 版本）；②`measureText` 度量器（`layout.measurer('canvas')`）；③`RenderTarget` 的预留座位 `id:'canvas'`（无生产 Provider，M3 末用最小 canvas Provider 验证 `render.target` 契约，见 §2.5/§11）；④媒体与图标预处理（`infrastructure/media/image-preprocess.ts`，只处理媒体字节、只产出 Blob，不绘制幻灯片内容；ADR-0021 2026-09-26 修订，原「三个角色」口径作废）。**不存在**「缩略图/放映走 canvas」的路径；DX-1000 性能不达标时先做合成层优化，仍不达标才考虑仅查看/放映启用 canvas（届时另立 ADR，不在本模块当前范围）。`toImage` 取不到页面 Web 字体（SVG-as-image 隔离，CJK 尤甚）列为 **M2 位图 spike**，结论出来前位图封面与批量 PNG 自 M3 起走 `server-png`（M-07/M-12 编排，Q8 联动）。
 
 **不做什么（明确边界，指向负责模块）**：
 
@@ -66,7 +66,7 @@ flowchart LR
 5. 不解释「文本编辑意图对应哪个 Mutation、该调用哪个 Command」——`render-dom` 的 `TextInputHost` 只产出中性编辑意图对象（`TextEditIntent`），把它变成 `text.*`/`slide.*` 之类 Mutation 并调用 `commands.execute` 是上层（M-07/M-10）的职责，本模块保持对文档类型无知（R15）；消费方与回调形状已按 14 §5.3/§6.2 结案（§13 Q-2）：`RenderService.attach(targetId, container, callbacks?)` 的可选 `callbacks.onEditIntent`（IoC），消费方为 `slide-ui`（M-10）。
 6. 不做图表/表格的数据建模与交互式编辑——属 BC-12 下游（`slide-render-chart` 等）；本模块的 `graphicFrame:chart` 渲染只有通用 `unknown`/占位兜底路径。
 7. 不产生协同在场信息（awareness/presence 广播）——那是 BC-09（M-05）；`render-dom` 的 `remote-presence-overlay.ts` 只消费调用方已解析好的中性 presence 快照（`{id,color,name,position}[]`），不 import 任何 collab 包。
-8. 不做文档打开管线的 Worker 分片调度与解析——那是架构 07 §14.2 描述的打开流程，主体在 `model-slide`/`ooxml-pptx`（M-03/M-04）；本模块只在解析结果就绪、`store.load()` 完成后接手渲染。
+8. 不做文档打开管线的 Worker 分片调度与解析——那是 50-frontend/04 §2 描述的打开流程，主体在 `model-slide`/`ooxml-pptx`（M-03/M-04）；本模块只在解析结果就绪、`store.load()` 完成后接手渲染。
 
 ### 1.2 通用语言
 
@@ -125,25 +125,32 @@ flowchart LR
 | `Rect<U>` | `{ x, y, w, h }`（单位品牌 `U` 通常为 `Emu`，命中测试路径下换算为 `Px`） | zod：四个有限数，`w ≥ 0`、`h ≥ 0` | `engine-layout/src/domain/contracts/geometry.ts`（`engine-render` 复用，依赖方向 `engine-render → engine-layout` 合规） |
 | `Transform` | `{ tx, ty, scaleX, scaleY, rotation: Angle60k, flipH, flipV }` | zod：`scaleX/scaleY ≠ 0` | `engine-render/src/domain/contracts/scene.ts` |
 | `GeometryPath` | `{ commands: GeometryCommand[]; fill; stroke; extrusionOk; textRect: Rect<Emu>; connections: ConnectionPoint[]; adjHandles: AdjHandle[] }` | zod：`commands` 非空 | `engine-layout/src/domain/contracts/geometry.ts` |
+| `ConnectionPoint`（2026-09-26 定形，§4.21） | `{ index: number; point: Point<Emu>; angle: Angle60k }`：`index` 即 OOXML `a:cxn` 在 `cxnLst` 中的序号（`stCxn@idx` / `endCxn@idx`），`point` 为形状局部坐标，`angle` 为连接方向（`a:cxn@ang` 求值结果） | zod：`index ≥ 0` | `engine-layout/src/domain/contracts/geometry.ts` |
+| `Affine2x3`（新增，§4.21） | `readonly [a, b, c, d, e, f]`（2×3 仿射矩阵，平移分量单位 EMU） | 无（运行时结构，构造时校验六个有限数） | `engine-layout/src/domain/geometry/affine.ts` |
+| `ConnectorRouteInput` / `ConnectorRoute`（新增，§4.21） | 输入：两端 `{ point: Point<Emu>; angle?: Angle60k }`（页坐标，自由端无 `angle`）、`kind: 'straight'\|'bent'\|'curved'`、`userAdj?`；输出：`{ offset; extent; flipH; flipV; rotation: Angle60k; preset: PresetGeometryName; adj: Record<string, number> }` | zod | `engine-layout/src/domain/geometry/connector-routing.ts` |
 | `ResolvedFont` / `FontKey` | `{ family, size: Pt, bold, italic }` / 规范化字符串键 | zod：`size > 0` | `engine-layout/src/domain/contracts/text-measurer.ts` |
 | `MeasureResult` | `{ width: Px, ascent: Px, descent: Px }` | zod：三者均 `≥ 0` | `engine-layout/src/domain/contracts/text-measurer.ts` |
 | `LineBox` | `{ y: Px, ascent, descent, runs: RunBox[] }`；`RunBox{ x: Px, text, attrs }` | zod | `engine-layout/src/domain/contracts/text-layout.ts` |
 | `CaretMap` | `(paragraphIndex, offset) ↔ (lineIndex, x: Px)` 双向查表结构 | 无（运行时结构，非线上数据） | `engine-layout/src/domain/contracts/text-layout.ts` |
 | `ZoomFactor` | `Brand<number, 'ZoomFactor'>`，恒正 | zod：`0 < value`，业务上再由 `config.zoom.{min,max}` clamp | `engine-render/src/domain/contracts/viewport.ts` |
-| `HitResult` | 两种形状合并为一个判别联合（2026-09-25，50/05 §5.1）：内容命中 `{ kind: 'node'; nodeId: NodeId; region: 'body'\|'text'; local: Point }`；覆盖层接管 `{ kind: 'handle'; nodeId; handle: 'resize-n'…'rotate'\|'adjust'; index? } \| { kind: 'pin'; threadId } \| { kind: 'presence-label'; clientId }`；原 `region:'handle'` 并入 `kind:'handle'` | zod | `engine-render/src/domain/contracts/hit-test.ts` |
+| `HitResult` | 两种形状合并为一个判别联合（2026-09-25，50/05 §5.1）：内容命中 `{ kind: 'node'; nodeId: NodeId; region: 'body'\|'text'; local: Point }`；覆盖层接管 `{ kind: 'handle'; nodeId; handle: 'resize-n'…'rotate'\|'adjust'\|'endpoint-start'\|'endpoint-end'\|'crop-n'…'crop-nw'\|'connection-site'; index? } \| { kind: 'pin'; threadId } \| { kind: 'presence-label'; clientId }`；原 `region:'handle'` 并入 `kind:'handle'`；端点、裁剪、连接点三种手柄 2026-09-26 按 50/10 §7.5 补（§4.21），`index` 用于调整值序号与连接点序号 | zod | `engine-render/src/domain/contracts/hit-test.ts` |
 
 ### 2.3 纯函数
 
 | 函数 | 签名草案 | 所在文件 | 两端共用 |
 |---|---|---|---|
-| `lineBreakOpportunities` | `(text: string, locale: string) → BreakPoint[]` | `engine-layout/src/domain/text/line-breaker.ts` | 是（`Intl.Segmenter` 可用时用之，否则内置表；Node/浏览器均可用） |
+| `lineBreakOpportunities` | `(text: string, locale: string) → BreakPoint[]` | `engine-layout/src/domain/text/line-breaker.ts` | 是（主路径是 tooling 从最新 UCD 生成的 UAX#14 断行表 `linebreak-trie.ts`；`Intl.Segmenter` 没有 line 粒度，不用于断行；linebreak 1.1.0 只作 `LineBreakTest` 一致性对照，不进运行时；2026-09-26 按 R-d-27 更正，ADR-0027 决策 4 同步修订） |
 | `layoutParagraph` | `(paragraph: ParagraphInput, width: Px, measurer: TextMeasurer) → Line[]` | `engine-layout/src/domain/text/paragraph-layout.ts` | 是 |
 | `layoutTextBody` | `(body: TextBodyModel, box: Rect<Emu>, style: ResolvedTextStyle, measurer: TextMeasurer, opts: { autofit: AutofitSpec }) → TextLayout` | `engine-layout/src/domain/text/body-layout.ts` | 是（多栏/`anchor`/insets/autofit 迭代 ≤ 6 次，纯函数，`measurer` 以参数传入而非闭包捕获） |
 | `buildCaretMap` | `(lines: LineBox[]) → CaretMap` | `engine-layout/src/domain/text/caret-map.ts` | 是 |
 | `presetGeometryPath` | `(name: PresetGeometryName, adj: Record<string, number>, box: Rect<Emu>) → GeometryPath` | `engine-layout/src/domain/geometry/preset-table.ts` + `formula-eval.ts` | 是（187 种 `prstGeom` 编译期表，`tooling/scripts/compile-preset-geometry` 生成） |
 | `customGeometryPath` | `(spec: CustomGeometrySpec, box: Rect<Emu>) → GeometryPath` | `engine-layout/src/domain/geometry/custom-geometry.ts` | 是 |
 | `pathToSvgString` / `pathToPolygon` | `(path: GeometryPath) → string` / `(path: GeometryPath) → Point[]` | `engine-layout/src/domain/geometry/path-builder.ts` | 是（服务端不启动 Chromium 的校验路径用 `pathToPolygon` 做命中/几何断言） |
-| `composeTransform` / `invertTransform` | `(base: Transform, delta: Partial<Transform>) → Transform` / `(t: Transform) → Transform` | `engine-render/src/domain/geometry/transform.ts` | 是 |
+| `affineFromXfrm` / `multiplyAffine` / `invertAffine` / `applyAffine`（新增，§4.21） | `(xfrm: {offset; extent; rotation; flipH; flipV}) → Affine2x3`，按 `T(off + ext/2)·R(rot)·S(flip)·T(-ext/2)` 组装局部矩阵 / `(a, b) → Affine2x3` / `(m) → Affine2x3 \| null`（不可逆时返回 null）/ `(m, p: Point) → Point` | `engine-layout/src/domain/geometry/affine.ts` | 是（世界矩阵 = 父组矩阵链 × 局部矩阵；手柄在屏幕空间计算后经逆矩阵回到 EMU，50/22 §1.5；维持自研：只需四个函数、约 80 行，要带 EMU 品牌单位与 OOXML 翻转语义，transformation-matrix 3.1.0（MIT）可用但不值得多一个单点，R-d-29） |
+| `composeTransform` / `invertTransform` | `(base: Transform, delta: Partial<Transform>) → Transform` / `(t: Transform) → Transform` | `engine-render/src/domain/geometry/transform.ts` | 是（2026-09-26 起内部经 engine-layout `affine.ts` 计算，签名不变） |
+| `connectorPoints` | `(geometry: PresetGeometryName \| CustomGeometrySpec, adj: Record<string, number>, box: Rect<Emu>) → ConnectionPoint[]` | `engine-layout/src/domain/geometry/connector-points.ts` | 是（预设几何取 `cxnLst` 公式求值；图片等矩形取四边中点；PRD ED-28） |
+| `routeConnector`（新增，§4.21） | `(input: ConnectorRouteInput) → ConnectorRoute` | `engine-layout/src/domain/geometry/connector-routing.ts` | 是（M2 只处理 `straight`：两点定框与翻转；M3 按 PowerPoint 规则在 `bentConnector2..5` / `curvedConnector2..5` 中选型并算 `adj`，单条 ≤ 1 ms、单页 ≤ 50 条；不避障，规则以 PowerPoint 365 语料标定，50/22 §4.4；维持自研：libavoid 为 LGPL、elkjs 为 EPL 且面向整图布局，R-d-29） |
+| `rerouteConnectors`（新增，§4.21 整合） | `(items: readonly { connectorId: ShapeId; input: ConnectorRouteInput }[]) → { shapeId: ShapeId; route: ConnectorRoute }[]`（即 40/03 的 `ConnectorPatch[]`：`shapeId` + `ConnectorRoute` 的 `offset`/`extent`/`flipH`/`flipV`/`rotation`/`preset`/`adj`） | `engine-layout/src/domain/geometry/connector-routing.ts` | 是（批量调用 `routeConnector`，结果按 `connectorId` 排序以保证确定性；本包文档类型盲、不读 `PresentationBody`（R3），受影响连接符与两端连接点由调用方按 model-slide 收集：slide-ui 在 move / resize / rotate / flip / connectEnds 松手时，导出调用方在 `encode` 前对全部已连接连接符求派生几何，30/05 §14.5） |
 | `rotatedBBox` | `(bbox: Rect<Emu>, transform: Transform) → Rect<Emu>` | `engine-render/src/domain/geometry/bbox.ts` | 是 |
 | `pointInRotatedRect` / `pointInPolygon` | `(point: Point, bbox: Rect, transform: Transform) → boolean` / `(point: Point, polygon: Point[]) → boolean` | `engine-render/src/domain/geometry/hit-geometry.ts` | 是 |
 | `mergeDirtySet` | `(a: DirtySet, b: DirtySet) → DirtySet` | `engine-render/src/domain/contracts/dirty-set.ts` | 是（幂等、可结合，A28 反制测试的断言基础） |
@@ -244,7 +251,7 @@ interface TextMeasurer {
 
 契约套件 `runTextMeasurerConformance(factory: () => TextMeasurer)`（`engine-layout/src/testing/index.ts`），覆盖：空字符串 `width:0`；单调性（更长文本 `width` 不减）；`ascent+descent > 0`；`supports` 对未知字体族返回 `false` 而非抛错。`render-dom` 与 M-09 的 `node-font` Provider 都**必须**实例化本套件。
 
-**`TextInputHost`（render-dom 包内可插拔点，非跨包贡献点）**：2026-09-25 起接口签名、`TextEditIntent` 形状、IME 策略与升级为 `render.textInputHost` 贡献点的条件移交 [50/06](../50-frontend/06-text-editing-and-ime.md) §3–§4（rulings §4.19，referencePlan；原 §2.6 图 2-3 一并移交）；本文只保留落点：默认 Provider `'hidden-textarea'`（`render-dom/src/infrastructure/text-host/text-input-host.ts`）、备选 `'contenteditable-mirror'`（同目录，R-M2-1 spike 后定稿），选择权在 `render-dom` 的 `config.textHost.provider`；回调名 `callbacks.onEditIntent`（消费方 slide-ui，§13 Q-2 已结案）。
+**`TextInputHost`（render-dom 包内可插拔点，非跨包贡献点）**：2026-09-25 起接口签名、`TextEditIntent` 形状、IME 策略与升级为 `render.textInputHost` 贡献点的条件移交 [50/06](../50-frontend/06-text-editing-and-ime.md) §3–§4（rulings §4.19，referencePlan；原 §2.6 图 2-3 一并移交）；本文只保留落点：默认 Provider `'hidden-textarea'`（`render-dom/src/infrastructure/text-host/text-input-host.ts`）、备选 `'contenteditable-mirror'`（同目录，R-M2-1 spike 后定稿）、第三实现 `'edit-context'`（`edit-context.ts`，EditContext API，仅 Chromium 桌面 121+，作为 R-M2-1 spike 候选、默认不启用；2026-09-26 ADR-0028 修订，50/06 §11），三者同一接口；宿主可挂在画布文本框、表格单元格与备注栏（`TextTarget = {slideId; notes:true}`，TXT-17，M3）的容器上，挂载接口由 50/06 定义，选择权在 `render-dom` 的 `config.textHost.provider`；回调名 `callbacks.onEditIntent`（消费方 slide-ui，§13 Q-2 已结案）。
 
 **图 2-1 Definition 与 Provider 关系**
 
@@ -439,7 +446,8 @@ packages/engine-layout/src/
 │   │   └── geometry.ts             Rect、GeometryPath、GeometryCommand、ConnectionPoint、AdjHandle
 │   ├── text/
 │   │   ├── shaper.ts               run 切分（字体/脚本/方向边界）
-│   │   ├── line-breaker.ts         UAX#14 机会点 + CJK 禁则 + wrap=none + 强制换行(br)
+│   │   ├── line-breaker.ts         UAX#14 机会点（查 linebreak-trie）+ CJK 禁则 + wrap=none + 强制换行(br)
+│   │   ├── linebreak-trie.ts       UAX#14 断行类别表（生成物，来自 tooling/scripts/gen-linebreak-table.ts，文件头记 UCD 版本；2026-09-26 R-d-27）
 │   │   ├── paragraph-layout.ts     缩进/悬挂/项目符号/对齐/行距(spcPct|spcPts)/段前后
 │   │   ├── body-layout.ts          多栏、anchor、insets、autofit 迭代（≤6 次，measurer 以参数传入）
 │   │   └── caret-map.ts            (段落,偏移) ↔ (行,x) 双向映射构造
@@ -447,15 +455,17 @@ packages/engine-layout/src/
 │   │   ├── preset-table.ts         187 种 prstGeom 公式表（生成物，来自 tooling/scripts/compile-preset-geometry）
 │   │   ├── formula-eval.ts         OOXML 几何公式求值器（+- */ ?: abs at2 cat2 cos max min mod pin sat2 sin sqrt tan val）
 │   │   ├── custom-geometry.ts      custGeom 路径求值
+│   │   ├── affine.ts               2×3 仿射矩阵：由 xfrm 组装局部矩阵、相乘、求逆、作用于点（2026-09-26，§4.21）
 │   │   ├── path-builder.ts         命令序列 → SVG path 字符串 / 采样多边形（供命中测试）
-│   │   └── connector-points.ts     预设几何连接点坐标与法向（ED-28 连接符重算的输入，局部坐标系）
+│   │   ├── connector-points.ts     预设几何连接点坐标与法向（ED-28 连接符重算的输入，局部坐标系）
+│   │   └── connector-routing.ts    连接符路由：M2 直线两点定框，M3 肘形 / 曲线选型与 adj（2026-09-26，§4.21）
 │   ├── fonts/
 │   │   ├── fallback-table.ts       默认回退表数据（07 §5.3）+ 合并策略纯函数
 │   │   └── font-key.ts             family/weight/style/size → 规范化 FontKey
 │   └── units.ts                    Emu↔Px（dpi）、Pt↔Px 换算纯函数
 ├── application/
 │   └── services/
-│       └── layout.service.ts       LayoutService('layout')：layoutTextBody/presetGeometry/customGeometry/fonts/measurer() 门面；只读查询 fontsSettled(pageIds)（2026-09-25 登记，50/05 §7.3 第 6 条）；查表取当前 measurer 贡献；驱动 autofit 迭代；emit layout/measurer-changed
+│       └── layout.service.ts       LayoutService('layout')：layoutTextBody/presetGeometry/customGeometry/connectorPoints/routeConnector/fonts/measurer() 门面；只读查询 fontsSettled(pageIds)（2026-09-25 登记，50/05 §7.3 第 6 条）；查表取当前 measurer 贡献；驱动 autofit 迭代；emit layout/measurer-changed
 ├── infrastructure/
 │   └── cache/
 │       ├── measure-cache.ts        (fontKey, word) → MeasureResult，LRU 50k 条（A29 反制测试对象之一）
@@ -537,16 +547,21 @@ packages/render-dom/src/
 │   ├── fonts/
 │   │   └── font-face-loader.ts     FontFace 加载/去重/失败回退；document.fonts.load 完成后 emit render/font-fallback（回退命中时）
 │   ├── media/
+│   │   ├── image-preprocess.ts     canvas 第 ④ 角色：插入前的媒体与图标预处理（压缩、GIF 首帧、SVG 与图标 PNG 回退、视频海报帧、来自 URL 图片的 CORS 转码），createImageBitmap + canvas.toBlob，只产出 Blob（§4.21，ADR-0021 修订）
 │   │   └── media-resolver.ts       BlobRef → blob: URL；接入 engine-render MediaCache；`<image>` decode 事件；revoke 时机；文档内 SVG（asvg:svgBlip）只以图像上下文 `<image href=blob:>` 渲染，永不内联为 DOM
 │   ├── overlay/
 │   │   ├── overlay-layer.ts        覆盖层 svg 容器管理、zIndex 排序
-│   │   ├── selection-overlay.ts    选中框（含旋转）、8 个缩放手柄+旋转手柄
+│   │   ├── selection-overlay.ts    选中框（含旋转）、8 个缩放手柄+旋转手柄；调整手柄（黄色菱形）、线条与连接符端点手柄、目标形状的连接点标记（2026-09-26，50/10 §7.5）
+│   │   ├── crop-overlay.ts         选择覆盖层的裁剪模式子部件：框外原图变暗、裁剪手柄（不单独贡献 render.overlay，§13 Q-5）
 │   │   ├── remote-presence-overlay.ts 远端选区色框+名字标签+文本光标（消费中性 PresenceSnapshot[]，§1.3）
 │   │   ├── guides-overlay.ts       智能参考线/对齐线（数据来自交互层入参，本包不计算吸附）
+│   │   ├── grid-overlay.ts         网格覆盖层（ALN-03，§4.21 整合；网格间距由交互层入参）
+│   │   ├── media-playback-overlay.ts 编辑态音视频临时播放覆盖层（render.overlay id:'media-playback'，zIndex 55；播放图标命中为 HitResult kind:'handle'、手柄名 media-play；不写 Store，§4.21）
 │   │   └── comment-pins-overlay.ts 评论钉（数据由调用方以 OverlayContext 传入，无则不挂）
 │   ├── text-host/
 │   │   ├── text-input-host.ts      TextInputHost 默认 Provider('hidden-textarea')：隐藏 textarea、聚焦管理、beforeinput/keydown/composition* 事件转发为 TextEditIntent
 │   │   ├── contenteditable-mirror.ts TextInputHost 备选 Provider（ADR-0028 v0.2 spike 候选，R-M2-1，默认不启用）
+│   │   ├── edit-context.ts         TextInputHost 第三实现 'edit-context'（EditContext，Chromium 桌面 121+，R-M2-1 spike 候选，默认不启用；§4.21 ADR-0028 修订）
 │   │   ├── ime-composition.ts      组合态：瞬态覆盖层文本 + 候选窗定位（textarea 移到光标像素处）
 │   │   ├── caret-renderer.ts       自绘光标（闪烁 timer 归 effect）、本地选区高亮
 │   │   └── a11y-mirror.ts          屏幕阅读器镜像：当前段落文本同步、aria-*、只读态 role=document
@@ -579,19 +594,22 @@ packages/render-dom/src/
 | `domain/contracts/text-layout.ts` | 布局类型 | `TextBodyModel`、`ParagraphInput`、`RunInput`、`LineBox`、`CaretMap`、`TextLayout`、`AutofitSpec` | `@cordexjs/shared` | 与 `model-slide` 解耦的中性输入（A4） |
 | `domain/contracts/geometry.ts` | 几何类型 | `Rect`、`GeometryPath`、`GeometryCommand`、`ConnectionPoint`、`AdjHandle` | `@cordexjs/shared` | — |
 | `domain/text/shaper.ts` | run 切分 | `shapeRuns()` | `@cordexjs/shared` | 字体/脚本/方向边界识别 |
-| `domain/text/line-breaker.ts` | 断行机会点 | `lineBreakOpportunities()` | `@cordexjs/shared` | `Intl.Segmenter` 探测 + 内置表兜底 |
+| `domain/text/line-breaker.ts` | 断行机会点 | `lineBreakOpportunities()` | `@cordexjs/shared` | 查 `linebreak-trie.ts` 得 UAX#14 类别后按规则求机会点；不再探测 `Intl.Segmenter`（无 line 粒度，R-d-27） |
+| `domain/text/linebreak-trie.ts` | UAX#14 断行类别表（生成物） | `LINEBREAK_TRIE` | 无 | 来自 `tooling/scripts/gen-linebreak-table.ts`（读最新 UCD `LineBreak.txt`，CI `--check` 无差异）；一致性以 UCD `LineBreakTest.txt` 断言，linebreak 1.1.0 只作 devDependency 对照；约 20 KB |
 | `domain/text/paragraph-layout.ts` | 段落布局 | `layoutParagraph()` | 无 | 缩进/悬挂/项目符号/对齐/行距 |
 | `domain/text/body-layout.ts` | 正文布局与 autofit | `layoutTextBody()` | 无 | 纯函数，`measurer` 参数传入 |
 | `domain/text/caret-map.ts` | 光标映射构造 | `buildCaretMap()` | 无 | — |
 | `domain/geometry/preset-table.ts` | 预设几何公式表 | `PRESET_GEOMETRY_TABLE`（生成物） | 无 | 来自 `tooling/scripts/compile-preset-geometry` |
 | `domain/geometry/formula-eval.ts` | 几何公式求值器 | `evalGeometryFormula()` | 无 | `gd`/`avLst`/`gdLst`/`ahLst`/`cxnLst` |
 | `domain/geometry/custom-geometry.ts` | 自定义几何 | `customGeometryPath()` | 无 | `custGeom` |
+| `domain/geometry/affine.ts` | 2×3 仿射矩阵 | `Affine2x3`、`affineFromXfrm()`、`multiplyAffine()`、`invertAffine()`、`applyAffine()` | `@cordexjs/shared` | engine-render `transform.ts` 与 slide-ui 手柄几何共用；维持自研理由见 §2.3 |
 | `domain/geometry/path-builder.ts` | 路径转换 | `pathToSvgString()`、`pathToPolygon()` | 无 | 供 SVG 渲染与命中回退 |
-| `domain/geometry/connector-points.ts` | 连接点几何 | `connectorPoints()` | 无 | ED-28 连接符重算输入 |
+| `domain/geometry/connector-points.ts` | 连接点几何 | `connectorPoints()` | 无 | ED-28 连接符重算输入；返回 `ConnectionPoint{index, point, angle}[]` |
+| `domain/geometry/connector-routing.ts` | 连接符路由 | `routeConnector()`、`ConnectorRouteInput`、`ConnectorRoute` | 无 | M2 `straight`；M3 `bent` / `curved` 选型与 `adj`（50/22 §4.4）；单条 ≤ 1 ms |
 | `domain/fonts/fallback-table.ts` | 字体回退表 | `DEFAULT_FALLBACK_TABLE`、`mergeFallbackTable()` | 无 | 07 §5.3 数据 |
 | `domain/fonts/font-key.ts` | 字体键规范化 | `normalizeFontKey()` | 无 | — |
 | `domain/units.ts` | 单位换算 | `emuToPx()`/`pxToEmu()`/`ptToPx()` | `@cordexjs/shared` | dpi 由 Config 提供 |
-| `application/services/layout.service.ts` | 布局应用服务 | `LayoutService`（`'layout'`） | `@cordexjs/kernel` | 查表当前 `measurer` 贡献；驱动 autofit；按页记录字体请求集合并提供只读查询 `fontsSettled(pageIds): boolean`（这些页记录的每个字体请求都已到达、超时或失败即为真；`/render` ready 判据读取，50/05 §7.3 第 6 条、50/12 §11.5；2026-09-25 登记） |
+| `application/services/layout.service.ts` | 布局应用服务 | `LayoutService`（`'layout'`） | `@cordexjs/kernel` | 门面方法 `connectorPoints` / `routeConnector`（2026-09-26）供 slide-ui 交互层（移动命令的 `reroute` 参数）与导出调用方（编码器的 `connectorGeometry` 显式输入）在运行时调用；model-slide 与编码器都不 import 本包（30/05 §14.5）；查表当前 `measurer` 贡献；驱动 autofit；按页记录字体请求集合并提供只读查询 `fontsSettled(pageIds): boolean`（这些页记录的每个字体请求都已到达、超时或失败即为真；`/render` ready 判据读取，50/05 §7.3 第 6 条、50/12 §11.5；2026-09-25 登记） |
 | `infrastructure/cache/measure-cache.ts` | 度量结果缓存 | `MeasureCache` | 无 | LRU 50k（A29） |
 | `infrastructure/cache/layout-result-cache.ts` | 布局结果缓存 | `LayoutResultCache` | 无 | 内容哈希键 LRU |
 | `testing/index.ts` | 测试子路径聚合 | `FixedWidthMeasurer`、`runTextMeasurerConformance()` | `@cordexjs/kernel/testing`（类型） | `./testing` |
@@ -651,13 +669,18 @@ packages/render-dom/src/
 | `infrastructure/primitives/clip.ts` | 裁切 | `applyClip()` | `@cordexjs/engine-layout`（`GeometryPath` 类型） | 几何裁切、`srcRect` 裁切 |
 | `infrastructure/measurer/canvas-measurer.ts` | canvas 度量 Provider | `canvasMeasurer`（`TextMeasurer`，`id:'canvas'`） | `@cordexjs/engine-layout`（类型） | `OffscreenCanvas.measureText` |
 | `infrastructure/fonts/font-face-loader.ts` | 字体加载 | `FontFaceLoader` | 无 | 去重、失败回退、`fonts-ready` |
+| `infrastructure/media/image-preprocess.ts` | 媒体与图标预处理（2026-09-26 新增，canvas 第 ④ 角色） | `compressImage()`、`firstFrame()`、`rasterizeSvg()`、`posterFrame()`、`transcodeUrlImage()`（均返回 `Promise<Blob>`） | 无 | 只用 `createImageBitmap`（`resizeQuality:'high'`）+ canvas `toBlob`；SVG 先经白名单消毒再经 `<img>` 解码；视频经 `<video>` 定位到目标帧；单次输出 ≤ 16,777,216 像素；文档类型盲；不引 pica（默认起 `blob:` Worker）；调用方为 slide-ui 插入流程（50/05 §8.3、50/23） |
 | `infrastructure/media/media-resolver.ts` | 媒体解析 | `MediaResolver` | `@cordexjs/engine-render`（`MediaCache` 类型） | `BlobRef→blob:` URL；文档内 SVG 只经 `<image>` 图像上下文渲染（脚本/外链在 SVG-as-image 中天然失效） |
 | `infrastructure/overlay/overlay-layer.ts` | 覆盖层容器 | `OverlayLayer` | `@cordexjs/engine-render`（类型） | zIndex 排序 |
-| `infrastructure/overlay/selection-overlay.ts` | 选中框/手柄 | `selectionOverlay`（`OverlayRenderer`，`id:'selection'`） | 无 | 8 手柄 + 旋转手柄 |
+| `infrastructure/overlay/selection-overlay.ts` | 选中框/手柄 | `selectionOverlay`（`OverlayRenderer`，`id:'selection'`） | 无 | 8 手柄 + 旋转手柄；调整、端点手柄与连接点标记（坐标来自 `GeometryPath.adjHandles` / `connections` 经 `affine` 变换）；命中优先级端点 > 调整 > 旋转 > 缩放（50/10 §7.5） |
+| `infrastructure/overlay/crop-overlay.ts` | 裁剪模式子部件 | `renderCropMode()` | 无 | 由 `selection-overlay.ts` 在图片裁剪模式下调用；框外原图降低不透明度、四角四边裁剪手柄；命中结果 `handle:'crop-*'`；不单独贡献 `render.overlay` |
 | `infrastructure/overlay/remote-presence-overlay.ts` | 远端光标 | `remotePresenceOverlay`（`id:'remote-presence'`） | 无 | 消费中性 `PresenceSnapshot[]` |
+| `infrastructure/overlay/grid-overlay.ts` | 网格覆盖层（2026-09-26 整合新增，ALN-03） | `gridOverlay`（`OverlayRenderer`，`id:'grid'`） | 无 | 网格间距与显隐由交互层入参（50/18 ALN-03）；只画线、不参与命中 |
+| `infrastructure/overlay/media-playback-overlay.ts` | 音视频临时播放覆盖层（2026-09-26 新增） | `mediaPlaybackOverlay`（`OverlayRenderer`，`id:'media-playback'`，zIndex 55） | 无 | 编辑态点击播放图标即在覆盖层内挂 `<video>`/`<audio>` 临时播放，不写 Store；播放图标以 `HitResult{kind:'handle', handle:'media-play'}` 命中，不新增 kind；不支持的编码显示角标（50/05 §8.5、50/23 §7.2） |
 | `infrastructure/overlay/guides-overlay.ts` | 参考线 | `guidesOverlay`（`id:'guides'`） | 无 | 数据来自调用方 |
 | `infrastructure/overlay/comment-pins-overlay.ts` | 评论钉 | `commentPinsOverlay`（`id:'comment-pins'`） | 无 | 无数据时不挂 |
 | `infrastructure/text-host/text-input-host.ts` | 隐藏输入宿主（默认） | `hiddenTextareaProvider`（`TextInputHostProvider`） | 无 | `beforeinput`/`composition*` → `TextEditIntent` |
+| `infrastructure/text-host/edit-context.ts` | 第三文本宿主（2026-09-26 新增） | `editContextProvider`（`TextInputHostProvider`，`id:'edit-context'`） | 无 | EditContext API（仅 Chromium 桌面 121+），同一 `TextEditIntent` 输出；不支持时不注册；R-M2-1 spike 候选，默认不启用（ADR-0028 修订、50/06 §11） |
 | `infrastructure/text-host/contenteditable-mirror.ts` | 备选文本宿主 | `contenteditableMirrorProvider` | 无 | ADR-0028 v0.2 spike 候选（R-M2-1），默认不启用 |
 | `infrastructure/text-host/ime-composition.ts` | IME 组合态 | `CompositionOverlay` | 无 | 候选窗定位 |
 | `infrastructure/text-host/caret-renderer.ts` | 自绘光标 | `CaretRenderer` | `@cordexjs/engine-layout`（`CaretMap` 类型） | 闪烁 timer 归 effect |
@@ -673,7 +696,7 @@ packages/render-dom/src/
 
 | 包 | `.` 导出概要 | `./testing` 导出概要 | 稳定级（推荐） |
 |---|---|---|---|
-| `@cordexjs/engine-layout` | `TextMeasurer`/`layoutMeasurerPoint`、`TextBodyModel`/`LineBox`/`CaretMap`/`TextLayout`、`GeometryPath`、`LayoutService` 类型、单位换算函数 | `FixedWidthMeasurer`、`runTextMeasurerConformance` | `beta`（推荐）：`TextBodyModel` 形状随 M-03/M-13 首次真实接入可能微调 |
+| `@cordexjs/engine-layout` | `TextMeasurer`/`layoutMeasurerPoint`、`TextBodyModel`/`LineBox`/`CaretMap`/`TextLayout`、`GeometryPath`/`ConnectionPoint`、`LayoutService` 类型、单位换算函数；2026-09-26 增 `Affine2x3` 与 `affineFromXfrm`/`multiplyAffine`/`invertAffine`/`applyAffine`、`connectorPoints`、`routeConnector`/`ConnectorRouteInput`/`ConnectorRoute`（§4.21） | `FixedWidthMeasurer`、`runTextMeasurerConformance` | `beta`（推荐）：`TextBodyModel` 形状随 M-03/M-13 首次真实接入可能微调 |
 | `@cordexjs/engine-render` | `Scene`/`SceneNode`/`Transform`、`SceneProvider`/`renderScenePoint`、`RenderTarget`/`renderTargetPoint`、`ElementRenderer`/`renderElementPoint`、`OverlayRenderer`/`renderOverlayPoint`、`DirtySet`、`Viewport`、`HitResult`、`RenderService` 类型、`mapViewMode()`（新增，14 §1 C-13） | `ManualScheduler`、`SpyRenderer`、`RecordingTarget`、`fakeScene`、`runRenderTargetConformance` | `beta`（推荐）：`DirtySet.changed` 的属性级精度随 M-07 首个真实 `SceneProvider` 落地后收紧 |
 | `@cordexjs/render-dom` | `domRenderTarget`/`canvasMeasurer`（两个 Provider 工厂）、`TextInputHostProvider` 类型 | `mountTestSurface`、`mountInHappyDom`、`snapshotSvg`、`FakeFontFace` | `beta`（推荐）：`TextInputHost` 二选一 Provider 由 R-M2-1 spike 定稿前不收紧 |
 
@@ -774,6 +797,10 @@ src/__tests__/
 ├── paragraph-layout.test.ts        缩进/悬挂/项目符号/对齐/行距，对应 domain/text/paragraph-layout.ts
 ├── body-layout-autofit.test.ts     autofit 收敛 ≤ 6 次，对应 domain/text/body-layout.ts
 ├── preset-geometry.test.ts         187 种全量求值不抛错，对应 domain/geometry/{preset-table,formula-eval}.ts
+├── line-breaker-ucd.test.ts        UCD LineBreakTest.txt 全量一致；linebreak-trie.ts 与 gen-linebreak-table.ts 输出一致（R-d-27）
+├── affine.test.ts                  组装、相乘、求逆互逆（fast-check），翻转与组内嵌套矩阵链，对应 domain/geometry/affine.ts
+├── connector-points.test.ts        187 种预设几何的 cxnLst 序号与坐标（对照 presetShapeDefinitions.xml）
+├── connector-routing.test.ts       M2 直线两点定框与翻转；M3 肘形 / 曲线选型与 adj 对照 PowerPoint 365 语料 connector-*；单条 ≤ 1 ms
 ├── caret-map.test.ts               对应 domain/text/caret-map.ts（含单位换算 domain/units.ts 边界断言）
 └── measure-cache-eviction.test.ts  A29 反制：LRU 50k 塞满 3× 断言 evicted>0，对应 infrastructure/cache/measure-cache.ts
 ```
@@ -805,7 +832,7 @@ src/__tests__/                      vitest browser mode（真实 Chromium）+ ha
 ├── reconcile.test.ts               z 变化只移动节点，对应 infrastructure/paint/reconcile.ts
 ├── font-fallback.test.ts           字体回退命中 → emit render/font-fallback，对应 infrastructure/fonts/font-face-loader.ts
 ├── ime-composition.test.ts         合成 compositionstart/update/end 事件序列，对应 infrastructure/text-host/**
-├── overlay-coordinates.test.ts     覆盖层坐标 + overlay-independent 断言（改 selection 不触发任何 ElementRenderer.update）
+├── overlay-coordinates.test.ts     覆盖层坐标 + overlay-independent 断言（改 selection 不触发任何 ElementRenderer.update）；旋转、翻转与组内对象的调整 / 端点 / 连接点 / 裁剪手柄位置与命中优先级（2026-09-26）
 ├── hit-test.test.ts                elementFromPoint + 几何回退，对应 infrastructure/hit-test/dom-hit-test.ts
 ├── text-lines-bidi.test.ts         每行一个 <text>、run 不设 x；RTL/混排行由浏览器 bidi 重排（阿拉伯/希伯来黄金用例），对应 infrastructure/primitives/text-lines.ts
 ├── svg-image-context.test.ts       安全基线：文档内 SVG 只以 <image> 渲染、含 <script>/外链的 SVG 不执行不出网；断言本包无 innerHTML/insertAdjacentHTML/DOMParser 调用点
@@ -848,7 +875,7 @@ fixture 来源：`testing/index.ts` 的 `mountTestSurface()`/`mountInHappyDom()`
 
 ### M1：首个可运行切片——fixture 场景 → dom 目标渲染 → 命中测试
 
-1. `engine-layout`：`domain/text/{line-breaker,paragraph-layout,body-layout}.ts` 与 `domain/geometry/{preset-table,formula-eval,path-builder}.ts` 落地到可跑通 `layoutTextBody`/`presetGeometryPath` 的黄金用例。
+1. `engine-layout`：`domain/text/{line-breaker,linebreak-trie,paragraph-layout,body-layout}.ts`（断行表由 `tooling/scripts/gen-linebreak-table.ts` 生成，R-d-27）与 `domain/geometry/{preset-table,formula-eval,path-builder,affine}.ts` 落地到可跑通 `layoutTextBody`/`presetGeometryPath` 的黄金用例。
 2. `engine-render`：`domain/contracts/dirty-set.ts`（`mergeDirtySet`）、`application/services/{render.service,frame-scheduler,viewport-state}.ts`、`infrastructure/{cache/*,registry/renderer-table}.ts` 全部落地；用 `testing/index.ts` 的 `fakeScene()` + `SpyRenderer('fixture:box')` + `RecordingTarget` 跑通 §2.6 九阶段管线（不依赖真实 DOM）。
 3. `render-dom`：`infrastructure/target/{dom-render-target,dom-surface,dom-page-view}.ts` + `infrastructure/paint/{painter,reconcile}.ts` + `infrastructure/primitives/svg-primitives.ts` 落地，实现 `render.target('dom')` 真实 `mount`/`paint`；`infrastructure/measurer/canvas-measurer.ts` 实现 `layout.measurer('canvas')`。
 4. 端到端切片：用 `model-core/testing/fixture-document-type.ts` 的 `SceneProvider`（`kind:'fixture:box'`）+ 一个最小 `ElementRenderer('dom:fixture:box')`（画一个矩形）+ 真实 `render-dom` 挂载到 happy-dom/浏览器容器 → `hitTest(point)` 返回正确 `HitResult`。
@@ -868,7 +895,8 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 
 - M1（本模块内，rulings §4.15 Q7 竖排/RTL 分阶段）：`text-lines.ts` 按「每行一个 `<text>`、run 不设 x」输出，RTL **查看**交给浏览器 bidi；竖排 `vert`/`vert270` 以文本框旋转实现、`eaVert` 近似；竖排编辑 E~(P2)，RTL 编辑与 HarfBuzz shaping 放 M4/M5（ADR-0027 口径不变：canvas `measureText` + 自研断行）。
 - M2：`server-headless`（M-09）实现 `node-font` Provider，实例化本模块的 `runTextMeasurerConformance`；`TextInputHost` 的 `contenteditable-mirror` 备选 spike（R-M2-1）定案（结论决定 §2.5 升级条件是否触发）；**`toImage` Web 字体位图 spike**（SVG-as-image 取不到页面字体，CJK 尤甚），结论前位图封面/批量 PNG 自 M3 起走 `server-png`。
-- M3：`slide-render-chart` 等新 `render.element` 贡献方接入，验证 §8 的「零改动」冻结层锁文件仍无 diff；**M3 末**以最小 canvas Provider 跑 `runRenderTargetConformance`（`conformance-canvas-target.test.ts`），验证 `render.target` 契约（rulings §4.15 Q4）。
+- M2（§4.21）：`connector-points.ts` 与 `connector-routing.ts` 的 `straight` 分支随连接符插入与直线跟随落地（PRD ED-28 M2 E~）；`selection-overlay.ts` 补调整、端点手柄与连接点标记，`crop-overlay.ts` 随图片裁剪模式（P1）落地。
+- M3：`connector-routing.ts` 的 `bent` / `curved` 选型与 `adj` 重算（ED-28 M3 E）；`slide-render-chart` 等新 `render.element` 贡献方接入，验证 §8 的「零改动」冻结层锁文件仍无 diff；**M3 末**以最小 canvas Provider 跑 `runRenderTargetConformance`（`conformance-canvas-target.test.ts`），验证 `render.target` 契约（rulings §4.15 Q4）。
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -924,6 +952,17 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 |---|---|---|
 | TX-10 ⑤ | §9 末段 | 覆盖率改指 70/01 §8，端到端性能预算改指 50/13 数值表与 70/09 |
 
+### 2026-09-26 回写（rulings §4.21 复用、架构与可追加元素）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| R-d-27（断行来源） | §2.3 `lineBreakOpportunities` 行、§4.1、§5.1 `line-breaker.ts` 行与新增 `linebreak-trie.ts` 行、§9.1、§11 M1 | `Intl.Segmenter` 无 line 粒度，原「可用时用之」作废；UAX#14 表由 tooling 从最新 UCD 生成为主路径，linebreak 只作对照；ADR-0027 决策 4 同步修订（C4） |
+| R-d-29（选择手柄与矩阵维持自研） | §2.2 `Affine2x3`、§2.3 仿射四函数与 `composeTransform` 行、§4.1、§5.1 新增 `affine.ts` | 2×3 仿射矩阵在 engine-layout 自写；engine-render `transform.ts` 改为经它计算，签名不变 |
+| R-d-78、50/22 §4（连接符） | §2.2 `ConnectionPoint`、`ConnectorRouteInput`/`ConnectorRoute`，§2.3 `connectorPoints`/`routeConnector`，§4.1、§5.1 新增 `connector-routing.ts`，`layout.service.ts` 门面，§9.1、§11 | M2 直线两点定框，M3 肘形 / 曲线选型与 `adj`；交互层与导出调用方经 `layout` 服务调用，结果以 `reroute` / `connectorGeometry` 传给命令与编码器，model-slide 不 import 本包（30/05 §14.5） |
+| 50/10 §7.5（元素手柄） | §2.2 `HitResult.handle` 补 `endpoint-start`/`endpoint-end`/`crop-*`/`connection-site`；§4.3、§5.3 `selection-overlay.ts` 说明与新增 `crop-overlay.ts`；§9.3 | 手柄仍是选择覆盖层的内部子部件，`render.overlay` 条目数不变（§13 Q-5） |
+
+计数：§4 目录树与 §5 文件表同步各增 4 个文件（`linebreak-trie.ts`、`affine.ts`、`connector-routing.ts`、`crop-overlay.ts`）；整合阶段再同步各增 4 个（`media/image-preprocess.ts`、`overlay/grid-overlay.ts`、`overlay/media-playback-overlay.ts`、`text-host/edit-context.ts`，出自 50/05 §8.3、50/18、50/23、ADR-0028 修订）。
+
 ## 13. 未决问题
 
 | 编号 | 问题 | 推荐默认值 | 影响范围 |
@@ -932,6 +971,7 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 | Q-2 | ~~`TextEditIntent` 的确切消费方（`slide-render` 还是 `slide-ui`）与回调注册 API 形状（G-6）~~ **已结案（14 §5.4 M-06/G-6+Q-2、§6.2，rulings §4.15 Q4 回写）** | 定稿：`RenderService.attach(targetId, container, callbacks?)` 的可选 `callbacks.onEditIntent`（IoC），消费方为 `slide-ui`（持有编辑态与命令调用权）；`render-dom` 不新增依赖边 | `engine-render/src/application/services/render.service.ts`（`attach` 签名）、`render-dom/src/infrastructure/text-host/**`；M-10 §1.3 登记消费方、02 §4.15 `layers/ime-host.ts` 注释回写（14 §5.4） |
 | Q-3 | ~~`TextInputHost` 是否需要升级为跨包贡献点（G-5）~~ **已结案（14 §5.3 M-06/G-5+Q-3 → ADR-0028 回写）** | 定稿：维持 `render-dom` 包内可插拔点；升级为 `render.textInputHost` 贡献点的条件见 §2.5（R-M2-1 spike 否定隐藏 textarea，或出现需跨包可发现的第三方实现；升级时回写章程 §5.5 与 ADR-0028 并补契约套件） | `render-dom/src/infrastructure/text-host/text-input-host.ts`；仅触发升级条件时才动章程 §5.5 |
 | Q-4 | `HitTestIndex` 在单页 300+ 元素、频繁缩放场景下是否需要空间加速结构（四叉树/BVH）而非按 `zIndex` 线性扫描，以满足 NF-01 命中测试 p95 ≤ 2 ms | M1 用线性扫描（配合包围盒提前退出）；M2 按 bench 结果决定是否引入四叉树 | `engine-render/src/domain/contracts/hit-test.ts` |
-| Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐架构 07 §3.2 的文件清单）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
+| Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐 40-modules/06 §4.3 的文件清单）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
 | Q-6 | ~~四个 `render.*` 贡献点与 `layout.measurer` 的 `conflict` 策略是否应统一为 `'error'`（G-10）~~ **（结案，2026-09-25）** | 不统一：`render.scene`/`render.target`/`layout.measurer` 为 `'error'`（同 id 重复注册视为配置错误），`render.element`/`render.overlay` 为 `'replace'`（K-3、rulings §4.18 GV-24，以架构 03 §3.6 为准） | `engine-render/src/render.contribution.ts`、`engine-layout/src/layout.contribution.ts` |
+| Q-8（2026-09-26，§4.21） | M3 肘形 / 曲线连接符的选型与 `adj` 公式如何标定 | 以 PowerPoint 365 导出为 oracle，建 `fixtures/pptx/features/connector-*` 语料覆盖四向法向组合与自由端，`connector-routing.test.ts` 逐条比对；规则框架见 50/22 §4.4 | `engine-layout/src/domain/geometry/connector-routing.ts` |
 | Q-7（**已结案**，2026-09-25） | `Viewport.zoom` 的 min/max 默认值 | 引擎 clamp 保持 `min: 0.1`/`max: 8`；产品缩放范围 10–400% 由 preset 默认配置下发（50/05 §4.1、50/10 §7；40/11 `SlidePresetOptions`） | `engine-render/src/config.ts` |

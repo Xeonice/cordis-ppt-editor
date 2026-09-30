@@ -1,6 +1,6 @@
 # 04 文档模型：model-core 抽象、model-slide 对象模型、OOXML 映射、不透明保留、样式继承、schema 迁移
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG / INC-39 评论命名空间 `comments.threads`（§2.7、§10）；D-M2-CONTENT 版本恢复服务端用例随 M2 协同后端（§2.1、§10））；2026-09-25（§4.19）；2026-09-26（§4.20）（FE-03：§12.3 I-ML2 回退链落为单一纯函数 `defaultLayoutOf`；FE-04：§3.1a 第 3 条「引用者视为已删除」限于包含关系，I-ML2 墓碑期读时容错、硬删作业同事务修复；FE-23/FE-05：§12.3 末段 `deleteMaster.reassignTo` 目标母版规则与可撤销） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-19；2026-09-24（rulings §4.15：Q3 有身份实体删除改为软删除墓碑 + TTL 硬删除（§3.1a）；Q5 导入规模检查与超包络拒绝（§5.5）；Q7 Relationship 外部目标全部保留仅 http(s) 可激活、SmartArt drawing M1 必须只读解析、OLE 预览、EMF/WMF M2 栅格化；Q8 `docProps/thumbnail.jpeg` 为 encode() 显式输入）；2026-09-24（rulings §4.16 Q15：§4.1 部件表 `vbaProject.bin` 改为拒绝导入）；2026-09-24（复核修正，rulings §4.17：§3.1a 墓碑硬删除执行者改指 server-collab `tombstone-sweeper.ts`、TTL 键 `tombstone.ttlHours`；D4 撤销不复活他人删除；§5.5 `format.quota_exceeded` 补 `dimension`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-COMMENTS-PKG / INC-39 评论命名空间 `comments.threads`（§2.7、§10）；D-M2-CONTENT 版本恢复服务端用例随 M2 协同后端（§2.1、§10））；2026-09-25（§4.19）；2026-09-26（§4.20）（FE-03：§12.3 I-ML2 回退链落为单一纯函数 `defaultLayoutOf`；FE-04：§3.1a 第 3 条「引用者视为已删除」限于包含关系，I-ML2 墓碑期读时容错、硬删作业同事务修复；FE-23/FE-05：§12.3 末段 `deleteMaster.reassignTo` 目标母版规则与可撤销）；2026-09-26（§4.21：§3.3 `capabilities` 扩五位、`createDefault` 加选项；新增 §3.7 可追加元素字段补全（含 `Hyperlink.target` 判别联合、`UnknownShape.source`、`Slide.showMasterShapes`、`Presentation.firstSlideNum`）、§3.8 表格归一化与 I-TBL1/I-TBL2、§3.9 图表数据（M3）；§3.6 `tableCell` 按 id；§4 映射补 `objectDefaults`、`decorative`、`svgBlip`、`alphaModFix`、裸 `p:contentPart`；§5.3/§5.4 `[Content_Types].xml` 与 `.rels` 结构不变原样写回；§12.2 占位符族对齐 PRD ML-03）；2026-09-26（§4.21 整合：§3.6 新增 tableCells 矩形选区锚点；§3.7 补 Presentation.sections、Slide.sectionId、guides（P2）与 M4+ 远期字段；§3.8 I-TBL2 并发插入落在合并区内改为扩张修复；§3.9 variant 补 marker、smooth、scatterStyle；§4.1 tableStyles.xml 只读解析改为 M1 起；§5.5 注明 XmlLimits 唯一表；§3.7 BlipFill 补 external 与 effects（ADR-0018 决策 5））；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：id 表 rels `rId` 改为沿用读入值、关系集合不变原字节写回） | 依赖：charter v0.1
 > 与 05（命令/Mutation/历史）、06（Yjs 映射，B 线）、07（渲染，B 线）配套。所有签名为「草案」。
 
 ---
@@ -52,7 +52,7 @@ interface DocumentType<S = unknown> {
   readonly unitServices: readonly string[]             // 需要按 Unit 隔离的额外服务名（如 'slides'）
   readonly selectionKinds: readonly string[]           // 该类型的 Selection.kind 取值
   readonly viewModes: readonly string[]                // 该类型的视图模式（slide：'normal' | 'master' | 'presenter'；fixture：['normal']）；水平层 Operation `view.setMode` 据此校验（05 §13.3）
-  // —— 服务端可调用的纯函数面（B 线 08/ADR-0034 要求；全部无副作用、可在 server-headless 运行）——
+  // —— 服务端可调用的纯函数面（60-backend/06 §8、ADR-0034 要求；全部无副作用、可在 server-headless 运行）——
   readonly invariants: readonly Invariant<S>[]         // 不变量：{ id; check(body): Violation[]; repair?(body, violations): S }（无父子环、parentId/layoutId 存在、order 唯一…）
   validateChangeSet(view: ReadonlyStoreView<S>, changeSet: ChangeSet): Result<void, readonly Violation[]>   // 默认实现 = 对 touched 路径相关的 invariants 求值（服务端软门禁）
   diff?(a: Persisted<S>, b: Persisted<S>): readonly Mutation[]   // 版本恢复 = 计算 a→b 的 Mutation 序列并作为一个事务（origin system('restore')）写回；版本恢复的服务端用例与界面均为 M3（PRD 05 §0.3）
@@ -83,7 +83,7 @@ interface DocumentStore<S = unknown> {
 interface TransactOptions { origin: Origin; label: string; meta?: JsonObject; undoable?: boolean /* 默认 true */ }
 ```
 
-**渐进打开的追加语义**（2026-09-25，rulings §4.18 CO-12，与 07 §14.2 同口径）：本地打开大文件时，Worker 跑 import-pipeline，**先**完成规模包络计数（超系统天花板整体拒绝，不装到一半才失败），**再**分批回传；首批经 `load(body, system('load'))` 装入后立即发 `unit/opened`（可渲染、可编辑），后续批次经 `transact(fn, { origin: { kind:'system', reason:'import' }, undoable: false })` **追加**——只写入首批未出现的实体键，不改写已有键；该来源不入撤销栈（`canUndo(local)` 不受影响）、`dirty()` 不计入（codec 的 DirtyTracker 忽略 `system('import'|'load')` 来源，§5.2），全部批次到齐后发 `unit/loaded`（事件表登记见 40-modules/02）。全选、查找替换、导出、跨页重排等全文类命令在 `unit/loaded` 之前等待或禁用（40-modules/03 命令守卫）。协同模式不走此路径：Y 状态由 HTTP 快照 bootstrap（06 §5）。
+**渐进打开的追加语义**（2026-09-25，rulings §4.18 CO-12，与 50-frontend/04 §2 同口径）：本地打开大文件时，Worker 跑 import-pipeline，**先**完成规模包络计数（超系统天花板整体拒绝，不装到一半才失败），**再**分批回传；首批经 `load(body, system('load'))` 装入后立即发 `unit/opened`（可渲染、可编辑），后续批次经 `transact(fn, { origin: { kind:'system', reason:'import' }, undoable: false })` **追加**——只写入首批未出现的实体键，不改写已有键；该来源不入撤销栈（`canUndo(local)` 不受影响）、`dirty()` 不计入（codec 的 DirtyTracker 忽略 `system('import'|'load')` 来源，§5.2），全部批次到齐后发 `unit/loaded`（事件表登记见 40-modules/02）。全选、查找替换、导出、跨页重排等全文类命令在 `unit/loaded` 之前等待或禁用（40-modules/03 命令守卫）。协同模式不走此路径：Y 状态由 HTTP 快照 bootstrap（06 §5）。
 
 契约测试（`model-core/testing/document-store-conformance.ts`）覆盖：原子性、`state()` 引用语义、`observe` 时序（一次事务一次通知）、`undo/redo` 按 origin、`load` 后 `canUndo` 为 false、快照往返 `toSnapshotBody()` 深等于 `load` 入参、`text` op 语义、嵌套事务拒绝（`STORE_NESTED_TRANSACTION`）、**import 追加**（首批 `load` + 若干 `system('import')` 追加批次后：`toSnapshotBody()` 深等于一次性 `load` 全量的结果；`canUndo` 为 false；`dirty()` 为 null；追加批次触碰已有键时拒绝）。
 
@@ -93,7 +93,7 @@ interface TransactOptions { origin: Origin; label: string; meta?: JsonObject; un
 type StoreOp =
   | { op: 'set';    path: Path; value: JsonValue }                                  // 对象键写入/替换（含实体的 order: FracKey → 「移动」）
   | { op: 'delete'; path: Path }                                                    // 对象键删除
-  | { op: 'insert'; path: Path; index: number; items: readonly JsonValue[] }        // 无身份值列表插入（columnWidths、渐变 stops、tab stops…）
+  | { op: 'insert'; path: Path; index: number; items: readonly JsonValue[] }        // 无身份值列表插入（渐变 stops、tab stops…；表格列宽 2026-09-26 起改为 columns 记录表，原 columnWidths 数组作废，§3.8）
   | { op: 'remove'; path: Path; index: number; count: number }                      // 无身份值列表删除
   | { op: 'text';   path: Path; delta: TextDelta }                                  // 富文本 delta（与 Y.Text delta 同形）
 // 没有 move：有身份实体的顺序是实体属性 `order: FracKey`（ADR-0032），移动 = 单键 set，并发 LWW
@@ -101,7 +101,7 @@ type TextDelta = readonly ({ insert: string; attributes?: JsonObject } | { retai
 ```
 
 设计要点：
-- 五种原语覆盖三种文档类型的结构变化（对象树 + 无身份值列表 + 富文本）；有身份集合（页、形状、母版、版式、节、评论…）一律为**实体表 + `order: FracKey`**，排序键 `(order, id)`；未来 `model-sheet` 的稀疏网格用 `set` 于 `cells.<sheet>:<r>:<c>` 键（12）。
+- 五种原语覆盖三种文档类型的结构变化（对象树 + 无身份值列表 + 富文本）；有身份集合（页、形状、母版、版式、节、评论，以及表格的行列、图表的类别系列…）一律为**实体表 + `order: FracKey`**，排序键 `(order, id)`；未来 `model-sheet` 的稀疏网格用 `set` 于 `cells.<sheet>:<r>:<c>` 键（12）。
 - `FracKey` 由**命令层**经 `@cordexjs/shared/order.between(prev, next)` 生成并放入 Mutation 载荷（含随机后缀，因此不能在纯函数 `lower()` 内生成）；Mutation 载荷禁止数组下标（06 I4）。
 - 逆操作在原语层推导：`set`→`set(旧值)`或`delete`，`insert`→`remove`，`text`→delta 求逆（需旧文本，Provider 在应用时捕获）。
 - StoreOp 只在本地应用，**不上网络**；协同传输的是 CRDT update（06）。
@@ -154,7 +154,7 @@ interface Migration<S1 = unknown, S2 = unknown> { documentType: string; from: nu
 interface MigrationsService {
   plan(documentType: string, from: number, to: number): Result<readonly Migration[], MigrationError>
   run(snapshot: Snapshot, to?: number): Result<Snapshot, MigrationError>            // 默认迁到 documentType.schemaVersion
-  runOnUnit(scope: UnitScope, from: number, to: number): Promise<Result<void, MigrationError>>   // 服务端批量迁移（B 线 08 要求）：导出 body → 迁移 → 以 origin system('migration') 重新 load
+  runOnUnit(scope: UnitScope, from: number, to: number): Promise<Result<void, MigrationError>>   // 服务端批量迁移（60-backend/05 §9.1 要求）：导出 body → 迁移 → 以 origin system('migration') 重新 load
 }
 ```
 
@@ -327,7 +327,7 @@ interface PresentationBody {
 1. **打标记**：命令层产出的删除 Mutation 降级为 `set(['shapes', id, '_deleted'], { at, by })`（墓碑）；实体 id 保持稳定，不复用、不换新 id。
 2. **读路径过滤**：`query/selectors.ts`、`slides` 服务、SceneProvider、导出编码器一律跳过带 `_deleted` 的实体；`_deleted` 实体不参与 `(order, id)` 排序结果。
 3. **不变量**：墓碑实体不得被新的引用指向（`containerId`/`parentId`/占位符继承/连接线端点）；指向墓碑的既有引用由 `invariants/` 的修复规则按「引用者一并视为已删除」处理——**这只指包含关系**（`containerId`、`parentId`：父被删则子随之不可见，恢复父即恢复子），不适用于 `layoutId`、`masterId`、`themeId` 这类引用：它们在墓碑期读时容错（读路径取替代目标渲染、不改写引用，撤销删除即恢复），只在目标被硬删时由硬删作业同一事务修复（§12.3，2026-09-26 rulings §4.20 FE-04）；墓碑在 TTL 内计入文档总元素上限（§5.5）。
-4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；08 §3、60-backend/05 §8、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
+4. **硬删除**：墓碑超过 TTL（默认 24 h，部署配置 `tombstone.ttlHours`）后由服务端墓碑硬删除单写者执行真正的 `delete`（server-collab `tombstone-sweeper.ts` + `LeaseLock`，判定 `_deleted.at + ttlHours < now`，origin `system('maintenance')`；60-backend/05 §2、§8、40-modules/09）。两条不等 TTL 的路径按层级拆开命名（2026-09-25，rulings §4.18 CO-07）：**文档级「永久删除文档」**（S-2 文档擦除，purgeAll）是整文档清除，不是单个实体的状态迁移；**元素级「彻底删除元素」**只对已是墓碑的实体开放、只能由 owner 发起——`POST /documents/:id/elements/purge{ids}` 经 M-08 鉴权，交 M-09 单写者以 `system('maintenance')` 立即硬删（复用 tombstone-sweeper 事务；房间未加载时先加载再执行），写审计 `document.element_purged`；它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件仍按 30 天无引用 GC，界面须明示「历史版本仍含该内容，要连历史清除请永久删除文档」；经此 REST 的硬删不算 ADR-0034 所说的旁路。
 5. **撤销**：删除方撤销 = 清除 `_deleted`（同一 id 复活），与并发编辑不产生重复元素；并发「删除 vs 编辑」时编辑落在墓碑实体上、删除方撤销后可见（06 §8）。撤销目标已被**他人**删除（TTL 内亦然）→ 跳过并提示，撤销永不复活他人删除的元素（rulings §4.17 D4）。墓碑已被硬删除（TTL 到期或被「彻底删除元素」）后，删除方再撤销该步 → 按整步跳过（`store/undo-skipped{wholeStep:true}`，05 §6，CO-07）。
 
 store-memory 与 store-yjs 语义一致（`runDocumentStoreConformance` 协同分节覆盖）。
@@ -409,7 +409,7 @@ classDiagram
   class ShapeBase {
     id / kind / containerId / parentId / order：FracKey / extensions
     nonVisual：name、hidden、description、title
-    nonVisual 可选项：hyperlink、placeholder、locks
+    nonVisual 可选项：decorative、hyperlink、placeholder、locks
     ooxml：cNvPrId 可选、creationId 可选
   }
   class Sp {
@@ -417,7 +417,7 @@ classDiagram
     textBody 可选：TextBody / useBackgroundFill
   }
   class Pic {
-    blipFill：mediaId… / properties / style 可选 / media 可选
+    blipFill：mediaId、svgMediaId、alpha… / properties / style 可选 / media 可选
   }
   class GrpSp {
     groupProperties：GroupTransform
@@ -498,8 +498,10 @@ classDiagram
 | `Shape.ooxml` | `{ cNvPrId?: number; creationId?: string }` | OOXML 侧 id 作为**数据**保留（ADR-0014） |
 | `*.extensions` | `OpaqueSlot`（`OpaqueXml[]`） | 每个已建模实体都有；未知子元素落此 |
 | `Slide.transition` / `timing` | `OpaqueXml?` | M1–M3 只保留（章程 Q7） |
-| `Chart.partRef` | `OpaquePartRef` | M1–M2 部件不透明保留（写回 verbatim）；**M1 查看**由图表渲染器**只读解析**该部件（`ooxml-core/chartml/` 解析 `c:chartSpace`：图表类型、系列、`numCache`/`strCache`、轴、图例、标题 → 只读 `ChartReadModel`，不进模型、不进 Snapshot），不依赖位图预览（PRD OF-09；A-11 已对齐）；M3 起增加可编辑 `Chart.data`（ED-15） |
+| `Chart.partRef` | `OpaquePartRef` | M1–M2 部件不透明保留（写回 verbatim）；**M1 查看**由图表渲染器**只读解析**该部件（`ooxml-core/chartml/` 解析 `c:chartSpace`：图表类型、系列、`numCache`/`strCache`、轴、图例、标题 → 只读 `ChartReadModel`，不进模型、不进 Snapshot），不依赖位图预览（PRD OF-09；A-11 已对齐）；M3 起增加可编辑 `Chart.data`（ED-15，字段见 §3.9） |
 | `Pic.blipFill.mediaId` | `MediaId` → `MediaRef.blob: BlobRef` | 媒体不进 JSON |
+| `Table.columns` / `rows` / `cells` | `Record<ColId, …>` / `Record<RowId, …>` / `Record<CellKey, TableCell>` | 表格归一化：行列按 `order: FracKey` 排序、格按 `RowId:ColId` 寻址，无数组（§3.8，rulings §4.21 q-table-depth，ADR-0018） |
+| `NonVisualProps.decorative` / `Theme.objectDefaults` | `boolean?` / `{ spDef?; lnDef?; txDef? }?` | 装饰性标记显式建模；主题对象默认值 M2 只读建模，供新元素取默认样式（§3.7，ADR-0018） |
 | `Shape.bounds?` | `Derived<Rect>` | 示例：派生字段以品牌标注，不入 Snapshot |
 
 ### 3.3 `slide.shapeKind` 贡献点
@@ -508,11 +510,17 @@ classDiagram
 interface ShapeKindDef<T extends Shape = Shape> {
   kind: T['kind'] | `graphicFrame:${string}`     // 'sp' | 'pic' | … | 'graphicFrame:table' | 第三方 'ext:<vendor>.<name>'
   schema: StandardSchemaV1<unknown, T>
-  createDefault(box: Rect): T
-  capabilities: { text: boolean; resize: boolean; rotate: boolean; group: boolean; connect: boolean }
+  createDefault(box: Rect, opts?: { preset?: string; theme?: Theme }): T   // 2026-09-26 §4.21：opts 传预设名与主题（取 objectDefaults，§3.7）
+  capabilities: ShapeCapabilities | ((shape: T) => ShapeCapabilities)     // 可按实体求值（如预设几何有无 gd 决定 adjust）
   describe(shape: T): string
 }
+interface ShapeCapabilities {
+  text: boolean; resize: boolean; rotate: boolean; group: boolean; connect: boolean
+  adjust: boolean; crop: boolean; lockAspectDefault: boolean; editPoints: boolean; fillable: boolean   // 2026-09-26 §4.21 新增五位（ADR-0018 决策 3）
+}
 ```
+
+新增五位的含义：`adjust` 显示调整手柄；`crop` 可进裁剪模式（位图为真，EMF/WMF 与 SVG 为假）；`lockAspectDefault` 缩放默认锁比例（图片、图标、音视频）；`editPoints` 为保留位，顶点编辑是非目标，内建一律为假；`fillable` 检查器显示填充分区。覆盖层与检查器只读 `capabilities`，不按 `kind` 写分支（50-frontend/19 §4.1）。
 
 第三方新增元素类型（M2 验收）：贡献一个 `slide.shapeKind`（模型）+ 一个 `render.element`（渲染）+ 可选 `ui.*`（工具）。内核与 `model-slide` 零改动；`Shape` 联合对未知 kind 以 `unknown` 分支兜底，导出时未知 kind 的 shape 由其 `schema` 提供的 `toXml?` 可选钩子或退化为 `OpaqueXml` 保留。
 
@@ -540,8 +548,193 @@ type SlideSelectionAnchor =
   | { kind: 'slide'; slideId: SlideId }
   | { kind: 'shape'; slideId: SlideId; shapeId: ShapeId }
   | { kind: 'text'; shapeId: ShapeId; start: TextPosition; end: TextPosition }        // TextPosition { paragraph: number; offset: number（grapheme）}
-  | { kind: 'tableCell'; shapeId: ShapeId; row: number; col: number }
+  | { kind: 'tableCell'; shapeId: ShapeId; rowId: RowId; colId: ColId }             // 2026-09-26 §4.21：按 id 寻址（§3.8），原 row/col 下标作废
+  | { kind: 'tableCells'; shapeId: ShapeId; anchor: CellKey; focus: CellKey }        // 新增（§4.21）：多格矩形选区，锚格与焦点格按 id（50-frontend/24 §2.4）
 ```
+
+### 3.7 可追加元素的模型补全（2026-09-26，rulings §4.21，ADR-0018）
+
+为 35 类可追加元素（50-frontend/19 §1.2）补齐的字段如下，其余字段不变。标「新增（§4.21）」的是本轮新增，`Sp.isTextBox` 与 `Pic.media` 原已在 §4.2 映射、本轮补进 40-modules/03 的文件表。
+
+```ts
+interface NonVisualProps { name: string; hidden: boolean; description?: string; title?: string
+  decorative?: boolean                 // 新增（§4.21）：cNvPr 扩展列表的 adec:decorative；为真时不进可访问树
+  hyperlink?: Hyperlink; placeholder?: PlaceholderRef; locks?: ShapeLocks }
+interface Sp extends ShapeBase { kind: 'sp'; isTextBox?: boolean /* p:cNvSpPr@txBox */; properties: ShapeProperties; style?: ShapeStyle; textBody?: TextBody; useBackgroundFill?: boolean }
+interface Pic extends ShapeBase { kind: 'pic'; blipFill: BlipFill; properties: ShapeProperties; style?: ShapeStyle; media?: PicMedia }
+interface BlipFill {
+  mediaId?: MediaId                     // 内嵌位图（a:blip@r:embed）；SVG 图片时指 PNG 回退；与 external 恰有一个（ADR-0018 决策 5）
+  external?: { target: string }         // 新增（§4.21 整合）：外链图片 a:blip@r:link，关系原样保留，只在 externalResources 允许时加载 http(s)
+  effects?: BlipEffect[]                // 新增（§4.21 整合）：a:lum / a:grayscl / a:duotone / a:biLevel 只读建模（M1 渲染），编辑 P2
+  svgMediaId?: MediaId                  // 新增（§4.21）：a:blip 扩展列表的 asvg:svgBlip@r:embed
+  sourceRect?: RelativeRect; mode: BlipMode   // srcRect；stretch（fillRect）或 tile
+  alpha?: Percent100k                   // 新增（§4.21）：a:alphaModFix@amt，透明度命令写它
+  extensions: OpaqueSlot }
+interface PicMedia {                    // 音视频（p:nvPr 的 a:videoFile / a:audioFile + p14:media）
+  kind: 'video' | 'audio'
+  mediaId?: MediaId                     // 内嵌字节；r:link 与 p14:media@r:embed 指向同一部件时共用
+  external?: { target: string }         // 外链：关系原样保留、不加载字节（ADR-0008 决策 5）
+  extensions: OpaqueSlot }              // 海报 = blipFill.mediaId；播放属性在 p:timing，不建模
+interface Theme { /* …既有… */ objectDefaults?: ObjectDefaults }   // 新增（§4.21）：M2 只读建模
+interface ObjectDefaults { spDef?: ObjectDefault; lnDef?: ObjectDefault; txDef?: ObjectDefault }
+interface ObjectDefault { properties?: ShapeProperties; bodyProperties?: BodyProperties; listStyle?: ListStyle; style?: ShapeStyle; extensions: OpaqueSlot }
+interface ExtShape extends ShapeBase {  // 新增（§4.21）：第三方元素的公共形态（§3.3），kind 形如 'ext:<vendor>.<name>'
+  transform: Transform; data: JsonObject /* 按插件 schema 校验 */; fallback?: { mediaId: MediaId } }
+interface Hyperlink { target: HyperlinkTarget; tooltip?: string; extensions: OpaqueSlot }   // target 判别联合为新增（§4.21）
+type HyperlinkTarget =
+  | { kind: 'url'; href: string }                     // 外部关系；只写 http/https/mailto/tel，应用内只激活 http(s)
+  | { kind: 'slide'; slideId: SlideId }               // ppaction://hlinksldjump
+  | { kind: 'show'; jump: 'first' | 'last' | 'next' | 'previous' | 'lastViewed' | 'end' }   // ppaction://hlinkshowjump?jump=firstslide|lastslide|nextslide|previousslide|lastslideviewed|endshow
+interface UnknownShape extends ShapeBase { kind: 'unknown'; transform: Transform; renderHint: 'fallback-pic' | 'fallback-shapes' | 'placeholder'; xml: OpaqueXml
+  source?: 'math' | 'model3d' | 'ink' | 'zoom' | 'chartex' | 'contentPart' | 'other' }  // source 新增（§4.21）：导入时填的只读标签
+interface Slide { /* …既有… */ showMasterShapes?: boolean }        // 新增（§4.21）：p:sld@showMasterSp，页级「隐藏背景图形」
+interface Presentation { /* …既有… */ firstSlideNum?: number      // 新增（§4.21）：p:presentation@firstSlideNum，只读建模，缺省 1
+  sections?: Record<SectionId, { name: string; order: FracKey; _deleted?: Tombstone }>   // 新增（§4.21）：节（p14:sectionLst），SLD-04/05
+  guides?: Record<GuideId, { orient: 'horz' | 'vert'; pos: Emu }> }                     // 新增（§4.21，P2）：参考线（p15:sldGuideLst），ALN-04
+interface Slide { /* …既有… */ sectionId?: SectionId }           // 新增（§4.21）：页所属的节；缺省归第一节
+// 远期字段（M4+，此前留在 extensions / OpaqueXml，不建模）：RunProperties.outline（文字轮廓）、BodyProperties.textWarp（艺术字变形 prstTxWarp）
+```
+
+| 字段 | 规则 | 里程碑 |
+|---|---|---|
+| `decorative` | 只由 `slide.setAltText` → `slide.shape.setNonVisual` 写；为真时 `description` 保留不删；导出写回同一扩展项，扩展列表其它项原样保留 | M2 P1 |
+| `svgMediaId` | 插入 SVG 时两个 `MediaRef`：SVG 原字节与浏览器栅格化的 PNG 回退（P1）；导入的无回退 `svgBlip` 保持原样 | M2 P0，回退 P1 |
+| `alpha` | 取值 0–100000；缺省即不透明 | M2 P0 |
+| `PicMedia` | 插入（P2）不写 `p:timing`，导出后在 PowerPoint 靠媒体控件点播（q-media-insert）；换海报只改 `blipFill.mediaId` | 查看 M1；换海报 M2 P1 |
+| `objectDefaults` | 导入建模、导出随主题部件重生成（c14n 等价）；没有写它的 Mutation；新元素默认样式按 `spDef`/`lnDef`/`txDef` → PowerPoint 内建值取，只写 `p:style` 引用 | M2 |
+| `ExtShape` | 数据改动走 `slide.shape.patchKindData`；回退位图由插件在同一事务 `media.add` 写入；无回退导出退化为 `UnknownShape` | M2 P0 |
+| 裸 `p:contentPart` | 映射为 `UnknownShape{ transform: p:xfrm, renderHint: 'placeholder' }`，与 `mc:AlternateContent` 内的墨迹同一处理（R-d-76） | M1 |
+| `UnknownShape.source` | 导入时按 `mc:Choice@Requires` 与节点名填写，只用于检查器类型名、提示文案与可访问名称；不参与导出，协同中从不修改（50-frontend/25） | M1 |
+| `Presentation.sections` / `Slide.sectionId` | 节按 `order` 排序，删除写墓碑；页的 `sectionId` 指向存活的节，缺省或指向墓碑时归第一节（读时容错）；导出按页序与各页 `sectionId` 重建 `p14:sectionLst`；并发移动使同一节的页在页序上不连续时，不连续的那段按页序归到前一页所在的节（读时容错，不写修复）。插入、移动页只改页上一个键，不改节里的页列表（50-frontend/18 SLD-04）；节命令见 30/05 §14、40-modules/03 §2.6 | M2 |
+| `Presentation.guides` | 参考线只影响吸附与显示，导出重建 `p15:sldGuideLst`；未建模前原样随 extensions 写回 | P2 |
+| `RunProperties.outline`、`BodyProperties.textWarp` | 远期字段：M2 P2 的渐变字与描边字作为字符格式写入 `RunProperties`（50-frontend/20 §5），`outline`、`textWarp` 的完整建模随 M4+ 艺术字；在此之前原样留在 extensions / OpaqueXml | M4+ |
+| `Hyperlink.target` | 三分支判别联合；`show` 分支服务动作按钮与放映导航（R-d-77 补 `lastViewed`、`end`）；不支持的 `ppaction`（运行程序、宏、声音）原样留在 `extensions`、不可编辑 | M2 P1 |
+| `Slide.showMasterShapes` | 缺省即继承版式；只经 `slide.slide.setProperties` 写（50-frontend/21） | M2 P1 |
+| `Presentation.firstSlideNum` | 只读；页码字段求值 = 页序位置 + `firstSlideNum`（50-frontend/20） | M1 |
+
+**可追加元素的新增字段**
+
+```mermaid
+classDiagram
+  direction LR
+  class NonVisualProps {
+    name / hidden / description / title
+    decorative：新增
+    hyperlink / placeholder / locks
+  }
+  class Pic {
+    blipFill / properties / style / media
+  }
+  class BlipFill {
+    mediaId：位图或 PNG 回退
+    svgMediaId：新增
+    sourceRect / mode
+    alpha：新增
+  }
+  class PicMedia {
+    kind：video 或 audio
+    mediaId 可选 / external 可选
+  }
+  class Theme {
+    colorScheme / fontScheme / formatScheme
+    objectDefaults：新增，只读建模
+  }
+  class ObjectDefaults {
+    spDef / lnDef / txDef
+  }
+  class MediaRef {
+    blob：BlobRef
+  }
+  Pic --> BlipFill
+  Pic --> PicMedia : 音视频时存在
+  BlipFill ..> MediaRef : mediaId 与 svgMediaId
+  PicMedia ..> MediaRef : mediaId
+  Theme --> ObjectDefaults
+```
+
+怎么读：标「新增」的四个字段是本轮补上的；媒体字节一律经 `MediaRef` 进 BlobStore，模型里只有 id；`objectDefaults` 挂在主题上，只被新元素的默认样式读取，不被任何 Mutation 写。
+
+### 3.8 表格归一化（2026-09-26，rulings §4.21 q-table-depth，ADR-0018 决策 6）
+
+原 `Table{ columnWidths: Emu[]; rows: TableRow[] }` 的数组形态作废：并发插行与插列会产生缺格，数组下标也违背 §2.3 与 ADR-0032。改为三张按 id 的记录表：
+
+```ts
+type CellKey = `${RowId}:${ColId}`                      // RowId、ColId 为 NodeId 品牌细分，导入时生成、新建时由命令生成
+interface Table {
+  properties: TableProperties                            // a:tblPr：styleId?、firstRow、lastRow、firstCol、lastCol、bandRow、bandCol、fill?、extensions
+  columns: Record<ColId, TableColumn>                    // a:tblGrid/a:gridCol
+  rows: Record<RowId, TableRow>                          // a:tr
+  cells: Record<CellKey, TableCell>                      // a:tc
+  extensions: OpaqueSlot
+}
+interface TableColumn { order: FracKey; width: Emu; _deleted?: Tombstone; extensions: OpaqueSlot }
+interface TableRow { order: FracKey; height: Emu; _deleted?: Tombstone; extensions: OpaqueSlot }
+interface TableCell {
+  textBody: TextBody; properties?: TableCellProperties   // a:tcPr：marL/marR/marT/marB、anchor、vert、填充、lnL/lnR/lnT/lnB/lnTlToBr/lnBlToTr
+  gridSpan?: number; rowSpan?: number                    // 只在合并区左上角的锚格
+  hMerge?: boolean; vMerge?: boolean                     // 被合并格的标记
+  extensions: OpaqueSlot
+}
+```
+
+规则：
+
+1. **顺序**：行、列按 `(order, id)` 排序；插入行列用 `between(prev, next)` 生成键（键格式随 q-frackey 改写的 ADR-0032）。
+2. **删除**：删行、删列写 `_deleted` 墓碑（§3.1a 同口径），墓碑行或列上的格随之不可见（包含关系）；撤销以原 id 复活；硬删由墓碑清扫一并处理。格本身不单独删除。
+3. **合并**：锚格写 `gridSpan`/`rowSpan`，被覆盖格写 `hMerge`/`vMerge`；拆分清除。
+4. **不变量**（`model-slide/src/domain/invariants/table.ts`，与 §12.3 同为纯函数 `check`/`repair`）：
+   - **I-TBL1 格覆盖**：每个存活行在每个存活列上都有格。修复：补一个空格（一个空段、无属性），键与内容都确定，两端各自修复也收敛到同一值。
+   - **I-TBL2 跨度合法**：锚格跨度不越过存活行列的末尾；被覆盖格的标记与某个锚格一致；合并区互不重叠。修复：越界跨度收缩到末尾；**并发插入的行列落在他人合并区内部时，从锚格起按当前顺序扩张跨度，直到覆盖原被覆盖的最后一行（列），区间内新插入的格补写被合并标记**——与本机在合并区内插入时同一事务扩大跨度的行为一致（2026-09-26 整合，50-frontend/24 §2.14 第 7 条；原「跨度按当前顺序计数」会把合并区收缩到新行列、拆出原被覆盖的末行或末列）；扩张后与其它合并区重叠、或孤立的 `hMerge`/`vMerge`（没有锚格可归属）才清除，重叠时按锚格的 `(行 order, 列 order)` 先者保留。
+   - 服务端软门禁以 `system('repair')` 执行（ADR-0034）；客户端读时容错（缺格画空格、非法跨度按收缩后画），不写修复。
+5. **导入导出**：导入为每个 `a:gridCol`、`a:tr` 生成 id 与等距键，`a:tc` 按行列位置写入 `cells`；导出按排序后的存活行列重建 `a:tblGrid`、`a:tr@h`、`a:tc` 及合并属性，未知子元素按锚点插回。
+6. **里程碑**：M2 插入表格与编辑单元格文字（文本走 `text.applyDelta`，目标 `TextTarget.cell = { rowId, colId }`）；行列插删、合并拆分、样式与尺寸 M3。归一化形态最迟 M3 结构编辑开工前落地，建议 M1 导入即采用，免一次 schema 迁移（ADR-0009）。
+7. **协同**：`columns`、`rows`、`cells` 各为 Y.Map，列宽、行高、`order` 是标量叶子 LWW，格的 `textBody` 与形状正文同样用 `Y.XmlFragment`；映射由 06 落地。
+
+**表格导出重建**
+
+```mermaid
+flowchart TB
+  src["Table：columns、rows、cells 三张记录表"]
+  liveC["存活列按 order, id 排序"]
+  liveR["存活行按 order, id 排序"]
+  grid["a:tblGrid：每列一个 a:gridCol@w"]
+  tr["每个存活行一个 a:tr@h"]
+  tc["每个存活列取 cells 的 RowId:ColId"]
+  missing{"格存在？"}
+  empty["按 I-TBL1 读时容错写空格并诊断"]
+  write["写 a:tc：gridSpan、rowSpan、hMerge、vMerge、a:txBody、a:tcPr"]
+  ext["按锚点插回各层 extensions"]
+  src --> liveC --> grid
+  src --> liveR --> tr --> tc --> missing
+  missing -- "是" --> write
+  missing -- "否" --> empty --> write
+  write --> ext
+```
+
+怎么读：导出只看存活的行列与它们的 `order`，格按「行 id:列 id」逐个取出；缺格是协同并发尚未修复时的读时容错分支，正常文档不会走到。
+
+### 3.9 图表数据（M3，rulings §4.21 q-chart-route，ADR-0018 决策 5）
+
+M1–M2 图表只有 `Chart.partRef`（不透明）与渲染期只读的 `ChartReadModel`（§3.2 表、D16）。M3 起五类 bar / line / pie / area / scatter 可编辑，增加 `Chart.data`；其余类型仍只读。
+
+```ts
+interface Chart { partRef?: OpaquePartRef; data?: ChartData }   // 至少一个存在；新插入的图表只有 data，导出时生成部件
+interface ChartData {
+  type: 'bar' | 'line' | 'pie' | 'area' | 'scatter'
+  variant: { barDir?: 'col' | 'bar'; grouping?: 'clustered' | 'stacked' | 'percentStacked' | 'standard'; overlap?: number; gapWidth?: number
+             marker?: boolean; smooth?: boolean; scatterStyle?: 'marker' | 'lineMarker' | 'line' | 'smooth' | 'smoothMarker' }   // 后三项新增（§4.21 整合）：折线带标记、平滑线与散点子类型（50-frontend/24 §3）
+  categories: Record<CatId, { order: FracKey; label: string; _deleted?: Tombstone }>
+  series: Record<SerId, { order: FracKey; name: string; values: Record<CatId, number | null>; xValues?: Record<CatId, number | null>; fill?: Fill; _deleted?: Tombstone }>
+  title?: { text: string } | null; legend?: { position: 'r' | 'l' | 't' | 'b' | 'tr' } | null
+  dataLabels?: { showValue?: boolean; showPercent?: boolean; showCategory?: boolean } | null
+  numFmt?: string; extensions: OpaqueSlot
+}
+```
+
+- **一份可编辑模型**：有 `data` 时它是图表唯一的可编辑模型，`ChartReadModel` 不再参与编辑（ADR-0008 决策 10）；`partRef` 里未建模的子树（`c:spPr` 细节、`chartStyle`/`colors` 部件等）随原部件保留。
+- **写法**：数据走 `slide.chart.setData`（按 `CatId`/`SerId` 逐键写），类型、标题、图例、数据标签、数字格式走 `slide.chart.setOptions`（30/05 §14）；类别与系列的删除写墓碑，与表格行列同口径。
+- **导出**：`data` 未变的图表按原字节写回；变了则重生成图表部件里的系列与缓存（`c:numCache`/`c:strCache`）与最小内嵌工作簿（自研 SpreadsheetML 写出器 + `fflate`，数字格式 `numfmt`，R-d-35），`c:f` 引用与工作簿一致；新插入的图表生成图表部件、`.rels` 与 xlsx 并登记内容类型（§5.3）。
+- 渲染与编辑路线（d3-scale / d3-shape / d3-array + 自研 OOXML 布局、数据网格）见 ADR-0036 与 50-frontend/24。
 
 ---
 
@@ -553,17 +746,17 @@ type SlideSelectionAnchor =
 
 | 部件（内容类型缩写） | 模型实体 | 策略 | 里程碑 |
 |---|---|---|---|
-| `[Content_Types].xml` | — | 重生成（由 PartTable） | M1 |
-| `_rels/.rels`、`ppt/_rels/presentation.xml.rels` 及已建模部件的 `.rels` | — | 重生成（已建模部件）/ 不透明（未建模部件的 rels 随部件 verbatim） | M1 |
-| `ppt/presentation.xml` | `Presentation`（sldSz、notesSz、defaultTextStyle、kinsoku/extLst→extensions）；`sldIdLst` → 各 `Slide.order`（等距 FracKey）+ `Slide.ooxml.sldId`；`sldMasterIdLst` → 各 `SlideMaster.order` | 建模 | M1 |
+| `[Content_Types].xml` | — | 内容类型集合不变时原样写回；变了才由 PartTable 重生成（§5.3，rulings §4.21 X:q-content-types） | M1 |
+| `_rels/.rels`、`ppt/_rels/presentation.xml.rels` 及已建模部件的 `.rels` | — | 已建模部件：关系集合不变时原样写回，变了才由 PartTable 重生成（§5.3）/ 不透明（未建模部件的 rels 随部件 verbatim） | M1 |
+| `ppt/presentation.xml` | `Presentation`（sldSz、notesSz、defaultTextStyle、`firstSlideNum`（2026-09-26 只读建模，§3.7）、kinsoku/extLst→extensions）；`sldIdLst` → 各 `Slide.order`（等距 FracKey）+ `Slide.ooxml.sldId`；`sldMasterIdLst` → 各 `SlideMaster.order` | 建模 | M1 |
 | `ppt/slideMasters/*.xml` | `SlideMaster` | 建模 | M1 |
 | `ppt/slideLayouts/*.xml` | `SlideLayout` | 建模 | M1 |
 | `ppt/slides/*.xml` | `Slide` | 建模（懒） | M1 |
-| `ppt/theme/*.xml` | `Theme` | 建模（formatScheme 的 3×4 列表建模；`extraClrSchemeLst`、`custClrLst`、`objectDefaults`→extensions） | M1 |
+| `ppt/theme/*.xml` | `Theme` | 建模（formatScheme 的 3×4 列表建模；`objectDefaults` M2 起只读建模为 `Theme.objectDefaults`，§3.7；`extraClrSchemeLst`、`custClrLst`→extensions） | M1 |
 | `ppt/notesSlides/*.xml`、`notesMasters/*.xml`、`handoutMasters/*.xml` | `opaqueParts` + `Slide.notesId`；备注**文本**由 `ooxml-pptx/import/notes-text.ts` 只读提取供备注面板显示（PRD OF-11 M1） | 不透明（M3 评估备注建模） | M1 |
 | `ppt/comments/*.xml`、`commentAuthors.xml`、`ppt/comments/modernComment_*.xml` | `opaqueParts`（M3 由 comments 插件经 ResourceHook 建模） | 不透明 | M1 |
-| `ppt/presProps.xml`、`viewProps.xml`、`tableStyles.xml` | `opaqueParts`（tableStyles M2 起**只读解析**供渲染，仍 verbatim 写回） | 不透明 | M1 |
-| `ppt/charts/*.xml`、`chartN.xml.rels`、`embeddings/*.xlsx` | `Chart.partRef`；渲染期 `ooxml-core/chartml` **只读解析**（M1 查看，OF-09） | 不透明写回；只读解析渲染（M3 建模数据） | M1 |
+| `ppt/presProps.xml`、`viewProps.xml`、`tableStyles.xml` | `opaqueParts`（tableStyles M1 起**只读解析**供表格渲染，因 PRD OF-08 表格在 M1 gated；仍 verbatim 写回，M3 起按 ADR-0008 决策 9 (d) 追加缺失的内置样式定义） | 不透明 | M1 |
+| `ppt/charts/*.xml`、`chartN.xml.rels`、`embeddings/*.xlsx` | `Chart.partRef`；渲染期 `ooxml-core/chartml` **只读解析**（M1 查看，OF-09）；M3 起 `Chart.data`（§3.9） | 不透明写回；只读解析渲染（M3 起五类建模数据，数据变了才重生成缓存与最小工作簿） | M1 |
 | `ppt/diagrams/{data,layout,quickStyle,colors,drawing}*.xml` | `Diagram.parts`；`dsp:drawing` 部件由 `ooxml-core` **M1 必须只读解析**（含 `dsp:txXfrm`）供 slide-render 渲染（rulings §4.15 Q7；drawing 缺失时才占位 + 诊断） | 不透明写回；只读解析渲染 | M1 |
 | `ppt/embeddings/*.bin`、`*.docx` 等 OLE | `Ole.embedRef`；`Ole.preview` 由 `ooxml-pptx/import/ole.ts` 从 `mc:Fallback` 中的 `p:pic` 提取（显示预览图，rulings §4.15 Q7） | 不透明 | M1 |
 | `ppt/media/*` | `MediaRef.blob` | 二进制 blob（内容寻址；永不重生成）；EMF/WMF（含 OLE 预览）M2 起由 emf-converter（Apache-2.0）在 Worker chunk 中惰性栅格化用于显示，原字节不变 | M1 |
@@ -580,12 +773,13 @@ type SlideSelectionAnchor =
 
 | 元素 | 模型 | 策略 |
 |---|---|---|
+| `p:sld@showMasterSp`（版式为 `p:sldLayout@showMasterSp`） | `Slide.showMasterShapes`（2026-09-26，§3.7）/ `SlideLayout.showMasterShapes` | 建模 |
 | `p:cSld` | `CommonSlideData` | 建模 |
 | `p:cSld/p:bg` | `Background` | 建模（`bgPr` / `bgRef`） |
 | `p:spTree` | shapes 表（每个顶层形状 `containerId` = 本部件实体、`parentId = null`、`order` 按文档顺序生成等距键） | 建模 |
 | `p:nvGrpSpPr`（spTree 根） | — | 不透明（extensions 内保留根组的 nv 属性） |
 | `p:sp`/`p:pic`/`p:grpSp`/`p:cxnSp`/`p:graphicFrame` | 对应 Shape | 建模 |
-| `p:nvSpPr/p:cNvPr`（id、name、hidden、descr、title、hlinkClick、extLst→a16:creationId） | `nonVisual` + `ooxml` | 建模 |
+| `p:nvSpPr/p:cNvPr`（id、name、hidden、descr、title、hlinkClick、extLst→a16:creationId、adec:decorative） | `nonVisual`（含 `decorative`，§3.7）+ `ooxml` | 建模 |
 | `p:nvSpPr/p:cNvSpPr`（spLocks、txBox） | `nonVisual.locks`、`Sp.isTextBox` | 建模 |
 | `p:nvPr/p:ph` | `PlaceholderRef` | 建模 |
 | `p:nvPr/a:audioFile`/`a:videoFile`/`p:media` | `Pic.media` | 建模（引用）；播放属性 extensions |
@@ -599,6 +793,7 @@ type SlideSelectionAnchor =
 | `p:controls`、`p:custDataLst` | `OpaqueXml` | 不透明 |
 | `p:extLst`（任意层级） | `extensions` | 不透明 |
 | `mc:AlternateContent` | `UnknownShape` 或所在节点的 `extensions`（若在属性位置） | 不透明（渲染选 Fallback 或受支持 Choice） |
+| `p:contentPart`（裸，不在 `mc:AlternateContent` 内的墨迹） | `UnknownShape`（`transform` 取 `p:xfrm`，`renderHint: 'placeholder'`，§3.7） | 不透明（部件随关系 verbatim） |
 
 ### 4.3 节点级（DrawingML `a:`）
 
@@ -608,6 +803,7 @@ type SlideSelectionAnchor =
 | `a:prstGeom`（prst、avLst） | `Geometry.preset` | 建模（187 种名称字面量） |
 | `a:custGeom`（pathLst、avLst、gdLst、ahLst、cxnLst、rect） | `Geometry.custom` | 建模（`ahLst` 保留为 OpaqueXml，M1） |
 | `a:noFill`/`solidFill`/`gradFill`/`blipFill`/`pattFill`/`grpFill` | `Fill` | 建模 |
+| `p:blipFill/a:blip`（`r:embed`、`a:alphaModFix@amt`、扩展列表里的 `asvg:svgBlip@r:embed`）、`a:srcRect`、`a:stretch`/`a:tile` | `BlipFill`（`mediaId`、`alpha`、`svgMediaId`、`sourceRect`、`mode`，§3.7） | 建模（其它 `a:blip` 效果子元素 → extensions） |
 | `a:ln`（w、cap、cmpd、algn、fill、prstDash/custDash、join、headEnd、tailEnd） | `Line` | 建模 |
 | `a:effectLst`（outerShdw、innerShdw、glow、reflection、softEdge、blur） | `EffectList` | 建模；`a:effectDag`、其它效果 → OpaqueXml |
 | `a:scene3d`、`a:sp3d` | `OpaqueXml` | 不透明 |
@@ -617,11 +813,12 @@ type SlideSelectionAnchor =
 | `a:p`/`a:pPr`/`a:r`/`a:rPr`/`a:br`/`a:fld`/`a:endParaRPr` | `Paragraph`/`Inline`/`RunProperties` | 建模 |
 | `a:buNone`/`buChar`/`buAutoNum`/`buBlip`/`buFont`/`buClr`/`buSzPct` | `Bullet` | 建模 |
 | `a:latin`/`ea`/`cs`/`sym` | `FontRef` | 建模 |
-| `a:hlinkClick`/`hlinkHover`/`hlinkMouseOver` | `Hyperlink` | 建模（hover 类 → extensions） |
-| `a:tbl`（tblPr、tblGrid、tr、tc、tcPr） | `Table` | 建模 |
+| `a:hlinkClick`/`hlinkHover`/`hlinkMouseOver` | `Hyperlink`（`target` 判别联合，§3.7） | 建模（hover 类 → extensions） |
+| `a:tbl`（tblPr、tblGrid、tr、tc、tcPr） | `Table`（归一化：`columns`/`rows`/`cells`，§3.8） | 建模 |
 | `a:graphic/a:graphicData[@uri]` 未知 uri | `UnknownGraphic` | 不透明 |
 | `a:extLst`（任意层级） | `extensions` | 不透明 |
 | 主题 `a:clrScheme`/`fontScheme`/`fmtScheme` | `Theme` | 建模 |
+| 主题 `a:objectDefaults`（`spDef`/`lnDef`/`txDef`） | `Theme.objectDefaults`（§3.7） | 建模（M2 只读：无写入 Mutation） |
 
 ### 4.4 Strict ↔ Transitional
 
@@ -713,8 +910,9 @@ flowchart TB
    · docProps 时间戳只来自模型字段（DocumentProperties.core.modified 由「保存」命令写入），编码器不读时钟；
    · 编码器不读 layout/度量服务（V-codec 秩 35 < engine-layout 秩 50，R2 机械禁止）；
    · 同一 Snapshot + 同一 blob 集合 → 两端产物 SHA-256 相同（roundtrip.ts 的 determinism 用例）
+   · 派生几何只经显式输入：已连接连接符的几何由调用方用 engine-layout 算好，经 encode() 的 connectorGeometry 传入（ADR-0018 决策 8），编码器不重算
  media: 每个被引用的 MediaRef → 部件（去重）；未被引用的原媒体部件：保留（避免丢失被 opaque 部件引用的媒体）
- rels / [Content_Types]: 从 PartTable 重生成；opaque 部件的 rels verbatim
+ rels / [Content_Types]: 关系集合与内容类型集合都没变 → 写回原字节；变了（新增或删除部件、关系）→ 由 PartTable 重生成，序列化只要求 c14n 等价、不必逐字节复现原文；opaque 部件的 rels verbatim（rulings §4.21 X:q-content-types）
  ids: 回写 cNvPr/@id（ADR-0014）
 ```
 
@@ -738,7 +936,7 @@ flowchart TB
   subgraph tail["全部部件之后"]
     direction TB
     media["media：被引用 MediaRef → 部件，去重；未被引用的原媒体部件保留"]
-    rels["rels / #91;Content_Types#93;：从 PartTable 重生成；opaque 部件 rels verbatim"]
+    rels["rels / #91;Content_Types#93;：集合不变写回原字节，变了才由 PartTable 重生成；opaque 部件 rels verbatim"]
     ids["ids：回写 cNvPr/@id"]
     zip["zip 写入确定性：部件名排序、固定 mtime 1980-01-01、固定压缩级别与方法"]
   end
@@ -750,10 +948,10 @@ flowchart TB
 
 | 情形 | 判定 |
 |---|---|
-| **零编辑往返**（M1 验收） | 导出包的部件路径集合 == 源；每个部件 SHA-256 相同；`[Content_Types].xml` 与所有 `.rels` 亦**字节相同**（因此零编辑时 PartTable 必须原样写回这两类部件，而不是重生成——`write` 只在有结构变化时重生成）；zip 条目顺序、时间戳、压缩方法不计入 |
+| **零编辑往返**（M1 验收） | 导出包的部件路径集合 == 源；每个部件 SHA-256 相同；`[Content_Types].xml` 与所有 `.rels` 亦**字节相同**（与 §5.3 同一口径：关系集合与内容类型集合都没变时 PartTable 原样写回这两类部件，只在有结构变化时重生成，rulings §4.21 X:q-content-types；文本编辑等未改关系的脏页，其 `.rels` 同样原样写回）；zip 条目顺序、时间戳、压缩方法不计入 |
 | **编辑后：未触碰部件** | 字节相同 |
 | **编辑后：脏部件** | (a) XML 良构且通过对应 XSD（ECMA-376 Transitional；C 案下为 Strict）；(b) C14N + 属性排序 + 忽略无意义空白后的 diff 仅落在被编辑元素子树；(c) 被编辑元素的未知属性/子元素/`extLst` 全部保留（§5.1.1）；(d) `cNvPr@id` 在部件内唯一且被引用处（连接线、`p:timing`）一致 |
-| **编辑后：派生部件白名单** | 允许变化：`docProps/core.xml`（`dcterms:modified`）、`docProps/app.xml`（页数/字数）、`docProps/thumbnail.jpeg`、`[Content_Types].xml`（新增类型）、被新增/删除部件影响的 `.rels` |
+| **编辑后：派生部件白名单** | 允许变化：`docProps/core.xml`（`dcterms:modified`）、`docProps/app.xml`（页数/字数）、`docProps/thumbnail.jpeg`、`[Content_Types].xml`（新增类型）、被新增/删除部件影响的 `.rels`（重生成时只要求 c14n 等价） |
 | **删除页** | 页部件及其独占的 rels 目标（媒体、图表、备注）被移除；共享目标保留；无孤儿部件（除非源文件本就有） |
 
 验证实现：
@@ -765,11 +963,11 @@ flowchart TB
 
 ### 5.5 大文件与安全（章程 Q5、SECURITY）
 
-`ZipLimits` 默认：`maxEntries 4000`、`maxEntryBytes 64 MiB`、`maxTotalBytes 512 MiB`、`maxMediaBytes 256 MiB`（借鉴 pptx-renderer，按 Q5 上调）；超限 → `ZIP_LIMIT_EXCEEDED` 诊断错误。媒体懒解压（`Part.bytes()` 为 Promise）。流式读取评估见 A-13。
+`ZipLimits` 默认：`maxEntries 4000`、`maxEntryBytes 64 MiB`、`maxTotalBytes 512 MiB`、`maxMediaBytes 256 MiB`（借鉴 pptx-renderer，按 Q5 上调）；超限 → `ZIP_LIMIT_EXCEEDED` 诊断错误。媒体懒解压（`Part.bytes()` 为 Promise）。流式读取评估见 A-13。`ZipLimits` 只管 zip 层，不含任何 XML 字段；XML 的深度、属性数、文本长度、属性值长度等限额只在 ADR-0019 决策 6 的 `XmlLimits` 表定义一次（`@cordexjs/xml`），DOCTYPE 一律拒绝，超限返回 `format.limit_exceeded{limit, actual}`（2026-09-26，rulings §4.21 X:q-xml-lexer）。
 
 **规模天花板检查（rulings §4.15 Q5）**：导入在解析 `presentation.xml` 与各页形状树后立即检查三项——页数（默认上限 200，软警告 150）、单页元素数（默认 1,000）、文档总元素数（默认 20,000，软警告 15,000；协同态下软删除墓碑计入，见 §3.1a）。任一超限即**拒绝导入**：返回 `format.quota_exceeded{ dimension, limit, actual }`（`dimension` 取值见 10 §1.4），不产出 Snapshot、不做只读降级打开。三项数字来自部署配置，**完全可调**；超出默认包络时启动告警、`/readyz` 标注，性能承诺（D200、DX-1000、20 编辑者 + 50 查看者、200 MB 的性能保证包络）不再成立。性能门禁只在包络内生效，且只收紧不放宽。命令层同一上限由 `maxElementsPerDoc` 守卫（05、40-modules/03）。
 
-**外部关系（rulings §4.15 Q7，章程 D7）**：`TargetMode="External"` 的 Relationship **全部原样保留**（含 `mailto:`、`file:`、相对路径等任意 scheme），导出时重生成已建模部件的 `.rels` 也必须写回；**仅 `http(s)` 目标可被激活**（超链接可点击、外链图片/媒体可加载）。外链资源默认自动加载，部署配置 `externalResources`（`auto` | `confirm` | `never`）可收紧；服务端永不加载外链（07 §4.2、08 §9.2）。把「只允许 http(s)」写成 Relationship 不变量会让含 mailto/file 链接的文件在 M1 零编辑往返时丢关系，违反 D7 与 OF-18。
+**外部关系（rulings §4.15 Q7，章程 D7）**：`TargetMode="External"` 的 Relationship **全部原样保留**（含 `mailto:`、`file:`、相对路径等任意 scheme），导出时重生成已建模部件的 `.rels` 也必须写回；**仅 `http(s)` 目标可被激活**（超链接可点击、外链图片/媒体可加载）。外链资源默认自动加载，部署配置 `externalResources`（`auto` | `confirm` | `never`）可收紧；服务端永不加载外链（50/19 §6、60-backend/06 §9.2）。把「只允许 http(s)」写成 Relationship 不变量会让含 mailto/file 链接的文件在 M1 零编辑往返时丢关系，违反 D7 与 OF-18。
 
 ---
 
@@ -855,7 +1053,7 @@ type Persisted<T> = T extends readonly (infer U)[] ? readonly Persisted<U>[]
 |---|---|---|---|
 | 模型 | `NodeId`（`SlideId`/`ShapeId`/… 为其品牌细分） | 导入时 `newNodeId()`（UUIDv7；A-5）；新建时同 | 全局（跨文档也不冲突，利于复制粘贴与 CRDT） |
 | OOXML | `p:cNvPr/@id`（uint32，每部件内唯一）、`a16:creationId`（GUID，PowerPoint 用于 Morph 匹配） | 原值保留在 `Shape.ooxml`；新形状导出时分配未占用 uint | 部件内 / 全局 |
-| OOXML | `p:sldId/@id`（256..2147483647）、`r:id` | 保留在 `Slide.ooxml.sldId`；rels 的 `rId` 每次重生成 | 部件内 |
+| OOXML | `p:sldId/@id`（256..2147483647）、`r:id` | 保留在 `Slide.ooxml.sldId`；`rId` 沿用读入值；只有新关系才分配新 rId；关系集合不变时 `.rels` 原字节写回（ADR-0008 决策 5、ADR-0019 决策 5） | 部件内 |
 
 双向映射：导入建 `OoxmlIdMap`（部件名 + cNvPrId → NodeId）；导出反向；缺失/冲突 → 分配并发 `ID_COLLISION_REPAIRED` 诊断。`creationId` 若缺失且形状被修改，**不**自动生成（避免伪造 PowerPoint 语义）。
 
@@ -867,15 +1065,17 @@ type Persisted<T> = T extends readonly (infer U)[] ? readonly Persisted<U>[]
 |---|---|---|
 | Yjs 映射 | `store-yjs` 必须通过 `runDocumentStoreConformance`；归一化实体表 → 顶层 Y.Map（`shapes`、`slides`…）→ 每实体一个 Y.Map；`TextBody.paragraphs[i].runs` 是否用 Y.Text（富文本）还是 Y.Array<Y.Map> 由 06 决定，但 `text` op 的 delta 语义必须与 `store-memory` 一致 | 06 |
 | 顺序键 | 已采纳 ADR-0032：`order: FracKey` 单键 LWW；请 06 把「并发同位插入按 `(order, id)` 一致」「键长治理 rekey（origin=maintenance）」写进契约套件协同分节；并修订 ADR-0032 第 6/7 条（Snapshot 保留键；键由命令层生成） | 06、ADR-0032 |
-| Blob | `BlobStore` 的 IndexedDB（浏览器）与 S3（服务端）Provider；上传/下载与 presence 无关 | 06/08 |
+| Blob | `BlobStore` 的 IndexedDB（浏览器）与 S3（服务端）Provider；上传/下载与 presence 无关 | 06、60-backend/04 |
 | 渲染 | `SceneProvider('slide')` 由 `slide-render` 实现，输入是 `slides.resolved.*` 与 `layout` 服务；`ChangeSet.touched → DirtySet` 的映射精度要求：改一个形状只重绘该形状（RecordingTarget 断言） | 07 |
-| 缩略图/导出图像 | 经 `RenderTarget.toImage`；服务端走 `server-headless.tasks.thumbnail` | 07/08 |
-| 迁移与校验任务 | `server-headless.tasks.migrate/validate` 使用 `migrations.run/runOnUnit` 与 `validateSnapshot` | 08 |
-| 服务端软门禁与修复（ADR-0034） | `documentType.validateChangeSet(view, changeSet)` + `documentType.invariants[].repair`（纯函数，origin `system('repair')`）；A 线在 model-slide `invariants/` 提供：无父子环、`parentId`/`containerId`/`layoutId`/`masterId` 存在、`order` 为合法 FracKey、占位符引用有效 | 08 |
-| 版本恢复 | `documentType.diff(a, b) → Mutation[]` 作为一个事务写回（origin `system('restore')`；版本历史（命名、列表、预览与恢复）的服务端用例与界面均在 M3，PRD 05 §0.3「持久化与快照」行）；`units.open` 支持 `source: { kind:'state'; encoding:'yjs-update' \| 'snapshot-json'; bytes }` 与 `'empty'` | 08 |
-| 现代评论部件 | `ooxml-pptx/import|export/comments.ts` ↔ `resources['comments.threads']`（M3；ResourceHook 由 `@cordexjs/comments` 定义，§2.7，存储见 ADR-0031；决策 INC-39） | 06/08 |
-| 图表内嵌工作簿 | `ooxml-pptx/export/chart-workbook.ts`：从 `Chart.data` 生成最小 `.xlsx`（M3 P1；PD-06 由 B 决定不可行时的降级） | 08 |
-| 导出确定性 | §5.3「确定性」四条；`roundtrip.ts` determinism 用例在浏览器与 Node 各跑一次并比对哈希 | 08/11 |
+| 缩略图/导出图像 | 经 `RenderTarget.toImage`；服务端走 `server-headless.tasks.thumbnail` | 07、60-backend/06 |
+| 迁移与校验任务 | `server-headless.tasks.migrate/validate` 使用 `migrations.run/runOnUnit` 与 `validateSnapshot` | 60-backend/06 |
+| 服务端软门禁与修复（ADR-0034） | `documentType.validateChangeSet(view, changeSet)` + `documentType.invariants[].repair`（纯函数，origin `system('repair')`）；A 线在 model-slide `invariants/` 提供：无父子环、`parentId`/`containerId`/`layoutId`/`masterId` 存在、`order` 为合法 FracKey、占位符引用有效 | 60-backend/16 |
+| 版本恢复 | `documentType.diff(a, b) → Mutation[]` 作为一个事务写回（origin `system('restore')`；版本历史（命名、列表、预览与恢复）的服务端用例与界面均在 M3，PRD 05 §0.3「持久化与快照」行）；`units.open` 支持 `source: { kind:'state'; encoding:'yjs-update' \| 'snapshot-json'; bytes }` 与 `'empty'` | 60-backend/05 |
+| 现代评论部件 | `ooxml-pptx/import|export/comments.ts` ↔ `resources['comments.threads']`（M3；ResourceHook 由 `@cordexjs/comments` 定义，§2.7，存储见 ADR-0031；决策 INC-39） | 06、60-backend/07 |
+| 图表内嵌工作簿 | `ooxml-pptx/export/chart-workbook.ts`：从 `Chart.data` 生成最小 `.xlsx`（M3 P1；自研 SpreadsheetML 写出器 + `fflate`，数字格式 `numfmt`，R-d-35；PD-06 由 B 决定不可行时的降级） | 60-backend/06 |
+| 表格与图表数据的 Yjs 映射（2026-09-26，§4.21） | `Table.columns`/`rows`/`cells` 与 `ChartData.categories`/`series` 各映射为 Y.Map（记录表），`order`、宽高、数值为标量叶子 LWW，格正文同形状正文用 `Y.XmlFragment`（§3.8、§3.9）；06 §1.3.2 的 `graphic.table` 与 `chart` 行据此改写 | 06 |
+| 导出的派生连接符几何（2026-09-26，§4.21） | `encode()` 增显式输入 `connectorGeometry?`，由浏览器导出与 server-headless 导出的调用方用 engine-layout 计算（ADR-0018 决策 8；§5.3 确定性） | 60-backend/06 |
+| 导出确定性 | §5.3「确定性」四条；`roundtrip.ts` determinism 用例在浏览器与 Node 各跑一次并比对哈希 | 60-backend/06、11 |
 
 ---
 
@@ -913,15 +1113,20 @@ type Persisted<T> = T extends readonly (infer U)[] ? readonly Persisted<U>[]
 | ML-01 母版视图：列出母版及其版式、把版式/母版当「页」渲染、显示占位符提示框 | 母版/版式为一等实体、可排序、形状可按容器寻址、占位符元数据 | `SlideMaster{ id, order, commonSlide, colorMap, textStyles, themeId, headerFooter }`、`SlideLayout{ id, order, masterId, type, name, commonSlide, colorMapOverride, showMasterShapes, preserve }`、shapes 表 `containerId ∈ SlideId \| LayoutId \| MasterId`、`PlaceholderRef{ type, index, orientation, size, hasCustomPrompt }` | 追加 OOXML 属性：`SlideMaster.preserve`、`SlideLayout.userDrawn`、`SlideLayout.matchingName`（02 §4.8 已同步）；提示文字 = 版式/母版占位符自带的 `textBody`（`hasCustomPrompt`），否则按 `type` 用 i18n 默认提示 |
 | ML-02 版式应用与重置 | 区分「显式覆盖」与「继承」；按 `(type, idx)` 重匹配；重置 = 删除覆盖 | 所有可继承字段在模型中均为**可选**：`ShapeProperties.transform?/geometry?/fill?/line?/effects?`、`Sp.style?`、`BodyProperties` 全字段可选、`TextBody.listStyle?`、`RunProperties`/`ParagraphProperties` 全字段可选——**缺省 = 继承**，§6 解析链补全 | 不变量 I-ML1：占位符形状上「缺省即继承」；导入时 XML 显式给出的值保留为显式（保真优先，不归一为继承）；`resetSlide` 只删覆盖字段（§12.2 `planReset`） |
 | ML-03 母版 / 版式编辑 | 母版/版式上形状增删改、背景、按占位符类型与级别的文本样式、版式增删复制改名、占位符增删改 | shapes 表已容纳母版/版式形状（`containerId`）；`SlideMaster.textStyles{ title, body, other }: ListStyle(levels 0..8)`；`CommonSlideData.background` | 无新增字段。脏追踪：改母版只使母版部件脏，依赖页部件**不脏**（继承在渲染期解析）；但样式缓存与渲染脏映射必须失效全部依赖页（§6.3、`dependentsOf`） |
-| ML-04 主题 | 颜色/字体方案编辑、把主题应用到母版 | `Theme{ name, colorScheme(12 槽), fontScheme{ major, minor }, formatScheme, extensions }`、`SlideMaster.themeId`、`ColorMap` | 无新增字段；`extraClrSchemeLst`/`custClrLst`/`objectDefaults` 留在 `extensions`；Office 主题变体（`themeOverride`、`p14:` 扩展）不建模、不透明保留 |
+| ML-04 主题 | 颜色/字体方案编辑、把主题应用到母版 | `Theme{ name, colorScheme(12 槽), fontScheme{ major, minor }, formatScheme, extensions }`、`SlideMaster.themeId`、`ColorMap` | 无新增可编辑字段；`objectDefaults` 自 2026-09-26（§4.21）起只读建模（§3.7，供新元素取默认样式、无写入 Mutation）；`extraClrSchemeLst`/`custClrLst` 留在 `extensions`；Office 主题变体（`themeOverride`、`p14:` 扩展）不建模、不透明保留 |
 
 ### 12.2 纯函数签名草案（`model-slide/src/style/placeholder-match.ts`、`effective.ts`）
 
 ```ts
-// 占位符匹配（PowerPoint 语义）：(type, idx) 精确 → type 族等价 → idx（仅 body/obj 族）→ 无匹配
-type PlaceholderFamily = 'title' | 'body' | 'footerLike' | 'media' | 'other'
+// 占位符族（2026-09-26 rulings §4.21 R-d-73：以 PRD ML-03 为准，原 title/body/footerLike/media 四分法作废）
+type PlaceholderFamily = 'text' | 'content' | 'footer' | 'other'
 declare function placeholderFamily(type: PlaceholderType): PlaceholderFamily
-//   title|ctrTitle → title；body|subTitle|obj|tbl|chart|dgm|clipArt → body；pic|media → media；dt|ftr|sldNum|hdr → footerLike
+//   title|ctrTitle|body|subTitle → text；pic|chart|tbl|dgm|media|clipArt|obj → content（obj 即界面上的「内容」占位符）；dt|ftr|sldNum → footer；hdr（只见于备注 / 讲义母版）→ other
+declare function canChangePlaceholderType(from: PlaceholderType, to: PlaceholderType): boolean
+//   同族即允许；另允许 obj 与文本族互转（PRD ML-03 边界：文本族含 obj，内容族与 obj 互转）；跨族需删除后新建
+// 占位符匹配（PRD ML-02 规则）：(1) 同 type 同 index → (2) 同 type 任意 index（按 index 升序取未被占用者）→ (3) 兼容类型 → (4) 无匹配
+declare function compatiblePlaceholderTypes(type: PlaceholderType): readonly PlaceholderType[]
+//   规则 (3)：ctrTitle ↔ title、subTitle ↔ body、obj ↔ body、pic|chart|tbl|dgm|media → obj（单向）
 declare function matchPlaceholder(target: PlaceholderRef, candidates: readonly { shapeId: ShapeId; ph: PlaceholderRef }[]): ShapeId | undefined
 
 // 版式切换的重匹配计划（纯函数；命令据此产出确定性的 Mutation，05 §13.1）
@@ -970,3 +1175,6 @@ declare function dependentsOf(body: PresentationBody, id: LayoutId | MasterId | 
 | 单位品牌 | tsc（品牌类型）；lint `no-px-in-model`；`no-magic-emu`（禁止裸 914400 之类字面量，必须用常量） |
 | 样式解析纯函数 | 单测 + property test（同输入同输出）；缓存淘汰被调用测试 |
 | 所有 Mutation 保持 schema 有效 | model-slide property test：随机 Mutation 序列后 `bodySchema.parse` 通过 |
+| 表格不变量 I-TBL1、I-TBL2（§3.8） | property：随机并发插删行列、合并拆分后 `repair` 一次即净、再次无变化；store-memory 与 store-yjs 收敛到同一状态；表格语料往返 c14n 等价 |
+| 新增字段往返（§3.7） | codec 往返：`decorative`、`svgBlip`、`alphaModFix`、`p14:media`、`objectDefaults`、裸 `p:contentPart` c14n 等价 |
+| `[Content_Types].xml` 与 `.rels` 写回口径（§5.3） | `roundtrip.ts`：零编辑与只改文字的编辑后，这两类部件字节相同；新增媒体或图表后重生成且 c14n 等价、PowerPoint 打开无修复 |

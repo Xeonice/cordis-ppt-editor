@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q10、§4.17、§4.18
+> 状态：已接受 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D3；复核报告 M11：门禁名 `check-rls-coverage`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.21：B1 结案为 drizzle-orm 0.45.x + 手写 schema、漂移检查直查 pg_catalog；B2 结案为 Fastify 5；PgBouncer 不进 compose）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：Valkey 频道改为 extension-redis `hp:{docId}:{epoch}` 与控制频道 `room:{docId}:ctl`，`collab:doc:*` 作废） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q10、§4.17、§4.18、§4.21（q-db-access）
 
 # ADR-0022 服务端存储栈：Postgres 18 + Redis 协议（默认 Valkey）+ S3 兼容对象存储（默认 SeaweedFS）
 
@@ -14,10 +14,10 @@
 
 | 关注点 | 选择 | 用法 |
 |---|---|---|
-| 元数据 + update 日志 + 小快照 | **Postgres 18**（compose 默认；支持下限 16——uuid v7 在应用层生成，不依赖 PG 18 原生 `uuidv7()`） | 关系表（08 §5）；`document_updates` 按 `hash(doc_id)` 分区；`audit_log` 按月分区、只追加；**文档级 RLS**（见下方修订） |
-| 扇出 / 通知 / 锁 / 队列 | **Valkey**（compose 默认，钉到次版本，BSD-3；客户自带时声明兼容 **Redis ≥ 7.2 协议**） | pub/sub（`collab:doc:*`、`perm:doc:*`）、`SET NX PX` 租约锁（fencing token）、房间在线计数、BullMQ、限流计数器 |
-| 二进制 | **S3 兼容**（compose 默认 **SeaweedFS**，Apache-2.0；生产推荐客户自有 S3） | 媒体内容寻址、> 1 MiB 快照、导入原件、导出结果、缩略图（08 §6）；保留 `snapshots/` 前缀的版本化（满足 SV-09 备份） |
-| ORM | Drizzle（草案，待决 B1） | SQL 可见、无运行时代码生成 |
+| 元数据 + update 日志 + 小快照 | **Postgres 18**（compose 默认；支持下限 16——uuid v7 在应用层生成，不依赖 PG 18 原生 `uuidv7()`） | 关系表（60-backend/08–13）；`document_updates` 按 `hash(doc_id)` 分区；`audit_log` 按月分区、只追加；**文档级 RLS**（见下方修订） |
+| 扇出 / 通知 / 锁 / 队列 | **Valkey**（compose 默认，钉到次版本，BSD-3；客户自带时声明兼容 **Redis ≥ 7.2 协议**） | pub/sub（M3 extension-redis 频道 `hp:{docId}:{epoch}`（hp 前缀）、控制频道 `room:{docId}:ctl`、权限频道 `perm:doc:*`；原 `collab:doc:*` 帧扇出频道作废，rulings §4.21 H:q-hp-fanout、ADR-0039 决策 7）、`SET NX PX` 租约锁（fencing token）、房间在线计数、BullMQ、限流计数器 |
+| 二进制 | **S3 兼容**（compose 默认 **SeaweedFS**，Apache-2.0；生产推荐客户自有 S3） | 媒体内容寻址、> 1 MiB 快照、导入原件、导出结果、缩略图（60-backend/14 §5–§6）；保留 `snapshots/` 前缀的版本化（满足 SV-09 备份） |
+| DB 访问层（B1）与 HTTP 适配器（B2） | **drizzle-orm 0.45.x + 手写 schema**；**Fastify 5**（2026-09-26 结案，见下方修订；原：「Drizzle（草案，待决 B1）」） | SQL 可见、无运行时代码生成；漂移检查直查 `pg_catalog` |
 
 快照与 update 的追加/压缩细则见 ADR-0025；多实例一致性见 ADR-0035；备份/回放见下「后果」。
 
@@ -27,11 +27,11 @@
 flowchart LR
   app["服务端适配器：pg 与 Redis 协议驱动只在 apps/server 适配器，S3 SDK 只在该处与 server-storage"]
   app -- "一致性关键路径" --> pg["Postgres 18，支持下限 16：元数据、update 日志、小快照，document_updates 按 hash（doc_id）分区，audit_log 按月分区只追加，文档级 RLS"]
-  app -- "易失协调，丢失可恢复" --> valkey["Valkey，客户自带需 Redis ≥ 7.2 协议：pub/sub collab:doc:* 与 perm:doc:*、SET NX PX 租约锁、房间在线计数、BullMQ、限流计数器"]
+  app -- "易失协调，丢失可恢复" --> valkey["Valkey，客户自带需 Redis ≥ 7.2 协议：pub/sub：M3 extension-redis 频道 hp:{docId}:{epoch}、控制频道 room:{docId}:ctl、perm:doc:*、SET NX PX 租约锁、房间在线计数、BullMQ、限流计数器"]
   app -- "承载体积" --> s3["S3 兼容，默认 SeaweedFS：媒体内容寻址、大于 1 MiB 快照、导入原件、导出结果、缩略图，snapshots/ 前缀版本化"]
 ```
 
-怎么读：箭头从应用指向三类存储，箭头上写各自承担的角色。只有 Postgres 在一致性关键路径上；Valkey 丢失只影响扇出与协调、可恢复；对象存储只放体积大的二进制。表结构与对象存储键中都不出现 `tenant_id`（T-0）。驱动的放行范围见下方「如何被机械验证」最后一条与章程 §5.3 规则 4。
+怎么读：箭头从应用指向三类存储，箭头上写各自承担的角色。只有 Postgres 在一致性关键路径上；Valkey 丢失只影响扇出与协调、可恢复（2026-09-26 起帧扇出由 M3 的 extension-redis 承担，FanoutBus 只剩控制频道 `room:{docId}:ctl`，H:q-hp-fanout）；对象存储只放体积大的二进制。表结构与对象存储键中都不出现 `tenant_id`（T-0）。驱动的放行范围见下方「如何被机械验证」最后一条与章程 §5.3 规则 4。
 
 ## 备选方案与放弃原因
 
@@ -39,7 +39,7 @@ flowchart LR
 |---|---|
 | MongoDB / DynamoDB 存 update | 无需文档型灵活 schema；关系与事务（seq 分配与 head_seq 同事务）在 PG 更直接；团队与运维栈统一 |
 | Kafka 作为 update 日志 | 增加一套基础设施；我们需要按 doc 随机读（bootstrap）而非流消费；Q5 规模 PG 足够 |
-| y-leveldb / y-redis / Hocuspocus 内置存储 | 与 Nest 壳、元数据、审计与权限分离；y-redis 的架构（Redis 为主存）与我们「PG 为持久层」冲突 |
+| y-leveldb / y-redis / Hocuspocus 内置存储 | 与 Nest 壳、元数据、审计与权限分离；y-redis 的架构（Redis 为主存）与我们「PG 为持久层」冲突。2026-09-26 起协同 Room 框架改用 Hocuspocus 4（[ADR-0039](./0039-collab-server-hocuspocus.md)），但它的 `onStoreDocument` 整文档持久化与 extension-database / s3 / sqlite 仍不用，update 日志与快照照本 ADR 落 PG |
 | 只存最新状态（无 update 日志） | 丢失崩溃窗口内的持久化粒度与审计回放能力；ack 语义无法精确 |
 | 媒体入 PG（bytea） | 体积（Q5 单文件 200 MB）与备份成本；CDN/预签名不可用 |
 
@@ -98,6 +98,41 @@ flowchart TD
 
 怎么读：实线是一次访问实际经过的路径，虚线是守护该路径的机械检查。代码层与数据库层两道防线互为兜底、任何一道都不替代另一道；只有迁移与维护绕过 RLS，系统作业仍受 RLS 约束。S-3 溢写数据存于 Valkey 与对象存储、不在 PG 中，因此不在文档作用域表之列（2026-09-25 修订，rulings §4.18 BE-20；原图该节点含「S-3 溢写行」，作废）。GUC 名与 policy 细节由 40-modules/08 定稿，图中不画。
 
+## 修订（2026-09-26，rulings §4.21 q-db-access）：B1 与 B2 结案
+
+原复用计划拟为这两项另立 ADR-0039；0039 已改由协同服务端采用 Hocuspocus 4 使用（[ADR-0039](./0039-collab-server-hocuspocus.md)，它同时吸收了 WS 接入），B1、B2 因此写进本 ADR；Nest 主版本见 [ADR-0030](./0030-observability-stack.md) 修订与章程 D8。依赖清单与版本锁以 [60-backend/19](../../60-backend/19-reuse-and-dependency-catalog.md) 为准。
+
+**B1 DB 访问层**：`drizzle-orm` 0.45.x + 手写 `db/schema/*.ts`（用户裁决，推荐项）。
+
+- SQL 迁移文件仍是事实源（与 60-backend/08–13 的文档围栏逐字一致），drizzle 只作仓储用的类型镜像；`drizzle-kit` 只用 `generate` 起草普通表 SQL，生成物不直接入库。
+- **漂移检查改为直查 `pg_catalog`**：空库执行全部迁移后，查询 `pg_class`（relkind `r` 与 `p`，排除 `relispartition` 为真的叶子分区）、`pg_attribute`、`pg_attrdef` 与 `pg_type`，与 `schema/*.ts` 比对列名、类型、可空性与默认值。不用 `drizzle-kit pull`：它的内省只选 relkind `r`/`v`/`m`，`document_updates`（hash 分区）与 `audit_log`（月分区）的父表整张丢失、叶子分区被当普通表（drizzle 仓库 issue #6093），原「用 drizzle 内省比对」的漂移检查同样有这个缺口。查询与比对规则见 60-backend/08 §10.1。
+- Drizzle 1.0（当前 RC）的破坏性变更须在 M2 前评估；Kysely 0.29 + kysely-codegen（内省含分区父表）保留为备选，不在本轮切换。
+- **PgBouncer 不进 compose**：RLS 上下文只用事务级 `set_config(…, true)`，应用侧与事务池兼容；但迁移执行器持会话级 `pg_advisory_lock`，事务池下会失效，所以迁移一律直连 PG。部署方自加 PgBouncer 时，应用连接可经它，迁移作业仍须直连（60-backend/08 §10.2）。
+
+**B2 HTTP 适配器**：Fastify 5（`@nestjs/platform-fastify` 12.1.0 精确锁 `fastify` 5.12.5），结案；只提供 Express 中间件的库一律换 Fastify 插件。
+
+**图 3 B1 类型镜像与漂移检查**
+
+```mermaid
+flowchart LR
+  fence["60-backend/08–13 的 migrate 围栏"]
+  files["db/migrations/NNNN_name.sql：逐字一致"]
+  empty["空库执行全部迁移"]
+  cat["直查 pg_catalog：relkind r 与 p，排除叶子分区"]
+  mirror["手写 db/schema/*.ts：drizzle 类型镜像"]
+  cmp{"列名、类型、可空性、默认值一致"}
+  pass["DB-03 通过"]
+  fail["CI 失败：先改围栏与迁移，再改镜像"]
+  fence --> files --> empty --> cat --> cmp
+  mirror --> cmp
+  cmp -- "是" --> pass
+  cmp -- "否" --> fail
+```
+
+怎么读：左侧是事实源到数据库的方向，SQL 围栏生成迁移文件并在空库执行；比对时一边是从 `pg_catalog` 读出的实际结构（分区父表也在内），一边是手写的 drizzle 镜像，不一致即失败，修正方向永远是「先改 SQL，再改镜像」。
+
+依据：rulings §4.21 q-db-access 与关键口径「DB 访问层」；证据 `reuse-arch-elements-plan-2026-09-26.json` backendReuse 核实（drizzle-kit 0.31.11 内省缺口）。
+
 ## 如何被机械验证
 
 - `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runSpillStoreConformance`、`runCollabServerConformance`、`runFanoutBusConformance`、`runLeaseLockConformance` 对 PG/Valkey 实现通过（testcontainers）；`runBlobStoreConformance` 对 SeaweedFS 通过（2026-09-25 变更：措辞对齐章程 :646 的 `run<Definition>Conformance` 命名，每个 Definition 一套，语义不变，rulings §4.18 GV-20；原：合并套件名 `runServerCollabAdaptersConformance`，作废）。
@@ -106,8 +141,9 @@ flowchart TD
 - （2026-09-24 复核修正，rulings §4.17 D3）扫描器 `scan-doc-access-via-permission`（M-01 第 14 个扫描器，09-type-discipline/06 §18 正式名，2026-09-25 按 rulings §4.18 GV-15 改写，原写 `doc-access-via-permission`；TD 行见 09-type-discipline/08）：按文档读写的仓储方法未经权限服务调用即报错——代码层防线，与上条 RLS 门禁构成两道防线。
 - 集成测试：`kill -TERM` 后重启，重放 snapshot+updates 与崩溃前所有已 ack 的状态相同（06 I10）。
 - 迁移脚本在 CI 对空库与上一版本库都可执行（向前兼容一版）。
+- （2026-09-26，rulings §4.21 q-db-access）漂移检查 DB-03：空库执行全部迁移后直查 `pg_catalog`（含 relkind `p` 的分区父表、排除叶子分区），与手写 `db/schema/*.ts` 逐列比对，不一致即失败（`test/server-integration`，60-backend/08 §13）；负向夹具：镜像里删掉 `document_updates` 或 `audit_log` 一列时必须报错。
 - 扫描器：`server-*` 包禁止 import `pg`/`ioredis`/`@aws-sdk`（除 server-storage 的 S3 Provider）；驱动只在 `apps/server` 适配器（09-03）。
 
 ## 关联
 
-章程 D8、D12、D13、Q5、Q6、Q10；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q10、§4.18 BE-01/BE-02/BE-15/BE-20/BE-31/GV-15/GV-20；ADR-0025/0029/0031/0035/0037；架构 08；40-modules/08/09/12。
+章程 D8、D12、D13、Q5、Q6、Q10；`00-charter/rulings-2026-09-14.md` §4.15 T-0/Q6/Q10、§4.18 BE-01/BE-02/BE-15/BE-20/BE-31/GV-15/GV-20、§4.21 q-db-access；ADR-0025/0029/0031/0035/0037/0039；60-backend/14；40-modules/08/09/12；60-backend/08 §10、60-backend/19 §5。

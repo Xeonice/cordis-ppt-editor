@@ -1,6 +1,6 @@
 # ADR-0017 UI 组件库选型：shadcn/ui 复制模式（Radix + Tailwind 4 + Lucide + Geist）
 
-> 状态：已接受 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M17：depcruise 规则名统一）；2026-09-25（矛盾收口，rulings §4.18：措辞对齐，语义不变）；2026-09-26（§4.20）（FE-18+TX-06：严格 CSP / Trusted Types 段定下 Radix 常量样式经 `default` 策略精确比对放行、sonner 静态 CSS + pnpm patch、react-resizable-panels 无需处理） | 依赖：charter v0.1（D10 修订见 charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.7、§4.11 C-21/C-22、§4.15 Q2/Q9、§4.18 GV-14/GV-15）
+> 状态：已接受 | 负责：架构-结构 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 M17：depcruise 规则名统一）；2026-09-25（矛盾收口，rulings §4.18：措辞对齐，语义不变）；2026-09-26（§4.20）（FE-18+TX-06：严格 CSP / Trusted Types 段定下 Radix 常量样式经 `default` 策略精确比对放行、sonner 静态 CSS + pnpm patch、react-resizable-panels 无需处理）；2026-09-26（§4.21：单点表补登 react-colorful、colord、@tanstack/react-virtual、pragmatic-drag-and-drop、react-hook-form、use-sync-external-store 与 ui-core 的 htmlparser2；react-colorful 以 pnpm patch 改静态 CSS；`cn` 维持 clsx + tailwind-merge 并以 codemod 收口；react-resizable-panels 升 4.13.3） | 依赖：charter v0.1（D10 修订见 charter v0.2；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.7、§4.11 C-21/C-22、§4.15 Q2/Q9、§4.18 GV-14/GV-15）
 
 ## 状态
 
@@ -37,7 +37,7 @@
 
 ## 如何被机械验证
 
-- depcruise `third-party-single-entry`（R5 扩展，章程 §5.3 规则 4）：`react`、`radix-ui`、`class-variance-authority`、`clsx`、`tailwind-merge`、`lucide-react`、`tailwindcss`（含 `@tailwindcss/*`）、`tw-animate-css`、`cmdk`、`sonner`、`react-resizable-panels`、`@fontsource-variable/geist` 仅允许出现在 `@cordexjs/ui-react` 与 `*-ui`（`cordex.layer == 'V-ui'`）；**例外：`apps/web` 放行 `react`、`react-dom`、`react-router`、`tailwindcss`、`@tailwindcss/*`**（rulings §4.15 Q2），`react-router` 仅限 `apps/web`；`ui-core` 出现任一即失败（R14 `ui-core-no-framework` 扩展）；`vaul` 与 `next-themes` 全仓不得出现（2026-09-24）。
+- depcruise `third-party-single-entry`（R5 扩展，章程 §5.3 规则 4）：`react`、`radix-ui`、`class-variance-authority`、`clsx`、`tailwind-merge`、`lucide-react`、`tailwindcss`（含 `@tailwindcss/*`）、`tw-animate-css`、`cmdk`、`sonner`、`react-resizable-panels`、`@fontsource-variable/geist`，以及 2026-09-26 补登的 `react-colorful`、`colord`、`react-hook-form`、`@hookform/resolvers`、`use-sync-external-store`、`@tanstack/react-virtual`、`@atlaskit/pragmatic-drag-and-drop` 仅允许出现在 `@cordexjs/ui-react` 与 `*-ui`（`cordex.layer == 'V-ui'`）；`htmlparser2` 仅允许出现在 `@cordexjs/ui-core` 的 `infrastructure/clipboard`（见文末「修订 2026-09-26（§4.21）」）；**例外：`apps/web` 放行 `react`、`react-dom`、`react-router`、`tailwindcss`、`@tailwindcss/*`**（rulings §4.15 Q2），`react-router` 仅限 `apps/web`；`ui-core` 出现任一即失败（R14 `ui-core-no-framework` 扩展）；`vaul` 与 `next-themes` 全仓不得出现（2026-09-24）。
 - depcruise R17 `shadcn-ui-dir-private`：`@cordexjs/ui-react/ui` 子路径与 `ui-react/src/components/ui/**` 只允许被 `ui-react` 自身、`*-ui` 包与 `apps/*` import；水平层/模型/渲染包 import 即失败。
 - depcruise R18 `design-css-only`：`@cordexjs/design` 的 `dependencies` 为空，`src/**` 无 React/Radix/Tailwind import；`exports` 只含类型入口与 `.css`。
 - 检查 `shadcn-components-sync`（测试断言 `packages/ui-react/src/__tests__/shadcn-copy.test.ts`，test job，TD-091；非独立扫描器，见 09-type-discipline/08 §11）：`components.json` 存在且 `style == 'radix-rhea'`（2026-09-16 起；原 `radix-nova`）；`src/components/ui/*.tsx` 文件集合与 `ui/index.ts` 桶文件导出一致；scanners job 的 `shadcn-diff` 步骤运行 `pnpm dlx shadcn@4.21.0 diff` 并产出报告（M2 稳定后升为阻断）。
@@ -77,3 +77,56 @@
 
 - **CI job 名**（GV-14）：「如何被机械验证」中的「CI job `shadcn-diff`」改为「scanners job 的 `shadcn-diff` 步骤」，对齐 09-type-discipline/07 §3 的 13 个 job 名封闭集合；报告 → M2 稳定后阻断的节奏不变。
 - **扫描器名**（GV-15）：`shadcn-components-sync`、`single-shadcn-copy`、`theme-vars-contract`、`shadcn-overrides` 原写作「扫描器」，但不在 09-type-discipline/06 的十四个扫描器之列；本 ADR 改称「检查」，按 09-type-discipline/08 §11 对照表落为测试断言：`shadcn-components-sync`、`single-shadcn-copy`、`shadcn-overrides` 为 `packages/ui-react/src/__tests__/shadcn-copy.test.ts`（test job，TD-091），`theme-vars-contract` 为 `packages/design/src/__tests__/theme-vars-contract.test.ts`（TD-092）。检查内容、适用范围与失败条件均不变。
+
+## 修订 2026-09-26（§4.21）：UI 复用件单点补登
+
+依据：rulings §4.21（R-d-11…R-d-20，用户诉求「尽可能复用成熟组件」）；[ADR-0049](./0049-dependency-admission-and-license-tiers.md)（准入四同步与许可分级）；清单与版本以 [50-frontend/17](../../50-frontend/17-reuse-and-dependency-catalog.md) 为准。
+
+**单点表补登**（本 ADR「如何被机械验证」第一条的 depcruise 名单已同步）：
+
+| 复用件 | 版本（锁） | 单点位置 | 用途 | 样式与 CSP |
+|---|---|---|---|---|
+| react-colorful | 5.8.1 | ui-react `ui/shell/ColorPickerPopover.tsx`、`GradientEditor.tsx` | 色盘与透明度条 | 挂载时以 `innerHTML` 注入 `<style>`，属 TrustedHTML sink：以 **pnpm patch** 删注入，样式文本抽到 ui-react 静态样式 `src/styles/vendor/react-colorful.css`，与 sonner 并列登记在 `patchedDependencies`（50-frontend/09 §5a.3） |
+| colord | 2.10.0 | ui-react（颜色输入） | Hex / RGB / HSL 文本解析与格式化；OOXML 颜色变换仍在 model-slide | 无 |
+| react-hook-form + @hookform/resolvers | 7.88.0 / 5.9.1 | ui-react 表单钩子 `ui/form/use-schema-form.ts` | `standardSchemaResolver` 直接复用 protocol 的 zod schema | 无 |
+| use-sync-external-store | 1.7.0 | ui-react `hooks/*` | `with-selector` 选择器订阅 | 无 |
+| @tanstack/react-virtual | 3.14.13 | slide-ui 缩略图栏与选择窗格 | 虚拟列表 | 只写 React `style`（CSSOM） |
+| @atlaskit/pragmatic-drag-and-drop | 4.0.0 | slide-ui `infrastructure/dnd` | 拖拽重排与外部文件拖入，转成 ui-core 拖放意图 | 无运行时样式注入 |
+| htmlparser2 | 12.0.0 | ui-core `infrastructure/clipboard`（惰性） | 剪贴板 HTML 转纯文本，不经 DOM | 无；ui-core 仍不得 import 任何 UI 框架（R14） |
+| react-resizable-panels | 4.13.3（由 4.12.4 升级） | ui-react `EditorShell` | 三栏分栏 | 仍只用 `adoptedStyleSheets` 与 `insertRule`；升级同 PR 更新 50-frontend/14 §3 注入点表 |
+
+**`cn()` 口径不变，补 codemod**：决策 2 的 `cn()` = clsx + tailwind-merge 维持；shadcn 官方 `cn` 包（0.4.0，新代码线 2026-09-01 起 22 天 14 版）暂不采用，到 1.0 再评估（R-d-12）。shadcn CLI 生成的复制件会写 `import { cn } from "cn"`（playground 现有 43 处），每次 `pnpm dlx shadcn@4.21.0 add` 之后由生成脚本跑 codemod 改写为 ui-react 内部的 `lib/utils`；这是升级流程的固定步骤，不算手改复制件，不标 `// Cordex override`。检查 `shadcn-components-sync`（`shadcn-copy.test.ts`，TD-091）增加断言：复制件不出现 `from "cn"`，ui-react 不依赖 `cn` 包。
+
+**图 1 UI 复用件的单点与样式处理**
+
+```mermaid
+flowchart LR
+  subgraph patched["运行时注入样式：pnpm patch 改静态 CSS"]
+    sonner["sonner 2.0.8"]
+    colorful["react-colorful 5.8.1"]
+  end
+  subgraph cssom["只用 CSSOM 或 React style：无需处理"]
+    panels["react-resizable-panels 4.13.3"]
+    virtual["@tanstack/react-virtual 3.14.13"]
+  end
+  subgraph none["无样式副作用"]
+    colord["colord、react-hook-form、use-sync-external-store"]
+    pdnd["pragmatic-drag-and-drop 核心包"]
+  end
+  radixConst["Radix Viewport 固定样式：TT default 常量表放行"]
+  uiReact["ui-react：唯一引入点"]
+  slideUi["slide-ui：唯一引入点"]
+  sonner --> uiReact
+  colorful --> uiReact
+  panels --> uiReact
+  colord --> uiReact
+  radixConst --> uiReact
+  virtual --> slideUi
+  pdnd --> slideUi
+```
+
+怎么读：按「会不会在运行时写样式」把 UI 复用件分成三类——会注入 `<style>` 的两项统一用 pnpm patch 改成静态 CSS，只写 CSSOM 的不需要处理，其余没有样式副作用；Radix 的两段固定样式是唯一保留的运行时写入，由 Trusted Types `default` 策略精确放行（修订 2026-09-24 第 ③ 条）。所有箭头都指向 ui-react 或 slide-ui，其它包 import 即被 depcruise 拦下。
+依据：50-frontend/14 §3–§4；50-frontend/09 §5a；R-d-11、R-d-13、R-d-16、R-d-17、R-d-18、R-d-19。
+
+- **新增机械验证**：depcruise `third-party-single-entry` 名单扩展（上表）；`shadcn-copy.test.ts` 的 `from "cn"` 负向断言；`patchedDependencies` 含 react-colorful 且 `react-colorful.css` 与 patch 前的内嵌样式文本一致（ui-react `vendor-styles.test.ts`）；csp-strict 覆盖颜色选择器、渐变编辑器、缩略图栏拖拽与表单对话框（50-frontend/14 §13 V2）。
+- **关联**：rulings §4.21；ADR-0049；50-frontend/09 §5a、50-frontend/14 §3、50-frontend/17 §3、§8、§9；40-modules/10（新文件登记待回写）。

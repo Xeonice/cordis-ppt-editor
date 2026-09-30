@@ -1,7 +1,19 @@
-# 架构文档总览（30-architecture）
+# 架构入口（总架构，30-architecture）
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§2 登记三条设计线与三线总边界表，08 / 11 改为摘要 + 链接、06 §0.1 与 08 §0.1 写 M2/M3 新边界）；2026-09-25（设计线拆分：§2 首加「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」，07、10 索引行改注摘要 + 链接）；2026-09-26（§4.20）（FE-01：§3 UnitScope 行登记 Unit 默认 Provider 登记表） | 依赖：charter v0.1
-> 本 README 由架构-结构条线起草；「文档索引」中 06/07/08/10/11 由架构-运行时条线撰写，09-type-discipline/ 由类型治理条线撰写。总编排合并时以此为入口。
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-18；2026-09-24（rulings §4.15：C-9 结案——删「全局 yarn」前提，改 pnpm 11 双锁 + Node 26；A-9 注明 Q3 未覆盖；UI 组件库行 shadcn 命令改 pnpm dlx）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§2 登记三条设计线与三线总边界表，08 / 11 改为摘要 + 链接、06 §0.1 与 08 §0.1 写 M2/M3 新边界）；2026-09-25（设计线拆分：§2 首加「前端 / 后端 / 测试设计以 50 / 60 / 70 为准」，07、10 索引行改注摘要 + 链接）；2026-09-26（§4.20）（FE-01：§3 UnitScope 行登记 Unit 默认 Provider 登记表）；2026-09-26（§4.21：顶部置「架构三件套」表；§1 原则并入 01 §3 统一原则表；§2 索引去掉 08、07 改名「渲染跨端契约」、01 升格总架构、02 去目录树，三线边界表改链 docs/README；§3 补 ADR-0018、0019；§4 A-2 按 ADR-0019 结案、补 B1 / B2 结案行、A-11 链 ADR-0036；§5、§7 标为历史；§6 补术语）；2026-09-26（§4.21 整合：§4 新增 A-14 SVG 消毒器共享落点待决）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1
+> 本 README 由架构-结构条线起草；「文档索引」中 06/07/10/11 由架构-运行时条线撰写，09-type-discipline/ 由类型治理条线撰写。总编排合并时以此为入口。
+
+## 架构三件套（先读这三篇）
+
+架构只有一份总架构，接下来是前端架构和后端架构（rulings §4.21 q-arch-reorg 方案 B）：30 目录只留总架构与跨端契约，50/01、60/01 就地升格为前端架构、后端架构。阅读顺序固定为 ① → ② → ③。
+
+| 顺序 | 文档 | 回答什么 | 唯一源 |
+|---|---|---|---|
+| ① | [30/01 总架构](./01-overview.md) | 系统边界与容器、前后端分工、统一原则、技术栈与复用总口径、打开 / 编辑 / 协同 / 导入导出四条跨端数据流、M1–M4 里程碑边界 | C4 L1/L2、统一原则表 P1–P14、技术栈与复用总表与许可分级口径、M1–M4 里程碑边界表 |
+| ② | [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md) | 浏览器执行上下文、包在浏览器中的层带分布、前端铁律 F1–F14、运行时对象关系、前端主干、编辑器能力地图 | 前端铁律与浏览器侧对象图；复用全表 [50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、能力总表 [50/18](../50-frontend/18-editor-capabilities.md)、可追加元素目录 [50/19](../50-frontend/19-insertable-elements-overview.md)–25 |
+| ③ | [60/01 后端架构](../60-backend/01-service-overview-and-roles.md) | Nest 模块、`CORDEX_ROLE`、装配矩阵、cordis 宿主生命周期、驱动放行边界、服务端预算 | 模块清单、装配矩阵、服务端预算；复用全表 [60/19](../60-backend/19-reuse-and-dependency-catalog.md) |
+
+三件套之外，30 目录保留跨端契约（02 分层、03 内核、04 模型、05 命令、06 协同、07 渲染跨端契约、10 错误与事件、12 扩展）、类型治理（09）与 ADR；原 08「后端一页总览」已撤销（五条原则并入 01 §3，其余见 [60-backend/README](../60-backend/README.md) §6 映射），文件已在 Remap 阶段统一改完引用后删除。
 
 ---
 
@@ -9,85 +21,73 @@
 
 章程（`docs/00-charter/charter.md`）定义了**要建什么**：一个以 cordis 4 为内核、每一级可插拔、文档类型盲的办公文档 SDK。本目录回答**怎么建**，并且细化到能让一名资深工程师直接创建仓库骨架、写出 `@cordexjs/kernel` 与 `@cordexjs/model-core` 的程度：
 
-- `02` 给出整个仓库的目录树（根、`apps/`、`packages/` 每个包的 `src/` 逐文件职责、`tooling/`），以及每个包 `package.json` 的字段策略与依赖规则；
+- `02` 给出分层秩表（全仓唯一源）、仓库根目录、每个包 `package.json` 的字段策略、第三方单点表与依赖规则；逐包目录树与逐文件职责已迁到 40-modules 各篇 §4（§4.21，02 各包标题保留一行桩）；
 - `03`/`04`/`05` 给出内核、文档模型、命令系统的**签名级草案**；
 - 每一条架构规则都标明**如何被机械验证**（哪个 lint / dependency-cruiser 规则 / 测试套件 / CI job），细节由 `09-type-discipline/` 承接；
 - 每一个抽象都写明**为什么不像 Univer 那样做**（引用 `reference-univer-lessons.md` 的 K/A 编号）。
 
 ---
 
-## 1. 架构原则（与章程 §0 一致，加上本条线的落地解读）
+## 1. 架构原则（与章程 §0 一致；统一原则表见 01 §3）
 
-| # | 原则 | 落地解读 | 执行点 |
-|---|---|---|---|
-| P1 | **SDK 优先** | 一切能力都在 `packages/*` 中；`apps/web` 与 `apps/server` 只含组装与传输壳，零业务逻辑 | depcruise `cordex-apps-only-assemble`：`apps/*` 只能 import 白名单包（apps/web：`preset-*`/`protocol`/`design`/`ui-react`/`i18n`/`shared`/`kernel`（值导入仅 host 目录）；apps/server：`server-*`/`protocol`/`kernel` 类型，`cordis-host/**` 另可装配 iso 插件；02 §3、09-03 §3.7）；lint `no-restricted-syntax`：`apps/**` 内禁止 `defineCommand`/`defineMutation` 等领域定义（09-02 §3；原称扫描器 `no-domain-defs-in-apps`，rulings §4.18 FE-05/GV-15） |
-| P2 | **每一级可插拔** | 每个可替换能力都有 Definition（契约包或契约文件）、≥1 个 Provider、Consumer 只依赖 Definition；移除任一 Provider 系统仍可启动（降级） | depcruise 三角色规则（09-03）；`preset-*` 的「移除 Provider 仍可启动」矩阵测试（02 §6、11） |
-| P3 | **文档类型盲** | 水平层不出现 `slide`/`doc`/`sheet` 的知识；一切文档类型知识经 `core.documentType` 等贡献点注入 | depcruise R3：非组合根的水平层禁 import 垂直束（`compositionRoot: true` 的 preset-*/apps 豁免但仍受 R4/R9，rulings §4.18 FE-01）；lint `cordex/no-doc-type-literals`；`fixture` 文档类型的盲测套件（12） |
-| P4 | **规范必有执行点** | 本目录每条「规则」旁都有「机械验证」小节；没有执行点的规则不得写入 | `scan-policy`（`tooling/scripts/scan-policy.ts`，CI job `policy-check`）读取 09-08 矩阵并校验 CI job 存在且在 PR 触发（A16–A19） |
-| P5 | **唯一注册抽象** | 全代码库只有 `ContributionPoint`；不存在 `register*` 方法与模块级 `Map` | lint `cordex/no-register-methods-outside-kernel`、`cordex/no-module-level-mutable-state`（09-02） |
-| P6 | **时间可组合** | 激活期创建的一切资源都归 `ctx.effect()` 所有；卸载后 `fiber.getEffects()` 为空 | `@cordexjs/kernel/testing` 的 `defineLifecycleSuite` 对每个插件包强制运行（11） |
-| P7 | **单一事实源** | 运行时模型只经 `DocumentStore` 读写；协同模式下 CRDT 文档即事实源；派生数据不入 Snapshot | 类型测试 `Persisted<T>` 剔除 `Derived<T>`；快照 schema 校验（04 §7） |
-| P8 | **失败可传播、失败可隔离** | 命令返回 `Result<T, E>`，不返回 `boolean`；插件 `apply` 抛错只让自身 Fiber `FAILED`，兄弟不受影响 | lint `cordex/no-boolean-command-result`；kernel 失败隔离测试（03 §8） |
+原 P1–P8（本节旧表）、原 01「四大原则」与原 08 §0 五条跨端原则已合并为 [01](./01-overview.md) §3 的**统一原则表 P1–P14**（§4.21），落地解读、执行点、对应的前端铁律 F1–F14 与后端落点只在那里维护，本节只列名称索引：
+
+P1 SDK 优先 · P2 每一级可插拔 · P3 文档类型盲 · P4 规范必有执行点 · P5 唯一注册抽象 · P6 时间可组合 · P7 单一事实源 · P8 失败可传播、可隔离 · P9 服务端薄壳（原 08 §0 第 1 条）· P10 同一份 iso 代码两端运行（第 2 条）· P11 fail-closed 多点 + 纵深防御（第 3 条）· P12 驱动与第三方单点放行（第 4 条）· P13 服务端文档类型盲（第 5 条）· P14 复用优先、许可分级准入（§4.21 新增）
 
 ---
 
 ## 2. 文档索引
 
-> **前端 / 后端 / 测试设计以 [50-frontend](../50-frontend/README.md) / [60-backend](../60-backend/README.md) / [70-testing](../70-testing/README.md) 为准**（rulings §4.19）：本目录只保留跨端原则、跨端协议、iso 契约与 ADR；下表中标注「摘要 + 链接」的文件，其运行侧细节已迁入三条设计线，冲突时以设计线为准（已接受 ADR 与 rulings 除外）。边界表见本节末。
+> **前端 / 后端 / 测试设计以 [50-frontend](../50-frontend/README.md) / [60-backend](../60-backend/README.md) / [70-testing](../70-testing/README.md) 为准**（rulings §4.19）：本目录只保留总架构、跨端原则、跨端协议、iso 契约与 ADR；下表中标注「摘要 + 链接」的文件，其运行侧细节已迁入三条设计线，冲突时以设计线为准（已接受 ADR 与 rulings 除外）。三线分工与边界表只在 [docs/README](../README.md) 维护，本目录不再重复（§4.21）。
 
 | 文件 | 内容 | 负责 |
 |---|---|---|
-| [`01-overview.md`](./01-overview.md) | C4 L1/L2、四大原则、打开/编辑/协同/导出端到端数据流 | 结构 |
-| [`02-layering-and-packages.md`](./02-layering-and-packages.md) | ★ 分层网格、**整个仓库目录树**（逐文件职责）、`package.json` 策略、依赖规则表 | 结构 |
+| [`01-overview.md`](./01-overview.md) | ★ **总架构**（全仓唯一，跨端）：C4 L1/L2、前后端分工、统一原则表 P1–P14、技术栈与复用总表与许可分级、打开 / 编辑 / 协同 / 导入导出端到端数据流、运行时对象总图、阅读路径、M1–M4 里程碑边界唯一表 | 结构 |
+| [`02-layering-and-packages.md`](./02-layering-and-packages.md) | 分层秩表（全仓唯一源，含 L0 `@cordexjs/xml`）、仓库根目录、`package.json` 策略、第三方单点表、依赖规则表；逐包目录树已删，各包标题留一行桩指 40-modules 对应 §4 | 结构 |
 | [`03-kernel-and-plugin-model.md`](./03-kernel-and-plugin-model.md) | kernel 封装、ContributionPoint、Manifest、UnitScope、插件形态与生命周期、失败隔离、preset/loader、版本协商 | 结构 |
 | [`04-document-model.md`](./04-document-model.md) | model-core 抽象、model-slide 对象模型、OOXML 映射表、不透明保留、样式继承、单位、稳定 id、schema 迁移 | 结构 |
 | [`05-command-and-history.md`](./05-command-and-history.md) | 命令三分法契约、执行管线、Mutation 类型化与降级、Store 推导逆操作、协同撤销、失败传播 | 结构 |
 | [`06-collaboration.md`](./06-collaboration.md) | CRDT 映射、同步协议、presence、离线、权限即时性、冲突语义 | 运行时（B） |
-| [`07-rendering.md`](./07-rendering.md) | 渲染介质与坐标、贡献点与帧管线契约、SceneProvider / TextMeasurer / RenderTarget、打开管线契约、headless 渲染跨端约束；目录树、文本编辑宿主、命中与缩略图、性能预算为摘要 + 链接（40-modules/06、07，50-frontend/04–06、13，60-backend/06，70-testing/09） | 运行时（B） |
-| [`08-backend-nestjs.md`](./08-backend-nestjs.md) | 后端一页总览、五条跨端原则、服务端里程碑边界；其余各节为 60-backend 的摘要与链接 | 运行时（B） |
+| [`07-rendering.md`](./07-rendering.md) | **渲染跨端契约**：渲染介质与坐标、贡献点与帧管线契约、engine-layout 度量与断行、headless 渲染跨端约束；render-dom 与页合成迁往 50/01 前端架构，元素渲染器表迁往 50/19，其余为摘要 + 链接（40-modules/06、07，50-frontend/04–06、13，60-backend/06） | 运行时（B） |
 | [`09-type-discipline/`](./09-type-discipline/README.md) | 类型治理：tsconfig、lint、boundaries、api-surface、runtime-boundaries、scanners、hooks-and-ci、policy 矩阵、plugin 类型契约 | 类型治理 |
 | [`10-observability-and-errors.md`](./10-observability-and-errors.md) | 错误码体系（格式、域登记、HTTP/WS 映射）、日志命名与脱敏、遥测 API 与命名规则、公开事件定稿；Sink、span / 指标清单、诊断与客户端错误上报为摘要 + 链接（50-frontend/15、60-backend/18） | 运行时（B） |
 | [`11-testing-strategy.md`](./11-testing-strategy.md) | 测试原则与门禁口径摘要；各类测试细则链接 70-testing | 运行时（B） |
 | [`12-extension-to-doc-and-sheet.md`](./12-extension-to-doc-and-sheet.md) | 文档类型盲验证方案、model-doc/model-sheet 对水平层的抽象要求、盲测套件定义 | 结构 |
-| [`adr/README.md`](./adr/README.md) | ADR 索引：0001–0019 结构、0020–0039 运行时、0040–0049 类型治理 | 结构（索引）|
+| [`adr/README.md`](./adr/README.md) | ADR 索引：0001–0019 结构（§4.21 新增 0018 可追加元素模型与插入命令族、0019 XML 词法与保真树）、0020–0039 运行时（新增 0036 图表渲染与编辑路线、0039 协同服务端采用 Hocuspocus 4）、0040–0049 类型治理（新增 0049 依赖准入与许可分级） | 结构（索引）|
 
-### 三条设计线与本目录的边界（rulings §4.19）
+原 `08-backend-nestjs.md`（后端一页总览）已撤销（§4.21）：五条跨端原则并入 01 §3（P9–P13），两张后端总图与服务端里程碑迁往 60/01，其余各节按 [60-backend/README](../60-backend/README.md) §6 的映射改指 60-backend 各篇；文件已在 Remap 阶段统一改完引用后删除。
 
-2026-09-25 起，前端、后端、测试设计分出三条设计线，各为该侧设计的**唯一事实源**；本目录保留跨端原则、跨端协议与 ADR，40-modules 保留包 / 文件级规划，重复段落改为引用。本目录某节与设计线不一致时，以设计线为准（已接受 ADR 与 rulings 除外）。
-
-| 主题 | 本目录保留（跨端） | 唯一事实源 |
-|---|---|---|
-| 前端（浏览器应用壳、preset 装配、渲染与缩略图、协同客户端、评论与版本历史、性能与体积、客户端安全、事件与遥测、i18n 与无障碍） | 01 总图、02 包级定位、05 命令契约、06 协议与语义、07 管线契约、10 命名与脱敏规则 | [50-frontend](../50-frontend/README.md) |
-| 后端（Nest 模块与角色矩阵、鉴权链、完整 DDL、对象存储与保留、REST 目录、WS 服务端视角、部署配置、观测端点） | 08 一页总览与五条跨端原则、06 协议、10 错误码登记与 http-map | [60-backend](../60-backend/README.md) |
-| 测试（分层、契约套件、round-trip 与语料、视觉 oracle、协同模拟、e2e、性能与容量、安全、CI 映射、需求追溯） | 11 原则与门禁口径摘要、09-type-discipline 的扫描器与 lint 定义 | [70-testing](../70-testing/README.md) |
-
-里程碑口径：协同后端（网关、Room、update 持久化与快照、服务端导入）随 M2 交付，M3 为多人协同体验层（rulings §4.19 D-M2-CONTENT；逐项以 PRD 05 §0.3 为准，本目录落点见 06 §0.1、08 §0.1）。
+里程碑口径：M1–M4 的边界只在 [01](./01-overview.md) §7 维护一张表；协同后端（网关、Room、update 持久化与快照、服务端导入）随 M2 交付，M3 为多人协同体验层（rulings §4.19 D-M2-CONTENT；验收细则以 PRD 05 为准）。
 
 ### 阅读顺序建议
 
-1. 先读 `01` 建立整体图；
+1. 先读架构三件套：`01` 总架构 → [50/01](../50-frontend/01-overview-and-runtime-map.md) 前端架构 → [60/01](../60-backend/01-service-overview-and-roles.md) 后端架构；
 2. 要建仓库骨架：`02` → `03` → `09-type-discipline/01..03`；
-3. 要写 `model-core`/`model-slide`/`ooxml-*`：`04` → `05` → `adr/0007`、`0008`、`0009`、`0013`、`0014`；
-4. 要写协同/渲染/服务端：读 `03`/`04`/`05` 中「对 B 线的契约」小节后转 `06`/`07`/`08`。
+3. 要写 `model-core`/`model-slide`/`xml`/`ooxml-*`：`04` → `05` → `adr/0007`、`0008`、`0009`、`0013`、`0014`、`0018`、`0019`；
+4. 要写协同 / 渲染：读 `03`/`04`/`05` 中「对 B 线的契约」小节后转 `06`/`07`；服务端细节直接读 60-backend。
 
 **文档地图与阅读路径**
 
 ```mermaid
 flowchart TB
-  subgraph structLine["结构线"]
+  subgraph trio["架构三件套"]
     direction LR
-    d01["01 总览"]
+    d01["01 总架构"]
+    f01["50/01 前端架构"]
+    b01["60/01 后端架构"]
+  end
+  subgraph structLine["结构线：跨端契约"]
+    direction LR
     d02["02 分层与包"]
     d03["03 内核与插件模型"]
     d04["04 文档模型"]
     d05["05 命令与历史"]
     d12["12 扩展到 doc / sheet"]
   end
-  subgraph runtimeLine["运行时线 B"]
+  subgraph runtimeLine["运行时线 B：跨端契约"]
     direction LR
     d06["06 协同"]
-    d07["07 渲染"]
-    d08["08 后端 NestJS"]
+    d07["07 渲染跨端契约"]
     d10["10 观测与错误"]
     d11["11 测试策略"]
   end
@@ -96,19 +96,19 @@ flowchart TB
     d09a["09-type-discipline/01..03：tsconfig、lint、boundaries"]
     d09b["09-type-discipline/04..09 与 README"]
   end
-  adr["adr/0007、0008、0009、0013、0014"]
+  adr["adr/0007、0008、0009、0013、0014、0018、0019"]
   contracts["03 / 04 / 05 中「对 B 线的契约」小节"]
+  d01 --> f01 --> b01
   d01 -- "建仓库骨架" --> d02 --> d03 --> d09a
-  d01 -- "写 model-core / model-slide / ooxml-*" --> d04 --> d05 --> adr
+  d01 -- "写 model-core / model-slide / xml / ooxml-*" --> d04 --> d05 --> adr
   d03 --> contracts
   d04 --> contracts
   d05 --> contracts
-  contracts -- "写协同 / 渲染 / 服务端" --> d06
+  contracts -- "写协同 / 渲染" --> d06
   contracts --> d07
-  contracts --> d08
 ```
 
-怎么读：三个子图对应三条撰写条线，箭头是上面「阅读顺序建议」的路径：先读 01，再按目的分叉为「建仓库骨架」与「写模型/格式」两条；第 4 条从 03/04/05 中「对 B 线的契约」小节转入 06/07/08（指向契约节点的三条边表示该小节所在文档）；没有箭头的文档按需查阅。
+怎么读：顶部子图是固定阅读顺序的架构三件套；其余三个子图对应三条撰写条线，箭头是上面「阅读顺序建议」的路径：读完 01 后按目的分叉为「建仓库骨架」与「写模型 / 格式」两条；第 4 条从 03/04/05 中「对 B 线的契约」小节转入 06/07（指向契约节点的三条边表示该小节所在文档）；没有箭头的文档按需查阅。
 
 ---
 
@@ -133,6 +133,8 @@ flowchart TB
 | 单一执行入口 | Command 与 Operation 都经 `commands.execute`；Mutation 只能在事务内产生，外部**不可执行** | 0015 |
 | 盲测夹具 | `model-core/testing` 提供 `fixture` 文档类型；水平层测试禁 import 垂直束；M5「水平层零改动」以文件哈希冻结校验 | 0016 |
 | UI 组件库 | **shadcn/ui 复制模式**（CLI 4.21，`radix-rhea` 风格——2026-09-16 起，原 `radix-nova`；Radix + Tailwind 4 + Lucide + Geist）：源码复制进 `ui-react/src/components/ui/`，`components.json` 入库，升级走 `pnpm dlx shadcn@4.21.0 diff`（仓库根禁用 npx，rulings §4.15 Q9）；`@cordexjs/design` 只交付主题变量 CSS（shadcn 变量 + `--cordex-*`），组件依赖全部落在 ui-react/`*-ui`；`ui-core` 仍无 React；设计 playground 是 ui-react 的种子（用户指令，章程 D10 修订） | 0017 |
+| 可追加元素与插入命令族 | 补齐可追加元素的模型字段与插入命令 / Mutation 族；表格在 M3 结构编辑前改为归一化模型（`columns` / `rows` 为 `Record<Id, {order: FracKey, …}>`，`cells` 以 `"RowId:ColId"` 为键，合并记在锚格），不变量 I-TBL1 / I-TBL2 兜底（rulings §4.21 q-table-depth） | 0018 |
+| XML 词法与保真树 | 自研词法、保真树与序列化，抽为独立 iso 包 `@cordexjs/xml`（L0 · 秩 0 · 零依赖）；`scan`（不建树，计数与限额）与 `parseDocument`（整树）两个入口，都支持 write/end 与时间片让出；XML 限额只在 XmlLimits 表定义一次；ooxml-core 运行时零 XML 依赖（rulings §4.21 X 组） | 0019 |
 
 ---
 
@@ -141,22 +143,27 @@ flowchart TB
 | # | 事项 | 当前默认 | 影响 | 决策人 |
 |---|---|---|---|---|
 | A-1 | ~~`StoreOp.move` 在 CRDT 下的语义~~ | **已解决**：采纳 B 线 ADR-0032——有序实体 = 实体表 + `order: FracKey`，移动 = 单键 `set`；`move` 原语删除（ADR-0013）；04 §2.3、05 §4 已同步 | — | 已结（保留追溯） |
-| A-2 | 同构 XML 解析器：自研保真 DOM vs `@xmldom/xmldom` / `fast-xml-parser` | 自研最小保真 DOM（保留前缀/顺序/空白/注释，SafeXmlNode 遍历） | `ooxml-core/xml` 工作量与保真度 | 架构-结构 + 类型治理（依赖许可与 iso 检查） |
+| A-2 | ~~同构 XML 解析器：自研 / @rgrove/parse-xml 5 / saxes（已归档）~~ | **已结案**（rulings §4.21 X:q-xml-lexer、X:q-xml-package）：自研词法与保真树，抽为独立 iso 包 `@cordexjs/xml`（L0 · 秩 0 · 零依赖）；ooxml-core 运行时不引任何 XML 依赖，只保留 OPC、命名空间归一化、MCE 与 c14n（测试用）；saxes 6.0.0 与 libxml2-wasm 只作 devDependency 差分 oracle，@rgrove/parse-xml 5 作退路；须接入 W3C XML Conformance 的 not-wf / wf 与 Namespaces 子集；见 [ADR-0019](adr/0019-xml-lexer-and-fidelity-tree.md) | `@cordexjs/xml` 约 20 人日 ±30%；ooxml-core 依赖上限改为「shared, xml, model-core」（02 §4.9） | 已结（保留追溯） |
 | A-3 | Strict 一致性类输入**有编辑**时的导出一致性类（与 PRD PD-03 合并为一条） | 三案：**A 混合**（脏部件写 Transitional、干净部件 verbatim，本条线旧默认）——**放弃**：同一包内命名空间混用、`p:presentation/@conformance` 与部件不一致，PowerPoint 很可能触发修复，违反产品硬要求「PowerPoint 365 打开无修复」；**B 整包转 Transitional**（产品倾向）——满足两条硬要求，代价：Strict 输入一经编辑**全部**部件重生成（含不透明部件的命名空间改写，改写不透明 XML 有风险），「未触碰部件字节相同」对 Strict 输入失效；**C 保持原一致性类**（脏部件经 Transitional→Strict 反向映射写回 Strict、干净部件 verbatim）——两条硬要求 + 未触碰部件字节相同，代价：维护反向表并对 Strict XSD 校验。**推荐：C 为目标、B 为自动回退**（导出时 C 的产物未通过 Strict XSD 或反向表缺项 → 回退 B 并诊断 `STRICT_FALLBACK_TRANSITIONAL`）。零编辑往返在三案下均字节相同（04 §4.4） | `ooxml-core/xml/normalize.ts` 反向表、导出校验步骤、保真承诺表述 | 用户 + 总编排（产品 PD-03 与本条合并裁决） |
 | A-4 | 库构建：`tsc -b` 未打包 ESM（默认）vs `tsdown` 打包 | `tsc -b`；`tsdown` 仅用于未来「独立浏览器包」 | 09-04 publint/attw 配置 | 类型治理 |
 | A-5 | `NodeId` 生成器：UUIDv7（36 字符）vs 26 字符 base32 | UUIDv7 | Y.Doc 体积、日志可读性 | 架构-结构（听取 B 对体积的评估） |
 | A-6 | `commands.execute` 的 unit 定位：显式 `unitId` 参数（默认）vs 从调用方 ctx 推导 | 显式 `unitId`；应用级命令传 `null` | 所有命令调用点 | 架构-结构（已定默认，可否决） |
 | A-7 | 仓库自身许可证 | 建议 Apache-2.0（SDK 场景的专利授权） | 依赖审查基线、第三方插件生态 | 用户 |
-| A-8 | `server-headless` 是否启用 `@cordisjs/plugin-loader` 配置驱动组合 | 关闭；preset 程序化组合 | 运维配置形态 | 架构-运行时（08）+ 运维 |
+| A-8 | `server-headless` 是否启用 `@cordisjs/plugin-loader` 配置驱动组合 | 关闭；preset 程序化组合 | 运维配置形态 | 架构-运行时（60-backend/06 §8）+ 运维 |
 | A-9 | 幻灯片 body 形态 | 归一化实体表 + 每实体 `order: FracKey`（与 B 线 ADR-0032 一致，无顺序数组）。**残余分歧**：Snapshot 中 `order` 键**保留**（A，ADR-0013 第 7 条：使 `toSnapshotBody() ≡ state()`、导入不必重生成键、memory/yjs 一致）vs **转数组**（B，ADR-0032 第 6 条：人类可读） | Snapshot 契约、迁移语料形态、调试工具 | 总编排合并（A 推荐保留键，数组视图交给调试工具）。2026-09-24 注：rulings §4.15 Q3 只裁定 CRDT 选型（Yjs 13.6.x）与撤销语义（同键跳过并提示 / 整步跳过即停 / 软删除墓碑 + TTL），**未涉及** `order` 键的 Snapshot 形态，本项不随 Q3 结案，仍待裁决 |
 | A-10 | `@cordexjs/design` 原子组件形态：Web Components vs 纯 CSS 类 + 最小 TS | 纯 CSS 类 + 最小 TS 行为 | ui-react 的复用方式 | 设计条线 |
-| A-11 | 图表建模深度与 M1 查看路径 | **已对齐 PRD OF-09**：M1 `c:chart` 部件不透明保留（`Chart.partRef`），**图表渲染器只读解析**该部件（`ooxml-core/chartml/`：`c:chartSpace` 的图表类型/系列/`numCache`/`strCache`/轴/图例/标题 → 只读 `ChartReadModel`）并渲染为 SVG；**不**依赖位图预览（pptx 图表部件通常无预览，旧措辞作废）；M1–M2 不建可编辑模型。M3 起 `model-slide` 增加可编辑 `Chart.data`（ED-15；内嵌工作簿策略 PD-06 由 B 决定）。渲染器为惰性块：M1–M2 `@cordexjs/slide-render/chart` 子路径，M3 拆为 `@cordexjs/slide-render-chart`（总编排已接受） | `ooxml-core/chartml/`、`slide-render/chart/`、EM-07 图表块 ≤ 400 KB | 产品已表态、架构采纳；待总编排确认 |
+| A-11 | 图表建模深度与 M1 查看路径 | **已对齐 PRD OF-09**：M1 `c:chart` 部件不透明保留（`Chart.partRef`），**图表渲染器只读解析**该部件（`ooxml-core/chartml/`：`c:chartSpace` 的图表类型/系列/`numCache`/`strCache`/轴/图例/标题 → 只读 `ChartReadModel`）并渲染为 SVG；**不**依赖位图预览（pptx 图表部件通常无预览，旧措辞作废）；M1–M2 不建可编辑模型。M3 起 `model-slide` 增加可编辑 `Chart.data`（ED-15；内嵌工作簿策略 PD-06 由 B 决定）。渲染器为惰性块：M1–M2 `@cordexjs/slide-render/chart` 子路径，M3 拆为 `@cordexjs/slide-render-chart`（总编排已接受） ；2026-09-26 补：渲染路线定为 d3-scale / d3-shape / d3-array（ISC）做底层、按 OOXML 语义自研布局，图表插入定在 M3（rulings §4.21 q-chart-route，ADR-0036） | `ooxml-core/chartml/`、`slide-render/chart/`、EM-07 图表块 ≤ 400 KB | 产品已表态、架构采纳；待总编排确认 |
 | A-12 | 「部件级 diff 零差异」口径 | **已与 PRD CS-01 合并**为 04 §5.4 唯一口径：零编辑 = 部件路径集合与每部件 SHA-256 相同（含 `[Content_Types].xml`/`.rels`；zip 条目顺序/时间戳/压缩方法不计）；编辑后 = 未触碰部件字节相同 + 脏部件良构且通过 XSD + 规范化（C14N + 属性排序 + 忽略无意义空白）diff 仅在被编辑元素子树 + 被编辑元素的未知属性/子元素/`extLst` 全部保留 + `cNvPr@id` 部件内唯一且引用一致 + 派生部件白名单（`docProps/core.xml` 的 `dcterms:modified`、`docProps/app.xml` 页数/字数、`docProps/thumbnail.jpeg`、`[Content_Types].xml` 新增类型、受新增/删除部件影响的 `.rels`）+ 删页无孤儿部件 | M1/M2 验收脚本 `ooxml-pptx/testing/roundtrip.ts`、`test` job 的 `fidelity-roundtrip` 步骤（CI job 名以 09-07 §3 的 13 个封闭集合为准，rulings §4.18 GV-14） | 待总编排确认后回写章程 §7 |
 | A-13 | 单文件 ≤ 200 MB（Q5）时 zip 读取形态：全量内存 vs 流式/Range | 全量内存 + 懒解压媒体（`fflate` 同构）；M3 评估流式 | `ooxml-core/opc/zip.ts` | 架构-运行时（性能预算，07/11） |
+| A-14 | SVG 白名单消毒器的共享落点（2026-09-26 整合登记，出自 50-frontend/23 §13 Q-1） | 未定。服务端提交校验会消毒并可能改写规范 sha256（60-backend/04 §7.2 第 6 步），而 50-frontend/05 §8.3 要求本机 sha256 与服务端一致，因此消毒器要由浏览器与服务端共用同一份 iso 代码（依赖 `@cordexjs/xml`）。`@cordexjs/xml` 须保持格式盲，不能放 SVG 白名单；候选：① 沿 `./zip` 先例在 ooxml-core 开窄子路径（须为浏览器侧调用方 render-dom 或 slide-ui 放宽章程 §5.2 依赖上限，并在 `server-app-thin` 白名单登记）；② 新增一个 iso 小包。落地前浏览器对含不安全构造的 SVG 在本机拒绝插入，服务端照常消毒并以消毒后字节的 sha256 为准 | 章程 §5.2 依赖上限、`server-app-thin`、40-modules/04、60-backend/04 | 架构-结构 + 总编排（涉及章程） |
+| B1 | ~~ORM：Drizzle vs Prisma~~（原 08 §13） | **已结案**（rulings §4.21 q-db-access）：drizzle-orm 0.45.x + 手写 `schema/*.ts`，迁移仍为手写 SQL；漂移检查改为直查 `pg_catalog`（含 relkind `'p'` 的分区父表），不用 drizzle-kit pull；Drizzle 1.0 的破坏性变更在 M2 前评估；写入 [ADR-0022](adr/0022-server-storage.md) 修订 | 60-backend/08、40-modules/12 | 已结 |
+| B2 | ~~HTTP 适配器：Fastify vs Express~~（原 08 §13） | **已结案**（rulings §4.21，R-d-36）：Fastify 5（随 NestJS 12 的 platform-fastify 12.1.0）；写入 ADR-0022 修订；原 08 §13 其余 B3–B8 随原 08 §13–§15 转入 60-backend/README 的历史段 | 60-backend/01、17 | 已结 |
 
 ---
 
 ## 5. 对章程的异议 / 建议（不擅改章程，待总编排裁决）
+
+> **历史**（§4.21 起不再维护）：本节是 2026-09-15 起结构线对章程的异议记录，保留追溯；之后的章程改动一律经 rulings 裁决并由章程线回写，不再登记于此。
 
 | # | 章程条目 | 问题 | 建议 |
 |---|---|---|---|
@@ -178,7 +185,7 @@ flowchart TB
 | 术语 | 英文标识 | 定义 | 出处 |
 |---|---|---|---|
 | 存储原语 | `StoreOp` | Store 唯一理解的 5 种结构操作：`set`/`delete`/`insert`/`remove`/`text`（`insert/remove` 只用于无身份的值列表）；Mutation 经 `lower()` 降级为 `StoreOp[]`；逆操作在此层推导 | 05 §4、ADR-0013 |
-| 顺序键 | `FracKey` | 有身份实体（页/形状/母版/版式/节…）的 `order` 属性，fractional index 字串；排序键 `(order, id)`；移动 = 单键写入；由命令层经 `@cordexjs/shared/order.between()` 生成（B 线术语，ADR-0032） | 04 §3.1、ADR-0013 |
+| 顺序键 | `FracKey` | 有身份实体（页/形状/母版/版式/节…）的 `order` 属性，fractional index 字串；排序键 `(order, id)`；移动 = 单键写入；由命令层经 `@cordexjs/shared/order.between()` 生成（B 线术语，ADR-0032）；键格式按 rulings §4.21 q-frackey 改为内置 rocicorp fractional-indexing 算法源码（CC0，注明出处）：整数头 + 随机后缀，后缀避开以 `0` 结尾（ADR-0032 决策 2 修订） | 04 §3.1、ADR-0013 |
 | 束 | `bundle` | `package.json#cordex.bundle ∈ slide\|doc\|sheet`，`layer` 以 `V-` 开头时必填；组合根 preset 选填（preset-slide* 标 slide、preset-doc 标 doc），其余省略；depcruise 束间隔离依据（总编排裁决；rulings §4.18 FE-01） | 02 §4.0.1、§7 |
 | 降级 | lowering | 文档类型贡献的纯函数 `lower(mutation, view) → StoreOp[]` | 05 §4 |
 | 变更集 | `ChangeSet` | 一次事务触及的 `StoreOp[]` + 派生的脏路径集合，供渲染与编解码做脏追踪 | 04 §2.4 |
@@ -194,10 +201,15 @@ flowchart TB
 | 文本度量器 | `TextMeasurer` | `engine-layout` 的 Definition（`layout.measurer`）；Provider：`render-dom` 的 canvas 度量、`server-headless` 的字体解析度量 | 02 §4.13 |
 | 隔离作用域 | `createIsolatedScope` | kernel 提供的文档无关工具：对一组服务名逐个 `isolate()` 并 `extend()` 元数据 | 03 §5 |
 | 夹具文档类型 | `fixture` | `model-core/testing` 提供的测试专用 `DocumentType`（键值树 + 文本块），用于验证文档类型盲 | 12、ADR-0016 |
+| 架构三件套 | — | 总架构 30/01、前端架构 50/01、后端架构 60/01 三篇；阅读顺序固定为 30/01 → 50/01 → 60/01（rulings §4.21 q-arch-reorg） | 本文顶部、01 §6 |
+| XML 限额表 | `XmlLimits` | XML 深度、属性数、文本长度、属性值长度等限额的唯一定义表，在 `@cordexjs/xml` 词法层计数，超限返回 `format.limit_exceeded{limit, actual}`；其它文档只引用、不重述数值 | ADR-0019 |
+| 许可分级 | — | 依赖许可分三级：宽松类视同放行；OFL-1.1 限字体、CC0-1.0 限数据与内置源码、MPL-2.0 限未修改依赖；LGPL / GPL / AGPL / SSPL / BUSL / Unlicense 禁止（改写章程 D13 口径） | 01 §3a.4、ADR-0049 |
 
 ---
 
 ## 7. 需要总编排协调的跨条线事项
+
+> **历史**（§4.21 起不再维护）：以下为 2026-09-15 至 09-25 的跨条线协调记录，现行口径以 rulings 与各设计线为准。
 
 详见本条线汇报；摘要：
 

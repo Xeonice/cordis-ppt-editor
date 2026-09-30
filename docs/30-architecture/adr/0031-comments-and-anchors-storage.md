@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24 复核修正（rulings §4.17；复核报告 M10：软删除后以原 id 恢复、线程回到原锚点）；2026-09-25（§4.19：D-COMMENTS-PKG 包归属与 Y 路径 `resources['comments.threads']`，见文末修订） | 依赖：charter v0.1；ADR-0020「协同撤销语义」
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24 复核修正（rulings §4.17；复核报告 M10：软删除后以原 id 恢复、线程回到原锚点）；2026-09-25（§4.19：D-COMMENTS-PKG 包归属与 Y 路径 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；ADR-0020「协同撤销语义」
 
 # ADR-0031 评论的存储位置与锚定：Postgres 实体 + id/RelativePosition 锚点（不进 CRDT）
 
@@ -11,7 +11,7 @@
 1. **事实源**：评论线程/回复/解决状态/锚点存放在 Snapshot 的 `ResourceHook` 命名空间 `comments.threads`，按 04 §2.7 的 `resources: Record<命名空间, { version, data }>` 落位为 `resources['comments.threads'] = { version, data: { threads, replies } }`（Y.Doc 顶层 `resources` 下的同名键）：`threads: EntityTable<ThreadId, { anchor, resolved, resolvedBy, createdBy, createdAt, order }>`、`replies: EntityTable<ReplyId, { threadId, authorId, body, mentions[], createdAt, editedAt, deletedAt, order }>`。该 hook 由 iso 包 `@cordexjs/comments` 注册（文档类型盲，02 §4.12c）。这使评论：随文档导入/导出往返（现代评论部件 `modernComment_*.xml` + `commentAuthors.xml` 的编解码归 `ooxml-pptx`，A 线 04）、在单人模式（无服务端）可用、离线可写、随快照/版本恢复。
 2. **权限**：CRDT 本身不能执行作者级规则，改由**服务端软门禁**（ADR-0034 补充）执行：`commenter` 的 update 只允许触及 `resources['comments.threads']` 路径（与 ADR-0034 路径级规则的前缀逐字一致）；创建/编辑/删除回复要求 `authorId === session.userId`（owner 可删任何）；`resolved` 由 commenter+ 修改；越权路径 → 服务端还原旧值（repair）并计数，达阈值隔离。`viewer` 的任何 update 仍被硬门禁拒绝。
 3. **撤销**：`comments.threads` 命名空间排除在 `UndoManager` 作用域之外（评论操作是命令但不可撤销；UI 提供「删除」而非撤销）。
-4. **镜像**：Postgres `comments` 表为**读模型**（08 §16.6）：服务端 Room 观察 `resources['comments.threads']` 变更后 upsert（按 `comments.` 前缀识别，不识别文档类型，rulings §4.18 FE-01），用于跨文档查询（@我）、集成方 webhook、审计与运维；从不作为写路径。
+4. **镜像**：Postgres `comments` 表为**读模型**（60-backend/07 §1）：服务端 Room 观察 `resources['comments.threads']` 变更后 upsert（按 `comments.` 前缀识别，不识别文档类型，rulings §4.18 FE-01），用于跨文档查询（@我）、集成方 webhook、审计与运维；从不作为写路径。
 5. **锚点、分离、通知**：不变（下文 §3–§4）；事件按 PRD 定稿 `comment/added|replied|resolved|reopened|deleted|mentioned`（10 §11），由 `@cordexjs/comments` 在观察到本地/远端变更时发出，正文可配置脱敏。
 6. **导入**：打开含评论的 pptx 时评论以只读显示（作者名来自 `commentAuthors`），「导入为可编辑线程」把只读评论转成 `resources['comments.threads']` 实体（P1）；导出默认写回现代评论部件（可关，PD-04）。
 7. **规模**：单文档 ≤ 5,000 线程、单线程 ≤ 500 回复（CO-04）→ `resources['comments.threads']` ≈ 2 MB 上限，纳入 06 §9.1 的文档体积预算；面板查询直接读内存 CRDT（≤ 300 ms）。
@@ -22,7 +22,7 @@
 
 ## 决策
 
-1. 评论是**服务端实体**（`comments` 表，08 §5），经 REST 读写（commenter+），服务端执行作者/角色权限与审计。
+1. 评论是**服务端实体**（`comments` 表，60-backend/13），经 REST 读写（commenter+），服务端执行作者/角色权限与审计。
 2. **锚点**：`{ slideId, shapeId?, range?: { anchor, head }（Y.RelativePosition base64）, snapshotSeq }`；服务端只校验格式（不解码 CRDT），客户端解析位置（`store.resolveStablePosition`）。
 3. **分离**：客户端在 observe 到目标实体被删除时不改评论；渲染时解析失败 → 显示在「已分离评论」列表（P6）；服务端在压缩任务中批量重算 `anchor_state`（用 headless Unit 解析，M4 可选）。
 4. **实时性**：评论变化通过 room 的 `CONTROL.event{ type:'comments.changed', threadId }` 通知在线客户端（复用协同通道，B4 待决），客户端再 REST 拉取。
@@ -58,4 +58,4 @@
 
 ## 关联
 
-章程 D12、M3；ADR-0024（RelativePosition）、0023（控制帧）、0029（写入门槛）、0034（路径级规则）；架构 02 §4.12c、04 §2.7、06 §6.3/§7/§11、08 §2/§5；60-backend/07；50-frontend/08。
+章程 D12、M3；ADR-0024（RelativePosition）、0023（控制帧）、0029（写入门槛）、0034（路径级规则）；架构 02 §4.12c、04 §2.7、06 §6.3/§7/§11；60-backend/07、60-backend/13；50-frontend/08。

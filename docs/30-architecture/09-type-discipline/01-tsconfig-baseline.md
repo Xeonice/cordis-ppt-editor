@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 03 的失配锚点按目标文件现行标题改正） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-类型治理 | 更新：2026-09-14；2026-09-24（复核修正，rulings §4.17：M18 锚点 `-oce` → `-cordex`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-26（§4.20）（TX-11：指向 03 的失配锚点按目标文件现行标题改正）；2026-09-26（§4.21：§6 按 Nest 12 改写，`apps/server` 构建改为 ESM，补 ESM 约束与启动链） | 依赖：charter v0.1；rulings §4.21 q-nest-major
 
 # 01 · tsconfig 基线
 
@@ -192,7 +192,7 @@ flowchart TB
 
 ## 6. `apps/server` 的受限例外（`nest.json`）
 
-NestJS 11 的依赖注入依赖 `emitDecoratorMetadata` 产出的 `design:paramtypes` 元数据，这是遗留（TC39 stage-2 时代，非标准）装饰器提案的专属能力，标准 TC39 装饰器（stage-3，无 `experimentalDecorators`）**不产生**这份元数据。Nest 生态（CLI 脚手架、绝大多数第三方模块）全面构建在遗留装饰器 + 构造函数参数属性（`constructor(private readonly foo: FooService) {}`）之上。
+NestJS 12 的依赖注入依赖 `emitDecoratorMetadata` 产出的 `design:paramtypes` 元数据（2026-09-26 由 11 改为 12，rulings §4.21 q-nest-major；`@nestjs/core` 12.1.0 仍以 `reflect-metadata` 为 peer，这一点与 11 相同），这是遗留（TC39 stage-2 时代，非标准）装饰器提案的专属能力，标准 TC39 装饰器（stage-3，无 `experimentalDecorators`）**不产生**这份元数据。Nest 生态（CLI 脚手架、绝大多数第三方模块）全面构建在遗留装饰器 + 构造函数参数属性（`constructor(private readonly foo: FooService) {}`）之上。
 
 因此 `tooling/tsconfig/nest.json`（仅 `apps/server` 使用）在 `node.json` 基础上做两处偏离：
 
@@ -216,6 +216,38 @@ experimentalDecorators=true, expected false (only apps/server may enable it).
 See docs/30-architecture/09-type-discipline/01-tsconfig-baseline.md §6.
 ```
 
+**Nest 12 纯 ESM 下的构建（2026-09-26，rulings §4.21 q-nest-major）**：Nest 12 的全部包都是 `type: module`，`apps/server` 的构建随之改为 ESM；上表三处偏离不变，另加下面几条约束（依赖清单见 [60-backend/19](../../60-backend/19-reuse-and-dependency-catalog.md) §2.1）：
+
+1. **模块格式**：`apps/server/package.json` 设 `"type": "module"`；`module`/`moduleResolution` 仍是 `nodenext`（§2.4 不变），在 `type: module` 下 tsc 直接产出 ESM。构建工具（tsc 或 Nest CLI）的输出必须保持 ESM，不得再经 CJS 转译；原「纯 ESM 依赖在 CJS 构建下经 `require(esm)` 加载」的口径作废。
+2. **写法**：相对导入写 `.js` 后缀（`nodenext` 已强制）；不用 `__dirname`、`__filename`、`require`，改用 `import.meta.dirname`、`import.meta.url`；ESM 可以直接 import CJS 包，`createRequire` 只留给 `require.resolve` 这类解析场景；JSON 以 import attributes（`with { type: 'json' }`）或读文件加载。
+3. **装饰器元数据**：Nest 12 仍经 `reflect-metadata` 读取 `design:paramtypes`，所以 `nest.json` 的 `experimentalDecorators`、`emitDecoratorMetadata` 与 `erasableSyntaxOnly: false` 照旧；测试经 SWC 转译时同样要开装饰器元数据并输出 ESM（[70-testing/01](../../70-testing/01-strategy-and-layers.md)）。
+4. **可观测预加载**：ESM 的静态 import 在入口模块求值前就全部解析完，OTel 不能再靠「`main.ts` 第一行 import」，改为容器入口 `node --import ./dist/observability/otel.js dist/main.js`（[ADR-0030](../adr/0030-observability-stack.md) 修订）。这是运行期约束，不是编译选项，写在这里是因为它决定了 `observability/otel.ts` 必须能被单独编译为一个无副作用依赖链的入口。
+5. **范围不外溢**：ESM 构建只改 `apps/server` 的产物格式；`packages/server-*` 本来就是 ESM 包（`nodenext`），不受影响，也仍不得引入遗留装饰器（上文「范围边界」第 1 条）。
+
+**`apps/server` 的构建与启动链**
+
+```mermaid
+flowchart LR
+  src["apps/server/src/**/*.ts：nest.json，遗留装饰器与元数据"]
+  pkg["package.json：type 为 module"]
+  tsc["tsc，module 与 moduleResolution 为 nodenext"]
+  dist["dist/**/*.js：ESM 产物"]
+  otel["dist/observability/otel.js：注册 ESM 加载钩子并启动 SDK"]
+  main["dist/main.js：Nest 12 + Fastify 5"]
+  entry["容器入口：tini -- node --import otel.js main.js"]
+  src --> tsc
+  pkg -. "决定产物格式" .-> tsc
+  tsc --> dist
+  dist --> otel
+  dist --> main
+  entry --> otel
+  entry --> main
+```
+
+怎么读：左半是编译期，`nest.json` 的装饰器偏离与 `type: module` 一起决定产物是带装饰器元数据的 ESM；右半是运行期，容器入口先用 `--import` 加载 `otel.js`、再加载 `main.js`，保证仪表化先于业务模块。
+
+机械校验补充：`policy-check` 另断言 `apps/server/package.json#type` 为 `"module"`；ESM 启动冒烟（`node --import` 后五个角色都能启动、纯 ESM 依赖可加载）登记在 [60-backend/19](../../60-backend/19-reuse-and-dependency-catalog.md) §18 RC-06。
+
 ---
 
 ## 7. TS 7 原生编译器（tsgo）评估位置
@@ -236,3 +268,4 @@ See docs/30-architecture/09-type-discipline/01-tsconfig-baseline.md §6.
 | `references` 与实际依赖一致 | `06 scan-manifest`（见 [06](./06-scanners.md#6-scan-manifest)） | scan-manifest 报告 |
 | iso 包不泄漏 DOM/Node 环境类型 | `iso.json` 的 `lib`/`types` + [03 §4](./03-boundaries.md#同构隔离的三重保障) | 见 03 |
 | `enum`/遗留装饰器不出现在 `packages/*` | `erasableSyntaxOnly: true`（编译错误） | tsc 原生诊断：`TS(erasableSyntaxOnly 相关代码)` |
+| `apps/server` 产物为 ESM（2026-09-26，Nest 12） | `policy-check`：`apps/server/package.json#type === "module"`；ESM 启动冒烟（60-backend/19 §18 RC-06） | §6「Nest 12 纯 ESM 下的构建」 |

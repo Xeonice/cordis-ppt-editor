@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16、§4.18
+> 状态：草稿 | 负责：产品 | 更新：2026-09-19（OF-14 按 2026-09-18 裁决 Q18 补可选缩略图条 / 备注抽屉口径）；2026-09-24（rulings §4.15：Q7 保真落点——动画结束态按场景、AlternateContent 建模变换、EMF/WMF M2 栅格化、SmartArt/OLE/chartex/未知 graphicData 落点、外链资源自动加载 + `externalResources`、受限字体规则、竖排/RTL 分阶段；Q8 包内封面与 `thumbnail.jpeg` 导出口径；Q4 RenderTarget 口径；U-06 图表五类；Q14 Strict 行残留修正）；2026-09-24（rulings §4.16 Q15：`.pptm` 直接拒绝导入 `format.macro_rejected`、加密与签名行标已裁决、OF-02 验收改写）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.21：§2.5–§2.7 可编辑度与前端元素目录 50/19 对齐；SmartArt M4+ 转换为形状、公式 M4+ OMML 往返立项、音视频插入 P2 不写 `p:timing`、表格 M2 可插入、图表 M3 可插入与渲染路线；OF-24 的 XML 限额改为引用 ADR-0019 `XmlLimits`，DOCTYPE 一律拒绝）；2026-09-26（§4.21 整合：§2 矩阵与 OF-02 补必需 / 非必需部件 XML 畸形的错误码；文字效果行与 ED-03 收口（渐变 / 描边 M2 P2、艺术字 M4+）；OF-17 改为 EOT 容器口径；Intl.Segmenter 行改为断行不依赖它）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-09-26（§4.21 复核：「编辑后导出」验收改为页 `.rels` 与 `[Content_Types].xml` 字节相同、c14n 等价） | 依赖：charter v0.2；rulings §4.10 Q18、§4.15、§4.16、§4.18、§4.21
 
 # 功能域 01：打开 / 渲染 / 保真 / 导出
 
@@ -30,6 +30,7 @@
 - 矩阵单元格写的是「到该里程碑末达到的等级」，括号内为优先级；空单元格表示与左侧相同。
 - `P` 是从 M1 起对**所有**特性的默认底线；矩阵中不再重复写「P」的行，代表该行在 M1 至少为 `P`。
 - 「M4+」表示 M4 或 M5 排期，具体由里程碑评审决定；M4/M5 的主线是插件 SDK 与多文档类型，保真提升为副线。
+- 按元素看的同一口径（可编辑度、插入入口、里程碑）在前端元素目录 [50/19](../../50-frontend/19-insertable-elements-overview.md) 与六篇族文档（50/20–50/25）里逐元素展开（rulings §4.21）；两处冲突时以本矩阵为上限，并同步修正 50/19。本矩阵只写「打开后能做到什么」，「能不能新插入」以 `02-editing.md` §1a 与 §5 为准。
 
 ---
 
@@ -45,7 +46,7 @@
 | `.ppsx` / `.potx` | V (P1) | E (P2) | | | 同 OPC 结构；导出保持原内容类型 |
 | `.ppt`（97-2003 二进制） | ✗ (P0) | | | | 错误码 `format.unsupported_binary`；章程 §2.3 非目标 |
 | 加密包（`EncryptionInfo` CFB 容器） | ✗ (P0) | | | | 错误码 `format.encrypted`，提示先去除密码；M1–M4 拒绝（章程 Q15 已裁决，rulings §4.16） |
-| 损坏 / 非 zip / 缺 `[Content_Types].xml` | ✗ (P0) | | | | 错误码 `format.pptx.invalid_package`，`details.part` 为首个失败部件路径 |
+| 损坏 / 非 zip / 缺 `[Content_Types].xml` / 必需部件 XML 畸形 | ✗ (P0) | | | | 错误码 `format.pptx.invalid_package`，`details.part` 为首个失败部件路径；非必需部件 XML 畸形不拒绝，降级为不透明并记诊断 `format.malformed_xml`（30-architecture/10 §1，2026-09-26 整合） |
 | 超出 ZIP 安全限制 | ✗ (P0) | | | | 错误码 `format.limit_exceeded`，限制值见 OF-24 |
 | `[Content_Types].xml` / `_rels` 完整性 | V (P0) | | | | 导出时所有部件有内容类型、所有关系可解析 |
 | `docProps/core.xml` / `app.xml` / `custom.xml` | P (P0) | V (P2) | E~ (P2) | | M2 属性对话框只读；标题/作者可编辑为 P2 |
@@ -98,7 +99,7 @@ flowchart TB
 | `tableStyles.xml`（含 74 种内置样式 GUID） | V (P0) | | E (P1) | | 表格渲染依赖；M3 可套用内置样式 |
 | 隐藏幻灯片（`show="0"`） | V (P0) | E (P0) | | | 编辑态显示「已隐藏」标记；放映跳过 |
 | 页码 / 日期 / 页脚字段（`a:fld`） | V (P0) | E~ (P2) | | | 页码按当前位置计算；`datetime` 自动字段显示存储文本 |
-| 内嵌字体（`p:embeddedFontLst`、混淆 `.fntdata`） | P (P0) | V (P1) | | | M2 解混淆并注入 `FontFace`；受 OF-25 资源上限约束；不支持新增内嵌字体 |
+| 内嵌字体（`p:embeddedFontLst`、`.fntdata` 即 EOT 容器） | P (P0) | V (P1) | | | M2 解析 EOT 容器（MTX 压缩与 XOR 混淆）后注入 `FontFace`；受 OF-25 资源上限约束；不支持新增内嵌字体 |
 | 参考线（`p15:sldGuideLst`） | P (P0) | V (P2) | | | |
 
 ### 2.3 幻灯片级
@@ -142,16 +143,16 @@ flowchart TB
 | 特性 | M1 | M2 | M3 | M4+ | 边界 / 备注 |
 |---|---|---|---|---|---|
 | PNG / JPEG / GIF / BMP / WebP | V (P0) | E (P0) | | | GIF 显示首帧（编辑态）/ 动画（放映） |
-| SVG（`asvg:svgBlip` + PNG 回退） | V (P0) | E (P0) | | | 优先 SVG；插入 SVG 时同时生成 PNG 回退（P1） |
+| SVG（`asvg:svgBlip` + PNG 回退） | V (P0) | E (P0) | | | 优先 SVG；插入 SVG 时在浏览器中同时生成 PNG 回退（P1，ED-07）；导入的无回退 SVG 原样写回 |
 | TIFF | V~ (P1) | | V (P2) | | 浏览器不解码，M1 显示占位；M3 起客户端解码 |
 | EMF / WMF | V~ (P0) | V (P1，栅格化) | | V (P2，矢量) | M1：优先使用包内位图/PDF 预览，无预览显示占位框；**M2 惰性栅格化**（emf-converter，Apache-2.0，Worker 惰性 chunk，不计入查看器 350 KB 基线；记录数/像素/耗时上限见 OF-24；headless 用同一份代码；同样用于 OLE 的 EMF 预览，rulings §4.15 Q7）；矢量渲染为 M4+ |
 | 裁剪（`a:srcRect`） | V (P0) | E (P1) | | | 矩形裁剪；按形状裁剪的编辑为 P2 |
 | 图片效果（`alphaModFix`、亮度/对比度 `lum`、灰度、双色调、`biLevel`） | V (P0) | E~ (P2) | | | 灰度/亮度/对比度/透明度 M1 精确；双色调近似 |
 | 图片形状遮罩（`prstGeom` 非矩形） | V (P0) | E~ (P2) | | | |
-| 3D 模型（`am3d`，.glb/.gltf） | V~ (P0) | | | | 显示海报回退图；不加载 3D 引擎 |
-| 墨迹（`inkml` / `p14:ink`） | V~ (P0) | | | | 通过 `mc:Fallback` 图片显示 |
-| 视频（mp4/h264、webm；`p14:media`、`a:videoFile`） | V (P0) | E~ (P1) | | | 编辑态显示海报帧；放映播放；M2 可移动/缩放/替换海报，插入本地视频 P2 |
-| 音频（mp3/m4a/wav） | V (P0) | E~ (P1) | | | 同上 |
+| 3D 模型（`am3d`，.glb/.gltf） | V~ (P0) | V~ + E~ (P1，仅整体移动/缩放) | | | 显示海报回退图；不加载 3D 引擎；整体移动/缩放/删除按备注 A；不提供插入（`02-editing.md` §5） |
+| 墨迹（`inkml` / `p14:ink`） | V~ (P0) | V~ + E~ (P1，仅整体移动/缩放) | | | 通过 `mc:Fallback` 图片显示；不包 `mc:AlternateContent` 的裸 `p:contentPart` 映射为不透明对象并显示占位（rulings §4.21 d-76），其移动/缩放待 ADR-0008 白名单扩充；不提供笔墨输入，M4+ 随 ED-27 评估 |
+| 视频（mp4/h264、webm；`p14:media`、`a:videoFile`） | V (P0) | E~ (P1) | | | 编辑态显示海报帧；放映播放；M2 可移动/缩放/替换海报；插入本地视频 P2（ED-35）：插入时不写 `p:timing`，导出后在 PowerPoint 中靠媒体控件点播、不随单击自动播放（rulings §4.21 q-media-insert） |
+| 音频（mp3/m4a/wav） | V (P0) | E~ (P1) | | | 同上（插入 P2，ED-35，同样不写 `p:timing`） |
 | 外部链接媒体（`TargetMode="External"` 的视频/音频） | V (P0) | | | | 外部关系**全部原样保留**，仅 `http(s)` 目标可激活（D7）；默认**自动加载**（`preload="none"`，rulings §4.15 Q7 用户选择）；部署配置 `externalResources`（`auto` 默认 / `confirm` / `never`）可收紧，CSP `media-src` 随配置收紧（EM-14）；在线视频只显示海报，点击在新标签打开；服务端与 headless 永不加载（渲染为占位） |
 | 外部链接图片（`r:link`） | V (P0) | | | | 同上：仅 `http(s)` 可激活，默认自动加载，`externalResources` 可收紧为 `confirm`/`never`（CSP `img-src` 随之收紧）；`confirm`/`never` 或加载失败时显示占位；服务端缩略图/PDF 一律占位，且不计入页内容哈希（SV-04） |
 | 旧式格式（wmv/avi/wma）与 DRM | V~ (P0) | | | | 仅海报，提示浏览器不支持 |
@@ -162,23 +163,54 @@ flowchart TB
 | 特性 | M1 | M2 | M3 | M4+ | 边界 / 备注 |
 |---|---|---|---|---|---|
 | 组合（嵌套、`chOff/chExt` 子坐标系、组级填充/效果） | V (P0) | E (P0) | | | M2：组合/取消组合、双击进入子元素编辑（P1） |
-| 表格网格 / 行高 / 列宽 / 合并（`gridSpan`/`rowSpan`/`hMerge`/`vMerge`） | V (P0) | E~ (P1) | E (P1) | | M2 单元格文本编辑；M3 行列增删、合并拆分、尺寸调整 |
+| 表格网格 / 行高 / 列宽 / 合并（`gridSpan`/`rowSpan`/`hMerge`/`vMerge`） | V (P0) | E~ (P1) | E (P1) | | M2 可插入表格（网格或输入行列，ED-10）并编辑单元格文本；M3 行列增删、合并拆分、尺寸调整；M3 开工前表格模型改为归一化结构（ADR-0018，rulings §4.21 q-table-depth） |
 | 表格样式（内置 74 种 + 文档自定义；`firstRow`/`bandRow` 等标志） | V (P0) | | E (P1) | | |
 | 单元格填充 / 边框（含对角线 `lnTlToBr`/`lnBlToTr`） / 内边距 / 锚点 / 竖排 | V (P0) | | E (P1) | | 对角线边框 M1 为 P1 |
-| 图表类型：柱/条（簇状/堆积/百分比）、折线、面积、饼/环、散点、气泡、雷达、股价 | V (P0) | | E~ (P1) | | M1–M2 只读解析 `c:chart` 部件与缓存（章程 D16；解析器在 `ooxml-core`），不以包内预览位图代替；阈值见 §4；M3 可编辑类型 bar / line / pie / area / scatter 五类（章程 Q18 已裁决，rulings §4.12 U-06），其余仅查看，范围见 ED-15 |
+| 图表类型：柱/条（簇状/堆积/百分比）、折线、面积、饼/环、散点、气泡、雷达、股价 | V (P0) | | E~ (P1) | | M1–M2 只读解析 `c:chart` 部件与缓存（章程 D16；解析器在 `ooxml-core`），不以包内预览位图代替；阈值见 §4；M3 可编辑类型 bar / line / pie / area / scatter 五类（章程 Q18 已裁决，rulings §4.12 U-06），其余仅查看，范围见 ED-15；M3 起可插入这五类（ED-15a），M1–M2 不提供插入；渲染路线为 d3-scale / d3-shape / d3-array + 自研 OOXML 布局（ADR-0036，rulings §4.21 q-chart-route） |
 | 组合图表 / 次坐标轴 | V (P1) | | | | |
 | 3D 图表 / 曲面 / 地图图表 | V~ (P0) | | | | 3D → 2D 回退；曲面/地图使用缓存图片（若有）否则占位 |
 | Office 2016 新图表 chartex（`cx:`：瀑布、直方、箱形、漏斗、旭日、树状） | P (P0) | | | V~ 评估 (P2) | M1–M3 只保留，渲染为带诊断的占位并上报 `render/element-degraded{reason:"chartex-unsupported"}`；不选其 `mc:Fallback`（其内容是「此图表在你的版本中不可用」文本）；M4+ 再评估近似渲染（rulings §4.15 Q7） |
 | 图表数据缓存（`c:numCache`/`c:strCache`）与内嵌工作簿 | V (P0) | | E~ (P1) | | 编辑写回缓存；内嵌 `.xlsx` 处理策略见 PD-06 |
 | 图表标题 / 图例 / 坐标轴 / 数据标签 / 趋势线 / 误差线 | V (P0) | | E~ (P2) | | M3 编辑标题与图例位置 P1；轴范围与标签 P2；趋势线仅显示 |
 | 图表样式部件（`chartStyle`/`colors`） | V~ (P0) | | | | |
-| SmartArt（`dgm:` data/layout/colors/quickStyle + `dsp:drawing`） | V (P0) | | | E~ (P2) | M1 通过 PowerPoint 预计算的 `dsp:drawing` 渲染（覆盖语料库 ≥ 95% 的 SmartArt）；`dsp:drawing` 由 `ooxml-core` 只读解析（含 `dsp:txXfrm`），`slide-render` 渲染（章程 §5.2 依赖上限含 `ooxml-core`）；无 `dsp` 部件时显示占位并上报；整体移动/缩放/删除允许（PD-18 已结案，rulings §4.15 Q7）；内部不可编辑并提示；节点文本编辑为 M4+ |
-| OLE 嵌入对象（`p:oleObj`，`embeddings/*`） | V~ (P0) | | | E~ (P2) | M1 显示预览图：从 `mc:Fallback` 中的 `p:pic` 提取为 OLE 预览（预览为 EMF 时 M2 起栅格化，§2.5）；整体移动/缩放/删除（OLE 的 VML 锚点同步需在语料上验证）；内部不可编辑；M4+ 允许下载/替换负载 |
+| SmartArt（`dgm:` data/layout/colors/quickStyle + `dsp:drawing`） | V (P0) | V + E~ (P1，仅整体移动/缩放) | | E~ (P2，转换为形状) | M1 通过 PowerPoint 预计算的 `dsp:drawing` 渲染（覆盖语料库 ≥ 95% 的 SmartArt）；`dsp:drawing` 由 `ooxml-core` 只读解析（含 `dsp:txXfrm`），`slide-render` 渲染（章程 §5.2 依赖上限含 `ooxml-core`）；无 `dsp` 部件时显示占位并上报；整体移动/缩放/删除允许（PD-18 已结案，rulings §4.15 Q7）；内部不可编辑并提示；**M4+ 先做「转换为形状」**：把 `dsp:drawing` 一次性物化为组合与形状并删除原 SmartArt（一个撤销步；转换后失去 SmartArt 语义），节点文本编辑之后再评估（rulings §4.21 q-smartart）；不提供插入（`02-editing.md` §5） |
+| OLE 嵌入对象（`p:oleObj`，`embeddings/*`） | V~ (P0) | V~ + E~ (P1，仅整体移动/缩放) | | E~ (P2) | M1 显示预览图：从 `mc:Fallback` 中的 `p:pic` 提取为 OLE 预览（预览为 EMF 时 M2 起栅格化，§2.5）；整体移动/缩放/删除（OLE 的 VML 锚点同步需在语料上验证）；内部不可编辑；M4+ 允许下载/替换负载；不提供插入（`02-editing.md` §5） |
 | 链接 OLE 对象 | V~ (P0) | | | | 仅预览图；链接目标不加载、不激活（外部关系原样保留） |
 | 未知 `a:graphicData`（未识别的 `uri`） | P (P0) | | | | 有 `mc:Fallback` 图片时 V~，否则占位 + `render/element-degraded`；删除/移动按备注 A 口径 |
 | ActiveX 控件（`p:controls`） | P (P0) | | | | |
 | 旧式 VML 绘图（`legacyDrawing`） | P (P0) | | | | 有回退图片时 V~ |
-| 缩放定位 / 节缩放（`p14:` zoom 部件） | V~ (P0) | | | | 回退图片 |
+| 缩放定位 / 节缩放（`p14:` zoom 部件） | V~ (P0) | V~ + E~ (P1，仅整体移动/缩放) | | | 回退图片（静态缩略图，目标页改动后不更新）；整体移动/缩放/删除按备注 A；放映中点击跳转需把回退图的页内链接加入 ADR-0008 只读白名单，另行评审；不提供插入（`02-editing.md` §5） |
+
+
+**图 2-2 只读与不透明元素的后续路线（rulings §4.21）**
+
+```mermaid
+flowchart LR
+  subgraph now["M1–M2：看得见、能摆放、原样写回"]
+    sa["SmartArt：渲染 dsp:drawing"]
+    eq["公式：Fallback 图片"]
+    ole["OLE：Fallback 预览图"]
+    rest["3D、墨迹、缩放定位、未知对象：回退图或占位"]
+    mv["整体移动、缩放、删除，M2 P1"]
+  end
+  subgraph later["M4+（P2）"]
+    conv["SmartArt 转换为形状：一次性物化为组合与形状"]
+    omml["公式立项：自研 OMML↔MathML，MathJax 4 输出 SVG"]
+    olex["OLE：下载原文件、替换负载"]
+  end
+  never["不提供插入：SmartArt、OLE、3D、墨迹、缩放定位"]
+  sa --> mv
+  eq --> mv
+  ole --> mv
+  rest --> mv
+  sa --> conv
+  eq --> omml
+  ole --> olex
+  mv -.->|"任何里程碑"| never
+```
+
+怎么读：左框是 M1–M2 对这类对象的统一承诺；右框是 M4+ 各自独立立项的三条路线，3D、墨迹、缩放定位与未知对象没有后续编辑路线；虚线指向 `02-editing.md` §5 的非目标。逐元素设计见 [50/25](../../50-frontend/25-elements-readonly-and-opaque.md)。
+依据：本节 SmartArt、OLE、缩放定位行；§2.5 3D 模型、墨迹行；§2.7 公式行；rulings §4.21 q-smartart、q-equation、d-75。
 
 ### 2.7 文本（`a:txBody` / `a:p` / `a:r`）
 
@@ -187,7 +219,7 @@ flowchart TB
 | 段落属性（对齐 l/ctr/r/just/dist、缩进 `marL/indent`、段前后距、行距 `spcPct/spcPts`、级别 0–8） | V (P0) | E (P0) | | | 继承链含母版 `titleStyle/bodyStyle/otherStyle` 与 `lstStyle` |
 | 项目符号：字符 / 自动编号（全部 `autonum` 方案含 CJK） / 图片项目符号 / `buNone` / 符号字体 / 尺寸 / 颜色 | V (P0) | E (P0) | | | M2：切换项目符号 / 编号、升降级；方案选择 P1；图片项目符号编辑 P2；Wingdings/Symbol 字体缺失时按映射表回退到 Unicode（P1） |
 | 字符属性：字体（latin/ea/cs/sym + 主题字体 `+mj-*`/`+mn-*`）、字号、粗斜体、下划线（17 种）、删除线（单/双）、大写/小型大写、上下标、字距 `spc`、`kern` | V (P0) | E (P0) | | | 下划线：单/双/波浪精确，其余近似；M2 编辑：字体/字号/B/I/U/删除线/上下标/颜色/大写；字距 P2 |
-| 字符颜色 / 高亮（`a:highlight`）/ 渐变文字 / 描边文字 / 文字效果 | V (P0) 纯色与高亮；V~ 其他 | E (P0) 纯色 + 高亮 | | V (P2) | 渐变/描边/阴影文字为近似 |
+| 字符颜色 / 高亮（`a:highlight`）/ 渐变文字 / 描边文字 / 文字效果 | V (P0) 纯色与高亮；V~ 其他 | E (P0) 纯色 + 高亮；E (P2) 渐变 / 描边文字（字符格式，ED-03 边界） | | E (P2) 艺术字样式 | 渐变/描边/阴影文字为近似；M2 的渐变 / 描边与 ED-03「M2 P2」同一口径，艺术字样式库 M4+（50-frontend/20 §5，2026-09-26 整合收口） |
 | 字段（`a:fld`：页码 / 日期时间） | V (P0) | E~ (P2) | | | |
 | 超链接 run（`a:hlinkClick`） | V (P0) | E (P1) | | | |
 | 换行（`a:br`）、制表位（`a:tabLst`） | V (P0) | E (P0) | | | |
@@ -198,7 +230,7 @@ flowchart TB
 | 艺术字变形（`prstTxWarp`） | V~ (P0) | | | V (P2) | M1 渲染为未变形文本 |
 | 行断行与度量：拉丁词换行、CJK 禁则、全角标点压缩 | V (P0) | | | | 度量阈值见 §4.3 |
 | 双向文本（`rtl="1"`、阿拉伯/希伯来） | V (P1) | | | E~ (P2) | M1 查看依赖浏览器原生 bidi（每行一个 `<text>` 块、run 不设 x，由浏览器重排）；RTL 编辑与 HarfBuzz shaping 放到 M4/M5（rulings §4.15 Q7） |
-| 公式（`m:oMath` 于 `a14:m`） | V~ (P0) | | | V (P2) | M1 优先使用 `mc:Fallback` 图片；无回退渲染为纯文本；M4+ 提供 MathML 子集 |
+| 公式（`m:oMath` 于 `a14:m`） | V~ (P0) | V~ + E~ (P1，仅整体移动/缩放) | | E~ (P2，立项) | M1 优先使用 `mc:Fallback` 图片；无回退时渲染 OMML 线性文本（需 ADR-0008 只读白名单扩充，扩充前显示占位）；含公式的文本框整体只读，其中其他文字也不能编辑，界面须说明；M1–M3 不提供插入与编辑；**M4+ 立项**：基于 `@cordexjs/xml` 保真树自研 OMML↔MathML，MathJax 4 输出 SVG 惰性渲染（字体数据许可待核），导出为原生 OMML 以便在 PowerPoint 中继续编辑（rulings §4.21 q-equation） |
 | 查找 / 替换 | – | E (P1) | | | 见 ED-13 |
 
 ---
@@ -222,7 +254,7 @@ flowchart TB
 - 用户故事：作为集成方，我希望 SDK 对不支持或损坏的文件给出稳定的类型化错误码，以便我在自家产品里显示合适的提示与埋点。
 - 验收标准：
   - Given `.ppt`（CFB 二进制），Then 拒绝并返回 `format.unsupported_binary`，耗时 ≤ 100 ms（只读文件头）。
-  - Given 加密包，Then 返回 `format.encrypted`；Given 非 zip / 缺 `[Content_Types].xml` / 缺 `ppt/presentation.xml`，Then 返回 `format.pptx.invalid_package` 并附 `details.part`。
+  - Given 加密包，Then 返回 `format.encrypted`；Given 非 zip / 缺 `[Content_Types].xml` / 缺 `ppt/presentation.xml`，Then 返回 `format.pptx.invalid_package` 并附 `details.part`；必需部件（如 `ppt/presentation.xml`、各页部件）XML 畸形同样返回 `format.pptx.invalid_package`，非必需部件 XML 畸形降级为不透明部件并记 `format.malformed_xml` 诊断、文件照常打开（2026-09-26 整合）。
   - Given `.ppsx`/`.potx`，Then 按 pptx 打开，`unit.meta.contentType` 记录原内容类型，导出时保持。
   - Given `.pptm`，或任意扩展名但主内容类型为 `application/vnd.ms-powerpoint.*.macroEnabled.*`、或包内含 `vbaProject.bin`，Then 拒绝并返回 `format.macro_rejected`，界面提示「请另存为 .pptx 后再导入」；不解析幻灯片、不保留宏部件（章程 Q15，rulings §4.16）。
   - Given Strict 命名空间文件，Then 打开成功，`unit.meta.conformance = "strict"`。
@@ -269,7 +301,7 @@ flowchart LR
   - Given 用户跳转到未解析的页，Then 该页优先解析并在 ≤ 300 ms 内可见（p75）。
   - Given 媒体（图片/视频）不在视口，Then 不解码其字节（懒媒体）；进入视口前 1.5 个视口高度预取。
   - 解析顺序：`presentation.xml` → 母版/版式/主题 → 首页与相邻页 → 缩略图队列 → 其余页（后台，可被用户导航抢占）。
-  - 装载方式（rulings §4.18 CO-12，架构 07 §14.2）：解析在 Worker 中进行，**先完成规模计数**（超出系统天花板时整体拒绝，不会装到一半才失败，SV-08），再分批回传；首批装载后即触发 `unit/opened`（可渲染、可编辑）；其余批次在后台追加，**不进入撤销栈、不标记为脏**（打开后零编辑导出无脏部件，OF-18）；全部到齐触发 `unit/loaded`。
+  - 装载方式（rulings §4.18 CO-12，50-frontend/04 §2）：解析在 Worker 中进行，**先完成规模计数**（超出系统天花板时整体拒绝，不会装到一半才失败，SV-08），再分批回传；首批装载后即触发 `unit/opened`（可渲染、可编辑）；其余批次在后台追加，**不进入撤销栈、不标记为脏**（打开后零编辑导出无脏部件，OF-18）；全部到齐触发 `unit/loaded`。
   - Given 尚未 `unit/loaded`，When 执行全选、查找替换、导出、跨页重排等全文类命令，Then 等待装载完成或禁用并说明原因，不对半装载的文档执行。
   - 协同模式不走此路径：初始状态由服务端快照引导（CO-01）。
 
@@ -320,7 +352,7 @@ flowchart LR
   - Given 参照字体可用（oracle 与浏览器使用相同字体文件），Then 语料库文本框「行数一致率」≥ 95%，「行首字符一致率」≥ 90%（度量方法见 NF-02）。
   - Given 字体不可用，Then 按回退链（文档内嵌字体 → 集成方提供字体 → 同度量替代表 → 系统默认）选择，并上报 `render/font-fallback`（含缺失字体名，不含文本内容）。
   - Given CJK 文本，Then 禁则（行首禁止标点、行尾禁止开括号）与全角标点处理与 PowerPoint 一致（专项语料 ≥ 20 个）。
-  - `Intl.Segmenter` 不可用时退化为按字符断行，且不崩溃。
+  - `Intl.Segmenter` 不可用时不崩溃，断行不依赖它（断行用 UAX #14 规则与 UCD 生成的断行表，`Intl.Segmenter` 只用于字素与词切分）。
 
 **图 3-4 字体回退链**
 
@@ -434,7 +466,8 @@ flowchart LR
   - **M3 起**：数据模型与编辑（`slide-render-chart`）；可编辑类型为 bar / line / pie / area / scatter 五类（章程 Q18 已裁决，rulings §4.12 U-06），其余类型仅查看；编辑范围见 ED-15。
   - chartex（`cx:`）不在本条 M1 验收范围：只保留并显示诊断占位（矩阵 §2.6）。
   - 图表渲染块缺席（插件未加载或惰性块加载失败）时显示占位框，其余功能不受影响（可插拔证据）。
-  - 图表渲染库许可须为 Apache-2.0/MIT（章程 D13）；图表代码块按需加载，体积预算见 NF-01。
+  - 图表渲染路线（rulings §4.21 q-chart-route，ADR-0036）：d3-scale / d3-shape / d3-array（ISC）只提供刻度与路径数学，按 OOXML 语义自研布局（`manualLayout`、Excel 自动刻度、堆积、饼图标签避让）；依赖许可按 ADR-0049 分级执行（ISC 属宽松类，视同放行；原「须为 Apache-2.0/MIT」的写法作废）；图表代码块按需加载，体积预算见 NF-01。
+  - 插入图表为 M3（ED-15a）；M1–M2 不提供插入。
 
 ### OF-10 SmartArt
 
@@ -442,6 +475,7 @@ flowchart LR
 - 验收标准：
   - 有 `dsp:drawing` 部件的 SmartArt：M1 必须渲染（`ooxml-core` 只读解析 `dsp:drawing`，含 `dsp:txXfrm`），SSIM ≥ 0.85；无 `dsp` 部件：占位框 + 上报。
   - 整体移动/缩放/删除（M2）后导出，PowerPoint 打开时 SmartArt 仍可正常编辑（`dgm` 四部件与 `dsp` 部件关系完整）。
+  - M4+（P2，rulings §4.21 q-smartart）：「转换为形状」把 `dsp:drawing` 一次性物化为组合与形状并删除原 SmartArt，一个撤销步；无 `dsp` 部件时拒绝转换并说明原因；节点文本编辑之后再评估。SmartArt 不提供插入（`02-editing.md` §5）。
 
 ### OF-11 备注、评论、节的读取
 
@@ -513,8 +547,8 @@ flowchart TB
 
 ### OF-17 内嵌字体加载
 
-- 优先级：P1 | 目标里程碑：M2 | 依赖能力：`ooxml-core` 字体部件解混淆、`engine-layout` 字体注册、OF-25 资源上限
-- 验收标准：`.fntdata` 解混淆并以 `FontFace` 注入 `Unit` 作用域；关闭 `Unit` 后卸载；超出上限（单字体 ≤ 20 MB，总计 ≤ 60 MB，处理时长 ≤ 3 s；全仓以本条为内嵌字体上限的唯一口径）时跳过并上报 `render/font-fallback`。
+- 优先级：P1 | 目标里程碑：M2 | 依赖能力：`ooxml-core` 内嵌字体解码（EOT 容器，MTX 压缩与 XOR 混淆，`decodeEmbeddedFont`）、`engine-layout` 字体注册、OF-25 资源上限
+- 验收标准：`.fntdata`（EOT 容器）解码为 sfnt 并以 `FontFace` 注入 `Unit` 作用域；关闭 `Unit` 后卸载；超出上限（单字体 ≤ 20 MB，总计 ≤ 60 MB，处理时长 ≤ 3 s；全仓以本条为内嵌字体上限的唯一口径）时跳过并上报 `render/font-fallback`。
 - 许可位（OS/2 `fsType`，rulings §4.15 Q7，fail-closed）：「受限（Restricted）」与「仅预览/打印」字体**只用于只读渲染**（查看、放映、缩略图、PDF，含服务端）；编辑态中用到它的文本改用回退字体并上报 `render/font-fallback{reason:"font-license"}`，文档仍可编辑（协同时不因一个字体把所有人锁成只读；代价是编辑态与查看态字形可能不一致，诊断面板列出）；导出时内嵌字体部件原样保留，不新增内嵌。
 
 **图 3-8 受限内嵌字体的使用范围**
@@ -539,7 +573,7 @@ flowchart LR
 - 用户故事：作为编辑者，我希望导出的文件在 PowerPoint 里打开不报修复，并且我没碰过的内容一个字节都不变。
 - 验收标准：
   - **零编辑往返**：Given 语料库 T1+T2 任一文件，When 打开后直接导出，Then 部件集合相同、每个部件字节相同（§4.1 定义），zip 元数据（时间戳、压缩级别）允许不同。
-  - **编辑后导出**：Given 仅编辑第 k 页的一个文本，Then 只有第 k 页部件（及必要的 `[Content_Types].xml`/rels/`docProps/thumbnail`）被重生成，其余部件字节相同；重生成部件通过 ECMA-376 Transitional XSD 校验；规范化 XML diff 仅位于被编辑的 `a:p`/`a:r` 子树。
+  - **编辑后导出**：Given 仅编辑第 k 页的一个文本（不增删关系），Then 只有第 k 页部件被重生成；该页 `.rels` 与 `[Content_Types].xml` 因关系集合与内容类型集合未变而字节相同（ADR-0008 决策 5，rulings §4.21 X:q-content-types）；派生部件（`docProps/core.xml` 修改时间、`docProps/app.xml`、`docProps/thumbnail`）只按 70/03 E7 白名单变化，其余部件字节相同；重生成部件与原文 c14n 等价，差异只在被编辑的 `a:p`/`a:r` 子树，并通过 ECMA-376 Transitional XSD 校验。
   - **元素级保留**：Given 被编辑元素带 `extLst`/未知属性/未知子元素，Then 重生成后全部保留且顺序符合 schema 序列要求。
   - **新增部件**：插入图片/媒体时新部件命名不与现有冲突（`image<N>.<ext>`，N 取最大值+1），内容类型与 rels 同步更新。
   - **互操作**：导出文件在 PowerPoint 365（Windows/macOS，当前通道）打开无修复提示：语料库 100%（M1 以一台 Windows + PowerPoint 365 维护机验收，macOS 自 M2 起加入，rulings §4.19 D-TEST-INFRA）；LibreOffice Impress 24.x 可打开不崩溃（best-effort，记录差异）。
@@ -609,7 +643,7 @@ flowchart TB
 ### OF-24 输入安全限制
 
 - 优先级：P0 | 目标里程碑：M1 | 依赖能力：`ooxml-core` OPC 解析限制、`errors`
-- 验收标准（默认值，集成方可收紧不可放宽超过 2 倍）：zip 条目数 ≤ 4,000；单条目解压 ≤ 64 MiB；总解压 ≤ 512 MiB；媒体总量 ≤ 256 MiB；XML 嵌套深度 ≤ 256；实体扩展禁用；图表点数每序列 ≤ 10,000；位图预览 ≤ 16,777,216 像素。EMF/WMF 栅格化（M2，rulings §4.15 Q7）：单文件记录数、输出像素（≤ 上述位图预览像素上限）与单文件耗时（在 Worker 中可中止）设上限，初始值由 M2 spike 定并回填本条；超限回到占位。超限返回 `format.limit_exceeded{limit, actual}`（HTTP 413）。（参考 pptx-renderer `RECOMMENDED_ZIP_LIMITS`，按章程 Q5 放宽。）
+- 验收标准（默认值，集成方可收紧不可放宽超过 2 倍）：zip 条目数 ≤ 4,000；单条目解压 ≤ 64 MiB；总解压 ≤ 512 MiB；媒体总量 ≤ 256 MiB；XML 词法层限额（嵌套深度、每元素属性数、文本节点长度、属性值长度）只在 [ADR-0019](../../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6 的 `XmlLimits` 表里定义一次，本条不重述数值（rulings §4.21 X 组）；`DOCTYPE` 一律拒绝、不做实体展开（错误码同为 `format.limit_exceeded`，`limit` 为 `xml.doctype`）；图表点数每序列 ≤ 10,000；位图预览 ≤ 16,777,216 像素。EMF/WMF 栅格化（M2，rulings §4.15 Q7）：单文件记录数、输出像素（≤ 上述位图预览像素上限）与单文件耗时（在 Worker 中可中止）设上限，初始值由 M2 spike 定并回填本条；超限回到占位。超限返回 `format.limit_exceeded{limit, actual}`（HTTP 413）。（参考 pptx-renderer `RECOMMENDED_ZIP_LIMITS`，按章程 Q5 放宽。）
 - 文档规模天花板（200 页 / 单页 1,000 元素 / 文档总元素 20,000）由服务端导入执行，超出直接拒绝 `format.quota_exceeded{dimension, limit, actual}`，见 SV-08（rulings §4.15 Q5）。
 
 ### OF-25 宿主字体供给

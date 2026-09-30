@@ -1,0 +1,1084 @@
+{
+ "meta": {
+  "title": "ooxml-core XML 解析器专项调研（2026-09-26）",
+  "decision": "用户裁决：自研词法与保真树（推荐）；[Content_Types].xml 与 .rels 结构不变就原样写回（推荐）；抽出独立 iso 包 @cordexjs/xml（推荐）。见 rulings §4.21。",
+  "bench": "基准脚本当时位于会话 scratchpad/xml-bench（临时目录，结论以本文件为准）"
+ },
+ "requirements": {
+  "currentState": [
+   {
+    "claim": "仓库仍处 M0，只有 docs/ 与 openspec/，没有任何 XML 解析实现或依赖。「现在用的」只是设计默认值",
+    "source": "仓库根 ls：.claude .git docs openspec"
+   },
+   {
+    "claim": "A-2 仍待决：默认方案为「自研最小保真 DOM（保留前缀、顺序、空白、注释，SafeXmlNode 遍历）」，备选为 @xmldom/xmldom 和 fast-xml-parser，决策人（架构-结构 + 类型治理）尚未签字",
+    "source": "docs/30-architecture/README.md:144"
+   },
+   {
+    "claim": "章程已把 ooxml-core 写成「命名空间感知 XML（自研最小保真 DOM）」，依赖上限为 shared、model-core",
+    "source": "docs/00-charter/charter.md:312"
+   },
+   {
+    "claim": "模块设计已按自研拆好文件：xml/parser.ts、node.ts（XmlElement/Text/CData/Comment/PI、QName、SafeXmlNode）、serializer.ts（确定性、UTF-8）、namespaces.ts（Strict↔Transitional 48 对）、normalize.ts、mce.ts、c14n.ts（仅测试用）",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:549-556"
+   },
+   {
+    "claim": "ooxml-core 唯一的第三方依赖是 fflate（zip）；XML 层不引第三方",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:524,904"
+   },
+   {
+    "claim": "拒用 DOMParser、xmldom、jsdom 的理由：浏览器与 Node 在属性顺序、前缀保留上行为不同，会污染保真结果；复用盘点也把 xmldom、DOMParser 列为已否决",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:905；docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:663"
+   },
+   {
+    "claim": "保真靠三层机制：部件级原字节 verbatim、节点级 OpaqueXml 加锚点、脏部件重生成。ADR-0008 状态为「提议」",
+    "source": "docs/30-architecture/adr/0008-opaque-preservation.md:7,15-21；docs/30-architecture/04-document-model.md:647-651"
+   },
+   {
+    "claim": "验收口径：零编辑时逐部件 SHA-256 相同；编辑后未触碰部件字节相同；脏部件经 C14N、属性排序、忽略无意义空白规范化后，差异只能落在被编辑子树",
+    "source": "docs/30-architecture/04-document-model.md:753-755；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:328"
+   },
+   {
+    "claim": "XML 层已规划的测试：opc-roundtrip 断言 parse(serialize(parse(x))) 与 parse(x) 经 c14n 等价；另有 fast-check 往返性质测试；M1 必须覆盖 XmlDocument 往返",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:592-593,1011"
+   },
+   {
+    "claim": "XML 安全限额分散在多份文档，客户端与服务端声称共用同一张表",
+    "source": "docs/10-prd/03-features/01-open-and-fidelity.md:612；docs/60-backend/06-modules-jobs-import-export-thumbnails.md:357,366；docs/60-backend/17-deployment-and-config.md:469"
+   },
+   {
+    "claim": "解析运行在 4 处：浏览器导入 Worker、浏览器主线程（slide-render 调 parseChartSpace 和 dsp:drawing 解析）、Node worker_threads（server-headless）、headless Chromium 的 /render 页。四处用同一份 iso 源码",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:822,900；docs/40-modules/07-slide-rendering.md:694,766；docs/60-backend/06-modules-jobs-import-export-thumbnails.md:512-514"
+   },
+   {
+    "claim": "前端、后端两份前期调研都推荐以 saxes 6 做词法层、其上自研保真 DOM；核实后前端判「推翻」、后端判「修正→降级」，理由是仓库已归档、2021-11 后无发版、会解码实体并丢失引号风格",
+    "source": "docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:703,971,765,1051,180"
+   },
+   {
+    "claim": "决策包 q-xml-lexer 推荐「词法、保真树、序列化全部自研，@rgrove/parse-xml 5 只作 M1 spike 对照」，待用户拍板；计划新建的 ADR-0019 目前还不存在",
+    "source": "docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:10,136；docs/30-architecture/adr/ 目录无 0018/0019"
+   },
+   {
+    "claim": "npm 实测：saxes 最新版 6.0.0 发布于 2021-11-07T19:06Z，ISC；@rgrove/parse-xml 5.0.0 发布于 2026-08-30，ISC，unpacked 211,924 B",
+    "source": "scratchpad/xml-bench：npm view saxes time --json；npm view @rgrove/parse-xml version license dist.unpackedSize --json"
+   },
+   {
+    "claim": "服务端 SVG 消毒维持自研白名单（严格 XML、拒 DOCTYPE），不引第三方，是 ooxml-core 之外的第二个 XML 解析点",
+    "source": "docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:64；docs/40-modules/08-server-identity-documents-and-storage.md:820；docs/60-backend/04-modules-documents-storage-media.md:446"
+   },
+   {
+    "claim": "许可分级附表（q-license-tiers，拟写 ADR-0049）尚待拍板；章程 D13 原文只列 MIT/Apache/BSD/ISC 兼容。saxes 与 parse-xml 均为 ISC，不受影响",
+    "source": "docs/00-charter/charter.md:738；docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:5"
+   }
+  ],
+  "requirements": [
+   {
+    "id": "R-01",
+    "requirement": "保真粒度：零编辑的逐字节靠部件级原字节 verbatim 实现，不经过解析器回写。解析器与序列化器只需保证脏部件「规范化等价」（C14N、属性排序、忽略无意义空白），不要求逐字节",
+    "why": "验收把「字节相同」限定在未触碰部件，脏部件用规范化 diff 判定",
+    "source": "docs/30-architecture/04-document-model.md:703-704,753-755；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:325,328",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-02",
+    "requirement": "往返不变式：parse(serialize(parse(x))) 与 parse(x) 经 c14n 等价；已建模部件 parse→generate 后与原文 c14n 相等（M1 起报告差异，不阻断）",
+    "why": "差异即建模缺口，计入保真指标",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:592-593；docs/30-architecture/04-document-model.md:762；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:293",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-03",
+    "requirement": "[Content_Types].xml 与全部 .rels 在零编辑时字节相同。若采用「始终重生成」，序列化器必须逐字节复现原文；若采用「无结构变化时原样写回」，则不需要",
+    "why": "两种口径在文档里并存（见矛盾 1），决定序列化器是否需要字节级复现",
+    "source": "docs/30-architecture/04-document-model.md:717,753；docs/30-architecture/adr/0008-opaque-preservation.md:21",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-04",
+    "requirement": "命名空间感知，前缀原样保留、不改名；mc:Ignorable 和 mc:Choice@Requires 按前缀字符串引用命名空间，序列化时不得删改这些前缀声明，即便声明看似未被使用",
+    "why": "C14N 不归一前缀，E4 判定不含 ns-prefix 规范化器；MCE 分支判定依赖前缀",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:52,261,285；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:261,328",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-05",
+    "requirement": "命名空间 URI 可重映射：Strict→Transitional 归一化（48 对）只改 URI、不改前缀；OpaqueXml.namespaces 保存原始 URI，供 C 案反向写回（M1）",
+    "why": "章程 Q14 已裁定 C 案，M1 即完整写回",
+    "source": "docs/30-architecture/04-document-model.md:628；docs/40-modules/04-ooxml-format-and-pptx-codec.md:262,283-284,1011",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-06",
+    "requirement": "属性顺序：保留原顺序并按原顺序序列化",
+    "why": "设计文档写明要保留，但验收用 attr-sort 比较，不构成门禁；PowerPoint 不依赖属性顺序",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:52,167；docs/30-architecture/02-layering-and-packages.md:693；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:328",
+    "hard": "期望"
+   },
+   {
+    "id": "R-07",
+    "requirement": "不按 schema 丢弃任何节点。未知元素、未知属性、extLst、mc:AlternateContent 都能被 captureUnknown 连同锚点抓取，导出时按 schema-order 插回；AlternateContent 整体保留，允许回写各分支的 xfrm",
+    "why": "「未修改零丢失」加元素级保留（CS-06、OF-18）",
+    "source": "docs/30-architecture/04-document-model.md:647-661；docs/30-architecture/adr/0008-opaque-preservation.md:18-19,27；docs/40-modules/04-ooxml-format-and-pptx-codec.md:58,285,295；docs/10-prd/03-features/01-open-and-fidelity.md:54",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-08",
+    "requirement": "片段序列化与重解析：OpaqueXml.xml 是「含前缀声明」的字符串，序列化子树时要补齐祖先作用域里用到的 xmlns；导出时能在给定命名空间上下文中重解析并插回",
+    "why": "不透明子树以字符串形式存进 Snapshot 与 Y.Doc",
+    "source": "docs/30-architecture/04-document-model.md:649；docs/30-architecture/02-layering-and-packages.md:616",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-09",
+    "requirement": "空白：保留全部文本节点，不 trim、不合并；xml:space 在文档中未被提及（docx 的 w:t 依赖 xml:space=\"preserve\"，M5 会用到）",
+    "why": "a:t 等文本首尾空格有语义；ws-insignificant 只用于比较",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:52；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:261",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-10",
+    "requirement": "实体与字符引用：正确解码 5 个预定义实体和数字字符引用；遇到未定义实体报错，不做静默替换",
+    "why": "禁 DTD 后不可能存在自定义实体；解码后的值直接进入模型",
+    "source": "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:366；docs/10-prd/03-features/01-open-and-fidelity.md:612",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-11",
+    "requirement": "保留实体原文写法（&#38; 与 &amp; 的区别）和属性引号风格",
+    "why": "只出现在证据计划 ADR-0019 的要点里；c14n 判定会抹平这些差异，文档验收不要求",
+    "source": "docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:10,136；docs/30-architecture/04-document-model.md:755",
+    "hard": "期望"
+   },
+   {
+    "id": "R-12",
+    "requirement": "CDATA 保留为独立节点",
+    "why": "节点类型里有 XmlCData；OOXML 中少见，c14n 把 CDATA 视同文本",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:551；docs/30-architecture/02-layering-and-packages.md:692",
+    "hard": "期望"
+   },
+   {
+    "id": "R-13",
+    "requirement": "保留注释与 PI",
+    "why": "设计写明要保留；但门禁用的 c14n 没有说明是否含注释，因此不构成门禁",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:52,551；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:261",
+    "hard": "期望"
+   },
+   {
+    "id": "R-14",
+    "requirement": "XML 声明与 standalone：XmlDocument 保留 declaration，序列化时写声明头；重生成部件应沿用源声明（PowerPoint 惯例 standalone=\"yes\"，文档未写明）",
+    "why": "关系到 PowerPoint 打开无修复的兼容性",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:167,552",
+    "hard": "期望"
+   },
+   {
+    "id": "R-15",
+    "requirement": "编码：输出固定为 UTF-8；输入为非法 UTF-8 或 BOM 混用时，返回已登记错误码，不抛未捕获异常",
+    "why": "fuzz 断言要求如此；iso 包不带 dom lib，而 TextDecoder 在 TS 5.9.3 里只由 lib.dom 和 lib.webworker 声明",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:552；docs/70-testing/10-security-testing.md:117,119；docs/00-charter/charter.md:570；脚本：grep TextDecoder typescript/lib 只命中 lib.dom.d.ts、lib.webworker.d.ts",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-16",
+    "requirement": "支持 UTF-16 输入（BOM 与 encoding 声明识别）",
+    "why": "OPC 规范允许 UTF-8 或 UTF-16（外部规范 ISO/IEC 29500-2 §8.1.4，本轮未核原文）；仓库文档完全没有覆盖",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:552（只写 UTF-8 输出）",
+    "hard": "期望"
+   },
+   {
+    "id": "R-17",
+    "requirement": "DOCTYPE 与 XXE：禁用 DTD、外部实体、参数实体和实体展开，且不可配置；金丝雀收到请求数为 0，解析堆增量 < 64 MiB",
+    "why": "输入不可信，服务端与客户端都在做解析",
+    "source": "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:366；docs/60-backend/17-deployment-and-config.md:469；docs/10-prd/04-non-functional-requirements.md:245；docs/50-frontend/14-client-security.md:446；docs/70-testing/10-security-testing.md:102",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-18",
+    "requirement": "结构限额：嵌套深度 ≤ 256、单元素属性 ≤ 1,024、文本节点 ≤ 16 MiB、图表每序列 ≤ 10,000 点、单部件解压 ≤ 64 MiB。超限返回 format.limit_exceeded{limit, actual}；恰在上限的样本必须通过；可收紧，放宽不超过 2 倍",
+    "why": "防资源耗尽；错误里要带实际值，解析器必须能计数",
+    "source": "docs/60-backend/06-modules-jobs-import-export-thumbnails.md:363,366；docs/70-testing/10-security-testing.md:103；docs/10-prd/03-features/01-open-and-fidelity.md:612",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-19",
+    "requirement": "规模天花板：读 p:sldIdLst 判断页数 ≤ 200；在首批回传之前对全部页完成元素计数（单页 ≤ 1,000、总计 ≤ 20,000），超限整体拒绝",
+    "why": "不允许装到一半才失败（CO-12）",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:386-387；docs/60-backend/06-modules-jobs-import-export-thumbnails.md:350-351,367",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-20",
+    "requirement": "流式与整树兼顾：已建模部件用整树 XmlDocument；另提供不建树的事件或词法扫描，用于计数，也为 M5 的 xlsx 大表预留",
+    "why": "计数要求「只计数不物化」且有时间预算；zip 流式读取留到 A-13 在 M3 评估；sheet 可能有 10 万以上单元格",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:167,387,907；docs/30-architecture/README.md:155；docs/40-modules/13-doc-sheet-extension-skeleton.md:203",
+    "hard": "期望"
+   },
+   {
+    "id": "R-21",
+    "requirement": "性能：首页可见 D50 ≤ 1.5 s、D200 ≤ 3.0 s，全部解析 ≤ 6 s / 20 s（门禁）；分段目标为「Worker 启动、zip 索引、计数」≤ 350 / 1,000 ms，首批解析 ≤ 450 / 700 ms；服务端单任务 ≤ 60 s、堆 ≤ 2,048 MiB；fuzz 单样本 ≤ 2 s",
+    "why": "性能门禁与服务端资源限额",
+    "source": "docs/50-frontend/13-performance-and-bundling.md:79-80,86-88；docs/60-backend/06-modules-jobs-import-export-thumbnails.md:368；docs/70-testing/10-security-testing.md:119",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-22",
+    "requirement": "主线程可切片：Worker 不可用时，同一代码在主线程分片执行、每片 ≤ 50 ms；slide-render 在主线程解析图表和 SmartArt 部件时不能产生 > 50 ms 长任务",
+    "why": "打开管线门禁要求「无 > 50 ms 长任务」；单个大部件可能需要能中断、续跑的解析",
+    "source": "docs/50-frontend/13-performance-and-bundling.md:274,431；docs/40-modules/07-slide-rendering.md:694,766",
+    "hard": "期望"
+   },
+   {
+    "id": "R-23",
+    "requirement": "同构：iso 包 tsconfig 不含 dom lib、禁止 node:*，通过 node --import 冒烟；Web Worker、主线程、worker_threads、headless Chromium 用同一份源码；不用 DOMParser、xmldom、jsdom",
+    "why": "章程规则 5；两端解析结果必须一致（X5 服务端与 Node 导入结果规范化后相等）",
+    "source": "docs/00-charter/charter.md:570；docs/40-modules/04-ooxml-format-and-pptx-codec.md:900-905,916；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:382",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-24",
+    "requirement": "序列化确定性：同一 Snapshot 在浏览器和 Node 导出的 SHA-256 相同；TZ、LANG 变化不改变字节；不读时钟、随机源或区域设置",
+    "why": "SV-02 服务端与客户端字节一致",
+    "source": "docs/30-architecture/04-document-model.md:711-716；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:379；docs/40-modules/04-ooxml-format-and-pptx-codec.md:986",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-25",
+    "requirement": "体积：查看器基线 ≤ 350 KB gzip（当前估算 345 KB，只剩约 5 KB 余量）；ooxml chunk 预算 90 KB，其中导出路径约 25 KB；导入 Worker 计入基线；解析器还会随 slide-render 进入主线程包",
+    "why": "M1 体积门禁",
+    "source": "docs/50-frontend/13-performance-and-bundling.md:196,199；docs/40-modules/11-preset-assembly-and-app-shell.md:411,1048；docs/40-modules/07-slide-rendering.md:694",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-26",
+    "requirement": "错误返回：用 Result 或诊断返回，不抛异常；诊断带 partName 和 XPath 风格 path；限额错误带 {limit, actual}；invalid_package 带 details.part",
+    "why": "fuzz 要求只返回已登记错误码；保真诊断面板需要定位信息",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:264,776；docs/10-prd/03-features/01-open-and-fidelity.md:225；docs/70-testing/10-security-testing.md:119",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-27",
+    "requirement": "错误定位提供行列或字节偏移",
+    "why": "文档没有要求；对 fuzz 复现和保真报告（已有「首个差异字节偏移」）有帮助",
+    "source": "docs/70-testing/03-fidelity-roundtrip-and-corpus.md:526",
+    "hard": "期望"
+   },
+   {
+    "id": "R-28",
+    "requirement": "畸形 XML：已建模部件解析失败时整部件降级为 opaque，不丢数据，并发 error 级诊断",
+    "why": "失败模式已写进 ADR-0008 决策 8",
+    "source": "docs/30-architecture/adr/0008-opaque-preservation.md:24；docs/40-modules/04-ooxml-format-and-pptx-codec.md:776",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-29",
+    "requirement": "重生成部件经 reinsert 后通过 ECMA-376 XSD（Transitional；C 案为 Strict），子元素顺序符合 schema-order",
+    "why": "NF-02 要求重生成部件 XSD 100% 有效",
+    "source": "docs/30-architecture/04-document-model.md:755；docs/10-prd/04-non-functional-requirements.md:211；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:327,329",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-30",
+    "requirement": "docx/xlsx 复用：ooxml-core 到 M5 要求零改动（horizontal-freeze）；XML API 必须文档类型盲，不出现 slide 字面量；docx、xlsx 必须复用这一层，不得另写",
+    "why": "这是「文档类型盲」承诺的证明对象",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:922,982；docs/40-modules/13-doc-sheet-extension-skeleton.md:386；docs/30-architecture/12-extension-to-doc-and-sheet.md:50",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-31",
+    "requirement": "提供测试用 canonicalize，并登记规范化器（c14n、attr-sort、ws-insignificant、ns-prefix、strict-to-transitional），每个配正例与反例",
+    "why": "往返判定与 diffPackage 依赖这些规范化器",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:286,556；docs/70-testing/03-fidelity-roundtrip-and-corpus.md:261",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-32",
+    "requirement": "若引第三方：许可须符合 D13（ISC 可用）；只允许 ooxml-core 单点引入（R5 登记）；维护活跃，12 个月内有发布",
+    "why": "许可门禁、第三方单点规则、核实口径",
+    "source": "docs/00-charter/charter.md:738；docs/30-architecture/02-layering-and-packages.md:285；docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:1051",
+    "hard": "硬性"
+   },
+   {
+    "id": "R-33",
+    "requirement": "服务端 SVG 消毒同样需要严格 XML 解析（拒 DOCTYPE）与序列化，最好与 ooxml-core 共用词法层",
+    "why": "server-app-thin 禁止 modules/** import ooxml-*，否则只能再写一个解析器",
+    "source": "docs/60-backend/04-modules-documents-storage-media.md:446；docs/40-modules/08-server-identity-documents-and-storage.md:820；docs/30-architecture/02-layering-and-packages.md:193",
+    "hard": "期望"
+   },
+   {
+    "id": "R-34",
+    "requirement": "序列化空元素时，<a/> 与 <a></a> 的写法与源一致",
+    "why": "只有 30/02 这样写；c14n 判定不检查",
+    "source": "docs/30-architecture/02-layering-and-packages.md:693",
+    "hard": "期望"
+   },
+   {
+    "id": "R-35",
+    "requirement": "提供 SafeXmlNode 空安全遍历（child().attr() 链式调用，缺失时返回空节点）",
+    "why": "借鉴 pptx-renderer 的逐节点错误隔离",
+    "source": "docs/40-modules/04-ooxml-format-and-pptx-codec.md:551；docs/00-charter/charter.md:30",
+    "hard": "期望"
+   }
+  ],
+  "contradictions": [
+   "[Content_Types].xml 与 .rels 是否重生成，文档口径不一：ADR-0008 决策 5（adr/0008:21）、30/02:683 和 30/04 §5.3（04-document-model.md:717）都说「始终由 PartTable 生成、永不 verbatim」；30/04 §5.4（:753）和 70/03（:253,257）却要求零编辑时原样写回、只在结构变化时重生成；40/04:165 又写成「零编辑场景外从不 verbatim」。按「始终重生成」执行，零编辑以及文本编辑后未列入 dirtyParts 的 slide .rels（70/03:310,325）都要求序列化器逐字节复现原文",
+   "证据包 q-xml-lexer 的理由是「保真要求逐字节回写」（reuse-…json:10），但文档验收只要求脏部件规范化等价（30/04:755，70/03:328），XML 层自测也是 ≡c14n（40/04:592）。逐字节只由 verbatim 原字节保证。「实体原文、引号风格保留」只出现在证据的 ADR-0019 计划里（json:136），没有任何验收条款支撑",
+   "XML 限额项在各文档不一致：PRD OF-24（01-open-and-fidelity.md:612）和 50/14:446 只有「深度 256 + 实体扩展禁用」；60/06:366、60/17:469、70/10:103 另外加了属性 ≤ 1,024、文本节点 ≤ 16 MiB、禁 DTD 与外部实体；40/04:263、30/02:688、30/04:768 的 ZipLimits 没有任何 XML 字段，而 60/06:357 却说客户端「常量在 ooxml-core 的 ZipLimits」",
+   "DOCTYPE 的处理方式不统一：60/06:366 和证据 d-45、ADR-0019 计划（json:64,136）写「禁 DTD 或拒 DOCTYPE」，即拒绝；70/10:102 写「被拒或按禁用处理」，两种都行；PRD 04:245 和 OF-24 只写「实体扩展禁用」。错误码按 60/06 和 70/03:416 走 format.limit_exceeded（413）",
+   "畸形 XML 的结果不统一：ADR-0008 决策 8（adr/0008:24）要求降级为 opaque 并发诊断；40/04:776 和 30/02:716 定义了 format.malformed_xml，但 30/10 错误码目录没有登记（grep 无结果）；PRD 01:48,225 和 70/03:415 的「损坏」只列 invalid_package（非 zip、缺部件、截断），presentation.xml 本身畸形时返回什么码没有定义",
+   "A-2 的状态说法不一：30/README:144 标为「待决、默认自研、决策人未签」；章程 :312 和 40/04:52,905 直接当作定案。A-2 的候选（xmldom、fast-xml-parser）与证据的候选（saxes、@rgrove/parse-xml）不是同一组，而 xmldom 已被否决（json:663）；A-2 定案用的 ADR-0019 还不存在",
+   "测试落点不一致：70/10:101-104 写 packages/ooxml-core/src/xml/__tests__/xml-hardening.test.ts、src/opc/__tests__/zip-limits.test.ts、opc-mutation.property.test.ts；40/04 的目录是 src/infrastructure/xml/，测试只放在 src/__tests__/（40/04:591-596,947），而且没有列出 xml-hardening 与 opc-mutation 两个测试",
+   "「解析一律在 Worker 中进行」（50/14:453；PRD 01:272）与 slide-render 在主线程直接调用 ooxml-core 的 parseChartSpace 和 dsp:drawing 解析（40/07:694,766；40/04:55-56）相冲突，结果是解析器同时进入主线程包和 Worker 包",
+   "服务端 SVG 消毒需要严格 XML 解析（d-45，json:64；60/04:446），但 svg-sanitizer.ts 标注「无第三方」（40/08:820），且 server-app-thin 禁止 modules/** import ooxml-*（30/02:193）。结果是在 A-2 范围外出现第二个自研 XML 解析器",
+   "ADR-0008 的「后果」写「把某类 OpaqueXml 升级为建模字段时只需迁移」（adr/0008:43），但 Migration.migrate(body) 在模型层（adr/0009:16），model-slide 不出现 XML 类型、不能依赖 ooxml-core（40/03:61；章程秩规则）。迁移函数无处解析 OpaqueXml 字符串",
+   "章程内部口径不一：D7 写「零编辑时字节相同」（charter:732），PRD OF-18 也是字节相同（01:541），但章程 §7 的 M1 出口写「未修改导出与原文件语义等价」（charter:781）",
+   "证据内部 saxes 日期不一致：前端核实写「最后发布 2022-05-17」（json:765），后端核实写「最后发版 2021-11-07」（json:1051）。npm 实测 6.0.0 发布于 2021-11-07T19:06Z，2022-05-17 只是 registry 元数据 time.modified"
+  ]
+ },
+ "benchmark": {
+  "harnessPath": "/private/tmp/claude-501/-Users-douglasdong-orca-projects-cordis-ppt-editor/99c8e3a1-9bed-4d05-993f-0eb38ac410f4/scratchpad/xml-bench/README.md",
+  "candidates": [
+   {
+    "name": "自研原型（selfbuilt/lexer.mjs + tree.mjs，392 行）",
+    "version": "prototype",
+    "license": "自研",
+    "lastPublish": "-",
+    "maintained": "自有",
+    "api": "Lexer write/end 产出 token；parseDocument 建保真树；serialize(doc, isDirty)",
+    "iso": "✓ 零依赖；Chrome module Worker 实跑通过",
+    "fidelity": "单项探针 15/16（仅标签内空白在脏重写时规范化）；token 级偏移切片 full；零编辑 23/23 逐字节还原；属性原文和引号可取回",
+    "namespaces": "URI✓ 原前缀✓；未声明前缀、xmlns:p=\"\"、展开名重复、非法 QName 均报错",
+    "entitiesAndSecurity": "遇 DOCTYPE 一律拒绝（DTD_FORBIDDEN）；只认 5 个预定义实体和字符引用；8 个安全用例全部拒绝，金丝雀请求 0",
+    "errors": "16/16 拒绝，全部带 code、行、列、偏移",
+    "perf": "5 MB 81.6 ms，30 MB 416.9 ms（只做词法 213 ms，全量解码 477 ms）；30 MB 峰值 +645 MB（偏高）",
+    "sizeMinGz": "4458 B",
+    "streaming": "✓ write/end；276 种分块组合与一次性结果一致",
+    "verdict": "推荐（方向）：唯一满足 11/11 项需求；完整版需补紧凑存储、合规测试套件和精确的 NameChar 区间"
+   },
+   {
+    "name": "saxes",
+    "version": "6.0.0",
+    "license": "ISC",
+    "lastPublish": "2021-11-07",
+    "maintained": "✗ GitHub 已归档",
+    "api": "SAX 事件，xmlns:true",
+    "iso": "✓ Worker 实跑通过",
+    "fidelity": "探针 8/16：实体原文、引号、CRLF、声明、BOM 丢失；只有 position，偏移需推断，在注释/BOM 处错位",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "接受 DOCTYPE 但不展开；内部实体引用报「未定义实体」；无禁用开关",
+    "errors": "16/16 拒绝，带行列",
+    "perf": "5 MB 57 ms，30 MB 317 ms，峰值 +9 MB（只跑 SAX，不建树）",
+    "sizeMinGz": "8189 B",
+    "streaming": "✓",
+    "verdict": "不适用：合规最好但已归档、4 年无发版；可作 devDependency 差分对照"
+   },
+   {
+    "name": "@rgrove/parse-xml",
+    "version": "5.0.0",
+    "license": "ISC",
+    "lastPublish": "2026-08-30",
+    "maintained": "✓",
+    "api": "parseXml(str, {includeOffsets, preserveComments…}) → 轻量 DOM",
+    "iso": "✓ 零依赖，Worker 实跑通过",
+    "fidelity": "探针 7/16：实体、引号、自闭合、CRLF 被规范化；节点 start/end 偏移切片 full，但无属性级偏移",
+    "namespaces": "✗ 不解析命名空间（未声明前缀不报错）",
+    "entitiesAndSecurity": "跳过 DOCTYPE，不展开实体；未定义实体报错；无禁用开关",
+    "errors": "13/16 带行列，漏掉的 3 条都是命名空间类",
+    "perf": "5 MB 92 ms，30 MB 516 ms，峰值 +672 MB",
+    "sizeMinGz": "4358 B",
+    "streaming": "✗",
+    "verdict": "备选：不自研时最好的底座，但要自补命名空间层、开始标签重扫和 DOCTYPE 拒绝"
+   },
+   {
+    "name": "fast-xml-parser（preserveOrder）",
+    "version": "5.11.1",
+    "license": "MIT",
+    "lastPublish": "2026-08-27",
+    "maintained": "✓",
+    "api": "XMLParser → 对象树；XMLValidator 单独校验",
+    "iso": "✓",
+    "fidelity": "探针 6/16：PI 数据丢失，实体、引号、自闭合丢失；无偏移",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "默认展开 DOCTYPE 内部实体（有数量/大小上限）；billion laughs 未展开",
+    "errors": "XMLValidator 只拒 6/16",
+    "perf": "5 MB 193 ms，30 MB 1121 ms，峰值 +386 MB",
+    "sizeMinGz": "21101 B（依赖 7 个包）",
+    "streaming": "✗",
+    "verdict": "不适用：数据型对象树，不保真，默认展开实体"
+   },
+   {
+    "name": "txml",
+    "version": "6.0.3",
+    "license": "MIT",
+    "lastPublish": "2026-08-30",
+    "maintained": "✓",
+    "api": "parse(str) → TNode 数组",
+    "iso": "△ 包根入口 import node:stream（Worker 里失败）；txml/txml 子路径可用",
+    "fidelity": "探针 12/16：CDATA 被当成普通文本，PI 被错拆成属性；无偏移",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "把 DOCTYPE 当文本，不展开",
+    "errors": "1/16",
+    "perf": "5 MB 70 ms，30 MB 346 ms，峰值 +458 MB",
+    "sizeMinGz": "2039 B",
+    "streaming": "✗",
+    "verdict": "不适用：几乎不做校验，CDATA/PI 处理错误"
+   },
+   {
+    "name": "sax（sax-js）",
+    "version": "1.6.1",
+    "license": "BlueOak-1.0.0（附表内）",
+    "lastPublish": "2026-07-24",
+    "maintained": "✓",
+    "api": "SAX，strict + xmlns",
+    "iso": "✓ Worker 实跑通过（stream 引用包在 try 里）",
+    "fidelity": "探针 10/16：CR 原样透传，实体和引号丢失；标签有起止偏移，文本无偏移",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "不展开内部实体；DOCTYPE 被接受；会放行 &nbsp;",
+    "errors": "8/16：重复属性、非法字符、<、两个根都被放行",
+    "perf": "5 MB 166 ms，30 MB 952 ms，峰值 +11 MB",
+    "sizeMinGz": "8107 B",
+    "streaming": "✓",
+    "verdict": "仅参考：保真与命名空间够用，但校验弱且慢，事后补不了"
+   },
+   {
+    "name": "htmlparser2（xmlMode）",
+    "version": "12.0.0",
+    "license": "MIT",
+    "lastPublish": "2026-03-20",
+    "maintained": "✓",
+    "api": "SAX，startIndex/endIndex，onattribute 给引号",
+    "iso": "✓",
+    "fidelity": "探针 13/16，原文和引号都在；PI 丢尾部的 ?，其后偏移错一位",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "DOCTYPE 当 PI 文本处理，不展开",
+    "errors": "0/16",
+    "perf": "5 MB 48 ms，30 MB 275 ms，峰值 +3 MB",
+    "sizeMinGz": "22022 B",
+    "streaming": "✓",
+    "verdict": "不适用：本质是 HTML 解析器，XML 模式完全不校验"
+   },
+   {
+    "name": "@xmldom/xmldom",
+    "version": "0.9.12",
+    "license": "MIT",
+    "lastPublish": "2026-08-21",
+    "maintained": "✓",
+    "api": "W3C DOMParser/XMLSerializer",
+    "iso": "✓",
+    "fidelity": "探针 7/16：实体、引号、自闭合、CRLF 丢失；只有节点起点行列",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "有 DocumentType 节点，不展开实体；BOM 被当作根外内容报错",
+    "errors": "11/16，只有 1 例带位置",
+    "perf": "5 MB 308 ms，30 MB 1918 ms，峰值 +1757 MB",
+    "sizeMinGz": "30817 B",
+    "streaming": "✗",
+    "verdict": "不适用：慢、内存高、不保真"
+   },
+   {
+    "name": "ltx",
+    "version": "3.1.2",
+    "license": "MIT",
+    "lastPublish": "2025-01-11",
+    "maintained": "△",
+    "api": "parse → Element",
+    "iso": "✗ import events（Worker 里失败）",
+    "fidelity": "探针 5/16：注释、PI、声明被直接丢弃",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "任何 DOCTYPE 都报 Incomplete document",
+    "errors": "5/16，无位置",
+    "perf": "5 MB 64 ms，30 MB 370 ms，峰值 +452 MB",
+    "sizeMinGz": "2460 B",
+    "streaming": "✓",
+    "verdict": "不适用：丢节点、需 polyfill"
+   },
+   {
+    "name": "xml-js",
+    "version": "1.6.11",
+    "license": "MIT",
+    "lastPublish": "2019-02-13",
+    "maintained": "✗",
+    "api": "xml2js（底层 sax）",
+    "iso": "✓",
+    "fidelity": "探针 9/16：自闭合、实体、引号丢失；无偏移",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "同 sax，不展开",
+    "errors": "5/16",
+    "perf": "5 MB 179 ms，30 MB 1113 ms，峰值 +1016 MB",
+    "sizeMinGz": "11730 B",
+    "streaming": "✗",
+    "verdict": "不适用：停更 7 年，不保真"
+   },
+   {
+    "name": "@xml-tools/parser",
+    "version": "1.0.11",
+    "license": "Apache-2.0",
+    "lastPublish": "2021-06-03",
+    "maintained": "✗",
+    "api": "Chevrotain CST + tokenVector",
+    "iso": "✓",
+    "fidelity": "探针 14/16，token 偏移 full；但 &#x4E2D; 被切错，含 PI/CDATA 的部件和 BOM 解析失败",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "语法层接受 DOCTYPE，不处理实体",
+    "errors": "8/16",
+    "perf": "5 MB 245 ms，30 MB 2164 ms，峰值 +3834 MB",
+    "sizeMinGz": "41709 B",
+    "streaming": "✗",
+    "verdict": "不适用：停更、有 bug、内存爆"
+   },
+   {
+    "name": "easysax",
+    "version": "0.5.1",
+    "license": "MIT（仅 LICENSE 文件，package.json 缺 license 字段）",
+    "lastPublish": "2026-09-22",
+    "maintained": "✓",
+    "api": "SAX；getStrNode 返回标签原文；文本默认未解码",
+    "iso": "✓",
+    "fidelity": "探针 16/16，API 重建 23/23 逐字节；无偏移",
+    "namespaces": "✗ 只能按预置表归一化前缀",
+    "entitiesAndSecurity": "DOCTYPE 原样交出，不展开",
+    "errors": "2/16，无位置",
+    "perf": "5 MB 23 ms，30 MB 108 ms，峰值 +9 MB（最快）",
+    "sizeMinGz": "3139 B",
+    "streaming": "✓",
+    "verdict": "仅参考：原文最全、速度最快，但几乎不校验；可借鉴惰性属性的设计"
+   },
+   {
+    "name": "slimdom + slimdom-sax-parser",
+    "version": "4.3.5 / 1.5.3",
+    "license": "MIT",
+    "lastPublish": "2024-04-01 / 2022-06-03",
+    "maintained": "✗ 底层是已归档的 saxes",
+    "api": "sync(str, {position}) → slimdom DOM",
+    "iso": "✗ import stream（Worker 里失败）",
+    "fidelity": "探针 8/16：声明丢失，元素偏移起点错位",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "同 saxes，不展开",
+    "errors": "16/16，带位置",
+    "perf": "5 MB 354 ms，30 MB 2148 ms，峰值 +944 MB",
+    "sizeMinGz": "19991 B",
+    "streaming": "✗",
+    "verdict": "不适用：停更、需 polyfill、慢"
+   },
+   {
+    "name": "sax-wasm（Rust→wasm）",
+    "version": "3.1.4",
+    "license": "MIT",
+    "lastPublish": "2026-02-12",
+    "maintained": "✓",
+    "api": "SAXParser + prepareWasm，写入须按 64 KB 分块",
+    "iso": "✓（wasm 需 fetch 加载）",
+    "fidelity": "探针 11/16：字节偏移和引号类型都有，但 \\r\\n 被丢成 \\r，空白文本也会丢",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "宽松解析，内部子集被误报为 CDATA；不展开",
+    "errors": "0/16",
+    "perf": "5 MB 58 ms，30 MB 346 ms，峰值 +42 MB",
+    "sizeMinGz": "18432 B（其中 wasm 16330 B）",
+    "streaming": "✓ 字节流",
+    "verdict": "不适用：宽松解析器，有数据丢失 bug，速度没有优势"
+   },
+   {
+    "name": "saxen",
+    "version": "11.2.0",
+    "license": "MIT",
+    "lastPublish": "2026-09-21",
+    "maintained": "✓",
+    "api": "SAX，proxy 模式带命名空间，getContext 给标签原文",
+    "iso": "✓",
+    "fidelity": "探针 14/16：根外空白丢失；无偏移",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "DOCTYPE 原样交出，不展开",
+    "errors": "3/16",
+    "perf": "5 MB 41 ms，30 MB 207 ms，峰值 +6 MB",
+    "sizeMinGz": "3050 B",
+    "streaming": "✗",
+    "verdict": "仅参考：小而快，命名空间对，但几乎不校验"
+   },
+   {
+    "name": "@nodable/sax",
+    "version": "1.2.1",
+    "license": "MIT",
+    "lastPublish": "2026-07-17",
+    "maintained": "✓（2026 年新包）",
+    "api": "SaxParser（基于 flexible-xml-parser），有标签偏移",
+    "iso": "✗ import stream（Worker 里失败）",
+    "fidelity": "探针 11/16：引号、CRLF 丢失；PI 内容被当属性解析而报错",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "读取内部实体（有上限），默认按「安全」规则展开",
+    "errors": "5/16",
+    "perf": "5 MB 84 ms，30 MB 446 ms，峰值 +12 MB",
+    "sizeMinGz": "35625 B",
+    "streaming": "✓",
+    "verdict": "不适用：PI 有 bug，校验弱，需 polyfill"
+   },
+   {
+    "name": "libxml2-wasm",
+    "version": "0.7.2",
+    "license": "MIT",
+    "lastPublish": "2026-09-07",
+    "maintained": "✓",
+    "api": "XmlDocument.fromString/fromBuffer，需 dispose",
+    "iso": "✓ Worker 实跑通过（wasm 内联在 JS 里）",
+    "fidelity": "探针 6/16：PI 节点没有 name/next，自闭合、实体丢失；只有行号",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "属性里的内部实体总被展开；billion laughs 被放大系数上限拒绝；不读外部实体",
+    "errors": "16/16，带行列",
+    "perf": "裸解析 30 MB 305 ms，解析+遍历 1021 ms / +843 MB",
+    "sizeMinGz": "446225 B",
+    "streaming": "✗",
+    "verdict": "仅参考：适合当服务端/CI 的一致性对照，不进 ooxml-core"
+   },
+   {
+    "name": "expat-wasm",
+    "version": "4.0.5",
+    "license": "MIT",
+    "lastPublish": "2026-03-23",
+    "maintained": "✓",
+    "api": "EventEmitter SAX；XML_GetCurrentByteIndex",
+    "iso": "✗ import buffer/events（Worker 里失败）",
+    "fidelity": "探针 8/16：自闭合、实体、CRLF 丢失；只有事件起点字节",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "默认展开内部实体；有放大上限；外部实体只在提供回调时读取",
+    "errors": "16/16，带行列；字符串输入遇 UTF-16 声明报错",
+    "perf": "5 MB 136 ms，30 MB 798 ms，峰值 +40 MB",
+    "sizeMinGz": "72338 B",
+    "streaming": "✓ 字节流",
+    "verdict": "不适用：需 polyfill，默认展开实体"
+   },
+   {
+    "name": "tag-soup",
+    "version": "3.2.0",
+    "license": "MIT",
+    "lastPublish": "2026-04-20",
+    "maintained": "✓",
+    "api": "XMLTokenizer/SAX/DOM",
+    "iso": "✓",
+    "fidelity": "token 偏移 full；但严格模式拒绝单引号属性（XML 合法写法）",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "任何 DOCTYPE 都报错",
+    "errors": "3/16",
+    "perf": "5 MB 70 ms，30 MB 392 ms，峰值 +345 MB",
+    "sizeMinGz": "7887 B",
+    "streaming": "✗",
+    "verdict": "不适用：违反 XML 规范（拒单引号），校验弱"
+   },
+   {
+    "name": "@lezer/xml",
+    "version": "1.0.6",
+    "license": "MIT",
+    "lastPublish": "2024-12-27",
+    "maintained": "✗ GitHub 已归档",
+    "api": "增量语法树 from/to",
+    "iso": "✓（打包里含 process 引用）",
+    "fidelity": "探针 15/16，节点偏移 full；不解码实体",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "语法层接受 DOCTYPE，不处理实体",
+    "errors": "4/16",
+    "perf": "5 MB 338 ms，30 MB 1967 ms，峰值 +1071 MB",
+    "sizeMinGz": "20427 B",
+    "streaming": "✗（增量重解析）",
+    "verdict": "仅参考：适合源码视图高亮，不适合当解析器"
+   },
+   {
+    "name": "xml-parser-xo",
+    "version": "4.1.6",
+    "license": "MIT",
+    "lastPublish": "2026-05-21",
+    "maintained": "✓",
+    "api": "xo(str,{strictMode}) → 树",
+    "iso": "✓",
+    "fidelity": "探针 11/16：开头的 PI 被当声明吞掉；无偏移",
+    "namespaces": "✗",
+    "entitiesAndSecurity": "DOCTYPE 原文保留，不展开",
+    "errors": "5/16，无位置",
+    "perf": "5 MB 16711 ms（0.3 MB/s），30 MB 超出预算未跑",
+    "sizeMinGz": "1532 B",
+    "streaming": "✗",
+    "verdict": "不适用：慢到不可用"
+   },
+   {
+    "name": "浏览器 DOMParser（对照）",
+    "version": "Chrome 154",
+    "license": "-",
+    "lastPublish": "-",
+    "maintained": "-",
+    "api": "DOMParser/XMLSerializer",
+    "iso": "✗ Worker 里 typeof DOMParser 为 undefined，Node 也没有",
+    "fidelity": "探针 7/16；XMLSerializer 在 22 个部件上逐字节一致 0/22（声明丢失）",
+    "namespaces": "URI✓ 前缀✓",
+    "entitiesAndSecurity": "展开内部实体；billion laughs 被放大上限拒绝；不外连",
+    "errors": "16/16，parsererror 文本含行列",
+    "perf": "5 MB 53 ms，30 MB 322 ms（主线程）",
+    "sizeMinGz": "0",
+    "streaming": "✗",
+    "verdict": "只作对照：Worker 和 Node 都没有，文档已明确不依赖它（40-modules/04:905）"
+   }
+  ],
+  "testCases": [
+   "① 真实 pptx 部件 9 个（python-pptx 1.0.2 生成的 fixtures/sample.pptx 解出）：slide1.xml（文本/4 个形状/4×3 表格/图片）、slideLayout6、slideMaster1、theme1、presentation.xml、[Content_Types].xml、root.rels、presentation.xml.rels、slide1.xml.rels",
+   "② 刁钻 14 个（fixtures/tricky）：多前缀绑同一 URI 与默认命名空间重声明、前缀重绑定、单引号与 = 两侧空白、字符/实体引用（含 &#x1F600;）、CDATA 拼接、注释与 PI、standalone 声明加 CRLF、xml:space 首尾空白、行尾混用、mc:AlternateContent + mc:Ignorable、extLst 未知扩展、三种空元素写法、属性值里的字面换行/制表、仿 PowerPoint 365 的 slide、UTF-8 BOM、UTF-16LE",
+   "③ 安全 8 个（fixtures/security）：无实体的 DOCTYPE、内部实体、billion laughs、二次膨胀、SYSTEM file:///etc/passwd、外部 http 实体、参数实体、外部 DTD（后三者指向本机金丝雀 47811）",
+   "④ 畸形 16 个（fixtures/malformed）：EOF 前未闭合、标签不匹配、非法字符、&#1;、重复属性、命名空间展开后重名、未声明的元素/属性前缀、裸 &、&nbsp;、属性值里有 <、两个根、根后有文本、未加引号的属性值、声明不在开头、文本中出现 ]]>",
+   "⑤ 性能 2 档：slide1 的形状放大到 5,262,245 B（24.7 万元素）和 31,601,598 B（148 万元素）；5 MB 7 次、30 MB 5 次取中位数，另起进程测 RSS 峰值",
+   "单项保真探针 16 条（fixtures/aspects/aspects.json），每条只考一个方面；另有属性原文探针 <r a='1' b=\"&amp;&#10;\"/>",
+   "自研附加测试（selfbuilt/selftest.mjs）：276 种分块组合（含被切断的代理对）的流式等价；3000 例随机变异，与 saxes/libxml2-wasm 做差分"
+  ],
+  "selfBuiltEstimate": "完整版约 20 人日（约 4 人周，±30%），1 名熟悉 XML 规范的工程师。拆分：词法器完整化 3（精确 NameChar 区间、行列、编码嗅探/UTF-16、错误码、限额）；紧凑保真树 + SafeXmlNode + 惰性解码 4；脏/净混写的序列化器 3（前缀分配、转义、确定性、<a/> 风格）；W3C XML Conformance Test Suite 的 not-wf/wf 与 Namespaces 子集接入和分诊 4；安全测试（SEC-IN-02 + 金丝雀 + 64 MiB 断言）与差分模糊 3；性能/内存调优和 CI 基准 2；评审与文档 1。原型 392 行已跑通全部用例：畸形 16/16、安全 8/8 拒绝、零编辑 23/23 逐字节、3000 例差分与 saxes 一致。它是完整版的起点，不是交付物。",
+  "notes": [
+   "现状：仓库在 M0，只有文档没有代码。文档默认自研保真 DOM，出处 docs/30-architecture/README.md:144（A-2，决策人未签）、docs/30-architecture/02-layering-and-packages.md:691-693、docs/40-modules/04-ooxml-format-and-pptx-codec.md:905",
+   "saxes 已归档属实：gh api 返回 archived=true，npm 最后发布 6.0.0 于 2021-11-07（results/github-meta.tsv、results/npm-meta-core.json）；slimdom-sax-parser 底层依赖它。@lezer/xml 的 GitHub 仓库同样已归档",
+   "需求矩阵（results/summary.md §0）：只有自研原型 11/11。saxes 10/11（缺维护）；sax、saxen 各 10/11，但畸形只拒 8/16、3/16；parse-xml 9/11（缺命名空间，畸形 13/16）",
+   "各库的实测缺陷：tag-soup 严格模式拒单引号属性；@xml-tools/parser 把 &#x4E2D; 切成 &#x4 加文本；sax-wasm 把 \\r\\n 丢成 \\r、单次写入超缓冲会抛 RangeError；htmlparser2 的 PI 丢尾部 ?、其后偏移错一位；txml 的 CDATA 变文本、PI 被拆成属性，包根入口 import node:stream；@nodable/sax 遇到 PI 报错；xml-parser-xo 5 MB 要 16.7 s",
+   "安全：默认展开内部实体的是 fast-xml-parser、expat-wasm、libxml2-wasm（在属性里）和 Chrome DOMParser；21 个库都没读 /etc/passwd，金丝雀请求合计 0。纯 JS 严格解析器（saxes/sax/parse-xml/xmldom）都会接受 DOCTYPE，要满足文档的「禁 DTD」（60-backend/06:366、70-testing/10:102）需自己在 doctype 事件里抛错",
+   "同构实测：在 Chrome module Worker 里，expat-wasm（buffer/events）、ltx（events）、@nodable/sax、slimdom-sax-parser（stream）和 txml 包根入口不加 polyfill 就加载失败，其余通过",
+   "TextDecoder 把 30 MB 字节解成字符串只要 5.6 ms，字符串输入库不因此吃亏；libxml2-wasm 裸解析 30 MB 305 ms，但经 JS 包装遍历成模型后是 1021 ms / +843 MB",
+   "差分模糊在第一轮就抓到原型漏了 QName 校验（<:a/>、a::b），33/3000 与 saxes 不一致；修复后 3000/3000 一致（results/selftest-before-qname-fix.json → results/selftest.json）。这也是完整版估计里合规与模糊测试要占 7 人日的依据",
+   "许可：全部候选都在 MIT/ISC/Apache/BlueOak 范围内；easysax 的 package.json 缺 license 字段（LICENSE 文件是 MIT），许可扫描器会标成 UNKNOWN；另查到的 typesxml 是 EPL-1.0，不合规未测；@libs/xml（quick-xml wasm）只在 JSR 发布，npm 404，未测",
+   "环境：Node v26.9.0 显式用 /opt/homebrew/bin/node（默认 PATH 里是 fnm 的 v24.21.0）；Playwright 1.63 驱动系统 Chrome 154",
+   "执行说明：有两次命令超过工具时限，被系统自动转到后台。一次是误写了读 stdin 的 cat，一次是 perf 批次超过 600 s（xml-parser-xo 5 MB 太慢）。两次都已手动 kill，之后改为分批前台重跑，并加入 5 MB 超 10 s 就跳过 30 MB 的预算规则。结果都来自前台同步运行。没有修改仓库文件",
+   "建议写回 A-2：维持自研默认；ooxml-core 运行时零 XML 依赖；saxes 与 libxml2-wasm 只作 devDependency 差分 oracle；决策人若否决自研，退路是 @rgrove/parse-xml@5 加自研命名空间层和 DOCTYPE 守卫",
+   "结果文件：results/summary.md（表格）、results/results.json（合并数据）、results/features|security|perf/*.json、results/size.json、results/browser.json、results/selftest.json"
+  ]
+ },
+ "verification": {
+  "rerun": "全部在 scratchpad/xml-bench 前台运行，Node 用 /opt/homebrew/bin/node v26.9.0。\n(1) verify/npmcheck.mjs（npm view）：21 个包的版本、许可、发布时间与原结果一致。saxes 6.0.0 ISC，发布于 2021-11-07T19:06，time.modified 为 2022-05-17。parse-xml 5.0.0 ISC，2026-08-30，零依赖。easysax 的 license 字段为空。gh api 查到 saxes、xmlchars、@lezer/xml 为 archived=true，parse-xml 为 false。\n(2) node run-all.mjs features security size（25 s）：去掉耗时和内存字段后，features/*.json、security/*.json 与原结果逐字段相同；size 数字相同，自研 4458 B，parse-xml 4358 B。\n(3) node run-all.mjs perf --ids selfbuilt,saxes,parse-xml,saxen,easysax,fast-xml-parser,sax --force（40 s）：30 MB 结果为自研 410.9 ms / +646.8 MB（仅词法 203.5，全量解码 472.8）、saxes 305、parse-xml 502.6 / +666.7 MB、saxen 199.5、easysax 104.3、fxp 1110.3、sax 938.5，与原结果偏差 ≤ 3%。\n(4) node selfbuilt/selftest.mjs：流式 276/276 一致；差分模糊 3000 例中 400 例被接受，与 saxes 一致 3000，与 libxml2 一致 2984。\n(5) node run-all.mjs browser：Chrome 154 Worker 结果复现，expat-wasm、ltx、@nodable/sax、slimdom-sax、txml 根入口失败，Worker 里 DOMParser 为 undefined。\n(6) 新增 verify/fair.mjs、adversarial.mjs、misc.mjs、fxp-aspects.mjs，结果见 corrections。\n复跑输出另存到 verify/results-rerun，原 results/ 已恢复（diff -rq 无差异）。没有改仓库文件。",
+  "fairnessIssues": [
+   "保真对比口径不对等：自研适配器的 treeToEvents 用 src.slice 取文本、声明和属性原文，用的就是偏移；parse-xml 适配器却被限定为不用偏移，自闭合还被硬写成 undefined（adapters/parse-xml.mjs:15）。parse-xml 开 includeOffsets 按同样方式重建：探针 15/16、23 个部件 21/23，与自研完全相同；保留开始标签原文时为 16/16、23/23（verify/fair.mjs A）",
+   "需求矩阵的「11 项」白送自研一项：lastPublish 和 repoArchived 为 null 时，「维护中」自动记 ✓（bench/summarize.mjs 的 recent 默认 true）。自研的维护其实是成本，不是通过项",
+   "矩阵里的 PI、注释、自闭合、属性顺序在需求盘点中属于「期望」（R-06、R-13、R-34）；硬性的 R-08、R-15、R-16、R-18（{limit, actual}）、R-19、R-26 都没进矩阵",
+   "parse-xml 的「命名空间 ✗、畸形 13/16」来自适配器没加命名空间层，而自研的得分包含 tree.mjs 的命名空间层。给 parse-xml 补约 30 行命名空间层和 1 行 DOCTYPE 守卫后：畸形 16/16 带行列，安全 8/8 拒绝，同种子 3000 例与 saxes 一致 3000/3000；不加守卫时为 2935/3000（fair.mjs B）",
+   "自研「零编辑 23/23 逐字节」是构造出来的：serialize 对未脏节点直接 src.slice，任何带偏移的库都能做到。而且 R-01 规定零编辑走部件原字节、不经过解析器，这一项不能作为选型证据",
+   "差分模糊不足以证明合规：3000 例里 2600 例被拒；变异词表只有 22 个片段，不覆盖声明体、保留前缀、根外引用；修 bug 时还拿 saxes 当靶子。我另写 21 条规范边界探针，自研偏离 10 条（见 corrections）",
+   "性能输出形态不同：SAX 库只计数，自研 parse 惰性不解码，parse-xml 全量解码。可比的是自研 decodeAll 473 ms 对 parse-xml 503 ms，或自研仅词法 204 ms 对 saxes 305、saxen 200。计时有预热、输入相同、每次都做 GC，这部分公平",
+   "fast-xml-parser 只测了 processEntities:true（默认）。改成 false 后，内部实体、billion laughs 和二次膨胀都不展开，XXE 3 例被拒；探针从 6/16 升到 7/16，结论不变（verify/fxp-aspects.mjs、fair.mjs C）",
+   "xmldom 用的是 onErrorStopParsing，warning 级错误（如未加引号的属性值）不会拒绝；换成遇 warning 也抛错的 onError，11/16 可能上升，结论不变",
+   "UTF-16 和 BOM 用例先由 harness 的 readFixture 用 TextDecoder 解成字符串再喂给各库。自研、parse-xml、saxes 都没有字节输入路径（features 里 bytesInput 为空），所以编码嗅探和非法 UTF-8（R-15、R-16）其实没测",
+   "同构只在 Chrome 154 的 module Worker 里跑过，没测 Firefox、Safari 和 Node worker_threads，也没用不含 dom lib 的 tsconfig 做编译检查"
+  ],
+  "corrections": [
+   "「只有自研原型 11/11」改为：在同一矩阵下，parse-xml 加约 30 行命名空间层和 1 行 DOCTYPE 守卫后同样 11/11（verify/fair.mjs）。自研真正的优势不在保真，而在流式/分片、词法层限额、深嵌套安全，以及不建树的计数扫描",
+   "「parse-xml 补完的工作量已接近一个词法器」言过其实。实测要补的是命名空间层约 30 行（自研也得写同样一层）、DOCTYPE 守卫 1 行、开始标签重扫约 15 行。真正补不上的是：不能流式或分片（R-20、R-22），没有限额且约 1 万层嵌套就 RangeError 栈溢出（5000 层正常，verify/misc.mjs；不是登记错误码，R-18、R-26），只计数也得建整树（R-19），没有属性级偏移。若为 R-18、R-19 另写计数扫描器，就等于已经写了一个词法器，这才是维持自研的正当理由",
+   "自研「畸形 16/16、差分 3000/3000」不代表合规。verify/adversarial.mjs 的 21 条边界用例里，自研偏离规范 10 条，saxes 全对，parse-xml 只放行 3 条保留前缀用例：(1) 根外引用 `&amp;<a/>`、`<a/>&#32;` 被接受，因为 lexer.mjs 的 text() 在 & 分支跳过了根外检查；(2) 声明体不校验，`<?xml foo?>`、缺 version、standalone=\"maybe\"、version=\"2.0\" 都被接受；(3) 不检查 xml/xmlns 保留前缀的绑定（3 条）；(4) 前导零很长的 `&#x000000000041;` 被误拒，因为引用长度上限写死 12；(5) U+0300 被当作名字首字符接受",
+   "自研的限额实现不满足 R-18：错误对象只有 code/offset/line/column，没有 {limit, actual}。深度 256 和属性 1024 恰在上限时通过，257 和 1025 时拒绝，这部分正确。流式模式下，文本节点限额要等遇到 '<' 才生效：限额设 1000，写入 200 万字符不报错，全部缓冲。超长 token 在小分块下是二次方：2 MB 属性值按 64 字符分块要 2383 ms，按 64 KiB 分块只要 17 ms",
+   "saxes 当 oracle 要加护栏：它没有深度上限，深嵌套耗时呈二次方（5k 层 67 ms、10k 层 273 ms、20k 层 1101 ms、200k 层 144 s）。差分输入需要限长、限深。另外它依赖的 xmlchars 仓库同样已归档（gh api archived=true）",
+   "证据 json:765 把 saxes 最后发布日期写成 2022-05-17，应改为 2021-11-07T19:06（npm time['6.0.0']）。2022-05-17 是 time.modified",
+   "README 主表把 libxml2-wasm 的 30 MB 峰值写成 +219 MB（裸解析），候选结论写 +843 MB（解析加遍历）。两处口径不同，应在同一处注明",
+   "「fast-xml-parser 默认展开实体」属实，但应补一句：processEntities:false 可以关掉展开（已实测），代价是字符引用也不再解码",
+   "README §2 说「逐字节脏重写使 PowerPoint 触发修复的风险最低」，没有出处。文档验收只要求脏部件规范化等价（30-architecture/04-document-model.md:755；70-testing/03-fidelity-roundtrip-and-corpus.md:328），应降为「期望」",
+   "20 人日估计没有覆盖、但无论选哪个方案都得做的工作：R-08 片段序列化补祖先 xmlns 并在给定上下文中重解析，R-05 的 48 对 URI 重映射与反写，R-31 的 c14n 等规范化器，R-26 的 Result 包装。上面 10 条合规缺陷说明，估计里「合规测试 4 人日」并非虚设",
+   "「UTF-16LE 通过」只证明字符串层没问题：harness 预先解码了输入，任何候选都没测字节输入。完整版的编码嗅探和 fatal UTF-8 错误码仍是未验证项"
+  ],
+  "requirementCoverage": [
+   {
+    "requirement": "R-01 保真粒度（零编辑走原字节，脏部件规范化等价）",
+    "bestCandidates": "任何带偏移的方案：自研原型、parse-xml（includeOffsets）",
+    "gap": "无。零编辑 23/23 是构造出来的，不能当选型依据"
+   },
+   {
+    "requirement": "R-02 往返不变式（≡c14n）",
+    "bestCandidates": "自研原型、parse-xml",
+    "gap": "基准没测 c14n 等价，也没有 c14n 实现"
+   },
+   {
+    "requirement": "R-03 [Content_Types] 与 .rels 零编辑字节相同",
+    "bestCandidates": "原样写回时不需要解析器；按偏移重建时自研和 parse-xml 都是 23/23（含 3 个 rels 和 Content_Types）",
+    "gap": "没测从 PartTable 重生成后是否字节相同；文档口径冲突需先裁决"
+   },
+   {
+    "requirement": "R-04 前缀原样保留，不删声明",
+    "bestCandidates": "自研、saxes、sax、saxen、libxml2-wasm（前缀✓）",
+    "gap": "新增节点的前缀分配没实现；parse-xml 需要补命名空间层"
+   },
+   {
+    "requirement": "R-05 Strict↔Transitional URI 重映射",
+    "bestCandidates": "自研（el.ns 可替换，前缀不动）",
+    "gap": "没有任何候选实现 48 对映射和反写，基准未测"
+   },
+   {
+    "requirement": "R-06 属性顺序",
+    "bestCandidates": "除 sortAttributes 外全部主流候选",
+    "gap": "无"
+   },
+   {
+    "requirement": "R-07 不按 schema 丢节点",
+    "bestCandidates": "自研、parse-xml 加偏移（mc-alternate、extlst 均 23/23）",
+    "gap": "captureUnknown 和 schema-order 回插在模型层，基准未覆盖"
+   },
+   {
+    "requirement": "R-08 片段序列化补 xmlns 并在上下文中重解析",
+    "bestCandidates": "无",
+    "gap": "自研 serialize 切子树时不补祖先 xmlns；需要自研，且不在 20 人日内"
+   },
+   {
+    "requirement": "R-09 空白全保留",
+    "bestCandidates": "自研、parse-xml、saxes、saxen（wsText ✓，xml:space 用例通过）",
+    "gap": "sax-wasm 会丢空白文本；xml:space 语义本身未测"
+   },
+   {
+    "requirement": "R-10 实体与字符引用",
+    "bestCandidates": "saxes、parse-xml（完全正确）；自研",
+    "gap": "自研误拒前导零很长的字符引用，且接受根外引用"
+   },
+   {
+    "requirement": "R-11 实体原文与引号风格",
+    "bestCandidates": "自研（属性区间加引号）；parse-xml 偏移加开始标签重扫，已验证 15/16；easysax、htmlparser2",
+    "gap": "期望项，c14n 判定不检查"
+   },
+   {
+    "requirement": "R-12 CDATA 独立节点",
+    "bestCandidates": "自研、parse-xml（preserveCdata）、saxes",
+    "gap": "txml 把 CDATA 变成文本"
+   },
+   {
+    "requirement": "R-13 注释与 PI",
+    "bestCandidates": "自研、parse-xml、saxes",
+    "gap": "fxp 和 libxml2 会丢 PI"
+   },
+   {
+    "requirement": "R-14 声明与 standalone",
+    "bestCandidates": "parse-xml（校验并给出字段）、saxes；自研保留原文",
+    "gap": "自研不校验声明体，standalone=\"maybe\"、缺 version 都被接受"
+   },
+   {
+    "requirement": "R-15 UTF-8 输出、非法输入返回登记码",
+    "bestCandidates": "未实测",
+    "gap": "所有候选都是字符串输入，需 TextDecoder(fatal) 加错误码映射；iso tsconfig 要本地声明 TextDecoder 类型"
+   },
+   {
+    "requirement": "R-16 UTF-16 输入",
+    "bestCandidates": "未实测（harness 预先解码）",
+    "gap": "编码嗅探未实现；expat-wasm 在字符串输入下遇 UTF-16 声明会报错"
+   },
+   {
+    "requirement": "R-17 禁 DTD/XXE，金丝雀 0",
+    "bestCandidates": "自研（8/8 拒绝）；parse-xml 加 1 行守卫也是 8/8",
+    "gap": "纯 JS 严格库默认都接受 DOCTYPE，需要守卫；64 MiB 堆断言未成文"
+   },
+   {
+    "requirement": "R-18 结构限额与 {limit, actual}",
+    "bestCandidates": "自研（词法层计数，恰在上限通过）",
+    "gap": "自研错误不带 limit/actual；流式下文本限额延后生效；属性值长度无限额；parse-xml 无限额，约 1 万层即栈溢出"
+   },
+   {
+    "requirement": "R-19 首批前全量计数、不物化",
+    "bestCandidates": "自研仅词法（30 MB 204 ms）；saxen、saxes 也能做",
+    "gap": "parse-xml 必须建整树；200 页端到端计数时延未测"
+   },
+   {
+    "requirement": "R-20 流式与整树兼顾",
+    "bestCandidates": "自研（write/end，276 种分块组合一致）",
+    "gap": "超长 token 在小分块下二次方；背压与内存上限未测"
+   },
+   {
+    "requirement": "R-21 性能门禁",
+    "bestCandidates": "自研 5 MB 81 ms / 30 MB 411 ms；parse-xml 88 / 503 ms",
+    "gap": "D50、D200 整包端到端和 Worker 内耗时未测"
+   },
+   {
+    "requirement": "R-22 主线程分片 ≤ 50 ms",
+    "bestCandidates": "自研（可分块 write）",
+    "gap": "parseDocument 仍是一次性 write，没有让出与续跑；5 MB 一次性 81 ms 超过 50 ms"
+   },
+   {
+    "requirement": "R-23 同构",
+    "bestCandidates": "自研、parse-xml、saxes（Chrome Worker 实跑通过）",
+    "gap": "Firefox、Safari、worker_threads 未测；无 dom lib 的 tsconfig 编译未测"
+   },
+   {
+    "requirement": "R-24 序列化确定性",
+    "bestCandidates": "自研 serialize 是纯函数",
+    "gap": "没测浏览器与 Node 输出的 SHA-256 是否相同，也没测 TZ/LANG"
+   },
+   {
+    "requirement": "R-25 体积",
+    "bestCandidates": "parse-xml 4358 B、自研原型 4458 B gzip",
+    "gap": "完整版体积未估；基线余量只剩约 5 KB"
+   },
+   {
+    "requirement": "R-26 Result 返回，不抛异常",
+    "bestCandidates": "无（全部候选都抛异常）",
+    "gap": "需要包一层；parse-xml 的 RangeError 不在登记码内"
+   },
+   {
+    "requirement": "R-27 错误带行列或偏移",
+    "bestCandidates": "自研（code、行、列、偏移，16/16）；saxes、parse-xml 带行列",
+    "gap": "无"
+   },
+   {
+    "requirement": "R-28 畸形时整部件降级为 opaque",
+    "bestCandidates": "与解析器选型无关，只要能稳定报错",
+    "gap": "降级路径未测"
+   },
+   {
+    "requirement": "R-29 重生成部件通过 XSD",
+    "bestCandidates": "与解析器选型无关",
+    "gap": "基准未覆盖"
+   },
+   {
+    "requirement": "R-30 docx/xlsx 复用、文档类型盲",
+    "bestCandidates": "自研（API 不含文档类型）",
+    "gap": "没用 docx 的 w:t、xlsx 大表样本测试"
+   },
+   {
+    "requirement": "R-31 canonicalize 与规范化器",
+    "bestCandidates": "无",
+    "gap": "c14n、attr-sort、ws、ns-prefix、strict-to-transitional 都要自研"
+   },
+   {
+    "requirement": "R-32 许可与维护",
+    "bestCandidates": "parse-xml（ISC，2026-08-30，未归档）",
+    "gap": "parse-xml 是个人仓库，单一维护者；saxes 已归档；easysax 的 package.json 缺 license"
+   },
+   {
+    "requirement": "R-33 SVG 消毒共用词法层",
+    "bestCandidates": "自研词法层可放进 shared",
+    "gap": "server-app-thin 禁止 import ooxml-*，落在哪个包未定；第三方库受单点引入规则限制"
+   },
+   {
+    "requirement": "R-34 <a/> 风格与源一致",
+    "bestCandidates": "自研（selfClosing）；parse-xml 可按偏移判断",
+    "gap": "新建元素用哪种写法未定"
+   },
+   {
+    "requirement": "R-35 SafeXmlNode 空安全遍历",
+    "bestCandidates": "无",
+    "gap": "需要自研（已含在 4 人日里）"
+   }
+  ]
+ },
+ "recommendation": {
+  "summary": "仓库还没有任何 XML 解析代码。所谓「现在用的」只是文档默认值：自研最小保真 DOM，而 A-2 的决策人还没签字。前期两份调研推荐的 saxes 已归档，6.0.0 发布于 2021-11-07，之后没有新版，不能再当运行时依赖。21 个候选实测、复核后发现，保真度拉不开差距：@rgrove/parse-xml 5 打开偏移、补约 30 行命名空间层后，与自研原型持平。真正的差距在不建树计数、词法层限额、流式分片和深嵌套安全，现成库都做不到，要补上就等于写一个词法器。建议维持自研，ooxml-core 运行时不引 XML 依赖；saxes 与 libxml2-wasm 只作 devDependency 差分对照；parse-xml 5 作退路。",
+  "currentAnswer": "目前什么都没用。仓库处于 M0，只有 docs/ 和 openspec/，没有解析代码，也没有 XML 依赖。文档的默认方案是自研「最小保真 DOM」：xml/parser.ts、node.ts、serializer.ts、namespaces.ts 等文件已经按这个方案拆好（docs/40-modules/04-ooxml-format-and-pptx-codec.md:549-556）。ooxml-core 唯一的第三方依赖是 fflate，用于 zip（同文件 :524、:904）。不过这是 A-2 的待决项，决策人没签（docs/30-architecture/README.md:144），章程 :312 和 40/04:905 却已经按定案来写。两份前期调研推荐的 saxes 已经归档。证据包里的 q-xml-lexer 已改为「全部自研，parse-xml 5 只作对照」，还等你拍板，计划中的 ADR-0019 也还没写。",
+  "needs": [
+   "（硬性）保真粒度：零编辑时的逐字节一致靠部件原字节原样写回，解析器只需保证脏部件经 c14n 后等价（30-architecture/04-document-model.md:753-755）",
+   "（硬性）命名空间感知，前缀原样保留，mc:Ignorable 引用的声明不能删；Strict→Transitional 只改 URI，M1 要能反写（40/04:52,261-285）",
+   "（硬性）禁 DTD 和 XXE，不可配置，金丝雀请求数为 0；纯 JS 严格库默认都接受 DOCTYPE，必须自己拒绝（60-backend/06:366；70-testing/10:102）",
+   "（硬性）结构限额：深度 256、属性 1,024、文本 16 MiB；超限返回 format.limit_exceeded{limit, actual}；统一用 Result 返回，不抛异常（60/06:363,366；40/04:264）",
+   "（硬性）首批回传前完成全部页的元素计数，不建树，有时间预算；需要一个词法级扫描器（40/04:386-387）",
+   "（期望）流式，主线程可按 ≤ 50 ms 分片；slide-render 在主线程解析图表部件（50-frontend/13:274,431；40/07:694）",
+   "（硬性）同构且确定性：Worker、主线程、worker_threads、headless Chromium 共用一份源码，不用 DOMParser/xmldom，浏览器与 Node 导出的 SHA-256 相同（charter:570；30/04:711-716）",
+   "（硬性）体积：查看器基线只剩约 5 KB 余量，ooxml chunk 预算 90 KB；依赖须许可合规，且 12 个月内有发布（50/13:196；charter:738）"
+  ],
+  "table": [
+   {
+    "name": "自研原型（392 行）",
+    "oneLine": "零依赖，Chrome Worker 实跑通过。畸形用例 16/16 拒绝，带行列和偏移；安全用例 8/8 拒绝。30 MB：只做词法 204 ms，全量解码 473 ms；可 write/end 流式。但 21 条规范边界用例偏离 10 条（根外引用、声明体、保留前缀等），限额错误还不带 {limit, actual}。gzip 4458 B"
+   },
+   {
+    "name": "@rgrove/parse-xml 5.0.0",
+    "oneLine": "ISC，2026-08-30 发布，未归档，单一维护者。按同口径开偏移后探针 15/16，保留开始标签原文时部件 23/23。补约 30 行命名空间层和 1 行 DOCTYPE 守卫后：畸形 16/16、安全 8/8、差分 3000/3000。不能流式，没有限额，约 1 万层嵌套 RangeError。gzip 4358 B"
+   },
+   {
+    "name": "saxes 6.0.0",
+    "oneLine": "ISC。GitHub 已归档，最后发版 2021-11-07，所依赖的 xmlchars 也已归档。21 条规范边界用例全对，畸形 16/16。会丢实体原文和引号风格，深嵌套耗时呈二次方（20k 层 1.1 s）。只适合作差分 oracle"
+   },
+   {
+    "name": "sax 1.6.1",
+    "oneLine": "BlueOak-1.0.0，2026-07 发布，维护中。命名空间可用，但畸形只拒 8/16（重复属性、两个根都放行）；30 MB 939 ms，偏慢"
+   },
+   {
+    "name": "saxen 11.2.0",
+    "oneLine": "MIT，2026-09 发布，维护中。gzip 3 KB，30 MB 200 ms，命名空间正确；但畸形只拒 3/16，基本不校验"
+   },
+   {
+    "name": "easysax 0.5.1",
+    "oneLine": "MIT，但 package.json 缺 license 字段，2026-09 发布。原文最全（16/16），最快（30 MB 104 ms）；畸形只拒 2/16，没有命名空间"
+   },
+   {
+    "name": "fast-xml-parser 5.11.1",
+    "oneLine": "MIT，2026-08 发布，维护中。输出数据型对象树，探针 6/16，PI 数据会丢。默认展开内部实体，processEntities:false 可关。gzip 21 KB，依赖 7 个包"
+   },
+   {
+    "name": "txml 6.0.3",
+    "oneLine": "MIT，2026-08 发布。CDATA 被当成文本，PI 被拆成属性；包根入口 import node:stream，Worker 里加载失败；畸形只拒 1/16"
+   },
+   {
+    "name": "htmlparser2 12.0.0",
+    "oneLine": "MIT，2026-03 发布。偏移和引号都保留，但 XML 模式完全不校验（0/16），PI 丢尾部的 ?，其后偏移错一位"
+   },
+   {
+    "name": "@xmldom/xmldom 0.9.12",
+    "oneLine": "MIT，2026-08 发布。文档已否决；30 MB 1918 ms、+1757 MB，探针 7/16，不保真"
+   },
+   {
+    "name": "ltx 3.1.2",
+    "oneLine": "MIT，2025-01 发布，维护弱。会丢注释、PI 和声明；import events，Worker 里需 polyfill"
+   },
+   {
+    "name": "xml-js 1.6.11",
+    "oneLine": "MIT，2019 年后停更。不保真，畸形只拒 5/16"
+   },
+   {
+    "name": "@xml-tools/parser 1.0.11",
+    "oneLine": "Apache-2.0，2021 年后停更。把 &#x4E2D; 切错，BOM 输入解析失败，30 MB 峰值 +3834 MB"
+   },
+   {
+    "name": "slimdom + slimdom-sax-parser",
+    "oneLine": "MIT，2024 年和 2022 年后停更。底层是已归档的 saxes；Worker 里需 stream polyfill；30 MB 2148 ms"
+   },
+   {
+    "name": "sax-wasm 3.1.4",
+    "oneLine": "MIT，2026-02 发布。\\r\\n 被丢成 \\r，空白文本也会丢；畸形 0/16"
+   },
+   {
+    "name": "@nodable/sax 1.2.1",
+    "oneLine": "MIT，2026-07 发布。遇 PI 报错，Worker 里需 stream polyfill，gzip 35 KB"
+   },
+   {
+    "name": "libxml2-wasm 0.7.2",
+    "oneLine": "MIT，2026-09 发布。合规 16/16；但 gzip 446 KB，会展开属性里的内部实体，PI 节点信息残缺。只适合当服务端或 CI 的 oracle"
+   },
+   {
+    "name": "expat-wasm 4.0.5",
+    "oneLine": "MIT，2026-03 发布。默认展开内部实体；Worker 里需 buffer/events polyfill；gzip 72 KB"
+   },
+   {
+    "name": "tag-soup 3.2.0",
+    "oneLine": "MIT，2026-04 发布。严格模式拒绝单引号属性，违反 XML 规范"
+   },
+   {
+    "name": "@lezer/xml 1.0.6",
+    "oneLine": "MIT，GitHub 已归档。适合做源码高亮，不适合当解析器；30 MB 1967 ms"
+   },
+   {
+    "name": "xml-parser-xo 4.1.6",
+    "oneLine": "MIT，2026-05 发布。5 MB 就要 16.7 s，不可用"
+   },
+   {
+    "name": "浏览器 DOMParser（对照）",
+    "oneLine": "Worker 和 Node 里都不存在，文档已否决（40/04:905）；XMLSerializer 在 22 个部件上逐字节一致 0/22"
+   }
+  ],
+  "options": [
+   {
+    "label": "自研词法与保真树（推荐）",
+    "description": "ooxml-core 运行时零 XML 依赖。一个词法器同时提供不建树计数、限额、流式分片和整树。代价是约 20 人日（±30%），原型现有的 10 条规范偏离要靠 W3C 合规套件和差分模糊收口。"
+   },
+   {
+    "label": "parse-xml 加补丁层",
+    "description": "补约 30 行命名空间层、1 行 DOCTYPE 守卫，再包一层 Result，能省下建树的工作。但它不能流式或分片、没有限额、约 1 万层嵌套会栈溢出；计数仍要另写扫描器，还要依赖单一维护者。"
+   },
+   {
+    "label": "自研扫描加借用建树",
+    "description": "自研轻量扫描器负责计数、限额和拒绝 DOCTYPE，整树交给 parse-xml。两套解析器的判定必须保持一致，差分测试和体积都翻倍，省下的工作量有限。"
+   },
+   {
+    "label": "saxes 做词法层",
+    "description": "前期两份调研的方案，边界用例 21/21 全对。但它本身和依赖 xmlchars 都已归档，2021-11 后没有发版，不满足维护要求。只保留为 devDependency 差分 oracle。"
+   }
+  ],
+  "recommended": "自研词法与保真树（推荐）",
+  "why": "1. 保真度已经打平，不能再当自研的理由。parse-xml 按同口径开偏移重建，探针 15/16；保留开始标签原文时 16/16、23/23。补命名空间层和 DOCTYPE 守卫后，畸形 16/16、安全 8/8、差分 3000/3000（scratchpad/xml-bench/verify/fair.mjs）。文档对脏部件也只要求 c14n 等价（30-architecture/04-document-model.md:755）。\n2. 差距在现成库补不上的地方：R-18 限额要带 {limit, actual}，R-19 要在首批前不建树计数，R-20/R-22 要流式并按 50 ms 分片。parse-xml 只能建整树，没有限额，约 1 万层嵌套就 RangeError（verify/misc.mjs）。自研只做词法，30 MB 204 ms，276 种分块组合结果一致（selfbuilt/selftest.mjs）。给 parse-xml 补计数扫描器，就已经写出了一个词法器。\n3. 体积持平：gzip 4458 B 对 4358 B（results/size.json）。基线只剩约 5 KB，零依赖还免去单一维护者风险和许可扫描。\n4. 代价要说清。完整版约 20 人日（±30%）。原型在 21 条边界用例上偏离 10 条，限额错误还没带 {limit, actual}（verify/adversarial.mjs），所以必须接入 W3C 合规子集和差分模糊。R-08 片段序列化、R-05 URI 反写、R-31 规范化器不在这 20 人日内，但无论选哪个方案都得做。\n5. saxes 的边界用例 21/21 全对，适合当 devDependency 差分 oracle，但输入要限深、限长。",
+  "docChanges": [
+   "新建 docs/30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md，要点一（决策）：词法、保真树、序列化全部自研，ooxml-core 运行时零 XML 依赖；提供 scan（不建树，负责计数与限额）和 parseDocument（整树）两个入口，都支持 write/end 与按时间片让出",
+   "ADR-0019 要点二（保真口径）：门禁是脏部件 c14n 等价，逐字节一致只靠 verbatim；实体原文、引号风格、<a/> 写法、属性顺序、注释/PI 列为期望项",
+   "ADR-0019 要点三（安全与错误）：遇 DOCTYPE 一律拒绝，只认 5 个预定义实体和字符引用；深度、属性数、文本长度、属性值长度在词法层计数，超限返回 format.limit_exceeded{limit, actual}；全部走 Result，不抛异常",
+   "ADR-0019 要点四（编码）：输入为字节，按 BOM 和 encoding 声明嗅探 UTF-8/UTF-16；TextDecoder(fatal) 的错误映射到登记码；iso tsconfig 里本地声明 TextDecoder 类型",
+   "ADR-0019 要点五（验证与退路）：接入 W3C XML Conformance 的 not-wf/wf 和 Namespaces 子集；saxes 6.0.0 与 libxml2-wasm 0.7.2 作 devDependency 差分 oracle，输入限深、限长；21 条边界探针入库；写明备选与否决理由；退路为 parse-xml 5 加命名空间层与 DOCTYPE 守卫",
+   "docs/30-architecture/README.md:144：A-2 候选改为「自研 / @rgrove/parse-xml 5 / saxes（已归档）」，去掉已否决的 xmldom、fast-xml-parser；状态改为已决，并链接 ADR-0019",
+   "docs/40-modules/04-ooxml-format-and-pptx-codec.md:549-556：xml/ 下补 scanner.ts、limits.ts（XmlLimits）、decode.ts；:52 保真项分成硬性和期望；:592-596 补 xml-hardening、合规套件、差分模糊三类测试；:904 依赖表补两个 devDependency oracle",
+   "docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json:10,136：q-xml-lexer 的理由从「逐字节回写」改为「流式计数、词法层限额、分片」；:765 把 saxes 最后发布日期改为 2021-11-07T19:06Z，并补上 xmlchars 已归档",
+   "统一 XML 限额表：以 ADR-0019 和 XmlLimits 为准，docs/10-prd/03-features/01-open-and-fidelity.md:612、docs/50-frontend/14-client-security.md:446、docs/60-backend/06-modules-jobs-import-export-thumbnails.md:357,366、docs/60-backend/17-deployment-and-config.md:469 改为引用这张表；DOCTYPE 统一写「拒绝」，docs/70-testing/10-security-testing.md:102 同步修改",
+   "docs/70-testing/10-security-testing.md:101-104：测试路径对齐 40/04 的 src/infrastructure/xml/",
+   "docs/30-architecture/10-observability-and-errors.md §1.4：登记 format.malformed_xml（40/04:776 已定义但目录里没有）",
+   "另需单独裁决：[Content_Types].xml 和 .rels 在零编辑时原样写回，还是始终重生成（adr/0008:21、30/04:717 与 30/04:753、70/03:253 口径相反）。若定为始终重生成，ADR-0019 要加一条：序列化器须逐字节复现原文"
+  ]
+ }
+}

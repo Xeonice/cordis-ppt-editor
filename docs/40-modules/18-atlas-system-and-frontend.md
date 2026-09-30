@@ -1,14 +1,14 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、30-architecture 01–07 与 ADR-0037、40-modules 00/02/03/05/06/07/10/11/13/16/17
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.21：依据行由原 30/08 改指 60/01；前端与协同图按 @hocuspocus/provider、xml 包、图表 d3 底层改画）；2026-09-26（§4.21 整合：§3 秩表改为引用 30/02 §1（全仓唯一源），图 3-1 L0 注明新增 xml） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、§4.21、30-architecture 01–07 与 ADR-0037、ADR-0039、40-modules 00/02/03/05/06/07/10/11/13/16/17、50-frontend/01、60-backend/01
 
 # 18 架构图集（一）：系统与前端
 
-本文把分散在章程、架构 01–07 与各模块文档里的系统级图和前端图集中到一处，以图为主。每张图上方是图名，下方「怎么读」说明箭头与分组的含义，「依据」给出出处。本文**不新增任何设计决定**：图与出处不一致时以出处为准，绘图中发现的口径分歧集中列在 §10。服务端内部结构（Nest 模块、数据表、Room 状态机）见 30-architecture/08 与 40-modules/08、09、12。
+本文把分散在章程、架构 01–07 与各模块文档里的系统级图和前端图集中到一处，以图为主。每张图上方是图名，下方「怎么读」说明箭头与分组的含义，「依据」给出出处。本文**不新增任何设计决定**：图与出处不一致时以出处为准，绘图中发现的口径分歧集中列在 §10。服务端内部结构（Nest 模块、数据表、Room 与 Hocuspocus 挂点）见 [60-backend/01 后端架构](../60-backend/01-service-overview-and-roles.md) 与 40-modules/08、09、12；架构三件套的阅读路径是 [30/01 总架构](../30-architecture/01-overview.md) → [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md) → 60/01 后端架构，本图集与它们冲突时以它们为准（rulings §4.21）。
 
 **读图约定**
 
-- 包名一律省略 `@cordexjs/` 前缀；「秩」取自章程 §5.1 秩表，`iso`/`dom`/`node` 是同构类。
+- 包名一律省略 `@cordexjs/` 前缀；「秩」取自 30-architecture/02 §1 的秩表（全仓唯一源，与章程 §5.1 一致，2026-09-26 起引用改指此处），`iso`/`dom`/`node` 是同构类。
 - flowchart 中实线表示依赖、调用或数据流（每张图的「怎么读」会说明是哪一种），虚线表示可选、惰性、规划中或非运行时关系。
-- 全部图按 2026-09-24 裁决后的口径绘制：单组织、系统内没有租户和组（§4.15 T-0、Q6）；外置 OIDC IdP，compose 可选内置 Casdoor，集成方签名 JWT 与 API Key 在 M4（Q6）；Yjs 13.6.x（Q3）；DOM/SVG 单实现（Q4）；两级 ack `spill`/`db`（S-3a）；Postgres 18 / Valkey / SeaweedFS、同一镜像按 `CORDEX_ROLE` 五值运行、renderer sidecar 零出站（Q8、Q10）。
+- 全部图按 2026-09-24 裁决后的口径绘制：单组织、系统内没有租户和组（§4.15 T-0、Q6）；外置 OIDC IdP，compose 可选内置 Casdoor，集成方签名 JWT 与 API Key 在 M4（Q6）；Yjs 13.6.x（Q3）；DOM/SVG 单实现（Q4）；两级 ack `spill`/`db`（S-3a）；Postgres 18 / Valkey / SeaweedFS、同一镜像按 `CORDEX_ROLE` 五值运行、renderer sidecar 零出站（Q8、Q10）。2026-09-26（rulings §4.21）起另按：协同服务端为 Hocuspocus 4、客户端用官方 `@hocuspocus/provider`（ADR-0039）；XML 词法与保真树在独立 L0 包 `xml`（ADR-0019）；图表底层 d3-scale / d3-shape / d3-array、按 OOXML 语义自研布局（ADR-0036）。
 
 ## 0. 图目录
 
@@ -54,7 +54,7 @@ flowchart TB
 ```
 
 怎么读：实线是运行时交互方向，虚线是受部署配置约束或 M4 才开放的通道。`cordexSys` 子图就是部署边界：一次部署服务一个组织，没有租户维度，多组织走多套部署。插件与宿主同源可信，不做运行时沙箱；注册入口由部署开关 `auth.selfSignup` 控制，默认关。
-依据：30-architecture/01 §1、§4.4；charter §2.3；rulings §4.15 T-0/Q6/Q7/Q10；PRD 03-features/05 §1（形态 A–F）；ADR-0037 决策 3。
+依据：30-architecture/01 §1 与端到端数据流；charter §2.3；rulings §4.15 T-0/Q6/Q7/Q10；PRD 03-features/05 §1（形态 A–F）；ADR-0037 决策 3。
 
 ## 2. 容器视图
 
@@ -73,7 +73,7 @@ flowchart LR
   end
   subgraph app["cordex-server 同一镜像 · 按 CORDEX_ROLE"]
     apiC["api · REST"]
-    collabC["collab · WS 网关与房间"]
+    collabC["collab · Hocuspocus 协同与房间"]
     workerC["worker · BullMQ 处理器与 headless 编排"]
   end
   subgraph renderNet["render 网络 · internal"]
@@ -84,7 +84,7 @@ flowchart LR
   appShell -- "EditorPage 挂载" --> editorC
   appShell -- "ViewerPage mount" --> viewerC
   appShell -- "HTTPS · 静态资源与 REST" --> proxy
-  editorC -- "WSS 协同帧 · 仅 collab 预设" --> proxy
+  editorC -- "WSS Hocuspocus 帧 · 仅 collab 预设" --> proxy
   embedC -- "REST 与 WSS · 同一 protocol" --> proxy
   proxy -- "REST" --> apiC
   proxy -- "WS" --> collabC
@@ -96,7 +96,7 @@ flowchart LR
 ```
 
 怎么读：左侧是浏览器里的四类前端容器，全部经 edge 网络的反向代理进入服务端。服务端是同一个 `cordex-server` 镜像按 `CORDEX_ROLE` 分出的 api、collab、worker（`all` 时三者在同一进程）；renderer 是只挂 render 网络的独立 sidecar，只接受 worker 的鉴权内部 RPC。`/render` 页的代码来自 apps/web，打包进 renderer 镜像。虚线表示经 Valkey 的异步派发。
-依据：30-architecture/01 §2、08 §0；ADR-0037 决策 1、3；40-modules/11 §3.5、§7。
+依据：30-architecture/01 §2；60-backend/01 §0、§1（原 30/08 第 0 节迁入，rulings §4.21）；ADR-0037 决策 1、3；40-modules/11 §3.5、§7。
 
 **图 2-2 容器视图：服务端角色与数据组件**
 
@@ -121,7 +121,7 @@ flowchart LR
   apiR -- "PUBLISH perm:doc 频道 · BullMQ 入队" --> valkey
   apiR -- "媒体 · 导入原件 · 预签名" --> s3
   collabR -- "document_updates 追加 · 快照" --> pg
-  collabR -- "跨实例扇出 · presence · 租约锁 · 一级溢写" --> valkey
+  collabR -- "权限与控制频道 · 租约锁 · 一级溢写 · M3 extension-redis" --> valkey
   collabR -. "PG 故障期二级溢写" .-> s3
   workerR -- "BullMQ 消费" --> valkey
   workerR -- "导入快照 · thumbnails 表" --> pg
@@ -132,8 +132,8 @@ flowchart LR
   roles -- "OTel 遥测" --> obs
 ```
 
-怎么读：三个应用角色都在 backend 内网访问数据组件。Valkey 一身多用：协同跨实例扇出、presence、租约锁、S-3 溢写与 BullMQ 队列。renderer 不在 backend 网络、不持有 DB/S3/IdP 凭据，只能由 worker 经 render 网络调用。Grafana/Loki 属需显式开启的 AGPL profile，不在默认栈，图中未画。
-依据：30-architecture/08 §0；06 §0、§6.4；ADR-0037 决策 2–4；rulings §4.15 Q6/Q10、S-3a；40-modules/16 §3（SpillStore 两级）。
+怎么读：三个应用角色都在 backend 内网访问数据组件。Valkey 一身多用：权限通知与控制频道、租约锁、S-3 溢写与 BullMQ 队列，M3 起另承载 extension-redis 的跨实例同步（update、awareness 与 Stateless）。renderer 不在 backend 网络、不持有 DB/S3/IdP 凭据，只能由 worker 经 render 网络调用。Grafana/Loki 属需显式开启的 AGPL profile，不在默认栈，图中未画。
+依据：60-backend/01 §0、§1a；30-architecture/06 §0、§6.4；ADR-0039 决策 7；ADR-0037 决策 2–4；rulings §4.15 Q6/Q10、S-3a；40-modules/16 §3（SpillStore 两级）。
 
 **图 2-3 `CORDEX_ROLE` 五值与镜像**
 
@@ -157,11 +157,11 @@ flowchart LR
 ```
 
 怎么读：实线是「镜像以该角色启动」，虚线表示 `all` 可以拆成三个独立部署。启动时执行角色一致性断言：角色不在五值内、renderer 角色检测到 DB/S3/IdP 凭据、production 下既无 `idp` profile 又未配置外部 issuer，都拒绝启动。
-依据：ADR-0037 决策 1、「如何被机械验证」；30-architecture/08 §0；02 §3.2 Dockerfile 行；rulings §4.17 L14。
+依据：ADR-0037 决策 1、「如何被机械验证」；60-backend/01 §0 图 0-2、§4；30-architecture/02 §3.2 Dockerfile 行；rulings §4.17 L14。
 
 ## 3. 包分层总图
 
-章程 §5.1 把包分成水平层（文档类型盲）与垂直束（slide / doc / sheet 各一束），并用一张秩表把「只向下依赖」机械化。本节先给层带总览与判定规则，再按层带逐张展开包级依赖。
+章程 §5.1 把包分成水平层（文档类型盲）与垂直束（slide / doc / sheet 各一束），并用一张秩表把「只向下依赖」机械化；秩表的数值以 30-architecture/02 §1 为全仓唯一源（rulings §4.21，L0 新增零依赖的 `xml`），本图只引用、不另立数值。本节先给层带总览与判定规则，再按层带逐张展开包级依赖。
 
 **图 3-1 层带与秩：秩表允许的下行方向**
 
@@ -178,7 +178,7 @@ flowchart TB
   L3["L3 格式基础 · 秩 30 · iso"]
   Vmodel["V-model · 秩 15 · iso"]
   L1["L1 文档内核 · 秩 10 · iso"]
-  L0["L0 基础 · 秩 0 · iso"]
+  L0["L0 基础 · 秩 0 · iso · 含 2026-09-26 新增的 xml"]
   L8 -- "任意" --> Vui
   L8 --> L7
   L8 -- "apps/server · server-* 另加 protocol" --> LS
@@ -249,6 +249,7 @@ flowchart TB
     kernel["kernel · 唯一 import cordis"]
     protocol["protocol · 前后端契约 · zod 4"]
     i18n["i18n"]
+    xmlPkg["xml · 词法与保真树 · 零运行时依赖 · library"]
   end
   cordisLib["第三方 cordis 4.0.0-rc.10"]
   yjsLib["第三方 yjs 13.6.x · 精确锁版本"]
@@ -265,8 +266,8 @@ flowchart TB
   protocol --> shared
 ```
 
-怎么读：图 3-3 至 3-8 的箭头都表示「import 依赖」，从使用方指向被依赖方；包间依赖取自章程 §5.2「依赖上限」列（图 3-7、3-8 中 apps 与 preset 的边另取 02 §3、11 §3.1），第三方库的边取自 §5.3 规则 4。2026-09-25 起该列按实际用法上调（沿 C-28 先例补 ooxml-pptx→model-core、slide-render-chart→engine-render/model-slide/ooxml-core、server-collab→model-core，server-headless 按组合根装配改写），kernel/shared/protocol 对非 L0 包隐式允许（design 与 shared 例外），各包 tsconfig references = package.json 内部依赖 ⊆ 上限列 ∪ 隐式 L0（rulings §4.18 FE-02）；图中为清晰起见不画隐式 L0 边。这七个 L0/L1 包与 model-slide 全部是 iso，浏览器与服务端加载同一份源码；`yjs` 只允许 store-yjs、collab-yjs、server-collab 引入（§5.3 规则 4），`cordis` 只允许 kernel 引入（R12）。
-依据：charter §5.2、§5.3 规则 4；rulings §4.15 Q3；40-modules/02 §0、§3；03 §0。
+怎么读：图 3-3 至 3-8 的箭头都表示「import 依赖」，从使用方指向被依赖方；包间依赖取自章程 §5.2「依赖上限」列（图 3-7、3-8 中 apps 与 preset 的边另取 02 §3、11 §3.1），第三方库的边取自 §5.3 规则 4。2026-09-25 起该列按实际用法上调（沿 C-28 先例补 ooxml-pptx→model-core、slide-render-chart→engine-render/model-slide/ooxml-core、server-collab→model-core，server-headless 按组合根装配改写），kernel/shared/protocol 对非 L0 包隐式允许（design 与 shared 例外），各包 tsconfig references = package.json 内部依赖 ⊆ 上限列 ∪ 隐式 L0（rulings §4.18 FE-02）；图中为清晰起见不画隐式 L0 边。这八个 L0/L1 包与 model-slide 全部是 iso，浏览器与服务端加载同一份源码；`xml` 是 2026-09-26 新增的 L0 包（rulings §4.21 X:q-xml-package），不依赖任何包（连 shared 也不依赖），所以图中没有从它出发的边，由图 3-4 的 ooxml-core 与服务端媒体模块使用；`yjs` 只允许 store-yjs、collab-yjs、server-collab 引入（§5.3 规则 4），`cordis` 只允许 kernel 引入（R12）。
+依据：charter §5.2、§5.3 规则 4；rulings §4.15 Q3、§4.21 X:q-xml-package；ADR-0019；40-modules/02 §0、§3；03 §0。
 
 **图 3-4 L3 格式基础、V-codec 与 L4 协同**
 
@@ -277,9 +278,9 @@ flowchart TB
   end
   subgraph l4["L4 协同 · 秩 40"]
     collabCore["collab-core · Definition · iso"]
-    collabYjs["collab-yjs · Provider · iso"]
-    collabWs["collab-transport-ws · Provider · iso"]
-    collabIdb["collab-offline-idb · Provider · dom"]
+    collabYjs["collab-yjs · Provider · iso · HocuspocusProvider 与会话胶水"]
+    collabWs["collab-transport-ws · Provider · iso · HocuspocusProviderWebsocket 装配"]
+    collabIdb["collab-offline-idb · Provider · dom · 自写 idb 适配"]
   end
   subgraph l3["L3 格式基础 · 秩 30 · iso"]
     ooxmlCore["ooxml-core · library"]
@@ -290,21 +291,26 @@ flowchart TB
     modelCoreA["model-core"]
     storeYjsA["store-yjs"]
     modelSlideA["model-slide"]
+    xmlA["xml"]
   end
+  hpProvider["第三方 @hocuspocus/provider 4.7.0 · MIT"]
   ooxmlPptx --> ooxmlCore
   ooxmlPptx --> modelSlideA
   ooxmlCore --> sharedA
   ooxmlCore --> modelCoreA
+  ooxmlCore --> xmlA
   collabCore --> modelCoreA
   collabCore --> protocolA
   collabYjs --> collabCore
   collabYjs --> storeYjsA
   collabWs --> collabCore
   collabIdb --> collabCore
+  collabYjs --> hpProvider
+  collabWs --> hpProvider
 ```
 
-怎么读：`lower` 子图是图 3-3 同名包的重复引用，只为挂接箭头。`ooxml-core` 依赖 model-core 是为了取 `drawing/` 共享绘图词汇的运行时类型（02 §9 C-10）；四个协同包中只有 `collab-offline-idb` 是 dom（唯一引入 `y-indexeddb`），且全部不依赖 slide 束。06 §3.2 的 collab-core 目录另列 kernel、shared 依赖，均在秩表范围内。
-依据：charter §5.2；30-architecture/02 §4.9–§4.12b、§9；06 §3.2、§4.2–§4.3；40-modules/05 §0。
+怎么读：`lower` 子图是图 3-3 同名包的重复引用，只为挂接箭头。`ooxml-core` 依赖 model-core 是为了取 `drawing/` 共享绘图词汇的运行时类型（02 §9 C-10），依赖 `xml` 取词法与保真树（上限改为 shared、xml、model-core，rulings §4.21 X:q-xml-package）；四个协同包中只有 `collab-offline-idb` 是 dom（自写 idb 8 适配，不采用 y-indexeddb，R-d-26），且全部不依赖 slide 束。`@hocuspocus/provider` 只允许 collab-yjs 与 collab-transport-ws 引入（H-d-25）：前者持 `HocuspocusProvider`，后者持 `HocuspocusProviderWebsocket`、计量垫片与重连调度器。06 §3.2 的 collab-core 目录另列 kernel、shared 依赖，均在秩表范围内。
+依据：charter §5.2；30-architecture/02 §4.9–§4.12b、§9；ADR-0039 决策 8；ADR-0019；50-frontend/01 §2；40-modules/05 §0。
 
 **图 3-5 L5 引擎与 V-render**
 
@@ -325,7 +331,10 @@ flowchart TB
     modelSlideB["model-slide"]
     ooxmlCoreB["ooxml-core"]
   end
+  d3Lib["第三方 d3-scale d3-shape d3-array · ISC"]
   slideChart --> slideRender
+  slideChart --> d3Lib
+  slideRender -. "仅惰性子路径 ./chart" .-> d3Lib
   slideRender --> modelSlideB
   slideRender --> ooxmlCoreB
   slideRender --> engineRender
@@ -339,8 +348,8 @@ flowchart TB
   engineLayout --> kernelB
 ```
 
-怎么读：三个引擎包对幻灯片一无所知（R15 禁止它们 import `model-*`）；`slide-render` 是唯一同时懂 `slides` 与 `Scene` 两种语言的适配层，并经 rulings §4.15 Q7 放行依赖 `ooxml-core`，用于图表 chartml 与 SmartArt `dsp:drawing` 的只读解析。渲染介质按 Q4 为 DOM/SVG 单实现，canvas 只做 toImage 栅格化、measureText 与预留的 `render.target` 座位。
-依据：charter §5.2（C-28 修订）；30-architecture/02 §7 R15；07 §0–§1；40-modules/06 §0、07 §0；rulings §4.15 Q4/Q7。
+怎么读：三个引擎包对幻灯片一无所知（R15 禁止它们 import `model-*`）；`slide-render` 是唯一同时懂 `slides` 与 `Scene` 两种语言的适配层，并经 rulings §4.15 Q7 放行依赖 `ooxml-core`，用于图表 chartml 与 SmartArt `dsp:drawing` 的只读解析。图表底层按 rulings §4.21 q-chart-route 取 d3-scale / d3-shape / d3-array（ISC），布局按 OOXML 语义自研（ADR-0036）：M1–M2 只在 slide-render 的惰性子路径 `./chart` 里引入（虚线），M3 起在 slide-render-chart 的 `infrastructure/renderers/**`。渲染介质按 Q4 为 DOM/SVG 单实现，canvas 只做 toImage 栅格化、measureText 与预留的 `render.target` 座位。
+依据：charter §5.2（C-28 修订）；30-architecture/02 §7 R15；30-architecture/07（渲染跨端契约）；50-frontend/01 §4a；40-modules/06 §0、07 §0；rulings §4.15 Q4/Q7、§4.21 q-chart-route。
 
 **图 3-6 L7 UI 基座与 V-ui**
 
@@ -431,10 +440,10 @@ flowchart TB
 ```mermaid
 flowchart TB
   subgraph l8s["L8 组装 · node · 组合根"]
-    appsServer["apps/server · NestJS 11 · 传输壳 与 cordis-host 组合根"]
+    appsServer["apps/server · NestJS 12 与 Fastify 5 · 传输壳 与 cordis-host 组合根"]
   end
   subgraph ls["LS 服务端 · 秩 58 · node · 文档类型盲"]
-    serverCollab["server-collab · collabServer"]
+    serverCollab["server-collab · collabServer · 内持 Hocuspocus 4"]
     serverStorage["server-storage · BlobStore · 唯一 import S3 SDK"]
     serverHeadless["server-headless · Node 中的 cordis 宿主"]
   end
@@ -464,7 +473,7 @@ flowchart TB
   serverHeadless --x|"禁止 import · 铁律 4"| renderDomX
 ```
 
-怎么读：实线是允许的 import，带叉的边是被禁止的方向。服务端业务逻辑在 LS 包里，apps/server 的 Nest 模块只做 REST、WS 与任务的传输壳（depcruise `server-app-thin`：`modules/**` 不得 import `yjs`、`model-*`、`ooxml-*`）；apps/server 是组合根（`compositionRoot:true`），只有它的 `cordis-host/preset-server.ts` 能 import slide 束并把 iso 插件清单交给 server-headless（2026-09-25，rulings §4.18 FE-01/FE-02）。server-headless 因此文档类型盲：导入导出按 `documentType` 经 `formats` 服务取 codec，M5 新增 doc 时 server-* 零改动。server-collab 依赖 collab-core 的 Definition 契约与 model-core（FE-15/FE-02）。LS 秩 58 允许依赖 L5 的 iso 包，但 node 不能 import dom 的 render-dom，所以服务端渲染只能经独立 renderer sidecar 里的 headless Chromium 间接运行浏览器代码（图 8-5）。
+怎么读：实线是允许的 import，带叉的边是被禁止的方向。服务端业务逻辑在 LS 包里，apps/server 的 Nest 模块只做 REST、WS 与任务的传输壳（depcruise `server-app-thin`：`modules/**` 不得 import `yjs`、`model-*`、`ooxml-*`）；apps/server 是组合根（`compositionRoot:true`），只有它的 `cordis-host/preset-server.ts` 能 import slide 束并把 iso 插件清单交给 server-headless（2026-09-25，rulings §4.18 FE-01/FE-02）。server-headless 因此文档类型盲：导入导出按 `documentType` 经 `formats` 服务取 codec，M5 新增 doc 时 server-* 零改动。server-collab 依赖 collab-core 的 Definition 契约与 model-core（FE-15/FE-02），并在包内持有 Hocuspocus 4.7.0 实例（`@hocuspocus/server` 只允许在 server-collab 引入，apps/server 在 Fastify 底层 server 的 `upgrade` 上把连接交给它，rulings §4.21，ADR-0039）；apps/server 的 `modules/**` 另可为 SVG 消毒依赖 L0 的 `xml` 包（`server-app-thin` 白名单，X:q-xml-package）。LS 秩 58 允许依赖 L5 的 iso 包，但 node 不能 import dom 的 render-dom，所以服务端渲染只能经独立 renderer sidecar 里的 headless Chromium 间接运行浏览器代码（图 8-5）。
 依据：charter §5.1 说明行、§5.2 LS 与 apps/server 行；30-architecture/02 §3.2、§4.22–§4.24；40-modules/09 §3.2、§4.4/§4.5、§5.3；ADR-0026/0037；rulings §4.18 FE-01/FE-02/FE-15。
 
 ## 4. 前端运行时装配
@@ -620,9 +629,9 @@ flowchart TB
   subgraph collab["preset-slide-collab"]
     direction LR
     k1["store-yjs 替换 store-memory"]
-    k2["collab-yjs 替换 local-presence"]
-    k3["collab-transport-ws"]
-    k4["惰性 · collab-offline-idb · M3 默认关"]
+    k2["collab-yjs 替换 local-presence · HocuspocusProvider"]
+    k3["collab-transport-ws · HocuspocusProviderWebsocket 装配"]
+    k4["惰性 · collab-offline-idb · M4 P2 前默认关"]
   end
   common --> viewer
   common --> slide
@@ -761,7 +770,7 @@ flowchart LR
   scene["slide-render diff · DirtySet"]
   paint["engine-render flush · render-dom 局部重绘"]
   crdt["Y.Doc update · 仅 store-yjs"]
-  send["collab-yjs 50 ms 合并 · WS 帧发出"]
+  send["provider flushDelay 50 ms 合并 · Hocuspocus 帧发出"]
   input --> intent --> command --> mutation --> storeOps --> store
   store --> changeSet
   store --> history
@@ -770,7 +779,7 @@ flowchart LR
 ```
 
 怎么读：实线是单人与协同都走的主链，虚线之后的两步只在 preset-slide-collab（store-yjs）下发生。Mutation 不上网络，网络上只有 CRDT update（D5）；渲染刷新与协同发送互不依赖，都由同一次事务提交触发。图 6-2、6-3 分别展开前后两半。
-依据：30-architecture/01 §4.2–§4.3；05 §1、§3；06 §0；04 §2.3（StoreOp 五原语）；40-modules/10 §2.2。
+依据：30-architecture/01 端到端数据流；30-architecture/05 §1、§3；30-architecture/04 §2.3（StoreOp 五原语）；50-frontend/01 §5.2；ADR-0039 决策 8；40-modules/10 §2.2。
 
 **图 6-2 命令管线：从意图到事务提交**
 
@@ -813,9 +822,9 @@ sequenceDiagram
   participant scene as slide-render SceneProvider
   participant render as engine-render RenderService
   participant dom as render-dom
-  participant sync as collab-yjs LocalBatcher
-  participant ws as collab-transport-ws
-  participant gw as 服务端协同网关
+  participant sync as collab-yjs 胶水与 HocuspocusProvider
+  participant ws as collab-transport-ws 垫片与调度器
+  participant gw as 服务端 Hocuspocus 与自有扩展
   store->>scene: store.observe · ChangeSet
   scene->>render: diff 与 classify 后 invalidate DirtySet
   render->>render: 合并脏区 · 下一帧 flush · 可见页优先 · 脚本 8 ms 预算
@@ -824,19 +833,19 @@ sequenceDiagram
   render->>render: 收尾 · 重建命中索引 · emit render/frame
   Note over scene,dom: 覆盖层随 selection 与 presence 独立刷新 · 不进脏区
   store->>sync: yjsBackend.onUpdate · update 字节
-  sync->>sync: 50 ms 内 mergeUpdates 为一帧
-  sync->>ws: Connection.send · SYNC update
-  ws->>gw: WS 二进制帧
-  gw->>gw: 硬门禁 · 软门禁 · 先落库再经 Valkey 扇出
+  sync->>sync: provider flushDelay 50 ms 合并为一帧
+  sync->>ws: Sync update 经计量垫片 · 映射 localSeq 进在途 FIFO
+  ws->>gw: WS 二进制帧 · Hocuspocus 格式
+  gw->>gw: beforeSync 硬门禁并先落库 · 应用并广播 · afterHandleMessage 软门禁
   alt Postgres 故障期
-    gw-->>sync: ack tier spill · 客户端保留 pending
+    gw-->>sync: Stateless ack tier spill · 客户端保留 pending
   else 已落库
-    gw-->>sync: ack seq tier db · 清 pending
+    gw-->>sync: Stateless ack seq tier db · 清 pending
   end
 ```
 
-怎么读：上半段是所有预设都有的渲染路径（单人预设里 store 是 store-memory，没有下半段）：slide-render 在 Unit 内订阅 store 变化，把 ChangeSet 映射成 DirtySet 推给引擎，引擎自身不订阅 `store/transaction`。下半段只在协同预设出现：update 经 `yjsBackend` 这一受控面交给 collab-yjs，collab-yjs 从不直接触碰 `Y.*` 类型；两级 ack 中只有 `tier:'db'` 清 pending。
-依据：40-modules/06 §2.6、07 §2.4/§2.6、05 §0；30-architecture/06 §0、§4.1、§6.4；07 §2.2；rulings §4.15 S-3a。
+怎么读：上半段是所有预设都有的渲染路径（单人预设里 store 是 store-memory，没有下半段）：slide-render 在 Unit 内订阅 store 变化，把 ChangeSet 映射成 DirtySet 推给引擎，引擎自身不订阅 `store/transaction`。下半段只在协同预设出现：update 经 `yjsBackend` 这一受控面交给 collab-yjs，collab-yjs 从不直接触碰 `Y.*` 类型；自 rulings §4.21 起合并发送由官方 `@hocuspocus/provider` 的 `flushDelay` 完成（LocalBatcher 只保留 localSeq、在途 FIFO 与两级 ack，合并部分交给 provider），帧与 localSeq 的对应由计量垫片按内容映射；服务端在 `beforeSync` 先落库再广播，ack 经 Stateless 下发，两级 ack 中只有 `tier:'db'` 清 pending。
+依据：40-modules/06 §2.6、07 §2.4/§2.6、05 §0；30-architecture/06 §0、§6.4；30-architecture/07 §2.2；50-frontend/01 §5.3；60-backend/01 §0.5；ADR-0039 决策 4–5、8；rulings §4.15 S-3a、§4.21 H:q-hp-provider、H:q-hp-persist-ack。
 
 **图 6-4 本地 update 的确认状态**
 
@@ -847,9 +856,9 @@ stateDiagram-v2
   state "溢写确认 · tier spill" as spill
   state "已落库 · tier db" as db
   [*] --> pending: 本地事务产生 update
-  pending --> sent: LocalBatcher 合并后发出 · 仅在线时
+  pending --> sent: provider 合并后发出 · 仅在线时
   sent --> spill: 服务端写入溢写存储
-  sent --> db: 服务端 INSERT 提交后回带 seq 的 ack
+  sent --> db: 服务端 beforeSync 落库后经 Stateless 回带 seq 的 ack
   spill --> db: PG 恢复后回放 · 由 PG 分配正式 seq
   sent --> pending: 断线 · 重连后 step2 重新同步
   spill --> pending: 断线或溢写丢失 · 重连 step2 凭幂等补齐
@@ -857,7 +866,7 @@ stateDiagram-v2
 ```
 
 怎么读：只有进入「已落库」才算确认，`Session.flush()`（关闭页面前调用）等的就是 pending 归零。溢写确认期客户端仍保留 pending，所以 PG 故障或溢写数据丢失都不会让「已 ack（db）」的修改丢失（NF-03）。离线时本地编辑照常进行，update 暂存 pending（可选 collab-offline-idb 持久化），上线后冲刷。
-依据：30-architecture/06 §5.1、§6.3–§6.4、§4.2 local-batcher；rulings §4.15 S-3a；40-modules/02 §0（ack 帧定稿）。
+依据：30-architecture/06 §6.3–§6.4；50-frontend/07 §6；ADR-0039 决策 5、8；rulings §4.15 S-3a、§4.21 H:q-hp-persist-ack；40-modules/02 §0（ack 帧定稿）。
 
 **图 6-5 文本输入分支：IME 与剪贴板**
 

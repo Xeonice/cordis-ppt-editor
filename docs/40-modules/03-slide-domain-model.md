@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-03） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 D2：编辑期超上限常量映射到 `document.quota_exceeded{dimension}`）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：模型与命令文件落点——`sp.ts` 补 `isTextBox`、`pic.ts` 补 `media` 与 `BlipFill.alpha/svgMediaId`、`non-visual.ts` 补 `decorative`、`theme.ts` 补只读 `objectDefaults`；表格归一化与不变量 I-TBL1/I-TBL2、空组不变量 I-GRP1；新增 9 个 Mutation、33 个命令、1 个 Operation 与 13 个文件；`chart.*` 定 M3；`Hyperlink.target` 判别联合、`UnknownShape.source`、`Slide.showMasterShapes`、`Presentation.firstSlideNum`）；2026-09-26（§4.21 整合：§2.6 登记 50/18 §28 第二批薄命令与参数扩展（含 setBodyProperties、bringToFront/sendToBack）、setHeaderFooter 的 date 形状与确定性 id、setHyperlink 端点寻址、insertFreeform 改收拟合几何、flipShapes 加 reroute、ConnectorPatch 字段、resetPicture 改 pixelSize；§2.1 登记 I-PH1 与 fillPlaceholder 前置；§2.2 FracKey 改 rocicorp 键格式、BlipFill 补 external 与 effects；mutations/chart 写法对齐 30/05；新增 text-search.ts、invariants/placeholder.ts、section-commands.ts 三个文件（127 个））；2026-09-26（§4.21 复核：setBorders 参数统一为 `borders: {preset; line}`） | 依赖：00-module-map.md M-03、charter v0.2 §4/§5.2 `model-slide` 行/§5.5、30-architecture 04 §3/§4/§6/§8/§9/§12、05 §13、02 §4.8、rulings-2026-09-14 §4.10、PRD `10-prd/03-features/07-masters-layouts-and-themes.md`、ADR-0006/0008/0011/0013/0014/0032
 
 # 03 幻灯片领域模型（限界上下文 BC-06 幻灯片领域模型）
 
@@ -14,7 +14,7 @@
 | 上游（依赖） | M-02（`@cordexjs/kernel`/`@cordexjs/shared`/`@cordexjs/model-core`：`DocumentType`、`DocumentStore`/`StoreOp`、Command/Mutation/Operation 三分法、`Snapshot`/`Persisted<T>`、`ResourceHook`、`permissions`、`drawing/` 共享绘图词汇） |
 | 下游（被依赖） | M-04（`ooxml-pptx` 对本包做 ACL）、M-07（`slide-render` 读 `slides` 服务）、M-10（`slide-ui` 消费命令与只读服务）、M-11（预设装配挂载本包）、M-13（`model-doc`/`model-sheet` 的样板） |
 | 对外服务 | `ctx.slides`（UnitScope 内，只读投影 + 便捷命令封装，见 04 §3.4） |
-| 贡献点 | 提供：`slide.shapeKind`；向 BC-05 贡献条目：`core.documentType`（1 个：`slide`）、`core.mutation`（46 个，M3 起 47 个，§2.6）、`core.command`（75 个——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit`——含 4 个 Operation，§2.6；14 §1 C-03 新增 18 个后由 55 上修，1 个即 `slide.setNotes` 待 M3）、`core.migration`（M1 为空表但注册） |
+| 贡献点 | 提供：`slide.shapeKind`；向 BC-05 贡献条目：`core.documentType`（1 个：`slide`）、`core.mutation`（51 个，M3 起 56 个，§2.6；2026-09-26 rulings §4.21 由 46/47 上修）、`core.command`（109 个，含 5 个 Operation，§2.6——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit` 后为 75；2026-09-26 rulings §4.21 新增 33 个命令与 1 个 Operation，其中 13 个 M3 起可用；14 §1 C-03 新增 18 个后由 55 上修，`slide.setNotes` 待 M3）、`core.migration`（M1 为空表但注册） |
 | doc / sheet 通用性 | vertical（`bundle=slide`；对应 BC-29 规划位的 `model-doc`/`model-sheet`，铁律 2 强制互不 import） |
 | 批次 | 1 |
 
@@ -77,6 +77,8 @@ flowchart LR
 | 默认版式 | 版式/母版删除或悬空修复时的回退目标，按 30/04 §12.3 I-ML2 链选取：原母版下同 `type` 的首个版式 → 该母版首个版式 → 首个母版的首个版式，跳过墓碑与 `exclude` 中的版式（rulings §4.20 FE-03） | `defaultLayoutOf(body, {masterId, type?, exclude?})`（`domain/invariants/reassign.ts`）：命令层 `reassignTo`、I-ML2 修复与 ADR-0034「`layoutId` 不存在」修复共用同一符号 |
 | FracKey 排序 | 同容器内形状/页/版式/母版的顺序键，`compare = (order, id)`，无数组下标 | `Shape.order`/`Slide.order`/`SlideLayout.order`/`SlideMaster.order: FracKey` |
 | 范围条 | 母版视图中「编辑版式\|母版」双态视图状态（不改变模型，Operation 级） | `slide.selectMasterOrLayout` Operation 的 `editTargetKind` 上下文键 |
+| 表格归一化（2026-09-26，rulings §4.21） | 表格的列、行、格是按 id 的三张记录表，行列顺序由 `order: FracKey` 承载，格键为 `RowId:ColId`；删除行列写墓碑 | `Table.columns/rows/cells`、`CellKey`（30/04 §3.8） |
+| 插入命令（2026-09-26，rulings §4.21） | 新增元素的命令族：统一经规模守卫、一个事务按需 `media.add` + `shape.insert`、插入后选中为事务外 Operation | `application/commands/insert-common.ts` 的 `planInsert` |
 
 ### 1.3 上下文映射
 
@@ -114,7 +116,14 @@ flowchart LR
 **软删除墓碑与规模上限（rulings §4.15 Q3/Q5）**：
 - **墓碑**：`slides`/`shapes`/`layouts`/`masters`/`themes` 五张实体表的删除一律写 `_deleted: Tombstone`（M-02 `store/tombstone.ts`），实体 id 稳定、行不移除；级联删除（删页连带其形状、删版式连带其形状、删母版连带版式与形状）对每个被级联实体各写一个墓碑，撤销时一并清除。独占 opaque part（备注页、图表部件等）的级联清理推迟到服务端 TTL 硬删除（默认 24h，M-09 单写者执行）；导出（M-04）与渲染（M-07）经 `filterLive()` 视墓碑实体为不存在。
 - **读路径过滤**：`domain/query/selectors.ts`/`traverse.ts` 的全部公开选择器默认只返回存活实体。指向墓碑实体的关系分两类处理（rulings §4.20 FE-04，30/04 §3.1a(3) 与 §12.3）：**包含关系**（`containerId`、`parentId`）指向墓碑 → 引用者一并视为已删除（I-ML8 等按既有 repair 规则）；**引用关系**（`layoutId`、`masterId`、`themeId`）指向墓碑 → I-ML2…I-ML4 在**墓碑期读时容错**，不写修复，读路径以替代目标求值（`layoutId` 用 `defaultLayoutOf`，母版、主题按 30/04 §12.3 对应链），只在服务端 TTL 硬删作业的同一事务内写修复（每个引用只修一次）。消费方同样按替代目标读：M-07 `SceneProvider`、M-04 导出编码器解析 `layoutId` 时调用 `defaultLayoutOf`，导出的 pptx 中该页引用存活版式；`impactCount` 不计墓碑目标。只有 `element-limits.ts` 的计数与协同/快照路径读原始表。
-- **规模上限（部署可调）**：`maxSlides` 200、`maxElementsPerSlide` 1,000、`maxElementsPerDoc` 20,000（软警告 15,000）为默认值，来自部署配置、可完全调整（超出性能保证包络时告警，性能承诺不再成立）。**计数口径**：`shapes` 表全部行（含母版/版式上的形状、组合形状本身与其每个子形状各计 1），**墓碑计入**；`maxSlides` 计 `slides` 表全部行（含墓碑）。命令层守卫：会新增实体的命令（`addSlide`/`duplicateSlide`/`insertShape`/`insertPicture`/`insertTable`/`pasteShapes`/`insertLayout`/`insertMaster`/`applyLayout` 的占位符 `materialize` 等）在 `transact` 前按「提交后计数」判定，超限返回 `err(SLIDE_LIMIT_EXCEEDED \| ELEMENT_LIMIT_EXCEEDED)` 且无事务——两常量映射到 protocol 错误码 `document.quota_exceeded`（常量 `DOCUMENT_QUOTA_EXCEEDED`，M-02 `errors/codes.ts`；详情 `{dimension, limit, actual}`，HTTP 409，命令守卫拒绝、**不关连接**，rulings §4.17 D2）：`SLIDE_LIMIT_EXCEEDED` → `dimension:'slides'`，`ELEMENT_LIMIT_EXCEEDED` → `dimension:'elementsPerSlide'`（单页超限）或 `'elementsTotal'`（文档总元素超限）；达软警告线时命令成功但附诊断。不变量层 `I-LIM1` 只报告（协同并发合并后可能越线），**不 repair**（不能替用户删内容）。超出系统天花板的导入由 M-04 在解析期直接拒绝（渐进打开时在首批回传之前，`format.quota_exceeded`，与本段 `document.quota_exceeded`、存储侧 `storage.quota_exceeded` 三码并列；拒绝线是天花板，不是性能保证包络，rulings §4.18 UX-13），不进入本包。
+- **规模上限（部署可调）**：`maxSlides` 200、`maxElementsPerSlide` 1,000、`maxElementsPerDoc` 20,000（软警告 15,000）为默认值，来自部署配置、可完全调整（超出性能保证包络时告警，性能承诺不再成立）。**计数口径**：`shapes` 表全部行（含母版/版式上的形状、组合形状本身与其每个子形状各计 1），**墓碑计入**；`maxSlides` 计 `slides` 表全部行（含墓碑）。命令层守卫：会新增实体的命令（`addSlide`/`duplicateSlide`/`insertShape`/`insertPicture`/`insertTable`/`pasteShapes`/`insertLayout`/`insertMaster`/`applyLayout` 的占位符 `materialize`，以及 2026-09-26 rulings §4.21 新增的 `fillPlaceholder`/`insertFreeform`/`insertMedia`/`insertIcons`/`insertChart`/`setHeaderFooter` 等，统一经 `application/commands/insert-common.ts` 的 `planInsert`）在 `transact` 前按「提交后计数」判定，超限返回 `err(SLIDE_LIMIT_EXCEEDED \| ELEMENT_LIMIT_EXCEEDED)` 且无事务——两常量映射到 protocol 错误码 `document.quota_exceeded`（常量 `DOCUMENT_QUOTA_EXCEEDED`，M-02 `errors/codes.ts`；详情 `{dimension, limit, actual}`，HTTP 409，命令守卫拒绝、**不关连接**，rulings §4.17 D2）：`SLIDE_LIMIT_EXCEEDED` → `dimension:'slides'`，`ELEMENT_LIMIT_EXCEEDED` → `dimension:'elementsPerSlide'`（单页超限）或 `'elementsTotal'`（文档总元素超限）；达软警告线时命令成功但附诊断。不变量层 `I-LIM1` 只报告（协同并发合并后可能越线），**不 repair**（不能替用户删内容）。超出系统天花板的导入由 M-04 在解析期直接拒绝（渐进打开时在首批回传之前，`format.quota_exceeded`，与本段 `document.quota_exceeded`、存储侧 `storage.quota_exceeded` 三码并列；拒绝线是天花板，不是性能保证包络，rulings §4.18 UX-13），不进入本包。
+
+**表格归一化、组合与连接符规则（2026-09-26，rulings §4.21，ADR-0018 决策 6、8、9）**：
+- **表格**：`GraphicFrame{graphic:{kind:'table'}}` 内的 `Table` 改为 `columns: Record<ColId,{order,width}>`、`rows: Record<RowId,{order,height}>`、`cells: Record<CellKey,TableCell>` 三张记录表（30/04 §3.8）；删行删列写墓碑、格随之不可见；合并在锚格记 `gridSpan`/`rowSpan`、被覆盖格记 `hMerge`/`vMerge`。不变量 **I-TBL1**（每个存活行在每个存活列上都有格，缺格补空格）与 **I-TBL2**（跨度合法，越界收缩、孤立标记清除）在 `domain/invariants/table.ts`，服务端软门禁 `system('repair')` 执行，客户端读时容错。M2 只插入与改单元格文字，结构与样式 M3；归一化形态最迟 M3 前落地，建议 M1 导入即采用（尚无代码，零迁移）。
+- **组合**：**I-GRP1** 没有存活子元素的组视为已删除——`slide.deleteShapes` 删掉组内最后一个存活子元素时同事务给组写墓碑，并发造成的空组由 `repair` 写墓碑（`domain/invariants/group.ts`）；`shape.ungroup` 的 `lower()` 用 `domain/geometry/group-transform.ts` 的 `foldChildTransform` 把子元素变换折算回容器坐标（组旋转且子元素非等比时丢弃斜切并诊断）。
+- **连接符**：端点引用经 `slide.cxnSp.setConnections` 写，新引用不得指向墓碑；受影响连接符的几何由调用方以 `reroute` 参数传入、与变换同事务写回，显示与导出以派生几何为准（30/05 §14.5）；目标为墓碑时保留引用。
+- **内容占位符**：`slide.fillPlaceholder` 以同一 `PlaceholderRef`、同一 `order` 替换空占位；删除带内容族引用的元素时同事务补回空占位（ADR-0018 决策 10）。前置检查（2026-09-26 整合，50/21 §3）：目标空占位 `Sp` 已是墓碑（他人刚填入）时改为普通插入并 toast。
+- **软不变量 I-PH1**（2026-09-26 整合，50/21 §3，ADR-0018 决策 10）：同页同 `(type, idx)` 的存活内容族占位符至多一个；两人并发填入同一占位符时两者都保留，由服务端软门禁修复一次——保留 `(order, id)` 最小者，其余 `materialize` 为普通元素（`domain/invariants/placeholder.ts`；客户端读时容错，不写修复）。
 
 **图 2-1 幻灯片领域对象关系**
 
@@ -171,13 +180,20 @@ classDiagram
 | `ShapeStyle` | `lineRef/fillRef/effectRef/fontRef`（各 `{ idx; color: Color }`） | zod | `domain/model/drawing/shape-style.ts` | 本包 |
 | `Background` | `{kind:'properties';fill;effects?;shadeToTitle}\|{kind:'reference';idx;color}` | zod 判别联合 | `domain/model/drawing/background.ts` | 本包 |
 | `PlaceholderRef` | `type: PlaceholderType; index?; orientation?; size?; hasCustomPrompt` | zod | `domain/model/shape/placeholder.ts` | 本包 |
-| `NonVisualProps` | `name/hidden/description?/title?/hyperlink?/placeholder?/locks?` | zod | `domain/model/shape/non-visual.ts` | 本包 |
+| `NonVisualProps` | `name/hidden/description?/title?/decorative?/hyperlink?/placeholder?/locks?`（`decorative` 新增（§4.21），对应 `adec:decorative`） | zod | `domain/model/shape/non-visual.ts` | 本包 |
+| `BlipFill`（2026-09-26 补字段） | `mediaId?/external?/svgMediaId?/sourceRect?/mode/alpha?/effects?/extensions`（`svgMediaId`、`alpha` 新增（§4.21）；整合时按 ADR-0018 决策 5 补来源二选一 `mediaId` 与 `external:{target}`、只读 `effects`，30/04 §3.7） | zod | `domain/model/shape/pic.ts` | 本包 |
+| `PicMedia`（2026-09-26 补列） | `kind:'video'\|'audio'; mediaId?; external?: {target}; extensions`（播放属性不建模） | zod | `domain/model/shape/pic.ts` | 本包 |
+| `ObjectDefaults`（新增（§4.21）） | `spDef?/lnDef?/txDef?`，各为 `{properties?; bodyProperties?; listStyle?; style?; extensions}`；M2 只读，无写入 Mutation | zod | `domain/model/theme.ts` | 本包 |
+| `TableProperties`/`TableColumn`/`TableRow`/`TableCell`（2026-09-26 改为归一化） | 见 30/04 §3.8：`columns`/`rows` 带 `order: FracKey` 与 `_deleted?`，`cells` 键为 `RowId:ColId`，锚格 `gridSpan/rowSpan`、被覆盖格 `hMerge/vMerge` | zod | `domain/model/shape/table.ts` | 本包 |
+| `ChartData`（M3，新增（§4.21）） | `type`（五类）、`variant`、`categories`/`series` 记录表（带 `order` 与 `_deleted?`）、`title?/legend?/dataLabels?/numFmt?`（30/04 §3.9） | zod | `domain/model/shape/chart.ts` | 本包 |
+| `ConnectionRef`（新增（§4.21）） | `{shapeId; index}`：连接符端点引用 | zod | `domain/model/shape/cxn-sp.ts` | 本包 |
+| `ShapeCapabilities`（2026-09-26 扩展） | `text/resize/rotate/group/connect` + 新增 `adjust/crop/lockAspectDefault/editPoints/fillable`（30/04 §3.3） | 类型（非 zod） | `domain/shape-kind/shape-kind.point.ts` | 本包 |
 | `CommonSlideData` | `name?/background?/controls?: OpaqueXml/customData?: OpaqueXml/extensions` | zod | `domain/model/common-slide-data.ts` | 本包 |
 | `ColorMap` | `Record<ColorMapKey, SchemeColorName>` | zod | `domain/model/theme.ts` | 本包 |
 | `BodyProperties`/`ParagraphProperties`/`RunProperties`/`ListStyle`/`Bullet` | 见 04 §3.2 | zod（各字段可选，继承） | `domain/model/text/*.ts` | 本包（TextBody 骨架来自 drawing，段落/字符级细化在本包） |
 | `DocumentProperties` | `core`（建模）+ `app`/`custom`: `OpaquePartRef` | zod | `domain/model/properties.ts` | 本包 |
 | `OoxmlIds` | `{ cNvPrId?: number; creationId?: string }` | zod | `src/ids.ts` | 本包（ADR-0014，OOXML id 作数据保留） |
-| `FracKey` | base62 字符串 + 随机后缀；`between(a?,b?)`/`compareOrder` | 品牌类型，非 zod（构造函数校验） | `@cordexjs/shared/order.ts`（引用，不重定义） | Shared Kernel |
+| `FracKey` | 2026-09-26 起为 ADR-0032 修订的 rocicorp 键格式：整数头 + base-62 小数（码元序比较、小数末位非 `'0'`），命令层 `between(a?,b?)` 另加 2 位随机后缀，导入与 rekey 用确定性键；`compareOrder` 按 `(order, id)`（原「base62 字符串 + 随机后缀」作废） | 品牌类型，非 zod（构造函数校验） | `@cordexjs/shared/order.ts`（引用，不重定义） | Shared Kernel |
 
 ### 2.3 领域服务
 
@@ -191,7 +207,11 @@ classDiagram
 | `resolveShapeVisual` | `(body, shapeId) => ResolvedShapeVisual`（style refs → theme.formatScheme） | `domain/style/resolve-shape.ts` | 是 |
 | `resolveColor` | `(color: Color, ctx: {theme; colorMap; override?}) => Rgba` | `domain/style/resolve-color.ts` | 是 |
 | `createStyleCache`/`invalidate` | `() => StyleCache`；`invalidate(cache, changeSet: ChangeSet) => void`（按 `touched` 命中形状/母版/版式/主题失效，含子孙与反向索引） | `domain/style/cache.ts` | 是 |
-| `placeholderFamily` | `(type: PlaceholderType) => PlaceholderFamily` | `domain/style/placeholder-match.ts` | 是 |
+| `placeholderFamily` | `(type: PlaceholderType) => PlaceholderFamily`；2026-09-26 起族取值按 PRD ML-03 改为 `'text' \| 'content' \| 'footer' \| 'other'`（原 `footerLike` 等四分法作废，rulings §4.21 R-d-73，30/04 §12.2） | `domain/style/placeholder-match.ts` | 是 |
+| `canChangePlaceholderType`/`compatiblePlaceholderTypes`（新增（§4.21）） | `(from, to) => boolean`：同族或 obj 与文本族互转才允许；`(type) => readonly PlaceholderType[]`：PRD ML-02 规则 (3) 的兼容类型 | `domain/style/placeholder-match.ts` | 是 |
+| `defaultStyleFor`（新增（§4.21）） | `(kind: 'shape' \| 'line' \| 'textBox', theme: Theme) => { style?: ShapeStyle; properties?: ShapeProperties; bodyProperties?: BodyProperties }`：`objectDefaults.spDef/lnDef/txDef` → PowerPoint 内建 `p:style` 取值链，只返回引用 | `domain/style/object-defaults.ts` | 是 |
+| `liveColumns`/`liveRows`/`cellAt`/`cellKey`（新增（§4.21）） | 表格读视图：按 `(order, id)` 排序并过滤墓碑；`cellAt` 缺格返回空格（I-TBL1 读时容错） | `domain/query/table-grid.ts` | 是 |
+| `foldChildTransform`（新增（§4.21）） | `(group: GrpSp, child: Shape) => Transform`：取消组合时把子元素变换折算回容器坐标（2×3 仿射；斜切丢弃并诊断） | `domain/geometry/group-transform.ts` | 是 |
 | `matchPlaceholder` | `(target, candidates) => ShapeId \| undefined` | `domain/style/placeholder-match.ts` | 是 |
 | `planLayoutChange` | `(body, slideId, newLayoutId) => readonly PlaceholderRemap[]`，供 `slide.applyLayout` 命令生成确定性 Mutation。三种 action（rulings §4.18 CO-18，依 PRD 07-masters :110–:114 与架构 04 §12）：`inherit`——找到匹配（PRD 规则 (1)–(3)）即取此值，**不论形状有无显式 `transform`**：已有的显式覆盖（含 `transform`）原样保留、未覆盖字段随新版式继承；匹配到的 `(type, idx)` 与现有 `PlaceholderRef` 不同时改写 ref（此时不是「无 Mutation」）。`materialize`——找不到匹配：按 `InheritableField` 全集把旧版式解析值（`transform`、`geometry`、`fill`、`line`、`effects`、`bodyProperties`、`listStyle`）写成显式值，并移除 `PlaceholderRef`（脱离占位符，导出不再带 `p:ph`）。`keep`——非占位符形状不动 | `domain/style/placeholder-match.ts` | 是 |
 | `planReset` | `(body, slideId) => readonly {shapeId; clear: InheritableField[]}[]` | `domain/style/placeholder-match.ts` | 是 |
@@ -268,11 +288,12 @@ sequenceDiagram
 
 | 文件 | type id | 参数要点（草案） | `lower()` 要点 |
 |---|---|---|---|
-| `mutations/slide.ts` | `slide.slide.insert`/`.remove`/`.setOrder`/`.setHidden`/`.setBackground` | `{slide: Slide}`（含 `order`）/`{slideIds}`/`{slideId;order:FracKey}`/`{slideId;hidden}`/`{slideId;background}` | 各自 `set(['slides',id],...)`；`remove` 写页及其形状的墓碑，独占 `notesId`/图表等 opaque part 的清理推迟到服务端 TTL 硬删除（04 §5.2、rulings §4.15 Q3） |
-| `mutations/shape.ts` | `shape.insert`/`.remove`/`.setOrder`/`.setTransform`/`.setProperties`/`.setStyle`/`.group`/`.ungroup` | `{shape:Shape}`（含 `containerId/parentId/order`）/`{shapeIds}`/`{shapeId;order:FracKey;parentId?}`/`{shapeId;transform}`/`{shapeId;patch:Partial<ShapeProperties>}`/… | `set(['shapes',id],...)`；`setOrder` 单键（+ 可选 `parentId`，进出组）；无数组下标（ADR-0013） |
+| `mutations/slide.ts` | `slide.slide.insert`/`.remove`/`.setOrder`/`.setHidden`/`.setBackground`；2026-09-26 新增（§4.21）`slide.slide.setProperties` | `{slide: Slide}`（含 `order`）/`{slideIds}`/`{slideId;order:FracKey}`/`{slideId;hidden}`/`{slideId;background}`/`{slideId;patch:{showMasterShapes?}}` | 各自 `set(['slides',id],...)`；`remove` 写页及其形状的墓碑，独占 `notesId`/图表等 opaque part 的清理推迟到服务端 TTL 硬删除（04 §5.2、rulings §4.15 Q3） |
+| `mutations/shape.ts` | `shape.insert`/`.remove`/`.setOrder`/`.setTransform`/`.setProperties`/`.setStyle`/`.group`/`.ungroup`；2026-09-26 新增（§4.21）`shape.setNonVisual`/`shape.patchKindData`/`pic.setBlipFill`/`cxnSp.setConnections` | `{shape:Shape}`（含 `containerId/parentId/order`）/`{shapeIds}`/`{shapeId;order:FracKey;parentId?}`/`{shapeId;transform}`/`{shapeId;patch:Partial<ShapeProperties>}`/…；新增四个见 30/05 §14.2 | `set(['shapes',id],...)`；`setOrder` 单键（+ 可选 `parentId`，进出组）；无数组下标（ADR-0013）；`ungroup` 用 `foldChildTransform` 折算子元素变换；新增四个均逐字段 `set/delete`，`patchKindData` 先按该 kind 的 schema 校验 |
 | `mutations/text.ts` | `text.applyDelta`/`paragraph.setProperties`/`run.setProperties`/`textBody.setBodyProperties` | `{shapeId;paragraph?;delta:TextDelta}`/`{shapeId;paragraph;patch}`/`{shapeId;paragraph;run;patch}`/`{shapeId;patch}` | `text(['shapes',id,'textBody',...], delta)`；属性类走 `set` |
-| `mutations/table.ts` | `table.insertRow`/`.removeRow`/`.insertColumn`/`.removeColumn`/`.setCellProperties`/`.merge`/`.split` | `{shapeId; at: FracKey 或行列引用}`… | `insert`/`remove`（原子列表，`Table.columnWidths`/`rows`）；单元格属性 `set` |
+| `mutations/table.ts` | `table.insertRow`/`.removeRow`/`.insertColumn`/`.removeColumn`/`.setCellProperties`/`.merge`/`.split`；2026-09-26 新增（§4.21）`table.setTableProperties`/`table.setSizes`（M3） | 2026-09-26 起按 id 寻址（rulings §4.21 q-table-depth）：`{shapeId; rowId; order; height; cells}`/`{shapeId; rowIds}`/`{shapeId; colId; order; width; cells}`/`{shapeId; colIds}`/`{shapeId; cells: CellKey[]; patch}`/`{shapeId; anchor; gridSpan; rowSpan}`/`{shapeId; anchor}`；新增两个见 30/05 §14.2 | 全部对 `columns`/`rows`/`cells` 记录表逐键 `set`；删行删列写 `_deleted` 墓碑；原「`insert`/`remove` 原子列表 `columnWidths`/`rows`」作废（30/04 §3.8） |
 | `mutations/media.ts` | `media.add` | `{mediaId; blob: BlobRef; contentType}` | `set(['media',id], ref)`（BlobRef 注册，不含字节） |
+| `mutations/chart.ts`（M3，2026-09-26 新增（§4.21）） | `slide.chart.setData`/`slide.chart.setOptions`（与 30/05 §14.2 同一写法） | `{shapeId; patch}`（30/05 §14.2） | 对 `graphic.chart.data` 逐键 `set`；类别、系列删除写墓碑；`setOptions` 的 `type` 只允许五类 |
 | `mutations/layout.ts` | `layout.insert`/`.remove`/`.setName`/`.setOrder`/`.setProperties`/`.setBackground`；`slide.setLayout`（携带 `remap`）；`shape.clearOverrides`/`shape.setPlaceholder` | `{layout:SlideLayout;shapes:Shape[]}`/`{layoutId}`（前置：无页引用）/`{layoutId;name}`/…/`{slideId;layoutId;remap:PlaceholderRemap[]}`（05 §13.1）/`{shapeId;fields:InheritableField[]}`/`{shapeId;placeholder\|null}` | `remove` 对版式及 `containerId==layoutId` 的形状逐个写墓碑（读视图枚举）；`clearOverrides` 逐字段 `delete`（重置=恢复继承） |
 | `mutations/master.ts` | `master.insert`/`.remove`/`.setOrder`/`.setTheme`/`.setProperties`/`.setBackground`/`.setTextStyle` | `{master;layouts;shapes;theme?}`/`{masterId}`（前置：无版式被引用）/…/`{masterId;kind:'title'\|'body'\|'other';level:0..8;patch}` | `remove` 对母版、其版式与形状逐个写墓碑；`setTextStyle` 合并在 `lower` 内按当前视图计算（确定性，05 §13.1） |
 | `mutations/theme.ts` | `theme.insert`/`.remove`/`.setColors`/`.setFonts` | `{theme:Theme}`/`{themeId}`（前置：无母版引用）/`{themeId;colors:Partial<ColorScheme>}`/`{themeId;fonts:Partial<FontScheme>}` | `setColors`/`setFonts` **逐槽位** `set(['themes',id,'colorScheme',slot])`，非整体覆盖 |
@@ -286,20 +307,20 @@ sequenceDiagram
 | `slide.deleteSlides` | `{slideIds}` | `doc.write` | 一个事务 | `slide.slide.remove` | `slide-commands.ts` / ED-11 |
 | `slide.duplicateSlide` | `{slideId}` 复制页与其形状（新 id） | `doc.write` | 一个事务 | `slide.slide.insert` | `slide-commands.ts` / ED-11 |
 | `slide.reorderSlides` | `{slideId;after?}`（`order` 经 `between` 计算） | `doc.write` | 一个事务 | `slide.slide.setOrder` | `slide-commands.ts` / ED-11 |
-| `slide.insertShape` | `{containerId;kind;box}` | `doc.write` | 一个事务 | `shape.insert` | `shape-commands.ts` / ED-05 |
-| `slide.deleteShapes` | `{shapeIds}` | `doc.write` | 一个事务 | `shape.remove` | `shape-commands.ts` / ED-08 |
-| `slide.moveShapes`/`resizeShapes`/`rotateShapes` | `{shapeIds;...}`（拖拽连续帧首选一个命令收口，05 §8） | `doc.write` | 一个事务 | `shape.setTransform`×N | `shape-commands.ts` / ED-05 |
+| `slide.insertShape` | `{containerId;kind;box;preset?;textBox?:{wrap};from?;to?;action?}`（2026-09-26 扩参数，rulings §4.21：预设名、文本框换行方式、线条两点（页坐标或 `ConnectionRef`）、动作按钮默认动作）；经 `planInsert` 守卫与取默认样式 | `doc.write` | 一个事务；与 `setAction`（动作按钮）或空文本框自动删除合并为一步 | `shape.insert` | `shape-commands.ts` / ED-05 |
+| `slide.deleteShapes` | `{shapeIds}`；2026-09-26 增同事务规则：删除带内容族 `PlaceholderRef` 的元素时补回空占位符，删掉组内最后一个存活子元素时给组写墓碑（I-GRP1） | `doc.write` | 一个事务 | `shape.remove`（+`shape.insert`） | `shape-commands.ts` / ED-08 |
+| `slide.moveShapes`/`resizeShapes`/`rotateShapes` | `{shapeIds;...;reroute?:ConnectorPatch[]}`（拖拽连续帧首选一个命令收口，05 §8；`reroute` 为 2026-09-26 扩参数：受影响连接符几何由交互层用 engine-layout 算好传入，30/05 §14.5；`ConnectorPatch = {shapeId; offset; extent; flipH; flipV; rotation; preset; adj}`，字段与 40/06 的 `ConnectorRoute` 对齐） | `doc.write` | 一个事务（形状与连接符一起） | `shape.setTransform`×N | `shape-commands.ts` / ED-05、ED-28 |
 | `slide.duplicateShapes`（2026-09-25 登记，`Mod`+拖动复制，50/10 §7.2） | `{shapeIds; dx; dy}`：复制为新 id 并按位移放置 | `doc.write` | 一个事务、一个撤销步；新增实体计入规模守卫 | `shape.insert`×N | `shape-commands.ts` / ED-05 |
 | `slide.applyAutofit`（2026-09-25 登记，50/06 §7） | `{shapeId; fontScale?; lnSpcReduction?; height?}`：autofit 回写的薄命令，只由正在编辑该形状的本机在收到 `slide/autofit-changed` 后执行，label 与触发它的键入相同以并入同一撤销单元；打开 / 查看 / 放映 / `/render` 永不回写 | `doc.write` | 一个事务 | `textBody.setBodyProperties`、`shape.setTransform`（复用既有 Mutation） | `text-commands.ts` / ED-02/ED-24 |
 | `slide.setFill`/`slide.setLine` | `{shapeIds;fill\|line}` | `doc.write` | 一个事务 | `shape.setProperties`/`.setStyle` | `shape-commands.ts` / ED-06 |
 | `slide.bringForward`/`sendBackward` | `{shapeIds}` | `doc.write` | 一个事务 | `shape.setOrder`×N | `shape-commands.ts` / ED-08 |
 | `slide.group`/`ungroup` | `{shapeIds}`/`{groupId}` | `doc.write` | 一个事务 | `shape.group`/`.ungroup` | `shape-commands.ts` / ED-08 |
-| `slide.insertText`/`deleteText` | `{target: TextTarget; paragraph; offset; text\|range; replace?}`，`TextTarget = {shapeId} \| {shapeId; cell:[row,col]} \| {slideId; notes:true}`（2026-09-25 扩到表格单元格与备注，50/06 §6；旧 `{shapeId; paragraph; offset}` 即 `target:{shapeId}`）。分段与软换行都经 `TextDelta` 表达：分段 = 在 `offset` 处插入段落分隔（`split-paragraph`，产生新 `a:p`，新段继承原段 `pPr`），软换行 = 嵌入 `a:br`（`line-break`，段内换行、不产生新段）；`replace` 存在时同一事务先删后插 | `doc.write` | 一个事务 | `text.applyDelta`（单元格走 `table` 同族 Mutation 的文本分支，备注走 `slide.setNotes` 同族的字符级分支，M3） | `text-commands.ts` / ED-02/ED-10/ED-13/ED-18 |
+| `slide.insertText`/`deleteText` | `{target: TextTarget; paragraph; offset; text\|range; replace?}`，`TextTarget = {shapeId} \| {shapeId; cell:{rowId, colId}} \| {slideId; notes:true}`（2026-09-26 单元格改按 id，原 `cell:[row,col]` 下标作废，rulings §4.21 q-table-depth）（2026-09-25 扩到表格单元格与备注，50/06 §6；旧 `{shapeId; paragraph; offset}` 即 `target:{shapeId}`）。分段与软换行都经 `TextDelta` 表达：分段 = 在 `offset` 处插入段落分隔（`split-paragraph`，产生新 `a:p`，新段继承原段 `pPr`），软换行 = 嵌入 `a:br`（`line-break`，段内换行、不产生新段）；`replace` 存在时同一事务先删后插 | `doc.write` | 一个事务 | `text.applyDelta`（单元格走 `table` 同族 Mutation 的文本分支，备注走 `slide.setNotes` 同族的字符级分支，M3） | `text-commands.ts` / ED-02/ED-10/ED-13/ED-18 |
 | `slide.toggleBold`/`setFontSize`/`setAlignment`/`setBullet` | `{shapeId;range;...}` | `doc.write` | 一个事务 | `run.setProperties`/`paragraph.setProperties` | `text-commands.ts` / ED-03/ED-04 |
-| `slide.insertPicture` | `{containerId;box;blob}` | `doc.write` | 一个事务（含 `media.add`+`shape.insert`） | `media.add`+`shape.insert` | `picture-commands.ts` / ED-07 |
-| `slide.replacePicture`/`crop` | `{shapeId;blob?;rect?}` | `doc.write` | 一个事务 | `media.add?`/`shape.setProperties` | `picture-commands.ts` / ED-07 |
-| `slide.insertTable` | `{containerId;box;rows;cols}` | `doc.write` | 一个事务 | `shape.insert`（`graphicFrame:table`） | `table-commands.ts` / ED-10 |
-| `slide.table.insertRow`/`removeRow`/`insertColumn`/`removeColumn`/`setCellProperties`/`mergeCells`/`splitCell` | 见 `mutations/table.ts` | `doc.write` | 一个事务 | 同名 `table.*` | `table-commands.ts` / ED-10 |
+| `slide.insertPicture` | `{containerId;box;blob;fallbackBlob?}`（`fallbackBlob` 为 2026-09-26 扩参数：SVG 的 PNG 回退） | `doc.write` | 一个事务（含 `media.add`+`shape.insert`） | `media.add`+`shape.insert` | `picture-commands.ts` / ED-07 |
+| `slide.replacePicture`/`crop` | `{shapeId;blob;fallbackBlob?;pixelSize}`/`{shapeId;rect?;fit?:'fill'\|'fit';pixelSize?}`（`fallbackBlob`、`fit`、`pixelSize` 为 2026-09-26 扩参数，50/23 提出） | `doc.write` | 一个事务 | `media.add?`/`pic.setBlipFill`（+`shape.setTransform`；2026-09-26 由 `shape.setProperties` 改用） | `picture-commands.ts` / ED-07 |
+| `slide.insertTable` | `{containerId;box;rows;cols;styleId?}`：生成归一化表格（行列 id 与键由命令生成），默认样式 `{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}` + `firstRow`、`bandRow` | `doc.write` | 一个事务 | `shape.insert`（`graphicFrame:table`） | `table-commands.ts` / ED-10（M2，rulings §4.21 q-table-depth） |
+| `slide.table.insertRow`/`removeRow`/`insertColumn`/`removeColumn`/`setCellProperties`/`mergeCells`/`splitCell` | 见 `mutations/table.ts`；按 `rowId`/`colId` 寻址 | `doc.write` | 一个事务 | 同名 `table.*` | `table-commands.ts` / ED-10（M3） |
 | `slide.applyLayout` | `{slideIds;layoutId}`：逐页 `planLayoutChange` → `slide.slide.setLayout`；结果含每页脱离占位符（`materialize`）的元素数 `{perSlide: {slideId; detached: number}[]}`，供 Q13 Toast 计数 N（rulings §4.20 FE-24） | `doc.write` | **一页一事务**（撤销粒度按页，05 §13.2） | `slide.setLayout`×N | `layout-commands.ts` / ML-02 |
 | `slide.resetSlide` | `{slideIds}`：`planReset` → `shape.clearOverrides`（仅占位符形状） | `doc.write` | 一个事务 | `shape.clearOverrides` | `layout-commands.ts` / ML-02 |
 | `slide.resetPlaceholderFields`（2026-09-26 登记，rulings §4.20 FE-24，50/11 §11） | `{shapeId; fields: InheritableField[]}`：只清所列字段的覆盖、恢复继承 | `doc.write` | 一个事务、一步撤销 | `shape.clearOverrides`（与 `resetSlide` 共用，不新增 Mutation） | `layout-commands.ts` / ML-02 |
@@ -315,6 +336,7 @@ sequenceDiagram
 | `slide.setThemeColors`/`setThemeFonts` | `{themeId;...}` | `doc.write` | 一个事务 | `theme.setColors`/`.setFonts` | `theme-commands.ts` / ML-04 |
 | `slide.applyTheme` | `{masterId;theme:Theme\|ThemeId}` | `doc.write` | 一个事务（新增主题+切换、旧主题无引用则删除，同一事务） | `theme.insert`+`master.setTheme`(+`theme.remove`) | `theme-commands.ts` / ML-04 |
 | `slide.setCurrentSlide`/`setSelection`/`setZoom`（Operation） | 视图状态 | `doc.read`（默认） | 不入历史 | 无 | `operations.ts` / ED-22 |
+| `slide.chart.openDataEditor`（Operation，2026-09-26 新增（§4.21），M3） | `{shapeId; expanded?}`：打开图表数据面板；插入图表后由 UI 自动执行（50/24） | `doc.read`（默认） | 不入历史 | 无 | `operations.ts` / ED-15 |
 | `slide.selectMasterOrLayout`（Operation） | `{unitId;targetId:MasterId\|LayoutId}`：母版视图当前编辑目标，`editTargetKind` 上下文键 | `doc.read` | 不入历史；`broadcast:true` | 无 | `operations.ts` / ML-01 范围条（05 §13.3） |
 
 **以下 14 条目 / 18 个命令 id 为新增（14-cross-module-review.md §1 C-03，M-10/G-13 指出 UI 需要但本表原未列出；采纳理由：`ribbon-spec.test.ts` 断言 `commandId ∈ 已注册命令`，缺失即 UI 控件永久 `disabled`）。逆操作来源统一遵循 §2.6 开篇通则（Store 推导，无一手写）；除 `slide.setNotes` 外，其余全部复用既有 Mutation，是「既有 Mutation 的薄命令」，不新增 `application/mutations/*` 定义**：
@@ -330,13 +352,61 @@ sequenceDiagram
 | `slide.setLineSpacing` | `{shapeId;paragraph;spacing}` | `doc.write` | 一个事务 | `paragraph.setProperties`（既有） | `text-commands.ts` / ED-04 |
 | `slide.setEffect` | `{shapeIds;effects:EffectList}` | `doc.write` | 一个事务 | `shape.setProperties`（既有，`patch.effects`） | `shape-commands.ts` / ED-06 |
 | `slide.alignShapes`/`distributeShapes` | `{shapeIds;align:'left'\|'center'\|'right'\|'top'\|'middle'\|'bottom'}`/`{shapeIds;axis:'horizontal'\|'vertical'}`（相对选区包围盒） | `doc.write` | 一个事务 | `shape.setTransform`×N（既有） | `shape-commands.ts` / ED-08 |
-| `slide.setSlideBackground` | `{slideId;background}` | `doc.write` | 一个事务 | `slide.setBackground`（既有） | `slide-commands.ts` / ED-11 |
+| `slide.setSlideBackground` | `{slideId;background;blob?}`（`blob` 为 2026-09-26 扩参数：图片背景同事务 `media.add`） | `doc.write` | 一个事务 | `slide.setBackground`（既有）（+`media.add`） | `slide-commands.ts` / ED-11、ED-20 |
 | `slide.setSlideHidden` | `{slideId;hidden}`：放映时跳过该页 | `doc.write` | 一个事务 | `slide.setHidden`（既有） | `slide-commands.ts` / ED-11 |
 | `slide.setLayoutProperties` | `{layoutId;showMasterSp:boolean}`：是否显示继承自母版的占位符/装饰形状 | `doc.write` | 一个事务 | `layout.setProperties`（既有） | `layout-commands.ts` / ML-03 |
 | `slide.setMasterProperties` | `{masterId;preserve:boolean}`：母版即使暂无版式引用也保留，不参与悬空回收 | `doc.write` | 一个事务 | `master.setProperties`（既有） | `master-commands.ts` / ML-03 |
 | `slide.setNotes`（M3） | `{slideId;notes:TextBody}`：讲义备注文本 | `doc.write` | 一个事务 | `slide.setNotes`（**新增 Mutation**，随备注从纯 `notesId` opaque part 提升为建模字段时一并落地；M1/M2 不实现） | `slide-commands.ts` / M3 |
 
-**渐进打开期间的全文类命令守卫（rulings §4.18 CO-12）**：M-02 渐进打开时，`unit/opened` 之后到 `unit/loaded` 之前 `unit.loadState==='partial'`，后续页仍以 `system('import')` 批次追加。需要看到全部页才能算对的命令在执行前 `await units.whenLoaded(unitId)`（等待期间命令面显示忙态，可取消）：`slide.reorderSlides`、`slide.addSlide`/`slide.duplicateSlide`（跨页重排与新页 `order` 都要读相邻页的 `FracKey`，未到达的页会让键落错位置）、`slide.deleteLayout`/`slide.deleteMaster`/`slide.applyTheme`（引用检查必须覆盖全部页）、`slide.applyLayout` 的多页批量；UI 入口读上下文键 `unitLoaded`（M-10 登记）禁用或显示等待。全选、查找替换（M-10）与 `core.export`（M-02/M-11）按同一判据由各自属主守卫。只作用于已装载页的局部命令（形状、文本、当前页属性）不受影响。守卫落在 `application/commands/index.ts` 的汇总处，按命令 id 白名单统一包装，不散落到各命令文件。
+**以下 33 个命令 id 为 2026-09-26 新增（rulings §4.21，ADR-0018；前端总览 50-frontend/19 §5，契约 30/05 §14.4；另有 Operation `slide.chart.openDataEditor` 见上表）**。逆操作同 §2.6 开篇通则（Store 推导）；新增元素的命令都经 `insert-common.ts` 的 `planInsert`（规模守卫、`order` 置顶、`creationId` 与名称生成、默认样式取 `defaultStyleFor`）：
+
+| id | 语义 | 能力位 | 事务边界 | 涉及 Mutation | 文件 / 需求 / 里程碑 |
+|---|---|---|---|---|---|
+| `slide.insertField` | `{target: TextTarget; paragraph; offset; field:{type}}`：插入页码或日期时间字段 | `doc.write` | 一个事务 | `text.applyDelta`（embed） | `header-footer-commands.ts` / OF 支持矩阵 / M2 P2 |
+| `slide.setHeaderFooter` | `{slideIds \| 'all'; date?: {mode:'auto'; type:'datetime1'…'datetime13'} \| {mode:'fixed'; text} \| null; slideNumber; footer?; hideOnTitle}`：逐页增删页脚族占位符并写文本（`date` 的展开规则见 50/21 §4.3 图 4-1）；新建页脚族占位符的 id 为 `deriveNodeId('hf', slideId, type)`，页上已有同类存活占位符时复用、确定性 id 的实体是墓碑时复活（ADR-0014 决策 9、ADR-0018 决策 10）；`'all'` 等 `unit/loaded` | `doc.write` | 一个事务 | `shape.insert`/`.remove` + `text.applyDelta` | `header-footer-commands.ts` / M2 P2 |
+| `slide.setHyperlink` | `{target:{shapeIds} \| {shapeId; range}; link: Hyperlink \| null}`；`range` 的端点与 `slide.insertText` 同用 `TextTarget` 寻址，因而可指向表格单元格里的文字（2026-09-26 整合，50/20 §4 ⑧）；只写 http/https/mailto/tel | `doc.write` | 一个事务 | `run.setProperties` / `shape.setNonVisual` | `alt-text-and-hyperlink-commands.ts` / ED-19 / M2 P1 |
+| `slide.setAltText` | `{shapeId; description?; title?; decorative?}` | `doc.write` | 一个事务 | `shape.setNonVisual` | `alt-text-and-hyperlink-commands.ts` / ED-26 / M2 P1 |
+| `slide.setAction` | `{shapeId; click; hover?}`：动作按钮操作设置（悬停 P2） | `doc.write` | 一个事务（插入动作按钮时与 `insertShape` 同事务） | `shape.setNonVisual` | `alt-text-and-hyperlink-commands.ts` / ED-05 / M2 P1 |
+| `slide.setSlideProperties` | `{slideIds; showMasterShapes}`：页级「隐藏背景图形」（50/21 提出） | `doc.write` | 一个事务 | `slide.setProperties` | `slide-commands.ts` / ED-20 / M2 P1 |
+| `slide.fillPlaceholder` | `{shapeId; content: picture \| table \| chart \| media}` | `doc.write` | 一个事务 | `shape.remove` + `media.add?` + `shape.insert` | `fill-placeholder-commands.ts` / ML-03 / 图片 M2 P1、表格 M2、图表 M3、媒体 P2 |
+| `slide.setAdjustValues`/`changeShape`/`flipShapes` | `{shapeId; adj}`/`{shapeIds; preset}`/`{shapeIds; axis; reroute?: ConnectorPatch[]}`（翻转会移动连接点，`reroute` 同 `moveShapes`，2026-09-26 整合，50/22） | `doc.write` | 一个事务 | `shape.setProperties`/`shape.setTransform` | `shape-commands.ts` / ED-05 / P1、P1、P0 |
+| `slide.insertFreeform` | `{containerId; box; geometry: Geometry.custom; closed}`：点列简化与贝塞尔拟合在 slide-ui `application/freeform.ts` 完成，命令只收拟合好的几何写 `custGeom`（2026-09-26 整合，50/22 §5 ⑧；原「`path:{points, closed, curve}`、命令内简化」作废） | `doc.write` | 一个事务 | `shape.insert` | `shape-commands.ts` / ED-05 边界 / P2 |
+| `slide.setLineEnds`/`connectEnds`/`changeConnectorType` | `{shapeId; start?; end?}`/`{shapeId; start?; end?; reroute?}`/`{shapeIds; preset}` | `doc.write` | 一个事务 | `shape.setProperties`/`cxnSp.setConnections`+`shape.setTransform`/`shape.setProperties` | `connector-commands.ts` / ED-06、ED-28 / P0、P1、P1 |
+| `slide.setPictureTransparency`/`resetPicture`/`compressPicture`/`setPictureFill` | `{shapeIds; alpha}`/`{shapeId; pixelSize?}`（恢复原始像素尺寸，2026-09-26 整合由 `size` 改名，50/23 §11）/`{items:{shapeId; blob}[]; maxEdge}`（重编码在交互层）/`{shapeIds; blob; mode}` | `doc.write` | 一个事务 | `pic.setBlipFill`（+`shape.setTransform`、`media.add`、`shape.setProperties`） | `picture-commands.ts` / ED-07、ED-06 / P0、P0、P1、P2 |
+| `slide.insertMedia`/`replacePoster` | `{containerId; box; kind; blob; poster?}`（不写 `p:timing`）/`{shapeId; blob}` | `doc.write` | 一个事务 | `media.add` + `shape.insert` / `pic.setBlipFill` | `media-commands.ts` / P2、M2 P1 |
+| `slide.insertIcons`/`recolorSvg` | `{containerId; items:{blob; fallbackBlob; name}[]}`/`{items:{shapeId; blob; fallbackBlob}[]; color}` | `doc.write` | 一个事务 | `media.add` + `shape.insert` / `pic.setBlipFill` | `media-commands.ts` / M3 P2 |
+| `slide.table.clearCells` | `{shapeId; cells: CellKey[]}`：多格选区按 Delete 清空文字（50/24 提出） | `doc.write` | 一个事务 | `text.applyDelta`（逐格） | `table-commands.ts` / ED-10 / M2 |
+| `slide.table.setStyle`/`resizeColumn`/`resizeRow`/`setBorders` | `{shapeId; styleId?; flags?}`/`{shapeId; colId; width}`/`{shapeId; rowId; height}`/`{shapeId; cells; borders: {preset; line}}`（`preset`：单条 / 全部 / 内部 / 外部 / 无，命令展开为各格边框；2026-09-26 复核统一 50/18、50/24、50/19、30/05） | `doc.write` | 一个事务 | `table.setTableProperties`/`table.setSizes`/`table.setCellProperties` | `table-commands.ts` / ED-10 / M3 |
+| `slide.insertChart` | `{containerId; box; chartType; variant?; data?}`；`enablement: slide.hasChartEditor` | `doc.write` | 一个事务 | `shape.insert` | `chart-commands.ts` / ED-15 / M3 P1 |
+| `slide.chart.setData`/`setType`/`setTitle`/`setLegend`/`setDataLabels` | `{shapeId; patch}`/`{shapeId; chartType; variant?}`/… | `doc.write` | 一个事务 | `chart.setData`/`chart.setOptions` | `chart-commands.ts` / ED-15 / M3 P1 |
+
+**第二批：能力补齐的薄命令（2026-09-26 整合登记，出自 50-frontend/18 §28，契约同步 30/05 §14.4）**。全部是既有 Mutation 的薄命令，不新增 `MutationDef`（节命令随 30/04 §3.7 的节建模落地时在 `mutations/slide.ts` 追加节的 Mutation，同一既有文件）；逆操作同 §2.6 开篇通则：
+
+| id | 语义 | 能力位 | 事务边界 | 涉及 Mutation | 文件 / 能力 / 里程碑 |
+|---|---|---|---|---|---|
+| `slide.setLocks` | `{shapeIds; locks: Partial<ShapeLocks>}` | `doc.write` | 一个事务 | `shape.setNonVisual` | `shape-commands.ts` / SEL-05、SEL-15 / M2 P0（等比）、P2（锁定界面） |
+| `slide.setShapesHidden` / `reorderShapes` / `renameShape` | `{shapeIds; hidden}` / `{shapeId; after}` / `{shapeId; name}`（选择窗格） | `doc.write` | 一个事务 | `shape.setNonVisual` / `shape.setOrder` / `shape.setNonVisual` | `shape-commands.ts` / SEL-06、ARR-04 / M2 P2、P2、P1 |
+| `slide.bringToFront` / `sendToBack` | `{shapeIds}`（`Mod+Shift+]` / `[` 的目标命令） | `doc.write` | 一个事务 | `shape.setOrder`×N | `shape-commands.ts` / ARR-01 / M2 P0 |
+| `slide.setGuides` | `{guides}`（30/04 §3.7 `Presentation.guides`） | `doc.write` | 一个事务 | 随参考线建模定 | `slide-commands.ts` / ALN-04 / M2 P2 |
+| `slide.setBaseline` / `setCaps` | `{shapeId; range; baseline \| cap}` | `doc.write` | 一个事务 | `run.setProperties` | `text-commands.ts` / TXT-05 / M2 P0 |
+| `slide.setParagraphSpacing` / `setIndent` | `{shapeId; paragraphs; …}` | `doc.write` | 一个事务 | `paragraph.setProperties` | `text-commands.ts` / TXT-06 / M2 P0 |
+| `slide.setBodyProperties` | `{shapeIds; patch}`：文本框锚点、内边距、自动换行、竖排、分栏（50/20 提出，TXT-08/09 缺口；ADR-0018 决策 10） | `doc.write` | 一个事务 | `textBody.setBodyProperties` | `text-commands.ts` / TXT-08、TXT-11、TXT-15 / M2 P0 |
+| `slide.setAutofitMode` | `{shapeIds; mode}` | `doc.write` | 一个事务 | `textBody.setBodyProperties` | `text-commands.ts` / TXT-09 / M2 P1 |
+| `slide.setCharSpacing` | `{shapeId; range; spc}` | `doc.write` | 一个事务 | `run.setProperties` | `text-commands.ts` / TXT-13 / M2 P2 |
+| `slide.applyFormat` | 格式刷落刷 | `doc.write` | 一个事务 | `run.setProperties`、`shape.setProperties` | `text-commands.ts` / TXT-18 / M2 P2 |
+| `slide.setShapeStyle` | `{shapeIds; style: ShapeStyleRef}`，同事务清显式覆盖（快速样式） | `doc.write` | 一个事务 | `shape.setStyle` | `shape-commands.ts` / FMT-07 / M2 P1 |
+| `slide.setObjectDefaults` | 设为默认形状 | `doc.write` | 一个事务 | 主题写入，M3 后定 | `theme-commands.ts` / FMT-09 / P2 |
+| `slide.setPictureAdjust` | 亮度、对比度、灰度、重新着色（写 `BlipFill.effects`） | `doc.write` | 一个事务 | `pic.setBlipFill` | `picture-commands.ts` / PIC-05 / M2 P2 |
+| `slide.addSection` / `renameSection` / `removeSection` / `moveSection` | `{beforeSlideId; name}` / `{sectionId; name}` / `{sectionId; withSlides}` / `{sectionId; after}`（`moveSection` 一个事务改节与页的 `order`） | `doc.write` | 一个事务 | 节 Mutation（随 30/04 §3.7 建模） | `section-commands.ts` / SLD-05 / M3 |
+| `slide.pasteSlides` | `{after; slides; mode: 'useDestinationTheme' \| 'keepSource'}`；受规模守卫与 200 页上限 | `doc.write` | 一个事务 | `slide.slide.insert`、`layout.insert`、`master.insert`、`media.add`、`shape.insert` | `slide-commands.ts` / SLD-06 / M3 P1 |
+| `slide.setSlideSize` / `setDocumentProperties` | `{width; height; scale}` / 标题、主题、作者、关键词 | `doc.write` | 一个事务 | 演示文稿属性，P2 时定 | `slide-commands.ts` / SLD-07、EXP-06 / M2 P2 |
+| `slide.replaceAll` | `{matches; replacement}`；匹配由 `domain/query/text-search.ts` 的纯函数算出 | `doc.write` | 一个事务 | `text.applyDelta`×N | `text-commands.ts` / FND-02 / M2 P1 |
+
+第二批参数扩展：`alignShapes` / `distributeShapes` 增 `relativeTo: 'auto' | 'selection' | 'page'`（ALN-02）；`setFontFamily` 增 `script: 'latin' | 'ea' | 'cs'`（TXT-04）；`setAlignment` 增取值 `dist`（TXT-06）；`setBullet` 增 `preset? / startAt? / color? / size?`（TXT-07）；`crop` 的 `fit`（PIC-06）与 `insertPicture` 的 `fallbackBlob`（INS-07）见上表。
+
+远期（M4+，不登记）：`slide.convertSmartArtToShapes`、`slide.insertEquation`/`setEquation`、`slide.applyWordArtStyle`、`slide.setTextWarp`、`slide.downloadOleObject`、`slide.replaceOleObject`（候选 Mutation `slide.ole.setPayload`）、`slide.insertPhotoAlbum{after?, layoutId?, items, titleFromName?}`（50/23 提出，M4+ 立项时登记）。
+
+**渐进打开期间的全文类命令守卫（rulings §4.18 CO-12）**：M-02 渐进打开时，`unit/opened` 之后到 `unit/loaded` 之前 `unit.loadState==='partial'`，后续页仍以 `system('import')` 批次追加。需要看到全部页才能算对的命令在执行前 `await units.whenLoaded(unitId)`（等待期间命令面显示忙态，可取消）：`slide.reorderSlides`、`slide.addSlide`/`slide.duplicateSlide`（跨页重排与新页 `order` 都要读相邻页的 `FracKey`，未到达的页会让键落错位置）、`slide.deleteLayout`/`slide.deleteMaster`/`slide.applyTheme`（引用检查必须覆盖全部页）、`slide.applyLayout` 的多页批量、`slide.setHeaderFooter` 的「全部应用」（2026-09-26，rulings §4.21）；UI 入口读上下文键 `unitLoaded`（M-10 登记）禁用或显示等待。全选、查找替换（M-10）与 `core.export`（M-02/M-11）按同一判据由各自属主守卫。只作用于已装载页的局部命令（形状、文本、当前页属性）不受影响。守卫落在 `application/commands/index.ts` 的汇总处，按命令 id 白名单统一包装，不散落到各命令文件。
 
 与水平层的边界：`view.setMode`（切普通/母版/演讲者视图）定义在 `ui-core`（文档类型盲，`ui-core/application/operations/view-set-mode.ts`，M-10，见 14-cross-module-review.md §1 C-01），本包只通过 `slideDocumentType.viewModes = ['normal','master','presenter']` 声明合法取值，不在本包重复定义命令。
 
@@ -423,7 +493,7 @@ sequenceDiagram
 | 插件名 / `name` | `@cordexjs/model-slide/editing`（子路径导出） |
 | `inject`（必需） | `['contributions', 'commands']` |
 | `provide` | 无 |
-| 贡献点：提供 | `core.mutation`（46 个，M3 起 47 个，key=`type`，见 §2.6）；`core.command`（75 个——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit`——含 4 个 Operation，key=`id`，见 §2.6；14 §1 C-03） |
+| 贡献点：提供 | `core.mutation`（51 个，M3 起 56 个，key=`type`，见 §2.6；2026-09-26 rulings §4.21 由 46/47 上修）；`core.command`（109 个，含 5 个 Operation，key=`id`，见 §2.6——2026-09-25 增 `slide.duplicateShapes`、`slide.applyAutofit` 后为 75，2026-09-26 rulings §4.21 增 33 个命令与 1 个 Operation；14 §1 C-03） |
 | 贡献点：消费 | 无 |
 | 事件：发布 / 订阅 | 无独立（命令执行的 `command/*` 由 M-02 `commands` 服务发出） |
 | 配置 schema | `Config{ limits: { maxSlides: 200; maxElementsPerSlide: 1000; maxElementsPerDoc: 20000; softWarnElementsPerDoc: 15000; softWarnSlides: 150 } }`（`softWarnSlides` 2026-09-25 登记：页数软警告 150，PRD 06 SV-08，由部署键 `scale.softWarnPages` 注入，60/17；超过只提示、不拒绝，UI 见 50/04 §10）——默认值为性能保证包络，宿主从部署配置注入、可完全调整（rulings §4.15 Q5）；只被命令层守卫读取 |
@@ -438,8 +508,8 @@ flowchart LR
   pluginEditing["@cordexjs/model-slide/editing 编辑子插件"]
   pointDocType["core.documentType 条目 slide"]
   pointShapeKind["slide.shapeKind 九项内建"]
-  pointMutation["core.mutation 46 或 47 个"]
-  pointCommand["core.command 73 个含 4 个 Operation"]
+  pointMutation["core.mutation 51 个，M3 起 56 个"]
+  pointCommand["core.command 109 个含 5 个 Operation"]
   serviceSlides["ctx.slides 只读服务"]
   pluginMain -- "贡献" --> pointDocType
   pluginMain -- "贡献" --> pointShapeKind
@@ -453,7 +523,7 @@ flowchart LR
 
 ## 4. 目录树（完整到文件）
 
-> 顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`interface/`/`testing/`（与 02 §4.8 现存扁平结构的映射关系、差异原因见 §12 G-1）。共 111 个源文件（含 3 个 `__tests__`；2026-09-26 增 `domain/invariants/reassign.ts`，rulings §4.20 FE-03），略超章程估计的 90–110 区间上沿。**14 §1 C-03 新增的 18 个命令 id 不增加文件数**——全部落在既有 `application/commands/*.ts` 五个文件内（仅 `slide.setNotes` 需在 M3 于 `application/mutations/slide.ts` 追加一个 `MutationDef`，同一既有文件，不新增文件），故本节文件数估计维持不变。
+> 顶层按 00-module-map §1 的 DDD 对照表组织为 `domain/`/`application/`/`infrastructure/`/`interface/`/`testing/`（与 02 §4.8 现存扁平结构的映射关系、差异原因见 §12 G-1）。共 124 个源文件（含 3 个 `__tests__`；2026-09-26 增 `domain/invariants/reassign.ts`，rulings §4.20 FE-03；同日 rulings §4.21 增 13 个：`domain/geometry/group-transform.ts`、`domain/query/table-grid.ts`、`domain/invariants/{table,group}.ts`、`domain/style/object-defaults.ts`、`application/mutations/chart.ts`、`application/commands/{insert-common,connector-commands,alt-text-and-hyperlink-commands,header-footer-commands,fill-placeholder-commands,media-commands,chart-commands}.ts`），超出章程估计的 90–110 区间，原因是可追加元素的命令按族分文件（§12 2026-09-26 回写）；整合阶段再增 3 个：`domain/query/text-search.ts`、`domain/invariants/placeholder.ts`、`application/commands/section-commands.ts`（50-frontend/18 §28 第二批命令与 I-PH1），合计 127 个。**14 §1 C-03 新增的 18 个命令 id 不增加文件数**——全部落在既有 `application/commands/*.ts` 五个文件内（仅 `slide.setNotes` 需在 M3 于 `application/mutations/slide.ts` 追加一个 `MutationDef`，同一既有文件，不新增文件），故本节文件数估计维持不变。
 
 **图 4-1 model-slide 分层依赖**
 
@@ -507,6 +577,7 @@ styleDir["domain/style 继承链解析"]
 query["domain/query selectors traverse"]
 invariants["domain/invariants"]
 shapeKind["domain/shape-kind"]
+geometry["domain/geometry 组合折算"]
 selection["domain/selection.ts"]
 createEmpty["domain/create-empty.ts"]
 modelCore["@cordexjs/model-core"]
@@ -521,6 +592,7 @@ invariants --> model
 invariants --> query
 invariants -- "effective dependentsOf" --> styleDir
 shapeKind --> model
+geometry --> model
 selection --> model
 selection -- "Selection" --> modelCore
 createEmpty --> model
@@ -528,7 +600,7 @@ model -- "BlobRef drawing Transform Hyperlink Derived" --> modelCore
 model -- "FracKey" --> shared
 ```
 
-怎么读：箭头为 import 方向；`domain/model` 是唯一被全部子目录依赖的底座，样式继承链依赖查询层、不变量又复用样式层的 `dependentsOf`；公开选择器经 `model-core` 的 `filterLive`/`isTombstoned` 过滤墓碑，只有 `invariants/element-limits.ts` 的计数读原始表（墓碑计入）。
+怎么读：箭头为 import 方向；`domain/model` 是唯一被全部子目录依赖的底座，样式继承链依赖查询层、不变量又复用样式层的 `dependentsOf`；公开选择器经 `model-core` 的 `filterLive`/`isTombstoned` 过滤墓碑，只有 `invariants/element-limits.ts` 的计数读原始表（墓碑计入）；2026-09-26 新增的 `domain/geometry` 只被 `mutations/shape.ts` 的 `ungroup` 使用，表格读视图 `query/table-grid.ts` 与表格不变量 `invariants/table.ts` 分别落在查询层与不变量层。
 
 依据：§5 domain 各文件「允许依赖」列。
 
@@ -605,6 +677,7 @@ packages/model-slide/
 │   │   │       └── theme-drawing.schema.ts
 │   │   ├── style/                    # 领域服务：样式继承链解析纯函数（§2.3）
 │   │   │   ├── placeholder-match.ts
+│   │   │   ├── object-defaults.ts    # defaultStyleFor()：objectDefaults → 内建 p:style 取值链（§4.21）
 │   │   │   ├── effective.ts
 │   │   │   ├── inheritance-chain.ts
 │   │   │   ├── resolve-run.ts
@@ -614,12 +687,19 @@ packages/model-slide/
 │   │   │   └── cache.ts
 │   │   ├── query/                    # 领域服务：只读查询与遍历
 │   │   │   ├── selectors.ts
+│   │   │   ├── table-grid.ts         # 表格读视图：liveColumns/liveRows/cellAt（§4.21 归一化）
+│   │   │   ├── text-search.ts        # 查找的纯函数：findMatches()（FND-01/02，§4.21 整合）
 │   │   │   └── traverse.ts
 │   │   ├── invariants/               # 领域服务：引用完整性不变量（ADR-0034 的 slide 实例）
 │   │   │   ├── index.ts              # I-ML2…I-ML8 + 基础不变量（无环/order 合法）+ I-LIM1
 │   │   │   ├── element-limits.ts     # SlideLimits、countElements()（墓碑计入）、checkLimits()（§4.15 Q5）
 │   │   │   ├── reassign.ts           # defaultLayoutOf()：I-ML2 链唯一选取函数（§4.20 FE-03/FE-23）
+│   │   │   ├── table.ts              # I-TBL1 格覆盖、I-TBL2 跨度合法（§4.21）
+│   │   │   ├── group.ts              # I-GRP1 空组视为删除（§4.21）
+│   │   │   ├── placeholder.ts        # I-PH1 同页同 (type, idx) 存活内容族占位符至多一个（§4.21 整合）
 │   │   │   └── validate-change-set.ts
+│   │   ├── geometry/                 # 领域服务：模型内的几何折算（§4.21）
+│   │   │   └── group-transform.ts    # foldChildTransform()：取消组合的变换折算
 │   │   ├── shape-kind/               # slide.shapeKind 贡献点定义与内建注册
 │   │   │   ├── shape-kind.point.ts
 │   │   │   └── builtin.ts
@@ -633,17 +713,26 @@ packages/model-slide/
 │   │   │   ├── text.ts
 │   │   │   ├── table.ts
 │   │   │   ├── media.ts
+│   │   │   ├── chart.ts              # M3：chart.setData/setOptions（§4.21）
 │   │   │   ├── layout.ts             # 含 slide.setLayout + shape.clearOverrides/setPlaceholder
 │   │   │   ├── master.ts
 │   │   │   ├── theme.ts
 │   │   │   └── lower.ts              # bodyPath 构造辅助，供以上 lower() 复用
 │   │   ├── commands/
 │   │   │   ├── index.ts              # allSlideCommands
+│   │   │   ├── insert-common.ts      # planInsert()：插入守卫、order 置顶、creationId 与名称、默认样式（§4.21）
 │   │   │   ├── slide-commands.ts
 │   │   │   ├── shape-commands.ts
 │   │   │   ├── text-commands.ts
 │   │   │   ├── picture-commands.ts
 │   │   │   ├── table-commands.ts
+│   │   │   ├── connector-commands.ts          # 线条端点与连接符（§4.21）
+│   │   │   ├── alt-text-and-hyperlink-commands.ts   # 替代文本、超链接、动作设置（§4.21）
+│   │   │   ├── header-footer-commands.ts      # 页眉页脚与字段（§4.21）
+│   │   │   ├── fill-placeholder-commands.ts   # 空内容占位符填入与删除补回（§4.21）
+│   │   │   ├── media-commands.ts              # 音视频、海报、图标（§4.21）
+│   │   │   ├── chart-commands.ts              # M3：插入图表与 chart.*（§4.21）
+│   │   │   ├── section-commands.ts            # M3：节的增删改与移动（§4.21 整合，50/18 SLD-05）
 │   │   │   ├── layout-commands.ts    # 含 master/theme 之外的 ML-02/03 命令
 │   │   │   ├── master-commands.ts
 │   │   │   ├── theme-commands.ts
@@ -709,12 +798,12 @@ packages/model-slide/
 |---|---|---|---|---|
 | `domain/model/index.ts` | 桶导出 | 全部实体/值对象类型 | 本目录内文件 | 供 `application`/`interface`/`testing` 统一引入 |
 | `domain/model/body.ts` | 聚合根实体表 | `PresentationBody` | `master/layout/slide/theme/shape/media/extensions` | 04 §3.1 |
-| `domain/model/presentation.ts` | 单例配置实体 | `Presentation` | `theme.ts`（无，仅类型引用）、`text/list-style` | `conformance`/`sections`/`properties` |
+| `domain/model/presentation.ts` | 单例配置实体 | `Presentation` | `theme.ts`（无，仅类型引用）、`text/list-style` | `conformance`/`sections`/`properties`；2026-09-26 增只读 `firstSlideNum?`（30/04 §3.7） |
 | `domain/model/master.ts` | 母版实体 | `SlideMaster` | `common-slide-data`、`text/list-style` | ML-01/03（04 §12.1） |
 | `domain/model/layout.ts` | 版式实体 | `SlideLayout` | `common-slide-data` | `showMasterShapes`/`preserve`/`userDrawn` |
-| `domain/model/slide.ts` | 页实体 | `Slide` | `common-slide-data` | `hidden`/`notesId?` |
+| `domain/model/slide.ts` | 页实体 | `Slide` | `common-slide-data` | `hidden`/`notesId?`；2026-09-26 增 `showMasterShapes?`（`p:sld@showMasterSp`） |
 | `domain/model/common-slide-data.ts` | 页/版式/母版共用容器数据 | `CommonSlideData` | `drawing/background` | 形状不在此（按 `containerId` 反查） |
-| `domain/model/theme.ts` | 主题实体 | `Theme`、`ColorMap` | `drawing (re-export)` | 12 槽色板 + 字体方案 |
+| `domain/model/theme.ts` | 主题实体 | `Theme`、`ColorMap`、`ObjectDefaults`（2026-09-26 新增） | `drawing (re-export)`、`text/*`（`objectDefaults` 的文本属性） | 12 槽色板 + 字体方案；`objectDefaults` M2 只读建模（30/04 §3.7） |
 | `domain/model/media.ts` | 媒体引用 | `MediaRef` | `@cordexjs/model-core`（`BlobRef`） | 不含字节 |
 | `domain/model/properties.ts` | 文档属性 | `DocumentProperties` | `extensions.ts` | `app`/`custom` 为 `OpaquePartRef` |
 | `domain/model/extensions.ts` | 不透明槽类型 | `OpaqueSlot`、`OpaqueXml`、`OpaquePartRef` | `@cordexjs/model-core`（`drawing/opaque` re-export） | 全部已建模实体持有 |
@@ -725,17 +814,17 @@ packages/model-slide/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `shape/shape.ts` | 形状判别联合 + 公共基形 | `Shape`、`ShapeBase` | `non-visual.ts`、各 kind 文件、`@cordexjs/shared`（`FracKey`） | `kind` 为判别字段 |
-| `shape/non-visual.ts` | 非可视属性 | `NonVisualProps`、`ShapeLocks` | `@cordexjs/model-core`（`Hyperlink`） | `placeholder?: PlaceholderRef` |
-| `shape/sp.ts` | 普通形状 | `Sp` | `drawing/shape-properties`、`drawing/shape-style`、`text/text-body` | `useBackgroundFill` |
-| `shape/pic.ts` | 图片形状 | `Pic`、`BlipFill` | `media.ts` | `sourceRect?`/`stretch\|tile` |
+| `shape/non-visual.ts` | 非可视属性 | `NonVisualProps`、`ShapeLocks` | `@cordexjs/model-core`（`Hyperlink`） | `placeholder?: PlaceholderRef`；2026-09-26 补 `decorative?` |
+| `shape/sp.ts` | 普通形状 | `Sp` | `drawing/shape-properties`、`drawing/shape-style`、`text/text-body` | `useBackgroundFill`；`isTextBox?`（`p:cNvSpPr@txBox`，2026-09-26 补列，30/04 §4.2） |
+| `shape/pic.ts` | 图片形状 | `Pic`、`BlipFill`、`PicMedia` | `media.ts` | `sourceRect?`/`stretch\|tile`；2026-09-26 补 `BlipFill.alpha?`/`svgMediaId?` 与 `Pic.media?: PicMedia`（30/04 §3.7） |
 | `shape/grp-sp.ts` | 组合形状 | `GrpSp`、`GroupTransform` | `@cordexjs/model-core`（`Transform`） | 子形状按 `parentId` 反查，无 `childIds` |
-| `shape/cxn-sp.ts` | 连接线 | `CxnSp` | `shape.ts`（`ShapeId` 引用） | `startConnection?/endConnection?` |
+| `shape/cxn-sp.ts` | 连接线 | `CxnSp`、`ConnectionRef` | `shape.ts`（`ShapeId` 引用） | `startConnection?/endConnection?: ConnectionRef`；线条与箭头插入也落此（R-d-64） |
 | `shape/graphic-frame.ts` | 图形容器 | `GraphicFrame` | `table.ts`/`chart.ts`/`ole.ts`/`diagram.ts` | `graphic` 判别联合 |
-| `shape/table.ts` | 表格 | `Table`、`TableRow`、`TableCell` | `text/text-body` | `columnWidths: Emu[]` 原子列表 |
-| `shape/chart.ts` | 图表占位 | `Chart` | `extensions.ts`（`OpaquePartRef`） | M1–M2 不透明，M3 起 `data`（ED-15） |
+| `shape/table.ts` | 表格 | `Table`、`TableProperties`、`TableColumn`、`TableRow`、`TableCell`、`CellKey` | `text/text-body`、`@cordexjs/shared`（`FracKey`） | 2026-09-26 改为归一化：`columns`/`rows`/`cells` 记录表（30/04 §3.8）；原 `columnWidths: Emu[]` 原子列表作废 |
+| `shape/chart.ts` | 图表 | `Chart`、`ChartData`（M3） | `extensions.ts`（`OpaquePartRef`）、`@cordexjs/shared`（`FracKey`） | M1–M2 只有 `partRef`（不透明）；M3 起 `data?: ChartData`（五类，30/04 §3.9） |
 | `shape/ole.ts` | OLE 嵌入 | `Ole` | `extensions.ts`、`media.ts` | `progId`/`preview?: { media: MediaId; contentType }`——由 M-04 `ole.ts` 从 `mc:Fallback` 的 `p:pic` 提取，M1 渲染预览图（EMF/WMF 预览 M2 由 M-07 惰性栅格化；rulings §4.15 Q7） |
 | `shape/diagram.ts` | SmartArt | `Diagram` | `extensions.ts` | 只读保留：`dataPart`/`drawingPart?: PartName`（`dsp:drawing` 由 M-07 经 `ooxml-core` 只读解析渲染，rulings §4.15 Q7）；原 `fallbackShapeIds?` **删除**（不再把 drawing 物化成模型形状，避免与只读解析双源） |
-| `shape/unknown.ts` | 未知形状兜底 | `UnknownShape` | `extensions.ts`、`@cordexjs/model-core`（`Transform`） | `mc:AlternateContent` 等；新增 `transform: Transform`（取所选分支 `xfrm`）与 `renderHint: 'fallback-pic'\|'fallback-shapes'\|'placeholder'`（rulings §4.15 Q7，PD-18 结案）：删除整体移除（M1 P0），移动/缩放写 `transform`、由 M-04 回写到每个分支（M2 P1）；其余内容仍不透明 |
+| `shape/unknown.ts` | 未知形状兜底 | `UnknownShape` | `extensions.ts`、`@cordexjs/model-core`（`Transform`） | `mc:AlternateContent` 等；新增 `transform: Transform`（取所选分支 `xfrm`）与 `renderHint: 'fallback-pic'\|'fallback-shapes'\|'placeholder'`（rulings §4.15 Q7，PD-18 结案；2026-09-26 裸 `p:contentPart` 也映射到此，`renderHint:'placeholder'`，R-d-76；同日增只读标签 `source?: 'math'\|'model3d'\|'ink'\|'zoom'\|'chartex'\|'contentPart'\|'other'`，50/25 提出）：删除整体移除（M1 P0），移动/缩放写 `transform`、由 M-04 回写到每个分支（M2 P1）；其余内容仍不透明 |
 | `shape/placeholder.ts` | 占位符引用值对象 | `PlaceholderRef`、`PlaceholderType` | — | ML-01…03 核心字段 |
 
 **`domain/model/text/`（8）与 `drawing/`（5）**
@@ -754,7 +843,7 @@ packages/model-slide/
 | `drawing/shape-properties.ts` | 形状可继承视觉属性 | `ShapeProperties` | `drawing/index.ts` | 全字段可选（I-ML1） |
 | `drawing/shape-style.ts` | 样式引用 | `ShapeStyle` | `drawing/index.ts`（`Color`） | `lineRef/fillRef/effectRef/fontRef` |
 | `drawing/background.ts` | 背景 | `Background` | `drawing/index.ts` | 判别联合 |
-| `drawing/slide-hyperlink.ts` | 内部超链接解释 | `resolveInternalHyperlink` | `@cordexjs/model-core`（`Hyperlink`） | `slide:<SlideId>`/`first\|last\|next\|previous` |
+| `drawing/slide-hyperlink.ts` | 内部超链接解释 | `resolveInternalHyperlink` | `@cordexjs/model-core`（`Hyperlink`） | 2026-09-26 起解释 `Hyperlink.target` 判别联合（30/04 §3.7）：`slide` 分支与 `show` 分支（`first\|last\|next\|previous\|lastViewed\|end`，R-d-77 补后两项）；原字符串形态 `slide:<SlideId>` 作废 |
 
 **`domain/model/schema/`（6，zod schema，按领域分组）**
 
@@ -767,11 +856,12 @@ packages/model-slide/
 | `schema/text.schema.ts` | 文本校验 | `textBodySchema` | `model/text/*.ts` | — |
 | `schema/theme-drawing.schema.ts` | 主题与 drawing 组合校验 | `themeSchema` | `model/theme.ts`、`model/drawing/*.ts` | — |
 
-**`domain/style/`（8）、`domain/query/`（2）、`domain/invariants/`（4）、`domain/shape-kind/`（2）、`domain/` 根（2）**
+**`domain/style/`（9）、`domain/query/`（4）、`domain/invariants/`（7）、`domain/geometry/`（1）、`domain/shape-kind/`（2）、`domain/` 根（2）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `style/placeholder-match.ts` | 占位符匹配与版式重匹配计划 | `placeholderFamily/matchPlaceholder/planLayoutChange/planReset` | `domain/model`、`domain/query/selectors` | 04 §12.2；ML-02 |
+| `style/object-defaults.ts` | 新元素默认样式取值（2026-09-26 新增，rulings §4.21 R-d-63） | `defaultStyleFor` | `domain/model`（`Theme.objectDefaults`） | `objectDefaults` → PowerPoint 内建 `p:style`；只返回引用，不烤解析值 |
 | `style/effective.ts` | 母版继承与反向索引 | `masterTextStyleKind/inheritedParagraphProperties/resolvePlaceholderBox/effectiveBackground/effectiveColorMap/dependentsOf` | `domain/model`、`domain/query/selectors` | ML-03 即时更新的反向索引来源 |
 | `style/inheritance-chain.ts` | 构建解析链 | `buildChain` | `style/placeholder-match`、`style/effective` | 04 §6.1 七级链 |
 | `style/resolve-run.ts` | 字符属性解析 | `resolveRunProperties` | `style/inheritance-chain` | 结果全字段必填 |
@@ -780,45 +870,60 @@ packages/model-slide/
 | `style/resolve-color.ts` | 颜色解析 | `resolveColor` | `domain/model`（`ColorMap`） | scheme→clrMap→theme→修饰符 |
 | `style/cache.ts` | 样式缓存与失效 | `createStyleCache/invalidate` | `@cordexjs/model-core`（`ChangeSet`） | LRU 5000，淘汰需被测试（A29） |
 | `query/selectors.ts` | 只读选择器 | `getSlide/getShape/getMasterOf/getPlaceholderOnLayout/slidesInOrder/shapesOf/childrenOf` | `domain/model`、`@cordexjs/model-core`（`filterLive`/`isTombstoned`） | 结果按 `(order,id)` 排序 + 派生缓存；默认过滤 `_deleted` 墓碑实体（rulings §4.15 Q3） |
+| `query/table-grid.ts` | 表格读视图（2026-09-26 新增） | `liveColumns/liveRows/cellAt/cellKey` | `domain/model`、`@cordexjs/model-core`（`filterLive`） | 按 `(order,id)` 排序、过滤墓碑；缺格返回空格（I-TBL1 读时容错）；M-04 导出与 M-07 渲染共用 |
+| `query/text-search.ts` | 查找（2026-09-26 整合新增，50/18 FND-01/02） | `findMatches(body, query, options) → Match[]` | `domain/model`、`domain/query/{selectors,table-grid}` | 纯函数：跨页、形状、表格单元格与备注的文本匹配（大小写、全字），`Match` 以 `TextTarget` + 段落与偏移定位；`slide.replaceAll` 用它的结果 |
 | `query/traverse.ts` | 遍历 | `walkShapes/pathOfShape` | `domain/model` | 深度优先、z 序；跳过墓碑实体及其子树 |
 | `invariants/element-limits.ts` | 规模上限（新增，rulings §4.15 Q5） | `SlideLimits`（2026-09-25 增 `softWarnSlides`）、`DEFAULT_SLIDE_LIMITS`、`countElements(body)`、`checkLimits(body, delta, limits)` | `domain/model` | 计数读原始表（墓碑计入，母版/版式形状与组合形状均计）；命令层守卫与 `I-LIM1` 共用同一函数；数值由插件 `Config.limits` 注入，不硬编码于调用点 |
 | `invariants/reassign.ts` | 默认版式选取（新增，rulings §4.20 FE-03） | `defaultLayoutOf(body, {masterId, type?, exclude?})` | `domain/model`、`domain/query/selectors` | 30/04 §12.3 I-ML2 链，跳过墓碑与 `exclude`；命令层 `reassignTo`、I-ML2 修复、ADR-0034 修复、`deleteMaster` 逐页选取（FE-23）与 M-07/M-04/M-10 读时替代共用；slide-ui 不得自行实现（40/14 N-21） |
-| `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + I-LIM1 + 基础项；I-LIM1 仅报告不 repair） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
+| `invariants/table.ts` | 表格不变量（2026-09-26 新增，rulings §4.21 q-table-depth） | `tableCoverage`（I-TBL1）、`tableSpans`（I-TBL2） | `domain/model`、`domain/query/table-grid` | 缺格补空格（键与内容确定）；越界跨度收缩、孤立合并标记清除；repair 幂等 |
+| `invariants/group.ts` | 空组不变量（2026-09-26 新增，R-d-78） | `emptyGroup`（I-GRP1） | `domain/model`、`domain/query/selectors` | 无存活子元素的组写墓碑，只写一次 |
+| `invariants/placeholder.ts` | 内容族占位符唯一（2026-09-26 整合新增，50/21 §3、ADR-0018 决策 10） | `placeholderUnique`（I-PH1，软） | `domain/model`、`domain/style/placeholder-match` | 同页同 `(type, idx)` 存活内容族占位符至多一个；修复保留 `(order, id)` 最小者，其余 `materialize`；只由服务端软门禁执行，客户端读时容错 |
+| `invariants/index.ts` | 不变量注册表 | `slideInvariants: Invariant<PresentationBody>[]`（I-ML2…I-ML8 + I-LIM1 + I-TBL1/I-TBL2/I-GRP1 + I-PH1（软，2026-09-26 整合）+ 基础项；I-LIM1 仅报告不 repair） | `domain/model`、`domain/query/selectors`、`style/effective`（`dependentsOf`） | ADR-0034 slide 实例，04 §12.3 |
 | `invariants/validate-change-set.ts` | 变更集校验映射 | `validateChangeSet` | `invariants/index.ts` | 默认实现来自 model-core，此处只配置前缀映射 |
-| `shape-kind/shape-kind.point.ts` | 贡献点类型 | `ShapeKindPoint`、`ShapeKindDef<T>` | `domain/model/shape` | 04 §3.3 |
+| `geometry/group-transform.ts` | 取消组合的变换折算（2026-09-26 新增） | `foldChildTransform` | `domain/model` | 2×3 仿射只在本包用于折算；与 engine-layout 渲染矩阵共用测试向量；斜切丢弃并诊断 |
+| `shape-kind/shape-kind.point.ts` | 贡献点类型 | `ShapeKindPoint`、`ShapeKindDef<T>`、`ShapeCapabilities` | `domain/model/shape` | 04 §3.3；2026-09-26 `capabilities` 扩五位、`createDefault(box, opts?)`，`opts` 含 `preset`（形状库条目的 `prst`，50/22） |
 | `shape-kind/builtin.ts` | 内建形状类型注册 | `builtinShapeKinds` | `shape-kind.point.ts`、`domain/model/shape/*` | `sp/pic/grpSp/cxnSp/graphicFrame:*/unknown` |
 | `domain/selection.ts` | 选区锚点 | `SlideSelectionAnchor` | `@cordexjs/model-core`（`Selection<A>`）、`domain/model/shape` | 04 §3.6 |
 | `domain/create-empty.ts` | 空白文档构造 | `createEmptyPresentation` | `domain/model`、`domain/model/theme` | 默认主题+1 母版+若干版式+1 空白页 |
 
-**`application/mutations/`（10）**
+**`application/mutations/`（11）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `mutations/index.ts` | Mutation 汇总 | `allSlideMutations: MutationDef[]` | 本目录内 8 个定义文件 | `editing.ts` 唯一读取点 |
-| `mutations/slide.ts` | 页级 Mutation | 6 个 `MutationDef`（§2.6）；M3 起 7 个（+`slide.setNotes`，14 §1 C-03） | `domain/model`、`@cordexjs/model-core`（`StoreOp`） | — |
-| `mutations/shape.ts` | 形状级 Mutation | 8 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`StoreOp`） | 含 `group`/`ungroup` |
+| `mutations/index.ts` | Mutation 汇总 | `allSlideMutations: MutationDef[]` | 本目录内 9 个定义文件 | `editing.ts` 唯一读取点 |
+| `mutations/slide.ts` | 页级 Mutation | 7 个 `MutationDef`（§2.6；2026-09-26 增 `slide.setProperties`）；M3 起 8 个（+`slide.setNotes`，14 §1 C-03） | `domain/model`、`@cordexjs/model-core`（`StoreOp`） | — |
+| `mutations/shape.ts` | 形状级 Mutation | 12 个 `MutationDef`（2026-09-26 增 `shape.setNonVisual`、`shape.patchKindData`、`pic.setBlipFill`、`cxnSp.setConnections`） | `domain/model`、`domain/geometry/group-transform`、`domain/shape-kind`（kind schema）、`@cordexjs/model-core`（`StoreOp`） | 含 `group`/`ungroup` |
 | `mutations/text.ts` | 文本 Mutation | 4 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`TextDelta`） | ED-02/03/04/13 |
-| `mutations/table.ts` | 表格 Mutation | 7 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`TextDelta`） | ED-10 |
+| `mutations/table.ts` | 表格 Mutation | 9 个 `MutationDef`（2026-09-26 增 `table.setTableProperties`、`table.setSizes`，M3） | `domain/model`、`domain/query/table-grid`、`@cordexjs/model-core`（`TextDelta`） | ED-10；按 `rowId`/`colId` 寻址，删行删列写墓碑 |
 | `mutations/media.ts` | 媒体注册 Mutation | 1 个 `MutationDef` | `domain/model`、`@cordexjs/model-core`（`BlobRef`） | 不含字节 |
+| `mutations/chart.ts` | 图表数据 Mutation（M3，2026-09-26 新增） | 2 个 `MutationDef`（`chart.setData`、`chart.setOptions`） | `domain/model` | ED-15；类别、系列删除写墓碑 |
 | `mutations/layout.ts` | 版式/占位符 Mutation | 9 个 `MutationDef`（含 `slide.setLayout`） | `domain/model`、`domain/style/placeholder-match`（remap 类型） | ML-02/03 |
 | `mutations/master.ts` | 母版 Mutation | 7 个 `MutationDef` | `domain/model` | ML-03 |
 | `mutations/theme.ts` | 主题 Mutation | 4 个 `MutationDef` | `domain/model` | ML-04，逐槽位 `set` |
 | `mutations/lower.ts` | `lower()` 路径构造辅助 | `bodyPath` 工具 | `@cordexjs/shared`（`Path`） | 供以上全部复用 |
 
-**`application/commands/`（10）与 `application/diff.ts`（1）**
+**`application/commands/`（18）与 `application/diff.ts`（1）**
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `commands/index.ts` | Command/Operation 汇总 | `allSlideCommands: (CommandDef\|OperationDef)[]` | 本目录内 9 个定义文件 | `editing.ts` 唯一读取点；对全文类命令统一包 `whenLoaded` 守卫（§2.6，rulings §4.18 CO-12） |
-| `commands/slide-commands.ts` | 页管理命令 | `slide.addSlide/deleteSlides/duplicateSlide/reorderSlides`+`setSlideBackground/setSlideHidden`（14 §1 C-03 新增）+`setNotes`（M3 新增）＝7 个（§12 G-7 说明移除 `changeLayout`） | `application/mutations/slide`、`@cordexjs/shared`（`order.between`） | ED-11 |
-| `commands/shape-commands.ts` | 形状编辑命令 | 11 个 `CommandDef`＋4 个新增（`pasteShapes`/`setEffect`/`alignShapes`/`distributeShapes`，14 §1 C-03）＝15 个 | `application/mutations/shape` | ED-05/06/08 |
+| `commands/index.ts` | Command/Operation 汇总 | `allSlideCommands: (CommandDef\|OperationDef)[]` | 本目录内 16 个定义文件（`insert-common.ts` 是工具，不含命令；`section-commands.ts` 为 2026-09-26 整合新增） | `editing.ts` 唯一读取点；对全文类命令统一包 `whenLoaded` 守卫（§2.6，rulings §4.18 CO-12） |
+| `commands/insert-common.ts` | 插入命令公共部分（2026-09-26 新增，ADR-0018 决策 1） | `planInsert` | `domain/invariants/element-limits`、`domain/style/object-defaults`、`@cordexjs/shared`（`order.between`、`newNodeId`） | 规模守卫前置计数、`order` 置顶、`creationId` GUID 与「类型 + 序号」名称、默认样式；全部新增元素的命令共用 |
+| `commands/slide-commands.ts` | 页管理命令 | `slide.addSlide/deleteSlides/duplicateSlide/reorderSlides`+`setSlideBackground/setSlideHidden`（14 §1 C-03 新增）+`setNotes`（M3 新增）+`setSlideProperties`（2026-09-26）＝8 个（§12 G-7 说明移除 `changeLayout`） | `application/mutations/slide`、`@cordexjs/shared`（`order.between`） | ED-11 |
+| `commands/shape-commands.ts` | 形状编辑命令 | 11 个 `CommandDef`＋4 个新增（`pasteShapes`/`setEffect`/`alignShapes`/`distributeShapes`，14 §1 C-03）＋4 个（`setAdjustValues`/`changeShape`/`flipShapes`/`insertFreeform`，2026-09-26 rulings §4.21）＝19 个 | `application/mutations/shape`、`commands/insert-common`、`commands/fill-placeholder-commands`（删除补回） | ED-05/06/08 |
 | `commands/text-commands.ts` | 文本编辑命令 | 6 个 `CommandDef`＋9 个新增（`setFontFamily`/`toggleItalic`/`toggleUnderline`/`toggleStrikethrough`/`setTextColor`/`setTextHighlight`/`clearRunFormatting`/`setIndentLevel`/`setLineSpacing`，14 §1 C-03）＝15 个 | `application/mutations/text` | ED-02/03/04/13 |
-| `commands/picture-commands.ts` | 图片命令 | 3 个 `CommandDef` | `application/mutations/{media,shape}` | ED-07 |
-| `commands/table-commands.ts` | 表格命令 | 8 个 `CommandDef` | `application/mutations/table` | ED-10 |
+| `commands/picture-commands.ts` | 图片命令 | 3 个 `CommandDef`＋4 个（`setPictureTransparency`/`resetPicture`/`compressPicture`/`setPictureFill`，2026-09-26）＝7 个 | `application/mutations/{media,shape}`、`commands/insert-common` | ED-07、ED-06 |
+| `commands/table-commands.ts` | 表格命令 | 8 个 `CommandDef`＋5 个（`table.clearCells`（M2）与 `table.setStyle`/`resizeColumn`/`resizeRow`/`setBorders`（M3），2026-09-26）＝13 个 | `application/mutations/table`、`commands/insert-common` | ED-10；插入 M2，结构与样式 M3 |
+| `commands/connector-commands.ts` | 线条与连接符命令（2026-09-26 新增） | 3 个：`setLineEnds`/`connectEnds`/`changeConnectorType` | `application/mutations/shape` | ED-06、ED-28 |
+| `commands/alt-text-and-hyperlink-commands.ts` | 非可视属性命令（2026-09-26 新增） | 3 个：`setAltText`/`setHyperlink`/`setAction` | `application/mutations/{shape,text}` | ED-26、ED-19、ED-05 |
+| `commands/header-footer-commands.ts` | 页眉页脚与字段（2026-09-26 新增） | 2 个：`setHeaderFooter`/`insertField` | `application/mutations/{shape,text}`、`commands/insert-common` | M2 P2 |
+| `commands/fill-placeholder-commands.ts` | 内容占位符填入（2026-09-26 新增） | 1 个：`fillPlaceholder`；导出 `restoreEmptyPlaceholder` 供 `deleteShapes` 同事务补回 | `application/mutations/{shape,media}`、`commands/insert-common`、`domain/style/placeholder-match` | ML-03 |
+| `commands/media-commands.ts` | 音视频与图标（2026-09-26 新增） | 4 个：`insertMedia`/`replacePoster`/`insertIcons`/`recolorSvg` | `application/mutations/{shape,media}`、`commands/insert-common` | P2、M2 P1、M3 P2 |
+| `commands/chart-commands.ts` | 图表命令（M3，2026-09-26 新增） | 6 个：`insertChart`/`chart.setData`/`setType`/`setTitle`/`setLegend`/`setDataLabels` | `application/mutations/{shape,chart}`、`commands/insert-common` | ED-15 |
+| `commands/section-commands.ts` | 节命令（M3，2026-09-26 整合新增，50/18 SLD-05） | 4 个：`addSection`/`renameSection`/`removeSection`/`moveSection` | `application/mutations/slide` | 节 Mutation 随 30/04 §3.7 的节建模落在 `mutations/slide.ts`；`moveSection` 一个事务改节与页的 `order` |
 | `commands/layout-commands.ts` | 版式与占位符命令 | 11 个 `CommandDef`（含 `applyLayout`/`resetSlide`/`deleteLayout`）＋1 个新增（`setLayoutProperties`，14 §1 C-03）＋`resetPlaceholderFields`（2026-09-26，rulings §4.20 FE-24）＝13 个 | `application/mutations/layout`、`domain/style/placeholder-match`、`domain/invariants/reassign` | ML-02/03、Q11、Q16；`deleteLayout` 支持 `layoutIds` 批量单事务、可撤销（FE-05/FE-24） |
 | `commands/master-commands.ts` | 母版命令 | 5 个 `CommandDef`＋1 个新增（`setMasterProperties`，14 §1 C-03）＝6 个 | `application/mutations/master`、`domain/invariants/reassign` | ML-03、Q11；`deleteMaster` 逐页按 `defaultLayoutOf({masterId: reassignTo, type})` 选取（FE-23） |
 | `commands/theme-commands.ts` | 主题命令 | 3 个 `CommandDef` | `application/mutations/theme` | ML-04 |
-| `commands/operations.ts` | 视图态 Operation | `slide.setCurrentSlide/setSelection/setZoom/selectMasterOrLayout` | `domain/selection` | 不入历史；`broadcast` 见 §2.6 |
+| `commands/operations.ts` | 视图态 Operation | `slide.setCurrentSlide/setSelection/setZoom/selectMasterOrLayout`＋`slide.chart.openDataEditor`（2026-09-26，M3） | `domain/selection` | 不入历史；`broadcast` 见 §2.6 |
 | `application/diff.ts` | 版本恢复差分 | `diffBodies` | `domain/model`、`application/mutations/*`（构造 Mutation） | M3；`documentType.diff` 钩子实现 |
 
 **`infrastructure/`（3）、`interface/`（2）、`testing/`（4）、`src/__tests__/`（3）**
@@ -966,7 +1071,9 @@ fixtures --> fixturests
 | lifecycle | 插件生命周期、`preset-slide-viewer` 不加载 `editing.ts` | `src/__tests__/lifecycle.test.ts` | `defineLifecycleSuite`（02 §4.0） |
 | 命令层集成 | `commands.execute` 端到端（权限/事务/审计）；渐进打开期间全文类命令等 `unit/loaded` 后才执行（rulings §4.18 CO-12）；rulings §4.20：带 `reassignTo` 的 `deleteLayout`/`deleteMaster` 执行后撤销栈深度 +1、`core.undo` 一步恢复各页引用与版式（同一 id，FE-05）；`deleteMaster` 整个删除一个事务（FE-23）；`deleteLayout{layoutIds}` 批量单事务、`resetPlaceholderFields` 一步撤销且只清所列字段、`applyLayout` 结果计数与 Toast N 一致（FE-24）；property：`deleteLayout(reassignTo)` 结果与 I-ML2 修复一致（FE-03） | 依赖 M-02 `command-harness.ts`；本包只提供 `slideDocumentType` 作为输入；FE-05/FE-23/FE-24 用例文件 `src/__tests__/master-layout-delete.test.ts`（70/05 §7.1 `ml/*`，store-memory 与 store-yjs 各一次），property 文件 `src/__tests__/master-layout-property.test.ts`（70/05 §10）；两者不调用 kit，按 70/01 §4 归 `test/unit`（2026-09-26 登记） | `LAYOUT_IN_USE`/`reassignTo` 用例见 05 §12 |
 | 协同模拟（`test/collab-sim`，70/05） | rulings §4.20 FE-04：「A 删 L、B 同时对 P 应用 L」两端收敛；TTL 内 `P.layoutId` 仍为 L 且渲染用替代版式；A 撤销后 P 显示 L；硬删后 `P.layoutId` 等于 `defaultLayoutOf` 结果且修复只写一次；导出 pptx 中 P 引用存活版式；FE-05：撤销被引用版式删除时他人已改的页只跳过该键并提示 | 根 `test/collab-sim/`（不在本包） | 场景 id 以 70/05 为准 |
-| fixtures | 单页文本/母版继承/分组/表格四类典型 body | `testing/fixtures.ts` | M-07/M-10/M-13 复用 |
+| 可追加元素（2026-09-26，rulings §4.21） | `planInsert`：插入超限不开事务（单页 999/1,000/1,001、全文 19,999/20,000/20,001 含墓碑）、一次插入一个撤销步、空文本框退出与插入合并、`fillPlaceholder` 与删除补回各一步；I-TBL1/I-TBL2、I-GRP1 的 property（随机并发插删行列、合并拆分、删除组内元素后 `repair` 一次即净、再次无变化）；`foldChildTransform` 与 engine-layout 共用测试向量；`defaultStyleFor` 只返回引用 | 同级隐式单测 + `src/__tests__/mutations-property.test.ts`、`invariants-repair.test.ts` 扩用例 | 协同收敛场景在 `test/collab-sim`（70/05） |
+| 第二批命令与 I-PH1（2026-09-26 整合） | `findMatches` 覆盖形状、单元格与备注，大小写与全字选项；`replaceAll` 一个事务、一步撤销；节命令：`moveSection` 后页序与节序一致、`removeSection{withSlides:false}` 页归入前一节；I-PH1：并发填入同一占位符后 `repair` 一次保留 `(order, id)` 最小者，再次无变化 | 同级隐式单测（`domain/query/text-search`、`application/commands/section-commands`）+ `src/__tests__/invariants-repair.test.ts` 扩用例 | 协同场景「两人同时填入同一空内容占位符」在 `test/collab-sim`（70/05） |
+| fixtures | 单页文本/母版继承/分组/表格四类典型 body | `testing/fixtures.ts` | M-07/M-10/M-13 复用；表格夹具按归一化形态（2026-09-26） |
 
 覆盖率门槛与证据归档以 [70/01 §8](../70-testing/01-strategy-and-layers.md) 为准，性能预算以 [70/09](../70-testing/09-performance-and-capacity.md) 为准（rulings §4.20 TX-10，原引架构 11 改指）；样式解析缓存淘汰测试见 §2.3 `style/cache.ts`（A29）。
 
@@ -989,6 +1096,8 @@ fixtures --> fixturests
 | 版式/母版删除 fail-closed | 无 `reassignTo` → `LAYOUT_IN_USE`/`MASTER_IN_USE` 且无事务；带 → 一次撤销恢复（rulings §4.20 FE-05：Q11 修订为确认后可撤销，`CommandDef.undoable` 不改） | `command-harness` 契约测试（05 §12） |
 | 默认版式单一选取函数 | `defaultLayoutOf` 只在 `domain/invariants/reassign.ts` 定义；slide-ui、slide-render、ooxml-pptx 从 `@cordexjs/model-slide` 根入口 import（rulings §4.20 FE-03） | 评审 + slide-ui `edit-target.test.ts` 断言使用同一导出符号（M-10 §9） |
 | 删除即墓碑（rulings §4.15 Q3） | 全部 `.remove` 类 `lower()` 只产出 `set(…._deleted)`，不对实体行发 `delete`/`remove` | `runSlideModelConformance` 的 lower 纯度分节 + property 测试 |
+| 插入命令单一守卫（2026-09-26，rulings §4.21） | 新增元素的命令一律经 `commands/insert-common.ts` 的 `planInsert`；`creationId`、名称、行列 id 只在命令里生成 | 评审 + `command-harness` 断言各插入命令超限时无事务 |
+| 表格按 id 寻址（2026-09-26） | `table.*` Mutation 载荷无下标、无 `columnWidths` 数组 | lint `cordex/no-index-in-mutation` + schema-lock |
 | 规模上限守卫（rulings §4.15 Q5） | 新增实体的命令超限返回 `SLIDE_LIMIT_EXCEEDED`/`ELEMENT_LIMIT_EXCEEDED`（→ `document.quota_exceeded{dimension, limit, actual}`，rulings §4.17 D2）且无事务；墓碑计入；上限值只来自 `Config.limits` | `command-harness` 契约测试 + 边界用例（19,999/20,000/20,001，含墓碑） |
 | `testing/` 不进生产 | `no-testing-in-prod`：`domain/**`/`application/**`/`infrastructure/**`/`interface/**` 不得 import `./testing` | depcruise（02 §4.0.2） |
 | API 报告 | `etc/model-slide.api.md` 入库，PR diff 必审 | api-extractor + CI |
@@ -1013,7 +1122,9 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 
 **M2**：`application/mutations/{table,media,layout,master}.ts`、`commands/{picture,table,layout,master}-commands.ts`；`domain/invariants/**` 补全 I-ML2…I-ML7；`domain/style/{placeholder-match,effective}.ts`；`infrastructure/snapshot/sharding.ts`（直通实现）——覆盖 ML-01/ML-02（P0）与 ED-05…ED-11。验收：`slide.applyLayout`/`slide.resetSlide`/`slide.deleteLayout(reassignTo)` 的 `command-harness` 用例全绿；母版视图只读穿透测试（占位符可选中不可编辑，M2 范围）。
 
-**M3**：`application/mutations/theme.ts`、`commands/theme-commands.ts`、`application/diff.ts`；`domain/model/shape/chart.ts` 的 `data` 字段（ED-15）；`domain/invariants` 补全 I-ML8；`layout-commands.ts`/`master-commands.ts` 剩余项（占位符增删上限、多选批量删除前置）——覆盖 ML-03/ML-04。验收：`slide.deleteMaster(reassignTo)`/`slide.applyTheme` 撤销一致性；`diffBodies` 往返测试（版本恢复）。
+**M2 补（2026-09-26，rulings §4.21）**：`commands/{insert-common,connector-commands,alt-text-and-hyperlink-commands,header-footer-commands,fill-placeholder-commands,media-commands}.ts`、`domain/{style/object-defaults,query/table-grid,invariants/table,invariants/group,geometry/group-transform}.ts`；`shape.ts` 的四个新 Mutation；表格归一化形态（建议 M1 导入即采用）与 `insertTable`（插入 + 单元格文字）。P2 项（`insertFreeform`、`insertMedia`、`setPictureFill`、`setHeaderFooter`、`insertField`）不阻塞 M2 出口。
+
+**M3**：`application/mutations/theme.ts`、`commands/theme-commands.ts`、`application/diff.ts`；`domain/model/shape/chart.ts` 的 `data` 字段（ED-15）与 `mutations/chart.ts`、`commands/chart-commands.ts`；表格结构与样式命令（`table.*`、`table.setTableProperties`、`table.setSizes`）；`insertIcons`、`recolorSvg`（P2）；`domain/invariants` 补全 I-ML8；`layout-commands.ts`/`master-commands.ts` 剩余项（占位符增删上限、多选批量删除前置）——覆盖 ML-03/ML-04。验收：`slide.deleteMaster(reassignTo)`/`slide.applyTheme` 撤销一致性；`diffBodies` 往返测试（版本恢复）。
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -1078,6 +1189,20 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | FE-24（50/11 §11 其余待登记） | §2.6 新增 `slide.resetPlaceholderFields`、`deleteLayout` 批量、`applyLayout` 结果计数、`updatePlaceholder` 的 `lstStyle`；§5 `layout-commands.ts`（12 → 13 个） | 与 `resetSlide` 共用 `shape.clearOverrides`；批量删除一个事务；`themePreview` 登记在 M-07 |
 | TX-10 ⑤ | §9 末段 | 覆盖率改指 70/01 §8、性能预算改指 70/09 |
 
+### 2026-09-26 回写（rulings §4.21 可追加元素的模型补全与插入命令族）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| q-table-depth、ADR-0018 决策 6 | §1.2、§2.1、§2.2、§2.6（`table.*` 行、`insertTable`、`TextTarget.cell`）、§4/§5（`shape/table.ts`、`query/table-grid.ts`、`invariants/table.ts`）、§9、§10、§11 | 表格改 `columns`/`rows`/`cells` 记录表；I-TBL1/I-TBL2；M2 插入与单元格文字、M3 结构样式 |
+| R-d-71、ADR-0018 决策 2 | §0、§2.6 新增 33 个命令表、1 个 Operation 与既有行参数扩展、§3 计数、§4/§5 新增 13 个文件 | Mutation 46/47 → 51/56，命令 75 → 109（含 Operation 4 → 5）；`setSlideProperties`、`table.clearCells`、`chart.openDataEditor`、`slide.setProperties` 来自族文档 50/21、50/24 |
+| R-d-63、ADR-0018 决策 4 | §2.2 `ObjectDefaults`、§2.3 `defaultStyleFor`、§5 `theme.ts`、`style/object-defaults.ts` | `objectDefaults` M2 只读建模；新元素只写 `p:style` 引用 |
+| docPlan 40/03、ADR-0018 决策 5、7 | §2.2 `NonVisualProps`/`BlipFill`/`PicMedia`、§5 `sp.ts`/`pic.ts`/`non-visual.ts`/`unknown.ts` | 补列 `isTextBox`、`Pic.media`、`BlipFill.alpha/svgMediaId`、`decorative`；裸 `p:contentPart` → `UnknownShape` |
+| R-d-78、ADR-0018 决策 8、9 | §2.1 规则段、§2.3 `foldChildTransform`、§2.6 `moveShapes`/`deleteShapes`、§5 `invariants/group.ts`、`geometry/group-transform.ts` | 连接符 `reroute` 同事务写回；空组 I-GRP1；取消组合折算 |
+| R-d-69、ADR-0018 决策 10 | §2.1、§2.6 `fillPlaceholder`、`deleteShapes`、§5 `fill-placeholder-commands.ts` | 空内容占位符填入保留 `PlaceholderRef`；删除补回空占位 |
+| R-d-73 | §2.3 `placeholderFamily` 与两个新纯函数 | 占位符族按 PRD ML-03：`text`/`content`/`footer`/`other` |
+| R-d-77、族文档 50/20、50/21、50/25 | §5 `slide-hyperlink.ts`、`slide.ts`、`presentation.ts`、`shape/unknown.ts` | `Hyperlink.target` 判别联合（`show` 分支补 `lastViewed`、`end`）；`Slide.showMasterShapes`；只读 `Presentation.firstSlideNum`；只读 `UnknownShape.source` |
+| q-chart-route、q-media-insert、q-extra-inserts | §2.2 `ChartData`、§2.6、§11 | 图表插入与编辑 M3；音视频插入 P2 不写 `p:timing`；图标 M3 P2 |
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
@@ -1089,3 +1214,4 @@ pnpm --filter @cordexjs/model-slide test -- --grep "moveShapes.*undo"
 | Q5 | 占位符类型计数上限的具体数值（G-8：标题类=1 已明确，但内容族/媒体族上限缺表） | 推荐由架构-结构条线在 04 号文档补一张表，本包 `I-ML9` 与 `addPlaceholder` 引用同一常量表，避免命令层与不变量层各自硬编码不同数字 | 04 §12.1 需补表；本包 `domain/invariants/index.ts`、`application/commands/layout-commands.ts` |
 | Q6 | ~~`slide.deleteMaster(reassignTo)` 的跨母版目标版式选取函数最终细则（G-9，依赖设计 26 补稿）~~ **（结案，2026-09-26，rulings §4.20 FE-23）** | `reassignTo` 是目标母版；逐页取 `defaultLayoutOf(body, {masterId: reassignTo, type: 原版式的 type})`（目标母版同 `type` 首个 → 目标母版首个，与 `deleteLayout`、I-ML2 同一函数）；整个删除一个事务；UI 默认取按 `order` 排序的首个剩余母版，对话框文案「N 个页面将改用剩余母版中对应的版式」 | 本文档 §2.1 CRDT 合并语义表、§2.6 `slide.deleteMaster` 行；PRD 07 `G-73` 待补项 |
 | Q7 | ~~母版/版式/主题删除采用墓碑后，`deleteLayout`/`deleteMaster` 带 `reassignTo` 的「Q11 不可撤销」口径与「可一次撤销」表述（§2.1 末段 vs §2.6 表）是否统一为「可撤销」~~ **（结案，2026-09-26，rulings §4.20 FE-05）** | 按推荐统一为可撤销（用户裁决「确认后可撤销」，记为 Q11 修订）：保留确认对话框（撤销栈只在会话内有效、墓碑 24 h 后硬删），文案删去「操作不可撤销」；执行后入撤销栈并给带 [撤销] 的 Toast；撤销时各页引用回退、版式以原 id 复活，他人后写的键按 Q3 跳过并提示；`CommandDef.undoable` 不改 | §2.1、§2.6 `slide.deleteLayout`/`deleteMaster` 行；PRD 07 ML-03 |
+| Q8 | 表格行列与图表类别、系列的墓碑（2026-09-26，§4.21）由谁硬删 | 由服务端墓碑清扫一并处理（扫描 `shapes.*.graphic` 下带 `_deleted` 的记录，与实体墓碑同一 TTL）；在此之前墓碑行列只增不减、计入快照体积 | M-09 `tombstone-sweeper.ts`、60-backend/05 §8 |

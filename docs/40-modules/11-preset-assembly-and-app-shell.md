@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：登记 z.config jitless 调用点（apps/web main.tsx 与三个 dom preset 的 config/options）；§3.4 登记 50/13 §6 七个新惰性 chunk 的构建入口与 bundle-budget 条目；collab-transport-ws 配置 heartbeatMs 改为 messageReconnectTimeoutMs） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
 
 # 11 预设装配与应用壳（限界上下文 BC-16 预设装配、BC-17 应用壳）
 
@@ -223,7 +223,7 @@ presetSlide -- "deriveCollabEntries 替换 store 加协同包与 comments" --> p
 | `ui-react` | `@cordexjs/ui-react` | host | ○ | ● | ● | `UiReactConfig` 默认（`iconStrokeWidth: 2`） | 依赖 `ui/shortcuts/theme/…` | exclude → 形态 B（须与 `slide-ui` 一并排除，即 `FRAMEWORK_FREE_EXCLUDES`；宿主自绑 DOM，`ui-core` 贡献照常注册，rulings §4.15 Q2） |
 | `slide-ui` | `@cordexjs/slide-ui` | host | ○ | ● | ● | `SlideUiConfig` 默认（`masterView.minViewport: 1024`） | 依赖 `contributions/ui/shortcuts/commands/i18n/units` | exclude → 空 Ribbon / 空侧栏，画布可缩放 |
 | `shell-glue` | `preset-slide/src/plugins/shell-glue.plugin.ts` | host | ○ | ● | ● | `ShellOptions` + `i18n.bundles` | 依赖 `contributions`；可选 `ui`（缺席则只贡献 Operation 与语言包） | exclude → 应用栏「⋯」为空、`Mod+E` 无效、`app` 语言包缺失 |
-| `collab-transport-ws` | `@cordexjs/collab-transport-ws` | host（根作用域） | ○ | ○ | ● | `{ urlTemplate: options.collab.endpoint, connectTimeoutMs: 5000, backoff: 默认, heartbeatMs: 15000 }` | 无依赖，按需 `connect()` | override → `collab-transport-webrtc`（未来）；exclude → `collab-yjs` PENDING，单人可编辑 |
+| `collab-transport-ws` | `@cordexjs/collab-transport-ws` | host（根作用域） | ○ | ○ | ● | `{ urlTemplate: options.collab.endpoint, connectTimeoutMs: 5000, backoff: 默认, messageReconnectTimeoutMs: 30000 }`（2026-09-26 取代 `heartbeatMs: 15000`：应用层心跳随 provider 采用而删除，40-modules/05 §5） | 无依赖，按需 `connect()` | override → `collab-transport-webrtc`（未来）；exclude → `collab-yjs` PENDING，单人可编辑 |
 | `collab-yjs` | `@cordexjs/collab-yjs` | unit | ○ | ○ | ● | `{ flushMs: 50, awareness: 默认, maxUpdateBytes: 1 MiB, offline: { enabled: options.collab.offline.enabled } }` + `getToken`/`user` | 依赖 `store/yjsBackend/collabTransport/permissions` | exclude → 单人模式（`presence` 缺席，`isCollab=false`） |
 | `collab-offline-idb` | `@cordexjs/collab-offline-idb` | unit | ○ | ○ | ◐（`collab.offline.enabled:true` 时装载；M3 默认关，M4 P2） | `{ dbNamePrefix: 'cordex-collab', maxPendingBytes: 50 MiB, ttlDays: 30 }` | 缺失即内存队列降级（M-05 §2.5） | exclude 等价于未启用 |
 | `comments` | `@cordexjs/comments` 默认导出（iso 横向能力、文档类型盲：threads / replies 实体、ResourceHook `comments.threads`、`comments.*` 命令、`comment/*` 事件、锚点抽象；2026-09-25 新增，rulings §4.19 D-COMMENTS-PKG） | host（宿主级贡献 ResourceHook `comments.threads` 与 `comments.*` 命令）+ unit（按 Unit 的 `comments` 服务以 `scope:'unit'` 条目在 mount 时经 `units.registerUnitProvider` 登记，rulings §4.20 FE-01；原写「经 `unitPlugins` 挂」作废——`unitPlugins` 属文档类型，文档类型盲的 comments 包用不了，50/03 §6.2） | ○ | ○ | ●（**M3** 起装载） | 无（上限沿用 CO-04 默认） | 依赖 `contributions/commands/units/resources`；slide 专属锚点 resolver、检查器「评论」页签与画布评论钉由 `slide-ui` 贡献（M-10） | exclude → 无评论能力，编辑与协同照常；`pluggable:m3` 白名单含 `+comments` |
@@ -271,6 +271,18 @@ presetSlide -- "deriveCollabEntries 替换 store 加协同包与 comments" --> p
 | 图表 / 语言包 / 缩略图条 / 备注抽屉 / 搜索 | 惰性 chunk，不计基线 | `lazy.test.ts`：无图表文档 import 计数 0；`thumbnails:false` 时无 `viewer-thumbnails` 请求 |
 
 **预算分解**：各 chunk 的 gzip 预算、编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 的构成、惰性 chunk 上限与计量口径（T-BUNDLE：`config/bundle-budget.json` + chunk gzip）的唯一源是 [50/13](../50-frontend/13-performance-and-bundling.md) §6、§12（2026-09-25 自本节迁出，rulings §4.19）；本包只保留预算文件落点 `src/config/bundle-budget.json`（schema 与 `computeBudget` 见 §2.2–§2.3）。自 M2 起服务端文档实际加载协同增量（rulings §4.19 D-M2-CONTENT）。
+
+**§4.21 新增惰性 chunk 的构建入口**（2026-09-26 整合登记，50-frontend/13 §6；数值唯一源仍是 50/13，这里只登记入口与 `bundle-budget.json#lazy` 条目，均「只报告、不计基线」）：
+
+| 惰性 chunk | 所在 preset 的 `bundle-budget.json#lazy` 键 | 构建入口（动态 `import()` 所在文件） | 里程碑 |
+|---|---|---|---|
+| 形状库缩略图 path 数据 | preset-slide：`shape-gallery-thumbs` | slide-ui `ui/insert/ShapeGallery.tsx` 首次打开 flyout 时 `import('../../domain/shape-gallery-thumbs')`（生成物，40/01 `gen-shape-gallery-thumbs.ts`） | M2 |
+| 插入图标库 | preset-slide：`icon-gallery` | slide-ui `ui/icons/IconGallery.tsx` 按分类 `import()` lucide-static 数据块 | M3 P2 |
+| 剪贴板 HTML 解析 | preset-slide：`clipboard-html` | ui-core 剪贴板管线在粘贴项只有 `text/html` 时 `import()` htmlparser2 | M2 |
+| 内嵌字体解压 | 不属 preset 基线：导入 Worker chunk 内 | ooxml-core `infrastructure/fonts/embedded-font.ts` 在包内有 `p:embeddedFontLst` 时 `import('mtx-decompressor')`（40/04） | M2 |
+| 复杂文种 shaping | preset-slide：`shaping` | render-dom `harfbuzz-measurer.ts` 在启用 RTL / 复杂文种 Provider 时 `import()` harfbuzzjs 与 bidi-js | M4 / M5 |
+| 公式渲染 | preset-slide：`math` | 公式渲染器首个需要可编辑渲染时 `import()` MathJax 4（M1–M3 走 Fallback 图片，不加载） | M4+ |
+| 离线持久化 | preset-slide-collab：`offline-idb` | `collab-offline-idb` 条目 `lazy()`，`offline.enabled` 为真时加载 | M4 |
 
 ### 3.5 `apps/web` 接入点表（非 cordis 插件；仓库中「知道插件存在」的应用代码仅第一行）
 
@@ -608,7 +620,7 @@ apps/web/
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `src/index.ts` | 公共 API 面 | `createSlidePreset`、`SlidePresetOptions`、`ShellOptions`、`ShellIntent`、`HEADLESS_EXCLUDES`、`FRAMEWORK_FREE_EXCLUDES`、re-export `PresetEntry`/`PresetReport`/`PresetTrim` | `./preset`、`./config/*`、`@cordexjs/kernel/preset`（类型，2026-09-18 起，C-07） | 无副作用 |
-| `src/preset.ts` | 工厂 + 函数插件 | `createSlidePreset(options?): Preset` | `./plugins`、`./config/options`、`@cordexjs/kernel/preset` | `name:'preset-slide'`；`apply` 调 `mountEntries`；`report()` |
+| `src/preset.ts` | 工厂 + 函数插件 | `createSlidePreset(options?): Preset` | `./plugins`、`./config/options`、`@cordexjs/kernel/preset` | `name:'preset-slide'`；`apply` 调 `mountEntries`；`report()`；工厂入口先经 `./config/options` 模块顶部的 `z.config({ jitless: true })`（SDK 的 dom 组合根，config 文件放行 zod，R-d-56；三个 dom preset 同口径，服务端保留 JIT；2026-09-26 整合登记，50-frontend/14 §4.3） |
 | `src/manifest.ts` | 聚合 Manifest 生成物 | `manifest` | 无 | `manifest-gen --check` |
 | `src/entries.ts` | `./entries` 子路径（登记 `publicEntry`，rulings §4.18 FE-04） | `SLIDE_ENTRIES`、`editorConfigure` | `./plugins/index` | 供 collab 派生；禁止 import `preset.ts` |
 | `src/plugins/index.ts` | 编辑器清单 | `SLIDE_ENTRIES` | `@cordexjs/preset-slide-viewer/entries`（`dependencies` 写 `workspace:*`，FE-06）、`./*.entries`、`./shell-glue.plugin`、`./locales/*` | 静态数组；`applyTrim` 在 `preset.ts`；`locale-packs` 同 id 替换、不追加（FE-06） |
@@ -619,7 +631,7 @@ apps/web/
 | `src/plugins/shell-glue.plugin.ts` | 胶水插件（§3.3） | 默认导出插件 `shellGluePlugin` | `@cordexjs/kernel`、`@cordexjs/model-core`（`defineOperation`）、`@cordexjs/ui-core`（`UI_POINTS` 类型）、`@cordexjs/i18n`、`../config/shell` | ≤ 60 行（ESLint `max-lines-per-function` 60，原称 `preset-glue-thin`，TD-094，GV-15） |
 | `src/plugins/locales/zh-CN.ts` | 语言包聚合（默认语言） | 默认导出插件 | 各上游包 `./locales/zh-CN` 子路径（待上游提供，§12 G-15） | 随首屏 |
 | `src/plugins/locales/en-US.ts` | 语言包聚合（惰性） | 默认导出插件 | 各上游包 `./locales/zh-CN` 子路径（待上游提供，§12 G-15） | `activateWhen: { event:'i18n/locale-changed' }` |
-| `src/config/options.ts` | 选项 schema | `SlidePresetOptionsSchema`、`SlidePresetOptions` | `@cordexjs/protocol/schema`、`@cordexjs/kernel`（类型）、`./shell`、`./defaults` | `strictObject`；失败抛 `PRESET_INVALID_OPTIONS` |
+| `src/config/options.ts` | 选项 schema | `SlidePresetOptionsSchema`、`SlidePresetOptions` | `@cordexjs/protocol/schema`、`@cordexjs/kernel`（类型）、`./shell`、`./defaults` | `strictObject`；模块顶部调用 `z.config({ jitless: true })`（浏览器 dom preset，早于本 schema 首次解析，2026-09-26 整合）；失败抛 `PRESET_INVALID_OPTIONS` |
 | `src/config/defaults.ts` | 默认值 | `DEFAULT_SLIDE_OPTIONS` | 无 | §2.2 数值单一来源 |
 | `src/config/shell.ts` | 壳意图与「⋯」条目表 | `ShellOptionsSchema`、`ShellIntentSchema`、`SHELL_INTENT_TARGETS`、`MORE_MENU_ITEMS` | `@cordexjs/protocol/schema` | 七项：export/fidelity-report/version-history/plugin-manager/rename/duplicate/developer；`developer` 项 gating 取或 `import.meta.env.DEV \|\| features.developerMenu`（rulings §4.12 U-16，§13 Q-11 结案） |
 | `src/config/headless.ts` | 形态 B/D 裁剪常量 | `HEADLESS_EXCLUDES`（ui-core/ui-react/slide-ui/render-dom/slide-render/local-presence）、`FRAMEWORK_FREE_EXCLUDES`（ui-react、slide-ui；2026-09-24 加 slide-ui，rulings §4.15 Q2） | 无 | EM-01 形态对应见 §6 |
@@ -691,7 +703,7 @@ apps/web/
 | `public/favicon.svg`、`public/brand/mark.svg` | 品牌资源 | — | — | 替换点 |
 | `public/fixtures/sample.pptx` | M1 示例文档 | — | — | 软链 `fixtures/pptx/sample-basic.pptx` |
 | `public/fonts/font-profile.json` | fontProfile 清单（2026-09-25 登记） | — | — | `/fonts/<family>/<version>/<subset>.<hash>.woff2` 同源自托管；清单 `no-cache`、ETag = fontProfile id；部署方字体目录见 60/17（50/05 §7.1、§7.5） |
-| `src/main.tsx` | React 根 | — | `./app/App`、`./app/config`、`./infrastructure/i18n/app-i18n` | 不创建 host |
+| `src/main.tsx` | React 根 | — | `./app/App`、`./app/config`、`./infrastructure/i18n/app-i18n`、`zod`（仅 `z.config`） | 不创建 host；**第一条语句**调用 `z.config({ jitless: true })`，早于任何 schema 解析（zod 4.6.5 `v4/core/util.js:218-220` 的 `new Function` 探测在严格 CSP 下即使被捕获也产生违规报告；50-frontend/14 §4.3、§13 V15；2026-09-26 整合登记） |
 | `src/env.d.ts` | 环境类型 | `ImportMetaEnv`、`Window.__CORDEX_CONFIG__`、`Window.__cordex` | — | — |
 | `src/app/App.tsx` | 应用根 | `App` | `./providers`、`./routes`、`react-router` | 根错误边界 |
 | `src/app/routes.tsx` | 路由表（§3a） | `router` | `../pages/**`（`React.lazy`）、`./layouts/*`、`./guards/*`、`../domain/routes` | 对话框子路由 |

@@ -1,6 +1,6 @@
 # 03 内核与插件模型：kernel 封装、ContributionPoint、Manifest、UnitScope、生命周期、preset 与版本协商
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG））；2026-09-26（§4.20）（FE-06：§3.6 `ContributionBase.enablement`、`ui.shortcut`/`ui.command` 带 `enablement`，上下文键补 `editorMode`、`unitLoaded`、`can.*` 并改指 50-frontend/09 §6.3；FE-01：§5.1 伪代码改为按登记表挂载、新增 §5.1a `units.registerUnitProvider`/`listUnitProviders`、§9 `PresetEntry` 补 `scope` 与 `provides`；§11 补两行机械验证） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-22（§3.6 按 14 §1 C-05/C-13/C-23/C-24 与 14 §2 收编：`render.overlay` 项类型、事件域并集、`when` 键新增）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：§3.6 登记 `comments.anchorResolver`（D-COMMENTS-PKG））；2026-09-26（§4.20）（FE-06：§3.6 `ContributionBase.enablement`、`ui.shortcut`/`ui.command` 带 `enablement`，上下文键补 `editorMode`、`unitLoaded`、`can.*` 并改指 50-frontend/09 §6.3；FE-01：§5.1 伪代码改为按登记表挂载、新增 §5.1a `units.registerUnitProvider`/`listUnitProviders`、§9 `PresetEntry` 补 `scope` 与 `provides`；§11 补两行机械验证）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；2026-09-22 再修订：`Service` 改值导出、`defineContributionPoint` 签名以 09-plugin-type-contracts §1.1 为准、`conflict:'replace'` 适用范围放宽（见 `40-modules/17` §7 G-2/G-3/G-4）
 > 事实来源：`cordis@4.0.0-rc.10` 生成式 API 文档（Context / Fiber / Events / Registry / Service）与 `cordis-primer.md`。凡标注「草案」的签名允许在实现期微调，但**语义**（谁拥有生命周期、失败如何隔离、何时 PENDING）不得改变。
 
 ---
@@ -485,7 +485,7 @@ stateDiagram-v2
 
 `units.open` 的步骤（在 unit Fiber 内，全部可失败并以 `Result` 返回）：
 1. 解析 `documentType`（`documentTypes.get`；缺 → `UNIT_UNKNOWN_DOCUMENT_TYPE`）；
-2. `source.kind === 'bytes'` → `formats.import` → `SnapshotBundle`；`'snapshot'` → 直接使用；`'state'`（`encoding: 'yjs-update' | 'snapshot-json'`，服务端/离线恢复用，B 线 08）→ 交给所选 store Provider 的 `loadState(bytes)`（store-memory 只接受 `snapshot-json`）；`'empty'` → `documentType.createEmpty()`；
+2. `source.kind === 'bytes'` → `formats.import` → `SnapshotBundle`；`'snapshot'` → 直接使用；`'state'`（`encoding: 'yjs-update' | 'snapshot-json'`，服务端/离线恢复用，60-backend/05 §3.2）→ 交给所选 store Provider 的 `loadState(bytes)`（store-memory 只接受 `snapshot-json`）；`'empty'` → `documentType.createEmpty()`；
 3. `migrations.run(snapshot)` 到 `documentType.schemaVersion`；`validateSnapshot`；
 4. 建隔离域、挂登记表中 `provides:['store']` 的 Provider 并 `load(body)`；`resources.apply(unitScope, snapshot.resources)`；
 5. 按登记表（§5.1a，打开时刻的快照）挂其余 Unit 默认 Provider（history/selection/render/presence/collab-yjs/comments 等）与 `unitPlugins`；`await` 全部 Fiber 稳定（缺依赖的进入 PENDING 不算失败，见 §7）；

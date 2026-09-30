@@ -1,4 +1,4 @@
-> 状态：评审 v0.1 | 负责：后端架构评审 | 更新：2026-09-21、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（复核修正，rulings §4.17）（L19 覆盖标注措辞）、2026-09-25（矛盾收口，rulings §4.18）（覆盖标注） | 依赖：00 §3/§4.2/§5.3、08/09/12、架构 08、PRD 06
+> 状态：评审 v0.1 | 负责：后端架构评审 | 更新：2026-09-21、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（复核修正，rulings §4.17）（L19 覆盖标注措辞）、2026-09-25（矛盾收口，rulings §4.18）（覆盖标注）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：00 §3/§4.2/§5.3、08/09/12、架构 08、PRD 06
 
 # 15 服务端模块拆分评审
 
@@ -9,6 +9,8 @@
 **处置（2026-09-21）**：§6 S-1…S-5 已由用户裁决（rulings §4.13）；§3 其余问题按 §4.4 执行，回写分两路完成。
 
 **→ 2026-09-24 rulings §4.15 覆盖**：T-0 单组织、完全去租户——§3.1 失效（组管理亦推迟）；S-1 的个人账号注册改为外置 OIDC IdP + 首次登录 JIT（Q6）；S-3 补两级 ack（S-3a）；另补登 §3.12（Q8 渲染容器隔离）。本文其余历史结论保持原样，逐条标注见各处「→ 2026-09-24」。
+
+**→ 2026-09-26 rulings §4.21**：原 `30-architecture/08-backend-nestjs.md` 已撤销并删除；本文所引「架构 08」「架构08:行号」「原 30/08 篇」均指该篇当时的文本，现行落点按 [60-backend/README](../60-backend/README.md) §6.1 的映射查找。
 
 ## 1. 评审维度总表
 
@@ -92,7 +94,7 @@
 - **风险**：这类"同表异列多写者、靠文档约定隔离"的模式是多人协作项目里最容易在压力下被破坏的一类约束——尤其两个所有者分属 M-08、M-09 两条不同实现条线时。一旦 `documents.repository.ts` 某次改动意外覆盖了 `head_seq`，后果是协同房间的 `ack` 语义错乱（07-rendering/06-collaboration 的持久化保证建立在 `head_seq` 单调递增之上）。
 - **建议**：比"更规范的注释"更彻底的做法（行业上常见于 CQRS/多服务共享聚合场景）是把这两列物理拆到一张 M-09 独占的旁表，例如 `document_collab_state(doc_id pk references documents, head_seq bigint, epoch int)`，`documents` 上只保留一个视图或在读路径 JOIN；这样"谁的表谁写"在物理层面自动成立，无需约定。若拆表成本在当前阶段过高，至少应把 `DocumentRepository` 的更新方法的 TypeScript 入参类型显式 `Omit<Document,'headSeq'|'epoch'>`，让"M-08 不能设置这两列"在编译期而非人工审查时成立。
 - **代价**：拆表需要一次迁移 + 两处查询改 JOIN，属中等成本；类型收紧改动小，建议至少先做类型收紧。
-- **处置**：已回写 `40-modules/08-server-identity-documents-and-storage.md`、`30-architecture/08-backend-nestjs.md`（rulings §4.13 同时确认段）。
+- **处置**：已回写 `40-modules/08-server-identity-documents-and-storage.md`、原 30/08 篇（rulings §4.13 同时确认段）。
 
 ### 3.5 作业入队与 Webhook 投递缺少 Outbox 保证（有问题，维度 B/E，系统性）
 
@@ -108,7 +110,7 @@
 - **风险**：两套开关分裂本身不是 bug，但缺乏机械校验意味着"改了 `roles.ts` 忘了改 `preset-server.ts`"（或反之）不会在 CI 报错，只会在特定角色的生产环境里表现为某个功能悄悄不可用（例如 `role=collab` 实例忘记装配 `server-collab` 导致 WS 网关连上了但 `collabServer` 服务解析不到）。
 - **建议**：①给 `CordisHostService` 增加一个启动期断言：`role=collab` 时必须能 `getService('collabServer')` 成功，否则 fail-fast 退出（比运行时静默 `undefined` 更安全，也符合 D8"先失败、不部分激活"的既有原则，架构08:259）；②`CommentMirrorObserver.onModuleInit` 显式检查 `collabServer` 是否可用，不可用时记录一条诊断日志并跳过订阅而非抛错。顺带一提：`CordisHostService.getService<T>(name)`（09:575）目前是字符串弱类型查找，建议补一个 `ServiceMap` 接口做编译期 key 校验，与本仓库对 `any`/`as` 类型预算的整体严格程度保持一致。 （→ 2026-09-25 覆盖（§4.18 BE-03、BE-13）：`CommentMirrorObserver` 定为只在 collab 角色注册，不再需要 api 角色下的降级分支；快照 REST 同样只在 collab 装配）
 - **代价**：两处断言/日志改动很小；`ServiceMap` 类型收紧是渐进式的，可与实现同步做。
-- **处置**：已回写 `40-modules/09-server-collab-gateway-and-headless-host.md`、`30-architecture/08-backend-nestjs.md`（rulings §4.13 同时确认段）。
+- **处置**：已回写 `40-modules/09-server-collab-gateway-and-headless-host.md`、原 30/08 篇（rulings §4.13 同时确认段）。
 
 ### 3.7 Room 在 Postgres 持续故障下的内存背压无硬上限（有问题，维度 D）
 
@@ -116,7 +118,7 @@
 - **风险**：与 ADR-0035 明确承认的"内存准入按 RSS 预算、超 75% 拒绝新房间"（0035:43）思路一致，但那条规则只管"新房间"，不管"已开着的房间在故障期间无限攒 update"这一路径；在多个热文档同时被编辑、PG 中断时间较长（超过几分钟）的组合场景下，理论上可造成单实例 RSS 持续增长直至触发 OOM，进而波及该实例上其它无关文档的房间——这是把"数据库不可用"从一个局部降级，放大为"实例级故障"的路径。
 - **建议**：给 `server-collab` 的 update-writer 增加一个按 Room 的"未持久化字节数"上限（可复用既有 `compaction.maxPendingBytes` 量级），超限后新 SYNC update 走硬门禁的一个新分支：暂停 ack、返回 `4503`-类退避信号，提示客户端稍后重连（其它实例若 PG 也不可用则同样退避，行为对用户可见但不引发 OOM）。是否要接受"数据库中断时编辑短暂不可用"这一体验取舍，属产品判断，见 S-3（§6）。
 - **代价**：改动集中在 `server-collab` 的门禁与持久化两处，逻辑上是"compaction 阈值"思路的复用，成本中等；需要一次故障注入测试验证。
-- **处置**：已回写 `40-modules/09-server-collab-gateway-and-headless-host.md`、`30-architecture/08-backend-nestjs.md` §12、PRD `10-prd/03-features/06-server-and-ops.md` SV-05、`10-prd/04-non-functional-requirements.md`（rulings §4.13 S-3）。
+- **处置**：已回写 `40-modules/09-server-collab-gateway-and-headless-host.md`、原 30/08 篇 §12、PRD `10-prd/03-features/06-server-and-ops.md` SV-05、`10-prd/04-non-functional-requirements.md`（rulings §4.13 S-3）。
 - → 2026-09-24 rulings §4.15 覆盖：S-3a 两级 ack——溢写成功只回 `ack{tier:'spill'}`，落库后回 `ack{seq,tier:'db'}` 才清客户端 pending；正式 seq 在回放时由 PG 分配，溢写行按 `(instanceId, localCounter)` 排序，回放后断言无 pendingStructs；Valkey 取代 Redis 部署（Q10）。
 
 ### 3.8 Webhook 出站请求缺 SSRF 防护（严重，维度 F）
@@ -134,7 +136,7 @@
 - **现状 B**：`@cordexjs/server-headless` 的 `package.json` 直接依赖 `@cordexjs/model-slide`、`@cordexjs/ooxml-pptx`（09:488），其 `import-pptx.ts`/`export-pptx.ts` 任务也直接具名调用 `ooxml-pptx.decode`/`.encode`（09:497）。章程把 LS（含 `server-headless`）画在"水平层（文档类型盲，可被任一垂直束复用）"的表头之下（章程 §5.1），但当前实现是一个水平层包直接依赖并具名调用一个 `cordex.bundle:'slide'` 的垂直束包——字面上与铁律 1"水平层的任何包不得 import 任何垂直束的包"冲突。团队对此**已有认知且有退出计划**：09 §8 明确写"当前硬编码调用…M5 起改名为文档类型无关的 `import`/`export`"（09:756），不是本评审新发现的隐藏问题，而是已知技术债。
 - **建议**：现状 A 改为对 `anchor` 整列建 GIN 索引（`USING gin (anchor jsonb_path_ops)`）替代具名字段索引，或者拆出一个由各文档类型编解码器负责生成的规范化 `page_ref text` 生成列再建索引，两者都不依赖具体字段名。现状 B 维持既有 M5 收编计划，但建议在章程 §5.1 LS 行补一条脚注："M1–M4 允许按需直接依赖单一垂直束的编解码器，M5 起收编为经 `formats` 贡献点分派"，避免后续评审/新成员把这处已知技术债误读为未被发现的设计缺陷；同时确认 M-01 的 `cordex-doc-type-blind` depcruise 规则当前对 LS 是否已豁免（若未豁免，CI 现在应该已经报错，需要先确认现状）。
 - **代价**：索引调整是一次小迁移；章程脚注是纯文档改动；depcruise 豁免范围确认是一次配置检查，均为低成本。
-- **处置**：已回写 `40-modules/12-server-jobs-comments-and-ops.md`、`30-architecture/08-backend-nestjs.md`（rulings §4.13 同时确认段）。
+- **处置**：已回写 `40-modules/12-server-jobs-comments-and-ops.md`、原 30/08 篇（rulings §4.13 同时确认段）。
 
 ### 3.10 `webhooks` 无限界上下文编号（有问题，维度 A，治理类）
 
@@ -333,7 +335,7 @@ auditRest2 --> commonConfig2
 - `apps/server/src/modules/documents/infrastructure/document.repository.ts` 更新方法入参类型收紧排除 `headSeq`/`epoch`（§3.4）
 - `apps/server/src/cordis-host/cordis-host.service.ts` 补 `ServiceMap` 类型与角色一致性断言（§3.6）
 
-**文档回写**（若采纳本节，详细清单见 §7）：`40-modules/00-module-map.md`（新增 BC-30）、`40-modules/08-server-identity-documents-and-storage.md`（§2.5 仓储签名、§13 新增 Q 项）、`40-modules/12-server-jobs-comments-and-ops.md`（§12 新增 G 项）、`30-architecture/08-backend-nestjs.md`（§5 表注、§7 队列描述）、`00-charter/charter.md`（§5.1 LS 行脚注）。
+**文档回写**（若采纳本节，详细清单见 §7）：`40-modules/00-module-map.md`（新增 BC-30）、`40-modules/08-server-identity-documents-and-storage.md`（§2.5 仓储签名、§13 新增 Q 项）、`40-modules/12-server-jobs-comments-and-ops.md`（§12 新增 G 项）、原 30/08 篇（§5 表注、§7 队列描述）、`00-charter/charter.md`（§5.1 LS 行脚注）。
 
 ## 5. 与章程/铁律一致性核对表
 
@@ -374,7 +376,7 @@ auditRest2 --> commonConfig2
 2. `40-modules/08-server-identity-documents-and-storage.md` — §2.5 `GroupRepository` 签名加 `tenantId`；§2.6 grant/revoke-permission 用例补租户核对；§3/§4.6 新增 `ShareLinkGuard` 导出；§13 新增/结案 Q 项记录本次裁决（对应 S-1）。 （→ 2026-09-24 rulings §4.15 覆盖：T-0/Q6：`GroupRepository` 签名与租户核对两项作废（组管理推迟、无租户））
 3. `40-modules/09-server-collab-gateway-and-headless-host.md` — §2.5 `UpdateStore`/`SnapshotStore` 契约追加 `purgeAll`；新增 Room 内存背压上限的配置项与门禁分支（对应 S-3）；§13 新增 Q 项。
 4. `40-modules/12-server-jobs-comments-and-ops.md` — §2.6 新增 `schedule-purge`/`purge-document-*` 用例占位；§4.1/§4.11 新增对账 cron 与 `egress-guard.ts`；§12 新增 G 项记录 Outbox 与 SSRF 缺口（对应 S-2/S-4）。
-5. `30-architecture/08-backend-nestjs.md` — §5 `documents`/`comments` 表注释（`head_seq`/`epoch` 归属、`anchor` 索引方案）；§7 `maintenance` 队列描述补"document-purge"与对账职责。
+5. 原 30/08 篇 — §5 `documents`/`comments` 表注释（`head_seq`/`epoch` 归属、`anchor` 索引方案）；§7 `maintenance` 队列描述补"document-purge"与对账职责。
 6. `00-charter/charter.md` — §5.1 LS 行补脚注区分"M1–M4 允许具名依赖单一垂直束编解码器，M5 收编"（对应 §3.9）。
 7. `30-architecture/adr/0029-gateway-authorization.md` — 补充分享链接匿名访问的鉴权流程段落（若 S-1 裁决为"支持真正匿名"）。
 

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
+> 状态：草稿 | 负责：产品 | 更新：2026-09-17；2026-09-24（rulings §4.15：T-0 去租户；Q6 EM-03 改 OIDC（JWT/API Key 降 M4）、EM-10 单组织 + 文档级 RLS；Q2 形态 A/B 口径与 CSP/Trusted Types 路径；Q4/Q7 EM-14 客户端安全基线与 `externalResources`；Q10 EM-04 SeaweedFS）；2026-09-24（rulings §4.16 Q12：许可证已裁决 Apache-2.0）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 q-nest-major：EM-10 服务端依赖改 NestJS 12） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
 
 # 功能域 05：嵌入与集成（面向集成方）
 
@@ -266,7 +266,7 @@ flowchart LR
 
 ### EM-10 服务端集成方式
 
-- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`apps/server`（NestJS 11）、`server-*` 包、`protocol`（zod schema → OpenAPI）
+- 优先级：P0 | 目标里程碑：M3 | 依赖能力：`apps/server`（NestJS 12，rulings §4.21 q-nest-major）、`server-*` 包、`protocol`（zod schema → OpenAPI）
 - 验收标准：
   - 两种方式：(a) 部署参考服务 `apps/server`（自托管 docker-compose 洁净栈，Q10；不提供自营 SaaS）并通过 REST/WS 集成；(b) 在自有 Nest 应用中 import `server-*` 模块（Collab Gateway、ImportExport、Snapshots、Thumbnails、Audit），自带 Auth。
   - `protocol` 生成 OpenAPI 3.1 与 TS 客户端；WS 消息 schema 有文档；错误码统一。
@@ -372,6 +372,6 @@ flowchart LR
 |---|---|
 | 事件清单 | `06-metrics-and-analytics.md`（遥测事件镜像运行时事件）、架构 10 |
 | 体积预算 | NF-01；架构 02 分包 |
-| 鉴权 claims 草案 | SV-06；架构 08；`protocol` |
+| 鉴权 claims 草案 | SV-06；60-backend/02 §8；`protocol` |
 | 主题 token 要求 | 设计 04 |
 | 嵌入形态 B（框架无关） | 架构 02 `ui-core` 无 React 的验收 |

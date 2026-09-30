@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.20）（FE-03：修复规则表「`layoutId` 不存在」按 04 §12.3 I-ML2；FE-04：墓碑期 `layoutId` 读时容错，见「修订 2026-09-26」） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.20）（FE-03：修复规则表「`layoutId` 不存在」按 04 §12.3 I-ML2；FE-04：墓碑期 `layoutId` 读时容错，见「修订 2026-09-26」）；2026-09-26（§4.21：决策 1–2 挂点改为 Hocuspocus——L1 适配层预过滤、L2/L3 在 `beforeSync`（`Y.decodeUpdate`，V1）、L4 在 `afterHandleMessage`；拒绝改连接污染规则，见「修订 2026-09-26（rulings §4.21）」）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18、§4.21；ADR-0039
 
 # ADR-0034 服务端对 update 的校验：硬门禁拒绝 + 软门禁补偿修复（不回滚、不分叉）
 
@@ -12,8 +12,8 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 ## 决策
 
-1. **硬门禁（应用前，O(1)/O(帧)）**：信封/zod/大小/速率（L1）、角色与锁定（L2）、`decodeUpdateV2` 可解析与结构数上限（L3）。失败 → 不广播不落库，返回错误或关闭（06 §11）。
-2. **软门禁（应用后）**：在服务端 Unit 上 `applyUpdate` → `ChangeSet.paths` → `documentType.validateChangeSet(paths)`（zod schema，A 线 04）+ 不变量检查（无父子环、`parentId` 存在、`layoutId` 存在、`order` 合法、`schemaVersion`/`epoch` 未改、id 与键一致）。违规 → **RepairPlanner** 生成补偿 Mutation 事务（origin `repair`），本地应用并广播；同时向来源 session 发 `CONTROL.repair{reason, paths}`，计数；同一 session 10 分钟 ≥ 5 次 → 4409 隔离。
+1. **硬门禁（应用前，O(1)/O(帧)）**：帧头/zod/大小/速率（L1）、角色与锁定（L2）、`Y.decodeUpdate` 可解析与结构数上限（L3；2026-09-26 由 `decodeUpdateV2` 改为 V1——Hocuspocus 协议只有 Yjs V1 编码，日志也存 V1 字节）。失败 → 不广播不落库，返回错误或关闭（06 §11）。**挂点**（2026-09-26，rulings §4.21，ADR-0039 决策 4、6）：L1 在网关适配层的帧预过滤（进 Hocuspocus 之前：帧地址、单帧大小、令牌桶、客户端 BroadcastStateless 拒绝）；L2/L3 在 Hocuspocus 的 `beforeSync`（被 await、早于应用与广播，同时 await 写入器先落库）。Hocuspocus 没有「拒绝单帧但不断连」的原语，L2 越权与 L3 超天花板这两类**非致命拒绝**改用**连接污染规则**：发 Stateless `error` 后，该连接之后的写入帧一律不落库、不回 ack，直到重连（被拒帧之后同一客户端的更新可能因缺前驱挂在 `pendingStructs`，落库并 ack 就成了「已 ack 但不可见」，vB）；落库前另用 `Y.parseUpdateMeta` 加删除集缺口检查兜底。未通过 L1–L3 的帧不应用、不扇出（I8）不变。
+2. **软门禁（应用后）**（2026-09-26 挂点：Hocuspocus 的 `afterHandleMessage`——被 await、在应用之后、同一连接串行；不挂 `onChange`，它不被 await、抛错杀进程，exp3。服务端 Unit 经 store-yjs「接管外部 Y.Doc」绑定 Hocuspocus Document，Hocuspocus 应用 update 的 origin 由 store-yjs 识别为 remote）：在服务端 Unit 上 `applyUpdate` → `ChangeSet.paths` → `documentType.validateChangeSet(paths)`（zod schema，A 线 04）+ 不变量检查（无父子环、`parentId` 存在、`layoutId` 存在、`order` 合法、`schemaVersion`/`epoch` 未改、id 与键一致）。违规 → **RepairPlanner** 生成补偿 Mutation 事务（origin `repair`），本地应用并广播（2026-09-26：修复有 p95 ≤ 5 ms 预算，仍先在 Room 上执行并广播、由 `onChange` 送写入器，rulings §4.21 H:Q4）；同时向来源 session 发 `CONTROL.repair{reason, paths}`，计数；同一 session 10 分钟 ≥ 5 次 → 4409 隔离。
 3. 修复规则是**确定性纯函数**（输入：当前状态 + 违规路径 → 输出：Mutation 列表），客户端 observe 时对「环/孤儿」两类也执行同一规则（结果一致，因为规则与输入相同）；其他规则只在服务端执行。
 4. 硬门禁失败与软门禁修复都进入 `audit_log`（`collab.update_rejected` / `collab.repaired`）与指标。
 5. 校验成本预算：软门禁 ≤ 5 ms p95/update（只校验变更路径，不全量）。
@@ -86,8 +86,41 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 - **FE-04**：墓碑修订表「`layoutId` 指向墓碑」行补明读路径行为——墓碑 TTL 内不改写引用，读路径用 `defaultLayoutOf` 取替代版式并发 `collab/soft-conflict{type:'delete-vs-reference'}`；硬删作业同一事务按 I-ML2 修复（`collab/repair{rule:'dangling-layout'}`，只写一次）。
 - 验证（test/collab-sim）：「A 删 L、B 同时对 P 应用 L」两端收敛；TTL 内 `P.layoutId` 仍为 L 且渲染用替代版式；A 撤销后 P 显示 L；硬删后 `P.layoutId` 等于 `defaultLayoutOf` 结果且修复只写一次。
 
+## 修订 2026-09-26（rulings §4.21）：门禁挂点改为 Hocuspocus
+
+> 依据：rulings §4.21 q-ws-gateway 与 H:Q4；ADR-0039 决策 4–6；证据 ver（vB、vD 推翻「临时 readOnly 软拒」）。决策 1–2 已就地改写，本节只做索引。
+
+1. **挂点**：L1 → 网关适配层帧预过滤；L2、L3 → `beforeSync`；L4 → `afterHandleMessage`。
+
+**图 1 门禁在 Hocuspocus 上的挂点**
+
+```mermaid
+flowchart TB
+  f["客户端写入帧"] --> l1["L1 网关帧预过滤：地址、类型、大小、速率"]
+  l1 -- "拒绝" --> c1["原始 ws.close 4400、4413、4429"]
+  l1 --> bs["beforeSync"]
+  bs --> dirty{"连接已污染？"}
+  dirty -- "是" --> drop["丢弃，不落库、不 ack"]
+  dirty -- "否" --> l23{"L2 角色锁定、L3 解码与天花板、缺口检查"}
+  l23 -- "越权或超天花板" --> err["Stateless error，连接进入污染态"]
+  l23 -- "通过" --> w["await 写入器先落库"]
+  w --> app["Hocuspocus 应用并广播"]
+  app --> ah["afterHandleMessage：L4 schema 与不变量"]
+  ah -- "违规" --> rep["修复事务：先广播，经 onChange 落库"]
+  ah --> ack["Stateless ack"]
+```
+
+怎么读：自上而下是一个写入帧的处理顺序。L1–L3 都在应用之前（I8：未通过的帧不应用、不扇出），落库也在应用之前（先落库后广播）；L4 在应用之后，只追加修复不回滚（I7）。「连接已污染」是 2026-09-26 新增的判定，取代临时 readOnly 软拒。
+
+依据：本节第 1–5 条；ADR-0039 决策 4–6；60-backend/16 §4。
+2. **L3 解码**：`Y.decodeUpdateV2` 改为 `Y.decodeUpdate`（V1）。
+3. **非致命拒绝**：改为连接污染规则 + `parseUpdateMeta` 与删除集缺口检查兜底；「临时置 readOnly、`afterHandleMessage` 恢复」的软拒不采用（vB）。
+4. **不变**：未通过 L1–L3 的帧不应用、不扇出（I8）；修订 2026-09-24 第 2 条「溢写期门禁时序」（硬门禁与软门禁先于 `ack{tier:'spill'}`、修复事务随溢写回放）不变。
+5. **修复事务顺序**：先在 Room 上执行并广播，经 `onChange` 送写入器（H:Q4）；`afterHandleMessage` 自身异常被 Hocuspocus 吞掉、不关连接，L4 失败只计数告警，不影响已落库的原 update。
+
 ## 如何被机械验证
 
+- （2026-09-26，rulings §4.21）挂点：L2 拒绝一帧后同一连接的后续写入帧不落库、不回 ack（vB 回归）；只含删除的缺口帧被缺口检查拦下；L1 超 1 MiB 的帧不进 Hocuspocus；L4 修复事务广播后经 `onChange` 落库、`user_id` 为 NULL。
 - 单测（server-collab gate）：每条硬门禁有拒绝用例且无广播；每条修复规则有输入/输出黄金用例；隔离阈值。
 - collab-sim 变体：注入 5% 非法 update，所有端最终一致且合法。
 - 性能：软门禁 p95 ≤ 5 ms（bench）。
@@ -96,4 +129,4 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 
 ## 关联
 
-章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20、§4.20 FE-03/FE-04；ADR-0020/0025/0032/0035；架构 04 §12.3；架构 06 §11/§14、08 §3；60-backend/16 §4。
+章程 D12、D7（不透明保留不受修复影响：Opaque 只校验为字串）；`00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.18 CO-06/CO-07/CO-08/CO-20、§4.20 FE-03/FE-04、§4.21；ADR-0020/0025/0032/0035/0039；架构 04 §12.3；架构 06 §11/§14；60-backend/05 §2；60-backend/16 §4。

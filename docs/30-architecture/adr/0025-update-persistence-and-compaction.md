@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 H1/H2：墓碑硬删除 origin 与执行者）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 5 快照保留按 C-06 定稿；协同后端随 M2 交付，见文末修订）；2026-09-25（§4.19） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17；复核报告 H1/H2：墓碑硬删除 origin 与执行者）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：决策 5 快照保留按 C-06 定稿；协同后端随 M2 交付，见文末修订）；2026-09-25（§4.19）；2026-09-26（§4.21：落库挂 Hocuspocus `beforeSync`、组提交改「空闲即刷、上限 100 ms / 50 条」、服务端事务顺序按 H:Q4、ack 经 Stateless、不用 `onStoreDocument` 持久化、日志存 Yjs V1 字节，见文末修订）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18、§4.21；ADR-0039
 
 # ADR-0025 Update 持久化与快照压缩策略
 
@@ -12,14 +12,14 @@ CRDT update 是小而多的二进制增量；需要：崩溃不丢已 ack 的更
 
 ## 决策
 
-1. **追加日志**：`document_updates(doc_id, seq, update bytea, …)`；服务端把收到的每个（合并后的）update 帧批量写入（100 ms 或 50 条），提交后回 `ack{seq, tier:'db'}`；默认 `persistBeforeBroadcast=true`，**只约束 PG 可用时**「先落库、后广播」的顺序。PG 写失败即进入**降级期**：update 通过门禁（ADR-0034）、进入 none（内存退避重试）/ valkey / blob 任一档后，**立即在本实例广播并跨实例扇出，不等持久化**（2026-09-25 修订，rulings §4.18 CO-08，用户选「降级期照常广播」；原：只写「PG 不可达时的溢写期例外见决策 8」，未说是否广播，作废）。持久性由发起方 pending 兜底（S-3a：收到 `tier:'db'` 才清），其他收到广播的客户端重连时经 step2 回填，风险窗口与 `persistBeforeBroadcast=false` 相同；NF-03「已 ack(db) 零丢失」不受影响；UI 显示「未保存到服务器」，指标 `cordex_collab_broadcast_before_persist_total` 计数。两级 ack 见决策 8。
+1. **追加日志**：`document_updates(doc_id, seq, update bytea, …)`，`update` 存客户端帧的 Yjs **V1** 字节（2026-09-26：Hocuspocus 协议只有 V1，快照仍是 `encodeStateAsUpdateV2` + zstd）；服务端把收到的每个 update 帧经写入器组提交写入，提交后经 Stateless 回 `ack{seq, tier:'db'}`。**挂点**（2026-09-26，rulings §4.21 H:Q1，ADR-0039 决策 5）：写入器挂在 Hocuspocus 的 `beforeSync`（被 await、早于应用与广播），await 取得 seq（或进入降级档）后才返回，Hocuspocus 随后应用并广播；组提交改为「**空闲即刷、上限 100 ms 或 50 条**」——每个连接的帧串行 await，固定 100 ms 窗口会把单连接限到约 10 帧/s（原：「批量写入（100 ms 或 50 条）」）。**不用 Hocuspocus 的 `onStoreDocument` 持久化**（整文档 debounce 覆盖写，存储失败不重试、之后一次空断开即丢，exp2），它只作压缩检查节拍（决策 3）；默认 `persistBeforeBroadcast=true`，**只约束 PG 可用时**「先落库、后广播」的顺序。PG 写失败即进入**降级期**：update 通过门禁（ADR-0034）、进入 none（内存退避重试）/ valkey / blob 任一档后，**立即在本实例广播并跨实例扇出，不等持久化**（2026-09-25 修订，rulings §4.18 CO-08，用户选「降级期照常广播」；原：只写「PG 不可达时的溢写期例外见决策 8」，未说是否广播，作废）。持久性由发起方 pending 兜底（S-3a：收到 `tier:'db'` 才清），其他收到广播的客户端重连时经 step2 回填，风险窗口与 `persistBeforeBroadcast=false` 相同；NF-03「已 ack(db) 零丢失」不受影响；UI 显示「未保存到服务器」，指标 `cordex_collab_broadcast_before_persist_total` 计数。两级 ack 见决策 8。**服务端事务的顺序**（2026-09-26，rulings §4.21 H:Q4「低频先落库，修复先广播」）：版本恢复、彻底删除元素、墓碑 TTL 清扫这类低频事务，先在复制文档（临时 Unit）上执行 → 经写入器落库 → 再把同一 update 应用到 Room 并广播（O(文档)，换来 `user_id` 与 `document.edited` 审计归属准确）；迁移在加载期本就先落库；软门禁修复（p95 ≤ 5 ms）仍先在 Room 上执行并广播，由 `onChange` 把非连接来源的 update 同步送写入器、不回 ack——Hocuspocus 对 Room 上的事务在 `setImmediate` 里广播，做不到「先经写入器再广播」，广播后、提交前崩溃时内容靠客户端重连 step2 补回，只影响修复事务的归属。
 2. **快照**：`document_snapshots` 存整份 `encodeStateAsUpdateV2(doc)`（zstd），`kind ∈ import|auto|named|migration|restore|epoch`；≤ 1 MiB 内联 PG，否则 S3。`documents.latest_snapshot_id` 指向最新 `auto/import/migration/restore/epoch`。
-3. **压缩（compaction）触发**：自上次快照起 pending updates ≥ 500 **或** ≥ 5 MiB **或** ≥ 10 分钟且有新 update；由持有 `lock:compact:{doc}` 租约的实例执行：写新 `auto` 快照 → 裁剪 `seq ≤ seq_upto` 且 `created_at < now()-7d` 的 update 行。
+3. **压缩（compaction）触发**：自上次快照起 pending updates ≥ 500 **或** ≥ 5 MiB **或** ≥ 10 分钟且有新 update（2026-09-26：判定节拍借 Hocuspocus `onStoreDocument` 的 debounce，钩子只判阈值、永不抛错，另有 10 分钟定时兜底；跨实例来的更新不触发该钩子，由压缩第 1 步「先从 PG 补齐」兜住，60-backend/05 §7）；由持有 `lock:compact:{doc}` 租约的实例执行：写新 `auto` 快照 → 裁剪 `seq ≤ seq_upto` 且 `created_at < now()-7d` 的 update 行。
 4. **bootstrap**：latest snapshot + `updates where seq > seq_upto`；客户端也可直接 `GET /snapshots/latest` 做 HTTP 预加载（06 §9.1）。
 5. **命名快照**：用户显式「保存版本」→ `kind named`（永久保留，每文档上限 200）；自动快照 30 天内全量保留，30 天后每天只保留最后一个 auto 快照，保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；import / migration / restore / epoch 事件快照按 auto 口径；全部部署可配（2026-09-25 定稿，rulings §4.19 C-06；原「永久保留，P2 待决」结案）。
 6. **恢复（restore）**：不回滚日志；把目标快照加载到临时 Unit，与当前状态做**模型级 diff**（A 线 `diffSnapshots`）生成一次事务（origin `restore`）写回当前文档并落 `kind restore` 快照——CRDT 连续性保持，在线客户端无需重连。
-7. **GC**：所有对端 `gc:true`；版本历史完全由服务端快照承担。
-8. **两级 ack（S-3a）**：PG 故障期按 S-3 溢写（第一阈值 Redis 协议层 / 第二阈值对象存储）成功后回 `ack{tier:'spill'}`，客户端**保留 pending**；恢复后回放落库、由 PG 分配正式 `seq`，再回 `ack{seq, tier:'db'}`，客户端此时才清理 pending。降级期的广播不等溢写或落库（决策 1，rulings §4.18 CO-08）。详见文末修订。
+7. **GC**：所有对端 `gc:true`；版本历史完全由服务端快照承担。Hocuspocus 默认 `yDocOptions {gc:true}`（Hocuspocus.ts:32-35）与此一致，不在 `onCreateDocument` 改 gc（2026-09-26，ADR-0039）。
+8. **两级 ack（S-3a）**（2026-09-26：语义不变，帧改为 Stateless 载荷 `{type:'ack', tier, seq?}`，由 `afterHandleMessage` 逐帧发出——该钩子被 await、同一连接串行，ack 天然按到达序、逐帧恰一次；原生 `SyncStatus` 照发、客户端忽略，rulings §4.21 H:Q1）：PG 故障期按 S-3 溢写（第一阈值 Redis 协议层 / 第二阈值对象存储）成功后回 `ack{tier:'spill'}`，客户端**保留 pending**；恢复后回放落库、由 PG 分配正式 `seq`，再回 `ack{seq, tier:'db'}`，客户端此时才清理 pending。降级期的广播不等溢写或落库（决策 1，rulings §4.18 CO-08）。详见文末修订。
 9. **墓碑硬删除作业（Q3）**：由持有 `lock:tombstone:{doc}`（或复用压缩租约）的单写者，对 `_deleted` 超过 TTL（默认 24 h，可配置）的实体做硬删除事务（origin `system('maintenance')`，取值以 40-modules/02 的 Origin 枚举为准，不另立 `tombstone-gc`；执行者为 M-09 的 `tombstone-sweeper` + 租约锁，不走 BullMQ——2026-09-24 复核修正，对齐复核报告 H1/H2），随后的 `auto` 快照不再含该实体；S-2 文档擦除（含「永久删除文档」）与元素级「彻底删除元素」不等 TTL。「彻底删除元素」（2026-09-25，rulings §4.18 CO-07）只对墓碑态元素开放、只能由 owner 经 `POST /documents/:id/elements/purge{ids}` 发起，交 M-09 单写者**复用本作业的硬删除事务**立即执行（房间未加载时先加载），写审计 `document.element_purged`；只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件按 30 天无引用 GC；删除方此后撤销该步按整步跳过（`wholeStep:true`）。（原：「S-2 文档擦除与『立即彻底删除』不等 TTL」，未区分文档级与元素级，作废。）
 
 **图 1 update 写入与两级 ack**
@@ -31,13 +31,13 @@ sequenceDiagram
   participant peers as 其他客户端与其他实例
   participant pg as Postgres document_updates
   participant spill as 溢写层，一级 Redis 协议层，二级对象存储
-  client->>inst: update 帧，已过门禁
-  inst->>inst: 合并后批量，100 ms 或 50 条
+  client->>inst: update 帧，beforeSync 已过门禁 L2、L3
+  inst->>inst: 组提交，空闲即刷，上限 100 ms 或 50 条
   alt PG 可达
     inst->>pg: 批量 INSERT，seq 由 documents.head_seq 在同一事务内分配
     pg-->>inst: 提交
-    inst-->>client: ack{seq, tier:'db'}
-    inst-->>peers: 广播并跨实例扇出，persistBeforeBroadcast 只约束这一分支
+    inst-->>peers: beforeSync 返回后应用并广播，跨实例扇出，persistBeforeBroadcast 只约束这一分支
+    inst-->>client: afterHandleMessage 发 Stateless ack{seq, tier:'db'}
     Note over client: 清理 pending
   else PG 写失败，降级期
     inst-->>peers: 进入 none、valkey 或 blob 任一档后立即广播，不等持久化，计数 broadcast_before_persist
@@ -53,7 +53,7 @@ sequenceDiagram
   end
 ```
 
-怎么读：纵线是参与方，自上而下是时间顺序。两条分支的区别在于 seq 何时分配、广播是否等持久化：正常时在落库事务内分配 seq，落库后再广播；降级期不分配 seq、等回放事务再分配，广播则在进入任一降级档后立即进行（2026-09-25 修订，rulings §4.18 CO-08；原图溢写分支只回 spill ack、没有广播，作废），所以多实例同时溢写也不会出现 seq 冲突、协作者也彼此可见。溢写数据即使丢失，客户端仍保留 pending，重连 step2 时凭 update 幂等性补齐。心跳过期实例遗留的溢写行不由存活实例按本图回放，见修订 2026-09-25 第 2 条。
+怎么读：纵线是参与方，自上而下是时间顺序（2026-09-26 按 ADR-0039 标出挂点：落库在 `beforeSync`、ack 在 `afterHandleMessage`，ack 经 Stateless 发出）。两条分支的区别在于 seq 何时分配、广播是否等持久化：正常时在落库事务内分配 seq，落库后再广播；降级期不分配 seq、等回放事务再分配，广播则在进入任一降级档后立即进行（2026-09-25 修订，rulings §4.18 CO-08；原图溢写分支只回 spill ack、没有广播，作废），所以多实例同时溢写也不会出现 seq 冲突、协作者也彼此可见。溢写数据即使丢失，客户端仍保留 pending，重连 step2 时凭 update 幂等性补齐。心跳过期实例遗留的溢写行不由存活实例按本图回放，见修订 2026-09-25 第 2 条。
 
 依据：本文决策 1、8 与文末「修订 2026-09-24」第 1–4 条、「修订 2026-09-25」第 1–2 条。
 
@@ -102,8 +102,8 @@ flowchart TD
 
 - 压缩 10,000 update ≤ 2 s（RM-S）：`encodeStateAsUpdateV2` + zstd 对 ≤ 16 MB 状态在 2 vCPU 上约 300–800 ms，余量用于写库；超时则下次再试并告警。
 - 单文档 update 日志**压缩后 ≤ 10 × 最新快照大小**（NF-10）：压缩器在 `maxPendingBytes` 之外增加此比值触发条件；裁剪保留 7 天窗口内的行（P2 待决可调）。
-- 持久化滞后（update 接收 → 落盘 ack）p99 ≤ 1 s：flush 100 ms / 50 条 → 正常 p95 ≈ 150 ms；PG 抖动时批量退避上限 800 ms，超过则 ack 延迟但不丢（客户端 pending 计数可见）。
-- 导入基线包（SV-01）：`kind import` 快照记录 `baseline_key`（原 pptx 对象键），供导出复用不透明部件（08 §16.2）。
+- 持久化滞后（update 接收 → 落盘 ack）p99 ≤ 1 s：组提交空闲即刷、上限 100 ms / 50 条（2026-09-26 改，原「flush 100 ms / 50 条」）→ 正常 p95 ≤ 150 ms；PG 抖动时批量退避上限 800 ms，超过则 ack 延迟但不丢（客户端 pending 计数可见）。每连接串行 await 使 PG 提交时延直接限制单连接帧率并阻塞同一连接的 awareness，需在 70-testing/09 的压测里单列（ADR-0039 后果）。
+- 导入基线包（SV-01）：`kind import` 快照记录 `baseline_key`（原 pptx 对象键），供导出复用不透明部件（60-backend/06 §7）。
 
 ## 修订 2026-09-24：两级 ack（S-3a）与墓碑硬删除（Q3）
 
@@ -129,8 +129,20 @@ flowchart TD
 2. **里程碑（D-M2-CONTENT）**：update 追加表、db ack、压缩生成 auto 快照与「最新快照 + 尾巴 update」bootstrap、单实例两级溢写与 `ack{tier:'spill'}` 及回放、保留期稀疏化作业、墓碑 TTL 清扫随协同后端在 **M2** 交付（单实例）；命名快照、版本列表与恢复、跨实例溢写认领、彻底删除元素属 **M3**（PRD 05 §0.3）。
 3. **压缩不经队列**：压缩只在持有 Room 的 collab 实例内、持租约执行，架构 08 §7 原「本实例负载高时委托 `compaction` 队列」的可选路径删除。
 
+## 修订 2026-09-26（rulings §4.21）：Hocuspocus 钩子挂点
+
+> 依据：rulings §4.21 q-ws-gateway（协同服务端改用 Hocuspocus 4）与 H:Q1「逐帧落库+两级 ack」、H:Q4「低频先落库，修复先广播」；ADR-0039 决策 5。各条已就地改写，本节只做索引。
+
+1. **决策 1 挂点**：写入器挂 `beforeSync`，先落库（或进入降级档）后应用与广播；组提交「空闲即刷、上限 100 ms 或 50 条」；取号返回 0 行（`purging` 或纪元已变）时先 `ws.close(4404 / 4428)` 再抛错阻止应用，不回 ack（60-backend/11 §5）。
+2. **服务端事务顺序（H:Q4）**：恢复、彻底删除元素、墓碑清扫在复制文档上先落库再应用广播；迁移在加载期先落库；软门禁修复先广播、经 `onChange` 送写入器。
+3. **决策 8**：ack 经 Stateless 发出，挂 `afterHandleMessage`；被门禁拒绝或按连接污染规则丢弃的帧不回 ack（ADR-0039 决策 6）。
+4. **不用 `onStoreDocument` 持久化**，只作压缩节拍（决策 3）；不用 extension-database / s3 / sqlite。
+5. **日志字节**：`document_updates.update` 存 Yjs V1（协议只有 V1）；L3 用 `Y.decodeUpdate`（ADR-0034 同日修订）；快照编码不变。
+6. **决策 7**：`gc:true` 与 Hocuspocus 默认一致。
+
 ## 如何被机械验证
 
+- （2026-09-26，ADR-0039）挂点：`beforeSync` 注入 300 ms 延迟时对端在落库完成后才看到更新；同一连接连续 10 帧的 db ack 顺序等于到达顺序；存储钩子失败不影响已 ack 的内容（反例 exp2：原生 `onStoreDocument` 失败后一次空断开即丢，本设计下该场景 `document_updates` 行完整）；恢复事务的 update 行 `user_id` 等于执行者且先于广播落库。
 - 单测（server-collab）：触发条件三选一均触发压缩；租约丢失不写；裁剪只删符合条件的行。
 - 集成：写 1,000 updates → 压缩 → bootstrap 状态与全量重放相等（`encodeStateAsUpdateV2` 相等）。
 - 崩溃测试：在 `ack` 前 kill 进程，重启后客户端重发的 update 被幂等应用，状态一致；`ack` 后 kill，重启后状态包含该 update。
@@ -144,4 +156,4 @@ flowchart TD
 
 ## 关联
 
-章程 D5/D6/Q5；`00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18 CO-07/CO-08/CO-09/CO-10/CO-16；ADR-0020/0022/0034/0035；架构 06 §6.4、08 §5/§12；40-modules/02/05/09；PRD NF-03、SV-05。
+章程 D5/D6/Q5；`00-charter/rulings-2026-09-14.md` §4.13 S-3、§4.15 Q3/S-3a、§4.18 CO-07/CO-08/CO-09/CO-10/CO-16、§4.21；ADR-0020/0022/0034/0035/0039；架构 06 §6.4；60-backend/11、60/01 §12；40-modules/02/05/09；PRD NF-03、SV-05。

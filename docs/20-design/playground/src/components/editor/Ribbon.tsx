@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import type { LayoutDef } from "@/lib/mock-data"
 import { DesignTab } from "./ribbon/DesignTab"
 import { HomeTab } from "./ribbon/HomeTab"
-import { InsertTab } from "./ribbon/InsertTab"
+import { InsertTab, type InsertPanel, type InsertTabProps } from "./ribbon/InsertTab"
 import { MasterTab, type LayoutDeleteTarget } from "./ribbon/MasterTab"
 import { PluginTab } from "./ribbon/PluginTab"
 import { RibbonRoot } from "./ribbon/primitives"
@@ -17,7 +17,7 @@ import { ViewTab, type MasterEntryState } from "./ribbon/ViewTab"
 
 export * from "./ribbon/primitives"
 export { HomeTab, InsertTab, DesignTab, ViewTab, TransitionTab, PluginTab, MasterTab }
-export type { MasterEntryState, LayoutDeleteTarget }
+export type { MasterEntryState, LayoutDeleteTarget, InsertPanel, InsertTabProps }
 
 export type RibbonTabValue = "home" | "insert" | "design" | "transition" | "view" | "plugin"
 
@@ -120,6 +120,11 @@ export interface EditorRibbonProps {
    * 编辑模式已降权（readonly-degraded）由路由传 `"degraded"`（评审模式不渲染 Ribbon）。非 `"enabled"` 时页签行右侧的视图分段不渲染，「视图」页签的「母版视图」按钮禁用并说明原因。
    */
   masterEntry?: MasterEntryState
+  /**
+   * 「插入」页签的演示与联动参数（rulings §4.21）：受控打开的面板（形状库 / 图标 / 符号 / 页眉和页脚 / 操作设置 / 超链接）、
+   * 是否处于文本编辑态（决定「符号」可用）、当前插入工具与选中回调。缺省时插入页签用内部状态。
+   */
+  insert?: Omit<InsertTabProps, "onAddComment">
 }
 
 /** 普通视图的页签清单；母版视图复用同一清单（去掉"设计"页签，其主题/背景控件在"母版"页签内），保证两种视图是同一个编辑器。 */
@@ -139,7 +144,7 @@ function buildEditorTabs(p: EditorRibbonProps, masterEntry: MasterEntryState) {
         />
       ),
     },
-    { value: "insert", label: "插入", content: <InsertTab onAddComment={p.onAddComment} /> },
+    { value: "insert", label: "插入", content: <InsertTab onAddComment={p.onAddComment} {...p.insert} /> },
     { value: "design", label: "设计", content: <DesignTab themeId={p.themeId} onThemeChange={p.onThemeChange} /> },
     { value: "transition", label: "切换", content: <TransitionTab /> },
     {

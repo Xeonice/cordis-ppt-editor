@@ -18,6 +18,7 @@ import type { LayoutDef } from "@/lib/mock-data"
 import { ColorPickerPopover, ColorSwatch } from "../ColorPickerPopover"
 import { LayoutGallery } from "../LayoutGallery"
 import { RibbonGroup, RibbonBigButton, RibbonTextButton } from "./primitives"
+import { ShapeGallery } from "./insert/ShapeGallery"
 
 const fontFamilies = ["系统 UI 字体", "微软雅黑", "宋体", "Geist"]
 const fontSizes = ["10", "12", "14", "18", "24", "32", "44", "54"]
@@ -207,7 +208,15 @@ export function HomeTab({
       </RibbonGroup>
 
       <RibbonGroup label="绘图">
-        <RibbonBigButton icon={Shapes} label="形状" withCaret onClick={() => toast("打开形状库（插入页签）")} />
+        {/* 与「插入 › 形状 ▾」同一个形状库 flyout（rulings §4.21，R elementDesign「预设形状」） */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <RibbonBigButton icon={Shapes} label="形状" withCaret />
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto gap-0 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <ShapeGallery onPick={(s) => toast(`插入工具 · ${s.name}`, { description: "单击画布插入 1 in × 1 in，或拖出大小；Esc 取消" })} />
+          </PopoverContent>
+        </Popover>
         <div className="flex flex-col gap-1">
           <Popover>
             <PopoverTrigger asChild>

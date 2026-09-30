@@ -18,7 +18,7 @@ export const routes: RouteEntry[] = [
   { path: "/editor/masters", title: "母版视图", description: "母版缩略图窗格、版式画布、占位符编辑、母版页签", spec: "03-screens/26", status: "ready" },
   { path: "/editor/layouts", title: "版式选择与重置", description: "按母版分组的版式画廊、重置页", spec: "03-screens/27", status: "ready" },
   { path: "/editor/design", title: "设计页签与主题", description: "主题、变体、主题色/字体编辑", spec: "03-screens/28", status: "ready" },
-  { path: "/editor/insert", title: "插入", description: "形状库、图片、表格、图表、文本框", spec: "03-screens/15", status: "ready" },
+  { path: "/editor/insert", title: "插入", description: "插入页签七组、形状库 72 项、插入工具态、操作设置、页眉和页脚、图标、符号", spec: "03-screens/04、15", status: "ready" },
   { path: "/editor/text", title: "文本编辑与格式化", description: "编辑态、迷你工具条、字体/段落/项目符号", spec: "03-screens/16", status: "ready" },
   { path: "/editor/comments", title: "评论", description: "线程、@提及、解决、脱离锚点", spec: "03-screens/06", status: "ready" },
   { path: "/editor/history", title: "版本历史", description: "自动/命名版本、对比、恢复", spec: "03-screens/07", status: "ready" },

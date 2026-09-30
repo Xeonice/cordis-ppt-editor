@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q17：自动版本策略标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：FE-05、FE-23 删除被引用版式 / 母版改为确认后可撤销并补删母版文案） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01）、`07-masters-layouts-and-themes.md`（ML-01–ML-03）、`03-collaboration.md`（CO-07）；rulings §4.8 Q8 / §4.9 Q9 / §4.10 Q11–Q13、Q16 / §4.20 FE-05、FE-23；03-screens/26、29
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q17：自动版本策略标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：FE-05、FE-23 删除被引用版式 / 母版改为确认后可撤销并补删母版文案）；2026-09-26（§4.21 整合：F3 加入图的服务端参与者改为 Hocuspocus 原生中继加 beforeHandleAwareness（ADR-0024 修订）） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01）、`07-masters-layouts-and-themes.md`（ML-01–ML-03）、`03-collaboration.md`（CO-07）；rulings §4.8 Q8 / §4.9 Q9 / §4.10 Q11–Q13、Q16 / §4.20 FE-05、FE-23；03-screens/26、29
 > **2026-09-24 修订说明（rulings §4.15）**：角色术语去掉"访客 / 匿名"（分享链接始终要求登录，S-1 / Q6）；F1 边界补"超出规模上限直接拒绝导入"（Q5）与外链资源 / 受限字体口径（Q7）；F2、F4 撤销语义按 Q3 改写（跳过他人后写并提示、整步被跳过即停、「恢复我的值」、软删除墓碑以原 id 恢复，原"不强行复用原 id"作废）；F3 名额按用户计、所有者保席（Q5）。
 > **2026-09-18 修订说明**：F1 触发补开始页入口（新建 / 最近 / 模板 → 编辑器）；F10 触发 / 前置 / 主流程 / 边界按"同一个编辑器 + 母版缩略图窗格 + Ribbon 分段主入口 + `Mod+Alt+M`"与 rulings Q11–Q13、Q16 回写，F-P16 同步；F8 自动版本策略改为 PRD CO-07 口径。
 
@@ -107,7 +107,7 @@ flowchart TB
 ```mermaid
 sequenceDiagram
   participant userB as 用户 B
-  participant collab as collab 服务 · server-collab awareness-relay
+  participant collab as collab 服务 · Hocuspocus 原生中继加 beforeHandleAwareness 校验
   participant clientA as 用户 A 客户端
   userB->>collab: 打开文档，建立协同连接
   userB->>collab: awareness 广播 presence
@@ -122,7 +122,7 @@ sequenceDiagram
 ```
 
 怎么读：纵向是时间顺序，箭头是消息方向；opt 框是按条件出现的步骤，Toast 不阻断任何操作。
-依据：本文 F3；presence 经服务端转发见架构 06 §7。
+依据：本文 F3；presence 经服务端转发见架构 06 §7（2026-09-26 起由 Hocuspocus 原生中继、服务端扩展 `beforeHandleAwareness` 校验与盖章，ADR-0024 修订）。
 
 **F3 离开**
 

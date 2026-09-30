@@ -43,6 +43,7 @@ export function RibbonBigButton({
   label,
   pressed,
   withCaret,
+  badge,
   className,
   ...props
 }: {
@@ -50,6 +51,8 @@ export function RibbonBigButton({
   label: string
   pressed?: boolean
   withCaret?: boolean
+  /** 右上角里程碑角标（如 `<MilestoneTag>M3</MilestoneTag>`，rulings §4.21）；不占布局、不改变 56×60 */
+  badge?: ReactNode
   className?: string
 } & Omit<ComponentProps<typeof Button>, "children" | "size" | "variant">) {
   return (
@@ -57,7 +60,7 @@ export function RibbonBigButton({
       variant="ghost"
       aria-pressed={pressed}
       className={cn(
-        "h-[60px] w-14 shrink-0 flex-col gap-1 rounded-lg px-1 text-[11px] font-normal whitespace-nowrap",
+        "relative h-[60px] w-14 shrink-0 flex-col gap-1 rounded-lg px-1 text-[11px] font-normal whitespace-nowrap",
         pressed && "bg-accent text-accent-foreground",
         className
       )}
@@ -68,35 +71,95 @@ export function RibbonBigButton({
         {withCaret && <ChevronDown className="absolute -right-2.5 size-3 text-muted-foreground" />}
       </span>
       <span className="leading-none">{label}</span>
+      {badge && <span className="pointer-events-none absolute -top-0.5 -right-1.5 flex">{badge}</span>}
     </Button>
   )
 }
 
-/** 小按钮 28 高，图标 + 文字左对齐；用于剪贴板/编辑等分组内的堆叠小控件，可选快捷键提示 */
+/**
+ * 里程碑 / 优先级标记（rulings §4.21）：`M3`、`P2`、`M4+` 这类短标签。11px（text-2xs，仅徽标可用）、14px 高胶囊，
+ * info 语义色（亮 #0C4A93 on #E7F1FE ≈ 8.3:1；暗 #9AC8F5 on 16% 蓝叠玻璃 ≥ 7:1），与禁用控件并排时不随按钮一起变淡。
+ */
+export function MilestoneTag({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span className={cn("inline-flex h-3.5 shrink-0 items-center rounded-full bg-info-muted px-1 text-2xs leading-none font-medium text-info-foreground", className)}>
+      {children}
+    </span>
+  )
+}
+
+/**
+ * 「禁用而不隐藏」的 Ribbon 小控件（rulings §4.21）：28px 行，按钮 aria-disabled（仍可聚焦与悬停，tooltip 说明原因），
+ * 尾部挂里程碑标记。`reasonOpen` 供演示态强制展开原因提示。
+ */
+export function RibbonDisabledTextButton({
+  icon: Icon,
+  label,
+  tag,
+  reason,
+  reasonOpen,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  tag?: ReactNode
+  reason: ReactNode
+  reasonOpen?: boolean
+}) {
+  return (
+    <Tooltip open={reasonOpen || undefined}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-disabled="true"
+          onClick={(e) => e.preventDefault()}
+          className="h-7 cursor-not-allowed justify-start gap-1.5 rounded-lg px-2 text-xs font-normal hover:bg-transparent active:translate-y-0"
+        >
+          <span className="flex items-center gap-1.5 opacity-50">
+            <Icon className="size-3.5" />
+            {label}
+          </span>
+          {tag}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" className="max-w-64 text-pretty">{reason}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
+ * 小按钮 28 高，图标 + 文字左对齐；用于剪贴板/编辑等分组内的堆叠小控件，可选快捷键提示。
+ * `hint`：无快捷键时的 tooltip 文案（如里程碑说明）；`withCaret`：作为下拉触发器时的尾部箭头。
+ */
 export function RibbonTextButton({
   icon: Icon,
   label,
   shortcut,
+  hint,
+  withCaret,
   className,
   ...props
 }: {
   icon: ComponentType<{ className?: string }>
   label: string
   shortcut?: string
+  hint?: ReactNode
+  withCaret?: boolean
   className?: string
 } & Omit<ComponentProps<typeof Button>, "children" | "size" | "variant">) {
   const btn = (
     <Button variant="ghost" size="sm" className={cn("h-7 justify-start gap-1.5 rounded-lg px-2 text-xs font-normal", className)} {...props}>
       <Icon className="size-3.5" />
       {label}
+      {withCaret && <ChevronDown className="size-3 text-muted-foreground" />}
     </Button>
   )
-  if (!shortcut) return btn
+  if (!shortcut && !hint) return btn
   return (
     <Tooltip>
       <TooltipTrigger asChild>{btn}</TooltipTrigger>
       <TooltipContent className="flex items-center gap-1.5">
-        {label} <Kbd>{shortcut}</Kbd>
+        {hint ?? label} {shortcut && <Kbd>{shortcut}</Kbd>}
       </TooltipContent>
     </Tooltip>
   )

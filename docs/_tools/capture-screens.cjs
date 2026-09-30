@@ -1,7 +1,7 @@
 // 用法：node capture-screens.cjs <dist 服务 URL> <输出目录> [--only=08,13]
 // 为文档站「设计集中展示」实拍 playground（先 npm run build，再用静态服务器在 <URL> 提供 docs/20-design/playground/dist/）：
-// 每个路由拍默认态 + 至多 3 个代表态（15 / 16 / 30 / 31 为 §4.21 样张放宽，见 SCREENS 注释）；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
-// 输出 <输出目录>/*.jpg 与 manifest.json（31 个 03-screens 文档全部登记；无专属路由的 states 为 []，用 seeAlso 指向相关界面）。
+// 每个路由拍默认态 + 至多 3 个代表态（15 / 16 / 30 / 31 为 §4.21 样张放宽，09 / 32 为 §4.23 样张全部演示态，见 SCREENS 注释）；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
+// 输出 <输出目录>/*.jpg 与 manifest.json（32 个 03-screens 文档全部登记；无专属路由的 states 为 []，用 seeAlso 指向相关界面）。
 // 切换演示态：点击 DesignBar 的演示状态下拉 [data-slot=select-trigger]，再点对应文字的 [data-slot=select-item]；
 // 暗色：页面脚本运行前把 localStorage["cordex-theme"] 设为 dark/light（src/lib/theme.ts 中显式选择优先级最高），并同步 colorScheme。
 const fs = require("fs"); const path = require("path"); const { execSync } = require("child_process");
@@ -27,7 +27,12 @@ const SCREENS = [
   S("07", "07-version-history.md", "版本历史", "协同", "/editor/history", [["default", "默认（有历史）"], ["readonly", "编辑者：只能查看，不能恢复 / 命名"]]),
   S("08", "08-share-permissions-dialog.md", "分享与权限对话框", "协同", "/editor/share",
     [["default", "默认（所有者视角）"], ["no-account", "无账号者打开分享链接"], ["invite-error", "邀请失败（selfSignup 关，默认）"]]),
-  S("09", "09-plugin-manager.md", "插件管理器", "编辑器·面板", "/editor/plugins", [["default", "默认"], ["error", "管理器加载失败"]]),
+  // 09：rulings §4.23 重写为个人插件面板（PM-10、PM-11），并承载缺插件横幅三种原因（PM-12）与管理员改动后的「重新加载」横幅（PM-08）；全部演示态
+  S("09", "09-plugin-manager.md", "插件面板（个人）", "编辑器·面板", "/editor/plugins",
+    [["default", "默认"], ["failed", "有启动失败 · 详情与重试"], ["failed-admin", "启动失败 · 管理员视角"], ["user-off", "个人关闭了「演示激光笔」"],
+     ["conflict", "快捷键冲突 · 从快捷键面板进入"], ["readonly", "只读角色（查看者）"], ["no-optional", "空 · 管理员未开放可选插件"],
+     ["reload-banner", "管理员刚改动 · 重新加载横幅"], ["missing-disabled", "缺插件横幅 · 管理员已停用"], ["missing-undeclared", "缺插件横幅 · 本部署未部署"],
+     ["missing-version", "缺插件横幅 · 版本过旧"], ["missing-detail", "缺少的插件 · 详情（管理员）"], ["loading", "加载中"], ["error", "加载失败"]]),
   S("10", "10-fidelity-report.md", "导入保真报告", "导入导出", "/editor/fidelity",
     [["default", "部分保留（默认）"], ["partial-fail", "部分解析失败但可继续打开"], ["full", "完全高保真"]]),
   S("11", "11-present-mode.md", "放映模式", "查看器与放映", "/present",
@@ -80,6 +85,11 @@ const SCREENS = [
      ["workbook-notice", "数据面板 · 原工作簿提示"], ["type-switch", "更改图表类型"], ["type-menu", "更改类型 ▾ · 下拉"],
      ["type-confirm", "更改类型 · 会移除导入内容"], ["type-confirm-menu", "更改类型 ▾ · 下拉内确认"], ["options", "标题 / 图例 / 数据标签"],
      ["pie", "饼图 · 百分比标签"], ["readonly-type", "此类型仅支持查看"], ["m2-disabled", "M2 · 图表 ▾ 禁用 · 选中导入图表"]]),
+  // 32：rulings §4.23 新建管理员插件管理（G-84 / G-85，PM-03…PM-09），入口在账户菜单「管理」（仅平台管理员）；全部演示态
+  S("32", "32-admin-plugin-management.md", "管理 › 插件（管理员插件管理）", "应用壳", "/admin/plugins",
+    [["default", "默认"], ["detail", "详情抽屉 · 数据图表增强"], ["change-confirm", "变更确认卡（3 项）"], ["dep-conflict", "禁用被依赖的插件 · 冲突"],
+     ["first-enable", "首次启用第三方插件（M4）"], ["mutex", "互斥 · 不能同时启用"], ["rejected", "未通过部署校验（被拒插件）"],
+     ["unsigned-allowed", "非生产部署 · 允许未签名"], ["loading", "加载中"], ["error", "加载失败"], ["forbidden", "非管理员访问 · 无权限"]]),
 ]
 // 非 03-screens 的补充界面（样式指南：09-design-specification §2），生成器可选用
 const EXTRAS = [{ ...S("styleguide", "", "样式指南（组件状态矩阵）", "设计系统", "/styleguide", [["default", "默认", { noBar: true }]]), doc: "09-design-specification.md" }]

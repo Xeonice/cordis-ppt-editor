@@ -1,5 +1,5 @@
 # 07 后端集成测试与 API / WS e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[30/08](../30-architecture/08-backend-nestjs.md) §5–§7 / §9 / §12 / §16、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：漂移检查直查 pg_catalog；Webhook 签名改 Standard Webhooks；WS 升级入口改为嵌入 Fastify 同端口、先扣后退；协同集成改跑 Hocuspocus，加 Valkey 宕机与重启、存储失败不丢）；2026-09-26（§4.21 整合：§9 W19 登记 hp-redis-extension.int-spec.ts（M3））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.21 q-db-access / q-webhook-sig / q-ws-gateway / H:q-hp-persist-ack / H:q-hp-fanout、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、d-01、d-11、d-16、d-19、d-21、d-22，核实 exp1、exp2、vE）、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §1–§7、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–13（原 30/08 §5–§7 / §9 / §12 / §16）、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
 
 本文是服务端集成测试与 API / WS e2e 的唯一事实源：容器 harness、数据库隔离、迁移测试、文档级 RLS 绕过测试、身份与会话、权限与分享、文档媒体与存储、协同服务集成、墓碑与擦除、作业、评论 / Webhook / 审计 / 遥测、路由鉴权覆盖与契约快照——每一类写 harness、用例族、矩阵的生成方式与运行时机。
 
@@ -124,7 +124,7 @@ flowchart TB
 | MG4 | 回滚一步 = 应用回滚 | 不提供 down 迁移（60/08 §10.2）；在 MG2 得到的新 schema 上启动上一发布标签的应用构建，跑其登录、列表、打开、协同持久化冒烟全部通过（60/08 §10.3「回滚一步 = 应用回滚、数据库不回滚」；与 [08](./08-deployment-and-environment-e2e.md) §8 R3 同一激活时间）；另断言本分支新增迁移只含 expand 类语句（无 `DROP COLUMN`、`RENAME`、收紧约束，收缩须晚一个版本） |
 | MG5 | 负向断言 | 业务表集合恰为 60/08 §1 的 17 张 + 台账 `cordex_schema_migrations`；`information_schema.columns` 中没有名为 `tenant_id` / `tenant` / `tid` 的列（rulings §4.15 T-0）；没有 `tenants`、`groups`、`pending_invitations`（§4.17 D1）、`api_keys` 表；`documents` 没有 `folder_id` 列（决策 DDL-COLS）；M1–M3 没有 `collab_sessions` 表（§4.18 BE-31）；`users` 没有 `email_hash` 列（决策 C-01） |
 | MG6 | GRANT 与 RLS 快照 | 读取 `information_schema.role_table_grants` 与 `column_privileges`、`pg_class.relrowsecurity` / `relforcerowsecurity`、`pg_proc` 的 `prosecdef` / `proconfig` / ACL、`pg_database.datacl`，规范化为 `apps/server/test/fixtures/grants.snapshot.json` 并与 60/08 §4.2 矩阵比对；另逐条断言：只有 `cordex_migrator` 带 `BYPASSRLS`；`cordex_app` 与 `cordex_system` 无任何 DDL 权限；`documents` 的 M-09 列只对 `cordex_system` 有 UPDATE（列级授予）；`audit_log` 对二者只有 `INSERT` 与 `SELECT`；分区子表对应用角色无任何权限；`PUBLIC` 无任何表、函数与库连接权限；每个 `SECURITY DEFINER` 函数的 `search_path` 为 `pg_catalog, pg_temp` 且 `PUBLIC` 无 `EXECUTE`（决策 DB-ROLES；60/08 DB-06） |
-| MG7 | 与 drizzle schema 一致 | drizzle schema 生成的表、列、类型、可空与默认值与迁移后的库一致（60/08 §10.1 漂移检查） |
+| MG7 | 与 drizzle schema 一致（§4.21 改写） | 漂移检查 DB-03：空库执行全部迁移后**直查 `pg_catalog`**——普通表取 relkind `r`，分区表只取 relkind `p` 的父表（`document_updates`、`audit_log`），`relispartition` 为真的叶子分区与台账表排除——得到的表、列（名称与顺序）、类型（`format_type`）、可空性与默认值表达式，与手写 drizzle `schema/*.ts` 经 `getTableConfig()` 导出的清单逐列相等，表集合恰为 60/08 §1 的 17 张；负向夹具：镜像删掉 `document_updates` 或 `audit_log` 的一列即失败。不用 drizzle-kit 内省（它只选 relkind r / v / m，整张丢掉分区父表），原「drizzle schema 生成的表与库一致」口径作废（60/08 §10.1，rulings §4.21 q-db-access） |
 | MG8 | 快照预迁移 | `server-headless` 的 migrate 任务对 [03](./03-fidelity-roundtrip-and-corpus.md) §11 的历史快照样本批量执行，结果通过 `validateSnapshot` |
 
 文档里的 DDL 围栏由 `docs/_tools/ddl-check` 在 PG 18 容器中按编号执行（60/08 §11，总编排实现），与本节的代码迁移测试互补：前者保证文档可执行，后者保证代码迁移与快照一致。
@@ -281,33 +281,36 @@ M4 管理面板复用同一用例，届时只加 REST 入口的鉴权用例（§
 
 ## 9. 协同服务集成
 
-被测设计：[60/05](../60-backend/05-modules-collab-and-snapshots.md)、[60/16](../60-backend/16-ws-protocol-server-view.md)。适配器级的契约用例（step2 空 diff 回 db ack、准入 Lua 原子性、链接会话三场景、`purging` 拒绝加入等）已在 [02](./02-contract-suites-and-pluggability.md) §5 对真实适配器实例化；本节是跨进程、跨实例、带故障注入的集成层。
+被测设计：[60/05](../60-backend/05-modules-collab-and-snapshots.md)、[60/16](../60-backend/16-ws-protocol-server-view.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)（§4.21 起协同服务端是嵌入 Nest（Fastify）的 Hocuspocus 4.7.0 加自有扩展）。适配器级的契约用例（step2 空 diff 回 db ack、准入 Lua 原子性、链接会话三场景、`purging` 拒绝加入、连接污染、钩子异常与 Valkey 宕机不杀进程等）已在 [02](./02-contract-suites-and-pluggability.md) §5 对真实适配器实例化；本节是跨进程、跨实例、带故障注入的集成层。
 
 **里程碑**（以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准）：协同网关、Room（单实例）、update 持久化与快照随 rulings §4.19 D-M2-CONTENT 提前到 M2，本节单实例用例（含 PG 故障两级溢写与降级期广播、按权重准入、换纪元与管理动作）自 M2 起阻断；多实例（扇出、跨实例认领）、容量验收与名额按用户计、在场与版本恢复随 M3。下表「起始」列逐行登记。
 
-- **集群形态**：`createServerCluster(n)` 在测试进程内起 n 个 collab 实例（共享同一套容器，各自 `instanceId`）；需要进程级崩溃的用例改用子进程实例（`helpers/collab-process.ts`），以便 `SIGKILL`。
-- **WS 客户端**：`helpers/ws-client.ts` 发真实的 y-protocols 帧与 CONTROL 消息（与 [09](./09-performance-and-capacity.md) 的负载驱动同源，决策 T-IDP），记录收到的每一帧，供 ack 与关闭码断言。
+- **集群形态**：`createServerCluster(n)` 在测试进程内起 n 个 collab 实例（每个是一个嵌入 Nest（Fastify）HTTP server 的 Hocuspocus 实例，共享同一套容器，各自 `instanceId`；M3 形态装 `@hocuspocus/extension-redis` 接 Valkey 容器、独立前缀）；需要进程级崩溃的用例改用子进程实例（`helpers/collab-process.ts`），以便 `SIGKILL`。
+- **WS 客户端**：`helpers/ws-client.ts` 包装官方 `@hocuspocus/provider` 4.7.0（Node 内建 `WebSocket` 经计量垫片），发真实的 Hocuspocus 帧（Auth、Sync、Awareness，CONTROL 作 Stateless 载荷），记录收到的每一帧与原始关闭码，供 ack 与关闭码断言；需要构造畸形帧的用例另用裸 `ws` 客户端（与 [09](./09-performance-and-capacity.md) 的负载驱动同源，决策 T-IDP）。
 
 | # | 用例 | 断言 | 运行 / 起始 | 依据 |
 |---|---|---|---|---|
-| W1 | 两实例扇出 | 连在实例 A 的客户端编辑 → 连在实例 B 的客户端收到；每实例只持久化自己客户端的 update，库中无重复行；两实例同时触发压缩只执行一次（租约） | PR；M3 | ADR-0035 |
+| W1 | 两实例扇出（§4.21 改写） | 按文档哈希分流：同一文档的连接落在同一实例、另一实例不加载该文档；随机分布变体（绕过哈希，直连两实例）：连在实例 A 的客户端编辑 → 连在实例 B 的客户端经 extension-redis 状态向量往返收到，跨实例传播 ≤ 50 ms（实测 2.6–7.1 ms 量级，PRD 04 §1.7）；每实例只持久化自己客户端的 update（跨实例来的更新不经 `beforeSync`、不触发存储），库中无重复行；两实例同时触发压缩只执行一次（租约）；权限、锁定、close 与 epoch 经自有 Valkey 控制频道到达两个实例 | PR；M3 | ADR-0035（修订见 ADR-0039）；rulings §4.21 H:q-hp-fanout |
 | W2 | 崩溃重放 | 单实例：进程崩溃重启后客户端重连、状态一致（M2）；两实例：实例 B 崩溃 → 其客户端重连到 A 后状态一致（M3）；`ack` 前被杀：客户端重发的 update 被幂等应用；`ack(db)` 后被杀：重启后状态包含该 update | PR；M2 / M3 | ADR-0025 |
 | W3 | `kill -9` 混沌 | 驱动持续发送 update，按固定种子在随机时刻 `SIGKILL` 实例并重启；结束后每个收到过 `ack{tier:'db'}` 的 update 都在 PG 中（按 seq 与状态向量核对），零丢失 | PR 5 轮；nightly 与里程碑出口 50 轮；M2 | PRD `server:durability`；NF-03 |
-| W4 | 优雅停机 | `SIGTERM` → `/readyz` 立即 503 → 客户端收到 1012 → flush → 30 s 内退出（`FixedClock` 不适用，用真实计时并留余量）；重启后零 update 丢失；PG 不可达时先把内存档写入一级溢写再退出（单实例溢写随 M2；跨实例重连随 M3）；**同一出口 IP 集体重连**（M3，两实例）：30 个不同用户的已认证连接全部来自同一源地址、都连在实例 A 上，对 A 发 `SIGTERM` → 各客户端收到 1012 后首轮立即重连（每人换新票据）→ 自 1012 起 ≤ 5 s 内 30 个连接全部在实例 B 上收到 `auth.ok`（真实计时）；被 IP 令牌桶拒绝的升级只表现为 1006 并按常规退避重试，约分 3 波完成，没有连接落入分钟级退避；测试保持 `limits.ws.connectPerIpPerMin` 默认值，证明「先扣后退」下已认证连接不占 IP 额度 | PR；M2 / M3 | 30/08 §12；rulings §4.18 CO-16、§4.20 BE-01+TX-03；PRD SV-05 |
+| W4 | 优雅停机 | `SIGTERM` → 自写 `drainAll` 顺序：`/readyz` 立即 503 → 停止接受 upgrade → 推 `room{draining}` → 写入器 flush 并补发 db ack（PG 不可达则写一级溢写）→ 对原始 WS `ws.close(1012)` → 等文档卸载 → 调 Hocuspocus `onDestroy` 钩子（Hocuspocus 类没有 `destroy()`，`closeConnections` 不能代替 1012，证据 d-21）→ 30 s 内退出（`FixedClock` 不适用，用真实计时并留余量）；重启后零 update 丢失；PG 不可达时先把内存档写入一级溢写再退出（单实例溢写随 M2；跨实例重连随 M3）；**同一出口 IP 集体重连**（M3，两实例）：30 个不同用户的已认证连接全部来自同一源地址、都连在实例 A 上，对 A 发 `SIGTERM` → 各客户端收到 1012 后首轮立即重连（每人换新票据）→ 自 1012 起 ≤ 5 s 内 30 个连接全部在实例 B 上收到 `auth.ok`（真实计时）；被 IP 令牌桶拒绝的升级只表现为 1006 并按常规退避重试，约分 3 波完成，没有连接落入分钟级退避；测试保持 `limits.ws.connectPerIpPerMin` 默认值，证明「先扣后退」下已认证连接不占 IP 额度 | PR；M2 / M3 | 60-backend/16 §1、§13；rulings §4.18 CO-16、§4.20 BE-01+TX-03；PRD SV-05 |
 | W5a | PG 写失败，溢写前重试窗口内（M2） | 单实例：经 Toxiproxy 切断 PG 后，入站 update 不回 `ack{tier:'db'}`，发起方 pending 保留；≤ 1 s 内全部会话收到 `CONTROL.room{persist:'degraded'}`；恢复后客户端补发（或经 step2）得到 db ack，`document_updates` 无重复行、seq 连续，随后推 `persist:'ok'`；受众分级在客户端（[06](./06-frontend-component-and-e2e.md) §5 第 22 行） | PR；M2 | PRD 05 M2 验收 17；rulings §4.19 INC-09 |
 | W5 | PG 断开期照常广播（溢写档） | 见图 7-4；`CONTROL.room{persist}` 推给该 Room 的全部会话（其余协作者的状态胶囊见 [06](./06-frontend-component-and-e2e.md) §5 第 12 行） | PR；M2（单实例）/ M3（跨实例扇出） | rulings §4.18 CO-08；S-3a；§4.19 INC-09；PRD 05 M2 验收 17、M3 验收 7 |
 | W6 | 两级溢写与认领回放 | 以缩小的阈值驱动一级溢写 → 超过后分块写入二级（data 桶 `spill/{docId}/…`）；回放后 `pendingStructs` 为空；两实例同时在线各自只回放本实例的行、无重复；实例心跳过期后，下一个加载该文档的实例持 `lock:spill:{docId}` 认领其遗留行并回放 | PR；M2（单实例两级溢写与回放）/ M3（两实例各自回放与遗留行认领） | CO-16；决策 SPILL、KEYS |
 | W7 | 准入与名额 | 实例内存预算按注入的 `constrainedMemory()` 计算；预算不足时先按 LRU 结束空闲（draining）房间且不向任何客户端发 1012，仍不足才驱逐 active 房间；两实例并发 30 个编辑者加入同一文档 → 恰好 20 个成为编辑者，其余 10 个只读加入（`auth.ok.reason='capacity'`，M3）；部署调低天花板后超出新天花板的文档 → `auth.ok{role:'viewer', reason:'over_ceiling'}`，与 `capacity` 区分；把 `collab.room.maxViewers` 调小使查看者也满 → 4503 `collab.room_full`；同一用户多标签页只占 1 个名额；owner 不占编辑者名额；commenter 计入查看者；`ts` 超过 60 s 的实例字段在判定时被剔除 | PR；M2（按权重准入、空闲房间回收、`over_ceiling`）/ M3（名额按用户计、满员只读与 4503，PRD 05 §0.3） | 决策 C-11；rulings §4.15 Q5、§4.18 CO-14；ADR-0035 |
-| W8 | 门禁 L1–L4 | 超 `maxUpdateBytes` 的帧 → 4413；超速率 → 4429；畸形信封 → 4400；viewer 发 update → `error` 且连接保持，第 3 次 → 4403；锁定文档拒写；L3 结构数超 50,000 → 4400，应用后元素总数超天花板 → `error{document.quota_exceeded}`、不关闭、不 ack；非法结构（环、悬空引用、越权路径）走软门禁修复并写审计（ADR-0034）；客户端直接删除实体键（绕过墓碑）→ 不修复，`report-only` 计数并写审计 `collab.hard_delete_bypass`（60/05 §5、60/07 §9） | PR；M2 | 60/16 §4；决策 INC-07 |
-| W9 | 关闭码全表 | 60/16 §10 表中的每个关闭码至少由一个用例真实触发一次（含 1011、4426、4427、4428、4404、4409）；码值与客户端行为的逐码单测是 `heartbeat-and-close-codes.test`（`test/unit`） | PR；M2（4404 的永久删除触发 M3） | 决策 INC-06 |
+| W8 | 门禁 L1–L4 | 超 `maxUpdateBytes` 的 update 帧 → 4413；重连 step2 超 16 MiB → 4413、不超则一帧落库（rulings §4.21 H:q-hp-step2-cap）；超速率 → 4429；畸形帧（帧地址不等于 URL 所指文档、客户端发 `BroadcastStateless`、CONTROL 载荷 zod 失败）→ 4400；viewer 发 update → `error` 且连接保持，第 3 次 → 4403；锁定文档拒写；L3 结构数超 50,000 → 4400，应用后元素总数超天花板 → `error{document.quota_exceeded}`、不关闭、不 ack，且此后该连接的写入帧一律不落库、不 ack 直到重连（连接污染，证据 d-09）；非法结构（环、悬空引用、越权路径）走软门禁修复并写审计（ADR-0034）；客户端直接删除实体键（绕过墓碑）→ 不修复，`report-only` 计数并写审计 `collab.hard_delete_bypass`（60/05 §5、60/07 §9） | PR；M2 | 60/16 §4；决策 INC-07；ADR-0039 |
+| W9 | 关闭码全表 | 60/16 §10 表中的每个关闭码至少由一个用例真实触发一次（含 1011、4205、4408、4426、4427、4428、4404、4409），客户端在 provider 构造配置的 `onClose` 里收到原码（业务关闭一律对原始 WS 调 `ws.close`，ADR-0039）；码值与客户端行为的逐码单测是 `close-policy.test`（原 `heartbeat-and-close-codes.test`，`test/unit`） | PR；M2（4404 的永久删除触发 M3） | 决策 INC-06 |
 | W10 | epoch 变更 | `POST /internal/admin/documents/:id/epoch`（运维令牌）→ 所有实例上该文档的会话收到 4428，审计 `admin.epoch_forced`；之后 `snapshots/latest` 的 `X-Cordex-Epoch` 递增，携旧纪元 `auth{epoch}` 重连 → `auth.denied{collab.epoch_changed}` 与 4428 | PR；M2（换纪元与管理动作随 `InternalModule`，PRD 05 §0.3；[60/01](../60-backend/01-service-overview-and-roles.md) §3；契约侧见 [02 §5.2](./02-contract-suites-and-pluggability.md) `epoch/*`）；两实例变体 M3 | INC-06；决策 INC-26 |
 | W11 | 软门禁组合根 | `apps/server/test/integration/soft-gate-repair.int-spec.ts`：组合根同时装 `server-collab` 与 `model-slide` 的不变量，注入非法 update 后所有端最终一致且合法；`server-collab` 自身只用 fixture 文档类型 | PR；M2 | rulings §4.18 FE-01；ADR-0034 |
 | W12 | 加入与离开审计 | `collab.join` / `collab.leave` 与拒绝事件写入 `audit_log` | PR；M2 | ADR-0029 |
-| W13 | awareness | 只读会话的状态在转发前只保留 `v`、`user`、`client`、`view`、`idle`、`ts`，其余字段被剥掉；clientID 或 `user.id` 与会话不符、单状态超 2 KiB 或 schema 不合法 → 丢弃该状态并计数、不关闭连接；满员房间（≥ 20 人）按 100 ms 合并 tick 转发 | PR；M3 | 60/16 §7 |
+| W13 | awareness | 只读会话的状态在转发前只保留 `v`、`user`、`client`、`view`、`idle`、`ts`，其余字段被剥掉；clientID 或 `user.id` 与会话不符、单状态超 2 KiB 或 schema 不合法 → 丢弃该状态并计数、不关闭连接（`beforeHandleAwareness` 只就地删改、从不抛错，证据 d-17）；满员房间（≥ 20 人）按 100 ms 合并下发 awareness，由包装出站发送实现、只合并 awareness 帧，同时断言文档更新的房间内广播 p50 不因此升高（rulings §4.21 H:q-hp-awareness-tick；核实 vF：若改调文档级 flushDelay，p50 会从 1.5 ms 升到约 103 ms） | PR；M3 | 60/16 §7 |
 | W14 | 锁定信号 | 覆盖导入（带 `docId` 的两步导入，`reason:'import'`）与迁移窗口（`reason:'migration'`）使文档进入 `locked`：在线会话 ≤ 1 s 收到 `CONTROL.room{locked:{reason, until}}`（不借用 `CONTROL.permission{reason:'changed'}`，会话角色不变）；锁定期间写入帧回 `error{collab.forbidden}`；以导入失败或取消、迁移结束解锁时收到不含 `locked` 的 `room` 帧、写入恢复（导入成功的收尾见 W17）；锁经 `perm:doc:{docId}` 的 `lockChanged` 通知到两个实例上的会话（M3 两实例变体）；审计 `document.locked.reason` 只出现 `import`、`migration` | PR；M2 | 30/06 §6.3；60/16 §8；60/04 §2；rulings §4.19 N1 |
 | W15 | L2 计数起点 | 客户端持续发送 update 期间 owner 把它降为 viewer：服务端发出降权 `CONTROL.permission` 之前已到达、之后才被处理的在途帧只回 `error{collab.forbidden}`、不计数；降权帧发出后 2 s 内到达的写入帧仍视为在途、不计数，2 s 之后到达的才计入，第 3 帧 → 4403（60/16 §4）；锁定（W14）同理，以 `room{locked}` 发出时刻为起点 | PR；M3（降权）/ M2（锁定） | ADR-0029 决策 3；60/16 §4 |
 | W16 | 版本恢复事件与不加锁 | 恢复到命名快照提交后，两个实例上该文档的全部会话各收到一次 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`，会话不断连、状态收敛为目标快照；恢复执行期间 `documents.status` 保持 `active`、无 `document.locked` 审计、任何会话都收不到 `room{locked}`，另一客户端在恢复期间持续发送的 update 全部获 `tier:'db'` 并出现在最终状态中；覆盖导入锁定期间发起恢复 → 409 `server.documents.locked` | PR；M3 | 30/06 §6.3；60/05 §10；rulings §4.19 N1 |
 | W17 | 覆盖导入换纪元 | 两个实例上各有编辑者在线时对该文档发起覆盖导入：锁定后会话只读（W14）；作业 `succeeded` 后 `documents.epoch = E + 1`、`latest_snapshot_id` 指向 `kind='import'`、`epoch = E + 1`、`seq_upto = H` 的快照且文档回到 `active`；两个实例上的会话都以 4428 关闭，重连时 `snapshots/latest` 的 `X-Cordex-Epoch = E + 1`、以新纪元 `auth{epoch}` 加入成功，内容等于导入文件；携旧纪元重连 → 4428；用 Toxiproxy 屏蔽其中一个实例的 Valkey 订阅，该实例旧纪元 Room 的下一次取号插入 0 行并自行 4428、`document_updates` 无旧纪元新行；导入在 `persist` 前失败或被取消 → 纪元与指针不变、会话收到解锁 `room` 帧后恢复可写；worker 进程内无对 collab 的 HTTP 或 RPC 调用（请求记录为空） | PR；M2（单实例）/ M3（两实例） | rulings §4.19 N1；60/06 §6.5 与 §14 #18；60/05 §9.2；决策 INC-06 |
+| W18 | 升级入口：嵌入 Fastify 同端口、先扣后退（§4.21） | HTTP API 与 `/collab/v1/rooms/:documentId` 的 WS 在同一端口（Hocuspocus 类经 Fastify 底层 server 的 `upgrade` 事件接入，不用 Nest `WsAdapter`，也不用 Hocuspocus 的 `Server` 类——它自建 http.Server、无法共端口）；`upgrade` 处理在 `listen` 之前挂好；升级前依次校验 documentId 为 UUID（400）→ Origin 白名单（缺 Origin 也拒，403）→ IP 令牌桶**先扣** 1 次（429）→ 实例连接数上限（503），任一失败只回 HTTP 状态、不升级；Auth 帧里的票据验签通过即**退还**该次 IP 额度（之后因满员、文档不可用被拒也已退还），票据无效或重放、5 s 内未认证、协议不符、升级后未认证就断开的不退还；请求头里的 cookie 一律不参与鉴权；以 `FixedClock` 固定令牌桶时刻逐条断言桶余量（键模板以 60/14 为准；与 [10](./10-security-testing.md) SEC-RL-03 的逐条断言互补） | PR；M2 | rulings §4.21 q-ws-gateway；§4.20 BE-01+TX-03；证据 TX-01、d-01、d-16；核实 exp1 |
+| W19 | Valkey 宕机与重启（§4.21，核实 vE） | 文件 `apps/server/test/integration/collab/hp-redis-extension.int-spec.ts`（M3，`HardenedRedis` 加固子类的集成用例，2026-09-26 整合登记）。两实例 + extension-redis：经 Toxiproxy 切断 Valkey 30 s 后恢复，另一变体 `docker restart` Valkey。断言：两个 collab 进程都不退出（extension-redis 保留离线队列并限 `maxRetriesPerRequest`；继承 Redis 类覆写 `beforeBroadcastStateless` 与 `onStoreDocument` 加 catch；进程级 `unhandledRejection` 只记录与计数）；宕机期间实例内编辑照常互见、跨实例同步中断、`/readyz` 503；恢复后任意一次变更即把两实例补齐、状态向量相等；宕机期间新加载的文档在恢复后能正常加载（不得设 `enableOfflineQueue:false`，否则所有文档加载永久失败）；redlock 连不上不被误报为「另一实例在存储」；所有已获 db ack 的 update 都在 PG | PR；M3 | 证据 d-19、d-22、K16-A；ADR-0035 决策 8 |
+| W20 | 存储失败不丢（§4.21，exp2 反例） | 单实例：经 Toxiproxy 切断 PG → 客户端编辑（得 spill ack 或暂无 ack）→ 另一客户端无修改地连入再断开、原客户端也断开（房间无连接）→ 文档**不卸载**（有内存档或未回放的溢写时 `beforeUnloadDocument` 抛错钉住，证据 d-11）→ PG 恢复、回放、补发 db ack 后才卸载 → 新客户端打开看到全部编辑。反例对照：夹具改用 Hocuspocus 原生 `onStoreDocument` 持久化时同一剧本丢数据（新客户端看到 `{}`），本用例以此证明不用 `onStoreDocument` 持久化（证据 d-12） | PR；M2 | rulings §4.21 H:q-hp-persist-ack；核实 exp2 |
 
 **图 7-4 PG 断开期照常广播**
 
@@ -336,6 +339,64 @@ sequenceDiagram
 怎么读：自上而下是时间顺序。断开后 update 通过门禁就在本实例广播、跨实例扇出，不等持久化；发起方先收到 `spill` 级 ack、保留 pending，回放落库后才收到 `db` 级 ack。断言：B 在断开期间收到 u1、A 收到 u2；`cordex_collab_broadcast_before_persist_total` 递增；`persist` 在断开后 1 s 内变为 `degraded`、回放完成且无溢写后变回 `ok`；恢复后 `document_updates` 的 seq 连续、无重复、不丢，服务端 Y.Doc 无 `pendingStructs`。
 
 依据：rulings §4.18 CO-08、§4.15 S-3a、§4.19 INC-09（服务端信号 `persist`；受众分级在客户端断言）；PRD NF-03；ADR-0025「如何被机械验证」。
+
+**图 7-5 W18 升级入口：先扣后退**
+
+```mermaid
+flowchart TB
+  req["HTTP upgrade 请求到达 Fastify 同一端口"]
+  uuid{"documentId 为 UUID"}
+  origin{"Origin 在白名单"}
+  bucket{"IP 令牌桶先扣 1 次"}
+  cap{"实例连接数未满"}
+  up["ws noServer handleUpgrade，交 Hocuspocus handleConnection"]
+  auth{"Auth 帧票据验签通过"}
+  refund["退还该次 IP 额度，再做准入与加载"]
+  keep["不退还：票据无效或重放、5 s 未认证、协议不符、未认证即断开"]
+  r400["400"]
+  r403["403"]
+  r429["429"]
+  r503["503"]
+  req --> uuid
+  uuid -- "否" --> r400
+  uuid -- "是" --> origin
+  origin -- "否" --> r403
+  origin -- "是" --> bucket
+  bucket -- "余量不足" --> r429
+  bucket -- "已扣" --> cap
+  cap -- "已满" --> r503
+  cap -- "未满" --> up --> auth
+  auth -- "是" --> refund
+  auth -- "否" --> keep
+```
+
+怎么读：上半是升级前的四道 HTTP 校验，任一失败只回状态码、不建立 WS；IP 额度在第三道先扣、到票据验签通过才退还，所以它实际只约束未认证的升级，同一出口的多人集体重连不被它拖慢（W4）。
+依据：rulings §4.21 q-ws-gateway、§4.20 BE-01+TX-03；ADR-0039；证据 TX-01、d-01、d-16。
+
+**图 7-6 W19 Valkey 宕机与重启**
+
+```mermaid
+sequenceDiagram
+  participant ca as 客户端 A，连实例 1
+  participant cb as 客户端 B，连实例 2
+  participant i1 as collab 实例 1
+  participant i2 as collab 实例 2
+  participant tx as Toxiproxy 到 Valkey
+  tx-->>i1: 切断
+  tx-->>i2: 切断
+  ca->>i1: update，实例内照常落库与 ack
+  i1-->>ca: Stateless ack tier db
+  Note over i1,i2: 跨实例同步中断，readyz 503，两个进程都不退出
+  cb->>i2: update，同样落库与 ack
+  tx-->>i1: 恢复
+  tx-->>i2: 恢复
+  ca->>i1: 任意一次新变更
+  i1->>i2: extension-redis 状态向量往返补齐
+  Note over ca,cb: 状态向量相等，所有已获 db ack 的 update 都在 PG
+```
+
+怎么读：纵向是时间；宕机期间每个实例内部仍是完整的协同服务，只有跨实例同步停下；恢复后不需要重启进程，下一次变更触发的状态向量往返就把两边补齐。断言重点是「进程不退出」与「已 ack 不丢」。
+依据：证据 d-19、d-22、K16-A；核实 vE；ADR-0035 决策 8。
 
 ---
 
@@ -472,8 +533,8 @@ stateDiagram-v2
 
 | # | 用例 | 断言 | 依据 |
 |---|---|---|---|
-| H1 | 密钥存储 | 创建订阅时明文密钥只在响应中出现一次；库中 `signing_secret_enc` 不含明文字节；轮换期间新旧两个密钥签名都被接收端验证通过 | 决策 C-16/INC-30 |
-| H2 | 签名 | 评论事件触发投递 → 接收端按 `X-Cordex-Signature: t=…, v1=…` 以 HMAC-SHA256 验签通过；payload schema 带版本；事件名为 `comment.added` / `comment.mentioned` / `comment.resolved` | PRD SV-15；决策 INC-31/INC-29 |
+| H1 | 密钥存储与轮换 | 创建订阅时明文密钥（`whsec_` 前缀）只在响应中出现一次；库中 `signing_secret_enc` 不含明文字节；轮换宽限期内每次投递的 `webhook-signature` 带新旧两个 `v1,…` 签名（空格分隔、新密钥在前），只持新密钥或只持旧密钥的接收端都验签通过；宽限期过后只带新签名 | 决策 C-16/INC-30；60/07 §4.3 |
+| H2 | 签名（§4.21 改为 Standard Webhooks） | 评论事件触发投递 → 请求带 `webhook-id`（投递行 id，重试不变）、`webhook-timestamp`（每次尝试重新取值的 unix 秒）、`webhook-signature: v1,<base64>`，签名为 `HMAC-SHA256(key, webhook-id + "." + webhook-timestamp + "." + body)`，`key` 为 `whsec_` 之后部分的 base64 解码；接收端按 Standard Webhooks 规范验签通过（用 60/07 §5.2 的 `verifySignature` 与规范公布的测试向量双重核对，不引 `standardwebhooks` 包）；篡改 body、`webhook-id` 或时间戳任一处 → 验签失败；时间戳超出容差（60/07 §5.2）→ 拒绝；重试时 `webhook-id` 不变、时间戳与签名重算；请求中不再出现旧头 `X-Cordex-Signature` 与 `X-Cordex-Delivery`（负向断言，原头已废止、由 `webhook-signature` 与 `webhook-id` 取代）；payload schema 带版本；事件名为 `comment.added` / `comment.mentioned` / `comment.resolved` | PRD SV-15；rulings §4.21 q-webhook-sig；决策 INC-31/INC-29；60/07 §5.2 |
 | H3 | 重试与死信 | 接收端返回 500、超时或连接失败 → 仍为 `pending`、`attempt + 1`，按 `min(30 s × 2^(n-1), 6 h)` ±20% 退避（断言计算出的序列，不等 BullMQ 延迟），第 8 次仍失败 → `dead_lettered`；429 或 408 → 可重试（429 带 `Retry-After` 取较大值）；3xx 不跟随、其它 4xx → `failed` 不再重试；订阅停用后事件不入队 | rulings §4.18 BE-19；60/07 §5.3 |
 | H4 | SSRF | 目标地址解析到私网、回环、链路本地、云元数据地址（IPv4 与 IPv6 各一）→ 创建与更新时 422 `server.webhooks.egress_blocked`；投递前再次校验，拒绝时该投递记 `failed`（`last_error = 'egress_blocked'`）且不发出任何请求，接收端收不到任何连接；DNS 桩第一次返回公网、第二次返回私网（重绑定）→ 投递时锁定的 IP 仍被校验并拒绝；部署级白名单中的地址可投递（本 harness 的接收端即经白名单放行） | rulings §4.13 S-4；60/07 §6 |
 
@@ -530,7 +591,7 @@ stateDiagram-v2
 
 | 内容 | 步骤 | 触发段 | 阻断 |
 |---|---|---|---|
-| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、容量验收与名额、同一出口 IP 集体重连（W4）、在场、评论、分享与权限细化、唯一 owner 运维转移（§7.4）、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换）；MG2、MG4 自基线冻结起 |
+| §4–§14 除下两行外的全部用例 | `test/server-integration` | PR（含 draft）、main、nightly | 随各功能的交付里程碑启用即阻断，里程碑以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 为准。M2（协同后端与服务端导入随 rulings §4.19 D-M2-CONTENT 提前）：§4、§6、§8、§9 中起始列为 M2 的行、§11.1、§11.2 的 J1–J4、J3 的 B1、§11.3 的 M2 部分、§11.4 中 60/06 §4 标为 M2 的周期作业、§11.5、§12.4 的 `/telemetry/errors` 与 `/telemetry/csp`、§13；M3：其余（多实例与跨实例认领、extension-redis 两实例扇出（W1）与 Valkey 宕机与重启（W19）、容量验收与名额、同一出口 IP 集体重连（W4）、在场、评论、分享与权限细化、唯一 owner 运维转移（§7.4）、彻底删除元素、永久删除与擦除、服务端导出与缩略图及其清理作业、Webhook、审计封存与轮换）；MG2、MG4 自基线冻结起 |
 | `security-rls`（§5）；`csrf-origin`（§6 A11 / A12 的冒烟副本） | `e2e/smoke` | 每个 PR | `security-rls` M3 起阻断、此前报告（GV-16），不重试（决策 T-CI；12 §11）；`csrf-origin` 激活时间以 12 §4 为准 |
 | W3 `kill -9` 50 轮、W5 / W6 的长窗口变体 | `test/server-integration`，`CORDEX_SUITE=nightly` | nightly（M2 起）、M2 与 M3 出口 | nightly 失败自动建 issue 并阻断下一次发布打标签（T-CI） |
 
@@ -550,6 +611,8 @@ stateDiagram-v2
 | 60/07 §9 登记的每个审计 action 至少被一个用例产生，未登记的 action 不出现 | `test/server-integration` 的 `globalTeardown` 汇总（读取各文件写出的 action 集合） |
 | Valkey 键与对象键全部匹配登记模板 | 各测试文件 `afterAll`（§11.5） |
 | `/metrics` 指标名全部在统一名表内 | `test/server-integration` |
+| Webhook 请求头只含 Standard Webhooks 三头与 `X-Cordex-Event`，不出现已废止的旧签名头（§12.2 H2） | `test/server-integration` |
+| collab 进程在钩子异常与 Valkey 宕机时不退出（W19；[02 §5.2](./02-contract-suites-and-pluggability.md) `hooks/*`、`redis/*`） | `test/server-integration` |
 | 本文全部 Mermaid 图 0 invalid | `node docs/_tools/mermaid-check.cjs docs/70-testing/07-backend-integration-and-api-e2e.md` |
 
 ---
@@ -564,3 +627,4 @@ stateDiagram-v2
 | INC-09、C-06、D-M2-CONTENT、UPLOAD-QUARANTINE | 已定（rulings §4.19；UPLOAD-QUARANTINE 由总编排按 BE-10 细化定稿） | §9 W5 断言服务端 `persist` 信号、受众在 [06](./06-frontend-component-and-e2e.md) §5；§11.4 `snapshots-retention` 按 C-06；§8 D10 改为快照 bootstrap、§9 与 §11.2 导入提前到 M2；§11.2 J1 直传落点为 `uploads/tmp/{uploadId}` |
 | 回写 40/08 §9、40/09 §9、40/12 §9（由总编排执行） | 待回写 | `document-rls.e2e-spec.ts` → `smoke/security-rls.e2e-spec.ts`；`render-zero-egress.e2e-spec.ts` → `smoke/renderer-egress.e2e-spec.ts`；接真实 PG / Valkey 的 `*.processor.spec.ts` 与 `audit.repository.append-only.spec.ts` → `apps/server/test/integration/**/*.int-spec.ts`；各 §9 的场景与断言改为引用本文对应小节 |
 | 回写 30/11 §10 与 §12 的服务端部分 | 待回写 | 改为摘要并链接本文 |
+| rulings §4.21 q-db-access、q-webhook-sig、q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout | 已定（2026-09-26） | §4 MG7 改为直查 `pg_catalog`（含 relkind `p` 分区父表，60/08 §10.1 DB-03）；§12.2 H1、H2 改为 Standard Webhooks（60/07 §5.2）；§9 集群改为嵌入 Fastify 的 Hocuspocus，W1 按文档哈希与 extension-redis 改写，W4 写明自写 `drainAll` 顺序，W8、W9、W13 按 ADR-0039 改写，新增 W18 升级入口同端口与先扣后退、W19 Valkey 宕机与重启、W20 存储失败不丢（exp2 反例），图 7-5、图 7-6 |

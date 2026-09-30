@@ -1,5 +1,5 @@
 # 04 视觉 oracle
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19） | 依赖：rulings §4.19 D-TEST-INFRA、PRD [03/01](../10-prd/03-features/01-open-and-fidelity.md) OF-05 / OF-19 / OF-20 / §4.2 / §4.3、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M4 验收、[30/11](../30-architecture/11-testing-strategy.md) §7 / §17、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0028](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)、[40/07 §9](../40-modules/07-slide-rendering.md)、[40/10 §9](../40-modules/10-ui-shell-and-slide-ui.md)、rulings §4.15 Q7 / Q8
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：新增 §8.1 图表语料矩阵与刻度、绘图区结构断言，§8.2 形状库 72 项默认插入与箭头尺寸快照，§9 补形状库与数据网格的 UI 基线）；2026-09-26（§4.21 整合：§8.2 形状库缩略图改为 gen-shape-gallery-thumbs 生成物（原 SVG sprite 作废）；补 M3 连接符路由标定语料 connector-*） | 依赖：rulings §4.19 D-TEST-INFRA、rulings §4.21 q-chart-route / R-d-66、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)、[50/22](../50-frontend/22-elements-shapes-and-lines.md)、[50/24](../50-frontend/24-elements-tables-and-charts.md)、PRD [03/01](../10-prd/03-features/01-open-and-fidelity.md) OF-05 / OF-19 / OF-20 / §4.2 / §4.3、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M4 验收、[30/11](../30-architecture/11-testing-strategy.md) §7 / §17、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0028](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0017](../30-architecture/adr/0017-ui-component-library-shadcn-copy-model.md)、[40/07 §9](../40-modules/07-slide-rendering.md)、[40/10 §9](../40-modules/10-ui-shell-and-slide-ui.md)、rulings §4.15 Q7 / Q8
 
 本文是视觉保真比对（oracle）的测试侧唯一事实源：以 PowerPoint 真机导出为参照物，怎么生成与管理基线、被测输出怎么取、用哪些度量、阈值分几层判、哪些类别何时成为门禁、专项用例、报告与运行、基线何时重建。UI 自身的截图基线也在本文（§9），但它不属于 oracle。
 
@@ -17,7 +17,7 @@
 |---|---|---|---|---|
 | PNG | PowerPoint 365 逐页导出 PNG：宽 1280 px（gated）与 1920 px（只报告） | 客户端截图；M3 起服务端 PNG | §5 全部像素度量 | PRD 01 §4.2、NF-02、M1 验收 2 / 7 / 10 |
 | PDF | PowerPoint 另存 PDF，逐页栅格化 | 服务端 PDF（M3 后半段），逐页栅格化 | 逐页 SSIM，阈值取 OF-19 / SV-02 | M3 验收 6b（`server:pdf`） |
-| 结构 | PowerPoint COM 导出的结构 JSON：每个文本框的行数与每行首字符、各段落的生效属性（继承链解析结果）、形状包围盒、图表绘图区边界 | 客户端行模型（`engine-layout` 断行结果）、`model-slide` 的继承解析结果、DOM 几何 | 行数一致率、行首字符一致率、属性表逐项一致率、包围盒 IoU | OF-04（属性表 100%）、OF-05、PRD 01 §4.3 |
+| 结构 | PowerPoint COM 导出的结构 JSON：每个文本框的行数与每行首字符、各段落的生效属性（继承链解析结果）、形状包围盒、图表绘图区边界与值轴刻度（最小值、最大值、主刻度，2026-09-26 增，§8.1） | 客户端行模型（`engine-layout` 断行结果）、`model-slide` 的继承解析结果、DOM 几何 | 行数一致率、行首字符一致率、属性表逐项一致率、包围盒 IoU | OF-04（属性表 100%）、OF-05、PRD 01 §4.3 |
 
 - 两侧 PDF 用同一个栅格化器（pdf.js，在 Playwright Chromium 中渲染到 1280 px 宽），避免栅格化器差异混入比对。
 - 结构 oracle 以 COM 导出的**生效值**为准；python-pptx 只能读到存储值，自行沿继承链求值等于重写被测逻辑，因此只用于生成器与粗检，不作 oracle。macOS 的 AppleScript 对象模型不足以导出生效值，结构通道只由 Windows profile 产出。
@@ -150,6 +150,8 @@ sequenceDiagram
 | 元素包围盒 IoU | 我们 DOM 中每个元素的包围盒与结构 oracle 中同 `cNvPr@id` 形状的包围盒求 IoU，页内取中位数 | `iou.ts` | 几何、文本、图片类别；`spAutoFit` 文本框 IoU（PRD 01 §4.3） |
 | 差异图 | pixelmatch（阈值 0.1），输出差异 PNG 与差异像素比 | `pixel-diff.ts` | 报告；客户端与服务端互差；§8 自比较用例 |
 | 图表数据墨迹 IoU | 在结构 oracle 给出的绘图区内，与背景色差超过固定 ΔE 的像素记为数据墨迹，两侧掩码求 IoU | `data-ink.ts` | 图表类别（OF-09、NF-02） |
+| 值轴刻度一致率 | 我们的版式函数算出的值轴最小值、最大值、主刻度三项与结构 oracle 完全相等（相对误差 ≤ 1e-9）的轴数 / 值轴总数；散点的两个值轴都算 | `chart-axis.ts` | 图表类别（§8.1，ADR-0036 决策 8；2026-09-26 新增） |
+| 绘图区 IoU | 我们计算的绘图区内框与结构 oracle 的绘图区内框求 IoU | `chart-axis.ts` | 图表类别（§8.1；2026-09-26 新增） |
 | 几何掩码 IoU | 187 种 `prstGeom` 生成样本（每页一个实心形状），两侧形状掩码求 IoU | `shape-mask.ts` | M1 验收 7 |
 | 行数一致率 | 行数与结构 oracle 相同的文本框数 / 文本框总数 | `text-lines.ts` | OF-05、NF-02、PRD 01 §4.3 |
 | 行首字符一致率 | 首字符与结构 oracle 相同的行数 / 总行数 | 同上 | OF-05、PRD 01 §4.3 |
@@ -172,7 +174,7 @@ sequenceDiagram
 | `text-cjk` | CJK 与混排（仅 `fontsAvailable`） | ≥ 0.90 | 包围盒 IoU ≥ 0.88 |
 | `image` | 图片与裁切 | ≥ 0.95 | 包围盒 IoU ≥ 0.95 |
 | `table` | 表格 | OF-08 阈值 | — |
-| `chart` | 图表（单图表页） | OF-09 阈值 | 数据墨迹 IoU：OF-09 阈值 |
+| `chart` | 图表（单图表页） | OF-09 阈值 | 数据墨迹 IoU：OF-09 阈值；值轴刻度一致率与绘图区 IoU 先报告，M2 中期校准后再定是否升为 gated（§8.1） |
 | `smartart` | 有 `dsp:drawing` 的 SmartArt | OF-10 阈值 | — |
 | `ole-preview` | OLE 预览图 | 同 `image` | 同 `image` |
 | `emf-wmf` | EMF / WMF 栅格化 | 报告 | 报告 |
@@ -275,12 +277,84 @@ stateDiagram-v2
 | 主题编辑（`theme:edit`） | 改 12 个主题色与主题字体前后，显式 `srgbClr` 元素区域（按元素包围盒生成掩码）差异像素为 0 | 自比较 | M3 |
 | 服务端 PDF（`server:pdf`） | 逐页 SSIM 达到 OF-19 / SV-02 值 | PowerPoint PDF | M3 后半段 |
 | 多架构 | arm64 与 amd64 renderer 同页互差 ≤ 0.5%（执行在 08） | 自比较 | M4 |
+| 图表语料矩阵与编辑往返 | 见 §8.1 | PowerPoint PNG、结构 oracle、维护机打开 | M1（只读）/ M3（编辑） |
+| 形状库默认插入与箭头尺寸 | 见 §8.2 | PowerPoint PNG、导出 XML、SVG 快照 | M2 |
+
+### 8.1 图表语料矩阵与结构断言（rulings §4.21 q-chart-route）
+
+图表按 ADR-0036 走「d3 只做比例尺与路径、版式按 OOXML 语义自研」，保真的风险集中在版式：自动刻度、绘图区位置、柱宽与堆积、饼图标签。所以语料按「类型 × 版式特性」组织，每行都要有样本，并在像素度量之外加两项结构断言，把像素差距拆成可定位的原因。
+
+**样本来源**：维护机脚本 `test/oracle/baseline/make-chart-corpus.ps1` 经 COM 逐个生成图表（插入指定类型、写入工作表数据、设置格式与布局），保存为 pptx 并按 §2 导出 PNG 与结构 JSON；与 T2 真实语料中的图表子集并列。样本登记进语料清单（[03](./03-fidelity-roundtrip-and-corpus.md)），`oracle.category = 'chart'`。结构 JSON 为每个图表额外导出：各值轴的 `MinimumScale` / `MaximumScale` / `MajorUnit` 与是否自动、`PlotArea` 的内框位置与尺寸。
+
+| 矩阵行 | 覆盖的特性 | 每项最少样本 |
+|---|---|---|
+| 柱形 / 条形 | 簇状、堆积、百分比堆积；正负值混合；`gapWidth` 0 与 500、`overlap` −100 与 100；类别数 1–30 | 各 5 |
+| 折线 | 带与不带数据标记、平滑线、堆积；空值的三种 `dispBlanksAs` | 各 3 |
+| 面积 | 标准、堆积、百分比堆积；含负值 | 各 3 |
+| 饼 | 起始角 0 / 90 / 270°、分离扇区、数据标签 `bestFit` 与外侧引导线、类别 2–12 | 各 3 |
+| 散点 | 仅标记、带直线、带平滑线；跨零与全负 | 各 3 |
+| 坐标轴 | 自动刻度（跨零、全正窄幅、全负、大数量级、小数）、手动 `min` / `max` / `majorUnit`、对数轴、日期轴、数字格式（百分比、千分位、货币）、刻度标签旋转与跳过 | 各 3 |
+| 版式 | `manualLayout`（inner、outer）、图例五个位置与 overlay、标题有无与 overlay、数据标签各位置 | 各 2 |
+| 文字 | 中日文类别名与系列名、长标签换行 | 各 3 |
+| 只读类型 | 气泡、雷达、股价、组合与次坐标轴、环形；3D 退 2D（只报告） | 各 2 |
+| chartex | 瀑布、直方、箱形等：只断言占位与 `chartex-unsupported`，不比像素 | 各 1 |
+
+**判定**：像素按 §6 的 `chart` 类别（OF-09：SSIM ≥ 0.80、数据墨迹 IoU ≥ 0.85，M1 gated），按矩阵行出中位数与 P10；结构断言用 §5 的「值轴刻度一致率」与「绘图区 IoU」，M1 起只报告，M2 中期用实测校准后再定是否升为 gated（只收紧，§7）。刻度不一致的样本在报告里单独列出期望值与实际值，直接对应 `chart-layout` 的自动刻度函数。
+
+**插入默认外观（M3）**：维护机用 COM 插入五类默认图表（PowerPoint 默认示例数据），我们在同主题的空文档里执行 `slide.insertChart`，两侧按 `chart` 类别比较；用于核对默认样式与示例数据（50/24 §3.3）。
+
+**编辑往返（M3，半机械）**：对每类可编辑样本执行编辑脚本（改一格数值、增一个类别、删一个系列、换类型、改标题与图例位置）后导出；维护机 PowerPoint 打开时记录是否弹出修复，导出 PNG 与我们对同一模型的渲染按 `chart` 类别比较，并经 COM 打开内嵌工作簿读回数据，与模型逐格一致。结果写进 `test/evidence/<里程碑>/`；验收检查名由 [13](./13-requirements-traceability.md) 登记（ED-15）。
+
+**图 8-1 图表的像素与结构两路判定**
+
+```mermaid
+flowchart LR
+  gen["维护机脚本：按矩阵行生成图表样本"] --> base["PowerPoint 导出：PNG 与结构 JSON（刻度、绘图区）"]
+  gen --> ours["我们的渲染：./chart 子路径或 slide-render-chart"]
+  base --> px["像素：SSIM、数据墨迹 IoU"]
+  ours --> px
+  base --> st["结构：值轴刻度一致率、绘图区 IoU"]
+  ours --> st
+  px --> gate["chart 类别三层判定，M1 gated"]
+  st --> rep["先报告；M2 中期校准后再定是否 gated"]
+  gate --> report["oracle-report：按矩阵行列出"]
+  rep --> report
+```
+
+怎么读：同一个样本同时走像素与结构两路；像素一路按 OF-09 阈值门禁，结构一路先只报告，用来解释像素差距来自刻度还是绘图区；两路结果按矩阵行汇总到同一份报告。
+依据：rulings §4.21 q-chart-route；ADR-0036 决策 8；PRD OF-09。
+
+### 8.2 形状库 72 项默认插入与箭头尺寸快照（R-d-66）
+
+- **形状库默认插入（M2）**：形状库首批 72 项（名单与默认样式在 [50/22](../50-frontend/22-elements-shapes-and-lines.md) 的「形状库」与「默认样式与默认尺寸」两节）中有预设几何的 69 项（曲线、任意多边形、自由曲线 3 项是 P2 绘制工具，不在本用例），维护机经 COM 以 PowerPoint 默认样式在 Office 主题空白页各插入一个 1 in 大小的形状，导出 PNG 与 pptx；我们在同一主题的空文档里逐个执行 `slide.insertShape{preset}`（线条类用 `from` / `to`），按 `geometry` 类别逐个形状裁剪比较（SSIM ≥ 0.97、包围盒 IoU ≥ 0.95），几何掩码 IoU 达到 M1 验收 7 值。另比较导出 XML：我们写的 `p:style` 引用（`lnRef` / `fillRef` / `effectRef` / `fontRef` 的 `idx` 与颜色）与 PowerPoint 保存的逐项相等（默认样式来源见 50/22）。
+- **箭头尺寸快照（M2）**：5 种箭头类型（`triangle`、`stealth`、`diamond`、`oval`、`arrow`）× `w` 三档 × `len` 三档 = 45 种，各在 1 pt 与 6 pt 两种线宽下作首端与尾端，共 180 个箭头，由维护机生成样本 `arrow-ends.pptx`。两层断言：① 单元快照——`cxn-sp.renderer` 为每种组合生成的箭头 path（坐标规范化后）存为 SVG 快照（40/07 `elements.render.test.ts`），改动须评审；② oracle——每条线按结构 oracle 的包围盒裁剪，几何掩码 IoU ≥ 0.95（与 187 种 `prstGeom` 同一口径）。
+- **形状库缩略图**不是 oracle：构建期由 `tooling/scripts/gen-shape-gallery-thumbs.ts` 调 engine-layout `presetGeometryPath` 生成的 slide-ui `domain/shape-gallery-thumbs.ts`（path 数据，`--check` 核对生成物，[50/22](../50-frontend/22-elements-shapes-and-lines.md) §2）走 §9 的 UI 基线（2026-09-26 整合：原「SVG sprite」方案作废）。
+- **连接符路由标定语料（M3）**：维护机以 PowerPoint 365 生成 `fixtures/pptx/features/connector-*`，覆盖肘形与曲线连接符两端连接点法向的四向组合（上、下、左、右两两组合）与一端或两端自由的情形；PowerPoint 导出的 `prstGeom` 与 `adj` 值作 oracle，由 engine-layout `connector-routing.test.ts` 逐条比对 `routeConnector` 的选型与 `adj`，并按 `geometry` 类别比对像素（[40/06](../40-modules/06-layout-and-render-engine.md) §13 Q-8，2026-09-26 整合登记）。
+
+**图 8-2 形状库与箭头的三层核对**
+
+```mermaid
+flowchart TB
+  list["50/22 形状库名单与箭头 45 种组合"] --> ppt["维护机：COM 以默认样式插入，导出 PNG 与 pptx"]
+  list --> cmd["我们：slide.insertShape 逐项插入，渲染并导出"]
+  ppt --> pix["像素：geometry 类别，逐形状裁剪"]
+  cmd --> pix
+  ppt --> xml["导出 XML：p:style 引用逐项相等"]
+  cmd --> xml
+  cmd --> snap["SVG 快照：箭头 path 规范化后对比"]
+  pix --> verdict["M2 起 gated"]
+  xml --> verdict
+  snap --> verdict
+```
+
+怎么读：同一份名单驱动两侧插入；像素比较核对几何与默认外观，XML 比较核对默认样式确实只写了与 PowerPoint 相同的引用，SVG 快照在单元层锁住箭头几何，三者都通过才算这批元素的插入默认值正确。
+依据：R-d-66；50/22（形状库、默认样式、箭头类型与尺寸）；PRD 05 M1 验收 7。
 
 ---
 
 ## 9. UI 视觉基线（不属于 oracle）
 
-这类截图没有 PowerPoint 参照物，是 UI 外壳对自身的回归基线：`apps/web/e2e/ui/editor.visual.spec.ts`（由 40/10 §9 迁入，落点见 [06 §3](./06-frontend-component-and-e2e.md)）覆盖 `/editor` 亮暗两套主题、`prefers-reduced-transparency: reduce` 下面板退化为不透明（`--card`）、宿主外壳版本的 body 防线。
+这类截图没有 PowerPoint 参照物，是 UI 外壳对自身的回归基线：`apps/web/e2e/ui/editor.visual.spec.ts`（由 40/10 §9 迁入，落点见 [06 §3](./06-frontend-component-and-e2e.md)）覆盖 `/editor` 亮暗两套主题、`prefers-reduced-transparency: reduce` 下面板退化为不透明（`--card`）、宿主外壳版本的 body 防线。2026-09-26（rulings §4.21）起另覆盖：形状库 flyout（72 项 SVG sprite，亮暗两套）、表格网格选择器（M2）、图表插入菜单与数据网格抽屉（M3）。
 
 - 基线用 Playwright `toHaveScreenshot`，**只在锁定镜像的 CI 容器内生成**（避免操作系统字体栅格化差异），PNG 与 spec 同目录存放于 `__screenshots__/`，体积小、入 git。
 - 判定：关闭动画、隐藏光标、固定字体后 `maxDiffPixels = 0`。
@@ -332,6 +406,9 @@ stateDiagram-v2
 | gated 类别三层判定全部通过 | `fidelity:visual`（M1 验收 2）、NF-02 | `e2e/oracle-gated`；出口以 nightly 全量为证据 | 机械 |
 | 表格、图表、SmartArt、OLE 预览按类别 gated | `fidelity:objects`（M1 验收 10） | 同上 | 机械 |
 | 187 种 `prstGeom` 几何 IoU | M1 验收 7 | 同上 | 机械 |
+| 图表语料矩阵各行达到 `chart` 类别阈值；值轴刻度一致率与绘图区 IoU 出报告 | OF-09；ADR-0036 决策 8 | 同上（§8.1） | 机械 |
+| 形状库 69 项默认插入的像素与 `p:style` 引用、45 种箭头的 SVG 快照与几何掩码 IoU | R-d-66；M1 验收 7 口径 | 同上与 40/07 `elements.render.test.ts`（§8.2） | 机械 |
+| 图表编辑往返：维护机打开无修复、内嵌工作簿读回一致 | ED-15 | 维护机 + 证据归档（§8.1） | 半机械 |
 | 继承属性表 100% 一致、文本行与首字符一致率 | OF-04、OF-05、PRD 01 §4.3 | 同上（结构通道） | 机械 |
 | 客户端与服务端互差 ≤ 0.5% | ADR-0026、ADR-0027 | 同上（M3 起） | 机械 |
 | 服务端 PDF 逐页 SSIM | `server:pdf`（M3 验收 6b） | 同上（M3 后半段） | 机械 |
@@ -352,3 +429,11 @@ stateDiagram-v2
 - 30/11 §7：基线分辨率「@1920×1080」改为「gated 按 1280 px 宽，1920 只报告」（决策 T-ORACLE，机械修正）；「PNG 二进制在 Git LFS」改为语料存储按 sha256 存放（决策 T-CORPUS）；「被测 b = 缩略图路径」改为 1280 px 无损 PNG；阈值表、流程图与 `capabilities.json` 细节改为「摘要 + 链接本文」。
 - 30/11 §17「视觉 oracle 增补」改为链接本文 §1、§8。
 - 40/07 §9「视觉保真」行与 40/10 §9 `editor.visual.spec.ts` 行补「判定与基线治理见 70/04」。
+
+**rulings §4.21 回写（2026-09-26，本文已落地）**：q-chart-route 与 ADR-0036 决策 8 → §1 结构通道加值轴刻度、§5 新增两项图表结构度量、§6 `chart` 行、§8.1 图表语料矩阵、插入默认外观与编辑往返；R-d-66 → §8.2 形状库默认插入与箭头尺寸快照；§9 补形状库、表格网格与图表数据网格的 UI 基线；§13 补三行。
+
+**回写清单（由总编排执行）**：
+
+- 03：图表语料矩阵各行的样本登记进语料清单（`oracle.category = 'chart'`，生成脚本 `make-chart-corpus.ps1`），箭头样本 `arrow-ends.pptx` 与形状库默认插入样本登记为生成样本。
+- 13：登记图表编辑往返的验收检查名（ED-15，M3）。
+- 40/07 §9「视觉保真」行已由同组回写（图表结构断言与语料矩阵见 §8.1，箭头快照见 §8.2），不再列入。

@@ -1,5 +1,5 @@
 # 08 部署拓扑与环境 e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-04、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[30/08](../30-architecture/08-backend-nestjs.md) §10 / §10.1、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§3 新增 C7（CFG-05 配置交叉校验与镜像入口）、C8（ops-cron 只跑 audit-rotate）；§8 新增 R5（DEP-07 按文档哈希亲和））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.20 BE-04、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、[01](./01-strategy-and-layers.md)、[06](./06-frontend-component-and-e2e.md)、[07](./07-backend-integration-and-api-e2e.md)、[60/17](../60-backend/17-deployment-and-config.md) §2 / §3 / §8（原 30/08 §10 / §10.1）、[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0035](../30-architecture/adr/0035-gateway-horizontal-scaling.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md) §7.1 / §9、[40/19](../40-modules/19-atlas-backend-and-data.md) §3 / §4 / §8、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 10 与 M4 SV-09、rulings §4.15 Q6 / Q10、§4.18 BE-01 / BE-03 / BE-13 / BE-14 / BE-19 / GV-14 / GV-16
 
 本文是部署与环境层测试的唯一事实源：进程角色装配、compose 洁净栈冒烟、web 容器与反代子域、断网环境、镜像门禁的运行时部分、IdP 兼容矩阵、发布演练、备份恢复演练与 M4 的离线包 / 多架构 / Helm 冒烟——每一类写环境怎么搭、断言什么、何时跑。
 
@@ -119,6 +119,8 @@ flowchart LR
 | C4 | 拆分部署 | 同一 compose 以 api、collab、worker 三个服务替代 `all` 再跑一遍 C2：快照与元素彻底删除路由由反代转给 collab 后可用（若分流错误，api 会返回 404） |
 | C5 | 清理 | `docker compose down -v` 后无残留容器与卷；全部容器日志作为产物上传 |
 | C6 | 告警规则单测 | 在同一栈内对 `deploy/observability/prometheus/rules/cordex.rules.yml` 运行 `promtool test rules`，并断言规则只引用 60/18 §4 名表中的指标（60/18 §5.3） |
+| C7 | 配置交叉校验与镜像入口（60/17 §12 CFG-05，2026-09-26 整合登记） | 另起若干次：`collab.hocuspocus.timeoutMs` 小于 `limits.idleTimeoutMs`、`limits.ws.step2MaxBytes` 小于 `limits.maxUpdateBytes`、`limits.ws.idleCheckIntervalMs` 不小于 `limits.idleTimeoutMs`、出现旧键 `limits.xml.maxTextNodeBytes`，各自使应用容器以退出码 78 退出且日志指明键名（旧键提示新键 `limits.xml.maxTextLength`）；`docker inspect cordex-server` 的入口含 `--import ./dist/observability/otel.js` |
+| C8 | `ops-cron` 常驻服务（60/17 §2、§9，2026-09-26 整合登记） | `ops-cron` 以 `cordex-ops cron` 常驻、无监听端口、只读根文件系统；内置时刻表只含 `audit-rotate` 一项：以测试钩子把时钟推到 03:00 后恰执行一次 `audit-rotate`（未来 3 个月审计分区存在），上一次未结束时不重入；收到 SIGTERM 等当前任务结束后以退出码 0 退出 |
 
 C2 通过后，同一个栈继续作为 [06](./06-frontend-component-and-e2e.md) §12 浏览器全量用例的被测环境。
 
@@ -150,7 +152,7 @@ sequenceDiagram
 
 怎么读：自上而下是时间顺序；就绪由 compose 健康检查在容器内探测 `/readyz`（不经反代）；浏览器只和 web 容器打交道，登录与直传分别经 `idp.` 与 `s3.` 子域，由 web 容器保持 Host 头转发。「app 各角色」在默认部署是一个 `CORDEX_ROLE=all` 容器，C4 中是三个服务。
 
-依据：30/08 §10.1；ADR-0037；rulings §4.18 BE-01、BE-11。
+依据：60-backend/17 §2；ADR-0037；rulings §4.18 BE-01、BE-11。
 
 ---
 
@@ -168,8 +170,8 @@ sequenceDiagram
 | G6 | `index.html` 为 `Cache-Control: no-store`；`/assets/*` 与 `/fonts/*` 带内容哈希（字体路径带 fontProfile 版本）且 `public, max-age=31536000, immutable`；静态资源响应不带 CSP 头 | CSP-NONCE；决策 VERSION-DRIFT-SW；60/17 §3.1 |
 | G7 | 其余安全头与 50/14 §2.6 一致（`Referrer-Policy`、`X-Content-Type-Options`、`Permissions-Policy`、`Cross-Origin-Opener-Policy`）；M2 带 `Content-Security-Policy-Report-Only`，M3 起 TT 指令并入强制头 | 50/14 §2；rulings §4.15 Q2 |
 | G8 | RuntimeConfig 由容器启动时从环境变量渲染：改一个静态部署项后重启容器，页面读到新值；可变开关（`selfSignup`、IdP 显示名）只来自 `GET /auth/config`；生产镜像以 `auth.mode=none` 启动 web 容器被启动脚本拒绝、容器非零退出（60/17 §3.3） | 决策 RUNTIME-CONFIG |
-| G9 | 路径分流：`/api/*` → api、快照与元素彻底删除 → collab、`/collab/*`（WS 升级）→ collab；WS 读超时不小于 3600 s（读取容器内生效配置断言，不做一小时等待） | 30/08 §10.1；BE-03 |
-| G10 | 证书 SAN 覆盖三个名字 | 30/08 §10.1 |
+| G9 | 路径分流：`/api/*` → api、快照与元素彻底删除 → collab、`/collab/*`（WS 升级）→ collab；WS 读超时不小于 3600 s（读取容器内生效配置断言，不做一小时等待） | 60-backend/17 §3.1；BE-03 |
+| G10 | 证书 SAN 覆盖三个名字 | 60-backend/17 §3.1 |
 | G11 | `storage:init` 之后读回：data 桶未开版本化、无生命周期规则；snapshots 桶已开版本化且只有一条非当前版本过期规则；两桶 CORS 符合 60/14 §5；再执行一次 `storage:init` 幂等 | 60/14 §5、OB-03 |
 | G12 | 客户端 IP 不可伪造（与 [10](./10-security-testing.md) SEC-RL-01 / RL-03 (f) 同一断言的部署层版本）：浏览器侧与测试客户端经 web 容器发请求时带伪造的 `X-Forwarded-For` 首跳（每次换值），应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加；`@Public` 端点的限流主体、WS 升级扣的 IP 桶与审计 `ip_hash` 都不随伪造值变化。**upstream 模式**另起一次：`CORDEX_WEB_TLS_MODE=upstream`，前置一个测试 LB 容器（网段登记在 `CORDEX_WEB_TRUSTED_LB_CIDRS`），web 容器只信任该网段一跳（realip），同一组断言成立，且 `$remote_addr`、`X-Forwarded-For` 与 Casdoor 看到的来源地址三者一致；`CORDEX_WEB_TRUSTED_LB_CIDRS` 为空时 web 容器拒绝启动（非零退出） | rulings §4.20 BE-04；60/17 §3.1、DEP-03 |
 
@@ -239,7 +241,7 @@ flowchart LR
 
 怎么读：实线是栈内的正常访问；虚线是「如果有出站企图会走到哪里」——名字解析落到日志型 DNS，直连 IP 落到宿主 `DOCKER-USER` 链，二者都会留下记录；带叉的边表示到外网一律被丢弃。判定只看记录是否为 0，不依赖应用是否报错。
 
-依据：ADR-0037 决策 2–3 与「如何被机械验证」；rulings §4.15 Q10；30/08 §10.1。
+依据：ADR-0037 决策 2–3 与「如何被机械验证」；rulings §4.15 Q10；60-backend/17 §2。
 
 ---
 
@@ -314,6 +316,7 @@ flowchart TB
 | R2 | Valkey 断开 30 s | `docker compose pause valkey` 30 s 后恢复，期间两个浏览器连在不同副本上继续编辑 | 断开期间各 app 实例 `/readyz` 为 503（容器内探测，探针不经反代）；恢复后两端状态向量相同、内容一致 | nightly |
 | R3 | 发布时迁移 | 以上一个发布的镜像起栈并写入数据 → 执行新版本迁移作业 → 旧版本 api 仍能完成登录、列表、打开（expand 阶段兼容）→ 再滚动升级到新版本 | 全程无 5xx；升级后数据完整 | main（首个带标签的发布之后启用） |
 | R4 | 协议向后兼容一个次版本 | 上一个次版本的 web 镜像作为客户端连接新版本服务端，跑 [06](./06-frontend-component-and-e2e.md) §12 的 F1、F2、F7 | 通过；消息级兼容由 [07](./07-backend-integration-and-api-e2e.md) §14 的示例消息快照保证 | main（同上） |
+| R5 | 按文档哈希的亲和（60/17 §12 DEP-07，M3，2026-09-26 整合登记） | 两个 collab 副本，web 容器的 collab upstream 为 `hash $cordex_doc_id consistent`；对同一 `documentId` 先后发起 WS 升级与 `GET snapshots/latest`，再 `docker compose stop` 承载该文档的副本 | WS 升级与快照 REST 落到同一副本（按副本日志或响应头里的 `instanceId` 判定）；停掉后客户端重连到另一副本并继续编辑，全部 pending 获 `ack{tier:'db'}`（亲和不是正确性前提） | main |
 
 依据：ADR-0035「如何被机械验证」（滚动重启期间双浏览器编辑不丢、Redis 断开 30 s 后恢复一致且期间 `/readyz` 为 503）；60/17 §9（迁移先于新版本、协议向后兼容一个次版本）。R3、R4 在第一个发布标签之前没有「上一版本」可用，在 [12](./12-ci-gates-mapping.md) §7 的激活表中登记启用时间，不以跳过代替。
 
@@ -340,7 +343,7 @@ flowchart TB
 |---|---|---|---|---|
 | M4-1 | 离线安装包 | 在没有 registry 访问的 runner 上（DNS 与出站按 §5.1 的方式阻断）`docker load` 离线包 → `ops:compose` | §3 全部断言通过；无镜像拉取事件 | PRD 05 M4 SV-09；ADR-0037 |
 | M4-2 | 多架构缩略图一致 | 同一批语料在 arm64 与 amd64 runner 上由 renderer 生成缩略图 | 逐页像素差 ≤ 0.5%（比较方法同 [04](./04-visual-oracle.md)） | ADR-0037 |
-| M4-3 | Helm 冒烟 | kind 集群安装 chart → `/readyz` → mock OIDC 登录 → 打开文档 → WS 经 Ingress 同步 → renderer 的 NetworkPolicy 禁止一切出站（从 renderer Pod 发起出站连接失败） | 全部通过 | 30/08 §10.2；ADR-0037 |
+| M4-3 | Helm 冒烟 | kind 集群安装 chart → `/readyz` → mock OIDC 登录 → 打开文档 → WS 经 Ingress 同步 → renderer 的 NetworkPolicy 禁止一切出站（从 renderer Pod 发起出站连接失败） | 全部通过 | 60-backend/17 §8；ADR-0037 |
 
 三者在 M4 起进入 nightly，发布候选前各跑一次。
 

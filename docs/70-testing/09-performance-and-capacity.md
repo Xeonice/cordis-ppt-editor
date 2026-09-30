@@ -1,5 +1,5 @@
 # 09 性能与容量测试
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[30/08](../30-architecture/08-backend-nestjs.md) §12 / §16.5、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：负载驱动与时序图的 CONTROL.auth 改为 Auth 帧）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4（原 30/08 §12 / §16.5）、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
 
 本文是性能与容量测试的测试侧唯一事实源：数字从哪里来、`test/perf/budgets.json` 长什么样、有哪些场景、怎么测、噪声怎么控、门禁怎么判、体积预算的唯一阻断点、预算怎么校准。
 
@@ -173,7 +173,7 @@ classDiagram
 | `thumb-update`、`thumb-scroll-200` | D50、D200 | 编辑后等缩略图刷新；滚动 200 页缩略图栏 | NF-01 §1.2 对应行 | 缩略图刷新 mark；Tracing 帧事件 | M2 |
 | `search-d200`、`replace-all-d200`、`theme-switch` | D200、D50 | 全文搜索、全部替换（一个事务）、切换主题 | NF-01 §1.2 对应行 | 页内 mark | M2 |
 | `export-pptx-d50`、`export-pptx-d200` | D50、D200 | Worker 导出；导出期间执行一条编辑命令 | 导出时长、导出期间 UI 可编辑（NF-01 §1.4） | mark；命令在导出进行中被接受 | M2（M1 起报告） |
-| `export-png-single`、`export-png-all` | D50、D200 | 主线程 `toImage` | NF-01 §1.4，按 30/07 §14.6 修正：M2 位图 spike 结论前只对「单页、无 Web 字体依赖」门禁；全量 PNG 自 M3 起走服务端 | mark | M2 |
+| `export-png-single`、`export-png-all` | D50、D200 | 主线程 `toImage` | NF-01 §1.4，按 50-frontend/13 §1、§12（原 30/07 §14.6）修正：M2 位图 spike 结论前只对「单页、无 Web 字体依赖」门禁；全量 PNG 自 M3 起走服务端 | mark | M2 |
 | `master-view-enter`、`master-range-switch` | D50 | 进入母版视图；切换「编辑版式 / 母版」范围 | PRD 05 M2 验收 9 | mark | M2 |
 | `master-edit-propagate`、`theme-edit-recalc` | D50（D200 只监测） | 母版编辑后引用页与缩略图更新；改 12 主题色与主题字体后全文重算 | PRD 05 M3 验收 14、15 | mark | M3 |
 | `new-blank`、`shell-home-interactive`、`locale-switch` | — | 新建空白文稿；开始页可交互（已登录、列表 ≤ 50 条）；切换语言包 | PRD 01 OF-22、PRD 05 M2 验收 11、NF-06 | mark | M2 |
@@ -188,14 +188,14 @@ RM-B：同一组场景在 nightly 以 RM-B 标签重跑，gate 乘以 `budgetMul
 
 ## 4. 打开管线断言
 
-`open-*` 场景除 §3 的数值指标外，每次运行都断言下列时序（事件定义见 30/10 §11.1，管线见 30/07 §14.2；结构正确性——首批内容、批次合并等价、零脏部件——在 [03 §7](./03-fidelity-roundtrip-and-corpus.md)）：
+`open-*` 场景除 §3 的数值指标外，每次运行都断言下列时序（事件定义见 30/10 §11.1，管线见 50-frontend/04 §2；结构正确性——首批内容、批次合并等价、零脏部件——在 [03 §7](./03-fidelity-roundtrip-and-corpus.md)）：
 
 | # | 断言 | 依据 |
 |---|---|---|
 | O1 | `unit/open-progress` 的阶段按 `unzip` → `parse-presentation` → `parse-slide` → `decode-media` → `render-first` 顺序出现，相邻两次上报的间隔满足 OF-01（按时间或按进度百分比） | PRD 01 OF-01 |
 | O2 | `unit/opened` 在首批装载后发出，早于 `unit/loaded`；`render/first-paint` 与「首个命令被接受」分别计入首页可见与首页可交互 | rulings §4.18 CO-12 |
 | O3 | `unit/loaded` 在全部批次到齐后发出，计入「后台全部解析完成」 | CO-12 |
-| O4 | 从 `open()` 到 `unit/loaded` 期间 `PerformanceObserver('longtask')` 无超过 NF-01 主线程阻塞 gate 的任务 | NF-01 §1.1；30/07 §14.2 |
+| O4 | 从 `open()` 到 `unit/loaded` 期间 `PerformanceObserver('longtask')` 无超过 NF-01 主线程阻塞 gate 的任务 | NF-01 §1.1；50-frontend/04 §2 |
 | O5 | 后台解析进行中跳到未解析页：观察到主线程向 Worker 发出 `prioritize` 消息，且该页可见时间满足 gate；跳到已解析未装载页满足另一档 gate | CO-11 |
 | O6 | 打开进行中经 `AbortSignal` 取消，在 OF-01 规定时限内 `fiber.getEffects()` 为空、无半打开的 `Unit` | PRD 01 OF-01 |
 
@@ -293,7 +293,7 @@ sequenceDiagram
   participant G as collab 实例，RM-S 口径
   participant V as Valkey 扇出总线
   participant O as 采集：OTel 接收器与 /metrics
-  D->>G: 68 路 WS：取票据，CONTROL.auth，step1 与 step2
+  D->>G: 68 路 WS：取票据，Auth 帧，step1 与 step2
   B->>G: 2 路 WS 加入
   G-->>D: auth.ok，名额按用户计
   G-->>B: auth.ok
@@ -329,7 +329,7 @@ sequenceDiagram
 ## 8. 工具
 
 - **浏览器侧**：Playwright + trace；telemetry Provider 在测试模式下写 `performance.mark`（30/11 §9，命名规范见 50/13 §2）；`PerformanceObserver('longtask')` 与 Event Timing；CDP 的 `HeapProfiler`、`Runtime.getHeapUsage`、`Tracing`（帧）、`Emulation.setCPUThrottlingRate`（RM-B）、`Input.imeSetComposition`（IME）。
-- **负载驱动**（决策 T-IDP：自写 Node WS 客户端，发送真实 y-protocols 帧，不用 k6）：经 oidc-provider mock 登录 → REST 取协同票据 → WS 连接 → `CONTROL.auth` → step1 / step2 → update 生成器（在 Node 中以 `store-yjs` 执行 `model-slide` 的 `randomCommand(seed)`，得到真实形状的 update）→ awareness 生成器；每个虚拟客户端记录发送与接收时间戳。落点 `test/perf/load-driver/`（根 `test/` 布局以 [01 §5](./01-strategy-and-layers.md) 为准）。
+- **负载驱动**（决策 T-IDP：自写 Node WS 客户端，发送真实 y-protocols 帧，不用 k6）：经 oidc-provider mock 登录 → REST 取协同票据 → WS 连接 → Auth 帧（token JSON）→ step1 / step2 → update 生成器（在 Node 中以 `store-yjs` 执行 `model-slide` 的 `randomCommand(seed)`，得到真实形状的 update）→ awareness 生成器；每个虚拟客户端记录发送与接收时间戳。落点 `test/perf/load-driver/`（根 `test/` 布局以 [01 §5](./01-strategy-and-layers.md) 为准）。
 - **服务端测量**：harness 内置 OTLP 接收器收 span；抓取内部端口上的 `/metrics`；名称以 60/18 统一名表为准。
 - **网络**：toxiproxy 注入时延与带宽（§6）。
 - **结果**：每次运行写 `test/perf/results/<runId>.json`（提交、runner 标签、场景、指标、5 次样本、中位数、gate、target、判定）。
@@ -417,7 +417,7 @@ flowchart TD
 
 - **节奏**：每个里程碑中期在参考 runner 上跑一次 nightly 全套，以实测提出新值；只能收紧（PRD 04 开头、PRD 05 §6）。gate 的修改走 PRD 表格，target 的修改走 50/13 / 60/01 表格，budgets.json 同一 PR 跟随并追加 `RatchetEntry`，§2.2 的 C1–C4 保证四处一致。
 - **M1 回填**：DX-20K 的稳态堆与协同 Y.Doc 堆（NF-01 §1.3）；活跃房间分档——由 §7.2 A1 得到各规模文档的实测房间权重，按「实例内存预算 ÷ 权重」得到各档房间数，回填 PRD NF-01 §1.7 与 60/01 §12。
-- **M2 回填**：EMF 栅格化 chunk 预算；客户端位图导出的门禁范围（30/07 §14.6）。
+- **M2 回填**：EMF 栅格化 chunk 预算；客户端位图导出的门禁范围（50-frontend/13 §1、§12）。
 - **溢写阈值校准**（M2，随单实例两级溢写交付；在 M2 前落地的自托管专用 runner 上执行，与 [60/01](../60-backend/01-service-overview-and-roles.md) §12 S21、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §6.2 一致；决策 SPILL「压测校准，只收紧」不变，校准时点随 PRD 05 §0.3 与 rulings §4.19 D-TEST-INFRA 由 M3 提前；默认值本身见 [60/17](../60-backend/17-deployment-and-config.md) 的 `spill.*`）：`spill-calibration` 场景在满员房间负载与多房间并存下注入 PG 断开 N 秒，记录内存增长、溢写档位切换（none → valkey → blob）与回放耗时；据此只能收紧 `spill.*` 默认值。
 - 每次校准写 `test/evidence/<里程碑>/perf-calibration.md`（runner、提交、原值与新值、依据的结果文件）。
 
@@ -454,7 +454,7 @@ flowchart TD
 - 30/11 §0 门禁表「性能：PR 上仅告警」与门禁流 ①、② 改为引用本文 §10（PR 超 gate 即失败，相对回归只报告）；§9 的场景、预算两档与门禁规则改为「摘要 + 链接本文」；§9「k6 或自写压测」改为自写负载驱动（决策 T-IDP）；§10 内存增长「> 10%」改为 5%（决策 T-PERF-GATE）。
 - 09-06 §14 / §15 与 40/01 中 `tooling/policy/budgets.json` 的 `<package>:bundle-size-bytes` 键：体积预算事实源改为各 preset 的 `config/bundle-budget.json`（决策 T-BUNDLE）。
 - 40/11 §10「基线超 5% 失败、超 0–5% 警告」改为「超 0–5% 报告」；40/10 §9 `perf.spec.ts` 与 40/11 §9 `bundle-budget.test.ts` 标注为信息性断言。
-- 40/06 §9、40/09 §9、40/12 §9 的「性能预算见架构 11 / 08 §12」改为引用本文与 50/13、60/01。（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项同轮回写：40/03、40/07、40/13、40/01、40/06 的覆盖率与性能预算改指 [01 §8](./01-strategy-and-layers.md) 与本文，40/06 另指 50/13；40/09、40/12 的 30/08 §12 改指 60/01 §12 与本文）
+- 40/06 §9、40/09 §9、40/12 §9 的「性能预算见架构 11 / 08 §12」改为引用本文与 50/13、60/01。（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项同轮回写：40/03、40/07、40/13、40/01、40/06 的覆盖率与性能预算改指 [01 §8](./01-strategy-and-layers.md) 与本文，40/06 另指 50/13；40/09、40/12 的原 30/08 篇 §12 改指 60/01 §12 与本文）
 - PRD 04 NF-09「超预算 5% 失败」旁注「PR 上按超 gate 即失败执行（70/09 §10）」，由产品线确认措辞。
 - 30/07 §14.6 末句「`test/perf/budgets.json` 以本表为源」与 30/11 §17「预算来源单一化」（target 取 07 §14.6 / 06 §18.5 / 08 §16.5）：target 事实源改为 50/13 §12 与 60/01 §12，结构与一致性检查链接本文 §2。
 - 50/13 §12 `client.mem.dx20k` 行「只监测」：补「M1 回填后作为『内存不越界』可用性断言」（本文 §5、§2.2 C5；PRD NF-01 §1.3「不越界即通过」）。**已完成**：50/13 §12 该行已写「不越界即通过」；同表新增的 `client.collab.firstPaint.*`、`client.a11y.*`、`client.mem.a11yTree.d200` 与 mark `cordex:a11y:tree-ready` 已收入 §3、§6 场景（C2 反向检查）。

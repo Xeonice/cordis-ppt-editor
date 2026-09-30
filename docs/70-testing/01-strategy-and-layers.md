@@ -1,5 +1,5 @@
 # 01 测试策略总览与分层职责
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：charter v0.2、rulings §4.15–§4.20、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§4 命名示例改为 @cordexjs/xml 的 roundtrip.property.test.ts） | 依赖：charter v0.2、rulings §4.15–§4.20、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
 
 本文是测试侧的总纲：测试分几层、每层用什么工具、在什么环境跑、谁来写、何时跑、落在 13 个 CI job 的哪个步骤；测试文件叫什么、放在哪里（T-NAMING 在本文定稿，其余 70 文件与 50 / 60 的「机械验证」小节都按本文引用）；覆盖率、门禁分级与所有权。
 
@@ -161,7 +161,7 @@ flowchart LR
 
 落点规则：
 
-1. **同位**：包与模块的测试放在被测源码旁的 `__tests__/`，文件名与被测文件同名（`foo.ts` → `__tests__/foo.test.ts`）；可选中缀 `.property.` 只作命名提示（如 `xml-parser-roundtrip.property.test.ts`），仍归 `test/unit`。
+1. **同位**：包与模块的测试放在被测源码旁的 `__tests__/`，文件名与被测文件同名（`foo.ts` → `__tests__/foo.test.ts`）；可选中缀 `.property.` 只作命名提示（如 `@cordexjs/xml` 的 `roundtrip.property.test.ts`，40/04 §9.3），仍归 `test/unit`。
 2. **容器隔离**：需要 Docker 的测试不得放在任何 `src/**/__tests__/`（`test/unit` 步骤不启动容器）；服务端一律放 `apps/server/test/{integration,e2e}/`。
 3. **Playwright 只在四处**：`apps/web/e2e/**`、根 `test/oracle/**`、根 `test/deploy/**`、根 `test/perf/**`；包内不放 Playwright spec。
 4. **测试工具与测试分开**：kit、替身、构造器放包的 `src/testing/`，经 `./testing` 子路径导出供包外复用；`__tests__/` 只放用例。生产代码不得 import 任何 `./testing`（depcruise `no-testing-in-prod`，30/02 §4.0.2）。

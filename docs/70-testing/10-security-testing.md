@@ -1,6 +1,6 @@
 # 10 安全测试
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / FE-18+TX-06、rulings §4.19 D-M2-CONTENT / C-06、PRD 04 NF-04 / NF-11、PRD 03/01 OF-24、PRD 05 M2 验收 8 与 M3 验收 4 / 6a / 9 / 16、[30/11 §10](../30-architecture/11-testing-strategy.md)、[30/08 §9](../30-architecture/08-backend-nestjs.md)、ADR-0020 / 0021 / 0026 / 0029 / 0034 / 0037、[09-06 §11 / §18](../30-architecture/09-type-discipline/06-scanners.md)、[09-08 TD-081 / 083 / 084 / 085](../30-architecture/09-type-discipline/08-policy-enforcement-matrix.md)、rulings §4.15 Q2 / Q6 / Q9 / Q10、§4.17 D1 / D3、§4.18 BE-02 / BE-04 / BE-05 / BE-06 / BE-10 / BE-30 / GV-16、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)、[60/07](../60-backend/07-modules-comments-webhooks-audit.md)、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[50/14](../50-frontend/14-client-security.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：§3 XML 用例落点改到 `@cordexjs/xml`，XML 限额引用 `XmlLimits`，DOCTYPE 一律拒绝；SEC-IN-01/04 路径对齐 40/04；新增 SEC-IN-10 XML 解析器合规；SEC-IN-09 改用共享词法层；SEC-EG-02、SEC-CL-05 改为 Standard Webhooks 头）；2026-09-26（§4.21 整合：SEC-SC-01 按 ADR-0049 分级改写（四类对象、八例负向夹具）；SEC-CL-01 补 50/14 V15；SEC-RL-03 改 Auth 帧、帧头口径并与 07 W18 互引）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：rulings §4.21 X:q-xml-lexer / X:q-xml-package / q-webhook-sig、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / FE-18+TX-06、rulings §4.19 D-M2-CONTENT / C-06、PRD 04 NF-04 / NF-11、PRD 03/01 OF-24、PRD 05 M2 验收 8 与 M3 验收 4 / 6a / 9 / 16、[30/11 §10](../30-architecture/11-testing-strategy.md)、ADR-0020 / 0021 / 0026 / 0029 / 0034 / 0037、[09-06 §11 / §18](../30-architecture/09-type-discipline/06-scanners.md)、[09-08 TD-081 / 083 / 084 / 085](../30-architecture/09-type-discipline/08-policy-enforcement-matrix.md)、rulings §4.15 Q2 / Q6 / Q9 / Q10、§4.17 D1 / D3、§4.18 BE-02 / BE-04 / BE-05 / BE-06 / BE-10 / BE-30 / GV-16、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md)、[60/07](../60-backend/07-modules-comments-webhooks-audit.md)、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[50/14](../50-frontend/14-client-security.md)
 
 ## 0. 定位与分工
 
@@ -75,7 +75,7 @@ flowchart LR
 
 | 域 | 威胁 | 用例 | 主要执行点 | 阻断起点 | 细则 |
 |---|---|---|---|---|---|
-| 输入 | zip 炸弹、XXE 与实体扩展、深嵌套、畸形 OPC、EMF / WMF 资源耗尽、伪装与超大上传、畸形请求体与帧 | SEC-IN-01…09 | `test/unit`、`test/fidelity-roundtrip`、`test/server-integration`、`test/contract`；nightly 放大 fuzz | M1（客户端解析）；M2（EMF、REST、服务端导入与媒体上传、WS，rulings §4.19 D-M2-CONTENT） | §3 |
+| 输入 | zip 炸弹、XXE 与实体扩展、深嵌套、畸形 OPC、XML 解析器不合规（§4.21）、EMF / WMF 资源耗尽、伪装与超大上传、畸形请求体与帧 | SEC-IN-01…10 | `test/unit`、`test/fidelity-roundtrip`、`test/server-integration`、`test/contract`；nightly 放大 fuzz | M1（客户端解析）；M2（EMF、REST、服务端导入与媒体上传、WS，rulings §4.19 D-M2-CONTENT） | §3 |
 | 内容 | 文档内容经 HTML sink 执行；SVG 内脚本；危险超链接协议；粘贴注入；外链资源泄露查看者；服务端抓取外链 | SEC-CT-01…06 | `lint`（TD-081）、`test/unit`（browser mode）、`e2e/smoke`、`test/server-integration` | M1；粘贴与服务端导入 M2；缩略图、PDF 与服务端导出 M3 | §4 |
 | 认证 | OIDC state 伪造与重放、令牌伪造、未上线的凭据模式被接受、生产无鉴权启动、cookie 属性缺失、refresh 重放、吊销不及时、跨 IdP 账号接管 | SEC-AU-01…10 | `test/server-integration`、`e2e/smoke`（login-oidc-mock、login-casdoor） | M2（含 WS） | §5 |
 | 请求伪造与跨源 | CSRF、跨源 WS 劫持、令牌经 URL 与日志泄露、开放重定向、CORS 放宽 | SEC-XS-01…05 | `e2e/smoke`（csrf-origin、share-link-landing）、`test/server-integration`、`test/unit` | M2（含 WS Origin）；分享 M3 | §6 |
@@ -94,19 +94,20 @@ flowchart LR
 
 ## 3. 输入与解析
 
-限额数值以 PRD 03/01 OF-24 与 [60/06 §6.3](../60-backend/06-modules-jobs-import-export-thumbnails.md) 为准（30/08 §9.2 只留摘要），用例从配置读取、不写死；错误码与 HTTP 映射以 30/10 §1 为准。
+XML 限额（深度、属性数、文本长度、属性值长度、DOCTYPE）只以 [ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6 的 `XmlLimits` 表为准，DOCTYPE 一律拒绝、不存在「按禁用处理」的放行路径；其余限额以 PRD 03/01 OF-24 与 [60/06 §6.3](../60-backend/06-modules-jobs-import-export-thumbnails.md) 为准（原 30/08 篇 §9.2 已随该篇撤销）；用例从 `XmlLimits` 与配置读取、不写死；错误码与 HTTP 映射以 30/10 §1 为准。
 
 | id | 断言 | 落点 | CI 步骤 | 阻断 |
 |---|---|---|---|---|
-| SEC-IN-01 | ZIP 限额：条目数、单条目解压、总解压、压缩比 > 100:1、媒体总量各有一对样本——恰在上限通过、上限 + 1 拒绝，码 `format.limit_exceeded{limit, actual}`（HTTP 413）；拒绝发生在该条目解压完成之前（解压字节计数 ≤ 限额 + 一个读块）；样本由 `package-builder` 确定性生成，炸弹类不入库 | `packages/ooxml-core/src/opc/__tests__/zip-limits.test.ts`；语料侧 [03 §8](./03-fidelity-roundtrip-and-corpus.md)；服务端 `apps/server/test/integration/import/import-limits.int-spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`test/server-integration` | M1（服务端 M2） |
-| SEC-IN-02 | XML：含 DTD、外部实体（`file:///etc/passwd`、指向金丝雀 HTTP 服务的 URL）、参数实体、指数展开实体（billion laughs）的部件被拒或按禁用处理；金丝雀收到请求数 = 0；解析堆增量 < 64 MiB | `packages/ooxml-core/src/xml/__tests__/xml-hardening.test.ts` | `test/unit` | M1 |
-| SEC-IN-03 | 结构限额：嵌套深度 257、单元素属性 1,025、文本节点 > 16 MiB、图表每序列 > 10,000 点、位图预览 > 16,777,216 px 各一例 → `format.limit_exceeded`；恰在上限的样本通过；限额配置可收紧、放宽超过 2 倍被配置 schema 拒绝 | 同上文件 + [03 §8](./03-fidelity-roundtrip-and-corpus.md) 的错误码语料 | `test/unit`、`test/fidelity-roundtrip` | M1 |
-| SEC-IN-04 | 畸形 OPC 结构化变异 fuzz（设计见下） | `packages/ooxml-core/src/opc/__tests__/opc-mutation.property.test.ts`；服务端导入路径 `apps/server/test/integration/import/import-fuzz.int-spec.ts` | `test/unit`（PR 档）；nightly 放大档 | M1（放大档先报告） |
+| SEC-IN-01 | ZIP 限额：条目数、单条目解压、总解压、压缩比 > 100:1、媒体总量各有一对样本——恰在上限通过、上限 + 1 拒绝，码 `format.limit_exceeded{limit, actual, max}`（HTTP 413，`limit` 取 `zip.*` 键）；拒绝发生在该条目解压完成之前（解压字节计数 ≤ 限额 + 一个读块）；样本由 `package-builder` 确定性生成，炸弹类不入库 | `packages/ooxml-core/src/__tests__/zip-limits.test.ts`（§4.21 对齐 40/04 §4.1 目录）；语料侧 [03 §8](./03-fidelity-roundtrip-and-corpus.md)；服务端 `apps/server/test/integration/import/import-limits.int-spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`test/server-integration` | M1（服务端 M2） |
+| SEC-IN-02 | XML：无实体的 DOCTYPE、内部实体、指数展开实体（billion laughs）、二次膨胀、外部实体（`SYSTEM file:///etc/passwd`、指向金丝雀 HTTP 服务的 URL）、参数实体、外部 DTD 各一例，**一律拒绝**，码 `format.limit_exceeded{limit:'xml.doctype', actual:1, max:0}`（ADR-0019 决策 6；§4.21 起不再接受「按禁用处理」）；拒绝发生在读到 `<!DOCTYPE` 时、不读内部子集；金丝雀收到请求数 = 0；解析堆增量 < 64 MiB；同一组样本经 `ooxml-core` 导入路径时整个导入被拒绝 | `packages/xml/src/__tests__/xml-hardening.test.ts`（§4.21：XML 层迁出为 `@cordexjs/xml`，见 40/04 §4.3）；导入路径断言在 [03 §8](./03-fidelity-roundtrip-and-corpus.md) | `test/unit` | M1 |
+| SEC-IN-03 | 结构限额：`XmlLimits` 的四个键（深度、单元素属性数、文本长度、属性值长度）各一对样本——恰在上限通过、上限 + 1 拒绝，码 `format.limit_exceeded{limit:'xml.<键>', actual, max}`，数值从 `DEFAULT_XML_LIMITS` 读取；流式分块输入下文本与属性值限额在累积时生效（不等 token 结束）；图表每序列 > 10,000 点、位图预览 > 16,777,216 px 各一例 → `format.limit_exceeded`；限额可收紧、放宽超过 2 倍被拒绝（`resolveXmlLimits` 与配置 schema 各一例） | XML 四项：`packages/xml/src/__tests__/xml-hardening.test.ts`；图表与位图两项：[03 §8](./03-fidelity-roundtrip-and-corpus.md) 的错误码语料 | `test/unit`、`test/fidelity-roundtrip` | M1 |
+| SEC-IN-04 | 畸形 OPC 结构化变异 fuzz（设计见下） | `packages/ooxml-core/src/__tests__/opc-mutation.property.test.ts`（§4.21 对齐 40/04 §4.1 目录）；服务端导入路径 `apps/server/test/integration/import/import-fuzz.int-spec.ts` | `test/unit`（PR 档）；nightly 放大档 | M1（放大档先报告） |
 | SEC-IN-05 | EMF / WMF 栅格化 Worker：记录数、输出像素、单文件耗时三项超限（初始值由 M2 spike 回填 OF-24）→ Worker 被中止、该元素回到占位、主线程无 > 50 ms 长任务、同页其它元素照常渲染 | 栅格化 Worker 所在包的 `__tests__/emf-limits.browser.test.ts`（包归属以 40/07 为准） | `test/unit`（browser mode） | M2 |
 | SEC-IN-06 | 上传伪装与超大：服务端导入只接受魔数 `PK\x03\x04` 且含 `[Content_Types].xml`；媒体声明 MIME 与嗅探不符以嗅探为准、不可识别即拒；大小三处把关（[60/06 §6.1](../60-backend/06-modules-jobs-import-export-thumbnails.md)、[60/04](../60-backend/04-modules-documents-storage-media.md) §7）——申请时 `byteSize` 超 `scale.maxFileBytes`（导入）或 `limits.media.maxBytes`（媒体）→ 413；预签名 PUT 签入 `Content-Length`，实传字节与申报不符被存储拒绝；受理 / commit 时 `HEAD` 大小与申报不符 → 拒绝（码以 60/06、60/04 为准）；两步导入（含带 `docId` 的覆盖导入、新建空白 / 模板所走的同一路径）的每一步都执行上述把关 | `apps/server/test/integration/import/upload-validation.int-spec.ts`、`media/media-commit.int-spec.ts` | `test/server-integration` | M2（服务端导入两步上传与媒体上传随 rulings §4.19 D-M2-CONTENT 进 M2） |
 | SEC-IN-07 | 宏与加密：`.pptm` / macroEnabled 主内容类型 / 含 `vbaProject.bin` → `format.macro_rejected`（415）；加密 → `format.encrypted`；均不创建文档、不保留宏部件 | 语料 [03 §8](./03-fidelity-roundtrip-and-corpus.md)；服务端状态码 [07](./07-backend-integration-and-api-e2e.md) | `test/fidelity-roundtrip`、`test/server-integration` | M1（服务端 M2） |
 | SEC-IN-08 | 请求体与帧：遍历 60/15 路由表，对每个带请求体的路由发「缺必填、类型错、多余字段、超长字符串」四种变异 → 400 且错误码已登记、无 500；WS L1 坏帧 4400、超 `maxUpdateBytes` 4413、超 `msgRateHz` / `msgBurst` 4429，未知 CONTROL 类型丢弃并计数 | `apps/server/test/e2e/api/dto-fuzz.e2e-spec.ts`；WS 部分为 [02 §5.2](./02-contract-suites-and-pluggability.md) `runCollabServerConformance` 的门禁分节 | `test/server-integration`、`test/contract` | M2（含 WS） |
-| SEC-IN-09 | SVG 媒体消毒：含 `<script>`、`on*` 属性、`<foreignObject>`、外链 `href`、`javascript:` URL 的 SVG 经服务端消毒后与黄金输出一致；消毒产物在客户端仍只以图像上下文渲染（SEC-CT-02） | `apps/server/src/modules/media/**/__tests__/svg-sanitize.test.ts` | `test/unit` | M2（媒体上传随服务端文档进 M2） |
+| SEC-IN-09 | SVG 媒体消毒：含 `<script>`、`on*` 属性、`<foreignObject>`、外链 `href`、`javascript:` URL 的 SVG 经服务端消毒后与黄金输出一致；含 DOCTYPE 或实体声明的 SVG 在解析阶段即被拒（消毒器用 `@cordexjs/xml` 的严格解析，与 SEC-IN-02 同一词法层，§4.21）；消毒产物在客户端仍只以图像上下文渲染（SEC-CT-02） | `apps/server/src/modules/media/**/__tests__/svg-sanitize.test.ts` | `test/unit` | M2（媒体上传随服务端文档进 M2） |
+| SEC-IN-10 | XML 解析器合规（新增，§4.21）：W3C XML Conformance 的 XML 1.0 not-wf/wf 与 Namespaces 1.0 子集非政策性偏离为 0（带 DOCTYPE 的用例按 SEC-IN-02 期望拒绝，逐条登记为政策性偏离）；21 条规范边界探针全过（根外引用、声明体、`xml`/`xmlns` 保留前缀、长前导零字符引用、名字首字符）；与 saxes 6.0.0、libxml2-wasm 0.7.2 的差分模糊一致（输入限深 512、限长 64 KiB，单样本 ≤ 2 s，只出现两个登记码）；10 万层嵌套不抛 `RangeError` | `packages/xml/src/__tests__/{w3c-conformance,boundary-probes,differential.property,deep-nesting}.test.ts`（40/04 §9.3） | `test/unit`（差分 PR 档固定种子，nightly 放大） | M1 |
 
 **SEC-IN-04 结构化变异 fuzz 的设计**
 
@@ -114,13 +115,38 @@ flowchart LR
   - 部件名：重复、仅大小写不同、`../` 越界、绝对 URI、超长、非法百分号编码；
   - `[Content_Types].xml`：缺失、重复 Override、未知内容类型；
   - `.rels`：目标缺失、自引用环与互引用环、`TargetMode="External"` 指向 `file:` / `javascript:`、数万个 `rId`；
-  - XML 层：截断、非法 UTF-8、BOM 混用、超深嵌套、巨量属性；
+  - XML 层：截断、非法 UTF-8、BOM 混用、超深嵌套、巨量属性、注入 DOCTYPE 与实体声明（XML 语法级的差分模糊另在 `@cordexjs/xml`，SEC-IN-10）；
   - zip 层：中央目录与本地头不一致、声明大小与实际不符、zip64 字段异常、条目数据区重叠。
 - **每个输入的断言**：`import` 返回成功或已登记错误码之一，不抛未捕获异常；单样本耗时 ≤ 2 s（Worker 可中止）；解压字节与堆增量受限额约束；从不访问包外路径；若成功，模型通过 `bodySchema` 与不变量检查，且立即导出再导入不抛错。
 - **轮数**：PR 为固定种子 20 个 × 每种子 50 例（约 1 min）；nightly（`CORDEX_SUITE=nightly`）放大到 20,000 例，服务端导入路径（worker_threads 宿主）只跑 nightly 档。
-- **失败处理**：记录种子与 fast-check 收缩后的最小样本，写入 `packages/ooxml-core/src/opc/__tests__/fuzz-repros/<seed>.json`，作为确定性回归用例入库（与 [05 §5](./05-collab-simulation-and-property-tests.md) 的 repro 流程同一格式）。
+- **失败处理**：记录种子与 fast-check 收缩后的最小样本，写入 `packages/ooxml-core/src/__tests__/fuzz-repros/<seed>.json`（§4.21 对齐 40/04），作为确定性回归用例入库（与 [05 §5](./05-collab-simulation-and-property-tests.md) 的 repro 流程同一格式）。
 
-依据：PRD 03/01 OF-24；PRD 04 NF-04「输入」行；rulings §4.16 Q15（宏拒绝）、§4.15 Q5（天花板）。
+**图 10-6 XML 输入用例的落点（§4.21）**
+
+```mermaid
+flowchart LR
+  subgraph samples["样本"]
+    dtd["DOCTYPE 与实体类：XXE、参数实体、billion laughs"]
+    lim["XmlLimits 四键：恰在上限与上限加一"]
+    conf["W3C 子集、21 条边界探针、差分模糊"]
+    opc["OPC 结构化变异"]
+    svg["恶意 SVG"]
+  end
+  xmlPkg["@cordexjs/xml：xml-hardening 与合规测试"]
+  core["ooxml-core：opc-mutation property"]
+  corpus["03 §8 错误码语料：导入路径整包拒绝"]
+  media["apps/server 媒体：svg-sanitize"]
+  dtd -- "SEC-IN-02" --> xmlPkg
+  lim -- "SEC-IN-03" --> xmlPkg
+  conf -- "SEC-IN-10" --> xmlPkg
+  dtd -- "导入路径" --> corpus
+  opc -- "SEC-IN-04" --> core
+  svg -- "SEC-IN-09，同一词法层" --> media
+```
+
+怎么读：左边是样本类别，右边是断言所在的测试位置；同一组 DOCTYPE 样本既在 `@cordexjs/xml` 单测里断言词法层拒绝，又在 03 §8 的语料里断言整个导入被拒绝。服务端 SVG 消毒与导入共用 `@cordexjs/xml`，因此两处的 DOCTYPE 行为一致。
+
+依据：PRD 03/01 OF-24；PRD 04 NF-04「输入」行；rulings §4.16 Q15（宏拒绝）、§4.15 Q5（天花板）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6、8、9（XML，rulings §4.21）。
 
 ---
 
@@ -328,7 +354,7 @@ sequenceDiagram
 | id | 断言 | 落点 | CI 步骤 | 阻断 |
 |---|---|---|---|---|
 | SEC-EG-01 | Webhook SSRF：订阅创建、更新与每次投递前的地址校验对以下目标一律拒绝，返回 `server.webhooks.egress_blocked`，投递状态 `failed`、不重试——RFC 1918 三段、`127.0.0.0/8`、`::1`、`0.0.0.0`、`169.254.0.0/16`（含 `169.254.169.254`）、`fe80::/10`、`fc00::/7`、`100.64.0.0/10`、IPv4 映射 IPv6（`::ffff:127.0.0.1`）、十进制 / 八进制 / 十六进制写法的回环地址、云元数据主机名；目标返回 3xx（含指向上述地址）时不跟随、投递记 `failed`（60/07 §5.2–§5.3）；**DNS 重绑定**：注入的解析器第一次返回公网地址、第二次返回 `127.0.0.1`，断言实际建连的对端 = 校验时锁定的 IP，本机金丝雀收到请求数 = 0；部署级显式白名单内的私网地址可投递 | `apps/server/test/integration/webhooks/ssrf-guard.int-spec.ts`（解析器与连接器经端口注入） | `test/server-integration` | M3 |
-| SEC-EG-02 | 签名密钥：明文只在创建订阅的响应中出现一次，之后任何接口不再返回；对全库数据段做字节检索，找不到明文及其 base64 / hex 形式；`X-Cordex-Signature: t=…, v1=…` 用固定测试向量验签；轮换期内的验签行为按 60/07 §4 断言（接收端用新旧密钥之一可验，轮换结束后旧密钥不可验）；生产环境缺 `CORDEX_SECRETS_KEK_FILE` → 拒绝启动 | `apps/server/test/integration/webhooks/webhook-secret.int-spec.ts` | `test/server-integration` | M3 |
+| SEC-EG-02 | 签名密钥：明文只在创建订阅的响应中出现一次，之后任何接口不再返回；对全库数据段做字节检索，找不到明文及其 base64 / hex 形式；投递按 Standard Webhooks 签名（rulings §4.21 q-webhook-sig；旧头 `X-Cordex-Signature` 废止）——每次投递带 `webhook-id`、`webhook-timestamp`、`webhook-signature: v1,<base64>` 三个头，签名内容为 `webhook-id.webhook-timestamp.body` 的 HMAC-SHA256，用固定测试向量验签；同一 `webhook-id` 的重试保持不变，时间戳超出接收端容差的投递被验签方拒绝；轮换期内 `webhook-signature` 以空格分隔同时携带新旧两个 `v1,` 签名，接收端用任一密钥可验，轮换结束后只剩新签名、旧密钥不可验（60/07 §4）；不引 `standardwebhooks` 包，实现为 `node:crypto`；生产环境缺 `CORDEX_SECRETS_KEK_FILE` → 拒绝启动 | `apps/server/test/integration/webhooks/webhook-secret.int-spec.ts` | `test/server-integration` | M3 |
 | SEC-EG-03 | 服务端出站白名单：除 IdP 发现与 JWKS（经反代网络别名）、对象存储内网 endpoint 与已登记的 Webhook 目标外，各角色无出站；由断网 compose e2e 的出站尝试记录证明（[08 §5](./08-deployment-and-environment-e2e.md)），记录到任何未登记出站即失败 | `test/deploy/specs/airgap.spec.ts`（布局以 08 §1 为准） | `e2e/full-airgap` | M3 |
 
 ---
@@ -341,11 +367,11 @@ sequenceDiagram
 
 | id | 断言 | 落点 | CI 步骤 | 阻断 |
 |---|---|---|---|---|
-| SEC-CL-01 | CSP 与 nonce：以 50/14 §2.2 的生产策略起 apps/web，在各路由、面板与状态下 CSP 违规数为 0（csp-strict，50/14 V2）；连续 20 次请求 `index.html` 的 nonce 两两不同且 ≥ 128 bit，CSP 头中的 nonce 与 `<meta name="cordex-nonce">` 同值，`index.html` 为 `no-store`（50/14 V3） | `apps/web/e2e/security/csp-strict.spec.ts`（`@smoke`）；nonce 部分 `test/deploy/specs/web-container.spec.ts`（[08 §4](./08-deployment-and-environment-e2e.md)） | `e2e/smoke`（csp-strict）、`e2e/full-compose` | M2（web 容器部分随 08 §11 在 M3 出口） |
+| SEC-CL-01 | CSP 与 nonce：以 50/14 §2.2 的生产策略起 apps/web，在各路由、面板与状态下 CSP 违规数为 0（csp-strict，50/14 V2）；连续 20 次请求 `index.html` 的 nonce 两两不同且 ≥ 128 bit，CSP 头中的 nonce 与 `<meta name="cordex-nonce">` 同值，`index.html` 为 `no-store`（50/14 V3）；字符串求值与 wasm（50/14 V15，2026-09-26 整合）：zod 首次解析不产生 `script-src` 违规（组合根已设 `jitless`），默认部署的策略不含 `'wasm-unsafe-eval'`，启用复杂文种 shaping 的变体含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'` | `apps/web/e2e/security/csp-strict.spec.ts`（`@smoke`）；nonce 部分 `test/deploy/specs/web-container.spec.ts`（[08 §4](./08-deployment-and-environment-e2e.md)） | `e2e/smoke`（csp-strict）、`e2e/full-compose` | M2（web 容器部分随 08 §11 在 M3 出口） |
 | SEC-CL-02 | Trusted Types（策略口径按 rulings §4.20 FE-18+TX-06，TT-CSP-REPORT 修订）：M2 以 Report-Only 运行，安全夹具统计全部 e2e 的 TT 报告数，连续满足 50/14 §4.5 的切换条件（报告数为 0）才允许切强制；M3 起强制头存在，`trusted-types` 取值恰为 `cordex-default default`。策略 `cordex-default` 的 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null`，且不提供 `createHTML`；名为 `default` 的策略只有 `createHTML`，对 ui-react `src/infrastructure/csp/trusted-style-constants.ts` 登记的两段 Radix 固定样式文本（ScrollArea、Select 的 Viewport 常量）逐字相等才放行，其余一律返回 `null`：单测对两段常量各一例放行、对「常量多一个字符」「常量换行不同」「任意 `<b>x</b>`」各一例返回 `null`；e2e 负向用例在页面内对普通元素赋 `innerHTML = '<b>x</b>'`，M2 产生一条 TT 报告、M3 起抛 `TypeError`（执行见 [06 §10.1](./06-frontend-component-and-e2e.md)） | 夹具同上；策略单测 `apps/web/src/infrastructure/security/__tests__/trusted-types.test.ts` 与 ui-react `src/infrastructure/csp/__tests__/trusted-style-constants.test.ts` | 全部浏览器 e2e 步骤、`test/unit` | 报告 M2 → gated M3 |
 | SEC-CL-03 | 网络白名单：每个 e2e 用例的请求目标只允许同源、`wsBase`、存储源（`s3.` 子域）与 `/fonts/`；`/render` 页两种注入模式下请求数为 0（50/14 V6） | 安全夹具 | 全部浏览器 e2e 步骤 | M1（查看器）/ M2 |
 | SEC-CL-04 | 遥测与日志不含内容和明文身份：种子文档的标题、正文、备注、文件名与评论写入金丝雀串，测试用户的邮箱与显示名也是金丝雀；跑完后在捕获的 `/telemetry/errors`、`/telemetry/otlp` 载荷、服务端日志、Collector 导出的 trace 与 Prometheus 标签中检索金丝雀，命中数 = 0；用户标识只以不透明 id 出现 | `apps/web/e2e/privacy/telemetry-canary.spec.ts`；服务端 `apps/server/test/e2e/observability/log-canary.e2e-spec.ts` | `e2e/full-compose`、`test/server-integration` | M2 |
-| SEC-CL-05 | 日志脱敏：向 API 发送带金丝雀值的 `X-Cordex-Share-Token`、`Cookie`、`Authorization`、`X-Cordex-Render-Signature`、`X-Cordex-Signature` 头与票据首帧，捕获 pino 输出与 span 属性，金丝雀命中数 = 0（规则本体 30/10 §2.3，头清单以 60/18 §2 为准） | `apps/server/test/e2e/observability/log-redaction.e2e-spec.ts` | `test/server-integration` | M2 |
+| SEC-CL-05 | 日志脱敏：向 API 发送带金丝雀值的 `X-Cordex-Share-Token`、`Cookie`、`Authorization`、`X-Cordex-Render-Signature` 头与票据首帧，并让一次 Webhook 投递携带金丝雀密钥算出的 `webhook-signature` 头（Standard Webhooks，§4.21 取代已废止的 `X-Cordex-Signature`），捕获 pino 输出与 span 属性，金丝雀命中数 = 0（规则本体 30/10 §2.3，头清单以 60/18 §2 为准） | `apps/server/test/e2e/observability/log-redaction.e2e-spec.ts` | `test/server-integration` | M2 |
 | SEC-CL-06 | 遥测默认值：全新浏览器档案下 SDK 为 no-op，无 `telemetry.event` 与 `perf/*` 上报请求；apps/web 客户端错误上报默认开、可在设置关闭，关闭后零请求 | `apps/web/e2e/privacy/telemetry-defaults.spec.ts` | `e2e/full-compose` | M2 |
 | SEC-CL-07 | 浏览器侧其余规则：上传直传不带凭据与 `X-Cordex-*` 头（50/14 V10）、登出清理本地数据（V12）、postMessage 来源校验（V13） | 执行见 [06](./06-frontend-component-and-e2e.md) | `test/unit`、`e2e/full-compose` | M2 / M3 |
 
@@ -359,7 +385,7 @@ sequenceDiagram
 |---|---|---|---|---|
 | SEC-RL-01 | REST 令牌桶：每用户通用、上传、导入导出三档超限 → 429 且带 `Retry-After`；桶键 `rl:{bucket}:{subject}` 带 TTL（键模板以 60/14 为准）；`FixedClock` 推进后恢复；`@Public` 端点按 IP 限流；**客户端 IP**（rulings §4.20 BE-04）：对 `@Public` 端点连续请求并每次伪造不同的 `X-Forwarded-For` 首跳 → 扣的始终是同一个桶、照常 429，审计与日志中的 `ip_hash` 不变——限流与审计的主体恒为 `clientIp()`（按 `http.trustProxy` 跳数自右向左取，默认 1，不读首跳；与 WS 升级同一函数，SEC-RL-03 (f)） | `apps/server/test/e2e/api/rate-limits.e2e-spec.ts` | `test/server-integration` | M2 |
 | SEC-RL-02 | 请求体上限：`/telemetry/errors` > 64 KiB、`/telemetry/otlp` > 512 KiB、`/telemetry/csp` > 16 KiB → 413；OTLP 代理只转发 traces；未登录访问 errors 与 otlp → 401（BE-30） | `apps/server/test/e2e/observability/telemetry-endpoints.e2e-spec.ts` | `test/server-integration` | M2 |
-| SEC-RL-03 | WS 升级限流与洪泛（升级限流按 rulings §4.20 BE-01+TX-03「先扣后退加上限」，被测定义 60/16 §1、§13，数值一律读配置）。**升级**：Origin 通过后、升级前从 IP 令牌桶 `rl:ws-connect:ip:{ipHash}` 扣 1，票据验签通过即退还——(a) 同一 IP 连续发起「桶容量 + 1」个升级且都不发 `CONTROL.auth` → 最后一个得 HTTP 429（带 `Retry-After`），其余在 5 s 后以 4408 关闭、额度不退；(b) 同一 IP 30 个连接依次认证成功 → 全部不得 429（`FixedClock` 固定补充时刻，只靠退还维持余量）；(c) 持有效票据、验签通过后被准入规则拒绝的连接（4426、4428 各一例自 M2；4503 满员、4404 永久删除中各一例随 M3）已退还，不消耗 IP 额度；(d) 4401（票据无效、过期、重放或会话已吊销）、票据 `doc` 与 URL 不符的 4403、4408、4427（协议版本不符，在票据之前判定）与升级后未发 `auth` 即断开的连接都不退还；(e) 同一用户在同一实例上的第 `limits.ws.maxConnectionsPerUser + 1` 个连接（默认第 33 个）收到 `auth.denied{code:'collab.rate_limited'}` 后以 4429 关闭，该用户已有的 32 个连接与其他用户不受影响，关闭其中一个后可再加入；(f) 升级请求每次伪造不同的 `X-Forwarded-For` 首跳 → 扣的仍是 `clientIp()` 对应的同一个桶，审计与日志中的 `ip_hash` 不变（与 REST 同一算法，SEC-RL-01，rulings §4.20 BE-04）。**洪泛**：单帧 payload 超 `maxUpdateBytes`（1 MiB，不含 1 字节类型头）→ 4413；超 `msgRateHz` / `msgBurst` → 4429（与握手期的 4429 以是否先收到 `auth.denied` 区分）；awareness 超 2 KiB 或 schema 非法 → 丢弃并计数、不断开 | `runCollabServerConformance` 门禁分节与 `admission/per-user-connection-cap-4429`（[02 §5.2](./02-contract-suites-and-pluggability.md)）；`apps/server/test/e2e/collab/ws-limits.e2e-spec.ts`（升级 (a)–(f) 与洪泛同一文件）；同一出口 IP 集体重连 ≤ 5 s 的时效在 [07 §9](./07-backend-integration-and-api-e2e.md) W4 | `test/contract`、`test/server-integration` | M2 |
+| SEC-RL-03 | WS 升级限流与洪泛（升级限流按 rulings §4.20 BE-01+TX-03「先扣后退加上限」，被测定义 60/16 §1、§13，数值一律读配置）。**升级**：Origin 通过后、升级前从 IP 令牌桶 `rl:ws-connect:ip:{ipHash}` 扣 1，票据验签通过即退还——(a) 同一 IP 连续发起「桶容量 + 1」个升级且都不发 Auth 帧 → 最后一个得 HTTP 429（带 `Retry-After`），其余在 5 s 后以 4408 关闭、额度不退；(b) 同一 IP 30 个连接依次认证成功 → 全部不得 429（`FixedClock` 固定补充时刻，只靠退还维持余量）；(c) 持有效票据、验签通过后被准入规则拒绝的连接（4426、4428 各一例自 M2；4503 满员、4404 永久删除中各一例随 M3）已退还，不消耗 IP 额度；(d) 4401（票据无效、过期、重放或会话已吊销）、票据 `doc` 与 URL 不符的 4403、4408、4427（协议版本不符，在票据之前判定）与升级后未发 `auth` 即断开的连接都不退还；(e) 同一用户在同一实例上的第 `limits.ws.maxConnectionsPerUser + 1` 个连接（默认第 33 个）收到 `auth.denied{code:'collab.rate_limited'}` 后以 4429 关闭，该用户已有的 32 个连接与其他用户不受影响，关闭其中一个后可再加入；(f) 升级请求每次伪造不同的 `X-Forwarded-For` 首跳 → 扣的仍是 `clientIp()` 对应的同一个桶，审计与日志中的 `ip_hash` 不变（与 REST 同一算法，SEC-RL-01，rulings §4.20 BE-04）。**洪泛**：单帧 payload 超 `maxUpdateBytes`（1 MiB，不含 Hocuspocus 帧头；step2 另按 `limits.ws.step2MaxBytes` 16 MiB）→ 4413；超 `msgRateHz` / `msgBurst` → 4429（与握手期的 4429 以是否先收到 `auth.denied` 区分）；awareness 超 2 KiB 或 schema 非法 → 丢弃并计数、不断开 | `runCollabServerConformance` 门禁分节与 `admission/per-user-connection-cap-4429`（[02 §5.2](./02-contract-suites-and-pluggability.md)）；`apps/server/test/e2e/collab/ws-limits.e2e-spec.ts`（升级 (a)–(f) 与洪泛同一文件）；同一出口 IP 集体重连 ≤ 5 s 的时效在 [07 §9](./07-backend-integration-and-api-e2e.md) W4；嵌入 Fastify 同端口的升级入口与先扣后退的集成版在 07 §9 W18（两处互引，2026-09-26 整合） | `test/contract`、`test/server-integration` | M2 |
 | SEC-RL-04 | 房间准入：同一用户多标签占 1 个名额；owner 不占编辑者名额；commenter 计查看者；第 21 个编辑者只读加入（`auth.ok` 带 `reason: 'capacity'`）；查看者超 50 → 4503 `collab.room_full`；两实例对同一房间并发准入 100 轮，编辑者与查看者计数从不超额（准入 Lua 原子执行） | [02 §5.2](./02-contract-suites-and-pluggability.md) 准入用例；`apps/server/test/integration/collab/admission-race.int-spec.ts`；容量见 [09 §7](./09-performance-and-capacity.md) | `test/contract`、`test/server-integration` | M3（容量与按权重准入、名额按用户计，PRD 05 §0.3） |
 | SEC-RL-05 | 导入天花板：页数、单页元素、总元素超限 → `format.quota_exceeded`，在解析任何页之前触发（[03 §8](./03-fidelity-roundtrip-and-corpus.md)）；文件超 `scale.maxFileBytes`（默认 200 MB）在申请上传 `POST /imports/uploads` 时 413 `format.quota_exceeded{dimension:'fileSize'}`（60/06 §6.1） | 03 §8；`apps/server/test/integration/import/import-ceiling.int-spec.ts` | `test/fidelity-roundtrip`、`test/server-integration` | M1（服务端 M2） |
 | SEC-RL-06 | 存储配额：`storage.quota_exceeded` 按文档 owner 汇总（该 owner 全部文档的 `size_bytes` + 经 `document_media` 关联、按 sha256 去重的媒体字节），在媒体 commit 与导入受理时检查；同一媒体在同一 owner 的两份文档中只计一次 | `apps/server/test/integration/media/storage-quota.int-spec.ts` | `test/server-integration` | M2 |
@@ -372,7 +398,7 @@ sequenceDiagram
 
 | id | 断言 | 执行 | CI 步骤 | 阻断 |
 |---|---|---|---|---|
-| SEC-SC-01 | 依赖许可：全部依赖的许可 ∈ `tooling/policy/license-allowlist.json`，缺 license 字段即失败（TD-050）；同一步骤检查禁用依赖清单（`sharp`、`@img/sharp-libvips`，ADR-0026） | TD-050 的许可扫描工具 | `scanners/license-allowlist` | M1 |
+| SEC-SC-01 | 依赖许可（按 [ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md) 分级改写，2026-09-26 整合）：npm 依赖（dependencies、devDependencies、optionalDependencies 与全部传递依赖，含 playground）、字体资产、数据文件（`license-allowlist.json#dataFiles`）与内置源码（文件头 SPDX 标识与 `#vendored`）四类对象都按 A / B / C 三档判定，缺 license 字段即失败（TD-050）；已登记的例外 EX-01…EX-03 放行。负向夹具八例（`tooling/scripts/__tests__/__fixtures__/license/violation`）各报红一次：GPL-3.0 依赖、MPL 包出现在 `patchedDependencies`、OFL 包含 JS 入口、CC0 代码包、缺 license 字段、`OR` 两支都不合档、`OR` 未登记取向、`UNLICENSED` 未登记例外；同一步骤检查禁用依赖清单（`sharp`、`@img/sharp-libvips`，ADR-0026） | TD-050 的许可扫描工具 | `scanners/license-allowlist` | M1 |
 | SEC-SC-02 | 高危漏洞：对 `pnpm-lock.yaml` 运行 `pnpm audit --audit-level high` 与 OSV 扫描，high / critical 即失败；例外只能按 [01 §10](./01-strategy-and-layers.md) 的 `allow` 口径（issue 链接 + 到期日 ≤ 30 天）登记在 `tooling/policy/vuln-allow.json` | 同左 | `scanners/vuln-audit` | M1 |
 | SEC-SC-03 | lockfile 与包管理器：`lockfile-guard`（TD-079）在 pre-commit 与 CI 双执行；CI 安装一律 `pnpm install --frozen-lockfile` | 治理检查脚本 | `scanners/lockfile-guard` | M0 |
 | SEC-SC-04 | 依赖混淆：内部依赖只用 `workspace:` 协议（TD-080，治理检查脚本 `check-workspace-protocol`）；包名 scope 与发布属性由扫描器 `scan-manifest` 规则 (g) 检查 | 同左 | `scanners/check-workspace-protocol`、`scanners/scan-manifest` | M0 |
@@ -399,7 +425,7 @@ sequenceDiagram
 | V2 校验与业务逻辑 | SEC-IN-08、SEC-RL-01…06、SEC-AZ-15 | 业务滥用场景评审 |
 | V3 Web 前端安全 | SEC-CL-01…03、SEC-XS-03 | 嵌入形态的宿主配置（EM-18 清单） |
 | V4 API 与 Web 服务 | SEC-XS-01、SEC-XS-05、SEC-IN-08、SEC-AZ-01 | — |
-| V5 文件处理 | SEC-IN-01…07、SEC-RS-06、SEC-RS-07、SEC-AZ-10、SEC-AZ-11 | — |
+| V5 文件处理 | SEC-IN-01…07、SEC-IN-10、SEC-RS-06、SEC-RS-07、SEC-AZ-10、SEC-AZ-11 | — |
 | V6 认证 | SEC-AU-01…04、SEC-AU-08 | IdP 侧口令与 MFA 策略（外置 IdP 的配置核对） |
 | V7 会话管理 | SEC-AU-05…07、SEC-AU-09 | — |
 | V8 授权 | SEC-AZ-01…15、SEC-DA-01…03 | — |
@@ -439,7 +465,7 @@ sequenceDiagram
 
 | 里程碑 | 新增 gated | 先以报告运行 | 出口证据（PRD 检查名） |
 |---|---|---|---|
-| M1 | SEC-IN-01…04（PR 档）、IN-07、CT-01…03、CT-05（查看器档）、AZ-03、AZ-04、RL-05（客户端）、SC-01、SC-02、SC-05、SC-08、CL-03（查看器）；SC-03、SC-04 自 M0 起 | SEC-IN-04 nightly 放大档 | `errors:codes` 的安全类样本、供应链步骤全绿 |
+| M1 | SEC-IN-01…04（PR 档）、IN-07、IN-10（差分 PR 档，§4.21）、CT-01…03、CT-05（查看器档）、AZ-03、AZ-04、RL-05（客户端）、SC-01、SC-02、SC-05、SC-08、CL-03（查看器）；SC-03、SC-04 自 M0 起 | SEC-IN-04 与 SEC-IN-10 差分的 nightly 放大档 | `errors:codes` 的安全类样本、供应链步骤全绿 |
 | M2 | 协同网关、Room、持久化与快照、服务端导入与媒体随 rulings §4.19 D-M2-CONTENT 提前，相应条目一并提前：SEC-IN-01 / IN-07 / RL-05 的服务端部分、IN-05、IN-06、IN-08（REST 与 WS）、IN-09、CT-04、CT-06（导入段）、AU-01…09（含 WS；AU-07 的停用与擦除除外）、AU-10（在途队列）、XS-01、XS-02、XS-04、XS-05、AZ-01、AZ-02（文档目录、记账、`snapshots/latest`、collab-ticket、导入与媒体路由）、AZ-05、AZ-08（锁定）、AZ-10、AZ-11（直接授权）、DA-02…04、RS-06（封面）、RS-07、CL-01、CL-03…06、RL-01、RL-02、RL-03、RL-06、SC-06（静态） | SEC-DA-01 security-rls（首个 RLS 迁移入库起）、SEC-CL-02 TT Report-Only | `csp:strict` |
 | M3 | SEC-DA-01、RS-01（均为 rulings §4.18 GV-16 指定）、CL-02 强制、AU-07 的停用与擦除部分、AU-04 / CL-01 的 web 容器部分（M3 出口，08 §11）、XS-03、AZ-02 其余路由（版本历史、分享、权限、评论、Webhook、审计）、AZ-06、AZ-07、AZ-08（`purging`）、AZ-09、AZ-11（仅链接查看者）、AZ-12…15、DA-05…07、RS-02…05、RS-06（服务端缩略图）、EG-01…03、CT-06（缩略图、PDF、导出段）、RL-04、SC-06（`ops:image-licenses`）、AU-10（离线队列）、CL-07 其余部分 | —（M3 出口时不允许仍有报告态的 SEC 条目） | `security:rls`、`perm:fail-closed`、`server:thumbnails` 的安全项、`ops:airgap`、`ops:image-licenses`、`security:pentest` |
 | M4 | SEC-SC-07；集成方 JWT 与 API Key 上线时改写 SEC-AU-03 并补对应用例 | — | 首次公开发布证据 |
@@ -484,6 +510,8 @@ flowchart LR
 
 **rulings §4.20（2026-09-26 定稿）**：BE-01+TX-03「先扣后退加上限」与 BE-04「客户端 IP 统一取 `clientIp()`」写进 SEC-RL-03 (a)–(f) 与 SEC-RL-01，不新增 SEC id（60/16 §15 的安全侧引用即 SEC-RL-03）；同一出口 IP 集体重连 ≤ 5 s 属可用性断言，放在 [07 §9](./07-backend-integration-and-api-e2e.md) W4，web 容器覆盖写入 `X-Forwarded-For` 与 `upstream` 模式的同一断言在 [08 §4](./08-deployment-and-environment-e2e.md) G12。FE-18+TX-06 的 Trusted Types 口径（`cordex-default default` 两个策略名、`default` 只放行登记的两段 Radix 常量）写进 SEC-CL-02，sonner 与 Radix 样式零违规的浏览器断言在 [06 §10.1](./06-frontend-component-and-e2e.md)。BE-05+TX-22 的唯一 owner 空窗只在 SEC-DA-07 注明 `soleOwnerDocCount`，运维转移命令的用例在 [07 §7.4](./07-backend-integration-and-api-e2e.md)。
 
+**rulings §4.21（2026-09-26 定稿）**：X:q-xml-lexer 与 X:q-xml-package 把 XML 词法、保真树与 `XmlLimits` 放进独立包 `@cordexjs/xml`（[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)），因此 SEC-IN-02、SEC-IN-03 的 XML 部分落到 `packages/xml/src/__tests__/xml-hardening.test.ts`，SEC-IN-01、SEC-IN-04 的路径对齐 40/04 §4.1 的 `src/__tests__/`；DOCTYPE 一律拒绝，码按 60/06 口径为 `format.limit_exceeded{limit:'xml.doctype'}`，原「被拒或按禁用处理」作废；新增 SEC-IN-10 把 W3C 合规子集、边界探针与差分模糊登记为 M1 门禁；SEC-IN-09 的消毒器与导入共用同一词法层。q-webhook-sig 把 Webhook 签名改为 Standard Webhooks（`webhook-id` / `webhook-timestamp` / `webhook-signature: v1,<base64>`，多签名空格分隔、天然支持轮换，`node:crypto` 实现），SEC-EG-02 与 SEC-CL-05 随之改写，旧头 `X-Cordex-Signature` 作废。
+
 回写清单（由总编排执行，本组不改其它文档）：
 
 1. [09-06 §18](../30-architecture/09-type-discipline/06-scanners.md)：扫描器 `scan-doc-access-via-permission` 增子检查「仓储方法签名不出现 `tenantId`」（SEC-DA-04），取代 ADR-0022、ADR-0029 中「扫描器：不出现 tenant」的无主写法；不增加扫描器数量。
@@ -492,3 +520,4 @@ flowchart LR
 4. [50/14 §13](../50-frontend/14-client-security.md) V12（登出清理）的执行点由 `e2e/smoke` 改为 `e2e/full-compose`（不在 [12 §4](./12-ci-gates-mapping.md) 冒烟清单内）；V2 的「csp-recorder」即本文 §11 的安全夹具。
 5. [40/02](../40-modules/02-kernel-protocol-and-document-core.md) 登记 `@cordexjs/protocol/testing` 的重定向样本集（SEC-XS-04）与 `ticket-claims.type-test.ts`（SEC-DA-04）；[01 §5](./01-strategy-and-layers.md) 根 `test/` 目录树补 `security/`（`catalog.json`、`asvs-l2.json`）。
 6. ADR-0022、0026、0029、0037 的「如何被机械验证」安全条目在各自末尾追加「执行：70/10 SEC-…」对照，不改原文措辞。
+7. （§4.21）`test/security/catalog.json` 增 SEC-IN-10、改 SEC-IN-02/03 的 `files[]` 为 `packages/xml/src/__tests__/`；[12](./12-ci-gates-mapping.md) 的 `test/unit` 步骤收集 `packages/xml/**` 的四个合规与差分测试；[60/07](../60-backend/07-modules-comments-webhooks-audit.md) §4 与 [60/18](../60-backend/18-observability-and-ops-endpoints.md) §2 的签名头与脱敏头清单改为 `webhook-signature`。

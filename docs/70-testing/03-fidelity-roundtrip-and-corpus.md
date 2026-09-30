@@ -1,5 +1,5 @@
 # 03 保真往返与语料库
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5.3 可追加元素往返语料；`[Content_Types].xml` 与 `.rels` 统一为「结构不变原样写回」（§4.2、§5.2 E7）；E9 白名单补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm`；§8 XML 限额改引 `XmlLimits`、补畸形 XML 两类；§9 表格样式、图表、墨迹、嵌入字体行）；2026-09-26（§4.21 整合：§1 规则 6 登记维护机生成的 oracle 样本（图表矩阵、arrow-ends、形状库 69 项）；§5.3 补五个命名往返用例）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5） | 依赖：rulings §4.21 X:q-content-types / q-table-depth / q-chart-route / q-extra-inserts、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
 
 本文是保真往返与语料库的测试侧唯一事实源：语料分三层放在哪里、清单长什么样、样本怎么进来和退役、零编辑与编辑后往返怎么判、导出确定性与打开管线怎么验、错误码语料、基线包、快照迁移语料、PowerPoint 互操作证据，以及这些检查在哪个 CI 步骤、何时跑。
 
@@ -16,7 +16,7 @@
 | 语料三层的落点与 `test/corpus/manifest.json` 条目 schema、校验脚本 | 语料规模下限与保真门禁数字：PRD 04 NF-02、PRD 01 §4 |
 | 样本来源、许可、脱敏与生命周期 | 零编辑 / 编辑后的判定表：PRD 01 §4.1 = 30/04 §5.4 |
 | 零编辑往返与编辑后往返的执行器、规范化器登记、`allowedDiffs` 例外机制 | 不透明保留机制与白名单：ADR-0008 |
-| 导出确定性（SV-02）与打开管线的语料级用例 | 渐进打开的协议与事件：[30/07 §14.2](../30-architecture/07-rendering.md)、[50/13](../50-frontend/13-performance-and-bundling.md) |
+| 导出确定性（SV-02）与打开管线的语料级用例 | 渐进打开的协议与事件：[50-frontend/04](../50-frontend/04-document-commands-and-undo.md) §2、[50/13](../50-frontend/13-performance-and-bundling.md) |
 | 错误码语料表、特殊对象用例、基线包用例（C-07） | 错误码的定义与 HTTP 映射：30/10 §1；导入作业：[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) |
 | 快照迁移语料的运行方式 | `schema-lock` 规则：ADR-0009 |
 | 互操作检查的执行与证据归档 | 证据目录规则：[01 §8](./01-strategy-and-layers.md)、[13](./13-requirements-traceability.md) |
@@ -40,6 +40,7 @@
 3. **废止的落点**：`fixtures/pptx/wild/` 并入 T2 登记（文件迁到语料存储）；30/11 §12 的 `test/corpus/decks/` 不再使用。T1 的子目录分工：`minimal/` 放「每个矩阵行一个」的最小样本，`features/` 放专项样本，文件名前缀区分子集：`inherit-*`（继承专项）、`preserve-*`（保留专项）、`strict-*`（Strict 一致性类）、`errors-*`（错误码语料中可入 git 的部分）、`objects-*`（表格、图表、SmartArt、OLE 等特殊对象）。
 4. **语料存储**：测试基础设施专用桶（与产品部署的 `data` / `snapshots` 两个桶无关），按 sha256 内容寻址，T2 / T3 样本、视觉基线产物（04 §2）与互操作证据截图（§12）共用；键布局、访问变量、取回脚本 `test/corpus/scripts/fetch-corpus.ts` 与缓存键以 [11 §10](./11-test-data-fixtures-and-determinism.md#10-大文件t-corpus) 为唯一登记处，本文不另起键名。不使用 Git LFS（配额与 fork 体验差，30/11 §14 T1）。
 5. **拉取的执行规则**：每次读取都重算 sha256，不符即失败；CI 以 secrets 注入只读凭据（`CORDEX_CORPUS_ACCESS_KEY_ID` / `CORDEX_CORPUS_SECRET_ACCESS_KEY`，端点与桶名为普通变量 `CORDEX_CORPUS_S3_ENDPOINT` / `CORDEX_CORPUS_BUCKET`，rulings §4.20 TX-16），写入只由维护者以同名本地变量持写凭据执行；缺任一变量、缺凭据或缺对象时步骤**失败，不跳过**；来自 fork 的 PR 由维护者批准后运行（[12 §3](./12-ci-gates-mapping.md)）。
+6. **维护机生成的 oracle 样本**（2026-09-26 整合登记，[04](./04-visual-oracle.md) §8.1、§8.2）：图表语料矩阵各行的样本（维护机脚本 `test/oracle/baseline/make-chart-corpus.ps1` 经 COM 生成）、箭头尺寸样本 `arrow-ends.pptx` 与形状库 69 项默认插入样本，都登记为 `source: 'producer-export'`、`producer: 'powerpoint-win'`，并在 `generator.script` 记下生成脚本；图表样本带 `oracle.categories` 含 `'chart'`，另两类带 `'geometry'`。tier 按规则 2 判定（能入 git 的放 `fixtures/pptx/features/`，否则登记为 T2）。它们依赖 PowerPoint，不进 `gen_cases.py --check` 的可重现检查，改版时由维护机重跑脚本并更新 sha256。
 
 **图 1-1 语料分层与用途**
 
@@ -250,7 +251,7 @@ stateDiagram-v2
 | 检查 | 通过条件 |
 |---|---|
 | 部件集合 | 导出包的部件路径集合与源相同 |
-| 部件字节 | 每个部件 SHA-256 相同，**包括** `[Content_Types].xml` 与全部 `.rels`（零编辑时 PartTable 原样写回这两类部件） |
+| 部件字节 | 每个部件 SHA-256 相同，**包括** `[Content_Types].xml` 与全部 `.rels`（这两类部件结构不变即写回原字节，零编辑时必然如此；ADR-0008 决策 5（写回规则）/ ADR-0019 决策 5（序列化 c14n 口径），rulings §4.21 X:q-content-types） |
 | 不计入 | zip 条目顺序、时间戳、压缩方法与级别、extra 字段 |
 | 例外 | 仅 §4.3 登记的 `allowedDiffs`，且计入例外数 |
 
@@ -314,7 +315,7 @@ export default defineEditScript({
 });
 ```
 
-脚本覆盖面（每类至少 1 个，`validate-manifest` 同时检查 `sample` 存在）：文本 run / 段落编辑；形状增删、移动、缩放；插入图片（新部件命名）；页增删与重排；组合与取消组合；带 `extLst` / 未知属性的元素自身被编辑；删除被动画引用的元素；`mc:AlternateContent` 对象移动与缩放（M2 P1）；删除最后一个引用嵌入部件的 OLE；Strict 样本编辑；表格单元格文本（P1）；备注；隐藏页；超链接。同一执行器还承载 `layout:apply`（M2 验收 10）、`master:edit`（M3 验收 14）与 `theme:edit`（M3 验收 15）的脚本语料，这三者的视觉断言在 [04 §8](./04-visual-oracle.md)。
+脚本覆盖面（每类至少 1 个，`validate-manifest` 同时检查 `sample` 存在）：文本 run / 段落编辑；形状增删、移动、缩放；插入图片（新部件命名）；页增删与重排；组合与取消组合；带 `extLst` / 未知属性的元素自身被编辑；删除被动画引用的元素；`mc:AlternateContent` 对象移动与缩放（M2 P1）；删除最后一个引用嵌入部件的 OLE；Strict 样本编辑；表格单元格文本（P1）；备注；隐藏页；超链接；裸 `p:contentPart` 删除（M1）与移动（M2 P1）。新建元素的脚本另见 §5.3。同一执行器还承载 `layout:apply`（M2 验收 10）、`master:edit`（M3 验收 14）与 `theme:edit`（M3 验收 15）的脚本语料，这三者的视觉断言在 [04 §8](./04-visual-oracle.md)。
 
 随机单元素编辑：`test/roundtrip/random-edit.test.ts` 对 `fixtures/pptx/features/*` 随机选一个元素与一个可编辑属性执行一条命令，期望脏集合 = 该元素所在页部件（加派生白名单），其余判定同 §5.2；PR 跑 20 个固定种子，nightly 跑 200 个，失败种子写入 `test/roundtrip/repros/`。
 
@@ -328,9 +329,9 @@ export default defineEditScript({
 | E4 | 规范化（`c14n` + `attr-sort` + `ws-insignificant`）后的差异路径全部落在 `expect.editedSubtrees` 内 | `test/fidelity-roundtrip` |
 | E5 | 被编辑元素的未知属性、未知子元素、`extLst` 全部保留，子元素顺序符合 `schema-order` | 同上（`preserve-*` 样本） |
 | E6 | `cNvPr@id` 在部件内唯一，引用处（连接符 `stCxn/endCxn`、`p:timing` 的 `spid`）一致 | 同上 |
-| E7 | 派生部件只在白名单内变化：`docProps/core.xml` 的 `dcterms:modified`、`docProps/app.xml` 页数与字数、`docProps/thumbnail.jpeg`、`[Content_Types].xml` 只因新增类型与部件增删而变化、受新增 / 删除部件影响的 `.rels`；后两者按集合比较（Default / Override 集合；Relationship 的 Id / Type / Target / TargetMode 集合），差集必须恰好对应新增或删除的部件 | 同上 |
+| E7 | 派生部件只在白名单内变化：`docProps/core.xml` 的 `dcterms:modified`、`docProps/app.xml` 页数与字数、`docProps/thumbnail.jpeg`、`[Content_Types].xml` 只因新增类型与部件增删而变化、受新增 / 删除部件影响的 `.rels`。后两者的口径（ADR-0008 决策 5（写回规则）/ ADR-0019 决策 5（序列化 c14n 口径））：**结构不变即字节相同**——关系四元组（Id / Type / Target / TargetMode）集合或 Default / Override 集合未变的 `.rels` 与 `[Content_Types].xml` 必须与源字节相同，与所属部件是否变脏无关（仅文本编辑时页 `.rels` 字节相同）；**结构变了才按集合比较**，差集必须恰好对应新增或删除的部件，且重生成结果与规范形式 c14n 等价、原有条目相对顺序不变 | 同上 |
 | E8 | 删页：页部件与其独占的 rels 目标（媒体、图表、备注）被移除，共享目标保留，无孤儿部件（源文件本就有的除外） | 同上 |
-| E9 | 对不透明内容的修改只出现在 ADR-0008 决策 9 白名单：`p:timing` 引用清理、AlternateContent 分支 `xfrm` 同步、孤儿嵌入部件清理；白名单外对不透明子树的任何改动在 E4 失败 | 同上 |
+| E9 | 对不透明内容的修改只出现在 ADR-0008 决策 9 白名单：`p:timing` 引用清理、AlternateContent 分支 `xfrm` 同步（§4.21 起含裸 `p:contentPart` 自身 `p:xfrm`，M2 P1）、孤儿嵌入部件清理、`tableStyles.xml` 末尾追加包内缺失的内置样式定义（M3，§4.21，已有条目字节不动）；白名单外对不透明子树的任何改动在 E4 失败 | 同上 |
 | E10 | 新增部件命名不冲突（`image<N>.<ext>`，N 取现有最大值 + 1），内容类型与 rels 同步 | 同上 |
 | E11 | 编辑同页其它元素后，该页 `p:timing`、`p:transition`、`extLst` 子树规范化后逐字节一致，引用的 `spid` 仍有效（OF-12） | 同上（`preserve-*` 样本） |
 | E12 | 导出文件在 PowerPoint 365 打开无修复提示 | 互操作，§12 |
@@ -367,11 +368,100 @@ sequenceDiagram
 怎么读：从上到下是一个脚本的一次运行；脚本只提供步骤与期望，编辑一律经 `commands.execute`（不直接写 store，保证撤销与脏追踪与真实编辑一致）；导出后先核对脏集合，再做部件级与子树级比较；XSD 校验不在本步骤，而是由 `xsd-validate` job 重跑同一批脚本完成，两处结论共同构成 `fidelity:edit-roundtrip`。
 依据：PRD 01 §4.1、OF-18；PRD 05 M2 验收 2；ADR-0008「如何被机械验证」；09-07 §3 `xsd-validate`。
 
+### 5.3 可追加元素往返语料（§4.21 新增）
+
+导入往返只证明「读得回」；可追加元素还要证明「写得对」——从空白或模板页新建一个元素，导出后 PowerPoint 能直接打开，再导入回来仍是同一个元素。元素清单、命令与各元素的 OOXML 写法以 [50/19](../50-frontend/19-insertable-elements-overview.md) 与其分册为准，本节只定测试形态与断言。
+
+脚本放 `test/corpus/elements/<id>.element.ts`，由执行器 `test/roundtrip/element-runner.test.ts` 运行，形态沿用 §5.1 的编辑脚本，另加两个字段：
+
+```ts
+export default defineElementScript({
+  id: 'n-table-insert-default',
+  sample: 't1-blank-16x9',                  // 起点样本（manifest id）
+  element: 'table',                          // 元素键，与 50/19 的元素目录一致
+  milestone: 'M2',                           // 该元素进入门禁的里程碑
+  req: ['PRD:ED-10'],
+  steps: [/* 插入命令与后续编辑，只经 commands.execute */],
+  expect: {
+    dirtyParts: ['ppt/slides/slide1.xml'],
+    newParts: [],                            // 新增部件（图片、图表、xlsx 等）
+    elementXml: 'expected/n-table-insert-default.xml',   // 新建元素的期望片段，与导出结果 c14n 等价
+    reimport: ['kind', 'transform', 'table.styleId', 'table.cells'],   // 再导入后比较的关键字段投影
+  },
+});
+```
+
+每个脚本依次经过四步，任一步失败即整条失败：
+
+| # | 步骤 | 断言 | 执行处 |
+|---|---|---|---|
+| N1 | 新建 | 命令成功；模型通过 `bodySchema` 与不变量（表格在 M3 另加 I-TBL1、I-TBL2） | `test/fidelity-roundtrip` |
+| N2 | 导出 | §5.2 的 E1–E11 全部成立（新建也是编辑）；`newParts` 精确；新建元素的 XML 与 `elementXml` 在 `c14n` + `attr-sort` + `ws-insignificant` 下相等；新增部件与重生成部件过 XSD（E3） | 同上；XSD 在 `xsd-validate` job |
+| N3 | PowerPoint 打开 | 打开无修复提示；元素可见、可选中；另存后的文件仍能通过 N4 | 互操作维护机（§12），半机械，证据归档 |
+| N4 | 再导入 | 导出包再导入后，元素 `kind` 与 `reimport` 列出的字段等于新建时的模型（id 除外）；再导出与第一次导出逐部件字节相同（导出幂等） | `test/fidelity-roundtrip` |
+
+**逐类断言**（每类至少 1 个脚本；元素到期的里程碑起进入 `fidelity:edit-roundtrip` 门禁，之前只报告）：
+
+| 元素 | 门禁起点 | 关键断言 |
+|---|---|---|
+| 文本框 | M2 | 写 `txBox="1"` 与 `spAutoFit`；`rPr`/`pPr` 只写用户改过的属性；再导入仍是文本框 |
+| 占位符文字（页上编辑、换版式、重置） | M2 | 保留 `p:ph`，不写死继承值（OF-04）；换版式按 `placeholderFamily` 匹配 |
+| 预设形状、线条、动作按钮 | M2 | 未改的 `avLst` 省略；箭头类型与尺寸往返；动作按钮的 `ppaction` 原样保留 |
+| 组合 | M2 | 嵌套组的 `chOff`/`chExt` 往返；组属性 `extLst` 写回 |
+| 连接符 | M2（肘形与曲线重算 M3） | `stCxn`/`endCxn` 引用的 `cNvPr@id` 存在且一致（E6）；删除被连接的形状后导出去掉失效引用并上报诊断；再导入连接关系不变 |
+| 图片、SVG | M2（SVG 的 PNG 回退 M2 P1） | 新媒体部件按 `image<N>.<ext>` 命名（E10）；`[Content_Types].xml` 只在首次出现该扩展名时新增 `Default`；只有该页的 `.rels` 结构变化（E7）；SVG 写 `asvg:svgBlip` 并带回退图片 |
+| 页眉页脚与文本字段（页码、日期） | M2（P2） | `a:fld` 的 `id` 与 `type` 原样；脏部件的缓存 `a:t` 写当前计算值，干净部件原样；`p:hf` 往返；再导入仍是字段而非纯文本 |
+| 超链接 | M2（P1） | 新增 `TargetMode="External"` 关系；只有 `http(s)` 可激活；页 `.rels` 重生成后原有条目保持原相对顺序 |
+| 表格 | 插入与单元格文字 M2；结构与样式 M3 | 插入写 `a:tbl`、`tableStyleId` 与 `firstRow`/`bandRow`；M3 套用包内没有的内置样式时 `tableStyles.xml` 只在末尾追加该样式定义（E9），已有条目字节不动、不重复追加；合并格的 `gridSpan`/`rowSpan`/`hMerge`/`vMerge` 往返；再导入样式 id 与格内容不变 |
+| 图表（柱形、折线、饼、面积、散点） | M3 | 新增 `chartN.xml`、其 `.rels`、`embeddings/*.xlsx` 与内容类型；`c:numCache`/`c:strCache` 与 `Chart.data` 逐点一致；`c:externalData` 指向新 xlsx；xlsx 用 `ooxml-core` 打开后单元格值与缓存一致；改数据后只有该图表部件与 xlsx 变化；N3 另验 PowerPoint「编辑数据」可打开 |
+| 图标 | M3（P2） | 同图片（SVG 加 PNG 回退） |
+| 符号 | M3（P2） | 作为文本 run 写入；`a:sym` 或字体属性往返 |
+| 音频、视频 | P2 | 写 `a:videoFile`/`a:audioFile` 与 `p14:media` 关系；**不写** `p:timing`（rulings §4.21 q-media-insert）；N3 另验 PowerPoint 媒体控件可点播 |
+
+**命名用例**（2026-09-26 整合登记，出自 40/04 与 ADR-0008 决策 5、决策 9 (d)、决策 10 的本轮修订；用例 id 即 `test/corpus/elements/` 或 `test/roundtrip/` 下的脚本名）：
+
+| id | 断言 | 门禁起点 |
+|---|---|---|
+| `rels-verbatim-when-unchanged` | 编辑只改了部件内容、关系集合与内容类型集合都没变时，`.rels` 与 `[Content_Types].xml` 原字节写回；集合变了才重生成，且沿用原 `rId`、只要求 `c14n` 等价（ADR-0008 决策 5） | M2 |
+| `table-styles-append` | 套用包内没有的内置表格样式：`tableStyles.xml` 只在末尾追加该 `a:tblStyle`，`def` 属性与已有条目字节不变；部件不存在时新建并登记关系与内容类型（ADR-0008 决策 9 (d)） | M3 |
+| `media-insert-no-timing` | 插入音频、视频后导出不写 `p:timing`，已有 `p:timing` 原样保留（rulings §4.21 q-media-insert） | P2 |
+| `zoom-fallback-hlink` | 缩放定位对象的 Fallback 分支里的 `hlinkClick` 被只读提取用于放映跳转，导出时对象整体原样写回（ADR-0008 的 `zoom-fallback-hlink.test.ts`） | M2 P1（随放映跳转，50/25 §8） |
+| `omml-linear-text` | 公式（OMML）的线性文本被只读提取为可访问名称与无回退时的纯文本，导出时公式部件与 Fallback 原样写回（ADR-0008 的 `omml-linear-text.test.ts`） | M1 |
+
+不提供插入的元素（SmartArt、OLE、3D、墨迹、缩放定位、录屏，rulings §4.21 元素范围）不进本语料，其保留与只读断言在 §9。
+
+**图 5-2 可追加元素往返**
+
+```mermaid
+sequenceDiagram
+  participant S as 元素脚本 elements/*.element.ts
+  participant R as 执行器 element-runner
+  participant C as commands.execute
+  participant E as formats.export
+  participant P as PowerPoint 维护机
+  participant I as formats.import
+  S->>R: 起点样本、插入步骤与 expect
+  R->>C: N1 插入命令与后续编辑
+  C-->>R: Result.ok，模型过 bodySchema 与不变量
+  R->>E: N2 导出
+  E-->>R: pptx′：E1 至 E11、newParts、elementXml 比较
+  R->>P: N3 打开 pptx′，另存
+  P-->>R: 无修复提示，另存文件
+  R->>I: N4 再导入 pptx′ 与另存文件
+  I-->>R: 关键字段投影等于新建模型
+  R->>E: 再导出
+  E-->>R: 与第一次导出逐部件字节相同
+```
+
+怎么读：从上到下是一个元素脚本的一次运行。N3 在维护机上半机械执行，其余三步都在 `test/fidelity-roundtrip` 里自动完成；再导入时同时用 pptx′ 与 PowerPoint 另存后的文件，前者证明本系统自洽，后者证明写出的 XML 被 PowerPoint 接受后仍能读回。
+
+依据：rulings §4.21（q-table-depth、q-chart-route、q-extra-inserts、q-media-insert 与元素范围）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 5；ADR-0008 决策 9。
+
 ---
 
 ## 6. 导出确定性（SV-02）
 
-前提（只引用）：`ooxml-pptx.encode` 是纯函数，不读布局、时钟与随机源，zip 写入器确定（30/08 §16.2；静态约束为 40/04 §10 的禁时钟与随机源 lint 规则）；`docProps/thumbnail.jpeg` 是 `encode()` 的显式输入，缺省保留原部件（PRD 01 §2.1）。
+前提（只引用）：`ooxml-pptx.encode` 是纯函数，不读布局、时钟与随机源，zip 写入器确定（60-backend/06 §7；静态约束为 40/04 §10 的禁时钟与随机源 lint 规则）；`docProps/thumbnail.jpeg` 是 `encode()` 的显式输入，缺省保留原部件（PRD 01 §2.1）。
 
 | # | 用例 | 文件 | 里程碑 |
 |---|---|---|---|
@@ -412,8 +502,9 @@ M1 验收 5（`errors:codes`）要求 `.ppt`、加密、损坏、超限四类各
 | 97-2003 二进制 | `format.unsupported_binary` | PowerPoint 另存的 `.ppt`；扩展名改为 `.pptx` 的 CFB；其它 CFB 容器 | ≥ 3 | 只读文件头判定，耗时满足 OF-02（5 次取中位数） |
 | 加密 | `format.encrypted` | 标准加密与 agile 加密各至少 1 个；含 `EncryptionInfo` 的 CFB | ≥ 3 | 先于 zip 解析返回 |
 | 宏 | `format.macro_rejected` | `.pptm` 扩展名；`.pptx` 扩展名但主内容类型为 macroEnabled；包内含 `vbaProject.bin` | 每种触发条件 ≥ 1，合计 ≥ 3 | 不解析幻灯片、不保留宏部件 |
-| 损坏 | `format.pptx.invalid_package` | 非 zip；缺 `[Content_Types].xml`；缺 `ppt/presentation.xml`；截断的 zip | ≥ 3 | `details.part` 为首个失败部件 |
-| 超 ZIP 安全限制 | `format.limit_exceeded` | OF-24 每项限制各一个：条目数、单条目解压、总解压、媒体总量、XML 嵌套深度、实体扩展、每序列图表点数、位图预览像素 | 每项 ≥ 1 | `details{limit, actual}` |
+| 损坏 | `format.pptx.invalid_package` | 非 zip；缺 `[Content_Types].xml`；缺 `ppt/presentation.xml`；截断的 zip；必需部件（`[Content_Types].xml`、`_rels/.rels`、`ppt/presentation.xml` 及其 `.rels`）XML 畸形（§4.21） | ≥ 4 | `details.part` 为首个失败部件 |
+| 畸形 XML（非必需部件，§4.21） | 诊断 `format.malformed_xml`（`error` 级，不拒绝） | 页、版式或主题部件里的标签不匹配、未声明前缀、未定义实体、非法 UTF-8 各一 | 每种 ≥ 1 | 文件照常打开；该部件降级为不透明、零编辑往返字节相同；诊断带 `partName`、`reason`、行列（ADR-0019 决策 8） |
+| 超 ZIP 安全限制 | `format.limit_exceeded` | ZIP 类：条目数、单条目解压、总解压、压缩比、媒体总量、每序列图表点数、位图预览像素各一；XML 类：[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 决策 6 `XmlLimits` 表的每个键各一对（恰在上限必须成功、上限 + 1 必须拒绝），另加 DOCTYPE 样本（无实体 DOCTYPE、内部实体、billion laughs、外部实体、参数实体各一，全部以 `limit: 'xml.doctype'` 拒绝）；数值从 `XmlLimits` 读取，不写死 | 每项 ≥ 1 | `details{limit, actual, max}`，`limit` 取 `zip.*` / `xml.*` 键 |
 | 超规模天花板 | `format.quota_exceeded` | 页数、单页元素、总元素三个维度各一对边界样本：恰在上限（必须成功）与上限 + 1（必须拒绝）；文件大小维度只在服务端导入 | 每维度 1 对 | `details{dimension, limit, actual}`；在解析任何页之前触发（对页解析器的调用计数为 0） |
 
 - 超限样本全部由 `package-builder` 确定性生成（§3），不把大文件或压缩炸弹入库；可入 git 的小样本放 `fixtures/pptx/features/errors-*`。
@@ -430,25 +521,26 @@ M1 验收 10（`fidelity:objects`，rulings §4.15 Q7）与 PRD 01 §2.6 的落�
 
 | 对象 | 断言 | 执行处 | 里程碑 |
 |---|---|---|---|
-| 表格 | 零编辑往返通过；8 案例原生矩阵与语料表格子集进入视觉 gated 类别 | `fidelity-roundtrip`；视觉见 04 | M1 |
-| 图表 `c:chart` | 部件零编辑字节相同；渲染数据只来自 `c:numCache` / `c:strCache`（以渲染节点上的数据属性与缓存逐点比对，100% 一致）；不以包内预览位图代替 | 同上；`slide-render` 单测（40/07 §9） | M1 |
+| 表格 | 零编辑往返通过；8 案例原生矩阵与语料表格子集进入视觉 gated 类别；`tableStyles.xml` 零编辑字节相同，M2 起渲染按其中的样式继承（只读解析），M3 起追加样式见 §5.3 | `fidelity-roundtrip`；视觉见 04 | M1 / M2 / M3 |
+| 图表 `c:chart` | 部件零编辑字节相同；渲染数据只来自 `c:numCache` / `c:strCache`（以渲染节点上的数据属性与缓存逐点比对，100% 一致）；不以包内预览位图代替；M3 起 `Chart.data` 未变的图表部件与内嵌 xlsx 在编辑同页其它元素后仍字节相同，改数据与新插入见 §5.3 | 同上；`slide-render` 单测（40/07 §9） | M1 / M3 |
 | chartex `cx:` | 渲染为诊断占位并上报 `render/element-degraded{reason:'chartex-unsupported'}`；**不**选其 `mc:Fallback`；部件保留 | DOM 断言 + 往返 | M1 |
 | SmartArt | 有 `dsp:drawing` 时按 dsp 渲染（含 `dsp:txXfrm`）；无 dsp 部件时占位并上报；整体移动 / 缩放 / 删除（M2）后 `dgm` 四部件与 `dsp` 部件关系完整 | 往返（E8 / E9）+ DOM 断言 | M1 / M2 |
 | OLE | 显示 `mc:Fallback` 中 `p:pic` 提取的预览图（DOM 中为图像而非占位）；预览为 EMF / WMF 时 M2 起栅格化；删除最后一个引用后嵌入部件与内容类型条目被移除 | 往返 + `orphan-embeddings.test.ts` | M1 / M2 |
 | `mc:AlternateContent` | 渲染首个受支持的 `mc:Choice`，否则 `mc:Fallback`；零编辑时全部分支字节保留；删除（M1）后导出过 XSD 且 PowerPoint 无修复；移动 / 缩放（M2 P1）后各分支 `xfrm` 一致、其余字节不变 | 往返 + `alternate-content-xfrm.test.ts` | M1 / M2 |
+| 墨迹：裸 `p:contentPart`（§4.21） | 映射为 `UnknownShape` 并占位渲染；零编辑时元素与 `ppt/ink/*.xml` 字节相同；删除（M1）整体移除、无孤儿 ink 部件；移动 / 缩放（M2 P1）只改该元素的 `p:xfrm`（E9） | 往返 + `content-part.test.ts`（40/04 §9.2） | M1 / M2 |
 | 未知 `a:graphicData` | 有 Fallback 图片时近似显示，否则占位并上报 `render/element-degraded` | DOM 断言 | M1 |
 | 外部关系 | 含 `mailto:`、`file://`、`tel:` 的样本零编辑时 `.rels` 字节相同；编辑后 Relationship 一条不少；渲染层对非 `http(s)` 目标不激活（不可点击、不发请求） | `relationships-external.test.ts` + 往返 + 网络请求断言 | M1 |
 | Strict 一致性类 | 加载后 `unit.meta.conformance = 'strict'`；零编辑字节相同；编辑后见 §5.2 Strict 段 | 往返 | M1 |
 | `.ppsx` / `.potx` | `unit.meta.contentType` 记录原内容类型；导出保持 | 往返 | M1（P1） |
 | 数字签名 `_xmlsignatures/` | 零编辑保留；M2 起打开签名文件出提示（P2） | 往返 | M1 |
 | 动画与切换 | 保留专项子集零编辑通过；E11；删除被动画引用的元素后无悬空 `spid` 且过 XSD | 往返 + `timing-refs.test.ts` | M1 / M2 |
-| 嵌入字体 | 零编辑字节相同；受限 `fsType` 字体在编辑态不加载、查看态加载（FontFace 列表断言，视觉部分见 04 §8） | 往返 + browser mode 单测 | M1 / M2 |
+| 嵌入字体 | 零编辑字节相同；`.fntdata` 按 EOT 容器解出（MTX 压缩、XOR 加密、未压缩三类样本各至少 1 个，§4.21）；受限 `fsType` 字体在编辑态不加载、查看态加载（FontFace 列表断言，视觉部分见 04 §8）；解码失败时跳过并诊断，不影响打开 | 往返 + browser mode 单测 + `embedded-font.test.ts`（40/04 §9.1） | M1 / M2 |
 
 ---
 
 ## 10. 基线包（C-07）
 
-导出需要基线包（不透明部件字节的来源，ADR-0008）。客户端单机导出用内存中的原字节；服务端导入成功时把原件复制为随文档生命周期保留的基线对象，`document_snapshots.baseline_key`（`kind='import'`）指向它；导入原件本身按保留期清理。键模板与保留期配置以 [60/14](../60-backend/14-valkey-object-storage-and-retention.md) 为唯一登记表（基线在 `data` 桶的 `docs/{docId}/baseline/…`，原件在 `docs/{docId}/imports/{jobId}/…`）；30/08 §16.2「以导入原件作基线」的旧写法被本决策取代。依据：决策 C-07（rulings Q17 原件 30 天 + PRD SV-01 基线随文档）。
+导出需要基线包（不透明部件字节的来源，ADR-0008）。客户端单机导出用内存中的原字节；服务端导入成功时把原件复制为随文档生命周期保留的基线对象，`document_snapshots.baseline_key`（`kind='import'`）指向它；导入原件本身按保留期清理。键模板与保留期配置以 [60/14](../60-backend/14-valkey-object-storage-and-retention.md) 为唯一登记表（基线在 `data` 桶的 `docs/{docId}/baseline/…`，原件在 `docs/{docId}/imports/{jobId}/…`）；原 30/08 篇 §16.2「以导入原件作基线」的旧写法被本决策取代。依据：决策 C-07（rulings Q17 原件 30 天 + PRD SV-01 基线随文档）。
 
 用例均为服务端集成（容器 harness 见 [07](./07-backend-integration-and-api-e2e.md)）：
 
@@ -544,6 +636,8 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | 清单 V1–V10 全部成立（含 ratchet：gated 样本例外数不增、targets.json 与 NF-02 一致） | NF-02、OF-20 | `test/fidelity-roundtrip` 前置 | 机械 |
 | PR 上 gated 样本零编辑往返全部通过；里程碑出口时 T1 + T2 全部样本通过且例外数为 0 | `fidelity:roundtrip`（M1 验收 1） | `test/fidelity-roundtrip`；nightly 全量结果为出口证据 | 机械 |
 | 编辑后 E1–E11 全部成立 | `fidelity:edit-roundtrip`（M2 验收 2） | `test/fidelity-roundtrip` | 机械 |
+| 可追加元素 N1、N2、N4 全部成立，每类元素到期的里程碑起至少 1 个脚本（§5.3） | `fidelity:edit-roundtrip`（随元素里程碑扩充） | `test/fidelity-roundtrip`；XSD 在 `xsd-validate` job | 机械 |
+| `[Content_Types].xml` 与 `.rels` 结构不变即字节相同（§4.2、E7） | ADR-0008 决策 5（写回规则）/ ADR-0019 决策 5（序列化 c14n 口径） | `test/fidelity-roundtrip` | 机械 |
 | 重生成部件过 XSD（M1 起 §4.4 保留专项；M2 起 E3） | 同上；NF-02「重生成部件 XSD 有效」 | `xsd-validate` job | 机械 |
 | 浏览器、Node、服务端导出 sha256 相等 | SV-02 | `test/fidelity-roundtrip`；服务端在 `test/server-integration` | 机械 |
 | 渐进打开 P1–P7 | rulings §4.18 CO-11 / CO-12 | `test/fidelity-roundtrip` | 机械 |
@@ -551,7 +645,7 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | 特殊对象断言 | `fidelity:objects`（M1 验收 10） | 同上；视觉部分 `e2e/oracle-gated` | 机械 |
 | 基线包 B1–B5 | 决策 C-07、PRD SV-01 | `test/server-integration` | 机械 |
 | 历史快照样本全部迁移并校验；schema 变更必有迁移与样本 | ADR-0009 | `test/snapshot-migration-corpus`；`scanners/schema-lock` | 机械 |
-| PowerPoint 打开无修复、另存再开稳定、评论部件可见（I8） | `fidelity:interop`（M1 验收 3）、`comments:roundtrip`（M3 验收 11）、NF-08 | 维护机脚本 + 人工复核，证据归档 | 半机械 |
+| PowerPoint 打开无修复、另存再开稳定、评论部件可见（I8）；可追加元素 N3 | `fidelity:interop`（M1 验收 3）、`comments:roundtrip`（M3 验收 11）、NF-08 | 维护机脚本 + 人工复核，证据归档 | 半机械 |
 | LibreOffice 打开不崩溃（差异只报告） | NF-08 | `test/fidelity-roundtrip`（nightly） | 机械 |
 | docx / xlsx 零编辑往返 | `roundtrip:docx-xlsx`（M5 验收 5） | `test/fidelity-roundtrip` | 机械 |
 
@@ -566,15 +660,24 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | D-TEST-INFRA | PowerPoint 维护机为一台 Windows + PowerPoint 365（不进 CI），macOS 基线 M2 加入；M1 的 macOS 互操作只由维护者自有 Mac 报告性运行，自 M2 起计入出口 | §12 |
 | D-M2-CONTENT | M2 起服务端文档以协同快照为唯一事实源；基线包来自服务端导入的 import 快照（C-07），无 pptx 内容版本；双 store 一致与 `store-yjs` 迁移装载提前到 M2 | §4.1、§10、§11、§13 |
 
+**rulings §4.21 用户裁决**
+
+| 裁决 | 本文写法 | 位置 |
+|---|---|---|
+| X:q-content-types（结构不变就原样写回） | 零编辑与结构不变的编辑后，`[Content_Types].xml` 与 `.rels` 都按字节比较；只有结构变了才按集合比较并要求 c14n 等价、原条目顺序不变。与 30/04 §5.4、40/04、ADR-0008 决策 5（写回规则）/ ADR-0019 决策 5（序列化 c14n 口径）同一口径（原 ADR-0008 决策 5「永不 verbatim」由其负责人改写） | §4.2、§5.2 E7 |
+| q-table-depth、q-chart-route、q-extra-inserts、q-media-insert 与元素范围 | 可追加元素往返语料 N1–N4 与逐类断言；表格 M2 插入与单元格文字、M3 结构与样式；图表 M3；图标与符号 M3 P2；音视频插入 P2 且不写 `p:timing`；不提供插入的元素不进语料 | §5.3 |
+| X:q-xml-lexer（XML 限额单一来源、DOCTYPE 一律拒绝） | XML 限额样本从 `XmlLimits` 读取；DOCTYPE 类样本一律以 `xml.doctype` 拒绝；非必需部件畸形 XML 降级不拒绝 | §8 |
+| ADR-0008 决策 9 白名单新增项 | E9 补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm` | §5.2、§9 |
+
 **本文已定、依据已接受口径的取舍**
 
-- 零编辑往返对 `[Content_Types].xml` 与 `.rels` 按字节比较（PRD 01 §4.1、30/04 §5.4）；「集合比较」只用于编辑后派生部件。
+- 零编辑往返对 `[Content_Types].xml` 与 `.rels` 按字节比较（PRD 01 §4.1、30/04 §5.4）；编辑后结构不变时同样按字节比较，「集合比较」只用于结构确实变化的派生部件（§4.21）。
 - `allowedDiffs` 是 OF-20 `cordex-allow` 例外的落地，里程碑出口时须清零。
 - 语料存储不用 Git LFS（决策 T-CORPUS）；缺凭据或缺对象时步骤失败、不跳过。
 
 **回写清单（由总编排执行）**
 
 - 30/11 §6：「`[Content_Types].xml` / `.rels` 语义等价（集合比较）」限定为编辑后；§6、§11、§12 的语料与目录细节改为「摘要 + 链接本文」，删去 `test/corpus/decks/` 与 Git LFS 写法。
-- 30/08 §16.2：「导入时把原文件存为 `imports/{jobId}/source.pptx` 并作基线」改为按决策 C-07 复制基线对象。
+- 原 30/08 篇 §16.2：「导入时把原文件存为 `imports/{jobId}/source.pptx` 并作基线」改为按决策 C-07 复制基线对象。
 - 40/04 §9.2：`fixtures/pptx/wild/` 并入 T2 登记；§9 的「引用 11」改为引用本文。
 - 30/11 §11、§17 的 `perf: true` 写法：改为 manifest 的 `perf.refDoc`（§2），与 V6、09 §2.2 C6 一致（70/11 §11 已同步）。

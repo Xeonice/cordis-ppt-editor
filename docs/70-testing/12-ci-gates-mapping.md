@@ -1,6 +1,6 @@
 # 12 CI 门禁映射
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：`scanners/license-allowlist` 按 ADR-0049 分级扫描并附停更报告；新增步骤 `iso-smoke/server-esm` 取代 require(esm) 冒烟口径；csp-strict 覆盖本轮新依赖；新增图 12-5）；2026-09-26（§4.21 整合：§4 新增第 13 条 server-esm-start（ESM 启动冒烟，60/19 RC-06），iso-smoke/server-esm 注明只做加载；§2 test/unit 收集范围写明 packages/xml 的八个测试与 SEC-IN-10 档位） | 依赖：rulings §4.21（q-license-tiers、q-nest-major、R-d-60）、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
 
 本文是 CI 步骤的唯一事实源：13 个 job 各含哪些测试步骤、步骤名、三个触发段各跑什么、PR 冒烟子集、必需检查、每个步骤从哪个里程碑起运行与阻断、时长预算与分片、缓存、产物、失败与 flaky 策略，以及每个步骤的本地复现命令。步骤名在本文定稿，与总计划的工作名一致；其它文档（50 / 60 / 70 的「机械验证」小节）写步骤时一律用本文的 `job/步骤` 写法。
 
@@ -64,6 +64,7 @@ interface CiStep {
 | `test` | `test/requirement-matrix` | `gen-requirements --check`、需求标签矩阵判定、SEC 目录与 ASVS 映射完整性、证据文件头 | 同上 | gated | [13](./13-requirements-traceability.md)、[10 §16](./10-security-testing.md) |
 | `test-typecheck` | `test-typecheck` | `vitest --typecheck`（`*.type-test.ts`） | 同上 | gated | [01 §7](./01-strategy-and-layers.md) |
 | `iso-smoke` | `iso-smoke` | 按 `iso-smoke-manifest.json` 逐包在 Node 与浏览器加载 | 同上 | gated | [01 §6](./01-strategy-and-layers.md) |
+| `iso-smoke` | `iso-smoke/server-esm` | apps/server 的 ESM 构建产物加载冒烟（Nest 12 为纯 ESM，apps/server 改为 ESM 构建，rulings §4.21 q-nest-major）：以 `node --import` 预加载 OTel 注册模块后，`import()` 应用模块（`AppModule` 所在文件，不调用启动函数、不监听端口、不连外部服务）与 `package.json` 的全部直接运行时依赖（含 `@nestjs/*` 12、openid-client、jose、file-type、canonicalize、quick-lru、`@hocuspocus/server` 等纯 ESM 包）；断言退出码 0，stderr 不含 `ERR_REQUIRE_ESM`、`ERR_MODULE_NOT_FOUND`、`ERR_UNSUPPORTED_DIR_IMPORT`。本步骤只做不起容器的加载；五个角色真正启动并产出 span 的「ESM 启动冒烟」在 §4 第 13 条 server-esm-start（60/19 RC-06）。两者共同取代 R-d-60「CJS 构建下经 require(esm) 加载、M1 冒烟」的口径 | 同上 | gated | [60/17](../60-backend/17-deployment-and-config.md)（OTel 预加载与启动方式）、[60/19](../60-backend/19-reuse-and-dependency-catalog.md)（纯 ESM 依赖清单） |
 | `depcruise` | `depcruise` | 全部依赖规则与夹具（含 `depcruise:blind`、`pluggable:m2` 的公开入口） | 同上 | gated | 09-03 |
 | `api-surface` | `api-surface` | api-extractor diff、publint、attw、changeset 存在性 | 同上 | gated | 09-04 |
 | `api-surface` | `api-surface/docs-coverage` | 公开 API、贡献点、错误码的文档覆盖率 100%，文档示例代码全部编译（M4） | 同上 | gated | PRD 05 M4 验收 1 |
@@ -72,7 +73,8 @@ interface CiStep {
 | `scanners` | `scanners/scan-<名>` | 09-06 的 13 个扫描器（`scan-policy` 在 `policy-check`）；`scan-bundle-budget` 排在构建之后 | 同上 | gated | 09-06 |
 | `scanners` | `scanners/check-workspace-protocol`、`scanners/check-rls-coverage`、`scanners/check-image-policy` | 治理检查脚本（TD-080、TD-083、TD-084） | 同上 | gated | 40/01 §5.7 |
 | `scanners` | `scanners/check-migrations-sync` | 迁移目录 `apps/server/src/db/migrations/` 与 60-backend DDL 文档的 SQL 围栏逐字一致（DB-13）：文件集合等于围栏编号集合、文件名等于围栏首行加 `.sql`、内容逐字节相等，失败报「文件 + 编号 + 首个差异行」；调用 `docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only`（不起容器） | 同上 | gated（首次运行即阻断，§7） | 60/08 §11 第 6 条、§13 DB-13；rulings §4.20 BE-03+TX-14 |
-| `scanners` | `scanners/license-allowlist`、`scanners/vuln-audit` | 依赖许可白名单与禁用清单（TD-050）；高危漏洞阻断 | 同上 | gated | [10 §13](./10-security-testing.md) |
+| `scanners` | `scanners/license-allowlist` | 依赖许可按 [ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md) 分级扫描（TD-050，rulings §4.21）：全部已安装包（含 devDependency、optional 与传递依赖）、字体资产、数据文件与内置源码；SPDX `OR` 须登记取向、B 档附加检查（MPL 未打补丁、OFL 只含字体、CC0 只含数据）、禁用包清单；nightly 追加停更报告 | 同上 | gated（停更报告为报告） | [10 §13](./10-security-testing.md)；夹具见 40/01 §9 |
+| `scanners` | `scanners/vuln-audit` | 高危漏洞阻断 | 同上 | gated | [10 §13](./10-security-testing.md) |
 | `scanners` | `scanners/scan-manifest --check` | `manifest.ts` 重新生成无 diff（ADR-0003） | 同上 | gated | 09-06 §6 |
 | `scanners` | `scanners/schema-lock` | body schema 哈希锁（ADR-0009） | 同上 | gated | [03 §11](./03-fidelity-roundtrip-and-corpus.md) |
 | `scanners` | `scanners/shadcn-diff` | shadcn 复制件与上游 diff（ADR-0017） | 同上 | 报告 → M2 稳定后 gated | TD-091 |
@@ -89,7 +91,7 @@ interface CiStep {
 | `perf` | `perf/perf-collab` | 协同延迟、presence、初始同步、满员房间扇出、准入 | main · nightly | gated | 同上 |
 | `perf` | `perf/perf-server` | 导入导出、缩略图与 PDF、压缩、2,000 WS、持久化滞后、模板填充；nightly 另跑 `host-footprint`（M3 起，只报告，产物 `host-footprint.json`） | main · nightly | gated（`host-footprint` 为报告） | 同上 |
 
-**`test` 各步骤的收集范围**（两两不相交，并集覆盖全部 Vitest 用例；由 `test/conventions/test-layout.test.ts` 核对，[01 §13](./01-strategy-and-layers.md)）：`test/contract` 收 `**/__tests__/conformance*.test.ts` 与 `test/plugin-compat/**`；`test/lifecycle` 收 `**/__tests__/lifecycle.test.ts`；`test/server-integration` 收 `apps/server/test/integration/**`、`apps/server/test/e2e/**`（`smoke/` 除外）；`test/fidelity-roundtrip` 收 `test/roundtrip/**`，`test/snapshot-migration-corpus` 收 `test/snapshot-migration/**`，`test/collab-sim` 与 `test/preset-blind` 收根 `test/` 下同名目录；`test/iso-smoke/**` 归 `iso-smoke` job；其余 `*.test.ts(x)` 与 `*.browser.test.ts(x)`（含 preset 的 `order-independence`、`pluggable`、`readonly`、`manifest-diff`）归 `test/unit`。与 [01 §4–§5](./01-strategy-and-layers.md) 的前缀规则与套件表一致。
+**`test` 各步骤的收集范围**（两两不相交，并集覆盖全部 Vitest 用例；由 `test/conventions/test-layout.test.ts` 核对，[01 §13](./01-strategy-and-layers.md)）：`test/contract` 收 `**/__tests__/conformance*.test.ts` 与 `test/plugin-compat/**`；`test/lifecycle` 收 `**/__tests__/lifecycle.test.ts`；`test/server-integration` 收 `apps/server/test/integration/**`、`apps/server/test/e2e/**`（`smoke/` 除外）；`test/fidelity-roundtrip` 收 `test/roundtrip/**`，`test/snapshot-migration-corpus` 收 `test/snapshot-migration/**`，`test/collab-sim` 与 `test/preset-blind` 收根 `test/` 下同名目录；`test/iso-smoke/**` 归 `iso-smoke` job；其余 `*.test.ts(x)` 与 `*.browser.test.ts(x)`（含 preset 的 `order-independence`、`pluggable`、`readonly`、`manifest-diff`）归 `test/unit`，其中包括 `packages/xml/src/__tests__/**` 的八个测试（40/04 §9.3）：[10](./10-security-testing.md) SEC-IN-10 的 W3C 子集、边界探针与差分模糊 PR 档在此步骤作 M1 门禁，差分模糊的 nightly 放大档与 SEC-IN-04 同档（2026-09-26 整合）。与 [01 §4–§5](./01-strategy-and-layers.md) 的前缀规则与套件表一致。
 
 **图 12-1 13 个 job 中的测试步骤**
 
@@ -186,7 +188,7 @@ flowchart LR
 | 2 | viewer-readonly | `preset-slide-viewer` 打开成功、无编辑命令；M3 起追加查看者 = 编辑器只读变体（`mode='view'`） | `apps/web/e2e/viewer/viewer-readonly.spec.ts` | M1 |
 | 3 | edit-undo-export | 插入文本框、键入、撤销与重做、导出 pptx 后经 `diffPackage` 只有脏部件变化 | `apps/web/e2e/editing/edit-undo-export.spec.ts` | M2 |
 | 4 | plugin-toggle | 示例插件启停：ribbon 按钮出现与消失，卸载后无残留 DOM | `apps/web/e2e/plugins/plugin-toggle.spec.ts` | M2 |
-| 5 | csp-strict | 生产 CSP 下关键路由与面板零违规（SEC-CL-01） | `apps/web/e2e/security/csp-strict.spec.ts` | M2 |
+| 5 | csp-strict | 生产 CSP 下关键路由与面板零违规（SEC-CL-01）；§4.21 起覆盖本轮新依赖：颜色选择器与渐变编辑器（react-colorful 经 patch 后零注入，色盘计算样式与基线一致）、缩略图栏滚动与拖拽重排（@tanstack/react-virtual、pragmatic-drag-and-drop）、表单对话框（react-hook-form）、首次粘贴 HTML（htmlparser2 惰性 chunk）、插入图标面板（预览只经 `<img>`）、zod 首次解析（`jitless`，`script-src` 零违规）；启用复杂文种 shaping 的变体另断言策略含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'`（[50/14](../50-frontend/14-client-security.md) §2.7、§13 V2、V15） | `apps/web/e2e/security/csp-strict.spec.ts` | M2（shaping 变体 M4） |
 | 6 | csrf-origin | 跨源与缺头的非安全请求 403、跨源 WS 升级被拒（SEC-XS-01 / 02） | `apps/server/test/e2e/smoke/csrf-origin.e2e-spec.ts` | M2（含 WS 段：协同网关随 rulings §4.19 D-M2-CONTENT 进 M2） |
 | 7 | share-link-landing | 片段令牌 → 登录往返 → 只经请求头携带，URL 与日志无令牌（SEC-XS-03） | `apps/web/e2e/share/share-link-landing.spec.ts` | M3 |
 | 8 | collab-two-browsers | 双浏览器 presence 可见、编辑传播、断网重连后一致、降权横幅、撤销跳过提示 | `apps/web/e2e/collab/collab-two-browsers.spec.ts` | M3 |
@@ -194,9 +196,10 @@ flowchart LR
 | 10 | login-casdoor | Casdoor 容器登录，`selfSignup` 关 / 开两态（SEC-AU-02） | `apps/web/e2e/auth/login-casdoor.spec.ts` | M2 |
 | 11 | security-rls | 直连 PG 的 RLS 矩阵与应用层漏检变体（SEC-DA-01） | `apps/server/test/e2e/smoke/security-rls.e2e-spec.ts` | 报告：首个 RLS 迁移（M2）；gated：M3 |
 | 12 | renderer-egress | renderer 零出站与容器姿态（SEC-RS-01 / 05） | `apps/server/test/e2e/smoke/renderer-egress.e2e-spec.ts` | 报告：renderer 入库；gated：M3 |
+| 13 | server-esm-start | ESM 启动冒烟（2026-09-26 整合，[60/19](../60-backend/19-reuse-and-dependency-catalog.md) RC-06）：以镜像入口 `node --import ./dist/observability/otel.js dist/main.js` 依次按 `CORDEX_ROLE` = `all`、`api`、`collab`、`worker`、`renderer` 启动（接测试 PG、Valkey 与对象存储容器），各角色 `/readyz` 转为 200 后收 SIGTERM 正常退出；纯 ESM 依赖全部加载；`api` 处理一次请求后经内存 exporter 产出 HTTP 路由 span | `apps/server/test/e2e/smoke/server-esm-start.e2e-spec.ts` | M1（apps/server 首批迁移入库起） |
 | + | `e2e/oracle-gated` | gated 类别（独立步骤，属于 PR 冒烟子集） | `test/oracle/**` | M1 |
 
-- **归属规则**：浏览器条目以 Playwright 标签 `@smoke` 进入 `e2e/smoke`，服务端条目以目录 `apps/server/test/e2e/smoke/` 进入（[01 §4](./01-strategy-and-layers.md)）。`@smoke` 标签集合与服务端 smoke 目录的文件集合之并必须是本表 1–12 的子集，且「激活」列里程碑已到 `active` 及之后状态的条目必须存在（`test/conventions` 读 `milestones.json` 核对，M3 起即恰为 1–12）；增删条目须在同一 PR 改本表与 `steps.json`。
+- **归属规则**：浏览器条目以 Playwright 标签 `@smoke` 进入 `e2e/smoke`，服务端条目以目录 `apps/server/test/e2e/smoke/` 进入（[01 §4](./01-strategy-and-layers.md)）。`@smoke` 标签集合与服务端 smoke 目录的文件集合之并必须是本表 1–13 的子集，且「激活」列里程碑已到 `active` 及之后状态的条目必须存在（`test/conventions` 读 `milestones.json` 核对，M3 起即恰为 1–12）；增删条目须在同一 PR 改本表与 `steps.json`。
 - **时长**：`e2e/smoke` 分 5 个 matrix 实例——浏览器条目 4 个 Playwright 分片 + 服务端条目 1 个实例，墙钟 ≤ 15 min；`e2e/oracle-gated` 另按类别分片并行，墙钟 ≤ 15 min。
 - **编排**：M1 条目在 apps/web 预览构建 + `store-memory` 下运行；M2 起按 [06 §4](./06-frontend-component-and-e2e.md) 的协同模式 harness（迁移 → 种子 → apps/server → apps/web 预览）运行。
 
@@ -216,7 +219,7 @@ flowchart LR
 | security-rls、renderer-egress（M3 之前） | `e2e/smoke` | M3（rulings §4.18 GV-16） |
 | compose 冒烟、web 容器检查、`ops:image-licenses` 运行时部分、发布演练（[08 §11](./08-deployment-and-environment-e2e.md)） | `e2e/full-compose` | M3 出口（其余浏览器全量用例自 M1 起 gated） |
 | Trusted Types Report-Only 违规计数 | 全部浏览器 e2e 步骤的安全夹具 | M3（rulings §4.15 Q2） |
-| OPC fuzz 放大档、服务端导入 fuzz | `test/unit`、`test/server-integration`（nightly） | 连续 10 次无误报（01 §10） |
+| OPC fuzz 放大档、服务端导入 fuzz、XML 差分模糊放大档（SEC-IN-10） | `test/unit`、`test/server-integration`（nightly） | 连续 10 次无误报（01 §10） |
 | 当前处于 active 的里程碑中缺测试的 P0、以及 P1 缺口；新测试文件无需求标签 | `test/requirement-matrix` | 里程碑进入出口评审时（[13 §1](./13-requirements-traceability.md)） |
 | LibreOffice 互操作 | `test/fidelity-roundtrip`（nightly） | 不转（NF-08 只要求不崩溃并记录差异） |
 | `host-footprint` 主机规格测量（[09 §6](./09-performance-and-capacity.md)） | `perf/perf-server`（nightly，M3 起） | 不转（只出 `host-footprint.json` 供 60/17 §11 回填，rulings §4.20 BE-07+TX-05） |
@@ -282,6 +285,8 @@ flowchart LR
 | `scanners/check-image-policy` | 首个 Dockerfile（M2） | 同时 | M3 renderer 三项静态规则 |
 | `scanners/check-rls-coverage` | 首个带 `doc_id` 的迁移（M2） | 同时 | 每张新表 |
 | `scanners/check-migrations-sync` | M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 定 0001、0002 为 M1）；比对实现（`ddl-check.sh --migrations / --write-migrations / --sync-only`）在同一 PR 落地，`tooling/ci/steps.json` 与 40/01 §5.7 同 PR 登记 | 同时（不起容器，直接 gated；挂 `scanners` 而不是 `test/server-integration` 的前置，因为后者 M2 才激活） | 每个新迁移文件；DB-13 自该 PR 起改为「已实现」（rulings §4.20 BE-03+TX-14） |
+| `iso-smoke/server-esm` | apps/server 首个 `AppModule` 入库的 PR（不晚于 M1 首批迁移，rulings §4.21 q-nest-major） | 同时（直接 gated，不起容器） | 每个新增的纯 ESM 依赖自动纳入（读 apps/server `package.json`）；OTel 预加载模块路径以 60/17 为准 |
+| `scanners/license-allowlist` 的停更报告 | M0（随 `license-allowlist` 步骤） | 不转 gated（只报告；新越过 12 个月的依赖自动建复评 issue，ADR-0049 决策 4） | — |
 | `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图 |
 | `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 材质层表、rulings §4.12 U-08） |
 | `scanners/shadcn-diff` | M2（报告） | M2 稳定后 | — |
@@ -437,6 +442,8 @@ flowchart LR
 | `test/requirement-matrix` | `pnpm req:matrix` | — | `pnpm req:matrix -- --explain <需求 id 或检查名>` |
 | `test-typecheck` | `pnpm test:types` | — | — |
 | `iso-smoke` | `pnpm iso-smoke` | 先构建（`pnpm build`） | `pnpm iso-smoke -- --package <包名>` |
+| `iso-smoke/server-esm` | `pnpm ci:step iso-smoke/server-esm` | 先构建 apps/server（`pnpm --filter ./apps/server build`） | 输出里第一个 `ERR_*` 所在的依赖或模块 |
+| `scanners/license-allowlist` | `pnpm scan license-allowlist` | 已安装依赖（`pnpm install --frozen-lockfile`） | JSON 违规列表的 `path` 字段给出从 workspace 包到违规包的依赖链；`--stale` 单独输出停更报告 |
 | `depcruise` / `api-surface` / `policy-check` | `pnpm depcruise` / `pnpm api:check` / `pnpm policy:check` | `api-surface` 需先构建 | — |
 | `scanners/<脚本名>` | `pnpm scan <脚本名>`（如 `pnpm scan scan-manifest --check`） | `scan-bundle-budget` 需先构建 | 各脚本的 JSON 报告即定位信息 |
 | `scanners/check-migrations-sync` | `bash docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only` | 无（不起容器） | 输出的「文件 + 编号 + 首个差异行」；从围栏重新生成用 `--write-migrations <dir>` |
@@ -457,7 +464,7 @@ flowchart LR
 | 工作流里出现的 job 名 ⊆ 13 个 job 的封闭集合 | `policy-check`（`scan-policy` 规则 (1) 的封闭性检查扩到工作流文件，见 §14 回写 3） |
 | 工作流 matrix 实例与 `steps.json` 中 `mode ≠ 'off'` 的步骤 × 分片一一对应；每个步骤名匹配本文 §2 的写法且属于其 `job` | `policy-check`（`scan-policy` 规则 (1) 的子检查，见 §14 回写） |
 | gated 步骤相对 merge-base 被改为 `report` / `off` 时必须带未过期的 `allow` | `run-step.ts`（每个步骤开头） |
-| `@smoke` 标签集合与 `apps/server/test/e2e/smoke/` 文件集合之并 ⊆ §4 的 12 条，已激活条目全部存在 | `test/unit`（`test/conventions`） |
+| `@smoke` 标签集合与 `apps/server/test/e2e/smoke/` 文件集合之并 ⊆ §4 的 13 条，已激活条目全部存在 | `test/unit`（`test/conventions`） |
 | Vitest `retry` = 0；Playwright `retries` 只在允许的项目中为 1 | `test/unit`（`test/conventions` 读取配置） |
 | 每个 PRD 检查名映射到的步骤都存在于 `steps.json`，且在该检查所属里程碑前已激活 | `test/requirement-matrix` |
 | 仓库分支保护规则集与 `pnpm ci:required-checks` 生成的清单一致 | `policy-check`（nightly） |
@@ -471,7 +478,38 @@ flowchart LR
 
 **rulings §4.20 已定稿**（2026-09-26）：BE-03+TX-14——新增步骤 `scanners/check-migrations-sync`，登记在 §2 与 §7（M1 首批迁移入库的同一 PR 激活并直接 gated；DB-13 的比对实现属该 PR，推迟项「BE-03+TX-14·实现」）；TX-13——`scanners/lockfile-guard` 加 y-protocols 精确版本与 typescript 5.9/6.x 断言（不新增 TD 行）；TX-16——语料桶四个变量与需要它们的步骤登记在 §3；BE-07+TX-05——`perf/perf-server` 的 nightly 加 `host-footprint` 报告；TX-01+BE-10、TX-02——§6 索引加 `history:restore-revert`、`M0#2` 改指 `check-terms.py`。均不新增 job 名。
 
-**新增步骤名（总计划工作名之外，请总编排知悉）**：`scanners/lockfile-guard`、`scanners/license-allowlist`、`scanners/vuln-audit`（许可、漏洞与 lockfile 三个安全门禁此前没有步骤名）；`api-surface/docs-coverage`、`api-surface/scaffold-e2e`（PRD 05 M4 验收 1、4 此前没有执行点）；`scanners/check-migrations-sync`（rulings §4.20 BE-03+TX-14）。其余步骤名与总计划的工作名完全一致。
+**rulings §4.21 已定稿**（2026-09-26）：q-license-tiers——`scanners/license-allowlist` 按 ADR-0049 分级扫描，传递依赖与 devDependency 同扫，覆盖字体资产、数据文件与内置源码，nightly 追加停更报告（只报告），TD-050 改写、不新增 TD 行；q-nest-major 与 R-d-60——apps/server 改为 ESM 构建，原「CJS 构建下经 require(esm) 加载、M1 冒烟」改为新步骤 `iso-smoke/server-esm`；前端复用组件准入——csp-strict 覆盖本轮新依赖与 `jitless`、shaping 变体（§4 第 5 条）。均不新增 job 名。
+
+**图 12-5 §4.21 新增与改写的两个门禁步骤**
+
+```mermaid
+flowchart LR
+  subgraph lic["scanners/license-allowlist：TD-050"]
+    pl["pnpm licenses list：全部已安装包"]
+    fontIn["字体清单"]
+    dataIn["dataFiles 与 vendored"]
+    judge["ADR-0049 判定：分级、取向、B 档附加检查、禁用清单"]
+    viol["违规 JSON：包名、档位、规则、依赖链"]
+    stale["nightly 停更报告：只报告，自动建复评 issue"]
+  end
+  subgraph esm["iso-smoke/server-esm"]
+    build["apps/server 的 ESM 构建产物"]
+    pre["node --import 预加载 OTel 注册模块"]
+    imp["import 应用模块与全部直接运行时依赖"]
+    ok["退出码 0 且无 ERR_REQUIRE_ESM 等错误"]
+  end
+  pl --> judge
+  fontIn --> judge
+  dataIn --> judge
+  judge --> viol
+  judge -.-> stale
+  build --> pre --> imp --> ok
+```
+
+怎么读：左边是改写后的许可步骤，三类输入汇到同一个判定，违规即阻断，停更报告只在 nightly 追加且不阻断；右边是新步骤，验证 Nest 12 纯 ESM 之后服务端产物与全部纯 ESM 依赖能在 `node --import` 预加载下被加载。两个步骤都挂在既有 job 上，13 个 job 的封闭集合不变。
+依据：ADR-0049 决策 2、4；rulings §4.21 q-license-tiers、q-nest-major；R-d-60。
+
+**新增步骤名（总计划工作名之外，请总编排知悉）**：`scanners/lockfile-guard`、`scanners/license-allowlist`、`scanners/vuln-audit`（许可、漏洞与 lockfile 三个安全门禁此前没有步骤名）；`api-surface/docs-coverage`、`api-surface/scaffold-e2e`（PRD 05 M4 验收 1、4 此前没有执行点）；`scanners/check-migrations-sync`（rulings §4.20 BE-03+TX-14）；`iso-smoke/server-esm`（rulings §4.21 q-nest-major，取代 R-d-60 的 require(esm) 冒烟）。其余步骤名与总计划的工作名完全一致。
 
 回写清单（由总编排执行，本组不改其它文档）：
 

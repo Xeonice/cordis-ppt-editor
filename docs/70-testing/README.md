@@ -1,5 +1,5 @@
 # 70 测试设计线：定位、边界与导航
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：charter v0.2、rulings §4.11–§4.20、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.2、rulings §4.11–§4.20、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
 
 ## 1. 定位
 
@@ -274,7 +274,7 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 40/01 §5.9 | CI job 矩阵的步骤清单改为链接 12 |
 | 40/_template §9 | 改为「文件清单；场景与断言见 70」 |
 | PRD 04 NF-01、NF-09 | 保留 gate 数值；测量与判定链接 09 |
-| 40 各模块 §9 | 「覆盖率与性能预算引用 11（30-architecture）」改为引用 [01 §8](./01-strategy-and-layers.md#8-覆盖率与证据归档t-coverage-evidence) 与 [09](./09-performance-and-capacity.md)（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项回写：40/01、40/03、40/06、40/07、40/13 改指本线，40/06 另指 50/13；40/09、40/12 的 30/08 §12 改指 60/01 §12 与 09） |
+| 40 各模块 §9 | 「覆盖率与性能预算引用 11（30-architecture）」改为引用 [01 §8](./01-strategy-and-layers.md#8-覆盖率与证据归档t-coverage-evidence) 与 [09](./09-performance-and-capacity.md)（2026-09-26 随 rulings §4.20 TX-10 第 ⑤ 项回写：40/01、40/03、40/06、40/07、40/13 改指本线，40/06 另指 50/13；40/09、40/12 的原 30/08 篇 §12 改指 60/01 §12 与 09） |
 | docs/README.md、30-architecture/README.md、40-modules/README.md、`_tools/gen-docs-site.py` | 登记三条新线并写三线总边界表（本 README §2 引用它） |
 
 **本线新增的回写项**（来自 01 §4 废止表与 11 的登记）：

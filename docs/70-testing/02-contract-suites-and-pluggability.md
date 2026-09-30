@@ -1,6 +1,6 @@
 # 02 契约套件目录、生命周期与可插拔证据
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：runCollabServerConformance 直接跑 Hocuspocus 实例，去重扇出改状态向量收敛，加钩子异常与 Valkey 宕机不杀进程、连接污染；runCollabTransportConformance 加 provider 事件时序分节）；2026-09-26（§4.21 复核：FanoutBus 变异体改为控制频道语义 `ctl/close-delivered-once`） | 依赖：[30/11 测试策略](../30-architecture/11-testing-strategy.md)、[30/09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md)、[30/09-09 插件类型契约](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[40/02](../40-modules/02-kernel-protocol-and-document-core.md)、[40/16 插件总账](../40-modules/16-plugin-catalog.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 / §4.17 / §4.18 / §4.19 / §4.20（BE-01+TX-03、FE-01）/ §4.21（q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-provider、H:q-hp-step2-cap）、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md) 与证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、TS-02、d-19、d-22、d-30，核实 vB、vC、vE）
 
 本文是「契约套件（conformance kit）、插件生命周期套件、可插拔证据」三件事在测试侧的唯一事实源：定义 kit 的统一接口、每个 Definition 的 kit 与用例 id、运行矩阵、必须实例化的 Provider 与所在 CI 步骤。被测契约本身的语义不在这里：iso 契约签名在 [30/04](../30-architecture/04-document-model.md)、[30/05](../30-architecture/05-command-and-history.md)、[30/06](../30-architecture/06-collaboration.md) 与 [40/02 §2.5](../40-modules/02-kernel-protocol-and-document-core.md)，服务端运行侧行为在 [60/05](../60-backend/05-modules-collab-and-snapshots.md) 与 [60/16](../60-backend/16-ws-protocol-server-view.md)，客户端运行侧行为在 [50/04](../50-frontend/04-document-commands-and-undo.md) 与 [50/07](../50-frontend/07-collaboration-client.md)。协同模拟、fuzz 与性质测试见 [05](./05-collab-simulation-and-property-tests.md)；kit 实现文件仍登记在 40 各包的 `testing/`。
 
@@ -186,7 +186,7 @@ sequenceDiagram
 | `runUpdateStoreConformance` | `seq-gap` | seq 不与 `head_seq` 同事务分配 | `append/seq-contiguous` |
 | `runSnapshotStoreConformance` | `purge-noop` | `purgeAll` 不删 | `purge/purge-all-empties` |
 | `runSpillStoreConformance` | `reads-other-instance` | `readAllOrdered` 读到其他实例的行 | `replay/own-instance-only` |
-| `runFanoutBusConformance` | `echo-self` | 本实例消息回投给自己 | `fanout/dedup-by-instance` |
+| `runFanoutBusConformance` | `echo-self` | 控制频道 `room:{docId}:ctl` 的控制消息（close、epoch）回投给发布实例，导致同一关闭或换纪元执行两次（§4.21 起 FanoutBus 只承载控制频道，帧扇出的按 instanceId 去重已作废） | `ctl/close-delivered-once` |
 | `runLeaseLockConformance` | `fencing-decreases` | fencing token 不单调 | `lease/fencing-monotonic` |
 | `runCollabServerConformance` | `ack-skips-empty-step2` | 空 diff 的 step2 不回 ack | `ack/step2-empty-diff-db-ack` |
 
@@ -213,7 +213,7 @@ Definition 清单以 [40/16 §3](../40-modules/16-plugin-catalog.md) 的 24 个�
 | 7 | `ElementRenderer`（engine-render） | 不设（M-06 G-8） | 替代：`SpyRenderer`/`RecordingTarget` 自测；`error-isolation.test.ts`（单元素失败 → unknown 占位）；视觉 oracle | — | 有意不设 | `test/unit` |
 | 8 | `OverlayRenderer`（engine-render） | 由 #5 的 `overlay/*` 分节 + 生命周期套件覆盖 | mount / update / dispose；改选区不触发任何 `ElementRenderer.update`；dispose 无残留 | render-dom 四个条目、slide-render `master-inheritance`（各自 `lifecycle.test.ts`） | 替代（T-KITS） | `test/contract`、`test/lifecycle` |
 | 9 | `collab`（collab-core，`CollabService`） | 不设 | 替代：#1 的双客户端格经 collab-yjs 真实同步引擎运行；collab-yjs 包内 FSM 与事件测试；[05](./05-collab-simulation-and-property-tests.md) 协同模拟 | — | 有意不设（与 store-yjs 强耦合，40/05 §2.5） | `test/contract`、`test/collab-sim` |
-| 10 | `collabTransport`（collab-core） | `runCollabTransportConformance` | 见 §6.1 | `collab-transport-ws`（`__tests__/conformance.test.ts`，本机回环 ws 服务端）；`MemoryTransport`（collab-core 自测） | 已有 | `test/contract` |
+| 10 | `collabTransport`（collab-core） | `runCollabTransportConformance` | 见 §6.1（§4.21 起含 `provider/*` 事件时序分节） | `collab-transport-ws`（`__tests__/conformance.test.ts`：进程内 Hocuspocus 4.7.0 经 `createScriptedServer` 接 collab-core/testing 的 `MemoryTransport` 内存 WebSocketLike 对，provider 内部计时用 fake timers）；§4.21 起 `MemoryTransport` 不再是 `CollabTransport` 实现，collab-core 只跑 `runKitSelfTest` | 已有，改写 | `test/contract` |
 | 11 | `OfflineStore`（collab-core） | `runOfflineStoreConformance` | 见 §6.2 | `collab-offline-idb`（`conformance.test.ts`，node + `fake-indexeddb`，40/05 §4.4）；collab-yjs 同接口内存实现 | 已有 | `test/contract` |
 | 12 | `UiRenderer`（ui-core） | `runUiRendererConformance` | 见 §7.3 | `ui-react`（`conformance-ui-renderer.test.ts`，40/10 原名 `ui-renderer.conformance.test.ts` 按 01 §4 前缀规则改名）；`UiRenderer('vanilla')`（`examples/embed-vanilla`，PRD M2 `embed:framework-free`） | 登记（T-KITS） | `test/contract` |
 | 13 | `PermissionPolicy`（model-core） | `runPermissionPolicyConformance` | 零策略 → 全部 `PERMISSION_DENIED`（值 `command.permission_denied`）；`evaluate` 抛错或返回非法值 → 拒绝并出诊断；能力位全集（protocol `permissions/actions.ts`：`doc.read`、`doc.comment`、`doc.write`、`doc.export`、`doc.manage`、`history.read`、`history.restore`）逐一被显式判定；`denyAll` 覆盖 `allowAll`；未知 `<vendor>:` 能力位拒绝 | `preset-slide-viewer#read-only`（`__tests__/conformance-policy.test.ts`）；model-core/testing 的 `allowAllPolicy`、`denyAllPolicy`、`recordingPolicy`（自测） | 新增（T-KITS） | `test/contract` |
@@ -223,12 +223,12 @@ Definition 清单以 [40/16 §3](../40-modules/16-plugin-catalog.md) 的 24 个�
 | 17 | `TelemetrySink`（kernel） | `runKernelServiceConformance` | 同上，另断言 span / metric 名必须已登记 | kernel no-op sink；服务端 `OtelTelemetryAdapter` | 已有 | `test/contract` |
 | 18 | `SpillStore`（server-collab） | `runSpillStoreConformance` | 见 §5 | `MemorySpillStore`；`RedisSpillStore`、`BlobSpillStore`（int-spec） | 已有 | `test/contract`、`test/server-integration` |
 | 19 | `ThumbnailRenderer`（server-headless） | 不设 | 替代：视觉 oracle 的「客户端与服务端互差 ≤ 0.5%」（[04 §4](./04-visual-oracle.md) 被测 b，ADR-0026，M3 起）；640 px WebP 缩略图管线由 [07](./07-backend-integration-and-api-e2e.md) 覆盖 | — | 替代（T-KITS） | `e2e/oracle-gated` |
-| 20 | `FanoutBus`（server-collab） | `runFanoutBusConformance` | 见 §5 | `MemoryFanoutBus`；`RedisFanoutBus`（int-spec） | 已有 | `test/contract`、`test/server-integration` |
+| 20 | `FanoutBus`（server-collab） | `runFanoutBusConformance` | 见 §5；§4.21 起只承载自有控制频道（`room:{docId}:ctl` 的 close 与 epoch 等，ADR-0039 的 ControlPlane 扩展），update、awareness 与 Stateless 的跨实例同步改由 `@hocuspocus/extension-redis` 承担，由 §5.2 `fanout/*`、`redis/*` 覆盖 | `MemoryFanoutBus`；`RedisFanoutBus`（int-spec） | 已有，范围收窄 | `test/contract`、`test/server-integration` |
 | 21 | `LeaseLock`（server-collab） | `runLeaseLockConformance` | 见 §5 | `MemoryLeaseLock`；`RedisLeaseLock`（int-spec） | 已有 | 同上 |
 | 22 | `UpdateStore`（server-collab） | `runUpdateStoreConformance` | 见 §5 | `MemoryUpdateStore`；`PgUpdateStore`（int-spec） | 已有 | 同上 |
 | 23 | `SnapshotStore`（server-collab） | `runSnapshotStoreConformance` | 见 §5 | `MemorySnapshotStore`；`PgSnapshotStore`（int-spec） | 已有 | 同上 |
 | 24 | `AuthorizationSource`（server-collab） | 不设 | 替代：`runCollabServerConformance` 的 `link/*` 三个用例（BE-02） | — | 有意不设 | 同上 |
-| + | `collabServer`（server-collab 服务契约） | `runCollabServerConformance` | 见 §5.2 | `createServerCluster(n)`（内存适配器，server-collab 自测）；真实适配器集群（`apps/server/test/integration/conformance/collab-server.int-spec.ts`） | 已有，补用例 | 同上 |
+| + | `collabServer`（server-collab 服务契约） | `runCollabServerConformance` | 见 §5.2 | `createServerCluster(n)`（§4.21 起为 n 个真 Hocuspocus 实例 + 内存适配器 + 内存 pub/sub 替身驱动的 extension-redis，客户端以内存 `WebSocketLike` 调 `handleConnection`，server-collab 自测）；真实适配器集群（`apps/server/test/integration/conformance/collab-server.int-spec.ts`：嵌入 Fastify 的 upgrade、真实 PG、Valkey 容器上的 extension-redis、SeaweedFS） | 已有，补用例 | 同上 |
 
 合计：16 个 `run<Definition>Conformance` kit 加 1 个命名例外（`runSlideModelConformance`，M5 再加 doc / sheet 两个），7 个 Definition 以替代验证覆盖（#6–#9、#15、#19、#24）。服务端 PG 适配器的契约实例以非属主角色 `cordex_system` 连接并设置 `app.system_job`，每个测试文件使用从模板库克隆的独立数据库，不用事务回滚式隔离（依据：决策 T-DB-ISOLATION，authority：RLS 依赖会话变量与非属主角色，ADR-0022 修订）；角色与 GUC 的定义见 [60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)。
 
@@ -252,7 +252,7 @@ flowchart LR
   pPolicy["preset-slide-viewer 的 read-only；allowAll、denyAll、recording 替身"]
   pMeasure["render-dom canvas；server-headless node-font；fixed"]
   pTarget["render-dom dom；M3 末最小 canvas Provider"]
-  pTransport["collab-transport-ws；MemoryTransport"]
+  pTransport["collab-transport-ws，接进程内 Hocuspocus 与内存 WebSocketLike"]
   pOffline["collab-offline-idb；collab-yjs 内存实现"]
   pUi["ui-react；embed-vanilla 的 vanilla"]
   pKernel["kernel 默认 sink；服务端 Pino、Otel、ErrorsReporter 适配器"]
@@ -315,7 +315,7 @@ flowchart LR
 | model-core | `broken` 数组（`runKitSelfTest`） | 自测 | 自测 | 自测 | 自测 |
 | store-memory | `MemoryStore` | ● | ●（他人写入以 `local(otherClientId)` / `remote` origin 注入同一实例） | ●（串行中继） | ●（串行中继；`delivery=['serial']`） |
 | store-yjs | `YjsStore` | ● | ● | ●（直接交换 Y update） | ●（`delivery=['serial','concurrent']`） |
-| collab-yjs | `YjsStore` + 同步引擎 + `MemoryTransport` + 内存服务端 | — | — | ● | ●（经真实 sync 引擎与在途 FIFO） |
+| collab-yjs | `YjsStore` + 官方 provider + `MemoryTransport` + 进程内 Hocuspocus 脚本服务端（§4.21，原「同步引擎 + 内存服务端」） | — | — | ● | ●（经真实 provider、`localSeq` 对应与在途 FIFO） |
 
 - **单机**：一个 Store 实例，「他人」由 kit 以其他 origin 写入模拟，覆盖全部撤销判定分支。
 - **双客户端**：工厂返回 `{ a, b, deliver }`。`serial` 投递把一端已提交的事务按顺序交给另一端（`store-memory` 只有这一种：它不承担并发合并，30/05 §6）；`concurrent` 投递让两端各自提交后再交换，只有 CRDT Provider 声明。两种投递下 `collab/*` 与 `neutral-undo/*` 的用例 id 相同、变体后缀不同，报告中 `store-memory` 的 `@concurrent` 记为 `n/a`（既定范围，不是跳过）。
@@ -326,7 +326,7 @@ flowchart LR
 
 ## 5. 服务端协同七套与 `collabServer`
 
-七套＝ `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runSpillStoreConformance`、`runCollabServerConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`（均由 `server-collab/testing/index.ts` 导出）加 `runBlobStoreConformance`（§3 #2）。契约签名见 [40/09 §2.5](../40-modules/09-server-collab-gateway-and-headless-host.md) 与 [60/05](../60-backend/05-modules-collab-and-snapshots.md)，WS 服务端处理见 [60/16](../60-backend/16-ws-protocol-server-view.md)，Valkey 键模板见 [60/14](../60-backend/14-valkey-object-storage-and-retention.md)。每个 kit 先对内存适配器（BlobStore 为 `LocalBlobStoreProvider`）在 `test/contract` 自测，再对真实适配器在 `test/server-integration` 以 testcontainers（PG 18、Valkey、SeaweedFS）实例化。
+七套＝ `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runSpillStoreConformance`、`runCollabServerConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`（均由 `server-collab/testing/index.ts` 导出）加 `runBlobStoreConformance`（§3 #2）。契约签名见 [40/09 §2.5](../40-modules/09-server-collab-gateway-and-headless-host.md) 与 [60/05](../60-backend/05-modules-collab-and-snapshots.md)，WS 服务端处理见 [60/16](../60-backend/16-ws-protocol-server-view.md)，Hocuspocus 挂点与扩展见 [ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)，Valkey 键模板见 [60/14](../60-backend/14-valkey-object-storage-and-retention.md)。每个 kit 先对内存适配器（BlobStore 为 `LocalBlobStoreProvider`）在 `test/contract` 自测，再对真实适配器在 `test/server-integration` 以 testcontainers（PG 18、Valkey、SeaweedFS）实例化。
 
 ### 5.1 适配器 kit 用例
 
@@ -335,7 +335,7 @@ flowchart LR
 | `runUpdateStoreConformance` | `append/seq-contiguous`、`append/same-tx-as-head-seq`、`append/idempotent-retry`、`load/since-ordered`、`prune/before-seq-and-age`、`purge/purge-all-empties` | seq 与 `documents.head_seq` 同事务分配、无空洞；重试不重复落库；`loadSince` 升序；`purgeAll` 后 `loadSince` 为空（S-2） | `MemoryUpdateStore`；`PgUpdateStore` |
 | `runSnapshotStoreConformance` | `put/latest-roundtrip`、`list/paged-cursor`、`get/by-id`、`purge/purge-all-empties`、`put/import-bumps-epoch` | `latest` 为最近一次 `put`；分页游标稳定；`purgeAll` 后 `latest` 为空；`put(kind='import', epochFrom = E)` 写入 `epoch = E + 1` 的快照并把文档纪元推进到 `E + 1`，文档纪元已不是 `E` 时返回 `epoch_changed` 且不写行（rulings §4.19 N1，60/05 §9.2） | `MemorySnapshotStore`；`PgSnapshotStore` |
 | `runSpillStoreConformance` | `write/tier1-then-tier2`、`replay/own-instance-only`、`replay/ordered-by-local-counter`、`instances/list-for-orphan-claim`、`clear/after-replay` | 两档合并按 `localCounter` 升序；只读指定 `instanceId`（CO-16）；`listInstances` 列出遗留实例；`clear` 后为空 | `MemorySpillStore`；`RedisSpillStore`（一级）、`BlobSpillStore`（二级） |
-| `runFanoutBusConformance` | `fanout/cross-instance-delivery`、`fanout/dedup-by-instance`、`fanout/unsubscribe-stops` | 跨实例投递；不回投本实例；释放订阅后不再收到 | `MemoryFanoutBus`；`RedisFanoutBus` |
+| `runFanoutBusConformance` | `fanout/cross-instance-delivery`、`ctl/close-delivered-once`（原 `fanout/dedup-by-instance`）、`fanout/unsubscribe-stops` | 控制消息跨实例投递；控制消息（close、epoch）每实例只执行一次、不回投发布实例；释放订阅后不再收到（§4.21 起只覆盖自有控制频道，文档状态的跨实例同步见 §5.2 `fanout/*`） | `MemoryFanoutBus`；`RedisFanoutBus` |
 | `runLeaseLockConformance` | `lease/mutual-exclusion`、`lease/expiry-reacquire`、`lease/fencing-monotonic` | 同键互斥；过期后可被他人取得；fencing token 单调递增；键模板 `lock:{purpose}:{docId}` 与 `lock:fence:{purpose}:{docId}`（决策 KEYS） | `MemoryLeaseLock`；`RedisLeaseLock` |
 | `runBlobStoreConformance` | `base/put-get-has`、`server/head-delete`、`server/presign-behind-host-proxy`、`server/integrity-sha256`、`server/two-buckets`、`server/delete-all-versions` | 见 §3 #2；`two-buckets` 断言快照桶开版本化、数据桶不开（C-08/OBJ）；`delete-all-versions` 对两个桶的 `docs/{docId}/` 各做 ListObjectVersions 并删除全部版本与删除标记后无残留（BE-15，60/04 §4） | `LocalBlobStoreProvider`；`S3BlobStoreProvider` |
 
@@ -343,17 +343,23 @@ flowchart LR
 
 ### 5.2 `runCollabServerConformance` 用例
 
-工厂签名 `createCluster(n) → ServerCluster`（内存版取 `createServerCluster(n)`；真实版由 `apps/server/test/integration/conformance/collab-server.int-spec.ts` 用真实 PG / Valkey / SeaweedFS 适配器组装）。服务端行为的规格来源：房间、持久化、溢写与准入在 [60/05](../60-backend/05-modules-collab-and-snapshots.md)，门禁、ack 发出规则与关闭码触发条件在 [60/16](../60-backend/16-ws-protocol-server-view.md)，帧与关闭码定义在 [30/06 §6](../30-architecture/06-collaboration.md)。
+工厂签名 `createCluster(n) → ServerCluster`（内存版取 `createServerCluster(n)`；真实版由 `apps/server/test/integration/conformance/collab-server.int-spec.ts` 用真实 PG / Valkey / SeaweedFS 适配器组装）。§4.21 起（证据 TS-01、d-30）集群的每个实例就是一个真 Hocuspocus 4.7.0 类，装着 server-collab 的自有扩展；多实例之间用 `@hocuspocus/extension-redis`（真实版接 Valkey 容器，内存版接内存 pub/sub 替身，extension-redis 的 `awaitInitialSyncTimeout` 1 s 会拉长用例，内存版调小）；客户端一律用内存 `WebSocketLike` 调 `handleConnection`，发出的是 Hocuspocus 帧（Auth、Sync、Awareness、Stateless），不再有自研信封。服务端行为的规格来源：房间、持久化、溢写与准入在 [60/05](../60-backend/05-modules-collab-and-snapshots.md)，门禁、ack 发出规则与关闭码触发条件在 [60/16](../60-backend/16-ws-protocol-server-view.md)，帧与关闭码定义在 [30/06 §6](../30-architecture/06-collaboration.md)。
 
 | 用例 id | 断言要点 | 依据 |
 |---|---|---|
-| `fanout/two-instance-dedup` | 两实例同一房间：各客户端恰收到一次他人 update，实例只持久化本实例客户端的 update | ADR-0035 |
+| `fanout/two-instance-sv-converge`（§4.21 改写，原 `fanout/two-instance-dedup`） | 两实例同一文档、客户端分在两个实例：静止后各端状态向量相等（extension-redis 以状态向量往返补齐，同一变更可能以多个差量到达，不再断言「恰收到一次」）；每个实例只持久化本实例客户端的 update——跨实例来的更新 origin 为 redis，不经 `beforeSync`、不触发存储钩子；库中无重复行 | ADR-0035（修订见 ADR-0039）；证据 PS-02、K6 |
+| `fanout/doc-hash-single-holder` | 按文档哈希分流时同一文档的全部连接落在同一实例，另一实例不加载该文档；模拟扩缩容把文档迁到另一实例后，客户端经重连 step2 补齐、无数据丢失 | rulings §4.21 H:q-hp-fanout |
 | `durability/crash-replay` | 进程被杀后重启，snapshot + updates 重放结果与崩溃前所有已 ack（db）状态相同 | 06 I10 |
 | `durability/pg-down-db-ack-withheld` | 单实例、溢写前的重试窗口内（`spillTier = none`，[60/05](../60-backend/05-modules-collab-and-snapshots.md) §6.2；M2）：PG 写失败期间入站 update 不回 `{type:'ack', tier:'db'}`，≤ 1 s 推 `CONTROL.room{persist:'degraded'}`；PG 恢复后得到 db ack（原会话已断开则经重连 step2），`document_updates` 无重复行、seq 连续；推 `persist:'ok'` | PRD 05 M2 验收 17；rulings §4.19 INC-09 |
-| `gate/frame-too-large-4413`、`gate/rate-limit-4429` | payload 超 `maxUpdateBytes`（1 MiB，不含 1 字节 FrameType）关闭 4413；超 `msgRateHz` 200 / `msgBurst` 500 关闭 4429 | 决策 INC-07（authority：rulings §4.18 CO-10 原文用名） |
+| `gate/frame-too-large-4413`、`gate/step2-over-16mib-4413`、`gate/rate-limit-4429` | update 帧 payload 超 `maxUpdateBytes`（1 MiB）关闭 4413；重连 step2 超 16 MiB（= ws `maxPayload`）关闭 4413、不超则一帧落库并恰回一帧 db ack（rulings §4.21 H:q-hp-step2-cap）；超 `msgRateHz` 200 / `msgBurst` 500 关闭 4429；以上都在适配层预过滤，失败帧不进 Hocuspocus | 决策 INC-07（authority：rulings §4.18 CO-10 原文用名） |
 | `gate/viewer-update-rejected` | viewer 的 update 回 `error{collab.forbidden}` 不广播不落库，第 3 次关闭 4403（L2 要求角色 ≥ commenter，commenter 的越界路径由软门禁还原，见 [05 §8](./05-collab-simulation-and-property-tests.md)） | 60/16 §4；ADR-0031 |
 | `gate/l2-count-starts-after-downgrade` | 降权瞬间仍在途的写入帧只回 `error{collab.forbidden}`、不计数；服务端发出降权 `CONTROL.permission` 或 `CONTROL.room{locked}` 后 2 s 内到达的写入帧同样视为在途、不计数（常量，60/16 §4）；只有 2 s 之后到达的越权写入帧计入 L2 拒绝计数：降权时在途 5 帧 + 2 s 内再到 2 帧 → 不关闭，2 s 之后的第 3 帧 → 4403（`FixedClock` 推进） | ADR-0029 决策 3（计数针对越权写入）；60/16 §4 |
 | `gate/soft-gate-repair` | fixture 文档类型的不变量违规触发修复事务、广播 `CONTROL.repair`，所有端一致；10 分钟内 ≥ 5 次关闭 4409 | ADR-0034；slide 版见 [05 §8](./05-collab-simulation-and-property-tests.md) |
+| `gate/no-ack-after-drop`（§4.21 新增，核实 vB 回归） | 连接污染规则：某连接一帧写入被 L3 软拒（`error{document.quota_exceeded}`）或在锁定窗口内被 L2 拒绝后，同一连接之后的写入帧（含结构上依赖被拒帧的 `ok`、`ok2`）一律不落库、不回 ack，直到重连；解锁或权限升级时对已污染的连接先推 `room` / `permission` 再关闭让它重连；落库前 `parseUpdateMeta` 与删除集缺口检查兜底；结束后服务端文档与「快照 + 日志」重建结果都无 `pendingStructs` | 证据 d-09、K4、K14；核实 vB、vD |
+| `gate/broadcast-stateless-4400` | 客户端发 `BroadcastStateless(6)` 在适配层按 4400 关闭，不进入 Hocuspocus（否则它会抛错做文档级关闭） | 证据 TX-08 更正；GHSA-8v8m-xjrm-95h6 |
+| `session/preauth-frames-queued` | 认证前到达的 step1、awareness 与 update 由 Hocuspocus 排队、不应用，认证通过后按序回放；取票 300 ms 期间先于 Auth 上线的 update 同样不应用；文档加载 1.5 s 期间持续编辑不触发 4205；5 s 未认证由适配层以 4408 关闭；认证前排队超出适配层严格限额关闭 4205 | ADR-0039；证据 d-04、K15-A；核实 vA-A1、vA-A2 |
+| `hooks/exception-no-process-exit` | 对不被 await 的钩子（`onChange`、`onStateless`、`onAwarenessUpdate`、`beforeBroadcastStateless`、`onDisconnect`、`onConfigure`）与 `connected` 各注入一次抛错：进程不退出（进程级 `unhandledRejection` 只记录与计数）；未预期异常记 traceId 后以 1011 关闭该连接；`connected` 抛错不会出现「已通知客户端认证失败、服务端连接仍存活」的状态 | 证据 d-19；核实 exp3、vC |
+| `redis/valkey-down-no-process-exit` | 两实例 + extension-redis：Valkey 宕机期间继续编辑与调用 `broadcastStateless`，进程不退出（extension-redis 保留离线队列、限 `maxRetriesPerRequest`，继承 Redis 类覆写 `beforeBroadcastStateless` 与 `onStoreDocument` 加 catch）；实例内编辑照常、跨实例中断、`/readyz` 503；Valkey 恢复后任一次变更即补齐、状态向量收敛；redlock 连不上不被误报为锁冲突 | 证据 d-22、K16-A；核实 vE；ADR-0035 决策 8 |
 | `ack/one-db-ack-per-update-frame` | 每个入站 update 帧恰回一帧 `{type:'ack', tier:'db', seq}`，同连接内按到达顺序 | 决策 INC-03/04/05（判别键统一 `type`） |
 | `ack/step2-empty-diff-db-ack` | 重连 `SyncStep2` 视同一帧，空 diff 也回一帧 db ack，`seq` 取当前 head | rulings §4.18 CO-10 |
 | `degraded/pg-down-broadcast` | PG 断开期间两客户端仍互见编辑；入站 update 回 `{type:'ack', tier:'spill'}`（无 seq） | rulings §4.18 CO-08、§4.15 S-3a |
@@ -364,26 +370,26 @@ flowchart LR
 | `admission/evict-idle-rooms-first` | 内存或准入不足时先按 LRU 结束空闲房间，仍不足才对活跃房间走 evicting（1012） | rulings §4.18 CO-14 |
 | `admission/per-user-quota` | 名额按用户计：同一用户多标签占 1、owner 不占编辑者名额、commenter 计查看者 | rulings §4.15 Q5 |
 | `admission/concurrent-21st-editor` | 20 编辑者满员时两实例并发接入第 21 个编辑者：恰一个被判超员，不超额 | 决策 C-11（authority：ADR-0022，不依赖 HEXPIRE；`room:{docId}:members` + Lua 原子判定） |
-| `admission/capacity-readonly-join`、`admission/room-full-4503` | 超编辑者名额以 `auth.ok{role:'viewer', reason:'capacity'}` 只读加入；再超回 `auth.denied{collab.room_full}` 并关闭 4503 | 30/06 §18.5、INC-03/04/05 |
-| `admission/per-user-connection-cap-4429` | 握手期每用户单实例并发上限：同一用户在同一实例上已持有 `limits.ws.maxConnectionsPerUser`（默认 32，kit 以缩小的值驱动、不写死）个已认证连接时，下一个连接在票据验签通过后收到 `auth.denied{code:'collab.rate_limited'}` 并以 4429 关闭；该用户已有连接、同实例其他用户、另一实例上的同一用户都不受影响；关闭其中一个后可再加入（计数随连接关闭扣除，被拒的连接不计入）；与帧速率超限的 4429（`gate/rate-limit-4429`，无 `auth.denied`）区分 | rulings §4.20 BE-01+TX-03；60/16 §1、§10、§12 |
+| `admission/capacity-readonly-join`、`admission/room-full-4503` | 超编辑者名额以 `auth.ok{role:'viewer', reason:'capacity'}` 只读加入；再超回 `PermissionDenied{collab.room_full}` 并关闭 4503（§4.21 起拒绝经 `PermissionDenied` 的 reason JSON，原 `auth.denied`） | 30/06 §18.5、INC-03/04/05 |
+| `admission/per-user-connection-cap-4429` | 握手期每用户单实例并发上限：同一用户在同一实例上已持有 `limits.ws.maxConnectionsPerUser`（默认 32，kit 以缩小的值驱动、不写死）个已认证连接时，下一个连接在票据验签通过后收到 `PermissionDenied{code:'collab.rate_limited'}`（§4.21 前为 `auth.denied`）并以 4429 关闭；该用户已有连接、同实例其他用户、另一实例上的同一用户都不受影响；关闭其中一个后可再加入（计数随连接关闭扣除，被拒的连接不计入）；与帧速率超限的 4429（`gate/rate-limit-4429`，无 `PermissionDenied`）区分 | rulings §4.20 BE-01+TX-03；60/16 §1、§10、§12 |
 | `admission/over-ceiling-readonly-join` | 部署调低天花板后，超出新天花板的文档以 `auth.ok{role:'viewer', reason:'over_ceiling'}` 只读打开；`reason` 与名额满的 `'capacity'` 区分，同一连接只出现其一 | 30/06 §6.3；60/05 §4.1 |
 | `lock/room-locked-signal` | 文档进入锁定窗口（覆盖导入、迁移；`reason ∈ import \| migration`）时本 Room 全部会话收到 `CONTROL.room{locked:{reason, until}}`，不借用 `CONTROL.permission{reason:'changed'}`；锁定期间写入帧按 L2 拒绝；解锁后收到不含 `locked` 的 `room` 帧，写入恢复 | 30/06 §6.3；60/16 §8；rulings §4.19 N1 |
-| `epoch/stale-auth-epoch-denied` | 客户端 `auth{epoch}` 小于当前纪元 → `auth.denied{collab.epoch_changed}` 并以 4428 关闭；无本地状态的客户端省略 `epoch` 照常加入；当前纪元与 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 一致 | 30/06 §6.3、§6.5；决策 INC-06 |
+| `epoch/stale-auth-epoch-denied` | Auth token 的 `epoch` 小于当前纪元 → `PermissionDenied{collab.epoch_changed}` 并以 4428 关闭；无本地状态的客户端省略 `epoch` 照常加入；当前纪元与 `GET snapshots/latest` 响应头 `X-Cordex-Epoch` 一致；Hocuspocus 文档名 `{docId}:{epoch}` 与之匹配，旧纪元文档自然排空（ADR-0039） | 30/06 §6.3、§6.5；决策 INC-06 |
 | `link/other-perm-change-keeps-session` | 只凭分享链接加入的会话，在他人改文档权限后不被踢 | rulings §4.18 BE-02 |
 | `link/revoke-downgrade-within-1s` | 撤销链接后 ≤ 1 s 该会话降权（`CONTROL.permission`） | BE-02 |
 | `link/expiry-proactive-downgrade` | 链接到期由服务端按 `linkExpiresAt` 主动降权，不等权限事件 | BE-02 |
-| `purge/purging-doc-join-rejected` | `documents.status='purging'` 的文档加入被拒，`auth.denied{collab.doc_purging}` 后关闭 4404 | BE-15、决策 INC-06 |
+| `purge/purging-doc-join-rejected` | `documents.status='purging'` 的文档加入被拒，`PermissionDenied{collab.doc_purging}` 后关闭 4404 | BE-15、决策 INC-06 |
 | `purge/close-room-then-no-writes` | 在线编辑中执行 `closeRoom(docId,'purge')` 后无 update 落库、会话全部关闭 | BE-15、决策 MECH-C（C-33） |
 | `elements/purge-only-tombstoned` | `purgeElements` 只接受墓碑态 id，非墓碑 id 整体拒绝；成功后删除方撤销该步得 `wholeStep:true` | rulings §4.18 CO-07 |
 | `epoch/force-epoch-closes-4428` | `forceEpoch` 递增 epoch 后经 `room:{docId}:ctl` 通知其他实例，全部会话以 4428 关闭 | 决策 INC-06、KEYS |
 | `epoch/external-epoch-control-closes-4428` | 不持有 Room 的发布方（夹具扮演 worker 导入处理器）先推进文档纪元、再经 `room:{docId}:ctl` 发 `{op:'epoch', reason:'import'}`：各实例上该文档的锁定中会话以 4428 关闭、Room 丢弃且不再持久化；屏蔽通知时，旧纪元 Room 的下一次取号插入 0 行并自行 4428 | rulings §4.19 N1；60/05 §3.3、§9.2 |
 | `restore/version-restored-event` | 恢复到某个快照提交后，本实例与经扇出的其他实例上该文档的全部会话各收到一次 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`，会话不断连（M3，随版本历史） | 30/06 §6.3；60/05 §10 |
 | `restore/no-lock` | 恢复执行期间任何会话都收不到 `room{locked}`，其他会话的写入照常获 `tier:'db'` 并与恢复事务收敛（M3） | rulings §4.19 N1；60/05 §10 |
-| `session/auth-refresh-rebinds`、`session/login-revoked-4401` | `CONTROL.auth.refresh{ticket}` 通过验票且 `sub`、`doc`、`sid` 与本连接一致 → 会话不中断、按新票据重新绑定 `role`、`permVersion`、`linkId`、`linkExpiresAt`，不回应答帧，且**不延长**会话寿命（寿命仍由 `sid` 决定：之后吊销 `sid`，该连接照样在下一轮复核被关闭）；任一不符 → 4401；登录会话（`sid`）被吊销后 ≤ `auth.session.revocationCacheMs`（5000 ms）经批量会话复核以 4401 关闭（[60/02 §9.5](../60-backend/02-auth-chain.md)） | 决策 INC-27（authority：规格空白，与 UX-02 一致）；60/16 §3 |
+| `session/auth-refresh-rebinds`、`session/login-revoked-4401` | 已认证连接上再到一个 Auth 帧（客户端 `provider.sendToken()`，服务端 `onTokenSync`；原 `CONTROL.auth.refresh{ticket}`）：通过验票且 `sub`、`doc`、`sid` 与本连接一致 → 会话不中断、按新票据重新绑定 `role`、`permVersion`、`linkId`、`linkExpiresAt`，重算的角色直接写 `connection.readOnly`，不回应答帧，且**不延长**会话寿命（寿命仍由 `sid` 决定：之后吊销 `sid`，该连接照样在下一轮复核被关闭）；适配层在转发该 Auth 帧后暂停后续帧、等钩子完成再放行：紧跟其后的 update 按新角色处理（核实 vC 的竞态不再出现）；任一不符 → 钩子对原始 WS 以 4401 关闭；登录会话（`sid`）被吊销后 ≤ `auth.session.revocationCacheMs`（5000 ms）经批量会话复核以 4401 关闭（[60/02 §9.5](../60-backend/02-auth-chain.md)） | 决策 INC-27（authority：规格空白，与 UX-02 一致）；60/16 §3；证据 d-05、K17-A |
 
 `AuthorizationSource` 不设独立 kit：`link/*` 三个用例同时是它的契约证据。房间准入的 Lua 原子性只有真实 Valkey 能证明，内存版执行同一用例验证语义、真实版验证并发。
 
-**里程碑**（以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 的 M2 / M3 边界为准，rulings §4.19 D-M2-CONTENT）：§5.1 的 `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`、`runBlobStoreConformance` 与本节 kit 随协同后端在 M2 入库即运行并阻断；`runSpillStoreConformance` 随单实例两级溢写同在 M2（PRD 05 §0.3「Postgres 故障」行）。kit 不可裁剪（§1 规则 4），用例全集随实现增长，由 kit 的 `cases` 常量登记——M2（单实例协同后端）：`durability/crash-replay`、`durability/pg-down-db-ack-withheld`、`gate/*`、`ack/*`、`degraded/*`（单实例溢写、降级期广播与 `persist` 信号）、`lock/*`、`session/*`、`epoch/*`（schema 迁移与换纪元）、`admission/evict-idle-rooms-first`、`admission/over-ceiling-readonly-join`（按权重准入）、`admission/per-user-connection-cap-4429`（握手期连接约束随 WS 网关，rulings §4.20 BE-01+TX-03）；M3（多人协同体验层与多实例）：`fanout/two-instance-dedup`、`replay/*`（跨实例认领）、`admission/per-user-quota`、`admission/concurrent-21st-editor`、`admission/capacity-readonly-join`、`admission/room-full-4503`（名额按用户计与满员只读）、`link/*`、`purge/*`、`elements/*`、`restore/*`。M2 允许 `FanoutBus` / `LeaseLock` 以内存 Provider 跑单实例 Room（[40/09 §11](../40-modules/09-server-collab-gateway-and-headless-host.md)），真实 Valkey 版的这两个 kit 仍在 M2 实例化（压缩租约在单实例也要用）。
+**里程碑**（以 [PRD 05 §0.3](../10-prd/05-milestones-and-scope.md) 的 M2 / M3 边界为准，rulings §4.19 D-M2-CONTENT）：§5.1 的 `runUpdateStoreConformance`、`runSnapshotStoreConformance`、`runFanoutBusConformance`、`runLeaseLockConformance`、`runBlobStoreConformance` 与本节 kit 随协同后端在 M2 入库即运行并阻断；`runSpillStoreConformance` 随单实例两级溢写同在 M2（PRD 05 §0.3「Postgres 故障」行）。kit 不可裁剪（§1 规则 4），用例全集随实现增长，由 kit 的 `cases` 常量登记——M2（单实例协同后端）：`durability/crash-replay`、`durability/pg-down-db-ack-withheld`、`gate/*`（含 §4.21 的 `gate/no-ack-after-drop`、`gate/step2-over-16mib-4413`、`gate/broadcast-stateless-4400`）、`hooks/exception-no-process-exit`、`ack/*`、`degraded/*`（单实例溢写、降级期广播与 `persist` 信号）、`lock/*`、`session/*`（含 `session/preauth-frames-queued`）、`epoch/*`（schema 迁移与换纪元）、`admission/evict-idle-rooms-first`、`admission/over-ceiling-readonly-join`（按权重准入）、`admission/per-user-connection-cap-4429`（握手期连接约束随 WS 网关，rulings §4.20 BE-01+TX-03）；M3（多人协同体验层与多实例）：`fanout/two-instance-sv-converge`、`fanout/doc-hash-single-holder`、`redis/valkey-down-no-process-exit`（extension-redis 随 M3 装配，rulings §4.21 H:q-hp-fanout）、`replay/*`（跨实例认领）、`admission/per-user-quota`、`admission/concurrent-21st-editor`、`admission/capacity-readonly-join`、`admission/room-full-4503`（名额按用户计与满员只读）、`link/*`、`purge/*`、`elements/*`、`restore/*`。M2 允许 `FanoutBus` / `LeaseLock` 以内存 Provider 跑单实例 Room（[40/09 §11](../40-modules/09-server-collab-gateway-and-headless-host.md)），真实 Valkey 版的这两个 kit 仍在 M2 实例化（压缩租约在单实例也要用）。
 
 **图 5-1 服务端协同契约套件与 Provider**
 
@@ -421,22 +427,27 @@ flowchart LR
 
 ## 6. 传输与离线套件
 
-两个 kit 由 `collab-core/testing` 导出（[40/05 §2.5](../40-modules/05-collaboration-client.md)）。帧、CONTROL 与关闭码的定义在 [30/06 §6](../30-architecture/06-collaboration.md)（按 INC-02~07 补齐后的版本），客户端 Session 状态机与计时器的唯一源在 [50/07](../50-frontend/07-collaboration-client.md)。计时类用例全部用 `FixedClock` 手动推进、抖动用 `SeededRandom`，不 sleep。
+两个 kit 由 `collab-core/testing` 导出（[40/05 §2.5](../40-modules/05-collaboration-client.md)）。帧、CONTROL 与关闭码的定义在 [30/06 §6](../30-architecture/06-collaboration.md)（按 INC-02~07 补齐后的版本；§4.21 起线上帧为 Hocuspocus 格式，CONTROL 作 Stateless 载荷），客户端 Session 状态机、provider 事件映射与计时器的唯一源在 [50/07](../50-frontend/07-collaboration-client.md)。计时类用例全部用 `FixedClock` 手动推进、抖动用 `SeededRandom`，不 sleep；§4.21 起 `@hocuspocus/provider` 与 Hocuspocus 的内部计时用全局 fake timers 与 FixedClock 同步推进（证据 TS-05）。
 
 ### 6.1 `runCollabTransportConformance`
 
-`transport/*` 分节只驱动 Provider 自身；`session/*` 分节用 collab-core 的纯 reducer `session-fsm.ts` 加 `collab-core/testing` 的最小效果执行器驱动 Provider，证明任何传输 Provider 下会话计时语义一致。
+`transport/*` 分节只驱动 Provider 自身；`provider/*` 分节（§4.21 新增）把 `collab-yjs` 的 `HocuspocusProvider` 挂到被测 Provider 交出的 socket 句柄上，接 `collab-transport-ws/testing` 的 `createScriptedServer`（进程内 Hocuspocus + 脚本扩展），钉住 provider 的事件时序与我们依赖的内部顺序——升级 `@hocuspocus/*` 必须重跑（ADR-0039 升级规则）；`session/*` 分节用 collab-core 的纯 reducer `session-fsm.ts` 加 `collab-core/testing` 的最小效果执行器驱动 Provider，证明任何传输 Provider 下会话计时语义一致。
 
 | 用例 id | 断言要点 | 依据 |
 |---|---|---|
-| `transport/connect-ok`、`transport/connect-timeout`、`transport/abort-signal-cancels` | 连接成功返回 `Connection`；超时返回错误而非挂起；`AbortSignal` 取消后不再回调 | 40/05 §2.5 |
-| `transport/remote-close-fires-onclose` | 对端断开触发 `onClose`，恰一次 | 同上 |
-| `transport/backpressure-high-water` | 出站缓冲超过 `outboundHighWater` 触发背压事件，回落后解除 | 同上 |
-| `transport/frame-order-preserved`、`transport/binary-envelope-passthrough` | 同一连接内帧按发送顺序到达（在途 FIFO 对应的前提，CO-09）；首字节 FrameType 0–3 与 payload 原样透传 | 30/06 §6.2 |
+| `transport/connect-ok`、`transport/connect-timeout` | `open()` 交出的 socket 由调度器 `connect()` 后触发 `onOpen`；超时进入错误而非挂起；`destroy()` 后不再回调 | 40/05 §2.5 |
+| `transport/remote-close-fires-onclose`、`transport/no-internal-reconnect` | 对端断开触发 `onClose` 恰一次；`onClose` 在构造配置里先 `disconnect()`，此后 provider 内部不发起任何重连（事后注册的 `.on('close')` 拦不住，exp7） | 同上；证据 CL-04 |
+| `transport/backpressure-high-water` | 计量垫片读到的 `bufferedAmount` 与待发批次折算超过 `outboundHighWater` 时报出背压，回落后解除 | 同上 |
+| `transport/frame-order-preserved`、`transport/frame-sent-metering` | 同一连接内帧按发送顺序到达（在途 FIFO 对应的前提，CO-09）；垫片对每个真正写上 socket 的帧恰回报一次 `onFrameSent`，能识别 update 与 step2 写帧（§4.21 取代原「首字节 FrameType 0–3 原样透传」，自研信封已删除） | 30/06 §6.2；证据 SY-02 |
 | `transport/out-of-order-and-duplicate-tolerated` | 注入乱序与重复帧时 Provider 不崩、不吞帧，交由上层处理 | 30/11 §3 |
-| `transport/close-code-exact@<码>` | 对 1000、1001、1006、1011、1012、4400、4401、4403、4404、4408、4409、4413、4426、4427、4428、4429、4503 逐一：服务端以该码关闭，客户端 `onClose` 收到同一码；1006 不能写进关闭帧（RFC 6455 保留码），改由脚本化服务端直接切断底层连接、不发关闭帧来产生 | 决策 INC-06（authority：30/06 §6.5「客户端行为」列不同即分码） |
-| `session/auth-first-then-sync` | 连接后首帧为 `CONTROL.auth`；收到 `auth.ok` 之前不发 SYNC | 30/06 §6.3 |
-| `session/auth-timeout-backoff` | 5 s 内无 `auth.ok` → backoff | 30/06 §5.1 |
+| `transport/close-code-exact@<码>` | 对 1000、1001、1006、1011、1012、4205、4400、4401、4403、4404、4408、4409、4413、4426、4427、4428、4429、4503 逐一：脚本化服务端对原始 WS 以该码关闭，客户端 `onClose` 收到同一码（§4.21 起业务关闭一律走原始 `ws.close`，文档级 CLOSE 只带 reason，另有 `transport/doc-level-close` 断言其按 1011 处理）；1006 不能写进关闭帧（RFC 6455 保留码），改由脚本化服务端直接切断底层连接、不发关闭帧来产生 | 决策 INC-06（authority：30/06 §6.5「客户端行为」列不同即分码）；ADR-0039 |
+| `provider/auth-then-step1-queued`（§4.21，原 `session/auth-first-then-sync`） | 连接后 provider 先发 Auth 再立即发 step1 与 awareness（不等认证结果）；`token` 函数慢时 update 可能先于 Auth 上线，脚本化服务端断言这些帧在 `Authenticated` 之前都未被应用 | ADR-0039；核实 vA-A1 |
+| `provider/event-order` | `open` → `authenticated` → `synced` 的顺序；`auth.ok`（Stateless）分别先于与晚于服务端 step2 到达，reducer 终态相同 | 证据 d-06、CL-03 |
+| `provider/auth-failed-disconnects` | `token` 函数抛 401 → `authenticationFailed` → 立即断开，断开前后都没有无 Auth 的 step1 被服务端应用；网络错误同样断开并进入 backoff | 核实 CL-05 |
+| `provider/listener-order` | LocalBatcher 的 `onUpdate` 监听先于 provider；`outgoingMessage` 同步发生在垫片 `send` 之前；FIFO 条目与上线帧一一对应 | 证据 SY-02、K10-A |
+| `provider/leave-order` | `leave()` 顺序 flush → 等 db ack → `destroy()`；先 `destroy()` 的反例丢 ack | 核实 SY-07 |
+| `provider/v3-v4-interop` | `@hocuspocus/provider` 4.7.0 与 3.4.4 连同一进程内 Hocuspocus 4.7.0 时文档与 awareness 同步 | 证据 TS-04 |
+| `session/auth-timeout-backoff` | 自 WS 打开起 5 s 内无 `Authenticated` → 断开进入 backoff | 30/06 §5.1；证据 d-04 |
 | `session/backoff-sequence` | 退避 1 → 2 → 4 → 8 → 16 → 30 s 封顶，每次落在 ±20% 区间，序列由种子确定 | 30/06 §12 |
 | `session/offline-after-30s` | 自进入重连累计 29.9 s 未离线，30 s 离线 | rulings §4.18 UX-03 |
 | `session/online-false-immediate-offline` | `navigator.onLine=false`（去抖 2 s）立即 offline，期间不发起任何连接 | UX-03、CO-03 |
@@ -445,7 +456,29 @@ flowchart LR
 | `session/1012-first-retry-immediate` | 1012 后首轮重连不退避 | 30/06 §6.5 |
 | `session/refresh-401-denied`、`session/refresh-network-error-shares-timer` | 令牌刷新遇 401 直接 denied（对外「登录已过期」），不经 offline；网络错误走 backoff 并共用同一 30 s 计时 | rulings §4.18 UX-02、UX-03 |
 
-两级 ack 与在途 FIFO 属于 collab-yjs 的 `LocalBatcher`，不在传输 kit 内：用例在 `collab-yjs/__tests__/batcher.test.ts`（`test/unit`）与 [05 §9](./05-collab-simulation-and-property-tests.md) 的确定性脚本中执行；传输 kit 只证明其前提 `transport/frame-order-preserved`。各关闭码对应的客户端行为（重连、换票据、quarantined、提示刷新、丢弃本地 Y 状态）由 `collab-transport-ws/__tests__/heartbeat-and-close-codes.test.ts` 按 50/07 的关闭码行为表逐行断言。
+两级 ack 与在途 FIFO 属于 collab-yjs 的 `LocalBatcher`，不在传输 kit 内：用例在 `collab-yjs/__tests__/batcher.test.ts`（`test/unit`）与 [05 §9](./05-collab-simulation-and-property-tests.md) 的确定性脚本中执行；传输 kit 只证明其前提 `transport/frame-order-preserved`、`transport/frame-sent-metering` 与 `provider/listener-order`。各关闭码对应的客户端行为（重连、换票据、quarantined、提示刷新、丢弃本地 Y 状态）由 `collab-transport-ws/__tests__/close-policy.test.ts`（原 `heartbeat-and-close-codes.test.ts`，§4.21 删应用层心跳）按 50/07 的关闭码行为表逐行断言。
+
+**图 6-1 传输 kit 的 provider 分节怎么搭（§4.21）**
+
+```mermaid
+sequenceDiagram
+  participant K as kit 与 FixedClock、fake timers
+  participant HP as HocuspocusProvider，collab-yjs
+  participant TP as 被测 Provider：collab-transport-ws
+  participant MT as MemoryTransport
+  participant SS as createScriptedServer
+  K->>TP: open 取得 socket 句柄
+  K->>HP: 以句柄构造 provider
+  K->>TP: 调度器 connect
+  TP->>MT: 经 WebSocketPolyfill 建立内存连接
+  MT->>SS: handleConnection
+  HP->>SS: Auth，随即 step1 与 awareness
+  SS-->>HP: 按脚本回 Authenticated、Stateless 与原始 ws.close 码
+  K->>K: 断言事件顺序、onFrameSent 与关闭码
+```
+
+怎么读：kit 只替换网络（`MemoryTransport`）与服务端行为（脚本扩展），provider 与被测 Provider 都是生产代码；时间由 FixedClock 与 fake timers 一起推进，所以同一种子下时序完全可复现。
+依据：证据 TS-02、TS-05、d-30；ADR-0039。
 
 ### 6.2 `runOfflineStoreConformance`
 
@@ -693,6 +726,9 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 | D-M2-CONTENT | §10 `manifest-diff.test.ts` 自 M2 起运行 | rulings §4.19（用户裁决） |
 | BE-01+TX-03（先扣后退加上限） | §5.2 `admission/per-user-connection-cap-4429` | rulings §4.20（用户裁决） |
 | FE-01（UnitScope 默认 Provider 登记 API） | §9.1 `units/*` | rulings §4.20（默认值，用户确认） |
+| q-ws-gateway、H:q-hp-persist-ack、H:q-hp-provider（Hocuspocus 4 与官方 provider） | §3 #10、#20、`collabServer` 行；§5.2 集群形态、`gate/no-ack-after-drop`、`gate/broadcast-stateless-4400`、`session/preauth-frames-queued`、`hooks/exception-no-process-exit`、`session/auth-refresh-rebinds`；§6.1 `provider/*` 与图 6-1 | rulings §4.21（q-ws-gateway 为用户选择的非推荐项，其余为推荐项）；ADR-0039 |
+| H:q-hp-fanout（extension-redis + 文档哈希） | §5.2 `fanout/two-instance-sv-converge`、`fanout/doc-hash-single-holder`、`redis/valkey-down-no-process-exit` | rulings §4.21（推荐项） |
+| H:q-hp-step2-cap | §5.2 `gate/step2-over-16mib-4413` | rulings §4.21（推荐项） |
 
 ---
 
@@ -709,6 +745,7 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 7. [40/02 §5](../40-modules/02-kernel-protocol-and-document-core.md) kernel `testing/` 文件表登记 `conformance/kit.ts`（`defineConformanceKit`、`runKitSelfTest`、`ResourceTracker` 与 §2.1 类型）；`assertNoLiveEffects` 仍取自 `diagnostics/assert.ts`。
 
 8. [PRD 05](../10-prd/05-milestones-and-scope.md) M3「可插拔证据」的白名单改为 §10 定稿集合（rulings §4.19 D-COMMENTS-PKG 明示），并注明 `manifest-diff.test.ts` 自 M2 起运行。
+9. （§4.21）[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md) 与 [60/05](../60-backend/05-modules-collab-and-snapshots.md)：`server-collab/testing` 的 `createServerCluster(n)` 改为 n 个 Hocuspocus 实例 + 内存 pub/sub 替身驱动的 extension-redis；`FanoutBus` 的职责收窄为自有控制频道；`runCollabServerConformance` 的 `cases` 常量按 §5.2 更新。[40/05](../40-modules/05-collaboration-client.md) 的 `collab-transport-ws/testing` 登记 `createScriptedServer`、`__tests__` 改名 `close-policy.test.ts`（已同轮完成）。
 
 未决：
 
@@ -720,6 +757,7 @@ needsUser=false 的决策直接按推荐写入；needsUser=true 的五项已由 
 
 | 断言（what） | 执行方式（where） |
 |---|---|
+| `@hocuspocus/*` 升级 PR 必须跑完 `runCollabServerConformance` 与 `runCollabTransportConformance` 的 `provider/*` 分节 | `test/contract`、`test/server-integration`（依赖变更触发，ADR-0039 升级规则） |
 | 每个 provider 包有对应 kit 调用 | `scan-manifest` 规则 (e)（`scanners` job）；扫描范围含 `apps/server/test/integration/conformance/`（回写项 1） |
 | 每个 kit 有 BrokenProvider 自测且负向样例各自在声明的用例上失败 | `runKitSelfTest`（`test/contract`）；存在性作为 `scan-manifest` 规则 (e) 的子项核对（回写项 1） |
 | kit 不可裁剪 | `kernel/testing` 的类型测试 `kit-options.type-test.ts` 断言 `KitOptions` 无 `skip`/`only`/`exclude`/`cases` 键（`test-typecheck`）；conformance reporter 比对已执行 id 与全集（`test/contract`） |

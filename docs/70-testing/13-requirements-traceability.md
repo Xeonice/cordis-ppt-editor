@@ -1,6 +1,6 @@
 # 13 需求 → 测试可追溯矩阵
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20） | 依赖：rulings §4.20（含来源所指 `_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical`、`plan.deferred`）、rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：新增能力 id 追溯——`@cap` 标签、`capabilities.json`、R11 与 §5a 能力 id → 测试用例表）；2026-09-26（§4.21 整合：§3.3 / §3.4 登记 PRD 05 M2 验收 18、M3 验收 19 为既有检查子集（ED-15a、ED-31–ED-35；图表编辑往返判定）；§6 CO-10 行改 step2 单设 16 MiB；§7 0023 行改 provider v3/v4 互连，新增 0039 行；关闭码测试名改 close-policy.test）；2026-09-26（§4.21 复核：能力数改 165，补 INS-20 行） | 依赖：[50/18](../50-frontend/18-editor-capabilities.md) §1.3、§2–§26（rulings §4.21）、rulings §4.20（含来源所指 `_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical`、`plan.deferred`）、rulings §4.19（含末句所指 `_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions`）、[30/11 §17](../30-architecture/11-testing-strategy.md)、[09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)、[09-07 §2.1](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) §0.2 / M0 验收 3 / M0–M5 验收与可插拔证据 / §6、[PRD README](../10-prd/README.md) §1.3、[PRD 03/03](../10-prd/03-features/03-collaboration.md) CO-01–CO-15、30-architecture/adr 各 ADR「如何被机械验证」、rulings §4.15 / §4.17 / §4.18、[40/14 §5](../40-modules/14-cross-module-review.md)
 
 本文是需求追溯的唯一事实源：测试上的三类追溯标签怎么写、需求与检查名清单从哪里生成、矩阵怎么产出和判定、PRD 检查名目录、NFR / 裁决 / ADR 到测试的映射、人工与半机械项、维护流程。标签的格式与存在性检查、矩阵产出由扫描器 `scan-requirement-tags`（09-06 §12）执行；完整性判定在 `test/requirement-matrix` 步骤（[12](./12-ci-gates-mapping.md)）；扫描器本身不判定完整性（09-06 §12 的职责边界）。
 
@@ -8,7 +8,7 @@
 
 | 本文拥有 | 引用（以对方为准） |
 |---|---|
-| 标签语法与位置；`requirements.json` 等清单的生成口径；判定规则 R1–R10；PRD 检查名 → 测试 → 步骤 → 形态的目录；NFR、裁决、ADR 的映射与义务清单；人工项的统计口径；维护流程 | 需求本身：PRD；验收阈值与检查名定义：PRD 05；扫描器规格：09-06 §12；CI 步骤名与激活：[12](./12-ci-gates-mapping.md)；证据文件头格式：[01 §8](./01-strategy-and-layers.md)；安全用例目录：[10](./10-security-testing.md) |
+| 标签语法与位置；`requirements.json`、`capabilities.json` 等清单的生成口径；判定规则 R1–R11；能力 id → 测试用例的追溯表（§5a）；PRD 检查名 → 测试 → 步骤 → 形态的目录；NFR、裁决、ADR 的映射与义务清单；人工项的统计口径；维护流程 | 需求本身：PRD；能力 id、所属域与里程碑：[50/18](../50-frontend/18-editor-capabilities.md)；验收阈值与检查名定义：PRD 05；扫描器规格：09-06 §12；CI 步骤名与激活：[12](./12-ci-gates-mapping.md)；证据文件头格式：[01 §8](./01-strategy-and-layers.md)；安全用例目录：[10](./10-security-testing.md) |
 
 ---
 
@@ -23,10 +23,12 @@
 | `@req` | `PRD:(OF\|ED\|CO\|PS\|EM\|SV\|ML\|AS\|NF)-\d{2}` | `@req PRD:SV-05` | PRD 需求 id（PRD 03 八个功能域 + PRD 04 的 NF；PRD 06 的 MT 指标不是需求，不作标签） | `tooling/policy/requirements.json` |
 | `@ruling` | `4\.\d{1,2}/[A-Z][A-Z0-9]*(-[0-9A-Za-z]+)*` | `@ruling 4.18/CO-08`、`@ruling 4.15/Q3`、`@ruling 4.17/D4`、`@ruling 4.19/SESSION` | rulings 各节的条目 id（表格第一列；§4.18 另含「规格空白默认值」列表与「机械修正」清单的 id，§2）；组合 id（如 `INC-03/04/05`、`C-20/G-13/G-14`）拆成单个 id 各写一次 | `tooling/policy/rulings.json` |
 | `@adr` | `\d{4}/\d{1,2}` | `@adr 0029/3`、`@adr 0025/8` | ADR「决策」节的条目序号（决策只有一段时记为 1） | `tooling/policy/adrs.json` |
+| `@cap`（2026-09-26 追加） | `(SEL\|ALN\|ARR\|INS\|TXT\|FMT\|PIC\|MED\|TBL\|CHT\|ML\|SLD\|VIEW\|FND\|CLP\|UND\|CMT\|SHW\|EXP\|COL\|OFF\|KEY\|UI\|A11Y\|I18N\|DOC)-\d{2}` | `@cap SEL-10`、`@cap INS-13` | 编辑器能力 id（[50/18](../50-frontend/18-editor-capabilities.md) 各域能力表首列，25 域 164 项） | `tooling/policy/capabilities.json` |
 
 - **为什么要前缀**：rulings §4.18 的条目编号（`CO-08`、`BE-02`、`UX-03`…）与 PRD 需求编号同形，`CO-08` 单独出现时无法判断指 PRD「冲突语义」还是裁决「故障期广播」。`PRD:` 与 `<节>/` 前缀使两者不会混淆。
 - **`4.19`**：§4.19 的条目集合 = 该节表格第一列的 5 项用户裁决（D-M2-CONTENT、INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA）+ 表末单独一行的补完阶段用户裁决 `N1-IMPORT-OVERWRITE-RESTORE-LOCK`（2026-09-25 追加）+ 按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（共 81 条，含上述 5 项，其余 76 项为 INC-*、SESSION、C-*、T-* 等；组合 id 拆开，省略前缀的段继承前一段前缀，如 `INC-03/04/05` → `INC-03`、`INC-04`、`INC-05`，`C-20/G-13/G-14` → `C-20`、`G-13`、`G-14`）。两部分取并集，都由生成脚本写入 `rulings.json`（§2），`@ruling 4.19/<id>` 与其它节一样做存在性检查：`@ruling 4.19/SESSION`、`@ruling 4.19/T-CI` 等标签只有在读取 evidence 后才能通过，不另设「只查格式」的过渡口径。
 - **`4.20`**（2026-09-26 追加）：§4.20 的条目集合 = 该节表格第一列 15 项（3 项用户决策 + 12 项默认值）+ 按 §4.20 来源所指读取 `00-charter/_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical[].id`（25 条）与 `plan.deferred[].id`（5 条）。组合 id 按 `+` 拆开（`BE-01+TX-03` → `BE-01`、`TX-03`）；`·` 之后的后缀先去掉再拆（`BE-07+TX-05·登记` → `BE-07`、`TX-05`，`FE-09·正文` → `FE-09`）；拆出的重复 id 合并。例：`@ruling 4.20/BE-01`、`@ruling 4.20/TX-22`、`@ruling 4.20/FE-04`。
+- **`@cap`**（2026-09-26 追加，rulings §4.21）：能力 id 比 PRD 需求 id 细一级（例如 PRD ED-05 下分出 SEL-10 调整手柄、SEL-11 翻转、INS-03 形状库），用来回答「编辑器的每一项能力有没有测试」。它不替代 `@req`：同一个测试通常同时带 `@req PRD:ED-05` 与 `@cap SEL-11`，P0 / P1 的门禁仍由 `@req` 经 R1、R5 执行，`@cap` 只进 R11 报告。能力 id 前缀没有冒号前缀，因为它们与 PRD（`PRD:`）和裁决（`4.xx/`）的编号都不同形。
 - **旧写法作废**：30/11 §17 的文件顶部 `// @req CO-08` 与 09-06 §12 规则 (a) 的正则 `^[A-Z]{2,3}-\d{2,3}$` 按本节改写（回写见 §11）；旧写法由规则 (a) 报错并提示新写法。
 
 ### 1.2 写在哪里
@@ -52,7 +54,7 @@ describe('PG 断开期间照常广播', () => {
 
 ### 1.3 产出与判定
 
-- **扫描器 `scan-requirement-tags`**（`scanners` job 与 pre-commit，09-07 §2.1）：规则 (a) 语法；(b) id 存在于对应清单；(c) 产出 `dist/requirement-test-matrix.json`，条目扩展为 `{ tag: 'req' | 'ruling' | 'adr', id, tests: [{ file, title, line, scope: 'file' | 'describe' | 'test' }] }[]`（回写 09-06 §12，§11）。
+- **扫描器 `scan-requirement-tags`**（`scanners` job 与 pre-commit，09-07 §2.1）：规则 (a) 语法；(b) id 存在于对应清单；(c) 产出 `dist/requirement-test-matrix.json`，条目扩展为 `{ tag: 'req' | 'ruling' | 'adr' | 'cap', id, tests: [{ file, title, line, scope: 'file' | 'describe' | 'test' }] }[]`（回写 09-06 §12，§11）。
 - **判定器 `test/traceability/judge.ts`**（`test/requirement-matrix` 步骤）：读矩阵、`requirements.json`、`check-names.json`、`obligations.json`（本文 §4、§6、§7 的机器副本）、`tooling/ci/steps.json`、`tooling/policy/milestones.json`、证据文件头、`test/security/*.json`，产出 `dist/traceability-report.{json,html}` 与一条 PR 注释。
 - **里程碑状态**：`milestones.json` 为每个里程碑记录 `status ∈ {planned, active, exit-review, done}`（在既有「完成日期」字段之外新增，回写见 §11）。
 
@@ -67,7 +69,8 @@ describe('PG 断开期间照常广播', () => {
 | R7 | 本 PR 新增、却没有任何追溯标签的测试文件 | 报告（PR 注释提示） |
 | R8 | 安全用例目录与 ASVS 映射完整（[10 §16](./10-security-testing.md)） | 失败 |
 | R9 | 证据文件头字段齐全、`result` 取值合法 | 失败 |
-| R10 | `gen-requirements --check`：PRD 或 rulings 改动后未重新生成清单 | 失败 |
+| R10 | `gen-requirements --check`：PRD、rulings 或 50/18 改动后未重新生成清单 | 失败 |
+| R11 | 能力 id（2026-09-26 追加）：`capabilities.json` 中主里程碑为 `exit-review` / `done`、本轮后覆盖度为「已写清」或「补齐」的能力，没有任何带 `@cap` 的测试被已激活步骤收集；逐域列出缺口（§5a） | 报告 |
 
 **图 13-1 追溯矩阵的生成与门禁**
 
@@ -80,7 +83,7 @@ flowchart LR
   rul["rulings 与 ADR 全文"] --> gen
   gen --> reqj["requirements.json、check-names.json、rulings.json、adrs.json"]
   reqj --> scan
-  obl["obligations.json：本文 §4、§6、§7"] --> judge["test/requirement-matrix：判定 R1–R10"]
+  obl["obligations.json：本文 §4、§6、§7"] --> judge["test/requirement-matrix：判定 R1–R11"]
   steps["tooling/ci/steps.json"] --> judge
   ms["milestones.json：里程碑状态"] --> judge
   matrix --> judge
@@ -151,6 +154,7 @@ erDiagram
 | `10-prd/05-milestones-and-scope.md` | 各里程碑「验收标准」编号条目**开头**（首个冒号之前）以反引号包裹的 `域:名`，可多个以 `+` 相连（如 M3 验收 10 的三项）；条目正文中其它反引号内容（如 `dsp:drawing`、`doc-type:new`）不算；无名条目记为 `<里程碑>#<序号>`（如 `M1#7`）；「可插拔证据」段「CI 检查」后的 `pluggable:mN`；「发布前检查」等非验收列表不解析 | 同一文件的 `checks[]`：`{ id, milestone, text }` |
 | `00-charter/rulings-2026-09-14.md` | 各节表格第一列的条目 id 与所在节号；§4.18「规格空白默认值」各列表项开头加粗的 id（如 **CO-10**）；§4.18「机械修正」按正文所指读取 `00-charter/_evidence/contradiction-plan-2026-09-25.json` 的 `plan.mechanical[].id`（如 `UX-13`、`CO-11`）；§4.19 表格第一列 5 项与表末 `N1-IMPORT-OVERWRITE-RESTORE-LOCK` 行，另按 §4.19 末句读取 `00-charter/_evidence/design-tracks-plan-2026-09-25.json` 的 `leftoverDecisions[].id`（与 §4.18 机械修正读取 evidence 同一先例）；§4.20 表格第一列 15 项，另读取 `00-charter/_evidence/leftovers-plan-2026-09-26.json` 的 `plan.mechanical[].id` 与 `plan.deferred[].id`（拆法见 §1.1）；组合 id 一律拆开 | `tooling/policy/rulings.json` |
 | `30-architecture/adr/*.md` | 「决策」节的编号条目与 ADR 状态 | `tooling/policy/adrs.json` |
+| `50-frontend/18-editor-capabilities.md`（2026-09-26 追加） | 各域能力表中首列匹配 `@cap` 语法的行：id、所在节、「出处」列里的 PRD id、「里程碑」列的主里程碑（取最先出现的 `Mn`）、「覆盖度」列箭头后的值 | `tooling/policy/capabilities.json`：`{ id, domain, section, prd[], milestone, coverage }[]` |
 
 - **M0 验收 3「字段齐全」**：同一脚本对每条 P0 需求检查 id 唯一、优先级、目标里程碑、验收标准四项齐全，缺一即列出并失败。
 - **人工维护、生成脚本不碰的两份映射**：`test/traceability/check-names.json`（§3 的机器副本：检查名 → 测试文件模式、步骤、形态）与 `test/traceability/obligations.json`（§4、§6、§7 的机器副本：NF / 裁决 / ADR 义务 → 里程碑、步骤、文件模式）。判定器断言 `check-names.json` 的键集合 = 生成的 `checks[]`（多一个或少一个都失败）。
@@ -300,6 +304,8 @@ flowchart TB
 
 **rulings §4.19 D-M2-CONTENT 对检查名的影响**（PRD 05 已按裁决修订，M2 / M3 边界以 PRD 05 §0.3 为准）：协同网关、Room（单实例）、update 持久化与快照、服务端导入提前到 M2，新增 M2 验收 14–17（上表 `server:import`、`collab:persist`、`collab:gate`、`collab:degraded`）；原 M3 的 `collab:softgate` 主体提前为 `collab:gate`，`server:jobs` 只剩服务端导出，`server:durability` 只剩多实例部分（含跨实例溢写认领；单实例溢写与两级 ack 在 M2 `collab:degraded`）（§3.4）。`check-names.json` 与本节同一 PR 更新（§9 第 2 条）。
 
+**rulings §4.21 插入元素**（2026-09-26 整合登记）：PRD 05 M2 验收 18「插入元素」是既有检查 `e2e:editing` 与 `fidelity:edit-roundtrip` 的子集，不新增检查名；PRD 02 本轮新增的需求编号 ED-15a、ED-31、ED-32、ED-33、ED-34、ED-35 照常以 `@req PRD:ED-xx` 进入需求矩阵（用例文件 `editing/ed-<编号>-*.spec.ts`，[06 §5](./06-frontend-component-and-e2e.md) 第 2 行），其中到 M2 的条目计入 `e2e:editing` 的 R5 覆盖，其余按各自里程碑激活。
+
 ### 3.4 M3
 
 | 检查 | 断言摘要 | 落点 | 步骤 | 形态 |
@@ -327,6 +333,8 @@ flowchart TB
 | `security:rls` | 绕过应用层直连 PG 越权被 RLS 拒绝；OIDC 登录、`selfSignup` 默认关、分享链接要求登录各有 e2e | SEC-DA-01 / 02、SEC-AU-02、SEC-AZ-09 | `e2e/smoke`、`scanners/check-rls-coverage`、`test/server-integration` | 机械 |
 | `collab:undo` | 同键跳过、整步不连撤、墓碑与恢复、TTL 与永久删除不等 TTL、彻底删除元素后整步跳过；两个 store 同一套件 | `runDocumentStoreConformance` 中性撤销分节（[02 §4](./02-contract-suites-and-pluggability.md)）；[05 §7](./05-collab-simulation-and-property-tests.md)；[07 §10](./07-backend-integration-and-api-e2e.md) | `test/contract`、`test/collab-sim`、`test/server-integration` | 机械 |
 | `pluggable:m3` | 两个 preset 的 Manifest 差异恰为白名单 `{−store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments}`；M2 编辑 e2e 在 store-yjs 下重跑；移除 collab 仍能启动 | [02 §10](./02-contract-suites-and-pluggability.md)（白名单按 rulings §4.19 D-COMMENTS-PKG 定稿；`manifest-diff.test.ts` 自 M2 起运行、M2 期间不含 `+comments`） | `test/unit`、`e2e/full-compose` | 机械 |
+
+**rulings §4.21 插入图表与表格结构**（2026-09-26 整合登记）：PRD 05 M3 验收 19 同样是 `e2e:editing`（M3 子集）与 `fidelity:edit-roundtrip` 的子集，不新增检查名。其中图表编辑往返（ED-15 / ED-15a）的判定为：编辑后导出由维护机打开无修复、「编辑数据」可打开内嵌工作簿（半机械，归 `fidelity:interop`，[03 §5.3](./03-fidelity-roundtrip-and-corpus.md)）；导出 PNG 按 `chart` 类别达标（[04 §8.1](./04-visual-oracle.md)，`e2e/oracle-gated`）。
 
 **图 13-5 M3 出口与检查名（协同与权限）**
 
@@ -451,7 +459,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | NF-06 | 国际化 | 各语言键集合一致（`scan-contributions` 规则 (f)）、缺键编译失败、伪本地化与 RTL 伪语言、语言包 ≤ 30 KB、切换 ≤ 200 ms（[06 §8](./06-frontend-component-and-e2e.md)） | `scanners/scan-contributions`、`typecheck`、`e2e/full-compose`、`scanners/scan-bundle-budget`、`perf/perf-client` | M1 / M2 |
 | NF-07 | 浏览器与运行时矩阵 | Playwright 工程按里程碑扩展（[06 §3](./06-frontend-component-and-e2e.md)）；Node 26 基线（`lockfile-guard`） | 全部浏览器 e2e 步骤、`scanners/lockfile-guard` | M1 / M2 / M3 |
 | NF-08 | 互操作 | PowerPoint 打开无修复（半机械）；LibreOffice 不崩溃（nightly 报告）；多生产方输入打开 100%（T2 语料） | 证据；`test/fidelity-roundtrip` | M1 / M2 |
-| NF-09 | 可维护性与质量门禁 | 本文 R1–R10；patch 覆盖率；语料 PR ≤ 10 min；PR 性能 D50；类型逃逸预算 | `test/requirement-matrix`、`coverage-patch`、`test/fidelity-roundtrip`、`perf/perf-client`、`scanners` | M0 起 |
+| NF-09 | 可维护性与质量门禁 | 本文 R1–R11；patch 覆盖率；语料 PR ≤ 10 min；PR 性能 D50；类型逃逸预算 | `test/requirement-matrix`、`coverage-patch`、`test/fidelity-roundtrip`、`perf/perf-client`、`scanners` | M0 起 |
 | NF-10 | 容量 | 2,000 WS、按权重准入、单文档 update 日志 ≤ 10 × 快照、每实例 4 并发作业 | `perf/perf-server`、`perf/perf-collab`、`test/server-integration` | M3 |
 | NF-11 | 隐私与合规 | SEC-CL-04…06、SEC-DA-07；数据处理清单 | `e2e/full-compose`、`test/server-integration`；证据 | M2 / M3 |
 | NF-12 | 文档与支持 | `docs:coverage`（M4）；错误码手册由登记表生成、每个码有文案键（`scan-observability-identifiers`、决策 ERR-COPY 的 `scan-contributions` 子规则）；其余为交付物清单 | `api-surface/docs-coverage`、`scanners` | M1 / M4 |
@@ -472,6 +480,94 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | PS 插件 SDK | `packages/kernel` 同位测试、各包 `lifecycle.test.ts`、`test/plugin-compat/`、`examples/**` | `test/lifecycle`、`test/contract`、`test-typecheck`、`api-surface` | [02](./02-contract-suites-and-pluggability.md) |
 | EM 嵌入集成 | `packages/preset-*/src/__tests__/`、`examples/embed-*`、`apps/web/e2e/embed/**` | `test/lifecycle`、`test/unit`、`e2e/full-compose`、`scanners/scan-bundle-budget` | [02 §10](./02-contract-suites-and-pluggability.md)、[06](./06-frontend-component-and-e2e.md) |
 | SV 服务端运维 | `apps/server/src/**/__tests__/`、`apps/server/test/{integration,e2e}/**`、`test/deploy/` | `test/server-integration`、`e2e/smoke`、`e2e/full-compose`、`e2e/full-airgap`、`perf/perf-server` | [07](./07-backend-integration-and-api-e2e.md)、[08](./08-deployment-and-environment-e2e.md)、[10](./10-security-testing.md) |
+
+---
+
+## 5a. 能力 id 追溯（2026-09-26 追加，rulings §4.21）
+
+[50/18](../50-frontend/18-editor-capabilities.md) 把编辑器拆成 25 个域、165 项能力（§1.3 统计；2026-09-26 复核从 INS-16 拆出 INS-20），每项有能力 id（`SEL-`、`INS-`、`TXT-`…）。本节回答「每项能力由哪些测试覆盖」：测试在 JSDoc 里写 `@cap <能力 id>`（§1.1），扫描器把它并入追溯矩阵，判定器按 R11 逐域报告缺口。下表是人工正本，列出每项能力**应当**落在哪些测试文件与步骤；带「新增」的测试文件由本轮能力补齐引入，文件登记随 40-modules 各篇的测试布局（§9）回写。区间写法 `SEL-01–04` 表示 SEL-01、SEL-02、SEL-03、SEL-04，`doc-sync.test.ts` 展开后与 50/18 的能力 id 集合比对（§10）。
+
+**图 13-7 能力 id 进入追溯矩阵**
+
+```mermaid
+flowchart LR
+  cap["50/18 各域能力表"] --> gen["gen-requirements：解析能力行"]
+  gen --> cj["capabilities.json：id、域、PRD、里程碑、覆盖度"]
+  test["测试 JSDoc：@req 与 @cap"] --> scan["scan-requirement-tags：语法与存在性"]
+  cj --> scan
+  scan --> matrix["requirement-test-matrix.json，tag 含 cap"]
+  matrix --> judge["判定器：R11 逐域报告"]
+  cj --> judge
+  table["本节 §5a 表"] --> sync["doc-sync.test.ts：id 集合一致"]
+  cap --> sync
+  judge --> report["traceability-report：能力覆盖分域表"]
+```
+
+怎么读：能力表是唯一来源，生成物与本节表格都从它派生；`@cap` 只进报告（R11），门禁仍由 `@req` 承担（R1、R5），所以一个能力缺测试不会单独挡住合并，但会出现在里程碑出口评审读取的报告里。
+
+依据：rulings §4.21；50/18 §1.3、§30；本文 §1.1、§1.3。
+
+| 能力 id | 单元与组件测试（包内 `src/__tests__/` 或同位） | 浏览器 e2e（`apps/web/e2e/`） | 步骤 | 主里程碑 |
+|---|---|---|---|---|
+| SEL-01–04 | slide-ui `canvas-interaction.test.ts`（点选、框选、Tab 循环）、`selection-kind.test.ts`；engine-render 命中测试同位单测；ui-core `shortcuts.service.test.ts`（Esc 链） | `editing/ed-01-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| SEL-05、SEL-15 | slide-ui `handles.test.ts`（锁定时手柄隐藏或显示锁形）；model-slide `shape-commands` 同位单测（`setLocks`，新增） | `editing/element-handles.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| SEL-06 | slide-ui `selection-pane.test.tsx`（新增，P2） | — | `test/unit` | M2 P2 |
+| SEL-07–09 | slide-ui `canvas-interaction.test.ts`（N 帧一次命令、Esc 零命令）；engine-layout `affine.test.ts` | `editing/ed-05-*.spec.ts` | `test/unit`、`e2e/full-compose`、`perf/perf-client`（拖动帧率） | M2 |
+| SEL-10、SEL-11 | slide-ui `handles.test.ts`（调整手柄反解与一次命令）；model-slide `flipShapes` 同位单测（旋转角取反、文字不镜像） | `editing/element-handles.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/oracle-gated`（翻转样例） | M2 |
+| SEL-12、SEL-13、SEL-16 | slide-ui `inspector-sections.test.tsx`（数值与单位换算）、`shortcuts.test.ts`（微移与 `Shift+Alt+方向键`） | `a11y/**` 键盘用例（[06 §7.3](./06-frontend-component-and-e2e.md)「拖拽的键盘等价」行） | `test/unit`、`e2e/a11y` | M2 |
+| SEL-14 | slide-ui `shortcuts.test.ts`（`Mod+D` 偏移 0.2 in、连按等距）、`canvas-interaction.test.ts`（`Mod` 拖动） | `editing/ed-08-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| ALN-01 | slide-ui `guides` 同位单测（候选与 4 px 阈值、Alt 关闭） | `editing/ed-09-*.spec.ts` | `test/unit`、`perf/perf-client`（吸附 p95） | M2 |
+| ALN-02–04 | model-slide `alignShapes` / `distributeShapes` 同位单测（`relativeTo`）；render-dom 网格覆盖层单测（新增）；`setGuides`（P2） | `editing/ed-09-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| ARR-01–05 | model-slide `shape-commands` 同位单测（`bringToFront` / `sendToBack` 只改 `order`、取消组合折算、`renameShape`、`setAltText` 与 `decorative`）；`mutations-property.test.ts` | `editing/ed-08-*.spec.ts`、`editing/ed-26-*.spec.ts` | `test/unit`、`e2e/full-compose`、`test/fidelity-roundtrip`（`adec:decorative` 往返） | M2 |
+| INS-01、INS-02 | slide-ui `insert-tool.test.ts`（工具态、Esc 零命令、空文本框与插入合并） | `editing/insert-tools.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| INS-03、INS-04 | slide-ui `shape-gallery.test.ts`（72 项数据与缩略图一致）、`handles.test.ts`（端点与连接点）；engine-layout `connector-routing.test.ts` | `editing/insert-tools.spec.ts`、`editing/element-handles.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/oracle-gated`（形状库快照） | M2 |
+| INS-05 | model-slide `insertFreeform` 同位单测（新增，P2） | — | `test/unit` | M2 P2 |
+| INS-06–08 | render-dom `image-preprocess.test.ts`（尺寸与 DPI、SVG 回退、压缩）；apps/web 上传队列单测 | `editing/insert-upload.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| INS-09 | model-slide `table-commands` 同位单测（默认样式与尺寸） | `editing/ed-10-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| INS-10 | slide-render-chart `chart-data-roundtrip.test.ts`（插入后导出） | `editing/ed-15a-*.spec.ts` | `test/unit`、`test/fidelity-roundtrip` | M3 |
+| INS-11、INS-12、INS-15 | model-slide `media-commands` 同位单测（`insertMedia` 不写 `p:timing`、`insertIcons`）；slide-ui 符号面板单测（新增） | `editing/ed-35-*.spec.ts`、`editing/ed-32-*.spec.ts`、`editing/ed-33-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 P2 / M3 |
+| INS-13 | slide-ui 超链接对话框单测（新增，协议白名单）；ui-core `openExternal` 单测 | `editing/ed-19-*.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/smoke`（`javascript:` 拒写，[10](./10-security-testing.md)） | M2 |
+| INS-14、INS-17 | model-slide `header-footer-commands`、`fill-placeholder-commands` 同位单测 | `editing/ed-31-*.spec.ts`、`editing/insert-upload.spec.ts`（空占位符填入） | `test/unit`、`e2e/full-compose` | M2 |
+| INS-16 | ooxml-pptx 往返语料（只读对象可移动删除、原样写回） | — | `test/fidelity-roundtrip` | 非目标 |
+| INS-20 | 公式 OMML 往返语料（M1–M3 只读原样写回）；M4+ 立项时补 OMML↔MathML 转换单测 | — | `test/fidelity-roundtrip` | M4+ |
+| INS-18、INS-19 | `preset-slide` 的 `pluggable.test.ts`；model-slide `slide-commands` 同位单测 | `plugins/plugin-qr-shape.spec.ts`、`editing/ed-11-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| TXT-01–03 | slide-ui `text-editing.test.ts`；render-dom `ime-composition.test.ts`（vitest browser） | `ime/*.spec.ts`、`editing/ed-02-*.spec.ts` | `test/unit`、`e2e/full-compose`；真机手测见 §8 | M2 |
+| TXT-04–08 | model-slide `text-commands` 同位单测（`setFontFamily{script}`、`setBaseline`、`setCaps`、`setParagraphSpacing`、`setIndent`、`setBullet` 预设、`setBodyProperties`）；slide-ui `command-bindings.test.ts`（字号阶梯） | `editing/ed-03-*.spec.ts`、`editing/ed-04-*.spec.ts` | `test/unit`、`e2e/full-compose`、`test/fidelity-roundtrip`（编辑脚本语料） | M2 |
+| TXT-09、TXT-10 | engine-layout autofit 收敛单测；slide-render `elements.render.test.ts`；ui-react `hosts.test.tsx`（迷你工具条锚定） | `editing/ed-24-*.spec.ts`、`editing/ed-12-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| TXT-11–15、TXT-18 | 各自落地时的同位单测（P2 与 M4+） | — | `test/unit` | M2 P2 / M4+ |
+| TXT-16 | slide-ui `table-selection.test.ts`（新增，跨格导航） | `editing/ed-10-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| TXT-17 | slide-ui 备注栏文本宿主单测 | `editing/ed-18-*.spec.ts` | `test/unit`、`e2e/full-compose` | M3 |
+| FMT-01–03 | ui-react 颜色选择器单测（主题格 → `schemeClr` + 明暗修饰）；slide-ui 渐变编辑器单测（新增） | `editing/ed-06-*.spec.ts` | `test/unit`、`e2e/full-compose`、`test/fidelity-roundtrip` | M2 |
+| FMT-04–11 | model-slide `setShapeStyle`（不烤显式值）、`changeShape`、效果预设同位单测；ui-react `MixedValueField` 单测 | `editing/ed-06-*.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/oracle-gated`（箭头与阴影快照） | M2 |
+| PIC-01–06 | slide-ui `crop.test.ts`（裁剪模式一次命令、Esc 零命令、`srcRect` 单位）；model-slide `picture-commands` 同位单测（重置、透明度、填充 / 适合） | `editing/ed-07-*.spec.ts`、`editing/element-handles.spec.ts` | `test/unit`、`e2e/full-compose`、`test/fidelity-roundtrip` | M2 |
+| PIC-07–10 | slide-render `emf-rasterizer` 与 `degrade.test.ts`；render-dom `image-preprocess.test.ts`（GIF 首帧）；外链策略单测 | `open/open-render.spec.ts`、`editing/insert-upload.spec.ts`（占位与重试） | `test/unit`、`e2e/full-compose`、`e2e/oracle-gated` | M1 / M2 |
+| MED-01–04 | render-dom `media-playback.test.ts`（不写 Store、翻页即停）；slide-ui `present.test.ts` | `editing/ed-21-*.spec.ts`、`resources/**`（播放元素不泄漏，[06 §11](./06-frontend-component-and-e2e.md)） | `test/unit`、`e2e/full-compose` | M1 / M2 |
+| TBL-01 | slide-ui `table-selection.test.ts`（新增，状态机） | `editing/ed-10-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| TBL-02–06 | model-slide `table-commands` 同位单测；不变量 I-TBL1 / I-TBL2 性质测试；协同插行插列并发收敛 | `editing/ed-10-*.spec.ts`（M3 段） | `test/unit`、`test/collab-sim`（[05](./05-collab-simulation-and-property-tests.md)）、`test/fidelity-roundtrip`、`e2e/oracle-gated`（表格 SSIM） | M3 |
+| CHT-01、CHT-02、CHT-05 | slide-render-chart `renderers.test.ts`（SSIM 与墨迹 IoU）；slide-render `degrade.test.ts`（占位） | `open/open-render.spec.ts` | `test/unit`、`e2e/oracle-gated` | M1 |
+| CHT-03、CHT-04 | slide-render-chart `chart-data-roundtrip.test.ts`；slide-ui 数据网格单测（新增） | `editing/ed-15-*.spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`e2e/full-compose` | M3 |
+| ML-01–03、ML-09 | slide-ui `master-view.test.ts`、`layout-actions.test.ts`；model-slide `setSlideBackground` 同位单测 | `editing/master-view.spec.ts`、`editing/layout-apply.spec.ts`、`editing/ed-20-*.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/oracle-gated` | M2 |
+| ML-04–08 | 同上；model-slide 命令层集成（删除确认后可撤销） | `editing/master-layout-delete.spec.ts`、`editing/theme-apply.spec.ts` | `test/unit`、`e2e/full-compose`、`test/collab-sim` | M3 |
+| ML-10 | 落地时补 | — | — | M4 |
+| SLD-01–04、SLD-08 | slide-ui `thumbnails.test.tsx`（虚拟化、拖拽与键盘等价、节标题行）；model-slide `element-limits` 单测 | `editing/ed-11-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| SLD-05–07 | model-slide 节命令与 `pasteSlides` 同位单测（新增） | `editing/ed-11-*.spec.ts`（M3 段） | `test/unit`、`e2e/full-compose` | M3 / M2 P2 |
+| VIEW-01–05 | engine-render 视口单测；ui-react `editor-shell.breakpoints.test.tsx` | `editing/ed-22-*.spec.ts`、`viewer/viewer.spec.ts` | `test/unit`、`e2e/full-compose` | M2（VIEW-04 待决、VIEW-05 M4） |
+| FND-01–04 | model-slide `text-search` 同位单测（新增，跨 run 命中、全字）；`replaceAll` 一个事务 | `editing/ed-13-*.spec.ts`、`viewer/viewer.spec.ts`（查看器搜索） | `test/unit`、`e2e/full-compose`、`perf/perf-client`（`client.search.d200`） | M2 |
+| CLP-01–04 | ui-core `input-pipelines.test.ts`（MIME 优先级、HTML 取文本） | `editing/ed-17-*.spec.ts` | `test/unit`、`e2e/full-compose`、`e2e/smoke`（粘贴零外呼） | M2 / M3 |
+| UND-01–03 | `runDocumentStoreConformance` 撤销分节（[02 §4](./02-contract-suites-and-pluggability.md)）；`history:property` | `editing/edit-undo-export.spec.ts`、`collab/collab-two-browsers.spec.ts` | `test/unit`、`test/contract`、`test/collab-sim`、`e2e/full-compose` | M2 / M3 |
+| CMT-01 | `@cordexjs/comments` 同位单测；slide-ui 锚点 resolver 单测 | `comments/*.spec.ts` | `test/unit`、`e2e/full-compose` | M3 |
+| SHW-01–06 | slide-ui `present.test.ts`（动词清单、黑白屏、全屏目标） | `editing/ed-21-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| EXP-01–06 | ooxml-pptx 往返与 `determinism.test.ts`；slide-render `thumbnails.test.ts`（`exportImage` 含 `svg`）；apps/web 导出作业状态机单测 | `editing/export-*.spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`e2e/full-compose`、`perf/perf-server` | M2 / M3 |
+| COL-01–03 | ui-core `collab-ui-state` 单测；协同契约与模拟 | `collab/collab-two-browsers.spec.ts`、`collab/single-user-persist.spec.ts` | `test/contract`、`test/collab-sim`、`e2e/full-compose` | M2 / M3 |
+| OFF-01–03 | 离线计时与 step2 上限（[05 §9](./05-collab-simulation-and-property-tests.md)） | `collab/offline.spec.ts` | `test/collab-sim`、`e2e/full-compose` | M2 / M3 / M4 |
+| KEY-01–03 | slide-ui `shortcuts.test.ts`（默认表无冲突、逐条对齐 ED-16）；ui-core `chord.test.ts` | `a11y/**` 键盘用例 | `test/unit`、`e2e/a11y` | M2 |
+| UI-01–05 | slide-ui `selection-kind.test.ts`、`inspector-spec.test.ts`、`ribbon-spec.test.ts`（命令已注册）、`contributions.test.ts`；ui-react `contribution-renderer.test.tsx`（禁用带原因） | `editing/ed-12-*.spec.ts`、`editing/ed-30-*.spec.ts` | `test/unit`、`e2e/full-compose` | M2 |
+| A11Y-01 | slide-render `a11y-descriptor` 单测（装饰性不进树） | `a11y/**` | `test/unit`、`e2e/a11y` | M1 / M2 |
+| I18N-01、I18N-02 | i18n 缺 key 回退单测；`scan-contributions` 规则 (f) | `i18n/pseudo-*.spec.ts`、`i18n/nohost-handoff.spec.ts`（[06 §8](./06-frontend-component-and-e2e.md)） | `test/unit`、`e2e/full-compose`、`perf/perf-client`（`locale-switch`） | M1 / M2 |
+| DOC-01、DOC-02 | ooxml-pptx `import-admission.test.ts`、`import-envelope.test.ts` | `open/open-render.spec.ts`、`shell/home.spec.ts` | `test/unit`、`test/fidelity-roundtrip`、`e2e/full-compose` | M1 / M2 |
+
+- **与 §3、§5 的关系**：`e2e:editing` 的「每条 P0 / P1 ED 需求至少一个用例」不变（R5，文件名 `ed-<编号>-*.spec.ts`）；本表把同一批 spec 细分到能力，新测试在 `@req` 之外加写 `@cap`。表中 `editing/insert-tools.spec.ts`、`element-handles.spec.ts`、`insert-upload.spec.ts` 见 [06 §5](./06-frontend-component-and-e2e.md) 第 26 行。
+- **缺口口径**：50/18 中覆盖度为「后置」「非目标」「待决」的能力不计入 R11；「补齐」的能力在其主里程碑进入 `exit-review` 前必须补上表中的测试，否则出现在报告的「能力缺口」分域表里。
 
 ---
 
@@ -527,7 +623,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | `4.18/CO-03` | offline 后每 30 s 自动重连、服务端恢复后 ≤ 36 s 回连 | 传输 kit（FixedClock） | `test/contract` | M3 |
 | `4.18/CO-07` | 彻底删除元素：只墓碑态、限 owner、审计、之后撤销整步跳过 | 中性撤销分节硬删除分支；集成 | `test/contract`、`test/server-integration` | M3 |
 | `4.18/CO-08` | 降级期照常广播、指标递增、恢复后 seq 连续 | PG 断开集成用例 | `test/server-integration` | M3 |
-| `4.18/CO-10` | step2 恰一帧 db ack、超限按 localSeq 拆分、5 MiB 离线无 4413 | `batcher.test`；[05 §9](./05-collab-simulation-and-property-tests.md) | `test/unit`、`test/collab-sim` | M2（step2 应答）/ M3（离线 5 MiB） |
+| `4.18/CO-10` | step2 恰一帧 db ack；step2 不切块、单设 16 MiB 上限，超限 4413（`rs/step2-over-16mib`，§4.21 H:q-hp-step2-cap 改写原「按 localSeq 拆分」）；5 MiB 离线无 4413（`rs/offline-5mib-single-step2`） | `batcher.test`；[05 §9](./05-collab-simulation-and-property-tests.md)；[02 §5.2](./02-contract-suites-and-pluggability.md) `gate/step2-over-16mib-4413` | `test/unit`、`test/collab-sim` | M2（step2 应答）/ M3（离线 5 MiB） |
 | `4.18/CO-11` | 跳转已解析未装载页 ≤ 100 ms | 打开管线场景 | `perf/perf-client`、`test/fidelity-roundtrip` | M1 |
 | `4.18/CO-12` | 首批装载即 `unit/opened`、到齐 `unit/loaded`、追加批次不标脏 | 渐进打开 P1–P7（[03 §7](./03-fidelity-roundtrip-and-corpus.md)） | `test/fidelity-roundtrip` | M1 |
 | `4.18/CO-14` | 先回收空闲房间再驱逐活跃房间 | 准入单测与集群用例 | `test/contract`、`test/server-integration` | M2（单实例准入）/ M3（集群用例） |
@@ -555,7 +651,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | `4.19/SESSION` | cookie 属性、refresh 轮换、吊销 ≤ 5 s、停用与擦除踢出 WS | SEC-AU-05…07 | `test/server-integration` | M2 / M3 |
 | `4.19/C-11` | 准入 Lua 原子、按用户去重、并发不超额 | SEC-RL-04 | `test/contract`、`test/server-integration` | M3 |
 | `4.19/C-25` | 媒体 `detached_at` 置位与清空；最老保留快照晚于 `detached_at` 后删关联；`unreferenced_since` 超保留期后删行与对象；被命名快照引用则保留 | 媒体 GC 集成用例（[07 §11](./07-backend-integration-and-api-e2e.md)） | `test/server-integration` | M2（压缩时置位 `detached_at`、`snapshots-retention` 删关联与 `media-gc`，[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §4）/ M3（被命名快照引用而保留的分支，随命名版本） |
-| `4.19/INC-06` | 关闭码全表（含 1011、4427、4428）的客户端行为 | `heartbeat-and-close-codes.test`；传输 kit | `test/unit`、`test/contract` | M2 |
+| `4.19/INC-06` | 关闭码全表（含 1011、4427、4428）的客户端行为 | `close-policy.test`；传输 kit | `test/unit`、`test/contract` | M2 |
 | `4.19/N1-IMPORT-OVERWRITE-RESTORE-LOCK` | 恢复不锁、覆盖导入换纪元：恢复期间无 `room{locked}`、协作者写入照常获 db ack、在线不断连；覆盖导入期间 `locked`（`reason:'import'`），成功后 `documents.epoch` 加一、指针指向新纪元 `import` 快照，在线会话 4428 后重新 bootstrap，未获 db 确认项移入 `rejected` 可导出；漏收通知由纪元栅栏兜底；锁原因只有 `import` / `migration` | [02 §5.2](./02-contract-suites-and-pluggability.md) `lock/room-locked-signal`、`epoch/external-epoch-control-closes-4428`、`restore/no-lock`、`put/import-bumps-epoch`；[07 §9](./07-backend-integration-and-api-e2e.md) W14、W16、W17 与 §11.2 J7；[05 §9](./05-collab-simulation-and-property-tests.md) `rs/import-overwrite`；[06 §5](./06-frontend-component-and-e2e.md) 第 15、21 行 | `test/contract`、`test/server-integration`、`test/unit`、`e2e/full-compose` | M2（覆盖导入）/ M3（恢复、两实例变体） |
 | `4.19/INC-07` | `maxUpdateBytes` 不含类型头、超限 4413；速率字段 | SEC-RL-03 | `test/contract`、`test/server-integration` | M2 |
 | `4.19/INC-20`、`4.19/INC-21`、`4.19/INC-25`、`4.19/INC-27` | 无效令牌 403 带 `details.reason`；媒体文档作用域；令牌只经请求头；`auth.refresh` 校验后重新绑定、不延长会话寿命 | SEC-AZ-09、SEC-AZ-11、SEC-XS-03、SEC-AZ-05 | `test/server-integration`、`e2e/smoke` | M2（INC-21、INC-27）/ M3（INC-20、INC-25） |
@@ -634,7 +730,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | 0020 CRDT | yjs 只在三包；公共 API 无 Y 类型；两 store 同契约；模拟收敛；yjs 精确版本；撤销语义 | `depcruise`、`api-surface`、`test/contract`、`test/collab-sim`、`scanners/lockfile-guard` |
 | 0021 渲染介质 | oracle；帧率与打开预算；RenderTarget 契约；禁 waterfall 与 HTML 注入 | `e2e/oracle-gated`、`perf/perf-client`、`test/contract`、`lint` |
 | 0022 服务端存储 | 七套服务端 kit；RLS 覆盖与绕过测试；无租户；仓储经权限服务；崩溃重放；迁移向前兼容一版 | `test/contract`、`test/server-integration`、`scanners`、`e2e/smoke` |
-| 0023 传输与协议 | 传输与离线 kit（FixedClock）；y-websocket 互操作；CONTROL schema 快照；protocol 无 yjs | `test/contract`、`test/server-integration`、`test/unit`、`depcruise` |
+| 0023 传输与协议 | 传输与离线 kit（FixedClock）；`@hocuspocus/provider` v3 / v4 互连与 y-protocols 编码一致（`apps/server/test/e2e/collab/provider-interop.e2e-spec.ts`，[05 §11](./05-collab-simulation-and-property-tests.md)；§4.21 取代 y-websocket 互操作）；CONTROL schema 快照；protocol 无 yjs | `test/contract`、`test/server-integration`、`test/unit`、`depcruise` |
 | 0024 presence | 节流与超时；加入 1 s 内拿到全量；远端光标跟随 | `test/unit`、`test/contract`、`e2e/full-compose` |
 | 0025 持久化与压缩 | 压缩触发与租约；bootstrap 等价；崩溃前后 ack；恢复；两级 ack；墓碑；降级期广播；溢写认领；彻底删除元素 | `test/unit`、`test/contract`、`test/server-integration` |
 | 0026 headless 缩略图 | 服务端与客户端像素差 ≤ 0.5%；页哈希；封面响应头；renderer 安全；无 sharp；`/render` 零请求与 ready 判据 | `e2e/oracle-gated`、`test/server-integration`、`e2e/smoke`、`scanners/license-allowlist` |
@@ -647,6 +743,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 | 0033 离线持久化（M4） | 离线 kit 用 IDB 替身；断网刷新后同步；collab-yjs 不用 indexedDB | `test/contract`、`e2e/full-compose`、`scanners/scan-isomorphic` |
 | 0034 服务端校验与修复 | 硬门禁拒绝用例；修复黄金用例；5% 非法注入；软门禁 p95 ≤ 5 ms；审计 | `test/unit`、`test/collab-sim`、`perf/perf-server`、`test/server-integration` |
 | 0035 水平扩展 | 两实例扇出与崩溃；Valkey 断开 30 s；滚动发布演练；准入与内存预算；天花板 | `test/server-integration`、`e2e/full-compose`、`perf/*` |
+| 0039 协同服务端 Hocuspocus（2026-09-26 整合登记） | `runCollabServerConformance` 直接跑 Hocuspocus 实例；连接污染 `gate/no-ack-after-drop`（[02 §5.2](./02-contract-suites-and-pluggability.md)）；step2 上限 `gate/step2-over-16mib-4413` 与 `rs/step2-over-16mib`；关闭码 `close-policy.test`；嵌入 Fastify 同端口与 Valkey 宕机不杀进程（[07 §9](./07-backend-integration-and-api-e2e.md) W18、W19）；provider v3 / v4 互连 | `test/contract`、`test/collab-sim`、`test/server-integration`、`test/unit` |
 | 0037 部署拓扑 | 启动断言与装配矩阵；镜像策略；断网；renderer 安全；反代预签名；SBOM；M4 多架构；决策 5 最低主机规格的实测（`host-footprint`，只报告，rulings §4.20 BE-07+TX-05） | `test/server-integration`、`scanners/check-image-policy`、`e2e/full-airgap`、`e2e/smoke`、`e2e/full-compose`、`perf/perf-server` |
 | 0038 版本恢复的撤销（提议；M2 出口评审前定稿，rulings §4.20 TX-01+BE-10） | 撤销只回退恢复事务改写且其后未被写过的键（按 struct 范围判定）；恢复时删除的元素以原 id 复活；整步跳过不提交；墓碑 TTL 已过不复活；「谁能撤销」「可撤销时效」定稿时补 | `test/collab-sim`、`test/server-integration`（[05 §7.2](./05-collab-simulation-and-property-tests.md)；定稿后 `@adr 0038/*` 标签生效） |
 | 0040 / 0041 类型预算与断言策略 | 逃逸计数与预算只减不增 | `scanners/scan-type-escapes`、`lint` |
@@ -689,6 +786,7 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 3. **新增裁决或 ADR 验证条目**：rulings 新增带测试要求的条目、ADR 新增「如何被机械验证」时，在本文 §6 / §7 加行并同步 `obligations.json`；本文表格与机器副本的一致性由 `test/traceability/doc-sync.test.ts`（解析本文表格，`test/unit`）核对。
 4. **里程碑出口评审**：在出口评审 PR 中把 `milestones.json` 的状态改为 `exit-review` → R1 / R4 / R6 由报告转为失败 → 补齐缺口 → 评审读取 `traceability-report`、main 与 nightly 结果和 `test/evidence/` → 签字后改为 `done`（之后 R3 防止覆盖倒退）。
 5. **删除或改名测试**：若使某个 id 失去全部覆盖，R3 失败；须在同一 PR 给出替代测试，或证明该需求已从 PRD 删除。
+6. **能力 id 变更**（2026-09-26 追加）：改 50/18 能力表的 PR 同时运行 `gen-requirements` 更新 `capabilities.json`（否则 R10 失败），并同步本文 §5a；能力 id 只追加不复用，拆分或合并时旧 id 在 50/18 标注去向，带旧 `@cap` 的测试在同一 PR 改标签。
 
 ---
 
@@ -698,15 +796,18 @@ NF 条目没有 P0 / P1，按下表作为义务登记进 `obligations.json`（`k
 |---|---|
 | 标签语法合法、引用的 id 存在（`4.19/*` 的 id 集合按 §1.1 从 rulings §4.19 表格与 evidence `leftoverDecisions` 生成） | 扫描器 `scan-requirement-tags` 规则 (a)(b)（`scanners`、pre-commit） |
 | 产出 `dist/requirement-test-matrix.json` | 扫描器 `scan-requirement-tags` 规则 (c) |
-| R1–R10 | `test/requirement-matrix` |
+| R1–R11 | `test/requirement-matrix` |
 | `check-names.json` 的键集合 = 生成的 `checks[]`；每个检查映射的步骤存在于 `tooling/ci/steps.json` 且在该里程碑前已激活 | `test/requirement-matrix` |
 | 本文 §3、§4、§6、§7 的表格与 `check-names.json`、`obligations.json` 一致；[12 §6](./12-ci-gates-mapping.md) 的按步骤索引可由 `check-names.json` 重新生成 | `test/unit`（`test/traceability/doc-sync.test.ts`） |
 | 证据文件头字段齐全、日期新鲜、P0 人工项未被 `waived` | `test/requirement-matrix`（R9） |
 | 需求清单是最新生成物 | `test/requirement-matrix`（R10） |
+| `@cap` 标签语法合法、能力 id 存在于 `capabilities.json`；§5a 表中每个能力 id 都在 50/18 中存在、50/18 的每个能力 id 在 §5a 至少出现一次（2026-09-26 追加） | 扫描器 `scan-requirement-tags` 规则 (a)(b)；`test/unit`（`test/traceability/doc-sync.test.ts`） |
 
 ---
 
 ## 11. 已定裁决与回写
+
+rulings §4.21（2026-09-26）：[50/18](../50-frontend/18-editor-capabilities.md) 新建编辑器能力实现总表（25 域、164 项能力 id）。本文随之追加第四类标签 `@cap`（§1.1）、清单 `capabilities.json` 的生成口径（§2）、报告规则 R11（§1.3）与 §5a 能力 id → 测试用例表；`@cap` 只进报告，不改变 R1–R10 的门禁。
 
 rulings §4.20（2026-09-26）已定稿：§1.1 与 §2 加入 `4.20` 的 id 生成口径，§6.4 登记有测试要求的条目，§3.1 `M0#2` 改为 `check-terms.py`，§3.4 新增 `history:restore-revert`（随 ADR-0038），§7 登记 ADR-0038 与 ADR-0037 决策 5 的实测场景。
 
@@ -722,3 +823,6 @@ rulings §4.19 已裁定 INC-09、D-M2-CONTENT、C-06、D-COMMENTS-PKG、D-TEST-
 6. ~~`docs/_tools`：M0 验收 2 的术语扫描脚本尚不存在，由总编排实现~~（rulings §4.20 TX-02 已定：`docs/_tools/check-terms.py` + `terms.json`，验收 2 改为「术语表登记的旧名在正文中残留 0 处」，§3.1 已改指；首轮清零与 TX-10 把正文旧名统一为 `FixedClock` 的替换合并执行）。
 7. ~~[01 §5](./01-strategy-and-layers.md) 根 `test/` 目录树补 `traceability/`~~（2026-09-25 §4.19 轮已完成）。
 8. ~~[01 §8](./01-strategy-and-layers.md) 证据文件头字段补 `req`、`ruling`、`adr`、`reason`、`approver`~~（2026-09-25 §4.19 轮已完成）。
+9. [09-06 §12](../30-architecture/09-type-discipline/06-scanners.md)（rulings §4.21）：`scan-requirement-tags` 规则 (a) 增 `@cap` 语法、规则 (b) 的存在性来源增 `capabilities.json`、规则 (c) 的 `tag` 取值增 `cap`；仍是既有扫描器的子规则，不增加扫描器数量。
+10. [40/01 §5.7–§5.8](../40-modules/01-tooling-and-governance.md)（rulings §4.21）：`gen-requirements.ts` 增读 `50-frontend/18-editor-capabilities.md`，产出 `tooling/policy/capabilities.json`（生成物，入库，`--check` 同 R10）。
+11. 40-modules 各篇 §9 测试布局（rulings §4.21）：登记 §5a 中标「新增」的测试文件（slide-ui `table-selection`、`selection-pane`、超链接与符号面板、数据网格；model-slide `text-search`、节命令与 `pasteSlides`；render-dom 网格覆盖层）。

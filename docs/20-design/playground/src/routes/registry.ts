@@ -25,11 +25,12 @@ export const routes: RouteEntry[] = [
   { path: "/editor/comments", title: "评论", description: "线程、@提及、解决、脱离锚点", spec: "03-screens/06", status: "ready" },
   { path: "/editor/history", title: "版本历史", description: "自动/命名版本、对比、恢复", spec: "03-screens/07", status: "ready" },
   { path: "/editor/share", title: "分享与权限", description: "邀请、角色、链接权限、即时反馈", spec: "03-screens/08", status: "ready" },
-  { path: "/editor/plugins", title: "插件管理器", description: "已安装插件、PENDING/失败恢复、贡献清单", spec: "03-screens/09", status: "ready" },
+  { path: "/editor/plugins", title: "插件面板（个人）", description: "三分组：本部署统一启用（只读）/ 我的界面插件（为我关闭，即时生效）/ 本文档缺少的插件；失败详情与本会话重试、等待依赖、版本不兼容、快捷键冲突、只读角色；缺插件横幅三种原因与「重新加载」横幅", spec: "03-screens/09（PM-10–12）", status: "ready" },
   { path: "/editor/fidelity", title: "导入保真报告", description: "完全保真、部分保留（动画/切换/SmartArt/OLE/EMF/chartex/外链/字体）、部分解析失败", spec: "03-screens/10", status: "ready" },
   { path: "/export", title: "导出", description: "格式、范围、进度、失败重试", spec: "03-screens/22", status: "ready" },
   { path: "/present", title: "放映", description: "舞台、控制条、跟随", spec: "03-screens/11", status: "ready" },
   { path: "/viewer", title: "只读查看器", description: "preset-slide-viewer 极简壳", spec: "03-screens/25", status: "ready" },
   { path: "/settings", title: "设置与快捷键", description: "主题/密度/语言/单位；快捷键面板", spec: "03-screens/23、24", status: "ready" },
+  { path: "/admin/plugins", title: "管理 › 插件", description: "管理员插件清单：来源 / 作用域 / 必需性 / 八种部署级状态、策略三态与锁定、详情抽屉、变更确认卡、依赖与互斥冲突、首次启用第三方（M4）、被拒插件、无权限页", spec: "03-screens/32（PM-03–09）", status: "ready" },
   { path: "/offline", title: "离线与降级", description: "会话六态横幅、权限降级、门禁反馈", spec: "03-screens/12", status: "ready" },
 ]

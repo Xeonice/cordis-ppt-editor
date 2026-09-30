@@ -175,7 +175,7 @@ export function Settings() {
                           </KbdGroup>
                         </div>
                         {flag && (
-                          <p className="pl-5 text-xs text-warning-foreground">与「插件A：聚焦搜索」冲突，<Button variant="link" size="xs" className="h-auto p-0 text-xs" onClick={() => navigate("/editor/plugins")}>查看插件管理器</Button></p>
+                          <p className="pl-5 text-xs text-warning-foreground">与「插件：聚焦搜索」冲突，<Button variant="link" size="xs" className="h-auto p-0 text-xs" onClick={() => navigate("/editor/plugins?state=conflict")}>查看插件管理器</Button></p>
                         )}
                       </div>
                     ))}

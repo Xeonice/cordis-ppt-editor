@@ -1,5 +1,6 @@
+import { createContext, useContext } from "react"
 import { useNavigate } from "react-router-dom"
-import { ChevronsUpDown, Keyboard, LifeBuoy, LogOut, Settings2 } from "lucide-react"
+import { ChevronsUpDown, Keyboard, LifeBuoy, LogOut, Settings2, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -13,16 +14,29 @@ const user = { name: "王小明", email: "wang@example.com", initial: "王" }
 export type UserMenuVariant = "row" | "avatar"
 
 /**
- * 当前用户菜单：设置 / 键盘快捷键 / 帮助中心 / 退出登录。
+ * 平台角色（60/02 §1：`platformRole` 只有 member / admin）。演示用户默认是平台管理员，账户菜单因此带「管理」入口；
+ * 需要演示普通成员视角的路由（管理页的无权限态、个人插件面板的成员视角）用 Provider 覆盖为 member。
+ */
+export type PlatformRole = "member" | "admin"
+const PlatformRoleContext = createContext<PlatformRole>("admin")
+export const PlatformRoleProvider = PlatformRoleContext.Provider
+export function usePlatformRole() {
+  return useContext(PlatformRoleContext)
+}
+
+/**
+ * 当前用户菜单：设置 / 键盘快捷键 /（仅平台管理员）管理 / 帮助中心 / 退出登录。
  * 现实用法：首页侧栏底部用 `row`；文档列表顶栏与编辑器族应用栏右端（AppBar `showAccount`）用 `avatar`。
  * - `row`：整行触发器（头像 32 + 姓名/邮箱 + 上下箭头），shadcn Sidebar 的 NavUser 范式。
  * - `avatar`：仅 28px 头像（与 icon-sm 按钮同高），无姓名行。
  * 「设置」以此为唯一入口；「键盘快捷键」是三个入口之一（另两个：Ribbon 页签行右侧「?」、Mod+/），
  * 直接打开快捷键面板（`/settings?panel=shortcuts`）而不是设置抽屉。
  * 头像不带在场环（在场环只用于协作者头像组）。
+ * 「管理」（AS-06、PRD 09 PM-06）只对 `platformRole='admin'` 渲染，普通成员不显示也不占位；M3 只有「插件」一页，直接进 `/admin/plugins`。
  */
 export function UserMenu({ variant = "avatar", className }: { variant?: UserMenuVariant; className?: string }) {
   const navigate = useNavigate()
+  const isAdmin = usePlatformRole() === "admin"
   const trigger =
     variant === "row" ? (
       <button
@@ -60,6 +74,9 @@ export function UserMenu({ variant = "avatar", className }: { variant?: UserMenu
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate("/settings")}><Settings2 /> 设置<DropdownMenuShortcut>⌘,</DropdownMenuShortcut></DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate("/settings?panel=shortcuts")}><Keyboard /> 键盘快捷键<DropdownMenuShortcut>⌘/</DropdownMenuShortcut></DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onSelect={() => navigate("/admin/plugins")}><ShieldCheck /> 管理<span className="ml-auto text-xs text-muted-foreground">插件</span></DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => toast("帮助中心（外部链接）")}><LifeBuoy /> 帮助中心</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => toast("已退出登录（演示）")}><LogOut /> 退出登录</DropdownMenuItem>

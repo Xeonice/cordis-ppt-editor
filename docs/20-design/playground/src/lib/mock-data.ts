@@ -221,32 +221,6 @@ export const versionHistory: VersionEntry[] = [
   { id: "v-5", day: "9月10日", time: "08:58", authorId: "wang" },
 ]
 
-export type PluginStatus = "enabled" | "disabled" | "failed" | "pending" | "incompatible"
-
-export interface PluginEntry {
-  id: string
-  name: string
-  builtin?: boolean
-  provider?: string
-  version: string
-  status: PluginStatus
-  description?: string
-  contributions?: string
-  errorReason?: string
-  dependents?: string[]
-  hostRange?: string
-}
-
-export const plugins: PluginEntry[] = [
-  { id: "p-core", name: "幻灯片核心", builtin: true, version: "v1.0", status: "enabled", description: "幻灯片编辑、渲染与格式支持" },
-  { id: "p-chart", name: "数据图表增强", provider: "ACME", version: "v0.3.1", status: "enabled", description: "为图表元素提供高级数据绑定与联动", contributions: "ribbon(2) panel(1) contextMenu(0) shortcut(1)" },
-  { id: "p-shape", name: "流程图形状包", provider: "ACME", version: "v0.1.0", status: "enabled", dependents: ["p-collab"] },
-  { id: "p-templates", name: "自定义模板库", provider: "ACME", version: "v1.2.0", status: "disabled" },
-  { id: "p-collab", name: "流程图协作扩展", provider: "ACME", version: "v0.2.0", status: "pending", errorReason: "等待服务 \"collabTransport\" 可用" },
-  { id: "p-laser", name: "演示激光笔", provider: "Beta Labs", version: "v0.0.4", status: "failed", errorReason: "缺少依赖服务 \"render.overlay\"" },
-  { id: "p-oldboard", name: "旧版数据看板扩展", provider: "Beta Labs", version: "v0.9.0", status: "incompatible", hostRange: "0.4–0.6" },
-]
-
 export interface DocumentCard {
   id: string
   title: string

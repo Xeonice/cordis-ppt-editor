@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20 FE-08）；2026-09-30（§4.21 剩余缺口样张回写：§9 路由表与路由树补 `#/editor/table`（03-screens/30 表格编辑）、`#/editor/chart`（03-screens/31 图表编辑），并补登此前漏列的 `#/editor/fidelity`（03-screens/10），与 `registry.ts` 22 条对齐；`#/editor/text` 行补空内容占位符图标条与日期和时间格式选择器） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
+> 状态：草稿 | 负责：设计 | 更新：2026-09-18；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20 FE-08）；2026-09-30（§4.21 剩余缺口样张回写：§9 路由表与路由树补 `#/editor/table`（03-screens/30 表格编辑）、`#/editor/chart`（03-screens/31 图表编辑），并补登此前漏列的 `#/editor/fidelity`（03-screens/10），与 `registry.ts` 22 条对齐；`#/editor/text` 行补空内容占位符图标条与日期和时间格式选择器）；2026-10-01（§4.23 插件管理样张回写：§1 账户菜单补仅平台管理员可见的「管理」（进 `/admin/plugins`，03-screens/32）；§2.1 顶部全局栏的账户头像菜单同步；§9 路由表与路由树补 `#/admin/plugins`（03-screens/32 管理员插件管理），`#/editor/plugins` 行改为「个人插件面板（对话框）」，与 `registry.ts` 23 条对齐） | 依赖：charter v0.1（已核对 v0.2）；PRD `08-app-shell.md`（AS-01…06）、`07-masters-layouts-and-themes.md`（ML-01）、`01-open-and-fidelity.md`（OF-14）；rulings §4.8 Q8 / §4.9 Q9–Q10 / §4.10 Q12、Q14、Q18–Q20；09 v3.0 T-01 / T-02 / T-07；playground `src/routes/registry.ts`
 > **2026-09-18 修订说明**：按 rulings §4.10 与 playground 回写——§1 应用壳补开始页 `#/home`（PRD AS-01…06）；§2.1 / §2.2 / §4 应用栏「返回首页」、「⋯」更多菜单与账户头像（Q14 / Q20）；§2.4 / §5a 母版视图改为"同一个编辑器"（母版页签置首、五组、其余页签照常、母版缩略图窗格、Ribbon 分段主入口、`Mod+Alt+M`、检查器仅禁评论、评审 / 窄屏不提供入口，Q12）；§8.1 查看器补可选缩略图条与备注抽屉（Q18）；§9 路由表与 `registry.ts` 19 条对齐（删除已退役原型的 `text-editing` / `pages`）。
 
 # 01 信息架构（Information Architecture）
@@ -32,7 +32,7 @@ flowchart TB
 
 怎么读：箭头表示 apps/web 由两层组成；分组框内是该层包含的页面或状态，细线把页面连到它承载的内容。页面之间怎么跳转见 §4「导航层级与快捷通道」图。
 
-应用壳与编辑器是两个独立的 IA 层：应用壳是"文档之外"的空间（开始页、列表、分享入口、账户），编辑器是"文档之内"的空间（一个 Unit 打开后的完整工作区）。打开应用先到**开始页**（不是文档列表或空白编辑器，PRD AS-01）；编辑器应用栏的「返回首页」落回 `#/home`（03-screens/29）。两者共享同一套顶部全局栏结构，但内容不同（见 §2.1）。账户菜单（`UserMenu`：开始页侧栏底部用户行 / 文档列表与编辑器顶栏头像触发）承载"设置（`Mod+,`）/ 键盘快捷键（`Mod+/`）/ 帮助中心 / 退出登录"，其中**设置只有这一个入口**（侧栏与顶栏不再单独放设置按钮，PRD AS-06）；快捷键面板另有 Ribbon 页签行右侧「?」（评审与只读浏览时在评审工具条或只读细条右端，§2.2）与 `Mod+/` 两个等价入口（rulings §4.10）。
+应用壳与编辑器是两个独立的 IA 层：应用壳是"文档之外"的空间（开始页、列表、分享入口、账户），编辑器是"文档之内"的空间（一个 Unit 打开后的完整工作区）。打开应用先到**开始页**（不是文档列表或空白编辑器，PRD AS-01）；编辑器应用栏的「返回首页」落回 `#/home`（03-screens/29）。两者共享同一套顶部全局栏结构，但内容不同（见 §2.1）。账户菜单（`UserMenu`：开始页侧栏底部用户行 / 文档列表与编辑器顶栏头像触发）承载"设置（`Mod+,`）/ 键盘快捷键（`Mod+/`）/（仅平台管理员）管理 / 帮助中心 / 退出登录"（「管理」2026-10-01 按 rulings §4.23 新增，M3 直接进 `/admin/plugins`「管理 › 插件」，03-screens/32；普通成员不显示、不占位），其中**设置只有这一个入口**（侧栏与顶栏不再单独放设置按钮，PRD AS-06）；快捷键面板另有 Ribbon 页签行右侧「?」（评审与只读浏览时在评审工具条或只读细条右端，§2.2）与 `Mod+/` 两个等价入口（rulings §4.10）。
 
 ---
 
@@ -69,7 +69,7 @@ flowchart TB
 
 | 区域 | 职责 | 常驻/可隐藏 | 对应贡献点 |
 |---|---|---|---|
-| 顶部全局栏 | 「返回首页」、文档身份、保存态、协作者在场头像、分享、模式切换、「⋯」更多菜单（导出…（`Mod+E`）/ 保真报告 / 版本历史 / 插件管理器 / 重命名 / 创建副本 /（开发者，仅开发模式），rulings Q20）、账户头像（`UserMenu`：设置 / 键盘快捷键 / 帮助中心 / 退出登录，rulings Q14；右侧顺序：在场头像 · 分享 · 模式下拉 · ⋯ · 账户头像）；母版视图下追加「母版视图」与「改动将影响 N 页」徽标 | 常驻，三种模式均存在（内容随模式变化） | — |
+| 顶部全局栏 | 「返回首页」、文档身份、保存态、协作者在场头像、分享、模式切换、「⋯」更多菜单（导出…（`Mod+E`）/ 保真报告 / 版本历史 / 插件管理器（个人插件面板，03-screens/09）/ 重命名 / 创建副本 /（开发者，仅开发模式），rulings Q20）、账户头像（`UserMenu`：设置 / 键盘快捷键 /（仅平台管理员）管理 / 帮助中心 / 退出登录，rulings Q14、§4.23；右侧顺序：在场头像 · 分享 · 模式下拉 · ⋯ · 账户头像）；母版视图下追加「母版视图」与「改动将影响 N 页」徽标 | 常驻，三种模式均存在（内容随模式变化） | — |
 | Ribbon 区 | 命令的主要可发现入口；页签行右侧常驻「普通｜母版」视图模式分段（母版视图主入口，§2.4）、主题切换与「?」快捷键面板入口。评审模式与只读浏览时主题切换与「?」移到评审工具条右端，工具条没有条目时（M2 未装评论包的常态）在只读细条「评审模式 · 只读」/「只读浏览中」右端；与页签行右侧是同一组件、由外壳直接渲染，「普通｜母版」分段不显示（Q12，rulings §4.20 FE-08） | 编辑模式常驻；评审模式替换为精简评审工具条；放映模式隐藏 | `ui.ribbon`；评审工具条条目为 `ui.toolbar`（slot: 'reviewBar'），尾部控件不走贡献 |
 | 缩略图侧栏 | 幻灯片列表、顺序导航、增删排序；母版视图下同一窗格显示母版大缩略图 + 缩进的版式小缩略图（母版缩略图窗格，§2.4） | 可折叠为纯图标窄条；窄屏收为底部抽屉 | — |
 | 画布视口 | 渲染当前幻灯片、承载选中/编辑交互 | 常驻（三种模式都有，放映模式全屏） | `render.target`/`render.element`/`render.overlay` |
@@ -340,7 +340,7 @@ flowchart TB
 
 ---
 
-## 9. playground 路由表（2026-09-18 与 `playground/src/routes/registry.ts` 对齐，登记 19 条；2026-09-30 补表格、图表两条并补登此前漏列的 `#/editor/fidelity`，共 22 条）
+## 9. playground 路由表（2026-09-18 与 `playground/src/routes/registry.ts` 对齐，登记 19 条；2026-09-30 补表格、图表两条并补登此前漏列的 `#/editor/fidelity`，共 22 条；2026-10-01 补 `#/admin/plugins`，共 23 条）
 
 `playground/`（Vite + React + shadcn Rhea）是唯一设计基准（09 §5），hash 路由用于逐界面审阅本文件定义的区域/模式在不同界面下的具体状态；路由本身**不是**产品真实信息架构的一部分（产品中检查器坞的评论/历史/插件仍是同一编辑器实例内的 Tab，见 §2.3），只是为便于逐状态审阅而做的拆分。此前 `prototype/index.html` v2 的路由表（含 `#/editor/text-editing`、`#/editor/pages`）已随原型退役作废。路由与本文件区域、`03-screens/*` 界面文件的对应关系：
 
@@ -362,15 +362,16 @@ flowchart TB
 | `#/editor/comments` | §2.3 检查器坞"评论"Tab | 06 |
 | `#/editor/history` | §2.3 检查器坞"历史"Tab | 07 |
 | `#/editor/share` | 浮层：`ui.dialog` | 08 |
-| `#/editor/plugins` | §2.3 检查器坞"插件"Tab / 插件管理器 | 09 |
+| `#/editor/plugins` | 浮层：`ui.dialog`（个人插件面板，含缺插件横幅与「插件设置已更新」横幅） | 09 |
 | `#/editor/fidelity` | 浮层：`ui.dialog`（导入保真报告） | 10 |
 | `#/export` | 浮层：`ui.dialog` | 22 |
 | `#/present` | §5 放映模式 | 11 |
 | `#/viewer` | §8 `preset-slide-viewer` | 25 |
 | `#/settings` | 浮层：设置抽屉 + 快捷键面板 | 23、24 |
 | `#/offline` | 横幅：会话六态、权限降级、门禁反馈 | 12 |
+| `#/admin/plugins` | §1 应用壳 · 管理面板「管理 › 插件」（仅平台管理员，入口为账户菜单「管理」） | 32 |
 
-**playground 路由树（registry.ts 22 条 + 目录页）**
+**playground 路由树（registry.ts 23 条 + 目录页）**
 
 ```mermaid
 flowchart LR
@@ -380,7 +381,7 @@ flowchart LR
     direction TB
     rHome["#/home · 开始页 · 29"]
     rDocs["#/documents · 文档列表 · 01"]
-    rImport["#/import · 应用壳到编辑器过渡态 · 13"]
+    rImport["#/import · 应用壳到编辑器过渡态 · 13"] ~~~ rAdmin["#/admin/plugins · 管理 › 插件，仅平台管理员 · 32"]
   end
   subgraph editorR["编辑器 #/editor 族 · §2"]
     direction TB
@@ -395,7 +396,7 @@ flowchart LR
     rComments["#/editor/comments · 检查器坞评论 Tab · 06"]
     rHistory["#/editor/history · 检查器坞历史 Tab · 07"]
     rShare["#/editor/share · ui.dialog 浮层 · 08"]
-    rPlugins["#/editor/plugins · 插件 Tab 与插件管理器 · 09"] ~~~ rFidelity["#/editor/fidelity · 导入保真报告 · 10"]
+    rPlugins["#/editor/plugins · 个人插件面板 · 09"] ~~~ rFidelity["#/editor/fidelity · 导入保真报告 · 10"]
   end
   subgraph modeR["模式、浮层与横幅"]
     direction TB

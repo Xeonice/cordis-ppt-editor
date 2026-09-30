@@ -26,6 +26,7 @@ const Export = lazy(() => import("./routes/Export").then((m) => ({ default: m.Ex
 const Present = lazy(() => import("./routes/Present").then((m) => ({ default: m.Present })))
 const Viewer = lazy(() => import("./routes/Viewer").then((m) => ({ default: m.Viewer })))
 const Settings = lazy(() => import("./routes/Settings").then((m) => ({ default: m.Settings })))
+const AdminPlugins = lazy(() => import("./routes/admin/Plugins").then((m) => ({ default: m.AdminPlugins })))
 const Offline = lazy(() => import("./routes/Offline").then((m) => ({ default: m.Offline })))
 
 /** 路由级代码分割：artifact 查看器等嵌入环境首屏只需当前路由的代码。 */
@@ -57,6 +58,7 @@ export function App() {
         <Route path="/viewer" element={<Viewer />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/offline" element={<Offline />} />
+        <Route path="/admin/plugins" element={<AdminPlugins />} />
       </Routes>
       </Suspense>
       <Toaster position="bottom-right" />

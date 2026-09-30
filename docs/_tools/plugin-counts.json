@@ -1,5 +1,5 @@
 {
-  "$comment": "由 docs/_tools/check-plugin-counts.py --emit 从 40-modules/16-plugin-catalog.md §2–§5.1 与 00-charter/charter.md §5.2 机械重算生成，勿手改；改表后重新 --emit。",
+  "$comment": "由 docs/_tools/check-plugin-counts.py --emit 从 40-modules/16-plugin-catalog.md §2–§5.1 与 00-charter/charter.md §5.2 机械重算生成，勿手改；改表后重新 --emit。插件只计 cordis 插件（plugins，rulings §4.23 补充裁决）；纯库与 Nest 模块只在 runtimeUnits 里分列。",
   "source": {
     "catalog": "docs/40-modules/16-plugin-catalog.md",
     "packages": "docs/00-charter/charter.md §5.2"
@@ -43,37 +43,51 @@
       "@cordexjs/design"
     ]
   },
-  "units": {
-    "total": 78,
-    "cordis": 48,
-    "library": 5,
-    "nest": 25,
+  "plugins": {
+    "total": 48,
     "byForm": {
       "host": 4,
       "definition": 4,
       "provider": 20,
       "plugin": 17,
-      "bundle": 3,
-      "library": 5,
-      "nest": 25
+      "bundle": 3
     },
     "byNecessity": {
       "core": 8,
       "contract": 10,
       "optionalDegrade": 17,
       "optionalExtension": 10,
-      "na": 33
+      "na": 3
     },
     "byLocation": {
-      "both": 14,
-      "browser": 24,
-      "server": 40
+      "both": 10,
+      "browser": 23,
+      "server": 15
     },
     "byScope": {
       "content": 33,
       "ui": 10,
-      "na": 35
+      "na": 5
     },
+    "byMilestone": {
+      "M1": 23,
+      "M2": 22,
+      "M3": 2,
+      "M4": 1
+    },
+    "cumulativeByMilestone": {
+      "M1": 23,
+      "M2": 45,
+      "M3": 47,
+      "M4": 48
+    }
+  },
+  "runtimeUnits": {
+    "$comment": "运行时单元 = cordis 插件 + 纯库 + Nest 模块；后两者不是插件，不计入任何插件数",
+    "total": 78,
+    "plugins": 48,
+    "library": 5,
+    "nest": 25,
     "byMilestone": {
       "M1": 28,
       "M2": 43,
@@ -86,11 +100,17 @@
       "M3": 77,
       "M4": 78
     },
-    "cordisByMilestone": {
-      "M1": 23,
-      "M2": 22,
-      "M3": 2,
-      "M4": 1
+    "libraryByMilestone": {
+      "M1": 5,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0
+    },
+    "nestByMilestone": {
+      "M1": 0,
+      "M2": 21,
+      "M3": 4,
+      "M4": 0
     }
   },
   "definitions": 25,
@@ -156,56 +176,56 @@
   "unitsByPackage": {
     "@cordexjs/shared": {
       "units": 1,
-      "cordis": 0,
+      "plugins": 0,
       "rows": [
         1
       ]
     },
     "@cordexjs/kernel": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         2
       ]
     },
     "@cordexjs/protocol": {
       "units": 1,
-      "cordis": 0,
+      "plugins": 0,
       "rows": [
         3
       ]
     },
     "@cordexjs/i18n": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         4
       ]
     },
     "@cordexjs/model-core": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         5
       ]
     },
     "@cordexjs/store-memory": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         6
       ]
     },
     "@cordexjs/store-yjs": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         7
       ]
     },
     "@cordexjs/model-slide": {
       "units": 2,
-      "cordis": 2,
+      "plugins": 2,
       "rows": [
         8,
         9
@@ -213,126 +233,126 @@
     },
     "@cordexjs/xml": {
       "units": 1,
-      "cordis": 0,
+      "plugins": 0,
       "rows": [
         10
       ]
     },
     "@cordexjs/ooxml-core": {
       "units": 1,
-      "cordis": 0,
+      "plugins": 0,
       "rows": [
         11
       ]
     },
     "@cordexjs/ooxml-pptx": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         12
       ]
     },
     "@cordexjs/collab-core": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         13
       ]
     },
     "@cordexjs/collab-yjs": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         14
       ]
     },
     "@cordexjs/collab-transport-ws": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         15
       ]
     },
     "@cordexjs/collab-offline-idb": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         16
       ]
     },
     "@cordexjs/comments": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         17
       ]
     },
     "@cordexjs/engine-layout": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         18
       ]
     },
     "@cordexjs/engine-render": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         19
       ]
     },
     "@cordexjs/render-dom": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         20
       ]
     },
     "@cordexjs/slide-render": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         21
       ]
     },
     "@cordexjs/slide-render-chart": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         22
       ]
     },
     "@cordexjs/design": {
       "units": 1,
-      "cordis": 0,
+      "plugins": 0,
       "rows": [
         23
       ]
     },
     "@cordexjs/ui-core": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         24
       ]
     },
     "@cordexjs/ui-react": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         25
       ]
     },
     "@cordexjs/slide-ui": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         26
       ]
     },
     "@cordexjs/preset-slide": {
       "units": 2,
-      "cordis": 2,
+      "plugins": 2,
       "rows": [
         27,
         35
@@ -340,7 +360,7 @@
     },
     "@cordexjs/preset-slide-viewer": {
       "units": 7,
-      "cordis": 7,
+      "plugins": 7,
       "rows": [
         28,
         29,
@@ -353,49 +373,49 @@
     },
     "preset-*（各 preset 自带语言包）": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         31
       ]
     },
     "@cordexjs/preset-slide-collab": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         36
       ]
     },
     "apps/web": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         38
       ]
     },
     "@cordexjs/server-storage": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         39
       ]
     },
     "@cordexjs/server-collab": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         40
       ]
     },
     "@cordexjs/server-headless": {
       "units": 1,
-      "cordis": 1,
+      "plugins": 1,
       "rows": [
         41
       ]
     },
     "apps/server": {
       "units": 37,
-      "cordis": 12,
+      "plugins": 12,
       "rows": [
         42,
         43,

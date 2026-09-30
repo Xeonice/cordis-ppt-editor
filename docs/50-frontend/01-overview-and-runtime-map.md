@@ -1,6 +1,6 @@
 # 01 前端架构
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——前端数字卡、每个包里的 cordis 插件、三个前端 preset 的装配清单与差异图，数字引用 `docs/_tools/plugin-counts.json`） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——前端数字卡、每个包里的 cordis 插件、三个前端 preset 的装配清单与差异图，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§1b 插件数一律指 cordis 插件，前端 cordis 插件 33 个，纯库 5 个另列、不计入插件） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
 
 本文是 Cordex 的**前端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构（跨端），本文与 [60/01](../60-backend/01-service-overview-and-roles.md) 就地升格为前端架构与后端架构，阅读路径固定为 **30/01 → 本文 → 60/01**。本文只给浏览器侧的执行上下文、技术栈与复用组件（§1a）、包分布、铁律、对象关系、渲染架构（§4a）、端到端主干、编辑器能力地图（§5a）、可追加元素族（§5b）、可观察状态、对外接触面、里程碑落点与机械验证总表；**细节一律链接到专题 [02](02-app-shell-routing-and-session.md)–[16](16-i18n-and-accessibility.md)、复用清单 [17](17-reuse-and-dependency-catalog.md)、能力总表 [18](18-editor-capabilities.md) 与元素目录 [19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)**，不在此重复。节号沿用升格前的编号，新节以 §1a、§4a、§5a、§5b 插入，既有「50/01 §x」引用不失配。服务端只画「接触面」（路径、子域、请求头、帧名），Nest 模块、进程角色与 Hocuspocus 挂点见 60/01。包名一律省略 `@cordexjs/` 前缀。
 
@@ -158,22 +158,22 @@ flowchart TB
 
 ## 1b. 包与插件规划（前端）
 
-2026-10-01 新增。全局数字（31 个 npm 包、78 个运行时插件单元、48 个 cordis 可插拔单元）见 [30/01 §2a](../30-architecture/01-overview.md#2a-包与插件规划)；本节只看浏览器侧与两端共用的部分。数字取自 [`docs/_tools/plugin-counts.json`](../_tools/plugin-counts.json)，逐行明细以 [40/16 §2](../40-modules/16-plugin-catalog.md#2-插件总账主表一行一个插件单元) 为准（本节行号即 40/16 §2 行号）。
+2026-10-01 新增。全局数字（31 个 npm 包、48 个 cordis 插件；纯库与 Nest 模块不计入插件，rulings §4.23 补充裁决）见 [30/01 §2a](../30-architecture/01-overview.md#2a-包与插件规划)；本节只看浏览器侧与两端共用的部分。数字取自 [`docs/_tools/plugin-counts.json`](../_tools/plugin-counts.json)，逐行明细以 [40/16 §2](../40-modules/16-plugin-catalog.md#2-插件与运行时单元总账主表) 为准（本节行号即 40/16 §2 行号）。
 
-**前端数字卡**：前端涉及的 npm 包共 28 个（iso 17 + dom 11；另有 3 个 node 包只在服务端）加 `apps/web`；它们承载的运行时单元共 38 个——cordis 可插拔 33 个（两端共用 10、仅浏览器 23）、纯库 5 个（`shared`、`protocol`、`xml`、`ooxml-core`、`design`）。浏览器侧有 3 个 preset，各装 17 / 17 / 20 个条目。
+**前端数字卡**：前端涉及的 npm 包共 28 个（iso 17 + dom 11；另有 3 个 node 包只在服务端）加 `apps/web`；它们承载的 cordis 插件共 33 个（两端共用 10、仅浏览器 23）。另有纯库 5 个（`shared`、`protocol`、`xml`、`ooxml-core`、`design`），只被 `import`，不计入插件。浏览器侧有 3 个 preset，各装 17 / 17 / 20 个条目。
 
 ### 1b.1 每个包里的 cordis 插件
 
-| 包 | 层带 · 同构 | cordis 插件单元（40/16 §2 行号） | 形态 | viewer | slide | collab |
+| 包 | 层带 · 同构 | cordis 插件（40/16 §2 行号） | 形态 | viewer | slide | collab |
 |---|---|---|---|---|---|---|
 | kernel | L0 · iso | `kernel`（2） | host | 宿主自带 | 宿主自带 | 宿主自带 |
 | i18n | L0 · iso | `i18n`（4） | plugin | ● | ● | ● |
-| shared、protocol、xml | L0 · iso | 无（1、3、10，纯库） | library | — | — | — |
+| shared、protocol、xml | L0 · iso | 无（1、3、10，纯库，不计入插件） | library | — | — | — |
 | model-core | L1 · iso | `model-core`（5） | definition | ● | ● | ● |
 | store-memory | L1 · iso | `store-memory`（6） | provider | ● | ● | ○ |
 | store-yjs | L1 · iso | `store-yjs`（7） | provider | ○ | ○ | ▲ |
 | model-slide | V-model · iso | 主插件（8）、`/editing`（9） | plugin ×2 | 8● · 9○ | ●● | ●● |
-| ooxml-core | L3 · iso | 无（11，纯库） | library | — | — | — |
+| ooxml-core | L3 · iso | 无（11，纯库，不计入插件） | library | — | — | — |
 | ooxml-pptx | V-codec · iso | `@cordexjs/ooxml-pptx`（12） | plugin | ● | ● | ● |
 | collab-core | L4 · iso | `localPresencePlugin`（13） | provider | ○ | ● | ○ |
 | collab-yjs、collab-transport-ws | L4 · iso | `collab-yjs`（14）、`collab-transport-ws`（15） | provider ×2 | ○ | ○ | ● |
@@ -183,7 +183,7 @@ flowchart TB
 | render-dom | L5 · dom | `render-dom`（20） | provider | ● | ● | ● |
 | slide-render | V-render · dom | `slide-render`（21） | plugin | ● | ● | ● |
 | slide-render-chart | V-render · dom | `slide-render-chart`（22，M1–M2 为 `slide-render/chart` 子路径） | plugin | ◐ | ◐ | ◐ |
-| design | L7 · dom | 无（23，纯库） | library | — | — | — |
+| design | L7 · dom | 无（23，纯库，不计入插件） | library | — | — | — |
 | ui-core | L7 · dom | `ui-core`（24） | definition | ○ | ● | ● |
 | ui-react | L7 · dom | `ui-react`（25） | provider | ○ | ● | ● |
 | slide-ui | V-ui · dom | `slide-ui`（26） | plugin | ○ | ● | ● |

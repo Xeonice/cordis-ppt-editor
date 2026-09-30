@@ -245,6 +245,16 @@
       "deprecated": "xml-parser-roundtrip.property.test.ts",
       "canonical": "xml/src/__tests__/roundtrip.property.test.ts",
       "source": "40-modules/04 §4.3、§5.3（从 ooxml-core 迁到 packages/xml/src/__tests__/，rulings §4.21 X:q-xml-package）"
+    },
+    {
+      "deprecated": "运行时插件单元",
+      "canonical": "运行时单元",
+      "source": "rulings §4.23 补充裁决（2026-10-01，插件仅计 cordis 插件）"
+    },
+    {
+      "deprecated": "cordis 可插拔单元",
+      "canonical": "cordis 插件",
+      "source": "rulings §4.23 补充裁决（2026-10-01，插件仅计 cordis 插件）"
     }
   ]
 }

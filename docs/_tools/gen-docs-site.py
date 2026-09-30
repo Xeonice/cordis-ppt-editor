@@ -1166,22 +1166,25 @@ class Pages(Site):
                 '的固定顺序读，再进各线细节（rulings §4.21）。</p><div class="sec-grid">%s</div></section>' % "".join(cards))
 
     def triad_numbers(self, cur):
-        """「包与插件规划」数字卡：读 _tools/plugin-counts.json（check-plugin-counts.py --emit 生成）；缺文件或格式不对时返回空串。"""
+        """「包与插件规划」数字卡：读 _tools/plugin-counts.json（check-plugin-counts.py --emit 生成）；缺文件或格式不对时返回空串。
+
+        主数字是 cordis 插件数（插件只计 cordis 插件，rulings §4.23 补充裁决）；Nest 模块与纯库不是插件，作为次要数字另列。"""
         path = os.path.join(DOCS, "_tools", "plugin-counts.json")
         try:
             with open(path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            pk, un, pr = data["packages"], data["units"], data["presets"]
+            pk, pl, ru, pr = data["packages"], data["plugins"], data["runtimeUnits"], data["presets"]
             tiles = [
+                (pl["total"], " 个", "cordis 插件（host %d · definition %d · provider %d · plugin %d · bundle %d）"
+                 % tuple(pl["byForm"][k] for k in ("host", "definition", "provider", "plugin", "bundle"))),
                 (pk["npm"], " 个", "npm 包（M1–M4；另 M5 %d 个、应用 %d 个）" % (pk["npmWithM5"] - pk["npm"], len(pk["apps"]))),
-                (un["total"], " 个", "运行时插件单元（cordis %d + 纯库 %d + Nest %d）" % (un["cordis"], un["library"], un["nest"])),
-                (un["cordis"], " 个", "cordis 可插拔单元（host %d · definition %d · provider %d · plugin %d · bundle %d）"
-                 % tuple(un["byForm"][k] for k in ("host", "definition", "provider", "plugin", "bundle"))),
                 (data["definitions"], " 个", "Definition（可替换契约）"),
                 (data["contributionPoints"], " 个", "贡献点"),
                 (data["presetCount"], " 个", "preset：viewer %d · slide %d · collab %d · server %d 个条目"
                  % (pr["preset-slide-viewer"]["total"], pr["preset-slide"]["total"], pr["preset-slide-collab"]["total"],
                     pr["preset-server"]["entries"]["total"])),
+                (ru["nest"], " 个", "Nest 模块（不计入插件）"),
+                (ru["library"], " 个", "纯库（不计入插件；与插件、Nest 模块合计运行时单元 %d）" % ru["total"]),
             ]
         except (OSError, ValueError, KeyError, TypeError):
             return ""

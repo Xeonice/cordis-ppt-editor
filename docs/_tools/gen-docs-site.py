@@ -46,12 +46,12 @@ SECTIONS = [
     ("charter", "章程与裁决", "章程 v0.2、裁决记录、cordis 4 基线与 Univer 教训", "00-charter"),
     ("prd", "产品", "背景目标、角色场景、八个功能域、非功能需求、里程碑与指标", "10-prd"),
     ("design", "设计", "界面画廊、设计系统与规范、信息架构、用户流程、协同与扩展 UX", "20-design"),
-    ("arch", "架构", "系统上下文与容器、分层与包、内核插件、文档模型、协同、渲染、后端、类型治理",
-     "30-architecture"),
-    ("frontend", "前端", "前端设计线：应用壳与会话、装配、渲染与文本编辑、协同客户端、UI 体系、性能、客户端安全、遥测与无障碍",
-     "50-frontend"),
-    ("backend", "后端", "后端设计线：模块与角色矩阵、鉴权链、完整 DDL 与 RLS、存储与保留、REST 与 WS、部署与观测",
-     "60-backend"),
+    ("arch", "总架构", "架构三件套的起点：总架构（跨端唯一一份）与跨端契约——分层与包、内核插件、文档模型、命令、协同协议、"
+     "渲染跨端契约、类型治理、错误码", "30-architecture"),
+    ("frontend", "前端架构与设计", "前端架构（50/01）与专题设计：应用壳与会话、装配、渲染与文本编辑、协同客户端、UI 体系、性能、"
+     "客户端安全、遥测与无障碍；复用清单、能力总表与可追加元素目录", "50-frontend"),
+    ("backend", "后端架构与设计", "后端架构（60/01）与专题设计：模块与角色矩阵、鉴权链、完整 DDL 与 RLS、存储与保留、REST 与 WS、"
+     "部署与观测；后端复用清单", "60-backend"),
     ("testing", "测试", "测试设计线：分层与契约套件、保真与视觉 oracle、协同模拟、e2e、性能与安全、CI 门禁与需求追溯",
      "70-testing"),
     ("adr", "ADR", "架构决策记录：背景、决策、备选方案与后果", "30-architecture/adr"),
@@ -60,6 +60,31 @@ SECTIONS = [
 SEC = {s[0]: s for s in SECTIONS}
 TRACKS = ("frontend", "backend", "testing")  # rulings §4.19：各为该侧设计的唯一事实源
 SUBDIR_LABEL = {"03-features": "功能域", "03-screens": "界面规格", "_tools": "文档线工具"}
+# 分区内的虚拟分组（rulings §4.21 架构三件套）：只作用于分区根目录下以两位编号开头的文档，按编号区间归组，
+# 组的先后即列表顺序；不在任何区间内的文档保持不分组（与 README 一起排在最前）。
+VGROUPS = {
+    "frontend": [("前端架构", 1, 1), ("专题设计", 2, 16), ("复用与能力", 17, 18), ("元素目录", 19, 25)],
+    "backend": [("后端架构", 1, 1), ("专题与 DDL", 2, 18), ("复用清单", 19, 19)],
+}
+# 架构三件套（rulings §4.21 q-arch-reorg）：总架构分区置顶的生成页；缺哪篇就跳过哪张卡片，不报错
+TRIAD = [
+    ("第 1 步", "总架构", "arch", "30-architecture/01-overview.md", "跨端唯一一份：系统上下文、统一原则、技术栈与复用总表、"
+     "端到端数据流、M1–M4 里程碑边界"),
+    ("第 2 步", "前端架构", "frontend", "50-frontend/01-overview-and-runtime-map.md", "浏览器侧执行上下文与层带、前端铁律、"
+     "运行时对象关系、编辑器能力地图、四条主干"),
+    ("第 3 步", "后端架构", "backend", "60-backend/01-service-overview-and-roles.md", "服务总览、CORDEX_ROLE 装配矩阵、"
+     "Nest 模块与 cordis 宿主、启动与停机"),
+]
+TRIAD_PAGE = "pages/arch/triad.html"
+
+
+def vgroup_of(sec, rel):
+    """分区根目录下带两位编号的文档 → 虚拟分组名；不适用时返回空串。"""
+    m = re.match(r"^(\d{2})-", os.path.basename(rel))
+    if sec not in VGROUPS or "/" in rel[len(SEC[sec][3]) + 1:] or not m:
+        return ""
+    n = int(m.group(1))
+    return next((label for label, lo, hi in VGROUPS[sec] if lo <= n <= hi), "")
 
 ICONS = {
     "overview": '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/>',
@@ -466,6 +491,7 @@ class Site:
                     rels.append(os.path.relpath(os.path.join(root, f), DOCS).replace(os.sep, "/"))
         for rel in rels:
             sec, group, name = classify(rel)
+            group = group or vgroup_of(sec, rel)
             text = open(os.path.join(DOCS, rel), encoding="utf-8").read()
             title, status, notes, body = split_head(text)
             title = title or os.path.basename(rel)[:-3]
@@ -480,8 +506,11 @@ class Site:
         def key(d):
             fname = os.path.basename(d["rel"])
             rank = 0 if fname == "README.md" else (2 if fname.startswith("_") else 1)
+            vg = [g[0] for g in VGROUPS.get(d["sec"], [])]
+            # 虚拟分组按 VGROUPS 声明顺序排，子目录分组按自然序排
+            gkey = (0, vg.index(d["group"]), []) if d["group"] in vg else (1, 0, natural_key(d["group"]))
             return ([s[0] for s in SECTIONS].index(d["sec"]), 1 if d["group"] else 0,
-                    natural_key(d["group"]), rank, natural_key(fname))
+                    gkey, rank, natural_key(fname))
         self.docs.sort(key=key)
 
     def group_label(self, sec, group):
@@ -808,6 +837,8 @@ class Pages(Site):
         special, extra = "", ""
         if d["group"] == "03-screens" and d["sec"] == "design":
             special = self.screen_block(d)
+        if d["rel"] == "30-architecture/README.md":
+            special = self.triad_cards(d["out"])  # 总架构入口页顶部同样置顶三件套（rulings §4.21）
         if d["rel"] == "20-design/04-design-system.md":
             special = self.palette_block()
             toc = [{"id": "palette", "name": "色板（亮 / 暗）", "children": []}] + list(toc)
@@ -1115,6 +1146,53 @@ class Pages(Site):
                             "h": [[s["id"] + " " + s["title"], ""] for s in screens],
                             "x": "设计文档集中展示：%d 份界面规格、playground 截图、分组筛选。" % len(screens)})
 
+    # -------------------------------------------------------- 架构三件套（rulings §4.21）
+    def triad_cards(self, cur):
+        """三张架构卡片（总架构 → 前端架构 → 后端架构）；源文件缺失的卡片跳过。"""
+        cards = []
+        for step, label, sec, rel, desc in TRIAD:
+            d = self.by_repo_rel.get(DOCS_REL + "/" + rel)
+            if d is None:
+                continue
+            cards.append('<a class="sec-card%s" href="%s" title="%s"><span class="sec-top"><span class="sec-ic">%s</span>'
+                         '<span class="sec-badge">%s</span></span><span class="sec-name">%s</span>'
+                         '<span class="sec-desc">%s</span><span class="sec-meta">%s · %d 行%s</span></a>'
+                         % (" is-track" if sec in TRACKS else "", esc(relurl(d["out"], cur)), esc(d["title"]), icon(sec),
+                            esc(step), esc(label), esc(desc), esc(rel.split("/")[0] + "/" + rel.split("/")[1][:2]),
+                            d["lines"], " · %d 张图" % d["mermaid"] if d["mermaid"] else ""))
+        if not cards:
+            return ""
+        return ('<section class="triad" aria-label="架构三件套"><p class="sec-note">架构三件套：按「总架构 → 前端架构 → 后端架构」'
+                '的固定顺序读，再进各线细节（rulings §4.21）。</p><div class="sec-grid">%s</div></section>' % "".join(cards))
+
+    def build_triad(self):
+        cur = TRIAD_PAGE
+        tiles = []
+        for sec in ("frontend", "backend"):
+            for label, lo, hi in VGROUPS[sec]:
+                docs = [d for d in self.docs if d["sec"] == sec and d["group"] == label]
+                if not docs:
+                    continue
+                span = "%02d" % lo if lo == hi else "%02d–%02d" % (lo, hi)
+                tiles.append('<a class="stat-tile" href="%s"><span class="stat-n">%d<small> 篇</small></span>'
+                             '<span class="stat-k">%s · %s %s</span></a>'
+                             % (esc(relurl(docs[0]["out"], cur)), len(docs), esc(SEC[sec][1]), esc(label), span))
+        arch = [d for d in self.docs if d["sec"] == "arch"]
+        main = ('<article class="doc doc-wide"><header class="doc-head"><nav class="crumbs" aria-label="位置"><a href="%s">总架构</a>'
+                '</nav><h1 class="doc-title">架构三件套</h1><p class="lede">全仓的架构分三份：总架构（跨端，唯一一份）、前端架构、'
+                '后端架构。前端架构与后端架构就地放在各自设计线的 01 篇，节号不动；三份读完，再按下方分组进入各线细节。</p></header>'
+                '%s<section class="doc-index"><h2 id="next">读完三件套之后<span class="h-note">前端与后端各分组</span></h2>'
+                '<div class="stat-row">%s</div></section>%s%s</article>'
+                % (esc(relurl(cur, cur)), self.triad_cards(cur), "".join(tiles),
+                   self.section_cards("arch", cur) if arch else "", self.pager("arch", cur)))
+        self.write_page(cur, "arch", "架构三件套", main,
+                        self.toc_html([{"id": "next", "name": "读完三件套之后", "children": []}]
+                                      + ([{"id": "section-docs", "name": "本分区全部文档", "children": []}] if arch else [])))
+        self.search.append({"u": cur, "t": "架构三件套", "s": SEC["arch"][1], "g": "",
+                            "h": [["读完三件套之后", "next"]],
+                            "x": "总架构 30/01 → 前端架构 50/01 → 后端架构 60/01；前端分组：前端架构、专题设计、复用与能力、元素目录；"
+                                 "后端分组：后端架构、专题与 DDL、复用清单（rulings §4.21）。"})
+
 
 # ---------------------------------------------------------------- 裁决表解析（决策面板与首页进度共用）
 def md_section(text, num):
@@ -1193,7 +1271,7 @@ def ruling_sets():
         sets.append(("c10", title, "00-charter/charter.md", gh_slug(title), head, rows))
     rf = rulings_file()
     text = read_doc(rf) if rf else ""
-    for num in ("4.20", "4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
+    for num in ("4.21", "4.20", "4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
         title, body = md_section(text, num)
         for head, rows in md_tables(body)[:1]:
             sets.append((num.replace(".", ""), title, rf, gh_slug(title), head, rows))
@@ -1218,7 +1296,7 @@ class Build(Pages):
     def build_decisions(self):
         cur = "pages/charter/decisions.html"
         sets, rtext = ruling_sets()
-        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19", "4.20")]
+        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19", "4.20", "4.21")]
         fake = {"rel": "00-charter/decisions", "repo_rel": DOCS_REL + "/00-charter/decisions.md", "out": cur, "sec": "charter"}
         blocks, toc, tiles = [], [], []
         for key, title, src, anchor, head, rows in sets:
@@ -1254,7 +1332,8 @@ class Build(Pages):
         self.search.append({"u": cur, "t": "决策面板", "s": "章程与裁决", "g": "",
                             "h": [[text_of(t["name"]), t["id"]] for t in toc],
                             "x": "章程 §10 Q1–Q20、rulings §4.12 U-01…U-16、§4.13 S-1…S-5、§4.15 T-0/Q1–Q10/S-3a、"
-                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项、§4.20 遗留小项收口用户裁决汇总"})
+                                 "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项、§4.20 遗留小项收口、"
+                                 "§4.21 复用优先与架构三件套 23 题用户裁决汇总"})
         return sets
 
     # -------------------------------------------------------- 首页
@@ -1322,7 +1401,8 @@ class Build(Pages):
                          '<span class="sec-desc">%s</span><span class="sec-meta">%d 篇 · %s 行%s</span></a>'
                          % (" is-track" if track else "",
                             esc(self.landing(s[0]) if s[0] != "overview" else "pages/overview/readme.html"),
-                            icon(s[0]), '<span class="sec-badge">设计线 · 唯一事实源</span>' if track else "",
+                            icon(s[0]), '<span class="sec-badge">设计线 · 唯一事实源</span>' if track
+                            else ('<span class="sec-badge">架构三件套 · 起点</span>' if s[0] == "arch" else ""),
                             esc(s[1]), esc(s[2]), len(ds), format(sum(d["lines"] for d in ds), ","),
                             " · %d 张图" % sum(d["mermaid"] for d in ds) if any(d["mermaid"] for d in ds) else ""))
         figs = self.key_figures()
@@ -1336,7 +1416,7 @@ class Build(Pages):
         hero, cards, fig_html, stage, _ = self.home_parts(sets)
         rul = []
         for key, title, src, anchor, head, rows in sets:
-            if key not in ("c10", "420", "419", "418", "417", "415"):
+            if key not in ("c10", "421", "420", "419", "418", "417", "415"):
                 continue
             chips, done = [], 0
             for r in rows:
@@ -1347,7 +1427,7 @@ class Build(Pages):
                 chips.append('<a class="rchip%s" href="pages/charter/decisions.html#r-%s-%s" title="%s">%s</a>'
                              % ("" if decided else " is-open", key, esc(gh_slug(rid)), esc(tip), esc(rid)))
             pct = int(round(100.0 * done / len(rows))) if rows else 0
-            name = {"c10": "章程 §10 待用户决策", "420": "§4.20 遗留小项收口", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
+            name = {"c10": "章程 §10 待用户决策", "421": "§4.21 复用优先与架构三件套", "420": "§4.20 遗留小项收口", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
             rul.append('<div class="rul-card"><div class="rul-top"><span class="rul-k">%s</span><span class="rul-n">%d / %d</span>'
                        '</div><div class="bar" role="img" aria-label="已裁决 %d%%"><i style="width:%d%%"></i></div>'
                        '<div class="rul-chips">%s</div><div class="rul-src">%s</div></div>'
@@ -1388,6 +1468,7 @@ class Build(Pages):
         self.nav["overview"].insert(0, gen("index.html", "首页"))
         self.nav["design"].insert(0, gen("pages/design/index.html", "界面画廊"))
         self.nav["charter"].insert(1 if self.nav["charter"] else 0, gen("pages/charter/decisions.html", "决策面板"))
+        self.nav["arch"].insert(0, gen(TRIAD_PAGE, "架构三件套"))  # rulings §4.21：总架构分区置顶，亦为分区落地页
         for s in SECTIONS:
             if not self.nav[s[0]]:
                 self.nav[s[0]].append(gen("index.html", "首页"))
@@ -1501,6 +1582,7 @@ def main():
     for d in b.docs:
         b.build_doc(d)
     b.build_gallery()
+    b.build_triad()
     sets = b.build_decisions()
     b.build_home(sets)
     b.fix_anchors()

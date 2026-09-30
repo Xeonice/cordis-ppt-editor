@@ -1,53 +1,250 @@
 {
-  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符（rulings §4.20 TX-02）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。新的更名裁决回写时须在此登记。",
+  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符与文档标题（rulings §4.20 TX-02；§4.21 起含架构三件套的标题更名）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。新的更名裁决回写时须在此登记。",
   "terms": [
     {
-      "deprecated": ["FakeClock", "FakeServerClock"],
+      "deprecated": [
+        "FakeClock",
+        "FakeServerClock"
+      ],
       "canonical": "FixedClock",
       "source": "70-testing/11 §2",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "FixedMetricsMeasurer",
       "canonical": "FixedWidthMeasurer",
       "source": "70-testing/11 §2",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "*.test-d.ts",
       "canonical": "*.type-test.ts",
       "source": "ADR-0048；决策 T-NAMING",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "render/error",
       "canonical": "render/element-failed",
       "source": "rulings §5",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "collab/permission-changed",
       "canonical": "permission/changed",
       "source": "rulings §5",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "ui.statusbar",
       "canonical": "ui.statusBar",
       "source": "rulings §5",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "@oce/",
       "canonical": "@cordexjs/",
       "source": "rulings §4.15 Q1（npm scope 更名）",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
     },
     {
       "deprecated": "oce-",
       "canonical": "cordex-",
       "source": "rulings §4.15 Q1（内部前缀 oce 改为 cordex：data-cordex-*、--cordex-*、cordex-manifest.json 等）",
-      "allowIn": ["30-architecture/README.md", "70-testing/01-strategy-and-layers.md", "70-testing/README.md"]
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "X-Cordex-Signature",
+      "canonical": "webhook-signature",
+      "source": "rulings §4.21 q-webhook-sig（Standard Webhooks：webhook-id、webhook-timestamp、webhook-signature: v1,<base64>，node:crypto 实现）"
+    },
+    {
+      "deprecated": "X-Cordex-Delivery",
+      "canonical": "webhook-id",
+      "source": "rulings §4.21 q-webhook-sig；60-backend/07 §5.2（webhook-id 的值即投递行 id）"
+    },
+    {
+      "deprecated": "前端总览与运行时全景",
+      "canonical": "前端架构",
+      "source": "rulings §4.21 q-arch-reorg（R-d-02：50-frontend/01 标题「01 前端架构」）"
+    },
+    {
+      "deprecated": "服务总览、进程角色与 cordis 宿主",
+      "canonical": "后端架构",
+      "source": "rulings §4.21 q-arch-reorg（R-d-02：60-backend/01 标题「01 后端架构」）"
+    },
+    {
+      "deprecated": "前端设计线：定位、边界与导航",
+      "canonical": "前端架构与设计：定位、边界与导航",
+      "source": "rulings §4.21 q-arch-reorg（R-d-09：50-frontend/README 标题）"
+    },
+    {
+      "deprecated": "后端设计线：定位、边界与导航",
+      "canonical": "后端架构与设计：定位、边界与导航",
+      "source": "rulings §4.21 q-arch-reorg（R-d-09：60-backend/README 标题）"
+    },
+    {
+      "deprecated": "CollabGateway",
+      "canonical": "CollabUpgradeHandler",
+      "source": "rulings §4.21 q-ws-gateway；ADR-0039 决策 1；40-modules/09 §4.1（collab 适配层：upgrade 处理与帧预过滤）"
+    },
+    {
+      "deprecated": "collab.gateway.ts",
+      "canonical": "collab-upgrade.handler.ts",
+      "source": "rulings §4.21 q-ws-gateway；40-modules/09 §4.1、§5.1"
+    },
+    {
+      "deprecated": [
+        "collabServer.attach",
+        "CollabServer.attach"
+      ],
+      "canonical": "handleConnection",
+      "source": "rulings §4.21；ADR-0039；60-backend/05 §2.1（collabServer.handleConnection）"
+    },
+    {
+      "deprecated": "collab/interface/ticket-verifier.ts",
+      "canonical": "collab/infrastructure/ticket-verifier.ts",
+      "source": "rulings §4.21；40-modules/09 §4.1、§5.1（经 AuthorizationSource.verifyTicket 由 onAuthenticate 调用）"
+    },
+    {
+      "deprecated": "collab:doc:{docId}",
+      "canonical": "hp:{docId}:{epoch}",
+      "source": "rulings §4.21 H:q-hp-fanout；ADR-0035 决策 2 修订；ADR-0039 决策 7；60-backend/14 §3.1（M3 extension-redis 频道）"
+    },
+    {
+      "deprecated": "CONTROL.auth",
+      "canonical": "Auth 帧",
+      "source": "ADR-0039 决策 3；H-d-03（首帧改为 Hocuspocus Auth 帧，token 为 JSON：ticket、epoch?、traceparent? 等，40-modules/02 ws/handshake.ts）"
+    },
+    {
+      "deprecated": "CONTROL.ack",
+      "canonical": "Stateless ack{tier, seq}",
+      "source": "ADR-0039 决策 3；rulings §4.21 H:q-hp-persist-ack"
+    },
+    {
+      "deprecated": "awareness-relay",
+      "canonical": "awareness.extension",
+      "source": "rulings §4.21；ADR-0024 修订 2026-09-26；40-modules/09 §4.4（awareness-relay.ts → awareness.extension.ts）"
+    },
+    {
+      "deprecated": "AwarenessRelay",
+      "canonical": "AwarenessExtension",
+      "source": "rulings §4.21；40-modules/09 §5.4"
+    },
+    {
+      "deprecated": "frame-router.ts",
+      "canonical": "gate-persist.extension.ts",
+      "source": "rulings §4.21；ADR-0039 表 39-3；40-modules/09 §4.4（帧分派由 Hocuspocus 原生承担）"
+    },
+    {
+      "deprecated": "fanout-dedup.test.ts",
+      "canonical": "cross-instance-convergence.test.ts",
+      "source": "rulings §4.21 H:Q2；40-modules/09 §4.4、§5.4"
+    },
+    {
+      "deprecated": "heartbeat-and-close-codes.test",
+      "canonical": "close-policy.test",
+      "source": "rulings §4.21 H:q-hp-provider（删应用层心跳）；40-modules/05 §4.3、§5；50-frontend/07 §15 V3；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "frame-codec.ts",
+      "canonical": "control-channel.ts",
+      "source": "rulings §4.21 H:q-hp-provider（帧层交 provider，只剩 Stateless 载荷 ↔ CONTROL）；40-modules/05 §4.2、§5"
+    },
+    {
+      "deprecated": "fanout/two-instance-dedup",
+      "canonical": "fanout/two-instance-sv-converge",
+      "source": "rulings §4.21 H:q-hp-fanout；70-testing/02 §5.2"
+    },
+    {
+      "deprecated": "session/auth-first-then-sync",
+      "canonical": "provider/auth-then-step1-queued",
+      "source": "rulings §4.21 q-ws-gateway（认证前排队、不应用）；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "transport/binary-envelope-passthrough",
+      "canonical": "transport/frame-sent-metering",
+      "source": "rulings §4.21（删自研 1 字节信封）；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "rs/offline-5mib-chunked",
+      "canonical": "rs/offline-5mib-single-step2",
+      "source": "rulings §4.21 H:q-hp-step2-cap；70-testing/05 §9"
+    },
+    {
+      "deprecated": "footerLike",
+      "canonical": "PlaceholderFamily 'footer'",
+      "source": "rulings §4.21 R-d-73；30-architecture/04 §12.2（PlaceholderFamily = 'text' | 'content' | 'footer' | 'other'）"
+    },
+    {
+      "deprecated": "columnWidths",
+      "canonical": "Table.columns / rows / cells",
+      "source": "rulings §4.21 q-table-depth；30-architecture/04 §3.8；ADR-0018 决策 6（ColId、RowId、CellKey = RowId:ColId 记录表）",
+      "allowIn": [
+        "30-architecture/06-collaboration.md",
+        "40-modules/03-slide-domain-model.md",
+        "50-frontend/24-elements-tables-and-charts.md"
+      ]
+    },
+    {
+      "deprecated": "limits.xml.maxTextNodeBytes",
+      "canonical": "limits.xml.maxTextLength",
+      "source": "ADR-0019 决策 6（rulings §4.21 X:q-xml-lexer）：计量改为源文 UTF-16 码元数",
+      "allowIn": [
+        "60-backend/17-deployment-and-config.md"
+      ]
+    },
+    {
+      "deprecated": "CORDEX_LIMITS_XML_MAX_TEXT_NODE_BYTES",
+      "canonical": "CORDEX_LIMITS_XML_MAX_TEXT_LENGTH",
+      "source": "ADR-0019 决策 6；60-backend/17 §5.8",
+      "allowIn": [
+        "60-backend/17-deployment-and-config.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "deobfuscateFont",
+        "readFsType"
+      ],
+      "canonical": "decodeEmbeddedFont",
+      "source": "40-modules/04 §2.3（rulings §4.21 q-license-tiers：.fntdata 改为 EOT + MTX 口径）"
+    },
+    {
+      "deprecated": "xml-parser-roundtrip.property.test.ts",
+      "canonical": "xml/src/__tests__/roundtrip.property.test.ts",
+      "source": "40-modules/04 §4.3、§5.3（从 ooxml-core 迁到 packages/xml/src/__tests__/，rulings §4.21 X:q-xml-package）"
     }
   ]
 }

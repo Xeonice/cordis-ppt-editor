@@ -1,6 +1,6 @@
 // 用法：node capture-screens.cjs <dist 服务 URL> <输出目录> [--only=08,13]
 // 为文档站「设计集中展示」实拍 playground（先 npm run build，再用静态服务器在 <URL> 提供 docs/20-design/playground/dist/）：
-// 每个路由拍默认态 + 至多 3 个代表态；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
+// 每个路由拍默认态 + 至多 3 个代表态（15 插入界面为 §4.21 样张放宽，见 SCREENS 注释）；每态亮/暗各一张 1440×900（DSF 1，JPEG q78），另以 DSF 0.5 同视口拍 720×450 缩略图；
 // 输出 <输出目录>/*.jpg 与 manifest.json（29 个 03-screens 文档全部登记；无专属路由的 states 为 []，用 seeAlso 指向相关界面）。
 // 切换演示态：点击 DesignBar 的演示状态下拉 [data-slot=select-trigger]，再点对应文字的 [data-slot=select-item]；
 // 暗色：页面脚本运行前把 localStorage["cordex-theme"] 设为 dark/light（src/lib/theme.ts 中显式选择优先级最高），并同步 colorScheme。
@@ -37,8 +37,11 @@ const SCREENS = [
   S("13", "13-import-progress-and-degraded-states.md", "打开与导入：进度、失败态、降级占位", "导入导出", "/import",
     [["progress", "进度：解析母版与版式"], ["err-macro", "失败：包含宏（.pptm）"], ["err-quota", "失败：超出规模上限（配额）"], ["external-confirm", "外链资源：confirm（需确认加载）"]]),
   S("14", "14-slide-management-and-layouts.md", "幻灯片管理与版式选择器", "编辑器·面板", null, [], ["27", "02"]),
+  // 15：rulings §4.21 样张（插入页签七组、形状库 72 项、插入工具态、操作设置、页眉和页脚、图标、符号、P2 禁用原因），代表态放宽到 8 个
   S("15", "15-insert-menu-and-shape-library.md", "插入菜单与形状库/变换手柄", "编辑器·面板", "/editor/insert",
-    [["default", "默认 · 形状/表格/图表入口"], ["handles", "变换手柄（缩放/旋转）"]]),
+    [["default", "默认 · 插入页签"], ["shapes", "形状库 · 72 项"], ["insert-tool", "插入工具态 · 拖出"], ["action-settings", "动作按钮 · 操作设置"],
+     ["header-footer", "页眉和页脚对话框"], ["icons", "图标面板"], ["symbols", "符号面板 · 编辑文本"], ["media-p2", "禁用原因 · 视频 P2"],
+     ["handles", "变换手柄（缩放/旋转）"]]),
   S("16", "16-text-editing-and-formatting.md", "文本编辑态与格式化", "编辑器·画布", "/editor/text",
     [["editing", "编辑中 · 迷你工具条"], ["restricted-font", "受限字体三处提示"], ["bullets", "项目符号 · 多级缩进"]]),
   S("17", "17-selection-alignment-and-snapping.md", "选择、多选、对齐、分布、吸附、网格与参考线", "编辑器·画布", null, [], ["02"]),

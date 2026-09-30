@@ -1,4 +1,4 @@
-> 状态：工具 v0.4 | 负责：总编排 | 更新：2026-09-23；2026-09-25（评审站 gen-review-site.py 由文档站 gen-docs-site.py 取代；新增 capture-screens.cjs）；2026-09-25（矛盾收口，rulings §4.18）：新增「绘图规范」一节（GV-04），`mermaid-check.cjs` 增加引号、「< 后接字母」、超限三项检查与既有超限图豁免表（GV-04/GV-05/GV-23），新增 `check-scanner-names.py`（GV-15）；2026-09-25（§4.19）：新增 `ddl-check.sh`（60-backend/08 §11 的 ddl-check 实现）；2026-09-25（设计线拆分：文档站新增前端 / 后端 / 测试三个分区，SQL 代码块标迁移号与行数，决策面板纳入 §4.19）；2026-09-26（§4.20：新增 `check-links.py`（TX-04）、`check-terms.py` 与 `terms.json`（TX-02）并列为改文档后必跑，rulings 回写流程加「新更名须登记 terms.json」；`ddl-check.sh` 迁移文件名分隔符更正为 `NNNN_`（BE-03+TX-14）；文档站注明相近改指不算通过） | 依赖：40-modules/_template.md、charter §9.2、60-backend/08 §11、rulings §4.20
+> 状态：工具 v0.4 | 负责：总编排 | 更新：2026-09-23；2026-09-25（评审站 gen-review-site.py 由文档站 gen-docs-site.py 取代；新增 capture-screens.cjs）；2026-09-25（矛盾收口，rulings §4.18）：新增「绘图规范」一节（GV-04），`mermaid-check.cjs` 增加引号、「< 后接字母」、超限三项检查与既有超限图豁免表（GV-04/GV-05/GV-23），新增 `check-scanner-names.py`（GV-15）；2026-09-25（§4.19）：新增 `ddl-check.sh`（60-backend/08 §11 的 ddl-check 实现）；2026-09-25（设计线拆分：文档站新增前端 / 后端 / 测试三个分区，SQL 代码块标迁移号与行数，决策面板纳入 §4.19）；2026-09-26（§4.20：新增 `check-links.py`（TX-04）、`check-terms.py` 与 `terms.json`（TX-02）并列为改文档后必跑，rulings 回写流程加「新更名须登记 terms.json」；`ddl-check.sh` 迁移文件名分隔符更正为 `NNNN_`（BE-03+TX-14）；文档站注明相近改指不算通过）；2026-09-26（§4.21：文档站分区改名「总架构 / 前端架构与设计 / 后端架构与设计」，总架构分区置顶生成页「架构三件套」并作分区落地页，前端、后端分区按编号区间虚拟分组，决策面板与首页裁决进度纳入 §4.21；30/08 删除后生成器照常运行） | 依赖：40-modules/_template.md、charter §9.2、60-backend/08 §11、rulings §4.20、§4.21
 
 # docs/_tools —— 文档线工具
 
@@ -12,7 +12,7 @@
 | `ddl-check.sh` | 60-backend 的 DDL 可执行性检查（需求见 `60-backend/08` §11）：提取 `docs/60-backend/*.md` 的 ```` ```sql ```` 围栏，检查首行标记、迁移编号唯一且在所属号段内；在 PostgreSQL 18 容器的空库里按编号执行全部 `-- migrate:` 围栏（0001 以超级用户、其余 `SET ROLE cordex_migrator`，每个迁移一个事务、`ON_ERROR_STOP=1`，写台账，再重跑一次 0001）；随后做结构核对（表集合 = 08 §1、禁建表不出现、带 `doc_id` 的表 RLS 与 policy、policy 命名与不含 `current_setting`、SECURITY DEFINER 集合 = 08 §4.3、外键前导索引、无 DEFAULT 分区与触发器，期望集合都从 08 原文解析）；最后逐段执行 `-- example`（带 `$N` 的 DML 用 `PREPARE` 分析，其余在回滚事务中真实执行，08 §13 的 RLS 负向断言因此每次都跑）。失败报「文档:行号 + 迁移编号 + PG 错误」、退出码 1；成功导出 `schema.sql` | `bash docs/_tools/ddl-check.sh [--out <目录>] [--keep]`；复用已有容器加 `CORDEX_DDL_CONTAINER=cordex-ddl-pg`，换镜像加 `CORDEX_DDL_IMAGE=postgres:18-alpine`，换库名加 `CORDEX_DDL_DB=…`（每次先 DROP 再建）；`--out` 目录里是按编号拆好的 `NNNN_<name>.sql`（文件名与 `60-backend/08` §10.1 的迁移文件一致，2026-09-26 由 `NNNN-` 更正，rulings §4.20 BE-03+TX-14）、`manifest.tsv`、`_checks.sql`、`_examples.sql` 与日志 | Docker + `postgres:18` 镜像；`python3`（仅标准库）；不改仓库文件 |
 | `check-links.py` | 严格链接与章节引用检查（rulings §4.20 TX-04）：① 相对链接的目标文件必须存在（大小写精确），带锚点时锚点必须**精确**等于目标文件的标题锚点（GitHub 规则：反引号内文字保留、重名加 -1/-2）或显式 `<a id>`，不做相近改指；② 带目录前缀的章节引用「NN/MM §x.y」「<线目录>/MM §x.y」及同一行紧接着写的「、§x.y」，要求 `docs/<线>/MM-*.md` 唯一且有以该编号开头的标题（不带前缀的「08 §4.1」不查，`> 状态：` 头行不查）。围栏与行内代码里的链接不查，外链与仓库外路径不查；失配逐条报「文件:行 → 目标（原因）」，有失配退出码 1 | `python3 docs/_tools/check-links.py [文件...]`；`--no-sections` 只查链接、`--no-links` 只查章节引用、`--summary` 只打印汇总 | 仅标准库 |
 | `check-terms.py` + `terms.json` | 术语残留检查（PRD 05 M0 验收 2，rulings §4.20 TX-02）：`terms.json` 登记已裁定更名的旧名 → 正名（字段 `deprecated`、`canonical`、`source`、可选 `allowIn`），脚本逐行扫描 `docs/` 全部 `.md`（含围栏），旧名残留即报「文件:行: 旧名 → 正名（出处）」、退出码 1。豁免：跳过 `00-charter/rulings-*`、`_evidence/`、`30-architecture/adr/`；跳过 `> 状态：` 头行；同一行出现该处正名或含「原名 / 原称 / 原： / 弃 / 作废 / 取代 / 替换 / → 2026- / 旧名」的行放行；每条的 `allowIn` 文件整篇放行 | `python3 docs/_tools/check-terms.py [文件...]`；`--list` 列出术语表、`--summary` 只打印汇总 | 仅标准库 |
-| `gen-docs-site.py` | 把 `docs/` 全部 Markdown 生成为多页「Cordex 文档站」：总览首页、章程与裁决（含决策面板）、产品、设计（界面画廊 + 每个界面的多状态截图）、架构、前端、后端、测试（三条设计线，rulings §4.19）、ADR、模块（含图集 18/19） | `python3 docs/_tools/gen-docs-site.py <输出目录> [--screens <截图目录>] [--inline-screens]` | `pip install markdown`（建议装在 venv 里）；前端资源在 `docs-site/` |
+| `gen-docs-site.py` | 把 `docs/` 全部 Markdown 生成为多页「Cordex 文档站」：总览首页、章程与裁决（含决策面板）、产品、设计（界面画廊 + 每个界面的多状态截图）、总架构（置顶「架构三件套」）、前端架构与设计、后端架构与设计、测试（rulings §4.19、§4.21）、ADR、模块（含图集 18/19） | `python3 docs/_tools/gen-docs-site.py <输出目录> [--screens <截图目录>] [--inline-screens]` | `pip install markdown`（建议装在 venv 里）；前端资源在 `docs-site/` |
 | `capture-screens.cjs` | 实拍设计 playground 的各界面状态（亮/暗 × 原图/缩略图），输出截图与 `manifest.json`，供文档站的界面画廊与界面页使用 | `node docs/_tools/capture-screens.cjs <playground dist 的本地 URL> <输出目录> [--only=08,13]` | `playwright` + Chrome；先在 `docs/20-design/playground/` 执行 `npm run build` |
 
 换机器请看 [`MIGRATION.md`](MIGRATION.md)：仓库、项目记忆、Node 依赖、GitHub 凭据四件事的完整步骤。
@@ -40,15 +40,17 @@ node docs/_tools/capture-screens.cjs http://127.0.0.1:8765/ /tmp/cordex-screens
 ~/.venv/cordex/bin/python docs/_tools/gen-docs-site.py /tmp/cordex-site --screens /tmp/cordex-screens
 ```
 
-产物结构：`index.html`（首页）+ `pages/<分区>/<文件名>.html` + 共用的 `site.css`、`site.js`、`search-index.json` + `screens/`（截图）。发布目标限制文件条数时（claude.ai artifact 每个版本至多 255 个文件），加 `--inline-screens` 把截图以 data URI 内嵌进页面、不输出 `screens/`，文件数降到约 210 个（2026-09-25 三条设计线加入后为 209 个）。
+产物结构：`index.html`（首页）+ `pages/<分区>/<文件名>.html` + 共用的 `site.css`、`site.js`、`search-index.json` + `screens/`（截图）。发布目标限制文件条数时（claude.ai artifact 每个版本至多 255 个文件），加 `--inline-screens` 把截图以 data URI 内嵌进页面、不输出 `screens/`，文件数降到约 210 个（2026-09-25 三条设计线加入后为 209 个；2026-09-26 §4.21 新增前端 17–25、后端 19 与 5 份 ADR 及「架构三件套」页后约 225 个，仍在 255 以内）。
 
 - **覆盖范围**：`docs/` 下全部 `.md`（跳过 `node_modules`、`dist`、`playground` 源码、`_evidence`、`mockups`、`prototype`）。源目录默认取本脚本上一级，可用环境变量 `CORDEX_DOCS_ROOT` 覆盖。
 - **文档头**：`> 状态：… | 负责：… | 更新：… | 依赖：…` 解析为元信息条（状态胶囊、负责人、最新更新日期、行数与图数），完整变更记录折叠在「元信息与变更记录」里。
 - **图**：每个 `` ```mermaid `` 围栏输出为 `<pre class="cx-mermaid">`，由页面自带的 mermaid 11.16.1 按站点 token 渲染、切换主题时重渲染；图名取上一行加粗标题，「怎么读」段落收为图注；每张图可「放大」到全屏浮层缩放平移；渲染失败时显示错误与源码，不会静默。
 - **链接**：md 相对链接改写为站内页面；指向站外仓库文件的改为 GitHub 链接（分支 `ppt在线编辑器初始化`）。源文档里写错的锚点按近似标题改指，生成结束时报告改指数与仍失配的数量——**改指只是阅读兜底，相近改指的数量不算通过**，锚点是否正确以 `check-links.py` 为准（rulings §4.20 TX-04）。
 - **代码块**：每块带语言标签与「复制」按钮，由 highlight.js 高亮；SQL 围栏按 60-backend/08 §11 的首行约定在标题栏标出「迁移 NNNN_name」（可执行，ddl-check 顺序执行）或「示例 · 只解析」，并显示行数。
-- **设计线分区**：前端、后端、测试三个分区排在「架构」之后、「ADR」之前，顶栏页签、首页分区卡片（标「设计线 · 唯一事实源」）、左侧导航与搜索都包含它们。
-- **旧评审站的功能**：决策面板（章程 §10 与 rulings §4.12/§4.13/§4.15/§4.16/§4.17/§4.18/§4.19/§4.20 的裁决表，原文照录 + 状态列）、超过 20 行的表格过滤框、每篇文档的行数统计，都在文档站里保留。
+- **设计线分区**：前端、后端、测试三个分区排在「总架构」之后、「ADR」之前，顶栏页签、首页分区卡片（标「设计线 · 唯一事实源」）、左侧导航与搜索都包含它们。
+- **架构三件套（rulings §4.21）**：分区改名为「总架构 / 前端架构与设计 / 后端架构与设计」；总架构分区的第一项是生成页「架构三件套」（`pages/arch/triad.html`，也是该分区的落地页），三张卡片按「总架构 30/01 → 前端架构 50/01 → 后端架构 60/01」排列，下方是前端与后端各分组的入口；`30-architecture/README.md` 页顶部同样置顶这三张卡片；首页的总架构卡片标「架构三件套 · 起点」。三篇源文件缺哪篇就跳过哪张卡片，不报错。
+- **虚拟分组**：前端分区按文件编号分为「前端架构」01、「专题设计」02–16、「复用与能力」17–18、「元素目录」19–25；后端分区分为「后端架构」01、「专题与 DDL」02–18、「复用清单」19。区间在脚本顶部的 `VGROUPS` 配置，只作用于分区根目录下带两位编号的文档，不在区间内的文档与 README 一起排在最前；页面地址不变。
+- **旧评审站的功能**：决策面板（章程 §10 与 rulings §4.12/§4.13/§4.15/§4.16/§4.17/§4.18/§4.19/§4.20/§4.21 的裁决表，原文照录 + 状态列；首页「裁决进度」也含 §4.21）、超过 20 行的表格过滤框、每篇文档的行数统计，都在文档站里保留。
 - **设计分区**：首页是界面画廊，读截图目录的 `manifest.json` 为 29 个界面出卡片（可按分组筛选，亮/暗主题显示对应截图）；每个界面页顶部是多状态截图切换，注明 playground 路由与状态名；设计系统页由 `playground/src/index.css` 直接渲染亮/暗色板。
 
 ## 说明

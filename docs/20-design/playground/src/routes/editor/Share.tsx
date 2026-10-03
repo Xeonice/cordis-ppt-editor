@@ -6,7 +6,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -252,9 +251,6 @@ export function EditorShare() {
                   </Select>
                 </div>
                 <p className="mt-1.5 text-xs text-muted-foreground">打开链接需要先登录</p>
-                <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Checkbox disabled={demoState === "offline"} /> 允许通过链接访问的用户下载/打印
-                </label>
               </div>
             </div>
           )}

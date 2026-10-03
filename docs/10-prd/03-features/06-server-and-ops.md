@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22））；2026-09-26（§4.21：SV-05 协同网关改由 Hocuspocus 4 实现后的行为级核对，用户可见行为不变；多实例改为 extension-redis 加文档哈希偏好亲和；重连差量单设 16 MiB；SV-15 Webhook 签名改为 Standard Webhooks）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：正文与图 1-1 的 `apps/server` 改为 NestJS 12（纯 ESM，Fastify 5），q-nest-major） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、q-webhook-sig、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-step2-cap）
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22））；2026-09-26（§4.21：SV-05 协同网关改由 Hocuspocus 4 实现后的行为级核对，用户可见行为不变；多实例改为 extension-redis 加文档哈希偏好亲和；重连差量单设 16 MiB；SV-15 Webhook 签名改为 Standard Webhooks）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：正文与图 1-1 的 `apps/server` 改为 NestJS 12（纯 ESM，Fastify 5），q-nest-major）；2026-10-03（rulings §4.24 AL-7：SV-13 细节不再推到 M4，随 M3 交付） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、q-webhook-sig、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-step2-cap）
 
 # 功能域 06：服务端能力与运维
 
@@ -560,7 +560,7 @@ flowchart TB
 
 - 优先级：P1 | 目标里程碑：M3 | 依赖能力：`server-headless`、`commands`（模板填充命令）、作业队列
 - 用户故事：作为集成方后端，我希望调用 API 把模板中的占位符批量替换为业务数据并导出 pptx/PDF。
-- 验收标准：作业类型：`fill-template`（按占位符类型/名称替换文本/图片/表格数据）、`convert`（pptx → pdf/png/markdown）、`validate`（结构校验 + 保真诊断报告）、`migrate`（快照迁移）；四种作业类型**归属统一为 `import-export` 模块**，不新设独立模块，具体 usecase/队列/REST 细节 M4 一起定（rulings §4.12 U-13）；幂等键；批量 100 份 D50 填充 + 导出 ≤ 60 s（4 worker）；结果回调（webhook，签名，P1）。
+- 验收标准：作业类型：`fill-template`（按占位符类型/名称替换文本/图片/表格数据）、`convert`（pptx → pdf/png/markdown）、`validate`（结构校验 + 保真诊断报告）、`migrate`（快照迁移）；四种作业类型**归属统一为 `import-export` 模块**，不新设独立模块，usecase / 队列 / REST 细节随 M3 交付、设计见 60-backend/06 与 15（rulings §4.24 AL-7，覆盖 §4.12 U-13「M4 一起定」）；幂等键；批量 100 份 D50 填充 + 导出 ≤ 60 s（4 worker）；结果回调（webhook，签名，P1）。
 
 ### SV-14 管理面板（参考应用）
 

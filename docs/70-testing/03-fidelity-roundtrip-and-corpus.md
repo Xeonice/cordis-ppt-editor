@@ -1,5 +1,5 @@
 # 03 保真往返与语料库
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5.3 可追加元素往返语料；`[Content_Types].xml` 与 `.rels` 统一为「结构不变原样写回」（§4.2、§5.2 E7）；E9 白名单补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm`；§8 XML 限额改引 `XmlLimits`、补畸形 XML 两类；§9 表格样式、图表、墨迹、嵌入字体行）；2026-09-26（§4.21 整合：§1 规则 6 登记维护机生成的 oracle 样本（图表矩阵、arrow-ends、形状库 69 项）；§5.3 补五个命名往返用例）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5）；2026-09-30（§4.22 设计待决收口：新增 §12.1，登记三项 PowerPoint 对照与语料——DF-08 三语日期字段、DF-09 `obj` 占位符填图、DF-03 表格列分隔线拖动；§1 规则 6、§5.3、§13、§15、§16 同步） | 依赖：rulings §4.22 DF-03 / DF-08 / DF-09、rulings §4.21 X:q-content-types / q-table-depth / q-chart-route / q-extra-inserts、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：新增 §5.3 可追加元素往返语料；`[Content_Types].xml` 与 `.rels` 统一为「结构不变原样写回」（§4.2、§5.2 E7）；E9 白名单补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm`；§8 XML 限额改引 `XmlLimits`、补畸形 XML 两类；§9 表格样式、图表、墨迹、嵌入字体行）；2026-09-26（§4.21 整合：§1 规则 6 登记维护机生成的 oracle 样本（图表矩阵、arrow-ends、形状库 69 项）；§5.3 补五个命名往返用例）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5）；2026-09-30（§4.22 设计待决收口：新增 §12.1，登记三项 PowerPoint 对照与语料——DF-08 三语日期字段、DF-09 `obj` 占位符填图、DF-03 表格列分隔线拖动；§1 规则 6、§5.3、§13、§15、§16 同步）；2026-10-03（§4.24 设计线对齐审计：§6 新增 X6 服务端导出的足迹 `p:extLst` 往返（TA-9）、X7 评论不进足迹（AL-6）、X8 服务端导出按部署策略启用内容级插件与 renderer 经 RPC `contentPlugins` 取集合（PM-13、AL-3）、X9 自动化模板填充产物的足迹（AL-7）；§16 登记） | 依赖：rulings §4.24 AL-3 / AL-6 / AL-7 / TA-9、[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §7.1 / §7.4 / §8.1 / §10.3、rulings §4.22 DF-03 / DF-08 / DF-09、rulings §4.21 X:q-content-types / q-table-depth / q-chart-route / q-extra-inserts、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、rulings §4.20 TX-16、rulings §4.19 D-M2-CONTENT / C-06 / D-TEST-INFRA、PRD [03/01 §4](../10-prd/03-features/01-open-and-fidelity.md#4-保真度量口径产品验收定义测试实现见架构-11)、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-02 / NF-08 / NF-09、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M5 验收、[30/04 §5.4](../30-architecture/04-document-model.md)、[30/11](../30-architecture/11-testing-strategy.md) §6 / §11 / §17、[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md)、[ADR-0009](../30-architecture/adr/0009-snapshot-schema-version-and-migrations.md)、[40/04 §9](../40-modules/04-ooxml-format-and-pptx-codec.md)、[40/02 §9](../40-modules/02-kernel-protocol-and-document-core.md)
 
 本文是保真往返与语料库的测试侧唯一事实源：语料分三层放在哪里、清单长什么样、样本怎么进来和退役、零编辑与编辑后往返怎么判、导出确定性与打开管线怎么验、错误码语料、基线包、快照迁移语料、PowerPoint 互操作证据，以及这些检查在哪个 CI 步骤、何时跑。
 
@@ -473,6 +473,15 @@ sequenceDiagram
 
 样本集合：PR 跑全部 gated 的 T1 样本（含图片、嵌入字体、不透明部件、Strict 的样本必须在其中，V3 标签保证）；nightly 跑 T1 + T2 全量。PRD SV-02 的「规范化结果相同」在此以更严的 sha256 相等断言。
 
+**内容插件足迹与按策略装配（2026-10-03，rulings §4.24）**：以下四例沿用 X4 的 harness（`apps/server/test/integration/pptx-roundtrip.int-spec.ts` 与同目录 `plugin-footprint-server.int-spec.ts`），声明文件夹具与 [07](./07-backend-integration-and-api-e2e.md) §7.5 相同（含测试用内容级插件 `test:content-p`）。足迹的写入、只增不减与客户端往返由 [02](./02-contract-suites-and-pluggability.md) §10.1 `footprint/*` 承担，这里只断言服务端链路。
+
+| # | 用例 | 文件 | 里程碑 |
+|---|---|---|---|
+| X6 | 足迹的服务端往返（TA-9，§4.23 O-3）：`server-headless` 导出的 `ppt/presentation.xml` 含 `p:presentation/p:extLst/p:ext[@uri='urn:cordex:plugin-footprint:1']`，该部件与 Node 导出逐字节相同；服务端重新导入后 `resources['core.pluginFootprint']` 与导出前逐项相等；零编辑导出时该 `p:ext` 字节不变，其余 `extLst` 按 ADR-0008 原样保留；服务端只搬运足迹、不改写（导出前后足迹对象深相等） | `pptx-roundtrip.int-spec.ts` | M3（服务端导出；客户端侧 M2 由 02 `footprint/pptx-roundtrip` 覆盖） |
+| X7 | 评论不进足迹（AL-6，ADR-0050 决策 1）：在 `collab` preset 下写评论线程后导出，足迹中没有 `comments` 条目、`namespaces` 不含任何 `comments.*`；以单人 preset（不装 `comments`）打开该文档与其导出的 pptx，`comparePluginFootprint` 结果为空；`comments.threads` 资源按未注册命名空间原样往返（导出再导入后深相等） | `plugin-footprint-server.int-spec.ts`；单人 preset 打开的界面断言见 [06](./06-frontend-component-and-e2e.md) §5 第 34 行 | M3 |
+| X8 | 按部署策略装配内容级插件（PM-13，AL-3）：管理员把 `test:content-p` 设为 `disabled` 后受理的 pptx 导出，headless 宿主清单不含该插件，其元素按未知内容原样保留、导出字节与启用时该部分一致（[02](./02-contract-suites-and-pluggability.md) §10.1 `footprint/unknown-preserved` 同口径）；禁用前已受理的作业重试时仍用受理时的 `payload.contentPlugins`；render-export 与缩略图作业中 renderer 收到的 RPC `contentPlugins` 与作业 `payload.contentPlugins`（缩略图为处理时取得的集合）相等，`ids` 中而镜像里没有的插件记入页级 `missingResources`；renderer 进程内无 PG 客户端、无数据库凭据（与 [10](./10-security-testing.md) SEC-RS-08 同一断言，角色装配见 [08](./08-deployment-and-environment-e2e.md) §2） | `plugin-footprint-server.int-spec.ts` | M3 |
+| X9 | 自动化模板填充的产物足迹（AL-7）：`fill-template` 作业经命令管线写入 `test:content-p` 的元素后，产物 pptx 的足迹含该插件条目（kernel 同事务维护，与浏览器同一实现），重新导入读回相等；模板文档自身的足迹不变 | `apps/server/test/e2e/automation/fill-template.e2e-spec.ts`（[07](./07-backend-integration-and-api-e2e.md) §11.6 AU4） | M3 |
+
 ---
 
 ## 7. 打开管线（CO-12 / CO-11）的语料级用例
@@ -699,6 +708,15 @@ PRD 05 M5 验收 5（`roundtrip:docx-xlsx`，P1）：docx 与 xlsx 零编辑往�
 | q-table-depth、q-chart-route、q-extra-inserts、q-media-insert 与元素范围 | 可追加元素往返语料 N1–N4 与逐类断言；表格 M2 插入与单元格文字、M3 结构与样式；图表 M3；图标与符号 M3 P2；音视频插入 P2 且不写 `p:timing`；不提供插入的元素不进语料 | §5.3 |
 | X:q-xml-lexer（XML 限额单一来源、DOCTYPE 一律拒绝） | XML 限额样本从 `XmlLimits` 读取；DOCTYPE 类样本一律以 `xml.doctype` 拒绝；非必需部件畸形 XML 降级不拒绝 | §8 |
 | ADR-0008 决策 9 白名单新增项 | E9 补 `tableStyles.xml` 追加与裸 `p:contentPart` 的 `p:xfrm` | §5.2、§9 |
+
+**rulings §4.24 设计线对齐审计（2026-10-03）**
+
+| 编号 | 本文写法 | 位置 |
+|---|---|---|
+| TA-9 | 服务端导出把足迹写入 `p:presentation/p:extLst`、导入读回；headless 按受理时的部署策略取内容级集合 | §6 X6、X8 |
+| AL-6 | 评论不进足迹，单人 preset 打开带评论的文档比对为空、评论原样往返 | §6 X7 |
+| AL-3 | renderer 不读库，内容级集合经 worker → renderer RPC `contentPlugins` 下发 | §6 X8 |
+| AL-7 | 自动化 `fill-template` 产物的足迹由命令管线维护 | §6 X9 |
 
 **rulings §4.22 推迟项（测试线负责出语料或对照）**
 

@@ -1,5 +1,5 @@
 # 09 性能与容量测试
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：负载驱动与时序图的 CONTROL.auth 改为 Auth 帧）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-30（§4.22 设计待决收口：新增 §3.1 大表插入基准（DF-10），为「插入表格…」对话框行列上限定值，暂按 75 × 75 占位；§10 nightly、§13、§14 同步） | 依赖：rulings §4.22 Q3-table-row-limit / DF-10、[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.3 / §2.14、rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4（原 30/08 §12 / §16.5）、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：负载驱动与时序图的 CONTROL.auth 改为 Auth 帧）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-09-30（§4.22 设计待决收口：新增 §3.1 大表插入基准（DF-10），为「插入表格…」对话框行列上限定值，暂按 75 × 75 占位；§10 nightly、§13、§14 同步）；2026-10-03（§4.24 AL-7：`template-fill-100` 由 M4 改 M3，场景改按 PRD SV-13 写明 100 份 D50 填充 + pptx 导出 ≤ 60 s、4 个 worker 实例 × 并发 4，经 `POST /documents/:id/automation/fill-template` 一批受理、计到同一 `batchId` 最后一行 `succeeded`；nightly 自 M3 起加该场景；§14 登记） | 依赖：rulings §4.22 Q3-table-row-limit / DF-10、[50/24](../50-frontend/24-elements-tables-and-charts.md) §2.3 / §2.14、rulings §4.20 BE-01+TX-03 / BE-07+TX-05、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、rulings §4.12 U-13、[PRD 04](../10-prd/04-non-functional-requirements.md) §0 / NF-01 / NF-03 / NF-09 / NF-10、[PRD 05](../10-prd/05-milestones-and-scope.md) M1–M3 验收、[50/13](../50-frontend/13-performance-and-bundling.md)、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[30/11](../30-architecture/11-testing-strategy.md) §9 / §17、[30/07](../30-architecture/07-rendering.md) §9 / §14、[30/06](../30-architecture/06-collaboration.md) §9 / §14 / §18.5、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/05](../60-backend/05-modules-collab-and-snapshots.md) §4（原 30/08 §12 / §16.5）、[09-06](../30-architecture/09-type-discipline/06-scanners.md) §14 / §15、ADR-0010 / 0021 / 0025 / 0035、rulings §4.15 Q5
 
 本文是性能与容量测试的测试侧唯一事实源：数字从哪里来、`test/perf/budgets.json` 长什么样、有哪些场景、怎么测、噪声怎么控、门禁怎么判、体积预算的唯一阻断点、预算怎么校准。
 
@@ -290,7 +290,7 @@ flowchart LR
 | `import-d50`、`import-d200`、`import-50mb` | 两步导入作业端到端 | NF-01 §1.7 对应行（50 MB 项只有 target） | 作业 span（入队到完成） | `perf-server` | M2 |
 | `export-pptx-server-d50`、`export-pptx-server-d200`、`export-pdf-d50`、`export-png-all-d200` | 服务端导出作业端到端 | NF-01 §1.7 对应行；PDF 自 M3 后半段；PNG 全量 D200 取 PRD SV-02 | 作业 span（入队到完成；PNG 为 `job.render-export`） | `perf-server` | M3 |
 | `thumbs-first-page`、`thumbs-d200-full` | 导入后首页缩略图；D200 全量缩略图 | NF-01 §1.7；PRD 05 M3 验收 6a | 导入完成到缩略图对象写入 | `perf-server` | M3 |
-| `template-fill-100` | 4 个 worker 做 100 × D50 模板填充 + 导出 | NF-01 §1.7 | 批次总时长 | `perf-server` | M4（rulings §4.12 U-13；60/01 S15） |
+| `template-fill-100` | SV-13 批量（2026-10-03 按 rulings §4.24 AL-7 改 M3）：一次 `POST /documents/:id/automation/fill-template` 受理 100 项 D50 模板数据（文本、图片、表格占位符各有，图片只传已关联的 sha256），`format='pptx'`；4 个 worker 实例 × 每实例并发 4（`automation` 队列默认并发），负载期间无其它作业 | PRD SV-13 与 NF-01 §1.7：批次总时长 ≤ 60 s（60/01 S15）；100 行全部 `succeeded`、产物可取，失败一行即判失败 | 受理请求发出 → 同一 `batchId` 最后一行 `succeeded`（span `job.fill-template` 与 `job_runs.finished_at` 双读，取较大值） | `perf-server` | M3（原 M4，rulings §4.12 U-13 → §4.24 AL-7；60/01 S15；功能断言在 [07](./07-backend-integration-and-api-e2e.md) §11.6） |
 | `graceful-shutdown` | 负载中 `SIGTERM` | 停机时长（NF-01 §1.7）；已 `ack{tier:'db'}` 的 update 零丢失 | 进程退出时间；重启后逐条核对 | `perf-server` | M3（PRD 04 NF-01 §1.7 里程碑段；M2 起报告，零丢失的功能断言在 07 §9 W4） |
 | `spill-replay` | 负载中断开 PG N 秒后恢复 | 回放耗时 p95（target 见 60/01 §12）；断开期间房间内广播 p95 仍满足 NF-01 §1.7（降级期照常广播，rulings §4.18 CO-08；功能正确性在 07）；溢写房间数取 `cordex_collab_spill_rooms` | 回放 span；广播双端时间戳 | `perf-server` | M2（单实例 PG 故障溢写，PRD 05 §0.3「Postgres 故障」行） |
 | `rest-read` | REST 只读端点混合负载 | REST p95（target） | HTTP span | `perf-server` | M2 |
@@ -417,7 +417,7 @@ runner 变更（含 M2 起 `perf-collab` 迁到自托管 runner）按 [11](./11-
 |---|---|---|---|---|
 | PR | `perf-client` 的 D50 关键指标：`open-d50` 首页可见、`type-latency`（M2 起）、`export-pptx-d50`（M2 起）；M2 起另加 `server-update` 与 `persist-lag`（RM-S，自托管 runner）；M3 起另加 `collab-roundtrip-2clients` | 失败 | 与 main 基线比较，只写 PR 注释（job 通过 = 报告） | 报告 |
 | 合入 main | 全部 `envelope` 场景（RM-A 与 RM-S） | 失败 | 相对滚动中位数（同标签最近 10 次 main 结果）回归超过 10% → 失败并自动建 issue | 报告 |
-| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；§3.1 大表插入基准（评估期只报告，定值后只留上限档回归）；M3 起加 `host-footprint`（只报告）；M4 起加 `template-fill-100` | 失败 | 同 main | 报告 |
+| nightly（`CORDEX_SUITE=nightly`） | main 的全部 + RM-B 重跑 + `ceiling` 场景 + §7 满员房间 + `ws-capacity`、`scale-out-3x`；§3.1 大表插入基准（评估期只报告，定值后只留上限档回归）；M3 起加 `host-footprint`（只报告）与 `template-fill-100`（2026-10-03 由 M4 提前，rulings §4.24 AL-7） | 失败 | 同 main | 报告 |
 
 - `memory-open-close-20` 的堆增长比例是 gate（NF-01 §1.3），取代 30/11 §10 旧写的 10%。
 - NF-09「每 PR 跑 D50 关键指标，超预算 5% 失败」按更严口径执行为「超 gate 即失败」；5% 容差只保留在体积预算（§11）。
@@ -500,9 +500,11 @@ flowchart TD
 
 ## 14. 已定裁决与回写
 
-**rulings §4.19 已定稿**：D-TEST-INFRA——§9 的 runner 安排（M1 GitHub larger runner、自托管专用 runner M2 前落地并承载 gated 协同与 RM-S 服务端压测、RM-B 以 CPU 4× 节流近似、RM-S 以容器限额模拟）；D-M2-CONTENT——§5、§6 中协同网关、持久化、快照与服务端导入相关场景自 M2 起；`template-fill-100` 按 rulings §4.12 U-13 定为 M4（与 60/01 S15 一致）。
+**rulings §4.19 已定稿**：D-TEST-INFRA——§9 的 runner 安排（M1 GitHub larger runner、自托管专用 runner M2 前落地并承载 gated 协同与 RM-S 服务端压测、RM-B 以 CPU 4× 节流近似、RM-S 以容器限额模拟）；D-M2-CONTENT——§5、§6 中协同网关、持久化、快照与服务端导入相关场景自 M2 起；`template-fill-100` 按 rulings §4.12 U-13 定为 M4（与 60/01 S15 一致；2026-10-03 由 §4.24 AL-7 改为 M3，见下）。
 
 **rulings §4.20 已定稿**（2026-09-26）：BE-01+TX-03——`ws-capacity` 按「先扣后退」在默认限额下从单台压测机爬升，不再需要为压测放宽 `limits.ws.connectPerIpPerMin`，连接按每用户上限分摊到多名测试用户（§6）；BE-07+TX-05——`host-footprint` 场景登记在 §6，只出报告，数值由后端设计线在 M3 出口前按「峰值合计 × 1.3」回填 60/17 §11，溢写阈值仍由 §12 的 `spill-calibration` 校准、无需新动作。
+
+**rulings §4.24 已定稿**（2026-10-03）：AL-7——SV-13 Headless 自动化 API 改 M3，`template-fill-100` 的 gate 随之在 M3 生效（§6），数值仍取 60/01 S15（≤ 60 s，4 worker）；场景经 60/15 §3.16 的受理路由一批提交，不再假设 M4 的集成方凭据（M3 调用方为持会话的集成方专用账号）。
 
 **rulings §4.22 已定稿**（2026-09-30）：Q3-table-row-limit 与 DF-10——「插入表格…」对话框行列上限的性能评估由 M3 性能包络提前到 M2 表格插入开工前，大表渲染与协同基准登记在 §3.1（50/24 §2.14 第 1 条）。本文只出结果与上限候选；定值与回写（PRD 02 ED-10、50/24 §2.3 与 §2.14、`InsertTableDialog` 校验，替换「暂按 75 × 75」）由前端设计线执行。
 

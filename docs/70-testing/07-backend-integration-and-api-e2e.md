@@ -1,5 +1,5 @@
 # 07 后端集成测试与 API / WS e2e
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：漂移检查直查 pg_catalog；Webhook 签名改 Standard Webhooks；WS 升级入口改为嵌入 Fastify 同端口、先扣后退；协同集成改跑 Hocuspocus，加 Valkey 宕机与重启、存储失败不丢）；2026-09-26（§4.21 整合：§9 W19 登记 hp-redis-extension.int-spec.ts（M3））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§4 MG5 / MG7 表集合改 19 张（加 `plugin_policies`、`user_plugin_prefs`，迁移 0012 / 0013，两表在 RLS 例外清单）；新增 §7.5 插件策略 REST、If-Match、审计与个人选择 PL1–PL9；§9 新增 W21 / W22 插件集指纹握手与在线通知；图 7-7） | 依赖：rulings §4.21 q-db-access / q-webhook-sig / q-ws-gateway / H:q-hp-persist-ack / H:q-hp-fanout、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、d-01、d-11、d-16、d-19、d-21、d-22，核实 exp1、exp2、vE）、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §1–§7、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–13（原 30/08 §5–§7 / §9 / §12 / §16）、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：漂移检查直查 pg_catalog；Webhook 签名改 Standard Webhooks；WS 升级入口改为嵌入 Fastify 同端口、先扣后退；协同集成改跑 Hocuspocus，加 Valkey 宕机与重启、存储失败不丢）；2026-09-26（§4.21 整合：§9 W19 登记 hp-redis-extension.int-spec.ts（M3））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§4 MG5 / MG7 表集合改 19 张（加 `plugin_policies`、`user_plugin_prefs`，迁移 0012 / 0013，两表在 RLS 例外清单）；新增 §7.5 插件策略 REST、If-Match、审计与个人选择 PL1–PL9；§9 新增 W21 / W22 插件集指纹握手与在线通知；图 7-7）；2026-10-03（§4.24 设计线对齐审计：AL-1 §5.1 X3 与 §7.1 角色集合删去「链接 editor」、新增 §7.2 S8；§4 新增 MG9（迁移 0063、0074）；§6 新增 A14 个人资料；§7.5 新增 PL10 `AdminPluginDetail` 字段契约与页头版本、PL11 失败会话数按小时桶 HyperLogLog（TA-4、TA-10）；§8 新增 D12 文档列表所有者与协作者摘要、D13 配额用量、D14 快照 diff（P2 占位）；§9 新增 W23 握手顺序（TA-9）；§11.2 新增 J8 位图导出 `width` / `quality`（TA-10）；新增 §11.6 Headless 自动化作业 AU1–AU10（AL-7）；§12.2 新增 H5 `automation.job_finished`；§12.3 补审计导出；图 7-8） | 依赖：rulings §4.24 AL-1 / AL-3 / AL-7 / TA-4 / TA-9 / TA-10、[60/15](../60-backend/15-rest-api-catalog.md) §3.15.1 / §3.16 / §3.17、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §7.4、[60/12](../60-backend/12-ddl-jobs-and-thumbnails.md) §2.1、[60/13](../60-backend/13-ddl-comments-webhooks-audit.md) §5.1、rulings §4.21 q-db-access / q-webhook-sig / q-ws-gateway / H:q-hp-persist-ack / H:q-hp-fanout、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、证据 `00-charter/_evidence/hocuspocus-adoption-2026-09-26.json`（TS-01、d-01、d-11、d-16、d-19、d-21、d-22，核实 exp1、exp2、vE）、rulings §4.20 BE-01+TX-03 / BE-04 / BE-05+TX-22 / TX-10、rulings §4.19 D-M2-CONTENT / INC-09 / C-06 / N1、[01](./01-strategy-and-layers.md)、[02](./02-contract-suites-and-pluggability.md)、[11](./11-test-data-fixtures-and-determinism.md)、[30/11](../30-architecture/11-testing-strategy.md) §10 / §12、[60/01](../60-backend/01-service-overview-and-roles.md) §12、[60/02](../60-backend/02-auth-chain.md)、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §1–§7、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)–13（原 30/08 §5–§7 / §9 / §12 / §16）、[40/08 §9](../40-modules/08-server-identity-documents-and-storage.md)、[40/09 §9](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12 §9](../40-modules/12-server-jobs-comments-and-ops.md)、[40/19](../40-modules/19-atlas-backend-and-data.md) §5–§6、ADR-0022 / 0025 / 0029 / 0031 / 0034 / 0035、PRD 04 NF-03 / NF-04、PRD 05 M3 验收 4 / 6 / 6a / 7 / 8 / 12 / 16 / 17、rulings §4.15 T-0 / Q6 / Q10、§4.17 D1、§4.18
 
 本文是服务端集成测试与 API / WS e2e 的唯一事实源：容器 harness、数据库隔离、迁移测试、文档级 RLS 绕过测试、身份与会话、权限与分享、文档媒体与存储、协同服务集成、墓碑与擦除、作业、评论 / Webhook / 审计 / 遥测、路由鉴权覆盖与契约快照——每一类写 harness、用例族、矩阵的生成方式与运行时机。
 
@@ -126,6 +126,7 @@ flowchart TB
 | MG6 | GRANT 与 RLS 快照 | 读取 `information_schema.role_table_grants` 与 `column_privileges`、`pg_class.relrowsecurity` / `relforcerowsecurity`、`pg_proc` 的 `prosecdef` / `proconfig` / ACL、`pg_database.datacl`，规范化为 `apps/server/test/fixtures/grants.snapshot.json` 并与 60/08 §4.2 矩阵比对；另逐条断言：只有 `cordex_migrator` 带 `BYPASSRLS`；`cordex_app` 与 `cordex_system` 无任何 DDL 权限；`documents` 的 M-09 列只对 `cordex_system` 有 UPDATE（列级授予）；`audit_log` 对二者只有 `INSERT` 与 `SELECT`；`plugin_policies` 对 `cordex_app` 为 S I D 加按列 U（`state, default_on, config, revision, batch_id, updated_by, updated_at`）、对 `cordex_system` 只有 S，`user_plugin_prefs` 对 `cordex_app` 为 S I D 加按列 U（`enabled, updated_at`）、对 `cordex_system` 无任何权限（§4.23）；分区子表对应用角色无任何权限；`PUBLIC` 无任何表、函数与库连接权限；每个 `SECURITY DEFINER` 函数的 `search_path` 为 `pg_catalog, pg_temp` 且 `PUBLIC` 无 `EXECUTE`（决策 DB-ROLES；60/08 DB-06） |
 | MG7 | 与 drizzle schema 一致（§4.21 改写） | 漂移检查 DB-03：空库执行全部迁移后**直查 `pg_catalog`**——普通表取 relkind `r`，分区表只取 relkind `p` 的父表（`document_updates`、`audit_log`），`relispartition` 为真的叶子分区与台账表排除——得到的表、列（名称与顺序）、类型（`format_type`）、可空性与默认值表达式，与手写 drizzle `schema/*.ts` 经 `getTableConfig()` 导出的清单逐列相等，表集合恰为 60/08 §1 的 19 张；负向夹具：镜像删掉 `document_updates` 或 `audit_log` 的一列即失败。不用 drizzle-kit 内省（它只选 relkind r / v / m，整张丢掉分区父表），原「drizzle schema 生成的表与库一致」口径作废（60/08 §10.1，rulings §4.21 q-db-access） |
 | MG8 | 快照预迁移 | `server-headless` 的 migrate 任务对 [03](./03-fidelity-roundtrip-and-corpus.md) §11 的历史快照样本批量执行，结果通过 `validateSnapshot` |
+| MG9 | 只改 CHECK 的 expand 迁移（2026-10-03，rulings §4.24 AL-7、AL-1） | `0063_job_runs_automation_kinds` 之后：`job_runs.kind` 接受 `fill-template`、`convert`、`validate`、`migrate`，`kind='unknown'` 报 `23514`；`doc_id IS NULL` 只对 `convert` / `validate` / `migrate` 成立，`fill-template` 与原四种 kind 写 `NULL` 报 `23514`（`ck_job_runs_doc_scoped`）；`0074_webhook_automation_event` 之后：`event_filter` 可含 `automation.job_finished`、元素数 1–4，含未登记事件或空数组报 `23514`，`webhook_deliveries.event` 同理；`share_links.role='editor'` 或 `'owner'` 被 `ck_share_links_role` 拒绝（以 `cordex_migrator` 直插，绕过应用层）。两条迁移都不加列、不改 GRANT 与 RLS（MG6 快照不变）、不触碰既有行（迁移前后行数与 `md5` 汇总相等），只含 expand 类语句（MG4 规则）；文件名与 `-- migrate:` 首行一致（MG3），表集合仍为 19 张（MG5） |
 
 文档里的 DDL 围栏由 `docs/_tools/ddl-check` 在 PG 18 容器中按编号执行（60/08 §11，总编排实现），与本节的代码迁移测试互补：前者保证文档可执行，后者保证代码迁移与快照一致。
 
@@ -142,7 +143,7 @@ flowchart TB
 | X0 | `cordex_app` | `app.user_id` = 文档 D 的 owner / editor / commenter / viewer 各一 | 直接授权，按该表最低读 / 写角色判定 | R3、R4、R5 |
 | X1 | `cordex_app` | `app.user_id` = 对 D 无任何授权的用户 | 无授权用户 | R2 |
 | X2 | `cordex_app` | `app.user_id` = D 的 owner，访问对象换成另一文档 D2 的行 | 他文档 id | R2 |
-| X3 | `cordex_app` | X1 的用户 + `app.share_token_hash` = D 的有效链接（viewer、commenter、editor 各一）；另测与直接授权并存时取高 | 链接角色 | R6 |
+| X3 | `cordex_app` | X1 的用户 + `app.share_token_hash` = D 的有效链接（viewer、commenter 各一；链接不能是 editor，`ck_share_links_role` 使该种子无法写入，2026-10-03 rulings §4.24 AL-1）；另测与直接授权并存时取高 | 链接角色 | R6 |
 | X4 | `cordex_app` | 同 X3，链接已过期（`expires_at` 由数据库 `now()` 比较，种子取「构建时刻 − 1 d」，11 §3） | 过期链接 | R7 |
 | X5 | `cordex_app` | 同 X3，链接已撤销 | 撤销链接 | R7 |
 | X6 | `cordex_app` | 同 X3，令牌属于 D2 的链接 | 令牌与文档不匹配 | R7 |
@@ -211,6 +212,7 @@ sequenceDiagram
 | A11 | CSRF | 非安全方法：`Origin` 不在 `security.allowedOrigins` → 403 `server.auth.csrf_rejected`；缺 `X-Cordex-Request: 1` → 同上；缺 `Origin` 时 `Sec-Fetch-Site: same-origin` 且带头 → 通过，两者都缺 → 403；安全方法不受影响；`@Public` 的 `/telemetry/csp` 不要求该头（60/15 §4） | 决策 INC-24；PRD SV-12 |
 | A12 | WS Origin | 升级请求 `Origin` 不在白名单 → 403 `server.auth.origin_rejected`，拒绝计数指标 +1（指标名以 60/18 §4 为准） | INC-24 |
 | A13 | 用户搜索 | `GET /users?query=` 少于 2 个字符 → 400；结果 ≤ 20 条且每条只有 `id`、`displayName`、`avatarUrl`；邮箱只精确匹配且响应中不出现邮箱；超出用户令牌桶 → 429 | 决策 SG-05 |
+| A14 | 个人资料（M3，2026-10-03 补） | `PATCH /users/me/profile {displayName?, avatarUrl?}` → 200 返回 `User`，`GET /auth/me` 读回新值，审计 `user.profile_updated` 的 details 只含字段名（不含新旧值）；`displayName` 空串或 > 128 字符、`avatarUrl` 非 `https://`、> 2048 字符 → 400 `server.users.validation_failed` 且不写库；`avatarUrl: null` 清除头像；服务端从不抓取该 URL（harness 的出站桩零请求）；路径不含用户 id，无法改他人资料；之后 `GET /users?query=`、文档列表的 `owner.displayName` 与协作者摘要（D12）取到新名 | 60/03 `UpdateOwnProfileUseCase`；60/15 §3.2；决策 MECH-INC |
 
 ---
 
@@ -220,7 +222,7 @@ sequenceDiagram
 
 ### 7.1 角色 × 能力位 × 路由矩阵
 
-- **生成方式**：启动 `CORDEX_ROLE=all` 的应用，从 Nest 路由表枚举全部 HTTP 路由，并读取每条路由上守卫的元数据（`Public`、`Session`、`+Link`、`DocRole(cap)`、`Admin`、`Creator`，写法见 60/15 §2）；角色集合为 {owner, editor, commenter, viewer, 链接 viewer, 链接 commenter, 链接 editor, 无授权用户, 平台管理员}；某角色是否拥有某能力位只取 protocol `permissions/actions.ts`（与 `runPermissionPolicyConformance` 同一源，决策 T-KITS）。对每条 `DocRole(cap)` 路由 × 每个角色生成一例：期望「放行」的，响应不得是 401 / 403；期望「拒绝」的，响应为 403 `permission.denied`（错误码取 60/15 该行的错误码列）；另对每条 `DocRole` 路由以不存在的文档 id 与处于 `purging` 的文档各请求一次 → 404 `server.documents.not_found`（60/15 §10 R2）。请求体由 `@cordexjs/protocol/testing` 的 DTO 工厂生成最小合法值。
+- **生成方式**：启动 `CORDEX_ROLE=all` 的应用，从 Nest 路由表枚举全部 HTTP 路由，并读取每条路由上守卫的元数据（`Public`、`Session`、`+Link`、`DocRole(cap)`、`Admin`、`Creator`，写法见 60/15 §2）；角色集合为 {owner, editor, commenter, viewer, 链接 viewer, 链接 commenter, 无授权用户, 平台管理员}（2026-10-03 按 rulings §4.24 AL-1 删去「链接 editor」：链接只授予 viewer / commenter，链接角色最高叠加到 commenter）；某角色是否拥有某能力位只取 protocol `permissions/actions.ts`（与 `runPermissionPolicyConformance` 同一源，决策 T-KITS）。对每条 `DocRole(cap)` 路由 × 每个角色生成一例：期望「放行」的，响应不得是 401 / 403；期望「拒绝」的，响应为 403 `permission.denied`（错误码取 60/15 该行的错误码列）；另对每条 `DocRole` 路由以不存在的文档 id 与处于 `purging` 的文档各请求一次 → 404 `server.documents.not_found`（60/15 §10 R2）。请求体由 `@cordexjs/protocol/testing` 的 DTO 工厂生成最小合法值。
 - 能力位 `history.read` 与 `history.restore` 显式出现在矩阵中（快照列表、详情、恢复三条路由），查看者与 editor 的期望按 actions.ts。
 - **fail-closed**：注入 `RoleResolverService` 抛错、权限缓存不可用、`permVersion` 读取失败三种故障 → 一律拒绝，不回退到放行。
 - **生成器自检**：矩阵用例数 = `DocRole` 路由数 × 角色数；任一 `DocRole` 路由在 actions.ts 中找不到能力位即失败。
@@ -236,6 +238,7 @@ sequenceDiagram
 | S5 | 无效令牌 | 过期或撤销的令牌直通不叠加：无直接授权 → 403 `permission.denied`，problem details 的 `details.reason` 为 `share_link.expired` 或 `share_link.revoked`（60/02 §7.4）；另有直接授权时 → 200、无错误 | 决策 INC-20 |
 | S6 | 访问审计 | 有效访问写 `share_link.accessed`；同一 (链接, 用户) 24 h 内只写一条，去重标记键的 `PTTL` ≤ 86 400 000 ms；删除该标记（模拟 24 h 窗口结束，Valkey TTL 不受 `FixedClock` 控制，11 §3）后再访问 → 再写一条；标记丢失只会多写、不会漏写 | 60/02 §7.5；键模板以 60/14 §3.2 为准；审计 action 以 60/07 §9 为准 |
 | S7 | WS 侧重算 | 只凭链接加入的会话：他人的直接授权变更（`perm:doc` 推送）后不被踢、角色不变；撤销链接后 ≤ 1 s 收到降权；`FixedClock` 推进到 `linkExpiresAt` 后主动降权 | BE-02；ADR-0029 |
+| S8 | 链接不授予 editor（2026-10-03） | `POST /documents/:id/share-links` 带 `role='editor'` 或 `'owner'` → 400 `server.share_links.validation_failed`，`share_links` 无新行、无 `share_link.created`；`role ∈ {viewer, commenter}` → 201；以 `cordex_migrator` 直插 `role='editor'` → `23514`（`ck_share_links_role`，MG9）；只有链接、无直接授权的用户经 `+Link` 路由与 `POST …/collab-ticket` 得到的角色至多 commenter，`doc.write` 路由 → 403、WS 写入在 L2 被拒；编辑权只经 `PUT /documents/:id/permissions` 按人授予 | rulings §4.24 AL-1；60/03 M-09；60/15 §3.5、§10 R11 |
 
 ### 7.3 授权写入
 
@@ -272,6 +275,8 @@ M4 管理面板复用同一用例，届时只加 REST 入口的鉴权用例（§
 | PL7 | 管理员覆盖个人选择 | u 已关闭 `test:ui-q` 后管理员改为 `forced` → u 的生效集合中该项 `enabled=true` 且不可 `PUT`（409），`user_plugin_prefs` 行保留；改回 `optional` → u 的 `enabled=false` 恢复 | M3 |
 | PL8 | 插件配置（M4） | `PUT /admin/plugins/:pluginId/config` 通过 Config schema → 200，写 `plugin.config_changed`，details 只含字段路径 `paths[]`、不含任何值（在审计行中搜索配置值为 0 命中）；schema 校验失败 → 422 `server.plugins.config_invalid` 且逐字段报错、不写库；机密字段只写不读，`GET` 回显为 `***` | M4 |
 | PL9 | 保存后在线通知 | PL3 提交后 api 向 Valkey 频道 `plugins:ctl`（带 `valkey.keyPrefix`）恰发布一条 `{type:'policy_changed', policy}`；频道名匹配 [60/14](../60-backend/14-valkey-object-storage-and-retention.md) §3.2 登记模板（§11.5）；发布失败只记计数 `cordex_plugin_policy_notify_total{result="error"}`、保存照常成功（在线会话由 §9 W22 的轮询兜底） | M3 |
+| PL10 | `AdminPluginDetail` 字段契约与页头版本（2026-10-03，rulings §4.24 TA-10 与收尾） | `GET /admin/plugins` 顶层含 `deploymentVersion`（与 `/metrics` 的 `cordex_build_info.version` 相等）与 `hostApiVersion`；每行含 `requires[]{service, providers[]}`、`requiredBy[]`、`conflictsWith[]{pluginId, kind ∈ provider \| shapeKind, key}`：互斥双向各列一次，可选注入不进 `requires`，被拒插件不出现在任何依赖图字段，也不算提供者；`GET /admin/plugins/:pluginId` 的 `AdminPluginDetail` 逐字段过 protocol `rest/plugins.ts` 的 zod schema（字段以 [60/15](../60-backend/15-rest-api-catalog.md) §3.15.1 为准，进 §14 契约快照）：`hostCompat.current` 等于列表的 `hostApiVersion`；`injects[].providers[].state` 为对方已保存的策略；`trust.kind` 四种各一个夹具（镜像内置、签名带 `publicKeyFingerprint`、审核记录带 `reviewer` / `date` / `sha256`、非生产 `allowUnsigned` 放行）；`recentPolicyChanges` 新到旧至多 5 条，与 `audit_log` 中该插件的 `plugin.policy_changed` 一致，无记录为空数组；`permissions` 原样取清单；M3 响应无 `config` 字段，M4 的 `config.values` 不含机密字段路径、`secrets[]` 只有 `path` 与 `usesDeploymentValue`（在响应体中搜索机密值 0 命中，SEC-DA-08）；行内依赖图与详情的 `requiredByDetail` / `conflictsDetail` 在同一 `catalog` 摘要下同源一致；PL5 互斥 409 的 `details.with` 是 `conflictsWith` 中的一项 | M3（`config` M4） |
+| PL11 | 近 24 h 失败会话数（2026-10-03，rulings §4.24 TA-4） | 同一会话 id 经两个 api 实例各上报 3 次插件 `FAILED`（`POST /telemetry/errors`）→ `failedSessions24h = 1`；三个不同会话 → 3；重启全部 api 进程后数值不变（不取进程内 counter）；键 `plugins:fail:{pluginId}:{yyyyMMddHH}` 为 HyperLogLog，首次写入后 TTL ≤ 90 000 s，此后的 `PFADD` 不续期；预先写入 25 个小时前的桶（Valkey TTL 不受 `FixedClock` 控制，以桶名模拟时间推进，[11](./11-test-data-fixtures-and-determinism.md) §3）→ 不计入最近 24 桶；`plugin` 不在声明文件与镜像内置清单中的上报不写桶；`lastErrorCode` 取最近一次上报 | M3 |
 
 **图 7-7 插件策略保存与在线通知的集成断言**
 
@@ -315,6 +320,9 @@ sequenceDiagram
 | D9 | 列表与记账 | `GET /documents` 只列出有授权的文档（RLS 兜底，§5.3 同理）；`document_user_marks` 只返回本人行；固定与最近互不影响 | rulings §4.18 BE-31 |
 | D10 | 快照 bootstrap，无内容版本端点（M2） | `GET /documents/:id/snapshots/latest`（`doc.read`，含只凭链接的角色）直接返回快照字节（> 1 MiB 从 snapshots 桶流式代理，不回预签名 URL）并带响应头 `X-Cordex-Epoch`，其值等于 `documents.epoch`；无快照的新文档在两步导入完成前 → 404；路由目录快照（§13）中不存在任何 `/documents/:id/content*` 路由与 pptx 内容版本对象键（`docs/{docId}/content/`） | rulings §4.19 D-M2-CONTENT；决策 MECH-INC 之 INC-14 |
 | D11 | GC 竞态 | `media-gc` 选中某行后、删对象前发起同 sha256 的提交 → 结束后「`media_blobs` 行存在 ⇒ 对象存在」恒成立 | 60/04 DOC-12 |
+| D12 | 文档列表的所有者与协作者摘要（M2，2026-10-03，rulings §4.24 TA-10） | `GET /documents` 每条含 `owner{id, displayName, avatarUrl}`；调用者是 owner 的条目含 `collaborators{count, preview}`，`count` = 除本人外的直接授权人数，`preview` 至多 3 人；调用者是 editor、commenter、viewer 或只凭链接的条目**不含** `collaborators` 字段（省略而非 0，[60/15](../60-backend/15-rest-api-catalog.md) §10 R11，SEC-AZ-18）；一页 100 个 owner 文档时协作者只发一次批量查询（记录 SQL 条数，无逐行子查询）；A14 改名后列表读到新名 | rulings §4.24 TA-10；60/15 §3.3；设计 03-01 |
+| D13 | 配额用量（M3，2026-10-03，rulings §4.24 TA-10） | `GET /users/me/quota`：`storage.ownerBytes` 与以同一会话无参调用 `cordex_storage_usage()` 的 `owner_bytes` 相等，`documents.count` = 本人为 owner 且非 `purging` 的文档数；`quota.*` 未配置时 `limitBytes` / `limit` 省略；提交一张新图后 `ownerBytes` 增加、同 sha256 再提交不变（D4、D6）；`GET /admin/quota`：平台管理员 200，`storage.totalBytes` 与函数返回的部署总量相等，`scale.envelopeExceeded` 与 `/readyz` 的 `scaleEnvelopeExceeded` 相同；`member` → 403 `server.auth.forbidden`；两条响应都不含逐用户明细 | rulings §4.24 TA-10；PRD SV-08；60/15 §3.17 |
+| D14 | 快照 diff（P2，未排期占位） | 排期前：路由目录快照（§13、§14）中没有 `GET /documents/:id/snapshots/:a/diff/:b`，出现即失败（须先改 60/15）；排期后启用：守卫为 `history.read`（§7.1 矩阵自动覆盖）；两份快照各载入临时 Unit 经模型级 diff 生成预览，请求前后 `snapshots`、`document_updates` 行数与 Room 状态不变；任一快照不存在或属于另一文档 → 404 `server.snapshots.not_found` | 60/15 §3.8；60/05 `DiffSnapshotsQuery` |
 
 ---
 
@@ -352,6 +360,7 @@ sequenceDiagram
 | W20 | 存储失败不丢（§4.21，exp2 反例） | 单实例：经 Toxiproxy 切断 PG → 客户端编辑（得 spill ack 或暂无 ack）→ 另一客户端无修改地连入再断开、原客户端也断开（房间无连接）→ 文档**不卸载**（有内存档或未回放的溢写时 `beforeUnloadDocument` 抛错钉住，证据 d-11）→ PG 恢复、回放、补发 db ack 后才卸载 → 新客户端打开看到全部编辑。反例对照：夹具改用 Hocuspocus 原生 `onStoreDocument` 持久化时同一剧本丢数据（新客户端看到 `{}`），本用例以此证明不用 `onStoreDocument` 持久化（证据 d-12） | PR；M2 | rulings §4.21 H:q-hp-persist-ack；核实 exp2 |
 | W21 | 插件集指纹：`catalog` 不符（§4.23） | 以旧声明文件启动 → 客户端取得 `pluginSet`；harness 替换声明文件中 `test:content-p` 的版本并重启 collab（重新部署）→ 客户端带旧 `pluginSet` 重连：Auth 阶段以原始 `ws.close(4426)` 关闭、reason `collab.plugins_outdated`（provider 侧收到原码而非 1000），不回放任何排队帧、不落库；带新 `catalog` 的新会话正常加入；只改 `policy` 不触发 4426 | PR；M3 | PRD PM-08、PM-13；60/16 §12 第 4 项；rulings §4.23 O-1 |
 | W22 | 插件集指纹：`policy` 不符与在线通知（§4.23） | 带旧 `policy`、新 `catalog` 加入 → 照常准入，`connected` 后立即收到 Stateless `{type:'plugins', reason:'policy_changed', policy}`；已在线会话：管理员保存后经 `plugins:ctl` ≤ 1 s 收到同一消息（两个 collab 实例上的连接都收到，M3 两实例）；以 Toxiproxy 丢弃该次 PUBLISH → 由 `plugins.policyPollSeconds`（测试设为 5 s，并以默认 60 s 做一次长窗口变体）轮询兜底，≤ 轮询周期 + 1 s 收到；`policy` 一致的连接不收到；消息不中断编辑（此后 update 照常获 db ack） | PR；M3（长窗口变体 nightly） | PRD PM-08；60/16 §3、§12；rulings §4.23 O-1 |
+| W23 | 握手顺序（2026-10-03，rulings §4.24 TA-9） | 同一连接内服务端发出的 Stateless 顺序恒为 `auth.ok` →（`policy` 不符时）`plugins` → `room`；插件指纹比对在 `onAuthenticate` 中位于纪元与 schema 判定之后、名额与权重准入之前：`catalog` 不符被 4426 拒绝时不占名额（`room:{docId}:members` 无该连接）、不触发 bootstrap 与审计 `collab.join` | PR；M3 | rulings §4.24 TA-9；60/05 §3.1；60/16 §12 |
 
 **图 7-4 PG 断开期照常广播**
 
@@ -515,7 +524,7 @@ stateDiagram-v2
 ### 11.1 幂等与状态机
 
 - 同一幂等键命中 `queued` / `running` / `succeeded` 的行 → 返回既有行；命中 `failed` / `cancelled` → 新建一行，`attempt_of` 指向旧行；同一幂等键并发 100 次请求 → 只有一行非终态失败行（部分唯一索引），其余拿回同一 `jobId`（60/06 §14 #1）；`exports-cleanup` 释放键后同一状态再导出新建作业（60/06 §2.3）。依据：rulings §4.18 BE-18、UX-14。
-- `GET /jobs/:id` 只对作业创建者或对文档有授权者（含有效分享链接角色）可见（RLS 与应用层），看不见一律 404 `server.jobs.not_found`、不区分不存在与无权；响应从不含 `payload`；导入、导出、render-export、document-purge 共用（决策 SG-08）。
+- `GET /jobs/:id` 只对作业创建者或对文档有授权者（含有效分享链接角色）可见（RLS 与应用层），看不见一律 404 `server.jobs.not_found`、不区分不存在与无权；响应从不含 `payload`；导入、导出、render-export、document-purge 与自动化四种 kind（§11.6，2026-10-03）共用（决策 SG-08）；无文档作用域的自动化作业只对创建者可见。
 
 ### 11.2 导入与导出
 
@@ -528,6 +537,7 @@ stateDiagram-v2
 | J5 | 导出确定性（M3，服务端导出） | `pptx-roundtrip.int-spec.ts`：经 `preset-server` 插件清单驱动 `server-headless`，与 Node 导出 sha256 相等（[03](./03-fidelity-roundtrip-and-corpus.md) §6 X4） | PRD SV-02；rulings §4.18 FE-01 |
 | J6 | 下载 URL（M3） | `GET /exports/:jobId` 每次返回新签发、1 h 有效的 URL；作业未成功 → 409 `server.export.not_ready`；`FixedClock` 推进 `retention.exportHours` 后运行 `exports-cleanup` 删除对象，再取 → 410 `server.export.expired` | 决策 SG-08、MECH-INC 之 INC-40；60/06 §12.2 |
 | J7 | 覆盖导入的作业侧（M2） | 带 `docId` 受理：文档已 `locked` → 409 `server.documents.locked`；开工时文档被迁移锁定 → 本次尝试 retryable、退避后重试成功；`purging` 或 `trashed` → 作业 `failed`（`server.documents.not_found`）且不写快照；成功时 `result` 含 `{docId, snapshotId, epoch}`，审计依次为 `document.locked{reason:'import'}`、`import.completed`、`document.unlocked`；`FixedClock` 下杀掉持锁 worker，`trash-expiry` 在 `locked_until` 之后释放锁；导入前最近的检查点快照行仍在（M3 起可在版本列表中预览与恢复，恢复为模型级 diff、不受纪元限制） | rulings §4.19 N1；60/06 §6.5 |
+| J8 | 位图导出参数（M3，2026-10-03，rulings §4.24 TA-10） | `POST /documents/:id/export {format:'png', width:1920}` → 每页 PNG 宽 1920 px（多页 zip）；缺省 `width` → 1280；`width` 不在 {1280, 1920, 3840} → 400（`validation_failed`）；`format:'jpeg'` 缺省 `quality` 为 85，`quality` 为 0 或 101 → 400；PNG 携带 `quality` 被忽略；两次请求只差 `width` 或 `quality` → 两个作业（进入 `optsDigest`，60/06 §2.3），参数相同 → 命中同一作业；renderer 桩记录的 RPC `output.width` / `output.quality` 与请求一致 | rulings §4.24 TA-10；60/06 §7.2、§10.3；60/15 §3.9；设计 03-22 |
 
 ### 11.3 缩略图管线
 
@@ -560,6 +570,47 @@ stateDiagram-v2
 - **Valkey**：`SCAN` 本文件前缀下的全部键，每个键都必须匹配代码中 `redis-keys.ts` / `keys.ts` 导出的某个模板（60/14 §3 是其登记表，二者在同一 PR 中修改）；带 TTL 的模板其 TTL 落在规定区间（如 `ticket:jti:{jti}` 60 s、`oidc:state:{state}` 10 min、`upload:{uploadId}` 1 h、`instance:{instanceId}:alive` 60 s，数值以 60/14 为准）；无 TTL 的键只能是 60/14 标为「无 TTL」的模板。无模板匹配的键即失败。
 - **对象存储**：列出本文件的两个桶，每个对象键匹配 60/14 §6 的某个模板且落在规定的桶里；data 桶未开版本化、snapshots 桶已开（决策 C-08/OBJ）。
 
+
+### 11.6 Headless 自动化作业（2026-10-03，rulings §4.24 AL-7）
+
+被测设计：[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §7.4、[60/15](../60-backend/15-rest-api-catalog.md) §3.16、[60/12](../60-backend/12-ddl-jobs-and-thumbnails.md) §2.1（迁移 0063）、[60/13](../60-backend/13-ddl-comments-webhooks-audit.md) §5.1（迁移 0074）、[60/07](../60-backend/07-modules-comments-webhooks-audit.md) §9.3 `automation.created`；需求 PRD SV-13（M3，用户 2026-10-03 选择，覆盖 §4.12 U-13 的「M4 一起定」）。文件 `apps/server/test/e2e/automation/*.e2e-spec.ts`，步骤 `test/server-integration`。种子：模板文档 T（标题、正文、图片、表格占位符各一，图片 sha256 已与 T 关联）与 `test/fixtures/automation/` 的数据集（[11](./11-test-data-fixtures-and-determinism.md) §6）；批量 100 份 D50 的时长门限在 [09](./09-performance-and-capacity.md) §6 `template-fill-100`，这里只断言行为。
+
+| # | 用例 | 断言 | 依据 |
+|---|---|---|---|
+| AU1 | 上传来源 | `POST /automation/uploads {fileName, byteSize, sha256}` → 201 `{uploadId, upload}`；`upload:{uploadId}` 的 `kind='automation'`、无 `docId`、TTL 1 h；预签名 PUT 落 `uploads/tmp/{uploadId}`；申报超 `scale.maxFileBytes` → 413 `format.quota_exceeded{dimension:'fileSize'}`；扩展名 `.ppt` → 415 `format.unsupported_binary`，`.pptm` → 415 `format.macro_rejected`（按扩展名提前拒绝，处理器仍按内容复核，SEC-IN-11）；不预分配文档与作业（`documents`、`job_runs` 行数不变） | 60/15 §3.16；60/06 §7.4 |
+| AU2 | `fill-template` 受理与幂等 | `POST /documents/T/automation/fill-template` 带 3 项（其中 1 项与另一项完全相同）→ 202 `{batchId, jobs[]}`，`job_runs` 只有 2 行、共享 `batchId`，`payload.contentPlugins = {policy, ids}` 与受理时刻的部署策略一致；同一模板、同一 `snapshotId`、同一数据、同一格式重提 → 200 返回既有 `jobId`；审计 `automation.created` 每批一条，details `{kind, batchId, count}`，在审计行中搜索填充数据 0 命中 | 60/06 §2.3、§7.4 |
+| AU3 | 受理时拒绝 | 101 项 → 400 `server.automation.validation_failed`、无行；请求体超 1 MiB → 413 `server.http.payload_too_large`；图片值的 sha256 未与 T 关联 → 422 `server.automation.media_not_found`，harness 出站桩零请求（不抓取外部 URL）；只有 T 的 viewer 角色（无 `doc.export`）→ 403 `permission.denied`；每次请求在 `job` 限流档只计 1 次（一批至多 100 项） | 60/15 §3.16、§8、§10 R11 |
+| AU4 | `fill-template` 处理 | 作业 `succeeded`，产物经 `GET /exports/:jobId` 取得；产物 pptx 重新导入后，各占位符的文字、图片 sha256、表格单元格与该项数据相同；数据里有、模板里没有的名字列入 `result.unmatched` 且不算失败；给文本占位符传图片值 → `failed`、`error.code = server.automation.placeholder_type_mismatch`（terminal，不重试）；模板文档 T 自身的 `head_seq` 与快照不变；产物的 `core.pluginFootprint` 由命令管线维护并写入 `p:extLst`（[03](./03-fidelity-roundtrip-and-corpus.md) §6 X9）；`format='pdf'` 经 renderer `mode:'print'`（M3 后半段） | 60/06 §7.4 |
+| AU5 | `convert` | 文档来源 `to='png', width=1920` → 多页 zip、每张宽 1920 px；`to='pdf'` 成功；`to='markdown'` → 每页标题、正文文本、表格为 GFM 表、图片只留替代文字、无样式；上传来源 `POST /automation/convert {uploadId, to}` → `job_runs.doc_id IS NULL`，原件复制到 `automation/{jobId}/source.pptx` 且作业终态后被删除，产物在 `automation/{jobId}/output.{ext}`；他人、过期或不存在的 `uploadId` → 403 `server.import.upload_forbidden`（三者不可区分）；隔离区对象已被清理 → 409 `server.import.source_missing` | 60/06 §7.4；60/14 §6 |
+| AU6 | `validate` | 合法文档 → `result.report.ok = true`；注入不变量违规的快照（[05](./05-collab-simulation-and-property-tests.md) §8 的注入夹具）→ `ok = false`，`errors` 指明不变量 id；上传来源另带 `fidelityCounts`；报告经 `GET /exports/:jobId` 取得 `report.json` 的下载地址 | 60/06 §7.4 |
+| AU7 | `migrate` 不写回 | 上传旧 schema 的 `snapshot-json` → `output.json` 通过 `validateSnapshot`，`result.toSchemaVersion` 为当前版本；文档来源时该文档的 `schema_version`、`latest_snapshot_id`、`snapshots` 行数前后不变，作业期间不持 `lock:migrate:{docId}`、不产生 `migration` 快照、不发 `CONTROL.room{locked}`；`targetSchemaVersion` 低于来源版本 → 400 | 60/06 §7.4；60/05 §9.1 |
+| AU8 | 可见性与保留 | 上传来源的作业：创建者 `GET /jobs/:id` 200；其他用户（含平台管理员的普通会话）`GET /jobs/:id` 与 `GET /exports/:jobId` 均 404（RLS 的 `created_by` 分支，60/12 §5）；文档来源的作业对 T 上有 `doc.export` 的其他用户可取产物；`FixedClock` 推进 `retention.exportHours` 后 `exports-cleanup` 删除 `automation/{jobId}/` 下的对象、置 `result.expired` 并释放幂等键（§11.4），再取 → 410 `server.export.expired` | 60/06 §7.4、§4；60/15 §10 R11 |
+| AU9 | 受理时的内容级插件集 | 受理后管理员禁用某内容级插件：已受理作业的重试仍用受理时的 `payload.contentPlugins`；此后受理的作业不含该插件；需渲染时 renderer 桩收到的 RPC `contentPlugins` 与作业 `payload.contentPlugins` 相等（AL-3，与 [03](./03-fidelity-roundtrip-and-corpus.md) §6 X8 同口径） | rulings §4.24 AL-3、TA-9；60/06 §7.1、§8.1 |
+| AU10 | 终态与回调同事务 | 注入终态事务提交失败 → `job_runs` 未进入终态且没有 `automation.job_finished` 投递行；重试成功后两者同时出现且投递只有一行（§12.2 H5）；M3 不提供自动化作业的取消，`POST /imports/:jobId/cancel` 对自动化 `jobId` → 404 `server.jobs.not_found` | 60/06 §7.4「结果回调」「取消」 |
+
+**图 7-8 自动化作业的集成断言落点**
+
+```mermaid
+flowchart LR
+  up["AU1 上传来源：/automation/uploads"]
+  doc["文档来源：/documents/:id/automation/:kind"]
+  acc["AU2、AU3 受理：幂等键、限额、contentPlugins"]
+  proc["AU4–AU7 处理：fill-template、convert、validate、migrate"]
+  out["AU8 产物：/exports/:jobId，24 h 后释放"]
+  hook["AU10、H5 回调：automation.job_finished"]
+  plug["AU9 内容级插件集：受理时固定"]
+  up --> acc
+  doc --> acc
+  acc --> proc
+  proc --> out
+  proc --> hook
+  acc -.-> plug
+  plug -.-> proc
+```
+
+怎么读：左侧两种来源都先经受理（幂等、限额与插件集固定），再由处理器按 kind 产出；实线是数据去向，虚线是受理时写入、处理时读取的插件集合。每个方框的编号即本表行号。
+依据：rulings §4.24 AL-7；60/06 §7.4；60/15 §3.16。
+
 ---
 
 ## 12. 评论、Webhook、审计、遥测
@@ -578,12 +629,15 @@ stateDiagram-v2
 | H2 | 签名（§4.21 改为 Standard Webhooks） | 评论事件触发投递 → 请求带 `webhook-id`（投递行 id，重试不变）、`webhook-timestamp`（每次尝试重新取值的 unix 秒）、`webhook-signature: v1,<base64>`，签名为 `HMAC-SHA256(key, webhook-id + "." + webhook-timestamp + "." + body)`，`key` 为 `whsec_` 之后部分的 base64 解码；接收端按 Standard Webhooks 规范验签通过（用 60/07 §5.2 的 `verifySignature` 与规范公布的测试向量双重核对，不引 `standardwebhooks` 包）；篡改 body、`webhook-id` 或时间戳任一处 → 验签失败；时间戳超出容差（60/07 §5.2）→ 拒绝；重试时 `webhook-id` 不变、时间戳与签名重算；请求中不再出现旧头 `X-Cordex-Signature` 与 `X-Cordex-Delivery`（负向断言，原头已废止、由 `webhook-signature` 与 `webhook-id` 取代）；payload schema 带版本；事件名为 `comment.added` / `comment.mentioned` / `comment.resolved` | PRD SV-15；rulings §4.21 q-webhook-sig；决策 INC-31/INC-29；60/07 §5.2 |
 | H3 | 重试与死信 | 接收端返回 500、超时或连接失败 → 仍为 `pending`、`attempt + 1`，按 `min(30 s × 2^(n-1), 6 h)` ±20% 退避（断言计算出的序列，不等 BullMQ 延迟），第 8 次仍失败 → `dead_lettered`；429 或 408 → 可重试（429 带 `Retry-After` 取较大值）；3xx 不跟随、其它 4xx → `failed` 不再重试；订阅停用后事件不入队 | rulings §4.18 BE-19；60/07 §5.3 |
 | H4 | SSRF | 目标地址解析到私网、回环、链路本地、云元数据地址（IPv4 与 IPv6 各一）→ 创建与更新时 422 `server.webhooks.egress_blocked`；投递前再次校验，拒绝时该投递记 `failed`（`last_error = 'egress_blocked'`）且不发出任何请求，接收端收不到任何连接；DNS 桩第一次返回公网、第二次返回私网（重绑定）→ 投递时锁定的 IP 仍被校验并拒绝；部署级白名单中的地址可投递（本 harness 的接收端即经白名单放行） | rulings §4.13 S-4；60/07 §6 |
+| H5 | 自动化作业完成事件（2026-10-03，rulings §4.24 AL-7） | `event_filter` 含 `automation.job_finished` 的订阅：自动化作业进入 `succeeded` / `failed` 时在同一事务写一行 `pending` 投递，`event_id = automation.job_finished:{jobId}`；作业重试与 `reconciliation` 补投不产生第二行；载荷 `data` 的键集合恰为 `{jobId, kind, status, batchId?, clientRef?, docId?, createdBy, errorCode?, finishedAt, downloadPath}`，`downloadPath = /api/v1/exports/{jobId}`，不含预签名 URL、文档标题与填充数据（在请求体中搜索 0 命中）；签名、SSRF 守卫、退避与死信同 H2–H4；未订阅该事件的订阅不投递；`event_filter` 含未登记事件 → 422 `server.webhooks.invalid_event_filter` | rulings §4.24 AL-7；60/07 §5.1；60/13 §5.1（迁移 0074） |
 
 ### 12.3 审计
 
 - **只追加**：以 `cordex_app` 与 `cordex_system` 对 `audit_log` 执行 `UPDATE`、`DELETE`、`TRUNCATE` → 权限拒绝（`audit.repository.append-only` 用例迁入本层，[01](./01-strategy-and-layers.md) §4）。
 - **哈希链**：并发 50 个写入事务 → 链校验通过（`pg_advisory_xact_lock` 串行化）；以 `cordex_migrator` 篡改一行 → CLI 与 `/internal/admin/audit/verify` 都在该行报错。
 - **轮换**：ops 命令 `audit-rotate`（`cordex_migrator` 凭据）DETACH 并 DROP 最老的整月分区、预建未来 3 个月分区 → 校验从最早保留分区之前的 `audit.sealed` 行续验通过（决策 C-20/G-13/G-14）。
+- **审计导出**（M3，2026-10-03 补）：平台管理员 `GET /audit/export?format=csv` 与 `format=json` → 200 流式输出、带 `Content-Disposition: attachment`，行集合与同一过滤条件下 `GET /audit` 翻页的结果逐行相等（列与表列一一对应，`bytea` 列为十六进制）；流结束时写 `audit.exported`（details `from, to, filters, rows`，`rows` 等于实际导出行数）；区间超过 366 天 → 400 `server.audit.range_too_large`；超过单次行数上限（测试配置把上限调小驱动）→ 422 `server.audit.export_too_large` 且不写 `audit.exported`；`member` → 403；计入 `job` 限流档（60/07 §9.4、60/15 §3.13）。
+- **自动化 action**（§4.24 AL-7）：`automation.created` 由 §11.6 AU2 产生，每批一条，details 不含填充数据。
 - **插件 action**（§4.23）：`plugin.policy_changed`、`plugin.config_changed` 由 §7.5 PL3、PL8 产生；`plugin.rejected` 由 [08](./08-deployment-and-environment-e2e.md) §3 C9 的被拒插件启动产生（主体 `system`，同一部署版本内重启不重复写），action 覆盖统计把 08 的该用例并入本步骤的汇总。
 - **action 覆盖**：`test/server-integration` 全部文件运行期间收集写入的 action 名；60/07 §9 登记表中的每个 action 至少被一个用例产生，登记表之外的 action 名出现即失败（执行见 §16）。
 
@@ -670,4 +724,5 @@ stateDiagram-v2
 | 回写 40/08 §9、40/09 §9、40/12 §9（由总编排执行） | 待回写 | `document-rls.e2e-spec.ts` → `smoke/security-rls.e2e-spec.ts`；`render-zero-egress.e2e-spec.ts` → `smoke/renderer-egress.e2e-spec.ts`；接真实 PG / Valkey 的 `*.processor.spec.ts` 与 `audit.repository.append-only.spec.ts` → `apps/server/test/integration/**/*.int-spec.ts`；各 §9 的场景与断言改为引用本文对应小节 |
 | 回写 30/11 §10 与 §12 的服务端部分 | 待回写 | 改为摘要并链接本文 |
 | rulings §4.23 插件管理（O-1…O-4 于 2026-10-01 确认按推荐） | 已定 | §4 MG5 / MG7 表集合 19 张、MG6 两表 GRANT；§7.5 PL1–PL9；§9 W21、W22；§12.3 插件 action；端点、错误码、表与迁移号以 60/15 §3.15、60/09（0012、0013）、60/07 §9.5 为准，本文随其定稿同步 |
+| rulings §4.24 设计线对齐审计（AL-1、AL-3、AL-7、TA-4、TA-9、TA-10） | 已定（2026-10-03） | §5.1 X3 与 §7.1 删链接 editor、§7.2 S8；§4 MG9（0063、0074）；§6 A14；§7.5 PL10、PL11；§8 D12–D14；§9 W23；§11.2 J8；§11.6 AU1–AU10；§12.2 H5；§12.3 审计导出与 `automation.created`；字段与错误码以 60/15 §3.15.1、§3.16、§3.17 为准，本文随其定稿同步 |
 | rulings §4.21 q-db-access、q-webhook-sig、q-ws-gateway、H:q-hp-persist-ack、H:q-hp-fanout | 已定（2026-09-26） | §4 MG7 改为直查 `pg_catalog`（含 relkind `p` 分区父表，60/08 §10.1 DB-03）；§12.2 H1、H2 改为 Standard Webhooks（60/07 §5.2）；§9 集群改为嵌入 Fastify 的 Hocuspocus，W1 按文档哈希与 extension-redis 改写，W4 写明自写 `drainAll` 顺序，W8、W9、W13 按 ADR-0039 改写，新增 W18 升级入口同端口与先扣后退、W19 Valkey 宕机与重启、W20 存储失败不丢（exp2 反例），图 7-5、图 7-6 |

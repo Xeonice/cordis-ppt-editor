@@ -1,5 +1,5 @@
 # 01 测试策略总览与分层职责
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§4 命名示例改为 @cordexjs/xml 的 roundtrip.property.test.ts） | 依赖：charter v0.2、rulings §4.15–§4.20、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§4 命名示例改为 @cordexjs/xml 的 roundtrip.property.test.ts）；2026-10-03（补登 §4.22：表格、图表编辑的新增用例按 §2 分层——命令与解析在 `test/unit`、并发语义在 `test/collab-sim`、界面在 `e2e/full-compose`，本文分层与命名口径不变）；2026-10-03（§4.24 设计线对齐审计：本文口径不变；新增用例按 §4 落点——Headless 自动化 `apps/server/test/e2e/automation/*.e2e-spec.ts` 属 API e2e 层，足迹服务端链路 `plugin-footprint-server.int-spec.ts` 与 renderer 插件集 `content-plugins-rpc.int-spec.ts` 属集成层，§11 所有权矩阵加 apps/server ImportExportModule 自动化作业一行） | 依赖：charter v0.2、rulings §4.15–§4.20、§4.22、§4.24、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
 
 本文是测试侧的总纲：测试分几层、每层用什么工具、在什么环境跑、谁来写、何时跑、落在 13 个 CI job 的哪个步骤；测试文件叫什么、放在哪里（T-NAMING 在本文定稿，其余 70 文件与 50 / 60 的「机械验证」小节都按本文引用）；覆盖率、门禁分级与所有权。
 
@@ -390,6 +390,7 @@ stateDiagram-v2
 | server-* 包 | 存储与协同 kit；水平层测试只用 fixture 文档类型 | `test/contract` | depcruise `horizontal-tests-use-fixture-only`（ADR-0016） |
 | apps/server 各 Nest 模块 | 用例单测；仓储与处理器 `*.int-spec.ts`；对外路由的 `*.e2e-spec.ts` | `test/unit`、`test/server-integration` | route-auth-coverage 遍历路由表（[07 §13](./07-backend-integration-and-api-e2e.md)） |
 | apps/web | domain 与 application 单测（msw）、页面组件、浏览器 e2e | `test/unit`、`e2e/*` | [06](./06-frontend-component-and-e2e.md) |
+| apps/server ImportExportModule 的 Headless 自动化（2026-10-03，rulings §4.24 AL-7） | 四个受理用例与 `AutomationProcessor` 的单测；受理、幂等、处理、可见性、回调的 `*.e2e-spec.ts`；不可信输入样本；批量性能场景 | `test/unit`、`test/server-integration`、`perf/perf-server` | [07 §11.6](./07-backend-integration-and-api-e2e.md)、[10](./10-security-testing.md) SEC-IN-11、[09 §6](./09-performance-and-capacity.md) |
 | tooling 规则与扫描器 | 每条规则 `ok` / `violation` 夹具 | `lint`、`depcruise`、`scanners` | `scan-policy` 规则 3 |
 | 50 前端设计线 | 每份文档「机械验证」小节：断言 + 本线步骤名 | — | [13](./13-requirements-traceability.md) 追溯矩阵 |
 | 60 后端设计线 | 同上；60/08 另给 RLS 测试矩阵（表 × 会话上下文 × 期望），`security-rls` 用例由它生成 | `e2e/smoke` | [07 §5](./07-backend-integration-and-api-e2e.md)、[10 §8](./10-security-testing.md) |

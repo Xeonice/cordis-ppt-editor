@@ -1,6 +1,6 @@
 # 12 CI 门禁映射
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：`scanners/license-allowlist` 按 ADR-0049 分级扫描并附停更报告；新增步骤 `iso-smoke/server-esm` 取代 require(esm) 冒烟口径；csp-strict 覆盖本轮新依赖；新增图 12-5）；2026-09-26（§4.21 整合：§4 新增第 13 条 server-esm-start（ESM 启动冒烟，60/19 RC-06），iso-smoke/server-esm 注明只做加载；§2 test/unit 收集范围写明 packages/xml 的八个测试与 SEC-IN-10 档位） | 依赖：rulings §4.21（q-license-tiers、q-nest-major、R-d-60）、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：`scanners/license-allowlist` 按 ADR-0049 分级扫描并附停更报告；新增步骤 `iso-smoke/server-esm` 取代 require(esm) 冒烟口径；csp-strict 覆盖本轮新依赖；新增图 12-5）；2026-09-26（§4.21 整合：§4 新增第 13 条 server-esm-start（ESM 启动冒烟，60/19 RC-06），iso-smoke/server-esm 注明只做加载；§2 test/unit 收集范围写明 packages/xml 的八个测试与 SEC-IN-10 档位）；2026-10-03（补登 §4.22：步骤与激活不变——DF-10 大表插入基准挂 `perf/perf-client`（09 §3.1），表格 / 图表编辑 e2e 挂 `e2e/full-compose`，图表软冲突 `sc-30`、`sc-31` 挂 `test/collab-sim`）；2026-10-03（§4.24 设计线对齐审计：§4 冒烟第 4 条改为示例内容插件按部署策略停用（与 06 §5 第 16 行一致）；§6 反查索引补 `plugins:diagnose`、`plugins:admin`、`plugins:consistency`、`plugins:trust` 四项（PRD 05 M2 验收 19、M3 验收 20 与 21、M4 验收 7）；§7 激活时间线加插件检查名一行，`test/server-integration` 与 `perf/perf-server` 的 M3 扩展补 Headless 自动化作业与 `template-fill-100`（AL-7，由 M4 提前），图 12-4 同步；§14 登记） | 依赖：rulings §4.21（q-license-tiers、q-nest-major、R-d-60）、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
 
 本文是 CI 步骤的唯一事实源：13 个 job 各含哪些测试步骤、步骤名、三个触发段各跑什么、PR 冒烟子集、必需检查、每个步骤从哪个里程碑起运行与阻断、时长预算与分片、缓存、产物、失败与 flaky 策略，以及每个步骤的本地复现命令。步骤名在本文定稿，与总计划的工作名一致；其它文档（50 / 60 / 70 的「机械验证」小节）写步骤时一律用本文的 `job/步骤` 写法。
 
@@ -187,7 +187,7 @@ flowchart LR
 | 1 | open-render | 打开 T1 样本，首页与缩略图栏渲染，无控制台错误 | `apps/web/e2e/open/open-render.spec.ts` | M1 |
 | 2 | viewer-readonly | `preset-slide-viewer` 打开成功、无编辑命令；M3 起追加查看者 = 编辑器只读变体（`mode='view'`） | `apps/web/e2e/viewer/viewer-readonly.spec.ts` | M1 |
 | 3 | edit-undo-export | 插入文本框、键入、撤销与重做、导出 pptx 后经 `diffPackage` 只有脏部件变化 | `apps/web/e2e/editing/edit-undo-export.spec.ts` | M2 |
-| 4 | plugin-toggle | 示例插件启停：ribbon 按钮出现与消失，卸载后无残留 DOM | `apps/web/e2e/plugins/plugin-toggle.spec.ts` | M2 |
+| 4 | plugin-toggle | 示例内容插件 `plugin-qr-shape` 按部署策略停用（rulings §4.23，2026-10-03 按 §4.24 改写）：启用时 ribbon 按钮可见并能插入；以策略夹具（`GET /users/me/plugins` 不含该插件，单机模式由 `TestEnv` 注入）重新打开后按钮消失、带该插件 owner 标记的 DOM 节点为 0、个人插件面板无其开关；文档中已有的二维码元素以占位显示（[06 §5](./06-frontend-component-and-e2e.md) 第 16 行） | `apps/web/e2e/plugins/plugin-toggle.spec.ts` | M2 |
 | 5 | csp-strict | 生产 CSP 下关键路由与面板零违规（SEC-CL-01）；§4.21 起覆盖本轮新依赖：颜色选择器与渐变编辑器（react-colorful 经 patch 后零注入，色盘计算样式与基线一致）、缩略图栏滚动与拖拽重排（@tanstack/react-virtual、pragmatic-drag-and-drop）、表单对话框（react-hook-form）、首次粘贴 HTML（htmlparser2 惰性 chunk）、插入图标面板（预览只经 `<img>`）、zod 首次解析（`jitless`，`script-src` 零违规）；启用复杂文种 shaping 的变体另断言策略含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'`（[50/14](../50-frontend/14-client-security.md) §2.7、§13 V2、V15） | `apps/web/e2e/security/csp-strict.spec.ts` | M2（shaping 变体 M4） |
 | 6 | csrf-origin | 跨源与缺头的非安全请求 403、跨源 WS 升级被拒（SEC-XS-01 / 02） | `apps/server/test/e2e/smoke/csrf-origin.e2e-spec.ts` | M2（含 WS 段：协同网关随 rulings §4.19 D-M2-CONTENT 进 M2） |
 | 7 | share-link-landing | 片段令牌 → 登录往返 → 只经请求头携带，URL 与日志无令牌（SEC-XS-03） | `apps/web/e2e/share/share-link-landing.spec.ts` | M3 |
@@ -232,14 +232,14 @@ flowchart LR
 
 | 步骤 | 承载的 PRD 检查名（全部或部分断言） |
 |---|---|
-| `test/unit` | `degrade:isolate`、`M1#8`、`viewer:preset`（`readonly.test.ts`）、`pluggable:m1`、`history:property`、`collab:gate` 与 `collab:softgate`（修复规则黄金用例）、`collab:degraded`（客户端判据）、`pluggable:m3`（`manifest-diff.test.ts`、`pluggable.test.ts`）、`manifest:ci`、`version:policy`、`master:edit`（删除被引用版式与母版的命令层用例、`defaultLayoutOf`，[05 §7.1](./05-collab-simulation-and-property-tests.md)） |
+| `test/unit` | `degrade:isolate`、`M1#8`、`viewer:preset`（`readonly.test.ts`）、`pluggable:m1`、`history:property`、`collab:gate` 与 `collab:softgate`（修复规则黄金用例）、`collab:degraded`（客户端判据）、`pluggable:m3`（`manifest-diff.test.ts`、`pluggable.test.ts`）、`manifest:ci`、`version:policy`、`master:edit`（删除被引用版式与母版的命令层用例、`defaultLayoutOf`，[05 §7.1](./05-collab-simulation-and-property-tests.md)）、`plugins:diagnose`（作用域判定表、足迹写入与比对、`compute-exclude` 含依赖闭包，[02 §10.1](./02-contract-suites-and-pluggability.md)）、`plugins:consistency`（界面级插件写命令被拒 `scope/ui-write-command-denied`） |
 | `test/contract` | `embed:framework-free`、`collab:gate`（`runCollabServerConformance` 门禁与会话分节）、`perm:fail-closed`、`offline:queue`、`collab:undo`、`ctk:self` |
 | `test/lifecycle` | 无 PRD 检查名（承载 NF-01 §1.3 卸载后 effects 为空、NF-03 插件失败隔离，见 [13 §4](./13-requirements-traceability.md)） |
-| `test/fidelity-roundtrip` | `fidelity:roundtrip`、`errors:codes`、`fidelity:objects`、`fidelity:edit-roundtrip`、`layout:apply`、`master:edit`、`theme:edit`、`comments:roundtrip`（结构部分）、`roundtrip:docx-xlsx` |
+| `test/fidelity-roundtrip` | `fidelity:roundtrip`、`errors:codes`、`fidelity:objects`、`fidelity:edit-roundtrip`、`layout:apply`、`master:edit`、`theme:edit`、`comments:roundtrip`（结构部分）、`roundtrip:docx-xlsx`、`plugins:diagnose`（足迹 `p:extLst` 往返，02 `footprint/pptx-roundtrip`）、`plugins:consistency`（服务端导出按部署策略取内容级集合、与客户端同一集合，[03 §6](./03-fidelity-roundtrip-and-corpus.md) X6–X8） |
 | `test/collab-sim` | `collab:persist`（同一用户多客户端互见）、`collab:gate`、`collab:converge`、`collab:soft-conflict`、`offline:queue`、`collab:softgate`、`collab:rejected-rollback`、`collab:undo`、`master:edit`（ML-03 冲突表、删除被引用版式的协同撤销）、`history:restore-revert`（随 ADR-0038） |
 | `test/snapshot-migration-corpus` | ADR-0009 的迁移证据（无 PRD 检查名） |
 | `test/preset-blind` | `boot:empty`、`coexist` |
-| `test/server-integration` | `server:import`、`collab:persist`、`collab:gate`、`collab:degraded`（单实例溢写、`persist` 信号与回放补确认）、`perm:fail-closed`、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:durability`、`collab:softgate`（审计）、`collab:undo`（墓碑清扫与元素彻底删除）、`security:rls`（登录与分享链接用例）、`history:restore-revert`（撤销恢复的路由、能力位与审计，随 ADR-0038 定稿登记） |
+| `test/server-integration` | `server:import`、`collab:persist`、`collab:gate`、`collab:degraded`（单实例溢写、`persist` 信号与回放补确认）、`perm:fail-closed`、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:durability`、`collab:softgate`（审计）、`collab:undo`（墓碑清扫与元素彻底删除）、`security:rls`（登录与分享链接用例）、`history:restore-revert`（撤销恢复的路由、能力位与审计，随 ADR-0038 定稿登记）、`plugins:diagnose`（[07 §7.5](./07-backend-integration-and-api-e2e.md) PL1）、`plugins:admin`（PL2–PL11、§9 W22、SEC-AZ-16）、`plugins:consistency`（§9 W21–W23、SEC-AZ-17、SEC-RS-08）、`plugins:trust`（[08](./08-deployment-and-environment-e2e.md) §2 RA13、§3 C9；SEC-SC-09、SEC-SC-10）；SV-13 Headless 自动化作业无独立检查名，由 [07 §11.6](./07-backend-integration-and-api-e2e.md) AU1–AU10 承担、并入 `server:jobs` 的步骤汇总（M3，rulings §4.24 AL-7） |
 | `test/requirement-matrix` | `M0#3`、`e2e:editing`（每条 P0 / P1 ED 需求有 Playwright 用例）、NF-09「需求可追溯」 |
 | `lint` | `csp:strict`（文档内容注入规则，TD-081） |
 | `depcruise` | `viewer:preset`（查看器不含编辑链）、`pluggable:m2`（公开入口）、`embed:framework-free`、`depcruise:blind` |
@@ -255,12 +255,12 @@ flowchart LR
 | `xsd-validate` | `fidelity:edit-roundtrip`（E3）、NF-02「重生成部件 XSD 有效」 |
 | `e2e/smoke` | `csp:strict`、`security:rls`、`server:thumbnails`（零出站）、`offline:queue`（双浏览器重连） |
 | `e2e/oracle-gated` | `fidelity:visual`、`M1#7`、`fidelity:objects`、`master:view`、`layout:apply`、`server:thumbnails`（服务端与客户端像素一致）、`server:pdf`、`master:edit`、`theme:edit` |
-| `e2e/a11y` | `a11y:axe` |
-| `e2e/full-compose` | `e2e:editing`（M2 起经网关，`collab:persist` 的应用路径）、`server:import`（导入过渡页）、`collab:degraded`（发起方横幅与其余会话状态胶囊）、`M1#8`、`embed:multi`、`master:view`、`layout:apply`、`shell:home`、`shell:account-menu`、`pluggable:m2`、`pluggable:m3`、`collab:rejected-rollback`、`ops:compose`、`ops:image-licenses`、`master:edit` 与 `theme:edit`（删除被引用版式 / 母版的对话框与撤销 Toast、应用主题直接执行，[06 §5](./06-frontend-component-and-e2e.md) 第 25 行） |
+| `e2e/a11y` | `a11y:axe`、`plugins:admin`（`/admin/plugins` 与个人插件面板的矩阵格与键盘用例，PM-16） |
+| `e2e/full-compose` | `e2e:editing`（M2 起经网关，`collab:persist` 的应用路径）、`server:import`（导入过渡页）、`collab:degraded`（发起方横幅与其余会话状态胶囊）、`M1#8`、`embed:multi`、`master:view`、`layout:apply`、`shell:home`、`shell:account-menu`、`pluggable:m2`、`pluggable:m3`、`collab:rejected-rollback`、`ops:compose`、`ops:image-licenses`、`master:edit` 与 `theme:edit`（删除被引用版式 / 母版的对话框与撤销 Toast、应用主题直接执行，[06 §5](./06-frontend-component-and-e2e.md) 第 25 行）、`plugins:diagnose`（06 §5 第 28、29、34 行）、`plugins:admin`（第 30、35、39 行）、`plugins:consistency`（第 31 行）、`plugins:trust`（[08](./08-deployment-and-environment-e2e.md) §4 G13：界面无上传或安装入口） |
 | `e2e/full-airgap` | `ops:airgap` |
 | `perf/perf-client` | `perf:open`、`perf:interact`、`master:view`、`shell:home`、`master:edit`、`theme:edit` |
 | `perf/perf-collab` | `collab:persist`（初始同步）、`collab:latency`、`perm:fail-closed`（撤销 ≤ 2 s）、`offline:queue`（重连 ≤ 3 s）、`server:scale` |
-| `perf/perf-server` | `server:import`、`collab:persist`（持久化滞后、压缩）、`server:jobs`、`server:thumbnails`、`server:pdf`、`server:scale` |
+| `perf/perf-server` | `server:import`、`collab:persist`（持久化滞后、压缩）、`server:jobs`（含 `template-fill-100`，M3，rulings §4.24 AL-7）、`server:thumbnails`、`server:pdf`、`server:scale` |
 | 人工 / 半机械（`test/evidence/`） | `M0#1`、`M0#5`、`fidelity:interop`、`comments:roundtrip`（PowerPoint 抽样）、`security:pentest`、`pilot:external` |
 | 文档工具（`docs/_tools`，不属 13 个 job） | `M0#2`（`check-terms.py` + `terms.json`：术语表登记的旧名在正文中残留 0 处，rulings §4.20 TX-02） |
 
@@ -287,7 +287,7 @@ flowchart LR
 | `scanners/check-migrations-sync` | M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 定 0001、0002 为 M1）；比对实现（`ddl-check.sh --migrations / --write-migrations / --sync-only`）在同一 PR 落地，`tooling/ci/steps.json` 与 40/01 §5.7 同 PR 登记 | 同时（不起容器，直接 gated；挂 `scanners` 而不是 `test/server-integration` 的前置，因为后者 M2 才激活） | 每个新迁移文件；DB-13 自该 PR 起改为「已实现」（rulings §4.20 BE-03+TX-14） |
 | `iso-smoke/server-esm` | apps/server 首个 `AppModule` 入库的 PR（不晚于 M1 首批迁移，rulings §4.21 q-nest-major） | 同时（直接 gated，不起容器） | 每个新增的纯 ESM 依赖自动纳入（读 apps/server `package.json`）；OTel 预加载模块路径以 60/17 为准 |
 | `scanners/license-allowlist` 的停更报告 | M0（随 `license-allowlist` 步骤） | 不转 gated（只报告；新越过 12 个月的依赖自动建复评 issue，ADR-0049 决策 4） | — |
-| `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图 |
+| `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图；插件策略 REST、插件集指纹握手与在线通知（§4.23）；Headless 自动化作业 AU1–AU10、迁移 0063 / 0074、配额与审计导出（2026-10-03，rulings §4.24 AL-7、TA-10）；M4 插件配置（PL8、SEC-DA-08） |
 | `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 材质层表、rulings §4.12 U-08） |
 | `scanners/shadcn-diff` | M2（报告） | M2 稳定后 | — |
 | 安全夹具中的 Trusted Types 计数 | M2（Report-Only） | M3（强制） | — |
@@ -295,7 +295,8 @@ flowchart LR
 | `e2e/smoke` 的 security-rls | 首个 RLS 迁移（M2，报告） | M3（GV-16） | 每张新 RLS 表自动进入矩阵 |
 | `e2e/smoke` 的 renderer-egress | renderer 入库（M3 前半段，报告） | M3（GV-16） | — |
 | `e2e/full-airgap` | M3 前半段（报告） | M3 出口 | M4 离线包导入 |
-| `perf/perf-collab`、`perf/perf-server` | M2（快照 bootstrap、持久化滞后、压缩、服务端导入、单实例溢写回放；优雅停机先报告；RM-S 在 M2 前落地的自托管专用 runner 上） | M2 | M3 多人延迟、在场、权限变更、离线重连、容量与多实例、优雅停机、服务端导出与缩略图、`host-footprint`（nightly 报告，renderer 与 worker 落地且 `ops:compose` 全绿后）；M4 模板填充、多架构像素一致 |
+| `perf/perf-collab`、`perf/perf-server` | M2（快照 bootstrap、持久化滞后、压缩、服务端导入、单实例溢写回放；优雅停机先报告；RM-S 在 M2 前落地的自托管专用 runner 上） | M2 | M3 多人延迟、在场、权限变更、离线重连、容量与多实例、优雅停机、服务端导出与缩略图、`host-footprint`（nightly 报告，renderer 与 worker 落地且 `ops:compose` 全绿后）、模板填充 `template-fill-100`（2026-10-03 由 M4 提前，rulings §4.24 AL-7）；M4 多架构像素一致 |
+| 插件管理检查名（rulings §4.23；2026-10-03 按 §4.24 登记）：`plugins:diagnose` 的 `test/unit`（`scope/*`、`footprint/*`、`exclude/*`）、`test/fidelity-roundtrip`（足迹往返）与 `e2e/full-compose`（06 §5 第 28、29、34 行）；`plugins:admin`、`plugins:consistency` 的 `test/server-integration`（07 §7.5、§9 W21–W23）、`e2e/full-compose`（第 30、31、35、39 行）与 `e2e/a11y`；`plugins:trust` 的 08 RA13、C9、G13 | M2（作用域判定表与足迹单测随第一方 manifest 入库，即 M2 首个插件 PR） | `plugins:diagnose` M2；`plugins:admin`、`plugins:consistency` M3；`plugins:trust` M4（镜像内置部分 M3）（PRD 05 M2 验收 19、M3 验收 20 与 21、M4 验收 7） | M3 个人启停与「插件设置已更新」；M4 挂载目录插件、签名与审核、插件配置 |
 | `test/contract` 的 CTK（`test/plugin-compat/**`）、`api-surface/docs-coverage`、`api-surface/scaffold-e2e` | M4 | M4 | — |
 | `scanners/horizontal-freeze` | M5 | M5（标记 `doc-type:new` 的 PR 必需） | — |
 
@@ -330,9 +331,9 @@ stateDiagram-v2
 flowchart LR
   m0["M0：policy-check、全部静态规则与负向夹具、requirement-matrix 字段齐全、空骨架上 13 个 job 全绿"]
   m1["M1：fidelity-roundtrip、snapshot-migration-corpus、preset-blind、xsd-validate、oracle-gated、perf-client 打开场景、查看器体积、e2e 全量段"]
-  m2["M2：编辑后往返、a11y、csp-strict 与 TT Report-Only、shadcn-diff 转阻断、server-integration 含协同网关持久化快照与导入、collab-sim、perf-collab 与 perf-server 首批、login 与 csrf-origin 冒烟、镜像与 RLS 覆盖静态检查"]
-  m3["M3：security-rls 与 renderer-egress 阻断、full-airgap、TT 强制、forced-colors、多人协同与容量场景、converge 档、服务端导出与缩略图"]
-  m4["M4：CTK、docs-coverage、scaffold-e2e"]
+  m2["M2：编辑后往返、a11y、csp-strict 与 TT Report-Only、shadcn-diff 转阻断、server-integration 含协同网关持久化快照与导入、collab-sim、perf-collab 与 perf-server 首批、login 与 csrf-origin 冒烟、镜像与 RLS 覆盖静态检查、plugins:diagnose"]
+  m3["M3：security-rls 与 renderer-egress 阻断、full-airgap、TT 强制、forced-colors、多人协同与容量场景、converge 档、服务端导出与缩略图、plugins:admin 与 plugins:consistency、Headless 自动化与 template-fill-100"]
+  m4["M4：CTK、docs-coverage、scaffold-e2e、plugins:trust"]
   m5["M5：horizontal-freeze"]
   m0 --> m1 --> m2 --> m3 --> m4 --> m5
 ```
@@ -510,6 +511,8 @@ flowchart LR
 依据：ADR-0049 决策 2、4；rulings §4.21 q-license-tiers、q-nest-major；R-d-60。
 
 **新增步骤名（总计划工作名之外，请总编排知悉）**：`scanners/lockfile-guard`、`scanners/license-allowlist`、`scanners/vuln-audit`（许可、漏洞与 lockfile 三个安全门禁此前没有步骤名）；`api-surface/docs-coverage`、`api-surface/scaffold-e2e`（PRD 05 M4 验收 1、4 此前没有执行点）；`scanners/check-migrations-sync`（rulings §4.20 BE-03+TX-14）；`iso-smoke/server-esm`（rulings §4.21 q-nest-major，取代 R-d-60 的 require(esm) 冒烟）。其余步骤名与总计划的工作名完全一致。
+
+**rulings §4.24 已定稿**（2026-10-03）：冒烟第 4 条按部署策略停用改写（不新增冒烟条目：AL-7 的 Headless 自动化作业属 `test/server-integration` 的 M3 扩展，`template-fill-100` 属 `perf/perf-server`，二者都不进 ≤ 15 min 的 PR 冒烟子集）；§6 补四个插件检查名，§7 加插件检查名一行与 AL-7 两处扩展。步骤名不变，13 个 job 的封闭集合不变。
 
 回写清单（由总编排执行，本组不改其它文档）：
 

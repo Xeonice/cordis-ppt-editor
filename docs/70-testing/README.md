@@ -1,5 +1,5 @@
 # 70 测试设计线：定位、边界与导航
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.2、rulings §4.11–§4.20、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（补登 §4.22：表格与图表收口的测试落点——06 §5 第 26、32、33 行，05 `sc-30`、`sc-31`，09 §3.1 大表基准，03 §12.1 PowerPoint 对照，13 §6.7）；2026-10-03（§4.24 设计线对齐审计：§6 新增 §4.24 落实表，§9 变更记录加两行） | 依赖：charter v0.2、rulings §4.11–§4.24、[docs/README.md](../README.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-type-discipline/07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40-modules/_template.md](../40-modules/_template.md)
 
 ## 1. 定位
 
@@ -220,6 +220,21 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | TX-02、TX-04（术语与链接检查） | [13 §3.1](./13-requirements-traceability.md) `M0#2` 改为 `check-terms.py`；§10 的链接执行点改为 `check-links.py` |
 | TX-08、TX-09、TX-10、TX-13、TX-16、TX-23 | §7 第 9、10 条已采纳（TD-110、TD-111）；§8 的 Clock / Random、`FixedClock` 统一、语料与覆盖率改指各行已回写；SEC-SC-05 与 [12 §2](./12-ci-gates-mapping.md) `lockfile-guard` 加 typescript、y-protocols 版本钉；[11 §10](./11-test-data-fixtures-and-determinism.md) 与 [12 §3](./12-ci-gates-mapping.md) 登记语料桶四个变量；[13 §11](./13-requirements-traceability.md) 第 5 条不采纳、以 `<里程碑>#<序号>` 为正式检查名 |
 
+
+**rulings §4.24 已裁定、影响本线用例的项**（2026-10-03，AL-1…AL-7 用户裁决、TA-1…TA-10 总编排裁定；逐条追溯见 [13 §6.8](./13-requirements-traceability.md)）：
+
+| 条目 | 本线的落实 |
+|---|---|
+| AL-1、AL-5（链接不授予 editor；分享对话框无下载开关） | [07](./07-backend-integration-and-api-e2e.md) §5.1 X3、§7.1 删链接 editor，§7.2 S8、§4 MG9；[10](./10-security-testing.md) SEC-AZ-19；[06](./06-frontend-component-and-e2e.md) §5 第 36 行 |
+| AL-2、AL-4（个人插件面板为对话框路由；导出里程碑按 OF-19） | [06](./06-frontend-component-and-e2e.md) §5 第 28、35、37 行 |
+| AL-3、TA-9（renderer 不读库；足迹服务端链路与按策略装配） | [03](./03-fidelity-roundtrip-and-corpus.md) §6 X6、X8；[10](./10-security-testing.md) SEC-RS-08；[07](./07-backend-integration-and-api-e2e.md) §9 W23、§11.6 AU9 |
+| AL-6（评论不进足迹） | [02](./02-contract-suites-and-pluggability.md) §10.1 `footprint/comments-excluded`；[03](./03-fidelity-roundtrip-and-corpus.md) §6 X7；[05](./05-collab-simulation-and-property-tests.md) §10；[06](./06-frontend-component-and-e2e.md) §5 第 34 行 |
+| AL-7（SV-13 Headless 自动化 M3） | [07](./07-backend-integration-and-api-e2e.md) §11.6 AU1–AU10、§12.2 H5；[09](./09-performance-and-capacity.md) `template-fill-100` 改 M3；[10](./10-security-testing.md) SEC-IN-11；[12](./12-ci-gates-mapping.md) §7 |
+| TA-1、TA-2、TA-5、TA-6、TA-7、TA-8 | [13](./13-requirements-traceability.md) §6.8 各行；[02](./02-contract-suites-and-pluggability.md) §10.1 `exclude/dependency-closure`；[06](./06-frontend-component-and-e2e.md) §2.2 与 §5 第 39 行 |
+| TA-4、TA-10（失败会话数小时桶；配额、位图参数、协作者摘要、页头版本） | [07](./07-backend-integration-and-api-e2e.md) §7.5 PL10、PL11，§8 D12、D13，§11.2 J8；[10](./10-security-testing.md) SEC-AZ-18 |
+| 审计缺口：表格 / 图表编辑 e2e、`admin/` 目录、图表软冲突、快照 diff、审计导出、个人资料 | [06](./06-frontend-component-and-e2e.md) §3.1、§5 第 32–33 行；[05](./05-collab-simulation-and-property-tests.md) `sc-30`、`sc-31`；[07](./07-backend-integration-and-api-e2e.md) §8 D14、§12.3、§6 A14 |
+| 13 追溯 | §1.1 `4.21`、`4.22`、`4.24` 的 id 生成口径；§6.6–§6.8；§7 ADR 0018、0019、0036、0049、0050；[12](./12-ci-gates-mapping.md) §6 插件四个检查名 |
+
 ---
 
 ## 7. 对章程与上游文档的异议与建议
@@ -303,6 +318,8 @@ D-TEST-INFRA 的原推荐「M3 前落自托管 runner」随 rulings §4.19 D-M2-
 | 2026-09-25 | v0.1（§4.19） | 落实 rulings §4.19 五项裁决：协同后端相关步骤与用例由「M3 前置技术切片」改为 M2 激活并删去 pptx 内容版本用例；INC-09、C-06、D-COMMENTS-PKG、D-TEST-INFRA 定稿并删去全部「待确认（总编排）」；13 的 `rulings.json` 生成口径加入 evidence `leftoverDecisions`；另按分诊修正 WS 断言（over_ceiling、room.locked、version.restored、X-Cordex-Epoch、L2 计数起点、auth.refresh 重新绑定）与命名、确定性、步骤表等杂项 |
 | 2026-09-25 | v0.1（§4.19 N1） | 落实 rulings §4.19 表末 N1「恢复不锁、覆盖导入换纪元」：02、05、06、07、13 删去恢复锁定的断言，新增覆盖导入换纪元与恢复不加锁的用例及追溯行 |
 | 2026-09-26 | v0.1（§4.20） | 落实 rulings §4.20 遗留小项收口（§6 末表）：WS 升级先扣后退与每用户上限（10、02、07、09）、客户端 IP（10、08）、唯一 owner 运维转移（07、10）、ADR-0038 `rs/restore-revert-*` 占位与 `history:restore-revert` 追溯（05、12、13）、UnitScope 登记表用例（02）、默认版式 / 墓碑期引用 / 删除可撤销 / 删除母版目标（05、06）、Trusted Types `default` 策略与第三方样式零违规（06、10）、`enablement` 与嵌入样式隔离（06）、`check-migrations-sync` 激活（12）、`host-footprint` 场景（09、12）、TD-110 / TD-111 采纳与 FakeClock 统一（01、07、11、README）、语料桶变量（11、12）、`check-terms` / `check-links` 执行点（13、README）；13 增加 `4.20` 标签口径与 §6.4 |
+| 2026-10-03 | v0.1（§4.22 补登） | 补登 rulings §4.22 设计待决收口的测试落点：表格编辑与图表编辑 e2e（06 §5 第 32、33 行，§7.2、§7.3）、图表类别 / 系列软冲突（05 `sc-30`、`sc-31`）、插入落点（06 §5 第 26 行）、13 §6.7 追溯；DF-03 / DF-08 / DF-09 对照语料（03 §12.1）与 DF-10 大表基准（09 §3.1）沿用 2026-09-30 已登记的写法 |
+| 2026-10-03 | v0.1（§4.24） | 落实 rulings §4.24 设计线对齐审计（§6 末表）：13 补 §4.21、§4.22、§4.24 裁决映射与 ADR 0018 / 0019 / 0036 / 0049 / 0050；12 补 `plugins:*` 四项、插件激活行与冒烟第 4 条按部署策略停用；06 补表格 / 图表 e2e、`admin/` 目录与本轮前端新增（第 32–39 行）；05 补图表软冲突与足迹性质；07 补自动化作业、配额、协作者摘要、链接不授予 editor、`AdminPluginDetail`、迁移 0063 / 0074、审计导出、个人资料与快照 diff 占位；03 补足迹服务端链路与按策略装配；09 `template-fill-100` 改 M3；10 新增 SEC-IN-11、AZ-18、AZ-19、DA-08、RS-08；02、01、11 同步 |
 
 ---
 

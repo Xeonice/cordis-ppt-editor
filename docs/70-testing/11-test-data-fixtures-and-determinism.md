@@ -1,5 +1,5 @@
 # 11 测试数据、夹具与确定性工具
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20） | 依赖：rulings §4.20（TX-08、TX-10、TX-16）、rulings §4.19（INC-09、C-06、D-M2-CONTENT）、[01](./01-strategy-and-layers.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md) §1 / §11、[30/02](../30-architecture/02-layering-and-packages.md) §4.0.2、40/02–13 各 §9、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[60/14](../60-backend/14-valkey-object-storage-and-retention.md)、ADR-0009 / 0016 / 0023、60/02 / 05 / 06 / 13（到期规则与审计分区）、[03](./03-fidelity-roundtrip-and-corpus.md) / [04](./04-visual-oracle.md) / [05](./05-collab-simulation-and-property-tests.md) / [06](./06-frontend-component-and-e2e.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-10-03（补登 §4.22：表格 / 图表 e2e 的夹具——两栏内容版式空占位符页、导入柱形图与非五类图表、按 `c:lang` 区分语言的图表数据，§4 与 §9 登记；DF-03 / DF-08 / DF-09 的 PowerPoint 对照语料仍由 [03 §12.1](./03-fidelity-roundtrip-and-corpus.md) 负责）；2026-10-03（§4.24 设计线对齐审计：§6 补 Headless 自动化数据集、插件声明文件夹具（含测试用内容级插件 `test:content-p`）与带评论文档的种子，§9 落点表加三行，§12 加一条；种子覆盖迁移 0063、0074 放宽后的 CHECK） | 依赖：rulings §4.24 AL-6 / AL-7、rulings §4.22、[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) §7.4、[60/17](../60-backend/17-deployment-and-config.md) §5.16、rulings §4.20（TX-08、TX-10、TX-16）、rulings §4.19（INC-09、C-06、D-M2-CONTENT）、[01](./01-strategy-and-layers.md)、[30-architecture/11](../30-architecture/11-testing-strategy.md) §1 / §11、[30/02](../30-architecture/02-layering-and-packages.md) §4.0.2、40/02–13 各 §9、[60/08](../60-backend/08-db-conventions-roles-rls-migrations.md)、[60/14](../60-backend/14-valkey-object-storage-and-retention.md)、ADR-0009 / 0016 / 0023、60/02 / 05 / 06 / 13（到期规则与审计分区）、[03](./03-fidelity-roundtrip-and-corpus.md) / [04](./04-visual-oracle.md) / [05](./05-collab-simulation-and-property-tests.md) / [06](./06-frontend-component-and-e2e.md)
 
 本文定义测试用的数据与工具从哪来、归谁、怎么保持可复现：确定性工具（时钟、随机数、调度、度量、传输替身）的所属包与用法，假时钟的统一规则，文档与模型夹具，语料与快照样本的落点，服务端种子构建器，IdP 夹具，字体 profile，大文件存储，以及这些东西的变更流程。
 
@@ -233,6 +233,9 @@ flowchart TB
 
 - `audit_log` 按月分区：迁移 0071 已按真实当前时间预建当月与未来 3 个月（[60/13 §3](../60-backend/13-ddl-comments-webhooks-audit.md)）；60/13 不建默认分区、也不建防改写触发器（只追加由 0095 的 GRANT 与 0096 自检保证），落到未建月份的写入直接失败。种子时间戳覆盖到过去月份时，构建器以 `cordex_migrator` 按 60/13 同一命名规则先补建对应月分区再写入。种子审计行按 `chainHash`（60/07 §8）逐行计算 `prev_hash` / `hash`，否则链校验用例会误报。
 - `document_updates` 按 `hash(doc_id)` 分区，种子无特殊处理。
+- **自动化作业**（2026-10-03，rulings §4.24 AL-7）：`job_runs` 种子覆盖迁移 0063 放宽后的取值——四种自动化 kind 各一行，其中 `convert` / `validate` / `migrate` 各有一行上传来源（`doc_id` 为空、只对创建者可见）；`payload.contentPlugins = {policy, ids[]}` 取种子声明文件算出的集合，不手写摘要。数据集放 `apps/server/test/fixtures/automation/`：模板文档 T 的 pptx（标题、正文、图片、表格占位符各一，图片 sha256 由构建器关联到 T）、3 项小批与 100 项批量（D50 规模，供 [09 §6](./09-performance-and-capacity.md) `template-fill-100`）各一份 JSON，另有类型不符、101 项、超 1 MiB 三份负向数据（[07 §11.6](./07-backend-integration-and-api-e2e.md)）。`webhook_subscriptions` 种子另有一条 `event_filter` 含 `automation.job_finished` 的订阅（迁移 0074）。
+- **插件声明文件**（§4.23；2026-10-03 按 §4.24 登记）：`apps/server/test/fixtures/plugins/catalog.json` 为内置第一方插件若干 + 测试用内容级插件 `test:content-p` + 界面级插件 `test:ui-q`（`optional`、`defaultOn=true`）+ 两个争用同一 Provider 座的互斥插件，条目 `id` 一律是 cordis 插件 id（rulings §4.24 TA-5），由 harness 挂为 `plugins.catalogFile`（[60/17](../60-backend/17-deployment-and-config.md) §5.16）；`plugin_policies` 默认不种行（等于声明文件初始值），需要「管理员已改」的用例在测试内经 `PATCH /admin/plugins` 写入。
+- **带评论的文档**（2026-10-03，rulings §4.24 AL-6）：协同快照中含 `comments.threads` 资源与两条线程、足迹中没有 `comments` 条目；供 [03 §6](./03-fidelity-roundtrip-and-corpus.md) X7 与 [06 §5](./06-frontend-component-and-e2e.md) 第 34 行以单人 preset 与查看器打开。
 - 对象按 [60/14](../60-backend/14-valkey-object-storage-and-retention.md) 的键模板写入：快照进 snapshots 桶（开版本化），其余进 data 桶（决策 C-08/OBJ）；桶名按测试文件唯一（`t<worker>-<文件短哈希>-data` / `-snapshots`），文件结束即删除，避免同一 worker 内先后运行的文件因克隆出相同的文档 id 而互相看到对象。
 - Valkey 不预置种子；每个 worker 独占一套容器、文件串行执行（07 §2）。每个测试文件设独立 `valkey.keyPrefix`（默认值 `cordex:` 被替换为 `cordex:t<worker>:<文件短哈希>:`）与独立 BullMQ 前缀；文件结束时先 `SCAN` 全库，出现任何不在这两个前缀下的键即失败——顺带证明全部键模板都遵守 `keyPrefix`（决策 KEYS）——随后 `FLUSHDB`，下一个文件从空库开始。
 
@@ -306,7 +309,10 @@ db.asSystem(jobName, fn)                // cordex_system；事务内 set_config(
 | `test/collab-sim/{seeds.json,repros/}` | 种子与回归用例 | 协同线 + 测试线 | 协同模拟 |
 | `test/perf/budgets.json` | 预算的机器副本 | 测试线 + 产品 | perf（[09 §2](./09-performance-and-capacity.md)） |
 | `apps/server/test/fixtures/` | 种子构建器、固定 id、IdP 夹具 | 后端设计线 | 种子与固定 id：apps/server 集成与 e2e（`test/deploy` 需要时经 `seed:test` 子进程）；IdP 夹具另供 apps/web e2e 与 `test/deploy` 登录 |
-| `apps/web/e2e/fixtures/` | page objects、`storageState`、上传用小文件（引用根 `fixtures/pptx/`） | 前端设计线 | apps/web e2e |
+| `apps/web/e2e/fixtures/` | page objects、`storageState`、上传用小文件（引用根 `fixtures/pptx/`）；2026-10-03 起另有：旧二进制 `.ppt`（CFB 魔数）样本、两栏内容版式的空占位符页、导入柱形图与非五类图表、`c:lang` 为 en-US 与 zh-CN 的图表各一（[06 §5](./06-frontend-component-and-e2e.md) 第 32、33、38 行；文件本体引用根 `fixtures/pptx/features/`） | 前端设计线 | apps/web e2e |
+| `apps/server/test/fixtures/automation/`（2026-10-03） | 模板文档、批量与负向填充数据（§6） | 后端设计线 + 测试线 | [07 §11.6](./07-backend-integration-and-api-e2e.md)、[09 §6](./09-performance-and-capacity.md) `template-fill-100`、[10](./10-security-testing.md) SEC-IN-11 |
+| `apps/server/test/fixtures/plugins/`（2026-10-03 登记） | 插件声明文件夹具与测试插件包（§6） | 后端设计线 + 测试线 | [07 §7.5](./07-backend-integration-and-api-e2e.md)、§9 W21–W23、[03 §6](./03-fidelity-roundtrip-and-corpus.md) X6–X9、[08](./08-deployment-and-environment-e2e.md) C9 |
+| `apps/web/e2e/support/range-server.ts`（2026-10-03） | 支持 `Range` 与按块注入失败的静态文件服务，供 OF-23 打开 URL 用例 | 前端设计线 | [06 §5](./06-frontend-component-and-e2e.md) 第 38 行 |
 | `tooling/**/__fixtures__/`、`{ok,violation}/` | 规则负向夹具 | 类型治理 | `lint`、`depcruise`、`scanners` |
 
 **图 11-3 夹具所有者与复用关系**
@@ -390,6 +396,7 @@ flowchart LR
 | 种子构建器的「表 → 迁移号」映射覆盖迁移后 `public` schema 的全部表，且写入顺序与迁移编号一致；种子里被数据库以 `now()` 比较的列（如 `share_links.expires_at`）不含未来值；`audit_log` 的分区全部为按月命名分区、不存在默认分区 | `apps/server/test/integration/seed/seed-coverage.int-spec.ts`（`test/server-integration`） |
 | 用例拿不到 `cordex_migrator` 连接；`SET LOCAL` 上下文不泄漏到连接池的下一次借出 | 同目录 `db-helpers.int-spec.ts` |
 | 每个测试文件结束时 Valkey 中没有前缀之外的键 | 服务端集成 harness 的文件级收尾检查 |
+| 插件声明文件夹具的每个 `id` 都是 cordis 插件 id（在 40/16 §2 主表导出的 id 集合或测试插件白名单 `test:*` 内），不出现 preset 条目 id；自动化数据集的图片值只引用种子里已关联模板的 sha256（2026-10-03，rulings §4.24 TA-5、AL-7） | `apps/server/test/integration/seed/fixtures-shape.int-spec.ts`（`test/server-integration`） |
 | 服务端到期判定都经 `CLOCK`：只推进 `FixedClock` 就能触发票据、会话、链接、墓碑的到期 | §3 注入点表对应的 [07](./07-backend-integration-and-api-e2e.md) 用例 |
 | 生产代码与测试代码不直接调用 `Math.random`、`Date.now`、无参 `new Date()`（`SystemClock` / `SystemRandom` 所在文件放行）；测试代码另不调用 `performance.now`（`test/perf/**` 豁免） | `lint`：TD-110（已采纳，rulings §4.20 TX-08；09-08 §12c 登记，负向夹具四例：测试文件调 `Date.now`、apps/web 组件调 `Math.random`、`SystemClock` 文件放行、生产代码 `performance.now` 放行）；`ooxml-*` 的 TD-097 预算恒为 0 不变 |
 | 语料桶四个变量缺失时 `fetch-corpus.ts` 与 oracle 基线拉取报错退出、不跳过 | `test/fidelity-roundtrip`、`e2e/oracle-gated` 的前置（§10） |

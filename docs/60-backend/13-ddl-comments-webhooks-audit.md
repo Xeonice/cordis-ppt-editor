@@ -1,5 +1,5 @@
 # 13 DDL：评论、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §5.1 迁移 0074，Webhook 对外事件增 `automation.job_finished`，供 SV-13 自动化作业的结果回调） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
 
 
 ## 1. 域说明
@@ -13,7 +13,7 @@
 | `webhook_subscriptions` | WebhooksModule | `0072_webhook_subscriptions` | 无 | 例外（部署级管理员表） | 表随 M2 建立，M3 起写入 |
 | `webhook_deliveries` | WebhooksModule | `0073_webhook_deliveries` | 无 | 例外（同上） | 表随 M2 建立，M3 起写入 |
 
-**迁移依赖**：本文件编号段为 0070–0079 与 0094（全线分配见 [08](08-db-conventions-roles-rls-migrations.md) §9）。`0070` 依赖 `users`（09 的 0010）与 `documents`（10 的 0020）；`0071` 无外键依赖；`0072` 依赖 `users`；`0073` 依赖 `0072`；`0094` 依赖 `0070`、RLS 基础函数 `cordex_system_job()` / `cordex_role_at_least()`（08 的 0002）与 `cordex_doc_role`（09 的 0034）；本组表的 GRANT 写在 08 的 `0095`，所需权限见 §6.3。`0070`–`0073` 在 M2 首批服务端迁移中一起执行（评论与 Webhook 表 M3 才有写方，提前建空表无副作用），避免日后插入比已执行迁移编号更小的迁移；`0094` 随 08 规定的 RLS 批次执行。
+**迁移依赖**：本文件编号段为 0070–0079 与 0094（全线分配见 [08](08-db-conventions-roles-rls-migrations.md) §9）。`0070` 依赖 `users`（09 的 0010）与 `documents`（10 的 0020）；`0071` 无外键依赖；`0072` 依赖 `users`；`0073` 依赖 `0072`；`0074`（2026-10-03，§5.1）依赖 `0072`、`0073`；`0094` 依赖 `0070`、RLS 基础函数 `cordex_system_job()` / `cordex_role_at_least()`（08 的 0002）与 `cordex_doc_role`（09 的 0034）；本组表的 GRANT 写在 08 的 `0095`，所需权限见 §6.3。`0070`–`0073` 在 M2 首批服务端迁移中一起执行（评论与 Webhook 表 M3 才有写方，提前建空表无副作用），避免日后插入比已执行迁移编号更小的迁移；`0094` 随 08 规定的 RLS 批次执行。
 
 **图 1 本文件迁移顺序与依赖**
 
@@ -297,7 +297,7 @@ COMMENT ON COLUMN webhook_subscriptions.previous_secret_expires_at IS '旧密钥
 | 用途 | Webhook 订阅：目标地址、事件过滤、加密的签名密钥与轮换状态（PRD SV-15、BC-30） |
 | 所属模块与仓储 | WebhooksModule · `WebhookRepository`（`apps/server/src/modules/webhooks/infrastructure/webhook.repository.ts`） |
 | 写方 | 订阅管理用例（api，平台管理员；创建、PATCH、轮换、删除，过期旧密钥在下一次 PATCH 时顺带清空） |
-| 读方 | 生产者（collab，只读 `id`、`status`、`event_filter`）；投递处理器（worker，解密密钥）；管理 REST |
+| 读方 | 生产者（collab 的评论镜像、worker 的 `AutomationProcessor`，只读 `id`、`status`、`event_filter`）；投递处理器（worker，解密密钥）；管理 REST |
 | RLS | 不启用，登记例外（§6.2）：部署级管理员表，无文档作用域 |
 | 保留与清理 | 直至管理员删除；删除时同一事务先删其投递记录 |
 | 里程碑 | 表随 M2 建立，M3 起写入 |
@@ -360,13 +360,34 @@ COMMENT ON COLUMN webhook_deliveries.delivered_at IS '得到 2xx 的时间；只
 |---|---|
 | 用途 | 投递记录与 outbox：保存待投递载荷供对账补投与人工重放，并作投递日志 |
 | 所属模块与仓储 | WebhooksModule · `WebhookRepository` |
-| 写方 | 生产者（collab，评论镜像事务内写 `pending`）；`WebhookDeliveryProcessor`（worker，状态与尝试）；`webhook-deliveries-prune`（worker，删终态行）；ops `webhooks:replay`（`cordex_system`）；删除订阅时同事务连带删除（api，`cordex_app`，外键 RESTRICT 要求先删子行） |
+| 写方 | 生产者（collab，评论镜像事务内写 `pending`；worker 的 `AutomationProcessor`，作业终态事务内写 `pending`，2026-10-03）；`WebhookDeliveryProcessor`（worker，状态与尝试）；`webhook-deliveries-prune`（worker，删终态行）；ops `webhooks:replay`（`cordex_system`）；删除订阅时同事务连带删除（api，`cordex_app`，外键 RESTRICT 要求先删子行） |
 | 读方 | 投递日志 REST（api）；`reconciliation`（worker，只读孤儿 `pending` 行） |
 | RLS | 不启用，登记例外（§6.2） |
 | 保留与清理 | 终态行（`succeeded`、`failed`、`dead-lettered`）`updated_at` 超过 `retention.webhookDeliveriesDays`（默认 90 天）由 maintenance `webhook-deliveries-prune` 删除；`pending` 行不清；载荷只含 id、时间与深链，因此不需要参与文档永久删除 |
 | 里程碑 | 表随 M2 建立，M3 起写入 |
 
 约束说明：`ck_webhook_deliveries_state` 把状态与时间字段绑在一起（`pending` 必有 `next_attempt_at`，`succeeded` 必有 `delivered_at`，终态不再有下次尝试时间），处理器漏写字段会直接失败而不是留下语义不明的行。`attempt` 上限 32 只是结构护栏，业务上限是固定的 8 次（rulings §4.18 BE-19，不设配置键）。
+
+### 5.1 自动化作业完成事件（0074，2026-10-03，rulings §4.24 AL-7）
+
+SV-13 的结果回调复用本表与订阅表（[06 §7.4](06-modules-jobs-import-export-thumbnails.md)、[07 §5.1](07-modules-comments-webhooks-audit.md)），只新增一个对外事件 `automation.job_finished`：自动化作业进入 `succeeded` / `failed` 时由 worker 的 `AutomationProcessor` 在同一事务写 `pending` 投递行，`event_id = automation.job_finished:{jobId}`。本迁移只放宽两条 CHECK，不加列、不改 RLS 例外与 GRANT（写方仍是 WebhooksModule 的 `DeliverWebhookEventUseCase`，worker 以 `cordex_system` 执行，已在 08 §4.2 授予 I）。
+
+```sql
+-- migrate: 0074_webhook_automation_event
+-- 执行者：cordex_migrator。对外事件增 automation.job_finished（60/06 §7.4）；只改 CHECK
+ALTER TABLE webhook_subscriptions
+  DROP CONSTRAINT ck_webhook_subscriptions_events,
+  ADD CONSTRAINT ck_webhook_subscriptions_events CHECK (cardinality(event_filter) BETWEEN 1 AND 4
+    AND event_filter <@ ARRAY['comment.added', 'comment.mentioned', 'comment.resolved',
+                              'automation.job_finished']::text[]);
+
+ALTER TABLE webhook_deliveries
+  DROP CONSTRAINT ck_webhook_deliveries_event,
+  ADD CONSTRAINT ck_webhook_deliveries_event CHECK (event IN ('comment.added', 'comment.mentioned',
+                                                             'comment.resolved', 'automation.job_finished'));
+
+COMMENT ON COLUMN webhook_subscriptions.event_filter IS '订阅的事件，⊆ {comment.added, comment.mentioned, comment.resolved, automation.job_finished}（后者 0074）';
+```
 
 ## 6. RLS 与授权
 
@@ -574,7 +595,7 @@ erDiagram
   }
   webhook_subscriptions {
     uuid id PK
-    text_array event_filter "三种评论事件"
+    text_array event_filter "三种评论事件与 automation.job_finished"
     bytea signing_secret_enc "AES-256-GCM 密文"
     text status "active 或 disabled"
   }

@@ -1,8 +1,8 @@
 # 15 REST API 目录
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20）；2026-09-26（§4.21：REST 基础件定稿——Nest 12 + Fastify 5、cookie、helmet、multipart、zod-openapi；Webhook 签名头改为 Standard Webhooks；限流维持自研令牌桶）；2026-09-26（§4.21 整合：§3.8 snapshots/latest 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：快照恢复改为复制文档先落库再应用、多副本由 extension-redis 收敛、控制事件走控制频道）；2026-10-01（§4.23 插件管理：新增 §3.15 plugins 七条路由（管理员四条、本人三条），资源树与反代映射同步） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；60-backend/02、04 §7、16 §2（原 30/08 §9、§11、§16.4）；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：两个导入受理路由补 409 `server.documents.locked`；2026-09-26（§4.20）；2026-09-26（§4.21：REST 基础件定稿——Nest 12 + Fastify 5、cookie、helmet、multipart、zod-openapi；Webhook 签名头改为 Standard Webhooks；限流维持自研令牌桶）；2026-09-26（§4.21 整合：§3.8 snapshots/latest 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：快照恢复改为复制文档先落库再应用、多副本由 extension-redis 收敛、控制事件走控制频道）；2026-10-01（§4.23 插件管理：新增 §3.15 plugins 七条路由（管理员四条、本人三条），资源树与反代映射同步）；2026-10-03（§4.24：AL-1 分享链接请求体删去 `editor`；AL-7 新增 §3.16 automation 三条路由（SV-13 改 M3，§9 未排期口径作废）；TA-4 `/telemetry/errors` 累加插件失败会话 HyperLogLog；TA-7 `server.plugins.*` 已登记、§7 补 `server.plugins.validation_failed` 与 `server.automation.media_not_found`；TA-10 新增 §3.17 quota 两条路由，`DocumentSummary` 加所有者与协作者摘要，位图导出加 `width` / `quality`，管理员插件页加部署与宿主版本；§8、§10 同步）；2026-10-03（§4.24 收尾：§3.15.1 登记 AdminPluginRow 依赖图与 AdminPluginDetail 字段） | 依赖：rulings §4.10 Q20、§4.13 S-1/S-2、§4.15 Q6、§4.17 D1/D2、§4.18 BE-02/BE-03/BE-05/BE-06/BE-10/BE-11/BE-18/BE-30/CO-07/UX-02、§4.19；ADR-0026、ADR-0029、ADR-0031；60-backend/02、04 §7、16 §2（原 30/08 §9、§11、§16.4）；30-architecture/10 §1.4；40-modules/08 §6、09 §6、12 §6；PRD 06 SV-08、SV-12，PRD 05 EM-10
 
 > 读者：实现 `apps/server` 控制器与 `@cordexjs/protocol` `rest/*` 的工程师；前端（[50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) 的用例层只引用本表，不复写守卫与错误码）；测试（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 由本表生成「角色 × 能力位 × 路由」矩阵）。
-> 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry、§3.15 plugins）链接本文。
+> 定位：**全后端唯一的 REST 路由源**。每条路由的方法、路径、装配角色、守卫与能力位、DTO 文件、成功码、主要错误码、审计 action、限流档、里程碑只在这里登记；[03](03-modules-identity-and-access.md)–[07](07-modules-comments-webhooks-audit.md) 的模块卡只写用例与事务边界，并按固定小节号（§3.1 auth … §3.14 telemetry、§3.15 plugins、§3.16 automation、§3.17 quota）链接本文。
 > 不在本文：字段级 DTO（在 protocol `rest/*.ts`，文件登记见 [40-modules/02](../40-modules/02-kernel-protocol-and-document-core.md)）；WS 帧（[30-architecture/06 §6](../30-architecture/06-collaboration.md) 与 [16](16-ws-protocol-server-view.md)）；`/render` 页注入协议（[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)）；renderer RPC 字段（[06](06-modules-jobs-import-export-thumbnails.md)）；错误码格式与权威映射表（[30-architecture/10 §1](../30-architecture/10-observability-and-errors.md)）。
 
 ---
@@ -98,7 +98,7 @@ flowchart LR
 | `doc.manage`（分享、权限、删除、命名版本、元素彻底删除） | ✓ | — | — | — |
 | `history.restore` | ✓ | — | — | — |
 
-分享链接可授予的角色是 `viewer`、`commenter`、`editor`，不能是 `owner`。
+分享链接可授予的角色是 `viewer`、`commenter`，不能是 `editor` 或 `owner`：编辑权只经按人邀请授予（rulings §4.24 AL-1，以设计 [03-08](../20-design/03-screens/08-share-permissions-dialog.md) 为准）。
 
 ---
 
@@ -128,18 +128,18 @@ flowchart LR
   doc --> thumbs["/thumbnails/:slideId：缩略图"]
   doc --> comments["/comments：只读镜像；导入为可编辑线程仅 collab"]
   doc --> exportR["/export：导出作业"]
-  root --> imports["/imports：两步上传、建作业、取消"]
+  root --> imports["/imports 与 /automation：两步上传、建作业、取消；Headless 自动化"]
   root --> exportsR["/exports/:jobId：取下载 URL"]
   root --> jobs["/jobs/:id：唯一的作业状态查询"]
   root --> mentions["/comments/mentions：跨文档 @我，只读"]
   root --> webhooks["/webhooks：订阅与投递日志，仅平台管理员"]
   root --> audit["/audit：查询与导出，仅平台管理员"]
   root --> telemetry["/telemetry：errors、otlp、csp"]
-  root --> pluginsR["/admin/plugins 与 /users/me/plugins：插件策略与个人启停"]
+  root --> pluginsR["/admin 与 /users/me：插件策略、个人启停、配额用量"]
 ```
 
 怎么读：从左到右是 URL 的层级，叶子节点文字是该资源下的操作；标「仅 collab」的三处由反代转给 collab 角色（§6），其余都在 api；评论与 @我 只读，评论唯一写入口是 CRDT 经服务端镜像观察器（ADR-0031）。
-依据：本节 §3.1–§3.15；rulings §4.18 BE-03、CO-07，§4.19 D-M2-CONTENT（不设 pptx 内容版本端点）；决策 SG-03、SG-08。
+依据：本节 §3.1–§3.17；rulings §4.18 BE-03、CO-07，§4.19 D-M2-CONTENT（不设 pptx 内容版本端点）；决策 SG-03、SG-08。
 
 ### 3.1 auth
 
@@ -172,7 +172,7 @@ flowchart LR
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
-| GET | `/documents?filter=all\|owned\|shared\|recent\|pinned\|trashed&q=&cursor=&limit=` | `Session`（逐条按角色过滤，RLS 兜底） | — | → `Page<DocumentSummary>`（含 `role`、`pinned`、`lastOpenedAt?`、封面 URL）；`recent` 按 `document_user_marks.last_opened_at`，`trashed` 只列本人为 owner 的回收站文档 | 200 | 仅隐含码 | — | default | M2 |
+| GET | `/documents?filter=all\|owned\|shared\|recent\|pinned\|trashed&q=&cursor=&limit=` | `Session`（逐条按角色过滤，RLS 兜底） | — | → `Page<DocumentSummary>`（含 `role`、`pinned`、`lastOpenedAt?`、封面 URL、`owner{ id, displayName, avatarUrl }`、`collaborators?{ count, preview[≤ 3]{ id, displayName, avatarUrl } }`）；`recent` 按 `document_user_marks.last_opened_at`，`trashed` 只列本人为 owner 的回收站文档。所有者名与协作者摘要供设计 [03-01](../20-design/03-screens/01-document-list.md) 卡片的「王小明 · 3 天前」「我 + 2 人」（2026-10-03，rulings §4.24 TA-10）：`owner` 由 `owner_id` 关联 `users` 主键取得（`users` 对 `cordex_app` 可读，[08 §6.4](08-db-conventions-roles-rls-migrations.md)）；`collaborators` **只对调用者是 owner 的条目返回**——非 owner 在 RLS 下只看得到 `permissions` 里自己那一行，算不出协作者，因此省略字段而不是给出错误数字；本页 owner 条目的协作者用一次 `permissions WHERE doc_id = ANY($ids)` 批量查询（每页 ≤ 100 个文档，走 `(doc_id, …)` 唯一索引）再按 `users` 主键取显示名，不做逐行子查询 | 200 | 仅隐含码 | — | default | M2 |
 | POST | `/documents` | `Session`（`status='active'` 即可） | — | `{ documentType: 'slide', title }` → `Document`；同一事务写 `documents` 与 owner 权限行 | 201 | `storage.quota_exceeded{dimension:'documents'}`（429） | `document.created` | default | M2 |
 | GET | `/documents/:id` | `+Link` → `DocRole(doc.read)` | `meta` | → `DocumentDetail`（`role`、`capabilities[]`、`status`、`documentType`、`pinned` 等）；无副作用（「最近」在签发协同票据时记录，见 [04](04-modules-documents-storage-media.md) §3.1） | 200 | 403 可带 `reason`（链接失效，INC-20） | 凭链接访问时 `share_link.accessed`（合并计数） | default | M2 |
 | PATCH | `/documents/:id` | `DocRole(doc.write)` | `write` | `{ title }` → `DocumentSummary`；只收 `title`，不再按字段区分能力位（决策 SG-06/SG-07） | 200 | `server.documents.locked`（409） | `document.renamed` | default | M2 |
@@ -202,7 +202,7 @@ flowchart LR
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
-| POST | `/documents/:id/share-links` | `DocRole(doc.manage)` | `meta` | `{ role: 'viewer' \| 'commenter' \| 'editor', expiresAt? }` → `{ linkId, token, role, expiresAt }`；`token` 明文只在本响应出现一次 | 201 | 仅隐含码 | `share_link.created` | default | M3 |
+| POST | `/documents/:id/share-links` | `DocRole(doc.manage)` | `meta` | `{ role: 'viewer' \| 'commenter', expiresAt? }` → `{ linkId, token, role, expiresAt }`；`token` 明文只在本响应出现一次 | 201 | 仅隐含码 | `share_link.created` | default | M3 |
 | GET | `/documents/:id/share-links` | `DocRole(doc.manage)` | `meta` | → `ShareLink[]`（不含令牌，含 `revokedAt`、`expiresAt`） | 200 | 仅隐含码 | — | default | M3 |
 | DELETE | `/documents/:id/share-links/:linkId` | `DocRole(doc.manage)` | `meta` | 置 `revoked_at`，同一事务 `permVersion` 递增，提交后广播；凭该链接的 WS 会话 ≤ 1 s 降权 | 204 | `server.share_links.not_found`（404） | `share_link.revoked` | default | M3 |
 
@@ -249,9 +249,9 @@ flowchart LR
 | POST | `/imports/uploads` | `Session`；带 `docId`（覆盖既有文档）时 `DocRole(doc.write)` | `write`（带 `docId` 覆盖既有文档时）/ — | `{ fileName, byteSize, sha256, docId? }` → `{ uploadId, jobId, docId, upload }`：预分配 `jobId`（新建文档时同时预分配 `docId`，UUIDv7）与 `uploadId`（绑定 userId 与这一个 jobId，1 h），返回预签名 PUT（≥ 10 MB 分片）；客户端从不提交对象键。PUT 落隔离区 `uploads/tmp/{uploadId}`，有效期等于 `uploadId` 寿命 1 h，受理时服务端复制到 `docs/{docId}/imports/{jobId}/source.pptx`（UPLOAD-QUARANTINE，rulings §4.18 BE-10 的细化，[06](06-modules-jobs-import-export-thumbnails.md) §6.1）；新建空白与从模板新建同样走本路由（rulings §4.19 D-M2-CONTENT） | 201 | `format.quota_exceeded{dimension:'fileSize'}`（413，> `scale.maxFileBytes` 200 MB）、`storage.quota_exceeded`（413 字节 / 429 文档数）、`format.macro_rejected` / `format.unsupported_binary`（415，按扩展名 `.pptm` / `.ppt` 提前拒绝，处理器仍按内容复核，[06](06-modules-jobs-import-export-thumbnails.md) §6.1）、`server.documents.locked`（409，带 `docId` 且文档正处于另一覆盖导入或迁移的锁定窗口，[06](06-modules-jobs-import-export-thumbnails.md) §6.5，rulings §4.19 N1） | — | upload | M2 |
 | POST | `/imports` | `Session`；`uploadId` 须属于当前用户且未过期 | `write`（带 `docId` 覆盖既有文档时）/ — | `{ uploadId, parts? }`（JSON），或 ≤ 10 MB 文件的 `multipart/form-data` 单步直传（PRD SV-01，内部走同一路径）→ `{ jobId, docId }`：HEAD 确认对象 → 按服务端幂等键建 `job_runs` → 入 `import` 队列；`uploadId` 只能兑换预分配的那一个作业，重放总是返回同一行 | 202（重放 200） | `server.import.upload_forbidden`（403，不存在、过期或非本人，不区分）、`server.import.source_missing`（409，对象缺失或大小不符）、`server.documents.locked`（409，同上） | `import.created` | job | M2 |
 | POST | `/imports/:jobId/cancel` | `Session` → `Creator` | — | queued / running → cancelled，删原件与已生成产物，不建文档 | 200 | `server.jobs.not_found`（404）、`server.import.job_terminal`（409，已终态） | `import.cancelled` | job | M2 |
-| POST | `/documents/:id/export` | `DocRole(doc.export)` | `content` | `{ format: 'pptx' \| 'pdf' \| 'png' \| 'jpeg', snapshotId?, slides? }` + 可选 `Idempotency-Key` → `{ jobId }`；pptx 入 `export` 队列，其余经 `RenderExportProducerService` 入 `render-export` 队列 | 202（幂等命中 200） | 仅隐含码 | `export.created` | job | M3（PDF / PNG / JPEG 为 M3 后半段） |
-| GET | `/exports/:jobId` | `Session` → `Creator` 或 `DocRole(doc.export)` | `content` | 只返回下载地址：`{ url, expiresAt, fileName }`，每次现签 1 h 预签名 GET（对象保留 24 h，决策 SG-08、MECH-INC 中 INC-40）；状态查询请用 `/jobs/:id` | 200 | `server.jobs.not_found`（404）、`server.export.not_ready`（409）、`server.export.expired`（410） | `export.downloaded` | default | M3 |
-| GET | `/jobs/:id` | `Session`；`Creator` 或对 `job_runs.doc_id` 有授权（RLS 同口径） | — | → `JobStatus`（`kind`、`status ∈ queued \| running \| succeeded \| failed \| cancelled`、`progress?`、`result?`、`error?{ code, detail }`、`fidelityReport?`）；导入、导出、render-export、document-purge 共用（决策 SG-08） | 200 | `server.jobs.not_found`（404，不存在与无权查看同码，避免枚举） | — | default | M2 |
+| POST | `/documents/:id/export` | `DocRole(doc.export)` | `content` | `{ format: 'pptx' \| 'pdf' \| 'png' \| 'jpeg', snapshotId?, slides?, width?: 1280 \| 1920 \| 3840, quality?: 1–100 }` + 可选 `Idempotency-Key` → `{ jobId }`；`width` 只对 png / jpeg 有效（缺省 1280，设计 [03-22](../20-design/03-screens/22-export-dialog.md)），`quality` 只对 jpeg 有效（缺省 85），二者进入幂等键并下发 renderer（[06 §7.2、§10.3](06-modules-jobs-import-export-thumbnails.md)，2026-10-03 TA-10）；pptx 入 `export` 队列，其余经 `RenderExportProducerService` 入 `render-export` 队列 | 202（幂等命中 200） | 仅隐含码 | `export.created` | job | M3（PDF / PNG / JPEG 为 M3 后半段） |
+| GET | `/exports/:jobId` | `Session` → `Creator` 或 `DocRole(doc.export)` | `content` | 只返回下载地址：`{ url, expiresAt, fileName }`，每次现签 1 h 预签名 GET（对象保留 24 h，决策 SG-08、MECH-INC 中 INC-40）；自动化作业（§3.16）的产物与 `validate` 报告同样经此取得，无文档作用域的只对创建者；状态查询请用 `/jobs/:id` | 200 | `server.jobs.not_found`（404）、`server.export.not_ready`（409）、`server.export.expired`（410） | `export.downloaded` | default | M3 |
+| GET | `/jobs/:id` | `Session`；`Creator` 或对 `job_runs.doc_id` 有授权（RLS 同口径） | — | → `JobStatus`（`kind`、`status ∈ queued \| running \| succeeded \| failed \| cancelled`、`progress?`、`result?`、`error?{ code, detail }`、`fidelityReport?`）；导入、导出、render-export、document-purge 与自动化四种 kind（§3.16）共用（决策 SG-08） | 200 | `server.jobs.not_found`（404，不存在与无权查看同码，避免枚举） | — | default | M2 |
 
 ### 3.10 thumbnails
 
@@ -299,7 +299,7 @@ flowchart LR
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
-| POST | `/telemetry/errors` | `Session` | — | `ClientErrorReport[]`（≤ 20 条，请求体 ≤ 64 KiB）→ 经 logger 落结构化日志；401 时前端丢弃、不重试（决策 MECH-INC 中 SG-11） | 204 | 仅隐含码 | — | telemetryErrors | M2 |
+| POST | `/telemetry/errors` | `Session` | — | `ClientErrorReport[]`（≤ 20 条，请求体 ≤ 64 KiB）→ 经 logger 落结构化日志；带插件 `id` 的条目（插件 `FAILED`、`plugin/incompatible`，PM-15）另对 `plugins:fail:{pluginId}:{yyyyMMddHH}` 执行 `PFADD <sessionId>` 并写 `plugins:lasterr:{pluginId}`，即本端点累加管理员页的「近 24 h 失败会话数」（按会话去重，[14 §3.2](14-valkey-object-storage-and-retention.md)，2026-10-03 rulings §4.24 TA-4）；401 时前端丢弃、不重试（决策 MECH-INC 中 SG-11） | 204 | 仅隐含码 | — | telemetryErrors | M2 |
 | POST | `/telemetry/otlp` | `Session` | — | OTLP/HTTP traces（≤ 512 KiB）：`application/x-protobuf`，或只含 `resourceSpans` 的 `application/json`；只转发到 Collector 的 `/v1/traces`（细则见 [18](18-observability-and-ops-endpoints.md) §9.1） | 200（透传 OTLP 响应） | `server.http.unsupported_media_type`（415，不是上述两种媒体类型，或 JSON 含 traces 以外的信号）；Collector 不可用 503 | — | telemetryOtlp | M3 |
 | POST | `/telemetry/csp` | `Public` | — | `application/reports+json` 或 `application/csp-report`（≤ 16 KiB）→ 只记录违反的指令名与被拦主机名，丢弃其余字段（决策 TT-CSP-REPORT） | 204 | 仅限流与体积码 | — | csp | M2（report-only）/ M3（强制） |
 
@@ -309,13 +309,90 @@ flowchart LR
 
 | 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
 |---|---|---|---|---|---|---|---|---|---|
-| GET | `/admin/plugins` | `Admin` | — | → `{ plugins: AdminPluginRow[], rejected: RejectedPlugin[], fingerprint: {catalog, policy}, allowUnsigned }`；每行 `id`、`version`、`source`（`builtin` \| `mount`）、`vendor?`、`scope`、`necessity`、`state`（三态）、`defaultOn?`、`deployState`（八种之一）、`locked?`（`lockPolicy` / `kernel` / `contract`）、`failedSessions24h`、`lastErrorCode?`；响应头 `ETag: "<policy>"` | 200 | 仅隐含码 | — | default | M3 |
-| GET | `/admin/plugins/:pluginId` | `Admin` | — | → `AdminPluginDetail`：宿主兼容范围、`injects` 与提供者、被谁依赖、按贡献点分组的贡献计数、能力声明（仅展示）、信任来源（内置 / 签名公钥指纹 / 审核记录）、最近 5 次策略变更（审计查询）、配置 schema 与当前非机密值（M4） | 200 | `server.plugins.not_found`（404） | — | default | M3 |
+| GET | `/admin/plugins` | `Admin` | — | → `{ plugins: AdminPluginRow[], rejected: RejectedPlugin[], fingerprint: {catalog, policy}, allowUnsigned, deploymentVersion, hostApiVersion }`（后两项供设计 [03-32](../20-design/03-screens/32-admin-plugin-management.md) 页头「部署版本 · 宿主」：`deploymentVersion` 与 `cordex_build_info.version` 同源，`hostApiVersion` 是判定插件 `hostApi` 兼容所用的宿主 API 版本，2026-10-03 TA-10）；每行 `id`、`version`、`source`（`builtin` \| `mount`）、`vendor?`、`scope`、`necessity`、`state`（三态）、`defaultOn?`、`deployState`（八种之一）、`locked?`（`lockPolicy` / `kernel` / `contract`）、`failedSessions24h`（Valkey 小时桶 HyperLogLog 读时合并近 24 桶，[03 §12.2](03-modules-identity-and-access.md)）、`lastErrorCode?`、`requires` / `requiredBy` / `conflictsWith`（清单级依赖图，字段见 §3.15.1，供管理页客户端的依赖 / 互斥计算，2026-10-03）；响应头 `ETag: "<policy>"` | 200 | 仅隐含码 | — | default | M3 |
+| GET | `/admin/plugins/:pluginId` | `Admin` | — | → `AdminPluginDetail`（字段见 §3.15.1）：宿主兼容范围、`injects` 与提供者、被谁依赖、互斥对象、按贡献点分组的贡献计数、能力声明（仅展示）、信任来源（内置 / 签名公钥指纹 / 审核记录）、最近 5 次策略变更（审计查询）、配置 schema 与当前非机密值（M4） | 200 | `server.plugins.not_found`（404） | — | default | M3 |
 | PATCH | `/admin/plugins` | `Admin`；`If-Match` 必填 | — | `{ changes: [{ pluginId, state, defaultOn? } \| { pluginId, reset: true }] }`（≤ 100 项）→ 同 `GET /admin/plugins`；整批一个事务，失败不部分生效 | 200 | `server.plugins.revision_conflict`（412）、`server.plugins.policy_invalid`（422）、`server.plugins.conflict`（409）、`server.plugins.not_found`（404） | `plugin.policy_changed`（每项一条，同批 `batchId`） | default | M3 |
 | PUT | `/admin/plugins/:pluginId/config` | `Admin`；`If-Match` 必填 | — | `{ config: object }`（非机密字段；机密字段只能「使用部署文件中的值」）→ `AdminPluginDetail` | 200 | `server.plugins.config_invalid`（422）、`server.plugins.revision_conflict`（412）、`server.plugins.not_found`（404） | `plugin.config_changed`（只记字段路径） | default | M4 |
 | GET | `/users/me/plugins` | `Session` | — | → `{ fingerprint: {catalog, policy}, plugins: [{ id, version, scope, source, entry?, state, enabled, defaultOn? }] }`；`entry` 只对挂载目录插件给出（同源 `/plugins/{sha256}/…`，M4）；只含本部署当前会装配或可由本人开启的插件，被拒与已禁用的不列出 | 200 | 仅隐含码 | — | default | M2（只读，镜像内置组成）/ M3（含策略与个人选择） |
 | PUT | `/users/me/plugins/:pluginId` | `Session` | — | `{ enabled: boolean }` → 同 `GET /users/me/plugins` 的该插件一行 | 200 | `server.plugins.not_optional`（409）、`server.plugins.not_found`（404） | — | default | M3 |
 | DELETE | `/users/me/plugins/:pluginId` | `Session` | — | 删除本人的选择，回到管理员默认值 | 204 | `server.plugins.not_found`（404） | — | default | M3 |
+
+#### 3.15.1 `AdminPluginRow` 依赖图与 `AdminPluginDetail` 字段（2026-10-03，rulings §4.24 收尾）
+
+本组是 §1「不在本文：字段级 DTO」的例外：管理员插件页的前端状态（[50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §10.1）直接按字段消费，字段名在此登记，`protocol rest/plugins.ts` 的 zod schema 照此实现。依赖与互斥全部由 `PluginCatalog` 在启动时从各插件的 `cordex-manifest.json` 算出（`provides`、`injects`、`optional`、`contributes`，PRD [04 PS-01](../10-prd/03-features/04-plugin-sdk.md)），声明文件不另写依赖或互斥；被拒插件不进依赖图，也不算提供者。
+
+```ts
+type PluginId = string;                                  // cordis 插件 id（rulings §4.24 TA-5）
+type PolicyState = 'forced' | 'optional' | 'disabled';
+
+// GET /admin/plugins 每行在既有字段之外追加（清单级依赖图）
+interface AdminPluginGraphFields {
+  requires: { service: string; providers: PluginId[] }[];   // 清单 injects 的硬依赖；providers = 本部署内 provides 该服务的插件；可选注入（optional）不列
+  requiredBy: PluginId[];                                    // 硬注入了本插件某个 provides 服务的插件
+  conflictsWith: PluginConflict[];                           // 与本插件互斥的插件，双向各列一次
+}
+interface PluginConflict {
+  pluginId: PluginId;
+  kind: 'provider' | 'shapeKind';   // 同一 Provider 座（provides 服务名相同）/ 同一 slide.shapeKind（contributes 的键相同）
+  key: string;                      // 冲突的服务名或 shapeKind 值，如 'flowchart'
+}
+
+// GET /admin/plugins/:pluginId；PUT /admin/plugins/:pluginId/config 的响应
+interface AdminPluginDetail extends AdminPluginRow {        // 含上面三项与 §3.15 第一行列出的全部行字段
+  displayName: string;
+  description?: string;
+  hostCompat: { range: string; current: string };          // range = 清单 hostApi（semver 范围）；current = 列表响应的 hostApiVersion
+  injects: {                                               // 依赖：清单 injects 与 optional 全量
+    service: string;
+    optional: boolean;
+    providers: { pluginId: PluginId; state: PolicyState }[]; // 对方当前策略（已保存值）
+  }[];
+  requiredByDetail: { pluginId: PluginId; services: string[]; state: PolicyState }[];
+  conflictsDetail: (PluginConflict & { state: PolicyState })[];
+  contributions: { point: string; count: number }[];      // 按贡献点 id 分组计数，取清单 contributes
+  permissions: string[];                                   // 能力声明，原样取清单 permissions，仅展示、不做运行时限制（PS-13）；空数组 = 未声明
+  trust:
+    | { kind: 'builtin' }                                  // 镜像内置，随镜像 digest 与 SBOM 受信
+    | { kind: 'signature'; publicKeyFingerprint: string }  // Ed25519 公钥 SHA-256 指纹，形如 'SHA256:3f:…'
+    | { kind: 'review'; reviewer: string; date: string; sha256: string; link?: string } // 声明文件 review 的 by / date / link 与钉住的包 sha256
+    | { kind: 'unsigned'; allowedBy: 'allowUnsigned' };    // 非生产部署 plugins.allowUnsigned 放行（M4）
+  recentPolicyChanges: {                                   // 审计 plugin.policy_changed 最近 5 条，新到旧；空数组 = 暂无变更记录
+    occurredAt: string;
+    actor: { kind: 'user'; id: string; displayName: string } | { kind: 'system' };
+    from: { state: PolicyState; defaultOn?: boolean };
+    to: { state: PolicyState; defaultOn?: boolean };
+    reset?: true;                                          // 恢复部署默认
+  }[];
+  config?: {                                               // M4（PS-10）；M3 省略该字段
+    schema: object;                                        // 由插件 Config schema 转出的 JSON Schema 2020-12；机密字段带 writeOnly: true
+    values: Record<string, unknown>;                       // 当前非机密值（声明文件 initial 叠加 plugin_policies.config）
+    secrets: { path: string; usesDeploymentValue: boolean }[]; // 机密字段只给标记：是否已使用部署文件（*File）中的值，从不回传值
+  };
+}
+```
+
+- 行内 `requires` / `requiredBy` / `conflictsWith` 只给插件 id，前端用它与草稿求「等待依赖」「将进入等待依赖」「视同强制」「互斥」四种派生态；详情里的 `injects` / `requiredByDetail` / `conflictsDetail` 再附服务名与对方当前策略供抽屉展示。两处同源，同一 `catalog` 摘要下不变。
+- 服务端裁决不依赖前端计算：`PATCH /admin/plugins` 仍按同一依赖图整批校验（`server.plugins.conflict` 的 `details.with` 即 `conflictsWith` 中命中的项）。
+- `recentPolicyChanges` 由 `GetPluginCatalogUseCase` 经审计只读面查询（[07 §9.5](07-modules-comments-webhooks-audit.md)），`actor.displayName` 取 `users` 主键；`config` 的机密字段路径不出现在 `values` 中。
+
+### 3.16 automation（2026-10-03，rulings §4.24 AL-7）
+
+`ImportExportModule` · `rest/import-export.ts`（自动化段）· 角色 api。SV-13 Headless 自动化 API 的四种作业（`fill-template`、`convert`、`validate`、`migrate`）随 M3 交付（覆盖 rulings §4.12 U-13「REST 到 M4 一起定」），用例、处理器、幂等键、产物与 Webhook 结果回调见 [06 §7.4](06-modules-jobs-import-export-thumbnails.md)；不新增 Nest 模块。来源是文档时走 `/documents/:id/automation/:kind`、按该文档的 `doc.export` 判定；来源是上传文件时走 `/automation/:kind`、只要求会话。M3 调用方是持登录会话的用户（集成方专用账号，照常过 CSRF）；M4 的集成方 JWT / API Key（rulings §4.15 Q6）上线后同一组路由改用 Bearer、豁免 CSRF，路由不变。进度经 `GET /jobs/:id`，产物经 `GET /exports/:jobId`（§3.9），结果回调为 Webhook 事件 `automation.job_finished`（§3.12）。
+
+| 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
+|---|---|---|---|---|---|---|---|---|---|
+| POST | `/automation/uploads` | `Session` | — | `{ fileName, byteSize, sha256 }` → `{ uploadId, upload }`：预签名 PUT 到隔离区 `uploads/tmp/{uploadId}`（1 h，≥ 10 MB 分片），与 §3.9 两步上传同一机制，但不预分配文档与作业；只收 `.pptx`，`migrate` 另收 `.json` 快照 | 201 | `format.quota_exceeded{dimension:'fileSize'}`（413）、`format.macro_rejected` / `format.unsupported_binary`（415，按扩展名提前拒绝，处理器仍按内容复核） | — | upload | M3 |
+| POST | `/documents/:id/automation/:kind`（`kind ∈ fill-template \| convert \| validate \| migrate`） | `DocRole(doc.export)` | `content` | `fill-template`：`{ snapshotId?, format: 'pptx' \| 'pdf', items: [{ clientRef?, data: { [占位符名]: { type: 'text', value } \| { type: 'image', sha256 } \| { type: 'table', rows: string[][] } } }] }`（1–100 项）→ `{ batchId, jobs: [{ clientRef?, jobId }] }`；`convert`：`{ snapshotId?, to: 'pdf' \| 'png' \| 'markdown', slides?, width?: 1280 \| 1920 \| 3840 }` → `{ jobId }`；`validate`：`{ snapshotId? }` → `{ jobId }`；`migrate`：`{ snapshotId?, targetSchemaVersion? }` → `{ jobId }`。来源为受理时已落库的状态；幂等按服务端键（[06 §2.3](06-modules-jobs-import-export-thumbnails.md)），另接受可选 `Idempotency-Key` 识别网络重放 | 202（全部命中既有作业 200） | `server.automation.media_not_found`（422，图片 sha256 未与该文档关联）、`server.documents.locked`（409） | `automation.created`（每批一条） | job | M3 |
+| POST | `/automation/:kind`（`kind ∈ convert \| validate \| migrate`） | `Session`；`uploadId` 须属于当前用户且未过期 | — | 同上一行对应 kind 的请求体，以 `uploadId` 代替 `snapshotId` → `{ jobId }`；受理时把原件复制到 `automation/{jobId}/source.{ext}`，作业无文档作用域、只对创建者可见 | 202（命中既有作业 200） | `server.import.upload_forbidden`（403，不存在、过期或非本人，不区分）、`server.import.source_missing`（409） | `automation.created` | job | M3 |
+
+### 3.17 quota（2026-10-03，rulings §4.24 TA-10）
+
+`DocumentsModule`（存储配额读取的属主，[04](04-modules-documents-storage-media.md) §9）· `rest/documents.ts`（配额段）· 角色 api。PRD SV-08「配额用量可查询（管理 API 与管理面板）」的 M3 部分；数字全部来自 [10 §7](10-ddl-documents-marks-media.md) 已有的 SECURITY DEFINER 函数 `cordex_storage_usage()`（只返回数字）与生效配置（[17 §5](17-deployment-and-config.md) 的 `scale.*`、`quota.*`），不新增函数、表或缓存。按用户列出用量明细（谁用了多少）需要汇总他人名下文档，M3 不提供，随 SV-14 管理面板（M4）另定。
+
+| 方法 | 路径 | 守卫与能力位 | 状态 | 请求 → 响应 | 成功 | 主要错误码 | 审计 | 限流 | 里程碑 |
+|---|---|---|---|---|---|---|---|---|---|
+| GET | `/users/me/quota` | `Session` | — | → `{ storage: { ownerBytes, limitBytes? }, documents: { count, limit? } }`：`ownerBytes` 取 `cordex_storage_usage()` 无参调用的 `owner_bytes`；`count` 为本人为 owner 的非 `purging` 文档数（RLS 下直接计数）；`limitBytes` / `limit` 取 `quota.storagePerUserBytes` / `quota.documentsPerUser`，空 = 不限、字段省略 | 200 | 仅隐含码 | — | default | M3 |
+| GET | `/admin/quota` | `Admin` | — | → `{ storage: { totalBytes, limitBytes? }, perUser: { bytesLimit?, documentsLimit? }, scale: { maxPages, softWarnPages, maxElementsPerSlide, maxElementsPerDoc, softWarnElementsPerDoc, maxFileBytes, envelopeExceeded: string[] }, perDoc: { commentThreads, namedSnapshots } }`：`totalBytes` 取同一函数返回的部署总量；`limitBytes` 取 `quota.storageTotalBytes`；`envelopeExceeded` 与 `/readyz` 的 `scaleEnvelopeExceeded` 同源（[17 §7](17-deployment-and-config.md)） | 200 | 仅隐含码 | — | default | M3 |
 
 ---
 
@@ -361,7 +438,7 @@ flowchart LR
 
 | 本文小节 | 反代规则 | 角色 | Nest 模块 |
 |---|---|---|---|
-| §3.1–§3.6、§3.9–§3.15（§3.11 的 comments/import 除外），以及 §3.7 的 collab-ticket | `/api/*` | api | Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry、Plugins |
+| §3.1–§3.6、§3.9–§3.17（§3.11 的 comments/import 除外），以及 §3.7 的 collab-ticket | `/api/*` | api | Auth、Users、Documents、Permissions、ShareLinks、Media、ImportExport、Jobs、Thumbnails、Comments、Webhooks、Audit、ClientTelemetry、Plugins |
 | §3.7 的 elements/purge、§3.8、§3.11 的 comments/import | 同一条规则 `^/api/v1/documents/[^/]+/(snapshots\|elements/purge\|comments/import)`（优先于 `/api/*`，[17](17-deployment-and-config.md) §3 的 location 正则） | collab | Collab（`CollabHttpModule`）、Snapshots（`SnapshotsHttpModule`）、Comments（`CommentsImportHttpModule`，P1） |
 | §5 主端口两条 | 不经反代 | 各角色 | Health |
 | §5 内部端口 | 不转发 | 见 §5 | Metrics、Internal、Audit（audit/verify）、renderer 入口 |
@@ -444,9 +521,11 @@ flowchart LR
 | `server.webhooks.egress_blocked` | 422 | 目标地址解析到私网、回环、链路本地或云元数据地址，且不在部署白名单 | INC-10 |
 | `server.webhooks.invalid_url` / `server.webhooks.invalid_event_filter` | 422 | URL 不合法、含 userinfo、生产环境非 https；事件过滤为空或含未知事件（07 §10） | INC-10（`server.webhooks` 域） |
 | `server.audit.range_too_large` / `server.audit.export_too_large` / `server.audit.verify_busy` | 400 / 422 / 409 | 查询区间超 366 天；导出超 1,000,000 行；已有链校验在执行（07 §10） | INC-10（`server.audit` 域） |
-| `server.plugins.not_found` / `server.plugins.not_optional` | 404 / 409 | 插件 id 不在本部署；本人启停的插件当前不是 `optional`（[03](03-modules-identity-and-access.md) §12.4） | §4.23（2026-10-01 新域 `server.plugins`，待登记进 30/10 §1.1 与 http-map） |
+| `server.plugins.not_found` / `server.plugins.not_optional` | 404 / 409 | 插件 id 不在本部署；本人启停的插件当前不是 `optional`（[03](03-modules-identity-and-access.md) §12.4） | §4.23 新域 `server.plugins`；2026-10-03 已登记进 30/10 §1.1a 与 §1.4（rulings §4.24 TA-7） |
+| `server.plugins.validation_failed` | 400 | 插件路由入参不合 schema：缺 `If-Match`、`changes` 超 100 项、取值非法（[03](03-modules-identity-and-access.md) §12.4） | 同上（TA-7 单列） |
 | `server.plugins.policy_invalid` / `server.plugins.config_invalid` | 422 | 内容级设 `optional`、改锁定项、启用被拒插件；配置未过 schema 或含机密字段 | 同上 |
 | `server.plugins.revision_conflict` / `server.plugins.conflict` | 412 / 409 | `If-Match` 与当前 `policy` 摘要不符；同批变更后争用同一 Provider 座或 `slide.shapeKind` | 同上 |
+| `server.automation.media_not_found` | 422 | `fill-template` 的图片值引用的 sha256 与模板文档无 `document_media` 关联（[06 §7.4](06-modules-jobs-import-export-thumbnails.md)） | 2026-10-03 新域 `server.automation`（rulings §4.24 AL-7），已登记 30/10 §1.1a |
 | `storage.quota_exceeded` | 413（字节）/ 429（文档数） | 按 owner 汇总的存储字节或每用户文档数超限（D2、决策 G-09） | 已登记 |
 | `storage.integrity_mismatch` | 422 | commit 时重算的 sha256 或字节数与声明不符 | INC-10（`storage` 域原有，本轮补 HTTP 映射） |
 | `storage.upload_not_found` | 404 | 媒体提交时 `uploadId` 不存在或已过期 | INC-10（同上） |
@@ -468,8 +547,8 @@ flowchart LR
 | 档 | 主体 | 默认速率 / 突发 | 适用 |
 |---|---|---|---|
 | default | 用户 | 600 次 / min，突发 100 | 未另注明的全部 `Session` 路由（数值出处原为 30/08 篇 §9.3，现以本表为准） |
-| upload | 用户 | 60 次 / min，突发 20 | media presign / commit、`/imports/uploads`（每张图 presign + commit 两次调用，连插 20 张图约 20 s 传完；原 10 / 5 下要约 3.5 min，BE-02） |
-| job | 用户 | 60 次 / min，突发 10 | `POST /imports`、取消导入、创建副本、导出、永久删除文档、用户擦除、审计导出 |
+| upload | 用户 | 60 次 / min，突发 20 | media presign / commit、`/imports/uploads`、`/automation/uploads`（每张图 presign + commit 两次调用，连插 20 张图约 20 s 传完；原 10 / 5 下要约 3.5 min，BE-02） |
+| job | 用户 | 60 次 / min，突发 10 | `POST /imports`、取消导入、创建副本、导出、自动化受理（§3.16，每次请求计 1 次，一批至多 100 项）、永久删除文档、用户擦除、审计导出 |
 | ticket | 用户 | 120 次 / min，突发 30 | `POST /documents/:id/collab-ticket`（重连风暴时单独限流，ADR-0023；每次连接一张单次票据，外加被动续期） |
 | search | 用户 | 30 次 / min，突发 10 | `GET /users?query=`（防枚举，决策 SG-05） |
 | telemetryErrors | 用户 | 容量 5、每 10 s 补 1（数值以 [18](18-observability-and-ops-endpoints.md) §9.1 为准） | `/telemetry/errors` |
@@ -483,6 +562,7 @@ flowchart LR
 |---|---|
 | 默认（JSON） | 256 KiB |
 | `POST /imports` 的 `multipart/form-data` 直传 | 10 MB（更大的文件必须走两步预签名上传；由 `@fastify/multipart` 流式解析） |
+| `POST /documents/:id/automation/fill-template` | 1 MiB（≤ 100 项占位符数据，2026-10-03；图片只传 sha256，不传字节） |
 | `POST /telemetry/errors` | 64 KiB（≤ 20 条） |
 | `POST /telemetry/otlp` | 512 KiB |
 | `POST /telemetry/csp` | 16 KiB |
@@ -519,6 +599,9 @@ WS 升级限流（每 IP 10 次 / min，先扣后退：升级前扣、票据验�
 | `/internal/*` 与 `/metrics` 在内部端口 9464，`/internal/*` 另验运维令牌 | §5 | INC-26：rulings §4.18 BE-03、BE-11 + 安全宁可提前 |
 | `/telemetry/csp` 为第七条 `@Public` | §3.14、§4 | TT-CSP-REPORT：rulings §4.15 Q2 + §4.18 BE-30 |
 | 错误码域按 `server.<资源>` 收编，废 `share_link.*`、`user.*`、`snapshot.*` 前缀 | §7 | INC-10/SG-04：30-architecture/10 §1.1 |
+| 分享链接只授予 `viewer` / `commenter`，编辑权只经按人邀请 | §3.5 | rulings §4.24 AL-1（以设计 03-08 为准） |
+| SV-13 自动化作业 REST：文档来源 `/documents/:id/automation/:kind`（`doc.export`）、上传来源 `/automation/:kind`，产物复用 `/exports/:jobId`，回调复用 Webhook | §3.16 | rulings §4.24 AL-7；守卫按路径取文档、不从请求体取 `docId`，与 §2 的 `DocRole` 写法一致 |
+| 配额用量查询 `/users/me/quota`、`/admin/quota`；`DocumentSummary` 加所有者与协作者摘要；位图导出 `width` / `quality`；管理员插件页加部署与宿主版本 | §3.17、§3.3、§3.9、§3.15 | rulings §4.24 TA-10 |
 
 **本文新增项的复核**：原列在此处待总编排复核的五项已全部收口（2026-09-26，rulings §4.20 BE-02、BE-11+TX-12；与 [README](README.md) §8.2 同一口径，不再在两处重复维护）——§8 各限流档数值与默认请求体上限 256 KiB 经评审定稿（upload、public 上调，其余维持）；`server.snapshots.persist_degraded` 码名随 30/10 §1.1 登记；探针不经反代；`/auth/token/refresh` 与 `/auth/logout` 的 `Session*` 写法与 [02](02-auth-chain.md) 一致。
 
@@ -537,7 +620,7 @@ WS 升级限流（每 IP 10 次 / min，先扣后退：升级前扣、票据验�
 | `DELETE /documents/:id/permissions`、`DELETE /documents/:id/share-links`（目标 id 放 query 或 body） | 决策 SG-06/SG-07 | 目标 id 放进路径 |
 | `POST /documents/:id/content/uploads`、`POST /documents/:id/content/commit`、`GET /documents/:id/content/latest`（M2 pptx 内容版本） | rulings §4.19 D-M2-CONTENT | 打开：`GET snapshots/latest` + 票据 + WS；新建与导入：§3.9 两步导入 |
 
-**仍未排期的端点**（不在本目录，出现时须先改本文）：`POST /documents{ template }`、`GET /templates`（AS-03 的服务端模板库，待 M-02 / M-12 立项；M2 的内置模板由前端以模板字节走 §3.9 导入）；SV-13 的 fill-template / convert / validate / migrate 作业 REST（M4，rulings §4.12 U-13）；M4 集成方签名 JWT 与 API Key 相关端点（rulings §4.15 Q6）。
+**仍未排期的端点**（不在本目录，出现时须先改本文）：`POST /documents{ template }`、`GET /templates`（AS-03 的服务端模板库，待 M-02 / M-12 立项；M2 的内置模板由前端以模板字节走 §3.9 导入）；M4 集成方签名 JWT 与 API Key 相关端点（rulings §4.15 Q6）。SV-13 的 fill-template / convert / validate / migrate 作业 REST 已于 2026-10-03 按 rulings §4.24 AL-7 改为 M3 并登记在 §3.16（原「M4，rulings §4.12 U-13」未排期口径作废）。
 
 ---
 
@@ -557,3 +640,4 @@ WS 升级限流（每 IP 10 次 / min，先扣后退：升级前扣、票据验�
 | R8 | `apps/**`、`packages/**` 中不出现 §9「已删除端点」表中的任何路径字面量（含 `/content/uploads`、`/content/commit`、`/content/latest`） | `lint`（`no-restricted-syntax` 规则项，由类型治理线登记，不新增扫描器） | [70/12](../70-testing/12-ci-gates-mapping.md) |
 | R9 | §3 每行的错误码都在 protocol `errors/codes.ts` 中声明，且 `errors/http-map.ts` 的 HTTP 状态与 §7 一致 | `test/contract`（http-map 快照） | [70/02](../70-testing/02-contract-suites-and-pluggability.md) |
 | R10 | 本文 Mermaid 图通过绘图规范校验 | `docs/_tools/mermaid-check.cjs` | 总编排 |
+| R11 | 2026-10-03（§4.24）：创建分享链接 `role='editor'` 或 `'owner'` → 400，库内 `ck_share_links_role` 兜底；自动化 `fill-template` 101 项 → 400、请求体超 1 MiB → 413，上传来源作业对他人 `GET /jobs/:id` 与 `GET /exports/:jobId` 均 404；非 owner 的文档列表条目不含 `collaborators`；`member` 调 `/admin/quota` 403 | `test/server-integration` | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) |

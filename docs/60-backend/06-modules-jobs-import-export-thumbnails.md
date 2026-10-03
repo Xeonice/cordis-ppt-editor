@@ -1,6 +1,6 @@
 # 06 模块设计：作业、导入导出、缩略图与 renderer sidecar
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 限额改为引用 ADR-0019 的 XmlLimits 表、DOCTYPE 一律拒绝；多页 PNG 打包用 ooxml-core `writeZip`；renderer RPC 的 multipart 用 `@fastify/busboy`）；2026-09-26（§4.21 整合：§6.2 unzip 与 parse-* 阶段的 format.limit_exceeded 注明 limit 取 zip.* 或 xml.*）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[30/01](../30-architecture/01-overview.md) §4.4（原 30/08 §7、§9.2、§16.2、§16.3 已迁入本文）；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-lexer、X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 限额改为引用 ADR-0019 的 XmlLimits 表、DOCTYPE 一律拒绝；多页 PNG 打包用 ooxml-core `writeZip`；renderer RPC 的 multipart 用 `@fastify/busboy`）；2026-09-26（§4.21 整合：§6.2 unzip 与 parse-* 阶段的 format.limit_exceeded 注明 limit 取 zip.* 或 xml.*）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：headless 宿主与 renderer 的内容级插件集按部署策略取，PM-13；正文落点见下一条）；2026-10-03（§4.24：AL-3 renderer 不读库，内容级插件集由 worker 查策略后随 RPC `contentPlugins` 下发（§8.1、§10.3）；AL-7 SV-13 Headless 自动化 API 改为 M3——§1 新增第八条队列 `automation`、§2.3 幂等键、§7.4 四种作业的用例、处理器、产物与 Webhook 结果回调，§12、§13、§14 同步；TA-9 服务端导出写 `core.pluginFootprint`、足迹不含评论（AL-6），headless 按策略取内容级集合、策略变更对新作业生效；TA-10 位图导出 `width` / `quality` 与 15 §3.9 对齐）；2026-10-03（§4.24 收尾：§14 AL-7 行 `markdown` 编码器改为已由 40-modules/04 登记（ooxml-pptx 导出专用 `slideMarkdownCodec`）） | 依赖：[30/01](../30-architecture/01-overview.md) §4.4（原 30/08 §7、§9.2、§16.2、§16.3 已迁入本文）；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-lexer、X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)
 
 ## 0. 定位与边界
 
@@ -9,18 +9,18 @@
 | 本文拥有 | 本文引用（事实源在别处） |
 |---|---|
 | 队列总表、周期作业清单、`JobRun` 状态机、幂等键格式与命中规则 | `job_runs`、`thumbnails` 的 DDL、索引与 RLS → [12](12-ddl-jobs-and-thumbnails.md) |
-| 三个 Nest 模块的用例、事务边界、错误码触发条件 | REST 路径、守卫、DTO 文件、成功码 → [15](15-rest-api-catalog.md) §3.9（imports / exports / jobs）、§3.10（thumbnails） |
+| 三个 Nest 模块的用例、事务边界、错误码触发条件 | REST 路径、守卫、DTO 文件、成功码 → [15](15-rest-api-catalog.md) §3.9（imports / exports / jobs）、§3.10（thumbnails）、§3.16（automation，2026-10-03） |
 | `server-headless` 宿主、`worker_threads` 任务、限额 | Valkey 键模板、对象键布局、保留期默认值 → [14](14-valkey-object-storage-and-retention.md) |
 | renderer sidecar 进程、信任区、RPC 契约、注入编排、池与背压、超时与重试 | `/render` 页、`RenderPageState`、`inject` / `ready` / `error` 与 **ready 判据** → [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)（唯一源，本文只链接） |
 | 导入写入次序（快照、基线、媒体、文档行、封面） | 永久删除三步编排 → [04 §4](04-modules-documents-storage-media.md)；快照写入与恢复语义 → [05](05-modules-collab-and-snapshots.md) |
 | 本文模块抛出的错误码与触发条件 | 码格式与 HTTP 映射 → [30-architecture/10 §1](../30-architecture/10-observability-and-errors.md)；审计 action 登记 → [07 §9](07-modules-comments-webhooks-audit.md)；指标名 → [18 §4](18-observability-and-ops-endpoints.md)；角色装配矩阵 → [01 §5](01-service-overview-and-roles.md) |
 | 「机械验证」断言（what） | 测试层级、落点、夹具与 CI 步骤（how）→ [70-testing/03](../70-testing/03-fidelity-roundtrip-and-corpus.md)、[07](../70-testing/07-backend-integration-and-api-e2e.md)、[10](../70-testing/10-security-testing.md) |
 
-**里程碑口径**（依据：rulings §4.19 D-M2-CONTENT「协同后端提前到 M2」，覆盖决策 INC-37 的旧口径；总表见 [01](01-service-overview-and-roles.md) §3）：M2 交付作业骨架（队列注册、`BaseProcessor`、`job_runs` 迁移、`GET /jobs/:id`、reconciliation）、服务端导入（两步上传、`import` 队列与处理器，新建空白与模板同样经导入写 `import` 快照）、创建副本（§6.6）、导入处理器写入的包内 `__cover` 封面（§11.2），以及与之配套的保留期作业；服务端导出（pptx 与 render-export）与 renderer 缩略图在 M3（缩略图 M3 前半段、PDF M3 后半段）。40-modules/09 所称「M2 切片」即 M2 交付。
+**里程碑口径**（依据：rulings §4.19 D-M2-CONTENT「协同后端提前到 M2」，覆盖决策 INC-37 的旧口径；总表见 [01](01-service-overview-and-roles.md) §3）：M2 交付作业骨架（队列注册、`BaseProcessor`、`job_runs` 迁移、`GET /jobs/:id`、reconciliation）、服务端导入（两步上传、`import` 队列与处理器，新建空白与模板同样经导入写 `import` 快照）、创建副本（§6.6）、导入处理器写入的包内 `__cover` 封面（§11.2），以及与之配套的保留期作业；服务端导出（pptx 与 render-export）与 renderer 缩略图在 M3（缩略图 M3 前半段、PDF M3 后半段）；SV-13 Headless 自动化作业（§7.4）在 M3（rulings §4.24 AL-7）。40-modules/09 所称「M2 切片」即 M2 交付。
 
 三条贯穿全文的规则：
 
-1. **处理器只编排**：格式转换在 `server-headless`（§8），栅格化在 renderer（§9），表的写入调用表属主模块导出的用例（「谁的表谁写」，rulings §4.13 S-2）；本文处理器自己只写 `job_runs` 与 `thumbnails`。
+1. **处理器只编排**：格式转换在 `server-headless`（§8），栅格化在 renderer（§9），表的写入调用表属主模块导出的用例（「谁的表谁写」，rulings §4.13 S-2）；本文处理器自己只写 `job_runs` 与 `thumbnails`（自动化作业的结果回调经 WebhooksModule 导出的用例写 `webhook_deliveries`，§7.4）。
 2. **先写库再入队**：凡用户可见的作业先在 PG 写 `job_runs` 行（即 outbox），再以 `job_runs.id` 作 BullMQ jobId 入队；两步之间的崩溃由 reconciliation 兜底（§3）。
 3. **不可信输入不出沙箱**：worker 持凭据但不解码不可信图片、不运行浏览器；解析在 `worker_threads` 内受限运行，栅格化只在零出站、无凭据的 renderer 内（ADR-0026 决策 6、9）。
 
@@ -32,6 +32,7 @@ BullMQ 跑在 Valkey 上，队列键前缀 `bull`，外层再套全局前缀 `va
 |---|---|---|---|---|---|---|---|---|---|---|
 | `import` | `CreateImportJobUseCase`、`DuplicateDocumentUseCase`（api）；reconciliation 重投（worker） | `ImportProcessor`（worker；`payload.source` 区分上传导入与创建副本，§6.6） | 4 | 120 s | 3 次，指数退避 10 s 起，只重试 retryable（§5.2） | `idempotency_key`（§2.3）；jobId = `job_runs.id` | FIFO | 是 | 行置 `failed`；BullMQ failed 集合保留 7 天；告警 | M2 |
 | `export` | `CreateExportJobUseCase`（api） | `ExportProcessor`（worker） | 4 | 120 s | 2 次，指数 10 s 起 | 同上 | FIFO | 是 | 同上 | M3 |
+| `automation`（2026-10-03，rulings §4.24 AL-7） | `CreateFillTemplateJobsUseCase`、`CreateConvertJobUseCase`、`CreateValidateJobUseCase`、`CreateMigrateJobUseCase`（api）；reconciliation 重投（worker） | `AutomationProcessor`（worker；BullMQ 作业名 = `job_runs.kind`：`fill-template` / `convert` / `validate` / `migrate`，§7.4） | 4 | 120 s（含渲染段时 300 s） | 2 次，指数 10 s 起，只重试 retryable | `idempotency_key`（§2.3）；jobId = `job_runs.id` | FIFO；需渲染时池优先级 P1（与 render-export 同级） | 是 | 同上 | M3 |
 | `render-export` | `RenderExportProducerService`（api，经 `ExportsController`） | `RenderExportProcessor`（worker）→ renderer | 2，实际并行受 renderer 池约束（§10.5） | 300 s | 2 次，指数 30 s 起 | 同上 | 池优先级 P1 | 是 | 同上 | PNG / JPEG M3；PDF M3 后半段 |
 | `thumbnails` | `ImportProcessor`（首页，worker）；压缩完成（collab，作业名 `invalidate`）；`GetThumbnailUseCase` 未命中（api）；ops 命令 `thumbnails:rebuild` | `ThumbnailsProcessor`（worker）→ renderer | 4，受池约束 | 60 s + 10 s × 页数（每批 ≤ 20 页） | 3 次，指数 5 s 起，只针对基础设施错误；页级失败见 §11.3 | jobId：单页 `thumb-{docId}-{slideId}-{contentHash}`，批 `thumbs-{docId}-{digest}`，失效 `thumbinv-{docId}-{snapshotId}`；处理时再按表中 `content_hash` 跳过未变页 | BullMQ 优先级：首页 1、按需 5、批量 10；池 P0 / P2 | 否 | 只告警；下次请求未命中时重新入队 | M3 前半段（M2 的包内封面由导入处理器直接写，不经本队列，§11.2） |
 | `maintenance` | Job Scheduler，只在 worker 启动时注册（BE-19） | 周期作业（§4） | 固定 1 | 各作业自定 | 不重试、等下一周期（audit-seal 例外：3 次） | Job Scheduler id = 作业名 | — | 否 | 同一作业连续 3 个周期失败告警 | M2 起逐项（各周期作业的里程碑见 §4） |
@@ -39,8 +40,8 @@ BullMQ 跑在 Valkey 上，队列键前缀 `bull`，外层再套全局前缀 `va
 | `document-purge` | `SchedulePurgeUseCase`（api：永久删除、用户擦除；worker：trash-expiry），与 `documents.status` 同事务写行 | `DocumentPurgeProcessor`（worker，三步编排见 [04 §4](04-modules-documents-storage-media.md)） | 2；同文档串行 | 30 min | 10 次，指数 60 s 起、单次延迟上限 1 h，失败整作业重试 | `document-purge:{docId}` | FIFO | 是 | 用尽 → `failed` + P1 告警，人工 `jobs:replay` | M3 |
 
 - `document-purge` 是**独立队列**，不是 `maintenance` 上的作业名（依据：决策 MECH-C 之 C-05，authority：原 30/08 篇 §7 高于 40-modules/08）。
-- 不设 `compaction` 队列：压缩只在持有 Room 的 collab 实例内执行，补齐步骤依赖本实例 Room（[05 §7](05-modules-collab-and-snapshots.md)）；原 30/08 篇 §7 的可选委托路径作废（用户偏好「不要过度设计」）。队列因此共七条。
-- SV-13 的 `fill-template` / `validate` / `migrate` / `convert` 四类作业并入 `ImportExportModule`，队列名与 REST 到 M4 一起定，本版不预留（rulings §4.12 U-13）。
+- 不设 `compaction` 队列：压缩只在持有 Room 的 collab 实例内执行，补齐步骤依赖本实例 Room（[05 §7](05-modules-collab-and-snapshots.md)）；原 30/08 篇 §7 的可选委托路径作废（用户偏好「不要过度设计」）。队列因此共八条（2026-10-03 按 rulings §4.24 AL-7 增 `automation`，此前为七条）。
+- SV-13 的 `fill-template` / `convert` / `validate` / `migrate` 四类作业并入 `ImportExportModule`，共用一条 `automation` 队列、以作业名区分 kind，用例、幂等键与产物见 §7.4，REST 见 [15 §3.16](15-rest-api-catalog.md)（rulings §4.24 AL-7，M3；→ 2026-10-03 覆盖 §4.12 U-13 的「队列名与 REST 到 M4 一起定，本版不预留」）。四类作业的并发与超时是 `QUEUE_DEFAULTS` 常量，不新增配置键。
 - BullMQ 完成集合只保留 1 h 或 1,000 条（取先到者），失败集合保留 7 天；Valkey 按 `noeviction` 部署（[14 §1](14-valkey-object-storage-and-retention.md)），这两条上限防止队列元数据无界增长。
 - 墓碑 TTL 硬删除**不在队列体系内**：由 server-collab `tombstone-sweeper` 持 `lock:tombstone:{docId}` 单写者执行（[05 §8](05-modules-collab-and-snapshots.md)），是周期作业统一走 Job Scheduler 的唯一例外；审计分区轮换走 ops 命令 `audit-rotate`（[07 §8](07-modules-comments-webhooks-audit.md)）。
 
@@ -54,6 +55,7 @@ flowchart LR
     impUse["CreateImportJobUseCase，api"]
     expUse["CreateExportJobUseCase，api"]
     rexProd["RenderExportProducerService，api"]
+    autoUse["自动化四个受理用例，api"]
     thumbTrig["首页（导入完成）、压缩后失效、按需未命中、ops 命令"]
     purgeProd["SchedulePurgeUseCase，api 或 worker"]
   end
@@ -62,6 +64,7 @@ flowchart LR
     qImp["import"]
     qExp["export"]
     qRex["render-export"]
+    qAuto["automation"]
     qThumb["thumbnails"]
     qPurge["document-purge"]
   end
@@ -69,25 +72,27 @@ flowchart LR
     pImp["ImportProcessor"]
     pExp["ExportProcessor"]
     pRex["RenderExportProcessor"]
+    pAuto["AutomationProcessor：四种 kind"]
     pThumb["ThumbnailsProcessor"]
     pPurge["DocumentPurgeProcessor，编排见 04"]
   end
   headless["server-headless：worker_threads 内解析与编码"]
   pool["renderer 池：P0 首页，P1 PDF，P2 批量"]
-  impUse & expUse & rexProd & purgeProd --> pg
-  pg --> qImp & qExp & qRex & qPurge
+  impUse & expUse & rexProd & autoUse & purgeProd --> pg
+  pg --> qImp & qExp & qRex & qAuto & qPurge
   thumbTrig --> qThumb
   qImp --> pImp
   qExp --> pExp
   qRex --> pRex
+  qAuto --> pAuto -. "输出 PDF 或 PNG 时" .-> pool
   qThumb --> pThumb
   qPurge --> pPurge
-  pImp & pExp --> headless
+  pImp & pExp & pAuto --> headless
   pRex & pThumb --> pool
   pImp -. "成功后入队首页缩略图" .-> qThumb
 ```
 
-怎么读：左到右是「谁产生作业 → 进哪条队列 → 哪个处理器 → 委托给谁」。实线进入 `job_runs` 的四类作业对用户可见、先写行再入队；缩略图作业不写 `job_runs`，靠 jobId 去重与表内哈希判新鲜。虚线是导入成功后触发的首页缩略图。
+怎么读：左到右是「谁产生作业 → 进哪条队列 → 哪个处理器 → 委托给谁」。实线进入 `job_runs` 的五类作业对用户可见、先写行再入队；缩略图作业不写 `job_runs`，靠 jobId 去重与表内哈希判新鲜。虚线是导入成功后触发的首页缩略图，以及自动化作业输出 PDF / PNG 时借用 renderer 池（2026-10-03 增 `automation`，§7.4）。
 
 依据：本文 §1 队列总表；原 30/08 篇 §7 队列拓扑图；40-modules/19 图 7-1。
 
@@ -105,7 +110,7 @@ flowchart LR
   mirror["评论镜像观察器，collab"]
   qHook["webhook-delivery 队列"]
   pHook["WebhookDeliveryProcessor：出站守卫与签名"]
-  qJobs["import、export、render-export、document-purge"]
+  qJobs["import、export、render-export、automation、document-purge"]
   subgraph noBull["不经 BullMQ"]
     sweeper["tombstone-sweeper：LeaseLock 单写者"]
     rotate["ops 命令 audit-rotate：按月轮换分区"]
@@ -187,6 +192,8 @@ stateDiagram-v2
 | `export` | `export:{docId}:{sourceRef}:pptx` | `sourceRef` = `s{snapshotId}`（指定版本）或 `q{headSeq}`（最新状态） |
 | `render-export` | `render-export:{docId}:{sourceRef}:{format}:{optsDigest}` | `optsDigest` = 规范化选项（页集合、宽度、质量）的 sha256 前 16 位十六进制 |
 | `document-purge` | `document-purge:{docId}` | 同一文档同一时刻只有一个活动 purge，天然串行 |
+| `fill-template`（2026-10-03，§7.4） | `fill-template:{templateDocId}:{sourceRef}:{itemDigest}:{format}` | `sourceRef` 同 `export`；`itemDigest` = 规范化单项数据（占位符名 → 值，图片值按 sha256）的 sha256 前 16 位十六进制；同一模板、同一状态、同一数据、同一格式的重复提交返回既有作业，批内重复项只产生一行 |
+| `convert` / `validate` / `migrate`（2026-10-03，§7.4） | `{kind}:{sourceRef}:{optsDigest}` | 文档来源 `sourceRef` = `d{docId}-s{snapshotId}` 或 `d{docId}-q{headSeq}`；上传来源 = `u{sha256}-{userId}`（按内容与发起人成键，不会命中他人的作业）；`optsDigest` = 规范化选项（输出格式、页集合、宽度、质量、目标 schema 版本）的 sha256 前 16 位十六进制 |
 
 键由 `jobs/domain/idempotency-key.ts` 的构造函数唯一生成；请求头 `Idempotency-Key`（[15 §1](15-rest-api-catalog.md)）只用于客户端重放识别，服务端不把它当作键本体，避免客户端控制去重范围。
 
@@ -198,13 +205,13 @@ stateDiagram-v2
 4. 无返回行 → 并发或重复提交命中活动行：`findActiveByKey(key)` 返回既有行；导入场景顺带删除本次复制出的原件对象（它不会被任何作业引用），并把 `upload:{uploadId}` 的 `jobId` 改写为既有行 id（保留 TTL），使该 `uploadId` 的重放按第 1 步拿回同一行。
 5. 提交后以 `job_runs.id` 为 jobId 入队；入队失败不回滚，留给 reconciliation（§3）。
 
-**产物失效即释放键**：`exports-cleanup` 删除导出对象的同一事务把该行 `idempotency_key` 置空、`result.expired = true`（§4），此后同一状态再导出会新建作业，而不是返回一个下载地址已失效的旧行。导入键含目标 `docId`，文档永久删除后该 id 不会复用，无需释放。
+**产物失效即释放键**：`exports-cleanup` 删除导出对象的同一事务把该行 `idempotency_key` 置空、`result.expired = true`（§4），此后同一状态再导出会新建作业，而不是返回一个下载地址已失效的旧行；自动化作业的产物（§7.4）由同一作业以同一规则释放键。导入键含目标 `docId`，文档永久删除后该 id 不会复用，无需释放。
 
 ### 2.4 `GET /jobs/:id`（唯一状态查询）
 
-- 导入、导出、render-export、document-purge 共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 原 30/08 篇 §7）。
+- 导入、导出、render-export、document-purge 与自动化四种 kind（§7.4，2026-10-03）共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 原 30/08 篇 §7）。
 - 可见性由 RLS 决定：`created_by` 为当前用户，或对 `doc_id` 有任一文档角色（含有效分享链接角色）；看不见一律 404 `server.jobs.not_found`，不区分「不存在」与「无权」。
-- 响应为 protocol `rest/import-export.ts` 的 `JobStatus`，字段名以 [15 §3.9](15-rest-api-catalog.md) 为准（文件登记见 40-modules/02，决策 INC-11/INC-13）；本文只规定取值来源：`kind`、`status` 取同名列，`progress` 取 `result.stage`（§6.3），`error{code, detail}` 取 `error_code` 与 `result.errorDetails`，`fidelityReport` 与 `result`（导入 `{docId}`；导出 `{ready, expiresAt, expired}`；purge 为 [04 §4.5](04-modules-documents-storage-media.md) 的观测字段）取自 `result`。`payload`（含对象键）与 `idempotency_key` 从不返回。
+- 响应为 protocol `rest/import-export.ts` 的 `JobStatus`，字段名以 [15 §3.9](15-rest-api-catalog.md) 为准（文件登记见 40-modules/02，决策 INC-11/INC-13）；本文只规定取值来源：`kind`、`status` 取同名列，`progress` 取 `result.stage`（§6.3），`error{code, detail}` 取 `error_code` 与 `result.errorDetails`，`fidelityReport` 与 `result`（导入 `{docId}`；导出与自动化产物 `{ready, expiresAt, expired}`，`validate` 另带 `report` 摘要，`fill-template` 另带 `batchId`、`clientRef`；purge 为 [04 §4.5](04-modules-documents-storage-media.md) 的观测字段）取自 `result`。`payload`（含对象键）与 `idempotency_key` 从不返回。
 - `Cache-Control: no-store`；客户端轮询间隔 1 s 起、指数增长到 5 s，M2–M3 不提供推送。
 
 ## 3. Outbox 与对账
@@ -235,7 +242,7 @@ stateDiagram-v2
 | `updates-prune` | 每 1 h | 删 `seq ≤ 检查点指针所指快照 seq_upto` 且早于保留期的 `document_updates`（[11 §8](11-ddl-collab-updates-and-snapshots.md) 的 e5） | worker 装配的 CollabModule（`PruneUpdatesUseCase` → `UpdateStore.pruneBefore`） | 条件删除 | `retention.updatesDays`（7） | M2 |
 | `media-gc` | 每日 | `media_blobs.unreferenced_since` 早于保留期 → 先删对象再删行 | MediaModule | 对象不存在视为已删 | `retention.mediaUnreferencedDays`（30） | M2 |
 | `imports-cleanup` | 每日 | 导入作业终态且 `finished_at` 早于保留期 → 删 `docs/{docId}/imports/{jobId}/`，置 `result.sourceDeleted = true`；基线在 `baseline/` 前缀，不受影响（C-07）。`failed` 的作业另删 `result.snapshotId` 对应、但快照行不存在的基线对象；新建导入以 `failed` / `cancelled` 结束且文档行不存在时，删整个 `docs/{docId}/` 前缀（§6.4 第 2 步已写出的封面等） | ImportExportModule（本文） | 已标记即跳过 | `retention.importOriginalDays`（30） | M2 |
-| `exports-cleanup` | 每 1 h | 导出类作业成功且 `finished_at` 早于保留期 → 删 `docs/{docId}/exports/{jobId}.{ext}`，置 `result.expired = true` 并释放幂等键（§2.3） | ImportExportModule（本文） | 同上 | `retention.exportHours`（24） | M3 |
+| `exports-cleanup` | 每 1 h | 导出类与自动化作业（§7.4）成功且 `finished_at` 早于保留期 → 删 `docs/{docId}/exports/{jobId}.{ext}` 或 `automation/{jobId}/` 下的产物与报告，置 `result.expired = true` 并释放幂等键（§2.3） | ImportExportModule（本文） | 同上 | `retention.exportHours`（24） | M3 |
 | `thumbs-orphan-cleanup` | 每日 | 对上次运行以来 `thumbnails.updated_at` 有变化的文档，列 `docs/{docId}/thumbs/`，删除不被当前行 `storage_key` 引用且最后修改超过 24 h 的对象（被引用的 640 对象及其 `@1280` 变体保留；`__cover` 已被 server 行覆盖后，`embedded.jpg` 同样按孤儿删除） | ThumbnailsModule（本文） | 只删非当前对象 | —（24 h 固定宽限，以 [14 §8](14-valkey-object-storage-and-retention.md) 为准） | M3 前半段 |
 | `uploads-tmp-cleanup` | 每 1 h | 删 `uploads/tmp/` 下早于保留期的对象；data 桶里超过同一时长的未完成分片上传执行 `AbortMultipartUpload` | MediaModule 与 ImportExportModule 共用 | 同上 | `retention.uploadTmpHours`（24） | M2 |
 | `job-runs-prune` | 每日 | 删终态且 `finished_at` 早于保留期的 `job_runs` 行；导出行须已 `expired`、导入行须已 `sourceDeleted` | JobsModule（本文） | 条件删除 | `retention.jobRunsDays`（90） | M2 |
@@ -481,22 +488,78 @@ sequenceDiagram
 - 执行：`ExportProcessor` 读来源 state 与来源之前最近一个 import 快照的 `baseline_key` → `server-headless` `exportDocument`（`worker_threads`）→ 写 `docs/{docId}/exports/{jobId}.pptx` → 作业 `succeeded`，`result = {bytes, sha256, expiresAt}`。
 - **字节确定性**（PRD SV-02）：`encode(snapshot, baselinePackage)` 是纯函数——不读时钟与随机源、不读布局；zip 写入固定 mtime（取模型 `modifiedAt`）、条目按部件名排序、固定压缩级别、无 extra 字段；`docProps/core.xml` 时间戳取自模型；`docProps/thumbnail.jpeg` 是 `encode()` 的显式输入，缺省保留原部件（ADR-0026 决策 8）。因此同一 Snapshot 在浏览器与 Node 导出的 sha256 相等；排版落盘量（autofit 缩放、`spAutoFit` 高度）由编辑端写回模型，服务端导出不重排。
 - 没有基线的文档（空白新建）以 codec 的默认包骨架编码，同样确定。
+- **内容插件足迹**（2026-10-03，rulings §4.24 TA-9；§4.23 O-3；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)，提议）：文档资源 `core.pluginFootprint` 是快照的一部分，`encode()` 把它写进 `ppt/presentation.xml` 的 `p:presentation/p:extLst`（`p:ext uri="urn:cordex:plugin-footprint:1"`），导入（§6）识别同一 URI 读回该资源，其余 `extLst` 按 ADR-0008 原样保留；足迹随快照确定，因此上一条的字节确定性不变，零编辑导出该 `p:ext` 字节不变。服务端只搬运足迹、不改写；headless 执行命令（§7.4 的 `fill-template`）时足迹由 kernel 命令管线同事务维护，与浏览器同一实现（[50-frontend/04](../50-frontend/04-document-commands-and-undo.md)）。足迹**不含评论**：评论 ResourceHook `comments.threads` 不是幻灯片内容，不进足迹（rulings §4.24 AL-6，ADR-0050 排除）。
+- **内容级插件集**（2026-10-03，TA-9，PRD PM-13）：导入、导出、自动化与缩略图的 headless 宿主只装配「`preset-server` 的 iso 清单 ∩ 当前部署策略下启用的内容级插件」（§8.1）；集合在**受理时**由生产者经 PluginsModule 的 `GetEffectivePluginSetUseCase` 取得，与策略摘要一起写入 `payload.contentPlugins = {policy, ids[]}`，重试与对账补投沿用同一集合，管理员策略变更只对此后受理的新作业生效。
 
 ### 7.2 非 pptx：转 render-export
 
 - `format ∈ pdf | png | jpeg` 时，`CreateExportJobUseCase` 交给 `ThumbnailsModule` 导出的 `RenderExportProducerService`：写 `job_runs(kind = 'render-export')` 后入 `render-export` 队列，与缩略图共用 renderer 池、分队列，池优先级 P1（首页缩略图 > PDF > 批量缩略图，ADR-0026 v0.2 补充）。
 - **PDF**（M3 后半段）：renderer 打开 `/render?mode=print`，`page.pdf({ width: slideW, height: slideH, printBackground: true, preferCSSPageSize: true })`；全部或选定页；页面尺寸即幻灯片尺寸；字体由 Chromium 子集嵌入；动画按「静态全部可见」（PRD SV-02）。
-- **PNG / JPEG**（M3）：按页，宽度 1280 / 1920 / 3840；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）；打包用 `ooxml-core` 经 `publicEntry` 登记导出的 `writeZip`（底层 fflate，2026-09-26 定，R-d-51），不另扩 fflate 的单点。
+- **PNG / JPEG**（M3）：按页，宽度取请求体 `width ∈ {1280, 1920, 3840}`（缺省 1280，与设计 [03-22](../20-design/03-screens/22-export-dialog.md) 导出对话框的默认一致），JPEG 另收 `quality ∈ [1, 100]`（缺省 85；PNG 忽略），两者写入 `payload.width` / `payload.quality`、进入幂等键的 `optsDigest`（§2.3）并原样作为 RPC `output.width` / `output.quality` 下发（§10.3；REST 见 [15 §3.9](15-rest-api-catalog.md)，2026-10-03 §4.24 TA-10）；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）；打包用 `ooxml-core` 经 `publicEntry` 登记导出的 `writeZip`（底层 fflate，2026-09-26 定，R-d-51），不另扩 fflate 的单点。
 - 来源固定为受理时已落库的状态（`q{headSeq}` 或指定快照）。客户端尚有未获 db 确认的本地更改时，前端按 UX-05 提示「需先同步 N 项更改」、不提供「仍要导出」（行为归 [50-frontend](../50-frontend/README.md)）；服务端不接收客户端状态。
 
 ### 7.3 下载
 
-- `GET /exports/:jobId`（[15 §3.9](15-rest-api-catalog.md)）只返回下载地址 `{url, expiresAt, fileName}`：作业创建者或对文档有 `doc.export`；作业未成功 → 409 `server.export.not_ready`；对象已被清理 → 410 `server.export.expired`。
+- `GET /exports/:jobId`（[15 §3.9](15-rest-api-catalog.md)）只返回下载地址 `{url, expiresAt, fileName}`，导出与自动化作业（§7.4）共用：作业创建者或对文档有 `doc.export`（无文档作用域的自动化作业只对创建者）；`validate` 作业返回报告的地址；作业未成功 → 409 `server.export.not_ready`；对象已被清理 → 410 `server.export.expired`。
 - 每次请求现签一次预签名 GET（按 `storage.s3.publicEndpoint`，有效期 1 h，带 `response-content-disposition: attachment` 与文件名），对象本身保留 `retention.exportHours`（24 h）（依据：决策 SG-08、MECH-INC 之 INC-40、MECH-C 之 C-31）；每次签发写审计 `export.downloaded`。
 
-### 7.4 M4 占位
+### 7.4 Headless 自动化作业（SV-13，M3）
 
-SV-13 的 `fill-template`（模板填充）、`validate`、`migrate`、`convert` 四类作业归 `ImportExportModule`（rulings §4.12 U-13）；`server-headless` 已有的 `validateSnapshotTask`、`migrateTask` 与命令管线是它们的执行基础，队列、REST 与幂等键到 M4 一起定，本版不建占位队列与路由。
+依据：rulings §4.24 AL-7（用户 2026-10-03 选择 M3，覆盖 §4.12 U-13「细节 M4 一起定」）；PRD [SV-13](../10-prd/03-features/06-server-and-ops.md)（四种作业、幂等键、批量 100 份 D50 填充 + 导出 ≤ 60 s、签名 Webhook 结果回调）。四种作业都归 `ImportExportModule`，**不新增 Nest 模块**（总数仍为 25，[01 §3](01-service-overview-and-roles.md)）、不新增 `server-headless` 任务导出：执行基础是 §8 已有的 `HeadlessJobContext`、`importDocument` / `exportDocument`、`validateSnapshotTask`、`migrateTask` 与 M-02 命令管线（40-modules/12 §2.6）。REST 逐条见 [15 §3.16](15-rest-api-catalog.md)。
+
+**调用方与鉴权**：M3 的调用方是持登录会话的用户（集成方以专用账号经 OIDC 登录后调用，非安全方法照常要求 `X-Cordex-Request: 1` 与 Origin 白名单）；M4 的集成方 JWT / API Key（rulings §4.15 Q6）上线后同一组路由改由 Bearer 访问并豁免 CSRF，路由与用例不变。来源是文档时按该文档的能力位判定（见下表），来源是上传文件时只要求会话。
+
+**来源**：每个作业的输入二选一——`{docId, snapshotId?}`（受理时已落库的状态，与导出同一口径，§7.1）或 `{uploadId}`（`POST /automation/uploads` 申请的预签名直传，落隔离区 `uploads/tmp/{uploadId}`，`upload:{uploadId}.kind = 'automation'`，1 h，与 §6.1 同一机制；受理时复制到 `automation/{jobId}/source.{ext}`）。`fill-template` 只接受文档来源（模板即文档）。
+
+| 用例 | 入口 | 前置检查 | 事务边界 | 副作用与审计 |
+|---|---|---|---|---|
+| `CreateAutomationUploadUseCase` | `POST /automation/uploads` | `Session`；`byteSize ≤ scale.maxFileBytes`；扩展名 `.pptx`（`migrate` 另收 `.json` 快照） | 无 DB：写 `upload:{uploadId}`，返回预签名 PUT | 无审计 |
+| `CreateFillTemplateJobsUseCase` | `POST /documents/:id/automation/fill-template` | 模板文档 `DocRole(doc.export)`（与导出、创建副本同一能力位）；`content` 访问类；`items` 1–100 项；图片值的 sha256 须已与模板文档有 `document_media` 关联（否则 422 `server.automation.media_not_found`，不抓取外部 URL） | 单事务：按项构造幂等键（§2.3），逐项 `JobRunsRepository.create`（同一 `batchId`），批内同键只建一行 | 提交后逐项入队；`automation.created`（每批一条，`details{kind, batchId, count}`） |
+| `CreateConvertJobUseCase` | `POST /documents/:id/automation/convert`（文档来源）、`POST /automation/convert`（上传来源） | 文档来源 `DocRole(doc.export)`；上传来源校验 `upload:{uploadId}` 归属（不符 403 `server.import.upload_forbidden`）；`to ∈ pdf \| png \| markdown`；`png` 时 `width` 同 §7.2 | 单事务：建一行 | 同上（`count = 1`） |
+| `CreateValidateJobUseCase` | `POST /documents/:id/automation/validate`、`POST /automation/validate` | 同 convert 的来源判定 | 单事务：建一行 | 同上 |
+| `CreateMigrateJobUseCase` | `POST /documents/:id/automation/migrate`、`POST /automation/migrate` | 同 convert 的来源判定；`targetSchemaVersion` 缺省为当前，不得低于来源版本 | 单事务：建一行 | 同上 |
+| `AutomationProcessor` | `automation` 队列（§1） | `BaseProcessor` 骨架（§5）；`SystemContext`，`app.system_job = 'worker.automation'` | 终态迁移与结果回调同一事务（见下文「结果回调」） | 产物写对象存储；不另写完成审计，作业结果经 `GET /jobs/:id` 与 Webhook 读取 |
+
+四个受理用例都在受理时取 `payload.contentPlugins`（§7.1 内容级插件集），并把来源固定为受理时刻的状态（文档来源写 `sourceRef`，上传来源写 `sourceKey` 与 `sha256`）；`job_runs.doc_id` 对文档来源为该文档，对上传来源为空（`convert`、`validate`、`migrate` 允许无文档作用域，[12](12-ddl-jobs-and-thumbnails.md) 迁移 0063）。
+
+**处理器（按 kind）**：
+
+| kind | 步骤（全部不可信解析在 `worker_threads` 内） | 产物与 `result` |
+|---|---|---|
+| `fill-template` | 读模板 state → `HeadlessJobContext.withUnit()` 内经命令管线执行模板填充命令（按占位符类型与名称替换文本、图片、表格数据；命令由文档类型贡献，kernel 同事务维护足迹）→ `format = 'pptx'` 时 `exportDocument`（以模板最近的 import 基线编码，§7.1）；`format = 'pdf'` 时转 `snapshot-json` 经 renderer RPC（`mode: 'print'`，§10） | `docs/{templateDocId}/exports/{jobId}.{pptx\|pdf}`；`result = {stage, bytes, sha256, expiresAt, batchId, clientRef, unmatched[]}`，`unmatched` 列出数据里有、模板里没有的占位符名（不算失败）；值类型与占位符类型不符 → terminal `server.automation.placeholder_type_mismatch` |
+| `convert` | 文档来源读 state；上传来源先 `importDocument`（与 §6.3 同一组输入限额与拒绝码）→ `pdf` / `png` 经 renderer RPC（`print` / `image`）；`markdown` 经 `exportDocument` 的 `markdown` 格式（由文档类型的 `formats` 贡献提供：每页标题、正文文本、表格转 GFM 表、图片只留替代文字，不含样式） | 文档来源写 `docs/{docId}/exports/{jobId}.{ext}`，上传来源写 `automation/{jobId}/output.{ext}`；多页 PNG 按 §7.2 打包 zip；`result` 同 `export`，另加 `pageCount?` |
+| `validate` | 文档来源读 state；上传来源先 `importDocument` → `validateSnapshotTask`（schema 与不变量）+ 导入的 `fidelityReport`（上传来源） | 报告 JSON 写同一前缀的 `report.json`（24 h）；`result = {stage, report: {ok, errors, warnings, fidelityCounts}, reportKey}` |
+| `migrate` | 文档来源读最新快照；上传来源读 `snapshot-json` 或 pptx（先导入）→ `migrateTask(state, from, targetSchemaVersion)` | 迁移后的 `snapshot-json` 写同一前缀的 `output.json`；**不写回任何文档**：在库文档的 schema 迁移仍只在 collab 加载时（[05 §9.1](05-modules-collab-and-snapshots.md)）与运维端点 `/internal/admin/documents/:id/migrate` 中执行，自动化 `migrate` 不持 `lock:migrate:{docId}`、不产生 `migration` 快照 |
+
+- **限额与超时**：单次 `fill-template` 至多 100 项（请求体 ≤ 1 MiB，[15 §8](15-rest-api-catalog.md)）；导入阶段沿用 §6.3 的输入限额与 `headless.worker.*`；渲染段与 render-export 共池、池优先级 P1（§10.5）。性能目标见 §13 S15（100 份 D50 填充 + pptx 导出 ≤ 60 s，4 个 worker 实例 × 并发 4）。
+- **产物与下载**：产物一律经 `GET /exports/:jobId` 取下载地址（§7.3）：文档来源的作业对创建者或对该文档有 `doc.export` 的用户可见，上传来源的作业只对创建者可见（RLS 同口径，[12 §5](12-ddl-jobs-and-thumbnails.md)）；保留 `retention.exportHours`（24 h），到期由 `exports-cleanup` 删除并释放幂等键（§2.3、§4）；上传来源的 `automation/{jobId}/source.{ext}` 在作业进入终态时由处理器删除。对象键登记见 [14 §6](14-valkey-object-storage-and-retention.md)。
+- **结果回调**（复用 [07 §4–§6](07-modules-comments-webhooks-audit.md) 的 Webhook，不另建出站通道）：作业进入 `succeeded` / `failed` 的同一事务里，处理器调用 WebhooksModule 导出的 `DeliverWebhookEventUseCase.enqueue`，对 `event_filter` 含 `automation.job_finished` 的有效订阅写 `pending` 投递行（`event_id = automation.job_finished:{jobId}`，重试与对账不会重复投递）；签名、SSRF 守卫、退避与死信与评论事件完全相同（Standard Webhooks）。载荷 `data = {jobId, kind, status, batchId?, clientRef?, docId?, createdBy, errorCode?, finishedAt, downloadPath: '/api/v1/exports/{jobId}'}`，不含预签名 URL、文档标题或填充数据。订阅由平台管理员经 `/webhooks` 管理（[15 §3.12](15-rest-api-catalog.md)）。
+- **取消**：M3 不提供自动化作业的取消（`POST /imports/:jobId/cancel` 只对导入）；需要放弃时等作业终态后由保留期清理。
+
+**图 7-1 一份模板填充作业**
+
+```mermaid
+sequenceDiagram
+  participant C as 集成方后端，会话
+  participant API as api：CreateFillTemplateJobsUseCase
+  participant PG as PG：job_runs
+  participant W as worker：AutomationProcessor
+  participant H as server-headless，worker 线程
+  participant WH as WebhooksModule
+  C->>API: POST /documents/id/automation/fill-template，items 至多 100 项
+  API->>PG: 逐项按幂等键建行，同一 batchId，写 contentPlugins
+  API-->>C: 202，batchId 与各项 jobId
+  PG-->>W: 提交后入 automation 队列
+  W->>H: withUnit 载入模板，执行填充命令，exportDocument
+  H-->>W: pptx 字节，足迹已随快照写入 extLst
+  W->>PG: 写产物键与 succeeded，同一事务调 enqueue
+  W->>WH: 订阅含 automation.job_finished 时写 pending 投递行
+  WH-->>C: 签名 Webhook，data 带 jobId 与 downloadPath
+  C->>API: GET /exports/jobId 取 1 h 下载地址
+```
+
+怎么读：纵线是参与方，自上而下是时间；每一项数据是一行作业，批内并行、互不影响。回调只告诉集成方「哪个作业好了」，产物仍要凭会话经 `GET /exports/:jobId` 换取短时下载地址，Webhook 载荷里不放可直接下载的链接。
+依据：本节；PRD SV-13；rulings §4.24 AL-7；[07 §5](07-modules-comments-webhooks-audit.md)。
 
 ## 8. server-headless
 
@@ -505,6 +568,7 @@ SV-13 的 `fill-template`（模板填充）、`validate`、`migrate`、`convert`
 - `createHeadlessHost({ adapters, plugins })` 调 kernel `createHost` 并挂载**调用方给定**的 iso 插件清单；清单由组合根 apps/server 的 `cordis-host/preset-server.ts` 提供（含 `model-slide`、`ooxml-pptx` 等垂直束），本包不 import 任何垂直束，文档类型盲（rulings §4.18 FE-01）；`@cordisjs/plugin-loader` 默认关闭（ADR-0010）。
 - 导入导出经 `formats` 服务按 `documentType` 取 codec；页划分与依赖闭包（缩略图哈希用）由文档类型提供；本包内不得出现文档类型字面量分支（lint `cordex/no-doc-type-literals`）。
 - `HeadlessHost.thumbnails: ThumbnailRenderer` 是 M-12 处理器取得渲染器的唯一方式（40-modules/09 §2.5、§6）。
+- **按策略过滤内容级插件**（2026-10-03，rulings §4.24 TA-9，PRD PM-13）：处理器传给 `createHeadlessHost` 的清单 = `preset-server` 的 iso 清单去掉「内容级且不在本作业 `contentPlugins.ids` 中」的插件（界面级插件本来就不在服务端运行）；插件 id 一律是 cordis 插件 id（[40-modules/16](../40-modules/16-plugin-catalog.md) §2 主表的单元 id，preset 条目 id 只是装配别名，对应表见 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §11，TA-5）。有 `job_runs` 的作业取受理时写入的 `payload.contentPlugins`（§7.1）；缩略图作业不写 `job_runs`，由 `ThumbnailsProcessor` 在处理时经 `GetEffectivePluginSetUseCase` 取当前集合（worker 以 `cordex_system` 只读 `plugin_policies`，[09 §14.1](09-ddl-identity-and-access.md)）。缺插件时与浏览器同一口径：未知 kind 与命名空间原样保留，导出不丢数据。
 
 ### 8.2 worker_threads 任务运行器
 
@@ -517,8 +581,8 @@ SV-13 的 `fill-template`（模板填充）、`validate`、`migrate`、`convert`
 |---|---|---|---|
 | `importDocument` | `tasks/import.ts` | 字节 + `documentType` + 限额 → `{state（Yjs V2 update）, mediaRefs, fidelityReport, embeddedCover?}` | `ImportProcessor` |
 | `exportDocument` | `tasks/export.ts` | state + `documentType` + 基线字节 + 格式 → 字节 | `ExportProcessor` |
-| `validateSnapshotTask` | `tasks/validate.ts` | state → schema 与不变量报告 | 诊断；M4 `validate` |
-| `migrateTask` | `tasks/migrate.ts` | state + from / to → state | server-collab migration-runner；M4 `migrate` |
+| `validateSnapshotTask` | `tasks/validate.ts` | state → schema 与不变量报告 | 诊断；`validate` 作业（§7.4，M3） |
+| `migrateTask` | `tasks/migrate.ts` | state + from / to → state | server-collab migration-runner；`migrate` 作业（§7.4，M3） |
 | `diffSnapshots` | `tasks/diff-snapshots.ts` | 两份 state → `Mutation[]` | [05 §10](05-modules-collab-and-snapshots.md) 恢复 |
 | `computePageHashes` | `thumbnails/content-hash.ts` | state → `[{slideId, index, contentHash}]` | `ThumbnailsProcessor`（§11.1） |
 
@@ -619,6 +683,7 @@ flowchart LR
 | `state` | `{encoding: 'snapshot-json', part: 'state', bytes, sha256}` | 是 | 注入的文档状态。`/render` 的 viewer 装配只接受 `snapshot-json`（[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md) §11.3），Y 状态到快照 JSON 的转换由 worker 在 `server-headless` 线程内完成，renderer 不解释 |
 | `resources` | `[{id, kind: 'media' \| 'font', mime, part, bytes, sha256, family?, weight?, style?}]` | 是 | 只含所请求页引用的媒体与内嵌字体（`kind = 'font'` 时必带 `family`、`weight`、`style`，映射为 inject 载荷的 `fonts[]`）；缺失的资源由页面按占位处理并在诊断里列出 |
 | `limits` | `{pageTimeoutMs ≤ 10000}` | 是 | 每页渲染超时，注入完成后由 renderer 计时 |
+| `contentPlugins`（2026-10-03，rulings §4.24 AL-3） | `{policy: string, ids: string[]}` | 是 | 本次渲染应启用的内容级插件集合（cordis 插件 id，TA-5）与对应的策略摘要，由 worker 按 §8.1 算出后下发；renderer 只用它为 `/render` 的 viewer 装配计算排除集（镜像内置但不在 `ids` 中的内容级插件不激活，`ids` 中而镜像里没有的记入页级 `missingResources`），**不读库、不持凭据、不发出站请求**（ADR-0026、ADR-0037；[01](01-service-overview-and-roles.md) §1b.4 renderer 行）。缩略图与导出因此与客户端、headless 使用同一内容级集合（PM-13） |
 
 `traceparent` 走标准 HTTP 头；`resources` 的部件总量与声明的 `bytes` 不符 → 400 `headless.bad_request`。
 
@@ -748,6 +813,7 @@ sequenceDiagram
 | `thumbnails` | ThumbnailsModule · `ThumbnailsRepository` | `ImportProcessor`（embedded 封面）、`ThumbnailsProcessor`、purge 参与者 | — |
 | — | — | `ImportProcessor`（含创建副本） | `documents` 与 owner `permissions`（DocumentsModule）、`document_snapshots`（M-09 `SnapshotStore.put`）、`media_blobs` / `document_media`（MediaModule） |
 | — | — | 周期作业（§4） | 各表属主用例，见 §4 表 |
+| — | — | `AutomationProcessor`（§7.4，2026-10-03） | `webhook_deliveries`（WebhooksModule 导出的 `DeliverWebhookEventUseCase.enqueue`，与作业终态同一事务） |
 
 DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thumbnails.md)；`kind = 'document-purge'` 行由 M-08 `SchedulePurgeUseCase` 经本模块导出的 `JobRunsRepository` 写入（[04 §4](04-modules-documents-storage-media.md)）。
 
@@ -776,12 +842,14 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | `headless.version_mismatch` / `headless.renderer_busy` / `headless.inject_timeout` / `headless.browser_crashed` | 409 / 503 / 504 / 500（RPC） | §10.4 | retryable |
 | `headless.render_timeout` | —（页级） | 单页超 10 s | 页级重试 1 次 |
 | `headless.response_invalid` | — | 回传字节头、尺寸或体积不合格 | retryable（计数告警） |
+| `server.automation.media_not_found`（2026-10-03） | 422 | `fill-template` 的图片值引用的 sha256 与模板文档没有 `document_media` 关联（§7.4） | — |
+| `server.automation.placeholder_type_mismatch`（2026-10-03） | —（作业结果） | 数据值类型与同名占位符类型不符（如给文本占位符传图片） | terminal |
 
 `format.pptx.invalid_package` 的 HTTP 取值以 30/10 §1.4 为准。40-modules/09 列出的 `headless.zip_limit_exceeded` 与 `headless.decode_failed` 不再使用：zip 限额统一为 `format.limit_exceeded`（原 30/08 篇 §16.5，现本文 §6.3），包解码失败为 `format.pptx.*`（30 正文 > 40）。
 
 ### 12.3 审计 action
 
-全量登记表在 [07 §9](07-modules-comments-webhooks-audit.md)（命名 `<resource>.<snake_action>`，决策 INC-31/INC-29）；本文模块写入：`import.created`、`import.cancelled`、`import.completed`、`import.failed`（M2；创建副本同样写这四个，`details` 另带 `source:'duplicate'`）、`export.created`、`export.downloaded`（M3）、`admin.job_replayed`、`admin.thumbnails_rebuilt`。新建文档的 `document.created`（`source: import | duplicate`）由 M-08 写，`document.purge_scheduled` 见 [04](04-modules-documents-storage-media.md)；覆盖导入的加解锁由 M-08 写 `document.locked` / `document.unlocked`（`reason: import`，§6.5）。
+全量登记表在 [07 §9](07-modules-comments-webhooks-audit.md)（命名 `<resource>.<snake_action>`，决策 INC-31/INC-29）；本文模块写入：`import.created`、`import.cancelled`、`import.completed`、`import.failed`（M2；创建副本同样写这四个，`details` 另带 `source:'duplicate'`）、`export.created`、`export.downloaded`（M3；自动化作业的下载同样写 `export.downloaded`）、`automation.created`（M3，2026-10-03，每批一条，[07 §9.3](07-modules-comments-webhooks-audit.md)）、`admin.job_replayed`、`admin.thumbnails_rebuilt`。新建文档的 `document.created`（`source: import | duplicate`）由 M-08 写，`document.purge_scheduled` 见 [04](04-modules-documents-storage-media.md)；覆盖导入的加解锁由 M-08 写 `document.locked` / `document.unlocked`（`reason: import`，§6.5）。
 
 ### 12.4 指标与 span
 
@@ -794,7 +862,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 模块 | api | collab | worker | renderer |
 |---|---|---|---|---|
 | `JobsModule` | rest（`/jobs/:id`）+ producer | producer | processor 基类 + cron（reconciliation 与 §4 全部周期作业） | — |
-| `ImportExportModule` | rest（`/imports*`、`/documents/:id/export`、`/exports/:jobId`）+ producer | — | processor（`import`、`export`） | — |
+| `ImportExportModule` | rest（`/imports*`、`/documents/:id/export`、`/exports/:jobId`、`/automation/*`）+ producer | — | processor（`import`、`export`、`automation`） | — |
 | `ThumbnailsModule` | rest（缩略图）+ producer（惰性入队、render-export） | producer（压缩后 `invalidate`） | processor（`thumbnails`、`render-export`）+ 参与者 `thumbnails` | — |
 | renderer 入口（`server-headless` sidecar） | — | — | 调用方（`remote`）；`local` 时进程内含 Chromium 池 | 入口 + 精简健康探针 |
 
@@ -810,6 +878,8 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | C-06 | `retention.autoSnapshotDailyDays` 默认 365，0 = 永久；事件快照按 auto 口径，每文档最新 `import` 快照保留（§4） | 已裁定（rulings §4.19） |
 | IMPORT-OVERWRITE | 覆盖既有文档的导入 = 换纪元（§6.5、05 §9.2）：导入期间 `locked`，`persist` 写 `epoch + 1` 的 `import` 快照并解锁，经既有控制频道通知、在线会话 4428 后重新 bootstrap；不调用恢复用例、不新增 worker → collab 通道；恢复不加锁（05 §10） | 已裁定（rulings §4.19 N1） |
 | `compaction` 队列 | 删除（§1）：压缩只在持有 Room 的 collab 实例内执行 | 已定稿 |
+| AL-7 Headless 自动化 | SV-13 四种作业 M3 交付：第八条队列 `automation`、幂等键、用例与处理器、产物前缀 `automation/{jobId}/`、Webhook 事件 `automation.job_finished`（§1、§2.3、§7.4）；`job_runs.kind` 扩展与无文档作用域放宽见 [12](12-ddl-jobs-and-thumbnails.md) 迁移 0063，Webhook 事件扩展见 [13](13-ddl-comments-webhooks-audit.md) 迁移 0074；`markdown` 编码器由文档类型的 `formats` 贡献提供，已登记为 ooxml-pptx 导出专用 `slideMarkdownCodec`（[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.5，`id: 'slide-markdown'`） | 已裁定（rulings §4.24 AL-7，2026-10-03） |
+| AL-3 renderer 插件集 | renderer 不读库：内容级插件集由 worker 算出、经 RPC `contentPlugins` 下发（§8.1、§10.3） | 已裁定（rulings §4.24 AL-3，2026-10-03） |
 | 他线登记 | 07 §9 的 `admin.job_replayed`、`admin.thumbnails_rebuilt`；18 §4 的 `cordex_jobs_unclassified_errors_total`、`cordex_thumbnails_page_failures_total`；01 §12 的导入 50 MB（S10）与 PNG 全量 D200（S22） | 已落实 |
 | 40-modules 回写 | 40/09 §4.5 补 `computePageHashes`；40/09 删除 `headless.zip_limit_exceeded`、`headless.decode_failed`；40/12 删除 `GET /imports/:jobId`、`ThumbnailKey.fontProfile` / `snapshotSeq` 与 `ImportUploadStore` 的 `GETDEL` 描述，缩略图 `?seq=` 参数改为 `?size=` | 已完成（2026-09-25，40/09 §4.5 与 §12、40/12 §2.6 与 §12 已回写） |
 | 配置键 | 已按 [17 §5](17-deployment-and-config.md) 改用 `headless.poolSize`（两种模式共用）、`headless.pageTimeoutMs`、`headless.worker.*`、`http.port`、`scale.maxFileBytes`（`renderer.*`、`browserPool.*`、`headless.injectTimeoutMs` 已废）；队列重试与超时、对账放弃时限、浏览器回收、RPC 体积上限、缩略图孤儿宽限（14 §8 固定 24 h）、注入等待 60 s 为常量；`RendererPool` 容量 = `headless.poolSize`（单 worker、单 renderer 副本计，多副本超额由 503 背压兜底，§10.5；副本数键推迟到 M4，rulings §4.20 BE-08+TX-07） | 已落实 |
@@ -825,6 +895,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 导出 pptx D50 / D200 | ≤ 3 s / ≤ 12 s | `server.jobs.exportPptxD50P95Ms`、`server.jobs.exportPptxD200P95Ms`（01 S11） | `job.export` span |
 | PDF D50 | ≤ 10 s | `server.jobs.exportPdfD50P95Ms`（01 S12） | `job.render-export` span |
 | PNG 全量 D200 | ≤ 90 s（PRD SV-02） | `server.jobs.exportPngD200Ms`（01 S22） | 同上 |
+| 模板填充 + pptx 导出 100 × D50（4 worker，2026-10-03 由 M4 改 M3） | ≤ 60 s（PRD SV-13） | `server.jobs.fillTemplate100Ms`（01 S15） | 受理 → 同一 `batchId` 的最后一行 `succeeded`（`job.fill-template` span） |
 | 首页缩略图（导入完成起） | ≤ 10 s | `server.thumbnails.firstPageMs`（01 S13） | 导入 `finished_at` → 首页行 `updated_at` |
 | D200 全量缩略图 | ≤ 90 s | `server.thumbnails.d200AllMs`（01 S13） | 一次请求全部页 → 最后一行写入 |
 | 单页渲染 | ≤ 400 ms | `server.thumbnails.perPageP95Ms`（01 S13） | `thumbnail.render` span（注入后计） |
@@ -855,4 +926,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 16 | §13 各键满足 gate | 70/09，`perf/perf-server` |
 | 17 | 创建副本：两次受理得到两份副本；同一 `Idempotency-Key` 重放返回同一 `{docId, jobId}`；副本内容等于源文档 `seq ≤ srcSeq` 的状态，只复制被新快照引用的媒体关联；源文档 `purging` 时作业 `failed` 且不留 `docs/{newDocId}/` 对象 | 70/07 §11 |
 | 18 | 覆盖导入（§6.5）：开工后 ≤ 1 s 在线会话收到 `room{locked:{reason:'import'}}`、写入在 L2 被拒；成功后文档 `active`、`documents.epoch = E + 1`，指针指向 `epoch = E + 1`、`seq_upto = H` 的 `import` 快照；两个 collab 实例上的会话都以 4428 关闭，重连后 `X-Cordex-Epoch = E + 1`；屏蔽控制频道时旧纪元实例下一次取号插入 0 行并自行 4428；失败或取消后文档解锁、纪元与指针不变；worker 装配中没有调用 collab 的 HTTP / RPC 客户端 | 70/07 §9 W17、§11 J7 |
-| 19 | 队列集合恰为 §1 的七条（无 `compaction`） | `test/unit`（`QUEUE_NAMES` 快照） |
+| 19 | 队列集合恰为 §1 的八条（无 `compaction`，含 2026-10-03 新增的 `automation`） | `test/unit`（`QUEUE_NAMES` 快照） |
+| 20 | 自动化作业（§7.4）：同一模板、同一状态、同一数据重复提交只建一行；101 项的批次 400；图片值未关联模板 422；上传来源的作业对他人不可见（404）；`migrate` 不改变任何文档的快照与 `schema_version`；作业终态与 `automation.job_finished` 投递行同事务（注入提交失败后两者都不存在） | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) |
+| 21 | 管理员禁用某内容级插件后受理的导出与自动化作业不装配该插件，之前受理的作业重试时仍用受理时的集合；renderer 收到的 `contentPlugins` 与作业 `payload.contentPlugins` 一致，renderer 进程内无 DB 客户端 | [70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md)、70/08 role-assembly |
+| 22 | 导出 pptx 的 `p:presentation/p:extLst` 含 `urn:cordex:plugin-footprint:1`，重新导入后 `core.pluginFootprint` 不变；足迹不含 `comments.*` 命名空间；同一快照两次导出 sha256 相等 | 70/03 §6 |

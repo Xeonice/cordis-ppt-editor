@@ -1,5 +1,5 @@
 # 08 数据库总约定：命名、角色、RLS 框架与迁移顺序
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：B1 结案，手写 drizzle 镜像 + 漂移检查直查 pg_catalog；compose 不带 PgBouncer、迁移直连）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：表清单 17 → 19（plugin_policies、user_plugin_prefs），GRANT 0095、RLS 例外清单与 0096、写方总表、ER 与号段同步） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/01](../30-architecture/01-overview.md) §2.2（原 30/08 §5）、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：B1 结案，手写 drizzle 镜像 + 漂移检查直查 pg_catalog；compose 不带 PgBouncer、迁移直连）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：表清单 17 → 19（plugin_policies、user_plugin_prefs），GRANT 0095、RLS 例外清单与 0096、写方总表、ER 与号段同步）；2026-10-03（§4.24：AL-3 `plugin_policies` 的 system 只读方删去 renderer；AL-7 §9 号段登记 0063、0074（只改 CHECK），§6.5 增系统作业名 `worker.automation`，§7 迁移列同步） | 依赖：[rulings §4.13 / §4.15 Q6·Q10 / §4.17 D3 / §4.18 / §4.19](../00-charter/rulings-2026-09-14.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[30/01](../30-architecture/01-overview.md) §2.2（原 30/08 §5）、[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)、[40/12](../40-modules/12-server-jobs-comments-and-ops.md)
 
 > 读者：写 `apps/server/src/db/**`、迁移脚本与仓储的工程师；DBA 与运维。
 > 本文是 PostgreSQL 18 的「总约定」：命名与类型、外键与分区、数据库角色与 GRANT、连接池、文档级 RLS 的框架（GUC、辅助函数、policy 写法、例外清单、测试矩阵）、表写方所有权、迁移编号与纪律。**各表的建表语句与 policy 本体**在 [09](./09-ddl-identity-and-access.md)–[13](./13-ddl-comments-webhooks-audit.md)；Valkey 键、对象键与保留总表在 [14](./14-valkey-object-storage-and-retention.md)；配置键在 [17](./17-deployment-and-config.md)。
@@ -84,7 +84,7 @@ S = SELECT，I = INSERT，U = UPDATE，D = DELETE；「I(列)」「U(列)」表�
 |---|---|---|---|
 | `users` | S I，U(`email, display_name, avatar_url, platform_role, status, last_seen_at, updated_at`) | S | JIT 建号、资料、平台管理员改状态 / 角色、擦除脱敏都在请求事务；不硬删；`id`、`created_at` 不可改 |
 | `user_identities` | S I D，U(`email_at_login, last_login_at, updated_at`) | — | 擦除时删除全部身份行；系统作业不需要 |
-| `plugin_policies`（2026-10-01） | S I D，U(`state, default_on, config, revision, batch_id, updated_by, updated_at`) | S | 只有平台管理员经 PluginsModule 写；「恢复部署默认」删行；collab 指纹轮询与 worker / renderer 的 headless 内容级集合只读（[09 §14.1](./09-ddl-identity-and-access.md)） |
+| `plugin_policies`（2026-10-01） | S I D，U(`state, default_on, config, revision, batch_id, updated_by, updated_at`) | S | 只有平台管理员经 PluginsModule 写；「恢复部署默认」删行；collab 指纹轮询与 worker 的 headless 内容级集合（缩略图等不经受理用例的作业）只读；renderer 不连库，内容级集合由 worker 经 RPC 下发（rulings §4.24 AL-3，[06 §10.3](./06-modules-jobs-import-export-thumbnails.md)；[09 §14.1](./09-ddl-identity-and-access.md)） |
 | `user_plugin_prefs`（2026-10-01） | S I D，U(`enabled, updated_at`) | — | 本人个人启停与恢复默认都在请求事务；擦除不删（不含个人数据）；系统作业不需要（[09 §14.2](./09-ddl-identity-and-access.md)） |
 | `documents` | S，I(`id, title, doc_type, owner_id`)，U(`title, status, deleted_at, updated_at`) | S D，I(同左 4 列)，U(`status, locked_until, lock_reason, updated_at` 与 M-09 八列 `head_seq, epoch, latest_snapshot_id, schema_version, element_count, slide_count, size_bytes, content_updated_at`) | 列级授予把 C-03 落到数据库：`cordex_app` 插入或改写任何 M-09 列都 `permission denied`。`owner_id` 只在建档时写入：M1–M3 无转移所有者（[04 §1](./04-modules-documents-storage-media.md)），若应用角色可改，editor 能在库内把自己写成 `owner_id` 并借 SELECT policy 的 owner 分支在被撤销后仍可见。锁定与解锁（`locked_until`）、回收站到期置 `purging`、导入建档、`finalize-purge` 删行在系统侧 |
 | `document_user_marks` | S I D，U(`last_opened_at, pinned_at`) | S D | 最近 / 固定只在请求事务里写；参与者 user-marks 删除 |
@@ -309,7 +309,7 @@ COMMIT;
 - 不用 `BYPASSRLS`：`cordex_system` 没设作业名时一行都看不到、一行都写不进（PG 18 实测）。policy 只判「非空」，作业名本身用于诊断与 `application_name`。
 - 取值为 `{scope}.{name}` 字面量，代码中是字面量联合 `SystemJobName`（落点 `apps/server/src/db/system-jobs.ts`，40/12 §4.13，2026-09-25 审稿登记）：
   - collab：`collab.gateway`、`collab.bootstrap`、`collab.persist`、`collab.spill-replay`、`collab.compact`、`collab.tombstone-sweep`（含元素彻底删除）、`collab.snapshot`（命名、恢复、迁移、epoch）、`collab.comment-mirror`、`collab.webhook-produce`；
-  - worker：`worker.import`、`worker.export`、`worker.thumbnails`、`worker.render-export`、`worker.webhook-delivery`、`worker.document-purge`；
+  - worker：`worker.import`、`worker.export`、`worker.thumbnails`、`worker.render-export`、`worker.automation`（2026-10-03，SV-13 自动化作业，[06 §7.4](./06-modules-jobs-import-export-thumbnails.md)）、`worker.webhook-delivery`、`worker.document-purge`；
   - 周期作业：`maintenance.{作业名}`，作业名取 [06 §4](./06-modules-jobs-import-export-thumbnails.md) 的周期作业清单（唯一源；[14 §8.5](./14-valkey-object-storage-and-retention.md) 为其保留视角的摘录）；
   - ops 命令（持 `cordex_system` 口令的子命令，[17 §6、§9](./17-deployment-and-config.md)）：`ops.{子命令}`，冒号改连字符，如 `ops.jobs-replay`、`ops.webhooks-replay`、`ops.thumbnails-rebuild`、`ops.documents-reassign-owner`（rulings §4.20 BE-05）。
 - `SystemContext` 只能由系统用例构造（40/08），请求处理器拿不到 `withSystem`。
@@ -401,10 +401,10 @@ flowchart TD
 | `share_links` | ShareLinks（M-08） | `ShareLinkRepository`；只读解析经 Permissions 的 `ShareLinkReader` → SECURITY DEFINER 函数 | 创建、撤销（app）；参与者 share-links（system） | `cordex_doc_role`、ResolveShareLinkUseCase | 09 | 0032 |
 | `comments` | Comments（M-12） | `CommentsRepository` | CommentMirrorObserver（collab，system）；参与者 comments（system） | 评论 REST（app）；Webhook 载荷（system） | [13](./13-ddl-comments-webhooks-audit.md) | 0070 |
 | `thumbnails` | Thumbnails（M-12） | `ThumbnailsRepository` | 导入封面、缩略图处理器、参与者 thumbnails（system） | 缩略图 REST（app） | [12](./12-ddl-jobs-and-thumbnails.md) | 0061 |
-| `job_runs` | Jobs（M-12） | `JobRunsRepository` | 入队、取消、schedule-purge（app）；处理器、对账、回收站到期 schedule-purge、`job-runs-prune`（system） | `GET /jobs/:id`（app）；对账（system） | 12 | 0060、0062 |
+| `job_runs` | Jobs（M-12） | `JobRunsRepository` | 入队、取消、schedule-purge（app）；处理器、对账、回收站到期 schedule-purge、`job-runs-prune`（system） | `GET /jobs/:id`（app）；对账（system） | 12 | 0060、0062、0063 |
 | `audit_log` | Audit（M-12） | `AuditRepository`（只有 insert 与查询） | `RecordAuditEventUseCase`（app 与 system）；`audit-seal`（system）；分区轮换（migrator） | 平台管理员查询、链校验 | 13 | 0071 |
 | `webhook_subscriptions` | Webhooks（M-12） | `WebhookRepository` | 平台管理员（app） | 生产者、投递（system） | 13 | 0072 |
-| `webhook_deliveries` | Webhooks | `WebhookRepository` | 生产者写入、投递更新、`webhook-deliveries-prune`（system） | 投递日志（app）、对账 | 13 | 0073 |
+| `webhook_deliveries` | Webhooks | `WebhookRepository` | 生产者写入、投递更新、`webhook-deliveries-prune`（system） | 投递日志（app）、对账 | 13 | 0073、0074 |
 | `cordex_schema_migrations` | —（ops） | `cordex-ops db:migrate` | migrator | `/readyz` | 本文 | 0001 |
 
 **图 7-1 表写方所有权**
@@ -507,8 +507,8 @@ erDiagram
 | 0030–0039 | 09 | 0030 `permissions`；0031 `document_perm_versions`；0032 `share_links`；0033 两个分享链接函数；0034 `cordex_doc_role`；0035 `cordex_sole_owner_doc_count`（SECURITY DEFINER，§4.3） | 0020、0002 |
 | 0040–0049 | [11](./11-ddl-collab-updates-and-snapshots.md) | 0040 `document_snapshots`；0041 补 `documents.latest_snapshot_id` 外键（SET NULL）；0042 `document_updates`（16 分区） | 0020 |
 | 0050–0059 | 10 | 0050 `media_blobs`；0051 `document_media`；0052 `cordex_storage_usage`（SECURITY DEFINER，§4.3） | 0020；0052 另需 0034 |
-| 0060–0069 | [12](./12-ddl-jobs-and-thumbnails.md) | 0060 `job_runs`；0061 `thumbnails`；0062 `job_runs` 索引 | 0010、0020 |
-| 0070–0079 | [13](./13-ddl-comments-webhooks-audit.md) | 0070 `comments`；0071 `audit_log`（按月分区）；0072 `webhook_subscriptions`；0073 `webhook_deliveries` | 0010、0020 |
+| 0060–0069 | [12](./12-ddl-jobs-and-thumbnails.md) | 0060 `job_runs`；0061 `thumbnails`；0062 `job_runs` 索引；0063 `job_runs` 自动化作业 kind 与无文档作用域放宽（2026-10-03，rulings §4.24 AL-7，只改 CHECK） | 0010、0020；0063 另需 0060 |
+| 0070–0079 | [13](./13-ddl-comments-webhooks-audit.md) | 0070 `comments`；0071 `audit_log`（按月分区）；0072 `webhook_subscriptions`；0073 `webhook_deliveries`；0074 Webhook 事件增 `automation.job_finished`（2026-10-03，AL-7，只改 CHECK） | 0010、0020；0074 另需 0072、0073 |
 | 0080–0089 | 未分配 | 保留 | — |
 | 0090 / 0091 / 0092 / 0093 / 0094 | 09 / 10 / 11 / 12 / 13 | 各域 RLS：ENABLE + FORCE + policy | 0034 与本域表 |
 | 0095 | 08 | GRANT 矩阵（§4.2） | 全部表 |
@@ -531,8 +531,8 @@ flowchart LR
   m0020 --> m0040["0040–0042 snapshots、补外键、updates"]
   m0020 --> m0050["0050–0052 media_blobs、document_media、用量函数"]
   m0033 -- "0052 调用 cordex_doc_role" --> m0050
-  m0020 --> m0060["0060–0062 job_runs、thumbnails、job_runs 索引"]
-  m0020 --> m0070["0070–0073 comments、audit_log、webhooks"]
+  m0020 --> m0060["0060–0063 job_runs、thumbnails、索引、自动化 kind"]
+  m0020 --> m0070["0070–0074 comments、audit_log、webhooks 与事件扩展"]
   m0033 --> rls["0090–0094 各域 RLS policy"]
   m0040 --> rls
   m0050 --> rls

@@ -1,11 +1,11 @@
 # 60 后端架构与设计：定位、边界与导航
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：定位改为「后端架构与设计」，01 升格为后端架构，新增 19 复用清单，§6 的原 30/08 映射标为已执行，新增 §8.5）；2026-09-26（§4.21 整合：新增 §6.3 历史段接收原 30/08 §13–§15 与 §16.7（B1–B8、S7/S8、跨条线要求），§6.1 映射行改指，B8 并入 §8.3）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-30（§4.22：口径链改为 §4.11–§4.22） | 依赖：charter §7、§8、§9.2；rulings §4.11–§4.21；30-architecture/README；[30/01 总架构](../30-architecture/01-overview.md)；40-modules/README；40-modules/19
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：定位改为「后端架构与设计」，01 升格为后端架构，新增 19 复用清单，§6 的原 30/08 映射标为已执行，新增 §8.5）；2026-09-26（§4.21 整合：新增 §6.3 历史段接收原 30/08 §13–§15 与 §16.7（B1–B8、S7/S8、跨条线要求），§6.1 映射行改指，B8 并入 §8.3）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-30（§4.22：口径链改为 §4.11–§4.22）；2026-10-01（§4.23 插件管理，补登记：03 §12 PluginsModule 与相关各篇，见 §9）；2026-10-03（§4.24：口径链改为 §4.11–§4.24；§3 文件清单 03 补 PluginsModule、06 补 SV-13 自动化作业；§9 变更表加 §4.23、§4.24 两行） | 依赖：charter §7、§8、§9.2；rulings §4.11–§4.24；30-architecture/README；[30/01 总架构](../30-architecture/01-overview.md)；40-modules/README；40-modules/19
 
 ## 1. 定位
 
 `docs/60-backend/` 是 Cordex 的**后端架构与设计**，也是**后端运行时设计的唯一事实源**。架构分三份（rulings §4.21 q-arch-reorg 方案 B）：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构，[50/01](../50-frontend/01-overview-and-runtime-map.md) 是前端架构，[01](01-service-overview-and-roles.md) 是后端架构，阅读路径固定为 **30/01 → 50/01 → 60/01**。本目录内：**01 = 后端架构**；**02–18 = 专题设计与 DDL**；**19 = 后端复用组件清单**。覆盖范围：`apps/server`（NestJS 12 + Fastify 5，纯 ESM）、`@cordexjs/server-collab`（内嵌 Hocuspocus 4）、`@cordexjs/server-storage`、`@cordexjs/server-headless`、renderer sidecar，以及 PostgreSQL 18、Valkey、SeaweedFS 三类存储上的全部结构与约定。它与 [50-frontend](../50-frontend/README.md)、[70-testing](../70-testing/README.md) 并列，各管一侧、互不覆盖（三线总边界表见 [docs/README.md](../README.md)）。
 
-**口径链**（冲突时自左向右取前者）：rulings（§4.11–§4.22，后者覆盖前者；§4.19 已登记三条设计线各为该侧唯一事实源，§4.21 定架构三件套）> charter > 已接受 ADR > 30-architecture 正文（总架构与跨端契约）> **50 / 60 / 70** > 40-modules（包与文件级）> PRD / 设计的既定口径。其中验收阈值与检查名以 PRD 为准、测试如何执行以 70 为准。
+**口径链**（冲突时自左向右取前者）：rulings（§4.11–§4.24，后者覆盖前者；§4.23 插件管理、§4.24 设计线对齐审计；§4.19 已登记三条设计线各为该侧唯一事实源，§4.21 定架构三件套）> charter > 已接受 ADR > 30-architecture 正文（总架构与跨端契约）> **50 / 60 / 70** > 40-modules（包与文件级）> PRD / 设计的既定口径。其中验收阈值与检查名以 PRD 为准、测试如何执行以 70 为准。
 
 **与 30、40 的分工**：原 30-architecture/08 已由 rulings §4.21 撤销——它的一页总览两图与要点迁入 [01](01-service-overview-and-roles.md) §0，五条跨端原则（Nest 薄壳、cordis 宿主内嵌、fail-closed 双点、驱动放行、文档类型盲）并入 30/01 的统一原则表，其余运行侧细节早已由本线承接（映射见 §6，已执行）；40-modules 保留包目录树、逐文件职责、扩展缝、测试文件清单与机械约束，它的服务端 §1、§2、§6、§7 与「Nest 模块定义表」改为链接本线。
 
@@ -87,10 +87,10 @@ flowchart LR
 |---|---|---|---|---|
 | 01 | [后端架构](01-service-overview-and-roles.md) | 后端架构（rulings §4.21 就地升格，文件名不变）：架构一页与 Hocuspocus 挂点（§0）、技术栈与复用摘要（§1a）、模块清单、角色矩阵、启动断言、反代分流、宿主生命周期、预算总览 | 30/01、ADR-0037、ADR-0039 | M2 |
 | 02 | [鉴权链路](02-auth-chain.md) | OIDC、会话、CSRF、票据、分享链接、RLS 上下文的端到端链路 | ADR-0029、01 | M2（会话、票据、RLS 上下文）/ M3（分享链接；security-rls 阻断） |
-| 03 | [模块：身份与访问](03-modules-identity-and-access.md) | Auth、Users、Permissions、ShareLinks 的模块卡；模块卡模板首次定义于此 | 02、09、15 | M2 / M3 |
+| 03 | [模块：身份与访问](03-modules-identity-and-access.md) | Auth、Users、Permissions、ShareLinks 与 Plugins（§12，2026-10-01 rulings §4.23）的模块卡；模块卡模板首次定义于此 | 02、09、15 | M2 / M3 |
 | 04 | [模块：文档、存储与媒体](04-modules-documents-storage-media.md) | Documents、Storage、Media；永久删除文档编排唯一源 | 10、14、15 | M2 / M3 |
 | 05 | [模块：协同与快照](05-modules-collab-and-snapshots.md) | Collab、Snapshots、server-collab 契约；Room、溢写、准入、墓碑 | 30/06、11、16 | M2（网关、Room、持久化、auto 快照、`snapshots/latest`）/ M3（版本历史与恢复、元素彻底删除） |
-| 06 | [模块：作业、导入导出、缩略图与 renderer](06-modules-jobs-import-export-thumbnails.md) | 队列总表、周期作业、server-headless、renderer RPC | 12、14 | M2（作业骨架、导入、创建副本、包内封面）/ M3（导出、renderer） |
+| 06 | [模块：作业、导入导出、缩略图与 renderer](06-modules-jobs-import-export-thumbnails.md) | 队列总表、周期作业、server-headless、renderer RPC、Headless 自动化作业（§7.4） | 12、14 | M2（作业骨架、导入、创建副本、包内封面）/ M3（导出、renderer、SV-13 自动化作业，rulings §4.24 AL-7） |
 | 07 | [模块：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md) | 评论读模型、Webhook 投递与 SSRF、审计哈希链与 action 登记表 | 13 | M3 |
 | 08 | [数据库总约定](08-db-conventions-roles-rls-migrations.md) | 命名、DB 角色与 GRANT、RLS 框架、迁移编号与顺序 | ADR-0022 | M2 |
 | 09 | [DDL：身份与权限](09-ddl-identity-and-access.md) | users、user_identities、permissions、document_perm_versions、share_links 与 SECURITY DEFINER 函数 | 08 | M2 / M3 |
@@ -376,6 +376,8 @@ flowchart LR
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
+| 2026-10-03 | v0.1（§4.24） | 按 rulings §4.24 落实后端行：AL-1 分享链接只授予 viewer / commenter（03、09 的 `ck_share_links_role`、15、02、10、11）；AL-3 renderer 不读库，内容级插件集经 worker → renderer RPC `contentPlugins` 下发（06 §10.3；03、08、09、01 删去 renderer 只读授权）；AL-7 SV-13 Headless 自动化 API 改 M3（06 §1 第八条队列 `automation`、§2.3、§7.4；15 §3.16；12 迁移 0063、13 迁移 0074；07 Webhook 事件 `automation.job_finished` 与审计 `automation.created`；01 S15）；TA-4 近 24 h 失败会话数改 Valkey 小时桶 HyperLogLog（03、14、15、18）；TA-5 插件 id 一律为 cordis 插件 id（03、09、06）；TA-7 `server.plugins.*`、`collab.plugins_outdated` 登记 30/10，15 §7 补码；TA-9 足迹 `core.pluginFootprint` 写入 `p:presentation/p:extLst`、足迹不含评论、headless 按策略取内容级集合（06、05）；TA-10 配额用量端点、`DocumentSummary` 所有者与协作者摘要、位图导出 `width` / `quality`、管理员插件页版本字段（15 §3.17、§3.3、§3.9、§3.15）；口径链补到 §4.24 |
+| 2026-10-01 | v0.1（§4.23） | 按 rulings §4.23 插件管理补登记：03 新增 §12 PluginsModule（Nest 模块总数 25）；09 §14 `plugin_policies`、`user_plugin_prefs`（迁移 0012、0013，RLS 例外）；15 §3.15 插件七条路由；16 §12 插件集指纹与 `collab.plugins_outdated`、Stateless `plugins`；14 频道 `plugins:ctl`；07 §9.5 三个审计 action；17 §5.16 声明文件配置；18 插件指标与告警。05、06 当日未登记，2026-10-03 补记 |
 | 2026-09-26 | v0.1（§4.21） | 按 rulings §4.21 升格：定位改为「后端架构与设计」；01 标题改为「后端架构」，插 §0 架构一页（承接原 30/08 第 0 节两图与要点，新增分层、Hocuspocus 挂点与数据流图）与 §1a 技术栈与复用组件摘要；协同改用 Hocuspocus 4（装配矩阵 collab 部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；启动步骤删 `WsAdapter(ws)` 改挂 `upgrade`；停机 `drainAll` 按自写顺序）；反代「无粘性」改为 M3 按 documentId 一致性哈希；技术基线 Nest 12、Fastify 5、Drizzle；新增 19 后端复用组件清单；§6 的原 30/08 映射标为已执行并写到节；新增 §8.5 |
 | 2026-09-26 | v0.1（§4.20） | 按 rulings §4.20 落实后端相关条目：WS 升级限流先扣后退 + 每用户单实例并发上限 32（16、15 §8、14 §3、17 §5.8）；REST 限流档定稿（upload 60 / 20、public 300 / 100）；客户端 IP 统一为 `clientIp()` 与 web 容器覆盖写入转发头（BE-04）；运维命令 `documents:reassign-owner` 与停用、擦除响应附唯一 owner 文档数（新增 0035 `cordex_sole_owner_doc_count`，第五个 SECURITY DEFINER 函数）；审计 `admin.owner_reassigned`；`RendererPool` 容量按单副本；迁移目录比对改挂 `scanners/check-migrations-sync`；U-07 链接 ADR-0038；`host-footprint` 取数登记；`FakeClock` 统一为 `FixedClock`；指向 30/08 已删小节的依据引用改指 40 / 60 现行落点；§8.1 待确认项与 §8.4 全部收口 |
 | 2026-09-25 | v0.1（审稿） | 装配与数据库基础设施的文件级收口：原 30/08 篇 §2 目录树删除后，`main.ts`、`app.module.ts`、`observability/`、`redis/`、`db/`（连接池、系统事务入口、迁移执行器、drizzle 类型镜像、迁移 SQL）登记到 40-modules/12 §4.13、§5.13；01 §3 的 `ObservabilityModule`、`DbModule`、`RedisModule`「文件级」列与 01、08 中指向 30/08 已删目录树与草案小节的一类历史依据引用改指新位置；08 §10.1 写明迁移 SQL 文件须与文档逐字一致，§11 第 6 条与 §13 DB-13 登记 ddl-check 实现期扩展为对比 `db/migrations`（待实现）；`SystemJobName` 落点登记为 `db/system-jobs.ts` |

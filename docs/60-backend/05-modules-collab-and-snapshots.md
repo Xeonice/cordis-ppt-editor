@@ -1,5 +1,5 @@
 # 05 模块设计：协同与快照（含 server-collab 契约）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 装配与 `collab.hocuspocus.*`；§2.1 `attach` 改为包装 `handleConnection`、8 个 Definition 保留（`FanoutBus` 只剩控制频道、`AuthorizationSource` 增 `verifyTicket`）；§3 生命周期映射到钩子、§3.3 `{docId}:{epoch}` 文档名、§3.4 `session-sweeper`；§4 准入挂 `onAuthenticate`、Lua 用 `defineCommand`；§5 写入器挂 `beforeSync`、服务端事务按 H:Q4；§6 溢写钉住文档；§7 压缩节拍借 `onStoreDocument`、zstd codec 适配器；§8 未加载时 `openDirectConnection`；§9.2 换纪元；§14 指标挂点；§15）；2026-09-26（§4.21 整合：§10 GetLatestSnapshotQuery 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首「批量持久化」改为逐帧落库（组提交）） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 装配与 `collab.hocuspocus.*`；§2.1 `attach` 改为包装 `handleConnection`、8 个 Definition 保留（`FanoutBus` 只剩控制频道、`AuthorizationSource` 增 `verifyTicket`）；§3 生命周期映射到钩子、§3.3 `{docId}:{epoch}` 文档名、§3.4 `session-sweeper`；§4 准入挂 `onAuthenticate`、Lua 用 `defineCommand`；§5 写入器挂 `beforeSync`、服务端事务按 H:Q4；§6 溢写钉住文档；§7 压缩节拍借 `onStoreDocument`、zstd codec 适配器；§8 未加载时 `openDirectConnection`；§9.2 换纪元；§14 指标挂点；§15）；2026-09-26（§4.21 整合：§10 GetLatestSnapshotQuery 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首「批量持久化」改为逐帧落库（组提交））；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：握手新增插件集指纹比对（`catalog` 不符 4426 `collab.plugins_outdated`，`policy` 不符照常准入并推 Stateless `plugins`），判定本体在 16 §12）；2026-10-03（§4.24：TA-9 §1 装配补 PluginsModule 的指纹与策略轮询，§3.1 加入房间顺序与图 5-2 补「插件指纹比对」一步与握手后的 Stateless `plugins`；AL-6 §13 注明评论不进内容插件足迹） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）、§4.21
 
 本文是服务端协同的唯一事实源：CollabModule 与 SnapshotsModule 的职责与装配、`@cordexjs/server-collab` 的契约、Room 在服务端的运行机制（准入、持久化、降级溢写、压缩、墓碑、迁移与换纪元）、快照 REST 的用例、永久删除参与者。帧与 CONTROL 的定义只在 30-architecture/06 §6 与 protocol 文件；服务端对帧的处理、门禁与关闭码见 [16](16-ws-protocol-server-view.md)；表结构见 [11](11-ddl-collab-updates-and-snapshots.md)；Valkey 键与对象键模板只引用 [14](14-valkey-object-storage-and-retention.md)；路由、守卫、错误码与审计名以 [15](15-rest-api-catalog.md) §3.7、§3.8 为准。包与文件级规划留在 40-modules/09。
 
@@ -22,6 +22,7 @@
 | `PruneUpdatesUseCase`、`SnapshotsRetentionUseCase`（maintenance 周期作业的处理体，[11](11-ddl-collab-updates-and-snapshots.md) §8） | — | 装 | — |
 | 导出 `SnapshotWriter`（= `PgSnapshotStore.put`）给 M-12 导入处理器 | — | 装 | — |
 | `CommentMirrorObserver` 挂点注册（§13，实现归 [07](07-modules-comments-webhooks-audit.md)） | 装 | — | — |
+| PluginsModule 导出的 `PluginCatalog`、`PluginSetFingerprinter`，`plugins:ctl` 订阅与每 `plugins.policyPollSeconds`（60 s）一次的只读策略轮询（握手指纹比对与 Stateless `plugins`，§3.1、[16 §12](16-ws-protocol-server-view.md)；2026-10-01 rulings §4.23，本文 2026-10-03 补记） | 装 | — | — |
 
 - worker 装配不激活 `collabServer`、不建 Room，只依赖 `PgUpdateStore` / `PgSnapshotStore`（rulings §4.18 BE-13 / BE-15）：永久删除时 Valkey 的一级溢写键（`spill:{docId}:*` 与实例集合）连同 `spill/{docId}/` 对象由 finalize-purge 清除（[04](04-modules-documents-storage-media.md) §4.4、[14](14-valkey-object-storage-and-retention.md) §7），参与者不取单写者租约，停写靠关房、`purging` 拒绝加入与取号栅栏（04 §4.3 第 4 条）。
 - `imports`：`CordisHostModule`、`ConfigModule`、`DbModule`（`cordex_app` 与 `cordex_system` 两个池）、`RedisModule`、M-08 `PermissionsModule`（`RoleResolverService`、`ResolveShareLinkUseCase`）、M-08 `AuthModule`（`SessionValidator`、`TicketVerificationKeys`）、M-08 `DocumentsModule`（`DocumentStateGuard`、`DocumentReader`，供元素彻底删除与快照路由，[04](04-modules-documents-storage-media.md) §2 表 2-2）、M-08 `MediaModule`（`SyncDocumentMediaRefsUseCase`、`PruneDetachedMediaLinksUseCase`，[04](04-modules-documents-storage-media.md) §7.4）。被 import 的都是只含 providers 的 `XxxModule`，不会带进对方的控制器（[01](01-service-overview-and-roles.md) §5 结构规则）；网关加入时读 `documents` 行仍在系统池内直接读（§3.1）。`SnapshotsModule` 同样以 import `DocumentsModule` 取状态守卫。
@@ -209,12 +210,12 @@ flowchart LR
 
 2026-09-26 起加入房间的全部判定都在 server-collab 的 `AuthExtension.onAuthenticate` 里串行执行（不放 `onConnect`，它先于 `onAuthenticate` 触发）：协议版本（[16](16-ws-protocol-server-view.md) §12）→ `AuthorizationSource.verifyTicket`（验签、`jti`、`sid`、`permVersion`，16 §1）→ 验签通过即经 `ServerConnection.onTicketVerified` 退还 IP 升级令牌 → 每用户单实例并发上限（超限 `collab.rate_limited` + 4429）→ 下列步骤。任一步拒绝都抛出 `{reason:{code}}`，Hocuspocus 回 `PermissionDenied(reason)`，随后以原始 `ws.close` 按码关闭（原：「网关……再调 `attach`；`attach` 按以下顺序执行」，作废）：
 
-1. 读 `documents` 行（系统作业名 `collab.gateway`，[08](08-db-conventions-roles-rls-migrations.md) §6.5）；文档名 `{docId}:{epoch}` 的 `docId` 部分须等于 URL 文档（帧预过滤已查）：不存在或 `trashed` → `collab.doc_not_found`（4404）；`purging` → `collab.doc_purging`（4404，rulings §4.18 BE-15）；`locked`（覆盖导入或迁移窗口）→ 角色封顶为 `viewer`（L2 拒写，ADR-0029 决策 5，2026-09-25 按 rulings §4.19 N1 收窄，版本恢复不加锁）；客户端声明的纪元（Auth token 的 `epoch` 与文档名的纪元部分）与 `documents.epoch` 不符 → `collab.epoch_changed`（4428）；文档 `schema_version` 高于客户端支持 → `collab.schema_too_new`（4426）。
+1. 读 `documents` 行（系统作业名 `collab.gateway`，[08](08-db-conventions-roles-rls-migrations.md) §6.5）；文档名 `{docId}:{epoch}` 的 `docId` 部分须等于 URL 文档（帧预过滤已查）：不存在或 `trashed` → `collab.doc_not_found`（4404）；`purging` → `collab.doc_purging`（4404，rulings §4.18 BE-15）；`locked`（覆盖导入或迁移窗口）→ 角色封顶为 `viewer`（L2 拒写，ADR-0029 决策 5，2026-09-25 按 rulings §4.19 N1 收窄，版本恢复不加锁）；客户端声明的纪元（Auth token 的 `epoch` 与文档名的纪元部分）与 `documents.epoch` 不符 → `collab.epoch_changed`（4428）；文档 `schema_version` 高于客户端支持 → `collab.schema_too_new`（4426）；**插件集指纹比对**（2026-10-01 rulings §4.23 O-1 引入、本文 2026-10-03 按 §4.24 TA-9 补记，判定本体以 [16 §12](16-ws-protocol-server-view.md) 第 4 项为准）：Auth token 的 `pluginSet.catalog` 与 PluginsModule 的 `PluginSetFingerprinter` 在本进程算出的 `catalog` 不符 → `collab.plugins_outdated`（4426，走版本漂移流程）；`pluginSet.policy` 不符**照常准入**，只在连接上记下「待推 `plugins`」，第 6 步发出。
 2. `AuthorizationSource.resolveRole`：取 max(直接授权, 票据 `lnk` 对应链接此刻的有效角色)，`none` → `collab.forbidden`（4403）；记录 `linkExpiresAt`（rulings §4.18 BE-02）。
 3. 本实例没有该文档（不在 `hp.documents`，此时尚未加载）时做**实例权重准入**（§4.1），不足先对 `draining` 文档调 `hp.unloadDocument` 再重判，仍不足 → `collab.room_full`（4503，客户端重连到其他实例）。
 4. **名额准入**：`MembershipRegistry.admit`（§4.2 Lua），编辑者满 → 以 `viewer` 只读加入并带 `reason:'capacity'`；查看者也满 → `collab.room_full`（4503）。名额先于 `loading` 登记，bootstrap 失败时在 `onLoadDocument` 的 catch 里撤销登记（加载失败不触发 `onDisconnect`）。可写性写入 `connectionConfig.readOnly`（建连时拷贝到 `connection.readOnly`）。
 5. `onAuthenticate` 返回后 Hocuspocus 回 `Authenticated(scope)`；本实例没有该文档 → `onLoadDocument` 进入 `loading`（§3 表）；已有文档直接挂连接。
-6. `connected` 钩子以 `connection.sendStateless` 发 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4），随后发 `room{clients, persist, locked?}`；登记连接（供 `session-sweeper`、`PermissionSync`、停机使用）；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。`connected` 整体 try/catch，失败 `ws.close(1011)`。认证前排队的帧此后才回放。
+6. `connected` 钩子以 `connection.sendStateless` 发 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4）；第 1 步记下 `policy` 不符时紧随其后发 `{type:'plugins', reason:'policy_changed', policy}`（客户端横幅「管理员更新了插件设置，重新加载后生效」，不改读写状态、不断连，[16 §12](16-ws-protocol-server-view.md)）；随后发 `room{clients, persist, locked?}`；登记连接（供 `session-sweeper`、`PermissionSync`、停机使用）；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。`connected` 整体 try/catch，失败 `ws.close(1011)`。认证前排队的帧此后才回放。
 
 **图 5-2 加入房间**
 
@@ -227,8 +228,9 @@ sequenceDiagram
   participant R as RoomExtension onLoadDocument
   A->>AZ: verifyTicket，验签、jti、sid、permVersion；通过即退还 IP 令牌
   A->>PG: 读 documents 的 status、epoch、schema_version、element_count
+  A->>A: 插件指纹比对：catalog 与本部署比，policy 不符只记待推
   A->>AZ: resolveRole，max 直接授权与有效链接角色
-  alt 不存在、trashed、purging、纪元或 schema 不符、无权
+  alt 不存在、trashed、purging、纪元、schema 或插件 catalog 不符、无权
     A-->>A: 抛 reason code，PermissionDenied 后 ws.close 4404、4428、4426 或 4403
   end
   opt 本实例尚无该文档
@@ -244,12 +246,12 @@ sequenceDiagram
     A->>R: Authenticated 之后加载：检查点加增量，必要时迁移
     R->>R: 持 lock:spill:docId 认领遗留溢写，墓碑清扫，document.flush
   end
-  A-->>A: connected：Stateless auth.ok 与 room，clients 与 persist
+  A-->>A: connected：Stateless auth.ok，policy 不符时紧跟 plugins，再发 room
 ```
 
-怎么读：纵线是服务端内部参与方，客户端与 Hocuspocus 本身未画；自上而下是时间。两个 `alt` 只画拒绝或降级分支，未命中时继续往下；两个 `opt` 只在本实例还没有该文档时执行，所以已有 Room 的加入只判名额、不做权重准入与 bootstrap（rulings §4.18 CO-17）。2026-09-26 按 ADR-0039 重画：全部判定在 `onAuthenticate`，加载在 `onLoadDocument`，`auth.ok` 在 `connected`（原图「CollabGateway → RoomManager.attach」作废）。
+怎么读：纵线是服务端内部参与方，客户端与 Hocuspocus 本身未画；自上而下是时间。两个 `alt` 只画拒绝或降级分支，未命中时继续往下；两个 `opt` 只在本实例还没有该文档时执行，所以已有 Room 的加入只判名额、不做权重准入与 bootstrap（rulings §4.18 CO-17）。插件指纹比对一步与握手后的 Stateless `plugins` 为 2026-10-03 按 rulings §4.24 TA-9 补画，顺序与 [16 §12](16-ws-protocol-server-view.md) 一致：catalog 不符与 schema 过新同属 4426，policy 不符不拒绝。2026-09-26 按 ADR-0039 重画：全部判定在 `onAuthenticate`，加载在 `onLoadDocument`，`auth.ok` 在 `connected`（原图「CollabGateway → RoomManager.attach」作废）。
 
-依据：30-architecture/06 §5.2、§6.3、§14；ADR-0029 决策 5；rulings §4.18 BE-02、BE-15、CO-14、CO-16、CO-17。
+依据：30-architecture/06 §5.2、§6.3、§14；ADR-0029 决策 5；rulings §4.18 BE-02、BE-15、CO-14、CO-16、CO-17；§4.23 O-1；§4.24 TA-9。
 
 ### 3.2 内容事实源与首次加载
 
@@ -681,6 +683,7 @@ PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M
 
 - `collabServer.onPersisted(listener)`：每个批量事务提交后回调 `PersistedBatch = {docId, updates: [{seq, userId}], changeSets}`（`userId` 取该行 `document_updates.user_id`，服务端事务为 `null`；[07](07-modules-comments-webhooks-audit.md) 的 `comment.deleted`、`document.edited` 据此记审计主体），**只在执行落库的那个实例触发**（与「只持久化本实例客户端的 update」同一规则），因此订阅方对每个 update 恰好处理一次。服务端事务（修复、恢复、墓碑、迁移）由执行实例落库，同样只触发一次。2026-09-26 起不变：它由写入器的提交回调触发，与 Hocuspocus 的钩子无关（不借 `onChange` 或 `onStoreDocument`）。
 - `CommentMirrorObserver` 只在 collab 注册（rulings §4.18 BE-03），经 `onPersisted` 观察 `resources['comments.threads']` 路径（ResourceHook `comments.threads`，内含 threads、replies 两张实体表；客户端插件为 iso 包 `@cordexjs/comments`，rulings §4.19 D-COMMENTS-PKG；决策 INC-39），upsert 评论镜像、抽取提及、生产 Webhook 投递，并发出 `CONTROL.event{name:'comments.changed', payload:{threadIds}}`——该帧以 `document.broadcastStateless` 发给本实例在线会话，M3 起经 extension-redis 送达其他副本的会话（[16](16-ws-protocol-server-view.md) §3、§11；原「经 `FanoutBus` 扇出」作废）。镜像、提及与 Webhook 的全部设计在 [07](07-modules-comments-webhooks-audit.md)。
+- 评论不是幻灯片内容：ResourceHook `comments.threads` 不进内容插件足迹 `core.pluginFootprint`，单人 preset 或查看器打开带评论的文档时不因缺评论插件弹缺插件横幅，评论数据静默原样保留（rulings §4.24 AL-6；ADR-0050；服务端导出对足迹的处理见 [06 §7.1](06-modules-jobs-import-export-thumbnails.md)）。
 - 审计：门禁拒绝与修复经 `collab-server/update-rejected`、`collab-server/repair` 事件由 AuditModule 订阅；元素彻底删除与快照写动作用 `@Audited`（[07](07-modules-comments-webhooks-audit.md)）。
 
 ## 14. 事件、错误码与指标

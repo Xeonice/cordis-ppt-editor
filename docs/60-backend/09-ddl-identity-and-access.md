@@ -1,5 +1,5 @@
 # 09 DDL：身份与权限
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §14 plugin_policies（0012）、user_plugin_prefs（0013），两表列入 RLS 例外） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §14 plugin_policies（0012）、user_plugin_prefs（0013），两表列入 RLS 例外）；2026-10-03（§4.24：AL-1 `share_links.role` 的 CHECK 与注释删去 `editor`，链接只授予 viewer / commenter；AL-3 `plugin_policies` 只读方删去 renderer；TA-5 `plugin_id` 为 cordis 插件 id） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（约定、角色、RLS 框架、0001 / 0002 / 0095 / 0096）；[10](10-ddl-documents-marks-media.md)（0020 `documents`）；[02](02-auth-chain.md) §3、§4、§7、§10；[03](03-modules-identity-and-access.md)；[40/08](../40-modules/08-server-identity-documents-and-storage.md) §2.1、§2.5、§5.3–§5.6；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md) 2026-09-24 修订；[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-02
 
 > 读者：写 `apps/server/src/db/migrations/` 与 `db/schema/{users,user_identities,permissions,document_perm_versions,share_links}.ts` 的工程师；DBA；安全评审。
 > 定位：身份与权限域五张表（另有 §14 插件策略两张表，2026-10-01）、四个 SECURITY DEFINER 函数与本域 RLS policy 的**唯一 DDL 源**。SQL 围栏首行 `-- migrate: NNNN_<name>` 为可执行迁移，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
@@ -244,7 +244,7 @@ CREATE TABLE share_links (
   CONSTRAINT fk_share_links_created_by FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE RESTRICT,
   CONSTRAINT uq_share_links_token_hash UNIQUE (token_hash),
   CONSTRAINT ck_share_links_token_hash CHECK (octet_length(token_hash) = 32),
-  CONSTRAINT ck_share_links_role CHECK (role IN ('viewer', 'commenter', 'editor')),
+  CONSTRAINT ck_share_links_role CHECK (role IN ('viewer', 'commenter')),
   CONSTRAINT ck_share_links_expiry CHECK (expires_at IS NULL OR expires_at > created_at),
   CONSTRAINT ck_share_links_revoked_at CHECK (revoked_at IS NULL OR revoked_at >= created_at)
 );
@@ -255,14 +255,14 @@ CREATE INDEX ix_share_links_doc_id ON share_links (doc_id, created_at DESC);
 COMMENT ON TABLE share_links IS
   '分享链接：角色叠加令牌，始终要求登录（60/09 §6）。唯一写方 ShareLinksModule；令牌解析只经 SECURITY DEFINER 函数（0033、0034）；撤销与过期行保留至文档永久删除；RLS ENABLE + FORCE（0090）。';
 COMMENT ON COLUMN share_links.token_hash IS 'sha256(令牌) 原始 32 字节；令牌明文只在创建响应出现一次，库里不存';
-COMMENT ON COLUMN share_links.role IS 'viewer | commenter | editor；链接不能造出 owner';
+COMMENT ON COLUMN share_links.role IS 'viewer | commenter；链接不能造出 owner 或 editor，编辑权只经按人邀请（rulings §4.24 AL-1）';
 COMMENT ON COLUMN share_links.expires_at IS '链接到期时刻；永不过期时为 NULL';
 COMMENT ON COLUMN share_links.revoked_at IS '撤销时刻；未撤销时为 NULL；撤销后不可恢复（收紧 = 撤销后新建）';
 ```
 
 | 项 | 内容 |
 |---|---|
-| 用途 | 链接角色的来源；有效链接的角色与直接授权取高（rulings §4.18 BE-02） |
+| 用途 | 链接角色的来源；有效链接的角色与直接授权取高（rulings §4.18 BE-02）；链接只授予 `viewer` / `commenter`，不授予 `editor`（rulings §4.24 AL-1，以设计 [03-08](../20-design/03-screens/08-share-permissions-dialog.md) 为准） |
 | 所属模块与仓储 | 写：ShareLinksModule / `ShareLinkRepository`；只读解析：PermissionsModule / `ShareLinkReader`（只调 §7 的函数） |
 | 读写方 | 写：`CreateShareLinkUseCase`、`RevokeShareLinkUseCase`（`cordex_app`）、参与者 `share-links`（`cordex_system`）。读：`ListShareLinksQuery`（owner）；令牌与链接 id 查询只经 `cordex_share_link_by_token` / `cordex_share_link_status`；`cordex_doc_role` |
 | RLS | ENABLE + FORCE；policy 见 §8 |
@@ -780,7 +780,7 @@ erDiagram
   user_identities { uuid id PK uuid user_id FK text issuer UK "与 subject 联合唯一" text subject UK }
   permissions { uuid id PK uuid doc_id FK uuid principal_id FK text role "owner 行不得设到期" timestamptz expires_at "可空" }
   document_perm_versions { uuid doc_id PK,FK bigint perm_version "只增" }
-  share_links { uuid id PK uuid doc_id FK bytea token_hash UK "sha256，32 字节" text role "不含 owner" timestamptz revoked_at "可空" }
+  share_links { uuid id PK uuid doc_id FK bytea token_hash UK "sha256，32 字节" text role "仅 viewer 或 commenter" timestamptz revoked_at "可空" }
   documents { uuid id PK uuid owner_id FK text status "见 10" }
 ```
 
@@ -815,6 +815,7 @@ erDiagram
 
 - **插件从哪里来不在库里**：可用清单来自部署声明文件与镜像内置（[17](17-deployment-and-config.md) §5.16），部署时校验结果在每个进程启动时由 `PluginCatalog` 重新算出并持有在内存（声明文件不变则结果确定）；被拒插件只经审计 `plugin.rejected` 留痕（[07](07-modules-comments-webhooks-audit.md) §9.5）。库里只存**管理员的决定**与**用户的个人选择**。
 - **无行 = 取声明文件的初始状态**：`plugin_policies` 只在管理员第一次保存某插件时插入；管理员「恢复部署默认」即删除该行。
+- `plugin_id` 一律是 **cordis 插件 id**（[40-modules/16](../40-modules/16-plugin-catalog.md) §2 主表的单元 id；rulings §4.24 TA-5）：preset 条目 id 只是装配别名，「条目 id → 插件 id」对应表由 [50-frontend/03](../50-frontend/03-preset-assembly-and-plugins.md) §11 登记，声明文件、本节两张表与插件集指纹都不使用条目 id。
 - `plugin_id` 不设外键：它引用的是声明文件里的条目，不是库内实体；声明文件移除某插件后，其策略行与个人选择行保留（重新加入时恢复），`GET /admin/plugins` 不再列出。
 
 ### 14.1 plugin_policies（0012）
@@ -842,7 +843,7 @@ CREATE TABLE plugin_policies (
 
 COMMENT ON TABLE plugin_policies IS
   '部署管理员对每个插件的三态策略与非机密配置覆盖（60/09 §14.1，rulings §4.23）。写方 PluginsModule（仅平台管理员，cordex_app）；无行时取声明文件 initial；无 doc_id，RLS 例外（60/08 §6.4）；永久保留。';
-COMMENT ON COLUMN plugin_policies.plugin_id IS '插件 id，与声明文件条目及 cordex-manifest.json 的 id 一致；不设外键（引用的是声明文件条目）';
+COMMENT ON COLUMN plugin_policies.plugin_id IS 'cordis 插件 id（40-modules/16 §2 主表的单元 id），与声明文件条目及 cordex-manifest.json 的 id 一致；不是 preset 条目 id（rulings §4.24 TA-5）；不设外键（引用的是声明文件条目）';
 COMMENT ON COLUMN plugin_policies.state IS 'forced | optional | disabled；内容级插件不得为 optional（应用层按声明文件与清单的 scope 校验，422 server.plugins.policy_invalid）';
 COMMENT ON COLUMN plugin_policies.default_on IS '仅 state=optional 时非空：用户未做个人选择时是否开启；其余状态为 NULL';
 COMMENT ON COLUMN plugin_policies.config IS '非机密配置覆盖（M4，PM-09），须通过插件 Config schema；机密字段只经部署文件提供，从不入库；未覆盖时为 NULL';
@@ -854,7 +855,7 @@ COMMENT ON COLUMN plugin_policies.batch_id IS '最近一次写入所属的保存
 |---|---|
 | 用途 | 管理员三态（强制启用 / 允许用户选择 / 禁用）、可选插件的默认值、插件配置覆盖；`policy` 摘要（插件集指纹第二段，[16](16-ws-protocol-server-view.md) §12）由声明文件初始状态叠加本表算出 |
 | 所属模块与仓储 | PluginsModule / `PluginPolicyRepository`（`plugins/infrastructure/plugin-policy.repository.ts`） |
-| 读写方 | 写：`UpdatePluginPoliciesUseCase`、`UpdatePluginConfigUseCase`（`cordex_app`，经 `PlatformAdminGuard`）。读：`GetPluginCatalogUseCase`、`GetEffectivePluginSetUseCase`（api，`cordex_app`）；collab 的指纹轮询与 worker / renderer 的 headless 内容级集合（`cordex_system`，只读） |
+| 读写方 | 写：`UpdatePluginPoliciesUseCase`、`UpdatePluginConfigUseCase`（`cordex_app`，经 `PlatformAdminGuard`）。读：`GetPluginCatalogUseCase`、`GetEffectivePluginSetUseCase`（api，`cordex_app`）；collab 的指纹轮询与 worker 的 headless 内容级集合（`cordex_system`，只读）。renderer 不连库：worker 算出内容级集合后随 RPC 字段 `contentPlugins` 下发（rulings §4.24 AL-3，[06 §10.3](06-modules-jobs-import-export-thumbnails.md)） |
 | RLS | 例外：部署级管理表，无 `doc_id`；只授 `cordex_system` SELECT |
 | 保留与清理 | 永久保留；「恢复部署默认」删除该行（`cordex_app` DELETE） |
 | 里程碑 | M3（随管理员「能看能改」，rulings §4.23 O-4）；`config` 列 M4 起写入 |
@@ -876,7 +877,7 @@ CREATE TABLE user_plugin_prefs (
 
 COMMENT ON TABLE user_plugin_prefs IS
   '用户对「允许用户选择」的界面级插件的个人启停（60/09 §14.2，rulings §4.23 O-2：服务端按账号保存，跨设备一致）。写方 PluginsModule（本人，cordex_app）；只含插件 id 与开关、不含个人数据，擦除时保留（users 行原地脱敏，UsersModule 保持叶子）；无 doc_id，RLS 例外（60/08 §6.4）。';
-COMMENT ON COLUMN user_plugin_prefs.plugin_id IS '插件 id；管理员把该插件改为 forced / disabled 时本行保留但不生效，改回 optional 时恢复（PM-03）';
+COMMENT ON COLUMN user_plugin_prefs.plugin_id IS 'cordis 插件 id（同 plugin_policies.plugin_id，TA-5）；管理员把该插件改为 forced / disabled 时本行保留但不生效，改回 optional 时恢复（PM-03）';
 COMMENT ON COLUMN user_plugin_prefs.enabled IS '本人的选择；无行时取 plugin_policies.default_on（或声明文件 initial.defaultOn）';
 ```
 

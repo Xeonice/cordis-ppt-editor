@@ -1,6 +1,6 @@
 # 12 DDL：作业与缩略图
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[06](06-modules-jobs-import-export-thumbnails.md) §1（原 30/08 §7）；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §2.1 迁移 0063，`job_runs.kind` 增 SV-13 四种自动化作业、上传来源放宽 `doc_id` 可空，payload / result 形状补四行） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[06](06-modules-jobs-import-export-thumbnails.md) §1（原 30/08 §7）；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
 
 ## 1. 域说明
 
@@ -12,7 +12,7 @@
 | `thumbnails` | ThumbnailsModule（M-12，BC-24） | `ThumbnailsRepository`（`thumbnails/infrastructure/thumbnails.repository.ts`） | `0061_thumbnails` | embedded 封面 M2（由 M2 的导入处理器写入，rulings §4.19 D-M2-CONTENT）；server 缩略图 M3 前半段 |
 | 两表的 RLS | — | — | `0093_rls_jobs_thumbnails` | 随表 |
 
-本文迁移号段为 0060–0069 与 0093（全线分配见 [08 §9](08-db-conventions-roles-rls-migrations.md)），已用 0060、0061、0062、0093；0063–0069 预留给本域后续的 expand 迁移（如 M4 SV-13 新增的作业 kind）。SQL 围栏首行 `-- migrate: NNNN_<name>` 表示按编号在 PG 18 中顺序执行，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
+本文迁移号段为 0060–0069 与 0093（全线分配见 [08 §9](08-db-conventions-roles-rls-migrations.md)），已用 0060、0061、0062、0063（2026-10-03，SV-13 自动化作业 kind，rulings §4.24 AL-7）、0093；0064–0069 预留给本域后续的 expand 迁移。SQL 围栏首行 `-- migrate: NNNN_<name>` 表示按编号在 PG 18 中顺序执行，`-- example` 只做语法解析（[08 §11](08-db-conventions-roles-rls-migrations.md)）。
 
 **图 1-1 本域迁移的依赖顺序**
 
@@ -114,7 +114,7 @@ COMMENT ON COLUMN job_runs.updated_at IS '由仓储在每次更新时写入';
 
 - `ck_job_runs_status` 为五值（依据：决策 MECH-C 之 C-18，authority：rulings §4.18 BE-18、UX-14）；合法迁移由应用层 `canTransitionJobStatus` 把关（[06 §2.2](06-modules-jobs-import-export-thumbnails.md)），DB 用三条状态相关 CHECK（失败必有码、终态必有 `finished_at`、运行或成功必有 `started_at`）守住不可能组合。
 - **不设时间先后 CHECK**：`queued_at` / `started_at` / `finished_at` 由不同进程（api 受理、worker 开工、api 取消）经各自的 Clock 端口写入，多主机时钟偏差或测试中的 FixedClock 都会让「`started_at ≥ queued_at`」偶发不成立，把正常迁移变成约束错误；三列一律由仓储显式写入（DDL 默认值只作兜底），先后关系由状态机保证。
-- `ck_job_runs_doc_scoped`：当前四种 kind 都有文档作用域（新建导入用预分配 id），`doc_id` 保持可空只为 M4 可能出现的无文档作业（如独立格式转换）留位，届时以 expand 迁移放宽。
+- `ck_job_runs_doc_scoped`：0060 的四种 kind 都有文档作用域（新建导入用预分配 id），`doc_id` 保持可空为无文档作业留位；2026-10-03 由 0063 放宽：自动化 `convert` / `validate` / `migrate` 的上传来源无文档作用域（§2.1，原「M4 再放宽」作废）。
 - `attempt_of` 用 `ON DELETE SET NULL`（已登记在 [08 §2](08-db-conventions-roles-rls-migrations.md) 的例外表）：`job-runs-prune` 按时间删除终态行时，较新的重试行可能还引用较旧的失败行，RESTRICT 会让清理作业卡住；链条断开只损失排障线索，不影响正确性。
 
 `payload` 与 `result` 的形状（zod schema 在 `jobs/domain/`，DB 只保证是 JSON 对象）：
@@ -125,6 +125,46 @@ COMMENT ON COLUMN job_runs.updated_at IS '由仓储在每次更新时写入';
 | `export` | `{sourceRef, snapshotId?, headSeq?, format: 'pptx'}` | `{stage, objectKey?, bytes?, sha256?, expiresAt?, expired?, errorDetails?}` |
 | `render-export` | `{sourceRef, format, pages?, width?, quality?}` | 同 `export`，另加 `pageCount?` |
 | `document-purge` | `{reason: 'permanent_delete' \| 'trash_expired' \| 'erasure'}`（与 [07 §9.2](07-modules-comments-webhooks-audit.md) `document.purge_scheduled` 同名） | 只作观测，形状以 [04 §4.5](04-modules-documents-storage-media.md) 为准：`{step, roomClosedAt?, done[], attempt, objectVersionsDeleted?, errorDetails?}` |
+
+### 2.1 自动化作业 kind（0063，2026-10-03，rulings §4.24 AL-7）
+
+SV-13 的四种作业随 M3 交付（[06 §7.4](06-modules-jobs-import-export-thumbnails.md)），复用 `job_runs` 作为镜像与 outbox，不新建表、不加列：本迁移只放宽两条 CHECK——`kind` 增加 `fill-template`、`convert`、`validate`、`migrate`；`convert` / `validate` / `migrate` 的来源可以是上传文件，此时没有文档作用域，`doc_id` 允许为空（`fill-template` 的模板即文档，仍要求 `doc_id`）。这正是 §2 约束说明里为「无文档作业」预留可空 `doc_id` 的用途。按本文号段说明，0063 是本域第一个 expand 迁移；基线冻结前它与 0060 同批执行，结果与把 CHECK 直接写进 0060 相同。
+
+```sql
+-- migrate: 0063_job_runs_automation_kinds
+-- 执行者：cordex_migrator。SV-13 四种自动化作业（60/06 §7.4）；只改 CHECK，不加列、不动数据
+ALTER TABLE job_runs
+  DROP CONSTRAINT ck_job_runs_kind,
+  ADD CONSTRAINT ck_job_runs_kind
+    CHECK (kind IN ('import', 'export', 'render-export', 'document-purge',
+                    'fill-template', 'convert', 'validate', 'migrate'));
+
+ALTER TABLE job_runs
+  DROP CONSTRAINT ck_job_runs_doc_scoped,
+  ADD CONSTRAINT ck_job_runs_doc_scoped
+    CHECK (doc_id IS NOT NULL
+           OR kind NOT IN ('import', 'export', 'render-export', 'document-purge', 'fill-template'));
+
+COMMENT ON COLUMN job_runs.doc_id IS '作业作用的文档；新建导入为预分配 docId；自动化 convert / validate / migrate 的上传来源为空（0063）；刻意不设外键，文档永久删除后行保留';
+```
+
+```sql
+-- example
+-- 上传来源的 convert 作业：无文档作用域，只有创建者可见（RLS 的 created_by 分支，§5）
+INSERT INTO job_runs (id, kind, doc_id, created_by, idempotency_key, payload, traceparent)
+VALUES ($1, 'convert', NULL, $2, $3, $4, $5)
+ON CONFLICT (idempotency_key) WHERE status NOT IN ('failed', 'cancelled') DO NOTHING
+RETURNING id;
+```
+
+| kind | `payload` | `result` |
+|---|---|---|
+| `fill-template` | `{sourceRef, snapshotId?, headSeq?, format: 'pptx' \| 'pdf', batchId, clientRef?, data, contentPlugins}`（`data` 为单项占位符数据，图片值只存 sha256） | `{stage, objectKey?, bytes?, sha256?, expiresAt?, expired?, batchId, clientRef?, unmatched?, errorDetails?}` |
+| `convert` | 文档来源 `{source: 'doc', sourceRef, to, pages?, width?, contentPlugins}`；上传来源 `{source: 'upload', sourceKey, sha256, byteSize, to, pages?, width?, contentPlugins}` | 同 `render-export`；`to = 'markdown'` 时无 `pageCount` |
+| `validate` | 来源同 `convert`，无 `to` | `{stage, report: {ok, errors, warnings, fidelityCounts?}, reportKey?, expiresAt?, expired?, errorDetails?}` |
+| `migrate` | 来源同 `convert`，另带 `targetSchemaVersion` | `{stage, fromSchemaVersion, toSchemaVersion, objectKey?, expiresAt?, expired?, errorDetails?}` |
+
+形状的事实源仍是 `jobs/domain/` 的 zod schema（[06 §7.4](06-modules-jobs-import-export-thumbnails.md)）；`contentPlugins = {policy, ids[]}` 是受理时的内容级插件集（06 §7.1），2026-10-03 起导入、导出与 render-export 的 `payload` 同样携带它。
 
 ## 3. `job_runs` 索引与典型语句
 
@@ -427,7 +467,7 @@ CREATE POLICY p_thumbnails_system_all ON thumbnails
 | 读方 | `GET /jobs/:id`、`GET /exports/:jobId`（api）；reconciliation 与清理作业（worker）；document-purge 处理器（进度写 `result`） |
 | RLS | ENABLE + FORCE；app 读本人或有文档角色的行、只能新建与取消；系统作业全权（§5） |
 | 保留与清理 | 终态行 `finished_at` 早于 `retention.jobRunsDays`（默认 90 天）由 `job-runs-prune` 删除，导出行须已 `expired`、导入行须已 `sourceDeleted`；**不**参与文档永久删除（无外键，行在文档删除后保留，FK-POLICY）；用户擦除不删行，`created_by` 仍指向原地脱敏的用户（C-24） |
-| 体量 | 每次导入、导出、永久删除一行；90 天窗口内预计 < 10⁶ 行，不分区 |
+| 体量 | 每次导入、导出、永久删除一行，自动化每项数据一行（单批 ≤ 100）；90 天窗口内预计 < 10⁶ 行，不分区 |
 | 里程碑 | 表 M1；业务写入 M2 |
 
 **`thumbnails`**
@@ -464,7 +504,7 @@ erDiagram
   }
   job_runs {
     uuid id PK "同时是 BullMQ jobId"
-    text kind "import、export、render-export、document-purge"
+    text kind "导入、导出、render-export、purge 与自动化四种"
     uuid doc_id "可空，无外键"
     uuid created_by FK
     text status "五值，三个终态"
@@ -511,7 +551,7 @@ erDiagram
 
 | # | 断言 | 执行 |
 |---|---|---|
-| 1 | 0060、0061、0062、0093 在空的 PG 18 库中按编号顺序执行成功（2026-09-25 于 `cordex-ddl-pg` 连同 08–13 全部 `migrate` 围栏重跑通过）；本文 `-- example` 段全部可解析 | `docs/_tools/ddl-check`（总编排实现）；[70-testing/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试 |
+| 1 | 0060、0061、0062、0063、0093 在空的 PG 18 库中按编号顺序执行成功（2026-09-25 于 `cordex-ddl-pg` 连同 08–13 全部 `migrate` 围栏重跑通过）；本文 `-- example` 段全部可解析 | `docs/_tools/ddl-check`（总编排实现）；[70-testing/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试 |
 | 2 | 两表均 `ENABLE` + `FORCE` RLS，且不在 `policy/rls-exceptions.json` 例外表中 | `scanners/check-rls-coverage` |
 | 3 | §5 RLS 测试矩阵逐格成立（含链接过期、撤销、未设 `app.system_job` 以及同一连接上一事务设过作业名的负向格）；`pg_policy` 中两表的表达式不含 `current_setting` | 70/07 §5，`e2e/smoke` 的 security-rls |
 | 4 | 100 个并发事务以同一幂等键插入，只有 1 行成功；把该行改为 `failed` 或 `cancelled` 后同键可再插入 | 70/07 §11，`test/server-integration` |

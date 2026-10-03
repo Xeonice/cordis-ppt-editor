@@ -1,5 +1,5 @@
 # 10 DDL：文档、用户记账与媒体
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：§7 注明分享链接最高只叠加到 commenter，不构成配额函数要求的 editor） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025
 
 本文是 `documents`、`document_user_marks`、`media_blobs`、`document_media` 四张表、一个存储用量函数与本域 RLS policy 的唯一事实源。命名、主键、时间列、外键默认策略、数据库角色、GUC 与迁移纪律见 [08](08-db-conventions-roles-rls-migrations.md)；这些表背后的用例、事务边界与永久删除编排见 [04](04-modules-documents-storage-media.md)。
 
@@ -460,7 +460,7 @@ COMMENT ON FUNCTION cordex_storage_usage(uuid) IS '存储配额汇总（决策 G
 为什么要 `SECURITY DEFINER`：存储配额按文档 **owner** 计量（决策 G-09），而发起上传的可能是 editor，他在 RLS 下看不到 owner 的其它文档，直接汇总会少算、形成绕过；api 角色又只有 `cordex_app` 连接池（决策 DB-ROLES），不能改用系统角色。函数因此以属主 `cordex_migrator` 的视角汇总，但把暴露面压到最小：
 
 - 只返回三个数字（owner、owner 用量、部署总量），不返回任何行；
-- 带 `doc_id` 时要求调用者对该文档持 owner 或 editor（经 `cordex_doc_role`，分享链接叠加的 editor 同样算）；不带参数时只能查自己名下；
+- 带 `doc_id` 时要求调用者对该文档持 owner 或 editor（经 `cordex_doc_role`；分享链接最高只叠加到 commenter，不构成 editor，rulings §4.24 AL-1）；不带参数时只能查自己名下；
 - 按 DB-ROLES 加固：`SET search_path = pg_catalog, pg_temp`、函数体内全部 schema 限定（本文假定业务表在 `public`，以 [08](08-db-conventions-roles-rls-migrations.md) §1 为准）、`REVOKE EXECUTE FROM PUBLIC`、只授 `cordex_app`（系统作业不做配额检查）。
 
 口径：owner 用量 = owner 名下非 `purging` 文档的 `size_bytes` 之和 + 这些文档关联的 `media_blobs.byte_size`（按 blob 去重）；部署总量 = 全部 `size_bytes` + 全部 `media_blobs.byte_size`。部署总量是两次全表求和，M3 规模下为毫秒级；规模上来后可改为周期汇总缓存，口径不变。`documents` 维度（文档数）不走本函数：owner 在 RLS 下看得到自己名下的全部文档（`owner_id` 不变量），直接计数即可（§11）。

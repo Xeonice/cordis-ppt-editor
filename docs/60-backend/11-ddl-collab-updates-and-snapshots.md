@@ -1,5 +1,5 @@
 # 11 DDL：协同更新与版本快照
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：`document_updates.update` 存 Yjs V1 字节（0042 表注释同步改）、`client_id` 取 Auth token 的 `clientId`、`session_id` 取连接会话号；§5 调用点改 Hocuspocus `beforeSync`、组提交「空闲即刷、上限 100 ms / 50 条」、取号 0 行先 `ws.close` 再抛错）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025、ADR-0039；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：`document_updates.update` 存 Yjs V1 字节（0042 表注释同步改）、`client_id` 取 Auth token 的 `clientId`、`session_id` 取连接会话号；§5 调用点改 Hocuspocus `beforeSync`、组提交「空闲即刷、上限 100 ms / 50 条」、取号 0 行先 `ws.close` 再抛错）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：RLS 行为矩阵「有效角色 ≥ editor」注明只来自直接授权） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025、ADR-0039；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06、§4.21
 
 本文是 `document_snapshots`、`document_updates` 两张表的唯一事实源：建表语句、约束、索引、RLS、读写方、保留与清理都以本文为准。写入这两张表的只有 M-09（CollabModule 的 `PgUpdateStore`、`PgSnapshotStore`），运行机制（批量写、压缩、溢写回放、恢复、墓碑清扫）见 [05](05-modules-collab-and-snapshots.md)。
 
@@ -435,7 +435,7 @@ CREATE POLICY p_document_updates_system_all ON document_updates
 
 | 会话 | `document_snapshots` 读 | 写 / 删 | `document_updates` 读 | 写 / 删 |
 |---|---|---|---|---|
-| `cordex_app`，有效角色 ≥ editor（含有效链接） | 该文档全部行 | 拒绝（无 GRANT） | 该文档全部行 | 拒绝 |
+| `cordex_app`，有效角色 ≥ editor（只来自直接授权；链接最高 commenter，rulings §4.24 AL-1） | 该文档全部行 | 拒绝（无 GRANT） | 该文档全部行 | 拒绝 |
 | `cordex_app`，有效角色为 viewer 或 commenter | 该文档全部行 | 拒绝 | 0 行 | 拒绝 |
 | `cordex_app`，无授权或链接已撤销 / 过期 | 0 行 | 拒绝 | 0 行 | 拒绝 |
 | `cordex_system`，未设作业名（含连接复用后的空串） | 0 行 | 拒绝 | 0 行 | 拒绝 |

@@ -1,5 +1,5 @@
 # 13 性能预算与分包
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：§6 chunk 地图补登新依赖——形状库 sprite、插入图标、图表底层 d3 与数据网格、htmlparser2、内嵌字体解压、harfbuzz wasm、MathJax、离线库；编辑器基线与协同增量估算更新；新增图 6-2；§4 的 update 大小与键入合并两行随 Hocuspocus 帧与 provider 合并改写）；2026-09-26（§4.21 整合：§6 查看器基线计入 @cordexjs/xml；形状库缩略图改为 path 数据模块（与 40/10、50/22 一致）；harfbuzz 区分 shaping 与 subset wasm；新增 opentype.js 惰性行；§8 主线程解析经 drive 分片）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA、§4.21（q-chart-route、q-extra-inserts、q-license-tiers、H:q-hp-provider）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：§6 chunk 地图补登新依赖——形状库 sprite、插入图标、图表底层 d3 与数据网格、htmlparser2、内嵌字体解压、harfbuzz wasm、MathJax、离线库；编辑器基线与协同增量估算更新；新增图 6-2；§4 的 update 大小与键入合并两行随 Hocuspocus 帧与 provider 合并改写）；2026-09-26（§4.21 整合：§6 查看器基线计入 @cordexjs/xml；形状库缩略图改为 path 数据模块（与 40/10、50/22 一致）；harfbuzz 区分 shaping 与 subset wasm；新增 opentype.js 惰性行；§8 主线程解析经 drive 分片）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（§4.24 TA-8：图表渲染器惰性 chunk 不再计入 @tanstack/react-table，数据网格归 ui-react `DataGrid`） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA、§4.21（q-chart-route、q-extra-inserts、q-license-tiers、H:q-hp-provider）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)
 
 本文是前端性能 **target** 与分解、chunk 地图与惰性边界的唯一事实源。**gate**（门禁值）只来自 PRD NF-01 与 EM-07，本文表格里出现的 gate 数字只是引用，冲突时以 PRD 为准；怎么测、怎么判、在哪个 CI 步骤跑归 [70/09](../70-testing/09-performance-and-capacity.md)；服务端 target 归 [60/01](../60-backend/01-service-overview-and-roles.md) 的预算总览；体积扫描器的实现归 40/01。
 
@@ -198,7 +198,7 @@ gzip，初始加载，不含字体与 peer 依赖（React 本体）。gate 来�
 | 协同增量 | store-yjs + yjs、collab 三包、lib0 / y-protocols、@hocuspocus/provider、在场 UI 与评论（`comments` 包及 slide-ui 的评论贡献，M3 装入，rulings §4.19 D-COMMENTS-PKG） | ≤ 200 KB | ≈ 150 KB；@hocuspocus/provider 4.7.0 连同 common 与 @lifeomic/attempt 约 10 KB（gzip -9 实测，未最小化），自研传输代码相应减少（M2 实测回填） | 叠加在编辑器之上 | 打开服务端文档（M2 起一律协同快照，rulings §4.19 D-M2-CONTENT） | M2（在场 UI 与 `comments` 部分 M3） |
 | 导入 Worker | ooxml-core + ooxml-pptx 导入管线 | 计入所属 preset 基线（40/11 §3.4 的 ooxml 行） | — | 基线 | 本地字节打开时创建；协同打开不加载 | M1 |
 | 当前语言包 | `options.locale` 对应的语言包 | ≤ 30 KB | — | 单独校验，不计基线 | 与首屏并行加载 | M1 |
-| 图表渲染器 | M1–M2 `@cordexjs/slide-render/chart`，M3 起 `slide-render-chart`：d3-scale、d3-shape、d3-array（约 30 KB）+ 自研 OOXML 布局 + numfmt；M3 另含数据网格（@tanstack/react-table 9 + shadcn Table）与内嵌 xlsx 写出器（ADR-0036） | ≤ 400 KB | — | 惰性 | 首个 `render/element-degraded{reason:'chart-unavailable'}`；`charts.enabled: false` 时永不加载 | M1 |
+| 图表渲染器 | M1–M2 `@cordexjs/slide-render/chart`，M3 起 `slide-render-chart`：d3-scale、d3-shape、d3-array（约 30 KB）+ 自研 OOXML 布局 + numfmt；M3 另含内嵌 xlsx 写出器（ADR-0036）。数据网格（@tanstack/react-table 9 + shadcn Table）只在 ui-react 通用 `DataGrid`，随 ui-react 计入编辑器侧，不算进本 chunk（[01](01-overview-and-runtime-map.md) §1a，rulings §4.21、§4.24 TA-8；slide-render-chart 不 import react，ADR-0036 决策 6） | ≤ 400 KB | — | 惰性 | 首个 `render/element-degraded{reason:'chart-unavailable'}`；`charts.enabled: false` 时永不加载 | M1 |
 | 其他语言包 | 每个 | ≤ 30 KB | — | 惰性 | `i18n/locale-changed` | M1 |
 | 查看器可选件 | 缩略图条 / 备注抽屉 / 搜索 | ≤ 20 / 10 / 15 KB | — | 惰性 | 对应选项为 true 时 `manual` 激活 | M1 / M2 |
 | 放映 UI | slide-ui 放映舞台与控制条 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'presenter'}`、F5、`/documents/:id/present` | M2 |
@@ -265,13 +265,14 @@ flowchart LR
   subgraph editorBase["编辑器基线 ≤ 900 KB"]
     uiNew["react-colorful、colord、react-hook-form、use-sync-external-store"]
     railNew["@tanstack/react-virtual、pragmatic-drag-and-drop"]
+    grid["ui-react DataGrid：@tanstack/react-table，M3"]
   end
   subgraph collabInc["协同增量 ≤ 200 KB"]
     hp["@hocuspocus/provider，约 10 KB"]
   end
   subgraph chartLazy["图表渲染器 ≤ 400 KB，惰性"]
     d3["d3-scale、d3-shape、d3-array，约 30 KB"]
-    grid["@tanstack/react-table 与 xlsx 写出器，M3"]
+    xlsx["内嵌 xlsx 写出器，M3"]
   end
   subgraph otherLazy["其余惰性 chunk：只报告"]
     sprite["形状库缩略图 path 数据，M2"]
@@ -287,7 +288,7 @@ flowchart LR
   d3 -. "chart-unavailable 触发" .-> viewerBase
 ```
 
-怎么读：左上两块是会进首屏的新依赖（编辑器基线估算 ≈ 810 KB、协同增量加约 10 KB），其余新依赖全部惰性；查看器基线本轮一项不加——内嵌字体解压虽然属于 ooxml-core，也必须在导入 Worker 内动态加载，否则就会越过 350 KB。
+怎么读：左上两块是会进首屏的新依赖（编辑器基线估算 ≈ 810 KB、协同增量加约 10 KB），其余新依赖全部惰性；数据网格只在 ui-react 的 `DataGrid`（M3 起随编辑器侧计量），不进图表渲染器 chunk（rulings §4.24 TA-8）；查看器基线本轮一项不加——内嵌字体解压虽然属于 ooxml-core，也必须在导入 Worker 内动态加载，否则就会越过 350 KB。
 依据：[17](17-reuse-and-dependency-catalog.md) §2–§13；ADR-0036；rulings §4.21 q-chart-route、q-extra-inserts、q-license-tiers。
 
 **门禁机制**（依据：T-BUNDLE）

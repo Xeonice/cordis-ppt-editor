@@ -1,5 +1,5 @@
 # 10 编辑器外壳与画布交互
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入页签分组统一、超链接改 M2 P1、表格 M2 可插入；selectionKind 补四类；新增插入工具态与元素手柄；快捷键逐条对齐 ED-16）；2026-09-26（§4.21 整合：§5 文本分区补链接、自动调整与渐变描边字，degraded 分区扩为对象说明、替代文本与后续动作，迷你工具条补 table-cell、chart 与 degraded 口径，内容占位符补「重置为占位符框」；§7.1 组合编辑的键盘等价；§7.4 插入工具态视觉按设计样张、浮层不退出文本编辑）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§5 的 `table` / `table-cell` 两行按 50/24 §2.7 与设计 03-30 §6 重写（边框、行高列宽归 `table-cell`）；§7.5 表格的 8 个缩放手柄改为 M3 起，M2 只有选中框与移动）；2026-09-30（§4.22 设计待决收口：§4 表格网格悬停范围 8 行 × 10 列、对话框上限待性能评估，公式按钮样式定稿；§5 `placeholder-empty` 改为占位符 / 位置与大小 / 插入到占位符三组，M2 单元格选区出文本条；§7.3 迷你工具条画在屏幕坐标浮层；§7.4 表格、图表、图片先填空内容占位符）；2026-09-30（§4.22 复核修正：§5「只读」补表格、图表分区锁定形态例外（FE-06）；§7.4 图表插入后改为展开检查器「数据」分区；§12.1 新增 V21 插入落点 Q1 用例） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[50/19](19-insertable-elements-overview.md)、[50/22](22-elements-shapes-and-lines.md)；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)、[04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-10、ED-11、ED-12、ED-16、ED-18、ED-19、ED-21、ED-22、ED-27、ED-28、ED-29、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15、§4.21（R-d-61、R-d-62、R-d-67、R-d-72、q-table-depth、q-media-insert、q-extra-inserts）
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.20 FE-08）；2026-09-26（§4.21：插入页签分组统一、超链接改 M2 P1、表格 M2 可插入；selectionKind 补四类；新增插入工具态与元素手柄；快捷键逐条对齐 ED-16）；2026-09-26（§4.21 整合：§5 文本分区补链接、自动调整与渐变描边字，degraded 分区扩为对象说明、替代文本与后续动作，迷你工具条补 table-cell、chart 与 degraded 口径，内容占位符补「重置为占位符框」；§7.1 组合编辑的键盘等价；§7.4 插入工具态视觉按设计样张、浮层不退出文本编辑）；2026-09-30（§4.21 剩余缺口样张回写 · 复核修正：§5 的 `table` / `table-cell` 两行按 50/24 §2.7 与设计 03-30 §6 重写（边框、行高列宽归 `table-cell`）；§7.5 表格的 8 个缩放手柄改为 M3 起，M2 只有选中框与移动）；2026-09-30（§4.22 设计待决收口：§4 表格网格悬停范围 8 行 × 10 列、对话框上限待性能评估，公式按钮样式定稿；§5 `placeholder-empty` 改为占位符 / 位置与大小 / 插入到占位符三组，M2 单元格选区出文本条；§7.3 迷你工具条画在屏幕坐标浮层；§7.4 表格、图表、图片先填空内容占位符）；2026-09-30（§4.22 复核修正：§5「只读」补表格、图表分区锁定形态例外（FE-06）；§7.4 图表插入后改为展开检查器「数据」分区；§12.1 新增 V21 插入落点 Q1 用例）；2026-10-03（§4.24 设计线对齐审计：§1 账户菜单按 `platformRole='admin'` 增「管理」入口（AS-06）；§10.2 快捷键冲突条目跳个人插件面板冲突态 `?state=conflict`、高亮相关插件并给「为我关闭」（PM-11）；§11 横幅清单补缺少插件与插件设置已更新两类插件横幅（排在「其他」档、与版本漂移合并、两类并存先缺插件）、状态栏插件入口三种文字与缩略图警示计数；§12 同步） | 依赖：[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.5、§2.6、§5.3、§5.4、§11、§13；[50/19](19-insertable-elements-overview.md)、[50/22](22-elements-shapes-and-lines.md)；[设计 01](../20-design/01-information-architecture.md) §2、§3、§5–§7；[设计 09](../20-design/09-design-specification.md) §3、§4；[设计 02](../20-design/02-user-flows.md) F2；设计 03-screens [02](../20-design/03-screens/02-editor-main.md)、[03](../20-design/03-screens/03-properties-panel.md)、[11](../20-design/03-screens/11-present-mode.md)、[17](../20-design/03-screens/17-selection-alignment-and-snapping.md)、[20](../20-design/03-screens/20-view-zoom-and-navigation.md)、[23](../20-design/03-screens/23-settings-panel.md)、[24](../20-design/03-screens/24-keyboard-shortcuts-panel.md)、[04](../20-design/03-screens/04-insert-menu.md)、[15](../20-design/03-screens/15-insert-menu-and-shape-library.md)、[18](../20-design/03-screens/18-image-editing.md)；[30/07](../30-architecture/07-rendering.md) §7、§8；[PRD 02](../10-prd/03-features/02-editing.md) ED-01、ED-05、ED-08、ED-09、ED-10、ED-11、ED-12、ED-16、ED-18、ED-19、ED-21、ED-22、ED-27、ED-28、ED-29、ED-30；[PRD 08](../10-prd/03-features/08-app-shell.md) AS-06；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q14 / Q15 / Q19 / Q20、§4.18 UX-06 / UX-07 / UX-19 / UX-20、§4.19、§4.20 FE-02 / FE-06 / FE-08 / FE-10 / FE-12 / FE-15、§4.21（R-d-61、R-d-62、R-d-67、R-d-72、q-table-depth、q-media-insert、q-extra-inserts）
 
 本文是**编辑器外壳与画布交互的行为语义**唯一事实源：`<EditorHost>` 由哪些区域组成、布局状态怎样记忆并随断点变化、模式 × 角色 × 断点下界面怎样变化，以及 Ribbon、检查器、缩略图栏、画布选择与拖拽、缩放导航、放映舞台、命令面板与设置抽屉的交互规则和反馈分层。尺寸、材质与线框以 [设计 09](../20-design/09-design-specification.md) §3–§4、03-screens 与 playground `#/editor` 为准；本文写状态机与规则。
 
@@ -43,7 +43,7 @@
 - 左侧：「← 返回首页」（`onNavigateBack` → `/home`）· 文档名（点击内联重命名，提交走 `onRename`，与「⋯ → 重命名」同一路径）· 撤销 / 重做（仅编辑模式，绑定 `core.undo` / `core.redo`，tooltip 带下一步名称，[04](04-document-commands-and-undo.md) §5）· 保存 / 同步态（与状态胶囊同一数据源，[07](07-collaboration-client.md) §3）。
 - 右侧顺序固定（rulings §4.10 Q14）：在场头像堆叠（有 `presence` 服务时，M3）· 竖分隔 · 「分享」（`doc.manage`，打开 `/documents/:id/share`，M3）· 模式下拉（§3）· 「⋯」更多 · 账户头像。
 - 「⋯」（rulings §4.10 Q20）自上而下：导出…（`Mod+E`）/ 保真报告 / 版本历史 / 插件管理器 / 分隔 / 重命名 / 创建副本 /（开发者，仅开发构建或 `features.developerMenu`）；全部由 `preset-slide#shell-glue` 以 `appBar.more` 贡献、点击发 Operation `shell.intent`，宿主处理见 [03](03-preset-assembly-and-plugins.md) §8。
-- 账户头像 `UserMenu`（28 px，无在场环，PRD AS-06）：姓名与邮箱、设置（`Mod+,`，**唯一入口**，§10.3）、键盘快捷键（`Mod+/`）、帮助中心、退出登录（`onSignOut` → apps/web 登出流程，[02](02-app-shell-routing-and-session.md) §10.2；嵌入场景无回调时提示「由宿主应用管理登录」）。
+- 账户头像 `UserMenu`（28 px，无在场环，PRD AS-06）：姓名与邮箱、设置（`Mod+,`，**唯一入口**，§10.3）、键盘快捷键（`Mod+/`）、「管理」（仅 `Session.principal.platformRole === 'admin'` 时渲染，位于「键盘快捷键」与「帮助中心」之间，盾牌图标、右侧弱化小字「插件」，点击进 `/admin/plugins`；`member` 不显示、不占位，嵌入场景宿主未提供平台角色时不显示；PRD AS-06、PM-01，设计 03-32 §1，守卫见 [02](02-app-shell-routing-and-session.md) §2.1；2026-10-03，rulings §4.24）、帮助中心、退出登录（`onSignOut` → apps/web 登出流程，[02](02-app-shell-routing-and-session.md) §10.2；嵌入场景无回调时提示「由宿主应用管理登录」）。
 - 母版视图追加 `appBar.badges`：「母版视图」与「改动将影响 N 页」两个徽标（[11](11-masters-layouts-and-themes.md) §4）。侧栏或检查器收起时应用栏补 `PanelLeft` / `PanelRight` 打开按钮。
 
 **Ribbon 区域位的尾部区**（`RibbonTrailing`，rulings §4.20 FE-08）自左至右：`ViewModeSwitch`「普通 | 母版」（只在编辑模式且母版入口可用时渲染，不可用时不留空位，[11](11-masters-layouts-and-themes.md) §3）· `ThemeToggle`（界面亮 / 暗，个人偏好，[09](09-ui-system-and-theming.md) §3）· 「?」（`CircleHelp`，tooltip「帮助与快捷键（⌘/）」，打开快捷键面板，§10.2）。
@@ -567,7 +567,7 @@ stateDiagram-v2
 
 - **三个等价入口**（rulings §4.10）：Ribbon 区域位尾部区的「?」（编辑模式在页签行右侧，评审与只读浏览在评审工具条或只读细条右端，§1）、账户菜单「键盘快捷键」、`Mod+/`；`Sheet side="right"`，关闭即返回打开它的页面，不遮挡画布，可以对照面板在画布上操作。
 - **数据**：`shortcuts.table(keys)`（`ui.shortcut` 注册结果，含插件）；按作用域分组：全局 · 画布 · 文本编辑 · 缩略图栏 · 视图 · 放映，插件分组在末尾并带归属；搜索即时过滤，空分组隐藏；和弦按平台显示（⌘ ⌥ ⇧ 或 Ctrl Alt Shift）。
-- **冲突**：加载期 `ui/shortcut-conflict` 检出的条目下追加「与〈插件〉冲突」与「查看插件管理器」，不隐藏冲突。
+- **冲突**：加载期 `ui/shortcut-conflict` 检出的条目下追加「与『插件：〈插件名〉』冲突」与「查看插件管理器」，不隐藏冲突。「查看插件管理器」打开个人插件面板的冲突态 `/documents/:id/plugins?state=conflict`（对话框路由，[02](02-app-shell-routing-and-session.md) §2）：面板顶部说明冲突键、双方与当前生效方，相关插件行高亮；冲突一方是允许用户选择的界面级插件时，高亮行给「为我关闭」，关闭即热卸载该插件（[03](03-preset-assembly-and-plugins.md) §5.1），它的快捷键随之注销，冲突标记在下次打开本面板时消失；双方都不可由用户关闭时写「请联系管理员」（设计 03-24「冲突标记」、03-09 §4.4，PRD PM-11；2026-10-03，rulings §4.24）。不提供改键。
 - **只读速查**：不提供自定义快捷键入口（重映射是集成方能力，PRD ED-16）；与命令面板职责不同，不合并。
 
 ### 10.3 设置抽屉
@@ -638,10 +638,10 @@ stateDiagram-v2
 
 | 层 | 组件与位置 | 用于 | 不用于 | 读屏 |
 |---|---|---|---|---|
-| 横幅 | `Alert` 玻璃横幅，应用栏下方（`--layer-sticky`），占文档流 | 影响数据安全或连接完整性的状态：重连中、离线、已恢复、登录已过期、访问权限被收回、名额已满、会话隔离、「发现新版本」、CSRF 被拒、发起方「未保存到服务器 N 项」、锁定期间有更改被拒（文案「文档正忙」）、换纪元后「N 项更改未提交」（覆盖导入即换纪元，rulings §4.19 N1；文案与导出流程见 [07](07-collaboration-client.md) §8.2、§9） | 插件失败、软冲突、面板加载失败、一般命令失败 | 需要立即注意者 `role="alert"`，其余 `status` |
+| 横幅 | `Alert` 玻璃横幅，应用栏下方（`--layer-sticky`），占文档流 | 影响数据安全或连接完整性的状态：重连中、离线、已恢复、登录已过期、访问权限被收回、名额已满、会话隔离、「发现新版本」、CSRF 被拒、发起方「未保存到服务器 N 项」、锁定期间有更改被拒（文案「文档正忙」）、换纪元后「N 项更改未提交」（覆盖导入即换纪元，rulings §4.19 N1；文案与导出流程见 [07](07-collaboration-client.md) §8.2、§9）；以及「其他」档的两类插件横幅：缺少插件（[04](04-document-commands-and-undo.md) §1.1）、插件设置已更新（[02](02-app-shell-routing-and-session.md) §12），见下方规则 10 | 插件运行时失败（走状态栏插件入口）、软冲突、面板加载失败、一般命令失败 | 需要立即注意者 `role="alert"`，其余 `status`；两类插件横幅为 `status`、polite、不抢焦点 |
 | Toast | sonner（`--layer-toast`），固定在不承载表单的角落 | 命令结果与可撤销操作：失败带「重试」、可逆操作带「撤销」、版式不匹配、配额被拒、从快捷键或命令面板触发的权限不足 | 需要持续可见的状态 | 一般 `status`，错误 `alert` |
 | FieldError | 字段下方内联 | 检查器与对话框字段的校验错误 | 命令级失败 | 经 `aria-describedby` 关联字段 |
-| 状态胶囊 | 底部 `StatusBar` | 常驻状态与弱提示：保存 / 同步、页码与选区、配额软警告、插件健康、「吸附已临时关闭」、「已更新 N 页」、其余协作者的「服务器保存延迟」、文档锁定时的「文档正忙」+ 锁形（导入或迁移，[07](07-collaboration-client.md) §8.1） | 需要用户动作的事件 | `role="status"`，polite |
+| 状态胶囊 | 底部 `StatusBar` | 常驻状态与弱提示：保存 / 同步、页码与选区、配额软警告、插件健康（状态栏插件入口，三种文字见规则 10）、「吸附已临时关闭」、「已更新 N 页」、其余协作者的「服务器保存延迟」、文档锁定时的「文档正忙」+ 锁形（导入或迁移，[07](07-collaboration-client.md) §8.1） | 需要用户动作的事件 | `role="status"`，polite |
 
 选用规则：
 
@@ -654,6 +654,13 @@ stateDiagram-v2
 7. **错误码 → 层**的映射在 [15](15-events-errors-and-telemetry.md) §4.3，文案取 `errors.<code>.{title, action}`。
 8. **时长**：Toast 默认 3.5 s，带操作 5 s（`UiReactConfig.toastDurationMs`）；横幅在条件消失后滑出，「已恢复」3 s 后自动滑出。
 9. **放映中**不弹出横幅与 Toast，状态照常由会话维护，退出放映后在编辑器按上述规则出现（设计 03-11）。
+10. **插件横幅**（2026-10-03，rulings §4.24；设计 03-02「插件横幅」、03-09 §6，PRD PM-08、PM-12）：画在编辑器工具卡里、Ribbon 上方，与其它横幅同一通道，非阻断、`role=status`、不抢焦点，画布与 Ribbon 照常可用。
+   - **两类**：缺少插件（`warning`，拼图图标；打开文档时足迹比对发现插件已停用、本部署没有或版本过旧，每个文档每会话一次；按钮「查看详情」·（管理员）「去管理 › 插件」· ×）；插件设置已更新（`info`，刷新图标；管理员保存策略后在线会话 ≤ 60 s 内收到控制消息；按钮「重新加载」（先 flush 再刷新）· ×「稍后再说」）。
+   - **排序**：归入规则 1 的末档「其他」，排在连接、权限 / 文档状态、服务器保存之后；更高档的横幅在场时插件横幅让位，等它消失再出现，缺插件横幅让位期间不算已展示（本会话仍出现一次）。两类插件横幅同时成立时先显示缺少插件。
+   - **与版本漂移合并**：「插件设置已更新」与「发现新版本」同时成立时合并为一条，以版本漂移的文案与动作为准（[02](02-app-shell-routing-and-session.md) §12，PRD 07 G-87）。
+   - **状态栏插件入口**（拼图图标 + 文字的圆角按钮，`aria-label`「〈文案〉，打开插件面板」）：「插件正常」（默认前景色）/「N 个插件启动失败」（`destructive`）/「本文档缺少插件」（`warning`，无失败时）；点击打开个人插件面板（[03](03-preset-assembly-and-plugins.md) §9 第 3 条、§10）。
+   - **画布与缩略图**：缺插件负责的元素以占位显示（虚线框 + 插件名 + 原因 +「内容已保留」），缩略图对应页显示警示计数（取足迹比对结果中该页受影响的元素数，[04](04-document-commands-and-undo.md) §1.1 的 `affectedSlideIds`）。
+   - 评审模式与只读浏览同样显示两类横幅；查看器 preset 只显示占位与一行说明（[12](12-viewer-embedding-and-render-page.md)）。评论数据缺 `comments` 插件不算缺插件（rulings §4.24 AL-6，[04](04-document-commands-and-undo.md) §1.1）。
 
 **图 10-7 反馈通道的选用**
 
@@ -714,14 +721,15 @@ flowchart TB
 | V19 | `selectionKind` 新增 `table`、`chart`、`media`、`placeholder-empty` 各自出现 §5 所列分区；有内容的占位符不得派生为 `placeholder-empty` | `slide-ui/__tests__/selection-kind.test.ts`、`inspector-spec.test.ts` | `test/unit` |
 | V20 | 默认快捷键与 §10.4 逐条一致：ED-16 每一行都有登记条目，和弦与作用域相符；冲突行（`Mod+E`）在裁决前由 `ui/shortcut-conflict` 报出而不静默 | `slide-ui/__tests__/shortcuts.test.ts` | `test/unit` |
 | V21 | 插入落点（§7.4，rulings §4.22 Q1）：插入页签、命令面板插入表格、图表、图片时，页上有空内容占位符（`obj` 或同类 `tbl` / `chart` / `pic`）→ 发 `slide.fillPlaceholder`、保留 `p:ph`，已选中的空占位符优先于阅读序第一个；没有空占位符才按默认落点发 `slide.insertTable` / `insertChart` / `insertPicture`；图标、音视频不按阅读序自动填入，只在选中了空内容占位符时填入它（§7.4 原口径，与 [19](19-insertable-elements-overview.md) §3.2 一致）；一次插入一个撤销步，撤销后占位符恢复为空 | `slide-ui/__tests__/insert-tool.test.ts`；`editing/insert-tools.spec.ts`（[70/06](../70-testing/06-frontend-component-and-e2e.md) §5 第 26 行） | `test/unit`；`e2e/full-compose` |
+| V22 | 插件横幅（规则 10，2026-10-03）：更高档横幅在场时插件横幅让位、消失后再出现且缺插件横幅仍出一次；两类插件横幅并存时先缺插件；「插件设置已更新」与版本漂移并存时只出版本漂移一条；状态栏插件入口按「N 个插件启动失败」>「本文档缺少插件」>「插件正常」取文字；缩略图警示计数与足迹比对一致；`platformRole='admin'` 时账户菜单有「管理」、`member` 无；快捷键面板冲突条目跳 `?state=conflict` 并高亮相关插件 | `ui-react/__tests__/banner-priority.test.tsx`；`shell/account-menu.spec.ts`；个人插件面板 e2e（[70/06](../70-testing/06-frontend-component-and-e2e.md)） | `test/unit`；`e2e/full-compose` |
 
 ### 12.2 里程碑
 
 | 里程碑 | 交付 |
 |---|---|
 | M1 | `<EditorHost>` 挂载与三栏壳；开始页签；检查器「位置与大小」可编辑；指针与键盘管线；点选与一次拖拽一次命令；基础缩放（40/10 §11 的 M1 切片） |
-| M2 | 全部内置页签（切换页签只读）；评审模式与模式下拉；缩略图栏拖拽与键盘等价、隐藏页、节标题；紧凑与仅查看断点；智能参考线、吸附、对齐分布（PRD ED-09）；迷你工具条；插入页签七组、插入工具态与形状库 72 项（§4、§7.4）、元素手柄（缩放 / 旋转 / 端点 P0，调整 / 连接点 / 裁剪 P1，§7.5）、超链接（P1）、表格插入与单元格文字、`selectionKind` 四个新增取值的分区（§5）、默认快捷键逐条登记（§10.4）；缩放导航与视图事件；放映舞台含黑屏 / 白屏（PRD ED-21）；命令面板、快捷键面板、设置抽屉；反馈分层与「未保存到服务器」分级提示（协同后端提前到 M2，rulings §4.19 D-M2-CONTENT） |
-| M3 | 只读浏览变体（UX-19）；多人协同体验层：在场头像、缩略图协作者标记、放映跟随（rulings §4.19）；检查器「评论」页签与评论钉（`comments` 包，rulings §4.19 D-COMMENTS-PKG）；「历史」页签；备注编辑（PRD ED-18）；表格结构与样式分区、图表插入与 `chart` 分区及其工具条（§4.21）；肘形与曲线连接符重算（ED-28 M3）；图标与符号插入（P2） |
+| M2 | 全部内置页签（切换页签只读）；评审模式与模式下拉；缩略图栏拖拽与键盘等价、隐藏页、节标题；紧凑与仅查看断点；智能参考线、吸附、对齐分布（PRD ED-09）；迷你工具条；插入页签七组、插入工具态与形状库 72 项（§4、§7.4）、元素手柄（缩放 / 旋转 / 端点 P0，调整 / 连接点 / 裁剪 P1，§7.5）、超链接（P1）、表格插入与单元格文字、`selectionKind` 四个新增取值的分区（§5）、默认快捷键逐条登记（§10.4）；缩放导航与视图事件；放映舞台含黑屏 / 白屏（PRD ED-21）；命令面板、快捷键面板、设置抽屉；反馈分层与「未保存到服务器」分级提示（协同后端提前到 M2，rulings §4.19 D-M2-CONTENT）；缺插件横幅、状态栏插件入口三种文字与缩略图警示计数（§11 规则 10，PRD PM-12 M2） |
+| M3 | 只读浏览变体（UX-19）；多人协同体验层：在场头像、缩略图协作者标记、放映跟随（rulings §4.19）；检查器「评论」页签与评论钉（`comments` 包，rulings §4.19 D-COMMENTS-PKG）；「历史」页签；备注编辑（PRD ED-18）；表格结构与样式分区、图表插入与 `chart` 分区及其工具条（§4.21）；肘形与曲线连接符重算（ED-28 M3）；图标与符号插入（P2）；「插件设置已更新」横幅及其与版本漂移的合并、账户菜单「管理」入口、快捷键冲突跳面板冲突态并「为我关闭」（§1、§10.2、§11 规则 10，rulings §4.23、§4.24） |
 | M4+ | 触控编辑（ED-27）；演讲者视图（ED-21 P2）；切换效果的编辑与播放 |
 
 ### 12.3 待确认与回写

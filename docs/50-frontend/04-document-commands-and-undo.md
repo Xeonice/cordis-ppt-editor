@@ -1,5 +1,5 @@
 # 04 客户端文档模型、命令与撤销
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-01（§4.23 插件管理：新增 §1.1 内容插件足迹 `core.pluginFootprint` 的写入（同事务并入、只增不减）、打开时比对与降级提示；§11 V13–V14、§12、§13 同步） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)；rulings §4.23 O-3
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-01（§4.23 插件管理：新增 §1.1 内容插件足迹 `core.pluginFootprint` 的写入（同事务并入、只增不减）、打开时比对与降级提示；§11 V13–V14、§12、§13 同步）；2026-10-03（§4.24 设计线对齐审计：§1 打开失败补 `format.unsupported_binary`（OF-02）；§1.1 写明评论不进足迹、带评论的文档静默保留不出横幅（AL-6）；§2 补打开 URL 与断点续传的落点（OF-23）；§12 同步） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)；rulings §4.23 O-3
 
 本文是**浏览器中文档模型、命令与撤销的运行侧行为**的唯一事实源：Unit 在浏览器中的生命周期、渐进打开的 UI 行为、命令入口与结果分流、历史策略、协同撤销语义的 UI 表达（不简化）、墓碑在客户端的可见性与「彻底删除元素」入口、保存与离开保护、剪贴板管线、规模守卫的编辑期 UI。
 
@@ -33,7 +33,7 @@
 | `empty` | 本地或集成方新建（`documentType.createEmpty()`，首页为标题版式）；apps/web 服务端文档的新建改走服务端导入（[02 §8](02-app-shell-routing-and-session.md)） | 一次性 `load` | 随 preset | M2 |
 
 - **Provider 由 preset 决定**（[03](03-preset-assembly-and-plugins.md)）：`preset-slide-viewer` 用 `store-memory` 且 `history.limit = 0`（无撤销）；`preset-slide` 用 `store-memory`，`history.limit = 200`；`preset-slide-collab` 用 `store-yjs`。两者同一契约、同一中性撤销语义（rulings §4.15 Q3），切换只改 preset 配置（PRD CO-11）。
-- **打开失败**（`unit/open-failed(unitId, code, stage)`）：`format.no_document_type`、`format.quota_exceeded`（超系统天花板，§2）、`format.encrypted`、`format.macro_rejected`、`format.pptx.invalid_package`、迁移缺链等，编辑器页进入错误态，文案取 `errors.<code>`；失败时 Fiber 已 dispose，不留半个 Unit。
+- **打开失败**（`unit/open-failed(unitId, code, stage)`）：`format.no_document_type`、`format.quota_exceeded`（超系统天花板，§2）、`format.unsupported_binary`（旧二进制 `.ppt` 等非 OOXML 容器，只读文件头即拒绝，≤ 100 ms，PRD OF-02；检查位置见 [14](14-client-security.md) §7）、`format.encrypted`、`format.macro_rejected`、`format.pptx.invalid_package`、迁移缺链等，编辑器页进入错误态，文案取 `errors.<code>`；失败时 Fiber 已 dispose，不留半个 Unit。
 - **未注册的 ResourceHook 命名空间**：打开的 Snapshot 或 Y 状态里带有当前 preset 未注册的资源命名空间时（例如单人 preset 打开含 `comments.threads` 的文档，[03](03-preset-assembly-and-plugins.md) §3），数据原样保留、随 Snapshot / Y 状态往返与导出，不渲染、不可编辑；`validateSnapshot` 对未注册命名空间只校验其为合法 JSON，不报错。
 - **关闭**：`units.close(unitId)` → 协同时先 `Session.leave()`（内含 5 s `flush`，[07 §6](07-collaboration-client.md)）→ `fiber.dispose()` 逆序运行 effect（MediaCache 回收 blob URL、Worker 终止、`ProgressiveImport.cancel()`）→ `unit/closed`。路由离开时由 HostRegistry 调用（[02 §6](02-app-shell-routing-and-session.md)）。
 
@@ -72,6 +72,7 @@ stateDiagram-v2
 
 - 事务提交前，管线检查本事务写入的元素 `kind` 与资源命名空间；属于某个内容级插件、而足迹里还没有该插件或记录的 `minVersion` 低于本会话装配的版本时，把足迹更新**并入同一事务**——协作者收到的是一个包含足迹更新的原子变更，不会出现「有数据、无足迹」的中间态。
 - **只增不减**：撤销不回退足迹（足迹写入不单独占撤销栈，也不因撤销被移除）；删除该插件的全部元素也不清掉足迹条目。多记一条的代价只是打开时多一次比对。
+- **评论不进足迹**（2026-10-03，rulings §4.24 AL-6；ADR-0050 决策 1）：`comments` 插件虽按作用域判定为内容级，但评论不是幻灯片内容，`comments.*` 命名空间不进「kind / 命名空间 → 内容级插件」映射，写评论不产生足迹条目。单人 preset 与查看器打开带评论的文档时，`comments.threads` 按上一条「未注册命名空间」静默原样保留，比对结果里没有 `comments`，不弹缺插件横幅、状态栏插件入口不变为「本文档缺少插件」（与 [08](08-comments-and-version-history.md) §2「未装时评论数据原样保留」一致）。
 - 界面级插件不进足迹（它们不产生文档写入，PM-13 第 3 条）；内置的 `model-slide` 等内核必需条目也写足迹，但在任何部署中都是强制启用，比对恒为正常。
 - 只读会话（查看者、评审者）不产生写入，因此也不写足迹。
 
@@ -141,6 +142,8 @@ flowchart TB
 | 当前页内的形状、文本、页属性编辑 | 不受影响 | — |
 | 缩略图栏 | 未装载页显示骨架；页数显示「共 N 页（正在载入）」 | [10 §6](10-editor-shell-and-interaction.md) |
 | 保存（单人） | 可保存；首批上的编辑标脏，追加批次不标脏；导出型保存同样等待 `whenLoaded` | §8 |
+
+**打开 URL 与断点续传**（PRD OF-23，P2，M2；2026-10-03 按 rulings §4.24 补落点）：这是集成方能力，字节来自集成方的存储（EM-04），不新增 `source.kind`。集成方把 URL（或取 URL 的存储回调）交给 SDK 的取字节助手，助手在主线程用 `fetch` 下载，服务器支持时按 `Range` 分块（可选），每块失败重试 3 次、指数退避，下载进度并入 `unit/open-progress`（作为第 1 步之前的下载阶段，阶段名待 [40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) 批次协议登记），拿到完整 `ArrayBuffer` 后按 `source:{kind:'bytes'}` 进入上面第 1 步；下载期间可取消，取消即中止请求、不创建 Unit。大小上限沿用 [14](14-client-security.md) §7 的 `fileSize`：有 `Content-Length` 时下载前判定，没有时累计字节超限即中止并返回 `format.quota_exceeded{dimension:'fileSize'}`。助手的包归属与签名待 40/02 登记；apps/web 的服务端文档走协同快照（§1），不经此路径，开始页也不提供「从 URL 打开」入口。
 
 进度 UI 订阅 `unit/open-progress{stage, pct}`；首帧前显示加载骨架，首帧后只在状态胶囊显示「正在载入其余页面 x%」，不阻挡编辑。预算（RM-A p75：D50 ≤ 1.5 s、D200 ≤ 3.0 s 首屏；主线程最长任务 ≤ 50 ms）以 [13](13-performance-and-bundling.md) 为准。
 
@@ -515,7 +518,7 @@ flowchart TB
 | 里程碑 | 交付 |
 |---|---|
 | M1 | 查看器：`bytes` 打开与 Worker 渐进打开、`unit/loaded`、打开失败错误态；`historyLimit 0` |
-| M2 | 编辑：命令入口与结果分流、历史策略、撤销 / 重做 UI、剪贴板（同文档与纯文本 / 图片 / HTML 取纯文本）、规模守卫 UI、墓碑读路径过滤与选区收敛；本地文档的单人保存与离开保护（§8.1）；apps/web 服务端文档经协同快照持久化（§8.2，rulings §4.19 D-M2-CONTENT），协同离开保护与导出「等待同步」（§8.3）；内容插件足迹写入与打开时比对、缺插件横幅（§1.1，PRD PM-12 M2） |
+| M2 | 编辑：命令入口与结果分流、历史策略、撤销 / 重做 UI、剪贴板（同文档与纯文本 / 图片 / HTML 取纯文本）、规模守卫 UI、墓碑读路径过滤与选区收敛；本地文档的单人保存与离开保护（§8.1）；apps/web 服务端文档经协同快照持久化（§8.2，rulings §4.19 D-M2-CONTENT），协同离开保护与导出「等待同步」（§8.3）；内容插件足迹写入与打开时比对、缺插件横幅（§1.1，PRD PM-12 M2）；打开 URL 与断点续传（§2，PRD OF-23 P2） |
 | M3 | 多人协同体验层：协同撤销语义的 UI 表达（撤销跳过提示条）、恢复记录与两个恢复命令、「最近删除」与「彻底删除元素」、跨文档粘贴（P1）；足迹比对区分管理员停用与未安装（§1.1） |
 | M4 | 离线持久化后的离开保护文案改写（[07 §7](07-collaboration-client.md)） |
 

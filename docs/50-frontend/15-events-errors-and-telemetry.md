@@ -1,6 +1,6 @@
 # 15 客户端事件、错误与遥测
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：traceparent 的载体由 CONTROL.auth 改为 Auth 帧 token JSON（§6.2、图、V13、里程碑行））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§2 plugin 行增 `plugin/policy-changed`、`plugin/user-toggled`、`plugin/missing-in-document` 与诊断事件 `plugin/scope-violation`；§6 错误上报附插件集指纹；§8 镜像表与 §11 V14、里程碑同步） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：traceparent 的载体由 CONTROL.auth 改为 Auth 帧 token JSON（§6.2、图、V13、里程碑行））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§2 plugin 行增 `plugin/policy-changed`、`plugin/user-toggled`、`plugin/missing-in-document` 与诊断事件 `plugin/scope-violation`；§6 错误上报附插件集指纹；§8 镜像表与 §11 V14、里程碑同步）；2026-10-03（§4.24：§4 错误码去向补 `format.unsupported_binary`（OF-02）） | 依赖：30-architecture/10 §1–§5、§11；PRD 05 EM-05/EM-12/EM-13；PRD 06；PRD 04 NF-11；ADR-0011、ADR-0030；rulings §5、§4.11 C-24/C-25、§4.17 D5、§4.18 BE-30/UX-02、§4.20 FE-10/FE-16；60-backend/18
 
 本文是浏览器侧事件、错误与遥测的唯一事实源：三类事件的边界、前端发布者与订阅者、宿主事件桥、浏览器中的错误模型与错误边界、客户端错误上报管线、OTel Web、产品事件的前端发布方、同意与默认、诊断。命名规则、日志字段与脱敏规则、错误码格式与 HTTP / WS 映射、公开事件定稿表留在 [30/10](../30-architecture/10-observability-and-errors.md)（§1–§3、§11.1）；`/telemetry/*` 控制器、限流、Collector 路由、服务端 span 与指标统一名表归 [60/18](../60-backend/18-observability-and-ops-endpoints.md)；产品事件清单的权威是 [PRD 06](../10-prd/06-metrics-and-analytics.md) §3.2，本文只登记前端发布方。
 
@@ -195,6 +195,7 @@ flowchart LR
 | `permission.denied` | Toast「需要编辑权限」（ui-react `permission-denied` 模板） |
 | `document.quota_exceeded` | Toast，带 `dimension` 与上限，命令被拒、连接保持 |
 | `format.quota_exceeded` / `format.limit_exceeded` | 导入失败态，带上限与实际值 |
+| `format.unsupported_binary` | 导入失败态：「不支持旧版 .ppt 二进制格式，请在 PowerPoint 中另存为 .pptx 后再导入」（PRD OF-02；2026-10-03，rulings §4.24） |
 | `format.encrypted` / `format.macro_rejected` | 导入失败态：「文件已加密，请先去除密码后再导入」/「请另存为 .pptx 后再导入」 |
 | `storage.quota_exceeded` | 上传或新建失败对话框 |
 | `collab.room_full` | 横幅「协作人数已满」；是否降为只读或排队重试由 50/07 的会话状态机决定 |

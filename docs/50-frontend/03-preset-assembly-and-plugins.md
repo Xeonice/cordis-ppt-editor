@@ -1,5 +1,5 @@
 # 03 预设装配与前端插件模型
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§5 按部署策略与个人选择装配、新增 §5.1 每会话插件集与 `compute-exclude`；§9 第 6、7 条改为部署预置与同源加载；§10 改写为个人插件面板与管理员页的数据流；§13 里程碑按 PRD 09 §4）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[02 应用壳](02-app-shell-routing-and-session.md)、[30/03 内核与插件模型](../30-architecture/03-kernel-and-plugin-model.md) §3、§5–§10、[ADR-0005](../30-architecture/adr/0005-unit-scope-via-isolate.md)、[ADR-0006](../30-architecture/adr/0006-contribution-point-as-sole-registry.md)、[ADR-0010](../30-architecture/adr/0010-preset-vs-loader-composition.md)、[ADR-0015](../30-architecture/adr/0015-single-execution-entry-and-non-executable-mutations.md)、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3、§6、§8、[40/16](../40-modules/16-plugin-catalog.md) §4–§5、[40/17](../40-modules/17-plugin-authoring-patterns.md) §2.5、[设计 06 可扩展性](../20-design/06-extensibility-ux.md)、PRD PS-02/PS-07/PS-09/PS-11、EM-01/EM-08、[rulings](../00-charter/rulings-2026-09-14.md) §4.20 FE-01、§4.23；[PRD 09 插件管理](../10-prd/03-features/09-plugin-manager.md) PM-01…PM-16
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§5 按部署策略与个人选择装配、新增 §5.1 每会话插件集与 `compute-exclude`；§9 第 6、7 条改为部署预置与同源加载；§10 改写为个人插件面板与管理员页的数据流；§13 里程碑按 PRD 09 §4）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」）；2026-10-03（§4.24 设计线对齐审计：§8 个人插件面板改为对话框路由（AL-2）；§5.1 `computeExclude` 按依赖闭包上推界面级插件（TA-6）；§9 第 3 条降级表达按设计 06 §3 改写；§10 补个人面板冲突态与管理员页前端状态（草稿与保存条、依赖 / 互斥计算、空 / 加载 / 失败态、PM-06 / PM-09 / PS-13 数据来源）；§11 增条目 id → 插件 id 对应表（TA-5）；§13.3 删去过时的「样张确认后回写」）；2026-10-03（§4.24 收尾：§10.1 依赖 / 互斥计算与详情抽屉改用 60/15 §3.15.1 字段名，`policy-draft.ts` 改为 40/11 §4.4 已登记，§13 状态行同步） | 依赖：[01 前端总览](01-overview-and-runtime-map.md)、[02 应用壳](02-app-shell-routing-and-session.md)、[30/03 内核与插件模型](../30-architecture/03-kernel-and-plugin-model.md) §3、§5–§10、[ADR-0005](../30-architecture/adr/0005-unit-scope-via-isolate.md)、[ADR-0006](../30-architecture/adr/0006-contribution-point-as-sole-registry.md)、[ADR-0010](../30-architecture/adr/0010-preset-vs-loader-composition.md)、[ADR-0015](../30-architecture/adr/0015-single-execution-entry-and-non-executable-mutations.md)、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3、§6、§8、[40/16](../40-modules/16-plugin-catalog.md) §4–§5、[40/17](../40-modules/17-plugin-authoring-patterns.md) §2.5、[设计 06 可扩展性](../20-design/06-extensibility-ux.md)、PRD PS-02/PS-07/PS-09/PS-11、EM-01/EM-08、[rulings](../00-charter/rulings-2026-09-14.md) §4.20 FE-01、§4.23；[PRD 09 插件管理](../10-prd/03-features/09-plugin-manager.md) PM-01…PM-16
 
 本文是浏览器侧「插件如何被组装成可运行产品」的唯一事实源：三档 preset 的定位与派生、装配运行时的行为、条目缺席的用户可见结果、惰性边界、组合根 `create-editor-host`、root ctx 与 UnitScope 的服务分布、前端贡献点与冲突策略、壳意图、第三方 UI 插件合同、插件管理器数据流、评论插件的装配位置、doc / sheet 参数化点。
 
@@ -211,7 +211,8 @@ sequenceDiagram
 装配什么由**部署策略 + 本人选择**决定，不由界面决定。`create-editor-host` 在调用 preset 工厂前取本会话插件集：
 
 - **来源**：`application/plugins/plugin-set.ts` 调 `GET /api/v1/users/me/plugins`（[60/15](../60-backend/15-rest-api-catalog.md) §3.15），得到 `{ fingerprint: { catalog, policy }, plugins: [{ id, version, scope, source, entry?, state, enabled, defaultOn? }] }`。响应按账号保存（O-2），浏览器只在内存中缓存本标签页的一份；个人选择的事实源在服务端，换设备一致。未登录的 `/render` 与嵌入宿主不走此路径。
-- **计算**：`domain/plugins/compute-exclude.ts` 是纯函数 `computeExclude(presetEntries, pluginSet): ReadonlySet<PluginId>`——保留集合 = 内容级集合（`scope:'content'` 且 `state:'forced'`）∪ 强制界面级（`scope:'ui'` 且 `state:'forced'`）∪ 本人开启的可选界面级（`state:'optional'` 且 `enabled`）；`exclude` = preset 默认条目 − 保留集合。`state:'disabled'` 与部署级被拒的插件不出现在响应里，自然被排除。
+- **计算**：`domain/plugins/compute-exclude.ts` 是纯函数 `computeExclude(presetEntries, pluginSet): ReadonlySet<PluginId>`——保留集合 = 内容级集合（`scope:'content'` 且 `state:'forced'`）∪ 强制界面级（`scope:'ui'` 且 `state:'forced'`）∪ 本人开启的可选界面级（`state:'optional'` 且 `enabled`）；`exclude` = preset 默认条目 − 保留集合。`state:'disabled'` 与部署级被拒的插件不出现在响应里，自然被排除。响应里的 `id` 是 cordis 插件 id，与 preset 条目 id 的换算按 §11.1 对应表（rulings §4.24 TA-5）。
+- **依赖闭包上推**（2026-10-03，rulings §4.24 TA-6）：保留集合算出后，再从其中每个内容级条目出发，沿 manifest 的必需 `inject` 找到提供该服务的条目；提供者是界面级时把它并入保留集合，重复到不动点。被上推的界面级插件**视同强制启用**：不得出现在 `exclude` 里，个人插件面板把它归入「本部署统一启用」、不给开关，管理员页对它的「禁用 / 用户选择」在客户端依赖计算中同样不可选（§10.1）。不这样做，内容级插件会因缺服务长期停在 `PENDING`，协作者之间的内容集合就不再一致。按 [40/16](../40-modules/16-plugin-catalog.md) §2 当前的作用域判定，命中这条规则的是 `ui-react`（内容级）必需注入的 `ui` / `shortcuts` / `theme`（由界面级 `ui-core` 提供）与 `i18n`（界面级 `i18n` 提供）：只要 `ui-react` 在内容级集合里，`ui-core` 与 `i18n` 就不可排除；`slide-ui`、`shell-glue` 等界面级插件不被任何内容级插件必需注入，仍可按策略排除。形态 B（[12](12-viewer-embedding-and-render-page.md) §7）由嵌入宿主自己把 `ui-react` 与 `slide-ui` 一并排除，不经本路径。服务端保存策略时的同口径校验以 [60/03](../60-backend/03-modules-identity-and-access.md) §12 为准。
 - **指纹**：`fingerprint` 原样交给 `collab` 选项，随协同握手 Auth token 上送为 `pluginSet`（[07](07-collaboration-client.md) §2）；同时进入错误上报的公共字段（[15](15-events-errors-and-telemetry.md) §6）。
 - **失败**：取插件集失败（网络、5xx）时重试一次，仍失败则按「镜像内置默认组成」装配并在个人插件面板顶部提示「未能读取插件设置，已按默认组成打开」；不阻断打开文档。协同会话随后若因 `catalog` 不符被 4426 关闭，按版本漂移处理（[02](02-app-shell-routing-and-session.md) §12）。
 - **个人启停即时生效**（O-1）：在个人插件面板切换可选界面级插件时，先 `PUT /api/v1/users/me/plugins/:pluginId`，成功后在当前 host 上 `host.plugin(entry)` 挂载或对其 Fiber `dispose()`（卸载后贡献消失、无残留，PS-06 第 2 项），不重建 host、不刷新页面、不改指纹；请求失败时开关回弹并 toast。只有界面级插件能走这条路径：作用域判定保证它们不贡献 Mutation 与带写能力位的命令（PM-02、PM-13）。
@@ -346,7 +347,7 @@ interface UnitsService {
 | `export` | 导出…（`Mod+E`） | 开 | 打开对话框路由 `/documents/:id/export` |
 | `fidelity-report` | 保真报告 | 开 | 导航 `/documents/:id/fidelity` |
 | `version-history` | 版本历史 | 开 | 导航 `/documents/:id/history`；缺 `history.read` 时 toast 说明（`CapabilityGuard` 兜底） |
-| `plugin-manager` | 插件管理器（即个人插件面板，PRD PM-10；2026-10-01 §4.23） | 开 | 导航 `/documents/:id/plugins`；管理员另见「去管理 › 插件」链接（§10） |
+| `plugin-manager` | 插件管理器（即个人插件面板，PRD PM-10；2026-10-01 §4.23） | 开 | 打开对话框路由 `/documents/:id/plugins`（居中 Dialog，布局继承父路由，与导出、分享同一模式，rulings §4.24 AL-2）；管理员另见「去管理 › 插件」链接（§10） |
 | `rename` | 重命名 | 开 | 应用栏标题进入内联编辑（与 `onRename` 同一路径） |
 | `duplicate` | 创建副本 | 开 | 端点登记前 `apps/web` 传 `moreMenu.duplicate:false`，该项不贡献（[02](02-app-shell-routing-and-session.md) §13.3） |
 | `developer` | 开发者 | `import.meta.env.DEV \|\| features.developerMenu` | 打开开发者面板（[15](15-events-errors-and-telemetry.md) §10；rulings §4.12 U-16） |
@@ -362,7 +363,7 @@ interface UnitsService {
 
 1. **两种贡献形态**：声明式（按 `kind` 使用 ui-react 默认控件，零框架代码，形态 B 下也能被宿主自绘）；组件式（`ComponentRef<P>`，React 绑定下即 `React.ComponentType<P & SlotProps>`，只在装了 `ui-react` 时渲染）。
 2. **逐项隔离**：每个贡献由 `ContributionRenderer` 包一层 ErrorBoundary；组件抛错只替换该项为降级表达，`plugin/failed` 不冒泡到壳；Fiber 级失败（`apply` 抛错）由 kernel 隔离（30/03 §8）。
-3. **降级表达**（设计 06 §3）：页签唯一贡献方失败 → 整个页签不渲染；部分分组失败 → 只缺该分组；已打开的面板 → 错误卡片（「该面板不可用」+ 错误摘要 + 重试 / 禁用）；未打开的面板 → 检查器页签隐藏；状态栏项 → 淡出移除；覆盖层 → 停止渲染；任意失败 → 状态栏「插件」图标转 warning 并显示失败数，点击进入插件管理器并预筛「启动失败」。
+3. **降级表达**（设计 06 §3；2026-10-03 按 rulings §4.24 改写）：页签唯一贡献方失败 → 整个页签不渲染（不留空页签）；部分分组失败 → 只缺该分组；已打开的面板 → 内容区换成错误卡片（图标 +「该面板不可用」+ 错误摘要 +「重试」；插件是允许用户选择的界面级插件时另有「为我关闭」，否则写「如持续失败，请联系管理员」，与个人插件面板同口径）；未打开的面板 → 检查器坞页签隐藏；状态栏项 → 以 `--duration-fast` 淡出移除、不留空位；覆盖层 → 停止渲染，不影响其他覆盖层与画布；任意数量失败 → 状态栏插件入口（拼图图标 + 文字）改为 `destructive` 色「N 个插件启动失败」，点击打开个人插件面板，失败行排在「本部署统一启用」最前（不再预筛「启动失败」）；打开的文档缺少插件（[04](04-document-commands-and-undo.md) §1.1）→ 入口改为 `warning` 色「本文档缺少插件」；无失败、无缺插件时入口文字为「插件正常」。横幅与入口的优先级见 [10](10-editor-shell-and-interaction.md) §11。
 4. **归属标识**：来源判定 = 贡献所属插件 id 不在当前 preset 的默认条目集合中即为第三方（ui-core 视图模型对照 `PresetReport.entries[*].id` 得出 `origin: 'builtin' | 'third-party'`）；第三方项按设计 06 §4 显示 16 px 插件图标与「由 <插件名> 提供」，内置项不带标识。
 5. **可访问性**：组件式贡献须在 ui-react `testing` 的 `axeCheck` 夹具下零违规（插件作者模板自带该用例）；焦点、键盘与 ARIA 规则同内置组件（[16](16-i18n-and-accessibility.md)）。
 6. **信任模型**：同源可信、无运行时沙箱（章程 §2.3）；第三方代码只在部署时经签名或审核记录校验后进入部署（PRD PM-05）。贡献清单（「该插件将新增：2 个 Ribbon 按钮、1 个面板」）在**管理员**首次把第三方插件从「禁用」改为启用时的确认卡里展示（PM-06），普通用户不再看到首次启用确认（2026-10-01 §4.23 裁决 1、2；原口径「启用前向用户展示」作废）。第三方页签 `order ≥ 1000`，排在内置页签之后（[10](10-editor-shell-and-interaction.md) §4）。
@@ -394,7 +395,7 @@ flowchart TB
 
 2026-10-01 按 rulings §4.23 改写：原「插件管理器页只读 host、M4 起在此页启停第三方插件」作废。插件管理分两处（PRD PM-06、PM-10）：
 
-- **个人插件面板**（`/documents/:id/plugins`，即 PS-11 所称「扩展」面板与原插件管理器页；设计承接 03-09 重写稿，2026-10-01 样张已确认）：三分组「本部署统一启用」（只读，徽标「由管理员统一」）、「我的界面插件」（开关，M3）、「本文档缺少的插件」（足迹比对触发时出现，[04](04-document-commands-and-undo.md) §1.1）；对本会话失败的插件任何人可重试。
+- **个人插件面板**（对话框路由 `/documents/:id/plugins`，居中 Dialog、布局继承父路由，[02](02-app-shell-routing-and-session.md) §2，rulings §4.24 AL-2；即 PS-11 所称「扩展」面板与原插件管理器页；设计承接 03-09 重写稿）：三分组「本部署统一启用」（只读，徽标「由管理员统一」）、「我的界面插件」（开关，M3）、「本文档缺少的插件」（足迹比对触发时出现，[04](04-document-commands-and-undo.md) §1.1）；对本会话失败的插件任何人可重试。四个入口（应用栏「⋯ › 插件管理器」、状态栏插件入口、快捷键面板冲突条目、缺插件横幅「查看详情」）打开同一个对话框；带 `?state=conflict` 时进入冲突态：顶部 `warning` 说明块（`role=status`）写明冲突键、双方与当前生效方，相关插件行高亮并给「为我关闭」，冲突一方不可由用户关闭时改写「请联系管理员」（设计 03-09 §4.4，PRD PM-11）；从缺插件横幅进入时「本文档缺少的插件」分组置顶。
 - **管理员插件页**（`/admin/plugins`，[02](02-app-shell-routing-and-session.md) §2；设计承接 03-32，2026-10-01 样张已确认）：清单、八种部署级状态、三态控件与锁定、详情、依赖与互斥、变更确认卡；只经 REST，不读 host。
 
 | 数据 | 来源 | 呈现 |
@@ -410,6 +411,7 @@ flowchart TB
 
 - **个人面板的动作**：`FAILED` 条目「重试」（`fiber.restart()`，只影响本会话，成功后 `plugin/loaded`）；可选界面级「为我关闭 / 开启」（M3，§5.1 热切换，发 `plugin/user-toggled`）；内容级或强制启用的失败显示「如持续失败，请联系管理员」；管理员多一个「去管理 › 插件」链接。M2 只有只读、诊断与重试。
 - **管理员页的动作**（M3）：一次保存可含多项三态变更，`PATCH /api/v1/admin/plugins` 带 `If-Match`；412 `server.plugins.revision_conflict` → 提示「设置已被他人更新」并重新载入；422 `server.plugins.policy_invalid`、409 `server.plugins.conflict` → 确认卡内逐项报错、不部分生效。保存成功发 `plugin/policy-changed`；本会话与其它在线会话都**不**热切换，新会话生效（O-1）。插件配置表单（M4，PM-09）由 Config schema 自动生成，经 `PUT /api/v1/admin/plugins/:pluginId/config` 保存。
+- **个人面板的空 / 加载 / 失败**（设计 03-09 §7）：管理员没有开放可选插件时「我的界面插件」分组隐藏，顶部一行锁图标说明「可选插件由管理员设置」；`GET /users/me/plugins` 进行中显示标题与 5 行骨架（`aria-busy=true`）；失败时内容区换成「插件列表加载失败」+「重试」，并写明编辑器与已装配插件不受影响（取插件集失败时的装配兜底见 §5.1）。
 
 **图 6a 两处插件管理与会话**
 
@@ -441,6 +443,39 @@ flowchart TB
 - **部署级版本校验**：挂载目录插件在部署时已按 `hostApi` 校验（PM-05），被拒的不会出现在本会话插件集里；浏览器侧的 `verifyManifest` 仍保留，作为同一口径的第二道检查。
 - **依赖声明**：preset 对全部子条目包写 `peerDependencies: workspace:^`，对上游 preset（`./entries` 派生来源）写 `dependencies: workspace:*`（rulings §4.18 FE-06；rulings §4.15 Q1 内部依赖协议）。
 
+### 10.1 管理员插件页的前端状态（2026-10-03，rulings §4.24）
+
+设计承接 03-32 §5.2–§6、§9、§11；需求 PRD PM-06、PM-07、PM-09、PS-13。页面状态全部在 `apps/web` 的管理页内（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §4.4 的 `admin/` 页面），不经 host，也不进 `cordex.prefs`。
+
+**草稿模型**：页面持有两份数据——`server`（最近一次 `GET /admin/plugins` 的响应与其 `ETag`）与 `draft: Map<PluginId, { state, defaultOn? }>`。点三段胶囊或改「用户默认」只写 `draft`，不发请求；改回 `server` 中的原值即从 `draft` 删除该项。行的显示值 = `draft` 覆盖 `server`；草稿行整行浅主色底、左侧竖条、名称后「· 未保存」，经 `useAnnounce(…, 'polite')` 播报「『名称』改为〈策略〉，尚未保存」。两类改动在点击当下先弹 `alertdialog` 确认、确认后才进草稿：禁用一个被已启用插件依赖的插件（设计 03-32 §7.2）、首次启用第三方插件（§7.3，M4）。
+
+**客户端依赖 / 互斥计算**：纯函数 `domain/plugins/policy-draft.ts`（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §4.4 已登记）以全部行的依赖图和 `draft` 求出每行的派生态，只用于呈现与阻止保存，最终裁决仍以服务端整批校验（422 / 409）为准。依赖图直接取 `GET /admin/plugins` 每行的 `requires`（必需注入的服务及其提供者）、`requiredBy`（被谁依赖）、`conflictsWith`（互斥对象，含 `kind` 与 `key`），字段见 [60/15](../60-backend/15-rest-api-catalog.md) §3.15.1；不逐个取详情，也不在前端推断依赖：
+
+| 派生态 | 判定（以草稿后的策略为准） | 呈现 |
+|---|---|---|
+| 等待依赖 | 本行启用，而它必需注入的某个提供者被禁用 | 行下说明「等待依赖：『X』已停用」与链接按钮「一并启用『X』」（把 X 在草稿里改为强制启用，设计 03-32 §5.3） |
+| 将进入等待依赖 | 本行将被禁用，而有已启用插件依赖它 | 点击当下的确认卡逐个列出受影响插件；有 §3 缺席后果时附「缺席后果：…」 |
+| 视同强制 | 本行是界面级，被某个启用中的内容级插件必需注入（§5.1 依赖闭包） | 「禁用 / 用户选择」不可选（`aria-disabled`、可聚焦），tooltip 说明被哪个内容级插件依赖 |
+| 互斥 | 两个启用中的插件争用同一 Provider 座或注册同一 `slide.shapeKind` | 两行都出现红色说明；保存条进入阻止态 |
+| 可并存冲突 | 快捷键、菜单位置等可以并存的冲突 | 只警告、不阻止保存（PM-07、PM-11） |
+
+**底部保存条**：`draft` 非空时出现在视口底部（`region`，可读名称「未保存的变更」），显示「N 项未保存的变更 · 保存后新会话生效」与「放弃」「检查并保存…」；有互斥时中间文案换成红色「N 处互斥冲突」，「检查并保存…」`aria-disabled`。「放弃」清空 `draft` 并播报；「检查并保存…」打开变更确认卡，合并列出全部草稿项及影响（将从等待依赖恢复、将进入等待依赖、生效时机），确认后才发 `PATCH`（上一段动作）。成功后以响应替换 `server`、清空 `draft`；412 时保留 `draft` 供管理员对照，重新载入 `server` 后再由其决定是否重做；离开页面而 `draft` 非空时弹「有未保存的变更」确认（路由离开与 `beforeunload` 两处）。
+
+**空、加载、失败与无权限**（设计 03-32 §11）：加载中页头与来源说明照常，表头下 7 行骨架、表格 `aria-busy=true`；加载失败时清单区换成「插件清单加载失败」空态卡与「重试」，筛选栏、表头与被拒红条都不显示（数据未知）；部署至少声明内核必需插件，清单不设空态，搜索无结果另有提示；普通成员由 `RequirePlatformAdmin` 回开始页并 toast，产品不实现无权限页（[02](02-app-shell-routing-and-session.md) §2.1）。
+
+**详情抽屉的数据来源**：抽屉只读，打开时取 `GET /api/v1/admin/plugins/:pluginId`（[60/15](../60-backend/15-rest-api-catalog.md) §3.15.1 的 `AdminPluginDetail`）。下表字段名按 60/15 §3.15.1 登记，前端不自拟协议字段：
+
+| 区块（设计 03-32 §9） | 需求 | 来源 | 字段名 |
+|---|---|---|---|
+| 信任来源（镜像内置 / 签名公钥指纹 / 审核记录：审核人、日期、钉住的 SHA-256） | PM-06 | `AdminPluginDetail`「信任来源」 | `trust`（`kind`：`builtin` / `signature` 带 `publicKeyFingerprint` / `review` 带 `reviewer`、`date`、`sha256`、`link?` / `unsigned`） |
+| 最近策略变更（最近 5 条：时间、操作者、变更；无记录写「暂无变更记录」） | PM-06、PM-14 | `AdminPluginDetail`「最近 5 次策略变更（审计查询）」 | `recentPolicyChanges`（`occurredAt`、`actor`、`from`、`to`、`reset?`；空数组即「暂无变更记录」） |
+| 能力声明（胶囊；未声明写「未声明额外能力」；标「仅展示，不做运行时限制」） | PS-13（M4 P2） | `AdminPluginDetail`「能力声明（仅展示）」，源头是插件清单的 `permissions` | `permissions`（空数组即「未声明额外能力」） |
+| 依赖与冲突、贡献点摘要、宿主兼容范围 | PM-06、PM-07 | `AdminPluginDetail`「`injects` 与提供者、被谁依赖、按贡献点分组的贡献计数、宿主兼容范围」 | `injects`（`service`、`optional`、`providers[].state`）、`requiredByDetail`、`conflictsDetail`（互斥对象）、`contributions`（`point`、`count`）、`hostCompat`（`range`、`current`） |
+| 配置（M4，由 Config schema 生成；M3 禁用而不隐藏） | PM-09 | `AdminPluginDetail`「配置 schema 与当前非机密值（M4）」；保存走 `PUT /admin/plugins/:pluginId/config` | `config`（`schema`、`values`、`secrets[].usesDeploymentValue`；M3 省略） |
+
+- **机密字段**（PM-09）：schema 标 `secret` 的字段只写不读，输入框显示 `***`，说明「机密：只写不读，建议使用部署文件中的值」；前端不回显、不缓存、不进错误上报与诊断复制；提交时机密字段只能取「使用部署文件中的值」，不随请求体上送明文（与 60/15 §3.15「机密字段只能使用部署文件中的值」一致）。
+- **焦点**：抽屉打开时焦点落在容器、Esc 关闭后回到该行「›」；确认卡关闭后回到触发它的三态胶囊（设计 03-32 §7.2，[16](16-i18n-and-accessibility.md) §8.1）。
+
 ## 11. 评论客户端插件的装配位置
 
 依据：rulings §4.19 D-COMMENTS-PKG（用户裁决，章程 §5.2 登记包清单）。
@@ -449,6 +484,43 @@ flowchart TB
 - M3 引入并装入 `preset-slide-collab`：条目 id `comments`，宿主级插件贡献 ResourceHook 与命令，按 Unit 的评论服务以 `scope:'unit'` 登记（§6.2）；slide 专属的锚点解析、检查器「评论」页签与画布评论钉由 `slide-ui` 贡献（`ui.panel`、`render.overlay`）。`preset-slide`（单人）与 viewer 不装。
 - `pluggable:m3` 的 manifest 差异白名单相应改为 `{ −store-memory, +store-yjs, −collab-core#local-presence, +collab-yjs, +collab-transport-ws, +comments }`（`collab-offline-idb` 为可选项不计入），去掉 PRD 05 中不存在的 `+comments-ui`、`+presence-ui`、`+history-ui` 与重复的 `+collab-core`；其中 `−collab-core#local-presence` 是 [40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3.2 collab manifest `replaces` 行的机械结果。白名单分阶段生效：M2 起参考应用以 `preset-slide-collab`（不含 `comments`）接协同网关，`manifest-diff.test.ts` 自 M2 起运行，期望集合为上式去掉 `+comments`；M3 引入 `@cordexjs/comments` 的同一 PR 加入 `+comments`，`pluggable:m3` 在 M3 出口按完整白名单判定（rulings §4.19 D-M2-CONTENT、D-COMMENTS-PKG）。执行与断言归 [70/02](../70-testing/02-contract-suites-and-pluggability.md) §10。
 - 层号与依赖上限以章程 §5.2 的登记为准；[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3.1 的 collab 清单 M3 增 `comments` 条目。
+- **评论不进内容插件足迹**（2026-10-03，rulings §4.24 AL-6）：`comments` 在 40/16 里按作用域判定为内容级（它贡献 ResourceHook 与 Mutation），但评论不是幻灯片内容，[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md) 决策 1 把 `comments.*` 命名空间排除在足迹之外。单人 preset 与查看器打开带评论的文档时，评论数据按未注册命名空间静默原样保留，不弹缺插件横幅、状态栏插件入口不因此变为「本文档缺少插件」（[04](04-document-commands-and-undo.md) §1.1、[08](08-comments-and-version-history.md) §2）。
+
+### 11.1 条目 id → 插件 id 对应表（2026-10-03，rulings §4.24 TA-5）
+
+服务端的插件声明文件、策略表（`plugin_policies`、`user_plugin_prefs`）、`GET /users/me/plugins` 响应与插件集指纹一律使用 **cordis 插件 id**（[40/16](../40-modules/16-plugin-catalog.md) §2 主表的单元名）；preset 条目 id（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §3.1）只是装配别名。`computeExclude` 收到响应后按本表把插件 id 换成条目 id 再求 `exclude`（§5.1），60-backend 引用本表。作用域取 40/16 §2 的「作用域」列；「—」表示该行不是可启停的插件。
+
+| 条目 id（40/11 §3.1） | 插件 id（40/16 §2 单元名） | 40/16 行号 | 作用域 | 所在 preset |
+|---|---|---|---|---|
+| `i18n` | `i18n` | 4 | 界面级 | viewer、slide、collab |
+| `model-core` | `model-core` | 5 | 内容级 | viewer、slide、collab |
+| `store-memory` | `store-memory` | 6 | 内容级 | viewer、slide |
+| `store-yjs` | `store-yjs` | 7 | 内容级 | collab |
+| `model-slide` | `@cordexjs/model-slide` | 8 | 内容级 | viewer、slide、collab |
+| `model-slide-editing` | `@cordexjs/model-slide/editing` | 9 | 内容级 | slide、collab |
+| `ooxml-pptx` | `@cordexjs/ooxml-pptx` | 12 | 内容级 | viewer、slide、collab |
+| `local-presence` | `localPresencePlugin` | 13 | 内容级 | slide |
+| `collab-yjs` | `collab-yjs` | 14 | 内容级 | collab |
+| `collab-transport-ws` | `collab-transport-ws` | 15 | 内容级 | collab |
+| `collab-offline-idb` | `collab-offline-idb` | 16 | 内容级 | collab（可选） |
+| `comments` | `comments` | 17 | 内容级（不进足迹，见上条） | collab（M3） |
+| `engine-layout` | `engine-layout` | 18 | 内容级 | viewer、slide、collab |
+| `engine-render` | `engine-render` | 19 | 内容级 | viewer、slide、collab |
+| `render-dom` | `render-dom` | 20 | 内容级 | viewer、slide、collab |
+| `slide-render` | `slide-render` | 21 | 内容级 | viewer、slide、collab |
+| `slide-render-chart` | `slide-render-chart` | 22 | 内容级 | 三者惰性 |
+| `ui-core` | `ui-core` | 24 | 界面级（被 `ui-react` 必需注入，视同强制，§5.1） | slide、collab |
+| `ui-react` | `ui-react` | 25 | 内容级 | slide、collab |
+| `slide-ui` | `slide-ui` | 26 | 界面级 | slide、collab |
+| `shell-glue` | `preset-slide#shell-glue` | 27 | 界面级 | slide、collab |
+| `read-only` | `preset-slide-viewer#read-only` | 28 | 内容级（viewer 必需） | viewer |
+| `viewer-shell` | `preset-slide-viewer#viewer-shell` | 29 | 界面级 | viewer |
+| `design-css` | `preset-slide-viewer#design-css` | 30 | 界面级 | viewer |
+| `locale-packs` | 待 40/16 登记（第 31 行「语言包（locale-packs）」未给单元名，登记前以条目 id 充当） | 31 | 界面级 | 三者惰性 |
+| `viewer-thumbnails` / `viewer-notes` / `viewer-search` | `viewer-thumbnails` / `viewer-notes` / `viewer-search` | 32–34 | 界面级 | viewer 惰性 |
+
+- `kernel`（40/16 第 2 行）是 host 自带、不是条目，不出现在本表与 `exclude` 里；三个 preset 自身（第 35–37 行，形态 bundle）同样不是可启停单元。
+- 本表随 40/11 §3.1 与 40/16 §2 变化同步；新增条目时两列都要填，`computeExclude` 遇到对应不上的插件 id 记诊断并忽略该项，不猜测。
 
 ## 12. doc / sheet 参数化点
 
@@ -481,7 +553,7 @@ flowchart TB
 | 组件式贡献抛错只替换该项，`plugin/failed` 不冒泡；组件式贡献过 `axeCheck` | ui-react `ContributionRenderer` 测试与插件模板用例 | `test/unit`、`e2e/a11y` |
 | `pluggable:m3`：两份 manifest 差异恰为 §11 白名单；M2 编辑 e2e 在 `store-yjs` 下重跑通过；移除 `collab-*` 后仍能启动 | [70/02](../70-testing/02-contract-suites-and-pluggability.md) §10 | `test/contract`、`e2e/smoke` |
 | UnitScope 默认 Provider 登记：同一 `provides` 第二次登记被拒且有诊断；登记后打开的 Unit 挂上登记项，已打开的 Unit 不变；preset `dispose` 后 `assertNoLiveEffects` 为空；model-core 不 import 秩更高的包（rulings §4.20 FE-01） | model-core `unit/__tests__/units-registry.test.ts`（[70/02](../70-testing/02-contract-suites-and-pluggability.md) §9.1，不调用 kit）；depcruise 秩规则 | `test/unit`、`depcruise` |
-| `computeExclude`：内容级 forced、界面级 forced、本人开启的 optional 保留，其余默认条目进 `exclude`；disabled 与被拒插件不装配；`required` 条目永不进 `exclude`（2026-10-01，§4.23） | `domain/plugins/compute-exclude.test.ts`（表驱动） | `test/unit` |
+| `computeExclude`：内容级 forced、界面级 forced、本人开启的 optional 保留，其余默认条目进 `exclude`；disabled 与被拒插件不装配；`required` 条目永不进 `exclude`（2026-10-01，§4.23）；被内容级条目必需注入的界面级条目（如 `ui-react` → `ui-core`、`i18n`）即使策略为禁用或本人关闭也不进 `exclude`；插件 id 按 §11.1 换成条目 id，对应不上的记诊断并忽略（2026-10-03，§4.24 TA-5、TA-6） | `domain/plugins/compute-exclude.test.ts`（表驱动） | `test/unit` |
 | 个人启停可选界面级插件：不刷新即挂载 / 卸载，卸载后 `assertNoLiveEffects` 为空、贡献消失；指纹不变；请求失败时开关回弹 | `application/plugins/toggle.usecase.test.ts`；个人插件面板 e2e（[70/06](../70-testing/06-frontend-component-and-e2e.md)） | `test/unit`、`e2e/full-compose` |
 | 第三方 `entry` 只接受 `/plugins/` 开头的同源路径；动态 `import()` 失败只令该插件 `FAILED`、不出现版本漂移横幅；任何路由都没有上传或 URL 安装插件的入口 | `application/host/third-party-entry.test.ts`；e2e 挂载目录插件（M4） | `test/unit`、`e2e/full-compose` |
 | 三档体积基线 | `config/bundle-budget.json` | `scanners/scan-bundle-budget`（唯一阻断点，[13](13-performance-and-bundling.md) §6） |
@@ -502,7 +574,8 @@ flowchart TB
 | 项 | 状态 | 处理 |
 |---|---|---|
 | D-COMMENTS-PKG | 已裁定（rulings §4.19） | §11 定稿；PRD 05 `pluggable:m3` 白名单改为 §11 写法、章程 §5.2 登记 `comments` 包（由总编排回写） |
-| 插件管理（rulings §4.23） | 已裁定（2026-10-01，O-1…O-4 按推荐确认） | §5.1、§9 第 6–7 条、§10、§13.2 定稿；个人插件面板与管理员插件页的视觉以设计 03-09 重写稿与 03-32 新稿为准，样张确认后回写本文 §10 的分组文案与入口位置 |
+| 插件管理（rulings §4.23） | 已裁定（2026-10-01，O-1…O-4 按推荐确认） | §5.1、§9 第 6–7 条、§10、§13.2 定稿；个人插件面板与管理员插件页的视觉以设计 03-09 与 03-32 为准（样张 2026-10-01 已确认），分组文案、入口与管理员页状态已按其写入 §10、§10.1（2026-10-03，rulings §4.24） |
+| 设计线对齐审计（rulings §4.24） | 已落地（2026-10-03） | 个人插件面板为对话框路由（AL-2，§8、§10）；`computeExclude` 依赖闭包上推（TA-6，§5.1）；条目 id → 插件 id 对应表（TA-5，§11.1）；评论不进足迹（AL-6，§11）；管理员页前端状态（§10.1）。`AdminPluginDetail` 字段名与清单级依赖图已由 60/15 §3.15.1 登记、§10.1 已改用实际字段名；`policy-draft.ts` 已由 40/11 §4.4 登记；40/11 §4.4 `PluginManagerPage.tsx` 注释已改为对话框路由 |
 | UnitScope 默认 Provider 登记 API（40/11 Q-2） | 已定（rulings §4.20 FE-01）：`units.registerUnitProvider(entry): Disposer` 与 `units.listUnitProviders()`，M1 前定稿 | §6.2 定稿；40/02 §2.1、§6，40/11 Q-2，30/03 §5.1 伪代码与 §9 `PresetEntry`，40/14 N-2、40/17 G-9 由各线同轮回写 |
 | `configure` 合并算法（40/17 §7 G-8） | 本文定 | §2：对象深合并、数组与标量替换、`undefined` 忽略；回写 40/17 §7 与 kernel `preset/validate.ts` 说明 |
 | 回写 40/11（由总编排执行） | 已回写（[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §12「2026-09-25 回写」） | §1.1–§1.2、§2.1–§2.4、§6 嵌入表与 §7 改为「摘要 + 链接本文 / [02](02-app-shell-routing-and-session.md) / [12](12-viewer-embedding-and-render-page.md)」；§2.2 `CreateEditorHostParams.preset` 由 `'slide' \| 'slide-collab' \| 'slide-viewer'` 改为 `'edit' \| 'collab' \| 'view'`（与 §8 `presetKeys[params.preset]` 一致，§5），§3.5 ViewerPage / RenderPage 的 `preset:'slide-viewer'` 同步改 `'view'`；§3.1 增 `comments` 行（M3）；§4.4 增 `infrastructure/media/` 目录 |

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：登记 z.config jitless 调用点（apps/web main.tsx 与三个 dom preset 的 config/options）；§3.4 登记 50/13 §6 七个新惰性 chunk 的构建入口与 bundle-budget 条目；collab-transport-ws 配置 heartbeatMs 改为 messageReconnectTimeoutMs）；2026-10-01（§4.23 插件管理：apps/web 增 10 个文件——`/admin/plugins` 路由与 `RequirePlatformAdmin` 守卫、`pages/editor/footprint-banner.tsx`、`application/plugins/` 三个文件、`domain/plugins/` 两个纯函数文件、M4 `application/host/load-mounted-plugins.ts`、`plugins.api.ts`；`PluginManagerPage`（`/documents/:id/plugins`）改为个人插件面板）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-11） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：登记 z.config jitless 调用点（apps/web main.tsx 与三个 dom preset 的 config/options）；§3.4 登记 50/13 §6 七个新惰性 chunk 的构建入口与 bundle-budget 条目；collab-transport-ws 配置 heartbeatMs 改为 messageReconnectTimeoutMs）；2026-10-01（§4.23 插件管理：apps/web 增 10 个文件——`/admin/plugins` 路由与 `RequirePlatformAdmin` 守卫、`pages/editor/footprint-banner.tsx`、`application/plugins/` 三个文件、`domain/plugins/` 两个纯函数文件、M4 `application/host/load-mounted-plugins.ts`、`plugins.api.ts`；`PluginManagerPage`（`/documents/:id/plugins`）改为个人插件面板）；2026-10-01（§4.23 插件管理样张回写：设计承接 03-09 个人插件面板、03-32 管理员插件管理样张已确认，去掉「待样张」）；2026-10-03（rulings §4.24 AL-2：个人插件面板改为对话框路由）；2026-10-03（§4.24 收尾：§4.4 目录树与 §5.4 b 登记 `domain/plugins/policy-draft.ts`（管理员页依赖 / 互斥纯函数，50/03 §10.1）） | 依赖：00-module-map.md M-11（BC-16/BC-17）、charter v0.2 §5.2 `preset-slide*`/`apps/web` 行与 §5.4、30-architecture 02 §3.1/§4.21/§4.21b、03 §9/§10、ADR-0010、ADR-0015、rulings §4.9/§4.10、PRD AS-01…06 / EM-01…17 / OF-14、设计 03-screens/29、01、23、25、11；上游模块文档 M-02 §3/§6/§7、M-03 §3、M-04 §3、M-05 §3/§7、M-06 §3、M-07 §3、M-10 §2.5/§3/§3a/§6/§7/§12 G-20/§13 Q-12
 
 # 11 预设装配与应用壳（限界上下文 BC-16 预设装配、BC-17 应用壳）
 
@@ -429,7 +429,7 @@ packages/preset-slide-viewer/src/
 - `shell/` 不 import `react`，只 import `@cordexjs/design`（type-only + CSS）与 kernel 类型，运行时经 `ctx.get('render'|'thumbnails'|'units')` 取服务（原 `assembly/` 同规则现随其一并迁至 `@cordexjs/kernel/src/preset/`，C-07）。
 - 查看器壳的「最小必要原子组件」（设计 25：Button、Progress/Spinner）以 `styles/viewer.css` 的 `[data-slot="button"]` 等类实现，不复用 ui-react 的 React 复制件（§13 Q-4）。
 
-### 4.4 `apps/web`（根 10 文件 + `src/` 89 文件；2026-10-01 插件管理增 10 个，rulings §4.23）
+### 4.4 `apps/web`（根 10 文件 + `src/` 89 文件；2026-10-01 插件管理增 10 个，rulings §4.23；2026-10-03 增 `domain/plugins/policy-draft.ts`，rulings §4.24）
 
 **图 4-1 apps/web 分层依赖**
 
@@ -529,7 +529,7 @@ apps/web/
     │   ├── history/VersionHistoryPage.tsx  # 抽屉页（设计 07）：自动 / 命名版本、对比、恢复（AlertDialog 确认）
     │   ├── export/ExportDialog.tsx  # 对话框路由（设计 22）：格式 / 范围 / 进度 / 失败重试
     │   ├── fidelity/FidelityReportPage.tsx  # 抽屉页（设计 10）：ImportResult 诊断分组
-    │   ├── plugins/PluginManagerPage.tsx    # 抽屉页 = 个人插件面板（2026-10-01 改，PRD 09 PM-10 / PS-11，设计 03-09 已重写）：渲染 ui-react PersonalPluginPanel；PresetReport + 生效插件集 + 足迹缺口三源合并
+    │   ├── plugins/PluginManagerPage.tsx    # 对话框路由（居中 Dialog，继承父路由，支持 ?state=conflict；2026-10-03 rulings §4.24 AL-2 由抽屉页改）= 个人插件面板（2026-10-01 改，PRD 09 PM-10 / PS-11，设计 03-09 已重写）：渲染 ui-react PersonalPluginPanel；PresetReport + 生效插件集 + 足迹缺口三源合并
     │   ├── admin/AdminPluginsPage.tsx       # 2026-10-01（§4.23）：/admin/plugins「管理 › 插件」（PRD 09 PM-06、PM-07；设计 03-32 已回写）：AdminPluginTable + 确认卡；If-Match 保存
     │   ├── settings/SettingsPage.tsx        # ui-react SettingsDrawer 独立态；关闭 = 保存并返回来路（无来路 → /home）
     │   ├── templates/TemplatesPage.tsx      # M3：分类 / 搜索 / 预览 / 集成方模板源
@@ -612,7 +612,8 @@ apps/web/
     │   ├── host-options.ts          # paramsToPresetOptions（纯映射）
     │   ├── plugins/                 # 2026-10-01（§4.23）
     │   │   ├── compute-exclude.ts   # exclude = preset 条目 − (内容级集合 ∪ 强制界面级 ∪ 本人开启的 optional)（纯函数，create-editor-host 调用）
-    │   │   └── plugin-set.ts        # EffectivePluginSetVM、PluginSetFingerprint 比较、面板三分组与横幅文案
+    │   │   ├── plugin-set.ts        # EffectivePluginSetVM、PluginSetFingerprint 比较、面板三分组与横幅文案
+    │   │   └── policy-draft.ts      # 2026-10-03（§4.24）：管理员页草稿的依赖 / 互斥派生态（等待依赖、将进入等待依赖、视同强制、互斥、可并存冲突），输入行内 requires / requiredBy / conflictsWith 与 draft（50/03 §10.1）
     │   └── app-events.ts            # typed EventTarget：app/* 事件（§2.4）
     ├── styles/
     │   ├── index.css                # @import "@cordexjs/ui-react/styles.css"（preflight + 主题变量）+ @source 指向 src；应用页面工具类
@@ -747,7 +748,7 @@ apps/web/
 | `src/pages/fidelity/FidelityReportPage.tsx` | 保真报告 | `FidelityReportPage` | `../../application/host/host-registry`（读 `unit/opened` 载荷缓存） | 设计 10 |
 | `src/pages/plugins/PluginManagerPage.tsx` | 个人插件面板（2026-10-01 由「插件管理器」改为 PRD 09 PM-10 的面板） | `PluginManagerPage` | `../../application/host/host-registry`（`PresetReport`）、`../../application/plugins/*`、`@cordexjs/ui-react`（`PersonalPluginPanel`） | 设计 03-09（重写，待样张）；PS-11；M2 只读 + 诊断 + 重试，M3 起个人开关 |
 | `src/pages/editor/footprint-banner.tsx`（2026-10-01，rulings §4.23） | 缺插件与设置更新横幅 | `FootprintBanner` | `../../application/plugins/footprint-check.usecase`、`@cordexjs/ui-react`（`MissingPluginsBanner`、`PluginSettingsUpdatedBanner`） | 「查看详情」打开 `/documents/:id/plugins` 的「本文档缺少的插件」分组；「重新加载」先 flush 再刷新（50/02 §12） |
-| `src/pages/admin/AdminPluginsPage.tsx`（2026-10-01，rulings §4.23） | 管理员插件管理页 | `AdminPluginsPage` | `../../application/plugins/admin-plugins.usecase`、`@cordexjs/ui-react`（`AdminPluginTable`、`PluginChangeConfirmCard`） | 路由 `/admin/plugins`（50/02 §2）；M3 能看能改（O-4 已确认）；设计 03-32（新建，待样张） |
+| `src/pages/admin/AdminPluginsPage.tsx`（2026-10-01，rulings §4.23） | 管理员插件管理页 | `AdminPluginsPage` | `../../application/plugins/admin-plugins.usecase`、`../../domain/plugins/policy-draft`（2026-10-03）、`@cordexjs/ui-react`（`AdminPluginTable`、`PluginChangeConfirmCard`） | 路由 `/admin/plugins`（50/02 §2）；M3 能看能改（O-4 已确认）；设计 03-32（新建，待样张） |
 | `src/pages/settings/SettingsPage.tsx` | 设置页 | `SettingsPage` | `@cordexjs/ui-react`（`SettingsDrawer` 独立态）、`../../application/settings/preferences.usecase` | 关闭 = 保存并返回 |
 | `src/pages/templates/TemplatesPage.tsx` | 模板库（M3） | `TemplatesPage` | `../../domain/document-type`（`newCards`）、`infrastructure/api/documents.api`（模板端点待 60/15 登记，50/02 §13.3） | AS-03 |
 | `src/pages/auth/LoginPage.tsx` | 登录页 | `LoginPage` | `../../application/auth/session.usecase` | 外置 OIDC；注册入口随 `auth.selfSignup`（默认关）；`auth.mode:'none'` 仅 dev 构建直进（rulings §4.15 Q6） |
@@ -816,6 +817,7 @@ apps/web/
 | `src/domain/host-options.ts` | 参数 → 选项映射 | `paramsToPresetOptions` | `@cordexjs/preset-slide*`（类型） | 不调用工厂 |
 | `src/domain/plugins/compute-exclude.ts`（2026-10-01，rulings §4.23） | 按策略计算 preset 裁剪 | `computeExclude(presetEntries, effectiveSet)` | `@cordexjs/protocol`（`rest/plugins` 类型）、`../host-options` | 纯函数；由 `create-editor-host.ts` 调用（50/03 §2、§5） |
 | `src/domain/plugins/plugin-set.ts`（2026-10-01，rulings §4.23） | 插件集视图模型 | `EffectivePluginSetVM`、`sameFingerprint`、`groupForPanel`、`missingPluginMessage` | `@cordexjs/protocol`（`rest/plugins` 类型） | 纯函数；横幅文案按 `disabled`/`absent`/`outdated`/`failed` 区分（PRD 09 PM-12） |
+| `src/domain/plugins/policy-draft.ts`（2026-10-03，rulings §4.24） | 管理员页草稿的依赖 / 互斥计算 | `derivePolicyDraft(rows, draft)`、`PolicyDraftDerivation`（每行派生态 + 互斥计数，供保存条阻止态） | `@cordexjs/protocol`（`rest/plugins` 的 `AdminPluginRow` 类型，依赖图字段见 60/15 §3.15.1） | 纯函数；由 `pages/admin/AdminPluginsPage.tsx` 调用；只用于呈现与阻止保存，最终以服务端 `PATCH /admin/plugins` 整批校验（422 / 409）为准（50/03 §10.1） |
 | `src/domain/app-events.ts` | 应用事件 | `AppEvents`（typed EventTarget）、`AppEventMap` | 无 | `app/*` 非 cordis |
 | `src/styles/index.css` | 应用样式入口 | — | `@cordexjs/ui-react/styles.css` | `@source` 指向 `src/` |
 | `src/styles/brand.css` | 品牌覆盖变量 | — | — | 默认空 |

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：断行表改由 tooling 从 UCD 生成；engine-layout 新增 2×3 仿射矩阵与连接符路由；连接点与手柄命中种类补全）；2026-09-26（§4.21 整合：canvas 改四个角色；§2.3 增文档类型盲的 rerouteConnectors；§2.5 登记 edit-context 第三实现与备注栏宿主；render-dom 增 image-preprocess.ts、grid-overlay.ts、media-playback-overlay.ts、edit-context.ts 四个文件）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3、rulings §4.21（R-d-27、R-d-29、R-d-78）、50-frontend/22、50-frontend/10 §7.5
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-18；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17 L11：服务端缩略图格式描述更正为 WebP）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：断行表改由 tooling 从 UCD 生成；engine-layout 新增 2×3 仿射矩阵与连接符路由；连接点与手柄命中种类补全）；2026-09-26（§4.21 整合：canvas 改四个角色；§2.3 增文档类型盲的 rerouteConnectors；§2.5 登记 edit-context 第三实现与备注栏宿主；render-dom 增 image-preprocess.ts、grid-overlay.ts、media-playback-overlay.ts、edit-context.ts 四个文件）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（rulings §4.24 TA-1：`comment-pins` 覆盖层移出 render-dom，`render.overlay` 默认条目 4 → 3，评论钉由 slide-ui `CommentPins` 绘制） | 依赖：00-module-map.md M-06 行、charter §5.2 engine-layout/engine-render/render-dom 三行、30-architecture 07-rendering.md §0–§14、02-layering-and-packages.md §4.13–§4.15、ADR-0021/0026/0027/0028、00-charter/rulings-2026-09-14.md §4.15（Q4/Q7）、40-modules/14-cross-module-review.md §5.3、rulings §4.21（R-d-27、R-d-29、R-d-78）、50-frontend/22、50-frontend/10 §7.5
 
 # 06 布局与渲染引擎（限界上下文 BC-10 布局与度量引擎、BC-11 渲染管线与目标）
 
@@ -53,7 +53,7 @@ flowchart LR
 
 - `engine-layout`：`TextMeasurer` Definition（`layout.measurer`）；断行（UAX#14 机会点 + CJK 禁则 + `wrap="none"` + 强制换行）；段落/正文布局（缩进/悬挂/项目符号/对齐/行距 `spcPct|spcPts`/段前后/多栏/`anchor`/`autofit` 迭代 ≤ 6 次）；`CaretMap`（偏移↔像素双向映射）；187 种 `prstGeom` 公式表求值 + `custGeom` + 连接点坐标/法向；字体回退表（客户端/服务端共用同一 JSON）；`Emu`/`Pt`/`Px` 单位换算。
 - `engine-render`：`Scene`/`SceneNode` 契约与四个贡献点（`render.scene`/`render.target`/`render.element`/`render.overlay`）的类型化注册与查表；帧调度（`DirtySet` 合并、时间切片、可见性优先级、8 ms 脚本预算）；两处缓存（`StyleCache`、`MediaCache`）与其淘汰测试；`Viewport` 与虚拟化（可见页窗口、fit 计算）；命中测试契约（`HitTestIndex` + `bail` 链）；逐元素错误隔离（try/catch → 占位符 + `render/element-failed`，不影响同页其他元素）。
-- `render-dom`：`RenderTarget`（`id:'dom'`）Provider——HTML/SVG 输出、图元 API（path/rect/image/text/group/clipPath/gradient/pattern）、覆盖层（选中框+手柄、远端光标、参考线、评论钉）；`TextMeasurer`（`id:'canvas'`）Provider；文本编辑宿主（隐藏 `textarea` + IME 组合 + 自绘光标/选区 + a11y 镜像，ADR-0028）；字体加载（`FontFaceLoader`）；媒体 `blob:` URL 生命周期；SVG→PNG/JPEG 导出（`toImage`，**主线程**栅格化：游离 DOM → SVG 序列化 → `Image` → `Canvas`，供位图缩略图与图片导出；可见缩略图不走本路径，由 M-07 的 `dom-scaled` 直接挂载缩小 SVG）。
+- `render-dom`：`RenderTarget`（`id:'dom'`）Provider——HTML/SVG 输出、图元 API（path/rect/image/text/group/clipPath/gradient/pattern）、覆盖层（选中框+手柄、远端光标、参考线；评论钉不在此，见 §13 Q-5 回写）；`TextMeasurer`（`id:'canvas'`）Provider；文本编辑宿主（隐藏 `textarea` + IME 组合 + 自绘光标/选区 + a11y 镜像，ADR-0028）；字体加载（`FontFaceLoader`）；媒体 `blob:` URL 生命周期；SVG→PNG/JPEG 导出（`toImage`，**主线程**栅格化：游离 DOM → SVG 序列化 → `Image` → `Canvas`，供位图缩略图与图片导出；可见缩略图不走本路径，由 M-07 的 `dom-scaled` 直接挂载缩小 SVG）。
 
 **渲染介质口径（rulings §4.15 Q4，ADR-0021 已接受）**：**DOM/SVG 单实现**——编辑、查看、放映、服务端缩略图与 PDF 共用同一套 SVG 渲染（服务端经 headless Chromium 加载同一份 `render-dom`，§7）。canvas 只承担四个角色：①`toImage` 的栅格化画板（主线程，不做 Worker 版本）；②`measureText` 度量器（`layout.measurer('canvas')`）；③`RenderTarget` 的预留座位 `id:'canvas'`（无生产 Provider，M3 末用最小 canvas Provider 验证 `render.target` 契约，见 §2.5/§11）；④媒体与图标预处理（`infrastructure/media/image-preprocess.ts`，只处理媒体字节、只产出 Blob，不绘制幻灯片内容；ADR-0021 2026-09-26 修订，原「三个角色」口径作废）。**不存在**「缩略图/放映走 canvas」的路径；DX-1000 性能不达标时先做合成层优化，仍不达标才考虑仅查看/放映启用 canvas（届时另立 ADR，不在本模块当前范围）。`toImage` 取不到页面 Web 字体（SVG-as-image 隔离，CJK 尤甚）列为 **M2 位图 spike**，结论出来前位图封面与批量 PNG 自 M3 起走 `server-png`（M-07/M-12 编排，Q8 联动）。
 
@@ -83,7 +83,7 @@ flowchart LR
 | 行盒 | 一行文本的排版结果：基线位置、上升/下降高度、run 片段（含 x 推进） | `LineBox` |
 | 光标映射 | (段落偏移) ↔ (行号, x 像素) 的双向映射，供光标/选区/命中复用 | `CaretMap` |
 | 几何路径 | 预设/自定义几何求值后的命令序列 + 文本内接矩形 + 连接点 + adj 手柄描述 | `GeometryPath` |
-| 覆盖层渲染器 | 不属于文档内容、独立图层重绘的贡献（选中框/手柄/远端光标/参考线/评论钉） | `OverlayRenderer` / `OverlayInstance` |
+| 覆盖层渲染器 | 不属于文档内容、独立图层重绘的贡献（选中框/手柄/远端光标/参考线） | `OverlayRenderer` / `OverlayInstance` |
 | 帧调度器 | 合并同一帧内多次 `invalidate()`、按可见性优先级时间切片的调度模块 | `FrameScheduler` |
 | 样式缓存 / 媒体缓存 | `(pageId,nodeId)→已解析样式` 与 `sha256→已解码媒体句柄` 的两个 LRU，反向依赖索引驱动失效 | `StyleCache` / `MediaCache` |
 | 文本编辑宿主 | 单一隐藏输入元素 + 自绘光标/选区的可插拔策略（ADR-0028） | `TextInputHost`（本包内部 Definition，非跨包贡献点，见 §2.5） |
@@ -225,7 +225,7 @@ interface RenderContext { layout: LayoutService; resolveMedia(ref: BlobRefLike):
 
 同样不设通用 conformance 套件（理由同 `SceneProvider`）；`testing/index.ts` 只提供 `SpyRenderer(kind)`/`RecordingTarget` 供任意实现方自测调用次数/参数，具体断言由实现方（`slide-render`）自行组装（§12 追加建议：若未来出现第二个 `ElementRenderer` 大类可回头补 `runElementRendererConformance`）。
 
-**`OverlayRenderer`（Definition；贡献点 `render.overlay`，key = `id`；`engine-render/src/domain/contracts/overlay.ts`；默认 Provider：`render-dom`，贡献 4 个条目：`selection`、`remote-presence`、`guides`、`comment-pins`）**
+**`OverlayRenderer`（Definition；贡献点 `render.overlay`，key = `id`；`engine-render/src/domain/contracts/overlay.ts`；默认 Provider：`render-dom`，贡献 3 个条目：`selection`、`remote-presence`、`guides`；`comment-pins` 已移出（rulings §4.24 TA-1：评论钉移出 render-dom，由 slide-ui `ui/canvas-overlays/CommentPins.tsx` 以 React 画布覆盖组件绘制，不经 `render.overlay`））**
 
 ```ts
 interface OverlayRenderer {
@@ -370,7 +370,7 @@ flowchart LR
 | 插件名 / `name` | `render-dom` |
 | `inject`（必需 / 可选） | 必需：`['render', 'layout']`（读取 `render` 的 `Viewport`/配置如 `pixelRatioCap`，调用 `layout` 做度量与几何求值）；可选：无 |
 | `provide` | `[]`（Provider 不新增服务名，只 `implements` 已有 Definition 的贡献条目） |
-| 贡献点：提供 | `render.target`（`{ id:'dom', ... }`）、`render.overlay` × 4（`id ∈ {'selection','remote-presence','guides','comment-pins'}`）、`layout.measurer`（`{ id:'canvas', ... }`） |
+| 贡献点：提供 | `render.target`（`{ id:'dom', ... }`）、`render.overlay` × 3（`id ∈ {'selection','remote-presence','guides'}`；`comment-pins` 已移出，§13 Q-5）、`layout.measurer`（`{ id:'canvas', ... }`） |
 | 贡献点：消费 | `render.element`（`painter.ts` 按 `` `dom:${kind}` `` 查表以决定用哪个渲染器） |
 | 事件：发布 | `render/element-failed`、`render/element-degraded`、`render/font-fallback`、`render/page-mounted`、`render/page-unmounted`（`Events` 声明在 `engine-render`，`ctx.emit` 调用点在本包，模式同 M-02 的 `store/transaction`） |
 | 事件：订阅 | 无（不监听 `store/transaction`；被动响应 `target.paint(scene, dirty)` 调用） |
@@ -556,8 +556,7 @@ packages/render-dom/src/
 │   │   ├── remote-presence-overlay.ts 远端选区色框+名字标签+文本光标（消费中性 PresenceSnapshot[]，§1.3）
 │   │   ├── guides-overlay.ts       智能参考线/对齐线（数据来自交互层入参，本包不计算吸附）
 │   │   ├── grid-overlay.ts         网格覆盖层（ALN-03，§4.21 整合；网格间距由交互层入参）
-│   │   ├── media-playback-overlay.ts 编辑态音视频临时播放覆盖层（render.overlay id:'media-playback'，zIndex 55；播放图标命中为 HitResult kind:'handle'、手柄名 media-play；不写 Store，§4.21）
-│   │   └── comment-pins-overlay.ts 评论钉（数据由调用方以 OverlayContext 传入，无则不挂）
+│   │   └── media-playback-overlay.ts 编辑态音视频临时播放覆盖层（render.overlay id:'media-playback'，zIndex 55；播放图标命中为 HitResult kind:'handle'、手柄名 media-play；不写 Store，§4.21）
 │   ├── text-host/
 │   │   ├── text-input-host.ts      TextInputHost 默认 Provider('hidden-textarea')：隐藏 textarea、聚焦管理、beforeinput/keydown/composition* 事件转发为 TextEditIntent
 │   │   ├── contenteditable-mirror.ts TextInputHost 备选 Provider（ADR-0028 v0.2 spike 候选，R-M2-1，默认不启用）
@@ -678,7 +677,6 @@ packages/render-dom/src/
 | `infrastructure/overlay/grid-overlay.ts` | 网格覆盖层（2026-09-26 整合新增，ALN-03） | `gridOverlay`（`OverlayRenderer`，`id:'grid'`） | 无 | 网格间距与显隐由交互层入参（50/18 ALN-03）；只画线、不参与命中 |
 | `infrastructure/overlay/media-playback-overlay.ts` | 音视频临时播放覆盖层（2026-09-26 新增） | `mediaPlaybackOverlay`（`OverlayRenderer`，`id:'media-playback'`，zIndex 55） | 无 | 编辑态点击播放图标即在覆盖层内挂 `<video>`/`<audio>` 临时播放，不写 Store；播放图标以 `HitResult{kind:'handle', handle:'media-play'}` 命中，不新增 kind；不支持的编码显示角标（50/05 §8.5、50/23 §7.2） |
 | `infrastructure/overlay/guides-overlay.ts` | 参考线 | `guidesOverlay`（`id:'guides'`） | 无 | 数据来自调用方 |
-| `infrastructure/overlay/comment-pins-overlay.ts` | 评论钉 | `commentPinsOverlay`（`id:'comment-pins'`） | 无 | 无数据时不挂 |
 | `infrastructure/text-host/text-input-host.ts` | 隐藏输入宿主（默认） | `hiddenTextareaProvider`（`TextInputHostProvider`） | 无 | `beforeinput`/`composition*` → `TextEditIntent` |
 | `infrastructure/text-host/edit-context.ts` | 第三文本宿主（2026-09-26 新增） | `editContextProvider`（`TextInputHostProvider`，`id:'edit-context'`） | 无 | EditContext API（仅 Chromium 桌面 121+），同一 `TextEditIntent` 输出；不支持时不注册；R-M2-1 spike 候选，默认不启用（ADR-0028 修订、50/06 §11） |
 | `infrastructure/text-host/contenteditable-mirror.ts` | 备选文本宿主 | `contenteditableMirrorProvider` | 无 | ADR-0028 v0.2 spike 候选（R-M2-1），默认不启用 |
@@ -971,7 +969,7 @@ pnpm --filter @cordexjs/render-dom test:e2e:fixture-scene    # M1 端到端切�
 | Q-2 | ~~`TextEditIntent` 的确切消费方（`slide-render` 还是 `slide-ui`）与回调注册 API 形状（G-6）~~ **已结案（14 §5.4 M-06/G-6+Q-2、§6.2，rulings §4.15 Q4 回写）** | 定稿：`RenderService.attach(targetId, container, callbacks?)` 的可选 `callbacks.onEditIntent`（IoC），消费方为 `slide-ui`（持有编辑态与命令调用权）；`render-dom` 不新增依赖边 | `engine-render/src/application/services/render.service.ts`（`attach` 签名）、`render-dom/src/infrastructure/text-host/**`；M-10 §1.3 登记消费方、02 §4.15 `layers/ime-host.ts` 注释回写（14 §5.4） |
 | Q-3 | ~~`TextInputHost` 是否需要升级为跨包贡献点（G-5）~~ **已结案（14 §5.3 M-06/G-5+Q-3 → ADR-0028 回写）** | 定稿：维持 `render-dom` 包内可插拔点；升级为 `render.textInputHost` 贡献点的条件见 §2.5（R-M2-1 spike 否定隐藏 textarea，或出现需跨包可发现的第三方实现；升级时回写章程 §5.5 与 ADR-0028 并补契约套件） | `render-dom/src/infrastructure/text-host/text-input-host.ts`；仅触发升级条件时才动章程 §5.5 |
 | Q-4 | `HitTestIndex` 在单页 300+ 元素、频繁缩放场景下是否需要空间加速结构（四叉树/BVH）而非按 `zIndex` 线性扫描，以满足 NF-01 命中测试 p95 ≤ 2 ms | M1 用线性扫描（配合包围盒提前退出）；M2 按 bench 结果决定是否引入四叉树 | `engine-render/src/domain/contracts/hit-test.ts` |
-| Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐 40-modules/06 §4.3 的文件清单）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
+| Q-5 | `render.overlay` 默认 4 个条目（`selection`/`remote-presence`/`guides`/`comment-pins`）是否为最终集合，还是应把手柄拆成独立条目 | 维持 4 个（对齐 40-modules/06 §4.3 的文件清单）**→ 2026-10-03 改为 3 个**（rulings §4.24 TA-1：评论钉移出 render-dom，由 slide-ui `ui/canvas-overlays/CommentPins.tsx` 以 React 画布覆盖组件绘制，不经 `render.overlay`）；缩放/旋转手柄作为 `selection-overlay.ts` 内部子部件，不单独贡献 | `render-dom/src/plugin.ts`、`render-dom/src/infrastructure/overlay/**`；M-10 UI 设计需确认 |
 | Q-6 | ~~四个 `render.*` 贡献点与 `layout.measurer` 的 `conflict` 策略是否应统一为 `'error'`（G-10）~~ **（结案，2026-09-25）** | 不统一：`render.scene`/`render.target`/`layout.measurer` 为 `'error'`（同 id 重复注册视为配置错误），`render.element`/`render.overlay` 为 `'replace'`（K-3、rulings §4.18 GV-24，以架构 03 §3.6 为准） | `engine-render/src/render.contribution.ts`、`engine-layout/src/layout.contribution.ts` |
 | Q-8（2026-09-26，§4.21） | M3 肘形 / 曲线连接符的选型与 `adj` 公式如何标定 | 以 PowerPoint 365 导出为 oracle，建 `fixtures/pptx/features/connector-*` 语料覆盖四向法向组合与自由端，`connector-routing.test.ts` 逐条比对；规则框架见 50/22 §4.4 | `engine-layout/src/domain/geometry/connector-routing.ts` |
 | Q-7（**已结案**，2026-09-25） | `Viewport.zoom` 的 min/max 默认值 | 引擎 clamp 保持 `min: 0.1`/`max: 8`；产品缩放范围 10–400% 由 preset 默认配置下发（50/05 §4.1、50/10 §7；40/11 `SlidePresetOptions`） | `engine-render/src/config.ts` |

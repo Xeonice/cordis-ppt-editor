@@ -1,4 +1,4 @@
-> 状态：提议 | 负责：架构-结构 | 更新：2026-10-01（§4.23 插件管理：新建。内容插件足迹记在文档资源 `core.pluginFootprint`，内核在命令管线里同事务维护、只增不减；打开时比对；导出 pptx 经 `p:presentation/p:extLst` 保留） | 依赖：[章程](../../00-charter/charter.md) §2.3；[rulings](../../00-charter/rulings-2026-09-14.md) §4.23（O-3 已确认，2026-10-01）；PRD [09-plugin-manager](../../10-prd/03-features/09-plugin-manager.md) PM-02、PM-12、PM-13；PRD [01-open-and-fidelity](../../10-prd/03-features/01-open-and-fidelity.md) OF-13；[30/03](../03-kernel-and-plugin-model.md)；[30/04](../04-document-model.md) §2.5、§2.7、§4.1；[ADR-0008](./0008-opaque-preservation.md)；[ADR-0009](./0009-snapshot-schema-version-and-migrations.md)；[ADR-0015](./0015-single-execution-entry-and-non-executable-mutations.md)；[40-modules/02](../../40-modules/02-kernel-protocol-and-document-core.md)、[04](../../40-modules/04-ooxml-format-and-pptx-codec.md)、[16](../../40-modules/16-plugin-catalog.md)
+> 状态：提议 | 负责：架构-结构 | 更新：2026-10-01（§4.23 插件管理：新建。内容插件足迹记在文档资源 `core.pluginFootprint`，内核在命令管线里同事务维护、只增不减；打开时比对；导出 pptx 经 `p:presentation/p:extLst` 保留）；2026-10-03（§4.24 AL-6：决策 1 明确评论类数据（`comments.*` 命名空间）不进足迹，单人 preset 与查看器打开带评论的文档时静默保留、不触发缺插件提示；验证表补一行） | 依赖：[章程](../../00-charter/charter.md) §2.3；[rulings](../../00-charter/rulings-2026-09-14.md) §4.23（O-3 已确认，2026-10-01）；PRD [09-plugin-manager](../../10-prd/03-features/09-plugin-manager.md) PM-02、PM-12、PM-13；PRD [01-open-and-fidelity](../../10-prd/03-features/01-open-and-fidelity.md) OF-13；[30/03](../03-kernel-and-plugin-model.md)；[30/04](../04-document-model.md) §2.5、§2.7、§4.1；[ADR-0008](./0008-opaque-preservation.md)；[ADR-0009](./0009-snapshot-schema-version-and-migrations.md)；[ADR-0015](./0015-single-execution-entry-and-non-executable-mutations.md)；[40-modules/02](../../40-modules/02-kernel-protocol-and-document-core.md)、[04](../../40-modules/04-ooxml-format-and-pptx-codec.md)、[16](../../40-modules/16-plugin-catalog.md)
 
 # ADR-0050：内容插件足迹
 
@@ -30,6 +30,7 @@ interface PluginFootprint {
 ```
 
 - 只记内容级插件；界面级插件不进足迹（它不写文档，PM-13 第 3 条）。
+- **评论类数据不进足迹**（2026-10-03，rulings §4.24 AL-6）：足迹只描述幻灯片内容（元素 kind 与参与内容渲染的资源命名空间）。评论（`comments.*` 命名空间，`@cordexjs/comments` 写入，rulings §4.19 D-COMMENTS-PKG）虽由一个按作用域判定为内容级的插件负责，但它不是幻灯片内容、不参与渲染与导出版面，因此不进入第 2 条的「kind / 命名空间 → 内容级插件」映射，写评论不产生足迹条目。未装 `comments` 的会话（单人 preset、查看器）打开带评论的文档时，评论数据按未注册命名空间静默原样保留（30/04 §2.7），比对结果中不出现该插件，不触发缺插件横幅与状态栏提示（50-frontend/04 §1.1、50-frontend/08 §2）。今后新增同类横向能力（不属于幻灯片内容的协作数据）按同一规则排除，需在本条登记命名空间前缀。
 - 不含插件代码、配置与用户信息；插件 id 与版本来自清单（`cordex-manifest.json`，PS-01）。
 - 协同模式下即 Y.Doc 顶层 `resources` 下的同名键，随快照、增量与导出一起流转（30/06 §1.3）。
 
@@ -103,13 +104,14 @@ flowchart LR
 |---|---|
 | 写入内容级插件的元素后足迹出现对应条目，与内容同一 `TransactionRecord` | kernel 单测（`plugin-footprint.test.ts`） |
 | 撤销后足迹不回退；界面级插件的命令不产生足迹 | kernel 单测；PM-13 场景见 70-testing/02 |
+| 写评论（`comments.*`）不产生足迹条目；不装 `comments` 的会话打开带评论的文档，比对结果为空、不出横幅，评论数据原样往返（rulings §4.24 AL-6） | kernel 单测（`plugin-footprint.test.ts`）；单人 preset 打开协同文档的 e2e 见 70-testing/06 |
 | `comparePluginFootprint` 四种原因与空 `affectedSlideIds` 不出横幅 | 表驱动单测 |
 | 导出后再导入，足迹逐字段相同；零编辑往返 `ppt/presentation.xml` 字节不变 | ooxml-pptx 往返测试（`fidelity-roundtrip`） |
 | 缺插件会话编辑同一文档后，足迹中该插件条目不变 | 协同模拟测试（70-testing/05） |
 
 ## 关联
 
-- 章程 §2.3（同源可信）；rulings §4.23（裁决 3、O-3）；术语「内容插件足迹」登记于章程 §4。
+- 章程 §2.3（同源可信）；rulings §4.23（裁决 3、O-3）、§4.24 AL-6（评论不进足迹）；术语「内容插件足迹」登记于章程 §4。
 - PRD 09 PM-02（作用域判定）、PM-12（缺插件降级与提示）、PM-13（协同一致性）；OF-13（元素级占位）。
 - 30/03（`scope` 清单字段与作用域判定）；30/04 §2.7（命名空间）、§4.1（`ppt/presentation.xml` 映射）；ADR-0008（不透明保留）、ADR-0013（StoreOp）、ADR-0015（单一执行入口）。
 - 落点：40-modules/02（kernel 足迹维护与比对）、40-modules/04（extLst 导入导出）、50-frontend/04（足迹读写与比对的前端用法）。

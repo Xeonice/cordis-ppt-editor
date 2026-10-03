@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1））；2026-09-25（§4.19 登记的 INC-10 / SG-04、INC-08、INC-24、INC-25、INC-33、TELEMETRY-DEFAULT：§1.1 新域与码一次登记（§1.1a）、§1.4 http-map 补表（含 `format.unsupported_binary`）、§2.3 脱敏头、§3.4 产品事件以 PRD 06 为权威、§5 `fetch` keepalive、§11.1 `render/frame` 与 `perf/frame` 字段；各节加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§2.4 Sink、§3.2 span 清单、§3.3 指标清单、§4 诊断、§5 客户端错误上报改为跨端规则摘要 + 链接 50-frontend/15 与 60-backend/18；§1、§2.1–§2.3、§3.1、§3.4、§11 保留）；2026-09-26（§4.20）（FE-16：§11.1 `comment/*` 载荷、正文默认脱敏与 `comments.events.includeBody`、`origin` 字段，`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`，`render/font-fallback.reason`；BE-01+TX-03：§11.2 `collab/auth-failed` code 集合增 `collab.rate_limited`）；2026-09-26（§4.21：§1.4 登记 `format.malformed_xml` 与 `format.limit_exceeded` 的 HTTP 映射和 `details`，XML 限额键与 DOCTYPE 拒绝引 ADR-0019）；2026-09-26（§4.21 整合：§1.1a 登记 collab.pre_auth_overflow（4205）、collab.idle_timeout（4408）与诊断 format.pptx.connector_target_missing，§1.4 补映射；§3.2 traceparent 载体改为 Auth 帧 token）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除） | 依赖：charter v0.1；[ADR-0019](./adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21）
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 去租户——删 `cordex.tenant_id` 日志字段与 `tenant.quota_exceeded`，改 `document.quota_exceeded`；Q10 日志默认进 OTel Collector，Loki/Grafana 为 AGPL 可选 profile；Q3 `store/undo-skipped` 事件）；2026-09-24（rulings §4.16 Q15：§1.4 登记 `format.macro_rejected` → 415）；2026-09-24（复核修正，rulings §4.17：D2 `document.quota_exceeded` 定为编辑期上限码、WS 关闭码改「—」、§1.4 登记配额三码 `dimension` 取值表；H6 登记 `format.encrypted`；D5/M-02 `store/undo-skipped` 载荷 `{skipped, wholeStep}` 与单独计数）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：BE-30 浏览器上报端点由 client-telemetry 控制器承接（api 角色、要求登录、限流与体积上限），流图补 Collector→Jaeger / Prometheus（§5）；CO-08 指标 `cordex_collab_broadcast_before_persist_total`（§3.3）；CO-12 事件 `unit/loaded`、FE-09 `render/frame` 载荷补 `pendingDirty`（§11.1）；UX-02 令牌刷新 401 与网络错误分流（§11.2）；GV-15 `events-declared` 改写正式名 `cordex/events-must-be-declared`、lifecycle 检查指明 `scan-effects` 规则 (2)（§7、§11.1））；2026-09-25（§4.19 登记的 INC-10 / SG-04、INC-08、INC-24、INC-25、INC-33、TELEMETRY-DEFAULT：§1.1 新域与码一次登记（§1.1a）、§1.4 http-map 补表（含 `format.unsupported_binary`）、§2.3 脱敏头、§3.4 产品事件以 PRD 06 为权威、§5 `fetch` keepalive、§11.1 `render/frame` 与 `perf/frame` 字段；各节加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-25（设计线拆分：§2.4 Sink、§3.2 span 清单、§3.3 指标清单、§4 诊断、§5 客户端错误上报改为跨端规则摘要 + 链接 50-frontend/15 与 60-backend/18；§1、§2.1–§2.3、§3.1、§3.4、§11 保留）；2026-09-26（§4.20）（FE-16：§11.1 `comment/*` 载荷、正文默认脱敏与 `comments.events.includeBody`、`origin` 字段，`render/element-degraded` 通用原因 `media-decode-failed`/`media-unavailable`，`render/font-fallback.reason`；BE-01+TX-03：§11.2 `collab/auth-failed` code 集合增 `collab.rate_limited`）；2026-09-26（§4.21：§1.4 登记 `format.malformed_xml` 与 `format.limit_exceeded` 的 HTTP 映射和 `details`，XML 限额键与 DOCTYPE 拒绝引 ADR-0019）；2026-09-26（§4.21 整合：§1.1a 登记 collab.pre_auth_overflow（4205）、collab.idle_timeout（4408）与诊断 format.pptx.connector_target_missing，§1.4 补映射；§3.2 traceparent 载体改为 Auth 帧 token）；2026-09-26（§4.21 Remap：原 30/08 与 30/07 迁出节的引用改指新位置，30/08 已删除）；2026-10-03（rulings §4.24 TA-7：§1.1a 登记 `server.plugins` 七码、`server.automation` 三码（AL-7）与 `collab.plugins_outdated`（4426），§1.4 映射与域总览图同步；60/15 §7 的「待登记」结案） | 依赖：charter v0.1；[ADR-0019](./adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21）
 
 # 10 观测性与错误（Observability & Errors）：错误码体系、结构化日志、telemetry、诊断、客户端上报
 
@@ -100,6 +100,7 @@ flowchart LR
     dStorage["storage：含存储配额"]
     dServer["server.auth · server.users · server.documents · server.share_links · server.media · server.snapshots · server.jobs"]
     dServer2["server.import · server.export · server.thumbnails · server.comments · server.webhooks · server.audit · server.http"]
+    dServer3["server.plugins · server.automation：2026-10-03 登记"]
   end
   subgraph shellG["插件与应用壳"]
     dPlugin["plugin"]
@@ -110,7 +111,7 @@ flowchart LR
   code -. "已删除" .-> removed
 ```
 
-怎么读：左侧是编码格式，右侧分组列出全部 domain（分组只为阅读，按所属包的层次归类）；虚线指向已删除的域。配额类错误按阶段分属 `format`、`document`、`storage` 三个域，见 §1.4；服务端 REST 域于 2026-09-25 按决策 INC-10 / SG-04 补齐（§1.1a）。
+怎么读：左侧是编码格式，右侧分组列出全部 domain（分组只为阅读，按所属包的层次归类）；虚线指向已删除的域。配额类错误按阶段分属 `format`、`document`、`storage` 三个域，见 §1.4；服务端 REST 域于 2026-09-25 按决策 INC-10 / SG-04 补齐（§1.1a），`server.plugins`、`server.automation` 于 2026-10-03 按 rulings §4.24 补登。
 
 **错误码登记与校验**
 
@@ -146,9 +147,12 @@ flowchart LR
 | `server.webhooks` | `not_found` / `invalid_url` / `egress_blocked` / `invalid_event_filter` | 404 / 422 / 422 / 422 | 订阅不存在；URL 不合法；出站守卫拒绝；事件过滤非法（60/07 §10） |
 | `server.audit` | `range_too_large` / `export_too_large` / `verify_busy` | 400 / 422 / 409 | 查询区间超 366 天；导出超 1,000,000 行；链校验进行中（60/07 §10） |
 | `server.http` | `rate_limited` / `payload_too_large` / `unsupported_media_type` | 429（`Retry-After`）/ 413 / 415 | REST 上 `*.rate_limited`、`*.payload_too_large` 的唯一落点；Content-Type 不被路由接受（60/15 §8） |
+| `server.plugins`（2026-10-03 登记，rulings §4.23 新域、§4.24 TA-7） | `not_found` / `policy_invalid` / `revision_conflict` / `conflict` / `not_optional` / `config_invalid` / `validation_failed` | 404 / 422 / 412 / 409 / 409 / 422 / 400 | 插件 id 不在本部署；内容级设 `optional`、改锁定项、启用被拒插件；`If-Match` 与当前 `policy` 摘要不符；同批变更争用同一 Provider 座或 `slide.shapeKind`；本人启停的插件不是 `optional`；配置未过 schema 或含机密字段；入参不合 schema（含缺 `If-Match`）（60/03 §12.4、60/15 §3.15） |
+| `server.automation`（2026-10-03，rulings §4.24 AL-7） | `media_not_found` / `placeholder_type_mismatch` / `validation_failed` | 422 / 作业结果 / 400 | 模板填充的图片值引用的 sha256 与模板文档无关联；数据值类型与同名占位符不符；入参不合 schema（含单批超 100 项）（60/06 §7.4、§12.2，60/15 §3.16） |
 | `permission` | `principal_not_found` / `principal_unsupported` / `last_owner` | 404 / 400 / 409 | 授权目标不存在或非 active；`principalType ≠ 'user'`；撤销或降级最后一个 owner（60/03 §9） |
 | `storage` | `integrity_mismatch` / `upload_not_found` | 422 / 404 | commit 时 sha256 或字节数不符；`uploadId` 不存在或过期（60/04 §6–§7） |
 | `collab` | `doc_purging` / `protocol_mismatch` / `epoch_changed` / `bootstrap_failed` / `auth_timeout` / `quarantined` / `payload_too_large` / `validation_failed` / `lock_lost` | 4404 / 4427 / 4428 / 4503 / 4408 / 4409 / 4413 / 4400 / 仅日志与计数 | WS 握手与门禁（06 §6.3、§6.5；60/16 §10）；`lock_lost` = 单写者租约在写入前失效，不对外 |
+| `collab`（2026-10-03 登记，rulings §4.23 O-1 引入、§4.24 TA-7） | `plugins_outdated` | 4426 | 握手时 Auth token 的插件集指纹 `catalog` 段与本部署不符（重新部署改变了内容级插件）；客户端行为同 `schema_too_new`：先 flush 再刷新（60/16 §12 第 4 项）。`policy` 段不符不拒绝，只推 Stateless `plugins`，不占错误码 |
 | `collab`（2026-09-26 新增（§4.21），ADR-0039 H-d-19…H-d-22） | `pre_auth_overflow` / `idle_timeout` | 4205 / 4408 | 认证前队列（帧数或字节）或待认证文档数超限；45 s 无入站帧由适配层判死。4408 扩为超时通用码，与 `auth_timeout` 共用（06 §6.5；60/16 §10） |
 | `format.pptx`（2026-09-26 新增（§4.21），诊断，不抛错） | `connector_target_missing` | 导入导出诊断（warning），不对外映射 | 导出时连接符的 `stCxn` / `endCxn` 目标已被硬删，去掉失效引用；导入时引用了不存在的 `cNvPr@id`，保留为自由端点（ADR-0018 决策 8；50-frontend/22 称 `connector-target-missing`；登记于 `ooxml-pptx` errors，40-modules/04） |
 | `headless` | `task_timeout` / `task_oom` / `worker_crashed` / `bad_request` / `rpc_unauthorized` / `request_too_large` / `version_mismatch` / `renderer_busy` / `inject_timeout` / `browser_crashed` / `render_timeout` / `response_invalid` | 作业结果或内部 RPC 400 / 401 / 413 / 409 / 503 / 504 / 500（60/06 §10.4） | worker 解析线程与 renderer RPC（60/06 §12.2）；`headless.zip_limit_exceeded`、`headless.decode_failed` 不再使用（改为 `format.limit_exceeded`、`format.pptx.*`） |
@@ -235,7 +239,7 @@ flowchart TB
 | `server.auth.unauthenticated` / `collab.unauthenticated` | 401 | 4401 | WS 握手用 `collab.unauthenticated`（决策 INC-10） |
 | `permission.denied` / `collab.forbidden` | 403 | 4403 | — |
 | `server.documents.not_found` / `collab.doc_not_found` | 404 | 4404 | — |
-| `collab.schema_too_new` | 409 | 4426 | — |
+| `collab.schema_too_new` / `collab.plugins_outdated`（后者 2026-10-03 登记） | 409 | 4426 | 两码客户端行为相同（刷新以装配新版本），因此共用 4426；`plugins_outdated` 只在 WS 握手出现 |
 | `collab.room_full`（原 `collab.server.room_full` 作废） | 503 | 4503 | — |
 | `*.payload_too_large` | 413 | 4413 | — |
 | `*.rate_limited` | 429 | 4429 | — |
@@ -250,11 +254,12 @@ flowchart TB
 | `server.auth.expired` / `server.auth.invalid_token` | 401 | 4401 | 见 §11.2 |
 | `server.auth.csrf_rejected` / `server.auth.origin_rejected` / `server.auth.forbidden` | 403 | —（WS 升级 Origin 拒绝在升级前以 HTTP 403 返回） | INC-24；`forbidden` 为 `PlatformAdminGuard` 拒绝 |
 | `server.auth.idp_unavailable` / `server.auth.unavailable` / `server.snapshots.persist_degraded` | 503 | — | `retryable: true`；OIDC 回调中的 IdP 失败与 `account_disabled` 一律以 302 带 `?error=<code>` 回前端 |
-| `*.not_found`（`server.users` `server.share_links` `server.media` `server.snapshots` `server.jobs` `server.thumbnails` `server.comments` `server.webhooks`、`permission.principal_not_found`、`storage.upload_not_found`） | 404 | — | `server.thumbnails.not_found` 带 `Retry-After`（已惰性入队） |
-| 冲突类（`server.documents.locked` `server.documents.element_not_tombstoned` `server.users.last_admin` `permission.last_owner` `server.snapshots.named_limit_reached` `server.jobs.invalid_transition` `server.import.source_missing` `server.import.job_terminal` `server.export.not_ready` `server.comments.import_unsupported` `server.audit.verify_busy`） | 409 | — | — |
+| `*.not_found`（`server.users` `server.share_links` `server.media` `server.snapshots` `server.jobs` `server.thumbnails` `server.comments` `server.webhooks` `server.plugins`、`permission.principal_not_found`、`storage.upload_not_found`） | 404 | — | `server.thumbnails.not_found` 带 `Retry-After`（已惰性入队） |
+| 冲突类（`server.documents.locked` `server.documents.element_not_tombstoned` `server.users.last_admin` `permission.last_owner` `server.snapshots.named_limit_reached` `server.jobs.invalid_transition` `server.import.source_missing` `server.import.job_terminal` `server.export.not_ready` `server.comments.import_unsupported` `server.audit.verify_busy` `server.plugins.conflict` `server.plugins.not_optional`） | 409 | — | — |
+| `server.plugins.revision_conflict`（2026-10-03 登记） | 412 | — | 条件请求失败：`If-Match` 与当前插件策略摘要不符，客户端重新读取后再保存（60/15 §3.15） |
 | `server.export.expired` | 410 | — | 导出对象已过保留期 |
 | `server.import.upload_forbidden` | 403 | — | `uploadId` 不存在、过期或非本人不区分（防枚举） |
-| 语义校验类（`storage.integrity_mismatch` `server.webhooks.invalid_url` `server.webhooks.egress_blocked` `server.webhooks.invalid_event_filter` `server.audit.export_too_large`） | 422 | — | — |
+| 语义校验类（`storage.integrity_mismatch` `server.webhooks.invalid_url` `server.webhooks.egress_blocked` `server.webhooks.invalid_event_filter` `server.audit.export_too_large` `server.plugins.policy_invalid` `server.plugins.config_invalid` `server.automation.media_not_found`） | 422 | — | — |
 | `permission.principal_unsupported` / `server.audit.range_too_large` | 400 | — | 与 `*.validation_failed` 同档 |
 | `server.media.unsupported_type` / `server.http.unsupported_media_type` | 415 | — | — |
 | `server.http.rate_limited` / `server.http.payload_too_large` | 429 / 413 | — | REST 上 `*.rate_limited`、`*.payload_too_large` 的具体码（60-backend/15 §8）；WS 侧为 `collab.rate_limited`（4429）与 `collab.payload_too_large`（4413） |

@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：新增 Nest 模块 `PluginsModule` / `PluginsHttpModule`（§3、§4.11、§5.11）：声明文件与部署时校验、策略与个人选择仓储（表 `plugin_policies`、`user_plugin_prefs`）、插件集指纹、管理员与个人 REST） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：新增 Nest 模块 `PluginsModule` / `PluginsHttpModule`（§3、§4.11、§5.11）：声明文件与部署时校验、策略与个人选择仓储（表 `plugin_policies`、`user_plugin_prefs`）、插件集指纹、管理员与个人 REST）；2026-10-03（§4.24 收尾 AL-3：`PluginsModule` 改为 api、collab、worker 加载，renderer 不装、不读库，内容级集合由 worker 经 RPC `contentPlugins` 下发；§3 依赖表、§4.11 目录树、§5.11 逐文件表与图 5-1 同步） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
 
 # 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体）
 
@@ -394,7 +394,7 @@ Nest 模块不是 cordis Fiber（module-map §5.3），本节取代模板原 §3
 | `ShareLinksModule` | `PermissionsModule` | `ShareLinkGuard`（第二个 `APP_GUARD`，BE-05） | 60/03 §5 |
 | `StorageModule` | `ConfigModule` | `BlobStoreAccessor`、`GetPresignedPutUseCase`（仅内部，BE-10） | 60/04 §6 |
 | `MediaModule` | `StorageModule`、`DocumentsModule` | `SyncDocumentMediaRefsUseCase`、`PruneDetachedMediaLinksUseCase`（供 M-09 写快照时同事务调用，决策 C-25） | 60/04 §7 |
-| `PluginsModule`（2026-10-01，rulings §4.23） | 只有 `AuditModule`（M-12；配置、Valkey 与 DB 经全局基础设施提供者取得）；`PluginsHttpModule` 另 import `AuthModule`（只取 `PlatformAdminGuard`） | `PluginCatalog`（启动时读声明文件并做部署时校验，全部角色加载）、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`（供 M-09 collab 只读重算 `policy` 摘要）；`PluginsHttpModule` 的两个控制器只在 api 角色注册 | 60/03 §12；60/15 §3.15 |
+| `PluginsModule`（2026-10-01，rulings §4.23） | 只有 `AuditModule`（M-12；配置、Valkey 与 DB 经全局基础设施提供者取得）；`PluginsHttpModule` 另 import `AuthModule`（只取 `PlatformAdminGuard`） | `PluginCatalog`（启动时读声明文件并做部署时校验，api、collab、worker 加载；renderer 不装本模块，AL-3）、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`（供 M-09 collab 只读重算 `policy` 摘要）；`PluginsHttpModule` 的两个控制器只在 api 角色注册 | 60/03 §12；60/15 §3.15 |
 
 **图 3-1 Nest 模块 imports 依赖**
 
@@ -681,7 +681,7 @@ apps/server/test/integration/conformance/    # 需要容器的 Provider 契约�
 
 ```text
 plugins/
-├── plugins.module.ts                     PluginsModule：providers 与 exports，全部角色加载（api、collab、worker、renderer）
+├── plugins.module.ts                     PluginsModule：providers 与 exports，api、collab、worker 加载；renderer 不装（不读库，内容级集合由 worker 经 RPC contentPlugins 下发，rulings §4.24 AL-3）
 ├── plugins-http.module.ts                PluginsHttpModule：只含两个控制器，只由 api 角色根模块 import
 ├── domain/
 │   ├── catalog-entry.ts                  CatalogEntry、DeployState（八态字面量联合）、RejectReason（十个原因码）
@@ -896,7 +896,7 @@ plugins/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `plugins.module.ts` | 模块装配 | `PluginsModule` | `AuditModule`（唯一 import） | exports `PluginCatalog`、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`；全部角色加载（60-backend/01 §5） |
+| `plugins.module.ts` | 模块装配 | `PluginsModule` | `AuditModule`（唯一 import） | exports `PluginCatalog`、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`、`PluginPolicyRepository`；api、collab、worker 加载，renderer 不装（60-backend/01 §5 装配矩阵、60-backend/03 §12.1「角色装配」，rulings §4.24 AL-3） |
 | `plugins-http.module.ts` | HTTP 装配 | `PluginsHttpModule` | `PluginsModule`、`AuthModule`（`PlatformAdminGuard`） | 只在 api 角色 |
 | `domain/catalog-entry.ts` | 清单条目与部署级状态 | `CatalogEntry`、`DeployState`、`RejectReason` | protocol `rest/plugins.ts` | 八态与十个原因码为字面量联合（非 enum） |
 | `domain/policy.ts` | 策略三态与变更校验 | `PluginPolicy`、`validatePolicyChanges` | `./catalog-entry` | 内容级设 optional、锁定或必需项、被拒项 → `server.plugins.policy_invalid`；互斥 → `server.plugins.conflict` |
@@ -931,7 +931,8 @@ flowchart LR
   catalog["PluginCatalog：启动时部署校验"]
   api["api：两个控制器与用例"]
   collab["collab：指纹判定与 plugins:ctl 订阅"]
-  worker["worker 与 renderer：headless 内容级集合"]
+  worker["worker：headless 内容级集合"]
+  renderer["renderer：不装本模块、不读库"]
   pol["plugin_policies"]
   prefs["user_plugin_prefs"]
   audit["audit_log：plugin.*"]
@@ -940,6 +941,7 @@ flowchart LR
   catalog --> api
   catalog --> collab
   catalog --> worker
+  worker -- "RPC 字段 contentPlugins" --> renderer
   api --> pol
   api --> prefs
   api --> audit
@@ -948,7 +950,7 @@ flowchart LR
   pol -. "只读重算 policy 摘要" .-> collab
 ```
 
-怎么读：四种角色都在启动时读同一份声明文件并得出同一份校验结果；只有 api 写两张表与审计，并在提交后发布控制频道；collab 靠频道即时得知、靠只读查表兜底，worker 与 renderer 只取内容级集合做 headless 导入导出。
+怎么读：api、collab、worker 三种角色都在启动时读同一份声明文件并得出同一份校验结果；只有 api 写两张表与审计，并在提交后发布控制频道；collab 靠频道即时得知、靠只读查表兜底，worker 只取内容级集合做 headless 导入导出。renderer 不装本模块、不读库、无凭据，`/render` 页的内容级集合由 worker 算出后随 RPC 字段 `contentPlugins` 下发（rulings §4.24 AL-3，60-backend/06 §10.3）。
 依据：PRD 09 PM-04、PM-05、PM-08、PM-13；60-backend/01 §5；60-backend/03 §12。
 
 ## 6. 对外 API 面

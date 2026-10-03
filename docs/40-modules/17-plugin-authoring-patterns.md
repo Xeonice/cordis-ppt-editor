@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-10-03（§4.24 收尾：ooxml-pptx Manifest 片段 `core.format` 增 `slide-markdown`，与 40/04 §3 同步） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
 
 # 17 插件书写模式手册
 
@@ -257,7 +257,7 @@ export function apply(ctx: Context): void {
 { "id": "@cordexjs/store-yjs", "provides": ["store", "yjsBackend"], "injects": [], "implements": ["store"], "unitScoped": true }
 ```
 ```json
-{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx"] }, "unitScoped": false }
+{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx", "slide-markdown"] }, "unitScoped": false }
 ```
 
 **检查清单**：

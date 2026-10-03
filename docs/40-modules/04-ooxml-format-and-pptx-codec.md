@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 层迁出为独立包 `@cordexjs/xml`（§4.3、§5.3）；`[Content_Types].xml` 与 `.rels` 结构不变即原样写回；`.fntdata` 改为 EOT + MTX；`tableStyles.xml` 追加写入、图表部件与内嵌工作簿写出器；裸 `p:contentPart`；`writeZip` 公开入口；XML 加固、合规、差分三类测试）；2026-09-26（§4.21 整合：§1.1 登记新增字段的导入导出映射与确定性键；tableStyles.xml 只读解析改为 M1（PRD OF-08）；import/shape-tree 的 renderHint 取值对齐 40/03 并填 source；import/table 导入即归一化；EncodeInputs 增 connectorGeometry；诊断 connector_target_missing 与副本 id 重映射落点；mce.ts 增两项只读提取；内嵌字体适配器只在导入 Worker 动态加载；opc/zip.ts 禁 fflate 异步入口）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5；fflate 单点去掉 server-storage）；2026-10-01（§4.23 插件管理：ooxml-pptx 增 `import/plugin-footprint.ts`、`export/plugin-footprint.ts`，内容插件足迹经 `p:presentation/p:extLst` 往返，ADR-0050） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；60-backend/06 §7（原 30/08 §16.2）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21 X:q-xml-lexer / X:q-xml-package / X:q-content-types）；[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)（MPL-2.0 限未修改依赖）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（rulings §4.16 Q15：`.pptm` / 宏包拒绝导入 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17：H6 `format.encrypted` 与 EncryptionInfo/CFB 检测点；M19 `dimension` 取值对齐 30-architecture/10 含 `fileSize`；L2 残句）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 层迁出为独立包 `@cordexjs/xml`（§4.3、§5.3）；`[Content_Types].xml` 与 `.rels` 结构不变即原样写回；`.fntdata` 改为 EOT + MTX；`tableStyles.xml` 追加写入、图表部件与内嵌工作簿写出器；裸 `p:contentPart`；`writeZip` 公开入口；XML 加固、合规、差分三类测试）；2026-09-26（§4.21 整合：§1.1 登记新增字段的导入导出映射与确定性键；tableStyles.xml 只读解析改为 M1（PRD OF-08）；import/shape-tree 的 renderHint 取值对齐 40/03 并填 source；import/table 导入即归一化；EncodeInputs 增 connectorGeometry；诊断 connector_target_missing 与副本 id 重映射落点；mce.ts 增两项只读提取；内嵌字体适配器只在导入 Worker 动态加载；opc/zip.ts 禁 fflate 异步入口）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：写回口径出处并列 ADR-0008 决策 5 与 ADR-0019 决策 5；fflate 单点去掉 server-storage）；2026-10-01（§4.23 插件管理：ooxml-pptx 增 `import/plugin-footprint.ts`、`export/plugin-footprint.ts`，内容插件足迹经 `p:presentation/p:extLst` 往返，ADR-0050）；2026-10-03（§4.24 收尾 AL-7：ooxml-pptx 增导出专用 `slideMarkdownCodec`（`interface/markdown-codec.ts`、`infrastructure/export/markdown.ts` 与测试），供 SV-13 `convert` 的 `markdown` 输出（M3）；§2.5、§3、§4.2、§5.2、§9.2、§11、§12 同步） | 依赖：00-module-map.md M-04 行、charter v0.2 §5.2 `ooxml-core`/`ooxml-pptx` 行、§6.1 D7/D16、§10 Q14/Q15；30-architecture 02 §4.9/§4.10、04 全篇；rulings-2026-09-14 A-3/PD-03/Q-T11/§4.11 C-28（经 §4.15 Q7 修订）/§4.15 Q5/Q7/Q8/§4.16 Q15；40-modules 02 §2.5/§2.6/§6、03 §2/§4/§6；PRD `01-open-and-fidelity.md`；60-backend/06 §7（原 30/08 §16.2）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)（rulings §4.21 X:q-xml-lexer / X:q-xml-package / X:q-content-types）；[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)（MPL-2.0 限未修改依赖）
 
 # 04 OOXML 格式与 PPTX 编解码（限界上下文 BC-07 OOXML 格式基础设施、BC-08 PPTX 编解码）
 
@@ -407,6 +407,8 @@ export const pptxCodec: FormatCodec<PresentationBody> = {
 }
 ```
 
+**导出专用实例 `slideMarkdownCodec`**（2026-10-03，rulings §4.24 AL-7，M3）：`ooxml-pptx/interface/markdown-codec.ts` 另提供 `FormatCodec<PresentationBody>`：`id: 'slide-markdown'`、`documentType: 'slide'`、`mimeTypes: ['text/markdown']`、`extensions: ['.md']`、`canImport: false`、`canExport: true`；`import` 恒返回 `format.unsupported_mime`，`export` 调纯函数 `encodeMarkdown(body)`（`infrastructure/export/markdown.ts`）——按页序每页一个二级标题（取标题占位符文本，缺省「第 N 页」）、正文文本按形状 `(order, id)` 顺序输出段落与列表、表格转 GFM 表、图片只留替代文字、不含样式与备注，输出 UTF-8、LF、确定性。它是 SV-13 `convert` 作业 `to: 'markdown'` 的编码器（60-backend/06 §7.4）：`server-headless` 文档类型盲，`exportDocument` 只按 `documentType` 与格式 id 经 `formats` 取 codec，不能自带 slide 结构知识，故编码器随 slide 垂直束的格式插件登记，不进 40/09。
+
 契约套件：`runFormatCodecConformance(createCodec, fixtures)`——命名遵循 charter §5.5 `run<Definition>Conformance` 约定，应由 `model-core/testing` 导出（**M-02 现存缺口**：02 号文档 §4.5/§6 尚未列出此文件，§12 G-2 记录并建议 M-02 补齐）。`ooxml-pptx/__tests__` 以 `runFormatCodecConformance(() => pptxCodec, pptxFixtures)` 实例化，覆盖：`canImport`/`canExport` 与实际行为一致、`import` 产出的 `snapshot` 经 `bodySchema.parse` 通过、零编辑 `import→export` 幂等（委托 `testing/roundtrip.ts`）、不支持的 MIME 返回 `format.unsupported_mime` 而非抛异常。
 
 ### 2.6 应用服务
@@ -511,12 +513,12 @@ flowchart LR
 | `inject`（必需） | `['contributions']` |
 | `inject`（可选） | 无 |
 | `provide` | 无（能力经贡献点暴露，不 `provide` 独立服务，module-map BC-08 行） |
-| 贡献点：提供 | `core.format`，item = `pptxCodec`（`id='ooxml-pptx'`），`key: (codec) => codec.id`，`conflict: 'error'`（同 id 二次贡献即报错，防止重复注册） |
+| 贡献点：提供 | `core.format`，item = `pptxCodec`（`id='ooxml-pptx'`）与导出专用 `slideMarkdownCodec`（`id='slide-markdown'`，M3，§2.5），`key: (codec) => codec.id`，`conflict: 'error'`（同 id 二次贡献即报错，防止重复注册） |
 | 贡献点：消费 | 无 |
 | 事件：发布 / 订阅 | 均无（§2.4：诊断经返回值向上传递，由 `formats`/`units` 服务转译） |
 | 配置 schema | `PptxCodecConfig{ progressive: boolean = true; batchSize: number = 8; zipLimits?: Partial<ZipLimits>; xmlLimits?: Partial<XmlLimits>; strictWriteBack: 'preserve'\|'transitional' = 'preserve'; envelope?: Partial<ImportEnvelope> }`（zod，§2.2；`envelope` 缺省取 200 MB / 200 / 1,000 / 20,000（`maxFileSize`/`maxSlides`/`maxElementsPerSlide`/`maxElementsTotal`），由组合根从部署配置注入；`xmlLimits` 缺省取 ADR-0019 决策 6 的默认值，由组合根把部署配置 `limits.xml.*` 经 `resolveXmlLimits` 校验后注入，§4.21） |
 | 生命周期 | `ready` 时向 `core.format` 贡献一次；`dispose` 时 cordis 自动调用 `contribute()` 返回的 disposer 撤销贡献；不持有 `UnitScope` 内状态——编解码函数按调用独立，无跨请求可变状态（`no-module-level-mutable-state`） |
-| Manifest 片段 | `{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx"] }, "unitScoped": false }` |
+| Manifest 片段 | `{ "id": "@cordexjs/ooxml-pptx", "provides": [], "injects": ["contributions"], "points": [], "contributes": { "core.format": ["ooxml-pptx", "slide-markdown"] }, "unitScoped": false }`（`slide-markdown` 2026-10-03 增，M3） |
 
 三包均**不**参与 `UnitScope` 隔离集合——`FormatCodec.import/export` 是无状态函数调用，其结果（`SnapshotBundle`/`bytes`）才进入 `Unit` 生命周期（由 M-02 `units.open`/`core.export` 命令持有）。
 
@@ -768,11 +770,13 @@ packages/ooxml-pptx/
 │   │   │   ├── table-styles.ts        M3：套用包内没有的内置表格样式时，把定义追加到 ppt/tableStyles.xml 末尾（ADR-0008 决策 9 白名单新增项，§4.21）
 │   │   │   ├── conformance-writer.ts  §4.4 三案执行：C（toStrict 反向映射）→ XSD 校验 → 失败回退 B
 │   │   │   ├── content-types.ts       新增部件命名（image<N>.<ext>）分配、内容类型/rels 同步
+│   │   │   ├── markdown.ts            M3（2026-10-03，§4.24 AL-7）：encodeMarkdown(body) → UTF-8 Markdown（每页标题、正文文本、表格转 GFM、图片只留替代文字，不含样式；纯函数、确定性），供 slideMarkdownCodec
 │   │   │   └── export.worker.ts       导出 Worker 入口（2026-09-25 登记，50/13 §7）：在 Worker 内跑 exportPptx，输入 store.exportSnapshot() 的结构化克隆 + 基线包字节，回传 pptx Blob；导出完成即终止，经 kernel toScriptUrl 创建（50/14 §4.2）；惰性子路径化见 M-11 G-14
 │   │   └── mapping/
 │   │       └── part-map.ts            registerPartPrefixes(dirtyTracker, body)：桥接 PresentationBody 路径 ↔ 部件名
 │   ├── interface/
-│   │   └── codec.ts                   pptxCodec: FormatCodec<PresentationBody> 实例（§2.5），供 plugin.ts 贡献
+│   │   ├── codec.ts                   pptxCodec: FormatCodec<PresentationBody> 实例（§2.5），供 plugin.ts 贡献
+│   │   └── markdown-codec.ts          M3（2026-10-03，§4.24 AL-7）：slideMarkdownCodec 导出专用实例（id slide-markdown，canImport:false），SV-13 convert → markdown
 │   ├── testing/
 │   │   ├── index.ts
 │   │   └── roundtrip.ts               roundTrip(bytes) → { partDiff; canonicalDiff }（调用 ooxml-core/testing/diffPackage）
@@ -785,6 +789,7 @@ packages/ooxml-pptx/
 │       ├── content-part.test.ts       裸 p:contentPart → UnknownShape；删除整体移除；移动后只改 p:xfrm，ink 部件 verbatim（§4.21）
 │       ├── chart-export.test.ts       M3：数据未变的图表部件原字节写回；改数据后缓存与内嵌 xlsx 一致；新插入图表生成部件、rels 与内容类型
 │       ├── table-styles-append.test.ts  M3：追加内置样式后已有条目字节不动、新条目与规范形式 c14n 等价；已存在的样式不重复追加
+│       ├── markdown-export.test.ts    M3：fixtures/pptx/features 导出 Markdown 与金样一致；表格为 GFM、图片只有替代文字；两次导出字节相同；import 返回 format.unsupported_mime
 │       └── determinism.test.ts        同一 Snapshot + 同一 thumbnailJpeg 输入，浏览器/Node 两端导出 SHA-256 相同（SV-02）
 ```
 
@@ -1019,9 +1024,11 @@ packages/xml/
 | `infrastructure/export/table-styles.ts` | 表格样式追加 | `appendTableStyles` | `ooxml-core/drawingml/table-style.ts`、`ooxml-core/xml/xml-part.ts` | M3；§4.21 新增：只在末尾追加包内缺失的内置样式定义，已有条目与 `def` 不动（ADR-0008 决策 9 白名单新增项） |
 | `infrastructure/export/conformance-writer.ts` | 一致性类写回执行 | `writeBackConformance` | `domain/conformance-strategy.ts`、`ooxml-core/xml/normalize.ts` | C→XSD→回退 B |
 | `infrastructure/export/content-types.ts` | 新增部件命名与内容类型 | `allocatePartName`、`registerContentType` | `ooxml-core/opc/content-types.ts` | `image<N>.<ext>` |
+| `infrastructure/export/markdown.ts`（2026-10-03，rulings §4.24 AL-7） | Markdown 编码 | `encodeMarkdown` | `model-slide`（类型与只读查询 `query/table-grid`） | M3；纯函数、确定性（UTF-8、LF）；每页二级标题取标题占位符文本（缺省「第 N 页」）、正文按 `(order, id)`、表格转 GFM、图片只留替代文字、不含样式与备注（60-backend/06 §7.4）；不依赖 `ooxml-core`（不产出 OPC） |
 | `infrastructure/export/export.worker.ts` | 导出 Worker 入口（2026-09-25 登记） | Worker 模块（无命名导出） | `application/export-pipeline.ts`、`@cordexjs/kernel`（`toScriptUrl`，由调用方创建） | 主线程只做 `store.exportSnapshot()` 与基线字节传递，编码在 Worker 内；导出完成后终止、基线字节只在此期间常驻；目标从基线 chunk 移出约 25 KB（50/13 §6、§7，M-11 G-14） |
 | `infrastructure/mapping/part-map.ts` | 路径 ↔ 部件名桥接 | `registerPartPrefixes` | `ooxml-core/preserve/dirty-tracker.ts` | |
 | `interface/codec.ts` | 对外契约实例 | `pptxCodec` | `application/**`、`domain/config.ts` | §2.5 |
+| `interface/markdown-codec.ts`（2026-10-03，rulings §4.24 AL-7） | 导出专用契约实例 | `slideMarkdownCodec` | `infrastructure/export/markdown.ts`、`errors.ts` | M3；`canImport:false`，`import` 恒返回 `format.unsupported_mime`；由 `plugin.ts` 与 `pptxCodec` 一起贡献到 `core.format`；SV-13 `convert` 的 `markdown` 输出经 `server-headless` `exportDocument` 取用（§2.5） |
 | `testing/index.ts` | 测试工具桶导出 | 见下 | — | |
 | `testing/roundtrip.ts` | 保真验收工具 | `roundTrip` | `ooxml-core/testing/diff-package.ts` | 不重复实现比较逻辑 |
 | `__tests__/lifecycle.test.ts` | 插件生命周期 | — | `@cordexjs/kernel/testing` | `defineLifecycleSuite` |
@@ -1031,6 +1038,7 @@ packages/xml/
 | `__tests__/content-part.test.ts` | 裸 contentPart | — | `infrastructure/import/shape-tree.ts`、`infrastructure/export/shape-tree.ts` | §4.21：映射为 `UnknownShape`；删除整体移除；移动只改 `p:xfrm`，ink 部件 verbatim |
 | `__tests__/chart-export.test.ts` | 图表写出 | — | `infrastructure/export/chart.ts`、`chart-workbook.ts` | M3：数据未变原字节写回；改数据后缓存与内嵌 xlsx 一致；新插入图表部件、rels、内容类型齐全 |
 | `__tests__/table-styles-append.test.ts` | 表格样式追加 | — | `infrastructure/export/table-styles.ts` | M3：已有条目字节不动；新条目与规范形式 c14n 等价；已存在样式不重复追加 |
+| `__tests__/markdown-export.test.ts`（2026-10-03） | Markdown 导出 | — | `interface/markdown-codec.ts`、`infrastructure/export/markdown.ts` | M3：金样比对、GFM 表与替代文字、两次导出字节相同、`import` 返回 `format.unsupported_mime` |
 | `__tests__/import-envelope.test.ts` | 包络拒绝 | — | `domain/import-envelope.ts`、`application/import-pipeline.ts` | `fileSize`/`slides`/`elementsPerSlide`/`elementsTotal` 四维度超限均 `format.quota_exceeded` 且 `dimension` 取值正确；调高配置后放行 |
 | `__tests__/determinism.test.ts` | 导出确定性 | — | `testing/roundtrip.ts` | 浏览器/Node 两端 SHA-256 比对；覆盖「有/无 `thumbnailJpeg`」两种输入（SV-02） |
 
@@ -1218,6 +1226,7 @@ CI 验证：`iso-smoke`（charter §5.3 规则 5，M-01 工具链）用 `node --
 | 裸 contentPart（§4.21） | `__tests__/content-part.test.ts` | `infrastructure/{import,export}/shape-tree.ts` |
 | 图表写出（M3） | `__tests__/chart-export.test.ts` | `infrastructure/export/{chart,chart-workbook}.ts` |
 | 表格样式追加（M3，白名单项） | `__tests__/table-styles-append.test.ts` | `infrastructure/export/table-styles.ts` |
+| Markdown 导出（M3，§4.24 AL-7） | `__tests__/markdown-export.test.ts` | `interface/markdown-codec.ts`、`infrastructure/export/markdown.ts`；契约套件另以 `runFormatCodecConformance(() => slideMarkdownCodec, …)` 覆盖 `canImport:false` |
 | 契约套件 | 复用 M-02 的 `runFormatCodecConformance(() => pptxCodec, pptxFixtures)`（§2.5，M-02 现存缺口） | `interface/codec.ts` |
 | CI（`test` job 的 `fidelity-roundtrip` 步骤） | 架构 04 §5.4：M1 只跑零编辑；M2 起对 `fixtures/pptx/features/*` 随机单元素编辑跑「编辑后」判定；保真失败照样阻断合并，看 `test` job 日志（rulings §4.18 GV-14） | — |
 
@@ -1298,7 +1307,7 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | 里程碑 | 能力 | 依赖前提 |
 |---|---|---|
 | M2 | 编辑后导出（脏部件重生成路径全量验收）；`p:timing` 悬空引用清理；内嵌字体 EOT 解析 + MTX 解压（`mtx-decompressor`，§4.21）+ `fsType` 判定（受限字体只读渲染，单 ≤ 20 MB / 总 ≤ 60 MB）；裸 `p:contentPart` 移动/缩放写回 `p:xfrm`（P1）；`UnknownShape` 移动/缩放的分支 `xfrm` 回写（P1，PD-18）；`encode` 接收 `thumbnailJpeg`（Q8）（Strict C 案反向映射表已提前至 M1，见 §11 M1、rulings §4.12 U-02） | M-03 `model-slide` 的 Mutation/Command 落地（`editing.ts`）产出可观察的 `DirtyTracker` 标记 |
-| M3 | 图表数据可编辑（配合 `slide-render-chart`）；图表部件缓存重生成与新插入图表的部件、rels、内容类型（`export/chart.ts`，§4.21）；图表内嵌工作簿生成（PD-06，自研最小 SpreadsheetML，d-35）；`tableStyles.xml` 追加内置样式定义（ADR-0008 决策 9 白名单新增项）；`./zip` 的 `writeZip` 供多页 PNG 导出打包（d-51）；现代评论部件双向 | M-07 `slide-render-chart` 拆分完成；ADR-0031 评论存储落地 |
+| M3 | 图表数据可编辑（配合 `slide-render-chart`）；图表部件缓存重生成与新插入图表的部件、rels、内容类型（`export/chart.ts`，§4.21）；图表内嵌工作簿生成（PD-06，自研最小 SpreadsheetML，d-35）；`tableStyles.xml` 追加内置样式定义（ADR-0008 决策 9 白名单新增项）；`./zip` 的 `writeZip` 供多页 PNG 导出打包（d-51）；现代评论部件双向；导出专用 `slideMarkdownCodec`（SV-13 `convert` → `markdown`，rulings §4.24 AL-7） | M-07 `slide-render-chart` 拆分完成；ADR-0031 评论存储落地 |
 
 ## 12. 与现有文档的差异与追加建议
 
@@ -1408,6 +1417,12 @@ M1 范围内**不要求**（延后到 M2/M3，避免范围蔓延）：图表数�
 | 依据 | 改动位置 | 摘要 |
 |---|---|---|
 | rulings §4.23 O-3（2026-10-01 已确认）、ADR-0050、PRD 09 PM-12 | §4.2、§5.2 | ooxml-pptx 增 `import/plugin-footprint.ts` 与 `export/plugin-footprint.ts`：内容插件足迹经 `p:presentation/p:extLst`（`uri="urn:cordex:plugin-footprint:1"`）导出与读回；零编辑往返字节不变；外部软件丢弃该扩展时退化为只报「未知内容」。§4 与 §5 各增 2（175 = 175） |
+
+### 2026-10-03 回写（rulings §4.24 设计线对齐审计收尾）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| rulings §4.24 AL-7（SV-13 改 M3）；60-backend/06 §7.4、60-backend/15 §3.16 | §2.5、§3、§4.2、§5.2、§9.2、§11 | ooxml-pptx 增导出专用 `slideMarkdownCodec`（`interface/markdown-codec.ts`）、纯函数 `encodeMarkdown`（`infrastructure/export/markdown.ts`）与 `__tests__/markdown-export.test.ts`，供 `convert` 作业 `to: 'markdown'`，M3。**登记在本模块而非 40/09 的理由**：`server-headless` 文档类型盲（rulings §4.18 FE-01），`exportDocument` 只按 `documentType` 经 `formats` 取 codec；Markdown 编码需要读 `PresentationBody` 的页、占位符与表格结构，属于 slide 垂直束；本包已是 slide 唯一的 `core.format` 贡献者，同插件多贡献一项即可，不新增包、不改插件计数。§4 与 §5 各增 3（178 = 178） |
 
 ## 13. 未决问题
 

@@ -1,4 +1,4 @@
-> 状态：占位 v0（正文 M3 开工前补齐） | 负责：前端设计线（包级规划）；总编排（落点确认） | 更新：2026-09-26（§4.20：按 rulings §4.20 FE-09 确认 00-module-map §10 Q-M8，新建本文件占位） | 依赖：00-module-map.md §7 M-12 行与 §10 Q-M8、charter §5.2 `@cordexjs/comments` 行、rulings §4.19 D-COMMENTS-PKG、§4.20 FE-01/FE-09、ADR-0031 v0.2、50-frontend/08（行为事实源）、40-modules/10、11、12
+> 状态：占位 v0（正文 M3 开工前补齐） | 负责：前端设计线（包级规划）；总编排（落点确认） | 更新：2026-09-26（§4.20：按 rulings §4.20 FE-09 确认 00-module-map §10 Q-M8，新建本文件占位）；2026-10-15（design-language-v3 第 2 批：§2 命令清单注明 `comments.deleteThread` 只给文档 owner，rulings §4.25 DS-40；评论面板、撰写与钉的界面落在 slide-ui，见 40/10 §4.4；本文仍是占位） | 依赖：00-module-map.md §7 M-12 行与 §10 Q-M8、charter §5.2 `@cordexjs/comments` 行、rulings §4.19 D-COMMENTS-PKG、§4.20 FE-01/FE-09、ADR-0031 v0.2、50-frontend/08（行为事实源）、40-modules/10、11、12
 
 # 20 评论客户端包（限界上下文 BC-25 评论的客户端部分）
 
@@ -37,7 +37,7 @@
 
 - **实体**：`Thread`、`Reply`，位于 `resources['comments.threads']` 下两张实体表；不入撤销栈（Store `undo.excludedNamespaces` 含 `comments.threads`，命令 `undoable:false`）。
 - **Mutation**：`comments.thread.*`、`comments.reply.*`。
-- **命令**：`comments.addThread`、`comments.reply`、`comments.editReply`、`comments.deleteReply`、`comments.deleteThread`、`comments.resolve`、`comments.reopen`、`comments.importThreads`（P1）、`comments.reanchor`（P1）；能力位与作者规则见 50/08 §4。
+- **命令**：`comments.addThread`、`comments.reply`、`comments.editReply`、`comments.deleteReply`、`comments.deleteThread`、`comments.resolve`、`comments.reopen`、`comments.importThreads`（P1）、`comments.reanchor`（P1）；能力位与作者规则见 50/08 §4。2026-10-15（rulings §4.25 DS-40）：`comments.deleteThread` 只给文档 owner（`doc.manage`），发起人只能删自己的回复，服务端软门禁同一口径（ADR-0034 修订 2026-10-15、60/07 §2）。
 - **事件**：`comment/*`（带 `origin`；正文默认脱敏、选项 `comments.events.includeBody`，50/15 §2，rulings §4.20 FE-16）。
 - **UnitScope 服务** `comments`：按筛选列线程、单线程、每页未解决数、已脱离锚点列表。
 - **贡献点** `comments.anchorResolver`：按 `documentType` 键，由文档类型提供锚点解析与校验 schema。

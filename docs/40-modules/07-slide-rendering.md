@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-07） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：服务端缩略图为 640 px WebP；`raster` 移出可配置 Provider 枚举、只用于单页导出；`cordex-slide-render-allowlist` 降为说明、`emf-converter` 单点登记进 M-01 规则 5）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：图表渲染路线定为 d3-scale / d3-shape / d3-array + 自研 OOXML 布局、`./chart` 新增 5 个版式与绘制文件、`slide-render-chart` 目标形态补 4 个文件；新增 §2.7 元素渲染器登记表；emf-converter 改评 4.0.x；媒体预处理入口归 render-dom；chartex 占位改由 `fallback.renderer` 发出）；2026-09-26（§4.21 整合：exportImage 增 svg 与 embedFonts；classify 增 slidenum 形状与连接符依赖两个派生索引；pic、cxnSp、table 渲染器按 50/19 §6 与 50/22、50/23 补口径；§7 补主线程只读解析分片与元素级降级、numfmt）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-09-30（§4.22 设计待决收口：`chart-number-format` 的文档语言定为先取图表部件 `c:lang`、没有时取演示文稿默认语言） | 依赖：00-module-map.md M-07、charter v0.2 §4/§5.2 `slide-render`/`slide-render-chart` 行/§5.5/§6.1 D16、30-architecture `07-rendering.md` §4/§11/§14.1/§14.4、`04-document-model.md` §12.4、`02-layering-and-packages.md` §4.16/§4.16b、40-modules `03-slide-domain-model.md` §2/§6、`06-layout-and-render-engine.md` §2.5/§6/§12/§13、PRD `10-prd/03-features/01-open-and-fidelity.md` OF-07…OF-15、rulings §4.15（Q4/Q7/Q8）、§4.21（q-chart-route、R-d-23、R-d-24）、`07-masters-layouts-and-themes.md` ML-01 §3、ADR-0021/0026/0036、50-frontend/19、50-frontend/24
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-07） | 更新：2026-09-19；2026-09-24（rulings §4.15）；2026-09-24（复核修正，rulings §4.17：服务端缩略图为 640 px WebP；`raster` 移出可配置 Provider 枚举、只用于单页导出；`cordex-slide-render-allowlist` 降为说明、`emf-converter` 单点登记进 M-01 规则 5）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：图表渲染路线定为 d3-scale / d3-shape / d3-array + 自研 OOXML 布局、`./chart` 新增 5 个版式与绘制文件、`slide-render-chart` 目标形态补 4 个文件；新增 §2.7 元素渲染器登记表；emf-converter 改评 4.0.x；媒体预处理入口归 render-dom；chartex 占位改由 `fallback.renderer` 发出）；2026-09-26（§4.21 整合：exportImage 增 svg 与 embedFonts；classify 增 slidenum 形状与连接符依赖两个派生索引；pic、cxnSp、table 渲染器按 50/19 §6 与 50/22、50/23 补口径；§7 补主线程只读解析分片与元素级降级、numfmt）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-09-30（§4.22 设计待决收口：`chart-number-format` 的文档语言定为先取图表部件 `c:lang`、没有时取演示文稿默认语言）；2026-10-04（design-language-v3 第 0 批：§1.1 不做项改为工具条 / 检查器 / 缩略图侧栏（rulings §4.25 DS-1））；2026-10-15（design-language-v3 第 2 批：§4 / §5 `fallback.renderer.ts` 的占位画法统一为虚线框 + 类型图标 + 一行标题 + 一行原因，缺插件占位同一画法、原三行作废，rulings §4.25 DS-52；文件数不变）；2026-10-22（design-language-v3 第 3 批：登记页级回退的落点——整页解析失败的页（保真「此页内容无法解析」）由 `composeSlide`、合成某一页抛错的页（放映单页渲染失败「此页内容暂时无法显示」）由 `slide-scene-provider.service.ts` 换成覆盖纸面的页级占位节点，母版与版式层照常，`fallback.renderer.ts` 与元素级占位同一组画笔画在纸面内，客户端与服务端缩略图一致（rulings §4.25 TB-151、DS-52）；§1.1、§4.1、§5.1、§9 `degrade.test.ts`、§12 新增「2026-10-22 回写」；文件数不变）；2026-10-22（design-language-v3 第 3 批回写收口：§1.1「页级回退」与 §4.1 / §5.1 `compose-slide.ts`、`slide-scene-provider.service.ts` 写明两种来源的上报分开——合成时抛错的页上报 `render.page_failed{pageId}` 并发 `render/element-failed{ kind: 'page' }`（§2.4、§3 增登），`/render` 在 `ready` 诊断里按页带出、renderer 记该页失败、不回传字节，整页解析失败的保真占位不报码、照常回传（rulings §4.25 TB-157）；§9 `degrade.test.ts` 补对应断言并注明它就是 70/04 §8、70/13 §6.9 引用的页级回退单测；§12 增 TB-157 一行；文件数不变；2026-10-22 复核修正：§1.1「页级回退」原写「两者的差别只对服务端渲染有意义」，按 rulings §4.25 TB-166 改为也对浏览器生成的图片导出有意义（遇运行时页级回退即失败，判定以 50-frontend/18 EXP-03 为准），并注明测试部署的「指定页在合成时抛错一次」作用在本包合成上（TB-169），§4.1 / §5.1 `slide-scene-provider.service.ts` 与 §12 同步；§2.1「可访问描述的派生」字段清单补 2026-09-26 整合的 `links`、`table` / `chartData` 与 `role` 取值 `link`（50-frontend/05 §11）；§1.1、§4.1 / §5.1 注明这个注入点只由 apps/web 的诊断接口在测试部署里打开（40/11 `application/host/diagnostics.ts`）、`/render` 不设注入点（rulings §4.25 TB-174），§12 增一行；本状态头里指向「页级回退」的四处「§1.2」改为 §1.1——这一条在 §1.1「职责与非职责」，§1.2 是通用语言表，与他文改引 §1.1 同一修法；§1.1 与 §12 TB-174 一行里 `/render` 一侧合成出错的用例改指 apps/web 单测 `application/render-page.usecase.test.ts`（70/06 §6.3 R8））；2026-11-04（design-language-v3 母版视图改版：覆盖层改为占位符标注覆盖层，key 由 `master-inheritance` 改为 `master-annotations`、文件改名 `master-annotations.overlay.ts`——给全部占位符画线与类型名（本版式虚线、继承点线 +「母版 · 〈类型〉」），M2 时另给选中项画锁形标签，二者同一遍定落位，只在画布上画（§0、§1.1、§1.2、§2.5、§2.6、§3、§4.1、§5.1、§8、§9、§11）；落位纯函数单独成件，登记 `domain/compose/master-annotation-plan.ts` 与它的单测 `__tests__/master-annotation-plan.test.ts`（§2.3、§4.1、§5.1、§9、§11，测试文件逐个登记；slide-render 65 → 67、两包 97 → 99，§5.1「`domain/`」小标题的文件数一并更正为 12；图 4-1 补 overlay 到 compose 的依赖）；§2.1 母版视图画布上的提示框不画框线、文本类提示画第 1–5 级样例，目标为版式或母版的缩略图画一种细线框、提示字按尺寸整行取舍；§2.6 母版视图切换的触发者改为进出入口与母版窗格选中；§0 下游行改为 slide-ui 不另画标注；§2.5 增「`master-annotations` 的启用入参 `MasterAnnotationsOptions`」——标注文案 `labels` 与是否 M2 `m2Locked` 由启用它的 slide-ui 给出，类型在 `domain/compose/master-annotation-plan.ts` 声明、经 `src/index.ts` 导出，本包不登记 i18n 命名空间、不贡献 `i18n.bundle`（§0 下游行、§1.3 BC-15 一行与图 1-1、§5.1 覆盖层行与落位纯函数行、§6 类型同步）；§5.1 覆盖层行补框线、类型名与 M2 锁签对读屏隐藏（以设计 03-26 §9 为准）；§9 母版视图集成测试的说明补覆盖全部占位符、类型名与锁签同一遍定落位、不进缩略图、放映与导出；§12 G-10 一行行末补取代注记、新增「2026-11-04 回写」一节；§13 Q-3 推荐改为选中与视口从 selection 服务与 Viewport 取、是否 M2 由启用入参的 `m2Locked` 给出、不扩展 `OverlayContext`（rulings §4.25 DS-146、DS-148、DS-149、DS-156、DP-8、TB-188…TB-191）；需求编号、优先级与里程碑不变） | 依赖：00-module-map.md M-07、charter v0.2 §4/§5.2 `slide-render`/`slide-render-chart` 行/§5.5/§6.1 D16、30-architecture `07-rendering.md` §4/§11/§14.1/§14.4、`04-document-model.md` §12.4、`02-layering-and-packages.md` §4.16/§4.16b、40-modules `03-slide-domain-model.md` §2/§6、`06-layout-and-render-engine.md` §2.5/§4.3/§5.3/§6/§12/§13、PRD `10-prd/03-features/01-open-and-fidelity.md` OF-07…OF-15、rulings §4.15（Q4/Q7/Q8）、§4.21（q-chart-route、R-d-23、R-d-24）、`07-masters-layouts-and-themes.md` ML-01 §3、ADR-0021/0026/0036、50-frontend/19、50-frontend/24、rulings §4.25（DS-146、DS-148、DS-149、DS-156、DP-8、TB-188…TB-191）、20-design 03-26 §1.1/§4.2/§7/§9、50-frontend/05 §5.2、50-frontend/16 §1、70-testing/06 §2.2
 
 # 07 幻灯片渲染（限界上下文 BC-12 幻灯片渲染）
 
@@ -12,9 +12,9 @@
 | cordis 形态 | plugin（两包均为 plugin；主包 `slide-render` 在 `dom:graphicFrame:chart` 上只注册占位渲染器，M1–M2 的只读图表渲染器是主包惰性子路径 `@cordexjs/slide-render/chart`，M3 起拆为 `slide-render-chart`；二者都以同 key 覆盖主包占位——`render.element` 贡献点在定义时声明 `conflict:'replace'`（D16，rulings §4.18 FE-08/GV-24）） |
 | 运行位置 | 浏览器（服务端经 headless Chromium 加载同一份代码间接运行，不构成独立服务端实现，06 §7） |
 | 上游（依赖） | M-03（`model-slide`：`slides` 服务、`ChangeSet.touched`、样式继承与占位符匹配纯函数、`slide.shapeKind`）、M-06（`engine-layout`/`engine-render`/`render-dom`：`TextMeasurer`/`TextLayout`、`Scene`/`SceneNode`/`DirtySet`、`RenderTarget`/`ElementRenderer`/`OverlayRenderer`/`SceneProvider` 契约、`TextEditIntent` 回调通道）、M-04（`ooxml-core`：仅只读解析 chartml `parseChartSpace` 与 SmartArt `dsp:drawing`，rulings §4.15 Q7 修订 §4.11 C-28 放行）；第三方（2026-09-26，rulings §4.21）：d3-scale / d3-shape / d3-array 与 numfmt 只在图表惰性目录（ADR-0036），emf-converter 4.0.x 只在 EMF Worker |
-| 下游（被依赖） | M-10（`slide-ui` 消费 `ctx.thumbnails`、母版视图覆盖层数据；放映编排 2026-09-18 起由 M-10 自行实现，不再消费本包）、M-11（预设装配挂载） |
+| 下游（被依赖） | M-10（`slide-ui` 消费 `ctx.thumbnails`；母版视图的占位符标注由本包的覆盖层画在画布上，slide-ui 不另画，标注文案与是否 M2 由 slide-ui 启用覆盖层时给出（2026-11-04，rulings §4.25 TB-188，§2.5）；放映编排 2026-09-18 起由 M-10 自行实现，不再消费本包）、M-11（预设装配挂载） |
 | 对外服务 | `ctx.thumbnails`（UnitScope） |
-| 贡献点 | 提供：`render.scene`（key=`'slide'`）、`render.element` × 10（key=`` `dom:${kind}` ``）、`render.overlay`（key=`'master-inheritance'`，新增建议）；消费：无独立贡献点 id（按 `kind`/`id` 查表分派是内部机制，不经 `ctx.contribute`） |
+| 贡献点 | 提供：`render.scene`（key=`'slide'`）、`render.element` × 10（key=`` `dom:${kind}` ``）、`render.overlay`（key=`'master-annotations'`：母版视图的占位符标注覆盖层，2026-11-04 起，rulings §4.25 TB-188）；消费：无独立贡献点 id（按 `kind`/`id` 查表分派是内部机制，不经 `ctx.contribute`） |
 | doc / sheet 通用性 | vertical（`bundle=slide`；对应未来 `doc-render`/`sheet-render`，本包是样板，00-module-map §6.2） |
 | 批次 | 2 |
 
@@ -62,9 +62,10 @@ pkgChart -- "render.element dom:graphicFrame:chart" --> m11
 - 文档内 SVG（`asvg:svgBlip`）只以图像上下文渲染（`<image href=blob:…>`），禁止 `innerHTML`/`insertAdjacentHTML`/`DOMParser` 注入文档内容（rulings §4.15 Q4 安全基线）。
 - 文本渲染接入 `engine-layout.layoutTextBody()`，消费其返回的 `TextLayout`（M-06 G-3 统一命名）绘制 `<text>/<tspan>`；`TextEditIntent`（M-06 G-6）不在本包运行时调用链中出现——本包只保证 `SceneNode.id === ShapeId`、`node.data` 携带 `CaretMap`，使 render-dom → `engine-render.attach()` → 消费方（M-10 `slide-ui`；06 §13 Q-2 已按 14 §5.3 结案：`RenderService.attach(..., callbacks.onEditIntent)`，消费方 `slide-ui`）之间的回调通道能把 `nodeId` 还原为 `ShapeId`（§2.6、§12 G-3）。
 - 维护母版/版式渲染模板 LRU（`LayerTemplateCache`，32 项）与其淘汰测试——这是架构 07 §11「三处 LRU」之外、专属本包的第 4 处缓存（06 §12 G-7）。
-- 实现母版视图：`ViewDescriptor{mode:'master', target: LayoutId|MasterId}`（04 §12.4）分支合成，叠加「继承自母版」覆盖层标记（PRD ML-01）。
+- 实现母版视图：`ViewDescriptor{mode:'master', target: LayoutId|MasterId}`（04 §12.4）分支合成，叠加占位符标注覆盖层 `render.overlay('master-annotations')`：给全部占位符画线与类型名（本版式虚线、继承点线 +「母版 · 〈类型〉」），M2 时给选中的占位符画锁形标签，类型名与锁签同一遍定落位；只在画布上画，不进缩略图、放映与导出（PRD ML-01；2026-11-04，rulings §4.25 DS-148、DS-156、TB-188；画法与落位规则以设计 03-26 §4.2 为准，落位纯函数见 §2.3）。
 - 提供 `ctx.thumbnails`（UnitScope 服务）：两种可配置 Provider 策略（主线程缩放渲染 `dom-scaled` / 服务端 640 px WebP 缩略图 `server-png`——标识符沿用历史名，实际格式 WebP，rulings §4.15 Q8）取舍与切换，另有主线程 toImage 栅格化 `raster` **只用于单页导出**、不作为可配置缩略图 Provider（30-architecture/07 §8、50-frontend/05 §10.3，复核 L12）；**不做 Worker/OffscreenCanvas 版本**（rulings §4.15 Q4 推翻 14 §5.4 对 offscreen-canvas Provider 的采纳）。
 - 对不支持/渲染失败的元素提供占位框降级路径，区分「预期降级」（本包自己 `emit render/element-degraded`）与「意外失败」（render-dom 兜底 `emit render/element-failed`，本包只需让错误可分类地抛出）。
+- **页级回退**（2026-10-22，rulings §4.25 TB-151）：一页整体画不出来时，本包把这一页的页层换成一个页级占位，母版与版式层照常合成（母版页脚照常）。两种来源：整页解析失败的页（保真「此页内容无法解析」，判定以 50-frontend/05 §9 为准）在 `composeSlide` 里直接换；合成这一页时抛出的意外错误由 `slide-scene-provider.service.ts` 捕获后换成同一个占位（放映里单页渲染失败「此页内容暂时无法显示」，50-frontend/10 §9），错误经 `errors.report('render.page_failed', { pageId, cause })` 上报（码在 engine-render `errors.ts`，40/06 §5，30/10 §1.1a），并发 `render/element-failed`——`kind: 'page'`、`nodeId` 为页级占位节点、带 `pageId` 与 `code: 'render.page_failed'`（§2.4）——其余页不受影响；整页解析失败的页画出来的是这一页的确定内容，不报错误码。两者的差别对服务端渲染与浏览器生成的图片导出有意义（2026-10-22，rulings §4.25 TB-157、TB-166）：`/render` 页把 `render.page_failed` 按页带进 `ready` 的诊断（字段以 50-frontend/12 §11 为准），renderer 据此把这一页记为失败、不回传字节，按后端 60/06 §11.3 重试 1 次后缩略图用占位、导出作业失败；浏览器生成的图片导出（`exportImage`）所导页里只要有一页发出 `kind: 'page'` 的 `render/element-failed`，这次导出即失败、不把一时的出错写进文件（TB-166，判定方法以 50-frontend/18 EXP-03 为准）；保真占位那一页照常回传、照常导出。测试部署里「指定页在合成时抛错一次」的故障注入点就作用在这一处合成上，走同一条页级回退与上报（TB-169，接口以 50-frontend/15 §10 为准）；这个注入点只由 apps/web 的诊断接口在测试部署里打开（40/11 `application/host/diagnostics.ts`），`/render` 不读 RuntimeConfig、不设注入点，那里合成某页出错的用例用 scene provider 桩制造，落在 apps/web 的单测 `application/render-page.usecase.test.ts`（2026-10-22，rulings §4.25 TB-174，70/06 §6.3 R8，40/11 §9）。页级占位是页层里一个覆盖整页纸面的 `unknown` 节点（`data.placeholder: 'page'`，不新增 `render.element` key），由 `fallback.renderer.ts` 用与元素级占位同一组画笔画在纸面内（虚线框 + 图标 + 一行标题 + 一行原因，DS-52）；编辑器、查看器、放映、客户端与服务端缩略图看到的是同一份，界面层（slide-ui）不在画布上另叠一层。
 - 定义 `@cordexjs/slide-render-chart` 的拆包边界：M1–M2 图表只读解析代码物理位于 `slide-render` 内；M3 起编辑能力与图表库整体迁入 `slide-render-chart`，`slide-render` 只保留缺省只读渲染器（插件缺席时仍按 D16 只读渲染，解析失败才占位）。
 
 **不做什么（指向负责模块）**：
@@ -73,7 +74,7 @@ pkgChart -- "render.element dom:graphicFrame:chart" --> m11
 - 不做帧调度、脏区合并、命中测试索引、覆盖层通用挂载机制、`RenderTarget.paint`/DOM 图元 API——是 M-06（`engine-render`/`render-dom`）的职责；本包渲染器只产出/更新 DOM 句柄，不参与调度。
 - 不做 Store 事务、命令执行、Mutation、样式继承算法本体、引用完整性不变量——是 M-03 的职责；本包只读 `slides` 服务与 `ChangeSet`。
 - 不做 `c:chart` 等 OOXML 的 XML 解析算法本体——是 M-04（`ooxml-core`/`ooxml-pptx`）的职责；图表 read-model 只调用 M-04 `ooxml-core` 暴露的 `chartml.parseChartSpace`，SmartArt 只调用 `ooxml-core` 的 `dsp:drawing` 只读解析（均为 C-28 修订后放行的唯一 ooxml 依赖面，rulings §4.15 Q7）；外链资源是否激活的判定（仅 http(s) 可激活，其余 Relationship 原样保留）属 M-04 不变量，本包只消费其结果。
-- 不做 Ribbon/属性面板/缩略图侧栏等 UI 组件与交互——是 M-10（`slide-ui`）的职责；本包只暴露 `ctx.thumbnails` 服务与 Scene/覆盖层数据，不渲染任何非画布 UI chrome。
+- 不做工具条 / 检查器 / 缩略图侧栏等 UI 组件与交互——是 M-10（`slide-ui`）的职责；本包只暴露 `ctx.thumbnails` 服务与 Scene/覆盖层数据，不渲染任何非画布 UI chrome。
 - 不做服务端 headless 渲染的任务编排（队列、Playwright 调度）——是 M-09/M-12 的职责；本包代码只是被同一套浏览器代码加载执行，不感知自己在服务端运行。
 - 不做媒体预处理（插入时的压缩、GIF 首帧、SVG 与图标的 PNG 回退、视频海报帧）：入口是 render-dom 的 `media/image-preprocess.ts`，由上传队列在插入或替换时调用，用 `createImageBitmap` + canvas（2026-09-26，rulings §4.21 R-d-23；ADR-0021 补「媒体与图标预处理」用途；行为见 50-frontend/23）；本包只消费 MediaCache 给出的 blob URL 与上传中覆盖层的状态。
 - 不做放映模式编排（全屏、键盘翻页、黑屏/白屏、`Viewport.mode='show'` 状态机、发 `slide/show-changed`）——**2026-09-18 跨模块评审 C-04 裁定**该职责归 M-10（`slide-ui`）；原 `application/services/slideshow.service.ts` 已删除，本包只响应 `ViewDescriptor.mode` 变化产出对应 `Scene`，不持有放映状态、不发放映相关事件。
@@ -87,7 +88,7 @@ pkgChart -- "render.element dom:graphicFrame:chart" --> m11
 | 合成场景 | 母版/版式/页三层合成后的运行时派生结构，`SceneProvider.build()` 的中间产物，不参与 CRDT 合并 | `ComposedSlide`/`ComposedLayer`/`ComposedElement` |
 | 继承占位符解析结果 | 复用 M-03 `matchPlaceholder`/`resolvePlaceholderBox` 的输出，标注某形状可继承字段来自哪一层 | `PlaceholderResolution{shapeId, source:'slide'\|'layout'\|'master'}` |
 | 模板层 | 母版/版式层渲染结果按 `(layoutId, showMasterSp, themeVersion)` 缓存并 `cloneNode` 复用 | `LayerTemplateCache` |
-| 继承自母版覆盖层 | 母版视图中标出「此形状定义来自母版」的视觉标记 | `OverlayRenderer('master-inheritance')` |
+| 占位符标注覆盖层 | 母版视图画布上给全部占位符画的线与类型名（本版式虚线、继承点线 +「母版 · 〈类型〉」）与 M2 锁形标签，只在画布上画；2026-11-04 起覆盖全部占位符，此前只标继承项（rulings §4.25 DS-148、TB-188；「占位符标注」一词的定义见 20-design README §6） | `OverlayRenderer('master-annotations')` |
 | 脏区分类 | `ChangeSet.touched` 按实体类型（slide/shape/layout/master/theme/media）到 `DirtySet` 的映射规则 | `classify(paths, dependentsOf)` |
 | 图表只读解析结果 | `c:chart` 部件经 `chartml.parseChartSpace` 后缓存的只读数据视图 | `ChartReadModel` |
 | 图表渲染视图 | 只读解析结果叠加 M3 的 `Chart.data`（数据、类型、标题、图例、数据标签以 `data` 为准，未建模外观取自部件）；新插入的图表只有 `data`，外观取主题默认（2026-09-26，ADR-0036 决策 5） | `ChartRenderView` |
@@ -101,7 +102,7 @@ pkgChart -- "render.element dom:graphicFrame:chart" --> m11
 | BC-11 渲染管线与目标（上游，Open Host Service `render.*`） | Conformist（本包实现四个贡献点，照单全收 `Scene`/`SceneNode`/`DirtySet`/`ElementRenderer` 形状） | `src/plugin.ts` 的 `ctx.contribute` 调用点 | `SceneProvider`/`ElementRenderer`/`OverlayRenderer` 接口（06 §2.5） |
 | BC-10 布局与度量引擎（上游，经 BC-11 传入） | Customer–Supplier | `infrastructure/elements/shared/text-body.painter.ts` | `TextMeasurer`（`ctx.layout.measurer()`）、`layoutTextBody()` → `TextLayout` |
 | BC-07/08 OOXML 与 PPTX 编解码（上游，经 BlobStore 间接） | Customer–Supplier（图表与 SmartArt 只读解析路径；C-28 修订后 `slide-render→ooxml-core` 放行，rulings §4.15 Q7） | `infrastructure/chart/*`、`infrastructure/elements/diagram.renderer.ts` | `chartml.parseChartSpace`、`dsp:drawing` 只读解析（均 M-04 `ooxml-core`）、`BlobStore`（M-02） |
-| BC-15 幻灯片 UI（下游） | Customer–Supplier（`slide-ui` 消费 `ctx.thumbnails`；`TextEditIntent` 的最终消费方，06 §13 Q-2 已按 14 §5.3 结案） | `src/slide-render.contribution.ts` | `ThumbnailService` 类型、`Scene`/`OverlayContext` |
+| BC-15 幻灯片 UI（下游） | Customer–Supplier（`slide-ui` 消费 `ctx.thumbnails`；`TextEditIntent` 的最终消费方，06 §13 Q-2 已按 14 §5.3 结案） | `src/slide-render.contribution.ts` | `ThumbnailService` 类型、`Scene`/`OverlayContext`；`MasterAnnotationsOptions`（slide-ui 在母版视图里启用占位符标注覆盖层时给的入参，类型经 `src/index.ts` 导出，§2.5、§6；2026-11-04） |
 | BC-27/M-09 Headless 渲染宿主（下游，间接） | Conformist（同一份代码被加载，无独立实现分支） | — | 无新增契约（复用 `RenderTarget`/`toImage`） |
 | BC-29 doc/sheet 扩展占位（同层带兄弟） | Separate Ways（铁律 2） | — | 无共享类型；仅共享水平层 BC-02/05/10/11 |
 
@@ -129,7 +130,7 @@ bc10 -- "CS TextMeasurer layoutTextBody TextLayout 经 BC-11 传入" --> sr
 bc07 -- "CS parseChartSpace 与 dsp:drawing 只读解析 C-28 经 Q7 放行" --> sr
 bc07 -- "parseChartSpace" --> src
 blob -- "图表与 SmartArt 部件字节" --> sr
-sr -- "CS ctx.thumbnails ThumbnailService Scene OverlayContext" --> bc15
+sr -- "CS ctx.thumbnails ThumbnailService Scene OverlayContext MasterAnnotationsOptions" --> bc15
 sr -. "Conformist 同一份代码经 headless Chromium 加载 无新增契约" .-> bc27
 sr -. "SeparateWays 仅共享水平层" .- bc29
 ```
@@ -152,16 +153,16 @@ sr -. "SeparateWays 仅共享水平层" .- bc29
 |---|---|---|---|---|
 | `ComposedSlide` | 聚合根（`build()` 调用期间的中间产物） | `target: SlideId\|LayoutId\|MasterId`、`viewMode:'edit'\|'master'\|'thumbnail'\|'present'`、`background: ResolvedBackground`、`layers:{master?; layout?; slide?: ComposedLayer}`、`dependencies:{themeId;masterId;layoutId}` | `viewMode==='master'` 时 `layers.slide` 恒为空（母版视图不合成页层，04 §12.4）；三层同时存在时渲染顺序恒为 master→layout→slide | `domain/contracts/composed-slide.ts` |
 | `ComposedLayer` | 实体（属于某个 `ComposedSlide`） | `source:'master'\|'layout'\|'slide'`、`elements: ComposedElement[]`（已按 `(order,id)` 排序） | 元素顺序即 z 序；`occluded:true` 的元素不产出 `SceneNode`，但保留在结构中供诊断/测试断言 | `domain/contracts/composed-slide.ts` |
-| `ComposedElement` | 实体 | `shapeId: ShapeId`、`kind: Shape['kind']`、`resolvedVisual: ResolvedShapeVisual`（复用 M-03）、`placeholder?: PlaceholderResolution`、`occluded: boolean`、`inheritedFrom?:'master'\|'layout'` | `occluded` 规则（2026-09-25 按 PowerPoint 行为改写，与 50/01 §4a.3、50/05 §1 一致，F68/F69）：普通页（`edit`/`present`/`thumbnail`）上，母版与版式的**占位符形状一律 `occluded=true`**——只经继承链作用于页层同 `(type, idx)` 形状的样式与位置，自身不绘制（删掉页上的标题占位符不会露出版式的标题占位符）；母版与版式的**非占位符形状**按 `showMasterSp` 进入模板层；原「页上有同 `(type,idx)` 占位符才遮蔽」作废（它会在普通页画出版式的空占位符，与 PowerPoint 365 基线系统性不符，且使 `LayerTemplateKey` 无法跨页共享）；`inheritedFrom` 只在 `viewMode==='master'` 且元素来自非目标层时置位，驱动 §2.6 的继承覆盖层 | `domain/contracts/composed-slide.ts` |
+| `ComposedElement` | 实体 | `shapeId: ShapeId`、`kind: Shape['kind']`、`resolvedVisual: ResolvedShapeVisual`（复用 M-03）、`placeholder?: PlaceholderResolution`、`occluded: boolean`、`inheritedFrom?:'master'\|'layout'` | `occluded` 规则（2026-09-25 按 PowerPoint 行为改写，与 50/01 §4a.3、50/05 §1 一致，F68/F69）：普通页（`edit`/`present`/`thumbnail`）上，母版与版式的**占位符形状一律 `occluded=true`**——只经继承链作用于页层同 `(type, idx)` 形状的样式与位置，自身不绘制（删掉页上的标题占位符不会露出版式的标题占位符）；母版与版式的**非占位符形状**按 `showMasterSp` 进入模板层；原「页上有同 `(type,idx)` 占位符才遮蔽」作废（它会在普通页画出版式的空占位符，与 PowerPoint 365 基线系统性不符，且使 `LayerTemplateKey` 无法跨页共享）；`inheritedFrom` 只在 `viewMode==='master'` 且元素来自非目标层时置位，驱动 §2.6 占位符标注覆盖层的点线与「母版 · 〈类型〉」（标注层另读全部占位符的框与类型，含目标层自己的；2026-11-04，rulings §4.25 DS-148、TB-188） | `domain/contracts/composed-slide.ts` |
 | `PlaceholderResolution` | 值对象（附着在 `ComposedElement` 上） | `shapeId`、`source:'slide'\|'layout'\|'master'`、`ref: PlaceholderRef`（M-03 类型） | 直接复用 M-03 `matchPlaceholder`/`resolvePlaceholderBox` 的返回值，本包不重新实现匹配算法 | `domain/contracts/dirty-classification.ts`（与脏区分类值对象合并存放，见 §4 命名说明） |
 
-**Layer 顺序不变量**：背景独立于三层，恒最先绘制；三层内部顺序固定为 master→layout→slide（普通页上母版 / 版式层只绘制非占位符形状，占位符只经继承链作用于页层，见上表 `occluded`）；同层内形状顺序取自 M-03 的 `(order, id)` 全序，本包不重新排序。母版视图分支（`viewMode==='master'`）由 `domain/compose/compose-master-view.ts` 单独实现：目标为 `LayoutId` 时合成 `{layout: 目标版式, master: 其母版}` 两层并置 `showMasterShapes` 语义；目标为 `MasterId` 时只合成 `{master: 目标母版}` 一层；两种情形均不合成 `slide` 层，占位符渲染为提示框（自带 prompt 或按 `type` 的 i18n 默认文案，04 §12.4）。
+**Layer 顺序不变量**：背景独立于三层，恒最先绘制；三层内部顺序固定为 master→layout→slide（普通页上母版 / 版式层只绘制非占位符形状，占位符只经继承链作用于页层，见上表 `occluded`）；同层内形状顺序取自 M-03 的 `(order, id)` 全序，本包不重新排序。母版视图分支（`viewMode==='master'`）由 `domain/compose/compose-master-view.ts` 单独实现：目标为 `LayoutId` 时合成 `{layout: 目标版式, master: 其母版}` 两层并置 `showMasterShapes` 语义；目标为 `MasterId` 时只合成 `{master: 目标母版}` 一层；两种情形均不合成 `slide` 层，占位符渲染为提示框（自带 prompt 或按 `type` 的 i18n 默认文案，04 §12.4）。2026-11-04 起（rulings §4.25 DS-148、DS-149、TB-191）：文本类占位符的提示画第 1–5 级样例；母版视图画布上的提示框本身不画框线，线与类型名由 §2.6 的占位符标注覆盖层画；目标为版式或母版的缩略图（窗格与版式画廊，`ctx.thumbnails` 的 `LayoutId` / `MasterId` 目标）与画布同一份内容渲染，另给占位符画一种细线框，不分本版式与继承、不写类型名，提示字按缩略图尺寸排，放不下的行整行省去、不裁半字（线型、线色与排法以设计 03-26 §7 为准）。
 
 **主题预览 `ViewDescriptor.themePreview`（2026-09-26 登记，rulings §4.20 FE-24；行为以 50/11 §9、50/05 为准）**：slide-render 识别 `ViewDescriptor` 的扩展键 `themePreview?: {masterId: MasterId; colors?: Partial<ColorScheme>; fonts?: Partial<FontScheme>}`（M-06 `ViewDescriptor` 以索引签名承载扩展键，engine-render 不感知）：合成时该母版链的主题解析改用覆盖值，只影响渲染——不入 Store、不产生事务、不广播，取消预览即清空该键。单测（`__tests__/master-view.test.ts`）断言渲染取覆盖值且 Store 无事务。
 
 **`viewMode` 取值来源**（2026-09-18，跨模块评审 C-13）：`ComposedSlide.viewMode` 的四个取值 `edit|master|thumbnail|present` 与 `build(unitScope, view: ViewDescriptor)` 传入的 `ViewDescriptor.mode` 一一对应，由**engine-render（M-06）**的 `mapViewMode()` 统一从 ui-core 的 `normal|master|presenter` 映射得出；本包只按 `view.mode` 透传赋值，不重新实现或反向定义该映射（§5.1 `domain/contracts/composed-slide.ts` 备注同步）。
 
-**可访问描述的派生（2026-09-25 登记，50/05 §11，决策 A11Y-TREE）**：`toSceneNodes` 为每个可见元素附 `SceneNode.a11y: A11yDescriptor`（`role`、`name`、`position`、`order{z, placeholder?}`、`missingAlt`、`decorative`；字段与取值以 50/05 §11 为准，`SceneNode.a11y` 是 M-06 `Scene` 契约的类型盲扩展）；**未挂载页**不构建 Scene、不排版、不建 DOM，由 `describeSlideForA11y(slides, slideId)` 以同一派生规则直接读模型生成描述，供 render-dom `a11y-mirror` 覆盖全部已装载页（可访问树不随虚拟化裁剪）；实现文件 `domain/scene/a11y-descriptor.ts`（§4.1）。
+**可访问描述的派生（2026-09-25 登记，50/05 §11，决策 A11Y-TREE）**：`toSceneNodes` 为每个可见元素附 `SceneNode.a11y: A11yDescriptor`（`role`、`name`、`position`、`order{z, placeholder?}`、`missingAlt`、`decorative`，以及 2026-09-26 §4.21 整合增的 `links`、`table` / `chartData` 与 `role` 取值 `link`（只在放映态）；字段与取值以 50/05 §11 为准，`SceneNode.a11y` 是 M-06 `Scene` 契约的类型盲扩展）；**未挂载页**不构建 Scene、不排版、不建 DOM，由 `describeSlideForA11y(slides, slideId)` 以同一派生规则直接读模型生成描述，供 render-dom `a11y-mirror` 覆盖全部已装载页（可访问树不随虚拟化裁剪）；实现文件 `domain/scene/a11y-descriptor.ts`（§4.1）。
 
 **图 2-1 母版/版式/页合成到 Scene 的流程**
 
@@ -220,6 +221,7 @@ m1m2 -. "拆包演进" .-> m3
 |---|---|---|---|
 | `composeSlide` | `(slides: SlidesService, slideId: SlideId) => ComposedSlide` | `domain/compose/compose-slide.ts` | 普通编辑/放映视图；内部调用 `effectiveBackground`/`matchPlaceholder`（M-03）；页 `layoutId` 指向墓碑或不存在的版式时，以 M-03 `defaultLayoutOf(body, {masterId, type})` 的结果替代求值（墓碑期读时容错，不写 Store；硬删时由服务端同事务修复，rulings §4.20 FE-03/FE-04） |
 | `composeMasterView` | `(slides: SlidesService, target: LayoutId \| MasterId) => ComposedSlide` | `domain/compose/compose-master-view.ts` | 母版视图分支（04 §12.4），标注 `inheritedFrom` |
+| `planMasterAnnotations` | `(input: MasterAnnotationInput) => MasterAnnotationPlan` | `domain/compose/master-annotation-plan.ts` | 2026-11-04 新增（rulings §4.25 TB-188…TB-190）：占位符标注的落位——输入数据里的占位符框（含类型与继承来源）、各占位符提示文字首行的文字矩形、母版图形与普通形状的框、选中项与它的尺寸角标、是否 M2 与视口，输出这一画面的一种类型名落位方式和每枚类型名、M2 锁签的位置（放不下的不画）；按数据算，不量 DOM、不等过渡；规则以设计 03-26 §4.2 为准 |
 | `toSceneNodes` | `(composed: ComposedSlide) => SceneNode[]` | `domain/scene/to-scene-nodes.ts` | 约定 `SceneNode.id === shapeId`（§2.6、§12 G-3） |
 | `toLayoutInput` | `(run: ResolvedRunProperties, paragraph: ResolvedParagraphProperties) => TextBodyModel` | `domain/scene/to-layout-input.ts` | 供 `engine-layout.layoutTextBody()` 消费 |
 | `classify` | `(touched: readonly Path[], dependentsOf: DependentsOfFn) => DirtySet` | `domain/dirty/classify.ts` | `ChangeSet.touched` → `DirtySet`；内含按实体类型的映射表（§2.4 表） |
@@ -248,15 +250,18 @@ m1m2 -. "拆包演进" .-> m3
 | `slide/thumbnail-updated` | `{ unitId; target: SlideId\|LayoutId\|MasterId; revision: number }` | `application/services/thumbnail.service.ts` | `slide-ui` 缩略图侧栏、母版视图缩略图窗格（PRD ML-01） |
 | `slide/autofit-changed`（2026-09-25 登记；声明在 M-03 `events.ts`，本包 emit） | `{ unitId; shapeId; fontScale?; lnSpcReduction?; height? }` | `application/services/slide-scene-provider.service.ts`（文本事务提交后的那一帧比较算得的 `normAutofit`/`spAutoFit` 结果与模型值，不同才发；只对本机正在编辑的形状发，编辑态由 slide-ui 经 `render.attach` 回调标记；打开、查看、放映、`/render` 永不发） | slide-ui `text-editing.ts` → `slide.applyAutofit`（50/06 §7） |
 | `slide/show-changed`（**不由本包发布**，2026-09-18 起） | `{ unitId; mode:'entering'\|'exiting'; slideId?: SlideId }` | `slide-ui`（M-10 `application/slideshow.ts` 或等价文件，跨模块评审 C-04；原 `application/services/slideshow.service.ts` 已删除） | `slide-ui` 放映 UI、应用壳全屏控制 |
+| `render/element-failed`（页级回退，2026-10-22；Events 声明在 M-06 `engine-render`，元素级的 emit 在 render-dom，只有页级这一种在本包） | `(unitId, nodeId, kind, code, pageId)`，`kind` 为 `'page'`、`nodeId` 为页级占位节点、`code` 为 `render.page_failed`（载荷以 06 §2.4 为准） | `application/services/slide-scene-provider.service.ts`（合成某一页抛错、换成页级占位时发一次；整页解析失败的保真占位不发） | `/render` 页的 `ready` 逐页诊断（`failed{ code }`，50/12 §11.3，rulings §4.25 TB-157）、`errors.report` |
 | `render/element-degraded`（Events 声明在 M-06 `engine-render`，emit 调用点在本包） | `{ unitId; nodeId; kind; reason }`；`reason ∈ 'chart-unavailable'\|'chartex-unsupported'\|'emf-no-preview'\|'emf-raster-limit'\|'ole-preview-missing'\|'smartart-no-dsp'\|'external-resource-blocked'\|'unsupported-shape-kind'`（`chartex-unsupported`/`external-resource-blocked`/`emf-raster-limit` 为 rulings §4.15 Q7 新增） | `infrastructure/elements/{pic,ole,diagram,fallback}.renderer.ts`、`infrastructure/chart/chart-preview.renderer.ts`、`infrastructure/media/emf-rasterizer.ts` | `errors.report`、保真诊断面板（OF-13）、`slide-ui` 提示 |
 
-`render/element-failed` **不由本包 emit**：该事件在 render-dom 的 `painter.ts` 捕获 `ElementRenderer.render`/`update` 抛出的意外异常时统一发出（06 §2.4，A11）；本包渲染器对「预期内的降级」（缺失预览、图表插件未加载等）必须自行捕获并转成占位框 + `render/element-degraded`，只把真正意外的错误原样 `throw` 交给上游兜底——两条路径的边界见 §12 G-4。
+`render/element-failed` **不由本包 emit**：该事件在 render-dom 的 `painter.ts` 捕获 `ElementRenderer.render`/`update` 抛出的意外异常时统一发出（06 §2.4，A11）；本包渲染器对「预期内的降级」（缺失预览、图表插件未加载等）必须自行捕获并转成占位框 + `render/element-degraded`，只把真正意外的错误原样 `throw` 交给上游兜底——两条路径的边界见 §12 G-4。页级回退是例外（2026-10-22，rulings §4.25 TB-157）：合成某一页时抛出的异常在本包的 scene provider 里就被捕获、到不了 render-dom 的 painter，所以由 `slide-scene-provider.service.ts` 发 `kind: 'page'` 的那一条（见上表），元素级的边界不变。
 
 订阅：无跨包订阅。`application/services/slide-scene-provider.service.ts` 内部经 `unitScope.get('store').observe()` 订阅本 Unit 的 `store/transaction`，驱动 `diff()` 调用与向 `ctx.render.invalidate(dirty)` 的转发（06 §2.6「触发点：调用方（BC-12）」），这与 M-03 `slides.service.ts` 内部订阅 `store/transaction` 是同一模式，均非跨包 `Events` 订阅。
 
 ### 2.5 消费的 Definition 与自身对外契约（`SlideSceneProvider` 配置）
 
-**消费的 Definition**（全部来自 M-06，本包不重新定义，只 `implements`/调用）：`SceneProvider`（实现方）、`ElementRenderer`（实现方，×10）、`OverlayRenderer`（实现方，`'master-inheritance'`）、`RenderTarget`（调用方，经 `ctx.render` 间接使用 `toImage`/`hitTest`，不自己 `implements`）、`TextMeasurer`（调用方，经 `ctx.layout.measurer()`）。
+**消费的 Definition**（全部来自 M-06，本包不重新定义，只 `implements`/调用）：`SceneProvider`（实现方）、`ElementRenderer`（实现方，×10）、`OverlayRenderer`（实现方，`'master-annotations'`）、`RenderTarget`（调用方，经 `ctx.render` 间接使用 `toImage`/`hitTest`，不自己 `implements`）、`TextMeasurer`（调用方，经 `ctx.layout.measurer()`）。
+
+**`master-annotations` 的启用入参 `MasterAnnotationsOptions`**（2026-11-04，rulings §4.25 TB-188、TB-190）：slide-ui 在母版视图里启用这一覆盖层时交给它一个 `MasterAnnotationsOptions`，两个字段——`labels`：标注文案，即各占位符的类型名、继承项的「母版 · 〈类型〉」与 M2 锁签的文字，由 slide-ui 按当前语言给出（键见 50-frontend/16 §1 的母版视图文案键表，锁签与 M2 的原因用同一个键）；`m2Locked`：是否处于 M2（布尔，决定画不画锁签）。做法同 render-dom 的 `guides`、`grid` 覆盖层由交互层入参（40/06 §4.3、§5.3）。类型在 `domain/compose/master-annotation-plan.ts` 声明、经 `src/index.ts` 导出（§6）。本包只负责落位与绘制：不登记 i18n 命名空间、不贡献 `i18n.bundle`（§3）；选中与视口仍取 `OverlayContext` 已有的 `selection`、`viewport`，不扩展 `OverlayContext`（§13 Q-3）。
 
 **自身对外契约：`SlideRenderConfig`**（`src/config.ts`，zod）：
 
@@ -292,7 +297,7 @@ interface ThumbnailService {
 |---|---|---|---|
 | `SlideSceneProvider`（渲染请求） | `build(unitScope,view)`：三层合成 → `toSceneNodes`；`diff(changeSet,prev)`：内部订阅 `store/transaction` → `classify` → 转发 `ctx.render.invalidate(dirty)` | `engine-render.RenderService.attach()`（首次 `build`）；本包内部 store 订阅（后续 `diff`） | `application/services/slide-scene-provider.service.ts` |
 | `ThumbnailService`（缩略图请求） | `get(target)`/`subscribe(target,cb)`：按配置选择 Provider（`dom-scaled`/`server-png`）、300 ms 去抖、`maxMounted` 上限、本地脏页在服务端缩略图（640 px WebP）到达前用 `dom-scaled` 兜底；`exportImage(target, opts)` 单页导出走 `raster` 路径（不影响缩略图 Provider 选择）；server-png 响应标记 `provisional`（如 M2 取自包内 `docProps/thumbnail.jpeg` 的封面、或页内容哈希已失效）时仍先显示，但随后回退 `dom-scaled` 重渲覆盖（rulings §4.15 Q8） | `slide-ui` 缩略图侧栏、母版视图缩略图窗格（PRD ML-01 §3） | `application/services/thumbnail.service.ts` |
-| 母版视图切换（读侧响应） | `ViewDescriptor.mode` 变为 `'master'` 时 `build()` 走 `composeMasterView` 分支；贡献 `OverlayRenderer('master-inheritance')`，在 `inheritedFrom` 非空节点上叠加「母版·〈类型〉」徽标（PRD ML-01 虚线 + 徽标规格） | `slide-ui` 视图分段/范围条（Operation `slide.selectMasterOrLayout`，M-03 §2.6） | `domain/compose/compose-master-view.ts`、`infrastructure/overlay/master-inheritance.overlay.ts` |
+| 母版视图切换（读侧响应） | `ViewDescriptor.mode` 变为 `'master'` 时 `build()` 走 `composeMasterView` 分支；贡献 `OverlayRenderer('master-annotations')`，给全部占位符画标注：本版式虚线 + 类型名，继承项（`inheritedFrom` 非空）点线 +「母版 · 〈类型〉」；同一画面一种落位，选中项不画自己的类型名，M2 时给选中项画锁形标签、与类型名同一遍定落位（`planMasterAnnotations`，§2.3）；按屏幕像素画，不随缩放变粗细（PRD ML-01；2026-11-04，rulings §4.25 DS-148、DS-156、TB-188…TB-190；画法与落位规则以设计 03-26 §4.2 为准） | `slide-ui`：经 `view.setMode` 进出母版视图（入口见设计 03-26 §1.1），母版窗格选中经 Operation `slide.selectMasterOrLayout` 换编辑对象（M-03 §2.6；窗格选中即编辑对象，2026-11-04，rulings §4.25 DS-146） | `domain/compose/compose-master-view.ts`、`domain/compose/master-annotation-plan.ts`、`infrastructure/overlay/master-annotations.overlay.ts` |
 
 ~~`SlideshowService`（放映模式）~~ **已删除（2026-09-18，跨模块评审 C-04）**：`Viewport.mode='show'`、全屏、键盘翻页、黑屏/白屏、发 `slide/show-changed` 的编排职责改由 M-10（`slide-ui`）自行实现，原 `application/services/slideshow.service.ts` 文件不再存在于本包。
 
@@ -446,13 +451,13 @@ flowchart LR
 | 插件名 / `name` | `slide-render` |
 | `inject`（必需 / 可选） | 根级必需：`['contributions']`；UnitScope 子插件（`unitPlugins`）必需：`['render', 'layout', 'slides']` |
 | `provide` | 根级：无；UnitScope 内：`['thumbnails']` |
-| 贡献点：提供 | `render.scene`（key=`'slide'`，`conflict:'error'`）；`render.element` × 10（key=`` `dom:${kind}` ``：`sp`/`pic`/`grpSp`/`cxnSp`/`graphicFrame:table`/`graphicFrame:ole`/`graphicFrame:diagram`/`unknown`/`background` 九项真实渲染器，`graphicFrame:chart` 一项为主包占位渲染器，供 `./chart` 子路径（M1–M2）与 `slide-render-chart`（M3）以同 key 覆盖）；`render.overlay`（key=`'master-inheritance'`，新增建议）。冲突策略按贡献点定义（M-06），不在条目上声明：`render.scene` 为 `'error'`，`render.element`/`render.overlay` 为 `'replace'`——取值以架构 03 §3.6 总表 conflict 列为准（K-3，rulings §4.18 GV-24）；本包九项真实渲染器不应被覆盖，被覆盖时的 `replaced` 诊断作排查依据 |
+| 贡献点：提供 | `render.scene`（key=`'slide'`，`conflict:'error'`）；`render.element` × 10（key=`` `dom:${kind}` ``：`sp`/`pic`/`grpSp`/`cxnSp`/`graphicFrame:table`/`graphicFrame:ole`/`graphicFrame:diagram`/`unknown`/`background` 九项真实渲染器，`graphicFrame:chart` 一项为主包占位渲染器，供 `./chart` 子路径（M1–M2）与 `slide-render-chart`（M3）以同 key 覆盖）；`render.overlay`（key=`'master-annotations'`：母版视图的占位符标注覆盖层，2026-11-04 起，rulings §4.25 TB-188）。冲突策略按贡献点定义（M-06），不在条目上声明：`render.scene` 为 `'error'`，`render.element`/`render.overlay` 为 `'replace'`——取值以架构 03 §3.6 总表 conflict 列为准（K-3，rulings §4.18 GV-24）；本包九项真实渲染器不应被覆盖，被覆盖时的 `replaced` 诊断作排查依据 |
 | 贡献点：消费 | 无独立（内部按 `kind` 查表分派到自己的渲染器，属实现细节非 `ctx.contribute` 消费） |
-| 事件：发布 | `slide/thumbnail-updated`、`render/element-degraded`（Events 声明在 M-06，emit 调用点在本包，§2.4）；`slide/show-changed` **不再由本包发布**（2026-09-18 起改由 `slide-ui`，C-04） |
+| 事件：发布 | `slide/thumbnail-updated`、`render/element-degraded`（Events 声明在 M-06，emit 调用点在本包，§2.4）、`render/element-failed{ kind: 'page' }`（只在页级回退时，2026-10-22，rulings §4.25 TB-157，§2.4）；`slide/show-changed` **不再由本包发布**（2026-09-18 起改由 `slide-ui`，C-04） |
 | 事件：订阅 | `store/transaction`（本 Unit 内部，非跨包，§2.4） |
 | 配置 schema | `SlideRenderConfig`（§2.5） |
 | 生命周期 | `ready`：根级贡献注册完成；UnitScope 子插件随每个 Unit 挂载/卸载 `thumbnails` 服务与内部 store 订阅（`ctx.effect` 拥有，Unit 关闭时自动撤销）；`dispose`：撤销全部贡献 + 清空 `LayerTemplateCache`；PENDING：`render`/`layout`/`slides` 三者任一未就位 |
-| Manifest 片段 | `{"name":"@cordexjs/slide-render","provides":[],"contributes":{"render.scene":["slide"],"render.element":["dom:sp","dom:pic","dom:grpSp","dom:cxnSp","dom:graphicFrame:table","dom:graphicFrame:chart","dom:graphicFrame:ole","dom:graphicFrame:diagram","dom:unknown","dom:background"],"render.overlay":["master-inheritance"]},"unitPlugins":{"provides":["thumbnails"],"injects":["render","layout","slides"]},"isomorphism":"dom"}` |
+| Manifest 片段 | `{"name":"@cordexjs/slide-render","provides":[],"contributes":{"render.scene":["slide"],"render.element":["dom:sp","dom:pic","dom:grpSp","dom:cxnSp","dom:graphicFrame:table","dom:graphicFrame:chart","dom:graphicFrame:ole","dom:graphicFrame:diagram","dom:unknown","dom:background"],"render.overlay":["master-annotations"]},"unitPlugins":{"provides":["thumbnails"],"injects":["render","layout","slides"]},"isomorphism":"dom"}` |
 
 **`@cordexjs/slide-render-chart`**（M3 起独立发包；M1–M2 以主包惰性子路径 `@cordexjs/slide-render/chart` 存在——入口 `src/chart.ts` 注册同一 key 的只读渲染器，同一份代码、同一惰性边界，见 §4.1/§8，rulings §4.18 FE-08）
 
@@ -512,9 +517,10 @@ sceneDir --> contracts
 elements -- "sp cxn-sp" --> geometry
 elements -- "text-body.painter paint" --> elemShared
 elements -- "pic.renderer" --> media
+overlay -- "master-annotation-plan" --> compose
 ```
 
-怎么读：箭头为 import 方向；`plugin.ts` 汇总注册 infrastructure 下的渲染器、覆盖层与缩略图 Provider，两条应用服务分别编排「合成 → Scene → 脏区」与「缩略图 Provider 选择」，domain 各子目录只依赖同层 `contracts`。
+怎么读：箭头为 import 方向；`plugin.ts` 汇总注册 infrastructure 下的渲染器、覆盖层与缩略图 Provider，两条应用服务分别编排「合成 → Scene → 脏区」与「缩略图 Provider 选择」，domain 各子目录只依赖同层 `contracts`；占位符标注覆盖层的落位取自 `domain/compose/master-annotation-plan.ts`（2026-11-04，rulings §4.25 TB-188）。
 
 依据：§5.1 各文件「允许依赖」列。
 
@@ -593,8 +599,9 @@ packages/slide-render/
 │   │   │   ├── composed-slide.ts       # ComposedSlide/Layer/Element、ThumbnailDescriptor（§2.1/§2.2）
 │   │   │   └── dirty-classification.ts # PlaceholderResolution、DirtyClassificationEntry（§2.1/§2.2）
 │   │   ├── compose/
-│   │   │   ├── compose-slide.ts        # composeSlide：三层合成、占位符遮蔽、背景来源（§2.3）
+│   │   │   ├── compose-slide.ts        # composeSlide：三层合成、占位符遮蔽、背景来源（§2.3）；整页解析失败的页把页层换成页级占位、母版与版式层照常、不报错误码（2026-10-22，rulings §4.25 TB-151、TB-157，§1.1）
 │   │   │   ├── compose-master-view.ts  # composeMasterView：ViewDescriptor{mode:'master'} 分支（04 §12.4）
+│   │   │   ├── master-annotation-plan.ts # planMasterAnnotations：占位符标注的落位纯函数——按数据里的占位符几何、提示文字首行与视口算类型名与 M2 锁签的落位，同一遍定、放不下的不画，不量 DOM（2026-11-04 新增，rulings §4.25 TB-188…TB-190；规则以设计 03-26 §4.2 为准）
 │   │   │   └── animation-end-state.ts  # 放映主序列可见性终态（M2 P1）；其余场景全部可见（Q7）
 │   │   ├── scene/
 │   │   │   ├── to-scene-nodes.ts       # ComposedSlide → SceneNode[]；SceneNode.id===ShapeId 约定
@@ -608,7 +615,7 @@ packages/slide-render/
 │   │       └── resolve.ts              # shapeGeometryPath + resolvePaint
 │   ├── application/
 │   │   └── services/
-│   │       ├── slide-scene-provider.service.ts  # SceneProvider('slide')：build/diff；内部订阅 store/transaction
+│   │       ├── slide-scene-provider.service.ts  # SceneProvider('slide')：build/diff；内部订阅 store/transaction；合成某一页时的意外错误捕获后换成页级占位、上报 render.page_failed{pageId} 并发 render/element-failed{kind:'page', pageId}（2026-10-22，TB-151、TB-157）；测试部署的故障注入点「指定页在合成时抛错一次」在这里生效（TB-169，50-frontend/15 §10；只由 apps/web 的诊断接口打开，/render 不设注入点，TB-174）
 │   │       └── thumbnail.service.ts             # ThumbnailService：get/subscribe、Provider 选择、去抖
 │   ├── infrastructure/
 │   │   ├── cache/
@@ -621,7 +628,7 @@ packages/slide-render/
 │   │   │   ├── table.renderer.ts       # 行列/合并/tblStyle 继承（OF-08）
 │   │   │   ├── diagram.renderer.ts     # SmartArt：ooxml-core 解析 dsp:drawing（含 txXfrm）→ 复用 sp 画笔（OF-10）
 │   │   │   ├── ole.renderer.ts         # OLE：走 pic 路径显示 Ole.preview（mc:Fallback 的 p:pic）
-│   │   │   ├── fallback.renderer.ts    # unknown 占位（按 UnknownShape.transform 定位 + 渲染提示，OF-13）；source 为 chartex 时发 chartex-unsupported（§4.21）
+│   │   │   ├── fallback.renderer.ts    # unknown 占位（按 UnknownShape.transform 定位 + 渲染提示，OF-13）；source 为 chartex 时发 chartex-unsupported（§4.21）；2026-10-15 占位画法统一为虚线框 + 类型图标 + 一行标题 + 一行原因（「内容已保留」一类的话并进原因行），画在纸面上；第三方元素插件缺席（dom:ext:* 查表未命中）时的缺插件占位同一画法，标题为插件名、原因取足迹比对结果，原三行作废（rulings §4.25 DS-52，50/05 §9）；2026-10-22 起也画页级占位（data.placeholder 为 page 时铺满纸面：「此页内容无法解析」或「此页内容暂时无法显示」，母版页脚由模板层照常画，rulings §4.25 TB-151）
 │   │   │   ├── chart-placeholder.renderer.ts # 主包图表占位：图表渲染器未加载时占位并发 chart-unavailable（§4.18 FE-08）
 │   │   │   ├── background.renderer.ts
 │   │   │   └── shared/
@@ -639,7 +646,7 @@ packages/slide-render/
 │   │   │   ├── emf-rasterizer.ts       # M2：EMF/WMF 惰性 Worker 调度 + 上限（OF-24）
 │   │   │   └── emf-rasterizer.worker.ts # M2：Worker chunk，封装 emf-converter（Apache-2.0）
 │   │   ├── overlay/
-│   │   │   └── master-inheritance.overlay.ts # render.overlay('master-inheritance')，新增建议
+│   │   │   └── master-annotations.overlay.ts # render.overlay('master-annotations')：母版视图的占位符标注覆盖层——全部占位符的线与类型名、M2 锁签（2026-11-04 起，rulings §4.25 TB-188；改名记录见 §12）
 │   │   └── thumbnails/
 │   │       ├── dom-scaled.provider.ts        # 策略①：主线程缩放渲染（真实 Surface + CSS scale）
 │   │       ├── raster.provider.ts            # 单页导出栅格化：主线程 toImage（Q4；非可配置缩略图 Provider，复核 L12）
@@ -649,7 +656,8 @@ packages/slide-render/
 │   └── __tests__/
 │       ├── lifecycle.test.ts
 │       ├── compose-reconcile.test.ts   # 版式切换复用元素实例；z 变化只移动节点
-│       ├── master-view.test.ts         # ViewDescriptor{mode:'master'} + 继承覆盖层
+│       ├── master-view.test.ts         # ViewDescriptor{mode:'master'} + 占位符标注覆盖层（覆盖全部占位符，类型名与锁签同一遍定落位，不进缩略图、放映与导出）+ 版式与母版缩略图的细线框
+│       ├── master-annotation-plan.test.ts # planMasterAnnotations 的落位规则逐分支：一种落位、放不下不画、不相交、锁签落位链、同一输入同一输出（2026-11-04 登记，rulings §4.25 TB-189、TB-190、DP-8）
 │       ├── dirty-mapping.test.ts       # 按实体类型的 classify 断言（§2.4 表）
 │       ├── template-cache-eviction.test.ts # A29 反制测试
 │       ├── elements.render.test.ts     # 每个 kind 的 SVG 快照 + autofit 收敛
@@ -657,7 +665,7 @@ packages/slide-render/
 │       └── thumbnails.test.ts          # 两种 Provider（dom-scaled/server-png）切换、去抖、maxMounted；exportImage 走 raster；配置 raster 被 zod 拒绝
 ```
 
-同位测试约定（02 §4.0）：本包无独立顶层 `tests/` 目录，`__tests__/`/`testing/` 均在 `src/` 内，详见 §9。共 **65 个文件**（根配置 9 + `src/` 顶层 8 + `domain/` 11（2026-09-25 增 `scene/a11y-descriptor.ts`，50/05 §11） + `application/` 2 + `infrastructure/` 26 + `testing/` 1 + `__tests__/` 8；2026-09-26 按 rulings §4.21 q-chart-route 在 `infrastructure/chart/` 增 `chart-layout.ts`、`chart-geometry.ts`、`chart-labels.ts`、`chart-number-format.ts`、`chart-svg.painter.ts` 共 5 个；2026-09-25 按 rulings §4.18 FE-08 新增 `src/chart.ts` 与 `chart-placeholder.renderer.ts`；`application/` 原为 3，`slideshow.service.ts` 已按 C-04 删除；`domain/` +1、`infrastructure/` +5 见 §4 开头 2026-09-24 更新）。
+同位测试约定（02 §4.0）：本包无独立顶层 `tests/` 目录，`__tests__/`/`testing/` 均在 `src/` 内，详见 §9。共 **67 个文件**（根配置 9 + `src/` 顶层 8 + `domain/` 12（2026-09-25 增 `scene/a11y-descriptor.ts`，50/05 §11；2026-11-04 增 `compose/master-annotation-plan.ts`，rulings §4.25 TB-188） + `application/` 2 + `infrastructure/` 26 + `testing/` 1 + `__tests__/` 9（2026-11-04 增 `master-annotation-plan.test.ts`，rulings §4.25 DP-8）；2026-09-26 按 rulings §4.21 q-chart-route 在 `infrastructure/chart/` 增 `chart-layout.ts`、`chart-geometry.ts`、`chart-labels.ts`、`chart-number-format.ts`、`chart-svg.painter.ts` 共 5 个；2026-09-25 按 rulings §4.18 FE-08 新增 `src/chart.ts` 与 `chart-placeholder.renderer.ts`；`application/` 原为 3，`slideshow.service.ts` 已按 C-04 删除；`domain/` +1、`infrastructure/` +5 见 §4 开头 2026-09-24 更新）。
 
 ### 4.2 `@cordexjs/slide-render-chart`
 
@@ -707,7 +715,7 @@ packages/slide-render-chart/
 │       └── chart-data-roundtrip.test.ts # M3：编辑写回 c:numCache/strCache 一致性
 ```
 
-共 **32 个文件**（根配置 9 + `src/` 顶层 5 + `domain/` 2 + `application/` 1 + `infrastructure/` 11 + `testing/` 1 + `__tests__/` 3；`infrastructure/renderers/` 因 area/scatter 转为可编辑类型由 3 增至 5，rulings §4.12 U-06；2026-09-26 按 rulings §4.21 增 `chart-geometry.ts`、`chart-labels.ts`、`chart-number-format.ts`、`chart-svg.painter.ts`，由 slide-render 的 `infrastructure/chart/` 迁入）。两包合计 97 个文件。
+共 **32 个文件**（根配置 9 + `src/` 顶层 5 + `domain/` 2 + `application/` 1 + `infrastructure/` 11 + `testing/` 1 + `__tests__/` 3；`infrastructure/renderers/` 因 area/scatter 转为可编辑类型由 3 增至 5，rulings §4.12 U-06；2026-09-26 按 rulings §4.21 增 `chart-geometry.ts`、`chart-labels.ts`、`chart-number-format.ts`、`chart-svg.painter.ts`，由 slide-render 的 `infrastructure/chart/` 迁入）。两包合计 99 个文件（2026-11-04 由 97 改：slide-render 增 `domain/compose/master-annotation-plan.ts` 与它的单测 `__tests__/master-annotation-plan.test.ts`）。
 
 ---
 
@@ -744,14 +752,15 @@ packages/slide-render-chart/
 | `src/events.ts` | 事件名常量 | `SLIDE_THUMBNAIL_UPDATED` 等 | — | §2.4 |
 | `src/errors.ts` | 错误码 | `CHART_UNAVAILABLE`/`ELEMENT_UNSUPPORTED` 等 | — | 供 `render/element-degraded.reason` 取值对照 |
 
-**`domain/`（10）**
+**`domain/`（12）**（2026-11-04 增 `compose/master-annotation-plan.ts`；原写 10，漏计 2026-09-25 增的 `scene/a11y-descriptor.ts`）
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `domain/contracts/composed-slide.ts` | 合成模型类型 | `ComposedSlide`/`ComposedLayer`/`ComposedElement`、`ThumbnailDescriptor` | `@cordexjs/model-slide`（类型）、`@cordexjs/engine-render`（`SceneNode`类型、`ViewDescriptor`类型） | §2.1/§2.2；`viewMode` 字段值透传自 `ViewDescriptor.mode`，映射函数 `mapViewMode()` 归属 `engine-render`（M-06），本包只消费不重新实现（2026-09-18，C-13） |
 | `domain/contracts/dirty-classification.ts` | 脏区分类与占位符解析值对象 | `PlaceholderResolution`、`DirtyClassificationEntry` | `@cordexjs/model-slide`（`PlaceholderRef`类型） | §2.1/§2.2 |
-| `domain/compose/compose-slide.ts` | 三层合成纯函数（占位符遮蔽 + 背景来源） | `composeSlide` | `domain/contracts/*`、`@cordexjs/model-slide`（`matchPlaceholder`/`effectiveBackground`/`defaultLayoutOf`） | §2.3；引用墓碑版式时读时替代（rulings §4.20 FE-04）；`ViewDescriptor.themePreview` 覆盖值在此处注入主题解析（FE-24） |
+| `domain/compose/compose-slide.ts` | 三层合成纯函数（占位符遮蔽 + 背景来源） | `composeSlide` | `domain/contracts/*`、`@cordexjs/model-slide`（`matchPlaceholder`/`effectiveBackground`/`defaultLayoutOf`） | §2.3；引用墓碑版式时读时替代（rulings §4.20 FE-04）；`ViewDescriptor.themePreview` 覆盖值在此处注入主题解析（FE-24）；整页解析失败的页：页层只放一个覆盖整页纸面的页级占位节点（`kind:'unknown'`、`data.placeholder:'page'`），母版与版式层照常；这是这一页的确定内容，不报错误码，`/render` 照常回传（2026-10-22，rulings §4.25 TB-151、TB-157，§1.2） |
 | `domain/compose/compose-master-view.ts` | 母版视图分支合成 | `composeMasterView` | `domain/compose/compose-slide.ts` | 04 §12.4 |
+| `domain/compose/master-annotation-plan.ts` | 占位符标注的落位纯函数（2026-11-04 新增），并声明覆盖层的启用入参类型 | `planMasterAnnotations`、`MasterAnnotationsOptions`（类型，§2.5） | `domain/contracts/*`、`@cordexjs/engine-render`（`Viewport` 类型） | rulings §4.25 TB-188…TB-190：类型名与 M2 锁签同一遍定落位，同一画面只用一种类型名落位，放不下的不画；输入是数据里的占位符几何、提示文字首行的文字矩形、母版图形与普通形状、选中项与尺寸角标、视口，不量 DOM、不等过渡；规则以设计 03-26 §4.2 为准；由 `infrastructure/overlay/master-annotations.overlay.ts` 调用 |
 | `domain/compose/animation-end-state.ts` | 动画结束态按场景：`edit`/`thumbnail`/PDF 全部可见；`present` 时按主序列（`p:timing` 只读保留数据）计算可见性终态 | `resolveEndStateVisibility(view, timing): ReadonlySet<ShapeId>` | `@cordexjs/model-slide`（`p:timing` 只读视图类型） | rulings §4.15 Q7；M2 P1；只读、不编辑动画 |
 | `domain/scene/to-scene-nodes.ts` | `ComposedSlide` → `SceneNode[]` | `toSceneNodes` | `domain/contracts/*`、`@cordexjs/engine-render`（类型） | `SceneNode.id===ShapeId` 约定落地处（§12 G-3） |
 | `domain/scene/a11y-descriptor.ts` | 可访问描述派生（2026-09-25 登记） | `deriveA11y`、`describeSlideForA11y` | `domain/contracts/*`、`@cordexjs/model-slide`（选择器、`placeholder` 类型）、`@cordexjs/engine-render`（`A11yDescriptor` 类型） | 字段与规则以 50/05 §11 为准（替代文字 → 文本摘要 ≤ 120 字符 → 「类型 + 序号」；占位符阅读序；`decorative` 不入树）；未挂载页只读模型 |
@@ -764,7 +773,7 @@ packages/slide-render-chart/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `application/services/slide-scene-provider.service.ts` | `SceneProvider('slide')` 实现：`build`/`diff`；内部订阅 `store/transaction` 并转发 `ctx.render.invalidate` | `slideSceneProvider` | `domain/compose/*`、`domain/scene/*`、`domain/dirty/classify` | §2.6；本包唯一实现 `render.scene` 的文件 |
+| `application/services/slide-scene-provider.service.ts` | `SceneProvider('slide')` 实现：`build`/`diff`；内部订阅 `store/transaction` 并转发 `ctx.render.invalidate` | `slideSceneProvider` | `domain/compose/*`、`domain/scene/*`、`domain/dirty/classify` | §2.6；本包唯一实现 `render.scene` 的文件；2026-10-22：合成某一页抛出意外错误时捕获，经 `errors.report('render.page_failed', { pageId, cause })` 上报（码在 engine-render `errors.ts`，30/10 §1.1a）并发 `render/element-failed{ kind: 'page', pageId, code: 'render.page_failed' }`（§2.4），并把这一页换成与整页解析失败同一画法的页级占位（放映单页渲染失败「此页内容暂时无法显示」），其余页照常（rulings §4.25 TB-151）；`/render` 页据此码在 `ready` 的逐页诊断里标出这一页，renderer 记它失败、不回传字节（TB-157），浏览器生成的图片导出遇到这一页即失败（TB-166，50-frontend/18 EXP-03）；测试部署的故障注入点「指定页在合成时抛错一次」作用在这里的合成上，走与真实抛错同一条回退与上报（2026-10-22，rulings §4.25 TB-169，接口与开启条件以 50-frontend/15 §10 为准，生产部署不含；只由 apps/web 的诊断接口在测试部署里打开，落点 40/11 `application/host/diagnostics.ts`，`/render` 不设注入点，TB-174） |
 | `application/services/thumbnail.service.ts` | `ThumbnailService`：Provider 选择、去抖、订阅脏页 | `createThumbnailService` | `infrastructure/thumbnails/*`、`domain/thumbnail/thumbnail-size` | §2.5/§2.6 |
 
 **`infrastructure/`（26）**
@@ -779,7 +788,7 @@ packages/slide-render-chart/
 | `infrastructure/elements/table.renderer.ts` | 表格渲染器：网格/合并/样式继承 | `tableRenderer` | `shared/text-body.painter` | `render.element('dom:graphicFrame:table')`；OF-08；2026-09-26 起经 model-slide `query/table-grid` 读存活行列、缺格按空格画（I-TBL1 读时容错）；样式继承按 `ooxml-core` 的 `parseTableStyleList` 结果（M1 只读，40/04），文档里没有而属内置 74 种的样式取内置数据（来源与许可按 ADR-0018 决策 6、ADR-0008 决策 9 (d)，M3 前定稿） |
 | `infrastructure/elements/diagram.renderer.ts` | SmartArt 真实渲染：`partRef`→BlobStore→`ooxml-core` 只读解析 `dsp:drawing`（含 `dsp:txXfrm` 文本框）→ 逐形状复用 `sp` 画笔；无 `dsp:drawing` 时占位 + `smartart-no-dsp` | `diagramRenderer` | `sp.renderer`、`shared/text-body.painter`、`@cordexjs/ooxml-core`（`dsp:drawing` 只读解析） | `render.element('dom:graphicFrame:diagram')`；OF-10；M1 gated；rulings §4.15 Q7 |
 | `infrastructure/elements/ole.renderer.ts` | OLE 预览渲染：走 `pic` 路径显示 `Ole.preview`（M-04 `ole.ts` 从 `mc:Fallback` 的 `p:pic` 提取）；预览为 EMF/WMF 时 M2 起栅格化；无预览时占位 + `ole-preview-missing` | `oleRenderer` | `pic.renderer` | `render.element('dom:graphicFrame:ole')`；M1；rulings §4.15 Q7 |
-| `infrastructure/elements/fallback.renderer.ts` | 未知图元占位：按 `UnknownShape.transform` 定位、按渲染提示（M-03/M-04 提供）绘制占位框；`UnknownShape.source` 为 `chartex` 时发 `render/element-degraded{reason:'chartex-unsupported'}`，不渲染 Fallback | `unknownRenderer` | `shared/paint` | `render.element('dom:unknown')`；OF-13；原 ole/diagram 分支已拆出（§12 G-5 结案）；chartex 占位 2026-09-26 由图表渲染器移到此处（chartex 导入为 `UnknownShape`，50-frontend/25） |
+| `infrastructure/elements/fallback.renderer.ts` | 未知图元占位：按 `UnknownShape.transform` 定位、按渲染提示（M-03/M-04 提供）绘制占位框；`UnknownShape.source` 为 `chartex` 时发 `render/element-degraded{reason:'chartex-unsupported'}`，不渲染 Fallback | `unknownRenderer` | `shared/paint` | `render.element('dom:unknown')`；OF-13；原 ole/diagram 分支已拆出（§12 G-5 结案）；chartex 占位 2026-09-26 由图表渲染器移到此处（chartex 导入为 `UnknownShape`，50-frontend/25）；2026-10-15：占位统一为虚线框 + 类型图标 + 一行标题 + 一行原因，缺插件占位同一画法（rulings §4.25 DS-52，50/05 §9）；2026-10-22：`data.placeholder` 为 `page` 时画页级占位、铺满纸面（保真「此页内容无法解析」、放映单页渲染失败「此页内容暂时无法显示」，同一组画笔，rulings §4.25 TB-151） |
 | `infrastructure/elements/chart-placeholder.renderer.ts` | 主包图表占位：图表渲染器（`./chart` 子路径或 `slide-render-chart`）未加载时按图表框定位占位，并发 `render/element-degraded{reason:'chart-unavailable'}` 触发惰性加载 | `chartPlaceholderRenderer` | `shared/paint` | 新增（rulings §4.18 FE-08）：`render.element('dom:graphicFrame:chart')` 的主包默认项，被同 key 覆盖后不再出现；不 import `ooxml-core`（保持主包体积） |
 | `infrastructure/elements/background.renderer.ts` | 背景渲染器 | `backgroundRenderer` | `shared/paint` | `render.element('dom:background')` |
 | `infrastructure/elements/shared/text-body.painter.ts` | `TextLayout` → SVG 文本节点；autofit 循环 | `paintTextBody` | `@cordexjs/engine-layout`（`layoutTextBody`/`TextLayout`） | `normAutofit`/`spAutoFit`（≤6 次迭代）；竖排/RTL 分阶段：每行一个 `<text>` 块、run 级 `<tspan>` 不设 `x`（与 M-06 口径一致）；受限字体（`fsType`）仅只读渲染使用，编辑态用回退字体（rulings §4.15 Q7） |
@@ -793,7 +802,7 @@ packages/slide-render-chart/
 | `infrastructure/chart/chart-number-format.ts` | 按 `formatCode` 与文档语言格式化数值（语言先取 `c:lang`，没有时取演示文稿默认语言，2026-09-30） | `formatChartValue` | numfmt | 新增（§4.21）；本包 numfmt 的唯一引入点 |
 | `infrastructure/chart/chart-svg.painter.ts` | 几何与标签 → SVG 节点；填充线条经 `shared/paint`，文字经 `engine-layout` 度量 | `paintChart` | `elements/shared/paint`、`@cordexjs/engine-layout` | 新增（§4.21） |
 | `infrastructure/media/emf-rasterizer.worker.ts` | M2：Worker chunk 入口，封装 `emf-converter` 4.0.x（Apache-2.0）把 EMF/WMF 转为位图，调用时显式 `gdiAntialias: true`（4.0.0 起默认不抗锯齿） | Worker 消息处理器 | `emf-converter` | 唯一引入 `emf-converter` 的文件（单点引入）；过 `minimumReleaseAge` 后精确锁版本，可选 peer `@napi-rs/canvas` 不安装（2026-09-26，R-d-24）；矢量渲染留 M4+ |
-| `infrastructure/overlay/master-inheritance.overlay.ts` | 母版视图「继承自母版」徽标 | `masterInheritanceOverlay` | `@cordexjs/engine-render`（`OverlayRenderer`类型） | `render.overlay('master-inheritance')`，新增建议 |
+| `infrastructure/overlay/master-annotations.overlay.ts` | 母版视图的占位符标注覆盖层：给全部占位符画线与类型名（本版式虚线、继承点线 +「母版 · 〈类型〉」），选中项不画自己的类型名，M2 时给选中项画锁形标签；按屏幕像素画、不随缩放变粗细，只在画布上画（不进缩略图、放映与导出）；框线、类型名与 M2 锁签对读屏隐藏，以设计 03-26 §9 为准 | `masterAnnotationsOverlay` | `domain/compose/master-annotation-plan`、`@cordexjs/engine-render`（`OverlayRenderer`、`Viewport` 类型） | `render.overlay('master-annotations')`（2026-11-04 起，rulings §4.25 DS-148、DS-156、TB-188；文件与导出的改名记录见 §12「2026-11-04 回写」）；落位由 `planMasterAnnotations` 按数据里的几何算，不量 DOM、不等过渡（TB-189、TB-190）；合成结果以闭包持有最近一次 `build()` 的 `ComposedSlide`，选中与视口从 `selection` 服务与 Viewport 取（§13 Q-3）；启用入参 `MasterAnnotationsOptions`（标注文案 `labels`、是否 M2 `m2Locked`）由 slide-ui 给出（§2.5），本包不登记 i18n 命名空间；画法与落位规则以设计 03-26 §4.2 为准，文案键以 50-frontend/16 §1 为准 |
 | `infrastructure/thumbnails/dom-scaled.provider.ts` | 策略①：主线程真实 Surface + CSS scale | `domScaledThumbnailProvider` | `@cordexjs/render-dom` | 可见项，`maxMounted≤12`，IntersectionObserver 驱动 |
 | `infrastructure/thumbnails/raster.provider.ts` | **单页导出**栅格化（`ThumbnailService.exportImage` 的实现）：主线程 `RenderTarget.toImage()`（游离 DOM → SVG 序列化 → Image → Canvas），分片调度，不建 Worker；**不是**可配置缩略图 Provider（30-architecture/07 §8、50-frontend/05 §10.3，复核 L12） | `rasterThumbnailProvider` | `@cordexjs/render-dom` | rulings §4.15 Q4 取代 `offscreen-canvas`（推翻 14 §5.4）；toImage 取不到页面 Web 字体（CJK）列 M2 spike，结论前位图封面/批量缩略图自 M3 走 server-png（WebP） |
 | `infrastructure/thumbnails/server-png.provider.ts` | 策略②：服务端缩略图（**640 px WebP**，rulings §4.15 Q8；标识符与文件名沿用历史名 `server-png`，复核 L11）；识别响应的 `provisional` 标记（M2 包内 `thumbnail.jpeg` 封面 / 内容哈希失效），先显示后回退 `dom-scaled` 覆盖 | `serverPngThumbnailProvider` | `@cordexjs/protocol`（DTO 类型） | `GET /documents/:id/thumbnails/:slideId`（ADR-0026；rulings §4.15 Q8） |
@@ -804,17 +813,18 @@ packages/slide-render-chart/
 |---|---|---|---|---|
 | `testing/index.ts` | 快照断言、夹具、构造器 | `renderSlideToSvgString`、`fixtures`、`buildComposedSlide` | `domain/**`、`@cordexjs/model-slide/testing` | 供 M-10/M-11 复用；生产代码禁止 import（`no-testing-in-prod`） |
 
-**`__tests__/`（8，见 §9 测试布局）**
+**`__tests__/`（9，见 §9 测试布局；2026-11-04 增 `master-annotation-plan.test.ts`）**
 
 | 文件 | 覆盖内容 | 备注 |
 |---|---|---|
 | `__tests__/lifecycle.test.ts` | 插件生命周期、`defineLifecycleSuite` | 02 §4.0 强制项 |
 | `__tests__/compose-reconcile.test.ts` | 版式切换复用元素实例；z 变化只移动 DOM 节点 | 对齐历史用例 `compose-reconcile.test.ts`（07 §4.3） |
-| `__tests__/master-view.test.ts` | `ViewDescriptor{mode:'master'}` 合成分支 + 继承覆盖层 | 04 §12.4、PRD ML-01 |
+| `__tests__/master-view.test.ts` | `ViewDescriptor{mode:'master'}` 合成分支 + 占位符标注覆盖层 `master-annotations`：覆盖全部占位符，有线与类型名、继承项点线 +「母版 · 〈类型〉」，类型名与 M2 锁签按 `planMasterAnnotations` 同一遍定的落位画（同一画面一种落位，选中项不画自己的类型名，锁签放不下不画），标注只在画布上画、不进缩略图、放映与导出（2026-11-04，rulings §4.25 TB-188…TB-190；落位规则各分支的单测在 `master-annotation-plan.test.ts`）；目标为版式或母版的缩略图画一种细线框、提示字整行取舍（TB-191） | 04 §12.4、PRD ML-01 |
+| `__tests__/master-annotation-plan.test.ts` | `planMasterAnnotations` 的落位规则逐分支：同一画面一种类型名落位、放不下的不画（不截断、不换落位）；画出的类型名不与提示文字首行、别的框线、母版图形与普通形状、尺寸角标和 M2 锁签相交，不出幻灯片；选中项不画自己的类型名；M2 锁签按落位链取第一个放得下的位置、都放不下不画，类型名给锁签让位；同一输入同一输出（2026-11-04，rulings §4.25 TB-189、TB-190；规则以设计 03-26 §4.2 为准） | 测试文件逐个登记（rulings §4.25 DP-8）；70-testing/06 §2.2「母版视图的占位符标注与缩略图」行 |
 | `__tests__/dirty-mapping.test.ts` | `classify` 按实体类型的映射（§2.4 表）逐行断言 | 00-module-map §4.2 第 4 条的反制测试 |
 | `__tests__/template-cache-eviction.test.ts` | `LayerTemplateCache` LRU 淘汰、共享版式页仅重渲一次 | A29 |
 | `__tests__/elements.render.test.ts` | 每个 `kind` 的 SVG 快照（规范化）+ autofit 收敛（不设 `ElementRenderer` 契约套件，见 M-06 G-8，rulings §4.18 GV-20）；diagram（`dsp:drawing`+`txXfrm`）/ole（`Ole.preview`）真实渲染；`svgBlip` 只产出 `<image>`（断言无 `innerHTML`/`DOMParser` 调用）；放映视图动画终态可见性 | 覆盖 §4.1 全部 `elements/*.renderer.ts` 与 `domain/compose/animation-end-state.ts` |
-| `__tests__/degrade.test.ts` | 占位框渲染 + `render/element-degraded` 各 `reason`（含 `chartex-unsupported`、`external-resource-blocked`（`confirm`/`never`/headless）、`emf-raster-limit`）；意外异常 `throw` 后 render-dom 兜底 `render/element-failed` 的边界 | A11、OF-13、OF-24；§12 G-4 |
+| `__tests__/degrade.test.ts` | 占位框渲染 + `render/element-degraded` 各 `reason`（含 `chartex-unsupported`、`external-resource-blocked`（`confirm`/`never`/headless）、`emf-raster-limit`）；意外异常 `throw` 后 render-dom 兜底 `render/element-failed` 的边界；2026-10-22 补页级回退：整页解析失败的页与合成时抛错的页都只把页层换成页级占位、母版页脚照常、其余页不受影响，页级占位与元素级占位同一画法（rulings §4.25 TB-151）；合成时抛错的页上报一次 `render.page_failed`（`details.pageId` 为这一页）、发一次 `render/element-failed{ kind: 'page' }`，整页解析失败的页两者都不发（TB-157）。本文件即 70/04 §8「页级占位同一画法」与 70/13 §6.9 `4.25/TB-151` 行引用的页级回退单测 | A11、OF-13、OF-24；§12 G-4 |
 | `__tests__/thumbnails.test.ts` | 两种 Provider（`dom-scaled`/`server-png`）去抖、`maxMounted`、切换一致性；server-png `provisional` 回退 `dom-scaled`；`exportImage` 走 `raster`；2026-09-26 起另断言 `format:'svg'` 产出可独立打开的 SVG、`embedFonts:true` 时含所用字体的 `@font-face`（EXP-03）；配置 `provider:'raster'` 被 zod 拒绝（复核 L12） | OF-15；rulings §4.15 Q4/Q8 |
 
 ### 5.2 `@cordexjs/slide-render-chart`
@@ -889,7 +899,7 @@ packages/slide-render-chart/
 
 **`@cordexjs/slide-render` `src/index.ts` 导出**：
 
-- **类型**：`ThumbnailService`、`ThumbnailDescriptor`、`SlideRenderConfig`、`ComposedSlide`/`ComposedLayer`/`ComposedElement`（供 M-10 保真诊断面板只读展示合成结果，OF-13）、`PlaceholderResolution`。
+- **类型**：`ThumbnailService`、`ThumbnailDescriptor`、`SlideRenderConfig`、`ComposedSlide`/`ComposedLayer`/`ComposedElement`（供 M-10 保真诊断面板只读展示合成结果，OF-13）、`PlaceholderResolution`、`MasterAnnotationsOptions`（`master-annotations` 覆盖层的启用入参，M-10 在母版视图里启用这一覆盖层时给出，§2.5；2026-11-04）。
 - **值**：默认导出插件对象（`name/inject/provide/apply`，§3）；不导出 `composeSlide`/`classify` 等 `domain/**` 纯函数——本包 `iso:'dom'`，物理上不构成跨端复用面（§2.3 末段），下游应经 `ctx.render`/`ctx.thumbnails` 服务访问能力，不直接调用内部纯函数。
 - **子路径导出**：`./chart`（M1–M2 惰性图表插件，入口 `src/chart.ts`，独立 chunk ≤ 400 KB gzip，rulings §4.18 FE-08）、`./testing`（`renderSlideToSvgString`、fixtures、构造器，见 §5.1）；`cordex.publicEntry` 登记为 `['.', './chart', './testing']`，与 `exports` key 集合逐一相等（rulings §4.18 FE-04）。
 - **api-extractor 稳定级**：`beta`（M1）——`ComposedSlide` 内部形状随母版视图（ML-03/ML-04）与图表拆包细化的概率高；`ThumbnailService`/`SlideRenderConfig` 是 M-10 直接消费的对外服务面，变更需走 Changesets `minor`。
@@ -977,7 +987,7 @@ chromium -- "dom-scaled 渲染后由 M-09/M-12 截图" --> headlessHost
 | `infrastructure/cache/layer-template-cache.ts`（模板 LRU 模式：缓存键 + `cloneNode` + 失效 + 淘汰测试） | 垂直束模板 | 结构照抄；doc 大概率没有「母版/版式」概念，缓存键改为「样式集/分栏配置」等价物；sheet 可能不需要此文件（无重复模板层） |
 | `domain/compose/compose-slide.ts`、`domain/compose/compose-master-view.ts`（三层合成、占位符遮蔽、母版视图分支） | slide 专属，**不复制** | doc 是线性 `blocks` 序列、sheet 是网格 `cells`，均无「母版→版式→页」三层合成概念；doc/sheet 各自的合成规则需从零设计 |
 | `infrastructure/elements/{sp,pic,grp-sp,cxn-sp,table}.renderer.ts` | slide 专属，**不复制** | `kind` 集合完全不同（doc 是 `paragraph`/`image`/`table`/`list` 等块级元素；sheet 是 `cell`/`chart`/`pivot`），渲染器需按各自 `shapeKind`/`blockKind` 贡献点重新实现；但「无状态查表渲染器」的设计原则（§1.1）照搬 |
-| `infrastructure/overlay/master-inheritance.overlay.ts` | slide 专属，**不复制** | doc/sheet 无母版视图；若未来 sheet 需要「继承自单元格样式」的类似可视化，另起新 overlay，不直接复用本文件 |
+| `infrastructure/overlay/master-annotations.overlay.ts`、`domain/compose/master-annotation-plan.ts` | slide 专属，**不复制** | doc/sheet 无母版视图；若未来 sheet 需要「继承自单元格样式」的类似可视化，另起新 overlay，不直接复用这两个文件 |
 | `@cordexjs/slide-render-chart` 整包（M1–M2 为主包惰性子路径 `./chart`、M3 拆包为独立惰性插件，均以同 key 覆盖主包占位，`render.element` 贡献点定义为 `replace`） | **拆包模式**可复制，内容不可复制 | 「重型/可选文档类型特性隔离为独立惰性插件」这一模式（而非图表本身）值得 `doc-render`/`sheet-render` 参考——例如 sheet 的数据透视表渲染、doc 的公式/宏渲染都可能采用同一拆包套路（新增建议，见 §12 G-8） |
 
 铁律 2（束间隔离）在本包的落地：`domain/**`/`application/**`/`infrastructure/**` 不 import 任何 `doc-render`/`sheet-render` 类型；`__tests__/`/`testing/` 只使用本包自己的夹具；本包与 `slide-render-chart` 都会被 M-13 的 `horizontal-freeze` 排除在「冻结对象」之外（二者本身就是垂直束，不是被冻结的水平层）。
@@ -992,7 +1002,7 @@ chromium -- "dom-scaled 渲染后由 M-09/M-12 截图" --> headlessHost
 
 ```mermaid
 flowchart LR
-    unit["unit/"] -- "位于" --> unitFiles["domain 目录纯函数各文件的同级隐式单测；未在 §5 逐一列出 test.ts，遵循包内惯例"]
+    unit["unit/"] -- "位于" --> unitFiles["domain 目录纯函数各文件的同级隐式单测；未在 §5 逐一列出 test.ts，遵循包内惯例；落位纯函数的单测单列 __tests__/master-annotation-plan.test.ts"]
     contract["contract/"] -- "说明" --> contractNote["slide-render 不设独立 run Definition Conformance：本包是 SceneProvider、ElementRenderer、OverlayRenderer 的实现方而非 Definition 定义方，06 §2.5 已说明不设通用契约套件的理由"]
     contractNote -- "转而复用" --> contractFiles["M-06 提供的 SpyRenderer、RecordingTarget，来自 engine-render/testing；自行组装断言，位于 __tests__/elements.render.test.ts"]
     lifecycle["lifecycle/"] -- "位于" --> lifecycleFiles["src/__tests__/lifecycle.test.ts：defineLifecycleSuite，插件包强制项，两包各一份"]
@@ -1004,9 +1014,9 @@ flowchart LR
 
 | 测试类别 | 覆盖内容 | 源文件 | 补充 |
 |---|---|---|---|
-| unit | `composeSlide`/`composeMasterView`/`classify`/`thumbnailSize`/`resolvePaint` 等纯函数的确定性与边界用例 | `domain/**`（slide-render）、`domain/chart-layout.ts`（chart） | 同级隐式单测，不在 §5 重复标注 |
+| unit | `composeSlide`/`composeMasterView`/`planMasterAnnotations`/`classify`/`thumbnailSize`/`resolvePaint` 等纯函数的确定性与边界用例（`planMasterAnnotations` 的落位规则各分支单列一个测试文件，2026-11-04，rulings §4.25 TB-189、TB-190） | `domain/**`（slide-render）、`domain/chart-layout.ts`（chart）；`__tests__/master-annotation-plan.test.ts`（slide-render） | 同级隐式单测，不在 §5 重复标注；`master-annotation-plan.test.ts` 已在 §4.1、§5.1 登记（测试文件逐个登记，rulings §4.25 DP-8） |
 | 集成（合成/回收） | 版式切换复用元素实例；z 变化只移动 DOM 节点；共享模板页联动更新 | `__tests__/compose-reconcile.test.ts`、`__tests__/template-cache-eviction.test.ts` | 对齐历史用例（07 §4.3） |
-| 集成（母版视图） | `ViewDescriptor{mode:'master'}` 合成 + 继承覆盖层 + 占位符提示框；`themePreview` 取覆盖值且 Store 无事务（rulings §4.20 FE-24）；页引用墓碑版式时渲染用 `defaultLayoutOf` 替代版式（FE-04） | `__tests__/master-view.test.ts` | 04 §12.4、PRD ML-01 |
+| 集成（母版视图） | `ViewDescriptor{mode:'master'}` 合成 + 占位符标注覆盖层 `master-annotations`（覆盖全部占位符；类型名与 M2 锁签同一遍定落位，一种落位、选中项不画自己的类型名；只在画布上画，不进缩略图、放映与导出；2026-11-04，rulings §4.25 TB-188…TB-190）+ 占位符提示框（文本类 1–5 级样例）与版式、母版缩略图的细线框（TB-191）；`themePreview` 取覆盖值且 Store 无事务（rulings §4.20 FE-24）；页引用墓碑版式时渲染用 `defaultLayoutOf` 替代版式（FE-04） | `__tests__/master-view.test.ts` | 04 §12.4、PRD ML-01 |
 | 反制（脏区） | `ChangeSet.touched` 按实体类型的 `DirtySet` 归类逐行覆盖（§2.4 表 7 行） | `__tests__/dirty-mapping.test.ts` | 00-module-map §4.2 第 4 条「适配层」职责的直接验证 |
 | 反制（缓存淘汰） | `LayerTemplateCache` 超 32 项后 LRU 淘汰；被淘汰条目下次访问重渲一次 | `__tests__/template-cache-eviction.test.ts` | A29；架构 07 §11「三处 LRU」外的第 4 处（§12 G-7） |
 | 反制（错误隔离） | 元素抛错→占位框+`render/element-failed`（render-dom 兜底）；预期降级→占位框+`render/element-degraded`（本包自发） | `__tests__/degrade.test.ts` | A11、OF-13；§2.4/§12 G-4 |
@@ -1081,8 +1091,8 @@ pnpm --filter @cordexjs/slide-render test:visual -- --fixture single-text-slide 
 
 ### M2
 
-- `infrastructure/elements/{grp-sp,cxn-sp,background}.renderer.ts` 全部落地；`domain/compose/compose-master-view.ts` + `infrastructure/overlay/master-inheritance.overlay.ts`（ML-01 只读穿透，占位符可选中不可编辑）；`infrastructure/thumbnails/{dom-scaled,raster,server-png}.provider.ts` 全部落地：`dom-scaled`/`server-png` 两种缩略图策略可运行时切换（server-png 为 640 px WebP，`provisional` 回退 `dom-scaled`），`raster` 只服务单页导出 `exportImage`（toImage Web 字体问题 M2 spike）；`infrastructure/chart/chart-preview.renderer.ts` 覆盖矩阵 §2.6（本文档引用 50/19 §6 与 50/24）列出的全部图表类型的只读渲染。
-- **M2 P1（rulings §4.15 Q7）**：`infrastructure/media/emf-rasterizer{,.worker}.ts` 以 `emf-converter` 4.0.x（`gdiAntialias: true`，R-d-24）惰性 Worker chunk 栅格化 EMF/WMF（含 OLE 预览），记录数/像素/耗时上限（OF-24）；`domain/compose/animation-end-state.ts` 放映主序列可见性终态。验收：`master-view.test.ts`/`thumbnails.test.ts`/`degrade.test.ts`（`emf-raster-limit`）/图表 SSIM≥0.80 用例全绿。
+- `infrastructure/elements/{grp-sp,cxn-sp,background}.renderer.ts` 全部落地；`domain/compose/compose-master-view.ts` + `infrastructure/overlay/master-annotations.overlay.ts` 与落位纯函数 `domain/compose/master-annotation-plan.ts`（ML-01 只读穿透，占位符可选中不可编辑，选中时画锁形标签；2026-11-04，rulings §4.25 DS-156、TB-188）；`infrastructure/thumbnails/{dom-scaled,raster,server-png}.provider.ts` 全部落地：`dom-scaled`/`server-png` 两种缩略图策略可运行时切换（server-png 为 640 px WebP，`provisional` 回退 `dom-scaled`），`raster` 只服务单页导出 `exportImage`（toImage Web 字体问题 M2 spike）；`infrastructure/chart/chart-preview.renderer.ts` 覆盖矩阵 §2.6（本文档引用 50/19 §6 与 50/24）列出的全部图表类型的只读渲染。
+- **M2 P1（rulings §4.15 Q7）**：`infrastructure/media/emf-rasterizer{,.worker}.ts` 以 `emf-converter` 4.0.x（`gdiAntialias: true`，R-d-24）惰性 Worker chunk 栅格化 EMF/WMF（含 OLE 预览），记录数/像素/耗时上限（OF-24）；`domain/compose/animation-end-state.ts` 放映主序列可见性终态。验收：`master-view.test.ts`/`master-annotation-plan.test.ts`/`thumbnails.test.ts`/`degrade.test.ts`（`emf-raster-limit`）/图表 SSIM≥0.80 用例全绿。
 
 ### M3
 
@@ -1104,7 +1114,7 @@ pnpm --filter @cordexjs/slide-render test:visual -- --fixture single-text-slide 
 | G-7 | 架构 07 §11「三处 LRU」vs 06 §12 G-7（已厘清为「引擎内三处，不含 M-07 的 `LayerTemplateCache`」）vs 00-module-map M-06/M-07 两行 | 06 号文档已给出厘清结论，但 00-module-map 的 M-06/M-07 两行尚未据此加注，读者按模块统计缓存总数时可能遗漏或重复计入本包这第 4 处 | **结案（2026-09-18，跨模块评审 C-12）**：系统级共 4 处缓存（M-06 三处 + 本包 1 处），本包 `LayerTemplateCache` 是系统级第 4 处；00-module-map §7 M-06 行加注「模块内三处，不含 M-07 的 `LayerTemplateCache`」、M-07 行加注「含 1 处模板 LRU（`LayerTemplateCache`）」（由总编排回写 00，本文档 §1.1/§9/§11 的表述已一致，无需改动） |
 | G-8 | 00-module-map §6.2（垂直束样板对照表未提及「重型可选特性拆包」这一子模式） | 本文档 §8 指出 `slide-render-chart` 的拆包套路（M1–M2 为主包惰性子路径、M3 拆为独立惰性插件、同 key 覆盖主包占位；2026-09-25 按 rulings §4.18 FE-08 由「M1–M2 内置只读」改写）本身是一种可复用模式，独立于图表这一具体内容 | 建议 00-module-map §6.2 补一行「重型可选特性隔离」样板参照，明确指向本文档 §3/§4.2/§8，供未来 sheet 的数据透视表渲染或 doc 的公式渲染等类似场景参照，而不必重新发明拆包机制 |
 | G-9 | 章程 §5.2 依赖上限描述为「职责边界」文字（`model-slide, engine-render, render-dom`）、任务书补充 `engine-layout`，均未落地为具体 depcruise 规则 id | 本文档 §10 曾建议规则名 `cordex-slide-render-allowlist`（**2026-09-24 复核 L18 降为说明**，不再建议新增专用规则，见 §10）。**2026-09-24**：rulings §4.15 Q7 修订 §4.11 C-28，放行 `slide-render→ooxml-core`（仅 chartml 与 `dsp:drawing` 只读解析）；allowlist 同步为 `model-slide`/`engine-render`/`engine-layout`/`render-dom`/`ooxml-core`（+ `emf-converter` 单点）；`slide-render-chart` 为 `slide-render`/`ooxml-core`（+ 图表库） | ~~建议 09-type-discipline 或 `tooling/depcruise` 采纳该规则名与白名单~~（已降为说明）；`emf-converter` 单点已登记进 M-01 规则 5；章程 §5.2 `slide-render` 依赖上限列加 `ooxml-core`（总编排级，随 C-28 修订） |
-| G-10 | 00-module-map §3 BC-12 行「提供的贡献点：无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element` 贡献条目」（只登记两个贡献点） | 本文档 §0/§2.6/§3/§4.1/§5.1 新增第三个贡献：`render.overlay('master-inheritance')`——`render.overlay` 本身是 BC-11 已定义的贡献点（06 §2.5），但「继承自母版」这一具体覆盖层只有 BC-12（知道 model 语义）能产出，`render-dom`（BC-11 默认 Provider，文档类型盲）无法实现；这是母版视图（PRD ML-01）覆盖层需求下的必然推论，而非随意新增 | 建议 00-module-map §3 BC-12 行的「提供的贡献点」补充「`render.overlay`（`master-inheritance`，新增建议）」一项，使权威登记表与本文档一致；若总编排认为母版视图覆盖层应改由 M-10（`slide-ui`）而非 M-07 贡献，需相应移除本文档 §2.6/§4.1 的 `overlay/` 文件并调整 §13 Q-3 |
+| G-10 | 00-module-map §3 BC-12 行「提供的贡献点：无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element` 贡献条目」（只登记两个贡献点） | 本文档 §0/§2.6/§3/§4.1/§5.1 新增第三个贡献：`render.overlay('master-inheritance')`——`render.overlay` 本身是 BC-11 已定义的贡献点（06 §2.5），但「继承自母版」这一具体覆盖层只有 BC-12（知道 model 语义）能产出，`render-dom`（BC-11 默认 Provider，文档类型盲）无法实现；这是母版视图（PRD ML-01）覆盖层需求下的必然推论，而非随意新增 | 建议 00-module-map §3 BC-12 行的「提供的贡献点」补充「`render.overlay`（`master-inheritance`，新增建议）」一项，使权威登记表与本文档一致；若总编排认为母版视图覆盖层应改由 M-10（`slide-ui`）而非 M-07 贡献，需相应移除本文档 §2.6/§4.1 的 `overlay/` 文件并调整 §13 Q-3（2026-11-04 起 id 改为 `master-annotations`，取代原名，覆盖全部占位符，rulings §4.25 TB-188） |
 
 ### 2026-09-18 收敛
 
@@ -1162,13 +1172,39 @@ pnpm --filter @cordexjs/slide-render test:visual -- --fixture single-text-slide 
 | R-d-23 | §1.1 不做什么 | 媒体与图标预处理入口在 render-dom `media/image-preprocess.ts`（上传队列调用），本包只消费 blob URL |
 | 50-frontend/25、40-modules/04 `shape-tree.ts` | §1.1、§2.7、§5.1、§11 | chartex 导入为 `UnknownShape{source:'chartex'}`，占位与 `chartex-unsupported` 改由 `fallback.renderer` 发出，图表渲染器不再处理 `cx:` |
 
+### 2026-10-22 回写（rulings §4.25 design-language-v3 第 3 批）
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| TB-157 | §1.1、§4.1 / §5.1 `compose-slide.ts`、`slide-scene-provider.service.ts`，§9 `degrade.test.ts` | 两种页级回退的上报分开：合成时抛错的页经 `errors` 上报 `render.page_failed{pageId}`（码在 engine-render `errors.ts`，30/10 §1.1a 登记）并发 `render/element-failed{ kind: 'page', pageId }`（§2.4 增一行，页级是元素级边界 G-4 之外唯一由本包发出的一种），`/render` 页据此在 `ready` 的逐页诊断里带出 `failed{ code }`（50/12 §11.3），renderer 据此记这一页失败、不回传字节，按 60/06 §11.3 重试与占位；整页解析失败的保真占位是确定内容，不报错误码、照常回传；`degrade.test.ts` 即 70/04 §8 与 70/13 §6.9 引用的页级回退单测 |
+| TB-166、TB-169（2026-10-22 复核时补） | §1.1、§4.1 / §5.1 `slide-scene-provider.service.ts` | 浏览器生成的图片导出同一口径：所导页里有一页走了运行时页级回退，这次导出失败、保真占位照常导出（判定方法以 50-frontend/18 EXP-03 为准）；测试部署的「指定页在合成时抛错一次」作用在本包的合成上（接口以 50-frontend/15 §10 为准）；文件数不变 |
+| TB-174、50-frontend/05 §11（2026-10-22 复核时补） | §1.1、§2.1「可访问描述的派生」、§4.1 / §5.1 `slide-scene-provider.service.ts` | 合成处的注入点只由 apps/web 的诊断接口在测试部署里打开（40/11 `application/host/diagnostics.ts`），`/render` 不设注入点，`/render` 一侧合成某页出错由组件级用例以 scene provider 桩制造（40/11 §9 单测 `application/render-page.usecase.test.ts`，70/06 §6.3 R8；生产构建上的 `render/render-page.spec.ts` 只测整页无法解析的一半）；可访问描述的字段清单补 2026-09-26 整合的 `links`、`table` / `chartData` 与 `role` 取值 `link`；文件数不变 |
+| TB-151、DS-52 | §1.1、§4.1 / §5.1 `compose-slide.ts`、`slide-scene-provider.service.ts`、`fallback.renderer.ts`，§9 `degrade.test.ts` | 页级占位落在本包：整页解析失败的页（保真「此页内容无法解析」）在合成时、合成某一页抛错（放映单页渲染失败「此页内容暂时无法显示」）在 provider 里，都只把页层换成一个覆盖纸面的 `unknown` 占位节点，母版与版式层照常；由 `fallback.renderer.ts` 与元素级占位同一组画笔画在纸面内，客户端与服务端缩略图一致，不新增 `render.element` key；40/10 §13 Q-18 随之结案 |
+
+源文件数与测试文件数都不变。
+
+### 2026-11-04 回写（rulings §4.25 design-language-v3 母版视图改版）
+
+> 依据：rulings §4.25 DS-146、DS-148、DS-149、DS-156（2026-11-02 至 11-03 用户拍板）与总编排技术口径 TB-188…TB-191，测试文件逐个登记照 DP-8。画法与落位规则以设计 03-26 §4.2 为准，读屏处理以设计 03-26 §9 为准，覆盖层的数据源与刷新以 50-frontend/05 §5.2 为准，标注文案键以 50-frontend/16 §1 为准；本节只登记本模块涉及的条目。
+
+| 依据 | 改动位置 | 摘要 |
+|---|---|---|
+| DS-148、TB-188 | §0、§1.1、§1.2、§2.5、§2.6、§3、§4.1、§5.1、§8、§9、§11 | 母版视图的覆盖层改为占位符标注覆盖层：key 由 `master-inheritance` 改为 `master-annotations`（文件 `master-annotations.overlay.ts`、导出 `masterAnnotationsOverlay`，取代原名），给全部占位符画线与类型名——本版式虚线、继承点线 +「母版 · 〈类型〉」，只在画布上画，不进缩略图、放映与导出；不再是新增建议，00-module-map BC-12 与 40/16 同步；slide-ui 不另画继承描边（40/10）；§12 G-10 一行保留作复核记录，行末补取代注记 |
+| TB-189、TB-190、DS-156、DP-8 | §2.3、§4.1 / §5.1 新增 `domain/compose/master-annotation-plan.ts` 与单测 `__tests__/master-annotation-plan.test.ts`、图 4-1、§9（表与测试类别图）、§11 M2 验收 | 类型名与 M2 锁签同一遍定落位、画在同一覆盖层；落位纯函数单独成件，按数据里的占位符几何算，不量 DOM、不等过渡；它的落位规则各分支单列一个测试文件（测试文件逐个登记，DP-8） |
+| DS-148、DS-149、TB-191 | §2.1 Layer 顺序不变量 | 母版视图画布上的提示框本身不画框线、文本类提示画第 1–5 级样例；目标为版式或母版的缩略图与画布同一份内容渲染，另画一种细线框，提示字按缩略图尺寸整行取舍、不裁半字 |
+| DS-146 | §2.6 母版视图切换的触发者 | 改为 slide-ui 经 `view.setMode` 进出、母版窗格选中经 `slide.selectMasterOrLayout` 换编辑对象（取代原写的「视图分段/范围条」） |
+| TB-188、TB-190 | §0 下游行、§1.3 BC-15 一行与图 1-1、§2.5 新增「`master-annotations` 的启用入参 `MasterAnnotationsOptions`」、§5.1 覆盖层行与落位纯函数行、§6 类型、§13 Q-3 | 推荐更新：合成结果仍以闭包持有，选中与视口从 `selection` 服务与 Viewport 取（`OverlayContext` 已有的字段），不扩展 `OverlayContext`；启用入参 `MasterAnnotationsOptions` 有两个字段——`labels`（类型名、「母版 · 〈类型〉」与 M2 锁签的文案）与 `m2Locked`（是否 M2）——由 slide-ui 启用覆盖层时给出，类型在落位纯函数件里声明、经 `src/index.ts` 导出；本包不登记 i18n 命名空间、不贡献 `i18n.bundle`（文案键以 50-frontend/16 §1 为准） |
+| DS-148、DS-156 | §5.1 覆盖层行 | 框线、类型名与 M2 锁签对读屏隐藏，以设计 03-26 §9 为准 |
+
+源文件 +1、测试文件 +1（slide-render 65 → 67，两包 97 → 99；§5.1「`domain/`」小标题的文件数一并由漏计的 10 更正为 12，「`__tests__/`」8 → 9）；需求编号、优先级与里程碑不变。
+
 ## 13. 未决问题
 
 | # | 问题 | 推荐默认值 | 影响范围 |
 |---|---|---|---|
 | Q-1 | ~~`offscreen-canvas.provider.ts`（G-2）是否需要真正跑在 Worker 线程~~ **（结案，2026-09-24）** | 不做 Worker 版本，也不再有 offscreen-canvas Provider：改为主线程 `raster.provider.ts`（toImage 分片调度）。**结案依据**：rulings §4.15 Q4（DOM/SVG 单实现，推翻 14 §5.4 对 offscreen-canvas 的采纳）；toImage Web 字体（CJK）问题转为 M2 位图 spike，结论前位图封面/批量缩略图自 M3 走 server-png（WebP）；2026-09-24 复核 L12 起 `raster` 只用于单页导出 | `infrastructure/thumbnails/raster.provider.ts`（已落地） |
 | Q-2 | ~~M1–M2 次要图表类型是否统一走「缓存位图或占位」~~ **（结案，2026-09-24）** | 按章程 D16 原文：M1–M2 `c:chart` 部件不透明保留，`chart-preview.renderer.ts` 只读解析部件与缓存数据渲染全部类型（SSIM ≥ 0.80），解析失败才占位；`cx:` chartex 不在 D16 范围，直接占位 + `chartex-unsupported`；`approx.renderer.ts` 在 M3 拆包后承接非可编辑类型的只读渲染。**结案依据**：rulings §4.15 Q7、crossConflicts D16 机械回写 | `infrastructure/chart/chart-preview.renderer.ts`、`slide-render-chart/infrastructure/renderers/approx.renderer.ts`；§11 M1 |
-| Q-3 | `OverlayContext`（06 §2.5）是否需要扩展字段以支持 `master-inheritance` overlay 取得 `ComposedElement.inheritedFrom` 列表，还是该 overlay 自行重新查询 `ComposedSlide` | 推荐扩展调用约定：`master-inheritance.overlay.ts` 通过闭包持有最近一次 `build()` 的 `ComposedSlide` 引用（本包内部状态，不经 `OverlayContext` 新增字段，避免污染 06 号文档的通用契约） | `infrastructure/overlay/master-inheritance.overlay.ts`；若 M-10 设计条线要求覆盖层支持更丰富的交互（如点击徽标跳转母版），需重新评估 |
+| Q-3 | `OverlayContext`（06 §2.5）是否需要扩展字段以支持 `master-annotations` overlay 取得 `ComposedElement.inheritedFrom` 与全部占位符框，还是该 overlay 自行重新查询 `ComposedSlide`；2026-11-04 起它还要读当前选中（选中项不画自己的类型名，M2 时给选中项画锁签）与视口（按屏幕像素画） | 推荐不扩展 `OverlayContext`：`master-annotations.overlay.ts` 通过闭包持有最近一次 `build()` 的 `ComposedSlide` 引用（本包内部状态）；选中与视口从 `selection` 服务与 Viewport 取，即 `OverlayContext` 已有的 `selection`、`viewport` 两个字段（40/06 §2.5），不新增字段，避免污染 06 号文档的通用契约（2026-11-04，rulings §4.25 TB-188、TB-190）；是否处于 M2（画不画锁签）与标注文案由 slide-ui 启用覆盖层时作为入参给出——`MasterAnnotationsOptions` 的 `m2Locked` 与 `labels`（§2.5），本包不读 ui-core 的上下文键（秩低于 ui-core）、不登记 i18n 命名空间 | `infrastructure/overlay/master-annotations.overlay.ts`、`domain/compose/master-annotation-plan.ts`；若 M-10 设计条线要求覆盖层支持更丰富的交互（如点击类型名跳转母版），需重新评估 |
 | Q-4 | `SceneNode.id === ShapeId`（G-3）是否需要正式写入 charter §5.5 或 06 号文档，还是保持本文档内部约定即可 | 建议正式登记——该约定是 `TextEditIntent` 回调链路能够跨包工作的隐性前提，若仅存在于本文档，`doc-render`/`sheet-render`（M-13 未来工作）复制样板时容易遗漏 | charter §5.5「`Scene`/`SceneNode`」相关表述、06 号文档 §2.1；本文档 §2.1/§2.6 |
 | Q-5 | ~~`ole.ts`/`diagram.ts`/`unknown.ts` 合并为 `fallback.renderer.ts`（G-5）最终以哪份历史文档为准~~ **（结案，2026-09-24）** | 拆分：`diagram.renderer.ts`/`ole.renderer.ts` 为真实渲染器，`fallback.renderer.ts` 只留 unknown。**结案依据**：rulings §4.15 Q7（SmartArt M1 渲染 dsp:drawing、OLE 显示预览图） | `infrastructure/elements/{diagram,ole,fallback}.renderer.ts`（已落地）；02 §4.16 同步 |
 | Q-6 | ~~章程 Q18（图表可编辑类型集合，默认 bar/line/pie）若最终裁定为更小或更大的集合，`slide-render-chart` 的 `renderers/` 文件粒度是否需要调整~~ **（结案，2026-09-19）** | 已扩为五个具名渲染器（`bar`/`line`/`pie`/`area`/`scatter`）+ 一个 `approx.renderer.ts` 兜底。**结案依据**：rulings §4.12 U-06 裁定章程 Q18 为 bar/line/pie/area/scatter 五类可编辑，§4.2/§5.2 已按此新增 `area.renderer.ts`/`scatter.renderer.ts` | `slide-render-chart/infrastructure/renderers/**`（已落地） |

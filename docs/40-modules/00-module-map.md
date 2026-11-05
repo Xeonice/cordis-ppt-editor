@@ -1,4 +1,4 @@
-> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：M-04 承载包加 @cordexjs/xml；§6.4 冻结层补 @cordexjs/xml 的 src/**；BC-21 CollabGateway 改为 CollabUpgradeHandler 与 Hocuspocus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：Webhook PL 改为 Standard Webhooks 头名；fflate 单点只在 ooxml-core）；2026-10-01（包与插件规划显化：§7 表前补「包与插件数」一段，指向 16 §2 与 `plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§7「包与插件数」改为 48 个 cordis 插件，纯库与 Nest 模块不计入插件） | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引
+> 状态：v0.2 | 负责：架构-模块（阶段一） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-26（§4.20）；2026-09-26（§4.21 整合：M-04 承载包加 @cordexjs/xml；§6.4 冻结层补 @cordexjs/xml 的 src/**；BC-21 CollabGateway 改为 CollabUpgradeHandler 与 Hocuspocus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：Webhook PL 改为 Standard Webhooks 头名；fflate 单点只在 ooxml-core）；2026-10-01（包与插件规划显化：§7 表前补「包与插件数」一段，指向 16 §2 与 `plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§7「包与插件数」改为 48 个 cordis 插件，纯库与 Nest 模块不计入插件）；2026-10-04（design-language-v3 第 0 批：按 rulings §4.25 DS-1、DS-2、DS-5、DS-6 同步 BC-13 / BC-14 / BC-15 的通用描述——ui-core 提供九个 `ui.*`（删 `ui.ribbon`、`ui.statusBar`，增 `ui.inspectorSection`，全系统贡献点 27 → 26），slide-ui 职责由 Ribbon 页签改为创建工具条、检查器分区、主菜单与网格视图，design 扩展变量去掉 `--glass-*`，§1 `ui/` 目录示例按 40/10 §4.4 改写）；2026-10-04（design-language-v3 第 0 批：术语残留清理：`ui.ribbon` / `ui.statusBar` / ribbon / 状态栏的历史陈述改用 check-terms 认可的标记措辞（作废、废弃、取代、原名））；2026-10-04（design-language-v3 第 0 批：复验修正——BC-16 shell-glue 的 `ui.contextMenu{slot:'appBar.more'}` 改为 `mainMenu.file` / `docMenu`（DS-1，与 40/11 一致））；2026-10-04（design-language-v3 第 0 批：复验第 2 轮修正——BC-14「消费的贡献点」由「同上十个」改为「同上九个」，与上一行九个 `ui.*` 及全系统 26 个贡献点一致）；2026-10-08（design-language-v3 第 1 批收口：BC-16 shell-glue 的 `ui.contextMenu` 槽位按 40/11 §3.3 补 `mainMenu`、`mainMenu.help`、`userMenu`（八个壳意图，rulings §4.25 TB-15、TB-39、TB-40））；2026-10-15（design-language-v3 第 2 批：BC-19 职责补访问申请与分享链接的改角色、有效期，rulings §4.25 DS-47、DS-48；同日再补：BC-30 事件源按 60/07 §4.2 改为评论三种、`automation.job_finished` 与 `access_request.created`（DS-67），原 `comment.created` 写法作废，提供与消费的服务两栏同步；BC-19 消费的服务补 BC-30 投递用例）；2026-10-22（design-language-v3 第 3 批回写收口：BC-16「消费的贡献点」补 shell-glue 的 5 个无参 Operation（`shell.openExport` 等，只转调 `shell.intent`）与各自的 `ui.command`（rulings §4.25 TB-162，40/11 §3.3）；模块划分与计数不变）；2026-11-04（design-language-v3 母版视图改版：BC-12「提供的贡献点」的 `render.overlay` key 由 `master-inheritance` 改为 `master-annotations`，说明改为母版视图的占位符标注覆盖层——覆盖全部占位符、M2 锁签同层（rulings §4.25 TB-188，40/07 §3）；模块划分与计数不变，需求编号、优先级与里程碑不变） | 依赖：charter v0.2 §4–§5、30-architecture 01–08/12、09-type-discipline、ADR 索引；rulings §4.25 TB-188
 > 修订：按 `14-cross-module-review.md` §8 修订（R-01…R-24 全部落实，本次为回写员 R1 收敛）
 
 # 00 模块切分总图（DDD 限界上下文 × cordis 插件）
@@ -116,7 +116,7 @@ slideui --> uicore2
 | `domain/` | `model/`、`mutations/`、`command/*.ts`（类型定义部分）、`contracts/`（值对象/实体类型部分） | 聚合、实体、值对象、领域事件类型、纯领域函数（无 IO） |
 | `application/` | `services/*.service.ts`、`command/pipeline.ts`、`command/commands.service.ts` | 应用服务（编排领域对象、调用仓储、发布事件），即 cordis `Service` 子类与命令管线 |
 | `infrastructure/` | Provider 包整体（`store-memory/`、`store-yjs/`、`render-dom/`、`collab-yjs/`、`server-storage/providers/`） | 实现 Definition 的技术细节：CRDT 映射、DOM 操作、S3 SDK 调用 |
-| `interface/`（UI 类模块用 `ui/`） | `ui-react/src/components/`、`slide-ui/src/{ribbon,panels,canvas}/`、`apps/server/src/modules/*/*.controller.ts` | 对外呈现：React 组件、Nest controller、CLI |
+| `interface/`（UI 类模块用 `ui/`） | `ui-react/src/ui/shell/`、`slide-ui/src/ui/{toolbar,inspector,thumbnails,canvas-overlays}/`（2026-10-04 按 40/10 §4 v3 结构改写）、`apps/server/src/modules/*/*.controller.ts` | 对外呈现：React 组件、Nest controller、CLI |
 | `testing/` | `testing/`（子路径导出）+ `__tests__/` | 契约套件、夹具、测试替身 |
 
 **哪类包可以不设 `domain/`**：
@@ -145,9 +145,9 @@ slideui --> uicore2
 | BC-10 布局与度量引擎 | 文本度量器 | `TextMeasurer`、`LineBox`、`CaretMap`、字体回退表 |
 | BC-11 渲染管线与目标 | 场景、场景提供者、渲染目标、元素渲染器 | `DirtySet`（v0.1 旧名 `DirtyRegion` 已按架构 07 §14.1 作废）、`StyleCache`、`Viewport`、命中测试 |
 | BC-12 幻灯片渲染 | 场景提供者（slide 实例化）、元素渲染器 | `SlideSceneProvider`、`LayerTemplateCache`、缩略图 Provider |
-| BC-13 设计系统 | — | 设计 token、shadcn 变量、Cordex 扩展变量（`--glass-*`/`--layer-*` 等裸名，`--cordex-*` 前缀已作废，见 R-07/C-22） | 
+| BC-13 设计系统 | — | 设计 token、shadcn 变量、Cordex 扩展变量（`--layer-*`/`--control-h-*` 等裸名，`--cordex-*` 前缀已作废，见 R-07/C-22；`--glass-*` 随 rulings §4.25 DS-2 作废） | 
 | BC-14 UI基座 | 预设（隐含）、在场信息（覆盖层消费方） | `ui.*` 贡献点、`when` 子句、上下文键 |
-| BC-15 幻灯片UI | — | Ribbon 三级结构、母版缩略图窗格、放映模式 |
+| BC-15 幻灯片UI | — | 创建工具条与检查器分区（v3，rulings §4.25 DS-1、DS-5；取代 Ribbon 三级结构）、网格视图、母版缩略图窗格、放映模式 |
 | BC-16 预设装配 | 预设 | `PresetEntry`、`PresetReport`、`exclude`/`override` |
 | BC-17 应用壳 | — | 开始页、文档列表、账户菜单、`EditorPage` |
 | BC-18 身份与会话 | 角色、Integrator、平台管理员 | `Principal`、`User`/`UserIdentity`、外置 IdP OIDC/PKCE、首次登录 JIT（2026-09-24 删 `Tenant`，rulings §4.15 T-0） |
@@ -414,7 +414,7 @@ slideui --> uicore2
 | cordis 形态 | plugin（`contribute render.scene(slideSceneProvider)` + `render.element × N`） |
 | 提供的服务 | `ctx.thumbnails`（UnitScope） |
 | 消费的服务 | `ctx.render`、`ctx.layout`（BC-10/11）、`ctx.slides`（BC-06） |
-| 提供的贡献点 | 无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element`/`render.overlay`（key `master-inheritance`，母版视图继承徽标覆盖层）贡献条目（R-05/M-07/G-10） |
+| 提供的贡献点 | 无独立贡献点 id；向 BC-11 的 `render.scene`/`render.element`/`render.overlay`（key `master-annotations`，母版视图的占位符标注覆盖层：全部占位符的线与类型名、M2 锁签；2026-11-04 起，rulings §4.25 TB-188）贡献条目（R-05/M-07/G-10） |
 | 消费的贡献点 | 无 |
 | 发布事件 | `slide/thumbnail-updated`、`slide/show-changed`（发布者按 §1 C-04 裁定改为 `slide-ui`；`SlideshowService` 不进 BC-12，见 R-06） |
 | 订阅事件 | 无跨包订阅（内部 `classify(paths)` 响应本 Unit 的 `ChangeSet`） |
@@ -426,7 +426,7 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 设计系统 |
-| 职责一句话 | 设计 token 的唯一事实源与生成的主题变量 CSS（shadcn 变量 + Cordex 扩展变量 `--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废，见 M-10/G-1、R-07），零 JS 运行时依赖 |
+| 职责一句话 | 设计 token 的唯一事实源与生成的主题变量 CSS（shadcn 变量 + Cordex 扩展变量 `--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废，见 M-10/G-1、R-07；2026-10-04 起为 v3 中性平面，`--glass-*` 材质作废，rulings §4.25 DS-2），零 JS 运行时依赖 |
 | 核心聚合与实体 | `TokenSet`（三主题：light/dark/high-contrast）、`ThemeVarName` |
 | 所属层/层带、秩 | L7，秩 70 |
 | 同构类 | dom |
@@ -456,8 +456,8 @@ slideui --> uicore2
 | cordis 形态 | definition（ui-core，`provide=['ui','shortcuts','theme']`）+ provider（ui-react 实现 `UiRenderer` Definition） |
 | 提供的服务 | `ctx.ui`、`ctx.shortcuts`、`ctx.theme` |
 | 消费的服务 | `ctx.commands`（BC-05）、`ctx.contributions`、`ctx.i18n`（BC-04）、`ctx.units`（BC-05） |
-| 提供的贡献点 | `ui.ribbon`、`ui.toolbar`、`ui.panel`、`ui.contextMenu`、`ui.shortcut`、`ui.command`、`ui.statusBar`、`ui.dialog`、`ui.notification`、`ui.theme` |
-| 消费的贡献点 | 同上十个（自身定义，由 slide-ui、apps/web 壳页面贡献并按 `when` 过滤消费） |
+| 提供的贡献点 | `ui.toolbar`、`ui.panel`、`ui.inspectorSection`、`ui.contextMenu`、`ui.shortcut`、`ui.command`、`ui.dialog`、`ui.notification`、`ui.theme`（九个；2026-10-04 作废 `ui.ribbon`、`ui.statusBar`，增 `ui.inspectorSection`，rulings §4.25 DS-5、DS-6，全系统贡献点 27 → 26） |
+| 消费的贡献点 | 同上九个（自身定义，由 slide-ui、apps/web 壳页面贡献并按 `when` 过滤消费） |
 | 发布事件 | `ui/panel-opened`、`ui/panel-closed`、`ui/context-key-changed`、`view/mode-changed`（`view.setMode` Operation 之后） |
 | 订阅事件 | 无 |
 | doc-sheet 通用性 | generic（`slot` 为开放字符串；`when` 子句的 `unitType` 上下文键即参数化点，12 §2 已核对） |
@@ -468,7 +468,7 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 幻灯片 UI |
-| 职责一句话 | 幻灯片专属 UI 贡献：Ribbon 插入/格式/排列/放映/母版页签、缩略图侧栏、母版缩略图窗格、属性检查器、放映模式、画布交互（选择/文本编辑）层 |
+| 职责一句话 | 幻灯片专属 UI 贡献：底部创建工具条的 slide 工具与「更多」项、检查器分区（随选中对象切换）、主菜单与右键条目、缩略图侧栏与网格视图、母版缩略图窗格、放映模式、画布交互（选择/文本编辑）层（2026-10-04 起取代 Ribbon 插入/格式/排列/放映/母版页签，rulings §4.25 DS-1、DS-5） |
 | 核心聚合与实体 | 无独立聚合（纯 UI 贡献 + 交互适配，领域状态全部来自 BC-06/12） |
 | 所属层/层带、秩 | V-ui，秩 75 |
 | 同构类 | dom |
@@ -477,7 +477,7 @@ slideui --> uicore2
 | cordis 形态 | plugin |
 | 提供的服务 | 无 |
 | 消费的服务 | `ctx.ui`、`ctx.shortcuts`（BC-14）、`ctx.render`（BC-11）、`ctx.slides`（BC-06）、`ctx.commands`（BC-05） |
-| 提供的贡献点 | 向 `ui.ribbon`/`ui.panel`/`ui.contextMenu`/`ui.shortcut`/`ui.command`/`i18n.bundle` 贡献条目 |
+| 提供的贡献点 | 向 `ui.toolbar`/`ui.panel`/`ui.inspectorSection`/`ui.contextMenu`/`ui.shortcut`/`ui.command`/`i18n.bundle` 贡献条目（2026-10-04 起不再贡献已作废的 `ui.ribbon`、`ui.statusBar`，40/10 §3） |
 | 消费的贡献点 | 无 |
 | 发布事件 | 无专属（画布交互产出的是 BC-05 的命令/操作调用，不新增事件域） |
 | 订阅事件 | 无 |
@@ -499,7 +499,7 @@ slideui --> uicore2
 | 提供的服务 | 无（装配层不新增服务，只透传） |
 | 消费的服务 | 全部水平层服务 + BC-06/08/09/11/12/14/15 的服务（按 `plugins/*.entries.ts` 清单挂载，文件布局见 11 §4） |
 | 提供的贡献点 | 无（装配层不定义贡献点） |
-| 消费的贡献点 | 向 `core.command`（Operation `shell.intent`）/`ui.contextMenu{slot:'appBar.more'}`/`ui.shortcut`/`i18n.bundle`/`core.permissionPolicy` 贡献极薄胶水条目（R-08/M-11/G-6） |
+| 消费的贡献点 | 向 `core.command`（Operation `shell.intent`；2026-10-22 另有 5 个无参 Operation `shell.openExport` 等，只转调 `shell.intent`，供命令面板各列一条，rulings §4.25 TB-162）/`ui.contextMenu{slot:'mainMenu' \| 'mainMenu.file' \| 'mainMenu.help' \| 'docMenu' \| 'userMenu'}`（原 `appBar.more` 随 rulings §4.25 DS-1 作废；2026-10-07 起为八个壳意图：「插件…」进主菜单顶层单项 `mainMenu`，帮助中心与母版视图的「关于母版继承」走 `help-center` 意图进「帮助」与账户菜单，开发者面板在「帮助」最后一组，TB-15、TB-39、TB-40；40/11 §3.3）/`ui.shortcut`/`ui.command`（上述 5 个 Operation 的呈现，2026-10-22，TB-162）/`i18n.bundle`/`core.permissionPolicy` 贡献极薄胶水条目（R-08/M-11/G-6） |
 | 发布事件 | 无 cordis 事件（应用私有域 `app/*` 为 typed `EventTarget`，非 cordis，见 R-08） |
 | 订阅事件 | 无 |
 | doc-sheet 通用性 | vertical（未来每个文档类型各自的 `preset-doc`/`preset-sheet`，装配逻辑同构但插件清单不同） |
@@ -552,7 +552,7 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 文档目录与权限 |
-| 职责一句话 | 文档 CRUD/回收站/锁定、权限授予与撤销（M3 只按人）、`permVersion` 递增与广播、分享链接（始终要求登录）、文档级 Postgres RLS 会话上下文（M3 出口，rulings §4.15 Q6） |
+| 职责一句话 | 文档 CRUD/回收站/锁定、权限授予与撤销（M3 只按人）、访问申请（没有角色的用户申请、所有者批准即授予，2026-10-15，rulings §4.25 DS-48）、`permVersion` 递增与广播、分享链接（始终要求登录；每份文档至多一条未撤销，可改角色与有效期，DS-47）、文档级 Postgres RLS 会话上下文（M3 出口，rulings §4.15 Q6） |
 | 核心聚合与实体 | `Document`（聚合根）、`Permission`、`ShareLink`、`document_perm_versions` |
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | node |
@@ -560,7 +560,7 @@ slideui --> uicore2
 | 承载包 | `apps/server`（`modules/documents`、`modules/permissions`、`modules/share-links`） |
 | cordis 形态 | library |
 | 提供的服务 | 无 cordis 服务 |
-| 消费的服务 | BC-20（`blobStore` 预签名）；权限变更需 `PUBLISH perm:doc:{id}` 供 BC-21 协同网关订阅 |
+| 消费的服务 | BC-20（`blobStore` 预签名）；权限变更需 `PUBLISH perm:doc:{id}` 供 BC-21 协同网关订阅；BC-30 的 `DeliverWebhookEventUseCase`（访问申请受理时产生 `access_request.created`，2026-10-15，rulings §4.25 DS-67） |
 | 提供的贡献点 | 无 |
 | 消费的贡献点 | 无 |
 | 发布事件 | Redis 频道 `perm:doc:{id}`（跨进程消息，非 cordis `Events`；客户端侧对应事件由 BC-05 的 `permissions` 服务在 `applyRemoteDecisions` 后唯一发出 `permission/changed`） |
@@ -787,15 +787,15 @@ slideui --> uicore2
 | 项 | 值 |
 |---|---|
 | 名称 | 出站集成（Webhook） |
-| 职责一句话 | Webhook 订阅管理（注册/更新/删除/查询）与事件投递（Standard Webhooks 签名 + 指数退避重试 + 死信队列）；M3 事件源为评论（`comment.created`/`comment.mentioned` 等），M4 展望扩大到文档事件 |
+| 职责一句话 | Webhook 订阅管理（注册/更新/删除/查询）与事件投递（Standard Webhooks 签名 + 指数退避重试 + 死信队列）；M3 事件源为评论（`comment.added` / `comment.mentioned` / `comment.resolved`）、自动化作业终态（`automation.job_finished`，rulings §4.24 AL-7）与访问申请（`access_request.created`，2026-10-15，rulings §4.25 DS-67），事件集合以 60/07 §4.2 为准（原写的 `comment.created` 作废）；M4 展望扩大到文档事件 |
 | 核心聚合与实体 | `WebhookSubscription`、`WebhookDelivery` |
 | 所属层/层带、秩 | L8，秩 80 |
 | 同构类 | node |
 | 运行位置 | 服务端 |
 | 承载包 | `apps/server`（`modules/webhooks`） |
 | cordis 形态 | library（Nest 模块，非 cordis Fiber，与 BC-23…26 同口径） |
-| 提供的服务 | 无 cordis 服务；Nest 侧导出 `DeliverWebhookEventUseCase` 供 BC-25（`comments`）注入 |
-| 消费的服务 | BC-25 评论（镜像变更后触发投递，模块内 Customer–Supplier，非 cordis 服务） |
+| 提供的服务 | 无 cordis 服务；Nest 侧导出 `DeliverWebhookEventUseCase` 供 BC-25（`comments`）、BC-23（`import-export` 的自动化作业）与 BC-19（`permissions` 的访问申请，2026-10-15）注入 |
+| 消费的服务 | 无；触发方是 BC-25 评论（镜像变更后）、BC-23 导入导出（自动化作业终态）与 BC-19 文档目录与权限（访问申请受理，2026-10-15，DS-67），均为 Nest 模块间的 Customer–Supplier，非 cordis 服务 |
 | 提供的贡献点 | 无 |
 | 消费的贡献点 | 无 |
 | 发布事件 | 无 cordis 事件（投递本身是出站 HTTP 请求，不经 cordis 事件） |
@@ -968,9 +968,9 @@ bc06 -. "SeparateWays 铁律2 无共享类型" .- bc29
 | BC-10 布局与度量引擎 | BC-11 渲染管线与目标 | Customer–Supplier | `engine-layout/src/contracts/measurer.ts` | `TextMeasurer` Definition |
 | BC-11 渲染管线与目标 | BC-12 幻灯片渲染 | Open Host Service（`render.*` 贡献点） | `engine-render/src/render.contribution.ts` | `SceneProvider`/`ElementRenderer` 契约 |
 | BC-06 幻灯片领域模型 | BC-12 幻灯片渲染 | Customer–Supplier | `slide-render/src/scene/slide-scene-provider.ts` | `slides` 只读服务 API |
-| BC-14 UI 基座 | BC-15 幻灯片 UI | Open Host Service（`ui.*` 贡献点） | `ui-core/src/ui.contribution.ts` | `ui.ribbon`/`ui.panel` 等 schema |
+| BC-14 UI 基座 | BC-15 幻灯片 UI | Open Host Service（`ui.*` 贡献点） | `ui-core/src/ui.contribution.ts` | `ui.toolbar`/`ui.inspectorSection`/`ui.panel` 等 schema（2026-10-04 作废 `ui.ribbon`，DS-5） |
 | BC-05（commands） | BC-14 UI 基座 | Customer–Supplier | `model-core/src/command/commands.service.ts` | `commands.execute()` |
-| BC-13 设计系统 | BC-14/15/17 | Published Language | `design/theme.css` | shadcn 变量名、Cordex 扩展变量（`--glass-*`/`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废） |
+| BC-13 设计系统 | BC-14/15/17 | Published Language | `design/theme.css` | shadcn 变量名、Cordex 扩展变量（`--layer-*`/`--duration-*`/`--ease-*`/`--control-h-*`/`--text-2xs` 等裸名；`--cordex-*` 前缀已作废；`--glass-*` 随 DS-2 作废） |
 | BC-01/05/06/08/09/10/11/12/14/15（横向组合） | BC-16 预设装配 | Customer–Supplier（纯装配，不产生新语言） | `preset-slide/src/plugins/*.entries.ts`（文件布局见 11 §4） | 全部 Definition/Provider 清单 |
 | BC-16 预设装配 | BC-17 应用壳 | Customer–Supplier | `apps/web/src/application/host/create-editor-host.ts` | `createSlidePreset(options)` 等工厂函数 |
 | BC-09 协同（客户端） | BC-21 协同网关与持久化 | **Published Language** | `protocol/src/collab/*.ts` | SYNC/AWARENESS/CONTROL 二进制信封 |
@@ -1105,7 +1105,7 @@ g6 -. "BC-21 只复用 collab-core 契约 不复用 Provider" .- g10
 ### 5.2 应用壳（apps/web）与 SDK 的边界
 
 - **只能在应用壳**：登录页与 OIDC 回调、文档列表页、账户菜单、路由结构与品牌替换点、`/render` headless 渲染页的宿主 HTML；这些是「应用自身的页面」，章程 R2/rulings §4.3「设计-2」明确允许其存在。
-- **必须在 SDK（`packages/*`）**：任何命令/模型/协同/渲染逻辑；Ribbon、缩略图侧栏、检查器、放映模式等编辑器内部 UI 属于 `slide-ui`（BC-15），**不得**下沉进 `apps/web`；`apps/web` 只在 `application/host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`，是仓库中唯一「知道插件存在」的应用代码（02 §3.1）。`apps/*` 可 import L7 呈现层组件（`@cordexjs/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是「只 import preset」（R-14）。
+- **必须在 SDK（`packages/*`）**：任何命令/模型/协同/渲染逻辑；创建工具条的 slide 工具、检查器分区、缩略图侧栏与网格视图、放映模式等编辑器内部 UI 属于 `slide-ui`（BC-15；2026-10-04 起 Ribbon 废弃，rulings §4.25 DS-1），**不得**下沉进 `apps/web`；`apps/web` 只在 `application/host/create-editor-host.ts` 一处调用 `createHost`/`createSlidePreset`，是仓库中唯一「知道插件存在」的应用代码（02 §3.1）。`apps/*` 可 import L7 呈现层组件（`@cordexjs/ui-react` 的 `UserMenu`/`Brand` 等壳组件，无 host 页面亦需），R9 `apps-only-assemble` 的判据是**不含领域定义**（禁 `defineCommand`/`defineMutation`/`ctx.contribute`），不是「只 import preset」（R-14）。
 
 ### 5.3 服务端 Nest 模块与内嵌 cordis 宿主 `preset-server` 的边界
 
@@ -1224,7 +1224,7 @@ l5 -.-> renderscene{"render.scene"}
 | M-07 | 幻灯片渲染<br>`docs/40-modules/07-slide-rendering.md` | BC-12 | `@cordexjs/slide-render`、`@cordexjs/slide-render-chart` | M-03、M-04（`ooxml-core` 只读解析，C-28/§4.15 Q7）、M-06 | M-10、M-11、M-13（作为样板） | `07-rendering.md` §4 全篇、§14.1（术语对齐）、§14.4（图表）；`04-document-model.md` §12.4（母版视图渲染契约）；`02-layering-and-packages.md` §4.16、§4.16b；charter D16 | M1–M2 图表只读解析、M3 拆包 `slide-render-chart`；母版视图 `ViewDescriptor{mode:'master',target}`；缩略图三种 Provider 策略取舍；**含 1 处模板 LRU（`LayerTemplateCache`），与 M-06 三处合为架构 07 §11 的系统级缓存集**（R-20/C-12） | 2 | 70–85 | 含测试（含 1 处模板 LRU 淘汰测试），无机械生成复制件（R-23：由 50–70 上修） |
 | M-08 | 服务端身份、文档与对象存储<br>`docs/40-modules/08-server-identity-documents-and-storage.md` | BC-18、19、20 | `apps/server`（`modules/{auth,users,documents,permissions,share-links,storage,media}`；2026-09-24 删 `tenants`/`groups`，rulings §4.15 T-0 / U-11 推迟）、`@cordexjs/server-storage` | M-02 | M-09、M-12 | 60-backend/01 §3（模块清单；文件级以 M-08 §4 为准，`db/` 等公共件见 M-12 §4.13）、60-backend/02（鉴权链）、60-backend/04 §6、§7（存储与媒体上传）、60-backend/09 与 60-backend/10（`users`/`user_identities`/`documents`/`permissions`/`media_blobs` 表）、60-backend/14 §5–§6（对象存储布局）；`02-layering-and-packages.md` §4.23；PRD `06-server-and-ops.md` SV-06、SV-08 | fail-closed 双点（REST guard + WS）+ 文档级 Postgres RLS（M3 出口）；按文档读写须经权限服务（`DocAccess`，扫描器 `scan-doc-access-via-permission`，取代原「租户隔离」，§4.15 T-0 / Q6）；外置 OIDC、服务端不持有密码；预签名直传（≥10 MB 分片）；SVG 消毒 | 2 | 100–125 | 含测试，无机械生成复制件（R-23：由 80–100 上修） |
 | M-09 | 服务端协同网关与 Headless 宿主<br>`docs/40-modules/09-server-collab-gateway-and-headless-host.md` | BC-21、22、27 | `apps/server`（`modules/{collab,snapshots}`、`cordis-host/**`（含 `adapters/`，物理归属本模块，见 R-21/C-10））、`@cordexjs/server-collab`、`@cordexjs/server-headless` | M-02、M-04、M-05（`collab-core` 契约）、M-06、M-08 | M-12 | 60-backend/01 §3、§9、§10（模块、宿主生命周期）；60-backend/05 §2、§4、§5（server-collab、容量、扇出）；60-backend/06 §7–§10（导出、server-headless、renderer）；60-backend/11（`document_updates`/`document_snapshots`）；60-backend/16 §11、§13；`06-collaboration.md` §5、§9、§11；`07-rendering.md` §10；`02-layering-and-packages.md` §4.22、§4.24；`adr/0022`、`0023`、`0025`、`0026`、`0034`、`0035` | 硬门禁/软门禁两级校验；Redis 扇出不要求房间亲和；`server-headless` 不得 `import render-dom`（同构铁律 4）；快照 `kind` 枚举固定；`server-headless` 文档类型盲，不 import `model-slide`/`ooxml-pptx`，slide 束由 `apps/server` 的 `cordis-host/preset-server.ts` 选定插件清单交 `createHeadlessHost({ plugins })` 挂载（rulings §4.18 FE-01）。**依赖 M-05 的 `collab-core` 契约（不复用其 Provider），帧格式另经 `@cordexjs/protocol`（rulings §4.18 FE-15）** | 2 | 90–110 | 含测试；102 为实测文件数，独立统计口径，与其余模块不可直接比较（§8 Q-M5 结案） |
-| M-10 | UI 基座与幻灯片 UI<br>`docs/40-modules/10-ui-shell-and-slide-ui.md` | BC-13、14、15 | `@cordexjs/design`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui` | M-02、M-03、M-06、M-07（间接 M-05） | M-11、M-13（`ui-core`/`ui-react` 运行时依赖；`slide-ui` 作为 doc-ui / sheet-ui 样板） | `02-layering-and-packages.md` §4.17–4.20；`03-kernel-and-plugin-model.md` §3.6（`when` 上下文键）；rulings §4.6–4.8（母版视图/shadcn/iOS 27 现代化裁决）；`05-command-and-history.md` §13.3（`view.setMode`）；`adr/0017` | `ui-core` 禁止 `import react/radix/tailwind`（R14）；shadcn 复制件只能被 `ui-react`/`*-ui`/`apps/*` 引用（R17）；`viewMode` 上下文键驱动 Ribbon 页签切换 | 3 | 160–180 | 含 45 个机械生成 shadcn 复制件（单列，不与其余模块同口径比较）；含测试（R-23：由 110–140 上修） |
+| M-10 | UI 基座与幻灯片 UI<br>`docs/40-modules/10-ui-shell-and-slide-ui.md` | BC-13、14、15 | `@cordexjs/design`、`@cordexjs/ui-core`、`@cordexjs/ui-react`、`@cordexjs/slide-ui` | M-02、M-03、M-06、M-07（间接 M-05） | M-11、M-13（`ui-core`/`ui-react` 运行时依赖；`slide-ui` 作为 doc-ui / sheet-ui 样板） | `02-layering-and-packages.md` §4.17–4.20；`03-kernel-and-plugin-model.md` §3.6（`when` 上下文键）；rulings §4.6–4.8（母版视图/shadcn/iOS 27 现代化裁决）；`05-command-and-history.md` §13.3（`view.setMode`）；`adr/0017` | `ui-core` 禁止 `import react/radix/tailwind`（R14）；shadcn 复制件只能被 `ui-react`/`*-ui`/`apps/*` 引用（R17）；`viewMode` 上下文键驱动母版视图下的工具条、检查器分区与左栏窗格切换（2026-10-04 起取代原「Ribbon 页签切换」，rulings §4.25 DS-1） | 3 | 160–180 | 含 45 个机械生成 shadcn 复制件（单列，不与其余模块同口径比较）；含测试（R-23：由 110–140 上修） |
 | M-11 | 预设装配与应用壳<br>`docs/40-modules/11-preset-assembly-and-app-shell.md` | BC-16、17 | `@cordexjs/preset-slide`、`@cordexjs/preset-slide-collab`、`@cordexjs/preset-slide-viewer`、`apps/web` | M-02、M-03、M-05、M-06、M-07、M-10 | 无（终端模块） | `02-layering-and-packages.md` §3.1、§4.21、§4.21b；`03-kernel-and-plugin-model.md` §9（preset vs loader）；charter §5.2 `apps/web` 行；rulings §4.9/§4.10（应用栏「⋯」菜单/账户头像/开始页） | `preset-slide-viewer` 两道机械只读保证（ADR-0015）；`apps/web` 零编辑器领域逻辑（`apps-only-assemble`）；查看器体积 ≤ 350 KB gzip | 3 | 150–170 | 含 59 个测试文件（单列，不与其余模块同口径比较）；不含机械生成复制件（R-23：由 60–80 上修） |
 | M-12 | 服务端作业、评论与运维<br>`docs/40-modules/12-server-jobs-comments-and-ops.md` | BC-23、24、25、26、30（BC-30 为 2026-09-21 新增，rulings §4.13 S-5；BC-25 自 2026-09-25 含客户端插件） | `@cordexjs/comments`（2026-09-25 新增 iso 客户端插件，rulings §4.19 D-COMMENTS-PKG；包级规划见 [`20-comments-client.md`](20-comments-client.md)（占位，正文 M3 开工前补齐，§10 Q-M8 已确认，rulings §4.20 FE-09））、`apps/server`（`modules/{import-export,jobs,thumbnails,comments,audit,health,metrics,internal,webhooks,telemetry}`、`common/*`、`config/*`、应用骨架与基础设施 `src/{main.ts,app.module.ts}` 与 `src/{observability,redis,db}/**`（含 `db/migrations/*.sql`，2026-09-25 审稿登记，M-12 §4.13）、`cordis-host/adapters/*`（引用，非新增；物理归属 M-09，见 R-22/C-10）） | M-08、M-09 | 无（终端模块） | 60-backend/01 §3（模块清单；文件级以 M-12 §4 为准）、60-backend/06 §1–§4（队列与作业）、60-backend/07 §1（评论镜像）、60-backend/12 与 60-backend/13（`job_runs`/`audit_log`/`comments`/`thumbnails` 表）；PRD `06-server-and-ops.md` SV-01、SV-02、SV-04、SV-07、SV-10、SV-15；`adr/0026`、`0030`、`0031` | 评论表是读模型、事实源在客户端 CRDT；审计表只追加（数据库角色无 UPDATE/DELETE）；BullMQ 幂等键约定；Webhook 出站默认拒绝私网/回环/链路本地/云元数据地址（rulings §4.13 S-4） | 3 | 70–90 | 含测试，无机械生成复制件 |
 | M-13 | doc/sheet 扩展骨架<br>`docs/40-modules/13-doc-sheet-extension-skeleton.md` | BC-29 | 现存：`@cordexjs/model-core`（`testing/fixture-document-type.ts`，只读引用）；M5 新建：`@cordexjs/model-doc`、`@cordexjs/ooxml-docx`、`@cordexjs/doc-render`、`@cordexjs/doc-ui`、`@cordexjs/preset-doc`（追加建议）、`@cordexjs/model-sheet`、`@cordexjs/ooxml-xlsx`、`@cordexjs/sheet-render`、`@cordexjs/sheet-ui`、`@cordexjs/preset-sheet`（追加建议） | 运行时：M-02（`core.*` 贡献点与 `DocumentType`/Snapshot/夹具）、M-04（`ooxml-core`）、M-06（`render.*` 契约、`engine-layout`）、M-10（`ui-core`/`ui-react`，`ui.*`）；样板参照（非运行时依赖，铁律 2 禁止真实 import）：M-03、M-07、M-11、`ooxml-pptx`、`slide-ui`（rulings §4.18 FE-16） | 无（终端模块） | `12-extension-to-doc-and-sheet.md` 全篇；charter §5.1（垂直束网格）；`02-layering-and-packages.md` §4.8（`model-slide` 作为样板）；`adr/0016` | 水平层零改动（`horizontal-freeze` 无 diff）；束间隔离（不得 `import model-slide` 等）；M5 验收清单（12 §5） | 3 | 90–120 | 骨架占位估算，M5 落地前非精确值（R-23：由 40–60 上修） |

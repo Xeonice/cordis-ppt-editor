@@ -1,6 +1,6 @@
 # ADR-0018 可追加元素的模型补全与插入命令族（含表格归一化）
 
-> 状态：草稿 | 负责：架构-结构（主笔 M-03；会签 M-04、M-07、M-10） | 更新：2026-09-26（§4.21：新建。插入命令通用流程与守卫、新增命令与 Mutation、`ShapeKindDef.capabilities` 扩展、`objectDefaults` 只读建模、表格归一化与 I-TBL1/I-TBL2、装饰性标记、连接符跟随与空组规则）；2026-09-26（§4.21 整合：决策 5 定 BlipFill.effects 只读建模与外链来源二选一；决策 6 I-TBL2 并发插入改扩张修复、登记内置表格样式数据来源口径；决策 10 补 fillPlaceholder 并发与 I-PH1、页脚族确定性 id、setSlideProperties 与 setBodyProperties）；2026-09-30（§4.22 设计待决收口：决策 6 注明 `splitCell` 只拆合并格、按行列数拆分推迟；决策 10 注明插入页签也填入空内容占位符、`obj` 占位符放图片的方式推迟）；2026-09-30（§4.22 复核修正：决策 10 的 Q1 落点补「已选中的空占位符优先」） | 依赖：charter v0.2 D4、D7、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/Q7、§4.17 D2、§4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts、q-frackey、X:q-content-types）；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（elementDesign、R-d-61…R-d-78）
+> 状态：草稿 | 负责：架构-结构（主笔 M-03；会签 M-04、M-07、M-10） | 更新：2026-09-26（§4.21：新建。插入命令通用流程与守卫、新增命令与 Mutation、`ShapeKindDef.capabilities` 扩展、`objectDefaults` 只读建模、表格归一化与 I-TBL1/I-TBL2、装饰性标记、连接符跟随与空组规则）；2026-09-26（§4.21 整合：决策 5 定 BlipFill.effects 只读建模与外链来源二选一；决策 6 I-TBL2 并发插入改扩张修复、登记内置表格样式数据来源口径；决策 10 补 fillPlaceholder 并发与 I-PH1、页脚族确定性 id、setSlideProperties 与 setBodyProperties）；2026-09-30（§4.22 设计待决收口：决策 6 注明 `splitCell` 只拆合并格、按行列数拆分推迟；决策 10 注明插入页签也填入空内容占位符、`obj` 占位符放图片的方式推迟）；2026-09-30（§4.22 复核修正：决策 10 的 Q1 落点补「已选中的空占位符优先」）；2026-10-05（design-language-v3 第 0 批修正：决策 10 `slide.fillPlaceholder` 的调用方由「插入页签」改为底部工具条的「表格」「图表」「图片」（rulings §4.25 DS-1），注明检查器不设「插入到占位符」按钮组（DS-14）；命令与守卫不变）；2026-10-07（design-language-v3 第 1 批：文末增「修订 2026-10-07」——插入入口按 rulings §4.25 DS-21、DS-30、TB-29 改读——母版视图的插入占位符改为工具条「占位符」与其类型清单，备选方案表的「Ribbon 绑定」改读；命令与守卫不变）；2026-11-04（design-language-v3 母版视图改版：文末增「修订 2026-11-04」——母版视图的「占位符 ▾」挪到「选择」之后第 2 位、带 ▾ 与竖分隔，菜单项图标为虚线框变体，单键 P；键盘在菜单项上按 Enter 插到视口中心，命令面板经无参 Operation `slide.openPlaceholderMenu`（rulings §4.25 DS-152、TB-196、TB-202、TB-207、TB-210）；命令与守卫不变，需求编号、优先级与里程碑不变） | 依赖：charter v0.2 D4、D7、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.15 Q3/Q5/Q7、§4.17 D2、§4.21（q-table-depth、q-chart-route、q-media-insert、q-smartart、q-equation、q-extra-inserts、q-frackey、X:q-content-types）、§4.25（DS-152、DS-153、TB-196、TB-200、TB-202、TB-207、TB-210）；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（elementDesign、R-d-61…R-d-78）
 
 ## 状态
 
@@ -210,7 +210,7 @@ sequenceDiagram
 
 ### 10. 内容占位符的填入与删除恢复
 
-- `slide.fillPlaceholder{ shapeId, content }`：一个事务内给空占位 `Sp` 写墓碑、按需 `media.add`、插入带**同一** `PlaceholderRef`（同 `type`、`index`）与同一 `order` 的 `Pic` 或 `GraphicFrame`；图片按占位符框裁剪到填满（算 `srcRect`）。`obj` 占位符放图片是裁剪填满还是等比放入推迟（DF-09，触发条件：M2 P1 图片填入开工前，维护机实测 `p:pic` 的 `xfrm` 与 `srcRect`；结论为等比时改本条，`pic` 占位符两种结论都裁剪，见 rulings §4.22）。调用方除占位符图标条外，还有插入页签与命令面板：插入表格、图表、图片时页上有空内容占位符，就填入阅读序第一个（已选中的空占位符优先，rulings §4.22 Q1）。
+- `slide.fillPlaceholder{ shapeId, content }`：一个事务内给空占位 `Sp` 写墓碑、按需 `media.add`、插入带**同一** `PlaceholderRef`（同 `type`、`index`）与同一 `order` 的 `Pic` 或 `GraphicFrame`；图片按占位符框裁剪到填满（算 `srcRect`）。`obj` 占位符放图片是裁剪填满还是等比放入推迟（DF-09，触发条件：M2 P1 图片填入开工前，维护机实测 `p:pic` 的 `xfrm` 与 `srcRect`；结论为等比时改本条，`pic` 占位符两种结论都裁剪，见 rulings §4.22）。调用方除占位符图标条外，还有底部工具条的「表格」「图表」「图片」与命令面板（原插入页签随 rulings §4.25 DS-1 取消；检查器不设「插入到占位符」按钮组，DS-14）：插入表格、图表、图片时页上有空内容占位符，就填入阅读序第一个（已选中的空占位符优先，rulings §4.22 Q1）。
 - 删除带内容族 `PlaceholderRef` 的图片、表格、图表、媒体时，`slide.deleteShapes` 同一事务补回一个空占位 `Sp`（新 id、同 `PlaceholderRef` 与 `order`），与 PowerPoint 一致；撤销一步回到删除前。
 - 占位符族划分与匹配以 PRD ML-02、ML-03 为准（30/04 §12.2 改写后的 `placeholderFamily`、`canChangePlaceholderType` 与 `compatiblePlaceholderTypes`）。
 - **并发填入**（2026-09-26 整合，50/21 §3）：`fillPlaceholder` 的前置检查——目标空占位 `Sp` 已是墓碑（他人已填入）时改为普通插入并 toast；两人同时填入同一占位符时两者都保留，由软不变量 **I-PH1**（同页同 `(type, idx)` 的存活内容族占位符至多一个；修复保留 `(order, id)` 最小者，其余 `materialize` 为普通元素）经服务端软门禁修复一次（ADR-0034）。
@@ -258,3 +258,18 @@ sequenceDiagram
 - 架构：[30/04](../04-document-model.md) §3.3、§3.7–§3.9、§12；[30/05](../05-command-and-history.md) §8、§14；[30/06](../06-collaboration.md) §1.5。
 - ADR：[0007](0007-document-store-and-derived-undo.md)（逆操作推导）、[0008](0008-opaque-preservation.md)（不透明保留与白名单）、[0013](0013-mutation-lowering-and-store-ops.md)（五种 StoreOp）、[0014](0014-stable-ids.md)（稳定 id）、[0032](0032-ordered-collections-fractional-index.md)（FracKey）、[0036](0036-chart-rendering-and-editing.md)（图表路线）。
 - 模块与前端：[40/03](../../40-modules/03-slide-domain-model.md) §2.6；[50/19](../../50-frontend/19-insertable-elements-overview.md)。
+
+## 修订 2026-10-07：插入入口按设计语言 v3 第 1 批（rulings §4.25 DS-21、DS-30、TB-29）
+
+- 决策 10 的调用方不变：底部工具条「表格」「图表」「图片 ▾」（此设备、来自 URL）与命令面板插入时，页上有空内容占位符就走 `slide.fillPlaceholder`；占位符图标条是另一入口，检查器不设「插入到占位符」按钮组（DS-14）。
+- 母版视图的插入占位符改为底部工具条「占位符」（占「评论」的位置），类型为内容 / 文本 / 图片 / 表格 / 图表 / 媒体（P2）┊ 标题 / 页脚 / 日期 / 页码，不提供 SmartArt 占位符（DS-30）；命令仍是 `slide.addPlaceholder`（40-modules/03 §2.6），同类上限规则不变。
+- 「备选方案与放弃原因」表中的「Ribbon 绑定」指当时的插入入口（已作废），现为工具条、检查器与菜单绑定（DS-1）；该行结论不变。对象的上下文工具条全部作废（TB-29），不影响本 ADR 的命令与守卫。
+- 关联：设计 03-04、03-26 §4.3；40-modules/10 §2.6。
+
+## 修订 2026-11-04：母版视图的「占位符 ▾」（rulings §4.25 DS-152）
+
+- 母版视图底部工具条的「占位符」改为「占位符 ▾」，挪到「选择」之后第 2 位、后接竖分隔，与插普通对象的创建工具分开；菜单项图标改为虚线框变体，把「图片占位符」与静态图片分开；单键 `P` 打开这个菜单，只在母版视图生效（TB-196）。上一节「占「评论」的位置」一句作废：母版视图的主行不显示「评论」，「占位符 ▾」在第 2 位。
+- 类型清单不变（DS-30）；命令与守卫不变：仍是 `slide.addPlaceholder`（40-modules/03 §2.6），同类上限规则不变；多选版式时「占位符 ▾」留在原位、不可用（DS-153，原因句按 TB-200）。
+- 键盘与命令面板：焦点在菜单的某一类型上按 Enter（Space 同），按该类型的默认尺寸插到视口中心并选中、焦点交给画布，与插入工具在按钮上按 Enter 的规则相同（TB-202）；命令面板「母版」一类的「插入占位符… P」绑 slide-ui 的无参 Operation `slide.openPlaceholderMenu`（TB-207，30/05 §7）。
+- 竖分隔由 `ui.toolbar` 条目的可选字段 `group` 表达（TB-210，字段语义以 50-frontend/09 §6.1 为准），不新增工具条条目。
+- 关联：设计 03-26 §4.3；40-modules/10 §2.6、§3；40-modules/16 §4。

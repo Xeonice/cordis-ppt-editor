@@ -1,6 +1,6 @@
 # 12 向 doc / sheet 扩展：文档类型盲的验证方案
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：FE-01 R3 只约束非组合根的水平层、组合根豁免，冻结范围改为「无 bundle 且非组合根的包」，server-headless 文档类型盲（§2 图、§4.1、§4.4）；GV-14 「doc-type-blindness」不是 job，四层拆回 depcruise / lint / test / scanners（§4）；GV-15 扫描器名改正式名、`horizontal-freeze` 路径改 `tooling/scripts/`（§4.1、§4.4））；2026-09-25（§4.19：§3.2、§4.3 加 50-frontend/03 前端参数化点链接；`preset-blind` 测试落点按 T-NAMING） | 依赖：charter v0.1
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18：FE-01 R3 只约束非组合根的水平层、组合根豁免，冻结范围改为「无 bundle 且非组合根的包」，server-headless 文档类型盲（§2 图、§4.1、§4.4）；GV-14 「doc-type-blindness」不是 job，四层拆回 depcruise / lint / test / scanners（§4）；GV-15 扫描器名改正式名、`horizontal-freeze` 路径改 `tooling/scripts/`（§4.1、§4.4））；2026-09-25（§4.19：§3.2、§4.3 加 50-frontend/03 前端参数化点链接；`preset-blind` 测试落点按 T-NAMING）；2026-10-04（design-language-v3 第 0 批：§2 表 `ui-core` 贡献点行按 v3 改为创建工具条 / 检查器分区 / 菜单 / 面板，sheet 求和读数在 `ui.statusBar` 作废后落位 M5 再定；§4.2 fixture 插件的 UI 贡献改为 `ui.toolbar`（rulings §4.25 DS-1、DS-5、DS-6））；2026-10-08（design-language-v3 第 1 批收口：§2 表 `ui-core` 行注明公式栏是 M5 新增槽位，slide 现行 `ui.toolbar` 只有 `create`、`create.more`、`reviewBar`（rulings §4.25 TB-29）） | 依赖：charter v0.1
 > 目标（章程 R5、M5）：`model-doc` 与 `model-sheet` 骨架落地时，**水平层零改动**（dependency-cruiser 零横向依赖 + 水平层文件哈希冻结）。本文列出这两种类型会对水平层提出的抽象要求，标明哪些已在 M1 设计中满足、哪些必须参数化，并定义自动化「盲测套件」。
 
 ---
@@ -52,7 +52,7 @@
 | `engine-layout`（L5） | **核心用户**：段落布局 + 分页（分页在 `doc-render` 的 SceneProvider 内基于 LayoutResult 计算） | 单元格文本度量、自动行高 | ✅ `LayoutBodyInput` 中性输入；⚠ 分页需要 `layoutTextBody` 支持「给定高度上限，返回可放入的行数与剩余」——M1 必须把这个能力放进契约（`layoutTextBody(input, box, { maxHeight, startLine })` 返回 `{ lines; overflowFrom? }`） |
 | `engine-render` Scene（L5） | 页为单位的 Scene；节点是行/表格 | Scene 是可见窗口的网格，节点数随滚动变化 → `SceneProvider.build(view)` 的 `view` 必须是开放类型 `ViewDescriptor & Record<string, unknown>`；虚拟化由 SceneProvider 与 `viewport/virtualization.ts` 协作 | ✅ `kind: string` + bbox 足够；⚠ `ViewDescriptor` 需保留文档类型自定义字段（M1 设计已如此） |
 | `RenderTarget`（L5）/ `render-dom` | SVG 文本行 | 大量文本节点 → DOM 数量压力；sheet-render 可贡献自己的 `render.target:'canvas-grid'`（Provider 可替换，章程 §5.4） | ✅ 契约无假设 |
-| `ui-core` 贡献点（L7） | ribbon（开始/插入/布局）、面板（导航/样式） | ribbon、公式栏（`ui.toolbar` slot）、状态栏（求和） | ✅ `slot` 字符串 + `when` 子句；⚠ 公式栏是 sheet 专有 slot：`slot` 必须是开放字符串而非枚举（M1 设计已如此） |
+| `ui-core` 贡献点（L7） | 创建工具条（插入类）、检查器分区（格式类）、菜单与命令面板（其余）、面板（导航/样式） | 创建工具条、检查器分区、公式栏（`ui.toolbar` slot）、求和读数 | ✅ `slot` 字符串 + `when` 子句；⚠ 公式栏是 sheet 专有 slot：`slot` 必须是开放字符串而非枚举（M1 设计已如此）；公式栏槽位是 M5 才新增的，slide 现行 `ui.toolbar` 槽位只有 `create`、`create.more`、`reviewBar`（对象上下文槽位 `toolbar.<selectionKind>` 已按 rulings §4.25 TB-29 删除，2026-10-08 注）；⚠ 求和读数原设想放状态栏，`ui.statusBar` 已于 2026-10-04 作废（rulings §4.25 DS-6），落位 M5 再定 |
 | `i18n.bundle`（L0） | 'doc' 命名空间 | 'sheet' 命名空间 | ✅ |
 | `collab-*`（L4） | Y.Text 富文本是最佳映射 | 稀疏 Y.Map；范围锁 | ✅ 契约按 Unit；具体映射在各 store 的 06 分节 |
 
@@ -179,7 +179,7 @@ flowchart LR
  ResourceHook：'fixture-plugin.notes'
  Migration：v1 → v2（props 改名）
  SceneProvider：每个 box 一个 SceneNode（kind 'fixture:box'）；ElementRenderer 在 RecordingTarget 上记录
- UI：一个 ui.ribbon 项、一个 ui.shortcut
+ UI：一个 ui.toolbar 项、一个 ui.shortcut
 ```
 
 规则：**所有水平层包的 `__tests__` 只允许使用 `fixture` 类型**（depcruise R10 的姐妹规则 `horizontal-tests-use-fixture-only`：水平层 `__tests__` 不得 import `@cordexjs/model-slide*`）。若某水平层功能无法用 `fixture` 测试，说明它依赖了文档形状——先改抽象。

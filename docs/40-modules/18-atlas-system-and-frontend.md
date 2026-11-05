@@ -1,4 +1,4 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.21：依据行由原 30/08 改指 60/01；前端与协同图按 @hocuspocus/provider、xml 包、图表 d3 底层改画）；2026-09-26（§4.21 整合：§3 秩表改为引用 30/02 §1（全仓唯一源），图 3-1 L0 注明新增 xml） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、§4.21、30-architecture 01–07 与 ADR-0037、ADR-0039、40-modules 00/02/03/05/06/07/10/11/13/16/17、50-frontend/01、60-backend/01
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.21：依据行由原 30/08 改指 60/01；前端与协同图按 @hocuspocus/provider、xml 包、图表 d3 底层改画）；2026-09-26（§4.21 整合：§3 秩表改为引用 30/02 §1（全仓唯一源），图 3-1 L0 注明新增 xml）；2026-10-04（design-language-v3 第 0 批：§4 读图说明改为工具条与检查器分区视图模型；§5 slide-ui 改为向九个 `ui.*` 点中的六个贡献；§7 图 7-3 示例贡献点 `ui.ribbon` 改为 `ui.inspectorSection`（rulings §4.25 DS-5、DS-6））；2026-10-04（design-language-v3 第 0 批：复验修正——图 3-6 slide-ui 节点去掉「页签」、图 4-4 shell-glue 节点去掉 `appBar.more`、`ui.*` 贡献点由十个改为九个）；2026-10-22（design-language-v3 第 3 批：图 4-4 shell-glue 节点的导出快捷键由 Mod+E 改为 Mod+Shift+E，Mod+E 归居中对齐（rulings §4.25 DS-78，40/11 §3.3）；其余图不变）；2026-11-04（design-language-v3 母版视图改版：图 5-2 slide-render 接入的 `render.overlay` 节点由 `master-inheritance` 改为 `master-annotations`——母版视图的占位符标注覆盖层（rulings §4.25 TB-188，40/07 §3）；图数与其余图不变，需求编号、优先级与里程碑不变） | 依赖：charter v0.2 §5、rulings-2026-09-14 §4.15–§4.17、§4.21、§4.25 TB-188、30-architecture 01–07 与 ADR-0037、ADR-0039、40-modules 00/02/03/05/06/07/10/11/13/16/17、50-frontend/01、60-backend/01
 
 # 18 架构图集（一）：系统与前端
 
@@ -356,7 +356,7 @@ flowchart TB
 ```mermaid
 flowchart TB
   subgraph vu["V-ui · 秩 75 · dom · bundle slide"]
-    slideUi["slide-ui · 页签 缩略图栏 检查器 画布交互"]
+    slideUi["slide-ui · 工具条条目 缩略图与网格 检查器分区 画布交互"]
   end
   subgraph l7["L7 UI 基座 · 秩 70 · dom"]
     uiReact["ui-react · React 19 绑定 · shadcn 复制件"]
@@ -574,9 +574,9 @@ flowchart TB
 ```mermaid
 flowchart LR
   slideUi["slide-ui · 贡献方"]
-  shellGlue["preset-slide shell-glue · appBar.more 与 Mod+E"]
+  shellGlue["preset-slide shell-glue · 主菜单与文档菜单条目、Mod+Shift+E"]
   uiReactContrib["ui-react 自带 · ui.dialog ui.notification 等"]
-  uiPoints["ui.* 贡献点 · 十个 · ui-core 定义"]
+  uiPoints["ui.* 贡献点 · 九个 · ui-core 定义"]
   srcEvents["history/changed selection/changed permission/changed view/mode-changed"]
   ctxKeys["上下文键 · canUndo selectionKind viewMode isReadOnly isCollab 等"]
   uiSvc["ui-core · ui shortcuts theme 服务 · when 求值 order 排序"]
@@ -598,7 +598,7 @@ flowchart LR
   uiReact -- "用户操作经 dispatch" --> commandsSvc
 ```
 
-怎么读：UI 不直接读写文档。贡献方只往 `ui.*` 贡献点写声明式条目；`ui-core` 用上下文键对条目做 `when` 过滤、按 `order` 排序，折叠成 Ribbon 树等视图模型，再交给 `UiRenderer` 的 React Provider 渲染。画布由 CanvasHost 经 `render.attach` 交给渲染引擎；所有按钮与快捷键最终都经 `commands.execute` 进入命令管线（图 6-2）。
+怎么读：UI 不直接读写文档。贡献方只往 `ui.*` 贡献点写声明式条目；`ui-core` 用上下文键对条目做 `when` 过滤、按 `order` 排序，折叠成工具条与检查器分区等视图模型，再交给 `UiRenderer` 的 React Provider 渲染。画布由 CanvasHost 经 `render.attach` 交给渲染引擎；所有按钮与快捷键最终都经 `commands.execute` 进入命令管线（图 6-2）。
 依据：40-modules/10 §2.1–§2.5；11 §3.3；16 §4；30-architecture/03 §3.6（上下文键）。
 
 **图 4-5 三种 preset 的条目对比**
@@ -730,7 +730,7 @@ flowchart LR
   subgraph renderPts["engine-render 定义的点"]
     ptScene["render.scene · slide"]
     ptElement["render.element · dom 下 10 个 kind"]
-    ptOverlay["render.overlay · master-inheritance"]
+    ptOverlay["render.overlay · master-annotations"]
   end
   ptUi["ui.* · ui-core 定义 · 另有 i18n.bundle"]
   ptShape["slide.shapeKind · model-slide 自定义 · 9 项内建"]
@@ -748,7 +748,7 @@ flowchart LR
   pUi --> ptUi
 ```
 
-怎么读：slide 束对水平层只做两件事——往水平层定义的贡献点写条目，在 UnitScope 里挂自己的按文档服务。水平层服务按 key 查表（`render.scene` 按 `documentType`，`render.element` 按 `targetId:kind`），从不认识「幻灯片」一词。slide-ui 向十个 `ui.*` 点中的七个写条目（`ui.ribbon`/`ui.panel`/`ui.toolbar`/`ui.contextMenu`/`ui.statusBar`/`ui.shortcut`/`ui.command`；不含 `ui.dialog`/`ui.notification`/`ui.theme`，`ui.notification` 模板只由 ui-react 贡献；2026-09-25 按 10 §3 逐项清单更正，rulings §4.18 FE-11）。
+怎么读：slide 束对水平层只做两件事——往水平层定义的贡献点写条目，在 UnitScope 里挂自己的按文档服务。水平层服务按 key 查表（`render.scene` 按 `documentType`，`render.element` 按 `targetId:kind`），从不认识「幻灯片」一词。slide-ui 向九个 `ui.*` 点中的六个写条目（`ui.toolbar`/`ui.inspectorSection`/`ui.panel`/`ui.contextMenu`/`ui.shortcut`/`ui.command`；不含 `ui.dialog`/`ui.notification`/`ui.theme`，`ui.notification` 模板只由 ui-react 贡献；2026-09-25 按 10 §3 逐项清单更正，rulings §4.18 FE-11；2026-10-04 按 rulings §4.25 DS-5、DS-6 由十个点中的七个改为九个点中的六个）。
 依据：40-modules/03 §0、§3；07 §0、§3；10 §0；16 §4。
 
 ## 6. 浏览器内一次编辑的数据流
@@ -1006,8 +1006,8 @@ classDiagram
   class RenderTargetPoint {
     +id: render.target
   }
-  class UiRibbonPoint {
-    +id: ui.ribbon
+  class UiInspectorSectionPoint {
+    +id: ui.inspectorSection
     +conflict: replace
   }
   class CoreCommandPoint {
@@ -1017,12 +1017,12 @@ classDiagram
   SlideRender --> RenderElementPoint : 贡献 10 个 kind
   SlideRenderChart --> RenderElementPoint : replace 图表 kind
   RenderDom --> RenderTargetPoint : 贡献 dom
-  SlideUi --> UiRibbonPoint : 页签 组 控件
+  SlideUi --> UiInspectorSectionPoint : 按选中种类的分区
   ModelSlideEditing --> CoreCommandPoint : 73 条命令
   ShellGlue --> CoreCommandPoint : shell.intent
   RenderService ..> RenderScenePoint : 按 documentType 查表
   RenderService ..> RenderElementPoint : 按 kind 查表
-  UiService ..> UiRibbonPoint : when 过滤
+  UiService ..> UiInspectorSectionPoint : 按选中种类与 when 过滤
   CommandsService ..> CoreCommandPoint : 按 id 查表
 ```
 

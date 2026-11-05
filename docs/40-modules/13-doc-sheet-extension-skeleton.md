@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§8.2 冻结总账加 @cordexjs/xml，并注明 docx w:t 与 xlsx 大表流式计数复用同一词法器） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二，M-13） | 更新：2026-09-19、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）；2026-09-25（设计线拆分：`FixedMetricsMeasurer` 改 `FixedWidthMeasurer`，70-testing/11 §2）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§8.2 冻结总账加 @cordexjs/xml，并注明 docx w:t 与 xlsx 大表流式计数复用同一词法器）；2026-10-04（design-language-v3 第 0 批：doc-ui / sheet-ui 的贡献点改为 `ui.toolbar` / `ui.inspectorSection` / `ui.panel` / `ui.shortcut` / `ui.command`（§3 表与图），`ribbon-spec.ts` 改名 `toolbar-spec.ts`（§4.7、§4.8 目录树、对应表与 §5 文件表一一改名，计数不变），sheet 求和统计位落位 M5 再定，§8.1 清单同步改名，§11 验收测试名改为检查器（rulings §4.25 DS-1、DS-5、DS-6））；2026-10-08（design-language-v3 第 1 批收口：§3 `sheet-ui` 行注明公式栏是 M5 新增槽位，slide 现行 `ui.toolbar` 只有 `create`、`create.more`、`reviewBar`（rulings §4.25 TB-29）；文件数不变）；2026-11-04（design-language-v3 母版视图改版：§4.7 `doc-ui.contribution.ts` 注释里照 slide-ui 抄的前缀上下文键例子删去——slide 一侧的范围条与它的键随 rulings §4.25 DS-146 取消，注释只留「前缀上下文键等」；文件数不变，需求编号、优先级与里程碑不变） | 依赖：00-module-map.md M-13 行、§3 BC-29、§6、§7、§8 G-3、§9；charter §5.1（垂直束网格）、§5.2、§10；30-architecture/12-extension-to-doc-and-sheet.md 全篇；ADR-0016；10-prd/05-milestones-and-scope.md M5 段；rulings §4.25 DS-146
 
 # 13 doc / sheet 扩展骨架（限界上下文 BC-29 doc/sheet 扩展占位〔文档类型盲验证〕）
 
@@ -247,8 +247,8 @@ fourLayerTest --> freezeAccept
 | `ooxml-xlsx` | `'ooxml-xlsx'` | `['formats']` | 无 | `core.format`（`xlsxCodec`） | 无 | 无 | ready 贡献注册；无 `editing.ts`（编解码无只读/编辑之分） |
 | `doc-render` | `'doc-render'` | 根级 `['contributions']`；`unitPlugins` 内 `['render','layout','store']`（照 M-07 §3 `slide-render` 样板；2026-09-25 删去章程服务名表中不存在的 `scenes`，rulings §4.18 FE-17） | 无 | `render.scene`('doc')、`render.element`×N（`dom:doc:*`） | 无（`render.target` 的消费方是 `engine-render`，不是束包，FE-17） | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
 | `sheet-render` | `'sheet-render'` | 同 `doc-render`（根级 `['contributions']`；`unitPlugins` 内 `['render','layout','store']`） | 无 | `render.scene`('sheet')、`render.element`×N（`dom:sheet:*`） | 无 | 无 | UnitScope 内挂载 `thumbnails` 子服务 |
-| `doc-ui` | `'doc-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`doc.*`） | 无（`when` 子句读取 ui-core 上下文键 `unitType`；上下文键不是贡献点，章程 §5.5 贡献点清单无 `ui.contextKey`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
-| `sheet-ui` | `'sheet-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.ribbon`/`ui.panel`/`ui.shortcut`/`ui.command`（`sheet.*`，含公式栏 `slot`） | 无（`when` 子句读取 ui-core 上下文键 `unitType`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
+| `doc-ui` | `'doc-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.toolbar`/`ui.inspectorSection`/`ui.panel`/`ui.shortcut`/`ui.command`（`doc.*`） | 无（`when` 子句读取 ui-core 上下文键 `unitType`；上下文键不是贡献点，章程 §5.5 贡献点清单无 `ui.contextKey`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
+| `sheet-ui` | `'sheet-ui'` | `['ui','commands','documentTypes']` | 无 | `ui.toolbar`/`ui.inspectorSection`/`ui.panel`/`ui.shortcut`/`ui.command`（`sheet.*`，含 M5 新增的公式栏 `slot`；slide 现行 `ui.toolbar` 槽位只有 `create`、`create.more`、`reviewBar`，rulings §4.25 TB-29） | 无（`when` 子句读取 ui-core 上下文键 `unitType`，FE-17） | 无 | `ready`：`infrastructure/contributions.ts` 批量贡献 |
 | `preset-doc` | — | — | — | 无（装配根不自行贡献，只挂载子插件） | — | — | `preset.ts` 对 `plugins/index.ts` 的 `DOC_ENTRIES` 无序挂载，稳定 id 记录供 `fiber.update`（文件布局按 11 §4，FE-12） |
 | `preset-sheet` | — | — | — | 无 | — | — | 同 `preset-doc`（`SHEET_ENTRIES`） |
 
@@ -271,7 +271,7 @@ pEdit["core.mutation 3 个 与 core.command 2 个"]
 pMigration["core.migration"]
 pFormat["core.format docxCodec"]
 pScene["render.scene doc 与 render.element dom:doc:*"]
-pUi["ui.ribbon ui.panel ui.shortcut ui.command"]
+pUi["ui.toolbar ui.inspectorSection ui.panel ui.shortcut ui.command"]
 pKey["上下文键 unitType · ui-core 服务"]
 presetDoc -- "无序挂载" --> modelDoc
 presetDoc -- "无序挂载" --> ooxmlDocx
@@ -521,14 +521,14 @@ packages/doc-ui/
 ├── src/
 │   ├── index.ts
 │   ├── plugin.ts                  # inject；ready：contributions.ts 批量贡献
-│   ├── doc-ui.contribution.ts     # declare module '@cordexjs/ui-core'：前缀上下文键 'doc.editScope' 等；含 config.ts 内容
+│   ├── doc-ui.contribution.ts     # declare module '@cordexjs/ui-core'：前缀上下文键等；含 config.ts 内容
 │   ├── domain/
-│   │   ├── ribbon-spec.ts         # ribbonSpec()：开始/插入/布局 页签（命令 id 换 doc.*），大纲/页导航替代缩略图侧栏（rail slot）
+│   │   ├── toolbar-spec.ts        # toolbarSpec()：创建工具条与「更多」的 doc 工具（命令 id 换 doc.*；2026-10-04 取代 ribbon-spec.ts 的开始/插入/布局页签，rulings §4.25 DS-1、DS-5），大纲/页导航替代缩略图侧栏（rail slot）
 │   │   └── inspector-spec.ts      # 段落/样式集分区（母版视图 → "样式集视图"，viewMode:'styles'，10 §8 已预告对应关系）
 │   ├── application/
-│   │   └── command-bindings.ts    # 控件 → dispatch 参数装配器表，复用 HomeTab 字体/段落组结构（命令 id 换 doc.*）
+│   │   └── command-bindings.ts    # 控件 → dispatch 参数装配器表，复用 slide-ui 检查器文本分区（TextSection）的字体/段落结构（命令 id 换 doc.*）
 │   ├── infrastructure/
-│   │   └── contributions.ts       # ribbon+panel+shortcut 贡献批量注册；context-key-bridge 内联
+│   │   └── contributions.ts       # toolbar+inspectorSection+panel+shortcut 贡献批量注册；context-key-bridge 内联
 │   ├── testing/
 │   │   └── index.ts
 │   └── __tests__/
@@ -540,11 +540,11 @@ packages/doc-ui/
 | 样板文件（`slide-ui`） | 本包文件 | 关系 | 职责差异 |
 |---|---|---|---|
 | `plugin.ts`/`manifest.ts`/`*.contribution.ts`/`config.ts` | `plugin.ts`/`doc-ui.contribution.ts` | 同名模板（骨架合一） | 结构照抄，贡献条目 id 换 `doc.*`（10 §8 已列为垂直束模板） |
-| `domain/{selection-kind,ribbon-spec,inspector-spec,thumbnails-model,shortcut-table}.ts` | `domain/{ribbon-spec,inspector-spec}.ts` | 同名模板（骨架精简） | 骨架阶段只保留 ribbon/inspector 两项规格，`selection-kind`/`thumbnails-model`/`shortcut-table` 留 M5 |
+| `domain/{selection-kind,toolbar-spec,inspector-spec,menu-spec,thumbnails-model,shortcut-table}.ts` | `domain/{toolbar-spec,inspector-spec}.ts` | 同名模板（骨架精简） | 骨架阶段只保留 toolbar/inspector 两项规格，`selection-kind`/`menu-spec`/`thumbnails-model`/`shortcut-table` 留 M5 |
 | `application/{command-bindings,when-bindings,canvas-interaction,text-editing}.ts` | `application/command-bindings.ts` | 同名模板（骨架精简） | 骨架阶段只保留控件绑定表 |
 | `application/{master-view,layout-actions,present,guides}.ts` | 无 | 删除 | doc 无母版视图/放映模式概念（slide 专属，10 §8 已标注） |
 | `infrastructure/contributions/*.ts`、`context-key-bridge.ts` | `infrastructure/contributions.ts` | 同名模板（骨架合一） | 三份贡献注册 + 上下文键桥接合并为一个骨架文件 |
-| `ui/ribbon/{DesignTab,TransitionTab,MasterTab}.tsx`、`ui/thumbnails/MasterThumbnails.tsx` 等 | 无 | 删除 | slide 专属组件（10 §8 明确列出不复制清单） |
+| `ui/thumbnails/MasterThumbnails.tsx` 等母版、主题、切换专属组件（原 `ui/ribbon/{DesignTab,TransitionTab,MasterTab}.tsx` 已随 ribbon 作废，DS-1） | 无 | 删除 | slide 专属组件（10 §8 明确列出不复制清单） |
 
 ### 4.8 `@cordexjs/sheet-ui` — V-ui · dom · bundle=sheet · role=plugin · stability=experimental
 
@@ -558,7 +558,7 @@ packages/sheet-ui/
 │   ├── plugin.ts
 │   ├── sheet-ui.contribution.ts
 │   ├── domain/
-│   │   ├── ribbon-spec.ts         # 含公式栏 slot 示例（12 §2 参数化点③："ui.* 的 slot 为开放字符串"，公式栏是 sheet 专有 slot）
+│   │   ├── toolbar-spec.ts        # 含公式栏 slot 示例（12 §2 参数化点③："ui.* 的 slot 为开放字符串"，公式栏是 sheet 专有 slot）
 │   │   └── inspector-spec.ts      # 单元格格式分区
 │   ├── application/
 │   │   └── command-bindings.ts
@@ -570,7 +570,7 @@ packages/sheet-ui/
 │       └── lifecycle.test.ts
 ```
 
-**与 4.7 的差异**（对应表结构相同，不重复列）：`rail` slot 语义从"页面缩略图"变为"工作表页签条"；无 `layout-actions`/`present`/`master-view` 对应物，`present.ts` 类比物在 sheet 语境下不存在（无放映模式）；状态栏新增"求和"统计位（12 §2 表已列举 sheet 的状态栏用法）。
+**与 4.7 的差异**（对应表结构相同，不重复列）：`rail` slot 语义从"页面缩略图"变为"工作表页签条"；无 `layout-actions`/`present`/`master-view` 对应物，`present.ts` 类比物在 sheet 语境下不存在（无放映模式）；原设想的状态栏"求和"统计位随 `ui.statusBar` 作废（rulings §4.25 DS-6），落位 M5 再定（12 §2 表）。
 
 ### 4.9 `@cordexjs/preset-doc` — L8 · dom · bundle · role=bundle（module-map §8 G-3，已收录章程（rulings §4.12 U-01））
 
@@ -694,19 +694,19 @@ packages/preset-sheet/
 | `doc-ui` | `index.ts` | 默认导出插件对象 + 类型 |
 | `doc-ui` | `plugin.ts` | inject 声明；ready 贡献注册 |
 | `doc-ui` | `doc-ui.contribution.ts` | `declare module '@cordexjs/ui-core'`：前缀上下文键；`DocUiConfig` |
-| `doc-ui` | `domain/ribbon-spec.ts` | `ribbonSpec(): RibbonItem[]` |
+| `doc-ui` | `domain/toolbar-spec.ts` | `toolbarSpec(): ToolbarItem[]` |
 | `doc-ui` | `domain/inspector-spec.ts` | `inspectorSpec(): PanelItem[]` |
 | `doc-ui` | `application/command-bindings.ts` | `bindings[controlId]` 装配器表 |
-| `doc-ui` | `infrastructure/contributions.ts` | ribbon/panel/shortcut 批量贡献函数 |
+| `doc-ui` | `infrastructure/contributions.ts` | toolbar/inspectorSection/panel/shortcut 批量贡献函数 |
 | `doc-ui` | `testing/index.ts` | `fixtureDocUnit()`、`renderDocEditor()` |
 | `doc-ui` | `__tests__/lifecycle.test.ts` | 测试文件，无导出 |
 | `sheet-ui` | `index.ts` | 默认导出插件对象 + 类型 |
 | `sheet-ui` | `plugin.ts` | inject 声明；ready 贡献注册 |
 | `sheet-ui` | `sheet-ui.contribution.ts` | `declare module '@cordexjs/ui-core'`：前缀上下文键（含公式栏 slot）；`SheetUiConfig` |
-| `sheet-ui` | `domain/ribbon-spec.ts` | `ribbonSpec(): RibbonItem[]` |
+| `sheet-ui` | `domain/toolbar-spec.ts` | `toolbarSpec(): ToolbarItem[]` |
 | `sheet-ui` | `domain/inspector-spec.ts` | `inspectorSpec(): PanelItem[]` |
 | `sheet-ui` | `application/command-bindings.ts` | `bindings[controlId]` 装配器表 |
-| `sheet-ui` | `infrastructure/contributions.ts` | ribbon/panel/shortcut（含工作表页签条）批量贡献函数 |
+| `sheet-ui` | `infrastructure/contributions.ts` | toolbar/inspectorSection/panel/shortcut（含工作表页签条）批量贡献函数 |
 | `sheet-ui` | `testing/index.ts` | `fixtureSheetUnit()`、`renderSheetEditor()` |
 | `sheet-ui` | `__tests__/lifecycle.test.ts` | 测试文件，无导出 |
 | `preset-doc` | `index.ts` | `createDocPreset(options?): Plugin` |
@@ -806,7 +806,7 @@ export const sheetDocumentType: DocumentType<SheetBody> = {
 2. `model-<type>`：聚合根 body 类型 + `createEmpty()` + 3 个 Mutation + 2 个 Command + `DocumentType` 组装（§2/§6）。
 3. `ooxml-<ext>`：复用 `ooxml-core`，只写 `classify.ts`/`config.ts`/`pipeline.ts`/`codec.ts` 四个骨架文件（§4.3/4.4）。
 4. `<type>-render`：一个 `SceneProvider` + 至少一个 `ElementRenderer`（§4.5/4.6）。
-5. `<type>-ui`：`ribbon-spec.ts`/`inspector-spec.ts` + 贡献注册（§4.7/4.8）。
+5. `<type>-ui`：`toolbar-spec.ts`/`inspector-spec.ts` + 贡献注册（§4.7/4.8）。
 6. `preset-<type>`：`plugins/<type>.entries.ts` 列出以上四包、`plugins/index.ts` 拼上水平层条目（§4.9/4.10，文件布局按 11 §4，rulings §4.18 FE-12）。
 7. `tooling/policy/schema/cordex-package-metadata.schema.json` 的 `bundle` 枚举加一个值（01 §8 第 1 条"需要改的文件"）；若引入新事件域前缀，`tooling/policy/event-domains.json` 加一行（01 §8 第 2 条）。
 8. 首次为该 bundle 运行 `scan-horizontal-freeze` 生成冻结基线（§8.3）。
@@ -953,7 +953,7 @@ pnpm --filter @cordexjs/ooxml-xlsx test -- --grep "opens minimal xlsx"
 ```bash
 pnpm --filter @cordexjs/doc-render test -- --grep "renders paragraph lines"
 pnpm --filter @cordexjs/sheet-render test -- --grep "renders grid window"
-pnpm --filter @cordexjs/doc-ui test -- --grep "ribbon renders empty when no selection"
+pnpm --filter @cordexjs/doc-ui test -- --grep "inspector renders empty when no selection"
 ```
 
 **第 4 步：preset（`preset-doc`/`preset-sheet`）**：按 §4.9/4.10 组装，`plugins/<type>.entries.ts` 显式列出前三步产出的包（文件布局按 11 §4，FE-12）。验收（12 §5 总验收清单）：

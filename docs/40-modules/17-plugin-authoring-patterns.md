@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-10-03（§4.24 收尾：ooxml-pptx Manifest 片段 `core.format` 增 `slide-markdown`，与 40/04 §3 同步） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
+> 状态：草稿 v0.1 | 负责：架构-模块 | 更新：2026-09-22、2026-09-24（rulings §4.15）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-26（§4.20）；2026-10-03（§4.24 收尾：ooxml-pptx Manifest 片段 `core.format` 增 `slide-markdown`，与 40/04 §3 同步）；2026-10-04（design-language-v3 第 0 批：按 rulings §4.25 DS-5、DS-6 改写 `ui.*` 示例——`slide-ui` 改为向九个 `ui.*` 点贡献创建工具、检查器分区、面板、菜单、快捷键与命令呈现元数据，§0 速查表与 §2.3 不再举 `ui.ribbon`；§3.1 命名正例的 `ui.statusBar` 换为新增的 `ui.inspectorSection`）；2026-10-04（design-language-v3 第 0 批：术语残留清理：`ui.ribbon` / `ui.statusBar` / ribbon / 状态栏的历史陈述改用 check-terms 认可的标记措辞（作废、废弃、取代、原名））；2026-10-04（design-language-v3 第 0 批：复验修正——preset 目录树 shell-glue 注释改为主菜单与文档菜单的应用级条目）；2026-10-04（design-language-v3 第 0 批：复验第 2 轮修正——§3.1 命名正例中 `ui.inspectorSection` 的注记由「替换已删除的 `ui.statusBar`」改为「2026-10-04 新增（DS-5），本例原用已作废的 `ui.statusBar`」：检查器分区不承接状态（DS-6 状态只走通知与横幅））；2026-10-15（design-language-v3 第 2 批，rulings §4.25 TB-77：§5 `failure-isolation.test.ts` 一行的 `kernel/PLUGIN_FAILED` 改为 30/10 §1.1a 登记的 `kernel.plugin_failed`，`details.phase = 'activate'`；§3.5 错误码正例 `kernel.plugin_failed` 核对无误） | 依赖：cordis-primer、03-kernel-and-plugin-model、09-type-discipline、40-modules 02/16
 
 # 17 插件书写模式手册
 
@@ -14,7 +14,7 @@
 |---|---|---|---|
 | A 定义插件（Definition） | 我要定义一个契约，交给别的包实现，我自己不是唯一实现 | `model-core` 的 `DocumentStore<S>`；`engine-layout` 的 `layout.measurer`/`TextMeasurer`；`collab-core` 的 `collab`/`collabTransport` | §2.1 |
 | B 实现插件（Provider） | 我要实现别人已经定义好的契约 | `store-memory`/`store-yjs` 实现 `DocumentStore`；`render-dom` 实现 `render.target`/`layout.measurer`；`ooxml-pptx` 实现 `core.format` 的 `FormatCodec` | §2.2 |
-| C 贡献型插件 | 我要往已经存在的扩展点塞条目，条目之间互不排斥 | `model-slide` 贡献 `core.documentType`/`core.command`/`core.mutation`；`slide-render` 贡献 `render.scene`/`render.element`；`slide-ui` 贡献 `ui.ribbon` 等 | §2.3 |
+| C 贡献型插件 | 我要往已经存在的扩展点塞条目，条目之间互不排斥 | `model-slide` 贡献 `core.documentType`/`core.command`/`core.mutation`；`slide-render` 贡献 `render.scene`/`render.element`；`slide-ui` 贡献 `ui.toolbar` / `ui.inspectorSection` 等（2026-10-04 起 `ui.ribbon` 作废，rulings §4.25 DS-5） | §2.3 |
 | D UnitScope 内插件 | 我要随每个打开的文档生灭，不是随宿主进程生灭 | `store`/`history`/`selection`/`render`/`presence` 的默认 Provider；`collab-yjs`；`engine-render` | §2.4 |
 | E Bundle/preset | 我要把一批插件打包成一个开箱即用的产品形状 | `preset-slide`/`preset-slide-collab`/`preset-slide-viewer` | §2.5 |
 | F Library（非插件） | 我只提供纯函数/纯类型，没有生命周期可言 | `@cordexjs/shared`；`@cordexjs/ooxml-core`；`@cordexjs/design` | §2.6 |
@@ -283,7 +283,7 @@ export function apply(ctx: Context): void {
 
 - `model-slide` 贡献 `core.documentType`（1 项）、`core.mutation`（46 项，M3 起 47）、`core.command`（73 项含 4 个 Operation），并**自己定义**一个新点 `slide.shapeKind`（9 项内建）——一个包可以同时是某点的定义者和另一些点的贡献者，两者不冲突（03 §3）。
 - `slide-render` 贡献 `render.scene`（1 项）、`render.element`（10 项，其中 `graphicFrame:chart` 用 `conflict:'replace'` 留给 `slide-render-chart` 覆盖）、`render.overlay`（1 项，07 §3）。
-- `slide-ui` 向 `ui-core` 定义的十个 `ui.*` 点批量贡献 Ribbon/面板/快捷键/命令呈现元数据，外加向 `i18n` 贡献 `i18n.bundle`（10 §3）。
+- `slide-ui` 向 `ui-core` 定义的九个 `ui.*` 点批量贡献创建工具（底部工具条与「更多」）/ 检查器分区 / 面板 / 菜单 / 快捷键 / 命令呈现元数据，外加向 `i18n` 贡献 `i18n.bundle`（10 §3；2026-10-04 起 `ui.ribbon`、`ui.statusBar` 作废，新增 `ui.inspectorSection`，rulings §4.25 DS-5、DS-6）。
 
 **文件骨架**：
 
@@ -479,7 +479,7 @@ packages/preset-slide/src/
 ├── plugin.ts                   # createSlidePreset(options) 本体
 ├── plugins/
 │   ├── index.ts                # 静态数组：PresetEntry[]（装配清单，manifest-gen 读取）
-│   ├── shell-glue.plugin.ts    # 胶水插件：应用栏"…"菜单等（≤60 行，零业务规则，11 §3.3）
+│   ├── shell-glue.plugin.ts    # 胶水插件：主菜单与文档菜单的应用级条目等（原应用栏「⋯」菜单随 rulings §4.25 DS-1 作废；≤60 行，零业务规则，11 §3.3）
 │   └── locales/*.ts            # 惰性语言包，各自独立 chunk
 └── __tests__/
     ├── order-independence.test.ts
@@ -768,7 +768,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 
 规则：插件 `name` = 包名去 scope（`model-slide`）或子路径全名（`@cordexjs/model-slide/editing`）；服务名 `ctx.<name>` 全局唯一、无域前缀（`store`/`commands`/`slides`）；事件名 `<域>/<动作>`，域取自 03 §3.6 固定域白名单（kebab-case 动作）；贡献点 id `<域>.<名>`，域与名均 camelCase；第三方插件一律加 `<vendor>:` 前缀（`vendor` = npm scope 去 `@`）。
 
-正例：`core.documentType`、`slide.shapeKind`、`ui.statusBar`；事件 `unit/opened`、`render/element-failed`；第三方 `acme:comments.thread`（贡献点）、`acme:comments/added`（事件）。
+正例：`core.documentType`、`slide.shapeKind`、`ui.inspectorSection`（2026-10-04 新增，rulings §4.25 DS-5；本例原用已作废的 `ui.statusBar`，DS-6）；事件 `unit/opened`、`render/element-failed`；第三方 `acme:comments.thread`（贡献点）、`acme:comments/added`（事件）。
 
 反例：贡献点 id 用 PascalCase 或 kebab-case（`Core.DocumentType`、`slide.shape-kind`）；事件名用 `.` 分隔（`unit.opened`）；第三方包不带 vendor 前缀直接注册 `comments.thread`。
 
@@ -884,7 +884,7 @@ export class CordisHostService implements OnModuleInit, OnApplicationShutdown {
 | `isolatedDeclarations`（tsc 编译器） | 贡献点/Manifest 常量导出必须显式标注返回类型 | §3.6 | tsc 原生编译诊断（09-plugin-type-contracts §5/§8） |
 | depcruise `cordex-bundle-isolation` | 垂直束互不 `import` | §4 第 7 行 | depcruise 报告：规则名 + 违规边（03-boundaries §3.2） |
 | depcruise `cordex-isomorphism-compatibility` | iso/dom/node 三态兼容矩阵 | §4 第 8 行 | depcruise 报告（03-boundaries §3.4） |
-| kernel `failure-isolation.test.ts` | 一个 Fiber `FAILED` 不影响兄弟 Fiber，坏插件的贡献不残留 | §3.3 | 断言 `errors` sink 恰有一条 `kernel/PLUGIN_FAILED`（03 §8 原文机械验证描述） |
+| kernel `failure-isolation.test.ts` | 一个 Fiber `FAILED` 不影响兄弟 Fiber，坏插件的贡献不残留 | §3.3 | 断言 `errors` sink 恰有一条 `kernel.plugin_failed`、`details.phase = 'activate'`（03 §8 原文机械验证描述；2026-10-15 由旧写法 `kernel/PLUGIN_FAILED` 改为 30/10 §1.1a 登记的码，rulings §4.25 TB-77） |
 | `scan-effects` 规则 (2)（原称 `lifecycle-test-present`，GV-15） | 每个插件包必须存在 `__tests__/lifecycle.test.ts` | §6 步骤 7 | 列出缺失该文件的包名（03 §11） |
 
 ---

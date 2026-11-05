@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-类型治理 | 更新：2026-09-26（§4.21：新建。许可分级附表、TD-050 扫描口径、准入四同步、停更判定与冷却期、例外与双许可取向登记；redlock 元数据例外与 ioredis 双版本例外）；2026-09-26（§4.21 整合：A 档实例补 UCD 数据文件用途与 libxml2-wasm；mtx-decompressor 加载方式；维护边缘预登记 quick-lru；新增例外 EX-03（OTel instrumentation 双版本）；登记 @rgrove/parse-xml 退路准入口径与 M4+ 候选依赖（MathJax、perfect-freehand））；2026-09-26（§4.21 复核：EX-02 的 ioredis import 行号统一为 Redis.ts:31-37） | 依赖：[章程](../../00-charter/charter.md) D13、§5.3 规则 4；[rulings](../../00-charter/rulings-2026-09-14.md) §4.15 Q10、§4.16 Q12 / Q19、§4.21 q-license-tiers；[ADR-0004](./0004-monorepo-and-build-toolchain.md)（catalog、`minimumReleaseAge`）；[ADR-0017](./0017-ui-component-library-shadcn-copy-model.md)；[ADR-0026](./0026-headless-rendering-and-thumbnails.md)（禁用 sharp）；[ADR-0039](./0039-collab-server-hocuspocus.md)；[09-type-discipline/08](../09-type-discipline/08-policy-enforcement-matrix.md) TD-006、TD-050、TD-079；[40-modules/01](../../40-modules/01-tooling-and-governance.md) §5.7、§5.8；[50-frontend/17](../../50-frontend/17-reuse-and-dependency-catalog.md)；[60-backend/19](../../60-backend/19-reuse-and-dependency-catalog.md)；证据 `00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（q-license-tiers、R-d-10、revisionLog）、`hocuspocus-adoption-2026-09-26.json`（d-23、d-24、extraFindings）
+> 状态：已接受 | 负责：架构-类型治理 | 更新：2026-09-26（§4.21：新建。许可分级附表、TD-050 扫描口径、准入四同步、停更判定与冷却期、例外与双许可取向登记；redlock 元数据例外与 ioredis 双版本例外）；2026-09-26（§4.21 整合：A 档实例补 UCD 数据文件用途与 libxml2-wasm；mtx-decompressor 加载方式；维护边缘预登记 quick-lru；新增例外 EX-03（OTel instrumentation 双版本）；登记 @rgrove/parse-xml 退路准入口径与 M4+ 候选依赖（MathJax、perfect-freehand））；2026-09-26（§4.21 复核：EX-02 的 ioredis import 行号统一为 Redis.ts:31-37）；2026-10-23（design-language-v3 第 3 批评审修改：决策 7 示例的 `vendored` 补 ui-react 的文件类型图标件——Tabler Icons 3.49.0（MIT）原件复制进 `packages/ui-react/src/infrastructure/file-type-icons.tsx`，rulings §4.25 TB-182，40-modules/10 §5.3；路径来源的说明补 40-modules/10） | 依赖：[章程](../../00-charter/charter.md) D13、§5.3 规则 4；[rulings](../../00-charter/rulings-2026-09-14.md) §4.15 Q10、§4.16 Q12 / Q19、§4.21 q-license-tiers；[ADR-0004](./0004-monorepo-and-build-toolchain.md)（catalog、`minimumReleaseAge`）；[ADR-0017](./0017-ui-component-library-shadcn-copy-model.md)；[ADR-0026](./0026-headless-rendering-and-thumbnails.md)（禁用 sharp）；[ADR-0039](./0039-collab-server-hocuspocus.md)；[09-type-discipline/08](../09-type-discipline/08-policy-enforcement-matrix.md) TD-006、TD-050、TD-079；[40-modules/01](../../40-modules/01-tooling-and-governance.md) §5.7、§5.8；[50-frontend/17](../../50-frontend/17-reuse-and-dependency-catalog.md)；[60-backend/19](../../60-backend/19-reuse-and-dependency-catalog.md)；证据 `00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（q-license-tiers、R-d-10、revisionLog）、`hocuspocus-adoption-2026-09-26.json`（d-23、d-24、extraFindings）
 
 # ADR-0049：依赖准入与许可分级
 
@@ -262,7 +262,9 @@ stateDiagram-v2
   ],
   "vendored": [
     { "path": "packages/shared/src/order/**", "license": "CC0-1.0",
-      "source": "https://github.com/rocicorp/fractional-indexing", "commit": "入库时填写" }
+      "source": "https://github.com/rocicorp/fractional-indexing", "commit": "入库时填写" },
+    { "path": "packages/ui-react/src/infrastructure/file-type-icons.tsx", "license": "MIT",
+      "source": "https://github.com/tabler/tabler-icons", "commit": "v3.49.0 的提交号，入库时填写" }
   ],
   "dataFiles": [],
   "staleExceptions": [
@@ -272,7 +274,7 @@ stateDiagram-v2
 }
 ```
 
-- `vendored` 的路径以 ADR-0032 与 40-modules/02 登记的文件为准，上面的 glob 只示意位置；`dataFiles` 随 T-03、T-04 核实结果与 UCD 生成表入库时填写。
+- `vendored` 的路径以 ADR-0032 与 40-modules/02、40-modules/10（2026-10-23 起含 ui-react 的文件类型图标件，rulings §4.25 TB-182）登记的文件为准，上面的 glob 只示意位置；`dataFiles` 随 T-03、T-04 核实结果与 UCD 生成表入库时填写。
 - `staleExceptions` 按决策 4 的表逐包登记，示例只列一项。
 
 ## 备选方案与放弃原因

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.20）（FE-03：修复规则表「`layoutId` 不存在」按 04 §12.3 I-ML2；FE-04：墓碑期 `layoutId` 读时容错，见「修订 2026-09-26」）；2026-09-26（§4.21：决策 1–2 挂点改为 Hocuspocus——L1 适配层预过滤、L2/L3 在 `beforeSync`（`Y.decodeUpdate`，V1）、L4 在 `afterHandleMessage`；拒绝改连接污染规则，见「修订 2026-09-26（rulings §4.21）」）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18、§4.21；ADR-0039
+> 状态：草稿 | 负责：架构-运行时 | 更新：2026-09-24；2026-09-24 复核修正（rulings §4.17 D2；复核报告 L6）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：commenter 路径前缀改 `resources['comments.threads']`，见文末修订）；2026-09-26（§4.20）（FE-03：修复规则表「`layoutId` 不存在」按 04 §12.3 I-ML2；FE-04：墓碑期 `layoutId` 读时容错，见「修订 2026-09-26」）；2026-09-26（§4.21：决策 1–2 挂点改为 Hocuspocus——L1 适配层预过滤、L2/L3 在 `beforeSync`（`Y.decodeUpdate`，V1）、L4 在 `afterHandleMessage`；拒绝改连接污染规则，见「修订 2026-09-26（rulings §4.21）」）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-15（rulings §4.25 DS-40：路径级规则增「删除线程实体只认 owner」，见文末修订） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.1 P8、§4.15 Q3/Q5/S-3a、§4.17、§4.18、§4.21；ADR-0039
 
 # ADR-0034 服务端对 update 的校验：硬门禁拒绝 + 软门禁补偿修复（不回滚、不分叉）
 
@@ -56,6 +56,7 @@ CRDT update 是不透明二进制；服务端无法在应用前知道其语义�
 |---|---|
 | `commenter` 的 update 触及 `resources['comments.threads']` 以外路径 | 用 Y 事件携带的旧值还原（`Y.Map` 事件 `changes.keys[k].oldValue`；`Y.Text` 反向 delta）；计数 |
 | 回复/线程实体的 `authorId ≠ session.userId`（创建或修改他人评论） | 还原/删除该实体（owner 除外）；计数 |
+| 线程实体从 `threads` 表消失（删除整条讨论串）而来源会话的有效角色不是 owner（2026-10-15，rulings §4.25 DS-40；发起人也不例外） | 用 Y 事件携带的旧值还原该线程与随之消失的回复；计数 |
 | 触及 `meta.*`（`schemaVersion`/`epoch`）或 `resources.<其他插件命名空间>` 而无相应能力位（`caps[]`） | 还原旧值；计数 |
 
 - 修复事务 origin = `system('repair')`（06 §18.2 对 A 线的 `Origin` 增补）；`CONTROL.repair` 与审计不变。
@@ -117,6 +118,12 @@ flowchart TB
 3. **非致命拒绝**：改为连接污染规则 + `parseUpdateMeta` 与删除集缺口检查兜底；「临时置 readOnly、`afterHandleMessage` 恢复」的软拒不采用（vB）。
 4. **不变**：未通过 L1–L3 的帧不应用、不扇出（I8）；修订 2026-09-24 第 2 条「溢写期门禁时序」（硬门禁与软门禁先于 `ack{tier:'spill'}`、修复事务随溢写回放）不变。
 5. **修复事务顺序**：先在 Room 上执行并广播，经 `onChange` 送写入器（H:Q4）；`afterHandleMessage` 自身异常被 Hocuspocus 吞掉、不关连接，L4 失败只计数告警，不影响已落库的原 update。
+
+## 修订 2026-10-15（rulings §4.25 DS-40）：删除整条讨论串只认 owner
+
+- 补充 v0.2 的路径级规则表增一行（已就地写入）：线程实体从 `resources['comments.threads']` 的 `threads` 表消失、来源会话的有效角色不是 owner 时，按旧值还原线程与随之消失的回复（`Y.Map` 事件的 `changes.keys[k].oldValue`），计数、审计 `collab.repaired`，与「还原他人评论」同一修复路径。线程发起人（`createdBy` 等于会话用户）也不放行——此前按「`authorId`/`createdBy` 等于会话用户即放行」的读法，发起人能删整条线程，与 rulings §4.25 DS-40 冲突，作废。
+- 回复规则不变：作者本人删自己的回复（`deletedAt` 置位、正文清空），owner 可删任何人的回复。
+- 验证（test/collab-sim）：commenter 删除自己发起的线程 → 线程与回复被还原、来源会话收到 `repair`；owner 删除同一线程 → 落库并广播，镜像行置 `deleted_at`。
 
 ## 如何被机械验证
 

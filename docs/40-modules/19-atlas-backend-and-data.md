@@ -1,4 +1,4 @@
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（§4.19 N1）、2026-09-26（§4.20：依据引用改指，BE-11+TX-12）、2026-09-26（§4.21：依据行由原 30/08 改指 60/01 等 60 线现行落点；协同相关图按 Hocuspocus 4 改画：WsAdapter、FanoutBus、1 字节信封与首帧 CONTROL.auth 删除，改为 upgrade 自挂、extension-redis、Hocuspocus 帧与 Stateless ack；反代按 documentId 一致性哈希）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18、§4.21；30-architecture/01、06、07、10；60-backend/01（后端架构）；ADR-0022、0023、0025、0026、0029、0033、0035、0037、0039；40-modules/08、09、12、15、16
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-25、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（§4.19 N1）、2026-09-26（§4.20：依据引用改指，BE-11+TX-12）、2026-09-26（§4.21：依据行由原 30/08 改指 60/01 等 60 线现行落点；协同相关图按 Hocuspocus 4 改画：WsAdapter、FanoutBus、1 字节信封与首帧 CONTROL.auth 删除，改为 upgrade 自挂、extension-redis、Hocuspocus 帧与 Stateless ack；反代按 documentId 一致性哈希）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）、2026-10-15（design-language-v3 第 2 批：图 5-1 `share_links` 的两条注记按 rulings §4.25 DS-47 改，怎么读补访问申请表，DS-48；同日再补：图 8-5 的事件源节点补自动化作业终态与访问申请受理（DS-67，60/07 §5.1））；2026-10-22（design-language-v3 第 3 批：图 6-1 发起登录改画为浏览器顶层导航 `GET /auth/oidc/login` → 302（与 60/15 §3.1 的 INC-18 一致，原「POST 返回 authorizationUrl」的画法作废），补取不到 IdP 发现文档时同样 302 回前端回调页并带 `?error=` 的分支（rulings §4.25 DS-121）与 `prompt=login` 透传（DS-124）；怎么读与依据同步） | 依赖：00-charter/rulings-2026-09-14.md §4.13、§4.15、§4.16、§4.17、§4.18、§4.21；30-architecture/01、06、07、10；60-backend/01（后端架构）；ADR-0022、0023、0025、0026、0029、0033、0035、0037、0039；40-modules/08、09、12、15、16
 
 # 19 架构图集（二）：后端、数据与部署
 
@@ -642,14 +642,14 @@ erDiagram
   }
   share_links {
     uuid doc_id FK
-    text token_hash "明文只在创建响应出现一次"
-    text role "不可为 owner"
+    text token_hash "sha256，另存 KEK 密文供所有者取回"
+    text role "仅 viewer 或 commenter，每文档至多一条未撤销"
   }
 ```
 
-怎么读：隔离边界是「文档」而非租户——`permissions` 是 fail-closed 的授权行，`share_links` 是需登录才能兑现的角色叠加令牌，二者同时是文档级 RLS 的判定依据。`users.password` 列不存在（服务端不持有密码）；无 `groups`、无 `pending_invitations`；`api_keys` 为 M4，不在 M1–M3 模型中。分享令牌的解析归 `permissions` 模块，经 SECURITY DEFINER 函数 `cordex_share_link_by_token`/`cordex_share_link_status` 只读 `share_links`（2026-09-25，rulings §4.18 BE-02）。用户的「最近 / 固定」记账表 `document_user_marks` 画在图 5-5。
+怎么读：隔离边界是「文档」而非租户——`permissions` 是 fail-closed 的授权行，`share_links` 是需登录才能兑现的角色叠加令牌，二者同时是文档级 RLS 的判定依据。`users.password` 列不存在（服务端不持有密码）；无 `groups`、无 `pending_invitations`；`api_keys` 为 M4，不在 M1–M3 模型中。分享令牌的解析归 `permissions` 模块，经 SECURITY DEFINER 函数 `cordex_share_link_by_token`/`cordex_share_link_status` 只读 `share_links`（2026-09-25，rulings §4.18 BE-02）。用户的「最近 / 固定」记账表 `document_user_marks` 画在图 5-5。2026-10-15（rulings §4.25 DS-47、DS-48）：分享链接每份文档至多一条未撤销、改角色与有效期在原行上进行，令牌另以 KEK 信封存储供所有者重开对话框时取回（原「明文只在创建响应出现一次」作废）；另有访问申请表 `access_requests`（每人每文档一行，没有角色的用户提交、所有者批准即授予，60-backend/09 §15），图中未画。
 
-依据：60-backend/09；40-modules/08 §2.1、§2.2、§2.5；ADR-0029 2026-09-24 修订；rulings §4.18 BE-02（依据改指，rulings §4.20 BE-11+TX-12）。
+依据：60-backend/09；40-modules/08 §2.1、§2.2、§2.5；ADR-0029 2026-09-24 修订与 2026-10-15 修订；rulings §4.18 BE-02（依据改指，rulings §4.20 BE-11+TX-12）、§4.25 DS-47、DS-48。
 
 **图 5-2 文档与版本**
 
@@ -909,9 +909,13 @@ sequenceDiagram
   participant users as UsersModule
   participant pg as Postgres
   participant audit as AuditModule
-  web->>auth: POST /auth/oidc/login
-  auth->>vk: 存 state 与 PKCE verifier，TTL 10 min
-  auth-->>web: authorizationUrl
+  web->>auth: GET /auth/oidc/login，带 next 与 mode，可带 prompt=login
+  alt 取不到 IdP 发现文档
+    auth-->>web: 302 回前端回调页，带 error=server.auth.idp_unavailable，不写 state
+  else 发现文档可用
+    auth->>vk: 存 state、PKCE verifier、next 与 mode，TTL 10 min
+    auth-->>web: 302 到 IdP 授权端点，prompt=login 原样带上
+  end
   web->>idp: 授权请求，授权码加 PKCE
   Note over web,idp: selfSignup 默认关，账号由管理员在 IdP 建，服务端不持有密码、无邀请表
   idp-->>web: 重定向到 /auth/oidc/callback，携带 code 与 state
@@ -935,9 +939,9 @@ sequenceDiagram
   end
 ```
 
-怎么读：前半段是标准授权码 + PKCE，后半段是本项目的 JIT 建号——服务端只在首次登录时于同一事务写 `users` 与 `user_identities`，并发首登靠 `(issuer, subject)` 唯一约束收敛。登录只产出会话，协同票据另行签发（图 6-2）。
+怎么读：前半段是标准授权码 + PKCE：发起登录是浏览器顶层导航 `GET /auth/oidc/login`，服务端存好 state 后 302 到 IdP；取不到 IdP 发现文档时不写 state、同样 302 回前端回调页并带 `?error=server.auth.idp_unavailable`，由登录页内联报错，不出接口错误页（2026-10-22，rulings §4.25 DS-121）；`prompt` 只接受 `login`，账号停用后换账号重新登录时带上（DS-124）。后半段是本项目的 JIT 建号——服务端只在首次登录时于同一事务写 `users` 与 `user_identities`，并发首登靠 `(issuer, subject)` 唯一约束收敛。登录只产出会话，协同票据另行签发（图 6-2）。
 
-依据：40-modules/08 §4.1；60-backend/02 §2–§3；40-modules/08 §2.4、§2.6、§5.3；ADR-0029 2026-09-24 修订 2–4。
+依据：40-modules/08 §4.1；60-backend/02 §2–§3；40-modules/08 §2.4、§2.6、§5.3；ADR-0029 2026-09-24 修订 2–4；60-backend/15 §3.1（发起登录与 302，INC-18；rulings §4.25 DS-121、DS-124）。
 
 打开一份文档分两段：先经 REST 取快照并领取协同票据，再建立 WS 连接完成握手与同步。
 
@@ -1741,7 +1745,7 @@ flowchart TB
   g1{"egress-guard 尽力校验"}
   rej["拒绝保存订阅"]
   sub["WebhookSubscription active，签名密钥只存 hash"]
-  evt["评论镜像变更，调用 DeliverWebhookEventUseCase"]
+  evt["评论镜像变更、自动化作业终态或访问申请受理，调用 DeliverWebhookEventUseCase"]
   enq["webhook-delivery 队列入队，webhook_deliveries 落 pending 行"]
   g2{"每次投递前：解析主机名，isBlockedEgressAddress"}
   fail["标记 failed，不发出任何请求"]

@@ -1,6 +1,6 @@
 # 01 总架构：系统上下文、容器、统一原则、技术栈与端到端数据流
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-M2-CONTENT 打开路径改为 M1 本地字节 / M2 起协同快照 + 票据 + WS（§4.1）、协同后端提前到 M2（§4.3）；INC-02 `permission` 帧名；§4.1–§4.4、§5 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-26（§4.21：升格为全仓唯一总架构；§3 并入原 08 §0 五条为统一原则表 P1–P14；新增 §2.3 前后端分工、§3a 技术栈与复用总表及许可分级；§4 协同改 Hocuspocus 4、导出关系部件写回口径、补协同总览时序与导入导出总览；§5 只留一张对象图；§6 改阅读路径；新增 §7 M1–M4 里程碑边界唯一表）；2026-09-26（§4.21 整合：§7 协同行 M2 补七个自有扩展、写入器与三档溢写、连接污染，M3 补反代一致性哈希与跨实例 PermissionSync）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19；P12 补 drizzle-orm、bullmq、ws、extension-redis；装配图 collab 标签与 60/01 分工）；2026-10-01（包与插件规划显化：新增 §2a 包与插件规划——全局数字卡、npm 包 / cordis 插件 / Nest 模块三者关系、按层带分布、各 preset 装配数、按里程碑装入数，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决，§2a 的插件数一律指 cordis 插件 48，纯库 5 与 Nest 模块 25 另列、不计入插件；数字卡、图 2a-1…2a-3、层带表与里程碑表按新口径重写） | 依赖：charter v0.1；rulings §4.15–§4.21；[PRD 05](../10-prd/05-milestones-and-scope.md) §0.3
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-14；2026-09-24（rulings §4.15：T-0 单组织；Q6 外置 OIDC IdP（可选 Casdoor）；Q10 自托管 compose 洁净栈 Postgres 18 / Valkey / SeaweedFS / renderer sidecar；Q5 超包络导入拒绝；Q2 Vite 8）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19：D-M2-CONTENT 打开路径改为 M1 本地字节 / M2 起协同快照 + 票据 + WS（§4.1）、协同后端提前到 M2（§4.3）；INC-02 `permission` 帧名；§4.1–§4.4、§5 加 50 / 60 线链接）；2026-09-25（§4.19）；2026-09-26（§4.21：升格为全仓唯一总架构；§3 并入原 08 §0 五条为统一原则表 P1–P14；新增 §2.3 前后端分工、§3a 技术栈与复用总表及许可分级；§4 协同改 Hocuspocus 4、导出关系部件写回口径、补协同总览时序与导入导出总览；§5 只留一张对象图；§6 改阅读路径；新增 §7 M1–M4 里程碑边界唯一表）；2026-09-26（§4.21 整合：§7 协同行 M2 补七个自有扩展、写入器与三档溢写、连接污染，M3 补反代一致性哈希与跨实例 PermissionSync）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19；P12 补 drizzle-orm、bullmq、ws、extension-redis；装配图 collab 标签与 60/01 分工）；2026-10-01（包与插件规划显化：新增 §2a 包与插件规划——全局数字卡、npm 包 / cordis 插件 / Nest 模块三者关系、按层带分布、各 preset 装配数、按里程碑装入数，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决，§2a 的插件数一律指 cordis 插件 48，纯库 5 与 Nest 模块 25 另列、不计入插件；数字卡、图 2a-1…2a-3、层带表与里程碑表按新口径重写）；2026-10-04（design-language-v3 第 0 批：§2a.1 全局数字卡贡献点 27 → 26、ui-core 10 → 9，rulings §4.25 DS-5、DS-6）；2026-10-04（design-language-v3 第 0 批：术语残留清理：`ui.ribbon` / `ui.statusBar` / ribbon / 状态栏的历史陈述改用 check-terms 认可的标记措辞（作废、废弃、取代、原名））；2026-10-04（design-language-v3 第 0 批：复验修正——§9 里程碑表 M2 可插拔证据「ribbon 按钮」改为底部工具条「更多」按钮（DS-5）） | 依赖：charter v0.1；rulings §4.15–§4.21；[PRD 05](../10-prd/05-milestones-and-scope.md) §0.3
 
 **本文定位**：本文是全仓**唯一一份总架构**，只讲跨端的东西——系统边界、容器、前后端分工、统一原则、技术栈与复用的总口径、四条端到端数据流与里程碑边界。浏览器侧的架构在 [50/01 前端架构](../50-frontend/01-overview-and-runtime-map.md)，服务端的架构在 [60/01 后端架构](../60-backend/01-service-overview-and-roles.md)，三篇合称「架构三件套」，阅读顺序固定为 30/01 → 50/01 → 60/01（rulings §4.21 q-arch-reorg 方案 B）。原 08「后端一页总览」已撤销：五条跨端原则并入本文 §3，两张后端总图与服务端里程碑迁往 60/01。
 
@@ -259,7 +259,7 @@ flowchart LR
 | 纯库（不计入插件） | **5** | `shared`、`protocol`、`xml`、`ooxml-core`、`design` | 40/16 §1 |
 | 运行时单元（总账口径） | **78** | 插件 48 + 纯库 5 + Nest 模块 25；只用于总账对账，不是插件数 | 40/16 §2 |
 | Definition（可替换契约） | **25** | 模型存储 3、渲染度量 5、协同 3、UI 1、内核治理 5、服务端专属 8 | [40/16 §3](../40-modules/16-plugin-catalog.md#3-definition--provider-可插拔矩阵章程-54-的完整版) |
-| 贡献点 | **27** | model-core 7、ui-core 10、engine-render 4、kernel 2、engine-layout 1、i18n 1、model-slide 1、comments 1 | [40/16 §4](../40-modules/16-plugin-catalog.md#4-贡献点总账) |
+| 贡献点 | **26** | model-core 7、ui-core 9、engine-render 4、kernel 2、engine-layout 1、i18n 1、model-slide 1、comments 1（2026-10-04 作废 `ui.ribbon`、`ui.statusBar`，增 `ui.inspectorSection`，rulings §4.25 DS-5、DS-6） | [40/16 §4](../40-modules/16-plugin-catalog.md#4-贡献点总账) |
 | preset | **4** | 浏览器侧 3 个（均为 npm 包：viewer 17、slide 17、collab 20 个条目）+ 服务端装配脚本 `preset-server`（11 个条目） | 本节 2a.4 |
 
 「插件」只指 cordis 插件：能被 cordis 装进 Fiber 树、可被 preset 装配或排除的最小单位；Nest 模块（按角色整模块装配）与纯库（只被 `import`）都不算插件。「包」是发布与依赖治理的单位。包与插件不是一一对应，下一小节说明。
@@ -951,7 +951,7 @@ flowchart LR
 | 评论与集成 | — | — | 评论（`@cordexjs/comments`）；Webhook（Standard Webhooks 签名）；审计查询与哈希链 | — |
 | 部署与运维 | — | 单实例 `CORDEX_ROLE=all`；`/healthz`、`/readyz`；协同与服务端压测的自托管 runner 在 M2 前落地 | compose 洁净栈出口（断网 e2e、digest、SBOM、镜像许可）、按角色拆分部署、监控与告警 | 离线安装包、多架构、Helm（P1） |
 | 技术栈基线 | Node 26、pnpm 11；NestJS 12（纯 ESM，OTel 以 `node --import` 预加载）；Yjs 13.6.33 精确锁 | Drizzle 1.0 破坏性变更在 M2 前评估；Hocuspocus 4.7.0 精确钉，升级须过协同契约套件 | Yjs 14 在 M3 前 spike | — |
-| 可插拔证据 | store-memory 与 render-dom 可被 no-op Provider 替换后仍能启动 | 第三方示例插件（二维码元素 + ribbon 按钮）零改内核 | store-yjs 替换 store-memory 仅改 preset；M3 末最小 canvas Provider 过 `render.target` 契约；`UiRenderer('vanilla')` 过 UI 契约 | 内部非核心成员仅凭公开文档独立完成一个插件 |
+| 可插拔证据 | store-memory 与 render-dom 可被 no-op Provider 替换后仍能启动 | 第三方示例插件（二维码元素 + 底部工具条「更多」按钮，原「ribbon 按钮」随 rulings §4.25 DS-5 作废）零改内核 | store-yjs 替换 store-memory 仅改 preset；M3 末最小 canvas Provider 过 `render.target` 契约；`UiRenderer('vanilla')` 过 UI 契约 | 内部非核心成员仅凭公开文档独立完成一个插件 |
 
 M5（多文档类型孵化）不在本表：`model-doc` / `model-sheet` 骨架通过文档类型盲验证、水平层零改动（章程 §7、PRD 05）。
 

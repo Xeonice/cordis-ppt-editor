@@ -1,4 +1,4 @@
-> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：新增 Nest 模块 `PluginsModule` / `PluginsHttpModule`（§3、§4.11、§5.11）：声明文件与部署时校验、策略与个人选择仓储（表 `plugin_policies`、`user_plugin_prefs`）、插件集指纹、管理员与个人 REST）；2026-10-03（§4.24 收尾 AL-3：`PluginsModule` 改为 api、collab、worker 加载，renderer 不装、不读库，内容级集合由 worker 经 RPC `contentPlugins` 下发；§3 依赖表、§4.11 目录树、§5.11 逐文件表与图 5-1 同步） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
+> 状态：草稿 v0.1 | 负责：架构-模块（阶段二） | 更新：2026-09-21、2026-09-24（rulings §4.15）、2026-09-24（复核修正，rulings §4.17）、2026-09-25（补图）、2026-09-25（矛盾收口，rulings §4.18）、2026-09-25（§4.19）、2026-09-25（审稿）、2026-09-25（§4.19 N1）、2026-09-26（§4.20）、2026-09-26（§4.21：jose、file-type、image-size 定案；SVG 消毒维持自研白名单并改用 `@cordexjs/xml` 解析与序列化；B1 手写 schema 与漂移检查）；2026-09-26（§4.21 整合：§10 server-app-thin 白名单与 30/02 §3 对齐为两项（xml 与 ooxml-core/zip））；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首补「架构 08」已撤销说明）；2026-10-01（§4.23 插件管理：新增 Nest 模块 `PluginsModule` / `PluginsHttpModule`（§3、§4.11、§5.11）：声明文件与部署时校验、策略与个人选择仓储（表 `plugin_policies`、`user_plugin_prefs`）、插件集指纹、管理员与个人 REST）；2026-10-03（§4.24 收尾 AL-3：`PluginsModule` 改为 api、collab、worker 加载，renderer 不装、不读库，内容级集合由 worker 经 RPC `contentPlugins` 下发；§3 依赖表、§4.11 目录树、§5.11 逐文件表与图 5-1 同步）；2026-10-15（design-language-v3 第 2 批：DS-47 share-links 增 `update-share-link.usecase.ts`（改角色与有效期，令牌不变）、`list-share-links.usecase.ts`（owner 取回令牌、非所有者只得角色与到期）、`infrastructure/share-link-token.cipher.ts`（KEK 信封）与 `__tests__/share-link-lifecycle.usecase.test.ts`，每份文档至多一条未撤销的链接；DS-48 permissions 增访问申请：`domain/access-request.ts`、`application/{request-access,list-access-requests,approve-access-request,reject-access-request}.usecase.ts`、`interface/access-requests.controller.ts`、`__tests__/access-requests.usecase.test.ts`，读写并入 `permission.repository.ts`，成员列表放宽到 `doc.read`；§1.2、§2.1、§2.5、§2.6、§3、§4.5、§4.6、§5.5、§5.6 同步；`ShareLink.role` 删去残留的 `editor`（rulings §4.24 AL-1）；同日再补：TB-65 `list-permissions.usecase.ts` 分 owner 与读者两条查询路径，`share-link-reader.ts` 增 `currentLinkRole`，`list-share-links.usecase.ts` 收回只给 owner、`share-link.repository.ts` 删 `liveSummary`；DS-66 `domain/share-link.ts` 增 `ShareLinkState`、列表带 `state`；DS-67 `permissions.module.ts` 增 import `WebhooksModule`，`request-access.usecase.ts` 受理时写 `access_request.created` 投递行；DS-68 拒绝不告知申请人；§3、§4.5、§4.6、§5.5、§5.6、§10 同步；§9 登记 `apps/server/test/e2e/permissions/member-list.e2e-spec.ts` 与 `e2e/share/access-requests.e2e-spec.ts`（rulings §4.25 DP-8，70/07 §7.2 S12、S13）；源文件数不变）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-69、TB-86、DS-70：`ShareLinkReader.currentLinkRole` 改为 `currentLink`（成员列表读者视图取仍有效那一行的 `id`、`role`、`token_enc`，令牌在 api 解密后随 `link.token` 返回）；`share-link-token.cipher.ts` 由 `share-links/infrastructure/` 移到 `permissions/infrastructure/`（读者视图在 PermissionsModule 解密，ShareLinks → Permissions 单向依赖不变，§4.5 / §4.6 与 §5.5 / §5.6 同步，文件总数不变）；`member-list.e2e-spec.ts` 注释改为读者视图带令牌；创建副本的作业 `payload` 增 `srcTitle`（新文档 `import` 快照的显示名）；同日再补：`share-link-token.cipher.ts` 的归属与装配补引 rulings §4.25 TB-93（只在 api 装配并导出给 ShareLinksModule），`currentLink` 的结果列补引 TB-94（`id` 只作 AAD、不出参）；文件数不变）；2026-10-22（design-language-v3 第 3 批：§4.1 / §5.1 `login-with-oidc.usecase.ts` 写明取不到 IdP 发现文档时也 302 回前端、带 `?error=server.auth.idp_unavailable`（redirect 回 `/auth/callback`、popup 回 `/auth/popup-callback`，rulings §4.25 DS-121），发起登录接受并透传 `prompt=login`（只开放这一个值，DS-124），`auth.controller.ts` 同步；§4.3 / §5.3 `document-queries.ts` 写明列表项补最近编辑者、内容更新时间与 `createdAt`，各视图固定次序、不接受排序参数（DS-83、DS-84；字段以 60/15 §3.3 为准）；§4.11 / §5.11 `get-plugin-catalog.usecase.ts` 写明行与详情带最近错误的阶段 `lastErrorPhase`、`update-plugin-policies.usecase.ts` 注明 `reset` 不经界面（TB-119）；同日再补：`auth.controller.ts` 的 `/auth/config` 注册地址取部署配置 `auth.signupUrl`（DS-119），`update-profile.usecase.ts` 注明头像只存不显示（TB-123），`list-recent.usecase.ts` 条目字段同列表、开始页排序只在前端（DS-83、DS-84、TB-127）；文件数不变）；2026-10-22（design-language-v3 第 3 批，回写中新增的口径：§4.1 / §5.1 `auth.controller.ts` 的 `/auth/config` 增 `trashDays`（取 `retention.trashDays`，rulings §4.25 TB-141）；§4.3 / §5.3 `update-profile.usecase.ts` 的本人分支改名 `UpdateOwnProfileUseCase`（与 60/03 §3.2 对齐）、只收 `displayName` 1–128 字、`avatarUrl` 入参删去（TB-137、TB-142），`users.controller.ts` 同步；§4.4 / §5.4 `document-queries.ts` 写明「我的文档」「与我共享」按内容更新时间倒序（`last_activity_at`，改名与回收站进出不改变次序，TB-144）、回收站按移入时间且带 `trashedAt`、`lastEditor` 由 `content_updated_by` 关联 `users` 取显示名，`document.repository.ts` 写明 `DocumentMetaPatch` 不含 M-09 列（含新增的 `content_updated_by`，DS-83）；文件数不变）；2026-10-22（design-language-v3 第 3 批回写收口：§4.3 / §5.3 `update-profile.usecase.ts` 与 `provision-on-first-login.usecase.ts` 写明 `avatar_url` 只由首次与每次登录按 IdP `picture` 刷新、本人资料只改 `display_name`（rulings §4.25 TB-137、TB-142，60/02 §3、60/09 §2）；文件数不变；2026-10-22 复核修正：§4.1 / §5.1 `login-with-oidc.usecase.ts` 原写「返回 authorizationUrl」，与同一行本批补的 302 出口、40/19 图 6-1 与 60/15 §3.1（INC-18）不一致，改为浏览器顶层导航 `GET /auth/oidc/login` 后 302 到 IdP 授权端点（rulings §4.25 DS-121 一并核对）；§4.4 / §5.4 `document-queries.ts` 写明 `lastEditor` 与 `contentUpdatedAt` 的省略规则——尚无快照两项都省略，系统作业建档只省略 `lastEditor`、照常带 `contentUpdatedAt`，不补值、不以 `owner` 顶替（rulings §4.25 TB-171，60/15 §3.3）；§9 `e2e/documents-permissions.e2e-spec.ts` 登记 70/07 §8 D18 文档列表的第二行与次序；文件数不变） | 依赖：00-module-map.md M-08 行/§4.2/§5.3/§9；40-modules/02-kernel-protocol-and-document-core.md §1.2/§2.5/§2.6/§4.3/§5.3/§6/§7/§12–13；60-backend/01 §0/§3、02、03、04、08–10、14 §5–§6（原 30/08 §0/§1/§6/§9/§11/§16.4 随该篇于 rulings §4.21 撤销改指此处；原 30/08 §2 目录树、§3.2、§5 已删，依赖改指，rulings §4.20 BE-11+TX-12）；30-architecture/02-layering-and-packages.md §3.2/§4.23；charter v0.2 §5.2 apps/server·server-storage 行/§6.1 D8；PRD 10-prd/03-features/06-server-and-ops.md SV-06/SV-08；PRD 10-prd/03-features/03-collaboration.md §1/CO-05/CO-15；ADR-0029；ADR-0030（观测栈，只读）
 
 # 08 服务端身份、文档与对象存储（限界上下文 BC-18 身份与会话、BC-19 文档目录与权限、BC-20 对象存储与媒体）
 
@@ -59,7 +59,7 @@ storageMod -- "ctx.blobStore" --> m12
 - 不做：不做密码/注册表单/找回密码（全部在 IdP）；不做租户与组管理（T-0 删除；组管理 U-11 推迟，M3 只按人分享）；不做协同 ticket **校验**（WS 握手校验是 M-09 `ticket-verifier.ts` 的职责，本模块只签发并暴露 JWKS/校验函数供其调用，见 §7）；不做文档级权限判定（BC-19）；不做审计落库（只在 controller/usecase 标注 `@Audited()` 使用点，不持有 `audit_log` 表与拦截器实现，M-12/BC-26）。
 
 **BC-19 文档目录与权限**
-- 做：文档目录条目 CRUD（标题/状态/回收站/锁定）与最近/固定记账（`document_user_marks`，rulings §4.18 BE-31）、权限授予/撤销/列出（fail-closed：无显式允许即拒绝）、`permVersion` 递增与 `perm:doc:{id}` 广播、分享链接创建/撤销/列表（**令牌解析归 `permissions`**：`ResolveShareLinkUseCase` 经 `SECURITY DEFINER` 函数只读 `share_links`，守卫与 `RoleResolverService` 共用这一个用例，rulings §4.18 BE-02）、角色解析（直接授权与本文档链接角色取高，直接授权部分 5 s 缓存；2026-09-24 删除「租户默认」来源，T-0）、文档级 Postgres RLS 会话上下文（M3 出口，Q6，见 §10）；分享链接访问经 `ShareLinkGuard` 校验令牌未撤销/未过期后，把链接角色叠加到当前**已登录** Principal 的能力位集合，不产出匿名 Principal，未登录访客返回需登录错误码由前端跳转登录（rulings §4.13 S-1，2026-09-21；分享链接**始终要求登录**，§4.15 Q6 延续）；文档硬删除采用「单作业 + 参与者」编排（`schedule-purge.usecase.ts` 同一事务置 `purging` 并写 `job_runs(kind=document-purge)`，worker 上的 `document-purge.processor.ts` 依次调用各模块以 `@PurgeParticipant` 登记的幂等清理用例，`finalize-purge.usecase.ts` 收尾，各模块只清自己的表，rulings §4.13 S-2、§4.18 BE-15；文档擦除与「永久删除文档」不等回收站宽限期、立即硬删，§4.15 Q3。术语：文档级操作 2026-09-25 起称「永久删除文档」（原「立即彻底删除」），元素级「彻底删除元素」由 M-09 承接，rulings §4.18 CO-07）。
+- 做：文档目录条目 CRUD（标题/状态/回收站/锁定）与最近/固定记账（`document_user_marks`，rulings §4.18 BE-31）、权限授予/撤销/列出（fail-closed：无显式允许即拒绝；2026-10-15 起成员列表对文档读者只读可见，rulings §4.25 DS-48）、访问申请的提交与批准拒绝（2026-10-15，DS-48）、`permVersion` 递增与 `perm:doc:{id}` 广播、分享链接创建/改角色与有效期/撤销/列表（2026-10-15 起每份文档至多一条未撤销的链接，DS-47；**令牌解析归 `permissions`**：`ResolveShareLinkUseCase` 经 `SECURITY DEFINER` 函数只读 `share_links`，守卫与 `RoleResolverService` 共用这一个用例，rulings §4.18 BE-02）、角色解析（直接授权与本文档链接角色取高，直接授权部分 5 s 缓存；2026-09-24 删除「租户默认」来源，T-0）、文档级 Postgres RLS 会话上下文（M3 出口，Q6，见 §10）；分享链接访问经 `ShareLinkGuard` 校验令牌未撤销/未过期后，把链接角色叠加到当前**已登录** Principal 的能力位集合，不产出匿名 Principal，未登录访客返回需登录错误码由前端跳转登录（rulings §4.13 S-1，2026-09-21；分享链接**始终要求登录**，§4.15 Q6 延续）；文档硬删除采用「单作业 + 参与者」编排（`schedule-purge.usecase.ts` 同一事务置 `purging` 并写 `job_runs(kind=document-purge)`，worker 上的 `document-purge.processor.ts` 依次调用各模块以 `@PurgeParticipant` 登记的幂等清理用例，`finalize-purge.usecase.ts` 收尾，各模块只清自己的表，rulings §4.13 S-2、§4.18 BE-15；文档擦除与「永久删除文档」不等回收站宽限期、立即硬删，§4.15 Q3。术语：文档级操作 2026-09-25 起称「永久删除文档」（原「立即彻底删除」），元素级「彻底删除元素」由 M-09 承接，rulings §4.18 CO-07）。
 - 不做：不持有文档**内容**（幻灯片树/CRDT update 在 BC-05/21，`Document` 只是目录条目——`headSeq`/`epoch` 由 BC-21/27 写入，本模块只读展示）；不做 WS 握手第二道 fail-closed 检查点的**实现**（契约在此定义，实现在 M-09）；不做版本历史的存储与恢复执行（BC-22/M-09，本模块只声明 `history.read`/`history.restore` 两个能力位供其检查点复用）。
 
 **BC-20 对象存储与媒体**
@@ -82,7 +82,7 @@ storageMod -- "ctx.blobStore" --> m12
 | `Document`（目录条目） | 文档的元数据行，非内容；`status ∈ active\|trashed\|locked\|purging`（C-02） | `documents/domain/document.ts` |
 | `Permission`/`Grant` | `(principalType,principalId) → role` 的一条授权；无行即无权 | `permissions/domain/permission.ts` |
 | `RoleName`/`ROLE_CAPABILITIES` | 角色→能力位表，权威类型定义在 `protocol/permissions/roles.ts`（M-02 Q-5 留白），本模块回填运行时初始值（§2.2） | `protocol/src/permissions/roles.ts`；回填于 `permissions/domain/role.ts` |
-| `ShareLink` | 角色叠加令牌，`role ∈ {viewer,commenter,editor}`（不可为 owner）。**需登录**方可兑现（rulings §4.13 S-1，2026-09-21 修订，原"免登录"字面定义已否决）：持有有效令牌的**已登录**用户经 `ShareLinkGuard` 把 `role` 叠加进自身能力位；无账号者在 IdP 取得账号后首次登录 JIT 建号（2026-09-24 取代原「个人账号自助注册」，服务端不持有密码，rulings §4.15 Q6；IdP 是否开放注册由 `auth.selfSignup` 决定） | `share-links/domain/share-link.ts` |
+| `ShareLink` | 角色叠加令牌，`role ∈ {viewer,commenter}`（不可为 owner 或 editor，rulings §4.24 AL-1；每份文档至多一条未撤销的链接，改角色与有效期在原行上进行、令牌不变，改回「仅邀请」即撤销，2026-10-15，rulings §4.25 DS-47）。**需登录**方可兑现（rulings §4.13 S-1，2026-09-21 修订，原"免登录"字面定义已否决）：持有有效令牌的**已登录**用户经 `ShareLinkGuard` 把 `role` 叠加进自身能力位；无账号者在 IdP 取得账号后首次登录 JIT 建号（2026-09-24 取代原「个人账号自助注册」，服务端不持有密码，rulings §4.15 Q6；IdP 是否开放注册由 `auth.selfSignup` 决定） | `share-links/domain/share-link.ts` |
 | `MediaBlob` | 部署级内容寻址媒体（`sha256` 唯一；2026-09-24 由租户级改，T-0） | `media/domain/media-blob.ts` |
 | `BlobRef` | `{hash,size,contentType}`，与 `protocol/src/blob.ts`、`model-core` 同一定义源 | `server-storage/src/domain/blob-ref.ts` |
 | `ServerBlobStore` | `BlobStore` 服务端扩展接口：`+ head/delete/presignPut/presignGet/list` | `server-storage/src/infrastructure/contracts/blob-store.ts` |
@@ -122,7 +122,8 @@ storageMod -- "ctx.blobStore" --> m12
 | `Document`（聚合根，目录条目） | BC-19 | `status` 四值 `active \| trashed \| locked \| purging`（决策 MECH-C 之 C-02；状态机见 60/04 §2）；`head_seq`/`epoch` 等 M-09 列本模块不写（编译期 `Omit`，60/04 §5） | `documents/domain/document.ts` |
 | `UserMark`（实体，`document_user_marks`，BE-31） | BC-19 | `(user_id, doc_id)` 主键、`last_opened_at?`、`pinned_at?`；只返回本人行；document-purge 参与者 `user-marks`；M2 建表（决策 MECH-C 之 C-04） | `documents/infrastructure/user-marks.repository.ts` |
 | `Permission`/`Grant`（实体） | BC-19 | 主体 M3 只有 `user`（U-11 推迟组）；至少一个 owner；`bumpPermVersion(tx)` 为 `document_perm_versions` 唯一写入点（C-28） | `permissions/domain/permission.ts` |
-| `ShareLink`（实体） | BC-19 | `role ∈ {viewer,commenter,editor}`；需登录（S-1）；令牌解析归 permissions（BE-02） | `share-links/domain/share-link.ts` |
+| `ShareLink`（实体） | BC-19 | `role ∈ {viewer,commenter}`（AL-1）；需登录（S-1）；令牌解析归 permissions（BE-02）；每份文档至多一条未撤销、可改角色与有效期、令牌以 KEK 信封存储供 owner 取回（2026-10-15，DS-47） | `share-links/domain/share-link.ts` |
+| `AccessRequest`（实体，2026-10-15，DS-48） | BC-19 | 没有角色的已登录用户的访问申请：每人每文档一行，`pending → approved \| rejected`，24 小时内不重复记、上次已批准的不受此限；批准与授权同一事务；留言处理后清空（60/09 §15） | `permissions/domain/access-request.ts` |
 | `MediaBlob`（聚合根，部署级） | BC-20 | `sha256` 唯一；读取须经 `document_media` 关联与文档作用域端点（INC-21） | `media/domain/media-blob.ts` |
 | `DocumentMedia`（关联实体） | BC-20 | `detached_at`/`unreferenced_since` 维护与 30 天无引用 GC（决策 C-25，60/04 §7.4） | `media/domain/document-media.ts` |
 
@@ -232,9 +233,9 @@ media_blobs {
 | `ApiKeyRepository`（M4） | `api_keys` | `auth/infrastructure/api-keys/api-key.repository.ts` |
 | `DocumentRepository` | `documents`（M-08 列） | `documents/infrastructure/document.repository.ts` |
 | `UserMarksRepository`（2026-09-25 登记，自 `DocumentRepository` 拆出） | `document_user_marks` | `documents/infrastructure/user-marks.repository.ts` |
-| `PermissionRepository` | `permissions`、`document_perm_versions` | `permissions/infrastructure/permission.repository.ts` |
-| `ShareLinkReader`（只读，经两个 SECURITY DEFINER 函数，BE-02、C-35） | `share_links` | `permissions/infrastructure/share-link-reader.ts` |
-| `ShareLinkRepository` | `share_links` | `share-links/infrastructure/share-link.repository.ts` |
+| `PermissionRepository` | `permissions`、`document_perm_versions`、`access_requests`（2026-10-15 并入访问申请段；申请人一侧没有 `DocAccess`，由扫描器对本仓储的既有豁免覆盖，30/09-type-discipline/06 §18） | `permissions/infrastructure/permission.repository.ts` |
+| `ShareLinkReader`（只读，令牌解析经两个 SECURITY DEFINER 函数，BE-02、C-35；2026-10-15 另有 `currentLink(access)`：成员列表读者视图唯一一条直接 SELECT，取仍有效那一行的 `id`、`role`、`token_enc`，令牌经同模块的 `ShareLinkTokenCipher` 解密，rulings §4.25 TB-65；同日由只取 `role` 的 `currentLinkRole` 改，DS-69、TB-86） | `share_links` | `permissions/infrastructure/share-link-reader.ts` |
+| `ShareLinkRepository` | `share_links` | `share-links/infrastructure/share-link.repository.ts`（令牌信封由 `permissions/infrastructure/share-link-token.cipher.ts` 加解密，2026-10-15；同日由本目录移出，TB-86） |
 | `MediaBlobRepository` | `media_blobs` | `media/infrastructure/media-blob.repository.ts` |
 | `DocumentMediaRepository`（2026-09-25 登记，自 `MediaBlobRepository` 拆出） | `document_media` | `media/infrastructure/document-media.repository.ts` |
 
@@ -251,7 +252,8 @@ media_blobs {
 | 用户状态与平台角色 | `users/application/*.usecase.ts` | 60/03 §3 |
 | 文档目录 CRUD、回收站、锁定、最近 / 固定 | `documents/application/*.usecase.ts`、`documents/application/queries/document-queries.ts` | [60/04 §3](../60-backend/04-modules-documents-storage-media.md) |
 | 授予 / 撤销权限、解析角色、解析分享令牌 | `permissions/application/*.usecase.ts` | 60/03 §4 |
-| 分享链接创建 / 撤销 / 访问叠加 | `share-links/application/*.usecase.ts`、`share-links/interface/guards/share-link-access.guard.ts` | 60/03 §5；60/02 §7 |
+| 访问申请：提交、列出、批准、拒绝（2026-10-15，rulings §4.25 DS-48） | `permissions/application/{request-access,list-access-requests,approve-access-request,reject-access-request}.usecase.ts`、`permissions/interface/access-requests.controller.ts` | 60/03 §4；60/09 §15；60/15 §3.4 |
+| 分享链接创建 / 改角色与有效期 / 撤销 / 列出 / 访问叠加 | `share-links/application/*.usecase.ts`、`share-links/interface/guards/share-link-access.guard.ts` | 60/03 §5；60/02 §7 |
 | 媒体预签名、提交、读取（`/documents/:id/media/*`，INC-21） | `media/application/{presign-upload,commit-upload,get-media}.usecase.ts` | 60/04 §7 |
 | 预签名 PUT（仅内部，导入两步上传用，BE-10） | `storage/application/get-presigned-put.usecase.ts` | 60/04 §6.3；60/06 §6.1 |
 | 永久删除编排：发起、处理器（独立队列 `document-purge`，INC-23 / C-05）、参与者、收尾 | `documents/application/{schedule-purge,finalize-purge,purge-document-user-marks}.usecase.ts`、`documents/interface/document-purge.processor.ts`、各模块 `purge-*.usecase.ts` | 60/04 §4（唯一源） |
@@ -390,7 +392,7 @@ Nest 模块不是 cordis Fiber（module-map §5.3），本节取代模板原 §3
 | `AuthModule` | `ConfigModule`、`RedisModule`、`UsersModule`、`PermissionsModule`、`DocumentsModule`（只取 `DocumentStateGuard`、`TouchRecentUseCase`） | `SessionGuard`（AppModule `APP_GUARD` 全局注册，BE-06）、`PlatformAdminGuard`、`@Public()`、`IssueCollabTicketUseCase`、`JwtService` 票据验签面（BE-07）；**`CollabTicketController` 归本模块**（`POST /documents/:id/collab-ticket`，2026-09-25） | 60/03 §2；60/02 |
 | `UsersModule` | 无 | `ProvisionOnFirstLoginUseCase` | 60/03 §3 |
 | `DocumentsModule` | `PermissionsModule`、`JobsModule`（`JobRunsRepository.create(tx, …)` 写 `document-purge` 作业行、`BaseProcessor`）、`StorageModule`（`finalize-purge` 删对象版本）；**不再 import `AuthModule`**（2026-09-25，票据控制器归 AuthModule） | `DocumentRepository`、`UserMarksRepository`（只读查询复用）、`DocumentStateGuard`、`TouchRecentUseCase`、`PurgeParticipant` 装饰器与接口；`DocumentPurgeProcessor` 只在 worker 注册（独立队列 `document-purge`） | 60/04 §1–§5、§8 |
-| `PermissionsModule` | `RedisModule`、`UsersModule` | `RoleResolverService`、`ResolveShareLinkUseCase`（BE-02）、`DocumentRoleGuard`、`RlsContext`、`bumpPermVersion(tx)` 唯一写入点（C-28） | 60/03 §4 |
+| `PermissionsModule` | `RedisModule`、`UsersModule`、`WebhooksModule`（M-12，`DeliverWebhookEventUseCase`：访问申请受理时产生 `access_request.created`，2026-10-15，rulings §4.25 DS-67；WebhooksModule 只依赖基础模块，不成环） | `RoleResolverService`、`ResolveShareLinkUseCase`（BE-02）、`DocumentRoleGuard`、`RlsContext`、`bumpPermVersion(tx)` 唯一写入点（C-28）、`PendingAccessRequestCounter`（供 Documents，2026-10-15，DS-48） | 60/03 §4 |
 | `ShareLinksModule` | `PermissionsModule` | `ShareLinkGuard`（第二个 `APP_GUARD`，BE-05） | 60/03 §5 |
 | `StorageModule` | `ConfigModule` | `BlobStoreAccessor`、`GetPresignedPutUseCase`（仅内部，BE-10） | 60/04 §6 |
 | `MediaModule` | `StorageModule`、`DocumentsModule` | `SyncDocumentMediaRefsUseCase`、`PruneDetachedMediaLinksUseCase`（供 M-09 写快照时同事务调用，决策 C-25） | 60/04 §7 |
@@ -459,7 +461,7 @@ auth/
 │   ├── api-key.ts                        ApiKey 实体（M4，rulings §4.15 Q6）
 │   └── errors.ts                         auth.* 错误码
 ├── application/
-│   ├── login-with-oidc.usecase.ts        生成 state+PKCE→StateStore，返回 authorizationUrl
+│   ├── login-with-oidc.usecase.ts        生成 state+PKCE→StateStore，302 到 IdP 授权端点（浏览器顶层导航 GET /auth/oidc/login，INC-18，60/15 §3.1；原「返回 authorizationUrl」作废，与 40/19 图 6-1 一致）；取不到 IdP 发现文档时不回 503，按 mode 302 回前端带 ?error=server.auth.idp_unavailable（2026-10-22，rulings §4.25 DS-121）；接受 prompt=login 并透传给 IdP，只开放这一个值（DS-124，内置 Casdoor 需验证支持）
 │   ├── handle-oidc-callback.usecase.ts   code→token 交换→UsersModule.provisionOnFirstLogin（JIT）→签发 Session
 │   ├── refresh-session.usecase.ts        会话/刷新令牌轮换
 │   ├── logout.usecase.ts                 撤销会话
@@ -470,7 +472,7 @@ auth/
 │   ├── tokens/jwt.service.ts             ES256 签发/验签、JWKS 轮换与 kid、httpOnly cookie 编解码
 │   └── api-keys/api-key.repository.ts    Drizzle：api_keys 表（M4）
 ├── interface/
-│   ├── auth.controller.ts                /auth/oidc/{login,callback}、/logout、/me、/token/refresh、/.well-known/jwks.json、/auth/config（公开：selfSignup 开关与 IdP 注册地址）；全部相对 /api/v1，公开端点标 @Public()
+│   ├── auth.controller.ts                /auth/oidc/{login,callback}、/logout、/me、/token/refresh、/.well-known/jwks.json、/auth/config（公开：selfSignup 开关与 IdP 注册地址；注册地址取部署配置 auth.signupUrl，selfSignup 为真时必填，2026-10-22，rulings §4.25 DS-119，配置键以 60/17 §5.5 为准；同日增 trashDays，取 retention.trashDays，TB-141）；全部相对 /api/v1，公开端点标 @Public()；发起端与回调的失败都 302 回前端（2026-10-22，rulings §4.25 DS-121），发起端接受 prompt=login（DS-124）
 │   ├── collab-ticket.controller.ts       POST /documents/:id/collab-ticket（CollabTicketController 归本模块，2026-09-25 自 documents.controller 迁入；借 DocumentsModule 导出的 DocumentStateGuard 与 TouchRecentUseCase，60/03 §2）
 │   ├── decorators/
 │   │   └── public.decorator.ts           @Public()：全局 SessionGuard 的放行标记（白名单快照见 §6，新增，rulings §4.18 BE-06）
@@ -498,7 +500,7 @@ users/
 │   └── errors.ts
 ├── application/
 │   ├── provision-on-first-login.usecase.ts  首次登录 JIT 建 User + UserIdentity（取代 find-or-create-by-oidc，Q6）
-│   ├── update-profile.usecase.ts         本人资料 + 管理员分支（status / platformRole）；停用分支同事务计数「唯一 owner 文档数」并随响应与审计返回（§4.20 BE-05）
+│   ├── update-profile.usecase.ts         本人资料 + 管理员分支（status / platformRole）；停用分支同事务计数「唯一 owner 文档数」并随响应与审计返回（§4.20 BE-05）；avatar_url 只存不显示，界面头像一律身份色首字（2026-10-22，rulings §4.25 TB-123，60/03 §3.2）；本人资料只收 displayName（去首尾空白后 1–128 字）、只改 display_name，avatarUrl 入参删去，avatar_url 只由 provision-on-first-login 按 IdP picture 刷新（2026-10-22，TB-137、TB-142）
 │   ├── erase-user.usecase.ts             EraseUserUseCase：POST /users/:id/erasure（M3）原地脱敏 + 删身份 + 计数「唯一 owner 文档数」，响应与审计附 soleOwnerDocCount（2026-09-26 登记，60/03 §3.3，§4.20 BE-05）
 │   └── list-users.usecase.ts             用户列表与分享对话框按人搜索（取代 list-tenant-members，T-0）
 ├── infrastructure/
@@ -521,18 +523,18 @@ documents/
 ├── application/
 │   ├── create-document.usecase.ts
 │   ├── rename-document.usecase.ts
-│   ├── duplicate-document.usecase.ts     DuplicateDocumentUseCase：POST /documents/:id/duplicate（doc.export；预分配新 docId、写 job_runs(kind=import, payload.source=duplicate) 并入 import 队列；M2，60/04 §3.3、60/06 §6.6）
+│   ├── duplicate-document.usecase.ts     DuplicateDocumentUseCase：POST /documents/:id/duplicate（doc.export；预分配新 docId、写 job_runs(kind=import, payload.source=duplicate，2026-10-15 起另记 srcTitle 供新文档 import 快照的显示名，DS-70) 并入 import 队列；M2，60/04 §3.3、60/06 §6.6）
 │   ├── trash-and-restore.usecase.ts      TrashDocumentUseCase + RestoreDocumentUseCase（互逆，同文件）
 │   ├── lock-document.usecase.ts          覆盖导入/迁移窗口的锁定、解锁、续期与到期释放（ADR-0029 决策 5；版本恢复不加锁，rulings §4.19 N1）
-│   ├── list-recent.usecase.ts            ListRecentDocumentsUseCase（M2，服务端同步「最近」，rulings §4.12 U-04）
+│   ├── list-recent.usecase.ts            ListRecentDocumentsUseCase（M2，服务端同步「最近」，rulings §4.12 U-04）；2026-10-22：条目字段同 ListDocumentsQuery（含最近编辑者、内容更新时间与 createdAt，rulings §4.25 DS-83、DS-84），开始页「最近」的排序只在前端（TB-127，60/04 §3.1）
 │   ├── pin-document.usecase.ts           PinDocumentUseCase + UnpinDocumentUseCase（互逆，同文件；M2，rulings §4.12 U-04）
 │   ├── schedule-purge.usecase.ts         编排式硬删除发起：同一事务 status→purging + 写 job_runs(kind=document-purge)（rulings §4.13 S-2；§4.18 BE-15 删「或发领域事件」）
 │   ├── purge-participant.ts              @PurgeParticipant(name) 装饰器 + PurgeParticipant 接口 { purge(ctx: SystemContext, docId) }（新增，§4.18 BE-15）
 │   ├── finalize-purge.usecase.ts         收尾：ListObjectVersions 删 docs/{docId}/ 全部对象版本 → 删 documents 行 → 审计 document.purged（新增，BE-15）
 │   ├── purge-document-user-marks.usecase.ts  参与者 user-marks：清 document_user_marks（新增，§4.18 BE-31）
-│   └── queries/document-queries.ts       ListDocumentsQuery + GetDocumentDetailQuery
+│   └── queries/document-queries.ts       ListDocumentsQuery + GetDocumentDetailQuery；列表项补最近编辑者、内容更新时间与 createdAt，各视图固定次序、不接受排序参数（2026-10-22，rulings §4.25 DS-83、DS-84；字段与来源以 60/15 §3.3、60/04 为准）；owned / shared / all 按 last_activity_at DESC, id（内容更新时间，改名与回收站进出不改变次序，TB-144），trashed 按 deleted_at DESC, id 且每条带 trashedAt（DS-85）；lastEditor 由 content_updated_by 关联 users 取显示名；尚无快照时 lastEditor 与 contentUpdatedAt 都省略，content_updated_by 为空（没有可归属用户的建档，即系统作业建档）时只省略 lastEditor、照常带 contentUpdatedAt，省略时不补值、不以 owner 顶替（2026-10-22，rulings §4.25 TB-171，60/15 §3.3）
 ├── infrastructure/
-│   ├── document.repository.ts            Drizzle：documents（以 docId 为键的方法首参 DocAccess|SystemContext）
+│   ├── document.repository.ts            Drizzle：documents（以 docId 为键的方法首参 DocAccess|SystemContext）；更新入参白名单 DocumentMetaPatch 不含 M-09 列（2026-10-22 增的 content_updated_by 同样不可写，60/04 §5）
 │   └── user-marks.repository.ts          UserMarksRepository：document_user_marks（touchRecent/setPinned/clearRecent/listRecent/listPinned/purgeByDoc；BE-31，2026-09-25 自 document.repository 拆出，60/04 §8）
 ├── interface/
 │   ├── documents.controller.ts           GET/POST /documents、GET/PATCH/DELETE /documents/:id、POST /:id/restore、GET /documents?filter=recent|pinned、PUT/DELETE /documents/:id/pin、DELETE /documents/:id/recent、POST /documents/:id/purge（路由表以 60/15 §3.3 为准）；全部相对 /api/v1；collab-ticket 路由 2026-09-25 移归 AuthModule
@@ -550,28 +552,36 @@ permissions/
 ├── permissions.module.ts
 ├── domain/
 │   ├── permission.ts                     Permission/Grant 聚合
+│   ├── access-request.ts                 AccessRequest 实体：pending / approved / rejected、24 小时内不重复记（上次已批准除外）（2026-10-15，DS-48）
 │   ├── role.ts                           RoleName + ROLE_CAPABILITIES 运行时初始值（§2.2）
 │   └── role-resolution.ts                mergeRoles()（§2.3，纯函数）
 ├── application/
 │   ├── grant-permission.usecase.ts
 │   ├── revoke-permission.usecase.ts
-│   ├── list-permissions.usecase.ts
+│   ├── list-permissions.usecase.ts       doc.read 即可列（2026-10-15，DS-48）；owner 与读者两条独立查询路径：读者只得未过期授权的姓名与角色、外加当前有效链接的角色与令牌（令牌经同模块的 ShareLinkTokenCipher 解密，DS-69、TB-86），出参经严格 schema（TB-65）
+│   ├── request-access.usecase.ts         RequestAccessUseCase：申请人对文档没有角色时提交，24 小时内重复返回原申请（2026-10-15）；新记下时同一事务经 WebhooksModule 写 access_request.created 投递行（同日，DS-67）
+│   ├── list-access-requests.usecase.ts   ListAccessRequestsQuery（owner 的待处理列表）+ PendingAccessRequestCounter（供 GetDocumentQuery 的圆点计数）（2026-10-15）
+│   ├── approve-access-request.usecase.ts ApproveAccessRequestUseCase：锁申请行 → 按人授予 → 标记已批准 → permVersion +1，同一事务（2026-10-15）
+│   ├── reject-access-request.usecase.ts  RejectAccessRequestUseCase：标记已拒绝、清空留言，不告知申请人、不设申请状态查询（2026-10-15，DS-68）
 │   ├── resolve-role.usecase.ts           编排：直接授权（5 s 缓存）与 Principal.scopes 链接条目（按 linkId 复核）取高 → mergeRoles；authorize() 签发 DocAccess
 │   ├── resolve-share-link.usecase.ts     token→{linkId,role,expiresAt}、linkId→状态；供 ShareLinkGuard、RoleResolver、M-09 AuthzSource 共用（2026-09-25 自 share-links 移入，rulings §4.18 BE-02）
 │   ├── reassign-owner.usecase.ts         ReassignOwnerUseCase（M3）：系统上下文给文档指定新 owner、perm_version 加 1、审计 admin.owner_reassigned；供 cordex-ops documents:reassign-owner（40/12 §4.13），M4 管理面板复用（2026-09-26 登记，§4.20 BE-05+TX-22）
 │   └── purge-document-permissions.usecase.ts  参与者 permissions：清 permissions/document_perm_versions（rulings §4.13 S-2；§4.18 BE-15）
 ├── infrastructure/
-│   ├── permission.repository.ts          Drizzle：permissions + document_perm_versions
-│   ├── share-link-reader.ts              只读：经 SECURITY DEFINER 函数 cordex_share_link_by_token / cordex_share_link_status 查 share_links，不直接 SELECT、不写表（新增，BE-02）
+│   ├── permission.repository.ts          Drizzle：permissions + document_perm_versions + access_requests（访问申请段，2026-10-15）
+│   ├── share-link-reader.ts              只读：令牌解析经 SECURITY DEFINER 函数 cordex_share_link_by_token / cordex_share_link_status（新增，BE-02）；currentLink(access) 是唯一的直接 SELECT，取仍有效那一行的 id、role 与 token_enc（2026-10-15，TB-65；同日按 DS-69、TB-86 由只取 role 改）；不写表
+│   ├── share-link-token.cipher.ts        ShareLinkTokenCipher：令牌的 AES-256-GCM 信封（KEK 来自 config/secrets，AAD = id ‖ doc_id）；只在 api 装配并导出给 share-links（建链加密、owner 列表解密），本模块的成员列表读者视图也用它解密（2026-10-15 由 share-links/ 移入，DS-69、TB-86、TB-93）
 │   ├── perm-change.publisher.ts          Redis 协议（部署为 Valkey）PUBLISH perm:doc:{id}（供 M-09 订阅）
 │   └── rls-context.ts                    请求事务内 SET LOCAL app.user_id / app.share_doc_id（文档级 RLS，新增，§4.15 Q6）
 ├── interface/
 │   ├── permissions.controller.ts         GET/PUT/DELETE /documents/:id/permissions…（相对 /api/v1）
+│   ├── access-requests.controller.ts     POST/GET /documents/:id/access-requests、POST …/:requestId/approve|reject（2026-10-15，DS-48）
 │   └── guards/document-role.guard.ts     @RequireDocRole('editor')：resolve-role → capability 检查 → fail-closed 403
 └── __tests__/
     ├── resolve-role.usecase.test.ts
     ├── resolve-share-link.usecase.test.ts  覆盖过期/撤销实时判定、token 与 linkId 两条路径结果一致（2026-09-25 自 share-links 移入）
-    └── grant-permission.usecase.test.ts
+    ├── grant-permission.usecase.test.ts
+    └── access-requests.usecase.test.ts   覆盖已有角色 409、24 小时内重复不改写、批准与授权同事务、并发处理只有一个成功（2026-10-15）
 ```
 
 ### 4.6 `apps/server/src/modules/share-links/`
@@ -583,16 +593,19 @@ share-links/
 │   ├── share-link.ts
 │   └── errors.ts
 ├── application/
-│   ├── create-share-link.usecase.ts
-│   ├── revoke-share-link.usecase.ts
+│   ├── create-share-link.usecase.ts      先撤销已过期未撤销的旧链接再新建；已有有效链接 → server.share_links.conflict（2026-10-15，DS-47）
+│   ├── update-share-link.usecase.ts      UpdateShareLinkUseCase：改角色与有效期，令牌不变，permVersion +1（2026-10-15，DS-47）
+│   ├── revoke-share-link.usecase.ts      撤销即「仅邀请」：置 revoked_at 并清空令牌密文
+│   ├── list-share-links.usecase.ts       ListShareLinksQuery：只给 owner，全部行带 state（active / expired / revoked），取回 active 那条的令牌（2026-10-15，DS-47、DS-66；同日按 TB-65 收回读者访问）
 │   └── purge-document-share-links.usecase.ts  参与者 share-links：清理本文档的 share_links（rulings §4.13 S-2；§4.18 BE-15/BE-16）
 ├── infrastructure/
-│   └── share-link.repository.ts          Drizzle：share_links 写方（create/revoke/listByDoc/purgeByDoc）；含 token 生成与哈希
+│   └── share-link.repository.ts          Drizzle：share_links 写方（create/revokeExpired/update/revoke/listByDoc/purgeByDoc；最初的 liveSummary 2026-10-15 删去，TB-65）；含 token 生成与哈希
 ├── interface/
-│   ├── share-links.controller.ts
+│   ├── share-links.controller.ts         POST/GET /documents/:id/share-links、PATCH/DELETE …/:linkId
 │   └── guards/share-link-access.guard.ts ShareLinkGuard：第二个 APP_GUARD，经 permissions 的 ResolveShareLinkUseCase 解析令牌后叠加链接角色到已登录 Principal，不产出匿名 Principal（rulings §4.13 S-1；§4.18 BE-02/BE-05）
 └── __tests__/
-    └── share-link-access.guard.test.ts   覆盖未登录 401、无 shareToken 直通、过期/撤销拒绝、角色叠加正确性（新增，S-1）
+    ├── share-link-access.guard.test.ts   覆盖未登录 401、无 shareToken 直通、过期/撤销拒绝、角色叠加正确性（新增，S-1）
+    └── share-link-lifecycle.usecase.test.ts  覆盖每文档至多一条未撤销、PATCH 前后令牌不变、撤销后密文为空、信封 AAD 绑定行（2026-10-15）
 ```
 
 ### 4.7 `apps/server/src/modules/storage/`
@@ -690,7 +703,7 @@ plugins/
 │   ├── fingerprint.ts                    computeCatalogDigest()、computePolicyDigest()：两段 base64url(sha256)
 │   └── errors.ts                         server.plugins.* 错误码
 ├── application/
-│   ├── get-plugin-catalog.usecase.ts     GET /admin/plugins、/admin/plugins/:pluginId（含近 24 h 客户端失败数、最近 5 次审计）
+│   ├── get-plugin-catalog.usecase.ts     GET /admin/plugins、/admin/plugins/:pluginId（含近 24 h 客户端失败数、最近 5 次审计）；行与详情带最近错误的阶段 lastErrorPhase（取 kernel.plugin_failed 的 details.phase，2026-10-22，rulings §4.25 TB-119）
 │   ├── update-plugin-policies.usecase.ts PATCH /admin/plugins：If-Match、整批一个事务、每项一条 plugin.policy_changed、提交后发布 plugins:ctl
 │   ├── update-plugin-config.usecase.ts   PUT /admin/plugins/:pluginId/config（M4）：Config schema 校验、plugin.config_changed 只记字段路径
 │   ├── get-effective-plugin-set.usecase.ts GET /users/me/plugins：本人生效插件集与指纹
@@ -726,7 +739,7 @@ plugins/
 | `domain/collab-ticket.ts` | 协同票据 claims + 构造函数 | `CollabTicketClaims`、`buildCollabTicketClaims` | `./principal` | ADR-0029 |
 | `domain/api-key.ts` | API Key 实体（M4） | `ApiKey` | 无 | scopes 结构见 SV-06；M1–M3 不启用（rulings §4.15 Q6） |
 | `domain/errors.ts` | `auth.*` 错误码 | `AuthError` | 无（点式码） | invalid_token/expired/forbidden/oidc_state_mismatch |
-| `application/login-with-oidc.usecase.ts` | 发起登录 | `LoginWithOidcUseCase` | `../infrastructure/oidc/*` | 生成 authorizationUrl |
+| `application/login-with-oidc.usecase.ts` | 发起登录 | `LoginWithOidcUseCase` | `../infrastructure/oidc/*` | 生成 IdP 授权地址并 302 过去（`GET /auth/oidc/login`，不设返回 `authorizationUrl` 的 JSON 变体，INC-18，60/15 §3.1）；发现文档取不到时按 `mode` 302 回 `/auth/callback` 或 `/auth/popup-callback` 带 `?error=server.auth.idp_unavailable`，与回调同一出口（2026-10-22，rulings §4.25 DS-121）；接受并透传 `prompt=login`，只开放这一个值（DS-124；内置 Casdoor 不支持时前端退为补一句文案） |
 | `application/handle-oidc-callback.usecase.ts` | 回调处理 | `HandleOidcCallbackUseCase` | `../domain/*`、`UsersModule` 导出的 `ProvisionOnFirstLoginUseCase` | 跨模块调用；校验 `issuer` 在受信 IdP 列表内（Q6） |
 | `application/refresh-session.usecase.ts` | 会话刷新 | `RefreshSessionUseCase` | `../infrastructure/tokens/jwt.service` | — |
 | `application/logout.usecase.ts` | 登出 | `LogoutUseCase` | `../infrastructure/tokens/jwt.service` | 撤销会话/黑名单 |
@@ -735,7 +748,7 @@ plugins/
 | `infrastructure/oidc/state-store.redis.ts` | state/nonce 存储 | `OidcStateStore` | `ioredis` | TTL 10 min |
 | `infrastructure/tokens/jwt.service.ts` | ES256 签发/验签 + JWKS + cookie 编解码 | `JwtService` | `jose` 6.2（2026-09-26 定案，不再写「或等价库」，R-d-43）、`@fastify/cookie`（插件在 `main.ts` 注册，本文件只读写 cookie，不签名） | kid 轮换；票据验签面经 `AuthModule` 导出供 M-09 `TicketVerifier`（rulings §4.18 BE-07） |
 | `infrastructure/api-keys/api-key.repository.ts` | `api_keys` 表（M4） | `ApiKeyRepository` | `drizzle-orm` | 按 `owner_user_id` 归属（2026-09-24 删 tenant_id 强制，T-0） |
-| `interface/auth.controller.ts` | REST 端点 | `AuthController` | protocol `rest/auth.ts` | 含 `/.well-known/jwks.json`、`/auth/config`（公开 selfSignup 开关，默认关）；2026-09-24 删 `/register-personal`（Q6）；公开端点标 `@Public()`，路径相对 `/api/v1`（rulings §4.18 BE-06/BE-11） |
+| `interface/auth.controller.ts` | REST 端点 | `AuthController` | protocol `rest/auth.ts` | 含 `/.well-known/jwks.json`、`/auth/config`（公开 selfSignup 开关，默认关；`signupUrl` 取部署配置 `auth.signupUrl`，2026-10-22，rulings §4.25 DS-119，配置键以 60/17 §5.5 为准；同日增 `trashDays`——取部署配置 `retention.trashDays`（缺省 30），前端回收站文案读它，TB-141，字段以 60/15 §3.1 为准）；2026-09-24 删 `/register-personal`（Q6）；公开端点标 `@Public()`，路径相对 `/api/v1`（rulings §4.18 BE-06/BE-11）；2026-10-22：发起端失败同回调 302 回前端（rulings §4.25 DS-121），发起端接受 `prompt=login`（DS-124；参数以 60/15 §3.1 为准） |
 | `interface/collab-ticket.controller.ts` | 协同票据 REST 端点（2026-09-25 自 `documents.controller.ts` 迁入） | `CollabTicketController` | `../application/issue-collab-ticket.usecase`、`DocumentsModule` 导出的 `DocumentStateGuard`/`TouchRecentUseCase` | `POST /documents/:id/collab-ticket`（相对 `/api/v1`）；票据的 claims、密钥与签发策略都属鉴权，DocumentsModule 因此不 import AuthModule（[60/03](../60-backend/03-modules-identity-and-access.md) §2） |
 | `interface/decorators/public.decorator.ts` | 全局守卫放行标记（新增，rulings §4.18 BE-06） | `Public`（`@Public()`）、`IS_PUBLIC_KEY` | `@nestjs/common`（`SetMetadata`） | 白名单快照由路由鉴权覆盖 e2e 断言（§9） |
 | `interface/guards/session.guard.ts` | Principal 解析，fail-closed | `SessionGuard`、`CurrentPrincipal` | `../../infrastructure/tokens/jwt.service`、`../decorators/public.decorator` | 401；AppModule 以 `APP_GUARD` 全局注册、默认拒绝，`@Public()` 放行，非 `http` 上下文直接放行（BE-06） |
@@ -757,12 +770,12 @@ plugins/
 | `domain/user.ts` | 聚合根 | `User` | 无 | `platformRole ∈ {member,admin}`；无 `tenantId`（§4.15 T-0） |
 | `domain/user-identity.ts` | IdP 身份绑定实体（新增，§4.15 Q6） | `UserIdentity` | 无 | `(issuer,subject)` 唯一 |
 | `domain/errors.ts` | `user.*` 错误码 | `UserError` | 无 | not_found/suspended/last_admin/untrusted_issuer |
-| `application/provision-on-first-login.usecase.ts` | 首次登录 JIT 建号 / 已有身份直接取用 | `ProvisionOnFirstLoginUseCase` | `../infrastructure/user.repository` | AuthModule 回调调用；同事务写 `users`+`user_identities` |
-| `application/update-profile.usecase.ts` | 更新资料；管理员分支改 status/platformRole | `UpdateProfileUseCase`、`AdminUpdateUserUseCase` | `../infrastructure/user.repository` | 管理员分支即 60/03 §3.2 的 `AdminUpdateUserUseCase`（`PATCH /users/:id`），与本人资料分支同文件导出、不拆文件（2026-09-26 确认，名字与 60/03 对齐）；需 `PlatformAdminGuard`；停用分支同事务 `countSoleOwnedDocs`，响应与审计 `user.suspended` 附 `soleOwnerDocCount`（rulings §4.20 BE-05） |
+| `application/provision-on-first-login.usecase.ts` | 首次登录 JIT 建号 / 已有身份直接取用 | `ProvisionOnFirstLoginUseCase` | `../infrastructure/user.repository` | AuthModule 回调调用；同事务写 `users`+`user_identities`；首次与每次登录都按 IdP `picture` 刷新 `avatar_url`（只收 `https://` 且 ≤ 2048 字符，否则置空），是 `avatar_url` 的唯一写方（擦除置空除外）；`display_name` 只在建号时写（2026-10-22，rulings §4.25 TB-137、TB-142，字段规则以 60/02 §3、60/09 §2 为准） |
+| `application/update-profile.usecase.ts` | 更新资料；管理员分支改 status/platformRole | `UpdateOwnProfileUseCase`、`AdminUpdateUserUseCase` | `../infrastructure/user.repository` | 本人分支即 60/03 §3.2 的 `UpdateOwnProfileUseCase`（`PATCH /users/me/profile`；2026-10-22 由 `UpdateProfileUseCase` 改名，与 60/03、60/09 对齐）：只收 `displayName`（去首尾空白后 1–128 字，同 `ck_users_display_name`），带 `avatarUrl` 等未登记字段按 `server.users.validation_failed` 拒绝，单事务只改 `display_name` 与 `updated_at`（rulings §4.25 TB-137、TB-142）；管理员分支即 60/03 §3.2 的 `AdminUpdateUserUseCase`（`PATCH /users/:id`），与本人资料分支同文件导出、不拆文件（2026-09-26 确认，名字与 60/03 对齐）；需 `PlatformAdminGuard`；停用分支同事务 `countSoleOwnedDocs`，响应与审计 `user.suspended` 附 `soleOwnerDocCount`（rulings §4.20 BE-05）；`avatar_url` 只存不显示（界面头像一律身份色首字，2026-10-22，rulings §4.25 TB-123，60/03 §3.2） |
 | `application/erase-user.usecase.ts` | 用户擦除（M3，2026-09-26 登记） | `EraseUserUseCase` | `../infrastructure/user.repository`、`SessionStore`（M-08 `auth`） | 单事务 `scrubForErasure` + `deleteIdentities` + `countSoleOwnedDocs`；提交后吊销全部会话；审计 `user.erased` 与响应附 `soleOwnerDocCount`，提醒管理员执行 `documents:reassign-owner`（rulings §4.20 BE-05；语义以 60/03 §3.3 为准）；文档不连带删除 |
 | `application/list-users.usecase.ts` | 用户列表 / 按人搜索 | `ListUsersUseCase` | `../infrastructure/user.repository` | 供管理面板与分享对话框（取代 `list-tenant-members`，T-0） |
 | `infrastructure/user.repository.ts` | `users`+`user_identities` 表 | `UserRepository` | `drizzle-orm` | 方法集以 60/03 §3.1 为准；`countSoleOwnedDocs(tx, userId)` 只调 SECURITY DEFINER 函数 `cordex_sole_owner_doc_count`、只取一个数字（UsersModule 仍是叶子，不 import 文档或权限模块；rulings §4.20 BE-05） |
-| `interface/users.controller.ts` | REST 端点 | `UsersController` | protocol `rest/users.ts`（新增，§12） | `rest/users.ts` 的 `PATCH /users/:id` 响应在本次改为 `suspended` 时带 `soleOwnerDocCount`，`POST /users/:id/erasure` 响应为 `{userId, erasedAt, soleOwnerDocCount}`（字段语义以 60/15 §3.2 为准；2026-09-26，rulings §4.20 BE-05） |
+| `interface/users.controller.ts` | REST 端点 | `UsersController` | protocol `rest/users.ts`（新增，§12） | `rest/users.ts` 的 `PATCH /users/:id` 响应在本次改为 `suspended` 时带 `soleOwnerDocCount`，`POST /users/:id/erasure` 响应为 `{userId, erasedAt, soleOwnerDocCount}`（字段语义以 60/15 §3.2 为准；2026-09-26，rulings §4.20 BE-05）；`PATCH /users/me/profile` 的入参为 `{ displayName }`，`avatarUrl` 2026-10-22 删去（rulings §4.25 TB-142；M3 个人资料对话框只改显示名，TB-137） |
 | `__tests__/provision-on-first-login.usecase.test.ts` | 单测 | — | — | 覆盖首次/重复登录、并发首登唯一冲突 |
 
 ### 5.4 `documents/`
@@ -775,17 +788,17 @@ plugins/
 | `domain/errors.ts` | `document.*` 错误码 | `DocumentError` | 无 | not_found/locked/trashed |
 | `application/create-document.usecase.ts` | 建文档 + 创建者=owner | `CreateDocumentUseCase` | `../infrastructure/document.repository`、`PermissionsModule` | 单事务 |
 | `application/rename-document.usecase.ts` | 重命名 | `RenameDocumentUseCase` | `../infrastructure/document.repository`、`PermissionsModule` | 需 `doc.write` |
-| `application/duplicate-document.usecase.ts` | 创建副本（2026-09-25 登记） | `DuplicateDocumentUseCase` | `../infrastructure/document.repository`、`jobs` 基础设施（M-12） | M2；需源文档 `doc.export`；作业化，复用 `import` 队列，幂等键 `duplicateKey`（40/12 §2.2）；语义以 60/04 §3.3 为准 |
+| `application/duplicate-document.usecase.ts` | 创建副本（2026-09-25 登记） | `DuplicateDocumentUseCase` | `../infrastructure/document.repository`、`jobs` 基础设施（M-12） | M2；需源文档 `doc.export`；作业化，复用 `import` 队列，幂等键 `duplicateKey`（40/12 §2.2）；`payload` 另记受理时源文档的标题 `srcTitle`，新文档 `import` 快照据此写来源 `duplicate` 与显示名（2026-10-15，rulings §4.25 DS-70，60/04 §3.3）；语义以 60/04 §3.3 为准 |
 | `application/trash-and-restore.usecase.ts` | 回收站互逆操作 | `TrashDocumentUseCase`、`RestoreDocumentUseCase` | `../infrastructure/document.repository`、`PermissionsModule` | 需 `doc.manage` |
 | `application/lock-document.usecase.ts` | 锁定/解锁/续期/到期释放 | `LockDocumentUseCase`、`UnlockDocumentUseCase`、`RenewLockUseCase`、`ReleaseExpiredLocksUseCase` | `../infrastructure/document.repository`、`PermissionsModule` | 仅系统调用，非用户可达 REST；调用方只有 M-12 覆盖导入（开工加锁、`persist` 事务内或失败 / 取消时解锁、重跑续期）、M-09 迁移窗口与周期作业 `trash-expiry`（到期释放）；`reason ∈ {import, migration}`，版本恢复不调用（rulings §4.19 N1，60/04 §3.2） |
-| `application/list-recent.usecase.ts` | 最近文档列表（服务端同步） | `ListRecentDocumentsUseCase` | `../infrastructure/document.repository`、`RoleResolverService` | M2；rulings §4.12 U-04，按角色过滤同 §2.6 列表口径 |
+| `application/list-recent.usecase.ts` | 最近文档列表（服务端同步） | `ListRecentDocumentsUseCase` | `../infrastructure/document.repository`、`RoleResolverService` | M2；rulings §4.12 U-04，按角色过滤同 §2.6 列表口径；2026-10-22：条目字段同 `ListDocumentsQuery`（含最近编辑者、内容更新时间与 `createdAt`，rulings §4.25 DS-83、DS-84），开始页「最近」的排序只在前端（TB-127，60/04 §3.1） |
 | `application/pin-document.usecase.ts` | 固定/取消固定（互逆） | `PinDocumentUseCase`、`UnpinDocumentUseCase` | `../infrastructure/document.repository` | M2；rulings §4.12 U-04，用户级标记，不改变文档权限 |
 | `application/schedule-purge.usecase.ts` | 编排式硬删除发起（新增，rulings §4.13 S-2） | `SchedulePurgeUseCase` | `../infrastructure/document.repository`、`jobs` 基础设施（M-12，Open Host Service） | 仅系统调用；同一事务 `status→purging`（不可逆，允许自 `active` 进入）+ 写 `job_runs(kind=document-purge)`，见 §2.1/§2.6/§7（§4.18 BE-15） |
 | `application/purge-participant.ts` | 参与者登记（新增，rulings §4.18 BE-15） | `PurgeParticipant`（装饰器 + 接口）、`PURGE_PARTICIPANTS`（期望集合常量） | `@nestjs/common`、`@nestjs/core`（`DiscoveryService` 元数据键） | 下游模块只 import 本文件的装饰器，`documents` 不 import 下游 |
 | `application/finalize-purge.usecase.ts` | 收尾硬删除（新增，BE-15） | `FinalizePurgeUseCase` | `../infrastructure/document.repository`、`StorageModule.BlobStoreAccessor`（`listVersions`/`deleteVersion`） | 删 `docs/{docId}/` 全部对象版本 → 删 `documents` 行 → 审计 `document.purged` |
 | `application/purge-document-user-marks.usecase.ts` | 参与者 user-marks（新增，§4.18 BE-31） | `PurgeDocumentUserMarksUseCase` | `../infrastructure/document.repository` | `@PurgeParticipant('user-marks')`；清 `document_user_marks` |
-| `application/queries/document-queries.ts` | 列表/详情查询 | `ListDocumentsQuery`、`GetDocumentDetailQuery` | `RoleResolverService` | 列表按角色过滤 |
-| `infrastructure/document.repository.ts` | `documents` 表 | `DocumentRepository` | `drizzle-orm` | 以 `docId` 为键的方法首参 `DocAccess\|SystemContext`（扫描器 `scan-doc-access-via-permission`）；方法集以 [60/04 §8](../60-backend/04-modules-documents-storage-media.md) 为准 |
+| `application/queries/document-queries.ts` | 列表/详情查询 | `ListDocumentsQuery`、`GetDocumentDetailQuery` | `RoleResolverService` | 列表按角色过滤；2026-10-22：列表项补最近编辑者、内容更新时间与 `createdAt`，各视图固定次序、不接受排序参数（rulings §4.25 DS-83、DS-84；DTO 以 60/15 §3.3 为准，最近编辑者的写入方以 60/04 为准）；所有者读回收站里的文档仍得详情（供前端「此文档在回收站中」阻断页，DS-85，表 2-2 见 60/04）；同日再补：「我的文档」「与我共享」与搜索结果按 `last_activity_at DESC, id`——生成列 `coalesce(content_updated_at, created_at)`，即内容更新时间倒序，与卡片第二行的时间同源，改名、移入与恢复回收站不改变次序（TB-144）；回收站按 `deleted_at DESC, id`、每条带 `trashedAt`（DS-84、DS-85）；`lastEditor` 由 `content_updated_by` 关联 `users` 主键取显示名，取法同 `owner`（60/04 §3.1、60/10 §11）；尚无快照时 `lastEditor` 与 `contentUpdatedAt` 都省略，`content_updated_by` 为空（系统作业建档）时只省略 `lastEditor`、照常带 `contentUpdatedAt`，省略时不补值、不以 `owner` 顶替（2026-10-22，rulings §4.25 TB-171，60/15 §3.3） |
+| `infrastructure/document.repository.ts` | `documents` 表 | `DocumentRepository` | `drizzle-orm` | 以 `docId` 为键的方法首参 `DocAccess\|SystemContext`（扫描器 `scan-doc-access-via-permission`）；方法集以 [60/04 §8](../60-backend/04-modules-documents-storage-media.md) 为准；`updateMeta` 的入参白名单 `DocumentMetaPatch` 只含 M-08 列，M-09 列（含 2026-10-22 增的 `content_updated_by`，rulings §4.25 DS-83）一律不可写（60/04 §5 第 1 条，类型测试断言）；`listOwned` / `listShared` 按 `last_activity_at DESC, id`、`listTrashed` 按 `deleted_at DESC, id`（DS-84、TB-144） |
 | `infrastructure/user-marks.repository.ts` | `document_user_marks` 表（2026-09-25 自 `document.repository.ts` 拆出） | `UserMarksRepository` | `drizzle-orm` | `touchRecent`/`setPinned`/`clearRecent`/`listRecent`/`listPinned`/`purgeByDoc`（60/04 §8，BE-31）；RLS 只返回本人行 |
 | `interface/documents.controller.ts` | REST 端点 | `DocumentsController` | protocol `rest/documents.ts` | 路由表以 [60/15 §3.3](../60-backend/15-rest-api-catalog.md) 为准；2026-09-25 删 `POST /:id/collab-ticket`（移归 AuthModule `collab-ticket.controller.ts`），本模块不再 import `AuthModule` |
 | `interface/document-purge.processor.ts` | document-purge 作业处理器（新增，BE-15；独立队列 `document-purge`，不并入 maintenance，决策 INC-23 / C-05） | `DocumentPurgeProcessor` | `@nestjs/bullmq`、`DiscoveryService`、`../application/*`、Valkey 控制频道（经 M-09 契约） | 仅 worker 角色注册（40-modules/12 §7.1 矩阵）；启动断言参与者集合 = `{permissions, share-links, media, collab, thumbnails, comments, user-marks}` |
@@ -797,41 +810,52 @@ plugins/
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
-| `permissions.module.ts` | 模块装配 | `PermissionsModule` | `RedisModule`、`UsersModule` | exports `RoleResolverService`/`ResolveShareLinkUseCase`/`DocumentRoleGuard`/`RlsContext`/`ReassignOwnerUseCase`（2026-09-25 增 `ResolveShareLinkUseCase`，rulings §4.18 BE-02；2026-09-26 增 `ReassignOwnerUseCase` 供 `cordex-ops`，rulings §4.20 BE-05；完整导出面以 60/03 §4.1 为准）；不 import `ShareLinksModule` |
+| `permissions.module.ts` | 模块装配 | `PermissionsModule` | `RedisModule`、`UsersModule`、`WebhooksModule`（2026-10-15，DS-67） | exports `RoleResolverService`/`ResolveShareLinkUseCase`/`DocumentRoleGuard`/`RlsContext`/`ReassignOwnerUseCase`（2026-09-25 增 `ResolveShareLinkUseCase`，rulings §4.18 BE-02；2026-09-26 增 `ReassignOwnerUseCase` 供 `cordex-ops`，rulings §4.20 BE-05；2026-10-15 增 `PendingAccessRequestCounter` 供 DocumentsModule，rulings §4.25 DS-48；同日增 `ShareLinkTokenCipher`（只在 api 注册并导出，供 ShareLinksModule，TB-86、TB-93）；完整导出面以 60/03 §4.1 为准）；不 import `ShareLinksModule` |
 | `domain/permission.ts` | 聚合（Grant） | `Permission` | 无 | §2.1 |
+| `domain/access-request.ts`（2026-10-15，rulings §4.25 DS-48） | 访问申请实体 | `AccessRequest`、`canResubmit` | `./role` | 状态 `pending \| approved \| rejected`；`canResubmit(row, now)`：上次已批准或距 `requestedAt` 满 24 小时（常量，不设配置键）；留言 1–200 字（60/09 §15） |
 | `domain/role.ts` | 角色→能力位 | `RoleName`、`ROLE_CAPABILITIES` | `@cordexjs/protocol` | 运行时初始值回填 M-02 Q-5（§2.2） |
 | `domain/role-resolution.ts` | 角色合并纯函数 | `mergeRoles` | `./role` | §2.3 |
 | `application/grant-permission.usecase.ts` | 授予 | `GrantPermissionUseCase` | `../infrastructure/permission.repository`、`perm-change.publisher` | 单事务 + 异步 PUBLISH |
 | `application/revoke-permission.usecase.ts` | 撤销 | `RevokePermissionUseCase` | `../infrastructure/permission.repository`、`perm-change.publisher` | 最后一个 owner 拒绝 |
-| `application/list-permissions.usecase.ts` | 列出授权 | `ListPermissionsUseCase` | `../infrastructure/permission.repository` | — |
+| `application/list-permissions.usecase.ts` | 列出授权 | `ListPermissionsUseCase` | `../infrastructure/permission.repository`、`../infrastructure/share-link-reader`、`../infrastructure/share-link-token.cipher`（2026-10-15） | 2026-10-15 起 `doc.read` 即可调用（DS-48）；同日按 TB-65 分两条互不共用的路径：持 `doc.manage` 调 `listByDoc` 得完整行（`MemberList{view:'owner'}`），其他角色调 `listMemberSummaries` + `ShareLinkReader.currentLink` 得 `MemberList{view:'reader'}`（未过期授权的主体、角色、显示名与头像，外加当前有效链接的角色与令牌——令牌经 `ShareLinkTokenCipher` 解密、失败只省略并记 `warn`，rulings §4.25 DS-69、TB-86；无邮箱与有效期）；出参经 protocol 严格对象 schema（60/03 §4.2、60/09 §10 ⑩） |
+| `application/request-access.usecase.ts`（2026-10-15，DS-48） | 提交访问申请 | `RequestAccessUseCase` | `../infrastructure/permission.repository`、`./resolve-role.usecase`、`../domain/access-request`、`WebhooksModule`（`DeliverWebhookEventUseCase`） | 不经 `DocumentRoleGuard`；已有有效角色 → `server.access_requests.already_granted`；24 小时内重复返回原申请（200）；新记下时审计 `access_request.created`，并在同一事务调 `WebhooksModule` 的 `DeliverWebhookEventUseCase` 写 `access_request.created` 投递行（载荷不含留言，2026-10-15，DS-67）；回收站中的文档照常受理，外键失败映射 `server.documents.not_found`（TB-73，60/03 §4.2） |
+| `application/list-access-requests.usecase.ts`（2026-10-15） | 待处理申请列表与计数 | `ListAccessRequestsQuery`、`PendingAccessRequestCounter` | `../infrastructure/permission.repository`、`UsersModule`（`UserDirectory`） | 只给 owner（`doc.manage`）；计数供 DocumentsModule 的 `GetDocumentQuery` 写 `DocumentDetail.pendingAccessRequests`（60/04 §3.1） |
+| `application/approve-access-request.usecase.ts`（2026-10-15） | 批准访问申请 | `ApproveAccessRequestUseCase` | `../infrastructure/permission.repository`、`./grant-permission.usecase`（同一段授予逻辑）、`../infrastructure/perm-change.publisher` | 单事务：锁申请行 → 授予所选角色 → 标记已批准、清空留言 → `bumpPermVersion`；提交后 PUBLISH；非 `pending` → `server.access_requests.not_pending`；审计 `access_request.approved` 与 `permission.granted` |
+| `application/reject-access-request.usecase.ts`（2026-10-15） | 拒绝访问申请 | `RejectAccessRequestUseCase` | `../infrastructure/permission.repository` | 标记已拒绝、清空留言；不递增 `perm_version`；不告知申请人、不设申请人查询本人申请状态的接口（rulings §4.25 DS-68）；审计 `access_request.rejected` |
 | `application/resolve-role.usecase.ts` | 角色解析编排 + 签发 `DocAccess` | `RoleResolverService`、`DocAccess` | `./role-resolution`、`./resolve-share-link.usecase`（同模块，2026-09-25 起不再依赖 `ShareLinksModule`，rulings §4.18 BE-02） | 直接授权部分 5 s 缓存；与 `Principal.scopes` 中本文档链接条目（按 `linkId` 复核）取高；2026-09-24 删「租户默认」来源（T-0） |
 | `application/resolve-share-link.usecase.ts` | 令牌/链接解析（2026-09-25 自 `share-links` 移入，BE-02） | `ResolveShareLinkUseCase` | `../infrastructure/share-link-reader` | token→`{linkId,role,expiresAt}`、linkId→状态；`ShareLinkGuard`、`RoleResolverService`、M-09 `AuthzSource` 共用，保证各处解析一致 |
 | `application/reassign-owner.usecase.ts` | 运维转移 owner（M3，2026-09-26 登记，rulings §4.20 BE-05+TX-22） | `ReassignOwnerUseCase` | `../infrastructure/permission.repository`、`../infrastructure/perm-change.publisher`、`UsersModule`（`UserDirectory`） | `SystemContext`（`app.system_job='ops.documents-reassign-owner'`）；单事务：删目标旧授权 → 插 owner 行 → `bumpPermVersion`；提交后 PUBLISH `perm:doc:{id}`，在线会话 ≤ 1 s 重算；审计 `admin.owner_reassigned`；目标已是 owner 则幂等；原 owner 授权与 `documents.owner_id` 不动（语义以 60/03 §4.2 为准）；调用方 40/12 `ops/cli.ts`，M4 管理面板复用 |
 | `application/purge-document-permissions.usecase.ts` | 清理文档权限（新增，rulings §4.13 S-2） | `PurgeDocumentPermissionsUseCase` | `../infrastructure/permission.repository`、`DocumentsModule` 的 `PurgeParticipant` 装饰器 | 仅系统调用；`@PurgeParticipant('permissions')`；清 `permissions`/`document_perm_versions`；`share_links` 由 `share-links` 自己的参与者清理（§7，§4.18 BE-15/BE-16） |
-| `infrastructure/permission.repository.ts` | `permissions`+`document_perm_versions` 表 | `PermissionRepository` | `drizzle-orm` | `bumpPermVersion` 同事务 |
-| `infrastructure/share-link-reader.ts` | 分享链接只读查询（新增，BE-02） | `ShareLinkReader` | `drizzle-orm`（只调 `SECURITY DEFINER` 函数） | 不直接 `SELECT share_links`、不写表；函数定义在 60/09 迁移 0033（文件 `db/migrations/0033_share_link_lookup_functions.sql`，文件级见 M-12 §4.13；2026-09-25 审稿改指，原 30/08 篇 §5 草案已删）；入参是令牌哈希或链接 id、不以 `docId` 为键，文件也不是 `*.repository.ts`，不落入 `doc-access-via-permission` 判定面（09-type-discipline/06 该扫描器「规则」行）；豁免常量仍只有 `PermissionRepository`/`ShareLinkRepository` |
+| `infrastructure/permission.repository.ts` | `permissions`+`document_perm_versions`+`access_requests` 表 | `PermissionRepository` | `drizzle-orm` | `bumpPermVersion` 同事务；2026-10-15 并入访问申请段（`submitAccessRequest`、`findOwnAccessRequest` 以申请人与 `docId` 为参、没有 `DocAccess`，由 `scan-doc-access-via-permission` 对本仓储的既有豁免覆盖；其余方法首参 `DocAccess`；语句见 60/09 §10 ⑨） |
+| `infrastructure/share-link-reader.ts` | 分享链接只读查询（新增，BE-02） | `ShareLinkReader` | `drizzle-orm`（令牌解析只调 `SECURITY DEFINER` 函数） | 令牌解析不直接 `SELECT share_links`；唯一的直接 SELECT 是 `currentLink(access)`（2026-10-15，rulings §4.25 TB-65：成员列表读者视图取仍有效那一行，首参 `DocAccess`、经 RLS，结果列只有 `id`、`role`、`token_enc`，60/09 §10 ⑩；同日由只取 `role` 改，DS-69、TB-86；`id` 只作解密的 AAD、不出参，TB-94）；不写表；函数定义在 60/09 迁移 0033（文件 `db/migrations/0033_share_link_lookup_functions.sql`，文件级见 M-12 §4.13；2026-09-25 审稿改指，原 30/08 篇 §5 草案已删）；入参是令牌哈希或链接 id、不以 `docId` 为键，文件也不是 `*.repository.ts`，不落入 `doc-access-via-permission` 判定面（09-type-discipline/06 该扫描器「规则」行）；豁免常量仍只有 `PermissionRepository`/`ShareLinkRepository` |
+| `infrastructure/share-link-token.cipher.ts`（2026-10-15，DS-47；同日由 `share-links/` 移入，TB-86、TB-93） | 令牌信封 | `ShareLinkTokenCipher` | `node:crypto`、`../../../config/secrets`（KEK） | AES-256-GCM，信封 `格式版本 ‖ KEK 编号 ‖ nonce ‖ 密文 ‖ tag`（62 字节）、AAD = 链接 id ‖ `doc_id`，与 Webhook 签名密钥同一格式与 KEK（60/07 §4.3）；只在 api 装配并导出给 ShareLinksModule（建链加密、owner 列表解密），本模块的成员列表读者视图也用它解密（collab 不持有 KEK，60/17 §6；ShareLinks → Permissions 单向依赖不变，60/03 §6）；解密失败只省略令牌、记 `warn` |
 | `infrastructure/perm-change.publisher.ts` | 权限变更广播 | `PermChangePublisher` | `ioredis` | 频道 `perm:doc:{id}`；自托管部署为 Valkey（Redis 协议兼容，§4.15 Q10） |
 | `infrastructure/rls-context.ts` | 文档级 RLS 会话上下文（新增，§4.15 Q6，M3 出口） | `RlsContext` | `drizzle-orm` | 请求事务内 `SET LOCAL app.user_id`/`app.share_doc_id`；系统路径改用独立系统作业角色 `cordex_system`（无 `BYPASSRLS`）+ 系统作业上下文，RLS 策略对系统上下文显式放行（复核 H4） |
-| `interface/permissions.controller.ts` | REST 端点 | `PermissionsController` | protocol `rest/documents.ts`（权限段） | — |
+| `interface/permissions.controller.ts` | REST 端点 | `PermissionsController` | protocol `rest/documents.ts`（权限段） | `GET` 自 2026-10-15 起为 `doc.read`（DS-48） |
+| `interface/access-requests.controller.ts`（2026-10-15，DS-48） | 访问申请 REST | `AccessRequestsController` | protocol `rest/documents.ts`（权限段的访问申请部分） | 提交路由只要会话（不挂 `DocumentRoleGuard`）；列出、批准、拒绝挂 `DocumentRoleGuard(doc.manage)`；路由以 60/15 §3.4 为准 |
 | `interface/guards/document-role.guard.ts` | 文档角色守卫 | `DocumentRoleGuard`、`@RequireDocRole()` | `../../application/resolve-role.usecase` | fail-closed 403 |
 | `__tests__/resolve-role.usecase.test.ts` | 单测 | — | — | 覆盖直接授权/link 叠加优先级（取高）、链接撤销或过期后不再计入、缓存只含直接授权、`DocAccess` 仅经 `authorize()` 签发 |
 | `__tests__/resolve-share-link.usecase.test.ts` | 单测（2026-09-25 自 `share-links` 移入） | — | — | 覆盖过期/撤销实时判定、token 与 linkId 两条路径结果一致 |
 | `__tests__/grant-permission.usecase.test.ts` | 单测 | — | — | 覆盖 permVersion 递增 |
+| `__tests__/access-requests.usecase.test.ts`（2026-10-15） | 单测 | — | — | 覆盖已有角色 409、24 小时内重复不改写（FixedClock）、批准与授权同事务、并发批准与拒绝只有一个成功 |
 
 ### 5.6 `share-links/`
 
 | 文件 | 职责 | 主要导出 | 允许依赖 | 备注 |
 |---|---|---|---|---|
 | `share-links.module.ts` | 模块装配 | `ShareLinksModule` | `PermissionsModule` | exports `ShareLinkGuard`（由 AppModule 注册为第二个 `APP_GUARD`，rulings §4.18 BE-05）；2026-09-25 不再导出 `ResolveShareLinkUseCase`（移入 `PermissionsModule`，BE-02） |
-| `domain/share-link.ts` | 聚合 | `ShareLink` | 无 | `role` 不可为 owner |
+| `domain/share-link.ts` | 聚合 | `ShareLink`、`ShareLinkState` | 无 | `role` 只取 viewer / commenter（AL-1）；`isLive(now)`（未撤销且未过期）供新建前撤销旧行与列表判定（2026-10-15，DS-47）；`ShareLinkState = 'active' \| 'expired' \| 'revoked'`（DS-66，列表的取值由 SQL 按库内时钟算出，本函数只供单测对照同一规则） |
 | `domain/errors.ts` | `share_link.*` 错误码 | `ShareLinkError` | 无 | expired/revoked/not_found |
-| `application/create-share-link.usecase.ts` | 创建 | `CreateShareLinkUseCase` | `../infrastructure/share-link.repository` | 需 `doc.manage` |
-| `application/revoke-share-link.usecase.ts` | 撤销 | `RevokeShareLinkUseCase` | `../infrastructure/share-link.repository` | 撤销与 `permVersion` 递增同事务，经 `perm:doc:{id}` 广播让 M-09 ≤ 1 s 降权链接会话（BE-02） |
+| `application/create-share-link.usecase.ts` | 创建 | `CreateShareLinkUseCase` | `../infrastructure/share-link.repository`、`PermissionsModule`（`ShareLinkTokenCipher`，2026-10-15 起由该模块导出，TB-86、TB-93） | 需 `doc.manage`；同一事务先撤销已过期未撤销的旧行再新建；已有有效链接 → `server.share_links.conflict`（2026-10-15，DS-47） |
+| `application/update-share-link.usecase.ts`（2026-10-15，DS-47） | 改角色与有效期 | `UpdateShareLinkUseCase` | `../infrastructure/share-link.repository`、`PermissionsModule`（`PermVersionBumper`、`PermChangePublisher`） | 需 `doc.manage`；只改未撤销且未过期的行，令牌不变；同事务 `permVersion` +1、提交后广播；审计 `share_link.updated` |
+| `application/revoke-share-link.usecase.ts` | 撤销 | `RevokeShareLinkUseCase` | `../infrastructure/share-link.repository` | 撤销与 `permVersion` 递增同事务，经 `perm:doc:{id}` 广播让 M-09 ≤ 1 s 降权链接会话（BE-02）；同一语句清空令牌密文（界面「改回仅邀请」，2026-10-15，DS-47） |
+| `application/list-share-links.usecase.ts`（2026-10-15，DS-47、DS-48） | 列出链接 | `ListShareLinksQuery` | `../infrastructure/share-link.repository`、`PermissionsModule`（`ShareLinkTokenCipher`，2026-10-15 起由该模块导出） | 只给 `doc.manage`（最初放宽到 `doc.read`，同日按 TB-65 收回，非所有者的链接角色改由 permissions 的读者视图给出）；全部行带库内 `now()` 算出的 `state`（`active` / `expired` / `revoked`，DS-66），只解密 `active` 那一条的令牌；从不返回哈希与密文 |
 | `application/purge-document-share-links.usecase.ts` | 参与者 share-links：清理本文档的 `share_links`（新增，rulings §4.13 S-2） | `PurgeDocumentShareLinksUseCase` | `../infrastructure/share-link.repository`、`DocumentsModule` 的 `PurgeParticipant` 装饰器 | `@PurgeParticipant('share-links')`，由 document-purge 处理器调用，`DocumentsModule` 不 import 本模块（§4.18 BE-15/BE-16） |
-| `infrastructure/share-link.repository.ts` | `share_links` 表（唯一写方）+ token 哈希 | `ShareLinkRepository` | `drizzle-orm`、`node:crypto` | 明文 token 只在创建响应出现一次；令牌查找已移至 `permissions/infrastructure/share-link-reader.ts`（BE-02） |
+| `infrastructure/share-link.repository.ts` | `share_links` 表（唯一写方）+ token 哈希 | `ShareLinkRepository` | `drizzle-orm`、`node:crypto` | 2026-10-15 起库里同时存 `token_hash` 与 `token_enc`（信封由 PermissionsModule 的 `share-link-token.cipher.ts` 生成，2026-10-15 移出本目录），原「明文 token 只在创建响应出现一次」作废；令牌查找已移至 `permissions/infrastructure/share-link-reader.ts`（BE-02）；语句见 60/09 §10 ⑧ |
 | `interface/share-links.controller.ts` | REST 端点 | `ShareLinksController` | protocol `rest/share-links.ts`（新增，§12） | — |
 | `interface/guards/share-link-access.guard.ts` | 叠加链接角色（新增，rulings §4.13 S-1） | `ShareLinkGuard`（2026-09-25 由 `ShareLinkAccessGuard` 统一改名，文件名不变，BE-05） | `PermissionsModule.ResolveShareLinkUseCase`、上游全局 `SessionGuard`/`ApiKeyGuard` 解出的 `Principal` | 执行顺序 `SessionGuard → ShareLinkGuard → DocumentRoleGuard`；无 `shareToken` 直通；把 `{docId, role, linkId, expiresAt}` 写入 `Principal.scopes`；不产出匿名 Principal；写 `share-link.accessed` 审计（§2.4） |
 | `__tests__/share-link-access.guard.test.ts` | 单测（新增，S-1） | — | — | 覆盖未登录 401、无 `shareToken` 直通、过期/撤销拒绝、角色叠加正确性 |
+| `__tests__/share-link-lifecycle.usecase.test.ts`（2026-10-15） | 单测 | — | — | 覆盖每文档至多一条未撤销（并发新建只有一个成功）、`PATCH` 前后令牌不变、撤销后密文为空、换行拷贝密文解不开（AAD） |
 
 ### 5.7 `storage/`
 
@@ -903,8 +927,8 @@ plugins/
 | `domain/effective-set.ts` | 生效插件集 | `computeEffectivePluginSet` | `./policy` | 纯函数；个人选择只作用于 optional 的界面级插件，forced / disabled 时保留记录但不生效（PM-03） |
 | `domain/fingerprint.ts` | 插件集指纹 | `computeCatalogDigest`、`computePolicyDigest` | `node:crypto` | `catalog` 只随重新部署变化，`policy` 随管理员保存变化；各为 43 字符 base64url |
 | `domain/errors.ts` | 错误码 | `PluginsError` | 无 | `server.plugins.not_found`/`policy_invalid`/`revision_conflict`/`conflict`/`config_invalid`/`not_optional` |
-| `application/get-plugin-catalog.usecase.ts` | 管理员查看 | `GetPluginCatalogUseCase` | `../infrastructure/*`、`AuditModule` 查询 | 响应 `ETag` = `policy` 摘要 |
-| `application/update-plugin-policies.usecase.ts` | 管理员保存三态 | `UpdatePluginPoliciesUseCase` | `../domain/policy`、`../infrastructure/plugin-policy.repository`、`../infrastructure/policy-notifier`、`RecordAuditEventUseCase` | `If-Match` 不符 412 `server.plugins.revision_conflict`；整批一个事务，失败不部分生效（PM-07）；审计与策略同事务 |
+| `application/get-plugin-catalog.usecase.ts` | 管理员查看 | `GetPluginCatalogUseCase` | `../infrastructure/*`、`AuditModule` 查询 | 响应 `ETag` = `policy` 摘要；行与详情带 `lastErrorPhase`（取 `kernel.plugin_failed` 的 `details.phase`，2026-10-22，rulings §4.25 TB-119，DTO 以 60/15 §3.15.1 为准） |
+| `application/update-plugin-policies.usecase.ts` | 管理员保存三态 | `UpdatePluginPoliciesUseCase` | `../domain/policy`、`../infrastructure/plugin-policy.repository`、`../infrastructure/policy-notifier`、`RecordAuditEventUseCase` | `If-Match` 不符 412 `server.plugins.revision_conflict`；整批一个事务，失败不部分生效（PM-07）；审计与策略同事务；`reset`（恢复部署默认）不经管理页界面、只供运维脚本以平台管理员会话调用（2026-10-22，rulings §4.25 TB-119，60/15 §3.15） |
 | `application/update-plugin-config.usecase.ts` | 插件配置（M4） | `UpdatePluginConfigUseCase` | `../domain/policy`、`../infrastructure/plugin-policy.repository`、`../infrastructure/policy-notifier`、`RecordAuditEventUseCase` | 机密字段只接受「使用部署文件中的值」；审计只记字段路径（PM-09） |
 | `application/get-effective-plugin-set.usecase.ts` | 本人生效插件集 | `GetEffectivePluginSetUseCase` | `../domain/effective-set`、`../domain/fingerprint` | M2 只返回镜像内置集合（无个人选择），M3 起含个人选择 |
 | `application/set-user-plugin-preference.usecase.ts` | 个人启停 | `SetUserPluginPreferenceUseCase` | `../infrastructure/user-plugin-prefs.repository` | 非 optional 界面级 → 409 `server.plugins.not_optional`；不写审计（PM-14） |
@@ -1045,13 +1069,15 @@ ticketVerify -- "拉取 JWKS 校验签名" --> authNest
 ```text
 apps/server/test/                         端到端（跨模块）：Nest Testing + testcontainers（PG 18/Valkey/SeaweedFS，rulings §4.15 Q10）+ OIDC（PR 层：Casdoor 容器 + oidc-provider mock；nightly：Keycloak/Entra/飞书等真实 IdP，§4.15 Q6）
 ├── e2e/auth-login.e2e-spec.ts             OIDC 全流程 + 首次登录 JIT 建号 + 会话/ticket；selfSignup 开关两态
-├── e2e/documents-permissions.e2e-spec.ts  文档 CRUD + 权限 fail-closed + 无授权用户 100% 拒绝（SV-06；2026-09-24 由「跨租户」改为「跨用户」，T-0）
+├── e2e/documents-permissions.e2e-spec.ts  文档 CRUD + 权限 fail-closed + 无授权用户 100% 拒绝（SV-06；2026-09-24 由「跨租户」改为「跨用户」，T-0）；文档列表的第二行与次序（70/07 §8 D18，2026-10-22，rulings §4.25 DS-83、DS-84、DS-85、TB-144、TB-171）：每条带 createdAt，用户编辑并压缩后 lastEditor 与 contentUpdatedAt 随之更新、只含服务端事务的压缩不改，尚无快照时两项都省略，没有可归属用户的建档（系统作业建档）只省略 lastEditor、照常带 contentUpdatedAt，都不以 owner 补值；owned / shared 按内容更新时间倒序、改名与回收站进出不改次序，带未登记查询参数 400 server.documents.validation_failed，trashed 按移入时间且带 trashedAt（断言以 70/07 §8 D18 为准）
 ├── e2e/smoke/security-rls.e2e-spec.ts     文档级 RLS（M3 起阻断，每个 PR 的冒烟子集，GV-16）：故障注入绕过应用层权限检查后 SQL 仍不可见（原 document-rls.e2e-spec.ts，70/07 §17 改名）
 ├── integration/conformance/s3-blob-store.int-spec.ts  S3 Provider 容器版契约调用（§4.9，T-NAMING）
 ├── e2e/media-upload.e2e-spec.ts           预签名 → commit → 去重 → SVG 消毒；按 publicEndpoint 签名的 URL 经保持 Host 的反代后仍可直传（§4.18 BE-01）
 ├── e2e/route-auth-coverage.e2e-spec.ts    遍历路由表：除 @Public 快照清单外，无会话一律 401（新增，§4.18 BE-06）
 ├── e2e/share-link-access.e2e-spec.ts      只有链接、无直接授权的用户访问 GET /documents/:id 与 POST /collab-ticket 均 200；链接撤销后 403（新增，§4.18 BE-05/BE-02）
 ├── e2e/document-purge.e2e-spec.ts         在线编辑中「永久删除文档」后无 update 落库；清理后对象存储无该文档任何版本；中途失败重试结果一致（新增，§4.18 BE-15）
+├── e2e/permissions/member-list.e2e-spec.ts  非所有者的成员列表：editor、commenter、viewer 与只凭链接的用户 GET /documents/:id/permissions 得读者视图（姓名、角色与当前有效链接的角色；链接授予角色时另带令牌、与 owner 列表那一条相同，2026-10-15，DS-69、TB-86；无邮箱与有效期），owner 得完整行；读者路径向用例注入多取的列时请求失败而不透出；非所有者 GET …/share-links 403（2026-10-15，rulings §4.25 DS-48、TB-65、DS-69、TB-86；70/07 §7.2 S12，70/10 SEC-AZ-20）
+├── e2e/share/access-requests.e2e-spec.ts   访问申请四条路由：无角色用户提交 201、24 小时内重复 200、有角色者 409，所有者列表、批准即授权、拒绝；提交 201 时产生不含留言的 access_request.created 投递行、200 不产生（2026-10-15，rulings §4.25 DS-48、DS-67、DS-68；70/07 §7.2 S13，70/10 SEC-AZ-21）
 ├── fixtures/                              夹具（用户/IdP 身份/文档种子数据）
 └── helpers/                               supertest 封装、mock OIDC provider / Casdoor 容器启动器
 
@@ -1068,7 +1094,7 @@ packages/server-storage/src/__tests__/     见 §4.9（conformance-local-blob-st
 | `server-app-thin` | `apps/server/src/modules/**` 不得 `import 'yjs'`/`@cordexjs/model-*`/`@cordexjs/ooxml-*`；白名单两项：`media/infrastructure/svg-sanitizer.ts` 可 import `@cordexjs/xml`（2026-09-26，rulings §4.21 X:q-xml-package），以及导出模块的多页 PNG 打包可 import `@cordexjs/ooxml-core/zip` 子路径（R-d-51，落点见 40-modules/12；2026-09-26 整合时与 30/02 §3 对齐） | module-map §9；02 §3.2 |
 | 第三方单点 | `openid-client`、`jose` 限 `auth/infrastructure/`；`file-type`、`image-size` 限 `media/infrastructure/asset-inspector.ts`；`drizzle-orm` 限各模块 `infrastructure/`（与 `db/`）；`@aws-sdk/*` 仅 `server-storage`（清单与版本见 60-backend/19） | charter §5.3 规则 4 |
 | protocol-only DTO | controller `@Body()`/`@Query()` 类型只能是 `z.infer<typeof X>`，`X` 来自 `@cordexjs/protocol` | module-map §4.2 第 1 条；08 §11 |
-| 文档访问须经权限服务（2026-09-24 取代「租户隔离」，rulings §4.15 T-0） | 以 `docId` 为键的 `*.repository.ts` 公共方法首参必须是 `DocAccess`（仅 `RoleResolverService.authorize()` 可构造的品牌类型）或 `SystemContext`（仅系统用例/作业可构造）；`PermissionRepository`/`ShareLinkRepository` 作为权限服务自身的数据源豁免并显式登记；扫描器 `doc-access-via-permission`（**M-01 第 14 个扫描器**，rulings §4.17 D3；取代已作废的租户参数检查，§12 G-14）；2026-09-25 起豁免登记增 `permissions/infrastructure/share-link-reader.ts`（只调 `SECURITY DEFINER` 函数，rulings §4.18 BE-02） | 08 §9.1；rulings §4.15 T-0 |
+| 文档访问须经权限服务（2026-09-24 取代「租户隔离」，rulings §4.15 T-0） | 以 `docId` 为键的 `*.repository.ts` 公共方法首参必须是 `DocAccess`（仅 `RoleResolverService.authorize()` 可构造的品牌类型）或 `SystemContext`（仅系统用例/作业可构造）；`PermissionRepository`/`ShareLinkRepository` 作为权限服务自身的数据源豁免并显式登记；扫描器 `doc-access-via-permission`（**M-01 第 14 个扫描器**，rulings §4.17 D3；取代已作废的租户参数检查，§12 G-14）；2026-09-25 起豁免登记增 `permissions/infrastructure/share-link-reader.ts`（令牌解析只调 `SECURITY DEFINER` 函数，rulings §4.18 BE-02；2026-10-15 增的 `currentLink(access)`（同日由 `currentLinkRole` 改名）首参即 `DocAccess`，本身就满足规则，rulings §4.25 TB-65） | 08 §9.1；rulings §4.15 T-0 |
 | 文档级 RLS（M3 出口，§4.15 Q6） | 全部含 `doc_id` 列的业务表（`documents`/`permissions`/`share_links`/`document_media`/`document_perm_versions` 及 M-09/M-12 的内容、评论、缩略图等表）启用 Postgres RLS，策略按 `app.user_id` 存在授权行或 `app.share_doc_id` 命中判定；应用角色与系统作业角色 `cordex_system` 均无 `BYPASSRLS`（系统路径以独立角色 + 显式系统作业上下文通过策略；`BYPASSRLS` 只给迁移角色，ADR-0022 决策 3，复核 H4）；治理检查 `check-rls-coverage`（M-01 `tooling/scripts/check-rls-coverage.ts`，例外登记 `policy/rls-exceptions.json`）（迁移目录里每张含 `doc_id` 的表必须有 `ENABLE ROW LEVEL SECURITY` + 策略，例外表显式登记） | charter D12；rulings §4.15 Q6 |
 | 不持有密码（§4.15 Q6） | `apps/server/src/**` 不得出现密码哈希库（`bcrypt`/`argon2`/`scrypt` 用于口令）与 `password` 列；登录只经 `openid-client` | rulings §4.15 Q6 |
 | fail-closed | `DocumentRoleGuard`/WS 握手（M-09）无显式允许即拒绝；`SessionGuard` 全局注册、默认拒绝，路由鉴权覆盖 e2e 断言「除 `@Public` 快照清单外无会话一律 401」（rulings §4.18 BE-06） | charter D12；ADR-0029 |
@@ -1092,7 +1118,7 @@ pnpm --filter apps-server test:integration -- conformance/s3-blob-store
 pnpm --filter apps-server test:e2e -- auth documents media route-auth-coverage
 ```
 
-**M3 出口**（2026-09-24 改写，rulings §4.15；2026-09-25 按 §4.19 把「权限细化」收进本段）：按人授权 REST 与 `permVersion` 经 `perm:doc:{id}` ≤ 2 s 端到端传播（ADR-0029）；`share-links`（始终要求登录）、`ShareLinkGuard`（BE-05）与令牌解析移入 `permissions`、链接会话重算（BE-02，与 M-09 联调）；文档级 Postgres RLS + `rls-context.ts` + 扫描器 `scan-doc-access-via-permission`/`check-rls-coverage`；永久删除文档（含回收站到期清理）与用户数据擦除（SV-11，P1）：document-purge 单作业 + 参与者编排与 `finalize-purge`（BE-15，独立队列）；CI 分层 OIDC 认证（PR：Casdoor 容器 + oidc-provider mock；nightly：Keycloak/Entra/飞书等）。组管理（U-11）推迟，M3 只按人分享。验收：`pnpm --filter apps-server test:e2e -- smoke/security-rls share-link-access document-purge`（见 §9）。
+**M3 出口**（2026-09-24 改写，rulings §4.15；2026-09-25 按 §4.19 把「权限细化」收进本段）：按人授权 REST 与 `permVersion` 经 `perm:doc:{id}` ≤ 2 s 端到端传播（ADR-0029）；`share-links`（始终要求登录；2026-10-15 起每份文档至多一条未撤销、可改角色与有效期、令牌以 KEK 信封存储供所有者取回，rulings §4.25 DS-47）、`ShareLinkGuard`（BE-05）与令牌解析移入 `permissions`、链接会话重算（BE-02，与 M-09 联调）；访问申请与只读的成员列表（DS-48，`access-requests.controller.ts` 与四个用例）；文档级 Postgres RLS + `rls-context.ts` + 扫描器 `scan-doc-access-via-permission`/`check-rls-coverage`；永久删除文档（含回收站到期清理）与用户数据擦除（SV-11，P1）：document-purge 单作业 + 参与者编排与 `finalize-purge`（BE-15，独立队列）；CI 分层 OIDC 认证（PR：Casdoor 容器 + oidc-provider mock；nightly：Keycloak/Entra/飞书等）。组管理（U-11）推迟，M3 只按人分享。验收：`pnpm --filter apps-server test:e2e -- smoke/security-rls share-link-access document-purge`（见 §9）。
 
 **M4**：集成方签名 JWT 校验 + API Key（`ApiKeyGuard`/`api-key.*`），届时 JIT 建影子用户（§4.15 Q6）。
 

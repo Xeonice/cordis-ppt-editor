@@ -1,4 +1,4 @@
-> 状态：已接受 | 负责：架构-运行时（主笔 M-07；会签 M-03、M-04、M-10） | 更新：2026-09-26（§4.21：新建。图表渲染与编辑路线：d3-scale / d3-shape / d3-array 做底层、按 OOXML 语义自研布局；M1 只读解析渲染；M3 `Chart.data` 与五类编辑、数据网格、最小 xlsx 写出器与 numfmt；惰性子路径与同 key 覆盖；SSIM 口径与图表语料）；2026-09-26（§4.21 整合：决策 5 链 30/06 §1.3.3 的 Yjs 编码；决策 6 写明 slide-render-chart 不直接 import react 与 react-table；决策 7 图表部件写出统一为 export/chart.ts 并链 40/04 §5.2） | 依赖：charter v0.2 D13、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.12 U-06、§4.15 Q7、§4.18 FE-08 / GV-24、§4.21（q-chart-route、q-license-tiers、X:q-content-types，R-d-34、R-d-35、R-d-74）；PRD `10-prd/03-features/01-open-and-fidelity.md` OF-09 / §2.6、`02-editing.md` ED-15、PD-06；[ADR-0008](./0008-opaque-preservation.md) 决策 2 / 9 / 10；[ADR-0018](./0018-editor-element-model-and-insert-commands.md)；[ADR-0019](./0019-xml-lexer-and-fidelity-tree.md)；[ADR-0021](./0021-rendering-medium.md)；[ADR-0027](./0027-text-measurement-strategy.md)；[ADR-0032](./0032-ordered-collections-fractional-index.md)；[ADR-0049](./0049-dependency-admission-and-license-tiers.md)；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（questions q-chart-route、frontendReuse.matrix「图表」类、elementDesign 图表三项）
+> 状态：已接受 | 负责：架构-运行时（主笔 M-07；会签 M-03、M-04、M-10） | 更新：2026-09-26（§4.21：新建。图表渲染与编辑路线：d3-scale / d3-shape / d3-array 做底层、按 OOXML 语义自研布局；M1 只读解析渲染；M3 `Chart.data` 与五类编辑、数据网格、最小 xlsx 写出器与 numfmt；惰性子路径与同 key 覆盖；SSIM 口径与图表语料）；2026-09-26（§4.21 整合：决策 5 链 30/06 §1.3.3 的 Yjs 编码；决策 6 写明 slide-render-chart 不直接 import react 与 react-table；决策 7 图表部件写出统一为 export/chart.ts 并链 40/04 §5.2）；2026-10-07（design-language-v3 第 1 批：文末增「修订 2026-10-07」——决策 6 所说的「抽屉」即数据面板，按 rulings §4.25 DS-22、DS-26、TB-11、TB-12 写明位置与入口；决策不变）；2026-10-15（design-language-v3 第 2 批：文末增「修订 2026-10-15」——数据面板宽 max(400, 检查器当前宽度)、开着时检查器分隔条不可拖、关闭后回到原宽，按 rulings §4.25 TB-60；决策不变） | 依赖：charter v0.2 D13、D16；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.12 U-06、§4.15 Q7、§4.18 FE-08 / GV-24、§4.21（q-chart-route、q-license-tiers、X:q-content-types，R-d-34、R-d-35、R-d-74）；PRD `10-prd/03-features/01-open-and-fidelity.md` OF-09 / §2.6、`02-editing.md` ED-15、PD-06；[ADR-0008](./0008-opaque-preservation.md) 决策 2 / 9 / 10；[ADR-0018](./0018-editor-element-model-and-insert-commands.md)；[ADR-0019](./0019-xml-lexer-and-fidelity-tree.md)；[ADR-0021](./0021-rendering-medium.md)；[ADR-0027](./0027-text-measurement-strategy.md)；[ADR-0032](./0032-ordered-collections-fractional-index.md)；[ADR-0049](./0049-dependency-admission-and-license-tiers.md)；证据 `docs/00-charter/_evidence/reuse-arch-elements-plan-2026-09-26.json`（questions q-chart-route、frontendReuse.matrix「图表」类、elementDesign 图表三项）
 
 # ADR-0036 图表渲染与编辑路线：d3-scale / d3-shape / d3-array 做底层，按 OOXML 语义自研布局
 
@@ -141,3 +141,16 @@ sequenceDiagram
 - 章程 D13（许可，改为「许可分级，见 ADR-0049」）、D16（图表 M1–M2 只读）；rulings §4.12 U-06、§4.15 Q7、§4.18 FE-08 / GV-24、§4.21。
 - ADR：[0008](./0008-opaque-preservation.md)（不透明保留与只读解析）、[0018](./0018-editor-element-model-and-insert-commands.md)（`Chart.data` 与图表命令）、[0019](./0019-xml-lexer-and-fidelity-tree.md)（解析器）、[0021](./0021-rendering-medium.md)（DOM/SVG）、[0027](./0027-text-measurement-strategy.md)（文字度量）、[0032](./0032-ordered-collections-fractional-index.md)（FracKey）、[0049](./0049-dependency-admission-and-license-tiers.md)（许可分级）。
 - 文档：[30/04](../04-document-model.md) §3.9；[30/05](../05-command-and-history.md) §14；[40/07](../../40-modules/07-slide-rendering.md) §2.7；[50/24](../../50-frontend/24-elements-tables-and-charts.md) §3；[70/04](../../70-testing/04-visual-oracle.md) §8.1。
+
+## 修订 2026-10-07：数据面板的位置与入口（rulings §4.25 DS-22、DS-26、TB-11、TB-12）
+
+- 决策 6 所说「slide-ui 的图表分区与抽屉」中的「抽屉」即数据面板 `ChartDataDrawer`（文件名沿用）：宽屏为检查器栏由 280 加宽到 400、整栏换成完整数据网格，画布相应收窄、图表始终可见，标题行有「收起到检查器」与「关闭」；紧凑窗口（640–1024）为画布底部 Sheet（rulings §4.22 D-17）。
+- 入口只有检查器「数据」分区的「展开」，原迷你工具条「编辑数据」随 DS-22 作废；插入图表后只展开「数据」分区、不进数据面板（TB-12）；「更改类型」是检查器「类型」字段的下拉，与工具条「图表」共用 `ChartTypeMenu`，会移除导入内容时只在菜单底部确认（TB-11）。
+- 本 ADR 的决策（d3 底层、按 OOXML 语义自研版式、数据网格用 @tanstack/react-table、一次提交一条命令、导出与工作簿写出）不变。
+- 关联：设计 03-31；50-frontend/24 §3；40-modules/10 §2.6、§4.4（`ChartSection`、`ChartDataDrawer`）。
+
+## 修订 2026-10-15：数据面板的宽度（rulings §4.25 DS-38、TB-60）
+
+- 上节「检查器栏由 280 加宽到 400」按 TB-60 读作：数据面板宽 max(400, 检查器当前宽度)——检查器为缺省 280 时即加宽到 400，用户已把检查器拖到 400 以上时沿用当前宽度；数据面板开着时检查器左缘的分隔条不可拖，关闭后回到检查器原宽。同属「编辑与整页类」整栏面板的还有插件整页面板（DS-38）；版本历史、保真报告这类列表与报告沿用检查器宽度、不加宽。
+- 本 ADR 的决策不变。
+- 关联：50-frontend/10 §2.1、§5；40-modules/10 §4.4（`ChartDataDrawer`）。

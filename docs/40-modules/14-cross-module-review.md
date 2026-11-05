@@ -1,4 +1,5 @@
-> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（rulings §4.16：M-04/G-7 行标已裁决）、2026-09-24（复核修正，rulings §4.17）（D3 覆盖标注）、2026-09-25（矛盾收口，rulings §4.18）（GV-11/GV-15/BE-08/BE-25/BE-28 覆盖标注）、2026-09-26（§4.20）（N-2、N-21 结案标注）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：00–13
+> 状态：评审 v0.2（§1 C-01…C-30 已由总编排全部采纳，落实记录见 rulings §4.11；模块 01–13 与上游文档已回写） | 负责：架构-模块（阶段三评审） | 更新：2026-09-19、2026-09-24（rulings §4.15 覆盖标注）、2026-09-24（rulings §4.16：M-04/G-7 行标已裁决）、2026-09-24（复核修正，rulings §4.17）（D3 覆盖标注）、2026-09-25（矛盾收口，rulings §4.18）（GV-11/GV-15/BE-08/BE-25/BE-28 覆盖标注）、2026-09-26（§4.20）（N-2、N-21 结案标注）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-04（design-language-v3 第 0 批：状态头注明已被取代，正文不改）；2026-10-05（design-language-v3 第 0 批修正：§6.3 M-10/Q-13 行加 rulings §4.25 DS-11 覆盖标注——命令面板改为 `Mod+K`，`Mod+Shift+P` 的降级失去对象）；2026-10-08（design-language-v3 第 1 批收口：§5.5 M-10/G-19 行加覆盖标注——`toolbar.<selectionKind>` 随 rulings §4.25 TB-29 作废、`appBar.badges` 随 DS-1 作废，现行 `ui.toolbar` 槽位见 30/03 §3.6；正文其余不改） | 依赖：00–13
+> **已被 rulings §4.25 DS-1/DS-2 取代**（2026-10-04，设计语言 v3：编辑器去 ribbon 改 Figma 式结构，`ui.ribbon`、`ui.statusBar` 删除、新增 `ui.inspectorSection`，DS-5、DS-6）：本文涉及 ribbon、状态栏与这两个贡献点的评审条目只作历史参考，现行口径见 40/10、40/16 §4 与 30/03 §3.6；正文保持原样不再修订。
 
 # 14 跨模块评审（阶段三）
 
@@ -401,7 +402,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-10/G-12 + 本评审 C-23 | §3.6 `render.overlay` 项类型改为 M-06 的 `OverlayRenderer{id; zIndex; mount(ctx,target)}` | 采纳→回写 |
 | M-06/G-10 + M-06/Q-6 | §3.6 为 `render.scene`/`render.target`/`render.element`/`render.overlay` 补 `conflict:'error'` | 采纳→回写 |
 | M-10/G-7 + M-10/Q-9 | §3.6 `when` 键表补标准键 `breakpoint`/`textEditing`/`focusRegion`；`hasChartEditor` 改为 `slide.hasChartEditor` | 采纳→回写 |
-| M-10/G-19 | §3.6 补 `ui.toolbar` 的 slot 命名示例（`toolbar.<selectionKind>`、`appBar.badges`） | 采纳→回写 |
+| M-10/G-19 | §3.6 补 `ui.toolbar` 的 slot 命名示例（`toolbar.<selectionKind>`、`appBar.badges`） | 采纳→回写（2026-10-08 覆盖：两个示例槽位均已作废——`appBar.badges` 随 rulings §4.25 DS-1，`toolbar.<selectionKind>` 随 TB-29；现行 `ui.toolbar` 只有 `create`、`create.more`、`reviewBar`，见 30/03 §3.6） |
 | 本评审 C-24 | §3.6 命名规则段的域名单与 charter §5.5 合并为一份 | 采纳→回写 |
 | 本评审 C-07 | §9（preset 组合与 loader）补 `kernel/src/preset/{entry,lazy,mount,report,validate}.ts` 文件清单 | 采纳→回写 |
 | M-10/G-6 | 明确**不**新增 `ui.ribbonTab`/`ui.inspector` 贡献点 | 采纳（确认现状，无需改文） |
@@ -660,7 +661,7 @@ g5 --> modinternal["40-modules 内部规范"]
 | M-10/Q-5 + M-10/G-11 | 设计线（04 §2.13） | 紧凑密度下的 Ribbon 高度与控件尺寸 | M2 定：页签行 32 + 内容区 36，小控件 24；`--control-h-*` 24/28/32 | M2 |
 | M-10/Q-6 | 设计线（04 §2.14） | Lucide `strokeWidth` 1.5 还是 2 | 2（与 playground 与 45 复制件一致） | M1 |
 | M-10/Q-10 | M-10 内部 | 单位换算落 `NumberField` 还是 slide-ui 分区 | 纯函数在 slide-ui（EMU 是 model-slide 概念） | M2 |
-| M-10/Q-13 | M-10 内部 | `Mod+Shift+P` 与浏览器保留键冲突的降级 | 保留并 `preventDefault`；冲突平台追加 `F1` 备用和弦 | M2 |
+| M-10/Q-13 | M-10 内部 | `Mod+Shift+P` 与浏览器保留键冲突的降级 | 保留并 `preventDefault`；冲突平台追加 `F1` 备用和弦 | M2 （→ 2026-10-05 rulings §4.25 DS-11 覆盖：命令面板改为 `Mod+K`，本条失去对象，`F1` 备用和弦作废；40/10 §13 Q-13 结案） |
 | M-11/Q-5 | M-02 | viewer 的 `model-core.historyLimit: 0` 是否允许 | 允许 0（无 `UndoManager`，省内存）；否则取 1 | M2 |
 | M-11/Q-12 | M-11 内部 | `apps/web` 页面组件单测用 happy-dom 还是全部下沉 e2e | happy-dom 覆盖状态分支，e2e 覆盖流程 | M2 |
 | M-11/Q-14 | M-05 | `preset-slide-collab` 在 `store-yjs` 下打开本地字节（无服务端房间）是否允许 | 允许（离线新建 → 首次上线转协同），`collab-yjs` PENDING 至 `connect()` | M3 |

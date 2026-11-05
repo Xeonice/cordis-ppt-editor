@@ -1,6 +1,6 @@
 # 12 CI 门禁映射
 
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：`scanners/license-allowlist` 按 ADR-0049 分级扫描并附停更报告；新增步骤 `iso-smoke/server-esm` 取代 require(esm) 冒烟口径；csp-strict 覆盖本轮新依赖；新增图 12-5）；2026-09-26（§4.21 整合：§4 新增第 13 条 server-esm-start（ESM 启动冒烟，60/19 RC-06），iso-smoke/server-esm 注明只做加载；§2 test/unit 收集范围写明 packages/xml 的八个测试与 SEC-IN-10 档位）；2026-10-03（补登 §4.22：步骤与激活不变——DF-10 大表插入基准挂 `perf/perf-client`（09 §3.1），表格 / 图表编辑 e2e 挂 `e2e/full-compose`，图表软冲突 `sc-30`、`sc-31` 挂 `test/collab-sim`）；2026-10-03（§4.24 设计线对齐审计：§4 冒烟第 4 条改为示例内容插件按部署策略停用（与 06 §5 第 16 行一致）；§6 反查索引补 `plugins:diagnose`、`plugins:admin`、`plugins:consistency`、`plugins:trust` 四项（PRD 05 M2 验收 19、M3 验收 20 与 21、M4 验收 7）；§7 激活时间线加插件检查名一行，`test/server-integration` 与 `perf/perf-server` 的 M3 扩展补 Headless 自动化作业与 `template-fill-100`（AL-7，由 M4 提前），图 12-4 同步；§14 登记） | 依赖：rulings §4.21（q-license-tiers、q-nest-major、R-d-60）、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：`scanners/license-allowlist` 按 ADR-0049 分级扫描并附停更报告；新增步骤 `iso-smoke/server-esm` 取代 require(esm) 冒烟口径；csp-strict 覆盖本轮新依赖；新增图 12-5）；2026-09-26（§4.21 整合：§4 新增第 13 条 server-esm-start（ESM 启动冒烟，60/19 RC-06），iso-smoke/server-esm 注明只做加载；§2 test/unit 收集范围写明 packages/xml 的八个测试与 SEC-IN-10 档位）；2026-10-03（补登 §4.22：步骤与激活不变——DF-10 大表插入基准挂 `perf/perf-client`（09 §3.1），表格 / 图表编辑 e2e 挂 `e2e/full-compose`，图表软冲突 `sc-30`、`sc-31` 挂 `test/collab-sim`）；2026-10-03（§4.24 设计线对齐审计：§4 冒烟第 4 条改为示例内容插件按部署策略停用（与 06 §5 第 16 行一致）；§6 反查索引补 `plugins:diagnose`、`plugins:admin`、`plugins:consistency`、`plugins:trust` 四项（PRD 05 M2 验收 19、M3 验收 20 与 21、M4 验收 7）；§7 激活时间线加插件检查名一行，`test/server-integration` 与 `perf/perf-server` 的 M3 扩展补 Headless 自动化作业与 `template-fill-100`（AL-7，由 M4 提前），图 12-4 同步；§14 登记）；2026-10-04（rulings §4.25：`scanners` job 登记流程门禁 `process-*`（G1–G6）与文档检查 `docs-*`（G7）步骤，§6 文档工具行改挂 `scanners/docs-terms`，§7 加激活行，§12 加本地复现命令；不新增 job） | 依赖：rulings §4.21（q-license-tiers、q-nest-major、R-d-60）、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)、[50/17](../50-frontend/17-reuse-and-dependency-catalog.md)、rulings §4.20 BE-03+TX-14 / BE-07+TX-05 / TX-01+BE-10 / TX-02 / TX-13 / TX-16、rulings §4.19 D-M2-CONTENT / D-TEST-INFRA、[09-07 §2.3 / §3 / §5 / §6](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[40/01 §5.9 / §9](../40-modules/01-tooling-and-governance.md)、[30/11 §0 / §9 / §10 / §12 / §14](../30-architecture/11-testing-strategy.md)、[PRD 05](../10-prd/05-milestones-and-scope.md) §0 图 0-3 与 M0–M5 验收检查名、§6、[PRD 04](../10-prd/04-non-functional-requirements.md) NF-09、ADR-0003 / 0009 / 0016 / 0017 / 0037、rulings §4.15 Q6 / Q9、§4.18 GV-14 / GV-16、[01](./01-strategy-and-layers.md)
 
 本文是 CI 步骤的唯一事实源：13 个 job 各含哪些测试步骤、步骤名、三个触发段各跑什么、PR 冒烟子集、必需检查、每个步骤从哪个里程碑起运行与阻断、时长预算与分片、缓存、产物、失败与 flaky 策略，以及每个步骤的本地复现命令。步骤名在本文定稿，与总计划的工作名一致；其它文档（50 / 60 / 70 的「机械验证」小节）写步骤时一律用本文的 `job/步骤` 写法。
 
@@ -78,6 +78,14 @@ interface CiStep {
 | `scanners` | `scanners/scan-manifest --check` | `manifest.ts` 重新生成无 diff（ADR-0003） | 同上 | gated | 09-06 §6 |
 | `scanners` | `scanners/schema-lock` | body schema 哈希锁（ADR-0009） | 同上 | gated | [03 §11](./03-fidelity-roundtrip-and-corpus.md) |
 | `scanners` | `scanners/shadcn-diff` | shadcn 复制件与上游 diff（ADR-0017） | 同上 | 报告 → M2 稳定后 gated | TD-091 |
+| `scanners` | `scanners/process-change-link` | G1 关联变更：改动触及代码路径时必须关联一个进行中的 OpenSpec 变更（分支 `change/<id>` 或 PR 正文 `Change: <id>`） | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-review-gate` | G2 评审门：L2 变更的 docs-sync 评审行为「已确认」，L1 为「L1 自审」 | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-impact` | G3 影响矩阵核对：6 行表态合法、「需更新」行有回写记录且文件在分支有改动、新增功能强制行、设计质量门字段 | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-req-coverage` | G4 需求覆盖：P0 / P1 需求在设计、前后端、测试文档的落点，对基线只减不增 | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-doc-refs` | G5 文档引用反查：需求、REST、错误码、界面、ADR、裁决小节的引用都能在归属文档解析 | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-doc-registry` | G6 代码 ↔ 文档登记：代码中的错误码、路由、协同消息、事件、配置键、迁移、插件 id、贡献点、包名都在归属文档登记 | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/process-module-tree` | G6 源文件（含测试文件）↔ 40-modules 目录树：代码 → 文档方向始终检查；模块标「落地：完成」后两个集合相等（rulings §4.25 DP-5、DP-8） | 同上 | gated | [80/03](../80-process/03-gates.md) |
+| `scanners` | `scanners/docs-links`、`scanners/docs-terms`、`scanners/docs-plugin-counts`、`scanners/docs-scanner-names`、`scanners/docs-mermaid`、`scanners/docs-validate-module`、`scanners/docs-ddl` | G7 文档检查：调用 `docs/_tools` 的 check-links、check-terms、check-plugin-counts、check-scanner-names、mermaid-check、validate-module、ddl-check（后三项按改动路径触发） | 同上 | gated | [80/03](../80-process/03-gates.md) §1 |
 | `scanners` | `scanners/horizontal-freeze` | 水平层文件哈希冻结（ADR-0016） | 同上 | M5 起 gated | [02 §11](./02-contract-suites-and-pluggability.md) |
 | `policy-check` | `policy-check` | `scan-policy`：矩阵自校验、覆盖率、规则与扫描器负向测试完整性、工作流与 `steps.json` 一致 | 同上 | gated | 09-06 §9 |
 | `xsd-validate` | `xsd-validate` | 重生成部件与编辑脚本产物的 XSD 校验 | PR · main：gated 脚本；nightly：全部脚本 | gated | [03 §13](./03-fidelity-roundtrip-and-corpus.md) |
@@ -262,7 +270,7 @@ flowchart LR
 | `perf/perf-collab` | `collab:persist`（初始同步）、`collab:latency`、`perm:fail-closed`（撤销 ≤ 2 s）、`offline:queue`（重连 ≤ 3 s）、`server:scale` |
 | `perf/perf-server` | `server:import`、`collab:persist`（持久化滞后、压缩）、`server:jobs`（含 `template-fill-100`，M3，rulings §4.24 AL-7）、`server:thumbnails`、`server:pdf`、`server:scale` |
 | 人工 / 半机械（`test/evidence/`） | `M0#1`、`M0#5`、`fidelity:interop`、`comments:roundtrip`（PowerPoint 抽样）、`security:pentest`、`pilot:external` |
-| 文档工具（`docs/_tools`，不属 13 个 job） | `M0#2`（`check-terms.py` + `terms.json`：术语表登记的旧名在正文中残留 0 处，rulings §4.20 TX-02） |
+| `scanners/docs-terms`（调用 `docs/_tools/check-terms.py`；2026-10-04 起挂入 `scanners`，rulings §4.25 TP-5） | `M0#2`（`check-terms.py` + `terms.json`：术语表登记的旧名在正文中残留 0 处，rulings §4.20 TX-02） |
 
 ---
 
@@ -286,6 +294,8 @@ flowchart LR
 | `scanners/check-rls-coverage` | 首个带 `doc_id` 的迁移（M2） | 同时 | 每张新表 |
 | `scanners/check-migrations-sync` | M1 第一个包含 `apps/server/src/db/migrations/0001_*.sql` 的 PR（40/12 定 0001、0002 为 M1）；比对实现（`ddl-check.sh --migrations / --write-migrations / --sync-only`）在同一 PR 落地，`tooling/ci/steps.json` 与 40/01 §5.7 同 PR 登记 | 同时（不起容器，直接 gated；挂 `scanners` 而不是 `test/server-integration` 的前置，因为后者 M2 才激活） | 每个新迁移文件；DB-13 自该 PR 起改为「已实现」（rulings §4.20 BE-03+TX-14） |
 | `iso-smoke/server-esm` | apps/server 首个 `AppModule` 入库的 PR（不晚于 M1 首批迁移，rulings §4.21 q-nest-major） | 同时（直接 gated，不起容器） | 每个新增的纯 ESM 依赖自动纳入（读 apps/server `package.json`）；OTel 预加载模块路径以 60/17 为准 |
+| `scanners/process-change-link`、`process-review-gate`、`process-impact`、`process-req-coverage`、`process-doc-refs` 与 `scanners/docs-*` | M0（`m0-ci-workflows` 建工作流的 PR；此前由 agent 本地运行并记入 docs-sync） | 同时（`process-req-coverage` 以 `dev-process` 归档时的基线做棘轮） | 第二批引用类型（事件名、配置键、队列名、插件 id）在 `docs-coverage-baseline` 归档后加入 `process-doc-refs` |
+| `scanners/process-doc-registry`、`scanners/process-module-tree` | M0（`m0-governance-gates`，在空骨架上跑通，rulings §4.25 DP-6） | 同时 | 每个新登记的标识符类别、每个进入「落地：完成」的模块 |
 | `scanners/license-allowlist` 的停更报告 | M0（随 `license-allowlist` 步骤） | 不转 gated（只报告；新越过 12 个月的依赖自动建复评 issue，ADR-0049 决策 4） | — |
 | `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图；插件策略 REST、插件集指纹握手与在线通知（§4.23）；Headless 自动化作业 AU1–AU10、迁移 0063 / 0074、配额与审计导出（2026-10-03，rulings §4.24 AL-7、TA-10）；M4 插件配置（PL8、SEC-DA-08） |
 | `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 材质层表、rulings §4.12 U-08） |
@@ -447,6 +457,8 @@ flowchart LR
 | `scanners/license-allowlist` | `pnpm scan license-allowlist` | 已安装依赖（`pnpm install --frozen-lockfile`） | JSON 违规列表的 `path` 字段给出从 workspace 包到违规包的依赖链；`--stale` 单独输出停更报告 |
 | `depcruise` / `api-surface` / `policy-check` | `pnpm depcruise` / `pnpm api:check` / `pnpm policy:check` | `api-surface` 需先构建 | — |
 | `scanners/<脚本名>` | `pnpm scan <脚本名>`（如 `pnpm scan scan-manifest --check`） | `scan-bundle-budget` 需先构建 | 各脚本的 JSON 报告即定位信息 |
+| `scanners/process-*` | `python3 docs/_tools/check-change-impact.py --gate link\|review\|impact`、`python3 docs/_tools/check-req-coverage.py`、`python3 docs/_tools/check-doc-refs.py`；G6 见 `docs/_tools/README.md` | 在变更分支上运行（G1–G3 需要 `origin/main` 可达） | 输出的「变更 id + 门禁 + 失败项 + 文件:行」 |
+| `scanners/docs-*` | `python3 docs/_tools/check-links.py` 等（命令清单见仓库根 `CLAUDE.md`「检查」） | `docs-ddl` 需要 Docker | 各脚本输出的「文件:行」 |
 | `scanners/check-migrations-sync` | `bash docs/_tools/ddl-check.sh --migrations apps/server/src/db/migrations --sync-only` | 无（不起容器） | 输出的「文件 + 编号 + 首个差异行」；从围栏重新生成用 `--write-migrations <dir>` |
 | `xsd-validate` | `pnpm xsd:validate` | — | `… -- --script <编辑脚本 id>` |
 | `coverage-patch` | `pnpm coverage:patch -- --base origin/main` | 先跑产生 lcov 的测试步骤 | — |

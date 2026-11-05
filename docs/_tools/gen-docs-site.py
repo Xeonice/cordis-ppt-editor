@@ -54,6 +54,7 @@ SECTIONS = [
      "部署与观测；后端复用清单", "60-backend"),
     ("testing", "测试", "测试设计线：分层与契约套件、保真与视觉 oracle、协同模拟、e2e、性能与安全、CI 门禁与需求追溯",
      "70-testing"),
+    ("process", "研发流程", "变更分级与五步、需求编号主键与事实归属、门禁 G1–G7", "80-process"),  # rulings §4.25
     ("adr", "ADR", "架构决策记录：背景、决策、备选方案与后果", "30-architecture/adr"),
     ("modules", "模块", "限界上下文 × cordis 插件：逐文件职责、模块依赖与架构图集", "40-modules"),
 ]
@@ -97,6 +98,8 @@ ICONS = {
     "backend": '<ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/>'
                '<path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/>',
     "testing": '<path d="M9 3h6M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.2 15h9.6"/>',
+    "process": '<rect x="3" y="3" width="8" height="8" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/>'
+               '<rect x="13" y="13" width="8" height="8" rx="2"/>',
     "adr": '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/>'
            '<path d="M6 8.5v7M18 8.5a6 6 0 0 1-6 6H8.5"/>',
     "modules": '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/>'
@@ -685,7 +688,7 @@ class Site:
         page_title = SITE_NAME if cur == "index.html" else "%s · %s" % (text_of(title), SITE_NAME)
         return TEMPLATE.format(
             title=esc(page_title), desc=esc(desc or SEC[sec][2]), fonts=FONTS, root=root, hljs=CDN_HLJS,
-            mermaid=CDN_MERMAID, sec=sec, tabs=tabs, side_secs=side_secs, sec_label=esc(SEC[sec][1]),
+            mermaid=CDN_MERMAID, sec=sec, tabs=tabs, tabs_js=TABS_JS, side_secs=side_secs, sec_label=esc(SEC[sec][1]),
             sec_desc=esc(SEC[sec][2]), sec_icon=icon(sec), nav=self.nav_html(sec, cur), main=main,
             toc=toc_aside, has_toc=(" has-toc" if toc else "") + (" is-home" if cur == "index.html" else ""),
             i_menu=icon("menu"), i_search=icon("search"),
@@ -713,6 +716,22 @@ LOGO = ('<svg class="brand-logo" viewBox="0 0 24 24" aria-hidden="true"><rect x=
         'rx="5" fill="currentColor"/><path d="M7 9h6.5M7 12.5h10M7 16h4.5" stroke="var(--primary-fg)" '
         'stroke-width="1.9" stroke-linecap="round"/></svg>')
 
+# 顶栏页签放不下时横向滚动（现行 11 个页签在宽 900–1279 px 时放不下）：当前分区的页签滚到中间，两端按是否还有页签加
+# 32px 渐隐，指针在页签上时竖向滚轮可横翻页签；与 site.js 状态页签（.seg）同一做法。site.css 没有 .tabs 的渐隐规则，
+# 遮罩写在行内；窄屏 .tabs 隐藏时不起作用。
+TABS_JS = (
+    "<script>(function(){var n=document.currentScript.previousElementSibling,a=n&&n.querySelector('.tab.is-active');"
+    "if(!n)return;function edges(){var o=n.scrollWidth-n.clientWidth,l=o>2&&n.scrollLeft>2,r=o>2&&n.scrollLeft<o-2;"
+    "n.style.webkitMaskImage=n.style.maskImage=l||r?'linear-gradient(90deg,'+(l?'transparent,#000 32px':'#000')+','"
+    "+(r?'#000 calc(100% - 32px),transparent':'#000')+')':''}"
+    "function center(){if(a&&n.scrollWidth>n.clientWidth){var b=n.getBoundingClientRect(),c=a.getBoundingClientRect();"
+    "n.scrollLeft+=c.left-b.left-(b.width-c.width)/2}edges()}"
+    "center();n.addEventListener('scroll',edges,{passive:true});addEventListener('resize',center);"
+    "addEventListener('load',center);if(document.fonts)document.fonts.ready.then(center);"
+    "n.addEventListener('wheel',function(e){if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;var s=n.scrollLeft;"
+    "n.scrollLeft+=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?n.clientWidth:1);"
+    "if(n.scrollLeft!==s)e.preventDefault()},{passive:false})})()</script>")
+
 TEMPLATE = """<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -736,7 +755,7 @@ TEMPLATE = """<!doctype html>
 <header class="topbar">
   <button class="icon-btn nav-toggle" type="button" data-nav-open aria-label="打开导航" aria-controls="sidebar">{i_menu}</button>
   <a class="brand" href="{root}index.html" aria-label="Cordex 文档站首页">""" + LOGO + """<span class="brand-name">Cordex</span><span class="brand-sub">文档站</span></a>
-  <nav class="tabs" aria-label="分区">{tabs}</nav>
+  <nav class="tabs" aria-label="分区">{tabs}</nav>{tabs_js}
   <div class="top-actions">
     <button class="search-btn" type="button" data-search-open aria-label="搜索文档">{i_search}<span class="search-btn-text">搜索</span><kbd class="search-kbd" data-mod-k>⌘K</kbd></button>
     <button class="icon-btn theme-btn" type="button" data-theme-toggle aria-label="切换亮色或暗色主题">{i_sun}{i_moon}</button>
@@ -1305,21 +1324,79 @@ def ruling_sets():
         sets.append(("c10", title, "00-charter/charter.md", gh_slug(title), head, rows))
     rf = rulings_file()
     text = read_doc(rf) if rf else ""
-    for num in ("4.22", "4.21", "4.20", "4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
+    for num in ("4.25", "4.22", "4.21", "4.20", "4.19", "4.18", "4.15", "4.16", "4.17", "4.12", "4.13"):
         title, body = md_section(text, num)
         for head, rows in md_tables(body)[:1]:
             sets.append((num.replace(".", ""), title, rf, gh_slug(title), head, rows))
     return sets, text
 
 
+def awaiting_default(row):
+    """议题列标「（默认值）」的行记的是默认值、尚待用户拍板（rulings §4.25 DS-2「样张拍板时确认」），不算已裁决。"""
+    return len(row) > 1 and "（默认值）" in row[1]
+
+
+# 决策面板「后续裁决涉及」：编号在更晚的「## 4.N」小节里被提及才算。提及前 20 个字符内（不跨句号、分号、逗号与表格
+# 竖线）最近的出处标记决定它指哪里：「§4.N」「4.N/」指该小节，「NN/MM」（文档号）与「PRD」指别处。不带出处的提及
+# 只对全文唯一的编号成立；rulings 其他小节或章程的表也以该编号开头（如 §4.20 自己的 BE-01+TX-03、§4.10 的 Q12），
+# 或编号形如 PRD 需求编号（§4.18 的 CO-xx 与 PRD CO 同形）的，都算同名，只认带出处的提及。
+LATER_QUAL_RE = re.compile(r"§\s?(4\.\d+)|(?<![\d.])(4\.\d+)/|(?<!\d)\d{2}/\d{2}(?!\d)|PRD")
+LATER_CUT_RE = re.compile(r"[。；;，|\n]")
+PRD_LIKE_RE = re.compile(r"(?:OF|ED|CO|PS|EM|SV|ML|AS|PM|NF)-\d{2}[a-z]?$")
+
+
+def sec_key(num):
+    return tuple(int(x) for x in num.split("."))
+
+
+def later_ruling_sections(rtext):
+    """rulings 中全部「## 4.N」小节 [(编号, 正文)]，按编号排序；不在面板里的小节（如 §4.23、§4.24）也要扫。"""
+    nums = dict.fromkeys(re.findall(r"^##\s+(4\.\d+)[\s.]", rtext, re.M))
+    return sorted(((n, md_section(rtext, n)[1]) for n in nums), key=lambda s: sec_key(s[0]))
+
+
+def table_first_cells(text, tag=""):
+    """各表首列的文本 [(所在二级标题的编号, 首列)]，用来判断编号是否同名；tag 区分文档（章程记 "charter:"）。"""
+    out, sec = [], tag
+    for i, part in enumerate(re.split(r"^(##\s.*)$", text, flags=re.M)):
+        if i % 2:
+            m = re.match(r"##\s+(\d+(?:\.\d+)?)", part)
+            sec = tag + (m.group(1) if m else part)
+        else:
+            out.extend((sec, r[0].strip("~*` ")) for _, rows in md_tables(part) for r in rows if r)
+    return out
+
+
+def later_mentions(rid, sec, after, cells):
+    """编号 rid（属 §sec）在更晚小节 after = [(编号, 正文)] 中被提及的小节编号；规则见 LATER_QUAL_RE 上方说明。"""
+    # 区间写法（如 §4.25 的「检查清单 Q1–Q10」、「DP-1…DP-8」）指整组编号，不算对单条的再次裁决：两端紧邻 – 或 … 的不计
+    pat = re.compile(r"(?<![\w\-–…])%s(?![\w\-–…])" % re.escape(rid))
+    starts = re.compile(r"%s(?![\w\-–…])" % re.escape(rid))
+    unique = not PRD_LIKE_RE.match(rid) and not any(s != sec and starts.match(c) for s, c in cells)
+    hits = []
+    for num, body in after:
+        for m in pat.finditer(body):
+            quals = list(LATER_QUAL_RE.finditer(LATER_CUT_RE.split(body[max(0, m.start() - 20):m.start()])[-1]))
+            if quals:   # 看最近的出处标记
+                same = (quals[-1].group(1) or quals[-1].group(2)) == sec
+            else:       # 不带出处：只对唯一编号成立
+                same = unique
+            if same:
+                hits.append(num)
+                break
+    return hits
+
+
 class Build(Pages):
     # -------------------------------------------------------- 决策面板
-    def row_state(self, key, head, row, text_after):
+    def row_state(self, key, head, row, text_after, cells=()):
         rid = row[0].strip("~*` ")
         if key == "c10":
             joined = " ".join(row)
             return ("ok", "已裁决") if "已裁决" in joined else ("warn", "待裁决")
-        later = [n for n, t in text_after if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(rid), t)]
+        if awaiting_default(row):
+            return "warn", "默认值 · 待拍板"
+        later = later_mentions(rid, key[0] + "." + key[1:], text_after, cells)
         verdict = " ".join(row[1:])
         if "专项设计" in verdict:
             return "info", "专项设计"
@@ -1330,17 +1407,15 @@ class Build(Pages):
     def build_decisions(self):
         cur = "pages/charter/decisions.html"
         sets, rtext = ruling_sets()
-        later_secs = [(n, md_section(rtext, n)[1]) for n in ("4.15", "4.16", "4.17", "4.18", "4.19", "4.20", "4.21",
-                                                             "4.22")]
+        later_secs = later_ruling_sections(rtext)
+        id_cells = table_first_cells(rtext) + table_first_cells(read_doc("00-charter/charter.md"), "charter:")
         fake = {"rel": "00-charter/decisions", "repo_rel": DOCS_REL + "/00-charter/decisions.md", "out": cur, "sec": "charter"}
         blocks, toc, tiles = [], [], []
         for key, title, src, anchor, head, rows in sets:
-            order = [n for n, _ in later_secs]
-            after = later_secs[order.index(key[0] + "." + key[1:]) + 1:] if key != "c10" and (key[0] + "." + key[1:]) in order \
-                else ([] if key == "c10" else later_secs)
+            after = [] if key == "c10" else [s for s in later_secs if sec_key(s[0]) > sec_key(key[0] + "." + key[1:])]
             trs, ok = [], 0
             for r in rows:
-                tone, lab = self.row_state(key, head, r, after)
+                tone, lab = self.row_state(key, head, r, after, id_cells)
                 ok += tone in ("ok", "alt", "info")
                 rid = r[0].strip("~*` ")
                 cells = "".join("<td>%s</td>" % self.inline_md(c, fake) for c in r)
@@ -1361,14 +1436,18 @@ class Build(Pages):
         main = ('<article class="doc doc-wide"><header class="doc-head"><nav class="crumbs" aria-label="位置"><a href="%s">'
                 '章程与裁决</a></nav><h1 class="doc-title">决策面板</h1><p class="lede">把章程 §10 与裁决记录里需要用户拍板的'
                 '议题汇总成一页：每行保留原文（问题、裁决、落点），末列为生成器按原文判定的状态。「后续裁决涉及」表示该编号在'
-                '更晚的裁决节中被再次提及，以更晚者为准。</p></header><div class="stat-row">%s</div>%s%s</article>'
+                '更晚的裁决节中被再次提及，以更晚者为准；别处也有同名编号时（如 §4.20 的 BE-01+TX-03 与 §4.18 的 BE-01、'
+                '§4.10 与 §4.16 的 Q12），只认带「§4.N」出处的提及。「默认值 · 待拍板」表示议题标了默认值、尚待用户拍板，'
+                '不计入已裁决。'
+                '</p></header><div class="stat-row">%s</div>%s%s</article>'
                 % (esc(relurl(self.landing("charter"), cur)), "".join(tiles), "".join(blocks), self.pager("charter", cur)))
         self.write_page(cur, "charter", "决策面板", main, self.toc_html(toc))
         self.search.append({"u": cur, "t": "决策面板", "s": "章程与裁决", "g": "",
                             "h": [[text_of(t["name"]), t["id"]] for t in toc],
                             "x": "章程 §10 Q1–Q20、rulings §4.12 U-01…U-16、§4.13 S-1…S-5、§4.15 T-0/Q1–Q10/S-3a、"
                                  "§4.16 Q11–Q20、§4.17 D1–D6、§4.18 矛盾收口 15 项、§4.19 三条设计线拆分 5 项、§4.20 遗留小项收口、"
-                                 "§4.21 复用优先与架构三件套 23 题、§4.22 设计待决收口 3 题用户裁决汇总"})
+                                 "§4.21 复用优先与架构三件套 23 题、§4.22 设计待决收口 3 题、"
+                                 "§4.25 研发流程与设计语言 v3（DP-1…DP-8、DS-1、DS-2）用户裁决汇总"})
         return sets
 
     # -------------------------------------------------------- 首页
@@ -1451,18 +1530,21 @@ class Build(Pages):
         hero, cards, fig_html, stage, _ = self.home_parts(sets)
         rul = []
         for key, title, src, anchor, head, rows in sets:
-            if key not in ("c10", "422", "421", "420", "419", "418", "417", "415"):
+            if key not in ("c10", "425", "422", "421", "420", "419", "418", "417", "415"):
                 continue
             chips, done = [], 0
             for r in rows:
                 rid = r[0].strip("~*` ")
-                decided = ("已裁决" in " ".join(r)) if key == "c10" else bool(r[2].strip() if len(r) > 2 else "")
+                if key == "c10":
+                    decided = "已裁决" in " ".join(r)
+                else:  # 裁决列有内容即已裁决；议题标「（默认值）」的待拍板行除外（§4.25 DS-2）
+                    decided = bool(r[2].strip() if len(r) > 2 else "") and not awaiting_default(r)
                 done += decided
                 tip = text_of(self.inline_md(r[1], {"rel": "", "repo_rel": DOCS_REL + "/x.md", "out": cur, "sec": "charter"}))
                 chips.append('<a class="rchip%s" href="pages/charter/decisions.html#r-%s-%s" title="%s">%s</a>'
                              % ("" if decided else " is-open", key, esc(gh_slug(rid)), esc(tip), esc(rid)))
             pct = int(round(100.0 * done / len(rows))) if rows else 0
-            name = {"c10": "章程 §10 待用户决策", "422": "§4.22 设计待决收口", "421": "§4.21 复用优先与架构三件套", "420": "§4.20 遗留小项收口", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
+            name = {"c10": "章程 §10 待用户决策", "425": "§4.25 研发流程与设计语言 v3", "422": "§4.22 设计待决收口", "421": "§4.21 复用优先与架构三件套", "420": "§4.20 遗留小项收口", "419": "§4.19 三条设计线拆分", "418": "§4.18 文档矛盾收口", "417": "§4.17 回写后复核裁决", "415": "§4.15 章程 Q1–Q10 与方向性裁决"}[key]
             rul.append('<div class="rul-card"><div class="rul-top"><span class="rul-k">%s</span><span class="rul-n">%d / %d</span>'
                        '</div><div class="bar" role="img" aria-label="已裁决 %d%%"><i style="width:%d%%"></i></div>'
                        '<div class="rul-chips">%s</div><div class="rul-src">%s</div></div>'

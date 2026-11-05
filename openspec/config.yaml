@@ -1,20 +1,27 @@
-schema: spec-driven
+schema: cordex-docs-first
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  项目：Cordex —— 以 cordis 4 为内核、每一层都可插拔的办公文档 SDK 与在线协同编辑器，首个文档类型 .pptx。
+  阶段：M0 蓝图收尾，路线图见 docs/80-process/README.md §4。
+  唯一事实源：docs/（00 章程与裁决、10 产品、20 设计、30 总架构与 ADR、40 模块、50 前端、60 后端、70 测试、80 研发流程）。
+  OpenSpec 只作变更容器，不使用 openspec/specs/；行为、界面、接口、数据、文件结构全部以 docs/ 为准。
+  研发流程：docs/80-process（三档分级、五步、设计质量门、需求编号主键、事实归属、门禁 G1–G7）。
+  技术基线：TypeScript；cordis 4；apps/web 为 React；apps/server 为 NestJS 12 + Hocuspocus 4；PostgreSQL 18、Valkey、S3 兼容存储；pnpm workspace monorepo（版本见章程 Q9 与 docs/80-process 待决 W-1）。
+  语言：文档、提案、说明一律中文；标识符、包名、文件名英文。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - 必须有 `## Why` 与 `## What Changes`（标题保持英文）
+    - 写明 `级别：L0|L1|L2`，判定见 docs/80-process/01 §1，拿不准按 L2
+    - 列出涉及的 PRD 需求编号与相关 rulings 小节
+    - 必须有 6 行文档影响矩阵（产品、设计、前端、后端、测试、其他），表态只能是「需更新」或「不涉及：理由」
+    - 需要用户决定的问题逐题提问，未裁决不得进入 docs-sync
+  docs-sync:
+    - 先改 docs/ 再登记；顺序：产品 → 设计 → 30/40 → 50/60 → 70 → docs/_tools
+    - 界面改动先过设计质量门：样张、对照截图、Q1–Q10、用户拍板
+    - 检查结果必须全过；评审行只能由用户确认后填写
+  design:
+    - 只写 docs/ 没有覆盖的实现取舍，引用章节不复述
+  tasks:
+    - 每条任务写依据章节与验证方式；不含文档回写任务
+    - 新增或移动源文件（含测试文件）前先登记到 40-modules 目录树

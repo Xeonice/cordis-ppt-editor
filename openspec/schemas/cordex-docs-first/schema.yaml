@@ -1,0 +1,70 @@
+name: cordex-docs-first
+version: 1
+description: Cordex 文档先行工作流 —— proposal → docs-sync（回写 docs/ 并经评审）→ design → tasks；docs/ 是唯一事实源，不使用 openspec/specs/
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: 变更提案：为什么做、做什么、级别、需求编号、文档影响矩阵、待裁决
+    template: proposal.md
+    instruction: |
+      按模板写变更提案。流程规则见 docs/80-process/01-change-lifecycle.md 与 02-traceability-and-ownership.md。
+
+      必须包含：
+      - `## Why` 与 `## What Changes` 两节（OpenSpec 校验要求，标题保持英文）。
+      - 一行 `级别：L0|L1|L2`（判定见 docs/80-process/01 §1；拿不准按 L2）。
+      - `## 需求编号`：本变更新增、修改、实现或删除的 PRD 需求 id；新增功能先在 PRD 定编号。
+      - `## 文档影响矩阵`：6 行（产品、设计、前端、后端、测试、其他），表态只能是 `需更新` 或 `不涉及：<理由>`；新增功能的强制行见 docs/80-process/02 §4。
+      - `## 待裁决`：需要用户决定的问题，每题给推荐项与备选并写明影响；逐题用提问工具问用户，裁决结果写回本节。
+      - 与其他进行中变更声明了同一文档文件时，写一行 `依赖：<id>`。
+
+      先读相关 docs/ 文档再写，不要凭印象。待裁决未全部裁决前，不得进入 docs-sync。
+    requires: []
+
+  - id: docs-sync
+    generates: docs-sync.md
+    description: 文档回写记录：按影响矩阵改了 docs/ 的哪些文件、检查结果、设计质量门、评审确认、偏差记录
+    template: docs-sync.md
+    instruction: |
+      先按 proposal 的影响矩阵修改 docs/，再在本文件登记。顺序：产品 → 设计 → 30 / 40 → 50 / 60 → 70 → docs/_tools 登记。
+
+      - `## 回写记录`：每个「需更新」行至少一条（线 / 文件 / 章节 / 摘要），文件路径相对仓库根。
+      - `## 检查结果`：运行 docs/_tools 下全部相关检查（见 docs/80-process/03 §1 的 G4、G5、G7），逐项写结果，必须全过。
+      - `## 设计质量门`：界面改动必填（docs/80-process/01 §4）：样张路由、对照截图路径、Q1–Q10 逐项结论、拍板行；不涉及界面写「不触发」。
+      - `## 评审`：L2 留空，等用户确认后填 `评审：已确认 | 确认人：<名> | 日期：<YYYY-MM-DD>`；L1 填 `评审：L1 自审 | 理由：<…>`。不得替用户填写确认。
+      - `## 偏差记录`：实现阶段发现文档不对时追加（日期 / 发现 / 处理 / 是否重新评审）。
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: 实现设计：只写 docs/ 没有覆盖的实现取舍
+    template: design.md
+    instruction: |
+      只写 docs/ 没有覆盖的实现取舍（选型细节、拆分顺序、迁移与回滚、风险），引用 docs/ 章节，不复述文档内容。
+      发现文档缺口或矛盾时，回到 docs-sync 先改文档并记偏差，不在本文件另立口径。
+      评审（docs-sync 的评审行）未通过前不写本文件。
+    requires:
+      - docs-sync
+
+  - id: tasks
+    generates: tasks.md
+    description: 实现任务清单
+    template: tasks.md
+    instruction: |
+      按模板写任务清单，apply 阶段按勾选跟踪进度。
+
+      - 每条任务形如 `- [ ] X.Y <任务>（依据：docs/<路径> §<节>；验证：<命令或可观察结果>）`。
+      - 不包含文档回写任务（已在 docs-sync 完成）；新增或移动源文件（含测试文件）的任务，先确认已登记在 40-modules 对应模块的目录树。
+      - 代码与测试使用 docs/ 登记的标识符（需求标签、错误码、路由、事件、配置键、插件 id）；测试带 `@req PRD:<编号>`。
+      - 每组任务自带它需要的测试，不把测试集中到最后一组。
+      - 实现中发现文档不对：停下，回 docs-sync 改文档并记偏差。
+    requires:
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+  instruction: |
+    先读 proposal.md、docs-sync.md、design.md 与任务依据的 docs/ 章节，再逐项实现、逐项勾选。
+    docs-sync 的评审行不是「已确认」或「L1 自审」时不得写产品代码（门禁 G2）。
+    遇到与文档不符：停下，按 docs/80-process/01 §5 处理。

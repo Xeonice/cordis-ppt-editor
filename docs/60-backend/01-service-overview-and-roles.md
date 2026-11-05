@@ -1,5 +1,5 @@
 # 01 后端架构
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一）；2026-10-01（§4.23 插件管理：§3 新增第 25 个 Nest 模块 PluginsModule（归 M-08），§5 装配矩阵加一行）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——后端数字卡、15 个服务端 cordis 单元、`preset-server` 的 11 个条目、25 个 Nest 模块分组、按 `CORDEX_ROLE` 的装配差异，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§1b 服务端插件 15 个，Nest 模块 25 个另列、不计入插件；图 1b-1 节点改写）；2026-10-03（§4.24：AL-3 renderer 行注明内容级插件集经 RPC 下发、不装 PluginsModule；AL-7 队列八条、ImportExportModule 增 `/automation/*` 与 `automation` 处理器、S15 改 M3） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（审稿）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为后端架构，插 §0 架构一页（承接原 30/08 §0）与 §1a 技术栈与复用；collab 改为 Hocuspocus 4 嵌入 upgrade，部件为 Hocuspocus 实例、适配层、PermissionSync、ControlPlane；反代「无粘性」改为按 documentId 一致性哈希（M3）；技术基线 Nest 12、Fastify 5、Drizzle）；2026-09-26（§4.21 整合：§5 collab 行补 SessionSweeper、collabServer 七个扩展与 M3 HardenedRedis；§11 extension-redis 收窄到 hp-redis.extension.ts，补 openid-client / jose、file-type / image-size 两行；§9 与 §10 容器入口统一为 ./dist/observability/otel.js；§12 S5 改入组提交口径）；2026-09-26（§4.21 复核：Nest 包删 config / schedule；SVG 消毒理由对齐 60/19 §15.4；§0.2 标 P9–P13、fail-closed 多点；§1 改名部署部件视图；ioredis import 行号统一）；2026-10-01（§4.23 插件管理：§3 新增第 25 个 Nest 模块 PluginsModule（归 M-08），§5 装配矩阵加一行）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——后端数字卡、15 个服务端 cordis 单元、`preset-server` 的 11 个条目、25 个 Nest 模块分组、按 `CORDEX_ROLE` 的装配差异，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§1b 服务端插件 15 个，Nest 模块 25 个另列、不计入插件；图 1b-1 节点改写）；2026-10-03（§4.24：AL-3 renderer 行注明内容级插件集经 RPC 下发、不装 PluginsModule；AL-7 队列八条、ImportExportModule 增 `/automation/*` 与 `automation` 处理器、S15 改 M3）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-47、DS-48：机密段注明 KEK 同时用于分享链接令牌的密文（只在 api 加解密）；图中 ShareLinksModule 的职责补「改角色与有效期」、PermissionsModule 补访问申请；同日再补（rulings §4.25 DS-67）：§5 矩阵 `WebhooksModule` 的 api 一格补访问申请的生产者，图 8-2 增 `PermissionsModule → WebhooksModule`（访问申请事件，仍无环），图下说明同步；同日再补（rulings §4.25 DS-69、TB-86）：分享令牌信封 `ShareLinkTokenCipher` 由 ShareLinksModule 移到 PermissionsModule（成员列表读者视图要在 api 解密令牌），机密段与 §5 矩阵 `PermissionsModule` 的 api 一格同步，模块依赖方向不变）；2026-10-22（design-language-v3 第 3 批：§5 装配矩阵 `ImportExportModule` 的 rest 补列 `/exports/:jobId` 与新增的取消导出 `/exports/:jobId/cancel`（rulings §4.25 DS-101）；装配与角色不变） | 依赖：charter §5.2、§7、D8；rulings §4.13、§4.15 Q8/Q10、§4.18 BE-01/BE-03/BE-11/BE-13/BE-14/BE-15/BE-19/FE-01/CO-16、§4.19、§4.21；[30/01 总架构](../30-architecture/01-overview.md)；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、ADR-0022、ADR-0026、ADR-0030、ADR-0035、ADR-0037；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；40-modules/08、09、12；rulings §4.25 DS-47、DS-48、DS-69、TB-86、DS-101
 
 > 读者：实现 `apps/server`、`@cordexjs/server-collab`、`@cordexjs/server-storage`、`@cordexjs/server-headless` 的工程师；运维；评审后端架构的人。
 > 定位：Cordex 的**后端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构，[50/01](../50-frontend/01-overview-and-runtime-map.md) 是前端架构，本文是后端架构，阅读路径固定为 **30/01 → 50/01 → 本文**。节号沿用升格前的编号，新节以 §0（架构一页，承接原 30/08（已撤销）第 0 节的两图与要点）与 §1a（技术栈与复用组件摘要）插入，既有「60/01 §x」引用不失配。本文是以下内容的**唯一事实源**：后端架构一页与协同接入的 Hocuspocus 挂点（§0）、Nest 模块清单、`CORDEX_ROLE` 语义、「模块 × 角色 × 部件」装配矩阵（迁自 40-modules/12 §7.1；rulings §4.18 BE-13 的内容不变，落点迁到本文的依据是 rulings §4.19「三线各为该侧唯一事实源、重复段落改为引用」）、启动断言、反代路径到角色的分流、Nest 模块 imports 总图、cordis 宿主生命周期映射、进程启动与优雅关闭、服务端预算总览、服务端交付落点（§3）。
@@ -553,7 +553,7 @@ flowchart LR
 
 根模块 `AppModule`（`forRole(role)`）与进程入口 `main.ts` 不计入上表 25 个模块，文件级见 40-modules/12 §4.13。「文件级」列原把 `DbModule` 指向原架构 08 篇（已于 rulings §4.21 撤销）第 2 节的目录树、把 `RedisModule` 指向 12 §4.9（`common/`，其中没有该模块），该树删除后（rulings §4.19）统一改指 12 §4.13（2026-09-25 审稿）。
 
-机密（Webhook KEK、审计盐、运维令牌）不单独成模块：由 `ConfigModule` 导出的 secrets provider（`config/secrets.ts`，文件与环境变量名见 [17](17-deployment-and-config.md) §6）提供，[07](07-modules-comments-webhooks-audit.md) §10.2 的 `WebhooksModule` 与 `AuditModule` 经 global 的 `ConfigModule` 注入。
+机密（KEK、审计盐、运维令牌）不单独成模块：由 `ConfigModule` 导出的 secrets provider（`config/secrets.ts`，文件与环境变量名见 [17](17-deployment-and-config.md) §6）提供，[07](07-modules-comments-webhooks-audit.md) §10.2 的 `WebhooksModule` 与 `AuditModule` 经 global 的 `ConfigModule` 注入。KEK 加密 Webhook 签名密钥，2026-10-15 起也加密分享链接令牌的密文（[03](03-modules-identity-and-access.md) §4.1 的 `ShareLinkTokenCipher`，同日由 ShareLinksModule 移入 PermissionsModule：所有者重开分享对话框与非所有者成员列表的读者视图都在 api 解密，collab 不持有 KEK，rulings §4.25 DS-47、DS-69、TB-86、TB-93）。
 
 **服务端交付落点**（M1–M4 的边界表只在 [30/01](../30-architecture/01-overview.md) 保留一份，rulings §4.21 R-d-07；逐项边界以 PRD 05 §0.3 为准。本表不再定义边界，只把服务端交付挂到里程碑上，冲突时以 30/01 与 PRD 05 为准；「协同后端提前到 M2」的依据是 rulings §4.19 D-M2-CONTENT；维护约定：修订 30/01 §7 时同一 PR 核对本表，本表只作服务端交付的索引，不另立边界）：
 
@@ -597,17 +597,17 @@ flowchart LR
 | `AuthModule`（M-08） | rest（`/auth/*`，以及 `/documents/:id/collab-ticket`，控制器归属见 [03](03-modules-identity-and-access.md)）；guard（`SessionGuard`、`CsrfGuard`） | rest + guard | guard + providers（`SessionValidator`、`TicketVerificationKeys`） | guard | — | — |
 | `UsersModule`（M-08） | rest | ✓ | 仅 providers（`PermissionsModule` 依赖） | 仅 providers（`PermissionsModule` 参与者的依赖） | — | — |
 | `DocumentsModule`（M-08） | rest、producer（`schedule-purge`；创建副本入 `import` 队列，[04](04-modules-documents-storage-media.md) §3.3）；processor（`document-purge`）与参与者 | rest + producer | providers（`DocumentStateGuard`、`DocumentReader`，供快照与元素彻底删除路由） | processor + 参与者 | — | `user-marks` |
-| `PermissionsModule`（M-08） | rest；providers（`RoleResolverService`、`ResolveShareLinkUseCase`）；参与者 | rest | providers（`AuthzSource`，BE-02） | 参与者 | — | `permissions` |
+| `PermissionsModule`（M-08） | rest；providers（`RoleResolverService`、`ResolveShareLinkUseCase`、`ShareLinkTokenCipher`）；参与者 | rest + providers（`ShareLinkTokenCipher`：分享令牌信封，只在 api，2026-10-15，TB-86、TB-93） | providers（`AuthzSource`，BE-02） | 参与者 | — | `permissions` |
 | `ShareLinksModule`（M-08） | rest；guard（`ShareLinkGuard`，第二个会话后守卫）；参与者 | rest + guard | guard | 参与者 | — | `share-links` |
 | `StorageModule`（M-08） | providers（`BlobStoreAccessor`、`GetPresignedPutUseCase`） | providers | providers（`ctx.blobStore`） | providers | — | — |
 | `MediaModule`（M-08） | rest（media）；providers；参与者 | rest + providers | providers（`SyncDocumentMediaRefsUseCase`，快照写入所在处） | providers（`IngestMediaUseCase`、`PruneDetachedMediaLinksUseCase`）+ 参与者 | — | `media` |
 | `CollabModule`（M-09） | 协同接入：适配层（`CollabUpgradeHandler` 与帧预过滤）+ `SessionSweeper`（每 5 s 批量会话复核，[02](02-auth-chain.md) §9.5）+ `collabServer`（内含 Hocuspocus 实例与七个自有扩展）+ PermissionSync（订阅 `perm:doc`）+ ControlPlane（订阅 `room:{docId}:ctl`），M3 另装 `HardenedRedis`（extension-redis 的加固子类，§0.4、[05](05-modules-collab-and-snapshots.md) §1）；rest（`/documents/:id/elements/purge`，CO-07）；参与者 | — | ✓（适配层、`SessionSweeper`、`collabServer`、PermissionSync、ControlPlane 全部，M3 加 `HardenedRedis`；rest） | 参与者 + `updates-prune` / `snapshots-retention` 处理体与 `SnapshotWriter`（只装 `PgUpdateStore` / `PgSnapshotStore`，不激活 `collabServer`、不建 Hocuspocus 实例、不挂 `upgrade`，BE-15；明细见 [05](05-modules-collab-and-snapshots.md) §1） | — | `collab` |
 | `SnapshotsModule`（M-09） | rest（`/documents/:id/snapshots*`） | —（启动断言，BE-03） | ✓ | — | — | — |
 | `JobsModule` | rest（`/jobs/:id`）；producer；cron（`reconciliation` 每 1 min） | rest + producer | producer | cron | — | — |
-| `ImportExportModule` | rest（`/imports/uploads`、`/imports`、`/documents/:id/export`、`/automation/*`）；producer；processor（`import` / `export` / `automation`） | rest + producer | — | processor | — | — |
+| `ImportExportModule` | rest（`/imports/uploads`、`/imports`、`/documents/:id/export`、`/exports/:jobId`、`/exports/:jobId/cancel`（2026-10-22，rulings §4.25 DS-101）、`/automation/*`）；producer；processor（`import` / `export` / `automation`） | rest + producer | — | processor | — | — |
 | `ThumbnailsModule` | rest；producer（`render-export`、失效入队）；processor（`thumbnails` / `render-export`）；参与者 | rest + producer | producer（压缩后失效入队） | processor + 参与者 | — | `thumbnails` |
 | `CommentsModule` | rest（只读；`/documents/:id/comments/import` 除外，P1）；observer（`CommentMirrorObserver`）；参与者 | rest（只读） | observer（BE-03）+ rest（`/documents/:id/comments/import`，Room 内事务，P1） | 参与者 | — | `comments` |
-| `WebhooksModule` | rest（订阅管理）；producer（`DeliverWebhookEventUseCase`）；processor（`webhook-delivery`） | rest + producer | producer（评论镜像触发） | processor | — | — |
+| `WebhooksModule` | rest（订阅管理）；producer（`DeliverWebhookEventUseCase`）；processor（`webhook-delivery`） | rest + producer（访问申请受理触发，`access_request.created`，2026-10-15，rulings §4.25 DS-67） | producer（评论镜像触发） | processor；producer（自动化作业终态触发，AL-7） | — | — |
 | `AuditModule`（global） | rest；observer（订阅器 + 拦截器）；cron（`audit-seal` 每日）；内部端点（`AuditVerifyController`，`/internal/admin/audit/verify`，[07](07-modules-comments-webhooks-audit.md) §10.2） | rest + observer | observer | observer + cron + audit/verify | — | — |
 | `PluginsModule`（M-08，2026-10-01） | rest（`/admin/plugins*`、`/users/me/plugins*`）；providers（`PluginCatalog` 启动校验、`PluginSetFingerprinter`、`GetEffectivePluginSetUseCase`）；collab 另有 `plugins:ctl` 订阅与 60 s 策略轮询 | rest + providers | providers + 订阅（握手指纹判定与 Stateless `plugins`，[16](16-ws-protocol-server-view.md) §12） | providers（headless 内容级集合；随 RPC 下发 renderer，renderer 不读库，AL-3） | — | — |
 | `HealthModule` | rest（`/healthz`、`/readyz`） | ✓ | ✓ | ✓ | `forRole('renderer')`：只 `/healthz` + Chromium 池就绪，无凭据（BE-14） | — |
@@ -785,8 +785,8 @@ flowchart LR
   appModule["AppModule：注册 APP_GUARD 链"]
   auth["AuthModule：会话、CSRF、OIDC、票据签发控制器"]
   users["UsersModule：叶子，含 SessionStore"]
-  permissions["PermissionsModule：含 ResolveShareLinkUseCase"]
-  shareLinks["ShareLinksModule：创建、撤销、列表与 ShareLinkGuard"]
+  permissions["PermissionsModule：含 ResolveShareLinkUseCase 与访问申请"]
+  shareLinks["ShareLinksModule：创建、改角色与有效期、撤销、列表与 ShareLinkGuard"]
   documents["DocumentsModule"]
   jobs["JobsModule：JobRunsRepository"]
   storage["StorageModule：无控制器"]
@@ -852,6 +852,7 @@ flowchart LR
   comments -- "UserDirectory 显示名" --> users
   comments -- "DocumentRoleGuard、RlsContext" --> permissions
   comments -- "DeliverWebhookEventUseCase" --> webhooks
+  permissions -- "访问申请事件 DeliverWebhookEventUseCase" --> webhooks
   jobs -- "对账只读 WebhookRepository" --> webhooks
   audit -- "订阅 cordis 事件" --> cordisHost
   health -- "renderer 变体不 import" --> cordisHost
@@ -859,7 +860,7 @@ flowchart LR
   interceptor -. "注入 RecordAuditEventUseCase" .-> audit
 ```
 
-怎么读：画法同图 8-1；M-12 的模块都是终端模块，只消费 M-08、M-09 的导出面，没有模块反向 import 它们（`documents → jobs` 例外，见图 8-1，但 `JobsModule` 不 import `DocumentsModule`）。评论模块按 [07](07-modules-comments-webhooks-audit.md) §10.2 取显示名，按 [03](03-modules-identity-and-access.md) §6 取文档作用域守卫。虚线是 `common/` 的拦截器注入 global 的审计用例，M-08、M-09 只在控制器上标注 `@Audited()`。
+怎么读：画法同图 8-1；M-12 的模块都是终端模块，只消费 M-08、M-09 的导出面，没有模块反向 import 它们（例外两处：`documents → jobs`，见图 8-1，但 `JobsModule` 不 import `DocumentsModule`；`permissions → webhooks`，2026-10-15 起访问申请受理时产生 Webhook 事件（rulings §4.25 DS-67），而 `WebhooksModule` 只依赖 Config、Redis 与机密 KEK、不 import 任何业务模块）。评论模块按 [07](07-modules-comments-webhooks-audit.md) §10.2 取显示名，按 [03](03-modules-identity-and-access.md) §6 取文档作用域守卫。虚线是 `common/` 的拦截器注入 global 的审计用例，M-08、M-09 只在控制器上标注 `@Audited()`。
 依据：40-modules/12 §3、§7.3；本线 03 §6、07 §10.2；rulings §4.18 BE-04、BE-07、BE-30。
 
 **imports 规则**（违反即 `depcruise` 失败或评审退回）：

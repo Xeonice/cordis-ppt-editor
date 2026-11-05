@@ -1,5 +1,5 @@
 # 16 WS 协议（服务端视角）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 自挂 upgrade、适配层计时与帧预过滤、一 WS 一文档；§2 改 Hocuspocus 帧；§3 CONTROL 改 Stateless 与 Auth / `onTokenSync`，删 ping 行，重画图 16-2；§4 门禁挂点与连接污染规则；§5 ack 挂点与 step2 16 MiB；§6 服务端先发 step1、只读会话也收 step1；§7 `beforeHandleAwareness` 与出站合并；§8 PermissionSync；§10 关闭码由原始 `ws.close` 发出、加 4205；§11 extension-redis；§13 step2 上限与 Hocuspocus 配置；§15 机械验证）；2026-09-26（§4.21 整合：§2 补文档名 {documentId}:{epoch} 解析规则；§3 登记可选 rtt.ping / rtt.pong；§5、§6 写明只读会话的空差量 step2 不回 ack；§15 测试名改 close-policy.test）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：Auth token 新增 pluginSet 指纹；§12 第 4 项握手判定与在线通知；Stateless 新增 plugins；4426 增 collab.plugins_outdated） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 自挂 upgrade、适配层计时与帧预过滤、一 WS 一文档；§2 改 Hocuspocus 帧；§3 CONTROL 改 Stateless 与 Auth / `onTokenSync`，删 ping 行，重画图 16-2；§4 门禁挂点与连接污染规则；§5 ack 挂点与 step2 16 MiB；§6 服务端先发 step1、只读会话也收 step1；§7 `beforeHandleAwareness` 与出站合并；§8 PermissionSync；§10 关闭码由原始 `ws.close` 发出、加 4205；§11 extension-redis；§13 step2 上限与 Hocuspocus 配置；§15 机械验证）；2026-09-26（§4.21 整合：§2 补文档名 {documentId}:{epoch} 解析规则；§3 登记可选 rtt.ping / rtt.pong；§5、§6 写明只读会话的空差量 step2 不回 ack；§15 测试名改 close-policy.test）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：Auth token 新增 pluginSet 指纹；§12 第 4 项握手判定与在线通知；Stateless 新增 plugins；4426 增 collab.plugins_outdated）；2026-10-15（design-language-v3 第 2 批：§8 重算同时按链接此刻的到期时刻重设 `linkExpiresAt` 定时器（链接的角色与有效期可在原行上改，rulings §4.25 DS-47）；§9 注明名额已满的会话不自动提升，「重试以编辑身份加入」即重新握手（DS-58）；§8 `none` 一行补访问被撤销后的口径（DS-50））；2026-10-22（design-language-v3 第 3 批：§3 `auth.ok` 在 `reason: 'over_ceiling'` 时另带 `elementCount`（判定所用的 `documents.element_count`，墓碑计入）与 `maxElements`（`scale.maxElementsPerDoc`），供「文档已达元素上限」横幅写「实际 / 上限」、客户端不另数（rulings §4.25 TB-146、DS-128）；§9、§14 新增一行、§15 协议字段断言同步；2026-10-22 复核修正：§14 新增那一行的状态改为已登记——30/06 §6.3 与 protocol `ws/frames.ts`（40-modules/02）同日已回写） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §6、§7、§10、§11、§14、§18.5；ADR-0023、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；40-modules/02（protocol 文件）；[02 鉴权链路](02-auth-chain.md)；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间](14-valkey-object-storage-and-retention.md)；[17 配置](17-deployment-and-config.md)；rulings §4.15 S-3a、§4.18 CO-08 / CO-09 / CO-10 / CO-15、§4.19 D-M2-CONTENT / INC-09 / D-COMMENTS-PKG、§4.21；rulings §4.25 DS-47、DS-50、DS-58、DS-128、TB-146
 
 本文是 WS 协同通道在服务端的唯一事实源：升级与握手的检查顺序、每类 CONTROL 帧的服务端处理、入站门禁 L1–L4、ack 的发出规则、同步与 awareness 的处理、权限重算、关闭码的触发条件、跨实例扇出语义与限额数值。帧、CONTROL 成员与关闭码的**定义**在 30-architecture/06 §6 与 `@cordexjs/protocol`，本文不重述字段表；房间、持久化、溢写与准入的机制在 [05](05-modules-collab-and-snapshots.md)；客户端行为在 [50/07](../50-frontend/07-collaboration-client.md)。
 
@@ -84,7 +84,7 @@ Auth token 中服务端据以判定版本的两个字段（登记于 30-architec
 | `type` | 方向 | 服务端处理（2026-09-26 起的挂点） |
 |---|---|---|
 | `auth` | C→S | **Auth 帧的 token**（不是 Stateless）。在 `onAuthenticate` 按 §1 图与 [05](05-modules-collab-and-snapshots.md) §3.1 的顺序校验；判定一律放 `onAuthenticate`，不放 `onConnect`（它先于前者触发）。通过后 Hocuspocus 回 `Authenticated(scope)`（`scope` 只作初值参考），并按连接设 `connectionConfig.readOnly`；认证前排队的帧此后才回放。已认证后再到的 Auth 帧即 `auth.refresh`（本表下两行）（原：「只接受作为首帧；认证后再收到 `auth` 视为坏帧（4400）」，作废） |
-| `auth.ok` | S→C | 在 `connected` 钩子里以 `connection.sendStateless` 发一次：`sessionId`、`role`（封顶后的有效角色）、`serverSeq`（加入时的 `documents.head_seq`，此时文档已加载）、`schemaVersion`、`limits{maxUpdateBytes, msgRateHz, msgBurst}`（决策 INC-07）、`serverTime`；只读降级时带 `reason`：`'capacity'` = 编辑者名额满，`'over_ceiling'` = 部署调低天花板后元素数超限、只读打开（[05](05-modules-collab-and-snapshots.md) §4.1；两者客户端提示不同，决策 INC-03/04/05）。它与回放帧、step1 / step2 的先后不保证（实测先于 step1）；`connected` 整体 try/catch，失败 `ws.close(1011)`（否则会出现客户端已收 authenticationFailed、服务端连接仍存活的状态） |
+| `auth.ok` | S→C | 在 `connected` 钩子里以 `connection.sendStateless` 发一次：`sessionId`、`role`（封顶后的有效角色）、`serverSeq`（加入时的 `documents.head_seq`，此时文档已加载）、`schemaVersion`、`limits{maxUpdateBytes, msgRateHz, msgBurst}`（决策 INC-07）、`serverTime`；只读降级时带 `reason`：`'capacity'` = 编辑者名额满，`'over_ceiling'` = 部署调低天花板后元素数超限、只读打开（[05](05-modules-collab-and-snapshots.md) §4.1；两者客户端提示不同，决策 INC-03/04/05）；`reason: 'over_ceiling'` 时另带 `elementCount`（判定所用的 `documents.element_count`，墓碑计入）与 `maxElements`（本部署的 `scale.maxElementsPerDoc`），「文档已达元素上限」横幅的「实际 / 上限」直接取这两个数，其余情形不带（2026-10-22，rulings §4.25 TB-146、DS-128；字段定义登记在 30-architecture/06 §6.3）。它与回放帧、step1 / step2 的先后不保证（实测先于 step1）；`connected` 整体 try/catch，失败 `ws.close(1011)`（否则会出现客户端已收 authenticationFailed、服务端连接仍存活的状态） |
 | `auth.denied` | S→C | 改为 `onAuthenticate` 抛错产生的 `PermissionDenied(reason)`，reason 为 `{code}` JSON；`code` 取 `collab.unauthenticated`、`collab.forbidden`、`collab.doc_not_found`、`collab.doc_purging`、`collab.schema_too_new`、`collab.protocol_mismatch`、`collab.epoch_changed`、`collab.room_full`、`collab.rate_limited`（每用户单实例并发上限，§1）之一；随后钩子调原始 `ws.close`，关闭码见 §10 |
 | `auth.refresh` | C→S | 客户端 `provider.sendToken()`（token 函数现换新票）发出的已认证后 Auth 帧，由 `onTokenSync` 处理（验票步骤以 [02](02-auth-chain.md) §9.5 为准）：验签、`jti` 单次、`sub`、`doc` 与 `sid` 均须与当前会话一致，否则钩子以 `ws.close(4401)` 关闭（原生行为只是文档级关闭、客户端见 1000）；通过后重算角色，**直接写 `connection.readOnly`**（`onTokenSync` 的返回值不会更新 `connection.context`，会话态放 context 里的可变对象直接改），变化则发 `permission`。`onTokenSync` 不被 Hocuspocus await，因此帧预过滤在转发该帧后**暂停后续帧**、等钩子完成再放行，否则紧跟其后的 update 会按旧角色处理（证据 K17-A、vC）。M1–M3 会话有效期绑定 `sid` 指向的登录会话（[05](05-modules-collab-and-snapshots.md) §3.4），`auth.refresh` 不延长期限、成功不回应答帧；M4 集成方 JWT 复用本帧，届时以新 JWT 的 `exp` 延长 |
 | `permission` | S→C | 角色重算结果变化时由 `PermissionSync` 扩展以 Stateless 发 `{role, reason:'granted' \| 'changed' \| 'revoked', permVersion}`；`revoked` 后立即 `ws.close(4403)`（§8） |
@@ -234,14 +234,14 @@ sequenceDiagram
 
 ## 8. 权限重算与降权
 
-触发重算的四种事件：`perm:doc:{docId}` 频道带 `permVersion` 的消息（权限变更或分享链接撤销，写方在同一事务内递增 `permVersion` 后发布，[02](02-auth-chain.md) §11）；同一频道带 `lockChanged` 的消息（文档锁定状态变化，见本节末）；会话的 `linkExpiresAt` 到期（每个会话一个定时器，挂在连接的 context 上，`onDisconnect` 时清理）；`auth.refresh`。**执行者**（2026-09-26，ADR-0039 决策 4）：server-collab 的 `PermissionSync` 扩展，经 `AuthorizationSource.onPermissionChanged` 订阅（Valkey 订阅连接在 apps/server 的 `AuthzSource` 里）；Hocuspocus 没有跨实例控制面、也没有权限通知消息，extension-redis 不承载这条链路。重算对本实例该文档的每个连接调用 `AuthorizationSource.resolveRole`（绕过 5 s 直接授权缓存），取 max(直接授权, 票据 `lnk` 对应链接此刻的有效角色)（rulings §4.18 BE-02），再按文档锁定与容量降级封顶，结果直接写 Hocuspocus 的 `connection.readOnly`（下一帧生效）：
+触发重算的四种事件：`perm:doc:{docId}` 频道带 `permVersion` 的消息（权限变更或分享链接撤销，写方在同一事务内递增 `permVersion` 后发布，[02](02-auth-chain.md) §11）；同一频道带 `lockChanged` 的消息（文档锁定状态变化，见本节末）；会话的 `linkExpiresAt` 到期（每个会话一个定时器，挂在连接的 context 上，`onDisconnect` 时清理）；`auth.refresh`。**执行者**（2026-09-26，ADR-0039 决策 4）：server-collab 的 `PermissionSync` 扩展，经 `AuthorizationSource.onPermissionChanged` 订阅（Valkey 订阅连接在 apps/server 的 `AuthzSource` 里）；Hocuspocus 没有跨实例控制面、也没有权限通知消息，extension-redis 不承载这条链路。重算对本实例该文档的每个连接调用 `AuthorizationSource.resolveRole`（绕过 5 s 直接授权缓存），取 max(直接授权, 票据 `lnk` 对应链接此刻的有效角色)（rulings §4.18 BE-02），再按文档锁定与容量降级封顶，结果直接写 Hocuspocus 的 `connection.readOnly`（下一帧生效）；同一次复核带回链接此刻的到期时刻，`linkExpiresAt` 与定时器随之重设（所有者在原行上改了链接的角色或有效期时，令牌与 `lnk` 都不变，2026-10-15，rulings §4.25 DS-47）：
 
 | 重算结果相对当前有效角色 | 服务端动作 |
 |---|---|
 | 不变 | 只更新会话的 `permVersion` |
 | 升高 | Stateless `permission{role, reason:'granted', permVersion}`；容量降级的会话仍只读；**连接已污染时随后以 1012（reason `contaminated`）关闭**（§4） |
 | 降低但非 `none` | Stateless `permission{role, reason:'changed', permVersion}`，`readOnly = true`；之后越权写入在 L2 被拒 |
-| `none` | Stateless `permission{role:'none', reason:'revoked'}` 后原始 `ws.close(4403)`，awareness 移除由 Hocuspocus 原生广播 |
+| `none` | Stateless `permission{role:'none', reason:'revoked'}` 后原始 `ws.close(4403)`，awareness 移除由 Hocuspocus 原生广播；此后该用户的 REST 一律 403（客户端换成阻断页、清空内存里的文档与待同步更改，服务端不为其保留或接收任何内容，rulings §4.25 DS-50，50/07 §8.1） |
 
 - 传播预算：权限写库到所有在线会话生效 p95 ≤ 1 s（PRD 门禁 ≤ 2 s），测量为审计时间戳与客户端 `permission/changed` 事件之差。
 - Valkey 订阅断开后恢复时，`PermissionSync` 对本实例全部会话做一次全量重算，补上可能丢失的消息（证据 K7-A）。
@@ -251,7 +251,7 @@ sequenceDiagram
 
 ## 9. 容量
 
-规则与算法在 [05](05-modules-collab-and-snapshots.md) §4，协议上的表现只有四种：编辑者名额满 → `auth.ok{role:'viewer', reason:'capacity'}` 只读加入；文档元素数超过部署调低后的天花板 → `auth.ok{reason:'over_ceiling'}` 只读打开；查看者名额也满、或本实例权重预算不足 → `PermissionDenied{collab.room_full}` 后关闭 4503（统一码 `collab.room_full`，废 `collab.server.room_full`，决策 INC-10/SG-04），客户端退避重连、多半落到其他实例；已开房间在内存压力下被驱逐 → 原始 `ws.close(1012)`，客户端首轮不退避、≤ 5 s 连到其他实例（`hp.closeConnections()` 只发文档级 CLOSE，不能代替）。权重准入在 `onAuthenticate` 里、文档尚未加载时计算（Hocuspocus 没有内存上限与驱逐策略，只能靠这里），不足先对 `draining` 文档调 `hp.unloadDocument` 再重判。
+规则与算法在 [05](05-modules-collab-and-snapshots.md) §4，协议上的表现只有四种：编辑者名额满 → `auth.ok{role:'viewer', reason:'capacity'}` 只读加入（本次连接内不自动提升；界面「重试以编辑身份加入」由客户端断开后重新握手，服务端再判一次名额，rulings §4.25 DS-58）；文档元素数超过部署调低后的天花板 → `auth.ok{reason:'over_ceiling', elementCount, maxElements}` 只读打开（两个数与判定同口径，TB-146）；查看者名额也满、或本实例权重预算不足 → `PermissionDenied{collab.room_full}` 后关闭 4503（统一码 `collab.room_full`，废 `collab.server.room_full`，决策 INC-10/SG-04），客户端退避重连、多半落到其他实例；已开房间在内存压力下被驱逐 → 原始 `ws.close(1012)`，客户端首轮不退避、≤ 5 s 连到其他实例（`hp.closeConnections()` 只发文档级 CLOSE，不能代替）。权重准入在 `onAuthenticate` 里、文档尚未加载时计算（Hocuspocus 没有内存上限与驱逐策略，只能靠这里），不足先对 `draining` 文档调 `hp.unloadDocument` 再重判。
 
 ## 10. 关闭码触发条件
 
@@ -400,7 +400,7 @@ flowchart TB
 
 ## 14. 与相邻文档的对齐项
 
-2026-09-25 按 rulings §4.19 回填后已全部落实，保留此表便于反查；2026-09-26 按 rulings §4.20、§4.21 新增末几行：
+2026-09-25 按 rulings §4.19 回填后已全部落实，保留此表便于反查；2026-09-26 按 rulings §4.20、§4.21 新增末几行；2026-10-22 按 rulings §4.25 TB-146 新增最后一行：
 
 | 项 | 落点 | 状态 |
 |---|---|---|
@@ -413,6 +413,7 @@ flowchart TB
 | 新增 `limits.ws.step2MaxBytes`、`preAuthMaxFrames`、`preAuthMaxBytes`、`authTokenMaxBytes`、`idleCheckIntervalMs` 与 `collab.hocuspocus.*`；废止客户端 ping 相关键 | [17](17-deployment-and-config.md) §5.7、§5.8 | 已登记（rulings §4.21） |
 | 反代按 `documentId` 一致性哈希（偏好亲和、非会话粘性） | [17](17-deployment-and-config.md) §3、[01](01-service-overview-and-roles.md) §7 | 随 rulings §4.21 同轮回写 |
 | extension-redis 的频道与锁键 | [14](14-valkey-object-storage-and-retention.md) §3.1 | 已登记（rulings §4.21） |
+| `auth.ok` 在 `reason: 'over_ceiling'` 时带 `elementCount`、`maxElements`（2026-10-22，rulings §4.25 TB-146） | 30-architecture/06 §6.3、protocol `ws/frames.ts`（40-modules/02） | 已登记：30/06 §6.3 与 protocol `ws/frames.ts`（40-modules/02）同日回写；本文与 [05](05-modules-collab-and-snapshots.md) §3.1、§4.1 按同一口径 |
 
 ## 15. 机械验证
 
@@ -430,7 +431,7 @@ flowchart TB
 | 钩子健壮性：`onChange`、`onStateless`、`onAwarenessUpdate`、`beforeBroadcastStateless`、`onDisconnect` 注入异常时进程不退出；`connected` 注入异常时连接以 1011 关闭；`onLoadDocument` 末尾缺 `flush()` 的回归（首个连接不得多收整文档 update） | `test/contract`（「钩子异常不杀进程」） |
 | awareness：冒充他人 clientID 或 `user.id` 的条目被删除且连接保持；只读会话的选区字段被剥掉；> 2 KiB 删除且连接保持；断开即广播移除；满员房间内文档更新的广播时延不受 awareness 合并影响 | `test/server-integration` |
 | 权限：他人改权限不踢链接会话；撤销 ≤ 1 s 降权并 4403；链接到期主动降权（FixedClock）；锁定后 ≤ 1 s 收到 `room{locked}` 且写入被 L2 拒绝，解锁后收到不带 `locked` 的 `room` 并恢复可写；覆盖导入成功时锁定中的会话以 4428 关闭、不先收到解锁；恢复进行中任何会话都收不到 `room{locked}`（rulings §4.19 N1）；`auth.refresh` 之后紧跟的 update 按新角色处理（适配层暂停） | `test/server-integration` |
-| 协议字段：超天花板文档加入得 `auth.ok.reason = 'over_ceiling'`（名额满为 `capacity`）；Auth token 的 `epoch` 与 `snapshots/latest` 的 `X-Cordex-Epoch` 不符 → 4428；恢复提交后每个副本的会话收到一帧 `event{version.restored}`；票据 `doc` 与 URL 不符 → 4403 | `test/server-integration`、`test/contract` |
+| 协议字段：超天花板文档加入得 `auth.ok.reason = 'over_ceiling'`（名额满为 `capacity`），且 `elementCount` 等于该文档的 `element_count`（含墓碑）、`maxElements` 等于配置的 `scale.maxElementsPerDoc`，`capacity` 与正常加入时不带这两项（2026-10-22，TB-146）；Auth token 的 `epoch` 与 `snapshots/latest` 的 `X-Cordex-Epoch` 不符 → 4428；恢复提交后每个副本的会话收到一帧 `event{version.restored}`；票据 `doc` 与 URL 不符 → 4403 | `test/server-integration`、`test/contract` |
 | 跨实例（M3）：两实例 + extension-redis（Valkey 容器）下 A 实例客户端编辑 → B 实例客户端状态向量收敛；跨实例更新不产生 `document_updates` 行；Valkey 宕机 30 s 两进程都不退出、恢复后一次变更即补齐；SIGTERM 时客户端收 1012 而非 1000 | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) §9） |
 | CONTROL 判别联合（Stateless 载荷）导出的 JSON Schema 快照与本文 §3 成员一致，变更需显式更新快照 | `test/contract`（schema 快照） |
 | 互操作（2026-09-26 改）：`@hocuspocus/provider` v3 与 v4 分别连接网关能完成认证与同步，y-protocols 编码与服务端一致。（原：「与 y-websocket 官方客户端互操作」——Hocuspocus 帧带文档名前缀，不兼容，作废） | `test/server-integration` |

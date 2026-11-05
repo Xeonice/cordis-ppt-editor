@@ -1,5 +1,5 @@
 # 11 DDL：协同更新与版本快照
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：`document_updates.update` 存 Yjs V1 字节（0042 表注释同步改）、`client_id` 取 Auth token 的 `clientId`、`session_id` 取连接会话号；§5 调用点改 Hocuspocus `beforeSync`、组提交「空闲即刷、上限 100 ms / 50 条」、取号 0 行先 `ws.close` 再抛错）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：RLS 行为矩阵「有效角色 ≥ editor」注明只来自直接授权） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025、ADR-0039；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：`document_updates.update` 存 Yjs V1 字节（0042 表注释同步改）、`client_id` 取 Auth token 的 `clientId`、`session_id` 取连接会话号；§5 调用点改 Hocuspocus `beforeSync`、组提交「空闲即刷、上限 100 ms / 50 条」、取号 0 行先 `ws.close` 再抛错）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：RLS 行为矩阵「有效角色 ≥ editor」注明只来自直接授权）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-57、DS-40：§2 `document_snapshots` 加 `pre_restore`（仅 `auto`，恢复用例在恢复前写下的「恢复前」版本，列表据此标注并单列）及 CHECK；设计说明补「恢复前」与命名的 REST 入参上限；§8 注明「恢复前」版本按 auto 口径保留；§11 增一条约束断言；0040 改动当时未跑 ddl-check（同日已实跑通过，见 §11）；同日再补（rulings §4.25 DS-70）：§2 `document_snapshots` 增 `origin`、`origin_name`（只在 `import` 行：文档来源 upload / blank / template / duplicate 与显示名，版本历史据此写最早那一条）及四条 CHECK、两条列注释，设计说明与表格写方行同步，§11 负向约束补一项；0040 同样随同日的 ddl-check 实跑通过；同日再补：§11 第 1 条的实测记录改为 2026-10-15 的结论——PostgreSQL 18.6 空库以 ddl-check 连同 08–13 全部 38 个迁移按编号执行通过，含 0040 的 `pre_restore`、`origin`、`origin_name` 与相关 CHECK（结构与示例围栏的计数见 08 §12）；§2 设计说明「来源与显示名」补一句：显示名在建档写这条 `import` 快照时记下，源文档或模板之后改名不回写（与设计 03-07 §4.1 一致，rulings §4.25 DS-70））；2026-10-22（design-language-v3 第 3 批，rulings §4.25 DS-83：§8 示例增 e6b——压缩时取 `(上一快照.seq_upto, seq_upto]` 区间里最后一条带用户的 update，供 `documents.content_updated_by` / `content_updated_at`（最近编辑者）；§2「版本元数据」补一句，§4 表的 `UpdateStore` 方法列表增 `lastEditor`。e6b 当时未跑 ddl-check；2026-10-22 复核修正：e6b 同日随 ddl-check 在 PostgreSQL 18.6 空库实跑通过（08 §12）；§2「版本元数据」里 e6 的出处由「§5 示例」改正为「§8 示例」） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)（角色、GUC、`cordex_current_user`）；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[05 协同与快照模块](05-modules-collab-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；ADR-0022、ADR-0025、ADR-0039；rulings §4.13、§4.16 Q17、§4.18 BE-15 / BE-25 / CO-07 / CO-16、§4.19 D-M2-CONTENT / C-06、§4.21；rulings §4.25 DS-40、DS-57、DS-70、DS-83
 
 本文是 `document_snapshots`、`document_updates` 两张表的唯一事实源：建表语句、约束、索引、RLS、读写方、保留与清理都以本文为准。写入这两张表的只有 M-09（CollabModule 的 `PgUpdateStore`、`PgSnapshotStore`），运行机制（批量写、压缩、溢写回放、恢复、墓碑清扫）见 [05](05-modules-collab-and-snapshots.md)。
 
@@ -74,6 +74,9 @@ CREATE TABLE document_snapshots (
   description         text        NULL,
   contributors        uuid[]      NULL,
   restored_from       uuid        NULL,
+  pre_restore         boolean     NOT NULL DEFAULT false,
+  origin              text        NULL,
+  origin_name         text        NULL,
   created_by          uuid        NULL,
   created_at          timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT pk_document_snapshots PRIMARY KEY (id),
@@ -107,7 +110,17 @@ CREATE TABLE document_snapshots (
   CONSTRAINT ck_document_snapshots_description
     CHECK (description IS NULL OR char_length(description) <= 2000),
   CONSTRAINT ck_document_snapshots_restored_from
-    CHECK (restored_from IS NULL OR kind = 'restore')
+    CHECK (restored_from IS NULL OR kind = 'restore'),
+  CONSTRAINT ck_document_snapshots_pre_restore
+    CHECK (NOT pre_restore OR kind = 'auto'),
+  CONSTRAINT ck_document_snapshots_origin
+    CHECK ((kind = 'import') = (origin IS NOT NULL)),
+  CONSTRAINT ck_document_snapshots_origin_value
+    CHECK (origin IS NULL OR origin IN ('upload', 'blank', 'template', 'duplicate')),
+  CONSTRAINT ck_document_snapshots_origin_name
+    CHECK ((origin IS NULL OR origin = 'blank') = (origin_name IS NULL)),
+  CONSTRAINT ck_document_snapshots_origin_name_len
+    CHECK (origin_name IS NULL OR char_length(origin_name) <= 512)
 );
 
 CREATE INDEX ix_document_snapshots_doc_seq
@@ -136,6 +149,12 @@ COMMENT ON COLUMN document_snapshots.contributors IS
   '(上一快照.seq_upto, seq_upto] 区间 updates 的 user_id 去重；NULL = 不适用（DDL-COLS）';
 COMMENT ON COLUMN document_snapshots.restored_from IS
   '仅 kind=restore：被恢复的源快照；源被保留作业删除时置 NULL';
+COMMENT ON COLUMN document_snapshots.pre_restore IS
+  '仅 kind=auto：恢复用例在执行恢复前写下的「恢复前」版本（60/05 §10 第 2 步，rulings §4.25 DS-57）；版本列表据此标「恢复前」并单列，不并进相邻的自动版本组';
+COMMENT ON COLUMN document_snapshots.origin IS
+  '仅 kind=import 且必有：文档来源 upload（导入文件）| blank（新建空白）| template（从模板新建）| duplicate（创建副本），版本历史据此写最早那一条（rulings §4.25 DS-70）';
+COMMENT ON COLUMN document_snapshots.origin_name IS
+  '来源的显示名：upload 为原文件名（含扩展名）、template 为模板名、duplicate 为源文档在受理时的标题（可为空串）；blank 与非 import 行为 NULL';
 ```
 
 设计说明：
@@ -143,10 +162,12 @@ COMMENT ON COLUMN document_snapshots.restored_from IS
 - **六种 kind**（ADR-0025 决策 2）：`auto`（压缩点）、`named`（用户命名）、`import`（导入，带基线）、`migration`（schema 迁移后）、`restore`（恢复后）、`epoch`（换纪元）。`documents.latest_snapshot_id` 只指向后五类中最新的一个，`named` 不移动指针（命名只是给当前状态起名，不改变 bootstrap 起点）。
 - **状态二选一**：`state_inline` 与 `state_key` 恰有一个非空（`ck_document_snapshots_state_one_of`）；内联上限 1 MiB 由 CHECK 兜底。对象键由行本身推出（`docs/{docId}/snapshots/{snapshotId}.yup2.zst`，决策 C-30），CHECK 逐字比对，写错桶路径在插入时就失败。对象放 `storage.s3.buckets.snapshots`（开版本化，决策 C-08/OBJ），应用在插入行之前先写对象，写对象失败不插行。
 - **基线**（决策 C-07）：只有 `import` 能带 `baseline_key`，且键必须是本文档 `baseline/` 前缀下以本快照 id 命名的对象；导入原件 `imports/{jobId}/source.pptx` 仍按 30 天清理，二者互不引用。
-- **版本元数据**（决策 DDL-COLS 之 C-15）：`description` 只随命名版本写入；`contributors` 在写 `auto` 与 `named` 时由 `(上一快照.seq_upto, seq_upto]` 区间 updates 的 `user_id` 去重得到（§5 示例 e6），`restore` 写入执行恢复的用户，`import` / `migration` / `epoch` 为 NULL。updates 只保留 7 天，贡献者必须在压缩当时算好落列，事后无法回算。
-- **恢复链**：`restored_from` 记录恢复源，供版本时间轴显示「恢复自『X』」（设计 07）；源快照被保留作业删掉时置 NULL、恢复行本身保留。这是 FK-POLICY「默认 RESTRICT」之外的第二个 SET NULL 例外（第一个是 `latest_snapshot_id`），理由相同：被引用方是可按保留期删除的历史行。
+- **版本元数据**（决策 DDL-COLS 之 C-15）：`description` 只随命名版本写入；`contributors` 在写 `auto` 与 `named` 时由 `(上一快照.seq_upto, seq_upto]` 区间 updates 的 `user_id` 去重得到（§8 示例 e6），`restore` 写入执行恢复的用户，`import` / `migration` / `epoch` 为 NULL。updates 只保留 7 天，贡献者必须在压缩当时算好落列，事后无法回算。同一次压缩还按 §8 的 e6b 取区间里最后一条带用户的 update，写进 `documents.content_updated_by` / `content_updated_at`（文档卡片的「编辑者 · 相对时间」，2026-10-22，rulings §4.25 DS-83；推进规则见 [05](05-modules-collab-and-snapshots.md) §7，列定义见 [10](10-ddl-documents-marks-media.md) §2），理由相同：事后无法回算。
+- **恢复链**：`restored_from` 记录恢复源，供版本时间轴显示「恢复自『X』」（设计 07）；源快照被保留作业删掉时置 NULL、恢复行本身保留。每次恢复之前，恢复用例都先写一个 `pre_restore = true` 的 `auto` 快照存下当时的内容（2026-10-15，rulings §4.25 DS-40、DS-57：恢复前的内容一律能从版本历史找回，不取决于恢复前有没有新的 update），版本列表据此标「恢复前」、单列显示；它不是撤销恢复的手段（撤销恢复见 ADR-0038）。这是 FK-POLICY「默认 RESTRICT」之外的第二个 SET NULL 例外（第一个是 `latest_snapshot_id`），理由相同：被引用方是可按保留期删除的历史行。
+- **来源与显示名**（2026-10-15，rulings §4.25 DS-70）：`import` 行必带 `origin`（四种之一），除 `blank` 外必带 `origin_name`，其余 kind 两列皆空（四条 CHECK）。导入处理器写 `import` 快照时按作业 `payload` 一并写入——上传导入取请求声明的 `origin`（缺省 `upload`）与 `fileName` / `templateName`，创建副本取受理时记下的源文档标题（[06](06-modules-jobs-import-export-thumbnails.md) §6.4、§6.6）；版本历史经 `SnapshotMeta.origin` / `originName` 写最早那一条「导入自『X』」「新建演示文稿」「从模板『X』新建」「创建自『X』的副本」（[15](15-rest-api-catalog.md) §3.8）。显示名在建档写这条 `import` 快照时记下，源文档或模板之后改名都不回写（设计 03-07 §4.1）。两列只作显示，不参与 bootstrap、保留与导出；`origin_name` 上限 512 与 `documents.title` 同档、只作兜底，入口另限文件名 ≤ 255、模板名 ≤ 100（15 §3.9）。覆盖导入（换纪元）写的 `import` 行同样是 `upload` + 文件名。
 - **幂等唯一索引**：每个纪元至多一个 `epoch` 快照、每个 schema 版本至多一个 `migration` 快照；重试的换纪元或迁移在插入时即冲突，不会生成重复检查点。
 - **外键前导索引**（[08](08-db-conventions-roles-rls-migrations.md) §1：被硬删除方的外键列必须是某索引的前导列）：`restored_from` 用部分索引 `ix_document_snapshots_restored_from (restored_from, doc_id)`，保留作业删源快照时 SET NULL 不做全表扫描；`documents.latest_snapshot_id` 的 `ix_documents_latest_snapshot` 放在 §3 的 0041 里与外键一起建。二者都只收非空行，`restored_from` 与指针在绝大多数行上为空或唯一，部分索引很小。
+- **命名的入参上限**：REST 入参另限名称 1–30 字、说明 ≤ 200 字（[15](15-rest-api-catalog.md) §3.8，rulings §4.25 DS-57）；`ck_document_snapshots_name`（≤ 200）与 `ck_document_snapshots_description`（≤ 2000）只作宽松兜底，不随界面收紧。
 - **命名版本上限每文档 200**（rulings §4.19 C-06）放在应用层：`PgSnapshotStore.put(kind='named')` 在同一事务内先取 `pg_advisory_xact_lock(hashtextextended('cordex:named-snapshot:' || doc_id, 0))`、再数现有命名行、达上限则回滚并返回 `server.snapshots.named_limit_reached`（409；非配额码，`*.quota_exceeded` 只用于 rulings §4.17 D2 三码，决策 MECH-INC 之 INC-12；码名以 [15](15-rest-api-catalog.md) §3.8 为准）。不用触发器或 CHECK 的理由：上限是部署配置（`quota.namedSnapshotsPerDoc`，[17](17-deployment-and-config.md)），CHECK 无法跨行计数；触发器会把配置复制进数据库、且在 FORCE RLS 下要单独授权，得不偿失。
 - `seq_upto ≤ documents.head_seq`、指针不指向 `named`、指针只前进（§3）三条跨表不变量无法用 CHECK 表达，由 §11 的集成断言覆盖。
 
@@ -154,7 +175,7 @@ COMMENT ON COLUMN document_snapshots.restored_from IS
 |---|---|
 | 用途 | CRDT 全量状态检查点（bootstrap 起点）与版本历史（命名、恢复、预览） |
 | 所属模块与仓储 | CollabModule：`PgSnapshotStore` 实现 server-collab `SnapshotStore`（契约见 [05](05-modules-collab-and-snapshots.md) §2）；SnapshotsModule 只经 `collabServer` 与只读查询访问 |
-| 写方 | 均为 M-09 代码：`compactor`（`auto`）、`createNamedSnapshot`（`named`）、`restoreSnapshot`（`restore`）、`migration-runner`（`migration`）、`forceEpoch`（`epoch`）、`PgSnapshotStore.put(kind='import')`（由 M-12 导入处理器在其事务内调用，决策 DDL-COLS 之 C-29）、保留作业（删）、永久删除参与者 `collab`（删） |
+| 写方 | 均为 M-09 代码：`compactor`（`auto`）、`createNamedSnapshot`（`named`）、`restoreSnapshot`（恢复前的 `auto`，`pre_restore = true`；`restore`）、`migration-runner`（`migration`）、`forceEpoch`（`epoch`）、`PgSnapshotStore.put(kind='import')`（由 M-12 导入处理器在其事务内调用，决策 DDL-COLS 之 C-29；2026-10-15 起同时写 `origin` 与 `origin_name`，DS-70）、保留作业（删）、永久删除参与者 `collab`（删） |
 | 读方 | `bootstrap-loader`；SnapshotsModule 的列表、latest、详情、diff（请求事务，`cordex_app`）；M-12 导出与缩略图（worker 系统池） |
 | RLS | ENABLE + FORCE；`cordex_app` 只读、最低角色 viewer（含链接角色）；`cordex_system` 一条 FOR ALL policy，作业名非空即放行（§7，[08](08-db-conventions-roles-rls-migrations.md) §6.3） |
 | 保留与清理 | `auto`/`import`/`migration`/`restore`/`epoch`：30 天内全保留，之后每个 UTC 日留最后一个，至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久，rulings §4.19 C-06）；每文档最新一个 `import` 快照（及其基线对象）与 `latest_snapshot_id` 所指行永不删除；`named` 永久（每文档 ≤ 200）；永久删除时参与者 `collab` 删行、finalize-purge 按前缀删对象版本（§8） |
@@ -253,7 +274,7 @@ COMMENT ON COLUMN document_updates.user_id IS
 | 项 | 内容 |
 |---|---|
 | 用途 | CRDT update 追加日志：已 ack(db) 的持久性载体、bootstrap 的增量部分、7 天窗口内的按时间点恢复 |
-| 所属模块与仓储 | CollabModule：`PgUpdateStore` 实现 server-collab `UpdateStore`（`append` / `loadSince` / `contributors` / `pruneBefore` / `purgeAll`，[05](05-modules-collab-and-snapshots.md) §2） |
+| 所属模块与仓储 | CollabModule：`PgUpdateStore` 实现 server-collab `UpdateStore`（`append` / `loadSince` / `contributors` / `lastEditor`（2026-10-22，§8 e6b） / `pruneBefore` / `purgeAll`，[05](05-modules-collab-and-snapshots.md) §2） |
 | 写方 | collab 角色 `update-writer`（挂 Hocuspocus `beforeSync`，组提交空闲即刷、上限 100 ms / 50 条）、`replay-spilled`（回放时由 PG 分配 seq）；删：`compactor` 压缩后裁剪、`updates-prune` 周期作业（worker）、永久删除参与者 `collab`（worker） |
 | 读方 | `bootstrap-loader`、`compactor`（压缩前补齐与贡献者统计）、M-12 导出与缩略图读取当前状态（经 M-09 的状态读取用例，worker 系统池） |
 | RLS | ENABLE + FORCE；`cordex_app` 只读、最低角色 editor（请求路径目前不读原始 update，§7.1）；`cordex_system` 一条 FOR ALL policy，作业名非空即放行（§7） |
@@ -455,7 +476,7 @@ CREATE POLICY p_document_updates_system_all ON document_updates
 | 对象 | 默认保留 | 配置键（唯一源 [17](17-deployment-and-config.md)） | 清理机制与执行者 |
 |---|---|---|---|
 | `document_updates` | `seq ≤ 检查点指针所指快照.seq_upto` 且超过 7 天 | `retention.updatesDays` | ① 压缩成功后由 `compactor` 就地裁剪本文档（collab，持 `lock:compact:{docId}`）；② `updates-prune` 周期作业逐文档裁剪未再打开的文档（worker，[06](06-modules-jobs-import-export-thumbnails.md) §4） |
-| `auto`、`import`、`migration`、`restore`、`epoch` 快照 | 30 天内全留；之后每个 UTC 日只留 seq 最大的一个；超过 `autoSnapshotDailyDays` 删除 | `retention.autoSnapshotDays`（30）、`retention.autoSnapshotDailyDays`（365，0 = 永久） | `snapshots-retention` 周期作业（worker）：先删快照对象与（`import` 的）`baseline/` 对象，后删行 |
+| `auto`（含 `pre_restore` 的「恢复前」版本）、`import`、`migration`、`restore`、`epoch` 快照 | 30 天内全留；之后每个 UTC 日只留 seq 最大的一个；超过 `autoSnapshotDailyDays` 删除；「恢复前」版本不另设保护（rulings §4.25 DS-57 只要求它在列表里单列） | `retention.autoSnapshotDays`（30）、`retention.autoSnapshotDailyDays`（365，0 = 永久） | `snapshots-retention` 周期作业（worker）：先删快照对象与（`import` 的）`baseline/` 对象，后删行 |
 | 每文档最新一个 `import` 快照及其基线对象 | 永不被保留作业删除 | — | 只随永久删除清除：它是导出复用不透明部件的基线锚点（决策 C-07「基线随文档」） |
 | `named` 快照 | 永久；每文档 ≤ 200 | `quota.namedSnapshotsPerDoc` | 只随永久删除清除 |
 | `latest_snapshot_id` 所指行 | 永不被保留作业删除 | — | 否则一篇 365 天未编辑的文档会失去检查点 |
@@ -481,6 +502,14 @@ DELETE FROM document_updates u
 SELECT coalesce(array_agg(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL), '{}')
   FROM document_updates
  WHERE doc_id = $1 AND seq > $2 AND seq <= $3;
+
+-- e6b：压缩时的最近编辑者（同一区间里最后一条带用户的 update；无行 = 区间里只有服务端事务，
+-- documents.content_updated_at / content_updated_by 保持不变，rulings §4.25 DS-83，60/05 §7）
+SELECT user_id, created_at
+  FROM document_updates
+ WHERE doc_id = $1 AND seq > $2 AND seq <= $3 AND user_id IS NOT NULL
+ ORDER BY seq DESC
+ LIMIT 1;
 
 -- e7：snapshots-retention 选出可删快照（$2 = autoSnapshotDays，$3 = autoSnapshotDailyDays）
 -- 返回 state_key（snapshots 桶）与 baseline_key（data 桶，仅 import），作业先删这两个对象再删行
@@ -564,9 +593,9 @@ flowchart LR
 
 | 断言 | 落点（执行方式见 70） |
 |---|---|
-| `0040`–`0042`、`0092` 按编号在 PG 18 空库顺序执行成功（2026-09-25 于 `cordex-ddl-pg` 容器，PG 18.6，连同 08–13 全部 `migrate` 围栏重跑通过）；再在上一版本库上增量执行成功；`restored_from` 与 `latest_snapshot_id` 两个外键都有前导索引 | docs/_tools/ddl-check；[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 迁移测试（`test/server-integration`） |
+| `0040`–`0042`、`0092` 按编号在 PG 18 空库顺序执行成功（2026-10-15 以 ddl-check 在 PostgreSQL 18.6 空库连同 08–13 全部 38 个 `migrate` 围栏执行通过，含本批 0040 的 `pre_restore`、`origin`、`origin_name` 与相关 CHECK，计数见 [08](08-db-conventions-roles-rls-migrations.md) §12；此前 2026-09-25 实跑一次）；再在上一版本库上增量执行成功；`restored_from` 与 `latest_snapshot_id` 两个外键都有前导索引 | docs/_tools/ddl-check；[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 迁移测试（`test/server-integration`） |
 | 16 个分区齐全、`update` 列 attstorage = `e` | 同上，schema 快照比对 |
-| 负向约束：状态二选一、对象键不匹配、非 import 带基线、命名快照缺名、非 restore 带 `restored_from`、指针指向他文档快照，均在插入时失败 | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) 约束用例 |
+| 负向约束：状态二选一、对象键不匹配、非 import 带基线、命名快照缺名、非 restore 带 `restored_from`、非 auto 带 `pre_restore`（2026-10-15）、`import` 缺 `origin` 或非 `import` 带 `origin`、`origin` 取值越界、`blank` 带显示名或其余来源缺显示名（2026-10-15，DS-70）、指针指向他文档快照，均在插入时失败 | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) 约束用例 |
 | §7.3 矩阵逐格成立（含「连接复用后空串作业名」一格）；policy 不直接读 `current_setting`、`cordex_system` 每表只有一条 `FOR ALL` | `security-rls`（e2e smoke，GV-16）+ `check-rls-coverage`（scanners） |
 | 取号栅栏：`purging` 与纪元不符时插入 0 行；两实例并发写同一文档 seq 连续无重复 | `test/server-integration`（`runUpdateStoreConformance` 的 PG 实例化） |
 | 保留：`latest_snapshot_id` 所指、`named`、每文档最新一个 `import` 行永不被 e7 选中；更早的 `import` 行按天稀疏且其 `baseline/` 对象随之删除；删除后 `restored_from` 与指针按外键置空；e5 只删指针所指快照 `seq_upto` 及以下的行 | `test/server-integration` |

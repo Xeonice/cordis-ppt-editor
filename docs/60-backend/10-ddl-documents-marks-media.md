@@ -1,5 +1,5 @@
 # 10 DDL：文档、用户记账与媒体
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：§7 注明分享链接最高只叠加到 commenter，不构成配额函数要求的 editor） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）：`documents.epoch` 列注释补覆盖导入写入路径；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：§7 注明分享链接最高只叠加到 commenter，不构成配额函数要求的 editor）；2026-10-22（design-language-v3 第 3 批：§2 迁移 0020 增列 `content_updated_by`（最近编辑者，外键 → `users`、不另建索引，唯一写方 M-09，rulings §4.25 DS-83），生成列 `last_activity_at` 由 `greatest(updated_at, content_updated_at)` 改为 `coalesce(content_updated_at, created_at)`（列表的最近活动只看内容，改名与回收站进出不改变次序，DS-84），`content_updated_at` 等三列注释写明推进规则，设计说明与写方表同步；图 1-2 补 `content_updated_by`；§9 GRANT 规格与角色汇总表由八个 M-09 列改为九个；§11「我的文档」示例补最近编辑者，新增回收站列表示例（DS-84、DS-85）；§12 增 DDL10-12。本批 0020 与示例的改动当时未跑 ddl-check（本机 Docker 守护进程未运行；同日复核时已实跑通过，见 08 §12））；2026-10-22（design-language-v3 第 3 批回写补充：§2 设计说明「排序键只看内容」补依据 rulings §4.25 TB-144（「我的文档」「与我共享」按内容更新时间倒序）；只改正文，SQL 不变；2026-10-22 复核修正：0020 与 §11 示例同日已随 ddl-check 在 PostgreSQL 18.6 空库实跑通过（08 §12），§12 DDL10-12 的括注随之改；§9 角色汇总表 `cordex_system` 的 `documents` UPDATE 补列 `lock_reason`（与本节 GRANT 规格及 08 §4.2 一致，汇总表原漏写；只改正文）） | 依赖：[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[11](11-ddl-collab-updates-and-snapshots.md)（0041 外键）；[04 模块设计](04-modules-documents-storage-media.md)；[14](14-valkey-object-storage-and-retention.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.13、§4.16 Q17、§4.18 BE-15/BE-31/CO-07；ADR-0022、ADR-0025；rulings §4.25 DS-83…DS-85、TB-144
 
 本文是 `documents`、`document_user_marks`、`media_blobs`、`document_media` 四张表、一个存储用量函数与本域 RLS policy 的唯一事实源。命名、主键、时间列、外键默认策略、数据库角色、GUC 与迁移纪律见 [08](08-db-conventions-roles-rls-migrations.md)；这些表背后的用例、事务边界与永久删除编排见 [04](04-modules-documents-storage-media.md)。
 
@@ -53,6 +53,7 @@ flowchart LR
 ```mermaid
 erDiagram
   users ||--o{ documents : "owner_id"
+  users |o--o{ documents : "content_updated_by，最近编辑者"
   users ||--o{ document_user_marks : "user_id"
   documents ||--o{ document_user_marks : "doc_id"
   documents |o--o| document_snapshots : "latest_snapshot_id，见 11"
@@ -70,6 +71,7 @@ erDiagram
     int epoch "M-09"
     uuid latest_snapshot_id FK "M-09"
     bigint size_bytes "M-09"
+    uuid content_updated_by FK "M-09"
     timestamptz last_activity_at "生成列"
   }
   document_user_marks {
@@ -89,7 +91,7 @@ erDiagram
   }
 ```
 
-怎么读：本域两张表居中，`users`、`document_snapshots`、`permissions` 只画出被引用的键（完整结构见 09、11）。`documents` 只列关键列，标 M-09 的列由协同服务端写（列级写方见 [04](04-modules-documents-storage-media.md) §5）；`document_user_marks` 以 `(user_id, doc_id)` 为主键，每个用户对每份文档至多一行。
+怎么读：本域两张表居中，`users`、`document_snapshots`、`permissions` 只画出被引用的键（完整结构见 09、11）。`documents` 只列关键列，标 M-09 的列由协同服务端写（列级写方见 [04](04-modules-documents-storage-media.md) §5）；`users` 到 `documents` 的两条线分别是计费所有者与最近编辑者（后者可空，2026-10-22，rulings §4.25 DS-83）；`document_user_marks` 以 `(user_id, doc_id)` 为主键，每个用户对每份文档至多一行。
 
 **图 1-3 媒体（ER）**
 
@@ -147,11 +149,13 @@ CREATE TABLE documents (
   slide_count        integer     NOT NULL DEFAULT 0,
   size_bytes         bigint      NOT NULL DEFAULT 0,
   content_updated_at timestamptz NULL,
+  content_updated_by uuid        NULL,
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
-  last_activity_at   timestamptz GENERATED ALWAYS AS (greatest(updated_at, content_updated_at)) STORED,
+  last_activity_at   timestamptz GENERATED ALWAYS AS (coalesce(content_updated_at, created_at)) STORED,
   CONSTRAINT pk_documents PRIMARY KEY (id),
   CONSTRAINT fk_documents_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE RESTRICT,
+  CONSTRAINT fk_documents_content_updated_by FOREIGN KEY (content_updated_by) REFERENCES users (id) ON DELETE RESTRICT,
   CONSTRAINT ck_documents_status CHECK (status IN ('active', 'trashed', 'locked', 'purging')),
   CONSTRAINT ck_documents_title_len CHECK (char_length(title) <= 512),
   CONSTRAINT ck_documents_doc_type CHECK (doc_type ~ '^[a-z][a-z0-9-]{0,31}$'),
@@ -187,9 +191,10 @@ COMMENT ON COLUMN documents.schema_version IS '最新快照的 schema 版本，N
 COMMENT ON COLUMN documents.element_count IS '实体数（墓碑计入），房间权重准入与规模天花板；唯一写方 M-09';
 COMMENT ON COLUMN documents.slide_count IS '页数；唯一写方 M-09';
 COMMENT ON COLUMN documents.size_bytes IS '内容占用字节（口径见 60/05），存储配额的文档部分；唯一写方 M-09';
-COMMENT ON COLUMN documents.content_updated_at IS '最近一次内容变化（写快照时节流更新），NULL = 尚无快照；唯一写方 M-09';
+COMMENT ON COLUMN documents.content_updated_at IS '最近一次由用户造成的内容变化的时刻（写快照时节流更新，与 content_updated_by 成对；推进规则见 60/05 §7）：auto 取区间内最后一条带 user_id 的 update 的 created_at，import 与 restore 取写快照时刻；只有服务端事务的区间与 named、migration、epoch 快照不推进；NULL = 尚无快照；唯一写方 M-09';
+COMMENT ON COLUMN documents.content_updated_by IS '最近编辑者（文档卡片「编辑者 · 相对时间」，rulings §4.25 DS-83）：与 content_updated_at 同一条规则取用户，import 为作业发起人、restore 为执行恢复的用户；NULL = 尚无快照或系统作业建档；唯一写方 M-09';
 COMMENT ON COLUMN documents.updated_at IS '元数据最近变化；写方 M-08';
-COMMENT ON COLUMN documents.last_activity_at IS '生成列 greatest(updated_at, content_updated_at)，列表排序键；无人写';
+COMMENT ON COLUMN documents.last_activity_at IS '生成列 coalesce(content_updated_at, created_at)：列表的最近活动只看内容，改名与回收站进出不改变次序（rulings §4.25 DS-84）；列表排序键，无人写';
 ```
 
 设计说明：
@@ -197,7 +202,8 @@ COMMENT ON COLUMN documents.last_activity_at IS '生成列 greatest(updated_at, 
 - **不拆表**（决策 C-03）：M-08 与 M-09 按列分写，三道机械防线见 [04](04-modules-documents-storage-media.md) §5；列注释标写方，列级权限见 §9。
 - **`doc_type` 无默认值**：每次插入都必须显式给出类型，避免把某一类型写成隐式缺省（文档类型盲，M5 新增类型无需迁移）；CHECK 只约束标识符格式。
 - **删除的列**：`folder_id`（全仓无文件夹功能，需要时以迁移加回，决策 C-26 / DDL-COLS）；`media_bytes`（配额改为按 owner 经 `document_media` 汇总，决策 G-09，见 §7）。
-- **新增的列**：`locked_until`——系统锁必须带到期时间，持锁方崩溃后由 `trash-expiry` 释放（[04](04-modules-documents-storage-media.md) §2）；`content_updated_at` 与生成列 `last_activity_at`——列表按「元数据或内容最近变化」排序，而 M-09 不能写 `updated_at`（C-03），用生成列让排序键无人可写。
+- **新增的列**：`locked_until`——系统锁必须带到期时间，持锁方崩溃后由 `trash-expiry` 释放（[04](04-modules-documents-storage-media.md) §2）；`content_updated_at` 与生成列 `last_activity_at`——M-09 不能写 `updated_at`（C-03），用生成列让排序键无人可写；`content_updated_by`（2026-10-22，rulings §4.25 DS-83）——文档卡片第二行要写「编辑者 · 相对时间」，最近编辑者只能在压缩当时从 update 日志取出（日志只留 7 天，事后无法回算），所以与 `content_updated_at` 由 M-09 在同一条语句里成对写入（规则见 [05](05-modules-collab-and-snapshots.md) §7，取数示例为 [11](11-ddl-collab-updates-and-snapshots.md) §8 的 e6b）；外键指向 `users`，`users` 不硬删，按 [08](08-db-conventions-roles-rls-migrations.md) §1 不另建索引。
+- **排序键只看内容**（2026-10-22，rulings §4.25 DS-84；同日由 TB-144 定为「我的文档」「与我共享」的次序）：`last_activity_at` 由 `greatest(updated_at, content_updated_at)` 改为 `coalesce(content_updated_at, created_at)`——「我的文档」「与我共享」与搜索结果按最近活动即内容编辑时间倒序，与卡片上的时间同源；改名、移入与恢复回收站（只改 `updated_at`）不再改变次序，尚无快照的文档按建档时刻排。
 - **状态一致性由 CHECK 保证**：`trashed` 必有 `deleted_at`，`active` / `locked` 必无；`locked` 与 `locked_until`、`lock_reason` 同进同出，`lock_reason` 只取 `import` / `migration`（rulings §4.19 N1 后恢复不加锁）。`lock_reason` 让中途加入的会话也能拿到锁定原因（CONTROL.room.locked.reason）。`purging` 两种来路（`active` 或 `trashed`）都允许，因此不约束 `deleted_at`。
 - **索引**：`ix_documents_owner_activity` 服务「我的文档」键集分页；`ix_documents_trashed_deleted_at` 与 `ix_documents_locked_until` 是只含少量行的部分索引，服务 `trash-expiry` 的两个扫描（决策 G-10）。「与我共享」经 09 的 `permissions (principal_type, principal_id)` 索引驱动。
 - `latest_snapshot_id` 的外键（`ON DELETE SET NULL`，决策 FK-POLICY 的唯一例外）由 11 的 `0041` 追加，本迁移不引用尚未存在的表。
@@ -206,7 +212,7 @@ COMMENT ON COLUMN documents.last_activity_at IS '生成列 greatest(updated_at, 
 |---|---|
 | 用途 | 文档目录条目：标题、类型、计费所有者、状态、回收站与锁定时间，以及 M-09 维护的协同计数 |
 | 所属模块与仓储 | DocumentsModule / `DocumentRepository`（`apps/server/src/modules/documents/infrastructure/document.repository.ts`）；M-09 列经 `apps/server/src/modules/collab/infrastructure/` 的 `PgUpdateStore`、`PgSnapshotStore` |
-| 写方 | M-08：`id`、`title`、`doc_type`、`owner_id`、`status`、`deleted_at`、`locked_until`、`lock_reason`、`updated_at`、删行（`finalize-purge`）；M-09：`head_seq`、`epoch`、`latest_snapshot_id`、`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at` |
+| 写方 | M-08：`id`、`title`、`doc_type`、`owner_id`、`status`、`deleted_at`、`locked_until`、`lock_reason`、`updated_at`、删行（`finalize-purge`）；M-09：`head_seq`、`epoch`、`latest_snapshot_id`、`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at`、`content_updated_by`（2026-10-22，rulings §4.25 DS-83） |
 | 读方 | M-08 列表与详情；M-09 加入房间（`status`、`element_count`）；M-12 导入导出与缩略图（只读）；`PermissionsModule`（`owner_id` 不变量）；`cordex_storage_usage` |
 | RLS | ENABLE + FORCE；`cordex_app` 读 = 任意角色或本人是 `owner_id`，写 = editor 起、只能改 `active` / `trashed` 行且不能置 `locked`，插入须 `owner_id` = 当前用户；`cordex_system` 须设 `app.system_job`（§8） |
 | 保留与清理 | 回收站满 `retention.trashDays`（默认 30）由 `trash-expiry` 进入 `purging`；永久删除由 `finalize-purge` 删行（[04](04-modules-documents-storage-media.md) §4）；外键全部 RESTRICT，参与者漏清即删行失败 |
@@ -546,7 +552,8 @@ GRANT INSERT (id, title, doc_type, owner_id) ON documents TO cordex_app, cordex_
 GRANT UPDATE (title, status, deleted_at, updated_at) ON documents TO cordex_app;
 GRANT UPDATE (status, locked_until, lock_reason, updated_at,
               head_seq, epoch, latest_snapshot_id, schema_version,
-              element_count, slide_count, size_bytes, content_updated_at) ON documents TO cordex_system;
+              element_count, slide_count, size_bytes, content_updated_at,
+              content_updated_by) ON documents TO cordex_system;
 GRANT DELETE ON documents TO cordex_system;
 GRANT SELECT, INSERT, UPDATE (last_opened_at, pinned_at), DELETE ON document_user_marks TO cordex_app;
 GRANT SELECT, DELETE ON document_user_marks TO cordex_system;
@@ -561,7 +568,7 @@ GRANT SELECT, INSERT (doc_id, media_id, first_seen_seq), UPDATE (detached_at), D
 | 角色 | `documents` | `document_user_marks` | `media_blobs` | `document_media` |
 |---|---|---|---|---|
 | `cordex_app` | SELECT；INSERT（4 列）；UPDATE（`title`、`status`、`deleted_at`、`updated_at`；不含 `owner_id`，M1–M3 无转移所有者） | SELECT、INSERT、UPDATE（2 列）、DELETE | SELECT；INSERT（7 列）；UPDATE（`unreferenced_since`，供 upsert 清空） | SELECT；INSERT（3 列）；UPDATE（`detached_at`） |
-| `cordex_system` | SELECT；INSERT（4 列，导入建档）；UPDATE（`status`、`locked_until`、`updated_at` + 8 个 M-09 列）；DELETE | SELECT、DELETE | SELECT、INSERT、UPDATE（`unreferenced_since`）、DELETE | SELECT、INSERT、UPDATE（`detached_at`）、DELETE |
+| `cordex_system` | SELECT；INSERT（4 列，导入建档）；UPDATE（`status`、`locked_until`、`lock_reason`、`updated_at` + 9 个 M-09 列，2026-10-22 增 `content_updated_by`）；DELETE | SELECT、DELETE | SELECT、INSERT、UPDATE（`unreferenced_since`）、DELETE | SELECT、INSERT、UPDATE（`detached_at`）、DELETE |
 | `cordex_migrator` | 属主（唯一 `BYPASSRLS`，只由迁移作业与 ops 命令持有） | 属主 | 属主 | 属主 |
 
 ## 10. 保留与清理汇总
@@ -617,13 +624,25 @@ SELECT d.id, d.title, d.status, d.owner_id, m.last_opened_at, m.pinned_at
 
 ```sql
 -- example
--- 我的文档：键集分页，$1 / $2 为上一页最后一行的 last_activity_at / id
-SELECT id, title, status, last_activity_at
+-- 我的文档：键集分页，$1 / $2 为上一页最后一行的 last_activity_at / id；
+-- 卡片第二行的最近编辑者按 users 主键取显示名（rulings §4.25 DS-83）
+SELECT d.id, d.title, d.status, d.created_at, d.content_updated_at, d.last_activity_at,
+       e.id AS last_editor_id, e.display_name AS last_editor_name
+  FROM documents d
+  LEFT JOIN users e ON e.id = d.content_updated_by
+ WHERE d.owner_id = cordex_current_user()
+   AND d.status IN ('active', 'locked')
+   AND (d.last_activity_at, d.id) < ($1, $2)
+ ORDER BY d.last_activity_at DESC, d.id DESC
+ LIMIT $3;
+
+-- 回收站：只列本人为 owner 的，按移入时间倒序（rulings §4.25 DS-84、DS-85）；$1 / $2 为上一页最后一行的 deleted_at / id
+SELECT id, title, deleted_at AS trashed_at
   FROM documents
  WHERE owner_id = cordex_current_user()
-   AND status IN ('active', 'locked')
-   AND (last_activity_at, id) < ($1, $2)
- ORDER BY last_activity_at DESC, id DESC
+   AND status = 'trashed'
+   AND (deleted_at, id) < ($1, $2)
+ ORDER BY deleted_at DESC, id DESC
  LIMIT $3;
 
 -- 与我共享：由 09 的 permissions (principal_type, principal_id) 索引驱动
@@ -747,3 +766,4 @@ DELETE FROM documents WHERE id = $1 AND status = 'purging';
 | DDL10-09 | `cordex_storage_usage`：owner 与 editor 得到 owner 口径的用量；无角色调用者得 `42501`；无参调用只返回本人（已实测） | 70/07 |
 | DDL10-10 | CHECK 与非空：`trashed` 无 `deleted_at`、`locked` 无 `locked_until`、`doc_type` 缺失或格式不符、`storage_key` 与 `sha256` 不一致、`sha256` 非 32 字节、两列皆空的记账行均被拒（已实测） | 70/07 |
 | DDL10-11 | Drizzle schema（`apps/server/src/db/schema/`）与本文 DDL 对比无漂移；GRANT 快照与 §9 一致 | 70/07、[08](08-db-conventions-roles-rls-migrations.md) §13 |
+| DDL10-12 | 2026-10-22（rulings §4.25 DS-83、DS-84）：`content_updated_by` 指向不存在的用户被外键拒绝；`last_activity_at` 恒等于 `coalesce(content_updated_at, created_at)`，只改 `title`、`status`、`deleted_at` 或 `updated_at` 时不变；`cordex_app` 写 `content_updated_by` 报权限错误（列级 GRANT）（0020 与 §11 示例 2026-10-22 已随 ddl-check 实跑通过，08 §12；本条断言由 70/07 执行） | 70/07；ddl-check |

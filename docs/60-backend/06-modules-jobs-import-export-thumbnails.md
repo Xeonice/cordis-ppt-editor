@@ -1,6 +1,6 @@
 # 06 模块设计：作业、导入导出、缩略图与 renderer sidecar
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 限额改为引用 ADR-0019 的 XmlLimits 表、DOCTYPE 一律拒绝；多页 PNG 打包用 ooxml-core `writeZip`；renderer RPC 的 multipart 用 `@fastify/busboy`）；2026-09-26（§4.21 整合：§6.2 unzip 与 parse-* 阶段的 format.limit_exceeded 注明 limit 取 zip.* 或 xml.*）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：headless 宿主与 renderer 的内容级插件集按部署策略取，PM-13；正文落点见下一条）；2026-10-03（§4.24：AL-3 renderer 不读库，内容级插件集由 worker 查策略后随 RPC `contentPlugins` 下发（§8.1、§10.3）；AL-7 SV-13 Headless 自动化 API 改为 M3——§1 新增第八条队列 `automation`、§2.3 幂等键、§7.4 四种作业的用例、处理器、产物与 Webhook 结果回调，§12、§13、§14 同步；TA-9 服务端导出写 `core.pluginFootprint`、足迹不含评论（AL-6），headless 按策略取内容级集合、策略变更对新作业生效；TA-10 位图导出 `width` / `quality` 与 15 §3.9 对齐）；2026-10-03（§4.24 收尾：§14 AL-7 行 `markdown` 编码器改为已由 40-modules/04 登记（ooxml-pptx 导出专用 `slideMarkdownCodec`）） | 依赖：[30/01](../30-architecture/01-overview.md) §4.4（原 30/08 §7、§9.2、§16.2、§16.3 已迁入本文）；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-lexer、X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：XML 限额改为引用 ADR-0019 的 XmlLimits 表、DOCTYPE 一律拒绝；多页 PNG 打包用 ooxml-core `writeZip`；renderer RPC 的 multipart 用 `@fastify/busboy`）；2026-09-26（§4.21 整合：§6.2 unzip 与 parse-* 阶段的 format.limit_exceeded 注明 limit 取 zip.* 或 xml.*）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：headless 宿主与 renderer 的内容级插件集按部署策略取，PM-13；正文落点见下一条）；2026-10-03（§4.24：AL-3 renderer 不读库，内容级插件集由 worker 查策略后随 RPC `contentPlugins` 下发（§8.1、§10.3）；AL-7 SV-13 Headless 自动化 API 改为 M3——§1 新增第八条队列 `automation`、§2.3 幂等键、§7.4 四种作业的用例、处理器、产物与 Webhook 结果回调，§12、§13、§14 同步；TA-9 服务端导出写 `core.pluginFootprint`、足迹不含评论（AL-6），headless 按策略取内容级集合、策略变更对新作业生效；TA-10 位图导出 `width` / `quality` 与 15 §3.9 对齐）；2026-10-03（§4.24 收尾：§14 AL-7 行 `markdown` 编码器改为已由 40-modules/04 登记（ooxml-pptx 导出专用 `slideMarkdownCodec`））；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-70：§6.1 两步上传的申请增 `origin`、`templateName` 并限 `fileName` 1–255 字，`upload:{uploadId}` 与作业 `payload` 带上来源；§6.4 写 `import` 快照时一并写来源与显示名；§6.6 创建副本的 `payload` 增 `srcTitle`，写快照时来源为 `duplicate`；版本历史据此写最早那一条）；2026-10-22（design-language-v3 第 3 批：§2.2 `cancelled` 扩到导出（`export`、`render-export`），新增取消路由 `POST /exports/:jobId/cancel` 与终态码 `server.export.job_terminal`（同日已登记进 30/10 §1.1a，rulings §4.25 DS-101），图 2-1、迁移表、§2.4、§5.2 同步；§7.1 pptx 只导整份，§7.2 新增「页集合」一条——不带 `slides` 即全部页、不含隐藏页，列到的隐藏页照常导出（DS-103），PDF 一条补「需要打印时导出 PDF」（DS-104），PNG 一条补 M3 起导出对话框的「全部页」走这里、jpeg 与 `quality` 只经 API（DS-102、DS-103）；新增 §7.5 取消导出；§7.4 自动化作业仍不可取消；§12.2 错误码、§12.3 审计、§12.5 装配同步；§14 增第 23、24 条）；2026-10-22（design-language-v3 第 3 批回写补充：§10.4 新增「页级占位」一段——页级占位由渲染层在纸面内画（rulings §4.25 TB-151），整页解析失败的保真占位照常 `ok` 回传、与编辑器一致，渲染时单页出错由页面报出 `render.*` 码、renderer 记该页 `failed` 不回传字节，一时的失败不写进缩略图；同日再补：rulings §4.25 TB-157 确认上面的判定——§10.4「页级占位」、§10.5 重试与 §11.3「页级失败」写定：`/render` 在 `ready` 诊断里报了 `render.*` 的页与单页超时同样是页级失败，在新请求里重试 1 次，仍失败时缩略图不写新行、保留旧行，没有行的按 404 显示占位，导出作业失败；整页解析失败的保真占位照常 `ok` 回传、照常写缩略图；§14 增第 25 条；2026-10-22 复核修正：本批后两条开头的回写轮次字样改为「回写补充」，「确认第 2 轮的判定」改为「确认上一条的判定」，正文未改；随后按 rulings §4.25 TB-173、TB-174 补正文：§10.3 表下写明 manifest 不设测试专用字段、`/render` 不设故障注入点，测试与生产部署行为相同，服务端页级失败的集成测试用 renderer 桩（TB-174）；§11.3 页级失败一段补 render-export 里这一页仍失败时作业以该页的 `errorCode` 失败、不写产物，`render.page_failed` 的界面原因句同 TB-173、文案归 50/15 §4.3、本文不另写，§12.2 `headless.render_timeout` 一行同步；§14 第 25 条随之断言作业的 `error_code`，执行一栏写明页级失败由 renderer 桩制造、`/render` 的诊断由组件级用例覆盖；再按 rulings §4.25 TB-175 与页级失败的失败码补正文：§5.2 terminal 一行补 render-export 的页级失败（某页在新请求里重试 1 次仍 `failed`，码取该页的 `errorCode`，作业级不再重试），表下补导出对话框照常给「重试」、由用户新建一行；§10.4「页级占位」与 §10.5 重试写明导出作业以该页的码失败，即 `GET /jobs/:id` 的 `error.code`，§10.4 `pdf?` 一行写明有页 `failed` 时整份 PDF 不回传、重试仍按整份打印；§11.3 补单页超时 `headless.render_timeout` 的原因句（TB-175，文案同样归 50/15 §4.3），末句的作业级重试写明缩略图 3 次、render-export 2 次；§12.2 `headless.render_timeout` 一行同步；§14 第 25 条补 `attempts = 1` 与单页超时的断言；本批两条「回写补充」并为一条，后一段以「同日再补」接上，「确认上一条的判定」随之写作「确认上面的判定」；再按 rulings §4.25 TB-176、TB-178 补正文：§7.4 处理器表下补「页级失败」一条——`convert` 的 pdf / png 与 `fill-template` 的 pdf 同 render-export，这一页在新请求里重试 1 次仍失败即以该页的码按 terminal 失败、不写产物，`automation.job_finished` 的 `errorCode` 即这个码，§10.4 `pdf?` 一行不变，§5.2 terminal 一行、§10.5 重试与 §12.2 `headless.render_timeout` 一行同步；§11.3 的导出失败原因补基础设施失败按 50/15 §4.2 显示通用文案（TB-176），本文仍只引用 50/15 §4.2、§4.3、不另写文案；§14 第 25 条补自动化作业的断言，执行一栏补 renderer 把 `ready` 诊断映射成页级 `failed` 的纯函数单测（40/09 登记））；2026-10-23（design-language-v3 第 3 批评审修改：导入改为叠在原页上的「导入」对话框（rulings §4.25 DS-140、TB-179），§5.2 表下的界面对照随之改为对话框的失败态——出口只有底栏的「关闭」，只有瞬时错误另在正文给「重试」，整屏失败页的「返回列表」不再有；§6.3「服务端解析」的界面写法由「不确定态进度」改为转圈加按 `stage` 换的一句文案（DS-53 的加载画法，v3 不画不确定态进度条）；作业、阶段、取消与错误分类都不变） | 依赖：[30/01](../30-architecture/01-overview.md) §4.4（原 30/08 §7、§9.2、§16.2、§16.3 已迁入本文）；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)；[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)；[30-architecture/07](../30-architecture/07-rendering.md) §10、§14.7；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md)；[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) §2.5、§3.2；[40-modules/04](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.6；[01](01-service-overview-and-roles.md)、[04](04-modules-documents-storage-media.md)、[05](05-modules-collab-and-snapshots.md)、[08](08-db-conventions-roles-rls-migrations.md)、[12](12-ddl-jobs-and-thumbnails.md)、[14](14-valkey-object-storage-and-retention.md)、[15](15-rest-api-catalog.md)、[17](17-deployment-and-config.md)、[18](18-observability-and-ops-endpoints.md)；[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-13、§4.15 Q5/Q8、§4.16 Q15/Q17、§4.18 BE-04/BE-10/BE-14/BE-18/BE-19/FE-01/FE-09/UX-05/UX-14、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-lexer、X:q-xml-package）、§4.25 DS-70、DS-101…DS-104、TB-151、TB-157、TB-173…TB-176、TB-178、DS-53、DS-140、TB-179；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)
 
 ## 0. 定位与边界
 
@@ -159,14 +159,14 @@ stateDiagram-v2
   running --> succeeded: 写 result
   running --> failed: terminal 错误或重试用尽
   queued --> failed: 对账重投用尽，server.jobs.orphaned
-  queued --> cancelled: 创建者取消导入
+  queued --> cancelled: 创建者取消导入或导出
   running --> cancelled: 创建者取消，处理器在阶段边界中止并清理
   succeeded --> [*]
   failed --> [*]
   cancelled --> [*]
 ```
 
-怎么读：状态只沿 `queued → running → succeeded | failed` 前进，两条自环都是对账作业的重投（§3），不改变状态；`cancelled` 只对导入开放（UX-14）。三个终态都不复活：同一幂等键再提交时新建一行并以 `attempt_of` 指向上一条终态行（BE-18，命中规则图见 [12 §3](12-ddl-jobs-and-thumbnails.md) 图 3-1）。
+怎么读：状态只沿 `queued → running → succeeded | failed` 前进，两条自环都是对账作业的重投（§3），不改变状态；`cancelled` 只对导入（UX-14）与导出（`export`、`render-export`，2026-10-22 起，rulings §4.25 DS-101，§7.5）开放，自动化作业与 `document-purge` 不可取消。三个终态都不复活：同一幂等键再提交时新建一行并以 `attempt_of` 指向上一条终态行（BE-18，命中规则图见 [12 §3](12-ddl-jobs-and-thumbnails.md) 图 3-1）。
 
 依据：rulings §4.18 BE-18、UX-14；PRD SV-01 图 2-2；40-modules/12 图 2-3（本图为迁入后的唯一版本）。
 
@@ -176,10 +176,10 @@ stateDiagram-v2
 | `queued → running` | `BaseProcessor` 取到作业 | `cordex_system` | `started_at`、`attempts = attempts + 1` |
 | `running → succeeded` | 处理器成功 | `cordex_system` | `result`、`finished_at` |
 | `running → failed` | terminal 错误、重试用尽 | `cordex_system` | `error_code`、`result.errorDetails`、`finished_at` |
-| `queued / running → cancelled` | 创建者 `POST /imports/:jobId/cancel` | `cordex_app`，RLS 只放行本人、只允许写成 `cancelled`（[12 §5](12-ddl-jobs-and-thumbnails.md)） | `finished_at`；清理由处理器或取消用例完成（§6.2） |
+| `queued / running → cancelled` | 创建者 `POST /imports/:jobId/cancel`；导出另有 `POST /exports/:jobId/cancel`（2026-10-22，DS-101） | `cordex_app`，RLS 只放行本人、只允许写成 `cancelled`（[12 §5](12-ddl-jobs-and-thumbnails.md)） | `finished_at`；清理由处理器或取消用例完成（导入 §6.2，导出 §7.5） |
 | 自环 / `queued → failed` | reconciliation | `cordex_system` | 只重新入队、不改状态；超过放弃时限（§3 第 4 条）置 `failed`，`error_code = server.jobs.orphaned` |
 
-`canTransitionJobStatus(from, to)` 纯函数与 DB 约束（[12 §2](12-ddl-jobs-and-thumbnails.md) 的 CHECK）双重把关；非法迁移抛 `server.jobs.invalid_transition`，终态行上的取消返回 409 `server.import.job_terminal`（依据：决策 INC-10/SG-04，authority：30/10 §1.1）。
+`canTransitionJobStatus(from, to)` 纯函数与 DB 约束（[12 §2](12-ddl-jobs-and-thumbnails.md) 的 CHECK）双重把关；非法迁移抛 `server.jobs.invalid_transition`，终态行上的取消返回 409：导入为 `server.import.job_terminal`，导出为 `server.export.job_terminal`（2026-10-22 新增，DS-101，同日已登记进 30/10 §1.1a）（依据：决策 INC-10/SG-04，authority：30/10 §1.1）。
 
 ### 2.3 幂等键
 
@@ -209,7 +209,7 @@ stateDiagram-v2
 
 ### 2.4 `GET /jobs/:id`（唯一状态查询）
 
-- 导入、导出、render-export、document-purge 与自动化四种 kind（§7.4，2026-10-03）共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 原 30/08 篇 §7）。
+- 导入、导出、render-export、document-purge 与自动化四种 kind（§7.4，2026-10-03）共用；`GET /imports/:jobId` 删除，`GET /exports/:jobId` 只返回下载地址（§7.3）；取消保留 `POST /imports/:jobId/cancel`（依据：决策 SG-08，authority：用户偏好「不要过度设计」+ 原 30/08 篇 §7），导出另有 `POST /exports/:jobId/cancel`（2026-10-22，rulings §4.25 DS-101，§7.5）；两条只认各自的 kind，对别的作业 404。
 - 可见性由 RLS 决定：`created_by` 为当前用户，或对 `doc_id` 有任一文档角色（含有效分享链接角色）；看不见一律 404 `server.jobs.not_found`，不区分「不存在」与「无权」。
 - 响应为 protocol `rest/import-export.ts` 的 `JobStatus`，字段名以 [15 §3.9](15-rest-api-catalog.md) 为准（文件登记见 40-modules/02，决策 INC-11/INC-13）；本文只规定取值来源：`kind`、`status` 取同名列，`progress` 取 `result.stage`（§6.3），`error{code, detail}` 取 `error_code` 与 `result.errorDetails`，`fidelityReport` 与 `result`（导入 `{docId}`；导出与自动化产物 `{ready, expiresAt, expired}`，`validate` 另带 `report` 摘要，`fill-template` 另带 `batchId`、`clientRef`；purge 为 [04 §4.5](04-modules-documents-storage-media.md) 的观测字段）取自 `result`。`payload`（含对象键）与 `idempotency_key` 从不返回。
 - `Cache-Control: no-store`；客户端轮询间隔 1 s 起、指数增长到 5 s，M2–M3 不提供推送。
@@ -271,11 +271,11 @@ stateDiagram-v2
 | 类别 | 判定 | 处理 |
 |---|---|---|
 | retryable | `CordexError.retryable = true`；网络错误、S3 5xx、PG 连接错误；`headless.renderer_busy`、`headless.browser_crashed`、`headless.worker_crashed` | 抛回 BullMQ 按 §1 退避重试；行保持 `running` |
-| terminal | 业务拒绝（`format.*`、`storage.quota_exceeded`、`server.import.source_missing`、`server.import.checksum_mismatch`）；`headless.task_timeout`、`headless.task_oom`（同一输入重跑结果不变） | 以 `UnrecoverableError` 直接失败；行置 `failed` 并写 `error_code` 与 `result.errorDetails` |
-| cancelled | `JobCancelled` | 执行取消清理（§6.2）后正常结束，行已是 `cancelled` |
+| terminal | 业务拒绝（`format.*`、`storage.quota_exceeded`、`server.import.source_missing`、`server.import.checksum_mismatch`）；`headless.task_timeout`、`headless.task_oom`（同一输入重跑结果不变）；render-export 与自动化 `convert`（pdf / png）、`fill-template`（pdf）的页级失败——某一页在新请求里重试 1 次后仍 `failed`（§7.4、§10.5、§11.3），码取这一页的 `errorCode`：运行时渲染出错为 `render.page_failed`，单页超时为 `headless.render_timeout`（2026-10-22，rulings §4.25 TB-157、TB-173、TB-175、TB-178；这一页已重试过，作业级不再重试，与 §11.3 末句同一口径） | 以 `UnrecoverableError` 直接失败；行置 `failed` 并写 `error_code` 与 `result.errorDetails`（`GET /jobs/:id` 的 `error.code` 即 `error_code`，§2.4） |
+| cancelled | `JobCancelled` | 执行取消清理（导入 §6.2，导出 §7.5）后正常结束，行已是 `cancelled` |
 | 重试用尽 | BullMQ 最后一次尝试仍失败 | 行置 `failed`，`error_code` 取最后一次错误的码 |
 
-确定性错误不重试，与设计 13「确定性错误只给『返回列表』、瞬时错误给『重试』」一致（UX-14）；未知异常一律按 retryable 处理，但计入 `cordex_jobs_unclassified_errors_total{queue}`（[18 §4](18-observability-and-ops-endpoints.md)）并告警，推动补分类。
+确定性错误不重试，与设计 [03-13](../20-design/03-screens/13-import-progress-and-degraded-states.md) 的导入对话框一致：失败态的出口只有底栏的「关闭」（不是有效的演示文稿另有「复制诊断信息」），只有瞬时错误（「导入没有完成」）另在正文给次按钮「重试」、用手里的文件完整重走一遍（UX-14；2026-10-23 起导入失败在对话框里原位显示，rulings §4.25 DS-140、TB-179）；导出的页级失败虽按 terminal 结束，导出对话框的失败态照常给「重试」，由用户重新发起、新建一行（§2.3，设计 [03-22](../20-design/03-screens/22-export-dialog.md) §6）；未知异常一律按 retryable 处理，但计入 `cordex_jobs_unclassified_errors_total{queue}`（[18 §4](18-observability-and-ops-endpoints.md)）并告警，推动补分类。
 
 ### 5.3 死信、重放与停机
 
@@ -291,11 +291,11 @@ stateDiagram-v2
 
 **UPLOAD-QUARANTINE（已定稿，rulings §4.18 BE-10 的细化，意图不变）**——BE-10 的意图「对象键由服务端预分配、客户端从不提交任意键、提交他人 `uploadId` 返回 403」全部保留，原件最终落点 `docs/{docId}/imports/{jobId}/source.pptx` 也不变；浏览器直传的落点是隔离区 `uploads/tmp/{uploadId}`，受理时由服务端复制到最终键。理由：申请了上传却从不提交的对象若直接落在 `docs/{docId}/` 下，新建场景连文档行都没有，只能靠全桶列举才能找到；放进隔离区后由 `uploads-tmp-cleanup` 统一清理，与媒体上传（决策 INC-21 / G-16）同一做法，也堵住「只申请不提交」撑满存储的滥用面。
 
-1. **申请**：`POST /imports/uploads {fileName, byteSize, sha256, docId?}`（路由与 DTO 见 [15 §3.9](15-rest-api-catalog.md)）。校验依次为：已登录；带 `docId`（导入到既有文档）时需 `doc.write`；`byteSize ≤ scale.maxFileBytes`（默认 200 MB，17 §5；旧名 `scale.maxUploadBytes` 已废）否则 413 `format.quota_exceeded{dimension: 'fileSize'}`；按 owner 汇总的存储配额（新建时 owner 为当前用户）：字节维度超出 413 `storage.quota_exceeded{dimension: 'bytes'}`，新建文档超出文档数 429 `storage.quota_exceeded{dimension: 'documents'}`（依据：决策 G-09，authority：PRD SV-08 + rulings §4.17 D2；与 [04 §9](04-modules-documents-storage-media.md) 同一映射）；扩展名为 `.pptm` 或 `.ppt` 时提前拒绝（`format.macro_rejected` / `format.unsupported_binary`，处理器仍会按内容复核）。
-2. **预分配**：`jobId`、新建时的 `docId`（均为 UUIDv7）与 128 bit 随机 `uploadId`；写 Valkey `upload:{uploadId}`（模板与 TTL 1 h 见 [14 §3](14-valkey-object-storage-and-retention.md)），值为 `{userId, jobId, docId, targetExists, sha256, byteSize, fileName, multipartUploadId?}`。
+1. **申请**：`POST /imports/uploads {fileName, byteSize, sha256, docId?, origin?, templateName?}`（路由与 DTO 见 [15 §3.9](15-rest-api-catalog.md)）。校验依次为：已登录；带 `docId`（导入到既有文档）时需 `doc.write`；`byteSize ≤ scale.maxFileBytes`（默认 200 MB，17 §5；旧名 `scale.maxUploadBytes` 已废）否则 413 `format.quota_exceeded{dimension: 'fileSize'}`；按 owner 汇总的存储配额（新建时 owner 为当前用户）：字节维度超出 413 `storage.quota_exceeded{dimension: 'bytes'}`，新建文档超出文档数 429 `storage.quota_exceeded{dimension: 'documents'}`（依据：决策 G-09，authority：PRD SV-08 + rulings §4.17 D2；与 [04 §9](04-modules-documents-storage-media.md) 同一映射）；扩展名为 `.pptm` 或 `.ppt` 时提前拒绝（`format.macro_rejected` / `format.unsupported_binary`，处理器仍会按内容复核）。来源（2026-10-15，rulings §4.25 DS-70）：`origin` 缺省 `upload`，应用壳的「新建空白」「从模板新建」分别声明 `blank`、`template`（后者带 `templateName`，去首尾空白后 1–100 字），二者不能带 `docId`；`fileName` 去首尾空白后 1–255 字；不合规则即入参校验失败。来源只决定版本历史里这条 `import` 快照怎么写（§6.4），不影响后面的解析与限额。
+2. **预分配**：`jobId`、新建时的 `docId`（均为 UUIDv7）与 128 bit 随机 `uploadId`；写 Valkey `upload:{uploadId}`（模板与 TTL 1 h 见 [14 §3](14-valkey-object-storage-and-retention.md)），值为 `{userId, jobId, docId, targetExists, sha256, byteSize, fileName, origin, templateName?, multipartUploadId?}`（`origin`、`templateName` 2026-10-15 增，DS-70）。
 3. **签名**：按 `storage.s3.publicEndpoint` 生成指向 `uploads/tmp/{uploadId}` 的预签名 PUT，签入 `Content-Length = byteSize`；≥ 10 MB 用 S3 分片，一次签发全部分片 URL。导入上传的签名有效期等于 `uploadId` 寿命 1 h（rulings §4.18 BE-10，照顾 200 MB 慢速链路），其余 PUT 按 `storage.s3.presign.putTtlSec`（默认 600 s，[14 §5](14-valkey-object-storage-and-retention.md)）。
 4. **直传**：浏览器经反代子域 `s3.<域名>` 直传，字节不经 Nest。
-5. **受理**：`POST /imports {uploadId, parts?}`。读 `upload:{uploadId}`：不存在、已过期或 `userId` 不符一律 403 `server.import.upload_forbidden`（不区分三者，防枚举）；`job_runs.id = jobId` 已存在 → 重放，直接返回该行；分片时由服务端 `CompleteMultipartUpload`（桶 CORS 暴露 `ETag`，[14](14-valkey-object-storage-and-retention.md) §5）；`HEAD` 隔离区对象，缺失或大小不符 → 409 `server.import.source_missing`；`CopyObject` 到 `docs/{docId}/imports/{jobId}/source.pptx`（可重复执行）→ 按 §2.3 建行 → 提交后入队并删除隔离区对象（删除失败由 `uploads-tmp-cleanup` 兜底）；返回 202 `{jobId, docId}`（重放 200，[15 §3.9](15-rest-api-catalog.md)）；写审计 `import.created`。这个次序让任一步之后崩溃都可由客户端重放续上：建行前崩溃时隔离区对象仍在，重放重新复制；建行后崩溃时按 `jobId` 返回既有行。
+5. **受理**：`POST /imports {uploadId, parts?}`。读 `upload:{uploadId}`：不存在、已过期或 `userId` 不符一律 403 `server.import.upload_forbidden`（不区分三者，防枚举）；`job_runs.id = jobId` 已存在 → 重放，直接返回该行；分片时由服务端 `CompleteMultipartUpload`（桶 CORS 暴露 `ETag`，[14](14-valkey-object-storage-and-retention.md) §5）；`HEAD` 隔离区对象，缺失或大小不符 → 409 `server.import.source_missing`；`CopyObject` 到 `docs/{docId}/imports/{jobId}/source.pptx`（可重复执行）→ 按 §2.3 建行（`payload` 带上 `upload:{uploadId}` 里的 `fileName`、`origin` 与 `templateName`，形状见 [12 §2](12-ddl-jobs-and-thumbnails.md)）→ 提交后入队并删除隔离区对象（删除失败由 `uploads-tmp-cleanup` 兜底）；返回 202 `{jobId, docId}`（重放 200，[15 §3.9](15-rest-api-catalog.md)）；写审计 `import.created`。这个次序让任一步之后崩溃都可由客户端重放续上：建行前崩溃时隔离区对象仍在，重放重新复制；建行后崩溃时按 `jobId` 返回既有行。
 6. **小文件单步**：≤ 10 MB 可直接 `POST /imports`（multipart），api 在内部走同一条路径（分配 id → 写隔离区 → 复制 → 建行），受上传限流约束（[15](15-rest-api-catalog.md) §8）。
 
 `upload:{uploadId}` 在受理后**不删除**：它只能兑换出预分配的那一个作业，重放总是拿回同一行，因此不需要 `GETDEL`（40-modules/12 §2.5 的「用后即焚」由「绑定唯一 jobId」实现）；这让网络重试的 `POST /imports` 天然幂等。
@@ -359,7 +359,7 @@ sequenceDiagram
 | `decode-media` | 同上 | 媒体按嗅探定 MIME、SVG 消毒（与 MediaModule 同一套规则：`@cordexjs/xml` 严格解析、DOCTYPE 拒绝、白名单重写，[04](04-modules-documents-storage-media.md) §7.2）、算 sha256，产出 `mediaRefs`；不可识别的媒体不入媒体库，作为不透明部件留在基线里并记入保真报告 | — |
 | `persist` | worker 主线程 | §6.4 的写入次序 | — |
 
-阶段名 `unzip` / `parse-presentation` / `parse-slide` / `decode-media` 与客户端 OF-01 的 `unit/open-progress` 同名（PRD SV-01「进度阶段与客户端 OF-01 一致」）；`stage` 完整取值为 `queued`、`fetch`、`unzip`、`parse-presentation`、`parse-slide`、`decode-media`、`persist`、`done`。设计 13 的「服务端解析」用不确定态进度，前端只用 `stage` 做文案与排障，不换算百分比。
+阶段名 `unzip` / `parse-presentation` / `parse-slide` / `decode-media` 与客户端 OF-01 的 `unit/open-progress` 同名（PRD SV-01「进度阶段与客户端 OF-01 一致」）；`stage` 完整取值为 `queued`、`fetch`、`unzip`、`parse-presentation`、`parse-slide`、`decode-media`、`persist`、`done`。设计 03-13 导入对话框的「服务端解析」是转圈加按 `stage` 换的一句文案（rulings §4.25 DS-53、DS-140），前端只用 `stage` 做文案与排障，不换算百分比。
 
 **输入限额**（迁自原 30/08 篇 §9.2 与 §16.5；OF-24 口径：部署可收紧、放宽不超过 2×；客户端 Worker 使用同一张表，zip 常量在 `ooxml-core` 的 `ZipLimits`，XML 常量在 `@cordexjs/xml` 的 `XmlLimits`——**XML 限额只在 [ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 的 XmlLimits 表定义一次，本表不重述数值**（2026-09-26，rulings §4.21 X:q-xml-lexer）；键名见 [17 §5](17-deployment-and-config.md) 的 `limits.*` 与 `scale.*`）：
 
@@ -384,7 +384,7 @@ sequenceDiagram
 
 1. **登记中间产物**：`result.snapshotId`（UUIDv7）先写入作业行（§5.1 第 6 条），重跑复用。
 2. **写对象**：媒体按内容寻址写 `media/{sha256 前 2 位}/{sha256}`（已存在则跳过），并经 MediaModule 预登记 `media_blobs` 行（`unreferenced_since = now()`）；导入原件服务端复制为**基线** `docs/{docId}/baseline/{snapshotId}.pptx`；包内有 `docProps/thumbnail.jpeg` 且通过头校验（§11.2）时写 `docs/{docId}/thumbs/__cover/embedded.jpg`。
-3. **单事务**（`cordex_system`）：锁作业行并确认 `running` → 新建文档时调 DocumentsModule 建文档行与 owner 权限行（id 为预分配 `docId`、owner 为 `created_by`、标题取文件名去扩展名；[04 §3](04-modules-documents-storage-media.md)）→ 经 M-09 导出的 `SnapshotStore.put` 写 `kind = 'import'` 快照，`baseline_key` 指向第 2 步的基线（`document_snapshots` 的唯一写方仍是 M-09，依据：决策 DDL-COLS 之 C-29）→ MediaModule 建 `document_media` 关联（清空 `unreferenced_since`）→ `thumbnails` 写 `__cover` 行（`source = 'embedded'`）→ 作业行 `succeeded`，`result = {docId, snapshotId, fidelityReport}`。
+3. **单事务**（`cordex_system`）：锁作业行并确认 `running` → 新建文档时调 DocumentsModule 建文档行与 owner 权限行（id 为预分配 `docId`、owner 为 `created_by`、标题取文件名去扩展名；[04 §3](04-modules-documents-storage-media.md)）→ 经 M-09 导出的 `SnapshotStore.put` 写 `kind = 'import'` 快照，`baseline_key` 指向第 2 步的基线，同时写来源与显示名——`origin` 取 `payload.origin`，`origin_name` 在 `upload` 时为 `fileName`（含扩展名）、`template` 时为 `templateName`、`blank` 时不写（[11 §2](11-ddl-collab-updates-and-snapshots.md)，2026-10-15，rulings §4.25 DS-70；覆盖导入同样是 `upload` + 文件名；`document_snapshots` 的唯一写方仍是 M-09，依据：决策 DDL-COLS 之 C-29）→ MediaModule 建 `document_media` 关联（清空 `unreferenced_since`）→ `thumbnails` 写 `__cover` 行（`source = 'embedded'`）→ 作业行 `succeeded`，`result = {docId, snapshotId, fidelityReport}`。
 4. **事务后**：写审计 `import.completed`（新建文档另有 M-08 的 `document.created`）；M3 起入队首页缩略图（优先级 1，§11）。
 
 **基线**随文档生命周期保留，导入原件仍按 `retention.importOriginalDays` 清理，二者分属 `baseline/` 与 `imports/` 前缀，互不影响；永久删除时 finalize-purge 按 `docs/{docId}/` 前缀一并清除（依据：决策 C-07，authority：rulings §4.16 Q17 + PRD SV-01）。
@@ -469,12 +469,12 @@ sequenceDiagram
 
 ### 6.6 创建副本
 
-受理在 [04 §3.3](04-modules-documents-storage-media.md)（`POST /documents/:id/duplicate`，`doc.export`，[15 §3.3](15-rest-api-catalog.md)）：预分配 `newDocId` 与 `jobId`，写 `job_runs(kind='import', doc_id=newDocId, payload={source:'duplicate', srcDocId, srcSeq, title})` 后入 `import` 队列。它复用导入的队列、处理器、取消检查点与 `persist` 事务，只把 `fetch` 到 `decode-media` 四个阶段换成「读源状态」一步——源已经是校验过的 CRDT 状态，不需要再解析 pptx。依据：rulings §4.10 Q20、§4.19 D-M2-CONTENT；用户偏好「不要过度设计」（不另建队列与 `job_runs.kind`）。
+受理在 [04 §3.3](04-modules-documents-storage-media.md)（`POST /documents/:id/duplicate`，`doc.export`，[15 §3.3](15-rest-api-catalog.md)）：预分配 `newDocId` 与 `jobId`，写 `job_runs(kind='import', doc_id=newDocId, payload={source:'duplicate', srcDocId, srcSeq, srcTitle, title})` 后入 `import` 队列（`srcTitle` 为受理时源文档的标题，写进新文档 `import` 快照的显示名，2026-10-15，rulings §4.25 DS-70）。它复用导入的队列、处理器、取消检查点与 `persist` 事务，只把 `fetch` 到 `decode-media` 四个阶段换成「读源状态」一步——源已经是校验过的 CRDT 状态，不需要再解析 pptx。依据：rulings §4.10 Q20、§4.19 D-M2-CONTENT；用户偏好「不要过度设计」（不另建队列与 `job_runs.kind`）。
 
 | 阶段（`stage`） | 做什么 |
 |---|---|
 | `fetch` | 复查源文档仍存在且不是 `purging`（否则 `failed`，`server.documents.not_found`）；经 worker 装配的 CollabModule 读源文档检查点与 `seq ≤ srcSeq` 的 updates（`SnapshotStore.get` + `UpdateStore.loadSince`，系统池），在 `worker_threads` 内合并为一份 Y V2 状态；读源文档最新 `import` 快照的 `baseline_key`（可能为空） |
-| `persist` | ① 登记 `result.snapshotId`；② 服务端复制源基线对象为 `docs/{newDocId}/baseline/{snapshotId}.pptx`，源有包内封面时复制为 `docs/{newDocId}/thumbs/__cover/embedded.jpg`；③ 单事务：建文档行与 owner 权限行（`CreateDocumentUseCase` 系统入口，owner = 发起者，标题取请求值或源标题；审计 `document.created{source:'duplicate'}`）→ `SnapshotStore.put(kind='import')`（`baseline_key` 指向第 ② 步对象）→ MediaModule 为新文档复制源文档中被新快照引用的 `document_media` 关联（引用集合与写快照时 `SyncDocumentMediaRefsUseCase` 用的是同一次 `BlobRef` 枚举，文档类型盲；`first_seen_seq = 0`、`detached_at` 为空，blob 不复制；源文档没有关联的哈希只计 `cordex_media_dangling_refs_total`）→ 源有封面时写 `__cover` 行 → 作业 `succeeded`，`result = {docId: newDocId, snapshotId}` |
+| `persist` | ① 登记 `result.snapshotId`；② 服务端复制源基线对象为 `docs/{newDocId}/baseline/{snapshotId}.pptx`，源有包内封面时复制为 `docs/{newDocId}/thumbs/__cover/embedded.jpg`；③ 单事务：建文档行与 owner 权限行（`CreateDocumentUseCase` 系统入口，owner = 发起者，标题取请求值或源标题；审计 `document.created{source:'duplicate'}`）→ `SnapshotStore.put(kind='import')`（`baseline_key` 指向第 ② 步对象；`origin = 'duplicate'`、`origin_name = srcTitle`，DS-70）→ MediaModule 为新文档复制源文档中被新快照引用的 `document_media` 关联（引用集合与写快照时 `SyncDocumentMediaRefsUseCase` 用的是同一次 `BlobRef` 枚举，文档类型盲；`first_seen_seq = 0`、`detached_at` 为空，blob 不复制；源文档没有关联的哈希只计 `cordex_media_dangling_refs_total`）→ 源有封面时写 `__cover` 行 → 作业 `succeeded`，`result = {docId: newDocId, snapshotId}` |
 
 - 副本只含受理时已落库的内容（与导出的 `q{headSeq}` 同一口径）；源文档在线用户尚未获 db 确认的更改不进入副本。
 - 取消与失败清理同 §6.2：新文档行尚不存在时删 `docs/{newDocId}/` 前缀。
@@ -484,7 +484,7 @@ sequenceDiagram
 
 ### 7.1 pptx 导出
 
-- 受理：`POST /documents/:id/export {format: 'pptx', snapshotId?}`（`doc.export`，[15 §3.9](15-rest-api-catalog.md)）；来源为指定快照，或受理时的最新状态（最新快照 + `seq ≤ head_seq` 的 updates），幂等键见 §2.3。
+- 受理：`POST /documents/:id/export {format: 'pptx', snapshotId?}`（`doc.export`，[15 §3.9](15-rest-api-catalog.md)）；来源为指定快照，或受理时的最新状态（最新快照 + `seq ≤ head_seq` 的 updates），幂等键见 §2.3。pptx 只导整份文档、不接受页集合（2026-10-22，rulings §4.25 DS-103：未修改的部件要原样保留，要部分页时先创建副本再删页）。
 - 执行：`ExportProcessor` 读来源 state 与来源之前最近一个 import 快照的 `baseline_key` → `server-headless` `exportDocument`（`worker_threads`）→ 写 `docs/{docId}/exports/{jobId}.pptx` → 作业 `succeeded`，`result = {bytes, sha256, expiresAt}`。
 - **字节确定性**（PRD SV-02）：`encode(snapshot, baselinePackage)` 是纯函数——不读时钟与随机源、不读布局；zip 写入固定 mtime（取模型 `modifiedAt`）、条目按部件名排序、固定压缩级别、无 extra 字段；`docProps/core.xml` 时间戳取自模型；`docProps/thumbnail.jpeg` 是 `encode()` 的显式输入，缺省保留原部件（ADR-0026 决策 8）。因此同一 Snapshot 在浏览器与 Node 导出的 sha256 相等；排版落盘量（autofit 缩放、`spAutoFit` 高度）由编辑端写回模型，服务端导出不重排。
 - 没有基线的文档（空白新建）以 codec 的默认包骨架编码，同样确定。
@@ -494,8 +494,9 @@ sequenceDiagram
 ### 7.2 非 pptx：转 render-export
 
 - `format ∈ pdf | png | jpeg` 时，`CreateExportJobUseCase` 交给 `ThumbnailsModule` 导出的 `RenderExportProducerService`：写 `job_runs(kind = 'render-export')` 后入 `render-export` 队列，与缩略图共用 renderer 池、分队列，池优先级 P1（首页缩略图 > PDF > 批量缩略图，ADR-0026 v0.2 补充）。
-- **PDF**（M3 后半段）：renderer 打开 `/render?mode=print`，`page.pdf({ width: slideW, height: slideH, printBackground: true, preferCSSPageSize: true })`；全部或选定页；页面尺寸即幻灯片尺寸；字体由 Chromium 子集嵌入；动画按「静态全部可见」（PRD SV-02）。
-- **PNG / JPEG**（M3）：按页，宽度取请求体 `width ∈ {1280, 1920, 3840}`（缺省 1280，与设计 [03-22](../20-design/03-screens/22-export-dialog.md) 导出对话框的默认一致），JPEG 另收 `quality ∈ [1, 100]`（缺省 85；PNG 忽略），两者写入 `payload.width` / `payload.quality`、进入幂等键的 `optsDigest`（§2.3）并原样作为 RPC `output.width` / `output.quality` 下发（§10.3；REST 见 [15 §3.9](15-rest-api-catalog.md)，2026-10-03 §4.24 TA-10）；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）；打包用 `ooxml-core` 经 `publicEntry` 登记导出的 `writeZip`（底层 fflate，2026-09-26 定，R-d-51），不另扩 fflate 的单点。
+- **页集合**（2026-10-22，rulings §4.25 DS-103）：请求不带 `slides` 即「全部页」，不含设为放映时跳过的隐藏页（与放映一致，不设「包括隐藏的幻灯片」勾选）；带 `slides` 时按所列页导出，列到的隐藏页照常导出。PDF 与 PNG / JPEG 同一规则，自动化 `convert`（§7.4）同此。
+- **PDF**（M3 后半段）：renderer 打开 `/render?mode=print`，`page.pdf({ width: slideW, height: slideH, printBackground: true, preferCSSPageSize: true })`；全部或选定页；页面尺寸即幻灯片尺寸；字体由 Chromium 子集嵌入；动画按「静态全部可见」（PRD SV-02）。需要打印时导出 PDF 再用浏览器或系统打印，产品不设打印入口（DS-104）。
+- **PNG / JPEG**（M3）：按页，宽度取请求体 `width ∈ {1280, 1920, 3840}`（缺省 1280，与设计 [03-22](../20-design/03-screens/22-export-dialog.md) 导出对话框的默认一致），JPEG 另收 `quality ∈ [1, 100]`（缺省 85；PNG 忽略），两者写入 `payload.width` / `payload.quality`、进入幂等键的 `optsDigest`（§2.3）并原样作为 RPC `output.width` / `output.quality` 下发（§10.3；REST 见 [15 §3.9](15-rest-api-catalog.md)，2026-10-03 §4.24 TA-10）；单页直接为图片，多页由 worker 打包为 zip（store 模式、条目按页序命名，不解码图片）；打包用 `ooxml-core` 经 `publicEntry` 登记导出的 `writeZip`（底层 fflate，2026-09-26 定，R-d-51），不另扩 fflate 的单点。导出对话框里，M3 起 PNG 的「全部页」走这里（只含已同步的内容），其余 PNG 范围与 SVG 仍在浏览器生成（2026-10-22，rulings §4.25 DS-102，设计 [03-22](../20-design/03-screens/22-export-dialog.md)）；JPEG 与 `quality` 不在对话框里，只经 API 与自动化调用（DS-103，PRD SV-02、SV-13）。
 - 来源固定为受理时已落库的状态（`q{headSeq}` 或指定快照）。客户端尚有未获 db 确认的本地更改时，前端按 UX-05 提示「需先同步 N 项更改」、不提供「仍要导出」（行为归 [50-frontend](../50-frontend/README.md)）；服务端不接收客户端状态。
 
 ### 7.3 下载
@@ -531,10 +532,11 @@ sequenceDiagram
 | `validate` | 文档来源读 state；上传来源先 `importDocument` → `validateSnapshotTask`（schema 与不变量）+ 导入的 `fidelityReport`（上传来源） | 报告 JSON 写同一前缀的 `report.json`（24 h）；`result = {stage, report: {ok, errors, warnings, fidelityCounts}, reportKey}` |
 | `migrate` | 文档来源读最新快照；上传来源读 `snapshot-json` 或 pptx（先导入）→ `migrateTask(state, from, targetSchemaVersion)` | 迁移后的 `snapshot-json` 写同一前缀的 `output.json`；**不写回任何文档**：在库文档的 schema 迁移仍只在 collab 加载时（[05 §9.1](05-modules-collab-and-snapshots.md)）与运维端点 `/internal/admin/documents/:id/migrate` 中执行，自动化 `migrate` 不持 `lock:migrate:{docId}`、不产生 `migration` 快照 |
 
+- **页级失败**（2026-10-22，rulings §4.25 TB-178）：`convert` 的 `pdf` / `png` 与 `fill-template` 的 `pdf` 走与 render-export 同一个 renderer RPC，页级失败同 render-export（§10.4、§10.5）：某一页单页超时（`headless.render_timeout`）或 `/render` 在 `ready` 诊断里报了 `render.*` 码，在新请求里重试 1 次，仍失败则作业以这一页的 `errorCode` 按 terminal 失败（§5.2，不做作业级重试）、不写产物；`GET /jobs/:id` 的 `error.code` 与 `automation.job_finished` 的 `errorCode` 即这个码。PDF 有页 `failed` 时整份不回传、重试仍按整份打印（§10.4 `pdf?`）。`markdown` 与 `fill-template` 的 `pptx` 不经 renderer，没有页级失败。
 - **限额与超时**：单次 `fill-template` 至多 100 项（请求体 ≤ 1 MiB，[15 §8](15-rest-api-catalog.md)）；导入阶段沿用 §6.3 的输入限额与 `headless.worker.*`；渲染段与 render-export 共池、池优先级 P1（§10.5）。性能目标见 §13 S15（100 份 D50 填充 + pptx 导出 ≤ 60 s，4 个 worker 实例 × 并发 4）。
 - **产物与下载**：产物一律经 `GET /exports/:jobId` 取下载地址（§7.3）：文档来源的作业对创建者或对该文档有 `doc.export` 的用户可见，上传来源的作业只对创建者可见（RLS 同口径，[12 §5](12-ddl-jobs-and-thumbnails.md)）；保留 `retention.exportHours`（24 h），到期由 `exports-cleanup` 删除并释放幂等键（§2.3、§4）；上传来源的 `automation/{jobId}/source.{ext}` 在作业进入终态时由处理器删除。对象键登记见 [14 §6](14-valkey-object-storage-and-retention.md)。
 - **结果回调**（复用 [07 §4–§6](07-modules-comments-webhooks-audit.md) 的 Webhook，不另建出站通道）：作业进入 `succeeded` / `failed` 的同一事务里，处理器调用 WebhooksModule 导出的 `DeliverWebhookEventUseCase.enqueue`，对 `event_filter` 含 `automation.job_finished` 的有效订阅写 `pending` 投递行（`event_id = automation.job_finished:{jobId}`，重试与对账不会重复投递）；签名、SSRF 守卫、退避与死信与评论事件完全相同（Standard Webhooks）。载荷 `data = {jobId, kind, status, batchId?, clientRef?, docId?, createdBy, errorCode?, finishedAt, downloadPath: '/api/v1/exports/{jobId}'}`，不含预签名 URL、文档标题或填充数据。订阅由平台管理员经 `/webhooks` 管理（[15 §3.12](15-rest-api-catalog.md)）。
-- **取消**：M3 不提供自动化作业的取消（`POST /imports/:jobId/cancel` 只对导入）；需要放弃时等作业终态后由保留期清理。
+- **取消**：M3 不提供自动化作业的取消（`POST /imports/:jobId/cancel` 只对导入、`POST /exports/:jobId/cancel` 只对 `export` 与 `render-export`，对自动化作业都是 404）；需要放弃时等作业终态后由保留期清理。
 
 **图 7-1 一份模板填充作业**
 
@@ -560,6 +562,17 @@ sequenceDiagram
 
 怎么读：纵线是参与方，自上而下是时间；每一项数据是一行作业，批内并行、互不影响。回调只告诉集成方「哪个作业好了」，产物仍要凭会话经 `GET /exports/:jobId` 换取短时下载地址，Webhook 载荷里不放可直接下载的链接。
 依据：本节；PRD SV-13；rulings §4.24 AL-7；[07 §5](07-modules-comments-webhooks-audit.md)。
+
+### 7.5 取消导出（2026-10-22，rulings §4.25 DS-101）
+
+依据：rulings §4.25 DS-101（生成中只能取消、不做关掉对话框后的后台继续）；PRD 05 M3 验收 6「导出作业可取消」；与导入取消（§6.2，UX-14）同一口径。界面上导出对话框在排队与生成中只有「取消」一个出口（Esc、× 等同），取消即调本路由并回到选项页（设计 [03-22](../20-design/03-screens/22-export-dialog.md)）；浏览器生成的格式由前端停掉 Worker，不经服务端。
+
+- **入口**：`POST /exports/:jobId/cancel`（[15 §3.9](15-rest-api-catalog.md)），用例 `CancelExportJobUseCase`（`ImportExportModule`，api）。前置：只有作业创建者（应用层判定 + RLS 只放行本人，[12 §5](12-ddl-jobs-and-thumbnails.md)）；作业 kind 须为 `export` 或 `render-export`，否则 404 `server.jobs.not_found`；只接受 `queued` / `running`，终态返回 409 `server.export.job_terminal`。
+- **取消事务**只把行置 `cancelled` 并写 `finished_at`；提交后 `queued` 行从 BullMQ 移除（已 active 则交给处理器）；审计 `export.cancelled`（[07 §9.3](07-modules-comments-webhooks-audit.md)）。
+- **处理器**：`ExportProcessor` 在读来源 state 之后与编码之后、`RenderExportProcessor` 在每次 renderer RPC 返回之后各有一个检查点（§5.1 第 4 步），读到 `cancelled` 即中止；已在途的 `worker_threads` 任务与 renderer RPC 不中途打断，返回后丢弃结果（renderer 无状态，不另发中止请求，§9）。写出产物后，在置 `succeeded` 的事务里锁作业行（`SELECT … FOR UPDATE`）确认仍为 `running`，读到 `cancelled` 即回滚并删除刚写出的 `docs/{docId}/exports/{jobId}.{ext}`。所以取消后不留产物、不签下载地址，`GET /exports/:jobId` 得 409 `server.export.not_ready`。
+- **取消晚于成功提交**：行已 `succeeded` → 409 `server.export.job_terminal`；此时对话框已回到选项页，产物照常按 `retention.exportHours` 由 `exports-cleanup` 清理（§4）。
+- **再次导出**：`cancelled` 行不占幂等键（§2.3，[12 §3](12-ddl-jobs-and-thumbnails.md) 的部分唯一索引），同参数再导出新建一行、`attempt_of` 指向被取消的行。
+- **指标**：`cordex_jobs_total{queue, result: 'cancelled'}`（[18 §4](18-observability-and-ops-endpoints.md)）。
 
 ## 8. server-headless
 
@@ -687,6 +700,8 @@ flowchart LR
 
 `traceparent` 走标准 HTTP 头；`resources` 的部件总量与声明的 `bytes` 不符 → 400 `headless.bad_request`。
 
+**不设测试专用字段**（2026-10-22，rulings §4.25 TB-174）：`/render` 不设故障注入点——它不读 RuntimeConfig（[50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md) §11.1），TB-169 的注入点只在 apps/web 的页面里（[50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §10）；manifest 也不为测试加字段，测试部署与生产部署的 RPC 与 `/render` 行为相同。服务端集成测试的页级失败一律由 renderer 桩回这一页 `failed` 与 `render.page_failed`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md) §11.3）；`/render` 合成某页出错时在 `ready` 诊断里带出该码、其余页照常，由组件级用例覆盖（[70/06](../70-testing/06-frontend-component-and-e2e.md) §6.3 R8）。
+
 ### 10.4 响应
 
 成功为 `200`，`multipart/form-data`：`result`（JSON）+ 每个产物一个二进制部件。
@@ -695,7 +710,7 @@ flowchart LR
 |---|---|
 | `renderId`、`appVersion`、`browserVersion` | 回显与版本 |
 | `pages[]` | `{pageId, status: 'ok' \| 'failed', part?, width, height, bytes, sha256, ms, fontFallbacks[], missingResources[], errorCode?}`；页级失败不使整个请求失败 |
-| `pdf?` | `{part, bytes, sha256, pageCount}`，仅 `print` |
+| `pdf?` | `{part, bytes, sha256, pageCount}`，仅 `print`；PDF 是一个整体，只在所请求页全部 `ok` 时回传，有页 `failed` 就整份不回传，按页级失败重试时新请求仍是整份 `print`（§10.5，rulings §4.25 TB-157） |
 | `timings` | `{injectMs, readyMs, totalMs}` |
 | `blockedRequests` | 被 `route` 拦下的请求数（期望恒为 0，非 0 由 worker 记告警） |
 
@@ -711,10 +726,12 @@ flowchart LR
 
 页级 `errorCode` 取 `headless.render_timeout`（单页超 10 s）或页面上报的 `render.*` 码。
 
+**页级占位**（2026-10-22，rulings §4.25 TB-151；怎样判定按 TB-157）：页级占位由渲染层在纸面内画，`/render` 与浏览器是同一画法。整页解析失败的页（保真「此页内容无法解析」）画出来的就是这一页的确定内容，照常 `ok` 回传、不报错误码，缩略图与 PDF 因此与编辑器一致；渲染时单页出错的页（浏览器里画「此页内容暂时无法显示」）由页面在 `ready` 的诊断里报出该页的 `render.*` 码（诊断的形状归 [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md) §11.3），renderer 把这一页记为 `failed`、`errorCode` 取该码、不回传字节，按 §10.5、§11.3 重试与占位——一时的失败不写进按内容哈希缓存的缩略图；导出作业以这一页的码失败（`error_code` 取该页的 `errorCode`，§11.3，TB-173），不把占位写进文件。
+
 ### 10.5 超时、重试、池与背压（全部在 worker 侧）
 
 - **两段超时分开计**（rulings §4.18 FE-09）：页面等待注入的超时是 `/render` 页常量（默认 60 s，归 [50-frontend/12](../50-frontend/12-viewer-embedding-and-render-page.md)）；每页渲染超时 10 s（`headless.pageTimeoutMs`，经 manifest 的 `limits.pageTimeoutMs` 传入）由 renderer 入口在注入完成后逐页计时。worker 的 RPC 总超时 = 注入等待常量 60 s（与 `/render` 页常量同值，FE-09）+ `headless.pageTimeoutMs` × 页数 + 15 s 余量。
-- **重试**：renderer 无状态、自身不重试。worker 对 retryable 状态码与网络错误在同一作业内最多再发 2 次（带抖动，尊重 `Retry-After`），仍失败则抛给 BullMQ 按 §1 退避；页级失败的页在一个新请求里再试 1 次，仍失败则按 §11.3 处理（缩略图返回占位并上报，导出作业失败）。
+- **重试**：renderer 无状态、自身不重试。worker 对 retryable 状态码与网络错误在同一作业内最多再发 2 次（带抖动，尊重 `Retry-After`），仍失败则抛给 BullMQ 按 §1 退避；页级失败的页（单页超时 `headless.render_timeout`，或 `/render` 在诊断里报了 `render.*` 的页，§10.4，rulings §4.25 TB-157）在一个新请求里再试 1 次，仍失败则按 §11.3 处理：缩略图返回占位并上报；render-export 作业以这一页的 `errorCode`（`render.page_failed` 或 `headless.render_timeout`）失败，即 `GET /jobs/:id` 的 `error.code`，按 terminal 结束、不再做作业级重试（§5.2，rulings §4.25 TB-173、TB-175）；自动化 `convert`（pdf / png）与 `fill-template`（pdf）同此，`automation.job_finished` 的 `errorCode` 即这个码（§7.4，TB-178）。
 - **池**：`RendererPool`（`remote-renderer.client.ts` 内）是一个带优先级的信号量，容量 = `headless.poolSize`（默认 2，按单个 worker、1 个 renderer 副本计；rulings §4.20 BE-08+TX-07）。多 worker 或多 renderer 副本时，各 worker 各按这一容量下发，可能超额或闲置：超额部分由 renderer 的 503 `headless.renderer_busy` + `Retry-After` 兜底（§9.1，按下面的重试规则退避），只影响效率、不影响正确性，不做跨 worker 协调与服务发现。按副本放大并发的显式容量键在 M4 Helm 横向扩容 renderer 时再加（届时改本条与 [17 §5.12](17-deployment-and-config.md)）。等待者按 P0（导入完成的首页缩略图）> P1（render-export）> P2（按需与批量缩略图）严格排序，同级 FIFO；等待超过 120 s 抛 `headless.renderer_busy`（retryable）。队列并发（§1）只限制在途作业数，真正的渲染并行度由池决定。
 - **指标**：renderer 不暴露指标；RPC 时长、单页时长、池占用与容量、失败原因由 worker 记录（`cordex_render_*`，名表见 [18 §4](18-observability-and-ops-endpoints.md)），span 名 `render.rpc` 与 `thumbnail.render`。
 
@@ -782,7 +799,7 @@ sequenceDiagram
 
 **防旧图覆盖新图**：同一文档的两批渲染可能乱序完成。写入事务先取按文档的 advisory lock（`pg_advisory_xact_lock`，键由 `'thumbnails:' || doc_id` 派生），再确认本批渲染来源的快照仍等于 `documents.latest_snapshot_id`；不等则丢弃本批结果、以最新快照重新执行一次失效（§11.1 第 2 条）。这样不需要给表加序号列（C-13）也能保证最后写入的一定来自最新快照。
 
-页级失败：同一页在新请求里重试 1 次；仍失败则保留该页旧行（若有）、记 `cordex_thumbnails_page_failures_total`（[18 §4](18-observability-and-ops-endpoints.md)）并上报，客户端按 404 显示占位（PRD SV-04「重试 1 次后返回占位图并上报」）。作业级的 3 次重试只针对池、网络与 renderer 崩溃这类基础设施错误（30/07 §10「失败重试 3 次」按此口径）。
+页级失败（单页超时，或 `/render` 在 `ready` 诊断里报了 `render.*` 的页，§10.4，2026-10-22，rulings §4.25 TB-157）：同一页在新请求里重试 1 次；仍失败则不写新行、保留该页旧行（若有）、记 `cordex_thumbnails_page_failures_total`（[18 §4](18-observability-and-ops-endpoints.md)）并上报，没有行的页客户端按 404 显示占位（PRD SV-04「重试 1 次后返回占位图并上报」）。同一页出现在 render-export 里时，这一页重试后仍失败即整个作业 `failed`（terminal，不做作业级重试，§5.2）、不写产物，`error_code` 取该页的 `errorCode`（§10.4：运行时渲染出错为 `render.page_failed`，单页超时为 `headless.render_timeout`），经 `GET /jobs/:id` 的 `error.code` 到达导出对话框（§2.4）；两种码在失败态各有一句原因：`render.page_failed` 的一句与浏览器生成时相同（2026-10-22，rulings §4.25 TB-173），`headless.render_timeout` 是单页超时那一句（TB-175），文案都登记在 [50-frontend/15](../50-frontend/15-events-errors-and-telemetry.md) §4.3；renderer 忙、注入超时、浏览器崩溃与网络、存储等基础设施失败（重试用尽时 `error_code` 取最后一次错误的码，§5.2）不面向用户，按 50/15 §4.2 显示通用文案（TB-176）；设计 [03-22](../20-design/03-screens/22-export-dialog.md) §6 引用这两句与通用文案，本文不另写文案。整页解析失败的保真占位不是页级失败：renderer 照常 `ok` 回传，按本节流程写对象与行，缩略图与编辑器里画的一致（TB-151）。作业级重试（缩略图 3 次、render-export 2 次，§1）只针对池、网络与 renderer 崩溃这类基础设施错误（30/07 §10「失败重试 3 次」按此口径）。
 
 ### 11.4 1280 px 按需变体
 
@@ -830,7 +847,8 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | `server.import.source_missing` | 409 | 受理时隔离区对象缺失或大小不符 | — |
 | `server.import.checksum_mismatch` | —（作业结果） | 处理器计算的 sha256 与申报不符 | terminal |
 | `server.import.job_terminal` | 409 | 取消已终态的导入作业 | — |
-| `server.export.not_ready` | 409 | 下载未成功的导出作业 | — |
+| `server.export.job_terminal`（2026-10-22，已登记进 30/10 §1.1a、§1.4） | 409 | 取消已终态的导出作业（§7.5，rulings §4.25 DS-101） | — |
+| `server.export.not_ready` | 409 | 下载未成功的导出作业（含已取消的） | — |
 | `server.export.expired` | 410 | 导出对象已被 `exports-cleanup` 删除 | — |
 | `server.thumbnails.not_found` | 404 | 无行、变体未生成（带 `Retry-After`） | — |
 | `format.unsupported_binary` / `format.encrypted` / `format.macro_rejected` | 415 | 旧二进制、加密包、宏包 | terminal |
@@ -840,7 +858,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | `headless.worker_crashed` | — | 解析线程异常退出 | retryable |
 | `headless.bad_request` / `headless.rpc_unauthorized` / `headless.request_too_large` | 400 / 401 / 413（RPC） | §10.4 | terminal |
 | `headless.version_mismatch` / `headless.renderer_busy` / `headless.inject_timeout` / `headless.browser_crashed` | 409 / 503 / 504 / 500（RPC） | §10.4 | retryable |
-| `headless.render_timeout` | —（页级） | 单页超 10 s | 页级重试 1 次 |
+| `headless.render_timeout` | —（页级） | 单页超 10 s | 页级重试 1 次（`/render` 在诊断里报的 `render.*` 码同样按页级处理，§10.4、§11.3，rulings §4.25 TB-157）；render-export 与自动化 `convert`（pdf / png）、`fill-template`（pdf）里（§7.4，TB-178）这一页仍失败时作业以该页的码失败，本码或 `render.page_failed` 即作业的 `error_code`，按 terminal 结束（§5.2、§11.3）；两种码在导出失败态的原因句分别见 TB-173、TB-175，登记在 50/15 §4.3 |
 | `headless.response_invalid` | — | 回传字节头、尺寸或体积不合格 | retryable（计数告警） |
 | `server.automation.media_not_found`（2026-10-03） | 422 | `fill-template` 的图片值引用的 sha256 与模板文档没有 `document_media` 关联（§7.4） | — |
 | `server.automation.placeholder_type_mismatch`（2026-10-03） | —（作业结果） | 数据值类型与同名占位符类型不符（如给文本占位符传图片） | terminal |
@@ -849,7 +867,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 
 ### 12.3 审计 action
 
-全量登记表在 [07 §9](07-modules-comments-webhooks-audit.md)（命名 `<resource>.<snake_action>`，决策 INC-31/INC-29）；本文模块写入：`import.created`、`import.cancelled`、`import.completed`、`import.failed`（M2；创建副本同样写这四个，`details` 另带 `source:'duplicate'`）、`export.created`、`export.downloaded`（M3；自动化作业的下载同样写 `export.downloaded`）、`automation.created`（M3，2026-10-03，每批一条，[07 §9.3](07-modules-comments-webhooks-audit.md)）、`admin.job_replayed`、`admin.thumbnails_rebuilt`。新建文档的 `document.created`（`source: import | duplicate`）由 M-08 写，`document.purge_scheduled` 见 [04](04-modules-documents-storage-media.md)；覆盖导入的加解锁由 M-08 写 `document.locked` / `document.unlocked`（`reason: import`，§6.5）。
+全量登记表在 [07 §9](07-modules-comments-webhooks-audit.md)（命名 `<resource>.<snake_action>`，决策 INC-31/INC-29）；本文模块写入：`import.created`、`import.cancelled`、`import.completed`、`import.failed`（M2；创建副本同样写这四个，`details` 另带 `source:'duplicate'`）、`export.created`、`export.cancelled`（2026-10-22，§7.5）、`export.downloaded`（M3；自动化作业的下载同样写 `export.downloaded`）、`automation.created`（M3，2026-10-03，每批一条，[07 §9.3](07-modules-comments-webhooks-audit.md)）、`admin.job_replayed`、`admin.thumbnails_rebuilt`。新建文档的 `document.created`（`source: import | duplicate`）由 M-08 写，`document.purge_scheduled` 见 [04](04-modules-documents-storage-media.md)；覆盖导入的加解锁由 M-08 写 `document.locked` / `document.unlocked`（`reason: import`，§6.5）。
 
 ### 12.4 指标与 span
 
@@ -862,7 +880,7 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 模块 | api | collab | worker | renderer |
 |---|---|---|---|---|
 | `JobsModule` | rest（`/jobs/:id`）+ producer | producer | processor 基类 + cron（reconciliation 与 §4 全部周期作业） | — |
-| `ImportExportModule` | rest（`/imports*`、`/documents/:id/export`、`/exports/:jobId`、`/automation/*`）+ producer | — | processor（`import`、`export`、`automation`） | — |
+| `ImportExportModule` | rest（`/imports*`、`/documents/:id/export`、`/exports/:jobId`、`/exports/:jobId/cancel`、`/automation/*`）+ producer | — | processor（`import`、`export`、`automation`） | — |
 | `ThumbnailsModule` | rest（缩略图）+ producer（惰性入队、render-export） | producer（压缩后 `invalidate`） | processor（`thumbnails`、`render-export`）+ 参与者 `thumbnails` | — |
 | renderer 入口（`server-headless` sidecar） | — | — | 调用方（`remote`）；`local` 时进程内含 Chromium 池 | 入口 + 精简健康探针 |
 
@@ -930,3 +948,6 @@ DDL、索引、RLS、保留与清理的逐表说明见 [12](12-ddl-jobs-and-thum
 | 20 | 自动化作业（§7.4）：同一模板、同一状态、同一数据重复提交只建一行；101 项的批次 400；图片值未关联模板 422；上传来源的作业对他人不可见（404）；`migrate` 不改变任何文档的快照与 `schema_version`；作业终态与 `automation.job_finished` 投递行同事务（注入提交失败后两者都不存在） | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) |
 | 21 | 管理员禁用某内容级插件后受理的导出与自动化作业不装配该插件，之前受理的作业重试时仍用受理时的集合；renderer 收到的 `contentPlugins` 与作业 `payload.contentPlugins` 一致，renderer 进程内无 DB 客户端 | [70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md)、70/08 role-assembly |
 | 22 | 导出 pptx 的 `p:presentation/p:extLst` 含 `urn:cordex:plugin-footprint:1`，重新导入后 `core.pluginFootprint` 不变；足迹不含 `comments.*` 命名空间；同一快照两次导出 sha256 相等 | 70/03 §6 |
+| 23 | 2026-10-22（rulings §4.25 DS-101）：取消排队中的导出后 BullMQ 不再有该作业、行为 `cancelled`；生成中的 render-export 在下一次 RPC 返回后中止，不留 `docs/{docId}/exports/{jobId}.*`，`GET /exports/:jobId` 409；在「写出产物」与「置 succeeded」之间注入取消，结束时同样不留产物；已终态 409 `server.export.job_terminal`；导入与自动化作业的 `jobId` 404；取消后同参数再导出新建一行、`attempt_of` 指向被取消的行 | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §11 |
+| 24 | 2026-10-22（rulings §4.25 DS-103）：不带 `slides` 的 PDF 与多页 PNG 不含隐藏页，带 `slides` 列到隐藏页时照常导出；pptx 导出总是整份 | 70/07 §11、[70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md) |
+| 25 | 2026-10-22（rulings §4.25 TB-151、TB-157、TB-173、TB-174、TB-175、TB-178）：含整页无法解析的页的文档，该页 `status = 'ok'`、无 `errorCode`，缩略图行照常写入；renderer 回某页 `status = 'failed'`、`errorCode = render.page_failed`、没有字节部件时，worker 在新请求里只重试这一页 1 次，仍失败时不写新行（旧行保留）、`cordex_thumbnails_page_failures_total` 加 1、没有行的页 `GET` 得 404；同一页出现在 render-export 里时作业 `failed`、`error_code = render.page_failed`、不留产物、`attempts = 1`（不做作业级重试，§5.2）；renderer 回某页 `failed`、`errorCode = headless.render_timeout` 时同样在新请求里再试 1 次，仍失败时 render-export 作业 `error_code = headless.render_timeout`；自动化 `convert`（`to = 'pdf'` 或 `'png'`）与 `fill-template`（`format = 'pdf'`）遇到同样的页时同样只重试这一页 1 次，仍失败时作业 `failed`、`error_code` 取该页的码、不留产物、`attempts = 1`，`automation.job_finished` 载荷的 `errorCode` 与之相同（§7.4） | 70/07 §11.3（页级失败由 renderer 桩回这一页 `failed` 制造，`/render` 不设注入点，§10.3，TB-174）；`/render` 在 `ready` 诊断里给出错的页带 `render.page_failed`、其余页照常，由组件级用例覆盖（[70/06](../70-testing/06-frontend-component-and-e2e.md) §6.3 R8）；renderer 入口把 `ready` 诊断里出错的页映射成 RPC 页级 `failed`（带 `errorCode`、不回传字节）的那一段是纯函数，由一条不起 Chromium 的单测覆盖（[40-modules/09](../40-modules/09-server-collab-gateway-and-headless-host.md) 登记，70/07 §11.3 引用，TB-178）；保真占位页的服务端缩略图与编辑器画面的一致性见 [70/04](../70-testing/04-visual-oracle.md) §8「页级占位同一画法」 |

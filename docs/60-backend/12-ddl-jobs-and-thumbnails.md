@@ -1,6 +1,6 @@
 # 12 DDL：作业与缩略图
 
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §2.1 迁移 0063，`job_runs.kind` 增 SV-13 四种自动化作业、上传来源放宽 `doc_id` 可空，payload / result 形状补四行） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[06](06-modules-jobs-import-export-thumbnails.md) §1（原 30/08 §7）；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §2.1 迁移 0063，`job_runs.kind` 增 SV-13 四种自动化作业、上传来源放宽 `doc_id` 可空，payload / result 形状补四行）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-70：§2 `import` 作业的 `payload` 形状补上传导入的 `origin`、`templateName` 与创建副本的 `srcTitle`，供导入处理器给 `import` 快照写来源与显示名；只是 jsonb 形状，DDL 不变；同日再补：§9 第 1 条的实测记录改为 2026-10-15 的结论——PostgreSQL 18.6 空库以 ddl-check 连同 08–13 全部 38 个迁移按编号执行通过，含 2026-10-03 新增的 0063（计数见 08 §12）；原写的 2026-09-25 那一次还没有 0063）；2026-10-22（design-language-v3 第 3 批：0060 `job_runs.status` 的注释改为导入与导出（`export`、`render-export`）都可取消（rulings §4.25 DS-101，RLS 与列级 GRANT 本来就不按 kind 区分、不用改）；§2 `export` / `render-export` 的 payload 与 result 注明只导整份、`pages` 省略即不含隐藏页、被取消的行不留产物对象（DS-101、DS-103）。DDL 结构不变，0060 的注释改动当时未跑 ddl-check；2026-10-22 复核修正：同日已随 08–13 全部 38 个迁移在 PostgreSQL 18.6 空库实跑 ddl-check 通过，§9 第 1 条补这一次（08 §12）） | 依赖：[08](08-db-conventions-roles-rls-migrations.md)（命名、角色、RLS 框架、迁移顺序）；[09](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10](10-ddl-documents-marks-media.md)（`documents`）；[06](06-modules-jobs-import-export-thumbnails.md)（作业与缩略图的行为）；[14](14-valkey-object-storage-and-retention.md)（对象键、保留总表）；[06](06-modules-jobs-import-export-thumbnails.md) §1（原 30/08 §7）；[40-modules/12](../40-modules/12-server-jobs-comments-and-ops.md) §2.1、§2.2、§2.5；[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md) 决策 2–4；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q8、§4.18 BE-18 / BE-19 / BE-26 / UX-14；rulings §4.25 DS-101、DS-103
 
 ## 1. 域说明
 
@@ -99,7 +99,7 @@ COMMENT ON TABLE job_runs IS '用户可见作业的 PG 镜像与 outbox；写方
 COMMENT ON COLUMN job_runs.id IS 'UUIDv7，应用层生成；同时是 BullMQ jobId；导入作业在 POST /imports/uploads 预分配';
 COMMENT ON COLUMN job_runs.doc_id IS '作业作用的文档；新建导入为预分配 docId；刻意不设外键，文档永久删除后行保留';
 COMMENT ON COLUMN job_runs.created_by IS '发起用户；系统作业（trash-expiry、内容迁入）为空';
-COMMENT ON COLUMN job_runs.status IS 'queued → running → succeeded | failed；导入可 queued | running → cancelled；三个终态不复活';
+COMMENT ON COLUMN job_runs.status IS 'queued → running → succeeded | failed；导入与导出（export、render-export）可 queued | running → cancelled（导出 2026-10-22 起，rulings §4.25 DS-101）；三个终态不复活';
 COMMENT ON COLUMN job_runs.attempts IS '处理器开始执行的次数（含 BullMQ 重试与对账重投后的再次开始）';
 COMMENT ON COLUMN job_runs.attempt_of IS '同一幂等键上一条 failed 或 cancelled 行；被引用行清理时置空';
 COMMENT ON COLUMN job_runs.idempotency_key IS '格式见 60-backend/06 §2.3；只在非 failed、非 cancelled 行上唯一；产物失效时由清理作业置空以释放';
@@ -121,9 +121,9 @@ COMMENT ON COLUMN job_runs.updated_at IS '由仓储在每次更新时写入';
 
 | kind | `payload` | `result` |
 |---|---|---|
-| `import` | 上传导入 `{source: 'upload', uploadId, sourceKey, fileName, byteSize, sha256, targetExists, baseSeq}`；创建副本 `{source: 'duplicate', srcDocId, srcSeq, title?}`（[06 §6.6](06-modules-jobs-import-export-thumbnails.md)） | `{stage, snapshotId?, docId?, fidelityReport?, sourceDeleted?, errorDetails?}` |
-| `export` | `{sourceRef, snapshotId?, headSeq?, format: 'pptx'}` | `{stage, objectKey?, bytes?, sha256?, expiresAt?, expired?, errorDetails?}` |
-| `render-export` | `{sourceRef, format, pages?, width?, quality?}` | 同 `export`，另加 `pageCount?` |
+| `import` | 上传导入 `{source: 'upload', uploadId, sourceKey, fileName, byteSize, sha256, targetExists, baseSeq, origin, templateName?}`（`origin ∈ upload \| blank \| template`、`templateName` 只在 `template` 时有，2026-10-15 增，rulings §4.25 DS-70，[06 §6.1](06-modules-jobs-import-export-thumbnails.md)）；创建副本 `{source: 'duplicate', srcDocId, srcSeq, srcTitle, title?}`（`srcTitle` 为受理时源文档的标题，同日增；[06 §6.6](06-modules-jobs-import-export-thumbnails.md)） | `{stage, snapshotId?, docId?, fidelityReport?, sourceDeleted?, errorDetails?}` |
+| `export` | `{sourceRef, snapshotId?, headSeq?, format: 'pptx'}`（只导整份，没有页集合，rulings §4.25 DS-103） | `{stage, objectKey?, bytes?, sha256?, expiresAt?, expired?, errorDetails?}`；被取消的行（2026-10-22，DS-101）不留产物对象、不签下载地址，取消清理见 [06 §7.5](06-modules-jobs-import-export-thumbnails.md) |
+| `render-export` | `{sourceRef, format, pages?, width?, quality?}`（`pages` 省略 = 全部页、不含隐藏页，DS-103） | 同 `export`，另加 `pageCount?` |
 | `document-purge` | `{reason: 'permanent_delete' \| 'trash_expired' \| 'erasure'}`（与 [07 §9.2](07-modules-comments-webhooks-audit.md) `document.purge_scheduled` 同名） | 只作观测，形状以 [04 §4.5](04-modules-documents-storage-media.md) 为准：`{step, roomClosedAt?, done[], attempt, objectVersionsDeleted?, errorDetails?}` |
 
 ### 2.1 自动化作业 kind（0063，2026-10-03，rulings §4.24 AL-7）
@@ -551,7 +551,7 @@ erDiagram
 
 | # | 断言 | 执行 |
 |---|---|---|
-| 1 | 0060、0061、0062、0063、0093 在空的 PG 18 库中按编号顺序执行成功（2026-09-25 于 `cordex-ddl-pg` 连同 08–13 全部 `migrate` 围栏重跑通过）；本文 `-- example` 段全部可解析 | `docs/_tools/ddl-check`（总编排实现）；[70-testing/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试 |
+| 1 | 0060、0061、0062、0063、0093 在空的 PG 18 库中按编号顺序执行成功（2026-10-15 以 ddl-check 在 PostgreSQL 18.6 空库连同 08–13 全部 38 个 `migrate` 围栏执行通过，含 2026-10-03 新增的 0063，计数见 [08](08-db-conventions-roles-rls-migrations.md) §12；此前 2026-09-25 实跑一次，那时还没有 0063；2026-10-22 含本批 0060 的注释改动再次实跑通过，同见 08 §12）；本文 `-- example` 段全部可解析 | `docs/_tools/ddl-check`（总编排实现）；[70-testing/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试 |
 | 2 | 两表均 `ENABLE` + `FORCE` RLS，且不在 `policy/rls-exceptions.json` 例外表中 | `scanners/check-rls-coverage` |
 | 3 | §5 RLS 测试矩阵逐格成立（含链接过期、撤销、未设 `app.system_job` 以及同一连接上一事务设过作业名的负向格）；`pg_policy` 中两表的表达式不含 `current_setting` | 70/07 §5，`e2e/smoke` 的 security-rls |
 | 4 | 100 个并发事务以同一幂等键插入，只有 1 行成功；把该行改为 `failed` 或 `cancelled` 后同键可再插入 | 70/07 §11，`test/server-integration` |

@@ -1,5 +1,5 @@
 # 17 部署拓扑与配置 schema
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：collab 反代改为按 documentId 一致性哈希；新增 `collab.hocuspocus.*` 与 `limits.ws.*` 五个键，`firstFrameTimeoutMs` 语义改为认证期限；XML 限额改引用 ADR-0019；镜像版本锁表；OTel 预加载入口；cron 子命令）；2026-09-26（§4.21 整合：§5.7 collab.persist.flushMs / batchMax 改为空闲即刷的上限；§12 CFG-05 写明失败条件；§5.14 废止键补环境变量名；§3.2 登记 M4 RTL 的 shaping 开关与 wasm-unsafe-eval 下发预留）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §5.16 插件配置键与声明文件格式、web 容器 /plugins/{sha256}/ 静态路径与变量、ops 命令 plugins:check、CFG-06）；2026-10-03（§4.24 TA-5：§5.16 声明文件 `id` 写明为 cordis 插件 id（40/16 §2 单元名），示例由包名改为 `slide-render-chart`） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[01](./01-service-overview-and-roles.md) §0、§4（原 30/08 §10）、[40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18 / §4.21](../00-charter/rulings-2026-09-14.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、[19](./19-reuse-and-dependency-catalog.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：collab 反代改为按 documentId 一致性哈希；新增 `collab.hocuspocus.*` 与 `limits.ws.*` 五个键，`firstFrameTimeoutMs` 语义改为认证期限；XML 限额改引用 ADR-0019；镜像版本锁表；OTel 预加载入口；cron 子命令）；2026-09-26（§4.21 整合：§5.7 collab.persist.flushMs / batchMax 改为空闲即刷的上限；§12 CFG-05 写明失败条件；§5.14 废止键补环境变量名；§3.2 登记 M4 RTL 的 shaping 开关与 wasm-unsafe-eval 下发预留）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：新增 §5.16 插件配置键与声明文件格式、web 容器 /plugins/{sha256}/ 静态路径与变量、ops 命令 plugins:check、CFG-06）；2026-10-03（§4.24 TA-5：§5.16 声明文件 `id` 写明为 cordis 插件 id（40/16 §2 单元名），示例由包名改为 `slide-render-chart`）；2026-10-08（design-language-v3 第 1 批收口：§5 `CORDEX_WEB_ENV` 行补渲染进 RuntimeConfig `env`、前端据此决定是否注册 `/styleguide`，rulings §4.25 TB-50；不改服务端接口与数据）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-47：`secrets.kekFile` 的用途补「加解密分享链接令牌的密文」，§6 角色 × 机密矩阵 api 一格同步；collab 仍禁止持有；同日再补：用途补「链接授予角色时，非所有者经成员列表读者视图取得同一令牌」，rulings §4.25 DS-69、TB-86，持有角色不变）；2026-10-22（design-language-v3 第 3 批：§5.5 登记 `auth.signupUrl`（环境变量 `CORDEX_AUTH_SIGNUP_URL`）——selfSignup 开时登录页「注册」按钮的去处，经 `GET /auth/config` 下发为 `signupUrl`，`auth.selfSignup` 为真时必填（rulings §4.25 DS-119；`GET /auth/config` 早已返回 `signupUrl?`，此前没有来源）；§12 CFG-02 补这条交叉断言）；2026-10-22（design-language-v3 第 3 批回写补充：RuntimeConfig 增 `limits.importMaxBytes`——导入页与拖入落区写「单个文件最大〈上限〉」用，与 `scale.maxFileBytes` 同一个部署值，web 容器读应用容器同名的 `CORDEX_SCALE_MAX_FILE_BYTES`、compose 两个服务从项目 `.env` 的同一行取值（rulings §4.25 TB-147；§2.3 骨架、§3.3、§3.6、§5.9、§5.15 登记 `web.limits.importMaxBytes`，§12 增 DEP-08）；`retention.trashDays` 经 `GET /auth/config` 下发为 `trashDays`（§3.3、§5.11，TB-141）；`auth.signupUrl` 的拒绝启动规则按 TB-143 定稿（§5.5、§6 图 6-1 交叉断言一格、§12 CFG-02）；同日再补：web 容器读应用容器的 `CORDEX_SCALE_MAX_FILE_BYTES`、作为 `CORDEX_WEB_` 前缀规则唯一例外的做法由 rulings §4.25 TB-158 确认，§3.3、§3.6、§5.9、§5.15、§12 DEP-08 补引用；§3.3、§3.6 按 TB-160 登记 RuntimeConfig `templates.sources`——M3 模板库的集成方模板源静态列表，经 `CORDEX_WEB_RUNTIME_CONFIG_FILE` 提供，浏览器直接取各源清单、不经应用服务端，模板源的最终来路随 PD-23 定；2026-10-22 复核修正：按 rulings §4.25 TB-168，§3.2 的 CSP 渲染输入补「`templates.sources[].manifestUrl` 的源」（去重后代入 `connect-src` 的占位 `{templateOrigins}`），§3.3、§3.6 `CORDEX_WEB_RUNTIME_CONFIG_FILE` 一行同步；按 TB-169，§3.6 `CORDEX_WEB_ENV` 一行改写——前端除了决定是否注册 `/styleguide`，还据 `env` 与 `diagnostics.e2eTrace` 决定是否提供测试部署的渲染故障注入点，并写明注入点只在 apps/web 的页面里有、renderer 里的 `/render` 不读 RuntimeConfig（以 50/15 §10、50/12 §11.1 为准）；§12 DEP-03 补模板源的源进 CSP `connect-src` 一条断言（TB-168，与 70/08 G8 同口径）；§5.5 `auth.oidc.displayName` 缺省由「单点登录」改为空，为空时 `GET /auth/config` 省略 `idpDisplayName`、登录页用通用说明句（设计 03-33 §4.1，DS-118 的样张）；按 TB-174，§3.6 `CORDEX_WEB_ENV` 一行补 `/render` 不设故障注入点、测试与生产部署的 `/render` 行为相同、服务端页级失败的集成测试用 renderer 桩（以 06 §10.3 为准）；本批两条「回写补充」并为一条，后一段以「同日再补」接上）；2026-10-23（design-language-v3 第 3 批评审修改：§3.3 与 §5.15 `web.limits.importMaxBytes` 一行里上限文字的界面落点由「导入页与拖入落区」改为「导入对话框与拖入落区」——导入改为叠在原页上的「导入」对话框（rulings §4.25 DS-140）；配置键、环境变量、缺省值与 DEP-08 都不变） | 依赖：[ADR-0037](../30-architecture/adr/0037-deployment-topology-and-packaging.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md)、[ADR-0030](../30-architecture/adr/0030-observability-stack.md)、[01](./01-service-overview-and-roles.md) §0、§4（原 30/08 §10）、[40/12 §4.13](../40-modules/12-server-jobs-comments-and-ops.md)、[rulings §4.15 Q2·Q5·Q9·Q10 / §4.16 Q17·Q19 / §4.18 / §4.21](../00-charter/rulings-2026-09-14.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)、[19](./19-reuse-and-dependency-catalog.md)、[01](./01-service-overview-and-roles.md)、[08](./08-db-conventions-roles-rls-migrations.md)、[14](./14-valkey-object-storage-and-retention.md)、[50/14](../50-frontend/14-client-security.md)；rulings §4.25 DS-47、DS-118、DS-119、TB-141、TB-143、TB-147、TB-158、TB-160、TB-168、TB-169、TB-174、DS-140
 
 > 读者：运维、写 `apps/server/src/config/**`、Dockerfile 与 compose 的工程师。
 > 本文是**配置 schema 全字段表**（§5）的唯一源，也是 compose、web 容器、镜像、迁移作业与备份的部署事实源。进程角色的模块装配矩阵在 [01](./01-service-overview-and-roles.md)；CSP 策略正文在 [50/14](../50-frontend/14-client-security.md)，本文只负责「每响应生成 nonce 并下发」；RuntimeConfig 的字段在 [50/02](../50-frontend/02-app-shell-routing-and-session.md)，本文只负责「启动时渲染进 index.html」。
@@ -105,6 +105,7 @@ services:
       edge: {}
       backend: { aliases: ["${CORDEX_WEB_IDP_HOST}"] }   # idp.<域名>：应用经此别名访问内置 Casdoor 的对外 issuer
     env_file: [web.env]
+    environment: { CORDEX_SCALE_MAX_FILE_BYTES: "${CORDEX_SCALE_MAX_FILE_BYTES:-209715200}" }   # 与 app 取项目 .env 的同一行，渲染进 RuntimeConfig limits.importMaxBytes（§3.3）
   migrate:
     <<: *hardening
     image: cordex-server@sha256:…
@@ -114,7 +115,7 @@ services:
   app:
     <<: *hardening
     image: cordex-server@sha256:…
-    environment: { CORDEX_ROLE: all }
+    environment: { CORDEX_ROLE: all, CORDEX_SCALE_MAX_FILE_BYTES: "${CORDEX_SCALE_MAX_FILE_BYTES:-209715200}" }   # 导入上限与 web 同一值（§5.9、§5.15）
     env_file: [server.env]
     volumes: ["./secrets:/run/secrets/cordex:ro"]
     networks: [edge, backend, render]
@@ -161,7 +162,7 @@ TLS 证书覆盖 `<host>`、`idp.<域名>`、`s3.<域名>` 三个名字；前面
 ### 3.2 CSP nonce 与响应头
 
 - **每响应生成**：nonce 取 nginx 的 `$request_id`（每请求 16 字节随机数的 hex，128 bit）。同一个值经 `sub_filter` 替换 index.html 模板里的占位符 `__CSP_NONCE__`（`<script nonce>` 与 `<meta name="cordex-nonce">`），并写进同一响应的 CSP 头。nonce 的消费链（injectCss 单例、第三方运行时 style 读 meta）见 [50/14 §3](../50-frontend/14-client-security.md)。
-- **策略正文只在 [50/14 §2](../50-frontend/14-client-security.md)**：容器启动时把 50/14 的模板与本容器的环境变量（`CORDEX_WEB_S3_PUBLIC_ORIGIN`、`CORDEX_WEB_WS_BASE`、`CORDEX_WEB_EMBED_ALLOWED_ORIGINS`）渲染成 `/etc/nginx/cordex/csp.conf`，其中保留 `$request_id` 供 nginx 逐请求代入；本文不复写任何指令。
+- **策略正文只在 [50/14 §2](../50-frontend/14-client-security.md)**：容器启动时把 50/14 的模板与本容器的环境变量（`CORDEX_WEB_S3_PUBLIC_ORIGIN`、`CORDEX_WEB_WS_BASE`、`CORDEX_WEB_EMBED_ALLOWED_ORIGINS`），以及 `CORDEX_WEB_RUNTIME_CONFIG_FILE` 里 M3 模板源 `templates.sources[].manifestUrl` 的源（去重后代入 `connect-src` 的占位 `{templateOrigins}`，没有模板源时为空；与 `embed.allowedHostOrigins` 一样，一份值渲染进 CSP 与 RuntimeConfig 两处，2026-10-22，rulings §4.25 TB-168，§3.3）渲染成 `/etc/nginx/cordex/csp.conf`，其中保留 `$request_id` 供 nginx 逐请求代入；本文不复写任何指令。
 - **模式**：CSP（含 nonce）自 M2 起始终以强制头 `Content-Security-Policy` 下发；`CORDEX_WEB_CSP_MODE=report-only | enforce` 只决定 Trusted Types 的两条指令放在 `Content-Security-Policy-Report-Only` 还是并入强制头——M2 为 report-only，M3 起 enforce（rulings §4.15 Q2「CSP nonce M2、Trusted Types M2 report-only → M3 强制」；指令归属见 50/14 §2）。
 - **M4 RTL 预留**（2026-09-26 整合登记，[50/14](../50-frontend/14-client-security.md) §2.7）：复杂文种 shaping（harfbuzzjs，WebAssembly）随 M4 RTL 立项时，在本节登记它的部署开关（与 shaping Provider 的启用共用同一配置，同时写进 RuntimeConfig）以及 `script-src` 追加 `'wasm-unsafe-eval'` 的下发规则：只有开关打开时 web 容器与 `/render` 变体才追加；未启用（默认）时策略不变。M1–M3 不下发该源表达式。
 - index.html 不得以预压缩文件（`gzip_static`）提供，否则 `sub_filter` 无法替换；动态 gzip 不受影响。
@@ -169,7 +170,7 @@ TLS 证书覆盖 `<host>`、`idp.<域名>`、`s3.<域名>` 三个名字；前面
 
 ### 3.3 RuntimeConfig 渲染
 
-依据：决策 RUNTIME-CONFIG。容器**启动时**（不是每请求）从 `CORDEX_WEB_*` 环境变量生成 RuntimeConfig 的 JSON，写进 index.html 模板中的非执行数据块 `<script type="application/json" id="cordex-runtime-config">`（数据块不执行，不需要 nonce）；字段集合与 schema 以 [50/02 §3](../50-frontend/02-app-shell-routing-and-session.md) 为准，JSON 经转义防止 `</script>` 截断。只放静态部署项（`apiBase`、`wsBase`、`publicUrl`、`storagePublicOrigin`、`auth.mode`、`externalResources`、`telemetry` 默认开关、`embed.allowedHostOrigins`、`brand`、`features`、`help`；`appVersion` 取镜像构建时写入的版本号，不可配置）；`selfSignup`、IdP 显示名等可变开关只来自 `GET /api/v1/auth/config`。`auth.mode=none` 只存在于 dev 构建的镜像，生产镜像的启动脚本拒绝该值。
+依据：决策 RUNTIME-CONFIG。容器**启动时**（不是每请求）从 `CORDEX_WEB_*` 环境变量（另加与应用容器共用的 `CORDEX_SCALE_MAX_FILE_BYTES`，§3.6）生成 RuntimeConfig 的 JSON，写进 index.html 模板中的非执行数据块 `<script type="application/json" id="cordex-runtime-config">`（数据块不执行，不需要 nonce）；字段集合与 schema 以 [50/02 §3](../50-frontend/02-app-shell-routing-and-session.md) 为准，JSON 经转义防止 `</script>` 截断。只放静态部署项（`apiBase`、`wsBase`、`publicUrl`、`storagePublicOrigin`、`auth.mode`、`externalResources`、`telemetry` 默认开关、`embed.allowedHostOrigins`、`limits.importMaxBytes`、`brand`、`features`、`help`、`templates.sources`（M3）；`appVersion` 取镜像构建时写入的版本号，不可配置）；`selfSignup`、IdP 显示名等可变开关与回收站保留天数 `trashDays` 只来自 `GET /api/v1/auth/config`（[15 §3.1](./15-rest-api-catalog.md)，rulings §4.25 TB-141）。`limits.importMaxBytes`（2026-10-22，rulings §4.25 TB-147；渲染方式按 TB-158）是导入对话框（2026-10-23，rulings §4.25 DS-140）与拖入落区写「单个文件最大〈上限〉」用的单文件导入上限，与应用容器的 `scale.maxFileBytes` 是同一个部署值：web 容器不另设变量，读与应用容器同名的 `CORDEX_SCALE_MAX_FILE_BYTES`，这是 `CORDEX_WEB_` 前缀规则的唯一例外（compose 让两个服务从项目 `.env` 的同一行取值，§2.3；K8s 两个工作负载引用同一个配置项），缺省同为 209715200，做法同 `embed.allowedHostOrigins` 一份值渲染到两处（§5.15）。`templates.sources`（2026-10-22，rulings §4.25 TB-160）是 M3 模板库的集成方模板源，静态列表 `{ id, name, manifestUrl }[]`，与 `brand`、`help` 一样由 `CORDEX_WEB_RUNTIME_CONFIG_FILE` 提供、随 RuntimeConfig 整体校验（§3.6）；浏览器直接取各源的清单 JSON，不经应用服务端，某一源失败只影响模板库里那一段（字段语义归 [50/02 §3](../50-frontend/02-app-shell-routing-and-session.md)）；各源 `manifestUrl` 的源由 web 容器在启动时追加进 CSP `connect-src`（§3.2，rulings §4.25 TB-168）。这是 PD-23 定案前的做法：模板源从哪里来、怎样审核随 PD-23 定，服务端模板端点在那之前不登记（[15 §9](./15-rest-api-catalog.md)）。`auth.mode=none` 只存在于 dev 构建的镜像，生产镜像的启动脚本拒绝该值。
 
 ### 3.4 安全响应头
 
@@ -255,7 +256,7 @@ server {
 
 ### 3.6 web 容器的环境变量
 
-前缀 `CORDEX_WEB_`；应用容器忽略这一前缀（§6）。RuntimeConfig 各字段的含义以 50/02 为准。
+前缀 `CORDEX_WEB_`；应用容器忽略这一前缀（§6）。唯一的例外是 `CORDEX_SCALE_MAX_FILE_BYTES`：它是应用容器的变量（§5.9），web 容器也读它，保证导入上限只有一个值（表末行，rulings §4.25 TB-147、TB-158）。RuntimeConfig 各字段的含义以 50/02 为准。
 
 | 变量 | 默认 | 用途 |
 |---|---|---|
@@ -269,15 +270,16 @@ server {
 | `CORDEX_WEB_AUTH_MODE` | `oidc` | RuntimeConfig `auth.mode`；生产镜像只接受 `oidc` |
 | `CORDEX_WEB_EXTERNAL_RESOURCES` | 以 50/02 schema 默认为准 | RuntimeConfig `externalResources`（`auto`、`confirm`、`never`） |
 | `CORDEX_WEB_ERROR_REPORTS_DEFAULT` / `CORDEX_WEB_PRODUCT_TELEMETRY_DEFAULT` / `CORDEX_WEB_OTLP_DEFAULT` | `on` / `off` / `off` | RuntimeConfig `telemetry` 三个默认开关（决策 TELEMETRY-DEFAULT） |
-| `CORDEX_WEB_RUNTIME_CONFIG_FILE` | 空 | 可选的只读 JSON 文件，提供 `brand`、`features`、`help` 等结构化字段，与上面各变量合并后整体按 50/02 的 `RuntimeConfigSchema` 校验，失败即容器拒绝启动 |
+| `CORDEX_WEB_RUNTIME_CONFIG_FILE` | 空 | 可选的只读 JSON 文件，提供 `brand`、`features`、`help`、`templates.sources`（M3 模板库的集成方模板源，2026-10-22，rulings §4.25 TB-160，§3.3）等结构化字段，与上面各变量合并后整体按 50/02 的 `RuntimeConfigSchema` 校验，失败即容器拒绝启动；其中 `templates.sources[].manifestUrl` 的源另渲染进 CSP `connect-src`（§3.2，TB-168） |
 | `CORDEX_WEB_CSP_MODE` | M2 `report-only`，M3 起 `enforce` | 只作用于 Trusted Types 两条指令（§3.2） |
 | `CORDEX_WEB_EMBED_ALLOWED_ORIGINS` | 空 | 允许以 iframe 嵌入 `/embed/*` 的宿主源列表（逗号分隔的 `https://` 源）；空 → `/embed/*` 的 `frame-ancestors 'none'`。同一份值渲染进 CSP 与 RuntimeConfig `embed.allowedHostOrigins`（前端据此做 postMessage 来源白名单，[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §9、[50/14](../50-frontend/14-client-security.md) §2），两处不会不一致 |
 | `CORDEX_WEB_PLUGINS_CATALOG_FILE` / `CORDEX_WEB_PLUGINS_DIR`（M4，2026-10-01） | 空 / `/opt/cordex/plugins` | 与应用容器同一份插件声明文件与只读挂载目录（§5.16）；据此渲染 `/plugins/{sha256}/` 的静态路径（§3.1）；声明文件空 = 不提供该路径 |
-| `CORDEX_WEB_ENV` | `production` | `production` 或 `test`；只有 e2e 预览服务器与 [70/08](../70-testing/08-deployment-and-environment-e2e.md) 的 `compose.test.yml` 设为 `test`，供下一行的启动校验判定 |
+| `CORDEX_WEB_ENV` | `production` | `production` 或 `test`；只有 e2e 预览服务器与 [70/08](../70-testing/08-deployment-and-environment-e2e.md) 的 `compose.test.yml` 设为 `test`，供下一行的启动校验判定；web 容器同时按原值渲染进 RuntimeConfig 的 `env`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3），前端据它决定是否注册 `/styleguide`（rulings §4.25 TB-50，2026-10-08 补），以及是否提供测试部署的渲染故障注入点——只在 `test` 且 `diagnostics.e2eTrace` 为真时打开，生产部署的 schema 不含这一项（2026-10-22，TB-169）；注入点只在 apps/web 的页面里有：renderer 里的 `/render` 不读 RuntimeConfig（[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §11.1）、不设故障注入点，测试部署与生产部署的 `/render` 行为相同，服务端页级失败的集成测试用 renderer 桩（rulings §4.25 TB-174，[06 §10.3](./06-modules-jobs-import-export-thumbnails.md)）；注入点与适用范围以 [50/15](../50-frontend/15-events-errors-and-telemetry.md) §10 为准 |
 | `CORDEX_WEB_DIAGNOSTICS_E2E_TRACE` | `false` | RuntimeConfig `diagnostics.e2eTrace`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3、[50/15](../50-frontend/15-events-errors-and-telemetry.md) §10）；为 `true` 且 `CORDEX_WEB_ENV` 不是 `test` 时容器拒绝启动（生产部署配置拒绝其为真，§5.15） |
 | `CORDEX_WEB_TLS_MODE` | `terminate` | `terminate` 或 `upstream` |
 | `CORDEX_WEB_TRUSTED_LB_CIDRS` | 空 | `upstream` 模式必填：前置负载均衡所在网段（逗号分隔的 CIDR），渲染为 realip 的 `set_real_ip_from`；为空时 `upstream` 模式拒绝启动，`terminate` 模式忽略（§3.1，rulings §4.20 BE-04） |
 | `CORDEX_WEB_UPSTREAM_API` / `CORDEX_WEB_UPSTREAM_COLLAB` | `app:3000` / `app:3000` | 拆分部署时分别指向 api、collab（§8）；collab 的 upstream 以 `hash $cordex_doc_id consistent` 分流（§3.5），服务名在 nginx 启动时解析出的全部副本都参与哈希，collab 扩缩容后 web 容器需 reload |
+| `CORDEX_SCALE_MAX_FILE_BYTES`（与应用容器共用，2026-10-22） | 209715200 | RuntimeConfig `limits.importMaxBytes`（§3.3、§5.15，rulings §4.25 TB-147、TB-158）；值与应用容器的 `scale.maxFileBytes` 是同一个，正整数，不合法时容器拒绝启动（随 RuntimeConfig 整体校验） |
 
 **图 3-1 web 容器的分流、子域与 nonce 生成**
 
@@ -433,10 +435,11 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | `auth.oidc.clientSecretFile` | 路径 | — | 只有 api 持有 | 是（api） | `CORDEX_AUTH_OIDC_CLIENT_SECRET_FILE` | 是 |
 | `auth.oidc.redirectUri` | URL | `{publicUrl}/api/v1/auth/oidc/callback` | 与 `publicUrl` 同源 | — | `CORDEX_AUTH_OIDC_REDIRECT_URI` | 否 |
 | `auth.oidc.scopes` | 字符串数组 | `openid,profile,email` | 必含 `openid` | — | `CORDEX_AUTH_OIDC_SCOPES` | 否 |
-| `auth.oidc.displayName` | 字符串 | `单点登录` | ≤ 40 字；经 `GET /auth/config` 下发 | — | `CORDEX_AUTH_OIDC_DISPLAY_NAME` | 否 |
+| `auth.oidc.displayName` | 字符串 | 空 | ≤ 40 字；经 `GET /auth/config` 下发为 `idpDisplayName`，为空时省略，登录页改用通用说明句（设计 [03-33](../20-design/03-screens/33-login-session-and-error-pages.md) §4.1，rulings §4.25 DS-118 的样张；2026-10-22 复核由缺省「单点登录」改为空，否则未配置的部署也会写成「将跳转到「单点登录」登录」） | — | `CORDEX_AUTH_OIDC_DISPLAY_NAME` | 否 |
 | `auth.oidc.requireEmailVerified` | 布尔 | `true` | `false` 时接受不下发 `email_verified` 的企业 IdP 邮箱（[02 §3](./02-auth-chain.md)） | — | `CORDEX_AUTH_OIDC_REQUIRE_EMAIL_VERIFIED` | 否 |
 | `auth.oidc.postLogoutRedirectPath` | 字符串 | `/login` | 以 `/` 开头的站内路径；RP-initiated logout 的 `post_logout_redirect_uri` = `publicUrl` + 本值，须在 IdP 侧登记为允许的回跳地址（[02 §4.4](./02-auth-chain.md)） | — | `CORDEX_AUTH_OIDC_POST_LOGOUT_REDIRECT_PATH` | 否 |
 | `auth.selfSignup` | 布尔 | `false` | 经 `GET /auth/config` 下发 | — | `CORDEX_AUTH_SELF_SIGNUP` | 否 |
+| `auth.signupUrl`（2026-10-22） | URL | 空 | `https://`；IdP 的自助注册页，经 `GET /auth/config` 下发为 `signupUrl`，selfSignup 开时登录页的「注册」按钮在同一标签页顶层导航到它（rulings §4.25 DS-119，设计 03-33 §4.2）；`auth.selfSignup = true` 而本项为空时拒绝启动（交叉断言，退出码 78，§6；rulings §4.25 TB-143：登录页不会出现点了没去处的「注册」） | — | `CORDEX_AUTH_SIGNUP_URL` | 否 |
 | `auth.bootstrapAdmins` | 字符串数组 | 空 | 已验证邮箱列表；只在部署内不存在任何 active 平台管理员时生效（[02 §3](./02-auth-chain.md)） | — | `CORDEX_AUTH_BOOTSTRAP_ADMINS` | 否 |
 | `auth.session.accessTtlSec` | 整数 | 900 | 300–3600（会话 JWT） | — | `CORDEX_AUTH_SESSION_ACCESS_TTL_SEC` | 否 |
 | `auth.session.refreshTtlSec` | 整数 | 604800 | ≤ `absoluteTtlSec`（刷新滑动窗口） | — | `CORDEX_AUTH_SESSION_REFRESH_TTL_SEC` | 否 |
@@ -451,7 +454,7 @@ web       FROM nginx-unprivileged@sha256:…；COPY apps/web dist 与 /fonts/；
 | 路径 | 类型 | 默认 | 范围 / 校验 | 生产必填 | 环境变量 | 机密 |
 |---|---|---|---|---|---|---|
 | `security.allowedOrigins` | URL 数组 | `publicUrl` 的 origin | 每项是 origin；CSRF 与 WS Origin 白名单（决策 INC-24） | — | `CORDEX_SECURITY_ALLOWED_ORIGINS` | 否 |
-| `secrets.kekFile` | 路径 | — | 32 字节；AES-256-GCM 加密 Webhook 签名密钥（决策 C-16/INC-30）；api 与 worker 持有 | 是（M3 起） | `CORDEX_SECRETS_KEK_FILE` | 是 |
+| `secrets.kekFile` | 路径 | — | 32 字节；AES-256-GCM 加密 Webhook 签名密钥（决策 C-16/INC-30）与分享链接令牌的密文（所有者重开分享对话框时解密取回，2026-10-15，rulings §4.25 DS-47，[09 §6](./09-ddl-identity-and-access.md)；链接授予角色时非所有者也经成员列表的读者视图取得同一令牌，同样只在 api 解密，DS-69、TB-86）；api 与 worker 持有 | 是（M3 起） | `CORDEX_SECRETS_KEK_FILE` | 是 |
 | `ops.tokenFile` | 路径 | — | ≥ 32 字节；`/internal/*` 常量时间比较（决策 INC-26） | 是 | `CORDEX_OPS_TOKEN_FILE` | 是 |
 | `audit.hashSaltFile` | 路径 | — | ≥ 32 字节；`ip_hash`、`ua_hash` 与限流 IP 主体的盐 | 是 | `CORDEX_AUDIT_HASH_SALT_FILE` | 是 |
 | `audit.recordClientIp` | 布尔 | `true` | `false` 时审计行 `ip_hash` 恒为空（[07](./07-modules-comments-webhooks-audit.md)） | — | `CORDEX_AUDIT_RECORD_CLIENT_IP` | 否 |
@@ -554,7 +557,7 @@ flowchart LR
 | `scale.maxPages` / `scale.softWarnPages` | 整数 | 200 / 150 | soft ≤ max；> 200 为超包络（§7） | — | `CORDEX_SCALE_MAX_PAGES` / `CORDEX_SCALE_SOFT_WARN_PAGES` | 否 |
 | `scale.maxElementsPerSlide` | 整数 | 1000 | > 1000 为超包络 | — | `CORDEX_SCALE_MAX_ELEMENTS_PER_SLIDE` | 否 |
 | `scale.maxElementsPerDoc` / `scale.softWarnElementsPerDoc` | 整数 | 20000 / 15000 | 墓碑计入；> 20000 为超包络 | — | `CORDEX_SCALE_MAX_ELEMENTS_PER_DOC` / `CORDEX_SCALE_SOFT_WARN_ELEMENTS_PER_DOC` | 否 |
-| `scale.maxFileBytes` | 整数 | 209715200 | 单文件导入上限 200 MiB；更大为超包络 | — | `CORDEX_SCALE_MAX_FILE_BYTES` | 否 |
+| `scale.maxFileBytes` | 整数 | 209715200 | 单文件导入上限 200 MiB；更大为超包络；web 容器读同一个环境变量，渲染进 RuntimeConfig `limits.importMaxBytes`（§3.3、§5.15，2026-10-22，rulings §4.25 TB-147、TB-158） | — | `CORDEX_SCALE_MAX_FILE_BYTES` | 否 |
 | `quota.storageTotalBytes` / `quota.storagePerUserBytes` / `quota.documentsPerUser` | 整数或空 | 空（不限） | 超限 `storage.quota_exceeded`（按 owner 汇总，决策 G-09） | — | `CORDEX_QUOTA_STORAGE_TOTAL_BYTES` / `CORDEX_QUOTA_STORAGE_PER_USER_BYTES` / `CORDEX_QUOTA_DOCUMENTS_PER_USER` | 否 |
 | `quota.commentThreadsPerDoc` / `quota.namedSnapshotsPerDoc` | 整数 | 5000 / 200 | PRD SV-08 | — | `CORDEX_QUOTA_COMMENT_THREADS_PER_DOC` / `CORDEX_QUOTA_NAMED_SNAPSHOTS_PER_DOC` | 否 |
 
@@ -576,7 +579,7 @@ flowchart LR
 
 | 路径 | 类型 | 默认 | 范围 / 校验 | 生产必填 | 环境变量 | 机密 |
 |---|---|---|---|---|---|---|
-| `retention.trashDays` | 整数 | 30 | 1–365 | — | `CORDEX_RETENTION_TRASH_DAYS` | 否 |
+| `retention.trashDays` | 整数 | 30 | 1–365；经 `GET /auth/config` 下发为 `trashDays`，前端回收站文案的天数只读它（[15 §3.1](./15-rest-api-catalog.md)，2026-10-22，rulings §4.25 TB-141） | — | `CORDEX_RETENTION_TRASH_DAYS` | 否 |
 | `retention.updatesDays` | 整数 | 7 | 1–90 | — | `CORDEX_RETENTION_UPDATES_DAYS` | 否 |
 | `retention.autoSnapshotDays` | 整数 | 30 | 1–365 | — | `CORDEX_RETENTION_AUTO_SNAPSHOT_DAYS` | 否 |
 | `retention.autoSnapshotDailyDays` | 整数 | 365（rulings §4.19 C-06） | 0 = 永久；否则 ≥ `autoSnapshotDays` | — | `CORDEX_RETENTION_AUTO_SNAPSHOT_DAILY_DAYS` | 否 |
@@ -647,6 +650,7 @@ flowchart LR
 |---|---|---|---|---|---|
 | `web.embed.allowedHostOrigins` | `https://` 源数组 | 空 | 空 = `/embed/*` 的 `frame-ancestors 'none'`（默认禁止任何站点嵌入）；非空时同一份值写进 `/embed/*` 的 CSP `frame-ancestors`（[50/14](../50-frontend/14-client-security.md) §2）与 RuntimeConfig `embed.allowedHostOrigins`（[50/02](../50-frontend/02-app-shell-routing-and-session.md) §3，postMessage 来源白名单，[50/12](../50-frontend/12-viewer-embedding-and-render-page.md) §9） | `CORDEX_WEB_EMBED_ALLOWED_ORIGINS` | CSP、RuntimeConfig |
 | `web.diagnostics.e2eTrace` | 布尔 | `false` | 生产部署配置拒绝其为真：值为 `true` 而 `CORDEX_WEB_ENV` ≠ `test` 时容器拒绝启动（与 `CORDEX_WEB_AUTH_MODE` 只接受 `oidc` 同类约束）；只在 e2e 预览服务器与测试 compose 栈开启 | `CORDEX_WEB_DIAGNOSTICS_E2E_TRACE` | RuntimeConfig `diagnostics.e2eTrace` |
+| `web.limits.importMaxBytes`（2026-10-22，rulings §4.25 TB-147、TB-158） | 整数（字节） | 209715200 | 与应用容器的 `scale.maxFileBytes`（§5.9）是同一个部署值：不另设 `CORDEX_WEB_*` 变量，web 容器读应用容器同名的环境变量（`CORDEX_WEB_` 前缀规则的唯一例外，§3.6），compose 让两个服务从项目 `.env` 的同一行取值（§2.3），K8s 两个工作负载引用同一个配置项；导入对话框（rulings §4.25 DS-140）与拖入落区据此写「单个文件最大〈上限〉」，申请上传时超限仍由应用返回 413（[15 §3.9](./15-rest-api-catalog.md)） | `CORDEX_SCALE_MAX_FILE_BYTES`（与应用容器共用） | RuntimeConfig `limits.importMaxBytes` |
 
 ### 5.16 插件（2026-10-01，rulings §4.23）
 
@@ -730,7 +734,7 @@ flowchart TD
 | `storage.s3.accessKeyIdFile` 与 `secretAccessKeyFile` | 必需 | 必需 | 必需 | 禁止 | 必需（`storage:init`） |
 | `auth.oidc.clientSecretFile` | 必需 | 禁止 | 禁止 | 禁止 | — |
 | `auth.jwt.signingKeysFile` | 必需 | 禁止 | 禁止 | 禁止 | — |
-| `secrets.kekFile` | 必需（加密） | 禁止 | 必需（投递时解密） | 禁止 | — |
+| `secrets.kekFile` | 必需（加密 Webhook 密钥；加解密分享链接令牌） | 禁止 | 必需（投递时解密） | 禁止 | — |
 | `ops.tokenFile` | 必需 | 必需 | 必需 | 禁止 | — |
 | `audit.hashSaltFile` | 必需 | 必需 | 必需 | 禁止 | — |
 | `headless.renderSigningKeyFile` | 禁止 | 禁止 | 必需（`remote`） | 禁止 | — |
@@ -749,7 +753,7 @@ flowchart TD
   files -- "失败" --> exit78
   files --> parse["zod 解析：类型、默认值、范围"]
   parse -- "失败" --> exit78
-  parse --> cross["交叉断言：production 必填项、角色 × 机密矩阵、headless.mode 与 endpoint、限额放宽不超过 2 倍"]
+  parse --> cross["交叉断言：production 必填项、角色 × 机密矩阵、headless.mode 与 endpoint、限额放宽不超过 2 倍、开了自助注册就要有注册地址"]
   cross -- "失败" --> exit78
   cross --> env{"超出性能保证包络"}
   env -- "是" --> warn["启动告警；/readyz 附 scaleEnvelopeExceeded"]
@@ -760,7 +764,7 @@ flowchart TD
 ```
 
 怎么读：自上而下是一次启动的配置阶段；任何一步失败都汇入同一个出口（退出码 78，EX_CONFIG），不会带着部分配置继续启动。超包络只告警不阻止启动，因为规模数字是部署方有权调大的（性能承诺随之失效）。
-依据：PRD SV-09「配置经 Standard Schema 校验、--dry-run」；本文 §5–§6（`config.module.ts` 的文件级见 40/12 §4.10）；ADR-0037「如何被机械验证」；rulings §4.15 Q5。
+依据：PRD SV-09「配置经 Standard Schema 校验、--dry-run」；本文 §5–§6（`config.module.ts` 的文件级见 40/12 §4.10）；ADR-0037「如何被机械验证」；rulings §4.15 Q5；`auth.selfSignup` 为真时 `auth.signupUrl` 必填（rulings §4.25 TB-143，2026-10-22 补进交叉断言一格）。
 
 ## 7. 规模配置与超包络告警
 
@@ -895,15 +899,16 @@ flowchart LR
 | # | 断言 | 落地方式 |
 |---|---|---|
 | CFG-01 | 配置 schema 快照 = 本文 §5 全字段表（路径、类型、默认、范围、环境变量名、是否机密）；环境变量名按 §6 规则生成且两两不同 | `test/unit` 配置 schema 快照 |
-| CFG-02 | 未登记或已废止的 `CORDEX_*` 变量、缺少生产必填项、角色 × 机密矩阵中的「禁止」项、限额放宽超过 2 倍 → 退出码 78；`--dry-run` 输出不含机密明文 | `test/unit` 与 `test/server-integration` 的 role-assembly |
+| CFG-02 | 未登记或已废止的 `CORDEX_*` 变量、缺少生产必填项、角色 × 机密矩阵中的「禁止」项、限额放宽超过 2 倍、`auth.selfSignup = true` 而 `auth.signupUrl` 为空（2026-10-22，rulings §4.25 TB-143）→ 退出码 78；`--dry-run` 输出不含机密明文 | `test/unit` 与 `test/server-integration` 的 role-assembly |
 | CFG-03 | 保留期键集合与 [14 §8](./14-valkey-object-storage-and-retention.md) 一致；每个配置键都有读取点 | `test/unit`；扫描器 `scan-config-usage` |
 | CFG-04 | 超包络配置启动告警且 `/readyz` 附 `scaleEnvelopeExceeded` | `test/server-integration` |
 | DEP-01 | `ops:compose`：默认 profile 一条命令启动，`/readyz` 3 min 内全部就绪；production 下既无 `idp` profile 又未配外部 issuer 即拒绝启动 | `e2e/full-compose` |
 | DEP-02 | `ops:airgap`：禁止宿主出站后登录 → 导入 → 协同编辑 → 缩略图 → 导出全链路通过，记录到任何出站尝试即失败 | `e2e/full-airgap` |
-| DEP-03 | web 容器：来源 IP 口径（§3.1）——客户端伪造的 `X-Forwarded-For` 首跳不改变限流主体与审计 `ip_hash`，`terminate` 与 `upstream` 两种模式各一例：应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加，`upstream` 模式下 realip 只信任 `CORDEX_WEB_TRUSTED_LB_CIDRS` 网段来的一跳，该值为空即拒绝启动（rulings §4.20 BE-04；`upstream` 模式的执行点为 [70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 G12）；每次 index.html 响应的 nonce 不同且与 CSP 头一致；CSP 在任何模式下都是强制头，`CORDEX_WEB_CSP_MODE=report-only` 时只有 Trusted Types 两条指令出现在 `-Report-Only` 头；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；index.html `no-store`、`/assets/*` `immutable`；`/internal/*`、`/metrics`、`/readyz` 经反代 404；预签名经 `s3.` 子域且保持 Host 可用；Casdoor 与 SeaweedFS 宿主端口未开放；s3 访问日志不含 query | `e2e/full-compose` |
+| DEP-03 | web 容器：来源 IP 口径（§3.1）——客户端伪造的 `X-Forwarded-For` 首跳不改变限流主体与审计 `ip_hash`，`terminate` 与 `upstream` 两种模式各一例：应用收到的 `X-Forwarded-For` 被 web 容器以 `$remote_addr` 覆盖而非追加，`upstream` 模式下 realip 只信任 `CORDEX_WEB_TRUSTED_LB_CIDRS` 网段来的一跳，该值为空即拒绝启动（rulings §4.20 BE-04；`upstream` 模式的执行点为 [70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 G12）；每次 index.html 响应的 nonce 不同且与 CSP 头一致；`CORDEX_WEB_RUNTIME_CONFIG_FILE` 配了 M3 模板源时 CSP `connect-src` 含各 `templates.sources[].manifestUrl` 的源（去重），没配时不多出任何源（2026-10-22，rulings §4.25 TB-168，§3.2；执行点同 [70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 G8）；CSP 在任何模式下都是强制头，`CORDEX_WEB_CSP_MODE=report-only` 时只有 Trusted Types 两条指令出现在 `-Report-Only` 头；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；index.html `no-store`、`/assets/*` `immutable`；`/internal/*`、`/metrics`、`/readyz` 经反代 404；预签名经 `s3.` 子域且保持 Host 可用；Casdoor 与 SeaweedFS 宿主端口未开放；s3 访问日志不含 query | `e2e/full-compose` |
 | DEP-04 | `ops:image-licenses`、digest 钉死、SBOM 存在；renderer 与 worker 镜像同版本；三个镜像的字体 sha256 一致；renderer 非 root、无凭据、沙箱开启 | 治理检查 `check-image-policy`（`scanners`）与 `e2e/full-compose` |
 | DEP-05 | 滚动重启期间双浏览器编辑不丢（ack 全部到达）；collab 下线 ≤ 30 s | `e2e/full-compose`（发布演练，70/08 §8） |
 | DEP-06 | 备份恢复演练达到 RPO ≤ 1 min、RTO ≤ 15 min，恢复后导出 sha256 与备份前一致 | 70/08 §9（M3，人工证据归档） |
 | DEP-07（2026-09-26） | web 容器的 collab upstream 为 `hash $cordex_doc_id consistent`；M3 两副本下同一 `documentId` 的 WS 升级与快照 REST 落到同一实例，停掉该实例后客户端重连到另一实例并继续编辑（亲和不是正确性前提） | `e2e/full-compose`（发布演练，70/08） |
+| DEP-08（2026-10-22，rulings §4.25 TB-147、TB-158） | 只在项目 `.env` 里设 `CORDEX_SCALE_MAX_FILE_BYTES=104857600` 时，web 容器渲染的 RuntimeConfig `limits.importMaxBytes` 与应用的 `scale.maxFileBytes` 都是 104857600，`POST /imports/uploads` 申报 104857601 字节得 413 `format.quota_exceeded{dimension:'fileSize'}`；不设时两边都是 209715200 | `e2e/full-compose`（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | CFG-06（2026-10-01） | `plugins.*` 按 §5.16 校验：声明文件不可解析或违反 schema、`NODE_ENV=production` 且 `plugins.allowUnsigned=true` → 退出码 78（`--dry-run` 同样）；单项未签名只拒绝该项、`/readyz` 附 `pluginsRejected`；挂载条目 `source` 含 `..` 越出 `plugins.mountDir` 被拒；web 容器只为声明文件中的挂载条目提供 `/plugins/{sha256}/`，其余路径 404 | `test/unit` 配置快照；`e2e/full-compose`（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | CFG-05（2026-09-26） | `collab.hocuspocus.*` 与新增的 `limits.ws.*` 按 §5.7、§5.8 校验，下列任一成立即退出码 78（即要求 `timeoutMs` 不小于 `idleTimeoutMs`、`step2MaxBytes` 不小于 `maxUpdateBytes`、`idleCheckIntervalMs` 小于 `idleTimeoutMs`）：`collab.hocuspocus.timeoutMs` 小于 `limits.idleTimeoutMs`、`limits.ws.step2MaxBytes` 小于 `limits.maxUpdateBytes`、`limits.ws.idleCheckIntervalMs` 不小于 `limits.idleTimeoutMs`；旧键 `limits.xml.maxTextNodeBytes` 出现即拒绝启动并提示 `limits.xml.maxTextLength`；镜像入口含 `--import ./dist/observability/otel.js` | `test/unit` 配置 schema 快照；`check-image-policy` |

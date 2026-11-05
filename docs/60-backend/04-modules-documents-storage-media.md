@@ -1,5 +1,5 @@
 # 04 模块设计：文档、存储与媒体（含永久删除编排）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：媒体检测件定稿——file-type、image-size 与 SVG/EMF/WMF 自写签名；SVG 消毒维持自研白名单，解析与重序列化改用 `@cordexjs/xml`）；2026-09-26（§4.21 整合：§7.2 补与浏览器侧的两处约定：SVG 消毒器共享落点登记 A-14、定案前本机拒绝；视频上限以 presign maxBytes 为准并可预检）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01](01-service-overview-and-roles.md) §3（原 30/08）；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-25（lock_reason，§4.19 N1 补缺）；2026-09-26（§4.20）；2026-09-26（§4.21：媒体检测件定稿——file-type、image-size 与 SVG/EMF/WMF 自写签名；SVG 消毒维持自研白名单，解析与重序列化改用 `@cordexjs/xml`）；2026-09-26（§4.21 整合：§7.2 补与浏览器侧的两处约定：SVG 消毒器共享落点登记 A-14、定案前本机拒绝；视频上限以 presign maxBytes 为准并可预检）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-04（design-language-v3 第 0 批：复验修正——创建副本端点的依据注明 v3 入口在编辑器文档菜单（原应用栏随 DS-1 作废））；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-48：§3.1 `GetDocumentQuery` 对 owner 另带待处理访问申请数（经 PermissionsModule 导出的 `PendingAccessRequestCounter`）；§4.3 参与者 `permissions` 的清理对象增 `access_requests`，并注明参与者之后插入的申请随作业重试收敛；同日再补：§3.1 注明待处理申请数只随查询取一次、不做实时推送（rulings §4.25 TB-68，及时通知走 DS-67 的 Webhook）；同日再补：§3.3 创建副本的作业 `payload` 增 `srcTitle`（受理时源文档的标题），新文档 `import` 快照据此写来源 `duplicate` 与显示名，版本历史写「创建自『X』的副本」（rulings §4.25 DS-70））；2026-10-22（design-language-v3 第 3 批：§1、§5 M-09 写的列由八列增为九列（`content_updated_by` 最近编辑者，与 `content_updated_at` 成对推进，rulings §4.25 DS-83），生成列 `last_activity_at` 改为只看内容（DS-84），图 5-1 与其说明同步；§2 交叉规则第 4 条补界面只从回收站永久删除，新增第 5 条：打开回收站里的文档按三类人得到 200 + `trashedAt` / 404 / 403（DS-85、DS-122、TB-73）；§3.1 `ListDocumentsQuery` 写明各筛选的固定次序（回收站按移入时间）与条目字段 `createdAt`、`contentUpdatedAt`、`lastEditor`、`trashedAt`，`GetDocumentQuery` 回收站状态带 `trashedAt`，`ListRecentQuery` / `ListPinnedQuery` 同步（DS-83…DS-85、TB-127）；§10 增 DOC-23）；2026-10-22（design-language-v3 第 3 批回写补充：§3.1 `ListDocumentsQuery` 的次序依据补 TB-144（与卡片第二行的时间同源），回收站到期日按 `trashedAt` + `GET /auth/config` 的 `trashDays`（TB-141）；§9 读取点表 `retention.trashDays` 一行补第二个读取点 `GetAuthConfigQuery`（TB-141）；2026-10-22 复核修正：§3.3 依据里创建副本的 v3 入口补文档卡片的「⋯」菜单（rulings §4.25 DS-81），并写明评审者与查看者两处都没有这一项（DS-82）；§11 跨文件约定表 14 / 17 一行的 `upload:{uploadId}` 由「`kind` 只有 `import`、`media`」改为三种（另有 `automation`，与 14 §3.2 一致，rulings §4.24 AL-7 时漏改）；§5 图 5-1 的 M-08 列组与第 1 道防线 `DocumentMetaPatch` 白名单补 `lock_reason`（与 §5 列写方表、08 §4.2、10 §2 列注释一致，2026-09-25 补 `lock_reason` 时漏改）） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.10 Q20、§4.12 U-04、§4.13 S-2、§4.15 Q3/Q5、§4.17 D2、§4.18 BE-01/BE-10/BE-15/BE-31/CO-07、§4.19 D-M2-CONTENT/C-06/N1、§4.21（X:q-xml-package）；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)；[19 后端复用组件清单](19-reuse-and-dependency-catalog.md)；[01](01-service-overview-and-roles.md) §3（原 30/08）；ADR-0022/0025/0029；[03 模块卡模板](03-modules-identity-and-access.md)；[08](08-db-conventions-roles-rls-migrations.md)；[10](10-ddl-documents-marks-media.md)；[14](14-valkey-object-storage-and-retention.md)；[15](15-rest-api-catalog.md)；rulings §4.25 DS-48、DS-70、DS-81…DS-85、DS-122、TB-73、TB-127、TB-141、TB-144
 
 本文是 `DocumentsModule`、`StorageModule`、`MediaModule` 三个 Nest 模块运行时设计的唯一事实源，也是「永久删除文档」编排（rulings §4.18 BE-15）的**唯一源**：[05](05-modules-collab-and-snapshots.md)、[06](06-modules-jobs-import-export-thumbnails.md)、[07](07-modules-comments-webhooks-audit.md)、[03](03-modules-identity-and-access.md) 中的 purge 参与者只写自己那一步并链接本文 §4。
 
@@ -33,7 +33,7 @@
 
 **不做**
 
-- 不持有文档**内容**：自 M2 起文档内容只以协同快照 + update 为事实源（rulings §4.19 D-M2-CONTENT，不设 pptx 内容版本），幻灯片树与 CRDT update、快照在 `document_updates` / `document_snapshots`（M-09，[05](05-modules-collab-and-snapshots.md)）；`documents` 表中 M-09 写的八列（§5）本模块只读。
+- 不持有文档**内容**：自 M2 起文档内容只以协同快照 + update 为事实源（rulings §4.19 D-M2-CONTENT，不设 pptx 内容版本），幻灯片树与 CRDT update、快照在 `document_updates` / `document_snapshots`（M-09，[05](05-modules-collab-and-snapshots.md)）；`documents` 表中 M-09 写的九列（§5；2026-10-22 增最近编辑者 `content_updated_by`，rulings §4.25 DS-83）本模块只读。
 - 不判定角色：角色来自 `PermissionsModule` 的 `RoleResolverService` 与 `DocumentRoleGuard`（[03](03-modules-identity-and-access.md)）；本模块只在角色通过之后再按文档状态放行。
 - 不清理别的模块的表：永久删除时其余六张（组）表由各自的参与者清理（「谁的表谁写」，rulings §4.13 S-2）。
 - 不签发协同票据：`POST /documents/:id/collab-ticket` 归 [15](15-rest-api-catalog.md) §3.7 与 [03](03-modules-identity-and-access.md)，本模块不 import `AuthModule`。
@@ -98,7 +98,8 @@ stateDiagram-v2
 1. `locked` 与 `purging` 互斥且不能直接互转：锁定窗口里的导入 / 迁移若与删除交错，只会让用户的永久删除得到 409 并在解锁后重试；`trash-expiry` 只选 `trashed`，不会碰到 `locked`。
 2. 锁必须带到期时间 `locked_until`：持锁方崩溃时由周期作业 `trash-expiry`（每 5 min）调用 `ReleaseExpiredLocksUseCase` 释放，文档最多多锁一个周期，不会永久只读。
 3. `trashed` 同样拒绝加入协同（与 `purging` 同为 4404）：移到回收站后在线会话经控制频道被关闭，之后的加入请求被拒；恢复后可再次加入。协同侧的加入检查写在 [05](05-modules-collab-and-snapshots.md) §3 与 [16](16-ws-protocol-server-view.md)，本表为其状态口径来源。
-4. `active → purging` 允许不经回收站（BE-15）；用户永久删除与回收站到期走同一个 `SchedulePurgeUseCase`，只差 `reason`。
+4. `active → purging` 允许不经回收站（BE-15）；用户永久删除与回收站到期走同一个 `SchedulePurgeUseCase`，只差 `reason`。界面只在回收站视图发起永久删除（2026-10-22，rulings §4.25 DS-85），接口照旧接受 `active` 文档。
+5. **打开回收站里的文档**（2026-10-22，rulings §4.25 DS-85、DS-122；画面见设计 [03-01](../20-design/03-screens/01-document-list.md) §6 与 [03-33](../20-design/03-screens/33-login-session-and-error-pages.md) §7.2）：守卫顺序（`DocumentRoleGuard` 在前、`DocumentStateGuard` 在后，[02](02-auth-chain.md) §6）让三类人得到三种结果——所有者 `GET /documents/:id`（`meta`）照常 200，`status = 'trashed'` 并带 `trashedAt`，前端换成「此文档在回收站中」阻断页、可直接恢复；内容读（快照、协同票据）对所有者同样 404，回收站里的文档不能打开、没有只读预览。有角色的非所有者（含持有效链接的人）得 404 `server.documents.not_found`，看到「找不到该文档」；从未获授权的人在 `DocumentRoleGuard` 就得 403，「申请访问」照常受理、不透露文档在回收站（rulings §4.25 TB-73，[15](15-rest-api-catalog.md) §3.4）。
 
 依据：rulings §4.18 BE-15（purging 拒绝加入）、ADR-0029 决策 5（locked 拒写）；决策 INC-22；锁定通知的通道见 [16](16-ws-protocol-server-view.md) §8（`room:{docId}:ctl` 只承载 `close` 与 `epoch`，[14](14-valkey-object-storage-and-retention.md) §3）。
 
@@ -111,14 +112,14 @@ stateDiagram-v2
 | 用例 | 前置检查（角色之后） | 事务边界 | 说明 |
 |---|---|---|---|
 | `CreateDocumentUseCase` | 已登录且 `users.status='active'`；`quota.documentsPerUser`（§9） | 单事务，顺序固定（[08](08-db-conventions-roles-rls-migrations.md) §6.3 第 6 条）：`INSERT documents … RETURNING`（此刻 owner 授权行尚不存在，靠 SELECT policy 的 `owner_id` 分支可见，[10](10-ddl-documents-marks-media.md) §8）→ `PermissionsModule` 导出的 `GrantInitialOwnerInTx(tx, docId, userId)`（写 `permissions` 与 `document_perm_versions`）→ `document_user_marks` upsert `last_opened_at` | `id` 为应用层 UUIDv7；`title` 缺省为空串，界面显示本地化的「未命名演示文稿」；`doc_type` 必填、只透传；导入建档时 M-12 以 `SystemContext` + `ownerId` 调同一用例 |
-| `ListDocumentsQuery` | `meta` | 只读 | `filter`（取值以 [15](15-rest-api-catalog.md) §3.3 为准）：`owned`（`owner_id` = 我，状态 `active`/`locked`）、`shared`（我有授权行且 `owner_id` ≠ 我）、`all`（二者之并）、`trashed`（`trashed` 且我的角色为 `owner`）；`recent` / `pinned` 转交 `ListRecentQuery` / `ListPinnedQuery`；`q` 为已授权结果上的标题子串过滤；按 `last_activity_at DESC, id` 键集分页（`cursor` + `limit ≤ 100`）；RLS 兜底 |
-| `GetDocumentQuery` | `meta` | 只读 | 返回元数据、我的角色与能力位集合；`purging` 与无权的 `trashed` 返回 404 |
+| `ListDocumentsQuery` | `meta` | 只读 | `filter`（取值以 [15](15-rest-api-catalog.md) §3.3 为准）：`owned`（`owner_id` = 我，状态 `active`/`locked`）、`shared`（我有授权行且 `owner_id` ≠ 我）、`all`（二者之并）、`trashed`（`trashed` 且我的角色为 `owner`）；`recent` / `pinned` 转交 `ListRecentQuery` / `ListPinnedQuery`；`q` 为已授权结果上的标题子串过滤；次序按筛选固定、不设排序参数（2026-10-22，rulings §4.25 DS-84）：`owned`、`shared`、`all`（含 `q`）按 `last_activity_at DESC, id`（内容最近变化，与卡片第二行的时间同源，改名、移入与恢复回收站不改变次序，TB-144；[10](10-ddl-documents-marks-media.md) §2），`trashed` 按 `deleted_at DESC, id`（移入时间；本人的回收站行少，按 `owner_id` 过滤后排序，不另建索引）；键集分页（`cursor` + `limit ≤ 100`）；每条另带 `createdAt`、`contentUpdatedAt`、`lastEditor`（`content_updated_by` 按 `users` 主键取显示名，同 `owner` 的取法），`trashed` 条目带 `trashedAt`（即 `deleted_at`；到期日由前端按 `trashedAt` + `GET /auth/config` 的 `trashDays` 算，TB-141）（DS-83、DS-85，字段见 [15](15-rest-api-catalog.md) §3.3）；RLS 兜底 |
+| `GetDocumentQuery` | `meta` | 只读 | 返回元数据、我的角色与能力位集合；调用者持 `doc.manage` 时另调 PermissionsModule 导出的 `PendingAccessRequestCounter`，带上待处理的访问申请数（`pendingAccessRequests`，「分享」按钮的圆点据此显示，2026-10-15，rulings §4.25 DS-48；只随本查询取一次，服务端不做实时推送，新申请的及时通知走 Webhook `access_request.created`，TB-68、DS-67）；`purging` 与无权的 `trashed` 返回 404；所有者读到的 `trashed` 文档另带 `trashedAt`，供「此文档在回收站中」阻断页写到期时间（2026-10-22，rulings §4.25 DS-85，§2 交叉规则第 5 条） |
 | `RenameDocumentUseCase` | `doc.write`；`write` | 单事务：`UPDATE title, updated_at` | 标题长度以 protocol DTO 为准，库表另有 512 字符兜底 |
 | `TrashDocumentUseCase` / `RestoreDocumentUseCase` | `doc.manage` | 单事务，互为逆操作 | 见表 2-1 |
 | `TouchRecentUseCase` | `content` | 单事务：upsert `last_opened_at`；距上次记录不足 60 s 不写 | 在「打开」动作内调用：签发协同票据时（AuthModule 的 `IssueCollabTicketUseCase`，经本模块导出面，M2 起） |
 | `PinDocumentUseCase` / `UnpinDocumentUseCase` | `doc.read`；`meta` | 单事务：upsert / 置空 `pinned_at`；两列皆空则删行 | 固定为用户级标记，不改文档权限（决策 SG-06/SG-07） |
 | `RemoveFromRecentUseCase` | `doc.read`；`meta` | 同上：置空 `last_opened_at`，两列皆空则删行 | 前端给出 5 s 撤销 toast（AS-02），撤销即再次 `TouchRecent` |
-| `ListRecentQuery` / `ListPinnedQuery` | `meta` | 只读：`document_user_marks` ⋈ `documents`（`active`/`locked`） | 最近取 `last_opened_at DESC` 前 50 条。已知限制：只凭分享链接访问过的文档不出现在列表中——列表请求不携带分享令牌，RLS 下不可见（[02](02-auth-chain.md) §7） |
+| `ListRecentQuery` / `ListPinnedQuery` | `meta` | 只读：`document_user_marks` ⋈ `documents`（`active`/`locked`） | 最近取 `last_opened_at DESC` 前 50 条，固定取 `pinned_at DESC`；条目字段同 `ListDocumentsQuery`（含 `lastEditor`、`contentUpdatedAt`、`createdAt`，2026-10-22，rulings §4.25 DS-83、DS-84）；开始页「最近」与文档列表「最近」用的是同一份数据，开始页的排序菜单只在前端对那一段排（TB-127）。已知限制：只凭分享链接访问过的文档不出现在列表中——列表请求不携带分享令牌，RLS 下不可见（[02](02-auth-chain.md) §7） |
 
 ### 3.2 锁定、永久删除与系统用例
 
@@ -135,11 +136,11 @@ stateDiagram-v2
 
 ### 3.3 创建副本（受理）
 
-依据：rulings §4.10 Q20（应用栏「⋯」含「创建副本」）、§4.19 D-M2-CONTENT（内容以协同快照为唯一事实源，因此副本在服务端从快照生成，不经浏览器上传 pptx）；随 M2 协同后端交付。自 M2 起不设 pptx「内容版本」端点，新建空白与模板文档也经服务端导入写 `import` 快照（[06](06-modules-jobs-import-export-thumbnails.md) §6）。
+依据：rulings §4.10 Q20（应用栏「⋯」含「创建副本」；原应用栏随 rulings §4.25 DS-1 作废，v3 起入口在编辑器文档菜单与开始页、文档列表共用的文档卡片「⋯」菜单（DS-81），评审者与查看者两处都没有这一项（DS-82，与 `doc.export` 一致））、§4.19 D-M2-CONTENT（内容以协同快照为唯一事实源，因此副本在服务端从快照生成，不经浏览器上传 pptx）；随 M2 协同后端交付。自 M2 起不设 pptx「内容版本」端点，新建空白与模板文档也经服务端导入写 `import` 快照（[06](06-modules-jobs-import-export-thumbnails.md) §6）。
 
 | 用例 | 前置检查 | 步骤 |
 |---|---|---|
-| `DuplicateDocumentUseCase({title?})` | 源文档 `doc.export`（与导出同一能力位：副本等于把内容带出本文档的授权范围）；`content`；新文档按调用者计 `documents` 维度配额（§9，超出 429），`bytes` 维度按源文档 `size_bytes` 预检（超出 413） | ① 预分配新文档 id `newDocId`（UUIDv7）与 `jobId`；② 读源文档 `head_seq` 作为 `srcSeq`（副本内容固定为受理时已落库的状态，与导出的 `q{headSeq}` 同一口径）；③ 经 `JobRunsRepository.create` 写 `job_runs(kind='import', doc_id=newDocId, payload={source:'duplicate', srcDocId, srcSeq, title})`，幂等键见 06 §2.3；④ 提交后入 `import` 队列；返回 202 `{docId: newDocId, jobId}`，进度经 `GET /jobs/:id` |
+| `DuplicateDocumentUseCase({title?})` | 源文档 `doc.export`（与导出同一能力位：副本等于把内容带出本文档的授权范围）；`content`；新文档按调用者计 `documents` 维度配额（§9，超出 429），`bytes` 维度按源文档 `size_bytes` 预检（超出 413） | ① 预分配新文档 id `newDocId`（UUIDv7）与 `jobId`；② 读源文档 `head_seq` 作为 `srcSeq`（副本内容固定为受理时已落库的状态，与导出的 `q{headSeq}` 同一口径）；③ 经 `JobRunsRepository.create` 写 `job_runs(kind='import', doc_id=newDocId, payload={source:'duplicate', srcDocId, srcSeq, srcTitle, title})`，`srcTitle` 取受理时源文档的 `title`（未命名为空串），供新文档 `import` 快照写来源 `duplicate` 与显示名（2026-10-15，rulings §4.25 DS-70，[11](11-ddl-collab-updates-and-snapshots.md) §2），幂等键见 06 §2.3；④ 提交后入 `import` 队列；返回 202 `{docId: newDocId, jobId}`，进度经 `GET /jobs/:id` |
 
 - 执行（worker）与写入次序见 [06](06-modules-jobs-import-export-thumbnails.md) §6.6：以源文档检查点 + `seq ≤ srcSeq` 的 updates 为新文档写 `kind='import'` 快照，复制源文档最新 import 快照的基线对象与新快照引用到的 `document_media` 关联，再经 `CreateDocumentUseCase` 系统入口建文档行（owner = 调用者，审计 `document.created{source:'duplicate'}`）。
 - 副本不复制权限、分享链接、评论镜像与版本历史：新文档只有调用者一个 owner，评论随 CRDT 内容一起复制（`resources['comments.threads']` 在快照里），镜像由首次加载时的全量对账写入（[07](07-modules-comments-webhooks-audit.md) §1.3）。
@@ -250,7 +251,7 @@ export declare function PurgeParticipant(name: PurgeParticipantName): ClassDecor
 | `thumbnails` | ThumbnailsModule | `thumbnails` 行与 `docs/{docId}/thumbs/` 对象（含 embedded 封面） | [06](06-modules-jobs-import-export-thumbnails.md) §11 | worker |
 | `media` | MediaModule | `document_media`（`media_blobs` 不删，走 30 天无引用回收） | 本文 §7.5 | worker |
 | `share-links` | ShareLinksModule | `share_links` | [03](03-modules-identity-and-access.md) §5 | worker |
-| `permissions` | PermissionsModule | `permissions`、`document_perm_versions` | [03](03-modules-identity-and-access.md) §4 | worker |
+| `permissions` | PermissionsModule | `permissions`、`document_perm_versions`、`access_requests`（2026-10-15） | [03](03-modules-identity-and-access.md) §4、§10 | worker |
 | `user-marks` | DocumentsModule | `document_user_marks` | 本文 §3.1 | worker |
 
 参与者规则（各文件实现时逐条满足，[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 按条断言）：
@@ -278,7 +279,7 @@ export declare function PurgeParticipant(name: PurgeParticipantName): ClassDecor
 ### 4.5 失败、重试与对账
 
 - 队列 `document-purge` 为独立队列（不并入 maintenance），重试次数、退避、并发与死信参数只在 [06](06-modules-jobs-import-export-thumbnails.md) §1 的队列总表；同一文档经 `jobId` 与幂等键天然串行。
-- **每次重试从第 ① 步重新执行全部步骤**，不按 `job_runs.result` 跳过已完成的参与者：若某参与者清理后又有迟到写入（例如竞态中的缩略图），只有重跑它才能让第 ④ 步的外键检查通过；`result` 只用于观测，形状以 [12](12-ddl-jobs-and-thumbnails.md) §2 为准（`{stage, participants: {<名称>: 'pending' | 'done'}, finalized?}`）。
+- **每次重试从第 ① 步重新执行全部步骤**，不按 `job_runs.result` 跳过已完成的参与者：若某参与者清理后又有迟到写入（例如竞态中的缩略图，或看不到文档状态的申请人在参与者之后提交的访问申请，2026-10-15，[09 §15](09-ddl-identity-and-access.md)），只有重跑它才能让第 ④ 步的外键检查通过；`result` 只用于观测，形状以 [12](12-ddl-jobs-and-thumbnails.md) §2 为准（`{stage, participants: {<名称>: 'pending' | 'done'}, finalized?}`）。
 - 入队丢失由对账作业补投（孤儿判定 = 超过 2 倍处理器超时仍为 `queued` 或 `running`，[06](06-modules-jobs-import-export-thumbnails.md) §3）；Valkey 数据丢失同样由它从 `job_runs` 补投。
 - 重试用尽进入死信并告警；文档停在 `purging`（对用户 404、协同拒绝加入），由运维按 [06](06-modules-jobs-import-export-thumbnails.md) §5 的死信重放命令重投。
 
@@ -302,8 +303,8 @@ export declare function PurgeParticipant(name: PurgeParticipantName): ClassDecor
 | `title`、`status`、`deleted_at`、`locked_until`、`lock_reason`、`updated_at` | M-08 DocumentsModule | 表 2-1 各转移、改名 |
 | `head_seq` | M-09 持久化批次 | 每批 update 落库，同事务取号（[10](10-ddl-documents-marks-media.md) §3） |
 | `epoch` | M-09 `forceEpoch`；M-09 `PgSnapshotStore.put(kind='import', epochFrom)`（由 M-12 导入处理器在 worker 的 `persist` 事务内调用，rulings §4.19 N1） | 管理端点触发（[05](05-modules-collab-and-snapshots.md) §9）；覆盖既有文档的导入提交（[06](06-modules-jobs-import-export-thumbnails.md) §6.5，与 `import` 快照、解锁同一事务） |
-| `latest_snapshot_id`、`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at` | M-09 快照与压缩 | 写快照时节流更新，不在每批 update 时写 |
-| `last_activity_at` | 无（生成列 `greatest(updated_at, content_updated_at)`） | 自动 |
+| `latest_snapshot_id`、`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at`、`content_updated_by` | M-09 快照与压缩 | 写快照时节流更新，不在每批 update 时写；`content_updated_at` 与 `content_updated_by`（最近编辑者，2026-10-22，rulings §4.25 DS-83）成对推进，规则见 [05](05-modules-collab-and-snapshots.md) §7 |
+| `last_activity_at` | 无（生成列 `coalesce(content_updated_at, created_at)`：列表的「最近活动」只看内容，改名与回收站进出不改变次序，2026-10-22，rulings §4.25 DS-84；原 `greatest(updated_at, content_updated_at)` 作废） | 自动 |
 
 **图 5-1 `documents` 的列级写方**
 
@@ -313,29 +314,31 @@ flowchart LR
   m09a["M-09 持久化批次：PgUpdateStore"]
   m09b["M-09 快照与压缩：PgSnapshotStore、compactor"]
   m09c["M-09 forceEpoch；覆盖导入经 SnapshotStore.put 的 epochFrom"]
-  c1["title、status、deleted_at、locked_until、updated_at"]
+  c1["title、status、deleted_at、locked_until、lock_reason、updated_at"]
   c2["head_seq"]
-  c3["latest_snapshot_id、schema_version、element_count、slide_count、size_bytes、content_updated_at"]
+  c3["latest_snapshot_id、schema_version、element_count、slide_count、size_bytes、content_updated_at、content_updated_by"]
   c4["epoch"]
-  gen["last_activity_at：生成列，无人写"]
+  c5["created_at：建档时写入"]
+  gen["last_activity_at：生成列，内容最近变化，无快照时取 created_at，无人写"]
   rd["只读方：M-09 加入房间、M-12、PermissionsModule"]
   m08 --> c1
+  m08 --> c5
   m09a --> c2
   m09b --> c3
   m09c --> c4
-  c1 -.-> gen
+  c5 -.-> gen
   c3 -.-> gen
   c1 -. "只读" .-> rd
   c3 -. "只读" .-> rd
 ```
 
-怎么读：实线从写方指向它唯一可写的列组；虚线是派生（生成列）或跨模块只读。同一张表、四个写方，列组互不重叠。`epoch` 的两条写入路径都是 M-09 的代码：运维换纪元走 `forceEpoch`，覆盖导入由 worker 上的 M-12 处理器调用 M-09 的 `SnapshotStore.put`（rulings §4.19 N1）。
+怎么读：实线从写方指向它唯一可写的列组；虚线是派生（生成列）或跨模块只读。同一张表、四个写方，列组互不重叠。生成列 `last_activity_at` 只由 `content_updated_at` 与建档时刻派生，2026-10-22 起不再看 `updated_at`（rulings §4.25 DS-84），所以 M-08 的改名、移入与恢复回收站不改变列表次序。`epoch` 的两条写入路径都是 M-09 的代码：运维换纪元走 `forceEpoch`，覆盖导入由 worker 上的 M-12 处理器调用 M-09 的 `SnapshotStore.put`（rulings §4.19 N1）。
 
 依据：决策 C-03；rulings §4.13 同时确认段；ADR-0025（`head_seq` 与 `latest_snapshot_id`）。
 
 三道机械防线（逐条对应 §10 的断言）：
 
-1. **类型**：`DocumentRepository` 的更新入参是白名单 `DocumentMetaPatch = Partial<Pick<Document, 'title' | 'status' | 'deletedAt' | 'lockedUntil' | 'updatedAt'>>`——等价于 Omit 全部 M-09 列，且以后新增的列默认不可写；类型测试以 `@ts-expect-error` 断言传入 `headSeq` 等字段编译失败。
+1. **类型**：`DocumentRepository` 的更新入参是白名单 `DocumentMetaPatch = Partial<Pick<Document, 'title' | 'status' | 'deletedAt' | 'lockedUntil' | 'lockReason' | 'updatedAt'>>`——等价于 Omit 全部 M-09 列，且以后新增的列默认不可写；类型测试以 `@ts-expect-error` 断言传入 `headSeq` 等字段编译失败。
 2. **数据库列权限**：`cordex_app` 对 `documents` 只有列级 `INSERT (id, title, doc_type, owner_id)` 与 `UPDATE (title, status, deleted_at, updated_at)`，M-09 列只有 `cordex_system` 可写（列级 GRANT 规格见 [10](10-ddl-documents-marks-media.md) §9，由 [08](08-db-conventions-roles-rls-migrations.md) 的 0095 落地）。M-08 的系统用例与 M-09 同用 `cordex_system`，二者之间靠第 1、3 道区分。
 3. **集成断言**：server-integration 记录 `DocumentRepository` 发出的全部 SQL，断言其中不出现 M-09 列名（决策 C-03）。
 
@@ -622,7 +625,7 @@ renderer 角色不装本文任何模块（renderer 进程内无 DB / Valkey / S3
 | `quota.storagePerUserBytes`（空 = 不限，P1） | `StorageQuotaService.assertCanStore(docId, addBytes)` ← 媒体预签名（预检）与提交、导入受理、创建副本受理 | 写入前 | 413 `storage.quota_exceeded{dimension:'bytes'}` |
 | `quota.storageTotalBytes`（空 = 不限） | 同上 | 同上 | 同上 |
 | `limits.media.maxBytes`（100 MiB） | 媒体预签名与提交第 3 步 | 写入前 | 413 `server.media.payload_too_large` |
-| `retention.trashDays`（30） | `RunTrashExpiryUseCase` | 每 5 min | 进入 `purging` |
+| `retention.trashDays`（30） | `RunTrashExpiryUseCase` | 每 5 min | 进入 `purging`；另一读取点 `GetAuthConfigQuery`（[03](03-modules-identity-and-access.md) §2.2）把同一值作为 `GET /auth/config` 的 `trashDays` 下发，前端回收站文案的天数只读它（rulings §4.25 TB-141，[15](15-rest-api-catalog.md) §3.1） |
 | `retention.mediaUnreferencedDays`（30） | `RunMediaGcUseCase` | 每日 | 删行与对象 |
 | `retention.uploadTmpHours`（24） | `media-gc` 孤儿对象阈值（`uploads/tmp/` 本身由 [06](06-modules-jobs-import-export-thumbnails.md) 的 `uploads-tmp-cleanup` 清理） | 每周 | 删对象 |
 | `storage.provider`、`storage.s3.{endpoint, publicEndpoint, buckets.data, buckets.snapshots}` | `StorageModule` 启动 | 启动 | 启动断言（§6.3） |
@@ -659,6 +662,7 @@ renderer 角色不装本文任何模块（renderer 进程内无 DB / Valkey / S3
 | DOC-20 | 创建副本：无 `doc.export` 的 commenter 403；成功后新文档 owner 为调用者且只有这一条授权，新文档 import 快照解码后的状态等于源文档受理时 `seq ≤ srcSeq` 的状态，`document_media` 关联与基线对象已复制；源文档此后的编辑不进入副本 | 70/07 |
 | DOC-21 | 媒体关联裁剪：只导入过一次、之后插入又删除图片 X 的文档，在其余保留快照都晚于 X 的 `detached_at` 后 X 的关联被删除；导入时带入的图片（`first_seen_seq ≤` 最新 import 快照的 `seq_upto`）在该快照存在期间不被删除 | 70/07 |
 | DOC-22 | 锁定与解锁后 ≤ 1 s 在线会话收到 `room{locked}` / 不带 `locked` 的 `room`，锁定期写入被 L2 拒绝 | 70/07 |
+| DOC-23 | 2026-10-22（rulings §4.25 DS-83…DS-85、DS-122）：`owned` 列表按内容最近变化排序，改名、移入再恢复回收站都不改变次序；`trashed` 按移入时间倒序且每条带 `trashedAt`；列表条目的 `lastEditor` 是最后改动内容的用户；所有者对回收站里的文档 `GET /documents/:id` 得 200（`status = 'trashed'`、带 `trashedAt`）而 `snapshots/latest` 与 `collab-ticket` 得 404，有角色的非所有者 `GET /documents/:id` 404，无角色者 403 | 70/07 |
 
 ## 11. 跨文件约定
 
@@ -672,6 +676,6 @@ renderer 角色不装本文任何模块（renderer 进程内无 DB / Valkey / S3
 | [06](06-modules-jobs-import-export-thumbnails.md) | `JobRunsRepository.create` 接受调用方事务句柄；`trash-expiry` 每 5 min；`snapshots-retention` 调 `PruneDetachedMediaLinksUseCase` 并传 `cutoff` 与 `protectedSeq`（§7.4）；队列型写者写前复查文档状态；导入与创建副本经 `CreateDocumentUseCase` 系统入口、`IngestMediaUseCase` 与配额检查 | 已落实 |
 | [07](07-modules-comments-webhooks-audit.md) | §9.2：`document.purged` 带各参与者计数；`document.unlocked.reason` 含 `expired`；`document.created.source` 含 `duplicate` | 已落实 |
 | [08](08-db-conventions-roles-rls-migrations.md)、[09](09-ddl-identity-and-access.md)、[10](10-ddl-documents-marks-media.md) | 第四个 `SECURITY DEFINER` 函数 `cordex_storage_usage` 与 0052 已登记；0095 按 10 §9 授列级权限；`cordex_app` 不追加 `size_bytes`、`content_updated_at` 的 UPDATE（不存在内容版本）；10 的 `deleteLinks` 带 `protectedSeq` 参数 | 已落实 |
-| [14](14-valkey-object-storage-and-retention.md)、[17](17-deployment-and-config.md) | `upload:{uploadId}` 的 `kind` 只有 `import`、`media`，浏览器可 PUT 的键只有 `uploads/tmp/{uploadId}`；`room:{docId}:ctl` 写方含 api 的 `TrashDocumentUseCase`；`perm:doc:{docId}` 写方含本文的锁定用例；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；文件大小键统一为 `scale.maxFileBytes` | 已落实 |
+| [14](14-valkey-object-storage-and-retention.md)、[17](17-deployment-and-config.md) | `upload:{uploadId}` 的 `kind` 为 `import`、`media` 与 `automation` 三种（后者 2026-10-03，rulings §4.24 AL-7，[06](06-modules-jobs-import-export-thumbnails.md) §7.4），浏览器可 PUT 的键只有 `uploads/tmp/{uploadId}`；`room:{docId}:ctl` 写方含 api 的 `TrashDocumentUseCase`；`perm:doc:{docId}` 写方含本文的锁定用例；`s3.` 子域响应带 `Content-Security-Policy: sandbox`；文件大小键统一为 `scale.maxFileBytes` | 已落实 |
 | [15](15-rest-api-catalog.md) | 路由总表「状态」列登记 `@DocState`；`POST /documents/:id/purge` 含 409 `server.documents.locked`；媒体读取为 200 JSON；新增 `POST /documents/:id/duplicate` | 已落实 |
 | [18](18-observability-and-ops-endpoints.md) | §4.2 名表登记 `cordex_media_dangling_refs_total`（§7.4）与 `cordex_purge_residual_objects_total`（§4.4 第 4 步） | 已落实 |

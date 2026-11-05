@@ -1,5 +1,5 @@
 # 02 鉴权链路：OIDC、会话、CSRF、票据、分享链接与 RLS 上下文
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同改用 Hocuspocus（ADR-0039）——§9.1 升级检查放 upgrade 处理；§9.2 Auth 帧 token JSON 与有界排队；§9.3 `TicketVerifier` 在 `onAuthenticate`；§9.4 `readOnly` 与连接污染规则；§9.5 `auth.refresh` = `onTokenSync` 加适配层暂停；§9.6 链接到期定时器挂连接 context；§11 权限传播落在 `PermissionSync`；§13.1 改帧名）；2026-09-26（§4.21 整合：分享链接时序图与集成方 JWT 段的 CONTROL.auth 改为 Auth 帧、续期改为 sendToken / onTokenSync）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：`ShareLinkScope.role` 删去 `editor`，链接只授予 viewer / commenter） | 依赖：[charter](../00-charter/charter.md) §4.2、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.13 S-1、§4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-01/BE-02/BE-05/BE-06/BE-07/BE-09/BE-11/UX-02/UX-03、§4.19 D-M2-CONTENT/D-COMMENTS-PKG；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；PRD [SV-06/SV-11/SV-12](../10-prd/03-features/06-server-and-ops.md)、[CO-05/CO-15](../10-prd/03-features/03-collaboration.md)、[EM-03](../10-prd/03-features/05-embedding-and-integration.md)；[30/06](../30-architecture/06-collaboration.md) §6、§10；[30/10](../30-architecture/10-observability-and-errors.md) §1、§2.3；[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同改用 Hocuspocus（ADR-0039）——§9.1 升级检查放 upgrade 处理；§9.2 Auth 帧 token JSON 与有界排队；§9.3 `TicketVerifier` 在 `onAuthenticate`；§9.4 `readOnly` 与连接污染规则；§9.5 `auth.refresh` = `onTokenSync` 加适配层暂停；§9.6 链接到期定时器挂连接 context；§11 权限传播落在 `PermissionSync`；§13.1 改帧名）；2026-09-26（§4.21 整合：分享链接时序图与集成方 JWT 段的 CONTROL.auth 改为 Auth 帧、续期改为 sendToken / onTokenSync）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-1：`ShareLinkScope.role` 删去 `editor`，链接只授予 viewer / commenter）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-47、DS-48：§7.1 令牌另以 KEK 信封加密入库，所有者重开分享对话框时可再次复制，改回「仅邀请」即撤销并清空密文；§9.6 重算同时刷新会话的 `linkExpiresAt`（链接有效期可改）；§11 递增 `permVersion` 的变更补「改链接角色或有效期」「批准访问申请」，图 11-1 同步；§13.2 补 `secrets.kekFile`）；2026-10-22（design-language-v3 第 3 批：§2 发起端增 `prompt`（只认 `login`、其他取值丢弃，原样带进授权请求，账号停用后在登录页重新发起时用来换账号，rulings §4.25 DS-124；新增「换账号」一段，内置 Casdoor 是否遵守待 §15 AC-04 实测），取不到 IdP 发现文档时改为 302 回前端回调页带 `?error=server.auth.idp_unavailable`、原 503 作废（DS-121），回调失败由前端回到登录页内联显示、失败回跳不带 `next`（DS-120、TB-122）；§3 `avatar_url` 只存不显示（TB-123），注册入口取新登记的 `auth.signupUrl`（DS-119）；§13.1 第 1 行、§13.2 配置键、§15 AC-04 同步）；2026-10-22（design-language-v3 第 3 批回写补充：§2「换账号」写明 Casdoor 不遵守 `prompt=login` 时登录页补「如需改用其他账号，请先在登录服务中退出」、实测遵守时不补（rulings §4.25 TB-140）；§3 显示名此后只在 M3 个人资料对话框里改（TB-137），`avatar_url` 本人不能改、只随 IdP 登录刷新（`PATCH /users/me/profile` 删去 `avatarUrl`，TB-142），`auth.signupUrl` 在 selfSignup 为真时为空即拒绝启动（TB-143），`GET /auth/config` 另带 `trashDays`（TB-141）；§13.2、§15 AC-04 同步；2026-10-22 复核修正：§2 失败出口一段写明新窗口重新登录的回调页拿到 `error` 显示新窗口失败页（rulings §4.25 DS-125），原文只写了回到登录页内联；同段补 state 不存在或已过期时取不到 `mode`、按缺省回 `/auth/callback`（前端凭 sessionStorage 标记改显示新窗口失败页，TB-122，与 50/02 §4.4 一致）） | 依赖：[charter](../00-charter/charter.md) §4.2、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.13 S-1、§4.15 T-0/Q6、§4.17 D1/D3、§4.18 BE-01/BE-02/BE-05/BE-06/BE-07/BE-09/BE-11/UX-02/UX-03、§4.19 D-M2-CONTENT/D-COMMENTS-PKG；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0022](../30-architecture/adr/0022-server-storage.md) 修订 2026-09-24、[ADR-0023](../30-architecture/adr/0023-transport-and-protocol.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；PRD [SV-06/SV-11/SV-12](../10-prd/03-features/06-server-and-ops.md)、[CO-05/CO-15](../10-prd/03-features/03-collaboration.md)、[EM-03](../10-prd/03-features/05-embedding-and-integration.md)；[30/06](../30-architecture/06-collaboration.md) §6、§10；[30/10](../30-architecture/10-observability-and-errors.md) §1、§2.3；[40/08](../40-modules/08-server-identity-documents-and-storage.md)、[40/09](../40-modules/09-server-collab-gateway-and-headless-host.md)；rulings §4.25 DS-47、DS-48、DS-119…DS-121、DS-124、DS-125、TB-122、TB-123、TB-137、TB-140…TB-143
 
 > 读者：实现 `apps/server` 的 auth、users、permissions、share-links、collab 模块的工程师；安全评审。
 > 定位：服务端鉴权**端到端唯一事实源**：主体模型、OIDC RP、首次登录建号、登录会话与吊销、CSRF 与 Origin、REST 守卫链、分享令牌、协同票据、WS 鉴权、RLS 会话上下文、权限变更传播。请求头名 `X-Cordex-Request`（CSRF）与 `X-Cordex-Share-Token`（分享令牌）、cookie 名与属性在本文定义，前端引用。
@@ -78,12 +78,14 @@ type ShareLinkScope = { docId: DocumentId; role: 'viewer' | 'commenter'; linkId:
 
 **发起**：`GET /api/v1/auth/oidc/login?next=<站内相对路径>&mode=redirect|popup`（`@Public`，[15 §3.1](15-rest-api-catalog.md)）
 
-1. 校验 `next`：必须以单个 `/` 开头，不以 `//` 或 `/\` 开头，不含控制字符，≤ 2 KiB；不合规一律置为 `/`（防开放重定向）。`mode` 缺省 `redirect`。
+1. 校验 `next`：必须以单个 `/` 开头，不以 `//` 或 `/\` 开头，不含控制字符，≤ 2 KiB；不合规一律置为 `/`（防开放重定向）。`mode` 缺省 `redirect`。`prompt` 只认 `login`（2026-10-22，rulings §4.25 DS-124），其他取值一律丢弃、不报错——发起端是顶层导航，不给用户看接口错误。
 2. 生成 `state`、`nonce`、`code_verifier` 与浏览器绑定值 `bind`（各 32 字节 CSPRNG，base64url）。
 3. 写 `oidc:state:{state}` = `{codeVerifier, nonce, next, mode, bindHash: sha256(bind), createdAt}`，TTL 600 s（键模板见 14）。
-4. 下发绑定 cookie `__Secure-cordex_oidc = bind`（属性见 §4.1 表），302 到授权端点：`response_type=code`、`client_id`、`redirect_uri`、`scope`（缺省 `openid profile email`）、`state`、`nonce`、`code_challenge = BASE64URL(SHA256(verifier))`、`code_challenge_method=S256`。
+4. 下发绑定 cookie `__Secure-cordex_oidc = bind`（属性见 §4.1 表），302 到授权端点：`response_type=code`、`client_id`、`redirect_uri`、`scope`（缺省 `openid profile email`）、`state`、`nonce`、`code_challenge = BASE64URL(SHA256(verifier))`、`code_challenge_method=S256`；请求带 `prompt=login` 时原样加进授权请求，要求 IdP 重新输入账号、不得用已有的 IdP 会话静默登回。
 
-发现文档（进程内缓存）取不到时不写 state、不下发 cookie，直接 503 `server.auth.idp_unavailable`（[15 §3.1](15-rest-api-catalog.md)）。
+**换账号**（2026-10-22，rulings §4.25 DS-124）：账号被停用的用户回到 `/login?error=server.auth.account_disabled` 时，IdP 会话通常还在，再点主按钮会被静默登回同一个停用账号；因此登录页在这个失败码下重新发起时带 `prompt=login`，界面不另加按钮（设计 [03-33](../20-design/03-screens/33-login-session-and-error-pages.md) §4.3）。dev 与 CI 的 oidc-provider mock 遵守该参数；内置 Casdoor 公开的发现文档没有声明 `prompt_values_supported`，是否遵守由 §15 AC-04 的 login-casdoor 用例实测、结果回写本段。Casdoor 不遵守时服务端行为不变（照常透传），界面在错误行后补一句「如需改用其他账号，请先在登录服务中退出」（DS-124 的退路，句子按 rulings §4.25 TB-140，设计 03-33 §4.3）；实测遵守时不补。
+
+发现文档（进程内缓存）取不到时不写 state、不下发 cookie，302 回与回调失败同一个前端回调页并带 `?error=server.auth.idp_unavailable`：`mode=redirect` 回 `/auth/callback`，`mode=popup` 回 `/auth/popup-callback`（[15 §3.1](15-rest-api-catalog.md)；2026-10-22，rulings §4.25 DS-121，原「直接 503 problem+json」作废——它让用户在顶层导航里看到一整页接口错误）。这一出口不写审计（还没有形成登录往返），只计 `cordex_auth_failures_total{kind:'login', reason:'idp_unavailable'}`（[18](18-observability-and-ops-endpoints.md) §4）并记 `warn` 日志。
 
 **回调**：`GET /api/v1/auth/oidc/callback?code=&state=`（`@Public`）
 
@@ -95,7 +97,7 @@ type ShareLinkScope = { docId: DocumentId; role: 'viewer' | 'commenter'; linkId:
 6. 用户 `status='suspended'` → 不建会话，失败码 `server.auth.account_disabled`。
 7. 建立会话（§4.1），审计 `auth.login_succeeded`；302：`mode=redirect` → 前端 `/auth/callback?next=<next>`；`mode=popup` → `/auth/popup-callback`（前端页经 BroadcastChannel 通知原页后自行关闭，见 50/02）。
 
-失败出口一律 302 回同一前端回调页并带 `?error=<码>`：`server.auth.invalid_token`（state、绑定值、换码、id_token、issuer 任一不通过）、`server.auth.account_disabled`、`server.auth.idp_unavailable`（发现文档或令牌端点不可达）。细分原因只写日志与审计 `auth.login_failed{reason}`，不回显 IdP 原始错误描述。登录与回调走 public 限流档（[15 §8](15-rest-api-catalog.md)）。
+失败出口一律 302 回同一前端回调页并带 `?error=<码>`（按 `oidc:state` 里记下的 `mode` 选页；state 不存在或已过期时取不到 `mode`，按缺省回 `/auth/callback`，新窗口里由前端凭 sessionStorage 标记改显示新窗口失败页，rulings §4.25 TB-122）：`server.auth.invalid_token`（state、绑定值、换码、id_token、issuer 任一不通过）、`server.auth.account_disabled`、`server.auth.idp_unavailable`（发现文档或令牌端点不可达）。细分原因只写日志与审计 `auth.login_failed{reason}`，不回显 IdP 原始错误描述。主窗口登录的回调页（`/auth/callback`）拿到 `error` 即替换到 `/login?error=<码>`，在登录页主按钮上方内联显示（设计 03-33 §4.3，2026-10-22，rulings §4.25 DS-120）；新窗口重新登录的回调页（`/auth/popup-callback`）拿到 `error` 显示新窗口失败页（03-33 §6，DS-125；两种窗口怎样分流以 [50-frontend/02](../50-frontend/02-app-shell-routing-and-session.md) §4.4、§5 为准）。服务端不另设失败页，也不在失败回跳里带 `next`——重试时保住 `next` 由前端负责（TB-122）。登录与回调走 public 限流档（[15 §8](15-rest-api-catalog.md)）。
 
 **图 2-1 OIDC 登录与首次登录 JIT 建号**
 
@@ -139,9 +141,9 @@ sequenceDiagram
 
 - **查找键**只有 `(issuer, subject)`。未命中即 JIT：同一事务 `INSERT users` + `INSERT user_identities`；并发首登撞 `uq_user_identities_issuer_subject` 时回滚整事务并改为读取已存在的行（[09 §3](09-ddl-identity-and-access.md)）。
 - **不按邮箱关联**：新 issuer 的身份遇到同邮箱的既有用户也新建用户；跨 IdP 合并留 M4 由平台管理员操作。M1–M3 只有一个 issuer，Casdoor 场景通常只出现一个 issuer。
-- **字段来源**：`display_name` 取 `name` → `preferred_username` → 邮箱 @ 前部分 → `user`，裁剪到 128 字符，**只在建号时写入**（此后用户经 `PATCH /users/me/profile` 自改）；`avatar_url` 每次登录按 `picture` 刷新，只收 `https://` 且 ≤ 2048 字符，否则置空；`user_identities.email_at_login` 原样记录 IdP 声明的邮箱（管理与审计用）。
+- **字段来源**：`display_name` 取 `name` → `preferred_username` → 邮箱 @ 前部分 → `user`，裁剪到 128 字符，**只在建号时写入**（此后只由本人在 M3 的个人资料对话框里经 `PATCH /users/me/profile` 改，去首尾空白后 1–128 字，rulings §4.25 TB-137）；`avatar_url` 每次登录按 `picture` 刷新，只收 `https://` 且 ≤ 2048 字符，否则置空——它只存不显示：界面一律画身份色底 + 首字（PRD AS-06、CO-03，2026-10-22，rulings §4.25 TB-123），`avatarUrl` 照常随 `Principal` 与用户摘要返回、前端不加载，个人资料对话框（M3）的头像同样只读首字；本人不能改它，`PATCH /users/me/profile` 不收 `avatarUrl`（同日，TB-142），所以它只随 IdP 登录变化；`user_identities.email_at_login` 原样记录 IdP 声明的邮箱（管理与审计用）。
 - **可检索邮箱**：`users.email` 只写 `email_verified=true` 的邮箱（小写规范化，非唯一）；部署可把 `auth.oidc.requireEmailVerified` 置 `false`，用于不下发 `email_verified` 的企业 IdP。理由：按人分享以邮箱精确匹配找人（SG-05），IdP 开放自助注册时未验证的邮箱可被冒用来截获分享。每次登录用最新的已验证邮箱覆盖 `users.email`。
-- **注册开关**：`auth.selfSignup`（默认 `false`）只决定登录页是否显示 IdP 注册入口（`GET /auth/config` 下发）；受信 issuer 的任何身份首次登录都会建号，账号是否存在由 IdP 管理员控制。服务端**无邀请表、无邀请兑现端点**（rulings §4.17 D1）。
+- **注册开关**：`auth.selfSignup`（默认 `false`）只决定登录页是否显示 IdP 注册入口（`GET /auth/config` 下发）——关时登录页常显一行「没有账号？请联系管理员开通」，开时换成「注册」按钮、顶层导航到 `auth.signupUrl`（2026-10-22 登记，`selfSignup` 为真时必填、为空即拒绝启动，[17](17-deployment-and-config.md) §5.5；rulings §4.25 DS-119、TB-143，设计 03-33 §4.2）；同一端点另带回收站保留天数 `trashDays`（取 `retention.trashDays`，TB-141），字段以 [15 §3.1](15-rest-api-catalog.md) 为准；受信 issuer 的任何身份首次登录都会建号，账号是否存在由 IdP 管理员控制。服务端**无邀请表、无邀请兑现端点**（rulings §4.17 D1）。
 - **已擦除的用户**：擦除时身份行已删（[03 §3](03-modules-identity-and-access.md)），同一 IdP 账号再次登录会被当作首见身份，得到一个新的空账号；要阻止须在 IdP 停用该账号。
 - **首个平台管理员**：配置 `auth.bootstrapAdmins`（已验证邮箱列表，默认空）只在部署内**不存在任何 active admin** 时生效——登录时邮箱命中即把该用户升为 `admin`，审计 `user.role_changed{via:'bootstrap'}`；一旦存在 admin，该配置不再有任何效果。
 - **审计**：新建时 `user.provisioned{userId, issuer}`。
@@ -319,7 +321,8 @@ flowchart TB
 
 ### 7.1 令牌与 URL
 
-- 令牌 = 32 字节 CSPRNG，base64url（43 字符）；库里只存 `sha256(令牌)`（`share_links.token_hash bytea`，32 字节，唯一）。明文只在创建响应中出现一次（[15 §3.5](15-rest-api-catalog.md)）。
+- 令牌 = 32 字节 CSPRNG，base64url（43 字符）；按令牌查找只用 `sha256(令牌)`（`share_links.token_hash bytea`，32 字节，唯一）。2026-10-15 起（rulings §4.25 DS-47）另存 KEK 加密的密文 `token_enc`（AES-256-GCM 信封，与 Webhook 签名密钥同一 KEK，[09 §6](09-ddl-identity-and-access.md)），所有者重开分享对话框时由 `GET …/share-links` 解密取回、再次复制，原「明文只在创建响应中出现一次」作废；库里没有明文，离开 KEK 还原不出令牌。
+- 每份文档至多一条未撤销的链接：改角色或有效期在原行上进行、令牌不变；改回「仅邀请」即撤销，同一语句清空 `token_enc`，旧令牌永久失效，再次放宽时生成新令牌（[15 §3.5](15-rest-api-catalog.md)）。
 - 分享 URL = `https://<host>/documents/{docId}#share={令牌}`。片段不进入 HTTP 请求、`Referer` 与任何访问日志；前端读取后存 `sessionStorage`（键 `cordex.share.{docId}`）并 `history.replaceState` 去掉片段，未登录时令牌在 OIDC 往返中留在 `sessionStorage`（50/02）。
 - 全站 `Referrer-Policy: strict-origin-when-cross-origin`（web 容器下发，17）。
 
@@ -473,7 +476,7 @@ flowchart TB
 
 收到 `perm:doc:{docId}`（§11）或会话的 `linkExpiresAt` 定时器到期（经 Clock 调度；定时器挂在该连接的 Hocuspocus context 上，`connected` 时建立、`onDisconnect` 时清理，2026-09-26）时，由 server-collab 的 `PermissionSync` 扩展对受影响会话调用 `AuthzSource.resolveRole`：
 
-- 有效角色 = max(直接授权（绕过 5 s 缓存直接读库）, `lnk` 对应链接此刻的角色（`byLinkId`，撤销或过期即不计）)；
+- 有效角色 = max(直接授权（绕过 5 s 缓存直接读库）, `lnk` 对应链接此刻的角色（`byLinkId`，撤销或过期即不计）)；`byLinkId` 同时带回链接此刻的 `expires_at`，会话的 `linkExpiresAt` 与到期定时器随之重设——所有者改了链接有效期后，在线会话按新时刻到期（2026-10-15，rulings §4.25 DS-47）；
 - 角色不变 → 只更新 `permVersion`；升权或降权 → 改 `connection.readOnly` 并发 Stateless `permission{role, reason, permVersion}`（升权时若该连接已污染，随后以 1012 `contaminated` 关闭）；降为 `none` → Stateless `permission{role:'none', reason:'revoked'}` 后原始 `ws.close(4403)`（30/06 §10）；
 - 他人修改其他成员的权限不会把只凭链接加入的会话误降为 `none`（BE-02）。
 
@@ -549,7 +552,7 @@ flowchart LR
 
 依据：ADR-0029 决策 4 与图 2；30/06 §10；决策 C-28（`bumpPermVersion(tx)` 为唯一写入点）、KEYS；rulings §4.18 BE-02。
 
-- **写入点唯一**：`document_perm_versions` 只由 PermissionsModule 的 `PermissionRepository.bumpPermVersion(tx, docId)` 写（C-28）。授予、改角色、撤销授权、撤销分享链接四种变更都在**同一事务**内调用它；ShareLinksModule 撤销链接时调用 PermissionsModule 导出的事务内用例 `PermVersionBumper.bump(tx, docId)`，不直接写该表（[03 §4、§5](03-modules-identity-and-access.md)）。
+- **写入点唯一**：`document_perm_versions` 只由 PermissionsModule 的 `PermissionRepository.bumpPermVersion(tx, docId)` 写（C-28）。授予（含批准访问申请）、改角色、撤销授权、改分享链接的角色或有效期、撤销分享链接五种变更都在**同一事务**内调用它（2026-10-15 补「批准访问申请」与「改分享链接的角色或有效期」，rulings §4.25 DS-47、DS-48）；ShareLinksModule 改链接与撤销链接时调用 PermissionsModule 导出的事务内用例 `PermVersionBumper.bump(tx, docId)`，不直接写该表（[03 §4、§5](03-modules-identity-and-access.md)）。
 - **提交后发布**：事务提交后的回调里，`PermChangePublisher` 先以「只增」脚本把新值写入 `perm:ver:{docId}`（旧值 ≥ 新值则不写，避免乱序提交把缓存改小），再 `PUBLISH perm:doc:{docId} {docId, permVersion}`。发布失败重试 3 次（总时长 ≤ 2 s），仍失败只记日志与指标：握手总会与库比对（§9.3 第 5 步），collab 实例在 Valkey 连接恢复后对本实例全部会话做一次全量重算，补上丢失的消息。
 - **collab 侧**：每个已加载房间订阅 `perm:doc:{docId}`（订阅连接在 apps/server 的 `AuthzSource`，经 `AuthorizationSource.onPermissionChanged` 交给 server-collab 的 `PermissionSync` 扩展，2026-09-26），收到后按 §9.6 重算；Hocuspocus 没有跨实例控制面与权限通知消息，M3 的 extension-redis 也不承载这条链路。传播预算：提交到在线会话生效 ≤ 1 s（p95），PRD 门禁 ≤ 2 s（CO-05）；测量见 [70-testing/09](../70-testing/09-performance-and-capacity.md)。
 - **REST 侧缓存**：`RoleResolverService` 只缓存直接授权 5 s（按 `userId, docId`），写入方实例在提交后立即失效本地缓存；其他 api 实例 ≤ 5 s 收敛，期间数据库层 RLS 已按新授权判定。
@@ -572,8 +575,8 @@ sequenceDiagram
   participant vk as Valkey
   participant co as collab 实例
   participant cl as 受影响会话
-  owner->>api: PUT 或 DELETE permissions，或 DELETE share-links/:linkId
-  api->>pg: BEGIN，改 permissions 或置 share_links.revoked_at
+  owner->>api: PUT 或 DELETE permissions，批准访问申请，或 PATCH 或 DELETE share-links/:linkId
+  api->>pg: BEGIN，改 permissions，或改 share_links 的角色、到期或 revoked_at
   api->>pg: bumpPermVersion，同一事务
   api->>pg: COMMIT
   api->>vk: 只增写入 perm:ver:{docId}，PUBLISH perm:doc:{docId}
@@ -623,7 +626,7 @@ sequenceDiagram
 
 | # | 阶段 | 带入的凭据 | 校验方 | 触及的存储 | 失败出口 | 时限 |
 |---|---|---|---|---|---|---|
-| 1 | 发起登录 | — | AuthModule | Valkey `oidc:state:{state}` | 302 回前端错误页 | state 10 min |
+| 1 | 发起登录 | — | AuthModule | Valkey `oidc:state:{state}` | 302 回前端回调页并带 `?error=`（含 IdP 不可达，rulings §4.25 DS-121） | state 10 min |
 | 2 | 回调与建号 | code、state、绑定 cookie | AuthModule、IdP JWKS | PG `users`、`user_identities`；Valkey `session:{sid}` | `server.auth.invalid_token` / `account_disabled` / `idp_unavailable` | — |
 | 3 | 普通 REST | 会话 cookie（+ `X-Cordex-Request`） | 守卫链 ①–⑤ | Valkey 会话键（5 s 缓存）、PG `users` | 401 / 403 / 429 / 503 | 每请求 |
 | 4 | 刷新 | 会话 cookie（可已过期）+ 刷新 cookie | AuthModule | Valkey `session:{sid}` | 401 `server.auth.expired` | JWT 每 15 min |
@@ -645,6 +648,7 @@ sequenceDiagram
 | `auth.oidc.scopes` | `openid profile email` | — |
 | `auth.oidc.requireEmailVerified`（新增） | `true` | §3 |
 | `auth.selfSignup` | `false` | 只影响登录页注册入口（§3） |
+| `auth.signupUrl`（新增，2026-10-22） | 空 | 登录页「注册」按钮的去处，经 `GET /auth/config` 下发；`auth.selfSignup` 为真时必填，为空即退出码 78（§3，rulings §4.25 DS-119、TB-143） |
 | `auth.oidc.postLogoutRedirectPath`（新增） | `/login` | RP-initiated logout 的回跳路径，拼在 `publicUrl` 之后（§4.4） |
 | `auth.bootstrapAdmins`（新增） | `[]` | 仅在无 active admin 时生效（§3） |
 | `auth.jwt.signingKeysFile` / `auth.jwt.verifyKeysFile` | 生产必填 | 私钥只在 api，公钥在 api 与 collab（§4.6） |
@@ -653,6 +657,7 @@ sequenceDiagram
 | `auth.ticket.ttlSec` | 60 | §8 |
 | `auth.session.revocationCacheMs` | 5000 | SessionGuard 缓存与 WS 会话复核周期（§4.2、§9.5） |
 | `security.allowedOrigins` | `[publicUrl 的源]` | CSRF 与 WS Origin 白名单（§5） |
+| `secrets.kekFile` | 生产必填（M3 起） | 32 字节 KEK，加解密分享链接令牌的密文（§7.1，2026-10-15）与 Webhook 签名密钥；只在 api 与 worker 加载 |
 
 本文用到的 Valkey 键模板（值形状由本文定义、名字只在 14 登记）：`oidc:state:{state}`、`session:{sid}`、`user:{userId}:sessions`、`ticket:jti:{jti}`、`perm:ver:{docId}`、频道 `perm:doc:{docId}`、`rl:{bucket}:{subject}`。
 
@@ -679,12 +684,12 @@ sequenceDiagram
 | AC-01 | 路由鉴权覆盖：遍历主端口路由表，除 [15 §4](15-rest-api-catalog.md) 的 7 条 `@Public` 外，无会话 cookie 的请求一律 401；`Session*` 两条在无 cookie 时同样 401 | `test/server-integration`（route-auth-coverage，[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 | AC-02 | 非安全方法：`Origin` 不在白名单 → 403 `server.auth.csrf_rejected`；缺 `X-Cordex-Request` → 403；无 `Origin` 且 `Sec-Fetch-Site ≠ same-origin` → 403；`@Public` 豁免清单只有 `/telemetry/csp` | `test/server-integration`（[70/10](../70-testing/10-security-testing.md)） |
 | AC-03 | 跨源 WS 升级被拒（HTTP 403，不建立连接），计数指标 +1 | [70/10](../70-testing/10-security-testing.md) |
-| AC-04 | OIDC：oidc-provider mock 与 Casdoor（selfSignup 开 / 关）登录成功并 JIT 建号；服务端与 Valkey 中查不到 IdP access / refresh token；绑定 cookie 不符 → 失败；`next=//evil.example` 被改写为 `/` | `e2e/smoke` 的 login-oidc-mock、login-casdoor（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
+| AC-04 | OIDC：oidc-provider mock 与 Casdoor（selfSignup 开 / 关）登录成功并 JIT 建号；服务端与 Valkey 中查不到 IdP access / refresh token；绑定 cookie 不符 → 失败；`next=//evil.example` 被改写为 `/`；`prompt=login` 原样进入授权请求、其他取值被丢弃，带它重新发起时 IdP 要求重新输入账号（mock 断言；login-casdoor 同时实测内置 Casdoor 是否遵守，结论回写 §2，不遵守时登录页错误行补 TB-140 那一句，2026-10-22，rulings §4.25 DS-124、TB-140）；发现文档不可达时 `GET /auth/oidc/login` 302 到 `/auth/callback?error=server.auth.idp_unavailable`（`mode=popup` 到 `/auth/popup-callback`），不下发绑定 cookie（DS-121） | `e2e/smoke` 的 login-oidc-mock、login-casdoor（[70/08](../70-testing/08-deployment-and-environment-e2e.md)） |
 | AC-05 | 同一 `(issuer, subject)` 并发首登只产生一个用户；同邮箱、不同 issuer 产生两个用户；未验证邮箱不写入 `users.email` | `test/server-integration` |
 | AC-06 | 会话（FixedClock）：登出后 ≤ 5 s REST 401、WS 4401；停用用户 ≤ 5 s 失去 REST 与 WS；刷新密钥重放吊销该 `sid`；10 s 宽限内的并发刷新不吊销；满 30 天封顶后刷新 401；登出返回 200，mock IdP 带 `end_session_endpoint` 时 `endSessionUrl` 含 `client_id`、`post_logout_redirect_uri`、`id_token_hint`，去掉该端点后响应省略 `endSessionUrl` | `test/server-integration`（[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 | AC-07 | 只有链接、没有直接授权的用户：`GET /documents/:id` 与 `collab-ticket` 返回 200，票据含 `lnk`；未登录带令牌 401；令牌放在 query 不生效；令牌属于别的文档不生效；间隔超过 1 s 的两次访问各写一条 `share_link.accessed`，1 s 内的多次访问合并为一行且 `count` 等于访问次数 | `test/server-integration` |
 | AC-08 | 过期或撤销的令牌：直通不叠加；无直接授权时 403 且 `details.reason` 为 `share_link.expired` / `share_link.revoked` | `test/server-integration` |
-| AC-09 | 撤销链接后凭该链接的 WS 会话 ≤ 1 s 降权；链接到期后主动降权（FixedClock）；他人修改权限不踢出只凭链接加入的会话 | `test/server-integration` |
+| AC-09 | 撤销链接后凭该链接的 WS 会话 ≤ 1 s 降权；链接到期后主动降权（FixedClock）；他人修改权限不踢出只凭链接加入的会话；改链接角色（可评审 → 可查看）后会话 ≤ 1 s 降为 viewer 且不断连，改有效期后按新时刻到期（2026-10-15，rulings §4.25 DS-47） | `test/server-integration` |
 | AC-10 | 票据：重放 → 4401；过期 → 4401；`aud=cordex-session` 的 JWT 冒充票据 → 4401；`doc` 与 URL 不符 → 4403 `collab.forbidden`；旧 `perm_ver` 以库为准；`auth.refresh` 换 `sub` 或 `sid` → 4401 | `test/server-integration`（ticket-verifier 契约，[70/07](../70-testing/07-backend-integration-and-api-e2e.md)） |
 | AC-11 | 绕过应用层直连 PG：`cordex_app` 只设 `app.user_id` 时读不到无授权文档的任何行；伪造或过期的 `app.share_token_hash` 不产生链接角色；未设 `app.system_job` 的 `cordex_system` 连接看不到任何文档作用域行 | `e2e/smoke` 的 security-rls（[70/10](../70-testing/10-security-testing.md)） |
 | AC-12 | 服务端日志、trace 与错误上报中不出现 `X-Cordex-Share-Token`、cookie、票据原文 | [70/10](../70-testing/10-security-testing.md) |

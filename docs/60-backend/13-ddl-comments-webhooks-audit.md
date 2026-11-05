@@ -1,5 +1,5 @@
 # 13 DDL：评论、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §5.1 迁移 0074，Webhook 对外事件增 `automation.job_finished`，供 SV-13 自动化作业的结果回调） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24 AL-7：新增 §5.1 迁移 0074，Webhook 对外事件增 `automation.job_finished`，供 SV-13 自动化作业的结果回调）；2026-10-15（design-language-v3 第 2 批，rulings §4.25 DS-67：新增 §5.2 迁移 0075，Webhook 对外事件增 `access_request.created`（访问申请受理时产生，载荷不含留言正文）；§6.3 给 `cordex_app` 增 `webhook_deliveries` 的 7 列 INSERT（受理用例在申请人的请求事务里写 `pending` 行，08 的 0095 落地）；§1、§5 写方、图 2、§10 同步；0075 与 0095 当时未跑 ddl-check（同日已实跑通过）；同日再补：§10 第 1 条的实测记录改为 2026-10-15 的结论——PostgreSQL 18.6 空库以 ddl-check 连同 08–13 全部 38 个迁移按编号执行通过，含 0074、0075，本文示例围栏一并通过（计数见 08 §12）） | 依赖：[07 模块设计：评论镜像、Webhook 与审计](07-modules-comments-webhooks-audit.md)；[08 数据库总约定](08-db-conventions-roles-rls-migrations.md)；[09 DDL：身份与权限](09-ddl-identity-and-access.md)（`users`、`cordex_doc_role`）；[10 DDL：文档](10-ddl-documents-marks-media.md)（`documents`）；[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15；[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.18 BE-19/BE-25
 
 
 ## 1. 域说明
@@ -10,10 +10,10 @@
 |---|---|---|---|---|---|
 | `comments` | CommentsModule | `0070_comments` | 无 | ENABLE + FORCE（`0094_rls_comments`） | 表随 M2 建立，M3 起写入 |
 | `audit_log`（含月分区，无默认分区） | AuditModule | `0071_audit_log` | `RANGE (created_at)` 按 UTC 月 | 例外（只追加，读仅平台管理员） | M2 建表，链从首行开始；封存与校验 M3 |
-| `webhook_subscriptions` | WebhooksModule | `0072_webhook_subscriptions` | 无 | 例外（部署级管理员表） | 表随 M2 建立，M3 起写入 |
-| `webhook_deliveries` | WebhooksModule | `0073_webhook_deliveries` | 无 | 例外（同上） | 表随 M2 建立，M3 起写入 |
+| `webhook_subscriptions` | WebhooksModule | `0072_webhook_subscriptions`（事件 CHECK 经 0074、0075 放宽） | 无 | 例外（部署级管理员表） | 表随 M2 建立，M3 起写入 |
+| `webhook_deliveries` | WebhooksModule | `0073_webhook_deliveries`（事件 CHECK 经 0074、0075 放宽） | 无 | 例外（同上） | 表随 M2 建立，M3 起写入 |
 
-**迁移依赖**：本文件编号段为 0070–0079 与 0094（全线分配见 [08](08-db-conventions-roles-rls-migrations.md) §9）。`0070` 依赖 `users`（09 的 0010）与 `documents`（10 的 0020）；`0071` 无外键依赖；`0072` 依赖 `users`；`0073` 依赖 `0072`；`0074`（2026-10-03，§5.1）依赖 `0072`、`0073`；`0094` 依赖 `0070`、RLS 基础函数 `cordex_system_job()` / `cordex_role_at_least()`（08 的 0002）与 `cordex_doc_role`（09 的 0034）；本组表的 GRANT 写在 08 的 `0095`，所需权限见 §6.3。`0070`–`0073` 在 M2 首批服务端迁移中一起执行（评论与 Webhook 表 M3 才有写方，提前建空表无副作用），避免日后插入比已执行迁移编号更小的迁移；`0094` 随 08 规定的 RLS 批次执行。
+**迁移依赖**：本文件编号段为 0070–0079 与 0094（全线分配见 [08](08-db-conventions-roles-rls-migrations.md) §9）。`0070` 依赖 `users`（09 的 0010）与 `documents`（10 的 0020）；`0071` 无外键依赖；`0072` 依赖 `users`；`0073` 依赖 `0072`；`0074`（2026-10-03，§5.1）依赖 `0072`、`0073`；`0075`（2026-10-15，§5.2）依赖 `0074`；`0094` 依赖 `0070`、RLS 基础函数 `cordex_system_job()` / `cordex_role_at_least()`（08 的 0002）与 `cordex_doc_role`（09 的 0034）；本组表的 GRANT 写在 08 的 `0095`，所需权限见 §6.3。`0070`–`0073` 在 M2 首批服务端迁移中一起执行（评论与 Webhook 表 M3 才有写方，提前建空表无副作用），避免日后插入比已执行迁移编号更小的迁移；`0094` 随 08 规定的 RLS 批次执行。
 
 **图 1 本文件迁移顺序与依赖**
 
@@ -297,7 +297,7 @@ COMMENT ON COLUMN webhook_subscriptions.previous_secret_expires_at IS '旧密钥
 | 用途 | Webhook 订阅：目标地址、事件过滤、加密的签名密钥与轮换状态（PRD SV-15、BC-30） |
 | 所属模块与仓储 | WebhooksModule · `WebhookRepository`（`apps/server/src/modules/webhooks/infrastructure/webhook.repository.ts`） |
 | 写方 | 订阅管理用例（api，平台管理员；创建、PATCH、轮换、删除，过期旧密钥在下一次 PATCH 时顺带清空） |
-| 读方 | 生产者（collab 的评论镜像、worker 的 `AutomationProcessor`，只读 `id`、`status`、`event_filter`）；投递处理器（worker，解密密钥）；管理 REST |
+| 读方 | 生产者（collab 的评论镜像、worker 的 `AutomationProcessor`、api 的 `RequestAccessUseCase`（2026-10-15，§5.2），只读 `id`、`status`、`event_filter`）；投递处理器（worker，解密密钥）；管理 REST |
 | RLS | 不启用，登记例外（§6.2）：部署级管理员表，无文档作用域 |
 | 保留与清理 | 直至管理员删除；删除时同一事务先删其投递记录 |
 | 里程碑 | 表随 M2 建立，M3 起写入 |
@@ -360,7 +360,7 @@ COMMENT ON COLUMN webhook_deliveries.delivered_at IS '得到 2xx 的时间；只
 |---|---|
 | 用途 | 投递记录与 outbox：保存待投递载荷供对账补投与人工重放，并作投递日志 |
 | 所属模块与仓储 | WebhooksModule · `WebhookRepository` |
-| 写方 | 生产者（collab，评论镜像事务内写 `pending`；worker 的 `AutomationProcessor`，作业终态事务内写 `pending`，2026-10-03）；`WebhookDeliveryProcessor`（worker，状态与尝试）；`webhook-deliveries-prune`（worker，删终态行）；ops `webhooks:replay`（`cordex_system`）；删除订阅时同事务连带删除（api，`cordex_app`，外键 RESTRICT 要求先删子行） |
+| 写方 | 生产者（collab，评论镜像事务内写 `pending`；worker 的 `AutomationProcessor`，作业终态事务内写 `pending`，2026-10-03；api 的 `RequestAccessUseCase`，访问申请受理的请求事务内写 `pending`，`cordex_app` 只有列级 INSERT，2026-10-15，§5.2）；`WebhookDeliveryProcessor`（worker，状态与尝试）；`webhook-deliveries-prune`（worker，删终态行）；ops `webhooks:replay`（`cordex_system`）；删除订阅时同事务连带删除（api，`cordex_app`，外键 RESTRICT 要求先删子行） |
 | 读方 | 投递日志 REST（api）；`reconciliation`（worker，只读孤儿 `pending` 行） |
 | RLS | 不启用，登记例外（§6.2） |
 | 保留与清理 | 终态行（`succeeded`、`failed`、`dead-lettered`）`updated_at` 超过 `retention.webhookDeliveriesDays`（默认 90 天）由 maintenance `webhook-deliveries-prune` 删除；`pending` 行不清；载荷只含 id、时间与深链，因此不需要参与文档永久删除 |
@@ -387,6 +387,28 @@ ALTER TABLE webhook_deliveries
                                                              'comment.resolved', 'automation.job_finished'));
 
 COMMENT ON COLUMN webhook_subscriptions.event_filter IS '订阅的事件，⊆ {comment.added, comment.mentioned, comment.resolved, automation.job_finished}（后者 0074）';
+```
+
+### 5.2 访问申请事件（0075，2026-10-15，rulings §4.25 DS-67）
+
+访问申请的通知复用本表与订阅表（[07 §5.1](07-modules-comments-webhooks-audit.md)），只新增一个对外事件 `access_request.created`：PermissionsModule 的 `RequestAccessUseCase` 在新记下（或 24 小时后、上次已批准后改回 `pending`）一条申请的同一请求事务里写 `pending` 投递行，`event_id = access_request.created:{requestId}:{requestedAt 毫秒}`（同一申请行再次被记下时 `requested_at` 不同，各算一个事件；24 小时内的重复提交不改写申请行，也就不写投递行），载荷不含留言正文（[09 §15](09-ddl-identity-and-access.md)）。这是唯一在 `cordex_app` 的请求事务里写本表的生产者，所需的列级 INSERT 见 §6.3；本迁移只放宽两条 CHECK，不加列、不改 RLS 例外。
+
+```sql
+-- migrate: 0075_webhook_access_request_event
+-- 执行者：cordex_migrator。对外事件增 access_request.created（60/07 §5.1，rulings §4.25 DS-67）；只改 CHECK
+ALTER TABLE webhook_subscriptions
+  DROP CONSTRAINT ck_webhook_subscriptions_events,
+  ADD CONSTRAINT ck_webhook_subscriptions_events CHECK (cardinality(event_filter) BETWEEN 1 AND 5
+    AND event_filter <@ ARRAY['comment.added', 'comment.mentioned', 'comment.resolved',
+                              'automation.job_finished', 'access_request.created']::text[]);
+
+ALTER TABLE webhook_deliveries
+  DROP CONSTRAINT ck_webhook_deliveries_event,
+  ADD CONSTRAINT ck_webhook_deliveries_event CHECK (event IN ('comment.added', 'comment.mentioned',
+                                                             'comment.resolved', 'automation.job_finished',
+                                                             'access_request.created'));
+
+COMMENT ON COLUMN webhook_subscriptions.event_filter IS '订阅的事件，⊆ {comment.added, comment.mentioned, comment.resolved, automation.job_finished, access_request.created}（后两者分别为 0074、0075）';
 ```
 
 ## 6. RLS 与授权
@@ -439,9 +461,9 @@ CREATE POLICY p_comments_system_all ON comments
 | `comments` | SELECT | SELECT、INSERT、UPDATE、DELETE | 应用角色只读；写只在系统路径（镜像、purge） |
 | `audit_log`（父表） | SELECT、INSERT | SELECT、INSERT | 无 UPDATE、DELETE、TRUNCATE；identity 列插入不需要序列权限（PG 18.6 实测） |
 | `webhook_subscriptions` | SELECT、INSERT、UPDATE、DELETE | SELECT | 管理员经 api 写；生产者与投递处理器只读 |
-| `webhook_deliveries` | SELECT、**DELETE** | SELECT、INSERT、UPDATE、DELETE | api 只在删除订阅时同事务连带删除（外键 RESTRICT）；生产、处理、清理、重放都在系统路径 |
+| `webhook_deliveries` | SELECT、**DELETE**；INSERT 只授 `id, subscription_id, event, event_id, payload, payload_hash, next_attempt_at` 七列（2026-10-15） | SELECT、INSERT、UPDATE、DELETE | api 在删除订阅时同事务连带删除（外键 RESTRICT）；2026-10-15 起访问申请受理在申请人的请求事务里写 `pending` 行（§5.2，rulings §4.25 DS-67）——`status` 与 `attempt` 取默认值，列级授予让应用角色写不出其他状态，也改不了已有行；处理、清理、重放仍都在系统路径 |
 
-与 08 §4.2 / 0095 现稿的差异只有一处：`webhook_deliveries` 需要对 `cordex_app` 授予 `DELETE`（否则有投递记录的订阅无法删除），待 08 补授。
+`webhook_deliveries` 对 `cordex_app` 的 `DELETE`（否则有投递记录的订阅无法删除）已由 08 的 0095 授予；2026-10-15 增的七列 INSERT 同由 0095 落地（08 §4.2、§12.3）。
 
 分区表的 GRANT 授在父表即可：经父表访问时只检查父表权限。属主以外的角色直接访问某个分区表（`audit_log_y2026m09`）没有权限，这正是期望的行为（08 §3、0096 自检 ②）。
 
@@ -595,7 +617,7 @@ erDiagram
   }
   webhook_subscriptions {
     uuid id PK
-    text_array event_filter "三种评论事件与 automation.job_finished"
+    text_array event_filter "三种评论事件、automation.job_finished 与 access_request.created"
     bytea signing_secret_enc "AES-256-GCM 密文"
     text status "active 或 disabled"
   }
@@ -646,7 +668,7 @@ flowchart LR
 
 | 断言 | 执行（套件 / CI 步骤） |
 |---|---|
-| 全部 `-- migrate:` 围栏按编号在 PG 18 空库顺序执行成功（本文件 0070–0073、0094；2026-09-25 于 `cordex-ddl-pg`（PG 18.6）连同 08–13 全部 `migrate` 围栏重跑通过）；`fk_comments_parent` 有前导索引 `ix_comments_parent` | `docs/_tools/ddl-check`（总编排实现）；实现期由 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试覆盖 |
+| 全部 `-- migrate:` 围栏按编号在 PG 18 空库顺序执行成功（本文件 0070–0075、0094；2026-10-15 以 ddl-check 在 PostgreSQL 18.6 空库连同 08–13 全部 38 个 `migrate` 围栏执行通过，含此后新增的 0074（2026-10-03）与 0075（2026-10-15），计数见 [08](08-db-conventions-roles-rls-migrations.md) §12；此前 2026-09-25 实跑一次）；`fk_comments_parent` 有前导索引 `ix_comments_parent` | `docs/_tools/ddl-check`（总编排实现）；实现期由 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §4 迁移测试覆盖 |
 | drizzle schema 与本文 DDL 一致（列、类型、默认值、约束名） | 70/07 §4，`test/server-integration` |
 | `comments` 启用并强制 RLS、app 与 system 各有 policy 且 policy 文本不含 `current_setting('app.`；`audit_log`、`webhook_subscriptions`、`webhook_deliveries` 在 08 §6.4 例外清单中 | `check-rls-coverage`（`scanners` job）；0096 自检 ① |
 | 无授权用户读 `comments` 得 0 行；`cordex_system` 未设 `app.system_job` 时读写均被拒，含同一连接前一事务设过该 GUC 的情形 | 70/07 §5（`security-rls`，`e2e/smoke`） |
@@ -654,3 +676,4 @@ flowchart LR
 | `cordex_app`、`cordex_system` 对 `audit_log` 的 UPDATE / DELETE / TRUNCATE 被拒；`audit_log` 没有默认分区 | [70/10](../70-testing/10-security-testing.md) §8；0096 自检 ③ |
 | `cordex_audit_ensure_partitions(3)` 幂等；`DETACH … CONCURRENTLY` + `DROP` 最老月分区后审计写入不中断、链可从封存行续验 | 70/07 §4、§12 |
 | `ck_comments_shape`、`ck_webhook_deliveries_state`、`uq_webhook_deliveries_event` 的正反用例；参与者 `comments` 一条 `DELETE … WHERE doc_id` 删净线程与回复（自引用 RESTRICT 不报错） | 70/07 §12 |
+| 0075（2026-10-15，rulings §4.25 DS-67）：订阅的 `event_filter` 可含 `access_request.created`，含这五种以外的事件名即 `23514`；`cordex_app` 写 `pending` 投递行（七列）成功，写入时带 `status`、`attempt` 或改写已有行得 `permission denied`；访问申请 24 小时内的重复提交不增加投递行 | 70/07 §12；GRANT 快照（08 DB-06） |

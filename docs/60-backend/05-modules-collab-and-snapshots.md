@@ -1,5 +1,5 @@
 # 05 模块设计：协同与快照（含 server-collab 契约）
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 装配与 `collab.hocuspocus.*`；§2.1 `attach` 改为包装 `handleConnection`、8 个 Definition 保留（`FanoutBus` 只剩控制频道、`AuthorizationSource` 增 `verifyTicket`）；§3 生命周期映射到钩子、§3.3 `{docId}:{epoch}` 文档名、§3.4 `session-sweeper`；§4 准入挂 `onAuthenticate`、Lua 用 `defineCommand`；§5 写入器挂 `beforeSync`、服务端事务按 H:Q4；§6 溢写钉住文档；§7 压缩节拍借 `onStoreDocument`、zstd codec 适配器；§8 未加载时 `openDirectConnection`；§9.2 换纪元；§14 指标挂点；§15）；2026-09-26（§4.21 整合：§10 GetLatestSnapshotQuery 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首「批量持久化」改为逐帧落库（组提交））；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：握手新增插件集指纹比对（`catalog` 不符 4426 `collab.plugins_outdated`，`policy` 不符照常准入并推 Stateless `plugins`），判定本体在 16 §12）；2026-10-03（§4.24：TA-9 §1 装配补 PluginsModule 的指纹与策略轮询，§3.1 加入房间顺序与图 5-2 补「插件指纹比对」一步与握手后的 Stateless `plugins`；AL-6 §13 注明评论不进内容插件足迹） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）、§4.21
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：协同服务端改用 Hocuspocus 4（ADR-0039）——§1 装配与 `collab.hocuspocus.*`；§2.1 `attach` 改为包装 `handleConnection`、8 个 Definition 保留（`FanoutBus` 只剩控制频道、`AuthorizationSource` 增 `verifyTicket`）；§3 生命周期映射到钩子、§3.3 `{docId}:{epoch}` 文档名、§3.4 `session-sweeper`；§4 准入挂 `onAuthenticate`、Lua 用 `defineCommand`；§5 写入器挂 `beforeSync`、服务端事务按 H:Q4；§6 溢写钉住文档；§7 压缩节拍借 `onStoreDocument`、zstd codec 适配器；§8 未加载时 `openDirectConnection`；§9.2 换纪元；§14 指标挂点；§15）；2026-09-26（§4.21 整合：§10 GetLatestSnapshotQuery 的 404 同样带 X-Cordex-Epoch）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：文首「批量持久化」改为逐帧落库（组提交））；2026-10-01（§4.23 插件管理，本文当日未登记、2026-10-03 补记：握手新增插件集指纹比对（`catalog` 不符 4426 `collab.plugins_outdated`，`policy` 不符照常准入并推 Stateless `plugins`），判定本体在 16 §12）；2026-10-03（§4.24：TA-9 §1 装配补 PluginsModule 的指纹与策略轮询，§3.1 加入房间顺序与图 5-2 补「插件指纹比对」一步与握手后的 Stateless `plugins`；AL-6 §13 注明评论不进内容插件足迹）；2026-10-04（design-language-v3 第 0 批：复验修正——原「状态胶囊」改称文件名旁的同步状态行（rulings §4.25 DS-6），带作废标记的历史陈述统一措辞）；2026-10-15（design-language-v3 第 2 批：§10 恢复第 2 步改为每次恢复前都先写一个标「恢复前」的 `auto` 快照（`pre_restore`，rulings §4.25 DS-40、DS-57），图 5-8 同步；命名版本的名称 ≤ 30 字、说明 ≤ 200 字，达上限的 409 带 `details.limit`（DS-57）；§11 `preRestoreSnapshotId` 改为必有；§4.2 注明名额已满的会话不自动提升、「重试以编辑身份加入」即重新握手（DS-58）；同日再补（rulings §4.25 DS-70）：§2.1 注明 `SnapshotInput` 在 `kind='import'` 时带来源与显示名，§3.2 来路表与 §10 `ListSnapshotsQuery` 写明 `import` 快照的 `origin` / `originName`，版本历史据此写最早那一条）；2026-10-22（design-language-v3 第 3 批，rulings §4.25 DS-83、DS-84：§7 第 3 步改写，并新增「最近编辑者与内容更新时间」一段——`content_updated_at` / `content_updated_by` 只在写快照的事务里成对推进（auto 取区间内最后一条用户更新，import 取作业发起人，restore 取执行者；只有服务端事务的区间与 named、migration、epoch 快照不推进），列表的「最近活动」随之只看内容；§2.1 `UpdateStore` 增 `lastEditor`；§10 恢复第 5 步同步）；2026-10-22（design-language-v3 第 3 批回写补充：§3.1 第 6 步与 §4.1 末条——`auth.ok` 在 `reason: 'over_ceiling'` 时另带 `elementCount`（判定所用的 `element_count`，墓碑计入）与 `maxElements`（`scale.maxElementsPerDoc`），供「文档已达元素上限」横幅写「实际 / 上限」，rulings §4.25 TB-146、DS-128；2026-10-22 复核修正：本条开头的回写轮次字样改为「回写补充」，正文未改） | 依赖：[30-architecture/06 协同](../30-architecture/06-collaboration.md) §5–§14；ADR-0023、0025、0029、0034、0035、[0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；[11 DDL：协同更新与版本快照](11-ddl-collab-updates-and-snapshots.md)；[14 键空间与保留](14-valkey-object-storage-and-retention.md)；[16 WS 协议（服务端视角）](16-ws-protocol-server-view.md)；40-modules/09；rulings §4.12 U-07、§4.13 S-2 / S-3、§4.15 Q3 / Q5 / S-3a、§4.18、§4.19（含 N1）、§4.21；rulings §4.25 DS-40、DS-57、DS-58、DS-70、DS-83、DS-84、DS-128、TB-146
 
 本文是服务端协同的唯一事实源：CollabModule 与 SnapshotsModule 的职责与装配、`@cordexjs/server-collab` 的契约、Room 在服务端的运行机制（准入、持久化、降级溢写、压缩、墓碑、迁移与换纪元）、快照 REST 的用例、永久删除参与者。帧与 CONTROL 的定义只在 30-architecture/06 §6 与 protocol 文件；服务端对帧的处理、门禁与关闭码见 [16](16-ws-protocol-server-view.md)；表结构见 [11](11-ddl-collab-updates-and-snapshots.md)；Valkey 键与对象键模板只引用 [14](14-valkey-object-storage-and-retention.md)；路由、守卫、错误码与审计名以 [15](15-rest-api-catalog.md) §3.7、§3.8 为准。包与文件级规划留在 40-modules/09。
 
@@ -74,6 +74,7 @@ interface UpdateStore {
   append(docId: RoomId, epoch: number, rows: readonly UpdateRow[]): Promise<Result<Seq[], 'purging' | 'epoch_changed'>>
   loadSince(docId: RoomId, afterSeq: Seq): AsyncIterable<StoredUpdate>
   contributors(docId: RoomId, afterSeq: Seq, uptoSeq: Seq): Promise<UserId[]>
+  lastEditor(docId: RoomId, afterSeq: Seq, uptoSeq: Seq): Promise<{ userId: UserId; at: Date } | undefined>   // 2026-10-22：区间里最后一条带用户的 update（11 §8 e6b），供最近编辑者（§7，rulings §4.25 DS-83）
   pruneBefore(docId: RoomId, uptoSeq: Seq, olderThan: Date): Promise<number>
   purgeAll(docId: RoomId): Promise<void>
 }
@@ -120,6 +121,7 @@ interface ServerConnection {                             // 2026-09-26：适配�
 ```
 
 - `ServerConnection` 契约（2026-09-26 改）：帧收发改由 Hocuspocus 直接操作 `WebSocketLike`（`send`、`close`、`readyState`，types.ts:55-59），本契约只剩适配层独有的能力（原始关闭、暂停入站、验签回调、URL 文档与 `ipHash`），仍由 `WsConnectionAdapter` 实现。（原：「`id`、`remote{ip, ua}`、`send(frame)`、`close(code, reason)`、`onFrame`、`onClose`」，作废。）`Lease` 为 `{ token: bigint; renew(); release(); stillHeld(): Promise<boolean> }`，`token` 取自 `lock:fence:{purpose}:{docId}` 的单调计数。
+- `SnapshotInput` 在 `kind = 'import'` 时必带 `origin`（`upload` / `blank` / `template` / `duplicate`）与除 `blank` 外的 `originName`，落 [11](11-ddl-collab-updates-and-snapshots.md) §2 的 `origin`、`origin_name`；`SnapshotMeta` 以同名字段返回，供版本历史写最早那一条（2026-10-15，rulings §4.25 DS-70，[15](15-rest-api-catalog.md) §3.8）。其余 kind 不带这两项。
 - `UpdateStore.append` 与 `SnapshotStore.put` 把 [11](11-ddl-collab-updates-and-snapshots.md) §5 的取号栅栏暴露为返回值：`purging` 与 `epoch_changed` 是正常结果、不是异常，调用方据此关闭房间（4404 / 4428）。
 - `SpillRow.update` 与 `UpdateRow.update` 都是 Yjs **V1** 字节（Hocuspocus 协议只有 V1，[11](11-ddl-collab-updates-and-snapshots.md) §4）；快照仍是 `encodeStateAsUpdateV2` + zstd。
 - `RoomControl` 只有 `close` 与 `epoch` 两种操作，载荷与键模板登记在 [14](14-valkey-object-storage-and-retention.md) §3；不设按用户踢人的操作——停用、擦除、登出对 WS 的作用统一由每 5 s 的批量会话复核以 4401 实现（[02](02-auth-chain.md) §9.5）。`SpillStore` 不提供整文档清除：永久删除时的溢写键由 finalize-purge 清（§12）。
@@ -215,7 +217,7 @@ flowchart LR
 3. 本实例没有该文档（不在 `hp.documents`，此时尚未加载）时做**实例权重准入**（§4.1），不足先对 `draining` 文档调 `hp.unloadDocument` 再重判，仍不足 → `collab.room_full`（4503，客户端重连到其他实例）。
 4. **名额准入**：`MembershipRegistry.admit`（§4.2 Lua），编辑者满 → 以 `viewer` 只读加入并带 `reason:'capacity'`；查看者也满 → `collab.room_full`（4503）。名额先于 `loading` 登记，bootstrap 失败时在 `onLoadDocument` 的 catch 里撤销登记（加载失败不触发 `onDisconnect`）。可写性写入 `connectionConfig.readOnly`（建连时拷贝到 `connection.readOnly`）。
 5. `onAuthenticate` 返回后 Hocuspocus 回 `Authenticated(scope)`；本实例没有该文档 → `onLoadDocument` 进入 `loading`（§3 表）；已有文档直接挂连接。
-6. `connected` 钩子以 `connection.sendStateless` 发 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4）；第 1 步记下 `policy` 不符时紧随其后发 `{type:'plugins', reason:'policy_changed', policy}`（客户端横幅「管理员更新了插件设置，重新加载后生效」，不改读写状态、不断连，[16 §12](16-ws-protocol-server-view.md)）；随后发 `room{clients, persist, locked?}`；登记连接（供 `session-sweeper`、`PermissionSync`、停机使用）；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。`connected` 整体 try/catch，失败 `ws.close(1011)`。认证前排队的帧此后才回放。
+6. `connected` 钩子以 `connection.sendStateless` 发 `auth.ok{sessionId, role, serverSeq = head_seq, schemaVersion, limits, serverTime, reason?, elementCount?, maxElements?}`（`reason` 取 `capacity` 或 `over_ceiling`，§4；`over_ceiling` 时另带判定所用的那个 `documents.element_count` 与本部署的 `scale.maxElementsPerDoc`，2026-10-22，rulings §4.25 TB-146，[16 §3](16-ws-protocol-server-view.md)）；第 1 步记下 `policy` 不符时紧随其后发 `{type:'plugins', reason:'policy_changed', policy}`（客户端横幅「管理员更新了插件设置，重新加载后生效」，不改读写状态、不断连，[16 §12](16-ws-protocol-server-view.md)）；随后发 `room{clients, persist, locked?}`；登记连接（供 `session-sweeper`、`PermissionSync`、停机使用）；审计 `collab.join`（同用户同文档合并，登记见 [07](07-modules-comments-webhooks-audit.md)）。`connected` 整体 try/catch，失败 `ws.close(1011)`。认证前排队的帧此后才回放。
 
 **图 5-2 加入房间**
 
@@ -259,8 +261,8 @@ sequenceDiagram
 
 | 来路 | 首个检查点 | 首次加载 |
 |---|---|---|
-| 导入 pptx、新建空白或从模板新建（空白与模板以内置模板字节走同一导入路径） | 导入处理器经 `SnapshotStore.put` 写 `kind='import'` 快照并移动指针（[06](06-modules-jobs-import-export-thumbnails.md) §6.4） | 普通 bootstrap：`GET snapshots/latest` 取检查点字节 → 票据 → WS 同步增量 |
-| 创建副本 | 同上，由源文档已落库状态生成（[06](06-modules-jobs-import-export-thumbnails.md) §6.6） | 同上 |
+| 导入 pptx、新建空白或从模板新建（空白与模板以内置模板字节走同一导入路径） | 导入处理器经 `SnapshotStore.put` 写 `kind='import'` 快照并移动指针（[06](06-modules-jobs-import-export-thumbnails.md) §6.4）；快照记下来源 `upload` / `blank` / `template` 与显示名（文件名或模板名，2026-10-15，rulings §4.25 DS-70） | 普通 bootstrap：`GET snapshots/latest` 取检查点字节 → 票据 → WS 同步增量 |
+| 创建副本 | 同上，由源文档已落库状态生成（[06](06-modules-jobs-import-export-thumbnails.md) §6.6）；来源 `duplicate`，显示名为源文档受理时的标题（DS-70） | 同上 |
 | `POST /documents` 直接建空文档（API 与测试用） | 无，`latest_snapshot_id` 为空 | `snapshots/latest` 回 404 `server.snapshots.not_found`，客户端以空文档开始、经 WS 同步；第一次压缩写出首个 `auto` 快照 |
 
 加载不再等待任何导入作业，`loading` 只做 bootstrap、迁移、遗留溢写认领与墓碑清扫（§3 表）。
@@ -290,7 +292,7 @@ sequenceDiagram
 - 房间权重 = `documents.element_count`（墓碑计入）× `weightBytesPerElement`（14336 B，实测约 13.8 KB 堆/元素；D200 ≈ 85 MB，天花板 20,000 元素 ≈ 276 MB），准入时直接取库列，不需预加载（CO-17）。
 - 实例内存预算 = 容器内存上限（cgroup 限额，`process.constrainedMemory()`，无限额取物理内存）× `memoryAdmissionPct`（75）；`weightBudgetBytes` 若设置则作绝对覆盖（rulings §4.18 BE-29）。准入条件：已开房间权重之和 + 进行中的准入预留 + 新房间权重 ≤ 预算。同一文档在 N 个实例上各占一份（ADR-0035）。
 - 不足时先按 LRU 提前结束 `draining` 房间（无在线会话、不发 1012）再重判；仍不足 → 4503。已开房间因编辑增长导致超预算时，内存压力回收同样先结束 `draining`、再按 LRU 驱逐 `active`（`evicting`，1012）；没有 `draining → evicting` 这条边（CO-14）。
-- `element_count` 已超过 `scale.maxElementsPerDoc`（部署调低天花板后才会出现）的文档只读打开（`auth.ok.reason:'over_ceiling'`，与编辑者名额满的 `capacity` 分开，客户端提示不同），不接纳写入。
+- `element_count` 已超过 `scale.maxElementsPerDoc`（部署调低天花板后才会出现）的文档只读打开（`auth.ok.reason:'over_ceiling'`，与编辑者名额满的 `capacity` 分开，客户端提示不同），不接纳写入。同一帧带 `elementCount`（就是这里比较用的 `element_count`，墓碑计入）与 `maxElements`（`scale.maxElementsPerDoc`），横幅「文档已达元素上限」的「实际 / 上限」直接取这两个数，客户端不另数（2026-10-22，rulings §4.25 TB-146、DS-128）。
 
 ### 4.2 名额：跨实例原子判定
 
@@ -348,7 +350,7 @@ Valkey 内置的 cjson 把空列表编码成 `{}`（对象）而不是 `[]`（Va
 | `owners` | 以 owner 加入，不占名额 |
 | `editors` | 以 editor 加入（同一用户已在任一实例以编辑者在线时不新占名额） |
 | `viewers` | 以原角色（commenter 或 viewer）加入，占查看者名额 |
-| `capacity` | editor 降为只读 viewer，`auth.ok.reason = 'capacity'`；会话期间不自动升回，重连时重新判定 |
+| `capacity` | editor 降为只读 viewer，`auth.ok.reason = 'capacity'`；会话期间不自动升回，重连时重新判定——界面上的「重试以编辑身份加入」就是客户端主动断开后重新握手，服务端照本表再判一次，名额空出也不推送、不自动提升（rulings §4.25 DS-58） |
 | `full` | `auth.denied{collab.room_full}`，关闭 4503 |
 
 依据：决策 C-11；rulings §4.15 Q5、§4.18 CO-14 / CO-17；30-architecture/06 §14、ADR-0035 修订 2026-09-24 第 4 条。
@@ -415,7 +417,7 @@ flowchart LR
 
 - 触发：任一批量写因连接错误、超时或 PG 只读而失败，或降级探活（`probeIntervalMs` 1 s，只在本实例有活跃 Room 时运行）失败。实例级标记 `pgDegraded = true`。
 - 服务端显式信号：`CONTROL.room` 增可选字段 `persist: 'ok' | 'degraded'`（帧定义在 30-architecture/06 §6.3，不新增帧类型）。房间的 `persist` = `degraded` 当且仅当 `pgDegraded` ∨ `spillTier ≠ none` ∨ `replaying` ∨ 房间内有未落库的内存档；只在变化时推送：PG 写失败后 ≤ 1 s 推 `degraded`，回放完成且无溢写后推 `ok`。加入时的第一帧 `room`（在 `connected` 发出）带当前值。`room` 只对本实例连接 `connection.sendStateless`，**不用** `document.broadcastStateless`——后者在 M3 会经 extension-redis 串到他实例，而他实例有自己的 PG 判断（证据 SP-01）。
-- 受众分级在客户端（[50/07](../50-frontend/07-collaboration-client.md)）：判据 = `room.persist === 'degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（collab-yjs 配置，默认 15000）；有本地未获 db 确认项的发起方显示横幅「未保存到服务器 N 项」，其余协作者在状态胶囊显示弱提示「服务器保存延迟」。服务端只负责按上条规则推 `persist`，不按会话区分受众。
+- 受众分级在客户端（[50/07](../50-frontend/07-collaboration-client.md)）：判据 = `room.persist === 'degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（collab-yjs 配置，默认 15000）；有本地未获 db 确认项的发起方显示横幅「未保存到服务器 N 项」，其余协作者在文件名旁的同步状态行显示弱提示「服务器保存延迟」。服务端只负责按上条规则推 `persist`，不按会话区分受众。
 - 每个实例独立判断自己的 PG 连接并推给自己的会话；因为各实例共用同一个 PG，没有本地写入的实例也会在一个探活周期内进入降级，因此只看到他人修改的协作者同样收到信号。
 - 指标 `cordex_collab_broadcast_before_persist_total{tier}` 计降级广播次数，名称以 [18](18-observability-and-ops-endpoints.md) 为准。
 
@@ -482,10 +484,19 @@ flowchart TB
 
 1. **补齐**：从 PG 读 `(上一快照.seq_upto, head]` 的全部 update 并应用到本实例 Room（幂等），`seq_upto` 取本次读到的最大 seq。这一步是多副本下的正确性前提：别的实例刚落库、还没经扇出到达本实例的 update，如果不先补齐就把 `head_seq` 写成 `seq_upto`，随后的裁剪会删掉快照里没有的内容。本实例尚未落库的内存档或溢写内容会被一并编码进快照，这对 CRDT 无害（它们回放时 seq 必然大于 `seq_upto`）。
 2. `encodeStateAsUpdateV2` + zstd（直接读 Hocuspocus Document，即 Room 的 Y.Doc）；≤ 1 MiB 内联，否则先写 `snapshots` 桶 `docs/{docId}/snapshots/{snapshotId}.yup2.zst`。写对象前复查 `documents.status`，`purging` 即放弃本轮（永久删除进行中，[04](04-modules-documents-storage-media.md) §4.3 第 4 条；竞态中写出的对象由 finalize-purge 第二遍列举清除）。
-3. 单事务：插入 `kind='auto'` 行（`contributors` 取 [11](11-ddl-collab-updates-and-snapshots.md) §8 的 e6）→ 更新 `documents` 的 M-09 列（`schema_version`、`element_count`、`slide_count`、`size_bytes`、`content_updated_at`，决策 C-03），`latest_snapshot_id` 按 11 §3 的 e8「只前进」条件移动 → 调用 MediaModule 的 `SyncDocumentMediaRefsUseCase`，按新快照的媒体引用集合（文档类型提供的 `BlobRef` 枚举，文档类型盲）维护 `document_media.detached_at`（决策 C-25；用例与 SQL 见 [04](04-modules-documents-storage-media.md) §7.4、[10](10-ddl-documents-marks-media.md)）。写行前校验租约 `stillHeld()`，失效则只记录不提交。写 `named`、`import`、`migration`、`restore`、`epoch` 快照的事务同样调用该用例（04 §7.4「写任何快照」）。
+3. 单事务：插入 `kind='auto'` 行（`contributors` 取 [11](11-ddl-collab-updates-and-snapshots.md) §8 的 e6）→ 更新 `documents` 的 M-09 列（`schema_version`、`element_count`、`slide_count`、`size_bytes`，以及按下文「最近编辑者」规则成对推进的 `content_updated_at` / `content_updated_by`，决策 C-03），`latest_snapshot_id` 按 11 §3 的 e8「只前进」条件移动 → 调用 MediaModule 的 `SyncDocumentMediaRefsUseCase`，按新快照的媒体引用集合（文档类型提供的 `BlobRef` 枚举，文档类型盲）维护 `document_media.detached_at`（决策 C-25；用例与 SQL 见 [04](04-modules-documents-storage-media.md) §7.4、[10](10-ddl-documents-marks-media.md)）。写行前校验租约 `stillHeld()`，失效则只记录不提交。写 `named`、`import`、`migration`、`restore`、`epoch` 快照的事务同样调用该用例（04 §7.4「写任何快照」）。
 4. 提交后就地裁剪：删 `seq ≤ 检查点指针所指快照.seq_upto` 且早于 `retention.updatesDays` 的行（11 §8 的 e5）。
 5. 提交后入队 `thumbnails` 作业 `invalidate {docId, snapshotId}`（jobId `thumbinv-{docId}-{snapshotId}`，[06](06-modules-jobs-import-export-thumbnails.md) §1、§11.1；collab 的 producer 部件，[01](01-service-overview-and-roles.md) §5）；这一步随服务端缩略图在 M3 前半段启用，M2 只有导入写入的包内封面、不入队。
 6. 指标 `cordex_snapshot_compactions_total`、span `server.snapshot.compact`；预算：10,000 条 update 压缩 ≤ 2 s。
+
+**最近编辑者与内容更新时间**（2026-10-22，rulings §4.25 DS-83、DS-84；文档卡片第二行「编辑者 · 相对时间」与列表的「最近活动」，[15](15-rest-api-catalog.md) §3.3）：`documents.content_updated_at` 与 `content_updated_by` 只在写快照的事务里成对推进——
+
+- `auto`（含恢复前的那一个）：取 `(上一快照.seq_upto, seq_upto]` 区间里最后一条带 `user_id` 的 update 的 `user_id` 与 `created_at`（`UpdateStore.lastEditor`，SQL 为 [11](11-ddl-collab-updates-and-snapshots.md) §8 的 e6b，与 e6 扫同一区间）；区间里只有服务端事务（墓碑硬删除、元素彻底删除、软门禁修复等，`user_id` 为空）时两列都不动。
+- `import`（导入、新建空白、从模板新建、创建副本、覆盖导入）：作业发起人与写快照时刻；系统作业建档时发起人为空。
+- `restore`：执行恢复的用户与写快照时刻。
+- `named`、`migration`、`epoch`：不推进——命名只是给当前状态起名，迁移与换纪元不改变用户看到的内容。
+
+生成列 `last_activity_at = coalesce(content_updated_at, created_at)`（[10](10-ddl-documents-marks-media.md) §2），所以「我的文档」「与我共享」与搜索结果的次序和卡片上的时间同源，改名、移入与恢复回收站不改变次序（DS-84）。两列跟着压缩节流，列表里的值要到下一次写快照时才更新。
 
 **保留**：规则本体在 [11](11-ddl-collab-updates-and-snapshots.md) §8（rulings §4.19 C-06：`auto` 30 天内全保留、之后每个 UTC 日留最后一个、保留至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久）；`import` / `migration` / `restore` / `epoch` 事件快照按 auto 口径；`named` 永久且每文档 ≤ 200；每文档最新一个 `import` 快照及其基线对象、`latest_snapshot_id` 所指行不删）；执行者是 worker 上 CollabModule 的 `SnapshotsRetentionUseCase` 与 `PruneUpdatesUseCase`，调度见 [06](06-modules-jobs-import-export-thumbnails.md) §4。
 
@@ -617,21 +628,21 @@ sequenceDiagram
 
 | 用例 | 能力位 | 机制 | 里程碑 |
 |---|---|---|---|
-| `ListSnapshotsQuery` | `history.read`（owner、editor，rulings §4.12 U-09） | 键集分页 `(seq_upto, id)` 降序，可按 `kind` 过滤；返回 `SnapshotMeta`，不含 `state_key`、`baseline_key` 等内部字段 | M3 |
+| `ListSnapshotsQuery` | `history.read`（owner、editor，rulings §4.12 U-09） | 键集分页 `(seq_upto, id)` 降序，可按 `kind` 过滤；返回 `SnapshotMeta`（`import` 行另带 `origin` / `originName`，2026-10-15，rulings §4.25 DS-70），不含 `state_key`、`baseline_key` 等内部字段 | M3 |
 | `GetLatestSnapshotQuery` | `doc.read`（含链接角色） | 取 `latest_snapshot_id` 所指行的字节（zstd 压缩的 Y V2 update，原样返回，响应形态见 [15](15-rest-api-catalog.md) §3.8）：内联直接返回，否则从 `snapshots` 桶流式代理（不给预签名 URL，决策 MECH-INC 中 INC-14）；`ETag = snapshotId`，响应头 `X-Cordex-Epoch` 带 `documents.epoch`，客户端据此在 `auth.epoch` 声明本地纪元（[16](16-ws-protocol-server-view.md) §2）；尚无检查点 → 404 `server.snapshots.not_found`（同样带 `X-Cordex-Epoch`，供客户端组 provider 文档名，2026-09-26 整合），客户端从空文档开始、经 WS 同步（§3.2） | M2 |
 | `GetSnapshotQuery` | `history.read` | 同上，按 id；快照内容不可变，可用长缓存；旧 schema 版本由客户端 `migrations` 透明迁移后预览（D6） | M3 |
-| `CreateNamedSnapshotUseCase` | `doc.manage` | Room 未开则先开（计入权重准入）；要求 `persist = ok`；flush 后按 §7 第 1–2 步补齐并编码，`put(kind='named', name, description)`，`contributors` 取上一快照之后的区间；不移动 `latest_snapshot_id`；上限每文档 200（`quota.namedSnapshotsPerDoc`，rulings §4.19 C-06，[11](11-ddl-collab-updates-and-snapshots.md) §2），超出 409 `server.snapshots.named_limit_reached`（非配额码：`*.quota_exceeded` 只用于 rulings §4.17 D2 三码，决策 MECH-INC 之 INC-12）；审计 `snapshot.created` | M3 |
+| `CreateNamedSnapshotUseCase` | `doc.manage` | Room 未开则先开（计入权重准入）；要求 `persist = ok`；入参名称 1–30 字（去首尾空白后计）、说明可选 ≤ 200 字（rulings §4.25 DS-57，[15](15-rest-api-catalog.md) §3.8）；flush 后按 §7 第 1–2 步补齐并编码，`put(kind='named', name, description)`，`contributors` 取上一快照之后的区间；不移动 `latest_snapshot_id`；上限每文档 200（`quota.namedSnapshotsPerDoc`，rulings §4.19 C-06，[11](11-ddl-collab-updates-and-snapshots.md) §2），超出 409 `server.snapshots.named_limit_reached`，`details.limit` 带本部署的上限值，供界面轻提示读出（非配额码：`*.quota_exceeded` 只用于 rulings §4.17 D2 三码，决策 MECH-INC 之 INC-12）；审计 `snapshot.created` | M3 |
 | `RestoreSnapshotUseCase` | `history.restore`（仅 owner） | 见下；恢复本身不加锁（rulings §4.19 N1）；文档因覆盖导入或迁移处于 `locked` 时，路由按 `write` 访问类先被 `DocumentStateGuard` 以 409 `server.documents.locked` 拒绝（[04](04-modules-documents-storage-media.md) 表 2-2） | M3 |
 | `DiffSnapshotsQuery` | `history.read` | P2：两份快照各载入临时 Unit，经文档类型的模型级 diff 生成预览，不写任何表 | P2 |
 
 **恢复**（ADR-0025 决策 6：不回滚日志，恢复是一次新事务）：在接到请求的实例打开 Room 执行，其他副本经扇出收敛，在线客户端不断连。**恢复不加锁**（rulings §4.19 N1）：它是持有 Room 的 collab 进程内的单个事务，不调用 `LockDocumentUseCase`、不推 `room{locked}`，协作者在恢复期间照常编辑，其并发写入与恢复事务按 CRDT 合并（整体语义见 §11）；原写法「恢复属 ADR-0029 决策 5 的锁定窗口」作废。
 
 1. 打开或复用 Room（文档未加载时用 `hp.openDirectConnection`）；要求 `persist = ok`，否则 503 可重试（码名以 [15](15-rest-api-catalog.md) 为准）。
-2. 数据安全兜底：若 `head_seq > 最新检查点.seq_upto`，先按 §7 落一个 `auto` 快照，让「恢复前」的状态出现在版本时间轴上（这不是撤销方案，见 §11）。
+2. 先存下恢复前的内容：每次恢复都先按 §7 第 1–2 步补齐、编码并写一个 `kind='auto'`、`pre_restore = true` 的快照（[11](11-ddl-collab-updates-and-snapshots.md) §2），即使自上一个检查点以来没有新的 update 也写，版本列表据此标「恢复前」并单列（2026-10-15，rulings §4.25 DS-40、DS-57：恢复前的内容一律能从版本历史找回，界面因此用非模态确认卡；原「仅当 `head_seq > 最新检查点.seq_upto` 时才落」作废）。这一步写入成功才继续；它不是撤销恢复的方案（见 §11）。
 3. 读目标快照，载入隔离的临时 Unit，必要时先迁移到当前 schema，得到 `targetBody`。
 4. `commands.execute(copyUnit, 'core.restoreVersion', { targetBody }, { principal: system })`：命令内部经文档类型的模型级 diff 生成一个事务（`origin = system('restore')`）。按 rulings §4.21 H:Q4，该事务**先在由当前 Room 状态复制出的临时 Unit 上执行 → 经写入器落库（`user_id` = 执行恢复的用户）→ 再把同一 update 应用到 Room 并广播、扇出**（O(文档)，恢复是低频操作；原「应用到 Room 后由写入器落库」作废——Hocuspocus 对 Room 上的事务会立即广播，做不到先落库）。恢复与并发编辑按 CRDT 合并。
-5. 提交后写 `kind='restore'` 快照（`restored_from` = 目标、`created_by` 与 `contributors` = 执行者）并移动检查点指针；审计 `snapshot.restored`；返回新快照的 `SnapshotMeta`。
-6. 以 `document.broadcastStateless` 向本实例在线会话发 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`（M3 起经 extension-redis 送达其他实例的会话；原「经 `FanoutBus`」作废）（`snapshotId` 为新 `restore` 快照，`name` 为目标快照的命名，`by` 为执行者），客户端据此在版本面板与状态胶囊提示「已恢复到『X』」（[16](16-ws-protocol-server-view.md) §3；帧定义登记在 30-architecture/06 §6.3）。
+5. 提交后写 `kind='restore'` 快照（`restored_from` = 目标、`created_by` 与 `contributors` = 执行者）并移动检查点指针，同一事务把 `content_updated_by` / `content_updated_at` 推进为执行者与此刻（§7「最近编辑者」，2026-10-22，rulings §4.25 DS-83）；审计 `snapshot.restored`；返回新快照的 `SnapshotMeta`。恢复后版本列表最前是「恢复自『X』」（本步的 `restore`）与第 2 步的「恢复前」版本（DS-57）。
+6. 以 `document.broadcastStateless` 向本实例在线会话发 `CONTROL.event{name:'version.restored', payload:{snapshotId, name?, by}}`（M3 起经 extension-redis 送达其他实例的会话；原「经 `FanoutBus`」作废）（`snapshotId` 为新 `restore` 快照，`name` 为目标快照的命名，`by` 为执行者），客户端据此在版本面板与通知中提示「已恢复到『X』」（原状态胶囊随 rulings §4.25 DS-6 作废）（[16](16-ws-protocol-server-view.md) §3；帧定义登记在 30-architecture/06 §6.3）。
 
 **图 5-8 快照恢复**
 
@@ -646,9 +657,7 @@ sequenceDiagram
   U->>R: POST snapshots/snapshotId/restore，已过 history.restore
   R->>X: restoreSnapshot，不加锁，协作者照常编辑
   X->>X: 打开或复用 Room，要求 persist ok
-  opt head_seq 大于最新检查点
-    X->>W: 先落一个 auto 快照，保留恢复前状态
-  end
+  X->>W: 先写标恢复前的 auto 快照，pre_restore 为真，每次都写
   X->>T: 载入目标快照，必要时迁移到当前 schema
   T-->>X: targetBody
   X->>T: 复制当前 Room 状态，core.restoreVersion 生成单事务，origin system restore
@@ -660,7 +669,7 @@ sequenceDiagram
   X-->>U: 200 SnapshotMeta，审计 snapshot.restored
 ```
 
-怎么读：纵线是参与方，自上而下是时间。恢复不重写历史、不加锁、不断开任何连接：它和普通编辑一样是一次落库并广播的事务，只是由服务端以系统身份发起，并且按 rulings §4.21 H:Q4 先在临时 Unit 上执行并落库、再应用到 Room 广播；`opt` 段是恢复前的数据安全快照。
+怎么读：纵线是参与方，自上而下是时间。恢复不重写历史、不加锁、不断开任何连接：它和普通编辑一样是一次落库并广播的事务，只是由服务端以系统身份发起，并且按 rulings §4.21 H:Q4 先在临时 Unit 上执行并落库、再应用到 Room 广播；第一次写入的是「恢复前」快照（2026-10-15 起每次都写，原图的 `opt` 条件作废）。
 
 依据：ADR-0025 决策 6；40-modules/09 §4.4 `snapshot.service.ts`；rulings §4.18 BE-03、§4.19 N1。
 
@@ -669,8 +678,8 @@ sequenceDiagram
 PRD CO-07 要求「恢复本身可撤销」，其多人协同语义由 M-02 × M-05 × M-09 联合 ADR [ADR-0038 version-restore-undo](../30-architecture/adr/0038-version-restore-undo.md)（提议；M-02 主笔，M-05、M-09 会签）定稿：M2 期间起草、M2 出口评审前定稿（即 rulings §4.12 U-07 的「M3 前」），未定稿则 M3 的版本恢复（CO-07）不开工（rulings §4.20 TX-01+BE-10）；「恢复前落快照变相撤销」与「进本地撤销栈」两个简单方案已被否决。ADR 的起草基线与本文一致：在持有 Room 的实例内单事务、不加锁、走命令管线（不用 `revertTo`），判断「他人后写」看当前值是否仍出自恢复事务的 struct 范围而非值相等，恢复时删掉的元素以原 id 复活；「谁能撤销」「可撤销时效」两处在 ADR 定稿时交互拍板，定稿后本节与 [15](15-rest-api-catalog.md) §3.8 回填字段。本文在 ADR 定稿前只固定以下服务端事实与接口预留，客户端表达见 [50/08](../50-frontend/08-comments-and-version-history.md)：
 
 - 恢复是一个 `origin = system('restore')` 的服务端事务，不进入任何客户端的撤销栈；在线用户看到的是远端变更（他们自己的撤销仍按「他人后写则跳过」的中性撤销规则运行，30-architecture/05）。
-- 每次恢复都留下可追溯的链：恢复前的 `auto` 快照（§10 第 2 步）、恢复事务的 update 行、`kind='restore'` 快照及其 `restored_from`。ADR 若选择「受保护的恢复事务」，可直接以这条链定位要回退的事务范围，不需要新表。
-- 接口预留：`RestoreResult` 除新快照外带 `preRestoreSnapshotId?` 与恢复事务落库的 `seqRange`；REST 响应暂只暴露 `SnapshotMeta`，字段扩展随 ADR 登记到 [15](15-rest-api-catalog.md)。二次确认属于界面，服务端不设额外令牌。
+- 每次恢复都留下可追溯的链：恢复前的 `auto` 快照（§10 第 2 步，`pre_restore = true`，2026-10-15 起每次必写）、恢复事务的 update 行、`kind='restore'` 快照及其 `restored_from`。ADR 若选择「受保护的恢复事务」，可直接以这条链定位要回退的事务范围，不需要新表。
+- 接口预留：`RestoreResult` 除新快照外带 `preRestoreSnapshotId`（2026-10-15 起必有，rulings §4.25 DS-57）与恢复事务落库的 `seqRange`；REST 响应暂只暴露 `SnapshotMeta`，字段扩展随 ADR 登记到 [15](15-rest-api-catalog.md)。二次确认属于界面，服务端不设额外令牌。
 
 ## 12. document-purge 参与者 collab
 

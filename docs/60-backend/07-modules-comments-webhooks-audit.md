@@ -1,5 +1,5 @@
 # 07 模块设计：评论镜像、Webhook 与审计
-> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Webhook 签名改为 Standard Webhooks，SSRF 判段用 ipaddr.js、出站用 undici，JCS 用 canonicalize）；2026-09-26（§4.21 整合：审计来源与模块依赖的 CollabGateway 改为 CollabUpgradeHandler 与 onAuthenticate 等钩子；comments.changed 改经 collabServer.broadcastEvent（document.broadcastStateless），不再经 FanoutBus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§9.5 登记 plugin.policy_changed、plugin.config_changed、plugin.rejected 三个审计 action）；2026-10-03（§4.24 AL-7：Webhook 增对外事件 `automation.job_finished`（§4.2、§5.1，生产者增 worker 的 `AutomationProcessor`），§9.3 登记 `automation.created`，§10.2 `DeliverWebhookEventUseCase` 导出给 ImportExport） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT、§4.21 q-webhook-sig；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[01](01-service-overview-and-roles.md) §3（原 30/08 §16.6 已迁入本文 §1）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）
+> 状态：v0.1 | 负责：后端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-25（§4.19 N1）；2026-09-26（§4.20）；2026-09-26（§4.21：Webhook 签名改为 Standard Webhooks，SSRF 判段用 ipaddr.js、出站用 undici，JCS 用 canonicalize）；2026-09-26（§4.21 整合：审计来源与模块依赖的 CollabGateway 改为 CollabUpgradeHandler 与 onAuthenticate 等钩子；comments.changed 改经 collabServer.broadcastEvent（document.broadcastStateless），不再经 FanoutBus）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-01（§4.23 插件管理：§9.5 登记 plugin.policy_changed、plugin.config_changed、plugin.rejected 三个审计 action）；2026-10-03（§4.24 AL-7：Webhook 增对外事件 `automation.job_finished`（§4.2、§5.1，生产者增 worker 的 `AutomationProcessor`），§9.3 登记 `automation.created`，§10.2 `DeliverWebhookEventUseCase` 导出给 ImportExport）；2026-10-15（design-language-v3 第 2 批：§2 评论权限增「删除整条讨论串只有文档所有者」一行，发起人只能删自己的回复（rulings §4.25 DS-40），软门禁规则见 ADR-0034 修订 2026-10-15；§9.2 登记 `share_link.updated`（DS-47）与 `access_request.created` / `approved` / `rejected`（DS-48）；同日再补（rulings §4.25 DS-67）：Webhook 增对外事件 `access_request.created`——§4.1 事件源、§4.2 `event_filter`（13 §5.2 迁移 0075）、§5.1 第三个生产者 PermissionsModule 的 `RequestAccessUseCase`（api，`cordex_app`，与记下申请同一事务）、去重键与载荷（不含留言正文），§10.1 写方、§10.2 导出对象、§10.4 角色装配、§11 断言同步；同日再补：§4.2 `event_filter` 括注改为「PRD SV-15 已改用点式事件名、以本节与 §5.1 为准」，原「PRD SV-15 的斜杠写法作废」一句随 PRD 同步）；2026-10-22（design-language-v3 第 3 批：§9.3 `export.created` 一行登记 `export.cancelled`——`POST /exports/:jobId/cancel` 取消排队或生成中的导出，与 `import.cancelled` 对称（rulings §4.25 DS-101）） | 依赖：[rulings](../00-charter/rulings-2026-09-14.md) §4.12 U-14/U-15、§4.13 S-4/S-5、§4.18 BE-03/BE-13/BE-19/BE-25、§4.19 D-COMMENTS-PKG/D-M2-CONTENT、§4.21 q-webhook-sig；[ADR-0029](../30-architecture/adr/0029-gateway-authorization.md)、[ADR-0031](../30-architecture/adr/0031-comments-and-anchors-storage.md)、[ADR-0034](../30-architecture/adr/0034-server-update-validation-and-repair.md)；[01](01-service-overview-and-roles.md) §3（原 30/08 §16.6 已迁入本文 §1）；[PRD 06](../10-prd/03-features/06-server-and-ops.md) SV-07/SV-15、[PRD 03](../10-prd/03-features/03-collaboration.md) CO-04；[40/12](../40-modules/12-server-jobs-comments-and-ops.md)（文件级）；rulings §4.25 DS-40、DS-47、DS-48、DS-67、DS-101
 
 
 ## 0. 本文定位
@@ -8,7 +8,7 @@
 
 | 主题 | 事实源 |
 |---|---|
-| 表结构、索引、RLS policy、迁移 0070–0073 / 0094 | [13 DDL：评论、Webhook 与审计](13-ddl-comments-webhooks-audit.md) |
+| 表结构、索引、RLS policy、迁移 0070–0075 / 0094 | [13 DDL：评论、Webhook 与审计](13-ddl-comments-webhooks-audit.md) |
 | 路由、守卫、DTO 文件、限流档 | [15 REST API 目录](15-rest-api-catalog.md) §3.11 comments、§3.12 webhooks、§3.13 audit |
 | 模块在各 `CORDEX_ROLE` 的装配 | [01 服务总览](01-service-overview-and-roles.md) §5 装配矩阵 |
 | `CONTROL.event` 帧的服务端发送规则 | [16 WS 协议（服务端视角）](16-ws-protocol-server-view.md) §3 |
@@ -119,12 +119,13 @@ CO-04 / SV-08 的上限（正文 ≤ 5,000 字符、每文档 ≤ 5,000 线程�
 |---|---|---|---|
 | 创建线程、回复 | commenter 及以上 | 客户端命令守卫（能力位 `doc.comment`）；服务端硬门禁拒绝 viewer 的任何 update；软门禁限定 commenter 只能写 `resources['comments.threads']` | viewer：拒绝 update（3 次后 4403）；commenter 越界路径：还原旧值并计数（ADR-0034 补充 v0.2） |
 | 编辑、删除回复 | 作者本人；owner 可删任何人的回复 | 软门禁：回复实体 `authorId ≠ 会话 userId` 且非 owner → 还原 | 还原并计数，审计 `collab.repaired` |
+| 删除整条讨论串（线程实体连同全部回复，2026-10-15） | 只有文档 owner；发起人也只能删自己的回复，不能删整条线程（rulings §4.25 DS-40） | 客户端命令 `comments.deleteThread` 要求 `doc.manage`；软门禁：非 owner 的会话让线程实体从 `threads` 表消失 → 用事件里的旧值还原该线程与随之消失的回复 | 还原并计数，审计 `collab.repaired`；owner 删除后镜像行置 `deleted_at`、审计 `comment.deleted` |
 | 解决、重新打开线程 | commenter 及以上 | 客户端命令守卫 + 软门禁路径规则 | 同上 |
 | 读评论（REST） | viewer 及以上，含分享链接角色 | `DocumentRoleGuard(doc.read)` + RLS `p_comments_app_select` | 403 / 行不可见 |
 | 跨文档「@我」 | 任意已登录用户，只见直接授权可读的文档 | RLS + `documents.status = 'active'` | 行不可见 |
 | 导入为可编辑线程（P1） | commenter 及以上 | `DocumentRoleGuard(doc.comment)` | 403 |
 
-依据：ADR-0031 v0.2 决策 2；ADR-0034 补充 v0.2（路径级权限规则）；PRD CO-04「权限」条；rulings §4.18 BE-02（链接角色 = max(直接, 链接)）。
+依据：ADR-0031 v0.2 决策 2；ADR-0034 补充 v0.2（路径级权限规则）与修订 2026-10-15（删除线程只认 owner）；PRD CO-04「权限」条；rulings §4.18 BE-02（链接角色 = max(直接, 链接)）、§4.25 DS-40。
 
 ## 3. 提及
 
@@ -138,7 +139,7 @@ CO-04 / SV-08 的上限（正文 ≤ 5,000 字符、每文档 ≤ 5,000 线程�
 ### 4.1 职责与边界
 
 - **做**：订阅的注册、更新、停用、删除与查询；签名密钥的生成、加密存储与轮换；事件投递（§5）与出站守卫（§6）；投递日志查询。限界上下文 BC-30 出站集成（S-5），`generic`：投递骨架对事件来源的文档类型无知。
-- **不做**：不产生事件（M3 的事件源是评论镜像与 2026-10-03 起的自动化作业终态 `automation.job_finished`（rulings §4.24 AL-7，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)），M4 扩到文档事件）；不接收入站 Webhook；不做通用消息总线。
+- **不做**：不产生事件（M3 的事件源是评论镜像、2026-10-03 起的自动化作业终态 `automation.job_finished`（rulings §4.24 AL-7，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)）与 2026-10-15 起的访问申请 `access_request.created`（rulings §4.25 DS-67，[03 §4.2](03-modules-identity-and-access.md)），M4 扩到文档事件）；不接收入站 Webhook；不做通用消息总线。
 - **权限**：全部管理接口只对平台管理员开放（`PlatformAdminGuard`，由 M-08 导出；单组织部署的部署级 admin，T-0）。路由见 [15](15-rest-api-catalog.md) §3.12。
 
 ### 4.2 订阅字段与规则
@@ -146,7 +147,7 @@ CO-04 / SV-08 的上限（正文 ≤ 5,000 字符、每文档 ≤ 5,000 线程�
 | 字段 | 规则 |
 |---|---|
 | `target_url` | 生产环境（`NODE_ENV=production`）只收 `https://`；不得含 userinfo（`user:pw@`）；≤ 2,048 字符；保存前经出站守卫尽力校验（§6），拒绝返回 422 `server.webhooks.egress_blocked` 或 `server.webhooks.invalid_url` |
-| `event_filter` | 非空，⊆ `{comment.added, comment.mentioned, comment.resolved, automation.job_finished}`（INC-31/INC-29 的对外事件名，点式；PRD SV-15 的斜杠写法作废；`automation.job_finished` 为 2026-10-03 新增，[13 §5.1](13-ddl-comments-webhooks-audit.md) 迁移 0074） |
+| `event_filter` | 非空，⊆ `{comment.added, comment.mentioned, comment.resolved, automation.job_finished, access_request.created}`（INC-31/INC-29 的对外事件名，点式；PRD SV-15 原用斜杠写法，2026-10-15 已改为点式并注明以本节与 §5.1 为准；`automation.job_finished` 为 2026-10-03 新增，[13 §5.1](13-ddl-comments-webhooks-audit.md) 迁移 0074；`access_request.created` 为 2026-10-15 新增，rulings §4.25 DS-67，[13 §5.2](13-ddl-comments-webhooks-audit.md) 迁移 0075；本列是对外事件集合的唯一登记处） |
 | `status` | `active \| disabled`；`disabled` 时事件不入队，已排队的投递在执行时直接记 `failed`（原因 `subscription_disabled`） |
 | 签名密钥 | 见 §4.3；明文只在创建与轮换的响应里出现一次 |
 
@@ -166,9 +167,9 @@ PRD SV-15 原写「落库只存 hash」，但 HMAC 签名必须持有密钥本�
 
 ### 5.1 生产与 outbox
 
-`DeliverWebhookEventUseCase.enqueue(event)` 由评论镜像在其单批事务内调用（§1.3 第 3 步），以及由 worker 的 `AutomationProcessor` 在自动化作业进入终态的同一事务内调用（2026-10-03，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)），对每个 `status = 'active'` 且 `event_filter` 含该事件的订阅：
+`DeliverWebhookEventUseCase.enqueue(tx, event)` 由评论镜像在其单批事务内调用（§1.3 第 3 步），由 worker 的 `AutomationProcessor` 在自动化作业进入终态的同一事务内调用（2026-10-03，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)），以及由 api 的 `RequestAccessUseCase` 在新记下一条访问申请的同一请求事务内调用（2026-10-15，rulings §4.25 DS-67，[03 §4.2](03-modules-identity-and-access.md)：只在 201，即首次提交、满 24 小时后或上次已批准后再提交；24 小时内的重复提交不调用；这一路以申请人的 `cordex_app` 身份执行，`webhook_deliveries` 只授了七列 INSERT，[13 §6.3](13-ddl-comments-webhooks-audit.md)），对每个 `status = 'active'` 且 `event_filter` 含该事件的订阅：
 
-1. `INSERT INTO webhook_deliveries (…, status='pending', attempt=0, next_attempt_at=now()) ON CONFLICT (subscription_id, event_id) DO NOTHING`；`event_id` 是由 CRDT 数据确定的去重键（`comment.added:{replyId}`、`comment.mentioned:{replyId}:{editedAt 或 createdAt 毫秒}`、`comment.resolved:{threadId}:{resolvedAt 毫秒}`、`automation.job_finished:{jobId}`），多实例或重复观察同一变更、作业重试或对账补投都只落一行；
+1. `INSERT INTO webhook_deliveries (…, status='pending', attempt=0, next_attempt_at=now()) ON CONFLICT (subscription_id, event_id) DO NOTHING`（访问申请这一路以 `cordex_app` 执行，不写 `status`、`attempt` 两列、取其默认值）；`event_id` 是由事件来源数据（CRDT 实体、作业行或申请行）确定的去重键（`comment.added:{replyId}`、`comment.mentioned:{replyId}:{editedAt 或 createdAt 毫秒}`、`comment.resolved:{threadId}:{resolvedAt 毫秒}`、`automation.job_finished:{jobId}`、`access_request.created:{requestId}:{requestedAt 毫秒}`——同一申请行 24 小时后被再次记下时 `requestedAt` 不同、算新事件），多实例或重复观察同一变更、作业重试或对账补投都只落一行；
 2. 事务提交后以投递行 id 作 BullMQ `jobId` 入 `webhook-delivery` 队列；
 3. 入队失败不回滚：`reconciliation`（每 1 min，[06](06-modules-jobs-import-export-thumbnails.md) §3）扫描 `status='pending' AND next_attempt_at < now() - 2 × 处理器超时`（处理器超时 15 s，06 §1）且无对应 BullMQ 作业的行重新入队（rulings §4.13「Webhook 投递补 Outbox 对账」；Valkey 数据丢失时同样由它补投）。
 
@@ -180,7 +181,7 @@ PRD SV-15 原写「落库只存 hash」，但 HMAC 签名必须持有密钥本�
             "pageKey": "…", "link": "https://<host>/documents/<docId>?comment=<threadId>" } }
 ```
 
-`comment.mentioned` 的 `data` 另含 `mentionedUserIds`（§3 过滤后），`comment.resolved` 为 `{docId, threadId, resolvedBy, resolvedAt, link}`，`automation.job_finished` 为 `{jobId, kind, status, batchId?, clientRef?, docId?, createdBy, errorCode?, finishedAt, downloadPath}`（不含预签名 URL 与填充数据，产物凭会话经 `GET /exports/:jobId` 换取，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)）。**载荷不含评论正文与文档标题**：投递记录保留 90 天且不在文档永久删除的参与者集合里，只放 id、时间与深链才能保证永久删除后不残留内容；集成方凭深链或 M4 API 取正文。深链格式按 INC-35（`/documents/:id?comment=`）。
+`comment.mentioned` 的 `data` 另含 `mentionedUserIds`（§3 过滤后），`comment.resolved` 为 `{docId, threadId, resolvedBy, resolvedAt, link}`，`automation.job_finished` 为 `{jobId, kind, status, batchId?, clientRef?, docId?, createdBy, errorCode?, finishedAt, downloadPath}`（不含预签名 URL 与填充数据，产物凭会话经 `GET /exports/:jobId` 换取，[06 §7.4](06-modules-jobs-import-export-thumbnails.md)），`access_request.created` 为 `{docId, requestId, requesterId, requestedAt, hasMessage, link}`（2026-10-15，rulings §4.25 DS-67：带文档、申请与申请人的标识、申请时间与是否附留言，**不含留言正文**；`link` 指向文档的分享对话框 `https://<host>/documents/<docId>/share`（[50/02 §2](../50-frontend/02-app-shell-routing-and-session.md) 的对话框路由），所有者打开即见「访问申请 N」；集成方据此通知所有者）。**载荷不含评论正文、申请留言与文档标题**：投递记录保留 90 天且不在文档永久删除的参与者集合里，只放 id、时间与深链才能保证永久删除后不残留内容；集成方凭深链或 M4 API 取正文。深链格式按 INC-35（`/documents/:id?comment=`）。
 
 ### 5.2 请求与签名
 
@@ -510,7 +511,10 @@ flowchart LR
 | `permission.revoked` | permission | `DELETE …/permissions/:principalId` | 一 | — | `principalId, previousRole` | M3 |
 | `permission.denied` | security | DocumentRoleGuard 403、事件 `permission/denied`、WS 每帧检查拒绝 | 二 | ✓ | `capability, channel: rest\|ws\|command` | M3 |
 | `share_link.created` | permission | `POST …/share-links` | 一 | — | `linkId, role, expiresAt` | M3 |
-| `share_link.revoked` | permission | `DELETE …/share-links/:linkId` | 一 | — | `linkId` | M3 |
+| `share_link.updated`（2026-10-15，rulings §4.25 DS-47） | permission | `PATCH …/share-links/:linkId`（改角色或有效期，令牌不变） | 一 | — | `linkId, from: {role, expiresAt}, to: {role, expiresAt}` | M3 |
+| `share_link.revoked` | permission | `DELETE …/share-links/:linkId`（含界面上的「改回仅邀请」） | 一 | — | `linkId` | M3 |
+| `access_request.created`（2026-10-15，rulings §4.25 DS-48） | permission | `POST …/access-requests` 新记下一条（24 小时内重复提交不写）；同名的对外 Webhook 事件（DS-67）在 §4.2、§5.1 另行登记，两者同一事务产生、各自维护 | 一 | — | `requestId, hasMessage`（不记留言内容） | M3 |
+| `access_request.approved` / `access_request.rejected`（2026-10-15） | permission | `POST …/access-requests/:requestId/approve` / `…/reject`（批准另写一条 `permission.granted`） | 一 | — | `requestId, requesterId, role?`（`role` 只在批准时有） | M3 |
 | `share_link.accessed` | access | ShareLinkGuard 成功叠加链接角色（每次外部访问，ADR-0029 补充 2026-09-21「仅审计，不采样」；1 s 合并计数不丢次数） | 二 | ✓ | `linkId, role, directRole` | M3 |
 | `media.uploaded` | edit | `POST …/media/commit`（INC-21；去重命中也记，标 `deduplicated`） | 一 | — | `sha256, byteSize, mime, deduplicated` | M2 |
 
@@ -532,7 +536,7 @@ flowchart LR
 | `snapshot.restored` | version | `POST …/snapshots/:id/restore` | 一 | — | `snapshotId, restoreSnapshotId` | M3 |
 | `import.created` / `import.cancelled` | edit | `POST /imports`、`POST /imports/:jobId/cancel`、`POST /documents/:id/duplicate`（`source:'duplicate'`） | 一 | — | `jobId, byteSize, source?` | M2 |
 | `import.completed` / `import.failed` | edit | import 处理器终态 | 一 | — | `jobId, docId, errorCode` | M2 |
-| `export.created` | access | `POST /documents/:id/export`（服务端导出，路由里程碑见 [15](15-rest-api-catalog.md) §3.9） | 一 | — | `jobId, format` | M3 |
+| `export.created` / `export.cancelled`（后者 2026-10-22，rulings §4.25 DS-101） | access | `POST /documents/:id/export`（服务端导出，路由里程碑见 [15](15-rest-api-catalog.md) §3.9）、`POST /exports/:jobId/cancel`（取消排队或生成中的导出，[06](06-modules-jobs-import-export-thumbnails.md) §7.5） | 一 | — | `jobId, format` | M3 |
 | `export.downloaded` | access | `GET /exports/:jobId`（含自动化作业产物） | 二 | — | `jobId` | M3 |
 | `automation.created`（2026-10-03，rulings §4.24 AL-7） | edit | `POST /documents/:id/automation/:kind`、`POST /automation/:kind` 受理（[06 §7.4](06-modules-jobs-import-export-thumbnails.md)） | 一 | — | `kind, batchId?, count, docId?`（不含填充数据） | M3 |
 
@@ -583,8 +587,8 @@ flowchart LR
 | 表 | 所属模块与仓储 | 唯一写方 | 读方 | DDL |
 |---|---|---|---|---|
 | `comments` | CommentsModule · `CommentsRepository`（`upsertThreads`、`upsertReplies`、`markDeleted`、`listByDoc`、`findMentioned`、`purgeByDoc`） | `CommentMirrorObserver`（collab，`cordex_system`）；参与者 `comments`（worker） | 评论 REST（api，`cordex_app` + RLS） | [13](13-ddl-comments-webhooks-audit.md) §2、§6 |
-| `webhook_subscriptions` | WebhooksModule · `WebhookRepository` | 订阅管理用例（api） | 投递处理器（worker）、生产者（collab 的评论镜像与 worker 的自动化处理器，只读 id 与过滤） | [13](13-ddl-comments-webhooks-audit.md) §4 |
-| `webhook_deliveries` | WebhooksModule · `WebhookRepository` | 生产者写 `pending`（collab）；处理器写状态（worker）；`webhook-deliveries-prune` 删终态行；ops 重放 | 投递日志 REST（api）、`reconciliation`（worker，只读） | [13](13-ddl-comments-webhooks-audit.md) §5 |
+| `webhook_subscriptions` | WebhooksModule · `WebhookRepository` | 订阅管理用例（api） | 投递处理器（worker）、生产者（collab 的评论镜像、worker 的自动化处理器与 api 的访问申请受理，只读 id 与过滤） | [13](13-ddl-comments-webhooks-audit.md) §4 |
+| `webhook_deliveries` | WebhooksModule · `WebhookRepository` | 生产者写 `pending`（collab 的评论镜像、worker 的自动化处理器；api 的访问申请受理，2026-10-15，DS-67，`cordex_app` 只有七列 INSERT）；处理器写状态（worker）；`webhook-deliveries-prune` 删终态行；ops 重放 | 投递日志 REST（api）、`reconciliation`（worker，只读） | [13](13-ddl-comments-webhooks-audit.md) §5、§5.2 |
 | `audit_log` | AuditModule · `AuditRepository`（只有 `insert`、`insertBatch`、`query`、`exportRange`、`tail`，无更新与删除方法） | `RecordAuditEventUseCase`（各角色）；分区由 ops `audit-rotate` | 审计 REST（api）、`audit-seal` 与校验（worker） | [13](13-ddl-comments-webhooks-audit.md) §3 |
 
 ### 10.2 Nest 模块定义（imports / exports）
@@ -592,7 +596,7 @@ flowchart LR
 | 模块 | imports | providers（关键） | controllers | exports |
 |---|---|---|---|---|
 | `CommentsModule` | `CordisHostModule`（`onPersisted` 挂点、`collabServer.broadcastEvent`）、`UsersModule`（显示名）、`PermissionsModule`（`DocumentRoleGuard`、`RlsContext`）、`WebhooksModule` | `CommentsRepository`、`ListThreadsUseCase`、`GetThreadUseCase`、`ListMyMentionsUseCase`、`ImportAsEditableThreadUseCase`、`MirrorCommentChangeUseCase`、`CommentMirrorObserver`（只在 collab 注册）、`PurgeDocumentCommentsUseCase`（`@PurgeParticipant('comments')`） | `CommentsController`（api，`CommentsHttpModule`）；`CommentsImportController`（collab，`CommentsImportHttpModule`，P1） | 无 |
-| `WebhooksModule` | `ConfigModule`（含其导出的 secrets provider：KEK）、`RedisModule`（BullMQ） | `WebhookRepository`、`ManageWebhookSubscriptionUseCase`、`DeliverWebhookEventUseCase`、`ListWebhookDeliveriesUseCase`、`EgressGuard`、`WebhookSigner`、`WebhookDeliveryProcessor`（只在 worker 注册） | `WebhooksController`（api） | `DeliverWebhookEventUseCase`（供 Comments 与 ImportExport 的 `AutomationProcessor`，后者 2026-10-03 起）、`WebhookRepository`（供 Jobs 的 `reconciliation` 只读） |
+| `WebhooksModule` | `ConfigModule`（含其导出的 secrets provider：KEK）、`RedisModule`（BullMQ） | `WebhookRepository`、`ManageWebhookSubscriptionUseCase`、`DeliverWebhookEventUseCase`、`ListWebhookDeliveriesUseCase`、`EgressGuard`、`WebhookSigner`、`WebhookDeliveryProcessor`（只在 worker 注册） | `WebhooksController`（api） | `DeliverWebhookEventUseCase`（供 Comments、ImportExport 的 `AutomationProcessor`（2026-10-03 起）与 Permissions 的 `RequestAccessUseCase`（2026-10-15 起，DS-67））、`WebhookRepository`（供 Jobs 的 `reconciliation` 只读） |
 | `AuditModule`（global） | `ConfigModule`、`CordisHostModule`（事件订阅） | `AuditRepository`、`RecordAuditEventUseCase`、`AuditBuffer`、`AuditEventSubscriber`、`QueryAuditLogUseCase`、`VerifyChainUseCase`、`SealJob`（只在 worker 注册）、`AuditVerifyController`（内部端口，只在 worker） | `AuditController`（api） | `RecordAuditEventUseCase`（供 `common/interceptors/audit.interceptor.ts`、`CollabUpgradeHandler` 与 `onAuthenticate` 等协同钩子、异常过滤器） |
 
 `DocumentRoleGuard` 由 `PermissionsModule` 导出（`CommentsModule` 因此 import 它），`PlatformAdminGuard` 无 DI 依赖、以装饰器直接使用；`SessionGuard` 为全局守卫，本组模块不为鉴权 import `AuthModule`（BE-06）。机密（KEK、审计盐）由 `ConfigModule` 导出的 secrets provider（`config/secrets.ts`）提供，不另设 `SecretsModule`（[01](01-service-overview-and-roles.md) §3）；控制器与 providers 分在 `XxxHttpModule` 与 `XxxModule`（01 §5 结构规则）。
@@ -615,7 +619,7 @@ flowchart LR
 
 ### 10.4 角色装配与参与者
 
-装配以 [01](01-service-overview-and-roles.md) §5 矩阵为唯一版本，本组的部件分布是：评论只读 REST、Webhook 管理 REST、审计 REST 在 api；`CommentMirrorObserver`、Webhook 生产者与评论导入 REST（P1）在 collab；`WebhookDeliveryProcessor`、`audit-seal`、`webhook-deliveries-prune`、审计校验内部端点与参与者 `comments` 在 worker；`AuditInterceptor` 与 `AuditEventSubscriber` 在 api / collab / worker；renderer 一个都不装。
+装配以 [01](01-service-overview-and-roles.md) §5 矩阵为唯一版本，本组的部件分布是：评论只读 REST、Webhook 管理 REST、审计 REST 在 api；`CommentMirrorObserver`、评论的 Webhook 生产者与评论导入 REST（P1）在 collab；访问申请的 Webhook 生产者随 PermissionsModule 在 api（2026-10-15，DS-67），自动化作业的在 worker；`WebhookDeliveryProcessor`、`audit-seal`、`webhook-deliveries-prune`、审计校验内部端点与参与者 `comments` 在 worker；`AuditInterceptor` 与 `AuditEventSubscriber` 在 api / collab / worker；renderer 一个都不装。
 
 ### 10.5 引用的配置键、Valkey 键与指标
 
@@ -634,6 +638,7 @@ flowchart LR
 | 客户端经 WS 写评论后 ≤ 1 s 镜像行可经 REST 读到，且在线客户端收到 `CONTROL.event{comments.changed}` | [70/07](../70-testing/07-backend-integration-and-api-e2e.md) §12，`test/server-integration` |
 | commenter 越权改他人回复被软门禁还原后，镜像与 Webhook 都没有出现越权值 | 70/07 §12 |
 | 多实例同一变更只产生一行投递（`uq_webhook_deliveries_event`） | 70/07 §12 |
+| 访问申请（2026-10-15，rulings §4.25 DS-67）：新记下一条申请时，订阅了 `access_request.created` 的 active 订阅各得一条 `pending` 投递行、与申请行同一事务（注入提交失败后两者都不在），载荷字段恰为 `docId, requestId, requesterId, requestedAt, hasMessage, link`、不含留言；24 小时内重复提交不产生投递行，满 24 小时再提交产生第二个事件（`event_id` 不同） | 70/07 §12 |
 | 跨文档「@我」只返回直接授权可读且 `active` 的文档；无授权用户经 RLS 读不到任何 `comments` 行 | 70/07 §5（`security-rls`，`e2e/smoke`） |
 | Webhook 请求带 `webhook-id`、`webhook-timestamp`、`webhook-signature`，用任一语言的 Standard Webhooks 校验库以创建响应中的密钥验签通过；重试间 `webhook-id` 不变；轮换宽限期内 `webhook-signature` 含两个 `v1,` 签名、新旧密钥各自可验；库中无密钥明文 | [70/10](../70-testing/10-security-testing.md) §10 |
 | 5xx 与超时重试、`attempt` 递增、8 次后 `dead-lettered`；非 408 / 429 的 4xx 直接 `failed`；3xx 不跟随 | 70/07 §12 |

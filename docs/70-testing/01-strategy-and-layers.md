@@ -1,5 +1,5 @@
 # 01 测试策略总览与分层职责
-> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§4 命名示例改为 @cordexjs/xml 的 roundtrip.property.test.ts）；2026-10-03（补登 §4.22：表格、图表编辑的新增用例按 §2 分层——命令与解析在 `test/unit`、并发语义在 `test/collab-sim`、界面在 `e2e/full-compose`，本文分层与命名口径不变）；2026-10-03（§4.24 设计线对齐审计：本文口径不变；新增用例按 §4 落点——Headless 自动化 `apps/server/test/e2e/automation/*.e2e-spec.ts` 属 API e2e 层，足迹服务端链路 `plugin-footprint-server.int-spec.ts` 与 renderer 插件集 `content-plugins-rpc.int-spec.ts` 属集成层，§11 所有权矩阵加 apps/server ImportExportModule 自动化作业一行） | 依赖：charter v0.2、rulings §4.15–§4.20、§4.22、§4.24、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
+> 状态：v0.1 | 负责：测试设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 整合：§4 命名示例改为 @cordexjs/xml 的 roundtrip.property.test.ts）；2026-10-03（补登 §4.22：表格、图表编辑的新增用例按 §2 分层——命令与解析在 `test/unit`、并发语义在 `test/collab-sim`、界面在 `e2e/full-compose`，本文分层与命名口径不变）；2026-10-03（§4.24 设计线对齐审计：本文口径不变；新增用例按 §4 落点——Headless 自动化 `apps/server/test/e2e/automation/*.e2e-spec.ts` 属 API e2e 层，足迹服务端链路 `plugin-footprint-server.int-spec.ts` 与 renderer 插件集 `content-plugins-rpc.int-spec.ts` 属集成层，§11 所有权矩阵加 apps/server ImportExportModule 自动化作业一行）；2026-10-08（design-language-v3 第 1 批收口：§4 落点规则新增第 7 条「登记」——测试文件按 rulings §4.25 DP-5、DP-8 逐个登记在所属模块 40 §4 目录树与 §5 文件表，既有测试由模块线在 G6 落地前从 §9 一次性迁入、此前文档阶段新增的测试先登记在 §9（TB-48）；§5「与 40 各模块 §9 的对账」段同步，M-10 行注明 ui-react 包内的三个 Playwright spec 已迁到 apps/web 并登记在 40/11 §9；分层与命名口径不变） | 依赖：charter v0.2、rulings §4.15–§4.20、§4.22、§4.24、[30-architecture/11](../30-architecture/11-testing-strategy.md)、[09-06](../30-architecture/09-type-discipline/06-scanners.md)、[09-07](../30-architecture/09-type-discipline/07-hooks-and-ci.md)、[09-09](../30-architecture/09-type-discipline/09-plugin-type-contracts.md)、[ADR-0048](../30-architecture/adr/0048-type-testing-tooling.md)、PRD 04 NF-09
 
 本文是测试侧的总纲：测试分几层、每层用什么工具、在什么环境跑、谁来写、何时跑、落在 13 个 CI job 的哪个步骤；测试文件叫什么、放在哪里（T-NAMING 在本文定稿，其余 70 文件与 50 / 60 的「机械验证」小节都按本文引用）；覆盖率、门禁分级与所有权。
 
@@ -167,6 +167,7 @@ flowchart LR
 4. **测试工具与测试分开**：kit、替身、构造器放包的 `src/testing/`，经 `./testing` 子路径导出供包外复用；`__tests__/` 只放用例。生产代码不得 import 任何 `./testing`（depcruise `no-testing-in-prod`，30/02 §4.0.2）。
 5. **冒烟标签**：浏览器 e2e 用 Playwright 原生标签（`test('…', { tag: '@smoke' }, …)`）进入 `e2e/smoke`；服务端 API / WS 用例以目录 `apps/server/test/e2e/smoke/` 进入 `e2e/smoke`。冒烟清单本身在 [12 §4](./12-ci-gates-mapping.md) 维护。
 6. **夹具落点**见 [11 §9](./11-test-data-fixtures-and-determinism.md#9-夹具落点与所有者)。
+7. **登记**（2026-10-08，rulings §4.25 DP-5、DP-8、TB-48）：新增或移动的测试文件与源文件一样，逐个登记在所属模块 40-modules §4 目录树与 §5 文件表，由 G6（[12 §2](./12-ci-gates-mapping.md) `scanners/process-module-tree`）检查；目前只在各模块 §9 列出的既有测试，由模块线在 G6（`m0-governance-gates`）落地前一次性迁入 §4 / §5，各模块同一口径，在此之前文档阶段新增的测试先登记在 §9。
 
 **图 1-3 测试文件落点决策**
 
@@ -250,7 +251,7 @@ test/
 | `traceability/` | 判定器脚本 + Vitest（`doc-sync.test.ts`） | 判定器在 `test/requirement-matrix`；`doc-sync.test.ts` 在 `test/unit` | PR |
 | `corpus/`、`evidence/` | 数据与脚本，不含用例 | manifest 校验是 `test/fidelity-roundtrip` 的前置；evidence 由 `test/requirement-matrix` 读取 | — |
 
-**与 40 各模块 §9 的对账**（40 §9 只保留包内测试文件清单；场景与断言以 70 为准，由总编排回写；M-01（`tooling/ci`、T-PERF-GATE）、M-05（`test/collab-sim/`）与 M-13（`test/preset-blind/`）三行已在 2026-09-25 §4.19 轮回写完成；M-02 的 `Clock` / `Random` 端口登记、M-04 的 T2 / T3 语料改为只登记 manifest、M-12 的 `src/shared/clock.ts`，以及各模块 §9 的覆盖率与性能预算改指本文 §8 与 [09](./09-performance-and-capacity.md)，随 2026-09-26 rulings §4.20 TX-10 同轮回写）：
+**与 40 各模块 §9 的对账**（40 §9 保留包内测试文件清单，G6 落地前由模块线一次性迁入 §4 / §5，见 §4 落点规则 7；场景与断言以 70 为准，由总编排回写；M-01（`tooling/ci`、T-PERF-GATE）、M-05（`test/collab-sim/`）与 M-13（`test/preset-blind/`）三行已在 2026-09-25 §4.19 轮回写完成；M-02 的 `Clock` / `Random` 端口登记、M-04 的 T2 / T3 语料改为只登记 manifest、M-12 的 `src/shared/clock.ts`，以及各模块 §9 的覆盖率与性能预算改指本文 §8 与 [09](./09-performance-and-capacity.md)，随 2026-09-26 rulings §4.20 TX-10 同轮回写）：
 
 | 模块 | 40 §9 现状 | 与本文的差异 | 处理 |
 |---|---|---|---|
@@ -263,7 +264,7 @@ test/
 | M-07 幻灯片渲染 | 两包同位 | 无 | 保留 |
 | M-08 身份、文档与存储 | 模块 `__tests__/*.spec.ts`；`apps/server/test/e2e/*.e2e-spec.ts`；`document-rls.e2e-spec.ts` | 模块测试后缀；RLS 用例属 `e2e/smoke`（GV-16） | 模块测试改 `*.test.ts`（接容器的移入 `test/integration/`）；RLS 用例移入 `smoke/` 并改名 `security-rls.e2e-spec.ts` |
 | M-09 协同网关与无头宿主 | 包同位；模块 `__tests__/*.spec.ts`（部分接 testcontainers）；`apps/server/test/{e2e,integration}/` | 模块测试后缀与容器隔离；`render-zero-egress` 属 `e2e/smoke` | 纯逻辑改 `*.test.ts`，接容器的移入 `test/integration/`（契约调用放 `conformance/`）；`render-zero-egress` 移入 `smoke/` 并改名 `renderer-egress.e2e-spec.ts` |
-| M-10 UI 外壳与 slide-ui | 各包同位；ui-react `__tests__/e2e/` 放 Playwright | 包内不放 Playwright | 移到 `apps/web/e2e/{a11y,ui}/`（按上方废止表） |
+| M-10 UI 外壳与 slide-ui | 各包同位；ui-react `__tests__/e2e/` 放 Playwright | 包内不放 Playwright | 移到 `apps/web/e2e/{a11y,ui}/`（按上方废止表；2026-10-08 已迁，三个 spec 登记在 40/11 §9） |
 | M-11 预设装配与应用壳 | preset 同位；`apps/web/src/__tests__/`、`apps/web/e2e/` | `bundle-budget.test.ts` 为信息性断言（T-BUNDLE） | 保留 |
 | M-12 作业、评论与运维 | 模块 `__tests__/*.spec.ts`；`*.processor.spec.ts` 接真实 PG / Valkey | 后缀与落点 | 纯逻辑改 `*.test.ts`；接容器的移入 `apps/server/test/integration/**/*.int-spec.ts` |
 | M-13 doc / sheet 骨架 | 十包同位；根 `test/preset-coexist.test.ts` | 根级散文件 | 移入 `test/preset-blind/` |

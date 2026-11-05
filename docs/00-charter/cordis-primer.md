@@ -1,6 +1,6 @@
 # cordis 4 使用基线（本项目视角）
 
-> 状态：v0.1 | 负责：总编排 | 更新：2026-09-14；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）：§3.6 server-headless 改为挂载 apps/server 给定的插件清单（FE-01）；§5.1 贡献键冲突语义（GV-18）；§5.3 `manifest.ts` 为生成物（GV-17）；顺带对齐 §4.14 K-1/K-2（`Service` 值导出、`defineContributionPoint` 由 schema 反推类型） | 依赖：charter v0.1
+> 状态：v0.1 | 负责：总编排 | 更新：2026-09-14；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）：§3.6 server-headless 改为挂载 apps/server 给定的插件清单（FE-01）；§5.1 贡献键冲突语义（GV-18）；§5.3 `manifest.ts` 为生成物（GV-17）；顺带对齐 §4.14 K-1/K-2（`Service` 值导出、`defineContributionPoint` 由 schema 反推类型）；2026-10-04（design-language-v3 第 0 批：域前缀示例 `ui.ribbon` 改为 `ui.toolbar`（rulings §4.25 DS-5）） | 依赖：charter v0.1
 > 事实来源：npm `cordis@4.0.0-rc.10`（2026-09-08，cordiverse/cordis，deps: `@standard-schema/spec`, `cosmokit`）；`@cordisjs/plugin-loader@1.0.0-rc.7`；cordiverse 仓库 `packages/`: core, create, group, hmr, include, loader, logger-console, timer, utils；生成式 API 目录（context/fiber/events/registry/service）与《Cordis System Guide for Coding Agents》（2026-08-24 快照）。
 > 注意：`@deepseek-ai/cordis@4.0.2` 是 DeepSeek Harness 的 vendored 分支，**本项目使用上游 `cordis`**；示例中出现的 `'@deepseek-ai/cordis'` 一律读作 `'cordis'`。
 > API 处于 rc，**只有 `@cordexjs/kernel` 允许直接 import**，其余包通过 kernel 的 re-export 使用类型与工具。
@@ -218,7 +218,7 @@ declare module 'cordis' { interface Context { slides: SlidesService } }  // 编�
 5. 需要可替换的能力必须走 Definition / Provider / Consumer 三角色；Consumer 不得 import 具体 Provider。
 6. `waterfall` 监听器除非有意否决，否则必须调用 `next()`。
 7. 测试卸载/重载，不只测试启动：断言 `getEffects()` 卸载后为空、无重复注册。
-8. 自定义服务名与事件名带域前缀（`slide/…`、`ui.ribbon`），避免碰撞。
+8. 自定义服务名与事件名带域前缀（`slide/…`、`ui.toolbar`），避免碰撞。
 
 ### MUST NOT
 1. 依赖 yaml/数组顺序保证就绪。

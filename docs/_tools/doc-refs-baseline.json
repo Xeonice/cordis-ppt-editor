@@ -1,9 +1,9 @@
 {
   "$comment": "由 docs/_tools/check-doc-refs.py --write-baseline 生成，勿手改。G5 文档引用反查的棘轮基线：entries[文件][类别][引用] = 失配次数（不含行号）；类别 req 需求编号、rest REST 路由、errcode 错误码、screen 界面、adr ADR、ruling 裁决小节。新增失配即失败，已消失的失配须重新 --write-baseline 收紧；只减不增，由变更 docs-coverage-baseline 清零（docs/80-process/02 §3）。",
-  "total": 188,
+  "total": 179,
   "byCategory": {
-    "rest": 29,
-    "errcode": 159
+    "rest": 24,
+    "errcode": 155
   },
   "entries": {
     "docs/00-charter/charter.md": {
@@ -29,11 +29,6 @@
     "docs/20-design/03-screens/13-import-progress-and-degraded-states.md": {
       "errcode": {
         "format.no_document_type": 1
-      }
-    },
-    "docs/20-design/03-screens/32-admin-plugin-management.md": {
-      "errcode": {
-        "plugin.activate_failed": 1
       }
     },
     "docs/30-architecture/04-document-model.md": {
@@ -93,7 +88,6 @@
         "command.unit_not_found": 3,
         "format.no_document_type": 6,
         "format.unsupported_mime": 1,
-        "kernel.plugin_failed": 2,
         "store.import_append_conflict": 1,
         "store.nested_transaction": 1
       }
@@ -152,9 +146,7 @@
     "docs/40-modules/11-preset-assembly-and-app-shell.md": {
       "rest": {
         "GET /imports/:param": 1,
-        "GET /internal/render/:param/state": 1,
-        "GET /templates": 2,
-        "POST /documents{template}": 1
+        "GET /internal/render/:param/state": 1
       },
       "errcode": {
         "format.no_codec": 1
@@ -194,8 +186,7 @@
     "docs/40-modules/17-plugin-authoring-patterns.md": {
       "errcode": {
         "command.permission_denied": 1,
-        "format.no_document_type": 1,
-        "kernel.plugin_failed": 1
+        "format.no_document_type": 1
       }
     },
     "docs/40-modules/19-atlas-backend-and-data.md": {
@@ -213,9 +204,7 @@
     },
     "docs/50-frontend/02-app-shell-routing-and-session.md": {
       "rest": {
-        "GET /imports/:param": 1,
-        "GET /templates": 1,
-        "POST /documents{template}": 1
+        "GET /imports/:param": 1
       }
     },
     "docs/50-frontend/03-preset-assembly-and-plugins.md": {

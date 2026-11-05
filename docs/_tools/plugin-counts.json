@@ -53,9 +53,9 @@
       "bundle": 3
     },
     "byNecessity": {
-      "core": 8,
+      "core": 9,
       "contract": 10,
-      "optionalDegrade": 17,
+      "optionalDegrade": 16,
       "optionalExtension": 10,
       "na": 3
     },
@@ -114,7 +114,7 @@
     }
   },
   "definitions": 25,
-  "contributionPoints": 27,
+  "contributionPoints": 26,
   "presets": {
     "preset-slide-viewer": {
       "resident": 12,

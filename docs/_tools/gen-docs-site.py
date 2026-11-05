@@ -1022,48 +1022,59 @@ class Pages(Site):
                 % ("".join(segs), icon("left"), len(states), icon("right"), "".join(frames), pg))
 
     # -------------------------------------------------------- 色板
+    # 迁移期 token 取值的唯一归属是 v3 样张的 v3.css（80-process/02 §2，rulings §4.25 DS-2、DS-7）：暗色是 .v3-root 的缺省值，
+    # 亮色是 [data-v3-theme="light"] 的覆盖（选择器更具体，与声明先后无关）；var() 按各自主题解析，color-mix() 派生值保留表达式、
+    # 由浏览器混色。只列 .v3-root 里的 --v3-* 颜色 token；全量迁移、v3 token 并入 src/index.css 后随之改读该文件。
     def palette_block(self):
-        p = os.path.join(DOCS, "20-design/playground/src/index.css")
+        p = os.path.join(DOCS, "20-design/playground/src/v3/v3.css")
         if not os.path.exists(p):
             return ""
-        css = open(p, encoding="utf-8").read()
-        color = re.compile(r"^(#[0-9A-Fa-f]{3,8}|rgba?\([^()]*\))$")
+        css = re.sub(r"/\*.*?\*/", "", open(p, encoding="utf-8").read(), flags=re.S)
+        color = re.compile(r"^(#[0-9A-Fa-f]{3,8}|rgba?\([^()]*\)|color-mix\(.*\))$")
 
         def props(sel):
             d = {}
-            for blk in re.findall(sel + r"\s*\{([^{}]*)\}", css):
+            for blk in re.findall(r"(?m)^" + sel + r"\s*\{([^{}]*)\}", css):
                 for name, val in re.findall(r"--([\w-]+)\s*:\s*([^;]+);", blk):
-                    if color.match(val.strip()):
-                        d[name] = val.strip()
+                    d[name] = val.strip()
             return d
-        light, dark = props(r"(?m)^:root"), props(r"(?m)^\.dark")
-        groups = [("语义色", lambda n: not re.match(r"(chart|presence|sidebar|glass|success|warning|info|canvas|doc|stage)", n)),
-                  ("状态色", lambda n: re.match(r"(success|warning|info)", n)),
-                  ("图表色", lambda n: n.startswith("chart")),
-                  ("画布、纸面与舞台", lambda n: re.match(r"(canvas|doc|stage)", n)),
-                  ("材质（玻璃）", lambda n: n.startswith("glass")),
-                  ("侧栏", lambda n: n.startswith("sidebar")),
-                  ("协作者在场色", lambda n: n.startswith("presence"))]
+
+        def resolve(val, env, depth=0):
+            return re.sub(r"var\(--([\w-]+)\)", lambda m: resolve(env[m.group(1)], env, depth + 1)
+                          if m.group(1) in env and depth < 8 else m.group(0), val)
+        base, over = props(r"\.v3-root"), props(r'\.v3-root\[data-v3-theme="light"\]')
+        dark, light = base, {**base, **over}
+        names = [n for n in dict.fromkeys(list(base) + list(over))
+                 if n.startswith("v3-") and color.match(resolve(dark.get(n, light[n]), dark))]
+        groups = [("表面、文字与边框（§2.2）", lambda n: re.match(r"v3-(canvas|panel|border|text|seg-on|handle|card-hover|swatch-line|scroll)", n)),
+                  ("强调色（§2.3）", lambda n: re.match(r"v3-(a-light|a-dark|accent|sel)", n)),
+                  ("协作者身份色（§2.4）", lambda n: re.match(r"v3-(tone-|collab)", n)),
+                  ("状态色与遮罩（§2.5）", lambda n: re.match(r"v3-(danger|warning|success|scrim)", n)),
+                  ("其他", lambda n: True)]
         out, seen = [], set()
         for label, pred in groups:
-            names = [n for n in light if n not in seen and pred(n)]
-            if not names:
+            group = [n for n in names if n not in seen and pred(n)]
+            if not group:
                 continue
-            seen.update(names)
+            seen.update(group)
             rows = []
-            for n in names:
-                lv, dv = light[n], dark.get(n, light[n])
+            for n in group:
+                dv = resolve(dark.get(n, light[n]), dark)
+                lv = resolve(light[n], light)
                 rows.append('<div class="pal-row"><code class="pal-name">--%s</code>'
-                            '<div class="pal-cell on-light"><span class="pal-sw" style="--c:%s"></span><span class="pal-v">%s</span></div>'
-                            '<div class="pal-cell on-dark"><span class="pal-sw" style="--c:%s"></span><span class="pal-v">%s%s</span></div></div>'
-                            % (n, esc(lv), esc(lv), esc(dv), esc(dv), "" if n in dark else "（同亮色）"))
+                            '<div class="pal-cell on-light"><span class="pal-sw" style="--c:%s"></span><span class="pal-v">%s%s</span></div>'
+                            '<div class="pal-cell on-dark"><span class="pal-sw" style="--c:%s"></span><span class="pal-v">%s</span></div></div>'
+                            % (n, esc(lv), esc(lv), "（同暗色）" if n not in over and lv == dv else "", esc(dv), esc(dv)))
             out.append('<div class="pal-group"><div class="pal-gtitle">%s<span class="count">%d</span></div>'
-                       '<div class="pal-head"><span>token</span><span>亮色 :root</span><span>暗色 .dark</span></div>%s</div>'
-                       % (label, len(names), "".join(rows)))
-        src = gh_url(DOCS_REL + "/20-design/playground/src/index.css")
+                       '<div class="pal-head"><span>token</span><span>亮色 [data-v3-theme=light]</span><span>暗色 .v3-root（缺省）</span></div>%s</div>'
+                       % (label, len(group), "".join(rows)))
+        src = gh_url(DOCS_REL + "/20-design/playground/src/v3/v3.css")
         return ('<section class="palette" aria-labelledby="palette"><h2 id="palette">色板（亮 / 暗）</h2>'
-                '<p class="palette-note">由生成器直接读取 <a href="%s" target="_blank" rel="noopener"><code>playground/src/index.css</code></a> '
-                '的 <code>:root</code> 与 <code>.dark</code> 颜色 token 渲染，与 playground 实现保持同源；数值口径以下文 §2 为准。</p>%s</section>'
+                '<p class="palette-note">由生成器直接读取 <a href="%s" target="_blank" rel="noopener"><code>playground/src/v3/v3.css</code></a>'
+                '（迁移期 token 取值的唯一归属，80-process/02 §2）渲染 <code>.v3-root</code> 作用域的颜色 token：暗色为缺省值，亮色为 '
+                '<code>[data-v3-theme="light"]</code> 的覆盖；<code>var()</code> 按各自主题解析为实际取值，<code>color-mix()</code> '
+                '派生值保留表达式、色块由浏览器混色。与 v3 样张同源，取值以代码为准；用途与对比度见下文 §2，幻灯片内容色（<code>.v3-slide</code>，'
+                '与主题无关）见 §2.2a。</p>%s</section>'
                 % (esc(src), "".join(out)))
 
     # -------------------------------------------------------- 分区文档卡片（含行数统计）

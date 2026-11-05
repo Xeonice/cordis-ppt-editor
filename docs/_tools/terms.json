@@ -1,5 +1,5 @@
 {
-  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符与文档标题（rulings §4.20 TX-02；§4.21 起含架构三件套的标题更名）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。新的更名裁决回写时须在此登记。",
+  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符与文档标题（rulings §4.20 TX-02；§4.21 起含架构三件套的标题更名）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。§4.25 起也收已删除的贡献点与界面结构旧称（canonical 写去向，allowIn 只放后续批次的界面文档、历史文档与确有必要的说明性提及）。新的更名裁决回写时须在此登记。",
   "terms": [
     {
       "deprecated": [
@@ -56,12 +56,10 @@
     },
     {
       "deprecated": "ui.statusbar",
-      "canonical": "ui.statusBar",
-      "source": "rulings §5",
+      "canonical": "已删除（rulings §5 定的正名 ui.statusBar 已随 §4.25 DS-6 删除），状态走 ui.notification 与横幅",
+      "source": "rulings §5；§4.25 DS-6",
       "allowIn": [
-        "30-architecture/README.md",
-        "70-testing/01-strategy-and-layers.md",
-        "70-testing/README.md"
+        "30-architecture/README.md"
       ]
     },
     {
@@ -255,6 +253,212 @@
       "deprecated": "cordis 可插拔单元",
       "canonical": "cordis 插件",
       "source": "rulings §4.23 补充裁决（2026-10-01，插件仅计 cordis 插件）"
+    },
+    {
+      "deprecated": "ui.ribbon",
+      "canonical": "ui.toolbar / ui.inspectorSection",
+      "source": "rulings §4.25 DS-5（删除 ui.ribbon：创建类入口走 ui.toolbar，插件按钮进工具条「更多」；格式类走新增 ui.inspectorSection，按选中对象类型挂检查器分区；其余命令走 ui.command）",
+      "allowIn": [
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "ui.statusBar",
+      "canonical": "已删除，状态走 ui.notification 与横幅",
+      "source": "rulings §4.25 DS-6（删除 ui.statusBar：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅；连同 DS-5 贡献点总数 27 → 26）",
+      "allowIn": [
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "Ribbon",
+        "ribbon"
+      ],
+      "canonical": "工具条 / 检查器",
+      "source": "rulings §4.25 DS-1（去掉 ribbon：底部工具条只管创建，右侧检查器随选中对象切换，其余命令进主菜单、右键、⌘K 与快捷键）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "10-prd/08-prd-design-alignment-2026-09-17.md",
+        "10-prd/09-prd-design-alignment-2026-09-18.md",
+        "20-design/03-screens/03-properties-panel.md",
+        "20-design/03-screens/23-settings-panel.md",
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/03-screens/25-viewer-preset-shell.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "80-process/README.md"
+      ]
+    },
+    {
+      "deprecated": "状态栏",
+      "canonical": "已取消（文件名旁同步状态、头像组在线人数、横幅）",
+      "source": "rulings §4.25 DS-6（取消底部状态栏：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "10-prd/08-prd-design-alignment-2026-09-17.md",
+        "10-prd/09-prd-design-alignment-2026-09-18.md",
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "状态胶囊",
+      "canonical": "同步状态行（文件名旁）",
+      "source": "rulings §4.25 DS-6（取消底部状态栏与状态胶囊：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "10-prd/08-prd-design-alignment-2026-09-17.md",
+        "10-prd/09-prd-design-alignment-2026-09-18.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "_tools/README.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "RibbonHost",
+        "RibbonTrailing",
+        "RibbonItem",
+        "RibbonTree",
+        "buildRibbonTree",
+        "RibbonTabBar",
+        "RibbonGroup",
+        "RibbonButton",
+        "MasterRibbon",
+        "ReadonlyRibbonNotice",
+        "useRibbon",
+        "ribbonSpec",
+        "ribbonTab",
+        "ui.ribbonTab",
+        "ui.toggleRibbonTab",
+        "ui.ribbonButton"
+      ],
+      "canonical": "CreationToolbar / ToolbarItem / ToolbarModel / toolbarSpec / ReadonlyToolbarNotice（工具条）与 InspectorSectionItem（检查器分区）",
+      "source": "rulings §4.25 DS-1、DS-5（去掉 ribbon：Ribbon 宿主、条目、视图模型、规格与页签状态全部作废，去向见 40-modules/10 §2.6、§12「2026-10-04 回写」）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "StatusBarModel",
+        "buildStatusBar",
+        "useStatusBar",
+        "StatusBarItem"
+      ],
+      "canonical": "已删除，状态走 SyncStatus 同步状态行、ui.notification 与横幅",
+      "source": "rulings §4.25 DS-6（删除 ui.statusBar 与底部状态栏的视图模型、条目与 hook）"
+    },
+    {
+      "deprecated": [
+        "appBar.more",
+        "appBar.badges"
+      ],
+      "canonical": "mainMenu.<menu> / docMenu（ui.contextMenu 槽位）",
+      "source": "rulings §4.25 DS-1（取消应用栏：「⋯」菜单条目分投主菜单与文档菜单）；DS-21（第 1 批定稿应用栏徽标的去向：母版徽标并入母版视图横幅，查看者徽标并入浏览条「只读浏览中」，见设计 03-02 §2.4、§6.2）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "10-prd/08-prd-design-alignment-2026-09-17.md",
+        "10-prd/09-prd-design-alignment-2026-09-18.md",
+        "20-design/03-screens/03-properties-panel.md",
+        "20-design/03-screens/23-settings-panel.md",
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/03-screens/25-viewer-preset-shell.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "80-process/README.md"
+      ]
+    },
+    {
+      "deprecated": "范围条",
+      "canonical": "已取消（窗格选中即编辑对象，对象名并入母版视图横幅）",
+      "source": "rulings §4.25 DS-146（取消画布上方的范围条「版式 | 母版」：窗格选中母版即编辑母版、选中版式即编辑版式，继承项经检查器顶行「在母版中编辑」改到母版上）；DS-145（正在编辑的对象与继承来源写在母版视图横幅的对象段）",
+      "allowIn": [
+        "10-prd/07-design-coverage-and-gaps.md",
+        "10-prd/09-prd-design-alignment-2026-09-18.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "「切换到母版」",
+        "切换到「母版」"
+      ],
+      "canonical": "在母版中编辑",
+      "source": "rulings §4.25 DS-146（继承项检查器顶行的动作改为「在母版中编辑」：选中母版行与母版上同类型的占位符）；只收带括号的两种写法，裸串是「切换到母版视图」的前缀，不收"
+    },
+    {
+      "deprecated": "master-range-switch",
+      "canonical": "master-node-switch",
+      "source": "rulings §4.25 DS-146（编辑范围单选撤销，范围切换的性能指标删去）；70-testing/09 §3、§14（原场景作废，窗格里切换节点改测 master-node-switch）"
+    },
+    {
+      "deprecated": [
+        "ScopeBar",
+        "slide.panel.scopeBar",
+        "slide.editScope",
+        "doc.editScope",
+        "EditScope",
+        "editScope"
+      ],
+      "canonical": "已删除（DS-146：窗格选中即编辑对象）",
+      "source": "rulings §4.25 DS-146（删去范围条的件 ScopeBar 与贡献 slide.panel.scopeBar、编辑范围的前缀键 slide.editScope 与 doc.editScope、类型 EditScope 与字段 editScope；编辑对象由窗格选中给出，见 40-modules/10 §1.2「编辑对象」）"
+    },
+    {
+      "deprecated": "InheritedPlaceholderOutline",
+      "canonical": "已删除（TB-188：占位符标注改由 slide-render 的 master-annotations 覆盖层画）",
+      "source": "rulings §4.25 DS-148、TB-188；40-modules/10 §4.4、§5.4"
+    },
+    {
+      "deprecated": "--v3-scope-on",
+      "canonical": "已停用（DS-146）",
+      "source": "rulings §4.25 DS-146（编辑范围单选撤销，范围单选选中态的 token --v3-scope-on 停用）"
+    },
+    {
+      "deprecated": "render.overlay('master-inheritance')",
+      "canonical": "render.overlay('master-annotations')",
+      "source": "rulings §4.25 TB-188（覆盖 id 由 master-inheritance 改为 master-annotations，覆盖全部占位符；帮助主题 topic:'master-inheritance' 不是这个 id、不改，所以裸串不收）；40-modules/07 §1.1、§2.6",
+      "allowIn": [
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "OverlayRenderer('master-inheritance')",
+      "canonical": "OverlayRenderer('master-annotations')",
+      "source": "rulings §4.25 TB-188；40-modules/07 §1.2、§2.6"
+    },
+    {
+      "deprecated": "master-inheritance.overlay.ts",
+      "canonical": "master-annotations.overlay.ts",
+      "source": "rulings §4.25 TB-188；40-modules/07 §4.1、§5.1"
+    },
+    {
+      "deprecated": "masterInheritanceOverlay",
+      "canonical": "masterAnnotationsOverlay",
+      "source": "rulings §4.25 TB-188；40-modules/07 §5.1"
     }
   ]
 }

@@ -1,5 +1,5 @@
 # 05 渲染、布局与缩略图
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：canvas 第 ④ 角色媒体与图标预处理、emf-converter 4.x、编辑态临时播放、降级对齐 50/19、图表路线摘要）；2026-09-26（§4.21 整合：§1 标题改四个角色；§6 断行来源改 UCD 生成表；§9 chartex-unsupported 发出方改 fallback.renderer、占位口径对齐 50/19 §4.10；§11 A11yDescriptor 增 role link、links、表格与图表数据；canvas 限制规则标为已登记）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（§4.24 TA-1：§5.2 `comment-pins` 覆盖层归属改为 slide-ui `CommentPins`）；2026-10-03（§4.24 TA-1 收口：40/06 已移出 `comment-pins`，本表该行注明不经 `render.overlay`） | 依赖：[30/07 渲染](../30-architecture/07-rendering.md)、[40/06 布局与渲染引擎](../40-modules/06-layout-and-render-engine.md)、[40/07 幻灯片渲染](../40-modules/07-slide-rendering.md)、[30/04 文档模型](../30-architecture/04-document-model.md) §6 / §12.4、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)、[50/19 可追加元素目录](./19-insertable-elements-overview.md)、[50/23 媒体类](./23-elements-media.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q4 / Q5 / Q7 / Q8、§4.18 CO-01 / CO-02 / CO-19 / FE-08 / FE-09、§4.20 BE-02 / FE-16 / FE-24、§4.21（q-media-insert、q-chart-route、q-extra-inserts）
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：canvas 第 ④ 角色媒体与图标预处理、emf-converter 4.x、编辑态临时播放、降级对齐 50/19、图表路线摘要）；2026-09-26（§4.21 整合：§1 标题改四个角色；§6 断行来源改 UCD 生成表；§9 chartex-unsupported 发出方改 fallback.renderer、占位口径对齐 50/19 §4.10；§11 A11yDescriptor 增 role link、links、表格与图表数据；canvas 限制规则标为已登记）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（§4.24 TA-1：§5.2 `comment-pins` 覆盖层归属改为 slide-ui `CommentPins`）；2026-10-03（§4.24 TA-1 收口：40/06 已移出 `comment-pins`，本表该行注明不经 `render.overlay`）；2026-10-04（design-language-v3 第 0 批：§4.3 `view/zoom-changed` 消费方由状态栏缩放胶囊改为检查器页签行与网格右上胶囊的缩放读数（rulings §4.25 DS-6））；2026-10-08（design-language-v3 第 1 批收口：§11 `missingAlt` 补不含文字的形状，rulings §4.25 TB-54）；2026-10-15（design-language-v3 第 2 批：§9 预期降级与查表未命中的占位统一为虚线框 + 类型图标 + 一行标题 + 一行原因，与缺插件元素的占位同一画法；保真占位可改大小、缺插件占位不能；汇总面板改称保真报告（检查器整栏面板）（rulings §4.25 DS-38、DS-51、DS-52））；2026-10-22（design-language-v3 第 3 批（rulings §4.25 DS-102、DS-103）：§10.1 Provider 表与图 10-1 的 `raster` 改为 M2 全部范围的 PNG 导出、M3 起只有「全部页」走服务端，`server-png` 的「批量 PNG」改写为 M3 起 PNG「全部页」；§10.3 已知限制一段补多页导出的路径与页数上限；JPEG 只给集成方直接调用）；2026-10-22（design-language-v3 第 3 批回写补充，rulings §4.25 TB-151：§9 页级占位（保真「此页内容无法解析」与放映单页渲染失败「此页内容暂时无法显示」）同一画法、在渲染层的纸面内画，与元素级占位、服务端缩略图一致）；2026-10-22（design-language-v3 第 3 批回写收口，rulings §4.25 TB-135、TB-151、TB-157：§9 页级占位的落点写明为 slide-render 的页级回退（40/07 §1.1、§5.1：页层换成覆盖纸面的 `unknown` 节点、母版与版式层照常，界面层不另叠层），运行时回退的页在 `/render` 里报 `render.page_failed`（TB-157）；§10.1 `dom-scaled` 一行的挂载数改引 50/10 §6（overscan 6、同时挂载 ≤ 12 项，TB-135）；§14.2 新增一行；2026-10-22 复核修正：§9 与 §10.3 第 5 步补浏览器图片导出遇运行时页级回退即失败（rulings §4.25 TB-166）；§2 事件表 `render/first-paint` 一行的「加载骨架」改为打开中画面（协同快照打开不画骨架，DS-99）；§14.2 同步；§1、§5.1、§9、§11、§15 五处仍写「待登记 / 待回写」的已回写项按 §14.2 改为已登记，§14.2 canvas 第 ④ 角色一行补已回写的去向）；2026-11-04（design-language-v3 母版视图改版：§5.2 覆盖层 `master-inheritance` 改名 `master-annotations`，数据（含 slide-ui 给的文案与是否 M2 的启用入参 `MasterAnnotationsOptions`）、刷新与落位；§14.2 新增一行；需求编号、优先级与里程碑不变；rulings §4.25 DS-148、TB-188、TB-189、TB-190） | 依赖：[30/07 渲染](../30-architecture/07-rendering.md)、[40/06 布局与渲染引擎](../40-modules/06-layout-and-render-engine.md)、[40/07 幻灯片渲染](../40-modules/07-slide-rendering.md)、[30/04 文档模型](../30-architecture/04-document-model.md) §6 / §12.4、[ADR-0021](../30-architecture/adr/0021-rendering-medium.md)、[ADR-0026](../30-architecture/adr/0026-headless-rendering-and-thumbnails.md)、[ADR-0027](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0036](../30-architecture/adr/0036-chart-rendering-and-editing.md)、[50/19 可追加元素目录](./19-insertable-elements-overview.md)、[50/23 媒体类](./23-elements-media.md)、[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q4 / Q5 / Q7 / Q8、§4.18 CO-01 / CO-02 / CO-19 / FE-08 / FE-09、§4.20 BE-02 / FE-16 / FE-24、§4.21（q-media-insert、q-chart-route、q-extra-inserts）；rulings §4.25 DS-102、DS-103；rulings §4.25 TB-151（第 3 批回写补充）；rulings §4.25 TB-135、TB-157（第 3 批回写收口）；rulings §4.25 TB-166；[40/07](../40-modules/07-slide-rendering.md) §1.1、§2.5、§5.1；rulings §4.25 DS-148、TB-188…TB-190（母版视图改版）
 
 本文是浏览器侧渲染运行时的唯一事实源：一帧怎么画、画到哪、字体与媒体从哪来、画不出来时怎么表达、缩略图用哪条路、屏幕阅读器读什么。`SceneProvider` / `RenderTarget` / `ElementRenderer` / `OverlayRenderer` / `TextMeasurer` 的签名本体留在 [30/07](../30-architecture/07-rendering.md) §2.1 与 [40/06](../40-modules/06-layout-and-render-engine.md) §2.5，包与文件落点留在 40/06、40/07 的 §4–§5，本文只写这些契约在浏览器里怎么被使用、按什么参数运行。
 
@@ -62,7 +62,7 @@ flowchart LR
 | ① `toImage` 栅格化画板 | render-dom `infrastructure/export/to-image.ts` | 主线程 | 单页导出 PNG / JPEG、复制为图片；不做 Worker / OffscreenCanvas 版本（§10.3） |
 | ② `measureText` 度量器 | render-dom `infrastructure/measurer/canvas-measurer.ts`（`layout.measurer` 的 `canvas` Provider） | 主线程（`OffscreenCanvas` 对象但在主线程使用） | 浏览器与 renderer 内 Chromium 都用它，两端度量一致（§6） |
 | ③ `RenderTarget('canvas')` 预留座位 | 仅 M3 末 `engine-render/src/__tests__/canvas-target-contract.test.ts` 内的最小 Provider | — | 只验证 `render.target` 契约不含 DOM 偏置，不进入产品；DX-1000 回退第 ③ 步才可能启用（§13.3） |
-| ④ 媒体与图标预处理 | render-dom `infrastructure/media/image-preprocess.ts`（文件登记待 40/06，§14.2） | 主线程（`createImageBitmap` 异步解码不阻塞；SVG 必须在主线程经 `<img>` 解码） | 只处理媒体字节：大图压缩、GIF 首帧、SVG 与图标的 PNG 回退、视频海报帧与截图取帧；产出 `Blob` 交给插入命令或 MediaCache 变体，不绘制幻灯片内容、不进 Scene、不是 RenderTarget；细则 §8.3 |
+| ④ 媒体与图标预处理 | render-dom `infrastructure/media/image-preprocess.ts`（40/06 §4、§5 已登记，§14.2） | 主线程（`createImageBitmap` 异步解码不阻塞；SVG 必须在主线程经 `<img>` 解码） | 只处理媒体字节：大图压缩、GIF 首帧、SVG 与图标的 PNG 回退、视频海报帧与截图取帧；产出 `Blob` 交给插入命令或 MediaCache 变体，不绘制幻灯片内容、不进 Scene、不是 RenderTarget；细则 §8.3 |
 
 3. 文档内 SVG（`asvg:svgBlip`、SVG 媒体）一律以图像上下文 `<image href="blob:…">` 渲染；render-dom、slide-render 禁止用 `innerHTML` / `insertAdjacentHTML` / `DOMParser` / `outerHTML` / `createContextualFragment` 注入文档内容，DOM 只经 `createElementNS` + `setAttribute` 建树（依据：ADR-0021 修订 5、TD-081）。
 
@@ -129,7 +129,7 @@ flowchart TB
 
 | 事件 | 载荷要点 | 发布者 | 浏览器侧主要订阅者 |
 |---|---|---|---|
-| `render/first-paint` | `(unitId, {ms})` | engine-render | 首屏计时 mark（[13](./13-performance-and-bundling.md) §2）、壳的加载骨架退场 |
+| `render/first-paint` | `(unitId, {ms})` | engine-render | 首屏计时 mark（[13](./13-performance-and-bundling.md) §2）、壳的打开中画面退场（本地字节渐进打开为版式骨架，协同快照打开为画布中央转圈，[02](./02-app-shell-routing-and-session.md) §6，rulings §4.25 DS-99） |
 | `render/frame` | 见上表 | engine-render | ThumbnailService 去抖、开发者面板、`/render` ready |
 | `render/page-mounted` / `render/page-unmounted` | `(unitId, pageId)` | render-dom | `/render` ready、缩略图驻留、资源清理 |
 | `render/element-failed` | `(unitId, nodeId, kind, code)` | render-dom `painter.ts` | `errors.report`、保真诊断（§9） |
@@ -232,7 +232,7 @@ engine-render 的 `Viewport` 是 `view/page-changed` 与 `view/zoom-changed` 的
 | 事件 | 载荷 | 发出时机 | 订阅者 |
 |---|---|---|---|
 | `view/page-changed` | `(unitId, { pageId, index })` | `Viewport.page` 实际改变时，每次改变恰一次 | 查看器壳页码（[12](./12-viewer-embedding-and-render-page.md) §3）、放映 `?page=` 同步与深链（[10](./10-editor-shell-and-interaction.md) §8–§9）、缩略图栏高亮、EM-05 公开事件（[15](./15-events-errors-and-telemetry.md)） |
-| `view/zoom-changed` | `(unitId, { zoom, fit: 'none' \| 'width' \| 'page' })` | 缩放手势结束或数值变更后，按 ≥ 50 ms 合并 | 状态栏缩放胶囊、查看器工具条、EM-05 |
+| `view/zoom-changed` | `(unitId, { zoom, fit: 'none' \| 'width' \| 'page' })` | 缩放手势结束或数值变更后，按 ≥ 50 ms 合并 | 缩放读数（单页在检查器页签行、网格在右上胶囊）、查看器工具条、EM-05 |
 
 `view/mode-changed` 不属本条：视图模式由 ui-core 的 `view.setMode` Operation 驱动（[10](./10-editor-shell-and-interaction.md)、[11](./11-masters-layouts-and-themes.md)），Viewport 只按 `mapViewMode()` 改排布。
 
@@ -240,7 +240,7 @@ engine-render 的 `Viewport` 是 `view/page-changed` 与 `view/zoom-changed` 的
 
 ### 5.1 命中链
 
-命中是一次 `ctx.bail('render/hit-test', point, ctx)`：覆盖层按层序自顶向下询问，任一接管即短路；无人接管时交给 `RenderTarget.hitTest`。dom target 先用 `document.elementFromPoint` 找最近的 `data-cordex-node` 祖先，覆盖不到的情形（无填充文本框的空白区、旋转盒透明区、组合边界）走 `HitTester.geometric` 几何回退。内容命中结果为 40/06 §2.2 的 `HitResult{ nodeId, region: 'body' | 'handle' | 'text', local }`；覆盖层接管时结果另带 `kind: 'handle' | 'pin' | 'presence-label'`（30/07 §7），两种形状的合并登记待 40/06 §2.2 回写（§14.2）。「首次点击选组、双击进组」等选择语义不在命中层，由 slide-ui `canvas-interaction.ts` 决定（[10](./10-editor-shell-and-interaction.md) §7）。
+命中是一次 `ctx.bail('render/hit-test', point, ctx)`：覆盖层按层序自顶向下询问，任一接管即短路；无人接管时交给 `RenderTarget.hitTest`。dom target 先用 `document.elementFromPoint` 找最近的 `data-cordex-node` 祖先，覆盖不到的情形（无填充文本框的空白区、旋转盒透明区、组合边界）走 `HitTester.geometric` 几何回退。内容命中结果为 40/06 §2.2 的 `HitResult{ nodeId, region: 'body' | 'handle' | 'text', local }`；覆盖层接管时结果另带 `kind: 'handle' | 'pin' | 'presence-label'`（30/07 §7），两种形状已在 40/06 §2.2 合并为判别联合（§14.2）。「首次点击选组、双击进组」等选择语义不在命中层，由 slide-ui `canvas-interaction.ts` 决定（[10](./10-editor-shell-and-interaction.md) §7）。
 
 **图 5-1 命中链**
 
@@ -273,7 +273,7 @@ flowchart TB
 
 | 覆盖层 id | 所属包 | 数据源 | zIndex | 可命中 | 刷新触发 |
 |---|---|---|---|---|---|
-| `master-inheritance` | slide-render | 最近一次 `build` 的 `ComposedSlide.inheritedFrom`（闭包持有，40/07 Q-3） | 10 | 否 | 母版视图每次 `build` 后 |
+| `master-annotations`（原名 `master-inheritance`，2026-11-04 按 rulings §4.25 TB-188 改名） | slide-render | 最近一次 `build` 的 `ComposedSlide` 里全部占位符框（含继承来源 `inheritedFrom`，闭包持有，40/07 Q-3）+ `selection` 服务的当前选中 + Viewport + 启用入参 `MasterAnnotationsOptions`（slide-ui 启用这一层时给的 `labels`——类型名、「母版 · 〈类型〉」与锁签文案——与是否 M2 的 `m2Locked`，40/07 §2.5 登记，[11](./11-masters-layouts-and-themes.md) §6，键见 [16](./16-i18n-and-accessibility.md) §1）；M2 锁签也画在这一层（TB-190） | 10 | 否 | 母版视图每次 `build` 后、选中变化与视口变化（缩放、滚动）后；类型名与锁签按数据里的占位符几何在同一遍里定落位，不量 DOM、不等过渡（落位规则以设计 03-26 §4.2 为准，TB-189） |
 | `guides` | render-dom | slide-ui 交互层算好的吸附线与间距（本包不计算吸附） | 20 | 否 | 拖拽帧 |
 | `remote-presence` | render-dom | presence 中性快照 `{id, color, name, position}[]`（[07](./07-collaboration-client.md)） | 30 | 名字标签 | awareness 变化，节流 ≥ 50 ms；3 s 无活动淡出（`remoteCursorFadeMs: 3000`） |
 | `comment-pins` | slide-ui（`CommentPins`，React 画布覆盖组件，不经 `render.overlay` 贡献，与 [40/10](../40-modules/10-ui-shell-and-slide-ui.md)「本包不再贡献覆盖层渲染器」一致；rulings §4.24 TA-1，[40/06](../40-modules/06-layout-and-render-engine.md) §3 已同步移出） | 评论客户端服务（`comments` 包，[08](./08-comments-and-version-history.md)，rulings §4.19 D-COMMENTS-PKG）；无该服务则不挂 | 40 | 钉 | `comment/*` 事件 |
@@ -511,7 +511,8 @@ stateDiagram-v2
 - **意外失败**：`ElementRenderer.render` / `update` 抛错 → render-dom `painter.ts` 捕获，换成失败占位（红色虚线框 +「无法渲染」图标与 i18n 文案），emit `render/element-failed{kind, code}` 并 `errors.report('render.element_failed')`；同页其他元素与其他页不受影响。失败节点在其 `revision` 下一次变化时重试一次，不做定时重试。
 - **预期降级**：渲染器自己判定「按设计画不了」→ 画对应占位，emit `render/element-degraded{reason}`，不走错误上报。
 - **查表未命中**：画 `unknown` 占位（虚线框 + kind 文本），`render.renderer_missing` 每个 kind 上报一次；某个 `ElementRenderer` 插件整体 `FAILED` 时，其 kind 全部走这条路。
-- 三类占位都可选中、移动、删除，内部不可编辑，且都带降级原因；保真诊断面板（M2 P1，设计 10）汇总本 Unit 的降级与失败项。口径与 [50/19](./19-insertable-elements-overview.md) §4.10 一致：覆盖层（选择框、手柄、裁剪遮罩、连接点、内容占位符图标条、上传进度占位、视频临时播放器）不进 Scene；逐元素的渲染器与降级原因见 50/19 §6。
+- **占位的画法**（2026-10-15，rulings §4.25 DS-52）：预期降级与查表未命中的占位统一为虚线框 + 类型图标 + 一行标题 + 一行原因（「内容已保留」一类的话并进原因行），缺插件元素的占位（[04](./04-document-commands-and-undo.md) §1.1）与它同一画法、同一字号，画在纸面上（纸面亮色 token）；整页解析失败时画页级占位「此页内容无法解析」（母版页脚照常）；放映里单页渲染失败的「此页内容暂时无法显示」与它同一画法——页级占位都在渲染层的纸面内画，落点是 slide-render 的页级回退（[40/07](../40-modules/07-slide-rendering.md) §1.1、§5.1）：整页解析失败的页在 `compose-slide.ts` 合成时换，合成某一页抛出的意外错误由 `slide-scene-provider.service.ts` 捕获后换成同一个占位（经 `errors.report('render.page_failed', { pageId, cause })` 上报并发 `render/element-failed{ kind: 'page', pageId, code }`，其余页不受影响）；两种都只把页层换成一个覆盖纸面的 `unknown` 节点（`data.placeholder: 'page'`，不新增 `render.element` key），母版与版式层照常合成（母版页脚照常），由 `fallback.renderer.ts` 用与元素级占位同一组画笔画。编辑器、查看器、放映、客户端与服务端缩略图看到的是同一份，外壳、放映舞台与 slide-ui 都不在画布上另叠一层（2026-10-22，rulings §4.25 TB-151，[10](./10-editor-shell-and-interaction.md) §9.3）。运行时回退的页在 `/render` 的 `ready` 诊断里报 `render.page_failed`，renderer 把它记为失败、不写进缩略图；整页解析失败的页是确定内容，照常回传（TB-157，[12](./12-viewer-embedding-and-render-page.md) §11.3）；浏览器生成的图片导出同一口径，所导页里有运行时回退即这次导出失败（2026-10-22，rulings §4.25 TB-166，§10.3）。意外失败的占位维持危险色虚线框。
+- 三类占位都可选中、移动、删除，内部不可编辑，且都带降级原因；保真占位可以缩放，缺插件占位不能改大小（只画选中框与尺寸角标，[25](./25-elements-readonly-and-opaque.md) §2.5）；保真报告（检查器整栏面板，M2 P1，[18](./18-editor-capabilities.md) UI-04）汇总本 Unit 的降级与失败项。口径与 [50/19](./19-insertable-elements-overview.md) §4.10 一致：覆盖层（选择框、手柄、裁剪遮罩、连接点、内容占位符图标条、上传进度占位、视频临时播放器）不进 Scene；逐元素的渲染器与降级原因见 50/19 §6。
 
 预期降级的 `reason` 取值（占位上的 i18n 文案与命名空间归 [16](./16-i18n-and-accessibility.md)）：
 
@@ -526,7 +527,7 @@ stateDiagram-v2
 | `unsupported-shape-kind` | `fallback.renderer` | 未知 `graphicData` | 否 | M1 |
 | `media-decode-failed` / `media-unavailable` | render-dom `media-resolver` | 见 §8.2 | 媒体到达后恢复 | M1 / M2 |
 
-`media-decode-failed` 与 `media-unavailable` 是本文新增的通用原因（render-dom 发出），与 40/07 §2.4 的文档类型相关原因同属 `reason` 取值集合，登记待 40/06 §2.4 回写。
+`media-decode-failed` 与 `media-unavailable` 是本文新增的通用原因（render-dom 发出），与 40/07 §2.4 的文档类型相关原因同属 `reason` 取值集合，已登记在 40/06 §2.4（§14.2）。
 
 **图 9-1 元素渲染状态**
 
@@ -569,10 +570,10 @@ stateDiagram-v2
 
 | Provider | 用途 | 机制 | 里程碑 |
 |---|---|---|---|
-| `dom-scaled` | 侧栏、母版窗格、查看器缩略图条的**可见项**；M3 前的全览网格 | 每项一个独立的小 `TargetHandle`（复用模板层）+ CSS `scale`，宽 192 px；`IntersectionObserver` 驻留，最多 12 项（OF-15「视口内 + 上下各 10 项」统一按 12 计） | M1 |
-| `raster` | 复制为图片、导出单页 PNG / JPEG（**不是**可配置的缩略图 Provider） | 主线程 `toImage`（§10.3） | M2 |
+| `dom-scaled` | 侧栏、母版窗格、查看器缩略图条的**可见项**；M3 前的全览网格 | 每项一个独立的小 `TargetHandle`（复用模板层）+ CSS `scale`，宽 192 px；`IntersectionObserver` 驻留，同时挂载 ≤ 12 项、overscan 6（挂载数以 [10](./10-editor-shell-and-interaction.md) §6 为唯一口径，PRD OF-15 已按此表述，rulings §4.25 TB-135） | M1 |
+| `raster` | 复制为图片、导出 PNG（2026-10-22 起 M2 四种范围都在浏览器逐页生成、多页打 .zip，M3 起只有「全部页」改走服务端，rulings §4.25 DS-102）；JPEG 只给集成方直接调用，导出对话框不放（DS-103）（**不是**可配置的缩略图 Provider） | 主线程 `toImage`（§10.3） | M2 |
 | embedded 封面 | 文档列表卡片封面（过渡） | 服务端导入处理器取导入原件的包内 `docProps/thumbnail.jpeg` 写为 `__cover`，只做 JPEG 头校验不解码，标 `provisional`；空白文档与包内无该部件时占位 | M2 |
-| `server-png` | 列表封面、全览网格、批量 PNG、分享与版本预览 | `GET /api/v1/documents/:id/thumbnails/:slideId?size=640\|1280`，renderer sidecar 生成 WebP（名称沿用历史）；封面 `slideId = '__cover'`（依据：SG-10、MECH-INC INC-16） | M3 前半段 |
+| `server-png` | 列表封面、全览网格、M3 起 PNG「全部页」导出（DS-102）、分享与版本预览 | `GET /api/v1/documents/:id/thumbnails/:slideId?size=640\|1280`，renderer sidecar 生成 WebP（名称沿用历史）；封面 `slideId = '__cover'`（依据：SG-10、MECH-INC INC-16） | M3 前半段 |
 
 `SlideRenderConfig.thumbnails = { provider: 'dom-scaled' | 'server-png', width: 192, debounceMs: 300, maxMounted: 12 }`；`raster` 不在枚举内，配置为 `raster` 被 zod 拒绝。
 
@@ -582,8 +583,8 @@ stateDiagram-v2
 flowchart TB
   need{"缩略图用途"}
   need -- "侧栏、母版窗格、查看器缩略图条的可见项" --> ds["dom-scaled：小 TargetHandle + CSS scale，宽 192 px，最多 12 项驻留"]
-  need -- "复制为图片、导出单页 PNG" --> raster["raster：主线程 toImage，按页分片，每片 ≤ 50 ms 让出"]
-  need -- "列表封面、全览网格、批量 PNG、分享与版本预览" --> ms{"所处里程碑"}
+  need -- "复制为图片、导出 PNG：M2 全部范围，M3 起除全部页" --> raster["raster：主线程 toImage，按页分片，每片 ≤ 50 ms 让出"]
+  need -- "列表封面、全览网格、M3 起 PNG 全部页、分享与版本预览" --> ms{"所处里程碑"}
   ms -- "M3 前的全览网格" --> ds
   ms -- "M2 列表封面" --> emb["embedded __cover：导入时取包内 thumbnail.jpeg，provisional"]
   ms -- "M3 起" --> sp["server-png：GET …/thumbnails/:slideId?size=640 或 1280"]
@@ -609,8 +610,9 @@ flowchart TB
 2. 把 `blob:` 图片内联为 data URI（SVG 作为图像加载时不允许引用外部资源）；
 3. `XMLSerializer` 序列化 → `Blob(image/svg+xml)` → `Image.decode()` → `<canvas>` 按目标宽度（1280 / 1920 / 3840）与 `pixelRatioCap` 绘制 → `canvas.toBlob(png | jpeg)`；超过浏览器画布尺寸上限时拒绝并提示降低宽度；
 4. 多页导出按页分片，每片 ≤ 50 ms 让出主线程；导出期间 UI 可编辑（快照取自当前 Store）。
+5. 第 1 步合成某一页时走了 slide-render 的运行时页级回退（发 `render/element-failed{ kind: 'page', pageId }`，§9），这次导出即中止、不把「此页内容暂时无法显示」写进文件，导出对话框进失败态（2026-10-22，rulings §4.25 TB-166；判定见 [18](./18-editor-capabilities.md) EXP-03）；整页无法解析的保真占位照常导出。
 
-已知限制：序列化后的 SVG 在图像上下文里取不到页面已加载的 Web 字体（CJK 尤甚）。**M2 位图 spike** 的候选是把用到的字体子集以 `@font-face` data URI 内联进被序列化的 SVG；spike 结论前，客户端 PNG 预算只对「单页、无 Web 字体依赖」场景门禁，封面与批量 PNG 不走本路径（M2 embedded 封面、M3 起 `server-png`）。单页 PNG 预算见 [13](./13-performance-and-bundling.md) §3。
+已知限制：序列化后的 SVG 在图像上下文里取不到页面已加载的 Web 字体（CJK 尤甚）。**M2 位图 spike** 的候选是把用到的字体子集以 `@font-face` data URI 内联进被序列化的 SVG；spike 结论前，客户端 PNG 预算只对「单页、无 Web 字体依赖」场景门禁、多页导出只报告；封面不走本路径（M2 embedded 封面、M3 起 `server-png`）。M2 的多页 PNG 导出走本路径逐页生成、打成 .zip，M3 起 PNG「全部页」改走服务端、其余范围仍走本路径（2026-10-22，rulings §4.25 DS-102）；一次能导出的页数按宽度分档设上限（[13](./13-performance-and-bundling.md) §3）。单页 PNG 预算见 [13](./13-performance-and-bundling.md) §3。
 
 ## 11. 画布可访问树的数据源（依据：A11Y-TREE + 设计 07 §3 + 30/07 §6.1）
 
@@ -624,7 +626,7 @@ flowchart TB
 | `name` | 替代文字（`cNvPr@descr`）；无则取文本内容摘要（≤ 120 字符）；再无则「类型 + 序号」（i18n，如「矩形 3」） |
 | `position` | 相对页面的九宫格位置键（如 `topLeft`），用于「左上」这类相对描述 |
 | `order` | `{ z, placeholder? }`：z 序序号；占位符阅读序（标题 → 副标题 → 正文 → 其他，按 idx） |
-| `missingAlt` | 图片、图表、媒体缺替代文字时为真，供 slide-ui 提示作者 |
+| `missingAlt` | 图片、图表、媒体，以及不含文字的预设形状与任意多边形缺替代文字时为真（含文字的形状与文本框不计入，rulings §4.25 TB-54），供 slide-ui 提示作者 |
 | `decorative` | 元素标记为装饰性（OOXML `adec:decorative`）时为真：不入可访问树、不提示缺少替代文字（[16](./16-i18n-and-accessibility.md) §9） |
 | `links` | 2026-09-26 新增：元素内超链接的列表 `{ text; target: 描述 }[]`（链接文本与目标的可读描述，如「跳到第 5 页」「打开 example.com」）；读屏激活受同一协议白名单约束（只激活 http(s) 与页内跳转，[50/20](./20-elements-text.md) §4 ⑪） |
 | `table` / `chartData` | 2026-09-26 新增：表格项内嵌视觉隐藏的 `<table>`（`firstRow` 时首行为 `th scope="col"`）；图表项附数据表摘要（超过 20 行或 10 列截断并注明），[50/24](./24-elements-tables-and-charts.md) |
@@ -633,7 +635,7 @@ flowchart TB
 - **未挂载页的数据**：`SceneNode.a11y` 只随已挂载页的 `build` 产出；未挂载页由 slide-render 以同一派生规则直接读模型生成描述（不排版、不建 DOM、不构建完整 Scene），接口形状随 `SceneNode.a11y` 一并回写。
 - **不随虚拟化裁剪**：可访问树覆盖全部已装载页，与视觉层是否挂载无关；未装载完的页（`unit/loaded` 之前）以 `aria-busy="true"` 占位。更新走同一 `DirtySet`：只改受影响的列表项，不整树重建。
 - **消费者**：屏幕阅读器（语义）、对象列表键盘导航（顺序，[16](./16-i18n-and-accessibility.md)）、文本编辑态 textarea 的 `aria-activedescendant` 指向当前形状的列表项（[06](./06-text-editing-and-ime.md) §8）。
-- 契约影响：`SceneNode.a11y` 是对 `Scene` 契约的通用（类型盲）扩展，登记待 30/07 §2.1 与 40/06 §2.1 回写。
+- 契约影响：`SceneNode.a11y` 是对 `Scene` 契约的通用（类型盲）扩展，已登记在 30/07 §2.1 与 40/06 §2.1（字段与派生规则以本节为准，§14.2）。
 
 **图 11-1 可访问树的数据流**
 
@@ -731,10 +733,12 @@ flowchart TB
 | 产品缩放范围 10–400% 由 preset 默认配置下发，引擎 clamp 仍为 0.1–8（§4.1） | 本文决定 | 40/06 Q-7 结案、40/11 preset 默认配置 |
 | M2 列表封面的来源 | 已裁定（rulings §4.19 D-M2-CONTENT）：导入处理器写 embedded `__cover`，空白文档占位 | §10.1 |
 | 评论钉覆盖层的数据源包归属 | 已裁定（rulings §4.19 D-COMMENTS-PKG）：`comments` 包 | §5.2 |
-| canvas 第 ④ 角色「媒体与图标预处理」、`infrastructure/media/image-preprocess.ts`、`media-playback` 覆盖层（zIndex 55）、MediaCache 变体 `sha256#frame0`（§1、§5.2、§8.2、§8.3、§8.5） | 本轮新增（rulings §4.21，R-d-23、R-d-68）；ADR-0021 已修订 | 40/06 渲染介质口径段（「canvas 只承担三个角色」改四个）与 render-dom 目录树、文件职责表；30/07 §1 canvas 角色；40/07 `pic.renderer` 职责（GIF 首帧、SVG 回退、播放图标） |
+| canvas 第 ④ 角色「媒体与图标预处理」、`infrastructure/media/image-preprocess.ts`、`media-playback` 覆盖层（zIndex 55）、MediaCache 变体 `sha256#frame0`（§1、§5.2、§8.2、§8.3、§8.5） | 本轮新增（rulings §4.21，R-d-23、R-d-68）；ADR-0021 已修订；已回写：40/06 渲染介质口径段（四个角色）、§4 目录树与 §5 文件表，30/07 §1 第 ④ 角色，40/07 §1.1 与 `pic.renderer` 职责 | 40/06 渲染介质口径段（「canvas 只承担三个角色」改四个）与 render-dom 目录树、文件职责表；30/07 §1 canvas 角色；40/07 `pic.renderer` 职责（GIF 首帧、SVG 回退、播放图标） |
 | SVG 白名单消毒器进 iso 包、浏览器与服务端共用，使本地 sha256 等于服务端规范 sha256（§8.3） | 待定（[50/23](./23-elements-media.md) §13 Q-1） | 30/02、40/04、60/04 §7.2 |
 | 扫描器：`getContext`、`OffscreenCanvas`、`drawImage`、`createImageBitmap` 只允许出现在 `to-image.ts`、`canvas-measurer.ts`、`media/image-preprocess.ts` 与 canvas 契约测试（§15） | 已登记（2026-09-26 整合）：落为 lint 规则而非新扫描器——09-type-discipline/02 §3「canvas 用在四个允许位置之外」行、40/01 `rules/style.ts`，夹具随 TD-081 | 09-type-discipline/02、08；40/01 |
 | emf-converter 4.0.x 版本锁与 `gdiAntialias` 口径（§8.4） | 已定（R-d-24） | 50/17、40/07 §5.1、章程 §5.3 单点表 |
+| 页级回退的落点与 `/render` 的页级失败（§9，rulings §4.25 TB-151、TB-157，2026-10-22） | 已定：落在 slide-render（`compose-slide.ts`、`slide-scene-provider.service.ts`、`fallback.renderer.ts`），已登记（2026-10-22 核对）于 40/07 §1.1、§5.1；运行时回退的页在 `/render` 报 `render.page_failed`（[12](./12-viewer-embedding-and-render-page.md) §11.3） | 已登记（2026-10-22 核对，架构与模块线同批）：30/10 §1.1a `render` 域的 `page_failed`、§11.1 `render/element-failed` 的 `kind: 'page'`；40/07 §1.1、§2.4 运行时回退时发 `render/element-failed{ kind: 'page', pageId, code }`；2026-10-22 复核修正（rulings §4.25 TB-166）：浏览器图片导出遇运行时回退即失败，本文 §9、§10.3 第 5 步，判定在 [18](./18-editor-capabilities.md) EXP-03 |
+| 母版视图的占位符标注覆盖层（§5.2，rulings §4.25 DS-148、TB-188…TB-190，2026-11-04） | 已定：覆盖 id 改为 `master-annotations`（原名 `master-inheritance`），覆盖全部占位符；M2 锁签并入同一层，类型名与锁签的落位纯函数单独成件；标注层从 `selection` 服务与 Viewport 读选中与视口，不扩展 `OverlayContext`；类型名、「母版 · 〈类型〉」与锁签的文案和是否 M2 由 slide-ui 在启用这一层时作为入参 `MasterAnnotationsOptions`（`labels`、`m2Locked`）给出，slide-render 不登记 i18n 命名空间（[11](./11-masters-layouts-and-themes.md) §6，[16](./16-i18n-and-accessibility.md) §1） | 40/07 §2.1、§2.5、§4、§5、§13 Q-3（模块线）；40/10、40/16（覆盖 id 与删去的件）；落位规则以设计 03-26 §4.2 为准 |
 
 ## 15. 机械验证
 
@@ -749,7 +753,7 @@ flowchart TB
 | `canvas` 度量器通过 `runTextMeasurerConformance` | render-dom `__tests__` | test/contract |
 | 改 selection / presence 不调用任何 `ElementRenderer.update` | `overlay-coordinates.test.ts`（overlay-independent） | test/unit |
 | 渲染热路径无 `ctx.waterfall`；DOM 注入禁令（TD-081）；`asvg:svgBlip` 只产出 `<image>` | lint 规则 + `svg-image-context.test.ts` | lint、test/unit |
-| canvas 与图像解码 API 只出现在四处落点（§1 角色 ①–④）；预处理从不对外链资源发请求 | 扫描器规则（待登记，§14.2） | lint |
+| canvas 与图像解码 API 只出现在四处落点（§1 角色 ①–④）；预处理从不对外链资源发请求 | lint 规则（已登记：09-type-discipline/02 §3「canvas 用在四个允许位置之外」行，§14.2） | lint |
 | 预处理：插入的 SVG 已消毒、哈希对象是处理后的字节；输出像素 ≤ 16,777,216；GIF 在编辑态、缩略图、`/render` 为首帧，放映为动画 | render-dom `image-preprocess.test.ts`；slide-render 单测 | test/unit |
 | 编辑态临时播放不触发 `ElementRenderer.update`、不写 Store、不进 awareness；停止后 MediaCache 引用计数复原；缩略图与 `/render` 从不挂载播放元素 | render-dom `media-playback.test.ts`；e2e 资源断言 | test/unit、e2e（70/06 §11） |
 | EMF 栅格化调用显式 `gdiAntialias: true`；超限回到占位 `emf-raster-limit` | slide-render `degrade.test.ts` | test/unit |

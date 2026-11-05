@@ -1,6 +1,6 @@
 # 01 前端架构
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——前端数字卡、每个包里的 cordis 插件、三个前端 preset 的装配清单与差异图，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§1b 插件数一律指 cordis 插件，前端 cordis 插件 33 个，纯库 5 个另列、不计入插件）；2026-10-03（§4.24：§5a 表 5a-1 补插件管理域 PLG，合计按 50/18 逐行计数更正为 170 项（另 I18N 2 项，共 172）） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：升格为前端架构，插 §1a 技术栈与复用、§4a 渲染架构、§5a 能力地图、§5b 元素族；协同客户端改 @hocuspocus/provider；§8 里程碑边界改引 30/01）；2026-09-26（§4.21 整合：§2 秩表改引 30/02 §1；F6 canvas 用途补媒体与图标预处理）；2026-09-26（§4.21 复核：react-table 落点改 ui-react DataGrid；§4a.1 改名；新增 §4b UI 壳与交互架构；§5a 按 50/18 重算（165 项）；表 1a-2 补渐变编辑器；§8 维护约定）；2026-10-01（§4.23 插件管理：能力盘点计数补插件管理域，26 域 172 项）；2026-10-01（包与插件规划显化：新增 §1b 包与插件规划——前端数字卡、每个包里的 cordis 插件、三个前端 preset 的装配清单与差异图，数字引用 `docs/_tools/plugin-counts.json`）；2026-10-01（插件口径仅计 cordis 插件：rulings §4.23 补充裁决 PC-1…PC-4，§1b 插件数一律指 cordis 插件，前端 cordis 插件 33 个，纯库 5 个另列、不计入插件）；2026-10-03（§4.24：§5a 表 5a-1 补插件管理域 PLG，合计按 50/18 逐行计数更正为 170 项（另 I18N 2 项，共 172））；2026-10-04（design-language-v3 第 0 批：§2 包表 slide-ui 行与层带图、§4b 两张图的 ui.* 与规格节点及能力分组表、§6 MasterViewState 行、§9 V32 按 v3 结构改写（rulings §4.25 DS-1、DS-5、DS-6））；2026-10-04（design-language-v3 第 0 批：复验修正——图 4b-1 槽位宿主 RibbonHost 改为 CreationToolbar、InspectorDock 改为 Inspector；§4b 正文「页签」改为创建工具条条目；§4 INS 行「插入页签」改为底部工具条插入工具；§6 两行「状态胶囊」改为文件名旁同步状态行；V20 同屏 backdrop-filter 改为 0（DS-2）；原「状态胶囊」改称文件名旁的同步状态行（rulings §4.25 DS-6），带作废标记的历史陈述统一措辞）；2026-10-07（design-language-v3 第 1 批：§6 状态清单 `MasterViewState` 行的用途改为范围条与画布列顶部母版横幅，去掉「落位随第 1 批定稿」（rulings §4.25 DS-21，50/11 §4））；2026-10-08（design-language-v3 第 1 批收口：§5.4 导出入口改为主菜单「文件 › 导出…」（原「⋯ → 导出…」作废）；§6 `EditorLayoutState` 行改为按文档记在本机、键 `cordex.layout.{rememberKey}`、登出与换人时清除（rulings §4.25 TB-24、TB-41，原「按 unitType」作废），单页 / 网格投影到地址栏 `view`（TB-30）；§9 V22 补进入仅查看形态即退出、非完整形态不可进入（TB-16、TB-44））；2026-10-22（design-language-v3 第 3 批（rulings §4.25 DS-76、DS-78、DS-100…DS-105）：§4b 的 UI 壳表一行改称快捷键面板与偏好设置；§5.4 导出入口改 `Mod+Shift+E` 与降权不可用、完成即下载并关闭、服务端导出只能取消与现签下载、PNG 四种范围在浏览器生成；§6 `ContextKeyValues` 与 `ThemeState` 删去 `density`）；2026-10-22（design-language-v3 第 3 批回写收口，rulings §4.25 TB-152、TB-162：§5.4 第 1 条写明 `Mod+Shift+E` 与命令面板「导出…」绑 shell-glue 的无参 Operation `shell.openExport`、主菜单照旧发 `shell.intent`（TB-162）；第 4 条写明分档页数上限只对 PNG，SVG 只受每份文档的页数天花板（TB-152）；2026-10-22 复核修正：§5.4 第 4 条补运行时单页渲染出错时浏览器图片导出失败（rulings §4.25 TB-166）；§5.4 第 1 条查看者的导出原因写「只有查看权限」、评审者与降权写「需要编辑权限」（DS-105，设计 03-02 §2.3））；2026-10-23（design-language-v3 第 3 批评审修改：表 1a-1 补一行 Tabler 文件类型图标原件（内置、不作依赖，rulings §4.25 DS-143、TB-182）；§5.1 `bytes` 一行与 §7 导入导出一行的「导入页」改为「导入」对话框（DS-140））；2026-11-04（design-language-v3 母版视图改版：§6 `MasterViewState` 一行（`paneSelection` 与 `target` 合回 `target`、`editScope` 作废、上下文条）与 `ContextKeyValues` 一行补 `inspectorTakeover`；需求编号、优先级与里程碑不变；rulings §4.25 DS-145、DS-146、TB-209） | 依赖：[charter v0.2](../00-charter/charter.md) §5.1–§5.3、§7；[rulings](../00-charter/rulings-2026-09-14.md) §4.15–§4.21；[30/01](../30-architecture/01-overview.md)（总架构）、[30/02](../30-architecture/02-layering-and-packages.md) §1、§7、[30/07](../30-architecture/07-rendering.md)（渲染跨端契约）；[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)、[ADR-0049](../30-architecture/adr/0049-dependency-admission-and-license-tiers.md)；[17](17-reuse-and-dependency-catalog.md)、[18](18-editor-capabilities.md)、[19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)；[40/00](../40-modules/00-module-map.md) §5；[40/16](../40-modules/16-plugin-catalog.md) §6.3；[40/18](../40-modules/18-atlas-system-and-frontend.md)；[PRD 05](../10-prd/05-milestones-and-scope.md)；rulings §4.25 DS-76、DS-78、DS-100…DS-105；设计 [03-22](../20-design/03-screens/22-export-dialog.md)；rulings §4.25 TB-152、TB-162（第 3 批回写收口）；rulings §4.25 TB-166；rulings §4.25 DS-140、DS-143、TB-182（第 3 批评审修改）；rulings §4.25 DS-145、DS-146、TB-209（母版视图改版）
 
 本文是 Cordex 的**前端架构**。rulings §4.21（q-arch-reorg 方案 B）把架构分成三份：[30/01](../30-architecture/01-overview.md) 是全仓唯一的总架构（跨端），本文与 [60/01](../60-backend/01-service-overview-and-roles.md) 就地升格为前端架构与后端架构，阅读路径固定为 **30/01 → 本文 → 60/01**。本文只给浏览器侧的执行上下文、技术栈与复用组件（§1a）、包分布、铁律、对象关系、渲染架构（§4a）、端到端主干、编辑器能力地图（§5a）、可追加元素族（§5b）、可观察状态、对外接触面、里程碑落点与机械验证总表；**细节一律链接到专题 [02](02-app-shell-routing-and-session.md)–[16](16-i18n-and-accessibility.md)、复用清单 [17](17-reuse-and-dependency-catalog.md)、能力总表 [18](18-editor-capabilities.md) 与元素目录 [19](19-insertable-elements-overview.md)–[25](25-elements-readonly-and-opaque.md)**，不在此重复。节号沿用升格前的编号，新节以 §1a、§4a、§5a、§5b 插入，既有「50/01 §x」引用不失配。服务端只画「接触面」（路径、子域、请求头、帧名），Nest 模块、进程角色与 Hocuspocus 挂点见 60/01。包名一律省略 `@cordexjs/` 前缀。
 
@@ -122,6 +122,7 @@ flowchart TB
 | L7 / V-ui（70 / 75） | shadcn/ui CLI 4.21.0（复制模式，radix-rhea）、radix-ui 1.6.7、React 19.3.x | MIT | ui-react、`*-ui`、apps/web | UI 原子与浮层原语（ADR-0017） |
 | L7（70） | tailwindcss 4.3.x、tw-animate-css、class-variance-authority、clsx、tailwind-merge | MIT / Apache-2.0 | design、ui-react | 样式与类名合并 |
 | L7（70） | lucide-react（界面图标）、lucide-static 1.48.0（插入图标库，M3 P2） | ISC | ui-react icon-registry；slide-ui 插入图标画廊（惰性） | 图标 |
+| L7（70） | Tabler Icons 3.49.0 的文件类型图标原件（`file-type-ppt`、`file-type-png`、`file-type-svg`、`file-type-pdf` 与通用 `file`，内置，不作依赖） | MIT（注明出处） | ui-react `infrastructure/file-type-icons.tsx` | 导出格式行、导入对话框上传行与「导出本地副本」.pptx 一行的文件类型图标；lucide 没有带扩展名字样的文件图标，设计 04 §2.14 只为这一类开例外（2026-10-23，rulings §4.25 DS-143、TB-182，[17](17-reuse-and-dependency-catalog.md) §3） |
 | L7（70） | @fontsource-variable/geist 5.3.0 | OFL-1.1（字体资产） | design | UI 字体自托管 |
 | L7（70） | cmdk 1.1.1、sonner 2.0.8（pnpm patch 静态 CSS）、react-resizable-panels 4.13.3 | MIT | ui-react | 命令面板、Toast、三栏分栏 |
 | L7（70） | react-colorful 5.8.1（pnpm patch 静态 CSS）、colord 2.10.0；构建期 culori 4.0.2 | MIT | ui-react 颜色弹层；tooling 主题构建 | 颜色面板与 UI 颜色数学（R-d-13、R-d-14） |
@@ -256,7 +257,7 @@ flowchart LR
 | L5（50） | render-dom | dom | DOM/SVG RenderTarget、canvas 度量、TextInputHost、覆盖层宿主、a11y 镜像宿主 | renderer 内的 Chromium 运行同一份 | 05、06、16 |
 | V-render（55） | slide-render（M1–M2 含惰性子路径 `./chart`）、slide-render-chart（M3 起） | dom | SceneProvider、元素渲染器、缩略图 Provider；图表以 d3-scale / d3-shape / d3-array 为底层、按 OOXML 语义自研布局（ADR-0036）；渲染架构见本文 §4a | 同上 | 05、24 |
 | L7（70） | design、ui-core、ui-react | dom | token CSS；框架无关 UI 契约与视图模型；React 19 绑定与 `EditorHost` | 否 | 09 |
-| V-ui（75） | slide-ui | dom | Ribbon、缩略图栏、检查器、画布交互、放映、母版视图 | 否 | 10、11 |
+| V-ui（75） | slide-ui | dom | 创建工具条的幻灯片工具、左栏缩略图与网格视图、检查器分区、画布交互、放映、母版视图 | 否 | 10、11 |
 | L8（80） | preset-slide-viewer、preset-slide、preset-slide-collab、apps/web | dom | 组合根：装配、路由与宿主页面 | 否 | 02、03、12 |
 
 评论客户端包 `comments` 的层号（L4）与依赖上限以章程 §5.2 的登记为准；slide 专属锚点解析、检查器评论页签与画布评论钉由 slide-ui 贡献，见 [03](03-preset-assembly-and-plugins.md) §11、[08](08-comments-and-version-history.md) §2。
@@ -269,7 +270,7 @@ flowchart LR
 flowchart TB
   subgraph mainT["浏览器主线程"]
     shellLayer["组合根层 · apps/web 路由 会话 HostRegistry · preset 装配"]
-    uiLayer["界面层 · ui-react EditorHost · slide-ui Ribbon 检查器 画布交互 · ui-core 输入管线"]
+    uiLayer["界面层 · ui-react EditorHost · slide-ui 工具条 检查器 画布交互 · ui-core 输入管线"]
     cmdLayer["命令与模型层 · kernel commands · model-core history · model-slide Mutation"]
     storeLayer["状态层 · store-memory 或 store-yjs · Y.Doc"]
     renderLayer["渲染层 · engine-render 帧管线 · slide-render 元素渲染器 · render-dom DOM/SVG 与覆盖层"]
@@ -524,23 +525,23 @@ flowchart LR
 
 ## 4b. UI 壳与交互架构
 
-UI 壳是「控件与画布输入怎样变成命令」的那一层（2026-09-26 复核补节，对照用户诉求 2「前端架构」）。它由 L7 的三个包加一个垂直束组成：`ui-core` 定义贡献点、上下文键与输入管线，不含任何框架；`ui-react` 是 `UiRenderer` 的 React 实现，提供 `<EditorHost>`、`EditorShell` 布局与各槽位宿主；`slide-ui` 只向 `ui.*` 贡献幻灯片专属的页签、检查器分区、菜单与键位，并持有画布交互层（插入工具态、裁剪、手柄）；控件的参数装配集中在 slide-ui `application/command-bindings.ts`，写入一律经 `commands.execute`。逐项契约以 [09](09-ui-system-and-theming.md) §1、§6–§9 与 [10](10-editor-shell-and-interaction.md) §1、§4–§7 为准，本节只给结构。
+UI 壳是「控件与画布输入怎样变成命令」的那一层（2026-09-26 复核补节，对照用户诉求 2「前端架构」）。它由 L7 的三个包加一个垂直束组成：`ui-core` 定义贡献点、上下文键与输入管线，不含任何框架；`ui-react` 是 `UiRenderer` 的 React 实现，提供 `<EditorHost>`、`EditorShell` 布局与各槽位宿主；`slide-ui` 只向 `ui.*` 贡献幻灯片专属的创建工具条条目、检查器分区、菜单与键位，并持有画布交互层（插入工具态、裁剪、手柄）；控件的参数装配集中在 slide-ui `application/command-bindings.ts`，写入一律经 `commands.execute`。逐项契约以 [09](09-ui-system-and-theming.md) §1、§6–§9 与 [10](10-editor-shell-and-interaction.md) §1、§4–§7 为准，本节只给结构。
 
 **图 4b-1 UI 壳分层：贡献点、上下文键、命令绑定与覆盖层**
 
 ```mermaid
 flowchart TB
   subgraph core["ui-core：无框架"]
-    points["十个 ui.* 贡献点：ribbon、toolbar、panel、contextMenu 等"]
+    points["九个 ui.* 贡献点：toolbar、inspectorSection、panel、contextMenu 等"]
     keys["上下文键与 when / enablement 求值"]
     pipes["五条输入管线：键盘、指针、IME、剪贴板、拖放"]
   end
   subgraph react["ui-react：UiRenderer 的 React 实现"]
     host["EditorHost 与 EditorShell 布局"]
-    slots["RibbonHost、InspectorDock、PanelHost、CommandPalette、ContextMenuHost"]
+    slots["CreationToolbar、Inspector、PanelHost、CommandPalette、ContextMenuHost"]
   end
   subgraph sui["slide-ui：幻灯片专属贡献与交互层"]
-    specs["ribbon-spec、inspector-spec、shortcut-table"]
+    specs["toolbar-spec、inspector-spec、shortcut-table"]
     bindings["command-bindings：控件到命令参数"]
     interact["画布交互：插入工具态、裁剪模式、手柄与参考线"]
   end
@@ -566,7 +567,7 @@ flowchart TB
 |---|---|---|---|
 | 贡献点、槽位、`when` / `enablement`、上下文键、输入管线与快捷键 | ui-core | [09](09-ui-system-and-theming.md) §6–§8 | KEY、UI |
 | `EditorHost` / `EditorShell` 布局、断点三形态、模式 × 角色 | ui-react | [10](10-editor-shell-and-interaction.md) §1–§3 | UI、VIEW |
-| Ribbon、检查器坞、缩略图栏、命令面板与设置抽屉 | ui-react 宿主 + slide-ui 规格 | [10](10-editor-shell-and-interaction.md) §4–§6、§10 | INS、FMT、TXT、SLD、UI |
+| 底部创建工具条、检查器、左栏缩略图与网格视图、主菜单、命令面板、快捷键面板与偏好设置 | ui-react 宿主 + slide-ui 规格 | [10](10-editor-shell-and-interaction.md) §4–§6、§10 | INS、FMT、TXT、SLD、UI |
 | 画布交互：选择模型、拖拽、插入工具态、元素手柄 | slide-ui + render-dom 覆盖层 | [10](10-editor-shell-and-interaction.md) §7 | SEL、ALN、ARR、INS、PIC |
 | 母版视图与版式画廊 | slide-ui | [11](11-masters-layouts-and-themes.md) §2–§7 | ML |
 | 主题、token 与材质 | design、ui-react | [09](09-ui-system-and-theming.md) §2–§4 | —（界面外观） |
@@ -626,7 +627,7 @@ source 与使用场景：
 
 | source | 字节从哪来 | 使用场景 | 里程碑 |
 |---|---|---|---|
-| `bytes` | 本地文件、导入页的「本地打开」 | M1 查看器与 `/home` 夹具、本地文档（`local:*`）、形态 A–D | M1 起 |
+| `bytes` | 本地文件、「导入」对话框的「本地打开」（M1） | M1 查看器与 `/home` 夹具、本地文档（`local:*`）、形态 A–D | M1 起 |
 | `snapshot` | 宿主已持有的 SnapshotBundle（集成方 `onSave` 产物、`/render` 注入的快照） | 嵌入形态、`/render` 页 | M2 起 |
 | `state` | `GET …/snapshots/latest` 的 Y 状态字节与离线恢复（`encoding: 'yjs-update'`，交 store-yjs 的 `loadState`）；版本预览字节；`/render` 注入的状态字节；`encoding: 'snapshot-json'` 只供 store-memory（它只接受这一种；30/03 §5.3、40/02 §2.1） | apps/web 的全部服务端文档（含 M3 查看者变体）、版本预览、`/render` 页 | M2（版本预览与 `/render` M3） |
 | `empty` | `documentType.createEmpty()`（首页为标题版式，D14） | 本地新建与集成方新建（形态 A–D）；apps/web 服务端文档的「新建空白」改走服务端导入空白模板（[02](02-app-shell-routing-and-session.md) §8） | M2 |
@@ -672,7 +673,7 @@ M2 起单人编辑也经这条链路持久化（第 1、2、6 条的断线退避
 协同客户端自 rulings §4.21（H:q-hp-provider）起用官方 `@hocuspocus/provider` 4.7.0：provider 管 socket 生命周期、Auth 帧、step1 / step2、update 与 awareness 的合并发送、排队与保活；两个类分属 collab-yjs（`HocuspocusProvider`）与 collab-transport-ws（`HocuspocusProviderWebsocket`，外加计量垫片、重连调度器与关闭码策略）。两级 ack、在途 FIFO、PermissionGate、被拒回滚与 OfflineStore 仍是自有胶水，挂在 provider 事件上（H-d-25～H-d-28；细节唯一源 [07](07-collaboration-client.md)）。
 
 1. **加入**：并行发起 `GET /api/v1/documents/:id/snapshots/latest`（ETag / 304）与首次换票 `POST /api/v1/documents/:id/collab-ticket`（有分享令牌时附 `X-Cordex-Share-Token`，票据带 `lnk` claim）→ bootstrap 后把 store-yjs 的 Y.Doc 交给 provider（`autoConnect:false`，由调度器启动）→ 建 `wss://<host>/collab/v1/rooms/:id`（一个 WS 只承载一个文档）→ provider 发 Auth 帧，token 是 async 函数、每次现换票据并返回 auth 字段 JSON，随即发 step1（服务端认证前排队、不应用）→ 服务端回 Authenticated，并以 Stateless 发 `auth.ok{role, limits, reason?}` 与 `room`（与 step1 / step2 的先后不保证）→ 只交换差量 → synced；客户端以 Authenticated 进入 syncing，syncing 期间即可编辑（[07](07-collaboration-client.md) §2；H-d-06、H-d-27）。
-2. **出站**：本地事务 → provider `flushDelay` 50 ms 合并（取代原 LocalBatcher 的合并部分与自有出站令牌桶；LocalBatcher 保留 localSeq、在途 FIFO 与两级 ack）→ 批次将超 `auth.ok.limits.maxUpdateBytes`（默认 1 MiB，INC-07）前先 `flushPendingUpdates`，运行期收到 4429 时 `flushDelay` 加倍 → `outgoingMessage` 事件与计量垫片按内容把帧映射到 localSeq、记入在途 FIFO；Stateless `ack{tier, seq}` 中 `tier:'spill'` 不清 pending，`tier:'db'` 弹队首（[07](07-collaboration-client.md) §5–§6；H-d-28、H:q-hp-persist-ack）。不用 provider 的 `unsyncedChanges` 或 `synced` 判断是否已保存。「未保存到服务器」：`room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（默认 15000）时成立；有本地未获 db 确认项的发起方显示横幅「未保存到服务器 N 项」，其余协作者在状态胶囊显示弱提示「服务器保存延迟」（依据：rulings §4.19 INC-09；[07](07-collaboration-client.md) §6.1）。
+2. **出站**：本地事务 → provider `flushDelay` 50 ms 合并（取代原 LocalBatcher 的合并部分与自有出站令牌桶；LocalBatcher 保留 localSeq、在途 FIFO 与两级 ack）→ 批次将超 `auth.ok.limits.maxUpdateBytes`（默认 1 MiB，INC-07）前先 `flushPendingUpdates`，运行期收到 4429 时 `flushDelay` 加倍 → `outgoingMessage` 事件与计量垫片按内容把帧映射到 localSeq、记入在途 FIFO；Stateless `ack{tier, seq}` 中 `tier:'spill'` 不清 pending，`tier:'db'` 弹队首（[07](07-collaboration-client.md) §5–§6；H-d-28、H:q-hp-persist-ack）。不用 provider 的 `unsyncedChanges` 或 `synced` 判断是否已保存。「未保存到服务器」：`room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（默认 15000）时成立；有本地未获 db 确认项的发起方显示横幅「未保存到服务器 N 项」，其余协作者在文件名旁的同步状态行显示弱提示「服务器保存延迟」（依据：rulings §4.19 INC-09；[07](07-collaboration-client.md) §6.1）。
 3. **入站**：provider 实例在 store-yjs 登记为 `remote` 来源，远端 update 走与本地编辑相同的渲染路径；服务端把更新回显给发送者（H-d-29），CRDT 幂等、不重复生效；撤销只作用于本地来源，他人后写的键被跳过并提示，整步被跳过即停（[04](04-document-commands-and-undo.md) §6）。
 4. **在场**：awareness 由 provider 收发，本地节流（光标与选区 20 Hz、视图 2 Hz、空闲 60 s）不变，查看者只上报视图；y-protocols 每 15 s 续期兼作保活；远端光标与选区在覆盖层绘制（[07](07-collaboration-client.md) §10–§11、[05](05-rendering-and-thumbnails.md) §5）。
 5. **权限**：Stateless `CONTROL.permission` → 客户端权限服务唯一入口 → 降权即拦截出站并进入 readonly-degraded；provider 发出 `authenticationFailed` 时 SessionDriver 立即断开，不让 provider 自动重试；被拒回滚并提供导出本地副本（[07](07-collaboration-client.md) §8）。
@@ -709,10 +710,10 @@ sequenceDiagram
 
 ### 5.4 导出
 
-1. **入口**：「⋯ → 导出…」或 `Mod+E` → Operation `shell.intent{target:'export'}` → 宿主的导出对话框（[03](03-preset-assembly-and-plugins.md) §8）。
+1. **入口**：主菜单「文件 › 导出…」（设计 03-02 §2.3；原应用栏「⋯ → 导出…」随 rulings §4.25 DS-1 作废）或 `Mod+Shift+E`（2026-10-22 按 rulings §4.25 DS-78 由 `Mod+E` 改，`Mod+E` 归居中对齐）→ Operation `shell.intent{target:'export'}` → 宿主的导出对话框（[03](03-preset-assembly-and-plugins.md) §8；快捷键与命令面板「导出…」绑的是 shell-glue 的无参 Operation `shell.openExport`，它只转调同一意图，rulings §4.25 TB-162；视觉以设计 03-22 与第 3 批样张 `export` 为准）；评审者、查看者与降权后不可用，原因按权限写——评审者与降权写「需要编辑权限」、查看者写「只有查看权限」（DS-105，设计 03-02 §2.3）。导出完成即下载并关闭对话框，画布底部轻提示「已导出「X」」（DS-100）；对话框不放 JPEG、pptx 只导整份、图片与 PDF 的「全部页」缺省不含隐藏页、不设打印入口（DS-103、DS-104）。
 2. **pptx（客户端，M1 起）**：`commands.execute(unitId, 'core.export', {mime: <pptx MIME>})`（参数形状见 40/02 §2.6；渐进打开未到齐时先 `await units.whenLoaded`），在 Worker 中对快照副本编码（干净部件原样、脏部件重生成），完成后下载；导出期间可继续编辑；协同模式下有在途项时对话框提示「导出将包含本地最新内容」并给出［仍要导出］［等待同步］，选等待后停在「正在同步 N 项…」、归零自动生成、可取消，离线或重连中「等待同步」禁用（rulings §4.18 UX-05；[04](04-document-commands-and-undo.md) §8、[13](13-performance-and-bundling.md) §8）。
-3. **PDF 与批量 PNG（服务端，M3）**：`POST /api/v1/documents/:id/export{format}` → `GET /api/v1/jobs/:id` 轮询 → `GET /api/v1/exports/:jobId` 取 1 h 有效的下载 URL（走 `s3` 子域）；服务端格式不提供「仍要导出」，须先同步（[02](02-app-shell-routing-and-session.md) §8；路由见 [60/15](../60-backend/15-rest-api-catalog.md) §3.9）。
-4. **单页 PNG / SVG（M2 P1，PRD OF-19）**：主线程 `toImage` 栅格化与 SVG 序列化；这是 `raster` 用途，不是可配置的缩略图 Provider，M2 位图 spike 前只对无 Web 字体依赖的单页门禁（[05](05-rendering-and-thumbnails.md) §10.3）。
+3. **PDF 与 PNG「全部页」（服务端，M3；PNG 其余范围仍在浏览器，DS-102）**：`POST /api/v1/documents/:id/export{format}` → `GET /api/v1/jobs/:id` 轮询 → `GET /api/v1/exports/:jobId` 现签下载 URL（走 `s3` 子域；产物保留 24 小时，每次取都现签，界面不提示链接时效，DS-100）；排队与生成中只能取消，取消调 `POST /api/v1/exports/:jobId/cancel`、不做后台继续（DS-101）；服务端格式不提供「仍要导出」，须先同步（[02](02-app-shell-routing-and-session.md) §8；路由见 [60/15](../60-backend/15-rest-api-catalog.md) §3.9）。
+4. **PNG / SVG（M2 P1，PRD OF-19）**：全部页 / 当前页 / 选定页 / 自定义页码四种范围都在浏览器逐页生成、多页打 .zip，PNG 一次能导出的页数按宽度分档设上限（DS-102，[13](13-performance-and-bundling.md) §3），SVG 不设分档、只受每份文档的页数天花板（rulings §4.25 TB-152）；某一页走了运行时页级回退（单页渲染出错）时这次导出失败、进对话框的失败态，不把一时的出错写进文件（2026-10-22，rulings §4.25 TB-166，判定见 [18](18-editor-capabilities.md) EXP-03）；主线程 `toImage` 栅格化与 SVG 序列化；这是 `raster` 用途，不是可配置的缩略图 Provider，M2 位图 spike 前只对无 Web 字体依赖的单页门禁（[05](05-rendering-and-thumbnails.md) §10.3）。
 
 ## 5a. 编辑器能力地图
 
@@ -727,7 +728,7 @@ rulings §4.21 轮的第三条用户诉求是「说清编辑器的每个能力�
 | 选择与变换（SEL） | 16 | 9 / 4 / 3 | slide-ui 画布交互、render-dom 覆盖层、engine-render 命中 | 10 §7、05 §5 |
 | 对齐与吸附（ALN） | 4 | 1 / 2 / 1 | slide-ui 参考线、render-dom 参考线覆盖层 | 10 §7 |
 | 层级与组合（ARR） | 5 | 1 / 3 / 1 | model-slide 层级与组合命令（FracKey 只改 `order`） | 04、21 |
-| 插入（INS） | 20 | 2 / 6 / 12 | slide-ui 插入页签与工具态、model-slide 插入命令族（ADR-0018） | 19–25、10 §4 |
+| 插入（INS） | 20 | 2 / 6 / 12 | slide-ui 底部工具条的插入工具与「更多」、插入工具态，model-slide 插入命令族（ADR-0018） | 19–25、10 §4 |
 | 文本（TXT） | 18 | 4 / 9 / 5 | render-dom 文本宿主、engine-layout 排版、model-slide `text.*` | 06、20 |
 | 形状与格式（FMT） | 11 | 2 / 5 / 4 | engine-layout 预设几何、ui-react 颜色与渐变、slide-ui 检查器 | 22、09 |
 | 图片（PIC） | 10 | 3 / 3 / 4 | slide-render 图片渲染器、render-dom 裁剪覆盖层、apps/web 上传队列 | 23、05 §8 |
@@ -849,13 +850,13 @@ sequenceDiagram
 | `Session` | `unknown → anonymous 或 authenticated → expired → authenticated`（换人则只读） | apps/web `domain/session.ts` | [02](02-app-shell-routing-and-session.md) §4–§5 | `app/session-changed`、重新登录横幅 |
 | `EditorPageState` | `idle → creatingHost → opening → ready`，或 `failed`、`closing → closed` | apps/web `domain/editor-page-state.ts` | [02](02-app-shell-routing-and-session.md) §6 | 页面加载态与失败页 |
 | Unit 装载态 | `loadState`：partial → loaded；上下文键 `unitLoaded` | model-core | [04](04-document-commands-and-undo.md) §2 | `unit/opened`、`unit/loaded`、进度条 |
-| 保存态与撤销跳过提示条 | 脏 / 已保存 / 保存中；UndoSkip 提示条出现与关闭 | apps/web、slide-ui | [04](04-document-commands-and-undo.md) §6、§8 | 状态胶囊、提示条、`store/undo-skipped` |
-| `SyncState` 与会话 UI 六态 | 对外 `disconnected / connecting / syncing / synced / offline / error`；界面 `connecting / syncing / synced / reconnecting / offline / readonly-degraded` | collab-core `domain/session-state.ts` | [07](07-collaboration-client.md) §3 | `collab/*` 事件、状态胶囊与横幅 |
-| `ContextKeyValues` | 标准键（`unitType`、`viewMode`、`editorMode`、`editTargetKind`、`selectionKind`、`selectionCount`、`canUndo` / `canRedo`、`isCollab`、`isReadOnly`、`platform`、`breakpoint`、`density`、`textEditing`、`focusRegion`、`unitLoaded`）+ 保留键族 `can.<capability>` + 束前缀键；全集以 09 §6.3 为唯一清单（rulings §4.20 FE-06） | ui-core `domain/context-keys.ts` | [09](09-ui-system-and-theming.md) §6.3 | `when` 与 `enablement` 子句、诊断面板 |
-| `ThemeState` | `{mode, resolved, density, hostMark?}` | ui-core `domain/theme-state.ts` | [09](09-ui-system-and-theming.md) §3 | 根元素 `.dark`、`data-cordex-theme`、`data-cordex-density` |
-| `EditorLayoutState` | 侧栏、检查器、历史面板宽度与开合；断点 | ui-react `EditorShell` | [10](10-editor-shell-and-interaction.md) §2 | 布局记忆（按 unitType） |
+| 保存态与撤销跳过提示条 | 脏 / 已保存 / 保存中；UndoSkip 提示条出现与关闭 | apps/web、slide-ui | [04](04-document-commands-and-undo.md) §6、§8 | 文件名旁同步状态行、提示条、`store/undo-skipped` |
+| `SyncState` 与会话 UI 六态 | 对外 `disconnected / connecting / syncing / synced / offline / error`；界面 `connecting / syncing / synced / reconnecting / offline / readonly-degraded` | collab-core `domain/session-state.ts` | [07](07-collaboration-client.md) §3 | `collab/*` 事件、文件名旁同步状态行与横幅 |
+| `ContextKeyValues` | 标准键（`unitType`、`viewMode`、`editorMode`、`editTargetKind`、`selectionKind`、`selectionCount`、`canUndo` / `canRedo`、`isCollab`、`isReadOnly`、`platform`、`breakpoint`、`textEditing`、`focusRegion`、`unitLoaded`、`inspectorTakeover`）+ 保留键族 `can.<capability>` + 束前缀键；全集以 09 §6.3 为唯一清单（rulings §4.20 FE-06） | ui-core `domain/context-keys.ts` | [09](09-ui-system-and-theming.md) §6.3 | `when` 与 `enablement` 子句、诊断面板 |
+| `ThemeState` | `{mode, resolved, hostMark?}`（2026-10-22 删去 `density`，rulings §4.25 DS-76） | ui-core `domain/theme-state.ts` | [09](09-ui-system-and-theming.md) §3 | 根元素 `.dark`、`data-cordex-theme` |
+| `EditorLayoutState` | 左栏宽、检查器宽（280，拖宽 240–480）、备注高与开合；单页 / 网格视图；紧凑形态的抽屉与仅查看形态的底部面板；断点 | ui-react `EditorShell` | [10](10-editor-shell-and-interaction.md) §2 | 面板尺寸按文档记在本机（`cordex.layout.{rememberKey}`，apps/web 传 documentId，登出与换人时清除，rulings §4.25 TB-24、TB-41；原「按 unitType」作废）；单页 / 网格经地址栏查询参数 `view` 投影（TB-30） |
 | `PresetReport` | 条目 ACTIVE / PENDING / FAILED / LAZY / EXCLUDED | kernel/preset | [03](03-preset-assembly-and-plugins.md) §2 | 插件管理器页、`plugin/*` 事件 |
-| `MasterViewState` | `{paneSelection, editScope, target, impact, multiSelect, entry, status, sessionMemory?}` | slide-ui `domain/edit-target.ts` | [11](11-masters-layouts-and-themes.md) §4 | 范围条、「影响 N 页」徽标、状态栏 |
+| `MasterViewState` | `{target, impact, multiSelect, entry, status, sessionMemory?}`（2026-11-04 起窗格选中即编辑对象，`paneSelection` 与 `target` 合回 `target`、`editScope` 作废，rulings §4.25 DS-146） | slide-ui `domain/edit-target.ts` | [11](11-masters-layouts-and-themes.md) §4 | 上下文条（母版视图的模式横幅：对象段与「改动将影响 N 页」等说明按条件取第一条；原应用栏徽标与状态栏文案已废弃、并入这一条，rulings §4.25 DS-21、DS-145，设计 03-26 §6.3） |
 | `RenderPageState` | `booting → awaitingInject → opening → painting → ready`，或 `failed{code}` | apps/web `domain/render-page-state.ts` | [12](12-viewer-embedding-and-render-page.md) §11 | `window.__cordex.ready` / `error` |
 
 ## 7. 对外接触面
@@ -874,7 +875,7 @@ sequenceDiagram
 | 快照与版本 | `GET …/snapshots/latest`（直接返回字节，ETag / 304，响应头 `X-Cordex-Epoch`）、版本列表、`POST …/snapshots{name}`、恢复 | 07 §2、08 §9 | [60/15](../60-backend/15-rest-api-catalog.md) §3.8 | M2 `latest`（版本列表、命名与恢复 M3） |
 | WS | `wss://<host>/collab/v1/rooms/:id`（一个 WS 只承载一个文档；线上为 Hocuspocus 帧，票据放在 Auth 帧的 token JSON 里，不走 URL 与请求头） | 07（collab-yjs 的 `HocuspocusProvider` 与 collab-transport-ws 的 `HocuspocusProviderWebsocket`） | 帧与关闭码：[30/06 §6](../30-architecture/06-collaboration.md)、[ADR-0039](../30-architecture/adr/0039-collab-server-hocuspocus.md)；服务端处理：[60/16](../60-backend/16-ws-protocol-server-view.md) | M2 |
 | 媒体 | `POST …/media/presign` → PUT `s3` 子域 → `POST …/media/commit`；拉取 `GET …/media/:sha256` 返回 `{url}`（1 h 预签名，不再 302），再对该 URL 发不带凭据与自定义头的 GET | 05 §8（`options.media.upload` 默认实现） | [60/15](../60-backend/15-rest-api-catalog.md) §3.6（决策 MEDIA-CLIENT、INC-21） | M2 |
-| 导入导出与作业 | `POST {apiBase}/imports/uploads` → PUT → `POST {apiBase}/imports{uploadId}` → `GET {apiBase}/jobs/:id`，可 `POST {apiBase}/imports/:jobId/cancel`；新建空白 / 内置模板同样以模板字节走这条路径；导出见 §5.4 | 02 新建、导入页与导出对话框 | [60/15](../60-backend/15-rest-api-catalog.md) §3.9 | M2 导入与作业（服务端 PDF / PNG 导出 M3） |
+| 导入导出与作业 | `POST {apiBase}/imports/uploads` → PUT → `POST {apiBase}/imports{uploadId}` → `GET {apiBase}/jobs/:id`，可 `POST {apiBase}/imports/:jobId/cancel`；新建空白 / 内置模板同样以模板字节走这条路径；导出见 §5.4 | 02 新建、「导入」对话框与导出对话框 | [60/15](../60-backend/15-rest-api-catalog.md) §3.9 | M2 导入与作业（服务端 PDF / PNG 导出 M3） |
 | 缩略图 | `GET …/thumbnails/:slideId?size=640 或 1280`，封面 `__cover`，ETag；文档页内经 `http.ts` 取 Blob 再生成 blob URL（只凭链接的会话要带分享令牌头），列表卡片直接 `<img>` 引用同源端点；M2 卡片封面同样走 `…/thumbnails/__cover`，返回导入处理器写入的 embedded 封面（包内 `docProps/thumbnail.jpeg`，`image/jpeg`，provisional），空白文档无封面、显示占位 | 05 §10、02 列表 | [60/15](../60-backend/15-rest-api-catalog.md) §3.3、§3.10（决策 SG-10）；[60/06](../60-backend/06-modules-jobs-import-export-thumbnails.md) | M3（`__cover` embedded 封面 M2） |
 | 评论 | `GET …/comments?filter=`、`GET …/comments/:threadId`、`POST …/comments/import`（P1）、`GET {apiBase}/comments/mentions`；REST 只读，写入走 CRDT | 08 | [60/15](../60-backend/15-rest-api-catalog.md) §3.11（决策 SG-03） | M3 |
 | 遥测 | `POST {apiBase}/telemetry/errors`（204）、`POST {apiBase}/telemetry/otlp`、`POST {apiBase}/telemetry/csp`（report-to，无 cookie） | 15、14 §4 | 管线：[15](15-events-errors-and-telemetry.md) §6–§7；端点：[60/15](../60-backend/15-rest-api-catalog.md) §3.14、[60/18](../60-backend/18-observability-and-ops-endpoints.md) | M2 起 |
@@ -963,9 +964,9 @@ flowchart LR
 | V17 | 软冲突 12 场景确定性用例；多客户端随机分区收敛 | 07 | `test/collab-sim`（70/05） |
 | V18 | PG 故障注入下 `room.persist` 转 degraded、界面出现「未保存到服务器」提示并在恢复后消失 | 07 | 70/05；[70/07](../70-testing/07-backend-integration-and-api-e2e.md) 故障注入 |
 | V19 | 评论锚点随目标墓碑进入「已分离」、随恢复元素回到原锚点；评论导出 PowerPoint 可见 | 08 | 70/06 §5；[70/03](../70-testing/03-fidelity-roundtrip-and-corpus.md) |
-| V20 | `theme-vars-contract`、`shadcn-copy`、对比度门禁、同屏 `backdrop-filter` ≤4 | 09 | `test/unit`；`scanners/shadcn-diff`；70/06 §11 |
+| V20 | `theme-vars-contract`、`shadcn-copy`、对比度门禁、同屏 `backdrop-filter` 为 0（rulings §4.25 DS-2；原「≤4」随毛玻璃作废） | 09 | `test/unit`；`scanners/shadcn-diff`；70/06 §11 |
 | V21 | `when` 子句只引用已登记的上下文键 | 09 | `scanners/scan-contributions`（规则 e） |
-| V22 | 母版视图：手动切评审即退出并回到进入前位置；被降权不退出、保持只读母版态 | 11 | `test/unit`（master-view.test）；70/06 §5 |
+| V22 | 母版视图：手动切评审或进入仅查看形态即退出并回到进入前位置；被降权、缩到紧凑形态不退出（降权时保持只读母版态）；不是完整形态（视口 < 1024 或触控设备）不可进入（rulings §4.25 TB-16、TB-44） | 11 | `test/unit`（master-view.test）；70/06 §5 |
 | V23 | 查看器两道只读保证与体积 ≤350 KB | 12 | `test/unit`（readonly.test、no-editing-graph）；`depcruise`；`scanners/scan-bundle-budget` |
 | V24 | `/render` 页 local 与 remote 两种模式网络请求数均为 0；ready 判据（page-mounted ∧ 字体结算 ∧ `pendingDirty=0`）；注入超时与每页 10 s 超时分别计 | 12 | `e2e/smoke`（renderer-egress）；70/06 §6 |
 | V25 | `UiRenderer('vanilla')` 通过 UI 渲染契约；形态 B 产物不含 react / radix | 12 | `test/contract`（`runUiRendererConformance`）；70/02 §7 |
@@ -975,7 +976,7 @@ flowchart LR
 | V29 | 零外呼：网络请求只指向 apiBase、wsBase、同源、`/fonts/` 与存储源 | 14 | 70/06 §10；70/10 |
 | V30 | 错误上报默认开、产品遥测默认关；上报不含文档内容 | 15 | `test/unit`；70/06 |
 | V31 | `user:true` 的错误码都有 zh-CN 与 en-US 的 `errors.<code>` 键；各 locale 键集合一致 | 15、16 | `scanners/scan-contributions`（规则 f）；70/06 §8 |
-| V32 | axe 零严重、零重大违规；键盘 e2e 覆盖 Ribbon、缩略图栏、画布、属性、备注与 F6 循环；forced-colors（M3 起门禁） | 16 | `e2e/a11y`（70/06 §7） |
+| V32 | axe 零严重、零重大违规；键盘 e2e 覆盖左栏、画布、备注、底部工具条、检查器与 F6 循环；forced-colors（M3 起门禁） | 16 | `e2e/a11y`（70/06 §7） |
 | V33 | 需求 → 测试可追溯：前端 P0 需求均有带 `@req` 标签的用例 | 全部 | `test/requirement-matrix`（[70/13](../70-testing/13-requirements-traceability.md)） |
 | V34 | §1a 的全部第三方依赖（含传递依赖与 devDependency）许可落在 ADR-0049 的分级内：OFL 只出现在字体资产、CC0 只出现在数据与内置源码、MPL 包未修改；`@hocuspocus/provider` 只出现在 collab-yjs 与 collab-transport-ws | 01、17 | `scanners/license-allowlist`；`depcruise`（第三方单点引入） |
 | V35 | 插入命令：一次插入恰好一个撤销步；超规模上限返回 `document.quota_exceeded` 且不开事务；媒体字节不进 Y.Doc | 01 §5b、19 | `test/contract`、`test/unit`（用例与夹具以 19 与 70 为准） |

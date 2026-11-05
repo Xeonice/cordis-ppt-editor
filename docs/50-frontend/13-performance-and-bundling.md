@@ -1,5 +1,5 @@
 # 13 性能预算与分包
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：§6 chunk 地图补登新依赖——形状库 sprite、插入图标、图表底层 d3 与数据网格、htmlparser2、内嵌字体解压、harfbuzz wasm、MathJax、离线库；编辑器基线与协同增量估算更新；新增图 6-2；§4 的 update 大小与键入合并两行随 Hocuspocus 帧与 provider 合并改写）；2026-09-26（§4.21 整合：§6 查看器基线计入 @cordexjs/xml；形状库缩略图改为 path 数据模块（与 40/10、50/22 一致）；harfbuzz 区分 shaping 与 subset wasm；新增 opentype.js 惰性行；§8 主线程解析经 drive 分片）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（§4.24 TA-8：图表渲染器惰性 chunk 不再计入 @tanstack/react-table，数据网格归 ui-react `DataGrid`） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA、§4.21（q-chart-route、q-extra-inserts、q-license-tiers、H:q-hp-provider）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.21：§6 chunk 地图补登新依赖——形状库 sprite、插入图标、图表底层 d3 与数据网格、htmlparser2、内嵌字体解压、harfbuzz wasm、MathJax、离线库；编辑器基线与协同增量估算更新；新增图 6-2；§4 的 update 大小与键入合并两行随 Hocuspocus 帧与 provider 合并改写）；2026-09-26（§4.21 整合：§6 查看器基线计入 @cordexjs/xml；形状库缩略图改为 path 数据模块（与 40/10、50/22 一致）；harfbuzz 区分 shaping 与 subset wasm；新增 opentype.js 惰性行；§8 主线程解析经 drive 分片）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-03（§4.24 TA-8：图表渲染器惰性 chunk 不再计入 @tanstack/react-table，数据网格归 ui-react `DataGrid`）；2026-10-04（design-language-v3 第 0 批：复验修正——§10 材质性能改为 v3 平面层次口径（同屏 backdrop-filter 为 0，data-interacting、contain: paint、透明度退化作废），§0、§12、§13、§14 对应行同步（DS-2））；2026-10-15（design-language-v3 第 2 批：§6 惰性 chunk 表与图 6-1 的版本历史入口由已作废的「历史页签」改为文档菜单「版本历史」与 `/documents/:id/history`，呈现为检查器整栏面板（rulings §4.25 DS-38））；2026-10-22（design-language-v3 第 3 批（rulings §4.25 DS-102）：§3「导出全部 PNG」一行改为 M2 在浏览器逐页生成并打 .zip、M3 起「全部页」走服务端，新增「浏览器一次导出的图片页数上限」一行（按宽度分档，M2 位图 spike 后定数）；§13 M2 / M3 与待回写表同步）；2026-10-22（design-language-v3 第 3 批回写补充，rulings §4.25 TB-148：§3「浏览器一次导出的图片页数上限」一行填入初值——1280 px 200 页（等于系统天花板）、1920 px 100 页、3840 px 25 页，M2 位图实测后只收紧；§13 M2 一行与待回写表同步）；2026-10-22（design-language-v3 第 3 批回写收口，rulings §4.25 TB-152：§3 页数上限一行写明只对 PNG——SVG 逐页序列化 DOM、不栅格化，不设分档上限，只受每份文档的页数天花板；§13 待回写表同步；2026-10-22 复核修正：§6 查看器可选件一行「备注抽屉」改称「备注面板」（与 12 §4、设计 03-25 一致））；2026-11-04（design-language-v3 母版视图改版：§3、§12 窗格只剩切换节点，§6 母版视图 UI chunk 含上下文条与多选网格；§13 新增一行；指标名 `client.master.switch`、需求编号、优先级与里程碑不变；rulings §4.25 DS-145、DS-146、DS-153） | 依赖：PRD [04 非功能需求](../10-prd/04-non-functional-requirements.md) §0 / NF-01 §1.1–§1.6 / §1.5 材质层、PRD [05-embedding](../10-prd/03-features/05-embedding-and-integration.md) EM-07、PRD 03 OF-15 / ML-01 / ML-03 / ML-04、[30/07](../30-architecture/07-rendering.md) §1 / §9 / §14.2 / §14.6、[30/06](../30-architecture/06-collaboration.md) §9 / §14、[40/11](../40-modules/11-preset-assembly-and-app-shell.md) §2.3 / §3.4 / §10、设计 [09](../20-design/09-design-specification.md) §6.4、[09-06 扫描器](../30-architecture/09-type-discipline/06-scanners.md) §14、rulings §4.3 / §4.15 Q4 / Q5 / §4.18 CO-01 / CO-02 / CO-11 / CO-12 / §4.19 D-M2-CONTENT / D-COMMENTS-PKG / D-TEST-INFRA、§4.21（q-chart-route、q-extra-inserts、q-license-tiers、H:q-hp-provider）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；rulings §4.25 DS-102；设计 [03-22](../20-design/03-screens/22-export-dialog.md)；rulings §4.25 TB-148（第 3 批回写补充）；rulings §4.25 DS-145、DS-146、DS-153（母版视图改版）
 
 本文是前端性能 **target** 与分解、chunk 地图与惰性边界的唯一事实源。**gate**（门禁值）只来自 PRD NF-01 与 EM-07，本文表格里出现的 gate 数字只是引用，冲突时以 PRD 为准；怎么测、怎么判、在哪个 CI 步骤跑归 [70/09](../70-testing/09-performance-and-capacity.md)；服务端 target 归 [60/01](../60-backend/01-service-overview-and-roles.md) 的预算总览；体积扫描器的实现归 40/01。
 
@@ -7,12 +7,12 @@
 
 | 本文拥有 | 本文引用（事实源） |
 |---|---|
-| 客户端各指标的 target 与分解（§2–§5） | gate：PRD NF-01（§1.1–§1.6、材质层）、EM-07 |
+| 客户端各指标的 target 与分解（§2–§5） | gate：PRD NF-01（§1.1–§1.6，§1.5 材质与层次按 v3 改写）、EM-07 |
 | `performance.mark` 命名规范（§2.2） | `test/perf/budgets.json` 的结构、测量方法、噪声控制、判定规则：[70/09](../70-testing/09-performance-and-capacity.md) |
 | chunk 地图、惰性边界与触发条件、分包规则（§6–§7） | 预算文件 `config/bundle-budget.json` 的 schema 与 `computeBudget`：40/11 §2.2–§2.3；`scan-bundle-budget` 实现：40/01 |
 | Worker 清单与降级（§8） | Worker 入口文件与批次协议：40/04；打开管线语义：[04](./04-document-commands-and-undo.md) §2 |
 | DX-1000 回退的决策流程（§11） | 每一步的渲染技术内容：[05](./05-rendering-and-thumbnails.md) §13.3 |
-| 预算总表与 budgets.json 键名登记（§12） | 服务端 target：60/01；协同客户端行为：[07](./07-collaboration-client.md)；材质规则本体：[09](./09-ui-system-and-theming.md) §4 |
+| 预算总表与 budgets.json 键名登记（§12） | 服务端 target：60/01；协同客户端行为：[07](./07-collaboration-client.md)；平面层次规则本体：[09](./09-ui-system-and-theming.md) §4（原材质层作废，rulings §4.25 DS-2） |
 
 ## 1. 预算两口径与事实源
 
@@ -136,18 +136,19 @@ gate 列只是 PRD 的引用（NF-01 §1.2 / §1.4、PRD 07 ML-01 / ML-03 / ML-0
 | 全部替换（D200） | ≤ 500 ms，一个事务 | = | `cmd:start` → `cmd:end` | model-slide |
 | 界面主题切换（亮 / 暗） | ≤ 100 ms，无闪烁 | = | 切换 → 下一帧 | design、ui-react |
 | 进入母版视图（D50） | ≤ 300 ms p75 | = | `master:enter` → 画布与窗格首帧 | slide-ui、slide-render |
-| 母版窗格切换节点、范围条切换 | ≤ 100 ms | = | 同上 | 同上 |
+| 母版窗格切换节点（选中即编辑对象，rulings §4.25 DS-146） | ≤ 100 ms | = | 同上 | 同上 |
 | 母版 / 版式属性修改 → 全部引用页与缩略图更新（D50） | ≤ 500 ms | = | 事务提交 → 最后一个受影响缩略图更新 | slide-render |
 | 主题色与主题字体编辑后全文重算（D50） | ≤ 300 ms | = | `theme:edit` → 可见页重绘完成 | model-slide、slide-render |
 | 导出 pptx（D50 / D200，客户端） | ≤ 3 s / ≤ 12 s，期间 UI 可编辑 | = | `export:start` → Blob | ooxml-pptx（Worker） |
 | 导出单页 PNG | @1920 ≤ 300 ms（NF-01 §1.4）；@1280 ≤ 150 ms（OF-15，M2） | = | `export:start` → Blob | render-dom（主线程） |
-| 导出全部 PNG @1280（D50 / D200） | ≤ 15 s / ≤ 60 s | M3 起由 `server-png` 承担，客户端不再对批量门禁 | — | 见注 |
+| 导出全部 PNG @1280（D50 / D200） | ≤ 15 s / ≤ 60 s | M2 在浏览器逐页生成、打成一个 .zip（2026-10-22，rulings §4.25 DS-102），位图 spike 结论前只报告；M3 起「全部页」由 `server-png` 承担，浏览器只剩当前页、选定页与自定义页码 | `export:start` → zip Blob | render-dom（主线程）、fflate；M3 起见注 |
+| 浏览器一次导出的 PNG 页数上限（2026-10-22，DS-102；初值按 rulings §4.25 TB-148；只对 PNG，TB-152） | 1280 px 宽 ≤ 200 页（等于系统天花板 `maxSlides` 200，即不另设限）· 1920 px 宽 ≤ 100 页 · 3840 px 宽 ≤ 25 页；SVG 不设分档上限，只受每份文档的页数天花板 `maxSlides` | 按图片宽度分档，先按左列初值登记；SVG 逐页序列化 DOM、不栅格化，开销远低于 PNG，所以不设这一档（TB-152）；M2 位图 spike 后用本表「主线程最长阻塞任务」与 §5 的堆预算实测，只收紧、不放宽，改了写回本行并同步设计 03-22；超出时导出对话框写「一次最多导出 N 页图片。」、「导出」不可用（[18](18-editor-capabilities.md) EXP-03） | 导出对话框按页数 × 宽度判定 | render-dom、apps/web |
 | 主线程最长阻塞任务 | ≤ 50 ms | = | Long Tasks 观察 | 全部 |
 | 可访问树：可见页列表项 | — | 与首帧同批就绪，不另加延迟（计入首页可见） | `render:first-paint` 时可见页列表项已存在 | render-dom、slide-render |
 | 可访问树：其余已装载页 | 主线程最长任务 ≤ 50 ms | 空闲时间分片，每片 ≤ 2 ms（[16](./16-i18n-and-accessibility.md) §9）；D50 / D200 在 `unit:loaded` 后 ≤ 1 s / ≤ 3 s 建完（初始值，M2 实测后只收紧） | `unit:loaded` → `a11y:tree-ready` | render-dom、slide-render |
 | 可访问树：增量更新 | — | 单次事务 p95 ≤ 2 ms（只改受影响列表项，[05](./05-rendering-and-thumbnails.md) §11） | 事务提交 → 列表项更新完成 | render-dom |
 
-注：客户端 PNG 在 SVG 路线下只能在主线程完成（[05](./05-rendering-and-thumbnails.md) §10.3），M2 位图 spike 结论前只对「单页、无 Web 字体依赖」门禁；批量 PNG 从 M3 起走服务端（30/07 §14.6 对 PRD NF-01 §1.4「客户端 Worker 导出 PNG」的修正，PRD 04 NF-01 §1.4 已回写）。
+注：客户端 PNG 在 SVG 路线下只能在主线程完成（[05](./05-rendering-and-thumbnails.md) §10.3），M2 位图 spike 结论前只对「单页、无 Web 字体依赖」门禁；批量 PNG 从 M3 起走服务端（30/07 §14.6 对 PRD NF-01 §1.4「客户端 Worker 导出 PNG」的修正，PRD 04 NF-01 §1.4 已回写）；2026-10-22 细化（rulings §4.25 DS-102）：M2 四种范围都在浏览器逐页生成、多页打 .zip，M3 起只有「全部页」改走服务端、写「只含已同步的内容」。
 
 ## 4. 协同客户端预算
 
@@ -200,10 +201,10 @@ gzip，初始加载，不含字体与 peer 依赖（React 本体）。gate 来�
 | 当前语言包 | `options.locale` 对应的语言包 | ≤ 30 KB | — | 单独校验，不计基线 | 与首屏并行加载 | M1 |
 | 图表渲染器 | M1–M2 `@cordexjs/slide-render/chart`，M3 起 `slide-render-chart`：d3-scale、d3-shape、d3-array（约 30 KB）+ 自研 OOXML 布局 + numfmt；M3 另含内嵌 xlsx 写出器（ADR-0036）。数据网格（@tanstack/react-table 9 + shadcn Table）只在 ui-react 通用 `DataGrid`，随 ui-react 计入编辑器侧，不算进本 chunk（[01](01-overview-and-runtime-map.md) §1a，rulings §4.21、§4.24 TA-8；slide-render-chart 不 import react，ADR-0036 决策 6） | ≤ 400 KB | — | 惰性 | 首个 `render/element-degraded{reason:'chart-unavailable'}`；`charts.enabled: false` 时永不加载 | M1 |
 | 其他语言包 | 每个 | ≤ 30 KB | — | 惰性 | `i18n/locale-changed` | M1 |
-| 查看器可选件 | 缩略图条 / 备注抽屉 / 搜索 | ≤ 20 / 10 / 15 KB | — | 惰性 | 对应选项为 true 时 `manual` 激活 | M1 / M2 |
+| 查看器可选件 | 缩略图条 / 备注面板 / 搜索 | ≤ 20 / 10 / 15 KB | — | 惰性 | 对应选项为 true 时 `manual` 激活 | M1 / M2 |
 | 放映 UI | slide-ui 放映舞台与控制条 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'presenter'}`、F5、`/documents/:id/present` | M2 |
-| 母版视图 UI | slide-ui 母版窗格、范围条、版式画廊 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'master'}`、Mod+Alt+M | M2 |
-| 版本历史 UI | 历史页签与 `/documents/:id/history` | ≤ 60 KB | — | 惰性 | 打开历史页签或路由（需 `history.read`） | M3 |
+| 母版视图 UI | slide-ui 母版窗格、上下文条（母版视图的模式横幅）、多选网格、版式画廊 | ≤ 60 KB | — | 惰性 | `view.setMode{mode:'master'}`、Mod+Alt+M | M2 |
+| 版本历史 UI | 版本历史整栏面板与 `/documents/:id/history`（原「历史页签」随 rulings §4.25 DS-1 作废，呈现按 DS-38） | ≤ 60 KB | — | 惰性 | 文档菜单「版本历史」、命令面板或路由（需 `history.read`） | M3 |
 | EMF / WMF 栅格化 Worker | emf-converter 4.0.x 封装（4.0.0 的 dist 未最小化 gzip -9 约 205 KB，2026-09-26 实测） | M2 spike 按最小化产物回填，只收紧 | — | 惰性，不计 350 KB 基线 | 首次遇到 EMF / WMF | M2 |
 | pptx 导出 Worker | ooxml-pptx 导出路径 | 目标从基线移出（40/11 G-14，可省约 25 KB） | ≈ 25 KB | 惰性（目标） | 执行导出 | M2 |
 | apps/web 路由 chunk | 每个页面 `React.lazy` 一个 chunk | 首屏路由 chunk ≤ 250 KB（不含 preset） | — | 单独校验 | 路由切换 | M2 |
@@ -250,7 +251,7 @@ flowchart TB
   present -. "view.setMode presenter 或 F5" .-> editorB
   master -. "view.setMode master 或 Mod+Alt+M" .-> editorB
   exportW -. "执行导出" .-> editorB
-  history -. "打开历史页签或 history 路由" .-> collabB
+  history -. "文档菜单版本历史或 history 路由" .-> collabB
   otel -. "telemetry.otlp 且用户开启" .-> editorB
   devtools -. "开发者菜单打开面板" .-> editorB
 ```
@@ -362,15 +363,14 @@ sequenceDiagram
 | 交互期间才加 `will-change: transform`、`pixelRatioCap: 3`、SVG 数值 2 位小数 | 拖动帧率、属性写入量 | 05 §1、§13.3 |
 | 同一帧内先读几何再写 DOM，`ResizeObserver` 回调合并到下一帧 | 避免强制同步布局 | 05 §2 |
 
-## 10. 材质性能
+## 10. 平面层次的性能口径（v3；原「材质性能」）
 
-材质的视觉与 token 规则在 [09](./09-ui-system-and-theming.md) §4；本节只列性能口径（gate 来自 PRD NF-01 §1.5「材质层」）：
+平面层次的视觉与 token 规则在 [09](./09-ui-system-and-theming.md) §4；本节只列性能口径（gate 来自 PRD NF-01 §1.5「材质与层次」，2026-10-04 按 rulings §4.25 DS-2 改写）：
 
-- 同屏 `backdrop-filter` 元素 ≤ 4（壳 3 块 + 1 个浮层）；画布区不加玻璃。
-- 拖拽分栏与画布缩放动画期间帧时间 p95 ≤ 16.7 ms：交互开始时在壳根元素加 `data-interacting`，玻璃面板临时切为不透明，结束后恢复（设计 09 §6.4，M2）。
-- 玻璃面板 `contain: paint`（M2），避免面板内重绘波及画布。
-- `prefers-reduced-transparency: reduce` 或不支持 `backdrop-filter` 时退化为不透明 `--card`，文字对比不变。
-- 不使用 SVG 折射（`feDisplacementMap`）与扫光动画。
+- 同屏 `backdrop-filter` 元素为 0：v3 面板实色贴边，只有浮层（底部工具条、网格浮动胶囊、菜单与弹层）带阴影；原「≤ 4（壳 3 块 + 1 个浮层）」作废。
+- 拖拽分栏与画布缩放动画期间帧时间 p95 ≤ 16.7 ms；v3 面板本为实色，原「交互期间在壳根加 `data-interacting`、玻璃面板临时切为不透明」作废。
+- 原「玻璃面板 `contain: paint`」与「`prefers-reduced-transparency: reduce` 时退化为不透明 `--card`」随材质层作废（v3 没有半透明材质，无需退化）。
+- 不使用 SVG 折射（`feDisplacementMap`）、扫光动画、渐变背景与光晕（设计 09 S-08）。
 
 ## 11. DX-1000 回退决策流程
 
@@ -426,7 +426,7 @@ flowchart TB
 | `client.thumbs.update` / `client.thumbs.mount` / `client.thumbs.scrollFps` | 缩略图更新、单项挂载、栏滚动 | ≤ 500 ms / ≤ 40 ms / ≥ 55 fps | ≤ 400 ms（去抖 300 + 渲染 ≤ 100）/ = / = | 见 §3 | slide-render、slide-ui |
 | `client.search.d200` / `client.replaceAll.d200` | 搜索、全部替换 | ≤ 200 / 500 ms | = | `cmd:start` → `cmd:end` | model-slide |
 | `client.uiTheme.switch` | 界面主题切换 | ≤ 100 ms | = | 切换 → 下一帧 | design、ui-react |
-| `client.master.enter.d50` / `client.master.switch` | 进入母版视图、节点与范围切换 | ≤ 300 / 100 ms | = | `master:enter` → 首帧 | slide-ui、slide-render |
+| `client.master.enter.d50` / `client.master.switch` | 进入母版视图、窗格切换节点 | ≤ 300 / 100 ms | = | `master:enter` → 首帧 | slide-ui、slide-render |
 | `client.master.propagate.d50` / `client.theme.edit.d50` | 母版改动传播、主题编辑重算 | ≤ 500 / 300 ms | = | 事务提交 → 最后一个受影响页或缩略图 | slide-render、model-slide |
 | `client.export.pptx.{d50,d200}` / `client.export.png1920` / `client.export.png1280` | 导出 | ≤ 3 / 12 s；≤ 300 ms；≤ 150 ms | = | `export:start` → `export:end` | ooxml-pptx、render-dom |
 | `client.mem.editor.{d50,d200}` / `client.mem.viewer.{d50,d200}` / `client.mem.peak.{d50,d200}` | 内存稳态与峰值 | 见 §5（PRD NF-01 §1.3） | 编辑器 ≤ 230 / 670 MB（§5 分解）；查看器与峰值 = | CDP 堆快照 | 全部 |
@@ -445,8 +445,8 @@ flowchart TB
 | 里程碑 | 本文交付 |
 |---|---|
 | M1 | 查看器基线 ≤ 350 KB 门禁；打开场景（D50 / D200 / DX-1000 / DX-MEDIA）、主线程长任务、查看器内存进入 perf 门禁；mark 规范落地；DX-1000 spike（M1 中期）；`test/perf/budgets.json` 建立并与 §12 做一致性检查；DX-20K 堆回填 |
-| M2 | 编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 门禁（三档体积门禁上线；服务端文档自 M2 起实际加载协同增量）；交互、键入、IME、母版视图、材质帧时间、可访问树进入门禁或报告；**服务端文档的打开预算按快照 bootstrap 路径**（`client.collab.firstPaint.*`、`client.collab.sync.*`）与协同客户端预算中的本地回显进入 perf-collab 门禁，A → B 可见、重连重同步自 M2 起报告、M3 门禁（PRD 04 NF-01 §1.6；rulings §4.19 D-M2-CONTENT）；自托管专用 runner 在 M2 前落地（rulings §4.19 D-TEST-INFRA）；EMF Worker chunk 预算回填；§4.21 新依赖进入编辑器基线后的实测回填、形状库 sprite 与剪贴板 HTML 解析、内嵌字体解压三个惰性 chunk 首次报告；位图 spike 结论；导出 Worker 惰性化；开发者面板惰性 chunk |
-| M3 | 多人协同体验层的预算：presence 传播、权限变更生效、20 个远端覆盖层；版本历史 UI chunk；批量 PNG 转 `server-png`；图表拆包 `slide-render-chart`（含数据网格与 xlsx 写出器）；插入图标分块上限定值；OTel Web 惰性 chunk（随 `/telemetry/otlp`） |
+| M2 | 编辑器 ≤ 900 KB 与协同增量 ≤ 200 KB 门禁（三档体积门禁上线；服务端文档自 M2 起实际加载协同增量）；交互、键入、IME、母版视图、拖拽与缩放帧时间（原「材质帧时间」）、可访问树进入门禁或报告；**服务端文档的打开预算按快照 bootstrap 路径**（`client.collab.firstPaint.*`、`client.collab.sync.*`）与协同客户端预算中的本地回显进入 perf-collab 门禁，A → B 可见、重连重同步自 M2 起报告、M3 门禁（PRD 04 NF-01 §1.6；rulings §4.19 D-M2-CONTENT）；自托管专用 runner 在 M2 前落地（rulings §4.19 D-TEST-INFRA）；EMF Worker chunk 预算回填；§4.21 新依赖进入编辑器基线后的实测回填、形状库 sprite 与剪贴板 HTML 解析、内嵌字体解压三个惰性 chunk 首次报告；位图 spike 结论；浏览器多页 PNG 导出（报告）与页数上限按实测收紧（初值见 §3，DS-102、TB-148）；导出 Worker 惰性化；开发者面板惰性 chunk |
+| M3 | 多人协同体验层的预算：presence 传播、权限变更生效、20 个远端覆盖层；版本历史 UI chunk；PNG「全部页」转 `server-png`（DS-102）；图表拆包 `slide-render-chart`（含数据网格与 xlsx 写出器）；插入图标分块上限定值；OTel Web 惰性 chunk（随 `/telemetry/otlp`） |
 | M4 | 各预算按实测收紧一轮；RM-B 近似口径复核；离线持久化 chunk；复杂文种 shaping 与公式渲染（M4+）的 chunk 首次报告 |
 
 | 待回写项 | 去向 |
@@ -460,6 +460,8 @@ flowchart TB
 | OTel Web 与 `cordex.devtools` 两个惰性 chunk 的构建入口与预算文件条目（§6） | 40/11——已登记（§5 apps/web `bundle-budget.json` 行） |
 | 可访问树的 mark `cordex:a11y:tree-ready` 与 §12 三个 `client.a11y.*` 键 | [70/09](../70-testing/09-performance-and-capacity.md) §2 budgets.json 汇编 |
 | §6 新增的七个惰性 chunk（形状库缩略图 path 数据、插入图标、剪贴板 HTML 解析、内嵌字体解压、复杂文种 shaping、公式渲染、离线持久化）的构建入口与 `bundle-budget.json` 条目（rulings §4.21） | 40/11；内嵌字体解压的动态 import 点归 [40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) |
+| 浏览器一次导出的图片页数上限：初值已定（2026-10-22，rulings §4.25 TB-148：1280 px 200 页、1920 px 100 页、3840 px 25 页），已写进 §3 对应行与 [18](18-editor-capabilities.md) EXP-03；M2 位图 spike 后只收紧，改了同步设计 03-22（DS-102）；分档上限只对 PNG，SVG 只受页数天花板（2026-10-22，TB-152） | 本线（§3）；设计 03-22（设计线） |
+| 母版视图改版（2026-11-04，rulings §4.25 DS-145、DS-146、DS-153）：§3、§12 的窗格切换只剩切换节点（指标名 `client.master.switch` 不改），§6 母版视图 UI chunk 含上下文条与多选网格 | [70/09](../70-testing/09-performance-and-capacity.md) 母版场景与 `budgets.json`（测试线） |
 
 ## 14. 机械验证
 
@@ -472,7 +474,7 @@ flowchart TB
 | §12 各键的 gate 达标；target 与相对回归按 T-PERF-GATE 报告或失败 | perf/perf-client、perf/perf-collab（[70/09](../70-testing/09-performance-and-capacity.md)） |
 | 打开管线：`unit/opened` 早于 `unit/loaded`、`prioritize` 生效、无 > 50 ms 长任务 | perf/perf-client（70/09 §4） |
 | 20 次打开 / 关闭 heap 增长 ≤ 5%、`getEffects()` 为空、blob URL 泄漏 0 | e2e 资源断言（[70/06](../70-testing/06-frontend-component-and-e2e.md) §11） |
-| 同屏 `backdrop-filter` ≤ 4；交互期间 `data-interacting` 生效；降级为不透明 | e2e（70/06 §11） |
+| 同屏 `backdrop-filter` 为 0、无渐变背景（v3 平面，原「≤ 4、`data-interacting`、降级为不透明」作废） | e2e（70/06 §11） |
 | `budgets.json` 与本文 §12 键名、数值一致 | 70/09 §2 的一致性检查 |
 | mark 名称全部匹配 `cordex:<area>:<point>` 规则 | test/unit（telemetry Provider 用例） |
 | 页面未注册任何 Service Worker；惰性 chunk 加载失败时出现「发现新版本」横幅 | e2e（70/06） |

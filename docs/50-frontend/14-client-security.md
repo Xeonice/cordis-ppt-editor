@@ -1,6 +1,6 @@
 # 14 客户端安全
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：§3 注入点表补 react-colorful、pragmatic-drag-and-drop、react-virtual 并把 react-resizable-panels 升到 4.13.3；新增 §2.7 WebAssembly 例外（M4+）；§4.3 补 zod `jitless` 与 fflate 异步入口；§5 写明从 URL 插入图片的取数路径（默认不经服务端代抓）；§7 XML 限额改为引用 ADR-0019 的 `XmlLimits` 表）；2026-09-26（§4.21 整合：§11.2 登记 display-capture（M4+ 屏幕截图）；§7 登记主线程只读解析经 drive 分片的例外；§13 待回写清单标为已回写）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24：§7 输入限制补旧二进制 `.ppt` 拒绝 `format.unsupported_binary`（PRD OF-02）） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02、§4.20 FE-18；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033、ADR-0019（`XmlLimits`）、ADR-0049；rulings §4.21（R-d-11、R-d-13、R-d-17、R-d-28，q-license-tiers）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：§3 注入点表补 react-colorful、pragmatic-drag-and-drop、react-virtual 并把 react-resizable-panels 升到 4.13.3；新增 §2.7 WebAssembly 例外（M4+）；§4.3 补 zod `jitless` 与 fflate 异步入口；§5 写明从 URL 插入图片的取数路径（默认不经服务端代抓）；§7 XML 限额改为引用 ADR-0019 的 `XmlLimits` 表）；2026-09-26（§4.21 整合：§11.2 登记 display-capture（M4+ 屏幕截图）；§7 登记主线程只读解析经 drive 分片的例外；§13 待回写清单标为已回写）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-10-03（§4.24：§7 输入限制补旧二进制 `.ppt` 拒绝 `format.unsupported_binary`（PRD OF-02））；2026-10-04（design-language-v3 第 0 批：复验修正——§3 csp-strict 兜底判据的 `/styleguide` 注明为组件状态基准路由，旧版随 DS-7 删除后改指接替路由）；2026-10-08（design-language-v3 第 1 批收口：§3 第 6 条与 §13 V2 的 `/styleguide` 改为测试部署挂出的产品组件全状态页（rulings §4.25 TB-3、TB-50），V2 补桌面、紧凑与仅查看三种形态；§10 布局记忆 `cordex.layout.{rememberKey}` 改为登出与换人时删除（TB-24、TB-41，原「保留」作废），V12 同步）；2026-10-15（design-language-v3 第 2 批：§8「分享令牌」一行补分享对话框里拿到的令牌——所有者取自 `GET …/share-links`、能读文档的非所有者取自 `GET …/permissions` 读者视图的 `link.token`（rulings §4.25 DS-69、TB-86）——只在内存里拼「复制链接」的链接，不写本机存储，响应体不进日志与错误上报）；2026-10-22（design-language-v3 第 3 批（rulings §4.25 TB-118、TB-122、TB-123、TB-127）：§6 用户头像一律身份色首字、`avatarUrl` 只存不显示、任何档位都不加载；§10 存储表增四个新键的安全属性与登出处理，登出确认改为先同步再确认、导出后不自动退出；§13 V5、V12）；2026-10-22（design-language-v3 第 3 批回写补充：§10 存储表 `cordex.listView` 一行按 rulings §4.25 TB-131 写明内容（网格 / 列表一份，两处共用；开始页排序一份），安全属性与登出、换人时的处理不变；2026-10-22 复核修正：§2.1 指令表与 §2.2 模板的 `connect-src` 增占位 `{templateOrigins}`、占位表补一行（rulings §4.25 TB-168），文末第 3 批说明同步） | 依赖：rulings §4.15 Q2/Q4/Q6/Q7、§4.18 BE-01/BE-04/BE-09/BE-10/UX-02、§4.20 FE-18；PRD 05 EM-14/EM-18、PRD 04 NF-04/NF-11；ADR-0021、ADR-0029、ADR-0033、ADR-0019（`XmlLimits`）、ADR-0049；rulings §4.21（R-d-11、R-d-13、R-d-17、R-d-28，q-license-tiers）；[17 前端复用组件清单](17-reuse-and-dependency-catalog.md)；30-architecture/07 §1、30-architecture/06 §12、30-architecture/10 §2.3；60-backend/02、60-backend/17；rulings §4.25 DS-69、TB-86；rulings §4.25 TB-118、TB-122、TB-123、TB-127；[设计 03-33](../20-design/03-screens/33-login-session-and-error-pages.md) §8；rulings §4.25 TB-131（第 3 批回写补充）；rulings §4.25 TB-168
 
 本文是浏览器侧安全设计的唯一事实源：信任模型、CSP 策略正文（逐指令）、nonce 消费链、Trusted Types、文档内容进入 DOM 的规则、外链资源、输入限制、会话与请求的浏览器侧规则、上传、本地数据、嵌入与跨源、前端代码规则。服务端鉴权链（OIDC、会话、CSRF 校验、票据、分享链接解析、RLS）以 [60/02](../60-backend/02-auth-chain.md) 为准；web 容器如何每响应生成 nonce、下发 CSP 头与缓存头以 [60/17](../60-backend/17-deployment-and-config.md) 为准，其中 CSP 策略正文只引用本文 §2。测试如何执行以 [70/06](../70-testing/06-frontend-component-and-e2e.md) §10 与 [70/10](../70-testing/10-security-testing.md) 为准。
 
@@ -95,7 +95,7 @@ flowchart LR
 | `img-src` | `'self' blob: data: {externalSrc}` | `blob:` 为文档页内媒体与缩略图的 blob URL（二者都经 `http.ts` / `fetch` 取回 Blob，50/05 §8.1、§10.2；文档页内元素不直接引用存储源或 API 端点，§9）；列表页封面直接引用同源端点，由 `'self'` 覆盖；`data:` 为 toImage 内联与小图标 | M2 |
 | `media-src` | `'self' blob: {externalSrc}` | 同上，音视频 | M2 |
 | `font-src` | `'self' blob:` | 字体同源自托管于 `/fonts/`；内嵌字体经 `FontFace` 注入；不访问第三方字体源（FONTS） | M2 |
-| `connect-src` | `'self' {wsOrigin} {storageOrigin}` | REST、遥测、`/fonts/` 同源；协同 WS 显式列出 `wss://` 源；存储源承接预签名 PUT / GET（导入原件与媒体直传；媒体与导出下载先经 API 取 `{url}` 再直取，BE-01、INC-21） | M2 |
+| `connect-src` | `'self' {wsOrigin} {storageOrigin} {templateOrigins}` | REST、遥测、`/fonts/` 同源；协同 WS 显式列出 `wss://` 源；存储源承接预签名 PUT / GET（导入原件与媒体直传；媒体与导出下载先经 API 取 `{url}` 再直取，BE-01、INC-21）；集成方模板源的清单地址跨源时放行其源（`{templateOrigins}`，M3，2026-10-22，rulings §4.25 TB-168，§2.2） | M2（`{templateOrigins}` M3） |
 | `worker-src` | `'self'` | Worker 只从同源 `/assets/` 加载；`blob:` 不作脚本源（TT-CSP-REPORT） | M2 |
 | `frame-src` | `'none'` | 文档内对象（OLE 等）只显示预览图，不嵌 iframe | M2 |
 | `object-src` | `'none'` | 不使用插件对象 | M2 |
@@ -118,7 +118,7 @@ Content-Security-Policy:
   img-src 'self' blob: data: {externalSrc};
   media-src 'self' blob: {externalSrc};
   font-src 'self' blob:;
-  connect-src 'self' {wsOrigin} {storageOrigin};
+  connect-src 'self' {wsOrigin} {storageOrigin} {templateOrigins};
   worker-src 'self';
   frame-src 'none';
   object-src 'none';
@@ -144,6 +144,7 @@ Reporting-Endpoints: cordex-csp="https://{publicHost}/api/v1/telemetry/csp"
 | `{wsOrigin}` | `wsBase` 的 origin（`wss://{publicHost}`）；与页面同主机时也显式列出 | 同上 |
 | `{externalSrc}` | `externalResources` 为 `auto` 或 `confirm` 时为 `https:`；为 `never` 时为空 | 部署配置 `externalResources`（§6） |
 | `{frameAncestors}` | 默认 `'none'`；启用形态 E 时 `/embed/*` 响应为允许的宿主源列表，其余路由仍为 `'none'` | 部署键 `web.embed.allowedHostOrigins`（60/17 §5）；浏览器侧同值见 RuntimeConfig `embed.allowedHostOrigins`（50/02 §3） |
+| `{templateOrigins}`（2026-10-22，rulings §4.25 TB-168；M3） | 集成方模板源清单地址 `templates.sources[].manifestUrl` 各自的源（去重）；没有配置模板源时为空 | web 容器启动时从部署配置的模板源取（60/17 §3.2），与浏览器侧的 RuntimeConfig `templates.sources`（50/02 §3）同一份值两处渲染，做法同 `embed.allowedHostOrigins` |
 | `{publicHost}` | 对外主机名 | 部署配置 `publicUrl` |
 
 部署开关（60/17 §3.2 的 `CORDEX_WEB_CSP_MODE`）只能决定两条 TT 指令放在 Report-Only 头还是强制头；其余指令自 M2 起始终在强制头，不随开关整体降为 Report-Only（rulings §4.15 Q2「CSP nonce M2、TT M2 report-only → M3 强制」；PRD 05 M2 验收 8）。
@@ -235,7 +236,7 @@ M4 / M5 的 RTL 与复杂文种 shaping 用 harfbuzzjs（wasm，shaping 部分 4
 | 缩略图栏与选择窗格的虚拟列表 | `@tanstack/react-virtual` 3.14.13 | 不需要：只经 React `style` 属性写 CSSOM | 无需处理 |
 | 拖拽重排与外部文件拖入 | `@atlaskit/pragmatic-drag-and-drop` 4.0.0（只用核心包） | 不需要：发布包无运行时样式注入 | 无需处理；不引 `*-react-drop-indicator` 等附加包（其样式方案未核实，引入前须按本表复核） |
 
-6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 与 Trusted Types 违规数都为 0，且 Toast、ScrollArea 与颜色选择器色盘的计算样式与基线一致；任何遗漏的注入点、失效的 patch 或过期的常量表都会在这里暴露。没有「运行时注入被拦只产生报告、外观不变」这类退路：`style-src` 自 M2 起强制，零违规是门禁。
+6. **兜底判据**：§13 的 csp-strict e2e 在 `/styleguide`（产品的组件全状态页，内容为 ui-react 的组件全状态、按 v3 kit；apps/web 只在测试部署挂出（`RuntimeConfig.env === 'test'`，由 `CORDEX_WEB_ENV` 渲染），路由登记在 [02](02-app-shell-routing-and-session.md) §2、§3，因此 csp-strict 在同一份生产包与生产 CSP 下覆盖它；a11y 门禁的对象也是它，rulings §4.25 TB-3、TB-50，[70/06](../70-testing/06-frontend-component-and-e2e.md) §7.2；playground 旧版 `/styleguide` 样张随 DS-7 删除，与本路由无关）、`/documents/:id`（编辑与查看者变体）上断言 `style-src` 与 Trusted Types 违规数都为 0，且 Toast、ScrollArea 与颜色选择器色盘的计算样式与基线一致；任何遗漏的注入点、失效的 patch 或过期的常量表都会在这里暴露。没有「运行时注入被拦只产生报告、外观不变」这类退路：`style-src` 自 M2 起强制，零违规是门禁。
 
 **图 2 nonce 从 web 容器响应到样式注入**
 
@@ -421,7 +422,7 @@ flowchart LR
 
 适用范围：图片（`a:blip r:link`）、音视频外链、OLE 链接对象的预览图。超链接属于导航，不在此列（§5）。字体永远不从外链加载（`font-src 'self' blob:`）。`/render` 页、服务端导入导出与缩略图永不加载外链（§2.3、60/06）。导出 pptx 时外部关系原样保留，与本配置无关。主线程 `toImage` 栅格化时，外链图片在 SVG 图像上下文里不会被加载，统一以占位绘制（30/07 §8）。
 
-**用户头像**同样受本配置约束：`avatarUrl` 可以是任意 `https://` 地址（来自 IdP `picture` 或用户自改，60/03 `UpdateOwnProfileUseCase`），加载即向该主机暴露查看者 IP。`auto` 下以 `<img referrerpolicy="no-referrer">` 加载；`confirm` 与 `never` 下一律不加载，显示姓名首字母头像（不为头像单独弹确认）。
+**用户头像**（2026-10-22，rulings §4.25 TB-123）：界面一律是身份色底加首字（PRD AS-06、CO-03），`avatarUrl` 只存不显示——任何 `externalResources` 档位下都不加载头像图片，头像因此不产生外链请求、不向第三方主机暴露查看者 IP；个人资料对话框里的头像同样只读首字、不上传。原「`auto` 下以 `<img referrerpolicy="no-referrer">` 加载、`confirm` 与 `never` 下不加载」作废；`avatarUrl` 的来源与存储以 [60/02](../60-backend/02-auth-chain.md) 为准，参考应用不再经 preset 选项 `user` 传它（[03](03-preset-assembly-and-plugins.md) §5）。
 
 **图 5 externalResources 三档与 CSP 联动**
 
@@ -515,7 +516,7 @@ flowchart TB
 | 协同票据 | 60 s、单次；只保存在 `session-client` 的闭包内存里，不进任何存储、URL、日志或错误上报；`auth.refresh` 时重新申请 | 60/02 §8、§9 |
 | CSRF | `infrastructure/api/http.ts` 对全部非安全方法（POST、PUT、PATCH、DELETE）附 `X-Cordex-Request: 1`；请求只发往同源 `apiBase`，`credentials:'same-origin'`；页面卸载前的遥测补发用 `fetch(..., { keepalive: true })` 携带同一请求头，**不用** `navigator.sendBeacon`（它无法附加自定义请求头，会被 CSRF 守卫拒绝） | 60/02 §5：缺头或 Origin 不在白名单 → 403 `server.auth.csrf_rejected` |
 | 开放重定向 | `nextAfterLogin(search)` 只接受以单个 `/` 开头的站内路径（拒 `//`、`/\`、协议与主机），须命中 50/02 §2 路由表且不得为 `/login`、`/auth/*`、`/render`、`/embed/*`；先解码一次再判定；其余一律回落 `/home`（规则全文以 50/02 §4 为准）。`mode` 只接受 `redirect` / `popup` | 服务端对 `next` 同样校验（60/02 §2） |
-| 分享令牌 | URL 形如 `/documents/{docId}#share={token}`：应用启动时**先于**遥测与路由读取片段，写入 sessionStorage `cordex.share.{docId}`，随即 `history.replaceState` 去掉片段；只经请求头 `X-Cordex-Share-Token` 随该文档的 REST 请求与 collab-ticket 请求发送，从不进 query；被错误上报、breadcrumbs 与日志脱敏；收到 403 且 `details.reason` 为 `share_link.expired` / `share_link.revoked` 时删除该键并提示「链接已失效」 | 60/02 §7 |
+| 分享令牌 | URL 形如 `/documents/{docId}#share={token}`：应用启动时**先于**遥测与路由读取片段，写入 sessionStorage `cordex.share.{docId}`，随即 `history.replaceState` 去掉片段；只经请求头 `X-Cordex-Share-Token` 随该文档的 REST 请求与 collab-ticket 请求发送，从不进 query；被错误上报、breadcrumbs 与日志脱敏；收到 403 且 `details.reason` 为 `share_link.expired` / `share_link.revoked` 时删除该键并提示「链接已失效」。分享对话框里也拿得到令牌：所有者取自 `GET …/share-links` 仍有效的那一条，2026-10-15 起能读文档的非所有者取自 `GET …/permissions` 读者视图的 `link.token`（只在链接授予角色时出现，rulings §4.25 DS-69、TB-86）；两处都只在内存里拼「复制链接」要写进剪贴板的那条链接，不写本机存储（查询缓存本就只在内存，[02](./02-app-shell-routing-and-session.md) §9.5），响应体不进日志与错误上报（同上脱敏规则，[02](./02-app-shell-routing-and-session.md) §8） | 60/02 §7 |
 | 重新登录与跨标签页通知 | `BroadcastChannel('cordex-auth')` 的消息只有 `refreshed` / `reauth-done` / `logged-out` 三种类型（50/02 §10.1），不携带任何令牌或身份；收到后各页自行 `GET /auth/me` 并比对主体（`isSameReauthPrincipal`） | 50/02 §4–§5 |
 | 登出 | `POST /auth/logout` 成功后执行 §10 清理矩阵 | 60/02 §4 |
 
@@ -542,10 +543,15 @@ flowchart TB
 | IndexedDB `cordex-collab/{userId}/{documentId}`（离线库，M4 P2 前默认关） | 含文档内容（不加密，P4） | 按用户分库 | 清空该用户全部库 | 先提示导出未同步更改，再清空前一用户的库 |
 | IndexedDB `cordex.recent` | 含文档标题 | 键含 `userId` | 清空该用户条目 | 同左 |
 | sessionStorage `cordex.share.{docId}` | 含分享令牌 | 标签页会话 | 清空全部 `cordex.share.*` | 同左 |
-| localStorage `cordex.prefs`、`cordex-theme`、布局记忆 | 不含 | 设备级 | 保留 | 保留 |
+| localStorage `cordex.prefs`、`cordex-theme` | 不含 | 设备级 | 保留 | 保留 |
+| localStorage `cordex.diagnostics.{userId}`（2026-10-22，rulings §4.25 TB-118） | 不含内容；键名含用户 id，值是本人的两个诊断开关 | 设备 × 用户 | 保留（本人再次登录时沿用） | 新用户读自己的键，没有即部署默认；不沿用上一个人的选择 |
+| localStorage `cordex.listView`（2026-10-22，TB-127、TB-131：开始页与文档列表共用的网格 / 列表一份、开始页「最近」的排序一份） | 不含 | 设备级 | 保留 | 保留 |
+| sessionStorage `cordex.auth.next`（2026-10-22，TB-122） | 不含内容；值是已过白名单校验的站内路径（可能含文档 id） | 标签页会话 | 删除 | 删除 |
+| sessionStorage `cordex.auth.reauthWindow`（2026-10-22，TB-122） | 不含；只是新窗口重新登录的标记 | 那个新窗口自己的会话 | 回调页用完即删，窗口关闭即失 | — |
+| localStorage `cordex.layout.{rememberKey}`（面板尺寸按文档记忆，apps/web 的 `rememberKey` 为 documentId） | 不含内容，键名含文档 id | 设备级 | 删除全部 `cordex.layout.*` | 同左（rulings §4.25 TB-24、TB-41，与分享令牌、离线数据的登出清理一致；原「布局记忆保留」作废） |
 | 内存：协同票据、host 状态 | 票据 | 进程 | 随页面卸载 | 随 host 销毁 |
 
-- 登出时若离线库中有未同步更改：先提示「有 N 项更改尚未同步到服务器，退出将删除」，给出「导出本地副本 / 仍然退出 / 取消」。
+- 登出时若还有未同步的更改（含离线库里的）：先尝试同步，仍有未同步项才弹确认「退出登录将丢失 N 项未同步更改」——左下「导出为本地副本」（导出后回到编辑器、不自动退出）、右侧「取消」与危险色「仍要退出」（2026-10-22，rulings §4.25 TB-122，与应用内离开、刷新的确认同一走向，[02](02-app-shell-routing-and-session.md) §10.2、设计 03-33 §8；原「导出本地副本 / 仍然退出 / 取消」三按钮写法随之改）。
 - 不使用 `Clear-Site-Data` 响应头：它会一并删除其它账号在本设备上尚未同步的离线更改，且不经上面的导出提示。
 - 不使用 Cache Storage 与 Service Worker（VERSION-DRIFT-SW）。
 - 共享设备上离线库不加密的风险写入 EM-18 集成检查清单；禁止本地持久化的部署保持 `offline.enabled:false`（M1–M3 默认即关）。
@@ -602,17 +608,17 @@ flowchart TB
 | # | 断言 | 执行（70 文件 · CI 步骤） |
 |---|---|---|
 | V1 | 渲染包与 `*-ui` 中不出现 `innerHTML`、`outerHTML`、`insertAdjacentHTML`、`DOMParser`、`document.write`（TD-081 负向夹具：`el.innerHTML = svgText`、`new DOMParser()`） | 09-type-discipline/08 TD-081 · `lint` |
-| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体）、`/documents/:id/view`、`/styleguide` 的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数与 Trusted Types 报告数都为 0；Toast（sonner）与 ScrollArea 的计算样式与基线一致（rulings §4.20 FE-18）；§4.21 新依赖同样覆盖：颜色选择器与渐变编辑器打开时色盘计算样式与基线一致，缩略图栏滚动与拖拽重排、表单对话框、首次粘贴 HTML（htmlparser2 惰性 chunk）、插入图标面板（预览只经 `<img>`）全程零违规 | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
+| V2 | csp-strict：以 §2.2 生产策略起 `apps/web`，在 `/home`、`/documents`、`/documents/:id`（编辑、评审、查看者变体；桌面、紧凑与仅查看三种形态）、`/documents/:id/view`、`/styleguide`（测试环境挂出的产品组件全状态页，TB-3、TB-50）的全部面板与状态下，`script-src` / `style-src` / `img-src` / `connect-src` / `worker-src` 违规数与 Trusted Types 报告数都为 0；Toast（sonner）与 ScrollArea 的计算样式与基线一致（rulings §4.20 FE-18）；§4.21 新依赖同样覆盖：颜色选择器与渐变编辑器打开时色盘计算样式与基线一致，缩略图栏滚动与拖拽重排、表单对话框、首次粘贴 HTML（htmlparser2 惰性 chunk）、插入图标面板（预览只经 `<img>`）全程零违规 | 70/10 SEC-CL-01、70/06 §10.1 · `e2e/smoke`（csp-strict）；其余 e2e 步骤由 csp-recorder 同时断言 |
 | V3 | nonce 每个 HTML 响应不同；CSP 头中的 nonce 与页面 `<meta name="cordex-nonce">` 同值；`index.html` 为 `no-store` | 70/10 SEC-CL-01、[70/08](../70-testing/08-deployment-and-environment-e2e.md) §4 · `e2e/full-compose` |
 | V4 | TT：M2 期间 e2e 套件统计到的 TT 报告数为 0（§4.5 切换条件）；M3 起强制头存在，且 `cordex-default` 的 `createScriptURL` 对 `blob:`、跨源、非 `/assets/` 路径返回 `null`；`default` 的 `createHTML` 对两段登记常量原样放行，对常量表外的文本（含登记文本改动一个字符）返回 `null`（负向用例，rulings §4.20 FE-18） | 70/10 SEC-CL-02、70/06 §10.1（未登记文本、登记常量多一个空格两个负向例；sonner、Radix、react-resizable-panels、react-colorful 零违规且计算样式与基线 `apps/web/e2e/security/fixtures/third-party-styles.json` 一致）· 全部浏览器 e2e 步骤；策略函数单测 ui-react `src/infrastructure/csp/__tests__/trusted-style-constants.test.ts` · `test/unit` |
-| V5 | `externalResources`：`auto` 下外链 `<image>` 带 `referrerpolicy="no-referrer"`；`confirm` 下确认前外链请求数为 0；`never` 下外链请求数为 0 且 CSP 不含 `https:`；`confirm` / `never` 下头像不发请求 | 70/10 SEC-CT-05 · `e2e/full-compose`（`never` 档另进 `e2e/smoke`） |
+| V5 | `externalResources`：`auto` 下外链 `<image>` 带 `referrerpolicy="no-referrer"`；`confirm` 下确认前外链请求数为 0；`never` 下外链请求数为 0 且 CSP 不含 `https:`；任何档位下头像都不发请求（2026-10-22，TB-123；原「`confirm` / `never` 下」随之放宽为全部档位） | 70/10 SEC-CT-05 · `e2e/full-compose`（`never` 档另进 `e2e/smoke`） |
 | V6 | 网络白名单：编辑器与查看器 e2e 的全部请求只指向同源、`wsBase`、存储源与 `/fonts/`；`/render` 两种注入模式下请求数为 0 | 70/10 SEC-CL-03 · 全部浏览器 e2e 步骤；`/render` 零请求 · `e2e/smoke` |
 | V7 | CSRF：`http.ts` 对每个非安全方法附 `X-Cordex-Request: 1`（单测遍历方法表）；跨源 POST 与缺头 POST 返回 403 | `test/unit`；70/10 SEC-XS-01 · `test/server-integration`、`e2e/smoke`（70/06 §10.3） |
 | V8 | 开放重定向：`nextAfterLogin` 对任意输入（fast-check 生成含 `//`、`/\`、编码变体、绝对 URL 的字符串）只返回路由表内的站内路径 | 70/10 SEC-XS-04 · `test/unit` |
 | V9 | 分享令牌：落地后地址栏无片段；任何请求的 URL 中不含令牌；令牌只出现在 `X-Cordex-Share-Token` 头；错误上报与 breadcrumbs 中不含令牌 | 70/10 SEC-XS-03、70/06 §5 第 11 行 · `e2e/smoke` |
 | V10 | 上传：客户端从不发送对象键（DTO 类型测试 + 单测）；直传 PUT 为 `credentials:'omit'` 且无 `X-Cordex-*` 头 | 70/10 SEC-AZ-10、SEC-CL-07 · `test/unit`、`test-typecheck`；他人 `uploadId` 403 见 [70/07](../70-testing/07-backend-integration-and-api-e2e.md) · `test/server-integration` |
 | V11 | 超链接协议：命令层对白名单外协议返回拒绝；渲染与点击只激活 `http(s)` 目标，导入带来的其它协议关系（含 `mailto:`、`javascript:`、`data:`）只显示、不激活 | 70/10 SEC-CT-03 · `test/unit`（性质测试）、`test/fidelity-roundtrip` |
-| V12 | 登出清理：登出后 IndexedDB 中不存在该用户的库与条目，sessionStorage 无 `cordex.share.*`；有未同步更改时先出现导出提示 | 70/10 SEC-CL-07、70/06 §5 第 9 行 · `e2e/smoke` |
+| V12 | 登出清理：登出后 IndexedDB 中不存在该用户的库与条目，sessionStorage 无 `cordex.share.*` 与 `cordex.auth.next`，localStorage 无 `cordex.layout.*`（TB-41）、`cordex.diagnostics.{userId}` 与 `cordex.listView` 保留（2026-10-22，TB-118、TB-122）；有未同步更改时先尝试同步、仍有才出现确认，选「导出为本地副本」后回到编辑器、没有退出 | 70/10 SEC-CL-07、70/06 §5 第 9 行 · `e2e/smoke` |
 | V13 | postMessage：非白名单 origin 或非父窗口来源的消息被丢弃；发送时 `targetOrigin` 从不为 `'*'` | 70/10 SEC-CL-07 · `test/unit`、`e2e/full-compose` |
 | V14 | 供应链：许可按 ADR-0049 分级（含 devDependency 与传递依赖）、高危漏洞、lockfile-guard、`workspace:` 协议 | 70/10 SEC-SC-01…05 · `scanners`（`license-allowlist`、`vuln-audit`、`lockfile-guard`、`check-workspace-protocol`） |
 | V15 | 字符串求值与 wasm：zod 首次解析不产生 `script-src` 违规（`jitless` 已在组合根设置）；ooxml-core 不导入 fflate 的异步入口；默认部署的策略不含 `'wasm-unsafe-eval'`，启用复杂文种 shaping 的变体含 `'wasm-unsafe-eval'` 且不含 `'unsafe-eval'`（§2.7、§4.3，rulings §4.21） | csp-strict（70/06 §10.1）· `e2e/smoke`；fflate 入口 · `lint`；策略模板单测 · `test/unit` |
@@ -629,3 +635,5 @@ flowchart TB
 **回写状态（由总编排执行）**：已回写——40/11 §4.4 `infrastructure/security/trusted-types.ts`；40/02 `HostOptions.scriptUrlPolicy` 与 kernel `toScriptUrl`；40/10 `runtime-style-sinks.ts` 与 `openExternal`；09-type-discipline/02 TD-081 作用范围扩到 `ui-core` 与 `apps/web`；30/10 §5 与 PRD 06 §5 改为「`fetch` keepalive 兜底」；09-type-discipline/02 §3 登记 `new Worker(`、`window.open` 两条配置行（2026-09-26）。rulings §4.20 FE-18 新增项也已回写（2026-09-26）——40/10 登记 ui-react `src/infrastructure/csp/trusted-style-constants.ts` 及其公开导出与单测；40/11 §4.4 `trusted-types.ts` 职责补 `default` 策略；`pnpm-workspace.yaml` 的 `patchedDependencies`（sonner）在 40/01 登记；70/06 §10.1 与 70/10 SEC-CL-02 补 V2、V4 的新断言。（50/04 §9 不经 `DOMParser` 的清洗、50/05 §8.1 / §10.2 媒体与缩略图经 `http.ts` 取 Blob 两项已在本线落实。）
 
 **§4.21 待回写（由总编排执行；2026-09-26 整合阶段已全部回写到所列文件）**：40/10 登记 ui-react `src/styles/vendor/react-colorful.css`（§3）；40/01 `pnpm-workspace.yaml#patchedDependencies` 增 react-colorful；40/04 在 `opc/zip.ts` 登记禁止 fflate 异步入口的 lint 配置行；40/02 与 40/11 登记 `z.config({ jitless: true })` 的调用点（§4.3）；60/17 在 M4 RTL 立项时登记 shaping 开关与 `'wasm-unsafe-eval'` 的下发（§2.7）；70/06 §10.1 与 70/10 SEC-CL-01 补 V2、V15 的新断言；[50/23](23-elements-media.md) 的 URL 插图片按图 6 的取数路径与失败提示对齐。
+
+**design-language-v3 第 3 批（2026-10-22，rulings §4.25 TB-118、TB-122、TB-123、TB-127）**：已写 §6 头像一律身份色首字、任何档位都不加载 `avatarUrl`；§10 存储表增 `cordex.diagnostics.{userId}`、`cordex.listView`、`cordex.auth.next`、`cordex.auth.reauthWindow` 四行（键空间本体在 [02](02-app-shell-routing-and-session.md) §10.1），登出确认改为先同步、仍有未同步项才弹、导出后不自动退出；§13 V5、V12。他线同批回写（各线并行，以各文档为准）：60/02 `avatar_url` 只存不显示（后端线）；40/11 `EditorPage.tsx` 不再传 `user.avatarUrl`（模块线）；70/10 SEC-CT-05、SEC-CL-07 断言（测试线）。2026-10-22 复核修正（rulings §4.25 TB-168）：§2.1 指令表与 §2.2 模板的 `connect-src` 增占位 `{templateOrigins}`（M3 集成方模板源的清单地址跨源时放行），占位表补一行；他线（以各文档为准）：60/17 §3.2 列明渲染方式（后端线）。

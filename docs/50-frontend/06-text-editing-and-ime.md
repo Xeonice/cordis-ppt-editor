@@ -1,5 +1,5 @@
 # 06 文本编辑与 IME
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：EditContext 作第三实现进 R-M2-1 spike；表格单元格编辑与 Tab 导航；字段嵌入与页码求值；断行表改由 UCD 生成）；2026-09-26（§4.21 整合：§9.1 与 §12 的单元格寻址、edit-context、insertField、slidenum 索引与断行来源等待回写项标为已回写） | 依赖：[ADR-0028 文本编辑宿主](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0027 文本度量](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[50/20 文本类元素](./20-elements-text.md)、[50/24 表格与图表](./24-elements-tables-and-charts.md)、[30/07](../30-architecture/07-rendering.md) §6 / §9、[30/06](../30-architecture/06-collaboration.md) §1.4 / §7.2 / §8、[40/06](../40-modules/06-layout-and-render-engine.md) §2.5 / §2.6 / §13、[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.2 / §2.6、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-10 / ED-18 / ED-24、PRD [NF-01](../10-prd/04-non-functional-requirements.md) §1.2 / NF-05、PRD 05 R-M2-1、设计 [07](../20-design/07-accessibility-and-i18n.md) §1.3 / §4、设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.18 UX-06
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21：EditContext 作第三实现进 R-M2-1 spike；表格单元格编辑与 Tab 导航；字段嵌入与页码求值；断行表改由 UCD 生成）；2026-09-26（§4.21 整合：§9.1 与 §12 的单元格寻址、edit-context、insertField、slidenum 索引与断行来源等待回写项标为已回写）；2026-10-07（design-language-v3 第 0 批修正收尾：§5.3 组合期间的格式入口改为检查器，迷你工具条按 DS-13 取消）；2026-10-07（design-language-v3 第 1 批：§3 事件分流表「其他和弦」行补删除线、上标、下标三个文本编辑作用域和弦与 `Mod+=` 的作用域分流，paste 行补「粘贴为纯文本」为 P2（rulings §4.25 DS-29、TB-19，PRD ED-16））；2026-10-15（design-language-v3 第 2 批：§10「X 正在编辑」软提示按已拍板样张 `offline-conflict.conflict-same-text` 改为文本框上沿外侧的提示签「● 〈姓名〉也在编辑此文本框」并画对方插入符（rulings §4.25 DS-60）；编辑文字时对选中文字发起评论后回到文字编辑（DS-44）） | 依赖：[ADR-0028 文本编辑宿主](../30-architecture/adr/0028-text-editing-host.md)、[ADR-0027 文本度量](../30-architecture/adr/0027-text-measurement-strategy.md)、[ADR-0018 元素模型与插入命令](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)、[50/20 文本类元素](./20-elements-text.md)、[50/24 表格与图表](./24-elements-tables-and-charts.md)、[30/07](../30-architecture/07-rendering.md) §6 / §9、[30/06](../30-architecture/06-collaboration.md) §1.4 / §7.2 / §8、[40/06](../40-modules/06-layout-and-render-engine.md) §2.5 / §2.6 / §13、[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.2 / §2.6、PRD [02-editing](../10-prd/03-features/02-editing.md) ED-02 / ED-03 / ED-10 / ED-18 / ED-24、PRD [NF-01](../10-prd/04-non-functional-requirements.md) §1.2 / NF-05、PRD 05 R-M2-1、设计 [07](../20-design/07-accessibility-and-i18n.md) §1.3 / §4、设计 [03-16](../20-design/03-screens/16-text-editing-and-formatting.md)、rulings §4.18 UX-06
 
 本文是画布内文本编辑的唯一事实源：从按键、输入法到一次事务提交与重绘的全部行为语义。渲染管线、字体与度量见 [05](./05-rendering-and-thumbnails.md)；命令与撤销语义本体见 [04](./04-document-commands-and-undo.md)；通用输入管线与快捷键表见 [09](./09-ui-system-and-theming.md) §8；Esc 逐级链的画布部分与选择模型见 [10](./10-editor-shell-and-interaction.md) §7；协同会话与 presence 数据见 [07](./07-collaboration-client.md)。
 
@@ -90,7 +90,7 @@ textarea 只在编辑态持有焦点；非编辑态的键盘事件落在画布�
 | keydown Enter | 选中文本形状时进入编辑态 | 不处理 keydown，由 beforeinput 处理 | 不拦截（候选确认） |
 | keydown Esc | Esc 逐级链 | 退出编辑态（§2） | 不拦截（取消候选） |
 | keydown Tab / Shift+Tab | 在形状间移动焦点 | 表格：到下一 / 上一单元格；列表段落且光标在段首：升 / 降级；否则插入制表符 | 不拦截 |
-| keydown 其他和弦（Mod+B / I / U、Mod+Z / Y、Mod+A …） | 快捷键表 | ui-core 快捷键：编辑态只放行编辑类白名单（白名单在 [09](./09-ui-system-and-theming.md) §8） | 一律不拦截（设计 07 §1.3） |
+| keydown 其他和弦（Mod+B / I / U、Mod+Z / Y、Mod+A …） | 快捷键表 | ui-core 快捷键：编辑态只放行编辑类白名单（白名单在 [09](./09-ui-system-and-theming.md) §8）；删除线 `Mod+Shift+X`、上标 `Mod+Shift+=`、下标 `Mod+=` 注册在「文本编辑」作用域、只在编辑态生效——同一和弦 `Mod+=` 在画布作用域为放大，编辑态按作用域优先执行下标、退出编辑后恢复为放大，不算冲突（rulings §4.25 DS-29，PRD ED-16） | 一律不拦截（设计 07 §1.3） |
 | beforeinput `insertText` / `insertReplacementText` | — | `insert` 意图（后者带替换范围，来自 `getTargetRanges()`）；`preventDefault` | — |
 | beforeinput `insertParagraph` / `insertLineBreak` | — | `split-paragraph` / `line-break` 意图（Shift+Enter → `a:br`） | — |
 | beforeinput `delete*`（`deleteContentBackward/Forward`、`deleteWord*`、`deleteSoftLine*`、`deleteHardLine*`） | — | `delete` 意图（字符、词、行） | — |
@@ -98,7 +98,7 @@ textarea 只在编辑态持有焦点；非编辑态的键盘事件落在画布�
 | beforeinput `insertCompositionText` | — | — | 不可取消，忽略（由组合事件处理） |
 | beforeinput 其他类型（`insertFromPaste` 等） | — | `preventDefault` 并忽略（粘贴走 paste 事件） | — |
 | compositionstart / update / end | — | 进入组合态 | §5 |
-| paste / copy / cut | 形状级剪贴板（[04](./04-document-commands-and-undo.md) §9） | 文本级剪贴板：copy 产出 `text/plain` + `text/html` + `application/x-cordex+json`；cut = copy + `delete` 意图；paste 经同一管线 MIME 协商与清洗后产出 `insert` 意图 | 不处理 |
+| paste / copy / cut | 形状级剪贴板（[04](./04-document-commands-and-undo.md) §9） | 文本级剪贴板：copy 产出 `text/plain` + `text/html` + `application/x-cordex+json`；cut = copy + `delete` 意图；paste 经同一管线 MIME 协商与清洗后产出 `insert` 意图；「粘贴为纯文本」`Mod+Shift+V` 为 P2，随「粘贴选项」上线，M2 不响应（rulings §4.25 DS-29、TB-19，设计 03-19 §1.3） | 不处理 |
 
 **图 3-1 输入事件分流**
 
@@ -249,7 +249,7 @@ sequenceDiagram
 ### 5.3 组合期间屏蔽
 
 - ui-core 键盘管线、命令面板的 Enter 确认、`@` 提及候选的过滤刷新，在组合期间一律不响应（设计 07 §1.3 / §4）。
-- 组合期间点击迷你工具条：按钮 `mousedown` 阻止默认以保持 textarea 焦点，其命令排到 `compositionend` 之后执行。
+- 组合期间点击检查器的文字格式控件（文字迷你工具条已按 rulings §4.25 DS-13 取消，文字格式只在检查器）：控件 `mousedown` 阻止默认以保持 textarea 焦点，其命令排到 `compositionend` 之后执行。
 - 组合期间的 Mod+Z / Mod+Y 交给输入法，不触发编辑器撤销。
 
 ### 5.4 协作者并发
@@ -422,7 +422,8 @@ flowchart LR
 
 - **字符级合并**：段落为 `Y.XmlElement('p')`、run 为带属性的文本区间（30/06 §1.4），同一段落不同位置的并发编辑自动合并；同一位置的并发插入按 Yjs 确定性顺序排列，各端一致；本地光标经 RelativePosition 保持相对位置。
 - **已知限制**（30/06 §8 第 8 行）：A 回车分段、B 同时给被移动的尾部文本加粗 → 尾部失去加粗；分段实现优先「保留头部、移动较短的一侧」降低概率，不改变正确性。格式并发：不同属性都保留，同一属性后写者胜。
-- **「X 正在编辑」软提示**：awareness 的 `editing` 字段（ADR-0024）→ 该形状显示协作者颜色的描边与名字标签，缩略图显示头像；不加锁（rulings §4.16 Q16），冲突按软冲突规则收敛。
+- **「X 正在编辑」软提示**：awareness 的 `editing` 字段（ADR-0024）→ 两人的插入点落在同一文本框时，文本框上沿外侧出中性提示签「● 〈姓名〉也在编辑此文本框」（色点为对方身份色），并画对方的插入符（rulings §4.25 DS-60，[07](./07-collaboration-client.md) §11）；不阻止输入，两段插入相邻并存、顺序确定，断线即消失；缩略图显示头像；不加锁（rulings §4.16 Q16），冲突按软冲突规则收敛。
+- **对选中文字发起评论**：编辑文字时选中一段、右键「添加评论 C」打开撰写框，撰写期间文本框的编辑态与选区保持（描边与选中色都在），发表或取消（含 `Esc`）后回到文字编辑，工具仍是「选择」（rulings §4.25 DS-44，[08](./08-comments-and-version-history.md) §5.4）。
 - **远端删除正在编辑的形状**：本机被动退出编辑，进行中的组合按 §5.5 丢弃，已提交的编辑保留在墓碑实体上，提示与「恢复元素」由 [04](./04-document-commands-and-undo.md) §7 负责。
 - **撤销**：只撤销本机自己的修改；他人后写的键跳过并提示、整步被跳过即停，UI 见 [04](./04-document-commands-and-undo.md) §6。
 - **流量**：键入 update 经 collab-yjs 50 ms 合并后发送，合并后 ≤ 200 B（p50）；光标变化经 awareness 节流 ≥ 50 ms（[07](./07-collaboration-client.md)）。离线期间照常编辑，pending 排队，重连后补发。

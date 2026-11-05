@@ -1,6 +1,6 @@
 # 25 元素族：只读与不透明类
 
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建。SmartArt、公式、OLE、3D 模型、墨迹、缩放定位与 ActiveX / VML / 未知 graphicData / 裸 p:contentPart 的统一口径「看得见、能摆放、原样写回」与各自后续路线）；2026-09-26（§4.21 整合：§2.4 与 §12 待决 5：renderHint 取值已在 40/04 统一）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-09-26（§4.21 复核：依赖行补 50/01 上游链接）；2026-09-30（§4.22 设计待决收口：§4 ③ 插入页签「公式」按钮样式按样张定稿） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素目录·总览](./19-insertable-elements-overview.md)；[30/04 文档模型](../30-architecture/04-document-model.md) §3.3、§4.2、§4.3、§5；[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1；[30/06 协同](../30-architecture/06-collaboration.md) §1.4、§1.5；[30/07 渲染](../30-architecture/07-rendering.md) §4.2；[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.6、§5；[40/04 OOXML 编解码](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.3、§5.2；[50/05 渲染](./05-rendering-and-thumbnails.md) §8.4、§9、§11；[50/10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §5、§7；[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md) 决策 9、10；[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)；PRD [OF §2.5–§2.7、OF-10、OF-12、OF-13](../10-prd/03-features/01-open-and-fidelity.md)、[ED §5 非目标](../10-prd/03-features/02-editing.md)；设计 03-10、03-13；rulings §4.15 Q7、§4.21（q-smartart、q-equation、d-75、d-76）
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-26（§4.21：新建。SmartArt、公式、OLE、3D 模型、墨迹、缩放定位与 ActiveX / VML / 未知 graphicData / 裸 p:contentPart 的统一口径「看得见、能摆放、原样写回」与各自后续路线）；2026-09-26（§4.21 整合：§2.4 与 §12 待决 5：renderHint 取值已在 40/04 统一）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-09-26（§4.21 复核：依赖行补 50/01 上游链接）；2026-09-30（§4.22 设计待决收口：§4 ③ 插入页签「公式」按钮样式按样张定稿）；2026-10-04（design-language-v3 第 0 批：非目标断言的范围改为底部创建工具条（含「更多」），规格测试改名 `toolbar-spec.test.ts`（rulings §4.25 DS-1、DS-5））；2026-10-04（design-language-v3 第 0 批：复验第 2 轮修正——§3 公式的 ③ 栏由旧插入页签「文本」组改为「v3 入口随第 1 批定稿」（样张主菜单「插入」列为禁用的「公式 M4+」，禁用与 tooltip 不变）；SmartArt、OLE、3D 模型、墨迹各节的「插入页签」改为工具条与主菜单「插入」；依赖表旧称「检查器坞」改为「检查器」）；2026-10-07（design-language-v3 第 1 批：§2.5 去掉 `toolbar.degraded`（rulings §4.25 DS-22、TB-29，「查看保真详情」在分区与右键），「位置与大小」补单位口径（DS-27），右键条目与设计 03-05「降级元素」的差别注明随第 3 批；§4 ③ 公式入口定为「更多」文本组与主菜单「插入」的「公式」（M4+ 不可用，设计 03-04 §4.2、§7.3）；§10 表与图 10-1 同步；§12 第 8 条改为已回写）；2026-10-15（design-language-v3 第 2 批：§2.1 画布占位统一为虚线框 + 图标 + 一行标题 + 一行原因，与缺插件占位同一画法（rulings §4.25 DS-52）；§2.2 双击提示与提示条的关系；§2.5 改写——缺插件元素共用 `degraded` 选中类型与分区，对象说明在最上、中性图标与次按钮「保真详情 / 查看详情」，缺插件占位不能改大小，右键按「能摆放」口径（剪切 · 复制 · 粘贴 · 原位复制 ┊ 排列 · 组合 ┊ 编辑替代文本 · 添加评论 ┊ 查看保真详情 ┊ 删除），改不了的替代文本写原因，原「右键差别随第 3 批」作废（DS-52）；§2.7 读屏名「无法解析」；§12 第 8 条补第 2 批）；2026-10-15（design-language-v3 第 2 批：§2.5「右键」按 rulings §4.25 DS-64 改——评审、只读浏览与降权下照常出这份菜单，编辑类命令留在原位不可用、顶部一行写原因，「复制」、有评论权限时的「添加评论」与详情入口照常可用，原「评审与只读浏览没有这份菜单」作废；§12 第 8 条同步）；2026-10-22（design-language-v3 第 3 批复核修正：§2.7、§8 ⑪ 与 §12 第 6 条的 `role=link` 按 50/05 §11 改为已回写） | 依赖：上游：[50/01 前端架构](01-overview-and-runtime-map.md) §5b、§4a（渲染）；[50/19 可追加元素目录·总览](./19-insertable-elements-overview.md)；[30/04 文档模型](../30-architecture/04-document-model.md) §3.3、§4.2、§4.3、§5；[30/05 命令与历史](../30-architecture/05-command-and-history.md) §1；[30/06 协同](../30-architecture/06-collaboration.md) §1.4、§1.5；[30/07 渲染](../30-architecture/07-rendering.md) §4.2；[40/03 幻灯片领域模型](../40-modules/03-slide-domain-model.md) §2.6、§5；[40/04 OOXML 编解码](../40-modules/04-ooxml-format-and-pptx-codec.md) §2.3、§5.2；[50/05 渲染](./05-rendering-and-thumbnails.md) §8.4、§9、§11；[50/10 编辑器外壳与画布交互](./10-editor-shell-and-interaction.md) §5、§7；[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md) 决策 9、10；[ADR-0018](../30-architecture/adr/0018-editor-element-model-and-insert-commands.md)；[ADR-0019](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md)；PRD [OF §2.5–§2.7、OF-10、OF-12、OF-13](../10-prd/03-features/01-open-and-fidelity.md)、[ED §5 非目标](../10-prd/03-features/02-editing.md)；设计 03-10、03-13；rulings §4.15 Q7、§4.21（q-smartart、q-equation、d-75、d-76）
 
 本文是「只读与不透明类」元素族的唯一设计文档：一个 pptx 里 Cordex 不能编辑内部、但必须看得见、能选中摆放、导出时一个字节都不丢的那些对象。每个元素一节，节内固定 14 栏（作用、OOXML 来源、插入入口与默认、模型、渲染、交互、检查器、命令、协同、导入导出与保真、无障碍、复用、里程碑、待决）。元素族的通用设计（基类、变换矩阵、z 序、锁定、主题默认、插入通用流程、元素渲染器表）以 [50/19](./19-insertable-elements-overview.md) 为准，本文只写本族与通用口径不同的部分。
 
@@ -10,7 +10,7 @@
 |---|---|
 | 本族 7 个元素的 14 栏设计（§3–§9） | 通用元素设计与渲染器表：[50/19](./19-insertable-elements-overview.md) |
 | 统一口径：看得见、能摆放、原样写回（§2） | 模型实体与 OOXML 映射：30/04 §4.2、§4.3；40/03 §5 |
-| 本族的交互状态机、检查器分区与双击提示（§2.2） | 画布选择与拖拽管线：50/10 §7；检查器坞：50/10 §5 |
+| 本族的交互状态机、检查器分区与双击提示（§2.2） | 画布选择与拖拽管线：50/10 §7；检查器：50/10 §5 |
 | 本族的后续路线（SmartArt 转换为形状、公式 OMML 往返、OLE 下载与替换，§10） | 降级占位与 `reason` 取值：50/05 §9；EMF 栅格化：50/05 §8.4 |
 | 本族新增命令与待登记的模型字段（§11） | 命令三分法：30/05 §1；不透明修改白名单：[ADR-0008](../30-architecture/adr/0008-opaque-preservation.md) 决策 9、10 |
 | — | 其它图表类型与 chartex（`cx:`）：[50/24](./24-elements-tables-and-charts.md)（本族同口径，文件归图表线） |
@@ -75,6 +75,7 @@ flowchart TB
 | 裸 `p:contentPart` | `unknown`（`renderHint: 'placeholder'`） | 不画内容，只画占位 | `unsupported-shape-kind` | 「墨迹无法显示，已原样保留」 |
 | 未知 graphicData | `graphicFrame` 查表未命中 → `fallback.renderer` | 占位 | `unsupported-shape-kind` | 「此对象暂不支持显示，已原样保留」 |
 
+- **画布占位的画法**（2026-10-15，rulings §4.25 DS-52）：虚线框 + 类型图标 + 一行标题 + 一行原因，「内容已原样保留」一类的话并进原因行（如「瀑布图暂不支持显示」+「已原样保留，导出后可在 PowerPoint 查看」）；缺插件元素的占位与它同一画法（[04](./04-document-commands-and-undo.md) §1.1），上表「占位与双击提示文案」列的文字按「标题 + 原因」两行拆写，最终文案以设计 03-13 与 50/16 为准。整页解析失败的页显示页级占位「此页内容无法解析」（母版页脚照常）。
 - 三类占位（意外失败、预期降级、查表未命中）的视觉与事件口径见 50/05 §9；本族全部属于「预期降级」或「查表未命中」，不走 `errors.report`，只发 `render/element-degraded{reason}` 并进入保真诊断面板（PRD OF-13）。
 - Fallback 分支里的位图与普通图片走同一 `MediaCache` 与 blob URL 生命周期（50/05 §8.2），不另开通道；Fallback 为 EMF 时同样惰性栅格化。
 - 渲染器全部无状态、只读；只读解析的产物（`DiagramDrawingReadModel` 等）不进模型、不进 Snapshot，按部件 `BlobRef.hash` 在 slide-render 内 LRU 缓存（50/19 §6）。
@@ -133,7 +134,7 @@ flowchart LR
 
 - **命中**：选框覆盖整个对象外框，内部不做逐形状命中（SmartArt 的子形状也不可单独选中）；`fill="none"` 穿透规则不适用。
 - **键盘**：方向键 / `Shift`+方向键微移（50/10 §7.3）；`Delete` 删除；`Tab` 按 z 序循环；`Enter` 等同双击；`Mod+D` 与 `Mod`+拖动复制见 §2.3 末条。
-- **双击与 Enter**：不进入任何子编辑态，弹一次 toast（本节下表），toast 带「查看保真详情」动作，打开保真诊断面板并定位该对象；同一对象 10 s 内重复双击不重复弹出。
+- **双击与 Enter**：不进入任何子编辑态，弹一次 toast（本节下表），toast 带「查看保真详情」动作，打开保真报告（检查器整栏面板，[18](./18-editor-capabilities.md) UI-04）并定位该对象；同一对象 10 s 内重复双击不重复弹出。占位可选中、移动、缩放（缺插件占位除外，§2.5）、删除，不能进入内部编辑。
 - **锁定**：源文件带 `noMove` / `noResize` 时，手柄显示锁形（50/10 §7.1），与普通形状同。
 - **评审与只读**：只能选中与查看检查器，拖动与删除不可用（50/10 §3.2）。
 
@@ -251,18 +252,21 @@ classDiagram
 
 ### 2.5 检查器：`degraded` 分区
 
-本族全部落在 50/10 §5 的 `selectionKind = 'degraded'`，不另开 selectionKind（d-72 新增的 table、chart、media、placeholder-empty 与本族无关）。分区自上而下：
+本族全部落在 50/10 §5 的 `selectionKind = 'degraded'`，不另开 selectionKind（d-72 新增的 table、chart、media、placeholder-empty 与本族无关）；2026-10-15 起缺插件元素（[04](./04-document-commands-and-undo.md) §1.1）共用同一个选中类型与同一套分区（rulings §4.25 DS-52，样张 `fidelity.degraded-selected`、`plugins.missing-selected`）。面板标题为「〈类型名〉（占位）」，如「新式图表（占位）」；分区自上而下：
 
 | 分区 | 内容 | 可编辑 |
 |---|---|---|
-| 位置与大小 | x / y / w / h（显示单位按偏好，内部 EMU）、锁定比例开关；无旋转字段 | 是（`slide.moveShapes` / `resizeShapes`） |
-| 对象说明 | 对象类型名（SmartArt 图形、嵌入的 Excel 工作表、公式、3D 模型、墨迹、缩放定位、未知对象）+ 一句降级说明 + 「查看保真详情」 | 否 |
-| 替代文本 | 说明（≤ 250 字）、标题、装饰性（50/19 通用字段） | graphicFrame 系可编辑；AlternateContent 系只读并注明「此类对象的替代文本需在 PowerPoint 中修改」 |
-| 后续动作（M4+） | SmartArt「转换为形状」；OLE「下载原文件」「替换…」 | 随各元素里程碑出现，之前不显示占位 |
+| 对象说明（最上） | 与第 1 批图表「此类型仅支持查看」同一画法：中性信息图标（次级文字色）+ 标题（「此元素当前无法显示」；缺插件元素为「插件「〈插件名〉」不可用」）+ 一句原因（如「瀑布图等 Office 2016 新图表暂不支持显示，已原样保留，导出后可在 PowerPoint 查看。」「已被管理员停用，内容已原样保留。」）+ 次按钮「保真详情」（缺插件元素为「查看详情」），带 14px 外链图标；不用警告色，也不再写「可以移动、缩放、复制和删除，不能编辑内部」——画布上的手柄与右键已经表达 | 否 |
+| 位置与大小 | x / y / w / h（显示单位按偏好，内部 EMU；文档与样张按 pt 书写，rulings §4.25 DS-27）、锁定比例开关；无旋转与翻转字段；缺插件占位不能改大小：W / H 留在原位不可用、节末写原因（DS-52） | 位置可改（`slide.moveShapes`）；大小：本族可改（`slide.resizeShapes`），缺插件占位不可改 |
+| 对象自己的节 | 替代文本：说明（≤ 250 字）、标题、装饰性（50/19 通用字段）；缺插件元素另有「缺少的插件」节：插件 id、原因、所需版本；后续动作（M4+）：SmartArt「转换为形状」，OLE「下载原文件」「替换…」 | 替代文本：graphicFrame 系可编辑，AlternateContent 系只读并注明「此类对象的替代文本需在 PowerPoint 中修改」；后续动作随各元素里程碑出现，之前不显示占位 |
 
-- 类型名映射：OLE 按 `progId` 查 i18n 表（如 `Excel.Sheet.12` → 「Excel 工作表」，未收录的显示 `progId` 原文）；AlternateContent 系按 `UnknownShape.source` 查表；文案命名空间归 50/16。
+- 「保真详情」打开保真报告（检查器整栏面板，[18](./18-editor-capabilities.md) UI-04）并定位到这个对象，报告关闭后焦点回到这颗按钮；缺插件元素的「查看详情」打开个人插件面板（「本文档缺少的插件」分组置顶，[03](./03-preset-assembly-and-plugins.md) §10）。选中缺插件元素时，横幅（整份文档缺哪些插件）与对象说明（选中的这一个）各有一个「查看详情」、去处相同，两处都留：横幅不能为选中而收起（收起会让画布上下跳一条横幅高），对象说明里的入口只在选中时出现，常驻入口仍只有主菜单「插件…」（DS-52）。保真的页级提示条在选中降级对象时让位（由对象说明来讲，UI-04）。
+- 类型名映射：OLE 按 `progId` 查 i18n 表（如 `Excel.Sheet.12` → 「Excel 工作表」，未收录的显示 `progId` 原文）；AlternateContent 系按 `UnknownShape.source` 查表；缺插件元素取足迹里插件声明的类型名；文案命名空间归 50/16。
 - 多选中含本族对象时按 `mixed` 取交集（位置与大小、排列），与普通形状一致（50/10 §5）。
-- 迷你工具条 `toolbar.degraded` 只放「查看保真详情」一项；右键菜单按 `selectionKind` 过滤后保留剪切 / 复制 / 删除 / 排列 / 组合 / 替代文本，不出现格式类命令。
+- **画布上的选中**：本族占位与普通形状一样画 1px 强调色选中框、8 个缩放手柄与尺寸角标，没有旋转手柄；缺插件占位不能改大小，只画 1px 选中框与尺寸角标、不画缩放手柄（DS-52；手柄与检查器由同一份降级信息决定，不会出现「画了手柄却不能改大小」）。评审与只读浏览不画手柄。
+- **右键**（DS-52，按本族「能摆放」的口径，§2.2；保真占位与缺插件元素同一结构）：剪切 · 复制 · 粘贴 · 原位复制 ┊ 排列 ▸ · 组合（单选时不可用，写「需选中 2 个以上对象」）┊ 编辑替代文本… · 添加评论 C ┊ 查看保真详情（缺插件元素为「查看详情」）┊ 删除；没有格式类命令与旋转。「编辑替代文本…」改不了时留在原位、不可用并写原因：AlternateContent 系（如新式图表、公式）写「需在 PowerPoint 中修改」，缺插件元素写「插件不可用时不能修改」；graphicFrame 系（SmartArt、OLE、未知 graphicData）照常可改。在占位上右键（先选中被点的那一个）或聚焦占位后按 `Shift+F10` / 菜单键，在同一落点打开；菜单关闭后，或从「查看保真详情」「查看详情」打开的面板关闭后，焦点回到这个占位。**评审、只读浏览与降权**（rulings §4.25 DS-64，§4.22 D-10「禁用而不隐藏」）照常出这份菜单：剪切、粘贴、原位复制、排列、组合、编辑替代文本与删除这些编辑类命令留在原位、不可用，同一原因写在菜单顶部一行（评审「评审模式下不可用」、只读浏览「只有查看权限」、降权「需要编辑权限」，同 [10](./10-editor-shell-and-interaction.md) §6 缩略图右键的口径，TB-22）；「复制」、有评论权限时的「添加评论」与「查看保真详情 / 查看详情」照常可用；查看者没有评论权限，「添加评论」同样留在原位不可用。原「评审与只读浏览没有这份菜单（占位上按 `Shift+F10` 不出菜单）」作废（rulings §4.25「被修订的既有口径」）。原写法「设计 03-05「降级元素」现写「复制 · 删除 · 查看保真详情」，差别随第 3 批定稿」作废——03-05 随第 2 批按本条回写（设计线同批）。
+- 不设上下文工具条：原迷你工具条 `toolbar.degraded`（只放「查看保真详情」）随 rulings §4.25 DS-22、TB-29 作废，「查看保真详情」在本分区「对象说明」与右键里（[10](./10-editor-shell-and-interaction.md) §5 `degraded` 行）。
+- **未采纳**（rulings §4.25 DS-63）：缺插件占位也能改大小；右键只留「复制 · 删除 · 查看保真详情」；横幅还在时检查器不放「查看详情」。
 
 ### 2.6 协同
 
@@ -273,9 +277,9 @@ classDiagram
 
 ### 2.7 无障碍
 
-- 画布可访问树按 50/05 §11 的 `A11yDescriptor` 输出：SmartArt 为 `group`（50/19 的可访问性表把本族概括为图像类，SmartArt 取 `group` 是为了让读屏能读到其节点文字），其余为 `image`；缩放定位在放映中希望是 `link`，现行 `role` 取值集合没有 `link`，已提请 50/05 §11 补充（§12 待决 6）。
+- 画布可访问树按 50/05 §11 的 `A11yDescriptor` 输出：SmartArt 为 `group`（50/19 的可访问性表把本族概括为图像类，SmartArt 取 `group` 是为了让读屏能读到其节点文字），其余为 `image`；缩放定位在放映中可点击时取 `link`（取值已于 2026-09-26 补进 50/05 §11，§12 第 6 条；可点击要等 §12 第 3 条的白名单）。
 - `name` 的取值顺序：替代文本 → 本族各自的派生名（SmartArt 拼接节点文字、公式取 OMML 线性文本、OLE 取「嵌入的 + 类型名」）→「类型名 + 序号」；各节 ⑪ 栏写具体派生规则。
-- 双击提示通过 `aria-live="polite"` 播报；占位框内的说明文字同时是可访问名称的一部分，读屏与视觉看到的是同一句话。
+- 双击提示是一条轻提示，按轻提示的播报规则只播一次（[16](./16-i18n-and-accessibility.md) §8）；占位框内的标题与原因同时是可访问名称的一部分，读屏与视觉看到的是同一句话。左栏缩略图的警示角标按这一页最严重一条的级别读出：有整页无法解析的页读「N 处内容无法解析」，其余读「N 处内容以占位显示」（rulings §4.25 DS-51）。
 - 每个拖拽都有键盘或数值等价（方向键微移、检查器输入框），满足 WCAG 2.5.7（50/16 §6.3）；触控手柄 ≥ 44 px（PRD ED-27）。
 
 ## 3. SmartArt
@@ -284,7 +288,7 @@ classDiagram
 |---|---|
 | ① 作用 | 商务汇报里常见的流程、层次、循环、关系图示。导入后要看得见（PowerPoint 预计算的形状与文字）、能整体摆放、导出后在 PowerPoint 里仍是可编辑的 SmartArt（PRD OF-10）。M4+ 的「转换为形状」让用户不回 PowerPoint 也能改其中的文字与样式，代价是失去 SmartArt 语义。 |
 | ② OOXML 来源 | `p:graphicFrame` → `a:graphic/a:graphicData@uri="http://schemas.openxmlformats.org/drawingml/2006/diagram"` → `dgm:relIds@r:dm@r:lo@r:qs@r:cs`，分别指向 `ppt/diagrams/data*.xml`、`layout*.xml`、`quickStyle*.xml`、`colors*.xml`；PowerPoint 另写 `drawing*.xml`（`dsp:drawing`，Microsoft 2008 diagram 扩展），由数据部件 `extLst` 中的 `dsp:dataModelExt@relId` 经页部件关系引用，内含预计算好的 `dsp:spTree` 与每个形状的 `dsp:txXfrm` |
-| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标，d-75）：插入页签、形状库、空内容占位符图标条都不放 SmartArt；版式里的 `dgm` 占位符只作为空占位符显示提示文字，不提供点图标插入。M4+ 的「转换为形状」入口：右键菜单与检查器「后续动作」分区（§2.5） |
+| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标，d-75）：底部工具条（含「更多」）、主菜单「插入」、形状库、空内容占位符图标条都不放 SmartArt；版式里的 `dgm` 占位符只作为空占位符显示提示文字，不提供点图标插入。M4+ 的「转换为形状」入口：右键菜单与检查器「后续动作」分区（§2.5） |
 | ④ 模型 | `GraphicFrame{transform, graphic: Diagram}`，kind `graphicFrame:diagram`；`Diagram{dataPart, drawingPart?}`（40/03 §5 `shape/diagram.ts`；四个 `dgm` 部件与 `dsp` 部件在部件表中为不透明部件，30/04 §4.1）。只读视图 `DiagramDrawingReadModel`（40/04 §2.2）不进模型。本元素无新增字段；M4+ 转换只产出既有的 `GrpSp` 与 `Sp` |
 | ⑤ 渲染 | 同 §2.1：`graphicFrame:diagram` 渲染器调 `parseDiagramDrawing`（组变换已折算），逐个形状复用 `sp` 画笔画进一个 `<g transform>`，文字按 `dsp:txXfrm` 定位、走 engine-layout 断行；用户缩放后 `dsp:drawing` 不重算，渲染按「原 drawing 范围 → 新外框」非等比拉伸近似（PowerPoint 打开时会按版式重排，两者可能不同，检查器说明中写明）；无 `dsp` 部件时占位 `smartart-no-dsp` |
 | ⑥ 交互 | 同 §2.2；自由缩放（`lockAspectDefault:false`）；子形状不可单选；双击提示见 §2.2 表 |
@@ -329,7 +333,7 @@ sequenceDiagram
 |---|---|
 | ① 作用 | 理工、教学类演示里的数学公式（分式、根式、上下标、矩阵、积分）。M1–M3 保证看得见、能摆放、原样写回；M4+ 立项后可插入与编辑，并以原生 OMML 导出，使 PowerPoint 里仍能继续编辑 |
 | ② OOXML 来源 | PowerPoint 的实际写法是形状级 `mc:AlternateContent`（`mc:Choice Requires="a14"`）：Choice 为 `p:sp`，其 `p:txBody/a:p` 内含 `a14:m/m:oMathPara/m:oMath`（OMML 命名空间 `http://schemas.openxmlformats.org/officeDocument/2006/math`）；Fallback 为同一形状的 `p:sp`，整段文字连公式被栅格化为 `spPr` 的 `a:blipFill`。非标准生产者偶有把 `a14:m` 或 `mc:AlternateContent` 写在段落内的情况 |
-| ③ 插入入口与默认 | M1–M3 不提供。M2 起插入页签「文本」组第三列上行放「公式」按钮（Sigma 图标、挂 `M4+` 标记），留在原位、`aria-disabled`，tooltip「暂不支持插入公式（M4+）。文稿里已有的公式照常查看、放映、移动和缩放。」（插入页签只有七组，证据草案里的「符号」组并入「文本」组，见 [50/19](./19-insertable-elements-overview.md)；按钮样式按设计 03-04 与 playground 样张定稿，rulings §4.22）。M4+ 立项后启用：文本 › 公式 ▾（常用结构库 + 「新建公式」），点击在视口中心插入，默认字号取正文占位符级别样式，数学字体取 MathJax 字体 |
+| ③ 插入入口与默认 | M1–M3 不提供。M2 起「公式」入口（Sigma 图标、挂 `M4+` 标记）留在原位、`aria-disabled`，tooltip「暂不支持插入公式（M4+）。文稿里已有的公式照常查看、放映、移动和缩放。」；v3 入口为「更多」文本组的「公式」与主菜单「插入 › 公式」，两处都留在原位不可用、标 M4+，右侧短原因「后续版本提供」、工具提示为上句（设计 03-04 §4.2、§7.3，03-02 §2.3；原插入页签「文本」组第三列上行的按钮随 ribbon 废弃，rulings §4.22，[50/19](./19-insertable-elements-overview.md)）。M4+ 立项后启用：公式 ▾（常用结构库 + 「新建公式」），点击在视口中心插入，默认字号取正文占位符级别样式，数学字体取 MathJax 字体 |
 | ④ 模型 | M1–M3：`UnknownShape{transform, renderHint:'fallback-pic', xml, source:'math'}`；段落内出现的 `a14:m` 作为 Inline 不透明嵌入（30/06 §1.4 `insertEmbed({ opaque })`）。M4+ 立项草案（待 ADR）：把 Choice 分支的 `p:sp` 建模为 `Sp`，段落中的 `a14:m` 成为新的 Inline 变体 `Math{omml}`（OMML 子树以 [@cordexjs/xml](../30-architecture/adr/0019-xml-lexer-and-fidelity-tree.md) 保真树序列化后整值存储），Fallback 分支改为导出时重生成 |
 | ⑤ 渲染 | M1–M3 同 §2.1：画 Fallback 分支（位图填充的 `sp`）；无 Fallback 时取 OMML 的线性文本（如 `a/b`、`x^2`）以纯文本渲染，这需要把「OMML 线性文本只读解析」加进 ADR-0008 决策 10 白名单（§12 待决 3），加入前无 Fallback 即占位 `unsupported-shape-kind`。M4+：OMML → MathML（自研，基于 `@cordexjs/xml` 保真树）→ MathJax 4 输出 SVG（惰性 chunk，按需加载），SVG 以图像上下文渲染（与 50/05 §8.5 文档内 SVG 同一口径），不内联进 DOM、不用 `foreignObject`（ADR-0021） |
 | ⑥ 交互 | M1–M3 同 §2.2，锁比例；双击提示明确告诉用户「这个文本框里的其他文字也无法在此编辑」。M4+：双击进入公式子编辑态（浮层：LaTeX / 线性格式输入框 + 结构按钮 + 实时预览；`Mod+Enter` 确认、`Esc` 取消，一次确认一个撤销步） |
@@ -377,7 +381,7 @@ flowchart LR
 |---|---|
 | ① 作用 | 演示里嵌入的 Excel 表、Word 文档、Visio 图、PDF 等（或链接到外部文件的对象）。浏览器无法运行 OLE 服务器，Cordex 只显示预览图、允许摆放、导出原样写回；M4+ 允许下载嵌入的原文件或换成新文件 |
 | ② OOXML 来源 | `p:graphicFrame` → `a:graphicData@uri="http://schemas.openxmlformats.org/presentationml/2006/ole"`，其内通常是 `mc:AlternateContent`：`mc:Choice Requires="v"` 为 `p:oleObj@progId@r:id@spid`（+ `p:embed` 或 `p:link`），`mc:Fallback` 为 `p:oleObj` + `p:embed` + `p:pic`（预览图，多为 EMF）。嵌入负载在 `ppt/embeddings/*`（`.xlsx`、`.docx`、`.bin` 等）；链接对象的 `r:id` 指向外部关系；`@spid` 关联旧式 VML 绘图部件中的形状 |
-| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标，d-75）；插入页签没有「对象」按钮；从 PowerPoint 粘贴时按 PRD ED-17 落为图片，不会产生 OLE |
+| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标，d-75）；工具条与主菜单「插入」都没有「对象」项；从 PowerPoint 粘贴时按 PRD ED-17 落为图片，不会产生 OLE |
 | ④ 模型 | `GraphicFrame{transform, graphic: Ole}`，kind `graphicFrame:ole`；`Ole{progId, embedRef, preview?: {media: MediaId; contentType}}`（40/03 §5 `shape/ole.ts`；`preview` 由 40/04 `import/ole.ts` 从 `mc:Fallback` 的 `p:pic` 提取为 `BlobRef`）。嵌入与链接的区分由 `embedRef` 所指关系的 `TargetMode` 决定，不另建字段。M4+ 替换负载需新增 Mutation（建议 `slide.ole.setPayload{shapeId, embedRef, preview?}`，新增（§4.21）） |
 | ⑤ 渲染 | 同 §2.1：`graphicFrame:ole` 走 `pic` 路径画 `Ole.preview`；预览为 EMF / WMF 时 M1 占位 `emf-no-preview`，M2 起惰性栅格化（50/05 §8.4）；无预览时占位 `ole-preview-missing`，占位上显示类型图标与类型名；链接对象只画预览，链接目标永不加载（PRD OF §2.6） |
 | ⑥ 交互 | 同 §2.2，锁比例；双击提示「嵌入对象暂不支持在此编辑」。M4+ 双击改为弹出小菜单：「下载原文件」「替换…」「在 PowerPoint 中编辑的说明」；链接对象的菜单只有说明项 |
@@ -420,7 +424,7 @@ flowchart TB
 |---|---|
 | ① 作用 | 产品展示类演示中嵌入的 3D 模型（`.glb`）。Cordex 不加载 3D 引擎，只显示文件自带的静态海报图，能摆放、原样写回 |
 | ② OOXML 来源 | 形状级 `mc:AlternateContent`（`mc:Choice Requires="am3d"`）：Choice 为 `p:graphicFrame` → `a:graphicData`（Microsoft 2017 model3d 扩展）→ `am3d:model3d@r:embed`（指向 `.glb` 部件），含相机与姿态参数；Fallback 为 `p:pic`（海报图） |
-| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标）；插入页签没有「3D 模型」按钮 |
+| ③ 插入入口与默认 | 不提供插入（PRD 02 §5 非目标）；工具条与主菜单「插入」都没有「3D 模型」项 |
 | ④ 模型 | `UnknownShape{transform, renderHint:'fallback-pic', xml, source:'model3d'}`；无新增实体 |
 | ⑤ 渲染 | 同 §2.1：画 Fallback 海报；无 Fallback 时占位 `unsupported-shape-kind`（「3D 模型」） |
 | ⑥ 交互 | 同 §2.2，锁比例；没有 3D 旋转、平移视角与动画控件；双击提示见 §2.2 表 |
@@ -439,7 +443,7 @@ flowchart TB
 |---|---|
 | ① 作用 | 触屏或手写笔在 PowerPoint 里留下的手写批注、圈画、签名。要能看见、能摆放、原样写回 |
 | ② OOXML 来源 | 两种写法：a）形状级 `mc:AlternateContent`（`mc:Choice Requires="p14"`）→ `p14:contentPart@r:id` → `ppt/ink/ink*.xml`（InkML），Fallback 为 `p:pic`；b）不包 AlternateContent 的裸 `p:contentPart`（`p:nvContentPartPr` + `p:xfrm`，`r:id` 同样指向 InkML 部件） |
-| ③ 插入入口与默认 | M1–M3 不提供笔墨输入（PRD 02 §5 非目标）；M4+ 随触控编辑（PRD ED-27）评估「绘图」页签 |
+| ③ 插入入口与默认 | M1–M3 不提供笔墨输入（PRD 02 §5 非目标）；M4+ 随触控编辑（PRD ED-27）评估绘图入口（原设想的「绘图」页签随 ribbon 废弃） |
 | ④ 模型 | a）`UnknownShape{renderHint:'fallback-pic', source:'ink'}`；b）补映射为 `UnknownShape{transform: 取 p:xfrm, renderHint:'placeholder', source:'contentPart'}`（d-76，30/04 §4.2 与 40/04 `shape-tree.ts` 待补这一行，§12 待决 4） |
 | ⑤ 渲染 | a）画 Fallback 位图；b）无回退，占位 `unsupported-shape-kind`（「墨迹」）。M1–M3 不解析 InkML |
 | ⑥ 交互 | 同 §2.2，锁比例 |
@@ -490,7 +494,7 @@ flowchart LR
 | ⑧ 命令 | 编辑态：通用移动、缩放、删除、层级、组合。放映跳转是 Operation `slide.setCurrentSlide`（40/03 §2.6 既有），不入历史 |
 | ⑨ 协同 | 同 §2.6；放映中的跳转不产生任何写入 |
 | ⑩ 导入导出与保真 | M1 `V~`；M2 `E~` 仅变换（P1）。原样写回；目标页被删除时 Fallback 的 `hlinkClick` 关系原样保留（Relationship 全保留，ADR-0008 决策 5），PowerPoint 打开时自行处理失效目标 |
-| ⑪ 无障碍 | 编辑态 `role=image`；放映态建议 `role=link`（待 50/05 §11 补取值，§12 待决 6）；`name` = 替代文本 →「缩放定位：第 N 页」（目标页已解析时）→「缩放定位 + 序号」 |
+| ⑪ 无障碍 | 编辑态 `role=image`；放映态可点击时 `role=link`（取值已于 2026-09-26 补进 50/05 §11，§12 第 6 条；跳转要等 §12 第 3 条的白名单）；`name` = 替代文本 →「缩放定位：第 N 页」（目标页已解析时）→「缩放定位 + 序号」 |
 | ⑫ 复用 | 无（没有可复用的实现，跳转复用放映既有的页内超链接路径） |
 | ⑬ 里程碑 | M1 查看；M2 P1 整体变换；放映跳转随 ADR-0008 修订（建议 M2 P1，与 PRD ED-21「超链接与动作可点击」同批） |
 | ⑭ 待决 | 放映点击是否跳转（本节建议跳转、不做返回）；节缩放的目标是「节的第一页」还是按节范围放映（建议只跳到节首页） |
@@ -554,7 +558,7 @@ sequenceDiagram
 | 元素 | M1 | M2 | M3 | M4+ | 依据 |
 |---|---|---|---|---|---|
 | SmartArt | 渲染 `dsp:drawing`（P0） | 整体变换（P1） | — | 「转换为形状」（P2）；节点文字编辑再评估 | q-smartart |
-| 公式 | Fallback 查看 | 整体变换（P1）；「文本」组公式按钮灰显 | — | 立项：OMML↔MathML + MathJax 4 SVG，插入与编辑（P2） | q-equation |
+| 公式 | Fallback 查看 | 整体变换（P1）；「更多」与主菜单「插入」的「公式」不可用、标 M4+ | — | 立项：OMML↔MathML + MathJax 4 SVG，插入与编辑（P2） | q-equation |
 | OLE | 预览（P0） | 整体变换（P1）；EMF 预览栅格化 | — | 下载原文件、替换负载（P2） | PRD OF §2.6 |
 | 3D 模型 | 海报查看 | 整体变换（P1） | — | 无（非目标） | d-75 |
 | 墨迹 | Fallback 查看；裸 contentPart 占位 | 整体变换（P1，裸 contentPart 待白名单） | — | 随 ED-27 评估笔墨输入 | d-76 |
@@ -566,7 +570,7 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   m1["M1：看得见——只读解析 dsp、Fallback 位图、OLE 预览、占位与诊断"]
-  m2["M2：能摆放——整体移动、缩放、删除、层级、组合，导出同步分支 xfrm；公式按钮灰显"]
+  m2["M2：能摆放——整体移动、缩放、删除、层级、组合，导出同步分支 xfrm；公式入口不可用、标 M4+"]
   m3["M3：本族不变，只做回归"]
   m4a["M4+：SmartArt 转换为形状"]
   m4b["M4+：公式 OMML 往返与 MathJax 渲染"]
@@ -612,9 +616,9 @@ flowchart LR
 | 3 | 只读解析白名单扩充（§3、§4、§8） | 决策 10 增：OMML 线性文本（公式的可访问名称与无回退时的纯文本）、缩放定位 Fallback 的 `hlinkClick`（放映跳转）；并注明 SmartArt「转换为形状」是一次性物化、原对象同时删除，不构成第二份可编辑模型 | ADR-0008 |
 | 4 | 模型字段（§2.4、§7） | 30/04 §4.2 补「裸 `p:contentPart` → `UnknownShape`」一行（d-76）；`UnknownShape` 增 `source: OpaqueSource`（新增（§4.21）） | 30/04、40/03 §5、40/04 `import/shape-tree.ts` |
 | 5 | `renderHint` 取值不一致（§2.4） | 以 40/03 §5 的 `'fallback-pic' \| 'fallback-shapes' \| 'placeholder'` 为准，chartex 用 `'placeholder'` + `source:'chartex'` 表达 | 40/04 §5.2（已回写，2026-09-26 整合） |
-| 6 | 可访问角色 `link`（§2.7、§8） | `A11yDescriptor.role` 增 `link`，只在放映态用于可点击的缩放定位与带动作的对象 | 50/05 §11 |
+| 6 | 可访问角色 `link`（§2.7、§8） | `A11yDescriptor.role` 增 `link`，只在放映态用于可点击的缩放定位与带动作的对象 | 50/05 §11（已回写，2026-09-26 整合） |
 | 7 | 远期命令（§11） | `slide.convertSmartArtToShapes`、`slide.insertEquation`、`slide.setEquation`、`slide.downloadOleObject`、`slide.replaceOleObject` 与 Mutation `slide.ole.setPayload` 本轮不登记（与 50/19 远期清单一致）；`slide.setEquation` 与 `slide.ole.setPayload` 两项是本文在该清单外补充的，请 50/19 的远期清单补列 | 50/19；各自立项时 40/03 §2.6 与 ADR |
-| 8 | 检查器 `degraded` 分区（§2.5） | 增「对象说明」「替代文本」「后续动作（M4+）」三块，迷你工具条 `toolbar.degraded` 只放「查看保真详情」 | 50/10 §5 |
+| 8 | 检查器 `degraded` 分区（§2.5） | 增「对象说明」「替代文本」「后续动作（M4+）」三块；原迷你工具条 `toolbar.degraded` 随 rulings §4.25 DS-22、TB-29 作废，「查看保真详情」在分区与右键里；2026-10-15 按 DS-52 改：对象说明移到最上、缺插件元素共用本分区、缺插件占位不能改大小、右键按「能摆放」口径；同日按 DS-64：评审、只读浏览与降权下照常出菜单、编辑类命令留在原位不可用 | 50/10 §5、§7.3（已回写，2026-10-15）；设计 03-05「降级元素」与 §4、03-13（设计线同批）；样张 `fidelity.degraded-menu`、`plugins.missing-menu` 的说明（样张线同批） |
 | 9 | MathJax 字体数据许可（§4） | M4+ 立项前核对 New Computer Modern 上游许可，按字体资产口径登记 | [50/17](./17-reuse-and-dependency-catalog.md)；ADR-0049 |
 | 10 | 双击提示与类型名文案（§2.2、§2.5） | 命名空间与最终文案归 50/16，本文表格为草稿 | 50/16；设计 03-13 |
 
@@ -627,5 +631,5 @@ flowchart LR
 | 删除后导出 | 节点整体移除；`p:timing` 引用清理；孤儿 `embeddings/*`、`ppt/diagrams/*`、`ppt/ink/*` 被移除且内容类型同步 | `fidelity:edit-roundtrip` |
 | SmartArt 渲染 | 有 `dsp` 的语料 SSIM ≥ 0.85；无 `dsp` 显示占位并发 `smartart-no-dsp` | `fidelity:visual`、`fidelity:objects` |
 | 交互 | 双击与 Enter 只弹提示、不进子编辑态；无旋转手柄；拖动一次一个撤销步 | `e2e`（PRD M2 验收 1，用例元数据含 ED-01、ED-05） |
-| 非目标 | 插入页签、形状库、空占位符图标条中不存在 SmartArt、OLE、3D、墨迹、缩放定位、录屏入口（`ribbon-spec.test.ts` 断言） | `test` |
+| 非目标 | 底部创建工具条（含「更多」）、形状库、空占位符图标条中不存在 SmartArt、OLE、3D、墨迹、缩放定位、录屏入口（`toolbar-spec.test.ts` 断言） | `test` |
 | 可访问性 | 可访问树中本族对象的 `role` 与 `name` 符合 §2.7 与各节 ⑪ 栏 | `e2e` a11y 子集（50/16 §11.2） |

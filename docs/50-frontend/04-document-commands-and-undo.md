@@ -1,5 +1,5 @@
 # 04 客户端文档模型、命令与撤销
-> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-01（§4.23 插件管理：新增 §1.1 内容插件足迹 `core.pluginFootprint` 的写入（同事务并入、只增不减）、打开时比对与降级提示；§11 V13–V14、§12、§13 同步）；2026-10-03（§4.24 设计线对齐审计：§1 打开失败补 `format.unsupported_binary`（OF-02）；§1.1 写明评论不进足迹、带评论的文档静默保留不出横幅（AL-6）；§2 补打开 URL 与断点续传的落点（OF-23）；§12 同步） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)；rulings §4.23 O-3
+> 状态：v0.1 | 负责：前端设计线 | 更新：2026-09-25；2026-09-25（§4.19）；2026-09-26（§4.20）；2026-09-26（§4.21 Remap：原 30/07 迁出节的引用改指 50/01 §4a、50/19、50-frontend/04、50-frontend/13 等新位置）；2026-10-01（§4.23 插件管理：新增 §1.1 内容插件足迹 `core.pluginFootprint` 的写入（同事务并入、只增不减）、打开时比对与降级提示；§11 V13–V14、§12、§13 同步）；2026-10-03（§4.24 设计线对齐审计：§1 打开失败补 `format.unsupported_binary`（OF-02）；§1.1 写明评论不进足迹、带评论的文档静默保留不出横幅（AL-6）；§2 补打开 URL 与断点续传的落点（OF-23）；§12 同步）；2026-10-04（design-language-v3 第 0 批：§1.1 评论足迹一句、§3 管线表、§4 错误码矩阵与图、§5 撤销 UI 绑定改为主菜单「编辑」、§10 规模软警告改走 `ui.notification`（原状态栏弱提示，rulings §4.25 DS-1、DS-6））；2026-10-04（design-language-v3 第 0 批：复验修正——原「状态胶囊」改称文件名旁的同步状态行（rulings §4.25 DS-6），带作废标记的历史陈述统一措辞；§8.1、§8.3 保存态与会话状态的显示位置由应用栏改为文件名旁的同步状态行（DS-1、DS-6））；2026-10-07（design-language-v3 第 1 批：§5 撤销 / 重做菜单项按设计 03-19 §1.2 定稿（步骤名、无步骤与只读时的原因）；§6.3 提示条的位置与外观同 50/10 §11 轻提示、左侧对方头像，「恢复我的值」「恢复元素」两个按钮保留不变（rulings §4.25 TB-26，样张未画、随实现）；§9 反馈按 03-19 §5 改写，「粘贴选项 ▸」两处入口（主菜单「编辑」、画布空白处右键）M2 整项置灰，粘贴为纯文本 `Mod+Shift+V` 为 P2（DS-29、TB-19）；§10 规模软警告定稿为画布列底部居中、底部工具条上方 12 的轻提示（03-02 §6.2））；2026-10-08（design-language-v3 第 1 批收口：§3 管线表「权限门」行按 DS-15、TB-28 写明只读时菜单与工具条留在原位不可用、检查器只读展示当前值、查找面板不显示替换行，「历史」行与 §4 `HISTORY_EMPTY` 行、§6.3 表后一句由撤销按钮改为主菜单「编辑 › 撤销：〈步骤名〉」与命令面板（v3 不设撤销按钮，DS-1，03-19 §4.2）；分流图「成功」节点同步）；2026-10-15（design-language-v3 第 2 批：§1.1 缺插件横幅改中性底加警告色拼图、缺多个插件时的标题与说明、单个插件启动失败的标题与说明（rulings §4.25 DS-41、DS-55），缺席插件的占位改为两行字、不能改大小（DS-52）；§7.1「最近删除」为版本历史整栏面板顶部缺省收起的折叠行，「彻底删除」为中性次按钮、模态确认框初始焦点在「取消」（DS-40、DS-57）；§8.3 应用内离开的确认框按样张（左下「导出为本地副本」、安全项「留下」为初始焦点），浏览器刷新与关闭只用原生提示（DS-59））；2026-10-22（design-language-v3 第 3 批（rulings §4.25 DS-102、DS-110）：§1.1 查看器缺插件的那一行放进 ⓘ 保真摘要卡；§8.3 导出「等待同步」按浏览器生成与服务端生成分：PNG / SVG 与 pptx 同为浏览器格式，M3 起只有 PNG「全部页」与 PDF 是服务端格式） | 依赖：[30/04](../30-architecture/04-document-model.md) §2.1、§2.2、§2.9、§3.1a；[30/05](../30-architecture/05-command-and-history.md) §1、§3、§6–§9、§13.3；[30/07](../30-architecture/07-rendering.md) §14.2；[40/02](../40-modules/02-kernel-protocol-and-document-core.md) §2.1、§2.4–§2.6；[40/03](../40-modules/03-slide-domain-model.md) §2.6；[40/10](../40-modules/10-ui-shell-and-slide-ui.md) §2.1、§2.2、§2.6；[40/05](../40-modules/05-collaboration-client.md) §2.3；[ADR-0007](../30-architecture/adr/0007-document-store-and-derived-undo.md)、[ADR-0013](../30-architecture/adr/0013-mutation-lowering-and-store-ops.md)、[ADR-0020](../30-architecture/adr/0020-crdt-selection.md)；[rulings](../00-charter/rulings-2026-09-14.md) §4.15 Q3/Q5、§4.17 D2/D4/D5、§4.18 CO-07/CO-11/CO-12/UX-05、§4.19 D-M2-CONTENT；[PRD 02](../10-prd/03-features/02-editing.md) ED-14/ED-17/ED-23；[PRD 03](../10-prd/03-features/03-collaboration.md) CO-08/CO-09；[设计 05](../20-design/05-collaboration-ux.md) §5–§6、[设计 03-19](../20-design/03-screens/19-undo-redo-clipboard-and-save-state.md)；[PRD 09](../10-prd/03-features/09-plugin-manager.md) PM-12、PM-13；[ADR-0050](../30-architecture/adr/0050-content-plugin-footprint.md)；rulings §4.23 O-3、§4.25 DS-1、DS-6、DS-15、DS-29、TB-19、TB-22、TB-26、TB-28；rulings §4.25 DS-102、DS-110；设计 [03-22](../20-design/03-screens/22-export-dialog.md) §1.3
 
 本文是**浏览器中文档模型、命令与撤销的运行侧行为**的唯一事实源：Unit 在浏览器中的生命周期、渐进打开的 UI 行为、命令入口与结果分流、历史策略、协同撤销语义的 UI 表达（不简化）、墓碑在客户端的可见性与「彻底删除元素」入口、保存与离开保护、剪贴板管线、规模守卫的编辑期 UI。
 
@@ -14,7 +14,7 @@
 | 协同会话、ack、被拒回滚、软冲突信号 | [07](07-collaboration-client.md) |
 | 文本编辑与 IME 的事务合并 | [06](06-text-editing-and-ime.md) |
 | 错误码 → 文案（i18n `errors.<code>.{title, action}`） | [15 §4](15-events-errors-and-telemetry.md) |
-| 横幅、Toast、FieldError、状态胶囊的全局分层 | [10 §11](10-editor-shell-and-interaction.md) |
+| 横幅、Toast、FieldError、同步状态行的全局分层 | [10 §11](10-editor-shell-and-interaction.md) |
 | 用例 id、运行矩阵、CI 步骤 | [70/02](../70-testing/02-contract-suites-and-pluggability.md)、[70/05](../70-testing/05-collab-simulation-and-property-tests.md) |
 
 包名一律省略 `@cordexjs/` 前缀。
@@ -72,23 +72,24 @@ stateDiagram-v2
 
 - 事务提交前，管线检查本事务写入的元素 `kind` 与资源命名空间；属于某个内容级插件、而足迹里还没有该插件或记录的 `minVersion` 低于本会话装配的版本时，把足迹更新**并入同一事务**——协作者收到的是一个包含足迹更新的原子变更，不会出现「有数据、无足迹」的中间态。
 - **只增不减**：撤销不回退足迹（足迹写入不单独占撤销栈，也不因撤销被移除）；删除该插件的全部元素也不清掉足迹条目。多记一条的代价只是打开时多一次比对。
-- **评论不进足迹**（2026-10-03，rulings §4.24 AL-6；ADR-0050 决策 1）：`comments` 插件虽按作用域判定为内容级，但评论不是幻灯片内容，`comments.*` 命名空间不进「kind / 命名空间 → 内容级插件」映射，写评论不产生足迹条目。单人 preset 与查看器打开带评论的文档时，`comments.threads` 按上一条「未注册命名空间」静默原样保留，比对结果里没有 `comments`，不弹缺插件横幅、状态栏插件入口不变为「本文档缺少插件」（与 [08](08-comments-and-version-history.md) §2「未装时评论数据原样保留」一致）。
+- **评论不进足迹**（2026-10-03，rulings §4.24 AL-6；ADR-0050 决策 1）：`comments` 插件虽按作用域判定为内容级，但评论不是幻灯片内容，`comments.*` 命名空间不进「kind / 命名空间 → 内容级插件」映射，写评论不产生足迹条目。单人 preset 与查看器打开带评论的文档时，`comments.threads` 按上一条「未注册命名空间」静默原样保留，比对结果里没有 `comments`，不弹缺插件横幅（v3 没有常驻的插件状态，原状态栏插件入口已随 rulings §4.25 DS-6 废弃；与 [08](08-comments-and-version-history.md) §2「未装时评论数据原样保留」一致）。
 - 界面级插件不进足迹（它们不产生文档写入，PM-13 第 3 条）；内置的 `model-slide` 等内核必需条目也写足迹，但在任何部署中都是强制启用，比对恒为正常。
 - 只读会话（查看者、评审者）不产生写入，因此也不写足迹。
 
 **比对**：`comparePluginFootprint(footprint, sessionSet, catalogStates)`（纯函数，kernel 导出）在 `unit/opened` 后算一次、在本会话插件装配结果（`PresetReport`）稳定后再算一次，输出 `[{ pluginId, minVersion, reason, affectedSlideIds[] }]`：
 
-| `reason` | 判定 | 横幅文案（一次性、非阻断、`role=status`） |
+| `reason` | 判定 | 横幅文案（一次性、非阻断、`role=status`；中性底加警告色拼图图标，rulings §4.25 DS-41） |
 |---|---|---|
 | — | 已装配且版本 ≥ `minVersion` | 不提示，正常渲染与编辑 |
 | `disabled` | 部署级策略为禁用 | 「本文档用到了『X』，管理员已停用该插件：N 处内容以占位显示，内容已保留」[查看详情] |
 | `absent` | 本部署未声明或被拒 | 「本文档用到了本部署没有的插件 `acme:qr-shape`（≥ 1.2）」 |
 | `outdated` | 本部署版本低于 `minVersion` | 「版本过旧：需要 ≥ 1.2，当前 1.0」 |
-| `failed` | 已启用但本会话启动失败或等待依赖 | 「插件『X』未能启动」，链到个人插件面板（按 PS-11） |
+| `failed` | 已启用但本会话启动失败或等待依赖 | 「插件「X」未能启动」+「暂时不可用，其余功能照常」，链到个人插件面板（按 PS-11；与 [10](10-editor-shell-and-interaction.md) §11 规则 10 的启动失败横幅同一标题，多个失败时「N 个插件启动失败」、说明行列出插件名，rulings §4.25 DS-55） |
 
-- 缺席插件负责的元素按 OF-13 占位显示（带插件名），可选中、移动、删除，内部不可编辑；导出 pptx 时原数据与足迹一起保留（足迹写入 `p:presentation/p:extLst`，形态见 ADR-0050）。
+- 同时缺多个插件时合成一条：标题「本文档用到了 N 个当前不可用的插件」，说明「M 处内容以占位显示，内容已保留；可选中、移动或删除，暂不能编辑内部」，「查看详情」打开的面板里三种原因各一行（样张 `plugins.missing-detail`）。
+- 缺席插件负责的元素按 OF-13 占位显示，与保真占位同一画法：虚线框 + 拼图图标 + 一行插件名 + 一行「〈原因〉，内容已保留」（如「插件已停用，内容已保留」「本部署未部署，内容已保留」「需要 ≥ 1.2，内容已保留」；原「插件名 / 原因 / 内容已保留」三行作废，rulings §4.25 DS-52）；可选中、移动、删除，不能改大小（只画 1px 选中框与尺寸角标，检查器 W / H 留在原位不可用），内部不可编辑，检查器与右键按 `degraded` 选中类型（[10](10-editor-shell-and-interaction.md) §5、§7.3，[25](25-elements-readonly-and-opaque.md) §2.5）；导出 pptx 时原数据与足迹一起保留（足迹写入 `p:presentation/p:extLst`，形态见 ADR-0050）。
 - M2 只区分「缺哪个插件、哪个版本」（`absent` / `outdated` / `failed`，停用也按 `absent` 提示）；M3 起靠本会话插件集里的部署级状态区分 `disabled` 与 `absent`。
-- 每个文档每会话只出现一次横幅；「查看详情」打开个人插件面板的「本文档缺少的插件」分组（[03](03-preset-assembly-and-plugins.md) §10），并发一次 `plugin/missing-in-document`（[15](15-events-errors-and-telemetry.md) §2）。管理员多一个「去管理 › 插件」；查看器 preset 只显示占位与一行说明。
+- 每个文档每会话只出现一次横幅；「查看详情」打开个人插件面板的「本文档缺少的插件」分组（[03](03-preset-assembly-and-plugins.md) §10），并发一次 `plugin/missing-in-document`（[15](15-events-errors-and-telemetry.md) §2）。管理员多一个「去管理 › 插件」；查看器 preset 只显示占位与一行说明，那一行放在工具条 ⓘ 保真摘要卡的最前（「N 处内容需要插件「〈插件名〉」，以占位显示」），不加横幅、没有插件面板入口（2026-10-22，rulings §4.25 DS-110，[12](12-viewer-embedding-and-render-page.md) §3）。
 - 协同过渡期（管理员刚启用某内容插件、本端尚未重新加载）：对方写入的新元素与足迹条目按上面同一规则占位、保留，本端的编辑不改动其数据（PM-13 第 4 条）。
 
 **图 1a 足迹的写入与比对**
@@ -145,7 +146,7 @@ flowchart TB
 
 **打开 URL 与断点续传**（PRD OF-23，P2，M2；2026-10-03 按 rulings §4.24 补落点）：这是集成方能力，字节来自集成方的存储（EM-04），不新增 `source.kind`。集成方把 URL（或取 URL 的存储回调）交给 SDK 的取字节助手，助手在主线程用 `fetch` 下载，服务器支持时按 `Range` 分块（可选），每块失败重试 3 次、指数退避，下载进度并入 `unit/open-progress`（作为第 1 步之前的下载阶段，阶段名待 [40/04](../40-modules/04-ooxml-format-and-pptx-codec.md) 批次协议登记），拿到完整 `ArrayBuffer` 后按 `source:{kind:'bytes'}` 进入上面第 1 步；下载期间可取消，取消即中止请求、不创建 Unit。大小上限沿用 [14](14-client-security.md) §7 的 `fileSize`：有 `Content-Length` 时下载前判定，没有时累计字节超限即中止并返回 `format.quota_exceeded{dimension:'fileSize'}`。助手的包归属与签名待 40/02 登记；apps/web 的服务端文档走协同快照（§1），不经此路径，开始页也不提供「从 URL 打开」入口。
 
-进度 UI 订阅 `unit/open-progress{stage, pct}`；首帧前显示加载骨架，首帧后只在状态胶囊显示「正在载入其余页面 x%」，不阻挡编辑。预算（RM-A p75：D50 ≤ 1.5 s、D200 ≤ 3.0 s 首屏；主线程最长任务 ≤ 50 ms）以 [13](13-performance-and-bundling.md) 为准。
+进度 UI 订阅 `unit/open-progress{stage, pct}`；首帧前显示加载骨架，首帧后只在文件名旁的同步状态行显示「正在载入其余页面 x%」，不阻挡编辑。预算（RM-A p75：D50 ≤ 1.5 s、D200 ≤ 3.0 s 首屏；主线程最长任务 ≤ 50 ms）以 [13](13-performance-and-bundling.md) 为准。
 
 **渐进打开（浏览器侧）**
 
@@ -186,12 +187,12 @@ UI 的一切行为都经 `dispatch(ctx, unitId, commandId, params)` 转 `command
 |---|---|---|
 | ① resolve | `command/rejected{reason:'not-found'}` | 不提示用户（控件本应由 `when` 隐藏）；开发模式诊断面板记录 |
 | ② validate | `command/rejected{reason:'validation'}` | Toast「操作参数无效」；只遥测计数，不 `errors.report` |
-| ③ 权限门 | `command/rejected{reason:'permission'}` + `permission/denied` | **静默**，只在控件上显示只读提示（tooltip「需要编辑权限」）；只读态下写命令控件禁用而非隐藏 |
+| ③ 权限门 | `command/rejected{reason:'permission'}` + `permission/denied` | **静默**，只在控件上显示只读提示（tooltip「需要编辑权限」）；只读态下主菜单、右键与工具条里的写命令留在原位不可用而非隐藏（同一原因的一组用菜单顶部说明行，rulings §4.25 TB-22）；检查器按 DS-15 只读展示当前值、不显示禁用控件，查找面板不显示替换行（TB-28）（[10](10-editor-shell-and-interaction.md) §3.1、§5） |
 | ③ 第三方监听器否决（未调用 `next`） | 审计记 `VETOED`；Result 为 `command.vetoed` | Toast「操作被插件拦截」，诊断面板显示监听器所属 Fiber |
 | ③→④ 规模守卫 | `command/rejected{reason:'validation'}`；Result 为 `document.quota_exceeded`（30/05 §8） | Toast（按 `dimension` 取文案，§10）；不开事务 |
 | ④ 事务 | `command/failed` + `errors.report` | Toast「操作失败」+ 错误码；事务已整体回滚，无半截状态 |
-| ⑤ 历史 | `history/changed` | 撤销 / 重做按钮与 tooltip 更新 |
-| ⑥ 事件 | `store/transaction`、`command/executed` | 渲染脏区重绘、状态栏与上下文键更新 |
+| ⑤ 历史 | `history/changed` | 主菜单「编辑」撤销 / 重做项的步骤名、命令面板条目与上下文键 `canUndo` / `canRedo` 更新（v3 不设撤销按钮，rulings §4.25 DS-1，§5） |
+| ⑥ 事件 | `store/transaction`、`command/executed` | 渲染脏区重绘、检查器与上下文键更新 |
 | ⑦ 审计 | `command/audited` | 无 |
 
 - **Operation**（`view.setMode`、`ui.*`、`slide.setCurrentSlide` / `setSelection` / `setZoom`、`slide.selectMasterOrLayout`）同样走 `commands.execute`（同一入口、权限门、审计），但跳过事务与历史，不标脏；`broadcast:true` 的 Operation 经 presence 广播（[07 §10](07-collaboration-client.md)）。
@@ -208,11 +209,11 @@ UI 的一切行为都经 `dispatch(ctx, unitId, commandId, params)` 转 `command
 | `command.not_found` / `command.not_applicable` / `command.unit_not_found`（30/05 §3.1，40/02 §2.6 同名） | ① | 静默（开发模式诊断） | 计数 |
 | `command.invalid_params` | ② | Toast | 计数 |
 | `command.vetoed` | ③ | Toast | 诊断面板记录否决者 |
-| `document.quota_exceeded{dimension, limit, actual}` | 规模守卫 | Toast（§10 按维度取文案） | 不开事务；状态栏软警告同步刷新 |
+| `document.quota_exceeded{dimension, limit, actual}` | 规模守卫 | Toast（§10 按维度取文案） | 不开事务；接近上限的弱提示（`ui.notification`）同步刷新 |
 | `command.handler_failed` / `command.mutation_rejected` | ④ | Toast + [重试]（仅当命令幂等且参数仍有效） | `errors.report`（无文档内容） |
 | `command.store_unavailable` | ④（Unit 正在关闭或重开） | 静默丢弃 | 计数 |
 | 领域前置失败：版式 / 母版仍被引用（`LAYOUT_IN_USE` / `MASTER_IN_USE`）、占位符超上限（`PLACEHOLDER_LIMIT_EXCEEDED`） | ④ 前置校验 | 对应流程内的确认卡或 Toast（[11](11-masters-layouts-and-themes.md) §7–§8） | 不开事务 |
-| `HISTORY_EMPTY`（`core.undo` / `core.redo` 栈空） | Operation | 无（按钮本应禁用） | 无 |
+| `HISTORY_EMPTY`（`core.undo` / `core.redo` 栈空） | Operation | 无（菜单项本应置灰，§5） | 无 |
 | `store.import_append_conflict` | 渐进打开追加批次触及已有键 | 不面向用户：追加批次整体拒绝并 `errors.report`，已装载内容保持 | 诊断 |
 
 **命令结果到 UI 反馈的分流**
@@ -221,7 +222,7 @@ UI 的一切行为都经 `dispatch(ctx, unitId, commandId, params)` 转 `command
 flowchart TB
   run["dispatch → commands.execute → Result"]
   ok{"ok？"}
-  applied["成功：history/changed、store/transaction → 按钮、上下文键、渲染"]
+  applied["成功：history/changed、store/transaction → 菜单项、上下文键、渲染"]
   reason{"失败发生在哪一段？"}
   perm["③ 权限门：command.permission_denied"]
   quiet["静默 + 控件只读提示，只计数"]
@@ -230,7 +231,7 @@ flowchart TB
   valid["② 参数无效或 ③ 被否决"]
   toastPlain["Toast，文案取 errors.code"]
   quota["规模守卫：document.quota_exceeded"]
-  toastQuota["Toast 按 dimension 取文案，状态栏软警告刷新"]
+  toastQuota["Toast 按 dimension 取文案，接近上限的弱提示刷新"]
   fail["④ 事务失败并整体回滚"]
   toastRetry["Toast + 可选重试，errors.report 无内容"]
   run --> ok
@@ -260,7 +261,7 @@ flowchart TB
 | 撤销后定位 | 由 `TransactionRecord` 的触及路径算出所在页与实体 → `slide.setCurrentSlide` + `slide.setSelection`（Operation，不入历史） | PRD ED-14 |
 | 连击 | 快速连按 `Mod+Z` 每次仍是独立一步，不合并 | 设计 03-19 |
 
-- **UI 绑定**：应用栏撤销 / 重做按钮（编辑模式常驻、评审与放映隐藏，Ribbon 不重复放）、`Mod+Z` / `Mod+Shift+Z` / `Mod+Y`、命令面板一律绑定 `core.undo` / `core.redo`；`history/changed{canUndo, canRedo, depth}` 驱动上下文键 `canUndo` / `canRedo`；按钮 tooltip 显示下一步的步骤名（取该命令 `ui.command` 标题，如「撤销：移动形状 (Mod+Z)」）。
+- **UI 绑定**：主菜单「编辑」的撤销 / 重做项（2026-10-04 起取代应用栏按钮，v3 不再有常驻撤销按钮，rulings §4.25 DS-1；2026-10-07 第 1 批定稿，设计 03-19 §1.2、03-02 §2.3：「编辑」前两项即撤销 ⌘Z · 重做 ⇧⌘Z）、`Mod+Z` / `Mod+Shift+Z` / `Mod+Y`、命令面板一律绑定 `core.undo` / `core.redo`；`history/changed{canUndo, canRedo, depth}` 驱动上下文键 `canUndo` / `canRedo`；菜单项与命令面板显示下一步的步骤名（取该命令 `ui.command` 标题，如「撤销：移动形状 ⌘Z」，不是泛泛的「撤销」二字）。没有可撤销 / 可重做的步骤时菜单项留在原位置灰，右侧写「没有可撤销的操作」/「没有可重做的操作」；评审模式写「评审模式下不可用」、只读浏览「只有查看权限」、编辑模式已降权「需要编辑权限」（DS-15，03-19 §2）。
 - **预算**：撤销 / 重做 p95 ≤ 50 ms；随机 1,000 步命令序列撤销后再重做，模型哈希一致（[70/05 §10](../70-testing/05-collab-simulation-and-property-tests.md) `history:property`）。
 
 ## 6. 协同撤销语义的 UI 表达（不简化）
@@ -300,7 +301,7 @@ flowchart TB
 
 ### 6.3 提示条
 
-提示条以带操作按钮的 Toast 呈现（设计 05 §6：非阻断、可关闭、不打断输入；含操作按钮时停留 5 s，悬停暂停计时）。同一时刻只保留最新一条，新的跳过替换旧的。
+提示条以带操作按钮的 Toast 呈现（设计 05 §6：非阻断、可关闭、不打断输入；含操作按钮时停留 5 s，悬停暂停计时）。同一时刻只保留最新一条，新的跳过替换旧的。位置与外观同 [10](10-editor-shell-and-interaction.md) §11 的轻提示（画布列底部居中、工具条上方 12）：左侧是对方头像，整步被跳过（对象已被删除）用警告色；按钮是文字按钮、放在 × 之前（设计 03-19 §4.2，样张 `main-states.undo-skipped`、`undo-blocked`）。两个恢复按钮保留不变（rulings §4.25 TB-26，M3，PRD CO-09）：第 1 批样张两条提示只画了 ×、没有画按钮，按本表随实现补上，设计 05 §6 与 03-19 已写明。
 
 | 情形 | 文案（取 i18n，示意） | 按钮 |
 |---|---|---|
@@ -311,7 +312,7 @@ flowchart TB
 | 软冲突 `prop-lww`（[07 §12](07-collaboration-client.md)） | 「〈X〉移动了该形状」等 | 恢复我的值 |
 | 软冲突 `delete-vs-edit` | 「你编辑的元素已被〈X〉删除」/ 页级「此页已被〈X〉删除」 | 恢复元素（含我的编辑）/ 恢复此页 |
 
-整步被跳过后，撤销按钮 tooltip 立即更新为再前一步的步骤名。提示出现率 100%（PRD CO-09 验收）。
+整步被跳过后，主菜单「编辑 › 撤销：〈步骤名〉」与命令面板随即更新为再前一步的步骤名（v3 不设撤销按钮，rulings §4.25 DS-1，设计 03-19 §4.2；原「撤销按钮 tooltip」作废）。提示出现率 100%（PRD CO-09 验收）。
 
 **撤销跳过提示条**
 
@@ -355,12 +356,12 @@ stateDiagram-v2
 
 ### 7.1 「最近删除」与彻底删除元素（M3，仅 owner）
 
-入口是版本历史面板顶部的可折叠分组「最近删除」（[08 §9](08-comments-and-version-history.md)；编辑者不显示），这是「彻底删除元素」的唯一入口（rulings §4.18 CO-07）。
+入口是版本历史面板（检查器整栏面板）列表顶部的折叠行「最近删除 N」，缺省收起（列表折叠行 `FoldRow`，[08 §9](08-comments-and-version-history.md)，rulings §4.25 DS-57；编辑者不显示），这是「彻底删除元素」的唯一入口（rulings §4.18 CO-07）。列的是墓碑保留期内被删除的元素，不是版本。
 
 - **数据来源**：本地 Y 状态中带 `_deleted` 且 `at + ttlHours > now` 的实体，按删除时间倒序；每行：元素类型与名称、所在页、删除者、删除时间与剩余保留时长（`ttlHours` 由装配时注入，与服务端 `tombstone.ttlHours` 同一部署值，SDK 默认 24 h）。删除者显示：取 `Tombstone.byUser`（命令层写入当前 principal 的 userId，服务端 L4 软门禁校验它等于来源会话的 userId，否则按修复还原，[60/16](../60-backend/16-ws-protocol-server-view.md) §4）经用户目录映射为显示名；没有 `byUser` 的旧墓碑回退为 `Tombstone.by`（Yjs clientID）经在线 awareness 映射，仍映射不到时显示「一位协作者」。
-- 本分组不设恢复按钮：找回仍走删除方撤销或被影响者的「恢复元素」。
-- **[彻底删除]**：弹 `AlertDialog`「彻底删除"〈名称〉"？删除后无法恢复。历史版本仍含该内容，要连历史清除请永久删除文档。」→ `POST /documents/:id/elements/purge{ids}`（`doc.manage`，路由见 [60/15 §3.7](../60-backend/15-rest-api-catalog.md)）→ 服务端单写者以 `system('maintenance')` 立即硬删并写审计 `document.element_purged`，结果经 CRDT 到达所有端 → 该行消失，Toast「已彻底删除 1 个元素」（不带撤销）。可多选批量。
-- **失败**：`server.documents.element_not_tombstoned`（目标已被恢复）→ 刷新列表并 Toast 说明；403 → 静默并刷新权限；离线时按钮禁用，tooltip「离线时不可用」。
+- 本分组不设恢复按钮：找回仍走删除方撤销或被影响者的「恢复元素（含我的编辑）」，分组说明写明这两条路。
+- **「彻底删除」**（每行行尾，中性次按钮，危险色只给确认框的主按钮，DS-57）：弹模态确认框（`AlertDialog`，初始焦点在安全项「取消」，rulings §4.25 DS-40）「彻底删除『〈名称〉』？删除后无法恢复。历史版本仍含该内容，要连历史清除请永久删除文档。」+「取消 /（危险色）彻底删除」→ `POST /documents/:id/elements/purge{ids}`（`doc.manage`，路由见 [60/15 §3.7](../60-backend/15-rest-api-catalog.md)）→ 服务端单写者以 `system('maintenance')` 立即硬删并写审计 `document.element_purged`，结果经 CRDT 到达所有端 → 该行消失，Toast「已彻底删除 1 个元素」（不带撤销）。可多选批量。
+- **失败**：`server.documents.element_not_tombstoned`（目标已被恢复）→ 刷新列表并 Toast 说明；403 → 静默并刷新权限；离线时分组照常显示（读本地文档状态），「彻底删除」留在原位不可用，工具提示「离线时不可用」。
 - 之后删除方再撤销该步 → 整步被跳过，提示「无法撤销：该内容已被彻底删除」（§6.3）。它只清当前文档状态，历史快照与 update 表按保留期存在，引用的图片原件按 30 天无引用回收——文案必须如实说明，不承诺「彻底消失」。
 
 ## 8. 保存、脏状态与离开保护
@@ -370,10 +371,10 @@ stateDiagram-v2
 适用于本地文档（`local:*`）与集成方的单人 preset（EM-02）；apps/web 的服务端文档自 M2 起走 §8.3。
 
 - **脏状态**：任一 `local` origin 事务提交 → `unit/dirty-changed{dirty:true}`；`system('load'|'import')` 与 Operation 不标脏。保存成功 → `unit/saved` 且 `dirty:false`。
-- **触发**：`Mod+S`（立即保存，完成后应用栏短暂显示「已保存 · 刚刚」）；自动保存（Preferences `autosaveSec`，默认 30 s，仅在 dirty 时触发，0 = 关闭）；集成方主动调用。
+- **触发**：`Mod+S`（立即保存，完成后文件名旁的同步状态行短暂显示「已保存 · 刚刚」；原应用栏保存态随 rulings §4.25 DS-1、DS-6 作废）；自动保存（Preferences `autosaveSec`，默认 30 s，仅在 dirty 时触发，0 = 关闭）；集成方主动调用。
 - **保存内容**（EM-02 (a)）：集成方选择 `onSave(bytes)`（`core.export` 在 Worker 中对快照副本生成 pptx，先 `await whenLoaded`）或 `onSave(snapshot)`（热保存，比 pptx 快 ≥ 5 倍）。
 - **不阻塞编辑**：保存以「脏代数」判定——开始保存时记下当前代数，成功后只有代数未变才 `markClean`，保存期间的新编辑归入下一次保存。
-- **失败**：保留脏状态，应用栏「保存失败 ⚠ [重试]」，只保留一条最新失败提示；失败后的新更改并入重试。`onSave` 以网络类错误失败（集成方存储暂不可达）时显示「已在本地保存」（warning）：内容仍在内存，下次触发或 `online` 事件时自动重试；这不是协同的离线态。
+- **失败**：保留脏状态，同步状态行「保存失败 ⚠ [重试]」，只保留一条最新失败提示；失败后的新更改并入重试。`onSave` 以网络类错误失败（集成方存储暂不可达）时显示「已在本地保存」（warning）：内容仍在内存，下次触发或 `online` 事件时自动重试；这不是协同的离线态。
 - **离开保护**：dirty 时关闭或刷新标签页触发 `beforeunload` 原生提示（集成方可经 preset 选项关闭，选项登记见 [40/11](../40-modules/11-preset-assembly-and-app-shell.md)）。
 
 **单人模式保存与脏状态**
@@ -406,12 +407,12 @@ stateDiagram-v2
 
 ### 8.3 协同模式（`store-yjs`，M2 起 apps/web 服务端文档）
 
-- 协同模式没有「保存」动作，也不显示保存态文案：持久化由服务端负责，应用栏显示会话状态（[07 §3](07-collaboration-client.md)）；`unit/dirty-changed` 不驱动 UI。
-- **离开保护**：`Session.stats.pendingLocalUpdates > 0`，或处于 `reconnecting` / `offline`（M4 前为内存队列）时，刷新或关闭标签页触发 `beforeunload`「刷新将丢失未同步更改」；应用内路由离开先 `Session.flush()`（5 s），仍有 pending 则弹确认「有 N 项更改尚未同步，离开将丢失」［留下］［仍要离开］。
+- 协同模式没有「保存」动作，也不显示保存态文案：持久化由服务端负责，文件名旁的同步状态行显示会话状态（[07 §3](07-collaboration-client.md)；原应用栏位置作废）；`unit/dirty-changed` 不驱动 UI。
+- **离开保护**（rulings §4.25 DS-59）：`Session.stats.pendingLocalUpdates > 0`，或处于 `reconnecting` / `offline`（M4 前为内存队列）时，浏览器刷新或关闭标签页触发 `beforeunload` 原生提示（文案由浏览器决定，不能定制）；应用内离开（主菜单「返回首页」）先 `Session.flush()`（5 s），仍有 pending 则弹应用内确认框「离开将丢失 N 项未同步更改」——第一句按原因换（离线「网络恢复后这些更改会自动同步，现在离开会丢失它们。」、登录已过期「重新登录后这些更改会自动同步…」、协同已暂停「协同已暂停，这些更改还没有提交到服务器。」、服务器保存延迟「服务器恢复后这些更改会自动保存…」），第二句「可以先导出本地副本，再离开。」；左下「导出为本地副本」（打开 [07](07-collaboration-client.md) §8.2 的导出对话框，导出后照常可以离开），右侧「留下」（安全项，初始焦点）与危险色「仍要离开」；关闭后焦点回主菜单按钮，之后再选「返回首页」照样先弹。应用内的刷新（隔离态「刷新」、插件设置「重新加载」、发现新版本「刷新」）同一画法，安全项为「取消」（[07](07-collaboration-client.md) §4、[02](02-app-shell-routing-and-session.md) §12）。
 - **导出期间可编辑**：`core.export` 在 Worker 中对快照的结构化克隆运行，编辑不受阻塞（NF-01 1.4）。
 - **导出「等待同步」**（rulings §4.18 UX-05；对话框视觉见设计 22，导出用例见 [02 §8](02-app-shell-routing-and-session.md)）：打开导出对话框时若 `pendingLocalUpdates = N > 0`：
-  - 客户端格式（pptx）：提示「导出将包含本地最新内容」+［仍要导出］［等待同步］；
-  - 服务端格式（PDF、M3 起的批量 PNG）：不提供「仍要导出」，警告改为「需先同步 N 项更改」+［等待同步］；
+  - 客户端格式（pptx，以及 M2 起在浏览器生成的 PNG / SVG）：提示「导出将包含本地最新内容」+［仍要导出］［等待同步］；
+  - 服务端格式（PDF、M3 起 PNG 的「全部页」）：不提供「仍要导出」，警告改为「需先同步 N 项更改」+［等待同步］；PNG 的其余范围仍在浏览器生成、按客户端格式处理（2026-10-22，rulings §4.25 DS-102）；
   - 点［等待同步］后对话框停在该态，调用 `Session.flush()` 并实时显示「正在同步 N 项…」，归零后自动进入生成中，期间可取消；`offline` / `reconnecting` 时该按钮禁用并提示「恢复连接后才能同步」。
 
 ## 9. 剪贴板管线
@@ -431,7 +432,8 @@ stateDiagram-v2
 - **API 不可用**：`copy` / `cut` / `paste` 事件的 `clipboardData` 可读写自定义类型；菜单触发的粘贴用异步 Clipboard API（自定义格式按浏览器支持用 `web application/x-cordex+json`）。权限被拒时退化为编辑器内部剪贴板（每个标签页各自一份，不跨标签页共享），并 Toast「浏览器未授权访问剪贴板，已使用编辑器内部剪贴板」。
 - **跨文档（M3 P1）**：片段携带 `sourceDocumentId` 与媒体 `sha256`；目标文档缺少媒体关联时，以用户对源文档的读权限取字节（`GET /documents/:srcId/media/:sha256`），再经 `media.upload` 提交到目标文档（服务端按 sha256 去重，决策 MEDIA-CLIENT、INC-21），完成前显示占位；图表内嵌工作簿等不透明部件同法迁移；目标缺失的版式按名称匹配，否则映射到默认版式并 Toast 提示。
 - **协同模式**：大片段粘贴由命令层分批为多个事务，避免单帧超限（[07 §5](07-collaboration-client.md)）；只读态下粘贴被权限门静默拒绝。
-- **反馈**（设计 03-19）：粘贴外部富文本 → Toast「部分格式已被简化」；粘贴纯文本到画布空白处 → 直接进入编辑态、不提示；粘贴图片 → 上传占位流程（[05 §8](05-rendering-and-thumbnails.md)）；右键「粘贴 ▾」变体为 P2。
+- **反馈**（设计 03-19 §5）：粘贴外部富文本 → 新建文本框并进入编辑态，中性说明轻提示「部分格式已被简化」；粘贴纯文本到画布空白处 → 新建文本框并进入编辑态、不提示；粘贴图片 → 上传占位流程（[05 §8](05-rendering-and-thumbnails.md)）。
+- **粘贴选项**（P2，2026-10-07 第 1 批定稿，03-19 §1.3）：「粘贴选项 ▸」（保留源格式 / 仅文本 / 作为图片）有两处入口——主菜单「编辑」（「粘贴」之后）与画布空白处右键（「粘贴」之后）；M2 时整项留在原位置灰、标 P2、右侧写「后续版本提供」。文本右键的「粘贴为纯文本」同为 P2、留在原位不可用（rulings §4.25 TB-19）。「仅文本」的快捷键 `Mod+Shift+V`（⇧⌘V）按 DS-29 登记为 P2、随「粘贴选项」上线：本管线在 `keydown` 记下 Shift，随后的 `paste` 事件跳过前三档、只取 `text/plain`（[10](10-editor-shell-and-interaction.md) §10.4 第 27 行），上线前不生效。
 
 **粘贴 MIME 协商与清洗**
 
@@ -483,13 +485,13 @@ flowchart TB
 
 | 维度（`dimension`） | 软警告 | 硬上限 | 触及软警告 | 触及硬上限 |
 |---|---|---|---|---|
-| `slides` | 150 | 200 | 状态栏弱提示「已接近 200 页上限」 | 拒绝 + Toast「已达页数上限（200）」 |
+| `slides` | 150 | 200 | 弱提示「已接近 200 页上限」 | 拒绝 + Toast「已达页数上限（200）」 |
 | `elementsPerSlide` | — | 1,000 | — | 拒绝 + Toast，不产生新对象 |
-| `elementsTotal`（墓碑计入） | 15,000 | 20,000 | 状态栏弱提示「元素数量已接近上限（15,000 / 20,000）」，悬停说明「最近 24 小时内删除的元素仍计入，到期后自动释放」 | 拒绝 + Toast「已达每份文档 20,000 个元素的上限」 |
+| `elementsTotal`（墓碑计入） | 15,000 | 20,000 | 弱提示「元素数量已接近上限（15,000 / 20,000）」，悬停说明「最近 24 小时内删除的元素仍计入，到期后自动释放」 | 拒绝 + Toast「已达每份文档 20,000 个元素的上限」 |
 
 - 硬上限由命令守卫在 ③ 之后、④ 之前按「提交后计数」判定，超限返回 `document.quota_exceeded{dimension, limit, actual}`（409，不关协同连接，rulings §4.17 D2），不开事务、不产生撤销记录；新增页、新增元素、粘贴、插入页、复制页、「恢复元素」同受约束。
-- 软警告不是横幅、不阻断：跨越阈值时出现一次，降回阈值下自动消失。
-- 协同并发合并后越线（两端各自未超限、合并后超限）：不变量 I-LIM1 只报告不修复，状态栏弱提示改为「已超过上限，新增内容将被拒绝」。
+- 软警告不是横幅、不阻断：跨越阈值时出现一次，降回阈值下自动消失；2026-10-04 起走 `ui.notification`（原状态栏弱提示，状态栏已随 rulings §4.25 DS-6 废弃）。呈现（2026-10-07 第 1 批定稿，设计 03-02 §6.2「性能弱提示与轻提示的位置」）：画布列底部居中、底部工具条上方 12 的轻提示（中性图标、可关闭、`aria-live=polite`、不抢焦点），层级在常驻外壳之下（[10](10-editor-shell-and-interaction.md) §11）；同一位置也承载单页对象数逼近性能预算时的弱提示「本页对象较多（N 个），编辑可能变慢」（样张 `main-states.perf-hint`）。
+- 协同并发合并后越线（两端各自未超限、合并后超限）：不变量 I-LIM1 只报告不修复，弱提示改为「已超过上限，新增内容将被拒绝」。
 - 导入期超限（`format.quota_exceeded`）属于打开失败，见 §2 第 1 步。
 
 ## 11. 机械验证

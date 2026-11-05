@@ -28,6 +28,11 @@ const Viewer = lazy(() => import("./routes/Viewer").then((m) => ({ default: m.Vi
 const Settings = lazy(() => import("./routes/Settings").then((m) => ({ default: m.Settings })))
 const AdminPlugins = lazy(() => import("./routes/admin/Plugins").then((m) => ({ default: m.AdminPlugins })))
 const Offline = lazy(() => import("./routes/Offline").then((m) => ({ default: m.Offline })))
+// 设计语言 v3 样张（rulings §4.25：第 0 批 DS-2、第 1 批 DS-21 已拍板）：全部代码在 src/v3/，与 ribbon 版并存用于对比，全量迁移后删除旧版（DS-7）
+const V3Editor = lazy(() => import("./v3/Editor").then((m) => ({ default: m.V3Editor })))
+const V3Home = lazy(() => import("./v3/Home").then((m) => ({ default: m.V3Home })))
+// 第 3 批（应用壳族）页面级宿主：文档列表、模板库、管理 › 插件（应用壳）、page（整屏 bare：登录与错误页）、embed（中性宿主外框 + iframe），src/v3/PageHost.tsx
+const V3Page = lazy(() => import("./v3/PageHost").then((m) => ({ default: m.V3PageRoute })))
 
 /** 路由级代码分割：artifact 查看器等嵌入环境首屏只需当前路由的代码。 */
 export function App() {
@@ -59,6 +64,13 @@ export function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/offline" element={<Offline />} />
         <Route path="/admin/plugins" element={<AdminPlugins />} />
+        <Route path="/v3/editor" element={<V3Editor />} />
+        <Route path="/v3/home" element={<V3Home />} />
+        <Route path="/v3/documents" element={<V3Page />} />
+        <Route path="/v3/templates" element={<V3Page />} />
+        <Route path="/v3/admin/plugins" element={<V3Page />} />
+        <Route path="/v3/page" element={<V3Page />} />
+        <Route path="/v3/embed" element={<V3Page />} />
       </Routes>
       </Suspense>
       <Toaster position="bottom-right" />

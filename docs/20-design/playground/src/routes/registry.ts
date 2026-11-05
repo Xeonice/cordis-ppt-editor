@@ -10,7 +10,8 @@ export interface RouteEntry {
 }
 
 export const routes: RouteEntry[] = [
-  { path: "/styleguide", title: "样式指南", description: "全部 shadcn 组件在 Cordex 主题下的状态矩阵与用法", spec: "09 §2", status: "ready" },
+  // 旧版（ribbon 版）组件状态矩阵：产品 /styleguide（a11y 与 csp-strict 门禁的对象，只在测试环境挂出）按 v3 kit 重写，它的样张是 v3 编辑器的 _kit 场景（rulings §4.25 TB-3、TB-50）；本页随 DS-7 全量迁移后删除
+  { path: "/styleguide", title: "样式指南", description: "全部 shadcn 组件在 Cordex 主题下的状态矩阵与用法（旧版；v3 组件全状态页的样张见 #/v3/editor?state=_kit）", spec: "09 §2", status: "ready" },
   { path: "/home", title: "应用首页", description: "开始页：新建与模板、最近文档、指南入口", spec: "03-screens/29", status: "ready" },
   { path: "/documents", title: "文档列表", description: "应用壳：文档卡片、搜索、新建、导入", spec: "03-screens/01", status: "ready" },
   { path: "/import", title: "打开与导入", description: "进度阶段、失败态全集、降级占位", spec: "03-screens/13", status: "ready" },
@@ -33,4 +34,14 @@ export const routes: RouteEntry[] = [
   { path: "/settings", title: "设置与快捷键", description: "主题/密度/语言/单位；快捷键面板", spec: "03-screens/23、24", status: "ready" },
   { path: "/admin/plugins", title: "管理 › 插件", description: "管理员插件清单：来源 / 作用域 / 必需性 / 八种部署级状态、策略三态与锁定、详情抽屉、变更确认卡、依赖与互斥冲突、首次启用第三方（M4）、被拒插件、无权限页", spec: "03-screens/32（PM-03–09）", status: "ready" },
   { path: "/offline", title: "离线与降级", description: "会话六态横幅、权限降级、门禁反馈", spec: "03-screens/12", status: "ready" },
+  // 设计语言 v3 样张：第 0–3 批都已拍板（rulings §4.25 DS-2 第 0 批、DS-21 第 1 批、DS-38…DS-63 第 2 批、DS-79…DS-143 第 3 批；2026-10-22 第 3 批转正，2026-10-23 评审修改 DS-140…DS-143 转正）。
+  // 各场景与状态由 src/v3/scenario-registry.ts 自动发现，Hub「设计语言 v3」按批分组列出；这里登记 v3 的宿主路由——编辑器、首页与第 3 批的页面级宿主（src/v3/scenarios/README.md §3e「宿主与路由」）。
+  // v3 各行的 spec 不写「03-screens/编号」：docs/_tools/gen-docs-site.py 按那个写法给界面文档配样张路由（旧版各行），v3 的路由不参与
+  { path: "/v3/editor", title: "编辑器 · 设计语言 v3", description: "去 ribbon 的 Figma 式三栏：底部浮动工具条只管创建，右侧检查器只管当前选中对象的属性", spec: "样张 v3（rulings §4.25 第 0–3 批已拍板：DS-2、DS-21、DS-38…DS-63、DS-79…DS-143）", status: "ready" },
+  { path: "/v3/home", title: "首页 · 设计语言 v3", description: "左侧导航贴边，模板与最近文档都是真实渲染的 16:9 封面；?state=home.<状态> 是开始页各态", spec: "样张 v3（rulings §4.25 DS-2、DS-12 第 0 批已拍板，第 3 批补态与修正 DS-79…DS-143 已拍板）", status: "ready" },
+  { path: "/v3/documents", title: "文档列表 · 设计语言 v3", description: "第 3 批页面级宿主（应用壳）：左栏五项即筛选、搜索框下拉与结果页、同一张卡片与菜单、回收站、「导入」对话框；?state=documents.<状态>", spec: "样张 v3 第 3 批（rulings §4.25 DS-79…DS-88、DS-92、DS-137、DS-140、DS-141；界面 03-01）", status: "ready" },
+  { path: "/v3/templates", title: "模板库 · 设计语言 v3", description: "第 3 批页面级宿主（应用壳）：来源分段与预览，M3；?state=templates.<状态>", spec: "样张 v3 第 3 批（rulings §4.25 DS-72、DS-93；界面 03-29）", status: "ready" },
+  { path: "/v3/admin/plugins", title: "管理 › 插件 · 设计语言 v3", description: "第 3 批页面级宿主（应用壳 + 管理导航）：插件清单、策略草稿与保存条、详情抽屉与深链；?state=admin-plugins.<状态>&plugin=<插件 id>", spec: "样张 v3 第 3 批（rulings §4.25 DS-86、DS-92、DS-94…DS-96、TB-119…TB-121；界面 03-32）", status: "ready" },
+  { path: "/v3/page", title: "登录与错误页 · 设计语言 v3", description: "第 3 批页面级宿主（整屏 bare）：登录、登录回调与新窗口登录、找不到页面、页面出错了、配置错误；?state=shell-pages.<状态>", spec: "样张 v3 第 3 批（rulings §4.25 DS-71、DS-118…DS-125；界面 03-33）", status: "ready" },
+  { path: "/v3/embed", title: "嵌入 · 设计语言 v3", description: "第 3 批页面级宿主：中性宿主外框 + iframe 容器——完整 / 紧凑 / 仅查看形态、请在新窗口登录、嵌入里的打开失败；?state=embed.<状态>&frame=宽x高", spec: "样张 v3 第 3 批（rulings §4.25 DS-73、DS-112、TB-115、TB-145；前端 50/12 §9）", status: "ready" },
 ]

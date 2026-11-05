@@ -1,0 +1,295 @@
+/* ============================================================
+   设计语言 v3 样张（rulings §4.25：视觉方向 DS-2 已拍板，第 1 批编辑器族 DS-21 已拍板；第 2、3 批迁移中）
+   中性平面 + 单一强调色：无渐变、无光晕、无毛玻璃，面板贴边不悬浮，只有浮层带阴影。
+   全部 token 限定在 .v3-root 作用域（幻灯片内容 token 限定在 .v3-slide），不影响旧页面。
+   主题与强调色走 data 属性：data-v3-theme="dark|light"、data-v3-accent="blue|violet|coral"。
+   控件只有一种画法：安静样式（rulings §4.25 DS-35…DS-37，2026-10-08 拍板为缺省）；原 DS-9 的「1px 独立边界」画法与 URL 参数 controls 已删除。
+   ============================================================ */
+
+.v3-root {
+  color-scheme: dark;
+
+  /* 表面：暗色为默认 */
+  --v3-canvas: #1E1E1E;
+  --v3-panel: #2C2C2C;
+  --v3-panel-2: #383838;
+  /* panel-2 之上的悬停 / 按下 */
+  --v3-panel-3: #434343;
+  /* 分隔线（面板贴边、节分隔、浮层描边）；下拉、次按钮、分段选中块的细边与字段的悬停细边也取它（与分隔线同档，DS-35、DS-37）。
+     暗 #444（2026-10-08 由 #3D3D3D 调到 Figma 的档位，DS-35），亮 #E5E5E5（与 Figma 的 #E6E6E6 同档） */
+  --v3-border: #444444;
+  /* 「边框就是控件本身」或身份标记的描边：复选框、单选圈、滑块把手、拖动把手、滚动条、插入表格网格的空格（TB-35）、自己头像的外圈与虚线落区；
+     对 canvas / panel / panel-2 都 ≥ 3:1（WCAG 1.4.11）：暗 4.51 / 3.78 / 3.17，亮 3.16 / 3.45 / 3.08（WCAG 公式，向下截断两位；全表见设计 04 §2.6）。
+     字段、下拉、分段选中块与按下态不再用它（DS-35 修订 DS-9 的「输入框加 1px 独立边界」：这类控件靠底色、标签与当前值识别，边界不再要求 3:1） */
+  --v3-border-control: #858585;
+
+  /* 文字（DS-9 对比度达 WCAG AA）：text、text-2 在 canvas / panel / panel-2 / panel-3 上都 ≥ 4.5:1，可读信息只用这两级
+     （暗 text-2 7.68 / 6.43 / 5.40 / 4.56）；text-3 只给占位与不可用项，在 canvas / panel / panel-2 上 ≥ 3:1（07 §8 不可用项底线） */
+  --v3-text: #F2F2F2;
+  --v3-text-2: #B0B0B0;
+  --v3-text-3: #858585;
+
+  /* 阴影只给浮层（工具条、弹层、菜单） */
+  --v3-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+  --v3-slide-shadow: none;
+
+  /* 派生值 */
+  /* 控件画法的语义 token：组件只引用这一组，不直接写 --v3-border-control。取值是安静样式（rulings §4.25 DS-35…DS-37，2026-10-08 拍板为缺省；
+     原样张参数 controls=quiet 的取值转正，token 名不变）：以 Figma Slides 检查器的克制为准，控件靠底色、标签与当前值识别，按下、选中、焦点才加强。
+     取值几乎都写成 var(...)，在 .v3-root 上按当前主题算出，所以亮色只需另改分隔线与开关淡底的浓度。
+     field  = 数字 / 文本输入（X / Y / W / H、字号、段前与段后、不透明度、颜色值行等；行距是下拉，走 select）：只铺 panel-2 淡底、不描边；悬停出一道与分隔线同档的细边（.v3-field:hover，见文件后部）；
+              聚焦时这条 1px 线换强调色（组件直接写，与原画法相同）；不可用时底再降一档。字段内分隔是 1px 面板色通高切口（Figma「96 | ▾」）。
+     select = 下拉 / 选择触发器（版式、字体、主题卡、列表样式、切换、文本颜色触发器、操作行等）：透明底 + 1px 细边，悬停铺 panel-2；不可用时细边降为 panel-2。
+     seg    = 分段控件与切换条：槽只铺 panel-2、不描边；分段选中块 = 面板色 + 细边、与槽同高贴边（TB-55：槽内边距与项间距 0，外框仍 28px；
+              开关组 B / I / U / S 的槽另用 ui.tsx SEG_TRACK，保留 2px 间距，免得相邻的按下项连成一块）。
+     toggle = 多选开关（B I U S、上下标、查找的 Aa 与 ab）的按下项：强调色淡底（暗 40%、亮 22%）、不描边（DS-36）。
+     on     = IconButton 按下态（锁定比例等）与「设计 / 评论」页签的选中态：只铺 panel-2、不描边，按下的图标描边加粗到 2（.v3-on-cue），与悬停区分。
+     hover-line = 色块 / 缩略图 / 版式卡这类网格项的悬停环（text-3 与分隔线之间）；btn = 次按钮（Button secondary、左栏「+」）：透明底 + 细边，悬停 panel-2（DS-37）；
+     search = 首页搜索框：透明底 + 细边（免得与同为 panel-2 底的当前导航项混淆）；
+     qs = 快速样式缩略：去掉白衬底、形状铺满格子、外圈用 --v3-swatch-line（TB-56）。
+     复选框、单选圈、滑块把手、拖动把手、滚动条、插入表格网格的空格、自己头像的外圈与虚线落区是「边框就是控件本身」或身份标记，仍直接用 --v3-border-control（≥ 3:1）；
+     例外是导入的落区（rulings §4.25 DS-141、TB-180，2026-10-23）：导入对话框里的落区静止时用与分隔线同档的 --v3-border（靠正中的字与按钮识别，理由同 DS-35），
+     拖入悬停时与开始页、文档列表主区的拖入落区（kit DropOverlay）一样，用强调色虚线加 --v3-accent-soft 淡底。 */
+  --v3-field-fill: var(--v3-panel-2);
+  /* 悬停不换底，只出细边 */
+  --v3-field-fill-hover: var(--v3-panel-2);
+  --v3-field-line: transparent;
+  /* 悬停时的字段细边（由 .v3-field:hover 换给 --v3-field-line，见文件后部）；聚焦 / 报错的线色由组件直接写，不受它影响 */
+  --v3-field-line-hover: var(--v3-border);
+  /* 不可用字段：无边，底退到 panel-2 与面板之间（暗 #323232、亮约 #F8F8F8），文字 text-3 */
+  --v3-field-line-off: transparent;
+  --v3-field-fill-off: color-mix(in srgb, var(--v3-panel-2) 50%, var(--v3-panel));
+  /* 字段内部的分隔：颜色行「色值 | 不透明度」的竖线（色与高）、字号「20 | ▾」▾ 左侧的切口，都是 1px 面板色通高切口 */
+  --v3-field-split: var(--v3-panel);
+  --v3-field-split-h: 100%;
+  --v3-field-split-edge: var(--v3-panel);
+  --v3-select-fill: transparent;
+  --v3-select-fill-hover: var(--v3-panel-2);
+  --v3-select-line: var(--v3-border);
+  --v3-select-line-off: var(--v3-panel-2);
+  --v3-seg-track: var(--v3-panel-2);
+  --v3-seg-track-line: transparent;
+  /* 选中块（分段选中项、表格边框预设的当前项）：面板色 + 1px 细边 */
+  --v3-seg-on: var(--v3-panel);
+  --v3-seg-on-line: var(--v3-border);
+  /* 分段控件（Segmented）槽的内边距、项间距与选中块圆角：贴边（TB-55） */
+  --v3-seg-pad: 0px;
+  --v3-seg-gap: 0px;
+  --v3-seg-on-radius: 4px;
+  /* 多选开关的按下项：强调色淡底、不描边（DS-36）；亮色的 22% 写在 [data-v3-theme="light"] 里 */
+  --v3-toggle-on: color-mix(in srgb, var(--v3-accent) 40%, var(--v3-panel-2));
+  --v3-toggle-on-line: transparent;
+  --v3-on-fill: var(--v3-panel-2);
+  --v3-on-line: transparent;
+  /* 网格项（色块、样式 / 版式 / 主题缩略、网格视图缩略图）的悬停环：text-3 与分隔线各半 */
+  --v3-hover-line: color-mix(in srgb, var(--v3-text-3) 50%, var(--v3-border));
+  /* 次按钮（DS-37）：透明底 + 与分隔线同档的细边；不可用时细边降为 panel-2 */
+  --v3-btn-fill: transparent;
+  --v3-btn-fill-hover: var(--v3-panel-2);
+  --v3-btn-line: var(--v3-border);
+  --v3-btn-line-off: var(--v3-panel-2);
+  --v3-search-fill: transparent;
+  --v3-search-fill-hover: var(--v3-panel-2);
+  --v3-search-line: var(--v3-border);
+  /* 快速样式缩略（TB-56）：衬底透明、不留边，形状铺满格子；内块圆角与外圈线 */
+  --v3-qs-matte: transparent;
+  --v3-qs-inset: 0px;
+  --v3-qs-radius: 4px;
+  --v3-qs-line: var(--v3-swatch-line);
+  --v3-handle: var(--v3-border-control);
+  /* 备注区（rulings §4.25 DS-134，TB-58 第二项采用「凹陷底、占位加深」）：去掉描边，铺一块比画布深一档的底——暗 #151515、亮 #EBEBEB，与画布都是 1.09，
+     读作嵌进画布的输入区；悬停出与分隔线同档的细边（同字段，DS-35，--v3-field-line-hover）。占位字「添加演讲者备注…」要在这块底上 ≥ 3:1（DS-9）：
+     暗色 text-3 4.94；亮色 text-3 只有 2.89，提到 text-2（4.81，沿用 DS-41 方案 B「浅底上 text-3 不足 3:1 时提到 text-2」的先例），亮色值写在 [data-v3-theme="light"] 里 */
+  --v3-notes-fill: #151515;
+  --v3-notes-placeholder: var(--v3-text-3);
+  --v3-card-hover: var(--v3-panel-2);
+  --v3-swatch-line: rgba(255, 255, 255, .22);
+  --v3-scroll: var(--v3-border-control);
+  /* 身份色（头像底色、远端光标 / 选区、评论钉）：低饱和、两套主题同值；Avatar 的 tone 与这里一一对应。
+     DS-9：保持 OKLCH 色相与彩度、只压明度，白字（头像首字、光标名签）4.60–4.64:1，对暗 canvas ≥ 3.59、亮 canvas ≥ 4.22、白纸面 ≥ 4.60 */
+  --v3-tone-slate: #657692;
+  --v3-tone-sand: #8C704D;
+  --v3-tone-sage: #487F6E;
+  --v3-tone-clay: #986960;
+  --v3-tone-mist: #6D7682;
+  /* 补足到 12 色（PRD CO-03「按用户 id 稳定哈希分配 12 色板」、05 §2；第 2 批补足，rulings §4.25 DS-42 定稿，设计 04 §2.4）：与上面 5 色同一口径——
+     OKLCH 彩度 0.06 左右（低饱和）、只取明度使白字 4.60–4.64:1，对暗 canvas ≥ 3.59、亮 canvas ≥ 4.22、白纸面 ≥ 4.60（WCAG 公式，向下截断两位）；
+     色相补在 5 色之间的空档（106 / 139 / 200 / 229 / 296 / 324 / 355），离强调色（268）与状态色（25 / 65–78 / 153–159）比现有 5 色更远或相当。
+     哈希顺序（产品 --presence-1…12）：slate sand sage clay mist olive iris lake rose denim plum moss（kit/tone.ts TONES；相邻两色 ΔE_OK ≥ 8，撞色顺延时不会落到相近的色上） */
+  --v3-tone-olive: #79774B;
+  --v3-tone-iris: #796F97;
+  --v3-tone-lake: #457E81;
+  --v3-tone-rose: #956879;
+  --v3-tone-denim: #4C7B91;
+  --v3-tone-plum: #8A6B8C;
+  --v3-tone-moss: #607C59;
+  /* 远端协作者（缺省光标「李雷」）= sage */
+  --v3-collab: var(--v3-tone-sage);
+  /* 中性评论钉（导入的批注、聚合钉）：作者不是协作者、不占身份色的深色中性底，暗亮同值，白字 18.88:1（钉另有 2px 白描边）。
+     第 2 批第 6 轮由借用工具提示底 --v3-tooltip-bg 改为专用变量，取值与原先相同、画面不变 */
+  --v3-pin-neutral: #111111;
+
+  /* 状态色（Q3：只在对应状态出现——错误 / 危险操作、警告、成功）；文字与图标用，在 canvas / panel / panel-2 上对比度 ≥ 4.5（菜单危险项高亮时落在 panel-2 上）。
+     DS-9 只加深了 danger（暗 #FF6B6B → #FF7A78、亮 #D93036 → #CC2A30：两套 panel-2 与亮色 canvas 原不足 4.5）；各自 -soft 浅底上只放图标 */
+  --v3-danger: #FF7A78;
+  --v3-warning: #F0B347;
+  --v3-success: #4CC38A;
+  /* 危险操作的实底按钮：两套主题同一个值，白字对比度 4.7 */
+  --v3-danger-solid: #D93036;
+  /* 对话框下的遮罩 */
+  --v3-scrim: rgba(0, 0, 0, .5);
+  /* 工具提示的 token 在文件末尾的 :root 里（工具提示经 Portal 挂到 body，在 .v3-root 之外） */
+  /* 画布选中手柄的填充：画在白纸面上，暗亮同为白色（描边是强调色） */
+  --v3-handle-fill: #FFFFFF;
+  /* 放映舞台（03-11，第 3 批转正：rulings §4.25 DS-106…DS-109 拍板后由 present/scope.tsx 并入，设计 04 §2.2）：与界面亮暗无关、两套主题同值——
+     --v3-stage 舞台底与幻灯片四周的留边（沿用 04 §2.2 的 --stage 现值）、--v3-stage-black 黑屏（B）与末页之后的结束页、--v3-stage-white 白屏（W）。
+     舞台上的界面件（控制条、「更多」、跳页条、跟随条、结束页）一律取暗色 token：kit StageScope 在舞台里另开 data-v3-theme="dark" 的作用域（强调色跟随界面）；
+     原 --stage-chrome（半透明 + 模糊）与 --stage-foreground 作废，控制条直接取暗色 --v3-panel / --v3-text */
+  --v3-stage: #0A0A0A;
+  --v3-stage-black: #000000;
+  --v3-stage-white: #FFFFFF;
+  /* 浮层层级（设计 04 §2.11）：命令面板盖过对话框（kit Dialog 是 z 50），rulings §4.25 DS-117（命令面板不加遮罩、按菜单规则，层级在对话框之上） */
+  --layer-command-palette: 60;
+
+  /* 强调色：每种各存亮/暗两个值，再由主题挑选 */
+  --v3-a-light: #3A5CE6;
+  --v3-a-dark: #5B7CFF;
+  --v3-accent: var(--v3-a-dark);
+
+  /* 让套在 v3 内的 shadcn / 全局默认边框、焦点环跟随 v3 token */
+  --border: var(--v3-border);
+  --ring: var(--v3-accent);
+}
+
+.v3-root[data-v3-accent="violet"] { --v3-a-light: #6A4CFF; --v3-a-dark: #8B74FF; }
+.v3-root[data-v3-accent="coral"] { --v3-a-light: #E8553A; --v3-a-dark: #FF6E52; }
+
+.v3-root[data-v3-theme="light"] {
+  color-scheme: light;
+  --v3-canvas: #F5F5F5;
+  --v3-panel: #FFFFFF;
+  --v3-panel-2: #F2F2F2;
+  --v3-panel-3: #E8E8E8;
+  --v3-border: #E5E5E5;
+  --v3-border-control: #8A8A8A;
+  --v3-text: #1A1A1A;
+  /* 与 --v3-text 的明暗差须 ≥ 3:1（现 3.03）：分段 / 页签的选中项靠「主文字色 + 字重」与未选项（text-2）区分，再加深一级（#656565）就跌破 */
+  --v3-text-2: #666666;
+  --v3-text-3: #8A8A8A;
+  --v3-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+  --v3-slide-shadow: 0 0 0 1px rgba(0, 0, 0, .04), 0 1px 3px rgba(0, 0, 0, .08);
+  /* 多选开关的按下项：亮色的强调色淡底取 22%（暗色 40%，DS-36） */
+  --v3-toggle-on: color-mix(in srgb, var(--v3-accent) 22%, var(--v3-panel-2));
+  /* 备注区（DS-134）：亮色底 #EBEBEB，占位字提到 text-2（text-3 在这块底上只有 2.89） */
+  --v3-notes-fill: #EBEBEB;
+  --v3-notes-placeholder: var(--v3-text-2);
+  /* 其余控件语义 token（--v3-field-*、--v3-seg-* 等）与 --v3-handle、--v3-scroll 在 .v3-root 里写成 var(...)，这里不再单列，自动取上面的亮色值
+     （分段选中块 --v3-seg-on = 面板色，亮色即白） */
+  /* 亮色下画布 #F5F5F5 与 panel-2 #F2F2F2 几乎同色，悬停改用白底才看得出 */
+  --v3-card-hover: var(--v3-panel);
+  --v3-swatch-line: rgba(0, 0, 0, .14);
+  --v3-accent: var(--v3-a-light);
+  --v3-danger: #CC2A30;
+  --v3-warning: #A15F00;
+  --v3-success: #1A7F45;
+  --v3-scrim: rgba(0, 0, 0, .24);
+  /* 警告文字色 #A15F00 偏暗，直接调浅底会发灰；浅底改用亮琥珀调 */
+  --v3-warning-soft: color-mix(in srgb, #F5A524 16%, var(--v3-panel));
+}
+
+.v3-root {
+  /* 强调色上的文字一律白 */
+  --v3-accent-fg: #FFFFFF;
+  /* 当前工具、勾选框等只放图标的强调色底的悬停（暗色白图标 4.56:1） */
+  --v3-accent-hover: color-mix(in srgb, var(--v3-accent) 88%, black);
+  /* 带文字的强调色实底（主按钮、画布尺寸标签）：取强调色的亮色值，两套主题同值，白字 5.44:1、悬停 6.62:1（DS-9：暗色 #5B7CFF 上白字只有 3.63:1）。
+     线、环、选中框、强调色文字、只放图标的强调色底仍用 --v3-accent（暗色更亮的那一档才在深底上看得清） */
+  --v3-accent-solid: var(--v3-a-light);
+  --v3-accent-solid-hover: color-mix(in srgb, var(--v3-accent-solid) 88%, black);
+  --v3-accent-soft: color-mix(in srgb, var(--v3-accent) 16%, transparent);
+  --v3-sel: color-mix(in srgb, var(--v3-accent) 28%, transparent);
+  /* 状态色的浅底（横幅、提示）：不透明，按主题的 panel 调出 */
+  --v3-danger-soft: color-mix(in srgb, var(--v3-danger) 14%, var(--v3-panel));
+  --v3-warning-soft: color-mix(in srgb, var(--v3-warning) 16%, var(--v3-panel));
+  --v3-success-soft: color-mix(in srgb, var(--v3-success) 14%, var(--v3-panel));
+  --v3-danger-hover: color-mix(in srgb, var(--v3-danger-solid) 88%, black);
+}
+
+/* ------------------------------------------------------------
+   选中 / 按下的非颜色线索（WCAG 1.4.1，DS-35）：选中的分段项、按下的开关与按钮、选中的页签不只靠底色区分——
+   .v3-on-cue 文字 500、图标描边 2（表格边框预设图标：实线 1.5 → 2、淡虚线 1 → 1.5，data-v3-edge）；未选的「设计 / 评论」页签 .v3-off-cue 退回 400。
+   悬停只换底或字色、不加粗，所以悬停与按下分得开。
+   ------------------------------------------------------------ */
+.v3-root .v3-on-cue { font-weight: 500; }
+.v3-root .v3-on-cue svg { stroke-width: 2; }
+.v3-root .v3-on-cue svg [data-v3-edge="on"] { stroke-width: 2; }
+.v3-root .v3-on-cue svg [data-v3-edge="off"] { stroke-width: 1.5; }
+.v3-root .v3-off-cue { font-weight: 400; }
+
+/* 字段悬停：把 --v3-field-line（静止时透明）换成 --v3-field-line-hover，出一道与分隔线同档的细边（DS-35）。
+   只换变量，组件直接写的聚焦 / 报错 / 不可用线色不受影响 */
+.v3-root .v3-field:hover {
+  --v3-field-line: var(--v3-field-line-hover);
+}
+
+/* 幻灯片内容 token：文档自己的配色，不随 UI 主题与强调色变化 */
+.v3-slide {
+  --s-ink: #141B2D;
+  --s-body: #4B566B;
+  --s-mute: #8A93A6;
+  --s-line: #E6E9F0;
+  --s-card: #F4F6FB;
+  --s-brand: #3A5CE6;
+  --s-brand-soft: #E8EDFD;
+  --s-brand-mid: #AFC0F8;
+  /* 要点卡的浅品牌色底：比 --s-brand-soft 更淡，且与任何强调色（选中色）都不同 */
+  --s-note: #EEF2FF;
+  color: var(--s-ink);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+/* 白色纸面（幻灯片、空白模板卡）上的 UI 文字：不论 UI 主题，一律取亮色 token（白底上 text-2 5.74、text-3 3.45），避免暗色下 #B0B0B0 落在白底上只有 2.16:1 */
+.v3-paper {
+  --v3-text: #1A1A1A;
+  --v3-text-2: #666666;
+  --v3-text-3: #8A8A8A;
+}
+
+.v3-serif {
+  font-family: Georgia, "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+}
+
+@layer base {
+  .v3-root {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--v3-text);
+    background-color: var(--v3-canvas);
+    -webkit-font-smoothing: antialiased;
+  }
+  .v3-root * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--v3-scroll) transparent;
+  }
+  .v3-root :focus-visible {
+    outline: 2px solid var(--v3-accent);
+    outline-offset: 1px;
+  }
+  .v3-root input::placeholder {
+    color: var(--v3-text-3);
+  }
+  /* 栏上用了 select-none；输入框里的文字仍要可选（Safari 会继承 user-select） */
+  .v3-root input {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* 工具提示（02 §3.4）：暗亮同为深色实底、白字，快捷键半透明白（Q10：登记成 token，不在组件里写死）。
+   工具提示经 Portal 挂到 document.body、不在 .v3-root 里，所以这三个 token 定义在 :root（只有 v3 用，不影响旧页面）。 */
+:root {
+  --v3-tooltip-bg: #111111;
+  --v3-tooltip-fg: #FFFFFF;
+  --v3-tooltip-kbd: rgba(255, 255, 255, .55);
+}

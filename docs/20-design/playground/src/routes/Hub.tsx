@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { routes, type RouteStatus } from "@/routes/registry"
+import { V3HubGroup } from "@/v3/HubGroup"
 
 const statusLabel: Record<RouteStatus, string> = {
   ready: "已完成",
@@ -44,8 +45,10 @@ export function Hub() {
           <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">docs/20-design/09-design-specification.md</code>
           ，组件映射与主题 token 以本 playground 为准。
         </p>
+        <V3HubGroup />
+        <h2 className="mt-10 mb-3 text-sm font-semibold">现有设计稿（ribbon 版）</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {routes.map((r) => (
+          {routes.filter((r) => !r.path.startsWith("/v3/")).map((r) => (
             <Card key={r.path} className="transition-shadow hover:shadow-md">
               <CardHeader>
                 <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-10-01（§4.23 插件管理：PS-01 清单新增 `scope` 字段（内容级 / 界面级）并链 [09](09-plugin-manager.md)；PS-11「扩展」面板即 PM-10 个人插件面板；PS-10、PS-13 的界面落点改指 09）；2026-10-01（§4.23 插件管理：PS-06 CTK 增第 9 项作用域检查） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.23
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：Q4 `render.target` 口径；Q2 `ui.*` 贡献形态；Q10 `blobStore` 默认 SeaweedFS；Q9 脚手架工具链；Q1 发布前置）；2026-09-24（rulings §4.16 Q11：M4 验收试点者改为内部非核心成员）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-10-01（§4.23 插件管理：PS-01 清单新增 `scope` 字段（内容级 / 界面级）并链 [09](09-plugin-manager.md)；PS-11「扩展」面板即 PM-10 个人插件面板；PS-10、PS-13 的界面落点改指 09）；2026-10-01（§4.23 插件管理：PS-06 CTK 增第 9 项作用域检查）；2026-10-04（design-language-v3 第 0 批：按 rulings §4.25 DS-5、DS-6 改写 PS-02 贡献点目录——删除 `ui.ribbon` 与 `ui.statusBar`、新增 `ui.inspectorSection`，`ui.toolbar`、`ui.panel` 用途按 v3 改写，贡献点总数 27 → 26；§1 M4 验收、图 2-1、PS-03 `element-kind` 模板、PS-04 两个示例与 §3 US-P-02 中的 ribbon 按钮 / 属性面板分组 / 状态栏项改为工具条「更多」按钮 / 检查器分区；需求、编号、优先级、里程碑不变）；2026-10-04（design-language-v3 第 0 批：术语残留清理：ribbon / 状态栏 / `ui.ribbon` / `ui.statusBar` 的历史陈述改用 check-terms 认可的标记措辞（废弃、取代））；2026-10-04（design-language-v3 第 0 批：复验修正——PS-02「章程 §5.5 仍含两项旧名」改为已回写）；2026-10-04（design-language-v3 第 0 批：复验第 2 轮修正——PS-04 示例 `plugin-word-count-status` 改名 `plugin-word-count`，演示层由检查器分区改为命令 + 对话框（`ui.command` + `ui.dialog`）：`ui.inspectorSection` 只承载当前选中对象的格式分区，状态只走 `ui.notification` 与横幅（DS-1、DS-5、DS-6），不扩展贡献点用途）；2026-10-07（design-language-v3 第 1 批：PS-02 `ui.toolbar` 一行删去「上下文工具条项」，改为「更多」项与评审条条目，槽位只有 `create`、`create.more`、`reviewBar`，对象上下文槽位删除、所选对象的命令改走 `ui.inspectorSection` 与 `ui.contextMenu`（rulings §4.25 TB-1、TB-29）；贡献点总数不变（26）；需求、编号、优先级、里程碑不变）；2026-10-08（design-language-v3 第 1 批收口：PS-02 `ui.toolbar` 一行按 rulings §4.25 TB-1 更正与 TB-38 写明外壳内置的固定项（评审条的「浏览」、模式标识、「返回编辑」与浏览条的「只读浏览中」）和 slide-ui 贡献的内置「选择」，表后补插件条目很多时的收纳随第 2 批（TB-31）；PS-09 开发者面板的入口为主菜单「帮助」最后一组（TB-40）；贡献点总数不变（26）；需求、编号、优先级、里程碑不变）；2026-10-15（design-language-v3 第 2 批：按已拍板的插件样张回写，贡献点总数不变（26），需求、编号、优先级、里程碑不变——PS-02 `ui.panel` 一行改为检查器整栏面板（加宽到 400、不做第三个页签，设置型插件缺省留在检查器插件分区、「展开」才进整栏，rulings §4.25 DS-38）与评审 / 只读下的只读就地展示（不加禁用蒙版，DS-56）；表后「插件条目很多时的收纳」由「随第 2 批」改为定稿规则（「更多」与主菜单「插入」超过 3 个插件或任一超过 3 条时分组进子菜单，检查器插件分区超过 2 个时默认折叠、展开状态按分区记在本机，DS-49，TB-31 结案）；PS-11 补个人插件面板的形态与启动失败横幅标题（DS-38、DS-55））；2026-10-15（design-language-v3 第 2 批回写补充：PS-02 `ui.panel` 一行的整栏宽度改为 max(400, 检查器当前宽度)、开着时分隔条不可拖、关闭后回到原宽（rulings §4.25 TB-60）；写明检查器页签只由内置包贡献、第三方插件的整页面板只作整栏面板，分区声明了对应的整页面板时由宿主在分区右下画「展开」，面板跟着触发它的选中对象（TB-59）；`ui.inspectorSection` 一行补可声明整页面板（字段定义以前端 50/09 §6.1 为准）；贡献点总数不变（26），需求、编号、优先级、里程碑不变）；2026-10-22（design-language-v3 第 3 批：PS-02 `ui.panel` 一行补紧凑窗口里插件整页面板改为画布底部 Sheet（rulings §4.25 DS-130）；贡献点总数不变，需求、编号、优先级、里程碑不变） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.23、§4.25
 
 # 功能域 04：插件 SDK（面向插件开发者）
 
@@ -28,7 +28,7 @@ flowchart LR
 
 怎么读：箭头为旅程先后，每个节点「·」后是该阶段依托的产品能力；M4 验收要求试点者仅凭文档站走完全程。
 
-- **M4 机械化验收**：内部非核心成员（未参与内核开发的同事或全新 AI agent 会话，rulings §4.16 Q11）仅凭公开文档站与示例，在 ≤ 2 人日内完成「新增一种元素渲染 + 一个 ribbon 按钮 + 一个属性面板分组」的插件，CTK 全部通过，过程中不向核心团队提问超过 3 次（提问记录为文档缺陷）。
+- **M4 机械化验收**：内部非核心成员（未参与内核开发的同事或全新 AI agent 会话，rulings §4.16 Q11）仅凭公开文档站与示例，在 ≤ 2 人日内完成「新增一种元素渲染 + 一个底部工具条『更多』按钮 + 一个检查器分区」的插件（2026-10-04 起按 v3 结构取代原「一个 ribbon 按钮 + 一个属性面板分组」，rulings §4.25 DS-5），CTK 全部通过，过程中不向核心团队提问超过 3 次（提问记录为文档缺陷）。
 
 ---
 
@@ -70,17 +70,17 @@ flowchart LR
 | `i18n.bundle` | 语言包（按插件命名空间） | Stable @M4 | M2 |
 | `errors.sink` | 错误上报出口（console / Sentry / server-api） | Stable @M4 | M1 |
 | `telemetry.sink` | 遥测出口（no-op / OTel / 自定义） | Stable @M4 | M1 |
-| `ui.ribbon` | ribbon 页签 / 分组 / 按钮 | Stable @M4 | M2 |
-| `ui.toolbar` | 浮动 / 上下文工具栏项 | Beta @M4 | M2 |
-| `ui.panel` | 侧栏面板与属性面板分组 | Stable @M4 | M2 |
+| `ui.toolbar` | 底部创建工具条「更多」项（插件创建类入口的唯一位置，主行只放内置八项）与评审条条目（评论、高亮与上一处 / 下一处评论；评审条的「浏览」、模式标识「评审模式」「返回编辑」与浏览条的「只读浏览中」由外壳内置，rulings §4.25 TB-1；创建工具条的「选择」等内置条目由 slide-ui 贡献，TB-38）；槽位只有 `create`、`create.more`、`reviewBar`，对象上下文槽位随 DS-13、DS-22 取消全部迷你工具条而删除，插件针对所选对象的命令走 `ui.inspectorSection` 与 `ui.contextMenu` 的对象菜单（TB-29） | Beta @M4 | M2 |
+| `ui.panel` | 检查器整栏面板与次级浮动面板（格式分区改走 `ui.inspectorSection`）。整栏面板承载插件真正需要宽度的整页内容（如数据网格、长表单）：打开时检查器整栏换成面板，宽 max(400, 检查器当前宽度)，开着时分隔条不可拖、关闭后回到原宽，与图表「编辑数据」面板同一落位（2026-10-15，rulings §4.25 DS-38、TB-60）；紧凑窗口（640–1024）里同图表数据面板改为画布底部 Sheet，不进检查器抽屉（2026-10-22，rulings §4.25 DS-130）；不做检查器页签——检查器页签只由内置包贡献（当前只有「评论」），第三方插件的整页面板只作整栏面板（TB-59）；设置型插件缺省只在检查器的插件分区里，分区声明了对应的整页面板时由宿主在分区右下画「展开」，点了才进整栏；面板跟着触发它的选中对象，选中别的对象即收起（TB-59）。评审与只读角色下宿主按「只读就地展示」：顶部一行权限说明、写操作不出现、不加禁用蒙版，画布上的插件元素选中时只画 1px 强调色框（DS-56，设计 06 §2.2） | Stable @M4 | M2 |
+| `ui.inspectorSection` | 检查器分区：按选中对象类型（`selectionKind`）挂到检查器「设计」页签（2026-10-04 新增，rulings §4.25 DS-5）；分区可声明同一插件的一个整页面板（`ui.panel`），宿主据此在分区右下画「展开」（2026-10-15，TB-59；字段定义以前端 50/09 §6.1 为准） | Beta @M4 | M2 |
 | `ui.contextMenu` | 右键菜单项（按选区类型） | Stable @M4 | M2 |
 | `ui.shortcut` | 快捷键绑定（带作用域） | Stable @M4 | M2 |
-| `ui.command` | 命令的**呈现元数据**（title/icon/when/keybinding 展示，命令面板可见性） | Beta @M4 | M2 |
-| `ui.statusBar` | 状态栏项 | Beta @M4 | M2 |
+| `ui.command` | 命令的**呈现元数据**（title/icon/when/keybinding 展示，命令面板与菜单可见性） | Beta @M4 | M2 |
 | `ui.dialog` | 对话框 | Beta @M4 | M2 |
 | `ui.notification` | 通知（toast） | Beta @M4 | M2 |
 | `ui.theme` | 设计 token 覆盖集 | Beta @M4 | M2 |
 
+  - **2026-10-04 起的增删**（rulings §4.25 DS-5、DS-6，设计语言 v3 去掉 ribbon 与状态栏）：`ui.ribbon`（原 ribbon 页签 / 分组 / 按钮，Stable @M4）与 `ui.statusBar`（原状态栏项，Beta @M4）删除——创建类入口走 `ui.toolbar`（插件按钮只进底部工具条「更多」），格式类入口走新增的 `ui.inspectorSection`，其余命令走 `ui.command`（命令面板、主菜单、右键）；状态只走 `ui.notification` 与横幅。贡献点总数 27 → 26（以 40-modules/16 为准）；章程 §5.5 的贡献点 id 列表已回写（去掉两项旧名、补 `ui.inspectorSection` 与 `comments.anchorResolver`，共 26 个）。槽位规范见设计 06 §2.1、§2.6、§2.7、§2.12；插件条目很多时的收纳 2026-10-15 随第 2 批样张定稿（rulings §4.25 DS-49，TB-31 结案）：工具条「更多」与主菜单「插入」在插件不超过 3 个、且每个不超过 3 条时每个插件一组平铺、排在内置项之后，否则插件区改为「插件 · N」小标题、每个插件一行、条目进子菜单，内置条目的位置和长短不随插件数量变化；检查器的插件分区排在内置分区之后，同一选中对象的插件分区超过 2 个时全部默认折叠为一行（标题 + 归属标识），展开状态按分区记在本机。
   - **`ui.*` 贡献形态**（rulings §4.15 Q2）：第三方 UI 贡献 = 声明式描述（id/title/icon/when/位置）+ 可选 React 19 组件；组件一律经 ErrorBoundary 包裹并在 CTK 中跑 axe 夹具；SDK 对宿主 React 的要求为 `^19.0`。框架无关宿主（形态 B）由宿主自绘 UI，只消费声明式部分（`UiRenderer('vanilla')` 契约）。上述形态在 M4 Stable 时冻结。
 
   - **Provider 座**（可替换的服务实现，**不是**贡献点；通过 Definition / Provider / Consumer 三角色替换，替换后必须通过对应的 `run<Definition>Conformance` 契约套件，章程 §5.5）：
@@ -100,7 +100,7 @@ flowchart LR
   subgraph cp["贡献点：一族可并存的条目"]
     plugA["插件 A"]
     plugB["插件 B"]
-    point["贡献点，如 ui.ribbon、render.element"]
+    point["贡献点，如 ui.toolbar、render.element"]
     readers["消费方读 ctx.contributions，变化时发出 contribution/changed"]
   end
   subgraph slot["Provider 座：同一服务一次一个实现"]
@@ -132,7 +132,7 @@ flowchart LR
 - 优先级：P0 | 目标里程碑：M4（M2 起内部使用） | 依赖能力：`tooling/*`、Manifest 生成
 - 用户故事：作为插件开发者，我希望一条命令生成可编译、可测试、可发布的插件骨架。
 - 验收标准：
-  - 脚手架包定名 `@cordexjs/create-plugin`（rulings §4.15 Q1 已裁决），命令 `npm create @cordexjs/plugin`（等价 `pnpm create @cordexjs/plugin`）交互式选择模板：`element-kind`（新元素 + 渲染器 + ribbon 按钮）、`ui-panel`、`format-codec`、`format-export`（`core.format`，`canImport:false`）、`telemetry-sink`、`blob-store-provider`（`blobStore` Provider 座）、`document-type`（M5）、`i18n-bundle`。
+  - 脚手架包定名 `@cordexjs/create-plugin`（rulings §4.15 Q1 已裁决），命令 `npm create @cordexjs/plugin`（等价 `pnpm create @cordexjs/plugin`）交互式选择模板：`element-kind`（新元素 + 渲染器 + 工具条「更多」按钮）、`ui-panel`、`format-codec`、`format-export`（`core.format`，`canImport:false`）、`telemetry-sink`、`blob-store-provider`（`blobStore` Provider 座）、`document-type`（M5）、`i18n-bundle`。
   - 生成物：TS 严格配置（继承 `tooling/tsconfig`）、eslint/depcruise 配置、Vitest 测试（含「卸载后无 effect」「缺依赖进入 PENDING」「多实例」三件套）、Manifest 生成脚本、Changesets、README 模板、示例 e2e（Playwright，可选）。
   - 生成物的 `package.json` 与仓库工具链一致（rulings §4.15 Q9）：`packageManager` 钉 pnpm 11 精确版本、`devEngines`（packageManager/runtime，`onFail: error`）、`engines.node >=26`；内部依赖用 `workspace:` 协议（peer `workspace:^`，其余 `workspace:*`）。
   - 生成后 `pnpm install && pnpm test && pnpm build` 一次通过；生成 ≤ 30 s。
@@ -145,8 +145,8 @@ flowchart LR
 
 | 示例 | 演示的可插拔层 | 里程碑 |
 |---|---|---|
-| `plugin-qr-shape` | 新元素 kind（二维码）：模型 schema + 编解码（写入 `extLst` 或作为图片回退）+ `ElementRenderer` + ribbon 按钮 + 属性面板分组 | M2 |
-| `plugin-word-count-status` | 状态栏项 + 事件订阅 | M2 |
+| `plugin-qr-shape` | 新元素 kind（二维码）：模型 schema + 编解码（写入 `extLst` 或作为图片回退）+ `ElementRenderer` + 工具条「更多」按钮 + 检查器分区 | M2 |
+| `plugin-word-count`（原名 `plugin-word-count-status`） | 命令与对话框：命令面板中的「字数统计」（`ui.command`）打开对话框（`ui.dialog`），显示本页与全文字数 + 事件订阅（`store/transaction` 后刷新）。原示例的状态栏项随 `ui.statusBar` 作废（rulings §4.25 DS-6：状态只走 `ui.notification` 与横幅）；不改用检查器分区，因为检查器只放当前选中对象的属性、`ui.inspectorSection` 只承载格式类分区（DS-1、DS-5，设计 06 §2.7） | M2 |
 | `plugin-markdown-export` | `core.format`（`canImport:false`）：导出 Markdown | M2 |
 | `plugin-otel-telemetry` | `telemetry.sink` 替换（OpenTelemetry） | M2 |
 | `plugin-brand-theme` | `ui.theme` token 覆盖 + 品牌形状库 | M2 |
@@ -230,7 +230,7 @@ flowchart LR
 
 - 优先级：P1 | 目标里程碑：M2（内部）/ M4（公开） | 依赖能力：`kernel` 诊断工具、Fiber 状态机、`fiber.restart()`/`update()`
 - 验收标准：
-  - 开发者面板（编辑器内，开发模式或集成方开启）：Fiber 树（状态 `PENDING/LOADING/ACTIVE/FAILED`、依赖快照）、每个插件的贡献列表、effect 树、最近错误、事件流（可过滤域）。
+  - 开发者面板（编辑器内，开发模式或集成方开启；入口为主菜单「帮助」最后一组、分隔线之后，只在开发构建或部署打开开发者菜单开关时出现，生产缺省不出现，rulings §4.25 TB-40、§4.12 U-16）：Fiber 树（状态 `PENDING/LOADING/ACTIVE/FAILED`、依赖快照）、每个插件的贡献列表、effect 树、最近错误、事件流（可过滤域）。
   - 热重载：修改插件源码后宿主 `fiber.restart()`，效果 ≤ 1 s 可见，无重复注册（靠 effect 清理）。
   - 常见错误有可操作提示：`PENDING` 列出缺失服务名；`ValidationError` 列出 Config 路径；`plugin.incompatible` 列出版本。
   - 示例宿主 `examples/host-playground`：一键启动、加载任意本地插件、内置 3 个语料文件。
@@ -244,7 +244,7 @@ flowchart LR
 
 - 优先级：P0 | 目标里程碑：M2 | 依赖能力：`kernel` 捕获 `apply` 异常 → `FAILED` + `errors` 上报
 - 验收标准：
-  - 插件激活抛错 → 该 Fiber `FAILED`，兄弟插件不受影响；编辑器「扩展」面板显示失败插件、错误码与「重试」；`plugin/failed` 事件。「扩展」面板即个人插件面板（[09-plugin-manager.md](09-plugin-manager.md) PM-10）：谁能重试、谁能关闭、失败时找谁，以及打开文档缺插件时的降级提示（PM-12），均以 09 为准。
+  - 插件激活抛错 → 该 Fiber `FAILED`，兄弟插件不受影响；编辑器「扩展」面板显示失败插件、错误码与「重试」；`plugin/failed` 事件。「扩展」面板即个人插件面板（[09-plugin-manager.md](09-plugin-manager.md) PM-10，主菜单「插件…」打开的居中对话框，rulings §4.25 DS-38）：谁能重试、谁能关闭、失败时找谁，启动失败时的按需横幅（一个失败写插件名、多个写数量，DS-55），以及打开文档缺插件时的降级提示（PM-12），均以 09 为准。
   - 渲染器插件运行期抛错 → 元素级占位（OF-13），插件不整体失败。
   - 命令执行抛错 → 事务回滚（不留半状态），`command/failed` 事件，用户提示。
 
@@ -300,7 +300,7 @@ flowchart TB
 | 编号 | 故事 | 对应需求 |
 |---|---|---|
 | US-P-01 | 我想加一种新形状（如二维码），让它能插入、渲染、导出、协同 | PS-02 `slide.shapeKind` + `render.element`、PS-04 示例 |
-| US-P-02 | 我想加一个 ribbon 按钮执行我的命令 | PS-02 `core.command` + `ui.ribbon` |
+| US-P-02 | 我想在工具条「更多」或菜单里加一个按钮执行我的命令（取代原「加一个 ribbon 按钮」，rulings §4.25 DS-5） | PS-02 `core.command` + `ui.toolbar` / `ui.command` |
 | US-P-03 | 我想把遥测送到公司的 OTel | PS-02 `telemetry.sink` |
 | US-P-04 | 我想换掉 WebSocket 用 WebRTC | PS-02 Provider 座 `collabTransport` |
 | US-P-05 | 我想导出 Markdown | PS-02 `core.format`（`canImport:false`） |

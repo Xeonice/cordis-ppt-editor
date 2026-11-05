@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-10-04（design-language-v3 第 0 批：§3 事件表 `ui/ribbon-tab-changed` 随 ribbon 取消标为作废，工具条、检查器页签与单页 / 网格视图切换的使用度量随第 1 批定稿（rulings §4.25 DS-1）；其余指标与事件不变）；2026-10-07（design-language-v3 第 1 批：§3 `ui/ribbon-tab-changed` 一行删去「随第 1 批定稿」——命令类入口由 `command/executed{source}` 覆盖，视图与检查器页签切换属 Operation、不发该事件，第 1 批拍板（DS-21）未涉及埋点，是否另设事件列为待定；事件名与指标不变）；2026-10-08（design-language-v3 第 1 批收口：§3 `ui/ribbon-tab-changed` 一行的待定项按 rulings §4.25 TB-36 结案——M2 不另设遥测事件，视图与检查器页签切换的使用度量只用 `command/executed{source}` 与已有的 `ui/panel-toggled`，需要时再走新增事件的变更；事件名与指标不变）；2026-10-22（design-language-v3 第 3 批：§3 `ui/theme-changed` 一行按 rulings §4.25 DS-76 删去「密度」与 `density` 属性，只留 `theme`（主题三项按 DS-90）；事件名与指标不变） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.25
 
 # 06 指标与埋点
 
@@ -153,9 +153,9 @@ flowchart LR
 | `plugin/incompatible` | cordis 事件 | 版本协商失败 | `pluginId`, `required`, `actual` | P0 | M2 | 升级健康 |
 | `plugin/pending` | 遥测专用 | 进入 PENDING 超过 5 s | `pluginId`, `missing`（服务名） | P0 | M2 | 诊断 |
 | `ui/panel-toggled` | 遥测专用 | 面板开关 | `panelId`, `open` | P0 | M2 | 功能使用 |
-| `ui/ribbon-tab-changed` | 遥测专用 | 页签切换 | `tabId` | P0 | M2 | 功能使用 |
+| `ui/ribbon-tab-changed`（作废） | 遥测专用 | 2026-10-04 起编辑器没有 ribbon 页签（rulings §4.25 DS-1），本事件不再触发、不实现。替代口径：底部工具条、菜单与右键触发的命令已由 `command/executed{source}` 覆盖；单页 / 网格视图切换与检查器「设计 / 评论」页签切换是 Operation，按架构 05 §3 的执行管线不发 `command/executed`；M2 不另设遥测事件，这两类切换的使用度量只用 `command/executed{source}` 与已有的 `ui/panel-toggled`，需要时再走新增事件的变更（2026-10-08，rulings §4.25 TB-36；原「是否另设遥测事件仍待产品线与前端 50/15 一并登记」结案） | — | — | — | 功能使用 |
 | `ui/shortcut-used` | 遥测专用 | 快捷键触发 | `commandId`, `scope` | P0 | M2 | 功能使用 |
-| `ui/theme-changed` | cordis 事件 | 主题/密度切换 | `theme`, `density` | P0 | M2 | |
+| `ui/theme-changed` | cordis 事件 | 主题切换（浅色 / 深色 / 跟随系统；v3 只有单档紧凑尺寸、不设密度切换，原「主题/密度切换」与 `density` 属性随 rulings §4.25 DS-76 删去） | `theme` | P0 | M2 | |
 | `i18n/missing-key` | 遥测专用 | 缺 key | `key`, `locale` | P0 | M2 | 质量 |
 | `error/raised` | cordis 事件 | 任一类型化错误 | `code`, `severity`, `retryable`, `surface`, `pluginId?` | P0 | M1 | MT-04、MT-23 |
 | `a11y/screen-reader-detected` | 遥测专用 | 检测到辅助技术（启发式，可关闭） | `hint` | P0 | M2 | a11y 使用 |

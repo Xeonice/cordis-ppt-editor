@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22））；2026-09-26（§4.21：SV-05 协同网关改由 Hocuspocus 4 实现后的行为级核对，用户可见行为不变；多实例改为 extension-redis 加文档哈希偏好亲和；重连差量单设 16 MiB；SV-15 Webhook 签名改为 Standard Webhooks）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：正文与图 1-1 的 `apps/server` 改为 NestJS 12（纯 ESM，Fastify 5），q-nest-major）；2026-10-03（rulings §4.24 AL-7：SV-13 细节不再推到 M4，随 M3 交付） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、q-webhook-sig、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-step2-cap）
+> 状态：草稿 | 负责：产品 | 更新：2026-09-21；2026-09-24（rulings §4.15：T-0 单组织去租户——SV-06/07/08/09/11/14 删租户；Q6 OIDC + 可选 Casdoor、`auth.selfSignup`、文档级 RLS、组管理推迟、JWT/API Key 降 M4；Q5 两层口径与超包络拒绝导入、名额按用户、按权重准入、部署配置完全可调；S-3a 两级 ack；Q8 缩略图与 PDF 时点、独立 renderer sidecar；Q10 自托管洁净栈 Valkey/SeaweedFS、M3 出口；Q3 墓碑 TTL 与擦除）；2026-09-24（rulings §4.16：Q17 保留默认值全部进入部署配置可调、Q19 服务端字体包与自有授权字体目录标已裁决）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-09-26（§4.20：SV-05 连接限制先扣后退与每用户连接上限（BE-01+TX-03）；SV-08 补上传、未登录端点与 WS 连接限额（BE-02）；SV-11、SV-14 唯一 owner 空窗的运维转移命令（BE-05+TX-22））；2026-09-26（§4.21：SV-05 协同网关改由 Hocuspocus 4 实现后的行为级核对，用户可见行为不变；多实例改为 extension-redis 加文档哈希偏好亲和；重连差量单设 16 MiB；SV-15 Webhook 签名改为 Standard Webhooks）；2026-09-26（§4.21 Remap：原 30/08 引用按 60-backend/README §6.1 改指新位置，30/08 已删除）；2026-09-26（§4.21 复核：正文与图 1-1 的 `apps/server` 改为 NestJS 12（纯 ESM，Fastify 5），q-nest-major）；2026-10-03（rulings §4.24 AL-7：SV-13 细节不再推到 M4，随 M3 交付）；2026-10-04（design-language-v3 第 0 批：SV-05「未保存到服务器」的弱提示位置由「状态胶囊」改为文件名旁的同步状态（rulings §4.25 DS-6），图同步；需求、编号、优先级、里程碑不变）；2026-10-04（design-language-v3 第 0 批：复验修正——原「状态胶囊」改称文件名旁的同步状态行（rulings §4.25 DS-6），带作废标记的历史陈述统一措辞）；2026-10-15（design-language-v3 第 2 批回写：SV-15 的 M3 范围按用户裁决补访问申请事件 `access_request.created`——只走 Webhook、与评论事件同一套签名、重试与死信，载荷不含留言正文，集成方据此通知所有者（rulings §4.25 DS-67）；同一句补列 SV-13 自动化作业的结果回调 `automation.job_finished`（rulings §4.24 AL-7），注明 Webhook 对外事件名为点式、以 60-backend/07 §4.2、§5.1 为准；依赖能力补访问申请，M4 展望注明访问申请事件已提前；图 2-13 事件节点同步；需求编号、优先级、里程碑不变）；2026-10-22（design-language-v3 第 3 批：SV-02 写明服务端 PNG 只接界面的「全部页」、JPEG 与质量只经 API（rulings §4.25 DS-102、DS-103），导出作业可取消且不做后台继续、完成后的轻提示带「下载」（DS-100、DS-101）；SV-11 补参考应用回收站的界面口径——永久删除只在回收站视图、模态确认不输文档名，回收站里的文档不能打开、按三类人分别呈现（DS-85、DS-122、TB-73）；需求编号、优先级、里程碑不变）；2026-10-22（design-language-v3 第 3 批回写补充：SV-02 与图 2-2 读法写清下载地址每次现签、默认 1 h 有效、产物保留 24 h，界面不提示链接时效（rulings §4.25 DS-100）；SV-06 自助注册开启时须配注册地址、否则拒绝启动（TB-143）；SV-11 回收站天数由服务端下发（TB-141）；需求编号、优先级、里程碑不变）；2026-10-22（design-language-v3 第 3 批回写收口：SV-04 运行时单页渲染出错与超时同算失败、整页无法解析的保真占位照常生成（rulings §4.25 TB-151、TB-157），SV-02 有页渲染失败时导出作业失败（TB-157）；SV-11 回收站「恢复」失败在阻断页与卡片上的两种画法（TB-155）；需求编号、优先级、里程碑不变；2026-10-22 复核修正：SV-01 过渡页的路由写法由旧的 `#/import` 改为 `/import`，与 08 AS-01、前端 50/02 一致；SV-02 补因页面渲染出错失败时，对话框的原因与浏览器生成同一句（rulings §4.25 TB-173）；SV-02 失败判定写明含单页超时（与 SV-04 同一判定），补因单页超时失败时的原因句「生成文件时超时，请重试；文档本身不受影响」（TB-175），其余失败（renderer 忙、注入超时、浏览器崩溃、网络与存储）显示通用文案（TB-176））；2026-10-23（design-language-v3 第 3 批评审修改：SV-01 参考应用的导入展示由 `/import` 过渡页改为叠在原页上的「导入」对话框，上传与解析中对话框的「取消」、×、Esc 与浏览器后退都按取消处理（rulings §4.25 DS-140、TB-179，取代 DS-97 的整屏过渡页）；需求编号、优先级、里程碑不变） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.20、§4.21（q-ws-gateway、q-webhook-sig、H:q-hp-persist-ack、H:q-hp-fanout、H:q-hp-step2-cap）、§4.24 AL-7、§4.25（DS-67、DS-140、TB-179）
 
 # 功能域 06：服务端能力与运维
 
@@ -63,7 +63,7 @@ flowchart TB
 - 用户故事：作为集成方后端工程师，我希望上传一个 pptx 后服务端生成协同所需的初始 `Snapshot` 与资源清单，客户端打开时直接加入房间而不必各自解析原文件。
 - 验收标准：
   - 上传：预签名直传到 blob 存储（≥ 10 MB 分片），随后调用「导入」API；也支持小文件（≤ 10 MB）直接 multipart。浏览器经反向代理的存储子域（`s3.<域名>`）直达对象存储，预签名 URL 按对外端点生成，对象存储本身不开宿主端口（rulings §4.18 BE-01，见 SV-09）。
-  - 导入为异步作业：返回 `jobId`；状态 `queued → running → succeeded | failed | cancelled`（用户在上传或解析阶段取消即取消作业，清理导入原件与已生成产物，不留文档；rulings §4.18 UX-14）；进度阶段与客户端 OF-01 一致，参考应用复用客户端打开的 `#/import` 过渡页展示（设计 13）；D50 ≤ 5 s（p95）、D200 ≤ 20 s（p95）；并发导入队列可配置（默认 4/实例）。
+  - 导入为异步作业：返回 `jobId`；状态 `queued → running → succeeded | failed | cancelled`（用户在上传或解析阶段取消即取消作业，清理导入原件与已生成产物，不留文档；rulings §4.18 UX-14）；进度阶段与客户端 OF-01 一致，参考应用经叠在原页上的「导入」对话框展示（`/import`；上传与解析中对话框的「取消」、×、Esc 与浏览器后退都按取消处理，rulings §4.25 DS-140、TB-179；设计 03-13）；D50 ≤ 5 s（p95）、D200 ≤ 20 s（p95）；并发导入队列可配置（默认 4/实例）。
   - 输出：初始 `Snapshot`（`schemaVersion` 当前值）、资源清单（媒体部件 → `BlobRef`）、不透明保留的部件原字节（以 `BlobRef` 内容寻址保存，构成 `SnapshotBundle`，即「基线包」，随文档生命周期保留、不受原件保留期限制）、诊断报告（降级项、缺失字体、限制命中）；上传的原始文件（导入原件）另存 30 天（章程 Q17）。
   - 输入限制与客户端一致（OF-24）；文档规模超出系统天花板（页数 / 单页元素 / 文档总元素，SV-08）时**直接拒绝导入**，返回 `format.quota_exceeded{dimension, limit, actual}` 并指明超出哪一项，不做只读降级打开（rulings §4.15 Q5）。上限取自部署配置。
   - 失败：类型化错误码（与客户端同一张表）；保留失败样本（可配置、脱敏路径）用于排障。
@@ -119,7 +119,7 @@ stateDiagram-v2
   cancelled --> [*]
 ```
 
-怎么读：方框为作业对外可见的状态；进度阶段与客户端 OF-01 一致；取消后不留文档、原件与产物。导出作业（SV-02）沿用同一状态机，成功结果为预签名下载 URL，默认 1 h 有效。
+怎么读：方框为作业对外可见的状态；进度阶段与客户端 OF-01 一致；取消后不留文档、原件与产物。导出作业（SV-02）沿用同一状态机，成功结果经下载地址取得，每次取时现签、默认 1 h 有效，产物保留 24 h。
 依据：本条 SV-01；SV-02；rulings §4.18 UX-14。
 
 ### SV-02 文档导出（服务端）
@@ -128,8 +128,8 @@ stateDiagram-v2
 - 验收标准：
   - 导出 pptx：从最新快照（或指定版本）+ 基线包生成；与客户端导出**字节级一致**（同一代码路径，CI 断言同一 Snapshot 在浏览器与 Node 导出的规范化结果相同；`docProps/thumbnail.jpeg` 是 `encode()` 的显式输入、缺省保留原部件，因此不破坏确定性，OF 矩阵 §2.1）；D50 ≤ 3 s、D200 ≤ 12 s（p95）。
   - 导出 PDF（**M3 后半段**，rulings §4.15 Q8；引擎见 PD-16）：与缩略图共用独立 renderer sidecar 与 `/render?mode=print`，走独立的 `render-export` 队列（优先级：首页缩略图 > PDF > 批量缩略图）；headless Chromium 打印全部/选定页，A4/16:9 原始尺寸，嵌入字体子集；动画按「静态全部可见」；与 oracle PDF 逐页 SSIM ≥ 0.85；D50 ≤ 10 s（p95）。
-  - 导出 PNG/JPEG（server-png，M3）：按页，宽度 1280/1920/3840；D200 全量 ≤ 90 s。
-  - 导出为异步作业（同 SV-01），结果为预签名下载 URL（有效期可配，默认 1 h）。
+  - 导出 PNG/JPEG（server-png，M3）：按页，宽度 1280/1920/3840；D200 全量 ≤ 90 s。参考应用的导出对话框只经它导出 PNG「全部页」（只含已同步的内容，其余范围与 SVG 仍在浏览器生成）；JPEG 与质量参数只经 API 与自动化（SV-13），对话框不放（2026-10-22，rulings §4.25 DS-102、DS-103）。
+  - 导出为异步作业（同 SV-01），结果经下载地址取得：每次取地址都现签预签名 URL（有效期可配，默认 1 h），产物保留 24 h（部署可配，`60-backend/06` §7.3），会话内不会遇到链接过期，界面不提示链接时效（2026-10-22，rulings §4.25 DS-100）。作业可取消，与导入取消同一口径：对话框生成中只有「取消」一个出口（Esc、关闭等同），取消即停止作业，不做后台继续（2026-10-22，rulings §4.25 DS-101；状态机见图 2-2）；完成即开始下载并关闭对话框，服务端格式的轻提示带「下载」，每次点都现签地址（DS-100）。有页渲染出错或单页超时（与 SV-04 同一判定）、重试 1 次后仍失败时，导出作业失败，不产出缺页的文件（rulings §4.25 TB-157）；导出对话框失败态的原因按错误码写：因页面渲染出错（`render.page_failed`）而失败时与浏览器生成同一句「有一页暂时无法生成，请重试；文档本身不受影响」（rulings §4.25 TB-173，01 OF-19），因单页超时（`headless.render_timeout`）而失败时写「生成文件时超时，请重试；文档本身不受影响」（TB-175），其余失败（renderer 忙、注入超时、浏览器崩溃、网络与存储）显示通用文案（TB-176；文案均以前端 50/15 §4.2、§4.3 为准）。
   - 字体：服务端默认字体包内置 Noto（含 CJK）+ Liberation + Carlito/Caladea，均开源，不内置商业字体（章程 Q19 已裁决，rulings §4.16；随 renderer 镜像发布）；**部署方可挂载自有授权字体目录**（只读卷挂入 renderer，与内置包合并解析）；受限内嵌字体按 OF-17 只用于只读渲染（PDF/缩略图可用）；缺失字体按 OF-05 回退并在导出报告中列出。
   - 插件贡献的导出专用 `core.format`（`canImport:false`，如 Markdown）在服务端同样可用（PS-14）。
 
@@ -178,7 +178,7 @@ flowchart LR
   - **M3 权威缩略图**：headless Chromium 运行与客户端同一份渲染代码；导入完成后首页高优先生成 ≤ 10 s，其余页按需惰性生成；全量 D200 ≤ 90 s（统一预算）。
   - 规格：只存一档——卡片 640 px WebP（在沙箱内直接输出，不用 sharp/libvips）；分享预览与版本预览按需生成 1280 px。
   - 失效：按**页内容哈希**失效，哈希输入 = 页子树 + 版式/母版/主题依赖闭包 + 媒体 `BlobRef` + `slideSize` + 页序号 + 内嵌字体集合 + `layoutAlgoVersion` + `fontProfile`；外链资源一律占位、不计入哈希；Compaction 之后只把哈希变化的页入队。
-  - 并发与隔离：在独立 renderer sidecar 中执行（安全要求见 SV-09）；每个任务新建 BrowserContext，定期回收浏览器；单页超时 10 s，失败重试 1 次后返回占位图并上报。并发口径与 ADR-0026 一致。
+  - 并发与隔离：在独立 renderer sidecar 中执行（安全要求见 SV-09）；每个任务新建 BrowserContext，定期回收浏览器；单页超时 10 s，失败重试 1 次后返回占位图并上报；运行时单页渲染出错（渲染层在纸面里画了「此页内容暂时无法显示」）同算失败，该页不回传、按同一规则重试后用占位图，整页无法解析的保真占位「此页内容无法解析」是确定内容、照常生成（2026-10-22，rulings §4.25 TB-151、TB-157，`60-backend/06` §11.3）。并发口径与 ADR-0026 一致。
   - 不再有「客户端上传缩略图」路径（rulings §4.15 Q8）；客户端侧栏缩略图见 OF-15。
 
 **图 2-4 文档卡片封面：M2 过渡与 M3 权威缩略图**
@@ -226,7 +226,7 @@ flowchart TB
   - 优雅停机：收到 SIGTERM 后停止接受新连接、通知客户端重连（`collab/reconnect{reason:"server-shutdown"}`）、flush 持久化、≤ 30 s 退出；客户端在 ≤ 5 s 内重连到其它实例（同一出口 IP 后数十人同时被驱逐时约分 3 波在 5 s 内重连完；更大的出口由部署调高 `limits.ws.connectPerIpPerMin`，rulings §4.20 BE-01+TX-03）。
   - Postgres 持续故障韧性（rulings §4.13 S-3，§4.15 S-3a 细化）：已在线房间**不拒绝新编辑**——超过第一阈值溢写 Valkey，超过第二阈值分块落对象存储（BlobStore）；两级阈值与回放耗时预算见 60/01 §12、NF-01 §1.7、NF-03。
   - 降级期照常广播（rulings §4.18 CO-08）：PG 写失败即进入降级期，update 通过门禁、进入任一降级档（内存退避重试、Valkey、对象存储）后**立即**在本实例广播并跨实例扇出，不等持久化，协作者互相可见；「先落库后广播」只约束 PG 可用时的顺序。持久性由发起方 pending 兜底（收到 `tier:'db'` 才清），其他客户端重连时经 step2 回填；降级广播次数计入指标 `cordex_collab_broadcast_before_persist_total`（SV-10）。
-  - 「未保存到服务器」的判定与受众（rulings §4.19 INC-09）：服务端经 `CONTROL.room` 的可选字段 `persist: 'ok' | 'degraded'` 显式通知（PG 写失败 ≤ 1 s 内推 `degraded`，回放完成且无溢写后推 `ok`），不新增帧类型；客户端判据 = `room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（`collab-yjs` 配置，默认 15000）；有本地未获 db 确认项的**发起方**显示横幅「未保存到服务器 N 项」，**其余协作者**只在状态胶囊显示弱提示「服务器保存延迟」。该信号与分级提示随协同网关自 M2 起生效（`05-milestones-and-scope.md` M2 验收 17）。
+  - 「未保存到服务器」的判定与受众（rulings §4.19 INC-09）：服务端经 `CONTROL.room` 的可选字段 `persist: 'ok' | 'degraded'` 显式通知（PG 写失败 ≤ 1 s 内推 `degraded`，回放完成且无溢写后推 `ok`），不新增帧类型；客户端判据 = `room.persist==='degraded'` ∨ 在途含仅获 spill 确认的项 ∨ 最老在途 ≥ `unsavedWarnAfterMs`（`collab-yjs` 配置，默认 15000）；有本地未获 db 确认项的**发起方**显示横幅「未保存到服务器 N 项」，**其余协作者**只在文件名旁的同步状态显示弱提示「服务器保存延迟」（原「状态胶囊」随 rulings §4.25 DS-6 作废）。该信号与分级提示随协同网关自 M2 起生效（`05-milestones-and-scope.md` M2 验收 17）。
   - **两级 ack**（S-3a）：溢写成功回 `ack{tier:'spill'}`，客户端**保留 pending**；落库成功回 `ack{seq, tier:'db'}` 才清除 pending。正式 `seq` 在回放时由 Postgres 分配；溢写行按 `(instanceId, localCounter)` 排序回放；回放 bootstrap 之后断言无 `pendingStructs`。即使溢写数据丢失，客户端也能在重连 step2 凭 update 幂等性自动补齐，NF-03「已 ack 零丢失」以 `tier:'db'` 为口径。
 
 - **行为级核对（rulings §4.21，协同网关改用 Hocuspocus 4 实现）**：本条验收的用户可见行为不变，下表逐项核对实现变化；只有「单消息 ≤ 1 MB」对重连差量同步单设 16 MiB 上限，超过时的用户可见结果是导出本地副本（PRD 03 CO-06）。
@@ -312,7 +312,7 @@ sequenceDiagram
     gw-->>client: ack，tier 为 spill
     gw-->>peers: CONTROL room，persist 为 degraded
     client->>client: 保留 pending，发起方横幅：未保存到服务器 N 项
-    peers->>peers: 状态胶囊弱提示：服务器保存延迟
+    peers->>peers: 文件名旁同步状态弱提示：服务器保存延迟
     Note over gw,pg: Postgres 恢复后，溢写行按 instanceId 与 localCounter 排序回放，正式 seq 由 Postgres 分配
     gw->>pg: 回放
     gw-->>client: ack，带 seq，tier 为 db
@@ -349,7 +349,7 @@ sequenceDiagram
 - 验收标准（rulings §4.15 T-0 / Q6）：
   - 单组织：一次部署 = 一个组织；资源、API、权限中**没有租户**（无 `tenantId`、无租户解析、无租户角色、无跨租户访问语义）；部署级配置（配额、保留策略、字体目录、存储桶）即全局配置。将来若做 SaaS 另立项。
   - 身份：服务端 M1–M3 **只认 OIDC**（授权码 + PKCE，用于 `apps/web`，**由服务端 auth 模块完成换码**并以 httpOnly cookie 建立会话，浏览器只负责跳转、不持有 PKCE verifier 与 IdP 令牌，rulings §4.18 BE-09；JWKS 轮换支持），不持有密码与凭据；可接任意 OIDC IdP，docker-compose 可选内置 **Casdoor**（国内 IM 登录经 Casdoor 代理）；用户以 `(issuer, sub)` 标识，首次登录 JIT 建号。
-  - 注册策略：部署级开关 `auth.selfSignup`，**默认关**——由管理员在 IdP（如 Casdoor）建号；开启后在 IdP 自助注册、首次登录 JIT 建号。分享链接始终要求登录（S-1，不支持匿名）。
+  - 注册策略：部署级开关 `auth.selfSignup`，**默认关**——由管理员在 IdP（如 Casdoor）建号；开启后在 IdP 自助注册、首次登录 JIT 建号；开启时须同时配置 IdP 的自助注册地址（`auth.signupUrl`），缺了服务拒绝启动，免得登录页出现点了没去处的「注册」（2026-10-22，rulings §4.25 TB-143，`60-backend/17` §5.5）。分享链接始终要求登录（S-1，不支持匿名）。
   - 文档分享邀请**只对已存在账号生效**（rulings §4.17 D1）：邀请即直接授予权限；服务端不保存「待接受邀请」（无 `pending_invitations` 表），没有账号的邮箱返回错误并提示联系管理员（`auth.selfSignup` 开时提示对方先注册），文案见设计 08。
   - 文档权限：角色 → 能力位（CO §1）；权限主体为**用户**与**分享链接**（M3 只按人分享）；管理 API：授予/撤销/列出；分享链接（P1，参考应用）：可设角色与过期。
   - **组管理（U-11）推迟**，不在 M3 范围；按组授予权限随之推迟。
@@ -514,6 +514,7 @@ flowchart LR
 
 - 优先级：P1 | 目标里程碑：M3（回收站移入与恢复、配套保留期作业随 M2 文档目录与持久化先行，rulings §4.19 D-M2-CONTENT；永久删除文档、回收站到期清理与用户数据擦除为 M3） | 依赖能力：Documents 模块、后台作业
 - 验收标准：文档软删除（默认 30 天可恢复）→ 硬删除（快照、update、版本、评论、缩略图（含 M2 包内过渡封面）、blob、索引全部清除，审计保留）；文档擦除与**永久删除文档**（回收站中永久删除，或跳过 30 天宽限直接永久删除）立即硬删除，**不等**元素墓碑 TTL（CO-08）；术语：文档级称「永久删除文档」，元素级称「彻底删除元素」（CO-08，rulings §4.18 CO-07）；永久删除时该文档的在线会话被踢出、之后拒绝加入（rulings §4.18 BE-15）；用户数据擦除 API（GDPR：用 `deleted-user` 替换主体标识，评论正文按部署策略保留/删除）；数据驻留：存储与数据库位置由部署决定，SDK 无隐式跨区调用；导出部署全部数据（P2）。保留期（软删除宽限 30 天；自动快照 30 天内全量，此后每天保留最后一个，至 `retention.autoSnapshotDailyDays`（默认 365，0 = 永久），rulings §4.19 C-06；命名版本永久、每文档上限 200；update 7 天；导入原件 30 天；墓碑 TTL 24 h）均为部署配置默认值，全部可调（章程 Q17，rulings §4.16）。
+  - 参考应用的回收站（2026-10-22，rulings §4.25 DS-85）：永久删除只在回收站视图发起（「永久删除…」，模态确认、初始焦点在「取消」，不要求输入文档名；M2 只有移入与恢复，这一项留在原位、不可用并标 M3）；回收站里的文档不能打开——所有者从旧链接打开看到「此文档在回收站中」阻断页、可就地恢复，有角色的非所有者看到「找不到该文档」，从未获授权的人看到「你没有权限访问此文档」（rulings §4.25 DS-122、TB-73）。「恢复」失败时：阻断页沿用登录页的内联错误画法，主按钮上方一行「无法恢复「〈名〉」，请稍后重试」、按钮恢复可用；回收站卡片上的「恢复」失败为轻提示「无法恢复「〈名〉」」+「重试」，与永久删除失败同一画法（TB-155，设计 03-01）。回收站的说明与卡片上的天数读同一个部署配置（`retention.trashDays`，缺省 30），由服务端经 `GET /auth/config` 下发，前端不另配（TB-141，`60-backend/15` §3.1）。
   - 级联清单（编排式，rulings §4.13 S-2，§4.18 BE-15 细化）：`documents` 宽限期满（或永久删除 / 擦除时立即）发起 `schedule-purge`，以单个持久作业编排；`permissions`、`share-links`、`media`、`thumbnails`、`comments`、最近 / 固定记录（`user-marks`，rulings §4.18 BE-31）、`document_updates`/`document_snapshots`（server-collab）各自执行 purge 用例清理自己的表，谁的表谁写；最后删除对象存储中该文档的全部对象版本；失败整作业重试、结果一致，可审计；GDPR 擦除复用同一编排，仅把"清除"换成"用 `deleted-user` 替换主体标识"。
   - 唯一 owner 空窗（rulings §4.20 BE-05+TX-22）：用户被停用或擦除后，他作为**唯一 owner** 的文档在 M4 管理面板（SV-14）之前无人可管，他建的有效分享链接也无人能撤（链接是否有效只看撤销与过期）。M3 起由运维命令 `cordex-ops documents:reassign-owner --doc <id> --to <userId>` 处理：以系统上下文调用权限模块的同一用例写入新 owner 授权、权限版本加 1（在线会话随之重算），写审计 `admin.owner_reassigned`；新 owner 即可撤销链接、调整授权或删除文档。擦除与停用的响应和审计都附「唯一 owner 文档数」提醒管理员；M4 管理面板复用同一用例。命令语义见 `60-backend/17` §9。
 
@@ -569,19 +570,19 @@ flowchart TB
 
 ### SV-15 Webhook 与事件出口
 
-- 优先级：P1（**由 P2/M4 提前，rulings §4.12 U-14**） | 目标里程碑：M3 | 依赖能力：Comments/Documents/Audit 模块事件、新增 `webhooks` 模块（`40-modules/12` §2.1/§4.11）
+- 优先级：P1（**由 P2/M4 提前，rulings §4.12 U-14**） | 目标里程碑：M3 | 依赖能力：Comments/Documents/Audit 模块事件、访问申请（CO-15）、新增 `webhooks` 模块（`40-modules/12` §2.1/§4.11）
 - 用户故事：作为无常驻前端的集成方后端，我希望通过 Webhook 而非事件回调接收评论等协同事件，以便离线处理通知与审批流程。
 - 验收标准：
-  - **M3 范围**（与客户端 EM-05 事件回调并行，两者都做，CO-04）：评论事件（`comment/added`、`comment/mentioned`、`comment/resolved`）以签名 Webhook 推送；管理 API：注册/更新/删除订阅（目标 URL、事件过滤、状态）；投递采用 HMAC 签名 + 指数退避重试 + 死信队列（超限转死信，不再自动重试）；投递日志可查询；服务端另提供跨文档「@我」REST（无需 `docId`）。
+  - **M3 范围**：以签名 Webhook 推送三类事件——评论事件（`comment/added`、`comment/mentioned`、`comment/resolved`，与客户端 EM-05 事件回调并行，两者都做，CO-04）；访问申请事件 `access_request.created`（2026-10-15，rulings §4.25 DS-67；只走 Webhook）：每条新申请产生一个事件，投递走与评论事件同一套签名、重试与死信，载荷带文档、申请与申请人的标识、申请时间与是否附留言，不含留言正文，集成方据此通知文档所有者（CO-15）；SV-13 自动化作业的结果回调 `automation.job_finished`（rulings §4.24 AL-7）。Webhook 上的对外事件名一律为点式（评论事件即 `comment.added` 等），事件名与载荷以 `60-backend/07` §4.2、§5.1 为准。管理 API：注册/更新/删除订阅（目标 URL、事件过滤、状态）；投递采用 HMAC 签名 + 指数退避重试 + 死信队列（超限转死信，不再自动重试）；投递日志可查询；服务端另提供跨文档「@我」REST（无需 `docId`）。
   - 事件 schema 版本化；订阅签名密钥明文仅在创建响应出现一次，落库以部署 KEK（`CORDEX_SECRETS_KEK_FILE`）经 AES-256-GCM 加密存储并带密钥版本，轮换期新旧双密钥并存；签名采用 **Standard Webhooks** 规范（rulings §4.21 q-webhook-sig）：请求头 `webhook-id`（投递 id，重试不变，集成方据此去重）、`webhook-timestamp`（unix 秒）、`webhook-signature: v1,<base64(HMAC-SHA256)>`，轮换宽限期内同一头以空格分隔携带新旧两个签名，集成方可直接用各语言现成的 Standard Webhooks 校验库验签（原 `X-Cordex-Signature: t=…, v1=<hex>` 自定义头废止，由 `webhook-signature` 取代；HMAC 须持有密钥本体，只存 hash 无法签名，设计线遗留口径 C-16/INC-30；细节以 `60-backend/07` §5.2 为准）。
   - 出站 SSRF 防护（rulings §4.13 S-4）：默认严格拒绝私网（RFC1918）/回环/链路本地（含云元数据端点 `169.254.169.254`）目标；订阅创建/更新与每次实际投递前均解析主机名并校验，投递前锁定解析出的 IP 再建连以防 DNS 重绑定；提供部署级配置项放宽为显式白名单（面向自托管内网场景）。
-  - **M4 展望**：文档事件（创建/更新/删除/导出完成/权限）以同一 Webhook 机制推送，扩大事件覆盖面；重试退避 ≤ 24 h。
+  - **M4 展望**：文档事件（创建/更新/删除/导出完成/权限）以同一 Webhook 机制推送，扩大事件覆盖面（访问申请事件已按 DS-67 提前到 M3，见上）；重试退避 ≤ 24 h。
 
 **图 2-13 Webhook 投递与 SSRF 防护**
 
 ```mermaid
 flowchart TB
-  ev["评论事件：comment/added、comment/mentioned、comment/resolved"]
+  ev["M3 事件：评论 comment.added、comment.mentioned、comment.resolved，访问申请 access_request.created，自动化作业结果 automation.job_finished"]
   sub["匹配订阅：目标 URL、事件过滤、状态"]
   ssrf{"解析主机名：是否私网、回环、链路本地或云元数据端点"}
   block["拒绝，除非部署配置了显式白名单"]

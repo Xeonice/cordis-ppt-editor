@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：去租户（T-0）、OIDC 与 JWT 降 M4（Q6）、撤销/恢复我的值（Q3）、SmartArt 渲染（Q7）、观测栈与配额（Q5/Q10））；2026-09-25（补图）；2026-09-25（§4.19） | 依赖：charter v0.2；rulings §4.15、§4.19
+> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：去租户（T-0）、OIDC 与 JWT 降 M4（Q6）、撤销/恢复我的值（Q3）、SmartArt 渲染（Q7）、观测栈与配额（Q5/Q10））；2026-09-25（补图）；2026-09-25（§4.19）；2026-10-04（design-language-v3 第 0 批：图 0-1 SDK 接触面、场景 P-A 与 US-P-02 中的 ribbon 按钮 / 属性面板分组改为工具条「更多」按钮 / 检查器分区（rulings §4.25 DS-1、DS-5）；故事、编号、里程碑不变）；2026-10-04（design-language-v3 第 0 批：术语残留清理：ribbon / 状态栏 / `ui.ribbon` 的历史陈述改用 check-terms 认可的标记措辞（废弃、取代、原名））；2026-10-15（design-language-v3 第 2 批：场景 E-A 的「保真诊断面板」改称界面上的「保真报告」（rulings §4.25 DS-38、DS-51）；场景 E-C 同一文本框的提示改为「● B 也在编辑此文本框」并画对方插入符（DS-60）；故事、编号、里程碑不变） | 依赖：charter v0.2；rulings §4.15、§4.19、§4.25
 
 # 02 角色、核心场景与用户故事
 
@@ -18,7 +18,7 @@ flowchart TB
   fe["集成方（前端）"]
   subgraph host["集成方的产品（宿主应用）"]
     subgraph sdk["SDK：preset + 插件"]
-      surfaces["ribbon / 画布 / 面板 / 评论 / presence / 放映"]
+      surfaces["工具条 / 画布 / 检查器与面板 / 评论 / presence / 放映"]
     end
   end
   subgraph server["apps/server 或集成方自有 Nest"]
@@ -64,7 +64,7 @@ flowchart TB
  收到同事上传的 Q3 复盘.pptx（80 页，40 MB）
    → 在知识库点击打开（≤ 3 s 看到首页）
    → 翻页核对图表数字、备注（缩略图导航、备注面板）
-   → 发现某页 Office 2016 瀑布图（chartex）显示为占位（保真诊断面板列出原因）
+   → 发现某页 Office 2016 瀑布图（chartex）显示为占位（保真报告列出原因）
    → 导出副本（零编辑往返，字节相同）发给客户
 ```
 
@@ -81,7 +81,7 @@ flowchart TB
 
 ```
  三人同时在线：A 改文案，B 调图表数据，C 排版第 10–15 页
-   → 看到彼此的头像/选区/当前页；A 与 B 同时碰到第 8 页文本框，边缘显示「B 正在编辑」
+   → 看到彼此的头像/选区/当前页；A 与 B 同时碰到第 8 页文本框，文本框上沿出现「● B 也在编辑此文本框」和 B 的插入符
    → C 断网 3 分钟继续编辑，重连后合并，无丢失；A 移走的形状在 C 端「跳走」并提示
    → 老板以评论者身份 @A 提修改意见；A 修改后标记已解决
    → 会前恢复到昨晚的命名版本对比，确认无误后放映
@@ -164,7 +164,7 @@ flowchart TB
  npm create @cordexjs/plugin → 选「element-kind」模板
    → 定义 kind 的 schema（Standard Schema）与默认属性
    → 实现 ElementRenderer（DOM/SVG）+ 编解码（导出为图片回退 + extLst 数据）
-   → 贡献 ribbon 按钮 + 属性面板分组 + 快捷键
+   → 贡献工具条「更多」按钮 + 检查器分区 + 快捷键
    → 在 host-playground 加载，热重载调试；开发者面板看到 Fiber 状态与贡献列表
    → cordex ctk run 通过 8 项检查 → changeset → npm publish
    → 集成方在 preset 配置里加一行启用
@@ -182,7 +182,7 @@ flowchart TB
 | 编号 | 故事 | 需求 | 里程碑 |
 |---|---|---|---|
 | US-P-01 | 我想加一种新元素（渲染 + 插入 + 导出 + 协同） | PS-02（`slide.shapeKind`、`render.element`）、PS-04 | M2/M4 |
-| US-P-02 | 我想加一个 ribbon 按钮执行我的命令 | PS-02（`core.command`、`ui.ribbon`） | M2 |
+| US-P-02 | 我想在工具条「更多」或菜单里加一个按钮执行我的命令 | PS-02（`core.command`、`ui.toolbar` / `ui.command`；原 `ui.ribbon` 随 rulings §4.25 DS-5 废弃） | M2 |
 | US-P-03 | 我想不运行就知道一个插件提供什么、需要什么 | PS-01 Manifest | M4 |
 | US-P-04 | 我想一条命令生成能跑的插件骨架 | PS-03 | M4 |
 | US-P-05 | 我想知道升级宿主后插件还能不能用 | PS-06 CTK、PS-07 | M4 |

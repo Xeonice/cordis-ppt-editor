@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-figma-keyboard-shortcuts-panel.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328653-Use-Figma-products-with-a-keyboard",
+    "article": "Use Figma products with a keyboard",
+    "section": "Open the shortcuts panel",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/33846811650455",
+    "alt": "Toolbar with keyboard shortcuts for tools, actions, and resizing options in Figma to enhance workflow efficiency.",
+    "product": "Figma Design（键盘快捷键面板，Figma 各产品共用）",
+    "theme": "light",
+    "shows": "沿编辑器底部铺开的深色快捷键面板（底部工具条仍在面板上方可用）：一行类别页签 Essential · Tools · View · Zoom · Text · Shape · Selection · Cursor（当前，带下划线）· Edit · Transform · Arrange · Components，右端 Layout；内容分三栏小组（While pointing… / While clicking… / While resizing…），每行名称 + 键帽（⌥、⌘ click、⇧ 等），用过的快捷键名称与键帽变蓝。帮助正文：非模态，开着可以继续操作、试一个快捷键面板就更新；没有搜索框。对应 shortcuts.default（P22 推荐画布右上的非模态浮动面板 + 搜索，TB-105 分组）",
+    "pairedState": [
+      "shortcuts.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "02-figma-help-menu-keyboard-shortcuts.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041057214-Explore-Figma-s-help-and-support-resources",
+    "article": "Explore Figma's help and support resources",
+    "section": "Instant answers with Fig for all plans",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/37046580594455",
+    "alt": "From the Help and Resources settings, a cursor hovers over _Contact Support_ in order to get product help..png",
+    "product": "Figma（各页面右下角「?」帮助与资源菜单）",
+    "theme": "light",
+    "shows": "与 home/03 同一张图：帮助菜单里单独一组「Keyboard shortcuts ⌃⇧?」，下一组是 Change keyboard layout…（对应面板里的 Layout 页签）。对应快捷键面板的入口（我们在帮助菜单与账户菜单里「键盘快捷键 ⌘/」，开始页也能打开，TB-105）",
+    "pairedState": [
+      "shortcuts.entry-main-menu",
+      "shortcuts.from-home"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "missing": "Google Slides 的 ⌘/（Ctrl + /）快捷键列表弹层没有截图，Keyboard shortcuts for Google Slides（answer/1696717）只按组列文字；Keynote 快捷键页只有文字表，放映中按 ? 显示的快捷键列表也无截图；shortcuts.search（搜索与无结果）、shortcuts.conflict（快捷键冲突）三家都没有对应画面"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-figma-memory-alert-view-only.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040528173-Reduce-memory-usage-in-files",
+    "article": "Reduce memory usage in files",
+    "section": "Memory usage alerts › 90% usage › View only access",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/16616255987223",
+    "alt": "Memory usage warning at 92%, advises contacting file owner; edit access needed to manage memory.",
+    "product": "Figma Design（左栏内存用量提示）",
+    "theme": "light",
+    "shows": "只有查看权限的人看到的内存告警块（小图 480 宽）：标题「Memory usage」+ ×；红色进度条 92%（中间一道阈值刻度）；浅红底提示块，红色三角警告图标 + 粗体「Almost out of memory」+「Contact the file owner. Edit access is required to manage memory use.」。帮助正文：到 90% 时左栏出这块红色提示、不能关掉，到 100% 文件锁定。对应 doc-banners.over-ceiling（文档到上限只读打开；P38 推荐中性底 + 锁形、可关闭，Figma 这块是红色、不可关闭，接近备选 doc-banners.alt-element-cap-warning（警告浅底、不可关闭））",
+    "pairedState": [
+      "doc-banners.over-ceiling"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 480,
+    "height": 348,
+    "pixelSize": "480x348"
+  },
+  {
+    "file": "02-figma-memory-alert-edit.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040528173-Reduce-memory-usage-in-files",
+    "article": "Reduce memory usage in files",
+    "section": "Memory usage alerts › 90% usage › Edit access",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/16616255990167",
+    "alt": "Memory usage alert at 92.3%, recommending moving pages or deleting content to prevent losing file access. Manage memory button shown.",
+    "product": "Figma Design（左栏内存用量提示）",
+    "theme": "light",
+    "shows": "有编辑权限的人看到的同一告警（92.3%）：浅红提示块写「To avoid losing file access, move some pages to a different file or delete unneeded content.」+ 红字「Learn more」，下方通栏描边按钮「Manage memory」；标题右侧的 × 为灰色。对应 doc-banners.over-ceiling 的对照（按权限给不同出口；我们的元素上限横幅无按钮）",
+    "pairedState": [
+      "doc-banners.over-ceiling",
+      "doc-banners.alt-element-cap-warning"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 480,
+    "height": 460,
+    "pixelSize": "480x460"
+  },
+  {
+    "missing": "doc-banners.version-drift（发现新版本，刷新后继续）与 doc-banners.epoch-*（文档已替换为导入的文件 / 已由管理员重建）在 Figma、Google、Keynote 帮助文档里都没有截图：Figma 的计划维护红色横幅（What happens during scheduled maintenance?）、编辑人数到上限转只读的提示（How many people can be in a file at once?）只有文字，版本恢复后已打开的会话怎样刷新也没有写"
+  }
+]

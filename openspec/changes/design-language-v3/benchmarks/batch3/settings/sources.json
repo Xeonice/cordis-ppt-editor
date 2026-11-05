@@ -1,0 +1,60 @@
+[
+  {
+    "file": "01-figma-settings-account-tab.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/30926159906967-FD4B-Tour-the-file-browser-and-customize-your-profile",
+    "article": "FD4B: Tour the file browser and customize your profile",
+    "section": "Customize your profile",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31314428947991",
+    "alt": "Manage your account from the account settings in the file browser",
+    "product": "Figma 文件浏览器（账户菜单 › Settings）",
+    "theme": "light",
+    "shows": "与 account-menu/02 同一张图：Figma 的设置是居中模态窗（背后压暗），顶部页签 Account · Community · Notifications · Security，右上 ×；每节是灰色标题 + 当前值 + 蓝字「Change …」（Name、Email、Role、Language、Theme），没有保存按钮。帮助正文：改语言后要点 Save 并刷新页面（我们按 NF-06 不刷新）。对应 settings.default（P20 推荐居中模态对话框、改了即生效）",
+    "pairedState": [
+      "settings.default",
+      "settings.from-home"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-main-menu-preferences.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/30928303842327-FD4B-Set-your-file-preferences",
+    "article": "FD4B: Set your file preferences",
+    "section": "Set your file preferences",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31715827496855",
+    "alt": "",
+    "product": "Figma Design（编辑器主菜单）",
+    "theme": "light",
+    "shows": "编辑器左上 Figma 标志 ▾ 打开的深色主菜单：Back to files ┊ Actions… ⌘K ┊ File ▸ · Edit ▸ · View ▸（展开）· Object · Text · Arrange · Vector ┊ Plugins · Widgets · Preferences ▸ · Libraries ┊ Get desktop app · Help and account ▸；展开的 View 子菜单是 Pixel grid、Layout grids、Rulers、Comments、Multiplayer cursors、Minimize UI ⇧\\、Show/Hide UI ⌘\\、缩放各项等勾选项与快捷键。帮助正文：主题、键盘布局等偏好都在 Preferences 子菜单里改。对应设置入口的对照（Figma 偏好放在编辑器主菜单；我们按 DS-10 只放在账户菜单「偏好设置… ⌘,」）",
+    "pairedState": [
+      "account-menu.editor"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "03-keynote-mac-settings-general.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/change-keynote-settings-tan003125d0e/mac",
+    "article": "Change Keynote settings on Mac",
+    "section": "Open Keynote settings",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/fb13ccf22dc2c9cff7609892d2acc296.png",
+    "alt": "The Keynote settings window open to the General pane.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "Keynote › Settings 打开的独立设置窗口（官方标注「Choose Settings from the Keynote menu.」）：顶部图标页签 General（当前）· Slideshow · Rulers · Remote · Auto-Correction；General 页右对齐的分组标签（For New Presentations · Editing · Outline View Font · Saving · Adding Media · Touch ID · Author · Text Size），配单选、勾选、弹出菜单与输入框，部分项下一行灰色说明；没有保存按钮，改了即生效。对应 settings.default（分组排列、改了即生效、无保存按钮）",
+    "pairedState": [
+      "settings.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 894,
+    "height": 1166,
+    "pixelSize": "894x1166"
+  },
+  {
+    "missing": "Figma 主菜单 Preferences ▸ 子菜单与 Accessibility settings（增强对比度等开关，P42 阅读顺序的「无障碍」一组可对照）没有截图，Change themes in Figma 只有文字步骤；Google Slides 工具 › 偏好设置对话框只有文字；settings.language-failed、settings.telemetry、settings.copied 等三家都没有对应截图"
+  }
+]

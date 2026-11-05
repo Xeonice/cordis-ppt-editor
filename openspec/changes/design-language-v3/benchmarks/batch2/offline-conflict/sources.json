@@ -1,0 +1,67 @@
+[
+  {
+    "file": "01-keynote-mac-offline-alert.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/collaborate-on-a-shared-presentation-tan5fc7516cf/mac",
+    "sourceTitle": "Collaborate on a shared presentation in Keynote on Mac（Keynote User Guide for Mac，「Edit while offline」节）",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/c837885a93f620b9507c1c25fdbbf7e0.png",
+    "product": "Keynote for Mac",
+    "theme": "light",
+    "shows": "离线时工具栏的「协作」按钮换成斜线云图标（中性灰），工具栏下方浮出一条胶囊提示「You're offline but can still edit.」（中性灰图标、无按钮、无着色底）。2x 截图（原 406 × 141 pt）",
+    "retrieved": "2026-10-14",
+    "width": 812,
+    "height": 282,
+    "pixelSize": "812x282"
+  },
+  {
+    "file": "02-figma-offline-changes-synced.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "sourceTitle": "What can I do offline in Figma?（「Sync offline changes」节）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/360092774014",
+    "product": "Figma（编辑器通用的离线自动保存，帮助文章不分 Design / Slides）",
+    "theme": "dark",
+    "shows": "离线更改同步完成后的轻提示：深色条、白色对勾（不着色）、「Your offline changes were synced」、竖分隔线后文字按钮「Dismiss」；放在绿色展示底上的孤立组件图",
+    "retrieved": "2026-10-14",
+    "width": 1000,
+    "height": 600,
+    "pixelSize": "1000x600"
+  },
+  {
+    "file": "03-figma-offline-sync-conflicts.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "sourceTitle": "What can I do offline in Figma?（「Version history」节）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/360092773874",
+    "product": "Figma（编辑器通用的离线自动保存，帮助文章不分 Design / Slides）",
+    "theme": "dark",
+    "shows": "离线更改已同步但可能有冲突的轻提示：深色条、白色「!」图标（不着色）、两行「Your offline changes were synced, but there may be conflicts」、右侧上下两个文字按钮「Dismiss」「Review」（Review 打开版本历史）；绿色展示底上的孤立组件图",
+    "retrieved": "2026-10-14",
+    "width": 1000,
+    "height": 600,
+    "pixelSize": "1000x600"
+  },
+  {
+    "file": "04-figma-desktop-discard-offline-changes.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "sourceTitle": "What can I do offline in Figma?（「Figma desktop app」节）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/360092773954",
+    "product": "Figma 桌面应用",
+    "theme": "light",
+    "shows": "有未同步的离线更改时退出登录的拦截对话框「Sync your offline changes」：标题 + ×、一段说明、左下红色描边「Discard & Log out」、右侧描边「Cancel」「Show changes」，没有实底按钮；绿色展示底上的孤立组件图",
+    "retrieved": "2026-10-14",
+    "width": 1000,
+    "height": 600,
+    "pixelSize": "1000x600"
+  },
+  {
+    "file": "05-figma-unsynced-changes-notification.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "sourceTitle": "What can I do offline in Figma?（「Sync offline changes」节）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31680228730647",
+    "product": "Figma 文件浏览器（UI3）",
+    "theme": "light",
+    "shows": "回到文件浏览器时底部的蓝色通知条「Changes you made to Untitled while offline haven't synced yet.」、同步图标、右侧上下两个文字按钮「Open to sync」「Later」，文件卡片上有未同步图标；放大裁切图（约 3–4 倍，边缘发虚）",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  }
+]

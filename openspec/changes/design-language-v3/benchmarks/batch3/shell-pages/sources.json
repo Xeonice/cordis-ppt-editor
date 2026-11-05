@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-figma-embed-login.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360051741274-Interact-with-embeds",
+    "article": "Interact with embeds",
+    "section": "Authentication",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26000622737943",
+    "alt": "Log in screen for accessing a Figma file, featuring a prompt with login button and account creation link.",
+    "product": "Figma（嵌入里的登录提示；Figma 独立登录页没有官方截图）",
+    "theme": "light",
+    "shows": "与 embed/01 同一张图：居中一列——Figma 标志、一句标题「Log in to Figma to view this file」、黑色通栏主按钮「Log in」、弱提示「No account? Create one」；外面是一张带细边的白卡。对应 shell-pages.login（P31 推荐画布底色上居中一列、不加卡片，对照 shell-pages.alt-login-card；P32 的弱提示行「没有账号？请联系管理员开通」）",
+    "pairedState": [
+      "shell-pages.login",
+      "shell-pages.login-signup"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-desktop-sync-before-logout.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "article": "What can I do offline in Figma?",
+    "section": "Figma desktop app",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/360092773954",
+    "alt": "Sync your offline changes modal with options to Discard & Log out, Cancel, or Show changes before logging out.",
+    "product": "Figma 桌面应用",
+    "theme": "light",
+    "shows": "有未同步的离线更改时退出登录的拦截对话框（绿色衬底上的孤立组件图）：标题「Sync your offline changes」+ ×、一段说明、左下红色描边「Discard & Log out」、右侧描边「Cancel」「Show changes」，没有实底按钮。对应 shell-pages.logout-unsynced-confirm。与第 2 批 offline-conflict/04 是同一张图（逐字节相同）",
+    "pairedState": [
+      "shell-pages.logout-unsynced-confirm"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1000,
+    "height": 600,
+    "pixelSize": "1000x600"
+  },
+  {
+    "missing": "Figma 独立登录页、登录失败、404 / 文件不存在 / 没有权限的页面没有截图：Log in, add accounts, or log out、Authenticate with Google、Set login and authentication method、Error 404 when loading Figma files、Connection or server error 403 都只有文字（My files are not opening 唯一的图是浏览器控制台）；Google 账号登录框与「You need access / Request access」页（Docs 编辑器帮助 answer/14743550）只有文字；Keynote 没有自己的登录页。shell-pages.not-found-*、link-expired、app-error、config-error、callback-*、popup-* 因此没有标杆，沿用已拍板的阻断页画法"
+  }
+]

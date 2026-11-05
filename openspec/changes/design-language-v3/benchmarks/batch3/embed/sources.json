@@ -1,0 +1,78 @@
+[
+  {
+    "file": "01-figma-embed-login.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360051741274-Interact-with-embeds",
+    "article": "Interact with embeds",
+    "section": "Authentication",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26000622737943",
+    "alt": "Log in screen for accessing a Figma file, featuring a prompt with login button and account creation link.",
+    "product": "Figma（嵌入的文件或原型）",
+    "theme": "light",
+    "shows": "嵌入框里没登录时的整块提示（灰色衬底上的白色外框）：居中 Figma 标志、一句标题「Log in to Figma to view this file」、黑色通栏主按钮「Log in」、下方弱提示「No account? Create one」（蓝字链接）。帮助正文：没登录或网站拦截第三方 Cookie 时出现，可能跳到浏览器去登录。对应 embed.auth-required（「请在新窗口登录」）",
+    "pairedState": [
+      "embed.auth-required"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-embed-cookie-access.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360051741274-Interact-with-embeds",
+    "article": "Interact with embeds",
+    "section": "Authentication",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26808296257303",
+    "alt": "Figma prompt requesting browser cookie access to verify permissions for viewing an embedded file. Options to allow or open in Figma.",
+    "product": "Figma（嵌入的文件或原型）",
+    "theme": "light",
+    "shows": "嵌入框里请求 Cookie 访问的提示：Figma 标志、标题「Figma needs access to your browser cookies」、一句说明、黑色主按钮「Allow cookies」；下方第二次仍失败时的说明「It looks like we still don't have access to your browser cookies. Please try again or open this file in Figma.」（蓝字链接）。对应 embed.auth-blocked（被浏览器拦下时：重试 + 在新标签页打开的退路）",
+    "pairedState": [
+      "embed.auth-blocked"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "03-figma-file-embed.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360039827134-Embed-files-and-prototypes",
+    "article": "Embed files and prototypes",
+    "section": "（文首）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26000118509591",
+    "alt": "Interactive Figma embed showing a waving hand icon with example prototype and visibility settings in the panel.",
+    "product": "Figma（嵌入的文件）",
+    "theme": "light",
+    "shows": "与 viewer/02 同一张图：嵌入框内的只读文件——左上页面下拉、右上全屏、右下缩放、底栏文件名 · 可见范围锁 · 最后编辑时间，没有工具条与侧栏。对应 embed.view-compact（容器较小时的仅查看形态）",
+    "pairedState": [
+      "embed.view-compact",
+      "embed.view-narrow"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "04-figma-embed-password.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360051741274-Interact-with-embeds",
+    "article": "Interact with embeds",
+    "section": "Authentication",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26000622744215",
+    "alt": "Password prompt screen for accessing a Figma file with an \"Enter Password\" button.",
+    "product": "Figma（嵌入的文件或原型）",
+    "theme": "light",
+    "shows": "嵌入框里文件设了密码时的整块提示（浅灰底）：Figma 标志、标题「A password is required」、黑色主按钮「Enter Password」。同一文还有「Security verification is required · Verify to continue」一张，版式相同。对应 embed.open-failed 的版式参照（嵌入里的阻断页都是同一张居中卡：标志 · 一句标题 · 单个主按钮）",
+    "pairedState": [
+      "embed.open-failed"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "missing": "embed.auth-popup-open（登录窗口已打开、等待回来）在三家帮助文档里都没有截图（Figma 只写「可能跳到浏览器登录」）；Google Slides「发布到网络」的嵌入（answer/183965）只有文字；嵌入宿主外框本来就是演示容器（DS-73），不需要标杆"
+  }
+]

@@ -1,0 +1,120 @@
+[
+  {
+    "file": "figma-export-format-menu.png",
+    "product": "Figma Design（右栏 Export 节的格式下拉；Figma Slides 设计模式用的是同一套）",
+    "title": "Export formats and settings for static designs",
+    "url": "https://help.figma.com/hc/en-us/articles/13402894554519-Export-formats-and-settings-for-static-designs",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/29881605889303",
+    "observed": "「Image quality」一节的配图。右栏 Export 节是「1x ▾ · PNG ▾ · ••• · —」，格式下拉展开后是深色小菜单「✓ PNG / JPG / SVG / PDF」，只有文字，没有文件类型图标。选中项左侧打 ✓、整行蓝色高亮，菜单和下拉框差不多宽。这张是 Figma 本家的反例：格式选择不配图标。FigJam 的导出对话框也只有文字单选，见 batch3/export/01-figjam-export-dialog.png。Figma Slides 的「Export slides to」对话框（File type 选 PPTX / PDF）官方没有截图，帮助正文也只列出文字选项。",
+    "usedFor": "export-icons",
+    "pixelSize": "1200x1200",
+    "note": "原图是 211 帧的 GIF（1200×1200），这里取第 46 帧（格式菜单已展开、PNG 高亮）。用 Playwright 调 Chrome 的 ImageDecoder 解码后存成 PNG，像素没有改动",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "canva-download-file-types.jpg",
+    "product": "Canva（编辑器 Share › Download 的文件类型列表）",
+    "title": "Free PPT converter: Turn PPT slides into any format | Canva",
+    "url": "https://www.canva.com/features/ppt-converter/",
+    "imageUrl": "https://content-management-files.canva.com/c6ffe79e-0256-4021-9dec-d2736ad2f905/tools-feature_ppt-converter_how-to.jpg?resize-width=2162",
+    "observed": "产品页「How to convert your PPT」一节的配图，是营销合成图，画面里带协作者光标「Lee」。编辑器右上 Share 下面是「Download」面板，文件类型列表有三行：PPTX（旁边有蓝色「Suggested」胶囊）/ Microsoft PowerPoint document，JPG / Best for sharing，PNG / Best for complex images, illustrations。图标是单色线性的「内容类型」图标：PPTX 用放映屏，JPG 和 PNG 共用一个图片框。图标不画成文件形状，也不写扩展名，大小约 20px（按两行文字的行高估算），放在名称左侧。每行两行字：格式名加一句用途说明。选中的那行是浅灰底、右端打 ✓，图标颜色不变。同页另一张 promo-showcase_01 里还有 MP4 Video 一行，图标是播放键。Canva 帮助中心那篇《Choose the right download file type for your Canva design》只有文字，没有截图。",
+    "usedFor": "export-icons",
+    "pixelSize": "2162x1472",
+    "note": "原图 4324×2944（3.1 MB）。这里存的是 Canva CDN 在同一地址后加 ?resize-width=2162 给出的半尺寸版，没有再做其他处理",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "pitch-export-format-cards.png",
+    "product": "Pitch（网页版和桌面版的 Share › Export）",
+    "title": "Export a presentation to Power Point",
+    "url": "https://help.pitch.com/en/articles/6713988-export-a-presentation-to-power-point",
+    "imageUrl": "https://downloads.intercomcdn.com/i/o/alrusdv4/2571368832/88bfc471d3c32b01c05e2a7912fb/share-export-pptx.png",
+    "observed": "Share 对话框的 Export 页签。三张卡片并排：「PDF – compressed」「PDF – high quality」「PowerPoint PPT」。每张卡片顶部是中性色的折角文件图标（白底、细灰边、右上角折页），图标里用深色大写字写扩展名 PDF / PPT，估计宽约 40px。图标下面是粗体名称和两三行灰色说明。选中的卡片加 2px 紫色描边、铺淡紫底，图标本身不变色。卡片下方有一行 ⓘ 提示，右下是主按钮「Export presentation」。图上的橙粉色大箭头是帮助文档加的标注，不属于界面。Free 计划下会多出一块水印提示，见同站 PDF 导出一文的 share-export-starter.png。",
+    "usedFor": "export-icons",
+    "pixelSize": "1500x1178",
+    "note": "imageUrl 是 Intercom 签名链接，查询串里带过期时间，这里已经去掉",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "pitch-ios-export-pdf.png",
+    "product": "Pitch（iOS App 的「Presentation options」底部面板）",
+    "title": "Export a presentation to PDF",
+    "url": "https://help.pitch.com/en/articles/3551638-export-a-presentation-to-pdf",
+    "imageUrl": "https://downloads.intercomcdn.com/i/o/868532553/fb96277565f5bd960622de15/iOS+app+-+export.png",
+    "observed": "深色底部面板「Presentation options」。每行左侧是单色线性图标，右侧是名称，有的还带一行灰色说明：Unsubscribe from presentation（铃铛）、Invite others、Share with anyone（链接）、Share link（分享）、Export to PDF。Export to PDF 的图标是线框文件，里面写着小号「PDF」，副行是「Any GIFs or videos will export as images」。这个文件类型图标和其他操作图标线宽一致，同为白色单色，估计约 18pt。可以拿它看暗色界面里单色线性文件图标好不好认。图上的箭头是帮助文档的标注。",
+    "usedFor": "export-icons",
+    "pixelSize": "830x1510",
+    "note": "imageUrl 是 Intercom 签名链接，查询串已去掉",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "microsoft365-web-export-submenu.png",
+    "product": "Microsoft 365 网页版（截图是 Excel 网页版；Word、PowerPoint 网页版用的是同一套 File › Export 子菜单）",
+    "title": "File menu improvements in Word, Excel, and PowerPoint for the web",
+    "url": "https://techcommunity.microsoft.com/blog/microsoft365insiderblog/file-menu-improvements-in-word-excel-and-powerpoint-for-the-web/4226769",
+    "imageUrl": "https://techcommunity.microsoft.com/t5/s/gxcuf89792/images/bS00MjI2NzY5LTYxMzE4NWlBOTU2NzYwRjQ1MkU3ODc1?image-dimensions=680x463&revision=9",
+    "observed": "Microsoft 365 Insider 博客 2024-08 的配图「Export to other formats」。File 菜单每一项左侧都有 Fluent 线性图标：New、Open、Share、Create a Copy、Export ▸、Print、Rename、Move File、Version History、Info、Options。Export 子菜单展开后是 Download as PDF、Download as ODS、Download as CSV 三项。三个格式图标造型相同：灰色线框文件，底部压一条彩色扩展名标签（PDF 是红色，ODS 和 CSV 是绿色），约 16px，放在名称左侧。名称统一写成「Download as 格式」。子菜单没有选中态，点一下就下载。PowerPoint 网页版对应的三项，见 Microsoft 帮助《Export》一文 PowerPoint for the web 页签里的内联图标（https://support.microsoft.com/en-us/office/export-4a34d4b0-ac4b-4f4c-950a-8ea1fbab8297）：Download as PDF 是线框文件加红色 PDF 标签，Export to ODP 是线框文件加灰色 ODP 标签，Export to images 是图片线框加蓝色圆形箭头角标。这三枚图标每枚只有 23×21 像素，太小，没有单独存。",
+    "usedFor": "export-icons",
+    "pixelSize": "679x449",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "gamma-export-format-rows.png",
+    "product": "Gamma（Share › Export 页签）",
+    "title": "What's the easiest way to export my Gamma?",
+    "url": "https://help.gamma.app/en/articles/8022861-what-s-the-easiest-way-to-export-my-gamma",
+    "imageUrl": "https://downloads.intercomcdn.com/i/o/ihnzqaok/1476264788/e42caa66eeb9b5fa2621ba026095/Area65.gif",
+    "observed": "画面上方是说明「Download a static copy of your gamma to share with others.」和范围下拉「All cards ▾」。下面四行整宽按钮：Export to PDF、Export to PowerPoint、Export to Google Slides（带 NEW 标签）、Export as PNGs，每行右端有下载图标。每行左侧有一个淡色方块，按行高估宽约 48px，里面是彩色图标：PDF 用红色 Acrobat 式标志，PowerPoint 和 Google Slides 用各自的品牌图标，PNG 用紫色图片图标。方块底色跟着图标色走（淡红、淡橙、淡黄、淡紫）。这里没有单选，点哪一行就导出哪种格式。生成时，该行的图标和底块变成灰色，文字换成「Your PowerPoint is being generated. It's safe to close the share panel.」，右端的下载图标消失（同一 GIF 第 345 帧）。帮助正文提到的 Image quality 滑块和 Editable tables 开关在这段 GIF 里看不到，GIF 拍的可能是旧版界面。",
+    "usedFor": "export-icons",
+    "pixelSize": "1276x720",
+    "note": "原图是 472 帧的 GIF（1276×720，有镜头推近），这里取第 270 帧，是最清楚、光标也没挡住图标的一帧。用 Chrome 的 ImageDecoder 解码后存 PNG，像素没有改动。GIF 调色板会让浅灰底在个别帧里偏黄，本帧不明显",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "figma-import-dialog.png",
+    "product": "Figma 文件浏览器（Import 对话框，深色）",
+    "title": "用户提供的 Figma 截图",
+    "url": "用户 2026-10-22 在评审中提供",
+    "observed": "1120×808 的 2 倍截图，对应 CSS 560×404，画面只有「Import」对话框本身：深色底，圆角 13px，四角圆弧外侧原来露出的背景已用边框色填平。标题栏左边是「Import」，右边是 ×，下面一条分隔线。主体是一个大虚线落区，正中三行：粗体「Bring your work into Figma」、说明「Import images, Sketch files, PowerPoints, and PDFs.」、蓝色主按钮「Import from computer」。没有图标，也没有底栏。",
+    "usedFor": "import-dialog",
+    "pixelSize": "1120x808",
+    "note": "复制自 scratchpad 的 b3/rev2/user/figma-import-dialog.png。原图是 2936×1662 的整窗截图（CSS 窗口 1468×831），对话框叠在文件浏览器上，背后整页压暗。原图背景含账户与其他文件名，2026-11-12 公开前裁切为对话框本身：取原图 x 908–2027、y 425–1232，四个圆角外侧露出的背景用边框色填平，其余像素没有改动",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "pitch-import-dialog.png",
+    "product": "Pitch（开始页 Import › Import PowerPoint file）",
+    "title": "Import a presentation",
+    "url": "https://help.pitch.com/en/articles/4615453-import-a-presentation",
+    "imageUrl": "https://downloads.intercomcdn.com/i/o/alrusdv4/2559850109/5d34aadab1a4f3bd62a9a8457bef/import1.png",
+    "observed": "浅色对话框叠在压暗的文档列表上。标题是「Import PowerPoint file」，右上是灰色圆形 ×。标题下一段说明：「Import a .pptx file here. Not using PowerPoint? Tools like Google Slides and Keynote can export to this format. Learn more」。再下面是浅灰虚线落区，正中一张两层叠放的白色小卡，卡上是 PowerPoint 品牌图标，下面灰字「Click here or drag to upload」。整个落区既能点也能拖入，没有单独的按钮，也没有底栏。帮助正文说，从仪表盘顶部的 Import presentation 或新建页右上的 Import 都能打开它，也可以把 .pptx 直接拖进仪表盘或文件夹。图上的箭头是帮助文档的标注。",
+    "usedFor": "import-dialog",
+    "pixelSize": "1500x1178",
+    "note": "imageUrl 是 Intercom 签名链接，查询串已去掉",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "pitch-import-uploading.png",
+    "product": "Pitch（同一对话框的上传态）",
+    "title": "Import a presentation",
+    "url": "https://help.pitch.com/en/articles/4615453-import-a-presentation",
+    "imageUrl": "https://downloads.intercomcdn.com/i/o/alrusdv4/2559854464/4e62f61c7c4e48d461012cc8ba63/import+3.png",
+    "observed": "上传开始后，同一个对话框原地换成进度内容。标题还是「Import PowerPoint file」，右上的 × 没了。正中依次是 PowerPoint 图标、「Uploading file」、紫色转圈（不显示百分比）和灰字「For larger files, this may take a few minutes.」。没有取消按钮。上传完成后，对话框再换成：「Your imported presentation is now in Private.」、黄框「Some elements in your presentation aren't yet supported.」，以及「Close」「Open presentation」两个按钮。这一态见同文的 import2.png，没有存。",
+    "usedFor": "import-dialog",
+    "pixelSize": "1500x1178",
+    "note": "imageUrl 是 Intercom 签名链接，查询串已去掉",
+    "retrieved": "2026-10-22"
+  },
+  {
+    "file": "google-drive-upload-panel.png",
+    "product": "Google Drive（网页版右下角的上传进度面板）",
+    "title": "Add files and folders to Drive - Google Workspace Learning Center",
+    "url": "https://support.google.com/a/users/answer/9310458?hl=en",
+    "imageUrl": "https://lh3.googleusercontent.com/mKsqRj5yduJjZVaMH8gm5j4CLHpsEfthbn6VaIZHunefCTywkBlyCNxHAWcCWQRcihk",
+    "observed": "「Upload files or folders to Drive」一节的配图。右下角是一个深色标题栏的上传面板「Uploading 1 items」，标题栏右侧有收起 ⌄ 和关闭 ×。下一行是「Less than a minute left」和蓝色「CANCEL」。文件行是红色 PDF 文件类型图标、文件名「Enterprise Technology Review」，右侧转圈表示进度。上传完成后，标题变成「1 upload complete」，转圈换成绿色 ✓（同一 GIF 第 196 帧前后）。背后文件列表里，文件名左侧也是 Drive 的彩色文件类型图标（Docs 蓝、Sheets 绿、PDF 红）。上传不占用对话框，走的是非模态的角落面板。Google Slides 的「File › Import slides」选择框和「File › Download」子菜单，官方帮助里都只有文字说明。",
+    "usedFor": "import-dialog",
+    "pixelSize": "512x288",
+    "note": "原图是 239 帧的 GIF（512×288），这里取第 165 帧（上传中、能看到 CANCEL）。用 Chrome 的 ImageDecoder 解码后存 PNG，像素没有改动。原 GIF 分辨率低，只能用来看结构",
+    "retrieved": "2026-10-22"
+  }
+]

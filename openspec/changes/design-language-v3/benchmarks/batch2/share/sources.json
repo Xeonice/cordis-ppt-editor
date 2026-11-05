@@ -1,0 +1,67 @@
+[
+  {
+    "file": "01-figma-share-modal.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040531773-Share-files-and-prototypes",
+    "article": "Share files and prototypes",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/35463302707223",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "「Share this file」分享弹窗（官方 A–F 标注）：标题行右侧蓝字「Copy link」与 ×；邀请框「Emails, comma separated」+ 不可用的 Invite；灰色小标题「Who has access」下是组织、文件夹两行受众（can view ›、4 people ›）、所有者一行与三位成员的 can edit ⌄ / can view ⌄；Dev Mode 链接、原型链接、发布到社区、嵌入代码另放一张卡片。对应 share.default",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-share-settings.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040531773-Share-files-and-prototypes",
+    "article": "Share files and prototypes",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/35463302710551",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "点「Who has access」受众行进入的「Share settings」二级页（官方 A–D 标注）：Who has access 下拉（Anyone in Noodle Co）+ 一句说明；What they can do（View / Edit 单选）+ 一句说明；Additional security（Password required、Link expiration 勾选）；Advanced（Viewers can copy, share, and export）；底栏 Cancel / Save。对应 share.link-menu（链接权限）",
+    "retrieved": "2026-10-14",
+    "width": 1921,
+    "height": 1440,
+    "pixelSize": "1921x1440"
+  },
+  {
+    "file": "03-figma-member-role-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4420557314967-Members-guests-and-limited-access",
+    "article": "Members, guests, and limited access",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/42428367072791",
+    "product": "Figma（文件浏览器 · 团队成员）",
+    "theme": "light",
+    "shows": "团队「Members」弹窗里某成员的角色下拉展开：深色菜单 Copy email / Grant member access（蓝底高亮）/ 分隔线 / Remove，Remove 不着红色；角色触发器是无边框文字 + ⌄（Admin、Member、Limited access）；姓名被官方用灰条遮掉。对应 share.role-menu（角色下拉里含移除）",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "04-figma-edit-request.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4408435431319-Request-to-edit-a-file",
+    "article": "Request to edit a file",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26975675014423",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "有待处理编辑申请时的「Share this file」：顶部一行「Kristen Bates wants to edit」+ 邮箱，右侧 Deny（蓝字）与 Approve（蓝底主按钮），分隔线下是邀请框、三个「+ 姓名」建议、Who has access 列表与第二张卡片。对应 share.access-requests",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "05-figma-readonly-access-list.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/35361119554711-File-and-folder-permissions",
+    "article": "File and folder permissions",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/43740391586327",
+    "product": "Figma（文件浏览器 · 文件夹分享）",
+    "theme": "light",
+    "shows": "「Permissions from parent folders」只读名单：一句说明为什么这些人能访问 + 蓝字 Learn more，四位成员（字母头像）右侧角色是灰色纯文本 can view / can edit，没有下拉；标题行右侧蓝字「Change permissions」（有权限者才有）；下方是「Change folder permissions」单选卡。对应 share.no-permission（只读的谁能访问）",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  }
+]

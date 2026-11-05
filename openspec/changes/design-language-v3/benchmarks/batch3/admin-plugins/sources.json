@@ -1,0 +1,63 @@
+[
+  {
+    "file": "01-figma-admin-resources-detail-drawer.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360039829474-Guide-to-managing-a-Figma-organization",
+    "article": "Guide to managing a Figma organization",
+    "section": "Mark a resource as recommended as an admin",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/43025690255127",
+    "alt": "Turn on the recommended toggle from admin _ resources",
+    "product": "Figma 组织管理后台（Admin › Resources）",
+    "theme": "light",
+    "shows": "管理后台：左栏「‹ Twigma Enterprise admin」下 Dashboard（数字角标 1）· People · Billing · AI credits · Content · Resources（当前项）· Activity · Settings ┊ Billing groups · Guests；主区标题「Resources」，Libraries · Make kits（当前）· Skills · Templates 页签，搜索框，「Name」列的清单（缩略图 + 名称，其余行用灰条隐去）；右侧贴边整高的详情面板（无遮罩，清单不压暗）：图标 +「❖ World Peas Components」+ ×，大预览图，两行开关「Recommend · Highlight this Make kit for users…」「Add by default · Make this Make kit available for users by default」（蓝色，开）。Figma 改开关即生效。对应 admin-plugins.default（管理侧栏 + 清单）与 admin-plugins.detail（P13 推荐右侧整高抽屉 480 带遮罩；本图是无遮罩，对照 admin-plugins.alt-drawer-nonmodal；我们是草稿 + 整批保存，PM-07）",
+    "pairedState": [
+      "admin-plugins.default",
+      "admin-plugins.detail",
+      "admin-plugins.alt-drawer-nonmodal"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "02-figma-review-plugin-request.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4404228724759-Manage-plugins-and-widgets-in-an-organization",
+    "article": "Manage plugins and widgets in an organization",
+    "section": "Manage plugin and widget approval requests",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28287138082711",
+    "alt": "Review window for a Figma plugin approval request showing plugin details, user requests, and options to try, decline, or approve.",
+    "product": "Figma 组织管理（插件审批）",
+    "theme": "light",
+    "shows": "「Review plugin」窗口（官方黑底标注 Overview / Request history / Try it out / Decline / Approve，绿色衬底）：左栏插件名「Notepad」、「By Dustin Mierau · 12.4K users」、封面图、说明 + 蓝字「Read more」、Security（Data security info available · No network access ▾）、Licenses（Community Resource License）；右栏 Requests（申请人头像、姓名、时间与申请理由）；底栏左侧蓝字「Open in Community →」，右侧 Try it out · Decline（描边）· Approve…（蓝色主按钮）。对应 admin-plugins.detail 的信息块（作者、说明、安全与网络访问、许可）与 admin-plugins.first-enable（启用前看清权限）",
+    "pairedState": [
+      "admin-plugins.detail",
+      "admin-plugins.first-enable"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "03-figma-decline-plugin-request.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4404228724759-Manage-plugins-and-widgets-in-an-organization",
+    "article": "Manage plugins and widgets in an organization",
+    "section": "Manage plugin and widget approval requests",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28287191792535",
+    "alt": "Decline plugin request modal with reason provided.",
+    "product": "Figma 组织管理（插件审批）",
+    "theme": "light",
+    "shows": "「Decline plugin request」确认框（紫色衬底）：标题 + ×；插件图标 +「Notepad」；一句「Let your team know why you're declining the plugin request.」；多行输入框里已写理由；右下 Cancel（描边）· Decline（蓝色实底，不着红色）。对应 admin-plugins.change-confirm-disable（停用 / 拒绝前的确认；Figma 的拒绝要写理由、主按钮不用危险色）",
+    "pairedState": [
+      "admin-plugins.change-confirm-disable",
+      "admin-plugins.rejected"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "missing": "Figma 管理后台 Settings › Extensions › Plugin approval（Only admin-approved plugins / Allow members to request plugins）与 Resources › Plugins 已批准插件清单页没有截图，Manage plugins and widgets in an organization 只有审批请求两张图；01 用同一后台 Resources 里的 Make kits 页签对照清单 + 详情的结构。草稿行、保存条、保存冲突、依赖冲突、离开守卫等三家都没有对应画面（Figma 改了即生效）"
+  }
+]

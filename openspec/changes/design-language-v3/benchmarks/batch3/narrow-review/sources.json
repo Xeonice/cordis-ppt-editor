@@ -1,0 +1,86 @@
+[
+  {
+    "file": "01-figma-minimize-ui-inspector.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/41414918021271-Hide-or-minimize-the-UI",
+    "article": "Hide or minimize the UI",
+    "section": "Minimize the UI",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/41746989958679",
+    "alt": "minimize-ui.gif",
+    "product": "Figma Design（最小化界面）",
+    "theme": "light（画布底为深灰）",
+    "shows": "界面最小化后的编辑器：左栏收成左上一个浮动胶囊（Figma 标志 ·「Trips Free」· 侧栏开关）；选中一个画框后右栏以整高浮动面板出现（头像、播放、Share；Design / Prototype 页签；Frame、Position、Layout、Appearance、Fill、Stroke、Effects、Selection colors），取消选中又收起；底部工具条照常。对应 narrow-review 紧凑形态的检查器落位（P39：版本历史、保真报告进右侧检查器抽屉 280）",
+    "pairedState": [
+      "narrow-review.compact-takeover-rail",
+      "narrow-review.compact-history"
+    ],
+    "sourceFormat": "gif",
+    "frame": 60,
+    "frameCount": 106,
+    "frameNote": "原图为 106 帧 GIF（1252×677），取第 60 帧（选中画框后右栏浮出），经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；第 0 帧是完整界面，第 20–40 帧是收起后只剩左上文件名胶囊与右上头像 / 播放 / Share 胶囊；Explore the navigation bar and left sidebar 一文用的是同一 GIF（附件 41747463289879）",
+    "retrieved": "2026-10-16",
+    "width": 1252,
+    "height": 677,
+    "pixelSize": "1252x677"
+  },
+  {
+    "file": "02-figjam-ipad-board.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/1500007537281-Guide-to-the-Figma-mobile-app",
+    "article": "Guide to the Figma mobile app",
+    "section": "Edit FigJam boards on iPad",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/36013142312599",
+    "alt": "Image of a FigJam board on an iPad, including a colorful board with stickies, highlights, and shapes",
+    "product": "Figma 移动 App（iPad）· FigJam",
+    "theme": "light",
+    "shows": "iPad 横屏整屏：状态栏下的顶栏左 ×「Q2 roadmap planning ▾」，中间撤销 · 剪切 · 复制 · 框选 · 重做，右侧两枚叠放头像 + 数字「12」、页面、分享、⋯；画布满屏；底部大号触控工具条（笔、荧光笔、胶带、橡皮 ┊ 形状、便签、文字 ┊ +）。对应平板形态的整体布局参照（narrow-review.tablet-comments-landscape 的外壳；Figma 的 iPad 端没有侧栏，靠顶栏与底部工具条）。FigJam for iPad 一文的附件 27887690087191 是同一张图",
+    "pairedState": [
+      "narrow-review.tablet-comments-landscape"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 2584,
+    "height": 1938,
+    "pixelSize": "2584x1938"
+  },
+  {
+    "file": "03-figjam-ipad-comment-composer.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4502073572247-FigJam-for-iPad",
+    "article": "FigJam for iPad",
+    "section": "Add comments",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/24796348156055",
+    "alt": "Collaborative FigJam board on iPad with sticky notes, drawings, and annotations showcasing brainstorming features.",
+    "product": "FigJam（iPad）",
+    "theme": "light",
+    "shows": "iPad 上撰写评论：画布右上浮出带抓手的卡片（顶部灰色短横）——输入框里「Love these」、下排 @ · Aa · 链接，右侧 × 与紫色圆形发送；画布上落下一枚紫色新评论钉。对应 narrow-review.tablet-comments 的对照（P40 推荐平板沿用手机底部面板、与当前页上下排开；FigJam 是贴在上方的浮动卡）",
+    "pairedState": [
+      "narrow-review.tablet-comments"
+    ],
+    "sourceFormat": "gif",
+    "frame": 200,
+    "frameCount": 276,
+    "frameNote": "原图为 276 帧 GIF（942×942，iPad 画面局部放大），取第 200 帧，经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；第 64 帧前后是长按后的气泡菜单「Add a comment · Paste · Select objects」",
+    "retrieved": "2026-10-16",
+    "width": 942,
+    "height": 942,
+    "pixelSize": "942x942"
+  },
+  {
+    "file": "04-figma-mobile-comment-thread.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/1500007537281-Guide-to-the-Figma-mobile-app",
+    "article": "Guide to the Figma mobile app",
+    "section": "Comment on files and prototypes",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28418882095127",
+    "alt": "Mobile interface displaying a Figma file with comments and quick reply feature open.",
+    "product": "Figma 移动 App（iPhone）",
+    "theme": "light",
+    "shows": "移动端评论的快速回复视图（珊瑚衬底的手机框）：顶栏 ‹ ·「Mobile spec overview」· 解决 ✓；画布缩略图上带评论钉；通栏描边按钮「Open comment in file」；两条评论（头像、姓名、相对时间、⋯、正文）；底部「Reply」输入框。帮助正文：从动态页点评论打开、不必加载整个文件，可回复、长按回应、解决。对应 narrow-review.tablet-comments 的对照（Figma 移动 App 也支持 iPad，但帮助文档只有手机截图）",
+    "pairedState": [
+      "narrow-review.tablet-comments"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 2560,
+    "pixelSize": "1920x2560"
+  },
+  {
+    "missing": "Figma Design / Slides 在 iPad 上的评论列表布局没有截图（Guide to the Figma mobile app 只有手机截图，FigJam for iPad 只有撰写框）；Keynote for iPad 的评论页（Add and print comments）只有按钮图标；Google 文档类 iOS 评论（answer/65129）无截图。narrow-review.compact-plugin-panel（插件面板改底部 Sheet）、compact-fidelity、narrow-plugin-banner 三家都没有对应画面"
+  }
+]

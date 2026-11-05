@@ -1,4 +1,5 @@
-> 状态：已裁决并实施（rulings §4.8，2026-09-16） | 负责：总编排（设计线） | 更新：2026-09-16；2026-09-25（补图） | 依赖：`10-modernization-audit.md`（审计）、`09-design-specification.md` v2.0、ADR-0017、charter D10
+> 状态：已裁决并实施（rulings §4.8，2026-09-16） | 负责：总编排（设计线） | 更新：2026-09-16；2026-09-25（补图）；2026-10-04（design-language-v3 第 0 批：状态头注明已被取代，正文不改） | 依赖：`10-modernization-audit.md`（审计）、`09-design-specification.md` v2.0、ADR-0017、charter D10
+> **已被 rulings §4.25 DS-1/DS-2 取代**（2026-10-04，设计语言 v3：去掉毛玻璃、渐变与光晕，改中性平面 + 品牌蓝强调；编辑器去 ribbon 改 Figma 式结构）：本提案的路线 B（Rhea + Liquid Glass 材质层）只作历史参考，现行规范见 09 v4.0、04 v1.0；正文保持原样不再修订。
 
 # 11 现代化改造提案：以 iOS 27 Liquid Glass 为参照的设计语言升级
 

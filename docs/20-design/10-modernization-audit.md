@@ -1,4 +1,5 @@
-> 状态：草稿 | 负责：设计（审计） | 更新：2026-09-16 | 依赖：09-design-specification v2.0、04-design-system v0.3、playground `dist` 构建产物快照（2026-09-16，未重新构建）
+> 状态：草稿 | 负责：设计（审计） | 更新：2026-09-16；2026-10-04（design-language-v3 第 0 批：状态头注明已被取代，正文不改）；2026-10-05（design-language-v3 第 0 批修正：取代说明补命令面板快捷键的改读（⌘⇧P → `Mod+K`，rulings §4.25 DS-11），正文不改） | 依赖：09-design-specification v2.0、04-design-system v0.3、playground `dist` 构建产物快照（2026-09-16，未重新构建）
+> **已被 rulings §4.25 DS-1/DS-2 取代**（2026-10-04，设计语言 v3）：本文以 iOS Liquid Glass 为参照的审计结论只作历史参考，现行规范见 09 v4.0、04 v1.0；正文保持原样不再修订。文中命令面板的快捷键 ⌘⇧P 是当时的取值，2026-10-05 起为 `Mod+K`（rulings §4.25 DS-11，PRD ED-30），旧值作废。
 
 # 10 现代化审计（Modernization Audit）—— 对照 iOS Liquid Glass 的逐屏挑刺
 

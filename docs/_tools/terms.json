@@ -281,9 +281,6 @@
       "canonical": "工具条 / 检查器",
       "source": "rulings §4.25 DS-1（去掉 ribbon：底部工具条只管创建，右侧检查器随选中对象切换，其余命令进主菜单、右键、⌘K 与快捷键）",
       "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
-        "10-prd/08-prd-design-alignment-2026-09-17.md",
-        "10-prd/09-prd-design-alignment-2026-09-18.md",
         "20-design/03-screens/03-properties-panel.md",
         "20-design/03-screens/23-settings-panel.md",
         "20-design/03-screens/24-keyboard-shortcuts-panel.md",
@@ -302,9 +299,6 @@
       "canonical": "已取消（文件名旁同步状态、头像组在线人数、横幅）",
       "source": "rulings §4.25 DS-6（取消底部状态栏：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
       "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
-        "10-prd/08-prd-design-alignment-2026-09-17.md",
-        "10-prd/09-prd-design-alignment-2026-09-18.md",
         "20-design/03-screens/24-keyboard-shortcuts-panel.md",
         "20-design/08-prototype-audit-and-v2-plan.md",
         "20-design/10-modernization-audit.md",
@@ -318,9 +312,6 @@
       "canonical": "同步状态行（文件名旁）",
       "source": "rulings §4.25 DS-6（取消底部状态栏与状态胶囊：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
       "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
-        "10-prd/08-prd-design-alignment-2026-09-17.md",
-        "10-prd/09-prd-design-alignment-2026-09-18.md",
         "20-design/03-screens/32-admin-plugin-management.md",
         "20-design/08-prototype-audit-and-v2-plan.md",
         "20-design/10-modernization-audit.md",
@@ -352,7 +343,6 @@
       "canonical": "CreationToolbar / ToolbarItem / ToolbarModel / toolbarSpec / ReadonlyToolbarNotice（工具条）与 InspectorSectionItem（检查器分区）",
       "source": "rulings §4.25 DS-1、DS-5（去掉 ribbon：Ribbon 宿主、条目、视图模型、规格与页签状态全部作废，去向见 40-modules/10 §2.6、§12「2026-10-04 回写」）",
       "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
         "20-design/03-screens/32-admin-plugin-management.md",
         "20-design/10-modernization-audit.md",
         "20-design/12-editor-routes-review.md",
@@ -377,9 +367,6 @@
       "canonical": "mainMenu.<menu> / docMenu（ui.contextMenu 槽位）",
       "source": "rulings §4.25 DS-1（取消应用栏：「⋯」菜单条目分投主菜单与文档菜单）；DS-21（第 1 批定稿应用栏徽标的去向：母版徽标并入母版视图横幅，查看者徽标并入浏览条「只读浏览中」，见设计 03-02 §2.4、§6.2）",
       "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
-        "10-prd/08-prd-design-alignment-2026-09-17.md",
-        "10-prd/09-prd-design-alignment-2026-09-18.md",
         "20-design/03-screens/03-properties-panel.md",
         "20-design/03-screens/23-settings-panel.md",
         "20-design/03-screens/24-keyboard-shortcuts-panel.md",
@@ -396,11 +383,7 @@
     {
       "deprecated": "范围条",
       "canonical": "已取消（窗格选中即编辑对象，对象名并入母版视图横幅）",
-      "source": "rulings §4.25 DS-146（取消画布上方的范围条「版式 | 母版」：窗格选中母版即编辑母版、选中版式即编辑版式，继承项经检查器顶行「在母版中编辑」改到母版上）；DS-145（正在编辑的对象与继承来源写在母版视图横幅的对象段）",
-      "allowIn": [
-        "10-prd/07-design-coverage-and-gaps.md",
-        "10-prd/09-prd-design-alignment-2026-09-18.md"
-      ]
+      "source": "rulings §4.25 DS-146（取消画布上方的范围条「版式 | 母版」：窗格选中母版即编辑母版、选中版式即编辑版式，继承项经检查器顶行「在母版中编辑」改到母版上）；DS-145（正在编辑的对象与继承来源写在母版视图横幅的对象段）"
     },
     {
       "deprecated": [

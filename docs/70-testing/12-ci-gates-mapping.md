@@ -298,7 +298,7 @@ flowchart LR
 | `scanners/process-doc-registry`、`scanners/process-module-tree` | M0（`m0-governance-gates`，在空骨架上跑通，rulings §4.25 DP-6） | 同时 | 每个新登记的标识符类别、每个进入「落地：完成」的模块 |
 | `scanners/license-allowlist` 的停更报告 | M0（随 `license-allowlist` 步骤） | 不转 gated（只报告；新越过 12 个月的依赖自动建复评 issue，ADR-0049 决策 4） | — |
 | `test/server-integration` | M2 | M2（身份、文档目录与记账、CSRF、路由鉴权覆盖、角色装配；协同网关单实例、Room、硬门禁与软门禁、update 持久化与快照、快照 bootstrap、按权重准入、单实例 PG 故障两级溢写与降级期广播、`persist` 信号、换纪元与管理动作、服务端导入与媒体、60/06 §4 标为 M2 的周期作业；rulings §4.19 D-M2-CONTENT，边界以 PRD 05 §0.3 为准） | M3 多实例与跨实例溢写认领、容量验收与名额、在场、评论、分享与权限细化、Webhook、审计封存与轮换、永久删除与擦除、服务端导出与缩略图；插件策略 REST、插件集指纹握手与在线通知（§4.23）；Headless 自动化作业 AU1–AU10、迁移 0063 / 0074、配额与审计导出（2026-10-03，rulings §4.24 AL-7、TA-10）；M4 插件配置（PL8、SEC-DA-08） |
-| `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 §1.5 材质与层次、rulings §4.12 U-08） |
+| `e2e/a11y` | M2 | M2 | M3 forced-colors 转 gated（NF-01 §1.8 层次与阴影、rulings §4.12 U-08） |
 | `scanners/shadcn-diff` | M2（报告） | M2 稳定后 | — |
 | 安全夹具中的 Trusted Types 计数 | M2（Report-Only） | M3（强制） | — |
 | `test/collab-sim` | M2（协同后端随 rulings §4.19 D-M2-CONTENT 入库；原「M3 前置技术切片」作废；单实例） | M2（含单实例 PG 故障溢写叠加） | M3 加入两实例轮次、降权、评论、离线队列场景与 `converge` 档（20 客户端、两实例）；nightly 规模档 |

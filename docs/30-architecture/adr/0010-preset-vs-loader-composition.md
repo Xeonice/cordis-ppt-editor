@@ -1,6 +1,6 @@
 # ADR-0010 preset（程序化）与 loader（配置驱动）的分工
 
-> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（矛盾收口，rulings §4.18） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 FE-01
+> 状态：草稿 | 负责：架构-结构 | 更新：2026-09-15；2026-09-25（矛盾收口，rulings §4.18）；2026-11-05（prd-v3-current：决策 6 的「扩展面板（PRD PS-11）」改为 PS-11 的失败可见面（个人插件面板，PRD PM-10），只改引用、决策不变） | 依赖：charter v0.1；裁决 `docs/00-charter/rulings-2026-09-14.md` §4.18 FE-01
 
 ## 状态
 
@@ -20,7 +20,7 @@ cordis 提供两种组合方式：程序化 `ctx.plugin()`（任何环境）与 
    - `preset-slide-viewer`：kernel（host 自带）+ model-core + store-memory + model-slide（主入口，不含 editing 子插件）+ ooxml-pptx + engine-layout + engine-render + render-dom + slide-render + i18n + design(css) + 只读权限策略 + 极简查看器壳（框架无关）；惰性：图表渲染器、语言包。
    - `preset-slide`：viewer 全部 + `@cordexjs/model-slide/editing`（命令与变更）+ ui-core + ui-react + slide-ui + collab-core(local presence)。
    - `preset-slide-collab`：preset-slide 以 store-yjs 替换 store-memory + collab-yjs + collab-transport-ws；presence 由 collab-yjs 提供。
-6. **PresetReport**：`apply` 不 await 单个条目；全部挂载后 `allSettled` 汇总 ACTIVE/PENDING/FAILED（03 §8），供扩展面板（PRD PS-11）与 `plugin/*` 遥测事件。
+6. **PresetReport**：`apply` 不 await 单个条目；全部挂载后 `allSettled` 汇总 ACTIVE/PENDING/FAILED（03 §8），供 PS-11 的失败可见面（个人插件面板，PRD PM-10）与 `plugin/*` 遥测事件。
 
 ## 备选方案与放弃原因
 

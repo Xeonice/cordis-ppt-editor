@@ -1,4 +1,4 @@
-> 状态：草稿 | 负责：产品 | 更新：2026-09-15；2026-09-24（rulings §4.15：T-0 去租户——公共属性删 `tenantId`、配额错误码去 `tenant.` 域；Q3 撤销跳过与「恢复我的值」计数；Q5 `doc.elements` 分桶含墓碑）；2026-09-24（rulings §4.16 Q15：MT-01 拒绝率含 `format.macro_rejected`）；2026-09-24（复核修正，rulings §4.17）；2026-09-25（补图）；2026-09-25（矛盾收口，rulings §4.18）；2026-09-25（§4.19）；2026-10-04（design-language-v3 第 0 批：§3 事件表 `ui/ribbon-tab-changed` 随 ribbon 取消标为作废，工具条、检查器页签与单页 / 网格视图切换的使用度量随第 1 批定稿（rulings §4.25 DS-1）；其余指标与事件不变）；2026-10-07（design-language-v3 第 1 批：§3 `ui/ribbon-tab-changed` 一行删去「随第 1 批定稿」——命令类入口由 `command/executed{source}` 覆盖，视图与检查器页签切换属 Operation、不发该事件，第 1 批拍板（DS-21）未涉及埋点，是否另设事件列为待定；事件名与指标不变）；2026-10-08（design-language-v3 第 1 批收口：§3 `ui/ribbon-tab-changed` 一行的待定项按 rulings §4.25 TB-36 结案——M2 不另设遥测事件，视图与检查器页签切换的使用度量只用 `command/executed{source}` 与已有的 `ui/panel-toggled`，需要时再走新增事件的变更；事件名与指标不变）；2026-10-22（design-language-v3 第 3 批：§3 `ui/theme-changed` 一行按 rulings §4.25 DS-76 删去「密度」与 `density` 属性，只留 `theme`（主题三项按 DS-90）；事件名与指标不变） | 依赖：charter v0.2；rulings §4.15、§4.16、§4.18、§4.19、§4.25
+> 状态：草稿 | 负责：产品 | 更新：2026-11-05 | 依赖：charter v0.2；rulings §4.15、§4.16、§4.17（D5）、§4.18、§4.19、§4.23、§4.25（DS-76、DS-90、TB-36、TB-77、TB-118）；设计 01、03-10、03-20、03-21；架构 05、10；前端 50/07、50/15
 
 # 06 指标与埋点
 
@@ -11,7 +11,7 @@
 1. **不采集内容**：文档文本、图片、评论正文、文件名一律不进遥测；只采集结构性度量（数量、时长、类型、错误码）。用户/文档标识使用不透明 id（OIDC 主体或集成方传入），并在 SDK 内再做一次单向哈希（可关闭）。
 2. **事件即契约**：每个遥测事件有 schema（Standard Schema）、版本、隐私分级；schema 变更走 Changesets；未声明的事件被扫描器拒绝。
 3. **能被回答的问题才埋**：每个事件至少服务于一个指标（§1/§2）或一个告警（SV-10）。
-4. **采样可配**：高频事件（`render/frame`、`collab/latency`）默认采样 1%；错误与生命周期事件不采样。
+4. **采样可配**：高频事件（`perf/frame`、`collab/latency`）默认采样 1%；错误与生命周期事件不采样。
 
 ---
 
@@ -21,7 +21,8 @@
 
 - 定义：单周内满足以下全部条件的会话数：`unit/opened` 成功 → ≥ 1 个 `store/transaction`（来源 = 本地）→ 会话内无 `error/raised{severity:"fatal"}` → 会话结束前有 `unit/saved` 或（协同）`collab/synced` 且待同步 = 0。
 - 为什么：它同时要求「打得开」「能编辑」「不崩」「不丢」，是 SDK 价值链的完整闭环；比 DAU 更能反映产品是否真的被用来干活。
-- 里程碑：M2 起可计算（参考应用的单人编辑自 M2 起即经协同网关持久化，按 `collab/synced` 且待同步 = 0 判定，rulings §4.19 D-M2-CONTENT；SDK 嵌入的单人 preset 按 `unit/saved` 判定）；M3 起含多人协同会话。
+- 里程碑：M2 起事件齐备、可计算（参考应用的单人编辑自 M2 起即经协同网关持久化，按 `collab/synced` 且待同步 = 0 判定，rulings §4.19 D-M2-CONTENT；SDK 嵌入的单人 preset 按 `unit/saved` 判定）；M3 起含多人协同会话。
+- 参考应用自己的采集自 M3 起：部署开启遥测出口、用户在偏好设置「隐私与诊断」开启「发送使用统计」后才发送（NF-11、§5）。
 - 配套（查看器场景）：周成功查看会话数（WSVS）= `unit/opened` 成功 + 停留 ≥ 10 s + 无 fatal。
 
 **图 1-1 一个会话如何计入 WSES**
@@ -50,7 +51,7 @@ flowchart LR
 | MT-05 | 编辑转化率 | 有 ≥ 1 个本地 `store/transaction` 的会话 / 可编辑会话（有 `doc.write`） | 基线观察，M3 设目标 | M2 |
 | MT-06 | 同步健康率 | 协同会话中 `collab/synced` 后从未进入 `offline` 且软冲突 ≤ 2 的占比 | ≥ 95% | M3 |
 | MT-07 | 导出成功率 | `export/completed` / (`completed` + `failed`) | ≥ 99.5% | M2 |
-| MT-08 | 集成与插件采用 | 活跃集成方数（按 `sdk.integratorId`）、活跃第三方插件数（按 `plugin/loaded` 去重的非官方插件 id） | M4 设目标 | M4 |
+| MT-08 | 集成与插件采用 | 活跃集成方数（按公共属性 `integratorId`）、活跃第三方插件数（按 `plugin/loaded` 去重的非官方插件 id） | M4 设目标 | M4 |
 
 ---
 
@@ -62,7 +63,7 @@ flowchart LR
 | MT-11 | 交互帧率 | `perf/frame`（采样，拖动/缩放期间） | p95 帧 ≤ 33 ms |
 | MT-12 | 命令失败率 | `command/failed` / `command/executed` | ≤ 0.1% |
 | MT-13 | 命令拒绝（权限）率 | `command/rejected{reason:"permission"}` | 观察 UI 是否正确禁用（应接近 0） |
-| MT-14 | 撤销使用率 | `command/executed{id:"history.undo"}` / 全部命令 | 体验信号：> 15% 提示误操作多 |
+| MT-14 | 撤销使用率 | `history/undo` 次数 / `command/executed` 次数（撤销是 Operation `core.undo`，不发 `command/executed`） | 体验信号：> 15% 提示误操作多 |
 | MT-15 | 软冲突率 | `collab/soft-conflict` / 协同会话·小时（服务端指标 `cordex_collab_soft_conflicts_total{type}`）；撤销被跳过 `store/undo-skipped` 单独统计、不计入（rulings §4.17 D5） | ≤ 0.5 次/会话·小时 |
 | MT-16 | 重连率与离线时长 | `collab/reconnect`、`collab/state-changed` 时长 | 网络质量诊断 |
 | MT-17 | 同步延迟 p95 | `collab/latency`（采样） | ≤ 400 ms |
@@ -89,14 +90,14 @@ flowchart LR
 | `userId` | 用户 id（OIDC `(issuer, sub)` 或集成方传入）的哈希（可关闭） | P1 |
 | `sdk.version` / `preset` / `pluginsHash` | 版本、preset 名、已加载插件 id 集合哈希 | P0 |
 | `env.browser` / `env.os` / `env.viewport` / `env.dpr` / `env.hardwareConcurrency` / `env.deviceMemory` | 环境 | P0 |
-| `doc.pages` / `doc.elements` / `doc.sizeBucket` / `doc.producer` | 文稿规模分桶与生产者（`app.xml` Application，不含标题）；`doc.elements` 为文档总元素（含墓碑），分桶边界对齐 Q5 包络与天花板（6,000 / 15,000 / 20,000） | P0 |
+| `doc.pages` / `doc.elements` / `doc.sizeBucket` / `doc.producer` | 文稿规模分桶与生产者（`app.xml` Application，不含标题）；`doc.elements` 为文档总元素（含墓碑），分桶边界对齐包络与天花板（6,000 / 15,000 / 20,000，rulings §4.15 Q5） | P0 |
 | `mode` | `viewer` / `editor` / `collab` / `headless` | P0 |
 
-隐私级：P0 = 无任何标识；P1 = 伪匿名标识；P2 = 内容 —— **禁止**。
+隐私级：P0 = 无任何标识；P1 = 伪匿名标识；P2 = 内容，**禁止**采集。
 
 ### 3.2 事件表
 
-> 列「类别」：**cordis 事件**＝镜像同名的 cordis 运行时事件（遥测登记表条目带 `mirrorOf`，属性由投影得到）；**遥测专用**＝没有对应的运行时事件，由发布方直接 `telemetry.event` 发出，只存在于遥测登记表（设计线遗留口径 INC-33：本表为遥测清单权威，逐行分类与 `50-frontend/15` §8 一致）。列「触发」为触发条件；「属性」为除公共属性外的载荷；「里程碑」为事件首次存在的里程碑；「服务」为对应的指标/告警。运行时事件名以裁决记录 §5 与架构 10 §11.1 定稿表为准。
+> 本表为遥测清单权威（决策 INC-33），`50-frontend/15` §8 登记前端发布方与采样。列「类别」：**cordis 事件**＝镜像同名的 cordis 运行时事件（遥测登记表条目带 `mirrorOf`），属性由遥测服务从运行时载荷投影得到，时长类属性由遥测服务按成对事件计时（如 `unit/closed` 的 `durationMs` 自 `unit/opened` 起算），每个属性的来源以 `50-frontend/15` §8 的登记为准；**遥测专用**＝没有对应的运行时事件，由发布方直接 `telemetry.event` 发出，只存在于遥测登记表。列「触发」为触发条件；「属性」为除公共属性外的载荷；「里程碑」为事件首次存在的里程碑；「服务」为对应的指标或告警。运行时事件名与载荷以架构 10 §11.1 为准；该表未列的 `ui/theme-changed` 与插件管理事件以 `50-frontend/15` §2 为准。
 
 | 事件 | 类别 | 触发 | 属性 | 隐私 | 里程碑 | 服务 |
 |---|---|---|---|---|---|---|
@@ -106,8 +107,8 @@ flowchart LR
 | `unit/loaded` | cordis 事件 | 全部页装载到齐（rulings §4.18 CO-12） | `durationMs`（自打开起）, `pages` | P0 | M1 | NF-01「后台全部解析完成」 |
 | `unit/open-progress` | cordis 事件 | 阶段变化（仅采样 10%） | `stage`, `percent`, `elapsedMs` | P0 | M1 | 打开漏斗 |
 | `unit/open-failed` | cordis 事件 | 打开失败 | `code`, `stage`, `durationMs` | P0 | M1 | MT-01、MT-23 |
-| `unit/closed` | cordis 事件 | 关闭 | `durationMs`, `dirtyAtClose` | P0 | M1 | |
-| `unit/dirty-changed` | cordis 事件 | dirty 切换 | `dirty` | P0 | M2 | |
+| `unit/closed` | cordis 事件 | 关闭 | `durationMs`, `dirtyAtClose` | P0 | M1 | 会话诊断、WSES 辅助 |
+| `unit/dirty-changed` | cordis 事件 | dirty 切换 | `dirty` | P0 | M2 | 会话诊断、WSES 辅助 |
 | `unit/saved` | cordis 事件 | 保存回调成功 / 快照落盘 | `kind`（pptx/snapshot/collab）, `durationMs`, `bytes` | P0 | M2 | WSES |
 | `unit/save-failed` | 遥测专用 | 保存失败 | `code`, `retryable` | P0 | M2 | MT-23 |
 | `unit/migrated` | cordis 事件 | 快照迁移 | `fromVersion`, `toVersion`, `durationMs` | P0 | M2 | 迁移健康 |
@@ -121,13 +122,13 @@ flowchart LR
 | `perf/memory` | 遥测专用 | 会话结束 / 每 5 min（采样） | `heapUsedMB`, `pages`, `elements` | P0 | M1 | MT-21 |
 | `perf/long-task` | 遥测专用 | 主线程任务 > 50 ms | `durationMs`, `phase` | P0 | M1 | 性能 |
 | `command/executed` | cordis 事件 | 命令成功 | `id`, `durationMs`, `elementsAffected`, `source`（ui/shortcut/api/plugin/palette） | P0 | M2 | MT-12、MT-14、MT-22 |
-| `command/rejected` | cordis 事件 | 命令被管线拒绝 | `id`, `reason`（permission/validation/selection/readonly） | P0 | M2 | MT-13 |
+| `command/rejected` | cordis 事件 | 命令被管线拒绝 | `id`, `reason`（not-found / validation / permission / readonly，以架构 05 §3 为准） | P0 | M2 | MT-13 |
 | `command/failed` | cordis 事件 | 命令抛错回滚 | `id`, `code` | P0 | M2 | MT-12、MT-23 |
 | `store/transaction` | cordis 事件 | 事务提交（高频合并 ≥ 50 ms） | `origin.kind`（local / remote / system / replay）, `origin.via`（undo / redo）, `origin.reason`（load / import / migration / repair / restore）, `mutations`, `count` | P0 | M2 | WSES、MT-05 |
 | `history/undo` / `history/redo` | 遥测专用 | 撤销/重做（遥测专用；运行时事件为 `history/changed`） | `steps`, `skipped`（整步被跳过的步数，停下不连撤）, `keysSkipped`（因他人后写被跳过的键数，rulings §4.15 Q3） | P0 | M2 | MT-14 |
 | `selection/changed` | cordis 事件 | 选区变化（采样 10%） | `kinds`（元素类型集合）, `count` | P0 | M2 | 功能使用 |
-| `view/page-changed` | cordis 事件 | 翻页 | `from`, `to`, `method`（click/key/thumb/link/follow） | P0 | M1 | 导航行为 |
-| `view/zoom-changed` | cordis 事件 | 缩放 | `zoom`, `method` | P0 | M2 | |
+| `view/page-changed` | cordis 事件 | 翻页 | `from`, `to`, `method`（click / key / thumb / link / follow，另有在网格视图中打开某页、触控轻扫、数字跳页、命令面板「跳转到第 N 页」、评审条或浏览条的上一处 / 下一处评论、查找命中、保真报告「定位」、深链 `?page=`；入口以设计 03-20 §7、03-21 §4、03-10 §4.2 与 01 §4、§5.1 为准；取值名以 `50-frontend/15` §8 为准） | P0 | M1 | 导航行为 |
+| `view/zoom-changed` | cordis 事件 | 缩放 | `zoom`, `method`（菜单、快捷键、命令面板、`Mod+滚轮` 或捏合；入口以设计 03-20 §4 为准；取值名以 `50-frontend/15` §8 为准） | P0 | M2 | 功能使用 |
 | `view/mode-changed` | cordis 事件 | 编辑 ↔ 放映 ↔ 母版视图 | `mode`, `durationMsInPrev` | P0 | M2 | 放映使用 |
 | `export/started` / `export/completed` / `export/failed` | cordis 事件 | 导出 | `format`, `pages`, `durationMs`, `bytes`, `code`, `side`（client/server） | P0 | M2 | MT-07 |
 | `search/performed` | 遥测专用 | 查找 | `resultCount`, `durationMs`（不含查询词） | P0 | M2 | 功能使用 |
@@ -136,9 +137,9 @@ flowchart LR
 | `collab/synced` | cordis 事件 | 初始/重连同步完成 | `durationMs`, `updatesApplied`, `initial` | P0 | M2 | 初始同步时长 |
 | `collab/latency` | 遥测专用 | 往返延迟（采样 1%；不进 `Events` 接口，由 collab-yjs 经 `telemetry.event` 发出，架构 10 §11.1） | `rttMs`, `applyMs` | P0 | M2 | MT-17 |
 | `collab/soft-conflict` | cordis 事件 | 软冲突检测 | `type`（text-same-pos/prop-lww/delete-vs-edit/delete-vs-reference/reorder；`delete-vs-reference` 为 ML-03 母版与版式冲突，见 `50-frontend/07` §12）, `resolvedBy`（auto/restore-my-value/restore-element） | P0 | M3 | MT-15 |
-| `store/undo-skipped` | cordis 事件 | 协同撤销被跳过（rulings §4.17 D5：**单独统计，不是 `collab/soft-conflict` 的 type，不计入软冲突率 MT-15**） | `skipped`（本次被跳过的键数）, `wholeStep`（整步被跳过、停下不连撤）；遥测只统计跳过次数与整步跳过次数，不含路径内容 | P0 | M3 | MT-14 旁注、撤销体验 |
+| `store/undo-skipped` | cordis 事件 | 协同撤销被跳过（**单独统计，不是 `collab/soft-conflict` 的 type，不计入软冲突率 MT-15**，rulings §4.17 D5） | `skipped`（本次被跳过的键数）, `wholeStep`（整步被跳过、停下不连撤）；遥测只统计跳过次数与整步跳过次数，不含路径内容 | P0 | M3 | MT-14 旁注、撤销体验 |
 | `collab/reconnect` | cordis 事件 | 重连尝试 | `attempt`, `backoffMs`, `success`, `queued` | P0 | M2 | MT-16 |
-| `collab/auth-failed` | cordis 事件 | 握手失败 | `code` ∈ collab.unauthenticated / forbidden / doc_not_found / schema_too_new / protocol_mismatch / room_full；`protocol_mismatch` 时附 `client`, `server` 版本 | P0 | M2 | 安全告警、升级健康 |
+| `collab/auth-failed` | cordis 事件 | 握手失败 | `code` ∈ collab.unauthenticated / forbidden / doc_not_found / doc_purging / schema_too_new / protocol_mismatch / epoch_changed / room_full / rate_limited（以架构 10 §11.2 为准）；`protocol_mismatch` 时附 `client`, `server` 版本 | P0 | M2 | 安全告警、升级健康 |
 | `collab/update-rejected` | cordis 事件 | 服务端硬门禁拒绝本地 update（降权/锁定窗口） | `reason`, `rejectedTransactions` | P0 | M2 | 权限即时性、体验信号 |
 | `collab/repair` | cordis 事件 | 服务端软门禁修复触及本地 | `rule`, `paths`（路径数） | P0 | M2 | 数据完整性（`cordex_collab_repairs_total{rule}`） |
 | `presence/joined` / `presence/left` | cordis 事件 | 协作者进出 | `participants`（当前人数） | P0 | M3 | 协作规模 |
@@ -149,19 +150,24 @@ flowchart LR
 | `permission/changed` | cordis 事件 | 能力位变化 | `added`, `removed`, `propagationMs` | P0 | M3 | CO-05 ≤ 2 s |
 | `permission/denied` | cordis 事件 | 服务端拒绝 | `capability`, `surface`（rest/ws） | P0 | M3 | 安全告警 |
 | `plugin/loaded` | cordis 事件 | 插件 ACTIVE | `pluginId`, `version`, `official`, `durationMs`, `contributions` | P0 | M2 | MT-08、MT-20 |
-| `plugin/failed` | cordis 事件 | 插件 FAILED | `pluginId`, `version`, `code`, `phase`（config/apply/runtime） | P0 | M2 | MT-19 |
+| `plugin/failed` | cordis 事件 | 插件 FAILED | `pluginId`, `version`, `code`（`kernel.plugin_failed`）, `phase`（activate / contribution，与错误码 `details.phase` 同值，rulings §4.25 TB-77） | P0 | M2 | MT-19 |
 | `plugin/incompatible` | cordis 事件 | 版本协商失败 | `pluginId`, `required`, `actual` | P0 | M2 | 升级健康 |
 | `plugin/pending` | 遥测专用 | 进入 PENDING 超过 5 s | `pluginId`, `missing`（服务名） | P0 | M2 | 诊断 |
+| `plugin/missing-in-document` | cordis 事件 | 缺插件横幅出现（每文档每会话每插件一次） | `pluginId`, `reason`（disabled / absent / outdated / failed；disabled 自 M3 起区分）, `count` | P0 | M2 | PM-12、PM-15 |
+| `plugin/user-toggled` | cordis 事件 | 个人启停可选界面级插件成功 | `pluginId`, `enabled` | P0 | M3 | PM-15 |
+| `plugin/scope-violation` | cordis 事件 | 界面级插件执行写命令被命令管线拒绝（诊断事件） | `pluginId`, `commandId` | P0 | M3 | PM-13 诊断 |
+| `plugin/policy-changed` | 遥测专用 | 管理员保存插件策略成功（编辑器内有 host 时同时作为 cordis 事件发出） | `count`, `pluginIds` | P0 | M3 | PM-15 |
 | `ui/panel-toggled` | 遥测专用 | 面板开关 | `panelId`, `open` | P0 | M2 | 功能使用 |
-| `ui/ribbon-tab-changed`（作废） | 遥测专用 | 2026-10-04 起编辑器没有 ribbon 页签（rulings §4.25 DS-1），本事件不再触发、不实现。替代口径：底部工具条、菜单与右键触发的命令已由 `command/executed{source}` 覆盖；单页 / 网格视图切换与检查器「设计 / 评论」页签切换是 Operation，按架构 05 §3 的执行管线不发 `command/executed`；M2 不另设遥测事件，这两类切换的使用度量只用 `command/executed{source}` 与已有的 `ui/panel-toggled`，需要时再走新增事件的变更（2026-10-08，rulings §4.25 TB-36；原「是否另设遥测事件仍待产品线与前端 50/15 一并登记」结案） | — | — | — | 功能使用 |
 | `ui/shortcut-used` | 遥测专用 | 快捷键触发 | `commandId`, `scope` | P0 | M2 | 功能使用 |
-| `ui/theme-changed` | cordis 事件 | 主题切换（浅色 / 深色 / 跟随系统；v3 只有单档紧凑尺寸、不设密度切换，原「主题/密度切换」与 `density` 属性随 rulings §4.25 DS-76 删去） | `theme` | P0 | M2 | |
+| `ui/theme-changed` | cordis 事件 | 主题切换（浅色 / 深色 / 跟随系统，rulings §4.25 DS-90） | `theme` | P0 | M2 | 功能使用 |
 | `i18n/missing-key` | 遥测专用 | 缺 key | `key`, `locale` | P0 | M2 | 质量 |
 | `error/raised` | cordis 事件 | 任一类型化错误 | `code`, `severity`, `retryable`, `surface`, `pluginId?` | P0 | M1 | MT-04、MT-23 |
 | `a11y/screen-reader-detected` | 遥测专用 | 检测到辅助技术（启发式，可关闭） | `hint` | P0 | M2 | a11y 使用 |
-| `quota/exceeded` | 遥测专用 | 配额拒绝（遥测专用；派生自 `error/raised{code: format.quota_exceeded | document.quota_exceeded | storage.quota_exceeded | collab.room_full}`；`dimension` 取值照抄架构 10 §3 取值表：`slides` / `elementsPerSlide` / `elementsTotal` / `fileSize`，存储为 `bytes` / `documents`） | `code`, `dimension`, `limit` | P0 | M2 | SV-08 |
+| `quota/exceeded` | 遥测专用 | 配额拒绝（遥测专用；派生自 `error/raised` 的配额三码 `format.quota_exceeded`、`document.quota_exceeded`、`storage.quota_exceeded` 与房间满员码 `collab.room_full`；`dimension` 取值以架构 10 §1.4「配额三码并列与 `dimension` 取值表」为准：`slides` / `elementsPerSlide` / `elementsTotal` / `fileSize`，存储为 `bytes` / `documents`） | `code`, `dimension`, `limit` | P0 | M2 | SV-08 |
 
-服务端事件（Prometheus/OTel 指标为主，见 SV-10）；审计事件（SV-07）**不是**遥测，不进本表。协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT），参考应用经协同网关打开文档，因此会话、同步、重连、握手、门禁类 `collab/*` 事件与导入配额的 `quota/exceeded` 自 M2 起存在；在场、评论、软冲突、权限变更等多人事件仍为 M3。
+底部工具条、菜单与右键触发的命令由 `command/executed{source}` 覆盖。单页 / 网格视图切换与检查器「设计 / 评论」页签切换是 Operation，按架构 05 §3 的执行管线不发 `command/executed`；M2 不为这两类切换另设遥测事件，使用度量只用 `command/executed{source}` 与 `ui/panel-toggled`，需要时再走新增事件的变更（rulings §4.25 TB-36）。
+
+服务端事件（Prometheus/OTel 指标为主，见 SV-10）；审计事件（SV-07）**不是**遥测，不进本表。协同后端自 M2 起交付（rulings §4.19 D-M2-CONTENT），参考应用经协同网关打开文档，因此会话、同步、重连、握手、门禁类 `collab/*` 事件与导入配额的 `quota/exceeded` 自 M2 起存在；在场、评论、软冲突、权限变更等多人事件为 M3。
 
 ---
 
@@ -177,7 +183,7 @@ flowchart LR
   f3 --> f4["parse-slide · ≥ 99.7%"] --> f5["render/first-paint · ≥ 99.5%，MT-01"] --> f6["停留 ≥ 10 s · 观察"]
 ```
 
-怎么读：箭头为会话依次到达的漏斗阶段，节点「·」后为该阶段的目标到达率（相对 `session/started`）；中间三段是 `unit/open-progress` 的阶段值。本图由原 ASCII 漏斗转换，内容不变。
+怎么读：箭头为会话依次到达的漏斗阶段，节点「·」后为该阶段的目标到达率（相对 `session/started`）；中间三段是 `unit/open-progress` 的阶段值。
 
 ### 4.2 编辑漏斗（M2）
 
@@ -186,10 +192,10 @@ flowchart LR
 ```mermaid
 flowchart LR
   e1["unit/opened：editor · 100%"] --> e2["selection/changed · 观察"] --> e3["command/executed：首个 · MT-05"]
-  e3 --> e4["store/transaction ≥ 5 · 深度编辑率"] --> e5["unit/saved · WSES"]
+  e3 --> e4["store/transaction ≥ 5 · 深度编辑率"] --> e5["unit/saved 或 collab/synced 且待同步为 0 · WSES"]
 ```
 
-怎么读：箭头为编辑会话依次到达的阶段，节点「·」后为该阶段对应的指标或口径。本图由原 ASCII 漏斗转换，内容不变。
+怎么读：箭头为编辑会话依次到达的阶段，节点「·」后为该阶段对应的指标或口径；最后一步按单人或协同二选一（同图 1-1）。
 
 ### 4.3 协同漏斗（M3）
 
@@ -201,9 +207,11 @@ flowchart LR
   c3 --> c4["会话内无 offline · MT-06"] --> c5["待同步=0 结束 · WSES"]
 ```
 
-怎么读：箭头为协同会话依次到达的阶段，节点「·」后为目标到达率或对应指标。本图由原 ASCII 漏斗转换，内容不变。
+怎么读：箭头为协同会话依次到达的阶段，节点「·」后为目标到达率或对应指标。
 
 ### 4.4 仪表盘（参考应用与内部）
+
+参考应用里基于产品遥测的仪表盘自 M3 起有数据：它们要等部署开启遥测出口、用户开启「发送使用统计」后才收到数据（§1.1、§5）；服务端仪表盘取 SV-10 指标，不受用户开关影响。
 
 | 仪表盘 | 受众 | 内容 |
 |---|---|---|
@@ -222,7 +230,7 @@ flowchart LR
 |---|---|---|
 | 事件 schema 注册表 | 每个事件在 `telemetry` 的 schema 表中声明（名称、版本、属性 schema、隐私级、采样率）；扫描器拒绝未注册事件 | M1 |
 | 隐私审查 | 新事件/属性合入前经隐私检查清单（无内容、无明文标识）；CI 用属性名黑名单（`text`、`title`、`name`、`content`、`url`、`email`）初筛 | M1 |
-| 默认 no-op | SDK 出厂不发送任何遥测；参考应用 `apps/web` 以显式配置开启 | M1 |
+| 默认 no-op | SDK 出厂不发送任何遥测（PD-10）；参考应用 `apps/web` 的产品遥测只在部署开启遥测出口（RuntimeConfig `telemetry.otlp`，M3）且用户在偏好设置「隐私与诊断」开启「发送使用统计」（缺省关，按账户记，NF-11）时发送；客户端错误上报是另一通道，默认值见 NF-11 | M1 |
 | 采样与批量 | 客户端本地缓冲 ≤ 5 s 或 ≤ 50 事件批量发送；页面隐藏时用 `fetch` 的 `keepalive` 补发（不用 `sendBeacon`：它不能带 CSRF 防护要求的 `X-Cordex-Request` 头，SV-12） | M2 |
 | 与 telemetry.sink 契约 | 事件对象 + 公共属性 → Provider；提供 OTel 示例（PS-04） | M2 |
 | 指标计算文档 | 每个 MT 指标的 SQL/查询定义随参考应用发布 | M3 |
@@ -235,7 +243,7 @@ flowchart LR
   rt["运行时事件：cordis Events，域/动作 命名"]
   tel["telemetry 服务：镜像运行时事件并追加度量属性，如 perf/frame 派生自 render/frame"]
   common["附公共属性：sessionId、unitId 哈希、userId 哈希、sdk.version、env.*、doc.* 等"]
-  sample["采样：render/frame、collab/latency 等高频事件默认 1%；错误与生命周期事件不采样"]
+  sample["采样：perf/frame、collab/latency 等高频事件默认 1%；错误与生命周期事件不采样"]
   batch["批量：本地缓冲 ≤ 5 s 或 ≤ 50 事件；页面隐藏时 fetch keepalive 补发"]
   sink["telemetry.sink Provider：出厂 no-op；OTel 示例；集成方自定义"]
   scan["开发期：扫描器拒绝未在 schema 注册表声明的事件；CI 属性名黑名单初筛隐私"]

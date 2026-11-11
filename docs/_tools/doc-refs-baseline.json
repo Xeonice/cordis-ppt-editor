@@ -1,9 +1,9 @@
 {
   "$comment": "由 docs/_tools/check-doc-refs.py --write-baseline 生成，勿手改。G5 文档引用反查的棘轮基线：entries[文件][类别][引用] = 失配次数（不含行号）；类别 req 需求编号、rest REST 路由、errcode 错误码、screen 界面、adr ADR、ruling 裁决小节。新增失配即失败，已消失的失配须重新 --write-baseline 收紧；只减不增，由变更 docs-coverage-baseline 清零（docs/80-process/02 §3）。",
-  "total": 179,
+  "total": 178,
   "byCategory": {
     "rest": 24,
-    "errcode": 155
+    "errcode": 154
   },
   "entries": {
     "docs/00-charter/charter.md": {
@@ -12,11 +12,6 @@
       }
     },
     "docs/10-prd/05-milestones-and-scope.md": {
-      "errcode": {
-        "format.no_document_type": 1
-      }
-    },
-    "docs/10-prd/07-design-coverage-and-gaps.md": {
       "errcode": {
         "format.no_document_type": 1
       }

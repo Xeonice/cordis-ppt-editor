@@ -7,7 +7,7 @@ import { useDisplay, type DisplayPrefs } from "./display"
  * 主菜单本身是统一的一份（kit/mainMenu.tsx：返回首页 · 文件 ▸ · 编辑 ▸ · 视图 ▸ · 插入 ▸ · 排列 ▸ · 帮助 ▸，底座 MainMenu 与各场景共用），
  * 「编辑」的条目（kit editItems）、缩放命令（kit ZOOM_COMMANDS）与粘贴变体（kit PASTE_VARIANTS）也由这里定稿后并入 kit；
  * 「视图 › 网格与参考线 ▸」与「缩放 ▸」也在统一条目里；本目录只把网格与参考线接到 useDisplay（画布上真的显示 / 隐藏）。
- * 快捷键提示以 PRD ED-16 为准：撤销 ⌘Z、重做 ⇧⌘Z（另有 ⌘Y）、查找 ⌘F、替换 ⇧⌘H（DS-16）、缩放适应 ⌘0、100% ⌘1、母版视图 ⌥⌘M。
+ * 快捷键提示以 PRD ED-16 为准：撤销 ⌘Z、重做 ⇧⌘Z（另有 ⌘Y）、查找 ⌘F、替换 ⇧⌘H（DS-16）、适应窗口 ⌘0、100% ⌘1、母版视图 ⌥⌘M。
  */
 
 export { PASTE_VARIANTS, ZOOM_COMMANDS }

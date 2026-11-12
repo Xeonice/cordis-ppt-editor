@@ -1,0 +1,42 @@
+[
+  {
+    "file": "01-figma-create-new-import-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041003114-Import-files-to-the-file-browser",
+    "article": "Import files to the file browser",
+    "section": "Import files to the file browser",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28623694816919",
+    "alt": "Dropdown menu in Figma's Create new panel showing options to import as well as to create files like Design file, FigJam board, and Slide deck.",
+    "product": "Figma 文件浏览器",
+    "theme": "light",
+    "shows": "文件浏览器右上蓝色「+ Create new ▾」打开的深色下拉：Design file · FigJam board · Slide deck（Beta 标签）┊ Import（悬停）；旁边是 Share、星标与网格 / 列表切换。帮助正文（本文与 Import PowerPoint files to Figma Slides）：点 Import › Import from computer 直接弹系统文件选择框，选 .pptx 点 Open，「视文件大小，导入需要几秒」，再点 Done；也可把文件拖进文件浏览器。对应 import 的 P24（点「导入 .pptx」直接弹系统选择框、拖放只在开始页与文档列表；对照备选 import.alt-drop-page）",
+    "pairedState": [
+      "import.uploading",
+      "import.alt-drop-page"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "02-keynote-mac-open-dialog.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/open-or-close-a-presentation-tan72232b56/mac",
+    "article": "Open or close a Keynote presentation on Mac",
+    "section": "Open an existing presentation in Keynote",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/e9678462c5113fdfc7d4e0f576748433.png",
+    "alt": "The Open dialog with the sidebar open on the left and iCloud Drive selected in the pop-up menu at the top. Folders for Keynote, Numbers, and Pages appear in the dialog, along with a New Document button.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "系统「打开」面板（官方英文标注一处）：左侧边栏 Keynote · Recents · Shared ┊ Favorites ┊ Locations（iCloud Drive 选中）；顶部前进后退、显示方式、位置弹出菜单「iCloud Drive」与搜索；中间 New Document 与文件夹图标；底部 New Document · Cancel · Open（不可用）。Keynote 直接用这个面板打开 .pptx，没有单独的导入页。对应 import 的 P24（推荐直接弹系统选择框）",
+    "pairedState": [
+      "import.uploading"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1146,
+    "height": 762,
+    "pixelSize": "1146x762"
+  },
+  {
+    "missing": "Figma Slides 导入 PowerPoint 的过程画面（导入进度、完成后的 Done、导入失败）没有截图：Import PowerPoint files to Figma Slides 一文无图，只写「视文件大小需要几秒」与导入限制；Google Slides 导入 .pptx（Docs 编辑器帮助 Switch from PowerPoint to Google Slides、Learning Center 的 Switch to Slides）只有文字与 18–36px 图标；Keynote 打开 PowerPoint 时的导入警告也无截图。import.uploading、server-parsing、failed-*、snapshot-opening 等全屏过渡页因此没有标杆"
+  }
+]

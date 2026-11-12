@@ -1,0 +1,97 @@
+[
+  {
+    "file": "01-figma-viewer-history-list.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/29638316371479-See-viewer-history-for-your-files",
+    "article": "See viewer history for your files",
+    "section": "See viewer history",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30209895127831",
+    "alt": "A cursor has clicked on the avatars in a file to see who is looking at the file. The viewer history view shows current and previous viewers. Three users are currently looking at the file, and their avatars and names are listed under a label \"Currently viewing.\" Previous viewers of the file are listed under a label \"Previously viewed.\"",
+    "product": "Figma Design（编辑器右上头像组）",
+    "theme": "light",
+    "shows": "右上头像组（字母头像「A」+ 照片头像，带 ▾）打开的深色在线列表：首行自己「Jimmy Pesto (you)」+ 蓝色「Spotlight me」+ 耳机；「Currently viewing」分组 Annie Alfredo（彩色圆底字母头像）· Lenny Linguini（悬停，行尾 ⋯）· Randi Rigatoni；「Previously viewed」分组四人（字母头像 + 姓名 + 「2 hours ago」等时间）。对应 presence-scale.presence-list-reuse（在线列表：自己在最上、当前在场的人，字母头像用身份色圆底）",
+    "pairedState": [
+      "presence-scale.presence-list-reuse"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "02-figjam-ipad-avatar-count.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/1500007537281-Guide-to-the-Figma-mobile-app",
+    "article": "Guide to the Figma mobile app",
+    "section": "Edit FigJam boards on iPad",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/36013142312599",
+    "alt": "Image of a FigJam board on an iPad, including a colorful board with stickies, highlights, and shapes",
+    "product": "Figma 移动 App（iPad）· FigJam",
+    "theme": "light",
+    "shows": "与 narrow-review/02 同一张图，看顶栏右侧：两枚叠放的协作者头像后跟数字「12」（浅灰胶囊里），表示在场人数，不再画更多头像。对应 presence-scale.avatars-reuse（头像组溢出时的计数写法；三家帮助文档没有「+N」头像的截图）",
+    "pairedState": [
+      "presence-scale.avatars-reuse"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 2584,
+    "height": 1938,
+    "pixelSize": "2584x1938"
+  },
+  {
+    "file": "03-figma-multiplayer-cursors.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041065034-Adjust-your-zoom-and-view-options",
+    "article": "Adjust your zoom and view options",
+    "section": "Multiplayer cursors",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/35177928775191",
+    "alt": "An example showing the difference between having multiplayer cursors enabled or disabled.",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "「Unchecked / Checked」并排对比（View › Multiplayer cursors 开关）：开启时画布上出现三位协作者的彩色光标与同色名签（红「Sofia, Engineer」、黄「Caryn, PM」、紫「Jason, Designer」），他们选中的对象带同色描边（黄色卡片框、红色头像圈、紫色文字高亮）。对应 presence-scale.cursors-reuse（光标、名签与选区用同一身份色）",
+    "pairedState": [
+      "presence-scale.cursors-reuse"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "04-figjam-spotlight-five-followers.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/15300412458647-Explore-FigJam-files",
+    "article": "Explore FigJam files",
+    "section": "Meeting tools › Spotlight",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/15414002115991",
+    "alt": "Cursor chat with names and colors on a FigJam board, five followers highlighted, indicating active collaboration.",
+    "product": "FigJam",
+    "theme": "light",
+    "shows": "被跟随者一侧：视口一圈粉色边框，顶部粉色条「5 Followers | Stop」；画布上五个彩色光标各带名签——Bailey（粉）、Crumb（蓝）、Finneas（黄）、Pepper（红），Yuna 的光标是紫色、名签却是绿色。对应 presence-scale.cursors-reuse（多人同时在场时的光标与名签密度）",
+    "pairedState": [
+      "presence-scale.cursors-reuse",
+      "present.following"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1800,
+    "height": 1800,
+    "pixelSize": "1800x1800"
+  },
+  {
+    "file": "05-keynote-mac-collaboration-participants.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/latest-activity-a-shared-presentation-tan1834608d8/mac",
+    "article": "See the latest activity in a shared presentation in Keynote on Mac",
+    "section": "See participants at work in the presentation",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/20008c0c90042a247ca1d790c2e4e721.png",
+    "alt": "The collaboration menu with two current participants listed.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "工具栏「协作」按钮带人数「2」，打开的协作菜单（官方英文标注两处）：message · audio · video 三个圆按钮；Latest Activity「You're all caught up!」+「Show All Activity」；Current Participants 两行——左侧一道彩色竖条（橙、黄，即此人光标颜色）+ 字母头像「AR」「BC」+ 姓名，点一行跳到此人所在位置；最后 Activity Settings · Manage Shared Presentation。对应 presence-scale.presence-list-reuse（在线列表行带身份色，按钮上写人数）",
+    "pairedState": [
+      "presence-scale.presence-list-reuse",
+      "presence-scale.multi-session"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 844,
+    "height": 756,
+    "pixelSize": "844x756"
+  },
+  {
+    "missing": "Figma 头像组「+N」溢出头像没有找到官方截图（02 是 FigJam iPad 顶栏的数字计数）；第 13 位起同色复用与序号角标（DS-42、P41）、同一账号多会话「2 个窗口」三家都没有截图（How many people can be in a file at once? 只有文字：最多显示 200 个光标、500 人在场）"
+  }
+]

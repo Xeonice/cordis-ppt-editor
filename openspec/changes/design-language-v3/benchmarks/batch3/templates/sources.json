@@ -1,0 +1,110 @@
+[
+  {
+    "file": "01-figma-file-browser-resources.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/31668820539287-Find-and-use-templates-and-resources-from-your-team-or-organization",
+    "article": "Find and use templates and resources from your team or organization",
+    "section": "Find resources from your organization",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/34813516461591",
+    "alt": "Resources panel in Figma file browser showing team-curated templates, plugins, and widgets with previews of recent additions.",
+    "product": "Figma 文件浏览器（团队 / 组织资源页）",
+    "theme": "light",
+    "shows": "文件浏览器里的资源页：左栏不变（账户「Ben S ▾」· 搜索 · Recents · Community；团队「Brain Candy ▾」下 All workspaces · Resources（当前项，鼠标指着）· Trash · Admin；Starred 列表）；主区标题「Resources」，大字「Browse resources created by Brain Candy」+ 一行灰字说明；Buzz templates · Figjam templates · Presentations · Plugins & Widgets 四个带图标的分类胶囊；「Recently added ›」卡片（封面、类型图标、名称、「By 作者 • 24 templates」）与下一组「Buzz templates ›」。对应 templates.default（壳内模板库页：左栏照常、标题、来源分段、卡片网格）",
+    "pairedState": [
+      "templates.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "02-figma-slides-template-picker.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/26621828788631-Find-and-use-slide-deck-templates",
+    "article": "Find and use slide deck templates",
+    "section": "Add a template to your deck",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26621828771607",
+    "alt": "",
+    "product": "Figma Slides",
+    "theme": "light",
+    "shows": "Slides 编辑器里打开的模板选择器（新建演示文稿时自动弹出）：顶部搜索「Search templates…」+ ×；「Recents」组（虚线框 + 号的 Start from scratch、Light、Dark）；「Figma」组右端橙色「See all」（Fignation、Simple、Holiday life update、Cupboard）；「Featured」组同样带「See all」。背后是编辑器：左栏「Product review」与「+ New slide」，右栏 Template style「Light default · Inter」与 Background。点模板直接加入，帮助文档没有使用前的预览步骤。对应 templates.default 与首页「从模板开始」行（分组右端「See all」相当于我们的「更多模板 →」）",
+    "pairedState": [
+      "templates.default",
+      "home.m3-more-templates"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "03-keynote-mac-theme-chooser.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/create-a-presentation-tan317e80e8c/mac",
+    "article": "Create a presentation in Keynote on Mac",
+    "section": "Create a presentation from a theme",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/fd6c8fe7960123987c63dd4a316bd3e2.png",
+    "alt": "The theme chooser. A sidebar on the left lists theme categories you can click to filter options. On the right are thumbnails of predesigned themes, arranged in rows by category.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "主题选择器窗口「Choose a Theme」：左侧类别栏（All Themes 当前项 · Basic · Premium · Business · Education · Creative · Personal · Dynamic · Minimal · Bold · Editorial · Portfolio · Craft · Textured）；右侧按类别成行的主题缩略图，选中的「Basic White」蓝色描边 + 蓝底名称，Premium 主题带星标角标；右上比例「Wide (16:9) ⌃」；底部 Cancel · Generate · Create（蓝色主按钮）。对应 templates.default（按类别浏览，选中后用底部主按钮创建；对照我们的「使用此模板」与 templates.creating）",
+    "pairedState": [
+      "templates.default",
+      "templates.creating"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1144,
+    "height": 818,
+    "pixelSize": "1144x818"
+  },
+  {
+    "file": "04-google-docs-template-preview.png",
+    "sourcePage": "https://support.google.com/docs/answer/148833?hl=en&co=GENIE.Platform%3DDesktop",
+    "article": "Use templates - Computer - Google Docs Editors Help",
+    "section": "Insert templates in Google Docs",
+    "imageUrl": "https://lh3.googleusercontent.com/rwRO0379BmKlts1VQW3QnRYKwnU-ytbHKzqvWxXLvH5rf3YEWpKyhLwwnJe5JpwQMF4=w895",
+    "downloadUrl": "https://lh4.googleusercontent.com/rwRO0379BmKlts1VQW3QnRYKwnU-ytbHKzqvWxXLvH5rf3YEWpKyhLwwnJe5JpwQMF4=s0",
+    "downloadNote": "页面上的图片地址在 lh3.googleusercontent.com，本机网络对 lh3 / lh5 分片重置 TLS 连接；改从同一 Google 图片 CDN 的 lh4 分片按同一图片 id 取 =s0（原始上传尺寸），lh4 与 lh6 下载结果逐字节一致",
+    "alt": "",
+    "product": "Google Docs（文档内插入模板；不是 Slides）",
+    "theme": "light",
+    "shows": "模板预览对话框（背后 Docs 工具栏压暗）：标题行「← Pitch」+ ×；中间是可滚动的大幅模板预览（COMPANY LOGO、Project or proposal name、01 EXECUTIVE SUMMARY…）；右下蓝色胶囊主按钮「Insert」，没有次按钮。对应 templates.preview（预览对话框：大图 + 单一主按钮；我们是「使用此模板」+「关闭」）。Google Slides 的模板库点模板直接建副本、没有预览步骤（帮助页正文），三家里只有这里有官方的模板预览截图",
+    "pairedState": [
+      "templates.preview"
+    ],
+    "sourceFormat": "gif",
+    "frame": 240,
+    "frameCount": 531,
+    "frameNote": "原图为 531 帧 GIF（=s0 原尺寸 1280×707；页面按 =w895 显示），取第 240 帧，经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；第 30–210 帧是「Select a template」模板网格对话框",
+    "retrieved": "2026-10-16",
+    "width": 1280,
+    "height": 707,
+    "pixelSize": "1280x707"
+  },
+  {
+    "file": "05-google-docs-template-gallery.png",
+    "sourcePage": "https://support.google.com/a/users/answer/9282978?hl=en",
+    "article": "Tips for great presentations - Google Workspace Learning Center",
+    "section": "Design your presentation › Get a jump start with templates",
+    "imageUrl": "https://lh3.googleusercontent.com/j8s7ZGW-Ha4_7KKblxasavmqRfJJGXwLReolLasNEsCi8q1o6RNkzFv0_ip0czgmutc=w895",
+    "downloadUrl": "https://lh4.googleusercontent.com/j8s7ZGW-Ha4_7KKblxasavmqRfJJGXwLReolLasNEsCi8q1o6RNkzFv0_ip0czgmutc=s0",
+    "downloadNote": "页面上的图片地址在 lh3.googleusercontent.com，本机网络对 lh3 / lh5 分片重置 TLS 连接；改从同一 Google 图片 CDN 的 lh4 分片按同一图片 id 取 =s0（原始上传尺寸），lh4 与 lh6 下载结果逐字节一致",
+    "alt": "",
+    "product": "Google Docs 模板库（Docs / Slides / Sheets 模板库同一版式）",
+    "theme": "light",
+    "shows": "模板库整页（旧版界面）：顶行「← Template gallery」，下面「INK 42 | GENERAL」两个页签（组织自己的模板 / 通用模板，GENERAL 选中带下划线）；深灰底上「Work」分组的模板卡网格（纸面缩略图 + 名称 + 主题名，如 Project proposal · Tropic、Meeting notes · Modern Writer、Brochure、Newsletter）。对应 templates.default 的来源分段（组织来源单独一个页签；我们的分段只在集成方配置了来源时出现）与 templates.no-source",
+    "pairedState": [
+      "templates.default",
+      "templates.no-source"
+    ],
+    "sourceFormat": "gif",
+    "frame": 180,
+    "frameCount": 506,
+    "frameNote": "与 home/05 同一 GIF（=s0 原尺寸 900×506），取第 180 帧，经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动",
+    "retrieved": "2026-10-16",
+    "width": 900,
+    "height": 506,
+    "pixelSize": "900x506"
+  },
+  {
+    "missing": "Figma 文件浏览器「Templates and tools › Presentations」页与「Use template」按钮没有截图（Find and use slide deck templates 一文只有编辑器内模板选择器与模板样式的配图）；Google Slides 自己的模板库（Slides 首页 › Template gallery）帮助页没有截图，04、05 用的是 Docs 同版式的官方动图；templates.source-error、templates.loading、templates.search-empty 三家都没有截图"
+  }
+]

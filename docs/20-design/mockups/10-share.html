@@ -1,0 +1,131 @@
+<!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 分享与权限对话框 · Cordex Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  /* 补充：以下三个类未在 shell.css 中定义，属本稿专用的小型辅助样式（与 27 稿的 .page-bg/.group-head 同类做法） */
+  .page-bg{background:var(--cordex-color-bg-canvas);min-height:60vh;display:flex;align-items:flex-start;justify-content:center;padding:var(--cordex-space-8) var(--cordex-space-4)}
+  .perm-row{display:flex;align-items:center;gap:var(--cordex-space-2);padding:8px 0;border-bottom:1px solid var(--cordex-color-border-subtle)}
+  .perm-row .who{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+  .perm-row .name-wrap{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+  .perm-row .name-wrap .email{font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-tertiary)}
+  .demo-section{max-width:720px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4) var(--cordex-space-10)}
+  .demo-section h2{font-size:var(--cordex-font-size-lg);margin:0 0 var(--cordex-space-2)}
+  .section-note{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:0 0 var(--cordex-space-3)}
+</style>
+</head>
+<body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-close" viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></symbol>
+<symbol id="i-link" viewBox="0 0 16 16"><path d="M6.7 9.3 9.3 6.7"/><path d="M7.4 4.4 8.7 3a2.6 2.6 0 1 1 3.7 3.7L11 8.1"/><path d="M8.6 11.6 7.3 13a2.6 2.6 0 1 1-3.7-3.7L5 8"/></symbol>
+</svg>
+
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">10 · 分享与权限对话框</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" aria-pressed="false" onclick="toggleTheme()">暗色主题</button>
+  <a href="02-editor-main.html" style="font-size:11px;color:var(--cordex-color-accent-default)">↗ 编辑器主界面稿</a>
+</div>
+
+<div class="page-bg">
+  <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="sh-title">
+    <div class="dialog-head">
+      <span id="sh-title">分享“2026年Q2业绩汇报.pptx”</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="dialog-body">
+      <section>
+        <label class="form-label" for="invite">邀请协作者</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="invite" type="text" placeholder="例如 lilei@example.com" style="flex:1;min-width:180px;height:var(--cordex-control-height-md);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-md);background:var(--cordex-color-bg-inset);padding:0 8px">
+          <label class="vis-hidden-label" for="role-new">邀请角色</label>
+          <select id="role-new" class="mode-select"><option>可评审▾</option><option>可编辑</option><option>可查看</option></select>
+          <button type="button" class="btn btn-primary">邀请</button>
+        </div>
+        <p class="help-text">输入邮箱或姓名，默认权限为“可评审”</p>
+      </section>
+
+      <section>
+        <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);margin:0 0 6px">有权限的用户</p>
+        <div class="perm-row">
+          <span class="who"><span class="avatar self">我</span>我</span>
+          <span class="badge">所有者</span>
+        </div>
+        <div class="perm-row">
+          <span class="who"><span class="avatar" style="--presence:var(--cordex-color-presence-6)">王</span><span class="name-wrap">王小明<span class="email">wang@example.com</span></span></span>
+          <label class="vis-hidden-label" for="role-wang">王小明的角色</label>
+          <select id="role-wang" class="mode-select"><option>可编辑▾</option><option>可评审</option><option>可查看</option></select>
+          <button type="button" class="btn btn-icon btn-sm" aria-label="移除王小明"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="perm-row" style="border-bottom:none">
+          <span class="who"><span class="avatar" style="--presence:var(--cordex-color-presence-3)">李</span><span class="name-wrap">李雷<span class="email">li@example.com</span></span></span>
+          <label class="vis-hidden-label" for="role-li">李雷的角色</label>
+          <select id="role-li" class="mode-select"><option>可评审▾</option><option>可编辑</option><option>可查看</option></select>
+          <button type="button" class="btn btn-icon btn-sm" aria-label="移除李雷"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+        </div>
+      </section>
+
+      <section>
+        <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);margin:0 0 6px">通过链接分享</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <svg class="icon" aria-hidden="true" style="color:var(--cordex-color-text-tertiary)"><use href="#i-link"/></svg>
+          <label class="vis-hidden-label" for="share-link">分享链接</label>
+          <input id="share-link" type="text" readonly value="https://cordex.example.com/d/8f2a91" style="flex:1;min-width:200px;height:var(--cordex-control-height-md);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-md);background:var(--cordex-color-bg-inset);padding:0 8px;color:var(--cordex-color-text-secondary);font-family:var(--cordex-font-family-mono);font-size:var(--cordex-font-size-sm)">
+          <button type="button" class="btn btn-sm">复制链接</button>
+        </div>
+        <div class="field" style="max-width:260px;margin-top:8px">
+          <label class="form-label" for="link-perm" style="margin:0">链接权限</label>
+          <select id="link-perm"><option>组织内可查看▾</option><option>仅邀请人可访问</option><option>组织内可评审</option><option>任何拥有链接的人可查看</option></select>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:var(--cordex-font-size-xs)"><input type="checkbox">允许通过链接访问的用户下载/打印</label>
+      </section>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn">完成</button></div>
+  </div>
+</div>
+
+<div class="demo-section">
+  <h2>附：权限不足时的只读态</h2>
+  <p class="section-note">非所有者/管理者打开本对话框时的降级视图：无邀请入口、成员角色改为纯文本、不显示链接分享区，仅提示可向谁申请变更。</p>
+  <div class="dialog wide" style="margin:0 auto">
+    <div class="dialog-head">
+      <span>谁能访问“2026年Q2业绩汇报.pptx”</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="dialog-body">
+      <section>
+        <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);margin:0 0 6px">有权限的用户</p>
+        <div class="perm-row">
+          <span class="who"><span class="avatar" style="--presence:var(--cordex-color-presence-6)">王</span>王小明（我）</span>
+          <span style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary)">可编辑</span>
+        </div>
+        <div class="perm-row">
+          <span class="who"><span class="avatar" style="--presence:var(--cordex-color-presence-9)">张</span>张伟（所有者）</span>
+          <span style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary)">所有者</span>
+        </div>
+        <div class="perm-row" style="border-bottom:none">
+          <span class="who"><span class="avatar" style="--presence:var(--cordex-color-presence-3)">李</span>李雷</span>
+          <span style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary)">可评审</span>
+        </div>
+      </section>
+    </div>
+    <div class="dialog-foot" style="justify-content:flex-start">
+      <p class="help-text" style="margin:0">仅所有者或管理者可以更改分享设置</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleTheme(){var r=document.documentElement;var d=r.getAttribute('data-theme');r.setAttribute('data-theme', d==='dark'?'light':'dark');document.querySelectorAll('.mock-toolbar [aria-pressed]').forEach(function(b){if(b.textContent.indexOf('暗色')>-1)b.setAttribute('aria-pressed', r.getAttribute('data-theme')==='dark');});}
+</script>
+</body>
+</html>

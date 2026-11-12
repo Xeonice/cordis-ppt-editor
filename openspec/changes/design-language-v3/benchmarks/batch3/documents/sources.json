@@ -1,0 +1,99 @@
+[
+  {
+    "file": "01-figma-file-card-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360047512294-Delete-and-restore-files",
+    "article": "Delete and restore files",
+    "section": "Move files to trash › From the file browser",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27172086045591",
+    "alt": "Right-click context menu in file browser with \"Move to trash\" option highlighted.",
+    "product": "Figma 文件浏览器（UI3，Figma 各产品共用）",
+    "theme": "light",
+    "shows": "文件浏览器项目页（左栏 Recents · Drafts to move · Drafts · All workspaces · Trash；标题「Project ▾」，右上蓝色「+ Create new ▾」、Share、星标）里对文件卡片右键：深色菜单 Open · Open in new tab ┊ Create new branch ┊ Add to your favorites · Pin to project ┊ Copy link · Share · Duplicate ┊ Rename · Move file… · Move to trash（高亮，与改名、移动同组，不着色）。对应 documents.card-menu（P3：同一份卡片菜单；我们把「移到回收站」单独放在最后一组并用危险色，是自己的取舍，Figma 并不这样）。Figma 点「Move to trash」后还要再确认一次（正文：Select Move file to trash to confirm），我们按 D9 用可撤销轻提示（documents.trashed-undo）。图里的文件名与作者用灰条隐去，是帮助文档的示意画法，不是加载骨架",
+    "pairedState": [
+      "documents.card-menu",
+      "documents.trashed-undo"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-trash-restore-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360047512294-Delete-and-restore-files",
+    "article": "Delete and restore files",
+    "section": "Restore files from the trash",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27172086058007",
+    "alt": "File browser showing a Trash panel with options to restore or permanently delete a selected file.",
+    "product": "Figma 文件浏览器（UI3，Figma 各产品共用）",
+    "theme": "light",
+    "shows": "回收站视图：左栏「Trash」是当前项（浅蓝底）；主区标题「Trash」，Files / Projects 分段，右侧「Created by you ▾」「All files ▾」筛选；选中卡片（蓝色描边）的右键菜单只有 Duplicate to drafts ┊ Restore（高亮）· Permanently delete。对应 documents.trash（P1 回收站是左栏一项；P3、P7 回收站卡片菜单「恢复 ┊ 永久删除…」）。Figma 回收站另有按创建者、类型的筛选与按移入时间排序，我们推荐不加（P6）",
+    "pairedState": [
+      "documents.trash"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "03-figma-permanently-delete-dialog.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360047512294-Delete-and-restore-files",
+    "article": "Delete and restore files",
+    "section": "Permanently delete files",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27172041467543",
+    "alt": "Confirmation dialog for permanently deleting a file in Figma's Trash section.",
+    "product": "Figma 文件浏览器（UI3，Figma 各产品共用）",
+    "theme": "light",
+    "shows": "回收站里永久删除的确认对话框（背后的回收站视图压暗）：标题「Permanently delete file」+ ×，正文「You're about to delete the file Portfolio 2021 UIUX forever. You won't be able to restore it.」（文件名加粗），右下描边按钮「Cancel」与红橙实底「Permanently delete」；不要求输入文件名。对应 documents.purge-confirm（P7：DS-40 第三档模态确认，不要求输入文档名）",
+    "pairedState": [
+      "documents.purge-confirm"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "04-figma-search-results.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4422774037271-Search-for-files-folders-and-people",
+    "article": "Search for files, folders, and people",
+    "section": "Narrow your results",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/16469875063575",
+    "alt": "",
+    "product": "Figma 文件浏览器",
+    "theme": "light",
+    "shows": "文件浏览器的搜索结果页（官方标注 Resource type / Location / File type / Sort by，紫色衬底，局部放大）：左栏搜索框处于输入态（蓝色描边 + ×）；主区顶行「‹ ›  Search results for “Marketing”」；Files · Projects · People · Teams · Plugins · Widgets 页签；右侧 All organizations ▾、All files ▾、Relevance ▾ 与网格 / 列表切换；下方是同一种文件卡片网格。对应 documents.search（P2：主区换成搜索结果页，标题带关键词；我们不设类型页签与筛选）",
+    "pairedState": [
+      "documents.search"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 694,
+    "pixelSize": "1920x694"
+  },
+  {
+    "file": "05-google-drive-trash-empty.png",
+    "sourcePage": "https://support.google.com/drive/answer/2375102?hl=en&co=GENIE.Platform%3DDesktop",
+    "article": "Delete files in Google Drive - Computer - Google Drive Help",
+    "section": "Permanently delete all files in your trash › Permanently delete an individual file",
+    "imageUrl": "https://storage.googleapis.com/support-kms-prod/ZNzsIOUgj64YDXhOtdBC4O9z38N4oV9EjDD6",
+    "alt": "",
+    "product": "Google Drive（网页）",
+    "theme": "light",
+    "shows": "Drive 回收站清空后的整窗画面（浏览器窗口）：左栏 New · Home · Activity · Projects · Workspaces · My Drive · Shared drives · Shared with me · Recent · Starred · Spam · Trash（当前项，浅蓝胶囊）· Storage；主区标题「Trash from My Drive ▾」，Type / Modified / Source 筛选，右上列表 / 网格切换；中央插画 +「Trash is empty」+ 灰字「Items moved to the trash will be deleted forever after 30 days」。对应 documents.trash-empty（空态写清保留天数）。同一 GIF 第 186 帧是回收站列表上方的灰色说明条「Items in trash will be deleted forever after 30 days」（对照 documents.trash 的说明行），第 256 帧是确认框「Delete forever? · 2 items in trash will be deleted forever. This can't be undone. · Cancel / Delete forever（红色）」（对照 documents.purge-confirm），约第 96–120 帧是「Move to trash?」确认框",
+    "pairedState": [
+      "documents.trash-empty",
+      "documents.trash",
+      "documents.purge-confirm"
+    ],
+    "sourceFormat": "gif",
+    "frame": 292,
+    "frameCount": 306,
+    "frameNote": "原图为 306 帧 GIF（1920×1080，页面里「永久删除单个文件」一段的演示动画），取第 292 帧（从 0 计），经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动",
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  }
+]

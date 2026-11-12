@@ -1,0 +1,72 @@
+[
+  {
+    "file": "01-missing-fonts-modal.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360039956994-Missing-font-alert-in-Figma-Design",
+    "article": "Missing font alert in Figma Design",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/40566995036695",
+    "alt": "Missing fonts modal in Figma design",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "UI3 编辑器：左栏顶部（文件菜单与侧栏开关之间）只在文件缺字体时出现的「A?」缺失字体图标；点开后画布上方浮出缺失字体窗口（无遮罩，画布与选中的图层仍可见），表头「Missing font | Replacement」+ ×，每种缺失字体一行（› 展开受影响图层 · 箭头 · 「Select font」下拉），底部只有次按钮「Close」；全图无状态色。",
+    "pairedState": "fidelity.report",
+    "width": 1403,
+    "height": 969,
+    "retrieved": "2026-10-14"
+  },
+  {
+    "file": "02-check-designs.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/39592284074263-Check-designs-in-Figma",
+    "article": "Check designs in Figma",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/40896949842583",
+    "alt": "Check designs modal showing suggestions in the Colors tab",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "Check designs 窗口（UI3，约 480 宽）：标题行（刷新 · 关闭）；按类别的页签带计数（Colors 20 · Dimensions 14 · Typography 0 · Components 10）；页签内按图层类型分组（Frame › Fill、Shape › Fill、Text › Fill，组标题带类型图标）；每条一行约 32px（现值 → 建议值 ▾，匹配项带绿色「Match」小标签）；底部汇总「Update 20 colors across 33 items」+ 主按钮「Apply 20」。",
+    "pairedState": "fidelity.report",
+    "width": 1136,
+    "height": 1514,
+    "retrieved": "2026-10-14"
+  },
+  {
+    "file": "03-components-moved-toast.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4404848314647-Move-published-components",
+    "article": "Move published components",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/4406443468951",
+    "alt": "Notification tooltip indicating moved components with options to review or dismiss updates.",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "打开引用了被移动组件的文件后，画布底部出一次的深色通知（亮色界面里的反色 toast）：左侧单色线框图标（库）、两句短文「Some components were moved. Updates are available.」、右侧竖排两个文字动作「Review / Dismiss」并用 1px 线分开；无状态色、无 ×。背景是 UI2 时期的右栏（Layer · Fill · Selection colors），截图外框为珊瑚色衬底。",
+    "pairedState": "fidelity.default",
+    "width": 1920,
+    "height": 1080,
+    "retrieved": "2026-10-14"
+  },
+  {
+    "file": "04-restore-component-sidebar.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360038663154-Create-components-to-reuse-in-designs",
+    "article": "Create components to reuse in designs",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26949853055255",
+    "alt": "",
+    "product": "Figma Design",
+    "theme": "light",
+    "shows": "选中主组件已被删除的实例（UI3）：画布上紫色选中框 + 尺寸角标「104 Hug × 48 Hug」；右栏顶部对象名「button ▾」与三枚图标，下一行灰字状态「Local instance ◇」，一颗通栏次按钮「Restore Component」，之后照常是 Position、Auto layout 等属性节——没有状态色、标题或说明段落。",
+    "pairedState": "fidelity.degraded-selected",
+    "width": 1920,
+    "height": 1440,
+    "retrieved": "2026-10-14"
+  },
+  {
+    "file": "05-keynote-offline-alert.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/collaborate-on-a-shared-presentation-tan5fc7516cf/mac",
+    "article": "Collaborate on a shared presentation in Keynote on Mac",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/c837885a93f620b9507c1c25fdbbf7e0.png",
+    "alt": "The buttons at the top of the screen, with the Collaboration button changed to a cloud with a diagonal line through it. An alert on the screen says “You’re offline but can still edit.”（原图名 Art/S1043_OfflineEditing_KY_Mac.png）",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "工具栏下方、幻灯片区域右上角浮出的单行通知「You're offline but can still edit.」：灰色线框图标 + 一句话，胶囊形，没有按钮也没有 ×。Keynote 指南写明打开缺字体的文稿时「缺失字体通知在幻灯片顶部短暂出现」、通知里点「显示」或用 格式 › 字体 › 替换字体（Open or close a presentation / Change the font or font size 两页，均只有文字），那条通知没有官方截图，这里用同一指南里同一种通知代替。",
+    "pairedState": "fidelity.page-hint",
+    "width": 812,
+    "height": 282,
+    "retrieved": "2026-10-14"
+  }
+]

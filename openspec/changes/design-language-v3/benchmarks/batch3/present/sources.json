@@ -1,0 +1,101 @@
+[
+  {
+    "file": "01-figma-slides-present-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/24338209202327-Present-a-slide-deck",
+    "article": "Present a slide deck",
+    "section": "Prepare for presenters",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/24340528640663",
+    "alt": "",
+    "product": "Figma Slides",
+    "theme": "light",
+    "shows": "右栏顶行的播放按钮（▷，按下态浅橙底）旁「Share」，下方弹出放映选项卡：左「Present ⌥⌘↩」+ 缩略图 + 说明「Play your slides in order, one by one…」，右「Present + Notes ⇧⌘Space」+ 演讲者视图示意 + 说明「Open two views: one for your deck, and one for your notes.」；底部通栏「Copy presentation link」。帮助正文：从当前选中的页开始放映。对应 present.entry-tooltip（TB-103：按钮从当前页放映，提示写快捷键）",
+    "pairedState": [
+      "present.entry-tooltip"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-slides-presentation-view-notes.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/24245848829847-Add-and-view-presenter-notes",
+    "article": "Add and view presenter notes",
+    "section": "Edit notes while presenting",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27441626950167",
+    "alt": "An animation showing how you can edit presenter notes while in presentation view.",
+    "product": "Figma Slides（放映视图，带备注）",
+    "theme": "dark",
+    "shows": "深色放映视图（Present + Notes）：舞台上居中的绿色幻灯片；左下翻页控件「‹ 52 / 52 › ↺」（末页时 › 置灰，↺ 回到开头）；顶栏右侧头像 ▾、演讲者视图按钮、两枚布局切换、选项、橙色 Share；右侧备注栏（大号白字，可直接编辑），右下「– +」调字号。对应 present.default 的控件组成（上一页 · 页码 · 下一页）；对照 present.end：Figma 到末页只把「下一页」置灰，我们按 TB-102 再前进进入黑底结束页。演讲者视图我们排在 M4 之后，只作参照",
+    "pairedState": [
+      "present.default",
+      "present.end"
+    ],
+    "sourceFormat": "gif",
+    "frame": 0,
+    "frameCount": 73,
+    "frameNote": "原图为 73 帧 GIF（2374×1414），取第 0 帧（各帧只差备注里的光标与编辑），经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动",
+    "retrieved": "2026-10-16",
+    "width": 2374,
+    "height": 1414,
+    "pixelSize": "2374x1414"
+  },
+  {
+    "file": "03-figma-slides-presentation-options-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/24338209202327-Present-a-slide-deck",
+    "article": "Present a slide deck",
+    "section": "Present offline",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27448424026135",
+    "alt": "The options menu in presentation view is open, showing the option to Make available offline.",
+    "product": "Figma Slides（放映视图）",
+    "theme": "dark",
+    "shows": "放映视图顶部深色工具条局部（放大）：头像 ▾ · 评论 · 标签 · 选项（滑杆图标，鼠标悬停）· 全屏 · 橙色 Share；选项按钮下弹出的深色菜单只有一项「Make available offline」（橙色高亮）。对应 present.more-menu（放映中的「更多」菜单；我们的在控制条里，P17 不加键盘提示浮层）",
+    "pairedState": [
+      "present.more-menu"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "04-figjam-spotlight-stop-following.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/5025214483351-Facilitate-meetings-with-spotlight",
+    "article": "Facilitate meetings with spotlight",
+    "section": "Follow another user on the board",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31410559523351",
+    "alt": "Stop following button.",
+    "product": "FigJam（聚光与跟随机制与 Figma Slides 共用）",
+    "theme": "light",
+    "shows": "跟随者看到的画面：视口外圈一道绿色边框，顶部居中绿色条「Spotlight on Crystal Tong」+ 深绿按钮「Stop following」；画布上是投票便签与贴纸。Figma Slides 的 Spotlight yourself or other presenters 一文写的是同样的画法（跟随时画布加边框、顶部写正在跟随谁、Stop following 退出），但没有 Slides 的截图；同文还写「点对方头像即开始跟随」，主讲人一侧顶部显示有几人在跟随。对应 present.following / present.editor-following（P16：观众先点主讲人头像进入跟随）",
+    "pairedState": [
+      "present.following",
+      "present.editor-following"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1038,
+    "height": 1038,
+    "pixelSize": "1038x1038"
+  },
+  {
+    "file": "05-keynote-mac-present-in-window.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/present-on-your-mac-tan72233051/mac",
+    "article": "Play a Keynote presentation on Mac",
+    "section": "Present in a window",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/85b75fab8635cec3062ac8664b72d8d6.png",
+    "alt": "A Keynote presentation displayed in a window, with the presenter display in a second window containing the slide navigator, presenter notes, and slide preview.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "窗口内放映（官方英文标注三处）：左边是可共享的放映窗口（整张幻灯片、无任何控件），右边是演讲者窗口（左侧幻灯片导航、顶部计时 00:00:00、Current / Next 两张预览、备注区与 Edit）。对应 present.windowed（不进全屏的窗口放映）",
+    "pairedState": [
+      "present.windowed"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1198,
+    "height": 594,
+    "pixelSize": "1198x594"
+  },
+  {
+    "missing": "Google Slides 放映时窗口底部的控制条与「Presentation display options」：Present slides 帮助页（answer/1696787）只有文字与 18px 图标；Figma Slides 的观众视图（Copy presentation link 打开的 audience view）与观众端「Not now」聚光提示无截图；放映结束页（present.end 的黑底结束页）、数字跳页提示条（present.page-jump）、黑屏 / 白屏三家都没有截图"
+  }
+]

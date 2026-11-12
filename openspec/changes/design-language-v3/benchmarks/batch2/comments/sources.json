@@ -1,0 +1,55 @@
+[
+  {
+    "file": "01-sidebar-thread-list.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041547593-View-and-manage-comments",
+    "article": "View and manage comments",
+    "section": "From the right sidebar",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31565786654743",
+    "product": "Figma Design（UI3，评论界面在 Figma 各产品共用）",
+    "theme": "light",
+    "shows": "评论模式下的右侧栏：顶行头像 · 演示 · Share，标题「Comment」+ 缩放；搜索框 + 筛选图标 + ⋯；线程列表（参与者头像串、「#4 · Page 1」、作者 + 时间、正文最多 3 行、蓝色「2 replies」、未读蓝点，已读线程头像转灰）；选中的 #3 整条铺浅蓝底并出 ⋯ 与解决 ✓，画布上对应的钉变成蓝色",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440
+  },
+  {
+    "file": "02-sidebar-filter-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041547593-View-and-manage-comments",
+    "article": "View and manage comments",
+    "section": "Sort and filter comments",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31565786655639",
+    "product": "Figma Design（UI3，评论界面在 Figma 各产品共用）",
+    "theme": "light",
+    "shows": "同一侧栏，筛选图标按下、展开深色下拉：Sort by date ✓ / Sort by unread ┊ Show resolved comments ✓ / Only your threads / Only current page（各项是独立勾选开关）",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440
+  },
+  {
+    "file": "03-canvas-composer.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041068574-Add-comments-to-files",
+    "article": "Add comments to files",
+    "section": "Add a comment",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30719599483159",
+    "product": "Figma Design（UI3）",
+    "theme": "light",
+    "shows": "底部工具条的评论工具按下，画布上新钉（整枚蓝色气泡）左侧的浮动撰写框：已输入一行文字，文本区不铺底，细线下方是表情 · @ · 图片与圆形蓝色发送按钮；没有标题行与「取消」",
+    "retrieved": "2026-10-14",
+    "width": 1400,
+    "height": 1202,
+    "frame": "原图为 127 帧 GIF；首帧不含撰写框，取第 80 帧（从 0 计），经 Playwright（Chrome ImageDecoder）转成 PNG。同一 GIF 第 93–126 帧可见发表后钉变成作者头像钉、评论工具仍保持按下"
+  },
+  {
+    "file": "04-thread-popover.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041547593-View-and-manage-comments",
+    "article": "View and manage comments",
+    "section": "From the canvas",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31565784466583",
+    "product": "Figma Design（UI3，评论界面在 Figma 各产品共用）",
+    "theme": "light",
+    "shows": "官方示意图（带 A / B / C 标注）：画布上打开的线程弹窗——标题「Comment」+ ⋯ · 解决 · 关闭；作者 + 时间、正文；表情回应（A）；回复撰写框（自己的头像 + 淡底框 + 表情 · @ · 图片 + 圆形发送 C）",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440
+  }
+]

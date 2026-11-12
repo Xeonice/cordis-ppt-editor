@@ -1,0 +1,79 @@
+[
+  {
+    "file": "01-figma-account-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/1500005165741-Switch-between-accounts",
+    "article": "Switch between accounts",
+    "section": "Switch to a different account",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/15145021379607",
+    "alt": "Account switcher menu in Figma with options to switch accounts, update settings, and manage community profile.",
+    "product": "Figma 桌面应用 · 文件浏览器",
+    "theme": "light",
+    "shows": "左栏顶部账户行「Nate Billings ▾」向下打开的深色账户菜单（绿色衬底，约 2 倍放大）：头部居中大头像（带编辑铅笔）· 姓名 · 灰色邮箱；Theme ▸（子菜单）· Settings；Community profile ↗（外链）；已登录账户列表（当前账户打勾）· + Add another account；最后一组 Log out ▸。对应 account-menu.member（头部头像 · 姓名 · 邮箱，主题、偏好设置在中间，退出登录在最后）；Figma 的主题是子菜单，我们推荐菜单内三项、选了不关菜单（P11）",
+    "pairedState": [
+      "account-menu.member"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "02-figma-settings-account-tab.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/30926159906967-FD4B-Tour-the-file-browser-and-customize-your-profile",
+    "article": "FD4B: Tour the file browser and customize your profile",
+    "section": "Customize your profile",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31314428947991",
+    "alt": "Manage your account from the account settings in the file browser",
+    "product": "Figma 文件浏览器（账户菜单 › Settings）",
+    "theme": "light",
+    "shows": "居中模态的设置窗口（背后文件浏览器压暗）：顶部页签 Account（当前）· Community · Notifications · Security，右上 ×；左侧大头像 +「Edit」；右侧逐节：Name「Krystal」+ 蓝字「Change name」、Email +「Change email」、Role「Design」+「Change role」、分隔线、Language「English」+「Change language」、分隔线、Theme（被截断）；窗内可滚动。对应 account-menu.profile-dialog（显示名可改、头像可换；我们的邮箱只读、写「由组织账号提供」）",
+    "pairedState": [
+      "account-menu.profile-dialog",
+      "settings.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "03-figma-theme-light-dark.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/5576781786647-Change-themes-in-Figma",
+    "article": "Change themes in Figma",
+    "section": "（文首）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/5905110452247",
+    "alt": "Side-by-side comparison of light and dark themes in a Figma Design file",
+    "product": "Figma Design",
+    "theme": "light + dark",
+    "shows": "同一 Figma Design 文件在亮色（左，珊瑚衬底）与暗色（右，紫色衬底）下的并排对比：工具条、Layers / Assets、Pages、图层树、协作者光标「Robin」；暗色下选中行是深蓝底。帮助正文写主题在主菜单 Preferences › Theme（也可在 ⌘/ 动作菜单搜 Use light mode / Use dark mode / Use system theme）共三项，只存在本机、不影响别人；子菜单本身没有官方截图。对应 account-menu 的主题项（P11 三项「浅色 / 深色 / 跟随系统」，对照 account-menu.alt-theme-two）",
+    "pairedState": [
+      "account-menu.member",
+      "account-menu.alt-theme-two"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "04-figma-editor-own-avatar-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040322673-Present-to-collaborators-using-spotlight",
+    "article": "Present to collaborators using spotlight",
+    "section": "Spotlight yourself in a file",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31412646220567",
+    "alt": "Cursor hovering over \"Spotlight me\" button in the Figma multiplayer dropdown menu, indicating current spotlight feature usage.",
+    "product": "Figma Design（编辑器）",
+    "theme": "light",
+    "shows": "编辑器右上自己的头像胶囊（蓝底 + ▾）打开的深色小弹层：头像 +「Fran Fettuccini (you)」，蓝色「Spotlight me」与耳机按钮；背后右栏是 Page 颜色 1E1E1E、Local variables、Local styles、Export。对应 account-menu.editor 的对照：Figma 在编辑器里点自己的头像出的是多人工具（聚光、语音），账户与设置在主菜单「Help and account ›」；我们三处是同一份账户菜单（AS-06、DS-18）",
+    "pairedState": [
+      "account-menu.editor"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "missing": "Figma 账户菜单「Theme ▸」子菜单与主菜单 Preferences › Theme 的三项没有截图（Change themes in Figma 只有亮暗对比图与动作菜单开增强对比度的动图）；「个人资料…」不可用并标 M3（account-menu.profile-m2）、嵌入里退出登录不可用（account-menu.embedded-logout）三家都没有对应画面"
+  }
+]

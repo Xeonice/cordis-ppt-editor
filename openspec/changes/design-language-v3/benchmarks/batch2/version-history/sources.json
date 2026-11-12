@@ -1,0 +1,67 @@
+[
+  {
+    "file": "01-figma-version-history-panel.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360038006754-View-a-file-s-version-history",
+    "section": "Access version history",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30567753856663",
+    "alt": "Version history panel showing multiple saved versions, dates, contributors, and a \"Show older\" option for more entries.",
+    "product": "Figma Design（版本历史侧栏与 Figma Slides 共用）",
+    "theme": "light",
+    "shows": "右侧栏「Version history」整栏列表：标题行（筛选 · 关闭）、左侧时间轴竖线与状态圆标（Completed / Ready for dev）、命名版本三行（粗体名称 · 头像与作者 · 相对时间）、展开的「2 autosave versions」分组（自动版本两行：粗体日期时刻 · 头像与作者）、末尾蓝色文字链接「Show older」；帮助文档自带编号标注 1–3",
+    "retrieved": "2026-10-14",
+    "width": 1920,
+    "height": 1440
+  },
+  {
+    "file": "02-figma-name-this-version.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360038006754-View-a-file-s-version-history",
+    "section": "Name an existing version",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30567742512535",
+    "alt": "Version history panel showing options to name, restore, duplicate, delete, or copy link of a version, with annotations of changes made.",
+    "product": "Figma Design（版本历史侧栏与 Figma Slides 共用）",
+    "theme": "light",
+    "shows": "前后两态：左＝选中「2 autosave versions」组里的一条自动版本（浅蓝底 + 行尾「…」），行菜单「Name this version · Restore this version · Duplicate · Delete version info · Copy link」；右＝命名后该行变成命名版本（粗体名称、灰色说明、作者、蓝色相对时间，时间轴上蓝色圆标）。标题行多一个「+」（Save to version history）",
+    "retrieved": "2026-10-14",
+    "width": 1986,
+    "height": 890
+  },
+  {
+    "file": "03-figma-restore-this-version.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360038006754-View-a-file-s-version-history",
+    "section": "Delete a version",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30567753861143",
+    "alt": "Version history panel showing options to edit, restore, duplicate, or delete version info of a Figma file.",
+    "product": "Figma Design（版本历史侧栏与 Figma Slides 共用）",
+    "theme": "light",
+    "shows": "前后两态：左＝选中命名版本「Updated brand styles」，行菜单「Edit version info · Restore this version · Duplicate · Delete version info · Copy link」（恢复就在行菜单里、无二次确认）；右＝删除版本信息后它退回为自动版本，出现在展开的「2 autosave versions」组里并保持选中，下方另一组「2 autosave versions」收起（行首圆形 › ）",
+    "retrieved": "2026-10-14",
+    "width": 1986,
+    "height": 890
+  },
+  {
+    "file": "04-figma-show-version-history-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360038006754-View-a-file-s-version-history",
+    "section": "Access version history",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/30567742504343",
+    "alt": "Menu dropdown in Figma showing the option \"Show version history\" selected, with various editing and navigation options visible.",
+    "product": "Figma Design（版本历史侧栏与 Figma Slides 共用）",
+    "theme": "light",
+    "shows": "左栏文件名 ▾ 打开的文件菜单（深色菜单）：「Show version history」排第一、高亮为强调色底；其后 Publish library… · Export… ┊ Add to sidebar ┊ Create branch… ┊ Duplicate · Rename · Go to project · Move…（不可用项置灰）",
+    "retrieved": "2026-10-14",
+    "width": 820,
+    "height": 820
+  },
+  {
+    "file": "05-keynote-mac-browse-versions.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/restore-an-earlier-version-of-a-presentation-tan7f1de6ec5/mac",
+    "section": "View, copy, and restore an earlier version",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/23f2e4dbb5f438ca057098a230af213d.png",
+    "alt": "Revert view showing tick marks and arrows.",
+    "product": "Keynote（Mac，File › Revert To › Browse All Versions）",
+    "theme": "light",
+    "shows": "预览并恢复较早版本的整屏版本浏览器：左＝当前文稿（Current Document），右＝所选较早版本（Today at 9:31 AM，后面层叠更早的版本）；两窗之间只有「Done」「Restore」两个灰色按钮，Restore 直接替换当前版本、没有二次确认；右缘是时间刻度（Today、April 2024）。帮助文档自带英文标注两处",
+    "retrieved": "2026-10-14",
+    "width": 1144,
+    "height": 844
+  }
+]

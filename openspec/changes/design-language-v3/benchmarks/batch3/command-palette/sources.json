@@ -1,0 +1,63 @@
+[
+  {
+    "file": "01-figma-actions-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/23570416033943-Use-the-actions-menu-in-Figma-Design",
+    "article": "Use the actions menu in Figma Design",
+    "section": "（文首）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/24344168905111",
+    "alt": "Figma Actions menu open, displaying options like \"Make designs,\" \"Rename layers,\" and \"Remove background\" using AI tools.",
+    "product": "Figma Design（动作菜单 ⌘K）",
+    "theme": "light",
+    "shows": "底部工具条「Actions」按钮（蓝色按下）向上打开的动作菜单（紫色衬底）：顶部搜索框「Search」；All（当前）· Assets · Plugins & widgets 三个页签；分组标题 Design tools（Make designs〔AI beta 标签〕· Make prototype · Rename layers · Replace content）、Riffing and writing（Rewrite this… · Shorten · Translate to…）、Image editing（Make an image · Remove background）；每行图标 + 名称，悬停行浅灰底。对应 command-palette.default（TB-106 打开态：搜索框 + 常用命令）",
+    "pairedState": [
+      "command-palette.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "02-figma-actions-menu-search.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/5576781786647-Change-themes-in-Figma",
+    "article": "Change themes in Figma",
+    "section": "Enable enhanced contrast mode › Actions menu",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/35009754477719",
+    "alt": "Enable enhanced contrast mode from the actions menu",
+    "product": "Figma Design（动作菜单 ⌘K）",
+    "theme": "light",
+    "shows": "动作菜单的搜索结果态：搜索框里是「enhance」+ 清除 ×；All · Assets · Plugins & widgets 页签；结果行依次是带勾选框的设置项「Enhanced contrast mode」、命令「Boost resolution」、一个插件命令（行尾灰色描边标签「REPAIR」）、「Search “enhance” in Figma Enterprise Org on Prod / Community」与「Search “enhance” in plugins & widgets」（悬停）。对应 command-palette.search（TB-106：结果行 = 图标 · 标题 · 归属标签，偏好开关也能直接搜到）",
+    "pairedState": [
+      "command-palette.search"
+    ],
+    "sourceFormat": "gif",
+    "frame": 24,
+    "frameCount": 46,
+    "frameNote": "原图为 46 帧 GIF（2878×1414 整个编辑器），取第 24 帧，经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；动作菜单只占画面中下部约 1100×700 的一块，第 36 帧起菜单已关闭",
+    "retrieved": "2026-10-16",
+    "width": 2878,
+    "height": 1414,
+    "pixelSize": "2878x1414"
+  },
+  {
+    "file": "03-figma-main-menu-actions.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360039831974-Explore-the-navigation-bar-and-left-sidebar",
+    "article": "Explore the navigation bar and left sidebar",
+    "section": "Figma menu",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/41604884369431",
+    "alt": "left-nav-figma-menu.png",
+    "product": "Figma Design（新版导航栏）",
+    "theme": "light",
+    "shows": "新版左侧导航栏顶端 Figma 标志（浅蓝底，鼠标悬停）打开的深色主菜单局部（深绿衬底）：Back to files ┊ 放大镜图标 +「Actions… ⌘K」┊ File ▸ · Edit ▸ · View ▸。对应命令面板的入口（主菜单第一组就是 Actions… ⌘K；我们的命令面板 Mod+K，DS-11 开始页的 ⌘K 是聚焦搜索）",
+    "pairedState": [
+      "command-palette.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 694,
+    "pixelSize": "1920x694"
+  },
+  {
+    "missing": "Google Slides 的 Tool finder（Alt + / 搜菜单命令）没有截图；Keynote 没有命令面板。命令置灰并写原因、第三方命令「来自〈插件〉」一行的画法三家都没有对应截图（Figma Slides 底部工具条 Actions 的插件页签见第 2 批 plugins/01）"
+  }
+]

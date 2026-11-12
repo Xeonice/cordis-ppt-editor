@@ -1,0 +1,64 @@
+[
+  {
+    "file": "01-figjam-export-dialog.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/4407699832855-Export-your-FigJam-board",
+    "article": "Export your FigJam board",
+    "section": "（文首）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26275433397399",
+    "alt": "Export settings modal in FigJam",
+    "product": "FigJam（Figma 产品族；Figma Slides 的导出对话框没有官方截图）",
+    "theme": "light",
+    "shows": "「Export」对话框（背后画板压暗）：标题 + ×；左列灰色标签、右列控件：File type（单选 PNG / JPG / PDF● / CSV，竖排）、Quality「High ▾」、Background「Solid」（不可改）、Export area「Selection only ▾」；右下紫色主按钮「Export」，没有「取消」。对应 export.default / export.unsynced-server（选 PDF 的选项页并进这一态；格式单选、范围下拉、单一主按钮；我们的底栏是「取消 / 导出」）。Figma Slides 的同类对话框（File type PPTX / PDF、Content 全部或所选幻灯片、PDF 色彩与质量、PPTX Structure）在 Export from Figma Slides 一文只有文字",
+    "pairedState": [
+      "export.default",
+      "export.unsynced-server"
+    ],
+    "sourceFormat": "gif",
+    "frame": 248,
+    "frameCount": 317,
+    "frameNote": "原图为 317 帧 GIF（1200×1200），取第 248 帧（已选 PDF、Quality 下拉收起），经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；第 40 帧前后是右键菜单「Export selection… ⇧⌘E」，第 56 帧起出现导出对话框",
+    "retrieved": "2026-10-16",
+    "width": 1200,
+    "height": 1200,
+    "pixelSize": "1200x1200"
+  },
+  {
+    "file": "02-figma-file-menu-export-shortcut.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360047512294-Delete-and-restore-files",
+    "article": "Delete and restore files",
+    "section": "Move files to trash › From the open file",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/27172041460119",
+    "alt": "Context menu in the Figma file browser with \"Trash\" option highlighted.",
+    "product": "Figma Design（编辑器文件名下拉菜单）",
+    "theme": "light",
+    "shows": "编辑器左栏文件名「Typography update: Habitz design sy… ▾」打开的深色文件菜单：Show version history · Publish library… · Export… ⇧⌘E ┊ Add to sidebar ▸ · Pin to workspace ┊ Create branch… · See all branches ┊ File color profile ▸ ┊ Duplicate · Rename · Go to project · Move… · Trash…（高亮）。对应导出入口与快捷键：DS-78 主菜单「文件 › 导出…」改为 ⇧⌘E，与 Figma 一致",
+    "pairedState": [
+      "export.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "03-keynote-mac-export-to-menu.png",
+    "sourcePage": "https://support.apple.com/guide/keynote/export-to-powerpoint-or-another-file-format-tana0d19882a/mac",
+    "article": "Export to PowerPoint or another file format in Keynote on Mac",
+    "section": "Save a copy of a Keynote presentation in another format",
+    "imageUrl": "https://help.apple.com/assets/6A304288FE15BC0F5F0D82D1/6A304289F2BF111DE30F7A73/en_US/7135a439c66f417835cc5570758e746a.png",
+    "alt": "The File menu open with Export To selected and its submenu showing export options such as PDF, PowerPoint, and Movie.",
+    "product": "Keynote（Mac）",
+    "theme": "light",
+    "shows": "macOS 菜单栏 Keynote › File 菜单：New… ⌘N · Open… ⌘O · Open Recent ▸ ┊ Close · Save · Save As… · Duplicate · Rename… · Move To… · Revert To ▸ ┊ Share… · Activity Settings…（不可用）┊ Export To ▸（高亮）┊ Reduce File Size… · Advanced ▸ ┊ Set Password… ┊ Change Theme… · Save Theme… ┊ Print… ⌘P；子菜单 PDF… · PowerPoint… · Movie… · Animated GIF… · Images… · HTML… · Keynote '09…。选格式后进按格式分页签的导出窗口（帮助正文：PDF 可含演讲者备注与跳过的幻灯片，图片可选范围与格式）。对应导出入口（我们是一个对话框里选格式，export.default）；Keynote 另有独立的 Print…（对照 P30 不加打印入口）",
+    "pairedState": [
+      "export.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 790,
+    "height": 1004,
+    "pixelSize": "790x1004"
+  },
+  {
+    "missing": "Figma Slides 导出对话框（Main menu › File › Export slides to）没有截图，Export from Figma Slides 的唯一配图是设计模式下右栏 Export 节；Google Slides 的 File › Download 子菜单只有文字；Keynote 按格式分页签的导出窗口无截图。export.generating、export.failed、export.exported-toast（导出完成轻提示）、export.server-generating 三家都没有对应截图"
+  }
+]

@@ -1,0 +1,460 @@
+{
+  "$comment": "由 docs/_tools/check-plugin-counts.py --emit 从 40-modules/16-plugin-catalog.md §2–§5.1 与 00-charter/charter.md §5.2 机械重算生成，勿手改；改表后重新 --emit。插件只计 cordis 插件（plugins，rulings §4.23 补充裁决）；纯库与 Nest 模块只在 runtimeUnits 里分列。",
+  "source": {
+    "catalog": "docs/40-modules/16-plugin-catalog.md",
+    "packages": "docs/00-charter/charter.md §5.2"
+  },
+  "packages": {
+    "npm": 31,
+    "npmWithM5": 33,
+    "m5InCharter": [
+      "@cordexjs/preset-doc",
+      "@cordexjs/preset-sheet"
+    ],
+    "m5SkeletonUnits": 10,
+    "byBand": {
+      "L0": 5,
+      "L1": 3,
+      "L3": 1,
+      "L4": 5,
+      "L5": 3,
+      "L7": 3,
+      "L8": 3,
+      "vertical": 5,
+      "LS": 3
+    },
+    "byIso": {
+      "iso": 17,
+      "dom": 11,
+      "node": 3
+    },
+    "apps": [
+      "apps/web",
+      "apps/server"
+    ],
+    "tooling": [
+      "tooling/*"
+    ],
+    "nonPluginNpm": [
+      "@cordexjs/shared",
+      "@cordexjs/protocol",
+      "@cordexjs/xml",
+      "@cordexjs/ooxml-core",
+      "@cordexjs/design"
+    ]
+  },
+  "plugins": {
+    "total": 48,
+    "byForm": {
+      "host": 4,
+      "definition": 4,
+      "provider": 20,
+      "plugin": 17,
+      "bundle": 3
+    },
+    "byNecessity": {
+      "core": 9,
+      "contract": 10,
+      "optionalDegrade": 16,
+      "optionalExtension": 10,
+      "na": 3
+    },
+    "byLocation": {
+      "both": 10,
+      "browser": 23,
+      "server": 15
+    },
+    "byScope": {
+      "content": 33,
+      "ui": 10,
+      "na": 5
+    },
+    "byMilestone": {
+      "M1": 23,
+      "M2": 22,
+      "M3": 2,
+      "M4": 1
+    },
+    "cumulativeByMilestone": {
+      "M1": 23,
+      "M2": 45,
+      "M3": 47,
+      "M4": 48
+    }
+  },
+  "runtimeUnits": {
+    "$comment": "运行时单元 = cordis 插件 + 纯库 + Nest 模块；后两者不是插件，不计入任何插件数",
+    "total": 78,
+    "plugins": 48,
+    "library": 5,
+    "nest": 25,
+    "byMilestone": {
+      "M1": 28,
+      "M2": 43,
+      "M3": 6,
+      "M4": 1
+    },
+    "cumulativeByMilestone": {
+      "M1": 28,
+      "M2": 71,
+      "M3": 77,
+      "M4": 78
+    },
+    "libraryByMilestone": {
+      "M1": 5,
+      "M2": 0,
+      "M3": 0,
+      "M4": 0
+    },
+    "nestByMilestone": {
+      "M1": 0,
+      "M2": 21,
+      "M3": 4,
+      "M4": 0
+    }
+  },
+  "definitions": 25,
+  "contributionPoints": 26,
+  "presets": {
+    "preset-slide-viewer": {
+      "resident": 12,
+      "lazy": 5,
+      "total": 17
+    },
+    "preset-slide": {
+      "resident": 15,
+      "lazy": 2,
+      "total": 17
+    },
+    "preset-slide-collab": {
+      "resident": 17,
+      "lazy": 3,
+      "total": 20
+    },
+    "preset-server": {
+      "entries": {
+        "resident": 9,
+        "partial": 2,
+        "total": 11,
+        "unstated": 1
+      },
+      "units": {
+        "resident": 19,
+        "partial": 2,
+        "total": 21
+      },
+      "entriesByRole": {
+        "api": {
+          "resident": 7,
+          "partial": 1,
+          "total": 8
+        },
+        "collab": {
+          "resident": 8,
+          "partial": 1,
+          "total": 9
+        },
+        "worker": {
+          "resident": 8,
+          "partial": 2,
+          "total": 10
+        },
+        "all": {
+          "resident": 9,
+          "partial": 2,
+          "total": 11
+        },
+        "renderer": {
+          "resident": 0,
+          "partial": 0,
+          "total": 0
+        }
+      }
+    }
+  },
+  "presetCount": 4,
+  "unitsByPackage": {
+    "@cordexjs/shared": {
+      "units": 1,
+      "plugins": 0,
+      "rows": [
+        1
+      ]
+    },
+    "@cordexjs/kernel": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        2
+      ]
+    },
+    "@cordexjs/protocol": {
+      "units": 1,
+      "plugins": 0,
+      "rows": [
+        3
+      ]
+    },
+    "@cordexjs/i18n": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        4
+      ]
+    },
+    "@cordexjs/model-core": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        5
+      ]
+    },
+    "@cordexjs/store-memory": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        6
+      ]
+    },
+    "@cordexjs/store-yjs": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        7
+      ]
+    },
+    "@cordexjs/model-slide": {
+      "units": 2,
+      "plugins": 2,
+      "rows": [
+        8,
+        9
+      ]
+    },
+    "@cordexjs/xml": {
+      "units": 1,
+      "plugins": 0,
+      "rows": [
+        10
+      ]
+    },
+    "@cordexjs/ooxml-core": {
+      "units": 1,
+      "plugins": 0,
+      "rows": [
+        11
+      ]
+    },
+    "@cordexjs/ooxml-pptx": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        12
+      ]
+    },
+    "@cordexjs/collab-core": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        13
+      ]
+    },
+    "@cordexjs/collab-yjs": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        14
+      ]
+    },
+    "@cordexjs/collab-transport-ws": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        15
+      ]
+    },
+    "@cordexjs/collab-offline-idb": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        16
+      ]
+    },
+    "@cordexjs/comments": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        17
+      ]
+    },
+    "@cordexjs/engine-layout": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        18
+      ]
+    },
+    "@cordexjs/engine-render": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        19
+      ]
+    },
+    "@cordexjs/render-dom": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        20
+      ]
+    },
+    "@cordexjs/slide-render": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        21
+      ]
+    },
+    "@cordexjs/slide-render-chart": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        22
+      ]
+    },
+    "@cordexjs/design": {
+      "units": 1,
+      "plugins": 0,
+      "rows": [
+        23
+      ]
+    },
+    "@cordexjs/ui-core": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        24
+      ]
+    },
+    "@cordexjs/ui-react": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        25
+      ]
+    },
+    "@cordexjs/slide-ui": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        26
+      ]
+    },
+    "@cordexjs/preset-slide": {
+      "units": 2,
+      "plugins": 2,
+      "rows": [
+        27,
+        35
+      ]
+    },
+    "@cordexjs/preset-slide-viewer": {
+      "units": 7,
+      "plugins": 7,
+      "rows": [
+        28,
+        29,
+        30,
+        32,
+        33,
+        34,
+        37
+      ]
+    },
+    "preset-*（各 preset 自带语言包）": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        31
+      ]
+    },
+    "@cordexjs/preset-slide-collab": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        36
+      ]
+    },
+    "apps/web": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        38
+      ]
+    },
+    "@cordexjs/server-storage": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        39
+      ]
+    },
+    "@cordexjs/server-collab": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        40
+      ]
+    },
+    "@cordexjs/server-headless": {
+      "units": 1,
+      "plugins": 1,
+      "rows": [
+        41
+      ]
+    },
+    "apps/server": {
+      "units": 37,
+      "plugins": 12,
+      "rows": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78
+      ]
+    }
+  }
+}

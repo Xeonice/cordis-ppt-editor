@@ -1,0 +1,77 @@
+{
+  "family": "plugins",
+  "batch": 2,
+  "retrieved": "2026-10-14",
+  "note": "标杆全部取自 Figma 官方帮助中心（help.figma.com）的文章配图，原样下载，未改动像素；02 为动图 GIF 的单帧（Playwright 调 Chrome ImageDecoder 解码后存 PNG）。帮助文档截图多为放大或裁切过的局部，倍率与 Cordex 样张（1600×1000、DPR 2）对不齐，只比结构、密度与克制程度。",
+  "images": [
+    {
+      "file": "01-slides-actions-plugins.png",
+      "sourcePage": "https://help.figma.com/hc/en-us/articles/360042532714-Use-plugins-in-files",
+      "section": "Run plugins from Figma Slides",
+      "imageUrl": "https://help.figma.com/hc/article_attachments/30241069264535",
+      "product": "Figma Slides",
+      "theme": "light",
+      "shows": "底部工具条「Actions」打开的插件面板：搜索框、All / Plugins 页签与类型筛选、Suggested 分组，每个插件一行（图标 + 名称 + 一句说明 + 用户数），工具条上 Actions 按钮为品牌色按下态",
+      "retrieved": "2026-10-14",
+      "width": 1920,
+      "height": 1480,
+      "format": "png"
+    },
+    {
+      "file": "02-slides-poll-properties.png",
+      "sourcePage": "https://help.figma.com/hc/en-us/articles/24246820870807-Add-live-interactions-to-slides",
+      "section": "Add live interactions to a slide",
+      "imageUrl": "https://help.figma.com/hc/article_attachments/43513159692567",
+      "product": "Figma Slides",
+      "theme": "light",
+      "shows": "在幻灯片上插入并选中「Poll」（现场投票）后的编辑器：右侧属性栏保持常规宽度与 Design / Animate 页签，只出「Interaction › Poll」一节（Color 下拉、Background 开关、重置）与一段「Live interaction」说明；问题与选项在画布对象上直接填写",
+      "retrieved": "2026-10-14",
+      "width": 2752,
+      "height": 1548,
+      "format": "png",
+      "sourceFormat": "gif",
+      "frame": 80,
+      "frameCount": 89,
+      "frameNote": "GIF 2752×1548 共 89 帧，第 80 帧为投票已选中、属性栏展开的画面（首帧是空白页，不对应样张状态）"
+    },
+    {
+      "file": "03-design-tools-panel.png",
+      "sourcePage": "https://help.figma.com/hc/en-us/articles/43029048128023-Manage-generative-plugins-as-a-creator",
+      "section": "Find your generative plugin",
+      "imageUrl": "https://help.figma.com/hc/article_attachments/43072374995223",
+      "product": "Figma Design",
+      "theme": "light",
+      "shows": "导航栏「Tools」页签的左侧面板：标题 Tools + Create ▾，搜索与筛选（Created by you ▾、Category ▾），「我的插件」列表每行只有缩略图标、名称与一行来源，操作收在悬停才出现的「⋯」里；行间无分隔线",
+      "retrieved": "2026-10-14",
+      "width": 1920,
+      "height": 1080,
+      "format": "png"
+    },
+    {
+      "file": "04-devmode-plugins-tab.png",
+      "sourcePage": "https://help.figma.com/hc/en-us/articles/360042532714-Use-plugins-in-files",
+      "section": "Run plugins while in Dev Mode",
+      "imageUrl": "https://help.figma.com/hc/article_attachments/24146048593431",
+      "product": "Figma Design（Dev Mode）",
+      "theme": "light",
+      "shows": "Dev Mode 右侧栏的「Plugins」页签（与 Inspect 并列，栏宽不变、顶部协作行不动）：搜索、Recents and saved ▾，Recents / Saved / From Community 三段之间各一条分隔线，段内行无分隔；个人插件行只有图标、名称与「⋯」（已保存的多一个书签）",
+      "retrieved": "2026-10-14",
+      "width": 960,
+      "height": 960,
+      "format": "png"
+    },
+    {
+      "file": "05-sync-conflict-toast.png",
+      "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+      "section": "Version history",
+      "imageUrl": "https://help.figma.com/hc/article_attachments/360092773874",
+      "product": "Figma Design",
+      "theme": "light",
+      "shows": "Figma 的问题通知（轻提示）：亮色界面里用反色深底，只有「!」图标表明性质，一句话写明发生了什么与后果，右侧 Dismiss / Review 两个文字按钮上下叠放；帮助文档把它单独放在绿色衬底上。另据 Use plugins in files（Plugin security 一节）：插件运行期间 Figma 也是在文件底部显示轻提示",
+      "retrieved": "2026-10-14",
+      "width": 1000,
+      "height": 600,
+      "format": "png"
+    }
+  ]
+}

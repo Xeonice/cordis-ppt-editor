@@ -1,0 +1,300 @@
+{
+  "$comment": "由 docs/_tools/check-doc-refs.py --write-baseline 生成，勿手改。G5 文档引用反查的棘轮基线：entries[文件][类别][引用] = 失配次数（不含行号）；类别 req 需求编号、rest REST 路由、errcode 错误码、screen 界面、adr ADR、ruling 裁决小节。新增失配即失败，已消失的失配须重新 --write-baseline 收紧；只减不增，由变更 docs-coverage-baseline 清零（docs/80-process/02 §3）。",
+  "total": 178,
+  "byCategory": {
+    "rest": 24,
+    "errcode": 154
+  },
+  "entries": {
+    "docs/00-charter/charter.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/10-prd/05-milestones-and-scope.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/10-prd/README.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/20-design/03-screens/13-import-progress-and-degraded-states.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/30-architecture/04-document-model.md": {
+      "errcode": {
+        "format.pptx.signature_invalidated": 1
+      }
+    },
+    "docs/30-architecture/06-collaboration.md": {
+      "errcode": {
+        "store.snapshot_import_on_nonempty": 1
+      }
+    },
+    "docs/30-architecture/07-rendering.md": {
+      "errcode": {
+        "render.renderer_missing": 1
+      }
+    },
+    "docs/30-architecture/10-observability-and-errors.md": {
+      "errcode": {
+        "kernel.config_invalid": 1,
+        "kernel.cordis_error": 1,
+        "store.target_missing": 1
+      }
+    },
+    "docs/30-architecture/adr/0016-doc-type-blindness-verification.md": {
+      "errcode": {
+        "format.no_document_type": 2
+      }
+    },
+    "docs/30-architecture/adr/0025-update-persistence-and-compaction.md": {
+      "rest": {
+        "GET /snapshots/latest": 1
+      }
+    },
+    "docs/30-architecture/adr/0038-version-restore-undo.md": {
+      "rest": {
+        "POST /documents/:param/snapshots/:param/revert": 1
+      }
+    },
+    "docs/40-modules/00-module-map.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/40-modules/01-tooling-and-governance.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    },
+    "docs/40-modules/02-kernel-protocol-and-document-core.md": {
+      "errcode": {
+        "collab.server.room_full": 1,
+        "command.invalid_params": 1,
+        "command.not_applicable": 3,
+        "command.not_found": 2,
+        "command.permission_denied": 1,
+        "command.unit_not_found": 3,
+        "format.no_document_type": 6,
+        "format.unsupported_mime": 1,
+        "store.import_append_conflict": 1,
+        "store.nested_transaction": 1
+      }
+    },
+    "docs/40-modules/04-ooxml-format-and-pptx-codec.md": {
+      "errcode": {
+        "format.broken_relationship": 1,
+        "format.missing_part": 1,
+        "format.no_document_type": 2,
+        "format.pptx.chart_cache_missing": 2,
+        "format.pptx.chart_workbook_dropped": 1,
+        "format.pptx.chartex_unsupported": 4,
+        "format.pptx.diagram_drawing_missing": 2,
+        "format.pptx.embedded_font_render_only": 1,
+        "format.pptx.embedded_font_skipped": 1,
+        "format.pptx.id_collision_repaired": 2,
+        "format.pptx.placeholder_unresolved": 1,
+        "format.pptx.signature_invalidated": 3,
+        "format.pptx.strict_fallback_transitional": 2,
+        "format.pptx.strict_normalized": 1,
+        "format.pptx.timing_ref_removed": 1,
+        "format.pptx.unsupported_part": 1,
+        "format.unsupported_conformance": 1,
+        "format.unsupported_mime": 8,
+        "format.zip_limit_exceeded": 1
+      }
+    },
+    "docs/40-modules/05-collaboration-client.md": {
+      "errcode": {
+        "collab.auth_failed": 1,
+        "collab.offline_quota_exceeded": 1
+      }
+    },
+    "docs/40-modules/06-layout-and-render-engine.md": {
+      "errcode": {
+        "layout.geometry_formula_error": 1,
+        "layout.measurer_missing": 1,
+        "render.dom.font_load_failed": 1,
+        "render.renderer_missing": 1
+      }
+    },
+    "docs/40-modules/08-server-identity-documents-and-storage.md": {
+      "rest": {
+        "PATCH /documents/:param{pinned}": 1,
+        "POST /:param/collab-ticket": 1,
+        "POST /storage/presign": 2
+      }
+    },
+    "docs/40-modules/09-server-collab-gateway-and-headless-host.md": {
+      "errcode": {
+        "collab.server.*": 2,
+        "headless.decode_failed": 2,
+        "headless.zip_limit_exceeded": 2
+      }
+    },
+    "docs/40-modules/11-preset-assembly-and-app-shell.md": {
+      "rest": {
+        "GET /imports/:param": 1,
+        "GET /internal/render/:param/state": 1
+      },
+      "errcode": {
+        "format.no_codec": 1
+      }
+    },
+    "docs/40-modules/12-server-jobs-comments-and-ops.md": {
+      "rest": {
+        "GET /imports/:param": 2,
+        "GET /internal/render/:param/state": 2
+      },
+      "errcode": {
+        "server.webhook": 1
+      }
+    },
+    "docs/40-modules/13-doc-sheet-extension-skeleton.md": {
+      "errcode": {
+        "format.docx.*": 1,
+        "format.no_document_type": 2
+      }
+    },
+    "docs/40-modules/14-cross-module-review.md": {
+      "rest": {
+        "GET /templates": 2,
+        "POST /documents{template}": 2
+      },
+      "errcode": {
+        "format.no_document_type": 10,
+        "format.pptx.signature_invalidated": 3,
+        "format.zip_limit_exceeded": 1
+      }
+    },
+    "docs/40-modules/16-plugin-catalog.md": {
+      "errcode": {
+        "format.no_document_type": 2
+      }
+    },
+    "docs/40-modules/17-plugin-authoring-patterns.md": {
+      "errcode": {
+        "command.permission_denied": 1,
+        "format.no_document_type": 1
+      }
+    },
+    "docs/40-modules/19-atlas-backend-and-data.md": {
+      "rest": {
+        "GET /imports/:param": 1,
+        "POST /storage/presign": 2
+      }
+    },
+    "docs/50-frontend/01-overview-and-runtime-map.md": {
+      "errcode": {
+        "render.element_failed": 1,
+        "render.renderer_missing": 1,
+        "store.unavailable": 1
+      }
+    },
+    "docs/50-frontend/02-app-shell-routing-and-session.md": {
+      "rest": {
+        "GET /imports/:param": 1
+      }
+    },
+    "docs/50-frontend/03-preset-assembly-and-plugins.md": {
+      "errcode": {
+        "format.no_codec": 1,
+        "format.no_document_type": 2,
+        "store.unavailable": 2
+      }
+    },
+    "docs/50-frontend/04-document-commands-and-undo.md": {
+      "errcode": {
+        "command.handler_failed": 1,
+        "command.invalid_params": 1,
+        "command.mutation_rejected": 1,
+        "command.not_applicable": 2,
+        "command.not_found": 1,
+        "command.permission_denied": 1,
+        "command.unit_not_found": 2,
+        "command.vetoed": 2,
+        "format.no_document_type": 1,
+        "store.import_append_conflict": 1
+      }
+    },
+    "docs/50-frontend/05-rendering-and-thumbnails.md": {
+      "errcode": {
+        "render.dom.media_decode_failed": 1,
+        "render.element_failed": 1,
+        "render.frame_overrun": 1,
+        "render.renderer_missing": 1,
+        "render.target_missing": 1
+      }
+    },
+    "docs/50-frontend/07-collaboration-client.md": {
+      "errcode": {
+        "collab.offline_quota_exceeded": 1,
+        "transport.closed_by_server": 1
+      }
+    },
+    "docs/50-frontend/15-events-errors-and-telemetry.md": {
+      "errcode": {
+        "transport.*": 1
+      }
+    },
+    "docs/50-frontend/16-i18n-and-accessibility.md": {
+      "errcode": {
+        "transport.*": 1
+      }
+    },
+    "docs/60-backend/04-modules-documents-storage-media.md": {
+      "rest": {
+        "POST /storage/presign": 1
+      },
+      "errcode": {
+        "server.documents.purge_incomplete": 3,
+        "storage.key_rejected": 2
+      }
+    },
+    "docs/60-backend/06-modules-jobs-import-export-thumbnails.md": {
+      "rest": {
+        "GET /imports/:param": 2,
+        "GET /internal/render/:param/state": 1
+      },
+      "errcode": {
+        "headless.decode_failed": 2,
+        "headless.zip_limit_exceeded": 2
+      }
+    },
+    "docs/60-backend/16-ws-protocol-server-view.md": {
+      "errcode": {
+        "collab.server.room_full": 1
+      }
+    },
+    "docs/70-testing/02-contract-suites-and-pluggability.md": {
+      "errcode": {
+        "collab.offline_quota_exceeded": 1,
+        "command.permission_denied": 1,
+        "format.no_document_type": 2,
+        "store.import_append_conflict": 1,
+        "store.unavailable": 1
+      }
+    },
+    "docs/70-testing/03-fidelity-roundtrip-and-corpus.md": {
+      "errcode": {
+        "format.pptx.strict_fallback_transitional": 1
+      }
+    },
+    "docs/70-testing/07-backend-integration-and-api-e2e.md": {
+      "errcode": {
+        "server.documents.purge_incomplete": 1
+      }
+    },
+    "docs/70-testing/13-requirements-traceability.md": {
+      "errcode": {
+        "format.no_document_type": 1
+      }
+    }
+  }
+}

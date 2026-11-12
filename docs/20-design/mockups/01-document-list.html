@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 文档列表 · Cordex Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .brand{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:var(--cordex-font-size-md);color:var(--cordex-color-text-primary);white-space:nowrap}
+  .brand .icon{color:var(--cordex-color-accent-default)}
+  .search-wrap{display:flex;align-items:center;gap:6px;flex:1;max-width:360px;height:var(--cordex-control-height-md);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-md);background:var(--cordex-color-bg-inset);padding:0 var(--cordex-space-2)}
+  .search-wrap .icon{color:var(--cordex-color-text-tertiary);flex-shrink:0}
+  .search-wrap input{flex:1;min-width:0;border:none;background:none;height:100%;font-size:var(--cordex-font-size-sm)}
+  .toolbar-row{display:flex;align-items:center;gap:var(--cordex-space-3);padding:var(--cordex-space-3) var(--cordex-space-4);flex-wrap:wrap}
+  .filter-grp{display:flex;gap:6px;flex-wrap:wrap}
+  main.list{padding:0 var(--cordex-space-4) var(--cordex-space-10)}
+  .doc-card{position:relative}
+  .card-open{display:block;width:100%;text-align:left;border:none;background:none;padding:0;border-radius:inherit;cursor:pointer}
+  .card-open:hover .mini-slide-area{background:var(--cordex-color-bg-hover)}
+  .mini-slide-area{aspect-ratio:4/3;background:var(--cordex-color-bg-inset);display:flex;align-items:center;justify-content:center}
+  .mini-slide{width:74%;background:var(--cordex-color-doc-paper);border-radius:2px;padding:9% 8%;box-shadow:var(--cordex-shadow-sm)}
+  .mini-title{height:6px;width:60%;border-radius:2px;background:var(--cordex-color-accent-subtle);margin-bottom:6px}
+  .mini-line{height:3px;border-radius:2px;background:var(--cordex-color-border-default);margin-top:4px}
+  .doc-card .avatar{width:20px;height:20px;font-size:var(--cordex-font-size-2xs);margin-left:-6px}
+  .doc-card .avatar:first-child{margin-left:0}
+  .card-more{position:absolute;top:8px;right:8px;background:var(--cordex-color-bg-surface-raised);box-shadow:var(--cordex-shadow-sm)}
+  .card-menu{position:absolute;top:40px;right:8px;width:176px}
+  .demo-section{max-width:640px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4)}
+  .demo-section h2{font-size:var(--cordex-font-size-lg);margin:0 0 var(--cordex-space-3)}
+  .demo-section .empty-state{border:1px dashed var(--cordex-color-border-default);border-radius:var(--cordex-radius-lg)}
+</style>
+</head>
+<body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
+<a class="skip-link" href="#doc-grid-main">跳至文档列表</a>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-logo" viewBox="0 0 16 16"><rect x="1.7" y="2.7" width="12.6" height="10.6" rx="2.4"/><path d="M4.3 9.3 6.8 6.3l1.9 2 2.7-3.3"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.3"/><line x1="10.1" y1="10.1" x2="14" y2="14"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><line x1="8" y1="2.5" x2="8" y2="13.5"/><line x1="2.5" y1="8" x2="13.5" y2="8"/></symbol>
+<symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 10.3V2M5,4.6 8,1.6 11,4.6"/><path d="M2.5 9.5v3a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5v-3"/></symbol>
+<symbol id="i-more" viewBox="0 0 16 16"><circle cx="8" cy="3.2" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="8" cy="12.8" r="1"/></symbol>
+<symbol id="i-blank" viewBox="0 0 16 16"><rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.3" stroke-dasharray="2.6 2.2"/></symbol>
+<symbol id="i-edit" viewBox="0 0 16 16"><path d="M10.3 2.7 13.3 5.7 5.6 13.4 2 14l.6-3.6Z"/><line x1="9" y1="4" x2="12" y2="7"/></symbol>
+<symbol id="i-share" viewBox="0 0 16 16"><circle cx="12.3" cy="3.7" r="1.7"/><circle cx="3.7" cy="8" r="1.7"/><circle cx="12.3" cy="12.3" r="1.7"/><line x1="5.3" y1="7.1" x2="10.7" y2="4.6"/><line x1="5.3" y1="8.9" x2="10.7" y2="11.4"/></symbol>
+<symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8.5" rx="1.2"/><path d="M3.2 10.2h-.7a1.2 1.2 0 0 1-1.2-1.2V2.7a1.2 1.2 0 0 1 1.2-1.2H9a1.2 1.2 0 0 1 1.2 1.2v.8"/></symbol>
+<symbol id="i-trash" viewBox="0 0 16 16"><line x1="2.5" y1="4.3" x2="13.5" y2="4.3"/><path d="M4.5 4.3V2.8a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1.5"/><path d="M5 4.3v8.2a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4.3"/><line x1="8" y1="6.8" x2="8" y2="11"/></symbol>
+</svg>
+
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">01 · 文档列表（应用壳）</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" aria-pressed="false" onclick="toggleTheme(this)">暗色主题</button>
+</div>
+
+<header class="app-bar">
+  <span class="brand"><svg class="icon lg" aria-hidden="true"><use href="#i-logo"/></svg>Cordex Slides</span>
+  <div class="search-wrap">
+    <label class="vis-hidden-label" for="doc-search">搜索文档</label>
+    <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+    <input id="doc-search" type="text" placeholder="搜索文档…">
+  </div>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-icon" aria-label="账户与设置"><span class="avatar self" aria-hidden="true">我</span></button>
+</header>
+
+<div class="toolbar-row">
+  <div class="filter-grp" role="group" aria-label="文档筛选">
+    <button type="button" class="chip" aria-pressed="true" onclick="setFilter(this)">全部</button>
+    <button type="button" class="chip" aria-pressed="false" onclick="setFilter(this)">我拥有</button>
+    <button type="button" class="chip" aria-pressed="false" onclick="setFilter(this)">共享给我</button>
+    <button type="button" class="chip" aria-pressed="false" onclick="setFilter(this)">最近</button>
+  </div>
+  <span class="spacer"></span>
+  <div style="position:relative">
+    <button type="button" class="btn btn-primary" id="new-btn" aria-haspopup="menu" aria-expanded="false" onclick="toggleMenu(this,'new-menu')"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建▾</button>
+    <div class="menu" role="menu" id="new-menu" aria-labelledby="new-btn" hidden style="position:absolute;top:calc(100% + 4px);right:0">
+      <button type="button" class="menu-item" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-blank"/></svg>空白文档</button>
+      <button type="button" class="menu-item" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-logo"/></svg>从模板新建…</button>
+    </div>
+  </div>
+  <button type="button" class="btn"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>导入 .pptx</button>
+</div>
+
+<main id="doc-grid-main" class="list">
+  <div class="doc-grid">
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“季度汇报.pptx”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title"></div><div class="mini-line" style="width:82%"></div><div class="mini-line" style="width:55%"></div></div></div>
+        <div class="info"><div class="title">季度汇报.pptx</div><div class="meta">我 · 2小时前</div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" id="more-1" aria-label="更多操作：季度汇报.pptx" aria-haspopup="menu" aria-expanded="true" onclick="toggleMenu(this,'menu-1')"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+      <div class="menu card-menu" role="menu" id="menu-1" aria-label="季度汇报.pptx 的操作菜单">
+        <button type="button" class="menu-item" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-edit"/></svg>重命名</button>
+        <button type="button" class="menu-item" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>分享</button>
+        <button type="button" class="menu-item" role="menuitem"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>查看副本</button>
+        <div class="menu-sep"></div>
+        <button type="button" class="menu-item" role="menuitem" style="color:var(--cordex-color-danger-emphasis)"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>移动到回收站</button>
+      </div>
+    </div>
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“产品路线图”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title" style="width:44%"></div><div class="mini-line" style="width:70%"></div><div class="mini-line" style="width:40%"></div><div class="mini-line" style="width:60%"></div></div></div>
+        <div class="info"><div class="title">产品路线图</div><div class="meta"><span class="avatar-stack" aria-label="另有 2 位协作者：王小明、李雷" style="margin-right:4px"><span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span><span class="avatar" style="--presence:var(--cordex-color-presence-3)" title="李雷">李</span></span>我+2人 · 昨天</div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" aria-label="更多操作：产品路线图" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+    </div>
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“设计评审”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title" style="width:70%"></div><div class="mini-line" style="width:75%"></div></div></div>
+        <div class="info"><div class="title">设计评审</div><div class="meta">王小明 · 3天前 <span class="badge" style="margin-left:2px">仅查看</span></div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" aria-label="更多操作：设计评审" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+    </div>
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“招聘计划”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title"></div><div class="mini-line" style="width:66%"></div><div class="mini-line" style="width:48%"></div></div></div>
+        <div class="info"><div class="title">招聘计划</div><div class="meta">我 · 上周</div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" aria-label="更多操作：招聘计划" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+    </div>
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“年度述职模板”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title" style="width:70%"></div><div class="mini-line" style="width:60%"></div></div></div>
+        <div class="info"><div class="title">年度述职模板</div><div class="meta">我 · 1个月前</div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" aria-label="更多操作：年度述职模板" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+    </div>
+
+    <div class="doc-card">
+      <button type="button" class="card-open" aria-label="打开“华东区客户提案”">
+        <div class="mini-slide-area"><div class="mini-slide"><div class="mini-title" style="width:50%"></div><div class="mini-line" style="width:78%"></div><div class="mini-line" style="width:52%"></div></div></div>
+        <div class="info"><div class="title">华东区客户提案</div><div class="meta">李雷 · 5天前</div></div>
+      </button>
+      <button type="button" class="btn btn-icon btn-sm card-more" aria-label="更多操作：华东区客户提案" aria-haspopup="menu" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+    </div>
+
+  </div>
+
+  <div class="demo-section">
+    <h2>附：空状态</h2>
+    <div class="empty-state">
+      <svg class="icon lg" aria-hidden="true"><use href="#i-blank"/></svg>
+      <h3>这里还没有任何文档</h3>
+      <p>新建一份幻灯片，或导入已有的 .pptx 文件开始</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:var(--cordex-space-3);flex-wrap:wrap">
+        <button type="button" class="btn btn-primary"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建空白文档</button>
+        <button type="button" class="btn"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>导入 .pptx</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-section" style="margin-top:var(--cordex-space-6);margin-bottom:var(--cordex-space-10)">
+    <h2>附：搜索无结果</h2>
+    <div class="empty-state">
+      <svg class="icon lg" aria-hidden="true"><use href="#i-search"/></svg>
+      <h3>没有找到与“预算”相关的文档</h3>
+      <p>检查拼写，或尝试其他关键词</p>
+    </div>
+  </div>
+</main>
+
+<div class="toast-region" aria-live="polite"></div>
+<script>
+  function toggleTheme(btn){var r=document.documentElement;var d=r.getAttribute('data-theme');r.setAttribute('data-theme', d==='dark'?'light':'dark');if(btn)btn.setAttribute('aria-pressed', r.getAttribute('data-theme')==='dark');}
+  function setFilter(btn){document.querySelectorAll('.filter-grp .chip').forEach(function(b){b.setAttribute('aria-pressed','false');});btn.setAttribute('aria-pressed','true');}
+  function toggleMenu(btn,id){
+    var m=document.getElementById(id);
+    var willOpen=m.hidden;
+    document.querySelectorAll('.menu[role="menu"]').forEach(function(x){x.hidden=true;});
+    document.querySelectorAll('[aria-haspopup="menu"]').forEach(function(b){b.setAttribute('aria-expanded','false');});
+    m.hidden=!willOpen;
+    btn.setAttribute('aria-expanded', String(willOpen));
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26 母版视图 · Cordex Slides 设计稿</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  .canvas{width:min(100%,680px);}
+  .scope-bar{display:flex;align-items:center;gap:var(--cordex-space-4);padding:6px var(--cordex-space-4);background:var(--cordex-color-accent-subtle);font-size:var(--cordex-font-size-xs);color:var(--cordex-color-accent-hover);border-bottom:1px solid var(--cordex-color-border-subtle);flex-wrap:wrap}
+  .scope-bar .radio-grp{display:flex;gap:2px;background:var(--cordex-color-bg-surface);border-radius:var(--cordex-radius-md);padding:2px}
+  .scope-bar .radio-grp button{min-height:24px;padding:0 10px;border-radius:var(--cordex-radius-sm);border:none;background:none;font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-secondary)}
+  .scope-bar .radio-grp button[aria-pressed="true"]{background:var(--cordex-color-accent-default);color:#fff;font-weight:600}
+  .legend{display:flex;gap:var(--cordex-space-4);font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-secondary)}
+  .legend .sw{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  .thumb-body-line{height:4px;border-radius:2px;background:var(--cordex-color-border-default);margin-top:4px}
+  .thumb-title-bar{height:7px;border-radius:2px;background:var(--cordex-color-accent-subtle)}
+  .layout-lv{font-size:clamp(9px,1.6vw,11px);color:var(--cordex-color-text-secondary);margin:0 0 4px 0}
+  .layout-lv b{color:var(--cordex-color-text-primary)}
+</style>
+</head>
+<body data-density="compact">
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
+<a class="skip-link" href="#canvas-main">跳至画布</a>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-menu" viewBox="0 0 16 16"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></symbol>
+<symbol id="i-close" viewBox="0 0 16 16"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></symbol>
+<symbol id="i-share" viewBox="0 0 16 16"><circle cx="12.3" cy="3.7" r="1.7"/><circle cx="3.7" cy="8" r="1.7"/><circle cx="12.3" cy="12.3" r="1.7"/><line x1="5.3" y1="7.1" x2="10.7" y2="4.6"/><line x1="5.3" y1="8.9" x2="10.7" y2="11.4"/></symbol>
+<symbol id="i-more" viewBox="0 0 16 16"><circle cx="8" cy="3.2" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="8" cy="12.8" r="1"/></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 16 16"><polyline points="3,6 8,11 13,6"/></symbol>
+<symbol id="i-layout" viewBox="0 0 16 16"><rect x="1.7" y="2.7" width="12.6" height="10.6" rx="1.2"/><line x1="1.7" y1="6" x2="14.3" y2="6"/><line x1="6.2" y1="6" x2="6.2" y2="13.3"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><line x1="8" y1="2.5" x2="8" y2="13.5"/><line x1="2.5" y1="8" x2="13.5" y2="8"/></symbol>
+<symbol id="i-palette" viewBox="0 0 16 16"><path d="M8 1.7a6.3 6.3 0 1 0 0 12.6c.9 0 1.4-.5 1.4-1.2 0-.4-.2-.7-.2-1.1 0-.6.5-1 1.1-1H11a3.3 3.3 0 0 0 3.3-3.3c0-3.3-2.9-6-6.3-6Z"/><circle cx="4.8" cy="7.2" r=".8" fill="currentColor" stroke="none"/><circle cx="7" cy="4.7" r=".8" fill="currentColor" stroke="none"/><circle cx="10" cy="5.3" r=".8" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-typeface" viewBox="0 0 16 16"><text x="1.2" y="12.3" font-size="11.5" font-weight="700" fill="currentColor" stroke="none">Aa</text></symbol>
+<symbol id="i-swap" viewBox="0 0 16 16"><path d="M2 5.5h9.5"/><polyline points="8.5,2.5 11.5,5.5 8.5,8.5"/><path d="M14 10.5H4.5"/><polyline points="7.5,13.5 4.5,10.5 7.5,7.5"/></symbol>
+<symbol id="i-reset" viewBox="0 0 16 16"><path d="M13.4 8A5.4 5.4 0 1 1 11.7 4"/><polyline points="13.6,1.6 13.4,4.9 10.1,4.6"/></symbol>
+<symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 16 16"><path d="M2 2l12 12"/><path d="M6.6 3.5A7.7 7.7 0 0 1 8 3.2c4.2 0 6.7 4.8 6.7 4.8a13.6 13.6 0 0 1-2.6 3.3M4.4 4.9C2.4 6.2 1.3 8 1.3 8s2.5 4.8 6.7 4.8a6.9 6.9 0 0 0 2.3-.4"/></symbol>
+<symbol id="i-question" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6.1 6.2a2 2 0 1 1 2.9 1.8c-.7.4-1 .8-1 1.6"/><circle cx="8" cy="11.4" r=".4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-trash" viewBox="0 0 16 16"><line x1="2.5" y1="4.3" x2="13.5" y2="4.3"/><path d="M5 4.3v8.2a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4.3"/><path d="M4.5 4.3V2.8a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v1.5"/></symbol>
+</svg>
+
+<div id="shell">
+<div class="mock-toolbar" role="toolbar" aria-label="设计稿查看控件（非产品界面）">
+  <a class="back" href="index.html">← 返回设计稿目录</a>
+  <span class="title">26 · 母版视图（M2 P0）</span>
+  <span class="spacer"></span>
+  <button type="button" class="pbtn" aria-pressed="false" onclick="toggleTheme()">暗色主题</button>
+  <a class="crumblink" style="font-size:11px;color:var(--cordex-color-accent-default)" href="27-layout-picker-and-reset.html">↗ 版式选择器稿</a>
+  <a class="crumblink" style="font-size:11px;color:var(--cordex-color-accent-default)" href="28-design-tab-and-themes.html">↗ 设计/主题稿</a>
+</div>
+
+<header class="app-bar">
+  <button type="button" class="btn btn-icon" aria-label="返回文档列表"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+  <span class="doc-title">2026年Q2业绩汇报.pptx</span>
+  <span class="badge accent"><svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#i-master"/></svg>母版视图</span>
+  <span class="saved-state warn">改动将影响 4 个使用此版式的页面</span>
+  <div class="avatar-stack" aria-label="协作者：我、王小明">
+    <span class="avatar self" title="我">我</span>
+    <span class="avatar" style="--presence:var(--cordex-color-presence-6)" title="王小明">王</span>
+  </div>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-sm"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>分享</button>
+  <a class="btn btn-primary btn-sm" href="02-editor-main.html"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>关闭母版视图</a>
+</header>
+
+<nav class="ribbon" aria-label="功能区 · 母版">
+  <div class="ribbon-tabs" role="tablist" aria-label="功能区页签">
+    <button type="button" class="ribbon-tab master-mode" role="tab" aria-selected="true" tabindex="0"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg>母版</button>
+  </div>
+  <div class="ribbon-groups" role="tabpanel">
+    <div class="ribbon-group"><div class="ribbon-row">
+      <button type="button" class="ribbon-btn" aria-label="插入占位符"><svg class="icon" aria-hidden="true"><use href="#i-layout"/></svg>插入占位符▾</button>
+      <button type="button" class="ribbon-btn" aria-label="插入版式（在当前母版下新建）"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>插入版式</button>
+      <button type="button" class="ribbon-btn" aria-label="删除版式"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>删除版式</button>
+    </div><span class="label">编辑</span></div>
+    <div class="ribbon-group"><div class="ribbon-row">
+      <button type="button" class="ribbon-btn"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg>母版版式▾</button>
+      <button type="button" class="ribbon-btn">重命名</button>
+    </div><span class="label">母版版式</span></div>
+    <div class="ribbon-group"><div class="ribbon-row">
+      <button type="button" class="ribbon-btn"><span class="swatch" style="width:14px;height:14px;background:var(--cordex-color-accent-default)"></span>背景样式▾</button>
+      <button type="button" class="ribbon-btn" aria-label="隐藏背景图形" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-eye-off"/></svg></button>
+    </div><span class="label">背景</span></div>
+    <div class="ribbon-group"><div class="ribbon-row">
+      <button type="button" class="ribbon-btn"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg>颜色▾</button>
+      <button type="button" class="ribbon-btn"><svg class="icon" aria-hidden="true"><use href="#i-typeface"/></svg>字体▾</button>
+      <a class="ribbon-btn" href="28-design-tab-and-themes.html">编辑主题…</a>
+    </div><span class="label">主题</span></div>
+    <span class="spacer"></span>
+    <div class="ribbon-group" style="border-right:none"><div class="ribbon-row">
+      <a class="btn btn-sm" href="02-editor-main.html"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>关闭母版视图</a>
+    </div></div>
+  </div>
+</nav>
+
+<div class="main-layout">
+  <aside class="thumb-rail" style="width:196px" aria-label="母版与版式">
+    <div class="rail-mode-switch" role="tablist" aria-label="侧栏模式">
+      <a role="tab" aria-selected="false" href="02-editor-main.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;border-radius:var(--cordex-radius-sm);font-size:var(--cordex-font-size-2xs)">普通</a>
+      <button type="button" role="tab" aria-pressed="true" aria-selected="true">母版</button>
+    </div>
+    <nav class="tree" aria-label="母版树">
+      <div class="tree-node">
+        <button type="button" class="tree-row tree-master-row" aria-expanded="true" aria-label="公司主题母版，6 个版式，共 12 页引用">
+          <svg class="icon twisty" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          <span class="swatch-mini" style="background:linear-gradient(135deg,var(--cordex-color-accent-subtle),var(--cordex-color-bg-surface))"></span>
+          <span class="name">公司主题</span>
+        </button>
+        <div class="meta" style="padding-left:38px;margin:-2px 0 2px;color:var(--cordex-color-text-tertiary)">6 版式 · 12 页引用</div>
+        <div class="tree-children">
+          <button type="button" class="tree-row"><span class="swatch-mini"><span class="thumb-title-bar" style="position:absolute;inset:3px 3px auto;height:5px"></span></span><span class="name">标题幻灯片</span><span class="meta badge">1 页</span></button>
+          <button type="button" class="tree-row" aria-current="true" aria-selected="true"><span class="swatch-mini"><span class="thumb-title-bar" style="position:absolute;inset:2px 3px auto;height:4px"></span><span class="thumb-body-line" style="position:absolute;top:9px;left:3px;right:3px"></span></span><span class="name">标题和内容</span><span class="meta badge accent">4 页</span></button>
+          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">两栏内容</span><span class="meta badge">2 页</span></button>
+          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">仅标题</span><span class="meta badge">2 页</span></button>
+          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name">章节标题</span><span class="meta badge">2 页</span></button>
+          <button type="button" class="tree-row"><span class="swatch-mini"></span><span class="name" style="color:var(--cordex-color-text-tertiary)">空白</span><span class="meta" style="color:var(--cordex-color-text-tertiary)">未使用</span></button>
+        </div>
+      </div>
+      <div class="tree-node">
+        <button type="button" class="tree-row tree-master-row" aria-expanded="false" aria-label="简约主题母版（导入），4 个版式，共 1 页引用">
+          <svg class="icon twisty" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+          <span class="swatch-mini" style="background:var(--cordex-color-bg-inset)"></span>
+          <span class="name">简约主题<span class="badge" style="margin-left:4px">导入</span></span>
+        </button>
+        <div class="meta" style="padding-left:38px;margin-top:-2px;color:var(--cordex-color-text-tertiary)">4 版式 · 1 页引用</div>
+      </div>
+    </nav>
+    <button type="button" class="thumb-new"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建母版</button>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0">
+    <div class="scope-bar">
+      <span>正在编辑：</span>
+      <div class="radio-grp" role="radiogroup" aria-label="编辑范围">
+        <button type="button" role="radio" aria-checked="true" aria-pressed="true" onclick="setScope(this,'版式')">版式</button>
+        <button type="button" role="radio" aria-checked="false" aria-pressed="false" onclick="setScope(this,'母版')">母版</button>
+      </div>
+      <strong id="scope-label">标题和内容 · 继承自「公司主题」</strong>
+      <span class="spacer"></span>
+      <span class="legend"><span><span class="sw" style="background:var(--cordex-color-accent-subtle);border:1px solid var(--cordex-color-accent-default)"></span>此版式定义</span><span><span class="sw" style="border:1.5px dashed var(--cordex-color-border-control)"></span>继承自母版</span></span>
+    </div>
+    <main id="canvas-main" class="canvas-viewport">
+      <div class="canvas" role="img" aria-label="“标题和内容”版式：标题与正文占位符由此版式定义；页脚、日期、页码占位符继承自公司主题母版">
+        <div class="shape shape--title placeholder-hint" style="top:8%;left:6%;width:64%;padding:4px 8px;border:1.5px solid var(--cordex-color-accent-default);border-radius:4px;background:var(--cordex-color-accent-subtle)">单击此处编辑母版标题样式</div>
+        <div style="position:absolute;top:26%;left:6%;width:78%;padding:6px 8px;border:1.5px solid var(--cordex-color-accent-default);border-radius:4px;background:var(--cordex-color-accent-subtle)">
+          <p class="layout-lv"><b>第一级</b>大纲文本样式</p>
+          <p class="layout-lv" style="margin-left:1.2em">第二级大纲文本样式</p>
+          <p class="layout-lv" style="margin-left:2.4em">第三级大纲文本样式</p>
+        </div>
+        <div class="shape from-master placeholder-hint" style="bottom:5%;left:6%;width:22%;font-size:9px">页脚占位符<span class="inherited-badge" style="position:static;display:inline-flex;margin-left:4px">母版</span></div>
+        <div class="shape from-master placeholder-hint" style="bottom:5%;left:42%;width:16%;font-size:9px;text-align:center">‹日期/时间›</div>
+        <div class="shape from-master placeholder-hint" style="bottom:5%;right:6%;width:10%;font-size:9px;text-align:right">‹#›</div>
+      </div>
+      <div class="zoom-bar"><button type="button" class="btn btn-icon btn-sm" aria-label="缩小">−</button><input type="range" min="10" max="400" value="90" style="width:120px" aria-label="缩放"><span>90%</span><button type="button" class="btn btn-icon btn-sm" aria-label="放大">+</button><button type="button" class="btn btn-sm">适应窗口▾</button></div>
+    </main>
+  </div>
+
+  <aside class="inspector-dock" aria-label="检查器坞：占位符属性">
+    <div class="dock-tabs" role="tablist" aria-label="检查器坞面板">
+      <button type="button" class="dock-tab" role="tab" aria-selected="true">属性</button>
+      <button type="button" class="dock-tab" role="tab" aria-selected="false" aria-disabled="true" title="母版视图不支持评论">评论</button>
+      <button type="button" class="dock-tab" role="tab" aria-selected="false" aria-disabled="true" title="母版视图不支持版本历史">历史</button>
+      <button type="button" class="dock-tab" role="tab" aria-selected="false" aria-disabled="true" title="母版视图不支持插件面板">插件</button>
+    </div>
+    <div class="dock-panel active">
+      <details class="prop-section" open><summary>占位符类型<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+        <p class="help-text" style="margin:0 0 6px">标题占位符 · type=title, idx=0</p>
+      </details>
+      <details class="prop-section" open><summary>位置与大小<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+        <div class="prop-row"><div class="field"><label for="mx">X</label><input id="mx" type="text" value="48"></div><div class="field"><label for="my">Y</label><input id="my" type="text" value="32"></div></div>
+        <div class="prop-row"><div class="field"><label for="mw">宽</label><input id="mw" type="text" value="620"></div><div class="field"><label for="mh">高</label><input id="mh" type="text" value="88"></div></div>
+      </details>
+      <details class="prop-section" open><summary>文本样式（大纲级别）<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
+        <div class="prop-row"><div class="field"><label for="lvl">级别</label><select id="lvl"><option>1 · 第一级</option><option>2 · 第二级</option><option>3 · 第三级</option></select></div></div>
+        <div class="prop-row"><div class="field"><label for="mf">字体</label><select id="mf"><option>系统 UI 字体</option></select></div><div class="field" style="max-width:56px"><label for="msz">字号</label><input id="msz" type="text" value="32"></div></div>
+        <div class="prop-row" style="align-items:center;gap:6px">
+          <span class="badge accent">已在此版式覆盖</span>
+          <button type="button" class="btn btn-sm" style="margin-left:auto"><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg>重置为母版值</button>
+        </div>
+      </details>
+      <details class="prop-section"><summary>填充<svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary></details>
+    </div>
+  </aside>
+</div>
+
+<footer class="status-bar">
+  <div class="grp"><span id="status-scope">编辑版式 · 标题和内容</span><span>未保存改动 · 影响 4 页</span></div>
+  <span class="spacer"></span>
+  <div class="grp"><button type="button" class="link"><svg class="icon" aria-hidden="true"><use href="#i-question"/></svg>关于母版继承</button></div>
+</footer>
+</div>
+<div class="toast-region" aria-live="polite"></div>
+<script>
+  function toggleTheme(){var r=document.documentElement;r.setAttribute('data-theme', r.getAttribute('data-theme')==='dark'?'light':'dark');}
+  function setScope(btn,label){document.querySelectorAll('.radio-grp button').forEach(function(b){b.setAttribute('aria-pressed','false');b.setAttribute('aria-checked','false');});btn.setAttribute('aria-pressed','true');btn.setAttribute('aria-checked','true');
+    document.getElementById('scope-label').textContent = label==='母版' ? '公司主题母版 · 全部版式的基准样式' : '标题和内容 · 继承自「公司主题」';
+    document.getElementById('status-scope').textContent = label==='母版' ? '编辑母版 · 公司主题' : '编辑版式 · 标题和内容';}
+</script>
+</body>
+</html>

@@ -1,0 +1,1658 @@
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
+<meta charset="utf-8">
+<title>Cordex 幻灯片编辑器</title>
+<style>
+  /* ============ v2 原型：token 体系（沿用 v1/04-design-system.md，2026-09-15）============ */
+  :root {
+    color-scheme: light;
+    --cordex-color-bg-canvas:#EDEFF3; --cordex-color-bg-surface:#FFFFFF; --cordex-color-bg-surface-raised:#FFFFFF;
+    --cordex-color-bg-inset:#F5F6F8; --cordex-color-bg-overlay-scrim:rgba(26,32,48,.45);
+    --cordex-color-bg-selected:#E8EAFD; --cordex-color-bg-hover:rgba(26,32,48,.06); --cordex-color-bg-active:rgba(26,32,48,.10);
+    --cordex-color-border-subtle:#E9EBEF; --cordex-color-border-default:#D7DBE2; --cordex-color-border-control:#8A93A2;
+    --cordex-color-border-strong:#8A93A2; --cordex-color-border-focus:#4A54E1;
+    --cordex-color-text-primary:#1A2030; --cordex-color-text-secondary:#4A5468; --cordex-color-text-tertiary:#667085;
+    --cordex-color-text-disabled:#8A93A2; --cordex-color-text-inverse:#FFFFFF; --cordex-color-text-link:#3A3FC4;
+    --cordex-color-accent-default:#4A54E1; --cordex-color-accent-hover:#3A3FC4; --cordex-color-accent-active:#2C2FA0;
+    --cordex-color-accent-subtle:#E8EAFD;
+    --cordex-color-success-default:#1E9E5A; --cordex-color-success-subtle:#E6F6ED; --cordex-color-success-emphasis:#146B3D;
+    --cordex-color-warning-default:#B76E00; --cordex-color-warning-subtle:#FFF4E0; --cordex-color-warning-emphasis:#8A5300;
+    --cordex-color-danger-default:#D92D20; --cordex-color-danger-subtle:#FDEAEA; --cordex-color-danger-emphasis:#A11C10;
+    --cordex-color-info-default:#1570CF; --cordex-color-info-subtle:#E7F1FE; --cordex-color-info-emphasis:#0C4A93;
+    --cordex-color-focus-ring:#4A54E1;
+    --cordex-color-presence-1:#8B5CF6; --cordex-color-presence-2:#DB2777; --cordex-color-presence-3:#D9480F;
+    --cordex-color-presence-4:#B45309; --cordex-color-presence-5:#0E8A7A; --cordex-color-presence-6:#0B7FBF;
+    --cordex-color-presence-7:#C026D3; --cordex-color-presence-8:#64748B; --cordex-color-presence-9:#7C3AED;
+    --cordex-color-presence-10:#BE185D; --cordex-color-presence-11:#C2410C; --cordex-color-presence-12:#0F766E;
+    --cordex-color-doc-paper:#FFFFFF; --cordex-color-doc-ink:#1A2030;
+    --cordex-color-stage-bg:#0A0A0A; --cordex-color-stage-chrome:rgba(22,22,22,.85); --cordex-color-stage-fg:#FFFFFF;
+    --cordex-space-1:.25rem; --cordex-space-2:.5rem; --cordex-space-3:.75rem; --cordex-space-4:1rem;
+    --cordex-space-5:1.25rem; --cordex-space-6:1.5rem; --cordex-space-8:2rem; --cordex-space-10:2.5rem;
+    --cordex-font-size-2xs:.6875rem; --cordex-font-size-xs:.75rem; --cordex-font-size-sm:.8125rem; --cordex-font-size-base:.875rem;
+    --cordex-font-size-md:1rem; --cordex-font-size-lg:1.125rem; --cordex-font-size-xl:1.25rem; --cordex-font-size-2xl:1.5rem;
+    --cordex-font-family-ui:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --cordex-font-family-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --cordex-radius-sm:4px; --cordex-radius-md:6px; --cordex-radius-lg:8px; --cordex-radius-xl:12px; --cordex-radius-full:9999px;
+    --cordex-shadow-sm:0 1px 2px rgba(16,24,40,.06);
+    --cordex-shadow-md:0 2px 8px rgba(16,24,40,.10); --cordex-shadow-lg:0 8px 24px rgba(16,24,40,.14);
+    --cordex-shadow-xl:0 16px 48px rgba(16,24,40,.18);
+    --cordex-z-canvas:0; --cordex-z-canvas-overlay:10; --cordex-z-chrome:20; --cordex-z-dropdown:100; --cordex-z-popover:110;
+    --cordex-z-sticky:120; --cordex-z-toast:300; --cordex-z-modal-backdrop:400; --cordex-z-modal:410; --cordex-z-command-palette:500;
+    --cordex-z-tooltip:600;
+    --cordex-motion-instant:80ms; --cordex-motion-fast:120ms; --cordex-motion-base:180ms; --cordex-motion-slow:240ms; --cordex-motion-slower:320ms;
+    --cordex-motion-ease:cubic-bezier(.2,0,0,1); --cordex-motion-ease-in:cubic-bezier(0,0,0,1); --cordex-motion-ease-out:cubic-bezier(.3,0,1,1);
+    --cordex-control-height-sm:28px; --cordex-control-height-md:32px; --cordex-control-height-lg:40px;
+    --cordex-target-min:24px; --cordex-target-touch:44px;
+    --cordex-ribbon-height:88px; --cordex-row-height:36px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --cordex-color-bg-canvas:#0B0F19; --cordex-color-bg-surface:#151A26; --cordex-color-bg-surface-raised:#1C2233;
+      --cordex-color-bg-inset:#0F1420; --cordex-color-bg-overlay-scrim:rgba(3,5,10,.6);
+      --cordex-color-bg-selected:#2B2A88; --cordex-color-bg-hover:rgba(255,255,255,.08); --cordex-color-bg-active:rgba(255,255,255,.14);
+      --cordex-color-border-subtle:#232A3B; --cordex-color-border-default:#323A4E; --cordex-color-border-control:#6B7689;
+      --cordex-color-border-strong:#7A8599; --cordex-color-border-focus:#7B82FF;
+      --cordex-color-text-primary:#F1F3F8; --cordex-color-text-secondary:#B7BEC9; --cordex-color-text-tertiary:#7C8697;
+      --cordex-color-text-disabled:#6B7689; --cordex-color-text-inverse:#101425; --cordex-color-text-link:#9CA4F5;
+      --cordex-color-accent-default:#6F79EE; --cordex-color-accent-hover:#8790F5; --cordex-color-accent-active:#9CA4F5;
+      --cordex-color-accent-subtle:#232A5E;
+      --cordex-color-success-default:#3BC682; --cordex-color-success-subtle:rgba(59,198,130,.16); --cordex-color-success-emphasis:#8DF0BB;
+      --cordex-color-warning-default:#E2A33D; --cordex-color-warning-subtle:rgba(226,163,61,.16); --cordex-color-warning-emphasis:#F3C578;
+      --cordex-color-danger-default:#F0685E; --cordex-color-danger-subtle:rgba(240,104,94,.16); --cordex-color-danger-emphasis:#F8A69F;
+      --cordex-color-info-default:#5AA6EE; --cordex-color-info-subtle:rgba(90,166,238,.16); --cordex-color-info-emphasis:#9AC8F5;
+      --cordex-color-focus-ring:#7B82FF;
+      --cordex-shadow-sm:0 0 0 1px var(--cordex-color-border-subtle);
+      --cordex-shadow-md:0 0 0 1px var(--cordex-color-border-default),0 2px 8px rgba(0,0,0,.4);
+      --cordex-shadow-lg:0 0 0 1px var(--cordex-color-border-default),0 8px 24px rgba(0,0,0,.5);
+      --cordex-shadow-xl:0 0 0 1px var(--cordex-color-border-default),0 16px 48px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --cordex-color-bg-canvas:#0B0F19; --cordex-color-bg-surface:#151A26; --cordex-color-bg-surface-raised:#1C2233;
+    --cordex-color-bg-inset:#0F1420; --cordex-color-bg-overlay-scrim:rgba(3,5,10,.6);
+    --cordex-color-bg-selected:#2B2A88; --cordex-color-bg-hover:rgba(255,255,255,.08); --cordex-color-bg-active:rgba(255,255,255,.14);
+    --cordex-color-border-subtle:#232A3B; --cordex-color-border-default:#323A4E; --cordex-color-border-control:#6B7689;
+    --cordex-color-border-strong:#7A8599; --cordex-color-border-focus:#7B82FF;
+    --cordex-color-text-primary:#F1F3F8; --cordex-color-text-secondary:#B7BEC9; --cordex-color-text-tertiary:#7C8697;
+    --cordex-color-text-disabled:#6B7689; --cordex-color-text-inverse:#101425; --cordex-color-text-link:#9CA4F5;
+    --cordex-color-accent-default:#6F79EE; --cordex-color-accent-hover:#8790F5; --cordex-color-accent-active:#9CA4F5;
+    --cordex-color-accent-subtle:#232A5E;
+    --cordex-color-success-default:#3BC682; --cordex-color-success-subtle:rgba(59,198,130,.16); --cordex-color-success-emphasis:#8DF0BB;
+    --cordex-color-warning-default:#E2A33D; --cordex-color-warning-subtle:rgba(226,163,61,.16); --cordex-color-warning-emphasis:#F3C578;
+    --cordex-color-danger-default:#F0685E; --cordex-color-danger-subtle:rgba(240,104,94,.16); --cordex-color-danger-emphasis:#F8A69F;
+    --cordex-color-info-default:#5AA6EE; --cordex-color-info-subtle:rgba(90,166,238,.16); --cordex-color-info-emphasis:#9AC8F5;
+    --cordex-color-focus-ring:#7B82FF;
+    --cordex-shadow-sm:0 0 0 1px var(--cordex-color-border-subtle);
+    --cordex-shadow-md:0 0 0 1px var(--cordex-color-border-default),0 2px 8px rgba(0,0,0,.4);
+    --cordex-shadow-lg:0 0 0 1px var(--cordex-color-border-default),0 8px 24px rgba(0,0,0,.5);
+    --cordex-shadow-xl:0 0 0 1px var(--cordex-color-border-default),0 16px 48px rgba(0,0,0,.6);
+  }
+  @media (prefers-reduced-motion: reduce) { :root { --cordex-motion-instant:1ms; --cordex-motion-fast:1ms; --cordex-motion-base:1ms; --cordex-motion-slow:1ms; --cordex-motion-slower:1ms; } }
+  @keyframes blink { 50% { opacity: 0; } }
+  html.simulate-reduced-motion #text-cursor-demo { animation: none; }
+  html.simulate-reduced-motion, html.simulate-reduced-motion * { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+
+  * { box-sizing: border-box; min-width: 0; }
+  html, body { max-width: 100%; overflow-x: hidden; }
+  body { margin: 0; background: var(--cordex-color-bg-canvas); color: var(--cordex-color-text-primary); font-family: var(--cordex-font-family-ui); font-size: var(--cordex-font-size-base); line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button[disabled], [aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--cordex-color-focus-ring); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .skip-link { position: absolute; left: var(--cordex-space-4); top: -48px; z-index: var(--cordex-z-tooltip); background: var(--cordex-color-accent-default); color: var(--cordex-color-text-inverse); padding: var(--cordex-space-2) var(--cordex-space-3); border-radius: var(--cordex-radius-md); transition: top var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .skip-link:focus { top: var(--cordex-space-2); }
+  .icon { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .icon.lg { width: 20px; height: 20px; }
+  .glyph { font-weight: 700; font-size: var(--cordex-font-size-sm); line-height: 1; }
+  kbd { font-family: var(--cordex-font-family-mono); font-size: var(--cordex-font-size-2xs); color: var(--cordex-color-text-secondary); border: 1px solid var(--cordex-color-border-default); border-radius: 3px; padding: 0 4px; line-height: 1.5; }
+
+  /* ---- 原型元工具（proto-bar + route-nav），非产品界面 ---- */
+  #shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+  .proto-bar { background: var(--cordex-color-bg-surface-raised); border-bottom: 2px dashed var(--cordex-color-accent-default); padding: var(--cordex-space-2) var(--cordex-space-4); display: flex; flex-wrap: wrap; gap: var(--cordex-space-3) var(--cordex-space-4); align-items: center; font-size: var(--cordex-font-size-xs); position: sticky; top: 0; z-index: var(--cordex-z-sticky); }
+  .proto-bar b.tag { color: var(--cordex-color-accent-default); white-space: nowrap; }
+  .proto-bar label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; min-height: var(--cordex-target-min); }
+  .proto-bar select, .proto-bar button.pbtn { min-height: var(--cordex-target-min); border-radius: var(--cordex-radius-sm); border: 1px solid var(--cordex-color-border-control); background: var(--cordex-color-bg-surface); padding: 0 8px; font-size: var(--cordex-font-size-xs); }
+  .proto-bar input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--cordex-color-accent-default); }
+  .route-nav { background: var(--cordex-color-bg-inset); border-bottom: 1px solid var(--cordex-color-border-subtle); padding: 6px var(--cordex-space-4); display: flex; gap: var(--cordex-space-1) var(--cordex-space-3); flex-wrap: wrap; font-size: var(--cordex-font-size-xs); }
+  .route-nav a { color: var(--cordex-color-text-secondary); text-decoration: none; padding: 2px 6px; border-radius: var(--cordex-radius-sm); min-height: var(--cordex-target-min); display: inline-flex; align-items: center; }
+  .route-nav a[aria-current="page"] { color: var(--cordex-color-accent-default); font-weight: 600; background: var(--cordex-color-accent-subtle); }
+  .route-nav a:hover { background: var(--cordex-color-bg-hover); }
+
+  /* ---- 通用：Button / Card / Chip / Badge ---- */
+  .btn { min-height: var(--cordex-control-height-md); border-radius: var(--cordex-radius-md); border: 1px solid var(--cordex-color-border-control); background: var(--cordex-color-bg-surface); padding: 0 var(--cordex-space-3); font-size: var(--cordex-font-size-sm); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background-color var(--cordex-motion-fast) var(--cordex-motion-ease), border-color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .btn:hover { background: var(--cordex-color-bg-hover); }
+  .btn:active { background: var(--cordex-color-bg-active); }
+  .btn-primary { background: var(--cordex-color-accent-default); border-color: var(--cordex-color-accent-default); color: var(--cordex-color-text-inverse); }
+  .btn-primary:hover { background: var(--cordex-color-accent-hover); }
+  .btn-icon { width: var(--cordex-control-height-md); min-width: var(--cordex-target-min); padding: 0; justify-content: center; }
+  .btn-sm { min-height: var(--cordex-control-height-sm); }
+  .btn-icon.btn-sm { width: var(--cordex-control-height-sm); }
+  .badge { display: inline-block; font-size: var(--cordex-font-size-2xs); padding: 1px 6px; border-radius: var(--cordex-radius-full); background: var(--cordex-color-bg-inset); color: var(--cordex-color-text-secondary); line-height: 1.5; }
+  .badge.warn { background: var(--cordex-color-warning-subtle); color: var(--cordex-color-warning-emphasis); }
+  .chip { display: inline-flex; align-items: center; min-height: var(--cordex-target-min); font-size: var(--cordex-font-size-xs); padding: 0 10px; border-radius: var(--cordex-radius-full); background: var(--cordex-color-bg-inset); color: var(--cordex-color-text-secondary); border: 1px solid transparent; }
+  .chip[aria-pressed="true"] { background: var(--cordex-color-accent-subtle); color: var(--cordex-color-accent-hover); border-color: var(--cordex-color-accent-default); }
+  .chip.warn { background: var(--cordex-color-warning-subtle); color: var(--cordex-color-warning-emphasis); }
+  .avatar { --presence: var(--cordex-color-border-strong); width: 28px; height: 28px; border-radius: var(--cordex-radius-full); display: flex; align-items: center; justify-content: center; font-size: var(--cordex-font-size-xs); font-weight: 600; color: var(--cordex-color-text-primary); background: var(--cordex-color-bg-surface-raised); box-shadow: 0 0 0 2px var(--presence), 0 0 0 4px var(--cordex-color-bg-surface); margin-left: -6px; position: relative; }
+  .avatar:first-child { margin-left: 0; }
+  .avatar.self { --presence: var(--cordex-color-accent-default); }
+  .avatar.more { --presence: var(--cordex-color-border-default); color: var(--cordex-color-text-secondary); font-size: var(--cordex-font-size-2xs); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.green { background: var(--cordex-color-success-default); } .dot.red { background: var(--cordex-color-danger-default); } .dot.amber { background: var(--cordex-color-warning-default); }
+  .empty-state { text-align: center; padding: var(--cordex-space-10) var(--cordex-space-4); color: var(--cordex-color-text-secondary); }
+  .empty-state h3 { font-size: var(--cordex-font-size-2xl); color: var(--cordex-color-text-primary); margin: var(--cordex-space-2) 0; }
+  .skeleton { background: linear-gradient(90deg, var(--cordex-color-bg-inset), var(--cordex-color-border-subtle), var(--cordex-color-bg-inset)); background-size: 200% 100%; animation: skel var(--cordex-motion-slower) linear infinite alternate; border-radius: var(--cordex-radius-md); }
+  @keyframes skel { from { background-position: 0 0; } to { background-position: -60% 0; } }
+
+  /* ---- App Bar / Ribbon / 主布局（复用自 v1，供 #/editor* 与 #/present 等共享） ---- */
+  .app-bar { display: flex; align-items: center; gap: var(--cordex-space-3); padding: 0 var(--cordex-space-4); height: 48px; background: var(--cordex-color-bg-surface); border-bottom: 1px solid var(--cordex-color-border-subtle); z-index: var(--cordex-z-chrome); position: relative; overflow-x: auto; }
+  .app-bar > * { flex-shrink: 0; }
+  .doc-title { font-weight: 600; max-width: 32vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-state { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-success-emphasis); white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+  .saved-state.warn { color: var(--cordex-color-warning-emphasis); } .saved-state.danger { color: var(--cordex-color-danger-emphasis); } .saved-state.info { color: var(--cordex-color-info-emphasis); }
+  .spacer { flex: 1; }
+  select.mode-select { min-height: var(--cordex-control-height-md); border-radius: var(--cordex-radius-md); border: 1px solid var(--cordex-color-border-control); background: var(--cordex-color-bg-surface); padding: 0 var(--cordex-space-2); font-size: var(--cordex-font-size-sm); }
+  .banner { display: flex; align-items: center; gap: var(--cordex-space-3); padding: var(--cordex-space-2) var(--cordex-space-4); font-size: var(--cordex-font-size-sm); border-bottom: 1px solid var(--cordex-color-border-subtle); }
+  .banner > span { display: inline-flex; align-items: center; gap: 6px; }
+  .banner button { margin-left: auto; }
+  .banner--offline, .banner--reconnecting { background: var(--cordex-color-warning-subtle); color: var(--cordex-color-warning-emphasis); }
+  .banner--syncing { background: var(--cordex-color-info-subtle); color: var(--cordex-color-info-emphasis); }
+  .banner--recovered { background: var(--cordex-color-success-subtle); color: var(--cordex-color-success-emphasis); }
+  .banner--readonly, .banner--blocked { background: var(--cordex-color-danger-subtle); color: var(--cordex-color-danger-emphasis); }
+  .ribbon { background: var(--cordex-color-bg-surface); border-bottom: 1px solid var(--cordex-color-border-subtle); z-index: var(--cordex-z-chrome); }
+  .ribbon-tabs { display: flex; gap: var(--cordex-space-2); padding: 4px var(--cordex-space-3) 0; overflow-x: auto; }
+  .ribbon-tab { min-height: var(--cordex-control-height-sm); padding: 0 var(--cordex-space-2); border: none; background: none; border-bottom: 2px solid transparent; color: var(--cordex-color-text-secondary); white-space: nowrap; font-size: var(--cordex-font-size-sm); display: inline-flex; align-items: center; gap: 6px; border-radius: 0; transition: color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .ribbon-tab:hover { color: var(--cordex-color-text-primary); }
+  .ribbon-tab[aria-selected="true"] { border-color: var(--cordex-color-accent-default); color: var(--cordex-color-text-primary); font-weight: 600; }
+  .ribbon-tab.plugin { color: var(--cordex-color-accent-hover); }
+  .ribbon-groups { display: flex; gap: var(--cordex-space-3); padding: var(--cordex-space-2) var(--cordex-space-3); overflow-x: auto; min-height: calc(var(--cordex-ribbon-height) - 28px); align-items: stretch; }
+  .ribbon-group { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px var(--cordex-space-2); border-right: 1px solid var(--cordex-color-border-subtle); flex-shrink: 0; }
+  .ribbon-group:last-child { border-right: none; }
+  .ribbon-group .label { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); margin-top: auto; }
+  .ribbon-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ribbon-btn { min-width: var(--cordex-target-min); min-height: var(--cordex-target-min); border-radius: var(--cordex-radius-sm); border: 1px solid transparent; background: transparent; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 6px; color: var(--cordex-color-text-primary); font-size: var(--cordex-font-size-xs); transition: background-color var(--cordex-motion-fast) var(--cordex-motion-ease), border-color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .ribbon-btn:hover { background: var(--cordex-color-bg-hover); border-color: var(--cordex-color-border-subtle); }
+  .ribbon-btn:active, .ribbon-btn[aria-pressed="true"] { background: var(--cordex-color-accent-subtle); border-color: var(--cordex-color-accent-default); }
+  .avatar-stack { display: flex; align-items: center; }
+  [data-route-group="editor-shell"]:not([data-mode="review"]) .review-toolbar { display: none; }
+  [data-route-group="editor-shell"][data-mode="review"] .ribbon,
+  [data-route-group="editor-shell"][data-mode="review"] .selection-box,
+  [data-route-group="editor-shell"][data-mode="review"] .mini-toolbar { display: none; }
+  .review-toolbar { display: flex; gap: var(--cordex-space-2); align-items: center; padding: var(--cordex-space-2) var(--cordex-space-4); background: var(--cordex-color-bg-surface); border-bottom: 1px solid var(--cordex-color-border-subtle); font-size: var(--cordex-font-size-sm); flex-wrap: wrap; }
+
+  .main-layout { flex: 1; display: flex; min-height: 0; }
+  .thumb-rail { width: 140px; flex-shrink: 0; background: var(--cordex-color-bg-surface); border-right: 1px solid var(--cordex-color-border-subtle); padding: var(--cordex-space-2); overflow-y: auto; display: flex; flex-direction: column; gap: var(--cordex-space-2); }
+  .thumb { border: 2px solid transparent; border-radius: var(--cordex-radius-sm); background: none; padding: 0; text-align: left; overflow: hidden; width: 100%; position: relative; transition: border-color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .thumb:hover { border-color: var(--cordex-color-border-default); }
+  .thumb-num { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); padding: 2px 6px; display: flex; gap: 4px; align-items: center; }
+  .thumb-img { height: 68px; background: var(--cordex-color-bg-inset); border-radius: var(--cordex-radius-sm); margin: 0 4px 4px; display: flex; align-items: center; justify-content: center; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); }
+  .thumb[aria-current="true"] { border-color: var(--cordex-color-accent-default); }
+  .thumb[aria-current="true"] .thumb-num { color: var(--cordex-color-accent-default); font-weight: 600; }
+  .thumb.hidden-slide { opacity: .6; }
+  .thumb.hidden-slide .thumb-num::after { content: "已隐藏"; font-size: var(--cordex-font-size-2xs); color: var(--cordex-color-text-tertiary); }
+  .thumb-warn-badge { position: absolute; top: 2px; right: 6px; background: var(--cordex-color-warning-default); color: var(--cordex-color-text-inverse); font-size: var(--cordex-font-size-2xs); border-radius: var(--cordex-radius-full); padding: 0 4px; }
+  .thumb-comment-badge { position: absolute; top: 2px; right: 6px; background: var(--cordex-color-bg-surface-raised); border: 1px solid var(--cordex-color-border-control); color: var(--cordex-color-text-secondary); font-size: var(--cordex-font-size-2xs); border-radius: var(--cordex-radius-full); padding: 0 4px; }
+  .thumb-new { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: var(--cordex-control-height-md); font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); background: none; border: 1px dashed var(--cordex-color-border-control); border-radius: var(--cordex-radius-sm); }
+  /* ---- #/editor/masters 母版树（03-screens/26、27）新增，独立类名避免与普通视图缩略图冲突 ---- */
+  .master-tree-row { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--cordex-row-height); padding: 0 4px; border: 2px solid transparent; border-radius: var(--cordex-radius-sm); background: none; text-align: left; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-primary); }
+  .master-tree-row:hover { background: var(--cordex-color-bg-hover); }
+  .master-tree-row[aria-current="true"] { background: var(--cordex-color-bg-selected); border-color: var(--cordex-color-accent-default); }
+  .master-row { font-weight: 600; }
+  .master-tree-children { padding-left: 18px; display: flex; flex-direction: column; gap: 1px; }
+  .master-rail-switch { display: flex; gap: 2px; background: var(--cordex-color-bg-inset); border-radius: var(--cordex-radius-md); padding: 2px; margin-bottom: 6px; }
+  .master-rail-switch > * { flex: 1; text-align: center; font-size: var(--cordex-font-size-2xs); padding: 4px 0; border-radius: var(--cordex-radius-sm); min-height: var(--cordex-target-min); display: flex; align-items: center; justify-content: center; }
+
+  .canvas-viewport { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: var(--cordex-space-6); gap: var(--cordex-space-3); }
+  .canvas { width: min(100%, 560px); aspect-ratio: 16/9; background: var(--cordex-color-doc-paper); color: var(--cordex-color-doc-ink); border-radius: var(--cordex-radius-md); box-shadow: var(--cordex-shadow-md); position: relative; overflow: hidden; }
+  .shape { position: absolute; }
+  .shape--title { top: 20%; left: 8%; width: 60%; font-size: clamp(14px,4vw,22px); font-weight: 700; }
+  .shape--body { top: 46%; left: 8%; width: 70%; font-size: clamp(11px,2.4vw,13px); color: var(--cordex-color-text-secondary); }
+  .selection-box { position: absolute; top: 17%; left: 6%; width: 64%; height: 20%; border: 1.5px solid var(--cordex-color-accent-default); z-index: var(--cordex-z-canvas-overlay); }
+  .selection-box i { position: absolute; width: 8px; height: 8px; background: var(--cordex-color-accent-default); border: 1px solid var(--cordex-color-doc-paper); border-radius: 1px; }
+  .selection-box i:nth-child(1){top:-5px;left:-5px;} .selection-box i:nth-child(2){top:-5px;right:-5px;}
+  .selection-box i:nth-child(3){bottom:-5px;left:-5px;} .selection-box i:nth-child(4){bottom:-5px;right:-5px;}
+  .mini-toolbar { position: absolute; top: 9%; left: 6%; display: flex; gap: 2px; background: var(--cordex-color-bg-surface-raised); border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-md); box-shadow: var(--cordex-shadow-md); padding: 2px; z-index: var(--cordex-z-canvas-overlay); color: var(--cordex-color-text-primary); }
+  .mini-toolbar .ribbon-btn { width: 26px; height: 26px; }
+  .remote-cursor { position: absolute; z-index: var(--cordex-z-canvas-overlay); pointer-events: none; transition: opacity var(--cordex-motion-base); --presence: var(--cordex-color-presence-2); }
+  .remote-cursor .tag { font-size: var(--cordex-font-size-2xs); color: var(--cordex-color-text-primary); background: var(--cordex-color-bg-surface-raised); border: 1.5px solid var(--presence); padding: 1px 6px; border-radius: 3px 3px 3px 0; white-space: nowrap; margin-left: 8px; }
+  .remote-sel { --presence: var(--cordex-color-presence-5); position: absolute; top: 44%; left: 7%; width: 74%; height: 12%; border: 1.5px dashed var(--presence); outline: 1px solid var(--cordex-color-doc-paper); background: color-mix(in srgb, var(--presence) 12%, transparent); border-radius: 2px; z-index: var(--cordex-z-canvas-overlay); pointer-events: none; }
+  .comment-pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; background: var(--cordex-color-warning-emphasis); color: var(--cordex-color-doc-paper); border: 1px solid var(--cordex-color-doc-paper); font-size: var(--cordex-font-size-2xs); font-weight: 600; display: flex; align-items: center; justify-content: center; transform: rotate(45deg); z-index: var(--cordex-z-canvas-overlay); padding: 0; }
+  .comment-pin span { transform: rotate(-45deg); }
+  .zoom-bar { display: flex; align-items: center; gap: var(--cordex-space-2); font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); font-variant-numeric: tabular-nums; }
+  .placeholder-hint { color: var(--cordex-color-text-tertiary); font-style: normal; }
+  .degraded-el { position: absolute; top: 62%; left: 8%; width: 26%; height: 14%; border: 1.5px dashed var(--cordex-color-text-tertiary); border-radius: var(--cordex-radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: var(--cordex-font-size-2xs); color: var(--cordex-color-text-tertiary); text-align: center; padding: 4px; background: color-mix(in srgb, var(--cordex-color-text-tertiary) 6%, transparent); }
+  .page-alert { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--cordex-color-warning-subtle); color: var(--cordex-color-warning-emphasis); font-size: var(--cordex-font-size-2xs); z-index: var(--cordex-z-canvas-overlay); }
+  .page-alert button { margin-left: auto; background: none; border: none; color: inherit; text-decoration: underline; min-height: var(--cordex-target-min); }
+
+  .inspector-dock { width: 268px; flex-shrink: 0; background: var(--cordex-color-bg-surface); border-left: 1px solid var(--cordex-color-border-subtle); display: flex; flex-direction: column; }
+  .dock-tabs { display: flex; border-bottom: 1px solid var(--cordex-color-border-subtle); }
+  .dock-tab { flex: 1; text-align: center; min-height: var(--cordex-control-height-lg); padding: var(--cordex-space-2) 4px; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); border: none; background: none; border-bottom: 2px solid transparent; border-radius: 0; transition: color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .dock-tab:hover { color: var(--cordex-color-text-primary); background: var(--cordex-color-bg-hover); }
+  .dock-tab[aria-selected="true"] { color: var(--cordex-color-accent-default); border-color: var(--cordex-color-accent-default); font-weight: 600; }
+  .dock-panel { display: none; padding: var(--cordex-space-3); overflow-y: auto; font-size: var(--cordex-font-size-sm); flex: 1; }
+  .dock-panel.active { display: block; }
+  .prop-section { margin-bottom: var(--cordex-space-3); }
+  .prop-section > summary { cursor: pointer; font-weight: 600; padding: 6px 0; list-style: none; display: flex; align-items: center; gap: 6px; }
+  .prop-section > summary .icon.chev { transition: transform var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .prop-section[open] > summary .icon.chev { transform: rotate(180deg); }
+  .prop-row { display: flex; gap: var(--cordex-space-2); margin: 6px 0; flex-wrap: wrap; }
+  .field { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 64px; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); }
+  .field .ctl { display: flex; align-items: center; gap: 6px; }
+  .field input, .field select { flex: 1; min-width: 0; height: var(--cordex-control-height-sm); border: 1px solid var(--cordex-color-border-control); border-radius: var(--cordex-radius-sm); background: var(--cordex-color-bg-inset); padding: 0 8px; color: var(--cordex-color-text-primary); font-variant-numeric: tabular-nums; font-size: var(--cordex-font-size-sm); }
+  .field.invalid input { border-color: var(--cordex-color-danger-default); }
+  .field .err { color: var(--cordex-color-danger-emphasis); font-size: var(--cordex-font-size-2xs); }
+  .swatch { width: 20px; height: 20px; border-radius: var(--cordex-radius-sm); border: 1px solid var(--cordex-color-border-control); display: inline-block; vertical-align: middle; flex-shrink: 0; }
+  .plugin-attrib { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-accent-default); font-weight: 400; }
+
+  .filter-row { display: flex; gap: 6px; margin-bottom: var(--cordex-space-2); flex-wrap: wrap; }
+  .comment-thread { border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-md); padding: var(--cordex-space-2); margin-bottom: var(--cordex-space-2); }
+  .comment-thread .meta { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .comment-thread.detached { opacity: .8; }
+  .comment-thread.resolved { opacity: .7; }
+  .compose-box { position: relative; margin-top: var(--cordex-space-2); }
+  .compose-box textarea { width: 100%; min-height: 56px; border: 1px solid var(--cordex-color-border-control); border-radius: var(--cordex-radius-sm); background: var(--cordex-color-bg-inset); padding: var(--cordex-space-2); resize: vertical; }
+  .mention-list { position: absolute; bottom: 100%; left: 0; background: var(--cordex-color-bg-surface-raised); border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-md); box-shadow: var(--cordex-shadow-md); width: 220px; z-index: var(--cordex-z-popover); padding: 4px; }
+  .mention-list button { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--cordex-control-height-md); background: none; border: none; border-radius: var(--cordex-radius-sm); padding: 0 6px; text-align: left; }
+  .mention-list button:hover, .mention-list button:focus-visible { background: var(--cordex-color-bg-hover); }
+
+  .history-item { display: flex; gap: var(--cordex-space-2); padding: 8px 0; border-bottom: 1px solid var(--cordex-color-border-subtle); font-size: var(--cordex-font-size-xs); align-items: center; }
+  .history-item button.row-btn { display: flex; gap: var(--cordex-space-2); align-items: center; width: 100%; background: none; border: none; text-align: left; min-height: var(--cordex-target-min); color: inherit; }
+  .history-item[aria-current="true"] { background: var(--cordex-color-bg-selected); border-radius: var(--cordex-radius-sm); }
+  .history-item time { margin-left: auto; color: var(--cordex-color-text-tertiary); font-variant-numeric: tabular-nums; }
+  .confirm-card { background: var(--cordex-color-bg-inset); border: 1px solid var(--cordex-color-border-default); border-radius: var(--cordex-radius-md); padding: var(--cordex-space-2); margin-top: var(--cordex-space-2); font-size: var(--cordex-font-size-xs); }
+  .confirm-card .row { display: flex; gap: var(--cordex-space-2); margin-top: var(--cordex-space-2); flex-wrap: wrap; }
+  .history-preview { border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-md); padding: var(--cordex-space-3); margin-bottom: var(--cordex-space-2); background: var(--cordex-color-bg-inset); }
+  .history-preview .canvas { width: 100%; margin: 0 auto var(--cordex-space-2); }
+
+  .plugin-row { display: flex; align-items: center; gap: var(--cordex-space-2); padding: var(--cordex-space-2) 0; border-bottom: 1px solid var(--cordex-color-border-subtle); flex-wrap: wrap; }
+  .plugin-row .name { font-weight: 600; }
+  .plugin-row .desc { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .plugin-row .desc.error { color: var(--cordex-color-danger-emphasis); }
+  .plugin-row .detail { flex-basis: 100%; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); background: var(--cordex-color-bg-inset); border-radius: var(--cordex-radius-sm); padding: var(--cordex-space-2); margin-top: 4px; }
+  .switch { position: relative; width: 36px; height: 20px; min-height: 20px; border-radius: var(--cordex-radius-full); background: var(--cordex-color-border-control); border: none; flex-shrink: 0; padding: 0; transition: background-color var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .switch::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--cordex-color-bg-surface); top: 2px; left: 2px; transition: transform var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .switch[aria-checked="true"] { background: var(--cordex-color-accent-default); }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+  .switch.fail { background: var(--cordex-color-danger-subtle); box-shadow: inset 0 0 0 1px var(--cordex-color-danger-default); }
+  .switch.pending { background: var(--cordex-color-warning-subtle); box-shadow: inset 0 0 0 1px var(--cordex-color-warning-default); }
+
+  .notes-strip { border-top: 1px solid var(--cordex-color-border-subtle); background: var(--cordex-color-bg-surface); }
+  .notes-head { display: flex; align-items: center; gap: var(--cordex-space-2); padding: 0 var(--cordex-space-4); min-height: var(--cordex-control-height-md); font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); width: 100%; background: none; border: none; text-align: left; }
+  .notes-head .count { margin-left: auto; color: var(--cordex-color-text-tertiary); }
+  .notes-head .chev { transition: transform var(--cordex-motion-fast) var(--cordex-motion-ease); }
+  .notes-body { display: none; padding: 0 var(--cordex-space-4) var(--cordex-space-3); }
+  .notes-body textarea { width: 100%; min-height: 60px; border: 1px solid var(--cordex-color-border-control); border-radius: var(--cordex-radius-sm); background: var(--cordex-color-bg-inset); padding: var(--cordex-space-2); resize: vertical; }
+  .notes-strip.open .notes-body { display: block; }
+  .notes-strip.open .chev { transform: rotate(180deg); }
+
+  .status-bar { display: flex; align-items: center; gap: var(--cordex-space-4); padding: 0 var(--cordex-space-4); min-height: 28px; background: var(--cordex-color-bg-surface); border-top: 1px solid var(--cordex-color-border-subtle); font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); font-variant-numeric: tabular-nums; overflow-x: auto; }
+  .status-bar .end { margin-left: auto; display: flex; gap: var(--cordex-space-4); align-items: center; flex-shrink: 0; }
+  .status-bar .item { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .status-bar button.item { background: none; border: none; padding: 0 4px; min-height: var(--cordex-target-min); color: inherit; border-radius: var(--cordex-radius-sm); }
+  .status-bar button.item:hover { background: var(--cordex-color-bg-hover); }
+
+  /* ---- dialogs / toast / context-menu（复用自 v1，供全部路由共享）---- */
+  .backdrop { position: fixed; inset: 0; background: var(--cordex-color-bg-overlay-scrim); z-index: var(--cordex-z-modal-backdrop); display: none; align-items: center; justify-content: center; padding: var(--cordex-space-4); overflow-y: auto; }
+  .backdrop.on { display: flex; }
+  .dialog { background: var(--cordex-color-bg-surface); border-radius: var(--cordex-radius-lg); box-shadow: var(--cordex-shadow-xl); width: min(92vw, 480px); max-height: 82vh; overflow-y: auto; z-index: var(--cordex-z-modal); }
+  .dialog.wide { width: min(94vw, 640px); }
+  .dialog-head { display: flex; align-items: center; gap: var(--cordex-space-2); padding: var(--cordex-space-3) var(--cordex-space-4); border-bottom: 1px solid var(--cordex-color-border-subtle); font-weight: 600; font-size: var(--cordex-font-size-md); }
+  .dialog-head button { margin-left: auto; }
+  .dialog-body { padding: var(--cordex-space-4); font-size: var(--cordex-font-size-sm); }
+  .dialog-foot { padding: var(--cordex-space-3) var(--cordex-space-4); border-top: 1px solid var(--cordex-color-border-subtle); display: flex; justify-content: flex-end; gap: var(--cordex-space-2); flex-wrap: wrap; }
+  .fid-item { display: flex; gap: var(--cordex-space-3); padding: var(--cordex-space-2) 0; border-bottom: 1px solid var(--cordex-color-border-subtle); }
+  .fid-item .icon { width: 20px; height: 20px; color: var(--cordex-color-text-secondary); margin-top: 2px; }
+  .fid-item .meta { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); }
+  .form-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--cordex-space-3); }
+  .form-field label { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); font-weight: 600; }
+  .form-field .row { display: flex; gap: var(--cordex-space-2); flex-wrap: wrap; }
+  .form-field input, .form-field select { flex: 1; min-width: 120px; height: var(--cordex-control-height-md); border: 1px solid var(--cordex-color-border-control); border-radius: var(--cordex-radius-sm); background: var(--cordex-color-bg-inset); padding: 0 10px; }
+  .form-field .help { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); }
+  .form-field .err { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-danger-emphasis); }
+  .share-row { display: flex; align-items: center; gap: var(--cordex-space-2); padding: 6px 0; flex-wrap: wrap; }
+  .share-row .avatar { width: 24px; height: 24px; font-size: var(--cordex-font-size-2xs); margin: 0 4px 0 2px; }
+  .share-row .who { flex: 1; min-width: 120px; }
+  .share-row .role { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-secondary); }
+  .radio-row { display: flex; gap: var(--cordex-space-4); flex-wrap: wrap; margin: var(--cordex-space-2) 0; font-size: var(--cordex-font-size-sm); }
+  .radio-row label { display: inline-flex; align-items: center; gap: 6px; min-height: var(--cordex-target-min); }
+
+  #palette-backdrop { align-items: flex-start; padding-top: 12vh; z-index: var(--cordex-z-command-palette); }
+  #palette-backdrop .dialog { z-index: var(--cordex-z-command-palette); }
+  .palette-input { width: 100%; height: 40px; border: none; border-bottom: 1px solid var(--cordex-color-border-subtle); background: transparent; padding: 0 var(--cordex-space-4); font-size: var(--cordex-font-size-md); }
+  .palette-item { display: flex; align-items: center; gap: var(--cordex-space-2); width: 100%; text-align: left; background: none; border: none; min-height: var(--cordex-control-height-lg); padding: var(--cordex-space-2) var(--cordex-space-4); font-size: var(--cordex-font-size-sm); border-radius: 0; }
+  .palette-item:hover, .palette-item:focus-visible { background: var(--cordex-color-bg-hover); outline-offset: -2px; }
+  .palette-item .cat { margin-left: auto; font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); }
+  .palette-item .from { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); }
+
+  .toast-host { position: fixed; right: var(--cordex-space-4); bottom: var(--cordex-space-4); z-index: var(--cordex-z-toast); display: flex; flex-direction: column; gap: 6px; max-width: min(92vw, 360px); }
+  .toast { background: var(--cordex-color-text-primary); color: var(--cordex-color-bg-surface); padding: var(--cordex-space-2) var(--cordex-space-3); border-radius: var(--cordex-radius-md); font-size: var(--cordex-font-size-xs); box-shadow: var(--cordex-shadow-lg); animation: toast-in var(--cordex-motion-base) var(--cordex-motion-ease-in); display: flex; align-items: center; gap: var(--cordex-space-3); }
+  .toast.out { animation: toast-out var(--cordex-motion-fast) var(--cordex-motion-ease-out) forwards; }
+  .toast button { background: none; border: 1px solid currentColor; color: inherit; border-radius: var(--cordex-radius-sm); min-height: var(--cordex-target-min); padding: 0 8px; font-size: var(--cordex-font-size-xs); margin-left: auto; white-space: nowrap; }
+  @keyframes toast-in { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  @keyframes toast-out { from { opacity:1; } to { opacity:0; } }
+
+  .context-menu { position: fixed; z-index: var(--cordex-z-dropdown); background: var(--cordex-color-bg-surface); border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-md); box-shadow: var(--cordex-shadow-lg); min-width: 200px; max-width: 90vw; padding: 4px; font-size: var(--cordex-font-size-sm); display: none; }
+  .context-menu.on { display: block; }
+  .context-menu .item { display: flex; align-items: center; gap: var(--cordex-space-2); width: 100%; min-height: var(--cordex-control-height-sm); padding: 4px 10px; border-radius: var(--cordex-radius-sm); background: none; border: none; text-align: left; }
+  .context-menu .item kbd { margin-left: auto; }
+  .context-menu .item:hover, .context-menu .item:focus-visible { background: var(--cordex-color-bg-hover); outline-offset: -2px; }
+  .context-menu .item.danger { color: var(--cordex-color-danger-emphasis); }
+  .context-menu hr { border: none; border-top: 1px solid var(--cordex-color-border-subtle); margin: 4px 0; }
+  .context-menu .attrib { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-accent-default); padding: 4px 10px; display: flex; align-items: center; gap: 4px; }
+
+  #shell.show-slots [data-slot] { outline: 1px dashed var(--cordex-color-accent-default); outline-offset: 2px; position: relative; }
+  #shell.show-slots [data-slot]::after { content: attr(data-slot); position: absolute; top: -9px; left: 2px; background: var(--cordex-color-accent-default); color: var(--cordex-color-text-inverse); font-size: var(--cordex-font-size-2xs); line-height: 1.4; padding: 0 4px; border-radius: 3px; z-index: var(--cordex-z-tooltip); white-space: nowrap; pointer-events: none; font-family: var(--cordex-font-family-mono); }
+
+  #shell:not(.show-collab) .avatar:not(.self) { display: none; }
+  #shell:not(.show-collab) .remote-cursor, #shell:not(.show-collab) .remote-sel { display: none !important; }
+  #shell:not(.show-collab) .presence-count { display: none; }
+
+  /* ---- 文档列表（#/documents） ---- */
+  .doc-toolbar { display: flex; align-items: center; gap: var(--cordex-space-3); padding: var(--cordex-space-3) var(--cordex-space-4); flex-wrap: wrap; border-bottom: 1px solid var(--cordex-color-border-subtle); background: var(--cordex-color-bg-surface); }
+  .doc-search { flex: 1; min-width: 160px; max-width: 320px; height: var(--cordex-control-height-md); border: 1px solid var(--cordex-color-border-control); border-radius: var(--cordex-radius-md); background: var(--cordex-color-bg-inset); padding: 0 10px; display: flex; align-items: center; gap: 6px; }
+  .doc-search input { border: none; background: none; width: 100%; }
+  .doc-filters { display: flex; gap: var(--cordex-space-2); padding: var(--cordex-space-2) var(--cordex-space-4); flex-wrap: wrap; border-bottom: 1px solid var(--cordex-color-border-subtle); }
+  .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: var(--cordex-space-4); padding: var(--cordex-space-4); }
+  .doc-card { border: 1px solid var(--cordex-color-border-subtle); border-radius: var(--cordex-radius-xl); overflow: hidden; background: var(--cordex-color-bg-surface); }
+  .doc-card .thumb-area { height: 100px; background: var(--cordex-color-bg-inset); display: flex; align-items: center; justify-content: center; color: var(--cordex-color-text-tertiary); font-size: var(--cordex-font-size-xs); }
+  .doc-card .info { padding: var(--cordex-space-2) var(--cordex-space-3) var(--cordex-space-3); }
+  .doc-card .title { font-weight: 600; }
+  .doc-card .meta { font-size: var(--cordex-font-size-xs); color: var(--cordex-color-text-tertiary); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .doc-card .row-end { display: flex; align-items: center; margin-top: 6px; }
+  main.route-main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  /* 窄屏 / 触控：≥44px，间距≥8px，减少控件而不是缩小控件 */
+  @media (max-width: 1024px) {
+    .thumb-rail { position: fixed; top: 0; bottom: 0; left: 0; width: 200px; transform: translateX(-100%); transition: transform var(--cordex-motion-base) var(--cordex-motion-ease); z-index: var(--cordex-z-dropdown); box-shadow: var(--cordex-shadow-lg); }
+    .inspector-dock { position: fixed; top: 0; bottom: 0; right: 0; width: min(84vw, 300px); transform: translateX(100%); transition: transform var(--cordex-motion-base) var(--cordex-motion-ease); z-index: var(--cordex-z-dropdown); box-shadow: var(--cordex-shadow-lg); }
+    #shell.rail-open .thumb-rail { transform: none; }
+    #shell.dock-open .inspector-dock { transform: none; }
+    .drawer-toggle { display: inline-flex !important; }
+  }
+  @media (min-width: 1025px) { .drawer-toggle { display: none !important; } }
+  .drawer-toggle { display: none; }
+  @media (max-width: 640px), (pointer: coarse) {
+    .canvas-viewport { padding: var(--cordex-space-4); }
+    .ribbon-group .label { display: none; }
+    .ribbon-groups { gap: var(--cordex-space-2); }
+    .ribbon-group.secondary { display: none; }
+    .ribbon-btn { min-width: var(--cordex-target-touch); min-height: var(--cordex-target-touch); }
+    .btn-icon { min-width: var(--cordex-target-touch); min-height: var(--cordex-target-touch); }
+    .mini-toolbar .ribbon-btn { width: 36px; height: 36px; }
+    .dock-tab { min-height: var(--cordex-target-touch); }
+  }
+  /* 与上两个 @media 规则等价的类选择器版本：供原型控制条"视口宽度"模拟开关使用——
+     真实缩放浏览器窗口时由上方 @media 生效；模拟开关通过给 #shell 加类，在桌面宽窗口下也能演示窄屏/触控布局，无需真的缩小窗口。 */
+  #shell.force-compact .thumb-rail { position: fixed; top: 0; bottom: 0; left: 0; width: 200px; transform: translateX(-100%); transition: transform var(--cordex-motion-base) var(--cordex-motion-ease); z-index: var(--cordex-z-dropdown); box-shadow: var(--cordex-shadow-lg); }
+  #shell.force-compact .inspector-dock { position: fixed; top: 0; bottom: 0; right: 0; width: min(84vw, 300px); transform: translateX(100%); transition: transform var(--cordex-motion-base) var(--cordex-motion-ease); z-index: var(--cordex-z-dropdown); box-shadow: var(--cordex-shadow-lg); }
+  #shell.force-compact.rail-open .thumb-rail { transform: none; }
+  #shell.force-compact.dock-open .inspector-dock { transform: none; }
+  #shell.force-compact .drawer-toggle { display: inline-flex !important; }
+  #shell.force-narrow .canvas-viewport { padding: var(--cordex-space-4); }
+  #shell.force-narrow .ribbon-group .label { display: none; }
+  #shell.force-narrow .ribbon-groups { gap: var(--cordex-space-2); }
+  #shell.force-narrow .ribbon-group.secondary { display: none; }
+  #shell.force-narrow .ribbon-btn { min-width: var(--cordex-target-touch); min-height: var(--cordex-target-touch); }
+  #shell.force-narrow .btn-icon { min-width: var(--cordex-target-touch); min-height: var(--cordex-target-touch); }
+  #shell.force-narrow .mini-toolbar .ribbon-btn { width: 36px; height: 36px; }
+  #shell.force-narrow .dock-tab { min-height: var(--cordex-target-touch); }
+
+</style>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
+
+<!-- 图标 sprite：单一家族（Phosphor 风格描边，16 网格，stroke 1.5，currentColor）。产品实现由 @cordexjs/design/icons 构建脚本产出。v2 在 v1 基础上新增若干（search/grid/link/table/chart/align/eye/rocket/gear/globe/trash/upload/download/expand/dot-outline）。 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3M7 4L3 8l4 4"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M10 3v10"/></symbol>
+    <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.2" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-share" viewBox="0 0 16 16"><circle cx="12" cy="3.5" r="1.8"/><circle cx="4" cy="8" r="1.8"/><circle cx="12" cy="12.5" r="1.8"/><path d="M5.6 7.1l4.8-2.7M5.6 8.9l4.8 2.7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
+    <symbol id="i-paste" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 8h4M6 11h3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.2"/><path d="M3 10.5V3.5a1 1 0 0 1 1-1h7"/></symbol>
+    <symbol id="i-align-left" viewBox="0 0 16 16"><path d="M2 4h12M2 8h8M2 12h10"/></symbol>
+    <symbol id="i-align-center" viewBox="0 0 16 16"><path d="M2 4h12M4 8h8M3 12h10"/></symbol>
+    <symbol id="i-line-height" viewBox="0 0 16 16"><path d="M3.5 3v10M2 4.5L3.5 3 5 4.5M2 11.5L3.5 13 5 11.5M8 4h6M8 8h6M8 12h6"/></symbol>
+    <symbol id="i-rect" viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" rx="1"/></symbol>
+    <symbol id="i-ellipse" viewBox="0 0 16 16"><ellipse cx="8" cy="8" rx="6" ry="4.2"/></symbol>
+    <symbol id="i-textbox" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5.5 6.5h5M8 6.5v4"/></symbol>
+    <symbol id="i-front" viewBox="0 0 16 16"><path d="M2 10.5V3.5a1 1 0 0 1 1-1h7"/><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-back-layer" viewBox="0 0 16 16"><rect x="2" y="2" width="8.5" height="8.5" rx="1" fill="currentColor" stroke="none"/><path d="M14 5.5v7.5a1 1 0 0 1-1 1H5.5"/></symbol>
+    <symbol id="i-export" viewBox="0 0 16 16"><path d="M8 10V2.5M5 5.5l3-3 3 3M3 11v2h10v-2"/></symbol>
+    <symbol id="i-comment" viewBox="0 0 16 16"><path d="M2.5 3h11v8H7.5l-3 2.5V11h-2z"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+    <symbol id="i-question" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.7 1.7c-.6.3-.9.7-.9 1.4"/><circle cx="8" cy="11.4" r=".6" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 16 16"><rect x="1.5" y="4" width="13" height="8" rx="1.2"/><path d="M4 7h1M6.5 7h1M9 7h1M11.5 7h1M5 9.5h6"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 16 16"><path d="M6 2.5a1.5 1.5 0 0 1 3 0V4h2.5A1.5 1.5 0 0 1 13 5.5V8h-1.5a1.5 1.5 0 0 0 0 3H13v2.5H5.5A1.5 1.5 0 0 1 4 12V9.5h1.5a1.5 1.5 0 0 0 0-3H4V4h2z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 16 16"><circle cx="6" cy="5.5" r="2.5"/><path d="M1.5 13.5a4.5 4.5 0 0 1 9 0"/><path d="M10.5 3.2a2.5 2.5 0 0 1 0 4.6M12.2 9.4a4.5 4.5 0 0 1 2.3 4.1"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 16 16"><path d="M8 2.5l6 11H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.5" r=".6" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-offline" viewBox="0 0 16 16"><path d="M5 12.5H4.5a3 3 0 0 1-.6-5.9A4 4 0 0 1 11.5 6M13 9.7a2.6 2.6 0 0 1-1.5 2.8H8"/><path d="M2.5 2.5l11 11"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 16 16"><path d="M13 8a5 5 0 0 1-8.6 3.5M3 8a5 5 0 0 1 8.6-3.5"/><path d="M11.6 2v2.5H9.1M4.4 14v-2.5h2.5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7" rx="1.2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></symbol>
+    <symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 16 16"><path d="M13.4 8A5.4 5.4 0 1 1 11.7 4"/><polyline points="13.6,1.6 13.4,4.9 10.1,4.6"/></symbol>
+    <symbol id="i-star" viewBox="0 0 16 16"><path d="M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4L2.2 6.5l4-.6z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.2"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M14 10.5L10.5 7 5 12.5"/></symbol>
+    <symbol id="i-file" viewBox="0 0 16 16"><path d="M4 2h5.5L13 5.5V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><path d="M9.5 2v3.5H13"/></symbol>
+    <symbol id="i-crop" viewBox="0 0 16 16"><path d="M4 1.5V11a1 1 0 0 0 1 1h9.5M1.5 4H11a1 1 0 0 1 1 1v9.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 3l8 5-8 5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-blank" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-film" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.2"/><path d="M5 3v10M11 3v10M2 6h3M2 10h3M11 6h3M11 10h3"/></symbol>
+    <symbol id="i-font" viewBox="0 0 16 16"><path d="M3 13l4-10h2l4 10M5 9h6"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-cursor" viewBox="0 0 16 16"><path d="M1.5 1.5l5.5 13 2-5.5 5.5-2z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="6.8" cy="6.8" r="4.3"/><path d="M13.5 13.5l-3.6-3.6"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5l3-3"/><path d="M5 11L3.5 12.5a2.1 2.1 0 0 1-3-3L2 8"/><path d="M11 5l1.5-1.5a2.1 2.1 0 0 1 3 3L14 8"/></symbol>
+    <symbol id="i-table" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 7h12M2 10h12M6.5 3v10"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2 13.5h12"/><rect x="3.5" y="8" width="2.4" height="5.5"/><rect x="7" y="5" width="2.4" height="8.5"/><rect x="10.5" y="9.5" width="2.4" height="4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 11V3.5M5 6.5l3-3 3 3M3 13h10"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.3"/><path d="M8 2v1.6M8 12.4V14M2 8h1.6M12.4 8H14M3.8 3.8l1.2 1.2M11 11l1.2 1.2M3.8 12.2L5 11M11 5l1.2-1.2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2a9 9 0 0 1 0 12 9 9 0 0 1 0-12z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4.5 4.5V13a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V4.5"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 16 16"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></symbol>
+  </defs>
+</svg>
+
+<!--
+  低保真原型 v2（2026-09-15）：单文件、零外部资源，可直接打开或作为 artifact 发布。
+  路由由 hash 驱动（见文末脚本 ROUTES），共享外壳 + 每路由状态切换器（原型控制条"当前状态"下拉）。
+  硬性约束延续 README §8 评审：单一 Phosphor SVG sprite、无 emoji、token 化、命中区 ≥24/44px、
+  可见标签、可撤销 toast、dialog/tab/menu 语义与焦点管理、prefers-reduced-motion、无 alert/confirm、无下载链接。
+  本文件持续建设中：当前已含 #/、#/documents、#/editor 三个路由；其余路由将陆续追加（见 08-prototype-audit-and-v2-plan.md §4.2）。
+-->
+
+<a class="skip-link" href="#main-content">跳至主内容</a>
+<div id="shell" data-theme-cycle="system">
+
+  <div class="proto-bar" aria-label="原型控制面板（非产品界面）">
+    <b class="tag">原型控制面板</b>
+    <label>路由 <select id="ctl-route" aria-label="跳转到路由"></select></label>
+    <label>状态 <select id="ctl-state" aria-label="切换当前路由的状态"></select></label>
+    <label><input type="checkbox" id="ctl-collab" checked> 显示协作者</label>
+    <label><input type="checkbox" id="ctl-slots"> 高亮贡献槽位</label>
+    <label>连接 <select id="ctl-conn">
+        <option value="">synced</option><option value="offline">offline</option>
+        <option value="reconnecting">reconnecting</option><option value="syncing">syncing</option>
+        <option value="recovered">recovered</option><option value="readonly">readonly-degraded</option>
+      </select></label>
+    <label>视口 <select id="ctl-viewport">
+        <option value="">桌面（不限制）</option><option value="1024">紧凑 900px</option><option value="400">窄屏 400px</option>
+      </select></label>
+    <label>角色 <select id="ctl-role">
+        <option value="owner">owner</option><option value="editor" selected>editor</option>
+        <option value="commenter">commenter</option><option value="viewer">viewer</option>
+      </select></label>
+    <label>软冲突演示（F-P09） <select id="ctl-conflict" onchange="simulateConflict(this.value)">
+        <option value="">（选择场景）</option>
+        <option value="B">B 同位置编辑</option>
+        <option value="C">C 形状被移动</option>
+        <option value="D">D 元素被删除</option>
+      </select></label>
+    <button type="button" class="pbtn" id="theme-btn">主题：跟随系统</button>
+    <label><input type="checkbox" id="ctl-motion"> 模拟 reduced-motion</label>
+    <span style="margin-left:auto; color:var(--cordex-color-text-secondary);">命令面板 <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></span>
+  </div>
+
+  <nav class="route-nav" id="route-nav" aria-label="原型路由"></nav>
+
+  <div id="viewport-frame" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+  <main id="main-content" class="route-main">
+
+  <!-- ============ #/ 原型导航目录（元信息，非产品界面）============ -->
+  <section data-route-group="home">
+    <div style="max-width:760px;margin:0 auto;padding:var(--cordex-space-8) var(--cordex-space-4);">
+      <h1 style="font-size:var(--cordex-font-size-2xl);">Cordex 幻灯片编辑器 —— 原型 v2 导航目录</h1>
+      <p style="color:var(--cordex-color-text-secondary);">本页是原型的元信息导航，非产品界面。使用顶部"路由"下拉或下表跳转到任一界面；每个路由内可用"状态"下拉切换该界面定义的不同状态。</p>
+      <table style="width:100%;border-collapse:collapse;font-size:var(--cordex-font-size-sm);">
+        <thead><tr style="text-align:left;border-bottom:1px solid var(--cordex-color-border-subtle);"><th style="padding:6px 8px;">路由</th><th style="padding:6px 8px;">说明</th></tr></thead>
+        <tbody id="home-route-list"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ #/documents 文档列表（03-screens/01）============ -->
+  <section data-route-group="documents" hidden>
+    <header class="app-bar">
+      <span style="font-weight:700;">Cordex</span>
+      <div class="doc-search"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><label class="sr-only" for="doc-search-input">搜索文档</label><input id="doc-search-input" type="search" placeholder="搜索文档…" oninput="onDocSearch(this.value)"></div>
+      <span class="spacer"></span>
+      <span class="avatar self" title="我">我</span>
+    </header>
+    <div class="doc-filters" role="tablist" aria-label="文档筛选">
+      <button type="button" class="chip" role="tab" aria-selected="true" onclick="activateChip(this)">全部</button>
+      <button type="button" class="chip" role="tab" aria-selected="false" onclick="activateChip(this)">我拥有</button>
+      <button type="button" class="chip" role="tab" aria-selected="false" onclick="activateChip(this)">共享给我</button>
+      <button type="button" class="chip" role="tab" aria-selected="false" onclick="activateChip(this)">最近</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-sm" onclick="showToast('新建空白文档（演示）')"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建</button>
+      <button type="button" class="btn btn-sm btn-primary" onclick="navigate('#/import')"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>导入 .pptx</button>
+    </div>
+
+    <div data-state="default">
+      <div class="doc-grid">
+        <div class="doc-card"><div class="thumb-area">缩略图</div><div class="info"><div class="title">季度汇报.pptx</div><div class="meta">我 · 2 小时前</div><div class="row-end"><button type="button" class="btn btn-sm" onclick="navigate('#/editor')">打开</button><span class="spacer"></span><button type="button" class="btn btn-icon btn-sm" aria-label="更多操作" onclick="showToast('重命名 / 分享 / 移动到回收站（演示）')"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button></div></div></div>
+        <div class="doc-card"><div class="thumb-area">缩略图</div><div class="info"><div class="title">产品路线图</div><div class="meta"><span class="avatar" style="width:20px;height:20px;font-size:var(--cordex-font-size-2xs);">王</span>我+2人 · 昨天</div><div class="row-end"><button type="button" class="btn btn-sm" onclick="navigate('#/editor')">打开</button></div></div></div>
+        <div class="doc-card"><div class="thumb-area">缩略图</div><div class="info"><div class="title">设计评审</div><div class="meta">王小明 · 3 天前 <span class="badge">仅查看</span></div><div class="row-end"><button type="button" class="btn btn-sm" onclick="navigate('#/editor')">打开</button></div></div></div>
+        <div class="doc-card"><div class="thumb-area">缩略图</div><div class="info"><div class="title">招聘计划</div><div class="meta">我 · 上周</div><div class="row-end"><button type="button" class="btn btn-sm" onclick="navigate('#/editor')">打开</button></div></div></div>
+      </div>
+    </div>
+    <div data-state="empty-own" hidden><div class="empty-state"><h3>这里还没有任何文档</h3><p>新建一份幻灯片，或导入已有的 .pptx 文件开始</p><button type="button" class="btn btn-primary" onclick="showToast('新建空白文档（演示）')">新建空白文档</button> <button type="button" class="btn" onclick="navigate('#/import')">导入 .pptx</button></div></div>
+    <div data-state="empty-shared" hidden><div class="empty-state"><h3>还没有人与你共享文档</h3></div></div>
+    <div data-state="loading" hidden><div class="doc-grid"><div class="doc-card skeleton" style="height:150px"></div><div class="doc-card skeleton" style="height:150px"></div><div class="doc-card skeleton" style="height:150px"></div><div class="doc-card skeleton" style="height:150px"></div></div></div>
+    <div data-state="error" hidden><div class="empty-state"><svg class="icon lg" aria-hidden="true" style="color:var(--cordex-color-danger-default)"><use href="#i-warning"/></svg><h3>文档列表加载失败</h3><p>请检查网络连接后重试</p><button type="button" class="btn" onclick="setRouteState('documents','default')">重试</button></div></div>
+    <div data-state="offline" hidden>
+      <div class="banner banner--offline" role="status" aria-live="polite"><span><svg class="icon" aria-hidden="true"><use href="#i-offline"/></svg>离线 · 显示最近已知内容</span></div>
+      <div class="doc-grid"><div class="doc-card"><div class="thumb-area">缩略图</div><div class="info"><div class="title">季度汇报.pptx</div><div class="meta">我 · 2 小时前</div></div></div></div>
+    </div>
+    <div data-state="search-empty" hidden><div class="empty-state"><h3>没有找到与"预算"相关的文档</h3><p>检查拼写，或尝试其他关键词</p></div></div>
+  </section>
+
+  <!-- ============ #/editor 编辑器主界面（03-screens/02 及其扩展 13-24）============ -->
+  <section data-route-group="editor-shell" hidden data-mode="edit" data-subroute="main">
+    <div id="editor-banner-slot" role="status" aria-live="polite"></div>
+    <header class="app-bar">
+      <button type="button" class="btn btn-icon drawer-toggle" aria-label="打开幻灯片列表" onclick="toggleRail()"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <button type="button" class="btn btn-icon" aria-label="返回文档列表" onclick="navigate('#/documents')"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button>
+      <span class="doc-title">季度汇报.pptx</span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="撤销：移动形状 (Mod+Z)" id="btn-undo" onclick="doUndo()"><svg class="icon" aria-hidden="true" style="transform:scaleX(-1)"><use href="#i-sync"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="重做" id="btn-redo" disabled onclick="doRedo()"><svg class="icon" aria-hidden="true"><use href="#i-sync"/></svg></button>
+      <span class="saved-state" id="saved-state"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>已保存</span></span>
+      <span class="spacer"></span>
+      <span class="avatar-stack" role="group" aria-label="在线协作者：我、王小明、李雷，另有 2 人">
+        <span class="avatar self" title="我">我</span>
+        <span class="avatar" style="--presence:var(--cordex-color-presence-2)" title="王小明">王</span>
+        <span class="avatar" style="--presence:var(--cordex-color-presence-5)" title="李雷">李</span>
+        <button type="button" class="avatar more" title="另有 2 人在线，点击查看" onclick="showToast('协作者列表：张伟(编辑者) · 刘芳(评审者)')" style="border:none;cursor:pointer;">+2</button>
+      </span>
+      <button type="button" class="btn" onclick="navigate('#/editor/share')"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>分享</button>
+      <label class="sr-only" for="mode-select">编辑器模式</label>
+      <select class="mode-select" id="mode-select" onchange="setEditorMode(this.value)">
+        <option value="edit">编辑模式</option><option value="review">评审模式</option><option value="present">放映模式</option>
+      </select>
+      <button type="button" class="btn btn-icon" aria-label="更多操作与命令面板" onclick="openPalette(this)"><svg class="icon" aria-hidden="true"><use href="#i-more"/></svg></button>
+      <button type="button" class="btn btn-icon drawer-toggle" aria-label="打开属性、评论与历史面板" onclick="toggleDock()"><svg class="icon" aria-hidden="true"><use href="#i-panel"/></svg></button>
+    </header>
+
+    <div class="ribbon" data-slot="ui.ribbon">
+      <div class="ribbon-tabs" role="tablist" aria-label="功能区页签">
+        <button type="button" class="ribbon-tab" role="tab" aria-selected="true" tabindex="0" onclick="setEditorSubroute('main')">开始</button>
+        <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1" onclick="navigate('#/editor/insert')">插入</button>
+        <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1" onclick="showToast('『设计』页签：应用主题配色（占位，M2 未列为 P0）')">设计</button>
+        <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1" onclick="showToast('『切换』页签：切换效果仅保留不可编辑（章程 §2.3）')">切换</button>
+        <button type="button" class="ribbon-tab" role="tab" aria-selected="false" tabindex="-1" onclick="navigate('#/editor/pages')">视图/页面</button>
+        <button type="button" class="ribbon-tab plugin" role="tab" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg>数据图表插件</button>
+      </div>
+      <div class="ribbon-groups" role="toolbar" aria-label="开始">
+        <div class="ribbon-group" role="group" aria-label="剪贴板">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="粘贴" title="粘贴" onclick="showToast('已粘贴（内部剪贴板演示）')"><svg class="icon" aria-hidden="true"><use href="#i-paste"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="复制" title="复制" onclick="showToast('已复制')"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+          </div><span class="label" aria-hidden="true">剪贴板</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="字体">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="加粗" aria-pressed="false" onclick="toggleBtn(this)"><span class="glyph" aria-hidden="true">B</span></button>
+            <button type="button" class="ribbon-btn" aria-label="斜体" aria-pressed="false" onclick="toggleBtn(this)"><span class="glyph" aria-hidden="true" style="font-style:italic;font-weight:500">I</span></button>
+            <button type="button" class="ribbon-btn" aria-label="下划线" aria-pressed="false" onclick="toggleBtn(this)"><span class="glyph" aria-hidden="true" style="text-decoration:underline;font-weight:500">U</span></button>
+            <button type="button" class="ribbon-btn" aria-label="字体颜色" onclick="navigate('#/editor/text-editing')"><svg class="icon" aria-hidden="true"><use href="#i-font"/></svg></button>
+          </div><span class="label" aria-hidden="true">字体</span>
+        </div>
+        <div class="ribbon-group secondary" role="group" aria-label="段落">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="左对齐" onclick="toggleBtn(this)"><svg class="icon" aria-hidden="true"><use href="#i-align-left"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="居中对齐" onclick="toggleBtn(this)"><svg class="icon" aria-hidden="true"><use href="#i-align-center"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="行距" onclick="navigate('#/editor/text-editing')"><svg class="icon" aria-hidden="true"><use href="#i-line-height"/></svg></button>
+          </div><span class="label" aria-hidden="true">段落</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="绘图">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="插入矩形" onclick="insertShape('矩形')"><svg class="icon" aria-hidden="true"><use href="#i-rect"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="插入椭圆" onclick="insertShape('椭圆')"><svg class="icon" aria-hidden="true"><use href="#i-ellipse"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="插入文本框" onclick="insertShape('文本框')"><svg class="icon" aria-hidden="true"><use href="#i-textbox"/></svg></button>
+          </div><span class="label" aria-hidden="true">绘图</span>
+        </div>
+        <div class="ribbon-group secondary" role="group" aria-label="对齐与排列">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="置于顶层" onclick="showToast('已置于顶层')"><svg class="icon" aria-hidden="true"><use href="#i-front"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="对齐与分布" onclick="showToast('对齐/分布：水平居中（演示，见 03-screens/17）')"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></button>
+          </div><span class="label" aria-hidden="true">排列</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="编辑">
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="查找与替换" title="Mod+F" onclick="toggleFindReplace(true)"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="导出为 pptx" title="导出" onclick="navigate('#/export')"><svg class="icon" aria-hidden="true"><use href="#i-export"/></svg></button>
+          </div><span class="label" aria-hidden="true">编辑/导出</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-toolbar" role="toolbar" aria-label="评审工具">
+      <span class="badge">只读浏览中</span>
+      <button type="button" class="btn btn-sm" onclick="switchDock('comments')"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg>评论</button>
+      <button type="button" class="btn btn-sm">上一处评论</button>
+      <button type="button" class="btn btn-sm">下一处评论</button>
+    </div>
+
+    <!-- 插入 flyout（03-screens/04、15，G-13）：#/editor/insert 激活时显示 -->
+    <div id="insert-flyout-overlay" hidden data-slot="ui.dropdown" style="background:var(--cordex-color-bg-surface-raised); border-bottom:1px solid var(--cordex-color-border-subtle); box-shadow:var(--cordex-shadow-md); padding:var(--cordex-space-3) var(--cordex-space-4);">
+      <div style="display:flex; gap:var(--cordex-space-6); flex-wrap:wrap; font-size:var(--cordex-font-size-xs);">
+        <div>
+          <div style="color:var(--cordex-color-text-tertiary); margin-bottom:4px;">形状库（最近使用）</div>
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="矩形" onclick="insertShape('矩形')"><svg class="icon" aria-hidden="true"><use href="#i-rect"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="椭圆" onclick="insertShape('椭圆')"><svg class="icon" aria-hidden="true"><use href="#i-ellipse"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="文本框" onclick="insertShape('文本框')"><svg class="icon" aria-hidden="true"><use href="#i-textbox"/></svg></button>
+            <button type="button" class="btn btn-sm" onclick="showToast('形状库：线条/矩形/基本形状/箭头/公式形状/流程图/星与旗帜/标注/动作按钮 ≥60 项（演示，见 03-screens/15）')">更多形状…</button>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--cordex-color-text-tertiary); margin-bottom:4px;">图片</div>
+          <button type="button" class="btn btn-sm" onclick="navigate('#/editor'); insertShape('图片')"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg>本地文件…</button>
+        </div>
+        <div>
+          <div style="color:var(--cordex-color-text-tertiary); margin-bottom:4px;">表格（拖选行列数）</div>
+          <button type="button" class="btn btn-sm" onclick="showToast('已插入 2×3 表格（演示，见 03-screens/22 表格编辑待补充文件）')"><svg class="icon" aria-hidden="true"><use href="#i-table"/></svg>插入表格…</button>
+        </div>
+        <div>
+          <div style="color:var(--cordex-color-text-tertiary); margin-bottom:4px;">图表 / 链接 / 批注</div>
+          <div class="ribbon-row">
+            <button type="button" class="ribbon-btn" aria-label="图表" onclick="showToast('M1–M2 图表仅只读解析部件；M3 起可编辑 bar/line/pie（章程 Q18）')"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="超链接" onclick="showToast('超链接对话框（演示，见 03-screens/16 G-34）')"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg></button>
+            <button type="button" class="ribbon-btn" aria-label="添加批注" onclick="navigate('#/editor/comments')"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <aside class="thumb-rail" id="thumb-rail" aria-label="幻灯片列表">
+        <div role="tablist" aria-label="侧栏模式：普通或母版" style="display:flex;gap:2px;background:var(--cordex-color-bg-inset);border-radius:var(--cordex-radius-md);padding:2px;margin-bottom:var(--cordex-space-2)">
+          <span role="tab" aria-selected="true" style="flex:1;text-align:center;font-size:var(--cordex-font-size-2xs);padding:4px 0;border-radius:var(--cordex-radius-sm);background:var(--cordex-color-bg-surface);color:var(--cordex-color-accent-default);font-weight:600;min-height:var(--cordex-target-min);display:flex;align-items:center;justify-content:center">普通</span>
+          <a role="tab" aria-selected="false" href="#/editor/masters" style="flex:1;text-align:center;font-size:var(--cordex-font-size-2xs);padding:4px 0;border-radius:var(--cordex-radius-sm);color:var(--cordex-color-text-secondary);text-decoration:none;min-height:var(--cordex-target-min);display:flex;align-items:center;justify-content:center" title="进入母版视图（03-screens/26）">母版</a>
+        </div>
+        <button type="button" class="thumb" aria-current="true" onclick="selectThumb(this)" oncontextmenu="openContextMenu(event,'thumbnail')"><span class="thumb-num">1 · 当前</span><span class="thumb-img">标题页</span></button>
+        <button type="button" class="thumb" onclick="selectThumb(this)" oncontextmenu="openContextMenu(event,'thumbnail')"><span class="thumb-num">2</span><span class="thumb-warn-badge">2</span><span class="thumb-img">目录（含降级元素）</span></button>
+        <button type="button" class="thumb" onclick="selectThumb(this)" oncontextmenu="openContextMenu(event,'thumbnail')"><span class="thumb-num">3</span><span class="thumb-comment-badge">1</span><span class="thumb-img">数据</span></button>
+        <button type="button" class="thumb hidden-slide" onclick="selectThumb(this)" oncontextmenu="openContextMenu(event,'thumbnail')"><span class="thumb-num">4</span><span class="thumb-img">备用页</span></button>
+        <div id="layout-picker-overlay" hidden style="border:1px solid var(--cordex-color-border-subtle); border-radius:var(--cordex-radius-md); padding:var(--cordex-space-2); background:var(--cordex-color-bg-surface-raised); box-shadow:var(--cordex-shadow-md);">
+          <div style="font-size:var(--cordex-font-size-xs); color:var(--cordex-color-text-tertiary); margin-bottom:4px;">版式库（G-18，多母版分组见 03-screens/27）</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+            <button type="button" class="btn btn-sm" style="justify-content:flex-start" onclick="pushUndo('新建幻灯片'); showToast('已新建『与当前页相同』版式的幻灯片')"><svg class="icon" aria-hidden="true" style="color:var(--cordex-color-accent-default)"><use href="#i-check"/></svg>与当前页相同</button>
+            <button type="button" class="btn btn-sm" style="justify-content:flex-start" onclick="pushUndo('新建幻灯片'); showToast('已新建『标题和内容』版式的幻灯片')">标题和内容</button>
+            <button type="button" class="btn btn-sm" style="justify-content:flex-start" onclick="pushUndo('新建幻灯片'); showToast('已新建『仅标题』版式的幻灯片')">仅标题</button>
+            <button type="button" class="btn btn-sm" style="justify-content:flex-start" onclick="pushUndo('新建幻灯片'); showToast('已新建『空白』版式的幻灯片')">空白</button>
+          </div>
+        </div>
+        <button type="button" class="thumb-new" onclick="toggleLayoutPicker()"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>新建幻灯片 ▾</button>
+      </aside>
+
+      <main class="canvas-viewport" id="main">
+        <div class="canvas" id="canvas" tabindex="-1" aria-label="第 1 页画布" oncontextmenu="openContextMenu(event,'shape')">
+          <div class="shape shape--title" id="canvas-title-shape">季度业绩汇报
+            <span id="conflict-b-hint" hidden style="position:absolute; bottom:-16px; left:0; font-size:var(--cordex-font-size-2xs); color:var(--cordex-color-presence-2); background:var(--cordex-color-bg-surface-raised); padding:1px 6px; border-radius:3px; border:1px solid var(--cordex-color-presence-2); white-space:nowrap;">王小明也在编辑此文本框</span>
+          </div>
+          <div class="shape shape--body">2026 年第三季度 · 产品与增长团队</div>
+          <div class="selection-box" aria-hidden="true" id="sel-box"><i></i><i></i><i></i><i></i></div>
+          <div class="degraded-el" id="conflict-d-ghost" hidden><svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>该形状已被删除</div>
+          <div class="mini-toolbar" data-slot="ui.toolbar" role="toolbar" aria-label="文本快捷格式" id="mini-toolbar" hidden>
+            <button type="button" class="ribbon-btn" aria-label="加粗" aria-pressed="false"><span class="glyph" aria-hidden="true">B</span></button>
+            <button type="button" class="ribbon-btn" aria-label="斜体" aria-pressed="false"><span class="glyph" aria-hidden="true" style="font-style:italic;font-weight:500">I</span></button>
+            <button type="button" class="ribbon-btn" aria-label="字体颜色"><svg class="icon" aria-hidden="true"><use href="#i-font"/></svg></button>
+          </div>
+          <div class="remote-cursor" style="top:58%; left:64%; --presence:var(--cordex-color-presence-2)" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M1.5 1.5l5.5 13 2-5.5 5.5-2z" fill="var(--presence)" stroke="var(--cordex-color-doc-paper)" stroke-width="1"/></svg>
+            <span class="tag">王小明</span>
+          </div>
+          <div class="remote-sel" aria-hidden="true"></div>
+          <button type="button" class="comment-pin" style="top:18%; left:70%;" aria-label="评论 1：这里的数据需要核对" onclick="navigate('#/editor/comments')"><span>1</span></button>
+          <div data-slot="render.overlay" style="position:absolute; inset:0; pointer-events:none;"></div>
+          <div id="text-cursor-demo" hidden style="position:absolute; top:21%; left:40%; width:1px; height:22px; background:var(--cordex-color-border-focus); animation: blink 1s step-end infinite;" aria-hidden="true"></div>
+        </div>
+        <p id="placeholder-note" hidden style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);max-width:560px;text-align:center;">正在编辑文本：插入符已定位，迷你工具条随选区出现（见 03-screens/16 G-11）。IME 组合输入中的候选框对齐、Esc 优先取消候选等规则见 07-accessibility-and-i18n.md §4，低保真原型不模拟真实 IME。</p>
+        <div class="zoom-bar" role="group" aria-label="缩放">
+          <button type="button" class="btn btn-icon btn-sm" aria-label="缩小" onclick="zoomBy(-10)"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button>
+          <span aria-live="polite" id="zoom-label">100%</span>
+          <button type="button" class="btn btn-icon btn-sm" aria-label="放大" onclick="zoomBy(10)"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+          <button type="button" class="btn btn-sm" onclick="zoomReset()">适应窗口</button>
+          <button type="button" class="btn btn-icon btn-sm" aria-label="切换网格与参考线" aria-pressed="false" onclick="toggleBtn(this); showToast('已切换网格显示（演示）')"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></button>
+        </div>
+      </main>
+
+      <aside class="inspector-dock" id="dock" data-slot="ui.panel" aria-label="检查器">
+        <div class="dock-tabs" role="tablist" aria-label="检查器面板">
+          <button type="button" class="dock-tab" role="tab" id="tab-props" aria-selected="true" aria-controls="panel-props" tabindex="0" onclick="switchDock('props')">属性</button>
+          <button type="button" class="dock-tab" role="tab" id="tab-comments" aria-selected="false" aria-controls="panel-comments" tabindex="-1" onclick="navigate('#/editor/comments')">评论</button>
+          <button type="button" class="dock-tab" role="tab" id="tab-history" aria-selected="false" aria-controls="panel-history" tabindex="-1" onclick="navigate('#/editor/history')">历史</button>
+          <button type="button" class="dock-tab" role="tab" id="tab-plugins" aria-selected="false" aria-controls="panel-plugins" tabindex="-1" onclick="navigate('#/editor/plugins')">插件</button>
+        </div>
+        <div class="dock-panel active" id="panel-props" role="tabpanel" aria-labelledby="tab-props">
+          <details class="prop-section" open>
+            <summary><svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>位置与大小</summary>
+            <div class="prop-row">
+              <label class="field"><span>X</span><span class="ctl"><input value="120" inputmode="decimal" aria-describedby="unit-hint"></span></label>
+              <label class="field"><span>Y</span><span class="ctl"><input value="80" inputmode="decimal" aria-describedby="unit-hint"></span></label>
+            </div>
+            <div class="prop-row">
+              <label class="field"><span>宽</span><span class="ctl"><input value="320" inputmode="decimal" aria-describedby="unit-hint"></span></label>
+              <label class="field"><span>高</span><span class="ctl"><input value="96" inputmode="decimal" aria-describedby="unit-hint"></span></label>
+            </div>
+            <div id="unit-hint" style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary)">单位：厘米（cm），可在设置中切换（见 03-screens/23）</div>
+          </details>
+          <details class="prop-section" open>
+            <summary><svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>填充</summary>
+            <div class="prop-row"><label class="field" style="flex:1"><span class="sr-only">填充颜色</span><span class="ctl"><button type="button" class="swatch" style="background:var(--cordex-color-accent-default)" aria-label="选择填充颜色，当前 #4A54E1" onclick="showToast('颜色选择器（演示，见 03-screens/16）')"></button><input value="#4A54E1" aria-label="填充颜色十六进制值"></span></label></div>
+          </details>
+          <details class="prop-section">
+            <summary><svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>替代文本</summary>
+            <div class="prop-row"><label class="field" style="flex:1"><span>描述</span><span class="ctl"><input placeholder="描述这个对象…"></span></label></div>
+          </details>
+          <details class="prop-section">
+            <summary><svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg>数据绑定 <span class="plugin-attrib">· 插件 · 来自 ACME</span></summary>
+            <div class="prop-row"><label class="field"><span style="width:auto">字段</span><span class="ctl"><input value="revenue_q3"></span></label></div>
+          </details>
+        </div>
+        <div class="dock-panel" id="panel-comments" role="tabpanel" aria-labelledby="tab-comments">
+          <div class="filter-row" role="group" aria-label="评论筛选">
+            <button type="button" class="chip" aria-pressed="true" onclick="filterComments(this,'all')">全部</button>
+            <button type="button" class="chip" aria-pressed="false" onclick="filterComments(this,'page')">当前页</button>
+            <button type="button" class="chip" aria-pressed="false" onclick="filterComments(this,'open')">未解决</button>
+            <button type="button" class="chip" aria-pressed="false" onclick="filterComments(this,'mine')">@我</button>
+            <button type="button" class="chip warn" aria-pressed="false" onclick="filterComments(this,'detached')">已脱离锚点 (1)</button>
+          </div>
+          <ul id="comment-list" style="list-style:none;padding:0;margin:0">
+            <li class="comment-thread" data-tag="page open mine">
+              <div class="meta">第 1 页 · "标题文本" · 王小明 · <time>2 小时前</time></div>
+              这里的数据需要核对，@我 麻烦看一下
+              <div class="confirm-card" style="margin-top:6px;">
+                <div class="row" style="margin-top:0">
+                  <button type="button" class="btn btn-sm" onclick="showToast('已回复（演示）')">回复</button>
+                  <button type="button" class="btn btn-sm" onclick="resolveThread(this)">标记已解决</button>
+                </div>
+              </div>
+            </li>
+            <li class="comment-thread resolved" data-tag="" hidden>
+              <div class="meta">第 3 页 · "结论" · 李雷 · <time>昨天</time> <span class="badge">已解决</span></div>
+              <button type="button" class="btn btn-sm" onclick="reopenThread(this)">重新打开</button>
+            </li>
+            <li class="comment-thread detached" data-tag="detached">
+              <div class="meta">第 2 页 · <span class="badge warn">原对象已删除</span> · 我 · <time>昨天</time></div>
+              建议这页加一个总结
+              <div class="row" style="margin-top:6px;"><button type="button" class="btn btn-sm" onclick="showToast('已回复（演示）')">回复</button></div>
+            </li>
+          </ul>
+          <div class="compose-box">
+            <label class="sr-only" for="compose-input">写评论</label>
+            <textarea id="compose-input" placeholder="写评论，输入 @ 可提及协作者…" oninput="onComposeInput(this)"></textarea>
+            <div class="mention-list" id="mention-list" hidden role="listbox" aria-label="提及候选">
+              <button type="button" role="option" onclick="insertMention('王小明')"><span class="avatar" style="width:20px;height:20px;font-size:var(--cordex-font-size-2xs);--presence:var(--cordex-color-presence-2)">王</span>王小明 · 编辑者</button>
+              <button type="button" role="option" onclick="insertMention('李雷')"><span class="avatar" style="width:20px;height:20px;font-size:var(--cordex-font-size-2xs);--presence:var(--cordex-color-presence-5)">李</span>李雷 · 评审者</button>
+            </div>
+            <div style="text-align:right;margin-top:4px;"><button type="button" class="btn btn-sm btn-primary" onclick="submitComment()">发送</button></div>
+          </div>
+        </div>
+        <div class="dock-panel" id="panel-history" role="tabpanel" aria-labelledby="tab-history">
+          <div class="history-preview" id="history-preview">
+            <div class="canvas" style="aspect-ratio:16/9;box-shadow:none;">
+              <div class="shape shape--title" style="font-size:16px;">季度业绩汇报</div>
+              <div class="shape shape--body" style="font-size:11px;">当前版本 · 只读预览</div>
+            </div>
+            <div style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);">选择左侧任一历史节点查看该版本的只读预览</div>
+          </div>
+          <ul style="list-style:none;padding:0;margin:0">
+            <li class="history-item" aria-current="true"><button type="button" class="row-btn" onclick="previewVersion(this,'当前版本','刚刚')"><svg class="icon" aria-hidden="true"><use href="#i-dot"/></svg>当前版本<time>刚刚</time></button></li>
+            <li class="history-item"><button type="button" class="row-btn" onclick="previewVersion(this,'自动版本','14:32')"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>自动版本<time>14:32</time></button></li>
+            <li class="history-item"><button type="button" class="row-btn" onclick="previewVersion(this,'提案定稿','昨天 16:20')"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg><b>提案定稿</b><time>昨天 16:20</time></button></li>
+            <li class="history-item"><button type="button" class="row-btn" onclick="previewVersion(this,'自动版本','9月10日')"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>自动版本<time>9月10日</time></button></li>
+          </ul>
+          <div class="row" style="margin-top:8px;">
+            <button type="button" class="btn btn-sm" onclick="showNameVersionForm()">命名当前版本</button>
+            <button type="button" class="btn btn-sm" onclick="showRestoreConfirm()">恢复此版本</button>
+          </div>
+          <div id="history-inline"></div>
+        </div>
+        <div class="dock-panel" id="panel-plugins" role="tabpanel" aria-labelledby="tab-plugins">
+          <div style="font-weight:600;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin-bottom:4px;">已启用 2</div>
+          <div class="plugin-row">
+            <div style="flex:1;"><div class="name">幻灯片核心（内置）</div><div class="desc">不可禁用</div></div>
+          </div>
+          <div class="plugin-row">
+            <div style="flex:1;">
+              <div class="name">数据图表增强 <span class="plugin-attrib">第三方 · ACME</span></div>
+              <div class="desc">2 个 ribbon 按钮 · 1 个属性分区 <button type="button" class="btn btn-icon btn-sm" aria-label="展开详情" onclick="togglePluginDetail(this)"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></div>
+              <div class="detail" hidden>版本 0.3.1 · 提供方 ACME · 宿主兼容 0.1–0.3<br>贡献：ribbon(2) panel(1)<br>依赖注入：render.overlay、layout.measurer<br>能力声明：network:api.acme.com、storage:local（仅展示）</div>
+            </div>
+            <button type="button" class="switch" role="switch" aria-checked="true" aria-label="启用数据图表增强" onclick="toggleSwitch(this,'数据图表增强')"></button>
+          </div>
+          <div style="font-weight:600;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:8px 0 4px;">等待依赖 1</div>
+          <div class="plugin-row">
+            <div style="flex:1;"><div class="name">流程图协作扩展 <span class="plugin-attrib">第三方 · ACME</span></div><div class="desc">等待服务 "collabTransport" 可用</div></div>
+            <button type="button" class="switch pending" role="switch" aria-checked="false" aria-disabled="true" aria-label="流程图协作扩展（等待依赖）"></button>
+          </div>
+          <div style="font-weight:600;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);margin:8px 0 4px;">启动失败 1</div>
+          <div class="plugin-row">
+            <div style="flex:1;">
+              <div class="name">演示激光笔 <span class="plugin-attrib">第三方 · Beta Labs</span></div>
+              <div class="desc error"><svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>启动失败：缺少依赖服务 render.overlay</div>
+              <div class="row" style="margin-top:4px;">
+                <button type="button" class="btn btn-sm" id="retry-btn" onclick="retryPlugin(this)">重试</button>
+                <button type="button" class="btn btn-sm" onclick="togglePluginDetail(this.closest('.plugin-row').querySelector('button[aria-label=\'展开详情\']')||this)">查看详情</button>
+                <button type="button" class="btn btn-sm" onclick="showToast('已禁用『演示激光笔』')">禁用</button>
+              </div>
+              <div class="detail" hidden>错误码：plugin.missing_dependency · 插件版本 0.0.4 · 宿主版本 0.3.1 <button type="button" class="btn btn-sm" onclick="showToast('已复制诊断信息')">复制诊断信息</button></div>
+            </div>
+          </div>
+          <div id="plugin-enable-confirm"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="notes-strip" id="notes">
+      <button type="button" class="notes-head" aria-expanded="false" aria-controls="notes-body" onclick="toggleNotes(this)"><span id="notes-label">演讲者备注</span><svg class="icon chev" aria-hidden="true"><use href="#i-chevron-down"/></svg><span class="count" id="notes-count">32 字</span></button>
+      <div class="notes-body" id="notes-body"><textarea aria-labelledby="notes-label" placeholder="输入演讲者备注" oninput="document.getElementById('notes-count').textContent = this.value.length + ' 字'">先感谢团队本季度的努力，再进入数据部分。</textarea></div>
+    </div>
+
+    <footer class="status-bar" data-slot="ui.statusBar">
+      <span class="item">第 1/12 页</span>
+      <span class="item">已选中 1 个对象</span>
+      <button type="button" class="item" aria-label="导入详情：3 处内容已按原样保留" onclick="openDialog('fidelity',this)"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg>3 项详情</button>
+      <span class="item" id="editor-loading-hint" hidden>其余页面加载中 6/12</span>
+      <span class="end">
+        <span class="item" id="conn-dot"><span class="dot green" aria-hidden="true"></span>已同步</span>
+        <span class="item presence-count"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>3 人在线</span>
+        <button type="button" class="item" onclick="navigate('#/editor/plugins')"><svg class="icon" aria-hidden="true" style="color:var(--cordex-color-warning-default)"><use href="#i-puzzle"/></svg>1 个插件启动失败</button>
+        <button type="button" class="item" data-slot="ui.shortcut" onclick="navigate('#/settings')"><svg class="icon" aria-hidden="true"><use href="#i-keyboard"/></svg>快捷键</button>
+        <button type="button" class="item" aria-label="帮助" onclick="showToast('低保真原型：完整帮助中心未实现，快捷键见『?』面板')"><svg class="icon" aria-hidden="true"><use href="#i-question"/></svg></button>
+      </span>
+    </footer>
+  </section>
+
+  <!-- ============ #/editor/masters 母版视图（03-screens/26、27，ML-01/02）============ -->
+  <section data-route-group="editor-masters" hidden>
+    <header class="app-bar">
+      <button type="button" class="btn btn-icon" aria-label="返回文档列表" onclick="navigate('#/documents')"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button>
+      <span class="doc-title">季度汇报.pptx</span>
+      <span class="badge" style="background:var(--cordex-color-accent-subtle);color:var(--cordex-color-accent-hover);display:inline-flex;align-items:center;gap:4px;"><svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#i-master"/></svg>母版视图</span>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-primary btn-sm" onclick="navigate('#/editor')" aria-label="关闭母版视图，返回普通视图"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>关闭母版视图</button>
+    </header>
+    <div class="ribbon" data-slot="ui.ribbon" aria-label="功能区 · 母版">
+      <div class="ribbon-tabs" role="tablist" aria-label="功能区页签">
+        <button type="button" class="ribbon-tab plugin" role="tab" aria-selected="true" tabindex="0"><svg class="icon" aria-hidden="true"><use href="#i-panel"/></svg>母版</button>
+      </div>
+      <div class="ribbon-groups" role="toolbar" aria-label="母版">
+        <div class="ribbon-group" role="group" aria-label="编辑">
+          <div class="ribbon-row"><button type="button" class="btn btn-sm" onclick="showToast('插入占位符：标题/正文/日期/页脚/页码/图片（演示，见 03-screens/26 §5）')"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>插入占位符▾</button></div><span class="label" aria-hidden="true">编辑</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="母版版式">
+          <div class="ribbon-row"><button type="button" class="btn btn-sm" onclick="showToast('母版版式▾（跳转同一母版内其它版式，演示）')">母版版式▾</button></div><span class="label" aria-hidden="true">母版版式</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="背景">
+          <div class="ribbon-row"><button type="button" class="btn btn-sm" onclick="showToast('背景样式▾（演示，见 03-screens/03 补充 G-35）')">背景样式▾</button></div><span class="label" aria-hidden="true">背景</span>
+        </div>
+        <div class="ribbon-group" role="group" aria-label="主题">
+          <div class="ribbon-row"><a class="btn btn-sm" href="../mockups/28-design-tab-and-themes.html" target="_blank" rel="noopener">编辑主题…</a></div><span class="label" aria-hidden="true">主题</span>
+        </div>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-primary btn-sm" style="align-self:center;margin-right:var(--cordex-space-3)" onclick="navigate('#/editor')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>关闭母版视图</button>
+      </div>
+    </div>
+    <div class="main-layout">
+      <aside class="thumb-rail" style="width:196px;" aria-label="母版与版式">
+        <div class="master-rail-switch" role="tablist" aria-label="侧栏模式">
+          <a role="tab" aria-selected="false" href="#/editor" style="color:var(--cordex-color-text-secondary);text-decoration:none;">普通</a>
+          <button type="button" role="tab" aria-selected="true" aria-pressed="true" style="background:var(--cordex-color-bg-surface);color:var(--cordex-color-accent-default);font-weight:600;border:none;">母版</button>
+        </div>
+        <div>
+          <button type="button" class="master-tree-row master-row" aria-expanded="true" onclick="toggleMasterNode(this)"><svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#i-chevron-down"/></svg>公司主题<span style="margin-left:auto;font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-tertiary)">6 版式</span></button>
+          <div class="master-tree-children">
+            <button type="button" class="master-tree-row" onclick="selectMasterNode(this,'标题幻灯片')">标题幻灯片<span class="badge" style="margin-left:auto">1 页</span></button>
+            <button type="button" class="master-tree-row" aria-current="true" onclick="selectMasterNode(this,'标题和内容')">标题和内容<span class="badge" style="margin-left:auto">4 页</span></button>
+            <button type="button" class="master-tree-row" onclick="selectMasterNode(this,'两栏内容')">两栏内容<span class="badge" style="margin-left:auto">2 页</span></button>
+          </div>
+        </div>
+        <button type="button" class="master-tree-row master-row" aria-expanded="false" onclick="toggleMasterNode(this)" style="margin-top:8px;"><svg class="icon" aria-hidden="true" style="width:12px;height:12px;transform:rotate(-90deg)"><use href="#i-chevron-down"/></svg>简约主题<span class="badge" style="margin-left:auto">导入</span></button>
+      </aside>
+      <main class="canvas-viewport">
+        <div id="masters-scope-label" style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-accent-hover);background:var(--cordex-color-accent-subtle);padding:4px 10px;border-radius:var(--cordex-radius-md);margin-bottom:10px;width:100%;text-align:left;box-sizing:border-box;">正在编辑：版式 · 标题和内容 · 继承自「公司主题」 <span style="float:right;font-size:var(--cordex-font-size-2xs)">实线=此版式定义 · 虚线=继承自母版</span></div>
+        <div class="canvas" id="masters-canvas" aria-label="标题和内容版式画布，含母版继承的页脚、日期与页码占位符">
+          <button type="button" class="shape shape--title" style="top:10%;left:8%;width:64%;border:1.5px solid var(--cordex-color-accent-default);background:var(--cordex-color-accent-subtle);border-radius:4px;padding:6px 10px;text-align:left;font:inherit;" onclick="selectPlaceholder('标题占位符 · type=title, idx=0')">单击此处编辑母版标题样式</button>
+          <div class="shape" style="top:32%;left:8%;width:74%;font-size:11px;border:1.5px solid var(--cordex-color-accent-default);background:var(--cordex-color-accent-subtle);padding:6px 10px;border-radius:4px;line-height:1.9;">
+            第一级大纲文本样式<br><span style="margin-left:1.2em;display:inline-block">第二级大纲文本样式</span><br><span style="margin-left:2.4em;display:inline-block">第三级大纲文本样式</span>
+          </div>
+          <div class="shape" style="bottom:5%;left:8%;font-size:9px;color:var(--cordex-color-text-tertiary);border:1.5px dashed var(--cordex-color-border-control);padding:2px 8px;border-radius:4px;">页脚占位符 · 母版</div>
+          <div class="shape" style="bottom:5%;left:42%;font-size:9px;color:var(--cordex-color-text-tertiary);border:1.5px dashed var(--cordex-color-border-control);padding:2px 8px;border-radius:4px;">‹日期/时间› · 母版</div>
+          <div class="shape" style="bottom:5%;right:6%;font-size:9px;color:var(--cordex-color-text-tertiary);border:1.5px dashed var(--cordex-color-border-control);padding:2px 8px;border-radius:4px;">‹#› · 母版</div>
+        </div>
+      </main>
+      <aside class="inspector-dock" aria-label="占位符属性">
+        <div class="dock-tabs" role="tablist" aria-label="检查器面板">
+          <button type="button" class="dock-tab" role="tab" aria-selected="true">属性</button>
+          <button type="button" class="dock-tab" role="tab" aria-disabled="true" tabindex="-1" title="母版视图不支持评论">评论</button>
+          <button type="button" class="dock-tab" role="tab" aria-disabled="true" tabindex="-1" title="母版视图不支持历史">历史</button>
+          <button type="button" class="dock-tab" role="tab" aria-disabled="true" tabindex="-1" title="母版视图不支持插件">插件</button>
+        </div>
+        <div class="dock-panel active" id="masters-inspector" style="padding:var(--cordex-space-3);font-size:var(--cordex-font-size-sm);display:block;">
+          <p style="color:var(--cordex-color-text-tertiary);font-size:var(--cordex-font-size-xs)">点击画布上的占位符查看其属性（占位符编辑态）。</p>
+        </div>
+      </aside>
+    </div>
+    <footer class="status-bar"><span id="masters-status">编辑版式 · 标题和内容</span><span class="spacer"></span><span>未保存改动 · 影响 4 页</span></footer>
+  </section>
+
+  <!-- ============ #/editor/share 分享与权限（03-screens/08）============ -->
+  <section data-route-group="editor-share" hidden style="display:flex; align-items:flex-start; justify-content:center; padding:var(--cordex-space-8) var(--cordex-space-4); background:var(--cordex-color-bg-overlay-scrim); min-height:100%;">
+    <div class="dialog" data-slot="ui.dialog" role="dialog" aria-modal="false" aria-labelledby="share-title" style="position:static;">
+      <div class="dialog-head"><span id="share-title">分享"季度汇报.pptx"</span><button type="button" class="btn btn-icon btn-sm" aria-label="关闭并返回编辑器" onclick="navigate('#/editor')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+      <div class="dialog-body">
+        <div data-state="default">
+          <div class="form-field">
+            <label for="invite-input">邀请协作者</label>
+            <div class="row"><input id="invite-input" placeholder="例如 lilei@example.com" autocomplete="off"><select aria-label="邀请角色"><option>可编辑</option><option selected>可评审</option><option>可查看</option></select><button type="button" class="btn" onclick="onInvite()">邀请</button></div>
+            <span class="help">输入邮箱或姓名，默认权限为"可评审"</span>
+            <span class="err" id="invite-err" hidden>该邮箱未注册，或已达到席位上限</span>
+          </div>
+          <ul style="list-style:none;padding:0;margin:0">
+            <li class="share-row"><span class="avatar self">我</span><span class="who">我（所有者）</span><span class="role">所有者</span></li>
+            <li class="share-row"><span class="avatar" style="--presence:var(--cordex-color-presence-2)">王</span><span class="who">王小明</span>
+              <label class="sr-only" for="role-wang">王小明的角色</label><select id="role-wang" class="role" onchange="showToast('已将王小明的角色改为：'+this.value)"><option selected>可编辑</option><option>可评审</option><option>可查看</option></select>
+              <button type="button" class="btn btn-icon btn-sm" aria-label="移除王小明" onclick="this.closest('li').style.opacity='.3'; showToast('已移除王小明')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></li>
+            <li class="share-row"><span class="avatar" style="--presence:var(--cordex-color-presence-5)">李</span><span class="who">李雷</span>
+              <label class="sr-only" for="role-li">李雷的角色</label><select id="role-li" class="role" onchange="showToast('已将李雷的角色改为：'+this.value)"><option>可编辑</option><option selected>可评审</option><option>可查看</option></select>
+              <button type="button" class="btn btn-icon btn-sm" aria-label="移除李雷" onclick="this.closest('li').style.opacity='.3'; showToast('已移除李雷')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></li>
+          </ul>
+          <div class="link-row"><svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>通过链接分享
+            <label class="sr-only" for="link-role">链接权限</label>
+            <select id="link-role" onchange="showToast('链接权限已改为：'+this.value)"><option>仅邀请人可访问</option><option selected>组织内可查看</option><option>组织内可评审</option><option>任何拥有链接的人可查看</option></select>
+          </div>
+        </div>
+        <div data-state="loading" hidden><div class="skeleton" style="height:20px;margin-bottom:8px;"></div><div class="skeleton" style="height:20px;margin-bottom:8px;"></div><div class="skeleton" style="height:20px;"></div></div>
+        <div data-state="error" hidden><div class="empty-state"><h3>加载失败</h3><button type="button" class="btn" onclick="setRouteState('editor/share','default')">重试</button></div></div>
+        <div data-state="offline" hidden><div class="banner banner--offline" role="status"><span><svg class="icon" aria-hidden="true"><use href="#i-offline"/></svg>离线时无法邀请协作者或生成分享链接</span></div></div>
+        <div data-state="forbidden" hidden>
+          <ul style="list-style:none;padding:0;margin:0">
+            <li class="share-row"><span class="avatar self">我</span><span class="who">王小明（我）</span><span class="role">可编辑</span></li>
+            <li class="share-row"><span class="avatar" style="--presence:var(--cordex-color-presence-3)">张</span><span class="who">张三（所有者）</span><span class="role">所有者</span></li>
+          </ul>
+          <p style="color:var(--cordex-color-text-tertiary);font-size:var(--cordex-font-size-xs);">仅所有者或管理者可以更改分享设置</p>
+        </div>
+      </div>
+      <div class="dialog-foot"><button type="button" class="btn" onclick="showToast('已复制链接')">复制链接</button><button type="button" class="btn btn-primary" onclick="navigate('#/editor')">完成</button></div>
+    </div>
+  </section>
+
+  <!-- ============ #/export 导出对话框（03-screens/22，G-25）============ -->
+  <section data-route-group="export" hidden style="display:flex; align-items:flex-start; justify-content:center; padding:var(--cordex-space-8) var(--cordex-space-4); background:var(--cordex-color-bg-overlay-scrim); min-height:100%;">
+    <div class="dialog" data-slot="ui.dialog" role="dialog" aria-modal="false" aria-labelledby="export-title" style="position:static;">
+      <div class="dialog-head"><span id="export-title">导出"季度汇报.pptx"</span><button type="button" class="btn btn-icon btn-sm" aria-label="关闭并返回编辑器" onclick="navigate('#/editor')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+      <div class="dialog-body">
+        <div data-state="form">
+          <div class="form-field"><label>格式</label><div class="radio-row">
+            <label><input type="radio" name="exp-fmt" checked>PowerPoint .pptx</label>
+            <label><input type="radio" name="exp-fmt">PNG 图片</label>
+            <label><input type="radio" name="exp-fmt">SVG 矢量图</label>
+            <label><input type="radio" name="exp-fmt">PDF · 服务端生成</label>
+          </div></div>
+          <div class="form-field"><label>范围</label><div class="radio-row">
+            <label><input type="radio" name="exp-range" checked>全部页 12</label>
+            <label><input type="radio" name="exp-range">当前页</label>
+            <label><input type="radio" name="exp-range">选定页</label>
+            <label><input type="radio" name="exp-range">自定义页码</label>
+          </div></div>
+          <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);"><svg class="icon" aria-hidden="true" style="width:14px;height:14px;vertical-align:-2px;"><use href="#i-file"/></svg> 未修改的内容将原样保留 <a href="#/import" style="color:var(--cordex-color-text-link);">查看导入详情</a></p>
+        </div>
+        <div data-state="progress" hidden><p>正在重新打包未修改的部件…</p><div class="skeleton" style="height:8px;width:58%;"></div></div>
+        <div data-state="done" hidden><p><svg class="icon" aria-hidden="true" style="color:var(--cordex-color-success-default)"><use href="#i-check"/></svg> 导出完成 · 季度汇报.pptx（2.4 MB）</p></div>
+        <div data-state="error" hidden><div class="empty-state"><h3>导出失败</h3><p>服务端处理超时，请重试</p><button type="button" class="btn" onclick="setRouteState('export','form')">重试</button></div></div>
+        <div data-state="unsynced" hidden><div class="banner banner--offline" role="status"><span><svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg>存在 3 项未同步的更改，导出将包含本地最新内容</span></div></div>
+      </div>
+      <div class="dialog-foot"><button type="button" class="btn" onclick="navigate('#/editor')">取消</button><button type="button" class="btn btn-primary" onclick="runExport()">导出</button></div>
+    </div>
+  </section>
+
+  <!-- ============ #/present 放映模式（03-screens/11）============ -->
+  <section data-route-group="present" hidden style="background:var(--cordex-color-stage-bg); min-height:100%; display:flex; align-items:center; justify-content:center; position:relative;">
+    <div data-state="default" style="width:100%;display:flex;align-items:center;justify-content:center;">
+      <div class="canvas" style="width:min(92vw,900px);box-shadow:none;">
+        <div class="shape shape--title">季度业绩汇报</div>
+        <div class="shape shape--body" style="opacity:.8">2026 年第三季度 · 产品与增长团队</div>
+      </div>
+      <div style="position:absolute; bottom:24px; left:50%; transform:translateX(-50%); background:var(--cordex-color-stage-chrome); border-radius:var(--cordex-radius-full); padding:6px 10px; display:flex; gap:6px; align-items:center; color:var(--cordex-color-stage-fg); font-size:var(--cordex-font-size-xs);" role="toolbar" aria-label="放映控制">
+        <button type="button" style="background:none;border:none;color:inherit;min-width:36px;min-height:36px;" aria-label="上一页" onclick="showToast('上一页')"><svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <span>1 / 12</span>
+        <button type="button" style="background:none;border:none;color:inherit;min-width:36px;min-height:36px;" aria-label="下一页" onclick="showToast('下一页')"><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+        <button type="button" style="background:none;border:none;color:inherit;min-width:36px;min-height:36px;" aria-label="黑屏" onclick="showToast('黑屏（按 B 恢复）')"><svg class="icon" aria-hidden="true"><use href="#i-blank"/></svg></button>
+        <button type="button" style="background:none;border:none;color:inherit;min-width:36px;min-height:36px;" aria-label="退出放映" onclick="navigate('#/editor')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+    <div data-state="loading" hidden style="color:var(--cordex-color-stage-fg);">正在进入放映…</div>
+    <div data-state="pagefail" hidden style="color:var(--cordex-color-stage-fg);text-align:center;">此页内容暂时无法显示<br>[◂上一页] 5 / 12 [下一页▸]</div>
+    <div data-state="follow" hidden style="width:100%;display:flex;align-items:center;justify-content:center;position:relative;">
+      <div class="canvas" style="width:min(92vw,900px);box-shadow:none;"><div class="shape shape--title">季度业绩汇报</div></div>
+      <div style="position:absolute; top:16px; left:50%; transform:translateX(-50%); background:var(--cordex-color-stage-chrome); color:var(--cordex-color-stage-fg); padding:4px 6px 4px 12px; border-radius:var(--cordex-radius-full); font-size:var(--cordex-font-size-xs); display:flex; align-items:center; gap:8px;">
+        <span>正在跟随 王小明</span><button type="button" style="background:rgba(255,255,255,.14);border:none;color:inherit;border-radius:var(--cordex-radius-full);min-height:var(--cordex-target-min);padding:0 10px;" onclick="showToast('已返回自由浏览')">返回同步</button>
+      </div>
+    </div>
+    <div data-state="offline" hidden style="color:var(--cordex-color-stage-fg);">与主讲人失去连接，正在显示最后同步的页面</div>
+  </section>
+
+  <!-- ============ #/viewer 只读查看器 preset 壳（03-screens/25，G-04）============ -->
+  <section data-route-group="viewer" hidden>
+    <div style="display:flex; align-items:center; gap:var(--cordex-space-2); padding:0 var(--cordex-space-4); height:44px; background:var(--cordex-color-bg-surface); border-bottom:1px solid var(--cordex-color-border-subtle);">
+      <button type="button" class="btn btn-icon btn-sm" aria-label="上一页"><svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+      <label class="sr-only" for="viewer-page">页码</label><input id="viewer-page" value="3" style="width:36px;height:28px;text-align:center;border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);"> / 12
+      <button type="button" class="btn btn-icon btn-sm" aria-label="下一页"><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="缩小"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button>100%<button type="button" class="btn btn-icon btn-sm" aria-label="放大"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="全屏"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="查找" onclick="toggleFindReplace(true)"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg></button>
+      <button type="button" class="btn btn-icon btn-sm" aria-label="导入摘要" onclick="showToast('2 处内容已按原样保留 · 1 种缺失字体已替代')"><svg class="icon" aria-hidden="true"><use href="#i-question"/></svg></button>
+    </div>
+    <div data-state="default" class="canvas-viewport" style="min-height:60vh;"><div class="canvas"><div class="shape shape--title">季度业绩汇报</div><div class="shape shape--body">只读查看 · preset-slide-viewer</div></div></div>
+    <div data-state="loading" hidden class="canvas-viewport" style="min-height:60vh;"><div class="canvas skeleton"></div></div>
+    <div data-state="error" hidden class="empty-state"><h3>无法打开该文档</h3><p>不支持的文件格式，或文档已损坏</p></div>
+  </section>
+
+  <!-- ============ #/settings 设置与快捷键（03-screens/23、24）============ -->
+  <section data-route-group="settings" style="max-width:640px;margin:0 auto;padding:var(--cordex-space-6) var(--cordex-space-4);" hidden>
+    <div class="dock-tabs" role="tablist" aria-label="设置分组" style="margin-bottom:var(--cordex-space-4);">
+      <button type="button" class="dock-tab" role="tab" id="stab-general" aria-selected="true" aria-controls="spanel-general" tabindex="0" onclick="switchSettingsTab('general')">通用</button>
+      <button type="button" class="dock-tab" role="tab" id="stab-shortcuts" aria-selected="false" aria-controls="spanel-shortcuts" tabindex="-1" onclick="switchSettingsTab('shortcuts')">快捷键</button>
+    </div>
+    <div id="spanel-general" role="tabpanel" aria-labelledby="stab-general">
+      <div class="form-field"><label for="set-theme">外观 · 主题</label><select id="set-theme" onchange="if(this.value!=='system'){document.documentElement.setAttribute('data-theme',this.value)}else{document.documentElement.removeAttribute('data-theme')}"><option value="system">跟随系统</option><option value="light">亮色</option><option value="dark">暗色</option></select></div>
+      <div class="form-field"><label>外观 · 密度</label><div class="radio-row"><label><input type="radio" name="set-density" checked onclick="setDensity('comfortable')">舒适</label><label><input type="radio" name="set-density" onclick="setDensity('compact')">紧凑</label></div></div>
+      <div class="form-field"><label for="set-lang">语言</label><select id="set-lang" onchange="showToast('语言已切换为：'+this.value+'（≤200ms 生效，演示）')"><option>简体中文</option><option>English</option></select></div>
+      <div class="form-field"><label for="set-unit">度量单位</label><select id="set-unit"><option>厘米 (cm)</option><option>英寸 (in)</option><option>磅 (pt)</option><option>像素 (px)</option></select><span class="help">默认随语言：zh-CN → cm，en-US → in（D1）</span></div>
+      <div class="form-field"><label>通知</label>
+        <label style="display:flex;align-items:center;gap:6px;min-height:var(--cordex-target-min);"><input type="checkbox">协作者加入时提示</label>
+        <label style="display:flex;align-items:center;gap:6px;min-height:var(--cordex-target-min);"><input type="checkbox" checked>评论 @ 我时提示</label>
+      </div>
+      <div class="form-field"><label>关于</label><span class="help">版本 0.1.0-m2</span><button type="button" class="btn btn-sm" style="width:fit-content;" onclick="showToast('已复制诊断信息')">复制诊断信息</button></div>
+    </div>
+    <div id="spanel-shortcuts" role="tabpanel" aria-labelledby="stab-shortcuts" hidden>
+      <label class="sr-only" for="sc-search">搜索快捷键</label>
+      <input id="sc-search" placeholder="搜索快捷键…" oninput="filterShortcuts(this.value)" style="width:100%;height:var(--cordex-control-height-md);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);background:var(--cordex-color-bg-inset);padding:0 10px;margin-bottom:var(--cordex-space-3);">
+      <div class="sc-group"><b style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);">全局</b>
+        <div class="history-item"><span>命令面板</span><kbd style="margin-left:auto;">Mod+Shift+P</kbd></div>
+        <div class="history-item"><span>撤销 / 重做</span><kbd style="margin-left:auto;">Mod+Z / Y</kbd></div>
+        <div class="history-item"><span>保存</span><kbd style="margin-left:auto;">Mod+S</kbd></div>
+      </div>
+      <div class="sc-group"><b style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);">画布</b>
+        <div class="history-item"><span>全选</span><kbd style="margin-left:auto;">Mod+A</kbd></div>
+        <div class="history-item"><span>组合 / 取消组合</span><kbd style="margin-left:auto;">Mod+G / ⇧G</kbd></div>
+        <div class="history-item"><span>复制对象</span><kbd style="margin-left:auto;">Mod+D</kbd></div>
+      </div>
+      <div class="sc-group"><b style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);">缩略图栏</b>
+        <div class="history-item"><span>新建幻灯片</span><kbd style="margin-left:auto;">Mod+M</kbd></div>
+        <div class="history-item"><span>页面重排</span><kbd style="margin-left:auto;">Mod+⇧+↑/↓</kbd></div>
+      </div>
+      <div class="sc-group"><b style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-accent-default);">插件 · 来自 ACME</b>
+        <div class="history-item"><span>插入流程图节点</span><kbd style="margin-left:auto;">Mod+⇧+F</kbd></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ #/import 打开与导入（03-screens/13，F1，G-01/G-02）============ -->
+  <section data-route-group="import" hidden style="display:flex;align-items:center;justify-content:center;min-height:70vh;padding:var(--cordex-space-4);">
+    <div style="width:min(560px,92vw);text-align:center;">
+      <div data-state="progress">
+        <p>正在打开 季度汇报.pptx …</p>
+        <div class="skeleton" style="height:120px;margin-bottom:8px;"></div>
+        <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);" aria-live="polite">正在解析母版与版式… 55%</p>
+        <button type="button" class="btn" onclick="setRouteState('import','err-invalid')">（演示）模拟失败</button>
+        <button type="button" class="btn btn-primary" onclick="navigate('#/editor')">（演示）首屏完成，进入编辑器</button>
+      </div>
+      <div data-state="done" hidden>
+        <h3 style="color:var(--cordex-color-success-emphasis);"><svg class="icon lg" aria-hidden="true"><use href="#i-check"/></svg> 已打开</h3>
+        <p style="font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-tertiary);">大部分内容已高保真还原，3 处内容已按原样保留。</p>
+        <button type="button" class="btn" onclick="openDialog('fidelity',this)">查看导入详情</button>
+        <button type="button" class="btn btn-primary" onclick="navigate('#/editor')">进入编辑器</button>
+      </div>
+      <div data-state="err-unsupported" hidden class="empty-state"><h3>不支持的文件格式</h3><p>请在 PowerPoint 中另存为 .pptx 后重试</p><button type="button" class="btn" onclick="navigate('#/documents')">返回列表</button></div>
+      <div data-state="err-encrypted" hidden class="empty-state"><h3>此文件已加密，当前版本无法打开</h3><button type="button" class="btn" onclick="navigate('#/documents')">返回列表</button></div>
+      <div data-state="err-invalid" hidden class="empty-state"><h3>无法打开：文件不是有效的演示文稿</h3><details style="text-align:left;margin-top:8px;"><summary>技术详情</summary>ppt/slides/slide7.xml 解析失败</details><button type="button" class="btn btn-sm" onclick="showToast('已复制诊断信息')">复制诊断信息</button> <button type="button" class="btn" onclick="navigate('#/documents')">返回列表</button></div>
+      <div data-state="err-limit" hidden class="empty-state"><h3>文件超出处理上限</h3><p>媒体总量超过 256 MB 上限</p><button type="button" class="btn" onclick="navigate('#/documents')">返回列表</button></div>
+      <div data-state="err-noaccess" hidden class="empty-state"><h3>你没有权限访问此文档</h3><button type="button" class="btn" onclick="showToast('已发送访问申请')">申请访问</button> <button type="button" class="btn" onclick="navigate('#/documents')">返回列表</button></div>
+    </div>
+  </section>
+
+  </main>
+  </div>
+
+  <!-- 保真报告（03-screens/10，G-22：从 #/import 与状态栏两处接入真实入口） -->
+  <div class="backdrop" id="backdrop-fidelity">
+    <div class="dialog" data-slot="ui.dialog" role="dialog" aria-modal="true" aria-labelledby="fidelity-title">
+      <div class="dialog-head"><span id="fidelity-title">导入详情：季度汇报.pptx</span><button type="button" class="btn btn-icon btn-sm" aria-label="关闭" onclick="closeDialog('fidelity')"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+      <div class="dialog-body">
+        大部分内容已高保真还原。以下内容已按原样保留，当前版本暂不支持编辑：
+        <div class="fid-item"><svg class="icon" aria-hidden="true"><use href="#i-film"/></svg><div><b>动画效果</b> · 3 处 · 第 2、5、9 页 <button type="button" class="btn btn-sm" onclick="navigate('#/editor'); selectThumb(document.querySelectorAll('.thumb')[1]); closeDialog('fidelity'); showToast('已定位到第 2 页')">定位</button><div class="meta">已原样保留并随导出写回；放映时显示结束态，播放为后续版本能力</div></div></div>
+        <div class="fid-item"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg><div><b>SmartArt</b> · 1 处 · 第 6 页<div class="meta">已保留为静态图形，暂不支持编辑其结构</div></div></div>
+        <div class="fid-item"><svg class="icon" aria-hidden="true"><use href="#i-font"/></svg><div><b>缺失字体替代</b> · 2 种<div class="meta">"Brand Sans" 已替换为系统字体，显示效果可能存在细微差异</div></div></div>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn" onclick="closeDialog('fidelity')">本次不再提醒</button>
+        <button type="button" class="btn btn-primary" onclick="closeDialog('fidelity')">知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 命令面板（06-extensibility-ux.md §2.5，全局） -->
+  <div class="backdrop" id="palette-backdrop">
+    <div class="dialog" data-slot="ui.command" role="dialog" aria-modal="true" aria-label="命令面板">
+      <label class="sr-only" for="palette-input">搜索命令</label>
+      <input class="palette-input" id="palette-input" placeholder="搜索命令…" role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" oninput="filterPalette(this.value)">
+      <div id="palette-list" role="listbox" aria-label="命令">
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); navigate('#/editor/insert')"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg>插入图片<span class="cat">插入</span></button>
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); navigate('#/export')"><svg class="icon" aria-hidden="true"><use href="#i-export"/></svg>导出为 pptx<span class="cat">文件</span><kbd>Mod+E</kbd></button>
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); navigate('#/editor/history')"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>版本历史<span class="cat">协作</span></button>
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); navigate('#/editor/plugins')"><svg class="icon" aria-hidden="true"><use href="#i-puzzle"/></svg><span>插件管理器 <span class="from">来自 系统</span></span><span class="cat">系统</span></button>
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); navigate('#/settings')"><svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg>设置<span class="cat">系统</span></button>
+        <button type="button" class="palette-item" role="option" onclick="closePalette(); toggleFindReplace(true)"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>查找与替换<span class="cat">编辑</span><kbd>Mod+F</kbd></button>
+        <button type="button" class="palette-item" role="option" aria-disabled="true" onclick="showToast('当前选区不支持裁剪（需先选中图片）')"><svg class="icon" aria-hidden="true"><use href="#i-crop"/></svg>裁剪图片<span class="from">当前选区不支持</span><span class="cat">格式</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右键菜单（03-screens/05 全变体，G-26） -->
+  <div class="context-menu" id="ctx-menu" data-slot="ui.contextMenu" role="menu" aria-label="对象操作"></div>
+
+  <div class="toast-host" id="toast-host" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+  var shell = document.getElementById('shell');
+  var lastFocus = null;
+
+  /* ===================== 路由核心（v2）=====================
+     routeKey：hash 去掉前导 "#/" 的完整路径（如 "editor/insert"），用于导航高亮与状态切换器。
+     routeGroup：实际显示哪一块 DOM（[data-route-group]）。"editor" 及其全部子路径（除 editor/share）共享同一个编辑器外壳 DOM，
+     只切换 data-subroute 属性与检查器坞 Tab；其余 routeKey 的 routeGroup 与自身相同。这是刻意的原型简化（08 §4.2 已注明：
+     路由拆分是为了便于逐状态审阅，不代表产品真实信息架构——产品中评论/历史/插件仍是同一编辑器实例内的 Tab，见 01-IA §2.3）。 */
+  var ROUTES = {
+    'home':                { label: '导航目录', desc: '原型元信息导航（非产品界面）', states: [] },
+    'documents':           { label: '#/documents 文档列表', desc: '03-screens/01', states: ['default','empty-own','empty-shared','loading','error','offline','search-empty'] },
+    'import':              { label: '#/import 打开与导入', desc: '03-screens/13，F1', states: ['progress','done','err-unsupported','err-encrypted','err-invalid','err-limit','err-noaccess'] },
+    'editor':              { label: '#/editor 编辑器主界面', desc: '03-screens/02、17、19、20', states: [] },
+    'editor/masters':      { label: '#/editor/masters 母版视图', desc: '03-screens/26、27、28', states: [] },
+    'editor/insert':       { label: '#/editor/insert 插入菜单', desc: '03-screens/04、15', states: [] },
+    'editor/text-editing': { label: '#/editor/text-editing 文本编辑态', desc: '03-screens/16', states: [] },
+    'editor/pages':        { label: '#/editor/pages 幻灯片管理', desc: '03-screens/14', states: [] },
+    'editor/comments':     { label: '#/editor/comments 评论', desc: '03-screens/06', states: [] },
+    'editor/history':      { label: '#/editor/history 版本历史', desc: '03-screens/07', states: [] },
+    'editor/plugins':      { label: '#/editor/plugins 插件管理器', desc: '03-screens/09', states: [] },
+    'editor/share':        { label: '#/editor/share 分享与权限', desc: '03-screens/08', states: ['default','loading','error','offline','forbidden'] },
+    'export':              { label: '#/export 导出对话框', desc: '03-screens/22', states: ['form','progress','done','error','unsynced'] },
+    'present':             { label: '#/present 放映模式', desc: '03-screens/11', states: ['default','loading','pagefail','follow','offline'] },
+    'viewer':              { label: '#/viewer 只读查看器', desc: '03-screens/25', states: ['default','loading','error'] },
+    'settings':            { label: '#/settings 设置与快捷键', desc: '03-screens/23、24', states: [] }
+  };
+  function routeKeyFromHash() {
+    var h = location.hash.replace(/^#\/?/, '').split('?')[0];
+    return (h && ROUTES[h]) ? h : (h ? h : 'home');
+  }
+  function groupKeyFor(routeKey) {
+    if (routeKey === 'editor/share') return 'editor-share';
+    if (routeKey === 'editor/masters') return 'editor-masters';
+    if (routeKey === 'editor' || routeKey.indexOf('editor/') === 0) return 'editor-shell';
+    return ROUTES[routeKey] ? routeKey : 'home';
+  }
+  function buildRouteNav() {
+    var nav = document.getElementById('route-nav');
+    var sel = document.getElementById('ctl-route');
+    nav.innerHTML = ''; sel.innerHTML = '';
+    Object.keys(ROUTES).forEach(function (id) {
+      var href = id === 'home' ? '#/' : '#/' + id;
+      var a = document.createElement('a'); a.href = href; a.textContent = ROUTES[id].label; nav.appendChild(a);
+      var opt = document.createElement('option'); opt.value = href; opt.textContent = ROUTES[id].label; sel.appendChild(opt);
+    });
+    var list = document.getElementById('home-route-list');
+    if (list) { list.innerHTML = ''; Object.keys(ROUTES).forEach(function (id) {
+      var href = id === 'home' ? '#/' : '#/' + id;
+      var tr = document.createElement('tr'); tr.style.borderBottom = '1px solid var(--cordex-color-border-subtle)';
+      tr.innerHTML = '<td style="padding:6px 8px;"><a href="' + href + '">' + href + '</a></td><td style="padding:6px 8px;color:var(--cordex-color-text-secondary);">' + ROUTES[id].desc + '</td>';
+      list.appendChild(tr);
+    }); }
+  }
+  function renderRoute() {
+    var routeKey = routeKeyFromHash();
+    if (!ROUTES[routeKey]) routeKey = 'home';
+    var group = groupKeyFor(routeKey);
+    document.querySelectorAll('[data-route-group]').forEach(function (s) { s.hidden = (s.getAttribute('data-route-group') !== group); });
+    document.querySelectorAll('.route-nav a').forEach(function (a) { a.removeAttribute('aria-current'); if (a.getAttribute('href') === (routeKey === 'home' ? '#/' : '#/' + routeKey)) a.setAttribute('aria-current', 'page'); });
+    document.getElementById('ctl-route').value = routeKey === 'home' ? '#/' : '#/' + routeKey;
+    buildStateSwitcher(routeKey);
+    document.title = 'Cordex 幻灯片编辑器 · ' + ROUTES[routeKey].label;
+    if (group === 'editor-shell') { applyEditorSubroute(routeKey === 'editor' ? 'main' : routeKey.slice('editor/'.length)); }
+    var sec = document.querySelector('[data-route-group="' + group + '"]');
+    if (sec) { sec.setAttribute('tabindex', '-1'); sec.focus({ preventScroll: true }); }
+  }
+  function buildStateSwitcher(routeKey) {
+    var sel = document.getElementById('ctl-state');
+    var states = (ROUTES[routeKey] && ROUTES[routeKey].states) || [];
+    sel.innerHTML = '';
+    if (!states.length) { sel.disabled = true; var o = document.createElement('option'); o.textContent = '（该路由无独立状态，见子路由/面板内交互）'; sel.appendChild(o); return; }
+    sel.disabled = false;
+    states.forEach(function (s) { var o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o); });
+    sel.value = states[0];
+    setRouteState(routeKey, states[0]);
+  }
+  function setRouteState(routeKey, stateId) {
+    var group = groupKeyFor(routeKey);
+    var root = document.querySelector('[data-route-group="' + group + '"]');
+    if (!root) return;
+    root.querySelectorAll(':scope > [data-state]').forEach(function (el) { el.hidden = (el.getAttribute('data-state') !== stateId); });
+    var sel = document.getElementById('ctl-state'); if (sel && sel.value !== stateId) sel.value = stateId;
+  }
+  document.getElementById('ctl-route').addEventListener('change', function () { navigate(this.value); });
+  document.getElementById('ctl-state').addEventListener('change', function () { setRouteState(routeKeyFromHash(), this.value); });
+  function navigate(hash) { location.hash = hash; }
+  window.addEventListener('hashchange', renderRoute);
+
+  /* ===================== 编辑器子路由（v2 新增）===================== */
+  function activateRibbonTabByLabel(text) {
+    document.querySelectorAll('.ribbon-tabs [role="tab"]').forEach(function (t) {
+      var on = t.textContent.trim().indexOf(text) === 0; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1;
+    });
+  }
+  function applyEditorSubroute(sub) {
+    var sec = document.querySelector('[data-route-group="editor-shell"]');
+    if (!sec) return;
+    sec.setAttribute('data-subroute', sub);
+    var insertOverlay = document.getElementById('insert-flyout-overlay');
+    var layoutOverlay = document.getElementById('layout-picker-overlay');
+    var miniToolbar = document.getElementById('mini-toolbar');
+    var cursorEl = document.getElementById('text-cursor-demo');
+    if (insertOverlay) insertOverlay.hidden = (sub !== 'insert');
+    if (layoutOverlay) layoutOverlay.hidden = (sub !== 'pages');
+    if (miniToolbar) miniToolbar.hidden = (sub !== 'text-editing');
+    if (cursorEl) cursorEl.hidden = (sub !== 'text-editing');
+    var note = document.getElementById('placeholder-note'); if (note) note.hidden = (sub !== 'text-editing');
+    activateRibbonTabByLabel(sub === 'insert' ? '插入' : (sub === 'pages' ? '视图' : '开始'));
+    if (sub === 'comments' || sub === 'history' || sub === 'plugins') { switchDock(sub); }
+    else { switchDock('props'); }
+  }
+
+  /* ===================== 原型控制条：主题/协作者/槽位/连接/视口/角色/motion（v1 沿用 + v2 新增）===================== */
+  function cycleTheme() {
+    var cur = document.documentElement.getAttribute('data-theme');
+    var next = cur === 'dark' ? 'light' : (cur === 'light' ? null : 'dark');
+    if (next) { document.documentElement.setAttribute('data-theme', next); } else { document.documentElement.removeAttribute('data-theme'); }
+    document.getElementById('theme-btn').textContent = '主题：' + (next ? (next === 'dark' ? '暗色' : '亮色') : '跟随系统');
+  }
+  document.getElementById('theme-btn').addEventListener('click', cycleTheme);
+  document.getElementById('ctl-collab').addEventListener('change', function () { shell.classList.toggle('show-collab', this.checked); });
+  shell.classList.add('show-collab');
+  document.getElementById('ctl-slots').addEventListener('change', function () { shell.classList.toggle('show-slots', this.checked); });
+  document.getElementById('ctl-motion').addEventListener('change', function () { document.documentElement.classList.toggle('simulate-reduced-motion', this.checked); });
+  document.getElementById('ctl-viewport').addEventListener('change', function () {
+    var frame = document.getElementById('viewport-frame');
+    var w = this.value;
+    shell.classList.remove('force-compact', 'force-narrow');
+    if (!w) { frame.style.maxWidth = 'none'; frame.style.margin = '0'; frame.style.border = 'none'; }
+    else {
+      frame.style.maxWidth = w + 'px'; frame.style.margin = '0 auto'; frame.style.border = '1px dashed var(--cordex-color-accent-default)'; frame.style.overflowX = 'auto';
+      if (w === '1024') shell.classList.add('force-compact');
+      if (w === '400') { shell.classList.add('force-compact', 'force-narrow'); }
+    }
+  });
+  document.getElementById('ctl-role').addEventListener('change', function () { applyRolePreset(this.value); });
+  function applyRolePreset(role) {
+    var canEdit = (role === 'owner' || role === 'editor');
+    document.querySelectorAll('.ribbon-btn, .dock-tab').forEach(function () {});
+    if (!canEdit) { document.getElementById('mode-select') && (document.getElementById('mode-select').value = 'review'); setEditorMode('review'); }
+    else { document.getElementById('mode-select') && (document.getElementById('mode-select').value = 'edit'); setEditorMode('edit'); }
+    showToast('已切换角色预设：' + role + (canEdit ? '（可编辑）' : '（只读）'));
+  }
+
+  var bannerTemplates = {
+    offline: ['banner--offline', 'i-offline', '离线 · 更改已保存在本地，将在重新连接后同步', false],
+    reconnecting: ['banner--reconnecting', 'i-sync', '正在恢复连接…', false],
+    syncing: ['banner--syncing', 'i-sync', '正在同步 12 项更改…', false],
+    recovered: ['banner--recovered', 'i-check', '已恢复协同并同步完成', true],
+    readonly: ['banner--readonly', 'i-lock', '你的权限已变更为"可评审"，3 项更改未被保存 · 文档已重新载入服务端版本，撤销历史已清空', false, '导出为本地副本']
+  };
+  function iconSvg(id) { return '<svg class="icon" aria-hidden="true"><use href="#' + id + '"/></svg>'; }
+  document.getElementById('ctl-conn').addEventListener('change', function () { setConn(this.value); });
+  function setConn(state) {
+    var slot = document.getElementById('editor-banner-slot'); if (!slot) return;
+    slot.innerHTML = '';
+    var dot = document.getElementById('conn-dot'); if (!dot) return;
+    if (!state) { dot.innerHTML = '<span class="dot green" aria-hidden="true"></span>已同步'; return; }
+    var dotCls = state === 'offline' ? 'red' : 'amber';
+    var dotText = { offline: '离线', reconnecting: '重连中', syncing: '同步中', recovered: '已同步', readonly: '只读' }[state];
+    dot.innerHTML = '<span class="dot ' + dotCls + '" aria-hidden="true"></span>' + dotText;
+    var t = bannerTemplates[state]; if (!t) return;
+    var div = document.createElement('div'); div.className = 'banner ' + t[0]; div.setAttribute('role','status'); div.setAttribute('aria-live', state === 'readonly' ? 'assertive' : 'polite');
+    div.innerHTML = '<span>' + iconSvg(t[1]) + t[2] + '</span>' +
+      (t[4] ? '<button type="button" class="btn btn-sm" onclick="exportLocalCopy()">' + t[4] + '</button>' :
+      (t[3] ? '<button type="button" class="btn btn-icon btn-sm" aria-label="关闭提示" onclick="this.parentElement.remove()">' + iconSvg('i-close') + '</button>' : ''));
+    slot.appendChild(div);
+  }
+  function exportLocalCopy() { showToast('已导出为本地副本（原型演示，无实际下载）'); setConn(''); document.getElementById('ctl-conn').value = ''; }
+
+  /* ===================== 文档列表交互 ===================== */
+  function activateChip(el) { el.parentElement.querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-selected', c === el ? 'true' : 'false'); }); }
+  function onDocSearch(q) { setRouteState('documents', q ? 'search-empty' : 'default'); }
+
+  /* ===================== 编辑器：撤销/重做/缩放/插入/模式 ===================== */
+  var undoStack = [];
+  function pushUndo(label) { undoStack.push(label); document.getElementById('btn-undo').disabled = false; document.getElementById('btn-undo').setAttribute('aria-label','撤销：' + label + ' (Mod+Z)'); }
+  function doUndo() { if (!undoStack.length) return; var label = undoStack.pop(); showToast('已撤销：' + label); document.getElementById('btn-redo').disabled = false; if (!undoStack.length) document.getElementById('btn-undo').disabled = true; }
+  function doRedo() { showToast('已重做'); document.getElementById('btn-redo').disabled = true; }
+  function insertShape(name) { pushUndo('插入' + name); showToast('已插入' + name); }
+  function toggleBtn(btn) { var on = btn.getAttribute('aria-pressed') !== 'true'; btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  function zoomBy(delta) { var el = document.getElementById('zoom-label'); var v = parseInt(el.textContent) + delta; v = Math.max(10, Math.min(400, v)); el.textContent = v + '%'; }
+  function zoomReset() { document.getElementById('zoom-label').textContent = '100%'; }
+  function selectThumb(el) { document.querySelectorAll('.thumb').forEach(function (t) { t.removeAttribute('aria-current'); }); el.setAttribute('aria-current', 'true'); }
+  function toggleLayoutPicker() { var el = document.getElementById('layout-picker-overlay'); if (el) el.hidden = !el.hidden; }
+  function setEditorMode(mode) {
+    var sec = document.querySelector('[data-route-group="editor-shell"]'); if (sec) sec.setAttribute('data-mode', mode);
+    var ms = document.getElementById('mode-select'); if (ms) ms.value = mode;
+    if (mode === 'present') { navigate('#/present'); if (ms) ms.value = 'edit'; sec && sec.setAttribute('data-mode','edit'); }
+  }
+  function setEditorSubroute(name) { var sec = document.querySelector('[data-route-group="editor-shell"]'); if (sec) sec.setAttribute('data-subroute', name); }
+  function toggleRail() { shell.classList.toggle('rail-open'); shell.classList.remove('dock-open'); }
+  function toggleDock() { shell.classList.toggle('dock-open'); shell.classList.remove('rail-open'); }
+  function toggleNotes(btn) { var open = document.getElementById('notes').classList.toggle('open'); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  function toggleFindReplace(on) { showToast('查找与替换面板（演示，见 03-screens/21）'); }
+
+  /* 页签：role=tab + roving tabindex + 方向键 */
+  function activateTab(tab) {
+    var list = tab.parentElement;
+    list.querySelectorAll('[role="tab"]').forEach(function (t) { var on = t === tab; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1; });
+  }
+  document.addEventListener('keydown', function (e) {
+    var list = e.target.closest && e.target.closest('[role="tablist"]'); if (!list) return;
+    var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+    var i = tabs.indexOf(document.activeElement); if (i < 0) return;
+    var n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : null;
+    if (n === null) return; e.preventDefault();
+    var t = tabs[(n + tabs.length) % tabs.length]; t.focus(); activateTab(t); t.click();
+  });
+  function switchDock(name) {
+    var tab = document.getElementById('tab-' + name); if (tab) activateTab(tab);
+    document.querySelectorAll('.dock-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + name); });
+    if (window.matchMedia('(max-width:1024px)').matches) { shell.classList.add('dock-open'); }
+  }
+
+  /* ===================== 对话框：焦点进入、Tab 循环、Esc 关闭、焦点归还（v1 沿用，v2 通用化）===================== */
+  function focusables(root) { return Array.prototype.slice.call(root.querySelectorAll('button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(function (el) { return el.offsetParent !== null; }); }
+  function openDialog(name, trigger) {
+    lastFocus = trigger || document.activeElement;
+    var bd = document.getElementById('backdrop-' + name); if (!bd) return;
+    bd.classList.add('on'); var f = focusables(bd.querySelector('.dialog')); if (f.length) f[0].focus();
+  }
+  function closeDialog(name) { var bd = document.getElementById('backdrop-' + name); if (!bd || !bd.classList.contains('on')) return; bd.classList.remove('on'); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  function openPalette(trigger) { lastFocus = trigger || document.activeElement; var bd = document.getElementById('palette-backdrop'); if (!bd) return; bd.classList.add('on'); document.getElementById('palette-input').focus(); }
+  function closePalette() { var bd = document.getElementById('palette-backdrop'); if (!bd || !bd.classList.contains('on')) return; bd.classList.remove('on'); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'P' || e.key === 'p')) { e.preventDefault(); openPalette(); }
+    if (e.key === 'Escape') { closePalette(); closeContextMenu(true); document.querySelectorAll('.backdrop.on').forEach(function (bd) { bd.classList.remove('on'); }); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+    if (e.key === 'Tab') {
+      var open = document.querySelector('.backdrop.on .dialog'); if (!open) return;
+      var f = focusables(open); if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  document.addEventListener('click', function (e) {
+    var bd = e.target.closest && e.target.closest('.backdrop');
+    if (bd && e.target === bd) { bd.classList.remove('on'); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  });
+
+  /* ===================== 命令面板过滤 ===================== */
+  function filterPalette(q) {
+    document.querySelectorAll('.palette-item').forEach(function (it) { it.hidden = it.textContent.toLowerCase().indexOf(q.toLowerCase()) === -1; });
+  }
+
+  /* ===================== 右键菜单：按目标类型区分内容（03-screens/05 全变体，G-26）===================== */
+  var CONTEXT_MENUS = {
+    'canvas-empty': [
+      { t: '粘贴', kbd: 'Mod+V', a: "showToast('已粘贴')" },
+      { t: '全选', kbd: 'Mod+A', a: "showToast('已全选当前页对象')" },
+      '-',
+      { t: '网格与参考线 ▸', a: "showToast('网格/参考线/智能参考线开关（演示，见 03-screens/17）')" },
+      { t: '幻灯片属性…', a: "switchDock('props')" }
+    ],
+    'shape': [
+      { t: '剪切', kbd: 'Mod+X', a: "showToast('已剪切')" },
+      { t: '复制', kbd: 'Mod+C', a: "showToast('已复制')" },
+      { t: '粘贴', kbd: 'Mod+V', a: "showToast('已粘贴')" },
+      { t: '删除', kbd: 'Del', a: 'deleteSelected()', danger: true },
+      '-',
+      { t: '置于顶层 ▸', a: "showToast('已置于顶层')" },
+      { t: '组合', kbd: 'Mod+G', a: "pushUndo('组合对象'); showToast('已组合')" },
+      '-',
+      { t: '编辑替代文字…', a: "switchDock('props')" },
+      { t: '添加批注', a: "navigate('#/editor/comments')" },
+      '#plugin#'
+    ],
+    'text-selection': [
+      { t: '剪切', kbd: 'Mod+X', a: "showToast('已剪切')" },
+      { t: '复制', kbd: 'Mod+C', a: "showToast('已复制')" },
+      { t: '粘贴（保留格式）', kbd: 'Mod+V', a: "showToast('已粘贴（保留格式）')" },
+      { t: '粘贴（纯文本）', a: "showToast('已粘贴（纯文本，G-22）')" },
+      '-',
+      { t: '超链接…', kbd: 'Mod+K', a: "showToast('超链接对话框（演示，见 03-screens/16 G-34）')" },
+      { t: '添加批注', a: "navigate('#/editor/comments')" }
+    ],
+    'image': [
+      { t: '剪切', kbd: 'Mod+X', a: "showToast('已剪切')" }, { t: '复制', kbd: 'Mod+C', a: "showToast('已复制')" },
+      { t: '删除', kbd: 'Del', a: 'deleteSelected()', danger: true }, '-',
+      { t: '裁剪', a: "navigate('#/editor'); showToast('进入裁剪模式（演示，见 03-screens/18）')" },
+      { t: '替换图片', a: "showToast('已替换图片')" }, { t: '重置图片', a: "showToast('已重置图片')" }, '-',
+      { t: '编辑替代文字…', a: "switchDock('props')" }, { t: '添加批注', a: "navigate('#/editor/comments')" }
+    ],
+    'group': [ { t: '取消组合', kbd: 'Mod+Shift+G', a: "pushUndo('取消组合'); showToast('已取消组合')" }, { t: '进入组合编辑', a: "showToast('已进入组合编辑（双击等价）')" }, '-', { t: '置于顶层 ▸', a: "showToast('已置于顶层')" }, { t: '添加批注', a: "navigate('#/editor/comments')" } ],
+    'table-cell': [ { t: '剪切', kbd: 'Mod+X', a: "showToast('已剪切')" }, { t: '复制', kbd: 'Mod+C', a: "showToast('已复制')" }, { t: '删除文本', kbd: 'Del', a: "showToast('已删除单元格文本')" }, '-', { t: '插入行列 ▸（M3）', disabled: true }, { t: '合并/拆分（M3）', disabled: true } ],
+    'comment-pin': [ { t: '解决', a: "navigate('#/editor/comments')" }, { t: '复制链接', a: "showToast('已复制评论链接')" }, { t: '删除线程', danger: true, a: "showToast('删除线程需确认（不可撤销，见 03-screens/06 补充）')" } ],
+    'degraded': [ { t: '复制', kbd: 'Mod+C', a: "showToast('已复制')" }, { t: '删除', kbd: 'Del', a: 'deleteSelected()', danger: true }, { t: '查看保真详情', a: "navigate('#/import')" } ],
+    'thumbnail': [
+      { t: '新建幻灯片', kbd: 'Mod+M', a: "toggleLayoutPicker(); navigate('#/editor/pages')" },
+      { t: '复制幻灯片', a: "pushUndo('复制幻灯片'); showToast('已复制幻灯片')" },
+      { t: '删除幻灯片', kbd: 'Del', danger: true, a: "pushUndo('删除幻灯片'); showToast('已删除 1 页', {action:'撤销', onAction:function(){showToast('已撤销删除')}})" },
+      '-', { t: '隐藏幻灯片', a: "showToast('已隐藏幻灯片')" }, { t: '更换版式…', a: "navigate('#/editor/pages')" }
+    ]
+  };
+  function renderContextMenu(kind) {
+    var m = document.getElementById('ctx-menu'); m.innerHTML = '';
+    var items = CONTEXT_MENUS[kind] || CONTEXT_MENUS['canvas-empty'];
+    items.forEach(function (it) {
+      if (it === '-') { var hr = document.createElement('hr'); m.appendChild(hr); return; }
+      if (it === '#plugin#') {
+        var attrib = document.createElement('div'); attrib.className = 'attrib'; attrib.innerHTML = iconSvg('i-puzzle') + '插件 · ACME'; m.appendChild(attrib);
+        var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'item'; pb.setAttribute('role', 'menuitem'); pb.setAttribute('aria-description', '由插件 ACME 提供'); pb.textContent = '插入流程图节点';
+        pb.addEventListener('click', function () { showToast('已插入流程图节点（演示）'); closeContextMenu(true); }); m.appendChild(pb); return;
+      }
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'item' + (it.danger ? ' danger' : ''); b.setAttribute('role', 'menuitem');
+      b.textContent = it.t; if (it.kbd) { var k = document.createElement('kbd'); k.textContent = it.kbd; b.appendChild(k); }
+      if (it.disabled) { b.setAttribute('aria-disabled', 'true'); b.title = '所选对象不支持此操作'; }
+      else if (it.a) { b.addEventListener('click', function () { closeContextMenu(false); (new Function(it.a))(); }); }
+      m.appendChild(b);
+    });
+  }
+  function openContextMenu(e, kind) {
+    e.preventDefault(); lastFocus = document.activeElement;
+    var m = document.getElementById('ctx-menu'); if (!m) return;
+    renderContextMenu(kind || 'canvas-empty');
+    m.style.left = Math.min(e.clientX, window.innerWidth - 240) + 'px';
+    m.style.top = Math.min(e.clientY, window.innerHeight - 320) + 'px';
+    m.classList.add('on'); var first = m.querySelector('[role="menuitem"]'); if (first) first.focus();
+  }
+  function closeContextMenu(returnFocus) { var m = document.getElementById('ctx-menu'); if (!m || !m.classList.contains('on')) return; m.classList.remove('on'); if (returnFocus && lastFocus && lastFocus.focus) lastFocus.focus(); }
+  document.addEventListener('keydown', function (e) {
+    var m = document.getElementById('ctx-menu'); if (!m || !m.classList.contains('on')) return;
+    var items = Array.prototype.slice.call(m.querySelectorAll('[role="menuitem"]'));
+    var i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('#ctx-menu')) closeContextMenu(false); });
+  function deleteSelected() {
+    closeContextMenu(true); var box = document.getElementById('sel-box'); if (box) box.hidden = true; pushUndo('删除对象');
+    showToast('已删除 1 个对象', { action: '撤销', onAction: function () { if (box) box.hidden = false; showToast('已撤销删除'); } });
+  }
+
+  /* ===================== Toast（v1 沿用）===================== */
+  function showToast(msg, opts) {
+    opts = opts || {};
+    var host = document.getElementById('toast-host');
+    var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('data-slot', 'ui.notification');
+    var text = document.createElement('span'); text.textContent = msg; t.appendChild(text);
+    var timer;
+    function dismiss() { clearTimeout(timer); t.classList.add('out'); setTimeout(function () { t.remove(); }, 140); }
+    if (opts.action) { var b = document.createElement('button'); b.type = 'button'; b.textContent = opts.action; b.addEventListener('click', function () { dismiss(); opts.onAction && opts.onAction(); }); t.appendChild(b); }
+    host.appendChild(t); timer = setTimeout(dismiss, opts.action ? 5000 : 3500);
+  }
+
+  /* ===================== 评论面板（03-screens/06，G-50）===================== */
+  function filterComments(chip, tag) {
+    chip.parentElement.querySelectorAll('.chip').forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
+    document.querySelectorAll('#comment-list > li').forEach(function (li) {
+      if (tag === 'all') { li.hidden = li.classList.contains('resolved'); return; }
+      if (tag === 'detached') { li.hidden = !li.classList.contains('detached'); return; }
+      var tags = (li.getAttribute('data-tag') || '').split(' ');
+      li.hidden = tags.indexOf(tag) === -1;
+    });
+  }
+  function resolveThread(btn) { var li = btn.closest('.comment-thread'); li.classList.add('resolved'); li.querySelector('.confirm-card') && li.querySelector('.confirm-card').remove(); showToast('评论已标记为已解决'); }
+  function reopenThread(btn) { var li = btn.closest('.comment-thread'); li.classList.remove('resolved'); showToast('线程已重新打开'); filterComments(document.querySelector('.filter-row .chip[aria-pressed="true"]'), 'all'); }
+  function onComposeInput(ta) {
+    var ml = document.getElementById('mention-list');
+    var v = ta.value; var atPos = v.lastIndexOf('@');
+    ml.hidden = !(atPos !== -1 && (v.length - atPos) <= 8 && !/\s/.test(v.slice(atPos + 1)));
+  }
+  function insertMention(name) { var ta = document.getElementById('compose-input'); ta.value = ta.value.replace(/@[^\s@]*$/, '@' + name + ' '); document.getElementById('mention-list').hidden = true; ta.focus(); }
+  function submitComment() {
+    var ta = document.getElementById('compose-input'); if (!ta.value.trim()) return;
+    showToast('评论已发送，画布图钉与缩略图角标已更新（演示）'); ta.value = ''; document.getElementById('mention-list').hidden = true;
+  }
+
+  /* ===================== 版本历史（03-screens/07）===================== */
+  function previewVersion(btn, name, time) {
+    document.querySelectorAll('.history-item').forEach(function (li) { li.removeAttribute('aria-current'); });
+    btn.closest('.history-item').setAttribute('aria-current', 'true');
+    var body = document.querySelector('#history-preview .shape--body'); if (body) body.textContent = name + ' · ' + time + ' · 只读预览';
+  }
+  function showNameVersionForm() {
+    document.getElementById('history-inline').innerHTML = '<div class="confirm-card" role="group" aria-label="命名当前版本"><label class="sr-only" for="version-name-input">版本名称</label><input id="version-name-input" placeholder="版本名称（≤30字）" style="width:100%;height:var(--cordex-control-height-sm);border:1px solid var(--cordex-color-border-control);border-radius:var(--cordex-radius-sm);background:var(--cordex-color-bg-inset);padding:0 8px;"><div class="row"><button type="button" class="btn btn-sm" onclick="document.getElementById(\'history-inline\').innerHTML=\'\'">取消</button><button type="button" class="btn btn-sm btn-primary" onclick="showToast(\'已命名为『\'+(document.getElementById(\'version-name-input\').value||\'未命名\')+\'』\'); document.getElementById(\'history-inline\').innerHTML=\'\'">确认</button></div></div>';
+  }
+  function showRestoreConfirm() {
+    document.getElementById('history-inline').innerHTML =
+      '<div class="confirm-card" role="group" aria-label="确认恢复">恢复到该版本？将创建一个新版本，当前更改不会丢失。若有协作者正在编辑，他们的画布将自动更新为恢复后的内容。' +
+      '<div class="row"><button type="button" class="btn btn-sm" onclick="document.getElementById(\'history-inline\').innerHTML=\'\'">取消</button>' +
+      '<button type="button" class="btn btn-sm btn-primary" onclick="pushUndo(\'恢复版本\'); showToast(\'已恢复为新版本（演示）\'); document.getElementById(\'history-inline\').innerHTML=\'\'">确认恢复</button></div></div>';
+  }
+
+  /* ===================== 插件管理器（03-screens/09，G-27）===================== */
+  function toggleSwitch(btn, name) {
+    if (btn.getAttribute('aria-disabled') === 'true') return;
+    var turningOn = btn.getAttribute('aria-checked') !== 'true';
+    if (turningOn && name) {
+      document.getElementById('plugin-enable-confirm').innerHTML =
+        '<div class="confirm-card" role="group" aria-label="启用确认">启用『' + name + '』？该插件将新增：2 个 Ribbon 按钮、1 个属性面板分区、0 个可访问你数据的后台请求。来自第三方，同源可信，非运行时沙箱隔离。' +
+        '<div class="row"><button type="button" class="btn btn-sm" onclick="document.getElementById(\'plugin-enable-confirm\').innerHTML=\'\'">取消</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById(\'plugin-enable-confirm\').innerHTML=\'\'; ' + "document.querySelector(\"[aria-label='启用" + name + "']\").setAttribute('aria-checked','true')" + '; showToast(\'已启用『' + name + '』\')">确认启用</button></div></div>';
+      return;
+    }
+    btn.setAttribute('aria-checked', turningOn ? 'true' : 'false');
+    if (!turningOn) showToast('已禁用' + (name ? '『' + name + '』' : ''));
+  }
+  function togglePluginDetail(btn) { var row = btn.closest('.plugin-row') || btn.closest('div'); var d = row.querySelector('.detail'); if (d) d.hidden = !d.hidden; }
+  function retryPlugin(btn) {
+    var original = btn.textContent; btn.textContent = '重试中…'; btn.disabled = true;
+    setTimeout(function () { btn.textContent = original; btn.disabled = false; showToast('重试失败：依赖服务仍不可用（演示）'); }, 900);
+  }
+
+  /* ===================== 分享 / 导出 / 设置（新增路由）===================== */
+  function onInvite() {
+    var v = document.getElementById('invite-input').value.trim();
+    var err = document.getElementById('invite-err');
+    if (!v || v.indexOf('@') === -1) { err.hidden = false; return; }
+    err.hidden = true; showToast('已邀请 ' + v + '（默认权限：可评审）'); document.getElementById('invite-input').value = '';
+  }
+  function runExport() {
+    setRouteState('export', 'progress');
+    setTimeout(function () { setRouteState('export', 'done'); showToast('已生成导出文件（原型演示，无实际下载）'); }, 1200);
+  }
+  function switchSettingsTab(name) {
+    document.querySelectorAll('#shell [id^="stab-"]').forEach(function (t) { var on = t.id === 'stab-' + name; t.setAttribute('aria-selected', on ? 'true' : 'false'); t.tabIndex = on ? 0 : -1; });
+    document.querySelectorAll('#shell [id^="spanel-"]').forEach(function (p) { p.hidden = p.id !== 'spanel-' + name; });
+  }
+  function setDensity(mode) {
+    document.documentElement.style.setProperty('--cordex-control-height-sm', mode === 'compact' ? '24px' : '28px');
+    document.documentElement.style.setProperty('--cordex-control-height-md', mode === 'compact' ? '28px' : '32px');
+    document.documentElement.style.setProperty('--cordex-control-height-lg', mode === 'compact' ? '32px' : '40px');
+    document.documentElement.style.setProperty('--cordex-ribbon-height', mode === 'compact' ? '64px' : '88px');
+    showToast('密度已切换为：' + (mode === 'compact' ? '紧凑' : '舒适'));
+  }
+  function filterShortcuts(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#spanel-shortcuts .history-item').forEach(function (row) { row.hidden = q && row.textContent.toLowerCase().indexOf(q) === -1; });
+    document.querySelectorAll('#spanel-shortcuts .sc-group').forEach(function (g) {
+      var visible = Array.prototype.some.call(g.querySelectorAll('.history-item'), function (r) { return !r.hidden; });
+      g.hidden = !visible;
+    });
+  }
+
+  /* ===================== 软冲突演示（05-collaboration-ux.md §5，F-P09，coordinator Q1：P0 高频 3-4 种可点击）===================== */
+  function simulateConflict(scene) {
+    document.getElementById('conflict-b-hint').hidden = true;
+    document.getElementById('conflict-d-ghost').hidden = true;
+    if (location.hash.indexOf('editor') !== 1 && location.hash !== '#/editor') { navigate('#/editor'); }
+    if (scene === 'B') {
+      document.getElementById('conflict-b-hint').hidden = false;
+      showToast('场景 B：同一文本框同一位置并发编辑 → 预防性内联提示（不打断输入，两段插入相邻并存）');
+    } else if (scene === 'C') {
+      var title = document.getElementById('canvas-title-shape');
+      title.style.transition = 'transform ' + 'var(--cordex-motion-base)';
+      title.style.transform = 'translate(40px, 20px)';
+      showToast('X 移动了该形状', { action: '撤销', onAction: function () { title.style.transform = 'none'; showToast('已撤销（仅撤销本地那一步）'); } });
+    } else if (scene === 'D') {
+      document.getElementById('conflict-d-ghost').hidden = false;
+      showToast('你编辑的元素已被 X 删除', { action: '恢复元素', onAction: function () { document.getElementById('conflict-d-ghost').hidden = true; showToast('已恢复元素（含我的编辑，作为新对象）'); } });
+    }
+    document.getElementById('ctl-conflict').value = '';
+  }
+
+  /* ===================== #/editor/masters 母版视图（03-screens/26、27）===================== */
+  function toggleMasterNode(btn) {
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!expanded));
+    var kids = btn.nextElementSibling;
+    if (kids && kids.classList.contains('master-tree-children')) kids.hidden = expanded;
+  }
+  function selectMasterNode(btn, name) {
+    document.querySelectorAll('.master-tree-row').forEach(function (r) { r.removeAttribute('aria-current'); });
+    btn.setAttribute('aria-current', 'true');
+    var scope = document.getElementById('masters-scope-label'); if (scope) scope.textContent = '正在编辑：版式 · ' + name + ' · 继承自「公司主题」';
+    var status = document.getElementById('masters-status'); if (status) status.textContent = '编辑版式 · ' + name;
+    var insp = document.getElementById('masters-inspector'); if (insp) insp.innerHTML = '<p style="color:var(--cordex-color-text-tertiary);font-size:var(--cordex-font-size-xs)">点击画布上的占位符查看其属性。</p>';
+  }
+  function selectPlaceholder(label) {
+    var insp = document.getElementById('masters-inspector');
+    if (insp) insp.innerHTML =
+      '<p style="font-weight:600;margin:0 0 4px;">占位符类型</p><p style="color:var(--cordex-color-text-secondary);margin:0 0 12px;font-size:var(--cordex-font-size-xs)">' + label + '</p>' +
+      '<p style="font-weight:600;margin:0 0 4px;">位置与大小</p><div style="display:flex;gap:8px;margin-bottom:12px;"><label style="flex:1;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);">X<input type="text" value="48" style="width:100%;height:24px;border:1px solid var(--cordex-color-border-control);border-radius:4px;background:var(--cordex-color-bg-inset);color:var(--cordex-color-text-primary);"></label><label style="flex:1;font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);">Y<input type="text" value="32" style="width:100%;height:24px;border:1px solid var(--cordex-color-border-control);border-radius:4px;background:var(--cordex-color-bg-inset);color:var(--cordex-color-text-primary);"></label></div>' +
+      '<span class="badge" style="background:var(--cordex-color-accent-subtle);color:var(--cordex-color-accent-hover);display:inline-block;margin-bottom:8px;">已在此版式覆盖</span><br>' +
+      '<button type="button" class="btn btn-sm" onclick="showToast(\'已重置为母版值\')"><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg>重置为母版值</button>';
+    showToast('已选中：' + label + '（占位符编辑态）');
+  }
+
+  /* ===================== 启动 ===================== */
+  buildRouteNav();
+  renderRoute();
+  setConn('');
+</script>

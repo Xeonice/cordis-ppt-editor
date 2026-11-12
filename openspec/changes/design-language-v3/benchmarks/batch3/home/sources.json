@@ -1,0 +1,103 @@
+[
+  {
+    "file": "01-figma-file-browser-recents.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/14381406380183-Guide-to-the-file-browser",
+    "article": "Guide to the file browser",
+    "section": "Starter or Professional plan › Your account overview",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/35178509977751",
+    "alt": "File browser view displaying sidebar with account details, search, recents, community options; recents panel shows files.",
+    "product": "Figma 桌面应用 · 文件浏览器",
+    "theme": "light",
+    "shows": "文件浏览器首页（官方黑底标注 Account / Search / Recents / Community / Notifications，绿色衬底，约 2 倍放大）：左栏顶行是账户（头像 +「Nate Billings ▾」）与右侧通知铃；搜索框「Search files, teams, people」；Recents（当前项，浅蓝底）· Community；分隔线下是团队「Habitz team ▾」· Drafts · Browse。主区标题「Recents」，「Recently viewed / Shared with you」分段，列表行是缩略图 + 文件名。对应 home.m2-default（左栏：账户 · 搜索 · 最近为当前项；与文档列表共用壳）",
+    "pairedState": [
+      "home.m2-default",
+      "documents.recent"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "02-figma-slides-file-card.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/24170630629911-Explore-Figma-Slides",
+    "article": "Explore Figma Slides",
+    "section": "What is Figma Slides?",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28418274719255",
+    "alt": "",
+    "product": "Figma Slides（文件浏览器里的演示文稿卡片）",
+    "theme": "light",
+    "shows": "单张文件卡片放大：16:9 真实封面（黑底「Radicle」）、左上橙色 Slides 类型角标、右上星标按钮；下方标题「Radicle Pitch Deck」与第二行「Figma 图标 · Drafts · Edited 2 days ago」（位置 · 相对时间，不写编辑者）。对应 home.m2-default 与 documents.mine 的卡片（P5 第二行口径；星标相当于我们的「固定」）",
+    "pairedState": [
+      "home.m2-default",
+      "documents.mine"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "03-figma-help-menu.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360041057214-Explore-Figma-s-help-and-support-resources",
+    "article": "Explore Figma's help and support resources",
+    "section": "Instant answers with Fig for all plans",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/37046580594455",
+    "alt": "From the Help and Resources settings, a cursor hovers over _Contact Support_ in order to get product help..png",
+    "product": "Figma（各页面右下角「?」帮助与资源菜单）",
+    "theme": "light",
+    "shows": "页面右下角圆形「?」按钮向上打开的深色菜单：Help Center · Support Forum · YouTube videos · Release notes · Legal summary ┊ Submit feedback · Ask the community · Contact support（高亮）· Share file with Figma Support · Report abuse ┊ Keyboard shortcuts ⌃⇧? ┊ Change keyboard layout… · Change language…；外链项没有外链图标。对应 home.help-menu（P10：帮助条目分组，「键盘快捷键」带快捷键、单独一组且始终在）",
+    "pairedState": [
+      "home.help-menu"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1920,
+    "pixelSize": "1920x1920"
+  },
+  {
+    "file": "04-figma-file-browser-offline-unsynced.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360040328553-What-can-I-do-offline-in-Figma",
+    "article": "What can I do offline in Figma?",
+    "section": "Sync offline changes",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/31680228730647",
+    "alt": "Unsynced offline changes notification in Figma with options to \"Open to sync\" or choose \"Later.\"",
+    "product": "Figma 文件浏览器（UI3）",
+    "theme": "light",
+    "shows": "回到文件浏览器时底部的蓝色通知条「Changes you made to Untitled while offline haven't synced yet.」，左侧同步图标，右侧上下两个文字按钮「Open to sync」「Later」；文件卡片上带未同步图标。放大裁切图（约 3–4 倍，边缘发虚）。对应 home.offline 的对照：Figma 文件浏览器里与离线有关的唯一官方截图，用底部通知条、只说未同步的文件；我们推荐主区顶栏之下的横幅（P14、AS-01）。与第 2 批 offline-conflict/05 是同一张图（逐字节相同）",
+    "pairedState": [
+      "home.offline"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "05-google-docs-home-template-gallery-link.png",
+    "sourcePage": "https://support.google.com/a/users/answer/9282978?hl=en",
+    "article": "Tips for great presentations - Google Workspace Learning Center",
+    "section": "Design your presentation › Get a jump start with templates",
+    "imageUrl": "https://lh3.googleusercontent.com/j8s7ZGW-Ha4_7KKblxasavmqRfJJGXwLReolLasNEsCi8q1o6RNkzFv0_ip0czgmutc=w895",
+    "downloadUrl": "https://lh4.googleusercontent.com/j8s7ZGW-Ha4_7KKblxasavmqRfJJGXwLReolLasNEsCi8q1o6RNkzFv0_ip0czgmutc=s0",
+    "downloadNote": "页面上的图片地址在 lh3.googleusercontent.com，本机网络对 lh3 / lh5 分片重置 TLS 连接；改从同一 Google 图片 CDN 的 lh4 分片按同一图片 id 取 =s0（原始上传尺寸），lh4 与 lh6 下载结果逐字节一致",
+    "alt": "",
+    "product": "Google Docs 首页（Docs / Slides / Sheets 首页同一版式；Google 在 Slides 演示技巧页用这段动画）",
+    "theme": "light",
+    "shows": "Docs 首页「Start a new document」模板带（旧版界面，深灰底，动画镜头放大）右端：「TEMPLATE GALLERY ↕」展开开关与 ⋮；模板卡是纸面缩略图 + 名称 + 主题 / 来源小字（Brochure · Modern Writer、Book report · by Reading Rainbow、Project proposal · Tropic）；模板带下方是最近文件的「Owned by anyone ▾」与列表 / 排序 / 文件夹按钮。对应 home.m3-more-templates（模板行右端进模板库的入口）",
+    "pairedState": [
+      "home.m3-more-templates"
+    ],
+    "sourceFormat": "gif",
+    "frame": 140,
+    "frameCount": 506,
+    "frameNote": "原图为 506 帧 GIF（=s0 原尺寸 900×506；页面按 =w895 显示），取第 140 帧，经 Playwright（Chrome ImageDecoder）解码后存 PNG，像素未改动；第 165 帧起是模板库整页（见 templates/05）",
+    "retrieved": "2026-10-16",
+    "width": 900,
+    "height": 506,
+    "pixelSize": "900x506"
+  },
+  {
+    "missing": "home.loading / home.first-run / home.error（开始页加载中、首次使用最近为空、最近加载失败）：Figma、Google、Keynote 帮助文档都没有这几态的截图。Figma 帮助配图里卡片上的灰色长条是隐去文件名的示意画法，不是加载骨架，不能当 P8（加载画法）的标杆"
+  }
+]

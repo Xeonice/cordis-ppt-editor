@@ -1,0 +1,447 @@
+{
+  "$comment": "check-terms.py 的术语表：只收已裁定更名的内部标识符与文档标题（rulings §4.20 TX-02；§4.21 起含架构三件套的标题更名）。每条：deprecated 旧名（字符串或数组，* 表示任意标识符字符）、canonical 正名、source 出处、allowIn 可选（docs 相对路径，这些文件整篇放行）。MinIO、pending_invitations、runCollabConformance、render/frame 有合法用法，不收。§4.25 起也收已删除的贡献点与界面结构旧称（canonical 写去向，allowIn 只放后续批次的界面文档、历史文档与确有必要的说明性提及）。新的更名裁决回写时须在此登记。",
+  "terms": [
+    {
+      "deprecated": [
+        "FakeClock",
+        "FakeServerClock"
+      ],
+      "canonical": "FixedClock",
+      "source": "70-testing/11 §2",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "FixedMetricsMeasurer",
+      "canonical": "FixedWidthMeasurer",
+      "source": "70-testing/11 §2",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "*.test-d.ts",
+      "canonical": "*.type-test.ts",
+      "source": "ADR-0048；决策 T-NAMING",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "render/error",
+      "canonical": "render/element-failed",
+      "source": "rulings §5",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "collab/permission-changed",
+      "canonical": "permission/changed",
+      "source": "rulings §5",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "ui.statusbar",
+      "canonical": "已删除（rulings §5 定的正名 ui.statusBar 已随 §4.25 DS-6 删除），状态走 ui.notification 与横幅",
+      "source": "rulings §5；§4.25 DS-6",
+      "allowIn": [
+        "30-architecture/README.md"
+      ]
+    },
+    {
+      "deprecated": "@oce/",
+      "canonical": "@cordexjs/",
+      "source": "rulings §4.15 Q1（npm scope 更名）",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "oce-",
+      "canonical": "cordex-",
+      "source": "rulings §4.15 Q1（内部前缀 oce 改为 cordex：data-cordex-*、--cordex-*、cordex-manifest.json 等）",
+      "allowIn": [
+        "30-architecture/README.md",
+        "70-testing/01-strategy-and-layers.md",
+        "70-testing/README.md"
+      ]
+    },
+    {
+      "deprecated": "X-Cordex-Signature",
+      "canonical": "webhook-signature",
+      "source": "rulings §4.21 q-webhook-sig（Standard Webhooks：webhook-id、webhook-timestamp、webhook-signature: v1,<base64>，node:crypto 实现）"
+    },
+    {
+      "deprecated": "X-Cordex-Delivery",
+      "canonical": "webhook-id",
+      "source": "rulings §4.21 q-webhook-sig；60-backend/07 §5.2（webhook-id 的值即投递行 id）"
+    },
+    {
+      "deprecated": "前端总览与运行时全景",
+      "canonical": "前端架构",
+      "source": "rulings §4.21 q-arch-reorg（R-d-02：50-frontend/01 标题「01 前端架构」）"
+    },
+    {
+      "deprecated": "服务总览、进程角色与 cordis 宿主",
+      "canonical": "后端架构",
+      "source": "rulings §4.21 q-arch-reorg（R-d-02：60-backend/01 标题「01 后端架构」）"
+    },
+    {
+      "deprecated": "前端设计线：定位、边界与导航",
+      "canonical": "前端架构与设计：定位、边界与导航",
+      "source": "rulings §4.21 q-arch-reorg（R-d-09：50-frontend/README 标题）"
+    },
+    {
+      "deprecated": "后端设计线：定位、边界与导航",
+      "canonical": "后端架构与设计：定位、边界与导航",
+      "source": "rulings §4.21 q-arch-reorg（R-d-09：60-backend/README 标题）"
+    },
+    {
+      "deprecated": "CollabGateway",
+      "canonical": "CollabUpgradeHandler",
+      "source": "rulings §4.21 q-ws-gateway；ADR-0039 决策 1；40-modules/09 §4.1（collab 适配层：upgrade 处理与帧预过滤）"
+    },
+    {
+      "deprecated": "collab.gateway.ts",
+      "canonical": "collab-upgrade.handler.ts",
+      "source": "rulings §4.21 q-ws-gateway；40-modules/09 §4.1、§5.1"
+    },
+    {
+      "deprecated": [
+        "collabServer.attach",
+        "CollabServer.attach"
+      ],
+      "canonical": "handleConnection",
+      "source": "rulings §4.21；ADR-0039；60-backend/05 §2.1（collabServer.handleConnection）"
+    },
+    {
+      "deprecated": "collab/interface/ticket-verifier.ts",
+      "canonical": "collab/infrastructure/ticket-verifier.ts",
+      "source": "rulings §4.21；40-modules/09 §4.1、§5.1（经 AuthorizationSource.verifyTicket 由 onAuthenticate 调用）"
+    },
+    {
+      "deprecated": "collab:doc:{docId}",
+      "canonical": "hp:{docId}:{epoch}",
+      "source": "rulings §4.21 H:q-hp-fanout；ADR-0035 决策 2 修订；ADR-0039 决策 7；60-backend/14 §3.1（M3 extension-redis 频道）"
+    },
+    {
+      "deprecated": "CONTROL.auth",
+      "canonical": "Auth 帧",
+      "source": "ADR-0039 决策 3；H-d-03（首帧改为 Hocuspocus Auth 帧，token 为 JSON：ticket、epoch?、traceparent? 等，40-modules/02 ws/handshake.ts）"
+    },
+    {
+      "deprecated": "CONTROL.ack",
+      "canonical": "Stateless ack{tier, seq}",
+      "source": "ADR-0039 决策 3；rulings §4.21 H:q-hp-persist-ack"
+    },
+    {
+      "deprecated": "awareness-relay",
+      "canonical": "awareness.extension",
+      "source": "rulings §4.21；ADR-0024 修订 2026-09-26；40-modules/09 §4.4（awareness-relay.ts → awareness.extension.ts）"
+    },
+    {
+      "deprecated": "AwarenessRelay",
+      "canonical": "AwarenessExtension",
+      "source": "rulings §4.21；40-modules/09 §5.4"
+    },
+    {
+      "deprecated": "frame-router.ts",
+      "canonical": "gate-persist.extension.ts",
+      "source": "rulings §4.21；ADR-0039 表 39-3；40-modules/09 §4.4（帧分派由 Hocuspocus 原生承担）"
+    },
+    {
+      "deprecated": "fanout-dedup.test.ts",
+      "canonical": "cross-instance-convergence.test.ts",
+      "source": "rulings §4.21 H:Q2；40-modules/09 §4.4、§5.4"
+    },
+    {
+      "deprecated": "heartbeat-and-close-codes.test",
+      "canonical": "close-policy.test",
+      "source": "rulings §4.21 H:q-hp-provider（删应用层心跳）；40-modules/05 §4.3、§5；50-frontend/07 §15 V3；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "frame-codec.ts",
+      "canonical": "control-channel.ts",
+      "source": "rulings §4.21 H:q-hp-provider（帧层交 provider，只剩 Stateless 载荷 ↔ CONTROL）；40-modules/05 §4.2、§5"
+    },
+    {
+      "deprecated": "fanout/two-instance-dedup",
+      "canonical": "fanout/two-instance-sv-converge",
+      "source": "rulings §4.21 H:q-hp-fanout；70-testing/02 §5.2"
+    },
+    {
+      "deprecated": "session/auth-first-then-sync",
+      "canonical": "provider/auth-then-step1-queued",
+      "source": "rulings §4.21 q-ws-gateway（认证前排队、不应用）；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "transport/binary-envelope-passthrough",
+      "canonical": "transport/frame-sent-metering",
+      "source": "rulings §4.21（删自研 1 字节信封）；70-testing/02 §6.1"
+    },
+    {
+      "deprecated": "rs/offline-5mib-chunked",
+      "canonical": "rs/offline-5mib-single-step2",
+      "source": "rulings §4.21 H:q-hp-step2-cap；70-testing/05 §9"
+    },
+    {
+      "deprecated": "footerLike",
+      "canonical": "PlaceholderFamily 'footer'",
+      "source": "rulings §4.21 R-d-73；30-architecture/04 §12.2（PlaceholderFamily = 'text' | 'content' | 'footer' | 'other'）"
+    },
+    {
+      "deprecated": "columnWidths",
+      "canonical": "Table.columns / rows / cells",
+      "source": "rulings §4.21 q-table-depth；30-architecture/04 §3.8；ADR-0018 决策 6（ColId、RowId、CellKey = RowId:ColId 记录表）",
+      "allowIn": [
+        "30-architecture/06-collaboration.md",
+        "40-modules/03-slide-domain-model.md",
+        "50-frontend/24-elements-tables-and-charts.md"
+      ]
+    },
+    {
+      "deprecated": "limits.xml.maxTextNodeBytes",
+      "canonical": "limits.xml.maxTextLength",
+      "source": "ADR-0019 决策 6（rulings §4.21 X:q-xml-lexer）：计量改为源文 UTF-16 码元数",
+      "allowIn": [
+        "60-backend/17-deployment-and-config.md"
+      ]
+    },
+    {
+      "deprecated": "CORDEX_LIMITS_XML_MAX_TEXT_NODE_BYTES",
+      "canonical": "CORDEX_LIMITS_XML_MAX_TEXT_LENGTH",
+      "source": "ADR-0019 决策 6；60-backend/17 §5.8",
+      "allowIn": [
+        "60-backend/17-deployment-and-config.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "deobfuscateFont",
+        "readFsType"
+      ],
+      "canonical": "decodeEmbeddedFont",
+      "source": "40-modules/04 §2.3（rulings §4.21 q-license-tiers：.fntdata 改为 EOT + MTX 口径）"
+    },
+    {
+      "deprecated": "xml-parser-roundtrip.property.test.ts",
+      "canonical": "xml/src/__tests__/roundtrip.property.test.ts",
+      "source": "40-modules/04 §4.3、§5.3（从 ooxml-core 迁到 packages/xml/src/__tests__/，rulings §4.21 X:q-xml-package）"
+    },
+    {
+      "deprecated": "运行时插件单元",
+      "canonical": "运行时单元",
+      "source": "rulings §4.23 补充裁决（2026-10-01，插件仅计 cordis 插件）"
+    },
+    {
+      "deprecated": "cordis 可插拔单元",
+      "canonical": "cordis 插件",
+      "source": "rulings §4.23 补充裁决（2026-10-01，插件仅计 cordis 插件）"
+    },
+    {
+      "deprecated": "ui.ribbon",
+      "canonical": "ui.toolbar / ui.inspectorSection",
+      "source": "rulings §4.25 DS-5（删除 ui.ribbon：创建类入口走 ui.toolbar，插件按钮进工具条「更多」；格式类走新增 ui.inspectorSection，按选中对象类型挂检查器分区；其余命令走 ui.command）",
+      "allowIn": [
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "ui.statusBar",
+      "canonical": "已删除，状态走 ui.notification 与横幅",
+      "source": "rulings §4.25 DS-6（删除 ui.statusBar：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅；连同 DS-5 贡献点总数 27 → 26）",
+      "allowIn": [
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "Ribbon",
+        "ribbon"
+      ],
+      "canonical": "工具条 / 检查器",
+      "source": "rulings §4.25 DS-1（去掉 ribbon：底部工具条只管创建，右侧检查器随选中对象切换，其余命令进主菜单、右键、⌘K 与快捷键）",
+      "allowIn": [
+        "20-design/03-screens/03-properties-panel.md",
+        "20-design/03-screens/23-settings-panel.md",
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/03-screens/25-viewer-preset-shell.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "80-process/README.md"
+      ]
+    },
+    {
+      "deprecated": "状态栏",
+      "canonical": "已取消（文件名旁同步状态、头像组在线人数、横幅）",
+      "source": "rulings §4.25 DS-6（取消底部状态栏：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
+      "allowIn": [
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "状态胶囊",
+      "canonical": "同步状态行（文件名旁）",
+      "source": "rulings §4.25 DS-6（取消底部状态栏与状态胶囊：同步状态在文件名旁、在线人数并入头像组、插件异常按需横幅）",
+      "allowIn": [
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "_tools/README.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "RibbonHost",
+        "RibbonTrailing",
+        "RibbonItem",
+        "RibbonTree",
+        "buildRibbonTree",
+        "RibbonTabBar",
+        "RibbonGroup",
+        "RibbonButton",
+        "MasterRibbon",
+        "ReadonlyRibbonNotice",
+        "useRibbon",
+        "ribbonSpec",
+        "ribbonTab",
+        "ui.ribbonTab",
+        "ui.toggleRibbonTab",
+        "ui.ribbonButton"
+      ],
+      "canonical": "CreationToolbar / ToolbarItem / ToolbarModel / toolbarSpec / ReadonlyToolbarNotice（工具条）与 InspectorSectionItem（检查器分区）",
+      "source": "rulings §4.25 DS-1、DS-5（去掉 ribbon：Ribbon 宿主、条目、视图模型、规格与页签状态全部作废，去向见 40-modules/10 §2.6、§12「2026-10-04 回写」）",
+      "allowIn": [
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": [
+        "StatusBarModel",
+        "buildStatusBar",
+        "useStatusBar",
+        "StatusBarItem"
+      ],
+      "canonical": "已删除，状态走 SyncStatus 同步状态行、ui.notification 与横幅",
+      "source": "rulings §4.25 DS-6（删除 ui.statusBar 与底部状态栏的视图模型、条目与 hook）"
+    },
+    {
+      "deprecated": [
+        "appBar.more",
+        "appBar.badges"
+      ],
+      "canonical": "mainMenu.<menu> / docMenu（ui.contextMenu 槽位）",
+      "source": "rulings §4.25 DS-1（取消应用栏：「⋯」菜单条目分投主菜单与文档菜单）；DS-21（第 1 批定稿应用栏徽标的去向：母版徽标并入母版视图横幅，查看者徽标并入浏览条「只读浏览中」，见设计 03-02 §2.4、§6.2）",
+      "allowIn": [
+        "20-design/03-screens/03-properties-panel.md",
+        "20-design/03-screens/23-settings-panel.md",
+        "20-design/03-screens/24-keyboard-shortcuts-panel.md",
+        "20-design/03-screens/25-viewer-preset-shell.md",
+        "20-design/03-screens/32-admin-plugin-management.md",
+        "20-design/08-prototype-audit-and-v2-plan.md",
+        "20-design/10-modernization-audit.md",
+        "20-design/11-modern-glass-redesign-proposal.md",
+        "20-design/12-editor-routes-review.md",
+        "40-modules/14-cross-module-review.md",
+        "80-process/README.md"
+      ]
+    },
+    {
+      "deprecated": "范围条",
+      "canonical": "已取消（窗格选中即编辑对象，对象名并入母版视图横幅）",
+      "source": "rulings §4.25 DS-146（取消画布上方的范围条「版式 | 母版」：窗格选中母版即编辑母版、选中版式即编辑版式，继承项经检查器顶行「在母版中编辑」改到母版上）；DS-145（正在编辑的对象与继承来源写在母版视图横幅的对象段）"
+    },
+    {
+      "deprecated": [
+        "「切换到母版」",
+        "切换到「母版」"
+      ],
+      "canonical": "在母版中编辑",
+      "source": "rulings §4.25 DS-146（继承项检查器顶行的动作改为「在母版中编辑」：选中母版行与母版上同类型的占位符）；只收带括号的两种写法，裸串是「切换到母版视图」的前缀，不收"
+    },
+    {
+      "deprecated": "master-range-switch",
+      "canonical": "master-node-switch",
+      "source": "rulings §4.25 DS-146（编辑范围单选撤销，范围切换的性能指标删去）；70-testing/09 §3、§14（原场景作废，窗格里切换节点改测 master-node-switch）"
+    },
+    {
+      "deprecated": [
+        "ScopeBar",
+        "slide.panel.scopeBar",
+        "slide.editScope",
+        "doc.editScope",
+        "EditScope",
+        "editScope"
+      ],
+      "canonical": "已删除（DS-146：窗格选中即编辑对象）",
+      "source": "rulings §4.25 DS-146（删去范围条的件 ScopeBar 与贡献 slide.panel.scopeBar、编辑范围的前缀键 slide.editScope 与 doc.editScope、类型 EditScope 与字段 editScope；编辑对象由窗格选中给出，见 40-modules/10 §1.2「编辑对象」）"
+    },
+    {
+      "deprecated": "InheritedPlaceholderOutline",
+      "canonical": "已删除（TB-188：占位符标注改由 slide-render 的 master-annotations 覆盖层画）",
+      "source": "rulings §4.25 DS-148、TB-188；40-modules/10 §4.4、§5.4"
+    },
+    {
+      "deprecated": "--v3-scope-on",
+      "canonical": "已停用（DS-146）",
+      "source": "rulings §4.25 DS-146（编辑范围单选撤销，范围单选选中态的 token --v3-scope-on 停用）"
+    },
+    {
+      "deprecated": "render.overlay('master-inheritance')",
+      "canonical": "render.overlay('master-annotations')",
+      "source": "rulings §4.25 TB-188（覆盖 id 由 master-inheritance 改为 master-annotations，覆盖全部占位符；帮助主题 topic:'master-inheritance' 不是这个 id、不改，所以裸串不收）；40-modules/07 §1.1、§2.6",
+      "allowIn": [
+        "40-modules/14-cross-module-review.md"
+      ]
+    },
+    {
+      "deprecated": "OverlayRenderer('master-inheritance')",
+      "canonical": "OverlayRenderer('master-annotations')",
+      "source": "rulings §4.25 TB-188；40-modules/07 §1.2、§2.6"
+    },
+    {
+      "deprecated": "master-inheritance.overlay.ts",
+      "canonical": "master-annotations.overlay.ts",
+      "source": "rulings §4.25 TB-188；40-modules/07 §4.1、§5.1"
+    },
+    {
+      "deprecated": "masterInheritanceOverlay",
+      "canonical": "masterAnnotationsOverlay",
+      "source": "rulings §4.25 TB-188；40-modules/07 §5.1"
+    }
+  ]
+}

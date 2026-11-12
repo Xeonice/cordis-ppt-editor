@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- 已退役（2026-09-24，rulings §4.17 D6）：本文件为历史静态稿，已退役，以 playground（docs/20-design/playground，已发布 artifact）为准；其中的组织内/外、席位上限等内容已作废，请勿作为设计或实现依据。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设计稿目录 · Cordex Slides</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+  body{padding:0 0 var(--cordex-space-10)}
+  .hub-head{padding:var(--cordex-space-8) var(--cordex-space-4) var(--cordex-space-6);text-align:center;border-bottom:1px solid var(--cordex-color-border-subtle);background:var(--cordex-color-bg-surface)}
+  .hub-head h1{font-size:var(--cordex-font-size-3xl);margin:0 0 8px}
+  .hub-head p{color:var(--cordex-color-text-secondary);max-width:640px;margin:0 auto;font-size:var(--cordex-font-size-sm)}
+  .hub-toolbar{display:flex;justify-content:center;gap:var(--cordex-space-2);margin-top:var(--cordex-space-4)}
+  .hub-section{max-width:1080px;margin:var(--cordex-space-8) auto 0;padding:0 var(--cordex-space-4)}
+  .hub-section h2{font-size:var(--cordex-font-size-lg);display:flex;align-items:center;gap:8px;margin-bottom:var(--cordex-space-1)}
+  .hub-section .hint{color:var(--cordex-color-text-tertiary);font-size:var(--cordex-font-size-xs);margin:0 0 var(--cordex-space-3)}
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--cordex-space-4)}
+  .m-card{border:1px solid var(--cordex-color-border-subtle);border-radius:var(--cordex-radius-xl);overflow:hidden;background:var(--cordex-color-bg-surface);text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:border-color var(--cordex-motion-duration-fast) var(--cordex-motion-ease-standard),box-shadow var(--cordex-motion-duration-fast) var(--cordex-motion-ease-standard)}
+  .m-card:hover{border-color:var(--cordex-color-accent-default);box-shadow:var(--cordex-shadow-md)}
+  .m-thumb{aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;position:relative}
+  .m-thumb .icon{width:28px;height:28px;color:var(--cordex-color-text-inverse);opacity:.9}
+  .m-body{padding:var(--cordex-space-3)}
+  .m-num{font-size:var(--cordex-font-size-2xs);color:var(--cordex-color-text-tertiary);font-variant-numeric:tabular-nums}
+  .m-title{font-weight:600;margin:2px 0 4px}
+  .m-desc{font-size:var(--cordex-font-size-xs);color:var(--cordex-color-text-secondary);line-height:1.5}
+  .priority{background:linear-gradient(135deg,var(--cordex-color-accent-default),var(--cordex-color-accent-hover))}
+  .core{background:linear-gradient(135deg,#8A93A2,#667085)}
+</style>
+</head>
+<body>
+<div role="note" data-retired-banner style="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:8px 16px;background:#B42318;color:#fff;font:600 13px/1.4 system-ui,-apple-system,sans-serif;text-align:center;box-shadow:0 -2px 8px rgba(0,0,0,.2)">已退役 · 本页为历史静态稿，以 playground（docs/20-design/playground）为准；其中的组织内/外、席位上限等内容已作废（2026-09-24）</div>
+<svg class="sr-only" aria-hidden="true" style="position:absolute">
+<symbol id="i-master" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="7.4" rx="1"/><line x1="4.7" y1="4.8" x2="9" y2="4.8"/><line x1="4.7" y1="7" x2="11.3" y2="7"/><path d="M3.3 12.2h9.4M4.3 14.2h7.4"/></symbol>
+<symbol id="i-layout" viewBox="0 0 16 16"><rect x="1.7" y="2.7" width="12.6" height="10.6" rx="1.2"/><line x1="1.7" y1="6" x2="14.3" y2="6"/><line x1="6.2" y1="6" x2="6.2" y2="13.3"/></symbol>
+<symbol id="i-palette" viewBox="0 0 16 16"><path d="M8 1.7a6.3 6.3 0 1 0 0 12.6c.9 0 1.4-.5 1.4-1.2 0-.4-.2-.7-.2-1.1 0-.6.5-1 1.1-1H11a3.3 3.3 0 0 0 3.3-3.3c0-3.3-2.9-6-6.3-6Z"/></symbol>
+<symbol id="i-file" viewBox="0 0 16 16"><path d="M4 1.7h5.5L12.3 4.5V13.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2.7a1 1 0 0 1 1-1Z"/></symbol>
+<symbol id="i-textbox" viewBox="0 0 16 16"><rect x="1.7" y="3.3" width="12.6" height="9.4" rx="1.2" stroke-dasharray="2.5 2"/></symbol>
+<symbol id="i-comment" viewBox="0 0 16 16"><path d="M2 3.5h12a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H6.5L3.2 13.8a.4.4 0 0 1-.7-.3V11H2a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/></symbol>
+<symbol id="i-share" viewBox="0 0 16 16"><circle cx="12.3" cy="3.7" r="1.7"/><circle cx="3.7" cy="8" r="1.7"/><circle cx="12.3" cy="12.3" r="1.7"/></symbol>
+<symbol id="i-export" viewBox="0 0 16 16"><path d="M8 10.3V2"/><polyline points="5,4.6 8,1.6 11,4.6"/></symbol>
+<symbol id="i-image" viewBox="0 0 16 16"><rect x="1.7" y="2.7" width="12.6" height="10.6" rx="1.3"/><circle cx="5.3" cy="6" r="1.2"/></symbol>
+<symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8"/></symbol>
+<symbol id="i-offline" viewBox="0 0 16 16"><line x1="2" y1="2" x2="14" y2="14"/><path d="M4.6 6.4a6.7 6.7 0 0 1 6.9-1.5"/></symbol>
+<symbol id="i-toggle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke-dasharray="1.4 1.4"/><path d="M8 2a6 6 0 0 1 0 12Z" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<header class="hub-head">
+  <h1>Cordex Slides 高保真设计稿</h1>
+  <p>基于 ui-ux-pro-max skill 设计系统基线（见 <code>04-design-system.md</code>「与 ui-ux-pro-max 设计系统基线的比对」）与 <code>04-design-system.md</code> 已裁决的 token 生成。共用 <a href="tokens.css">tokens.css</a> 与 <a href="shell.css">shell.css</a>，每份稿件自带 Phosphor 风格图标 sprite，零其余外部资源，支持亮/暗两套主题（右上角切换）。</p>
+  <div class="hub-toolbar">
+    <button type="button" class="pbtn" style="min-height:var(--cordex-target-min);border-radius:var(--cordex-radius-sm);border:1px solid var(--cordex-color-border-control);background:var(--cordex-color-bg-surface);padding:0 10px;display:inline-flex;align-items:center;gap:4px" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')"><svg class="icon" aria-hidden="true"><use href="#i-toggle"/></svg>切换主题</button>
+  </div>
+</header>
+
+<section class="hub-section">
+  <h2><svg class="icon lg" aria-hidden="true" style="color:var(--cordex-color-accent-default)"><use href="#i-master"/></svg>母版体系（本轮核心，M2/M3 P0）</h2>
+  <p class="hint">用户反馈左侧栏与编辑器均未考虑幻灯片母版；以下四稿按"母版优先"顺序交付，定义母版视图、版式选择器与设计/主题页签。</p>
+  <div class="card-grid">
+    <a class="m-card" href="02-editor-main.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></div><div class="m-body"><div class="m-num">01 / 13</div><div class="m-title">编辑器主界面</div><div class="m-desc">普通视图：缩略图栏（含"普通/母版"入口）、ribbon、画布选中态、检查器坞、状态栏、备注条。</div></div></a>
+    <a class="m-card" href="26-master-view.html"><div class="m-thumb priority"><svg class="icon" aria-hidden="true"><use href="#i-master"/></svg></div><div class="m-body"><div class="m-num">02 / 13 · 核心新增</div><div class="m-title">母版视图</div><div class="m-desc">母版树（母版=父节点/版式=子节点，含引用页数）、版式+母版继承叠加画布、母版 ribbon 页签、占位符属性检查器坞。</div></div></a>
+    <a class="m-card" href="27-layout-picker-and-reset.html"><div class="m-thumb priority"><svg class="icon" aria-hidden="true"><use href="#i-layout"/></svg></div><div class="m-body"><div class="m-num">03 / 13 · 核心新增</div><div class="m-title">版式选择器与重置</div><div class="m-desc">按母版分组的版式画廊（多母版场景）+ 重置页/占位符确认流程与不匹配提示。</div></div></a>
+    <a class="m-card" href="28-design-tab-and-themes.html"><div class="m-thumb priority"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg></div><div class="m-body"><div class="m-num">04 / 13 · 核心新增</div><div class="m-title">设计页签与主题</div><div class="m-desc">主题库、配色变体、12 槽位主题色编辑与标题/正文字体编辑，含实时预览画布。</div></div></a>
+  </div>
+</section>
+
+<section class="hub-section">
+  <h2>文档与协作</h2>
+  <p class="hint">应用壳、评论、分享与导出——协同与外部沟通相关的界面。</p>
+  <div class="card-grid">
+    <a class="m-card" href="01-document-list.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></div><div class="m-body"><div class="m-num">05 / 13</div><div class="m-title">文档列表</div><div class="m-desc">应用壳：筛选、卡片网格、空状态与搜索无结果。</div></div></a>
+    <a class="m-card" href="08-comments.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-comment"/></svg></div><div class="m-body"><div class="m-num">06 / 13</div><div class="m-title">评论面板</div><div class="m-desc">线程列表、已脱离锚点、@ 提及撰写框，画布锚点联动。</div></div></a>
+    <a class="m-card" href="10-share.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-share"/></svg></div><div class="m-body"><div class="m-num">07 / 13</div><div class="m-title">分享与权限</div><div class="m-desc">邀请、成员角色、链接分享，含权限不足只读态。</div></div></a>
+    <a class="m-card" href="11-export.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-export"/></svg></div><div class="m-body"><div class="m-num">08 / 13</div><div class="m-title">导出对话框</div><div class="m-desc">格式/范围选择、生成中/完成/未同步更改三态。</div></div></a>
+  </div>
+</section>
+
+<section class="hub-section">
+  <h2>编辑与内容</h2>
+  <p class="hint">插入、文本格式化——编辑器基本功的高保真呈现。</p>
+  <div class="card-grid">
+    <a class="m-card" href="06-insert-flyout.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg></div><div class="m-body"><div class="m-num">09 / 13</div><div class="m-title">插入页签与形状库</div><div class="m-desc">插入 ribbon 分组 + 分类形状库 flyout + 表格网格选择器。</div></div></a>
+    <a class="m-card" href="07-text-editing.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-textbox"/></svg></div><div class="m-body"><div class="m-num">10 / 13</div><div class="m-title">文本编辑</div><div class="m-desc">正在编辑态、完整字体/段落分组、颜色选择器、超链接对话框。</div></div></a>
+  </div>
+</section>
+
+<section class="hub-section">
+  <h2>系统与边界态</h2>
+  <p class="hint">查看器壳、设置与离线/降级状态——覆盖率与稳健性相关的界面。</p>
+  <div class="card-grid">
+    <a class="m-card" href="13-viewer.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg></div><div class="m-body"><div class="m-num">11 / 13</div><div class="m-title">只读查看器壳</div><div class="m-desc">preset-slide-viewer 极简工具条、保真摘要卡片、窄屏收敛态。</div></div></a>
+    <a class="m-card" href="14-settings.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg></div><div class="m-body"><div class="m-num">12 / 13</div><div class="m-title">设置抽屉</div><div class="m-desc">外观/语言/单位/编辑/通知/关于，含集成方锁定态示例。</div></div></a>
+    <a class="m-card" href="15-offline-degraded.html"><div class="m-thumb core"><svg class="icon" aria-hidden="true"><use href="#i-offline"/></svg></div><div class="m-body"><div class="m-num">13 / 13</div><div class="m-title">离线横幅与降级占位</div><div class="m-desc">六态会话横幅 + 打开导入的三层降级占位与错误码文案。</div></div></a>
+  </div>
+</section>
+
+<section class="hub-section">
+  <p class="hint" style="text-align:center;margin-top:var(--cordex-space-8)">设计规格详见 <code>../03-screens/*.md</code>（每份 mockup 对应一份或多份界面文档，含状态矩阵与「应用的 UX 规则」）；skill 调用记录与采纳情况见 <code>../04-design-system.md</code> 与 <code>../README.md</code> §8。</p>
+</section>
+</body>
+</html>

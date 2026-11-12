@@ -1,0 +1,61 @@
+[
+  {
+    "file": "01-figma-slides-view-only-toolbar.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/24170630629911-Explore-Figma-Slides",
+    "article": "Explore Figma Slides",
+    "section": "How to check your permissions",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28418243131031",
+    "alt": "",
+    "product": "Figma Slides（只能查看时的编辑器）",
+    "theme": "light",
+    "shows": "只有查看权限时的底部浮动工具条（放大）：选择（橙色按下）· 抓手 · 评论，右侧橙色实底按钮「Ask to edit」；上方是幻灯片下缘与备注区把手。帮助正文：看到 Ask to edit 就是 can view，只能看、放映与评论。对应 viewer.default 的对照（Figma 只读时仍在编辑器里、只收掉编辑工具；我们的查看器壳是贴边顶部条 48）",
+    "pairedState": [
+      "viewer.default"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1080,
+    "pixelSize": "1920x1080"
+  },
+  {
+    "file": "02-figma-file-embed.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/360039827134-Embed-files-and-prototypes",
+    "article": "Embed files and prototypes",
+    "section": "（文首）",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/26000118509591",
+    "alt": "Interactive Figma embed showing a waving hand icon with example prototype and visibility settings in the panel.",
+    "product": "Figma（嵌入的文件，Figma Design / Slides / FigJam 共用）",
+    "theme": "light",
+    "shows": "嵌入的只读文件视图（白色外框，灰色衬底）：左上页面下拉「Hello and welcome ▾」已展开（深色列表三页）；顶部中间蓝色「</>」；右上全屏按钮；画布中的紫色画框；右下纵向「+ / –」缩放；底栏是 Figma 标志 ·「Interactive Figma embeds · Hello and welcome」，右侧锁形图标（悬停提示「Visible to people invited to this file」）与「Edited 11 minutes ago」。对应 viewer.embedded-box（嵌入形态 C 的查看器）与 viewer.zoom-menu；Interact with embeds 一文有同一画面带 1–7 编号标注的版本",
+    "pairedState": [
+      "viewer.embedded-box",
+      "viewer.zoom-menu",
+      "embed.view-compact"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 1440,
+    "pixelSize": "1920x1440"
+  },
+  {
+    "file": "03-figma-mobile-slides-deck.png",
+    "sourcePage": "https://help.figma.com/hc/en-us/articles/1500007537281-Guide-to-the-Figma-mobile-app",
+    "article": "Guide to the Figma mobile app",
+    "section": "View Figma Slides decks",
+    "imageUrl": "https://help.figma.com/hc/article_attachments/28418850532247",
+    "alt": "Mobile view of a Figma Slides deck example, with slide thumbnails at the bottom and a slide titled \"Syllabus\" displayed.",
+    "product": "Figma 移动 App（iPhone）查看 Figma Slides",
+    "theme": "light",
+    "shows": "手机上看演示文稿（珊瑚衬底的手机框）：顶栏 × ·「Design 101」· ⋯；当前页全宽居中；底部横向缩略图条（1 选中浅蓝底，2、3、4 带页码）。帮助正文：横屏全屏看、⋯ 里可显示 / 隐藏评论标记、管理访问、看评论列表。对应 viewer.narrow（P19 推荐：当前页全宽、缩略图在底部、⋯ 收纳其余操作）",
+    "pairedState": [
+      "viewer.narrow"
+    ],
+    "retrieved": "2026-10-16",
+    "width": 1920,
+    "height": 2560,
+    "pixelSize": "1920x2560"
+  },
+  {
+    "missing": "Google Slides「发布到网络」后的只读查看器与嵌入（Docs 编辑器帮助 Publish to web, answer/183965）只有文字与图标；Figma Slides 的观众视图无截图；viewer.loading、viewer.failed、viewer.summary（ⓘ 保真摘要）、viewer.search、viewer.notes 三家都没有对应截图"
+  }
+]
